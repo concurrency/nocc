@@ -1,0 +1,15 @@
+## Process this file with automake to produce Makefile.in
+
+@SET_MAKE@
+
+noinst_LIBRARIES = libbackend.a
+
+AUTOMAKE_OPTIONS=foreign
+
+INCLUDES=-I@srcdir@/../include
+
+libbackend_a_SOURCES=krocetc.c
+
+
+CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@
+

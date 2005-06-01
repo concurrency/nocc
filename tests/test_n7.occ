@@ -1,0 +1,10 @@
+
+PROC test.n7 (INT v)
+  INT x:
+  BYTE z:
+  SEQ
+    x := 42
+    v := x
+    SKIP
+:
+

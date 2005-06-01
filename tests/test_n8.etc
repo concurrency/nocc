@@ -1,0 +1,44 @@
+;
+;	tests/test_n8.etc
+;	compiled from tests/test_n8.occ
+;
+
+.setlabel	1
+.byte	0x61, 0x00, 0x00, 0x00
+.setlabel	2
+.byte	0x0a, 0x00, 0x00, 0x00
+.setlabel	3
+.byte	0x78, 0x00, 0x00, 0x00
+; PROC thing = 24,8,0,0,8
+.setws	24, 8
+.setvs	0
+.setms	0
+.setnamedlabel	"O_thing"
+	ajw	0
+.loadlabaddr	1
+	ldl	4
+	ldc	1
+	out
+.loadlabaddr	2
+	ldl	4
+	ldc	1
+	out
+	ajw	0
+	ret
+; PROC test.n8 = 56,32,0,0,12
+.setws	56, 12
+.setvs	0
+.setms	0
+.setnamedlabel	"O_test_n8"
+	ajw	-20
+.loadlabaddr	3
+	ldl	24
+	ldc	1
+	out
+	call	O_thing, 0
+	ajw	20
+	ret
+
+;
+;	end of compilation
+;

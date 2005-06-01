@@ -1,0 +1,24 @@
+;
+;	tests/test_n7.etc
+;	compiled from tests/test_n7.occ
+;
+
+.setlabel	1
+.byte	0x2a, 0x00, 0x00, 0x00
+; PROC test.n7 = 12,12,0,0,4
+.setws	12, 4
+.setvs	0
+.setms	0
+.setnamedlabel	"O_test_n7"
+	ajw	-8
+	ldc	42
+	stl	0
+	ldl	0
+	ldl	8
+	stnl	0
+	ajw	8
+	ret
+
+;
+;	end of compilation
+;

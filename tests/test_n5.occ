@@ -1,0 +1,11 @@
+
+-- test_n5.occ
+
+PROC test.n5 (INT x, y)
+  INT v:
+  CHAN INT c:
+  SEQ
+    v := x
+    x := 42
+:
+

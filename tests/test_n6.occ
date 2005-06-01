@@ -1,0 +1,13 @@
+
+-- test_n6.occ -- new compiler test 6
+
+PROC test.n6 (CHAN BYTE screen, error)
+  BYTE ch:
+  INT y:
+  SEQ
+    screen ! 'a'
+    screen ! '*n'
+    ch := 61
+:
+
+

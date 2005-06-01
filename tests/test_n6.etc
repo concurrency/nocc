@@ -1,0 +1,33 @@
+;
+;	tests/test_n6.etc
+;	compiled from tests/test_n6.occ
+;
+
+.setlabel	1
+.byte	0x61, 0x00, 0x00, 0x00
+.setlabel	2
+.byte	0x0a, 0x00, 0x00, 0x00
+.setlabel	3
+.byte	0x3d, 0x00, 0x00, 0x00
+; PROC test.n6 = 36,20,0,0,12
+.setws	36, 12
+.setvs	0
+.setms	0
+.setnamedlabel	"O_test_n6"
+	ajw	-8
+.loadlabaddr	1
+	ldl	12
+	ldc	1
+	out
+.loadlabaddr	2
+	ldl	12
+	ldc	1
+	out
+	ldc	61
+	stl	0
+	ajw	8
+	ret
+
+;
+;	end of compilation
+;

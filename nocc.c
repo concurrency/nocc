@@ -1,0 +1,937 @@
+/*
+ *	nocc.c -- new occam-pi compiler (harness)
+ *	Copyright (C) 2004 Fred Barnes <frmb@kent.ac.uk>
+ *
+ *	This program is free software; you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation; either version 2 of the License, or
+ *	(at your option) any later version.
+ *
+ *	This program is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *	You should have received a copy of the GNU General Public License
+ *	along with this program; if not, write to the Free Software
+ *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <errno.h>
+#ifdef HAVE_PWD_H
+#include <pwd.h>
+#endif
+
+#include "nocc.h"
+#include "support.h"
+#include "opts.h"
+#include "keywords.h"
+#include "symbols.h"
+#include "lexer.h"
+#include "parser.h"
+#include "dfa.h"
+#include "prescope.h"
+#include "scope.h"
+#include "typecheck.h"
+#include "tnode.h"
+#include "names.h"
+#include "treeops.h"
+#include "aliascheck.h"
+#include "usagecheck.h"
+#include "defcheck.h"
+#include "fetrans.h"
+#include "betrans.h"
+#include "extn.h"
+#include "xml.h"
+#include "map.h"
+#include "allocate.h"
+#include "target.h"
+#include "codegen.h"
+
+
+/*{{{  global variables*/
+char *progname = NULL;
+compopts_t compopts = {
+	verbose: 0,
+	notmainmodule: 0,
+	dmemdump: 0,
+	dumpspecs: 0,
+	dumptree: 0,
+	dumpgrammar: 0,
+	dumpdfas: 0,
+	dumpnames: 0,
+	dumptargets: 0,
+	dumpvarmaps: 0,
+	debugparser: 0,
+	stoppoint: 0,
+	doaliascheck: 1,
+	dousagecheck: 1,
+	dodefcheck: 1,
+	specsfile: NULL,
+	outfile: NULL,
+	DA_CONSTINITIALISER(epath),
+	DA_CONSTINITIALISER(ipath),
+	DA_CONSTINITIALISER(lpath),
+	maintainer: "ofa-bugs@kent.ac.uk",
+	target_str: NULL,
+	target_cpu: NULL,
+	target_os: NULL,
+	target_vendor: NULL
+};
+
+/*}}}*/
+
+
+/*{{{  global report routines*/
+/*{{{  void nocc_internal (char *fmt, ...)*/
+/*
+ *	called to report a fatal internal error (compiler-wide)
+ */
+void nocc_internal (char *fmt, ...)
+{
+	va_list ap;
+
+	va_start (ap, fmt);
+	fprintf (stderr, "%s: internal error: ", progname);
+	vfprintf (stderr, fmt, ap);
+	fprintf (stderr, "\n");
+	/* do a banner for these */
+	fprintf (stderr, "\n");
+	fprintf (stderr, "*******************************************************\n");
+	fprintf (stderr, "  this is probably a compiler-bug;  please report to:  \n");
+	fprintf (stderr, "      %s\n", compopts.maintainer);
+	fprintf (stderr, "  with a copy of the code that caused the error.       \n");
+	fprintf (stderr, "*******************************************************\n");
+	fprintf (stderr, "\n");
+	fflush (stderr);
+	va_end (ap);
+	exit (EXIT_FAILURE);
+	return;
+}
+/*}}}*/
+/*{{{  void nocc_fatal (char *fmt, ...)*/
+/*
+ *	called to report a fatal error (compiler-wide)
+ */
+void nocc_fatal (char *fmt, ...)
+{
+	va_list ap;
+
+	va_start (ap, fmt);
+	fprintf (stderr, "%s: fatal error: ", progname);
+	vfprintf (stderr, fmt, ap);
+	fprintf (stderr, "\n");
+	fflush (stderr);
+	va_end (ap);
+	exit (EXIT_FAILURE);
+	return;
+}
+/*}}}*/
+/*{{{  void nocc_error (char *fmt, ...)*/
+/*
+ *	called to report an error (compiler-wide)
+ */
+void nocc_error (char *fmt, ...)
+{
+	va_list ap;
+
+	va_start (ap, fmt);
+	fprintf (stderr, "%s: error: ", progname);
+	vfprintf (stderr, fmt, ap);
+	fprintf (stderr, "\n");
+	fflush (stderr);
+	va_end (ap);
+	return;
+}
+/*}}}*/
+/*{{{  void nocc_warning (char *fmt, ...)*/
+/*
+ *	called to report a warning (compiler-wide)
+ */
+void nocc_warning (char *fmt, ...)
+{
+	va_list ap;
+
+	va_start (ap, fmt);
+	fprintf (stderr, "%s: warning: ", progname);
+	vfprintf (stderr, fmt, ap);
+	fprintf (stderr, "\n");
+	fflush (stderr);
+	va_end (ap);
+	return;
+}
+/*}}}*/
+/*{{{  void nocc_message (char *fmt, ...)*/
+/*
+ *	called to report a message (compiler-wide)
+ */
+void nocc_message (char *fmt, ...)
+{
+	va_list ap;
+
+	va_start (ap, fmt);
+	fprintf (stderr, "%s: ", progname);
+	vfprintf (stderr, fmt, ap);
+	fprintf (stderr, "\n");
+	fflush (stderr);
+	va_end (ap);
+	return;
+}
+/*}}}*/
+/*{{{  void nocc_outerrmsg (char *string)*/
+/*
+ *	called to output errors/warnings/etc. for other compiler parts
+ */
+void nocc_outerrmsg (char *string)
+{
+	fprintf (stderr, "%s\n", string);
+	return;
+}
+/*}}}*/
+/*}}}*/
+/*{{{  specification file handling*/
+STATICDYNARRAY (xmlkey_t *, specfilekeys);
+STATICDYNARRAY (char *, specfiledata);
+
+/*{{{  static void specfile_setcomptarget (char *target)*/
+/*
+ *	sets the compiler target
+ */
+static void specfile_setcomptarget (char *target)
+{
+	char *ch, *dh;
+	int i;
+	char **srefs[] = {&compopts.target_str, &compopts.target_cpu, &compopts.target_vendor, &compopts.target_os, NULL};
+
+	for (i=0; srefs[i]; i++) {
+		if (*(srefs[i])) {
+			sfree (*(srefs[i]));
+			*(srefs[i]) = NULL;
+		}
+	}
+	compopts.target_str = target;
+#if 0
+fprintf (stderr, "specfile_setcomptarget(): setting compiler target to [%s]\n", compopts.target_str);
+#endif
+
+	/* break up into bits */
+	ch = compopts.target_str;
+	for (dh = ch; (*dh != '-') && (*dh != '\0'); dh++);
+	if (*dh == '\0') {
+		nocc_warning ("badly formed target \"%s\" in specs file, ignoring", compopts.target_str);
+		return;
+	}
+	compopts.target_cpu = string_ndup (ch, (int)(dh - ch));
+	for (ch = ++dh; (*dh != '-') && (*dh != '\0'); dh++);
+	if (*dh == '\0') {
+		nocc_warning ("badly formed target \"%s\" in specs file, ignoring", compopts.target_str);
+		return;
+	}
+	compopts.target_vendor = string_ndup (ch, (int)(dh - ch));
+	dh++;
+	if (*dh == '\0') {
+		nocc_warning ("badly formed target \"%s\" in specs file, ignoring", compopts.target_str);
+		return;
+	}
+	compopts.target_os = string_dup (dh);
+
+#if 0
+fprintf (stderr, "specfile_setcomptarget(): full target is [%s] [%s] [%s]\n", compopts.target_cpu, compopts.target_vendor, compopts.target_os);
+#endif
+
+	return;
+}
+/*}}}*/
+/*{{{  static void specfile_setmaintainer (char *data)*/
+/*
+ *	sets the compiler maintainer
+ */
+static void specfile_setmaintainer (char *data)
+{
+	compopts.maintainer = data;
+	return;
+}
+/*}}}*/
+
+/*{{{  static void specfile_init (xmlhandler_t *xh)*/
+/*
+ *	init callback
+ */
+static void specfile_init (xmlhandler_t *xh)
+{
+	dynarray_init (specfilekeys);
+	dynarray_init (specfiledata);
+	return;
+}
+/*}}}*/
+/*{{{  static void specfile_final (xmlhandler_t *xh)*/
+/*
+ *	finalise callback
+ */
+static void specfile_final (xmlhandler_t *xh)
+{
+	dynarray_trash (specfilekeys);
+	dynarray_trash (specfiledata);
+	return;
+}
+/*}}}*/
+/*{{{  static void specfile_elem_start (xmlhandler_t *xh, void *data, xmlkey_t *key, xmlkey_t **attrkeys, const char **attrvals)*/
+/*
+ *	element start callback
+ */
+static void specfile_elem_start (xmlhandler_t *xh, void *data, xmlkey_t *key, xmlkey_t **attrkeys, const char **attrvals)
+{
+	dynarray_add (specfilekeys, key);
+	dynarray_add (specfiledata, NULL);
+	return;
+}
+/*}}}*/
+/*{{{  static void specfile_elem_end (xmlhandler_t *xh, void *data, xmlkey_t *key)*/
+/*
+ *	element end callback
+ */
+static void specfile_elem_end (xmlhandler_t *xh, void *data, xmlkey_t *key)
+{
+	char *edata;
+
+	dynarray_delitem (specfilekeys, DA_CUR(specfilekeys) - 1);
+	edata = DA_NTHITEM (specfiledata, DA_CUR (specfiledata) - 1);
+	if (edata) {
+		/* some data to process */
+		switch (key->type) {
+		case XMLKEY_TARGET:				/* setting compiler target */
+			specfile_setcomptarget (edata);
+			break;
+		case XMLKEY_EPATH:				/* adding an extension path to the compiler */
+			dynarray_add (compopts.epath, edata);
+			break;
+		case XMLKEY_IPATH:				/* adding an include path to the compiler */
+			dynarray_add (compopts.ipath, edata);
+			break;
+		case XMLKEY_LPATH:				/* adding a library path to the compiler */
+			dynarray_add (compopts.lpath, edata);
+			break;
+		case XMLKEY_MAINTAINER:				/* setting compiler maintainer (email-address) */
+			specfile_setmaintainer (edata);
+			break;
+		default:
+			nocc_warning ("unknown setting %s in specs file ignored", key->name);
+			sfree (edata);
+			break;
+		}
+	}
+	dynarray_delitem (specfiledata, DA_CUR(specfiledata) - 1);
+	return;
+}
+/*}}}*/
+/*{{{  static void specfile_data (xmlhandler_t *xh, void *data, const char *text, int len)*/
+/*
+ *	character data callback
+ */
+static void specfile_data (xmlhandler_t *xh, void *data, const char *text, int len)
+{
+	if (!DA_CUR (specfiledata)) {
+		nocc_warning ("top-level data in specs file ignored");
+		return;
+	}
+
+	if (DA_NTHITEM (specfiledata, DA_CUR (specfiledata) - 1)) {
+		/* adding to existing data */
+		char *orig = DA_NTHITEM (specfiledata, DA_CUR (specfiledata) - 1);
+		int olen = strlen (orig);
+		char *dcopy = (char *)smalloc (olen + len + 1);
+
+		memcpy (dcopy, orig, olen);
+		memcpy (dcopy + olen, text, len);
+		dcopy[len + olen] = '\0';
+		DA_SETNTHITEM (specfiledata, DA_CUR (specfiledata) - 1, dcopy);
+		sfree (orig);
+	} else {
+		/* fresh data */
+		DA_SETNTHITEM (specfiledata, DA_CUR (specfiledata) - 1, string_ndup ((char *)text, len));
+	}
+	return;
+}
+/*}}}*/
+
+
+/*}}}*/
+
+
+/*{{{  int main (int argc, char **argv)*/
+/*
+ *	start here
+ */
+int main (int argc, char **argv)
+{
+	char **walk;
+	int i;
+	int errored;
+	char **spare_opts;
+	int nspare;
+	char **srcfiles = NULL;
+	int nsrcfiles = 0;
+	target_t *target;
+	
+	/*{{{  basic initialisation*/
+	for (progname=*argv + (strlen (*argv) - 1); (progname > *argv) && (progname[-1] != '/'); progname--);
+	dmem_init ();
+#ifdef TARGET_CPU
+	compopts.target_cpu = string_dup (TARGET_CPU);
+#else
+	compopts.target_cpu = string_dup ("unknown");
+#endif
+#ifdef TARGET_OS
+	compopts.target_os = string_dup (TARGET_OS);
+#else
+	compopts.target_os = string_dup ("unknown");
+#endif
+#ifdef TARGET_VENDOR
+	compopts.target_vendor = string_dup (TARGET_VENDOR);
+#else
+	compopts.target_vendor = string_dup ("unknown");
+#endif
+	compopts.target_str = (char *)smalloc (strlen (compopts.target_cpu) + strlen (compopts.target_os) + strlen (compopts.target_vendor) + 4);
+	sprintf (compopts.target_str, "%s-%s-%s", compopts.target_cpu, compopts.target_os, compopts.target_vendor);
+
+	/*}}}*/
+	/*{{{  general initialisation*/
+#ifdef DEBUG
+	nocc_message ("DEBUG: compiler initialisation");
+#endif
+	opts_init ();
+	keywords_init ();
+	xml_init ();
+	xmlkeys_init ();
+
+	/*}}}*/
+	/*{{{  process command-line arguments*/
+	errored = 0;
+	spare_opts = (char **)smalloc (argc * sizeof (char *));
+	nspare = 0;
+
+	for (walk = argv + 1, i = argc - 1; *walk && i; walk++, i--) {
+		cmd_option_t *opt = NULL;
+
+		switch (**walk) {
+		case '-':
+			if ((*walk)[1] == '-') {
+				opt = opts_getlongopt (*walk + 2);
+				if (opt) {
+					if (opts_process (opt, &walk, &i) < 0) {
+						errored++;
+					}
+				} else {
+					/* make spare for now */
+					spare_opts[nspare] = *walk;
+					nspare++;
+				}
+			} else {
+				char *ch;
+
+				for (ch = *walk + 1; *ch != '\0'; ch++) {
+					opt = opts_getshortopt (*ch);
+					if (opt) {
+						if (opts_process (opt, &walk, &i) < 0) {
+							errored++;
+						}
+					} else {
+						/* make spare for now */
+						spare_opts[nspare] = string_dup ("-X");
+						spare_opts[nspare][1] = *ch;
+						nspare++;
+					}
+				}
+			}
+			break;
+		default:
+			/* it's a source filename */
+			if (!srcfiles) {
+				srcfiles = (char **)smalloc (argc * sizeof (char *));
+			}
+			srcfiles[nsrcfiles++] = *walk;
+			break;
+		}
+	}
+	if (errored) {
+		nocc_fatal ("error processing command-line options");
+		exit (EXIT_FAILURE);
+	}
+	if (!nsrcfiles) {
+		nocc_fatal ("no input files!");
+		exit (EXIT_FAILURE);
+	} else {
+		if (compopts.verbose) {
+			nocc_message ("source files are:");
+			for (i=0; i<nsrcfiles; i++) {
+				nocc_message ("\t%s", srcfiles[i]);
+			}
+		}
+	}
+
+	/*}}}*/
+	/*{{{  find and read a specs file*/
+	if (!compopts.specsfile) {
+		static const char *builtinspecs[] = {
+			"/etc/nocc.specs.xml",
+			"/usr/local/etc/nocc.specs.xml",
+			"./nocc.specs.xml",
+			NULL
+		};
+		int i;
+
+		/* try and find a specs file */
+#ifdef DEBUG
+		nocc_message ("DEBUG: no specs file given, searching..");
+#endif
+		for (i=0; builtinspecs[i]; i++) {
+			if (!access (builtinspecs[i], R_OK)) {
+				compopts.specsfile = string_dup ((char *)(builtinspecs[i]));
+				break;
+			}
+		}
+		if (!builtinspecs[i]) {
+#ifdef HAVE_GETPWUID
+			struct passwd *pwent = getpwuid (getuid ());
+			char fname[FILENAME_MAX];
+
+			if (pwent) {
+				sprintf (fname, "%s/.nocc.specs.xml", pwent->pw_dir);
+				if (!access (fname, R_OK)) {
+					compopts.specsfile = string_dup (fname);
+				}
+			}
+#endif
+		}
+	}
+	if (!compopts.specsfile) {
+		nocc_warning ("no specs file found, using defaults");
+	} else if (access (compopts.specsfile, R_OK)) {
+		nocc_warning ("cannot read specs file %s: %s, using defaults", compopts.specsfile, strerror (errno));
+	} else {
+		/* okay, open the specs file and process */
+		xmlhandler_t *sfxh;
+
+		if (compopts.verbose) {
+			nocc_message ("using specs file: %s", compopts.specsfile);
+		}
+		sfxh = xml_new_handler ();
+		sfxh->init = specfile_init;
+		sfxh->final = specfile_final;
+		sfxh->elem_start = specfile_elem_start;
+		sfxh->elem_end = specfile_elem_end;
+		sfxh->data = specfile_data;
+		i = xml_parse_file (sfxh, compopts.specsfile);
+		xml_del_handler (sfxh);
+
+		if (i) {
+			nocc_error ("failed to process specs file: %s", compopts.specsfile);
+		}
+	}
+
+	/* dump specs if wanted */
+	if (compopts.dumpspecs) {
+		int i;
+
+		nocc_message ("detailed compiler settings:");
+
+		nocc_message ("    target:          %s", compopts.target_str ? compopts.target_str : "<unset>");
+		nocc_message ("    target-cpu:      %s", compopts.target_cpu ? compopts.target_cpu : "<unset>");
+		nocc_message ("    target-vendor:   %s", compopts.target_vendor ? compopts.target_vendor : "<unset>");
+		nocc_message ("    target-os:       %s", compopts.target_os ? compopts.target_os : "<unset>");
+
+		nocc_message ("    epaths:");
+		for (i=0; i<DA_CUR (compopts.epath); i++) {
+			nocc_message ("                     %s", DA_NTHITEM (compopts.epath, i));
+		}
+		nocc_message ("    ipaths:");
+		for (i=0; i<DA_CUR (compopts.ipath); i++) {
+			nocc_message ("                     %s", DA_NTHITEM (compopts.ipath, i));
+		}
+		nocc_message ("    lpaths:");
+		for (i=0; i<DA_CUR (compopts.lpath); i++) {
+			nocc_message ("                     %s", DA_NTHITEM (compopts.lpath, i));
+		}
+
+		nocc_message ("    not-main-module: %s", compopts.notmainmodule ? "yes" : "no");
+		nocc_message ("    verbose:         %s", compopts.verbose ? "yes" : "no");
+	}
+
+	/*}}}*/
+	/*{{{  initialise other parts of the compiler and the dynamic framework*/
+	symbols_init ();
+	lexer_init ();
+	tnode_init ();
+	dfa_init ();
+	parser_init ();
+	prescope_init ();
+	scope_init ();
+	name_init ();
+	extn_init ();
+	treeops_init ();
+	aliascheck_init ();
+	usagecheck_init ();
+	defcheck_init ();
+	fetrans_init ();
+	betrans_init ();
+	map_init ();
+	target_init ();
+
+
+	/*}}}*/
+	/*{{{  process left-over arguments*/
+	for (walk = spare_opts, i = nspare; *walk && i; walk++, i--) {
+		cmd_option_t *opt = NULL;
+
+		switch (**walk) {
+		case '-':
+			if ((*walk)[1] == '-') {
+				opt = opts_getlongopt (*walk + 2);
+				if (opt) {
+					if (opts_process (opt, &walk, &i) < 0) {
+						errored++;
+					}
+				} else {
+					nocc_error ("unknown option: %s", *walk);
+					errored++;
+				}
+			} else {
+				char *ch;
+
+				for (ch = *walk + 1; *ch != '\0'; ch++) {
+					opt = opts_getshortopt (*ch);
+					if (opt) {
+						if (opts_process (opt, &walk, &i) < 0) {
+							errored++;
+						}
+					} else {
+						nocc_error ("unknown option: -%c", *ch);
+						errored++;
+					}
+				}
+			}
+			break;
+		}
+	}
+	if (errored) {
+		nocc_fatal ("error processing command-line options (%d error%s)", errored, (errored == 1) ? "" : "s");
+		exit (EXIT_FAILURE);
+	}
+
+	/* free spare_opts */
+	for (i=0; i<nspare; i++) {
+		if ((spare_opts[i][0] == '-') && (spare_opts[i][1] != '-')) {
+			/* short option got duplicated */
+			sfree (spare_opts[i]);
+		}
+	}
+	sfree (spare_opts);
+	spare_opts = NULL;
+	nspare = 0;
+
+	/*}}}*/
+	/*{{{  dump supported targets if requested*/
+	if (compopts.dumptargets) {
+		target_dumptargets (stderr);
+	}
+	/*}}}*/
+
+	/*{{{  get hold of the desired target*/
+	target = target_lookupbyspec (compopts.target_cpu, compopts.target_vendor, compopts.target_os);
+	if (!target) {
+		nocc_error ("no back-end for [%s] target, need to load ?", compopts.target_str ?: "(unspecified)");
+		exit (EXIT_FAILURE);
+	}
+
+	/*}}}*/
+
+	/*{{{  temporary, open the file and process it*/
+	for (i=0; i<nsrcfiles; i++) {
+		char *fname = srcfiles[i];
+		lexfile_t *tmp;
+
+		nocc_message ("lexing: %s", fname);
+		tmp = lexer_open (fname);
+		if (!tmp) {
+			nocc_error ("failed to open %s", fname);
+			exit (EXIT_FAILURE);
+		} else if (compopts.stoppoint == 1) {
+			/*{{{  stop after tokenise -- just show the tokenw*/
+			token_t *tok;
+
+			for (tok = lexer_nexttoken (tmp); tok && (tok->type != END); tok = lexer_nexttoken (tmp)) {
+				lexer_dumptoken (stderr, tok);
+				lexer_freetoken (tok);
+				tok = NULL;
+			}
+			if (tok) {
+				lexer_dumptoken (stderr, tok);
+				lexer_freetoken (tok);
+				tok = NULL;
+			}
+
+			lexer_close (tmp);
+			/*}}}*/
+		} else {
+			/* okay ... give it to the parser .. */
+			tnode_t *tree;
+
+			/*{{{  parse*/
+			if (compopts.verbose) {
+				nocc_message ("parsing ...");
+			}
+			tree = parser_parse (tmp);
+			if (!tree) {
+				nocc_error ("parse failed");
+				exit (EXIT_FAILURE);
+			}
+			if (compopts.stoppoint == 2) {
+				/*{{{  stop after parse*/
+				if (compopts.dumptree) {
+					tnode_dumptree (tree, 1, stderr);
+				}
+				goto main_out;
+				/*}}}*/
+			}
+			/*}}}*/
+			/*{{{  pre-scope*/
+			if (compopts.verbose) {
+				nocc_message ("pre-scoping ...");
+			}
+			if (prescope_tree (&tree, tmp->parser)) {
+				nocc_error ("pre-scope failed");
+				exit (EXIT_FAILURE);
+			}
+			if (compopts.stoppoint == 3) {
+				/*{{{  stop after pre-scope*/
+				if (compopts.dumptree) {
+					tnode_dumptree (tree, 1, stderr);
+				}
+				goto main_out;
+				/*}}}*/
+			}
+			/*}}}*/
+			/*{{{  scope*/
+			if (compopts.verbose) {
+				nocc_message ("scoping ...");
+			}
+			if (scope_tree (tree, tmp->parser)) {
+				if (compopts.dumpnames) {
+					name_dumpnames (stderr);
+				}
+				nocc_error ("scope failed");
+				exit (EXIT_FAILURE);
+			}
+			if (compopts.dumpnames) {
+				name_dumpnames (stderr);
+			}
+			if (compopts.stoppoint == 4) {
+				/*{{{  stop after scope*/
+				if (compopts.dumptree) {
+					tnode_dumptree (tree, 1, stderr);
+				}
+				goto main_out;
+				/*}}}*/
+			}
+			/*}}}*/
+			/*{{{  type-check*/
+			if (compopts.verbose) {
+				nocc_message ("type-check ...");
+			}
+			if (typecheck_tree (tree, tmp->parser)) {
+				nocc_error ("type-check failed");
+				exit (EXIT_FAILURE);
+			}
+			if (compopts.stoppoint == 5) {
+				/*{{{  stop after type-check*/
+				if (compopts.dumptree) {
+					tnode_dumptree (tree, 1, stderr);
+				}
+				goto main_out;
+				/*}}}*/
+			}
+			/*}}}*/
+			/*{{{  alias check*/
+			if (compopts.doaliascheck) {
+				if (compopts.verbose) {
+					nocc_message ("alias check ...");
+				}
+				if (aliascheck_tree (tree, tmp->parser)) {
+					nocc_error ("alias check failed");
+					exit (EXIT_FAILURE);
+				}
+			}
+			if (compopts.stoppoint == 6) {
+				/*{{{  stop after alias-check*/
+				if (compopts.dumptree) {
+					tnode_dumptree (tree, 1, stderr);
+				}
+				goto main_out;
+				/*}}}*/
+			}
+			/*}}}*/
+			/*{{{  parallel-usage check*/
+			if (compopts.dousagecheck) {
+				if (compopts.verbose) {
+					nocc_message ("usage check ...");
+				}
+				if (usagecheck_tree (tree, tmp->parser)) {
+					nocc_error ("usage check failed");
+					exit (EXIT_FAILURE);
+				}
+			}
+			if (compopts.stoppoint == 7) {
+				/*{{{  stop after usage-check*/
+				if (compopts.dumptree) {
+					tnode_dumptree (tree, 1, stderr);
+				}
+				goto main_out;
+				/*}}}*/
+			}
+			/*}}}*/
+			/*{{{  undefined-usage check*/
+			if (compopts.dodefcheck) {
+				if (compopts.verbose) {
+					nocc_message ("undefinedness check ...");
+				}
+				if (defcheck_tree (tree, tmp->parser)) {
+					nocc_error ("undefinedness check failed");
+					exit (EXIT_FAILURE);
+				}
+			}
+			if (compopts.stoppoint == 8) {
+				/*{{{  stop after undefinedness-check*/
+				if (compopts.dumptree) {
+					tnode_dumptree (tree, 1, stderr);
+				}
+				goto main_out;
+				/*}}}*/
+			}
+			/*}}}*/
+			/*{{{  front-end tree transform*/
+			if (compopts.verbose) {
+				nocc_message ("front-end tree transform ...");
+			}
+			if (fetrans_tree (&tree, tmp->parser)) {
+				nocc_error ("front-end tree transform failed");
+				exit (EXIT_FAILURE);
+			}
+			if (compopts.stoppoint == 9) {
+				/*{{{  stop after front-end tree transform*/
+				if (compopts.dumptree) {
+					tnode_dumptree (tree, 1, stderr);
+				}
+				goto main_out;
+				/*}}}*/
+			}
+			/*}}}*/
+
+			/*{{{  initialise back-end*/
+			target_initialise (target);
+
+			/*}}}*/
+
+			/*{{{  back-end tree transform*/
+			if (compopts.verbose) {
+				nocc_message ("back-end tree transform ...");
+			}
+			if (betrans_tree (&tree, target)) {
+				nocc_error ("back-end tree transform failed");
+				exit (EXIT_FAILURE);
+			}
+			if (compopts.stoppoint == 10) {
+				/*{{{  stop after back-end tree transform*/
+				if (compopts.dumptree) {
+					tnode_dumptree (tree, 1, stderr);
+				}
+				goto main_out;
+				/*}}}*/
+			}
+			/*}}}*/
+			/*{{{  map names (back-end scope)*/
+			if (compopts.verbose) {
+				nocc_message ("name-map ...");
+			}
+			if (map_mapnames (&tree, target)) {
+				nocc_error ("name-map failed");
+				exit (EXIT_FAILURE);
+			}
+			if (compopts.stoppoint == 11) {
+				/*{{{  stop after name-map*/
+				if (compopts.dumptree) {
+					tnode_dumptree (tree, 1, stderr);
+				}
+				goto main_out;
+				/*}}}*/
+			}
+			/*}}}*/
+			/*{{{  allocate workspace/vectorspace/mobilespace*/
+			if (compopts.verbose) {
+				nocc_message ("memory allocation ...");
+			}
+			if (allocate_tree (&tree, target)) {
+				nocc_error ("allocate failed");
+				exit (EXIT_FAILURE);
+			}
+			if (compopts.stoppoint == 12) {
+				/*{{{  stop after memory allocation*/
+				if (compopts.dumptree) {
+					tnode_dumptree (tree, 1, stderr);
+				}
+				goto main_out;
+				/*}}}*/
+			}
+			/*}}}*/
+			/*{{{  generate code*/
+			if (compopts.verbose) {
+				nocc_message ("code generation ...");
+			}
+			if (codegen_generate_code (&tree, tmp, target)) {
+				nocc_error ("code-generation failed");
+				exit (EXIT_FAILURE);
+			}
+			if (compopts.stoppoint == 13) {
+				/*{{{  stop after code generation*/
+				if (compopts.dumptree) {
+					tnode_dumptree (tree, 1, stderr);
+				}
+				goto main_out;
+				/*}}}*/
+			}
+			/*}}}*/
+
+			if (compopts.dumptree) {
+				nocc_message ("compiler run complete..!  got:");
+				tnode_dumptree (tree, 1, stderr);
+			}
+
+			lexer_close (tmp);
+		}
+	}
+	/*}}}*/
+
+main_out:
+	/*{{{  shutdown/etc.*/
+	sfree (srcfiles);
+
+	if (compopts.dmemdump) {
+		dmem_usagedump ();
+	}
+	dmem_shutdown ();
+
+	/*}}}*/
+	return EXIT_SUCCESS;
+}
+/*}}}*/
+
+

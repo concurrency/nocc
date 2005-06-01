@@ -1,0 +1,8 @@
+
+PROC foo ()
+  PROC bar ()
+    SKIP
+  :
+  STOP
+:
+

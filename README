@@ -1,0 +1,43 @@
+
+NOCC -- A New occam-pi Compiler
+-------------------------------
+
+Installation:
+
+	See the file INSTALL for particulars, but essentially it's:
+
+	./configure
+	make
+
+	At the moment, you'll need to have libexpat installed (until
+	such time as NOCC gets an alternative/built-in XML parser).
+
+
+Running:
+
+	The compiler expects to find a "nocc.specs.xml" file, shipped
+	with the distribution, searched for in /etc/, /usr/local/etc/,
+	the current directory, and finally as ~/.nocc.specs.xml.  A specs
+	file may also be specified using the --specs-file option.
+
+	To compile something, more or less:
+
+	nocc foobar.occ
+
+	which, currently, should generate a "foobar.etc" file.  You can't
+	do much with this file yet..
+
+
+Configuration:
+
+	The compiler settings are all contained in the nocc.specs.xml file,
+	which doesn't consist of a huge amount currently.  As more options
+	appear and become relevant, you'll probably want to modify this
+	file.
+
+
+
+
+--
+Fred Barnes, May 2005.
+

@@ -1,0 +1,25 @@
+;
+;	tests/test_n4.etc
+;	compiled from tests/test_n4.occ
+;
+
+; PROC foo = 0,0,0,0,0
+.setws	0, 0
+.setvs	0
+.setms	0
+.setnamedlabel	"O_foo"
+	ajw	0
+; PROC bar = 0,0,0,0,0
+.setws	0, 0
+.setvs	0
+.setms	0
+.setnamedlabel	"O_bar"
+	ajw	0
+	ajw	0
+	ret
+	ajw	0
+	ret
+
+;
+;	end of compilation
+;

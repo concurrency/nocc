@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!--
+	initial.nocx.xml
+	INITIAL extension
+-->
+
+<extension name="lang:initial">
+	<desc>INITIAL extension</desc>
+	<author>Jim Moores</author>
+	<comment>
+		Adds support for INITIAL declarations of the form:
+
+		INITIAL type name IS expr:
+	</comment>
+
+	<lex keyword="INITIAL" tag="@INITIAL" />
+	<parser node="process">
+		<match>
+			@INITIAL itype:type iname:name [@IS] iexpr:expr @@COLON @@
+			p:process
+		</match>
+		<check type="type" op="equal">
+			<typeof>expr</typeof>
+			itype
+			<error>Incompatible types in declaration</error>
+		</check>
+		<tree>
+			<newname>anon</newname>
+			<decl type="decl">
+				<name>anon</name>
+				<type>itype</type>
+				<constr type="seq">
+					<action type="assign">
+						anon
+						expr
+					</action>
+					<decl type="abbr">
+						<name>iname</name>
+						<type>itype</type>
+						<value>anon</value>
+						p
+					</decl>
+				</constr>
+			</decl>
+		</tree>
+	</parser>
+</extension>
+
+

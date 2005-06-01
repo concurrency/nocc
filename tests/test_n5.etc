@@ -1,0 +1,25 @@
+;
+;	tests/test_n5.etc
+;	compiled from tests/test_n5.occ
+;
+
+.setlabel	1
+.byte	0x2a, 0x00, 0x00, 0x00
+; PROC test.n5 = 16,16,0,0,8
+.setws	16, 8
+.setvs	0
+.setms	0
+.setnamedlabel	"O_test_n5"
+	ajw	-8
+	ldl	8
+	ldnl	0
+	stl	0
+	ldc	42
+	ldl	8
+	stnl	0
+	ajw	8
+	ret
+
+;
+;	end of compilation
+;

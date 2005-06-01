@@ -1,0 +1,87 @@
+%{
+/*
+ *	keywords.gperf -- standard keywords for nocc
+ *	Fred Barnes, 2005  <frmb@kent.ac.uk>
+ */
+%}
+%struct-type
+%language=ANSI-C
+%define initializer-suffix ,-1,NULL
+%define slot-name name
+%define lookup-function-name keyword_lookup_byname
+%null-strings
+%global-table
+%readonly-tables
+
+struct TAG_keyword;
+%%
+SKIP,		0,	NULL
+STOP,		1,	NULL
+PAR,		2,	NULL
+SEQ,		3,	NULL
+PROC,		4,	NULL
+BYTE,		5,	NULL
+BOOL,		6,	NULL
+INT,		7,	NULL
+INT16,		8,	NULL
+INT32,		9,	NULL
+INT64,		10,	NULL
+REAL32,		11,	NULL
+REAL64,		12,	NULL
+IS,		13,	NULL
+OF,		14,	NULL
+FUNCTION,	15,	NULL
+CHAN,		16,	NULL
+DATA,		17,	NULL
+TYPE,		18,	NULL
+AT,		19,	NULL
+VAL,		20,	NULL
+INLINE,		21,	NULL
+FORK,		22,	NULL
+MOBILE,		23,	NULL
+BARRIER,	24,	NULL
+SYNC,		25,	NULL
+PROTOCOL,	26,	NULL
+CASE,		27,	NULL
+TRUE,		28,	NULL
+FALSE,		29,	NULL
+ELSE,		30,	NULL
+TIMER,		31,	NULL
+IF,		32,	NULL
+SIZE,		33,	NULL
+FROM,		34,	NULL
+FOR,		35,	NULL
+VALOF,		36,	NULL
+RESULT,		37,	NULL
+RETYPES,	38,	NULL
+TRUNC,		39,	NULL
+ROUND,		40,	NULL
+MOSTPOS,	41,	NULL
+MOSTNEG,	42,	NULL
+CLONE,		43,	NULL
+INITIAL,	44,	NULL
+STEP,		45,	NULL
+RECORD,		46,	NULL
+ALT,		47,	NULL
+PRI,		48,	NULL
+AFTER,		49,	NULL
+WHILE,		50,	NULL
+AND,		51,	NULL
+OR,		52,	NULL
+PLUS,		53,	NULL
+MINUS,		54,	NULL
+NOT,		55,	NULL
+TIMES,		56,	NULL
+MOBILE.CHAN,	57,	NULL
+MOBILE.DATA,	58,	NULL
+MOBILE.PROC,	59,	NULL
+ANY,		60,	NULL
+PLACE,		61,	NULL
+IN,		62,	NULL
+WORKSPACE,	63,	NULL
+VECSPACE,	64,	NULL
+MOBSPACE,	65,	NULL
+DEFINED,	66,	NULL
+SHARED,		67,	NULL
+%%
+

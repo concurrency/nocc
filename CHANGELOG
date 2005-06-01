@@ -1,0 +1,15 @@
+29/05/2005	frmb	fixed help to display in order given
+29/05/2005	frmb	development release 0.1.2
+29/05/2005	ag	source filename handling fix
+14/05/2005	frmb	allocator fix, various updates
+09/05/2005	frmb	development release 0.1.1
+08/05/2005	frmb	initial support for instance nodes
+08/05/2005	frmb	put in initial framework for alias, usage and definedness checks
+07/05/2005	frmb	fixed a few bugs, more parser updates
+06/05/2005	frmb	early development release, 0.1
+06/05/2005	frmb	more work on the parser, added pointer-hashes
+04/05/2005	frmb	more framework
+20/04/2005	frmb	initial mapper and allocator, early code-gen
+10/04/2005	frmb	tidy-ups
+12/03/2005	frmb	more work on the lexer and parser
+23/10/2004	frmb	initial framework

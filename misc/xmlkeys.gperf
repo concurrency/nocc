@@ -1,0 +1,46 @@
+%{
+/*
+ *	xmlkeys.gperf -- XML keywords for nocc
+ */
+%}
+%struct-type
+%language=ANSI-C
+%define initializer-suffix ,XMLKEY_INVALID
+%define slot-name name
+%define lookup-function-name xmlkeys_lookup_byname
+%null-strings
+%global-table
+%readonly-tables
+
+struct TAG_xmlkey;
+%%
+nocc,			XMLKEY_NOCC
+target,			XMLKEY_TARGET
+epath,			XMLKEY_EPATH
+ipath,			XMLKEY_IPATH
+lpath,			XMLKEY_LPATH
+extension,		XMLKEY_EXTENSION
+desc,			XMLKEY_DESC
+author,			XMLKEY_AUTHOR
+maintainer,		XMLKEY_MAINTAINER
+comment,		XMLKEY_COMMENT
+lex,			XMLKEY_LEX
+keyword,		XMLKEY_KEYWORD
+symbol,			XMLKEY_SYMBOL
+name,			XMLKEY_NAME
+tag,			XMLKEY_TAG
+parser,			XMLKEY_PARSER
+node,			XMLKEY_NODE
+check,			XMLKEY_CHECK
+match,			XMLKEY_MATCH
+type,			XMLKEY_TYPE
+op,			XMLKEY_OP
+typeof,			XMLKEY_TYPEOF
+error,			XMLKEY_ERROR
+tree,			XMLKEY_TREE
+newname,		XMLKEY_NEWNAME
+decl,			XMLKEY_DECL
+constr,			XMLKEY_CONSTR
+action,			XMLKEY_ACTION
+%%
+

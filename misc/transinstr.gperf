@@ -1,0 +1,24 @@
+%{
+/*
+ *	transinstr.gperf -- transputer instructions for nocc
+ *	Fred Barnes, 2005  <frmb@kent.ac.uk>
+ */
+%}
+%struct-type
+%language=ANSI-C
+%define initializer-suffix ,INS_INVALID,I_INVALID,NULL
+%define slot-name name
+%define lookup-function-name transinstr_lookup_byname
+%null-strings
+%global-table
+%readonly-tables
+
+struct TAG_transinstr;
+%%
+LDC,		INS_PRIMARY,	I_LDC,		NULL
+LDL,		INS_PRIMARY,	I_LDL,		NULL
+OUT,		INS_SECONDARY,	I_OUT,		NULL
+IN,		INS_SECONDARY,	I_IN,		NULL
+MOVE,		INS_SECONDARY,	I_MOVE,		NULL
+%%
+

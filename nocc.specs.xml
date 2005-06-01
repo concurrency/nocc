@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!--
+	nocc.specs.xml
+	compiler specifications file
+	Fred Barnes, 2005
+-->
+
+<nocc>
+	<!-- maintainer says where to report compiler bugs -->
+	<maintainer>ofa-bugs@kent.ac.uk</maintainer>
+
+	<!-- default compiler target -->
+	<target>etc-kroc-unknown</target>
+
+	<!-- epath's say where extensions/plugins are located -->
+	<epath>/home/frmb/kroc_linux/ukcsource/nocc/addons</epath>
+	<epath>/usr/local/nocc/addons</epath>
+	<epath>/usr/share/nocc/addons</epath>
+	<epath>/usr/lib/nocc/addons</epath>
+
+	<!-- ipath's say where include files are -->
+	<ipath>/home/frmb/kroc_linux/ukcsource/lib</ipath>
+
+	<!-- lpath's say where library files are -->
+	<lpath>/home/frmb/kroc_linux/ukcsource/lib</lpath>
+
+</nocc>
+

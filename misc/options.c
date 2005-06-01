@@ -1,0 +1,283 @@
+/*
+ *	options.c -- command-line option processing
+ *	Copyright (C) 2004 Fred Barnes <frmb@kent.ac.uk>
+ *
+ *	This program is free software; you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation; either version 2 of the License, or
+ *	(at your option) any later version.
+ *
+ *	This program is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *	You should have received a copy of the GNU General Public License
+ *	along with this program; if not, write to the Free Software
+ *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include "nocc.h"
+#include "support.h"
+#include "version.h"
+#include "opts.h"
+
+/*{{{  forward decls*/
+static int opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft);
+static int opt_do_version (cmd_option_t *opt, char ***argwalk, int *argleft);
+static int opt_setintflag (cmd_option_t *opt, char ***argwalk, int *argleft);
+static int opt_clearintflag (cmd_option_t *opt, char ***argwalk, int *argleft);
+static int opt_setstopflag (cmd_option_t *opt, char ***argwalk, int *argleft);
+static int opt_setstr (cmd_option_t *opt, char ***argwalk, int *argleft);
+
+
+/*}}}*/
+
+#include "gperf_options.h"
+
+/*{{{  private vars*/
+/* options array by short-option */
+STATICDYNARRAY (cmd_option_t *, icharopts);
+
+/* added options */
+STATICSTRINGHASH (cmd_option_t *, extraopts, 3);
+
+/* ordered help */
+static const cmd_option_t *ordered_options[MAX_HASH_VALUE - MIN_HASH_VALUE];
+
+/*}}}*/
+
+/*{{{  built-in option processors*/
+/*{{{  static void opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	prints out the help page, and exits
+ */
+static int opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	FILE *outstream = (opt->arg) ? (FILE *)(opt->arg) : stderr;
+	int i;
+
+	fprintf (outstream, "nocc (%s) Version " VERSION " " HOST_CPU "-" HOST_VENDOR "-" HOST_OS " (targetting " TARGET_CPU "-" TARGET_VENDOR "-" TARGET_OS ")\n", progname);
+	fprintf (outstream, "Copyright (C) 2004-2005 Fred Barnes, University of Kent\n");
+	fprintf (outstream, "Released under the terms and conditions of the GNU GPL v2\n\n");
+	fflush (outstream);
+	fprintf (outstream, "usage:  %s [options] <source filename>\n", progname);
+	fprintf (outstream, "options:\n");
+	for (i = 0; i <= (MAX_HASH_VALUE - MIN_HASH_VALUE); i++) {
+		if (ordered_options[i] && ordered_options[i]->name && ordered_options[i]->help && (ordered_options[i]->help[0] <= opt->help[0])) {
+			char *htext = ordered_options[i]->help + 1;
+
+			fprintf (outstream, "    ");
+			if (ordered_options[i]->sopt != '\0') {
+				fprintf (outstream, "-%c  ", ordered_options[i]->sopt);
+			} else {
+				fprintf (outstream, "    ");
+			}
+			fprintf (outstream, "--%-32s%s\n", ordered_options[i]->name, htext);
+		}
+	}
+	
+	exit (0);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int opt_do_version (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	prints out the compiler version, and exits
+ */
+static int opt_do_version (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	FILE *outstream = (opt->arg) ? (FILE *)(opt->arg) : stderr;
+
+	fprintf (outstream, "%s\n", version_string());
+	fflush (outstream);
+
+	exit (0);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int opt_setintflag (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	sets an integer flag
+ */
+static int opt_setintflag (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	int *flag = (int *)(opt->arg);
+
+	if (!flag) {
+		return -1;
+	}
+	*flag = 1;
+	return 0;
+}
+/*}}}*/
+/*{{{  static int opt_clearintflag (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	clears an integer flag
+ */
+static int opt_clearintflag (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	int *flag = (int *)(opt->arg);
+
+	if (!flag) {
+		return -1;
+	}
+	*flag = 0;
+	return 0;
+}
+/*}}}*/
+/*{{{  static int opt_setstopflag (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	sets a stop flag -- stop compiler at some pre-defined point
+ */
+static int opt_setstopflag (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	compopts.stoppoint = (int)(opt->arg);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int opt_setstr (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	sets a string
+ */
+static int opt_setstr (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	char **starget = (char **)(opt->arg);
+	char *ch;
+
+	ch = strchr (**argwalk, '=');
+	if (ch) {
+		ch++;
+	} else {
+		(*argwalk)++;
+		(*argleft)--;
+		if (!**argwalk || !*argleft) {
+			nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+			return -1;
+		}
+		ch = **argwalk;
+	}
+	ch = string_dup (ch);
+	if (*starget) {
+		sfree (*starget);
+	}
+	*starget = ch;
+	return 0;
+}
+/*}}}*/
+/*}}}*/
+
+
+/*{{{  void opts_init (void)*/
+/*
+ *	initialises option processing
+ */
+void opts_init (void)
+{
+	int i;
+
+	dynarray_init (icharopts);
+	dynarray_setsize (icharopts, 256);
+
+	for (i=0; i<(MAX_HASH_VALUE - MIN_HASH_VALUE); i++) {
+		ordered_options[i] = NULL;
+	}
+	for (i = MIN_HASH_VALUE; i <= MAX_HASH_VALUE; i++) {
+		if (wordlist[i].name && (wordlist[i].sopt != '\0')) {
+			if (DA_NTHITEM (icharopts, (int)(wordlist[i].sopt))) {
+				nocc_warning ("duplicate short option `%c\'", wordlist[i].sopt);
+			} else {
+				DA_SETNTHITEM (icharopts, (int)(wordlist[i].sopt), (cmd_option_t *)&(wordlist[i]));
+			}
+		}
+		if (wordlist[i].order > -1) {
+			ordered_options[wordlist[i].order] = &(wordlist[i]);
+		}
+	}
+
+	stringhash_init (extraopts);
+	
+	return;
+}
+/*}}}*/
+/*{{{  cmd_option_t *opts_getlongopt (const char *optname)*/
+/*
+ *	returns option structure for a long-option (leading "--" not expected)
+ */
+cmd_option_t *opts_getlongopt (const char *optname)
+{
+	int optlen = strlen (optname);
+	cmd_option_t *opt;
+	char *ch;
+
+	ch = strchr (optname, '=');
+	if (ch) {
+		optlen = (ch - optname);
+	}
+	opt = (cmd_option_t *)option_lookup_byname (optname, optlen);
+	if (!opt) {
+		if (ch) {
+			ch = string_ndup ((char *)optname, optlen);
+
+			opt = stringhash_lookup (extraopts, ch);
+			sfree (ch);
+		}
+	}
+	return opt;
+}
+/*}}}*/
+/*{{{  cmd_option_t *opts_getshortopt (const char optchar)*/
+/*
+ *	returns option structure for a short-option (any leading "-" not expected)
+ */
+cmd_option_t *opts_getshortopt (const char optchar)
+{
+	if (optchar < 0) {
+		return NULL;
+	}
+	return DA_NTHITEM (icharopts, (int)optchar);
+}
+/*}}}*/
+/*{{{  int opts_process (cmd_option_t *opt, char ***arg_walk, int *arg_left)*/
+/*
+ *	called to process an option
+ */
+int opts_process (cmd_option_t *opt, char ***arg_walk, int *arg_left)
+{
+	if (!opt || !opt->opthandler) {
+		nocc_internal ("unhandled option (%s)", (arg_walk && **arg_walk) ? **arg_walk : "?");
+		return 1;
+	}
+	return opt->opthandler (opt, arg_walk, arg_left);
+}
+/*}}}*/
+/*{{{  void opts_add (const char *optname, const char optchar, int (*opthandler)(cmd_option_t *, char ***, int *), void *arg, char *help)*/
+/*
+ *	adds an option to the compiler
+ */
+void opts_add (const char *optname, const char optchar, int (*opthandler)(cmd_option_t *, char ***, int *), void *arg, char *help)
+{
+	cmd_option_t *tmpopt = (cmd_option_t *)smalloc (sizeof (cmd_option_t));
+
+	tmpopt->name = string_dup ((char *)optname);
+	tmpopt->sopt = optchar;
+	tmpopt->opthandler = opthandler;
+	tmpopt->arg = arg;
+	tmpopt->help = string_dup (help);
+
+	stringhash_insert (extraopts, tmpopt, tmpopt->name);
+	return;
+}
+/*}}}*/
+
+

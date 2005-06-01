@@ -1,0 +1,10 @@
+
+PROC blah ()
+  SKIP
+:
+
+PROC foo ()
+  INT x:
+  STOP
+:
+

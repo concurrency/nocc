@@ -1,0 +1,424 @@
+/*
+ *	codegen.c -- top-level code-generator for nocc
+ *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *
+ *	This program is free software; you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation; either version 2 of the License, or
+ *	(at your option) any later version.
+ *
+ *	This program is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *	You should have received a copy of the GNU General Public License
+ *	along with this program; if not, write to the Free Software
+ *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+/*{{{  includes*/
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdarg.h>
+#include <sys/types.h>
+#include <errno.h>
+
+#include "nocc.h"
+#include "support.h"
+#include "version.h"
+#include "lexer.h"
+#include "tnode.h"
+#include "target.h"
+#include "codegen.h"
+
+
+/*}}}*/
+
+
+/*{{{  int codegen_write_bytes (codegen_t *cgen, const char *ptr, int bytes)*/
+/*
+ *	writes plain bytes to the output file
+ *	returns 0 on success, non-zero on error
+ */
+int codegen_write_bytes (codegen_t *cgen, const char *ptr, int bytes)
+{
+	int v = 0;
+	int left = bytes;
+
+	if (cgen->fd < 0) {
+		nocc_internal ("codegen_write_bytes(): attempt to write to closed file!");
+		return -1;
+	}
+	while (left) {
+		int r = write (cgen->fd, ptr + v, left);
+
+		if (r < 0) {
+			nocc_error ("failed to write to %s: %s", cgen->fname, strerror (errno));
+			return -1;
+		}
+		left -= r;
+		v += r;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  int codegen_write_string (codegen_t *cgen, const char *str)*/
+/*
+ *	writes a string to the output file
+ *	returns 0 on success, non-zero on error
+ */
+int codegen_write_string (codegen_t *cgen, const char *str)
+{
+	int i;
+
+	i = codegen_write_bytes (cgen, str, strlen (str));
+
+	return i;
+}
+/*}}}*/
+/*{{{  int codegen_write_fmt (codegen_t *cgen, const char *fmt, ...)*/
+/*
+ *	writes a formatted string to the output file
+ *	returns 0 on success, non-zero on error
+ */
+int codegen_write_fmt (codegen_t *cgen, const char *fmt, ...)
+{
+	va_list ap;
+	int i, r;
+	char *buf = (char *)smalloc (1024);
+
+	va_start (ap, fmt);
+	i = vsnprintf (buf, 1023, fmt, ap);
+	va_end (ap);
+
+	r = codegen_write_bytes (cgen, buf, i);
+
+	sfree (buf);
+
+	return r;
+}
+/*}}}*/
+
+
+/*{{{  void codegen_error (codegen_t *cgen, const char *fmt, ...)*/
+/*
+ *	throws a code-generator error message
+ */
+void codegen_error (codegen_t *cgen, const char *fmt, ...)
+{
+	va_list ap;
+	int i;
+	char *buf = (char *)smalloc (1024);
+
+	va_start (ap, fmt);
+	i = vsnprintf (buf, 1023, fmt, ap);
+	va_end (ap);
+
+	nocc_outerrmsg (buf);
+
+	sfree (buf);
+	return;
+}
+/*}}}*/
+/*{{{  void codegen_fatal (codegen_t *cgen, const char *fmt, ...)*/
+/*
+ *	throws a code-generator fatal error message
+ */
+void codegen_fatal (codegen_t *cgen, const char *fmt, ...)
+{
+	va_list ap;
+	int i;
+	char *buf = (char *)smalloc (1024);
+
+	va_start (ap, fmt);
+	i = vsnprintf (buf, 1023, fmt, ap);
+	va_end (ap);
+
+	nocc_outerrmsg (buf);
+
+	sfree (buf);
+	nocc_internal ("error in code-generation");
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static int codegen_prewalktree_codegen (tnode_t *node, void *data)*/
+/*
+ *	prewalktree for code generation, calls comp-ops "codegen" routine where present
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int codegen_prewalktree_codegen (tnode_t *node, void *data)
+{
+	codegen_t *cgen = (codegen_t *)data;
+
+	if (node->tag->ndef->ops && node->tag->ndef->ops->codegen) {
+		int i;
+
+		i = node->tag->ndef->ops->codegen (node, cgen);
+		return i;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int codegen_modprewalk_precode (tnode_t **tptr, void *data)*/
+/*
+ *	modprewalktree for pre-codegen, calls comp-ops "precode" routine where present
+ *	return 0 to stop walk, 1 to continue
+ */
+static int codegen_modprewalk_precode (tnode_t **tptr, void *data)
+{
+	codegen_t *cgen = (codegen_t *)data;
+	int i;
+
+	if (!tptr || !*tptr) {
+		nocc_internal ("codegen_modprewalk_precode(): NULL pointer or node!");
+		return 0;
+	}
+	i = 1;
+	if ((*tptr)->tag->ndef->ops && (*tptr)->tag->ndef->ops->precode) {
+		i = (*tptr)->tag->ndef->ops->precode (tptr, cgen);
+	}
+	return i;
+}
+/*}}}*/
+/*{{{  int codegen_subcodegen (tnode_t *tree, codegen_t *cgen)*/
+/*
+ *	generates code for a nested tree structure
+ *	returns 0 on success, non-zero on failure
+ */
+int codegen_subcodegen (tnode_t *tree, codegen_t *cgen)
+{
+	tnode_prewalktree (tree, codegen_prewalktree_codegen, (void *)cgen);
+
+	return cgen->error;
+}
+/*}}}*/
+/*{{{  int codegen_subprecode (tnode_t **tptr, codegen_t *cgen)*/
+/*
+ *	pre-code for nested structures
+ *	returns 0 on success, non-zero on failure
+ */
+int codegen_subprecode (tnode_t **tptr, codegen_t *cgen)
+{
+	tnode_modprewalktree (tptr, codegen_modprewalk_precode, (void *)cgen);
+
+	return cgen->error;
+}
+/*}}}*/
+/*{{{  int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)*/
+/*
+ *	generates code for a top-level tree
+ *	returns 0 on success, non-zero on failure
+ */
+int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)
+{
+	codegen_t *cgen = (codegen_t *)smalloc (sizeof (codegen_t));
+	/* tnode_t *tree = *tptr; */
+	int i;
+
+	cgen->target = target;
+	cgen->error = 0;
+	cgen->cops = NULL;
+	cgen->labcount = 1;
+	cgen->cinsertpoint = tptr;
+
+	/*{{{  figure out the output filename*/
+	if (compopts.outfile) {
+		cgen->fname = string_dup (compopts.outfile);
+	} else {
+		if (lf->filename) {
+			char *ch;
+			int lflen = strlen (lf->filename);
+
+			cgen->fname = (char *)smalloc (lflen + strlen (target->extn) + 2);
+			strcpy (cgen->fname, lf->filename);
+			for (ch = cgen->fname + (lflen - 1); (ch > cgen->fname) && (ch[-1] != '.'); ch--);
+			if (ch > cgen->fname) {
+				strcpy (ch, target->extn);
+			} else {
+				cgen->fname[lflen] = '.';
+				strcpy (cgen->fname + lflen + 1, target->extn);
+			}
+		} else {
+			cgen->fname = (char *)smalloc (16 + strlen (target->extn));
+			sprintf (cgen->fname, "./default.%s", target->extn);
+		}
+	}
+
+	/*}}}*/
+	/*{{{  open output file*/
+	cgen->fd = open (cgen->fname, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (cgen->fd < 0) {
+		nocc_error ("failed to open %s for writing: %s", cgen->fname, strerror (errno));
+		sfree (cgen->fname);
+		sfree (cgen);
+		return -1;
+	}
+
+	/*}}}*/
+	/*{{{  initialise back-end code generation*/
+	i = target->be_codegen_init (cgen, lf);
+
+	if (i) {
+		close (cgen->fd);
+		sfree (cgen->fname);
+		sfree (cgen);
+		return i;
+	}
+
+	/*}}}*/
+	/*{{{  do pre-codegen on the tree*/
+	tnode_modprewalktree (cgen->cinsertpoint, codegen_modprewalk_precode, (void *)cgen);
+
+	/*}}}*/
+	/*{{{  generate code*/
+	i = codegen_subcodegen (*(cgen->cinsertpoint), cgen);
+	if (i) {
+		nocc_error ("failed to generate code");
+	}
+
+	/*}}}*/
+	/*{{{  shutdown back-end code generation*/
+	target->be_codegen_final (cgen, lf);
+
+	close (cgen->fd);
+	sfree (cgen->fname);
+	sfree (cgen);
+	/*}}}*/
+
+	return i;
+}
+/*}}}*/
+
+
+/*{{{  int codegen_new_label (codegen_t *cgen)*/
+/*
+ *	returns a new label
+ */
+int codegen_new_label (codegen_t *cgen)
+{
+	return cgen->labcount++;
+}
+/*}}}*/
+
+
+/*{{{  void codegen_nocoder (codegen_t *cgen, const char *op)*/
+/*
+ *	called when a coder-operation is used that doesn't actually exist
+ */
+void codegen_nocoder (codegen_t *cgen, const char *op)
+{
+	nocc_internal ("target %s does not support %s.", cgen->target->name, op);
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static int codegen_icheck_node (tnode_t *node, ntdef_t *expected, codegen_t *cgen, int err)*/
+/*
+ *	checks to see if a given node is of the expected back-end type, if "err" is non-zero, throw
+ *	an error if mismatch.  returns 0 on success (match), non-zero on error
+ */
+static int codegen_icheck_node (tnode_t *node, ntdef_t *expected, codegen_t *cgen, int err)
+{
+	if (!err) {
+		return !(node->tag == expected);
+	} else if (node->tag != expected) {
+		codegen_error (cgen, "expected %s found %s", expected->name, node->tag->name);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  int codegen_check_beblock (tnode_t *node, codegen_t *cgen, int err)*/
+/*
+ *	checks to see if the given node is a back-end block
+ *	returns 0 on success, non-zero on error
+ */
+int codegen_check_beblock (tnode_t *node, codegen_t *cgen, int err)
+{
+	return codegen_icheck_node (node, cgen->target->tag_BLOCK, cgen, err);
+}
+/*}}}*/
+/*{{{  int codegen_check_beblockref (tnode_t *node, codegen_t *cgen, int err)*/
+/*
+ *	checks to see if the given node is a back-end block-reference
+ *	returns 0 on success, non-zero on error
+ */
+int codegen_check_beblockref (tnode_t *node, codegen_t *cgen, int err)
+{
+	return codegen_icheck_node (node, cgen->target->tag_BLOCKREF, cgen, err);
+}
+/*}}}*/
+/*{{{  int codegen_check_bename (tnode_t *node, codegen_t *cgen, int err)*/
+/*
+ *	checks to see if the given node is a back-end name
+ *	returns 0 on success, non-zero on error
+ */
+int codegen_check_bename (tnode_t *node, codegen_t *cgen, int err)
+{
+	return codegen_icheck_node (node, cgen->target->tag_NAME, cgen, err);
+}
+/*}}}*/
+/*{{{  int codegen_check_benameref (tnode_t *node, codegen_t *cgen, int err)*/
+/*
+ *	checks to see if the given node is a back-end name-reference
+ *	returns 0 on success, non-zero on error
+ */
+int codegen_check_benameref (tnode_t *node, codegen_t *cgen, int err)
+{
+	return codegen_icheck_node (node, cgen->target->tag_NAMEREF, cgen, err);
+}
+/*}}}*/
+/*{{{  int codegen_check_beconst (tnode_t *node, codegen_t *cgen, int err)*/
+/*
+ *	checks to see if the given node is a back-end constant
+ *	returns 0 on success, non-zero on error
+ */
+int codegen_check_beconst (tnode_t *node, codegen_t *cgen, int err)
+{
+	return codegen_icheck_node (node, cgen->target->tag_CONST, cgen, err);
+}
+/*}}}*/
+/*{{{  int codegen_check_beindexed (tnode_t *node, codegen_t *cgen, int err)*/
+/*
+ *	checks to see if the given node is a back-end indexed node
+ *	returns 0 on success, non-zero on error
+ */
+int codegen_check_beindexed (tnode_t *node, codegen_t *cgen, int err)
+{
+	return codegen_icheck_node (node, cgen->target->tag_INDEXED, cgen, err);
+}
+/*}}}*/
+
+
+/*{{{  int codegen_shutdown (void)*/
+/*
+ *	shuts-down the code-generator
+ *	returns 0 on success, non-zero on failure
+ */
+int codegen_shutdown (void)
+{
+	return 0;
+}
+/*}}}*/
+/*{{{  int codegen_init (void)*/
+/*
+ *	initialises the code-generator
+ *	returns 0 on success, non-zero on failure
+ */
+int codegen_init (void)
+{
+	return 0;
+}
+/*}}}*/
+
+

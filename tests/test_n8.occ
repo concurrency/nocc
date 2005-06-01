@@ -1,0 +1,16 @@
+
+-- test_n8.occ -- new compiler test 8
+
+PROC thing (CHAN BYTE out)
+  SEQ
+    out ! 'a'
+    out ! '*n'
+:
+
+PROC test.n8 (CHAN BYTE screen, error)
+  INT v, w, x, y, z:
+  SEQ
+    screen ! 'x'
+    thing (screen)
+:
+

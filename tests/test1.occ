@@ -1,0 +1,6 @@
+
+PROC test ()
+  VAL []BYTE string IS "Hello, world!*n":
+  SKIP
+:
+
