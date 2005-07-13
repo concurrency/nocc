@@ -41,6 +41,7 @@
 #include "dfa.h"
 #include "parsepriv.h"
 #include "occampi.h"
+#include "feunit.h"
 #include "names.h"
 #include "scope.h"
 #include "prescope.h"
@@ -86,6 +87,17 @@ typedef struct {
 
 
 static occampi_parse_t *occampi_priv = NULL;
+
+static feunit_t *feunit_set[] = {
+	&occampi_primproc_feunit,
+	&occampi_cnode_feunit,
+	&occampi_decl_feunit,
+	&occampi_action_feunit,
+	&occampi_lit_feunit,
+	&occampi_type_feunit,
+	&occampi_instance_feunit,
+	NULL
+};
 
 /*}}}*/
 
@@ -142,57 +154,6 @@ static void *occampi_realtoken_to_hook (void *itok)
 	return (void *)ldata;
 }
 /*}}}*/
-/*{{{  static void occampi_reduce_primtype (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
-/*
- *	reduces a primitive type
- */
-static void occampi_reduce_primtype (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
-{
-	token_t *tok;
-	ntdef_t *tag;
-
-	tok = parser_gettok (pp);
-	tag = tnode_lookupnodetag (tok->u.kw->name);
-	*(dfast->ptr) = tnode_create (tag, tok->origin);
-	lexer_freetoken (tok);
-
-	return;
-}
-/*}}}*/
-/*{{{  static void occampi_reduce_primproc (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
-/*
- *	reduces a primitive process
- */
-static void occampi_reduce_primproc (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
-{
-	token_t *tok;
-	ntdef_t *tag;
-
-	tok = parser_gettok (pp);
-	tag = tnode_lookupnodetag (tok->u.kw->name);
-	*(dfast->ptr) = tnode_create (tag, tok->origin);
-	lexer_freetoken (tok);
-
-	return;
-}
-/*}}}*/
-/*{{{  static void occampi_reduce_cnode (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
-/*
- *	reduces a constructor node (e.g. SEQ, PAR, FORKING, CLAIM, ..)
- */
-static void occampi_reduce_cnode (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
-{
-	token_t *tok;
-	ntdef_t *tag;
-
-	tok = parser_gettok (pp);
-	tag = tnode_lookupnodetag (tok->u.kw->name);
-	*(dfast->ptr) = tnode_create (tag, tok->origin, NULL, NULL);
-	lexer_freetoken (tok);
-
-	return;
-}
-/*}}}*/
 /*{{{  static void occampi_inlistreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
  *	this reduces into a list
@@ -238,10 +199,17 @@ static void occampi_debug_gstack (void **items, int icnt)
  */
 static int occampi_register_reducers (void)
 {
-	parser_register_reduce ("Roccampi:primtype", occampi_reduce_primtype, NULL);
-	parser_register_reduce ("Roccampi:primproc", occampi_reduce_primproc, NULL);
-	parser_register_reduce ("Roccampi:cnode", occampi_reduce_cnode, NULL);
+	int i;
+
 	parser_register_reduce ("Roccampi:inlist", occampi_inlistreduce, NULL);
+
+	for (i=0; feunit_set[i]; i++) {
+		feunit_t *thisunit = feunit_set[i];
+
+		if (thisunit->reg_reducers && thisunit->reg_reducers ()) {
+			return -1;
+		}
+	}
 
 	return 0;
 }
@@ -289,11 +257,34 @@ static int occampi_dfas_init (void)
 
 	/*{{{  create DFAs*/
 	dynarray_init (transtbls);
+
+
+	for (i=0; feunit_set[i]; i++) {
+		feunit_t *thisunit = feunit_set[i];
+
+		if (thisunit->init_dfatrans) {
+			dfattbl_t **t_table;
+			int t_size = 0;
+
+			/* can't fail in any meaningful way, but heyho */
+			t_table = thisunit->init_dfatrans (&t_size);
+			if (t_size > 0) {
+				/* add them */
+				int j;
+
+				for (j=0; j<t_size; j++) {
+					dynarray_add (transtbls, t_table[j]);
+				}
+			}
+			if (t_table) {
+				sfree (t_table);
+			}
+		}
+	}
+
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:name ::= +Name {<opi:namereduce>}"));
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:namelist ::= { occampi:name @@, 1 }"));
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:primtype ::= ( +@INT | +@BYTE ) {Roccampi:primtype}"));
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:protocol ::= ( occampi:primtype | +Name {<opi:namepush>} ) {<opi:nullreduce>}"));
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:primproc ::= ( +@SKIP | +@STOP ) {Roccampi:primproc}"));
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:vardecl ::= ( occampi:primtype | @CHAN occampi:protocol {<opi:chanpush>} ) occampi:namelist @@: {<opi:declreduce>}"));
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:fparam ::= ( occampi:primtype occampi:name {<opi:fparam2nsreduce>} | " \
 				"+Name ( +Name {<opi:fparam2tsreduce>} | -* {<opi:fparam1tsreduce>} ) | " \
@@ -399,34 +390,34 @@ static int occampi_dfas_init (void)
  */
 static int occampi_nodes_init (void)
 {
-	tndef_t *tnd;
-	/* ntdef_t *ntd; */
-	/* compops_t *cops; */
 	int i;
 
-	/*{{{  occampi:leafnode -- INT, BYTE, SKIP, STOP*/
-	i = -1;
-	tnd = opi.node_LEAFNODE = tnode_newnodetype ("occampi:leafnode", &i, 0, 0, 0, TNF_NONE);
-	i = -1;
-	opi.tag_SKIP = tnode_newnodetag ("SKIP", &i, tnd, NTF_NONE);
-	i = -1;
-	opi.tag_STOP = tnode_newnodetag ("STOP", &i, tnd, NTF_NONE);
-	/*}}}*/
-	/*{{{  occampi:cnode -- SEQ, PAR*/
-	i = -1;
-	tnd = tnode_newnodetype ("occampi:cnode", &i, 2, 0, 0, TNF_LONGPROC);
-	i = -1;
-	opi.tag_SEQ = tnode_newnodetag ("SEQ", &i, tnd, NTF_NONE);
-	i = -1;
-	opi.tag_PAR = tnode_newnodetag ("PAR", &i, tnd, NTF_NONE);
-	/*}}}*/
+	for (i=0; feunit_set[i]; i++) {
+		feunit_t *thisunit = feunit_set[i];
 
-	occampi_decl_nodes_init ();
-	occampi_type_nodes_init ();
-	occampi_action_nodes_init ();
-	occampi_lit_nodes_init ();
-	occampi_instance_nodes_init ();
+		if (thisunit->init_nodes && thisunit->init_nodes ()) {
+			return -1;
+		}
+	}
 
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_post_setup (void)*/
+/*
+ *	calls any post-setup routines for the parser
+ */
+static int occampi_post_setup (void)
+{
+	int i;
+
+	for (i=0; feunit_set[i]; i++) {
+		feunit_t *thisunit = feunit_set[i];
+
+		if (thisunit->post_setup && thisunit->post_setup ()) {
+			return -1;
+		}
+	}
 	return 0;
 }
 /*}}}*/
@@ -474,6 +465,10 @@ static int occampi_parser_init (lexfile_t *lf)
 		}
 		if (occampi_dfas_init ()) {
 			nocc_error ("occampi_parser_init(): failed to initialise DFAs");
+			return 1;
+		}
+		if (occampi_post_setup ()) {
+			nocc_error ("occampi_parser_init(): failed to post-setup");
 			return 1;
 		}
 

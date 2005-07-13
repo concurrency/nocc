@@ -41,6 +41,7 @@
 #include "dfa.h"
 #include "parsepriv.h"
 #include "occampi.h"
+#include "feunit.h"
 #include "names.h"
 #include "scope.h"
 #include "prescope.h"
@@ -175,26 +176,45 @@ tnode_dumptree (bename, 1, stderr);
 static int occampi_codegen_instance (tnode_t *node, codegen_t *cgen)
 {
 	name_t *name = tnode_nthnameof (tnode_nthsubof (node, 0), 0);
+	tnode_t *params = tnode_nthsubof (node, 1);
 	tnode_t *instance, *ibody;
+	int ws_size, ws_offset, vs_size, ms_size, adjust;
 
 	instance = NameDeclOf (name);
 	ibody = tnode_nthsubof (instance, 2);
 
 	codegen_check_beblock (ibody, cgen, 1);
 
-	codegen_callops (cgen, callnamedlabel, NameNameOf (name), 0);
-	/* FIXME: this is b0rked! */
+	/* get size of this block */
+	cgen->target->be_getblocksize (ibody, &ws_size, &ws_offset, &vs_size, &ms_size, &adjust);
+
+	/* FIXME: load parameters in reverse order, into -4, -8, ... */
+	if (parser_islistnode (params)) {
+		int nitems, i, wsoff;
+		tnode_t **items = parser_getlistitems (params, &nitems);
+
+		for (i=nitems - 1, wsoff = -4; i>=0; i--, wsoff += 4) {
+			codegen_callops (cgen, loadparam, items[i], PARAM_REF);
+			codegen_callops (cgen, storelocal, wsoff);
+		}
+	} else {
+		/* single parameter */
+		codegen_callops (cgen, loadparam, params, PARAM_REF);
+		codegen_callops (cgen, storelocal, -4);
+	}
+
+	codegen_callops (cgen, callnamedlabel, NameNameOf (name), adjust);
 
 	return 0;
 }
 /*}}}*/
 
 
-/*{{{  int occampi_instance_nodes_init (void)*/
+/*{{{  static int occampi_instance_init_nodes (void)*/
 /*
  *	initialises nodes for occam-pi instances
  */
-int occampi_instance_nodes_init (void)
+static int occampi_instance_init_nodes (void)
 {
 	tndef_t *tnd;
 	int i;
@@ -218,5 +238,40 @@ int occampi_instance_nodes_init (void)
 
 	return 0;
 }
+/*}}}*/
+/*{{{  static int occampi_instance_reg_reducers (void)*/
+/*
+ *	registers reducers for instance nodes
+ */
+static int occampi_instance_reg_reducers (void)
+{
+	/* FIXME: ... */
+	return 0;
+}
+/*}}}*/
+/*{{{  static dfattbl_t **occampi_instance_init_dfatrans (int *ntrans)*/
+/*
+ *	creates and returns DFA transition tables for instance nodes
+ */
+static dfattbl_t **occampi_instance_init_dfatrans (int *ntrans)
+{
+	DYNARRAY (dfattbl_t *, transtbl);
+
+	dynarray_init (transtbl);
+	/* FIXME: ... */
+
+	*ntrans = DA_CUR (transtbl);
+	return DA_PTR (transtbl);
+}
+/*}}}*/
+
+
+/*{{{  occampi_instance_feunit (feunit_t)*/
+feunit_t occampi_instance_feunit = {
+	init_nodes: occampi_instance_init_nodes,
+	reg_reducers: occampi_instance_reg_reducers,
+	init_dfatrans: occampi_instance_init_dfatrans,
+	post_setup: NULL
+};
 /*}}}*/
 

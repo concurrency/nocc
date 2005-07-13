@@ -42,6 +42,7 @@
 #include "dfa.h"
 #include "parsepriv.h"
 #include "occampi.h"
+#include "feunit.h"
 #include "names.h"
 #include "scope.h"
 #include "prescope.h"
@@ -183,11 +184,11 @@ static int occampi_codegen_action (tnode_t *node, codegen_t *cgen)
 /*}}}*/
 
 
-/*{{{  int occampi_action_nodes_init (void)*/
+/*{{{  static int occampi_action_init_nodes (void)*/
 /*
  *	initialises nodes for occam-pi actions
  */
-int occampi_action_nodes_init (void)
+static int occampi_action_init_nodes (void)
 {
 	tndef_t *tnd;
 	int i;
@@ -212,5 +213,40 @@ int occampi_action_nodes_init (void)
 
 	return 0;
 }
+/*}}}*/
+/*{{{  */
+/*
+ *	registers reductions for action nodes
+ */
+static int occampi_action_reg_reducers (void)
+{
+	/* FIXME: ... */
+	return 0;
+}
+/*}}}*/
+/*{{{  static dfattbl_t **occampi_action_init_dfatrans (int *ntrans)*/
+/*
+ *	creates and returns DFA transition tables for action nodes
+ */
+static dfattbl_t **occampi_action_init_dfatrans (int *ntrans)
+{
+	DYNARRAY (dfattbl_t *, transtbl);
+
+	dynarray_init (transtbl);
+	/* FIXME: ... */
+
+	*ntrans = DA_CUR (transtbl);
+	return DA_PTR (transtbl);
+}
+/*}}}*/
+
+
+/*{{{  occampi_action_feunit (feunit_t)*/
+feunit_t occampi_action_feunit = {
+	init_nodes: occampi_action_init_nodes,
+	reg_reducers: occampi_action_reg_reducers,
+	init_dfatrans: occampi_action_init_dfatrans,
+	post_setup: NULL
+};
 /*}}}*/
 

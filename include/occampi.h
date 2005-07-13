@@ -46,6 +46,12 @@ typedef struct {
 
 	struct TAG_ntdef *tag_BYTE;
 	struct TAG_ntdef *tag_INT;
+	struct TAG_ntdef *tag_INT16;
+	struct TAG_ntdef *tag_INT32;
+	struct TAG_ntdef *tag_INT64;
+	struct TAG_ntdef *tag_REAL32;
+	struct TAG_ntdef *tag_REAL64;
+	struct TAG_ntdef *tag_CHAR;
 	struct TAG_ntdef *tag_CHAN;
 	struct TAG_ntdef *tag_NAME;
 	struct TAG_ntdef *tag_VARDECL;
@@ -82,6 +88,7 @@ extern occampi_pset_t opi;
 struct TAG_tnode;
 struct TAG_prescope;
 struct TAG_scope;
+struct TAG_feunit;
 
 
 typedef struct {
@@ -96,20 +103,13 @@ typedef struct {
 extern void occampi_isetindent (FILE *stream, int indent);
 
 
-/* occampi_decl.c */
-extern int occampi_decl_nodes_init (void);
-
-/* occampi_action.c */
-extern int occampi_action_nodes_init (void);
-
-/* occampi_lit.c */
-extern int occampi_lit_nodes_init (void);
-
-/* occampi_type.c */
-extern int occampi_type_nodes_init (void);
-
-/* occampi_instance.c */
-extern int occampi_instance_nodes_init (void);
+extern struct TAG_feunit occampi_primproc_feunit;	/* occampi_primproc.c */
+extern struct TAG_feunit occampi_cnode_feunit;		/* occampi_cnode.c */
+extern struct TAG_feunit occampi_decl_feunit;		/* occampi_decl.c */
+extern struct TAG_feunit occampi_action_feunit;		/* occampi_action.c */
+extern struct TAG_feunit occampi_lit_feunit;		/* occampi_lit.c */
+extern struct TAG_feunit occampi_type_feunit;		/* occampi_type.c */
+extern struct TAG_feunit occampi_instance_feunit;	/* occampi_instance.c */
 
 
 #endif	/* !__OCCAMPI_H */

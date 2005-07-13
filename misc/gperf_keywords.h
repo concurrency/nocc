@@ -36,7 +36,7 @@
  */
 struct TAG_keyword;
 
-#define TOTAL_KEYWORDS 68
+#define TOTAL_KEYWORDS 69
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 11
 #define MIN_HASH_VALUE 4
@@ -62,7 +62,7 @@ hash (register const char *str, register unsigned int len)
       116, 116, 116, 116, 116, 116, 116, 116, 116, 116,
        45, 116,  25, 116,   0, 116, 116, 116, 116, 116,
       116, 116, 116, 116, 116,  20,   0,  15,  25,   0,
-       35,  15, 116,  25, 116,   0,  30,   0,  30,  45,
+       35,  15, 116,  25, 116,  20,  30,   0,  30,  45,
        10,   5,   0,   5,   0,  85,  20,  20, 116,  15,
        25, 116, 116, 116, 116, 116, 116, 116, 116, 116,
       116, 116, 116, 116, 116, 116, 116, 116, 116, 116,
@@ -133,7 +133,7 @@ static const struct TAG_keyword wordlist[] =
     {"PLACE",		61,	NULL},
     {(char*)0,-1,NULL}, {(char*)0,-1,NULL},
     {"FOR",		35,	NULL},
-    {"FORK",		22,	NULL},
+    {"CHAR",		68,	NULL},
     {"MINUS",		54,	NULL},
     {"MOBILE.CHAN",	57,	NULL},
     {(char*)0,-1,NULL},
@@ -152,7 +152,8 @@ static const struct TAG_keyword wordlist[] =
     {"INT64",		10,	NULL},
     {"SHARED",		67,	NULL},
     {"IN",		62,	NULL},
-    {(char*)0,-1,NULL}, {(char*)0,-1,NULL},
+    {(char*)0,-1,NULL},
+    {"FORK",		22,	NULL},
     {(char*)0,-1,NULL},
     {"INLINE",		21,	NULL},
     {"IF",		32,	NULL},

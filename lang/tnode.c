@@ -1258,6 +1258,35 @@ void tnode_freecompops (compops_t *cops)
 /*}}}*/
 
 
+/*{{{  langops_t *tnode_newlangops (void)*/
+/*
+ *	creates a new langops_t structure
+ */
+langops_t *tnode_newlangops (void)
+{
+	langops_t *lops = (langops_t *)smalloc (sizeof (langops_t));
+
+	lops->getdescriptor = NULL;
+
+	return lops;
+}
+/*}}}*/
+/*{{{  void tnode_freelangops (langops_t *lops)*/
+/*
+ *	frees a langops_t structure
+ */
+void tnode_freelangops (langops_t *lops)
+{
+	if (!lops) {
+		nocc_internal ("tnode_freelangops(): called with NULL argument!");
+		return;
+	}
+	sfree (lops);
+	return;
+}
+/*}}}*/
+
+
 /*{{{  chook_t *tnode_newchook (const char *name)*/
 /*
  *	allocates a new compiler-hook

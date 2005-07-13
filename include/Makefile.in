@@ -143,10 +143,11 @@ target_os = @target_os@
 target_vendor = @target_vendor@
 AUTOMAKE_OPTIONS = foreign
 noinst_HEADERS = version.h nocc.h support.h platform.h opts.h keywords.h \
-			pnode.h lexer.h tnode.h symbols.h xml.h names.h occampi.h \
-			treeops.h lexpriv.h scope.h parser.h parsepriv.h dfa.h prescope.h \
+			pnode.h lexer.h tnode.h symbols.h xml.h names.h occampi.h mcsp.h \
+			treeops.h langops.h lexpriv.h scope.h parser.h parsepriv.h dfa.h prescope.h \
 			typecheck.h aliascheck.h usagecheck.h defcheck.h map.h allocate.h \
-			target.h codegen.h krocetc.h transputer.h extn.h fetrans.h betrans.h
+			target.h codegen.h krocetc.h transputer.h extn.h fetrans.h betrans.h \
+			feunit.h
 
 all: all-am
 

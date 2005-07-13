@@ -46,6 +46,7 @@
 
 /*{{{  forward decls*/
 static int krocetc_target_init (target_t *target);
+static char *krocetc_make_namedlabel (const char *lbl);
 static tnode_t *krocetc_name_create (tnode_t *fename, tnode_t *body, map_t *mdata, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind);
 static tnode_t *krocetc_nameref_create (tnode_t *bename, map_t *mdata);
 static tnode_t *krocetc_block_create (tnode_t *body, map_t *mdata, tnode_t *slist, int lexlevel);
@@ -60,6 +61,7 @@ static void krocetc_be_setblocksize (tnode_t *blk, int ws, int ws_offs, int vs, 
 static void krocetc_be_getblocksize (tnode_t *blk, int *wsp, int *wsoffsp, int *vsp, int *msp, int *adjp);
 static int krocetc_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile);
 static int krocetc_be_codegen_final (codegen_t *cgen, lexfile_t *srcfile);
+static void krocetc_be_precode_seenproc (codegen_t *cgen, name_t *name, tnode_t *node);
 
 static void krocetc_coder_setlabel (codegen_t *cgen, int lbl);
 static void krocetc_coder_constblock (codegen_t *cgen, void *ptr, int size);
@@ -109,6 +111,8 @@ target_t krocetc_target = {
 	be_getblocksize:	krocetc_be_getblocksize,
 	be_codegen_init:	krocetc_be_codegen_init,
 	be_codegen_final:	krocetc_be_codegen_final,
+	
+	be_precode_seenproc:	krocetc_be_precode_seenproc,
 
 	priv:		NULL
 };
@@ -156,7 +160,10 @@ typedef struct TAG_krocetc_indexedhook {
 typedef struct TAG_krocetc_priv {
 	ntdef_t *tag_PRECODE;
 	ntdef_t *tag_CONSTREF;
+	ntdef_t *tag_JENTRY;
+	ntdef_t *tag_DESCRIPTOR;
 	tnode_t *precodelist;
+	name_t *toplevelname;
 } krocetc_priv_t;
 
 
@@ -337,6 +344,18 @@ static krocetc_indexedhook_t *krocetc_indexedhook_create (int isize)
 
 	ih->isize = isize;
 	return ih;
+}
+/*}}}*/
+/*}}}*/
+/*{{{  special-node hook routines*/
+/*{{{  static void krocetc_specialhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps hook data for debugging
+ */
+static void krocetc_specialhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	krocetc_isetindent (stream, indent);
+	fprintf (stream, "<specialhook addr=\"0x%8.8x\" />\n", (unsigned int)hook);
 }
 /*}}}*/
 /*}}}*/
@@ -758,6 +777,96 @@ fprintf (stderr, "krocetc_codegen_const(): ch->label = %d, ch->labrefs = %d\n", 
 /*}}}*/
 
 
+/*{{{  static int krocetc_precode_special (tnode_t **spec, codegen_t *cgen)*/
+/*
+ *	does pre-code for a back-end special
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int krocetc_precode_special (tnode_t **spec, codegen_t *cgen)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int krocetc_codegen_special (tnode_t *spec, codegen_t *cgen)*/
+/*
+ *	does code-gen for a back-end special
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int krocetc_codegen_special (tnode_t *spec, codegen_t *cgen)
+{
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)cgen->target->priv;
+
+	if (spec->tag == kpriv->tag_JENTRY) {
+		if (kpriv->toplevelname) {
+			char *belbl = krocetc_make_namedlabel (NameNameOf (kpriv->toplevelname));
+
+			codegen_write_fmt (cgen, ".jentry\t%s\n", belbl);
+			sfree (belbl);
+		}
+	} else if (spec->tag == kpriv->tag_DESCRIPTOR) {
+		char **str = (char **)tnode_nthhookaddr (spec, 0);
+
+		/* *str should be a descriptor line */
+		codegen_write_fmt (cgen, ".descriptor\t\"%s\"\n", *str);
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static void krocetc_be_precode_seenproc (codegen_t *cgen, name_t *name, tnode_t *node)*/
+/*
+ *	called during pre-code traversal with names of PROC definitions
+ */
+static void krocetc_be_precode_seenproc (codegen_t *cgen, name_t *name, tnode_t *node)
+{
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)cgen->target->priv;
+	chook_t *fetransdeschook = tnode_lookupchookbyname ("fetrans:descriptor");
+
+	kpriv->toplevelname = name;
+	if (fetransdeschook) {
+		void *dhook = tnode_getchook (node, fetransdeschook);
+
+		if (dhook) {
+			/* add descriptor special node */
+			char *dstr = (char *)dhook;
+			char *ch, *dh;
+
+#if 0
+fprintf (stderr, "krocetc_be_precode_seenproc(): seen descriptor [%s], doing back-end name trans\n", dstr);
+#endif
+			/* need to do back-end-name transform */
+			for (ch = dstr; (*ch != '\0') && strncmp (ch, "PROC", 4); ch++);
+			if (*ch == 'P') {
+				/* found it */
+				ch += 5;
+				for (dh=ch; (*dh != '\0') && (*dh != ' '); dh++);
+				if (*dh == ' ') {
+					/* got PROC name, fix it */
+					char *newdesc, *bename;
+
+					newdesc = (char *)smalloc (strlen (dstr) + 6);
+					*dh = '\0';
+					dh++;		/* rest of descriptor */
+					bename = krocetc_make_namedlabel (ch);
+					*ch = '\0';
+					sprintf (newdesc, "%s%s %s", dstr, bename, dh);
+					tnode_setchook (node, fetransdeschook, newdesc);
+					dhook = (void *)newdesc;
+					dstr = newdesc;
+				}
+			}
+#if 0
+fprintf (stderr, "krocetc_be_precode_seenproc(): descriptor now [%s]\n", dstr);
+#endif
+			tnode_t *dspec = tnode_create (kpriv->tag_DESCRIPTOR, NULL, (void *)string_dup (dstr));
+
+			parser_addtolist (kpriv->precodelist, dspec);
+		}
+	}
+	return;
+}
+/*}}}*/
+
+
 /*{{{  static char *krocetc_make_namedlabel (const char *lbl)*/
 /*
  *	transforms an internal name into a label
@@ -850,6 +959,26 @@ static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name)
 	return;
 }
 /*}}}*/
+/*{{{  static void krocetc_coder_loadparam (codegen_t *cgen, tnode_t *node, codegen_parammode_t pmode)*/
+/*
+ *	loads a back-end something as a parameter
+ */
+static void krocetc_coder_loadparam (codegen_t *cgen, tnode_t *node, codegen_parammode_t pmode)
+{
+	switch (pmode) {
+	case PARAM_INVALID:
+		codegen_error (cgen, "krocetc_coder_loadparam(): invalid parameter mode");
+		break;
+	case PARAM_REF:
+		krocetc_coder_loadpointer (cgen, node);
+		break;
+	case PARAM_VAL:
+		krocetc_coder_loadname (cgen, node);
+		break;
+	}
+	return;
+}
+/*}}}*/
 /*{{{  static void krocetc_coder_storepointer (codegen_t *cgen, tnode_t *name)*/
 /*
  *	stores a back-end pointer
@@ -882,6 +1011,16 @@ static void krocetc_coder_storename (codegen_t *cgen, tnode_t *name)
 			break;
 		}
 	}
+	return;
+}
+/*}}}*/
+/*{{{  static void krocetc_coder_storelocal (codegen_t *cgen, int ws_offset)*/
+/*
+ *	stores top of stack in a local workspace slot
+ */
+static void krocetc_coder_storelocal (codegen_t *cgen, int ws_offset)
+{
+	codegen_write_fmt (cgen, "\tstl\t%d\n", ws_offset);
 	return;
 }
 /*}}}*/
@@ -983,13 +1122,13 @@ static void krocetc_coder_setlabel (codegen_t *cgen, int lbl)
 	return;
 }
 /*}}}*/
-/*{{{  static void krocetc_coder_procreturn (codegen_t *cgen)*/
+/*{{{  static void krocetc_coder_procreturn (codegen_t *cgen, int adjust)*/
 /*
  *	generates a procedure return
  */
-static void krocetc_coder_procreturn (codegen_t *cgen)
+static void krocetc_coder_procreturn (codegen_t *cgen, int adjust)
 {
-	codegen_write_string (cgen, "\tret\n");
+	codegen_write_fmt (cgen, "\tret\t%d\n", adjust);
 	return;
 }
 /*}}}*/
@@ -1098,8 +1237,10 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	cops = (coderops_t *)smalloc (sizeof (coderops_t));
 	cops->loadpointer = krocetc_coder_loadpointer;
 	cops->loadname = krocetc_coder_loadname;
+	cops->loadparam = krocetc_coder_loadparam;
 	cops->storepointer = krocetc_coder_storepointer;
 	cops->storename = krocetc_coder_storename;
+	cops->storelocal = krocetc_coder_storelocal;
 	cops->loadconst = krocetc_coder_loadconst;
 	cops->wsadjust = krocetc_coder_wsadjust;
 	cops->comment = krocetc_coder_comment;
@@ -1122,6 +1263,13 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 
 		*(cgen->cinsertpoint) = precode;
 		kpriv->precodelist = tnode_nthsubof (precode, 0);
+	}
+
+	if (!compopts.notmainmodule) {
+		/* insert JENTRY marker first */
+		tnode_t *jentry = tnode_create (kpriv->tag_JENTRY, NULL, NULL);
+
+		parser_addtolist (kpriv->precodelist, jentry);
 	}
 
 	return 0;
@@ -1196,12 +1344,25 @@ fprintf (stderr, "krocetc_target_init(): here!\n");
 
 	kpriv = (krocetc_priv_t *)smalloc (sizeof (krocetc_priv_t));
 	kpriv->precodelist = NULL;
+	kpriv->toplevelname = NULL;
 	target->priv = (void *)kpriv;
 
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:precode", &i, 2, 0, 0, 0);
 	i = -1;
 	kpriv->tag_PRECODE = tnode_newnodetag ("KROCETCPRECODE", &i, tnd, 0);
+
+	i = -1;
+	tnd = tnode_newnodetype ("krocetc:special", &i, 0, 0, 1, 0);
+	tnd->hook_dumptree = krocetc_specialhook_dumptree;
+	cops = tnode_newcompops ();
+	cops->precode = krocetc_precode_special;
+	cops->codegen = krocetc_codegen_special;
+	tnd->ops = cops;
+	i = -1;
+	kpriv->tag_JENTRY = tnode_newnodetag ("KROCETCJENTRY", &i, tnd, 0);
+	i = -1;
+	kpriv->tag_DESCRIPTOR = tnode_newnodetag ("KROCETCDESCRIPTOR", &i, tnd, 0);
 
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:constref", &i, 0, 0, 1, 0);

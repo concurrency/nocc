@@ -42,12 +42,72 @@
 #include "dfa.h"
 #include "names.h"
 #include "fetrans.h"
+#include "langops.h"
 
 
 /*}}}*/
 /*{{{  private things*/
 static chook_t *fetranschook = NULL;
+static chook_t *fetransdeschook = NULL;
 
+/*}}}*/
+
+
+/*{{{  static void fetrans_isetindent (int indent, FILE *stream)*/
+/*
+ *	sets indentation for output
+ */
+static void fetrans_isetindent (int indent, FILE *stream)
+{
+	int i;
+
+	for (i=0; i<indent; i++) {
+		fprintf (stream, "    ");
+	}
+	return;
+}
+/*}}}*/
+
+
+/*{{{  descriptor compiler-hook routines*/
+/*{{{  static void *fetrans_deschook_copy (void *hook)*/
+/*
+ *	copies a descriptor hook
+ */
+static void *fetrans_deschook_copy (void *hook)
+{
+	void *nhook;
+
+	if (!hook) {
+		nhook = NULL;
+	} else {
+		nhook = (void *)string_dup ((char *)hook);
+	}
+	return nhook;
+}
+/*}}}*/
+/*{{{  static void fetrans_deschook_free (void *hook)*/
+/*
+ *	frees a descriptor hook
+ */
+static void fetrans_deschook_free (void *hook)
+{
+	if (hook) {
+		sfree (hook);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void fetrans_deschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a descriptor hook (debugging)
+ */
+static void fetrans_deschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	fetrans_isetindent (indent, stream);
+	fprintf (stream, "<fetrans:descriptor value=\"%s\" />\n", hook ? (char *)hook : "");
+}
+/*}}}*/
 /*}}}*/
 
 
@@ -97,6 +157,12 @@ int fetrans_tree (tnode_t **tptr, langparser_t *lang)
 {
 	if (!fetranschook) {
 		fetranschook = tnode_newchook ("fetrans");
+	}
+	if (!fetransdeschook) {
+		fetransdeschook = tnode_newchook ("fetrans:descriptor");
+		fetransdeschook->chook_copy = fetrans_deschook_copy;
+		fetransdeschook->chook_free = fetrans_deschook_free;
+		fetransdeschook->chook_dumptree = fetrans_deschook_dumptree;
 	}
 
 	tnode_modprewalktree (tptr, fetrans_modprewalk, (void *)lang);

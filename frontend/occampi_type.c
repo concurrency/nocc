@@ -42,11 +42,14 @@
 #include "dfa.h"
 #include "parsepriv.h"
 #include "occampi.h"
+#include "feunit.h"
 #include "names.h"
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
+#include "langops.h"
 /*}}}*/
+
 
 
 /*{{{  static tnode_t *occampi_type_gettype (tnode_t *node, tnode_t *default_type)*/
@@ -106,6 +109,28 @@ static int occampi_type_bytesfor (tnode_t *t)
 	return -1;
 }
 /*}}}*/
+/*{{{  static int occampi_type_getdescriptor (tnode_t *node, char **str)*/
+/*
+ *	gets descriptor information for a type
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_type_getdescriptor (tnode_t *node, char **str)
+{
+	if (node->tag == opi.tag_CHAN) {
+		if (*str) {
+			char *newstr = (char *)smalloc (strlen (*str) + 6);
+
+			sprintf (newstr, "%sCHAN ", *str);
+			sfree (*str);
+			*str = newstr;
+		} else {
+			*str = (char *)smalloc (8);
+			sprintf (*str, "CHAN ");
+		}
+	}
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_leaftype_bytesfor (tnode_t *t)*/
@@ -118,22 +143,95 @@ static int occampi_leaftype_bytesfor (tnode_t *t)
 		return 1;
 	} else if (t->tag == opi.tag_INT) {
 		return 4;
+	} else if (t->tag == opi.tag_INT16) {
+		return 2;
+	} else if (t->tag == opi.tag_INT32) {
+		return 4;
+	} else if (t->tag == opi.tag_INT64) {
+		return 8;
+	} else if (t->tag == opi.tag_REAL32) {
+		return 4;
+	} else if (t->tag == opi.tag_REAL64) {
+		return 8;
+	} else if (t->tag == opi.tag_CHAR) {
+		return 1;
 	}
 	return -1;
 }
 /*}}}*/
+/*{{{  static int occampi_leaftype_getdescriptor (tnode_t *node, char **str)*/
+/*
+ *	gets descriptor information for a leaf-type
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_leaftype_getdescriptor (tnode_t *node, char **str)
+{
+	char *sptr;
+
+	if (*str) {
+		char *newstr = (char *)smalloc (strlen (*str) + 16);
+
+		sptr = newstr;
+		sptr += sprintf (newstr, "%s", *str);
+		sfree (*str);
+		*str = newstr;
+	} else {
+		*str = (char *)smalloc (16);
+		sptr = *str;
+	}
+	if (node->tag == opi.tag_BYTE) {
+		sprintf (sptr, "BYTE");
+	} else if (node->tag == opi.tag_INT) {
+		sprintf (sptr, "INT");
+	} else if (node->tag == opi.tag_INT16) {
+		sprintf (sptr, "INT16");
+	} else if (node->tag == opi.tag_INT32) {
+		sprintf (sptr, "INT32");
+	} else if (node->tag == opi.tag_INT64) {
+		sprintf (sptr, "INT64");
+	} else if (node->tag == opi.tag_REAL32) {
+		sprintf (sptr, "REAL32");
+	} else if (node->tag == opi.tag_REAL64) {
+		sprintf (sptr, "REAL64");
+	} else if (node->tag == opi.tag_CHAR) {
+		sprintf (sptr, "CHAR");
+	}
+
+	return 0;
+}
+/*}}}*/
 
 
-/*{{{  int occampi_type_nodes_init (void)*/
+/*{{{  static void occampi_reduce_primtype (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	reduces a primitive type
+ */
+static void occampi_reduce_primtype (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	token_t *tok;
+	ntdef_t *tag;
+
+	tok = parser_gettok (pp);
+	tag = tnode_lookupnodetag (tok->u.kw->name);
+	*(dfast->ptr) = tnode_create (tag, tok->origin);
+	lexer_freetoken (tok);
+
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static int occampi_type_init_nodes (void)*/
 /*
  *	initialises type nodes for occam-pi
  *	return 0 on success, non-zero on error
  */
-int occampi_type_nodes_init (void)
+static int occampi_type_init_nodes (void)
 {
 	int i;
 	tndef_t *tnd;
 	compops_t *cops;
+	langops_t *lops;
 
 	/*{{{  occampi:typenode -- CHAN*/
 	i = -1;
@@ -143,6 +241,9 @@ int occampi_type_nodes_init (void)
 	cops->typeactual = occampi_type_typeactual;
 	cops->bytesfor = occampi_type_bytesfor;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->getdescriptor = occampi_type_getdescriptor;
+	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_CHAN = tnode_newnodetag ("CHAN", &i, tnd, NTF_NONE);
@@ -153,14 +254,67 @@ int occampi_type_nodes_init (void)
 	cops = tnode_newcompops ();
 	cops->bytesfor = occampi_leaftype_bytesfor;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->getdescriptor = occampi_leaftype_getdescriptor;
+	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_INT = tnode_newnodetag ("INT", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_BYTE = tnode_newnodetag ("BYTE", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_INT16 = tnode_newnodetag ("INT16", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_INT32 = tnode_newnodetag ("INT32", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_INT64 = tnode_newnodetag ("INT64", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_REAL32 = tnode_newnodetag ("REAL32", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_REAL64 = tnode_newnodetag ("REAL64", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_CHAR = tnode_newnodetag ("CHAR", &i, tnd, NTF_NONE);
 	/*}}}*/
 
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_type_reg_reducers (void)*/
+/*
+ *	registers reducers for occam-pi types
+ *	returns 0 on success, non-zero on error
+ */
+static int occampi_type_reg_reducers (void)
+{
+	parser_register_reduce ("Roccampi:primtype", occampi_reduce_primtype, NULL);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static dfattbl_t **occampi_type_init_dfatrans (int *ntrans)*/
+/*
+ *	creates and returns DFA transition tables for occam-pi type nodes
+ */
+static dfattbl_t **occampi_type_init_dfatrans (int *ntrans)
+{
+	DYNARRAY (dfattbl_t *, transtbl);
+
+	dynarray_init (transtbl);
+	dynarray_add (transtbl, dfa_bnftotbl ("occampi:primtype ::= ( +@INT | +@BYTE ) {Roccampi:primtype}"));
+
+	*ntrans = DA_CUR (transtbl);
+	return DA_PTR (transtbl);
+}
+/*}}}*/
+
+
+/*{{{  occampi_type_feunit (feunit_t struct)*/
+feunit_t occampi_type_feunit = {
+	init_nodes: occampi_type_init_nodes,
+	reg_reducers: occampi_type_reg_reducers,
+	init_dfatrans: occampi_type_init_dfatrans,
+	post_setup: NULL
+};
+/*}}}*/
+
 

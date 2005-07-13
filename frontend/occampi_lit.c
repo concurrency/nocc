@@ -42,6 +42,7 @@
 #include "dfa.h"
 #include "parsepriv.h"
 #include "occampi.h"
+#include "feunit.h"
 #include "names.h"
 #include "scope.h"
 #include "prescope.h"
@@ -150,12 +151,12 @@ static int occampi_namemap_lit (tnode_t **node, map_t *map)
 /*}}}*/
 
 
-/*{{{  int occampi_lit_nodes_init (void)*/
+/*{{{  static int occampi_lit_init_nodes (void)*/
 /*
  *	initialises literal-nodes for occam-pi
  *	return 0 on success, non-zero on failure
  */
-int occampi_lit_nodes_init (void)
+static int occampi_lit_init_nodes (void)
 {
 	tndef_t *tnd;
 	int i;
@@ -182,5 +183,39 @@ int occampi_lit_nodes_init (void)
 
 	return 0;
 }
+/*}}}*/
+/*{{{  static int occampi_lit_reg_reducers (void)*/
+/*
+ *	registers reducers for literal nodes
+ */
+static int occampi_lit_reg_reducers (void)
+{
+	return 0;
+}
+/*}}}*/
+/*{{{  static dfattbl_t **occampi_lit_init_dfatrans (int *ntrans)*/
+/*
+ *	creates and returns DFA transition tables for literal nodes
+ */
+static dfattbl_t **occampi_lit_init_dfatrans (int *ntrans)
+{
+	DYNARRAY (dfattbl_t *, transtbl);
+
+	dynarray_init (transtbl);
+	/* FIXME: ... */
+
+	*ntrans = DA_CUR (transtbl);
+	return DA_PTR (transtbl);
+}
+/*}}}*/
+
+
+/*{{{  occampi_lit_feunit (feunit_t)*/
+feunit_t occampi_lit_feunit = {
+	init_nodes: occampi_lit_init_nodes,
+	reg_reducers: occampi_lit_reg_reducers,
+	init_dfatrans: occampi_lit_init_dfatrans,
+	post_setup: NULL
+};
 /*}}}*/
 

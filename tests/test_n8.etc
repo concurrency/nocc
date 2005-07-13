@@ -3,12 +3,15 @@
 ;	compiled from tests/test_n8.occ
 ;
 
+.jentry	O_test_n8
 .setlabel	1
 .byte	0x61, 0x00, 0x00, 0x00
 .setlabel	2
 .byte	0x0a, 0x00, 0x00, 0x00
+.descriptor	"PROC O_thing (CHAN BYTE out)"
 .setlabel	3
 .byte	0x78, 0x00, 0x00, 0x00
+.descriptor	"PROC O_test_n8 (CHAN BYTE screen, CHAN BYTE error)"
 ; PROC thing = 24,8,0,0,8
 .setws	24, 8
 .setvs	0
@@ -24,7 +27,7 @@
 	ldc	1
 	out
 	ajw	0
-	ret
+	ret	8
 ; PROC test.n8 = 56,32,0,0,12
 .setws	56, 12
 .setvs	0
@@ -35,9 +38,11 @@
 	ldl	24
 	ldc	1
 	out
-	call	O_thing, 0
+	ldl	24
+	stl	-4
+	call	O_thing, 8
 	ajw	20
-	ret
+	ret	12
 
 ;
 ;	end of compilation

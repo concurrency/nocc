@@ -25,6 +25,7 @@ struct TAG_ntdef;
 struct TAG_map;
 struct TAG_codegen;
 struct TAG_lexfile;
+struct TAG_name;
 
 
 typedef struct TAG_target {
@@ -85,6 +86,9 @@ typedef struct TAG_target {
 	int (*be_codegen_init)(struct TAG_codegen *, struct TAG_lexfile *);
 				/* back-end code-generate finalise */
 	int (*be_codegen_final)(struct TAG_codegen *, struct TAG_lexfile *);
+
+				/* pre-code visiting top-level processes */
+	void (*be_precode_seenproc)(struct TAG_codegen *, struct TAG_name *, struct TAG_tnode *);
 
 	void *priv;
 } target_t;

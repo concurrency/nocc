@@ -23,6 +23,7 @@
 
 struct TAG_tnode;
 struct TAG_compops;
+struct TAG_langops;
 struct TAG_prescope;
 struct TAG_scope;
 struct TAG_typecheck;
@@ -48,6 +49,7 @@ typedef struct TAG_tndef {
 	void (*prefreetree)(struct TAG_tnode *);
 
 	struct TAG_compops *ops;	/* tree operations */
+	struct TAG_langops *lops;	/* language-oriented tree operations */
 
 	int tn_flags;
 } tndef_t;
@@ -97,6 +99,11 @@ typedef struct TAG_compops {
 } compops_t;
 
 
+/*}}}*/
+/*{{{  langops_t (language operations)*/
+typedef struct TAG_langops {
+	int (*getdescriptor)(tnode_t *, char **);			/* gets a descriptor string for the given node */
+} langops_t;
 /*}}}*/
 /*{{{  chook_t definition*/
 typedef struct TAG_chook {
@@ -149,6 +156,9 @@ extern void tnode_dumpnodetypes (FILE *stream);
 
 extern compops_t *tnode_newcompops (void);
 extern void tnode_freecompops (compops_t *cops);
+
+extern langops_t *tnode_newlangops (void);
+extern void tnode_freelangops (langops_t *lops);
 
 extern chook_t *tnode_newchook (const char *name);
 extern chook_t *tnode_lookupchookbyname (const char *name);

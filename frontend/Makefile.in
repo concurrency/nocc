@@ -54,7 +54,8 @@ ARFLAGS = cru
 libfrontend_a_AR = $(AR) $(ARFLAGS)
 libfrontend_a_LIBADD =
 am_libfrontend_a_OBJECTS = occampi_lexer.$(OBJEXT) \
-	occampi_parser.$(OBJEXT) occampi_decl.$(OBJEXT) \
+	occampi_parser.$(OBJEXT) occampi_primproc.$(OBJEXT) \
+	occampi_cnode.$(OBJEXT) occampi_decl.$(OBJEXT) \
 	occampi_type.$(OBJEXT) occampi_action.$(OBJEXT) \
 	occampi_lit.$(OBJEXT) occampi_instance.$(OBJEXT)
 libfrontend_a_OBJECTS = $(am_libfrontend_a_OBJECTS)
@@ -161,8 +162,8 @@ target_vendor = @target_vendor@
 noinst_LIBRARIES = libfrontend.a
 AUTOMAKE_OPTIONS = foreign
 INCLUDES = -I@srcdir@/../include
-libfrontend_a_SOURCES = occampi_lexer.c occampi_parser.c occampi_decl.c occampi_type.c \
-		occampi_action.c occampi_lit.c occampi_instance.c
+libfrontend_a_SOURCES = occampi_lexer.c occampi_parser.c occampi_primproc.c occampi_cnode.c \
+		occampi_decl.c occampi_type.c occampi_action.c occampi_lit.c occampi_instance.c
 
 all: all-am
 
@@ -212,11 +213,13 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/occampi_action.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/occampi_cnode.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/occampi_decl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/occampi_instance.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/occampi_lexer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/occampi_lit.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/occampi_parser.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/occampi_primproc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/occampi_type.Po@am__quote@
 
 .c.o:

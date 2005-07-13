@@ -55,8 +55,8 @@ liblang_a_AR = $(AR) $(ARFLAGS)
 liblang_a_LIBADD =
 am_liblang_a_OBJECTS = tnode.$(OBJEXT) names.$(OBJEXT) \
 	prescope.$(OBJEXT) scope.$(OBJEXT) typecheck.$(OBJEXT) \
-	aliascheck.$(OBJEXT) usagecheck.$(OBJEXT) defcheck.$(OBJEXT) \
-	fetrans.$(OBJEXT)
+	langops.$(OBJEXT) aliascheck.$(OBJEXT) usagecheck.$(OBJEXT) \
+	defcheck.$(OBJEXT) fetrans.$(OBJEXT)
 liblang_a_OBJECTS = $(am_liblang_a_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -161,7 +161,7 @@ target_vendor = @target_vendor@
 noinst_LIBRARIES = liblang.a
 AUTOMAKE_OPTIONS = foreign
 INCLUDES = -I@srcdir@/../include
-liblang_a_SOURCES = tnode.c names.c prescope.c scope.c typecheck.c aliascheck.c usagecheck.c defcheck.c fetrans.c
+liblang_a_SOURCES = tnode.c names.c prescope.c scope.c typecheck.c langops.c aliascheck.c usagecheck.c defcheck.c fetrans.c
 all: all-am
 
 .SUFFIXES:
@@ -212,6 +212,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/aliascheck.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/defcheck.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fetrans.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/langops.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/names.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/prescope.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/scope.Po@am__quote@

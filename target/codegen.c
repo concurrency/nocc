@@ -36,6 +36,7 @@
 #include "version.h"
 #include "lexer.h"
 #include "tnode.h"
+#include "names.h"
 #include "target.h"
 #include "codegen.h"
 
@@ -396,6 +397,21 @@ int codegen_check_beconst (tnode_t *node, codegen_t *cgen, int err)
 int codegen_check_beindexed (tnode_t *node, codegen_t *cgen, int err)
 {
 	return codegen_icheck_node (node, cgen->target->tag_INDEXED, cgen, err);
+}
+/*}}}*/
+
+
+/*{{{  void codegen_precode_seenproc (codegen_t *cgen, name_t *name, tnode_t *node)*/
+/*
+ *	called in pre-code to set the name of the outermost PROC,
+ *	called multiple times during the traversal
+ */
+void codegen_precode_seenproc (codegen_t *cgen, name_t *name, tnode_t *node)
+{
+	if (cgen->target && cgen->target->be_precode_seenproc) {
+		cgen->target->be_precode_seenproc (cgen, name, node);
+	}
+	return;
 }
 /*}}}*/
 

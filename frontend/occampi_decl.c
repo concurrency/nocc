@@ -41,6 +41,7 @@
 #include "dfa.h"
 #include "parsepriv.h"
 #include "occampi.h"
+#include "feunit.h"
 #include "names.h"
 #include "scope.h"
 #include "prescope.h"
@@ -48,6 +49,7 @@
 #include "target.h"
 #include "transputer.h"
 #include "codegen.h"
+#include "langops.h"
 
 
 /*}}}*/
@@ -275,6 +277,27 @@ static tnode_t *occampi_gettype_procdecl (tnode_t *node, tnode_t *defaulttype)
 	return tnode_nthsubof (node, 1);
 }
 /*}}}*/
+/*{{{  static int occampi_fetrans_procdecl (tnode_t **node)*/
+/*
+ *	does front-end transforms on a PROC definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_fetrans_procdecl (tnode_t **node)
+{
+	chook_t *deschook = tnode_lookupchookbyname ("fetrans:descriptor");
+	char *dstr = NULL;
+
+	if (!deschook) {
+		return 1;
+	}
+	langops_getdescriptor (*node, &dstr);
+	if (dstr) {
+		tnode_setchook (*node, deschook, (void *)dstr);
+	}
+
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_procdecl (tnode_t **node, map_t *map)*/
 /*
  *	name-maps a PROC definition
@@ -322,6 +345,27 @@ static int occampi_namemap_procdecl (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_precode_procdecl (tnode_t **nodep, codegen_t *cgen)*/
+/*
+ *	pre-code for PROC definition, used to determine the last PROC in a file
+ *	(entry-point if main module).
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_precode_procdecl (tnode_t **nodep, codegen_t *cgen)
+{
+	tnode_t *node = *nodep;
+	tnode_t *name = tnode_nthsubof (node, 0);
+
+	/* walk body */
+	codegen_subprecode (tnode_nthsubaddr (node, 2), cgen);
+
+	codegen_precode_seenproc (cgen, tnode_nthnameof (name, 0), node);
+
+	/* pre-code stuff following declaration */
+	codegen_subprecode (tnode_nthsubaddr (node, 3), cgen);
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_codegen_procdecl (tnode_t *node, codegen_t *cgen)*/
 /*
  *	generates code for a PROC definition
@@ -351,13 +395,63 @@ static int occampi_codegen_procdecl (tnode_t *node, codegen_t *cgen)
 	codegen_callops (cgen, wsadjust, (ws_offset - adjust));
 
 	/* return */
-	codegen_callops (cgen, procreturn);
+	codegen_callops (cgen, procreturn, adjust);
 
 	/* generate code following declaration */
 	codegen_subcodegen (tnode_nthsubof (node, 3), cgen);
 #if 0
 fprintf (stderr, "occampi_codegen_procdecl!\n");
 #endif
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_getdescriptor_procdecl (tnode_t *node, char **str)*/
+/*
+ *	generates a descriptor line for a PROC definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_getdescriptor_procdecl (tnode_t *node, char **str)
+{
+	tnode_t *name = tnode_nthsubof (node, 0);
+	char *realname;
+	tnode_t *params = tnode_nthsubof (node, 1);
+
+	if (*str) {
+		/* shouldn't get this here, but.. */
+		nocc_warning ("occampi_getdescriptor_procdecl(): already had descriptor [%s]", *str);
+		sfree (*str);
+	}
+	realname = NameNameOf (tnode_nthnameof (name, 0));
+	*str = (char *)smalloc (strlen (realname) + 10);
+
+	sprintf (*str, "PROC %s (", realname);
+	if (parser_islistnode (params)) {
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (params, &nitems);
+
+		for (i=0; i<nitems; i++) {
+			tnode_t *param = items[i];
+
+			langops_getdescriptor (param, str);
+			if (i < (nitems - 1)) {
+				char *newstr = (char *)smalloc (strlen (*str) + 5);
+
+				sprintf (newstr, "%s, ", *str);
+				sfree (*str);
+				*str = newstr;
+			}
+		}
+	} else {
+		langops_getdescriptor (params, str);
+	}
+
+	{
+		char *newstr = (char *)smalloc (strlen (*str) + 5);
+
+		sprintf (newstr, "%s)", *str);
+		sfree (*str);
+		*str = newstr;
+	}
 	return 0;
 }
 /*}}}*/
@@ -463,6 +557,41 @@ tnode_dumptree (type, 1, stderr);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_getdescriptor_fparam (tnode_t *node, char **str)*/
+/*
+ *	gets descriptor information for a formal parameter
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_getdescriptor_fparam (tnode_t *node, char **str)
+{
+	tnode_t *name = tnode_nthsubof (node, 0);
+	tnode_t *type = tnode_nthsubof (node, 1);
+	char *typestr = NULL;
+	char *pname = NameNameOf (tnode_nthnameof (name, 0));
+
+	/* get type first */
+	langops_getdescriptor (type, &typestr);
+	if (!typestr) {
+		typestr = string_dup ("ANY");
+	}
+
+	if (*str) {
+		char *newstr = (char *)smalloc (strlen (*str) + strlen (typestr) + strlen (pname) + 4);
+
+		sprintf (newstr, "%s%s %s", *str, typestr, pname);
+		sfree (*str);
+		*str = newstr;
+	} else {
+		*str = (char *)smalloc (strlen (typestr) + strlen (pname) + 4);
+		sprintf (*str, "%s %s", typestr, pname);
+	}
+
+	sfree (typestr);
+
+	return 0;
+}
+/*}}}*/
+
 
 /*{{{  static void occampi_rawnamenode_hook_free (void *hook)*/
 /*
@@ -577,15 +706,16 @@ tnode_dumptree (bename, 1, stderr);
 /*}}}*/
 
 
-/*{{{  int occampi_decl_nodes_init (void)*/
+/*{{{  static int occampi_decl_init_nodes (void)*/
 /*
  *	sets up declaration and name nodes for occam-pi
  *	returns 0 on success, non-zero on error
  */
-int occampi_decl_nodes_init (void)
+static int occampi_decl_init_nodes (void)
 {
 	tndef_t *tnd;
 	compops_t *cops;
+	langops_t *lops;
 	int i;
 
 	/*{{{  occampi:rawnamenode -- NAME*/
@@ -646,6 +776,9 @@ int occampi_decl_nodes_init (void)
 	cops->gettype = occampi_gettype_fparam;
 	cops->namemap = occampi_namemap_fparam;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->getdescriptor = occampi_getdescriptor_fparam;
+	tnd->lops = lops;
 	i = -1;
 	opi.tag_FPARAM = tnode_newnodetag ("FPARAM", &i, tnd, NTF_NONE);
 	/*}}}*/
@@ -658,13 +791,53 @@ int occampi_decl_nodes_init (void)
 	cops->scopeout = occampi_scopeout_procdecl;
 	cops->namemap = occampi_namemap_procdecl;
 	cops->gettype = occampi_gettype_procdecl;
+	cops->fetrans = occampi_fetrans_procdecl;
+	cops->precode = occampi_precode_procdecl;
 	cops->codegen = occampi_codegen_procdecl;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->getdescriptor = occampi_getdescriptor_procdecl;
+	tnd->lops = lops;
 	i = -1;
 	opi.tag_PROCDECL = tnode_newnodetag ("PROCDECL", &i, tnd, NTF_NONE);
 	/*}}}*/
 
 	return 0;
 }
+/*}}}*/
+/*{{{  static int occampi_decl_reg_reducers (void)*/
+/*
+ *	registers reductions for declaration nodes
+ */
+static int occampi_decl_reg_reducers (void)
+{
+	/* FIXME: ... */
+	return 0;
+}
+/*}}}*/
+/*{{{  static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)*/
+/*
+ *	initialises DFA transition tables for declaration nodes
+ */
+static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
+{
+	DYNARRAY (dfattbl_t *, transtbl);
+
+	dynarray_init (transtbl);
+	/* FIXME: ... */
+
+	*ntrans = DA_CUR (transtbl);
+	return DA_PTR (transtbl);
+}
+/*}}}*/
+
+
+/*{{{  occampi_decl_feunit (feunit_t)*/
+feunit_t occampi_decl_feunit = {
+	init_nodes: occampi_decl_init_nodes,
+	reg_reducers: occampi_decl_reg_reducers,
+	init_dfatrans: occampi_decl_init_dfatrans,
+	post_setup: NULL
+};
 /*}}}*/
 

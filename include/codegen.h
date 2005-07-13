@@ -22,8 +22,15 @@
 
 struct TAG_target;
 struct TAG_tnode;
+struct TAG_name;
 struct TAG_lexfile;
 struct TAG_coderops;
+
+typedef enum ENUM_codegen_parammode {
+	PARAM_INVALID = 0,
+	PARAM_REF = 1,
+	PARAM_VAL = 2
+} codegen_parammode_t;
 
 typedef struct TAG_codegen {
 	struct TAG_target *target;		/* target */
@@ -38,8 +45,10 @@ typedef struct TAG_codegen {
 typedef struct TAG_coderops {
 	void (*loadpointer)(codegen_t *, struct TAG_tnode *);
 	void (*loadname)(codegen_t *, struct TAG_tnode *);
+	void (*loadparam)(codegen_t *, struct TAG_tnode *, codegen_parammode_t);
 	void (*storepointer)(codegen_t *, struct TAG_tnode *);
 	void (*storename)(codegen_t *, struct TAG_tnode *);
+	void (*storelocal)(codegen_t *, int);
 	void (*loadconst)(codegen_t *, int);
 	void (*wsadjust)(codegen_t *, int);
 	void (*comment)(codegen_t *, const char *fmt, ...);
@@ -50,7 +59,7 @@ typedef struct TAG_coderops {
 	void (*setlabel)(codegen_t *, int);
 	void (*callnamedlabel)(codegen_t *, const char *, int);
 	void (*calllabel)(codegen_t *, int, int);
-	void (*procreturn)(codegen_t *);
+	void (*procreturn)(codegen_t *, int);
 	void (*tsecondary)(codegen_t *, int);
 } coderops_t;
 
@@ -76,6 +85,8 @@ extern int codegen_check_bename (struct TAG_tnode *node, codegen_t *cgen, int er
 extern int codegen_check_benameref (struct TAG_tnode *node, codegen_t *cgen, int err);
 extern int codegen_check_beconst (struct TAG_tnode *node, codegen_t *cgen, int err);
 extern int codegen_check_beindexed (struct TAG_tnode *node, codegen_t *cgen, int err);
+
+extern void codegen_precode_seenproc (codegen_t *cgen, struct TAG_name *name, struct TAG_tnode *node);
 
 extern int codegen_init (void);
 extern int codegen_shutdown (void);
