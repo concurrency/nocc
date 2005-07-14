@@ -29,6 +29,7 @@ struct TAG_lexfile;
 #define DFAFLAG_NOCONSUME 0x0001	/* don't consume the token */
 #define DFAFLAG_KEEP 0x0004		/* keep hold of the token on the token-stack */
 #define DFAFLAG_PUSHSTACK 0x0008	/* push the DFA state stack when making this transition */
+#define DFAFLAG_DEFERRED 0x0010		/* special for parser when putting the DFA together */
 
 
 /*
@@ -91,7 +92,7 @@ extern dfanode_t *dfa_newnode (void);
 extern dfanode_t *dfa_newnode_init (void (*reduce)(dfastate_t *, struct TAG_parsepriv *, void *), void *rarg);
 extern void dfa_addmatch (dfanode_t *dfa, struct TAG_token *tok, dfanode_t *target, int flags);
 extern void dfa_addpush (dfanode_t *dfa, struct TAG_token *tok, dfanode_t *pushto, dfanode_t *target, int flags);
-extern void dfa_matchpush (dfanode_t *dfa, char *pushto, dfanode_t *target);
+extern void dfa_matchpush (dfanode_t *dfa, char *pushto, dfanode_t *target, int deferring);
 extern void dfa_defaultto (dfanode_t *dfa, char *target);
 extern void dfa_defaultpush (dfanode_t *dfa, char *pushto, dfanode_t *target);
 extern void dfa_defaultreturn (dfanode_t *dfa);
@@ -109,6 +110,9 @@ extern dfattbl_t *dfa_bnftotbl (const char *rule, ...);
 extern dfanode_t *dfa_tbltodfa (dfattbl_t *ttbl);
 
 extern int dfa_mergetables (dfattbl_t **tables, int ntables);
+extern int dfa_clear_deferred (void);
+extern int dfa_match_deferred (void);
+extern void dfa_dumpdeferred (FILE *stream);
 
 
 extern int dfa_advance (dfastate_t **dfast, struct TAG_parsepriv *pp, struct TAG_token *tok);

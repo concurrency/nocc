@@ -190,6 +190,9 @@ static int occampi_lit_init_nodes (void)
  */
 static int occampi_lit_reg_reducers (void)
 {
+	parser_register_grule ("opi:integerreduce", parser_decode_grule ("T+St0X0VC2R-", occampi_integertoken_to_hook, opi.tag_LITINT));
+	parser_register_grule ("opi:realreduce", parser_decode_grule ("0T+St0XC2R-", occampi_realtoken_to_hook, opi.tag_LITREAL));
+
 	return 0;
 }
 /*}}}*/

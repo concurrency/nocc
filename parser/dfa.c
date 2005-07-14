@@ -51,6 +51,14 @@ typedef struct TAG_nameddfa {
 
 STATICSTRINGHASH (nameddfa_t *, nameddfas, 6);
 
+typedef struct TAG_deferred_match {
+	dfanode_t *inode;		/* initial */
+	dfanode_t *enode;		/* end */
+	token_t *match;			/* INAME token */
+} deferred_match_t;
+
+STATICDYNARRAY (deferred_match_t *, defmatches);
+
 /* forward decls */
 static int dfa_idecode_rule (char **bits, int first, int last, dfanode_t *idfa, dfanode_t *edfa, void **fnptrtable, int *fnptr);
 static int dfa_idecode_totbl (char **bits, int first, int last, int istate, int estate, dfattbl_t *ttbl, void **fnptrtable, int *fnptr);
@@ -65,6 +73,7 @@ static int dfa_idecode_totbl (char **bits, int first, int last, int istate, int 
 void dfa_init (void)
 {
 	stringhash_init (nameddfas);
+	dynarray_init (defmatches);
 	return;
 }
 /*}}}*/
@@ -117,9 +126,10 @@ void dfa_dumpdfa (FILE *stream, dfanode_t *dfa)
 			}
 			fprintf (stream, " -> 0x%8.8x ", (unsigned int)t_target);
 			/* show flags */
-			fprintf (stream, "[%s%s%s]\n", (t_flags & DFAFLAG_NOCONSUME) ? "NC " : "",
+			fprintf (stream, "[%s%s%s%s]\n", (t_flags & DFAFLAG_NOCONSUME) ? "NC " : "",
 					(t_flags & DFAFLAG_KEEP) ? "KP " : "",
-					(t_flags & DFAFLAG_PUSHSTACK) ? "PS " : "");
+					(t_flags & DFAFLAG_PUSHSTACK) ? "PS " : "",
+					(t_flags & DFAFLAG_DEFERRED) ? "DF " : "");
 		}
 	}
 
@@ -274,6 +284,53 @@ void dfa_freettbl (dfattbl_t *ttbl)
 		sfree (ttbl->name);
 	}
 	sfree (ttbl);
+
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static deferred_match_t *dfa_newdefmatch (void)*/
+/*
+ *	creates a new deferred_match_t structure, blank
+ */
+static deferred_match_t *dfa_newdefmatch (void)
+{
+	deferred_match_t *dmatch = (deferred_match_t *)smalloc (sizeof (deferred_match_t));
+
+	dmatch->inode = NULL;
+	dmatch->enode = NULL;
+	dmatch->match = NULL;
+
+	return dmatch;
+}
+/*}}}*/
+/*{{{  static void dfa_freedefmatch (deferred_match_t *dmatch)*/
+/*
+ *	frees a deferred_match_t structure
+ */
+static void dfa_freedefmatch (deferred_match_t *dmatch)
+{
+	sfree (dmatch);
+	return;
+}
+/*}}}*/
+/*{{{  static void dfa_deferred_match (dfanode_t *inode, dfanode_t *enode, token_t *iname)*/
+/*
+ *	creates a new deferred match and adds it to the list
+ */
+static void dfa_deferred_match (dfanode_t *inode, dfanode_t *enode, token_t *iname)
+{
+	deferred_match_t *dmatch = dfa_newdefmatch ();
+
+	dmatch->inode = inode;
+	dmatch->enode = enode;
+	dmatch->match = iname;
+#if 0
+fprintf (stderr, "dfa_deferred_match(): adding deferred match! iname contents [%s]\n", iname->u.str.ptr);
+#endif
+
+	dynarray_add (defmatches, dmatch);
 
 	return;
 }
@@ -438,22 +495,54 @@ void dfa_addpush (dfanode_t *dfa, token_t *tok, dfanode_t *pushto, dfanode_t *ta
 	return;
 }
 /*}}}*/
-/*{{{  void dfa_matchpush (dfanode_t *dfa, char *pushto, dfanode_t *target)*/
+/*{{{  void dfa_matchpush (dfanode_t *dfa, char *pushto, dfanode_t *target, int deferring)*/
 /*
  *	adds match(es) to a DFA node from initial matches from another,
  *	also incorporates a state push
  */
-void dfa_matchpush (dfanode_t *dfa, char *pushto, dfanode_t *target)
+void dfa_matchpush (dfanode_t *dfa, char *pushto, dfanode_t *target, int deferring)
 {
 	nameddfa_t *ndfa = stringhash_lookup (nameddfas, pushto);
 	dfanode_t *tdfa;
 	int i;
 
 	if (!ndfa) {
-		nocc_internal ("dfa_matchpush(): no such DFA [%s]", pushto);
-		return;
+		if (!deferring) {
+			nocc_internal ("dfa_matchpush(): no such DFA [%s]", pushto);
+			return;
+		} else {
+			/* otherwise add a deferred entry for it */
+			token_t *t_tok = lexer_newtoken (INAME, pushto);
+
+#if 1
+fprintf (stderr, "dfa_matchpush(): adding deferred match for [%s] (no DFA)\n", t_tok->u.str.ptr);
+#endif
+			dfa_addmatch (dfa, t_tok, target, DFAFLAG_DEFERRED);
+			dfa_deferred_match (dfa, target, t_tok);
+			return;
+		}
 	}
 	tdfa = ndfa->inode;
+
+	/* look to see if the target has any deferred initial matches */
+	for (i=0; i<DA_CUR (tdfa->match); i++) {
+		int t_flags = DA_NTHITEM (tdfa->flags, i);
+
+		if (t_flags & DFAFLAG_DEFERRED) {
+			break;		/* for() */
+		}
+	}
+	if (i < DA_CUR (tdfa->match)) {
+		/* yes, had some deferred initial match, defer this one too */
+		token_t *t_tok = lexer_newtoken (INAME, pushto);
+
+#if 1
+fprintf (stderr, "dfa_matchpush(): adding deferred match for [%s] (initial deferrals)\n", t_tok->u.str.ptr);
+#endif
+		dfa_addmatch (dfa, t_tok, target, DFAFLAG_DEFERRED);
+		dfa_deferred_match (dfa, target, t_tok);
+		return;
+	}
 
 	/* iterate over target's initial matches, and produce new matches in the current DFA */
 	for (i=0; i<DA_CUR (tdfa->match); i++) {
@@ -716,12 +805,12 @@ static int dfa_idecode_choice (char **bits, int first, int last, dfanode_t *idfa
 	return 0;
 }
 /*}}}*/
-/*{{{  static int dfa_idecode_single (const char *mbit, dfanode_t *idfa, dfanode_t *edfa)*/
+/*{{{  static int dfa_idecode_single (const char *mbit, dfanode_t *idfa, dfanode_t *edfa, int deferring)*/
 /*
  *	decodes a single match between two DFA nodes
  *	return 0 on success, -1 on failure
  */
-static int dfa_idecode_single (const char *mbit, dfanode_t *idfa, dfanode_t *edfa)
+static int dfa_idecode_single (const char *mbit, dfanode_t *idfa, dfanode_t *edfa, int deferring)
 {
 	token_t *mtok = NULL;
 	int flags = 0;
@@ -814,7 +903,7 @@ static int dfa_idecode_single (const char *mbit, dfanode_t *idfa, dfanode_t *edf
 		/*}}}*/
 		/*{{{  default -- must be sub-match*/
 	default:
-		dfa_matchpush (idfa, bit, edfa);
+		dfa_matchpush (idfa, bit, edfa, deferring);
 		mtok = NULL;
 		break;
 		/*}}}*/
@@ -900,7 +989,7 @@ fprintf (stderr, "\n");
 				/* need an intermediate DFA state */
 				nextdfa = dfa_newnode ();
 			}
-			dfa_idecode_single (bit, idfa, nextdfa);
+			dfa_idecode_single (bit, idfa, nextdfa, 0);
 			idfa = nextdfa;
 			i++;
 			break;
@@ -1281,6 +1370,7 @@ fprintf (stderr, "dfa_idecode_totbl(): loop: i=%d, first=%d, last=%d, ef_last=%d
 /*
  *	checks that a single match is valid, used by both decoders
  *	return 0 on error, advancement of "mbit" on success
+ *	"lookuperr" is: 0 = ignore all lookup errors, 1 = fail all lookup errors, 2 = ignore only sub-spec lookup errors
  */
 static int dfa_idecode_checkmatch (const char *mbit, int lookuperr)
 {
@@ -1392,7 +1482,7 @@ static int dfa_idecode_checkmatch (const char *mbit, int lookuperr)
 				gottok = 0;
 			} else if (allow_subspec) {
 				dfarule = dfa_lookupbyname (bit);
-				if (dfarule || !lookuperr) {
+				if (dfarule || !lookuperr || (lookuperr == 2)) {
 					gottok = 1;
 				}
 				bit += strlen (bit);
@@ -1970,7 +2060,7 @@ int dfa_idecodetrans_decode (const char **bits, dfanode_t **nodetable, void **fn
 
 		/*}}}*/
 		/*{{{  check and decode match between DFA nodes*/
-		if (dfa_idecode_single (match, nodetable[start_state], (end_state < 0) ? NULL : end_node)) {
+		if (dfa_idecode_single (match, nodetable[start_state], (end_state < 0) ? NULL : end_node, 0)) {
 			nocc_message ("dfa_idecodetrans_decode(): failed to decode match [%s]", match);
 			return -1;
 		}
@@ -2072,13 +2162,14 @@ fprintf (stderr, "dfa_idecodetrans_tbl(): entries[%d]->reduce = 0x%8.8x, entries
 		}
 
 		if (entries[i]->match) {
-			if (!dfa_idecode_checkmatch (entries[i]->match, 1)) {
+			if (!dfa_idecode_checkmatch (entries[i]->match, 2)) {
 #if 0
 fprintf (stderr, "dfa_idecodetrans_tbl(): failed dfa_idecode_checkmatch() for [%s]\n", entries[i]->match);
 #endif
 				return -1;
 			}
-			if (dfa_idecode_single (entries[i]->match, nodetable[start_state], (end_state < 0) ? NULL : end_node)) {
+			/* allow deferred matches */
+			if (dfa_idecode_single (entries[i]->match, nodetable[start_state], (end_state < 0) ? NULL : end_node, 1)) {
 				nocc_internal ("dfa_idecodetrans_tbl(): failed to decode match [%s]", entries[i]->match);
 			}
 		}
@@ -2552,6 +2643,102 @@ mergetables_out_error:
 	return r;
 }
 /*}}}*/
+/*{{{  int dfa_clear_deferred (void)*/
+/*
+ *	clears out any/all deferred matches, without error
+ *	returns 0 if blank anyway, non-zero otherwise
+ */
+int dfa_clear_deferred (void)
+{
+	int i;
+	int r = 0;
+
+	for (i=0; i<DA_CUR (defmatches); i++) {
+		deferred_match_t *dmatch = DA_NTHITEM (defmatches, i);
+
+		if (dmatch) {
+			r++;
+			dfa_freedefmatch (dmatch);
+		}
+	}
+	dynarray_trash (defmatches);
+	dynarray_init (defmatches);
+
+	return r;
+}
+/*}}}*/
+/*{{{  int dfa_match_deferred (void)*/
+/*
+ *	process deferred matches in the various DFAs
+ *	returns 0 on success, non-zero on failure
+ */
+int dfa_match_deferred (void)
+{
+	int i;
+
+	/* XXX: assuming in resolvable order.. */
+
+	for (i=0; i<DA_CUR (defmatches); i++) {
+		deferred_match_t *dmatch = DA_NTHITEM (defmatches, i);
+		dfanode_t *inode = dmatch->inode;
+		int j;
+
+		/* find relevant match in the DFA and remove it */
+		for (j=0; j<DA_CUR (inode->match); j++) {
+			token_t *thistok = DA_NTHITEM (inode->match, j);
+
+			if (thistok == dmatch->match) {
+				break;		/* for() */
+			}
+		}
+		if (j == DA_CUR (inode->match)) {
+			nocc_internal ("dfa_match_deferred(): deferred match for [%s] not in node 0x%8.8x(%s)\n", dmatch->match->u.str.ptr,
+					(unsigned int)inode, inode->dfainfo ? ((nameddfa_t *)inode->dfainfo)->name : "?");
+			return -1;
+		}
+
+		dynarray_delitem (inode->match, j);
+		dynarray_delitem (inode->target, j);
+		dynarray_delitem (inode->pushto, j);
+		dynarray_delitem (inode->flags, j);
+
+#if 1
+fprintf (stderr, "dfa_match_deferred(): resolving [%s] in [%s]\n", dmatch->match->u.str.ptr, inode->dfainfo ? ((nameddfa_t *)inode->dfainfo)->name : "?");
+#endif
+		/* put in initial matches */
+		dfa_matchpush (dmatch->inode, dmatch->match->u.str.ptr, dmatch->enode, 0);
+
+		/* free this match structure */
+		lexer_freetoken (dmatch->match);
+		dfa_freedefmatch (dmatch);
+		DA_SETNTHITEM (defmatches, i, NULL);
+	}
+	dynarray_trash (defmatches);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  void dfa_dumpdeferred (FILE *stream)*/
+/*
+ *	dumps deferred matches (debugging)
+ */
+void dfa_dumpdeferred (FILE *stream)
+{
+	int i;
+
+	fprintf (stream, "dfa_dumpdeferred(): %d deferred matches:\n", DA_CUR (defmatches));
+	for (i=0; i<DA_CUR (defmatches); i++) {
+		deferred_match_t *dmatch = DA_NTHITEM (defmatches, i);
+
+		fprintf (stream, "%2d: 0x%8.8x(%s) --[%s]--> 0x%8.8x(%s)\n", i,
+				(unsigned int)dmatch->inode, dmatch->inode->dfainfo ? ((nameddfa_t *)dmatch->inode->dfainfo)->name : "?",
+				dmatch->match->u.str.ptr ?: "(null)",
+				(unsigned int)dmatch->enode, dmatch->enode->dfainfo ? ((nameddfa_t *)dmatch->enode->dfainfo)->name : "?");
+	}
+	return;
+}
+/*}}}*/
+
 
 
 /*{{{  int dfa_advance (dfastate_t *dfast, parsepriv_t *pp, token_t *tok)*/
@@ -2563,6 +2750,7 @@ int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)
 {
 	int i;
 	dfanode_t *cnode = (*dfast)->cur;
+	char *nodename = (cnode->dfainfo ? ((nameddfa_t *)cnode->dfainfo)->name : "?");
 
 	if (!cnode) {
 		nocc_internal ("dfa_advance(): NULL position in DFA!");
@@ -2583,7 +2771,7 @@ int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)
 	}
 	if (i == DA_CUR (cnode->match)) {
 		/* could not advance out of this state! */
-		parser_error (pp->lf, "dfa_advance(): stuck!  expecting:");
+		parser_error (pp->lf, "dfa_advance(): stuck in [%s], expecting:", nodename);
 		for (i=0; i<DA_CUR (cnode->match); i++) {
 			token_t *thistok = DA_NTHITEM (cnode->match, i);
 

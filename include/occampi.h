@@ -111,6 +111,11 @@ extern struct TAG_feunit occampi_lit_feunit;		/* occampi_lit.c */
 extern struct TAG_feunit occampi_type_feunit;		/* occampi_type.c */
 extern struct TAG_feunit occampi_instance_feunit;	/* occampi_instance.c */
 
+/* these are for language units to use in reductions */
+extern void *occampi_nametoken_to_hook (void *ntok);
+extern void *occampi_integertoken_to_hook (void *itok);
+extern void *occampi_realtoken_to_hook (void *itok);
+
 
 #endif	/* !__OCCAMPI_H */
 

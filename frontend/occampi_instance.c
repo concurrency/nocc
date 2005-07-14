@@ -245,7 +245,8 @@ static int occampi_instance_init_nodes (void)
  */
 static int occampi_instance_reg_reducers (void)
 {
-	/* FIXME: ... */
+	parser_register_grule ("opi:pinstancereduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_PINSTANCE));
+
 	return 0;
 }
 /*}}}*/
@@ -258,7 +259,7 @@ static dfattbl_t **occampi_instance_init_dfatrans (int *ntrans)
 	DYNARRAY (dfattbl_t *, transtbl);
 
 	dynarray_init (transtbl);
-	/* FIXME: ... */
+	dynarray_add (transtbl, dfa_bnftotbl ("occampi:aparamlist ::= ( -@@) {<opi:nullset>} | { occampi:expr @@, 1 } )"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

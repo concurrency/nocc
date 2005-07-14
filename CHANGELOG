@@ -1,3 +1,6 @@
+
+14/07/2005	frmb	tidied up DFA generation a bit, moved rules out into language bits
+10/07/2005	frmb	more development, back-end code-gen looking vaguely happy
 01/06/2005	frmb	checked into subversion repository
 29/05/2005	frmb	fixed help to display in order given
 29/05/2005	frmb	development release 0.1.2

@@ -32,7 +32,8 @@ typedef enum {
 	NEWLINE = 8,
 	INDENT = 9,
 	OUTDENT = 10,
-	END = 11
+	INAME = 11,
+	END = 12
 } tokentype_t;
 
 struct TAG_keyword;

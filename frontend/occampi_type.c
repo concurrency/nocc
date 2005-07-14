@@ -287,6 +287,7 @@ static int occampi_type_init_nodes (void)
 static int occampi_type_reg_reducers (void)
 {
 	parser_register_reduce ("Roccampi:primtype", occampi_reduce_primtype, NULL);
+	parser_register_grule ("opi:chanpush", parser_decode_grule ("N+Sn0C1N-", opi.tag_CHAN));
 
 	return 0;
 }

@@ -811,7 +811,14 @@ static int occampi_decl_init_nodes (void)
  */
 static int occampi_decl_reg_reducers (void)
 {
-	/* FIXME: ... */
+	parser_register_grule ("opi:namereduce", parser_decode_grule ("T+St0XC1R-", occampi_nametoken_to_hook, opi.tag_NAME));
+	parser_register_grule ("opi:namepush", parser_decode_grule ("T+St0XC1N-", occampi_nametoken_to_hook, opi.tag_NAME));
+	parser_register_grule ("opi:fparam2nsreduce", parser_decode_grule ("N+Sn0N+C2R-", opi.tag_FPARAM));
+	parser_register_grule ("opi:fparam2tsreduce", parser_decode_grule ("T+St0XC1T+XC1C2R-", occampi_nametoken_to_hook, opi.tag_NAME, occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_FPARAM));
+	parser_register_grule ("opi:fparam1tsreduce", parser_decode_grule ("T+St0XC10C2R-", occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_FPARAM));
+	parser_register_grule ("opi:declreduce", parser_decode_grule ("SN1N+N+0C3R-", opi.tag_VARDECL));
+	parser_register_grule ("opi:procdeclreduce", parser_decode_grule ("SN1N+N+V00C4R-", opi.tag_PROCDECL));
+
 	return 0;
 }
 /*}}}*/
@@ -824,7 +831,17 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 	DYNARRAY (dfattbl_t *, transtbl);
 
 	dynarray_init (transtbl);
-	/* FIXME: ... */
+
+	dynarray_add (transtbl, dfa_bnftotbl ("occampi:name ::= +Name {<opi:namereduce>}"));
+	dynarray_add (transtbl, dfa_bnftotbl ("occampi:namelist ::= { occampi:name @@, 1 }"));
+
+	dynarray_add (transtbl, dfa_bnftotbl ("occampi:vardecl ::= ( occampi:primtype | @CHAN occampi:protocol {<opi:chanpush>} ) occampi:namelist @@: {<opi:declreduce>}"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:procdecl ::= [ 0 @PROC 1 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:procdeclreduce>} -* ]"));
+
+	dynarray_add (transtbl, dfa_bnftotbl ("occampi:fparam ::= ( occampi:primtype occampi:name {<opi:fparam2nsreduce>} | " \
+				"+Name ( +Name {<opi:fparam2tsreduce>} | -* {<opi:fparam1tsreduce>} ) | " \
+				"@CHAN occampi:protocol {<opi:chanpush>} occampi:name {<opi:fparam2nsreduce>} )"));
+	dynarray_add (transtbl, dfa_bnftotbl ("occampi:fparamlist ::= ( -@@) {<opi:nullset>} | { occampi:fparam @@, 1 } )"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

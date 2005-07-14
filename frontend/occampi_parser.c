@@ -103,11 +103,11 @@ static feunit_t *feunit_set[] = {
 
 
 /*{{{  occampi reductions*/
-/*{{{  static void *occampi_nametoken_to_hook (void *ntok)*/
+/*{{{  void *occampi_nametoken_to_hook (void *ntok)*/
 /*
  *	turns a name token into a hooknode for a tag_NAME
  */
-static void *occampi_nametoken_to_hook (void *ntok)
+void *occampi_nametoken_to_hook (void *ntok)
 {
 	token_t *tok = (token_t *)ntok;
 	char *rawname;
@@ -120,11 +120,11 @@ static void *occampi_nametoken_to_hook (void *ntok)
 	return (void *)rawname;
 }
 /*}}}*/
-/*{{{  static void *occampi_integertoken_to_hook (void *itok)*/
+/*{{{  void *occampi_integertoken_to_hook (void *itok)*/
 /*
  *	turns an integer token into a hooknode for tag_LITINT
  */
-static void *occampi_integertoken_to_hook (void *itok)
+void *occampi_integertoken_to_hook (void *itok)
 {
 	token_t *tok = (token_t *)itok;
 	occampi_litdata_t *ldata = (occampi_litdata_t *)smalloc (sizeof (occampi_litdata_t));
@@ -137,11 +137,11 @@ static void *occampi_integertoken_to_hook (void *itok)
 	return (void *)ldata;
 }
 /*}}}*/
-/*{{{  static void *occampi_realtoken_to_hook (void *itok)*/
+/*{{{  void *occampi_realtoken_to_hook (void *itok)*/
 /*
  *	turns an real token into a hooknode for tag_LITREAL
  */
-static void *occampi_realtoken_to_hook (void *itok)
+void *occampi_realtoken_to_hook (void *itok)
 {
 	token_t *tok = (token_t *)itok;
 	occampi_litdata_t *ldata = (occampi_litdata_t *)smalloc (sizeof (occampi_litdata_t));
@@ -203,6 +203,12 @@ static int occampi_register_reducers (void)
 
 	parser_register_reduce ("Roccampi:inlist", occampi_inlistreduce, NULL);
 
+	/*{{{  setup generic reductions*/
+	parser_register_grule ("opi:nullreduce", parser_decode_grule ("N+R-"));
+	parser_register_grule ("opi:nullpush", parser_decode_grule ("0N-"));
+	parser_register_grule ("opi:nullset", parser_decode_grule ("0R-"));
+	/*}}}*/
+
 	for (i=0; feunit_set[i]; i++) {
 		feunit_t *thisunit = feunit_set[i];
 
@@ -235,27 +241,8 @@ static int occampi_dfas_init (void)
 	DYNARRAY (dfattbl_t *, transtbls);
 
 
-	/*{{{  setup generic reductions*/
-	parser_register_grule ("opi:namereduce", parser_decode_grule ("T+St0XC1R-", occampi_nametoken_to_hook, opi.tag_NAME));
-	parser_register_grule ("opi:integerreduce", parser_decode_grule ("T+St0X0VC2R-", occampi_integertoken_to_hook, opi.tag_LITINT));
-	parser_register_grule ("opi:realreduce", parser_decode_grule ("0T+St0XC2R-", occampi_realtoken_to_hook, opi.tag_LITREAL));
-	parser_register_grule ("opi:namepush", parser_decode_grule ("T+St0XC1N-", occampi_nametoken_to_hook, opi.tag_NAME));
-	parser_register_grule ("opi:nullreduce", parser_decode_grule ("N+R-"));
-	parser_register_grule ("opi:nullpush", parser_decode_grule ("0N-"));
-	parser_register_grule ("opi:nullset", parser_decode_grule ("0R-"));
-	parser_register_grule ("opi:chanpush", parser_decode_grule ("N+Sn0C1N-", opi.tag_CHAN));
-	parser_register_grule ("opi:fparam2nsreduce", parser_decode_grule ("N+Sn0N+C2R-", opi.tag_FPARAM));
-	parser_register_grule ("opi:fparam2tsreduce", parser_decode_grule ("T+St0XC1T+XC1C2R-", occampi_nametoken_to_hook, opi.tag_NAME, occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_FPARAM));
-	parser_register_grule ("opi:fparam1tsreduce", parser_decode_grule ("T+St0XC10C2R-", occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_FPARAM));
-	parser_register_grule ("opi:declreduce", parser_decode_grule ("SN1N+N+0C3R-", opi.tag_VARDECL));
-	parser_register_grule ("opi:assignreduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_ASSIGN));
-	parser_register_grule ("opi:outputreduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_OUTPUT));
-	parser_register_grule ("opi:procdeclreduce", parser_decode_grule ("SN1N+N+V00C4R-", opi.tag_PROCDECL));
-	parser_register_grule ("opi:pinstancereduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_PINSTANCE));
-	/*}}}*/
-
-
 	/*{{{  create DFAs*/
+	dfa_clear_deferred ();
 	dynarray_init (transtbls);
 
 
@@ -282,30 +269,19 @@ static int occampi_dfas_init (void)
 		}
 	}
 
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:name ::= +Name {<opi:namereduce>}"));
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:namelist ::= { occampi:name @@, 1 }"));
+	// dynarray_add (transtbls, dfa_bnftotbl ("occampi:name ::= +Name {<opi:namereduce>}"));
+	// dynarray_add (transtbls, dfa_bnftotbl ("occampi:namelist ::= { occampi:name @@, 1 }"));
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:protocol ::= ( occampi:primtype | +Name {<opi:namepush>} ) {<opi:nullreduce>}"));
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:vardecl ::= ( occampi:primtype | @CHAN occampi:protocol {<opi:chanpush>} ) occampi:namelist @@: {<opi:declreduce>}"));
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:fparam ::= ( occampi:primtype occampi:name {<opi:fparam2nsreduce>} | " \
-				"+Name ( +Name {<opi:fparam2tsreduce>} | -* {<opi:fparam1tsreduce>} ) | " \
-				"@CHAN occampi:protocol {<opi:chanpush>} occampi:name {<opi:fparam2nsreduce>} )"));
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:fparamlist ::= ( -@@) {<opi:nullset>} | { occampi:fparam @@, 1 } )"));
 	dynarray_add (transtbls, dfa_transtotbl ("occampi:exprnamestart ::= [ 0 +Name 1 ] [ 1 @@( 2 ] [ 2 {<opi:namepush>} ] [ 2 @@) 3 ] [ 3 {<opi:nullreduce>} -* ] " \
 				"[ 1 -* 4 ] [ 4 {<opi:namereduce>} -* ]"));
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:expr ::= ( -Name occampi:exprnamestart {<opi:nullreduce>} | +Integer {<opi:integerreduce>} | +Real {<opi:realreduce>} )"));
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:exprsemilist ::= { occampi:expr @@; 1 }"));
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:exprcommalist ::= { occampi:expr @@, 1 }"));
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:aparamlist ::= ( -@@) {<opi:nullset>} | { occampi:expr @@, 1 } )"));
-
 	dynarray_add (transtbls, dfa_transtotbl ("occampi:namestart ::= [ 0 +Name 1 ] [ 1 @@:= 2 ] [ 2 {<opi:namepush>} ] [ 2 occampi:expr 3 ] [ 3 {<opi:assignreduce>} -* ] " \
 				"[ 1 @@! 4 ] [ 4 {<opi:namepush>} ] [ 4 occampi:exprsemilist 5 ] [ 5 @@: 6 ] [ 6 {<opi:declreduce>} -* ] [ 5 -* 7 ] [ 7 {<opi:outputreduce>} -* ] " \
 				"[ 1 @@( 8 ] [ 8 {<opi:namepush>} ] [ 8 occampi:aparamlist 9 ] [ 9 @@) 10 ] [ 10 {<opi:pinstancereduce>} -* ]"));
-	dynarray_add (transtbls, dfa_transtotbl ("occampi:procdecl ::= [ 0 @PROC 1 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:procdeclreduce>} -* ]"));
-
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:cproc ::= ( +@SEQ | +@PAR ) -Newline {Roccampi:cnode}"));
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:declorprocstart ::= ( occampi:vardecl | occampi:procdecl | occampi:primproc | occampi:cproc | occampi:namestart ) {<opi:nullreduce>}"));
 
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:cproc +:= +@IF -Newline {Roccampi:cnode}"));
 
 	/*{{{  load grammar items for extensions*/
 	if (extn_preloadgrammar (&occampi_parser, &DA_PTR(transtbls), &DA_CUR(transtbls), &DA_MAX(transtbls))) {
@@ -313,7 +289,9 @@ static int occampi_dfas_init (void)
 	}
 
 	/*}}}*/
+
 	dfa_mergetables (DA_PTR (transtbls), DA_CUR (transtbls));
+
 	/*{{{  debug dump of grammars if requested*/
 	if (compopts.dumpgrammar) {
 		for (i=0; i<DA_CUR (transtbls); i++) {
@@ -327,6 +305,7 @@ static int occampi_dfas_init (void)
 
 	/*}}}*/
 	/*{{{  convert into DFA nodes proper*/
+
 	x = 0;
 	for (i=0; i<DA_CUR (transtbls); i++) {
 		dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
@@ -335,6 +314,15 @@ static int occampi_dfas_init (void)
 		if (ttbl && !ttbl->op) {
 			x += !dfa_tbltodfa (ttbl);
 		}
+	}
+
+	if (compopts.dumpgrammar) {
+		dfa_dumpdeferred (stderr);
+	}
+
+	if (dfa_match_deferred ()) {
+		/* failed here, get out */
+		return 1;
 	}
 
 	/*}}}*/

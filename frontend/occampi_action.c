@@ -214,13 +214,15 @@ static int occampi_action_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  */
+/*{{{  static int occampi_action_reg_reducers (void)*/
 /*
  *	registers reductions for action nodes
  */
 static int occampi_action_reg_reducers (void)
 {
-	/* FIXME: ... */
+	parser_register_grule ("opi:assignreduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_ASSIGN));
+	parser_register_grule ("opi:outputreduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_OUTPUT));
+
 	return 0;
 }
 /*}}}*/

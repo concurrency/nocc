@@ -233,6 +233,7 @@ token_t *lexer_newtoken (tokentype_t type, ...)
 		tok->u.dval = va_arg (ap, double);
 		break;
 	case STRING:
+	case INAME:
 		{
 			char *str = va_arg (ap, char *);
 
@@ -309,6 +310,9 @@ void lexer_dumptoken (FILE *stream, token_t *tok)
 		fprintf (stream, "    <![CDATA[%s]]>\n", tok->u.str.ptr);
 		fprintf (stream, "</token>\n");
 		break;
+	case INAME:
+		fprintf (stream, "iname\" value=\"%s\" />\n", tok->u.str.ptr);
+		break;
 	case NAME:
 		fprintf (stream, "name\" value=\"%s\" />\n", tok->u.name);
 		break;
@@ -340,6 +344,11 @@ void lexer_dumptoken (FILE *stream, token_t *tok)
  */
 void lexer_dumptoken_short (FILE *stream, token_t *tok)
 {
+	if (!tok) {
+		fprintf (stream, "<** NULL TOKEN **>");
+		return;
+	}
+
 	fprintf (stream, "<token type=\"");
 	switch (tok->type) {
 	case NOTOKEN:
@@ -357,8 +366,11 @@ void lexer_dumptoken_short (FILE *stream, token_t *tok)
 	case STRING:
 		fprintf (stream, "string\">");
 		break;
+	case INAME:
+		fprintf (stream, "iname\">");
+		break;
 	case NAME:
-		fprintf (stream, "name\"");
+		fprintf (stream, "name\">");
 		break;
 	case SYMBOL:
 		fprintf (stream, "symbol\" value=\"%s\">", tok->u.sym->match);
@@ -399,6 +411,7 @@ void lexer_freetoken (token_t *tok)
 		}
 		break;
 	case STRING:
+	case INAME:
 		if (tok->u.str.ptr) {
 			sfree (tok->u.str.ptr);
 		}
@@ -441,6 +454,16 @@ int lexer_tokmatch (token_t *formal, token_t *actual)
 	case NAME:
 		/* all these are instant matches */
 		return 1;
+	case INAME:
+		/* both sides must have a name set, and must match */
+		if (!formal->u.str.ptr || !actual->u.str.ptr) {
+			nocc_internal ("lexer_tokmatch(): INAME without string set");
+			return 0;
+		}
+		if ((formal->u.str.len == actual->u.str.len) && !strcmp (formal->u.str.ptr, actual->u.str.ptr)) {
+			return 1;
+		}
+		return 0;
 	case SYMBOL:
 		return (formal->u.sym == actual->u.sym);
 	case COMMENT:

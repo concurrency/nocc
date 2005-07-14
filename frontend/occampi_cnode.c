@@ -117,7 +117,8 @@ static dfattbl_t **occampi_cnode_init_dfatrans (int *ntrans)
 	DYNARRAY (dfattbl_t *, transtbl);
 
 	dynarray_init (transtbl);
-	/* FIXME: ... */
+	dynarray_add (transtbl, dfa_bnftotbl ("occampi:cproc ::= ( +@SEQ | +@PAR ) -Newline {Roccampi:cnode}"));
+	dynarray_add (transtbl, dfa_bnftotbl ("occampi:cproc +:= +@IF -Newline {Roccampi:cnode}"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

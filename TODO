@@ -2,8 +2,8 @@
 Lots of things..
 
 * DFA merge needs doing properly, won't follow states where there is a similar match
-* maybe separate out DFA transition table building from DFA generation, and/or lazy conversion ?
-* grammar and language constructs
+* maybe separate out DFA transition table building from DFA generation, and/or lazy conversion ?  (half done now)
+* grammar and language constructs (in progress)
 * built-in XML parser
 * "/etc/" to SYSCONFDIR, nocc.specs.xml.in -> nocc.specs.xml with PREFIX for path-base
 
