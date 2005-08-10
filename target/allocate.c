@@ -774,6 +774,9 @@ static int allocate_prewalktree_blocks (tnode_t *node, void *data)
 		alloc_varmap_t *avmap;
 		void *saved_hook = adata->allochook;
 
+#if 1
+fprintf (stderr, "allocate_prewalktree_blocks(): allocating for a block at %p\n", node);
+#endif
 		/* map nested blocks first */
 		tnode_prewalktree (tnode_nthsubof (node, 0), allocate_prewalktree_blocks, (void *)adata);
 
@@ -826,6 +829,8 @@ allocate_varmap_dump (avmap, stderr);
 				alloc_ovarmap_t *inner = DA_NTHITEM (avmap->wsmap->submaps, 0);
 
 				adjust = avmap->wsmap->size - inner->size;
+			} else {
+				adjust = avmap->wsmap->size;
 			}
 			adata->target->be_setblocksize (node, avmap->wsmap->size, avmap->wsmap->offset, avmap->vsmap->size, avmap->msmap->size, adjust);
 		}

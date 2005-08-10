@@ -39,6 +39,7 @@ static int opt_setintflag (cmd_option_t *opt, char ***argwalk, int *argleft);
 static int opt_clearintflag (cmd_option_t *opt, char ***argwalk, int *argleft);
 static int opt_setstopflag (cmd_option_t *opt, char ***argwalk, int *argleft);
 static int opt_setstr (cmd_option_t *opt, char ***argwalk, int *argleft);
+static int opt_setsaveopt (cmd_option_t *opt, char ***argwalk, int *argleft);
 
 
 /*}}}*/
@@ -172,6 +173,50 @@ static int opt_setstr (cmd_option_t *opt, char ***argwalk, int *argleft)
 		sfree (*starget);
 	}
 	*starget = ch;
+	return 0;
+}
+/*}}}*/
+/*{{{  static int opt_setsaveopt (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	sets a string
+ */
+static int opt_setsaveopt (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	int cmd = (int)(opt->arg);
+
+	if (cmd == 1) {
+		/* save named DFA to file */
+		char *dfaname, *fname;
+
+		(*argwalk)++;
+		(*argleft)--;
+		if (!**argwalk || !*argleft) {
+			nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+			return -1;
+		}
+		dfaname = **argwalk;
+
+		(*argwalk)++;
+		(*argleft)--;
+		if (!**argwalk || !*argleft) {
+			nocc_error ("missing argument for option %s", (*argwalk)[-2]);
+			return -1;
+		}
+		fname = **argwalk;
+
+		if (compopts.savenameddfa[0]) {
+			sfree (compopts.savenameddfa[0]);
+		}
+		if (compopts.savenameddfa[1]) {
+			sfree (compopts.savenameddfa[1]);
+		}
+		compopts.savenameddfa[0] = string_dup (dfaname);
+		compopts.savenameddfa[1] = string_dup (fname);
+	} else {
+		nocc_error ("don\'t know how to process option %s", (*argwalk)[-1]);
+		return -1;
+	}
+
 	return 0;
 }
 /*}}}*/

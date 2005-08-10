@@ -88,7 +88,7 @@ void dfa_shutdown (void)
 /*}}}*/
 /*{{{  void dfa_dumpdfa (FILE *stream, dfanode_t *dfa)*/
 /*
- *	void dfa_dumpdfa (FILE *stream, dfanode_t *dfa)
+ *	dumps a DFA and all its nodes (debugging)
  */
 void dfa_dumpdfa (FILE *stream, dfanode_t *dfa)
 {
@@ -235,6 +235,9 @@ static void dfa_freettblent (dfattblent_t *tblent)
 	if (!tblent) {
 		nocc_warning ("dfa_freettblent(): NULL table entry passed!");
 		return;
+	}
+	if (tblent->rname) {
+		sfree (tblent->rname);
 	}
 	if (tblent->match) {
 		sfree (tblent->match);
@@ -398,7 +401,7 @@ void dfa_addmatch (dfanode_t *dfa, token_t *tok, dfanode_t *target, int flags)
 
 		if ((((tok->type != NOTOKEN) && (thismatch->type != NOTOKEN)) || (tok->type == thismatch->type)) && lexer_tokmatch (thismatch, tok)) {
 			nocc_warning ("dfa_addmatch(): displacing existing match");
-#if 1
+#if 0
 			lexer_dumptoken (stderr, tok);
 			lexer_dumptoken (stderr, thismatch);
 #endif
@@ -514,7 +517,7 @@ void dfa_matchpush (dfanode_t *dfa, char *pushto, dfanode_t *target, int deferri
 			/* otherwise add a deferred entry for it */
 			token_t *t_tok = lexer_newtoken (INAME, pushto);
 
-#if 1
+#if 0
 fprintf (stderr, "dfa_matchpush(): adding deferred match for [%s] (no DFA)\n", t_tok->u.str.ptr);
 #endif
 			dfa_addmatch (dfa, t_tok, target, DFAFLAG_DEFERRED);
@@ -536,7 +539,7 @@ fprintf (stderr, "dfa_matchpush(): adding deferred match for [%s] (no DFA)\n", t
 		/* yes, had some deferred initial match, defer this one too */
 		token_t *t_tok = lexer_newtoken (INAME, pushto);
 
-#if 1
+#if 0
 fprintf (stderr, "dfa_matchpush(): adding deferred match for [%s] (initial deferrals)\n", t_tok->u.str.ptr);
 #endif
 		dfa_addmatch (dfa, t_tok, target, DFAFLAG_DEFERRED);
@@ -1334,6 +1337,7 @@ fprintf (stderr, "dfa_idecode_totbl(): loop: i=%d, first=%d, last=%d, ef_last=%d
 					if (!gredex) {
 						tblent->rname = string_dup (bits[i]);
 					} else {
+						tblent->rname = string_dup (bits[i]);		/* keep handy for debugging */
 						tblent->reduce = parser_generic_reduce;
 						tblent->rarg = gredex;
 					}
@@ -1346,6 +1350,7 @@ fprintf (stderr, "dfa_idecode_totbl(): loop: i=%d, first=%d, last=%d, ef_last=%d
 				{
 					char *rdx = string_ndup (bits[i] + 1, strlen (bits[i]) - 2);
 
+					tblent->rname = string_dup (bits[i]);			/* keep handy for debugging */
 					tblent->reduce = parser_lookup_reduce (rdx);
 					if (tblent->reduce) {
 						tblent->rarg = parser_lookup_rarg (rdx);
@@ -2239,10 +2244,8 @@ dfattbl_t *dfa_transtotbl (const char *rule, ...)
 				tblent->rarg = parser_lookup_grule (rdx);
 				if (tblent->rarg) {
 					tblent->reduce = parser_generic_reduce;
-				} else {
-					tblent->rarg = NULL;
-					tblent->rname = string_dup (bits[i]);
 				}
+				tblent->rname = string_dup (bits[i]);		/* keep handy for debugging regardless */
 				sfree (rdx);
 				i++;
 			} else if (bits[i][0] == '{') {
@@ -2251,9 +2254,9 @@ dfattbl_t *dfa_transtotbl (const char *rule, ...)
 				tblent->reduce = parser_lookup_reduce (rdx);
 				if (tblent->reduce) {
 					tblent->rarg = parser_lookup_rarg (rdx);
-				} else {
-					tblent->rname = string_dup (bits[i]);
 				}
+				tblent->rname = string_dup (bits[i]);		/* keep handy for debugging regardless */
+
 				sfree (rdx);
 				i++;
 			}
@@ -2362,6 +2365,43 @@ fprintf (stderr, "dfa_bnftotbl(): passed check..! -- ought to decode now (nfnptr
 	return ttbl;
 }
 /*}}}*/
+/*{{{  static void dfa_dumpttblent (FILE *stream, dfattblent_t *tblent)*/
+/*
+ *	dumps a transition-table entry
+ */
+static void dfa_dumpttblent (FILE *stream, dfattblent_t *tblent)
+{
+	fprintf (stream, " [ %d", tblent->s_state);
+	if (tblent->rname) {
+		fprintf (stream, " %s", tblent->rname);
+	} else if (tblent->reduce) {
+		fprintf (stream, " {0x%8.8x:0x%8.8x}", (unsigned int)tblent->reduce, (unsigned int)tblent->rarg);
+	}
+	if (tblent->match) {
+		fprintf (stream, " %s", tblent->match);
+	}
+	if (tblent->e_state > -1) {
+		fprintf (stream, " %d", tblent->e_state);
+	} else if (tblent->e_named) {
+		fprintf (stream, " %s", tblent->e_named);
+	}
+	fprintf (stream, " ]");
+
+	return;
+}
+/*}}}*/
+/*{{{  static void dfa_dumpttblent_gra (FILE *stream, dfattblent_t *tblent, int estate)*/
+/*
+ *	dumps a transition-table entry (in UWGVGraph .gra format)
+ */
+static void dfa_dumpttblent_gra (FILE *stream, dfattblent_t *tblent, int estate)
+{
+	if (tblent->match) {
+		fprintf (stream, "EDGE %d %d TYPE LINE LABEL \"%s\"\n", tblent->s_state, (tblent->e_state < 0) ? estate : tblent->e_state, tblent->match);
+	}
+	return;
+}
+/*}}}*/
 /*{{{  void dfa_dumpttbl (FILE *stream, dfattbl_t *ttbl)*/
 /*
  *	dumps a dfattbl_t transition table
@@ -2375,9 +2415,9 @@ void dfa_dumpttbl (FILE *stream, dfattbl_t *ttbl)
 		return;
 	}
 	if (ttbl->name) {
-		fprintf (stream, "%s %s", ttbl->name, (ttbl->op == 0) ? "::=" : "+:=");
+		fprintf (stream, "[nstates=%d] %s %s", ttbl->nstates, ttbl->name, (ttbl->op == 0) ? "::=" : "+:=");
 	} else {
-		fprintf (stream, "(anon) %s", (ttbl->op == 0) ? "::=" : "+:=");
+		fprintf (stream, "[nstates=%d] (anon) %s", ttbl->nstates, (ttbl->op == 0) ? "::=" : "+:=");
 	}
 	for (i=0; i<DA_CUR (ttbl->entries); i++) {
 		dfattblent_t *tblent = DA_NTHITEM (ttbl->entries, i);
@@ -2386,27 +2426,85 @@ void dfa_dumpttbl (FILE *stream, dfattbl_t *ttbl)
 			nocc_internal ("dfa_dumpttbl(): NULL table entry!");
 			return;
 		}
-		fprintf (stream, " [ %d", tblent->s_state);
-		if (tblent->reduce) {
-			fprintf (stream, " {0x%8.8x:0x%8.8x}", (unsigned int)tblent->reduce, (unsigned int)tblent->rarg);
-		} else if (tblent->rname) {
-			fprintf (stream, " %s", tblent->rname);
-		}
-		if (tblent->match) {
-			fprintf (stream, " %s", tblent->match);
-		}
-		if (tblent->e_state > -1) {
-			fprintf (stream, " %d", tblent->e_state);
-		} else if (tblent->e_named) {
-			fprintf (stream, " %s", tblent->e_named);
-		}
-		fprintf (stream, " ]");
+		dfa_dumpttblent (stream, tblent);
 	}
 	fprintf (stream, "\n");
 
 	return;
 }
 /*}}}*/
+/*{{{  void dfa_dumpttbl_gra (FILE *stream, dfattbl_t *ttbl)*/
+/*
+ *	dumps a dfattbl_t transition table (in UWGVGraph .gra format)
+ */
+void dfa_dumpttbl_gra (FILE *stream, dfattbl_t *ttbl)
+{
+	int i;
+	int *seen_states;
+	char **seen_reducers;
+	int enode;
+
+	if (!ttbl) {
+		nocc_internal ("dfa_dumpttbl_gra(): NULL transition table!");
+		return;
+	}
+	fprintf (stream, "#\n# transition table for [%s], nstates = %d, op = %s\n#\n\n", ttbl->name ?: "(anon)", ttbl->nstates, (ttbl->op == 0) ? "::=" : "+:=");
+
+	seen_states = (int *)smalloc ((ttbl->nstates + 1) * sizeof (int));
+	seen_reducers = (char **)smalloc ((ttbl->nstates + 1) * sizeof (char *));
+
+	for (i=0; i<=ttbl->nstates; i++) {
+		seen_states[i] = 0;
+		seen_reducers[i] = NULL;
+	}
+
+	for (i=0; i<DA_CUR (ttbl->entries); i++) {
+		dfattblent_t *tblent = DA_NTHITEM (ttbl->entries, i);
+
+		if (!tblent) {
+			nocc_internal ("dfa_dumpttbl_gra(): NULL table entry!");
+			return;
+		}
+		if (!seen_reducers[tblent->s_state]) {
+			if (tblent->rname) {
+				seen_reducers[tblent->s_state] = string_dup (tblent->rname);
+			} else if (tblent->reduce) {
+				seen_reducers[tblent->s_state] = (char *)smalloc (128);
+				sprintf (seen_reducers[tblent->s_state], "0x%8.8x (0x%8.8x)", (unsigned int)tblent->reduce, (unsigned int)tblent->rarg);
+			}
+		}
+	}
+	for (i=0; i<DA_CUR (ttbl->entries); i++) {
+		dfattblent_t *tblent = DA_NTHITEM (ttbl->entries, i);
+
+		if (!seen_states[tblent->s_state]) {
+			char *redex = seen_reducers[tblent->s_state];
+
+			seen_states[tblent->s_state] = 1;
+			fprintf (stream, "NODE %d TYPE POINT SIZE 5 LABEL \"%d%s%s%s\"\n", tblent->s_state, tblent->s_state, (!tblent->s_state) ? " (start)" : "", redex ? " " : "", redex ?: "");
+			if (redex) {
+				sfree (redex);
+			}
+		}
+	}
+
+	enode = ttbl->nstates + 1;
+	fprintf (stream, "NODE %d TYPE POINT SIZE 5 LABEL \"%d (end)\"\n", enode, enode);
+
+	for (i=0; i<DA_CUR (ttbl->entries); i++) {
+		dfattblent_t *tblent = DA_NTHITEM (ttbl->entries, i);
+
+		dfa_dumpttblent_gra (stream, tblent, enode);
+	}
+	fprintf (stream, "\n");
+
+	sfree (seen_states);
+	sfree (seen_reducers);
+
+	return;
+}
+/*}}}*/
+
 /*{{{  dfanode_t *dfa_tbltodfa (dfattbl_t *ttbl)*/
 /*
  *	turns a semi-compiled DFA transition system into a proper DFA system,
@@ -2581,6 +2679,12 @@ int dfa_mergetables (dfattbl_t **tables, int ntables)
 	/*}}}*/
 	/*{{{  sort tables and contents first*/
 	da_qsort ((void **)tcopy, 0, ntables - 1, (int (*)(void *, void *))dfa_compare_tables);
+#if 0
+fprintf (stderr, "table order in tcopy:\n");
+for (i=0; i<ntables; i++) {
+fprintf (stderr, "    [%s] (%d)\n", tcopy[i]->name ?: "(anon)", tcopy[i]->op);
+}
+#endif
 	for (i=0; i<ntables; i++) {
 		if (tcopy[i]) {
 			dynarray_qsort (tcopy[i]->entries, dfa_compare_entries);
@@ -2593,25 +2697,33 @@ int dfa_mergetables (dfattbl_t **tables, int ntables)
 		int j;
 
 		if (prin->op) {
+			/* make it the principle definition for now */
+			prin->op = 0;
+			/*
 			nocc_error ("dfa_mergetables(): missing principle definition for [%s]", prin->name);
 			r = -1;
 			goto mergetables_out_error;
+			*/
 		}
 		i++;
 		j = i;
-		for (; (i<ntables) && tcopy[i]->op; i++) {
+		for (; (i<ntables) && tcopy[i]->op && !strcmp (prin->name, tcopy[i]->name); i++) {
 			dfattbl_t *thisone = tcopy[i];
 			int s_diff, x;
 			int n;
+			int rs_state, ns_state;
+			int rs_idx, ns_idx;
+			DYNARRAY (dfattblent_t *, working);
 
 			if (strcmp (prin->name, thisone->name)) {
 				nocc_error ("dfa_mergetables(): name mismatch [%s] and [%s]", prin->name, thisone->name);
 				r = -1;
 				goto mergetables_out_error;
 			}
-			/*{{{  copy across other states and re-number*/
-			s_diff = prin->nstates - 1;
-			n = DA_CUR (prin->entries);
+
+			/*{{{  first of all, renumber all states in "thisone" into "working", except state 0 to avoid collisions*/
+			dynarray_init (working);
+			s_diff = prin->nstates;
 			for (x=0; x<DA_CUR (thisone->entries); x++) {
 				dfattblent_t *tblent = dfa_dupttblent (DA_NTHITEM (thisone->entries, x));
 
@@ -2621,10 +2733,103 @@ int dfa_mergetables (dfattbl_t **tables, int ntables)
 				if (tblent->e_state > 0) {
 					tblent->e_state += s_diff;
 				}
+				dynarray_add (working, tblent);
+			}
+			/*}}}*/
+#if 0
+fprintf (stderr, "dfa_mergetables(): re-numbered states in copy, got:\n  ");
+{ int xi; for (xi=0; xi<DA_CUR(working); xi++) {
+dfa_dumpttblent (stderr, DA_NTHITEM (working, xi));
+}}
+fprintf (stderr, "\n");
+#endif
+			/*{{{  step through both tables until merges diverge*/
+			rs_state = 0, ns_state = 0;
+			for (rs_idx = 0, ns_idx = 0; (rs_idx < DA_CUR (prin->entries)) && (ns_idx < DA_CUR (working)); ) {
+				dfattblent_t *rs_ent = DA_NTHITEM (prin->entries, rs_idx);
+				dfattblent_t *ns_ent = DA_NTHITEM (working, ns_idx);
+
+				rs_state = rs_ent->s_state;
+				ns_state = ns_ent->s_state;
+
+#if 0
+fprintf (stderr, "dfa_mergetables(): merge-loop: rs_ent=");
+dfa_dumpttblent (stderr, rs_ent);
+fprintf (stderr, ", ns_ent=");
+dfa_dumpttblent (stderr, ns_ent);
+fprintf (stderr, "\n");
+#endif
+				if ((rs_state != ns_state) || strcmp (rs_ent->match, ns_ent->match) || (rs_ent->reduce != ns_ent->reduce) || (rs_ent->rarg != ns_ent->rarg)) {
+#if 0
+fprintf (stderr, "dfa_mergetables(): merge-loop: mismatch.\n");
+#endif
+					break;
+				}
+
+				/* else, re-number target state in "working" to match target state in principle */
+				{
+					int old_state = ns_ent->e_state;
+					int new_state = rs_ent->e_state;
+
+#if 0
+fprintf (stderr, "dfa_mergetables(): merge-loop: match, re-numbering target states.. (%d -> %d)\n", old_state, new_state);
+#endif
+					for (x=0; x<DA_CUR (working); x++) {
+						dfattblent_t *went = DA_NTHITEM (working, x);
+
+						if (went->e_state == old_state) {
+							went->e_state = new_state;
+						}
+						if (went->s_state == old_state) {
+							went->s_state = new_state;
+						}
+					}
+				}
+
+				/* remove ns_ent from "working" */
+				dfa_freettblent (ns_ent);
+				dynarray_delitem (working, ns_idx);
+
+				/* move to next state (update rs_idx, ns_idx) */
+				rs_state = rs_ent->e_state;				/* where we want to be */
+				for (rs_idx++; rs_idx < DA_CUR (prin->entries); rs_idx++) {
+					dfattblent_t *tblent = DA_NTHITEM (prin->entries, rs_idx);
+
+					if (tblent->s_state == rs_state) {
+						break;			/* for() */
+					}
+				}
+				for (; ns_idx < DA_CUR (working); ns_idx++) {
+					dfattblent_t *tblent = DA_NTHITEM (working, ns_idx);
+
+					if (tblent->s_state == rs_state) {
+						break;			/* for() */
+					}
+				}
+
+				/* go round and try and match some more */
+			}
+			/*}}}*/
+#if 0
+fprintf (stderr, "dfa_mergetables(): finished walking.. got:\n  ");
+{ int xi; for (xi=0; xi<DA_CUR(working); xi++) {
+dfa_dumpttblent (stderr, DA_NTHITEM (working, xi));
+}}
+fprintf (stderr, "\n");
+#endif
+			/*{{{  copy across remaining states*/
+			for (x=0; x<DA_CUR (working); x++) {
+				dfattblent_t *tblent = DA_NTHITEM (working, x);
+
 				dynarray_add (prin->entries, tblent);
 			}
-			prin->nstates += (thisone->nstates - 1);
+			prin->nstates += thisone->nstates;
 			/*}}}*/
+#if 0
+dfa_dumpttbl (stderr, prin);
+#endif
+
+			dynarray_trash (working);
 		}
 	}
 	/*}}}*/
@@ -2702,7 +2907,7 @@ int dfa_match_deferred (void)
 		dynarray_delitem (inode->pushto, j);
 		dynarray_delitem (inode->flags, j);
 
-#if 1
+#if 0
 fprintf (stderr, "dfa_match_deferred(): resolving [%s] in [%s]\n", dmatch->match->u.str.ptr, inode->dfainfo ? ((nameddfa_t *)inode->dfainfo)->name : "?");
 #endif
 		/* put in initial matches */

@@ -49,6 +49,8 @@ typedef struct TAG_compopts {
 	int stoppoint;
 	char *specsfile;
 	char *outfile;
+	char *savenameddfa[2];
+	char *savealldfas;
 	DYNARRAY (char *, epath);
 	DYNARRAY (char *, ipath);
 	DYNARRAY (char *, lpath);

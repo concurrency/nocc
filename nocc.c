@@ -79,6 +79,8 @@ compopts_t compopts = {
 	dodefcheck: 1,
 	specsfile: NULL,
 	outfile: NULL,
+	savenameddfa: {NULL, NULL},
+	savealldfas: NULL,
 	DA_CONSTINITIALISER(epath),
 	DA_CONSTINITIALISER(ipath),
 	DA_CONSTINITIALISER(lpath),

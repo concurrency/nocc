@@ -53,6 +53,7 @@ static tnode_t *krocetc_block_create (tnode_t *body, map_t *mdata, tnode_t *slis
 static tnode_t *krocetc_const_create (tnode_t *val, map_t *mdata, void *data, int size);
 static tnode_t *krocetc_indexed_create (tnode_t *base, tnode_t *index, int isize);
 static tnode_t *krocetc_blockref_create (tnode_t *block, tnode_t *body, map_t *mdata);
+static tnode_t **krocetc_be_blockbodyaddr (tnode_t *blk);
 static int krocetc_be_allocsize (tnode_t *node, int *pwsh, int *pwsl, int *pvs, int *pms);
 static void krocetc_be_setoffsets (tnode_t *bename, int ws_offset, int vs_offset, int ms_offset);
 static void krocetc_be_getoffsets (tnode_t *bename, int *wsop, int *vsop, int *msop);
@@ -103,6 +104,7 @@ target_t krocetc_target = {
 	newindexed:	krocetc_indexed_create,
 	newblockref:	krocetc_blockref_create,
 
+	be_blockbodyaddr:	krocetc_be_blockbodyaddr,
 	be_allocsize:	krocetc_be_allocsize,
 	be_setoffsets:	krocetc_be_setoffsets,
 	be_getoffsets:	krocetc_be_getoffsets,
@@ -717,6 +719,42 @@ fprintf (stderr, "krocetc_be_getblocksize(): called on BLOCKREF!\n");
 	return;
 }
 /*}}}*/
+/*{{{  static tnode_t **krocetc_be_blockbodyaddr (tnode_t *blk)*/
+/*
+ *	returns the address of the body of a back-end block
+ */
+static tnode_t **krocetc_be_blockbodyaddr (tnode_t *blk)
+{
+	if (blk->tag != krocetc_target.tag_BLOCK) {
+		nocc_internal ("krocetc_be_blockbodyaddr(): block not back-end BLOCK, was [%s]", blk->tag->name);
+	}
+	return tnode_nthsubaddr (blk, 0);
+}
+/*}}}*/
+
+
+/*{{{  static int krocetc_codegen_block (tnode_t *blk, codegen_t *cgen)*/
+/*
+ *	does code generation for a back-end block
+ *	return 0 to stop walk, 1 to continue it
+ */
+static int krocetc_codegen_block (tnode_t *blk, codegen_t *cgen)
+{
+	int ws_size, vs_size, ms_size;
+	int ws_offset, adjust;
+
+	if (blk->tag != krocetc_target.tag_BLOCK) {
+		nocc_internal ("krocetc_codegen_block(): block not back-end BLOCK, was [%s]", blk->tag->name);
+	}
+	cgen->target->be_getblocksize (blk, &ws_size, &ws_offset, &vs_size, &ms_size, &adjust);
+
+	codegen_callops (cgen, wsadjust, -(ws_offset - adjust));
+	codegen_subcodegen (tnode_nthsubof (blk, 0), cgen);
+	codegen_callops (cgen, wsadjust, (ws_offset - adjust));
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int krocetc_bytesfor_name (tnode_t *name)*/
 /*
  *	used to get the type-size of a back-end name
@@ -1329,6 +1367,9 @@ fprintf (stderr, "krocetc_target_init(): here!\n");
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:block", &i, 2, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_blockhook_dumptree;
+	cops = tnode_newcompops ();
+	cops->codegen = krocetc_codegen_block;
+	tnd->ops = cops;
 	i = -1;
 	target->tag_BLOCK = tnode_newnodetag ("KROCETCBLOCK", &i, tnd, 0);
 

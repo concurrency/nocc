@@ -105,6 +105,7 @@ extern dfanode_t *dfa_decodetrans (const char *rule, ...);
 
 extern void dfa_freettbl (dfattbl_t *ttbl);
 extern void dfa_dumpttbl (FILE *stream, dfattbl_t *ttbl);
+extern void dfa_dumpttbl_gra (FILE *stream, dfattbl_t *ttbl);
 extern dfattbl_t *dfa_transtotbl (const char *rule, ...);
 extern dfattbl_t *dfa_bnftotbl (const char *rule, ...);
 extern dfanode_t *dfa_tbltodfa (dfattbl_t *ttbl);

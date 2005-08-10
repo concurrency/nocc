@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
+#include <errno.h>
 
 #include "nocc.h"
 #include "support.h"
@@ -245,7 +246,6 @@ static int occampi_dfas_init (void)
 	dfa_clear_deferred ();
 	dynarray_init (transtbls);
 
-
 	for (i=0; feunit_set[i]; i++) {
 		feunit_t *thisunit = feunit_set[i];
 
@@ -269,19 +269,13 @@ static int occampi_dfas_init (void)
 		}
 	}
 
-	// dynarray_add (transtbls, dfa_bnftotbl ("occampi:name ::= +Name {<opi:namereduce>}"));
-	// dynarray_add (transtbls, dfa_bnftotbl ("occampi:namelist ::= { occampi:name @@, 1 }"));
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:protocol ::= ( occampi:primtype | +Name {<opi:namepush>} ) {<opi:nullreduce>}"));
 	dynarray_add (transtbls, dfa_transtotbl ("occampi:exprnamestart ::= [ 0 +Name 1 ] [ 1 @@( 2 ] [ 2 {<opi:namepush>} ] [ 2 @@) 3 ] [ 3 {<opi:nullreduce>} -* ] " \
 				"[ 1 -* 4 ] [ 4 {<opi:namereduce>} -* ]"));
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:expr ::= ( -Name occampi:exprnamestart {<opi:nullreduce>} | +Integer {<opi:integerreduce>} | +Real {<opi:realreduce>} )"));
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:exprsemilist ::= { occampi:expr @@; 1 }"));
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:exprcommalist ::= { occampi:expr @@, 1 }"));
-	dynarray_add (transtbls, dfa_transtotbl ("occampi:namestart ::= [ 0 +Name 1 ] [ 1 @@:= 2 ] [ 2 {<opi:namepush>} ] [ 2 occampi:expr 3 ] [ 3 {<opi:assignreduce>} -* ] " \
-				"[ 1 @@! 4 ] [ 4 {<opi:namepush>} ] [ 4 occampi:exprsemilist 5 ] [ 5 @@: 6 ] [ 6 {<opi:declreduce>} -* ] [ 5 -* 7 ] [ 7 {<opi:outputreduce>} -* ] " \
-				"[ 1 @@( 8 ] [ 8 {<opi:namepush>} ] [ 8 occampi:aparamlist 9 ] [ 9 @@) 10 ] [ 10 {<opi:pinstancereduce>} -* ]"));
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:declorprocstart ::= ( occampi:vardecl | occampi:procdecl | occampi:primproc | occampi:cproc | occampi:namestart ) {<opi:nullreduce>}"));
 
+	dynarray_add (transtbls, dfa_bnftotbl ("occampi:declorprocstart ::= ( occampi:vardecl | occampi:procdecl | occampi:primproc | occampi:cproc | occampi:namestart ) {<opi:nullreduce>}"));
 
 	/*{{{  load grammar items for extensions*/
 	if (extn_preloadgrammar (&occampi_parser, &DA_PTR(transtbls), &DA_CUR(transtbls), &DA_MAX(transtbls))) {
@@ -303,6 +297,24 @@ static int occampi_dfas_init (void)
 		}
 	}
 
+	/*}}}*/
+	/*{{{  debugging dump for visualisation here :)*/
+	if (compopts.savenameddfa[0] && compopts.savenameddfa[1]) {
+		FILE *ostream = fopen (compopts.savenameddfa[1], "w");
+
+		if (!ostream) {
+			nocc_error ("failed to open %s for writing: %s", compopts.savenameddfa[1], strerror (errno));
+			return 1;
+		}
+		for (i=0; i<DA_CUR (transtbls); i++) {
+			dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
+
+			if (!ttbl->op && ttbl->name && !strcmp (compopts.savenameddfa[0], ttbl->name)) {
+				dfa_dumpttbl_gra (ostream, ttbl);
+			}
+		}
+		fclose (ostream);
+	}
 	/*}}}*/
 	/*{{{  convert into DFA nodes proper*/
 

@@ -75,6 +75,98 @@ static void occampi_reduce_cnode (dfastate_t *dfast, parsepriv_t *pp, void *rarg
 /*}}}*/
 
 
+/*{{{  static int occampi_namemap_cnode (tnode_t **node, map_t *map)*/
+/*
+ *	does name mapping for certain conditional-nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_cnode (tnode_t **node, map_t *map)
+{
+	if ((*node)->tag == opi.tag_SEQ) {
+		/* SEQ nodes don't need any special processing */
+		return 1;
+	} else if ((*node)->tag == opi.tag_PAR) {
+		/*{{{  map PAR bodies*/
+		tnode_t *body = tnode_nthsubof (*node, 1);
+		tnode_t **bodies;
+		int nbodies, i;
+
+		if (!parser_islistnode (body)) {
+			nocc_internal ("occampi_namemap_cnode(): body of PAR not list");
+			return 1;
+		}
+
+		bodies = parser_getlistitems (body, &nbodies);
+		for (i=0; i<nbodies; i++) {
+			/*{{{  turn body into back-end block*/
+			tnode_t *blk;
+			tnode_t *saved_blk = map->thisblock;
+			tnode_t **saved_params = map->thisprocparams;
+
+			blk = map->target->newblock (bodies[i], map, NULL, map->lexlevel + 1);
+			map->thisblock = blk;
+			map->thisprocparams = NULL;
+			map->lexlevel++;
+
+			/* map body */
+			map_submapnames (&(bodies[i]), map);
+			*(map->target->be_blockbodyaddr (blk)) = bodies[i];
+
+			map->lexlevel--;
+			map->thisblock = saved_blk;
+			map->thisprocparams = saved_params;
+
+			/* make block node the individual PAR process */
+			bodies[i] = blk;
+			/*}}}*/
+		}
+		/*}}}*/
+	} else {
+		nocc_internal ("occampi_namemap_cnode(): don\'t know how to handle tag [%s]", (*node)->tag->name);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_codegen_cnode (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for certain conditional-nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_codegen_cnode (tnode_t *node, codegen_t *cgen)
+{
+	if (node->tag == opi.tag_SEQ) {
+		/* SEQ nodes don't need any special processing */
+		return 1;
+	} else if (node->tag == opi.tag_PAR) {
+		/*{{{  generate code for PAR*/
+		tnode_t *body = tnode_nthsubof (node, 1);
+		tnode_t **bodies;
+		int nbodies, i;
+
+		/* FIXME: PAR seutp */
+		bodies = parser_getlistitems (body, &nbodies);
+		for (i=0; i<nbodies; i++) {
+			int ws_size, vs_size, ms_size;
+			int ws_offset, adjust;
+
+			cgen->target->be_getblocksize (bodies[i], &ws_size, &ws_offset, &vs_size, &ms_size, &adjust);
+
+			codegen_callops (cgen, comment, "PAR = %d,%d,%d,%d,%d", ws_size, ws_offset, vs_size, ms_size, adjust);
+
+			codegen_subcodegen (bodies[i], cgen);
+
+			/* FIXME: PAR end */
+		}
+		/* FIXME: PAR cleanup */
+		/*}}}*/
+	} else {
+		nocc_internal ("occampi_codegen_cnode(): don\'t know how to handle tag [%s]", node->tag->name);
+	}
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_cnode_init_nodes (void)*/
 /*
  *	initialises literal-nodes for occam-pi
@@ -84,10 +176,15 @@ static int occampi_cnode_init_nodes (void)
 {
 	tndef_t *tnd;
 	int i;
+	compops_t *cops;
 
 	/*{{{  occampi:cnode -- SEQ, PAR*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:cnode", &i, 2, 0, 0, TNF_LONGPROC);
+	cops = tnode_newcompops ();
+	cops->namemap = occampi_namemap_cnode;
+	cops->codegen = occampi_codegen_cnode;
+	tnd->ops = cops;
 	i = -1;
 	opi.tag_SEQ = tnode_newnodetag ("SEQ", &i, tnd, NTF_NONE);
 	i = -1;

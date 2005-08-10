@@ -390,9 +390,9 @@ static int occampi_codegen_procdecl (tnode_t *node, codegen_t *cgen)
 	codegen_callops (cgen, setnamedlabel, pname->me->name);
 
 	/* adjust workspace and generate code for body */
-	codegen_callops (cgen, wsadjust, -(ws_offset - adjust));
-	codegen_subcodegen (tnode_nthsubof (body, 0), cgen);
-	codegen_callops (cgen, wsadjust, (ws_offset - adjust));
+	// codegen_callops (cgen, wsadjust, -(ws_offset - adjust));
+	codegen_subcodegen (body, cgen);
+	// codegen_callops (cgen, wsadjust, (ws_offset - adjust));
 
 	/* return */
 	codegen_callops (cgen, procreturn, adjust);

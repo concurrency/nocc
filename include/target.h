@@ -70,18 +70,20 @@ typedef struct TAG_target {
 				/* creates a back-end block reference, populated (block, body, map-data) */
 	struct TAG_tnode *(*newblockref)(struct TAG_tnode *, struct TAG_tnode *, struct TAG_map *);
 
+				/* return a pointer to the body within a back-end block */
+	struct TAG_tnode **(*be_blockbodyaddr)(struct TAG_tnode *);
 				/* back-end space requirements (node, wsh, wsl, vs, ms) */
-	int (*be_allocsize)(tnode_t *, int *, int *, int *, int*);
+	int (*be_allocsize)(struct TAG_tnode *, int *, int *, int *, int*);
 				/* back-end offsets (node, ws-offset, vs-offset, ms-offset) */
-	void (*be_setoffsets)(tnode_t *, int, int, int);
+	void (*be_setoffsets)(struct TAG_tnode *, int, int, int);
 				/* back-end offsets (node, ws-offset-ptr, vs-offset-ptr, ms-offset-ptr) */
-	void (*be_getoffsets)(tnode_t *, int *, int *, int *);
+	void (*be_getoffsets)(struct TAG_tnode *, int *, int *, int *);
 				/* back-end lexlevel for a block or name (node) */
-	int (*be_blocklexlevel)(tnode_t *);
+	int (*be_blocklexlevel)(struct TAG_tnode *);
 				/* back-end set block size (node, ws-size, ws-offset, vs-size, ms-size, static-adjust) */
-	void (*be_setblocksize)(tnode_t *, int, int, int, int, int);
+	void (*be_setblocksize)(struct TAG_tnode *, int, int, int, int, int);
 				/* back-end get block size (node, ws-size-ptr, ws-offset-ptr, vs-size-ptr, ms-size-ptr, static-adjust-ptr) */
-	void (*be_getblocksize)(tnode_t *, int *, int *, int *, int *, int *);
+	void (*be_getblocksize)(struct TAG_tnode *, int *, int *, int *, int *, int *);
 				/* back-end code-generate initialise */
 	int (*be_codegen_init)(struct TAG_codegen *, struct TAG_lexfile *);
 				/* back-end code-generate finalise */
