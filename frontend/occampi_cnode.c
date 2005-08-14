@@ -91,6 +91,7 @@ static int occampi_namemap_cnode (tnode_t **node, map_t *map)
 		tnode_t **bodies;
 		int nbodies, i;
 
+
 		if (!parser_islistnode (body)) {
 			nocc_internal ("occampi_namemap_cnode(): body of PAR not list");
 			return 1;
@@ -120,6 +121,17 @@ static int occampi_namemap_cnode (tnode_t **node, map_t *map)
 			bodies[i] = blk;
 			/*}}}*/
 		}
+
+		if (nbodies > 1) {
+			tnode_t *bename;
+			tnode_t *fename = tnode_create (opi.tag_PARSPACE, NULL);
+
+			bename = map->target->newname (fename, *node, map, 8, 0, 0, 0, 0, 0);                    /* FIXME! */
+			tnode_setchook (fename, map->mapchook, (void *)bename);
+
+			*node = bename;
+		}
+
 		/*}}}*/
 	} else {
 		nocc_internal ("occampi_namemap_cnode(): don\'t know how to handle tag [%s]", (*node)->tag->name);
@@ -189,6 +201,9 @@ static int occampi_cnode_init_nodes (void)
 	opi.tag_SEQ = tnode_newnodetag ("SEQ", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_PAR = tnode_newnodetag ("PAR", &i, tnd, NTF_NONE);
+	tnd = tnode_lookupnodetype ("occampi:leafnode");
+	i = -1;
+	opi.tag_PARSPACE = tnode_newnodetag ("PARSPACE", &i, tnd, NTF_NONE);
 	/*}}}*/
 
 	return 0;

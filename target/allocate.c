@@ -797,7 +797,7 @@ allocate_varmap_dump (avmap, stderr);
 		avmap->statics = 0;
 		tnode_prewalktree (tnode_nthsubof (node, 0), allocate_prewalktree_names, (void *)adata);
 
-#if 0
+#if 1
 fprintf (stderr, "allocate_prewalktree_blocks(): allocated rest!  maps are:\n");
 allocate_varmap_dump (avmap, stderr);
 #endif

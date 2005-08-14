@@ -66,6 +66,7 @@ typedef struct {
 	struct TAG_ntdef *tag_OUTPUT;
 	struct TAG_ntdef *tag_HIDDENPARAM;
 	struct TAG_ntdef *tag_RETURNADDRESS;
+	struct TAG_ntdef *tag_PARSPACE;
 
 	struct TAG_ntdef *tag_LITBYTE;
 	struct TAG_ntdef *tag_LITINT;
