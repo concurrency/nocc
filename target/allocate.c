@@ -761,7 +761,7 @@ static int allocate_prewalktree_names (tnode_t *node, void *data)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int allocate_prewalktree (tnode_t *node, void *data)*/
+/*{{{  static int allocate_prewalktree_blocks (tnode_t *node, void *data)*/
 /*
  *	performs allocation for BLOCK nodes
  *	returns 0 to stop walk, 1 to continue
@@ -774,13 +774,14 @@ static int allocate_prewalktree_blocks (tnode_t *node, void *data)
 		alloc_varmap_t *avmap;
 		void *saved_hook = adata->allochook;
 
-#if 1
+		/*{{{  map nested blocks first*/
+#if 0
 fprintf (stderr, "allocate_prewalktree_blocks(): allocating for a block at %p\n", node);
 #endif
-		/* map nested blocks first */
 		tnode_prewalktree (tnode_nthsubof (node, 0), allocate_prewalktree_blocks, (void *)adata);
 
-		/* map allocation in this block, statics first, then body */
+		/*}}}*/
+		/*{{{  map allocation in this block, statics first, then body*/
 		avmap = allocate_varmap_create ();
 		adata->allochook = (void *)avmap;
 
@@ -797,31 +798,37 @@ allocate_varmap_dump (avmap, stderr);
 		avmap->statics = 0;
 		tnode_prewalktree (tnode_nthsubof (node, 0), allocate_prewalktree_names, (void *)adata);
 
-#if 1
+#if 0
 fprintf (stderr, "allocate_prewalktree_blocks(): allocated rest!  maps are:\n");
 allocate_varmap_dump (avmap, stderr);
 #endif
-		/* squeeze up general allocations */
+
+		/*}}}*/
+		/*{{{  squeeze up general allocations*/
 		allocate_squeeze_curmap (avmap, adata->target);
 
-		/* size */
+		/*}}}*/
+		/*{{{  size*/
 		allocate_size_maps (avmap, adata->target);
-
 #if 0
 fprintf (stderr, "allocate_prewalktree_blocks(): sized maps!  maps are:\n");
 allocate_varmap_dump (avmap, stderr);
 #endif
-		/* allocate workspace offsets */
+
+		/*}}}*/
+		/*{{{  allocate workspace offsets*/
 		allocate_workspace_offsets (avmap->wsmap, adata->target);
 
+		/*}}}*/
+		/*{{{  copy offsets back into back-end nodes*/
+		allocate_setoffsets (avmap, adata->target);
 #if 0
-fprintf (stderr, "allocate_prewalktree_blocks(): allocated offsets!  maps are:\n");
+fprintf (stderr, "allocate_prewalktree_blocks(): allocated+copied offsets!  maps are:\n");
 allocate_varmap_dump (avmap, stderr);
 #endif
-		/* copy offsets back into back-end nodes */
-		allocate_setoffsets (avmap, adata->target);
 
-		/* set ws, vs, ms and static-adjust for the block */
+		/*}}}*/
+		/*{{{  set ws, vs, ms and static-adjust for the block*/
 		{
 			int adjust = 0;
 
@@ -834,7 +841,8 @@ allocate_varmap_dump (avmap, stderr);
 			}
 			adata->target->be_setblocksize (node, avmap->wsmap->size, avmap->wsmap->offset, avmap->vsmap->size, avmap->msmap->size, adjust);
 		}
-
+		/*}}}*/
+		/*{{{  put back previous map*/
 		adata->allochook = saved_hook;
 		if (compopts.dumpvarmaps) {
 			allocate_varmap_dump (avmap, stderr);
@@ -843,6 +851,7 @@ allocate_varmap_dump (avmap, stderr);
 fprintf (stderr, "allocate_prewalktree_blocks(): allocated a block!  maps are:\n");
 allocate_varmap_dump (avmap, stderr);
 #endif
+		/*}}}*/
 
 		tnode_setchook (node, adata->varmap_chook, (void *)avmap);
 		/* allocate_varmap_free (avmap); */

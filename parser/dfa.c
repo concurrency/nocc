@@ -47,6 +47,7 @@
 typedef struct TAG_nameddfa {
 	char *name;
 	dfanode_t *inode;
+	dfaerrorhandler_t *ehan;
 } nameddfa_t;
 
 STATICSTRINGHASH (nameddfa_t *, nameddfas, 6);
@@ -655,6 +656,7 @@ int dfa_setname (dfanode_t *dfa, char *name)
 		ndfa = (nameddfa_t *)smalloc (sizeof (nameddfa_t));
 		ndfa->name = string_dup (name);
 		ndfa->inode = dfa;
+		ndfa->ehan = NULL;
 
 		stringhash_insert (nameddfas, ndfa, ndfa->name);
 		dfa_setname_walk (dfa, ndfa);
@@ -681,6 +683,23 @@ dfanode_t *dfa_lookupbyname (char *name)
 	}
 	return NULL;
 }
+/*}}}*/
+/*{{{  void dfa_seterrorhandler (char *name, dfaerrorhandler_t *ehan)*/
+/*
+ *	sets the error handler for a named DFA
+ */
+void dfa_seterrorhandler (char *name, dfaerrorhandler_t *ehan)
+{
+	nameddfa_t *ndfa = stringhash_lookup (nameddfas, name);
+
+	if (ndfa) {
+		ndfa->ehan = ehan;
+	} else {
+		nocc_warning ("dfa_seterrorhandler(): no such DFA [%s]", name);
+	}
+	return;
+}
+
 /*}}}*/
 /*{{{  int dfa_findmatch (dfanode_t *dfa, token_t *tok, dfanode_t **r_pushto, dfanode_t **r_target, int *r_flags)*/
 /*
@@ -2976,16 +2995,24 @@ int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)
 	}
 	if (i == DA_CUR (cnode->match)) {
 		/* could not advance out of this state! */
-		parser_error (pp->lf, "dfa_advance(): stuck in [%s], expecting:", nodename);
-		for (i=0; i<DA_CUR (cnode->match); i++) {
-			token_t *thistok = DA_NTHITEM (cnode->match, i);
+		nameddfa_t *ndfa = (cnode->dfainfo ? (nameddfa_t *)cnode->dfainfo : NULL);
 
-			if (thistok) {
-				lexer_dumptoken (stderr, thistok);
+		if (ndfa && ndfa->ehan && ndfa->ehan->stuck) {
+			ndfa->ehan->stuck (cnode, tok);
+		} else {
+			/*{{{  default "stuck" report*/
+			parser_error (pp->lf, "dfa_advance(): stuck in [%s], expecting:", nodename);
+			for (i=0; i<DA_CUR (cnode->match); i++) {
+				token_t *thistok = DA_NTHITEM (cnode->match, i);
+
+				if (thistok) {
+					lexer_dumptoken (stderr, thistok);
+				}
 			}
+			parser_error (pp->lf, "dfa_advance(): got:");
+			lexer_dumptoken (stderr, tok);
+			/*}}}*/
 		}
-		parser_error (pp->lf, "dfa_advance(): got:");
-		lexer_dumptoken (stderr, tok);
 		return 0;
 	} else {
 		/* otherwise do something */

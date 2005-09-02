@@ -269,9 +269,25 @@ static krocetc_blockhook_t *krocetc_blockhook_create (int ll)
 static void krocetc_blockrefhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
 {
 	krocetc_blockrefhook_t *brh = (krocetc_blockrefhook_t *)hook;
+	tnode_t *blk = brh->block;
 
-	krocetc_isetindent (stream, indent);
-	fprintf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" />\n", (unsigned int)brh, (unsigned int)(brh->block));
+	if (blk && parser_islistnode (blk)) {
+		int nitems, i;
+		tnode_t **blks = parser_getlistitems (blk, &nitems);
+
+		krocetc_isetindent (stream, indent);
+		fprintf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" nblocks=\"%d\" blocks=\"", (unsigned int)brh, (unsigned int)blk, nitems);
+		for (i=0; i<nitems; i++ ) {
+			if (i) {
+				fprintf (stream, ",");
+			}
+			fprintf (stream, "0x%8.8x", (unsigned int)blks[i]);
+		}
+		fprintf (stream, "\" />\n");
+	} else {
+		krocetc_isetindent (stream, indent);
+		fprintf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" />\n", (unsigned int)brh, (unsigned int)blk);
+	}
 
 	return;
 }
@@ -502,20 +518,50 @@ static int krocetc_be_allocsize (tnode_t *node, int *pwsh, int *pwsl, int *pvs, 
 	if (node->tag == krocetc_target.tag_BLOCKREF) {
 		/*{{{  space required for block reference*/
 		krocetc_blockrefhook_t *brh = (krocetc_blockrefhook_t *)tnode_nthhookof (node, 0);
+		tnode_t *blk = brh->block;
 		int ws, wsoffs, vs, ms, adj;
 
 		if (!brh) {
 			return -1;
 		}
-		krocetc_be_getblocksize (brh->block, &ws, &wsoffs, &vs, &ms, &adj);
+
+		if (pwsh) {
+			*pwsh = 0;
+		}
+
+		if (parser_islistnode (blk)) {
+			tnode_t **blks;
+			int nitems, i;
+
+			blks = parser_getlistitems (blk, &nitems);
+#if 0
+fprintf (stderr, "krocetc_be_allocsize(): block-list, %d items\n", nitems);
+#endif
+			ws = 0;
+			vs = 0;
+			ms = 0;
+			for (i=0; i<nitems; i++) {
+				int lws, lvs, lms;
+				
+				krocetc_be_getblocksize (blks[i], &lws, &wsoffs, &lvs, &lms, &adj);
+				if (lws > 0) {
+					ws += lws;
+				}
+				if (lvs > 0) {
+					vs += lvs;
+				}
+				if (lms > 0) {
+					ms += lms;
+				}
+			}
+		} else {
+			krocetc_be_getblocksize (blk, &ws, &wsoffs, &vs, &ms, &adj);
+		}
 
 #if 0
 fprintf (stderr, "krocetc_be_allocsize(): got block size from BLOCKREF, ws=%d, wsoffs=%d, vs=%d, ms=%d, adj=%d\n", ws, wsoffs, vs, ms, adj);
 #endif
 
-		if (pwsh) {
-			*pwsh = 0;
-		}
 		if (pwsl) {
 			*pwsl = ws;
 		}
@@ -1287,6 +1333,7 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	cops->setmssize = krocetc_coder_setmssize;
 	cops->setnamedlabel = krocetc_coder_setnamedlabel;
 	cops->callnamedlabel = krocetc_coder_callnamedlabel;
+	cops->setlabel = krocetc_coder_setlabel;
 	cops->calllabel = krocetc_coder_calllabel;
 	cops->procreturn = krocetc_coder_procreturn;
 	cops->tsecondary = krocetc_coder_tsecondary;

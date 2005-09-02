@@ -123,10 +123,15 @@ static int occampi_namemap_cnode (tnode_t **node, map_t *map)
 		}
 
 		if (nbodies > 1) {
-			tnode_t *bename;
+			tnode_t *bename, *bodyref, *blist;
 			tnode_t *fename = tnode_create (opi.tag_PARSPACE, NULL);
 
-			bename = map->target->newname (fename, *node, map, 8, 0, 0, 0, 0, 0);                    /* FIXME! */
+			blist = parser_newlistnode (NULL);
+			for (i=0; i<nbodies; i++) {
+				parser_addtolist (blist, bodies[i]);
+			}
+			bodyref = map->target->newblockref (blist, *node, map);
+			bename = map->target->newname (fename, bodyref, map, 8, 0, 0, 0, 0, 0);                    /* FIXME! */
 			tnode_setchook (fename, map->mapchook, (void *)bename);
 
 			*node = bename;
@@ -154,10 +159,14 @@ static int occampi_codegen_cnode (tnode_t *node, codegen_t *cgen)
 		tnode_t *body = tnode_nthsubof (node, 1);
 		tnode_t **bodies;
 		int nbodies, i;
+		int joinlab = codegen_new_label (cgen);
 
-		/* FIXME: PAR seutp */
 		bodies = parser_getlistitems (body, &nbodies);
+		/*{{{  PAR setup*/
+		/* FIXME... */
+		/*}}}*/
 		for (i=0; i<nbodies; i++) {
+			/*{{{  PAR body*/
 			int ws_size, vs_size, ms_size;
 			int ws_offset, adjust;
 
@@ -168,8 +177,12 @@ static int occampi_codegen_cnode (tnode_t *node, codegen_t *cgen)
 			codegen_subcodegen (bodies[i], cgen);
 
 			/* FIXME: PAR end */
+			/*}}}*/
 		}
-		/* FIXME: PAR cleanup */
+		/*}}}*/
+		/*{{{  PAR cleanup*/
+		codegen_callops (cgen, setlabel, joinlab);
+		/* FIXME... */
 		/*}}}*/
 	} else {
 		nocc_internal ("occampi_codegen_cnode(): don\'t know how to handle tag [%s]", node->tag->name);

@@ -704,6 +704,16 @@ tnode_dumptree (bename, 1, stderr);
 	return 0;
 }
 /*}}}*/
+/*{{{  static void occampi_procdecl_dfaeh (dfanode_t *dfanode, token_t *tok)*/
+/*
+ *	
+ */
+static void occampi_procdecl_dfaeh (dfanode_t *dfanode, token_t *tok)
+{
+	nocc_message ("bang, failed to parse something in occampi:procdecl");
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_decl_init_nodes (void)*/
@@ -847,6 +857,19 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 	return DA_PTR (transtbl);
 }
 /*}}}*/
+/*{{{  static int occampi_decl_post_setup (void)*/
+/*
+ *	does post-setup for initialisation
+ */
+static int occampi_decl_post_setup (void)
+{
+	static dfaerrorhandler_t procdecl_eh = { occampi_procdecl_dfaeh };
+
+	dfa_seterrorhandler ("occampi:procdecl", &procdecl_eh);
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  occampi_decl_feunit (feunit_t)*/
@@ -854,7 +877,7 @@ feunit_t occampi_decl_feunit = {
 	init_nodes: occampi_decl_init_nodes,
 	reg_reducers: occampi_decl_reg_reducers,
 	init_dfatrans: occampi_decl_init_dfatrans,
-	post_setup: NULL
+	post_setup: occampi_decl_post_setup
 };
 /*}}}*/
 

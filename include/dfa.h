@@ -81,6 +81,10 @@ typedef struct TAG_dfattbl {
 	DYNARRAY (dfattblent_t *, entries);
 } dfattbl_t;
 
+typedef struct TAG_dfaerrorhandler {
+	void (*stuck)(dfanode_t *, struct TAG_token *);
+} dfaerrorhandler_t;
+
 
 extern void dfa_init (void);
 extern void dfa_shutdown (void);
@@ -97,6 +101,7 @@ extern void dfa_defaultto (dfanode_t *dfa, char *target);
 extern void dfa_defaultpush (dfanode_t *dfa, char *pushto, dfanode_t *target);
 extern void dfa_defaultreturn (dfanode_t *dfa);
 extern int dfa_setname (dfanode_t *dfa, char *name);
+extern void dfa_seterrorhandler (char *name, dfaerrorhandler_t *ehan);
 extern dfanode_t *dfa_lookupbyname (char *name);
 extern int dfa_findmatch (dfanode_t *dfa, struct TAG_token *tok, dfanode_t **r_pushto, dfanode_t **r_target, int *r_flags);
 
