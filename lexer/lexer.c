@@ -394,6 +394,82 @@ void lexer_dumptoken_short (FILE *stream, token_t *tok)
 	return;
 }
 /*}}}*/
+/*{{{  */
+/*
+ *	puts a token string in a local static buffer (error reporting)
+ */
+char *lexer_stokenstr (token_t *tok)
+{
+	static char *strbuf = NULL;
+	static int strbuflen = 0;
+
+	if (!strbuf) {
+		strbuf = (char *)smalloc (128);
+		strbuflen = 128;
+	}
+
+	switch (tok->type) {
+	case NOTOKEN:
+		strcpy (strbuf, "*UNKNOWN*");
+		break;
+	case KEYWORD:
+		if (strlen (tok->u.kw->name) >= strbuflen) {
+			strbuflen = strlen (tok->u.kw->name) + 128;
+			if (strbuf) {
+				sfree (strbuf);
+			}
+			strbuf = (char *)smalloc (strbuflen);
+		}
+		strcpy (strbuf, tok->u.kw->name);
+		break;
+	case INTEGER:
+		strcpy (strbuf, "integer constant");
+		break;
+	case REAL:
+		strcpy (strbuf, "real constant");
+		break;
+	case STRING:
+		strcpy (strbuf, "string constant");
+		break;
+	case INAME:
+	case NAME:
+		strcpy (strbuf, "name");
+		break;
+	case SYMBOL:
+		if (tok->u.sym->mlen >= (strbuflen - 2)) {
+			strbuflen = tok->u.sym->mlen + 128;
+			if (strbuf) {
+				sfree (strbuf);
+			}
+			strbuf = (char *)smalloc (strbuflen);
+		}
+		strbuf[0] = '\'';
+		strncpy (strbuf + 1, tok->u.sym->match, tok->u.sym->mlen);
+		strbuf[tok->u.sym->mlen + 1] = '\'';
+		strbuf[tok->u.sym->mlen + 2] = '\0';
+		break;
+	case COMMENT:
+		strcpy (strbuf, "comment");
+		break;
+	case NEWLINE:
+		strcpy (strbuf, "newline");
+		break;
+	case INDENT:
+		strcpy (strbuf, "indent");
+		break;
+	case OUTDENT:
+		strcpy (strbuf, "outdent");
+		break;
+	case END:
+		strcpy (strbuf, "end of file");
+		break;
+	}
+
+	return strbuf;
+}
+/*}}}*/
+
+
 /*{{{  void lexer_freetoken (token_t *tok)*/
 /*
  *	frees a token

@@ -94,6 +94,7 @@ typedef struct TAG_compops {
 	int (*betrans)(tnode_t **, struct TAG_target *);		/* performs back-end transforms for target */
 	int (*premap)(tnode_t **, struct TAG_map *);			/* performs pre-mapping for target */
 	int (*namemap)(tnode_t **, struct TAG_map *);			/* performs name-mapping for target */
+	int (*preallocate)(tnode_t *, struct TAG_target *);		/* performs pre-allocations for target */
 	int (*precode)(tnode_t **, struct TAG_codegen *);		/* performs pre-codegen for target */
 	int (*codegen)(tnode_t *, struct TAG_codegen *);		/* performs code-generation for target */
 } compops_t;
@@ -131,6 +132,7 @@ extern void tnode_setnthsub (tnode_t *t, int i, tnode_t *subnode);
 extern void tnode_setnthname (tnode_t *t, int i, struct TAG_name *name);
 extern void tnode_setnthhook (tnode_t *t, int i, void *hook);
 extern tnode_t *tnode_nthsubof (tnode_t *t, int i);
+extern tnode_t **tnode_subnodesof (tnode_t *, int *nnodes);
 extern struct TAG_name *tnode_nthnameof (tnode_t *t, int i);
 extern void *tnode_nthhookof (tnode_t *t, int i);
 extern tnode_t **tnode_nthsubaddr (tnode_t *t, int i);

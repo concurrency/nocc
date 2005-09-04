@@ -40,14 +40,17 @@ typedef struct TAG_codegen {
 	struct TAG_coderops *cops;		/* specific code-generation routines */
 	int labcount;				/* ever-increasing label counter */
 	struct TAG_tnode **cinsertpoint;	/* coder insert-point (for constants, etc.) */
+	DYNARRAY (struct TAG_tnode *, be_blks);	/* enclosing back-end blocks, stack of */
 } codegen_t;
 
 typedef struct TAG_coderops {
-	void (*loadpointer)(codegen_t *, struct TAG_tnode *);
-	void (*loadname)(codegen_t *, struct TAG_tnode *);
+	void (*loadpointer)(codegen_t *, struct TAG_tnode *, int);
+	void (*loadname)(codegen_t *, struct TAG_tnode *, int);
 	void (*loadparam)(codegen_t *, struct TAG_tnode *, codegen_parammode_t);
-	void (*storepointer)(codegen_t *, struct TAG_tnode *);
-	void (*storename)(codegen_t *, struct TAG_tnode *);
+	void (*loadlocalpointer)(codegen_t *, int);
+	void (*loadlexlevel)(codegen_t *, int);
+	void (*storepointer)(codegen_t *, struct TAG_tnode *, int);
+	void (*storename)(codegen_t *, struct TAG_tnode *, int);
 	void (*storelocal)(codegen_t *, int);
 	void (*loadconst)(codegen_t *, int);
 	void (*wsadjust)(codegen_t *, int);
@@ -61,6 +64,7 @@ typedef struct TAG_coderops {
 	void (*calllabel)(codegen_t *, int, int);
 	void (*procreturn)(codegen_t *, int);
 	void (*tsecondary)(codegen_t *, int);
+	void (*loadlabaddr)(codegen_t *, int);
 } coderops_t;
 
 

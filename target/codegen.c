@@ -231,6 +231,7 @@ int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)
 	cgen->cops = NULL;
 	cgen->labcount = 1;
 	cgen->cinsertpoint = tptr;
+	dynarray_init (cgen->be_blks);
 
 	/*{{{  figure out the output filename*/
 	if (compopts.outfile) {
@@ -291,6 +292,7 @@ int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)
 	/*{{{  shutdown back-end code generation*/
 	target->be_codegen_final (cgen, lf);
 
+	dynarray_trash (cgen->be_blks);
 	close (cgen->fd);
 	sfree (cgen->fname);
 	sfree (cgen);

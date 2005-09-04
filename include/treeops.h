@@ -20,6 +20,12 @@
 #ifndef __TREEOPS_H
 #define __TREEOPS_H
 
+struct TAG_tnode;
+struct TAG_ntdef;
+
+extern struct TAG_tnode *treeops_findintree (struct TAG_tnode *tree, struct TAG_ntdef *tag);
+extern struct TAG_tnode *treeops_findtwointree (struct TAG_tnode *tree, struct TAG_ntdef *tag1, struct TAG_ntdef *tag2);
+
 extern int treeops_init (void);
 extern int treeops_shutdown (void);
 

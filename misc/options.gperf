@@ -36,17 +36,18 @@ stop-undefcheck,	'\0',	opt_setstopflag,	(void *)8,			"1stop after undefined-usag
 stop-fetrans,		'\0',	opt_setstopflag,	(void *)9,			"1stop after front-end tree transform",			19
 stop-betrans,		'\0',	opt_setstopflag,	(void *)10,			"1stop after back-end tree transform",			20
 stop-namemap,		'\0',	opt_setstopflag,	(void *)11,			"1stop after name-map",					21
-stop-alloc,		'\0',	opt_setstopflag,	(void *)12,			"1stop after variable allocation",			22
-stop-codegen,		'\0',	opt_setstopflag,	(void *)13,			"1stop after code-generation",				23
-skip-aliascheck,	'\0',	opt_clearintflag,	&(compopts.doaliascheck),	"1skip alias checks",					24
-skip-usagecheck,	'\0',	opt_clearintflag,	&(compopts.dousagecheck),	"1skip parallel usage checks",				25
-skip-defcheck,		'\0',	opt_clearintflag,	&(compopts.dodefcheck),		"1skip undefinedness checks",				26
-verbose,		'v',	opt_setintflag,		&(compopts.verbose),		"0verbose compilation",					27
-debug-parser,		'\0',	opt_setintflag,		&(compopts.debugparser),	"1debug parser",					28
-version,		'V',	opt_do_version,		NULL,				"0print version and exit",				29
-compile,		'c',	opt_setintflag,		&(compopts.notmainmodule),	"0compile for separate compilation",			30
-dump-dmem,		'\0',	opt_setintflag,		&(compopts.dmemdump),		"1display dynamic memory pool information",		31
-specs-file,		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				32
-output,			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					33
+stop-prealloc,		'\0',	opt_setstopflag,	(void *)12,			"1stop after pre-allocation",				22
+stop-alloc,		'\0',	opt_setstopflag,	(void *)13,			"1stop after variable allocation",			23
+stop-codegen,		'\0',	opt_setstopflag,	(void *)14,			"1stop after code-generation",				24
+skip-aliascheck,	'\0',	opt_clearintflag,	&(compopts.doaliascheck),	"1skip alias checks",					25
+skip-usagecheck,	'\0',	opt_clearintflag,	&(compopts.dousagecheck),	"1skip parallel usage checks",				26
+skip-defcheck,		'\0',	opt_clearintflag,	&(compopts.dodefcheck),		"1skip undefinedness checks",				27
+verbose,		'v',	opt_setintflag,		&(compopts.verbose),		"0verbose compilation",					28
+debug-parser,		'\0',	opt_setintflag,		&(compopts.debugparser),	"1debug parser",					29
+version,		'V',	opt_do_version,		NULL,				"0print version and exit",				30
+compile,		'c',	opt_setintflag,		&(compopts.notmainmodule),	"0compile for separate compilation",			31
+dump-dmem,		'\0',	opt_setintflag,		&(compopts.dmemdump),		"1display dynamic memory pool information",		32
+specs-file,		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				33
+output,			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					34
 %%
 

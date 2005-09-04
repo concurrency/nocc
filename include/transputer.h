@@ -26,7 +26,9 @@ typedef enum ENUM_transinstr {
 	I_LDL = 2,
 	I_OUT = 10,
 	I_IN = 11,
-	I_MOVE = 12
+	I_MOVE = 12,
+	I_STARTP = 13,
+	I_ENDP = 14
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {

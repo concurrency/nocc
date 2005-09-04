@@ -31,6 +31,7 @@ typedef struct TAG_allocate {
 } allocate_t;
 
 extern int allocate_tree (struct TAG_tnode **tptr, struct TAG_target *target);
+extern int preallocate_tree (struct TAG_tnode **tptr, struct TAG_target *target);
 
 
 #endif	/* !__ALLOCATE_H */

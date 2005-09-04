@@ -186,14 +186,14 @@ static int occampi_codegen_instance (tnode_t *node, codegen_t *cgen)
 	codegen_check_beblock (ibody, cgen, 1);
 
 	/* get size of this block */
-	cgen->target->be_getblocksize (ibody, &ws_size, &ws_offset, &vs_size, &ms_size, &adjust);
+	cgen->target->be_getblocksize (ibody, &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, NULL);
 
 	/* FIXME: load parameters in reverse order, into -4, -8, ... */
 	if (parser_islistnode (params)) {
 		int nitems, i, wsoff;
 		tnode_t **items = parser_getlistitems (params, &nitems);
 
-		for (i=nitems - 1, wsoff = -4; i>=0; i--, wsoff += 4) {
+		for (i=nitems - 1, wsoff = -4; i>=0; i--, wsoff -= 4) {
 			codegen_callops (cgen, loadparam, items[i], PARAM_REF);
 			codegen_callops (cgen, storelocal, wsoff);
 		}

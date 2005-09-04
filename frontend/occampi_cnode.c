@@ -50,6 +50,7 @@
 #include "map.h"
 #include "codegen.h"
 #include "target.h"
+#include "transputer.h"
 
 
 /*}}}*/
@@ -90,7 +91,7 @@ static int occampi_namemap_cnode (tnode_t **node, map_t *map)
 		tnode_t *body = tnode_nthsubof (*node, 1);
 		tnode_t **bodies;
 		int nbodies, i;
-
+		tnode_t *parnode = *node;
 
 		if (!parser_islistnode (body)) {
 			nocc_internal ("occampi_namemap_cnode(): body of PAR not list");
@@ -100,7 +101,7 @@ static int occampi_namemap_cnode (tnode_t **node, map_t *map)
 		bodies = parser_getlistitems (body, &nbodies);
 		for (i=0; i<nbodies; i++) {
 			/*{{{  turn body into back-end block*/
-			tnode_t *blk;
+			tnode_t *blk, *parbodyspace;
 			tnode_t *saved_blk = map->thisblock;
 			tnode_t **saved_params = map->thisprocparams;
 
@@ -111,7 +112,8 @@ static int occampi_namemap_cnode (tnode_t **node, map_t *map)
 
 			/* map body */
 			map_submapnames (&(bodies[i]), map);
-			*(map->target->be_blockbodyaddr (blk)) = bodies[i];
+			parbodyspace = map->target->newname (tnode_create (opi.tag_PARSPACE, NULL), bodies[i], map, 0, 16, 0, 0, 0, 0);	/* FIXME! */
+			*(map->target->be_blockbodyaddr (blk)) = parbodyspace;
 
 			map->lexlevel--;
 			map->thisblock = saved_blk;
@@ -131,10 +133,12 @@ static int occampi_namemap_cnode (tnode_t **node, map_t *map)
 				parser_addtolist (blist, bodies[i]);
 			}
 			bodyref = map->target->newblockref (blist, *node, map);
-			bename = map->target->newname (fename, bodyref, map, 8, 0, 0, 0, 0, 0);                    /* FIXME! */
+			bename = map->target->newname (fename, bodyref, map, 12, 0, 0, 0, 0, 0);                    /* FIXME! */
 			tnode_setchook (fename, map->mapchook, (void *)bename);
 
 			*node = bename;
+
+			tnode_setnthsub (parnode, 0, map->target->newnameref (bename, map));
 		}
 
 		/*}}}*/
@@ -160,24 +164,84 @@ static int occampi_codegen_cnode (tnode_t *node, codegen_t *cgen)
 		tnode_t **bodies;
 		int nbodies, i;
 		int joinlab = codegen_new_label (cgen);
+		int pp_wsoffs = 0;
+		tnode_t *parspaceref = tnode_nthsubof (node, 0);
 
 		bodies = parser_getlistitems (body, &nbodies);
 		/*{{{  PAR setup*/
-		/* FIXME... */
+		codegen_callops (cgen, comment, "BEGIN PAR SETUP");
+		for (i=0; i<nbodies; i++) {
+			int ws_size, vs_size, ms_size;
+			int ws_offset, adjust, elab;
+			tnode_t *statics = tnode_nthsubof (bodies[i], 1);
+
+			codegen_check_beblock (bodies[i], cgen, 1);
+			cgen->target->be_getblocksize (bodies[i], &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
+
+			/*{{{  setup statics in workspace of PAR process*/
+			if (statics && parser_islistnode (statics)) {
+				int nitems, p, wsoff;
+				tnode_t **items = parser_getlistitems (statics, &nitems);
+
+				for (p=nitems - 1, wsoff = pp_wsoffs-4; p>=0; p--, wsoff -= 4) {
+					codegen_callops (cgen, loadparam, items[p], PARAM_REF);
+					codegen_callops (cgen, storelocal, wsoff);
+				}
+			} else if (statics) {
+				codegen_callops (cgen, loadparam, statics, PARAM_REF);
+				codegen_callops (cgen, storelocal, pp_wsoffs-4);
+			}
+			/*}}}*/
+
+			pp_wsoffs -= ws_size;
+		}
+		/*{{{  setup local PAR workspace*/
+		codegen_callops (cgen, loadconst, nbodies + 1);		/* par-count */
+		codegen_callops (cgen, storename, parspaceref, 4);
+		codegen_callops (cgen, loadconst, 0);			/* priority */
+		codegen_callops (cgen, storename, parspaceref, 8);
+		codegen_callops (cgen, loadlabaddr, joinlab);		/* join-lab */
+		codegen_callops (cgen, storename, parspaceref, 0);
 		/*}}}*/
+		pp_wsoffs = 0;
+		for (i=0; i<nbodies; i++) {
+			int ws_size, vs_size, ms_size;
+			int ws_offset, adjust, elab;
+
+			codegen_check_beblock (bodies[i], cgen, 1);
+			cgen->target->be_getblocksize (bodies[i], &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
+
+			/*{{{  start PAR process*/
+			codegen_callops (cgen, loadlabaddr, elab);
+			codegen_callops (cgen, loadlocalpointer, pp_wsoffs - adjust);
+			codegen_callops (cgen, tsecondary, I_STARTP);
+			/*}}}*/
+
+			pp_wsoffs -= ws_size;
+		}
+		codegen_callops (cgen, comment, "END PAR SETUP");
+		/*}}}*/
+		/*{{{  end process doing PAR*/
+		codegen_callops (cgen, loadpointer, parspaceref, 0);
+		codegen_callops (cgen, tsecondary, I_ENDP);
+		/*}}}*/
+		pp_wsoffs = 0;
 		for (i=0; i<nbodies; i++) {
 			/*{{{  PAR body*/
 			int ws_size, vs_size, ms_size;
-			int ws_offset, adjust;
+			int ws_offset, adjust, elab;
 
-			cgen->target->be_getblocksize (bodies[i], &ws_size, &ws_offset, &vs_size, &ms_size, &adjust);
-
+			cgen->target->be_getblocksize (bodies[i], &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
 			codegen_callops (cgen, comment, "PAR = %d,%d,%d,%d,%d", ws_size, ws_offset, vs_size, ms_size, adjust);
 
 			codegen_subcodegen (bodies[i], cgen);
 
 			/* FIXME: PAR end */
+			codegen_callops (cgen, loadpointer, parspaceref, pp_wsoffs + adjust);
+			codegen_callops (cgen, tsecondary, I_ENDP);
 			/*}}}*/
+
+			pp_wsoffs += ws_size;
 		}
 		/*}}}*/
 		/*{{{  PAR cleanup*/
@@ -217,6 +281,7 @@ static int occampi_cnode_init_nodes (void)
 	tnd = tnode_lookupnodetype ("occampi:leafnode");
 	i = -1;
 	opi.tag_PARSPACE = tnode_newnodetag ("PARSPACE", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 
 	return 0;

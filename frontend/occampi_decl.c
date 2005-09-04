@@ -380,7 +380,7 @@ static int occampi_codegen_procdecl (tnode_t *node, codegen_t *cgen)
 	name_t *pname;
 
 	body = tnode_nthsubof (node, 2);
-	cgen->target->be_getblocksize (body, &ws_size, &ws_offset, &vs_size, &ms_size, &adjust);
+	cgen->target->be_getblocksize (body, &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, NULL);
 
 	pname = tnode_nthnameof (name, 0);
 	codegen_callops (cgen, comment, "PROC %s = %d,%d,%d,%d,%d", pname->me->name, ws_size, ws_offset, vs_size, ms_size, adjust);
@@ -475,6 +475,10 @@ fprintf (stderr, "occampi_prescope_fparam(): prescoping formal parameter!\n");
 		prescope_error (*node, ps, "missing type on formal parameter");
 	} else {
 		/* set type field for formal parameter */
+#if 0
+fprintf (stderr, "occampi_prescope_fparam(): setting type on formal param, last_type = \n");
+tnode_dumptree (ops->last_type, 1, stderr);
+#endif
 		tnode_setnthsub (*node, 1, tnode_copytree (ops->last_type));
 	}
 	return 1;
@@ -708,9 +712,24 @@ tnode_dumptree (bename, 1, stderr);
 /*
  *	
  */
-static void occampi_procdecl_dfaeh (dfanode_t *dfanode, token_t *tok)
+static void occampi_procdecl_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
 {
-	nocc_message ("bang, failed to parse something in occampi:procdecl");
+	char msgbuf[1024];
+	int gone = 0;
+	int max = 1023;
+
+	gone += snprintf (msgbuf + gone, max - gone, "parse error at %s in PROC declaration", lexer_stokenstr (tok));
+	if (DA_CUR (dfanode->match)) {
+		int n;
+
+		gone += snprintf (msgbuf + gone, max - gone, ", expected ");
+		for (n=0; n<DA_CUR (dfanode->match); n++) {
+			token_t *match = DA_NTHITEM (dfanode->match, n);
+
+			gone += snprintf (msgbuf + gone, max - gone, "%s%s", !n ? "" : ((n == DA_CUR (dfanode->match) - 1) ? " or " : ", "), lexer_stokenstr (match));
+		}
+	}
+	parser_error (tok->origin, msgbuf);
 	return;
 }
 /*}}}*/
@@ -863,7 +882,7 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
  */
 static int occampi_decl_post_setup (void)
 {
-	static dfaerrorhandler_t procdecl_eh = { occampi_procdecl_dfaeh };
+	static dfaerrorhandler_t procdecl_eh = { occampi_procdecl_dfaeh_stuck };
 
 	dfa_seterrorhandler ("occampi:procdecl", &procdecl_eh);
 

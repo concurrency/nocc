@@ -35,6 +35,7 @@
 #include "tnode.h"
 #include "lexer.h"
 #include "parser.h"
+#include "treeops.h"
 #include "names.h"
 #include "target.h"
 #include "map.h"
@@ -59,7 +60,7 @@ static void krocetc_be_setoffsets (tnode_t *bename, int ws_offset, int vs_offset
 static void krocetc_be_getoffsets (tnode_t *bename, int *wsop, int *vsop, int *msop);
 static int krocetc_be_blocklexlevel (tnode_t *blk);
 static void krocetc_be_setblocksize (tnode_t *blk, int ws, int ws_offs, int vs, int ms, int adjust);
-static void krocetc_be_getblocksize (tnode_t *blk, int *wsp, int *wsoffsp, int *vsp, int *msp, int *adjp);
+static void krocetc_be_getblocksize (tnode_t *blk, int *wsp, int *wsoffsp, int *vsp, int *msp, int *adjp, int *elabp);
 static int krocetc_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile);
 static int krocetc_be_codegen_final (codegen_t *cgen, lexfile_t *srcfile);
 static void krocetc_be_precode_seenproc (codegen_t *cgen, name_t *name, tnode_t *node);
@@ -95,6 +96,7 @@ target_t krocetc_target = {
 	tag_CONST:	NULL,
 	tag_INDEXED:	NULL,
 	tag_BLOCKREF:	NULL,
+	tag_STATICLINK:	NULL,
 
 	init:		krocetc_target_init,
 	newname:	krocetc_name_create,
@@ -142,6 +144,7 @@ typedef struct TAG_krocetc_blockhook {
 	int static_adjust;	/* adjustment for statics (e.g. PROC params, etc.) */
 	int ws_offset;		/* workspace offset for the block (includes static-adjust) */
 	int entrylab;		/* entry-point label */
+	int addstaticlink;	/* whether it needs a staticlink */
 } krocetc_blockhook_t;
 
 typedef struct TAG_krocetc_blockrefhook {
@@ -166,6 +169,8 @@ typedef struct TAG_krocetc_priv {
 	ntdef_t *tag_DESCRIPTOR;
 	tnode_t *precodelist;
 	name_t *toplevelname;
+
+	chook_t *mapchook;
 } krocetc_priv_t;
 
 
@@ -236,8 +241,8 @@ static void krocetc_blockhook_dumptree (tnode_t *node, void *hook, int indent, F
 	krocetc_blockhook_t *bh = (krocetc_blockhook_t *)hook;
 
 	krocetc_isetindent (stream, indent);
-	fprintf (stream, "<blockhook addr=\"0x%8.8x\" lexlevel=\"%d\" allocws=\"%d\" allocvs=\"%d\" allocms=\"%d\" adjust=\"%d\" />\n",
-			(unsigned int)bh, bh->lexlevel, bh->alloc_ws, bh->alloc_vs, bh->alloc_ms, bh->static_adjust);
+	fprintf (stream, "<blockhook addr=\"0x%8.8x\" lexlevel=\"%d\" allocws=\"%d\" allocvs=\"%d\" allocms=\"%d\" adjust=\"%d\" wsoffset=\"%d\" entrylab=\"%d\" addstaticlink=\"%d\" />\n",
+			(unsigned int)bh, bh->lexlevel, bh->alloc_ws, bh->alloc_vs, bh->alloc_ms, bh->static_adjust, bh->ws_offset, bh->entrylab, bh->addstaticlink);
 	return;
 }
 /*}}}*/
@@ -256,6 +261,7 @@ static krocetc_blockhook_t *krocetc_blockhook_create (int ll)
 	bh->static_adjust = 0;
 	bh->ws_offset = 0;
 	bh->entrylab = 0;
+	bh->addstaticlink = 0;
 
 	return bh;
 }
@@ -402,10 +408,26 @@ static tnode_t *krocetc_name_create (tnode_t *fename, tnode_t *body, map_t *mdat
 static tnode_t *krocetc_nameref_create (tnode_t *bename, map_t *mdata)
 {
 	krocetc_namehook_t *nh, *be_nh;
+	krocetc_blockhook_t *bh;
 	tnode_t *name, *fename;
+	tnode_t *blk = mdata->thisblock;
 
+	if (!blk) {
+		nocc_internal ("krocetc_nameref_create(): reference to name outside of block");
+		return NULL;
+	}
+	bh = (krocetc_blockhook_t *)tnode_nthhookof (blk, 0);
 	be_nh = (krocetc_namehook_t *)tnode_nthhookof (bename, 0);
-	nh = krocetc_namehook_create (be_nh->lexlevel, 0, 0, 0, 0, be_nh->typesize, be_nh->indir);
+#if 0
+fprintf (stderr, "krocetc_nameref_create (): referenced lexlevel=%d, map lexlevel=%d, enclosing block lexlevel=%d\n", be_nh->lexlevel, mdata->lexlevel, bh->lexlevel);
+#endif
+	if (be_nh->lexlevel < bh->lexlevel) {
+		/*{{{  need a static-link to get at this one*/
+		bh->addstaticlink = 1;
+		/*}}}*/
+	}
+	/* nh = krocetc_namehook_create (be_nh->lexlevel, 0, 0, 0, 0, be_nh->typesize, be_nh->indir); */
+	nh = krocetc_namehook_create (mdata->lexlevel, 0, 0, 0, 0, be_nh->typesize, be_nh->indir);
 
 	fename = tnode_nthsubof (bename, 0);
 	name = tnode_create (mdata->target->tag_NAMEREF, NULL, fename, (void *)nh);
@@ -542,8 +564,9 @@ fprintf (stderr, "krocetc_be_allocsize(): block-list, %d items\n", nitems);
 			ms = 0;
 			for (i=0; i<nitems; i++) {
 				int lws, lvs, lms;
+				int elab;
 				
-				krocetc_be_getblocksize (blks[i], &lws, &wsoffs, &lvs, &lms, &adj);
+				krocetc_be_getblocksize (blks[i], &lws, &wsoffs, &lvs, &lms, &adj, &elab);
 				if (lws > 0) {
 					ws += lws;
 				}
@@ -555,7 +578,9 @@ fprintf (stderr, "krocetc_be_allocsize(): block-list, %d items\n", nitems);
 				}
 			}
 		} else {
-			krocetc_be_getblocksize (blk, &ws, &wsoffs, &vs, &ms, &adj);
+			int elab;
+
+			krocetc_be_getblocksize (blk, &ws, &wsoffs, &vs, &ms, &adj, &elab);
 		}
 
 #if 0
@@ -715,11 +740,11 @@ static void krocetc_be_setblocksize (tnode_t *blk, int ws, int ws_offs, int vs, 
 	return;
 }
 /*}}}*/
-/*{{{  static void krocetc_be_getblocksize (tnode_t *blk, int *wsp, int *wsoffsp, int *vsp, int *msp, int *adjp)*/
+/*{{{  static void krocetc_be_getblocksize (tnode_t *blk, int *wsp, int *wsoffsp, int *vsp, int *msp, int *adjp, int *elabp)*/
 /*
  *	gets back-end block size
  */
-static void krocetc_be_getblocksize (tnode_t *blk, int *wsp, int *wsoffsp, int *vsp, int *msp, int *adjp)
+static void krocetc_be_getblocksize (tnode_t *blk, int *wsp, int *wsoffsp, int *vsp, int *msp, int *adjp, int *elabp)
 {
 	krocetc_blockhook_t *bh;
 
@@ -761,6 +786,9 @@ fprintf (stderr, "krocetc_be_getblocksize(): called on BLOCKREF!\n");
 	if (wsoffsp) {
 		*wsoffsp = bh->ws_offset;
 	}
+	if (elabp) {
+		*elabp = bh->entrylab;
+	}
 
 	return;
 }
@@ -778,7 +806,62 @@ static tnode_t **krocetc_be_blockbodyaddr (tnode_t *blk)
 }
 /*}}}*/
 
+/*{{{  static int krocetc_preallocate_block (tnode_t *blk, target_t *target)*/
+/*
+ *	does pre-allocation for a back-end block
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int krocetc_preallocate_block (tnode_t *blk, target_t *target)
+{
+	if (blk->tag == target->tag_BLOCK) {
+		krocetc_blockhook_t *bh = (krocetc_blockhook_t *)tnode_nthhookof (blk, 0);
 
+		if (bh->addstaticlink) {
+			tnode_t **stptr = tnode_nthsubaddr (blk, 1);
+			krocetc_namehook_t *nh;
+			tnode_t *name;
+
+#if 0
+fprintf (stderr, "krocetc_preallocate_block(): adding static-link..\n");
+#endif
+			if (!*stptr) {
+				*stptr = parser_newlistnode (NULL);
+			} else if (!parser_islistnode (*stptr)) {
+				tnode_t *slist = parser_newlistnode (NULL);
+
+				parser_addtolist (slist, *stptr);
+				*stptr = slist;
+			}
+
+			nh = krocetc_namehook_create (bh->lexlevel, target->pointersize, 0, 0, 0, target->pointersize, 0);
+			name = tnode_create (target->tag_NAME, NULL, tnode_create (target->tag_STATICLINK, NULL), NULL, (void *)nh);
+
+			parser_addtolist_front (*stptr, name);
+		}
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int krocetc_precode_block (tnode_t **tptr, codegen_t *cgen)*/
+/*
+ *	does pre-code generation for a back-end block
+ *	return 0 to stop walk, 1 to continue it
+ */
+static int krocetc_precode_block (tnode_t **tptr, codegen_t *cgen)
+{
+	krocetc_blockhook_t *bh = (krocetc_blockhook_t *)tnode_nthhookof (*tptr, 0);
+
+	if ((*tptr)->tag != krocetc_target.tag_BLOCK) {
+		nocc_internal ("krocetc_precode_block(): block not back-end BLOCK, was [%s]", (*tptr)->tag->name);
+	}
+	if (!bh->entrylab) {
+		/* give it an entry-point label */
+		bh->entrylab = codegen_new_label (cgen);
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int krocetc_codegen_block (tnode_t *blk, codegen_t *cgen)*/
 /*
  *	does code generation for a back-end block
@@ -788,15 +871,25 @@ static int krocetc_codegen_block (tnode_t *blk, codegen_t *cgen)
 {
 	int ws_size, vs_size, ms_size;
 	int ws_offset, adjust;
+	int elab, lexlevel;
 
 	if (blk->tag != krocetc_target.tag_BLOCK) {
 		nocc_internal ("krocetc_codegen_block(): block not back-end BLOCK, was [%s]", blk->tag->name);
 	}
-	cgen->target->be_getblocksize (blk, &ws_size, &ws_offset, &vs_size, &ms_size, &adjust);
+	cgen->target->be_getblocksize (blk, &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
+	lexlevel = cgen->target->be_blocklexlevel (blk);
+	dynarray_setsize (cgen->be_blks, lexlevel + 1);
+	DA_SETNTHITEM (cgen->be_blks, lexlevel, blk);
 
+	if (elab) {
+		codegen_callops (cgen, setlabel, elab);
+	}
 	codegen_callops (cgen, wsadjust, -(ws_offset - adjust));
 	codegen_subcodegen (tnode_nthsubof (blk, 0), cgen);
 	codegen_callops (cgen, wsadjust, (ws_offset - adjust));
+
+	DA_SETNTHITEM (cgen->be_blks, lexlevel, NULL);
+	dynarray_setsize (cgen->be_blks, lexlevel);
 
 	return 0;
 }
@@ -974,53 +1067,119 @@ static char *krocetc_make_namedlabel (const char *lbl)
 	return belbl;
 }
 /*}}}*/
-/*{{{  static void krocetc_coder_loadpointer (codegen_t *cgen, tnode_t *name)*/
+/*{{{  static void krocetc_coder_loadpointer (codegen_t *cgen, tnode_t *name, int offset)*/
 /*
  *	loads a back-end pointer
  */
-static void krocetc_coder_loadpointer (codegen_t *cgen, tnode_t *name)
+static void krocetc_coder_loadpointer (codegen_t *cgen, tnode_t *name, int offset)
 {
 	krocetc_priv_t *kpriv = (krocetc_priv_t *)(krocetc_target.priv);
+	int ref_lexlevel, act_lexlevel;
 
+#if 0
+fprintf (stderr, "krocetc_coder_loadpointer(): kpriv->mapchook = %p\n", kpriv->mapchook);
+#endif
 	if (name->tag == krocetc_target.tag_NAMEREF) {
+		/*{{{  loading pointer to a name*/
 		krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (name, 0);
+		tnode_t *fename = tnode_nthsubof (name, 0);
+		tnode_t *fenamehook = (tnode_t *)tnode_getchook (fename, kpriv->mapchook);
+		int local;
 
-		if (nh->indir == 0) {
-			codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset);
-		} else {
-			int i;
+		ref_lexlevel = nh->lexlevel;
+		act_lexlevel = cgen->target->be_blocklexlevel (fenamehook);
+		local = (ref_lexlevel == act_lexlevel);
 
-			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
-			for (i=1; i<nh->indir; i++) {
-				codegen_write_fmt (cgen, "\tldnl\t0\n");
+#if 0
+fprintf (stderr, "krocetc_coder_loadpointer(): [%s] local=%d, ref_lexlevel=%d, act_lexlevel=%d\n", fename->tag->name, local, ref_lexlevel, act_lexlevel);
+#endif
+		if (!local) {
+			/*{{{  non-local load*/
+			codegen_callops (cgen, loadlexlevel, act_lexlevel);
+
+			if (nh->indir == 0) {
+				codegen_write_fmt (cgen, "\tldnlp\t%d\n", nh->ws_offset + offset);
+			} else {
+				int i;
+
+				codegen_write_fmt (cgen, "\tldnl\t%d\n", nh->ws_offset);
+				for (i=1; i<nh->indir; i++) {
+					codegen_write_fmt (cgen, "\tldnl\t0\n");
+				}
+				if (offset) {
+					codegen_write_fmt (cgen, "\tldnlp\t%d\n", offset);
+				}
 			}
+			/*}}}*/
+		} else {
+			/*{{{  local load*/
+			if (nh->indir == 0) {
+				codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
+			} else {
+				int i;
+
+				codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
+				for (i=1; i<nh->indir; i++) {
+					codegen_write_fmt (cgen, "\tldnl\t0\n");
+				}
+				if (offset) {
+					codegen_write_fmt (cgen, "\tldnlp\t%d\n", offset);
+				}
+			}
+			/*}}}*/
 		}
+		/*}}}*/
 	} else if (name->tag == kpriv->tag_CONSTREF) {
+		/*{{{  loading pointer to a constant*/
 		krocetc_consthook_t *ch = (krocetc_consthook_t *)tnode_nthhookof (name, 0);
 		
 		krocetc_coder_loadlabaddr (cgen, ch->label);
 		ch->labrefs++;
+		/*}}}*/
+	} else if (name->tag == cgen->target->tag_NAME) {
+		/*{{{  loading pointer to a name with no scope (specials only!)*/
+		tnode_t *realname = tnode_nthsubof (name, 0);
+
+		if (realname->tag == cgen->target->tag_STATICLINK) {
+			codegen_write_fmt (cgen, "\tldlp\t0\n");
+		} else {
+			nocc_warning ("krocetc_coder_loadpointer(): don\'t know how to load a pointer to name of [%s]", name->tag->name);
+		}
+		/*}}}*/
+	} else {
+		nocc_warning ("krocetc_coder_loadpointer(): don\'t know how to load a pointer to [%s]", name->tag->name);
 	}
 	return;
 }
 /*}}}*/
-/*{{{  static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name)*/
+/*{{{  static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)*/
 /*
  *	loads a back-end name
  */
-static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name)
+static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)
 {
 	krocetc_priv_t *kpriv = (krocetc_priv_t *)krocetc_target.priv;
 
 	if (name->tag == krocetc_target.tag_NAMEREF) {
+		/*{{{  load name via reference*/
 		krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (name, 0);
 		int i;
 
-		codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
-		for (i=0; i<nh->indir; i++) {
-			codegen_write_fmt (cgen, "\tldnl\t0\n");
+		if (offset && !nh->indir) {
+			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset + offset);
+		} else {
+			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
 		}
+		for (i=0; i<nh->indir; i++) {
+			if (offset && (i == (nh->indir - 1))) {
+				codegen_write_fmt (cgen, "\tldnl\t%d\n", offset);
+			} else {
+				codegen_write_fmt (cgen, "\tldnl\t0\n");
+			}
+		}
+		/*}}}*/
 	} else if (name->tag == kpriv->tag_CONSTREF) {
+		/*{{{  load constant via reference*/
 		krocetc_consthook_t *ch = (krocetc_consthook_t *)tnode_nthhookof (name, 0);
 		int val;
 
@@ -1039,6 +1198,21 @@ static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name)
 			break;
 		}
 		codegen_write_fmt (cgen, "\tldc\t%d\n", val);
+		/*}}}*/
+	} else if (name->tag == cgen->target->tag_NAME) {
+		/*{{{  loading a name with no scope (specials only!)*/
+		tnode_t *realname = tnode_nthsubof (name, 0);
+
+		if (realname->tag == cgen->target->tag_STATICLINK) {
+			krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (name, 0);
+
+			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
+		} else {
+			nocc_warning ("krocetc_coder_loadname(): don\'t know how to load a name of [%s]", name->tag->name);
+		}
+		/*}}}*/
+	} else {
+		nocc_warning ("krocetc_coder_loadpointer(): don\'t know how to load [%s]", name->tag->name);
 	}
 	return;
 }
@@ -1054,29 +1228,78 @@ static void krocetc_coder_loadparam (codegen_t *cgen, tnode_t *node, codegen_par
 		codegen_error (cgen, "krocetc_coder_loadparam(): invalid parameter mode");
 		break;
 	case PARAM_REF:
-		krocetc_coder_loadpointer (cgen, node);
+		krocetc_coder_loadpointer (cgen, node, 0);
 		break;
 	case PARAM_VAL:
-		krocetc_coder_loadname (cgen, node);
+		krocetc_coder_loadname (cgen, node, 0);
 		break;
 	}
 	return;
 }
 /*}}}*/
-/*{{{  static void krocetc_coder_storepointer (codegen_t *cgen, tnode_t *name)*/
+/*{{{  static void krocetc_coder_loadlocalpointer (codegen_t *cgen, int offset)*/
+/*
+ *	loads a pointer to something in the local workspace
+ */
+static void krocetc_coder_loadlocalpointer (codegen_t *cgen, int offset)
+{
+	codegen_write_fmt (cgen, "\tldlp\t%d\n", offset);
+	return;
+}
+/*}}}*/
+/*{{{  static void krocetc_coder_loadlexlevel (codegen_t *cgen, int lexlevel)*/
+/*
+ *	loads a pointer to the workspace at "lexlevel", does this through the staticlinks
+ */
+static void krocetc_coder_loadlexlevel (codegen_t *cgen, int lexlevel)
+{
+	tnode_t *be_blk = DA_NTHITEM (cgen->be_blks, DA_CUR (cgen->be_blks) - 1);
+	int blk_ll = cgen->target->be_blocklexlevel (be_blk);
+	int ll;
+
+	if (blk_ll == lexlevel) {
+		return;
+	}
+	for (ll=blk_ll; ll > lexlevel; ll--) {
+		tnode_t *thisblk = DA_NTHITEM (cgen->be_blks, ll);
+		tnode_t *statics = tnode_nthsubof (thisblk, 1);
+		tnode_t *slink;
+
+#if 0
+fprintf (stderr, "krocetc_coder_loadlexlevel(): in %d, loading %d..\n", ll, ll-1);
+#endif
+		if (!statics) {
+			nocc_internal ("krocetc_coder_loadlexlevel(): no statics in this block..");
+			return;
+		}
+		slink = treeops_findtwointree (statics, cgen->target->tag_NAME, cgen->target->tag_STATICLINK);
+		if (!slink) {
+			nocc_internal ("krocetc_coder_loadlexlevel(): no static-link in this block..");
+			return;
+		}
+#if 0
+fprintf (stderr, "krocetc_coder_loadlexlevel(): found staticlink..  loading it..\n");
+#endif
+		codegen_callops (cgen, loadname, slink, 0);
+	}
+
+	return;
+}
+/*}}}*/
+/*{{{  static void krocetc_coder_storepointer (codegen_t *cgen, tnode_t *name, int offset)*/
 /*
  *	stores a back-end pointer
  */
-static void krocetc_coder_storepointer (codegen_t *cgen, tnode_t *name)
+static void krocetc_coder_storepointer (codegen_t *cgen, tnode_t *name, int offset)
 {
 	return;
 }
 /*}}}*/
-/*{{{  static void krocetc_coder_storename (codegen_t *cgen, tnode_t *name)*/
+/*{{{  static void krocetc_coder_storename (codegen_t *cgen, tnode_t *name, int offset)*/
 /*
  *	stores a back-end name
  */
-static void krocetc_coder_storename (codegen_t *cgen, tnode_t *name)
+static void krocetc_coder_storename (codegen_t *cgen, tnode_t *name, int offset)
 {
 	if (name->tag == krocetc_target.tag_NAMEREF) {
 		krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (name, 0);
@@ -1084,14 +1307,14 @@ static void krocetc_coder_storename (codegen_t *cgen, tnode_t *name)
 
 		switch (nh->indir) {
 		case 0:
-			codegen_write_fmt (cgen, "\tstl\t%d\n", nh->ws_offset);
+			codegen_write_fmt (cgen, "\tstl\t%d\n", nh->ws_offset + offset);
 			break;
 		default:
 			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
 			for (i=0; i<(nh->indir - 1); i++) {
 				codegen_write_fmt (cgen, "\tldnl\t0\n");
 			}
-			codegen_write_fmt (cgen, "\tstnl\t0\n");
+			codegen_write_fmt (cgen, "\tstnl\t%d\n", offset);
 			break;
 		}
 	}
@@ -1234,6 +1457,12 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 	case I_MOVE:
 		codegen_write_string (cgen, "\tmove\n");
 		break;
+	case I_STARTP:
+		codegen_write_string (cgen, "\tstartp\n");
+		break;
+	case I_ENDP:
+		codegen_write_string (cgen, "\tendp\n");
+		break;
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: tsecondary %d\n", ins);
 		break;
@@ -1322,6 +1551,8 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	cops->loadpointer = krocetc_coder_loadpointer;
 	cops->loadname = krocetc_coder_loadname;
 	cops->loadparam = krocetc_coder_loadparam;
+	cops->loadlocalpointer = krocetc_coder_loadlocalpointer;
+	cops->loadlexlevel = krocetc_coder_loadlexlevel;
 	cops->storepointer = krocetc_coder_storepointer;
 	cops->storename = krocetc_coder_storename;
 	cops->storelocal = krocetc_coder_storelocal;
@@ -1337,6 +1568,7 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	cops->calllabel = krocetc_coder_calllabel;
 	cops->procreturn = krocetc_coder_procreturn;
 	cops->tsecondary = krocetc_coder_tsecondary;
+	cops->loadlabaddr = krocetc_coder_loadlabaddr;
 
 	cgen->cops = cops;
 
@@ -1415,6 +1647,8 @@ fprintf (stderr, "krocetc_target_init(): here!\n");
 	tnd = tnode_newnodetype ("krocetc:block", &i, 2, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_blockhook_dumptree;
 	cops = tnode_newcompops ();
+	cops->preallocate = krocetc_preallocate_block;
+	cops->precode = krocetc_precode_block;
 	cops->codegen = krocetc_codegen_block;
 	tnd->ops = cops;
 	i = -1;
@@ -1433,7 +1667,13 @@ fprintf (stderr, "krocetc_target_init(): here!\n");
 	kpriv = (krocetc_priv_t *)smalloc (sizeof (krocetc_priv_t));
 	kpriv->precodelist = NULL;
 	kpriv->toplevelname = NULL;
+	if (!(kpriv->mapchook = tnode_lookupchookbyname ("map:mapnames"))) {
+		kpriv->mapchook = tnode_newchook ("map:mapnames");
+	}
 	target->priv = (void *)kpriv;
+#if 0
+fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchook);
+#endif
 
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:precode", &i, 2, 0, 0, 0);
@@ -1469,6 +1709,11 @@ fprintf (stderr, "krocetc_target_init(): here!\n");
 	tnd->hook_dumptree = krocetc_blockrefhook_dumptree;
 	i = -1;
 	target->tag_BLOCKREF = tnode_newnodetag ("KROCETCBLOCKREF", &i, tnd, 0);
+
+	i = -1;
+	tnd = tnode_newnodetype ("krocetc:staticlink", &i, 0, 0, 0, 0);
+	i = -1;
+	target->tag_STATICLINK = tnode_newnodetag ("KROCETCSTATICLINK", &i, tnd, 0);
 
 	target->initialised = 1;
 	return 0;

@@ -877,11 +877,11 @@ static int allocate_prewalktree_assign_namerefs (tnode_t *node, void *data)
 		tnode_t *namehook = (tnode_t *)tnode_getchook (name, apriv->mapchook);
 
 
-#if 0
-fprintf (stderr, "allocate_prewalktree_assign_namerefs(): found NAMREF!\n");
-#endif
 		/* namehook should be the corresponding back-end NAME */
 		act_lexlevel = apriv->target->be_blocklexlevel (namehook);
+#if 0
+fprintf (stderr, "allocate_prewalktree_assign_namerefs(): found NAMREF!  ref_lexlevel = %d, act_lexlevel = %d\n", ref_lexlevel, act_lexlevel);
+#endif
 
 		if (ref_lexlevel == act_lexlevel) {
 			/* simple :) */
@@ -890,7 +890,11 @@ fprintf (stderr, "allocate_prewalktree_assign_namerefs(): found NAMREF!\n");
 			apriv->target->be_getoffsets (namehook, &ws_offs, &vs_offs, &ms_offs);
 			apriv->target->be_setoffsets (node, ws_offs, vs_offs, ms_offs);
 		} else {
-			nocc_fatal ("allocate_prewalktree_assign_namerefs(): can\'t do different lex-levels yet..");
+			/* actually..  do the same thing here -- let code-gen take care of it */
+			int ws_offs, vs_offs, ms_offs;
+
+			apriv->target->be_getoffsets (namehook, &ws_offs, &vs_offs, &ms_offs);
+			apriv->target->be_setoffsets (node, ws_offs, vs_offs, ms_offs);
 		}
 		return 0;
 	}
@@ -929,8 +933,35 @@ static int allocate_prewalktree_assign_blocks (tnode_t *node, void *data)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int allocate_prewalktree_preallocate (tnode *tptr, void *data)*/
+/*
+ *	does pre-allocation calls on nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int allocate_prewalktree_preallocate (tnode_t *tptr, void *data)
+{
+	target_t *target = (target_t *)data;
+
+	if (tptr && tptr->tag->ndef->ops && tptr->tag->ndef->ops->preallocate) {
+		return tptr->tag->ndef->ops->preallocate (tptr, target);
+	}
+	return 1;
+}
+/*}}}*/
 
 
+/*{{{  int preallocate_tree (tnode_t **tptr, target_t *target)*/
+/*
+ * 	top-level pre-allocation
+ * 	returns 0 on success, non-zero on failure
+ */
+int preallocate_tree (tnode_t **tptr, target_t *target)
+{
+	tnode_prewalktree (*tptr, allocate_prewalktree_preallocate, (void *)target);
+
+	return 0;
+}
+/*}}}*/
 /*{{{  int allocate_tree (tnode_t **tptr, target_t *target)*/
 /*
  *	top-level workspace/vectorspace/mobilespace allocation
@@ -942,9 +973,8 @@ int allocate_tree (tnode_t **tptr, target_t *target)
 	alloc_assign_t *apriv;
 
 	adata->target = target;
-	adata->varmap_chook = tnode_newchook ("alloc:varmap");
 	adata->allochook = NULL;
-
+	adata->varmap_chook = tnode_newchook ("alloc:varmap");
 	tnode_prewalktree (*tptr, allocate_prewalktree_blocks, (void *)adata);
 
 	sfree (adata);

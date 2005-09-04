@@ -877,6 +877,23 @@ int main (int argc, char **argv)
 				/*}}}*/
 			}
 			/*}}}*/
+			/*{{{  pre-allocation*/
+			if (compopts.verbose) {
+				nocc_message ("pre-allocation ...");
+			}
+			if (preallocate_tree (&tree, target)) {
+				nocc_error ("pre-allocation failed");
+				exit (EXIT_FAILURE);
+			}
+			if (compopts.stoppoint == 12) {
+				/*{{{  stop after pre-allocation*/
+				if (compopts.dumptree) {
+					tnode_dumptree (tree, 1, stderr);
+				}
+				goto main_out;
+				/*}}}*/
+			}
+			/*}}}*/
 			/*{{{  allocate workspace/vectorspace/mobilespace*/
 			if (compopts.verbose) {
 				nocc_message ("memory allocation ...");
@@ -885,7 +902,7 @@ int main (int argc, char **argv)
 				nocc_error ("allocate failed");
 				exit (EXIT_FAILURE);
 			}
-			if (compopts.stoppoint == 12) {
+			if (compopts.stoppoint == 13) {
 				/*{{{  stop after memory allocation*/
 				if (compopts.dumptree) {
 					tnode_dumptree (tree, 1, stderr);
@@ -902,7 +919,7 @@ int main (int argc, char **argv)
 				nocc_error ("code-generation failed");
 				exit (EXIT_FAILURE);
 			}
-			if (compopts.stoppoint == 13) {
+			if (compopts.stoppoint == 14) {
 				/*{{{  stop after code generation*/
 				if (compopts.dumptree) {
 					tnode_dumptree (tree, 1, stderr);

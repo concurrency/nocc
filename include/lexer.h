@@ -85,6 +85,7 @@ extern void lexer_pushback (lexfile_t *lf, token_t *tok);
 extern token_t *lexer_newtoken (tokentype_t type, ...);
 extern void lexer_dumptoken (FILE *stream, token_t *tok);
 extern void lexer_dumptoken_short (FILE *stream, token_t *tok);
+extern char *lexer_stokenstr (token_t *tok);				/* pointer to static buffer returned */
 extern void lexer_freetoken (token_t *tok);
 
 extern int lexer_tokmatch (token_t *formal, token_t *actual);

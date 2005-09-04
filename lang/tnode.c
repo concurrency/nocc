@@ -578,6 +578,23 @@ tnode_t *tnode_nthsubof (tnode_t *t, int i)
 	return (tnode_t *)DA_NTHITEM (t->items, i);
 }
 /*}}}*/
+/*{{{  tnode_t **tnode_subnodesof (tnode_t *t, int *nnodes)*/
+/*
+ *	returns subnodes of a tree-node
+ */
+tnode_t **tnode_subnodesof (tnode_t *t, int *nnodes)
+{
+	tndef_t *tnd;
+
+	if (!t) {
+		nocc_internal ("tnode_subnodesof(): null node!");
+		return NULL;
+	}
+	tnd = t->tag->ndef;
+	*nnodes = tnd->nsub;
+	return (tnode_t **)DA_PTR (t->items);
+}
+/*}}}*/
 /*{{{  name_t *tnode_nthnameof (tnode_t *t, int i)*/
 /*
  *	returns the nth name of a tree-node
@@ -1106,6 +1123,12 @@ tnode_t *tnode_copytree (tnode_t *t)
 	}
 
 	/* don't forget to do compiler hooks */
+#if 0
+fprintf (stderr, "tnode_copytree(): copying [%s], num chooks = %d\n", t->tag->name, DA_CUR (t->chooks));
+#endif
+	if (DA_CUR (tmp->chooks) < DA_CUR (t->chooks)) {
+		dynarray_setsize (tmp->chooks, DA_CUR (acomphooks));
+	}
 	for (i=0; i<DA_CUR (t->chooks); i++) {
 		chook_t *ch = DA_NTHITEM (acomphooks, i);
 		void *chc = DA_NTHITEM (t->chooks, i);
@@ -1236,6 +1259,7 @@ compops_t *tnode_newcompops (void)
 	cops->betrans = NULL;
 	cops->premap = NULL;
 	cops->namemap = NULL;
+	cops->preallocate = NULL;
 	cops->precode = NULL;
 	cops->codegen = NULL;
 

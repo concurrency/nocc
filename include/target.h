@@ -53,6 +53,7 @@ typedef struct TAG_target {
 	struct TAG_ntdef *tag_CONST;
 	struct TAG_ntdef *tag_INDEXED;
 	struct TAG_ntdef *tag_BLOCKREF;
+	struct TAG_ntdef *tag_STATICLINK;
 
 
 	int (*init)(struct TAG_target *target);							/* initialisation routine */
@@ -82,8 +83,8 @@ typedef struct TAG_target {
 	int (*be_blocklexlevel)(struct TAG_tnode *);
 				/* back-end set block size (node, ws-size, ws-offset, vs-size, ms-size, static-adjust) */
 	void (*be_setblocksize)(struct TAG_tnode *, int, int, int, int, int);
-				/* back-end get block size (node, ws-size-ptr, ws-offset-ptr, vs-size-ptr, ms-size-ptr, static-adjust-ptr) */
-	void (*be_getblocksize)(struct TAG_tnode *, int *, int *, int *, int *, int *);
+				/* back-end get block size (node, ws-size-ptr, ws-offset-ptr, vs-size-ptr, ms-size-ptr, static-adjust-ptr, entry-lab-ptr) */
+	void (*be_getblocksize)(struct TAG_tnode *, int *, int *, int *, int *, int *, int *);
 				/* back-end code-generate initialise */
 	int (*be_codegen_init)(struct TAG_codegen *, struct TAG_lexfile *);
 				/* back-end code-generate finalise */

@@ -161,8 +161,8 @@ static int occampi_codegen_action (tnode_t *node, codegen_t *cgen)
 	if (node->tag == opi.tag_ASSIGN) {
 		if (bytes <= cgen->target->intsize) {
 			/* simple load and store */
-			codegen_callops (cgen, loadname, rhs);
-			codegen_callops (cgen, storename, lhs);
+			codegen_callops (cgen, loadname, rhs, 0);
+			codegen_callops (cgen, storename, lhs, 0);
 		} else {
 			/* load pointers, block move */
 			/* codegen_callops (cgen, loadpointer, rhs);
@@ -171,8 +171,8 @@ static int occampi_codegen_action (tnode_t *node, codegen_t *cgen)
 		}
 	} else if (node->tag == opi.tag_OUTPUT) {
 		/* load a pointer to value, pointer to channel, size */
-		codegen_callops (cgen, loadpointer, rhs);
-		codegen_callops (cgen, loadpointer, lhs);
+		codegen_callops (cgen, loadpointer, rhs, 0);
+		codegen_callops (cgen, loadpointer, lhs, 0);
 		codegen_callops (cgen, loadconst, bytes);
 		codegen_callops (cgen, tsecondary, I_OUT);
 	} else {

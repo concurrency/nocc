@@ -2729,7 +2729,7 @@ fprintf (stderr, "    [%s] (%d)\n", tcopy[i]->name ?: "(anon)", tcopy[i]->op);
 		for (; (i<ntables) && tcopy[i]->op && !strcmp (prin->name, tcopy[i]->name); i++) {
 			dfattbl_t *thisone = tcopy[i];
 			int s_diff, x;
-			int n;
+			/* int n; */
 			int rs_state, ns_state;
 			int rs_idx, ns_idx;
 			DYNARRAY (dfattblent_t *, working);
@@ -3181,7 +3181,9 @@ tnode_t *dfa_walk (char *rname, lexfile_t *lf)
 
 	/* should be left with a single something */
 	if (dfast->prev) {
-		parser_error (lf, "parse error");
+		if (compopts.verbose) {
+			parser_error (lf, "parse error");
+		}
 		if (dfast->local) {
 			tnode_free (dfast->local);
 			dfast->local = NULL;
@@ -3191,12 +3193,16 @@ tnode_t *dfa_walk (char *rname, lexfile_t *lf)
 
 	/* token-stack and node-stack should be empty */
 	if (DA_CUR (pp->tokstack)) {
-		parser_error (lf, "%d leftover tokens on stack:", DA_CUR (pp->tokstack));
+		if (compopts.verbose) {
+			parser_error (lf, "%d leftover tokens on stack:", DA_CUR (pp->tokstack));
+		}
 		while (DA_CUR (pp->tokstack)) {
 			token_t *thistok = DA_NTHITEM (pp->tokstack, 0);
 
 			if (thistok) {
-				lexer_dumptoken (stderr, thistok);
+				if (compopts.verbose) {
+					lexer_dumptoken (stderr, thistok);
+				}
 				lexer_freetoken (thistok);
 				DA_SETNTHITEM (pp->tokstack, 0, NULL);
 			}
@@ -3204,12 +3210,16 @@ tnode_t *dfa_walk (char *rname, lexfile_t *lf)
 		}
 	}
 	if (DA_CUR (dfast->nodestack)) {
-		parser_error (lf, "%d leftover nodes on stack:", DA_CUR (dfast->nodestack));
+		if (compopts.verbose) {
+			parser_error (lf, "%d leftover nodes on stack:", DA_CUR (dfast->nodestack));
+		}
 		while (DA_CUR (dfast->nodestack)) {
 			tnode_t *thisnode = DA_NTHITEM (dfast->nodestack, 0);
 
 			if (thisnode) {
-				tnode_dumptree (thisnode, 1, stderr);
+				if (compopts.verbose) {
+					tnode_dumptree (thisnode, 1, stderr);
+				}
 				tnode_free (thisnode);
 				DA_SETNTHITEM (dfast->nodestack, 0, NULL);
 			}

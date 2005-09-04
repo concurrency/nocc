@@ -1,4 +1,7 @@
 
+03/09/2005	frmb	better PAR handling, added static-link things
+14/08/2005	frmb	added PARSPACE nodes in back-end
+10/08/2005	frmb	various udpates, better DFA generation
 14/07/2005	frmb	tidied up DFA generation a bit, moved rules out into language bits
 10/07/2005	frmb	more development, back-end code-gen looking vaguely happy
 01/06/2005	frmb	checked into subversion repository

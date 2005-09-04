@@ -160,6 +160,93 @@ static topsmap_t *tops_makemap (tnode_t **tptr)
 /*}}}*/
 
 
+/*{{{  tnode_t *treeops_findintree (tnode_t *tree, ntdef_t *tag)*/
+/*
+ *	finds a sub-tree within a tree with the given node tag
+ */
+tnode_t *treeops_findintree (tnode_t *tree, ntdef_t *tag)
+{
+	int i, nnodes;
+	tnode_t **subnodes;
+
+	if (tree->tag == tag) {
+		return tree;
+	}
+	if (parser_islistnode (tree)) {
+		subnodes = parser_getlistitems (tree, &nnodes);
+	} else {
+		subnodes = tnode_subnodesof (tree, &nnodes);
+	}
+#if 0
+fprintf (stderr, "searching [%s] for [%s], %d subnodes\n", tree->tag->name, tag->name, nnodes);
+#endif
+	for (i=0; i<nnodes; i++) {
+		tnode_t *result = treeops_findintree (subnodes[i], tag);
+
+		if (result) {
+			return result;
+		}
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  static tnode_t *tops_findtwointree (tnode_t *parent, tnode_t *tree, ntdef_t *tag1, ntdef_t *tag2)*/
+/*
+ *	local helper for finding parent/child trees with given tags
+ */
+static tnode_t *tops_findtwointree (tnode_t *parent, tnode_t *tree, ntdef_t *tag1, ntdef_t *tag2)
+{
+	int i, nnodes;
+	tnode_t **subnodes;
+
+	if ((parent->tag == tag1) && (tree->tag == tag2)) {
+		return parent;
+	}
+	if (parser_islistnode (tree)) {
+		subnodes = parser_getlistitems (tree, &nnodes);
+	} else {
+		subnodes = tnode_subnodesof (tree, &nnodes);
+	}
+	for (i=0; i<nnodes; i++) {
+		tnode_t *result = tops_findtwointree (tree, subnodes[i], tag1, tag2);
+
+		if (result) {
+			return result;
+		}
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  tnode_t *treeops_findtwointree (tnode_t *tree, ntdef_t *tag1, ntdef_t *tag2)*/
+/*
+ *	finds a sub-tree within a tree with the given node tag, and that has a child with the
+ *	second node tag.
+ */
+tnode_t *treeops_findtwointree (tnode_t *tree, ntdef_t *tag1, ntdef_t *tag2)
+{
+	int i, nnodes;
+	tnode_t **subnodes;
+
+	if (parser_islistnode (tree)) {
+		subnodes = parser_getlistitems (tree, &nnodes);
+	} else {
+		subnodes = tnode_subnodesof (tree, &nnodes);
+	}
+#if 0
+fprintf (stderr, "searching [%s] for [%s]->[%s], %d subnodes\n", tree->tag->name, tag1->name, tag2->name, nnodes);
+#endif
+	for (i=0; i<nnodes; i++) {
+		tnode_t *result = tops_findtwointree (tree, subnodes[i], tag1, tag2);
+
+		if (result) {
+			return result;
+		}
+	}
+	return NULL;
+}
+/*}}}*/
+
+
 /*{{{  int treeops_init (void)*/
 /*
  *	initialises tree-operations

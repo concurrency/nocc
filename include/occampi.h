@@ -37,6 +37,7 @@ extern struct TAG_langparser occampi_parser;
 struct TAG_tndef;
 struct TAG_ntdef;
 struct TAG_token;
+struct TAG_chook;
 
 
 typedef struct {
