@@ -466,20 +466,43 @@ static int occampi_prescope_fparam (tnode_t **node, prescope_t *ps)
 	occampi_prescope_t *ops = (occampi_prescope_t *)(ps->hook);
 
 #if 0
-fprintf (stderr, "occampi_prescope_fparam(): prescoping formal parameter!\n");
+fprintf (stderr, "occampi_prescope_fparam(): prescoping formal parameter! *node = \n");
+tnode_dumptree (*node, 1, stderr);
 #endif
 
 	if (tnode_nthsubof (*node, 1)) {
 		ops->last_type = tnode_nthsubof (*node, 1);
+		if ((ops->last_type->tag == opi.tag_ASINPUT) || (ops->last_type->tag == opi.tag_ASOUTPUT)) {
+			/* lose this from the type, associated primarily with name in FPARAMs */
+			ops->last_type = tnode_nthsubof (ops->last_type, 0);
+		}
 	} else if (!ops->last_type) {
 		prescope_error (*node, ps, "missing type on formal parameter");
 	} else {
 		/* set type field for formal parameter */
+		tnode_t **namep = tnode_nthsubaddr (*node, 0);
+
 #if 0
 fprintf (stderr, "occampi_prescope_fparam(): setting type on formal param, last_type = \n");
 tnode_dumptree (ops->last_type, 1, stderr);
 #endif
-		tnode_setnthsub (*node, 1, tnode_copytree (ops->last_type));
+		if ((*namep)->tag == opi.tag_ASINPUT) {
+			tnode_t *name = tnode_nthsubof (*namep, 0);
+			tnode_t *type = *namep;
+
+			*namep = name;
+			tnode_setnthsub (type, 0, tnode_copytree (ops->last_type));
+			tnode_setnthsub (*node, 1, type);
+		} else if ((*namep)->tag == opi.tag_ASOUTPUT) {
+			tnode_t *name = tnode_nthsubof (*namep, 0);
+			tnode_t *type = *namep;
+
+			*namep = name;
+			tnode_setnthsub (type, 0, tnode_copytree (ops->last_type));
+			tnode_setnthsub (*node, 1, type);
+		} else {
+			tnode_setnthsub (*node, 1, tnode_copytree (ops->last_type));
+		}
 	}
 	return 1;
 }
@@ -708,9 +731,9 @@ tnode_dumptree (bename, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static void occampi_procdecl_dfaeh (dfanode_t *dfanode, token_t *tok)*/
+/*{{{  static void occampi_procdecl_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)*/
 /*
- *	
+ *	called by parser when it gets stuck in an occampi:procdecl DFA node
  */
 static void occampi_procdecl_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
 {
@@ -834,6 +857,42 @@ static int occampi_decl_init_nodes (void)
 	return 0;
 }
 /*}}}*/
+/*{{{  static void occampi_reduce_directedchanname (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	reduces a directed name
+ */
+static void occampi_reduce_directedchanname (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	token_t *tok;
+	tnode_t *type;
+
+	tok = parser_gettok (pp);
+
+	/* expecting a CHAN node two back down the node-stack */
+	if (DA_CUR (dfast->nodestack) < 2) {
+		parser_error (tok->origin, "error reducing directed CHAN name: not enough nodes on nodestack");
+		parser_pushtok (pp, tok);
+		return;
+	}
+	type = DA_NTHITEM (dfast->nodestack, DA_CUR (dfast->nodestack) - 2);
+
+#if 0
+fprintf (stderr, "occampi_reduce_directedchanname(): *(dfast->ptr) is a [%s], type =\n", *(dfast->ptr) ? ((*(dfast->ptr))->tag->name) : "(null)");
+tnode_dumptree (type, 1, stderr);
+#endif
+
+	if (lexer_tokmatch (opi.tok_OUTPUT, tok)) {
+		tnode_t *result = tnode_create (opi.tag_ASOUTPUT, tok->origin, type);
+
+		DA_SETNTHITEM (dfast->nodestack, DA_CUR (dfast->nodestack) - 2, result);
+
+		lexer_freetoken (tok);
+	} else {
+		parser_pushtok (pp, tok);
+	}
+	return;
+}
+/*}}}*/
 /*{{{  static int occampi_decl_reg_reducers (void)*/
 /*
  *	registers reductions for declaration nodes
@@ -845,8 +904,12 @@ static int occampi_decl_reg_reducers (void)
 	parser_register_grule ("opi:fparam2nsreduce", parser_decode_grule ("N+Sn0N+C2R-", opi.tag_FPARAM));
 	parser_register_grule ("opi:fparam2tsreduce", parser_decode_grule ("T+St0XC1T+XC1C2R-", occampi_nametoken_to_hook, opi.tag_NAME, occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_FPARAM));
 	parser_register_grule ("opi:fparam1tsreduce", parser_decode_grule ("T+St0XC10C2R-", occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_FPARAM));
+	parser_register_grule ("opi:fparam1tsreducei", parser_decode_grule ("T+St0XC1C10C2R-", occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_ASINPUT, opi.tag_FPARAM));
+	parser_register_grule ("opi:fparam1tsreduceo", parser_decode_grule ("T+St0XC1C10C2R-", occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_ASOUTPUT, opi.tag_FPARAM));
 	parser_register_grule ("opi:declreduce", parser_decode_grule ("SN1N+N+0C3R-", opi.tag_VARDECL));
 	parser_register_grule ("opi:procdeclreduce", parser_decode_grule ("SN1N+N+V00C4R-", opi.tag_PROCDECL));
+
+	parser_register_reduce ("Roccampi:directedchanname", occampi_reduce_directedchanname, NULL);
 
 	return 0;
 }
@@ -868,8 +931,9 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:procdecl ::= [ 0 @PROC 1 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:procdeclreduce>} -* ]"));
 
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:fparam ::= ( occampi:primtype occampi:name {<opi:fparam2nsreduce>} | " \
-				"+Name ( +Name {<opi:fparam2tsreduce>} | -* {<opi:fparam1tsreduce>} ) | " \
-				"@CHAN occampi:protocol {<opi:chanpush>} occampi:name {<opi:fparam2nsreduce>} )"));
+				"+Name ( +Name {<opi:fparam2tsreduce>} | @@! {<opi:fparam1tsreduceo>} | @@? {<opi:fparam1tsreducei>} | -* {<opi:fparam1tsreduce>} ) | " \
+				"@CHAN occampi:protocol {<opi:chanpush>} occampi:name [ ( +@@! {Roccampi:directedchanname} | +@@? {Roccampi:directedchanname} ) ] {<opi:fparam2nsreduce>} )"));
+	
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:fparamlist ::= ( -@@) {<opi:nullset>} | { occampi:fparam @@, 1 } )"));
 
 	*ntrans = DA_CUR (transtbl);

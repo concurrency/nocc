@@ -1,0 +1,96 @@
+;
+;	tests/test_n10.etc
+;	compiled from tests/test_n10.occ
+;
+
+.jentry	O_test_n9
+.setlabel	2
+.byte	0x7a, 0x00, 0x00, 0x00
+.setlabel	3
+.byte	0x0a, 0x00, 0x00, 0x00
+.descriptor	"PROC O_foo (CHAN BYTE out)"
+.setlabel	5
+.byte	0x78, 0x00, 0x00, 0x00
+.setlabel	8
+.byte	0x79, 0x00, 0x00, 0x00
+.setlabel	9
+.byte	0x0a, 0x00, 0x00, 0x00
+.descriptor	"PROC O_test_n9 (CHAN BYTE screen, CHAN BYTE error)"
+; PROC foo = 24,8,0,0,8
+.setws	24, 8
+.setvs	0
+.setms	0
+.setnamedlabel	"O_foo"
+.setlabel	1
+	ajw	0
+.loadlabaddr	2
+	ldl	4
+	ldc	1
+	out
+.loadlabaddr	3
+	ldl	4
+	ldc	1
+	out
+	ajw	0
+	ret	8
+; PROC test.n9 = 64,24,0,0,12
+.setws	64, 12
+.setvs	0
+.setms	0
+.setnamedlabel	"O_test_n9"
+.setlabel	4
+	ajw	-12
+.loadlabaddr	5
+	ldl	16
+	ldc	1
+	out
+; BEGIN PAR SETUP
+	ldlp	0
+	stl	-20
+	ldc	3
+	stl	4
+	ldc	0
+	stl	8
+.loadlabaddr	10
+	stl	0
+.loadlabaddr	6
+	ldlp	0
+	startp
+.loadlabaddr	7
+	ldlp	-20
+	startp
+; END PAR SETUP
+	ldlp	0
+	endp
+; PAR = 16,0,0,0,0
+.setlabel	6
+	ajw	0
+	ajw	0
+	ldlp	0
+	endp
+; PAR = 24,8,0,0,4
+.setlabel	7
+	ajw	-4
+.loadlabaddr	8
+	ldl	4
+	ldnl	16
+	ldc	1
+	out
+.loadlabaddr	9
+	ldl	4
+	ldnl	16
+	ldc	1
+	out
+	ajw	4
+	ldlp	20
+	endp
+.setlabel	10
+	ldl	16
+	stl	-4
+	call	O_foo, 8
+	ajw	12
+	ret	12
+
+;
+;	end of compilation
+;

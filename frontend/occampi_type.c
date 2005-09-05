@@ -127,6 +127,20 @@ static int occampi_type_getdescriptor (tnode_t *node, char **str)
 			*str = (char *)smalloc (8);
 			sprintf (*str, "CHAN ");
 		}
+	} else if ((node->tag == opi.tag_ASINPUT) || (node->tag == opi.tag_ASOUTPUT)) {
+		langops_getdescriptor (tnode_nthsubof (node, 0), str);
+
+		if (*str) {
+			char *newstr = (char *)smalloc (strlen (*str) + 3);
+
+			sprintf (newstr, "%s%c", *str, (node->tag == opi.tag_ASINPUT) ? '?' : '!');
+			sfree (*str);
+			*str = newstr;
+		} else {
+			*str = (char *)smalloc (8);
+			sprintf (*str, "%s ", (node->tag == opi.tag_ASINPUT) ? "ASINPUT" : "ASOUTPUT");
+		}
+		return 0;
 	}
 	return 1;
 }
@@ -233,7 +247,7 @@ static int occampi_type_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
-	/*{{{  occampi:typenode -- CHAN*/
+	/*{{{  occampi:typenode -- CHAN, ASINPUT, ASOUTPUT*/
 	i = -1;
 	tnd = opi.node_TYPENODE = tnode_newnodetype ("occampi:typenode", &i, 1, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
@@ -247,8 +261,12 @@ static int occampi_type_init_nodes (void)
 
 	i = -1;
 	opi.tag_CHAN = tnode_newnodetag ("CHAN", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_ASINPUT = tnode_newnodetag ("ASINPUT", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_ASOUTPUT = tnode_newnodetag ("ASOUTPUT", &i, tnd, NTF_NONE);
 	/*}}}*/
-	/*{{{  occampi:leaftype -- INT, BYTE*/
+	/*{{{  occampi:leaftype -- INT, BYTE, INT16, INT32, INT64, REAL32, REAL64, CHAR*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:leaftype", &i, 0, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
@@ -274,6 +292,10 @@ static int occampi_type_init_nodes (void)
 	opi.tag_REAL64 = tnode_newnodetag ("REAL64", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_CHAR = tnode_newnodetag ("CHAR", &i, tnd, NTF_NONE);
+	/*}}}*/
+	/*{{{  input/output tokens*/
+	opi.tok_INPUT = lexer_newtoken (SYMBOL, "?");
+	opi.tok_OUTPUT = lexer_newtoken (SYMBOL, "!");
 	/*}}}*/
 
 	return 0;

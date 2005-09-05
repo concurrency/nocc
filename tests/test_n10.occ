@@ -1,0 +1,20 @@
+
+PROC foo (CHAN BYTE out)
+  SEQ
+    out ! 'z'
+    out ! '*n'
+:
+
+PROC test.n9 (CHAN BYTE screen, error)
+  SEQ
+    screen ! 'x'
+    PAR
+      SKIP
+      INT k:
+      SEQ
+        screen ! 'y'
+        screen ! '*n'
+    foo (screen)
+:
+
+

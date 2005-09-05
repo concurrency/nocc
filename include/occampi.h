@@ -55,6 +55,8 @@ typedef struct {
 	struct TAG_ntdef *tag_CHAR;
 	struct TAG_ntdef *tag_CHAN;
 	struct TAG_ntdef *tag_NAME;
+	struct TAG_ntdef *tag_ASINPUT;
+	struct TAG_ntdef *tag_ASOUTPUT;
 	struct TAG_ntdef *tag_VARDECL;
 	struct TAG_ntdef *tag_FPARAM;
 	struct TAG_ntdef *tag_PROCDECL;
@@ -82,6 +84,8 @@ typedef struct {
 	struct TAG_ntdef *tag_FINSTANCE;
 
 	struct TAG_token *tok_COLON;
+	struct TAG_token *tok_INPUT;
+	struct TAG_token *tok_OUTPUT;
 } occampi_pset_t;
 
 extern occampi_pset_t opi;

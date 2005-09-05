@@ -1,0 +1,12 @@
+
+PROC test.n9 (CHAN BYTE screen, error)
+  SEQ
+    screen ! 'y'
+    PAR
+      SKIP
+      INT k:
+      SEQ
+        screen ! 'x'
+        screen ! '*n'
+:
+

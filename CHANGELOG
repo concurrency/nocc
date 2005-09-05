@@ -1,4 +1,6 @@
 
+05/09/2005	frmb	some initial handling for channel direction specifiers
+04/09/2005	frmb	more PAR support, some treeops, more coder-ops
 03/09/2005	frmb	better PAR handling, added static-link things
 14/08/2005	frmb	added PARSPACE nodes in back-end
 10/08/2005	frmb	various udpates, better DFA generation
