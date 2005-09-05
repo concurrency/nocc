@@ -47,6 +47,7 @@
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
+#include "usagecheck.h"
 #include "map.h"
 #include "codegen.h"
 #include "target.h"
@@ -76,6 +77,42 @@ static void occampi_reduce_cnode (dfastate_t *dfast, parsepriv_t *pp, void *rarg
 /*}}}*/
 
 
+/*{{{  static int occampi_cnode_dousagecheck (tnode_t *node, uchk_state_t *ucstate)*/
+/*
+ *	does usage-checking for a CNODE
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_cnode_dousagecheck (tnode_t *node, uchk_state_t *ucstate)
+{
+	if (node->tag == opi.tag_PAR) {
+		/*{{{  usage-check PAR bodies*/
+		tnode_t *body = tnode_nthsubof (node, 1);
+		tnode_t **bodies;
+		int nbodies, i;
+		tnode_t *parnode = node;
+
+		if (!parser_islistnode (body)) {
+			nocc_internal ("occampi_cnode_dousagecheck(): body of PAR not list");
+			return 0;
+		}
+
+		usagecheck_begin_branches (node, ucstate);
+
+		bodies = parser_getlistitems (body, &nbodies);
+		for (i=0; i<nbodies; i++) {
+			/*{{{  do usage-checks on subnode*/
+			usagecheck_branch (bodies[i], ucstate);
+			/*}}}*/
+		}
+
+		usagecheck_end_branches (node, ucstate);
+		/*}}}*/
+
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_cnode (tnode_t **node, map_t *map)*/
 /*
  *	does name mapping for certain conditional-nodes
@@ -266,6 +303,7 @@ static int occampi_cnode_init_nodes (void)
 	tndef_t *tnd;
 	int i;
 	compops_t *cops;
+	langops_t *lops;
 
 	/*{{{  occampi:cnode -- SEQ, PAR*/
 	i = -1;
@@ -274,6 +312,10 @@ static int occampi_cnode_init_nodes (void)
 	cops->namemap = occampi_namemap_cnode;
 	cops->codegen = occampi_codegen_cnode;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->do_usagecheck = occampi_cnode_dousagecheck;
+	tnd->lops = lops;
+
 	i = -1;
 	opi.tag_SEQ = tnode_newnodetag ("SEQ", &i, tnd, NTF_NONE);
 	i = -1;

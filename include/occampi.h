@@ -86,10 +86,17 @@ typedef struct {
 	struct TAG_token *tok_COLON;
 	struct TAG_token *tok_INPUT;
 	struct TAG_token *tok_OUTPUT;
+
+	struct TAG_chook *chook_typeattr;
 } occampi_pset_t;
 
 extern occampi_pset_t opi;
 
+typedef enum ENUM_occampi_typeattr {
+	TYPEATTR_NONE = 0x00,
+	TYPEATTR_MARKED_IN = 0x01,
+	TYPEATTR_MARKED_OUT = 0x02
+} occampi_typeattr_t;
 
 struct TAG_tnode;
 struct TAG_prescope;

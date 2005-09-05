@@ -1,4 +1,5 @@
 
+05/09/2005	frmb	started work on parallel usage checker
 05/09/2005	frmb	some initial handling for channel direction specifiers
 04/09/2005	frmb	more PAR support, some treeops, more coder-ops
 03/09/2005	frmb	better PAR handling, added static-link things

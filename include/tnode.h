@@ -29,7 +29,6 @@ struct TAG_scope;
 struct TAG_typecheck;
 struct TAG_target;
 
-
 /*{{{  tndef_t definition (type of node)*/
 typedef struct TAG_tndef {
 	char *name;
@@ -68,6 +67,7 @@ struct TAG_lexfile;
 struct TAG_name;
 struct TAG_map;
 struct TAG_codegen;
+struct TAG_uchk_state;
 
 /*{{{  tnode_t definition*/
 typedef struct TAG_tnode {
@@ -89,6 +89,7 @@ typedef struct TAG_compops {
 	int (*typecheck)(tnode_t *, struct TAG_typecheck *);		/* type-checks this node */
 	tnode_t *(*typeactual)(tnode_t *, tnode_t *, tnode_t *, struct TAG_typecheck *);	/* tests whether one type is valid as an "actual" for another */
 	tnode_t *(*gettype)(tnode_t *, tnode_t *);			/* returns the type of this node (second param is a "default" type) */
+	int (*precheck)(tnode_t *);					/* performs pre-checks on the node */
 	int (*bytesfor)(tnode_t *);					/* returns the number of bytes required for something */
 	int (*fetrans)(tnode_t **);					/* performs front-end transforms */
 	int (*betrans)(tnode_t **, struct TAG_target *);		/* performs back-end transforms for target */
@@ -104,7 +105,10 @@ typedef struct TAG_compops {
 /*{{{  langops_t (language operations)*/
 typedef struct TAG_langops {
 	int (*getdescriptor)(tnode_t *, char **);			/* gets a descriptor string for the given node */
+	int (*do_usagecheck)(tnode_t *, struct TAG_uchk_state *);	/* does usage-checking for a node */
 } langops_t;
+
+
 /*}}}*/
 /*{{{  chook_t definition*/
 typedef struct TAG_chook {

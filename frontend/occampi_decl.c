@@ -45,6 +45,8 @@
 #include "names.h"
 #include "scope.h"
 #include "prescope.h"
+#include "precheck.h"
+#include "usagecheck.h"
 #include "map.h"
 #include "target.h"
 #include "transputer.h"
@@ -298,6 +300,40 @@ static int occampi_fetrans_procdecl (tnode_t **node)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_precheck_procdecl (tnode_t *node)*/
+/*
+ *	does pre-checking on PROC declaration
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_precheck_procdecl (tnode_t *node)
+{
+#if 0
+fprintf (stderr, "occampi_precheck_procdecl(): here!\n");
+#endif
+	precheck_subtree (tnode_nthsubof (node, 2));		/* precheck this body */
+	precheck_subtree (tnode_nthsubof (node, 3));		/* precheck in-scope code */
+#if 0
+fprintf (stderr, "occampi_precheck_procdecl(): returning 0\n");
+#endif
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_usagecheck_procdecl (tnode_t *node, uchk_state_t *ucstate)*/
+/*
+ *	does usage-checking on a PROC declaration
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_usagecheck_procdecl (tnode_t *node, uchk_state_t *ucstate)
+{
+	usagecheck_begin_branches (node, ucstate);
+	usagecheck_newbranch (ucstate);
+	usagecheck_subtree (tnode_nthsubof (node, 2), ucstate);		/* usage-check this body */
+	usagecheck_subtree (tnode_nthsubof (node, 3), ucstate);		/* usage-check in-scope code */
+	usagecheck_endbranch (ucstate);
+	usagecheck_end_branches (node, ucstate);
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_procdecl (tnode_t **node, map_t *map)*/
 /*
  *	name-maps a PROC definition
@@ -514,10 +550,12 @@ tnode_dumptree (ops->last_type, 1, stderr);
 static int occampi_scopein_fparam (tnode_t **node, scope_t *ss)
 {
 	tnode_t *name = tnode_nthsubof (*node, 0);
-	tnode_t *type = tnode_nthsubof (*node, 1);
+	tnode_t **typep = tnode_nthsubaddr (*node, 1);
 	char *rawname;
 	name_t *sname = NULL;
 	tnode_t *newname;
+	occampi_typeattr_t typeattr;
+	tnode_t *losing = NULL;
 
 	if (name->tag != opi.tag_NAME) {
 		scope_error (name, ss, "name not raw-name!");
@@ -528,7 +566,17 @@ static int occampi_scopein_fparam (tnode_t **node, scope_t *ss)
 fprintf (stderr, "occampi_scopein_fparam: here! rawname = \"%s\"\n", rawname);
 #endif
 
-	sname = name_addscopename (rawname, *node, type, NULL);
+	if (((*typep)->tag == opi.tag_ASINPUT) || ((*typep)->tag == opi.tag_ASOUTPUT)) {
+		losing = *typep;
+		*typep = tnode_nthsubof (losing, 0);
+		tnode_setnthsub (losing, 0, NULL);
+
+		typeattr = (occampi_typeattr_t)tnode_getchook (*typep, opi.chook_typeattr);
+		typeattr |= (losing->tag == opi.tag_ASINPUT) ? TYPEATTR_MARKED_IN : TYPEATTR_MARKED_OUT;
+		tnode_setchook (*typep, opi.chook_typeattr, (void *)typeattr);
+	}
+
+	sname = name_addscopename (rawname, *node, *typep, NULL);
 	newname = tnode_createfrom (opi.tag_NPARAM, name, sname);
 	SetNameNode (sname, newname);
 	tnode_setnthsub (*node, 0, newname);
@@ -536,6 +584,10 @@ fprintf (stderr, "occampi_scopein_fparam: here! rawname = \"%s\"\n", rawname);
 	/* free the old name */
 	tnode_free (name);
 	ss->scoped++;
+
+	if (losing) {
+		tnode_free (losing);
+	}
 	return 1;
 }
 /*}}}*/
@@ -843,12 +895,14 @@ static int occampi_decl_init_nodes (void)
 	cops->scopeout = occampi_scopeout_procdecl;
 	cops->namemap = occampi_namemap_procdecl;
 	cops->gettype = occampi_gettype_procdecl;
+	cops->precheck = occampi_precheck_procdecl;
 	cops->fetrans = occampi_fetrans_procdecl;
 	cops->precode = occampi_precode_procdecl;
 	cops->codegen = occampi_codegen_procdecl;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->getdescriptor = occampi_getdescriptor_procdecl;
+	lops->do_usagecheck = occampi_usagecheck_procdecl;
 	tnd->lops = lops;
 	i = -1;
 	opi.tag_PROCDECL = tnode_newnodetag ("PROCDECL", &i, tnd, NTF_NONE);

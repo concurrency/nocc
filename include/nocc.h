@@ -61,6 +61,21 @@ typedef struct TAG_compopts {
 	char *target_vendor;
 } compopts_t;
 
+/* various tree-walks performed by the compiler (bitfields) */
+typedef enum ENUM_treewalk {
+	WALK_PRESCOPE = 0x00000001,
+	WALK_SCOPE = 0x00000002,
+	WALK_TYPECHECK = 0x00000004,
+	WALK_PRECHECK = 0x00000008,
+	WALK_ALIASCHECK = 0x00000010,
+	WALK_USAGECHECK = 0x00000020,
+	WALK_DEFCHECK = 0x00000040,
+	WALK_PREALLOCATE = 0x00000080,
+	WALK_ALLOCATE = 0x00000100,
+	WALK_PRECODE = 0x00000200,
+	WALK_CODEGEN = 0x00000400
+} treewalk_t;
+
 
 extern char *progname;
 extern compopts_t compopts;

@@ -22,11 +22,40 @@
 
 struct TAG_tnode;
 struct TAG_langparser;
+struct TAG_chook;
+
+
+typedef enum ENUM_uchk_mode {
+	USAGE_NONE = 0x00,
+	USAGE_READ = 0x01,
+	USAGE_WRITE = 0x02,
+	USAGE_INPUT = 0x04,
+	USAGE_XINPUT = 0x08,
+	USAGE_OUTPUT = 0x10
+} uchk_mode_t;
+
+typedef struct TAG_uchk_state {
+	DYNARRAY (void *, ucstack);
+	DYNARRAY (void *, setptrs);
+	int ucptr;
+} uchk_state_t;
+
 
 extern int usagecheck_init (void);
 extern int usagecheck_shutdown (void);
 
+extern int usagecheck_addname (struct TAG_tnode *node, uchk_state_t *ucstate, uchk_mode_t mode);
+
+extern int usagecheck_begin_branches (struct TAG_tnode *node, uchk_state_t *ucstate);
+extern int usagecheck_end_branches (struct TAG_tnode *node, uchk_state_t *ucstate);
+extern int usagecheck_branch (struct TAG_tnode *node, uchk_state_t *ucstate);
+extern void usagecheck_newbranch (uchk_state_t *ucstate);
+extern void usagecheck_endbranch (uchk_state_t *ucstate);
+
+extern int usagecheck_subtree (struct TAG_tnode *node, uchk_state_t *ucstate);
 extern int usagecheck_tree (struct TAG_tnode *tree, struct TAG_langparser *lang);
+
+extern int usagecheck_marknode (struct TAG_tnode *node, uchk_mode_t mode, int do_nested);
 
 
 #endif	/* !__USAGECHECK_H */

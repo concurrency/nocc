@@ -47,6 +47,8 @@
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
+#include "precheck.h"
+#include "usagecheck.h"
 #include "map.h"
 #include "target.h"
 #include "transputer.h"
@@ -124,6 +126,23 @@ tnode_dumptree (rhstype, 1, stderr);
 	return 0;	/* don't walk sub-nodes */
 }
 /*}}}*/
+/*{{{  static int occampi_precheck_action (tnode_t *node)*/
+/*
+ *	called to do pre-checks on an action-node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_precheck_action (tnode_t *node)
+{
+	if (node->tag == opi.tag_INPUT) {
+		usagecheck_marknode (tnode_nthsubof (node, 0), USAGE_INPUT, 0);
+		usagecheck_marknode (tnode_nthsubof (node, 1), USAGE_WRITE, 0);
+	} else if (node->tag == opi.tag_OUTPUT) {
+		usagecheck_marknode (tnode_nthsubof (node, 0), USAGE_OUTPUT, 0);
+		usagecheck_marknode (tnode_nthsubof (node, 1), USAGE_READ, 0);
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_action (tnode_t **node, map_t *map)*/
 /*
  *	allocates space necessary for an action
@@ -199,6 +218,7 @@ static int occampi_action_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:actionnode", &i, 3, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
 	cops->typecheck = occampi_typecheck_action;
+	cops->precheck = occampi_precheck_action;
 	cops->namemap = occampi_namemap_action;
 	cops->codegen = occampi_codegen_action;
 	tnd->ops = cops;

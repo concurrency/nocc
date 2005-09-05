@@ -52,6 +52,31 @@
 
 
 
+/*{{{  static void occampi_typeattr_dumpchook (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a typeattr compiler hook
+ */
+static void occampi_typeattr_dumpchook (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	occampi_typeattr_t attr = (occampi_typeattr_t)hook;
+	char buf[256];
+	int x = 0;
+
+	occampi_isetindent (stream, indent);
+	if (attr & TYPEATTR_MARKED_IN) {
+		x += sprintf (buf + x, "marked-in ");
+	}
+	if (attr & TYPEATTR_MARKED_OUT) {
+		x += sprintf (buf + x, "marked-out ");
+	}
+	if (x) {
+		buf[x-1] = '\0';
+	}
+	fprintf (stream, "<chook id=\"occampi:typeattr\" flags=\"%s\" />\n", buf);
+
+	return;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_type_gettype (tnode_t *node, tnode_t *default_type)*/
 /*
  *	returns the type of a type-node (typically the sub-type)
@@ -296,6 +321,11 @@ static int occampi_type_init_nodes (void)
 	/*{{{  input/output tokens*/
 	opi.tok_INPUT = lexer_newtoken (SYMBOL, "?");
 	opi.tok_OUTPUT = lexer_newtoken (SYMBOL, "!");
+	/*}}}*/
+	/*{{{  attributes compiler hook*/
+	opi.chook_typeattr = tnode_newchook ("occampi:typeattr");
+	opi.chook_typeattr->chook_dumptree = occampi_typeattr_dumpchook;
+
 	/*}}}*/
 
 	return 0;

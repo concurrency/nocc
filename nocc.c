@@ -41,6 +41,7 @@
 #include "parser.h"
 #include "dfa.h"
 #include "prescope.h"
+#include "precheck.h"
 #include "scope.h"
 #include "typecheck.h"
 #include "tnode.h"
@@ -581,6 +582,7 @@ int main (int argc, char **argv)
 	name_init ();
 	extn_init ();
 	treeops_init ();
+	precheck_init ();
 	aliascheck_init ();
 	usagecheck_init ();
 	defcheck_init ();
@@ -763,6 +765,23 @@ int main (int argc, char **argv)
 				/*}}}*/
 			}
 			/*}}}*/
+			/*{{{  pre-check*/
+			if (compopts.verbose) {
+				nocc_message ("pre-check ...");
+			}
+			if (precheck_tree (tree)) {
+				nocc_error ("pre-check failed");
+				exit (EXIT_FAILURE);
+			}
+			if (compopts.stoppoint == 6) {
+				/*{{{  stop after pre-check*/
+				if (compopts.dumptree) {
+					tnode_dumptree (tree, 1, stderr);
+				}
+				goto main_out;
+				/*}}}*/
+			}
+			/*}}}*/
 			/*{{{  alias check*/
 			if (compopts.doaliascheck) {
 				if (compopts.verbose) {
@@ -773,7 +792,7 @@ int main (int argc, char **argv)
 					exit (EXIT_FAILURE);
 				}
 			}
-			if (compopts.stoppoint == 6) {
+			if (compopts.stoppoint == 7) {
 				/*{{{  stop after alias-check*/
 				if (compopts.dumptree) {
 					tnode_dumptree (tree, 1, stderr);
@@ -792,7 +811,7 @@ int main (int argc, char **argv)
 					exit (EXIT_FAILURE);
 				}
 			}
-			if (compopts.stoppoint == 7) {
+			if (compopts.stoppoint == 8) {
 				/*{{{  stop after usage-check*/
 				if (compopts.dumptree) {
 					tnode_dumptree (tree, 1, stderr);
@@ -811,7 +830,7 @@ int main (int argc, char **argv)
 					exit (EXIT_FAILURE);
 				}
 			}
-			if (compopts.stoppoint == 8) {
+			if (compopts.stoppoint == 9) {
 				/*{{{  stop after undefinedness-check*/
 				if (compopts.dumptree) {
 					tnode_dumptree (tree, 1, stderr);
@@ -828,7 +847,7 @@ int main (int argc, char **argv)
 				nocc_error ("front-end tree transform failed");
 				exit (EXIT_FAILURE);
 			}
-			if (compopts.stoppoint == 9) {
+			if (compopts.stoppoint == 10) {
 				/*{{{  stop after front-end tree transform*/
 				if (compopts.dumptree) {
 					tnode_dumptree (tree, 1, stderr);
@@ -851,7 +870,7 @@ int main (int argc, char **argv)
 				nocc_error ("back-end tree transform failed");
 				exit (EXIT_FAILURE);
 			}
-			if (compopts.stoppoint == 10) {
+			if (compopts.stoppoint == 11) {
 				/*{{{  stop after back-end tree transform*/
 				if (compopts.dumptree) {
 					tnode_dumptree (tree, 1, stderr);
@@ -868,7 +887,7 @@ int main (int argc, char **argv)
 				nocc_error ("name-map failed");
 				exit (EXIT_FAILURE);
 			}
-			if (compopts.stoppoint == 11) {
+			if (compopts.stoppoint == 12) {
 				/*{{{  stop after name-map*/
 				if (compopts.dumptree) {
 					tnode_dumptree (tree, 1, stderr);
@@ -885,7 +904,7 @@ int main (int argc, char **argv)
 				nocc_error ("pre-allocation failed");
 				exit (EXIT_FAILURE);
 			}
-			if (compopts.stoppoint == 12) {
+			if (compopts.stoppoint == 13) {
 				/*{{{  stop after pre-allocation*/
 				if (compopts.dumptree) {
 					tnode_dumptree (tree, 1, stderr);
@@ -902,7 +921,7 @@ int main (int argc, char **argv)
 				nocc_error ("allocate failed");
 				exit (EXIT_FAILURE);
 			}
-			if (compopts.stoppoint == 13) {
+			if (compopts.stoppoint == 14) {
 				/*{{{  stop after memory allocation*/
 				if (compopts.dumptree) {
 					tnode_dumptree (tree, 1, stderr);
@@ -919,7 +938,7 @@ int main (int argc, char **argv)
 				nocc_error ("code-generation failed");
 				exit (EXIT_FAILURE);
 			}
-			if (compopts.stoppoint == 14) {
+			if (compopts.stoppoint == 15) {
 				/*{{{  stop after code generation*/
 				if (compopts.dumptree) {
 					tnode_dumptree (tree, 1, stderr);
