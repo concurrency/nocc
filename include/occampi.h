@@ -82,6 +82,7 @@ typedef struct {
 
 	struct TAG_ntdef *tag_PINSTANCE;
 	struct TAG_ntdef *tag_FINSTANCE;
+	struct TAG_ntdef *tag_BUILTINPROC;
 
 	struct TAG_token *tok_COLON;
 	struct TAG_token *tok_INPUT;

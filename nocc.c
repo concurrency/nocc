@@ -659,7 +659,7 @@ int main (int argc, char **argv)
 
 	/*}}}*/
 
-	/*{{{  temporary, open the file and process it*/
+	/*{{{  open the file and process it*/
 	for (i=0; i<nsrcfiles; i++) {
 		char *fname = srcfiles[i];
 		lexfile_t *tmp;

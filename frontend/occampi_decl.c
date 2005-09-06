@@ -203,7 +203,10 @@ static int occampi_prescope_procdecl (tnode_t **node, prescope_t *ps)
 	occampi_prescope_t *ops = (occampi_prescope_t *)(ps->hook);
 
 	ops->last_type = NULL;
-	if (!parser_islistnode (tnode_nthsubof (*node, 1))) {
+	if (!tnode_nthsubof (*node, 1)) {
+		/* no parameters, create empty list */
+		tnode_setnthsub (*node, 1, parser_newlistnode (NULL));
+	} else if (tnode_nthsubof (*node, 1) && !parser_islistnode (tnode_nthsubof (*node, 1))) {
 		/* turn single parameter into a list-node */
 		tnode_t *list = parser_newlistnode (NULL);
 

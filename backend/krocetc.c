@@ -1463,6 +1463,9 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 	case I_ENDP:
 		codegen_write_string (cgen, "\tendp\n");
 		break;
+	case I_RESCHEDULE:
+		codegen_write_string (cgen, "\t.reschedule\n");
+		break;
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: tsecondary %d\n", ins);
 		break;

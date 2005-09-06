@@ -53,6 +53,88 @@
 
 /*}}}*/
 
+/*{{{  private types*/
+typedef struct TAG_builtinproc {
+	const char *name;
+	const char *keymatch;
+	const char *symmatch;
+	token_t *tok;
+	int wsh;
+	int wsl;
+	void (*codegen)(tnode_t *, struct TAG_builtinproc *, codegen_t *);
+} builtinproc_t;
+
+typedef struct TAG_builtinprochook {
+	builtinproc_t *biptr;
+} builtinprochook_t;
+
+
+/*}}}*/
+/*{{{  forward decls*/
+static void builtin_codegen_reschedule (tnode_t *node, builtinproc_t *builtin, codegen_t *cgen);
+
+
+/*}}}*/
+/*{{{  private data*/
+static builtinproc_t builtins[] = {
+	{"SETPRI", "SETPRI", NULL, NULL, 4, 16, NULL},
+	{"RESCHEDULE", "RESCHEDULE", NULL, NULL, 0, 16, builtin_codegen_reschedule},
+	{NULL, NULL, NULL, NULL, 0, 0}
+};
+
+
+/*}}}*/
+
+
+/*{{{  builtinprochook_t routines*/
+/*{{{  static builtinprochook_t *builtinprochook_create (builtinproc_t *builtin)*/
+/*
+ *	creates a new builtinprochook_t structure
+ */
+static builtinprochook_t *builtinprochook_create (builtinproc_t *builtin)
+{
+	builtinprochook_t *bph = (builtinprochook_t *)smalloc (sizeof (builtinprochook_t));
+
+	bph->biptr = builtin;
+	
+	return bph;
+}
+/*}}}*/
+/*{{{  static void builtinprochook_free (void *hook)*/
+/*
+ *	frees a builtinprochook_t structure
+ */
+static void builtinprochook_free (void *hook)
+{
+	builtinprochook_t *bph = (builtinprochook_t *)hook;
+
+	if (bph) {
+		sfree (bph);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void builtinprochook_dumphook (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a builtinprochook_t (debugging)
+ */
+static void builtinprochook_dumphook (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	builtinprochook_t *bph = (builtinprochook_t *)hook;
+
+	occampi_isetindent (stream, indent);
+	if (!hook) {
+		fprintf (stream, "<builtinprochook name=\"(null)\" />\n");
+	} else {
+		builtinproc_t *builtin = bph->biptr;
+
+		fprintf (stream, "<builtinprochook name=\"%s\" wsh=\"%d\" wsl=\"%d\" />\n", builtin->name, builtin->wsh, builtin->wsl);
+	}
+	return;
+}
+/*}}}*/
+/*}}}*/
+
 
 /*{{{  static int occampi_typecheck_instance (tnode_t *node, typecheck_t *tc)*/
 /*
@@ -75,13 +157,19 @@ fprintf (stderr, "occampi_typecheck_instance: aparamlist=\n");
 tnode_dumptree (aparamlist, 1, stderr);
 #endif
 
-	if (parser_islistnode (fparamlist)) {
+	if (!fparamlist) {
+		fp_items = NULL;
+		fp_nitems = 0;
+	} else if (parser_islistnode (fparamlist)) {
 		fp_items = parser_getlistitems (fparamlist, &fp_nitems);
 	} else {
 		fp_items = &fparamlist;
 		fp_nitems = 1;
 	}
-	if (parser_islistnode (aparamlist)) {
+	if (!aparamlist) {
+		ap_items = NULL;
+		ap_nitems = 0;
+	} else if (parser_islistnode (aparamlist)) {
 		ap_items = parser_getlistitems (aparamlist, &ap_nitems);
 	} else {
 		ap_items = &aparamlist;
@@ -136,23 +224,36 @@ tnode_dumptree (atype, 1, stderr);
  */
 static int occampi_namemap_instance (tnode_t **node, map_t *map)
 {
-	tnode_t *bename, *instance, *ibody;
+	tnode_t *bename, *instance, *ibody, *namenode;
 	name_t *name;
 
 	/* map parameters and called name */
 	map_submapnames (tnode_nthsubaddr (*node, 1), map);
 	map_submapnames (tnode_nthsubaddr (*node, 0), map);
 
+	namenode = tnode_nthsubof (*node, 0);
 #if 0
-fprintf (stderr, "occampi_namemap_instance: instance of:\n");
-tnode_dumptree (tnode_nthsubof (*node, 0), 1, stderr);
+fprintf (stderr, "occampi_namemap_instance(): instance of:\n");
+tnode_dumptree (namenode, 1, stderr);
 #endif
-	name = tnode_nthnameof (tnode_nthsubof (*node, 0), 0);
-	instance = NameDeclOf (name);
+	if (namenode->tag->ndef == opi.node_NAMENODE) {
+		name = tnode_nthnameof (namenode, 0);
+		instance = NameDeclOf (name);
 
-	/* body should be a back-end BLOCK */
-	ibody = tnode_nthsubof (instance, 2);
+		/* body should be a back-end BLOCK */
+		ibody = tnode_nthsubof (instance, 2);
+	} else if (namenode->tag == opi.tag_BUILTINPROC) {
+		/* do nothing else */
+		builtinprochook_t *bph = (builtinprochook_t *)tnode_nthhookof (namenode, 0);
+		builtinproc_t *builtin = bph->biptr;
 
+		bename = map->target->newname (*node, NULL, map, builtin->wsh, builtin->wsl, 0, 0, 0, 0);
+		*node = bename;
+		return 0;
+	} else {
+		nocc_internal ("occampi_namemap_instance(): don\'t know how to handle [%s]", namenode->tag->name);
+		return 0;
+	}
 #if 0
 fprintf (stderr, "occampi_namemap_instance: instance body is:\n");
 tnode_dumptree (ibody, 1, stderr);
@@ -175,37 +276,129 @@ tnode_dumptree (bename, 1, stderr);
  */
 static int occampi_codegen_instance (tnode_t *node, codegen_t *cgen)
 {
-	name_t *name = tnode_nthnameof (tnode_nthsubof (node, 0), 0);
+	name_t *name;
+	tnode_t *namenode;
 	tnode_t *params = tnode_nthsubof (node, 1);
 	tnode_t *instance, *ibody;
 	int ws_size, ws_offset, vs_size, ms_size, adjust;
 
-	instance = NameDeclOf (name);
-	ibody = tnode_nthsubof (instance, 2);
+	namenode = tnode_nthsubof (node, 0);
 
-	codegen_check_beblock (ibody, cgen, 1);
+	if (namenode->tag->ndef == opi.node_NAMENODE) {
+		/*{{{  instance of a name (e.g. PROC definition)*/
+		name = tnode_nthnameof (namenode, 0);
+		instance = NameDeclOf (name);
+		ibody = tnode_nthsubof (instance, 2);
 
-	/* get size of this block */
-	cgen->target->be_getblocksize (ibody, &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, NULL);
+		codegen_check_beblock (ibody, cgen, 1);
 
-	/* FIXME: load parameters in reverse order, into -4, -8, ... */
-	if (parser_islistnode (params)) {
-		int nitems, i, wsoff;
-		tnode_t **items = parser_getlistitems (params, &nitems);
+		/* get size of this block */
+		cgen->target->be_getblocksize (ibody, &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, NULL);
 
-		for (i=nitems - 1, wsoff = -4; i>=0; i--, wsoff -= 4) {
-			codegen_callops (cgen, loadparam, items[i], PARAM_REF);
-			codegen_callops (cgen, storelocal, wsoff);
+		/* FIXME: load parameters in reverse order, into -4, -8, ... */
+		if (!params) {
+			/* no parameters! */
+		} else if (parser_islistnode (params)) {
+			int nitems, i, wsoff;
+			tnode_t **items = parser_getlistitems (params, &nitems);
+
+			for (i=nitems - 1, wsoff = -4; i>=0; i--, wsoff -= 4) {
+				codegen_callops (cgen, loadparam, items[i], PARAM_REF);
+				codegen_callops (cgen, storelocal, wsoff);
+			}
+		} else {
+			/* single parameter */
+			codegen_callops (cgen, loadparam, params, PARAM_REF);
+			codegen_callops (cgen, storelocal, -4);
 		}
+
+		codegen_callops (cgen, callnamedlabel, NameNameOf (name), adjust);
+		/*}}}*/
+	} else if (namenode->tag == opi.tag_BUILTINPROC) {
+		/*{{{  instance of a built-in PROC*/
+		builtinprochook_t *bph = (builtinprochook_t *)tnode_nthhookof (namenode, 0);
+		builtinproc_t *builtin = bph->biptr;
+
+		if (builtin->codegen) {
+			builtin->codegen (node, builtin, cgen);
+		} else {
+			nocc_warning ("occampi_codegen_instance(): don\'t know how to code for built-in PROC [%s]", builtin->name);
+			codegen_callops (cgen, comment, "BUILTINPROC instance of [%s]", builtin->name);
+		}
+		/*}}}*/
 	} else {
-		/* single parameter */
-		codegen_callops (cgen, loadparam, params, PARAM_REF);
-		codegen_callops (cgen, storelocal, -4);
+		nocc_internal ("occampi_codegen_instance(): don\'t know how to handle [%s]", namenode->tag->name);
 	}
 
-	codegen_callops (cgen, callnamedlabel, NameNameOf (name), adjust);
-
 	return 0;
+}
+/*}}}*/
+
+
+/*{{{  static void builtin_codegen_reschedule (tnode_t *node, builtinproc_t *builtin, codegen_t *cgen)*/
+/*
+ *	generates code for a RESCHEDULE()
+ */
+static void builtin_codegen_reschedule (tnode_t *node, builtinproc_t *builtin, codegen_t *cgen)
+{
+	codegen_callops (cgen, tsecondary, I_RESCHEDULE);
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static tnode_t *occampi_gettype_builtinproc (tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	returns the type of a built-in PROC
+ */
+static tnode_t *occampi_gettype_builtinproc (tnode_t *node, tnode_t *defaulttype)
+{
+	builtinprochook_t *bph;
+	builtinproc_t *builtin;
+
+	if (node->tag != opi.tag_BUILTINPROC) {
+		nocc_internal ("occampi_gettype_builtinproc(): node not BUILTINPROC");
+		return NULL;
+	}
+	bph = (builtinprochook_t *)tnode_nthhookof (node, 0);
+	builtin = bph->biptr;
+#if 0
+fprintf (stderr, "occampi_gettype_builtinproc(): bph->name = [%s]\n", builtin->name);
+#endif
+
+	return NULL;		/* FIXME... */
+}
+/*}}}*/
+
+/*{{{  static void occampi_reduce_builtinproc (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	reduces a built-in PROC keyword token to a tree-node
+ */
+static void occampi_reduce_builtinproc (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	token_t *tok = parser_gettok (pp);
+	int i;
+
+#if 0
+fprintf (stderr, "occampi_reduce_builtinproc(): ..\n");
+#endif
+	for (i=0; builtins[i].name; i++) {
+		if (lexer_tokmatch (builtins[i].tok, tok)) {
+			/*{{{  got a match*/
+			tnode_t *biname;
+
+			biname = tnode_create (opi.tag_BUILTINPROC, tok->origin, builtinprochook_create (&(builtins[i])));
+			dfa_pushnode (dfast, biname);
+
+			lexer_freetoken (tok);
+			return;
+			/*}}}*/
+		}
+	}
+	parser_pushtok (pp, tok);
+	parser_error (tok->origin, "unknown built-in PROC [%s]", lexer_stokenstr (tok));
+
+	return;
 }
 /*}}}*/
 
@@ -235,6 +428,33 @@ static int occampi_instance_init_nodes (void)
 	opi.tag_FINSTANCE = tnode_newnodetag ("FINSTANCE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  occampi:builtinproc -- BUILTINPROC*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:builtinproc", &i, 0, 0, 1, TNF_NONE);
+	cops = tnode_newcompops ();
+	cops->gettype = occampi_gettype_builtinproc;
+	tnd->hook_dumptree = builtinprochook_dumphook;
+	tnd->hook_free = builtinprochook_free;
+	tnd->ops = cops;
+
+	i = -1;
+	opi.tag_BUILTINPROC = tnode_newnodetag ("BUILTINPROC", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  setup builtins*/
+	for (i=0; builtins[i].name; i++) {
+		if (!builtins[i].tok) {
+			if (builtins[i].keymatch) {
+				builtins[i].tok = lexer_newtoken (KEYWORD, builtins[i].keymatch);
+			} else if (builtins[i].symmatch) {
+				builtins[i].tok = lexer_newtoken (SYMBOL, builtins[i].symmatch);
+			} else {
+				nocc_internal ("occampi_instance_init_nodes(): built-in error, name = [%s]", builtins[i].name);
+			}
+		}
+	}
+
+	/*}}}*/
 
 	return 0;
 }
@@ -246,6 +466,8 @@ static int occampi_instance_init_nodes (void)
 static int occampi_instance_reg_reducers (void)
 {
 	parser_register_grule ("opi:pinstancereduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_PINSTANCE));
+
+	parser_register_reduce ("Roccampi:builtinproc", occampi_reduce_builtinproc, NULL);
 
 	return 0;
 }
@@ -260,7 +482,9 @@ static dfattbl_t **occampi_instance_init_dfatrans (int *ntrans)
 
 	dynarray_init (transtbl);
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:aparamlist ::= ( -@@) {<opi:nullset>} | { occampi:expr @@, 1 } )"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestart +:= [ 0 +Name 1 ] [ 1 @@( 2 ] [ 2 {<opi:namepush>} ] [ 2 occampi:aparamlist 3 ] [ 3 @@) 4 ] [ 4 {<opi:pinstancereduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestart +:= [ 0 +Name 1 ] [ 1 @@( 2 ] [ 2 {<opi:namepush>} ] [ 2 occampi:aparamlist 3 ] " \
+				"[ 3 @@) 4 ] [ 4 {<opi:pinstancereduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:builtinprocinstance +:= [ 0 +@RESCHEDULE 1 ] [ 1 @@( 2 ] [ 2 {Roccampi:builtinproc} ] [ 2 occampi:aparamlist 3 ] [ 3 @@) 4 ] [ 4 {<opi:pinstancereduce>} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

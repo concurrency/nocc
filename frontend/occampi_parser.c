@@ -275,7 +275,7 @@ static int occampi_dfas_init (void)
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:exprsemilist ::= { occampi:expr @@; 1 }"));
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:exprcommalist ::= { occampi:expr @@, 1 }"));
 
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:declorprocstart ::= ( occampi:vardecl | occampi:procdecl | occampi:primproc | occampi:cproc | occampi:namestart ) {<opi:nullreduce>}"));
+	dynarray_add (transtbls, dfa_bnftotbl ("occampi:declorprocstart ::= ( occampi:vardecl | occampi:procdecl | occampi:primproc | occampi:cproc | occampi:namestart | occampi:builtinprocinstance ) {<opi:nullreduce>}"));
 
 	/*{{{  load grammar items for extensions*/
 	if (extn_preloadgrammar (&occampi_parser, &DA_PTR(transtbls), &DA_CUR(transtbls), &DA_MAX(transtbls))) {

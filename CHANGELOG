@@ -1,4 +1,6 @@
 
+06/09/2005	frmb	some support for built-in PROCs, got RESCHEDULE() working
+05/09/2005	frmb	added pre-check parse
 05/09/2005	frmb	started work on parallel usage checker
 05/09/2005	frmb	some initial handling for channel direction specifiers
 04/09/2005	frmb	more PAR support, some treeops, more coder-ops
