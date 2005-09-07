@@ -194,6 +194,12 @@ static int occampi_codegen_action (tnode_t *node, codegen_t *cgen)
 		codegen_callops (cgen, loadpointer, lhs, 0);
 		codegen_callops (cgen, loadconst, bytes);
 		codegen_callops (cgen, tsecondary, I_OUT);
+	} else if (node->tag == opi.tag_INPUT) {
+		/* same as output really.. */
+		codegen_callops (cgen, loadpointer, rhs, 0);
+		codegen_callops (cgen, loadpointer, lhs, 0);
+		codegen_callops (cgen, loadconst, bytes);
+		codegen_callops (cgen, tsecondary, I_IN);
 	} else {
 		codegen_callops (cgen, comment, "FIXME!");
 	}
@@ -242,6 +248,7 @@ static int occampi_action_reg_reducers (void)
 {
 	parser_register_grule ("opi:assignreduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_ASSIGN));
 	parser_register_grule ("opi:outputreduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_OUTPUT));
+	parser_register_grule ("opi:inputreduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_INPUT));
 
 	return 0;
 }
@@ -258,6 +265,8 @@ static dfattbl_t **occampi_action_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestart +:= [ 0 +Name 1 ] [ 1 @@:= 2 ] [ 2 {<opi:namepush>} ] [ 2 occampi:expr 3 ] [ 3 {<opi:assignreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestart +:= [ 0 +Name 1 ] [ 1 @@! 2 ] [ 2 {<opi:namepush>} ] [ 2 occampi:exprsemilist 3 ] [ 3 @@: 4 ] [ 4 {<opi:declreduce>} -* ] " \
 				"[ 3 -* 5 ] [ 5 {<opi:outputreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestart +:= [ 0 +Name 1 ] [ 1 @@? 2 ] [ 2 {<opi:namepush>} ] [ 2 occampi:exprsemilist 3 ] [ 3 @@: 4 ] [ 4 {<opi:declreduce>} -* ] " \
+				"[ 3 -* 5 ] [ 5 {<opi:inputreduce>} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

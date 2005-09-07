@@ -43,6 +43,130 @@
 
 /*}}}*/
 
+/*{{{  private types*/
+typedef struct TAG_codegeninithook {
+	struct TAG_codegeninithook *next;
+	void (*init)(tnode_t *, codegen_t *, void *);
+	void *arg;
+} codegeninithook_t;
+
+
+/*}}}*/
+/*{{{  private data*/
+static chook_t *codegeninithook = NULL;
+
+/*}}}*/
+
+
+/*{{{  static void codegen_isetindent (FILE *stream, int indent)*/
+/*
+ *	sets indentation (debugging)
+ */
+static void codegen_isetindent (FILE *stream, int indent)
+{
+	int i;
+
+	for (i=0; i<indent; i++) {
+		fprintf (stream, "    ");
+	}
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static void codegen_inithook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	called to dump init-hook (debugging)
+ */
+static void codegen_inithook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	codegeninithook_t *cgih = (codegeninithook_t *)hook;
+
+	codegen_isetindent (stream, indent);
+	fprintf (stream, "<chook:codegen:initialiser init=\"0x%8.8x\" arg=\"0x%8.8x\" addr=\"0x%8.8x\"", (unsigned int)cgih->init, (unsigned int)cgih->arg, (unsigned int)cgih);
+	if (cgih->next) {
+		fprintf (stream, ">\n");
+		codegen_inithook_dumptree (node, (void *)cgih->next, indent+1, stream);
+		codegen_isetindent (stream, indent);
+		fprintf (stream, "</chook:codegen:initialiser>\n");
+	} else {
+		fprintf (stream, " />\n");
+	}
+
+	return;
+}
+/*}}}*/
+/*{{{  static void codegen_inithook_free (void *hook)*/
+/*
+ *	called to free an init-hook
+ */
+static void codegen_inithook_free (void *hook)
+{
+	codegeninithook_t *cgih = (codegeninithook_t *)hook;
+
+	if (cgih) {
+		codegen_inithook_free (cgih->next);
+		sfree (cgih);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static codegeninithook_t *codegen_inithook_create (void (*init)(tnode_t *, codegen_t *, void *), void *arg)*/
+/*
+ *	creates a new init-hook
+ */
+static codegeninithook_t *codegen_inithook_create (void (*init)(tnode_t *, codegen_t *, void *), void *arg)
+{
+	codegeninithook_t *cgih = (codegeninithook_t *)smalloc (sizeof (codegeninithook_t));
+
+	cgih->next = NULL;
+	cgih->init = init;
+	cgih->arg = arg;
+
+	return cgih;
+}
+/*}}}*/
+/*{{{  static void *codegen_inithook_copy (void *hook)*/
+/*
+ *	called to copy an init-hook
+ */
+static void *codegen_inithook_copy (void *hook)
+{
+	codegeninithook_t *cgih = (codegeninithook_t *)hook;
+
+	if (cgih) {
+		codegeninithook_t *tmp;
+
+		tmp = codegen_inithook_create (cgih->init, cgih->arg);
+		tmp->next = codegen_inithook_copy (cgih->next);
+		cgih = tmp;
+	}
+	return cgih;
+}
+/*}}}*/
+
+
+/*{{{  void codegen_setinithook (tnode_t *node, void (*init)(tnode_t *, codegen_t *, void *), void *arg)*/
+/*
+ *	sets an initialisation hook for a node
+ */
+void codegen_setinithook (tnode_t *node, void (*init)(tnode_t *, codegen_t *, void *), void *arg)
+{
+	codegeninithook_t *cgih, *here;
+
+	if (!codegeninithook) {
+		nocc_internal ("codegen_setinithook(): no initialisation hook!");
+		return;
+	}
+	here = (codegeninithook_t *)tnode_getchook (node, codegeninithook);
+	cgih = codegen_inithook_create (init, arg);
+	cgih->next = here;
+
+	tnode_setchook (node, codegeninithook, cgih);
+	return;
+}
+/*}}}*/
+
 
 /*{{{  int codegen_write_bytes (codegen_t *cgen, const char *ptr, int bytes)*/
 /*
@@ -160,6 +284,16 @@ void codegen_fatal (codegen_t *cgen, const char *fmt, ...)
 static int codegen_prewalktree_codegen (tnode_t *node, void *data)
 {
 	codegen_t *cgen = (codegen_t *)data;
+	codegeninithook_t *cgih = (codegeninithook_t *)tnode_getchook (node, codegeninithook);
+
+	/*{{{  do initialisers*/
+	while (cgih) {
+		if (cgih->init) {
+			cgih->init (node, cgen, cgih->arg);
+		}
+		cgih = cgih->next;
+	}
+	/*}}}*/
 
 	if (node->tag->ndef->ops && node->tag->ndef->ops->codegen) {
 		int i;
@@ -435,6 +569,11 @@ int codegen_shutdown (void)
  */
 int codegen_init (void)
 {
+	codegeninithook = tnode_lookupornewchook ("codegen:initialiser");
+	codegeninithook->chook_copy = codegen_inithook_copy;
+	codegeninithook->chook_free = codegen_inithook_free;
+	codegeninithook->chook_dumptree = codegen_inithook_dumptree;
+
 	return 0;
 }
 /*}}}*/

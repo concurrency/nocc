@@ -142,10 +142,7 @@ int map_mapnames (tnode_t **tptr, target_t *target)
 	mdata->warn = 0;
 	mdata->thisblock = NULL;
 	mdata->thisprocparams = NULL;
-
-	if (!(mdata->mapchook = tnode_lookupchookbyname ("map:mapnames"))) {
-		mdata->mapchook = tnode_newchook ("map:mapnames");
-	}
+	mdata->mapchook = tnode_lookupornewchook ("map:mapnames");
 	mdata->mapchook->chook_dumptree = map_namemap_chook_dumptree;
 
 	/* do pre-mapping then real mapping */

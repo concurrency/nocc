@@ -168,6 +168,7 @@ extern void tnode_freelangops (langops_t *lops);
 
 extern chook_t *tnode_newchook (const char *name);
 extern chook_t *tnode_lookupchookbyname (const char *name);
+extern chook_t *tnode_lookupornewchook (const char *name);
 extern void *tnode_getchook (tnode_t *t, chook_t *ch);
 extern void tnode_setchook (tnode_t *t, chook_t *ch, void *hook);
 

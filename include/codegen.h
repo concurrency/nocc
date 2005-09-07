@@ -72,6 +72,8 @@ extern int codegen_generate_code (struct TAG_tnode **tptr, struct TAG_lexfile *l
 extern int codegen_subcodegen (struct TAG_tnode *tree, codegen_t *cgen);
 extern int codegen_subprecode (struct TAG_tnode **tptr, codegen_t *cgen);
 
+extern void codegen_setinithook (struct TAG_tnode *node, void (*init)(struct TAG_tnode *, codegen_t *, void *), void *arg);
+
 extern void codegen_error (codegen_t *cgen, const char *fmt, ...);
 extern void codegen_fatal (codegen_t *cgen, const char *fmt, ...);
 

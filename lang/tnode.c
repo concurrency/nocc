@@ -1350,6 +1350,21 @@ chook_t *tnode_lookupchookbyname (const char *name)
 	return ch;
 }
 /*}}}*/
+/*{{{  chook_t *tnode_lookupornewchook (const char *name)*/
+/*
+ *	creates a new compiler-hook, or returns an existing one
+ */
+chook_t *tnode_lookupornewchook (const char *name)
+{
+	chook_t *chook;
+
+	if (!(chook = tnode_lookupchookbyname (name))) {
+		chook = tnode_newchook (name);
+	}
+
+	return chook;
+}
+/*}}}*/
 /*{{{  void *tnode_getchook (tnode_t *t, chook_t *ch)*/
 /*
  *	returns a compiler-hook node for some tree-node
