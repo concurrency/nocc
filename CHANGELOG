@@ -1,4 +1,6 @@
 
+07/09/2005	frmb	initial support for DATA TYPEs
+07/09/2005	frmb	initialiser hooks and chan-decl initialisation
 06/09/2005	frmb	some support for built-in PROCs, got RESCHEDULE() working
 05/09/2005	frmb	added pre-check parse
 05/09/2005	frmb	started work on parallel usage checker

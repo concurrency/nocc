@@ -1416,6 +1416,9 @@ void tnode_setchook (tnode_t *t, chook_t *ch, void *hook)
  */
 int tnode_bytesfor (tnode_t *t)
 {
+#if 0
+fprintf (stderr, "tnode_bytesfor(): t = [%s]\n", t->tag->name);
+#endif
 	if (t && t->tag->ndef->ops && t->tag->ndef->ops->bytesfor) {
 		return t->tag->ndef->ops->bytesfor (t);
 	}

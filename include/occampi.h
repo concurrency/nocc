@@ -57,9 +57,12 @@ typedef struct {
 	struct TAG_ntdef *tag_NAME;
 	struct TAG_ntdef *tag_ASINPUT;
 	struct TAG_ntdef *tag_ASOUTPUT;
+
 	struct TAG_ntdef *tag_VARDECL;
-	struct TAG_ntdef *tag_FPARAM;
 	struct TAG_ntdef *tag_PROCDECL;
+	struct TAG_ntdef *tag_TYPEDECL;
+
+	struct TAG_ntdef *tag_FPARAM;
 	struct TAG_ntdef *tag_SKIP;
 	struct TAG_ntdef *tag_STOP;
 	struct TAG_ntdef *tag_SEQ;
@@ -79,6 +82,7 @@ typedef struct {
 	struct TAG_ntdef *tag_NDECL;
 	struct TAG_ntdef *tag_NPARAM;
 	struct TAG_ntdef *tag_NPROCDEF;
+	struct TAG_ntdef *tag_NTYPEDECL;
 
 	struct TAG_ntdef *tag_PINSTANCE;
 	struct TAG_ntdef *tag_FINSTANCE;
