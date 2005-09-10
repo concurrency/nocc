@@ -28,7 +28,7 @@ dnl Checks for libraries.
 dnl Checks for header files.
 dnl AC_PATH_XTRA
 AC_HEADER_STDC
-AC_CHECK_HEADERS(unistd.h stdlib.h string.h stdarg.h sys/types.h fcntl.h malloc.h pwd.h sys/mman.h)
+AC_CHECK_HEADERS(unistd.h stdlib.h string.h stdarg.h sys/types.h fcntl.h malloc.h pwd.h sys/mman.h time.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 

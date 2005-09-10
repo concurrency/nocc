@@ -462,8 +462,8 @@ void dfa_addpush (dfanode_t *dfa, token_t *tok, dfanode_t *pushto, dfanode_t *ta
 	for (i=0; i<DA_CUR (dfa->match); i++) {
 		token_t *thismatch = DA_NTHITEM (dfa->match, i);
 
-		if (lexer_tokmatch (thismatch, tok)) {
-			nocc_warning ("dfa_addmatch(): displacing existing match");
+		if ((((tok->type != NOTOKEN) && (thismatch->type != NOTOKEN)) || (tok->type == thismatch->type)) && lexer_tokmatch (thismatch, tok)) {
+			nocc_warning ("dfa_addpush(): displacing existing match");
 			break;		/* for() */
 		}
 	}

@@ -35,6 +35,7 @@ extern struct TAG_token *parser_gettok (struct TAG_parsepriv *pp);
 extern void parser_pushtok (struct TAG_parsepriv *pp, struct TAG_token *tok);
 
 extern struct TAG_tnode *parser_parse (struct TAG_lexfile *lf);
+extern char *parser_langname (struct TAG_lexfile *lf);
 
 extern struct TAG_tnode *parser_newlistnode (struct TAG_lexfile *lf);
 extern struct TAG_tnode **parser_addtolist (struct TAG_tnode *list, struct TAG_tnode *item);

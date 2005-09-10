@@ -1,4 +1,6 @@
 
+10/09/2005	frmb	split front-end data type stuff into occampi_dtype.c
+09/09/2005	frmb	fixed some parser issues, now parses more complex data types
 07/09/2005	frmb	initial support for DATA TYPEs
 07/09/2005	frmb	initialiser hooks and chan-decl initialisation
 06/09/2005	frmb	some support for built-in PROCs, got RESCHEDULE() working

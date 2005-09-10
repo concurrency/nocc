@@ -102,6 +102,10 @@ name_t *name_addscopename (char *str, tnode_t *decl, tnode_t *type, tnode_t *nam
 	name->type = type;
 	name->namenode = namenode;
 	name->refc = 0;
+#if 0
+fprintf (stderr, "name_addscopename(): adding name [%s] type:\n", str);
+tnode_dumptree (type, 1, stderr);
+#endif
 
 	nl = stringhash_lookup (names, str);
 	if (!nl) {
@@ -160,6 +164,9 @@ void name_descopename (name_t *name)
 	if (!found) {
 		nocc_internal ("name_descopename(): name [%s] not in scope", nl->name);
 	}
+#if 0
+fprintf (stderr, "name_descopename(): removing name [%s]\n", nl->name);
+#endif
 	/* find and remove from the namestack */
 	for (i=DA_CUR (namestack) - 1; i >= 0; i--) {
 		if (DA_NTHITEM (namestack, i) == name) {

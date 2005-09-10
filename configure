@@ -4747,7 +4747,8 @@ fi
 
 
 
-for ac_header in unistd.h stdlib.h string.h stdarg.h sys/types.h fcntl.h malloc.h pwd.h sys/mman.h
+
+for ac_header in unistd.h stdlib.h string.h stdarg.h sys/types.h fcntl.h malloc.h pwd.h sys/mman.h time.h
 do
 as_ac_Header=`echo "ac_cv_header_$ac_header" | $as_tr_sh`
 if eval "test \"\${$as_ac_Header+set}\" = set"; then

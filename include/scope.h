@@ -20,19 +20,23 @@
 #ifndef __SCOPE_H
 #define __SCOPE_H
 
+struct TAG_langparser;
+
 typedef struct TAG_scope {
 	int err;		/* error count */
 	int warn;		/* warning count */
 	int scoped;		/* count of scoped names */
+	struct TAG_langparser *lang;
 } scope_t;
 
 extern void scope_init (void);
 extern void scope_shutdown (void);
 
+
 struct TAG_tnode;
-struct TAG_langparser;
 
 extern int scope_tree (struct TAG_tnode *t, struct TAG_langparser *lang);
+extern int scope_subtree (struct TAG_tnode **tptr, scope_t *sarg);
 extern int scope_modprewalktree (struct TAG_tnode **node, void *arg);
 extern int scope_modpostwalktree (struct TAG_tnode **node, void *arg);
 

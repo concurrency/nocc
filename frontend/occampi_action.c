@@ -85,6 +85,12 @@ fprintf (stderr, "occampi_typecheck_action(): here!\n");
 
 	if (node->tag == opi.tag_ASSIGN) {
 		/*{{{  assignment*/
+#if 0
+fprintf (stderr, "occampi_typecheck_action(): lhs = \n");
+tnode_dumptree (lhs, 1, stderr);
+fprintf (stderr, "occampi_typecheck_action(): rhs = \n");
+tnode_dumptree (rhs, 1, stderr);
+#endif
 		lhstype = typecheck_gettype (lhs, NULL);
 		rhstype = typecheck_gettype (rhs, lhstype);
 		/*}}}*/

@@ -61,6 +61,7 @@ typedef struct {
 	struct TAG_ntdef *tag_VARDECL;
 	struct TAG_ntdef *tag_PROCDECL;
 	struct TAG_ntdef *tag_TYPEDECL;
+	struct TAG_ntdef *tag_FIELDDECL;
 
 	struct TAG_ntdef *tag_FPARAM;
 	struct TAG_ntdef *tag_SKIP;
@@ -83,6 +84,7 @@ typedef struct {
 	struct TAG_ntdef *tag_NPARAM;
 	struct TAG_ntdef *tag_NPROCDEF;
 	struct TAG_ntdef *tag_NTYPEDECL;
+	struct TAG_ntdef *tag_NFIELD;
 
 	struct TAG_ntdef *tag_PINSTANCE;
 	struct TAG_ntdef *tag_FINSTANCE;
@@ -128,6 +130,7 @@ extern struct TAG_feunit occampi_action_feunit;		/* occampi_action.c */
 extern struct TAG_feunit occampi_lit_feunit;		/* occampi_lit.c */
 extern struct TAG_feunit occampi_type_feunit;		/* occampi_type.c */
 extern struct TAG_feunit occampi_instance_feunit;	/* occampi_instance.c */
+extern struct TAG_feunit occampi_dtype_feunit;		/* occampi_dtype.c */
 
 /* these are for language units to use in reductions */
 extern void *occampi_nametoken_to_hook (void *ntok);

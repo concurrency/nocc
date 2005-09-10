@@ -93,6 +93,7 @@ static feunit_t *feunit_set[] = {
 	&occampi_primproc_feunit,
 	&occampi_cnode_feunit,
 	&occampi_decl_feunit,
+	&occampi_dtype_feunit,
 	&occampi_action_feunit,
 	&occampi_lit_feunit,
 	&occampi_type_feunit,

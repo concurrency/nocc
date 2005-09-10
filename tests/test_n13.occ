@@ -1,0 +1,13 @@
+
+DATA TYPE FOO
+  RECORD
+    INT x:
+    INT y:
+:
+
+PROC test.n13 ()
+  FOO x:
+  SEQ
+    x := 15
+:
+

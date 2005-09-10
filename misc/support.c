@@ -434,6 +434,8 @@ void dmem_usagedump (void)
 			fprintf (stderr, "]\n");
 #elif defined (SLAB_ALLOCATOR)
 			fprintf (stderr, "%d\n", (int)(spareslabs[i][0]));
+#else
+			fprintf (stderr, "\n");
 #endif
 		}
 	}

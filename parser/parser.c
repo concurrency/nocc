@@ -266,6 +266,18 @@ tnode_dumptree (tree, stderr);
 	return tree;
 }
 /*}}}*/
+/*{{{  char *parser_langname (lexfile_t *lf)*/
+/*
+ *	returns the language name associated with a lexfile
+ */
+char *parser_langname (lexfile_t *lf)
+{
+	if (!lf->parser) {
+		return NULL;
+	}
+	return lf->parser->langname;
+}
+/*}}}*/
 
 /*{{{  tnode_t *parser_newlistnode (lexfile_t *lf)*/
 /*

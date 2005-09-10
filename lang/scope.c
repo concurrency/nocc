@@ -164,6 +164,7 @@ int scope_modpostwalktree (tnode_t **node, void *arg)
 /*{{{  int scope_tree (tnode_t *t, langparser_t *lang)*/
 /*
  *	scopes declarations within a tree
+ *	return 0 on success, non-zero on failure
  */
 int scope_tree (tnode_t *t, langparser_t *lang)
 {
@@ -178,6 +179,7 @@ int scope_tree (tnode_t *t, langparser_t *lang)
 		sfree (ss);
 		return 1;
 	}
+	ss->lang = lang;
 	r = lang->scope (&t, ss);
 
 	nocc_message ("scope_tree(): completed! %d names scoped, %d error(s), %d warning(s)", ss->scoped, ss->err, ss->warn);
@@ -187,6 +189,29 @@ int scope_tree (tnode_t *t, langparser_t *lang)
 	}
 
 	sfree (ss);
+	return r;
+}
+/*}}}*/
+/*{{{  int scope_subtree (tnode_t **tptr, scope_t *sarg)*/
+/*
+ *	does sub-tree scoping within a tree
+ *	return 0 on success, non-zero on failure
+ */
+int scope_subtree (tnode_t **tptr, scope_t *sarg)
+{
+	int r;
+
+	if (!sarg || !sarg->lang) {
+		nocc_error ("scope_subtree(): null scope-state or language");
+		return 1;
+	}
+	if (!sarg->lang->scope) {
+		nocc_error ("scope_subtree(): don\'t know how to scope this language!");
+		return 1;
+	}
+
+	r = sarg->lang->scope (tptr, sarg);
+	
 	return r;
 }
 /*}}}*/

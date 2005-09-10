@@ -61,13 +61,6 @@
  *	declarations, parameters and names.
  */
 
-/*{{{  private types*/
-typedef struct TAG_typedeclhook {
-	int wssize;
-} typedeclhook_t;
-
-
-/*}}}*/
 
 
 /*{{{  static void occampi_initchandecl (tnode_t *node, codegen_t *cgen, void *arg)*/
@@ -135,7 +128,7 @@ static int occampi_prescope_vardecl (tnode_t **node, prescope_t *ps)
 static int occampi_scopein_vardecl (tnode_t **node, scope_t *ss)
 {
 	tnode_t *name = tnode_nthsubof (*node, 0);
-	tnode_t *type = tnode_nthsubof (*node, 1);
+	tnode_t *type;
 	char *rawname;
 	name_t *sname = NULL;
 	tnode_t *newname;
@@ -148,6 +141,13 @@ static int occampi_scopein_vardecl (tnode_t **node, scope_t *ss)
 #if 0
 fprintf (stderr, "occampi_scopein_vardecl: here! rawname = \"%s\"\n", rawname);
 #endif
+
+	if (scope_subtree (tnode_nthsubaddr (*node, 1), ss)) {
+		/* failed to scope type */
+		return 0;
+	}
+
+	type = tnode_nthsubof (*node, 1);
 
 	sname = name_addscopename (rawname, *node, type, NULL);
 	newname = tnode_createfrom (opi.tag_NDECL, name, sname);
@@ -235,107 +235,6 @@ tnode_dumptree (bename, 1, stderr);
 	/* scope the body */
 	map_submapnames (bodyp, map);
 	return 0;
-}
-/*}}}*/
-
-
-/*{{{  static int occampi_scopein_typedecl (tnode_t **node, scope_t *ss)*/
-/*
- *	called to scope a type declaration (DATA TYPE ...)
- */
-static int occampi_scopein_typedecl (tnode_t **node, scope_t *ss)
-{
-	tnode_t *name = tnode_nthsubof (*node, 0);
-	tnode_t *type = tnode_nthsubof (*node, 1);
-	char *rawname;
-	name_t *sname = NULL;
-	tnode_t *newname;
-
-	if (name->tag != opi.tag_NAME) {
-		scope_error (name, ss, "name not raw-name!");
-		return 0;
-	}
-	rawname = tnode_nthhookof (name, 0);
-#if 0
-fprintf (stderr, "occampi_scopein_typedecl: here! rawname = \"%s\"\n", rawname);
-#endif
-
-	sname = name_addscopename (rawname, *node, type, NULL);
-	newname = tnode_createfrom (opi.tag_NTYPEDECL, name, sname);
-	SetNameNode (sname, newname);
-	tnode_setnthsub (*node, 0, newname);
-
-	/* free the old name */
-	tnode_free (name);
-	ss->scoped++;
-	return 1;
-}
-/*}}}*/
-/*{{{  static int occampi_scopeout_typedecl (tnode_t **node, scope_t *ss)*/
-/*
- *	called to scope-out a variable declaration
- */
-static int occampi_scopeout_typedecl (tnode_t **node, scope_t *ss)
-{
-	tnode_t *name = tnode_nthsubof (*node, 0);
-	name_t *sname;
-
-	if (name->tag != opi.tag_NTYPEDECL) {
-		scope_error (name, ss, "not NTYPEDECL!");
-		return 0;
-	}
-	sname = tnode_nthnameof (name, 0);
-
-#if 0
-fprintf (stderr, "occampi_scopein_typedecl: here! sname->me->name = \"%s\"\n", sname->me->name);
-#endif
-
-	name_descopename (sname);
-
-	return 1;
-}
-/*}}}*/
-/*{{{  static int occampi_prewalk_bytesfor_typedecl (tnode_t *node, void *data)*/
-/*
- *	walks a tree to collect the cumulative size of a type (record types)
- *	returns 0 to stop walk, 1 to continue
- */
-static int occampi_prewalk_bytesfor_typedecl (tnode_t *node, void *data)
-{
-	typedeclhook_t *tdh = (typedeclhook_t *)data;
-	int this_ws;
-
-	this_ws = tnode_bytesfor (node);
-	if (this_ws > 0) {
-		tdh->wssize += this_ws;
-	}
-	return 1;
-}
-/*}}}*/
-/*{{{  static int occampi_bytesfor_typedecl (tnode_t *node)*/
-/*
- *	returns the number of bytes required by a type declaration (DATA TYPE ...)
- */
-static int occampi_bytesfor_typedecl (tnode_t *node)
-{
-	typedeclhook_t *tdh = (typedeclhook_t *)tnode_nthhookof (node, 0);
-	tnode_t *type = tnode_nthsubof (node, 1);
-
-	if (!tdh->wssize) {
-		/*{{{  walk the type to find out its size*/
-		tnode_prewalktree (type, occampi_prewalk_bytesfor_typedecl, (void *)tdh);
-
-		if (!tdh->wssize) {
-			nocc_error ("occampi_bytesfor_typedecl(): type has 0 size..  :(");
-		}
-
-		/*}}}*/
-	}
-
-#if 0
-fprintf (stderr, "occampi_bytesfor_typedecl(): return size = %d\n", tdh->wssize);
-#endif
-	return tdh->wssize;
 }
 /*}}}*/
 
@@ -905,6 +804,12 @@ static tnode_t *occampi_gettype_namenode (tnode_t *node, tnode_t *default_type)
 		return NULL;
 	}
 	if (name->type) {
+#if 0
+fprintf (stderr, "occmpi_gettype_namenode(): node = [%s], name:\n", node->tag->name);
+name_dumpname (name, 1, stderr);
+fprintf (stderr, "   \"   name->type:\n");
+tnode_dumptree (name->type, 1, stderr);
+#endif
 		return name->type;
 	}
 	nocc_fatal ("occampi_gettype_namenode(): name has NULL type (FIXME!)");
@@ -929,6 +834,15 @@ tnode_dumptree (type, 1, stderr);
 #endif
 
 		return tnode_bytesfor (decl);
+	} else if (node->tag == opi.tag_NFIELD) {
+		name_t *name = tnode_nthnameof (node, 0);
+		tnode_t *type = NameTypeOf (name);
+
+#if 0
+fprintf (stderr, "occampi_bytesfor_namenode(): [N_FIELD], type =\n");
+tnode_dumptree (type, 1, stderr);
+#endif
+		return tnode_bytesfor (type);
 	}
 	nocc_error ("occampi_bytesfor_namenode(): no bytes for [%s]", node->tag->name);
 	return -1;
@@ -982,70 +896,7 @@ static void occampi_procdecl_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
 	return;
 }
 /*}}}*/
-/*{{{  static void occampi_typedecl_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)*/
-/*
- *	called by parser when it gets stuck in an occampi:typedecl DFA node
- */
-static void occampi_typedecl_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
-{
-	char msgbuf[1024];
-	int gone = 0;
-	int max = 1023;
 
-	gone += snprintf (msgbuf + gone, max - gone, "parse error at %s in DATA TYPE declaration", lexer_stokenstr (tok));
-	if (DA_CUR (dfanode->match)) {
-		int n;
-
-		gone += snprintf (msgbuf + gone, max - gone, ", expected ");
-		for (n=0; n<DA_CUR (dfanode->match); n++) {
-			token_t *match = DA_NTHITEM (dfanode->match, n);
-
-			gone += snprintf (msgbuf + gone, max - gone, "%s%s", !n ? "" : ((n == DA_CUR (dfanode->match) - 1) ? " or " : ", "), lexer_stokenstr (match));
-		}
-	}
-	parser_error (tok->origin, msgbuf);
-	return;
-}
-/*}}}*/
-
-
-/*{{{  static void occampi_typedecl_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
-/*
- *	dumps a typedeclhook_t hook-node (debugging)
- */
-static void occampi_typedecl_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
-{
-	typedeclhook_t *tdh = (typedeclhook_t *)hook;
-
-	occampi_isetindent (stream, indent);
-	if (!hook) {
-		fprintf (stream, "<typedeclhook value=\"(null)\" addr=\"0x%8.8x\" />\n", (unsigned int)tdh);
-	} else {
-		fprintf (stream, "<typedeclhook wssize=\"%d\" addr=\"0x%8.8x\" />\n", tdh->wssize, (unsigned int)tdh);
-	}
-
-	return;
-}
-/*}}}*/
-/*{{{  static void *occampi_typedeclhook_blankhook (void *tos)*/
-/*
- *	creates a new typedeclhook_t and returns it as void * for DFA processing
- */
-static void *occampi_typedeclhook_blankhook (void *tos)
-{
-	typedeclhook_t *tdh;
-
-	if (tos) {
-		nocc_internal ("occampi_typedeclhook_blankhook(): tos was not NULL (0x%8.8x)", (unsigned int)tos);
-		return NULL;
-	}
-	tdh = (typedeclhook_t *)smalloc (sizeof (typedeclhook_t));
-
-	tdh->wssize = 0;
-
-	return (void *)tdh;
-}
-/*}}}*/
 
 
 /*{{{  static int occampi_decl_init_nodes (void)*/
@@ -1072,7 +923,7 @@ static int occampi_decl_init_nodes (void)
 	i = -1;
 	opi.tag_NAME = tnode_newnodetag ("NAME", &i, tnd, NTF_NONE);
 	/*}}}*/
-	/*{{{  occampi:namenode -- N_DECL, N_PARAM, N_PROCDEF, N_TYPEDECL*/
+	/*{{{  occampi:namenode -- N_DECL, N_PARAM, N_PROCDEF, N_TYPEDECL, N_FIELD*/
 	i = -1;
 	tnd = opi.node_NAMENODE = tnode_newnodetype ("occampi:namenode", &i, 0, 1, 0, TNF_NONE);
 	cops = tnode_newcompops ();
@@ -1088,6 +939,8 @@ static int occampi_decl_init_nodes (void)
 	opi.tag_NPROCDEF = tnode_newnodetag ("N_PROCDEF", &i, opi.node_NAMENODE, NTF_NONE);
 	i = -1;
 	opi.tag_NTYPEDECL = tnode_newnodetag ("N_TYPEDECL", &i, opi.node_NAMENODE, NTF_NONE);
+	i = -1;
+	opi.tag_NFIELD = tnode_newnodetag ("N_FIELD", &i, opi.node_NAMENODE, NTF_NONE);
 	/*}}}*/
 	/*{{{  occampi:hiddennode -- HIDDENPARAM*/
 	i = -1;
@@ -1111,18 +964,6 @@ static int occampi_decl_init_nodes (void)
 	tnd->ops = cops;
 	i = -1;
 	opi.tag_VARDECL = tnode_newnodetag ("VARDECL", &i, tnd, NTF_NONE);
-	/*}}}*/
-	/*{{{  occampi:typedecl -- TYPEDECL*/
-	i = -1;
-	tnd = tnode_newnodetype ("occampi:typedecl", &i, 3, 0, 1, TNF_SHORTDECL);
-	tnd->hook_dumptree = occampi_typedecl_hook_dumptree;
-	cops = tnode_newcompops ();
-	cops->scopein = occampi_scopein_typedecl;
-	cops->scopeout = occampi_scopeout_typedecl;
-	cops->bytesfor = occampi_bytesfor_typedecl;
-	tnd->ops = cops;
-	i = -1;
-	opi.tag_TYPEDECL = tnode_newnodetag ("TYPEDECL", &i, tnd, NTF_NONE);
 	/*}}}*/
 	/*{{{  occampi:fparam -- FPARAM*/
 	i = -1;
@@ -1217,7 +1058,6 @@ static int occampi_decl_reg_reducers (void)
 	parser_register_grule ("opi:declreduce", parser_decode_grule ("SN1N+N+0C3R-", opi.tag_VARDECL));
 	parser_register_grule ("opi:xdeclreduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_VARDECL));
 	parser_register_grule ("opi:procdeclreduce", parser_decode_grule ("SN1N+N+V00C4R-", opi.tag_PROCDECL));
-	parser_register_grule ("opi:datatypedeclreduce", parser_decode_grule ("SN1N+N+V00XC4R-", occampi_typedeclhook_blankhook, opi.tag_TYPEDECL));
 
 	parser_register_reduce ("Roccampi:directedchanname", occampi_reduce_directedchanname, NULL);
 
@@ -1246,9 +1086,6 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 	
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:fparamlist ::= ( -@@) {<opi:nullset>} | { occampi:fparam @@, 1 } )"));
 
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:typedecl ::= [ 0 @DATA 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ] [ 3 @IS 4 ] [ 3 Newline 7 ] " \
-				"[ 4 occampi:type 5 ] [ 5 @@: 6 ] [ 6 {<opi:datatypedeclreduce>} -* ] " \
-				"[ 7 Indent 8 ] [ 8 @RECORD 9 ] [ 9 Newline 10 ] [ 10 Outdent 11 ] [ 11 @@: 12 ] [ 12 {<opi:datatypedeclreduce>} -* ] "));
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestart +:= [ 0 +Name 1 ] [ 1 +Name 2 ] [ 2 {<opi:2namepush>} ] [ 2 @@: 3 ] [ 3 {<opi:xdeclreduce>} -* ]"));
 
@@ -1263,10 +1100,8 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 static int occampi_decl_post_setup (void)
 {
 	static dfaerrorhandler_t procdecl_eh = { occampi_procdecl_dfaeh_stuck };
-	static dfaerrorhandler_t typedecl_eh = { occampi_typedecl_dfaeh_stuck };
 
 	dfa_seterrorhandler ("occampi:procdecl", &procdecl_eh);
-	dfa_seterrorhandler ("occampi:typedecl", &typedecl_eh);
 
 	return 0;
 }

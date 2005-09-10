@@ -55,7 +55,8 @@ am_libfrontend_a_OBJECTS = occampi_lexer.$(OBJEXT) \
 	occampi_parser.$(OBJEXT) occampi_primproc.$(OBJEXT) \
 	occampi_cnode.$(OBJEXT) occampi_decl.$(OBJEXT) \
 	occampi_type.$(OBJEXT) occampi_action.$(OBJEXT) \
-	occampi_lit.$(OBJEXT) occampi_instance.$(OBJEXT)
+	occampi_lit.$(OBJEXT) occampi_instance.$(OBJEXT) \
+	occampi_dtype.$(OBJEXT)
 libfrontend_a_OBJECTS = $(am_libfrontend_a_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -161,7 +162,8 @@ noinst_LIBRARIES = libfrontend.a
 AUTOMAKE_OPTIONS = foreign
 INCLUDES = -I@srcdir@/../include
 libfrontend_a_SOURCES = occampi_lexer.c occampi_parser.c occampi_primproc.c occampi_cnode.c \
-		occampi_decl.c occampi_type.c occampi_action.c occampi_lit.c occampi_instance.c
+		occampi_decl.c occampi_type.c occampi_action.c occampi_lit.c occampi_instance.c \
+		occampi_dtype.c
 
 all: all-am
 
@@ -213,6 +215,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/occampi_action.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/occampi_cnode.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/occampi_decl.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/occampi_dtype.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/occampi_instance.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/occampi_lexer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/occampi_lit.Po@am__quote@

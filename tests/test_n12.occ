@@ -1,0 +1,11 @@
+
+-- test_n12.occ -- testing NOCC
+
+DATA TYPE FOO IS INT:
+
+PROC test.n12 ()
+  FOO x:
+  SEQ
+    x := 42
+:
+

@@ -28,6 +28,9 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
+#ifdef HAVE_TIME_H
+#include <time.h>
+#endif
 
 #include "nocc.h"
 #include "support.h"
@@ -1540,15 +1543,35 @@ static int krocetc_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
 {
 	krocetc_priv_t *kpriv = (krocetc_priv_t *)cgen->target->priv;
 	coderops_t *cops;
+	char hostnamebuf[128];
+	char timebuf[128];
 
 #if 0
 fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 #endif
-	codegen_write_string (cgen, ";\n;\t");
-	codegen_write_string (cgen, cgen->fname);
-	codegen_write_string (cgen, "\n;\tcompiled from ");
-	codegen_write_string (cgen, srcfile->filename ?: "(unknown)");
-	codegen_write_string (cgen, "\n;\n\n");
+	codegen_write_fmt (cgen, ";\n;\t%s\n", cgen->fname);
+	codegen_write_fmt (cgen, ";\tcompiled from %s\n", srcfile->filename ?: "(unknown)");
+	if (gethostname (hostnamebuf, sizeof (hostnamebuf) - 1)) {
+		strcpy (hostnamebuf, "(unknown)");
+	}
+#ifdef HAVE_TIME_H
+	{
+		time_t now;
+		char *ch;
+
+		time (&now);
+		ctime_r (&now, timebuf);
+
+		if ((ch = strchr (timebuf, '\n'))) {
+			*ch = '\0';
+		}
+	}
+#else
+	strcpy (timebuf, "(unknown)");
+#endif
+	codegen_write_fmt (cgen, ";\ton host %s at %s\n", hostnamebuf, timebuf);
+	codegen_write_fmt (cgen, ";\tsource language: %s, target: %s\n", parser_langname (srcfile) ?: "(unknown)", compopts.target_str);
+	codegen_write_string (cgen, ";\n\n");
 
 	cops = (coderops_t *)smalloc (sizeof (coderops_t));
 	cops->loadpointer = krocetc_coder_loadpointer;
@@ -1630,7 +1653,17 @@ fprintf (stderr, "krocetc_target_init(): here!\n");
 		return 1;
 	}
 
+	kpriv = (krocetc_priv_t *)smalloc (sizeof (krocetc_priv_t));
+	kpriv->precodelist = NULL;
+	kpriv->toplevelname = NULL;
+	kpriv->mapchook = tnode_lookupornewchook ("map:mapnames");
+	target->priv = (void *)kpriv;
+#if 0
+fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchook);
+#endif
+
 	/* setup back-end nodes */
+	/*{{{  krocetc:name -- KROCETCNAME*/
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:name", &i, 2, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_namehook_dumptree;
@@ -1639,13 +1672,15 @@ fprintf (stderr, "krocetc_target_init(): here!\n");
 	tnd->ops = cops;
 	i = -1;
 	target->tag_NAME = tnode_newnodetag ("KROCETCNAME", &i, tnd, 0);
-
+	/*}}}*/
+	/*{{{  krocetc:nameref -- KROCETCNAMEREF*/
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:nameref", &i, 1, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_namehook_dumptree;
 	i = -1;
 	target->tag_NAMEREF = tnode_newnodetag ("KROCETCNAMEREF", &i, tnd, 0);
-
+	/*}}}*/
+	/*{{{  krocetc:block -- KROCETCBLOCK*/
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:block", &i, 2, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_blockhook_dumptree;
@@ -1656,7 +1691,8 @@ fprintf (stderr, "krocetc_target_init(): here!\n");
 	tnd->ops = cops;
 	i = -1;
 	target->tag_BLOCK = tnode_newnodetag ("KROCETCBLOCK", &i, tnd, 0);
-
+	/*}}}*/
+	/*{{{  krocetc:const -- KROCETCCONST*/
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:const", &i, 1, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_consthook_dumptree;
@@ -1666,23 +1702,14 @@ fprintf (stderr, "krocetc_target_init(): here!\n");
 	tnd->ops = cops;
 	i = -1;
 	target->tag_CONST = tnode_newnodetag ("KROCETCCONST", &i, tnd, 0);
-
-	kpriv = (krocetc_priv_t *)smalloc (sizeof (krocetc_priv_t));
-	kpriv->precodelist = NULL;
-	kpriv->toplevelname = NULL;
-	if (!(kpriv->mapchook = tnode_lookupchookbyname ("map:mapnames"))) {
-		kpriv->mapchook = tnode_newchook ("map:mapnames");
-	}
-	target->priv = (void *)kpriv;
-#if 0
-fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchook);
-#endif
-
+	/*}}}*/
+	/*{{{  krocetc:precode -- KROCETCPRECODE*/
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:precode", &i, 2, 0, 0, 0);
 	i = -1;
 	kpriv->tag_PRECODE = tnode_newnodetag ("KROCETCPRECODE", &i, tnd, 0);
-
+	/*}}}*/
+	/*{{{  krocetc:special -- KROCETCJENTRY, KROCETCDESCRIPTOR*/
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:special", &i, 0, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_specialhook_dumptree;
@@ -1694,29 +1721,34 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	kpriv->tag_JENTRY = tnode_newnodetag ("KROCETCJENTRY", &i, tnd, 0);
 	i = -1;
 	kpriv->tag_DESCRIPTOR = tnode_newnodetag ("KROCETCDESCRIPTOR", &i, tnd, 0);
-
+	/*}}}*/
+	/*{{{  krocetc:constref -- KROCETCCONSTREF*/
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:constref", &i, 0, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_consthook_dumptree;
 	i = -1;
 	kpriv->tag_CONSTREF = tnode_newnodetag ("KROCETCCONSTREF", &i, tnd, 0);
-
+	/*}}}*/
+	/*{{{  krocetc:indexed -- KROCETCINDEXED*/
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:indexed", &i, 2, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_indexedhook_dumptree;
 	i = -1;
 	target->tag_INDEXED = tnode_newnodetag ("KROCETCINDEXED", &i, tnd, 0);
-
+	/*}}}*/
+	/*{{{  krocetc:blockref -- KROCETCBLOCKREF*/
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:blockref", &i, 1, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_blockrefhook_dumptree;
 	i = -1;
 	target->tag_BLOCKREF = tnode_newnodetag ("KROCETCBLOCKREF", &i, tnd, 0);
-
+	/*}}}*/
+	/*{{{  krocetc:staticlin -- KROCETCSTATICLINKk*/
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:staticlink", &i, 0, 0, 0, 0);
 	i = -1;
 	target->tag_STATICLINK = tnode_newnodetag ("KROCETCSTATICLINK", &i, tnd, 0);
+	/*}}}*/
 
 	target->initialised = 1;
 	return 0;

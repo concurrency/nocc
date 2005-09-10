@@ -1,0 +1,10 @@
+
+-- test_n11.occ -- testing new compiler
+
+PROC test.n11 (CHAN BYTE screen!)
+  SEQ
+    screen ! 42
+    RESCHEDULE ()
+:
+
+
