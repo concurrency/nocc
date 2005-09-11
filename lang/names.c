@@ -78,7 +78,12 @@ name_t *name_lookup (char *str)
 	name_t *name;
 
 	nl = stringhash_lookup (names, str);
+#if 0
+fprintf (stderr, "name_lookup(): str=[%s], nl=0x%8.8x, nl->curscope = %d, DA_CUR (nl->scopes) = %d\n", str, (unsigned int)nl, (unsigned int)nl->curscope, DA_CUR (nl->scopes));
+#endif
 	if (!nl) {
+		name = NULL;
+	} else if ((nl->curscope < 0) && !DA_CUR (nl->scopes)) {
 		name = NULL;
 	} else if (nl->curscope < 0) {
 		name = DA_NTHITEM (nl->scopes, DA_CUR (nl->scopes) - 1);

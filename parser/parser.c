@@ -61,6 +61,7 @@ typedef struct TAG_ngrule {
 } ngrule_t;
 
 STATICSTRINGHASH (ngrule_t *, ngrules, 6);
+STATICDYNARRAY (ngrule_t *, angrules);
 
 /*}}}*/
 
@@ -80,6 +81,7 @@ void parser_init (void)
 	parser_register_reduce ("Rinlist", parser_inlistreduce, NULL);
 
 	stringhash_init (ngrules);
+	dynarray_init (angrules);
 
 	parser_register_grule ("parser:nullreduce", parser_decode_grule ("N+R-"));
 	parser_register_grule ("parser:listresult", parser_decode_grule ("R+N-"));
@@ -263,6 +265,12 @@ tnode_t *parser_parse (lexfile_t *lf)
 fprintf (stderr, "parser_parse(): parse finished!.  Got tree:\n");
 tnode_dumptree (tree, stderr);
 #endif
+	if (lf->errcount) {
+		if (tree) {
+			tnode_free (tree);
+		}
+		tree = NULL;
+	}
 	return tree;
 }
 /*}}}*/
@@ -959,6 +967,44 @@ void parser_free_grule (void *rarg)
 	return;
 }
 /*}}}*/
+/*{{{  char *parser_nameof_reducer (void *reducefcn, void *reducearg)*/
+/*
+ *	tries to find the name associated with a reduction function
+ *	(mainly for debugging)
+ */
+char *parser_nameof_reducer (void *reducefcn, void *reducearg)
+{
+	static char namebuf[128];
+	int i;
+
+	if (!reducefcn) {
+		strcpy (namebuf, "(null)");
+	} else if ((void *)parser_generic_reduce == reducefcn) {
+		strcpy (namebuf, "(generic unknown)");
+
+		for (i=0; i<DA_CUR (angrules); i++) {
+			ngrule_t *gredex = DA_NTHITEM (angrules, i);
+
+			if (gredex->grule == reducearg) {
+				strcpy (namebuf, gredex->name);
+				break;
+			}
+		}
+	} else {
+		strcpy (namebuf, "(unknown)");
+		for (i=0; i<DA_CUR (areducers); i++) {
+			reducer_t *redex = DA_NTHITEM (areducers, i);
+
+			if ((void *)redex->reduce == reducefcn) {
+				strcpy (namebuf, redex->name);
+				break;
+			}
+		}
+	}
+
+	return (char *)&namebuf[0];
+}
+/*}}}*/
 
 /*{{{  int parser_register_grule (const char *name, void *grule)*/
 /*
@@ -977,6 +1023,7 @@ int parser_register_grule (const char *name, void *grule)
 		return -1;
 	}
 	stringhash_insert (ngrules, ngr, ngr->name);
+	dynarray_add (angrules, ngr);
 
 	return 0;
 }

@@ -57,6 +57,9 @@ typedef struct {
 	struct TAG_ntdef *tag_NAME;
 	struct TAG_ntdef *tag_ASINPUT;
 	struct TAG_ntdef *tag_ASOUTPUT;
+	struct TAG_ntdef *tag_SUBSCRIPT;
+	struct TAG_ntdef *tag_RECORDSUB;
+	struct TAG_ntdef *tag_ARRAYSUB;
 
 	struct TAG_ntdef *tag_VARDECL;
 	struct TAG_ntdef *tag_PROCDECL;

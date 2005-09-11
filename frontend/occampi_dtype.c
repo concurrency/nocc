@@ -228,6 +228,32 @@ tnode_dumptree (type, 1, stderr);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_fielddecl_prewalk_scopefields (tnode_t *node, void *data)*/
+/*
+ *	called to scope in fields in a record type -- already NAMENODEs
+ */
+static int occampi_fielddecl_prewalk_scopefields (tnode_t *node, void *data)
+{
+	scope_t *ss = (scope_t *)data;
+
+#if 0
+fprintf (stderr, "occampi_fielddecl_prewalk_scopefields(): node = [%s]\n", node->tag->name);
+#endif
+	if (node->tag == opi.tag_FIELDDECL) {
+		tnode_t *fldname = tnode_nthsubof (node, 0);
+
+		if (fldname->tag == opi.tag_NFIELD) {
+#if 0
+fprintf (stderr, "occampi_fielddecl_prewalk_scopefields(): adding name [%s]\n", NameNameOf (tnode_nthnameof (fldname, 0)));
+#endif
+			name_scopename (tnode_nthnameof (fldname, 0));
+		} else {
+			scope_warning (fldname, ss, "FIELDDECL does not have NFIELD name");
+		}
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_bytesfor_fielddecl (tnode_t *node)*/
 /*
  *	returns the number of bytes required by a FIELDDECL
@@ -242,6 +268,99 @@ fprintf (stderr, "occampi_bytesfor_fielddecl(): bytes = %d, type =\n", bytes);
 tnode_dumptree (type, 1, stderr);
 #endif
 	return bytes;
+}
+/*}}}*/
+
+
+/*{{{  static int occampi_scopein_subscript (tnode_t **node, scope_t *ss)*/
+/*
+ *	called to scope a subscript node -- turns into an ARRAYSUB or RECORDSUB as appropriate
+ *	return 0 to stop walk, 1 to continue
+ */
+static int occampi_scopein_subscript (tnode_t **node, scope_t *ss)
+{
+	tnode_t *base;
+	tnode_t *oldnode = *node;
+
+	if (oldnode->tag != opi.tag_SUBSCRIPT) {
+		/* already done this */
+		return 0;
+	}
+	if (scope_subtree (tnode_nthsubaddr (*node, 0), ss)) {		/* scope base */
+		return 0;
+	}
+	base = tnode_nthsubof (*node, 0);
+
+#if 0
+fprintf (stderr, "occampi_scopein_subscript(): scoped base, *node =\n");
+tnode_dumptree (*node, 1, stderr);
+#endif
+	if (base->tag->ndef == opi.node_NAMENODE) {
+		name_t *name = tnode_nthnameof (base, 0);
+		tnode_t *type = NameTypeOf (name);
+
+		if (type->tag == opi.tag_NTYPEDECL) {
+			void *namemarker;
+
+			namemarker = name_markscope ();
+			tnode_prewalktree (NameTypeOf (tnode_nthnameof (type, 0)), occampi_fielddecl_prewalk_scopefields, (void *)ss);
+
+			/* fields should be in scope, try subscript */
+			scope_subtree (tnode_nthsubaddr (*node, 1), ss);
+#if 0
+fprintf (stderr, "occampi_scopein_subscript(): scoped subscript, *node =\n");
+tnode_dumptree (*node, 1, stderr);
+#endif
+			*node = tnode_createfrom (opi.tag_RECORDSUB, oldnode, tnode_nthsubof (oldnode, 0), tnode_nthsubof (oldnode, 1));
+			tnode_setnthsub (oldnode, 0, NULL);
+			tnode_setnthsub (oldnode, 1, NULL);
+			tnode_free (oldnode);
+
+			name_markdescope (namemarker);
+		} else {
+			/* probably a simple type */
+			scope_subtree (tnode_nthsubaddr (*node, 1), ss);
+
+			*node = tnode_createfrom (opi.tag_ARRAYSUB, oldnode, tnode_nthsubof (oldnode, 0), tnode_nthsubof (oldnode, 1));
+			tnode_setnthsub (oldnode, 0, NULL);
+			tnode_setnthsub (oldnode, 1, NULL);
+			tnode_free (oldnode);
+		}
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_gettype_subscript (tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	called to get the type of a subscript
+ */
+static tnode_t *occampi_gettype_subscript (tnode_t *node, tnode_t *defaulttype)
+{
+	if (node->tag == opi.tag_RECORDSUB) {
+		/* type is that of the field */
+		tnode_t *field = tnode_nthsubof (node, 1);
+		name_t *fldname;
+		tnode_t *fldtype;
+
+		if (field->tag != opi.tag_NFIELD) {
+			return NULL;
+		}
+		fldname = tnode_nthnameof (field, 0);
+		fldtype = NameTypeOf (fldname);
+
+#if 0
+fprintf (stderr, "occampi_gettype_subscript(): for [%s], returning:\n", node->tag->name);
+tnode_dumptree (fldtype, 1, stderr);
+#endif
+		return fldtype;
+	} else if (node->tag == opi.tag_ARRAYSUB) {
+		/* type is that of the base minus one ARRAY */
+		nocc_internal ("occampi_gettype_subscript(): ARRAYSUB not properly implemented yet!");
+		return NULL;
+	}
+	/* else don't know.. */
+	return defaulttype;
 }
 /*}}}*/
 
@@ -347,6 +466,20 @@ static int occampi_dtype_init_nodes (void)
 	i = -1;
 	opi.tag_FIELDDECL = tnode_newnodetag ("FIELDDECL", &i, tnd, NTF_NONE);
 	/*}}}*/
+	/*{{{  occampi:subscript -- SUBSCRIPT*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:subscript", &i, 2, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	cops->scopein = occampi_scopein_subscript;
+	cops->gettype = occampi_gettype_subscript;
+	tnd->ops = cops;
+	i = -1;
+	opi.tag_SUBSCRIPT = tnode_newnodetag ("SUBSCRIPT", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_RECORDSUB = tnode_newnodetag ("RECORDSUB", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_ARRAYSUB = tnode_newnodetag ("ARRAYSUB", &i, tnd, NTF_NONE);
+	/*}}}*/
 
 	return 0;
 }
@@ -376,6 +509,7 @@ static int occampi_dtype_reg_reducers (void)
 {
 	parser_register_grule ("opi:datatypedeclreduce", parser_decode_grule ("SN1N+N+V00XC4R-", occampi_typedeclhook_blankhook, opi.tag_TYPEDECL));
 	parser_register_grule ("opi:fieldreduce", parser_decode_grule ("SN1N+N+C2R-", opi.tag_FIELDDECL));
+	parser_register_grule ("opi:resultpush", parser_decode_grule ("R+N-"));
 
 	parser_register_reduce ("Roccampi:resetnewline", occampi_reduce_resetnewline, NULL);
 
@@ -400,6 +534,8 @@ static dfattbl_t **occampi_dtype_init_dfatrans (int *ntrans)
 				"[ 4 occampi:type 5 ] [ 5 @@: 6 ] [ 6 {<opi:datatypedeclreduce>} -* ] " \
 				"[ 7 Indent 8 ] [ 8 @RECORD 9 ] [ 9 Newline 10 ] [ 10 Indent 11 ] [ 11 occampi:subtspeclist 12 ] [ 12 Newline 13 ] " \
 				"[ 13 Outdent 14 ] [ 14 Outdent 15 ] [ 15 @@: 16 ] [ 16 {<opi:datatypedeclreduce>} -* ] "));
+
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:xsubscriptreduce>} -* 4 ] [ 4 {<opi:resultpush>} -* 0 ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

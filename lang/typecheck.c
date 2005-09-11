@@ -151,7 +151,7 @@ tnode_t *typecheck_gettype (tnode_t *node, tnode_t *default_type)
 	tnode_t *type;
 
 	if (!node->tag->ndef->ops || !node->tag->ndef->ops->gettype) {
-		nocc_internal ("typecheck_gettype(): don't know how to get type of [%s]!", node->tag->ndef->name);
+		nocc_internal ("typecheck_gettype(): don't know how to get type of [%s]", node->tag->ndef->name);
 		return NULL;
 	}
 	type = node->tag->ndef->ops->gettype (node, default_type);

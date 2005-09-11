@@ -3079,7 +3079,8 @@ int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)
 		/* reduction ? */
 		if (target && target->reduce) {
 			if (compopts.debugparser) {
-				nocc_message ("dfa_advance(): reducing = 0x%8.8x  TS=%d  NS=%d  RES=0x%8.8x  [%s]", (unsigned int)target, DA_CUR (pp->tokstack), DA_CUR ((*dfast)->nodestack),
+				nocc_message ("dfa_advance(): reducing with 0x%8.8x (%s) to 0x%8.8x  TS=%d  NS=%d  RES=0x%8.8x  [%s]", (unsigned int)target->reduce,
+						parser_nameof_reducer ((void *)target->reduce, target->rarg), (unsigned int)target, DA_CUR (pp->tokstack), DA_CUR ((*dfast)->nodestack),
 						(unsigned int)((*dfast)->local), (target->dfainfo ? ((nameddfa_t *)(target->dfainfo))->name : "??"));
 			}
 			target->reduce (*dfast, pp, target->rarg);

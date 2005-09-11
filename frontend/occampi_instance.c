@@ -482,8 +482,8 @@ static dfattbl_t **occampi_instance_init_dfatrans (int *ntrans)
 
 	dynarray_init (transtbl);
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:aparamlist ::= ( -@@) {<opi:nullset>} | { occampi:expr @@, 1 } )"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestart +:= [ 0 +Name 1 ] [ 1 @@( 2 ] [ 2 {<opi:namepush>} ] [ 2 occampi:aparamlist 3 ] " \
-				"[ 3 @@) 4 ] [ 4 {<opi:pinstancereduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@( 1 ] [ 1 occampi:aparamlist 2 ] " \
+				"[ 2 @@) 3 ] [ 3 {<opi:pinstancereduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:builtinprocinstance +:= [ 0 +@RESCHEDULE 1 ] [ 1 @@( 2 ] [ 2 {Roccampi:builtinproc} ] [ 2 occampi:aparamlist 3 ] [ 3 @@) 4 ] [ 4 {<opi:pinstancereduce>} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);

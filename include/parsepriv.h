@@ -60,6 +60,7 @@ extern void parser_free_grule (void *rarg);
 
 extern int parser_register_grule (const char *name, void *grule);
 extern void *parser_lookup_grule (const char *name);
+extern char *parser_nameof_reducer (void *reducefcn, void *reducearg);
 
 extern void parser_inlistreduce (struct TAG_dfastate *dfast, parsepriv_t *pp, void *rarg);
 

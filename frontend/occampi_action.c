@@ -268,11 +268,11 @@ static dfattbl_t **occampi_action_init_dfatrans (int *ntrans)
 	DYNARRAY (dfattbl_t *, transtbl);
 
 	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestart +:= [ 0 +Name 1 ] [ 1 @@:= 2 ] [ 2 {<opi:namepush>} ] [ 2 occampi:expr 3 ] [ 3 {<opi:assignreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestart +:= [ 0 +Name 1 ] [ 1 @@! 2 ] [ 2 {<opi:namepush>} ] [ 2 occampi:exprsemilist 3 ] [ 3 @@: 4 ] [ 4 {<opi:declreduce>} -* ] " \
-				"[ 3 -* 5 ] [ 5 {<opi:outputreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestart +:= [ 0 +Name 1 ] [ 1 @@? 2 ] [ 2 {<opi:namepush>} ] [ 2 occampi:exprsemilist 3 ] [ 3 @@: 4 ] [ 4 {<opi:declreduce>} -* ] " \
-				"[ 3 -* 5 ] [ 5 {<opi:inputreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@:= 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:assignreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@! 1 ] [ 1 occampi:exprsemilist 2 ] [ 2 @@: 3 ] [ 3 {<opi:declreduce>} -* ] " \
+				"[ 2 -* 4 ] [ 4 {<opi:outputreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@? 1 ] [ 1 occampi:exprsemilist 2 ] [ 2 @@: 3 ] [ 3 {<opi:declreduce>} -* ] " \
+				"[ 2 -* 4 ] [ 4 {<opi:inputreduce>} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);
