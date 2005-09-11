@@ -55,7 +55,7 @@ static tnode_t *krocetc_name_create (tnode_t *fename, tnode_t *body, map_t *mdat
 static tnode_t *krocetc_nameref_create (tnode_t *bename, map_t *mdata);
 static tnode_t *krocetc_block_create (tnode_t *body, map_t *mdata, tnode_t *slist, int lexlevel);
 static tnode_t *krocetc_const_create (tnode_t *val, map_t *mdata, void *data, int size);
-static tnode_t *krocetc_indexed_create (tnode_t *base, tnode_t *index, int isize);
+static tnode_t *krocetc_indexed_create (tnode_t *base, tnode_t *index, int isize, int offset);
 static tnode_t *krocetc_blockref_create (tnode_t *block, tnode_t *body, map_t *mdata);
 static tnode_t **krocetc_be_blockbodyaddr (tnode_t *blk);
 static int krocetc_be_allocsize (tnode_t *node, int *pwsh, int *pwsl, int *pvs, int *pms);
@@ -163,6 +163,7 @@ typedef struct TAG_krocetc_consthook {
 
 typedef struct TAG_krocetc_indexedhook {
 	int isize;		/* index size */
+	int offset;		/* offset */
 } krocetc_indexedhook_t;
 
 typedef struct TAG_krocetc_priv {
@@ -357,19 +358,20 @@ static void krocetc_indexedhook_dumptree (tnode_t *node, void *hook, int indent,
 	krocetc_indexedhook_t *ih = (krocetc_indexedhook_t *)hook;
 
 	krocetc_isetindent (stream, indent);
-	fprintf (stream, "<isize value=\"%d\">\n", ih->isize);
+	fprintf (stream, "<indexhook isize=\"%d\" offset=\"%d\" />\n", ih->isize, ih->offset);
 	return;
 }
 /*}}}*/
-/*{{{  static krocetc_indexedhook_t *krocetc_indexedhook_create (int isize)*/
+/*{{{  static krocetc_indexedhook_t *krocetc_indexedhook_create (int isize, int offset)*/
 /*
  *	creates a indexed hook
  */
-static krocetc_indexedhook_t *krocetc_indexedhook_create (int isize)
+static krocetc_indexedhook_t *krocetc_indexedhook_create (int isize, int offset)
 {
 	krocetc_indexedhook_t *ih = (krocetc_indexedhook_t *)smalloc (sizeof (krocetc_indexedhook_t));
 
 	ih->isize = isize;
+	ih->offset = offset;
 	return ih;
 }
 /*}}}*/
@@ -468,16 +470,16 @@ static tnode_t *krocetc_const_create (tnode_t *val, map_t *mdata, void *data, in
 	return cnst;
 }
 /*}}}*/
-/*{{{  static tnode_t *krocetc_indexed_create (tnode_t *base, tnode_t *index, int isize)*/
+/*{{{  static tnode_t *krocetc_indexed_create (tnode_t *base, tnode_t *index, int isize, int offset)*/
 /*
  *	creates a new back-end indexed node (used for arrays and the like)
  */
-static tnode_t *krocetc_indexed_create (tnode_t *base, tnode_t *index, int isize)
+static tnode_t *krocetc_indexed_create (tnode_t *base, tnode_t *index, int isize, int offset)
 {
 	krocetc_indexedhook_t *ih;
 	tnode_t *indxd;
 
-	ih = krocetc_indexedhook_create (isize);
+	ih = krocetc_indexedhook_create (isize, offset);
 	indxd = tnode_create (krocetc_target.tag_INDEXED, NULL, base, index, (void *)ih);
 
 	return indxd;
@@ -1295,6 +1297,7 @@ fprintf (stderr, "krocetc_coder_loadlexlevel(): found staticlink..  loading it..
  */
 static void krocetc_coder_storepointer (codegen_t *cgen, tnode_t *name, int offset)
 {
+	nocc_warning ("krocetc_coder_storepointer(): don\'t know how to store a pointer to [%s]", name->tag->name);
 	return;
 }
 /*}}}*/
@@ -1305,6 +1308,7 @@ static void krocetc_coder_storepointer (codegen_t *cgen, tnode_t *name, int offs
 static void krocetc_coder_storename (codegen_t *cgen, tnode_t *name, int offset)
 {
 	if (name->tag == krocetc_target.tag_NAMEREF) {
+		/*{{{  store into a name reference*/
 		krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (name, 0);
 		int i;
 
@@ -1320,6 +1324,35 @@ static void krocetc_coder_storename (codegen_t *cgen, tnode_t *name, int offset)
 			codegen_write_fmt (cgen, "\tstnl\t%d\n", offset);
 			break;
 		}
+		/*}}}*/
+	} else if (name->tag == krocetc_target.tag_INDEXED) {
+		/*{{{  store into an indexed node*/
+		krocetc_indexedhook_t *ih = (krocetc_indexedhook_t *)tnode_nthhookof (name, 0);
+
+		if (!ih->isize) {
+			/*{{{  offset*/
+			tnode_t *offsexp = tnode_nthsubof (name, 1);
+
+			/* load a pointer to the base */
+			krocetc_coder_loadpointer (cgen, tnode_nthsubof (name, 0), 0);
+
+			if (!offsexp) {
+				/* constant offset */
+				codegen_write_fmt (cgen, "\tstnl\t%d\n", ih->offset);
+			} else {
+				/* variable offset */
+				codegen_callops (cgen, comment, "missing store variable offset in INDEXED node");
+			}
+			/*}}}*/
+		} else {
+			/*{{{  indexed*/
+			codegen_callops (cgen, comment, "missing indexed store");
+			/*}}}*/
+		}
+
+		/*}}}*/
+	} else {
+		nocc_warning ("krocetc_coder_storename(): don\'t know how to store into a [%s]", name->tag->name);
 	}
 	return;
 }

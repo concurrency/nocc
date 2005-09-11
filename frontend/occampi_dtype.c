@@ -66,7 +66,81 @@ typedef struct TAG_typedeclhook {
 	int wssize;
 } typedeclhook_t;
 
+typedef struct TAG_fielddecloffset {
+	int offset;
+} fielddecloffset_t;
 
+
+/*}}}*/
+/*{{{  private data*/
+static chook_t *fielddecloffset = NULL;
+
+/*}}}*/
+
+
+/*{{{  static void occampi_typedecl_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a typedeclhook_t hook-node (debugging)
+ */
+static void occampi_typedecl_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	typedeclhook_t *tdh = (typedeclhook_t *)hook;
+
+	occampi_isetindent (stream, indent);
+	if (!hook) {
+		fprintf (stream, "<typedeclhook value=\"(null)\" addr=\"0x%8.8x\" />\n", (unsigned int)tdh);
+	} else {
+		fprintf (stream, "<typedeclhook wssize=\"%d\" addr=\"0x%8.8x\" />\n", tdh->wssize, (unsigned int)tdh);
+	}
+
+	return;
+}
+/*}}}*/
+/*{{{  static void *occampi_typedeclhook_blankhook (void *tos)*/
+/*
+ *	creates a new typedeclhook_t and returns it as void * for DFA processing
+ */
+static void *occampi_typedeclhook_blankhook (void *tos)
+{
+	typedeclhook_t *tdh;
+
+	if (tos) {
+		nocc_internal ("occampi_typedeclhook_blankhook(): tos was not NULL (0x%8.8x)", (unsigned int)tos);
+		return NULL;
+	}
+	tdh = (typedeclhook_t *)smalloc (sizeof (typedeclhook_t));
+
+	tdh->wssize = 0;
+
+	return (void *)tdh;
+}
+/*}}}*/
+/*{{{  static void occampi_fielddecloffset_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*
+ *	dumps a fielddecloffset_t chook (debugging)
+ */
+static void occampi_fielddecloffset_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+{
+	fielddecloffset_t *ofh = (fielddecloffset_t *)chook;
+
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "<chook:fielddecloffset offset=\"%d\" />\n", ofh->offset);
+
+	return;
+}
+/*}}}*/
+/*{{{  static void *occampi_fielddecloffset_chook_create (int offset)*/
+/*
+ *	creates a new fielddecloffset chook
+ */
+static void *occampi_fielddecloffset_chook_create (int offset)
+{
+	fielddecloffset_t *ofh = (fielddecloffset_t *)smalloc (sizeof (fielddecloffset_t));
+
+	ofh->offset = offset;
+
+	return (void *)ofh;
+}
 /*}}}*/
 
 
@@ -173,8 +247,31 @@ tnode_dumptree (type, 1, stderr);
  */
 static int occampi_namemap_typedecl (tnode_t **node, map_t *mdata)
 {
-	// tnode_t **typep = tnode_nthsubaddr (*node, 1);
+	tnode_t *type = tnode_nthsubof (*node, 1);
 	tnode_t **bodyp = tnode_nthsubaddr (*node, 2);
+
+	if (parser_islistnode (type)) {
+		tnode_t **items;
+		int nitems, i;
+		int csize = 0;
+
+		items = parser_getlistitems (type, &nitems);
+		for (i=0; i<nitems; i++) {
+			if (!items[i]) {
+				continue;
+			} else if (items[i]->tag != opi.tag_FIELDDECL) {
+				nocc_error ("occampi_namemap_typedecl(): item in TYPEDECL not FIELDDECL, was [%s]", items[i]->tag->name);
+			} else {
+				tnode_t *fldname = tnode_nthsubof (items[i], 0);
+				tnode_t *fldtype = tnode_nthsubof (items[i], 1);
+				int tsize;
+
+				tsize = tnode_bytesfor (fldtype);
+				tnode_setchook (fldname, fielddecloffset, occampi_fielddecloffset_chook_create (csize));
+				csize += tsize;
+			}
+		}
+	}
 
 	map_submapnames (bodyp, mdata);
 
@@ -363,6 +460,35 @@ tnode_dumptree (fldtype, 1, stderr);
 	return defaulttype;
 }
 /*}}}*/
+/*{{{  static int occampi_namemap_subscript (tnode_t **node, map_t *mdata)*/
+/*
+ *	name-maps a subscript-node, turning it into a back-end INDEXED node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_subscript (tnode_t **node, map_t *mdata)
+{
+	if ((*node)->tag == opi.tag_RECORDSUB) {
+		fielddecloffset_t *fdh;
+		tnode_t *index = tnode_nthsubof (*node, 1);
+
+		/* "index" should be an N_FIELD */
+		if (index->tag != opi.tag_NFIELD) {
+			return 0;
+		}
+		fdh = (fielddecloffset_t *)tnode_getchook (index, fielddecloffset);
+
+		*node = mdata->target->newindexed (tnode_nthsubof (*node, 0), NULL, 0, fdh->offset);
+
+	} else if ((*node)->tag == opi.tag_ARRAYSUB) {
+		nocc_error ("occampi_namemap_subscript(): ARRAYSUB not supported yet!");
+		return 0;
+	} else {
+		nocc_error ("occampi_namemap_subscript(): unsupported subscript type [%s]", (*node)->tag->name);
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static void occampi_typedecl_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)*/
@@ -388,45 +514,6 @@ static void occampi_typedecl_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
 	}
 	parser_error (tok->origin, msgbuf);
 	return;
-}
-/*}}}*/
-
-
-/*{{{  static void occampi_typedecl_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
-/*
- *	dumps a typedeclhook_t hook-node (debugging)
- */
-static void occampi_typedecl_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
-{
-	typedeclhook_t *tdh = (typedeclhook_t *)hook;
-
-	occampi_isetindent (stream, indent);
-	if (!hook) {
-		fprintf (stream, "<typedeclhook value=\"(null)\" addr=\"0x%8.8x\" />\n", (unsigned int)tdh);
-	} else {
-		fprintf (stream, "<typedeclhook wssize=\"%d\" addr=\"0x%8.8x\" />\n", tdh->wssize, (unsigned int)tdh);
-	}
-
-	return;
-}
-/*}}}*/
-/*{{{  static void *occampi_typedeclhook_blankhook (void *tos)*/
-/*
- *	creates a new typedeclhook_t and returns it as void * for DFA processing
- */
-static void *occampi_typedeclhook_blankhook (void *tos)
-{
-	typedeclhook_t *tdh;
-
-	if (tos) {
-		nocc_internal ("occampi_typedeclhook_blankhook(): tos was not NULL (0x%8.8x)", (unsigned int)tos);
-		return NULL;
-	}
-	tdh = (typedeclhook_t *)smalloc (sizeof (typedeclhook_t));
-
-	tdh->wssize = 0;
-
-	return (void *)tdh;
 }
 /*}}}*/
 
@@ -472,6 +559,7 @@ static int occampi_dtype_init_nodes (void)
 	cops = tnode_newcompops ();
 	cops->scopein = occampi_scopein_subscript;
 	cops->gettype = occampi_gettype_subscript;
+	cops->namemap = occampi_namemap_subscript;
 	tnd->ops = cops;
 	i = -1;
 	opi.tag_SUBSCRIPT = tnode_newnodetag ("SUBSCRIPT", &i, tnd, NTF_NONE);
@@ -479,6 +567,11 @@ static int occampi_dtype_init_nodes (void)
 	opi.tag_RECORDSUB = tnode_newnodetag ("RECORDSUB", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_ARRAYSUB = tnode_newnodetag ("ARRAYSUB", &i, tnd, NTF_NONE);
+	/*}}}*/
+	/*{{{  fielddecloffset compiler hook*/
+	fielddecloffset = tnode_lookupornewchook ("occampi:fielddecloffset");
+	fielddecloffset->chook_dumptree = occampi_fielddecloffset_chook_dumptree;
+
 	/*}}}*/
 
 	return 0;
