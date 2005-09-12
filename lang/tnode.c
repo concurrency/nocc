@@ -42,6 +42,7 @@
 #include "lexpriv.h"
 #include "occampi.h"
 #include "names.h"
+#include "target.h"
 
 /*{{{  private stuff*/
 STATICSTRINGHASH (tndef_t *, nodetypes, 5);
@@ -1410,17 +1411,17 @@ void tnode_setchook (tnode_t *t, chook_t *ch, void *hook)
 /*}}}*/
 
 
-/*{{{  int tnode_bytesfor (tnode_t *t)*/
+/*{{{  int tnode_bytesfor (tnode_t *t, target_t *target)*/
 /*
  *	returns the number of "bytes-for" a tree-node
  */
-int tnode_bytesfor (tnode_t *t)
+int tnode_bytesfor (tnode_t *t, target_t *target)
 {
 #if 0
 fprintf (stderr, "tnode_bytesfor(): t = [%s]\n", t->tag->name);
 #endif
 	if (t && t->tag->ndef->ops && t->tag->ndef->ops->bytesfor) {
-		return t->tag->ndef->ops->bytesfor (t);
+		return t->tag->ndef->ops->bytesfor (t, target);
 	}
 	return -1;		/* don't know */
 }

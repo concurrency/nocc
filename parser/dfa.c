@@ -3302,5 +3302,36 @@ void dfa_freestate (dfastate_t *dfast)
 }
 /*}}}*/
 
+/*{{{  char *dfa_expectedmatchstr (dfanode_t *dfanode, token_t *tok, char *desc)*/
+/*
+ *	produces an "got X expected Y,Z" type message (parser error reporting)
+ */
+char *dfa_expectedmatchstr (dfanode_t *dfanode, token_t *tok, char *desc)
+{
+	static char msgbuf[1024];
+	int gone = 0;
+	int max = 1023;
+
+	if (tok) {
+		gone += snprintf (msgbuf + gone, max - gone, "parser error at %s", lexer_stokenstr (tok));
+	}
+	if (desc) {
+		gone += snprintf (msgbuf + gone, max - gone, "%s%s", gone ? " " : "", desc);
+	}
+	if (DA_CUR (dfanode->match)) {
+		int n;
+
+		gone += snprintf (msgbuf + gone, max - gone, "%sexpected ", gone ? ", " : "");
+		for (n=0; n<DA_CUR (dfanode->match); n++) {
+			token_t *match = DA_NTHITEM (dfanode->match, n);
+
+			gone += snprintf (msgbuf + gone, max - gone, "%s%s", !n ? "" : ((n == DA_CUR (dfanode->match) - 1) ? " or " : ", "), lexer_stokenstr (match));
+		}
+	}
+	parser_error (tok->origin, msgbuf);
+
+	return (char *)msgbuf;
+}
+/*}}}*/
 
 

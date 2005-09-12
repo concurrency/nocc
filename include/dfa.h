@@ -131,6 +131,8 @@ extern dfastate_t *dfa_newstate (dfastate_t *prev);
 extern dfastate_t *dfa_newstate_init (dfastate_t *prev, char *iname);
 extern void dfa_freestate (dfastate_t *dfast);
 
+extern char *dfa_expectedmatchstr (dfanode_t *dfanode, struct TAG_token *tok, char *desc);
+
 
 #endif	/* !__DFA_H */
 

@@ -90,7 +90,7 @@ typedef struct TAG_compops {
 	tnode_t *(*typeactual)(tnode_t *, tnode_t *, tnode_t *, struct TAG_typecheck *);	/* tests whether one type is valid as an "actual" for another */
 	tnode_t *(*gettype)(tnode_t *, tnode_t *);			/* returns the type of this node (second param is a "default" type) */
 	int (*precheck)(tnode_t *);					/* performs pre-checks on the node */
-	int (*bytesfor)(tnode_t *);					/* returns the number of bytes required for something */
+	int (*bytesfor)(tnode_t *, struct TAG_target *);		/* returns the number of bytes required for something (target given if available) */
 	int (*fetrans)(tnode_t **);					/* performs front-end transforms */
 	int (*betrans)(tnode_t **, struct TAG_target *);		/* performs back-end transforms for target */
 	int (*premap)(tnode_t **, struct TAG_map *);			/* performs pre-mapping for target */
@@ -172,7 +172,7 @@ extern chook_t *tnode_lookupornewchook (const char *name);
 extern void *tnode_getchook (tnode_t *t, chook_t *ch);
 extern void tnode_setchook (tnode_t *t, chook_t *ch, void *hook);
 
-extern int tnode_bytesfor (tnode_t *t);
+extern int tnode_bytesfor (tnode_t *t, struct TAG_target *target);
 
 
 /* access routines */

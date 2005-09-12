@@ -225,11 +225,36 @@ static int occampi_register_reducers (void)
 }
 /*}}}*/
 /*}}}*/
+/*{{{  error handling*/
+/*{{{  static void occampi_namestart_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)*/
+/*
+ *	called when the parser gets stuck inside an "occampi:namestart"
+ */
+static void occampi_namestart_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
+{
+	char *msg;
 
+	msg = dfa_expectedmatchstr (dfanode, tok, "in declaration or process");
+	parser_error (tok->origin, msg);
 
-/*{{{  tree-node hook functions*/
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_namestartname_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)*/
+/*
+ *	called when the parser gets stuck inside an "occampi:namestartname"
+ */
+static void occampi_namestartname_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
+{
+	char *msg;
 
-/* all got moved out, space for future population ;) */
+	msg = dfa_expectedmatchstr (dfanode, tok, "in declaration or process");
+	parser_error (tok->origin, msg);
+
+	return;
+}
+/*}}}*/
+
 
 /*}}}*/
 
@@ -415,6 +440,8 @@ static int occampi_nodes_init (void)
 static int occampi_post_setup (void)
 {
 	int i;
+	static dfaerrorhandler_t namestart_eh = { occampi_namestart_dfaeh_stuck };
+	static dfaerrorhandler_t namestartname_eh = { occampi_namestartname_dfaeh_stuck };
 
 	for (i=0; feunit_set[i]; i++) {
 		feunit_t *thisunit = feunit_set[i];
@@ -423,6 +450,10 @@ static int occampi_post_setup (void)
 			return -1;
 		}
 	}
+
+	dfa_seterrorhandler ("occampi:namestart", &namestart_eh);
+	dfa_seterrorhandler ("occampi:namestartname", &namestartname_eh);
+
 	return 0;
 }
 /*}}}*/

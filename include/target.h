@@ -46,6 +46,7 @@ typedef struct TAG_target {
 	int intsize;										/* number of bytes for an INT */
 	int pointersize;									/* number of bytes for a pointer */
 	int slotsize;										/* byte alignment for workspace slots */
+	int structalign;									/* byte alignment for structured types */
 
 	struct TAG_ntdef *tag_NAME;
 	struct TAG_ntdef *tag_NAMEREF;

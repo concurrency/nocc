@@ -72,6 +72,7 @@ static symbol_t symbols[] = {
 	{">=", 2, NULL},
 	{"=<", 2, NULL},
 	{",", 1, NULL},
+	{"_", 1, NULL},
 	{NULL, 0, NULL}
 };
 

@@ -48,6 +48,7 @@
 #include "prescope.h"
 #include "typecheck.h"
 #include "langops.h"
+#include "target.h"
 /*}}}*/
 
 
@@ -125,11 +126,11 @@ fprintf (stderr, "occampi_type_typeactual(): channel: node->tag = [%s]\n", node-
 	return atype;
 }
 /*}}}*/
-/*{{{  static int occampi_type_bytesfor (tnode_t *t)*/
+/*{{{  static int occampi_type_bytesfor (tnode_t *t, target_t *target)*/
 /*
  *	returns the number of bytes required by this type (or -1 if not known)
  */
-static int occampi_type_bytesfor (tnode_t *t)
+static int occampi_type_bytesfor (tnode_t *t, target_t *target)
 {
 	return -1;
 }
@@ -172,11 +173,11 @@ static int occampi_type_getdescriptor (tnode_t *node, char **str)
 /*}}}*/
 
 
-/*{{{  static int occampi_leaftype_bytesfor (tnode_t *t)*/
+/*{{{  static int occampi_leaftype_bytesfor (tnode_t *t, target_t *target)*/
 /*
  *	returns the number of bytes required by a basic type
  */
-static int occampi_leaftype_bytesfor (tnode_t *t)
+static int occampi_leaftype_bytesfor (tnode_t *t, target_t *target)
 {
 	if (t->tag == opi.tag_BYTE) {
 		return 1;

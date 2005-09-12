@@ -92,6 +92,7 @@ target_t krocetc_target = {
 	intsize:	4,
 	pointersize:	4,
 	slotsize:	4,
+	structalign:	4,
 
 	tag_NAME:	NULL,
 	tag_NAMEREF:	NULL,
@@ -899,12 +900,12 @@ static int krocetc_codegen_block (tnode_t *blk, codegen_t *cgen)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int krocetc_bytesfor_name (tnode_t *name)*/
+/*{{{  static int krocetc_bytesfor_name (tnode_t *name, target_t *target)*/
 /*
  *	used to get the type-size of a back-end name
  *	returns type-size or -1 if not known
  */
-static int krocetc_bytesfor_name (tnode_t *name)
+static int krocetc_bytesfor_name (tnode_t *name, target_t *target)
 {
 	krocetc_namehook_t *nh;
 

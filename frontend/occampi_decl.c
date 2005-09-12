@@ -211,7 +211,7 @@ tnode_dumptree (type, 1, stderr);
 		initarg = (void *)type;
 	} else {
 		/* see how big this type is */
-		tsize = tnode_bytesfor (type);
+		tsize = tnode_bytesfor (type, map->target);
 	}
 
 	bename = map->target->newname (*namep, *bodyp, map, tsize, 0, 0, 0, tsize, 0);		/* FIXME! */
@@ -669,7 +669,7 @@ tnode_dumptree (type, 1, stderr);
 		tsize = map->target->chansize;
 	} else {
 		/* see how big this type is */
-		tsize = tnode_bytesfor (type);
+		tsize = tnode_bytesfor (type, map->target);
 	}
 
 	if ((*namep)->tag == opi.tag_NPARAM) {
@@ -816,11 +816,11 @@ tnode_dumptree (name->type, 1, stderr);
 	return NULL;
 }
 /*}}}*/
-/*{{{  static int occampi_bytesfor_namenode (tnode_t *node)*/
+/*{{{  static int occampi_bytesfor_namenode (tnode_t *node, target_t *target)*/
 /*
  *	returns the number of bytes in a name-node, associated with its type only
  */
-static int occampi_bytesfor_namenode (tnode_t *node)
+static int occampi_bytesfor_namenode (tnode_t *node, target_t *target)
 {
 	if (node->tag == opi.tag_NTYPEDECL) {
 		name_t *name = tnode_nthnameof (node, 0);
@@ -833,7 +833,7 @@ fprintf (stderr, "occampi_bytesfor_namenode(): type = ");
 tnode_dumptree (type, 1, stderr);
 #endif
 
-		return tnode_bytesfor (decl);
+		return tnode_bytesfor (decl, target);
 	} else if (node->tag == opi.tag_NFIELD) {
 		name_t *name = tnode_nthnameof (node, 0);
 		tnode_t *type = NameTypeOf (name);
@@ -842,7 +842,7 @@ tnode_dumptree (type, 1, stderr);
 fprintf (stderr, "occampi_bytesfor_namenode(): [N_FIELD], type =\n");
 tnode_dumptree (type, 1, stderr);
 #endif
-		return tnode_bytesfor (type);
+		return tnode_bytesfor (type, target);
 	}
 	nocc_error ("occampi_bytesfor_namenode(): no bytes for [%s]", node->tag->name);
 	return -1;

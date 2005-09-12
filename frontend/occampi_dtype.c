@@ -202,29 +202,45 @@ tnode_dumptree (type, 1, stderr);
  */
 static int occampi_prewalk_bytesfor_typedecl (tnode_t *node, void *data)
 {
-	typedeclhook_t *tdh = (typedeclhook_t *)data;
+	void **local = (void **)data;
+	typedeclhook_t *tdh = (typedeclhook_t *)local[0];
+	target_t *target = (target_t *)local[1];
+	int *csizeptr = (int *)local[2];
 	int this_ws;
 
-	this_ws = tnode_bytesfor (node);
+	this_ws = tnode_bytesfor (node, target);
 	if (this_ws > 0) {
 		tdh->wssize += this_ws;
+#if 0
+fprintf (stderr, "occampi_prewalk_bytesfor_typedecl(): incrementing tdh->wssize\n");
+#endif
+		if (tdh->wssize & (target->structalign - 1)) {
+			/* pad */
+			tdh->wssize += target->structalign;
+			tdh->wssize &= ~(target->structalign - 1);
+		}
 		return 0;
 	}
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_bytesfor_typedecl (tnode_t *node)*/
+/*{{{  static int occampi_bytesfor_typedecl (tnode_t *node, target_t *target)*/
 /*
  *	returns the number of bytes required by a type declaration (DATA TYPE ...)
  */
-static int occampi_bytesfor_typedecl (tnode_t *node)
+static int occampi_bytesfor_typedecl (tnode_t *node, target_t *target)
 {
 	typedeclhook_t *tdh = (typedeclhook_t *)tnode_nthhookof (node, 0);
 	tnode_t *type = tnode_nthsubof (node, 1);
+	int csize;
+	void *local[3] = {(void *)tdh, (void *)target, (void *)&csize};
 
+#if 0
+fprintf (stderr, "occampi_bytesfor_typedecl(): tdh->wssize = %d\n", tdh->wssize);
+#endif
 	if (!tdh->wssize) {
 		/*{{{  walk the type to find out its size*/
-		tnode_prewalktree (type, occampi_prewalk_bytesfor_typedecl, (void *)tdh);
+		tnode_prewalktree (type, occampi_prewalk_bytesfor_typedecl, (void *)local);
 
 		if (!tdh->wssize) {
 			nocc_error ("occampi_bytesfor_typedecl(): type has 0 size..  :(");
@@ -266,9 +282,15 @@ static int occampi_namemap_typedecl (tnode_t **node, map_t *mdata)
 				tnode_t *fldtype = tnode_nthsubof (items[i], 1);
 				int tsize;
 
-				tsize = tnode_bytesfor (fldtype);
+				tsize = tnode_bytesfor (fldtype, mdata->target);
 				tnode_setchook (fldname, fielddecloffset, occampi_fielddecloffset_chook_create (csize));
 				csize += tsize;
+
+				if (csize & (mdata->target->structalign - 1)) {
+					/* pad */
+					csize += mdata->target->structalign;
+					csize &= ~(mdata->target->structalign - 1);
+				}
 			}
 		}
 	}
@@ -351,14 +373,14 @@ fprintf (stderr, "occampi_fielddecl_prewalk_scopefields(): adding name [%s]\n", 
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_bytesfor_fielddecl (tnode_t *node)*/
+/*{{{  static int occampi_bytesfor_fielddecl (tnode_t *node, target_t *target)*/
 /*
  *	returns the number of bytes required by a FIELDDECL
  */
-static int occampi_bytesfor_fielddecl (tnode_t *node)
+static int occampi_bytesfor_fielddecl (tnode_t *node, target_t *target)
 {
 	tnode_t *type = tnode_nthsubof (node, 1);
-	int bytes = tnode_bytesfor (type);
+	int bytes = tnode_bytesfor (type, target);
 
 #if 0
 fprintf (stderr, "occampi_bytesfor_fielddecl(): bytes = %d, type =\n", bytes);
@@ -497,22 +519,11 @@ static int occampi_namemap_subscript (tnode_t **node, map_t *mdata)
  */
 static void occampi_typedecl_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
 {
-	char msgbuf[1024];
-	int gone = 0;
-	int max = 1023;
+	char *msg;
 
-	gone += snprintf (msgbuf + gone, max - gone, "parse error at %s in DATA TYPE declaration", lexer_stokenstr (tok));
-	if (DA_CUR (dfanode->match)) {
-		int n;
+	msg = dfa_expectedmatchstr (dfanode, tok, "in DATA TYPE declaration");
+	parser_error (tok->origin, msg);
 
-		gone += snprintf (msgbuf + gone, max - gone, ", expected ");
-		for (n=0; n<DA_CUR (dfanode->match); n++) {
-			token_t *match = DA_NTHITEM (dfanode->match, n);
-
-			gone += snprintf (msgbuf + gone, max - gone, "%s%s", !n ? "" : ((n == DA_CUR (dfanode->match) - 1) ? " or " : ", "), lexer_stokenstr (match));
-		}
-	}
-	parser_error (tok->origin, msgbuf);
 	return;
 }
 /*}}}*/
@@ -629,6 +640,7 @@ static dfattbl_t **occampi_dtype_init_dfatrans (int *ntrans)
 				"[ 13 Outdent 14 ] [ 14 Outdent 15 ] [ 15 @@: 16 ] [ 16 {<opi:datatypedeclreduce>} -* ] "));
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:xsubscriptreduce>} -* 4 ] [ 4 {<opi:resultpush>} -* 0 ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@_ 1 ] [ 1 occampi:name 2 ] [ 2 {<opi:xsubscriptreduce>} -* 3 ] [ 3 {<opi:resultpush>} -* 0 ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);
