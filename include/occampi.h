@@ -83,6 +83,15 @@ typedef struct {
 	struct TAG_ntdef *tag_LITREAL;
 	struct TAG_ntdef *tag_LITARRAY;
 
+	struct TAG_ntdef *tag_MUL;
+	struct TAG_ntdef *tag_DIV;
+	struct TAG_ntdef *tag_REM;
+	struct TAG_ntdef *tag_ADD;
+	struct TAG_ntdef *tag_SUB;
+	struct TAG_ntdef *tag_PLUS;
+	struct TAG_ntdef *tag_MINUS;
+	struct TAG_ntdef *tag_TIMES;
+
 	struct TAG_ntdef *tag_NDECL;
 	struct TAG_ntdef *tag_NPARAM;
 	struct TAG_ntdef *tag_NPROCDEF;
@@ -134,6 +143,7 @@ extern struct TAG_feunit occampi_lit_feunit;		/* occampi_lit.c */
 extern struct TAG_feunit occampi_type_feunit;		/* occampi_type.c */
 extern struct TAG_feunit occampi_instance_feunit;	/* occampi_instance.c */
 extern struct TAG_feunit occampi_dtype_feunit;		/* occampi_dtype.c */
+extern struct TAG_feunit occampi_oper_feunit;		/* occampi_oper.c */
 
 /* these are for language units to use in reductions */
 extern void *occampi_nametoken_to_hook (void *ntok);
