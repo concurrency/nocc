@@ -57,6 +57,7 @@ static tnode_t *krocetc_block_create (tnode_t *body, map_t *mdata, tnode_t *slis
 static tnode_t *krocetc_const_create (tnode_t *val, map_t *mdata, void *data, int size);
 static tnode_t *krocetc_indexed_create (tnode_t *base, tnode_t *index, int isize, int offset);
 static tnode_t *krocetc_blockref_create (tnode_t *block, tnode_t *body, map_t *mdata);
+static tnode_t *krocetc_result_create (tnode_t *expr, map_t *mdata);
 static tnode_t **krocetc_be_blockbodyaddr (tnode_t *blk);
 static int krocetc_be_allocsize (tnode_t *node, int *pwsh, int *pwsl, int *pvs, int *pms);
 static void krocetc_be_setoffsets (tnode_t *bename, int ws_offset, int vs_offset, int ms_offset);
@@ -101,6 +102,7 @@ target_t krocetc_target = {
 	tag_INDEXED:	NULL,
 	tag_BLOCKREF:	NULL,
 	tag_STATICLINK:	NULL,
+	tag_RESULT:	NULL,
 
 	init:		krocetc_target_init,
 	newname:	krocetc_name_create,
@@ -109,6 +111,7 @@ target_t krocetc_target = {
 	newconst:	krocetc_const_create,
 	newindexed:	krocetc_indexed_create,
 	newblockref:	krocetc_blockref_create,
+	newresult:	krocetc_result_create,
 
 	be_blockbodyaddr:	krocetc_be_blockbodyaddr,
 	be_allocsize:	krocetc_be_allocsize,
@@ -178,6 +181,10 @@ typedef struct TAG_krocetc_priv {
 	chook_t *mapchook;
 } krocetc_priv_t;
 
+typedef struct TAG_krocetc_resulthook {
+	int eval_regs;
+	int result_regs;
+} krocetc_resulthook_t;
 
 /*}}}*/
 
@@ -389,6 +396,35 @@ static void krocetc_specialhook_dumptree (tnode_t *node, void *hook, int indent,
 }
 /*}}}*/
 /*}}}*/
+/*{{{  krocetc_resulthook_t routines*/
+/*{{{  static void krocetc_resulthook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps hook for debugging
+ */
+static void krocetc_resulthook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	krocetc_resulthook_t *rh = (krocetc_resulthook_t *)hook;
+
+	krocetc_isetindent (stream, indent);
+	fprintf (stream, "<resulthook eregs=\"%d\" rregs=\"%d\" />\n", rh->eval_regs, rh->result_regs);
+	return;
+}
+/*}}}*/
+/*{{{  static krocetc_resulthook_t *krocetc_resulthook_create (void)*/
+/*
+ *	creates a blank result hook
+ */
+static krocetc_resulthook_t *krocetc_resulthook_create (void)
+{
+	krocetc_resulthook_t *rh = (krocetc_resulthook_t *)smalloc (sizeof (krocetc_resulthook_t));
+
+	rh->eval_regs = -1;
+	rh->result_regs = -1;
+
+	return rh;
+}
+/*}}}*/
+/*}}}*/
 
 
 /*{{{  static tnode_t *krocetc_name_create (tnode_t *fename, tnode_t *body, map_t *mdata, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)*/
@@ -498,6 +534,21 @@ static tnode_t *krocetc_blockref_create (tnode_t *block, tnode_t *body, map_t *m
 	blockref = tnode_create (krocetc_target.tag_BLOCKREF, NULL, body, (void *)brh);
 
 	return blockref;
+}
+/*}}}*/
+/*{{{  static tnode_t *krocetc_result_create (tnode_t *expr, map_t *mdata)*/
+/*
+ *	creates a new back-end result node (used for expressions and the like)
+ */
+static tnode_t *krocetc_result_create (tnode_t *expr, map_t *mdata)
+{
+	krocetc_resulthook_t *rh;
+	tnode_t *res;
+
+	rh = krocetc_resulthook_create ();
+	res = tnode_create (krocetc_target.tag_RESULT, NULL, expr, rh);
+
+	return res;
 }
 /*}}}*/
 
@@ -1777,11 +1828,18 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	i = -1;
 	target->tag_BLOCKREF = tnode_newnodetag ("KROCETCBLOCKREF", &i, tnd, 0);
 	/*}}}*/
-	/*{{{  krocetc:staticlin -- KROCETCSTATICLINKk*/
+	/*{{{  krocetc:staticlink -- KROCETCSTATICLINKk*/
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:staticlink", &i, 0, 0, 0, 0);
 	i = -1;
 	target->tag_STATICLINK = tnode_newnodetag ("KROCETCSTATICLINK", &i, tnd, 0);
+	/*}}}*/
+	/*{{{  krocetc:result -- KROCETCRESULT*/
+	i = -1;
+	tnd = tnode_newnodetype ("krocetc:result", &i, 1, 0, 1, 0);
+	tnd->hook_dumptree = krocetc_resulthook_dumptree;
+	i = -1;
+	target->tag_RESULT = tnode_newnodetag ("KROCETCRESULT", &i, tnd, 0);
 	/*}}}*/
 
 	target->initialised = 1;

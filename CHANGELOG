@@ -1,4 +1,6 @@
 
+13/09/2005	frmb	added "result" node-type to back-end
+12/09/2005	frmb	initial expression/dyadic handling
 12/09/2005	frmb	experimentally added "_" as record-subscription in the parser
 12/09/2005	frmb	various updates, added target info to _bytesfor() calls
 11/09/2005	frmb	split occampi:namestart into occampi:namestartname

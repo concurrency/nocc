@@ -36,6 +36,7 @@ typedef struct TAG_map {
 
 
 extern int map_mapnames (struct TAG_tnode **tptr, struct TAG_target *target);
+extern int map_subpremap (struct TAG_tnode **tptr, map_t *mdata);
 extern int map_submapnames (struct TAG_tnode **tptr, map_t *mdata);
 
 extern int map_init (void);

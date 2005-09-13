@@ -126,6 +126,18 @@ int map_submapnames (tnode_t **tptr, map_t *mdata)
 	return 0;		/* this always succeeds.. */
 }
 /*}}}*/
+/*{{{  int map_subpremap (tnode_t **tptr, map_t *mdata)*/
+/*
+ *	pre-maps the given sub-tree
+ *	returns 0 on success, non-zero on error
+ */
+int map_subpremap (tnode_t **tptr, map_t *mdata)
+{
+	tnode_modprewalktree (tptr, map_modprewalk_premap, (void *)mdata);
+
+	return 0;		/* this always succeeds.. */
+}
+/*}}}*/
 /*{{{  int map_mapnames (tnode_t **tptr, target_t *target)*/
 /*
  *	transforms the given tree, turning source name-nodes into back-end name-nodes

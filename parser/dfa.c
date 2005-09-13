@@ -502,20 +502,31 @@ void dfa_addpush (dfanode_t *dfa, token_t *tok, dfanode_t *pushto, dfanode_t *ta
 /*{{{  void dfa_matchpush (dfanode_t *dfa, char *pushto, dfanode_t *target, int deferring)*/
 /*
  *	adds match(es) to a DFA node from initial matches from another,
- *	also incorporates a state push
+ *	also incorporates a state push (and handles %'d version without)
  */
 void dfa_matchpush (dfanode_t *dfa, char *pushto, dfanode_t *target, int deferring)
 {
-	nameddfa_t *ndfa = stringhash_lookup (nameddfas, pushto);
+	nameddfa_t *ndfa;
 	dfanode_t *tdfa;
 	int i;
+	char *pdfaname = pushto;
+	int dopush = 1;
+
+	if (*pdfaname == '%') {
+		/*{{{  initial matches, but no push -- needed for some "is it a ... ?" parsing */
+		pdfaname++;
+		dopush = 0;
+		/*}}}*/
+	}
+
+	ndfa = stringhash_lookup (nameddfas, pdfaname);
 
 	if (!ndfa) {
 		if (!deferring) {
-			nocc_internal ("dfa_matchpush(): no such DFA [%s]", pushto);
+			nocc_internal ("dfa_matchpush(): no such DFA [%s]", pdfaname);
 			return;
 		} else {
-			/* otherwise add a deferred entry for it */
+			/*{{{  otherwise add a deferred entry for it (processed in here later), return */
 			token_t *t_tok = lexer_newtoken (INAME, pushto);
 
 #if 0
@@ -524,6 +535,7 @@ fprintf (stderr, "dfa_matchpush(): adding deferred match for [%s] (no DFA)\n", t
 			dfa_addmatch (dfa, t_tok, target, DFAFLAG_DEFERRED);
 			dfa_deferred_match (dfa, target, t_tok);
 			return;
+			/*}}}*/
 		}
 	}
 	tdfa = ndfa->inode;
@@ -537,7 +549,7 @@ fprintf (stderr, "dfa_matchpush(): adding deferred match for [%s] (no DFA)\n", t
 		}
 	}
 	if (i < DA_CUR (tdfa->match)) {
-		/* yes, had some deferred initial match, defer this one too */
+		/*{{{  yes, had some deferred initial match, defer this one too, return */
 		token_t *t_tok = lexer_newtoken (INAME, pushto);
 
 #if 0
@@ -546,6 +558,7 @@ fprintf (stderr, "dfa_matchpush(): adding deferred match for [%s] (initial defer
 		dfa_addmatch (dfa, t_tok, target, DFAFLAG_DEFERRED);
 		dfa_deferred_match (dfa, target, t_tok);
 		return;
+		/*}}}*/
 	}
 
 	/* iterate over target's initial matches, and produce new matches in the current DFA */
@@ -555,14 +568,21 @@ fprintf (stderr, "dfa_matchpush(): adding deferred match for [%s] (initial defer
 		dfanode_t *t_pushto = DA_NTHITEM (tdfa->pushto, i);
 		int t_flags = DA_NTHITEM (tdfa->flags, i);
 
-		if ((t_flags & DFAFLAG_PUSHSTACK) && t_pushto) {
-			/*{{{  initial match is a push, duplicate it with NOCONSUME*/
-			dfa_addpush (dfa, t_tok, tdfa, target, (t_flags & ~DFAFLAG_KEEP) | DFAFLAG_NOCONSUME | DFAFLAG_PUSHSTACK);
+		if (dopush) {
+			if ((t_flags & DFAFLAG_PUSHSTACK) && t_pushto) {
+				/*{{{  initial match is a push, duplicate it with NOCONSUME*/
+				dfa_addpush (dfa, t_tok, tdfa, target, (t_flags & ~DFAFLAG_KEEP) | DFAFLAG_NOCONSUME | DFAFLAG_PUSHSTACK);
 
-			/*}}}*/
+				/*}}}*/
+			} else {
+				/*{{{  regular initial match*/
+				dfa_addpush (dfa, t_tok, t_target, target, t_flags | DFAFLAG_PUSHSTACK);
+
+				/*}}}*/
+			}
 		} else {
-			/*{{{  regular initial match*/
-			dfa_addpush (dfa, t_tok, t_target, target, t_flags | DFAFLAG_PUSHSTACK);
+			/*{{{  just matching initials, don't consume them*/
+			dfa_addmatch (dfa, t_tok, target, DFAFLAG_NOCONSUME);
 
 			/*}}}*/
 		}
@@ -1502,7 +1522,14 @@ static int dfa_idecode_checkmatch (const char *mbit, int lookuperr)
 			/*{{{  default -- if allowed a sub-spec, look it up*/
 		default:
 			/* check for sensible name */
-			if ((*bit < 'a') || (*bit > 'z')) {
+			if ((*bit == '%') && allow_subspec) {
+				/* this is a set of initial matches, not a PUSH */
+				dfarule = dfa_lookupbyname (bit + 1);
+				if (dfarule || !lookuperr || (lookuperr == 2)) {
+					gottok = 1;
+				}
+				bit += strlen (bit);
+			} else if ((*bit < 'a') || (*bit > 'z')) {
 				gottok = 0;
 			} else if (allow_subspec) {
 				dfarule = dfa_lookupbyname (bit);

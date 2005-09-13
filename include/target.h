@@ -55,6 +55,7 @@ typedef struct TAG_target {
 	struct TAG_ntdef *tag_INDEXED;
 	struct TAG_ntdef *tag_BLOCKREF;
 	struct TAG_ntdef *tag_STATICLINK;
+	struct TAG_ntdef *tag_RESULT;
 
 
 	int (*init)(struct TAG_target *target);							/* initialisation routine */
@@ -71,6 +72,8 @@ typedef struct TAG_target {
 	struct TAG_tnode *(*newindexed)(struct TAG_tnode *, struct TAG_tnode *, int, int);
 				/* creates a back-end block reference, populated (block, body, map-data) */
 	struct TAG_tnode *(*newblockref)(struct TAG_tnode *, struct TAG_tnode *, struct TAG_map *);
+				/* creates a back-end result node, populated (expression, map-data) */
+	struct TAG_tnode *(*newresult)(struct TAG_tnode *, struct TAG_map *);
 
 				/* return a pointer to the body within a back-end block */
 	struct TAG_tnode **(*be_blockbodyaddr)(struct TAG_tnode *);

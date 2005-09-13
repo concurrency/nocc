@@ -57,17 +57,57 @@
 /*}}}*/
 
 
+/*{{{  private types*/
+typedef struct TAG_dopmap {
+	tokentype_t ttype;
+	const char *lookup;
+	token_t *tok;
+	ntdef_t **tagp;
+} dopmap_t;
+
+/*}}}*/
 /*{{{  private data*/
-static token_t *add_tok = NULL;
-static token_t *sub_tok = NULL;
-static token_t *div_tok = NULL;
-static token_t *rem_tok = NULL;
-static token_t *mul_tok = NULL;
-static token_t *plus_tok = NULL;
-static token_t *minus_tok = NULL;
-static token_t *times_tok = NULL;
+static dopmap_t dopmap[] = {
+	{SYMBOL, "+", NULL, &(opi.tag_ADD)},
+	{SYMBOL, "-", NULL, &(opi.tag_SUB)},
+	{SYMBOL, "*", NULL, &(opi.tag_MUL)},
+	{SYMBOL, "/", NULL, &(opi.tag_DIV)},
+	{SYMBOL, "\\", NULL, &(opi.tag_REM)},
+	{KEYWORD, "PLUS", NULL, &(opi.tag_PLUS)},
+	{KEYWORD, "MINUS", NULL, &(opi.tag_MINUS)},
+	{KEYWORD, "TIMES", NULL, &(opi.tag_TIMES)},
+	{NOTOKEN, NULL, NULL, NULL}
+};
 
 
+/*}}}*/
+
+
+/*{{{  static tnode_t *occampi_gettype_dop (tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	returns the type associated with a DOPNODE, also sets the type in the node
+ */
+static tnode_t *occampi_gettype_dop (tnode_t *node, tnode_t *defaulttype)
+{
+	/* FIXME! */
+	return defaulttype;
+}
+/*}}}*/
+/*{{{  static int occampi_premap_dop (tnode_t **node, map_t *map)*/
+/*
+ *	maps out a DOPNODE, turning into a back-end RESULT
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_premap_dop (tnode_t **node, map_t *map)
+{
+	/* pre-map left and right */
+	map_subpremap (tnode_nthsubaddr (*node, 0), map);
+	map_subpremap (tnode_nthsubaddr (*node, 1), map);
+
+	*node = map->target->newresult (*node, map);
+
+	return 0;
+}
 /*}}}*/
 
 
@@ -80,7 +120,8 @@ static void occampi_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 {
 	token_t *tok = parser_gettok (pp);
 	tnode_t *lhs, *rhs;
-	ntdef_t *tag;
+	ntdef_t *tag = NULL;
+	int i;
 
 	if (!tok) {
 		parser_error (pp->lf, "occampi_reduce_dop(): no token ?");
@@ -92,11 +133,13 @@ static void occampi_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 		parser_error (pp->lf, "occampi_reduce_dop(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
 		return;
 	}
-	if (tok == add_tok) {
-		tag = opi.tag_ADD;
-	} else if (tok == sub_tok) {
-		tag = opi.tag_SUB;
-	} else {
+	for (i=0; dopmap[i].lookup; i++) {
+		if (lexer_tokmatch (dopmap[i].tok, tok)) {
+			tag = *(dopmap[i].tagp);
+			break;
+		}
+	}
+	if (!tag) {
 		parser_error (pp->lf, "occampi_reduce_dop(): unhandled token [%s]", lexer_stokenstr (tok));
 		return;
 	}
@@ -118,10 +161,12 @@ static int occampi_oper_init_nodes (void)
 	compops_t *cops;
 	int i;
 
-	/*{{{  occampi:dopnode -- MUL, DIV, ADD, SUB; PLUS, MINUS, TIMES*/
+	/*{{{  occampi:dopnode -- MUL, DIV, ADD, SUB, REM; PLUS, MINUS, TIMES*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:dopnode", &i, 3, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
+	cops->gettype = occampi_gettype_dop;
+	cops->premap = occampi_premap_dop;
 	tnd->ops = cops;
 	i = -1;
 	opi.tag_MUL = tnode_newnodetag ("MUL", &i, tnd, NTF_NONE);
@@ -142,14 +187,9 @@ static int occampi_oper_init_nodes (void)
 	/*}}}*/
 
 	/*{{{  setup local tokens*/
-	add_tok = lexer_newtoken (SYMBOL, "+");
-	sub_tok = lexer_newtoken (SYMBOL, "-");
-	mul_tok = lexer_newtoken (SYMBOL, "*");
-	div_tok = lexer_newtoken (SYMBOL, "/");
-	rem_tok = lexer_newtoken (SYMBOL, "\\");
-	plus_tok = lexer_newtoken (KEYWORD, "PLUS");
-	minus_tok = lexer_newtoken (KEYWORD, "MINUS");
-	times_tok = lexer_newtoken (KEYWORD, "TIMES");
+	for (i=0; dopmap[i].lookup; i++) {
+		dopmap[i].tok = lexer_newtoken (dopmap[i].ttype, dopmap[i].lookup);
+	}
 	/*}}}*/
 
 	return 0;
@@ -177,7 +217,8 @@ static dfattbl_t **occampi_oper_init_dfatrans (int *ntrans)
 
 	dynarray_init (transtbl);
 
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:restofexpr ::= [ 0 +@@+ 1 ] [ 0 +@@- 1 ] [ 0 +@@* 1 ] [ 0 +@@/ 1 ] [ 1 occampi:expr 2 ] [ 2 {Roccampi:dopreduce} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:restofexpr ::= [ 0 +@@+ 1 ] [ 0 +@@- 1 ] [ 0 +@@* 1 ] [ 0 +@@/ 1 ] [ 0 +@@\\ 1 ] [ 0 +@PLUS 1 ] [ 0 +@MINUS 1 ] [ 0 +@TIMES 1 ] " \
+				"[ 1 occampi:expr 2 ] [ 2 {Roccampi:dopreduce} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);
