@@ -512,7 +512,7 @@ void dfa_matchpush (dfanode_t *dfa, char *pushto, dfanode_t *target, int deferri
 	char *pdfaname = pushto;
 	int dopush = 1;
 
-	if (*pdfaname == '%') {
+	if ((*pdfaname == '%') || (*pdfaname == '&')) {
 		/*{{{  initial matches, but no push -- needed for some "is it a ... ?" parsing */
 		pdfaname++;
 		dopush = 0;
@@ -581,8 +581,11 @@ fprintf (stderr, "dfa_matchpush(): adding deferred match for [%s] (initial defer
 				/*}}}*/
 			}
 		} else {
-			/*{{{  just matching initials, don't consume them*/
-			dfa_addmatch (dfa, t_tok, target, DFAFLAG_NOCONSUME);
+			/*{{{  just matching initials, no-consume or push them*/
+			dfa_addmatch (dfa, t_tok, target, (*pushto == '&') ? DFAFLAG_KEEP : DFAFLAG_NOCONSUME);
+#if 0
+fprintf (stderr, "dfa_matchpush(): added initial match, *pdfaname = %c, *pushto = %c\n", *pdfaname, *pushto);
+#endif
 
 			/*}}}*/
 		}
@@ -1522,7 +1525,7 @@ static int dfa_idecode_checkmatch (const char *mbit, int lookuperr)
 			/*{{{  default -- if allowed a sub-spec, look it up*/
 		default:
 			/* check for sensible name */
-			if ((*bit == '%') && allow_subspec) {
+			if (((*bit == '%') || (*bit == '&')) && allow_subspec) {
 				/* this is a set of initial matches, not a PUSH */
 				dfarule = dfa_lookupbyname (bit + 1);
 				if (dfarule || !lookuperr || (lookuperr == 2)) {
