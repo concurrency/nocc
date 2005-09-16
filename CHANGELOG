@@ -1,4 +1,7 @@
 
+16/09/2005	frmb	more support for dyadic operators (sorta work, ish :))
+16/09/2005	frmb	improved result back-end node handling
+15/09/2005	frmb	added back-end-map parse to the mapper
 13/09/2005	frmb	added "result" node-type to back-end
 12/09/2005	frmb	initial expression/dyadic handling
 12/09/2005	frmb	experimentally added "_" as record-subscription in the parser

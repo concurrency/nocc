@@ -1180,6 +1180,7 @@ static int krocetc_bemap_result (tnode_t **rnodep, map_t *mdata)
 		int *regfors = (int *)smalloc (DA_CUR (rh->sublist) * sizeof (int));
 		int i;
 		int rleft;
+		int rused = 0;
 		int max = 0;
 
 		rleft = 3;						/* FIXME! */
@@ -1188,15 +1189,19 @@ static int krocetc_bemap_result (tnode_t **rnodep, map_t *mdata)
 			if (regfors[i] > rleft) {
 				nocc_warning ("krocetc_bemap_result(): fixme: wanted %d registers, got %d", regfors[i], rleft);
 			}
-			if (regfors[i] > max) {
-				max = regfors[i];
+			if ((regfors[i] + rused) > max) {
+				max = regfors[i] + rused;
 			}
 			rleft--;
+			rused++;
 		}
 
 		sfree (regfors);
 
-		rh->eval_regs = max;			/* FIXME! */
+		if (rused > max) {
+			max = rused;
+		}
+		rh->eval_regs = max;				/* FIXME! */
 		rh->result_regs = 1;				/* FIXME! -- assumption.. */
 	} else {
 		nocc_warning ("krocetc_bemap_result(): no sub-things in result..");
