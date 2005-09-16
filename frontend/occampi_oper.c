@@ -63,19 +63,20 @@ typedef struct TAG_dopmap {
 	const char *lookup;
 	token_t *tok;
 	ntdef_t **tagp;
+	transinstr_e instr;
 } dopmap_t;
 
 /*}}}*/
 /*{{{  private data*/
 static dopmap_t dopmap[] = {
-	{SYMBOL, "+", NULL, &(opi.tag_ADD)},
-	{SYMBOL, "-", NULL, &(opi.tag_SUB)},
-	{SYMBOL, "*", NULL, &(opi.tag_MUL)},
-	{SYMBOL, "/", NULL, &(opi.tag_DIV)},
-	{SYMBOL, "\\", NULL, &(opi.tag_REM)},
-	{KEYWORD, "PLUS", NULL, &(opi.tag_PLUS)},
-	{KEYWORD, "MINUS", NULL, &(opi.tag_MINUS)},
-	{KEYWORD, "TIMES", NULL, &(opi.tag_TIMES)},
+	{SYMBOL, "+", NULL, &(opi.tag_ADD), I_ADD},
+	{SYMBOL, "-", NULL, &(opi.tag_SUB), I_SUB},
+	{SYMBOL, "*", NULL, &(opi.tag_MUL), I_MUL},
+	{SYMBOL, "/", NULL, &(opi.tag_DIV), I_DIV},
+	{SYMBOL, "\\", NULL, &(opi.tag_REM), I_REM},
+	{KEYWORD, "PLUS", NULL, &(opi.tag_PLUS), I_SUM},
+	{KEYWORD, "MINUS", NULL, &(opi.tag_MINUS), I_DIFF},
+	{KEYWORD, "TIMES", NULL, &(opi.tag_TIMES), I_PROD},
 	{NOTOKEN, NULL, NULL, NULL}
 };
 
@@ -105,6 +106,45 @@ static int occampi_premap_dop (tnode_t **node, map_t *map)
 	map_subpremap (tnode_nthsubaddr (*node, 1), map);
 
 	*node = map->target->newresult (*node, map);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_namemap_dop (tnode_t **node, map_t *map)*/
+/*
+ *	name-maps a DOPNODE, adding child nodes to any enclosing result
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_dop (tnode_t **node, map_t *map)
+{
+	/* name-map left and right */
+	map_submapnames (tnode_nthsubaddr (*node, 0), map);
+	map_submapnames (tnode_nthsubaddr (*node, 1), map);
+
+	/* set in result */
+	map_addtoresult (tnode_nthsubaddr (*node, 0), map);
+	map_addtoresult (tnode_nthsubaddr (*node, 1), map);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_codegen_dop (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	called to do code-generation for a DOPNODE -- operands are already on the stack
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_codegen_dop (tnode_t *node, codegen_t *cgen)
+{
+	int i;
+
+	for (i=0; dopmap[i].lookup; i++) {
+		if (node->tag == *(dopmap[i].tagp)) {
+			codegen_callops (cgen, tsecondary, dopmap[i].instr);
+			return 0;
+		}
+	}
+
+	codegen_error (cgen, "occampi_codgen_dop(): don\'t know how to generate code for [%s] [%s]", node->tag->ndef->name, node->tag->name);
 
 	return 0;
 }
@@ -167,6 +207,8 @@ static int occampi_oper_init_nodes (void)
 	cops = tnode_newcompops ();
 	cops->gettype = occampi_gettype_dop;
 	cops->premap = occampi_premap_dop;
+	cops->namemap = occampi_namemap_dop;
+	cops->codegen = occampi_codegen_dop;
 	tnd->ops = cops;
 	i = -1;
 	opi.tag_MUL = tnode_newnodetag ("MUL", &i, tnd, NTF_NONE);
@@ -217,7 +259,7 @@ static dfattbl_t **occampi_oper_init_dfatrans (int *ntrans)
 
 	dynarray_init (transtbl);
 
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:restofexpr ::= [ 0 +@@+ 1 ] [ 0 +@@- 1 ] [ 0 +@@* 1 ] [ 0 +@@/ 1 ] [ 0 +@@\\ 1 ] [ 0 +@PLUS 1 ] [ 0 +@MINUS 1 ] [ 0 +@TIMES 1 ] " \
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:restofexpr +:= [ 0 +@@+ 1 ] [ 0 +@@- 1 ] [ 0 +@@* 1 ] [ 0 +@@/ 1 ] [ 0 +@@\\ 1 ] [ 0 +@PLUS 1 ] [ 0 +@MINUS 1 ] [ 0 +@TIMES 1 ] " \
 				"[ 1 occampi:expr 2 ] [ 2 {Roccampi:dopreduce} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);

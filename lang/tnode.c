@@ -1260,6 +1260,7 @@ compops_t *tnode_newcompops (void)
 	cops->betrans = NULL;
 	cops->premap = NULL;
 	cops->namemap = NULL;
+	cops->bemap = NULL;
 	cops->preallocate = NULL;
 	cops->precode = NULL;
 	cops->codegen = NULL;

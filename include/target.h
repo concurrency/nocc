@@ -72,8 +72,13 @@ typedef struct TAG_target {
 	struct TAG_tnode *(*newindexed)(struct TAG_tnode *, struct TAG_tnode *, int, int);
 				/* creates a back-end block reference, populated (block, body, map-data) */
 	struct TAG_tnode *(*newblockref)(struct TAG_tnode *, struct TAG_tnode *, struct TAG_map *);
-				/* creates a back-end result node, populated (expression, map-data) */
+				/* creates a back-end result node, semi-populated (expression, map-data) */
 	struct TAG_tnode *(*newresult)(struct TAG_tnode *, struct TAG_map *);
+
+
+				/* adds some back-end node to the sub-list of a result (node-ref, map-data) */
+	void (*inresult)(struct TAG_tnode **, struct TAG_map *);
+
 
 				/* return a pointer to the body within a back-end block */
 	struct TAG_tnode **(*be_blockbodyaddr)(struct TAG_tnode *);

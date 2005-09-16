@@ -95,6 +95,7 @@ typedef struct TAG_compops {
 	int (*betrans)(tnode_t **, struct TAG_target *);		/* performs back-end transforms for target */
 	int (*premap)(tnode_t **, struct TAG_map *);			/* performs pre-mapping for target */
 	int (*namemap)(tnode_t **, struct TAG_map *);			/* performs name-mapping for target */
+	int (*bemap)(tnode_t **, struct TAG_map *);			/* performs back-end-mapping for target */
 	int (*preallocate)(tnode_t *, struct TAG_target *);		/* performs pre-allocations for target */
 	int (*precode)(tnode_t **, struct TAG_codegen *);		/* performs pre-codegen for target */
 	int (*codegen)(tnode_t *, struct TAG_codegen *);		/* performs code-generation for target */

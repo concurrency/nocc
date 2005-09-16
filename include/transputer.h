@@ -29,7 +29,15 @@ typedef enum ENUM_transinstr {
 	I_MOVE = 12,
 	I_STARTP = 13,
 	I_ENDP = 14,
-	I_RESCHEDULE = 15
+	I_RESCHEDULE = 15,
+	I_ADD = 16,
+	I_SUB = 17,
+	I_MUL = 18,
+	I_DIV = 19,
+	I_REM = 20,
+	I_SUM = 21,
+	I_DIFF = 22,
+	I_PROD = 23
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {

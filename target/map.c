@@ -101,6 +101,27 @@ static int map_modprewalk_premap (tnode_t **tptr, void *arg)
 	return i;
 }
 /*}}}*/
+/*{{{  static int map_modprewalk_bemap (tnode_t **tptr, void *arg)*/
+/*
+ *	walks over nodes doing back-end mapping
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int map_modprewalk_bemap (tnode_t **tptr, void *arg)
+{
+	map_t *mdata = (map_t *)arg;
+	int i;
+
+	if (!tptr || !*tptr) {
+		nocc_warning ("map_modprewalk_bemap(): null pointer or node!");
+		mdata->warn++;
+	}
+	i = 1;
+	if ((*tptr)->tag->ndef->ops && (*tptr)->tag->ndef->ops->bemap) {
+		i = (*tptr)->tag->ndef->ops->bemap (tptr, mdata);
+	}
+	return i;
+}
+/*}}}*/
 /*{{{  static void map_namemap_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
 /*
  *	displays the contents of a compiler-hook -- actually a back-end name-node
@@ -138,6 +159,18 @@ int map_subpremap (tnode_t **tptr, map_t *mdata)
 	return 0;		/* this always succeeds.. */
 }
 /*}}}*/
+/*{{{  int map_subbemap (tnode_t **tptr, map_t *mdata)*/
+/*
+ *	back-end-maps the given sub-tree
+ *	returns 0 on success, non-zero on error
+ */
+int map_subbemap (tnode_t **tptr, map_t *mdata)
+{
+	tnode_modprewalktree (tptr, map_modprewalk_bemap, (void *)mdata);
+
+	return 0;		/* this always succeeds.. */
+}
+/*}}}*/
 /*{{{  int map_mapnames (tnode_t **tptr, target_t *target)*/
 /*
  *	transforms the given tree, turning source name-nodes into back-end name-nodes
@@ -154,17 +187,32 @@ int map_mapnames (tnode_t **tptr, target_t *target)
 	mdata->warn = 0;
 	mdata->thisblock = NULL;
 	mdata->thisprocparams = NULL;
+	mdata->thisberesult = NULL;
 	mdata->mapchook = tnode_lookupornewchook ("map:mapnames");
 	mdata->mapchook->chook_dumptree = map_namemap_chook_dumptree;
 
 	/* do pre-mapping then real mapping */
 	tnode_modprewalktree (tptr, map_modprewalk_premap, (void *)mdata);
 	tnode_modprewalktree (tptr, map_modprewalk_mapnames, (void *)mdata);
+	tnode_modprewalktree (tptr, map_modprewalk_bemap, (void *)mdata);
 
 	i = mdata->err;
 	sfree (mdata);
 
 	return i;
+}
+/*}}}*/
+/*{{{  int map_addtoresult (tnode_t **nodep, map_t *mdata)*/
+/*
+ *	adds the given back-end node reference to a sub-list in a back-end result
+ *	returns 0 on success, non-zero on error
+ */
+int map_addtoresult (tnode_t **nodep, map_t *mdata)
+{
+	if (mdata->thisberesult) {
+		mdata->target->inresult (nodep, mdata);
+	}
+	return 0;
 }
 /*}}}*/
 

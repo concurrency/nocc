@@ -58,6 +58,7 @@ static tnode_t *krocetc_const_create (tnode_t *val, map_t *mdata, void *data, in
 static tnode_t *krocetc_indexed_create (tnode_t *base, tnode_t *index, int isize, int offset);
 static tnode_t *krocetc_blockref_create (tnode_t *block, tnode_t *body, map_t *mdata);
 static tnode_t *krocetc_result_create (tnode_t *expr, map_t *mdata);
+static void krocetc_inresult (tnode_t **nodep, map_t *mdata);
 static tnode_t **krocetc_be_blockbodyaddr (tnode_t *blk);
 static int krocetc_be_allocsize (tnode_t *node, int *pwsh, int *pwsl, int *pvs, int *pms);
 static void krocetc_be_setoffsets (tnode_t *bename, int ws_offset, int vs_offset, int ms_offset);
@@ -112,6 +113,7 @@ target_t krocetc_target = {
 	newindexed:	krocetc_indexed_create,
 	newblockref:	krocetc_blockref_create,
 	newresult:	krocetc_result_create,
+	inresult:	krocetc_inresult,
 
 	be_blockbodyaddr:	krocetc_be_blockbodyaddr,
 	be_allocsize:	krocetc_be_allocsize,
@@ -179,12 +181,14 @@ typedef struct TAG_krocetc_priv {
 	name_t *toplevelname;
 
 	chook_t *mapchook;
+	chook_t *resultsubhook;
 } krocetc_priv_t;
 
-typedef struct TAG_krocetc_resulthook {
+typedef struct TAG_krocetc_resultsubhook {
 	int eval_regs;
 	int result_regs;
-} krocetc_resulthook_t;
+	DYNARRAY (tnode_t **, sublist);
+} krocetc_resultsubhook_t;
 
 /*}}}*/
 
@@ -396,32 +400,61 @@ static void krocetc_specialhook_dumptree (tnode_t *node, void *hook, int indent,
 }
 /*}}}*/
 /*}}}*/
-/*{{{  krocetc_resulthook_t routines*/
-/*{{{  static void krocetc_resulthook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+
+
+/*{{{  krocetc_resultsubhook_t routines*/
+/*{{{  static void krocetc_resultsubhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
 /*
  *	dumps hook for debugging
  */
-static void krocetc_resulthook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void krocetc_resultsubhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
 {
-	krocetc_resulthook_t *rh = (krocetc_resulthook_t *)hook;
+	krocetc_resultsubhook_t *rh = (krocetc_resultsubhook_t *)hook;
+	int i;
 
 	krocetc_isetindent (stream, indent);
-	fprintf (stream, "<resulthook eregs=\"%d\" rregs=\"%d\" />\n", rh->eval_regs, rh->result_regs);
+	fprintf (stream, "<chook:resultsubhook eregs=\"%d\" rregs=\"%d\">\n", rh->eval_regs, rh->result_regs);
+	for (i=0; i<DA_CUR (rh->sublist); i++) {
+		tnode_t *ref = *(DA_NTHITEM (rh->sublist, i));
+
+		krocetc_isetindent (stream, indent+1);
+		fprintf (stream, "<noderef nodetype=\"%s\" type=\"%s\" addr=\"0x%8.8x\" />\n", ref->tag->ndef->name, ref->tag->name, (unsigned int)ref);
+	}
+	krocetc_isetindent (stream, indent);
+	fprintf (stream, "</chook:resultsubhook>\n");
 	return;
 }
 /*}}}*/
-/*{{{  static krocetc_resulthook_t *krocetc_resulthook_create (void)*/
+/*{{{  static krocetc_resultsubhook_t *krocetc_resultsubhook_create (void)*/
 /*
  *	creates a blank result hook
  */
-static krocetc_resulthook_t *krocetc_resulthook_create (void)
+static krocetc_resultsubhook_t *krocetc_resultsubhook_create (void)
 {
-	krocetc_resulthook_t *rh = (krocetc_resulthook_t *)smalloc (sizeof (krocetc_resulthook_t));
+	krocetc_resultsubhook_t *rh = (krocetc_resultsubhook_t *)smalloc (sizeof (krocetc_resultsubhook_t));
 
 	rh->eval_regs = -1;
 	rh->result_regs = -1;
+	dynarray_init (rh->sublist);
 
 	return rh;
+}
+/*}}}*/
+/*{{{  static void krocetc_resultsubhook_free (void *hook)*/
+/*
+ *	frees a result hook
+ */
+static void krocetc_resultsubhook_free (void *hook)
+{
+	krocetc_resultsubhook_t *rh = (krocetc_resultsubhook_t *)hook;
+
+	if (!rh) {
+		return;
+	}
+	dynarray_trash (rh->sublist);
+	sfree (rh);
+
+	return;
 }
 /*}}}*/
 /*}}}*/
@@ -542,13 +575,41 @@ static tnode_t *krocetc_blockref_create (tnode_t *block, tnode_t *body, map_t *m
  */
 static tnode_t *krocetc_result_create (tnode_t *expr, map_t *mdata)
 {
-	krocetc_resulthook_t *rh;
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)mdata->target->priv;
+	krocetc_resultsubhook_t *rh;
 	tnode_t *res;
 
-	rh = krocetc_resulthook_create ();
-	res = tnode_create (krocetc_target.tag_RESULT, NULL, expr, rh);
+	res = tnode_create (krocetc_target.tag_RESULT, NULL, expr);
+
+	rh = krocetc_resultsubhook_create ();
+	tnode_setchook (res, kpriv->resultsubhook, (void *)rh);
 
 	return res;
+}
+/*}}}*/
+/*{{{  static void krocetc_inresult (tnode_t **node, map_t *mdata)*/
+/*
+ *	adds a (back-end) node to the sub-list of a back-end result node, used in expressions and the like
+ */
+static void krocetc_inresult (tnode_t **nodep, map_t *mdata)
+{
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)mdata->target->priv;
+	krocetc_resultsubhook_t *rh;
+
+	if (!mdata->thisberesult) {
+		nocc_internal ("krocetc_inresult(): not inside any result!");
+		return;
+	}
+
+	rh = (krocetc_resultsubhook_t *)tnode_getchook (mdata->thisberesult, kpriv->resultsubhook);
+	if (!rh) {
+		nocc_internal ("krocetc_inresult(): missing resultsubhook!");
+		return;
+	}
+
+	dynarray_add (rh->sublist, nodep);
+
+	return;
 }
 /*}}}*/
 
@@ -862,6 +923,38 @@ static tnode_t **krocetc_be_blockbodyaddr (tnode_t *blk)
 	return tnode_nthsubaddr (blk, 0);
 }
 /*}}}*/
+/*{{{  static int krocetc_be_regsfor (tnode_t *benode)*/
+/*
+ *	returns the number of registers required to evaluate something
+ */
+static int krocetc_be_regsfor (tnode_t *benode)
+{
+	if (benode->tag == krocetc_target.tag_NAME) {
+		/* something local, if anything */
+		return 1;
+	} else if (benode->tag == krocetc_target.tag_CONST) {
+		/* constants are easy */
+		return 1;
+	} else if (benode->tag == krocetc_target.tag_RESULT) {
+		krocetc_priv_t *kpriv = (krocetc_priv_t *)krocetc_target.priv;
+		krocetc_resultsubhook_t *rh;
+
+		/* find out in result */
+		rh = (krocetc_resultsubhook_t *)tnode_getchook (benode, kpriv->resultsubhook);
+		if (!rh) {
+			nocc_internal ("krocetc_be_regsfor(): missing resultsubhook in [%s]!", benode->tag->name);
+			return 0;
+		}
+
+		return rh->eval_regs;
+	} else {
+#if 1
+fprintf (stderr, "krocetc_be_regsfor(): regsfor [%s] [%s] ?\n", benode->tag->ndef->name, benode->tag->name);
+#endif
+	}
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static int krocetc_preallocate_block (tnode_t *blk, target_t *target)*/
 /*
@@ -1005,6 +1098,135 @@ fprintf (stderr, "krocetc_codegen_const(): ch->label = %d, ch->labrefs = %d\n", 
 	if (ch->label > 0) {
 		krocetc_coder_setlabel (cgen, ch->label);
 		krocetc_coder_constblock (cgen, ch->byteptr, ch->size);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int krocetc_codegen_constref (tnode_t *constref, codegen_t *cgen)*/
+/*
+ *	generates code for a constant reference -- loads the constant
+ *	return 0 to stop walk, 1 to continue
+ */
+static int krocetc_codegen_constref (tnode_t *constref, codegen_t *cgen)
+{
+	krocetc_consthook_t *ch = (krocetc_consthook_t *)tnode_nthhookof (constref, 0);
+	int val;
+
+	switch (ch->size) {
+	case 1:
+		val = (int)(*(unsigned char *)(ch->byteptr));
+		break;
+	case 2:
+		val = (int)(*(unsigned short int *)(ch->byteptr));
+		break;
+	case 4:
+		val = (int)(*(unsigned int *)(ch->byteptr));
+		break;
+	default:
+		val = 0;
+		break;
+	}
+	codegen_write_fmt (cgen, "\tldc\t%d\n", val);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int krocetc_namemap_result (tnode_t **rnodep, map_t *mdata)*/
+/*
+ *	name-map for a back-end result, sets hook in the map-data and sub-walks
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int krocetc_namemap_result (tnode_t **rnodep, map_t *mdata)
+{
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)mdata->target->priv;
+	krocetc_resultsubhook_t *rh;
+	tnode_t *prevresult;
+
+	rh = (krocetc_resultsubhook_t *)tnode_getchook (*rnodep, kpriv->resultsubhook);
+	if (!rh) {
+		nocc_internal ("krocetc_namemap_result(): missing resultsubhook!");
+		return 0;
+	}
+
+	/* do name-map on contents with this node set as the result */
+	prevresult = mdata->thisberesult;
+	mdata->thisberesult = *rnodep;
+	map_submapnames (tnode_nthsubaddr (*rnodep, 0), mdata);
+	mdata->thisberesult = prevresult;
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int krocetc_bemap_result (tnode_t **rnodep, map_t *mdata)*/
+/*
+ *	back-end map for back-end result, collects up size needed for result evaluation
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int krocetc_bemap_result (tnode_t **rnodep, map_t *mdata)
+{
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)mdata->target->priv;
+	krocetc_resultsubhook_t *rh;
+
+	rh = (krocetc_resultsubhook_t *)tnode_getchook (*rnodep, kpriv->resultsubhook);
+	if (!rh) {
+		nocc_internal ("krocetc_bemap_result(): missing resultsubhook!");
+		return 0;
+	}
+
+	/* sub-map first */
+	map_subbemap (tnode_nthsubaddr (*rnodep, 0), mdata);
+
+	if (DA_CUR (rh->sublist)) {
+		int *regfors = (int *)smalloc (DA_CUR (rh->sublist) * sizeof (int));
+		int i;
+		int rleft;
+		int max = 0;
+
+		rleft = 3;						/* FIXME! */
+		for (i=0; i<DA_CUR(rh->sublist); i++) {
+			regfors[i] = krocetc_be_regsfor (*(DA_NTHITEM (rh->sublist, i)));
+			if (regfors[i] > rleft) {
+				nocc_warning ("krocetc_bemap_result(): fixme: wanted %d registers, got %d", regfors[i], rleft);
+			}
+			if (regfors[i] > max) {
+				max = regfors[i];
+			}
+			rleft--;
+		}
+
+		sfree (regfors);
+
+		rh->eval_regs = max;			/* FIXME! */
+		rh->result_regs = 1;				/* FIXME! -- assumption.. */
+	} else {
+		nocc_warning ("krocetc_bemap_result(): no sub-things in result..");
+		rh->eval_regs = 0;
+		rh->result_regs = 0;
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int krocetc_codegen_result (tnode_t *rnode, codegen_t *cgen)*/
+/*
+ *	generates code for a result -- evaluates as necessary
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int krocetc_codegen_result (tnode_t *rnode, codegen_t *cgen)
+{
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)krocetc_target.priv;
+	krocetc_resultsubhook_t *rh = (krocetc_resultsubhook_t *)tnode_getchook (rnode, kpriv->resultsubhook);
+	tnode_t *expr;
+	int i;
+
+	for (i=0; i<DA_CUR (rh->sublist); i++) {
+		/* load this */
+		codegen_subcodegen (*(DA_NTHITEM (rh->sublist, i)), cgen);
+	}
+	/* then call code-gen on the argument, if it exists */
+	expr = tnode_nthsubof (rnode, 0);
+	if (expr) {
+		codegen_subcodegen (expr, cgen);
 	}
 	return 0;
 }
@@ -1237,24 +1459,8 @@ static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)
 		/*}}}*/
 	} else if (name->tag == kpriv->tag_CONSTREF) {
 		/*{{{  load constant via reference*/
-		krocetc_consthook_t *ch = (krocetc_consthook_t *)tnode_nthhookof (name, 0);
-		int val;
+		codegen_subcodegen (name, cgen);
 
-		switch (ch->size) {
-		case 1:
-			val = (int)(*(unsigned char *)(ch->byteptr));
-			break;
-		case 2:
-			val = (int)(*(unsigned short int *)(ch->byteptr));
-			break;
-		case 4:
-			val = (int)(*(unsigned int *)(ch->byteptr));
-			break;
-		default:
-			val = 0;
-			break;
-		}
-		codegen_write_fmt (cgen, "\tldc\t%d\n", val);
 		/*}}}*/
 	} else if (name->tag == cgen->target->tag_NAME) {
 		/*{{{  loading a name with no scope (specials only!)*/
@@ -1268,8 +1474,13 @@ static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)
 			nocc_warning ("krocetc_coder_loadname(): don\'t know how to load a name of [%s]", name->tag->name);
 		}
 		/*}}}*/
+	} else if (name->tag == cgen->target->tag_RESULT) {
+		/*{{{  loading some evaluated result*/
+		codegen_subcodegen (name, cgen);
+
+		/*}}}*/
 	} else {
-		nocc_warning ("krocetc_coder_loadpointer(): don\'t know how to load [%s]", name->tag->name);
+		nocc_warning ("krocetc_coder_loadname(): don\'t know how to load [%s]", name->tag->name);
 	}
 	return;
 }
@@ -1554,6 +1765,30 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 	case I_RESCHEDULE:
 		codegen_write_string (cgen, "\t.reschedule\n");
 		break;
+	case I_ADD:
+		codegen_write_string (cgen, "\tadd\n");
+		break;
+	case I_SUB:
+		codegen_write_string (cgen, "\tsub\n");
+		break;
+	case I_MUL:
+		codegen_write_string (cgen, "\tmul\n");
+		break;
+	case I_DIV:
+		codegen_write_string (cgen, "\tdiv\n");
+		break;
+	case I_REM:
+		codegen_write_string (cgen, "\trem\n");
+		break;
+	case I_SUM:
+		codegen_write_string (cgen, "\tsum\n");
+		break;
+	case I_DIFF:
+		codegen_write_string (cgen, "\tdiff\n");
+		break;
+	case I_PROD:
+		codegen_write_string (cgen, "\tprod\n");
+		break;
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: tsecondary %d\n", ins);
 		break;
@@ -1742,6 +1977,9 @@ fprintf (stderr, "krocetc_target_init(): here!\n");
 	kpriv->precodelist = NULL;
 	kpriv->toplevelname = NULL;
 	kpriv->mapchook = tnode_lookupornewchook ("map:mapnames");
+	kpriv->resultsubhook = tnode_lookupornewchook ("krocetc:resultsubhook");
+	kpriv->resultsubhook->chook_dumptree = krocetc_resultsubhook_dumptree;
+	kpriv->resultsubhook->chook_free = krocetc_resultsubhook_free;
 	target->priv = (void *)kpriv;
 #if 0
 fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchook);
@@ -1811,6 +2049,9 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:constref", &i, 0, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_consthook_dumptree;
+	cops = tnode_newcompops ();
+	cops->codegen = krocetc_codegen_constref;
+	tnd->ops = cops;
 	i = -1;
 	kpriv->tag_CONSTREF = tnode_newnodetag ("KROCETCCONSTREF", &i, tnd, 0);
 	/*}}}*/
@@ -1836,8 +2077,12 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	/*}}}*/
 	/*{{{  krocetc:result -- KROCETCRESULT*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:result", &i, 1, 0, 1, 0);
-	tnd->hook_dumptree = krocetc_resulthook_dumptree;
+	tnd = tnode_newnodetype ("krocetc:result", &i, 1, 0, 0, 0);
+	cops = tnode_newcompops ();
+	cops->namemap = krocetc_namemap_result;
+	cops->bemap = krocetc_bemap_result;
+	cops->codegen = krocetc_codegen_result;
+	tnd->ops = cops;
 	i = -1;
 	target->tag_RESULT = tnode_newnodetag ("KROCETCRESULT", &i, tnd, 0);
 	/*}}}*/
