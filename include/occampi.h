@@ -91,6 +91,8 @@ typedef struct {
 	struct TAG_ntdef *tag_PLUS;
 	struct TAG_ntdef *tag_MINUS;
 	struct TAG_ntdef *tag_TIMES;
+	struct TAG_ntdef *tag_UMINUS;
+	struct TAG_ntdef *tag_BITNOT;
 
 	struct TAG_ntdef *tag_NDECL;
 	struct TAG_ntdef *tag_NPARAM;

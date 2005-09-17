@@ -37,7 +37,9 @@ typedef enum ENUM_transinstr {
 	I_REM = 20,
 	I_SUM = 21,
 	I_DIFF = 22,
-	I_PROD = 23
+	I_PROD = 23,
+	I_NEG = 24,
+	I_NOT = 25
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {

@@ -66,6 +66,15 @@ typedef struct TAG_dopmap {
 	transinstr_e instr;
 } dopmap_t;
 
+typedef struct TAG_mopmap {
+	tokentype_t ttype;
+	const char *lookup;
+	token_t *tok;
+	ntdef_t **tagp;
+	transinstr_e instr;
+} mopmap_t;
+
+
 /*}}}*/
 /*{{{  private data*/
 static dopmap_t dopmap[] = {
@@ -77,6 +86,12 @@ static dopmap_t dopmap[] = {
 	{KEYWORD, "PLUS", NULL, &(opi.tag_PLUS), I_SUM},
 	{KEYWORD, "MINUS", NULL, &(opi.tag_MINUS), I_DIFF},
 	{KEYWORD, "TIMES", NULL, &(opi.tag_TIMES), I_PROD},
+	{NOTOKEN, NULL, NULL, NULL}
+};
+
+static mopmap_t mopmap[] = {
+	{SYMBOL, "-", NULL, &(opi.tag_UMINUS), I_NEG},
+	{SYMBOL, "~", NULL, &(opi.tag_BITNOT), I_NOT},
 	{NOTOKEN, NULL, NULL, NULL}
 };
 
@@ -151,6 +166,70 @@ static int occampi_codegen_dop (tnode_t *node, codegen_t *cgen)
 /*}}}*/
 
 
+/*{{{  static tnode_t *occampi_gettype_mop (tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	gets type of a MOPNODE
+ */
+static tnode_t *occampi_gettype_mop (tnode_t *node, tnode_t *defaulttype)
+{
+	/* FIXME! */
+	return defaulttype;
+}
+/*}}}*/
+/*{{{  static int occampi_premap_mop (tnode_t **node, map_t *map)*/
+/*
+ *	does pre-mapping for a MOPNODE -- inserts back-end RESULT nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_premap_mop (tnode_t **node, map_t *map)
+{
+	/* pre-map operand */
+	map_subpremap (tnode_nthsubaddr (*node, 0), map);
+
+	*node = map->target->newresult (*node, map);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_namemap_mop (tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a MOPNODE
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_mop (tnode_t **node, map_t *map)
+{
+	/* name-map operand */
+	map_submapnames (tnode_nthsubaddr (*node, 0), map);
+
+	/* set in result */
+	map_addtoresult (tnode_nthsubaddr (*node, 0), map);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_codegen_mop (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	called to do code-generation for a MOPNODE -- operand already on the stack
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_codegen_mop (tnode_t *node, codegen_t *cgen)
+{
+	int i;
+
+	for (i=0; mopmap[i].lookup; i++) {
+		if (node->tag == *(mopmap[i].tagp)) {
+			codegen_callops (cgen, tsecondary, mopmap[i].instr);
+			return 0;
+		}
+	}
+
+	codegen_error (cgen, "occampi_codgen_mop(): don\'t know how to generate code for [%s] [%s]", node->tag->ndef->name, node->tag->name);
+
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static void occampi_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
  *	reduces a dyadic operator, expects 2 nodes on the node-stack,
@@ -184,6 +263,42 @@ static void occampi_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 		return;
 	}
 	*(dfast->ptr) = tnode_create (tag, pp->lf, lhs, rhs, NULL);
+
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_reduce_mop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	reduces a monadic operator, expects operand on the node-stack, operator on
+ *	the token-stack.
+ */
+static void occampi_reduce_mop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	token_t *tok = parser_gettok (pp);
+	tnode_t *operand;
+	ntdef_t *tag = NULL;
+	int i;
+
+	if (!tok) {
+		parser_error (pp->lf, "occampi_reduce_mop(): no token ?");
+		return;
+	}
+	operand = dfa_popnode (dfast);
+	if (!operand) {
+		parser_error (pp->lf, "occampi_reduce_mop(): operand=0x%8.8x", (unsigned int)operand);
+		return;
+	}
+	for (i=0; mopmap[i].lookup; i++) {
+		if (lexer_tokmatch (mopmap[i].tok, tok)) {
+			tag = *(mopmap[i].tagp);
+			break;
+		}
+	}
+	if (!tag) {
+		parser_error (pp->lf, "occampi_reduce_mop(): unhandled token [%s]", lexer_stokenstr (tok));
+		return;
+	}
+	*(dfast->ptr) = tnode_create (tag, pp->lf, operand, NULL);
 
 	return;
 }
@@ -227,11 +342,29 @@ static int occampi_oper_init_nodes (void)
 	i = -1;
 	opi.tag_TIMES = tnode_newnodetag ("TIMES", &i, tnd, NTF_NONE);
 	/*}}}*/
+	/*{{{  occampi:mopnode -- UMINUS, BITNOT*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:mopnode", &i, 2, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	cops->gettype = occampi_gettype_mop;
+	cops->premap = occampi_premap_mop;
+	cops->namemap = occampi_namemap_mop;
+	cops->codegen = occampi_codegen_mop;
+	tnd->ops = cops;
+	i = -1;
+	opi.tag_UMINUS = tnode_newnodetag ("UMINUS", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_BITNOT = tnode_newnodetag ("BITNOT", &i, tnd, NTF_NONE);
+	/*}}}*/
 
 	/*{{{  setup local tokens*/
 	for (i=0; dopmap[i].lookup; i++) {
 		dopmap[i].tok = lexer_newtoken (dopmap[i].ttype, dopmap[i].lookup);
 	}
+	for (i=0; mopmap[i].lookup; i++) {
+		mopmap[i].tok = lexer_newtoken (mopmap[i].ttype, mopmap[i].lookup);
+	}
+
 	/*}}}*/
 
 	return 0;
@@ -245,6 +378,7 @@ static int occampi_oper_init_nodes (void)
 static int occampi_oper_reg_reducers (void)
 {
 	parser_register_reduce ("Roccampi:dopreduce", occampi_reduce_dop, NULL);
+	parser_register_reduce ("Roccampi:mopreduce", occampi_reduce_mop, NULL);
 
 	return 0;
 }
@@ -261,6 +395,7 @@ static dfattbl_t **occampi_oper_init_dfatrans (int *ntrans)
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:restofexpr +:= [ 0 +@@+ 1 ] [ 0 +@@- 1 ] [ 0 +@@* 1 ] [ 0 +@@/ 1 ] [ 0 +@@\\ 1 ] [ 0 +@PLUS 1 ] [ 0 +@MINUS 1 ] [ 0 +@TIMES 1 ] " \
 				"[ 1 occampi:expr 2 ] [ 2 {Roccampi:dopreduce} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:expr +:= [ 0 +@@- 1 ] [ 0 +@@~ 1 ] [ 1 occampi:expr 2 ] [ 2 {Roccampi:mopreduce} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

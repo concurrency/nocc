@@ -233,6 +233,26 @@ int codegen_write_fmt (codegen_t *cgen, const char *fmt, ...)
 /*}}}*/
 
 
+/*{{{  void codegen_warning (codegen_t *cgen, const char *fmt, ...)*/
+/*
+ *	throws a code-generator warning message
+ */
+void codegen_warning (codegen_t *cgen, const char *fmt, ...)
+{
+	va_list ap;
+	int i;
+	char *buf = (char *)smalloc (1024);
+
+	va_start (ap, fmt);
+	i = vsnprintf (buf, 1023, fmt, ap);
+	va_end (ap);
+
+	nocc_outerrmsg (buf);
+
+	sfree (buf);
+	return;
+}
+/*}}}*/
 /*{{{  void codegen_error (codegen_t *cgen, const char *fmt, ...)*/
 /*
  *	throws a code-generator error message
@@ -366,6 +386,7 @@ int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)
 	cgen->labcount = 1;
 	cgen->cinsertpoint = tptr;
 	dynarray_init (cgen->be_blks);
+	dynarray_init (cgen->tcgstates);
 
 	/*{{{  figure out the output filename*/
 	if (compopts.outfile) {
@@ -426,6 +447,7 @@ int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)
 	/*{{{  shutdown back-end code generation*/
 	target->be_codegen_final (cgen, lf);
 
+	dynarray_trash (cgen->tcgstates);
 	dynarray_trash (cgen->be_blks);
 	close (cgen->fd);
 	sfree (cgen->fname);

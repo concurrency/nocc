@@ -41,6 +41,7 @@ typedef struct TAG_codegen {
 	int labcount;				/* ever-increasing label counter */
 	struct TAG_tnode **cinsertpoint;	/* coder insert-point (for constants, etc.) */
 	DYNARRAY (struct TAG_tnode *, be_blks);	/* enclosing back-end blocks, stack of */
+	DYNARRAY (void *, tcgstates);		/* target code-generation states, stack of */
 } codegen_t;
 
 typedef struct TAG_coderops {
@@ -74,6 +75,7 @@ extern int codegen_subprecode (struct TAG_tnode **tptr, codegen_t *cgen);
 
 extern void codegen_setinithook (struct TAG_tnode *node, void (*init)(struct TAG_tnode *, codegen_t *, void *), void *arg);
 
+extern void codegen_warning (codegen_t *cgen, const char *fmt, ...);
 extern void codegen_error (codegen_t *cgen, const char *fmt, ...);
 extern void codegen_fatal (codegen_t *cgen, const char *fmt, ...);
 

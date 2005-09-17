@@ -36,12 +36,12 @@
  */
 struct TAG_transinstr;
 
-#define TOTAL_KEYWORDS 16
+#define TOTAL_KEYWORDS 18
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 10
 #define MIN_HASH_VALUE 2
-#define MAX_HASH_VALUE 38
-/* maximum key range = 37, duplicates = 0 */
+#define MAX_HASH_VALUE 43
+/* maximum key range = 42, duplicates = 0 */
 
 #ifdef __GNUC__
 __inline
@@ -55,32 +55,32 @@ hash (register const char *str, register unsigned int len)
 {
   static const unsigned char asso_values[] =
     {
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 10,  3, 25, 15, 10,
-       5, 39, 39,  0, 39, 39, 10,  0, 39, 15,
-       0, 39,  5,  0, 15, 39,  0, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39, 39, 39, 39, 39,
-      39, 39, 39, 39, 39, 39
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 10,  3,  8, 15, 10,
+       5, 20, 44,  0, 44, 44, 10,  0, 20, 15,
+       0, 44,  5,  0, 15, 44,  0, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+      44, 44, 44, 44, 44, 44
     };
   register int hval = len;
 
@@ -120,7 +120,7 @@ static const struct TAG_transinstr wordlist[] =
     {"DIV",		INS_SECONDARY,	I_DIV,		NULL},
     {"PROD",		INS_SECONDARY,	I_PROD,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"LDC",		INS_PRIMARY,	I_LDC,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"LDL",		INS_PRIMARY,	I_LDL,		NULL},
     {"DIFF",		INS_SECONDARY,	I_DIFF,		NULL},
@@ -137,7 +137,12 @@ static const struct TAG_transinstr wordlist[] =
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"LDC",		INS_PRIMARY,	I_LDC,		NULL}
+    {"NOT",		INS_SECONDARY,	I_NOT,		NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"NEG",		INS_SECONDARY,	I_NEG,		NULL}
   };
 
 #ifdef __GNUC__

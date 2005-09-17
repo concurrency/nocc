@@ -180,6 +180,9 @@ typedef struct TAG_krocetc_priv {
 	tnode_t *precodelist;
 	name_t *toplevelname;
 
+	int maxtsdepth;		/* integer stack size */
+	int maxfpdepth;		/* floating-point stack size */
+
 	chook_t *mapchook;
 	chook_t *resultsubhook;
 } krocetc_priv_t;
@@ -189,6 +192,12 @@ typedef struct TAG_krocetc_resultsubhook {
 	int result_regs;
 	DYNARRAY (tnode_t **, sublist);
 } krocetc_resultsubhook_t;
+
+typedef struct TAG_krocetc_cgstate {
+	int tsdepth;		/* integer stack depth */
+	int fpdepth;		/* floating-point stack depth */
+} krocetc_cgstate_t;
+
 
 /*}}}*/
 
@@ -457,6 +466,144 @@ static void krocetc_resultsubhook_free (void *hook)
 	return;
 }
 /*}}}*/
+/*}}}*/
+
+
+/*{{{  krocetc_cgstate_t routines*/
+/*{{{  static krocetc_cgstate_t *krocetc_cgstate_create (void)*/
+/*
+ *	creates a new krocetc_cgstate_t
+ */
+static krocetc_cgstate_t *krocetc_cgstate_create (void)
+{
+	krocetc_cgstate_t *cgs = (krocetc_cgstate_t *)smalloc (sizeof (krocetc_cgstate_t));
+
+	cgs->tsdepth = 0;
+	cgs->fpdepth = 0;
+
+	return cgs;
+}
+/*}}}*/
+/*{{{  static void krocetc_cgstate_destroy (krocetc_cgstate_t *cgs)*/
+/*
+ *	destroys a krocetc_cgstate_t
+ */
+static void krocetc_cgstate_destroy (krocetc_cgstate_t *cgs)
+{
+	if (!cgs) {
+		nocc_internal ("krocetc_cgstate_destroy(): null state!");
+		return;
+	}
+	sfree (cgs);
+
+	return;
+}
+/*}}}*/
+/*}}}*/
+
+
+/*{{{  static krocetc_cgstate_t *krocetc_cgstate_newpush (codegen_t *cgen)*/
+/*
+ *	creates a new code-gen state and pushes it onto the code-gen stack, also returns it
+ */
+static krocetc_cgstate_t *krocetc_cgstate_newpush (codegen_t *cgen)
+{
+	krocetc_cgstate_t *cgs = krocetc_cgstate_create ();
+
+	dynarray_add (cgen->tcgstates, (void *)cgs);
+
+	return cgs;
+}
+/*}}}*/
+/*{{{  static krocetc_cgstate_t *krocetc_cgstate_copypush (codegen_t *cgen)*/
+/*
+ *	copies and pushes the current code-gen state, also returns it
+ */
+static krocetc_cgstate_t *krocetc_cgstate_copypush (codegen_t *cgen)
+{
+	krocetc_cgstate_t *cgs;
+
+	cgs = krocetc_cgstate_create ();
+	if (!DA_CUR (cgen->tcgstates)) {
+		codegen_warning (cgen, "krocetc_cgstate_copypush(): no previous state -- creating new");
+	} else {
+		krocetc_cgstate_t *lastcgs = (krocetc_cgstate_t *)DA_NTHITEM (cgen->tcgstates, DA_CUR (cgen->tcgstates) - 1);
+
+		cgs->tsdepth = lastcgs->tsdepth;
+		cgs->fpdepth = lastcgs->fpdepth;
+	}
+	dynarray_add (cgen->tcgstates, (void *)cgs);
+
+	return cgs;
+}
+/*}}}*/
+/*{{{  static void krocetc_cgstate_popfree (codegen_t *cgen)*/
+/*
+ *	pops and frees code-gen state
+ */
+static void krocetc_cgstate_popfree (codegen_t *cgen)
+{
+	krocetc_cgstate_t *cgs;
+
+	if (!DA_CUR (cgen->tcgstates)) {
+		nocc_internal ("krocetc_cgstate_popfree(): no tcgstates!");
+		return;
+	}
+	cgs = (krocetc_cgstate_t *)DA_NTHITEM (cgen->tcgstates, DA_CUR (cgen->tcgstates) - 1);
+	if (cgs->tsdepth) {
+		codegen_warning (cgen, "krocetc_cgstate_popfree(): integer stack at depth %d", cgs->tsdepth);
+	}
+	if (cgs->fpdepth) {
+		codegen_warning (cgen, "krocetc_cgstate_popfree(): floating-point stack at depth %d", cgs->fpdepth);
+	}
+
+	krocetc_cgstate_destroy (cgs);
+	return;
+}
+/*}}}*/
+/*{{{  static krocetc_cgstate_t *krocetc_cgstate_cur (codegen_t *cgen)*/
+/*
+ *	returns the current code-gen state
+ */
+static krocetc_cgstate_t *krocetc_cgstate_cur (codegen_t *cgen)
+{
+	if (!DA_CUR (cgen->tcgstates)) {
+		codegen_error (cgen, "krocetc_cgstate_cur(): no current code-gen state..");
+		return NULL;
+	}
+	return (krocetc_cgstate_t *)DA_NTHITEM (cgen->tcgstates, DA_CUR (cgen->tcgstates) - 1);
+}
+/*}}}*/
+/*{{{  static int krocetc_cgstate_tsdelta (codegen_t *cgen, int delta)*/
+/*
+ *	adjusts the integer stack -- emits a warning if it overflows or underflows
+ *	returns the new stack depth
+ */
+static int krocetc_cgstate_tsdelta (codegen_t *cgen, int delta)
+{
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)cgen->target->priv;
+	krocetc_cgstate_t *cgs = krocetc_cgstate_cur (cgen);
+
+	if (!cgs) {
+		codegen_error (cgen, "krocetc_cgstate_tsdelta(): no stack to adjust!");
+		return 0;
+	}
+#if 0
+fprintf (stderr, "krocetc_cgstate_tsdelta(): cgs->tsdepth = %d, delta = %d\n", cgs->tsdepth, delta);
+#endif
+	cgs->tsdepth += delta;
+	if (cgs->tsdepth < 0) {
+		codegen_warning (cgen, "krocetc_cgstate_tsdelta(): stack underflow");
+		cgs->tsdepth = 0;
+		codegen_write_fmt (cgen, "\t.tsdepth %d\n", cgs->tsdepth);
+	} else if (cgs->tsdepth > kpriv->maxtsdepth) {
+		codegen_warning (cgen, "krocetc_cgstate_tsdepth(): stack overflow");
+		cgs->tsdepth = kpriv->maxtsdepth;
+		codegen_write_fmt (cgen, "\t.tsdepth %d\n", cgs->tsdepth);
+	}
+
+	return cgs->tsdepth;
+}
 /*}}}*/
 
 
@@ -1025,11 +1172,14 @@ static int krocetc_codegen_block (tnode_t *blk, codegen_t *cgen)
 
 	if (blk->tag != krocetc_target.tag_BLOCK) {
 		nocc_internal ("krocetc_codegen_block(): block not back-end BLOCK, was [%s]", blk->tag->name);
+		return 0;
 	}
 	cgen->target->be_getblocksize (blk, &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
 	lexlevel = cgen->target->be_blocklexlevel (blk);
 	dynarray_setsize (cgen->be_blks, lexlevel + 1);
 	DA_SETNTHITEM (cgen->be_blks, lexlevel, blk);
+
+	krocetc_cgstate_newpush (cgen);
 
 	if (elab) {
 		codegen_callops (cgen, setlabel, elab);
@@ -1040,6 +1190,8 @@ static int krocetc_codegen_block (tnode_t *blk, codegen_t *cgen)
 
 	DA_SETNTHITEM (cgen->be_blks, lexlevel, NULL);
 	dynarray_setsize (cgen->be_blks, lexlevel);
+
+	krocetc_cgstate_popfree (cgen);
 
 	return 0;
 }
@@ -1127,6 +1279,7 @@ static int krocetc_codegen_constref (tnode_t *constref, codegen_t *cgen)
 		break;
 	}
 	codegen_write_fmt (cgen, "\tldc\t%d\n", val);
+	krocetc_cgstate_tsdelta (cgen, 1);
 
 	return 0;
 }
@@ -1399,10 +1552,12 @@ fprintf (stderr, "krocetc_coder_loadpointer(): [%s] local=%d, ref_lexlevel=%d, a
 			/*{{{  local load*/
 			if (nh->indir == 0) {
 				codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
+				krocetc_cgstate_tsdelta (cgen, 1);
 			} else {
 				int i;
 
 				codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
+				krocetc_cgstate_tsdelta (cgen, 1);
 				for (i=1; i<nh->indir; i++) {
 					codegen_write_fmt (cgen, "\tldnl\t0\n");
 				}
@@ -1426,6 +1581,7 @@ fprintf (stderr, "krocetc_coder_loadpointer(): [%s] local=%d, ref_lexlevel=%d, a
 
 		if (realname->tag == cgen->target->tag_STATICLINK) {
 			codegen_write_fmt (cgen, "\tldlp\t0\n");
+			krocetc_cgstate_tsdelta (cgen, 1);
 		} else {
 			nocc_warning ("krocetc_coder_loadpointer(): don\'t know how to load a pointer to name of [%s]", name->tag->name);
 		}
@@ -1454,6 +1610,7 @@ static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)
 		} else {
 			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
 		}
+		krocetc_cgstate_tsdelta (cgen, 1);
 		for (i=0; i<nh->indir; i++) {
 			if (offset && (i == (nh->indir - 1))) {
 				codegen_write_fmt (cgen, "\tldnl\t%d\n", offset);
@@ -1475,6 +1632,7 @@ static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)
 			krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (name, 0);
 
 			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
+			krocetc_cgstate_tsdelta (cgen, 1);
 		} else {
 			nocc_warning ("krocetc_coder_loadname(): don\'t know how to load a name of [%s]", name->tag->name);
 		}
@@ -1517,6 +1675,7 @@ static void krocetc_coder_loadparam (codegen_t *cgen, tnode_t *node, codegen_par
 static void krocetc_coder_loadlocalpointer (codegen_t *cgen, int offset)
 {
 	codegen_write_fmt (cgen, "\tldlp\t%d\n", offset);
+	krocetc_cgstate_tsdelta (cgen, 1);
 	return;
 }
 /*}}}*/
@@ -1583,13 +1742,16 @@ static void krocetc_coder_storename (codegen_t *cgen, tnode_t *name, int offset)
 		switch (nh->indir) {
 		case 0:
 			codegen_write_fmt (cgen, "\tstl\t%d\n", nh->ws_offset + offset);
+			krocetc_cgstate_tsdelta (cgen, -1);
 			break;
 		default:
 			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
+			krocetc_cgstate_tsdelta (cgen, 1);
 			for (i=0; i<(nh->indir - 1); i++) {
 				codegen_write_fmt (cgen, "\tldnl\t0\n");
 			}
 			codegen_write_fmt (cgen, "\tstnl\t%d\n", offset);
+			krocetc_cgstate_tsdelta (cgen, -2);
 			break;
 		}
 		/*}}}*/
@@ -1607,6 +1769,7 @@ static void krocetc_coder_storename (codegen_t *cgen, tnode_t *name, int offset)
 			if (!offsexp) {
 				/* constant offset */
 				codegen_write_fmt (cgen, "\tstnl\t%d\n", ih->offset);
+				krocetc_cgstate_tsdelta (cgen, -2);
 			} else {
 				/* variable offset */
 				codegen_callops (cgen, comment, "missing store variable offset in INDEXED node");
@@ -1632,6 +1795,7 @@ static void krocetc_coder_storename (codegen_t *cgen, tnode_t *name, int offset)
 static void krocetc_coder_storelocal (codegen_t *cgen, int ws_offset)
 {
 	codegen_write_fmt (cgen, "\tstl\t%d\n", ws_offset);
+	krocetc_cgstate_tsdelta (cgen, -1);
 	return;
 }
 /*}}}*/
@@ -1642,6 +1806,7 @@ static void krocetc_coder_storelocal (codegen_t *cgen, int ws_offset)
 static void krocetc_coder_loadconst (codegen_t *cgen, int val)
 {
 	codegen_write_fmt (cgen, "\tldc\t%d\n", val);
+	krocetc_cgstate_tsdelta (cgen, 1);
 	return;
 }
 /*}}}*/
@@ -1754,45 +1919,58 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 	switch (tins) {
 	case I_OUT:
 		codegen_write_string (cgen, "\tout\n");
+		krocetc_cgstate_tsdelta (cgen, -3);
 		break;
 	case I_IN:
 		codegen_write_string (cgen, "\tin\n");
+		krocetc_cgstate_tsdelta (cgen, -3);
 		break;
 	case I_MOVE:
 		codegen_write_string (cgen, "\tmove\n");
+		krocetc_cgstate_tsdelta (cgen, -3);
 		break;
 	case I_STARTP:
 		codegen_write_string (cgen, "\tstartp\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
 		break;
 	case I_ENDP:
 		codegen_write_string (cgen, "\tendp\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 	case I_RESCHEDULE:
 		codegen_write_string (cgen, "\t.reschedule\n");
 		break;
 	case I_ADD:
 		codegen_write_string (cgen, "\tadd\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 	case I_SUB:
 		codegen_write_string (cgen, "\tsub\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 	case I_MUL:
 		codegen_write_string (cgen, "\tmul\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 	case I_DIV:
 		codegen_write_string (cgen, "\tdiv\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 	case I_REM:
 		codegen_write_string (cgen, "\trem\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 	case I_SUM:
 		codegen_write_string (cgen, "\tsum\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 	case I_DIFF:
 		codegen_write_string (cgen, "\tdiff\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 	case I_PROD:
 		codegen_write_string (cgen, "\tprod\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: tsecondary %d\n", ins);
@@ -1854,6 +2032,7 @@ static void krocetc_coder_constblock (codegen_t *cgen, void *ptr, int size)
 static void krocetc_coder_loadlabaddr (codegen_t *cgen, int lbl)
 {
 	codegen_write_fmt (cgen, ".loadlabaddr\t%d\n", lbl);
+	krocetc_cgstate_tsdelta (cgen, 1);
 	return;
 }
 /*}}}*/
@@ -1985,6 +2164,8 @@ fprintf (stderr, "krocetc_target_init(): here!\n");
 	kpriv->resultsubhook = tnode_lookupornewchook ("krocetc:resultsubhook");
 	kpriv->resultsubhook->chook_dumptree = krocetc_resultsubhook_dumptree;
 	kpriv->resultsubhook->chook_free = krocetc_resultsubhook_free;
+	kpriv->maxtsdepth = 3;
+	kpriv->maxfpdepth = 3;
 	target->priv = (void *)kpriv;
 #if 0
 fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchook);

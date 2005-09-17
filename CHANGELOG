@@ -1,4 +1,6 @@
 
+17/09/2005	frmb	initial support for monadic operators (just "-" and "~" so far)
+17/09/2005	frmb	kroc-etc target now tracks stack depths
 16/09/2005	frmb	more support for dyadic operators (sorta work, ish :))
 16/09/2005	frmb	improved result back-end node handling
 15/09/2005	frmb	added back-end-map parse to the mapper

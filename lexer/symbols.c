@@ -39,7 +39,7 @@
  */
 
 #define SYMBASE 0x20		/* still need null */
-#define SYMSIZE 0x41
+#define SYMSIZE 0x60
 
 static symbol_t symbols[] = {
 	{"!", 1, NULL},
@@ -74,6 +74,7 @@ static symbol_t symbols[] = {
 	{"=<", 2, NULL},
 	{",", 1, NULL},
 	{"_", 1, NULL},
+	{"~", 1, NULL},
 	{NULL, 0, NULL}
 };
 
