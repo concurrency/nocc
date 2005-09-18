@@ -46,6 +46,7 @@
 #include "scope.h"
 #include "prescope.h"
 #include "precheck.h"
+#include "typecheck.h"
 #include "usagecheck.h"
 #include "map.h"
 #include "target.h"
@@ -105,7 +106,20 @@ static mopmap_t mopmap[] = {
  */
 static tnode_t *occampi_gettype_dop (tnode_t *node, tnode_t *defaulttype)
 {
-	/* FIXME! */
+	tnode_t *lefttype, *righttype;
+
+	lefttype = typecheck_gettype (tnode_nthsubof (node, 0), defaulttype);
+	righttype = typecheck_gettype (tnode_nthsubof (node, 1), defaulttype);
+
+	if (lefttype == defaulttype) {
+		tnode_setnthsub (node, 2, righttype);
+	} else if (righttype == defaulttype) {
+		tnode_setnthsub (node, 2, lefttype);
+	} else {
+		tnode_setnthsub (node, 2, defaulttype);
+	}
+	/* FIXME! -- needs more.. */
+
 	return defaulttype;
 }
 /*}}}*/
@@ -172,8 +186,13 @@ static int occampi_codegen_dop (tnode_t *node, codegen_t *cgen)
  */
 static tnode_t *occampi_gettype_mop (tnode_t *node, tnode_t *defaulttype)
 {
-	/* FIXME! */
-	return defaulttype;
+	tnode_t *optype;
+
+	optype = typecheck_gettype (tnode_nthsubof (node, 0), defaulttype);
+	tnode_setnthsub (node, 1, optype);
+	/* FIXME! -- needs more.. */
+
+	return optype;
 }
 /*}}}*/
 /*{{{  static int occampi_premap_mop (tnode_t **node, map_t *map)*/

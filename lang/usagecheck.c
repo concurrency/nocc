@@ -62,6 +62,7 @@ typedef struct TAG_uchk_taghook {
 	int do_nested;
 } uchk_taghook_t;
 
+
 /*}}}*/
 /*{{{  private data*/
 static chook_t *uchk_chook = NULL;
@@ -113,8 +114,31 @@ static void uchk_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *st
 				fprintf (stream, "<parset nitems=\"%d\">\n", DA_CUR (parset->items));
 
 				for (j=0; j<DA_CUR (parset->items); j++) {
+					char buf[256];
+					int x = 0;
+					uchk_mode_t mode = DA_NTHITEM (parset->modes, j);
+
+					if (mode & USAGE_READ) {
+						x += sprintf (buf + x, "read ");
+					}
+					if (mode & USAGE_WRITE) {
+						x += sprintf (buf + x, "write ");
+					}
+					if (mode & USAGE_INPUT) {
+						x += sprintf (buf + x, "input ");
+					}
+					if (mode & USAGE_XINPUT) {
+						x += sprintf (buf + x, "xinput ");
+					}
+					if (mode & USAGE_OUTPUT) {
+						x += sprintf (buf + x, "output ");
+					}
+					if (x > 0) {
+						buf[x-1] = '\0';
+					}
+
 					uchk_isetindent (stream, indent + 3);
-					fprintf (stream, "<mode mode=\"0x%8.8x\" />\n", (unsigned int)DA_NTHITEM (parset->modes, j));
+					fprintf (stream, "<mode mode=\"0x%8.8x\" flags=\"%s\" />\n", (unsigned int)DA_NTHITEM (parset->modes, j), buf);
 
 					tnode_dumptree (DA_NTHITEM (parset->items, j), indent + 3, stream);
 				}
@@ -260,6 +284,74 @@ int usagecheck_shutdown (void)
 /*}}}*/
 
 
+/*{{{  void usagecheck_error (tnode_t *org, uchk_state_t *ucstate, const char *fmt, ...)*/
+/*
+ *	called by usage-check parts to report an error
+ */
+void usagecheck_error (tnode_t *org, uchk_state_t *ucstate, const char *fmt, ...)
+{
+	va_list ap;
+	int n;
+	char *warnbuf = (char *)smalloc (512);
+	lexfile_t *orgfile;
+
+	if (org) {
+		orgfile = org->org_file;
+	} else {
+		orgfile = NULL;
+	}
+
+	va_start (ap, fmt);
+	n = sprintf (warnbuf, "%s:%d (error) ", orgfile ? orgfile->fnptr : "(unknown)", org ? org->org_line : 0);
+	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	if (orgfile) {
+		orgfile->errcount++;
+	}
+	ucstate->err++;
+
+	nocc_message (warnbuf);
+	sfree (warnbuf);
+
+	return;
+}
+/*}}}*/
+/*{{{  void usagecheck_warning (tnode_t *org, uchk_state_t *ucstate, const char *fmt, ...)*/
+/*
+ *	called by usage-check parts to report a warning
+ */
+void usagecheck_warning (tnode_t *org, uchk_state_t *ucstate, const char *fmt, ...)
+{
+	va_list ap;
+	int n;
+	char *warnbuf = (char *)smalloc (512);
+	lexfile_t *orgfile;
+
+	if (org) {
+		orgfile = org->org_file;
+	} else {
+		orgfile = NULL;
+	}
+
+	va_start (ap, fmt);
+	n = sprintf (warnbuf, "%s:%d (warning) ", orgfile ? orgfile->fnptr : "(unknown)", org ? org->org_line : 0);
+	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	if (orgfile) {
+		orgfile->warncount++;
+	}
+	ucstate->warn++;
+
+	nocc_message (warnbuf);
+	sfree (warnbuf);
+
+	return;
+}
+/*}}}*/
+
+
 /*{{{  int usagecheck_addname (tnode_t *node, uchk_state_t *ucstate, uchk_mode_t mode)*/
 /*
  *	adds a name to parallel usage with the given mode
@@ -269,6 +361,7 @@ int usagecheck_addname (tnode_t *node, uchk_state_t *ucstate, uchk_mode_t mode)
 {
 	uchk_chook_t *uchook;
 	uchk_chook_set_t *ucset;
+	int i;
 
 	if ((ucstate->ucptr < 0) || (ucstate->ucptr >= DA_CUR (ucstate->ucstack)) || (ucstate->ucptr >= DA_CUR (ucstate->setptrs))) {
 		nocc_internal ("usagecheck_addname(): [%s]: ucstate->ucptr=%d, DA_CUR(ucstack)=%d, DA_CUR(setptrs)=%d", node->tag->name, ucstate->ucptr, DA_CUR (ucstate->ucstack), DA_CUR (ucstate->setptrs));
@@ -282,8 +375,120 @@ int usagecheck_addname (tnode_t *node, uchk_state_t *ucstate, uchk_mode_t mode)
 		return -1;
 	}
 
-	dynarray_add (ucset->items, node);
-	dynarray_add (ucset->modes, mode);
+	for (i=0; i<DA_CUR (ucset->items); i++) {
+		tnode_t *chknode = DA_NTHITEM (ucset->items, i);
+
+		if (chknode == node) {
+			uchk_mode_t chkmode = DA_NTHITEM (ucset->modes, i);
+
+			chkmode |= mode;
+			DA_SETNTHITEM (ucset->modes, i, chkmode);
+			break;		/* for() */
+		}
+	}
+
+	if (i == DA_CUR (ucset->items)) {
+		dynarray_add (ucset->items, node);
+		dynarray_add (ucset->modes, mode);
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int usagecheck_mergeall (tnode_t *node, uchk_state_t *ucstate)*/
+/*
+ *	takes entries from usage-checking sets and adds to the current set
+ *	returns 0 on success, 1 if non-added, <0 on failure
+ */
+int usagecheck_mergeall (tnode_t *node, uchk_state_t *ucstate)
+{
+	uchk_chook_t *srchook = (uchk_chook_t *)tnode_getchook (node, uchk_chook);
+	uchk_chook_t *uchook;
+	uchk_chook_set_t *ucset;
+	int i;
+
+	if (!srchook || (ucstate->ucptr < 0) || (ucstate->ucptr >= DA_CUR (ucstate->ucstack)) || (ucstate->ucptr >= DA_CUR (ucstate->setptrs))) {
+		return 1;
+	}
+	uchook = DA_NTHITEM (ucstate->ucstack, ucstate->ucptr);
+	ucset = (uchk_chook_set_t *)DA_NTHITEM (ucstate->setptrs, ucstate->ucptr);
+
+	if (!uchook || !ucset) {
+		return 1;
+	}
+
+	/* adding to "ucset" */
+	for (i=0; i<DA_CUR (srchook->parusage); i++) {
+		uchk_chook_set_t *srcset = DA_NTHITEM (srchook->parusage, i);
+		int j;
+
+		for (j=0; j<DA_CUR (srcset->items); j++) {
+			tnode_t *srcnode = DA_NTHITEM (srcset->items, j);
+			uchk_mode_t srcmode = DA_NTHITEM (srcset->modes, j);
+			int k;
+
+			for (k=0; k<DA_CUR (ucset->items); k++) {
+				tnode_t *chknode = DA_NTHITEM (ucset->items, k);
+
+				if (srcnode == chknode) {
+					uchk_mode_t chkmode = DA_NTHITEM (ucset->modes, k);
+
+					chkmode |= srcmode;
+					DA_SETNTHITEM (ucset->modes, k, chkmode);
+					break;		/* for(k) */
+				}
+			}
+			if (k == DA_CUR (ucset->items)) {
+				dynarray_add (ucset->items, srcnode);
+				dynarray_add (ucset->modes, srcmode);
+			}
+
+		}
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int usagecheck_sub_no_overlaps (tnode_t *node, uchk_state_t *ucstate, uchk_chook_set_t *set1, uchk_chook_set_t *set2)*/
+/*
+ *	checks for overlaps in two sets
+ *	returns 0 on success, non-zero on failure (errors reported)
+ */
+static int usagecheck_sub_no_overlaps (tnode_t *node, uchk_state_t *ucstate, uchk_chook_set_t *set1, uchk_chook_set_t *set2)
+{
+	/* FIXME! */
+	return 0;
+}
+/*}}}*/
+/*{{{  int usagecheck_no_overlaps (tnode_t *node, uchk_state_t *ucstate)*/
+/*
+ *	checks that there are no overlaps in usage-checking sets of the given node
+ *	(e.g. when checking PAR nodes for safety)
+ *	returns 0 on success, non-zero on failure (errors reported)
+ */
+int usagecheck_no_overlaps (tnode_t *node, uchk_state_t *ucstate)
+{
+	uchk_chook_t *srchook = (uchk_chook_t *)tnode_getchook (node, uchk_chook);
+	int i;
+
+	if (!srchook) {
+		usagecheck_error (node, ucstate, "no sets here..");
+		return -1;
+	}
+
+	for (i=0; i<DA_CUR (srchook->parusage); i++) {
+		uchk_chook_set_t *srcset = DA_NTHITEM (srchook->parusage, i);
+		int j;
+
+		/* check these items with those in other sets */
+		for (j=i+1; j<DA_CUR (srchook->parusage); j++) {
+			uchk_chook_set_t *cmpset = DA_NTHITEM (srchook->parusage, j);
+			
+			if (usagecheck_sub_no_overlaps (node, ucstate, srcset, cmpset)) {
+				/* errored */
+				return 1;
+			}
+		}
+	}
 
 	return 0;
 }
@@ -448,12 +653,17 @@ int usagecheck_subtree (tnode_t *tree, uchk_state_t *ucstate)
 int usagecheck_tree (tnode_t *tree, langparser_t *lang)
 {
 	uchk_state_t *ucstate = (uchk_state_t *)smalloc (sizeof (uchk_state_t));
+	int res = 0;
 
 	dynarray_init (ucstate->ucstack);
 	dynarray_init (ucstate->setptrs);
 	ucstate->ucptr = -1;
+	ucstate->err = 0;
+	ucstate->warn = 0;
 
 	tnode_prewalktree (tree, uchk_prewalk_tree, (void *)ucstate);
+
+	res = ucstate->err;
 
 	dynarray_trash (ucstate->ucstack);
 	dynarray_trash (ucstate->setptrs);
@@ -462,7 +672,7 @@ int usagecheck_tree (tnode_t *tree, langparser_t *lang)
 	/* clean up markers */
 	tnode_prewalktree (tree, uchk_prewalk_cleantree, NULL);
 
-	return 0;
+	return res;
 }
 /*}}}*/
 

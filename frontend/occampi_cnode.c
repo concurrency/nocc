@@ -106,6 +106,9 @@ static int occampi_cnode_dousagecheck (tnode_t *node, uchk_state_t *ucstate)
 		}
 
 		usagecheck_end_branches (node, ucstate);
+		if (!usagecheck_no_overlaps (node, ucstate)) {
+			usagecheck_mergeall (node, ucstate);
+		} /* else don't merge from something that failed (XXX: maybe..) */
 		/*}}}*/
 
 		return 0;

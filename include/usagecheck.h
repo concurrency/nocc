@@ -38,13 +38,20 @@ typedef struct TAG_uchk_state {
 	DYNARRAY (void *, ucstack);
 	DYNARRAY (void *, setptrs);
 	int ucptr;
+	int err;
+	int warn;
 } uchk_state_t;
 
 
 extern int usagecheck_init (void);
 extern int usagecheck_shutdown (void);
 
+extern void usagecheck_error (struct TAG_tnode *org, uchk_state_t *ucstate, const char *fmt, ...);
+extern void usagecheck_warning (struct TAG_tnode *org, uchk_state_t *ucstate, const char *fmt, ...);
+
 extern int usagecheck_addname (struct TAG_tnode *node, uchk_state_t *ucstate, uchk_mode_t mode);
+extern int usagecheck_mergeall (struct TAG_tnode *node, uchk_state_t *ucstate);
+extern int usagecheck_no_overlaps (struct TAG_tnode *node, uchk_state_t *ucstate);
 
 extern int usagecheck_begin_branches (struct TAG_tnode *node, uchk_state_t *ucstate);
 extern int usagecheck_end_branches (struct TAG_tnode *node, uchk_state_t *ucstate);

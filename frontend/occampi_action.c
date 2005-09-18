@@ -149,6 +149,20 @@ static int occampi_precheck_action (tnode_t *node)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_premap_action (tnode_t **node, map_t *map)*/
+/*
+ *	does per-mapping for an action -- turns expression nodes into RESULT nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_premap_action (tnode_t **node, map_t *map)
+{
+	/* premap LHS and RHS */
+	map_subpremap (tnode_nthsubaddr (*node, 0), map);
+	map_subpremap (tnode_nthsubaddr (*node, 1), map);
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_action (tnode_t **node, map_t *map)*/
 /*
  *	allocates space necessary for an action
@@ -234,6 +248,7 @@ static int occampi_action_init_nodes (void)
 	cops = tnode_newcompops ();
 	cops->typecheck = occampi_typecheck_action;
 	cops->precheck = occampi_precheck_action;
+	cops->premap = occampi_premap_action;
 	cops->namemap = occampi_namemap_action;
 	cops->codegen = occampi_codegen_action;
 	tnd->ops = cops;

@@ -1,4 +1,6 @@
 
+18/09/2005	frmb	more work on the usage-checker
+18/09/2005	frmb	various minor updates
 17/09/2005	frmb	initial support for monadic operators (just "-" and "~" so far)
 17/09/2005	frmb	kroc-etc target now tracks stack depths
 16/09/2005	frmb	more support for dyadic operators (sorta work, ish :))
