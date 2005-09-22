@@ -455,7 +455,32 @@ int usagecheck_mergeall (tnode_t *node, uchk_state_t *ucstate)
  */
 static int usagecheck_sub_no_overlaps (tnode_t *node, uchk_state_t *ucstate, uchk_chook_set_t *set1, uchk_chook_set_t *set2)
 {
-	/* FIXME! */
+	int i, j;
+
+	for (i=0; i<DA_CUR (set1->items); i++) {
+		tnode_t *item1 = DA_NTHITEM (set1->items, i);
+		uchk_mode_t mode1 = DA_NTHITEM (set1->modes, i);
+
+		for (j=0; j<DA_CUR (set2->items); j++) {
+			tnode_t *item2 = DA_NTHITEM (set2->items, j);
+			uchk_mode_t mode2 = DA_NTHITEM (set2->modes, j);
+
+			if (item1 == item2) {
+				/* same item */
+				if ((mode1 & USAGE_INPUT) && (mode2 & USAGE_INPUT)) {
+					usagecheck_error (node, ucstate, "parallel inputs on 0x%8.8x", (unsigned int)item1);
+				} else if ((mode1 & USAGE_OUTPUT) && (mode2 & USAGE_OUTPUT)) {
+					usagecheck_error (node, ucstate, "parallel outputs on 0x%8.8x", (unsigned int)item1);
+				} else if ((mode1 & USAGE_WRITE) && (mode2 & USAGE_WRITE)) {
+					usagecheck_error (node, ucstate, "0x%8.8x is written to in parallel", (unsigned int)item1);
+				} else if ((mode1 & USAGE_WRITE) && (mode2 & USAGE_READ)) {
+					usagecheck_error (node, ucstate, "parallel read/write on 0x%8.8xparallel", (unsigned int)item1);
+				} else if ((mode1 & USAGE_READ) && (mode2 & USAGE_WRITE)) {
+					usagecheck_error (node, ucstate, "parallel read/write on 0x%8.8xparallel", (unsigned int)item1);
+				}
+			}
+		}
+	}
 	return 0;
 }
 /*}}}*/

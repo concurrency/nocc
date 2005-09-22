@@ -556,6 +556,8 @@ static void krocetc_cgstate_popfree (codegen_t *cgen)
 	if (cgs->fpdepth) {
 		codegen_warning (cgen, "krocetc_cgstate_popfree(): floating-point stack at depth %d", cgs->fpdepth);
 	}
+	DA_SETNTHITEM (cgen->tcgstates, DA_CUR (cgen->tcgstates) - 1, NULL);
+	dynarray_delitem (cgen->tcgstates, DA_CUR (cgen->tcgstates) - 1);
 
 	krocetc_cgstate_destroy (cgs);
 	return;
