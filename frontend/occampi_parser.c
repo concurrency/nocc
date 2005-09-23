@@ -99,6 +99,7 @@ static feunit_t *feunit_set[] = {
 	&occampi_type_feunit,
 	&occampi_instance_feunit,
 	&occampi_oper_feunit,
+	&occampi_initial_feunit,
 	NULL
 };
 
@@ -308,7 +309,7 @@ static int occampi_dfas_init (void)
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:exprcommalist ::= { occampi:expr @@, 1 }"));
 	dynarray_add (transtbls, dfa_transtotbl ("occampi:namestart ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} ] [ 1 -* <occampi:namestartname> ]"));
 
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:declorprocstart ::= ( occampi:vardecl | occampi:procdecl | occampi:typedecl | occampi:primproc | occampi:cproc | occampi:namestart | " \
+	dynarray_add (transtbls, dfa_bnftotbl ("occampi:declorprocstart +:= ( occampi:vardecl | occampi:procdecl | occampi:typedecl | occampi:primproc | occampi:cproc | occampi:namestart | " \
 				"occampi:builtinprocinstance ) {<opi:nullreduce>}"));
 
 	/*{{{  load grammar items for extensions*/

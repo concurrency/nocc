@@ -146,6 +146,7 @@ extern struct TAG_feunit occampi_type_feunit;		/* occampi_type.c */
 extern struct TAG_feunit occampi_instance_feunit;	/* occampi_instance.c */
 extern struct TAG_feunit occampi_dtype_feunit;		/* occampi_dtype.c */
 extern struct TAG_feunit occampi_oper_feunit;		/* occampi_oper.c */
+extern struct TAG_feunit occampi_initial_feunit;	/* occampi_initial.c */
 
 /* these are for language units to use in reductions */
 extern void *occampi_nametoken_to_hook (void *ntok);
