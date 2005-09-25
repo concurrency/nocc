@@ -2745,6 +2745,10 @@ fprintf (stderr, "    [%s] (%d)\n", tcopy[i]->name ?: "(anon)", tcopy[i]->op);
 		dfattbl_t *prin = tcopy[i];
 		int j;
 
+		if (!prin) {
+			i++;
+			continue;		/* because we can't do much here.. (earlier error probably) */
+		}
 		if (prin->op) {
 			/* make it the principle definition for now */
 			prin->op = 0;

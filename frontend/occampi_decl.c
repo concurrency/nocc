@@ -1248,6 +1248,8 @@ static int occampi_decl_reg_reducers (void)
 	parser_register_grule ("opi:procdeclreduce", parser_decode_grule ("SN1N+N+V00C4R-", opi.tag_PROCDECL));
 	parser_register_grule ("opi:abbrreduce", parser_decode_grule ("SN1N+N+N+<0VC4R-", opi.tag_ABBREV));
 	parser_register_grule ("opi:valabbrreduce", parser_decode_grule ("SN1N+N+N+<0VC4R-", opi.tag_VALABBREV));
+	parser_register_grule ("opi:notypeabbrreduce", parser_decode_grule ("SN1N+N+0<0VC4R-", opi.tag_ABBREV));
+	parser_register_grule ("opi:notypevalabbrreduce", parser_decode_grule ("SN1N+N+0<0VC4R-", opi.tag_VALABBREV));
 
 	parser_register_reduce ("Roccampi:directedchanname", occampi_reduce_directedchanname, NULL);
 
@@ -1271,6 +1273,11 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 				"[ 4 @@: 5 ] [ 5 {<opi:declreduce>} -* ] [ 4 @IS 6 ] [ 6 occampi:operand 7 ] [ 7 @@: 8 ] [ 8 {<opi:abbrreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:procdecl ::= [ 0 @PROC 1 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:procdeclreduce>} -* ]"));
 
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:valabbrdecl ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} -* 2 ] [ 2 @IS 3 ] [ 2 +Name 6 ] [ 3 occampi:operand 4 ] [ 4 @@: 5 ] " \
+				"[ 5 {<opi:notypevalabbrreduce>} -* ] [ 6 {<opi:namepush>} -* 7 ] [ 7 @IS 8 ] [ 8 occampi:operand 9 ] [ 9 {<opi:valabbrreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:valabbrdecl +:= [ 0 occampi:primtype 1 ] [ 1 occampi:name 2 ] [ 2 @IS 3 ] [ 3 occampi:operand 4 ] [ 4 @@: 5 ] [ 5 {<opi:valabbrreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:abbrdecl ::= [ 0 @VAL <occampi:valabbrdecl> ]"));
+
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:fparam ::= ( occampi:primtype occampi:name {<opi:fparam2nsreduce>} | " \
 				"+Name ( +Name {<opi:fparam2tsreduce>} | @@! {<opi:fparam1tsreduceo>} | @@? {<opi:fparam1tsreducei>} | -* {<opi:fparam1tsreduce>} ) | " \
 				"@CHAN occampi:protocol {<opi:chanpush>} occampi:name [ ( +@@! {Roccampi:directedchanname} | +@@? {Roccampi:directedchanname} ) ] {<opi:fparam2nsreduce>} )"));
@@ -1279,6 +1286,7 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 +Name 1 ] [ 1 {<opi:namepush>} ] [ 1 @@: 2 ] [ 2 {<opi:declreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @IS 1 ] [ 1 occampi:operand 7 ] [ 7 @@: 8 ] [ 8 {<opi:notypeabbrreduce>} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

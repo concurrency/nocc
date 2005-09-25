@@ -262,14 +262,13 @@ static void allocate_varmap_dump (alloc_varmap_t *avm, FILE *stream)
  */
 static void allocate_extravars_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
 {
-	int i;
 	tnode_t *evars = (tnode_t *)hook;
 
 	allocate_isetindent (stream, indent);
-	fprintf (stream, "<chook:alloc:extravars addr=\"0x%8.8x\">\n", (unsigned int)hook);
+	fprintf (stream, "<chook id=\"alloc:extravars\" addr=\"0x%8.8x\">\n", (unsigned int)hook);
 	tnode_dumptree (evars, indent + 1, stream);
 	allocate_isetindent (stream, indent);
-	fprintf (stream, "</chook:alloc:extravars>\n");
+	fprintf (stream, "</chook>\n");
 
 	return;
 }
@@ -1044,6 +1043,28 @@ fprintf (stderr, "allocate_tree(): about to assign blocks, apriv->ev_chook = 0x%
 
 	sfree (apriv);
 
+	return 0;
+}
+/*}}}*/
+
+
+/*{{{  int allocate_init (void)*/
+/*
+ *	initialises the allocator
+ *	returns 0 on success, non-zero on failure
+ */
+int allocate_init (void)
+{
+	return 0;
+}
+/*}}}*/
+/*{{{  int allocate_shutdown (void)*/
+/*
+ *	shuts-down the allocator
+ *	returns 0 on success, non-zero on failure
+ */
+int allocate_shutdown (void)
+{
 	return 0;
 }
 /*}}}*/

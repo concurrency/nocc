@@ -1,0 +1,11 @@
+
+-- test_n14.occ -- more tests..
+
+PROC test.n14 (CHAN BYTE screen!)
+  BYTE ch:
+  SEQ
+    ch := 'a' + 1
+    screen ! ch
+    screen ! '*n'
+:
+

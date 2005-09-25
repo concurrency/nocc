@@ -589,6 +589,7 @@ int main (int argc, char **argv)
 	fetrans_init ();
 	betrans_init ();
 	map_init ();
+	allocate_init ();
 	codegen_init ();
 	target_init ();
 

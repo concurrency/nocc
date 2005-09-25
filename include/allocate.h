@@ -31,6 +31,9 @@ typedef struct TAG_allocate {
 	struct TAG_chook *ev_chook;
 } allocate_t;
 
+extern int allocate_init (void);
+extern int allocate_shutdown (void);
+
 extern int allocate_tree (struct TAG_tnode **tptr, struct TAG_target *target);
 extern int preallocate_tree (struct TAG_tnode **tptr, struct TAG_target *target);
 

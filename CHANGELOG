@@ -1,4 +1,5 @@
 
+25/09/2005	frmb	added compiler hook for alloc extra-vars, abbreviations maybe functional
 24/09/2005	frmb	some work on abbreviations and value parameters
 24/09/2005	frmb	first round of support for INITIAL declarations
 18/09/2005	frmb	more work on the usage-checker
