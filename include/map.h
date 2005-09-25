@@ -30,6 +30,7 @@ typedef struct TAG_map {
 	int err;
 	int warn;
 	struct TAG_chook *mapchook;
+	struct TAG_chook *allocevhook;
 	struct TAG_tnode *thisblock;
 	struct TAG_tnode **thisprocparams;
 	struct TAG_tnode *thisberesult;

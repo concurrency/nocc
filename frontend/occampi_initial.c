@@ -80,18 +80,88 @@ static int occampi_prescope_initial (tnode_t **nodep, prescope_t *ps)
 /*{{{  static int occampi_scopein_initial (tnode_t **nodep, scope_t *ss)*/
 /*
  *	scopes an INITIAL declaration -- which shouldn't really be here, but for now..
+ *	FIXME: in prescope once abbreviations are sorted
  */
 static int occampi_scopein_initial (tnode_t **nodep, scope_t *ss)
 {
-	return 1;
+	tnode_t *name = tnode_nthsubof (*nodep, 0);
+	tnode_t *type;
+	char *rawname;
+	name_t *sname = NULL;
+	tnode_t *newname, *assign, **bodyp;
+
+	if (name->tag != opi.tag_NAME) {
+		scope_error (name, ss, "name not raw-name!");
+		return 0;
+	}
+	rawname = tnode_nthhookof (name, 0);
+#if 0
+fprintf (stderr, "occampi_scopein_initial: here! rawname = \"%s\"\n", rawname);
+#endif
+
+	if (scope_subtree (tnode_nthsubaddr (*nodep, 1), ss)) {
+		/* failed to scope type */
+		return 0;
+	}
+	if (scope_subtree (tnode_nthsubaddr (*nodep, 3), ss)) {
+		/* failed to scope expression */
+		return 0;
+	}
+
+	type = tnode_nthsubof (*nodep, 1);
+
+	sname = name_addscopename (rawname, *nodep, type, NULL);
+	newname = tnode_createfrom (opi.tag_NDECL, name, sname);
+	SetNameNode (sname, newname);
+	tnode_setnthsub (*nodep, 0, newname);
+
+	/* now the new name is in scope, build an assignment */
+	assign = tnode_createfrom (opi.tag_ASSIGN, *nodep, tnode_copytree (name), tnode_nthsubof (*nodep, 3), NULL);
+
+	/* free the old name */
+	tnode_free (name);
+	ss->scoped++;
+
+	/* build new body and scope it */
+	scope_subtree (&assign, ss);
+	bodyp = tnode_nthsubaddr (*nodep, 2);
+
+	*bodyp = tnode_createfrom (opi.tag_SEQ, *nodep, NULL, parser_buildlistnode ((*nodep)->org_file, assign, *bodyp, NULL));
+
+	/* fix this node to be a variable declaration */
+	*nodep = tnode_createfrom (opi.tag_VARDECL, *nodep, tnode_nthsubof (*nodep, 0), tnode_nthsubof (*nodep, 1), tnode_nthsubof (*nodep, 2));
+
+#if 0
+fprintf (stderr, "occampi_scopein_initial(): *bodyp before scoping it is:\n");
+tnode_dumptree (*bodyp, 1, stderr);
+#endif
+	scope_subtree (tnode_nthsubaddr (*nodep, 2), ss);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int occampi_scopeout_initial (tnode_t **nodep, scope_t *ss)*/
 /*
  *	scopes out an INITIAL declaration -- dummy..
+ *	FIXME: in prescope once abbreviations are sorted
  */
 static int occampi_scopeout_initial (tnode_t **nodep, scope_t *ss)
 {
+	tnode_t *name = tnode_nthsubof (*nodep, 0);
+	name_t *sname;
+
+	if (name->tag != opi.tag_NDECL) {
+		scope_error (name, ss, "not NDECL!");
+		return 0;
+	}
+	sname = tnode_nthnameof (name, 0);
+
+#if 0
+fprintf (stderr, "occampi_scopeout_initial: here! sname->me->name = \"%s\"\n", sname->me->name);
+#endif
+
+	name_descopename (sname);
+
 	return 1;
 }
 /*}}}*/
@@ -130,7 +200,7 @@ static int occampi_initial_init_nodes (void)
  */
 static int occampi_initial_reg_reducers (void)
 {
-	parser_register_grule ("opi:initialreduce", parser_decode_grule ("SN1N+N+V0N+C4R-", tag_INITIAL));
+	parser_register_grule ("opi:initialreduce", parser_decode_grule ("SN1N+N+N+<0VC4R-", tag_INITIAL));
 
 	return 0;
 }

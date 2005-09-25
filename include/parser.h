@@ -38,6 +38,7 @@ extern struct TAG_tnode *parser_parse (struct TAG_lexfile *lf);
 extern char *parser_langname (struct TAG_lexfile *lf);
 
 extern struct TAG_tnode *parser_newlistnode (struct TAG_lexfile *lf);
+extern struct TAG_tnode *parser_buildlistnode (struct TAG_lexfile *lf, ...);
 extern struct TAG_tnode **parser_addtolist (struct TAG_tnode *list, struct TAG_tnode *item);
 extern struct TAG_tnode **parser_addtolist_front (struct TAG_tnode *list, struct TAG_tnode *item);
 extern int parser_islistnode (struct TAG_tnode *node);

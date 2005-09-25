@@ -86,6 +86,26 @@ tnode_dumptree (chantype, 1, stderr);
 	return;
 }
 /*}}}*/
+/*{{{  static void occampi_initabbrev (tnode_t *node, codegen_t *cgen, void *arg)*/
+/*
+ *	does initialiser code-gen for an abbreviation
+ */
+static void occampi_initabbrev (tnode_t *node, codegen_t *cgen, void *arg)
+{
+	tnode_t *abbrev = (tnode_t *)arg;
+	int ws_off, vs_off, ms_off;
+
+	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off);
+#if 0
+fprintf (stderr, "occampi_initabbrev(): node=[%s], allocated at [%d,%d,%d]:\n", node->tag->name, ws_off, vs_off, ms_off);
+tnode_dumptree (node, 1, stderr);
+#endif
+	codegen_callops (cgen, loadpointer, tnode_nthsubof (abbrev, 3), 0);
+	codegen_callops (cgen, storelocal, ws_off);
+	codegen_callops (cgen, comment, "initabbrev");
+	return;
+}
+/*}}}*/
 
 /*{{{  static int occampi_prescope_vardecl (tnode_t **node, prescope_t *ps)*/
 /*
@@ -176,7 +196,7 @@ static int occampi_scopeout_vardecl (tnode_t **node, scope_t *ss)
 	sname = tnode_nthnameof (name, 0);
 
 #if 0
-fprintf (stderr, "occampi_scopein_vardecl: here! sname->me->name = \"%s\"\n", sname->me->name);
+fprintf (stderr, "occampi_scopeout_vardecl: here! sname->me->name = \"%s\"\n", sname->me->name);
 #endif
 
 	name_descopename (sname);
@@ -233,6 +253,152 @@ tnode_dumptree (bename, 1, stderr);
 	// tnode_setnthsub (*node, 0, bename);
 
 	/* scope the body */
+	map_submapnames (bodyp, map);
+	return 0;
+}
+/*}}}*/
+
+
+/*{{{  static int occampi_prescope_abbrev (tnode_t **nodep, prescope_t *ps)*/
+/*
+ *	called to prescope an abbreviation declaration
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_prescope_abbrev (tnode_t **nodep, prescope_t *ps)
+{
+	tnode_t *name = tnode_nthsubof (*nodep, 0);
+
+	if (parser_islistnode (name)) {
+		prescope_error (*nodep, ps, "occampi_prescope_abbrev(): unexpected list");
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_scopein_abbrev (tnode_t **nodep, scope_t *ss)*/
+/*
+ *	called to scope an abbreviation
+ *	returns 0 to stop walk, 1 to continue, -1 to stop and prevent scopeout
+ */
+static int occampi_scopein_abbrev (tnode_t **nodep, scope_t *ss)
+{
+	tnode_t *name = tnode_nthsubof (*nodep, 0);
+	tnode_t *type;
+	char *rawname;
+	name_t *sname = NULL;
+	tnode_t *newname;
+
+	if (name->tag != opi.tag_NAME) {
+		scope_error (name, ss, "name not raw-name!");
+		return 0;
+	}
+	rawname = tnode_nthhookof (name, 0);
+#if 0
+fprintf (stderr, "occampi_scopein_abbrev: here! rawname = \"%s\"\n", rawname);
+#endif
+
+	if (scope_subtree (tnode_nthsubaddr (*nodep, 1), ss)) {
+		/* failed to scope type */
+		return -1;
+	}
+
+	type = tnode_nthsubof (*nodep, 1);
+
+	if (scope_subtree (tnode_nthsubaddr (*nodep, 3), ss)) {
+		/* failed to scope RHS */
+		return -1;
+	}
+
+	sname = name_addscopename (rawname, *nodep, type, NULL);
+	newname = tnode_createfrom (opi.tag_NABBR, name, sname);
+	SetNameNode (sname, newname);
+	tnode_setnthsub (*nodep, 0, newname);
+
+	/* free the old name */
+	tnode_free (name);
+	ss->scoped++;
+
+#if 0
+fprintf (stderr, "occampi_scopein_abbrev(): body before scoping it is:\n");
+tnode_dumptree (tnode_nthsubof (*nodep, 2), 1, stderr);
+#endif
+	scope_subtree (tnode_nthsubaddr (*nodep, 2), ss);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_scopeout_abbrev (tnode_t **nodep, scope_t *ss)*/
+/*
+ *	called to scope-out an abbreviation
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_scopeout_abbrev (tnode_t **nodep, scope_t *ss)
+{
+	tnode_t *name = tnode_nthsubof (*nodep, 0);
+	name_t *sname;
+
+	if (name->tag != opi.tag_NABBR) {
+		scope_error (name, ss, "not NABBR!");
+		return 0;
+	}
+	sname = tnode_nthnameof (name, 0);
+
+#if 0
+fprintf (stderr, "occampi_scopeout_abbrev: here! sname->me->name = \"%s\"\n", sname->me->name);
+#endif
+
+	name_descopename (sname);
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_namemap_abbrev (tnode_t **nodep, map_t *map)*/
+/*
+ *	transforms an abbreviation into a back-end name
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_abbrev (tnode_t **nodep, map_t *map)
+{
+	tnode_t **namep = tnode_nthsubaddr (*nodep, 0);
+	tnode_t *type = tnode_nthsubof (*nodep, 1);
+	tnode_t **bodyp = tnode_nthsubaddr (*nodep, 2);
+	tnode_t **rhsp = tnode_nthsubaddr (*nodep, 3);
+	tnode_t *bename;
+	void (*initfunc)(tnode_t *, codegen_t *, void *) = NULL;
+	void *initarg = NULL;
+
+#if 0
+fprintf (stderr, "occampi_namemap_abbrev(): here!  target is [%s].  Type is:\n", map->target->name);
+tnode_dumptree (type, 1, stderr);
+#endif
+	initfunc = occampi_initabbrev;
+	initarg = *nodep;	/* handle on the original abbreviation */
+
+	bename = map->target->newname (*namep, *bodyp, map, map->target->pointersize, 0, 0, 0, map->target->pointersize, 1);
+
+	/*{{{  set initialiser up*/
+	codegen_setinithook (bename, initfunc, initarg);
+
+	/*}}}*/
+
+	/* map the RHS and attach to it gets mapped */
+	map_submapnames (rhsp, map);
+#if 0
+fprintf (stderr, "occampi_namemap_abbrev(): target is [%s].  mapped RHS, got:\n", map->target->name);
+tnode_dumptree (*rhsp, 1, stderr);
+#endif
+	tnode_setchook (bename, map->allocevhook, (void *)*rhsp);
+
+	tnode_setchook (*namep, map->mapchook, (void *)bename);
+#if 0
+fprintf (stderr, "got new bename:\n");
+tnode_dumptree (bename, 1, stderr);
+#endif
+
+	*nodep = bename;
+	bodyp = tnode_nthsubaddr (*nodep, 1);
+	// tnode_setnthsub (*node, 0, bename);
+
+	/* map the body */
 	map_submapnames (bodyp, map);
 	return 0;
 }
@@ -923,7 +1089,7 @@ static int occampi_decl_init_nodes (void)
 	i = -1;
 	opi.tag_NAME = tnode_newnodetag ("NAME", &i, tnd, NTF_NONE);
 	/*}}}*/
-	/*{{{  occampi:namenode -- N_DECL, N_PARAM, N_PROCDEF, N_TYPEDECL, N_FIELD*/
+	/*{{{  occampi:namenode -- N_DECL, N_PARAM, N_VALPARAM, N_PROCDEF, N_TYPEDECL, N_FIELD, N_ABBR, N_VALABBR*/
 	i = -1;
 	tnd = opi.node_NAMENODE = tnode_newnodetype ("occampi:namenode", &i, 0, 1, 0, TNF_NONE);
 	cops = tnode_newcompops ();
@@ -936,11 +1102,17 @@ static int occampi_decl_init_nodes (void)
 	i = -1;
 	opi.tag_NPARAM = tnode_newnodetag ("N_PARAM", &i, opi.node_NAMENODE, NTF_NONE);
 	i = -1;
+	opi.tag_NVALPARAM = tnode_newnodetag ("N_VALPARAM", &i, opi.node_NAMENODE, NTF_NONE);
+	i = -1;
 	opi.tag_NPROCDEF = tnode_newnodetag ("N_PROCDEF", &i, opi.node_NAMENODE, NTF_NONE);
 	i = -1;
 	opi.tag_NTYPEDECL = tnode_newnodetag ("N_TYPEDECL", &i, opi.node_NAMENODE, NTF_NONE);
 	i = -1;
 	opi.tag_NFIELD = tnode_newnodetag ("N_FIELD", &i, opi.node_NAMENODE, NTF_NONE);
+	i = -1;
+	opi.tag_NABBR = tnode_newnodetag ("N_ABBR", &i, opi.node_NAMENODE, NTF_NONE);
+	i = -1;
+	opi.tag_NVALABBR = tnode_newnodetag ("N_VALABBR", &i, opi.node_NAMENODE, NTF_NONE);
 	/*}}}*/
 	/*{{{  occampi:hiddennode -- HIDDENPARAM*/
 	i = -1;
@@ -965,7 +1137,7 @@ static int occampi_decl_init_nodes (void)
 	i = -1;
 	opi.tag_VARDECL = tnode_newnodetag ("VARDECL", &i, tnd, NTF_NONE);
 	/*}}}*/
-	/*{{{  occampi:fparam -- FPARAM*/
+	/*{{{  occampi:fparam -- FPARAM, VALFPARAM*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:fparam", &i, 2, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
@@ -979,6 +1151,22 @@ static int occampi_decl_init_nodes (void)
 	tnd->lops = lops;
 	i = -1;
 	opi.tag_FPARAM = tnode_newnodetag ("FPARAM", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_VALFPARAM = tnode_newnodetag ("VALFPARAM", &i, tnd, NTF_NONE);
+	/*}}}*/
+	/*{{{  occampi:abbrevnode -- ABBREV, VALABBREV*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:abbrevnode", &i, 4, 0, 0, TNF_SHORTDECL);
+	cops = tnode_newcompops ();
+	cops->prescope = occampi_prescope_abbrev;
+	cops->scopein = occampi_scopein_abbrev;
+	cops->scopeout = occampi_scopeout_abbrev;
+	cops->namemap = occampi_namemap_abbrev;
+	tnd->ops = cops;
+	i = -1;
+	opi.tag_ABBREV = tnode_newnodetag ("ABBREV", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_VALABBREV = tnode_newnodetag ("VALABBREV", &i, tnd, NTF_NONE);
 	/*}}}*/
 	/*{{{  occampi:procdecl -- PROCDECL*/
 	i = -1;
@@ -1058,6 +1246,8 @@ static int occampi_decl_reg_reducers (void)
 	parser_register_grule ("opi:declreduce", parser_decode_grule ("SN1N+N+0C3R-", opi.tag_VARDECL));
 	parser_register_grule ("opi:xdeclreduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_VARDECL));
 	parser_register_grule ("opi:procdeclreduce", parser_decode_grule ("SN1N+N+V00C4R-", opi.tag_PROCDECL));
+	parser_register_grule ("opi:abbrreduce", parser_decode_grule ("SN1N+N+N+<0VC4R-", opi.tag_ABBREV));
+	parser_register_grule ("opi:valabbrreduce", parser_decode_grule ("SN1N+N+N+<0VC4R-", opi.tag_VALABBREV));
 
 	parser_register_reduce ("Roccampi:directedchanname", occampi_reduce_directedchanname, NULL);
 
@@ -1077,7 +1267,8 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:name ::= +Name {<opi:namereduce>}"));
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:namelist ::= { occampi:name @@, 1 }"));
 
-	dynarray_add (transtbl, dfa_bnftotbl ("occampi:vardecl ::= ( occampi:primtype | @CHAN occampi:protocol {<opi:chanpush>} ) occampi:namelist @@: {<opi:declreduce>}"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:vardecl ::= [ 0 occampi:primtype 3 ] [ 0 @CHAN 1 ] [ 1 occampi:protocol 2 ] [ 2 {<opi:chanpush>} -* 3 ] [ 3 occampi:namelist 4 ] " \
+				"[ 4 @@: 5 ] [ 5 {<opi:declreduce>} -* ] [ 4 @IS 6 ] [ 6 occampi:operand 7 ] [ 7 @@: 8 ] [ 8 {<opi:abbrreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:procdecl ::= [ 0 @PROC 1 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:procdeclreduce>} -* ]"));
 
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:fparam ::= ( occampi:primtype occampi:name {<opi:fparam2nsreduce>} | " \
@@ -1115,5 +1306,7 @@ feunit_t occampi_decl_feunit = {
 	init_dfatrans: occampi_decl_init_dfatrans,
 	post_setup: occampi_decl_post_setup
 };
+
+
 /*}}}*/
 

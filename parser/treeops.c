@@ -247,6 +247,25 @@ fprintf (stderr, "searching [%s] for [%s]->[%s], %d subnodes\n", tree->tag->name
 /*}}}*/
 
 
+/*{{{  tnode_t *treeops_transform (tnode_t *tree, ...)*/
+/*
+ *	used for re-writing bits of tree
+ *	
+ */
+tnode_t *treeops_transform (tnode_t *tree, ...)
+{
+	tnode_t *result = NULL;
+	va_list ap;
+
+	va_start (ap, tree);
+	/* FIXME ... */
+	va_end (ap);
+
+	return result;
+}
+/*}}}*/
+
+
 /*{{{  int treeops_init (void)*/
 /*
  *	initialises tree-operations

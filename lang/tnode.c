@@ -862,7 +862,7 @@ void tnode_modprepostwalktree (tnode_t **t, int (*prefcn)(tnode_t **, void *), i
 		return;
 	}
 	i = prefcn (t, arg);
-	if (i) {
+	if (i > 0) {
 		tndef_t *tnd = (*t)->tag->ndef;
 
 		/* walk subnodes */
@@ -882,7 +882,9 @@ void tnode_modprepostwalktree (tnode_t **t, int (*prefcn)(tnode_t **, void *), i
 			}
 		}
 	}
-	postfcn (t, arg);
+	if (i >= 0) {
+		postfcn (t, arg);
+	}
 	return;
 }
 /*}}}*/

@@ -28,6 +28,7 @@ typedef struct TAG_allocate {
 	struct TAG_target *target;
 	struct TAG_chook *varmap_chook;
 	void *allochook;
+	struct TAG_chook *ev_chook;
 } allocate_t;
 
 extern int allocate_tree (struct TAG_tnode **tptr, struct TAG_target *target);

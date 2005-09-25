@@ -73,9 +73,26 @@ typedef struct TAG_alloc_assign {
 	tnode_t *block;
 	target_t *target;
 	chook_t *mapchook;
+	chook_t *ev_chook;
 } alloc_assign_t;
 
 
+/*}}}*/
+
+/*{{{  static void allocate_isetindent (FILE *stream, int indent)*/
+/*
+ *	prints indentation (debugging)
+ */
+static void allocate_isetindent (FILE *stream, int indent)
+{
+	int i;
+
+	for (i=0; i<indent; i++) {
+		fprintf (stream, "    ");
+	}
+
+	return;
+}
 /*}}}*/
 
 
@@ -195,9 +212,8 @@ static void allocate_ovarmap_dump (alloc_ovarmap_t *ovm, FILE *stream, int inden
 {
 	int i;
 
-	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
-	}
+	allocate_isetindent (stream, indent);
+
 	fprintf (stream, "map at 0x%8.8x: %d sub-maps, %d items (size=%d, offset=%d): ", (unsigned int)ovm, DA_CUR (ovm->submaps), DA_CUR (ovm->entries), ovm->size, ovm->offset);
 	for (i=0; i<DA_CUR (ovm->entries); i++) {
 		alloc_ivarmap_t *ivm = DA_NTHITEM (ovm->entries, i);
@@ -235,6 +251,26 @@ static void allocate_varmap_dump (alloc_varmap_t *avm, FILE *stream)
 		fprintf (stream, "mobilespace-map at 0x%8.8x, curmap at 0x%8.8x:\n", (unsigned int)avm->msmap, (unsigned int)avm->curmsmap);
 		allocate_ovarmap_dump (avm->msmap, stream, 1);
 	}
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static void allocate_extravars_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps (debugging) extra variables for allocation attached to a node
+ */
+static void allocate_extravars_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	int i;
+	tnode_t *evars = (tnode_t *)hook;
+
+	allocate_isetindent (stream, indent);
+	fprintf (stream, "<chook:alloc:extravars addr=\"0x%8.8x\">\n", (unsigned int)hook);
+	tnode_dumptree (evars, indent + 1, stream);
+	allocate_isetindent (stream, indent);
+	fprintf (stream, "</chook:alloc:extravars>\n");
+
 	return;
 }
 /*}}}*/
@@ -869,6 +905,17 @@ allocate_varmap_dump (avmap, stderr);
 static int allocate_prewalktree_assign_namerefs (tnode_t *node, void *data)
 {
 	alloc_assign_t *apriv = (alloc_assign_t *)data;
+	tnode_t *evars;
+
+	/* if the node has "extra vars" to map, do these first */
+#if 0
+fprintf (stderr, "allocate_prewalktree_assign_namerefs(): node=0x%8.8x, data=0x%8.8x, apriv->ev_chook=0x%8.8x\n", (unsigned int)node, (unsigned int)data, (unsigned int)apriv->ev_chook);
+#endif
+	evars = (tnode_t *)tnode_getchook (node, apriv->ev_chook);
+	if (evars) {
+		/* allocate */
+		tnode_prewalktree (evars, allocate_prewalktree_assign_namerefs, data);
+	}
 
 	if (node->tag == apriv->target->tag_NAMEREF) {
 		int ref_lexlevel = apriv->target->be_blocklexlevel (node);
@@ -918,6 +965,7 @@ static int allocate_prewalktree_assign_blocks (tnode_t *node, void *data)
 		newpriv->parent = apriv;
 		newpriv->target = apriv->target;
 		newpriv->mapchook = apriv->mapchook;
+		newpriv->ev_chook = apriv->ev_chook;
 		newpriv->block = node;
 		newpriv->lexlevel = newpriv->target->be_blocklexlevel (node);
 
@@ -974,7 +1022,9 @@ int allocate_tree (tnode_t **tptr, target_t *target)
 
 	adata->target = target;
 	adata->allochook = NULL;
-	adata->varmap_chook = tnode_newchook ("alloc:varmap");
+	adata->varmap_chook = tnode_lookupornewchook ("alloc:varmap");
+	adata->ev_chook = tnode_lookupornewchook ("alloc:extravars");
+	adata->ev_chook->chook_dumptree = allocate_extravars_chook_dumptree;
 	tnode_prewalktree (*tptr, allocate_prewalktree_blocks, (void *)adata);
 
 	sfree (adata);
@@ -984,6 +1034,11 @@ int allocate_tree (tnode_t **tptr, target_t *target)
 	apriv->lexlevel = -1;
 	apriv->target = target;
 	apriv->mapchook = tnode_lookupchookbyname ("map:mapnames");
+	apriv->ev_chook = tnode_lookupornewchook ("alloc:extravars");
+
+#if 0
+fprintf (stderr, "allocate_tree(): about to assign blocks, apriv->ev_chook = 0x%8.8x\n", (unsigned int)apriv->ev_chook);
+#endif
 
 	tnode_prewalktree (*tptr, allocate_prewalktree_assign_blocks, (void *)apriv);
 

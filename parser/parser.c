@@ -309,6 +309,25 @@ tnode_t *parser_newlistnode (lexfile_t *lf)
 	return node;
 }
 /*}}}*/
+/*{{{  tnode_t *parser_buildlistnode (lexfile_t *lf, ...)*/
+/*
+ *	creates and returns a new "list" node, populated with items
+ */
+tnode_t *parser_buildlistnode (lexfile_t *lf, ...)
+{
+	va_list ap;
+	tnode_t *node = parser_newlistnode (lf);
+	tnode_t *item;
+
+	va_start (ap, lf);
+	for (item = va_arg (ap, tnode_t *); item; item = va_arg (ap, tnode_t *)) {
+		parser_addtolist (node, item);
+	}
+	va_end (ap);
+
+	return node;
+}
+/*}}}*/
 /*{{{  tnode_t **parser_addtolist (tnode_t *list, tnode_t *item)*/
 /*
  *	adds an item to a list-node, returns a pointer to it in the list
@@ -692,6 +711,32 @@ void parser_generic_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 			}
 			break;
 			/*}}}*/
+			/*{{{  ROTLEFT*/
+		case ICDE_ROTLEFT:
+			if (lncnt > 1) {
+				void *saved = lnstk[0];
+				int i;
+
+				for (i=1; i<lncnt; i++) {
+					lnstk[i-1] = lnstk[i];
+				}
+				lnstk[lncnt - 1] = saved;
+			}
+			break;
+			/*}}}*/
+			/*{{{  ROTRIGHT*/
+		case ICDE_ROTRIGHT:
+			if (lncnt > 1) {
+				void *saved = lnstk[lncnt - 1];
+				int i;
+
+				for (i=lncnt - 1; i>0; i++) {
+					lnstk[i] = lnstk[i-1];
+				}
+				lnstk[0] = saved;
+			}
+			break;
+			/*}}}*/
 		}
 	}
 	return;
@@ -846,6 +891,16 @@ void *parser_decode_grule (const char *rule, ...)
 			ilen += 2;
 			break;
 			/*}}}*/
+			/*{{{  > -- rotate stack right/up*/
+		case '>':
+			ilen++;
+			break;
+			/*}}}*/
+			/*{{{  < -- rotate stack left/down*/
+		case '<':
+			ilen++;
+			break;
+			/*}}}*/
 		default:
 			goto report_error_out;
 		}
@@ -942,6 +997,16 @@ void *parser_decode_grule (const char *rule, ...)
 			}
 			xrule++;
 			icode[i] = (unsigned int)(*xrule - '0');
+			break;
+			/*}}}*/
+			/*{{{  > -- rotate stack right/up*/
+		case '>':
+			icode[i] = ICDE_ROTRIGHT;
+			break;
+			/*}}}*/
+			/*{{{  < -- rotate stack left/down*/
+		case '<':
+			icode[i] = ICDE_ROTLEFT;
 			break;
 			/*}}}*/
 		}
