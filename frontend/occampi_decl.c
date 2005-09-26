@@ -45,6 +45,7 @@
 #include "names.h"
 #include "scope.h"
 #include "prescope.h"
+#include "typecheck.h"
 #include "precheck.h"
 #include "usagecheck.h"
 #include "map.h"
@@ -348,6 +349,22 @@ fprintf (stderr, "occampi_scopeout_abbrev: here! sname->me->name = \"%s\"\n", sn
 
 	name_descopename (sname);
 
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_typecheck_abbrev (tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking for an abbreviation -- mainly to ensure that the type is present/inferred
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_abbrev (tnode_t *node, typecheck_t *tc)
+{
+	tnode_t **typep = tnode_nthsubaddr (node, 1);
+
+#if 1
+fprintf (stderr, "occampi_typecheck_abbrev(): node =\n");
+tnode_dumptree (node, 1, stderr);
+#endif
 	return 1;
 }
 /*}}}*/
@@ -1161,6 +1178,7 @@ static int occampi_decl_init_nodes (void)
 	cops->prescope = occampi_prescope_abbrev;
 	cops->scopein = occampi_scopein_abbrev;
 	cops->scopeout = occampi_scopeout_abbrev;
+	cops->typecheck = occampi_typecheck_abbrev;
 	cops->namemap = occampi_namemap_abbrev;
 	tnd->ops = cops;
 	i = -1;
