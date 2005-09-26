@@ -264,11 +264,13 @@ void name_markdescope (void *mark)
 void name_dumpname (name_t *name, int indent, FILE *stream)
 {
 	int i;
+	tnode_t *type;
 
 	for (i=0; i<indent; i++) {
 		fprintf (stream, "    ");
 	}
-	fprintf (stream, "<name name=\"%s\" />\n", name->me->name);
+	type = NameTypeOf (name);
+	fprintf (stream, "<name name=\"%s\" type=\"%s\" />\n", name->me->name, type ? type->tag->name : "(null)");
 
 	return;
 }

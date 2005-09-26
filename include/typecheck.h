@@ -27,6 +27,7 @@ typedef struct TAG_typecheck {
 	int err;		/* error count */
 	int warn;		/* warning count */
 	void *hook;		/* hook for language-specific use */
+	struct TAG_langparser *lang;	/* language */
 } typecheck_t;
 
 
@@ -34,6 +35,7 @@ extern void typecheck_init (void);
 extern void typecheck_shutdown (void);
 
 
+extern int typecheck_subtree (struct TAG_tnode *t, typecheck_t *tc);
 extern int typecheck_tree (struct TAG_tnode *t, struct TAG_langparser *lang);
 extern int typecheck_prewalktree (struct TAG_tnode *node, void *arg);
 extern struct TAG_tnode *typecheck_gettype (struct TAG_tnode *node, struct TAG_tnode *default_type);

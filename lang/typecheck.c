@@ -180,9 +180,35 @@ tnode_t *typecheck_typeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t
 	return usedtype;
 }
 /*}}}*/
+/*{{{  int typecheck_subtree (tnode_t *t, typecheck_t *tc)*/
+/*
+ *	performs a sub type-check
+ *	returns 0 on success, non-zero on failure
+ */
+int typecheck_subtree (tnode_t *t, typecheck_t *tc)
+{
+	int saved_err = tc->err;
+	int saved_warn = tc->warn;
+	int i;
+
+	tc->err = 0;
+	tc->warn = 0;
+	i = tc->lang->typecheck (t, tc);
+
+	if (tc->err) {
+		i = tc->err;
+	}
+
+	tc->err += saved_err;
+	tc->warn += saved_warn;
+
+	return i;
+}
+/*}}}*/
 /*{{{  int typecheck_tree (tnode_t *t, langparser_t *lang)*/
 /*
  *	performs the top-level type-check pass
+ *	returns 0 on success, non-zero on failure
  */
 int typecheck_tree (tnode_t *t, langparser_t *lang)
 {
@@ -192,10 +218,11 @@ int typecheck_tree (tnode_t *t, langparser_t *lang)
 	tc->err = 0;
 	tc->warn = 0;
 	if (!lang->typecheck) {
-		nocc_error ("typecheck_tree(): don\'t know how to pre-scope this language!");
+		nocc_error ("typecheck_tree(): don\'t know how to type-check this language!");
 		sfree (tc);
 		return 1;
 	}
+	tc->lang = lang;
 	i = lang->typecheck (t, tc);
 
 	nocc_message ("typecheck_tree(): type-checked.  %d error(s), %d warning(s)", tc->err, tc->warn);

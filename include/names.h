@@ -58,6 +58,10 @@ extern void name_dumpnames (FILE *stream);
 #define NameNodeOf(N)		(N)->namenode
 #define NameNameOf(N)		(N)->me->name
 
+#define NameDeclAddr(N)		(&((N)->decl))
+#define NameTypeAddr(N)		(&((N)->type))
+#define NameNodeAddr(N)		(&((N)->namenode))
+
 #define SetNameDecl(N,T)	(N)->decl = (T)
 #define SetNameType(N,T)	(N)->type = (T)
 #define SetNameNode(N,T)	(N)->namenode = (T)

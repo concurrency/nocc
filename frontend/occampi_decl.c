@@ -359,13 +359,46 @@ fprintf (stderr, "occampi_scopeout_abbrev: here! sname->me->name = \"%s\"\n", sn
  */
 static int occampi_typecheck_abbrev (tnode_t *node, typecheck_t *tc)
 {
+	tnode_t **namep = tnode_nthsubaddr (node, 0);
 	tnode_t **typep = tnode_nthsubaddr (node, 1);
+	tnode_t **rhsp = tnode_nthsubaddr (node, 3);
+	tnode_t **xtypep = NULL;
 
-#if 1
-fprintf (stderr, "occampi_typecheck_abbrev(): node =\n");
+	if ((*namep)->tag->ndef == opi.node_NAMENODE) {
+		name_t *name = tnode_nthnameof (*namep, 0);
+		
+		xtypep = NameTypeAddr (name);
+	}
+
+	if (*typep && xtypep && !*xtypep) {
+		*xtypep = *typep;		/* set NAMENODE type to type in abbreviation */
+	} else if (!*typep && xtypep && *xtypep) {
+		*typep = *xtypep;		/* set ABBRNODE to type in name */
+	} else if (!*typep && (!xtypep || !*xtypep)) {
+		tnode_t *rtype;
+
+		/* no type, look at RHS */
+		if (typecheck_subtree (*rhsp, tc)) {
+			return 0;
+		}
+		rtype = typecheck_gettype (*rhsp, NULL);
+		if (!rtype) {
+			typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
+			return 0;
+		}
+		*typep = tnode_copytree (rtype);
+		if (xtypep && !*xtypep) {
+			*xtypep = *typep;
+		}
+	}
+#if 0
+fprintf (stderr, "occampi_typecheck_abbrev(): node after fixup=\n");
 tnode_dumptree (node, 1, stderr);
 #endif
-	return 1;
+	/* typecheck body */
+	typecheck_subtree (tnode_nthsubof (node, 2), tc);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int occampi_namemap_abbrev (tnode_t **nodep, map_t *map)*/
