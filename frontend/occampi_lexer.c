@@ -469,7 +469,7 @@ tokenloop:
 				lexer_error (lf, "unexpected end of file");
 				goto out_error1;
 			}
-			tok->u.str.ptr = (char *)smalloc (slen);
+			tok->u.str.ptr = (char *)smalloc (slen + 1);
 			tok->u.str.len = 0;		/* fixup in a bit */
 			xch = tok->u.str.ptr;
 			slen = 0;

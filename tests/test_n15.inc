@@ -1,5 +1,7 @@
 
 -- test include file
 
-VAL INT time.const IS 42:
+PROC foo ()
+  SKIP
+:
 

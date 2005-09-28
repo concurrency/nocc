@@ -398,6 +398,9 @@ static int occampi_dfas_init (void)
 	/*}}}*/
 	/*{{{  others (tokens)*/
 	opi.tok_COLON = lexer_newtoken (SYMBOL, ":");
+	opi.tok_HASH = lexer_newtoken (SYMBOL, "#");
+	opi.tok_INCLUDE = lexer_newtoken (KEYWORD, "INCLUDE");
+	opi.tok_STRING = lexer_newtoken (STRING, NULL);
 
 	/*}}}*/
 	/*{{{  COMMENT: very manual construction*/
@@ -479,6 +482,35 @@ void occampi_isetindent (FILE *stream, int indent)
 /*}}}*/
 
 
+/*{{{  static tnode_t *occampi_includefile (char *fname, lexfile_t *curlf)*/
+/*
+ *	includes a file
+ *	returns a tree or NULL
+ */
+static tnode_t *occampi_includefile (char *fname, lexfile_t *curlf)
+{
+	tnode_t *tree;
+	lexfile_t *lf;
+
+	lf = lexer_open (fname);
+	if (!lf) {
+		parser_error (curlf, "failed to open #INCLUDE'd file %s", fname);
+		return NULL;
+	}
+	if (compopts.verbose) {
+		nocc_message ("sub-parsing ...");
+	}
+	tree = parser_parse (lf);
+	if (!tree) {
+		parser_error (curlf, "failed to parse #INCLUDE'd file %s", fname);
+		lexer_close (lf);
+		return NULL;
+	}
+	lexer_close (lf);
+
+	return tree;
+}
+/*}}}*/
 /*{{{  static void occampi_parser_init (lexfile_t *lf)*/
 /*
  *	initialises the occam-pi parser
@@ -537,12 +569,12 @@ static void occampi_parser_shutdown (lexfile_t *lf)
 /*}}}*/
 
 
-/*{{{  static tnode_t *occampi_declorprocstart (lexfile_t *lf)*/
+/*{{{  static tnode_t *occampi_declorprocstart (lexfile_t *lf, int *gotall)*/
 /*
  *	parses a declaration/process for single-liner's, or start of a declaration/process
- *	for multi-liners
+ *	for multi-liners.  Sets "gotall" non-zero if the tree returned is largely whole
  */
-static tnode_t *occampi_declorprocstart (lexfile_t *lf)
+static tnode_t *occampi_declorprocstart (lexfile_t *lf, int *gotall)
 {
 	token_t *tok;
 	tnode_t *tree = NULL;
@@ -561,6 +593,8 @@ static tnode_t *occampi_declorprocstart (lexfile_t *lf)
 	 *     etc.
 	 */
 
+	*gotall = 0;
+restartpoint:
 	/* skip newlines/comments */
 	tok = lexer_nexttoken (lf);
 	while (tok && ((tok->type == NEWLINE) || (tok->type == COMMENT))) {
@@ -572,12 +606,42 @@ static tnode_t *occampi_declorprocstart (lexfile_t *lf)
 		if (tok) {
 			lexer_freetoken (tok);
 		}
-		return NULL;
+		return tree;
 	}
 
-	lexer_pushback (lf, tok);
+	if (lexer_tokmatch (opi.tok_HASH, tok)) {
+		/*{{{  probably a pre-processor action of some kind*/
+		token_t *nexttok = lexer_nexttoken (lf);
 
-	tree = dfa_walk ("occampi:declorprocstart", lf);
+		if (nexttok && lexer_tokmatch (opi.tok_INCLUDE, nexttok)) {
+			lexer_freetoken (tok);
+			lexer_freetoken (nexttok);
+
+			nexttok = lexer_nexttoken (lf);
+			if (nexttok && lexer_tokmatch (opi.tok_STRING, nexttok)) {
+				/*{{{  include another file*/
+#if 0
+fprintf (stderr, "occampi_declorprocstart(): think i should be including another file about here.. :)  [%s]\n", nexttok->u.str.ptr);
+#endif
+				tree = occampi_includefile (nexttok->u.str.ptr, lf);
+				lexer_freetoken (nexttok);
+				*gotall = 1;
+				/*}}}*/
+			} else {
+				parser_error (lf, "expected string found ");
+				lexer_dumptoken (stderr, nexttok);
+				return tree;
+			}
+		}
+		if (!tree) {
+			/* didn't get anything here, go round */
+			goto restartpoint;
+		}
+		/*}}}*/
+	} else {
+		lexer_pushback (lf, tok);
+		tree = dfa_walk ("occampi:declorprocstart", lf);
+	}
 
 	return tree;
 }
@@ -610,11 +674,11 @@ static int occampi_procend (lexfile_t *lf)
 	return 0;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_declorproc (lexfile_t *lf)*/
+/*{{{  static tnode_t *occampi_declorproc (lexfile_t *lf, int *gotall)*/
 /*
  *	this parses a whole declaration or process, then returns it
  */
-static tnode_t *occampi_declorproc (lexfile_t *lf)
+static tnode_t *occampi_declorproc (lexfile_t *lf, int *gotall)
 {
 	tnode_t *tree = NULL;
 	int tnflags;
@@ -623,7 +687,7 @@ static tnode_t *occampi_declorproc (lexfile_t *lf)
 		nocc_message ("occampi_declorproc(): parsing declaration or process start");
 	}
 
-	tree = occampi_declorprocstart (lf);
+	tree = occampi_declorprocstart (lf, gotall);
 	if (!tree) {
 		return NULL;
 	}
@@ -633,32 +697,34 @@ tnode_dumptree (tree, 1, stderr);
 #endif
 
 	/* decide how to deal with it */
-	tnflags = tnode_tnflagsof (tree);
-	if (tnflags & TNF_LONGDECL) {
-		/*{{{  long declaration (e.g. PROC, CHAN TYPE, etc.)*/
-		if (tree->tag == opi.tag_PROCDECL) {
-			/* parse body into subnode 2 */
-			tnode_t *body;
+	if (!*gotall) {
+		tnflags = tnode_tnflagsof (tree);
+		if (tnflags & TNF_LONGDECL) {
+			/*{{{  long declaration (e.g. PROC, CHAN TYPE, etc.)*/
+			if (tree->tag == opi.tag_PROCDECL) {
+				/* parse body into subnode 2 */
+				tnode_t *body;
 
-			body = occampi_indented_process (lf);
-			tnode_setnthsub (tree, 2, body);
+				body = occampi_indented_process (lf);
+				tnode_setnthsub (tree, 2, body);
 
-			/* check trailing colon */
-			if (occampi_procend (lf) < 0) {
-				/* failed, but error already reported */
+				/* check trailing colon */
+				if (occampi_procend (lf) < 0) {
+					/* failed, but error already reported */
+				}
 			}
-		}
-		/*}}}*/
-	} else if (tnflags & TNF_LONGPROC) {
-		/*{{{  long process (e.g. SEQ, CLAIM, FORKING, etc.)*/
-		if ((tree->tag == opi.tag_SEQ) || (tree->tag == opi.tag_PAR)) {
-			/* parse a list of processes into subnode 1 */
-			tnode_t *body;
+			/*}}}*/
+		} else if (tnflags & TNF_LONGPROC) {
+			/*{{{  long process (e.g. SEQ, CLAIM, FORKING, etc.)*/
+			if ((tree->tag == opi.tag_SEQ) || (tree->tag == opi.tag_PAR)) {
+				/* parse a list of processes into subnode 1 */
+				tnode_t *body;
 
-			body = occampi_indented_process_list (lf);
-			tnode_setnthsub (tree, 1, body);
+				body = occampi_indented_process_list (lf);
+				tnode_setnthsub (tree, 1, body);
+			}
+			/*}}}*/
 		}
-		/*}}}*/
 	}
 
 	return tree;
@@ -692,20 +758,29 @@ static tnode_t *occampi_indented_process (lexfile_t *lf)
 	for (;;) {
 		tnode_t *thisone;
 		int tnflags;
+		int breakfor = 0;
+		int gotall = 0;
 
-		thisone = occampi_declorproc (lf);
+		thisone = occampi_declorproc (lf, &gotall);
 		if (!thisone) {
 			*target = NULL;
 			break;		/* for() */
 		}
 		*target = thisone;
-		tnflags = tnode_tnflagsof (*target);
-		if (tnflags & TNF_LONGDECL) {
-			target = tnode_nthsubaddr (*target, 3);
-		} else if (tnflags & TNF_SHORTDECL) {
-			target = tnode_nthsubaddr (*target, 2);
-		} else {
-			/* assume we're done! */
+		while (*target) {
+			/* sink through anything included, etc. */
+			tnflags = tnode_tnflagsof (*target);
+			if (tnflags & TNF_LONGDECL) {
+				target = tnode_nthsubaddr (*target, 3);
+			} else if (tnflags & TNF_SHORTDECL) {
+				target = tnode_nthsubaddr (*target, 2);
+			} else {
+				/* assume we're done! */
+				breakfor = 1;
+				break;		/* while() */
+			}
+		}
+		if (breakfor) {
 			break;		/* for() */
 		}
 	}
@@ -763,35 +838,44 @@ static tnode_t *occampi_indented_process_list (lexfile_t *lf)
 	for (;;) {
 		tnode_t *thisone;
 		int tnflags;
+		int breakfor = 0;
+		int gotall = 0;
 
-		thisone = occampi_declorproc (lf);
+		thisone = occampi_declorproc (lf, &gotall);
 		if (!thisone) {
 			*target = NULL;
 			break;		/* for() */
 		}
 		*target = thisone;
-		tnflags = tnode_tnflagsof (*target);
-		if (tnflags & TNF_LONGDECL) {
-			target = tnode_nthsubaddr (*target, 3);
-		} else if (tnflags & TNF_SHORTDECL) {
-			target = tnode_nthsubaddr (*target, 2);
-		} else {
-			/* process with some leading declarations probably -- add to the list */
-			parser_addtolist (tree, stored);
-			stored = NULL;
-			target = &stored;
-		}
+		while (*target) {
+			/* sink through trees */
+			tnflags = tnode_tnflagsof (*target);
+			if (tnflags & TNF_LONGDECL) {
+				target = tnode_nthsubaddr (*target, 3);
+			} else if (tnflags & TNF_SHORTDECL) {
+				target = tnode_nthsubaddr (*target, 2);
+			} else {
+				/* process with some leading declarations probably -- add to the list */
+				parser_addtolist (tree, stored);
+				stored = NULL;
+				target = &stored;
+			}
 
-		/* peek at the next token -- if outdent, get out */
-		tok = lexer_nexttoken (lf);
-		for (; tok && (tok->type == NEWLINE); tok = lexer_nexttoken (lf)) {
-			lexer_freetoken (tok);
+			/* peek at the next token -- if outdent, get out */
+			tok = lexer_nexttoken (lf);
+			for (; tok && (tok->type == NEWLINE); tok = lexer_nexttoken (lf)) {
+				lexer_freetoken (tok);
+			}
+			if (tok && (tok->type == OUTDENT)) {
+				lexer_pushback (lf, tok);
+				breakfor = 1;
+				break;		/* while() */
+			} else {
+				lexer_pushback (lf, tok);
+			}
 		}
-		if (tok && (tok->type == OUTDENT)) {
-			lexer_pushback (lf, tok);
+		if (breakfor) {
 			break;		/* for() */
-		} else {
-			lexer_pushback (lf, tok);
 		}
 	}
 
@@ -836,21 +920,30 @@ static tnode_t *occampi_parser_parse (lexfile_t *lf)
 	for (;;) {
 		tnode_t *thisone;
 		int tnflags;
+		int gotall = 0;
+		int breakfor = 0;
 
-		thisone = occampi_declorproc (lf);
+		thisone = occampi_declorproc (lf, &gotall);
 		if (!thisone) {
 			*target = NULL;
 			break;		/* for() */
 		}
 		*target = thisone;
-		tnflags = tnode_tnflagsof (*target);
-		if (tnflags & TNF_LONGDECL) {
-			target = tnode_nthsubaddr (*target, 3);
-		} else if (tnflags & TNF_SHORTDECL) {
-			target = tnode_nthsubaddr (*target, 2);
-		} else {
-			/* assume we're done! */
-			break;		/* for() */
+		while (*target) {
+			/* sink through stuff, although we shouldn't really see this here */
+			tnflags = tnode_tnflagsof (*target);
+			if (tnflags & TNF_LONGDECL) {
+				target = tnode_nthsubaddr (*target, 3);
+			} else if (tnflags & TNF_SHORTDECL) {
+				target = tnode_nthsubaddr (*target, 2);
+			} else {
+				/* assume we're done! */
+				breakfor = 1;
+				break;		/* while() */
+			}
+		}
+		if (breakfor) {
+			break;
 		}
 	}
 

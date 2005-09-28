@@ -44,6 +44,7 @@
 
 /*{{{  private stuff*/
 STATICDYNARRAY (lexfile_t *, lexfiles);
+STATICDYNARRAY (lexfile_t *, openlexfiles);
 
 /*}}}*/
 
@@ -55,6 +56,7 @@ STATICDYNARRAY (lexfile_t *, lexfiles);
 void lexer_init (void)
 {
 	dynarray_init (lexfiles);
+	dynarray_init (openlexfiles);
 	return;
 }
 /*}}}*/
@@ -69,24 +71,52 @@ lexfile_t *lexer_open (char *filename)
 	int i;
 	struct stat stbuf;
 	char *fextn;
+	char fnbuf[FILENAME_MAX];
+	int fnlen = 0;
 
+#if 0
+fprintf (stderr, "lexer_open(): filename=[%s], DA_CUR(openlexfiles)=%d\n", filename, DA_CUR (openlexfiles));
+#endif
 	/* if a path isn't specified, do a search based on extension (relative current directory first) */
 	fextn = NULL;
+	if (!DA_CUR (openlexfiles)) {
+		/* this is the first, nothing special */
+	} else {
+		lexfile_t *lastopen = DA_NTHITEM (openlexfiles, DA_CUR (openlexfiles) - 1);
 
-	if (access (filename, R_OK)) {
-		nocc_error ("unable to access %s for reading: %s", filename, strerror (errno));
+#if 0
+fprintf (stderr, "lexer_open(): lastopen->filename=[%s] @0x%8.8x, lastopen->fnptr=[%s] @0x%8.8x\n", lastopen->filename, (unsigned int)lastopen->filename, lastopen->fnptr, (unsigned int)lastopen->fnptr);
+#endif
+		/* see if there's a path in it, if so, copy it */
+		if ((lastopen->fnptr > lastopen->filename) && (*filename != '/')) {
+			int plen = (int)(lastopen->fnptr - lastopen->filename);
+
+			if (plen > (FILENAME_MAX - 3)) {
+				nocc_error ("path too long..?!");
+				return NULL;
+			}
+			strncpy (fnbuf, lastopen->filename, plen);
+			fnlen = plen;
+			fnbuf[fnlen] = '\0';
+		}
+	}
+
+	strncpy (fnbuf + fnlen, filename, FILENAME_MAX-(fnlen + 1));
+
+	if (access (fnbuf, R_OK)) {
+		nocc_error ("unable to access %s for reading: %s", fnbuf, strerror (errno));
 		return NULL;
 	}
 	/* already know about this one ? */
 	for (i=0; i<DA_CUR(lexfiles); i++) {
 		lf = DA_NTHITEM (lexfiles, i);
-		if (!strcmp (lf->filename, filename)) {
+		if (!strcmp (lf->filename, fnbuf)) {
 			break;
 		}
 	}
 	if (i == DA_CUR (lexfiles)) {
 		lf = (lexfile_t *)smalloc (sizeof (lexfile_t));
-		lf->filename = string_dup (filename);
+		lf->filename = string_dup (fnbuf);
 		for (lf->fnptr = lf->filename + (strlen (lf->filename) - 1); (lf->fnptr > lf->filename) && ((lf->fnptr)[-1] != '/'); (lf->fnptr)--);
 
 		lf->priv = NULL;
@@ -132,6 +162,8 @@ lexfile_t *lexer_open (char *filename)
 		lf->lexer->openfile (lf, lp);
 	}
 	/* oki, ready for lexing..! */
+	dynarray_add (openlexfiles, lf);
+
 	return lf;
 }
 /*}}}*/
@@ -142,11 +174,27 @@ lexfile_t *lexer_open (char *filename)
 void lexer_close (lexfile_t *lf)
 {
 	lexpriv_t *lp = (lexpriv_t *)(lf->priv);
+	lexfile_t *lastopen;
 
 	if (!lf) {
 		nocc_internal ("lexer_close() on %s is not open", lf->filename);
 		return;
 	}
+
+	/* make sure it was the last thing opened! */
+	if (!DA_CUR (openlexfiles)) {
+		nocc_internal ("lexer_close(): no open files!");
+		return;
+	}
+	lastopen = DA_NTHITEM (openlexfiles, DA_CUR (openlexfiles) - 1);
+	if (lastopen != lf) {
+		nocc_internal ("lexer_close(): closing [%s], but [%s] was last opened", lf->filename, lastopen->filename);
+		return;
+	}
+	DA_SETNTHITEM (openlexfiles, DA_CUR (openlexfiles) - 1, NULL);
+	dynarray_delitem (openlexfiles, DA_CUR (openlexfiles) - 1);
+
+	
 	if (lp->size && lp->buffer && (lp->fd >= 0)) {
 		if (lf->lexer && lf->lexer->closefile) {
 			lf->lexer->closefile (lf, lp);
