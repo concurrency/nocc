@@ -29,8 +29,11 @@ typedef struct TAG_map {
 	struct TAG_target *target;
 	int err;
 	int warn;
+
 	struct TAG_chook *mapchook;
 	struct TAG_chook *allocevhook;
+	struct TAG_chook *precodehook;
+
 	struct TAG_tnode *thisblock;
 	struct TAG_tnode **thisprocparams;
 	struct TAG_tnode *thisberesult;

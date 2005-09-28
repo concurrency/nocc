@@ -95,13 +95,24 @@ static void occampi_initabbrev (tnode_t *node, codegen_t *cgen, void *arg)
 {
 	tnode_t *abbrev = (tnode_t *)arg;
 	int ws_off, vs_off, ms_off;
+	tnode_t *mappedrhs;
 
 	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off);
 #if 0
 fprintf (stderr, "occampi_initabbrev(): node=[%s], allocated at [%d,%d,%d]:\n", node->tag->name, ws_off, vs_off, ms_off);
 tnode_dumptree (node, 1, stderr);
 #endif
-	codegen_callops (cgen, loadpointer, tnode_nthsubof (abbrev, 3), 0);
+	mappedrhs = (tnode_t *)tnode_getchook (node, cgen->pc_chook);
+
+#if 0
+fprintf (stderr, "occampi_initabbrev(): node=[%s], mappedrhs =\n", node->tag->name);
+tnode_dumptree (mappedrhs, 1, stderr);
+#endif
+	if (abbrev->tag == opi.tag_VALABBREV) {
+		codegen_callops (cgen, loadname, mappedrhs, 0);
+	} else {
+		codegen_callops (cgen, loadpointer, mappedrhs, 0);
+	}
 	codegen_callops (cgen, storelocal, ws_off);
 	codegen_callops (cgen, comment, "initabbrev");
 	return;
@@ -310,7 +321,11 @@ fprintf (stderr, "occampi_scopein_abbrev: here! rawname = \"%s\"\n", rawname);
 	}
 
 	sname = name_addscopename (rawname, *nodep, type, NULL);
-	newname = tnode_createfrom (opi.tag_NABBR, name, sname);
+	if ((*nodep)->tag == opi.tag_VALABBREV) {
+		newname = tnode_createfrom (opi.tag_NVALABBR, name, sname);
+	} else {
+		newname = tnode_createfrom (opi.tag_NABBR, name, sname);
+	}
 	SetNameNode (sname, newname);
 	tnode_setnthsub (*nodep, 0, newname);
 
@@ -337,8 +352,8 @@ static int occampi_scopeout_abbrev (tnode_t **nodep, scope_t *ss)
 	tnode_t *name = tnode_nthsubof (*nodep, 0);
 	name_t *sname;
 
-	if (name->tag != opi.tag_NABBR) {
-		scope_error (name, ss, "not NABBR!");
+	if (name->tag != (((*nodep)->tag == opi.tag_VALABBREV) ? opi.tag_NVALABBR : opi.tag_NABBR)) {
+		scope_error (name, ss, "not NABBR/NVALABBR!");
 		return 0;
 	}
 	sname = tnode_nthnameof (name, 0);
@@ -437,6 +452,7 @@ fprintf (stderr, "occampi_namemap_abbrev(): target is [%s].  mapped RHS, got:\n"
 tnode_dumptree (*rhsp, 1, stderr);
 #endif
 	tnode_setchook (bename, map->allocevhook, (void *)*rhsp);
+	tnode_setchook (bename, map->precodehook, (void *)*rhsp);
 
 	tnode_setchook (*namep, map->mapchook, (void *)bename);
 #if 0
@@ -1324,9 +1340,9 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 				"[ 4 @@: 5 ] [ 5 {<opi:declreduce>} -* ] [ 4 @IS 6 ] [ 6 occampi:operand 7 ] [ 7 @@: 8 ] [ 8 {<opi:abbrreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:procdecl ::= [ 0 @PROC 1 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:procdeclreduce>} -* ]"));
 
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:valabbrdecl ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} -* 2 ] [ 2 @IS 3 ] [ 2 +Name 6 ] [ 3 occampi:operand 4 ] [ 4 @@: 5 ] " \
-				"[ 5 {<opi:notypevalabbrreduce>} -* ] [ 6 {<opi:namepush>} -* 7 ] [ 7 @IS 8 ] [ 8 occampi:operand 9 ] [ 9 {<opi:valabbrreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:valabbrdecl +:= [ 0 occampi:primtype 1 ] [ 1 occampi:name 2 ] [ 2 @IS 3 ] [ 3 occampi:operand 4 ] [ 4 @@: 5 ] [ 5 {<opi:valabbrreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:valabbrdecl ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} -* 2 ] [ 2 @IS 3 ] [ 2 +Name 6 ] [ 3 occampi:expr 4 ] [ 4 @@: 5 ] " \
+				"[ 5 {<opi:notypevalabbrreduce>} -* ] [ 6 {<opi:namepush>} -* 7 ] [ 7 @IS 8 ] [ 8 occampi:expr 9 ] [ 9 {<opi:valabbrreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:valabbrdecl +:= [ 0 occampi:primtype 1 ] [ 1 occampi:name 2 ] [ 2 @IS 3 ] [ 3 occampi:expr 4 ] [ 4 @@: 5 ] [ 5 {<opi:valabbrreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:abbrdecl ::= [ 0 @VAL <occampi:valabbrdecl> ]"));
 
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:fparam ::= ( occampi:primtype occampi:name {<opi:fparam2nsreduce>} | " \

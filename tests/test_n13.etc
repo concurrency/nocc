@@ -1,0 +1,27 @@
+;
+;	tests/test_n13.etc
+;	compiled from tests/test_n13.occ
+;	on host frog at Sun Sep 11 23:09:58 2005
+;	source language: occampi, target: etc-kroc-unknown
+;
+
+.jentry	O_test_n13
+.setlabel	2
+.byte	0x0f, 0x00, 0x00, 0x00
+.descriptor	"PROC O_test_n13 ()"
+; PROC test.n13 = 8,8,0,0,4
+.setws	8, 4
+.setvs	0
+.setms	0
+.setnamedlabel	"O_test_n13"
+.setlabel	1
+	ajw	-4
+	ldc	15
+	ldlp	0
+	stnl	0
+	ajw	4
+	ret	4
+
+;
+;	end of compilation
+;

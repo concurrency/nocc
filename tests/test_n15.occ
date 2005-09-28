@@ -1,0 +1,9 @@
+
+-- test_n15.occ -- pre-processor stuff
+
+#INCLUDE "test_n15.inc"
+
+PROC test.n15 ()
+  SKIP
+:
+

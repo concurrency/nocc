@@ -74,6 +74,24 @@ static void codegen_isetindent (FILE *stream, int indent)
 /*}}}*/
 
 
+
+/*{{{  static void codegen_precode_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps (debugging) extra variables for allocation attached to a node
+ */
+static void codegen_precode_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	tnode_t *evars = (tnode_t *)hook;
+
+	codegen_isetindent (stream, indent);
+	fprintf (stream, "<chook id=\"precode:vars\" addr=\"0x%8.8x\">\n", (unsigned int)hook);
+	tnode_dumptree (evars, indent + 1, stream);
+	codegen_isetindent (stream, indent);
+	fprintf (stream, "</chook>\n");
+
+	return;
+}
+/*}}}*/
 /*{{{  static void codegen_inithook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
 /*
  *	called to dump init-hook (debugging)
@@ -332,12 +350,24 @@ static int codegen_prewalktree_codegen (tnode_t *node, void *data)
 static int codegen_modprewalk_precode (tnode_t **tptr, void *data)
 {
 	codegen_t *cgen = (codegen_t *)data;
+	tnode_t *evars;
 	int i;
 
 	if (!tptr || !*tptr) {
 		nocc_internal ("codegen_modprewalk_precode(): NULL pointer or node!");
 		return 0;
 	}
+
+	evars = (tnode_t *)tnode_getchook (*tptr, cgen->pc_chook);
+	if (evars) {
+		/* do pre-allocation on nodes with this hook */
+#if 0
+fprintf (stderr, "codegen_modprewalk_precode(): pre-coding pc_chook vars.\n");
+#endif
+		tnode_modprewalktree (&evars, codegen_modprewalk_precode, data);
+		tnode_setchook (*tptr, cgen->pc_chook, evars);
+	}
+
 	i = 1;
 	if ((*tptr)->tag->ndef->ops && (*tptr)->tag->ndef->ops->precode) {
 		i = (*tptr)->tag->ndef->ops->precode (tptr, cgen);
@@ -385,6 +415,8 @@ int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)
 	cgen->cops = NULL;
 	cgen->labcount = 1;
 	cgen->cinsertpoint = tptr;
+	cgen->pc_chook = tnode_lookupornewchook ("precode:vars");
+	cgen->pc_chook->chook_dumptree = codegen_precode_chook_dumptree;
 	dynarray_init (cgen->be_blks);
 	dynarray_init (cgen->tcgstates);
 

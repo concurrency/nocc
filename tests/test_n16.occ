@@ -1,0 +1,9 @@
+
+-- test_n16.occ -- val consts
+
+PROC test.n16 (CHAN BYTE screen!)
+  VAL INT x IS 42:
+  SEQ
+    SKIP
+:
+

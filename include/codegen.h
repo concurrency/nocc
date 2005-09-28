@@ -25,6 +25,7 @@ struct TAG_tnode;
 struct TAG_name;
 struct TAG_lexfile;
 struct TAG_coderops;
+struct TAG_chook;
 
 typedef enum ENUM_codegen_parammode {
 	PARAM_INVALID = 0,
@@ -42,6 +43,7 @@ typedef struct TAG_codegen {
 	struct TAG_tnode **cinsertpoint;	/* coder insert-point (for constants, etc.) */
 	DYNARRAY (struct TAG_tnode *, be_blks);	/* enclosing back-end blocks, stack of */
 	DYNARRAY (void *, tcgstates);		/* target code-generation states, stack of */
+	struct TAG_chook *pc_chook;		/* pre-code code-generation hook */
 } codegen_t;
 
 typedef struct TAG_coderops {

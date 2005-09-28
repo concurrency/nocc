@@ -1,0 +1,27 @@
+;
+;	tests/test_n16.etc
+;	compiled from tests/test_n16.occ
+;	on host frog at Wed Sep 28 04:26:09 2005
+;	source language: occampi, target: etc-kroc-unknown
+;
+
+.jentry	O_test_n16
+.setlabel	2
+.byte	0x2a, 0x00, 0x00, 0x00
+.descriptor	"PROC O_test_n16 (CHAN BYTE screen)"
+; PROC test.n16 = 12,12,0,0,8
+.setws	12, 8
+.setvs	0
+.setms	0
+.setnamedlabel	"O_test_n16"
+.setlabel	1
+	ajw	-4
+	ldc	42
+	stl	0
+; initabbrev
+	ajw	4
+	ret	8
+
+;
+;	end of compilation
+;
