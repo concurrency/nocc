@@ -224,14 +224,23 @@ fprintf (stderr, "uchk_prewalk_tree(): [%s]\n", node->tag->name);
 	thook = tnode_getchook (node, uchk_taghook);
 	if (thook) {
 		/* gets applied before any implicit usage-check */
-		if (usagecheck_addname (node, ucstate, thook->mode)) {
-			return 0;
-		}
-		result = thook->do_nested;
-	}
+		if (node->tag->ndef->lops && node->tag->ndef->lops->do_usagecheck) {
+			/*{{{  do usage-check on node directly*/
+			uchk_mode_t savedmode = ucstate->defmode;
 
-	if (node->tag->ndef->lops && node->tag->ndef->lops->do_usagecheck) {
-		result = node->tag->ndef->lops->do_usagecheck (node, ucstate);
+			ucstate->defmode = thook->mode;
+			result = node->tag->ndef->lops->do_usagecheck (node, ucstate);
+			/*}}}*/
+		} else {
+			if (usagecheck_addname (node, ucstate, thook->mode)) {
+				return 0;
+			}
+			result = thook->do_nested;
+		}
+	} else {
+		if (node->tag->ndef->lops && node->tag->ndef->lops->do_usagecheck) {
+			result = node->tag->ndef->lops->do_usagecheck (node, ucstate);
+		}
 	}
 
 	return result;
@@ -685,6 +694,7 @@ int usagecheck_tree (tnode_t *tree, langparser_t *lang)
 	ucstate->ucptr = -1;
 	ucstate->err = 0;
 	ucstate->warn = 0;
+	ucstate->defmode = USAGE_NONE;
 
 	tnode_prewalktree (tree, uchk_prewalk_tree, (void *)ucstate);
 

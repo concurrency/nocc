@@ -1139,7 +1139,15 @@ tnode_dumptree (bename, 1, stderr);
  */
 static int occampi_usagecheck_namenode (tnode_t *node, uchk_state_t *uc)
 {
-	/* FIXME */
+	if (node->tag == opi.tag_NVALABBR) {
+		/* allowed to be at the outermost lex-level.. */
+		if (uc->ucptr < 0) {
+			return 0;
+		}
+	}
+	if (usagecheck_addname (node, uc, uc->defmode)) {
+		return 0;
+	}
 	return 1;
 }
 /*}}}*/

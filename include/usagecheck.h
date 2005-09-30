@@ -40,6 +40,7 @@ typedef struct TAG_uchk_state {
 	int ucptr;
 	int err;
 	int warn;
+	uchk_mode_t defmode;		/* default mode */
 } uchk_state_t;
 
 
