@@ -385,10 +385,34 @@ static int occampi_typecheck_abbrev (tnode_t *node, typecheck_t *tc)
 		xtypep = NameTypeAddr (name);
 	}
 
+#if 0
+fprintf (stderr, "occampi_typecheck_abbrev(): *xtypep=0x%8.8x, *typep=0x%8.8x, *rhsp=\n", (unsigned int)(*xtypep), (unsigned int)(*typep));
+tnode_dumptree (*rhsp, 1, stderr);
+#endif
 	if (*typep && xtypep && !*xtypep) {
+		tnode_t *rtype;
+
 		*xtypep = *typep;		/* set NAMENODE type to type in abbreviation */
+		/* typecheck RHS */
+		rtype = typecheck_gettype (*rhsp, *typep);
+		if (!rtype) {
+			typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
+			return 0;
+		} else {
+			typecheck_typeactual (*typep, rtype, node, tc);
+		}
 	} else if (!*typep && xtypep && *xtypep) {
+		tnode_t *rtype;
+
 		*typep = *xtypep;		/* set ABBRNODE to type in name */
+		/* typecheck RHS */
+		rtype = typecheck_gettype (*rhsp, *typep);
+		if (!rtype) {
+			typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
+			return 0;
+		} else {
+			typecheck_typeactual (*typep, rtype, node, tc);
+		}
 	} else if (!*typep && (!xtypep || !*xtypep)) {
 		tnode_t *rtype;
 
@@ -405,11 +429,18 @@ static int occampi_typecheck_abbrev (tnode_t *node, typecheck_t *tc)
 		if (xtypep && !*xtypep) {
 			*xtypep = *typep;
 		}
+	} else {
+		tnode_t *rtype;
+
+		/* typecheck RHS */
+		rtype = typecheck_gettype (*rhsp, *typep);
+		if (!rtype) {
+			typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
+			return 0;
+		} else {
+			typecheck_typeactual (*typep, rtype, node, tc);
+		}
 	}
-#if 0
-fprintf (stderr, "occampi_typecheck_abbrev(): node after fixup=\n");
-tnode_dumptree (node, 1, stderr);
-#endif
 	/* typecheck body */
 	typecheck_subtree (tnode_nthsubof (node, 2), tc);
 
@@ -1101,6 +1132,17 @@ tnode_dumptree (bename, 1, stderr);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_usagecheck_namenode (tnode_t *node, uchk_state_t *uc)*/
+/*
+ *	does usage-check on a namenode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_usagecheck_namenode (tnode_t *node, uchk_state_t *uc)
+{
+	/* FIXME */
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static void occampi_procdecl_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)*/
@@ -1152,6 +1194,7 @@ static int occampi_decl_init_nodes (void)
 	cops = tnode_newcompops ();
 	cops->scopein = occampi_scopein_rawname;
 	tnd->ops = cops;
+
 	i = -1;
 	opi.tag_NAME = tnode_newnodetag ("NAME", &i, tnd, NTF_NONE);
 	/*}}}*/
@@ -1163,6 +1206,11 @@ static int occampi_decl_init_nodes (void)
 	cops->bytesfor = occampi_bytesfor_namenode;
 	cops->namemap = occampi_namemap_namenode;
 	tnd->ops = cops;
+
+	lops = tnode_newlangops ();
+	lops->do_usagecheck = occampi_usagecheck_namenode;
+	tnd->lops = lops;
+
 	i = -1;
 	opi.tag_NDECL = tnode_newnodetag ("N_DECL", &i, opi.node_NAMENODE, NTF_NONE);
 	i = -1;

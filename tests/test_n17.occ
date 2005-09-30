@@ -1,0 +1,11 @@
+
+-- test_n17.occ -- VALs at outermost level (needs some constant thinking..)
+
+VAL BYTE char IS 'x':
+
+PROC test.n17 (CHAN BYTE screen!)
+  SEQ
+    screen ! char
+    screen ! '*n'
+:
+

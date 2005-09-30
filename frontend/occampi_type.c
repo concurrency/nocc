@@ -135,6 +135,15 @@ static int occampi_type_bytesfor (tnode_t *t, target_t *target)
 	return -1;
 }
 /*}}}*/
+/*{{{  static int occampi_type_issigned (tnode_t *t, target_t *target)*/
+/*
+ *	returns the signedness of a type (or -1 if not known)
+ */
+static int occampi_type_issigned (tnode_t *t, target_t *target)
+{
+	return -1;
+}
+/*}}}*/
 /*{{{  static int occampi_type_getdescriptor (tnode_t *node, char **str)*/
 /*
  *	gets descriptor information for a type
@@ -197,6 +206,19 @@ static int occampi_leaftype_bytesfor (tnode_t *t, target_t *target)
 		return 1;
 	}
 	return -1;
+}
+/*}}}*/
+/*{{{  static int occampi_leaftype_issigned (tnode_t *t, target_t *target)*/
+/*
+ *	returns 0 if the given basic type is unsigned
+ */
+static int occampi_leaftype_issigned (tnode_t *t, target_t *target)
+{
+	if (t->tag == opi.tag_BYTE) {
+		return 0;
+	}
+	/* everything else is signed */
+	return 1;
 }
 /*}}}*/
 /*{{{  static int occampi_leaftype_getdescriptor (tnode_t *node, char **str)*/
@@ -280,6 +302,7 @@ static int occampi_type_init_nodes (void)
 	cops->gettype = occampi_type_gettype;
 	cops->typeactual = occampi_type_typeactual;
 	cops->bytesfor = occampi_type_bytesfor;
+	cops->issigned = occampi_type_issigned;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->getdescriptor = occampi_type_getdescriptor;
@@ -297,6 +320,7 @@ static int occampi_type_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:leaftype", &i, 0, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
 	cops->bytesfor = occampi_leaftype_bytesfor;
+	cops->issigned = occampi_leaftype_issigned;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->getdescriptor = occampi_leaftype_getdescriptor;

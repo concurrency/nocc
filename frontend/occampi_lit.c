@@ -125,8 +125,63 @@ static tnode_t *occampi_gettype_lit (tnode_t *node, tnode_t *default_type)
 	} else if (!type) {
 		/* no type yet, use default_type */
 		occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof (node, 0);
+		int typesize = tnode_bytesfor (default_type, NULL);
 
-		/* FIXME: make sure that the literal fits the type given */
+#if 0
+fprintf (stderr, "occampi_gettype_lit(): typesize=%d, default_type=\n", typesize);
+tnode_dumptree (default_type, 4, stderr);
+#endif
+		if ((node->tag == opi.tag_LITINT) && (typesize < tmplit->bytes)) {
+			/*{{{  make sure literal fits*/
+			int issigned = tnode_issigned (default_type, NULL);
+
+			if (issigned && (tmplit->bytes == 4)) {
+				int sint = *(int *)tmplit->data;
+
+				if ((typesize == 1) && ((sint < -128) || (sint > 127))) {
+					tnode_error (node, "literal value exceeds range of 1-byte type");
+				} else if ((typesize == 2) && ((sint < -32768) || (sint > 32767))) {
+					tnode_error (node, "literal value exceeds range of 2-byte type");
+				}
+			} else if (!issigned && (tmplit->bytes == 4)) {
+				unsigned int uint = *(unsigned int *)tmplit->data;
+
+				if ((typesize == 1) && (uint > 255)) {
+					tnode_error (node, "literal value exceeds range of 1-byte type");
+				} else if ((typesize == 2) && (uint > 65535)) {
+					tnode_error (node, "literal value exceeds range of 2-byte type");
+				}
+			} else if (issigned && (tmplit->bytes == 8)) {
+				long long lsint = *(long long *)tmplit->data;
+
+				if ((typesize == 1) && ((lsint < -128LL) || (lsint > 127LL))) {
+					tnode_error (node, "literal value exceeds range of 1-byte type");
+				} else if ((typesize == 2) && ((lsint < -32768LL) || (lsint > 32767LL))) {
+					tnode_error (node, "literal value exceeds range of 2-byte type");
+				} else if ((typesize == 4) && ((lsint < -2147483648LL) || (lsint > 2147483647LL))) {
+					tnode_error (node, "literal value exceeds range of 4-byte type");
+				}
+			} else if (!issigned && (tmplit->bytes == 8)) {
+				unsigned long long luint = *(unsigned long long *)tmplit->data;
+
+				if ((typesize == 1) && (luint > 255LL)) {
+					tnode_error (node, "literal value exceeds range of 1-byte type");
+				} else if ((typesize == 2) && (luint > 65535LL)) {
+					tnode_error (node, "literal value exceeds range of 2-byte type");
+				} else if ((typesize == 4) && (luint > 4294967295LL)) {
+					tnode_error (node, "literal value exceeds range of 4-byte type");
+				}
+			}
+			/*}}}*/
+			/*{{{  truncate literal*/
+#if 0
+fprintf (stderr, "occampi_gettype_lit(): adjusting literal size from %d to %d..\n", tmplit->bytes, typesize);
+#endif
+			tmplit->bytes = typesize;
+
+			/*}}}*/
+		}
+
 		type = tnode_copytree (default_type);
 		tnode_setnthsub (node, 0, type);
 	}

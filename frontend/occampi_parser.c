@@ -614,6 +614,7 @@ restartpoint:
 		token_t *nexttok = lexer_nexttoken (lf);
 
 		if (nexttok && lexer_tokmatch (opi.tok_INCLUDE, nexttok)) {
+			/*{{{  #INCLUDE*/
 			lexer_freetoken (tok);
 			lexer_freetoken (nexttok);
 
@@ -632,6 +633,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				lexer_dumptoken (stderr, nexttok);
 				return tree;
 			}
+			/*}}}*/
 		}
 		if (!tree) {
 			/* didn't get anything here, go round */

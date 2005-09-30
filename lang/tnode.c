@@ -1429,5 +1429,71 @@ fprintf (stderr, "tnode_bytesfor(): t = [%s]\n", t->tag->name);
 	return -1;		/* don't know */
 }
 /*}}}*/
+/*{{{  int tnode_issigned (tnode_t *t, target_t *target)*/
+/*
+ *	returns the signedness of a tree-node, similar to "bytes-for"
+ *	returns 0 if unsigned, 1 if signed, -1 if unknown/error
+ */
+int tnode_issigned (tnode_t *t, target_t *target)
+{
+	if (t && t->tag->ndef->ops && t->tag->ndef->ops->issigned) {
+		return t->tag->ndef->ops->issigned (t, target);
+	}
+	return -1;		/* don't know */
+}
+/*}}}*/
+
+
+/*{{{  void tnode_warning (tnode_t *t, const char *fmt, ...)*/
+/*
+ *	generates a generic warning message
+ */
+void tnode_warning (tnode_t *t, const char *fmt, ...)
+{
+	va_list ap;
+	static char warnbuf[512];
+	int n;
+	lexfile_t *lf = t->org_file;
+
+	va_start (ap, fmt);
+	n = sprintf (warnbuf, "%s:%d (warning) ", lf ? lf->fnptr : "(unknown)", t->org_line);
+	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	if (lf) {
+		lf->warncount++;
+	}
+
+	nocc_outerrmsg (warnbuf);
+
+	return;
+}
+/*}}}*/
+/*{{{  void tnode_error (tnode_t *t, const char *fmt, ...)*/
+/*
+ *	generates an error message
+ */
+void tnode_error (tnode_t *t, const char *fmt, ...)
+{
+	va_list ap;
+	static char errbuf[512];
+	int n;
+	lexfile_t *lf = t->org_file;
+
+	va_start (ap, fmt);
+	n = sprintf (errbuf, "%s:%d (error) ", lf ? lf->fnptr : "(unknown)", t->org_line);
+	vsnprintf (errbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	if (lf) {
+		lf->errcount++;
+	}
+
+	nocc_outerrmsg (errbuf);
+
+	return;
+}
+/*}}}*/
+
 
 
