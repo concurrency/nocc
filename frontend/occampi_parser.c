@@ -60,7 +60,7 @@ static int occampi_parser_scope (tnode_t **tptr, scope_t *ss);
 static int occampi_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
 
 static tnode_t *occampi_indented_process (lexfile_t *lf);
-static tnode_t *occampi_indented_process_list (lexfile_t *lf);
+static tnode_t *occampi_indented_process_list (lexfile_t *lf, char *leaddfa);
 
 
 /*}}}*/
@@ -69,14 +69,15 @@ static tnode_t *occampi_indented_process_list (lexfile_t *lf);
 occampi_pset_t opi;		/* attach tags, etc. here */
 
 langparser_t occampi_parser = {
-	langname:	"occampi",
+	langname:	"occam-pi",
 	init:		occampi_parser_init,
 	shutdown:	occampi_parser_shutdown,
 	parse:		occampi_parser_parse,
 	prescope:	occampi_parser_prescope,
 	scope:		occampi_parser_scope,
 	typecheck:	occampi_parser_typecheck,
-	tagstruct_hook:	(void *)&opi
+	tagstruct_hook:	(void *)&opi,
+	lexer:		NULL
 };
 
 
@@ -92,6 +93,7 @@ static occampi_parse_t *occampi_priv = NULL;
 static feunit_t *feunit_set[] = {
 	&occampi_primproc_feunit,
 	&occampi_cnode_feunit,
+	&occampi_snode_feunit,
 	&occampi_decl_feunit,
 	&occampi_dtype_feunit,
 	&occampi_action_feunit,
@@ -569,12 +571,12 @@ static void occampi_parser_shutdown (lexfile_t *lf)
 /*}}}*/
 
 
-/*{{{  static tnode_t *occampi_declorprocstart (lexfile_t *lf, int *gotall)*/
+/*{{{  static tnode_t *occampi_declorprocstart (lexfile_t *lf, int *gotall, char *thedfa)*/
 /*
  *	parses a declaration/process for single-liner's, or start of a declaration/process
  *	for multi-liners.  Sets "gotall" non-zero if the tree returned is largely whole
  */
-static tnode_t *occampi_declorprocstart (lexfile_t *lf, int *gotall)
+static tnode_t *occampi_declorprocstart (lexfile_t *lf, int *gotall, char *thedfa)
 {
 	token_t *tok;
 	tnode_t *tree = NULL;
@@ -642,7 +644,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 		/*}}}*/
 	} else {
 		lexer_pushback (lf, tok);
-		tree = dfa_walk ("occampi:declorprocstart", lf);
+		tree = dfa_walk (thedfa ? thedfa : "occampi:declorprocstart", lf);
 	}
 
 	return tree;
@@ -676,11 +678,11 @@ static int occampi_procend (lexfile_t *lf)
 	return 0;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_declorproc (lexfile_t *lf, int *gotall)*/
+/*{{{  static tnode_t *occampi_declorproc (lexfile_t *lf, int *gotall, char *thedfa)*/
 /*
  *	this parses a whole declaration or process, then returns it
  */
-static tnode_t *occampi_declorproc (lexfile_t *lf, int *gotall)
+static tnode_t *occampi_declorproc (lexfile_t *lf, int *gotall, char *thedfa)
 {
 	tnode_t *tree = NULL;
 	int tnflags;
@@ -689,7 +691,7 @@ static tnode_t *occampi_declorproc (lexfile_t *lf, int *gotall)
 		nocc_message ("occampi_declorproc(): parsing declaration or process start");
 	}
 
-	tree = occampi_declorprocstart (lf, gotall);
+	tree = occampi_declorprocstart (lf, gotall, thedfa);
 	if (!tree) {
 		return NULL;
 	}
@@ -722,7 +724,7 @@ tnode_dumptree (tree, 1, stderr);
 				/* parse a list of processes into subnode 1 */
 				tnode_t *body;
 
-				body = occampi_indented_process_list (lf);
+				body = occampi_indented_process_list (lf, NULL);
 				tnode_setnthsub (tree, 1, body);
 			}
 			/*}}}*/
@@ -763,7 +765,7 @@ static tnode_t *occampi_indented_process (lexfile_t *lf)
 		int breakfor = 0;
 		int gotall = 0;
 
-		thisone = occampi_declorproc (lf, &gotall);
+		thisone = occampi_declorproc (lf, &gotall, NULL);
 		if (!thisone) {
 			*target = NULL;
 			break;		/* for() */
@@ -808,11 +810,12 @@ static tnode_t *occampi_indented_process (lexfile_t *lf)
 	return tree;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_indented_process_list (lexfile_t *lf)*/
+/*{{{  static tnode_t *occampi_indented_process_list (lexfile_t *lf, char *leaddfa)*/
 /*
- *	parses a list of indented processes
+ *	parses a list of indented processes.  if "leaddfa" is non-null, parses that
+ *	indented before the process (that may have leading declarations too)
  */
-static tnode_t *occampi_indented_process_list (lexfile_t *lf)
+static tnode_t *occampi_indented_process_list (lexfile_t *lf, char *leaddfa)
 {
 	tnode_t *tree = NULL;
 	tnode_t *stored;
@@ -843,7 +846,7 @@ static tnode_t *occampi_indented_process_list (lexfile_t *lf)
 		int breakfor = 0;
 		int gotall = 0;
 
-		thisone = occampi_declorproc (lf, &gotall);
+		thisone = occampi_declorproc (lf, &gotall, leaddfa);
 		if (!thisone) {
 			*target = NULL;
 			break;		/* for() */
@@ -925,7 +928,7 @@ static tnode_t *occampi_parser_parse (lexfile_t *lf)
 		int gotall = 0;
 		int breakfor = 0;
 
-		thisone = occampi_declorproc (lf, &gotall);
+		thisone = occampi_declorproc (lf, &gotall, NULL);
 		if (!thisone) {
 			*target = NULL;
 			break;		/* for() */

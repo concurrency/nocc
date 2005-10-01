@@ -28,6 +28,7 @@ struct TAG_dfastate;
 struct TAG_prescope;
 struct TAG_scope;
 struct TAG_typecheck;
+struct TAG_langlexer;
 
 typedef struct TAG_langparser {
 	char *langname;
@@ -40,6 +41,7 @@ typedef struct TAG_langparser {
 	int (*typecheck)(struct TAG_tnode *, struct TAG_typecheck *);
 
 	void *tagstruct_hook;		/* where language can attach its tndef/ntdef/token structure */
+	struct TAG_langlexer *lexer;	/* lexer for this language */
 } langparser_t;
 
 /* this is private to the parser */

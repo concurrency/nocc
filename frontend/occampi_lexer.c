@@ -50,7 +50,8 @@ langlexer_t occampi_lexer = {
 	fileexts: {".occ", ".inc", NULL},
 	openfile: occampi_openfile,
 	closefile: occampi_closefile,
-	nexttoken: occampi_nexttoken
+	nexttoken: occampi_nexttoken,
+	parser: NULL
 };
 
 

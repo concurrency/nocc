@@ -1,4 +1,6 @@
 
+01/10/2005	frmb	various updates to lexer and parser
+01/10/2005	frmb	support for short IFs, initial parsing for IF, ALT, etc.
 28/09/2005	frmb	fixed up VAL abbreviation initialisation
 25/09/2005	frmb	added compiler hook for alloc extra-vars, abbreviations maybe functional
 24/09/2005	frmb	some work on abbreviations and value parameters

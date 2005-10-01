@@ -20,6 +20,8 @@
 #ifndef __LEXPRIV_H
 #define __LEXPRIV_H
 
+struct TAG_langparser;
+
 /* this holds the data being lexed */
 typedef struct TAG_lexpriv {
 	int fd;
@@ -38,8 +40,14 @@ typedef struct TAG_langlexer {
 	int (*closefile)(lexfile_t *, lexpriv_t *);
 	token_t *(*nexttoken)(lexfile_t *, lexpriv_t *);
 
+	struct TAG_langparser *parser;		/* associated parser */
 	char *fileexts[];	/* {".occ", ".inc", NULL} */
 } langlexer_t;
+
+
+/* language registration */
+extern int lexer_registerlang (langlexer_t *ll);
+extern int lexer_unregisterlang (langlexer_t *ll);
 
 
 #endif	/* !__LEXPRIV_H */

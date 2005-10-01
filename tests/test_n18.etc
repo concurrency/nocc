@@ -1,8 +1,8 @@
 ;
 ;	tests/test_n18.etc
 ;	compiled from tests/test_n18.occ
-;	on host frog at Sat Oct  1 18:31:40 2005
-;	source language: occampi, target: etc-kroc-unknown
+;	on host frog at Sun Oct  2 00:14:03 2005
+;	source language: occam-pi, target: etc-kroc-unknown
 ;
 
 .jentry	O_test_n18

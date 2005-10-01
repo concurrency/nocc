@@ -17,6 +17,7 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+/*{{{  includes*/
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -42,7 +43,14 @@
 #include "parser.h"
 #include "occampi.h"
 
-/*{{{  private stuff*/
+/*}}}*/
+
+
+/*{{{  private types*/
+STATICDYNARRAY (langlexer_t *, langlexers);
+
+/*}}}*/
+/*{{{  private data*/
 STATICDYNARRAY (lexfile_t *, lexfiles);
 STATICDYNARRAY (lexfile_t *, openlexfiles);
 
@@ -55,6 +63,7 @@ STATICDYNARRAY (lexfile_t *, openlexfiles);
  */
 void lexer_init (void)
 {
+	dynarray_init (langlexers);
 	dynarray_init (lexfiles);
 	dynarray_init (openlexfiles);
 	return;
@@ -73,6 +82,7 @@ lexfile_t *lexer_open (char *filename)
 	char *fextn;
 	char fnbuf[FILENAME_MAX];
 	int fnlen = 0;
+	int langlexidx = -1;
 
 #if 0
 fprintf (stderr, "lexer_open(): filename=[%s], DA_CUR(openlexfiles)=%d\n", filename, DA_CUR (openlexfiles));
@@ -101,13 +111,66 @@ fprintf (stderr, "lexer_open(): lastopen->filename=[%s] @0x%8.8x, lastopen->fnpt
 		}
 	}
 
-	strncpy (fnbuf + fnlen, filename, FILENAME_MAX-(fnlen + 1));
+	fnlen += snprintf (fnbuf + fnlen, FILENAME_MAX-(fnlen + 1), "%s", filename);
 
 	if (access (fnbuf, R_OK)) {
-		nocc_error ("unable to access %s for reading: %s", fnbuf, strerror (errno));
+		/*{{{  search through include and library directories*/
+		for (i=0; i<DA_CUR (compopts.ipath); i++) {
+			char *ipath = DA_NTHITEM (compopts.ipath, i);
+
+			fnlen = snprintf (fnbuf, FILENAME_MAX - 1, "%s", ipath);
+			fnlen += snprintf (fnbuf + fnlen, FILENAME_MAX - (fnlen + 1), "%s", filename);
+
+			if (!access (fnbuf, R_OK)) {
+				break;		/* for() */
+			}
+		}
+		if (i < DA_CUR (compopts.ipath)) {
+			/* found in the includes */
+		} else {
+			/* search through library directories */
+			for (i=0; i<DA_CUR (compopts.lpath); i++) {
+				char *lpath = DA_NTHITEM (compopts.lpath, i);
+
+				fnlen = snprintf (fnbuf, FILENAME_MAX - 1, "%s", lpath);
+				fnlen += snprintf (fnbuf + fnlen, FILENAME_MAX - (fnlen + 1), "%s", filename);
+
+				if (!access (fnbuf, R_OK)) {
+					break;		/* for() */
+				}
+			}
+			if (i == DA_CUR (compopts.lpath)) {
+				nocc_error ("unable to access %s for reading: %s", fnbuf, strerror (errno));
+				return NULL;
+			}
+		}
+		/*}}}*/
+	}
+
+	/*{{{  extract extension from filename and set "langlexidx"*/
+	for (fextn = (char *)fnbuf + (fnlen - 1); (fextn > (char *)fnbuf) && (*fextn != '.'); fextn--);
+	for (i=0; i<DA_CUR (langlexers); i++) {
+		int j;
+		langlexer_t *llex = DA_NTHITEM (langlexers, i);
+
+		for (j=0; llex->fileexts[j]; j++) {
+			if (!strcmp (llex->fileexts[j], fextn)) {
+				/* this one will do! */
+				langlexidx = i;
+				break;		/* for() */
+			}
+		}
+		if (langlexidx >= 0) {
+			break;		/* for() */
+		}
+	}
+	if (langlexidx < 0) {
+		nocc_error ("failed to find lexer for %s", fnbuf);
 		return NULL;
 	}
-	/* already know about this one ? */
+
+	/*}}}*/
+	/*{{{  already know about this one ?*/
 	for (i=0; i<DA_CUR(lexfiles); i++) {
 		lf = DA_NTHITEM (lexfiles, i);
 		if (!strcmp (lf->filename, fnbuf)) {
@@ -131,6 +194,8 @@ fprintf (stderr, "lexer_open(): lastopen->filename=[%s] @0x%8.8x, lastopen->fnpt
 		nocc_error ("failed to stat %s: %s", lf->filename, strerror (errno));
 		return NULL;
 	}
+
+	/*}}}*/
 	/* open it */
 	lp = (lexpriv_t *)smalloc (sizeof (lexpriv_t));
 	lf->priv = (void *)lp;
@@ -152,8 +217,8 @@ fprintf (stderr, "lexer_open(): lastopen->filename=[%s] @0x%8.8x, lastopen->fnpt
 		return NULL;
 	}
 	lf->lineno = 1;
-	lf->lexer = &occampi_lexer;
-	lf->parser = &occampi_parser;
+	lf->lexer = DA_NTHITEM (langlexers, langlexidx);		/* &occampi_lexer; */
+	lf->parser = lf->lexer->parser;					/* &occampi_parser; */
 	lf->errcount = 0;
 	lf->warncount = 0;
 	lf->ppriv = NULL;
@@ -442,7 +507,7 @@ void lexer_dumptoken_short (FILE *stream, token_t *tok)
 	return;
 }
 /*}}}*/
-/*{{{  */
+/*{{{  char *lexer_stokenstr (token_t *tok)*/
 /*
  *	puts a token string in a local static buffer (error reporting)
  */
@@ -548,8 +613,6 @@ void lexer_freetoken (token_t *tok)
 	return;
 }
 /*}}}*/
-
-
 /*{{{  int lexer_tokmatch (token_t *formal, token_t *actual)*/
 /*
  *	returns non-zero if "actual" is a match for "formal"
@@ -641,4 +704,50 @@ void lexer_error (lexfile_t *lf, char *fmt, ...)
 	return;
 }
 /*}}}*/
+
+
+/*{{{  int lexer_registerlang (langlexer_t *ll)*/
+/*
+ *	registers a language for lexing
+ *	returns 0 on success, non-zero on failure
+ */
+int lexer_registerlang (langlexer_t *ll)
+{
+	int i;
+
+	for (i=0; i<DA_CUR (langlexers); i++) {
+		langlexer_t *llex = DA_NTHITEM (langlexers, i);
+
+		if (ll == llex) {
+			nocc_warning ("lexer_registerlang(): lexer for [%s] already registered", ll->langname);
+			return -1;
+		}
+	}
+	dynarray_add (langlexers, ll);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int lexer_unregisterlang (langlexer_t *ll)*/
+/*
+ *	unregisters a language for lexing
+ *	returns 0 on success, non-zero on failure
+ */
+int lexer_unregisterlang (langlexer_t *ll)
+{
+	int i;
+
+	for (i=0; i<DA_CUR (langlexers); i++) {
+		langlexer_t *llex = DA_NTHITEM (langlexers, i);
+
+		if (ll == llex) {
+			dynarray_delitem (langlexers, i);
+			return 0;
+		}
+	}
+	nocc_warning ("lexer_unregisterlang(): lexer for [%s] is not registered", ll->langname);
+	return -1;
+}
+/*}}}*/
+
 

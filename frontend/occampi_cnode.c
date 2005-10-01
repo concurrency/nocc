@@ -310,7 +310,7 @@ static int occampi_codegen_cnode (tnode_t *node, codegen_t *cgen)
 
 /*{{{  static int occampi_cnode_init_nodes (void)*/
 /*
- *	initialises literal-nodes for occam-pi
+ *	initialises constructor-process nodes for occam-pi
  *	return 0 on success, non-zero on failure
  */
 static int occampi_cnode_init_nodes (void)
@@ -352,7 +352,8 @@ static int occampi_cnode_init_nodes (void)
 /*}}}*/
 /*{{{  static int occampi_cnode_reg_reducers (void)*/
 /*
- *	registers reducers for literal nodes
+ *	registers reducers for constructor-process nodes
+ *	return 0 on success, non-zero on failure
  */
 static int occampi_cnode_reg_reducers (void)
 {
@@ -364,7 +365,7 @@ static int occampi_cnode_reg_reducers (void)
 /*}}}*/
 /*{{{  static dfattbl_t **occampi_cnode_init_dfatrans (int *ntrans)*/
 /*
- *	creates and returns DFA transition tables for literal nodes
+ *	creates and returns DFA transition tables for constructor-process nodes
  */
 static dfattbl_t **occampi_cnode_init_dfatrans (int *ntrans)
 {

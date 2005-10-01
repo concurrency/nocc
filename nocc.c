@@ -17,6 +17,7 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+/*{{{  includes*/
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -58,6 +59,9 @@
 #include "allocate.h"
 #include "target.h"
 #include "codegen.h"
+#include "occampi_fe.h"
+
+/*}}}*/
 
 
 /*{{{  global variables*/
@@ -618,6 +622,12 @@ int main (int argc, char **argv)
 	codegen_init ();
 	target_init ();
 
+	/*}}}*/
+	/*{{{  initialise occam-pi language lexer and parser (just registers them)*/
+	if (occampi_register_frontend ()) {
+		nocc_error ("failed to initialise built-in occam-pi language frontend");
+		exit (EXIT_FAILURE);
+	}
 
 	/*}}}*/
 	/*{{{  process left-over arguments*/

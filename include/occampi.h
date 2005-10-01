@@ -85,6 +85,7 @@ typedef struct {
 	struct TAG_ntdef *tag_IF;
 	struct TAG_ntdef *tag_SHORTIF;
 	struct TAG_ntdef *tag_ALT;
+	struct TAG_ntdef *tag_CASE;
 
 	struct TAG_ntdef *tag_LITBYTE;
 	struct TAG_ntdef *tag_LITINT;
@@ -159,6 +160,7 @@ extern void occampi_isetindent (FILE *stream, int indent);
 
 extern struct TAG_feunit occampi_primproc_feunit;	/* occampi_primproc.c */
 extern struct TAG_feunit occampi_cnode_feunit;		/* occampi_cnode.c */
+extern struct TAG_feunit occampi_snode_feunit;		/* occampi_snode.c */
 extern struct TAG_feunit occampi_decl_feunit;		/* occampi_decl.c */
 extern struct TAG_feunit occampi_action_feunit;		/* occampi_action.c */
 extern struct TAG_feunit occampi_lit_feunit;		/* occampi_lit.c */
