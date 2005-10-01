@@ -39,7 +39,13 @@ typedef enum ENUM_transinstr {
 	I_DIFF = 22,
 	I_PROD = 23,
 	I_NEG = 24,
-	I_NOT = 25
+	I_NOT = 25,
+	I_J = 26,
+	I_CJ = 27,
+	I_EQ = 28,
+	I_LT = 29,
+	I_GT = 30,
+	I_BOOLINVERT = 31
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {

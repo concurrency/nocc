@@ -45,6 +45,7 @@ typedef struct {
 	struct TAG_tndef *node_LEAFNODE;
 	struct TAG_tndef *node_TYPENODE;
 
+	struct TAG_ntdef *tag_BOOL;
 	struct TAG_ntdef *tag_BYTE;
 	struct TAG_ntdef *tag_INT;
 	struct TAG_ntdef *tag_INT16;
@@ -81,6 +82,9 @@ typedef struct {
 	struct TAG_ntdef *tag_HIDDENPARAM;
 	struct TAG_ntdef *tag_RETURNADDRESS;
 	struct TAG_ntdef *tag_PARSPACE;
+	struct TAG_ntdef *tag_IF;
+	struct TAG_ntdef *tag_SHORTIF;
+	struct TAG_ntdef *tag_ALT;
 
 	struct TAG_ntdef *tag_LITBYTE;
 	struct TAG_ntdef *tag_LITINT;
@@ -97,6 +101,12 @@ typedef struct {
 	struct TAG_ntdef *tag_TIMES;
 	struct TAG_ntdef *tag_UMINUS;
 	struct TAG_ntdef *tag_BITNOT;
+	struct TAG_ntdef *tag_RELEQ;
+	struct TAG_ntdef *tag_RELNEQ;
+	struct TAG_ntdef *tag_RELLT;
+	struct TAG_ntdef *tag_RELLEQ;
+	struct TAG_ntdef *tag_RELGT;
+	struct TAG_ntdef *tag_RELGTE;
 
 	struct TAG_ntdef *tag_NDECL;
 	struct TAG_ntdef *tag_NPARAM;

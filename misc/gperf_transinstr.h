@@ -36,12 +36,12 @@
  */
 struct TAG_transinstr;
 
-#define TOTAL_KEYWORDS 18
-#define MIN_WORD_LENGTH 2
+#define TOTAL_KEYWORDS 24
+#define MIN_WORD_LENGTH 1
 #define MAX_WORD_LENGTH 10
-#define MIN_HASH_VALUE 2
-#define MAX_HASH_VALUE 43
-/* maximum key range = 42, duplicates = 0 */
+#define MIN_HASH_VALUE 1
+#define MAX_HASH_VALUE 53
+/* maximum key range = 53, duplicates = 0 */
 
 #ifdef __GNUC__
 __inline
@@ -55,32 +55,32 @@ hash (register const char *str, register unsigned int len)
 {
   static const unsigned char asso_values[] =
     {
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 10,  3,  8, 15, 10,
-       5, 20, 44,  0, 44, 44, 10,  0, 20, 15,
-       0, 44,  5,  0, 15, 44,  0, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-      44, 44, 44, 44, 44, 44
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 30, 13, 25, 20,  5,
+       0, 10, 54, 15,  0, 54,  0,  5, 20, 25,
+       5, 54, 10,  5, 15, 54,  0, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
+      54, 54, 54, 54, 54, 54
     };
   register int hval = len;
 
@@ -100,49 +100,59 @@ hash (register const char *str, register unsigned int len)
 static const struct TAG_transinstr wordlist[] =
   {
     {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"J",		INS_PRIMARY, 	I_J,		NULL},
+    {"LT",		INS_SECONDARY,	I_LT,		NULL},
+    {"LDL",		INS_PRIMARY,	I_LDL,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"IN",		INS_SECONDARY,	I_IN,		NULL},
-    {"SUM",		INS_SECONDARY,	I_SUM,		NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"EQ",		INS_SECONDARY,	I_EQ,		NULL},
+    {"MUL",		INS_SECONDARY,	I_MUL,		NULL},
     {"MOVE",		INS_SECONDARY,	I_MOVE,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"SUB",		INS_SECONDARY,	I_SUB,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"GT",		INS_SECONDARY,	I_GT,		NULL},
+    {"SUM",		INS_SECONDARY,	I_SUM,		NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"IN",		INS_SECONDARY,	I_IN,		NULL},
     {"REM",		INS_SECONDARY,	I_REM,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"MUL",		INS_SECONDARY,	I_MUL,		NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"RESCHEDULE",	INS_SECONDARY,	I_RESCHEDULE,	NULL},
-    {"STARTP",		INS_SECONDARY,	I_STARTP,	NULL},
+    {"SUB",		INS_SECONDARY,	I_SUB,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"DIV",		INS_SECONDARY,	I_DIV,		NULL},
-    {"PROD",		INS_SECONDARY,	I_PROD,		NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"LDC",		INS_PRIMARY,	I_LDC,		NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"LDL",		INS_PRIMARY,	I_LDL,		NULL},
     {"DIFF",		INS_SECONDARY,	I_DIFF,		NULL},
+    {"RESCHEDULE",	INS_SECONDARY,	I_RESCHEDULE,	NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"ADD",		INS_SECONDARY,	I_ADD,		NULL},
+    {"CJ",		INS_PRIMARY,	I_CJ,		NULL},
+    {"LDC",		INS_PRIMARY,	I_LDC,		NULL},
     {"ENDP",		INS_SECONDARY,	I_ENDP,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"OUT",		INS_SECONDARY,	I_OUT,		NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"NEG",		INS_SECONDARY,	I_NEG,		NULL},
+    {"PROD",		INS_SECONDARY,	I_PROD,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"NOT",		INS_SECONDARY,	I_NOT,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"STARTP",		INS_SECONDARY,	I_STARTP,	NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"OUT",		INS_SECONDARY,	I_OUT,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"NEG",		INS_SECONDARY,	I_NEG,		NULL}
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"BOOLINVERT",	INS_SECONDARY,	I_BOOLINVERT,	NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"ADD",		INS_SECONDARY,	I_ADD,		NULL}
   };
 
 #ifdef __GNUC__

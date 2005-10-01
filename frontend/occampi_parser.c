@@ -718,7 +718,7 @@ tnode_dumptree (tree, 1, stderr);
 			/*}}}*/
 		} else if (tnflags & TNF_LONGPROC) {
 			/*{{{  long process (e.g. SEQ, CLAIM, FORKING, etc.)*/
-			if ((tree->tag == opi.tag_SEQ) || (tree->tag == opi.tag_PAR)) {
+			if ((tree->tag == opi.tag_SEQ) || (tree->tag == opi.tag_PAR) || (tree->tag == opi.tag_SHORTIF)) {
 				/* parse a list of processes into subnode 1 */
 				tnode_t *body;
 

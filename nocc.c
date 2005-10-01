@@ -68,6 +68,7 @@ compopts_t compopts = {
 	dmemdump: 0,
 	dumpspecs: 0,
 	dumptree: 0,
+	dumptreeto: NULL,
 	dumpgrammar: 0,
 	dumpdfas: 0,
 	dumpnames: 0,
@@ -368,6 +369,30 @@ static void specfile_data (xmlhandler_t *xh, void *data, const char *text, int l
 /*}}}*/
 
 
+/*}}}*/
+/*{{{  extras*/
+/*{{{  static void maybedumptree (tnode_t *tree)*/
+/*
+ *	maybe dumps the parse tree to a file
+ */
+static void maybedumptree (tnode_t *tree)
+{
+	if (compopts.dumptree) {
+		tnode_dumptree (tree, 1, stderr);
+	} else if (compopts.dumptreeto) {
+		FILE *stream;
+
+		stream = fopen (compopts.dumptreeto, "w");
+		if (!stream) {
+			nocc_error ("failed to open %s for writing: %s", compopts.dumptreeto, strerror (errno));
+		} else {
+			tnode_dumptree (tree, 0, stream);
+			fclose (stream);
+		}
+	}
+	return;
+}
+/*}}}*/
 /*}}}*/
 
 
@@ -703,9 +728,7 @@ int main (int argc, char **argv)
 			}
 			if (compopts.stoppoint == 2) {
 				/*{{{  stop after parse*/
-				if (compopts.dumptree) {
-					tnode_dumptree (tree, 1, stderr);
-				}
+				maybedumptree (tree);
 				goto main_out;
 				/*}}}*/
 			}
@@ -720,9 +743,7 @@ int main (int argc, char **argv)
 			}
 			if (compopts.stoppoint == 3) {
 				/*{{{  stop after pre-scope*/
-				if (compopts.dumptree) {
-					tnode_dumptree (tree, 1, stderr);
-				}
+				maybedumptree (tree);
 				goto main_out;
 				/*}}}*/
 			}
@@ -743,9 +764,7 @@ int main (int argc, char **argv)
 			}
 			if (compopts.stoppoint == 4) {
 				/*{{{  stop after scope*/
-				if (compopts.dumptree) {
-					tnode_dumptree (tree, 1, stderr);
-				}
+				maybedumptree (tree);
 				goto main_out;
 				/*}}}*/
 			}
@@ -760,9 +779,7 @@ int main (int argc, char **argv)
 			}
 			if (compopts.stoppoint == 5) {
 				/*{{{  stop after type-check*/
-				if (compopts.dumptree) {
-					tnode_dumptree (tree, 1, stderr);
-				}
+				maybedumptree (tree);
 				goto main_out;
 				/*}}}*/
 			}
@@ -777,9 +794,7 @@ int main (int argc, char **argv)
 			}
 			if (compopts.stoppoint == 6) {
 				/*{{{  stop after pre-check*/
-				if (compopts.dumptree) {
-					tnode_dumptree (tree, 1, stderr);
-				}
+				maybedumptree (tree);
 				goto main_out;
 				/*}}}*/
 			}
@@ -796,9 +811,7 @@ int main (int argc, char **argv)
 			}
 			if (compopts.stoppoint == 7) {
 				/*{{{  stop after alias-check*/
-				if (compopts.dumptree) {
-					tnode_dumptree (tree, 1, stderr);
-				}
+				maybedumptree (tree);
 				goto main_out;
 				/*}}}*/
 			}
@@ -815,9 +828,7 @@ int main (int argc, char **argv)
 			}
 			if (compopts.stoppoint == 8) {
 				/*{{{  stop after usage-check*/
-				if (compopts.dumptree) {
-					tnode_dumptree (tree, 1, stderr);
-				}
+				maybedumptree (tree);
 				goto main_out;
 				/*}}}*/
 			}
@@ -834,9 +845,7 @@ int main (int argc, char **argv)
 			}
 			if (compopts.stoppoint == 9) {
 				/*{{{  stop after undefinedness-check*/
-				if (compopts.dumptree) {
-					tnode_dumptree (tree, 1, stderr);
-				}
+				maybedumptree (tree);
 				goto main_out;
 				/*}}}*/
 			}
@@ -851,9 +860,7 @@ int main (int argc, char **argv)
 			}
 			if (compopts.stoppoint == 10) {
 				/*{{{  stop after front-end tree transform*/
-				if (compopts.dumptree) {
-					tnode_dumptree (tree, 1, stderr);
-				}
+				maybedumptree (tree);
 				goto main_out;
 				/*}}}*/
 			}
@@ -874,9 +881,7 @@ int main (int argc, char **argv)
 			}
 			if (compopts.stoppoint == 11) {
 				/*{{{  stop after back-end tree transform*/
-				if (compopts.dumptree) {
-					tnode_dumptree (tree, 1, stderr);
-				}
+				maybedumptree (tree);
 				goto main_out;
 				/*}}}*/
 			}
@@ -891,9 +896,7 @@ int main (int argc, char **argv)
 			}
 			if (compopts.stoppoint == 12) {
 				/*{{{  stop after name-map*/
-				if (compopts.dumptree) {
-					tnode_dumptree (tree, 1, stderr);
-				}
+				maybedumptree (tree);
 				goto main_out;
 				/*}}}*/
 			}
@@ -908,9 +911,7 @@ int main (int argc, char **argv)
 			}
 			if (compopts.stoppoint == 13) {
 				/*{{{  stop after pre-allocation*/
-				if (compopts.dumptree) {
-					tnode_dumptree (tree, 1, stderr);
-				}
+				maybedumptree (tree);
 				goto main_out;
 				/*}}}*/
 			}
@@ -925,9 +926,7 @@ int main (int argc, char **argv)
 			}
 			if (compopts.stoppoint == 14) {
 				/*{{{  stop after memory allocation*/
-				if (compopts.dumptree) {
-					tnode_dumptree (tree, 1, stderr);
-				}
+				maybedumptree (tree);
 				goto main_out;
 				/*}}}*/
 			}
@@ -942,18 +941,13 @@ int main (int argc, char **argv)
 			}
 			if (compopts.stoppoint == 15) {
 				/*{{{  stop after code generation*/
-				if (compopts.dumptree) {
-					tnode_dumptree (tree, 1, stderr);
-				}
+				maybedumptree (tree);
 				goto main_out;
 				/*}}}*/
 			}
 			/*}}}*/
 
-			if (compopts.dumptree) {
-				nocc_message ("compiler run complete..!  got:");
-				tnode_dumptree (tree, 1, stderr);
-			}
+			maybedumptree (tree);
 
 			lexer_close (tmp);
 		}

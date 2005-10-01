@@ -68,6 +68,7 @@ typedef struct TAG_coderops {
 	void (*procreturn)(codegen_t *, int);
 	void (*tsecondary)(codegen_t *, int);
 	void (*loadlabaddr)(codegen_t *, int);
+	void (*branch)(codegen_t *, int, int);
 } coderops_t;
 
 

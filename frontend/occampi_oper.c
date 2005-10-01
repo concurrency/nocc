@@ -75,6 +75,21 @@ typedef struct TAG_mopmap {
 	transinstr_e instr;
 } mopmap_t;
 
+typedef struct TAG_relmap {
+	tokentype_t ttype;
+	const char *lookup;
+	token_t *tok;
+	ntdef_t **tagp;
+	void (*cgfunc)(codegen_t *, int);
+	int cgarg;
+} relmap_t;
+
+
+/*}}}*/
+/*{{{  forward decls*/
+static void occampi_oper_genrelop (codegen_t *cgen, int arg);
+static void occampi_oper_geninvrelop (codegen_t *cgen, int arg);
+
 
 /*}}}*/
 /*{{{  private data*/
@@ -87,13 +102,19 @@ static dopmap_t dopmap[] = {
 	{KEYWORD, "PLUS", NULL, &(opi.tag_PLUS), I_SUM},
 	{KEYWORD, "MINUS", NULL, &(opi.tag_MINUS), I_DIFF},
 	{KEYWORD, "TIMES", NULL, &(opi.tag_TIMES), I_PROD},
-	{NOTOKEN, NULL, NULL, NULL}
+	{NOTOKEN, NULL, NULL, NULL, I_INVALID}
+};
+
+static relmap_t relmap[] = {
+	{SYMBOL, "=", NULL, &(opi.tag_RELEQ), occampi_oper_genrelop, I_EQ},
+	{SYMBOL, "<>", NULL, &(opi.tag_RELNEQ), occampi_oper_geninvrelop, I_EQ},
+	{NOTOKEN, NULL, NULL, NULL, NULL, I_INVALID}
 };
 
 static mopmap_t mopmap[] = {
 	{SYMBOL, "-", NULL, &(opi.tag_UMINUS), I_NEG},
 	{SYMBOL, "~", NULL, &(opi.tag_BITNOT), I_NOT},
-	{NOTOKEN, NULL, NULL, NULL}
+	{NOTOKEN, NULL, NULL, NULL, I_INVALID}
 };
 
 
@@ -176,6 +197,122 @@ static int occampi_codegen_dop (tnode_t *node, codegen_t *cgen)
 	codegen_error (cgen, "occampi_codgen_dop(): don\'t know how to generate code for [%s] [%s]", node->tag->ndef->name, node->tag->name);
 
 	return 0;
+}
+/*}}}*/
+
+
+/*{{{  static tnode_t *occampi_gettype_rel (tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	returns the type associated with a DOPNODE, also sets the type in the node
+ */
+static tnode_t *occampi_gettype_rel (tnode_t *node, tnode_t *defaulttype)
+{
+	tnode_t *lefttype, *righttype;
+
+	lefttype = typecheck_gettype (tnode_nthsubof (node, 0), defaulttype);
+	righttype = typecheck_gettype (tnode_nthsubof (node, 1), defaulttype);
+
+	/* FIXME! -- needs more.. */
+	if (!tnode_nthsubof (node, 2)) {
+		/* not got a type yet -- always BOOL */
+		tnode_setnthsub (node, 2, tnode_create (opi.tag_BOOL, NULL));
+	}
+
+	return tnode_nthsubof (node, 2);
+}
+/*}}}*/
+/*{{{  static int occampi_premap_rel (tnode_t **node, map_t *map)*/
+/*
+ *	maps out a DOPNODE, turning into a back-end RESULT
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_premap_rel (tnode_t **node, map_t *map)
+{
+	/* pre-map left and right */
+	map_subpremap (tnode_nthsubaddr (*node, 0), map);
+	map_subpremap (tnode_nthsubaddr (*node, 1), map);
+
+	*node = map->target->newresult (*node, map);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_namemap_rel (tnode_t **node, map_t *map)*/
+/*
+ *	name-maps a DOPNODE, adding child nodes to any enclosing result
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_rel (tnode_t **node, map_t *map)
+{
+	/* name-map left and right */
+	map_submapnames (tnode_nthsubaddr (*node, 0), map);
+	map_submapnames (tnode_nthsubaddr (*node, 1), map);
+
+	/* set in result */
+	map_addtoresult (tnode_nthsubaddr (*node, 0), map);
+	map_addtoresult (tnode_nthsubaddr (*node, 1), map);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_codegen_rel (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	called to do code-generation for a RELNODE -- operands are already on the stack
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_codegen_rel (tnode_t *node, codegen_t *cgen)
+{
+	int i;
+
+	for (i=0; relmap[i].lookup; i++) {
+		if (node->tag == *(relmap[i].tagp)) {
+			relmap[i].cgfunc (cgen, relmap[i].cgarg);
+			return 0;
+		}
+	}
+
+	codegen_error (cgen, "occampi_codgen_rel(): don\'t know how to generate code for [%s] [%s]", node->tag->ndef->name, node->tag->name);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static void occampi_oper_genrelop (codegen_t *cgen, int arg)*/
+/*
+ *	generates code for a relational operator
+ */
+static void occampi_oper_genrelop (codegen_t *cgen, int arg)
+{
+	transinstr_e tins = (transinstr_e)arg;
+
+	switch (tins) {
+	case I_EQ:
+		codegen_callops (cgen, tsecondary, I_DIFF);
+		codegen_callops (cgen, tsecondary, I_BOOLINVERT);
+		break;
+	default:
+		codegen_callops (cgen, comment, "occampi_oper_genrelop(): fixme!");
+		break;
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_oper_geninvrelop (codegen_t *cgen, int arg)*/
+/*
+ *	generates code for a relational operator and inverts the result
+ */
+static void occampi_oper_geninvrelop (codegen_t *cgen, int arg)
+{
+	transinstr_e tins = (transinstr_e)arg;
+
+	switch (tins) {
+	case I_EQ:
+		codegen_callops (cgen, tsecondary, I_DIFF);
+		break;
+	default:
+		codegen_callops (cgen, comment, "occampi_oper_geninvrelop(): fixme!");
+		break;
+	}
+	return;
 }
 /*}}}*/
 
@@ -286,6 +423,43 @@ static void occampi_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 	return;
 }
 /*}}}*/
+/*{{{  static void occampi_reduce_rel (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	reduces a relational operator, expects 2 nodes on the node-stack,
+ *	and the relevant operator token on the token-stack
+ */
+static void occampi_reduce_rel (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	token_t *tok = parser_gettok (pp);
+	tnode_t *lhs, *rhs;
+	ntdef_t *tag = NULL;
+	int i;
+
+	if (!tok) {
+		parser_error (pp->lf, "occampi_reduce_rel(): no token ?");
+		return;
+	}
+	rhs = dfa_popnode (dfast);
+	lhs = dfa_popnode (dfast);
+	if (!rhs || !lhs) {
+		parser_error (pp->lf, "occampi_reduce_rel(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
+		return;
+	}
+	for (i=0; relmap[i].lookup; i++) {
+		if (lexer_tokmatch (relmap[i].tok, tok)) {
+			tag = *(relmap[i].tagp);
+			break;
+		}
+	}
+	if (!tag) {
+		parser_error (pp->lf, "occampi_reduce_rel(): unhandled token [%s]", lexer_stokenstr (tok));
+		return;
+	}
+	*(dfast->ptr) = tnode_create (tag, pp->lf, lhs, rhs, NULL);
+
+	return;
+}
+/*}}}*/
 /*{{{  static void occampi_reduce_mop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
  *	reduces a monadic operator, expects operand on the node-stack, operator on
@@ -361,6 +535,21 @@ static int occampi_oper_init_nodes (void)
 	i = -1;
 	opi.tag_TIMES = tnode_newnodetag ("TIMES", &i, tnd, NTF_NONE);
 	/*}}}*/
+	/*{{{  occampi:relnode -- RELEQ, RELNEQ, RELLT, RELGT, RELLEQ, RELGEQ, RELAND, RELOR, RELXOR*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:relnode", &i, 3, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	cops->gettype = occampi_gettype_rel;
+	cops->premap = occampi_premap_rel;
+	cops->namemap = occampi_namemap_rel;
+	cops->codegen = occampi_codegen_rel;
+	tnd->ops = cops;
+
+	i = -1;
+	opi.tag_RELEQ = tnode_newnodetag ("RELEQ", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_RELNEQ = tnode_newnodetag ("RELNEQ", &i, tnd, NTF_NONE);
+	/*}}}*/
 	/*{{{  occampi:mopnode -- UMINUS, BITNOT*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:mopnode", &i, 2, 0, 0, TNF_NONE);
@@ -380,6 +569,9 @@ static int occampi_oper_init_nodes (void)
 	for (i=0; dopmap[i].lookup; i++) {
 		dopmap[i].tok = lexer_newtoken (dopmap[i].ttype, dopmap[i].lookup);
 	}
+	for (i=0; relmap[i].lookup; i++) {
+		relmap[i].tok = lexer_newtoken (relmap[i].ttype, relmap[i].lookup);
+	}
 	for (i=0; mopmap[i].lookup; i++) {
 		mopmap[i].tok = lexer_newtoken (mopmap[i].ttype, mopmap[i].lookup);
 	}
@@ -397,6 +589,7 @@ static int occampi_oper_init_nodes (void)
 static int occampi_oper_reg_reducers (void)
 {
 	parser_register_reduce ("Roccampi:dopreduce", occampi_reduce_dop, NULL);
+	parser_register_reduce ("Roccampi:relreduce", occampi_reduce_rel, NULL);
 	parser_register_reduce ("Roccampi:mopreduce", occampi_reduce_mop, NULL);
 
 	return 0;
@@ -414,6 +607,7 @@ static dfattbl_t **occampi_oper_init_dfatrans (int *ntrans)
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:restofexpr +:= [ 0 +@@+ 1 ] [ 0 +@@- 1 ] [ 0 +@@* 1 ] [ 0 +@@/ 1 ] [ 0 +@@\\ 1 ] [ 0 +@PLUS 1 ] [ 0 +@MINUS 1 ] [ 0 +@TIMES 1 ] " \
 				"[ 1 occampi:expr 2 ] [ 2 {Roccampi:dopreduce} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:restofexpr +:= [ 0 +@@= 1 ] [ 0 +@@< 1 ] [ 0 +@@> 1 ] [ 1 occampi:expr 2 ] [ 2 {Roccampi:relreduce} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:expr +:= [ 0 +@@- 1 ] [ 0 +@@~ 1 ] [ 1 occampi:expr 2 ] [ 2 {Roccampi:mopreduce} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);

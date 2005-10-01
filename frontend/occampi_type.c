@@ -188,7 +188,9 @@ static int occampi_type_getdescriptor (tnode_t *node, char **str)
  */
 static int occampi_leaftype_bytesfor (tnode_t *t, target_t *target)
 {
-	if (t->tag == opi.tag_BYTE) {
+	if (t->tag == opi.tag_BOOL) {
+		return 4;
+	} else if (t->tag == opi.tag_BYTE) {
 		return 1;
 	} else if (t->tag == opi.tag_INT) {
 		return 4;
@@ -216,6 +218,8 @@ static int occampi_leaftype_issigned (tnode_t *t, target_t *target)
 {
 	if (t->tag == opi.tag_BYTE) {
 		return 0;
+	} else if (t->tag == opi.tag_BOOL) {
+		return 0;
 	}
 	/* everything else is signed */
 	return 1;
@@ -241,7 +245,9 @@ static int occampi_leaftype_getdescriptor (tnode_t *node, char **str)
 		*str = (char *)smalloc (16);
 		sptr = *str;
 	}
-	if (node->tag == opi.tag_BYTE) {
+	if (node->tag == opi.tag_BOOL) {
+		sprintf (sptr, "BOOL");
+	} else if (node->tag == opi.tag_BYTE) {
 		sprintf (sptr, "BYTE");
 	} else if (node->tag == opi.tag_INT) {
 		sprintf (sptr, "INT");
@@ -331,6 +337,8 @@ static int occampi_type_init_nodes (void)
 	i = -1;
 	opi.tag_BYTE = tnode_newnodetag ("BYTE", &i, tnd, NTF_NONE);
 	i = -1;
+	opi.tag_BOOL = tnode_newnodetag ("BOOL", &i, tnd, NTF_NONE);
+	i = -1;
 	opi.tag_INT16 = tnode_newnodetag ("INT16", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_INT32 = tnode_newnodetag ("INT32", &i, tnd, NTF_NONE);
@@ -378,7 +386,7 @@ static dfattbl_t **occampi_type_init_dfatrans (int *ntrans)
 	DYNARRAY (dfattbl_t *, transtbl);
 
 	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_bnftotbl ("occampi:primtype ::= ( +@INT | +@BYTE ) {Roccampi:primtype}"));
+	dynarray_add (transtbl, dfa_bnftotbl ("occampi:primtype ::= ( +@INT | +@BYTE | +@BOOL | +@INT16 | +@INT32 | +@INT64 | +@REAL32 | +@REAL64 | +@CHAR ) {Roccampi:primtype}"));
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:protocol ::= ( occampi:primtype | +Name {<opi:namepush>} ) {<opi:nullreduce>}"));
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:type ::= ( occampi:primtype ) {<opi:nullreduce>}"));
 

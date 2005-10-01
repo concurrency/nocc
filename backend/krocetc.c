@@ -1096,6 +1096,9 @@ static int krocetc_be_regsfor (tnode_t *benode)
 		}
 
 		return rh->eval_regs;
+	} else if (benode->tag == krocetc_target.tag_NAMEREF) {
+		/* name references are easy too */
+		return 1;
 	} else {
 #if 1
 fprintf (stderr, "krocetc_be_regsfor(): regsfor [%s] [%s] ?\n", benode->tag->ndef->name, benode->tag->name);
@@ -1198,6 +1201,7 @@ static int krocetc_codegen_block (tnode_t *blk, codegen_t *cgen)
 	return 0;
 }
 /*}}}*/
+
 /*{{{  static int krocetc_bytesfor_name (tnode_t *name, target_t *target)*/
 /*
  *	used to get the type-size of a back-end name
@@ -1217,6 +1221,7 @@ static int krocetc_bytesfor_name (tnode_t *name, target_t *target)
 	return nh->typesize;
 }
 /*}}}*/
+
 /*{{{  static int krocetc_precode_const (tnode_t **cnst, codegen_t *cgen)*/
 /*
  *	does pre-code for a back-end constant
@@ -1256,6 +1261,19 @@ fprintf (stderr, "krocetc_codegen_const(): ch->label = %d, ch->labrefs = %d\n", 
 	return 0;
 }
 /*}}}*/
+
+/*{{{  static int krocetc_codegen_nameref (tnode_t *nameref, codegen_t *cgen)*/
+/*
+ *	generates code to load a name -- usually happens inside a RESULT
+ *	return 0 to stop walk, 1 to continue
+ */
+static int krocetc_codegen_nameref (tnode_t *nameref, codegen_t *cgen)
+{
+	codegen_callops (cgen, loadname, nameref, 0);
+	return 0;
+}
+/*}}}*/
+
 /*{{{  static int krocetc_codegen_constref (tnode_t *constref, codegen_t *cgen)*/
 /*
  *	generates code for a constant reference -- loads the constant
@@ -1286,6 +1304,7 @@ static int krocetc_codegen_constref (tnode_t *constref, codegen_t *cgen)
 	return 0;
 }
 /*}}}*/
+
 /*{{{  static int krocetc_namemap_result (tnode_t **rnodep, map_t *mdata)*/
 /*
  *	name-map for a back-end result, sets hook in the map-data and sub-walks
@@ -1379,6 +1398,9 @@ static int krocetc_codegen_result (tnode_t *rnode, codegen_t *cgen)
 	tnode_t *expr;
 	int i;
 
+#if 0
+fprintf (stderr, "krocetc_codegen_result(): loading %d bits..\n", DA_CUR (rh->sublist));
+#endif
 	for (i=0; i<DA_CUR (rh->sublist); i++) {
 		/* load this */
 		codegen_subcodegen (*(DA_NTHITEM (rh->sublist, i)), cgen);
@@ -1942,6 +1964,9 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 	case I_RESCHEDULE:
 		codegen_write_string (cgen, "\t.reschedule\n");
 		break;
+	case I_BOOLINVERT:
+		codegen_write_string (cgen, "\t.boolinvert\n");
+		break;
 	case I_ADD:
 		codegen_write_string (cgen, "\tadd\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
@@ -2038,6 +2063,29 @@ static void krocetc_coder_loadlabaddr (codegen_t *cgen, int lbl)
 	return;
 }
 /*}}}*/
+/*{{{  static void krocetc_coder_branch (codegen_t *cgen, int ins, int lbl)*/
+/*
+ *	generates a branch instruction
+ */
+static void krocetc_coder_branch (codegen_t *cgen, int ins, int lbl)
+{
+	transinstr_e tins = (transinstr_e)ins;
+
+	switch (tins) {
+	case I_J:
+		codegen_write_fmt (cgen, "\tj\t%d\n", lbl);
+		break;
+	case I_CJ:
+		codegen_write_fmt (cgen, "\tcj\t%d\n", lbl);
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+	default:
+		codegen_write_fmt (cgen, "\tFIXME: branch %d\n", ins);
+		break;
+	}
+	return;
+}
+/*}}}*/
 
 
 
@@ -2101,6 +2149,7 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	cops->procreturn = krocetc_coder_procreturn;
 	cops->tsecondary = krocetc_coder_tsecondary;
 	cops->loadlabaddr = krocetc_coder_loadlabaddr;
+	cops->branch = krocetc_coder_branch;
 
 	cgen->cops = cops;
 
@@ -2188,6 +2237,9 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:nameref", &i, 1, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_namehook_dumptree;
+	cops = tnode_newcompops ();
+	cops->codegen = krocetc_codegen_nameref;
+	tnd->ops = cops;
 	i = -1;
 	target->tag_NAMEREF = tnode_newnodetag ("KROCETCNAMEREF", &i, tnd, 0);
 	/*}}}*/

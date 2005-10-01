@@ -504,6 +504,8 @@ void *parser_lookup_rarg (const char *name)
 #define ICDE_SETORIGIN_T 15	/* set combine origin using a token n-back on the local stack */
 #define ICDE_SETORIGIN_NS 16	/* set combine origin using node n-back on the nodestack */
 #define ICDE_SETORIGIN_TS 17	/* set combine origin using a token n-back on the token-stack */
+#define ICDE_CONSUME_N 18	/* consume node at the top of the local stack */
+#define ICDE_CONSUME_T 19	/* consume token at the top of the local stack */
 
 /*}}}*/
 
@@ -737,6 +739,24 @@ void parser_generic_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 			}
 			break;
 			/*}}}*/
+			/*{{{  CONSUME_N*/
+		case ICDE_CONSUME_N:
+			{
+				tnode_t *tmp = (tnode_t *)lnstk[--lncnt];
+
+				tnode_free (tmp);
+			}
+			break;
+			/*}}}*/
+			/*{{{  CONSUME_T*/
+		case ICDE_CONSUME_T:
+			{
+				token_t *tmp = (token_t *)lnstk[--lncnt];
+
+				lexer_freetoken (tmp);
+			}
+			break;
+			/*}}}*/
 		}
 	}
 	return;
@@ -901,6 +921,20 @@ void *parser_decode_grule (const char *rule, ...)
 			ilen++;
 			break;
 			/*}}}*/
+			/*{{{  @ -- consume something from the top of the local stack*/
+		case '@':
+			xrule++;
+			switch (*xrule) {
+			case 't':
+			case 'n':
+				ilen++;
+				lsdepth--;
+				break;
+			default:
+				goto report_error_out;
+			}
+			break;
+			/*}}}*/
 		default:
 			goto report_error_out;
 		}
@@ -1007,6 +1041,19 @@ void *parser_decode_grule (const char *rule, ...)
 			/*{{{  < -- rotate stack left/down*/
 		case '<':
 			icode[i] = ICDE_ROTLEFT;
+			break;
+			/*}}}*/
+			/*{{{  @ -- consume something from the local stack*/
+		case '@':
+			xrule++;
+			switch (*xrule) {
+			case 't':
+				icode[i] = ICDE_CONSUME_T;
+				break;
+			case 'n':
+				icode[i] = ICDE_CONSUME_N;
+				break;
+			}
 			break;
 			/*}}}*/
 		}

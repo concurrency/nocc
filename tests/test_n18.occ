@@ -1,0 +1,10 @@
+-- test_n18.occ -- SHORTIF
+
+PROC test.n18 (CHAN BYTE screen!)
+  INT x:
+  SEQ
+    IF x = 1
+      screen ! 'a'
+    screen ! '*n'
+:
+
