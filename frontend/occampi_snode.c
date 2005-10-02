@@ -56,6 +56,45 @@
 /*}}}*/
 
 
+/*{{{  static int occampi_codegen_snode (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for structured process nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_codegen_snode (tnode_t *node, codegen_t *cgen)
+{
+	if (node->tag == opi.tag_IF) {
+		tnode_t *body = tnode_nthsubof (node, 1);
+		tnode_t **bodies;
+		int nbodies, i;
+		int joinlab = codegen_new_label (cgen);
+
+		if (!parser_islistnode (body)) {
+			nocc_error ("occampi_codegen_snode(): body of IF not list!");
+			return 0;
+		}
+		bodies = parser_getlistitems (body, &nbodies);
+
+		for (i=0; i<nbodies; i++) {
+			tnode_t *ifcond = tnode_nthsubof (bodies[i], 0);
+			tnode_t *ifbody = tnode_nthsubof (bodies[i], 1);
+			int skiplab = codegen_new_label (cgen);
+
+			codegen_callops (cgen, loadname, ifcond, 0);
+			codegen_callops (cgen, branch, I_CJ, skiplab);
+			codegen_subcodegen (ifbody, cgen);
+			codegen_callops (cgen, branch, I_J, joinlab);
+			codegen_callops (cgen, setlabel, skiplab);
+		}
+
+		codegen_callops (cgen, tsecondary, I_SETERR);
+		codegen_callops (cgen, setlabel, joinlab);
+	}
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_snode_init_nodes (void)*/
 /*
  *	initailises structured process nodes for occam-pi
@@ -71,6 +110,7 @@ static int occampi_snode_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:snode", &i, 3, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr; 1 = body; 2 = replicator */
 	cops = tnode_newcompops ();
+	cops->codegen = occampi_codegen_snode;
 	tnd->ops = cops;
 
 	i = -1;
@@ -80,6 +120,15 @@ static int occampi_snode_init_nodes (void)
 	i = -1;
 	opi.tag_CASE = tnode_newnodetag ("CASE", &i, tnd, NTF_NONE);
 
+	/*}}}*/
+	/*{{{  occampi:condnode -- CONDITIONAL*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:condnode", &i, 2, 0, 0, TNF_LONGPROC);	/* subnodes: 0 = expr; 1 = body */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	opi.tag_CONDITIONAL = tnode_newnodetag ("CONDITIONAL", &i, tnd, NTF_NONE);
 	/*}}}*/
 
 	return 0;
@@ -91,7 +140,8 @@ static int occampi_snode_init_nodes (void)
  */
 static int occampi_snode_reg_reducers (void)
 {
-	parser_register_grule ("opi:altsnode", parser_decode_grule ("ST0T+@t00C2R-", opi.tag_ALT));
+	parser_register_grule ("opi:altsnode", parser_decode_grule ("ST0T+@t000C3R-", opi.tag_ALT));
+	parser_register_grule ("opi:ifcond", parser_decode_grule ("SN0N+0C2R-", opi.tag_CONDITIONAL));
 
 	return 0;
 }
@@ -106,7 +156,8 @@ static dfattbl_t **occampi_snode_init_dfatrans (int *ntrans)
 	DYNARRAY (dfattbl_t *, transtbl);
 
 	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_transtotbl ("occampisnode +:= [ 0 +@ALT 1 ] [ 1 -Newline 2 ] [ 2 {<opi:altsnode>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:snode +:= [ 0 +@ALT 1 ] [ 1 -Newline 2 ] [ 2 {<opi:altsnode>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:ifcond ::= [ 0 occampi:expr 1 ] [ 1 -Newline 2 ] [ 2 {<opi:ifcond>} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

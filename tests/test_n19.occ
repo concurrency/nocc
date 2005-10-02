@@ -1,0 +1,10 @@
+-- test_n19.occ -- IF test
+
+PROC test.n19 (CHAN BYTE screen!)
+  SEQ
+    IF
+      24 = 42
+        SKIP
+:
+
+

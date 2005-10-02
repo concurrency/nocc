@@ -50,6 +50,7 @@
 #include "map.h"
 #include "codegen.h"
 #include "target.h"
+#include "transputer.h"
 
 
 /*}}}*/
@@ -74,6 +75,38 @@ static void occampi_reduce_primproc (dfastate_t *dfast, parsepriv_t *pp, void *r
 /*}}}*/
 
 
+/*{{{  static int occampi_namemap_leafnode (tnode_t **nodep, map_t *mapdata)*/
+/*
+ *	called to do name-mapping on a primitive process
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_leafnode (tnode_t **nodep, map_t *mapdata)
+{
+	if ((*nodep)->tag == opi.tag_STOP) {
+		tnode_t *bename;
+
+		bename = mapdata->target->newname (*nodep, NULL, mapdata, 0, 16, 0, 0, 0, 0);                    /* FIXME! */
+
+		*nodep = bename;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_codegen_leafnode (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	called to do code-generation for a primitive process
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_codegen_leafnode (tnode_t *node, codegen_t *cgen)
+{
+	if (node->tag == opi.tag_STOP) {
+		codegen_callops (cgen, tsecondary, I_SETERR);
+	}
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_primproc_init_nodes (void)*/
 /*
  *	initialises literal-nodes for occam-pi
@@ -82,11 +115,18 @@ static void occampi_reduce_primproc (dfastate_t *dfast, parsepriv_t *pp, void *r
 static int occampi_primproc_init_nodes (void)
 {
 	tndef_t *tnd;
+	compops_t *cops;
 	int i;
 
 	/*{{{  occampi:leafnode -- SKIP, STOP*/
 	i = -1;
 	tnd = opi.node_LEAFNODE = tnode_newnodetype ("occampi:leafnode", &i, 0, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	cops->namemap = occampi_namemap_leafnode;
+	cops->codegen = occampi_codegen_leafnode;
+	tnd->ops = cops;
+
+
 	i = -1;
 	opi.tag_SKIP = tnode_newnodetag ("SKIP", &i, tnd, NTF_NONE);
 	i = -1;

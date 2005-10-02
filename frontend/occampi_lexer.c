@@ -61,6 +61,7 @@ typedef struct TAG_occampi_lex {
 	int curindent;			/* current indent */
 	int scanto_indent;		/* target indent when it changes */
 	int newlineflag;
+	int cescapes;			/* whether we're using C-style escape characters */
 } occampi_lex_t;
 
 

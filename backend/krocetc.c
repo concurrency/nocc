@@ -1999,6 +1999,16 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		codegen_write_string (cgen, "\tprod\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+	case I_STOPP:
+		codegen_write_string (cgen, "\tstopp\n");
+		break;
+	case I_RUNP:
+		codegen_write_string (cgen, "\trunp\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+	case I_SETERR:
+		codegen_write_string (cgen, "\tseterr\n");
+		break;
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: tsecondary %d\n", ins);
 		break;

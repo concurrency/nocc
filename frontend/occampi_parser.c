@@ -726,6 +726,18 @@ tnode_dumptree (tree, 1, stderr);
 
 				body = occampi_indented_process_list (lf, NULL);
 				tnode_setnthsub (tree, 1, body);
+			} else if (tree->tag == opi.tag_IF) {
+				/* parse a list of indented conditions + processes into subnode1 */
+				tnode_t *body;
+
+				body = occampi_indented_process_list (lf, "occampi:ifcond");
+				tnode_setnthsub (tree, 1, body);
+			} else if (tree->tag == opi.tag_CONDITIONAL) {
+				/* parse indented process into subnode 1 */
+				tnode_t *body;
+
+				body = occampi_indented_process (lf);
+				tnode_setnthsub (tree, 1, body);
 			}
 			/*}}}*/
 		}

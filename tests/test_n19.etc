@@ -1,0 +1,35 @@
+;
+;	tests/test_n19.etc
+;	compiled from tests/test_n19.occ
+;	on host frog at Sun Oct  2 06:22:34 2005
+;	source language: occam-pi, target: etc-kroc-unknown
+;
+
+.jentry	O_test_n19
+.setlabel	2
+.byte	0x18, 0x00, 0x00, 0x00
+.setlabel	3
+.byte	0x2a, 0x00, 0x00, 0x00
+.descriptor	"PROC O_test_n19 (CHAN BYTE screen)"
+; PROC test.n19 = 8,8,0,0,8
+.setws	8, 8
+.setvs	0
+.setms	0
+.setnamedlabel	"O_test_n19"
+.setlabel	1
+	ajw	0
+	ldc	24
+	ldc	42
+	diff
+	.boolinvert
+	cj	5
+	j	4
+.setlabel	5
+	seterr
+.setlabel	4
+	ajw	0
+	ret	8
+
+;
+;	end of compilation
+;

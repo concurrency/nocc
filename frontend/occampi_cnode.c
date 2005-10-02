@@ -17,7 +17,6 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-
 /*{{{  includes*/
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -55,7 +54,6 @@
 
 
 /*}}}*/
-
 
 
 /*{{{  static void occampi_reduce_cnode (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
@@ -359,6 +357,7 @@ static int occampi_cnode_reg_reducers (void)
 {
 	parser_register_reduce ("Roccampi:cnode", occampi_reduce_cnode, NULL);
 	parser_register_grule ("opi:shortif", parser_decode_grule ("T+@tSN0N+00C3R-", opi.tag_SHORTIF));
+	parser_register_grule ("opi:ifstart", parser_decode_grule ("ST0T+@t000C3R-", opi.tag_IF));
 
 	return 0;
 }
@@ -373,7 +372,7 @@ static dfattbl_t **occampi_cnode_init_dfatrans (int *ntrans)
 
 	dynarray_init (transtbl);
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:cproc ::= ( +@SEQ | +@PAR ) -Newline {Roccampi:cnode}"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:cproc +:= [ 0 +@IF 1 ] [ 1 -Newline 2 ] [ 1 %occampi:expr 3 ] [ 2 {Roccampi:cnode} -* ] " \
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:cproc +:= [ 0 +@IF 1 ] [ 1 -Newline 2 ] [ 1 %occampi:expr 3 ] [ 2 {<opi:ifstart>} -* ] " \
 				"[ 3 occampi:expr 4 ] [ 4 -Newline 5 ] [ 5 {<opi:shortif>} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
