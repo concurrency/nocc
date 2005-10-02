@@ -664,6 +664,41 @@ int lexer_tokmatch (token_t *formal, token_t *actual)
 	return 0;
 }
 /*}}}*/
+/*{{{  int lexer_tokmatchlitstr (token_t *actual, const char *str)*/
+/*
+ *	returns non-zero if "actual" is some string/name and matches "str"
+ */
+int lexer_tokmatchlitstr (token_t *actual, const char *str)
+{
+	if (!actual) {
+		nocc_warning ("lexer_tokmatchlitstr(): null token");
+		return 0;
+	}
+	switch (actual->type) {
+	case NOTOKEN:
+	case INTEGER:
+	case REAL:
+	case SYMBOL:
+	case COMMENT:
+	case NEWLINE:
+	case INDENT:
+	case OUTDENT:
+	case END:
+		return 0;
+	case KEYWORD:
+		return !strcmp (str, actual->u.kw->name);
+	case NAME:
+		return !strcmp (str, actual->u.name);
+	case INAME:
+	case STRING:
+		if (strlen (str) == actual->u.str.len) {
+			return !strncmp (str, actual->u.str.ptr, actual->u.str.len);
+		}
+		return 0;
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  void lexer_warning (lexfile_t *lf, char *fmt, ...)*/

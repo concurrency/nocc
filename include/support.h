@@ -80,6 +80,7 @@ extern void *mem_ndup (const void *, int);
 #define DA_MAX(NAME) NAME ## _max
 #define DA_PTR(NAME) NAME
 #define DA_NTHITEM(NAME,N) (NAME)[(N)]
+#define DA_NTHITEMADDR(NAME,N) (&((NAME)[(N)]))
 #define DA_SETNTHITEM(NAME,N,ITEM) (NAME)[(N)] = (ITEM)
 #define DYNARRAY(TYPE,NAME) int DA_CUR(NAME), DA_MAX(NAME); TYPE* DA_PTR(NAME)
 #define DYNSARRAY(TYPE,NAME) int DA_CUR(NAME), DA_MAX(NAME); struct TYPE* DA_PTR(NAME)

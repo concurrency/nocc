@@ -41,6 +41,14 @@ typedef struct TAG_target {
 
 	} tcap;
 
+	struct {										/* below workspace sizes (for scheduler state) */
+		unsigned int ds_min:8;								/* minimum below-workspace bytes for deschedule */
+		unsigned int ds_io:8;								/* below-workspace bytes for channel I/O */
+		unsigned int ds_altio:8;							/* below-workspace bytes for ALTs */
+		unsigned int ds_wait:8;								/* below-workspace bytes for processes doing timeouts */
+		unsigned int ds_max:8;								/* maximum below-workspace bytes for any process */
+	} bws;
+
 	int chansize;										/* number of bytes for a CHAN */
 	int charsize;										/* number of bytes for a CHAR */
 	int intsize;										/* number of bytes for an INT */

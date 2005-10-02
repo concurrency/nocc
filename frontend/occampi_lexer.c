@@ -108,6 +108,60 @@ static int decode_hex (char *ptr, int len)
 	return val;
 }
 /*}}}*/
+/*{{{  static int occampi_escape_char (lexfile_t *lf, occampi_lex_t *lop, char **ptr)*/
+/*
+ *	extracts an escape sequence from a string
+ *	returns the character it represents, -255 on error
+ */
+static int occampi_escape_char (lexfile_t *lf, occampi_lex_t *lop, char **ptr)
+{
+	int echr = 0;
+
+	if (!lop->cescapes && (**ptr != '*')) {
+		lexer_error (lf, "occampi_escape_char(): called incorrectly");
+		(*ptr)++;
+		goto out_error1;
+	} else if (!lop->cescapes) {
+		(*ptr)++;
+		switch (**ptr) {
+		case 'n':
+			echr = (int)'\n';
+			(*ptr)++;
+			break;
+		case 'c':
+			echr = (int)'\r';
+			(*ptr)++;
+			break;
+		case 't':
+			echr = (int)'\t';
+			(*ptr)++;
+			break;
+		case '*':
+		case '\'':
+		case '\"':
+			echr = (int)(**ptr);
+			(*ptr)++;
+			break;
+		case '#':
+			if (check_hex (*ptr + 1, 2)) {
+				lexer_error (lf, "malformed hexidecimal escape in character constant");
+				goto out_error1;
+			}
+			echr = decode_hex (*ptr + 1, 2);
+			(*ptr) += 3;
+			break;
+		default:
+			lexer_error (lf, "unknown escape character \'%c\'", **ptr);
+			(*ptr)++;
+			goto out_error1;
+		}
+	}
+
+	return echr;
+out_error1:
+	return -255;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_openfile (lexfile_t *lf, lexpriv_t *lp)*/
@@ -123,6 +177,7 @@ static int occampi_openfile (lexfile_t *lf, lexpriv_t *lp)
 	lop->curindent = 0;
 	lop->scanto_indent = 0;
 	lop->newlineflag = 1;		/* effectively get a newline straight-away */
+	lop->cescapes = 0;
 	
 	lp->langpriv = (void *)lop;
 	lf->lineno = 1;
@@ -329,45 +384,17 @@ tokenloop:
 		/* return this as an integer */
 		{
 			char *dh = ch;
+			int eschar;
 
 			tok->type = INTEGER;
 			dh++;
 			if (*dh == '*') {
 				/* escape character */
-				dh++;
-				switch (*dh) {
-				case 'n':
-					tok->u.ival = (int)'\n';
-					dh++;
-					break;
-				case 'c':
-					tok->u.ival = (int)'\r';
-					dh++;
-					break;
-				case 't':
-					tok->u.ival = (int)'\t';
-					dh++;
-					break;
-				case '*':
-				case '\'':
-				case '\"':
-					tok->u.ival = (int)(*dh);
-					dh++;
-					break;
-				case '#':
-					if (check_hex (dh + 1, 2)) {
-						lp->offset += 6;
-						lexer_error (lf, "malformed hexidecimal escape in character constant");
-						goto out_error1;
-					}
-					tok->u.ival = decode_hex (dh + 1, 2);
-					dh += 3;
-					break;
-				default:
-					lexer_error (lf, "unknown escape character \'%c\'", *dh);
-					dh += 4;
+				eschar = occampi_escape_char (lf, lop, &dh);
+				if (eschar == -255) {
 					goto out_error1;
 				}
+				tok->u.ival = eschar;
 			} else {
 				/* regular character */
 				tok->u.ival = (int)(*dh);

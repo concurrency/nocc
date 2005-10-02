@@ -60,6 +60,7 @@
 #include "target.h"
 #include "codegen.h"
 #include "occampi_fe.h"
+#include "version.h"
 
 /*}}}*/
 
@@ -375,14 +376,22 @@ static void specfile_data (xmlhandler_t *xh, void *data, const char *text, int l
 
 /*}}}*/
 /*{{{  extras*/
-/*{{{  static void maybedumptree (tnode_t *tree)*/
+/*{{{  static void maybedumptrees (char **fnames, int nfnames, tnode_t **trees, int ntrees)*/
 /*
  *	maybe dumps the parse tree to a file
  */
-static void maybedumptree (tnode_t *tree)
+static void maybedumptrees (char **fnames, int nfnames, tnode_t **trees, int ntrees)
 {
+	int i;
+
 	if (compopts.dumptree) {
-		tnode_dumptree (tree, 1, stderr);
+		fprintf (stderr, "<nocc:treedump version=\"%s\">\n", version_string ());
+		for (i=0; i<ntrees; i++) {
+			fprintf (stderr, "    <nocc:parsetree src=\"%s\">\n", fnames[i]);
+			tnode_dumptree (trees[i], 2, stderr);
+			fprintf (stderr, "    </nocc:parsetree>\n");
+		}
+		fprintf (stderr, "</nocc:treedump>\n");
 	} else if (compopts.dumptreeto) {
 		FILE *stream;
 
@@ -390,7 +399,14 @@ static void maybedumptree (tnode_t *tree)
 		if (!stream) {
 			nocc_error ("failed to open %s for writing: %s", compopts.dumptreeto, strerror (errno));
 		} else {
-			tnode_dumptree (tree, 0, stream);
+			fprintf (stream, "<nocc:treedump version=\"%s\">\n", version_string ());
+			for (i=0; i<ntrees; i++) {
+				fprintf (stream, "    <nocc:parsetree src=\"%s\">\n", fnames[i]);
+				tnode_dumptree (trees[i], 2, stream);
+				fprintf (stream, "    </nocc:parsetree>\n");
+			}
+			fprintf (stream, "</nocc:treedump>\n");
+
 			fclose (stream);
 		}
 	}
@@ -409,14 +425,14 @@ int main (int argc, char **argv)
 	char **walk;
 	int i;
 	int errored;
-	char **spare_opts;
-	int nspare;
-	char **srcfiles = NULL;
-	int nsrcfiles = 0;
+	DYNARRAY (char *, fe_def_opts);
+	DYNARRAY (char *, be_def_opts);
+	DYNARRAY (char *, srcfiles);
 	target_t *target;
 	
 	/*{{{  basic initialisation*/
 	for (progname=*argv + (strlen (*argv) - 1); (progname > *argv) && (progname[-1] != '/'); progname--);
+
 	dmem_init ();
 #ifdef TARGET_CPU
 	compopts.target_cpu = string_dup (TARGET_CPU);
@@ -436,6 +452,10 @@ int main (int argc, char **argv)
 	compopts.target_str = (char *)smalloc (strlen (compopts.target_cpu) + strlen (compopts.target_os) + strlen (compopts.target_vendor) + 4);
 	sprintf (compopts.target_str, "%s-%s-%s", compopts.target_cpu, compopts.target_os, compopts.target_vendor);
 
+	dynarray_init (fe_def_opts);
+	dynarray_init (be_def_opts);
+	dynarray_init (srcfiles);
+
 	/*}}}*/
 	/*{{{  general initialisation*/
 #ifdef DEBUG
@@ -449,8 +469,6 @@ int main (int argc, char **argv)
 	/*}}}*/
 	/*{{{  process command-line arguments*/
 	errored = 0;
-	spare_opts = (char **)smalloc (argc * sizeof (char *));
-	nspare = 0;
 
 	for (walk = argv + 1, i = argc - 1; *walk && i; walk++, i--) {
 		cmd_option_t *opt = NULL;
@@ -464,9 +482,8 @@ int main (int argc, char **argv)
 						errored++;
 					}
 				} else {
-					/* make spare for now */
-					spare_opts[nspare] = *walk;
-					nspare++;
+					/* defer for front-end */
+					dynarray_add (fe_def_opts, string_dup (*walk));
 				}
 			} else {
 				char *ch;
@@ -478,20 +495,18 @@ int main (int argc, char **argv)
 							errored++;
 						}
 					} else {
-						/* make spare for now */
-						spare_opts[nspare] = string_dup ("-X");
-						spare_opts[nspare][1] = *ch;
-						nspare++;
+						/* defer for front-end */
+						char *stropt = string_dup ("-X");
+
+						stropt[1] = *ch;
+						dynarray_add (fe_def_opts, stropt);
 					}
 				}
 			}
 			break;
 		default:
 			/* it's a source filename */
-			if (!srcfiles) {
-				srcfiles = (char **)smalloc (argc * sizeof (char *));
-			}
-			srcfiles[nsrcfiles++] = *walk;
+			dynarray_add (srcfiles, string_dup (*walk));
 			break;
 		}
 	}
@@ -499,14 +514,14 @@ int main (int argc, char **argv)
 		nocc_fatal ("error processing command-line options");
 		exit (EXIT_FAILURE);
 	}
-	if (!nsrcfiles) {
+	if (!DA_CUR (srcfiles)) {
 		nocc_fatal ("no input files!");
 		exit (EXIT_FAILURE);
 	} else {
 		if (compopts.verbose) {
 			nocc_message ("source files are:");
-			for (i=0; i<nsrcfiles; i++) {
-				nocc_message ("\t%s", srcfiles[i]);
+			for (i=0; i<DA_CUR (srcfiles); i++) {
+				nocc_message ("\t%s", DA_NTHITEM (srcfiles, i));
 			}
 		}
 	}
@@ -630,8 +645,8 @@ int main (int argc, char **argv)
 	}
 
 	/*}}}*/
-	/*{{{  process left-over arguments*/
-	for (walk = spare_opts, i = nspare; *walk && i; walk++, i--) {
+	/*{{{  process left-over arguments for front-end (short options have been singularised by this point)*/
+	for (walk = DA_PTR (fe_def_opts), i = DA_CUR (fe_def_opts); walk && *walk && i; walk++, i--) {
 		cmd_option_t *opt = NULL;
 
 		switch (**walk) {
@@ -642,43 +657,41 @@ int main (int argc, char **argv)
 					if (opts_process (opt, &walk, &i) < 0) {
 						errored++;
 					}
+					sfree (*walk);
+					*walk = NULL;
 				} else {
-					nocc_error ("unknown option: %s", *walk);
-					errored++;
+					/* defer for back-end */
+					dynarray_add (be_def_opts, *walk);
+					*walk = NULL;
 				}
 			} else {
-				char *ch;
+				char *ch = *walk + 1;
 
-				for (ch = *walk + 1; *ch != '\0'; ch++) {
-					opt = opts_getshortopt (*ch);
-					if (opt) {
-						if (opts_process (opt, &walk, &i) < 0) {
-							errored++;
-						}
-					} else {
-						nocc_error ("unknown option: -%c", *ch);
+				opt = opts_getshortopt (*ch);
+				if (opt) {
+					if (opts_process (opt, &walk, &i) < 0) {
 						errored++;
 					}
+					sfree (*walk);
+					*walk = NULL;
+				} else {
+					/* defer for back-end */
+					dynarray_add (be_def_opts, *walk);
+					*walk = NULL;
 				}
 			}
 			break;
 		}
 	}
+	dynarray_trash (fe_def_opts);
+
 	if (errored) {
 		nocc_fatal ("error processing command-line options (%d error%s)", errored, (errored == 1) ? "" : "s");
 		exit (EXIT_FAILURE);
 	}
-
-	/* free spare_opts */
-	for (i=0; i<nspare; i++) {
-		if ((spare_opts[i][0] == '-') && (spare_opts[i][1] != '-')) {
-			/* short option got duplicated */
-			sfree (spare_opts[i]);
-		}
+	if (DA_CUR (be_def_opts)) {
+		nocc_message ("deferring %d options for back-end", DA_CUR (be_def_opts));
 	}
-	sfree (spare_opts);
-	spare_opts = NULL;
-	nspare = 0;
 
 	/*}}}*/
 	/*{{{  dump supported targets if requested*/
@@ -696,277 +709,375 @@ int main (int argc, char **argv)
 
 	/*}}}*/
 
-	/*{{{  open the file and process it*/
-	for (i=0; i<nsrcfiles; i++) {
-		char *fname = srcfiles[i];
-		lexfile_t *tmp;
+	/*{{{  compiler run*/
+	{
+		DYNARRAY (lexfile_t *, srclexers);
+		DYNARRAY (tnode_t *, srctrees);
 
-		nocc_message ("lexing: %s", fname);
-		tmp = lexer_open (fname);
-		if (!tmp) {
-			nocc_error ("failed to open %s", fname);
-			exit (EXIT_FAILURE);
-		} else if (compopts.stoppoint == 1) {
-			/*{{{  stop after tokenise -- just show the tokenw*/
+		dynarray_init (srclexers);
+		dynarray_init (srctrees);
+
+		/*{{{  open lexers for files given on the command-line*/
+		for (i=0; i<DA_CUR (srcfiles); i++) {
+			char *fname = DA_NTHITEM (srcfiles, i);
+			lexfile_t *tmp;
+
+			nocc_message ("lexing: %s", fname);
+			tmp = lexer_open (fname);
+			if (!tmp) {
+				nocc_error ("failed to open %s", fname);
+				exit (EXIT_FAILURE);
+			}
+			dynarray_add (srclexers, tmp);
+		}
+		/*}}}*/
+		if (compopts.stoppoint == 1) {
+			/*{{{  stop after tokenise -- just show the tokens*/
 			token_t *tok;
 
-			for (tok = lexer_nexttoken (tmp); tok && (tok->type != END); tok = lexer_nexttoken (tmp)) {
-				lexer_dumptoken (stderr, tok);
-				lexer_freetoken (tok);
-				tok = NULL;
-			}
-			if (tok) {
-				lexer_dumptoken (stderr, tok);
-				lexer_freetoken (tok);
-				tok = NULL;
-			}
+			for (i=0; (i<DA_CUR (srclexers)) && (i<DA_CUR (srcfiles)); i++) {
+				char *fname = DA_NTHITEM (srcfiles, i);
+				lexfile_t *tmp = DA_NTHITEM (srclexers, i);
 
-			lexer_close (tmp);
+				nocc_message ("tokenising %s..", fname);
+				for (tok = lexer_nexttoken (tmp); tok && (tok->type != END); tok = lexer_nexttoken (tmp)) {
+					lexer_dumptoken (stderr, tok);
+					lexer_freetoken (tok);
+					tok = NULL;
+				}
+				if (tok) {
+					lexer_dumptoken (stderr, tok);
+					lexer_freetoken (tok);
+					tok = NULL;
+				}
+			}
 			/*}}}*/
-		} else {
-			/* okay ... give it to the parser .. */
+			/*{{{  close lexers*/
+			for (i=0; i<DA_CUR (srclexers); i++) {
+				lexer_close (DA_NTHITEM (srclexers, i));
+			}
+			/*}}}*/
+
+			goto main_out;
+		}
+		/*{{{  parse source files into trees*/
+		for (i=0; i<DA_CUR (srclexers); i++) {
+			lexfile_t *lf = DA_NTHITEM (srclexers, i);
 			tnode_t *tree;
 
-			/*{{{  parse*/
 			if (compopts.verbose) {
 				nocc_message ("parsing ...");
 			}
-			tree = parser_parse (tmp);
+			tree = parser_parse (lf);
 			if (!tree) {
-				nocc_error ("parse failed");
-				exit (EXIT_FAILURE);
+				nocc_error ("failed to parse %s", DA_NTHITEM (srcfiles, i));
+				errored = 1;
 			}
-			if (compopts.stoppoint == 2) {
-				/*{{{  stop after parse*/
-				maybedumptree (tree);
-				goto main_out;
-				/*}}}*/
-			}
-			/*}}}*/
-			/*{{{  pre-scope*/
-			if (compopts.verbose) {
-				nocc_message ("pre-scoping ...");
-			}
-			if (prescope_tree (&tree, tmp->parser)) {
-				nocc_error ("pre-scope failed");
-				exit (EXIT_FAILURE);
-			}
-			if (compopts.stoppoint == 3) {
-				/*{{{  stop after pre-scope*/
-				maybedumptree (tree);
-				goto main_out;
-				/*}}}*/
-			}
-			/*}}}*/
-			/*{{{  scope*/
-			if (compopts.verbose) {
-				nocc_message ("scoping ...");
-			}
-			if (scope_tree (tree, tmp->parser)) {
-				if (compopts.dumpnames) {
-					name_dumpnames (stderr);
-				}
-				nocc_error ("scope failed");
-				exit (EXIT_FAILURE);
-			}
-			if (compopts.dumpnames) {
-				name_dumpnames (stderr);
-			}
-			if (compopts.stoppoint == 4) {
-				/*{{{  stop after scope*/
-				maybedumptree (tree);
-				goto main_out;
-				/*}}}*/
-			}
-			/*}}}*/
-			/*{{{  type-check*/
-			if (compopts.verbose) {
-				nocc_message ("type-check ...");
-			}
-			if (typecheck_tree (tree, tmp->parser)) {
-				nocc_error ("type-check failed");
-				exit (EXIT_FAILURE);
-			}
-			if (compopts.stoppoint == 5) {
-				/*{{{  stop after type-check*/
-				maybedumptree (tree);
-				goto main_out;
-				/*}}}*/
-			}
-			/*}}}*/
-			/*{{{  pre-check*/
-			if (compopts.verbose) {
-				nocc_message ("pre-check ...");
-			}
-			if (precheck_tree (tree)) {
-				nocc_error ("pre-check failed");
-				exit (EXIT_FAILURE);
-			}
-			if (compopts.stoppoint == 6) {
-				/*{{{  stop after pre-check*/
-				maybedumptree (tree);
-				goto main_out;
-				/*}}}*/
-			}
-			/*}}}*/
-			/*{{{  alias check*/
-			if (compopts.doaliascheck) {
-				if (compopts.verbose) {
-					nocc_message ("alias check ...");
-				}
-				if (aliascheck_tree (tree, tmp->parser)) {
-					nocc_error ("alias check failed");
-					exit (EXIT_FAILURE);
-				}
-			}
-			if (compopts.stoppoint == 7) {
-				/*{{{  stop after alias-check*/
-				maybedumptree (tree);
-				goto main_out;
-				/*}}}*/
-			}
-			/*}}}*/
-			/*{{{  parallel-usage check*/
-			if (compopts.dousagecheck) {
-				if (compopts.verbose) {
-					nocc_message ("usage check ...");
-				}
-				if (usagecheck_tree (tree, tmp->parser)) {
-					nocc_error ("usage check failed");
-					exit (EXIT_FAILURE);
-				}
-			}
-			if (compopts.stoppoint == 8) {
-				/*{{{  stop after usage-check*/
-				maybedumptree (tree);
-				goto main_out;
-				/*}}}*/
-			}
-			/*}}}*/
-			/*{{{  undefined-usage check*/
-			if (compopts.dodefcheck) {
-				if (compopts.verbose) {
-					nocc_message ("undefinedness check ...");
-				}
-				if (defcheck_tree (tree, tmp->parser)) {
-					nocc_error ("undefinedness check failed");
-					exit (EXIT_FAILURE);
-				}
-			}
-			if (compopts.stoppoint == 9) {
-				/*{{{  stop after undefinedness-check*/
-				maybedumptree (tree);
-				goto main_out;
-				/*}}}*/
-			}
-			/*}}}*/
-			/*{{{  front-end tree transform*/
-			if (compopts.verbose) {
-				nocc_message ("front-end tree transform ...");
-			}
-			if (fetrans_tree (&tree, tmp->parser)) {
-				nocc_error ("front-end tree transform failed");
-				exit (EXIT_FAILURE);
-			}
-			if (compopts.stoppoint == 10) {
-				/*{{{  stop after front-end tree transform*/
-				maybedumptree (tree);
-				goto main_out;
-				/*}}}*/
-			}
-			/*}}}*/
-
-			/*{{{  initialise back-end*/
-			target_initialise (target);
-
-			/*}}}*/
-
-			/*{{{  back-end tree transform*/
-			if (compopts.verbose) {
-				nocc_message ("back-end tree transform ...");
-			}
-			if (betrans_tree (&tree, target)) {
-				nocc_error ("back-end tree transform failed");
-				exit (EXIT_FAILURE);
-			}
-			if (compopts.stoppoint == 11) {
-				/*{{{  stop after back-end tree transform*/
-				maybedumptree (tree);
-				goto main_out;
-				/*}}}*/
-			}
-			/*}}}*/
-			/*{{{  map names (back-end scope)*/
-			if (compopts.verbose) {
-				nocc_message ("name-map ...");
-			}
-			if (map_mapnames (&tree, target)) {
-				nocc_error ("name-map failed");
-				exit (EXIT_FAILURE);
-			}
-			if (compopts.stoppoint == 12) {
-				/*{{{  stop after name-map*/
-				maybedumptree (tree);
-				goto main_out;
-				/*}}}*/
-			}
-			/*}}}*/
-			/*{{{  pre-allocation*/
-			if (compopts.verbose) {
-				nocc_message ("pre-allocation ...");
-			}
-			if (preallocate_tree (&tree, target)) {
-				nocc_error ("pre-allocation failed");
-				exit (EXIT_FAILURE);
-			}
-			if (compopts.stoppoint == 13) {
-				/*{{{  stop after pre-allocation*/
-				maybedumptree (tree);
-				goto main_out;
-				/*}}}*/
-			}
-			/*}}}*/
-			/*{{{  allocate workspace/vectorspace/mobilespace*/
-			if (compopts.verbose) {
-				nocc_message ("memory allocation ...");
-			}
-			if (allocate_tree (&tree, target)) {
-				nocc_error ("allocate failed");
-				exit (EXIT_FAILURE);
-			}
-			if (compopts.stoppoint == 14) {
-				/*{{{  stop after memory allocation*/
-				maybedumptree (tree);
-				goto main_out;
-				/*}}}*/
-			}
-			/*}}}*/
-			/*{{{  generate code*/
-			if (compopts.verbose) {
-				nocc_message ("code generation ...");
-			}
-			if (codegen_generate_code (&tree, tmp, target)) {
-				nocc_error ("code-generation failed");
-				exit (EXIT_FAILURE);
-			}
-			if (compopts.stoppoint == 15) {
-				/*{{{  stop after code generation*/
-				maybedumptree (tree);
-				goto main_out;
-				/*}}}*/
-			}
-			/*}}}*/
-
-			maybedumptree (tree);
-
-			lexer_close (tmp);
+			dynarray_add (srctrees, tree);
 		}
+		if (compopts.stoppoint == 2) {
+			/*{{{  stop after parse*/
+			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+			goto main_out;
+			/*}}}*/
+		}
+		if (errored) {
+			goto main_out;
+		}
+		/*}}}*/
+
+		/*{{{  pre-scope*/
+		if (compopts.verbose) {
+			nocc_message ("pre-scoping ...");
+		}
+		for (i=0; i<DA_CUR (srctrees); i++) {
+			if (prescope_tree (DA_NTHITEMADDR (srctrees, i), (DA_NTHITEM (srclexers, i))->parser)) {
+				nocc_error ("failed to pre-scope %s", DA_NTHITEM (srcfiles, i));
+				errored = 1;
+			}
+		}
+		if (compopts.stoppoint == 3) {
+			/*{{{  stop after pre-scope*/
+			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+			goto main_out;
+			/*}}}*/
+		}
+		if (errored) {
+			goto main_out;
+		}
+		/*}}}*/
+		/*{{{  scope*/
+		if (compopts.verbose) {
+			nocc_message ("scoping ...");
+		}
+		for (i=0; i<DA_CUR (srctrees); i++) {
+			if (scope_tree (DA_NTHITEM (srctrees, i), (DA_NTHITEM (srclexers, i))->parser)) {
+				nocc_error ("failed to scope %s", DA_NTHITEM (srcfiles, i));
+				errored = 1;
+			}
+		}
+		if (compopts.dumpnames) {
+			name_dumpnames (stderr);
+		}
+		if (compopts.stoppoint == 4) {
+			/*{{{  stop after scope*/
+			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+			goto main_out;
+			/*}}}*/
+		}
+		if (errored) {
+			goto main_out;
+		}
+		/*}}}*/
+		/*{{{  type-check*/
+		if (compopts.verbose) {
+			nocc_message ("type-check ...");
+		}
+		for (i=0; i<DA_CUR (srctrees); i++) {
+			if (typecheck_tree (DA_NTHITEM (srctrees, i), (DA_NTHITEM (srclexers, i))->parser)) {
+				nocc_error ("failed to type-check %s", DA_NTHITEM (srcfiles, i));
+				errored = 1;
+			}
+		}
+		if (compopts.stoppoint == 5) {
+			/*{{{  stop after type-check*/
+			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+			goto main_out;
+			/*}}}*/
+		}
+		if (errored) {
+			goto main_out;
+		}
+		/*}}}*/
+		/*{{{  pre-check*/
+		if (compopts.verbose) {
+			nocc_message ("pre-check ...");
+		}
+		for (i=0; i<DA_CUR (srctrees); i++) {
+			if (precheck_tree (DA_NTHITEM (srctrees, i))) {
+				nocc_error ("failed to pre-check %s", DA_NTHITEM (srcfiles, i));
+				errored = 1;
+			}
+		}
+		if (compopts.stoppoint == 6) {
+			/*{{{  stop after pre-check*/
+			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+			goto main_out;
+			/*}}}*/
+		}
+		if (errored) {
+			goto main_out;
+		}
+		/*}}}*/
+		/*{{{  alias check*/
+		if (compopts.doaliascheck) {
+			if (compopts.verbose) {
+				nocc_message ("alias check ...");
+			}
+			for (i=0; i<DA_CUR (srctrees); i++) {
+				if (aliascheck_tree (DA_NTHITEM (srctrees, i), (DA_NTHITEM (srclexers, i))->parser)) {
+					nocc_error ("failed alias-check in %s", DA_NTHITEM (srcfiles, i));
+					errored = 1;
+				}
+			}
+		}
+		if (compopts.stoppoint == 7) {
+			/*{{{  stop after alias-check*/
+			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+			goto main_out;
+			/*}}}*/
+		}
+		if (errored) {
+			goto main_out;
+		}
+		/*}}}*/
+		/*{{{  parallel-usage check*/
+		if (compopts.dousagecheck) {
+			if (compopts.verbose) {
+				nocc_message ("usage check ...");
+			}
+			for (i=0; i<DA_CUR (srctrees); i++) {
+				if (usagecheck_tree (DA_NTHITEM (srctrees, i), (DA_NTHITEM (srclexers, i))->parser)) {
+					nocc_error ("failed usage-check in %s", DA_NTHITEM (srcfiles, i));
+					errored = 1;
+				}
+			}
+		}
+		if (compopts.stoppoint == 8) {
+			/*{{{  stop after usage-check*/
+			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+			goto main_out;
+			/*}}}*/
+		}
+		if (errored) {
+			goto main_out;
+		}
+		/*}}}*/
+		/*{{{  undefined-usage check*/
+		if (compopts.dodefcheck) {
+			if (compopts.verbose) {
+				nocc_message ("undefinedness check ...");
+			}
+			for (i=0; i<DA_CUR (srctrees); i++) {
+				if (defcheck_tree (DA_NTHITEM (srctrees, i), (DA_NTHITEM (srclexers, i))->parser)) {
+					nocc_error ("failed undefinedness check in %s", DA_NTHITEM (srcfiles, i));
+					errored = 1;
+				}
+			}
+		}
+		if (compopts.stoppoint == 9) {
+			/*{{{  stop after undefinedness-check*/
+			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+			goto main_out;
+			/*}}}*/
+		}
+		if (errored) {
+			goto main_out;
+		}
+		/*}}}*/
+		/*{{{  front-end tree transform*/
+		if (compopts.verbose) {
+			nocc_message ("front-end tree transform ...");
+		}
+		for (i=0; i<DA_CUR (srctrees); i++) {
+			if (fetrans_tree (DA_NTHITEMADDR (srctrees, i), (DA_NTHITEM (srclexers, i))->parser)) {
+				nocc_error ("failed front-end tree transform in %s", DA_NTHITEM (srcfiles, i));
+				errored = 1;
+			}
+		}
+		if (compopts.stoppoint == 10) {
+			/*{{{  stop after front-end tree transform*/
+			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+			goto main_out;
+			/*}}}*/
+		}
+		if (errored) {
+			goto main_out;
+		}
+		/*}}}*/
+
+		/*{{{  initialise back-end*/
+		target_initialise (target);
+
+		/*}}}*/
+
+		/*{{{  back-end tree transform*/
+		if (compopts.verbose) {
+			nocc_message ("back-end tree transform ...");
+		}
+		for (i=0; i<DA_CUR (srctrees); i++) {
+			if (betrans_tree (DA_NTHITEMADDR (srctrees, i), target)) {
+				nocc_error ("failed back-end tree transform in %s", DA_NTHITEM (srcfiles, i));
+				errored = 1;
+			}
+		}
+		if (compopts.stoppoint == 11) {
+			/*{{{  stop after back-end tree transform*/
+			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+			goto main_out;
+			/*}}}*/
+		}
+		if (errored) {
+			goto main_out;
+		}
+		/*}}}*/
+		/*{{{  map names (back-end scope)*/
+		if (compopts.verbose) {
+			nocc_message ("name-map ...");
+		}
+		for (i=0; i<DA_CUR (srctrees); i++) {
+			if (map_mapnames (DA_NTHITEMADDR (srctrees, i), target)) {
+				nocc_error ("failed name-map in %s", DA_NTHITEM (srcfiles, i));
+				errored = 1;
+			}
+		}
+		if (compopts.stoppoint == 12) {
+			/*{{{  stop after name-map*/
+			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+			goto main_out;
+			/*}}}*/
+		}
+		if (errored) {
+			goto main_out;
+		}
+		/*}}}*/
+		/*{{{  pre-allocation*/
+		if (compopts.verbose) {
+			nocc_message ("pre-allocation ...");
+		}
+		for (i=0; i<DA_CUR (srctrees); i++) {
+			if (preallocate_tree (DA_NTHITEMADDR (srctrees, i), target)) {
+				nocc_error ("failed pre-allocation in %s", DA_NTHITEM (srcfiles, i));
+				errored = 1;
+			}
+		}
+		if (compopts.stoppoint == 13) {
+			/*{{{  stop after pre-allocation*/
+			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+			goto main_out;
+			/*}}}*/
+		}
+		if (errored) {
+			goto main_out;
+		}
+		/*}}}*/
+		/*{{{  allocate workspace/vectorspace/mobilespace*/
+		if (compopts.verbose) {
+			nocc_message ("memory allocation ...");
+		}
+		for (i=0; i<DA_CUR (srctrees); i++) {
+			if (allocate_tree (DA_NTHITEMADDR (srctrees, i), target)) {
+				nocc_error ("failed allocate in %s", DA_NTHITEM (srcfiles, i));
+				errored = 1;
+			}
+		}
+		if (compopts.stoppoint == 14) {
+			/*{{{  stop after memory allocation*/
+			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+			goto main_out;
+			/*}}}*/
+		}
+		if (errored) {
+			goto main_out;
+		}
+		/*}}}*/
+		/*{{{  generate code*/
+		if (compopts.verbose) {
+			nocc_message ("code generation ...");
+		}
+		for (i=0; i<DA_CUR (srctrees); i++) {
+			if (codegen_generate_code (DA_NTHITEMADDR (srctrees, i), DA_NTHITEM (srclexers, i), target)) {
+				nocc_error ("failed code-generation in %s", DA_NTHITEM (srcfiles, i));
+				errored = 1;
+			}
+		}
+		if (compopts.stoppoint == 15) {
+			/*{{{  stop after code generation*/
+			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+			goto main_out;
+			/*}}}*/
+		}
+		if (errored) {
+			goto main_out;
+		}
+		/*}}}*/
+
+		/*{{{  close lexers*/
+		for (i=DA_CUR (srclexers) - 1; i >= 0; i--) {
+			lexer_close (DA_NTHITEM (srclexers, i));
+		}
+		dynarray_trash (srclexers);
+		/*}}}*/
+
+		/*{{{  maybe dump trees*/
+		maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+		/*}}}*/
 	}
 	/*}}}*/
 
 main_out:
 	/*{{{  shutdown/etc.*/
-	sfree (srcfiles);
+	dynarray_trash (srcfiles);
 
 	if (compopts.dmemdump) {
 		dmem_usagedump ();
@@ -974,7 +1085,7 @@ main_out:
 	dmem_shutdown ();
 
 	/*}}}*/
-	return EXIT_SUCCESS;
+	return (errored ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 /*}}}*/
 

@@ -401,7 +401,6 @@ static int occampi_dfas_init (void)
 	/*{{{  others (tokens)*/
 	opi.tok_COLON = lexer_newtoken (SYMBOL, ":");
 	opi.tok_HASH = lexer_newtoken (SYMBOL, "#");
-	opi.tok_INCLUDE = lexer_newtoken (KEYWORD, "INCLUDE");
 	opi.tok_STRING = lexer_newtoken (STRING, NULL);
 
 	/*}}}*/
@@ -615,7 +614,7 @@ restartpoint:
 		/*{{{  probably a pre-processor action of some kind*/
 		token_t *nexttok = lexer_nexttoken (lf);
 
-		if (nexttok && lexer_tokmatch (opi.tok_INCLUDE, nexttok)) {
+		if (nexttok && lexer_tokmatchlitstr (nexttok, "INCLUDE")) {
 			/*{{{  #INCLUDE*/
 			lexer_freetoken (tok);
 			lexer_freetoken (nexttok);

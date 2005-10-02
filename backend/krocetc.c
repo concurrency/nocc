@@ -88,6 +88,13 @@ target_t krocetc_target = {
 		can_do_fp: 1,
 		can_do_dmem: 1
 	},
+	bws: {
+		ds_min: 12,
+		ds_io: 16,
+		ds_altio: 16,
+		ds_wait: 24,
+		ds_max: 24
+	},
 
 	chansize:	4,
 	charsize:	1,

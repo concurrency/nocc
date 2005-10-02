@@ -89,6 +89,7 @@ extern char *lexer_stokenstr (token_t *tok);				/* pointer to static buffer retu
 extern void lexer_freetoken (token_t *tok);
 
 extern int lexer_tokmatch (token_t *formal, token_t *actual);
+extern int lexer_tokmatchlitstr (token_t *actual, const char *str);
 
 
 #endif	/* !__LEXER_H */
