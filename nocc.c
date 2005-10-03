@@ -99,7 +99,10 @@ compopts_t compopts = {
 };
 
 /*}}}*/
+/*{{{  private data*/
+STATICDYNARRAY (char *, be_def_opts);
 
+/*}}}*/
 
 /*{{{  global report routines*/
 /*{{{  void nocc_internal (char *fmt, ...)*/
@@ -416,6 +419,39 @@ static void maybedumptrees (char **fnames, int nfnames, tnode_t **trees, int ntr
 /*}}}*/
 
 
+/*{{{  int nocc_dooption (char *optstr)*/
+/*
+ *	called to trigger an option (always assumed to be a long option)
+ *	will add to back-end options if cannot process immediately
+ *	returns 0 on success (called now), 1 if deferred, -1 on error
+ */
+int nocc_dooption (char *optstr)
+{
+	char *lclopts[2] = {optstr, NULL};
+	cmd_option_t *opt = NULL;
+	int left = 1;
+
+	opt = opts_getlongopt (optstr);
+	if (opt) {
+		if (opts_process (opt, &lclopts, &left) < 0) {
+			nocc_error ("failed while processing option \"%s\"", optstr);
+			return -1;
+		}
+	} else {
+		/* defer for back-end processing */
+		char *str = (char *)smalloc (strlen (optstr) + 3);
+
+		strcpy (str + 2, optstr);
+		str[0] = '-';
+		str[1] = '-';
+		dynarray_add (be_def_opts, str);
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  int main (int argc, char **argv)*/
 /*
  *	start here
@@ -426,7 +462,6 @@ int main (int argc, char **argv)
 	int i;
 	int errored;
 	DYNARRAY (char *, fe_def_opts);
-	DYNARRAY (char *, be_def_opts);
 	DYNARRAY (char *, srcfiles);
 	target_t *target;
 	
@@ -958,6 +993,50 @@ int main (int argc, char **argv)
 
 		/*{{{  initialise back-end*/
 		target_initialise (target);
+
+		/*}}}*/
+		/*{{{  process left-over arguments for back-end (short options have been singularised by this point)*/
+		for (walk = DA_PTR (be_def_opts), i = DA_CUR (be_def_opts); walk && *walk && i; walk++, i--) {
+			cmd_option_t *opt = NULL;
+
+			switch (**walk) {
+			case '-':
+				if ((*walk)[1] == '-') {
+					opt = opts_getlongopt (*walk + 2);
+					if (opt) {
+						if (opts_process (opt, &walk, &i) < 0) {
+							errored++;
+						}
+						sfree (*walk);
+						*walk = NULL;
+					} else {
+						nocc_error ("unsupported option: %s", *walk);
+						errored++;
+					}
+				} else {
+					char *ch = *walk + 1;
+
+					opt = opts_getshortopt (*ch);
+					if (opt) {
+						if (opts_process (opt, &walk, &i) < 0) {
+							errored++;
+						}
+						sfree (*walk);
+						*walk = NULL;
+					} else {
+						nocc_error ("unsupported option: %s", *walk);
+						errored++;
+					}
+				}
+				break;
+			}
+		}
+		dynarray_trash (be_def_opts);
+
+		if (errored) {
+			nocc_fatal ("error processing options for back-end (%d error%s)", errored, (errored == 1) ? "" : "s");
+			exit (EXIT_FAILURE);
+		}
 
 		/*}}}*/
 

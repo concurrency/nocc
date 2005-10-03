@@ -271,12 +271,10 @@ cmd_option_t *opts_getlongopt (const char *optname)
 	}
 	opt = (cmd_option_t *)option_lookup_byname (optname, optlen);
 	if (!opt) {
-		if (ch) {
-			ch = string_ndup ((char *)optname, optlen);
+		ch = string_ndup ((char *)optname, optlen);
 
-			opt = stringhash_lookup (extraopts, ch);
-			sfree (ch);
-		}
+		opt = stringhash_lookup (extraopts, ch);
+		sfree (ch);
 	}
 	return opt;
 }

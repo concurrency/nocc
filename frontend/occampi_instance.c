@@ -76,17 +76,24 @@ static void builtin_codegen_reschedule (tnode_t *node, builtinproc_t *builtin, c
 
 /*}}}*/
 /*{{{  private data*/
+/* these are used to fill in workspace-sizes once target info is known */
+#define BUILTIN_DS_MIN (-1)
+#define BUILTIN_DS_IO (-2)
+#define BUILTIN_DS_ALTIO (-3)
+#define BUILTIN_DS_WAIT (-4)
+#define BUILTIN_DS_MAX (-5)
+
 static builtinproc_t builtins[] = {
-	{"SETPRI", "SETPRI", NULL, NULL, 4, 16, NULL},
-	{"RESCHEDULE", "RESCHEDULE", NULL, NULL, 0, 16, builtin_codegen_reschedule},
-	{NULL, NULL, NULL, NULL, 0, 0}
+	{"SETPRI", "SETPRI", NULL, NULL, 4, BUILTIN_DS_MIN, NULL},
+	{"RESCHEDULE", "RESCHEDULE", NULL, NULL, 0, BUILTIN_DS_MIN, builtin_codegen_reschedule},
+	{NULL, NULL, NULL, NULL, 0, 0, NULL}
 };
 
 
 /*}}}*/
 
 
-/*{{{  builtinprochook_t routines*/
+/*{{{  builtinproc_t/builtinprochook_t routines*/
 /*{{{  static builtinprochook_t *builtinprochook_create (builtinproc_t *builtin)*/
 /*
  *	creates a new builtinprochook_t structure
@@ -129,6 +136,38 @@ static void builtinprochook_dumphook (tnode_t *node, void *hook, int indent, FIL
 		builtinproc_t *builtin = bph->biptr;
 
 		fprintf (stream, "<builtinprochook name=\"%s\" wsh=\"%d\" wsl=\"%d\" />\n", builtin->name, builtin->wsh, builtin->wsl);
+	}
+	return;
+}
+/*}}}*/
+
+/*{{{  static void builtinproc_fixupmem (builtinproc_t *bpi, target_t *target)*/
+/*
+ *	fixes up memory-requirements in a builtinproc_t once target info is known
+ */
+static void builtinproc_fixupmem (builtinproc_t *bpi, target_t *target)
+{
+	if (bpi->wsl < 0) {
+		switch (bpi->wsl) {
+		case BUILTIN_DS_MIN:
+			bpi->wsl = target->bws.ds_min;
+			break;
+		case BUILTIN_DS_IO:
+			bpi->wsl = target->bws.ds_io;
+			break;
+		case BUILTIN_DS_ALTIO:
+			bpi->wsl = target->bws.ds_altio;
+			break;
+		case BUILTIN_DS_WAIT:
+			bpi->wsl = target->bws.ds_wait;
+			break;
+		case BUILTIN_DS_MAX:
+			bpi->wsl = target->bws.ds_max;
+			break;
+		default:
+			nocc_internal ("builtinproc_fixupmem(): unknown size value %d", bpi->wsl);
+			break;
+		}
 	}
 	return;
 }
@@ -247,6 +286,7 @@ tnode_dumptree (namenode, 1, stderr);
 		builtinprochook_t *bph = (builtinprochook_t *)tnode_nthhookof (namenode, 0);
 		builtinproc_t *builtin = bph->biptr;
 
+		builtinproc_fixupmem (builtin, map->target);
 		bename = map->target->newname (*node, NULL, map, builtin->wsh, builtin->wsl, 0, 0, 0, 0);
 		*node = bename;
 		return 0;

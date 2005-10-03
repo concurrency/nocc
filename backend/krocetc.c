@@ -36,6 +36,7 @@
 #include "support.h"
 #include "version.h"
 #include "tnode.h"
+#include "opts.h"
 #include "lexer.h"
 #include "parser.h"
 #include "treeops.h"
@@ -192,6 +193,10 @@ typedef struct TAG_krocetc_priv {
 
 	chook_t *mapchook;
 	chook_t *resultsubhook;
+
+	struct {
+		unsigned int stoperrormode:1;
+	} options;
 } krocetc_priv_t;
 
 typedef struct TAG_krocetc_resultsubhook {
@@ -221,6 +226,49 @@ void krocetc_isetindent (FILE *stream, int indent)
 		fprintf (stream, "    ");
 	}
 	return;
+}
+/*}}}*/
+
+
+/*{{{  static int krocetc_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	option handler for this target's options
+ *	returns 0 on success, non-zero on failure
+ */
+static int krocetc_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	int optv = (int)opt->arg;
+	int flagval = 1;
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)krocetc_target.priv;
+
+	if (optv < 0) {
+		flagval = 0;
+		optv = -optv;
+	}
+	switch (optv) {
+	case 1:
+		kpriv->options.stoperrormode = flagval;
+		break;
+	default:
+		return -1;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int krocetc_init_options (krocetc_priv_t *kpriv)*/
+/*
+ *	initialises options for the KRoC-ETC back-end
+ *	returns 0 on success, non-zero on failure
+ */
+static int krocetc_init_options (krocetc_priv_t *kpriv)
+{
+#if 0
+fprintf (stderr, "krocetc_init_options(): adding options to compiler..\n");
+#endif
+	opts_add ("stoperrormode", '\0', krocetc_opthandler_flag, (void *)1, "1use stop error-mode");
+	opts_add ("halterrormode", '\0', krocetc_opthandler_flag, (void *)-1, "1use halt error-mode");
+
+	return 0;
 }
 /*}}}*/
 
@@ -2234,7 +2282,11 @@ fprintf (stderr, "krocetc_target_init(): here!\n");
 	kpriv->resultsubhook->chook_free = krocetc_resultsubhook_free;
 	kpriv->maxtsdepth = 3;
 	kpriv->maxfpdepth = 3;
+	kpriv->options.stoperrormode = 0;			/* halt error-mode by default */
+
 	target->priv = (void *)kpriv;
+
+	krocetc_init_options (kpriv);
 #if 0
 fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchook);
 #endif

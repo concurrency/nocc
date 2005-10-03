@@ -1,5 +1,8 @@
 -- test_n19.occ -- IF test
 
+#OPTION "verbose"
+#OPTION "stoperrormode"
+
 PROC test.n19 (CHAN BYTE screen!)
   SEQ
     IF

@@ -635,6 +635,32 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				return tree;
 			}
 			/*}}}*/
+		} else if (nexttok && lexer_tokmatchlitstr (nexttok, "OPTION")) {
+			/*{{{  #OPTION*/
+			lexer_freetoken (tok);
+			lexer_freetoken (nexttok);
+
+			nexttok = lexer_nexttoken (lf);
+			if (nexttok && lexer_tokmatch (opi.tok_STRING, nexttok)) {
+				/*{{{  option for the compiler*/
+				char *scopy = string_ndup (nexttok->u.str.ptr, nexttok->u.str.len);
+
+				lexer_freetoken (nexttok);
+				if (nocc_dooption (scopy) < 0) {
+					/* failed while processing option */
+					parser_error (lf, "failed while processing #OPTION directive");
+					sfree (scopy);
+					return tree;
+				}
+
+				sfree (scopy);
+				/*}}}*/
+			} else {
+				parser_error (lf, "expected string found ");
+				lexer_dumptoken (stderr, nexttok);
+				return tree;
+			}
+			/*}}}*/
 		}
 		if (!tree) {
 			/* didn't get anything here, go round */

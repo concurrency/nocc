@@ -85,8 +85,7 @@ static int occampi_namemap_leafnode (tnode_t **nodep, map_t *mapdata)
 	if ((*nodep)->tag == opi.tag_STOP) {
 		tnode_t *bename;
 
-		bename = mapdata->target->newname (*nodep, NULL, mapdata, 0, 16, 0, 0, 0, 0);                    /* FIXME! */
-
+		bename = mapdata->target->newname (*nodep, NULL, mapdata, 0, mapdata->target->bws.ds_min, 0, 0, 0, 0);
 		*nodep = bename;
 	}
 	return 0;

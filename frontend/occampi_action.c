@@ -177,8 +177,7 @@ static int occampi_namemap_action (tnode_t **node, map_t *map)
 	if (((*node)->tag == opi.tag_OUTPUT) || ((*node)->tag == opi.tag_INPUT)) {
 		tnode_t *bename;
 
-		bename = map->target->newname (*node, NULL, map, 0, 16, 0, 0, 0, 0);                    /* FIXME! */
-
+		bename = map->target->newname (*node, NULL, map, 0, map->target->bws.ds_io, 0, 0, 0, 0);
 		*node = bename;
 	}
 
