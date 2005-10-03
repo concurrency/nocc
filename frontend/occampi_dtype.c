@@ -45,6 +45,7 @@
 #include "names.h"
 #include "scope.h"
 #include "prescope.h"
+#include "typecheck.h"
 #include "precheck.h"
 #include "usagecheck.h"
 #include "map.h"
@@ -474,6 +475,16 @@ tnode_dumptree (*node, 1, stderr);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_typecheck_subscript (tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a subscript (makes sure ARRAYSUB base is integer)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_subscript (tnode_t *node, typecheck_t *tc)
+{
+	return 1;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_gettype_subscript (tnode_t *node, tnode_t *defaulttype)*/
 /*
  *	called to get the type of a subscript
@@ -499,8 +510,18 @@ tnode_dumptree (fldtype, 1, stderr);
 		return fldtype;
 	} else if (node->tag == opi.tag_ARRAYSUB) {
 		/* type is that of the base minus one ARRAY */
-		nocc_internal ("occampi_gettype_subscript(): ARRAYSUB not properly implemented yet!");
-		return NULL;
+		tnode_t *base = tnode_nthsubof (node, 0);
+		tnode_t *atype = typecheck_gettype (base, NULL);
+		tnode_t *stype = defaulttype;
+
+		if (atype->tag == opi.tag_ARRAY) {
+			/* walk through and get-type again */
+			atype = tnode_nthsubof (atype, 1);
+			stype = typecheck_gettype (atype, defaulttype);
+		} else {
+			nocc_internal ("occampi_gettype_subscript(): ARRAYSUB on non-ARRAY not properly implemented yet!");
+		}
+		return stype;
 	}
 	/* else don't know.. */
 	return defaulttype;
@@ -604,6 +625,7 @@ static int occampi_dtype_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:subscript", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = base; 1 = field/index */
 	cops = tnode_newcompops ();
 	cops->scopein = occampi_scopein_subscript;
+	cops->typecheck = occampi_typecheck_subscript;
 	cops->gettype = occampi_gettype_subscript;
 	cops->namemap = occampi_namemap_subscript;
 	tnd->ops = cops;

@@ -182,6 +182,15 @@ static int occampi_type_getdescriptor (tnode_t *node, char **str)
 /*}}}*/
 
 
+/*{{{  static tnode_t *occampi_leaftype_gettype (tnode_t *t, tnode_t *defaulttype)*/
+/*
+ *	gets the type for a leaftype -- do nothing really
+ */
+static tnode_t *occampi_leaftype_gettype (tnode_t *t, tnode_t *defaulttype)
+{
+	return t;
+}
+/*}}}*/
 /*{{{  static int occampi_leaftype_bytesfor (tnode_t *t, target_t *target)*/
 /*
  *	returns the number of bytes required by a basic type
@@ -325,6 +334,7 @@ static int occampi_type_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:leaftype", &i, 0, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
+	cops->gettype = occampi_leaftype_gettype;
 	cops->bytesfor = occampi_leaftype_bytesfor;
 	cops->issigned = occampi_leaftype_issigned;
 	tnd->ops = cops;
