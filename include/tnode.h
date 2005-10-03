@@ -108,6 +108,8 @@ typedef struct TAG_compops {
 typedef struct TAG_langops {
 	int (*getdescriptor)(tnode_t *, char **);			/* gets a descriptor string for the given node */
 	int (*do_usagecheck)(tnode_t *, struct TAG_uchk_state *);	/* does usage-checking for a node */
+	int (*isconst)(tnode_t *);					/* returns non-zero if the node is a known constant (returns width) */
+	int (*constvalof)(tnode_t *, void *);				/* gets constant value for the given node (assigns to pointed-at space) */
 } langops_t;
 
 

@@ -111,6 +111,7 @@ static void occampi_litnode_hook_dumptree (tnode_t *node, void *hook, int indent
 }
 /*}}}*/
 
+
 /*{{{  static tnode_t *occampi_gettype_lit (tnode_t *node, tnode_t *default_type)*/
 /*
  *	returns the type of a literal.
@@ -204,6 +205,79 @@ static int occampi_namemap_lit (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_isconst_lit (tnode_t *node)*/
+/*
+ *	returns non-zero if the node is a constant (returns width)
+ */
+static int occampi_isconst_lit (tnode_t *node)
+{
+	occampi_litdata_t *ldata = (occampi_litdata_t *)tnode_nthhookof (node, 0);
+
+	return ldata->bytes;
+}
+/*}}}*/
+/*{{{  static int occampi_constvalof_lit (tnode_t *node, void *ptr)*/
+/*
+ *	returns constant value of a literal node (assigns to pointer if non-null)
+ */
+static int occampi_constvalof_lit (tnode_t *node, void *ptr)
+{
+	occampi_litdata_t *ldata = (occampi_litdata_t *)tnode_nthhookof (node, 0);
+	int r = 0;
+
+	if ((node->tag == opi.tag_LITBYTE) || (node->tag == opi.tag_LITINT)) {
+		switch (ldata->bytes) {
+		case 1:
+			if (ptr) {
+				*(unsigned char *)ptr = *(unsigned char *)(ldata->data);
+			}
+			r = (int)(*(unsigned char *)(ldata->data));
+			break;
+		case 2:
+			if (ptr) {
+				*(unsigned short int *)ptr = *(unsigned short int *)(ldata->data);
+			}
+			r = (int)(*(unsigned short int *)(ldata->data));
+			break;
+		case 4:
+			if (ptr) {
+				*(unsigned int *)ptr = *(unsigned int *)(ldata->data);
+			}
+			r = (int)(*(unsigned int *)(ldata->data));
+			break;
+		case 8:
+			if (ptr) {
+				*(unsigned long long *)ptr = *(unsigned long long *)(ldata->data);
+			}
+			r = (int)(*(unsigned long long *)(ldata->data));
+			break;
+		default:
+			tnode_error (node, "occampi_constvalof_lit(): unsupported constant integer width %d!", ldata->bytes);
+			break;
+		}
+	} else if (node->tag == opi.tag_LITREAL) {
+		switch (ldata->bytes) {
+		case 4:
+			if (ptr) {
+				*(float *)ptr = *(float *)(ldata->data);
+			}
+			r = (int)(*(float *)(ldata->data));
+			break;
+		case 8:
+			if (ptr) {
+				*(double *)ptr = *(double *)(ldata->data);
+			}
+			r = (int)(*(double *)(ldata->data));
+			break;
+		default:
+			tnode_error (node, "occampi_constvalof_lit(): unsupported constant floating-point width %d!", ldata->bytes);
+			break;
+		}
+	}
+
+	return r;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_lit_init_nodes (void)*/
@@ -216,6 +290,7 @@ static int occampi_lit_init_nodes (void)
 	tndef_t *tnd;
 	int i;
 	compops_t *cops;
+	langops_t *lops;
 
 	/*{{{  occampi:litnode -- LITBYTE, LITINT, LITREAL*/
 	i = -1;
@@ -227,6 +302,10 @@ static int occampi_lit_init_nodes (void)
 	cops->gettype = occampi_gettype_lit;
 	cops->namemap = occampi_namemap_lit;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->isconst = occampi_isconst_lit;
+	lops->constvalof = occampi_constvalof_lit;
+	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_LITBYTE = tnode_newnodetag ("LITBYTE", &i, tnd, NTF_NONE);

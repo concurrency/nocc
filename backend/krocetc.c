@@ -2064,6 +2064,14 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 	case I_SETERR:
 		codegen_write_string (cgen, "\tseterr\n");
 		break;
+	case I_GT:
+		codegen_write_string (cgen, "\tgt\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+	case I_LT:
+		codegen_write_string (cgen, "\tlt\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: tsecondary %d\n", ins);
 		break;

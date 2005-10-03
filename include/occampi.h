@@ -61,6 +61,7 @@ typedef struct {
 	struct TAG_ntdef *tag_SUBSCRIPT;
 	struct TAG_ntdef *tag_RECORDSUB;
 	struct TAG_ntdef *tag_ARRAYSUB;
+	struct TAG_ntdef *tag_ARRAY;
 
 	struct TAG_ntdef *tag_VARDECL;
 	struct TAG_ntdef *tag_ABBREV;
@@ -108,7 +109,7 @@ typedef struct {
 	struct TAG_ntdef *tag_RELLT;
 	struct TAG_ntdef *tag_RELLEQ;
 	struct TAG_ntdef *tag_RELGT;
-	struct TAG_ntdef *tag_RELGTE;
+	struct TAG_ntdef *tag_RELGEQ;
 
 	struct TAG_ntdef *tag_NDECL;
 	struct TAG_ntdef *tag_NPARAM;

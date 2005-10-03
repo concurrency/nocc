@@ -1,4 +1,7 @@
 
+03/10/2005	frmb	initial parser handling for ARRAY nodes
+03/10/2005	frmb	updated option processing, should handle in-line options successfully for occam-pi
+02/10/2005	frmb	IFs half-finished (should code-gen ok for simple cases)
 01/10/2005	frmb	various updates to lexer and parser
 01/10/2005	frmb	support for short IFs, initial parsing for IF, ALT, etc.
 28/09/2005	frmb	fixed up VAL abbreviation initialisation

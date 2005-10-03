@@ -39,7 +39,6 @@
 #include "parser.h"
 #include "parsepriv.h"
 #include "dfa.h"
-#include "occampi.h"
 #include "names.h"
 
 
@@ -85,6 +84,7 @@ void parser_init (void)
 
 	parser_register_grule ("parser:nullreduce", parser_decode_grule ("N+R-"));
 	parser_register_grule ("parser:listresult", parser_decode_grule ("R+N-"));
+	parser_register_grule ("parser:rewindtokens", parser_decode_grule ("T*"));
 	return;
 }
 /*}}}*/
@@ -506,6 +506,7 @@ void *parser_lookup_rarg (const char *name)
 #define ICDE_SETORIGIN_TS 17	/* set combine origin using a token n-back on the token-stack */
 #define ICDE_CONSUME_N 18	/* consume node at the top of the local stack */
 #define ICDE_CONSUME_T 19	/* consume token at the top of the local stack */
+#define ICDE_TSREWIND 20	/* rewind the token-stack by pushing all tokens back into the lexer */
 
 /*}}}*/
 
@@ -545,6 +546,15 @@ void parser_generic_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 			/*{{{  TSPOP*/
 		case ICDE_TSPOP:
 			lnstk[lncnt++] = (void *)parser_gettok (pp);
+			break;
+			/*}}}*/
+			/*{{{  TSREWIND*/
+		case ICDE_TSREWIND:
+			while (DA_CUR (pp->tokstack) > 0) {
+				token_t *xtok = parser_gettok (pp);
+
+				lexer_pushback (xtok->origin, xtok);
+			}
 			break;
 			/*}}}*/
 			/*{{{  MODPTR*/
@@ -672,8 +682,12 @@ void parser_generic_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 				} else {
 					tnode_t *onode = DA_NTHITEM (dfast->nodestack, DA_CUR (dfast->nodestack) - (offset + 1));
 
-					org_file = onode->org_file;
-					org_line = onode->org_line;
+					if (!onode) {
+						nocc_error ("parser_generic_reduce(): referenced origin %d on node-stack is null", offset);
+					} else {
+						org_file = onode->org_file;
+						org_line = onode->org_line;
+					}
 				}
 			}
 			break;
@@ -688,8 +702,12 @@ void parser_generic_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 				} else {
 					token_t *otok = DA_NTHITEM (pp->tokstack, DA_CUR (pp->tokstack) - (offset + 1));
 
-					org_file = otok->origin;
-					org_line = otok->lineno;
+					if (!otok) {
+						nocc_error ("parser_generic_reduce(): referenced origin %d on token-stack is null", offset);
+					} else {
+						org_file = otok->origin;
+						org_line = otok->lineno;
+					}
 				}
 			}
 			break;
@@ -814,11 +832,13 @@ void *parser_decode_grule (const char *rule, ...)
 			/*{{{  T -- token-stack operation*/
 		case 'T':
 			xrule++;
-			if (*xrule != '+') {
-				goto report_error_out;
-			} else {
+			if (*xrule == '+') {
 				ilen++;
 				lsdepth++;
+			} else if (*xrule == '*') {
+				ilen++;
+			} else {
+				goto report_error_out;
 			}
 			break;
 			/*}}}*/
@@ -977,8 +997,11 @@ void *parser_decode_grule (const char *rule, ...)
 			/*{{{  T -- token-stack operation*/
 		case 'T':
 			xrule++;
-			/* must be T+, already checked */
-			icode[i] = ICDE_TSPOP;
+			if (*xrule == '+') {
+				icode[i] = ICDE_TSPOP;
+			} else if (*xrule == '*') {
+				icode[i] = ICDE_TSREWIND;
+			}
 			break;
 			/*}}}*/
 			/*{{{  X -- user-supplied operations*/

@@ -40,7 +40,6 @@
 #include "parsepriv.h"
 #endif
 #include "lexpriv.h"
-#include "occampi.h"
 #include "names.h"
 #include "target.h"
 
@@ -1296,6 +1295,8 @@ langops_t *tnode_newlangops (void)
 
 	lops->getdescriptor = NULL;
 	lops->do_usagecheck = NULL;
+	lops->isconst = NULL;
+	lops->constvalof = NULL;
 
 	return lops;
 }

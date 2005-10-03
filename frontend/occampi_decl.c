@@ -1394,6 +1394,8 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:vardecl ::= [ 0 occampi:primtype 3 ] [ 0 @CHAN 1 ] [ 1 occampi:protocol 2 ] [ 2 {<opi:chanpush>} -* 3 ] [ 3 occampi:namelist 4 ] " \
 				"[ 4 @@: 5 ] [ 5 {<opi:declreduce>} -* ] [ 4 @IS 6 ] [ 6 occampi:operand 7 ] [ 7 @@: 8 ] [ 8 {<opi:abbrreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:vardecl:bracketstart ::= [ 0 occampi:arrayspec 1 ] [ 1 occampi:vardecl 2 ] [ 2 {Roccampi:arrayfold} -* ]"));
+
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:procdecl ::= [ 0 @PROC 1 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:procdeclreduce>} -* ]"));
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:valabbrdecl ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} -* 2 ] [ 2 @IS 3 ] [ 2 +Name 6 ] [ 3 occampi:expr 4 ] [ 4 @@: 5 ] " \

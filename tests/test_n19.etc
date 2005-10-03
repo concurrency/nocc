@@ -1,7 +1,7 @@
 ;
 ;	tests/test_n19.etc
 ;	compiled from tests/test_n19.occ
-;	on host frog at Mon Oct  3 01:22:53 2005
+;	on host frog at Mon Oct  3 02:04:24 2005
 ;	source language: occam-pi, target: etc-kroc-unknown
 ;
 
@@ -20,8 +20,7 @@
 	ajw	0
 	ldc	24
 	ldc	42
-	diff
-	.boolinvert
+	gt
 	cj	5
 	j	4
 .setlabel	5

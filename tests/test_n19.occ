@@ -6,7 +6,7 @@
 PROC test.n19 (CHAN BYTE screen!)
   SEQ
     IF
-      24 = 42
+      24 > 42
         SKIP
 :
 

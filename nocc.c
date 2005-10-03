@@ -433,7 +433,7 @@ int nocc_dooption (char *optstr)
 
 	opt = opts_getlongopt (optstr);
 	if (opt) {
-		if (opts_process (opt, &lclopts, &left) < 0) {
+		if (opts_process (opt, (char ***)(&lclopts), &left) < 0) {
 			nocc_error ("failed while processing option \"%s\"", optstr);
 			return -1;
 		}

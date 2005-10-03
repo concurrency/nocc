@@ -1,0 +1,9 @@
+-- test_n20.occ -- arrays
+
+PROC test.n20 (CHAN BYTE screen!)
+  [4]BYTE array:
+  SEQ
+    array[0] := 'x'
+    SKIP
+:
+

@@ -76,6 +76,39 @@ void langops_getdescriptor (tnode_t *node, char **str)
 	return;
 }
 /*}}}*/
+/*{{{  int langops_isconst (tnode_t *node)*/
+/*
+ *	determines whether or not the given node is a known constant
+ */
+int langops_isconst (tnode_t *node)
+{
+	int r = 0;
+
+	if (node && node->tag->ndef->lops && node->tag->ndef->lops->isconst) {
+		r = node->tag->ndef->lops->isconst (node);
+	}
+	return r;
+}
+/*}}}*/
+/*{{{  int langops_constvalof (tnode_t *node, void *ptr)*/
+/*
+ *	extracts the constant value of a given node.  if "ptr" is non-null,
+ *	value is assigned there (to the appropriate width).  Anything integer
+ *	or less is returned as well.
+ */
+int langops_constvalof (tnode_t *node, void *ptr)
+{
+	int r = 0;
+
+	if (node && node->tag->ndef->lops && node->tag->ndef->lops->constvalof) {
+		r = node->tag->ndef->lops->constvalof (node, ptr);
+	} else {
+		tnode_warning (node, "extracting non-existant constant value!");
+	}
+
+	return r;
+}
+/*}}}*/
 
 
 /*{{{  int langops_init (void)*/

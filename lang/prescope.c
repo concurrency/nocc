@@ -38,7 +38,6 @@
 #include "tnode.h"
 #include "parser.h"
 #include "parsepriv.h"
-#include "occampi.h"
 #include "names.h"
 #include "prescope.h"
 

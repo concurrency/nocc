@@ -302,6 +302,30 @@ static int occampi_namemap_typedecl (tnode_t **node, map_t *mdata)
 /*}}}*/
 
 
+/*{{{  static int occampi_bytesfor_arraynode (tnode_t *node, target_t *target)*/
+/*
+ *	returns the number of bytes required by an array-node,
+ *	of -1 if not known
+ */
+static int occampi_bytesfor_arraynode (tnode_t *node, target_t *target)
+{
+	tnode_t *dim = tnode_nthsubof (node, 0);
+	tnode_t *subtype = tnode_nthsubof (node, 1);
+	int stbytes;
+
+	stbytes = tnode_bytesfor (subtype, target);
+	if (langops_isconst (dim)) {
+		stbytes *= langops_constvalof (dim, NULL);
+	} else {
+		tnode_warning (node, "occampi_bytesfor_arraynode(): non-constant dimension!");
+		stbytes = -1;
+	}
+
+	return stbytes;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_scopein_fielddecl (tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope in a field declaration (inside a DATA TYPE)
@@ -543,16 +567,26 @@ static int occampi_dtype_init_nodes (void)
 
 	/*{{{  occampi:typedecl -- TYPEDECL*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:typedecl", &i, 3, 0, 1, TNF_SHORTDECL);
+	tnd = tnode_newnodetype ("occampi:typedecl", &i, 3, 0, 1, TNF_SHORTDECL);		/* subnodes: 0 = name; 1 = type; 2 = body */
 	tnd->hook_dumptree = occampi_typedecl_hook_dumptree;
 	cops = tnode_newcompops ();
 	cops->scopein = occampi_scopein_typedecl;
 	cops->bytesfor = occampi_bytesfor_typedecl;
 	cops->namemap = occampi_namemap_typedecl;
 	tnd->ops = cops;
+
 	i = -1;
 	opi.tag_TYPEDECL = tnode_newnodetag ("TYPEDECL", &i, tnd, NTF_NONE);
+	/*}}}*/
+	/*{{{  occampi:arraynode -- ARRAY*/
 	i = -1;
+	tnd = tnode_newnodetype ("occampi:arraynode", &i, 2, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	cops->bytesfor = occampi_bytesfor_arraynode;
+	tnd->ops = cops;
+
+	i = -1;
+	opi.tag_ARRAY = tnode_newnodetag ("ARRAY", &i, tnd, NTF_NONE);
 	/*}}}*/
 	/*{{{  occampi:fielddecl -- FIELDDECL*/
 	i = -1;
@@ -561,17 +595,19 @@ static int occampi_dtype_init_nodes (void)
 	cops->scopein = occampi_scopein_fielddecl;
 	cops->bytesfor = occampi_bytesfor_fielddecl;
 	tnd->ops = cops;
+
 	i = -1;
 	opi.tag_FIELDDECL = tnode_newnodetag ("FIELDDECL", &i, tnd, NTF_NONE);
 	/*}}}*/
-	/*{{{  occampi:subscript -- SUBSCRIPT*/
+	/*{{{  occampi:subscript -- SUBSCRIPT, RECORDSUB, ARRAYSUB*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:subscript", &i, 2, 0, 0, TNF_NONE);
+	tnd = tnode_newnodetype ("occampi:subscript", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = base; 1 = field/index */
 	cops = tnode_newcompops ();
 	cops->scopein = occampi_scopein_subscript;
 	cops->gettype = occampi_gettype_subscript;
 	cops->namemap = occampi_namemap_subscript;
 	tnd->ops = cops;
+
 	i = -1;
 	opi.tag_SUBSCRIPT = tnode_newnodetag ("SUBSCRIPT", &i, tnd, NTF_NONE);
 	i = -1;
@@ -605,6 +641,29 @@ fprintf (stderr, "occampi_reduce_resetnewline(): pp->lf = 0x%8.8x, DA_CUR (pp->t
 	return;
 }
 /*}}}*/
+/*{{{  static void occampi_reduce_arrayfold (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	takes a declaration of some kind and an ARRAY on the node-stack, and folds
+ *	the ARRAY into the declaration's type
+ */
+static void occampi_reduce_arrayfold (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	tnode_t *decl, *array;
+
+	decl = dfa_popnode (dfast);
+	array = dfa_popnode (dfast);
+
+	if (!array) {
+		parser_error (pp->lf, "broken array specification");
+	} else {
+		tnode_setnthsub (array, 1, tnode_nthsubof (decl, 1));
+		tnode_setnthsub (decl, 1, array);
+	}
+	*(dfast->ptr) = decl;
+
+	return;
+}
+/*}}}*/
 /*{{{  static int occampi_dtype_reg_reducers (void)*/
 /*
  *	registers reductions for declaration nodes
@@ -614,8 +673,10 @@ static int occampi_dtype_reg_reducers (void)
 	parser_register_grule ("opi:datatypedeclreduce", parser_decode_grule ("SN1N+N+V00XC4R-", occampi_typedeclhook_blankhook, opi.tag_TYPEDECL));
 	parser_register_grule ("opi:fieldreduce", parser_decode_grule ("SN1N+N+C2R-", opi.tag_FIELDDECL));
 	parser_register_grule ("opi:resultpush", parser_decode_grule ("R+N-"));
+	parser_register_grule ("opi:arrayspec", parser_decode_grule ("SN0N+0C2R-", opi.tag_ARRAY));
 
 	parser_register_reduce ("Roccampi:resetnewline", occampi_reduce_resetnewline, NULL);
+	parser_register_reduce ("Roccampi:arrayfold", occampi_reduce_arrayfold, NULL);
 
 	return 0;
 }
@@ -638,6 +699,8 @@ static dfattbl_t **occampi_dtype_init_dfatrans (int *ntrans)
 				"[ 4 occampi:type 5 ] [ 5 @@: 6 ] [ 6 {<opi:datatypedeclreduce>} -* ] " \
 				"[ 7 Indent 8 ] [ 8 @RECORD 9 ] [ 9 Newline 10 ] [ 10 Indent 11 ] [ 11 occampi:subtspeclist 12 ] [ 12 Newline 13 ] " \
 				"[ 13 Outdent 14 ] [ 14 Outdent 15 ] [ 15 @@: 16 ] [ 16 {<opi:datatypedeclreduce>} -* ] "));
+
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:arrayspec ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:arrayspec>} -* ]"));
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:xsubscriptreduce>} -* 4 ] [ 4 {<opi:resultpush>} -* 0 ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@_ 1 ] [ 1 occampi:name 2 ] [ 2 {<opi:xsubscriptreduce>} -* 3 ] [ 3 {<opi:resultpush>} -* 0 ]"));

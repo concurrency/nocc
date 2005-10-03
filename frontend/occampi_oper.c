@@ -108,6 +108,10 @@ static dopmap_t dopmap[] = {
 static relmap_t relmap[] = {
 	{SYMBOL, "=", NULL, &(opi.tag_RELEQ), occampi_oper_genrelop, I_EQ},
 	{SYMBOL, "<>", NULL, &(opi.tag_RELNEQ), occampi_oper_geninvrelop, I_EQ},
+	{SYMBOL, "<", NULL, &(opi.tag_RELLT), occampi_oper_genrelop, I_LT},
+	{SYMBOL, ">=", NULL, &(opi.tag_RELGEQ), occampi_oper_geninvrelop, I_LT},
+	{SYMBOL, ">", NULL, &(opi.tag_RELGT), occampi_oper_genrelop, I_GT},
+	{SYMBOL, "<=", NULL, &(opi.tag_RELLEQ), occampi_oper_geninvrelop, I_GT},
 	{NOTOKEN, NULL, NULL, NULL, NULL, I_INVALID}
 };
 
@@ -289,6 +293,12 @@ static void occampi_oper_genrelop (codegen_t *cgen, int arg)
 		codegen_callops (cgen, tsecondary, I_DIFF);
 		codegen_callops (cgen, tsecondary, I_BOOLINVERT);
 		break;
+	case I_GT:
+		codegen_callops (cgen, tsecondary, I_GT);
+		break;
+	case I_LT:
+		codegen_callops (cgen, tsecondary, I_LT);
+		break;
 	default:
 		codegen_callops (cgen, comment, "occampi_oper_genrelop(): fixme!");
 		break;
@@ -307,6 +317,14 @@ static void occampi_oper_geninvrelop (codegen_t *cgen, int arg)
 	switch (tins) {
 	case I_EQ:
 		codegen_callops (cgen, tsecondary, I_DIFF);
+		break;
+	case I_GT:
+		codegen_callops (cgen, tsecondary, I_GT);
+		codegen_callops (cgen, tsecondary, I_BOOLINVERT);
+		break;
+	case I_LT:
+		codegen_callops (cgen, tsecondary, I_LT);
+		codegen_callops (cgen, tsecondary, I_BOOLINVERT);
 		break;
 	default:
 		codegen_callops (cgen, comment, "occampi_oper_geninvrelop(): fixme!");
@@ -451,6 +469,15 @@ static void occampi_reduce_rel (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 			break;
 		}
 	}
+#if 0
+if (!tag) {
+lexer_dumptoken (stderr, tok);
+for (i=0; relmap[i].lookup; i++) {
+	fprintf (stderr, "--> tagname [%s], token: ", *(relmap[i].tagp) ? (*(relmap[i].tagp))->name : "(null)");
+	lexer_dumptoken (stderr, relmap[i].tok);
+}
+}
+#endif
 	if (!tag) {
 		parser_error (pp->lf, "occampi_reduce_rel(): unhandled token [%s]", lexer_stokenstr (tok));
 		return;
@@ -549,6 +576,14 @@ static int occampi_oper_init_nodes (void)
 	opi.tag_RELEQ = tnode_newnodetag ("RELEQ", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_RELNEQ = tnode_newnodetag ("RELNEQ", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_RELGT = tnode_newnodetag ("RELGT", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_RELGEQ = tnode_newnodetag ("RELGEQ", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_RELLT = tnode_newnodetag ("RELLT", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_RELLEQ = tnode_newnodetag ("RELLEQ", &i, tnd, NTF_NONE);
 	/*}}}*/
 	/*{{{  occampi:mopnode -- UMINUS, BITNOT*/
 	i = -1;
