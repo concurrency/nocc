@@ -35,6 +35,7 @@
 #include "lexpriv.h"
 #include "parsepriv.h"
 #include "occampi.h"
+#include "opts.h"
 #include "occampi_fe.h"
 
 /*}}}*/
@@ -53,6 +54,9 @@ int occampi_register_frontend (void)
 	if (lexer_registerlang (&occampi_lexer)) {
 		return -1;
 	}
+
+	opts_add ("c-operators", '\0', occampi_lexer_opthandler_flag, (void *)1, "1use C style operators");
+
 	return 0;
 }
 /*}}}*/

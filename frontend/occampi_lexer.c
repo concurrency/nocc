@@ -35,6 +35,7 @@
 #include "lexer.h"
 #include "lexpriv.h"
 #include "occampi.h"
+#include "opts.h"
 
 
 /*{{{  forward decls.*/
@@ -62,9 +63,26 @@ typedef struct TAG_occampi_lex {
 	int scanto_indent;		/* target indent when it changes */
 	int newlineflag;
 	int cescapes;			/* whether we're using C-style escape characters */
+	int coperators;			/* whether we're using C-style operators */
 } occampi_lex_t;
 
 
+/*}}}*/
+/*{{{  private types + data*/
+typedef struct TAG_copmap {
+	char *str_lookup;
+	tokentype_t ttype_lookup;
+	token_t *tok_lookup;
+	char *str_replace;
+	tokentype_t ttype_replace;
+	token_t *tok_replace;
+} copmap_t;
+
+static copmap_t copmap[] = {
+	{"=", SYMBOL, NULL, ":=", SYMBOL, NULL},
+	{"==", SYMBOL, NULL, "=", SYMBOL, NULL},
+	{NULL, NOTOKEN, NULL, NULL, NOTOKEN, NULL}
+};
 /*}}}*/
 
 
@@ -164,6 +182,83 @@ out_error1:
 /*}}}*/
 
 
+/*{{{  static void copmap_init (void)*/
+/*
+ *	initialises the C operator map
+ */
+static void copmap_init (void)
+{
+	if (!copmap[0].tok_lookup) {
+		int i;
+
+		for (i=0; copmap[i].str_lookup; i++) {
+			copmap[i].tok_lookup = lexer_newtoken (copmap[i].ttype_lookup, copmap[i].str_lookup);
+			copmap[i].tok_replace = lexer_newtoken (copmap[i].ttype_replace, copmap[i].str_replace);
+		}
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static int copmap_ctooccampi (token_t *tok)*/
+/*
+ *	does replacements for C-style operators
+ *	returns 0 if nothing changed, non-zero otherwise
+ */
+static int copmap_ctooccampi (token_t *tok)
+{
+	int i;
+
+	for (i=0; copmap[i].tok_lookup; i++) {
+		if (lexer_tokmatch (copmap[i].tok_lookup, tok)) {
+			/* change token symbol */
+			tok->u.sym = copmap[i].tok_replace->u.sym;
+			return 1;
+		}
+	}
+	return 0;
+}
+/*}}}*/
+
+
+/*{{{  int occampi_lexer_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	option-handler for occam-pi language options
+ *	returns 0 on success, non-zero on failure
+ */
+int occampi_lexer_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	int optv = (int)opt->arg;
+	lexfile_t *ptrarg;
+
+	switch (optv) {
+	case 1:
+		/* set C-style operators */
+		if (*argleft < 2) {
+			nocc_error ("occampi_opthandler_flag(): missing pointer argument!");
+			return -1;
+		}
+		ptrarg = (lexfile_t *)((*argwalk)[1]);
+
+		nocc_message ("using C style operators for %s", ptrarg ? ptrarg->fnptr : "(unknown)");
+		/*{{{  actually set inside lexer private data*/
+		{
+			lexpriv_t *lp = (lexpriv_t *)ptrarg->priv;
+			occampi_lex_t *lop = (occampi_lex_t *)lp->langpriv;
+
+			copmap_init ();
+			lop->coperators = 1;
+		}
+		/*}}}*/
+		break;
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_openfile (lexfile_t *lf, lexpriv_t *lp)*/
 /*
  *	called once an occam-pi source file has been opened
@@ -178,6 +273,7 @@ static int occampi_openfile (lexfile_t *lf, lexpriv_t *lp)
 	lop->scanto_indent = 0;
 	lop->newlineflag = 1;		/* effectively get a newline straight-away */
 	lop->cescapes = 0;
+	lop->coperators = 0;
 	
 	lp->langpriv = (void *)lop;
 	lf->lineno = 1;
@@ -581,6 +677,10 @@ default_label:
 				tok->type = SYMBOL;
 				tok->u.sym = sym;
 				lp->offset += sym->mlen;
+				
+				if (lop->coperators) {
+					copmap_ctooccampi (tok);
+				}
 			} else {
 				/* unknown.. */
 				char *tmpstr = string_ndup (ch, ((chlim - ch) < 2) ? 1 : 2);

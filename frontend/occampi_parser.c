@@ -213,8 +213,8 @@ static int occampi_register_reducers (void)
 	parser_register_grule ("opi:nullreduce", parser_decode_grule ("N+R-"));
 	parser_register_grule ("opi:nullpush", parser_decode_grule ("0N-"));
 	parser_register_grule ("opi:nullset", parser_decode_grule ("0R-"));
-	parser_register_grule ("opi:subscriptreduce", parser_decode_grule ("N+N+C2R-", opi.tag_SUBSCRIPT));
-	parser_register_grule ("opi:xsubscriptreduce", parser_decode_grule ("N+N+VC2R-", opi.tag_SUBSCRIPT));
+	parser_register_grule ("opi:subscriptreduce", parser_decode_grule ("N+N+0C3R-", opi.tag_SUBSCRIPT));
+	parser_register_grule ("opi:xsubscriptreduce", parser_decode_grule ("N+N+V0C3R-", opi.tag_SUBSCRIPT));
 	/*}}}*/
 
 	for (i=0; feunit_set[i]; i++) {
@@ -648,7 +648,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				char *scopy = string_ndup (nexttok->u.str.ptr, nexttok->u.str.len);
 
 				lexer_freetoken (nexttok);
-				if (nocc_dooption (scopy) < 0) {
+				if (nocc_dooption_arg (scopy, (void *)lf) < 0) {
 					/* failed while processing option */
 					parser_error (lf, "failed while processing #OPTION directive");
 					sfree (scopy);

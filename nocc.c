@@ -427,14 +427,17 @@ static void maybedumptrees (char **fnames, int nfnames, tnode_t **trees, int ntr
  */
 int nocc_dooption (char *optstr)
 {
-	char *lclopts[2] = {optstr, NULL};
+	char **lclopts = (char **)smalloc (2 * sizeof (char *));
 	cmd_option_t *opt = NULL;
 	int left = 1;
 
+	lclopts[0] = optstr;
+	lclopts[1] = NULL;
 	opt = opts_getlongopt (optstr);
 	if (opt) {
 		if (opts_process (opt, (char ***)(&lclopts), &left) < 0) {
 			nocc_error ("failed while processing option \"%s\"", optstr);
+			sfree (lclopts);
 			return -1;
 		}
 	} else {
@@ -445,8 +448,49 @@ int nocc_dooption (char *optstr)
 		str[0] = '-';
 		str[1] = '-';
 		dynarray_add (be_def_opts, str);
+		sfree (lclopts);
 		return 1;
 	}
+	sfree (lclopts);
+	return 0;
+}
+/*}}}*/
+/*{{{  int nocc_dooption_arg (char *optstr, void *arg)*/
+/*
+ *	called to trigger an option (always assumed to be a long option)
+ *	will add to back-end options if cannot process immediately
+ *	called internally, also passes a pointer argument (usually the lexfile_t from which it originated)
+ *	returns 0 on success (called now), 1 if deferred, -1 on error
+ */
+int nocc_dooption_arg (char *optstr, void *arg)
+{
+	char **lclopts = (char **)smalloc (3 * sizeof (char *));
+	cmd_option_t *opt = NULL;
+	int left = 2;
+
+	lclopts[0] = optstr;
+	lclopts[1] = (char *)arg;
+	lclopts[2] = NULL;
+
+	opt = opts_getlongopt (optstr);
+	if (opt) {
+		if (opts_process (opt, &lclopts, &left) < 0) {
+			nocc_error ("failed while processing option \"%s\"", optstr);
+			sfree (lclopts);
+			return -1;
+		}
+	} else {
+		/* defer for back-end processing */
+		char *str = (char *)smalloc (strlen (optstr) + 3);
+
+		strcpy (str + 2, optstr);
+		str[0] = '-';
+		str[1] = '-';
+		dynarray_add (be_def_opts, str);
+		sfree (lclopts);
+		return 1;
+	}
+	sfree (lclopts);
 	return 0;
 }
 /*}}}*/

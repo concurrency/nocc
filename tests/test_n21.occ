@@ -1,0 +1,11 @@
+-- test_n21.occ -- arrays and OPTIONs
+
+#OPTION "c-operators"
+
+PROC test.n21 (CHAN BYTE screen!)
+  [4]BYTE array:
+  SEQ
+    array[0] = 'x'
+    SKIP
+:
+

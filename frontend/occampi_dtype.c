@@ -455,7 +455,7 @@ tnode_dumptree (*node, 1, stderr);
 fprintf (stderr, "occampi_scopein_subscript(): scoped subscript, *node =\n");
 tnode_dumptree (*node, 1, stderr);
 #endif
-			*node = tnode_createfrom (opi.tag_RECORDSUB, oldnode, tnode_nthsubof (oldnode, 0), tnode_nthsubof (oldnode, 1));
+			*node = tnode_createfrom (opi.tag_RECORDSUB, oldnode, tnode_nthsubof (oldnode, 0), tnode_nthsubof (oldnode, 1), tnode_nthsubof (oldnode, 2));
 			tnode_setnthsub (oldnode, 0, NULL);
 			tnode_setnthsub (oldnode, 1, NULL);
 			tnode_free (oldnode);
@@ -465,7 +465,7 @@ tnode_dumptree (*node, 1, stderr);
 			/* probably a simple type */
 			scope_subtree (tnode_nthsubaddr (*node, 1), ss);
 
-			*node = tnode_createfrom (opi.tag_ARRAYSUB, oldnode, tnode_nthsubof (oldnode, 0), tnode_nthsubof (oldnode, 1));
+			*node = tnode_createfrom (opi.tag_ARRAYSUB, oldnode, tnode_nthsubof (oldnode, 0), tnode_nthsubof (oldnode, 1), tnode_nthsubof (oldnode, 2));
 			tnode_setnthsub (oldnode, 0, NULL);
 			tnode_setnthsub (oldnode, 1, NULL);
 			tnode_free (oldnode);
@@ -482,6 +482,21 @@ tnode_dumptree (*node, 1, stderr);
  */
 static int occampi_typecheck_subscript (tnode_t *node, typecheck_t *tc)
 {
+	if (node->tag == opi.tag_ARRAYSUB) {
+		tnode_t *base = tnode_nthsubof (node, 0);
+		tnode_t *atype = typecheck_gettype (base, NULL);
+		tnode_t *stype;
+
+		if (atype->tag == opi.tag_ARRAY) {
+			/* walk through and get-type again */
+			atype = tnode_nthsubof (atype, 1);
+			stype = typecheck_gettype (atype, NULL);
+		} else {
+			nocc_internal ("occampi_gettype_subscript(): ARRAYSUB on non-ARRAY not properly implemented yet!");
+			stype = NULL;
+		}
+		tnode_setnthsub (node, 2, stype);
+	}
 	return 1;
 }
 /*}}}*/
@@ -547,8 +562,17 @@ static int occampi_namemap_subscript (tnode_t **node, map_t *mdata)
 		*node = mdata->target->newindexed (tnode_nthsubof (*node, 0), NULL, 0, fdh->offset);
 
 	} else if ((*node)->tag == opi.tag_ARRAYSUB) {
-		nocc_error ("occampi_namemap_subscript(): ARRAYSUB not supported yet!");
-		return 0;
+		int subtypesize = tnode_bytesfor (tnode_nthsubof (*node, 2), mdata->target);
+
+#if 0
+fprintf (stderr, "occampi_namemap_subscript(): ARRAYSUB: subtypesize=%d, *node[2] = 0x%8.8x = \n", subtypesize, (unsigned int)tnode_nthsubof (*node, 2));
+if (tnode_nthsubof (*node, 2)) {
+	tnode_dumptree (tnode_nthsubof (*node, 2), 1, stderr);
+} else {
+	fprintf (stderr, "    <nullnode />\n");
+}
+#endif
+		*node = mdata->target->newindexed (tnode_nthsubof (*node, 0), tnode_nthsubof (*node, 1), subtypesize, 0);
 	} else {
 		nocc_error ("occampi_namemap_subscript(): unsupported subscript type [%s]", (*node)->tag->name);
 		return 0;
@@ -622,7 +646,7 @@ static int occampi_dtype_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:subscript -- SUBSCRIPT, RECORDSUB, ARRAYSUB*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:subscript", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = base; 1 = field/index */
+	tnd = tnode_newnodetype ("occampi:subscript", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = base; 1 = field/index; 2 = subscript-type */
 	cops = tnode_newcompops ();
 	cops->scopein = occampi_scopein_subscript;
 	cops->typecheck = occampi_typecheck_subscript;

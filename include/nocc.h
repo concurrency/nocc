@@ -28,6 +28,7 @@ extern void nocc_message (char *fmt, ...);
 extern void nocc_outerrmsg (char *string);
 
 extern int nocc_dooption (char *optstr);
+extern int nocc_dooption_arg (char *optstr, void *arg);
 
 /* need dynamic-arrays in here */
 #include "support.h"

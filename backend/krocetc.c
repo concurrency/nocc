@@ -1856,7 +1856,18 @@ static void krocetc_coder_storename (codegen_t *cgen, tnode_t *name, int offset)
 			/*}}}*/
 		} else {
 			/*{{{  indexed*/
-			codegen_callops (cgen, comment, "missing indexed store");
+			/* load BYTE index */
+			codegen_callops (cgen, loadname, tnode_nthsubof (name, 1), 0);
+			codegen_callops (cgen, loadconst, ih->isize);
+			codegen_callops (cgen, tsecondary, I_PROD);		/* scale */
+
+			/* load a pointer to the base */
+			codegen_callops (cgen, loadpointer, tnode_nthsubof (name, 0), 0);
+			codegen_callops (cgen, tsecondary, I_SUM);		/* add */
+
+			codegen_write_fmt (cgen, "\tstnl\t%d\n", offset);
+			krocetc_cgstate_tsdelta (cgen, -2);
+
 			/*}}}*/
 		}
 

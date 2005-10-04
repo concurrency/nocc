@@ -66,6 +66,7 @@
 /*{{{  static int occampi_typecheck_action (tnode_t *node, typecheck_t *tc)*/
 /*
  *	called to type-check an action-node
+ *	returns 0 to stop walk, 1 to continue
  */
 static int occampi_typecheck_action (tnode_t *node, typecheck_t *tc)
 {
@@ -82,6 +83,10 @@ fprintf (stderr, "occampi_typecheck_action(): here!\n");
 		nocc_warning ("occampi_typecheck_action(): strange.  already type-checked this action..");
 		return 0;		/* don't walk sub-nodes */
 	}
+	
+	/* call type-check on LHS and RHS trees */
+	typecheck_subtree (lhs, tc);
+	typecheck_subtree (rhs, tc);
 
 	if (node->tag == opi.tag_ASSIGN) {
 		/*{{{  assignment*/
