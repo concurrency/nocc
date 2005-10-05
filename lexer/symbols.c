@@ -59,6 +59,7 @@ static symbol_t symbols[] = {
 	{">", 1, NULL},
 	{"<", 1, NULL},
 	{":=", 2, NULL},
+	{"!=", 2, NULL},
 	{"=", 1, NULL},
 	{"<=", 2, NULL},
 	{"=>", 2, NULL},
@@ -76,6 +77,13 @@ static symbol_t symbols[] = {
 	{"_", 1, NULL},
 	{"~", 1, NULL},
 	{"#", 1, NULL},
+	{"->", 2, NULL},
+	{"/\\", 2, NULL},
+	{"\\/", 2, NULL},
+	{"<<", 2, NULL},
+	{">>", 2, NULL},
+	{"<<<", 3, NULL},
+	{">>>", 3, NULL},
 	{NULL, 0, NULL}
 };
 

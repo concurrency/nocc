@@ -81,6 +81,7 @@ typedef struct TAG_copmap {
 static copmap_t copmap[] = {
 	{"=", SYMBOL, NULL, ":=", SYMBOL, NULL},
 	{"==", SYMBOL, NULL, "=", SYMBOL, NULL},
+	{"!=", SYMBOL, NULL, "<>", SYMBOL, NULL},
 	{NULL, NOTOKEN, NULL, NULL, NOTOKEN, NULL}
 };
 /*}}}*/
