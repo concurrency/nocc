@@ -23,5 +23,6 @@
 extern int occampi_register_frontend (void);
 extern int occampi_unregister_frontend (void);
 
+
 #endif	/* !__OCCAMPI_FE_H */
 

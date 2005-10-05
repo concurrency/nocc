@@ -453,7 +453,7 @@ static int occampi_instance_init_nodes (void)
 	int i;
 	compops_t *cops;
 
-	/*{{{  occampi:instancenode -- PINSTANCE, FINSTANCE*/
+	/*{{{  occampi:instancenode -- PINSTANCE*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:instancenode", &i, 2, 0, 1, TNF_NONE);
 	cops = tnode_newcompops ();
@@ -464,8 +464,6 @@ static int occampi_instance_init_nodes (void)
 
 	i = -1;
 	opi.tag_PINSTANCE = tnode_newnodetag ("PINSTANCE", &i, tnd, NTF_NONE);
-	i = -1;
-	opi.tag_FINSTANCE = tnode_newnodetag ("FINSTANCE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  occampi:builtinproc -- BUILTINPROC*/

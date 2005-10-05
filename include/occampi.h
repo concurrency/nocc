@@ -62,11 +62,14 @@ typedef struct {
 	struct TAG_ntdef *tag_RECORDSUB;
 	struct TAG_ntdef *tag_ARRAYSUB;
 	struct TAG_ntdef *tag_ARRAY;
+	struct TAG_ntdef *tag_MOBILE;
 
 	struct TAG_ntdef *tag_VARDECL;
 	struct TAG_ntdef *tag_ABBREV;
 	struct TAG_ntdef *tag_VALABBREV;
 	struct TAG_ntdef *tag_PROCDECL;
+	struct TAG_ntdef *tag_SHORTFUNCDECL;
+	struct TAG_ntdef *tag_FUNCDECL;
 	struct TAG_ntdef *tag_TYPEDECL;
 	struct TAG_ntdef *tag_FIELDDECL;
 
@@ -115,6 +118,7 @@ typedef struct {
 	struct TAG_ntdef *tag_NPARAM;
 	struct TAG_ntdef *tag_NVALPARAM;
 	struct TAG_ntdef *tag_NPROCDEF;
+	struct TAG_ntdef *tag_NFUNCDEF;
 	struct TAG_ntdef *tag_NTYPEDECL;
 	struct TAG_ntdef *tag_NFIELD;
 	struct TAG_ntdef *tag_NABBR;
@@ -169,6 +173,8 @@ extern struct TAG_feunit occampi_type_feunit;		/* occampi_type.c */
 extern struct TAG_feunit occampi_instance_feunit;	/* occampi_instance.c */
 extern struct TAG_feunit occampi_dtype_feunit;		/* occampi_dtype.c */
 extern struct TAG_feunit occampi_oper_feunit;		/* occampi_oper.c */
+extern struct TAG_feunit occampi_function_feunit;	/* occampi_function.c */
+extern struct TAG_feunit occampi_mobiles_feunit;	/* occampi_mobiles.c */
 extern struct TAG_feunit occampi_initial_feunit;	/* occampi_initial.c */
 
 /* these are for language units to use in reductions */

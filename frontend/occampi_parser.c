@@ -101,6 +101,8 @@ static feunit_t *feunit_set[] = {
 	&occampi_type_feunit,
 	&occampi_instance_feunit,
 	&occampi_oper_feunit,
+	&occampi_function_feunit,
+	&occampi_mobiles_feunit,
 	&occampi_initial_feunit,
 	NULL
 };

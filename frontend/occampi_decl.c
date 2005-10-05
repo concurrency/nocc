@@ -1235,6 +1235,8 @@ static int occampi_decl_init_nodes (void)
 	opi.tag_NABBR = tnode_newnodetag ("N_ABBR", &i, opi.node_NAMENODE, NTF_NONE);
 	i = -1;
 	opi.tag_NVALABBR = tnode_newnodetag ("N_VALABBR", &i, opi.node_NAMENODE, NTF_NONE);
+	i = -1;
+	opi.tag_NFUNCDEF = tnode_newnodetag ("N_FUNCDEF", &i, opi.node_NAMENODE, NTF_NONE);
 	/*}}}*/
 	/*{{{  occampi:hiddennode -- HIDDENPARAM*/
 	i = -1;
