@@ -1,4 +1,7 @@
 
+06/10/2005	frmb	added deferred target capability to the parser (bit ugly..)
+06/10/2005	frmb	initial support for FUNCTIONs, skeleton for MOBILEs
+05/10/2005	frmb	some improved handling for ARRAY nodes
 03/10/2005	frmb	initial parser handling for ARRAY nodes
 03/10/2005	frmb	updated option processing, should handle in-line options successfully for occam-pi
 02/10/2005	frmb	IFs half-finished (should code-gen ok for simple cases)

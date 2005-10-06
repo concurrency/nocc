@@ -1195,7 +1195,7 @@ static int occampi_decl_init_nodes (void)
 
 	/*{{{  occampi:rawnamenode -- NAME*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:rawnamenode", &i, 0, 0, 1, TNF_NONE);
+	tnd = tnode_newnodetype ("occampi:rawnamenode", &i, 0, 0, 1, TNF_NONE);				/* hooks: raw-name */
 	tnd->hook_free = occampi_rawnamenode_hook_free;
 	tnd->hook_copy = occampi_rawnamenode_hook_copy;
 	tnd->hook_dumptree = occampi_rawnamenode_hook_dumptree;
@@ -1208,7 +1208,7 @@ static int occampi_decl_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:namenode -- N_DECL, N_PARAM, N_VALPARAM, N_PROCDEF, N_TYPEDECL, N_FIELD, N_ABBR, N_VALABBR*/
 	i = -1;
-	tnd = opi.node_NAMENODE = tnode_newnodetype ("occampi:namenode", &i, 0, 1, 0, TNF_NONE);
+	tnd = opi.node_NAMENODE = tnode_newnodetype ("occampi:namenode", &i, 0, 1, 0, TNF_NONE);	/* subnames: name */
 	cops = tnode_newcompops ();
 	cops->gettype = occampi_gettype_namenode;
 	cops->bytesfor = occampi_bytesfor_namenode;
@@ -1240,7 +1240,7 @@ static int occampi_decl_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:hiddennode -- HIDDENPARAM*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:hiddennode", &i, 1, 0, 0, TNF_NONE);
+	tnd = tnode_newnodetype ("occampi:hiddennode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: hidden-param */
 	i = -1;
 	opi.tag_HIDDENPARAM = tnode_newnodetag ("HIDDENPARAM", &i, tnd, NTF_NONE);
 	/*}}}*/
@@ -1251,7 +1251,7 @@ static int occampi_decl_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:vardecl -- VARDECL*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:vardecl", &i, 3, 0, 0, TNF_SHORTDECL);
+	tnd = tnode_newnodetype ("occampi:vardecl", &i, 3, 0, 0, TNF_SHORTDECL);		/* subnodes: name; type; in-scope-body */
 	cops = tnode_newcompops ();
 	cops->prescope = occampi_prescope_vardecl;
 	cops->scopein = occampi_scopein_vardecl;
@@ -1263,7 +1263,7 @@ static int occampi_decl_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:fparam -- FPARAM, VALFPARAM*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:fparam", &i, 2, 0, 0, TNF_NONE);
+	tnd = tnode_newnodetype ("occampi:fparam", &i, 2, 0, 0, TNF_NONE);			/* subnodes: name; type */
 	cops = tnode_newcompops ();
 	cops->prescope = occampi_prescope_fparam;
 	cops->scopein = occampi_scopein_fparam;
@@ -1280,7 +1280,7 @@ static int occampi_decl_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:abbrevnode -- ABBREV, VALABBREV*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:abbrevnode", &i, 4, 0, 0, TNF_SHORTDECL);
+	tnd = tnode_newnodetype ("occampi:abbrevnode", &i, 4, 0, 0, TNF_SHORTDECL);		/* subnodes: name; type; in-scope-body; expr */
 	cops = tnode_newcompops ();
 	cops->prescope = occampi_prescope_abbrev;
 	cops->scopein = occampi_scopein_abbrev;
@@ -1295,7 +1295,7 @@ static int occampi_decl_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:procdecl -- PROCDECL*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:procdecl", &i, 4, 0, 0, TNF_LONGDECL);
+	tnd = tnode_newnodetype ("occampi:procdecl", &i, 4, 0, 0, TNF_LONGDECL);		/* subnodes: name; fparams; body; in-scope-body */
 	cops = tnode_newcompops ();
 	cops->prescope = occampi_prescope_procdecl;
 	cops->scopein = occampi_scopein_procdecl;
@@ -1394,8 +1394,17 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:name ::= +Name {<opi:namereduce>}"));
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:namelist ::= { occampi:name @@, 1 }"));
 
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:vardecl ::= [ 0 occampi:primtype 3 ] [ 0 @CHAN 1 ] [ 1 occampi:protocol 2 ] [ 2 {<opi:chanpush>} -* 3 ] [ 3 occampi:namelist 4 ] " \
-				"[ 4 @@: 5 ] [ 5 {<opi:declreduce>} -* ] [ 4 @IS 6 ] [ 6 occampi:operand 7 ] [ 7 @@: 8 ] [ 8 {<opi:abbrreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:vardecl ::= [ 0 occampi:primtype 3 ] [ 0 @CHAN 1 ] " \
+				"[ 1 occampi:protocol 2 ] " \
+				"[ 2 {<opi:chanpush>} -* 3 ] " \
+				"[ 3 -@FUNCTION <occampi:fdeclstarttype> ] " \
+				"[ 3 occampi:namelist 4 ] " \
+				"[ 4 @@: 5 ] " \
+				"[ 4 @IS 6 ] " \
+				"[ 5 {<opi:declreduce>} -* ] " \
+				"[ 6 occampi:operand 7 ] " \
+				"[ 7 @@: 8 ] " \
+				"[ 8 {<opi:abbrreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:vardecl:bracketstart ::= [ 0 occampi:arrayspec 1 ] [ 1 occampi:vardecl 2 ] [ 2 {Roccampi:arrayfold} -* ]"));
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:procdecl ::= [ 0 @PROC 1 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:procdeclreduce>} -* ]"));

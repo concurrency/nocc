@@ -63,6 +63,7 @@ typedef struct {
 	struct TAG_ntdef *tag_ARRAYSUB;
 	struct TAG_ntdef *tag_ARRAY;
 	struct TAG_ntdef *tag_MOBILE;
+	struct TAG_ntdef *tag_FUNCTIONTYPE;
 
 	struct TAG_ntdef *tag_VARDECL;
 	struct TAG_ntdef *tag_ABBREV;

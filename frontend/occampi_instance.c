@@ -455,7 +455,7 @@ static int occampi_instance_init_nodes (void)
 
 	/*{{{  occampi:instancenode -- PINSTANCE*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:instancenode", &i, 2, 0, 1, TNF_NONE);
+	tnd = tnode_newnodetype ("occampi:instancenode", &i, 2, 0, 1, TNF_NONE);		/* subnodes: names; params */
 	cops = tnode_newcompops ();
 	cops->typecheck = occampi_typecheck_instance;
 	cops->namemap = occampi_namemap_instance;
@@ -468,7 +468,7 @@ static int occampi_instance_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:builtinproc -- BUILTINPROC*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:builtinproc", &i, 0, 0, 1, TNF_NONE);
+	tnd = tnode_newnodetype ("occampi:builtinproc", &i, 0, 0, 1, TNF_NONE);			/* hook: builtinprochook_t */
 	cops = tnode_newcompops ();
 	cops->gettype = occampi_gettype_builtinproc;
 	tnd->hook_dumptree = builtinprochook_dumphook;

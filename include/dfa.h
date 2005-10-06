@@ -29,7 +29,8 @@ struct TAG_lexfile;
 #define DFAFLAG_NOCONSUME 0x0001	/* don't consume the token */
 #define DFAFLAG_KEEP 0x0004		/* keep hold of the token on the token-stack */
 #define DFAFLAG_PUSHSTACK 0x0008	/* push the DFA state stack when making this transition */
-#define DFAFLAG_DEFERRED 0x0010		/* special for parser when putting the DFA together */
+#define DFAFLAG_DEFERRED 0x0010		/* special for the parser when putting the DFA together */
+#define DFAFLAG_DEFTARGET 0x0020	/* special for the parser when putting the DFA together */
 
 
 /*
