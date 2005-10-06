@@ -28,11 +28,12 @@ extern struct TAG_langparser occampi_parser;
 
 /* node-type and node-tag flag values */
 #define TNF_NONE	0x0000
-#define TNF_LONGPROC	0x0001
-#define TNF_LONGDECL	0x0002
-#define TNF_SHORTDECL	0x0004
+#define TNF_LONGPROC	0x0001		/* long process (e.g. SEQ/PAR, body into subnode 1) */
+#define TNF_LONGDECL	0x0002		/* long declaration (e.g. PROC, body into subnode 2, in-scope into subnode 3) */
+#define TNF_SHORTDECL	0x0004		/* short declaration (e.g. variable, in-scope body into subnode 2) */
 
 #define NTF_NONE	0x0000
+#define NTF_BOOLOP	0x0001		/* boolean operator flag */
 
 struct TAG_tndef;
 struct TAG_ntdef;

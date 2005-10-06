@@ -573,17 +573,17 @@ static int occampi_oper_init_nodes (void)
 	tnd->ops = cops;
 
 	i = -1;
-	opi.tag_RELEQ = tnode_newnodetag ("RELEQ", &i, tnd, NTF_NONE);
+	opi.tag_RELEQ = tnode_newnodetag ("RELEQ", &i, tnd, NTF_BOOLOP);
 	i = -1;
-	opi.tag_RELNEQ = tnode_newnodetag ("RELNEQ", &i, tnd, NTF_NONE);
+	opi.tag_RELNEQ = tnode_newnodetag ("RELNEQ", &i, tnd, NTF_BOOLOP);
 	i = -1;
-	opi.tag_RELGT = tnode_newnodetag ("RELGT", &i, tnd, NTF_NONE);
+	opi.tag_RELGT = tnode_newnodetag ("RELGT", &i, tnd, NTF_BOOLOP);
 	i = -1;
-	opi.tag_RELGEQ = tnode_newnodetag ("RELGEQ", &i, tnd, NTF_NONE);
+	opi.tag_RELGEQ = tnode_newnodetag ("RELGEQ", &i, tnd, NTF_BOOLOP);
 	i = -1;
-	opi.tag_RELLT = tnode_newnodetag ("RELLT", &i, tnd, NTF_NONE);
+	opi.tag_RELLT = tnode_newnodetag ("RELLT", &i, tnd, NTF_BOOLOP);
 	i = -1;
-	opi.tag_RELLEQ = tnode_newnodetag ("RELLEQ", &i, tnd, NTF_NONE);
+	opi.tag_RELLEQ = tnode_newnodetag ("RELLEQ", &i, tnd, NTF_BOOLOP);
 	/*}}}*/
 	/*{{{  occampi:mopnode -- UMINUS, BITNOT*/
 	i = -1;
