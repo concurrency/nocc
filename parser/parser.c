@@ -750,7 +750,7 @@ void parser_generic_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 				void *saved = lnstk[lncnt - 1];
 				int i;
 
-				for (i=lncnt - 1; i>0; i++) {
+				for (i=lncnt - 1; i>0; i--) {
 					lnstk[i] = lnstk[i-1];
 				}
 				lnstk[0] = saved;

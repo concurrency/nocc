@@ -734,7 +734,7 @@ tnode_dumptree (tree, 1, stderr);
 		tnflags = tnode_tnflagsof (tree);
 		if (tnflags & TNF_LONGDECL) {
 			/*{{{  long declaration (e.g. PROC, CHAN TYPE, etc.)*/
-			if (tree->tag == opi.tag_PROCDECL) {
+			if ((tree->tag == opi.tag_PROCDECL) || (tree->tag == opi.tag_FUNCDECL)) {
 				/* parse body into subnode 2 */
 				tnode_t *body;
 

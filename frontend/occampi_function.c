@@ -620,6 +620,7 @@ static int occampi_function_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->getdescriptor = occampi_getdescriptor_funcdecl;
+	lops->do_usagecheck = occampi_usagecheck_funcdecl;
 	tnd->lops = lops;
 
 	i = -1;
@@ -658,7 +659,7 @@ static int occampi_function_init_nodes (void)
  */
 static int occampi_function_reg_reducers (void)
 {
-	parser_register_grule ("opi:funcdefreduce", parser_decode_grule ("SN1N+N+N+>VC2V00C4R-", opi.tag_FUNCTIONTYPE, opi.tag_FUNCDECL));
+	parser_register_grule ("opi:funcdefreduce", parser_decode_grule ("SN1N+N+N+<C200C4R-", opi.tag_FUNCTIONTYPE, opi.tag_FUNCDECL));
 	
 	return 0;
 }
