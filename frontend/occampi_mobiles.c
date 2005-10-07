@@ -103,6 +103,9 @@ static dfattbl_t **occampi_mobiles_init_dfatrans (int *ntrans)
 
 	dynarray_init (transtbl);
 
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobileprocdecl ::= [ 0 @MOBILE 1 ] [ 1 @PROC 2 ] [ 2 occampi:name 3 ] [ 3 {<opi:nullreduce>} -* ]"));			/* FIXME! */
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobiledecl ::= [ 0 +@MOBILE 1 ] [ 1 +@PROC 2 ] [ 2 {<parser:rewindtokens>} <occampi:mobileprocdecl> ]"));
+
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);
 }

@@ -135,6 +135,8 @@ static void uchk_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *st
 					}
 					if (x > 0) {
 						buf[x-1] = '\0';
+					} else {
+						buf[0] = '\0';
 					}
 
 					uchk_isetindent (stream, indent + 3);

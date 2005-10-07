@@ -1,4 +1,6 @@
 
+07/10/2005	frmb	more support for FUNCTION instances, few more MOBILE bits
+07/10/2005	frmb	added occampi_indented_process_trailing() for VALOF/RESULT type nodes
 06/10/2005	frmb	added deferred target capability to the parser (bit ugly..)
 06/10/2005	frmb	initial support for FUNCTIONs, skeleton for MOBILEs
 05/10/2005	frmb	some improved handling for ARRAY nodes

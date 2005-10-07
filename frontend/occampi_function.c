@@ -149,6 +149,23 @@ tnode_dumptree (atype, 1, stderr);
 	return 0;
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_gettype_finstance (tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	returns the type of a FUNCTION instance (= return-type from FUNCTIONTYPE)
+ */
+static tnode_t *occampi_gettype_finstance (tnode_t *node, tnode_t *defaulttype)
+{
+	tnode_t *fname = tnode_nthsubof (node, 0);
+	name_t *finame = tnode_nthnameof (fname, 0);
+	tnode_t *ftype = NameTypeOf (finame);
+
+#if 0
+fprintf (stderr, "occampi_gettype_finstance(): type = [%s]:\n", ftype->tag->name);
+tnode_dumptree (ftype, 1, stderr);
+#endif
+	return tnode_nthsubof (ftype, 0);
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_finstance (tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a function instance-node
@@ -590,11 +607,22 @@ static int occampi_function_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:finstancenode", &i, 2, 0, 0, TNF_NONE);	/* subnodes: name; params */
 	cops = tnode_newcompops ();
 	cops->typecheck = occampi_typecheck_finstance;
+	cops->gettype = occampi_gettype_finstance;
 	cops->namemap = occampi_namemap_finstance;
 	cops->codegen = occampi_codegen_finstance;
 	tnd->ops = cops;
+
 	i = -1;
 	opi.tag_FINSTANCE = tnode_newnodetag ("FINSTANCE", &i, tnd, NTF_NONE);
+	/*}}}*/
+	/*{{{  occampi:valofnode -- VALOF*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:valofnode", &i, 2, 0, 0, TNF_LONGPROC);	/* subnodes: result-exprs; body */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	opi.tag_VALOF = tnode_newnodetag ("VALOF", &i, tnd, NTF_NONE);
 	/*}}}*/
 	/*{{{  occampi:functiontype -- FUNCTIONTYPE*/
 	i = -1;
@@ -661,6 +689,7 @@ static int occampi_function_reg_reducers (void)
 {
 	parser_register_grule ("opi:funcdefreduce", parser_decode_grule ("SN1N+N+N+<C200C4R-", opi.tag_FUNCTIONTYPE, opi.tag_FUNCDECL));
 	parser_register_grule ("opi:finstancereduce", parser_decode_grule ("SN1N+N+VC2R-", opi.tag_FINSTANCE));
+	parser_register_grule ("opi:valofreduce", parser_decode_grule ("ST0T+@t00C2R-", opi.tag_VALOF));
 	
 	return 0;
 }
@@ -677,6 +706,8 @@ static dfattbl_t **occampi_function_init_dfatrans (int *ntrans)
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:fdeclstarttype ::= [ 0 @FUNCTION 1 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:funcdefreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:infinstance ::= [ 0 occampi:exprcommalist 2 ] [ 0 @@) 1 ] [ 1 {<opi:nullpush>} -* 2 ] [ 2 {<opi:finstancereduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:valofresult ::= [ 0 @RESULT 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:nullreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:valof ::= [ 0 +@VALOF 1 ] [ 1 {<opi:valofreduce>} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

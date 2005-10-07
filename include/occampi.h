@@ -93,6 +93,7 @@ typedef struct {
 	struct TAG_ntdef *tag_ALT;
 	struct TAG_ntdef *tag_CASE;
 	struct TAG_ntdef *tag_CONDITIONAL;
+	struct TAG_ntdef *tag_VALOF;
 
 	struct TAG_ntdef *tag_LITBYTE;
 	struct TAG_ntdef *tag_LITINT;

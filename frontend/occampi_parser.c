@@ -60,6 +60,7 @@ static int occampi_parser_scope (tnode_t **tptr, scope_t *ss);
 static int occampi_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
 
 static tnode_t *occampi_indented_process (lexfile_t *lf);
+static tnode_t *occampi_indented_process_trailing (lexfile_t *lf, char *extradfa, tnode_t **extrares);
 static tnode_t *occampi_indented_process_list (lexfile_t *lf, char *leaddfa);
 
 
@@ -316,7 +317,7 @@ static int occampi_dfas_init (void)
 
 	dynarray_add (transtbls, dfa_transtotbl ("occampi:bracketstart ::= [ 0 +@@[ 1 ] [ 1 +Integer 2 ] [ 2 +@@] 3 ] [ 3 {<parser:rewindtokens>} -* <occampi:vardecl:bracketstart> ]"));
 
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:declorprocstart +:= ( occampi:vardecl | occampi:abbrdecl | occampi:procdecl | occampi:typedecl | occampi:primproc | occampi:cproc | occampi:namestart | " \
+	dynarray_add (transtbls, dfa_bnftotbl ("occampi:declorprocstart +:= ( occampi:vardecl | occampi:abbrdecl | occampi:valof | occampi:procdecl | occampi:typedecl | occampi:primproc | occampi:cproc | occampi:namestart | " \
 				"occampi:builtinprocinstance | occampi:bracketstart ) {<opi:nullreduce>}"));
 
 	/*{{{  load grammar items for extensions*/
@@ -767,10 +768,113 @@ tnode_dumptree (tree, 1, stderr);
 
 				body = occampi_indented_process (lf);
 				tnode_setnthsub (tree, 1, body);
+			} else if (tree->tag == opi.tag_VALOF) {
+				/* parse indented process into subnode 1, extra into subnode 0 */
+				tnode_t *body;
+				tnode_t *extra = NULL;
+
+				body = occampi_indented_process_trailing (lf, "occampi:valofresult", &extra);
+				tnode_setnthsub (tree, 1, body);
+				tnode_setnthsub (tree, 0, extra);
 			}
 			/*}}}*/
 		}
 	}
+
+	return tree;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_indented_process_trailing (lexfile_t *lf, char *extradfa, tnode_t **extrares)*/
+/*
+ *	parses an indented process with an extra bit at the end before
+ *	the outdent.
+ */
+static tnode_t *occampi_indented_process_trailing (lexfile_t *lf, char *extradfa, tnode_t **extrares)
+{
+	tnode_t *tree = NULL;
+	tnode_t **target = &tree;
+	token_t *tok;
+
+	tok = lexer_nexttoken (lf);
+	/* skip newlines */
+	for (; tok && (tok->type == NEWLINE); tok = lexer_nexttoken (lf)) {
+		lexer_freetoken (tok);
+	}
+	/* expect indent */
+	if (tok->type != INDENT) {
+		parser_error (lf, "expected indent, found:");
+		lexer_dumptoken (stderr, tok);
+		lexer_pushback (lf, tok);
+		return NULL;
+	}
+	lexer_freetoken (tok);
+
+	/* okay, parse declarations and process */
+	for (;;) {
+		tnode_t *thisone;
+		int tnflags;
+		int breakfor = 0;
+		int gotall = 0;
+
+		thisone = occampi_declorproc (lf, &gotall, NULL);
+		if (!thisone) {
+			*target = NULL;
+			break;		/* for() */
+		}
+		*target = thisone;
+		while (*target) {
+			/* sink through anything included, etc. */
+			tnflags = tnode_tnflagsof (*target);
+			if (tnflags & TNF_LONGDECL) {
+				target = tnode_nthsubaddr (*target, 3);
+			} else if (tnflags & TNF_SHORTDECL) {
+				target = tnode_nthsubaddr (*target, 2);
+			} else {
+				/* assume we're done! */
+				breakfor = 1;
+				break;		/* while() */
+			}
+		}
+		if (breakfor) {
+			break;		/* for() */
+		}
+	}
+
+	tok = lexer_nexttoken (lf);
+	/* skip newlines */
+	for (; tok && (tok->type == NEWLINE); tok = lexer_nexttoken (lf)) {
+		lexer_freetoken (tok);
+	}
+	/* now we try and parse the extra bit */
+	{
+		int gotall = 0;
+
+		lexer_pushback (lf, tok);
+		*extrares = occampi_declorproc (lf, &gotall, extradfa);
+	}
+
+	tok = lexer_nexttoken (lf);
+	/* skip newlines */
+	for (; tok && (tok->type == NEWLINE); tok = lexer_nexttoken (lf)) {
+		lexer_freetoken (tok);
+	}
+	/* expect outdent */
+	if (tok->type != OUTDENT) {
+		parser_error (lf, "expected outdent, found:");
+		lexer_dumptoken (stderr, tok);
+		lexer_pushback (lf, tok);
+		if (tree) {
+			tnode_free (tree);
+		}
+		if (*extrares) {
+			tnode_free (*extrares);
+		}
+		tree = NULL;
+		*extrares = NULL;
+
+		return NULL;
+	}
+	lexer_freetoken (tok);
 
 	return tree;
 }
