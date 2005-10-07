@@ -317,7 +317,8 @@ static int occampi_dfas_init (void)
 
 	dynarray_add (transtbls, dfa_transtotbl ("occampi:bracketstart ::= [ 0 +@@[ 1 ] [ 1 +Integer 2 ] [ 2 +@@] 3 ] [ 3 {<parser:rewindtokens>} -* <occampi:vardecl:bracketstart> ]"));
 
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:declorprocstart +:= ( occampi:vardecl | occampi:abbrdecl | occampi:valof | occampi:procdecl | occampi:typedecl | occampi:primproc | occampi:cproc | occampi:namestart | " \
+	dynarray_add (transtbls, dfa_bnftotbl ("occampi:declorprocstart +:= ( occampi:vardecl | occampi:abbrdecl | occampi:valof | occampi:procdecl | occampi:typedecl | " \
+				"occampi:primproc | occampi:cproc | occampi:namestart | occampi:mobiledecl | " \
 				"occampi:builtinprocinstance | occampi:bracketstart ) {<opi:nullreduce>}"));
 
 	/*{{{  load grammar items for extensions*/

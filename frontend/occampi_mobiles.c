@@ -89,6 +89,7 @@ static int occampi_mobiles_init_nodes (void)
  */
 static int occampi_mobiles_reg_reducers (void)
 {
+	parser_register_grule ("opi:mobilise", parser_decode_grule ("SN0N+C1N-", opi.tag_MOBILE));
 
 	return 0;
 }
@@ -104,7 +105,11 @@ static dfattbl_t **occampi_mobiles_init_dfatrans (int *ntrans)
 	dynarray_init (transtbl);
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobileprocdecl ::= [ 0 @MOBILE 1 ] [ 1 @PROC 2 ] [ 2 occampi:name 3 ] [ 3 {<opi:nullreduce>} -* ]"));			/* FIXME! */
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobiledecl ::= [ 0 +@MOBILE 1 ] [ 1 +@PROC 2 ] [ 2 {<parser:rewindtokens>} <occampi:mobileprocdecl> ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobilevardecl ::= [ 0 @MOBILE 1 ] [ 1 occampi:primtype 2 ] [ 1 occampi:name 2 ] [ 2 {<opi:mobilise>} ] " \
+				"[ 2 occampi:namelist 3 ] [ 3 @@: 4 ] [ 4 {<opi:declreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobiledecl ::= [ 0 +@MOBILE 1 ] [ 1 +@PROC 2 ] [ 1 -* 3 ] " \
+				"[ 2 {<parser:rewindtokens>} -* <occampi:mobileprocdecl> ] " \
+				"[ 3 {<parser:rewindtokens>} -* <occampi:mobilevardecl> ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);
