@@ -33,6 +33,7 @@ typedef struct TAG_xmlhandler {
 	void (*elem_end)(struct TAG_xmlhandler *, void *, struct TAG_xmlkey *);
 	void (*comment)(struct TAG_xmlhandler *, void *, const char *);
 	void (*data)(struct TAG_xmlhandler *, void *, const char *, int len);
+	void *uhook;
 } xmlhandler_t;
 
 extern void xml_init (void);
@@ -71,7 +72,23 @@ typedef enum {
 	XMLKEY_NEWNAME,
 	XMLKEY_DECL,
 	XMLKEY_CONSTR,
-	XMLKEY_ACTION
+	XMLKEY_ACTION,
+	XMLKEY_LIBRARY,
+	XMLKEY_NATIVELIB,
+	XMLKEY_SRCINCLUDE,
+	XMLKEY_SRCUSE,
+	XMLKEY_LIBUNIT,
+	XMLKEY_PROC,
+	XMLKEY_DESCRIPTOR,
+	XMLKEY_BLOCKINFO,
+	XMLKEY_NAMESPACE,
+	XMLKEY_PATH,
+	XMLKEY_LANGUAGE,
+	XMLKEY_VALUE,
+	XMLKEY_ALLOCWS,
+	XMLKEY_ALLOCVS,
+	XMLKEY_ALLOCMS,
+	XMLKEY_ADJUST
 } xmlkeytype_t;
 
 typedef struct TAG_xmlkey {

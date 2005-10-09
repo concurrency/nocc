@@ -69,6 +69,7 @@ xmlhandler_t *xml_new_handler (void)
 	xh->elem_end = NULL;
 	xh->comment = NULL;
 	xh->data = NULL;
+	xh->uhook = NULL;
 
 	return xh;
 }
@@ -329,11 +330,10 @@ out_error:
 }
 /*}}}*/
 
-
 #else	/* !USE_LIBEXPAT */
 #warning stand-along XML support unsupported!
-
-
+/*FIXME! */
 
 #endif	/* !USE_LIBEXPAT */
+
 

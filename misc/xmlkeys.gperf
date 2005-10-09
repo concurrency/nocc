@@ -42,5 +42,21 @@ newname,		XMLKEY_NEWNAME
 decl,			XMLKEY_DECL
 constr,			XMLKEY_CONSTR
 action,			XMLKEY_ACTION
+library,		XMLKEY_LIBRARY
+nativelib,		XMLKEY_NATIVELIB
+srcinclude,		XMLKEY_SRCINCLUDE
+srcuse,			XMLKEY_SRCUSE
+libunit,		XMLKEY_LIBUNIT
+proc,			XMLKEY_PROC
+descriptor,		XMLKEY_DESCRIPTOR
+blockinfo,		XMLKEY_BLOCKINFO
+namespace,		XMLKEY_NAMESPACE
+path,			XMLKEY_PATH
+language,		XMLKEY_LANGUAGE
+value,			XMLKEY_VALUE
+allocws,		XMLKEY_ALLOCWS
+allocvs,		XMLKEY_ALLOCVS
+allocms,		XMLKEY_ALLOCMS
+adjust,			XMLKEY_ADJUST
 %%
 

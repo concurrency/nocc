@@ -169,6 +169,9 @@ tnode_t *treeops_findintree (tnode_t *tree, ntdef_t *tag)
 	int i, nnodes;
 	tnode_t **subnodes;
 
+	if (!tree) {
+		return NULL;
+	}
 	if (tree->tag == tag) {
 		return tree;
 	}

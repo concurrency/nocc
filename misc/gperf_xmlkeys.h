@@ -1,6 +1,6 @@
 /* ANSI-C code produced by gperf version 3.0.1 */
 /* Command-line: gperf  */
-/* Computed positions: -k'1-3' */
+/* Computed positions: -k'1,3,6' */
 
 #if !((' ' == 32) && ('!' == 33) && ('"' == 34) && ('#' == 35) \
       && ('%' == 37) && ('&' == 38) && ('\'' == 39) && ('(' == 40) \
@@ -35,12 +35,12 @@
  */
 struct TAG_xmlkey;
 
-#define TOTAL_KEYWORDS 28
+#define TOTAL_KEYWORDS 44
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 10
 #define MIN_HASH_VALUE 4
-#define MAX_HASH_VALUE 49
-/* maximum key range = 46, duplicates = 0 */
+#define MAX_HASH_VALUE 111
+/* maximum key range = 108, duplicates = 0 */
 
 #ifdef __GNUC__
 __inline
@@ -54,43 +54,46 @@ hash (register const char *str, register unsigned int len)
 {
   static const unsigned char asso_values[] =
     {
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50,  5, 50,  0,
-      20,  5, 50,  0,  5, 20, 50,  5, 10,  0,
-       0,  0, 10, 50,  5, 20,  0, 25, 50,  5,
-      20,  5, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
-      50, 50, 50, 50, 50, 50
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112,   0,   5,   0,
+       15,   0,  45, 112,   0,  25,  10,  15,   5,  10,
+        5,   5,   0,  50,   0,   0,  10,  40,   5,  30,
+       20,   0,  10, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112, 112, 112, 112,
+      112, 112, 112, 112, 112, 112, 112
     };
   register int hval = len;
 
   switch (hval)
     {
       default:
-        hval += asso_values[(unsigned char)str[2]];
+        hval += asso_values[(unsigned char)str[5]];
+      /*FALLTHROUGH*/
+      case 5:
+      case 4:
+      case 3:
+        hval += asso_values[(unsigned char)str[2]+1];
       /*FALLTHROUGH*/
       case 2:
-        hval += asso_values[(unsigned char)str[1]];
-      /*FALLTHROUGH*/
       case 1:
         hval += asso_values[(unsigned char)str[0]];
         break;
@@ -102,46 +105,87 @@ static const struct TAG_xmlkey wordlist[] =
   {
     {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
     {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
-    {"nocc",			XMLKEY_NOCC},
-    {(char*)0,XMLKEY_INVALID},
-    {"constr",			XMLKEY_CONSTR},
-    {"comment",		XMLKEY_COMMENT},
-    {"tag",			XMLKEY_TAG},
-    {"name",			XMLKEY_NAME},
-    {"match",			XMLKEY_MATCH},
-    {"action",			XMLKEY_ACTION},
-    {"op",			XMLKEY_OP},
-    {(char*)0,XMLKEY_INVALID},
-    {"tree",			XMLKEY_TREE},
-    {"check",			XMLKEY_CHECK},
-    {"target",			XMLKEY_TARGET},
-    {"newname",		XMLKEY_NEWNAME},
-    {(char*)0,XMLKEY_INVALID},
-    {"type",			XMLKEY_TYPE},
+    {"proc",			XMLKEY_PROC},
     {"error",			XMLKEY_ERROR},
-    {"typeof",			XMLKEY_TYPEOF},
-    {"keyword",		XMLKEY_KEYWORD},
-    {(char*)0,XMLKEY_INVALID},
+    {"parser",			XMLKEY_PARSER},
+    {"op",			XMLKEY_OP},
+    {"lex",			XMLKEY_LEX},
     {"node",			XMLKEY_NODE},
     {"epath",			XMLKEY_EPATH},
-    {"parser",			XMLKEY_PARSER},
-    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
-    {"decl",			XMLKEY_DECL},
+    {"constr",			XMLKEY_CONSTR},
+    {"library",		XMLKEY_LIBRARY},
+    {"tag",			XMLKEY_TAG},
+    {"name",			XMLKEY_NAME},
     {"lpath",			XMLKEY_LPATH},
     {"symbol",			XMLKEY_SYMBOL},
-    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
-    {"extension",		XMLKEY_EXTENSION},
+    {"comment",		XMLKEY_COMMENT},
+    {"language",		XMLKEY_LANGUAGE},
+    {"namespace",		XMLKEY_NAMESPACE},
+    {"value",			XMLKEY_VALUE},
+    {"srcuse",			XMLKEY_SRCUSE},
+    {"allocvs",		XMLKEY_ALLOCVS},
+    {(char*)0,XMLKEY_INVALID},
+    {"nocc",			XMLKEY_NOCC},
+    {"srcinclude",		XMLKEY_SRCINCLUDE},
+    {"target",			XMLKEY_TARGET},
+    {"allocms",		XMLKEY_ALLOCMS},
+    {(char*)0,XMLKEY_INVALID},
+    {"desc",			XMLKEY_DESC},
     {"maintainer",		XMLKEY_MAINTAINER},
-    {"author",			XMLKEY_AUTHOR},
+    {"adjust",			XMLKEY_ADJUST},
+    {"keyword",		XMLKEY_KEYWORD},
     {(char*)0,XMLKEY_INVALID},
-    {"lex",			XMLKEY_LEX},
-    {(char*)0,XMLKEY_INVALID},
+    {"decl",			XMLKEY_DECL},
     {"ipath",			XMLKEY_IPATH},
+    {(char*)0,XMLKEY_INVALID},
+    {"libunit",		XMLKEY_LIBUNIT},
+    {(char*)0,XMLKEY_INVALID},
+    {"blockinfo",		XMLKEY_BLOCKINFO},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {"newname",		XMLKEY_NEWNAME},
+    {(char*)0,XMLKEY_INVALID},
+    {"path",			XMLKEY_PATH},
+    {(char*)0,XMLKEY_INVALID},
+    {"author",			XMLKEY_AUTHOR},
+    {"allocws",		XMLKEY_ALLOCWS},
+    {(char*)0,XMLKEY_INVALID},
+    {"extension",		XMLKEY_EXTENSION},
+    {"check",			XMLKEY_CHECK},
+    {"action",			XMLKEY_ACTION},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {"nativelib",		XMLKEY_NATIVELIB},
+    {"match",			XMLKEY_MATCH},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID},
+    {"tree",			XMLKEY_TREE},
+    {"descriptor",		XMLKEY_DESCRIPTOR},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID},
+    {"type",			XMLKEY_TYPE},
     {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
     {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
     {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
     {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
-    {"desc",			XMLKEY_DESC}
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {"typeof",			XMLKEY_TYPEOF}
   };
 
 #ifdef __GNUC__

@@ -45,6 +45,7 @@
 #include "names.h"
 #include "scope.h"
 #include "prescope.h"
+#include "library.h"
 #include "typecheck.h"
 #include "precheck.h"
 #include "usagecheck.h"
@@ -509,7 +510,11 @@ tnode_dumptree (bename, 1, stderr);
 static int occampi_prescope_procdecl (tnode_t **node, prescope_t *ps)
 {
 	occampi_prescope_t *ops = (occampi_prescope_t *)(ps->hook);
+	char *rawname = (char *)tnode_nthhookof (tnode_nthsubof (*node, 0), 0);
 
+	if (library_makepublic (node, rawname)) {
+		return 1;			/* go round again */
+	}
 	ops->last_type = NULL;
 	if (!tnode_nthsubof (*node, 1)) {
 		/* no parameters, create empty list */
