@@ -1,5 +1,5 @@
 /*
- *	betrans.h -- interface to back-end tree transform
+ *	library.h -- library/separate-compilation interface
  *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
@@ -17,18 +17,21 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef __BETRANS_H
-#define __BETRANS_H
+#ifndef __LIBRARY_H
+#define __LIBRARY_H
 
 struct TAG_tnode;
-struct TAG_target;
+struct TAG_lexfile;
 
-extern int betrans_init (void);
-extern int betrans_shutdown (void);
+extern struct TAG_tnode *library_newlibnode (struct TAG_lexfile *lf, char *libname);
+extern int library_addincludes (struct TAG_tnode *libnode, char *iname);
+extern int library_adduses (struct TAG_tnode *libnode, char *lname);
+extern struct TAG_tnode *library_newlibpublictag (struct TAG_lexfile *lf, char *name);
+extern int library_markpublic (struct TAG_tnode *node);
 
-extern int betrans_subtree (struct TAG_tnode **tptr, struct TAG_target *target);
-extern int betrans_tree (struct TAG_tnode **tptr, struct TAG_target *target);
 
+extern int library_init (void);
+extern int library_shutdown (void);
 
-#endif	/* !__BETRANS_H */
+#endif	/* !__LIBRARY_H */
 

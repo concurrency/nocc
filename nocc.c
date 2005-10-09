@@ -51,6 +51,7 @@
 #include "aliascheck.h"
 #include "usagecheck.h"
 #include "defcheck.h"
+#include "library.h"
 #include "fetrans.h"
 #include "betrans.h"
 #include "extn.h"
@@ -705,6 +706,7 @@ int main (int argc, char **argv)
 	name_init ();
 	extn_init ();
 	treeops_init ();
+	library_init ();
 	precheck_init ();
 	aliascheck_init ();
 	usagecheck_init ();
@@ -768,7 +770,7 @@ int main (int argc, char **argv)
 		nocc_fatal ("error processing command-line options (%d error%s)", errored, (errored == 1) ? "" : "s");
 		exit (EXIT_FAILURE);
 	}
-	if (DA_CUR (be_def_opts)) {
+	if (DA_CUR (be_def_opts) && compopts.verbose) {
 		nocc_message ("deferring %d options for back-end", DA_CUR (be_def_opts));
 	}
 

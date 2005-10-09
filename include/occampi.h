@@ -27,12 +27,6 @@ extern struct TAG_langlexer occampi_lexer;
 extern struct TAG_langparser occampi_parser;
 
 /* node-type and node-tag flag values */
-#define TNF_NONE	0x0000
-#define TNF_LONGPROC	0x0001		/* long process (e.g. SEQ/PAR, body into subnode 1) */
-#define TNF_LONGDECL	0x0002		/* long declaration (e.g. PROC, body into subnode 2, in-scope into subnode 3) */
-#define TNF_SHORTDECL	0x0004		/* short declaration (e.g. variable, in-scope body into subnode 2) */
-
-#define NTF_NONE	0x0000
 #define NTF_BOOLOP	0x0001		/* boolean operator flag */
 
 struct TAG_tndef;
@@ -131,11 +125,13 @@ typedef struct {
 	struct TAG_ntdef *tag_FINSTANCE;
 	struct TAG_ntdef *tag_BUILTINPROC;
 
+
 	struct TAG_token *tok_COLON;
 	struct TAG_token *tok_INPUT;
 	struct TAG_token *tok_OUTPUT;
 	struct TAG_token *tok_HASH;
 	struct TAG_token *tok_STRING;
+	struct TAG_token *tok_PUBLIC;
 
 	struct TAG_chook *chook_typeattr;
 } occampi_pset_t;

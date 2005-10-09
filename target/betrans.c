@@ -69,6 +69,40 @@ int betrans_shutdown (void)
 /*}}}*/
 
 
+/*{{{  static int betrans_modprewalk_tree (tnode_t **tptr, void *arg)*/
+/*
+ *	walks over a tree calling back-end transforms
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int betrans_modprewalk_tree (tnode_t **tptr, void *arg)
+{
+	int i = 1;
+
+#if 0
+fprintf (stderr, "betrans_modprewalk_tree(): on [%s]\n", *tptr ? (*tptr)->tag->name : "?");
+if (*tptr) {
+	fprintf (stderr, "                         : nodetype = [%s], ops = [0x%8.8x], betrans = [0x%8.8x]\n", (*tptr)->tag->ndef->name, (unsigned int)((*tptr)->tag->ndef->ops),
+			((*tptr)->tag->ndef->ops) ? (unsigned int)((*tptr)->tag->ndef->ops->betrans) : 0);
+}
+#endif
+	if (*tptr && (*tptr)->tag->ndef->ops && (*tptr)->tag->ndef->ops->betrans) {
+		i = (*tptr)->tag->ndef->ops->betrans (tptr, (target_t *)arg);
+	}
+	return i;
+}
+/*}}}*/
+/*{{{  int betrans_subtree (tnode_t **tptr, target_t *target)*/
+/*
+ *	does back-end tree transformations on the given sub-tree
+ *	returns 0 on success, non-zero on error
+ */
+int betrans_subtree (tnode_t **tptr, target_t *target)
+{
+	tnode_modprewalktree (tptr, betrans_modprewalk_tree, (void *)target);
+
+	return 0;
+}
+/*}}}*/
 /*{{{  int betrans_tree (tnode_t **tptr, target_t *target)*/
 /*
  *	does back-end tree transforms on the given tree
@@ -79,6 +113,8 @@ int betrans_tree (tnode_t **tptr, target_t *target)
 	if (!betranschook) {
 		betranschook = tnode_newchook ("betrans");
 	}
+
+	tnode_modprewalktree (tptr, betrans_modprewalk_tree, (void *)target);
 
 	return 0;
 }

@@ -42,6 +42,7 @@
 #include "dfa.h"
 #include "parsepriv.h"
 #include "occampi.h"
+#include "library.h"
 #include "feunit.h"
 #include "names.h"
 #include "scope.h"
@@ -408,6 +409,7 @@ static int occampi_dfas_init (void)
 	opi.tok_COLON = lexer_newtoken (SYMBOL, ":");
 	opi.tok_HASH = lexer_newtoken (SYMBOL, "#");
 	opi.tok_STRING = lexer_newtoken (STRING, NULL);
+	opi.tok_PUBLIC = lexer_newtoken (KEYWORD, "PUBLIC");
 
 	/*}}}*/
 	/*{{{  COMMENT: very manual construction*/
@@ -636,8 +638,9 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				*gotall = 1;
 				/*}}}*/
 			} else {
-				parser_error (lf, "expected string found ");
+				parser_error (lf, "while processing #INCLUDE, expected string found ");
 				lexer_dumptoken (stderr, nexttok);
+				lexer_freetoken (nexttok);
 				return tree;
 			}
 			/*}}}*/
@@ -662,8 +665,108 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				sfree (scopy);
 				/*}}}*/
 			} else {
-				parser_error (lf, "expected string found ");
+				parser_error (lf, "while processing #OPTION, expected string found ");
 				lexer_dumptoken (stderr, nexttok);
+				lexer_freetoken (nexttok);
+				return tree;
+			}
+			/*}}}*/
+		} else if (nexttok && lexer_tokmatchlitstr (nexttok, "LIBRARY")) {
+			/*{{{  #LIBRARY*/
+			lexer_freetoken (tok);
+			lexer_freetoken (nexttok);
+
+			nexttok = lexer_nexttoken (lf);
+			if (nexttok && lexer_tokmatch (opi.tok_STRING, nexttok)) {
+				/*{{{  the contents of this file will become part of a library*/
+				char *sname = string_ndup (nexttok->u.str.ptr, nexttok->u.str.len);
+
+				lexer_freetoken (nexttok);
+				tree = library_newlibnode (lf, sname);
+				if (!tree) {
+					parser_error (lf, "failed while processing #LIBRARY directive");
+					sfree (sname);
+					return tree;
+				}
+				sfree (sname);
+
+				for (nexttok = lexer_nexttoken (lf); nexttok && ((nexttok->type == NEWLINE) || (nexttok->type == COMMENT)); lexer_freetoken (nexttok), nexttok = lexer_nexttoken (lf));
+				if (nexttok && (nexttok->type == INDENT)) {
+					/*{{{  indented under library: INCLUDES, USES*/
+					lexer_freetoken (nexttok);
+					nexttok = lexer_nexttoken (lf);
+
+					for (; nexttok && (nexttok->type != OUTDENT);) {
+						if (lexer_tokmatchlitstr (nexttok, "INCLUDES")) {
+							/*{{{  auto-including something*/
+							char *iname;
+
+							lexer_freetoken (nexttok);
+							nexttok = lexer_nexttoken (lf);
+
+							if (!nexttok || (nexttok->type != STRING)) {
+								parser_error (lf, "failed while processing #LIBRARY INCLUDES directive");
+								lexer_pushback (lf, nexttok);
+								return tree;
+							}
+							iname = string_ndup (nexttok->u.str.ptr, nexttok->u.str.len);
+							if (library_addincludes (tree, iname)) {
+								lexer_pushback (lf, nexttok);
+								sfree (iname);
+								return tree;
+							}
+							sfree (iname);
+
+							/*}}}*/
+						} else if (lexer_tokmatchlitstr (nexttok, "USES")) {
+							/*{{{  auto-using something*/
+							char *lname;
+
+							lexer_freetoken (nexttok);
+							nexttok = lexer_nexttoken (lf);
+
+							if (!nexttok || (nexttok->type != STRING)) {
+								parser_error (lf, "failed while processing #LIBRARY INCLUDES directive");
+								lexer_pushback (lf, nexttok);
+								return tree;
+							}
+							lname = string_ndup (nexttok->u.str.ptr, nexttok->u.str.len);
+							if (library_adduses (tree, lname)) {
+								lexer_pushback (lf, nexttok);
+								sfree (lname);
+								return tree;
+							}
+							sfree (lname);
+
+							/*}}}*/
+						} else {
+							/*{{{  unknown #LIBRARY directive*/
+							parser_error (lf, "unknown #LIBRARY directive");
+							lexer_pushback (lf, nexttok);
+							return tree;
+							/*}}}*/
+						}
+						lexer_freetoken (nexttok);
+						nexttok = lexer_nexttoken (lf);
+
+						/* skip newlines and comments */
+						for (; nexttok && ((nexttok->type == NEWLINE) || (nexttok->type == COMMENT)); lexer_freetoken (nexttok), nexttok = lexer_nexttoken (lf));
+					}
+
+					if (!nexttok || (nexttok->type != OUTDENT)) {
+						parser_error (lf, "failed while processing #LIBRARY directive");
+						return tree;
+					}
+					lexer_freetoken (nexttok);
+					/*}}}*/
+				}
+
+				*gotall = 1;
+				/*}}}*/
+			} else {
+				parser_error (lf, "while processing #LIBRARY, expected string found ");
+				lexer_dumptoken (stderr, nexttok);
+				lexer_freetoken (nexttok);
 				return tree;
 			}
 			/*}}}*/
@@ -673,6 +776,13 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 			goto restartpoint;
 		}
 		/*}}}*/
+	} else if (lexer_tokmatch (opi.tok_PUBLIC, tok)) {
+		lexer_freetoken (tok);
+		tree = dfa_walk (thedfa ? thedfa : "occampi:declorprocstart", lf);
+
+		if (tree) {
+			library_markpublic (tree);
+		}
 	} else {
 		lexer_pushback (lf, tok);
 		tree = dfa_walk (thedfa ? thedfa : "occampi:declorprocstart", lf);
@@ -830,6 +940,8 @@ static tnode_t *occampi_indented_process_trailing (lexfile_t *lf, char *extradfa
 				target = tnode_nthsubaddr (*target, 3);
 			} else if (tnflags & TNF_SHORTDECL) {
 				target = tnode_nthsubaddr (*target, 2);
+			} else if (tnflags & TNF_TRANSPARENT) {
+				target = tnode_nthsubaddr (*target, 0);
 			} else {
 				/* assume we're done! */
 				breakfor = 1;
@@ -924,6 +1036,8 @@ static tnode_t *occampi_indented_process (lexfile_t *lf)
 				target = tnode_nthsubaddr (*target, 3);
 			} else if (tnflags & TNF_SHORTDECL) {
 				target = tnode_nthsubaddr (*target, 2);
+			} else if (tnflags & TNF_TRANSPARENT) {
+				target = tnode_nthsubaddr (*target, 0);
 			} else {
 				/* assume we're done! */
 				breakfor = 1;
@@ -1005,6 +1119,8 @@ static tnode_t *occampi_indented_process_list (lexfile_t *lf, char *leaddfa)
 				target = tnode_nthsubaddr (*target, 3);
 			} else if (tnflags & TNF_SHORTDECL) {
 				target = tnode_nthsubaddr (*target, 2);
+			} else if (tnflags & TNF_TRANSPARENT) {
+				target = tnode_nthsubaddr (*target, 0);
 			} else {
 				/* process with some leading declarations probably -- add to the list */
 				parser_addtolist (tree, stored);
@@ -1081,12 +1197,14 @@ static tnode_t *occampi_parser_parse (lexfile_t *lf)
 		}
 		*target = thisone;
 		while (*target) {
-			/* sink through stuff, although we shouldn't really see this here */
+			/* sink through stuff (see this sometimes when INCLUDE'ing,etc. */
 			tnflags = tnode_tnflagsof (*target);
 			if (tnflags & TNF_LONGDECL) {
 				target = tnode_nthsubaddr (*target, 3);
 			} else if (tnflags & TNF_SHORTDECL) {
 				target = tnode_nthsubaddr (*target, 2);
+			} else if (tnflags & TNF_TRANSPARENT) {
+				target = tnode_nthsubaddr (*target, 0);
 			} else {
 				/* assume we're done! */
 				breakfor = 1;

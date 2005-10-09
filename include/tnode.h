@@ -21,6 +21,17 @@
 #define __TNODE_H
 
 
+#define TNF_NONE	0x0000
+#define TNF_LONGPROC	0x0001		/* long process (e.g. SEQ/PAR, body into subnode 1) */
+#define TNF_LONGDECL	0x0002		/* long declaration (e.g. PROC, body into subnode 2, in-scope into subnode 3) */
+#define TNF_SHORTDECL	0x0004		/* short declaration (e.g. variable, in-scope body into subnode 2) */
+#define TNF_TRANSPARENT	0x0008		/* "transparent" node (e.g. library-info) */
+#define TNF_LANGMASK	0xfff0
+
+#define NTF_NONE	0x0000
+#define NTF_LANGMASK	0xffff
+
+
 struct TAG_tnode;
 struct TAG_compops;
 struct TAG_langops;
