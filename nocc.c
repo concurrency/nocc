@@ -80,6 +80,7 @@ compopts_t compopts = {
 	dumpnames: 0,
 	dumptargets: 0,
 	dumpvarmaps: 0,
+	dumpnodetypes: 0,
 	debugparser: 0,
 	stoppoint: 0,
 	doaliascheck: 1,
@@ -866,6 +867,12 @@ int main (int argc, char **argv)
 			goto main_out;
 		}
 		/*}}}*/
+		/*{{{  dump node-types if requested*/
+		if (compopts.dumpnodetypes) {
+			tnode_dumpnodetypes (stderr);
+			goto local_close_out;
+		}
+		/*}}}*/
 
 		/*{{{  pre-scope*/
 		if (compopts.verbose) {
@@ -1187,6 +1194,7 @@ int main (int argc, char **argv)
 		}
 		/*}}}*/
 
+local_close_out:
 		/*{{{  close lexers*/
 		for (i=DA_CUR (srclexers) - 1; i >= 0; i--) {
 			lexer_close (DA_NTHITEM (srclexers, i));

@@ -70,13 +70,16 @@ static int occampi_mobiles_init_nodes (void)
 	compops_t *cops;
 	int i;
 
-	/*{{{  occampi:mobiletypenode -- MOBILE*/
+	/*{{{  occampi:mobiletypenode -- MOBILE, DYNMOBARRAY*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:mobiletypenode", &i, 1, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
+
 	i = -1;
 	opi.tag_MOBILE = tnode_newnodetag ("MOBILE", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_DYNMOBARRAY = tnode_newnodetag ("DYNMOBARRAY", &i, tnd, NTF_NONE);
 	/*}}}*/
 
 	return 0;

@@ -1211,7 +1211,7 @@ static int occampi_decl_init_nodes (void)
 	i = -1;
 	opi.tag_NAME = tnode_newnodetag ("NAME", &i, tnd, NTF_NONE);
 	/*}}}*/
-	/*{{{  occampi:namenode -- N_DECL, N_PARAM, N_VALPARAM, N_PROCDEF, N_TYPEDECL, N_FIELD, N_ABBR, N_VALABBR*/
+	/*{{{  occampi:namenode -- N_DECL, N_PARAM, N_VALPARAM, N_PROCDEF, N_TYPEDECL, N_FIELD, N_ABBR, N_VALABBR, N_FUNCDEF, N_CHANTYPEDECL, N_PROCTYPEDECL*/
 	i = -1;
 	tnd = opi.node_NAMENODE = tnode_newnodetype ("occampi:namenode", &i, 0, 1, 0, TNF_NONE);	/* subnames: name */
 	cops = tnode_newcompops ();
@@ -1242,6 +1242,10 @@ static int occampi_decl_init_nodes (void)
 	opi.tag_NVALABBR = tnode_newnodetag ("N_VALABBR", &i, opi.node_NAMENODE, NTF_NONE);
 	i = -1;
 	opi.tag_NFUNCDEF = tnode_newnodetag ("N_FUNCDEF", &i, opi.node_NAMENODE, NTF_NONE);
+	i = -1;
+	opi.tag_NCHANTYPEDECL = tnode_newnodetag ("N_CHANTYPEDECL", &i, opi.node_NAMENODE, NTF_NONE);
+	i = -1;
+	opi.tag_NPROCTYPEDECL = tnode_newnodetag ("N_PROCTYPEDECL", &i, opi.node_NAMENODE, NTF_NONE);
 	/*}}}*/
 	/*{{{  occampi:hiddennode -- HIDDENPARAM*/
 	i = -1;

@@ -625,7 +625,7 @@ static int occampi_dtype_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:arraynode -- ARRAY*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:arraynode", &i, 2, 0, 0, TNF_NONE);
+	tnd = tnode_newnodetype ("occampi:arraynode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = dim, 1 = sub-type */
 	cops = tnode_newcompops ();
 	cops->bytesfor = occampi_bytesfor_arraynode;
 	tnd->ops = cops;

@@ -46,6 +46,7 @@ typedef struct TAG_compopts {
 	int dumpnames;
 	int dumptargets;
 	int dumpvarmaps;
+	int dumpnodetypes;
 	int debugparser;
 	int doaliascheck;
 	int dousagecheck;
