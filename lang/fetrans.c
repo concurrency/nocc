@@ -156,10 +156,10 @@ static int fetrans_modprewalk (tnode_t **tptr, void *arg)
 int fetrans_tree (tnode_t **tptr, langparser_t *lang)
 {
 	if (!fetranschook) {
-		fetranschook = tnode_newchook ("fetrans");
+		fetranschook = tnode_lookupornewchook ("fetrans");
 	}
 	if (!fetransdeschook) {
-		fetransdeschook = tnode_newchook ("fetrans:descriptor");
+		fetransdeschook = tnode_lookupornewchook ("fetrans:descriptor");
 		fetransdeschook->chook_copy = fetrans_deschook_copy;
 		fetransdeschook->chook_free = fetrans_deschook_free;
 		fetransdeschook->chook_dumptree = fetrans_deschook_dumptree;

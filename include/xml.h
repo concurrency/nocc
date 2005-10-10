@@ -88,7 +88,9 @@ typedef enum {
 	XMLKEY_ALLOCWS,
 	XMLKEY_ALLOCVS,
 	XMLKEY_ALLOCMS,
-	XMLKEY_ADJUST
+	XMLKEY_ADJUST,
+	XMLKEY_NOCC_LIBINFO,
+	XMLKEY_VERSION
 } xmlkeytype_t;
 
 typedef struct TAG_xmlkey {

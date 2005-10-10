@@ -58,5 +58,7 @@ allocws,		XMLKEY_ALLOCWS
 allocvs,		XMLKEY_ALLOCVS
 allocms,		XMLKEY_ALLOCMS
 adjust,			XMLKEY_ADJUST
+nocc:libinfo,		XMLKEY_NOCC_LIBINFO
+version,		XMLKEY_VERSION
 %%
 

@@ -92,6 +92,7 @@ typedef struct TAG_libtaghook {
 	struct TAG_libnodehook *lnh;
 	char *name;
 	int ws, vs, ms, adjust;
+	char *descriptor;
 	tnode_t *bnode;		/* back-end BLOCK associated with this entry */
 } libtaghook_t;
 
@@ -119,6 +120,7 @@ static char *libpath = NULL;
 static int allpublic = 0;
 
 static chook_t *libchook = NULL;
+static chook_t *descriptorchook = NULL;
 
 
 STATICDYNARRAY (libnodehook_t *, entrystack);
@@ -196,6 +198,7 @@ static libtaghook_t *lib_newlibtaghook (libnodehook_t *lnh, char *ename)
 
 	lth->lnh = lnh;
 	lth->name = ename ? string_dup (ename) : NULL;
+	lth->descriptor = NULL;
 	lth->ws = 0;
 	lth->vs = 0;
 	lth->ms = 0;
@@ -216,6 +219,9 @@ static void lib_libtaghook_free (void *hook)
 	if (lth) {
 		if (lth->name) {
 			sfree (lth->name);
+		}
+		if (lth->descriptor) {
+			sfree (lth->descriptor);
 		}
 
 		sfree (lth);
@@ -238,6 +244,7 @@ static void *lib_libtaghook_copy (void *hook)
 		newlth->vs = lth->vs;
 		newlth->ms = lth->ms;
 		newlth->adjust = lth->adjust;
+		newlth->descriptor = lth->descriptor ? string_dup (lth->descriptor) : NULL;
 
 		return (void *)newlth;
 	}
@@ -254,8 +261,8 @@ static void lib_libtaghook_dumptree (tnode_t *node, void *hook, int indent, FILE
 	libtaghook_t *lth = (libtaghook_t *)hook;
 
 	lib_isetindent (stream, indent);
-	fprintf (stream, "<libtaghook addr=\"0x%8.8x\" name=\"%s\" ws=\"%d\" vs=\"%d\" ms=\"%d\" adjust=\"%d\" bnode=\"0x%8.8x\" />\n",
-			(unsigned int)lth, lth->name ?: "(null)", lth->ws, lth->vs, lth->ms, lth->adjust, (unsigned int)lth->bnode);
+	fprintf (stream, "<libtaghook addr=\"0x%8.8x\" name=\"%s\" ws=\"%d\" vs=\"%d\" ms=\"%d\" adjust=\"%d\" bnode=\"0x%8.8x\" descriptor=\"%s\" />\n",
+			(unsigned int)lth, lth->name ?: "(null)", lth->ws, lth->vs, lth->ms, lth->adjust, (unsigned int)lth->bnode, lth->descriptor ?: "(null)");
 
 	return;
 }
@@ -975,7 +982,7 @@ static int lib_writelibrary (libfile_t *lf)
 		}
 		/*}}}*/
 	}
-	flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s.xml", lf->fname);
+	flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s", lf->fname);
 
 	libstream = fopen (fbuf, "w");
 	if (!libstream) {
@@ -983,7 +990,8 @@ static int lib_writelibrary (libfile_t *lf)
 		return -1;
 	}
 
-	fprintf (libstream, "<nocc:libinfo>\n");
+	fprintf (libstream, "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>\n");
+	fprintf (libstream, "<nocc:libinfo version=\"%s\">\n", VERSION);
 	lib_isetindent (libstream, 1);
 	fprintf (libstream, "<library name=\"%s\" namespace=\"%s\">\n", lf->libname, lf->namespace);
 
@@ -1014,7 +1022,7 @@ static int lib_writelibrary (libfile_t *lf)
 			lib_isetindent (libstream, 4);
 			fprintf (libstream, "<descriptor value=\"%s\" />\n", lfe->descriptor);
 			lib_isetindent (libstream, 4);
-			fprintf (libstream, "<blockinfo allocws=\"%d\" allocvs=\"%d\" allovms=\"%d\" adjust=\"%d\" />\n", lfe->ws, lfe->vs, lfe->ms, lfe->adjust);
+			fprintf (libstream, "<blockinfo allocws=\"%d\" allocvs=\"%d\" allocms=\"%d\" adjust=\"%d\" />\n", lfe->ws, lfe->vs, lfe->ms, lfe->adjust);
 
 			lib_isetindent (libstream, 3);
 			fprintf (libstream, "</proc>\n");
@@ -1031,6 +1039,161 @@ static int lib_writelibrary (libfile_t *lf)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh)*/
+/*
+ *	merges information from tree-nodes (libnodehook_t) into library-file structures (libfile_t)
+ *	returns 0 on success, non-zero on failure
+ */
+static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh)
+{
+	int i;
+	libfile_srcunit_t *lfsu = NULL;;
+
+	/*{{{  sort out library-file, initial checks*/
+	if (!lf->fname) {
+		int flen = 0;
+
+		if (libpath) {
+			flen = strlen (libpath);
+		}
+		if (lnh->libname) {
+			flen += strlen (lnh->libname);
+		}
+		flen += 3;
+
+		lf->fname = (char *)smalloc (flen);
+		flen = 0;
+		if (libpath) {
+			flen = sprintf (lf->fname, "%s", libpath);
+		}
+		if ((flen > 0) && (lf->fname[flen - 1] != '/')) {
+			lf->fname[flen] = '/';
+			flen++;
+			lf->fname[flen] = '\0';
+		}
+		if (lnh->libname) {
+			flen += sprintf (lf->fname + flen, "%s", lnh->libname);
+		}
+
+		nocc_warning ("lib_mergeintolibrary(): library has no file-name, using [%s]", lf->fname);
+	}
+	if (!lnh->libname) {
+		nocc_error ("lib_mergeintolibrary(): library hook node has no name");
+		return -1;
+	}
+	if (!lnh->namespace) {
+		nocc_error ("lib_mergeintolibrary(): library hook node has no namespace");
+		return -1;
+	}
+	if (!lnh->langname) {
+		nocc_error ("lib_mergeintolibrary(): library hook node has no language-name");
+		return -1;
+	}
+	if (!lnh->targetname) {
+		nocc_error ("lib_mergeintolibrary(): library hook node has no target-name");
+		return -1;
+	}
+
+	if (lf->libname && strcmp (lf->libname, lnh->libname)) {
+		nocc_warning ("lib_mergeintolibrary(): library name conflict, keeping library-specified [%s]", lf->libname);
+	} else if (!lf->libname) {
+		lf->libname = string_dup (lnh->libname);
+	}
+	if (lf->namespace && strcmp (lf->namespace, lnh->namespace)) {
+		nocc_warning ("lib_mergeintolibrary(): library namespace conflict, keeping library-specified [%s]", lf->namespace);
+	} else if (!lf->namespace) {
+		lf->namespace = string_dup (lnh->namespace);
+	}
+
+	/*}}}*/
+	/*{{{  merge in auto-includes*/
+	for (i=0; i<DA_CUR (lnh->autoinclude); i++) {
+		char *ifile = DA_NTHITEM (lnh->autoinclude, i);
+		int j;
+
+		for (j=0; j<DA_CUR (lf->autoinclude); j++) {
+			char *libifile = DA_NTHITEM (lf->autoinclude, j);
+
+			if (!strcmp (libifile, ifile)) {
+				break;		/* for() */
+			}
+		}
+		if (j == DA_CUR (lf->autoinclude)) {
+			/* add it */
+			dynarray_add (lf->autoinclude, string_dup (ifile));
+		}
+	}
+
+
+	/*}}}*/
+	/*{{{  merge in auto-uses*/
+	for (i=0; i<DA_CUR (lnh->autouse); i++) {
+		char *lfile = DA_NTHITEM (lnh->autouse, i);
+		int j;
+
+		for (j=0; j<DA_CUR (lf->autouse); j++) {
+			char *liblfile = DA_NTHITEM (lf->autouse, j);
+
+			if (!strcmp (liblfile, lfile)) {
+				break;		/* for() */
+			}
+		}
+		if (j == DA_CUR (lf->autouse)) {
+			/* add it */
+			dynarray_add (lf->autouse, string_dup (lfile));
+		}
+	}
+
+
+	/*}}}*/
+	/*{{{  search for source unit in library*/
+	for (i=0; i<DA_CUR (lf->srcs); i++) {
+		lfsu = DA_NTHITEM (lf->srcs, i);
+		if (!strcmp (lfsu->fname, lnh->lf->fnptr)) {
+			break;		/* for() */
+		}
+	}
+	if (i == DA_CUR (lf->srcs)) {
+		/* create a new one */
+		lfsu = lib_newlibfile_srcunit ();
+
+		lfsu->fname = string_dup (lnh->lf->fnptr);
+		dynarray_add (lf->srcs, lfsu);
+	} else {
+		/* clear out existing entries */
+		for (i=0; i<DA_CUR (lfsu->entries); i++) {
+			lib_freelibfile_entry (DA_NTHITEM (lfsu->entries, i));
+		}
+		dynarray_trash (lfsu->entries);
+		dynarray_init (lfsu->entries);
+	}
+
+
+	/*}}}*/
+	/*{{{  merge in entries*/
+	for (i=0; i<DA_CUR (lnh->entries); i++) {
+		libtaghook_t *lth = DA_NTHITEM (lnh->entries, i);
+		libfile_entry_t *lfe = lib_newlibfile_entry ();
+
+		lfe->name = string_dup (lth->name);
+		lfe->langname = string_dup (lnh->langname);
+		lfe->targetname = string_dup (lnh->targetname);
+		lfe->descriptor = lth->descriptor ? string_dup (lth->descriptor) : NULL;
+		lfe->ws = lth->ws;
+		lfe->vs = lth->vs;
+		lfe->ms = lth->ms;
+		lfe->adjust = lth->adjust;
+
+		dynarray_add (lfsu->entries, lfe);
+	}
+
+
+	/*}}}*/
+
+	return 0;
+}
+/*}}}*/
+
 
 
 /*{{{  static int lib_betrans_libnode (tnode_t **nodep, target_t *target)*/
@@ -1072,7 +1235,31 @@ fprintf (stderr, "lib_betrans_libnode(): here!\n");
 static int lib_codegen_libnode (tnode_t *node, codegen_t *cgen)
 {
 	libnodehook_t *lnh = (libnodehook_t *)tnode_nthhookof (node, 0);
+	libfile_t *lf;
 
+	/* try and open or create library */
+	lf = lib_readlibrary (lnh->libname, 0);
+	if (!lf) {
+		/* failed for some reason */
+		codegen_warning (cgen, "failed to open/create library \"%s\"", lnh->libname);
+		return 1;
+	}
+
+	/* merge in information from this library node */
+	if (lib_mergeintolibrary (lf, lnh)) {
+		codegen_warning (cgen, "failed to merge library data for \"%s\"", lnh->libname);
+		lib_freelibfile (lf);
+		return 1;
+	}
+
+	/* write modified/new library info out */
+	if (lib_writelibrary (lf)) {
+		codegen_warning (cgen, "failed to write library \"%s\"", lnh->libname);
+		lib_freelibfile (lf);
+		return 1;
+	}
+
+	lib_freelibfile (lf);
 	return 1;
 }
 /*}}}*/
@@ -1103,6 +1290,17 @@ static int lib_betrans_libtag (tnode_t **nodep, target_t *target)
 
 	(*lthp)->lnh = lnh;
 	dynarray_add (lnh->entries, *lthp);
+
+	/* maybe set descriptor */
+	if (tnode_getchook (tnode_nthsubof (*nodep, 0), descriptorchook)) {
+		char *descr = (char *)tnode_getchook (tnode_nthsubof (*nodep, 0), descriptorchook);
+
+		if ((*lthp)->descriptor) {
+			nocc_warning ("lib_betrans_libtag(): tag already has descriptor, replacing");
+			sfree ((*lthp)->descriptor);
+		}
+		(*lthp)->descriptor = string_dup (descr);
+	}
 
 	return 1;
 }
@@ -1193,7 +1391,8 @@ int library_init (void)
 	/*{{{  others*/
 	dynarray_init (entrystack);
 
-	libchook = tnode_newchook ("lib:mark");
+	libchook = tnode_lookupornewchook ("lib:mark");
+	descriptorchook = tnode_lookupornewchook ("fetrans:descriptor");
 
 	/*}}}*/
 
