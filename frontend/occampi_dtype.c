@@ -178,7 +178,7 @@ tnode_dumptree (type, 1, stderr);
 #endif
 
 	sname = name_addscopename (rawname, *node, type, NULL);
-	newname = tnode_createfrom (opi.tag_NTYPEDECL, name, sname);
+	newname = tnode_createfrom (opi.tag_NDATATYPEDECL, name, sname);
 	SetNameNode (sname, newname);
 	tnode_setnthsub (*node, 0, newname);
 
@@ -277,7 +277,7 @@ static int occampi_namemap_typedecl (tnode_t **node, map_t *mdata)
 			if (!items[i]) {
 				continue;
 			} else if (items[i]->tag != opi.tag_FIELDDECL) {
-				nocc_error ("occampi_namemap_typedecl(): item in TYPEDECL not FIELDDECL, was [%s]", items[i]->tag->name);
+				nocc_error ("occampi_namemap_typedecl(): item in DATATYPEDECL not FIELDDECL, was [%s]", items[i]->tag->name);
 			} else {
 				tnode_t *fldname = tnode_nthsubof (items[i], 0);
 				tnode_t *fldtype = tnode_nthsubof (items[i], 1);
@@ -298,6 +298,17 @@ static int occampi_namemap_typedecl (tnode_t **node, map_t *mdata)
 
 	map_submapnames (bodyp, mdata);
 
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_usagecheck_typedecl (tnode_t *node, uchk_state_t *ucstate)*/
+/*
+ *	does usage-checking for a type declaration (dummy, because we don't want to check inside..)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_usagecheck_typedecl (tnode_t *node, uchk_state_t *ucstate)
+{
+	usagecheck_subtree (tnode_nthsubof (node, 2), ucstate);
 	return 0;
 }
 /*}}}*/
@@ -443,7 +454,7 @@ tnode_dumptree (*node, 1, stderr);
 		name_t *name = tnode_nthnameof (base, 0);
 		tnode_t *type = NameTypeOf (name);
 
-		if (type->tag == opi.tag_NTYPEDECL) {
+		if (type->tag == opi.tag_NDATATYPEDECL) {
 			void *namemarker;
 
 			namemarker = name_markscope ();
@@ -610,7 +621,7 @@ static int occampi_dtype_init_nodes (void)
 	langops_t *lops;
 	int i;
 
-	/*{{{  occampi:typedecl -- TYPEDECL*/
+	/*{{{  occampi:typedecl -- DATATYPEDECL, CHANTYPEDECL, PROCTYPEDECL*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:typedecl", &i, 3, 0, 1, TNF_SHORTDECL);		/* subnodes: 0 = name; 1 = type; 2 = body */
 	tnd->hook_dumptree = occampi_typedecl_hook_dumptree;
@@ -619,9 +630,16 @@ static int occampi_dtype_init_nodes (void)
 	cops->bytesfor = occampi_bytesfor_typedecl;
 	cops->namemap = occampi_namemap_typedecl;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->do_usagecheck = occampi_usagecheck_typedecl;
+	tnd->lops = lops;
 
 	i = -1;
-	opi.tag_TYPEDECL = tnode_newnodetag ("TYPEDECL", &i, tnd, NTF_NONE);
+	opi.tag_DATATYPEDECL = tnode_newnodetag ("DATATYPEDECL", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_CHANTYPEDECL = tnode_newnodetag ("CHANTYPEDECL", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_PROCTYPEDECL = tnode_newnodetag ("PROCTYPEDECL", &i, tnd, NTF_NONE);
 	/*}}}*/
 	/*{{{  occampi:arraynode -- ARRAY*/
 	i = -1;
@@ -716,7 +734,8 @@ static void occampi_reduce_arrayfold (dfastate_t *dfast, parsepriv_t *pp, void *
  */
 static int occampi_dtype_reg_reducers (void)
 {
-	parser_register_grule ("opi:datatypedeclreduce", parser_decode_grule ("SN1N+N+V00XC4R-", occampi_typedeclhook_blankhook, opi.tag_TYPEDECL));
+	parser_register_grule ("opi:datatypedeclreduce", parser_decode_grule ("SN1N+N+V00XC4R-", occampi_typedeclhook_blankhook, opi.tag_DATATYPEDECL));
+	parser_register_grule ("opi:chantypedeclreduce", parser_decode_grule ("SN1N+N+V00XC4R-", occampi_typedeclhook_blankhook, opi.tag_CHANTYPEDECL));
 	parser_register_grule ("opi:fieldreduce", parser_decode_grule ("SN1N+N+C2R-", opi.tag_FIELDDECL));
 	parser_register_grule ("opi:resultpush", parser_decode_grule ("R+N-"));
 	parser_register_grule ("opi:arrayspec", parser_decode_grule ("SN0N+0C2R-", opi.tag_ARRAY));
@@ -744,7 +763,10 @@ static dfattbl_t **occampi_dtype_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:typedecl ::= [ 0 @DATA 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ] [ 3 @IS 4 ] [ 3 Newline 7 ] " \
 				"[ 4 occampi:type 5 ] [ 5 @@: 6 ] [ 6 {<opi:datatypedeclreduce>} -* ] " \
 				"[ 7 Indent 8 ] [ 8 @RECORD 9 ] [ 9 Newline 10 ] [ 10 Indent 11 ] [ 11 occampi:subtspeclist 12 ] [ 12 Newline 13 ] " \
-				"[ 13 Outdent 14 ] [ 14 Outdent 15 ] [ 15 @@: 16 ] [ 16 {<opi:datatypedeclreduce>} -* ] "));
+				"[ 13 Outdent 14 ] [ 14 Outdent 15 ] [ 15 @@: 16 ] [ 16 {<opi:datatypedeclreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:chantypedecl ::= [ 0 @CHAN 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ] [ 3 Newline 4 ] " \
+				"[ 4 Indent 5 ] [ 5 @RECORD 6 ] [ 6 Newline 7 ] [ 7 Indent 8 ] [ 8 occampi:subtspeclist 9 ] [ 9 Newline 10 ] " \
+				"[ 10 Outdent 11 ] [ 11 Outdent 12 ] [ 12 @@: 13 ] [ 13 {<opi:chantypedeclreduce>} -* ]"));
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:arrayspec ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:arrayspec>} -* ]"));
 

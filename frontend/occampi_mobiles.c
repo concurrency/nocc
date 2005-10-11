@@ -70,7 +70,7 @@ static int occampi_mobiles_init_nodes (void)
 	compops_t *cops;
 	int i;
 
-	/*{{{  occampi:mobiletypenode -- MOBILE, DYNMOBARRAY*/
+	/*{{{  occampi:mobiletypenode -- MOBILE, DYNMOBARRAY, CTCLI, CTSVR, CTSHCLI, CTSHSVR*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:mobiletypenode", &i, 1, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
@@ -80,6 +80,16 @@ static int occampi_mobiles_init_nodes (void)
 	opi.tag_MOBILE = tnode_newnodetag ("MOBILE", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_DYNMOBARRAY = tnode_newnodetag ("DYNMOBARRAY", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_DYNMOBCTCLI = tnode_newnodetag ("DYNMOBCTCLI", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_DYNMOBCTSVR = tnode_newnodetag ("DYNMOBCTSVR", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_DYNMOBCTSHCLI = tnode_newnodetag ("DYNMOBCTSHCLI", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_DYNMOBCTSHSVR = tnode_newnodetag ("DYNMOBCTSHSVR", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_DYNMOBPROC = tnode_newnodetag ("DYNMOBPROC", &i, tnd, NTF_NONE);
 	/*}}}*/
 
 	return 0;

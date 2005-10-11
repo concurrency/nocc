@@ -85,6 +85,7 @@ void parser_init (void)
 	parser_register_grule ("parser:nullreduce", parser_decode_grule ("N+R-"));
 	parser_register_grule ("parser:listresult", parser_decode_grule ("R+N-"));
 	parser_register_grule ("parser:rewindtokens", parser_decode_grule ("T*"));
+	parser_register_grule ("parser:eattoken", parser_decode_grule ("T+@t"));
 	return;
 }
 /*}}}*/

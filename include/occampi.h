@@ -59,6 +59,11 @@ typedef struct {
 	struct TAG_ntdef *tag_ARRAY;
 	struct TAG_ntdef *tag_MOBILE;
 	struct TAG_ntdef *tag_DYNMOBARRAY;
+	struct TAG_ntdef *tag_DYNMOBCTCLI;
+	struct TAG_ntdef *tag_DYNMOBCTSVR;
+	struct TAG_ntdef *tag_DYNMOBCTSHCLI;
+	struct TAG_ntdef *tag_DYNMOBCTSHSVR;
+	struct TAG_ntdef *tag_DYNMOBPROC;
 	struct TAG_ntdef *tag_FUNCTIONTYPE;
 
 	struct TAG_ntdef *tag_VARDECL;
@@ -67,10 +72,10 @@ typedef struct {
 	struct TAG_ntdef *tag_PROCDECL;
 	struct TAG_ntdef *tag_SHORTFUNCDECL;
 	struct TAG_ntdef *tag_FUNCDECL;
-	struct TAG_ntdef *tag_TYPEDECL;
-	struct TAG_ntdef *tag_FIELDDECL;
+	struct TAG_ntdef *tag_DATATYPEDECL;
 	struct TAG_ntdef *tag_CHANTYPEDECL;
 	struct TAG_ntdef *tag_PROCTYPEDECL;
+	struct TAG_ntdef *tag_FIELDDECL;
 
 	struct TAG_ntdef *tag_FPARAM;
 	struct TAG_ntdef *tag_VALFPARAM;
@@ -119,12 +124,12 @@ typedef struct {
 	struct TAG_ntdef *tag_NVALPARAM;
 	struct TAG_ntdef *tag_NPROCDEF;
 	struct TAG_ntdef *tag_NFUNCDEF;
-	struct TAG_ntdef *tag_NTYPEDECL;
+	struct TAG_ntdef *tag_NDATATYPEDECL;
+	struct TAG_ntdef *tag_NCHANTYPEDECL;
+	struct TAG_ntdef *tag_NPROCTYPEDECL;
 	struct TAG_ntdef *tag_NFIELD;
 	struct TAG_ntdef *tag_NABBR;
 	struct TAG_ntdef *tag_NVALABBR;
-	struct TAG_ntdef *tag_NCHANTYPEDECL;
-	struct TAG_ntdef *tag_NPROCTYPEDECL;
 
 	struct TAG_ntdef *tag_PINSTANCE;
 	struct TAG_ntdef *tag_FINSTANCE;
