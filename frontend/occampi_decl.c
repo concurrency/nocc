@@ -862,6 +862,7 @@ tnode_dumptree (ops->last_type, 1, stderr);
 /*{{{  static int occampi_scopein_fparam (tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope a formal parmeter
+ *	returns 0 to stop walk, 1 to continue
  */
 static int occampi_scopein_fparam (tnode_t **node, scope_t *ss)
 {
@@ -870,8 +871,6 @@ static int occampi_scopein_fparam (tnode_t **node, scope_t *ss)
 	char *rawname;
 	name_t *sname = NULL;
 	tnode_t *newname;
-	occampi_typeattr_t typeattr;
-	tnode_t *losing = NULL;
 
 	if (name->tag != opi.tag_NAME) {
 		scope_error (name, ss, "name not raw-name!");
@@ -882,14 +881,9 @@ static int occampi_scopein_fparam (tnode_t **node, scope_t *ss)
 fprintf (stderr, "occampi_scopein_fparam: here! rawname = \"%s\"\n", rawname);
 #endif
 
-	if (((*typep)->tag == opi.tag_ASINPUT) || ((*typep)->tag == opi.tag_ASOUTPUT)) {
-		losing = *typep;
-		*typep = tnode_nthsubof (losing, 0);
-		tnode_setnthsub (losing, 0, NULL);
-
-		typeattr = (occampi_typeattr_t)tnode_getchook (*typep, opi.chook_typeattr);
-		typeattr |= (losing->tag == opi.tag_ASINPUT) ? TYPEATTR_MARKED_IN : TYPEATTR_MARKED_OUT;
-		tnode_setchook (*typep, opi.chook_typeattr, (void *)typeattr);
+	/* scope the type first */
+	if (scope_subtree (typep, ss)) {
+		return 0;
 	}
 
 	sname = name_addscopename (rawname, *node, *typep, NULL);
@@ -901,9 +895,6 @@ fprintf (stderr, "occampi_scopein_fparam: here! rawname = \"%s\"\n", rawname);
 	tnode_free (name);
 	ss->scoped++;
 
-	if (losing) {
-		tnode_free (losing);
-	}
 	return 1;
 }
 /*}}}*/
@@ -1420,7 +1411,8 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 				"[ 12 {<parser:eattoken>} -* 1 ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:vardecl:bracketstart ::= [ 0 occampi:arrayspec 1 ] [ 1 occampi:vardecl 2 ] [ 2 {Roccampi:arrayfold} -* ]"));
 
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:procdecl ::= [ 0 @PROC 1 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:procdeclreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:procdecl ::= [ 0 +@PROC 6 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:procdeclreduce>} -* ] " \
+				"[ 6 +@TYPE 7 ] [ 6 -* 8 ] [ 7 {<parser:rewindtokens>} -* <occampi:proctypedecl> ] [ 8 {<parser:eattoken>} -* 1 ]"));
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:valabbrdecl ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} -* 2 ] [ 2 @IS 3 ] [ 2 +Name 6 ] [ 3 occampi:expr 4 ] [ 4 @@: 5 ] " \
 				"[ 5 {<opi:notypevalabbrreduce>} -* ] [ 6 {<opi:namepush>} -* 7 ] [ 7 @IS 8 ] [ 8 occampi:expr 9 ] [ 9 {<opi:valabbrreduce>} -* ]"));

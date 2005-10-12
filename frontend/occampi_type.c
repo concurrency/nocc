@@ -78,6 +78,29 @@ static void occampi_typeattr_dumpchook (tnode_t *node, void *hook, int indent, F
 	return;
 }
 /*}}}*/
+/*{{{  static int occampi_type_prescope (tnode_t **nodep, prescope_t *ps)*/
+/*
+ *	pre-scopes a type-node;  fixes ASINPUT/ASOUTPUT nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_type_prescope (tnode_t **nodep, prescope_t *ps)
+{
+	if (((*nodep)->tag == opi.tag_ASINPUT) || ((*nodep)->tag == opi.tag_ASOUTPUT)) {
+		tnode_t *losing = *nodep;
+		occampi_typeattr_t typeattr;
+
+		*nodep = tnode_nthsubof (losing, 0);
+		tnode_setnthsub (losing, 0, NULL);
+
+		typeattr = (occampi_typeattr_t)tnode_getchook (*nodep, opi.chook_typeattr);
+		typeattr |= (losing->tag == opi.tag_ASINPUT) ? TYPEATTR_MARKED_IN : TYPEATTR_MARKED_OUT;
+		tnode_setchook (*nodep, opi.chook_typeattr, (void *)typeattr);
+
+		tnode_free (losing);
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_type_gettype (tnode_t *node, tnode_t *default_type)*/
 /*
  *	returns the type of a type-node (typically the sub-type)
@@ -314,6 +337,7 @@ static int occampi_type_init_nodes (void)
 	i = -1;
 	tnd = opi.node_TYPENODE = tnode_newnodetype ("occampi:typenode", &i, 1, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
+	cops->prescope = occampi_type_prescope;
 	cops->gettype = occampi_type_gettype;
 	cops->typeactual = occampi_type_typeactual;
 	cops->bytesfor = occampi_type_bytesfor;

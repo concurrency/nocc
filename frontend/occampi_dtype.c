@@ -178,7 +178,16 @@ tnode_dumptree (type, 1, stderr);
 #endif
 
 	sname = name_addscopename (rawname, *node, type, NULL);
-	newname = tnode_createfrom (opi.tag_NDATATYPEDECL, name, sname);
+	if ((*node)->tag == opi.tag_DATATYPEDECL) {
+		newname = tnode_createfrom (opi.tag_NDATATYPEDECL, name, sname);
+	} else if ((*node)->tag == opi.tag_CHANTYPEDECL) {
+		newname = tnode_createfrom (opi.tag_NCHANTYPEDECL, name, sname);
+	} else if ((*node)->tag == opi.tag_PROCTYPEDECL) {
+		newname = tnode_createfrom (opi.tag_NPROCTYPEDECL, name, sname);
+	} else {
+		scope_error (name, ss, "unknown node type! [%s]", (*node)->tag->name);
+		return 0;
+	}
 	SetNameNode (sname, newname);
 	tnode_setnthsub (*node, 0, newname);
 
@@ -736,9 +745,12 @@ static int occampi_dtype_reg_reducers (void)
 {
 	parser_register_grule ("opi:datatypedeclreduce", parser_decode_grule ("SN1N+N+V00XC4R-", occampi_typedeclhook_blankhook, opi.tag_DATATYPEDECL));
 	parser_register_grule ("opi:chantypedeclreduce", parser_decode_grule ("SN1N+N+V00XC4R-", occampi_typedeclhook_blankhook, opi.tag_CHANTYPEDECL));
+	parser_register_grule ("opi:proctypedeclreduce", parser_decode_grule ("SN1N+N+V00XC4R-", occampi_typedeclhook_blankhook, opi.tag_PROCTYPEDECL));
 	parser_register_grule ("opi:fieldreduce", parser_decode_grule ("SN1N+N+C2R-", opi.tag_FIELDDECL));
 	parser_register_grule ("opi:resultpush", parser_decode_grule ("R+N-"));
 	parser_register_grule ("opi:arrayspec", parser_decode_grule ("SN0N+0C2R-", opi.tag_ARRAY));
+	parser_register_grule ("opi:ctmarkinput", parser_decode_grule ("N+N+Sn1C1N-N-", opi.tag_ASINPUT));
+	parser_register_grule ("opi:ctmarkoutput", parser_decode_grule ("N+N+Sn1C1N-N-", opi.tag_ASOUTPUT));
 
 	parser_register_reduce ("Roccampi:resetnewline", occampi_reduce_resetnewline, NULL);
 	parser_register_reduce ("Roccampi:arrayfold", occampi_reduce_arrayfold, NULL);
@@ -760,13 +772,22 @@ static dfattbl_t **occampi_dtype_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:subtspeclist ::= [ 0 occampi:subtspec 1 ] [ 1 {<parser:nullreduce>} ] [ 1 Newline 2 ] [ 1 -* 4 ] [ 2 {Rinlist} ] [ 2 occampi:subtspec 1 ] " \
 				"[ 2 -* 3 ] [ 3 {Roccampi:resetnewline} ] [ 3 -* 4 ] [ 4 -* ]"));
 
+	/* FIXME: will only handle single channels in this.. */
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:subctspec ::= [ 0 @CHAN 4 ] [ 0 occampi:primtype 1 ] [ 1 occampi:name 2 ] [ 2 @@! 7 ] [ 2 @@? 6 ] [ 2 @@: 3 ] [ 3 {<opi:fieldreduce>} -* ] " \
+				"[ 4 occampi:protocol 5 ] [ 5 {<opi:chanpush>} -* 1 ] " \
+				"[ 6 {<opi:ctmarkinput>} @@: 3 ] [ 7 {<opi:ctmarkoutput>} @@: 3 ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:subctspeclist ::= [ 0 occampi:subctspec 1 ] [ 1 {<parser:nullreduce>} ] [ 1 Newline 2 ] [ 1 -* 4 ] [ 2 {Rinlist} ] [ 2 occampi:subctspec 1 ] " \
+				"[ 2 -* 3 ] [ 3 {Roccampi:resetnewline} ] [ 3 -* 4 ] [ 4 -* ]"));
+
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:typedecl ::= [ 0 @DATA 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ] [ 3 @IS 4 ] [ 3 Newline 7 ] " \
 				"[ 4 occampi:type 5 ] [ 5 @@: 6 ] [ 6 {<opi:datatypedeclreduce>} -* ] " \
 				"[ 7 Indent 8 ] [ 8 @RECORD 9 ] [ 9 Newline 10 ] [ 10 Indent 11 ] [ 11 occampi:subtspeclist 12 ] [ 12 Newline 13 ] " \
 				"[ 13 Outdent 14 ] [ 14 Outdent 15 ] [ 15 @@: 16 ] [ 16 {<opi:datatypedeclreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:chantypedecl ::= [ 0 @CHAN 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ] [ 3 Newline 4 ] " \
-				"[ 4 Indent 5 ] [ 5 @RECORD 6 ] [ 6 Newline 7 ] [ 7 Indent 8 ] [ 8 occampi:subtspeclist 9 ] [ 9 Newline 10 ] " \
+				"[ 4 Indent 5 ] [ 5 @RECORD 6 ] [ 6 Newline 7 ] [ 7 Indent 8 ] [ 8 occampi:subctspeclist 9 ] [ 9 Newline 10 ] " \
 				"[ 10 Outdent 11 ] [ 11 Outdent 12 ] [ 12 @@: 13 ] [ 13 {<opi:chantypedeclreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:proctypedecl ::= [ 0 @PROC 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ] " \
+				"[ 3 @@( 4 ] [ 4 occampi:fparamlist 5 ] [ 5 @@) 6 ] [ 6 {<opi:proctypedeclreduce>} @@: 7 ] [ 7 -* ]"));
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:arrayspec ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:arrayspec>} -* ]"));
 
