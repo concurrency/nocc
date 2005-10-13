@@ -57,9 +57,9 @@ binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
 am_nocc_OBJECTS = nocc.$(OBJEXT) version.$(OBJEXT)
 nocc_OBJECTS = $(am_nocc_OBJECTS)
-nocc_DEPENDENCIES = misc/libmisc.a lexer/liblexer.a parser/libparser.a \
-	extn/libextn.a xml/libxml.a frontend/libfrontend.a \
-	target/libtarget.a backend/libbackend.a lang/liblang.a
+nocc_DEPENDENCIES = lexer/liblexer.a parser/libparser.a extn/libextn.a \
+	xml/libxml.a frontend/libfrontend.a target/libtarget.a \
+	backend/libbackend.a lang/liblang.a misc/libmisc.a
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I.
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -181,7 +181,7 @@ target_vendor = @target_vendor@
 INCLUDES = -I@srcdir@/include
 AUTOMAKE_OPTIONS = foreign
 nocc_SOURCES = nocc.c version.c
-nocc_LDADD = misc/libmisc.a lexer/liblexer.a parser/libparser.a extn/libextn.a xml/libxml.a frontend/libfrontend.a target/libtarget.a backend/libbackend.a lang/liblang.a
+nocc_LDADD = lexer/liblexer.a parser/libparser.a extn/libextn.a xml/libxml.a frontend/libfrontend.a target/libtarget.a backend/libbackend.a lang/liblang.a misc/libmisc.a
 SUBDIRS = include misc lexer parser extn xml frontend target backend lang
 EXTRA_DIST = README CHANGELOG TODO AUTHORS addons tests nocc.specs.xml
 all: config.h

@@ -1,4 +1,5 @@
 
+13/10/2005	frmb	initial support for inline transputer assembler
 11/10/2005	frmb	modified grammar slightly for CHAN TYPE parsing
 10/10/2005	frmb	read/write library support, more XML-keys
 09/10/2005	frmb	more library support

@@ -437,6 +437,36 @@ void parser_inlistreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 	return;
 }
 /*}}}*/
+/*{{{  void parser_inlistfixup (void **tos)*/
+/*
+ *	this is used to fixup after inlistreduce's, which leaves a NULL at the end of the list
+ */
+void parser_inlistfixup (void **tos)
+{
+	tnode_t *list = (tnode_t *)(*tos);
+
+	if (parser_islistnode (list)) {
+		tnode_t **array;
+		int *cur, *max;
+
+		array = (tnode_t **)tnode_nthhookof (list, 0);
+		if (!array) {
+			nocc_internal ("parser_inlistfixup(): null array in list!");
+			return;
+		}
+		cur = (int *)(array);
+		max = (int *)(array + 1);
+		if ((*cur > 0) && (!array[*cur + 1])) {
+			*cur = *cur - 1;
+		} else {
+			nocc_warning ("parser_inlistfixup(): nothing to fixup here..");
+		}
+	} else {
+		nocc_warning ("parser_inlistfixup(): not a list!");
+	}
+	return;
+}
+/*}}}*/
 
 
 /*{{{  int parser_register_reduce (const char *name, void (*reduce)(dfastate_t *, parsepriv_t *, void *), void *rarg)*/
@@ -1174,6 +1204,36 @@ void *parser_lookup_grule (const char *name)
 	ngrule_t *ngr = stringhash_lookup (ngrules, name);
 
 	return ngr ? ngr->grule : NULL;
+}
+/*}}}*/
+/*{{{  static int parser_cmp_grule (ngrule_t *one, ngrule_t *two)*/
+/*
+ *	compares two grule entries (for sorting)
+ */
+static int parser_cmp_grule (ngrule_t *one, ngrule_t *two)
+{
+	if (one == two) {
+		return 0;
+	}
+	return strcmp (one->name, two->name);
+}
+/*}}}*/
+/*{{{  void parser_dumpgrules (FILE *stream)*/
+/*
+ *	dumps named generic reductions (debugging/info)
+ */
+void parser_dumpgrules (FILE *stream)
+{
+	int i;
+
+	fprintf (stream, "generic reduction rules:\n");
+	dynarray_qsort (angrules, parser_cmp_grule);
+	for (i=0; i<DA_CUR (angrules); i++) {
+		ngrule_t *ngr = DA_NTHITEM (angrules, i);
+
+		fprintf (stream, "  %-32s: 0x%8.8x\n", ngr->name, (unsigned int)ngr->grule);
+	}
+	return;
 }
 /*}}}*/
 

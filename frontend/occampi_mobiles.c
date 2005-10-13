@@ -61,7 +61,7 @@
 
 /*{{{  static int occampi_mobiles_init_nodes (void)*/
 /*
- *	sets up nodes for occam-pi mobilesators (monadic, dyadic)
+ *	sets up nodes for occam-pi mobiles
  *	returns 0 on success, non-zero on error
  */
 static int occampi_mobiles_init_nodes (void)
@@ -97,7 +97,7 @@ static int occampi_mobiles_init_nodes (void)
 /*}}}*/
 /*{{{  static int occampi_mobiles_reg_reducers (void)*/
 /*
- *	registers reductions for occam-pi mobilesators
+ *	registers reductions for occam-pi mobile reductions
  *	returns 0 on success, non-zero on error
  */
 static int occampi_mobiles_reg_reducers (void)
@@ -109,7 +109,7 @@ static int occampi_mobiles_reg_reducers (void)
 /*}}}*/
 /*{{{  static dfattbl_t **occampi_mobiles_init_dfatrans (int *ntrans)*/
 /*
- *	initialises and returns DFA transition tables for occam-pi mobilesators
+ *	initialises and returns DFA transition tables for occam-pi mobiles
  */
 static dfattbl_t **occampi_mobiles_init_dfatrans (int *ntrans)
 {
@@ -130,7 +130,7 @@ static dfattbl_t **occampi_mobiles_init_dfatrans (int *ntrans)
 /*}}}*/
 /*{{{  static int occampi_mobiles_post_setup (void)*/
 /*
- *	does post-setup for occam-pi mobilesator nodes
+ *	does post-setup for occam-pi mobile nodes
  *	returns 0 on success, non-zero on error
  */
 static int occampi_mobiles_post_setup (void)

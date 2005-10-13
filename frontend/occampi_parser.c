@@ -106,6 +106,7 @@ static feunit_t *feunit_set[] = {
 	&occampi_function_feunit,
 	&occampi_mobiles_feunit,
 	&occampi_initial_feunit,
+	&occampi_asm_feunit,
 	NULL
 };
 
@@ -320,7 +321,7 @@ static int occampi_dfas_init (void)
 
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:declorprocstart +:= ( occampi:vardecl | occampi:abbrdecl | occampi:valof | occampi:procdecl | occampi:typedecl | " \
 				"occampi:primproc | occampi:cproc | occampi:namestart | occampi:mobiledecl | " \
-				"occampi:builtinprocinstance | occampi:bracketstart ) {<opi:nullreduce>}"));
+				"occampi:builtinprocinstance | occampi:bracketstart | occampi:asmblock ) {<opi:nullreduce>}"));
 
 	/*{{{  load grammar items for extensions*/
 	if (extn_preloadgrammar (&occampi_parser, &DA_PTR(transtbls), &DA_CUR(transtbls), &DA_MAX(transtbls))) {
@@ -562,6 +563,9 @@ static int occampi_parser_init (lexfile_t *lf)
 		}
 		if (compopts.dumpdfas) {
 			dfa_dumpdfas (stderr);
+		}
+		if (compopts.dumpgrules) {
+			parser_dumpgrules (stderr);
 		}
 	}
 	return 0;

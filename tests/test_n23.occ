@@ -1,0 +1,9 @@
+-- test_n23.occ -- PROC TYPE parsing
+
+PROC TYPE PT (CHAN INT in):
+
+PROC test.n23 ()
+  SEQ
+    SKIP
+:
+

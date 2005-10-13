@@ -1,0 +1,13 @@
+-- test_n22.occ -- CHAN TYPE parsing
+
+CHAN TYPE FOO
+  RECORD
+    CHAN INT x!:
+:
+
+
+PROC test.n22 ()
+  SEQ
+    SKIP
+:
+

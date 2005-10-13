@@ -59,6 +59,7 @@ extern void *parser_lookup_rarg (const char *name);
 extern void parser_generic_reduce (struct TAG_dfastate *dfast, parsepriv_t *pp, void *rarg);
 extern void *parser_decode_grule (const char *rule, ...);
 extern void parser_free_grule (void *rarg);
+extern void parser_dumpgrules (FILE *stream);
 
 extern int parser_register_grule (const char *name, void *grule);
 extern void *parser_lookup_grule (const char *name);

@@ -44,7 +44,7 @@ STATICSTRINGHASH (transinstr_t *, extratransinstrs, 8);
 /*
  *	initialises transputer-instruction processing
  */
-void keywords_init (void)
+void transinstr_init (void)
 {
 	int i;
 	int maxtag = 0;

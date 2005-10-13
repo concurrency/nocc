@@ -96,6 +96,8 @@ typedef struct {
 	struct TAG_ntdef *tag_CASE;
 	struct TAG_ntdef *tag_CONDITIONAL;
 	struct TAG_ntdef *tag_VALOF;
+	struct TAG_ntdef *tag_ASM;
+	struct TAG_ntdef *tag_ASMOP;
 
 	struct TAG_ntdef *tag_LITBYTE;
 	struct TAG_ntdef *tag_LITINT;
@@ -185,6 +187,7 @@ extern struct TAG_feunit occampi_oper_feunit;		/* occampi_oper.c */
 extern struct TAG_feunit occampi_function_feunit;	/* occampi_function.c */
 extern struct TAG_feunit occampi_mobiles_feunit;	/* occampi_mobiles.c */
 extern struct TAG_feunit occampi_initial_feunit;	/* occampi_initial.c */
+extern struct TAG_feunit occampi_asm_feunit;		/* occampi_asm.c */
 
 /* these are for language units to use in reductions */
 extern void *occampi_nametoken_to_hook (void *ntok);

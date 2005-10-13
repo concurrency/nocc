@@ -48,7 +48,9 @@ typedef enum ENUM_transinstr {
 	I_BOOLINVERT = 31,
 	I_STOPP = 32,
 	I_RUNP = 33,
-	I_SETERR = 34
+	I_SETERR = 34,
+	I_LD = 35,
+	I_ST = 36
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {

@@ -59,6 +59,7 @@
 #include "map.h"
 #include "allocate.h"
 #include "target.h"
+#include "transputer.h"
 #include "codegen.h"
 #include "occampi_fe.h"
 #include "version.h"
@@ -76,6 +77,7 @@ compopts_t compopts = {
 	dumptree: 0,
 	dumptreeto: NULL,
 	dumpgrammar: 0,
+	dumpgrules: 0,
 	dumpdfas: 0,
 	dumpnames: 0,
 	dumptargets: 0,
@@ -544,6 +546,7 @@ int main (int argc, char **argv)
 #endif
 	opts_init ();
 	keywords_init ();
+	transinstr_init ();
 	xml_init ();
 	xmlkeys_init ();
 
