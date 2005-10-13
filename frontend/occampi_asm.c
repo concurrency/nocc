@@ -254,6 +254,45 @@ static void occampi_asmophook_modprepostwalktree (tnode_t **nodep, void *hook, i
 /*}}}*/
 
 
+/*{{{  static int occampi_codegen_asmop (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates-code for an inline assembly statement
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_codegen_asmop (tnode_t *node, codegen_t *cgen)
+{
+	asmophook_t *oh = (asmophook_t *)tnode_nthhookof (node, 0);
+
+	if (!oh) {
+		nocc_internal ("occampi_codegen_asmop(): no op!");
+		return 0;
+	}
+	switch (oh->instr->level) {
+	case INS_INVALID:
+		codegen_error (cgen, "occampi_codegen_asmop(): INVALID instruction");
+		break;
+	case INS_PRIMARY:
+		codegen_warning (cgen, "occampi_codegen_asmop(): no primary instructions, yet..");
+		break;
+	case INS_SECONDARY:
+		codegen_callops (cgen, tsecondary, oh->instr->ins);
+		break;
+	case INS_OTHER:
+		switch (oh->instr->ins) {
+		default:
+			codegen_error (cgen, "occampi_codegen_asmop(): unknown OTHER instruction [%s]", oh->instr->name);
+			break;
+		case I_LD:
+			codegen_callops (cgen, loadname, DA_NTHITEM (oh->args, 0), 0);
+			break;
+		}
+		break;
+	}
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static void occampi_asmop_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
  *	reduces what is expected to be an ASM mnemonic and operands;  mnemonic is left on
@@ -353,6 +392,7 @@ static int occampi_asm_init_nodes (void)
 	tnd->hook_modprewalktree = occampi_asmophook_modprewalktree;
 	tnd->hook_modprepostwalktree = occampi_asmophook_modprepostwalktree;
 	cops = tnode_newcompops ();
+	cops->codegen = occampi_codegen_asmop;
 	tnd->ops = cops;
 
 	i = -1;
