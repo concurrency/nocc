@@ -1318,42 +1318,6 @@ static int occampi_decl_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static void occampi_reduce_directedchanname (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
-/*
- *	reduces a directed name
- */
-static void occampi_reduce_directedchanname (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
-{
-	token_t *tok;
-	tnode_t *type;
-
-	tok = parser_gettok (pp);
-
-	/* expecting a CHAN node two back down the node-stack */
-	if (DA_CUR (dfast->nodestack) < 2) {
-		parser_error (tok->origin, "error reducing directed CHAN name: not enough nodes on nodestack");
-		parser_pushtok (pp, tok);
-		return;
-	}
-	type = DA_NTHITEM (dfast->nodestack, DA_CUR (dfast->nodestack) - 2);
-
-#if 0
-fprintf (stderr, "occampi_reduce_directedchanname(): *(dfast->ptr) is a [%s], type =\n", *(dfast->ptr) ? ((*(dfast->ptr))->tag->name) : "(null)");
-tnode_dumptree (type, 1, stderr);
-#endif
-
-	if (lexer_tokmatch (opi.tok_OUTPUT, tok)) {
-		tnode_t *result = tnode_create (opi.tag_ASOUTPUT, tok->origin, type);
-
-		DA_SETNTHITEM (dfast->nodestack, DA_CUR (dfast->nodestack) - 2, result);
-
-		lexer_freetoken (tok);
-	} else {
-		parser_pushtok (pp, tok);
-	}
-	return;
-}
-/*}}}*/
 /*{{{  static int occampi_decl_reg_reducers (void)*/
 /*
  *	registers reductions for declaration nodes
@@ -1363,6 +1327,7 @@ static int occampi_decl_reg_reducers (void)
 	parser_register_grule ("opi:namereduce", parser_decode_grule ("T+St0XC1R-", occampi_nametoken_to_hook, opi.tag_NAME));
 	parser_register_grule ("opi:namepush", parser_decode_grule ("T+St0XC1N-", occampi_nametoken_to_hook, opi.tag_NAME));
 	parser_register_grule ("opi:2namepush", parser_decode_grule ("T+St0XC1N-T+St0XC1N-", occampi_nametoken_to_hook, opi.tag_NAME, occampi_nametoken_to_hook, opi.tag_NAME));
+	parser_register_grule ("opi:fparam1nsreduce", parser_decode_grule ("N+Sn00C2R-", opi.tag_FPARAM));
 	parser_register_grule ("opi:fparam2nsreduce", parser_decode_grule ("N+Sn0N+C2R-", opi.tag_FPARAM));
 	parser_register_grule ("opi:fparam2tsreduce", parser_decode_grule ("T+St0XC1T+XC1C2R-", occampi_nametoken_to_hook, opi.tag_NAME, occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_FPARAM));
 	parser_register_grule ("opi:fparam1tsreduce", parser_decode_grule ("T+St0XC10C2R-", occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_FPARAM));
@@ -1375,8 +1340,8 @@ static int occampi_decl_reg_reducers (void)
 	parser_register_grule ("opi:valabbrreduce", parser_decode_grule ("SN1N+N+N+<0VC4R-", opi.tag_VALABBREV));
 	parser_register_grule ("opi:notypeabbrreduce", parser_decode_grule ("SN1N+N+0<0VC4R-", opi.tag_ABBREV));
 	parser_register_grule ("opi:notypevalabbrreduce", parser_decode_grule ("SN1N+N+0<0VC4R-", opi.tag_VALABBREV));
-
-	parser_register_reduce ("Roccampi:directedchanname", occampi_reduce_directedchanname, NULL);
+	parser_register_grule ("opi:directedchaninput", parser_decode_grule ("SN0N+C1N-", opi.tag_ASINPUT));
+	parser_register_grule ("opi:directedchanoutput", parser_decode_grule ("SN0N+C1N-", opi.tag_ASOUTPUT));
 
 	return 0;
 }
@@ -1419,9 +1384,11 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:valabbrdecl +:= [ 0 occampi:primtype 1 ] [ 1 occampi:name 2 ] [ 2 @IS 3 ] [ 3 occampi:expr 4 ] [ 4 @@: 5 ] [ 5 {<opi:valabbrreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:abbrdecl ::= [ 0 @VAL <occampi:valabbrdecl> ]"));
 
-	dynarray_add (transtbl, dfa_bnftotbl ("occampi:fparam ::= ( occampi:primtype occampi:name {<opi:fparam2nsreduce>} | " \
-				"+Name ( +Name {<opi:fparam2tsreduce>} | @@! {<opi:fparam1tsreduceo>} | @@? {<opi:fparam1tsreducei>} | -* {<opi:fparam1tsreduce>} ) | " \
-				"@CHAN occampi:protocol {<opi:chanpush>} occampi:name [ ( +@@! {Roccampi:directedchanname} | +@@? {Roccampi:directedchanname} ) ] {<opi:fparam2nsreduce>} )"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:fparam ::= [ 0 occampi:primtype 1 ] [ 0 @CHAN 3 ] [ 0 occampi:name 8 ] " \
+				"[ 1 occampi:name 2 ] [ 2 {<opi:fparam2nsreduce>} ] [ 2 -* ] " \
+				"[ 3 occampi:protocol 4 ] [ 4 {<opi:chanpush>} ] [ 4 occampi:name 5 ] [ 5 @@! 6 ] [ 5 @@? 6 ] [ 5 -* 7 ] [ 6 {<opi:directedchaninput>} ] [ 6 -* 7 ] [ 7 {<opi:fparam2nsreduce>} -* ] " \
+				"[ 8 -* 9 ] [ 9 @@! 10 ] [ 9 @@? 10 ] [ 9 -* 11 ] [ 10 {<opi:directedchaninput>} ] [ 10 -* 11 ] [ 11 occampi:name 12 ] [ 11 -* 13 ] [ 12 {<opi:fparam2nsreduce>} -* ] " \
+				"[ 13 {<opi:fparam1nsreduce>} -* ]"));
 	
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:fparamlist ::= ( -@@) {<opi:nullset>} | { occampi:fparam @@, 1 } )"));
 

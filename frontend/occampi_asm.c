@@ -254,6 +254,62 @@ static void occampi_asmophook_modprepostwalktree (tnode_t **nodep, void *hook, i
 /*}}}*/
 
 
+/*{{{  static int occampi_typecheck_asmop (tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checks on inline assembly statements
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_asmop (tnode_t *node, typecheck_t *tc)
+{
+	asmophook_t *oh = (asmophook_t *)tnode_nthhookof (node, 0);
+	int i;
+
+	if (!oh) {
+		nocc_internal ("occampi_typecheck_asmop(): no op!");
+		return 0;
+	}
+	/* do typechecks on any subnodes first */
+	for (i=0; i<DA_CUR (oh->args); i++) {
+		tnode_t *asmop = DA_NTHITEM (oh->args, i);
+
+		if (asmop) {
+			typecheck_subtree (asmop, tc);
+		}
+	}
+
+	switch (oh->instr->level) {
+	case INS_INVALID:
+		typecheck_error (node, tc, "invalid instruction");
+		break;
+	case INS_PRIMARY:
+		typecheck_error (node, tc, "occampi_typecheck_asmop(): no primary instructions, yet..");
+		break;
+	case INS_SECONDARY:
+		if (DA_CUR (oh->args)) {
+			typecheck_error (node, tc, "secondary instruction %s with operands", oh->instr->name);
+		}
+		break;
+	case INS_OTHER:
+		switch (oh->instr->ins) {
+		default:
+			typecheck_error (node, tc, "occampi_typecheck_asmop(): unknown OTHER instruction [%s]", oh->instr->name);
+			break;
+		case I_LD:
+		case I_ST:
+			if (DA_CUR (oh->args) != 1) {
+				typecheck_error (node, tc, "instruction %s requires a single operand", oh->instr->name);
+			} else {
+				tnode_t *type = typecheck_gettype (DA_NTHITEM (oh->args, 0), NULL);
+
+				/* don't actually do anything with it yet.. */
+			}
+			break;
+		}
+		break;
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_codegen_asmop (tnode_t *node, codegen_t *cgen)*/
 /*
  *	generates-code for an inline assembly statement
@@ -284,6 +340,9 @@ static int occampi_codegen_asmop (tnode_t *node, codegen_t *cgen)
 			break;
 		case I_LD:
 			codegen_callops (cgen, loadname, DA_NTHITEM (oh->args, 0), 0);
+			break;
+		case I_ST:
+			codegen_callops (cgen, storename, DA_NTHITEM (oh->args, 0), 0);
 			break;
 		}
 		break;
@@ -392,6 +451,7 @@ static int occampi_asm_init_nodes (void)
 	tnd->hook_modprewalktree = occampi_asmophook_modprewalktree;
 	tnd->hook_modprepostwalktree = occampi_asmophook_modprepostwalktree;
 	cops = tnode_newcompops ();
+	cops->typecheck = occampi_typecheck_asmop;
 	cops->codegen = occampi_codegen_asmop;
 	tnd->ops = cops;
 
