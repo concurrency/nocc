@@ -1,0 +1,28 @@
+;
+;	tests/test_n24.etc
+;	compiled from tests/test_n24.occ
+;	on host frog at Fri Oct 14 03:51:33 2005
+;	source language: occam-pi, target: etc-kroc-unknown
+;
+
+.jentry	O_test_n24
+.setlabel	2
+.byte	0x0a
+.descriptor	"PROC O_test_n24 (CHAN? BYTE kyb, CHAN? BYTE scr)"
+; PROC test.n24 = 28,12,0,0,12
+.setws	28, 12
+.setvs	0
+.setms	0
+.setnamedlabel	"O_test_n24"
+.setlabel	1
+	ajw	0
+.loadlabaddr	2
+	ldl	8
+	ldc	1
+	out
+	ajw	0
+	ret	12
+
+;
+;	end of compilation
+;

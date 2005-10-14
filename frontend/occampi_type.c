@@ -175,30 +175,18 @@ static int occampi_type_issigned (tnode_t *t, target_t *target)
 static int occampi_type_getdescriptor (tnode_t *node, char **str)
 {
 	if (node->tag == opi.tag_CHAN) {
-		if (*str) {
-			char *newstr = (char *)smalloc (strlen (*str) + 6);
+		occampi_typeattr_t typeattr = (occampi_typeattr_t)tnode_getchook (node, opi.chook_typeattr);
 
-			sprintf (newstr, "%sCHAN ", *str);
+		if (*str) {
+			char *newstr = (char *)smalloc (strlen (*str) + 7);
+
+			sprintf (newstr, "%sCHAN%s ", *str, (typeattr & TYPEATTR_MARKED_IN) ? "?" : ((typeattr & TYPEATTR_MARKED_OUT) ? "!" : ""));
 			sfree (*str);
 			*str = newstr;
 		} else {
 			*str = (char *)smalloc (8);
-			sprintf (*str, "CHAN ");
+			sprintf (*str, "CHAN%s ", (typeattr & TYPEATTR_MARKED_IN) ? "?" : ((typeattr & TYPEATTR_MARKED_OUT) ? "!" : ""));
 		}
-	} else if ((node->tag == opi.tag_ASINPUT) || (node->tag == opi.tag_ASOUTPUT)) {
-		langops_getdescriptor (tnode_nthsubof (node, 0), str);
-
-		if (*str) {
-			char *newstr = (char *)smalloc (strlen (*str) + 3);
-
-			sprintf (newstr, "%s%c", *str, (node->tag == opi.tag_ASINPUT) ? '?' : '!');
-			sfree (*str);
-			*str = newstr;
-		} else {
-			*str = (char *)smalloc (8);
-			sprintf (*str, "%s ", (node->tag == opi.tag_ASINPUT) ? "ASINPUT" : "ASOUTPUT");
-		}
-		return 0;
 	}
 	return 1;
 }

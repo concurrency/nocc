@@ -2083,6 +2083,18 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		codegen_write_string (cgen, "\tlt\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+	case I_MALLOC:
+		codegen_write_string (cgen, "\tmalloc\n");
+		krocetc_cgstate_tsdelta (cgen, 0);
+		break;
+	case I_MRELEASE:
+		codegen_write_string (cgen, "\tmrelease\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+	case I_TRAP:
+		codegen_write_string (cgen, "\ttrap\n");
+		krocetc_cgstate_tsdelta (cgen, 0);
+		break;
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: tsecondary %d\n", ins);
 		break;

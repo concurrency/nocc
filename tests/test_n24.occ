@@ -1,0 +1,7 @@
+-- test_n24.occ -- typeless params with direction specifiers
+
+PROC test.n24 (CHAN BYTE kyb?, scr!)
+  SEQ
+    scr ! '*n'
+:
+

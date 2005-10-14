@@ -823,10 +823,22 @@ tnode_dumptree (*node, 1, stderr);
 #endif
 
 	if (tnode_nthsubof (*node, 1)) {
+		tnode_t **namep = tnode_nthsubaddr (*node, 0);
+
 		ops->last_type = tnode_nthsubof (*node, 1);
 		if ((ops->last_type->tag == opi.tag_ASINPUT) || (ops->last_type->tag == opi.tag_ASOUTPUT)) {
 			/* lose this from the type, associated primarily with name in FPARAMs */
 			ops->last_type = tnode_nthsubof (ops->last_type, 0);
+		}
+
+		/* maybe fixup ASINPUT/ASOUTPUT here too */
+		if (((*namep)->tag == opi.tag_ASINPUT) || ((*namep)->tag == opi.tag_ASOUTPUT)) {
+			tnode_t *name = tnode_nthsubof (*namep, 0);
+			tnode_t *type = *namep;
+
+			tnode_setnthsub (type, 0, tnode_nthsubof (*node, 1));
+			*namep = name;
+			tnode_setnthsub (*node, 1, type);
 		}
 	} else if (!ops->last_type) {
 		prescope_error (*node, ps, "missing type on formal parameter");
@@ -838,14 +850,7 @@ tnode_dumptree (*node, 1, stderr);
 fprintf (stderr, "occampi_prescope_fparam(): setting type on formal param, last_type = \n");
 tnode_dumptree (ops->last_type, 1, stderr);
 #endif
-		if ((*namep)->tag == opi.tag_ASINPUT) {
-			tnode_t *name = tnode_nthsubof (*namep, 0);
-			tnode_t *type = *namep;
-
-			*namep = name;
-			tnode_setnthsub (type, 0, tnode_copytree (ops->last_type));
-			tnode_setnthsub (*node, 1, type);
-		} else if ((*namep)->tag == opi.tag_ASOUTPUT) {
+		if (((*namep)->tag == opi.tag_ASINPUT) || ((*namep)->tag == opi.tag_ASOUTPUT)) {
 			tnode_t *name = tnode_nthsubof (*namep, 0);
 			tnode_t *type = *namep;
 
@@ -855,6 +860,10 @@ tnode_dumptree (ops->last_type, 1, stderr);
 		} else {
 			tnode_setnthsub (*node, 1, tnode_copytree (ops->last_type));
 		}
+#if 0
+fprintf (stderr, "occampi_prescope_fparam(): put in type, *node = \n");
+tnode_dumptree (*node, 1, stderr);
+#endif
 	}
 	return 1;
 }
