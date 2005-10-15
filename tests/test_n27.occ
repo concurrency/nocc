@@ -1,0 +1,8 @@
+-- test_n27.occ -- library usage test
+
+#USE "mylib"
+
+PROC test.n27 (CHAN BYTE scr!)
+  SEQ
+    SKIP
+:

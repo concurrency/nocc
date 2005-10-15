@@ -1,0 +1,10 @@
+-- test_n26.occ -- library test
+
+#LIBRARY "mylib"
+  NATIVELIB "libmylib.so"
+
+PUBLIC PROC test.n26 (CHAN INT out!)
+  SEQ
+    out ! 42
+:
+

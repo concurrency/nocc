@@ -87,6 +87,7 @@ typedef struct TAG_libfile {
 } libfile_t;
 /*}}}*/
 /*{{{  private types*/
+/*{{{  library definition*/
 struct TAG_libnodehook;
 
 typedef struct TAG_libtaghook {
@@ -103,6 +104,7 @@ typedef struct TAG_libnodehook {
 	char *namespace;	/* e.g. "mylib" (default namespace) */
 	char *langname;		/* e.g. "occam-pi" */
 	char *targetname;	/* e.g. "kroc-etc-unknown" */
+	char *nativelib;	/* e.g. "libmylib.so" */
 	DYNARRAY (char *, autoinclude);
 	DYNARRAY (char *, autouse);
 
@@ -111,11 +113,23 @@ typedef struct TAG_libnodehook {
 
 
 /*}}}*/
+/*{{{  library usage*/
+typedef struct TAG_libusenodehook {
+	lexfile_t *lf;
+	char *libname;
+	libfile_t *libdata;
+} libusenodehook_t;
+
+
+/*}}}*/
+/*}}}*/
 /*{{{  private data*/
 static tndef_t *tnd_libnode = NULL;
 static ntdef_t *tag_libnode = NULL;
 static tndef_t *tnd_libtag = NULL;
 static ntdef_t *tag_publictag = NULL;
+static tndef_t *tnd_libusenode = NULL;
+static ntdef_t *tag_libusenode = NULL;
 
 static char *libpath = NULL;
 static int allpublic = 0;
@@ -125,6 +139,10 @@ static chook_t *descriptorchook = NULL;
 
 
 STATICDYNARRAY (libnodehook_t *, entrystack);
+
+/*}}}*/
+/*{{{  forward decls*/
+static void lib_freelibfile (libfile_t *lf);
 
 /*}}}*/
 
@@ -283,6 +301,7 @@ static libnodehook_t *lib_newlibnodehook (lexfile_t *lf, char *libname)
 	lnh->namespace = string_dup (libname);
 	lnh->langname = lf ? string_dup (lf->parser->langname) : NULL;
 	lnh->targetname = NULL;				/* set in betrans */
+	lnh->nativelib = NULL;
 	dynarray_init (lnh->autoinclude);
 	dynarray_init (lnh->autouse);
 
@@ -412,6 +431,75 @@ static void lib_libnodehook_dumptree (tnode_t *node, void *hook, int indent, FIL
 
 	lib_isetindent (stream, indent);
 	fprintf (stream, "</libnodehook>\n");
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static libusenodehook_t *lib_newlibusenodehook (lexfile_t *lf, char *libname)*/
+/*
+ *	creates a new libusenodehook_t structure
+ */
+static libusenodehook_t *lib_newlibusenodehook (lexfile_t *lf, char *libname)
+{
+	libusenodehook_t *lunh = (libusenodehook_t *)smalloc (sizeof (libusenodehook_t));
+
+	lunh->lf = lf;
+	lunh->libname = string_dup (libname);
+	lunh->libdata = NULL;
+
+	return lunh;
+}
+/*}}}*/
+/*{{{  static void lib_libusenodehook_free (void *hook)*/
+/*
+ *	frees a libusenode hook
+ */
+static void lib_libusenodehook_free (void *hook)
+{
+	libusenodehook_t *lunh = (libusenodehook_t *)hook;
+
+	if (lunh) {
+		if (lunh->libname) {
+			sfree (lunh->libname);
+		}
+		if (lunh->libdata) {
+			lib_freelibfile (lunh->libdata);
+		}
+
+		sfree (lunh);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void *lib_libusenodehook_copy (void *hook)*/
+/*
+ *	copies a libusenode hook
+ */
+static void *lib_libusenodehook_copy (void *hook)
+{
+	libusenodehook_t *lunh = (libusenodehook_t *)hook;
+
+	if (lunh) {
+		libusenodehook_t *newlunh = lib_newlibusenodehook (NULL, lunh->libname);
+
+		return (void *)newlunh;
+	}
+
+	return NULL;
+}
+/*}}}*/
+/*{{{  static void lib_libusenodehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dump-tree for libusenode hook (debugging)
+ */
+static void lib_libusenodehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	libusenodehook_t *lunh = (libusenodehook_t *)hook;
+
+	lib_isetindent (stream, indent);
+	fprintf (stream, "<libusenodehook addr=\"0x%8.8x\" libname=\"%s\" />\n", (unsigned int)lunh, lunh->libname);
+
 	return;
 }
 /*}}}*/
@@ -1164,6 +1252,16 @@ static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh)
 
 
 	/*}}}*/
+	/*{{{  merge in native-library name*/
+	if (lnh->nativelib) {
+		if (lf->nativelib && strcmp (lf->nativelib, lnh->nativelib)) {
+			nocc_warning ("lib_mergeintolibrary(): library nativelib conflict, keeping library-specified [%s]", lf->nativelib);
+		} else if (!lf->nativelib) {
+			lf->nativelib = string_dup (lnh->nativelib);
+		}
+	}
+
+	/*}}}*/
 	/*{{{  search for source unit in library*/
 	for (i=0; i<DA_CUR (lf->srcs); i++) {
 		lfsu = DA_NTHITEM (lf->srcs, i);
@@ -1211,7 +1309,6 @@ static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh)
 	return 0;
 }
 /*}}}*/
-
 
 
 /*{{{  static int lib_betrans_libnode (tnode_t **nodep, target_t *target)*/
@@ -1359,6 +1456,26 @@ static int lib_precode_libtag (tnode_t **nodep, codegen_t *cgen)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int lib_betrans_libusenode (tnode_t **nodep, target_t *target)*/
+/*
+ *	does back-end transforms for a library-usage node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int lib_betrans_libusenode (tnode_t **nodep, target_t *target)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int lib_codegen_libusenode (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a library-usage node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int lib_codegen_libusenode (tnode_t *node, codegen_t *cgen)
+{
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  int library_init (void)*/
@@ -1384,6 +1501,20 @@ int library_init (void)
 
 	i = -1;
 	tag_libnode = tnode_newnodetag ("LIBNODE", &i, tnd_libnode, NTF_NONE);
+	/*}}}*/
+	/*{{{  nocc:libusenode -- LIBUSENODE*/
+	i = -1;
+	tnd_libusenode = tnode_newnodetype ("nocc:libusenode", &i, 1, 0, 1, TNF_TRANSPARENT);
+	tnd_libusenode->hook_free = lib_libusenodehook_free;
+	tnd_libusenode->hook_copy = lib_libusenodehook_copy;
+	tnd_libusenode->hook_dumptree = lib_libusenodehook_dumptree;
+	cops = tnode_newcompops ();
+	cops->betrans = lib_betrans_libusenode;
+	cops->codegen = lib_codegen_libusenode;
+	tnd_libusenode->ops = cops;
+
+	i = -1;
+	tag_libusenode = tnode_newnodetag ("LIBUSENODE", &i, tnd_libusenode, NTF_NONE);
 	/*}}}*/
 	/*{{{  nocc:libtag -- PUBLICTAG*/
 	i = -1;
@@ -1470,6 +1601,24 @@ int library_adduses (tnode_t *libnode, char *lname)
 	return 0;
 }
 /*}}}*/
+/*{{{  int library_setnativelib (tnode_t *libnode, char *lname)*/
+/*
+ *	sets the "nativelib" name for a library (i.e. what will eventually be linked in)
+ *	return 0 on success, non-zero on failure
+ */
+int library_setnativelib (tnode_t *libnode, char *lname)
+{
+	libnodehook_t *lnh = (libnodehook_t *)tnode_nthhookof (libnode, 0);
+
+	if (lnh->nativelib) {
+		tnode_warning (libnode, "library_setnativelib(): removing previous native library name [%s]", lnh->nativelib);
+		sfree (lnh->nativelib);
+	}
+	lnh->nativelib = string_dup (lname);
+
+	return 0;
+}
+/*}}}*/
 /*{{{  tnode_t *library_newlibpublictag (lexfile_t *lf, char *name)*/
 /*
  *	creates a new public-tag node, used when building libraries
@@ -1523,6 +1672,29 @@ int library_makepublic (tnode_t **nodep, char *name)
 		return 1;
 	}
 	return 0;
+}
+/*}}}*/
+/*{{{  tnode_t *library_newusenode (lexfile_t *lf, char *libname)*/
+/*
+ *	creates a new library-usage node
+ *	returns usage-node on success, NULL on failure
+ */
+tnode_t *library_newusenode (lexfile_t *lf, char *libname)
+{
+	tnode_t *unode;
+	libusenodehook_t *lunh = lib_newlibusenodehook (lf, libname);
+
+	/* try and read the library data here */
+	lunh->libdata = lib_readlibrary (libname, 1);
+	if (!lunh->libdata) {
+		nocc_error ("failed to read library [%s]", libname);
+		lib_libusenodehook_free (lunh);
+		return NULL;
+	}
+
+	unode = tnode_create (tag_libusenode, lf, NULL, lunh);
+
+	return unode;
 }
 /*}}}*/
 

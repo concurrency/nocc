@@ -697,7 +697,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 
 				for (nexttok = lexer_nexttoken (lf); nexttok && ((nexttok->type == NEWLINE) || (nexttok->type == COMMENT)); lexer_freetoken (nexttok), nexttok = lexer_nexttoken (lf));
 				if (nexttok && (nexttok->type == INDENT)) {
-					/*{{{  indented under library: INCLUDES, USES*/
+					/*{{{  indented under library: INCLUDES, USES, NATIVELIB*/
 					lexer_freetoken (nexttok);
 					nexttok = lexer_nexttoken (lf);
 
@@ -744,6 +744,27 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 							sfree (lname);
 
 							/*}}}*/
+						} else if (lexer_tokmatchlitstr (nexttok, "NATIVELIB")) {
+							/*{{{  native-library specified*/
+							char *lname;
+
+							lexer_freetoken (nexttok);
+							nexttok = lexer_nexttoken (lf);
+
+							if (!nexttok || (nexttok->type != STRING)) {
+								parser_error (lf, "failed while processing #LIBRARY NATIVELIB directive");
+								lexer_pushback (lf, nexttok);
+								return tree;
+							}
+							lname = string_ndup (nexttok->u.str.ptr, nexttok->u.str.len);
+							if (library_setnativelib (tree, lname)) {
+								lexer_pushback (lf, nexttok);
+								sfree (lname);
+								return tree;
+							}
+							sfree (lname);
+
+							/*}}}*/
 						} else {
 							/*{{{  unknown #LIBRARY directive*/
 							parser_error (lf, "unknown #LIBRARY directive");
@@ -775,7 +796,36 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				return tree;
 			}
 			/*}}}*/
+		} else if (nexttok && lexer_tokmatchlitstr (nexttok, "USE")) {
+			/*{{{  #USE*/
+			lexer_freetoken (tok);
+			lexer_freetoken (nexttok);
+
+			nexttok = lexer_nexttoken (lf);
+			if (nexttok && lexer_tokmatch (opi.tok_STRING, nexttok)) {
+				/*{{{  using an external library*/
+				char *libname = string_ndup (nexttok->u.str.ptr, nexttok->u.str.len);
+
+				lexer_freetoken (nexttok);
+				tree = library_newusenode (lf, libname);
+				if (!tree) {
+					parser_error (lf, "failed while processing #USE directive");
+					sfree (libname);
+					return tree;
+				}
+				sfree (libname);
+
+				*gotall = 1;
+				/*}}}*/
+			} else {
+				parser_error (lf, "while processing #USE, expected string found ");
+				lexer_dumptoken (stderr, nexttok);
+				lexer_freetoken (nexttok);
+				return tree;
+			}
+			/*}}}*/
 		}
+
 		if (!tree) {
 			/* didn't get anything here, go round */
 			goto restartpoint;

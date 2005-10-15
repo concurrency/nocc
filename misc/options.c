@@ -40,6 +40,9 @@ static int opt_clearintflag (cmd_option_t *opt, char ***argwalk, int *argleft);
 static int opt_setstopflag (cmd_option_t *opt, char ***argwalk, int *argleft);
 static int opt_setstr (cmd_option_t *opt, char ***argwalk, int *argleft);
 static int opt_setsaveopt (cmd_option_t *opt, char ***argwalk, int *argleft);
+static int opt_addincludepath (cmd_option_t *opt, char ***argwalk, int *argleft);
+static int opt_addlibrarypath (cmd_option_t *opt, char ***argwalk, int *argleft);
+static int opt_addextnpath (cmd_option_t *opt, char ***argwalk, int *argleft);
 
 
 /*}}}*/
@@ -194,6 +197,123 @@ static int opt_setsaveopt (cmd_option_t *opt, char ***argwalk, int *argleft)
 		nocc_error ("don\'t know how to process option %s", (*argwalk)[-1]);
 		return -1;
 	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int opt_addincludepath (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	adds paths to the list of places to look for include files
+ *	returns 0 on success, non-zero on failure
+ */
+static int opt_addincludepath (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	char *ch, *dh, *eh;
+
+	ch = strchr (**argwalk, '=');
+	if (ch) {
+		ch++;
+	} else {
+		(*argwalk)++;
+		(*argleft)--;
+		if (!**argwalk || !*argleft) {
+			nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+			return -1;
+		}
+		ch = **argwalk;
+	}
+
+	/* ch is now the argument */
+	ch = string_dup (ch);
+
+	for (dh = ch; dh; dh = eh) {
+		eh = strchr (dh, ':');
+		if (eh) {
+			*eh = '\0';
+			eh++;
+		}
+		dynarray_add (compopts.ipath, string_dup (dh));
+	}
+
+	sfree (ch);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int opt_addlibrarypath (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	adds paths to the list of places to look for library files
+ *	returns 0 on success, non-zero on faolure
+ */
+static int opt_addlibrarypath (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	char *ch, *dh, *eh;
+
+	ch = strchr (**argwalk, '=');
+	if (ch) {
+		ch++;
+	} else {
+		(*argwalk)++;
+		(*argleft)--;
+		if (!**argwalk || !*argleft) {
+			nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+			return -1;
+		}
+		ch = **argwalk;
+	}
+
+	/* ch is now the argument */
+	ch = string_dup (ch);
+
+	for (dh = ch; dh; dh = eh) {
+		eh = strchr (dh, ':');
+		if (eh) {
+			*eh = '\0';
+			eh++;
+		}
+		dynarray_add (compopts.lpath, string_dup (dh));
+	}
+
+	sfree (ch);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int opt_addextnpath (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	adds paths to the list of places to look for compiler extensions
+ *	returns 0 on success, non-zero on faolure
+ */
+static int opt_addextnpath (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	char *ch, *dh, *eh;
+
+	ch = strchr (**argwalk, '=');
+	if (ch) {
+		ch++;
+	} else {
+		(*argwalk)++;
+		(*argleft)--;
+		if (!**argwalk || !*argleft) {
+			nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+			return -1;
+		}
+		ch = **argwalk;
+	}
+
+	/* ch is now the argument */
+	ch = string_dup (ch);
+
+	for (dh = ch; dh; dh = eh) {
+		eh = strchr (dh, ':');
+		if (eh) {
+			*eh = '\0';
+			eh++;
+		}
+		dynarray_add (compopts.epath, string_dup (dh));
+	}
+
+	sfree (ch);
 
 	return 0;
 }

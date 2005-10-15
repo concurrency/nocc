@@ -1,0 +1,8 @@
+-- test_n25.occ -- WHILE loops
+
+PROC test.n25 (CHAN BYTE scr!)
+  SEQ
+    WHILE TRUE
+      SKIP
+:
+
