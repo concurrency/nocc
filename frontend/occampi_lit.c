@@ -122,69 +122,81 @@ static tnode_t *occampi_gettype_lit (tnode_t *node, tnode_t *default_type)
 	tnode_t *type = tnode_nthsubof (node, 0);
 
 	if (!type && !default_type) {
-		nocc_fatal ("occampi_gettype_lit(): literal not typed, and no default_type!");
+		if (node->tag == opi.tag_LITBOOL) {
+			/* easy :) */
+			tnode_setnthsub (node, 0, tnode_create (opi.tag_BOOL, NULL));
+			type = tnode_nthsubof (node, 0);
+		} else {
+			nocc_fatal ("occampi_gettype_lit(): literal not typed, and no default_type!");
+		}
 	} else if (!type) {
-		/* no type yet, use default_type */
-		occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof (node, 0);
-		int typesize = tnode_bytesfor (default_type, NULL);
+		if (node->tag == opi.tag_LITBOOL) {
+			/* ignore default type */
+			tnode_setnthsub (node, 0, tnode_create (opi.tag_BOOL, NULL));
+			type = tnode_nthsubof (node, 0);
+		} else {
+			/* no type yet, use default_type */
+			occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof (node, 0);
+			int typesize = tnode_bytesfor (default_type, NULL);
 
 #if 0
 fprintf (stderr, "occampi_gettype_lit(): typesize=%d, default_type=\n", typesize);
 tnode_dumptree (default_type, 4, stderr);
 #endif
-		if ((node->tag == opi.tag_LITINT) && (typesize < tmplit->bytes)) {
-			/*{{{  make sure literal fits*/
-			int issigned = tnode_issigned (default_type, NULL);
+			if ((node->tag == opi.tag_LITINT) && (typesize < tmplit->bytes)) {
+				/*{{{  make sure literal fits*/
+				int issigned = tnode_issigned (default_type, NULL);
 
-			if (issigned && (tmplit->bytes == 4)) {
-				int sint = *(int *)tmplit->data;
+				if (issigned && (tmplit->bytes == 4)) {
+					int sint = *(int *)tmplit->data;
 
-				if ((typesize == 1) && ((sint < -128) || (sint > 127))) {
-					tnode_error (node, "literal value exceeds range of 1-byte type");
-				} else if ((typesize == 2) && ((sint < -32768) || (sint > 32767))) {
-					tnode_error (node, "literal value exceeds range of 2-byte type");
+					if ((typesize == 1) && ((sint < -128) || (sint > 127))) {
+						tnode_error (node, "literal value exceeds range of 1-byte type");
+					} else if ((typesize == 2) && ((sint < -32768) || (sint > 32767))) {
+						tnode_error (node, "literal value exceeds range of 2-byte type");
+					}
+				} else if (!issigned && (tmplit->bytes == 4)) {
+					unsigned int uint = *(unsigned int *)tmplit->data;
+
+					if ((typesize == 1) && (uint > 255)) {
+						tnode_error (node, "literal value exceeds range of 1-byte type");
+					} else if ((typesize == 2) && (uint > 65535)) {
+						tnode_error (node, "literal value exceeds range of 2-byte type");
+					}
+				} else if (issigned && (tmplit->bytes == 8)) {
+					long long lsint = *(long long *)tmplit->data;
+
+					if ((typesize == 1) && ((lsint < -128LL) || (lsint > 127LL))) {
+						tnode_error (node, "literal value exceeds range of 1-byte type");
+					} else if ((typesize == 2) && ((lsint < -32768LL) || (lsint > 32767LL))) {
+						tnode_error (node, "literal value exceeds range of 2-byte type");
+					} else if ((typesize == 4) && ((lsint < -2147483648LL) || (lsint > 2147483647LL))) {
+						tnode_error (node, "literal value exceeds range of 4-byte type");
+					}
+				} else if (!issigned && (tmplit->bytes == 8)) {
+					unsigned long long luint = *(unsigned long long *)tmplit->data;
+
+					if ((typesize == 1) && (luint > 255LL)) {
+						tnode_error (node, "literal value exceeds range of 1-byte type");
+					} else if ((typesize == 2) && (luint > 65535LL)) {
+						tnode_error (node, "literal value exceeds range of 2-byte type");
+					} else if ((typesize == 4) && (luint > 4294967295LL)) {
+						tnode_error (node, "literal value exceeds range of 4-byte type");
+					}
 				}
-			} else if (!issigned && (tmplit->bytes == 4)) {
-				unsigned int uint = *(unsigned int *)tmplit->data;
-
-				if ((typesize == 1) && (uint > 255)) {
-					tnode_error (node, "literal value exceeds range of 1-byte type");
-				} else if ((typesize == 2) && (uint > 65535)) {
-					tnode_error (node, "literal value exceeds range of 2-byte type");
-				}
-			} else if (issigned && (tmplit->bytes == 8)) {
-				long long lsint = *(long long *)tmplit->data;
-
-				if ((typesize == 1) && ((lsint < -128LL) || (lsint > 127LL))) {
-					tnode_error (node, "literal value exceeds range of 1-byte type");
-				} else if ((typesize == 2) && ((lsint < -32768LL) || (lsint > 32767LL))) {
-					tnode_error (node, "literal value exceeds range of 2-byte type");
-				} else if ((typesize == 4) && ((lsint < -2147483648LL) || (lsint > 2147483647LL))) {
-					tnode_error (node, "literal value exceeds range of 4-byte type");
-				}
-			} else if (!issigned && (tmplit->bytes == 8)) {
-				unsigned long long luint = *(unsigned long long *)tmplit->data;
-
-				if ((typesize == 1) && (luint > 255LL)) {
-					tnode_error (node, "literal value exceeds range of 1-byte type");
-				} else if ((typesize == 2) && (luint > 65535LL)) {
-					tnode_error (node, "literal value exceeds range of 2-byte type");
-				} else if ((typesize == 4) && (luint > 4294967295LL)) {
-					tnode_error (node, "literal value exceeds range of 4-byte type");
-				}
-			}
-			/*}}}*/
-			/*{{{  truncate literal*/
+				/*}}}*/
+				/*{{{  truncate literal*/
 #if 0
 fprintf (stderr, "occampi_gettype_lit(): adjusting literal size from %d to %d..\n", tmplit->bytes, typesize);
 #endif
-			tmplit->bytes = typesize;
+				tmplit->bytes = typesize;
 
-			/*}}}*/
+				/*}}}*/
+			}
+
+			type = tnode_copytree (default_type);
+			tnode_setnthsub (node, 0, type);
 		}
-
-		type = tnode_copytree (default_type);
-		tnode_setnthsub (node, 0, type);
 	}
 	return type;
 }
@@ -225,7 +237,7 @@ static int occampi_constvalof_lit (tnode_t *node, void *ptr)
 	occampi_litdata_t *ldata = (occampi_litdata_t *)tnode_nthhookof (node, 0);
 	int r = 0;
 
-	if ((node->tag == opi.tag_LITBYTE) || (node->tag == opi.tag_LITINT)) {
+	if ((node->tag == opi.tag_LITBOOL) || (node->tag == opi.tag_LITCHAR) || (node->tag == opi.tag_LITBYTE) || (node->tag == opi.tag_LITINT)) {
 		switch (ldata->bytes) {
 		case 1:
 			if (ptr) {
@@ -280,6 +292,49 @@ static int occampi_constvalof_lit (tnode_t *node, void *ptr)
 /*}}}*/
 
 
+/*{{{  static void *occampi_bool_hook (int val)*/
+/*
+ *	creates a constant boolean literal hook
+ */
+static void *occampi_bool_hook (int val)
+{
+	occampi_litdata_t *ldata = (occampi_litdata_t *)smalloc (sizeof (occampi_litdata_t));
+
+	ldata->bytes = 1;
+	ldata->data = smalloc (1);
+	*(unsigned char *)(ldata->data) = val ? 0x01 : 0x00;
+
+	return (void *)ldata;
+}
+/*}}}*/
+/*{{{  static void *occampi_booltrue_hook (void *zero)*/
+/*
+ *	creates a constant TRUE literal hook
+ */
+static void *occampi_booltrue_hook (void *zero)
+{
+	if (zero) {
+		nocc_internal ("occampi_booltrue_hook(): got a non-null value!");
+	}
+
+	return occampi_bool_hook (1);
+}
+/*}}}*/
+/*{{{  static void *occampi_boolfalse_hook (void *zero)*/
+/*
+ *	creates a constant FALSE literal hook
+ */
+static void *occampi_boolfalse_hook (void *zero)
+{
+	if (zero) {
+		nocc_internal ("occampi_boolfalse_hook(): got a non-null value!");
+	}
+
+	return occampi_bool_hook (0);
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_lit_init_nodes (void)*/
 /*
  *	initialises literal-nodes for occam-pi
@@ -292,7 +347,7 @@ static int occampi_lit_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
-	/*{{{  occampi:litnode -- LITBYTE, LITINT, LITREAL*/
+	/*{{{  occampi:litnode -- LITBOOL, LITBYTE, LITCHAR, LITINT, LITREAL*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:litnode", &i, 1, 0, 1, TNF_NONE);
 	tnd->hook_free = occampi_litnode_hook_free;
@@ -308,7 +363,11 @@ static int occampi_lit_init_nodes (void)
 	tnd->lops = lops;
 
 	i = -1;
+	opi.tag_LITBOOL = tnode_newnodetag ("LITBOOL", &i, tnd, NTF_NONE);
+	i = -1;
 	opi.tag_LITBYTE = tnode_newnodetag ("LITBYTE", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_LITCHAR = tnode_newnodetag ("LITCHAR", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_LITINT = tnode_newnodetag ("LITINT", &i, tnd, NTF_NONE);
 	i = -1;
@@ -326,6 +385,8 @@ static int occampi_lit_reg_reducers (void)
 {
 	parser_register_grule ("opi:integerreduce", parser_decode_grule ("T+St0X0VC2R-", occampi_integertoken_to_hook, opi.tag_LITINT));
 	parser_register_grule ("opi:realreduce", parser_decode_grule ("0T+St0XC2R-", occampi_realtoken_to_hook, opi.tag_LITREAL));
+	parser_register_grule ("opi:trueboolreduce", parser_decode_grule ("00XC2R-", occampi_booltrue_hook, opi.tag_LITBOOL));
+	parser_register_grule ("opi:falseboolreduce", parser_decode_grule ("00XC2R-", occampi_boolfalse_hook, opi.tag_LITBOOL));
 
 	return 0;
 }
@@ -339,7 +400,7 @@ static dfattbl_t **occampi_lit_init_dfatrans (int *ntrans)
 	DYNARRAY (dfattbl_t *, transtbl);
 
 	dynarray_init (transtbl);
-	/* FIXME: ... */
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:litbool ::= [ 0 @TRUE 1 ] [ 0 @FALSE 2 ] [ 1 {<opi:trueboolreduce>} -* 3 ] [ 2 {<opi:falseboolreduce>} -* 3 ] [ 3 -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

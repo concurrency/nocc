@@ -124,9 +124,6 @@ static int occampi_namemap_cnode (tnode_t **node, map_t *map)
 	if ((*node)->tag == opi.tag_SEQ) {
 		/* SEQ nodes don't need any special processing */
 		return 1;
-	} else if ((*node)->tag == opi.tag_SHORTIF) {
-		/* neither do SHORTIF nodes */
-		return 1;
 	} else if ((*node)->tag == opi.tag_PAR) {
 		/*{{{  map PAR bodies*/
 		tnode_t *body = tnode_nthsubof (*node, 1);
@@ -199,17 +196,6 @@ static int occampi_codegen_cnode (tnode_t *node, codegen_t *cgen)
 	if (node->tag == opi.tag_SEQ) {
 		/* SEQ nodes don't need any special processing */
 		return 1;
-	} else if (node->tag == opi.tag_SHORTIF) {
-		/*{{{  generate code for a short IF*/
-		int joinlab = codegen_new_label (cgen);
-		tnode_t *cond = tnode_nthsubof (node, 0);
-		tnode_t *body = tnode_nthsubof (node, 1);
-
-		codegen_callops (cgen, loadname, cond, 0);
-		codegen_callops (cgen, branch, I_CJ, joinlab);
-		codegen_subcodegen (body, cgen);
-		codegen_callops (cgen, setlabel, joinlab);
-		/*}}}*/
 	} else if (node->tag == opi.tag_PAR) {
 		/*{{{  generate code for PAR*/
 		tnode_t *body = tnode_nthsubof (node, 1);
@@ -306,6 +292,81 @@ static int occampi_codegen_cnode (tnode_t *node, codegen_t *cgen)
 /*}}}*/
 
 
+/*{{{  static int occampi_typecheck_cexpnode (tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking for a cexpnode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_cexpnode (tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *littype;
+
+	typecheck_subtree (tnode_nthsubof (node, 0), tc);
+
+	littype = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
+	if (!littype || (littype->tag != opi.tag_BOOL)) {
+		typecheck_error (node, tc, "boolean expression expected");
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_namemap_cexpnode (tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a cexpnode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_cexpnode (tnode_t **node, map_t *map)
+{
+	if ((*node)->tag == opi.tag_SHORTIF) {
+		/* no special processing for short IFs */
+	} else if ((*node)->tag == opi.tag_WHILE) {
+		/* no special processing for WHILEs either */
+	} else {
+		nocc_internal ("occampi_namemap_cexpnode(): don\'t know how to handle tag [%s]", (*node)->tag->name);
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_codegen_cexpnode (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-gen for a cexpnode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_codegen_cexpnode (tnode_t *node, codegen_t *cgen)
+{
+	if (node->tag == opi.tag_SHORTIF) {
+		/*{{{  generate code for a short IF*/
+		int joinlab = codegen_new_label (cgen);
+		tnode_t *cond = tnode_nthsubof (node, 0);
+		tnode_t *body = tnode_nthsubof (node, 1);
+
+		codegen_callops (cgen, loadname, cond, 0);
+		codegen_callops (cgen, branch, I_CJ, joinlab);
+		codegen_subcodegen (body, cgen);
+		codegen_callops (cgen, setlabel, joinlab);
+		/*}}}*/
+	} else if (node->tag == opi.tag_WHILE) {
+		int looplab = codegen_new_label (cgen);
+		int exitlab = codegen_new_label (cgen);
+		tnode_t *cond = tnode_nthsubof (node, 0);
+		tnode_t *body = tnode_nthsubof (node, 1);
+
+		codegen_callops (cgen, setlabel, looplab);
+		codegen_callops (cgen, loadname, cond, 0);
+		codegen_callops (cgen, branch, I_CJ, exitlab);
+
+		codegen_subcodegen (body, cgen);
+		codegen_callops (cgen, branch, I_J, looplab);
+		codegen_callops (cgen, setlabel, exitlab);
+	} else {
+		nocc_internal ("occampi_codegen_cexpnode(): don\'t know how to handle tag [%s]", node->tag->name);
+	}
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_cnode_init_nodes (void)*/
 /*
  *	initialises constructor-process nodes for occam-pi
@@ -318,7 +379,7 @@ static int occampi_cnode_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
-	/*{{{  occampi:cnode -- SEQ, PAR, SHORTIF*/
+	/*{{{  occampi:cnode -- SEQ, PAR*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:cnode", &i, 3, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr/operand/parspaceref; 1 = body; 2 = replicator */
 	cops = tnode_newcompops ();
@@ -333,6 +394,19 @@ static int occampi_cnode_init_nodes (void)
 	opi.tag_SEQ = tnode_newnodetag ("SEQ", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_PAR = tnode_newnodetag ("PAR", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:cexpnode -- SHORTIF, WHILE*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:cexpnode", &i, 2, 0, 0, TNF_LONGPROC);	/* subnodes: 0 = expr; 1 = body */
+	cops = tnode_newcompops ();
+	cops->typecheck = occampi_typecheck_cexpnode;
+	cops->namemap = occampi_namemap_cexpnode;
+	cops->codegen = occampi_codegen_cexpnode;
+	tnd->ops = cops;
+
+	i = -1;
+	opi.tag_WHILE = tnode_newnodetag ("WHILE", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_SHORTIF = tnode_newnodetag ("SHORTIF", &i, tnd, NTF_NONE);
 
@@ -356,7 +430,8 @@ static int occampi_cnode_init_nodes (void)
 static int occampi_cnode_reg_reducers (void)
 {
 	parser_register_reduce ("Roccampi:cnode", occampi_reduce_cnode, NULL);
-	parser_register_grule ("opi:shortif", parser_decode_grule ("T+@tSN0N+00C3R-", opi.tag_SHORTIF));
+	parser_register_grule ("opi:shortif", parser_decode_grule ("T+@tSN0N+0C2R-", opi.tag_SHORTIF));
+	parser_register_grule ("opi:while", parser_decode_grule ("SN0N+0C2R-", opi.tag_WHILE));
 	parser_register_grule ("opi:ifstart", parser_decode_grule ("ST0T+@t000C3R-", opi.tag_IF));
 
 	return 0;
@@ -374,6 +449,7 @@ static dfattbl_t **occampi_cnode_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:cproc ::= ( +@SEQ | +@PAR ) -Newline {Roccampi:cnode}"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:cproc +:= [ 0 +@IF 1 ] [ 1 -Newline 2 ] [ 1 %occampi:expr 3 ] [ 2 {<opi:ifstart>} -* ] " \
 				"[ 3 occampi:expr 4 ] [ 4 -Newline 5 ] [ 5 {<opi:shortif>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:cproc +:= [ 0 @WHILE 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:while>} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

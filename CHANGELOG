@@ -1,4 +1,5 @@
 
+15/10/2005	frmb	support for WHILE loops, added type-checks to WHILE/SHORTIF
 15/10/2005	frmb	fixed type-checking for type declarations (mostly)
 15/10/2005	frmb	fixed direction specifiers
 15/10/2005	frmb	changed help handling a bit -- gives other parts of the compiler a chance to

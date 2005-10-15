@@ -99,8 +99,11 @@ typedef struct {
 	struct TAG_ntdef *tag_VALOF;
 	struct TAG_ntdef *tag_ASM;
 	struct TAG_ntdef *tag_ASMOP;
+	struct TAG_ntdef *tag_WHILE;
 
+	struct TAG_ntdef *tag_LITBOOL;
 	struct TAG_ntdef *tag_LITBYTE;
+	struct TAG_ntdef *tag_LITCHAR;
 	struct TAG_ntdef *tag_LITINT;
 	struct TAG_ntdef *tag_LITREAL;
 	struct TAG_ntdef *tag_LITARRAY;

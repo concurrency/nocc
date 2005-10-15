@@ -308,9 +308,10 @@ static int occampi_dfas_init (void)
 
 	dynarray_add (transtbls, dfa_transtotbl ("occampi:exprnamestart ::= [ 0 +Name 1 ] [ 1 @@( 2 ] [ 1 @@[ 5 ] [ 2 {<opi:namepush>} ] [ 2 -* <occampi:infinstance> ] " \
 				"[ 1 -* 4 ] [ 4 {<opi:namereduce>} -* ] [ 5 {<opi:namepush>} ] [ 5 occampi:expr 6 ] [ 6 @@] 7 ] [ 7 {<opi:xsubscriptreduce>} -* ]"));
-	dynarray_add (transtbls, dfa_transtotbl ("occampi:expr +:= [ 0 -Name 1 ] [ 0 +Integer 3 ] [ 0 +Real 4 ] [ 0 @@( 7 ] [ 1 occampi:exprnamestart 2 ] [ 2 {<opi:nullreduce>} -* 5 ] " \
+	dynarray_add (transtbls, dfa_transtotbl ("occampi:expr +:= [ 0 -Name 1 ] [ 0 +Integer 3 ] [ 0 +Real 4 ] [ 0 -@TRUE 10 ] [ 0 -@FALSE 10 ] [ 0 @@( 7 ] [ 1 occampi:exprnamestart 2 ] [ 2 {<opi:nullreduce>} -* 5 ] " \
 				"[ 3 {<opi:integerreduce>} -* 5 ] [ 4 {<opi:realreduce>} -* 5 ] [ 5 -* ] [ 5 %occampi:restofexpr 6 ] [ 6 {<opi:resultpush>} ] [ 6 -* <occampi:restofexpr> ] " \
-				"[ 7 occampi:expr 8 ] [ 8 @@) 9 ] [ 9 {<opi:nullreduce>} -* ]"));
+				"[ 7 occampi:expr 8 ] [ 8 @@) 9 ] [ 9 {<opi:nullreduce>} -* ] " \
+				"[ 10 occampi:litbool 11 ] [ 11 {<opi:nullreduce>} -* ]"));
 	dynarray_add (transtbls, dfa_transtotbl ("occampi:operand +:= [ 0 +Name 1 ] [ 1 {<opi:namereduce>} -* ]"));
 	/* dynarray_add (transtbls, dfa_bnftotbl ("occampi:expr ::= ( -Name occampi:exprnamestart {<opi:nullreduce>} | +Integer {<opi:integerreduce>} | +Real {<opi:realreduce>} )")); */
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:exprsemilist ::= { occampi:expr @@; 1 }"));
@@ -865,7 +866,7 @@ tnode_dumptree (tree, 1, stderr);
 			/*}}}*/
 		} else if (tnflags & TNF_LONGPROC) {
 			/*{{{  long process (e.g. SEQ, CLAIM, FORKING, etc.)*/
-			if ((tree->tag == opi.tag_SEQ) || (tree->tag == opi.tag_PAR) || (tree->tag == opi.tag_SHORTIF)) {
+			if ((tree->tag == opi.tag_SEQ) || (tree->tag == opi.tag_PAR) || (tree->tag == opi.tag_SHORTIF) || (tree->tag == opi.tag_WHILE)) {
 				/* parse a list of processes into subnode 1 */
 				tnode_t *body;
 
