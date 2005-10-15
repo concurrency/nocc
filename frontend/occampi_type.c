@@ -336,7 +336,7 @@ static int occampi_type_init_nodes (void)
 	tnd->lops = lops;
 
 	i = -1;
-	opi.tag_CHAN = tnode_newnodetag ("CHAN", &i, tnd, NTF_NONE);
+	opi.tag_CHAN = tnode_newnodetag ("CHAN", &i, tnd, NTF_SYNCTYPE);
 	i = -1;
 	opi.tag_ASINPUT = tnode_newnodetag ("ASINPUT", &i, tnd, NTF_NONE);
 	i = -1;

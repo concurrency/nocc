@@ -1,4 +1,8 @@
 
+15/10/2005	frmb	fixed type-checking for type declarations (mostly)
+15/10/2005	frmb	fixed direction specifiers
+15/10/2005	frmb	changed help handling a bit -- gives other parts of the compiler a chance to
+			register options first (new "dohelp" flag in compopts)
 14/10/2005	frmb	added a couple more transputer instructions (occam-pi specific)
 14/10/2005	frmb	changed parser for formal parameters, should pick up type-attributes correctly now
 13/10/2005	frmb	initial support for inline transputer assembler

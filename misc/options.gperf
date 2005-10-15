@@ -14,8 +14,8 @@
 
 struct TAG_cmd_option;
 %%
-help,			'h',	opt_do_help,		NULL,				"0display standard usage information",			0
-help-ful,		'\0',	opt_do_help,		NULL,				"1display full usage information",			1
+help,			'h',	opt_do_help_flag,	NULL,				"0display standard usage information",			0
+help-ful,		'\0',	opt_do_help_flag,	NULL,				"1display full usage information",			1
 dump-specs,		'\0',	opt_setintflag,		&(compopts.dumpspecs),		"1print compiler specs",				2
 dump-tree,		'\0',	opt_setintflag,		&(compopts.dumptree),		"1print parse tree",					3
 dump-tree-to,		'\0',	opt_setstr,		&(compopts.dumptreeto),		"1print parse tree to file",				4

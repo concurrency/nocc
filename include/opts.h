@@ -29,6 +29,8 @@ typedef struct TAG_cmd_option {
 	int order;
 } cmd_option_t;
 
+extern int opt_do_help (cmd_option_t *opt, char ***arg_walk, int *arg_left);
+
 extern void opts_init (void);
 extern cmd_option_t *opts_getlongopt (const char *optname);
 extern cmd_option_t *opts_getshortopt (const char optchar);

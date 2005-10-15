@@ -72,6 +72,7 @@ char *progname = NULL;
 compopts_t compopts = {
 	verbose: 0,
 	notmainmodule: 0,
+	dohelp: NULL,
 	dmemdump: 0,
 	dumpspecs: 0,
 	dumptree: 0,
@@ -792,6 +793,14 @@ int main (int argc, char **argv)
 		exit (EXIT_FAILURE);
 	}
 
+	/*}}}*/
+	/*{{{  if help was requested, initialise target (try!) and do it here*/
+	if (compopts.dohelp) {
+		target_initialise (target);
+
+		opt_do_help (compopts.dohelp, NULL, NULL);
+		exit (EXIT_SUCCESS);
+	}
 	/*}}}*/
 
 	/*{{{  compiler run*/

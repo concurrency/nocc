@@ -33,10 +33,13 @@ extern int nocc_dooption_arg (char *optstr, void *arg);
 /* need dynamic-arrays in here */
 #include "support.h"
 
+struct TAG_cmd_option;
+
 /* this holds global options for the compiler */
 typedef struct TAG_compopts {
 	int verbose;
 	int notmainmodule;
+	struct TAG_cmd_option *dohelp;
 	int dmemdump;
 	int dumpspecs;
 	int dumptree;

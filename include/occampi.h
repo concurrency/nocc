@@ -28,6 +28,7 @@ extern struct TAG_langparser occampi_parser;
 
 /* node-type and node-tag flag values */
 #define NTF_BOOLOP	0x0001		/* boolean operator flag */
+#define NTF_SYNCTYPE	0x0002		/* synchronisation type */
 
 struct TAG_tndef;
 struct TAG_ntdef;

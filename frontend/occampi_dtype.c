@@ -224,7 +224,7 @@ static int occampi_prewalk_bytesfor_typedecl (tnode_t *node, void *data)
 #if 0
 fprintf (stderr, "occampi_prewalk_bytesfor_typedecl(): incrementing tdh->wssize\n");
 #endif
-		if (tdh->wssize & (target->structalign - 1)) {
+		if (target && (tdh->wssize & (target->structalign - 1))) {
 			/* pad */
 			tdh->wssize += target->structalign;
 			tdh->wssize &= ~(target->structalign - 1);
@@ -249,14 +249,25 @@ static int occampi_bytesfor_typedecl (tnode_t *node, target_t *target)
 fprintf (stderr, "occampi_bytesfor_typedecl(): tdh->wssize = %d\n", tdh->wssize);
 #endif
 	if (!tdh->wssize) {
-		/*{{{  walk the type to find out its size*/
-		tnode_prewalktree (type, occampi_prewalk_bytesfor_typedecl, (void *)local);
+		if ((node->tag == opi.tag_DATATYPEDECL) || (node->tag == opi.tag_CHANTYPEDECL)) {
+			/*{{{  walk the type to find out its size*/
+			tnode_prewalktree (type, occampi_prewalk_bytesfor_typedecl, (void *)local);
 
-		if (!tdh->wssize) {
-			nocc_error ("occampi_bytesfor_typedecl(): type has 0 size..  :(");
+			if (!tdh->wssize) {
+				nocc_error ("occampi_bytesfor_typedecl(): type has 0 size..  :(");
+			}
+
+			/*}}}*/
+		} else if (node->tag == opi.tag_PROCTYPEDECL) {
+			/*{{{  fixed size (at the moment)*/
+			if (target) {
+				tdh->wssize = target->pointersize;
+			} else {
+				tdh->wssize = 4;
+			}
+
+			/*}}}*/
 		}
-
-		/*}}}*/
 	}
 
 #if 0
@@ -264,6 +275,119 @@ fprintf (stderr, "occampi_bytesfor_typedecl(): return size = %d.  type =\n", tdh
 tnode_dumptree (type, 1, stderr);
 #endif
 	return tdh->wssize;
+}
+/*}}}*/
+/*{{{  static int occampi_typecheck_typedecl (tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking for type declarations
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_typedecl (tnode_t *node, typecheck_t *tc)
+{
+	tnode_t **typep = tnode_nthsubaddr (node, 1);
+
+	if (node->tag == opi.tag_DATATYPEDECL) {
+		/*{{{  check data-type declaration (allow anything as long as size known)*/
+		if (*typep && !parser_islistnode (*typep)) {
+			/* turn it into a list-node */
+			*typep = parser_buildlistnode (NULL, *typep, NULL);
+		}
+		if (*typep) {
+			tnode_t **items;
+			int nitems, i;
+
+			items = parser_getlistitems (*typep, &nitems);
+			for (i=0; i<nitems; i++) {
+				int isize;
+
+				if (!items[i]) {
+					nocc_warning ("occampi_typecheck_typedecl(): NULL item in list!");
+					continue;
+				} else if (items[i]->tag != opi.tag_FIELDDECL) {
+					typecheck_error (items[i], tc, "field not FIELDDECL");
+					continue;
+				}
+
+				typecheck_subtree (tnode_nthsubof (items[i], 1), tc);
+
+				isize = tnode_bytesfor (tnode_nthsubof (items[i], 1), NULL);
+				if (isize < 0) {
+					typecheck_error (items[i], tc, "field has unknown size");
+				}
+			}
+		}
+		/*}}}*/
+	} else if (node->tag == opi.tag_CHANTYPEDECL) {
+		/*{{{  check chan-type declaration (only allow channels)*/
+		if (*typep && !parser_islistnode (*typep)) {
+			/* turn it into a list-node */
+			*typep = parser_buildlistnode (NULL, *typep, NULL);
+		}
+		if (*typep) {
+			tnode_t **items;
+			int nitems, i;
+
+			items = parser_getlistitems (*typep, &nitems);
+			for (i=0; i<nitems; i++) {
+				tnode_t *itype;
+				
+				if (!items[i]) {
+					nocc_warning ("occampi_typecheck_typedecl(): NULL item in list!");
+					continue;
+				} else if (items[i]->tag != opi.tag_FIELDDECL) {
+					typecheck_error (items[i], tc, "field not FIELDDECL");
+					continue;
+				}
+
+				itype = tnode_nthsubof (items[i], 1);
+				typecheck_subtree (itype, tc);
+
+				if (itype->tag != opi.tag_CHAN) {
+					typecheck_error (items[i], tc, "channel-type field not a channel");
+				} else if (!tnode_getchook (itype, opi.chook_typeattr)) {
+					typecheck_error (items[i], tc, "channel must have direction specified");
+				}
+			}
+		}
+		/*}}}*/
+	} else if (node->tag == opi.tag_PROCTYPEDECL) {
+		/*{{{  check proc-type declaration (only allow synchronisation objects)*/
+		if (*typep && !parser_islistnode (*typep)) {
+			/* turn it into a list-node */
+			*typep = parser_buildlistnode (NULL, *typep, NULL);
+		}
+		if (*typep) {
+			tnode_t **items;
+			int nitems, i;
+
+			items = parser_getlistitems (*typep, &nitems);
+			for (i=0; i<nitems; i++) {
+				tnode_t *itype;
+				int f_ok = 0;
+				
+				if (!items[i]) {
+					nocc_warning ("occampi_typecheck_typedecl(): NULL item in list!");
+					continue;
+				} else if (items[i]->tag != opi.tag_FPARAM) {
+					typecheck_error (items[i], tc, "parameter not FPARAM");
+					continue;
+				}
+
+				itype = tnode_nthsubof (items[i], 1);
+				typecheck_subtree (itype, tc);
+
+				if (tnode_ntflagsof (itype) & NTF_SYNCTYPE) {
+					f_ok = 1;
+				}
+
+				if (!f_ok) {
+					typecheck_error (items[i], tc, "parameter %d not a synchronisation object", i);
+				}
+			}
+		}
+		/*}}}*/
+	}
+	return 1;
 }
 /*}}}*/
 /*{{{  static int occampi_namemap_typedecl (tnode_t **node, map_t *mdata)*/
@@ -276,33 +400,39 @@ static int occampi_namemap_typedecl (tnode_t **node, map_t *mdata)
 	tnode_t *type = tnode_nthsubof (*node, 1);
 	tnode_t **bodyp = tnode_nthsubaddr (*node, 2);
 
-	if (parser_islistnode (type)) {
-		tnode_t **items;
-		int nitems, i;
-		int csize = 0;
+	if (((*node)->tag == opi.tag_DATATYPEDECL) || ((*node)->tag == opi.tag_CHANTYPEDECL)) {
+		if (parser_islistnode (type)) {
+			tnode_t **items;
+			int nitems, i;
+			int csize = 0;
 
-		items = parser_getlistitems (type, &nitems);
-		for (i=0; i<nitems; i++) {
-			if (!items[i]) {
-				continue;
-			} else if (items[i]->tag != opi.tag_FIELDDECL) {
-				nocc_error ("occampi_namemap_typedecl(): item in DATATYPEDECL not FIELDDECL, was [%s]", items[i]->tag->name);
-			} else {
-				tnode_t *fldname = tnode_nthsubof (items[i], 0);
-				tnode_t *fldtype = tnode_nthsubof (items[i], 1);
-				int tsize;
+			items = parser_getlistitems (type, &nitems);
+			for (i=0; i<nitems; i++) {
+				if (!items[i]) {
+					continue;
+				} else if (items[i]->tag != opi.tag_FIELDDECL) {
+					nocc_error ("occampi_namemap_typedecl(): item in DATATYPEDECL not FIELDDECL, was [%s]", items[i]->tag->name);
+				} else {
+					tnode_t *fldname = tnode_nthsubof (items[i], 0);
+					tnode_t *fldtype = tnode_nthsubof (items[i], 1);
+					int tsize;
 
-				tsize = tnode_bytesfor (fldtype, mdata->target);
-				tnode_setchook (fldname, fielddecloffset, occampi_fielddecloffset_chook_create (csize));
-				csize += tsize;
+					tsize = tnode_bytesfor (fldtype, mdata->target);
+					tnode_setchook (fldname, fielddecloffset, occampi_fielddecloffset_chook_create (csize));
+					csize += tsize;
 
-				if (csize & (mdata->target->structalign - 1)) {
-					/* pad */
-					csize += mdata->target->structalign;
-					csize &= ~(mdata->target->structalign - 1);
+					if (csize & (mdata->target->structalign - 1)) {
+						/* pad */
+						csize += mdata->target->structalign;
+						csize &= ~(mdata->target->structalign - 1);
+					}
 				}
 			}
 		}
+	} else if ((*node)->tag == opi.tag_PROCTYPEDECL) {
+		/* don't do anything, yet.. (probably want to add specials here) */
+	} else {
+		nocc_error ("occampi_namemap_typedecl(): don\'t know how to handle [%s]", (*node)->tag->name);
 	}
 
 	map_submapnames (bodyp, mdata);
@@ -636,6 +766,7 @@ static int occampi_dtype_init_nodes (void)
 	tnd->hook_dumptree = occampi_typedecl_hook_dumptree;
 	cops = tnode_newcompops ();
 	cops->scopein = occampi_scopein_typedecl;
+	cops->typecheck = occampi_typecheck_typedecl;
 	cops->bytesfor = occampi_bytesfor_typedecl;
 	cops->namemap = occampi_namemap_typedecl;
 	tnd->ops = cops;

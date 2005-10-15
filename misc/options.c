@@ -33,7 +33,7 @@
 #include "opts.h"
 
 /*{{{  forward decls*/
-static int opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft);
+static int opt_do_help_flag (cmd_option_t *opt, char ***argwalk, int *argleft);
 static int opt_do_version (cmd_option_t *opt, char ***argwalk, int *argleft);
 static int opt_setintflag (cmd_option_t *opt, char ***argwalk, int *argleft);
 static int opt_clearintflag (cmd_option_t *opt, char ***argwalk, int *argleft);
@@ -54,41 +54,19 @@ STATICDYNARRAY (cmd_option_t *, icharopts);
 STATICSTRINGHASH (cmd_option_t *, extraopts, 3);
 
 /* ordered help */
-static const cmd_option_t *ordered_options[MAX_HASH_VALUE - MIN_HASH_VALUE];
+STATICDYNARRAY (cmd_option_t *, ordered_options);
 
 /*}}}*/
 
 /*{{{  built-in option processors*/
-/*{{{  static void opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*{{{  static int opt_do_help_flag (cmd_option_t *opt, char ***argwalk, int *argleft)*/
 /*
- *	prints out the help page, and exits
+ *	sets the "dohelp" flag in compopts, allowing other bits of the compiler to add
+ *	options before we print them out.
  */
-static int opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft)
+static int opt_do_help_flag (cmd_option_t *opt, char ***argwalk, int *argleft)
 {
-	FILE *outstream = (opt->arg) ? (FILE *)(opt->arg) : stderr;
-	int i;
-
-	fprintf (outstream, "nocc (%s) Version " VERSION " " HOST_CPU "-" HOST_VENDOR "-" HOST_OS " (targetting " TARGET_CPU "-" TARGET_VENDOR "-" TARGET_OS ")\n", progname);
-	fprintf (outstream, "Copyright (C) 2004-2005 Fred Barnes, University of Kent\n");
-	fprintf (outstream, "Released under the terms and conditions of the GNU GPL v2\n\n");
-	fflush (outstream);
-	fprintf (outstream, "usage:  %s [options] <source filename>\n", progname);
-	fprintf (outstream, "options:\n");
-	for (i = 0; i <= (MAX_HASH_VALUE - MIN_HASH_VALUE); i++) {
-		if (ordered_options[i] && ordered_options[i]->name && ordered_options[i]->help && (ordered_options[i]->help[0] <= opt->help[0])) {
-			char *htext = ordered_options[i]->help + 1;
-
-			fprintf (outstream, "    ");
-			if (ordered_options[i]->sopt != '\0') {
-				fprintf (outstream, "-%c  ", ordered_options[i]->sopt);
-			} else {
-				fprintf (outstream, "    ");
-			}
-			fprintf (outstream, "--%-32s%s\n", ordered_options[i]->name, htext);
-		}
-	}
-	
-	exit (0);
+	compopts.dohelp = opt;
 	return 0;
 }
 /*}}}*/
@@ -223,6 +201,38 @@ static int opt_setsaveopt (cmd_option_t *opt, char ***argwalk, int *argleft)
 /*}}}*/
 
 
+/*{{{  void opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+int opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	FILE *outstream = (opt->arg) ? (FILE *)(opt->arg) : stderr;
+	int i;
+
+	fprintf (outstream, "nocc (%s) Version " VERSION " " HOST_CPU "-" HOST_VENDOR "-" HOST_OS " (targetting " TARGET_CPU "-" TARGET_VENDOR "-" TARGET_OS ")\n", progname);
+	fprintf (outstream, "Copyright (C) 2004-2005 Fred Barnes, University of Kent\n");
+	fprintf (outstream, "Released under the terms and conditions of the GNU GPL v2\n\n");
+	fflush (outstream);
+	fprintf (outstream, "usage:  %s [options] <source filename>\n", progname);
+	fprintf (outstream, "options:\n");
+	for (i = 0; i < DA_CUR (ordered_options); i++) {
+		if (ordered_options[i] && ordered_options[i]->name && ordered_options[i]->help && (ordered_options[i]->help[0] <= opt->help[0])) {
+			char *htext = ordered_options[i]->help + 1;
+
+			fprintf (outstream, "    ");
+			if (ordered_options[i]->sopt != '\0') {
+				fprintf (outstream, "-%c  ", ordered_options[i]->sopt);
+			} else {
+				fprintf (outstream, "    ");
+			}
+			fprintf (outstream, "--%-32s%s\n", ordered_options[i]->name, htext);
+		}
+	}
+	
+	exit (0);
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  void opts_init (void)*/
 /*
  *	initialises option processing
@@ -230,11 +240,14 @@ static int opt_setsaveopt (cmd_option_t *opt, char ***argwalk, int *argleft)
 void opts_init (void)
 {
 	int i;
+	int optsize = (MAX_HASH_VALUE - MIN_HASH_VALUE);
 
+	dynarray_init (ordered_options);
+	dynarray_setsize (ordered_options, optsize);
 	dynarray_init (icharopts);
 	dynarray_setsize (icharopts, 256);
 
-	for (i=0; i<(MAX_HASH_VALUE - MIN_HASH_VALUE); i++) {
+	for (i=0; i<optsize; i++) {
 		ordered_options[i] = NULL;
 	}
 	for (i = MIN_HASH_VALUE; i <= MAX_HASH_VALUE; i++) {
@@ -246,7 +259,7 @@ void opts_init (void)
 			}
 		}
 		if (wordlist[i].order > -1) {
-			ordered_options[wordlist[i].order] = &(wordlist[i]);
+			ordered_options[wordlist[i].order] = (cmd_option_t *)&(wordlist[i]);
 		}
 	}
 
@@ -319,6 +332,10 @@ void opts_add (const char *optname, const char optchar, int (*opthandler)(cmd_op
 	tmpopt->help = string_dup (help);
 
 	stringhash_insert (extraopts, tmpopt, tmpopt->name);
+
+	/* add to ordered options */
+	dynarray_add (ordered_options, tmpopt);
+
 	return;
 }
 /*}}}*/
