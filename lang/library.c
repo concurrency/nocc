@@ -76,6 +76,7 @@ typedef struct TAG_libfile {
 	char *fname;		/* full path (or as much as we have) to library XML */
 	char *libname;
 	char *namespace;
+	char *nativelib;	/* native library name (if we have one) */
 
 	DYNARRAY (libfile_srcunit_t *, srcs);
 	DYNARRAY (char *, autoinclude);
@@ -638,7 +639,20 @@ static void lib_xmlhandler_elem_start (xmlhandler_t *xh, void *data, xmlkey_t *k
 		/*}}}*/
 		/*{{{  XMLKEY_NATIVELIB -- native library info*/
 	case XMLKEY_NATIVELIB:
-		/* FIXME: ought to do something with this! */
+		for (i=0; attrkeys[i]; i++) {
+			switch (attrkeys[i]->type) {
+			case XMLKEY_PATH:
+				if (lf->nativelib) {
+					nocc_warning ("lib_xmlhandler_elem_start(): already have native-library [%s] for library, not changing", lf->nativelib);
+				} else {
+					lf->nativelib = string_dup (attrvals[i]);
+				}
+				break;
+			default:
+				nocc_internal ("lib_xmlhandler_elem_start(): unknown attribute [%s] in nativelib node", attrkeys[i]->name);
+				return;
+			}
+		}
 		break;
 		/*}}}*/
 		/*{{{  XMLKEY_SRCINCLUDE -- source auto-include*/
@@ -995,6 +1009,10 @@ static int lib_writelibrary (libfile_t *lf)
 	lib_isetindent (libstream, 1);
 	fprintf (libstream, "<library name=\"%s\" namespace=\"%s\">\n", lf->libname, lf->namespace);
 
+	if (lf->nativelib) {
+		lib_isetindent (libstream, 2);
+		fprintf (libstream, "<nativelib path=\"%s\" />\n", lf->nativelib);
+	}
 	for (i=0; i<DA_CUR (lf->autoinclude); i++) {
 		char *ifile = DA_NTHITEM (lf->autoinclude, i);
 
