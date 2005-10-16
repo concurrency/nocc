@@ -27,6 +27,7 @@ typedef struct TAG_prescope {
 	int err;		/* error count */
 	int warn;		/* warning count */
 	void *hook;		/* hook for language-specific use */
+	struct TAG_langparser *lang;
 } prescope_t;
 
 
@@ -34,6 +35,7 @@ extern void prescope_init (void);
 extern void prescope_shutdown (void);
 
 
+extern int prescope_subtree (struct TAG_tnode **t, prescope_t *ps);
 extern int prescope_tree (struct TAG_tnode **t, struct TAG_langparser *lang);
 extern int prescope_modprewalktree (struct TAG_tnode **node, void *arg);
 

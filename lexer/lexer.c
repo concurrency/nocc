@@ -195,7 +195,7 @@ fprintf (stderr, "lexer_open(): lastopen->filename=[%s] @0x%8.8x, lastopen->fnpt
 	}
 
 	/*}}}*/
-	/* open it */
+	/*{{{  open it*/
 	lp = (lexpriv_t *)smalloc (sizeof (lexpriv_t));
 	lf->priv = (void *)lp;
 	lp->fd = open (lf->filename, O_RDONLY);
@@ -225,7 +225,102 @@ fprintf (stderr, "lexer_open(): lastopen->filename=[%s] @0x%8.8x, lastopen->fnpt
 	if (lf->lexer->openfile) {
 		lf->lexer->openfile (lf, lp);
 	}
+	/*}}}*/
 	/* oki, ready for lexing..! */
+	dynarray_add (openlexfiles, lf);
+
+	return lf;
+}
+/*}}}*/
+/*{{{  lexfile_t *lexer_openbuf (char *fname, char *langname, char *buf)*/
+/*
+ *	"opens" a buffer for lexing -- a copy of the buffer is made
+ *	returns lexer-handle on success, NULL on failure
+ */
+lexfile_t *lexer_openbuf (char *fname, char *langname, char *buf)
+{
+	lexfile_t *lf = NULL;
+	lexpriv_t *lp;
+	int langlexidx = -1;
+
+	if (fname && !langname) {
+		/*{{{  try and extract an extension to work out which language we should use*/
+		char *fextn;
+		int i;
+
+		for (fextn = fname + (strlen (fname) - 1); (fextn > fname) && (*fextn != '.'); fextn--);
+		for (i=0; i<DA_CUR (langlexers); i++) {
+			int j;
+			langlexer_t *llex = DA_NTHITEM (langlexers, i);
+
+			for (j=0; llex->fileexts[j]; j++) {
+				if (!strcmp (llex->fileexts[j], fextn)) {
+					langlexidx = i;
+					break;		/* for() */
+				}
+			}
+			if (langlexidx >= 0) {
+				break;		/* for() */
+			}
+		}
+		if (langlexidx < 0) {
+			nocc_error ("failed to find lexer for buffer from %s", fname);
+			return NULL;
+		}
+		/*}}}*/
+	} else if (langname) {
+		/*{{{  find a lexer from language name*/
+		int i;
+
+		for (i=0; i<DA_CUR (langlexers); i++) {
+			langlexer_t *llex = DA_NTHITEM (langlexers, i);
+
+			if (!strcmp (langname, llex->langname)) {
+				langlexidx = i;
+				break;		/* for() */
+			}
+		}
+		if (langlexidx < 0) {
+			nocc_error ("no lexer for language %s", langname);
+			return NULL;
+		}
+		/*}}}*/
+	} else {
+		/*{{{  erm, fail!*/
+		nocc_internal ("lexer_openbuf(): no fname or langname");
+		return NULL;
+		/*}}}*/
+	}
+
+	/*{{{  create the lexfile_t for this buffer*/
+	lf = (lexfile_t *)smalloc (sizeof (lexfile_t));
+	lf->filename = fname ? string_dup (fname) : string_dup ("(unknown buffer)");
+	for (lf->fnptr = lf->filename + (strlen (lf->filename) - 1); (lf->fnptr > lf->filename) && ((lf->fnptr)[-1] != '/'); (lf->fnptr)--);
+	lf->priv = NULL;
+	lf->lineno = 0;
+	dynarray_add (lexfiles, lf);
+
+	/*}}}*/
+	/*{{{  do a pseudo-open on it*/
+	lp = (lexpriv_t *)smalloc (sizeof (lexpriv_t));
+	lf->priv = (void *)lp;
+	lp->fd = -1;
+	lp->size = strlen (buf);
+	lp->buffer = string_dup (buf);
+	lp->offset = 0;
+
+	lf->lineno = 1;
+	lf->lexer = DA_NTHITEM (langlexers, langlexidx);
+	lf->parser = lf->lexer->parser;
+	lf->errcount = 0;
+	lf->warncount = 0;
+	lf->ppriv = NULL;
+	dynarray_init (lf->tokbuffer);
+	if (lf->lexer->openfile) {
+		lf->lexer->openfile (lf, lp);
+	}
+	/*}}}*/
+	/* ready for lexing :) */
 	dynarray_add (openlexfiles, lf);
 
 	return lf;
@@ -265,6 +360,9 @@ void lexer_close (lexfile_t *lf)
 		}
 		munmap ((void *)(lp->buffer), lp->size);
 		close (lp->fd);
+	} else if (lp->size && lp->buffer) {
+		/* must have been a buffer, free it */
+		sfree (lp->buffer);
 	}
 	sfree (lp);
 	lf->priv = NULL;

@@ -275,6 +275,38 @@ tnode_dumptree (tree, stderr);
 	return tree;
 }
 /*}}}*/
+/*{{{  tnode_t *parser_descparse (lexfile_t *lf)*/
+/*
+ *	parses a set of descriptors, producing some tree of declarations (language specific)
+ *	the lexfile_t is a bit synthetic (really a buffer)
+ */
+tnode_t *parser_descparse (lexfile_t *lf)
+{
+	tnode_t *tree;
+	parsepriv_t *pp;
+
+	if (!lf->parser) {
+		return NULL;
+	}
+	pp = parser_newparsepriv ();
+	pp->lf = lf;
+	lf->ppriv = (void *)pp;
+	lf->parser->init (lf);
+
+	tree = lf->parser->descparse (lf);
+
+	parser_freeparsepriv (pp);
+	lf->parser->shutdown (lf);
+
+	if (lf->errcount) {
+		if (tree) {
+			tnode_free (tree);
+		}
+		tree = NULL;
+	}
+	return tree;
+}
+/*}}}*/
 /*{{{  char *parser_langname (lexfile_t *lf)*/
 /*
  *	returns the language name associated with a lexfile

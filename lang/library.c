@@ -43,6 +43,9 @@
 #include "parsepriv.h"
 #include "dfa.h"
 #include "names.h"
+#include "prescope.h"
+#include "scope.h"
+#include "typecheck.h"
 #include "betrans.h"
 #include "library.h"
 #include "map.h"
@@ -118,6 +121,7 @@ typedef struct TAG_libusenodehook {
 	lexfile_t *lf;
 	char *libname;
 	libfile_t *libdata;
+	DYNARRAY (tnode_t *, decls);
 } libusenodehook_t;
 
 
@@ -447,6 +451,7 @@ static libusenodehook_t *lib_newlibusenodehook (lexfile_t *lf, char *libname)
 	lunh->lf = lf;
 	lunh->libname = string_dup (libname);
 	lunh->libdata = NULL;
+	dynarray_init (lunh->decls);
 
 	return lunh;
 }
@@ -458,8 +463,18 @@ static libusenodehook_t *lib_newlibusenodehook (lexfile_t *lf, char *libname)
 static void lib_libusenodehook_free (void *hook)
 {
 	libusenodehook_t *lunh = (libusenodehook_t *)hook;
+	int i;
 
 	if (lunh) {
+		for (i=0; i<DA_CUR (lunh->decls); i++) {
+			tnode_t *dent = DA_NTHITEM (lunh->decls, i);
+
+			if (dent) {
+				tnode_free (dent);
+			}
+		}
+		dynarray_trash (lunh->decls);
+
 		if (lunh->libname) {
 			sfree (lunh->libname);
 		}
@@ -496,9 +511,60 @@ static void *lib_libusenodehook_copy (void *hook)
 static void lib_libusenodehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
 {
 	libusenodehook_t *lunh = (libusenodehook_t *)hook;
+	int i;
 
 	lib_isetindent (stream, indent);
-	fprintf (stream, "<libusenodehook addr=\"0x%8.8x\" libname=\"%s\" />\n", (unsigned int)lunh, lunh->libname);
+	fprintf (stream, "<libusenodehook addr=\"0x%8.8x\" libname=\"%s\">\n", (unsigned int)lunh, lunh->libname);
+	if (lunh->libdata) {
+		libfile_t *lf = lunh->libdata;
+
+		if (lf->fname) {
+			lib_isetindent (stream, indent + 1);
+			fprintf (stream, "<libdesc name=\"%s\" libname=\"%s\" namespace=\"%s\" nativelib=\"%s\" />\n",
+					lf->fname ?: "", lf->libname ?: "", lf->namespace ?: "", lf->nativelib ?: "");
+		}
+		for (i=0; i<DA_CUR (lf->autoinclude); i++) {
+			char *ipath = DA_NTHITEM (lf->autoinclude, i);
+
+			lib_isetindent (stream, indent + 1);
+			fprintf (stream, "<autoinclude path=\"%s\" />\n", ipath);
+		}
+		for (i=0; i<DA_CUR (lf->autouse); i++) {
+			char *ipath = DA_NTHITEM (lf->autouse, i);
+
+			lib_isetindent (stream, indent + 1);
+			fprintf (stream, "<autouse path=\"%s\" />\n", ipath);
+		}
+		for (i=0; i<DA_CUR (lf->srcs); i++) {
+			libfile_srcunit_t *lfsu = DA_NTHITEM (lf->srcs, i);
+			int j;
+
+			lib_isetindent (stream, indent + 1);
+			fprintf (stream, "<srcunit name=\"%s\">\n", lfsu->fname);
+			for (j=0; j<DA_CUR (lfsu->entries); j++) {
+				libfile_entry_t *lfent = DA_NTHITEM (lfsu->entries, j);
+
+				lib_isetindent (stream, indent + 2);
+				fprintf (stream, "<entry name=\"%s\" language=\"%s\" target=\"%s\" descriptor=\"%s\" ws=\"%d\" vs=\"%d\" ms=\"%d\" adjust=\"%d\" />\n",
+						lfent->name, lfent->langname ?: "", lfent->targetname ?: "", lfent->descriptor ?: "", lfent->ws, lfent->vs, lfent->ms, lfent->adjust);
+			}
+			lib_isetindent (stream, indent + 1);
+			fprintf (stream, "</srcunit>\n");
+		}
+	}
+
+	lib_isetindent (stream, indent + 1);
+	fprintf (stream, "<parsedlibdecls>\n");
+	for (i=0; i<DA_CUR (lunh->decls); i++) {
+		tnode_t *dent = DA_NTHITEM (lunh->decls, i);
+
+		tnode_dumptree (dent, indent + 2, stream);
+	}
+	lib_isetindent (stream, indent + 1);
+	fprintf (stream, "</parsedlibdecls>\n");
+
+	lib_isetindent (stream, indent);
+	fprintf (stream, "</libusenodehook>\n");
 
 	return;
 }
@@ -1309,6 +1375,103 @@ static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int lib_parsedescriptors (lexfile_t *orglf, libusenodehook_t *lunh)*/
+/*
+ *	processes a library usage node, parsing the descriptors
+ *	FIXME: only parses descriptors for the originating language at the moment
+ *	returns 0 on success, non-zer on failure
+ */
+static int lib_parsedescriptors (lexfile_t *orglf, libusenodehook_t *lunh)
+{
+	char *dbuf = NULL;
+	int dbuflen = 0;
+	int i;
+	libfile_t *lf = lunh->libdata;
+
+	/*{{{  size up descriptors*/
+	for (i=0; i<DA_CUR (lf->srcs); i++) {
+		libfile_srcunit_t *lfsu = DA_NTHITEM (lf->srcs, i);
+		int j;
+
+		for (j=0; j<DA_CUR (lfsu->entries); j++) {
+			libfile_entry_t *lfent = DA_NTHITEM (lfsu->entries, j);
+
+			if (lfent && lfent->descriptor && lfent->langname && !strcmp (lfent->langname, orglf->parser->langname)) {
+				dbuflen += strlen (lfent->descriptor) + 4;
+			}
+		}
+	}
+	/*}}}*/
+	if (dbuflen) {
+		lexfile_t *lexbuf;
+		tnode_t *decltree = NULL;
+
+		dbuf = (char *)smalloc (dbuflen);
+
+		dbuflen = 0;
+		/*{{{  build buffer*/
+		for (i=0; i<DA_CUR (lf->srcs); i++) {
+			libfile_srcunit_t *lfsu = DA_NTHITEM (lf->srcs, i);
+			int j;
+
+			for (j=0; j<DA_CUR (lfsu->entries); j++) {
+				libfile_entry_t *lfent = DA_NTHITEM (lfsu->entries, j);
+
+				if (lfent && lfent->descriptor && lfent->langname && !strcmp (lfent->langname, orglf->parser->langname)) {
+					strcpy (dbuf + dbuflen, lfent->descriptor);
+					dbuflen += strlen (lfent->descriptor);
+					strcpy (dbuf + dbuflen, "\n");
+					dbuflen++;
+				}
+			}
+		}
+		/*}}}*/
+		/*{{{  open buffer as a lexfile_t and parse it*/
+		lexbuf = lexer_openbuf (NULL, orglf->parser->langname, dbuf);
+		if (!lexbuf) {
+			nocc_error ("lib_parsedescriptors(): failed to open buffer..");
+			sfree (dbuf);
+			return -1;
+		}
+
+		decltree = parser_descparse (lexbuf);
+		lexer_close (lexbuf);
+
+		if (!decltree) {
+			sfree (dbuf);
+			return -1;
+		}
+
+		/*}}}*/
+		/*{{{  break up declarations and put in hook*/
+		while (decltree) {
+			tnode_t **nextp;
+			int tnflags = tnode_tnflagsof (decltree);
+
+			if (tnflags & TNF_LONGDECL) {
+				nextp = tnode_nthsubaddr (decltree, 3);
+			} else if (tnflags & TNF_SHORTDECL) {
+				nextp = tnode_nthsubaddr (decltree, 2);
+			} else if (tnflags & TNF_TRANSPARENT) {
+				nextp = tnode_nthsubaddr (decltree, 0);
+			} else {
+				nocc_warning ("lib_parsedescriptors(): unexpected node [%s]", decltree->tag->name);
+				break;		/* while() */
+			}
+
+			dynarray_add (lunh->decls, decltree);
+			decltree = *nextp;
+			*nextp = NULL;
+		}
+		/*}}}*/
+
+		sfree (dbuf);
+	} else {
+		nocc_warning ("lib_parsedescriptors(): no usable descriptors in library..");
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int lib_betrans_libnode (tnode_t **nodep, target_t *target)*/
@@ -1456,6 +1619,41 @@ static int lib_precode_libtag (tnode_t **nodep, codegen_t *cgen)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int lib_prescope_libusenode (tnode_t **nodep, prescope_t *ps)*/
+/*
+ *	does pre-scoping on library usage nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int lib_prescope_libusenode (tnode_t **nodep, prescope_t *ps)
+{
+	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (*nodep, 0);
+	int i;
+
+	for (i=0; i<DA_CUR (lunh->decls); i++) {
+		prescope_subtree (DA_NTHITEMADDR (lunh->decls, i), ps);
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int lib_scopein_libusenode (tnode_t **nodep, scope_t *ss)*/
+/*
+ *	scopes-in library usage nodes (puts declarations into scope)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int lib_scopein_libusenode (tnode_t **nodep, scope_t *ss)
+{
+	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (*nodep, 0);
+	int i;
+
+	for (i=0; i<DA_CUR (lunh->decls); i++) {
+		/* blindly scope the declaration whole.. -- should work, no bodies here, but top-level things hang around */
+		tnode_modprepostwalktree (DA_NTHITEMADDR (lunh->decls, i), scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+	}
+
+	return 1;
+}
+/*}}}*/
 /*{{{  static int lib_betrans_libusenode (tnode_t **nodep, target_t *target)*/
 /*
  *	does back-end transforms for a library-usage node
@@ -1509,6 +1707,8 @@ int library_init (void)
 	tnd_libusenode->hook_copy = lib_libusenodehook_copy;
 	tnd_libusenode->hook_dumptree = lib_libusenodehook_dumptree;
 	cops = tnode_newcompops ();
+	cops->prescope = lib_prescope_libusenode;
+	cops->scopein = lib_scopein_libusenode;
 	cops->betrans = lib_betrans_libusenode;
 	cops->codegen = lib_codegen_libusenode;
 	tnd_libusenode->ops = cops;
@@ -1688,6 +1888,13 @@ tnode_t *library_newusenode (lexfile_t *lf, char *libname)
 	lunh->libdata = lib_readlibrary (libname, 1);
 	if (!lunh->libdata) {
 		nocc_error ("failed to read library [%s]", libname);
+		lib_libusenodehook_free (lunh);
+		return NULL;
+	}
+
+	/* parse descriptors */
+	if (lib_parsedescriptors (lf, lunh)) {
+		nocc_error ("failed to parse descriptors in library [%s]", libname);
 		lib_libusenodehook_free (lunh);
 		return NULL;
 	}

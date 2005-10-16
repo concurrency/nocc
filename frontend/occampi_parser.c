@@ -56,6 +56,7 @@
 static int occampi_parser_init (lexfile_t *lf);
 static void occampi_parser_shutdown (lexfile_t *lf);
 static tnode_t *occampi_parser_parse (lexfile_t *lf);
+static tnode_t *occampi_parser_descparse (lexfile_t *lf);
 static int occampi_parser_prescope (tnode_t **tptr, prescope_t *ps);
 static int occampi_parser_scope (tnode_t **tptr, scope_t *ss);
 static int occampi_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
@@ -75,6 +76,7 @@ langparser_t occampi_parser = {
 	init:		occampi_parser_init,
 	shutdown:	occampi_parser_shutdown,
 	parse:		occampi_parser_parse,
+	descparse:	occampi_parser_descparse,
 	prescope:	occampi_parser_prescope,
 	scope:		occampi_parser_scope,
 	typecheck:	occampi_parser_typecheck,
@@ -323,6 +325,7 @@ static int occampi_dfas_init (void)
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:declorprocstart +:= ( occampi:vardecl | occampi:abbrdecl | occampi:valof | occampi:procdecl | occampi:typedecl | " \
 				"occampi:primproc | occampi:cproc | occampi:namestart | occampi:mobiledecl | " \
 				"occampi:builtinprocinstance | occampi:bracketstart | occampi:asmblock ) {<opi:nullreduce>}"));
+	dynarray_add (transtbls, dfa_bnftotbl ("occampi:descriptorline ::= ( occampi:procdecl ) {<opi:nullreduce>}"));
 
 	/*{{{  load grammar items for extensions*/
 	if (extn_preloadgrammar (&occampi_parser, &DA_PTR(transtbls), &DA_CUR(transtbls), &DA_MAX(transtbls))) {
@@ -1290,6 +1293,82 @@ static tnode_t *occampi_parser_parse (lexfile_t *lf)
 
 		lexer_freetoken (tok);
 		tok = lexer_nexttoken (lf);
+	}
+
+	return tree;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_parser_descparse (lexfile_t *lf)*/
+/*
+ *	called to parse a descriptor line
+ *	returns a tree on success (representing the declaration), NULL on failure
+ */
+static tnode_t *occampi_parser_descparse (lexfile_t *lf)
+{
+	token_t *tok;
+	tnode_t *tree = NULL;
+	tnode_t **target = &tree;
+
+	if (compopts.verbose) {
+		nocc_message ("occampi_parser_descparse(): parsing descriptor(s)..");
+	}
+
+	for (;;) {
+		tnode_t *thisone;
+		int breakfor = 0;
+		int tnflags;
+
+		tok = lexer_nexttoken (lf);
+		while (tok->type == NEWLINE) {
+			lexer_freetoken (tok);
+			tok = lexer_nexttoken (lf);
+		}
+		if ((tok->type == END) || (tok->type == NOTOKEN)) {
+			/* done */
+			lexer_freetoken (tok);
+			break;		/* for() */
+		}
+		lexer_pushback (lf, tok);
+
+		/* walk as a descriptor-line */
+		thisone = dfa_walk ("occampi:descriptorline", lf);
+		if (!thisone) {
+			*target = NULL;
+			break;		/* for() */
+		}
+		*target = thisone;
+		while (*target) {
+			/* sink through things */
+			tnflags = tnode_tnflagsof (*target);
+			if (tnflags & TNF_LONGDECL) {
+				target = tnode_nthsubaddr (*target, 3);
+			} else if (tnflags & TNF_SHORTDECL) {
+				target = tnode_nthsubaddr (*target, 2);
+			} else if (tnflags & TNF_TRANSPARENT) {
+				target = tnode_nthsubaddr (*target, 0);
+			} else {
+				/* assume we're done! */
+				breakfor = 1;
+				break;		/* while() */
+			}
+		}
+		if (breakfor) {
+			break;		/* for() */
+		}
+
+		/* next token should be newline or end */
+		tok = lexer_nexttoken (lf);
+		if ((tok->type != NEWLINE) && (tok->type != END)) {
+			parser_error (lf, "in descriptor, expected newline or end, found [%s]", lexer_stokenstr (tok));
+			if (tree) {
+				tnode_free (tree);
+			}
+			lexer_freetoken (tok);
+			tree = NULL;
+			break;		/* for() */
+		}
+		lexer_pushback (lf, tok);
+		/* and go round */
 	}
 
 	return tree;

@@ -36,6 +36,7 @@ typedef struct TAG_langparser {
 	void (*shutdown)(struct TAG_lexfile *);
 
 	struct TAG_tnode *(*parse)(struct TAG_lexfile *);
+	struct TAG_tnode *(*descparse)(struct TAG_lexfile *);
 	int (*scope)(struct TAG_tnode **, struct TAG_scope *);
 	int (*prescope)(struct TAG_tnode **, struct TAG_prescope *);
 	int (*typecheck)(struct TAG_tnode *, struct TAG_typecheck *);

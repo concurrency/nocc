@@ -346,6 +346,7 @@ int opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft)
 			fprintf (outstream, "--%-32s%s\n", ordered_options[i]->name, htext);
 		}
 	}
+	fprintf (outstream, "note: some options require --opt=arg for arguments\n");
 	
 	exit (0);
 	return 0;

@@ -142,9 +142,26 @@ int prescope_modprewalktree (tnode_t **node, void *arg)
 	return i;
 }
 /*}}}*/
+/*{{{  int prescope_subtree (tnode_t **t, prescope_t *ps)*/
+/*
+ *	performs pre-scoping on a sub-tree
+ *	returns 0 on success, non-zero on failure
+ */
+int prescope_subtree (tnode_t **t, prescope_t *ps)
+{
+	int i;
+	void *oldhook = ps->hook;
+
+	i = ps->lang->prescope (t, ps);
+	ps->hook = oldhook;
+
+	return i;
+}
+/*}}}*/
 /*{{{  int prescope_tree (tnode_t **t, langparser_t *lang)*/
 /*
  *	performs the top-level pre-scope pass
+ *	returns 0 on success, non-zero on failure
  */
 int prescope_tree (tnode_t **t, langparser_t *lang)
 {
@@ -158,6 +175,7 @@ int prescope_tree (tnode_t **t, langparser_t *lang)
 		sfree (ps);
 		return 1;
 	}
+	ps->lang = lang;
 	i = lang->prescope (t, ps);
 
 	nocc_message ("prescope_tree(): pre-scoped.  %d error(s), %d warning(s)", ps->err, ps->warn);
