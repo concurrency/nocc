@@ -49,7 +49,7 @@ BEGIN {
 
 {
 	lno++;
-	if (lno > 4) {
+	if (lno > 1) {
 		if (substr ($0, 1, 1) == "	") {
 			# continuation of a previous item
 			str = $0;
@@ -76,7 +76,7 @@ BEGIN {
 				i++;
 			}
 		}
-		lastline = $0
+		lastline = $0;
 
 	}
 }

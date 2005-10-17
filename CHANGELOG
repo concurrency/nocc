@@ -1,4 +1,6 @@
 
+17/10/2005	frmb	more #USE support, should now generate code for instances of library functions
+			mostly correctly.
 16/10/2005	frmb	a good chunk of support for #USE directives
 15/10/2005	frmb	support for WHILE loops, added type-checks to WHILE/SHORTIF
 15/10/2005	frmb	fixed type-checking for type declarations (mostly)

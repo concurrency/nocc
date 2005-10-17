@@ -121,6 +121,7 @@ typedef struct TAG_libusenodehook {
 	lexfile_t *lf;
 	char *libname;
 	libfile_t *libdata;
+	tnode_t *decltree;
 	DYNARRAY (tnode_t *, decls);
 } libusenodehook_t;
 
@@ -139,6 +140,7 @@ static char *libpath = NULL;
 static int allpublic = 0;
 
 static chook_t *libchook = NULL;
+static chook_t *uselinkchook = NULL;
 static chook_t *descriptorchook = NULL;
 
 
@@ -451,6 +453,7 @@ static libusenodehook_t *lib_newlibusenodehook (lexfile_t *lf, char *libname)
 	lunh->lf = lf;
 	lunh->libname = string_dup (libname);
 	lunh->libdata = NULL;
+	lunh->decltree = NULL;
 	dynarray_init (lunh->decls);
 
 	return lunh;
@@ -551,6 +554,13 @@ static void lib_libusenodehook_dumptree (tnode_t *node, void *hook, int indent, 
 			lib_isetindent (stream, indent + 1);
 			fprintf (stream, "</srcunit>\n");
 		}
+	}
+	if (lunh->decltree) {
+		lib_isetindent (stream, indent + 1);
+		fprintf (stream, "<decltree>\n");
+		tnode_dumptree (lunh->decltree, indent + 2, stream);
+		lib_isetindent (stream, indent + 1);
+		fprintf (stream, "</decltree>\n");
 	}
 
 	lib_isetindent (stream, indent + 1);
@@ -1405,6 +1415,7 @@ static int lib_parsedescriptors (lexfile_t *orglf, libusenodehook_t *lunh)
 	if (dbuflen) {
 		lexfile_t *lexbuf;
 		tnode_t *decltree = NULL;
+		tnode_t *thisnode;
 
 		dbuf = (char *)smalloc (dbuflen);
 
@@ -1443,25 +1454,36 @@ static int lib_parsedescriptors (lexfile_t *orglf, libusenodehook_t *lunh)
 		}
 
 		/*}}}*/
-		/*{{{  break up declarations and put in hook*/
-		while (decltree) {
-			tnode_t **nextp;
-			int tnflags = tnode_tnflagsof (decltree);
+		/*{{{  attach declaration tree to the hook (flatten later on)*/
+		lunh->decltree = decltree;
 
-			if (tnflags & TNF_LONGDECL) {
-				nextp = tnode_nthsubaddr (decltree, 3);
-			} else if (tnflags & TNF_SHORTDECL) {
-				nextp = tnode_nthsubaddr (decltree, 2);
-			} else if (tnflags & TNF_TRANSPARENT) {
-				nextp = tnode_nthsubaddr (decltree, 0);
-			} else {
-				nocc_warning ("lib_parsedescriptors(): unexpected node [%s]", decltree->tag->name);
-				break;		/* while() */
+		/*}}}*/
+		/*{{{  walk both trees and attach libfile size data to declarations*/
+		thisnode = lunh->decltree;
+
+		for (i=0; thisnode && (i<DA_CUR (lf->srcs)); i++) {
+			libfile_srcunit_t *lfsu = DA_NTHITEM (lf->srcs, i);
+			int j;
+
+			for (j=0; thisnode && (j<DA_CUR (lfsu->entries)); j++) {
+				libfile_entry_t *lfent = DA_NTHITEM (lfsu->entries, j);
+
+				if (lfent && lfent->descriptor && lfent->langname && !strcmp (lfent->langname, orglf->parser->langname)) {
+					int tnflags = tnode_tnflagsof (thisnode);
+
+					tnode_setchook (thisnode, uselinkchook, (void *)lfent);
+					if (tnflags & TNF_LONGDECL) {
+						thisnode = tnode_nthsubof (thisnode, 3);
+					} else if (tnflags & TNF_SHORTDECL) {
+						thisnode = tnode_nthsubof (thisnode, 2);
+					} else if (tnflags & TNF_TRANSPARENT) {
+						thisnode = tnode_nthsubof (thisnode, 0);
+					} else {
+						nocc_warning ("lib_parsedescriptors(): unhandled node in library declaration-tree [%s]", thisnode->tag->name);
+						thisnode = NULL;
+					}
+				}
 			}
-
-			dynarray_add (lunh->decls, decltree);
-			decltree = *nextp;
-			*nextp = NULL;
 		}
 		/*}}}*/
 
@@ -1627,11 +1649,9 @@ static int lib_precode_libtag (tnode_t **nodep, codegen_t *cgen)
 static int lib_prescope_libusenode (tnode_t **nodep, prescope_t *ps)
 {
 	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (*nodep, 0);
-	int i;
 
-	for (i=0; i<DA_CUR (lunh->decls); i++) {
-		prescope_subtree (DA_NTHITEMADDR (lunh->decls, i), ps);
-	}
+	/* still got a declaration tree in the hook here */
+	prescope_subtree (&lunh->decltree, ps);
 
 	return 1;
 }
@@ -1644,14 +1664,65 @@ static int lib_prescope_libusenode (tnode_t **nodep, prescope_t *ps)
 static int lib_scopein_libusenode (tnode_t **nodep, scope_t *ss)
 {
 	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (*nodep, 0);
-	int i;
+	tnode_t *decltree = lunh->decltree;
+	tnode_t **walkp;
 
-	for (i=0; i<DA_CUR (lunh->decls); i++) {
-		/* blindly scope the declaration whole.. -- should work, no bodies here, but top-level things hang around */
-		tnode_modprepostwalktree (DA_NTHITEMADDR (lunh->decls, i), scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+	/*{{{  walk declaration tree to find innermost*/
+	for (walkp = &lunh->decltree; *walkp; ) {
+		int tnflags = tnode_tnflagsof (*walkp);
+
+		if (tnflags & TNF_LONGDECL) {
+			walkp = tnode_nthsubaddr (*walkp, 3);
+		} else if (tnflags & TNF_SHORTDECL) {
+			walkp = tnode_nthsubaddr (*walkp, 2);
+		} else if (tnflags & TNF_TRANSPARENT) {
+			walkp = tnode_nthsubaddr (*walkp, 0);
+		} else {
+			scope_error (*nodep, ss, "lib_parsedescriptors(): unexpected node [%s]", decltree->tag->name);
+			return 0;
+		}
 	}
 
-	return 1;
+	/*}}}*/
+
+	/* temporarily attach body of USE to innermost of declarations for scoping */
+	*walkp = tnode_nthsubof (*nodep, 0);
+	tnode_setnthsub (*nodep, 0, NULL);
+
+	/* scope them */
+	tnode_modprepostwalktree (&lunh->decltree, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+
+	/* put body back */
+	tnode_setnthsub (*nodep, 0, *walkp);
+	*walkp = NULL;
+
+	decltree = lunh->decltree;
+
+	/*{{{  break up declarations and put in hook*/
+	while (decltree) {
+		tnode_t **nextp;
+		int tnflags = tnode_tnflagsof (decltree);
+
+		if (tnflags & TNF_LONGDECL) {
+			nextp = tnode_nthsubaddr (decltree, 3);
+		} else if (tnflags & TNF_SHORTDECL) {
+			nextp = tnode_nthsubaddr (decltree, 2);
+		} else if (tnflags & TNF_TRANSPARENT) {
+			nextp = tnode_nthsubaddr (decltree, 0);
+		} else {
+			scope_error (*nodep, ss, "lib_parsedescriptors(): unexpected node [%s]", decltree->tag->name);
+			break;		/* while() */
+		}
+
+		dynarray_add (lunh->decls, decltree);
+		decltree = *nextp;
+		*nextp = NULL;
+	}
+	lunh->decltree = NULL;
+
+	/*}}}*/
+
+	return 0;		/* already done */
 }
 /*}}}*/
 /*{{{  static int lib_betrans_libusenode (tnode_t **nodep, target_t *target)*/
@@ -1661,6 +1732,47 @@ static int lib_scopein_libusenode (tnode_t **nodep, scope_t *ss)
  */
 static int lib_betrans_libusenode (tnode_t **nodep, target_t *target)
 {
+	return 1;
+}
+/*}}}*/
+/*{{{  static int lib_namemap_libusenode (tnode_t **nodep, map_t *mdata)*/
+/*
+ *	does name-mapping for library-usage nodes, generates back-end BLOCKs
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int lib_namemap_libusenode (tnode_t **nodep, map_t *mdata)
+{
+	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (*nodep, 0);
+	int i;
+
+	for (i=0; i<DA_CUR (lunh->decls); i++) {
+		tnode_t *decl = DA_NTHITEM (lunh->decls, i);
+		tnode_t **bodyp;
+		libfile_entry_t *lfent = decl ? (libfile_entry_t *)tnode_getchook (decl, uselinkchook) : NULL;
+		int tnflags;
+
+		if (!decl || !lfent) {
+			tnode_error (*nodep, "lib_namemap_libusenode(): missing declaration or hook");
+			continue;
+		}
+		map_submapnames (DA_NTHITEMADDR (lunh->decls, i), mdata);
+		decl = DA_NTHITEM (lunh->decls, i);
+
+		/* if anything was mapped out, bodies should be back-end blocks */
+		tnflags = tnode_tnflagsof (decl);
+		if (tnflags & TNF_LONGDECL) {
+			bodyp = tnode_nthsubaddr (decl, 2);
+		} else {
+			tnode_error (*nodep, "lib_namemap_libusenode(): unhandled node [%s]", decl->tag->name);
+			continue;		/* for() */
+		}
+
+		mdata->target->be_setblocksize (*bodyp, lfent->ws, 0, lfent->vs, lfent->ms, lfent->adjust);
+#if 0
+fprintf (stderr, "lib_namemap_libusenode(): mapped library declaration, now got:\n");
+tnode_dumptree (decl, 1, stderr);
+#endif
+	}
 	return 1;
 }
 /*}}}*/
@@ -1710,6 +1822,7 @@ int library_init (void)
 	cops->prescope = lib_prescope_libusenode;
 	cops->scopein = lib_scopein_libusenode;
 	cops->betrans = lib_betrans_libusenode;
+	cops->namemap = lib_namemap_libusenode;
 	cops->codegen = lib_codegen_libusenode;
 	tnd_libusenode->ops = cops;
 
@@ -1741,6 +1854,7 @@ int library_init (void)
 	dynarray_init (entrystack);
 
 	libchook = tnode_lookupornewchook ("lib:mark");
+	uselinkchook = tnode_lookupornewchook ("lib:uselink");
 	descriptorchook = tnode_lookupornewchook ("fetrans:descriptor");
 
 	/*}}}*/

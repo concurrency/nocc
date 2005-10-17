@@ -4,5 +4,6 @@
 
 PROC test.n27 (CHAN BYTE scr!)
   SEQ
+    test.n26 (scr)
     SKIP
 :
