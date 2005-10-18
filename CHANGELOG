@@ -1,4 +1,7 @@
 
+18/10/2005	frmb	fixed up some typecheck issues, initial array type-checking
+18/10/2005	frmb	initial support for literal strings (incomplete)
+17/10/2005	frmb	added --trace-typecheck option to aid in type-check debugging
 17/10/2005	frmb	more #USE support, should now generate code for instances of library functions
 			mostly correctly.
 16/10/2005	frmb	a good chunk of support for #USE directives

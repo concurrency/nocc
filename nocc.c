@@ -86,6 +86,7 @@ compopts_t compopts = {
 	dumpnodetypes: 0,
 	debugparser: 0,
 	stoppoint: 0,
+	tracetypecheck: 0,
 	doaliascheck: 1,
 	dousagecheck: 1,
 	dodefcheck: 1,
@@ -599,7 +600,7 @@ int main (int argc, char **argv)
 		nocc_fatal ("error processing command-line options");
 		exit (EXIT_FAILURE);
 	}
-	if (!DA_CUR (srcfiles)) {
+	if (!DA_CUR (srcfiles) && !compopts.dohelp) {
 		nocc_fatal ("no input files!");
 		exit (EXIT_FAILURE);
 	} else {

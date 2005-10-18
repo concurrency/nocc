@@ -125,6 +125,9 @@ static tnode_t *occampi_type_typeactual (tnode_t *formaltype, tnode_t *actualtyp
 {
 	tnode_t *atype;
 
+#if 0
+fprintf (stderr, "occampi_type_typeactual(): formaltype=[%s], actualtype=[%s]\n", formaltype->tag->name, actualtype->tag->name);
+#endif
 	if ((formaltype->tag == opi.tag_CHAN) && ((node->tag == opi.tag_INPUT) || (node->tag == opi.tag_OUTPUT))) {
 		/* becomes a protocol-check in effect */
 		atype = tnode_nthsubof (formaltype, 0);
@@ -140,7 +143,9 @@ fprintf (stderr, "occampi_type_typeactual(): channel: node->tag = [%s]\n", node-
 		}
 		atype = actualtype;
 
-		typecheck_typeactual (tnode_nthsubof (formaltype, 0), tnode_nthsubof (actualtype, 0), node, tc);
+		if (!typecheck_typeactual (tnode_nthsubof (formaltype, 0), tnode_nthsubof (actualtype, 0), node, tc)) {
+			return NULL;
+		}
 	} else {
 		nocc_fatal ("occampi_type_typeactual(): don't know how to handle a non-channel here (yet)");
 		atype = NULL;

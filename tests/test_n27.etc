@@ -1,7 +1,7 @@
 ;
 ;	tests/test_n27.etc
 ;	compiled from tests/test_n27.occ
-;	on host tadpole at Mon Oct 17 21:48:33 2005
+;	on host tadpole at Tue Oct 18 00:26:14 2005
 ;	source language: occam-pi, target: etc-kroc-unknown
 ;
 
@@ -16,7 +16,10 @@
 	ajw	0
 	ldl	4
 	stl	-4
-	call	O_test_n26, 8
+	call	O_test1, 8
+	ldl	4
+	stl	-4
+	call	O_test2, 8
 	ajw	0
 	ret	8
 

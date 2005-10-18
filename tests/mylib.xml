@@ -3,8 +3,12 @@
     <library name="mylib" namespace="mylib">
         <nativelib path="libmylib.so" />
         <libunit name="test_n26.occ">
-            <proc name="test.n26" language="occam-pi" target="etc-kroc-unknown">
-                <descriptor value="PROC test.n26 (CHAN! INT out)" />
+            <proc name="test1" language="occam-pi" target="etc-kroc-unknown">
+                <descriptor value="PROC test1 (CHAN! INT out)" />
+                <blockinfo allocws="24" allocvs="0" allocms="0" adjust="8" />
+            </proc>
+            <proc name="test2" language="occam-pi" target="etc-kroc-unknown">
+                <descriptor value="PROC test2 (CHAN! INT out)" />
                 <blockinfo allocws="24" allocvs="0" allocms="0" adjust="8" />
             </proc>
         </libunit>

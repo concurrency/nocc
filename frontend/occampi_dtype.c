@@ -453,6 +453,52 @@ static int occampi_usagecheck_typedecl (tnode_t *node, uchk_state_t *ucstate)
 /*}}}*/
 
 
+/*{{{  static tnode_t *occampi_typeactual_arraynode (tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-compatibility checking for an ARRAY type
+ *	if the formal type is open, actual type can be open or finite
+ *	if the formal type is finite, actual type must be finite too (same dimension)
+ *	returns the type actually used
+ */
+static tnode_t *occampi_typeactual_arraynode (tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *fdim = tnode_nthsubof (formaltype, 0);
+	tnode_t *adim = tnode_nthsubof (actualtype, 0);
+	tnode_t *rtype = NULL;
+
+	if (fdim && !adim) {
+		if (node) {
+			typecheck_error (node, tc, "actual type must have dimension specified");
+		}
+		return NULL;
+	} else if (fdim && adim) {
+		if (!langops_isconst (fdim) || !langops_isconst (adim)) {
+			/* FIXME ? */
+			nocc_warning ("occampi_typeactual_arraynode(): non-constant adim or fdim..");
+		} else {
+			long long fconst = 0LL;
+			long long aconst = 0LL;
+			int fdimval, adimval;
+
+			fdimval = langops_constvalof (fdim, &fconst);
+			adimval = langops_constvalof (adim, &aconst);
+
+			if (fdimval != adimval) {
+				typecheck_error (node, tc, "array dimensions are of different sizes");
+			}
+		}
+	}
+
+	/* check sub-types */
+	rtype = typecheck_typeactual (tnode_nthsubof (formaltype, 1), tnode_nthsubof (actualtype, 1), node, tc);
+	if (!rtype) {
+		/* incompatible sub-types */
+		return NULL;
+	}
+
+	return actualtype;
+}
+/*}}}*/
 /*{{{  static int occampi_bytesfor_arraynode (tnode_t *node, target_t *target)*/
 /*
  *	returns the number of bytes required by an array-node,
@@ -785,6 +831,7 @@ static int occampi_dtype_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:arraynode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = dim, 1 = sub-type */
 	cops = tnode_newcompops ();
+	cops->typeactual = occampi_typeactual_arraynode;
 	cops->bytesfor = occampi_bytesfor_arraynode;
 	tnd->ops = cops;
 
@@ -880,6 +927,7 @@ static int occampi_dtype_reg_reducers (void)
 	parser_register_grule ("opi:fieldreduce", parser_decode_grule ("SN1N+N+C2R-", opi.tag_FIELDDECL));
 	parser_register_grule ("opi:resultpush", parser_decode_grule ("R+N-"));
 	parser_register_grule ("opi:arrayspec", parser_decode_grule ("SN0N+0C2R-", opi.tag_ARRAY));
+	parser_register_grule ("opi:arraytypereduce", parser_decode_grule ("SN0N+N+VC2R-", opi.tag_ARRAY));
 	parser_register_grule ("opi:ctmarkinput", parser_decode_grule ("N+N+Sn1C1N-N-", opi.tag_ASINPUT));
 	parser_register_grule ("opi:ctmarkoutput", parser_decode_grule ("N+N+Sn1C1N-N-", opi.tag_ASOUTPUT));
 
@@ -921,6 +969,10 @@ static dfattbl_t **occampi_dtype_init_dfatrans (int *ntrans)
 				"[ 3 @@( 4 ] [ 4 occampi:fparamlist 5 ] [ 5 @@) 6 ] [ 6 {<opi:proctypedeclreduce>} @@: 7 ] [ 7 -* ]"));
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:arrayspec ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:arrayspec>} -* ]"));
+
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:arraytype ::= [ 0 @@[ 1 ] [ 1 @@] 2 ] [ 1 occampi:expr 3 ] [ 2 {<opi:nullpush>} -* 3 ] " \
+				"[ 3 -@@[ 4 ] [ 3 occampi:primtype 5 ] [ 3 occampi:name 5 ] [ 3 @CHAN 6 ] [ 4 occampi:arraytype 5 ] [ 5 {<opi:arraytypereduce>} -* ] " \
+				"[ 6 occampi:protocol 7 ] [ 7 {<opi:chanpush>} -* 5 ]"));
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:xsubscriptreduce>} -* 4 ] [ 4 {<opi:resultpush>} -* 0 ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@_ 1 ] [ 1 occampi:name 2 ] [ 2 {<opi:xsubscriptreduce>} -* 3 ] [ 3 {<opi:resultpush>} -* 0 ]"));

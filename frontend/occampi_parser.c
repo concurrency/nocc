@@ -167,6 +167,23 @@ void *occampi_realtoken_to_hook (void *itok)
 	return (void *)ldata;
 }
 /*}}}*/
+/*{{{  void *occampi_stringtoken_to_hook (void *itok)*/
+/*
+ *	turns a string token into a hooknode for a tag_LITARRAY
+ */
+void *occampi_stringtoken_to_hook (void *itok)
+{
+	token_t *tok = (token_t *)itok;
+	occampi_litdata_t *ldata = (occampi_litdata_t *)smalloc (sizeof (occampi_litdata_t));
+
+	ldata->bytes = tok->u.str.len;
+	ldata->data = mem_ndup (tok->u.str.ptr, ldata->bytes);
+
+	lexer_freetoken (tok);
+
+	return (void *)ldata;
+}
+/*}}}*/
 /*{{{  static void occampi_inlistreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
  *	this reduces into a list
@@ -310,10 +327,12 @@ static int occampi_dfas_init (void)
 
 	dynarray_add (transtbls, dfa_transtotbl ("occampi:exprnamestart ::= [ 0 +Name 1 ] [ 1 @@( 2 ] [ 1 @@[ 5 ] [ 2 {<opi:namepush>} ] [ 2 -* <occampi:infinstance> ] " \
 				"[ 1 -* 4 ] [ 4 {<opi:namereduce>} -* ] [ 5 {<opi:namepush>} ] [ 5 occampi:expr 6 ] [ 6 @@] 7 ] [ 7 {<opi:xsubscriptreduce>} -* ]"));
-	dynarray_add (transtbls, dfa_transtotbl ("occampi:expr +:= [ 0 -Name 1 ] [ 0 +Integer 3 ] [ 0 +Real 4 ] [ 0 -@TRUE 10 ] [ 0 -@FALSE 10 ] [ 0 @@( 7 ] [ 1 occampi:exprnamestart 2 ] [ 2 {<opi:nullreduce>} -* 5 ] " \
+	dynarray_add (transtbls, dfa_transtotbl ("occampi:expr +:= [ 0 -Name 1 ] [ 0 +Integer 3 ] [ 0 +Real 4 ] [ 0 +String 12 ] [ 0 -@TRUE 10 ] [ 0 -@FALSE 10 ] [ 0 @@( 7 ] " \
+				"[ 1 occampi:exprnamestart 2 ] [ 2 {<opi:nullreduce>} -* 5 ] " \
 				"[ 3 {<opi:integerreduce>} -* 5 ] [ 4 {<opi:realreduce>} -* 5 ] [ 5 -* ] [ 5 %occampi:restofexpr 6 ] [ 6 {<opi:resultpush>} ] [ 6 -* <occampi:restofexpr> ] " \
 				"[ 7 occampi:expr 8 ] [ 8 @@) 9 ] [ 9 {<opi:nullreduce>} -* ] " \
-				"[ 10 occampi:litbool 11 ] [ 11 {<opi:nullreduce>} -* ]"));
+				"[ 10 occampi:litbool 11 ] [ 11 {<opi:nullreduce>} -* ] " \
+				"[ 12 {<opi:stringreduce>} -* 5 ]"));
 	dynarray_add (transtbls, dfa_transtotbl ("occampi:operand +:= [ 0 +Name 1 ] [ 1 {<opi:namereduce>} -* ]"));
 	/* dynarray_add (transtbls, dfa_bnftotbl ("occampi:expr ::= ( -Name occampi:exprnamestart {<opi:nullreduce>} | +Integer {<opi:integerreduce>} | +Real {<opi:realreduce>} )")); */
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:exprsemilist ::= { occampi:expr @@; 1 }"));

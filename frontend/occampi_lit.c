@@ -121,13 +121,40 @@ static tnode_t *occampi_gettype_lit (tnode_t *node, tnode_t *default_type)
 {
 	tnode_t *type = tnode_nthsubof (node, 0);
 
-	if (!type && !default_type) {
+	if (node->tag == opi.tag_LITARRAY) {
+		occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof (node, 0);
+		tnode_t **dimp;
+
+		if (!type || (type->tag != opi.tag_ARRAY)) {
+			nocc_error ("occampi_gettype_lit(): LITARRAY not ARRAY type.. was [%s]", type ? type->tag->name : "(null)");
+			return NULL;
+		}
+		dimp = tnode_nthsubaddr (type, 0);
+		if (!*dimp) {
+			/* put in dimension.  FIXME: will only do single-level arrays.. */
+			tnode_t *subtype = tnode_nthsubof (type, 1);
+			int typesize = tnode_bytesfor (subtype, NULL);
+			int dimcount;
+			
+			if (typesize <= 0) {
+				nocc_error ("occampi_gettype_lit(): ARRAY sub-type [%s] unsizeable..", subtype->tag->name);
+				return NULL;
+			}
+#if 0
+fprintf (stderr, "occampi_gettype_lit(): LITARRAY: mysize is %d, typesize of [%s] is %d\n", tmplit->bytes, subtype->tag->name, typesize);
+#endif
+			dimcount = tmplit->bytes / typesize;
+
+			*dimp = tnode_create (opi.tag_LITINT, NULL, tnode_create (opi.tag_INT, NULL), occampi_integertoken_to_hook (lexer_newtoken (INTEGER, dimcount)));
+		}
+	} else if (!type && !default_type) {
 		if (node->tag == opi.tag_LITBOOL) {
 			/* easy :) */
 			tnode_setnthsub (node, 0, tnode_create (opi.tag_BOOL, NULL));
 			type = tnode_nthsubof (node, 0);
 		} else {
 			nocc_fatal ("occampi_gettype_lit(): literal not typed, and no default_type!");
+			return NULL;
 		}
 	} else if (!type) {
 		if (node->tag == opi.tag_LITBOOL) {
@@ -372,6 +399,8 @@ static int occampi_lit_init_nodes (void)
 	opi.tag_LITINT = tnode_newnodetag ("LITINT", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_LITREAL = tnode_newnodetag ("LITREAL", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_LITARRAY = tnode_newnodetag ("LITARRAY", &i, tnd, NTF_NONE);
 	/*}}}*/
 
 	return 0;
@@ -385,6 +414,7 @@ static int occampi_lit_reg_reducers (void)
 {
 	parser_register_grule ("opi:integerreduce", parser_decode_grule ("T+St0X0VC2R-", occampi_integertoken_to_hook, opi.tag_LITINT));
 	parser_register_grule ("opi:realreduce", parser_decode_grule ("0T+St0XC2R-", occampi_realtoken_to_hook, opi.tag_LITREAL));
+	parser_register_grule ("opi:stringreduce", parser_decode_grule ("T+St0X0C0C2VC2R-", occampi_stringtoken_to_hook, opi.tag_BYTE, opi.tag_ARRAY, opi.tag_LITARRAY));
 	parser_register_grule ("opi:trueboolreduce", parser_decode_grule ("00XC2R-", occampi_booltrue_hook, opi.tag_LITBOOL));
 	parser_register_grule ("opi:falseboolreduce", parser_decode_grule ("00XC2R-", occampi_boolfalse_hook, opi.tag_LITBOOL));
 

@@ -46,15 +46,16 @@ stop-codegen,		'\0',	opt_setstopflag,	(void *)15,			"1stop after code-generation
 skip-aliascheck,	'\0',	opt_clearintflag,	&(compopts.doaliascheck),	"1skip alias checks",					29
 skip-usagecheck,	'\0',	opt_clearintflag,	&(compopts.dousagecheck),	"1skip parallel usage checks",				30
 skip-defcheck,		'\0',	opt_clearintflag,	&(compopts.dodefcheck),		"1skip undefinedness checks",				31
-verbose,		'v',	opt_setintflag,		&(compopts.verbose),		"0verbose compilation",					32
-debug-parser,		'\0',	opt_setintflag,		&(compopts.debugparser),	"1debug parser",					33
-version,		'V',	opt_do_version,		NULL,				"0print version and exit",				34
-compile,		'c',	opt_setintflag,		&(compopts.notmainmodule),	"0compile for separate compilation",			35
-dump-dmem,		'\0',	opt_setintflag,		&(compopts.dmemdump),		"1display dynamic memory pool information",		36
-specs-file,		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				37
-output,			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					38
-include-path,		'I',	opt_addincludepath,	NULL,				"0add paths for include files",				39
-library-path,		'L',	opt_addlibrarypath,	NULL,				"0add paths for library files",				40
-extn-path,		'E',	opt_addextnpath,	NULL,				"1add paths for compiler extensions",			41
+trace-typecheck,	'\0',	opt_setintflag,		&(compopts.tracetypecheck),	"1trace type-check (debugging)",			32
+verbose,		'v',	opt_setintflag,		&(compopts.verbose),		"0verbose compilation",					33
+debug-parser,		'\0',	opt_setintflag,		&(compopts.debugparser),	"1debug parser",					34
+version,		'V',	opt_do_version,		NULL,				"0print version and exit",				35
+compile,		'c',	opt_setintflag,		&(compopts.notmainmodule),	"0compile for separate compilation",			36
+dump-dmem,		'\0',	opt_setintflag,		&(compopts.dmemdump),		"1display dynamic memory pool information",		37
+specs-file,		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				38
+output,			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					39
+include-path,		'I',	opt_addincludepath,	NULL,				"0add paths for include files",				40
+library-path,		'L',	opt_addlibrarypath,	NULL,				"0add paths for library files",				41
+extn-path,		'E',	opt_addextnpath,	NULL,				"1add paths for compiler extensions",			42
 %%
 

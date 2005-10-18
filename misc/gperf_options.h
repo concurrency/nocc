@@ -35,7 +35,7 @@
  */
 struct TAG_cmd_option;
 
-#define TOTAL_KEYWORDS 42
+#define TOTAL_KEYWORDS 43
 #define MIN_WORD_LENGTH 4
 #define MAX_WORD_LENGTH 15
 #define MIN_HASH_VALUE 6
@@ -64,9 +64,9 @@ hash (register const char *str, register unsigned int len)
       108, 108, 108, 108, 108, 108, 108, 108, 108, 108,
       108, 108, 108, 108, 108, 108, 108, 108, 108, 108,
       108, 108, 108, 108, 108, 108, 108,  20,   5,  60,
-       10,  45,   0,  20,  40,   5, 108,  10,   0,   0,
-       10,  10,  15,   5,  35,  15,   0,   0,  25, 108,
-        5, 108, 108, 108, 108, 108, 108, 108, 108, 108,
+       10,  45,   0,  20,  40,  15, 108,  10,   0,   0,
+       10,  10,  15,   5,  15,  15,   0,   0,  35, 108,
+        0, 108, 108, 108, 108, 108, 108, 108, 108, 108,
       108, 108, 108, 108, 108, 108, 108, 108, 108, 108,
       108, 108, 108, 108, 108, 108, 108, 108, 108, 108,
       108, 108, 108, 108, 108, 108, 108, 108, 108, 108,
@@ -111,7 +111,7 @@ static const struct TAG_cmd_option wordlist[] =
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"output",			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					38},
+    {"output",			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					39},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"dump-tree",		'\0',	opt_setintflag,		&(compopts.dumptree),		"1print parse tree",					3},
@@ -122,7 +122,7 @@ static const struct TAG_cmd_option wordlist[] =
     {"stop-typecheck",		'\0',	opt_setstopflag,	(void *)5,			"1stop after type check",				18},
     {"stop-undefcheck",	'\0',	opt_setstopflag,	(void *)9,			"1stop after undefined-usage check",			22},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"compile",		'c',	opt_setintflag,		&(compopts.notmainmodule),	"0compile for separate compilation",			35},
+    {"compile",		'c',	opt_setintflag,		&(compopts.notmainmodule),	"0compile for separate compilation",			36},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"dump-dfas",		'\0',	opt_setintflag,		&(compopts.dumpdfas),		"1print named DFAs after parser init",			7},
     {"dump-names",		'\0',	opt_setintflag,		&(compopts.dumpnames),		"1print names after scope",				8},
@@ -134,17 +134,17 @@ static const struct TAG_cmd_option wordlist[] =
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"stop-fetrans",		'\0',	opt_setstopflag,	(void *)10,			"1stop after front-end tree transform",			23},
     {"stop-prescope",		'\0',	opt_setstopflag,	(void *)3,			"1stop after pre-scope",				16},
-    {"dump-dmem",		'\0',	opt_setintflag,		&(compopts.dmemdump),		"1display dynamic memory pool information",		36},
+    {"dump-dmem",		'\0',	opt_setintflag,		&(compopts.dmemdump),		"1display dynamic memory pool information",		37},
     {"stop-scope",		'\0',	opt_setstopflag,	(void *)4,			"1stop after scope",					17},
     {"dump-grules",		'\0',	opt_setintflag,		&(compopts.dumpgrules),		"1print generic reduction rules after parser init",	6},
     {"stop-betrans",		'\0',	opt_setstopflag,	(void *)11,			"1stop after back-end tree transform",			24},
     {"stop-prealloc",		'\0',	opt_setstopflag,	(void *)13,			"1stop after pre-allocation",				26},
-    {"extn-path",		'E',	opt_addextnpath,	NULL,				"1add paths for compiler extensions",			41},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"dump-specs",		'\0',	opt_setintflag,		&(compopts.dumpspecs),		"1print compiler specs",				2},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"include-path",		'I',	opt_addincludepath,	NULL,				"0add paths for include files",				39},
+    {"include-path",		'I',	opt_addincludepath,	NULL,				"0add paths for include files",				40},
     {"stop-precheck",		'\0',	opt_setstopflag,	(void *)6,			"1stop after pre-check",				19},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {"extn-path",		'E',	opt_addextnpath,	NULL,				"1add paths for compiler extensions",			42},
     {"stop-aliascheck",	'\0',	opt_setstopflag,	(void *)7,			"1stop after alias check",				20},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"dump-grammar",		'\0',	opt_setintflag,		&(compopts.dumpgrammar),	"1print grammars during parser init",			5},
@@ -152,7 +152,7 @@ static const struct TAG_cmd_option wordlist[] =
     {"save-named-dfa",		'\0',	opt_setsaveopt,		(void *)1,			"1save named DFA to file",				12},
     {"stop-alloc",		'\0',	opt_setstopflag,	(void *)14,			"1stop after variable allocation",			27},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"dump-varmaps",		'\0',	opt_setintflag,		&(compopts.dumpvarmaps),	"1print variable maps after block allocation",		10},
+    {"library-path",		'L',	opt_addlibrarypath,	NULL,				"0add paths for library files",				41},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"help",			'h',	opt_do_help_flag,	NULL,				"0display standard usage information",			0},
     {"skip-aliascheck",	'\0',	opt_clearintflag,	&(compopts.doaliascheck),	"1skip alias checks",					29},
@@ -162,20 +162,20 @@ static const struct TAG_cmd_option wordlist[] =
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"stop-usagecheck",	'\0',	opt_setstopflag,	(void *)8,			"1stop after parallel-usage check",			21},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"library-path",		'L',	opt_addlibrarypath,	NULL,				"0add paths for library files",				40},
+    {"dump-varmaps",		'\0',	opt_setintflag,		&(compopts.dumpvarmaps),	"1print variable maps after block allocation",		10},
     {"save-all-dfas",		'\0',	opt_setstr,		&(compopts.savealldfas),	"1save all DFAs to file",				13},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"specs-file",		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				37},
+    {"specs-file",		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				38},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"version",		'V',	opt_do_version,		NULL,				"0print version and exit",				34},
+    {"version",		'V',	opt_do_version,		NULL,				"0print version and exit",				35},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"skip-usagecheck",	'\0',	opt_clearintflag,	&(compopts.dousagecheck),	"1skip parallel usage checks",				30},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"verbose",		'v',	opt_setintflag,		&(compopts.verbose),		"0verbose compilation",					32},
+    {"verbose",		'v',	opt_setintflag,		&(compopts.verbose),		"0verbose compilation",					33},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {"trace-typecheck",	'\0',	opt_setintflag,		&(compopts.tracetypecheck),	"1trace type-check (debugging)",			32},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"stop-codegen",		'\0',	opt_setstopflag,	(void *)15,			"1stop after code-generation",				28},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
@@ -212,7 +212,7 @@ static const struct TAG_cmd_option wordlist[] =
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"debug-parser",		'\0',	opt_setintflag,		&(compopts.debugparser),	"1debug parser",					33}
+    {"debug-parser",		'\0',	opt_setintflag,		&(compopts.debugparser),	"1debug parser",					34}
   };
 
 #ifdef __GNUC__

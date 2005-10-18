@@ -1391,6 +1391,7 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:valabbrdecl ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} -* 2 ] [ 2 @IS 3 ] [ 2 +Name 6 ] [ 3 occampi:expr 4 ] [ 4 @@: 5 ] " \
 				"[ 5 {<opi:notypevalabbrreduce>} -* ] [ 6 {<opi:namepush>} -* 7 ] [ 7 @IS 8 ] [ 8 occampi:expr 9 ] [ 9 {<opi:valabbrreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:valabbrdecl +:= [ 0 occampi:primtype 1 ] [ 1 occampi:name 2 ] [ 2 @IS 3 ] [ 3 occampi:expr 4 ] [ 4 @@: 5 ] [ 5 {<opi:valabbrreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:valabbrdecl +:= [ 0 -@@[ 1 ] [ 1 occampi:arraytype 2 ] [ 2 occampi:name 3 ] [ 3 @IS 4 ] [ 4 occampi:expr 5 ] [ 5 @@: 6 ] [ 6 {<opi:valabbrreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:abbrdecl ::= [ 0 @VAL <occampi:valabbrdecl> ]"));
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:fparam ::= [ 0 occampi:primtype 1 ] [ 0 @CHAN 3 ] [ 0 occampi:name 9 ] " \

@@ -197,6 +197,7 @@ extern struct TAG_feunit occampi_asm_feunit;		/* occampi_asm.c */
 extern void *occampi_nametoken_to_hook (void *ntok);
 extern void *occampi_integertoken_to_hook (void *itok);
 extern void *occampi_realtoken_to_hook (void *itok);
+extern void *occampi_stringtoken_to_hook (void *itok);
 
 /* option handlers inside occam-pi front-end */
 struct TAG_cmd_option;

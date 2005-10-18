@@ -3,8 +3,19 @@
 #LIBRARY "mylib"
   NATIVELIB "libmylib.so"
 
-PUBLIC PROC test.n26 (CHAN INT out!)
+PUBLIC PROC test1 (CHAN INT out!)
   SEQ
     out ! 42
 :
+
+PUBLIC PROC test2 (CHAN INT out!)
+  SEQ
+    out ! 44
+:
+
+PROC test3 (CHAN INT in?)
+  SEQ
+    SKIP
+:
+
 

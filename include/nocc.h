@@ -56,6 +56,7 @@ typedef struct TAG_compopts {
 	int dousagecheck;
 	int dodefcheck;
 	int stoppoint;
+	int tracetypecheck;
 	char *specsfile;
 	char *outfile;
 	char *savenameddfa[2];

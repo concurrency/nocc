@@ -168,12 +168,38 @@ tnode_t *typecheck_typeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t
 {
 	tnode_t *usedtype;
 
+	if (compopts.tracetypecheck) {
+		/*{{{  report type-check*/
+		nocc_message ("typecheck_typeactual(): checking [%s (%s)] applied to [%s (%s)] with [%s (%s)]", actualtype->tag->name, actualtype->tag->ndef->name,
+				formaltype->tag->name, formaltype->tag->ndef->name, node ? node->tag->name : "(null)", node ? node->tag->ndef->name : "(null)");
+		/*}}}*/
+	}
+
 	if (!formaltype->tag->ndef->ops || !formaltype->tag->ndef->ops->typeactual) {
+		tnode_t **f_subnodes;
+		tnode_t **a_subnodes;
+		int f_nodes, a_nodes;
+		int i;
+
 		/* don't have a check on the formal-type, blind comparison */
-		if (formaltype->tag == actualtype->tag) {
-			return actualtype;		/* types compatible..  FIXME! */
+		if (formaltype->tag != actualtype->tag) {
+			return NULL;
 		}
-		return NULL;
+
+		f_subnodes = tnode_subnodesof (formaltype, &f_nodes);
+		a_subnodes = tnode_subnodesof (actualtype, &a_nodes);
+
+		for (i=0; (i<f_nodes) && (i<a_nodes); i++) {
+			tnode_t *match;
+
+			match = typecheck_typeactual (f_subnodes[i], a_subnodes[i], node, tc);
+			if (!match) {
+				return NULL;		/* failed */
+			}
+		}
+
+		/* assume OK, return the actual-type */
+		return actualtype;
 	}
 	usedtype = formaltype->tag->ndef->ops->typeactual (formaltype, actualtype, node, tc);
 
