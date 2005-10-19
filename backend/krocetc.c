@@ -1698,6 +1698,35 @@ static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)
 			}
 		}
 		/*}}}*/
+	} else if (name->tag == krocetc_target.tag_INDEXED) {
+		/*{{{  load something out of an indexed node (array typically)*/
+		krocetc_indexedhook_t *ih = (krocetc_indexedhook_t *)tnode_nthhookof (name, 0);
+
+		krocetc_coder_loadpointer (cgen, tnode_nthsubof (name, 0), 0);
+		krocetc_coder_loadname (cgen, tnode_nthsubof (name, 1), 0);
+		if (ih->isize > 1) {
+			codegen_callops (cgen, loadconst, ih->isize);
+			codegen_write_fmt (cgen, "\tprod\n");
+			krocetc_cgstate_tsdelta (cgen, -1);
+		}
+		codegen_write_fmt (cgen, "\tsum\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+
+		switch (ih->isize) {
+		case 1:
+			codegen_write_fmt (cgen, "\tlb\n");
+			break;
+		case 2:
+			codegen_write_fmt (cgen, "\tlw\n");
+			break;
+		case 4:
+			codegen_write_fmt (cgen, "\tldnl\t0\n");
+			break;
+		default:
+			codegen_error (cgen, "krocetc_coder_loadname(): INDEXED: index size %d not supported here", ih->isize);
+			break;
+		}
+		/*}}}*/
 	} else if (name->tag == kpriv->tag_CONSTREF) {
 		/*{{{  load constant via reference*/
 		codegen_subcodegen (name, cgen);

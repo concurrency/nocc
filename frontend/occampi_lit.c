@@ -228,6 +228,17 @@ fprintf (stderr, "occampi_gettype_lit(): adjusting literal size from %d to %d..\
 	return type;
 }
 /*}}}*/
+/*{{{  static int occampi_bytesfor_lit (tnode_t *node, target_t *target)*/
+/*
+ *	returns the number of bytes required for this literal, target given if available
+ */
+static int occampi_bytesfor_lit (tnode_t *node, target_t *target)
+{
+	occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof (node, 0);
+
+	return tmplit->bytes;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_lit (tnode_t **node, map_t *map)*/
 /*
  *	name-maps a literal
@@ -317,6 +328,18 @@ static int occampi_constvalof_lit (tnode_t *node, void *ptr)
 	return r;
 }
 /*}}}*/
+/*{{{  static int occampi_valbyref_lit (tnode_t *node)*/
+/*
+ *	returns non-zero if VALs of this literal are handled as references (LITARRAY)
+ */
+static int occampi_valbyref_lit (tnode_t *node)
+{
+	if (node->tag == opi.tag_LITARRAY) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static void *occampi_bool_hook (int val)*/
@@ -374,7 +397,7 @@ static int occampi_lit_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
-	/*{{{  occampi:litnode -- LITBOOL, LITBYTE, LITCHAR, LITINT, LITREAL*/
+	/*{{{  occampi:litnode -- LITBOOL, LITBYTE, LITCHAR, LITINT, LITREAL, LITARRAY*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:litnode", &i, 1, 0, 1, TNF_NONE);
 	tnd->hook_free = occampi_litnode_hook_free;
@@ -382,11 +405,13 @@ static int occampi_lit_init_nodes (void)
 	tnd->hook_dumptree = occampi_litnode_hook_dumptree;
 	cops = tnode_newcompops ();
 	cops->gettype = occampi_gettype_lit;
+	cops->bytesfor = occampi_bytesfor_lit;
 	cops->namemap = occampi_namemap_lit;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->isconst = occampi_isconst_lit;
 	lops->constvalof = occampi_constvalof_lit;
+	lops->valbyref = occampi_valbyref_lit;
 	tnd->lops = lops;
 
 	i = -1;

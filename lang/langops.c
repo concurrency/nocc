@@ -109,6 +109,21 @@ int langops_constvalof (tnode_t *node, void *ptr)
 	return r;
 }
 /*}}}*/
+/*{{{  int langops_valbyref (tnode_t *node)*/
+/*
+ *	returns non-zero if VALs of this node (type/constant) are treated as references
+ */
+int langops_valbyref (tnode_t *node)
+{
+	int r = 0;
+
+	if (node && node->tag->ndef->lops && node->tag->ndef->lops->valbyref) {
+		r = node->tag->ndef->lops->valbyref (node);
+	}
+
+	return r;
+}
+/*}}}*/
 
 
 /*{{{  int langops_init (void)*/

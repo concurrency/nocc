@@ -88,11 +88,11 @@ tnode_dumptree (chantype, 1, stderr);
 	return;
 }
 /*}}}*/
-/*{{{  static void occampi_initabbrev (tnode_t *node, codegen_t *cgen, void *arg)*/
+/*{{{  static void occampi_initvalabbrev (tnode_t *node, codegen_t *cgen, void *arg)*/
 /*
- *	does initialiser code-gen for an abbreviation
+ *	does initialiser code-gen for a value abbreviation (simple types)
  */
-static void occampi_initabbrev (tnode_t *node, codegen_t *cgen, void *arg)
+static void occampi_initvalabbrev (tnode_t *node, codegen_t *cgen, void *arg)
 {
 	tnode_t *abbrev = (tnode_t *)arg;
 	int ws_off, vs_off, ms_off;
@@ -100,20 +100,36 @@ static void occampi_initabbrev (tnode_t *node, codegen_t *cgen, void *arg)
 
 	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off);
 #if 0
-fprintf (stderr, "occampi_initabbrev(): node=[%s], allocated at [%d,%d,%d]:\n", node->tag->name, ws_off, vs_off, ms_off);
+fprintf (stderr, "occampi_initvalabbrev(): node=[%s], allocated at [%d,%d,%d]:\n", node->tag->name, ws_off, vs_off, ms_off);
 tnode_dumptree (node, 1, stderr);
 #endif
 	mappedrhs = (tnode_t *)tnode_getchook (node, cgen->pc_chook);
 
 #if 0
-fprintf (stderr, "occampi_initabbrev(): node=[%s], mappedrhs =\n", node->tag->name);
+fprintf (stderr, "occampi_initvalabbrev(): node=[%s], mappedrhs =\n", node->tag->name);
 tnode_dumptree (mappedrhs, 1, stderr);
 #endif
-	if (abbrev->tag == opi.tag_VALABBREV) {
-		codegen_callops (cgen, loadname, mappedrhs, 0);
-	} else {
-		codegen_callops (cgen, loadpointer, mappedrhs, 0);
-	}
+	codegen_callops (cgen, loadname, mappedrhs, 0);
+
+	codegen_callops (cgen, storelocal, ws_off);
+	codegen_callops (cgen, comment, "initabbrev");
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_initptrabbrev (tnode_t *node, codegen_t *cgen, void *arg)*/
+/*
+ *	does initialiser code-gen for a pointer abbreviation (non-VAL and arrays, etc.)
+ */
+static void occampi_initptrabbrev (tnode_t *node, codegen_t *cgen, void *arg)
+{
+	tnode_t *abbrev = (tnode_t *)arg;
+	int ws_off, vs_off, ms_off;
+	tnode_t *mappedrhs;
+
+	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off);
+	mappedrhs = (tnode_t *)tnode_getchook (node, cgen->pc_chook);
+
+	codegen_callops (cgen, loadpointer, mappedrhs, 0);
 	codegen_callops (cgen, storelocal, ws_off);
 	codegen_callops (cgen, comment, "initabbrev");
 	return;
@@ -462,12 +478,19 @@ static int occampi_namemap_abbrev (tnode_t **nodep, map_t *map)
 	tnode_t *bename;
 	void (*initfunc)(tnode_t *, codegen_t *, void *) = NULL;
 	void *initarg = NULL;
+	int vsize = -1;
 
 #if 0
 fprintf (stderr, "occampi_namemap_abbrev(): here!  target is [%s].  Type is:\n", map->target->name);
 tnode_dumptree (type, 1, stderr);
 #endif
-	initfunc = occampi_initabbrev;
+	if (((*nodep)->tag == opi.tag_ABBREV) || langops_valbyref (*rhsp)) {
+		initfunc = occampi_initptrabbrev;
+		vsize = map->target->pointersize;
+	} else {
+		initfunc = occampi_initvalabbrev;
+		vsize = tnode_bytesfor (*rhsp, map->target);
+	}
 	initarg = *nodep;	/* handle on the original abbreviation */
 
 	bename = map->target->newname (*namep, *bodyp, map, map->target->pointersize, 0, 0, 0, map->target->pointersize, 1);
