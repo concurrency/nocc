@@ -1413,6 +1413,23 @@ void tnode_setchook (tnode_t *t, chook_t *ch, void *hook)
 	return;
 }
 /*}}}*/
+/*{{{  void tnode_dumpchooks (FILE *stream)*/
+/*
+ *	dumps compiler hooks (debugging)
+ */
+void tnode_dumpchooks (FILE *stream)
+{
+	int i;
+
+	for (i=0; i<DA_CUR (acomphooks); i++) {
+		chook_t *ch = DA_NTHITEM (acomphooks, i);
+
+		fprintf (stream, "%-2d copy=0x%8.8x free=0x%8.8x dumptree=0x%8.8x %s\n", ch->id, (unsigned int)ch->chook_copy,
+				(unsigned int)ch->chook_free, (unsigned int)ch->chook_dumptree, ch->name);
+	}
+	return;
+}
+/*}}}*/
 
 
 /*{{{  int tnode_bytesfor (tnode_t *t, target_t *target)*/

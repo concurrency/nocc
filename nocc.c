@@ -1222,6 +1222,11 @@ local_close_out:
 	/*}}}*/
 
 main_out:
+	/*{{{  dump compiler hooks if requested*/
+	if (compopts.dumpchooks) {
+		tnode_dumpchooks (stderr);
+	}
+	/*}}}*/
 	/*{{{  shutdown/etc.*/
 	dynarray_trash (srcfiles);
 

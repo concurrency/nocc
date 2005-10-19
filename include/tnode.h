@@ -186,6 +186,7 @@ extern chook_t *tnode_lookupchookbyname (const char *name);
 extern chook_t *tnode_lookupornewchook (const char *name);
 extern void *tnode_getchook (tnode_t *t, chook_t *ch);
 extern void tnode_setchook (tnode_t *t, chook_t *ch, void *hook);
+extern void tnode_dumpchooks (FILE *stream);
 
 extern int tnode_bytesfor (tnode_t *t, struct TAG_target *target);
 extern int tnode_issigned (tnode_t *t, struct TAG_target *target);
