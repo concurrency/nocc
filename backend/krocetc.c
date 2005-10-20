@@ -1647,6 +1647,20 @@ fprintf (stderr, "krocetc_coder_loadpointer(): [%s] local=%d, ref_lexlevel=%d, a
 			/*}}}*/
 		}
 		/*}}}*/
+	} else if (name->tag == krocetc_target.tag_INDEXED) {
+		/*{{{  load pointer into an indexed node (array typically)*/
+		krocetc_indexedhook_t *ih = (krocetc_indexedhook_t *)tnode_nthhookof (name, 0);
+
+		krocetc_coder_loadpointer (cgen, tnode_nthsubof (name, 0), 0);
+		codegen_callops (cgen, loadname, tnode_nthsubof (name, 1), 0);
+		if (ih->isize > 1) {
+			codegen_callops (cgen, loadconst, ih->isize);
+			codegen_write_fmt (cgen, "\tprod\n");
+			krocetc_cgstate_tsdelta (cgen, -1);
+		}
+		codegen_write_fmt (cgen, "\tsum\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		/*}}}*/
 	} else if (name->tag == kpriv->tag_CONSTREF) {
 		/*{{{  loading pointer to a constant*/
 		krocetc_consthook_t *ch = (krocetc_consthook_t *)tnode_nthhookof (name, 0);
@@ -1654,7 +1668,7 @@ fprintf (stderr, "krocetc_coder_loadpointer(): [%s] local=%d, ref_lexlevel=%d, a
 		krocetc_coder_loadlabaddr (cgen, ch->label);
 		ch->labrefs++;
 		/*}}}*/
-	} else if (name->tag == cgen->target->tag_NAME) {
+	} else if (name->tag == krocetc_target.tag_NAME) {
 		/*{{{  loading pointer to a name with no scope (specials only!)*/
 		tnode_t *realname = tnode_nthsubof (name, 0);
 
@@ -1887,16 +1901,32 @@ static void krocetc_coder_storename (codegen_t *cgen, tnode_t *name, int offset)
 			/*{{{  indexed*/
 			/* load BYTE index */
 			codegen_callops (cgen, loadname, tnode_nthsubof (name, 1), 0);
-			codegen_callops (cgen, loadconst, ih->isize);
-			codegen_callops (cgen, tsecondary, I_PROD);		/* scale */
+			if (ih->isize > 1) {
+				codegen_callops (cgen, loadconst, ih->isize);
+				codegen_callops (cgen, tsecondary, I_PROD);		/* scale */
+			}
 
 			/* load a pointer to the base */
 			codegen_callops (cgen, loadpointer, tnode_nthsubof (name, 0), 0);
 			codegen_callops (cgen, tsecondary, I_SUM);		/* add */
 
-			codegen_write_fmt (cgen, "\tstnl\t%d\n", offset);
-			krocetc_cgstate_tsdelta (cgen, -2);
-
+			switch (ih->isize) {
+			case 1:
+				codegen_write_fmt (cgen, "\tsb\n");
+				krocetc_cgstate_tsdelta (cgen, -2);
+				break;
+			case 2:
+				codegen_write_fmt (cgen, "\tsw\n");
+				krocetc_cgstate_tsdelta (cgen, -2);
+				break;
+			case 4:
+				codegen_write_fmt (cgen, "\tstnl\t%d\n", offset);
+				krocetc_cgstate_tsdelta (cgen, -2);
+				break;
+			default:
+				codegen_error (cgen, "krocetc_coder_storename(): INDEXED: index size %d not supported here", ih->isize);
+				break;
+			}
 			/*}}}*/
 		}
 

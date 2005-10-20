@@ -108,7 +108,7 @@ static int occampi_snode_init_nodes (void)
 
 	/*{{{  occampi:snode -- IF, ALT, CASE*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:snode", &i, 3, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr; 1 = body; 2 = replicator */
+	tnd = tnode_newnodetype ("occampi:snode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr; 1 = body */
 	cops = tnode_newcompops ();
 	cops->codegen = occampi_codegen_snode;
 	tnd->ops = cops;
@@ -140,7 +140,7 @@ static int occampi_snode_init_nodes (void)
  */
 static int occampi_snode_reg_reducers (void)
 {
-	parser_register_grule ("opi:altsnode", parser_decode_grule ("ST0T+@t000C3R-", opi.tag_ALT));
+	parser_register_grule ("opi:altsnode", parser_decode_grule ("ST0T+@t00C2R-", opi.tag_ALT));
 	parser_register_grule ("opi:ifcond", parser_decode_grule ("SN0N+0C2R-", opi.tag_CONDITIONAL));
 
 	return 0;

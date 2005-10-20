@@ -1134,7 +1134,17 @@ fprintf (stderr, "occampi_bytesfor_namenode(): [N_FIELD], type =\n");
 tnode_dumptree (type, 1, stderr);
 #endif
 		return tnode_bytesfor (type, target);
+	} else if (node->tag == opi.tag_NREPL) {
+		name_t *name = tnode_nthnameof (node, 0);
+		tnode_t *type = NameTypeOf (name);
+
+		/* always integer (at the moment) */
+		if (target) {
+			return target->intsize;
+		}
+		return tnode_bytesfor (type, target);
 	}
+
 	nocc_error ("occampi_bytesfor_namenode(): no bytes for [%s]", node->tag->name);
 	return -1;
 }
@@ -1234,7 +1244,7 @@ static int occampi_decl_init_nodes (void)
 	i = -1;
 	opi.tag_NAME = tnode_newnodetag ("NAME", &i, tnd, NTF_NONE);
 	/*}}}*/
-	/*{{{  occampi:namenode -- N_DECL, N_PARAM, N_VALPARAM, N_PROCDEF, N_DATATYPEDECL, N_FIELD, N_ABBR, N_VALABBR, N_FUNCDEF, N_CHANTYPEDECL, N_PROCTYPEDECL*/
+	/*{{{  occampi:namenode -- N_DECL, N_PARAM, N_VALPARAM, N_PROCDEF, N_DATATYPEDECL, N_FIELD, N_ABBR, N_VALABBR, N_FUNCDEF, N_CHANTYPEDECL, N_PROCTYPEDECL, N_REPL*/
 	i = -1;
 	tnd = opi.node_NAMENODE = tnode_newnodetype ("occampi:namenode", &i, 0, 1, 0, TNF_NONE);	/* subnames: name */
 	cops = tnode_newcompops ();
@@ -1269,6 +1279,8 @@ static int occampi_decl_init_nodes (void)
 	opi.tag_NCHANTYPEDECL = tnode_newnodetag ("N_CHANTYPEDECL", &i, opi.node_NAMENODE, NTF_SYNCTYPE);
 	i = -1;
 	opi.tag_NPROCTYPEDECL = tnode_newnodetag ("N_PROCTYPEDECL", &i, opi.node_NAMENODE, NTF_NONE);
+	i = -1;
+	opi.tag_NREPL = tnode_newnodetag ("N_REPL", &i, opi.node_NAMENODE, NTF_NONE);
 	/*}}}*/
 	/*{{{  occampi:hiddennode -- HIDDENPARAM*/
 	i = -1;

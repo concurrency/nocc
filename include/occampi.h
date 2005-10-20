@@ -84,7 +84,9 @@ typedef struct {
 	struct TAG_ntdef *tag_SKIP;
 	struct TAG_ntdef *tag_STOP;
 	struct TAG_ntdef *tag_SEQ;
+	struct TAG_ntdef *tag_REPLSEQ;
 	struct TAG_ntdef *tag_PAR;
+	struct TAG_ntdef *tag_REPLPAR;
 	struct TAG_ntdef *tag_ASSIGN;
 	struct TAG_ntdef *tag_INPUT;
 	struct TAG_ntdef *tag_OUTPUT;
@@ -136,6 +138,7 @@ typedef struct {
 	struct TAG_ntdef *tag_NFIELD;
 	struct TAG_ntdef *tag_NABBR;
 	struct TAG_ntdef *tag_NVALABBR;
+	struct TAG_ntdef *tag_NREPL;
 
 	struct TAG_ntdef *tag_PINSTANCE;
 	struct TAG_ntdef *tag_FINSTANCE;

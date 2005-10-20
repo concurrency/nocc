@@ -67,7 +67,36 @@ static void occampi_reduce_cnode (dfastate_t *dfast, parsepriv_t *pp, void *rarg
 
 	tok = parser_gettok (pp);
 	tag = tnode_lookupnodetag (tok->u.kw->name);
-	*(dfast->ptr) = tnode_create (tag, tok->origin, NULL, NULL, NULL);
+	*(dfast->ptr) = tnode_create (tag, tok->origin, NULL, NULL);
+	lexer_freetoken (tok);
+
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_reduce_replcnode (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	reduces a replicated constructor node (e.g. REPLSEQ, REPLPAR)
+ */
+static void occampi_reduce_replcnode (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	token_t *tok;
+	ntdef_t *tag;
+	tnode_t *rname, *rstart, *rlength;
+
+	tok = parser_gettok (pp);
+	tag = tnode_lookupnodetag (tok->u.kw->name);
+	if (tag == opi.tag_SEQ) {
+		tag = opi.tag_REPLSEQ;
+	} else if (tag == opi.tag_PAR) {
+		tag = opi.tag_REPLPAR;
+	} else {
+		parser_error (pp->lf, "occampi_reduce_replcnode(): unknown tag to replicate [%s]", tag->name);
+		return;
+	}
+	rlength = dfa_popnode (dfast);
+	rstart = dfa_popnode (dfast);
+	rname = dfa_popnode (dfast);
+	*(dfast->ptr) = tnode_create (tag, tok->origin, NULL, NULL, rname, rstart, rlength);
 	lexer_freetoken (tok);
 
 	return;
@@ -116,7 +145,7 @@ static int occampi_cnode_dousagecheck (tnode_t *node, uchk_state_t *ucstate)
 /*}}}*/
 /*{{{  static int occampi_namemap_cnode (tnode_t **node, map_t *map)*/
 /*
- *	does name mapping for certain conditional-nodes
+ *	does name mapping for constructor nodes (SEQ, PAR)
  *	returns 0 to stop walk, 1 to continue
  */
 static int occampi_namemap_cnode (tnode_t **node, map_t *map)
@@ -292,6 +321,58 @@ static int occampi_codegen_cnode (tnode_t *node, codegen_t *cgen)
 /*}}}*/
 
 
+/*{{{  static int occampi_replcnode_dousagecheck (tnode_t *node, uchk_state_t *ucstate)*/
+/*
+ *	does usage-checking for a replicated constructor-node (REPLSEQ, REPLPAR)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_replcnode_dousagecheck (tnode_t *node, uchk_state_t *ucstate)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_scopein_replcnode (tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes in a replicated constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_scopein_replcnode (tnode_t **node, scope_t *ss)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_scopeout_replcnode (tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes out a replicated constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_scopeout_replcnode (tnode_t **node, scope_t *ss)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_namemap_replcnode (tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for replicated constructor nodes (REPLSEQ, REPLPAR)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_replcnode (tnode_t **node, map_t *map)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_codegen_replcnode (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for replicated constructor nodes (REPLSEQ, REPLPAR)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_codegen_replcnode (tnode_t *node, codegen_t *cgen)
+{
+	return 1;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_typecheck_cexpnode (tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking for a cexpnode
@@ -381,7 +462,7 @@ static int occampi_cnode_init_nodes (void)
 
 	/*{{{  occampi:cnode -- SEQ, PAR*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:cnode", &i, 3, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr/operand/parspaceref; 1 = body; 2 = replicator */
+	tnd = tnode_newnodetype ("occampi:cnode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr/operand/parspaceref; 1 = body */
 	cops = tnode_newcompops ();
 	cops->namemap = occampi_namemap_cnode;
 	cops->codegen = occampi_codegen_cnode;
@@ -394,6 +475,25 @@ static int occampi_cnode_init_nodes (void)
 	opi.tag_SEQ = tnode_newnodetag ("SEQ", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_PAR = tnode_newnodetag ("PAR", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:replcnode -- REPLSEQ, REPLPAR*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:replcnode", &i, 5, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr/operand/parspaceref; 1 = body; 2 = name; 3 = start; 4 = length */
+	cops = tnode_newcompops ();
+	cops->scopein = occampi_scopein_replcnode;
+	cops->scopeout = occampi_scopeout_replcnode;
+	cops->namemap = occampi_namemap_replcnode;
+	cops->codegen = occampi_codegen_replcnode;
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->do_usagecheck = occampi_replcnode_dousagecheck;
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_REPLSEQ = tnode_newnodetag ("REPLSEQ", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_REPLPAR = tnode_newnodetag ("REPLPAR", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  occampi:cexpnode -- SHORTIF, WHILE*/
@@ -430,6 +530,8 @@ static int occampi_cnode_init_nodes (void)
 static int occampi_cnode_reg_reducers (void)
 {
 	parser_register_reduce ("Roccampi:cnode", occampi_reduce_cnode, NULL);
+	parser_register_reduce ("Roccampi:replcnode", occampi_reduce_replcnode, NULL);
+
 	parser_register_grule ("opi:shortif", parser_decode_grule ("T+@tSN0N+0C2R-", opi.tag_SHORTIF));
 	parser_register_grule ("opi:while", parser_decode_grule ("SN0N+0C2R-", opi.tag_WHILE));
 	parser_register_grule ("opi:ifstart", parser_decode_grule ("ST0T+@t000C3R-", opi.tag_IF));
@@ -446,7 +548,8 @@ static dfattbl_t **occampi_cnode_init_dfatrans (int *ntrans)
 	DYNARRAY (dfattbl_t *, transtbl);
 
 	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_bnftotbl ("occampi:cproc ::= ( +@SEQ | +@PAR ) -Newline {Roccampi:cnode}"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:replcproc ::= [ 0 occampi:name 1 ] [ 1 @@= 2 ] [ 2 occampi:expr 3 ] [ 3 @FOR 4 ] [ 4 occampi:expr 5 ] [ 5 {Roccampi:replcnode} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:cproc ::= [ 0 +@SEQ 1 ] [ 0 +@PAR 1 ] [ 1 -Newline 2 ] [ 1 -Name <occampi:replcproc> ] [ 2 {Roccampi:cnode} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:cproc +:= [ 0 +@IF 1 ] [ 1 -Newline 2 ] [ 1 %occampi:expr 3 ] [ 2 {<opi:ifstart>} -* ] " \
 				"[ 3 occampi:expr 4 ] [ 4 -Newline 5 ] [ 5 {<opi:shortif>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:cproc +:= [ 0 @WHILE 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:while>} -* ]"));
