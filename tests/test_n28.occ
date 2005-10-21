@@ -1,0 +1,10 @@
+-- test_n28.occ -- REPLSEQ
+
+PROC test.n28 (CHAN BYTE scr!)
+  VAL []BYTE message IS "hello, new world!":
+  SEQ
+    SEQ i = 0 FOR 17
+      scr ! message[i]
+    scr ! '*n'
+:
+

@@ -56,6 +56,7 @@ typedef struct TAG_coderops {
 	void (*storename)(codegen_t *, struct TAG_tnode *, int);
 	void (*storelocal)(codegen_t *, int);
 	void (*loadconst)(codegen_t *, int);
+	void (*addconst)(codegen_t *, int);
 	void (*wsadjust)(codegen_t *, int);
 	void (*comment)(codegen_t *, const char *fmt, ...);
 	void (*setwssize)(codegen_t *, int, int);

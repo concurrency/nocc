@@ -1959,6 +1959,17 @@ static void krocetc_coder_loadconst (codegen_t *cgen, int val)
 	return;
 }
 /*}}}*/
+/*{{{  static void krocetc_coder_addconst (codegen_t *cgen, int val)*/
+/*
+ *	adds a constant to the thing on the top of the stack
+ */
+static void krocetc_coder_addconst (codegen_t *cgen, int val)
+{
+	codegen_write_fmt (cgen, "\tadc\t%d\n", val);
+	krocetc_cgstate_tsdelta (cgen, 0);
+	return;
+}
+/*}}}*/
 /*{{{  static void krocetc_coder_wsadjust (codegen_t *cgen, int adjust)*/
 /*
  *	generates workspace adjustments
@@ -2292,6 +2303,7 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	cops->storename = krocetc_coder_storename;
 	cops->storelocal = krocetc_coder_storelocal;
 	cops->loadconst = krocetc_coder_loadconst;
+	cops->addconst = krocetc_coder_addconst;
 	cops->wsadjust = krocetc_coder_wsadjust;
 	cops->comment = krocetc_coder_comment;
 	cops->setwssize = krocetc_coder_setwssize;

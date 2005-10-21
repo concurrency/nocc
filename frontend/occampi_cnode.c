@@ -413,7 +413,7 @@ static int occampi_namemap_replcnode (tnode_t **node, map_t *map)
 	map_submapnames (tnode_nthsubaddr (*node, 3), map);
 	map_submapnames (tnode_nthsubaddr (*node, 4), map);
 
-	bename = map->target->newname (*namep, *node, map, tsize, 0, 0, 0, tsize, 0);
+	bename = map->target->newname (*namep, *node, map, tsize * 2, 0, 0, 0, tsize, 0);
 	tnode_setchook (*namep, map->mapchook, (void *)bename);
 	*node = bename;
 
@@ -436,14 +436,33 @@ static int occampi_codegen_replcnode (tnode_t *node, codegen_t *cgen)
 	tnode_t *replname = tnode_nthsubof (node, 2);
 	tnode_t *start = tnode_nthsubof (node, 3);
 	tnode_t *length = tnode_nthsubof (node, 4);
+	int hlab, tlab;
 
 	/* FIXME: incomplete! */
 	codegen_callops (cgen, loadname, start, 0);
 	codegen_callops (cgen, storename, replname, 0);
+	codegen_callops (cgen, loadname, length, 0);
+	codegen_callops (cgen, storename, replname, cgen->target->intsize);
 
+	hlab = codegen_new_label (cgen);
+	tlab = codegen_new_label (cgen);
+
+	codegen_callops (cgen, setlabel, hlab);
+	codegen_callops (cgen, loadname, replname, cgen->target->intsize);
+	codegen_callops (cgen, branch, I_CJ, tlab);
+	
 	/* generate the replicated body */
 	codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
 
+	codegen_callops (cgen, loadname, replname, 0);
+	codegen_callops (cgen, addconst, 1);
+	codegen_callops (cgen, storename, replname, 0);
+	codegen_callops (cgen, loadname, replname, cgen->target->intsize);
+	codegen_callops (cgen, addconst, -1);
+	codegen_callops (cgen, storename, replname, cgen->target->intsize);
+	codegen_callops (cgen, branch, I_J, hlab);
+
+	codegen_callops (cgen, setlabel, tlab);
 	return 0;
 }
 /*}}}*/
