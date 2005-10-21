@@ -338,6 +338,41 @@ static int occampi_replcnode_dousagecheck (tnode_t *node, uchk_state_t *ucstate)
  */
 static int occampi_scopein_replcnode (tnode_t **node, scope_t *ss)
 {
+	tnode_t *replname = tnode_nthsubof (*node, 2);
+	tnode_t *type = tnode_create (opi.tag_INT, NULL);
+	char *rawname;
+	tnode_t *newname;
+	name_t *sname = NULL;
+
+	if ((*node)->tag == opi.tag_REPLPAR) {
+		scope_error (*node, ss, "occampi_scopein_replcnode(): REPLPAR not supported yet.");
+		return 0;
+	}
+	if (replname->tag != opi.tag_NAME) {
+		scope_error (replname, ss, "occampi_scopein_replcnode(): name not raw-name!");
+		return 0;
+	}
+	rawname = (char *)tnode_nthhookof (replname, 0);
+
+	/* scope the start and length expressions */
+	if (scope_subtree (tnode_nthsubaddr (*node, 3), ss)) {
+		/* failed to scope start */
+		return 0;
+	}
+	if (scope_subtree (tnode_nthsubaddr (*node, 4), ss)) {
+		/* failed to scope length */
+		return 0;
+	}
+
+	sname = name_addscopename (rawname, *node, type, NULL);
+	newname = tnode_createfrom (opi.tag_NREPL, replname, sname);
+	SetNameNode (sname, newname);
+	tnode_setnthsub (*node, 2, newname);
+
+	/* free the old name */
+	tnode_free (replname);
+	ss->scoped++;
+
 	return 1;
 }
 /*}}}*/
@@ -348,6 +383,17 @@ static int occampi_scopein_replcnode (tnode_t **node, scope_t *ss)
  */
 static int occampi_scopeout_replcnode (tnode_t **node, scope_t *ss)
 {
+	tnode_t *replname = tnode_nthsubof (*node, 2);
+	name_t *sname;
+
+	if (replname->tag != opi.tag_NREPL) {
+		scope_error (replname, ss, "not NREPL!");
+		return 0;
+	}
+	sname = tnode_nthnameof (replname, 0);
+
+	name_descopename (sname);
+
 	return 1;
 }
 /*}}}*/
@@ -358,7 +404,26 @@ static int occampi_scopeout_replcnode (tnode_t **node, scope_t *ss)
  */
 static int occampi_namemap_replcnode (tnode_t **node, map_t *map)
 {
-	return 1;
+	tnode_t **namep = tnode_nthsubaddr (*node, 2);
+	tnode_t **bodyp = tnode_nthsubaddr (*node, 1);
+	int tsize = map->target->intsize;
+	tnode_t *bename;
+
+	/* map the start and length expressions first */
+	map_submapnames (tnode_nthsubaddr (*node, 3), map);
+	map_submapnames (tnode_nthsubaddr (*node, 4), map);
+
+	bename = map->target->newname (*namep, *node, map, tsize, 0, 0, 0, tsize, 0);
+	tnode_setchook (*namep, map->mapchook, (void *)bename);
+	*node = bename;
+
+	/* map the name in the replicator, turning it into a NAMEREF */
+	map_submapnames (namep, map);
+
+	/* map the body (original, not what we just placed) */
+	map_submapnames (bodyp, map);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int occampi_codegen_replcnode (tnode_t *node, codegen_t *cgen)*/
@@ -368,7 +433,18 @@ static int occampi_namemap_replcnode (tnode_t **node, map_t *map)
  */
 static int occampi_codegen_replcnode (tnode_t *node, codegen_t *cgen)
 {
-	return 1;
+	tnode_t *replname = tnode_nthsubof (node, 2);
+	tnode_t *start = tnode_nthsubof (node, 3);
+	tnode_t *length = tnode_nthsubof (node, 4);
+
+	/* FIXME: incomplete! */
+	codegen_callops (cgen, loadname, start, 0);
+	codegen_callops (cgen, storename, replname, 0);
+
+	/* generate the replicated body */
+	codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+
+	return 0;
 }
 /*}}}*/
 

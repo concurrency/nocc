@@ -938,8 +938,7 @@ tnode_dumptree (tree, 1, stderr);
 			/*}}}*/
 		} else if (tnflags & TNF_LONGPROC) {
 			/*{{{  long process (e.g. SEQ, CLAIM, FORKING, etc.)*/
-			if ((tree->tag == opi.tag_SEQ) || (tree->tag == opi.tag_PAR) || (tree->tag == opi.tag_SHORTIF) || (tree->tag == opi.tag_WHILE)
-					|| (tree->tag == opi.tag_REPLSEQ) || (tree->tag == opi.tag_REPLPAR)) {
+			if ((tree->tag == opi.tag_SEQ) || (tree->tag == opi.tag_PAR) || (tree->tag == opi.tag_SHORTIF) || (tree->tag == opi.tag_WHILE)) {
 				/* parse a list of processes into subnode 1 */
 				tnode_t *body;
 
@@ -951,7 +950,7 @@ tnode_dumptree (tree, 1, stderr);
 
 				body = occampi_indented_process_list (lf, "occampi:ifcond");
 				tnode_setnthsub (tree, 1, body);
-			} else if (tree->tag == opi.tag_CONDITIONAL) {
+			} else if ((tree->tag == opi.tag_CONDITIONAL) || (tree->tag == opi.tag_REPLSEQ) || (tree->tag == opi.tag_REPLPAR)) {
 				/* parse indented process into subnode 1 */
 				tnode_t *body;
 

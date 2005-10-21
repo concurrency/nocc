@@ -281,7 +281,7 @@ tnode_dumptree (bename, 1, stderr);
 	bodyp = tnode_nthsubaddr (*node, 1);
 	// tnode_setnthsub (*node, 0, bename);
 
-	/* scope the body */
+	/* map the body */
 	map_submapnames (bodyp, map);
 	return 0;
 }
