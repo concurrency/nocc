@@ -438,7 +438,6 @@ static int occampi_codegen_replcnode (tnode_t *node, codegen_t *cgen)
 	tnode_t *length = tnode_nthsubof (node, 4);
 	int hlab, tlab;
 
-	/* FIXME: incomplete! */
 	codegen_callops (cgen, loadname, start, 0);
 	codegen_callops (cgen, storename, replname, 0);
 	codegen_callops (cgen, loadname, length, 0);
