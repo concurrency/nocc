@@ -923,7 +923,9 @@ tnode_dumptree (tree, 1, stderr);
 		tnflags = tnode_tnflagsof (tree);
 		if (tnflags & TNF_LONGDECL) {
 			/*{{{  long declaration (e.g. PROC, CHAN TYPE, etc.)*/
-			if ((tree->tag == opi.tag_PROCDECL) || (tree->tag == opi.tag_FUNCDECL)) {
+			int ntflags = tnode_ntflagsof (tree);
+
+			if (ntflags & NTF_INDENTED_PROC) {
 				/* parse body into subnode 2 */
 				tnode_t *body;
 
@@ -938,19 +940,21 @@ tnode_dumptree (tree, 1, stderr);
 			/*}}}*/
 		} else if (tnflags & TNF_LONGPROC) {
 			/*{{{  long process (e.g. SEQ, CLAIM, FORKING, etc.)*/
-			if ((tree->tag == opi.tag_SEQ) || (tree->tag == opi.tag_PAR) || (tree->tag == opi.tag_SHORTIF) || (tree->tag == opi.tag_WHILE)) {
+			int ntflags = tnode_ntflagsof (tree);
+
+			if (ntflags & NTF_INDENTED_PROC_LIST) {
 				/* parse a list of processes into subnode 1 */
 				tnode_t *body;
 
 				body = occampi_indented_process_list (lf, NULL);
 				tnode_setnthsub (tree, 1, body);
-			} else if (tree->tag == opi.tag_IF) {
+			} else if (ntflags & NTF_INDENTED_CONDPROC_LIST) {
 				/* parse a list of indented conditions + processes into subnode1 */
 				tnode_t *body;
 
 				body = occampi_indented_process_list (lf, "occampi:ifcond");
 				tnode_setnthsub (tree, 1, body);
-			} else if ((tree->tag == opi.tag_CONDITIONAL) || (tree->tag == opi.tag_REPLSEQ) || (tree->tag == opi.tag_REPLPAR)) {
+			} else if (ntflags & NTF_INDENTED_PROC) {
 				/* parse indented process into subnode 1 */
 				tnode_t *body;
 
@@ -964,6 +968,8 @@ tnode_dumptree (tree, 1, stderr);
 				body = occampi_indented_process_trailing (lf, "occampi:valofresult", &extra);
 				tnode_setnthsub (tree, 1, body);
 				tnode_setnthsub (tree, 0, extra);
+			} else {
+				tnode_warning (tree, "occampi_declorproc(): unhandled LONGPROC [%s]", tree->tag->name);
 			}
 			/*}}}*/
 		}

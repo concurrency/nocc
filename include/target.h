@@ -49,6 +49,10 @@ typedef struct TAG_target {
 		unsigned int ds_max:8;								/* maximum below-workspace bytes for any process */
 	} bws;
 
+	struct {
+		unsigned int as_par:8;								/* above workspace bytes for PAR */
+	} aws;
+
 	int chansize;										/* number of bytes for a CHAN */
 	int charsize;										/* number of bytes for a CHAR */
 	int intsize;										/* number of bytes for an INT */

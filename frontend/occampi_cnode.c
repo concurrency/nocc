@@ -192,6 +192,7 @@ static int occampi_namemap_cnode (tnode_t **node, map_t *map)
 		}
 
 		if (nbodies > 1) {
+			/*{{{  make space for PAR*/
 			tnode_t *bename, *bodyref, *blist;
 			tnode_t *fename = tnode_create (opi.tag_PARSPACE, NULL);
 
@@ -200,12 +201,13 @@ static int occampi_namemap_cnode (tnode_t **node, map_t *map)
 				parser_addtolist (blist, bodies[i]);
 			}
 			bodyref = map->target->newblockref (blist, *node, map);
-			bename = map->target->newname (fename, bodyref, map, 12, 0, 0, 0, 0, 0);                    /* FIXME! */
+			bename = map->target->newname (fename, bodyref, map, map->target->aws.as_par, 0, 0, 0, 0, 0);
 			tnode_setchook (fename, map->mapchook, (void *)bename);
 
 			*node = bename;
 
 			tnode_setnthsub (parnode, 0, map->target->newnameref (bename, map));
+			/*}}}*/
 		}
 
 		/*}}}*/
@@ -344,10 +346,6 @@ static int occampi_scopein_replcnode (tnode_t **node, scope_t *ss)
 	tnode_t *newname;
 	name_t *sname = NULL;
 
-	if ((*node)->tag == opi.tag_REPLPAR) {
-		scope_error (*node, ss, "occampi_scopein_replcnode(): REPLPAR not supported yet.");
-		return 0;
-	}
 	if (replname->tag != opi.tag_NAME) {
 		scope_error (replname, ss, "occampi_scopein_replcnode(): name not raw-name!");
 		return 0;
@@ -404,6 +402,7 @@ static int occampi_scopeout_replcnode (tnode_t **node, scope_t *ss)
  */
 static int occampi_namemap_replcnode (tnode_t **node, map_t *map)
 {
+	tnode_t *orgnode = *node;
 	tnode_t **namep = tnode_nthsubaddr (*node, 2);
 	tnode_t **bodyp = tnode_nthsubaddr (*node, 1);
 	int tsize = map->target->intsize;
@@ -420,8 +419,30 @@ static int occampi_namemap_replcnode (tnode_t **node, map_t *map)
 	/* map the name in the replicator, turning it into a NAMEREF */
 	map_submapnames (namep, map);
 
-	/* map the body (original, not what we just placed) */
-	map_submapnames (bodyp, map);
+	if (orgnode->tag == opi.tag_REPLPAR) {
+		tnode_t *blk, *params = NULL;
+		tnode_t *saved_blk = map->thisblock;
+		tnode_t **saved_params = map->thisprocparams;
+
+		blk = map->target->newblock (tnode_nthsubof (bename, 1), map, NULL, map->lexlevel + 1);
+		map->thisblock = blk;
+		map->thisprocparams = &params;
+		map->lexlevel++;
+
+		/* map original body in new lexlevel */
+		map_submapnames (bodyp, map);
+
+		map->lexlevel--;
+		map->thisprocparams = saved_params;
+		map->thisblock = saved_blk;
+
+		/* attach block to the earlier name */
+		tnode_setnthsub (bename, 1, blk);
+
+	} else if (orgnode->tag == opi.tag_REPLSEQ) {
+		/* map the body (original, not what we just placed) */
+		map_submapnames (bodyp, map);
+	}
 
 	return 0;
 }
@@ -566,9 +587,9 @@ static int occampi_cnode_init_nodes (void)
 	tnd->lops = lops;
 
 	i = -1;
-	opi.tag_SEQ = tnode_newnodetag ("SEQ", &i, tnd, NTF_NONE);
+	opi.tag_SEQ = tnode_newnodetag ("SEQ", &i, tnd, NTF_INDENTED_PROC_LIST);
 	i = -1;
-	opi.tag_PAR = tnode_newnodetag ("PAR", &i, tnd, NTF_NONE);
+	opi.tag_PAR = tnode_newnodetag ("PAR", &i, tnd, NTF_INDENTED_PROC_LIST);
 
 	/*}}}*/
 	/*{{{  occampi:replcnode -- REPLSEQ, REPLPAR*/
@@ -585,9 +606,9 @@ static int occampi_cnode_init_nodes (void)
 	tnd->lops = lops;
 
 	i = -1;
-	opi.tag_REPLSEQ = tnode_newnodetag ("REPLSEQ", &i, tnd, NTF_NONE);
+	opi.tag_REPLSEQ = tnode_newnodetag ("REPLSEQ", &i, tnd, NTF_INDENTED_PROC);
 	i = -1;
-	opi.tag_REPLPAR = tnode_newnodetag ("REPLPAR", &i, tnd, NTF_NONE);
+	opi.tag_REPLPAR = tnode_newnodetag ("REPLPAR", &i, tnd, NTF_INDENTED_PROC);
 
 	/*}}}*/
 	/*{{{  occampi:cexpnode -- SHORTIF, WHILE*/
@@ -600,9 +621,9 @@ static int occampi_cnode_init_nodes (void)
 	tnd->ops = cops;
 
 	i = -1;
-	opi.tag_WHILE = tnode_newnodetag ("WHILE", &i, tnd, NTF_NONE);
+	opi.tag_WHILE = tnode_newnodetag ("WHILE", &i, tnd, NTF_INDENTED_PROC);
 	i = -1;
-	opi.tag_SHORTIF = tnode_newnodetag ("SHORTIF", &i, tnd, NTF_NONE);
+	opi.tag_SHORTIF = tnode_newnodetag ("SHORTIF", &i, tnd, NTF_INDENTED_PROC);
 
 	/*}}}*/
 	/*{{{  occampi:leafnode -- PARSPACE*/

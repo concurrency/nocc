@@ -96,6 +96,9 @@ target_t krocetc_target = {
 		ds_wait: 24,
 		ds_max: 24
 	},
+	aws: {
+		as_par: 12,
+	},
 
 	chansize:	4,
 	charsize:	1,

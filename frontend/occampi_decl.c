@@ -581,7 +581,7 @@ static int occampi_scopein_procdecl (tnode_t **node, scope_t *ss)
 	SetNameNode (procname, newname);
 	tnode_setnthsub (*node, 0, newname);
 
-	/* free old name, check process */
+	/* free old name, scope process */
 	tnode_free (name);
 	tnode_modprepostwalktree (tnode_nthsubaddr (*node, 3), scope_modprewalktree, scope_modpostwalktree, (void *)ss);
 	ss->scoped++;
@@ -1356,7 +1356,7 @@ static int occampi_decl_init_nodes (void)
 	lops->do_usagecheck = occampi_usagecheck_procdecl;
 	tnd->lops = lops;
 	i = -1;
-	opi.tag_PROCDECL = tnode_newnodetag ("PROCDECL", &i, tnd, NTF_NONE);
+	opi.tag_PROCDECL = tnode_newnodetag ("PROCDECL", &i, tnd, NTF_INDENTED_PROC);
 	/*}}}*/
 
 	return 0;

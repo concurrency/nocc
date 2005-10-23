@@ -116,7 +116,7 @@ static int occampi_snode_init_nodes (void)
 	i = -1;
 	opi.tag_ALT = tnode_newnodetag ("ALT", &i, tnd, NTF_NONE);
 	i = -1;
-	opi.tag_IF = tnode_newnodetag ("IF", &i, tnd, NTF_NONE);
+	opi.tag_IF = tnode_newnodetag ("IF", &i, tnd, NTF_INDENTED_CONDPROC_LIST);
 	i = -1;
 	opi.tag_CASE = tnode_newnodetag ("CASE", &i, tnd, NTF_NONE);
 
@@ -128,7 +128,7 @@ static int occampi_snode_init_nodes (void)
 	tnd->ops = cops;
 
 	i = -1;
-	opi.tag_CONDITIONAL = tnode_newnodetag ("CONDITIONAL", &i, tnd, NTF_NONE);
+	opi.tag_CONDITIONAL = tnode_newnodetag ("CONDITIONAL", &i, tnd, NTF_INDENTED_PROC);
 	/*}}}*/
 
 	return 0;

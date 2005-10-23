@@ -27,8 +27,11 @@ extern struct TAG_langlexer occampi_lexer;
 extern struct TAG_langparser occampi_parser;
 
 /* node-type and node-tag flag values */
-#define NTF_BOOLOP	0x0001		/* boolean operator flag */
-#define NTF_SYNCTYPE	0x0002		/* synchronisation type */
+#define NTF_BOOLOP		0x0001		/* boolean operator flag */
+#define NTF_SYNCTYPE		0x0002		/* synchronisation type */
+#define NTF_INDENTED_PROC_LIST	0x0004		/* for TNF_LONGPROCs, parse a list of indented processes into subnode 1 */
+#define NTF_INDENTED_PROC	0x0008		/* for TNF_LONGPROCs, parse an indented process into subnode 1 */
+#define NTF_INDENTED_CONDPROC_LIST	0x0010	/* for TNF_LONGPROCs, parse a list of indented conditions and processes into subnode 1 */
 
 struct TAG_tndef;
 struct TAG_ntdef;

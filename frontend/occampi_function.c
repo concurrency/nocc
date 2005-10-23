@@ -652,7 +652,7 @@ static int occampi_function_init_nodes (void)
 	tnd->lops = lops;
 
 	i = -1;
-	opi.tag_FUNCDECL = tnode_newnodetag ("FUNCDECL", &i, tnd, NTF_NONE);
+	opi.tag_FUNCDECL = tnode_newnodetag ("FUNCDECL", &i, tnd, NTF_INDENTED_PROC);
 	/*}}}*/
 	/*{{{  occampi:shortfuncdecl -- SHORTFUNCDECL*/
 	i = -1;
