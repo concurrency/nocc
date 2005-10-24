@@ -38,6 +38,7 @@
 #include "lexer.h"
 #include "lexpriv.h"
 #include "tnode.h"
+#include "constprop.h"
 #include "parser.h"
 #include "dfa.h"
 #include "parsepriv.h"
@@ -239,6 +240,24 @@ static int occampi_bytesfor_lit (tnode_t *node, target_t *target)
 	return tmplit->bytes;
 }
 /*}}}*/
+/*{{{  static int occampi_constprop_lit (tnode_t **nodep)*/
+/*
+ *	does constant propagation on a literal node (post walk)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_constprop_lit (tnode_t **nodep)
+{
+	occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof ((*nodep), 0);
+
+	if ((*nodep)->tag == opi.tag_LITBYTE) {
+		*nodep = constprop_newconst (CONST_BYTE, *nodep, NULL, *(unsigned char *)(tmplit->data));
+	} else if ((*nodep)->tag == opi.tag_LITINT) {
+		*nodep = constprop_newconst (CONST_INT, *nodep, NULL, *(int *)(tmplit->data));
+	}
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_lit (tnode_t **node, map_t *map)*/
 /*
  *	name-maps a literal
@@ -406,6 +425,7 @@ static int occampi_lit_init_nodes (void)
 	cops = tnode_newcompops ();
 	cops->gettype = occampi_gettype_lit;
 	cops->bytesfor = occampi_bytesfor_lit;
+	cops->constprop = occampi_constprop_lit;
 	cops->namemap = occampi_namemap_lit;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();

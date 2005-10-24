@@ -42,6 +42,8 @@
 #include "parsepriv.h"
 #include "names.h"
 #include "constprop.h"
+#include "map.h"
+#include "target.h"
 
 
 /*}}}*/
@@ -196,6 +198,49 @@ static tnode_t *cprop_gettype_const (tnode_t *node, tnode_t *default_type)
 	return tnode_nthsubof (node, 0);
 }
 /*}}}*/
+/*{{{  static int cprop_namemap_const (tnode_t **nodep, map_t *map)*/
+/*
+ *	maps a constant node, generating back-end constant
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cprop_namemap_const (tnode_t **nodep, map_t *map)
+{
+	consthook_t *ch = (consthook_t *)tnode_nthhookof ((*nodep), 0);
+	void *dptr = NULL;
+	int dlen = 0;
+
+	switch (ch->type) {
+	case CONST_INVALID:
+		dptr = NULL;
+		dlen = 0;
+		break;
+	case CONST_BYTE:
+		dptr = &(ch->u.bval);
+		dlen = 1;
+		break;
+	case CONST_INT:
+		dptr = &(ch->u.ival);
+		dlen = map->target->intsize;
+		break;
+	case CONST_DOUBLE:
+		dptr = &(ch->u.dval);
+		dlen = sizeof (ch->u.dval);
+		break;
+	case CONST_ULL:
+		dptr = &(ch->u.ullval);
+		dlen = sizeof (ch->u.ullval);
+		break;
+	}
+
+	if (dptr) {
+		tnode_t *cnst;
+
+		cnst = map->target->newconst (*nodep, map, dptr, dlen);
+		*nodep = cnst;
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int cprop_modprewalktree (tnode_t **tptr, void *arg)*/
@@ -243,6 +288,7 @@ int constprop_init (void)
 	tnd->hook_dumptree = cprop_consthook_hook_dumptree;
 	cops = tnode_newcompops ();
 	cops->gettype = cprop_gettype_const;
+	cops->namemap = cprop_namemap_const;
 	tnd->ops = cops;
 
 	i = -1;
