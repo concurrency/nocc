@@ -45,6 +45,7 @@
 #include "precheck.h"
 #include "scope.h"
 #include "typecheck.h"
+#include "constprop.h"
 #include "tnode.h"
 #include "names.h"
 #include "treeops.h"
@@ -713,6 +714,7 @@ int main (int argc, char **argv)
 	extn_init ();
 	treeops_init ();
 	library_init ();
+	constprop_init ();
 	precheck_init ();
 	aliascheck_init ();
 	usagecheck_init ();
@@ -950,6 +952,26 @@ int main (int argc, char **argv)
 			goto main_out;
 		}
 		/*}}}*/
+		/*{{{  constant propagation*/
+		if (compopts.verbose) {
+			nocc_message ("constant propagation ...");
+		}
+		for (i=0; i<DA_CUR (srctrees); i++) {
+			if (constprop_tree (DA_NTHITEMADDR (srctrees, i))) {
+				nocc_error ("failed to constant-propagate in %s", DA_NTHITEM (srcfiles, i));
+				errored = 1;
+			}
+		}
+		if (compopts.stoppoint == 6) {
+			/*{{{  stop after constant propagation*/
+			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+			goto main_out;
+			/*}}}*/
+		}
+		if (errored) {
+			goto main_out;
+		}
+		/*}}}*/
 		/*{{{  pre-check*/
 		if (compopts.verbose) {
 			nocc_message ("pre-check ...");
@@ -960,7 +982,7 @@ int main (int argc, char **argv)
 				errored = 1;
 			}
 		}
-		if (compopts.stoppoint == 6) {
+		if (compopts.stoppoint == 7) {
 			/*{{{  stop after pre-check*/
 			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
 			goto main_out;
@@ -982,7 +1004,7 @@ int main (int argc, char **argv)
 				}
 			}
 		}
-		if (compopts.stoppoint == 7) {
+		if (compopts.stoppoint == 8) {
 			/*{{{  stop after alias-check*/
 			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
 			goto main_out;
@@ -1004,7 +1026,7 @@ int main (int argc, char **argv)
 				}
 			}
 		}
-		if (compopts.stoppoint == 8) {
+		if (compopts.stoppoint == 9) {
 			/*{{{  stop after usage-check*/
 			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
 			goto main_out;
@@ -1026,7 +1048,7 @@ int main (int argc, char **argv)
 				}
 			}
 		}
-		if (compopts.stoppoint == 9) {
+		if (compopts.stoppoint == 10) {
 			/*{{{  stop after undefinedness-check*/
 			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
 			goto main_out;
@@ -1046,7 +1068,7 @@ int main (int argc, char **argv)
 				errored = 1;
 			}
 		}
-		if (compopts.stoppoint == 10) {
+		if (compopts.stoppoint == 11) {
 			/*{{{  stop after front-end tree transform*/
 			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
 			goto main_out;
@@ -1116,7 +1138,7 @@ int main (int argc, char **argv)
 				errored = 1;
 			}
 		}
-		if (compopts.stoppoint == 11) {
+		if (compopts.stoppoint == 12) {
 			/*{{{  stop after back-end tree transform*/
 			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
 			goto main_out;
@@ -1136,7 +1158,7 @@ int main (int argc, char **argv)
 				errored = 1;
 			}
 		}
-		if (compopts.stoppoint == 12) {
+		if (compopts.stoppoint == 13) {
 			/*{{{  stop after name-map*/
 			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
 			goto main_out;
@@ -1156,7 +1178,7 @@ int main (int argc, char **argv)
 				errored = 1;
 			}
 		}
-		if (compopts.stoppoint == 13) {
+		if (compopts.stoppoint == 14) {
 			/*{{{  stop after pre-allocation*/
 			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
 			goto main_out;
@@ -1176,7 +1198,7 @@ int main (int argc, char **argv)
 				errored = 1;
 			}
 		}
-		if (compopts.stoppoint == 14) {
+		if (compopts.stoppoint == 15) {
 			/*{{{  stop after memory allocation*/
 			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
 			goto main_out;
@@ -1196,7 +1218,7 @@ int main (int argc, char **argv)
 				errored = 1;
 			}
 		}
-		if (compopts.stoppoint == 15) {
+		if (compopts.stoppoint == 16) {
 			/*{{{  stop after code generation*/
 			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
 			goto main_out;

@@ -1256,7 +1256,10 @@ compops_t *tnode_newcompops (void)
 	cops->typecheck = NULL;
 	cops->typeactual = NULL;
 	cops->gettype = NULL;
+	cops->constprop = NULL;
+	cops->precheck = NULL;
 	cops->bytesfor = NULL;
+	cops->issigned = NULL;
 	cops->fetrans = NULL;
 	cops->betrans = NULL;
 	cops->premap = NULL;

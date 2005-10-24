@@ -100,6 +100,7 @@ typedef struct TAG_compops {
 	int (*typecheck)(tnode_t *, struct TAG_typecheck *);		/* type-checks this node */
 	tnode_t *(*typeactual)(tnode_t *, tnode_t *, tnode_t *, struct TAG_typecheck *);	/* tests whether one type is valid as an "actual" for another */
 	tnode_t *(*gettype)(tnode_t *, tnode_t *);			/* returns the type of this node (second param is a "default" type) */
+	int (*constprop)(tnode_t **);					/* performs constant-propagation on the node (mod-post-walk) */
 	int (*precheck)(tnode_t *);					/* performs pre-checks on the node */
 	int (*bytesfor)(tnode_t *, struct TAG_target *);		/* returns the number of bytes required for something (target given if available) */
 	int (*issigned)(tnode_t *, struct TAG_target *);		/* returns the "signedness" of something (target given if available) */

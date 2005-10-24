@@ -1,4 +1,5 @@
 
+24/10/2005	frmb	some work on the constant propagator (incomplete)
 20/10/2005	frmb	some more work on replicators, map should be mostly ok
 18/10/2005	frmb	fixed up some typecheck issues, initial array type-checking
 18/10/2005	frmb	initial support for literal strings (incomplete)
