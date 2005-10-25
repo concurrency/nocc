@@ -35,11 +35,14 @@ extern int constprop_init (void);
 extern int constprop_shutdown (void);
 
 extern struct TAG_tnode *constprop_newconst (consttype_e ctype, struct TAG_tnode *orig, struct TAG_tnode *type, ...);
-extern int constprop_isconst (struct TAG_tnode *tptr);
+extern int constprop_isconst (struct TAG_tnode *node);
 extern consttype_e constprop_consttype (struct TAG_tnode *tptr);
 extern int constprop_sametype (struct TAG_tnode *tptr1, struct TAG_tnode *tptr2);
 extern int constprop_intvalof (struct TAG_tnode *tptr);
 extern int constprop_tree (struct TAG_tnode **tptr);
+
+extern void constprop_error (struct TAG_tnode *tptr, const char *fmt, ...);
+extern void constprop_warning (struct TAG_tnode *tptr, const char *fmt, ...);
 
 
 #endif	/* !__CONSTPROP_H */

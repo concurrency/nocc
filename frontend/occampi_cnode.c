@@ -46,6 +46,7 @@
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
+#include "constprop.h"
 #include "usagecheck.h"
 #include "map.h"
 #include "codegen.h"
@@ -395,6 +396,57 @@ static int occampi_scopeout_replcnode (tnode_t **node, scope_t *ss)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_typecheck_replcnode (tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a replicated constructor node (REPLSEQ, REPLPAR)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_replcnode (tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *start = tnode_nthsubof (node, 3);
+	tnode_t *length = tnode_nthsubof (node, 4);
+	tnode_t *type;
+	tnode_t *defaulttype = tnode_create (opi.tag_INT, NULL);
+
+	/* typecheck start and length first */
+	typecheck_subtree (start, tc);
+	typecheck_subtree (length, tc);
+
+	type = typecheck_gettype (start, defaulttype);
+	if (!type || !typecheck_typeactual (defaulttype, type, node, tc)) {
+		typecheck_error (node, tc, "replicator start must be integer");
+	}
+
+	type = typecheck_gettype (length, defaulttype);
+	if (!type || !typecheck_typeactual (defaulttype, type, node, tc)) {
+		typecheck_error (node, tc, "replicator length must be integer");
+	}
+
+	tnode_free (defaulttype);
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_constprop_replcnode (tnode_t **tptr)*/
+/*
+ *	does constant propagation for a replicated constructor node (REPLSEQ, REPLPAR)
+ *	returns 0 to stop walk, 1 to continue (post walk)
+ */
+static int occampi_constprop_replcnode (tnode_t **tptr)
+{
+	tnode_t **startp = tnode_nthsubaddr (*tptr, 3);
+	tnode_t **lengthp = tnode_nthsubaddr (*tptr, 4);
+
+	if ((*tptr)->tag == opi.tag_REPLPAR) {
+		/*{{{  length must be constant*/
+		if (!constprop_isconst (*lengthp)) {
+			constprop_error (*tptr, "replicator length must be constant");
+		}
+		/*}}}*/
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_replcnode (tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for replicated constructor nodes (REPLSEQ, REPLPAR)
@@ -598,6 +650,8 @@ static int occampi_cnode_init_nodes (void)
 	cops = tnode_newcompops ();
 	cops->scopein = occampi_scopein_replcnode;
 	cops->scopeout = occampi_scopeout_replcnode;
+	cops->typecheck = occampi_typecheck_replcnode;
+	cops->constprop = occampi_constprop_replcnode;
 	cops->namemap = occampi_namemap_replcnode;
 	cops->codegen = occampi_codegen_replcnode;
 	tnd->ops = cops;

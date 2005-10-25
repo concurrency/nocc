@@ -47,6 +47,7 @@
 #include "prescope.h"
 #include "precheck.h"
 #include "typecheck.h"
+#include "constprop.h"
 #include "usagecheck.h"
 #include "map.h"
 #include "target.h"
@@ -141,11 +142,135 @@ static tnode_t *occampi_gettype_dop (tnode_t *node, tnode_t *defaulttype)
 	} else if (righttype == defaulttype) {
 		tnode_setnthsub (node, 2, lefttype);
 	} else {
-		tnode_setnthsub (node, 2, defaulttype);
+		tnode_setnthsub (node, 2, tnode_copytree (defaulttype));
 	}
 	/* FIXME! -- needs more.. */
 
-	return defaulttype;
+	return tnode_nthsubof (node, 2);
+}
+/*}}}*/
+/*{{{  static int occampi_constprop_dop (tnode_t **tptr)*/
+/*
+ *	does constant propagation for a DOPNODE
+ *	returns 0 to stop walk, 1 to continue (post-walk)
+ */
+static int occampi_constprop_dop (tnode_t **tptr)
+{
+	tnode_t *left, *right;
+
+	left = tnode_nthsubof (*tptr, 0);
+	right = tnode_nthsubof (*tptr, 1);
+
+	if (constprop_isconst (left) && constprop_isconst (right) && constprop_sametype (left, right)) {
+		tnode_t *newconst = *tptr;
+
+		/* turn this node into a constant */
+		switch (constprop_consttype (left)) {
+		case CONST_INVALID:
+			constprop_error (*tptr, "occampi_constprop_dop(): CONST_INVALID!");
+			break;
+		case CONST_BYTE:
+			{
+				unsigned char b1, b2;
+				unsigned int bres = 0;
+
+				langops_constvalof (left, &b1);
+				langops_constvalof (right, &b2);
+
+				if ((*tptr)->tag == opi.tag_MUL) {
+					bres = (unsigned int)b1 * (unsigned int)b2;
+				} else if ((*tptr)->tag == opi.tag_DIV) {
+					if (!b2) {
+						constprop_error (*tptr, "division by zero");
+						bres = 0;
+					} else {
+						bres = (unsigned int)b1 / (unsigned int)b2;
+					}
+				} else if ((*tptr)->tag == opi.tag_ADD) {
+					bres = (unsigned int)b1 + (unsigned int)b2;
+				} else if ((*tptr)->tag == opi.tag_SUB) {
+					bres = (unsigned int)b1 - (unsigned int)b2;
+				} else if ((*tptr)->tag == opi.tag_REM) {
+					if (!b2) {
+						constprop_error (*tptr, "remainder of division by zero");
+						bres = 0;
+					} else {
+						bres = (unsigned int)b1 % (unsigned int)b2;
+					}
+				} else if ((*tptr)->tag == opi.tag_PLUS) {
+					bres = (unsigned int)b1 + (unsigned int)b2;
+					bres &= 0xff;
+				} else if ((*tptr)->tag == opi.tag_MINUS) {
+					bres = (unsigned int)b1 - (unsigned int)b2;
+					bres &= 0xff;
+				} else if ((*tptr)->tag == opi.tag_TIMES) {
+					bres = (unsigned int)b1 * (unsigned int)b2;
+					bres &= 0xff;
+				}
+				if (bres > 0xff) {
+					constprop_error (*tptr, "BYTE constant overflow");
+					bres &= 0xff;
+				}
+				b1 = (unsigned char)bres;
+				newconst = constprop_newconst (CONST_BYTE, *tptr, tnode_nthsubof (*tptr, 2), b1);
+			}
+			break;
+		case CONST_INT:
+			{
+				int i1, i2;
+				long long ires = 0LL;
+
+				langops_constvalof (left, &i1);
+				langops_constvalof (right, &i2);
+
+				if ((*tptr)->tag == opi.tag_MUL) {
+					ires = (long long)i1 * (long long)i2;
+				} else if ((*tptr)->tag == opi.tag_DIV) {
+					if (!i2) {
+						constprop_error (*tptr, "division by zero");
+						ires = 0;
+					} else {
+						ires = (long long)i1 / (long long)i2;
+					}
+				} else if ((*tptr)->tag == opi.tag_ADD) {
+					ires = (long long)i1 + (long long)i2;
+				} else if ((*tptr)->tag == opi.tag_SUB) {
+					ires = (long long)i1 - (long long)i2;
+				} else if ((*tptr)->tag == opi.tag_REM) {
+					if (!i2) {
+						constprop_error (*tptr, "remainder of division by zero");
+						ires = 0;
+					} else {
+						ires = (long long)i1 % (long long)i2;
+					}
+				} else if ((*tptr)->tag == opi.tag_PLUS) {
+					ires = (long long)i1 + (long long)i2;
+					ires &= 0xffffffffLL;
+				} else if ((*tptr)->tag == opi.tag_MINUS) {
+					ires = (long long)i1 - (long long)i2;
+					ires &= 0xffffffffLL;
+				} else if ((*tptr)->tag == opi.tag_TIMES) {
+					ires = (long long)i1 * (long long)i2;
+					ires &= 0xffffffffLL;
+				}
+				if (ires > 0xffffffffLL) {
+					constprop_error (*tptr, "INT constant overflow");
+					ires &= 0xffffffffLL;
+				}
+				i1 = (int)ires;
+				newconst = constprop_newconst (CONST_INT, *tptr, tnode_nthsubof (*tptr, 2), i1);
+			}
+			break;
+		case CONST_DOUBLE:
+		case CONST_ULL:
+			constprop_warning (*tptr, "occampi_constprop_dop(): unsupported constant type.. (yet)");
+			break;
+		}
+
+		*tptr = newconst;
+	}
+
+	return 1;
 }
 /*}}}*/
 /*{{{  static int occampi_premap_dop (tnode_t **node, map_t *map)*/
@@ -541,6 +666,7 @@ static int occampi_oper_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:dopnode", &i, 3, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
 	cops->gettype = occampi_gettype_dop;
+	cops->constprop = occampi_constprop_dop;
 	cops->premap = occampi_premap_dop;
 	cops->namemap = occampi_namemap_dop;
 	cops->codegen = occampi_codegen_dop;

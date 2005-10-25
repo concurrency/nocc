@@ -241,6 +241,63 @@ static int cprop_namemap_const (tnode_t **nodep, map_t *map)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int cprop_isconst_const (tnode_t *node)*/
+/*
+ *	returns the width of a constant (in bytes)
+ */
+static int cprop_isconst_const (tnode_t *node)
+{
+	consthook_t *ch = (consthook_t *)tnode_nthhookof (node, 0);
+
+	switch (ch->type) {
+	case CONST_INVALID:
+		return 0;
+	case CONST_BYTE:
+		return 1;
+	case CONST_INT:
+		return 4;
+	case CONST_DOUBLE:
+	case CONST_ULL:
+		return 8;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cprop_constvalof_const (tnode_t *node, void *ptr)*/
+/*
+ *	returns the constant value of a constant node
+ */
+static int cprop_constvalof_const (tnode_t *node, void *ptr)
+{
+	consthook_t *ch = (consthook_t *)tnode_nthhookof (node, 0);
+
+	switch (ch->type) {
+	case CONST_INVALID:
+		return 0;
+	case CONST_BYTE:
+		if (ptr) {
+			*(unsigned char *)ptr = ch->u.bval;
+		}
+		return (int)ch->u.bval;
+	case CONST_INT:
+		if (ptr) {
+			*(int *)ptr = ch->u.ival;
+		}
+		return ch->u.ival;
+	case CONST_DOUBLE:
+		if (ptr) {
+			*(double *)ptr = ch->u.dval;
+		}
+		return 0;
+	case CONST_ULL:
+		if (ptr) {
+			*(unsigned long long *)ptr = ch->u.ullval;
+		}
+		return (int)ch->u.ullval;
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int cprop_modprewalktree (tnode_t **tptr, void *arg)*/
@@ -280,6 +337,7 @@ int constprop_init (void)
 	tndef_t *tnd;
 	int i;
 	compops_t *cops;
+	langops_t *lops;
 
 	i = -1;
 	tnd = tnode_newnodetype ("nocc:const", &i, 1, 0, 1, TNF_NONE);		/* subnodes: 0=type */
@@ -290,6 +348,10 @@ int constprop_init (void)
 	cops->gettype = cprop_gettype_const;
 	cops->namemap = cprop_namemap_const;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->isconst = cprop_isconst_const;
+	lops->constvalof = cprop_constvalof_const;
+	tnd->lops = lops;
 
 	i = -1;
 	tag_CONST = tnode_newnodetag ("CONST", &i, tnd, NTF_NONE);
@@ -427,6 +489,58 @@ int constprop_tree (tnode_t **tptr)
 {
 	tnode_modprepostwalktree (tptr, cprop_modprewalktree, cprop_modpostwalktree, NULL);
 	return 0;
+}
+/*}}}*/
+
+
+/*{{{  void constprop_warning (tnode_t *t, const char *fmt, ...)*/
+/*
+ *	generates a generic warning message
+ */
+void constprop_warning (tnode_t *t, const char *fmt, ...)
+{
+	va_list ap;
+	static char warnbuf[512];
+	int n;
+	lexfile_t *lf = t->org_file;
+
+	va_start (ap, fmt);
+	n = sprintf (warnbuf, "%s:%d (warning) ", lf ? lf->fnptr : "(unknown)", t->org_line);
+	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	if (lf) {
+		lf->warncount++;
+	}
+
+	nocc_outerrmsg (warnbuf);
+
+	return;
+}
+/*}}}*/
+/*{{{  void constprop_error (tnode_t *t, const char *fmt, ...)*/
+/*
+ *	generates an error message
+ */
+void constprop_error (tnode_t *t, const char *fmt, ...)
+{
+	va_list ap;
+	static char errbuf[512];
+	int n;
+	lexfile_t *lf = t->org_file;
+
+	va_start (ap, fmt);
+	n = sprintf (errbuf, "%s:%d (error) ", lf ? lf->fnptr : "(unknown)", t->org_line);
+	vsnprintf (errbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	if (lf) {
+		lf->errcount++;
+	}
+
+	nocc_outerrmsg (errbuf);
+
+	return;
 }
 /*}}}*/
 
