@@ -47,6 +47,7 @@
 #include "prescope.h"
 #include "typecheck.h"
 #include "constprop.h"
+#include "langops.h"
 #include "usagecheck.h"
 #include "map.h"
 #include "codegen.h"
@@ -473,8 +474,10 @@ static int occampi_namemap_replcnode (tnode_t **node, map_t *map)
 
 	if (orgnode->tag == opi.tag_REPLPAR) {
 		tnode_t *blk, *params = NULL;
+		tnode_t *parbodyspace;
 		tnode_t *saved_blk = map->thisblock;
 		tnode_t **saved_params = map->thisprocparams;
+		int replcount = constprop_intvalof (tnode_nthsubof (orgnode, 4));
 
 		blk = map->target->newblock (tnode_nthsubof (bename, 1), map, NULL, map->lexlevel + 1);
 		map->thisblock = blk;
@@ -483,6 +486,8 @@ static int occampi_namemap_replcnode (tnode_t **node, map_t *map)
 
 		/* map original body in new lexlevel */
 		map_submapnames (bodyp, map);
+		parbodyspace = map->target->newname (tnode_create (opi.tag_PARSPACE, NULL), *bodyp, map, 0, 16, 0, 0, 0, 0);		/* FIXME! */
+		*bodyp = parbodyspace;
 
 		map->lexlevel--;
 		map->thisprocparams = saved_params;
@@ -491,6 +496,11 @@ static int occampi_namemap_replcnode (tnode_t **node, map_t *map)
 		/* attach block to the earlier name */
 		tnode_setnthsub (bename, 1, blk);
 
+		/*{{{  local space for parallel processes*/
+		bodyp = tnode_nthsubaddr (bename, 1);
+
+		*bodyp = map->target->newblockref (*bodyp, *bodyp, map);
+		/*}}}*/
 	} else if (orgnode->tag == opi.tag_REPLSEQ) {
 		/* map the body (original, not what we just placed) */
 		map_submapnames (bodyp, map);
