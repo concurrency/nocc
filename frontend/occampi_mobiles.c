@@ -59,6 +59,33 @@
 /*}}}*/
 
 
+/*{{{  static int occampi_mobiletypenode_bytesfor (tnode_t *t, target_t *target)*/
+/*
+ *	determines the number of bytes needed for a MOBILE (pointer)
+ */
+static int occampi_mobiletypenode_bytesfor (tnode_t *t, target_t *target)
+{
+	if (t->tag == opi.tag_MOBILE) {
+		/* static mobile of some variety */
+		return target ? target->pointersize : -1;
+	}
+	return -1;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_mobiletypenode_typereduce (tnode_t *type)*/
+/*
+ *	de-mobilises a type and return it (used in type-checking)
+ */
+static tnode_t *occampi_mobiletypenode_typereduce (tnode_t *type)
+{
+	if (type->tag == opi.tag_MOBILE) {
+		return tnode_nthsubof (type, 0);
+	}
+	return NULL;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_mobiles_init_nodes (void)*/
 /*
  *	sets up nodes for occam-pi mobiles
@@ -74,6 +101,8 @@ static int occampi_mobiles_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:mobiletypenode", &i, 1, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
+	cops->bytesfor = occampi_mobiletypenode_bytesfor;
+	cops->typereduce = occampi_mobiletypenode_typereduce;
 	tnd->ops = cops;
 
 	i = -1;

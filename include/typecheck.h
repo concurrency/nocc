@@ -40,6 +40,8 @@ extern int typecheck_tree (struct TAG_tnode *t, struct TAG_langparser *lang);
 extern int typecheck_prewalktree (struct TAG_tnode *node, void *arg);
 extern struct TAG_tnode *typecheck_gettype (struct TAG_tnode *node, struct TAG_tnode *default_type);
 extern struct TAG_tnode *typecheck_typeactual (struct TAG_tnode *formaltype, struct TAG_tnode *actualtype, struct TAG_tnode *node, typecheck_t *tc);
+extern struct TAG_tnode *typecheck_fixedtypeactual (struct TAG_tnode *formaltype, struct TAG_tnode *actualtype, struct TAG_tnode *node, typecheck_t *tc, const int deep);
+extern struct TAG_tnode *typecheck_typereduce (struct TAG_tnode *type);
 
 
 extern void typecheck_warning (struct TAG_tnode *node, typecheck_t *tc, const char *fmt, ...);

@@ -166,7 +166,7 @@ tnode_t *typecheck_gettype (tnode_t *node, tnode_t *default_type)
  */
 tnode_t *typecheck_typeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
 {
-	tnode_t *usedtype;
+	tnode_t *usedtype = NULL;
 
 	if (compopts.tracetypecheck) {
 		/*{{{  report type-check*/
@@ -175,35 +175,93 @@ tnode_t *typecheck_typeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t
 		/*}}}*/
 	}
 
-	if (!formaltype->tag->ndef->ops || !formaltype->tag->ndef->ops->typeactual) {
-		tnode_t **f_subnodes;
-		tnode_t **a_subnodes;
-		int f_nodes, a_nodes;
-		int i;
-
-		/* don't have a check on the formal-type, blind comparison */
-		if (formaltype->tag != actualtype->tag) {
-			return NULL;
+	if (formaltype->tag->ndef->ops && formaltype->tag->ndef->ops->typeactual) {
+		usedtype = formaltype->tag->ndef->ops->typeactual (formaltype, actualtype, node, tc);
+	} else {
+		if (typecheck_fixedtypeactual (formaltype, actualtype, node, tc, 0)) {
+			/* assume OK and use the actual-type */
+			usedtype = actualtype;
 		}
-
-		f_subnodes = tnode_subnodesof (formaltype, &f_nodes);
-		a_subnodes = tnode_subnodesof (actualtype, &a_nodes);
-
-		for (i=0; (i<f_nodes) && (i<a_nodes); i++) {
-			tnode_t *match;
-
-			match = typecheck_typeactual (f_subnodes[i], a_subnodes[i], node, tc);
-			if (!match) {
-				return NULL;		/* failed */
-			}
-		}
-
-		/* assume OK, return the actual-type */
-		return actualtype;
 	}
-	usedtype = formaltype->tag->ndef->ops->typeactual (formaltype, actualtype, node, tc);
+
+	if (!usedtype) {
+		/* if the actual-type can be reduced, test that instead */
+		tnode_t *rtype = typecheck_typereduce (actualtype);
+
+		if (rtype) {
+			usedtype = typecheck_typeactual (formaltype, rtype, node, tc);
+		}
+	}
 
 	return usedtype;
+}
+/*}}}*/
+/*{{{  tnode_t *typecheck_fixedtypeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc, const int deep)*/
+/*
+ *	does type compatibility tests on plain type-trees (doesn't use typeactual operator)
+ *	if "deep" is non-zero, all descendants are checked with this, otherwise the usual typeactual
+ *	is used.
+ *	returns the actual type used for the operation on success, NULL on failure
+ */
+tnode_t *typecheck_fixedtypeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc, const int deep)
+{
+	tnode_t *usedtype = NULL;
+	tnode_t **f_subnodes;
+	tnode_t **a_subnodes;
+	int f_nodes, a_nodes;
+	int i;
+
+	if (compopts.tracetypecheck) {
+		/*{{{  report type-check*/
+		nocc_message ("typecheck_fixedtypeactual(): checking [%s (%s)] applied to [%s (%s)] with [%s (%s)]", actualtype->tag->name, actualtype->tag->ndef->name,
+				formaltype->tag->name, formaltype->tag->ndef->name, node ? node->tag->name : "(null)", node ? node->tag->ndef->name : "(null)");
+		/*}}}*/
+	}
+
+	/* blind comparison */
+	if (formaltype->tag != actualtype->tag) {
+		return NULL;
+	}
+
+	f_subnodes = tnode_subnodesof (formaltype, &f_nodes);
+	a_subnodes = tnode_subnodesof (actualtype, &a_nodes);
+
+	for (i=0; (i<f_nodes) && (i<a_nodes); i++) {
+		tnode_t *match;
+
+		if (deep) {
+			match = typecheck_fixedtypeactual (f_subnodes[i], a_subnodes[i], node, tc, deep);
+		} else {
+			match = typecheck_typeactual (f_subnodes[i], a_subnodes[i], node, tc);
+		}
+		if (!match) {
+			return NULL;		/* failed */
+		}
+	}
+
+	/* assume OK and return the actual type */
+	return actualtype;
+}
+/*}}}*/
+/*{{{  tnode_t *typecheck_typereduce (tnode_t *type)*/
+/*
+ *	returns a reduced type, or NULL.  This is currently used for de-mobilising MOBILE types, since
+ *	the underlying type can be referred to without fundamentally changing the type.
+ */
+tnode_t *typecheck_typereduce (tnode_t *type)
+{
+	if (!type) {
+		return NULL;
+	}
+	if (type->tag->ndef->ops && type->tag->ndef->ops->typereduce) {
+		if (compopts.tracetypecheck) {
+			/*{{{  report attempted type reduction*/
+			nocc_message ("typecheck_typereduce(): reducing [%s (%s)]", type->tag->name, type->tag->ndef->name);
+			/*}}}*/
+		}
+		return type->tag->ndef->ops->typereduce (type);
+	}
+	return NULL;
 }
 /*}}}*/
 /*{{{  int typecheck_subtree (tnode_t *t, typecheck_t *tc)*/

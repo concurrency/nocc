@@ -1255,6 +1255,7 @@ compops_t *tnode_newcompops (void)
 	cops->scopeout = NULL;
 	cops->typecheck = NULL;
 	cops->typeactual = NULL;
+	cops->typereduce = NULL;
 	cops->gettype = NULL;
 	cops->constprop = NULL;
 	cops->precheck = NULL;
