@@ -1,4 +1,6 @@
 
+11/12/2005	frmb	more support for MOBILE types
+10/12/2005	frmb	moved initialiser code for CHANs out of occampi_decl into occampi_type
 28/10/2005	frmb	a little more work on PAR replicator mapping (needs more back-end support)
 24/10/2005	frmb	some work on the constant propagator (incomplete)
 20/10/2005	frmb	some more work on replicators, map should be mostly ok

@@ -124,6 +124,7 @@ typedef struct TAG_langops {
 	int (*isconst)(tnode_t *);					/* returns non-zero if the node is a known constant (returns width) */
 	int (*constvalof)(tnode_t *, void *);				/* gets constant value for the given node (assigns to pointed-at space) */
 	int (*valbyref)(tnode_t *);					/* returns non-zero if VAL of this is treated as a reference (wide types) */
+	int (*initialising_decl)(tnode_t *, tnode_t *, struct TAG_map *);	/* called when mapping to hook in initialiser code */
 } langops_t;
 
 

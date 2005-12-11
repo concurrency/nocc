@@ -1301,6 +1301,8 @@ langops_t *tnode_newlangops (void)
 	lops->do_usagecheck = NULL;
 	lops->isconst = NULL;
 	lops->constvalof = NULL;
+	lops->valbyref = NULL;
+	lops->initialising_decl = NULL;
 
 	return lops;
 }

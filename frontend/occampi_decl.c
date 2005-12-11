@@ -65,29 +65,6 @@
 
 
 
-/*{{{  static void occampi_initchandecl (tnode_t *node, codegen_t *cgen, void *arg)*/
-/*
- *	does initialiser code-gen for a channel declaration
- */
-static void occampi_initchandecl (tnode_t *node, codegen_t *cgen, void *arg)
-{
-	tnode_t *chantype = (tnode_t *)arg;
-	int ws_off, vs_off, ms_off;
-
-	/* FIXME: assuming single channel for now.. */
-	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off);
-
-#if 0
-fprintf (stderr, "occampi_initchandecl(): node=[%s], allocated at [%d,%d,%d], type is:\n", node->tag->name, ws_off, vs_off, ms_off);
-tnode_dumptree (chantype, 1, stderr);
-#endif
-	codegen_callops (cgen, loadconst, 0);
-	codegen_callops (cgen, storelocal, ws_off);
-	codegen_callops (cgen, comment, "initchandecl");
-
-	return;
-}
-/*}}}*/
 /*{{{  static void occampi_initvalabbrev (tnode_t *node, codegen_t *cgen, void *arg)*/
 /*
  *	does initialiser code-gen for a value abbreviation (simple types)
@@ -245,32 +222,21 @@ static int occampi_namemap_vardecl (tnode_t **node, map_t *map)
 	tnode_t **bodyp = tnode_nthsubaddr (*node, 2);
 	tnode_t *bename;
 	int tsize;
-	void (*initfunc)(tnode_t *, codegen_t *, void *) = NULL;
-	void *initarg = NULL;
 
 #if 0
 fprintf (stderr, "occampi_namemap_vardecl(): here!  target is [%s].  Type is:\n", map->target->name);
 tnode_dumptree (type, 1, stderr);
 #endif
-	if (type->tag == opi.tag_CHAN) {
-		/* channels need 1 word */
-		tsize = map->target->chansize;
-		/* also need initialising */
-		initfunc = occampi_initchandecl;
-		initarg = (void *)type;
-	} else {
-		/* see how big this type is */
-		tsize = tnode_bytesfor (type, map->target);
-	}
+
+	/* see how big this type is */
+	tsize = tnode_bytesfor (type, map->target);
 
 	bename = map->target->newname (*namep, *bodyp, map, tsize, 0, 0, 0, tsize, 0);		/* FIXME! */
 
-	if (initfunc) {
-		/*{{{  set initialiser up*/
-		codegen_setinithook (bename, initfunc, initarg);
-
-		/*}}}*/
+	if (type->tag->ndef->lops && type->tag->ndef->lops->initialising_decl) {
+		type->tag->ndef->lops->initialising_decl (type, bename, map);
 	}
+
 	tnode_setchook (*namep, map->mapchook, (void *)bename);
 #if 0
 fprintf (stderr, "got new bename:\n");
@@ -279,7 +245,6 @@ tnode_dumptree (bename, 1, stderr);
 
 	*node = bename;
 	bodyp = tnode_nthsubaddr (*node, 1);
-	// tnode_setnthsub (*node, 0, bename);
 
 	/* map the body */
 	map_submapnames (bodyp, map);

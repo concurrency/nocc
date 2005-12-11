@@ -49,8 +49,36 @@
 #include "typecheck.h"
 #include "langops.h"
 #include "target.h"
+#include "map.h"
+#include "codegen.h"
+
+
 /*}}}*/
 
+
+/*{{{  static void occampi_type_initchandecl (tnode_t *node, codegen_t *cgen, void *arg)*/
+/*
+ *	does initialiser code-gen for a channel declaration
+ */
+static void occampi_type_initchandecl (tnode_t *node, codegen_t *cgen, void *arg)
+{
+	tnode_t *chantype = (tnode_t *)arg;
+	int ws_off, vs_off, ms_off;
+
+	/* FIXME: assuming single channel for now.. */
+	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off);
+
+#if 0
+fprintf (stderr, "occampi_initchandecl(): node=[%s], allocated at [%d,%d,%d], type is:\n", node->tag->name, ws_off, vs_off, ms_off);
+tnode_dumptree (chantype, 1, stderr);
+#endif
+	codegen_callops (cgen, loadconst, 0);
+	codegen_callops (cgen, storelocal, ws_off);
+	codegen_callops (cgen, comment, "initchandecl");
+
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static void occampi_typeattr_dumpchook (tnode_t *node, void *hook, int indent, FILE *stream)*/
@@ -160,6 +188,9 @@ fprintf (stderr, "occampi_type_typeactual(): channel: node->tag = [%s]\n", node-
  */
 static int occampi_type_bytesfor (tnode_t *t, target_t *target)
 {
+	if (t->tag == opi.tag_CHAN) {
+		return target->chansize;
+	}
 	return -1;
 }
 /*}}}*/
@@ -194,6 +225,20 @@ static int occampi_type_getdescriptor (tnode_t *node, char **str)
 		}
 	}
 	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_type_initialising_decl (tnode_t *t, tnode_t *benode, map_t *mdata)*/
+/*
+ *	called for declarations to handle initialisation if needed
+ *	returns 0 if nothing needed, non-zero otherwise
+ */
+static int occampi_type_initialising_decl (tnode_t *t, tnode_t *benode, map_t *mdata)
+{
+	if (t->tag == opi.tag_CHAN) {
+		codegen_setinithook (benode, occampi_type_initchandecl, (void *)t);
+		return 1;
+	}
+	return 0;
 }
 /*}}}*/
 
@@ -338,6 +383,7 @@ static int occampi_type_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->getdescriptor = occampi_type_getdescriptor;
+	lops->initialising_decl = occampi_type_initialising_decl;
 	tnd->lops = lops;
 
 	i = -1;

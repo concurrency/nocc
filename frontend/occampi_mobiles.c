@@ -59,6 +59,26 @@
 /*}}}*/
 
 
+/*{{{  static void occampi_mobiletypenode_initmobile (tnode_t *node, codegen_t *cgen, void *arg)*/
+/*
+ *	generates code to initialise a mobile
+ */
+static void occampi_mobiletypenode_initmobile (tnode_t *node, codegen_t *cgen, void *arg)
+{
+	tnode_t *mtype = (tnode_t *)arg;
+	int ws_off, vs_off, ms_off;
+
+	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off);
+
+	codegen_callops (cgen, loadconst, 0);
+	codegen_callops (cgen, storelocal, ws_off);
+	codegen_callops (cgen, comment, "initmobile");
+
+	return;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_mobiletypenode_bytesfor (tnode_t *t, target_t *target)*/
 /*
  *	determines the number of bytes needed for a MOBILE (pointer)
@@ -84,6 +104,20 @@ static tnode_t *occampi_mobiletypenode_typereduce (tnode_t *type)
 	return NULL;
 }
 /*}}}*/
+/*{{{  static int occampi_mobiletypenode_initialising_decl (tnode_t *t, tnode_t *benode, map_t *mdata)*/
+/*
+ *	initialises a mobile declaration node of some form
+ */
+static int occampi_mobiletypenode_initialising_decl (tnode_t *t, tnode_t *benode, map_t *mdata)
+{
+	if (t->tag == opi.tag_MOBILE) {
+		/* static mobile */
+		codegen_setinithook (benode, occampi_mobiletypenode_initmobile, (void *)t);
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_mobiles_init_nodes (void)*/
@@ -95,6 +129,7 @@ static int occampi_mobiles_init_nodes (void)
 {
 	tndef_t *tnd;
 	compops_t *cops;
+	langops_t *lops;
 	int i;
 
 	/*{{{  occampi:mobiletypenode -- MOBILE, DYNMOBARRAY, CTCLI, CTSVR, CTSHCLI, CTSHSVR*/
@@ -104,6 +139,9 @@ static int occampi_mobiles_init_nodes (void)
 	cops->bytesfor = occampi_mobiletypenode_bytesfor;
 	cops->typereduce = occampi_mobiletypenode_typereduce;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->initialising_decl = occampi_mobiletypenode_initialising_decl;
+	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_MOBILE = tnode_newnodetag ("MOBILE", &i, tnd, NTF_NONE);
