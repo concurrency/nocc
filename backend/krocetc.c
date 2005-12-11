@@ -188,6 +188,10 @@ typedef struct TAG_krocetc_priv {
 	ntdef_t *tag_CONSTREF;
 	ntdef_t *tag_JENTRY;
 	ntdef_t *tag_DESCRIPTOR;
+	ntdef_t *tag_MSP;		/* mobilespace pointer */
+	ntdef_t *tag_VSP;		/* vectorspace pointer */
+	ntdef_t *tag_FBP;		/* fork barrier pointer */
+	ntdef_t *tag_MPP;		/* mobile-process pointer */
 	tnode_t *precodelist;
 	name_t *toplevelname;
 
@@ -1173,9 +1177,14 @@ fprintf (stderr, "krocetc_be_regsfor(): regsfor [%s] [%s] ?\n", benode->tag->nde
  */
 static int krocetc_preallocate_block (tnode_t *blk, target_t *target)
 {
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)target->priv;
+
 	if (blk->tag == target->tag_BLOCK) {
 		krocetc_blockhook_t *bh = (krocetc_blockhook_t *)tnode_nthhookof (blk, 0);
 
+#if 0
+fprintf (stderr, "krocetc_preallocate_block(): preallocating block, ws=%d, vs=%d, ms=%d\n", bh->alloc_ws, bh->alloc_vs, bh->alloc_ms);
+#endif
 		if (bh->addstaticlink) {
 			tnode_t **stptr = tnode_nthsubaddr (blk, 1);
 			krocetc_namehook_t *nh;
@@ -1195,6 +1204,48 @@ fprintf (stderr, "krocetc_preallocate_block(): adding static-link..\n");
 
 			nh = krocetc_namehook_create (bh->lexlevel, target->pointersize, 0, 0, 0, target->pointersize, 0);
 			name = tnode_create (target->tag_NAME, NULL, tnode_create (target->tag_STATICLINK, NULL), NULL, (void *)nh);
+
+			parser_addtolist_front (*stptr, name);
+		}
+		/* FIXME: this don't work quite right.. */
+		if (bh->alloc_vs) {
+			tnode_t **stptr = tnode_nthsubaddr (blk, 1);
+			krocetc_namehook_t *nh;
+			tnode_t *name;
+
+			if (!*stptr) {
+				*stptr = parser_newlistnode (NULL);
+			} else if (!parser_islistnode (*stptr)) {
+				tnode_t *slist = parser_newlistnode (NULL);
+
+				parser_addtolist (slist, *stptr);
+				*stptr = slist;
+			}
+
+			nh = krocetc_namehook_create (bh->lexlevel, target->pointersize, 0, 0, 0, target->pointersize, 0);
+			name = tnode_create (target->tag_NAME, NULL, tnode_create (kpriv->tag_VSP, NULL), NULL, (void *)nh);
+
+			parser_addtolist_front (*stptr, name);
+		}
+		if (bh->alloc_ms) {
+			tnode_t **stptr = tnode_nthsubaddr (blk, 1);
+			krocetc_namehook_t *nh;
+			tnode_t *name;
+
+#if 0
+fprintf (stderr, "krocetc_preallocate_block(): adding mobilespace pointer..\n");
+#endif
+			if (!*stptr) {
+				*stptr = parser_newlistnode (NULL);
+			} else if (!parser_islistnode (*stptr)) {
+				tnode_t *slist = parser_newlistnode (NULL);
+
+				parser_addtolist (slist, *stptr);
+				*stptr = slist;
+			}
+
+			nh = krocetc_namehook_create (bh->lexlevel, target->pointersize, 0, 0, 0, target->pointersize, 0);
+			name = tnode_create (target->tag_NAME, NULL, tnode_create (kpriv->tag_MSP, NULL), NULL, (void *)nh);
 
 			parser_addtolist_front (*stptr, name);
 		}
@@ -2488,6 +2539,18 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	tnd = tnode_newnodetype ("krocetc:staticlink", &i, 0, 0, 0, 0);
 	i = -1;
 	target->tag_STATICLINK = tnode_newnodetag ("KROCETCSTATICLINK", &i, tnd, 0);
+	/*}}}*/
+	/*{{{  krocetc:ptrparam -- KROCETCMSP, KROCETCVSP, KROCETCFBP, KROCETCMPP*/
+	i = -1;
+	tnd = tnode_newnodetype ("krocetc:hiddenparam", &i, 0, 0, 0, 0);
+	i = -1;
+	kpriv->tag_MSP = tnode_newnodetag ("KROCETCMSP", &i, tnd, 0);
+	i = -1;
+	kpriv->tag_VSP = tnode_newnodetag ("KROCETCVSP", &i, tnd, 0);
+	i = -1;
+	kpriv->tag_FBP = tnode_newnodetag ("KROCETCFBP", &i, tnd, 0);
+	i = -1;
+	kpriv->tag_MPP = tnode_newnodetag ("KROCETCMPP", &i, tnd, 0);
 	/*}}}*/
 	/*{{{  krocetc:result -- KROCETCRESULT*/
 	i = -1;

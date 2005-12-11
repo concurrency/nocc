@@ -81,15 +81,33 @@ static void occampi_mobiletypenode_initmobile (tnode_t *node, codegen_t *cgen, v
 
 /*{{{  static int occampi_mobiletypenode_bytesfor (tnode_t *t, target_t *target)*/
 /*
- *	determines the number of bytes needed for a MOBILE (pointer)
+ *	determines the number of bytes needed for a MOBILE
  */
 static int occampi_mobiletypenode_bytesfor (tnode_t *t, target_t *target)
 {
 	if (t->tag == opi.tag_MOBILE) {
 		/* static mobile of some variety */
-		return target ? target->pointersize : -1;
+		return tnode_bytesfor (tnode_nthsubof (t, 0), target);
 	}
 	return -1;
+}
+/*}}}*/
+/*{{{  static int occampi_mobiletypenode_initsizes (tnode_t *t, tnode_t *declnode, int *wssize, int *vssize, int *mssize, int *indir, map_t *mdata)*/
+/*
+ *	returns special allocation requirements for MOBILEs
+ *	return value is non-zero if settings were made
+ */
+static int occampi_mobiletypenode_initsizes (tnode_t *t, tnode_t *declnode, int *wssize, int *vssize, int *mssize, int *indir, map_t *mdata)
+{
+	if (t->tag == opi.tag_MOBILE) {
+		/* static mobile, single pointer in workspace, real sized allocation in mobilespace */
+		*wssize = mdata->target->pointersize;
+		*vssize = 0;
+		*mssize = tnode_bytesfor (tnode_nthsubof (t, 0), mdata->target);
+		*indir = 1;		/* pointer left in the workspace */
+		return 1;
+	}
+	return 0;
 }
 /*}}}*/
 /*{{{  static tnode_t *occampi_mobiletypenode_typereduce (tnode_t *type)*/
@@ -140,6 +158,7 @@ static int occampi_mobiles_init_nodes (void)
 	cops->typereduce = occampi_mobiletypenode_typereduce;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	lops->initsizes = occampi_mobiletypenode_initsizes;
 	lops->initialising_decl = occampi_mobiletypenode_initialising_decl;
 	tnd->lops = lops;
 

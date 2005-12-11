@@ -1303,6 +1303,7 @@ langops_t *tnode_newlangops (void)
 	lops->constvalof = NULL;
 	lops->valbyref = NULL;
 	lops->initialising_decl = NULL;
+	lops->initsizes = NULL;
 
 	return lops;
 }

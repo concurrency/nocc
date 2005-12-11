@@ -222,6 +222,7 @@ static int occampi_namemap_vardecl (tnode_t **node, map_t *map)
 	tnode_t **bodyp = tnode_nthsubaddr (*node, 2);
 	tnode_t *bename;
 	int tsize;
+	int wssize, vssize, mssize, indir;
 
 #if 0
 fprintf (stderr, "occampi_namemap_vardecl(): here!  target is [%s].  Type is:\n", map->target->name);
@@ -231,7 +232,15 @@ tnode_dumptree (type, 1, stderr);
 	/* see how big this type is */
 	tsize = tnode_bytesfor (type, map->target);
 
-	bename = map->target->newname (*namep, *bodyp, map, tsize, 0, 0, 0, tsize, 0);		/* FIXME! */
+	if (type->tag->ndef->lops && type->tag->ndef->lops->initsizes && type->tag->ndef->lops->initsizes (type, *node, &wssize, &vssize, &mssize, &indir, map)) {
+		/* some declarations will need special allocation (e.g. in vectorspace and/or mobilespace) -- collected above */
+	} else {
+		wssize = tsize;
+		vssize = 0;
+		mssize = 0;
+		indir = 0;
+	}
+	bename = map->target->newname (*namep, *bodyp, map, (wssize < 0) ? 0 : wssize, (wssize < 0) ? -wssize : 0, vssize, mssize, tsize, indir);
 
 	if (type->tag->ndef->lops && type->tag->ndef->lops->initialising_decl) {
 		type->tag->ndef->lops->initialising_decl (type, bename, map);
