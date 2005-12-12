@@ -714,6 +714,76 @@ static void allocate_workspace_offsets (alloc_ovarmap_t *ovm, target_t *target)
 	return;
 }
 /*}}}*/
+/*{{{  static void allocate_vectorspace_offsets (alloc_ovarmap_t *ovm, target_t *target)*/
+/*
+ *	assigns offsets to objects in vectorspace
+ */
+static void allocate_vectorspace_offsets (alloc_ovarmap_t *ovm, target_t *target)
+{
+	int i;
+	int thisoffset = 0;
+
+	/*{{{  do offsets in submaps first*/
+	for (i=0; i<DA_CUR (ovm->submaps); i++) {
+		alloc_ovarmap_t *submap = DA_NTHITEM (ovm->submaps, i);
+
+		allocate_vectorspace_offsets (submap, target);
+		thisoffset = submap->offset;
+	}
+	/*}}}*/
+	/*{{{  allocate our entries to VS positions*/
+	for (i=0; i<DA_CUR (ovm->entries); i++) {
+		alloc_ivarmap_t *ivm = DA_NTHITEM (ovm->entries, i);
+		int vsbytes = ivm->alloc_vs;
+
+		if (vsbytes > 0) {
+			if (vsbytes & (target->slotsize - 1)) {
+				/* round up */
+				vsbytes &= ~(target->slotsize - 1);
+				vsbytes += target->slotsize;
+			}
+			ivm->vs_offset = thisoffset;
+			thisoffset += vsbytes;
+		}
+	}
+	/*}}}*/
+}
+/*}}}*/
+/*{{{  static void allocate_mobilespace_offsets (alloc_ovarmap_t *ovm, target_t *target)*/
+/*
+ *	assigns offsets to objects in mobilespace
+ */
+static void allocate_mobilespace_offsets (alloc_ovarmap_t *ovm, target_t *target)
+{
+	int i;
+	int thisoffset = 0;
+
+	/*{{{  do offsets in submaps first*/
+	for (i=0; i<DA_CUR (ovm->submaps); i++) {
+		alloc_ovarmap_t *submap = DA_NTHITEM (ovm->submaps, i);
+
+		allocate_mobilespace_offsets (submap, target);
+		thisoffset = submap->offset;
+	}
+	/*}}}*/
+	/*{{{  allocate our entries to (static) mobilespace positions*/
+	for (i=0; i<DA_CUR (ovm->entries); i++) {
+		alloc_ivarmap_t *ivm = DA_NTHITEM (ovm->entries, i);
+		int msbytes = ivm->alloc_ms;
+
+		if (msbytes > 0) {
+			if (msbytes & (target->slotsize - 1)) {
+				/* round up */
+				msbytes &= ~(target->slotsize - 1);
+				msbytes += target->slotsize;
+			}
+			ivm->ms_offset = thisoffset;
+			thisoffset += msbytes;
+		}
+	}
+	/*}}}*/
+}
+/*}}}*/
 
 
 /*{{{  static void allocate_inner_setoffsets (alloc_ovarmap_t *ovm, target_t *target)*/
@@ -851,8 +921,10 @@ allocate_varmap_dump (avmap, stderr);
 #endif
 
 		/*}}}*/
-		/*{{{  allocate workspace offsets*/
+		/*{{{  allocate workspace, vectorspace and mobilespace offsets*/
 		allocate_workspace_offsets (avmap->wsmap, adata->target);
+		allocate_vectorspace_offsets (avmap->vsmap, adata->target);
+		allocate_mobilespace_offsets (avmap->msmap, adata->target);
 
 		/*}}}*/
 		/*{{{  copy offsets back into back-end nodes*/

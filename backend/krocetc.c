@@ -165,6 +165,10 @@ typedef struct TAG_krocetc_blockhook {
 	int ws_offset;		/* workspace offset for the block (includes static-adjust) */
 	int entrylab;		/* entry-point label */
 	int addstaticlink;	/* whether it needs a staticlink */
+	int addvsp;		/* whether it needs a vectorspace pointer */
+	int addmsp;		/* whether it needs a mobilespace pointer */
+	int addfbp;		/* whether it needs a FORK barrier */
+	int addmpp;		/* whether it needs a mobile-process pointer */
 } krocetc_blockhook_t;
 
 typedef struct TAG_krocetc_blockrefhook {
@@ -328,8 +332,8 @@ static void krocetc_blockhook_dumptree (tnode_t *node, void *hook, int indent, F
 	krocetc_blockhook_t *bh = (krocetc_blockhook_t *)hook;
 
 	krocetc_isetindent (stream, indent);
-	fprintf (stream, "<blockhook addr=\"0x%8.8x\" lexlevel=\"%d\" allocws=\"%d\" allocvs=\"%d\" allocms=\"%d\" adjust=\"%d\" wsoffset=\"%d\" entrylab=\"%d\" addstaticlink=\"%d\" />\n",
-			(unsigned int)bh, bh->lexlevel, bh->alloc_ws, bh->alloc_vs, bh->alloc_ms, bh->static_adjust, bh->ws_offset, bh->entrylab, bh->addstaticlink);
+	fprintf (stream, "<blockhook addr=\"0x%8.8x\" lexlevel=\"%d\" allocws=\"%d\" allocvs=\"%d\" allocms=\"%d\" adjust=\"%d\" wsoffset=\"%d\" entrylab=\"%d\" addstaticlink=\"%d\" addvsp=\"%d\" addmsp=\"%d\" addfbp=\"%d\" addmpp=\"%d\" />\n",
+			(unsigned int)bh, bh->lexlevel, bh->alloc_ws, bh->alloc_vs, bh->alloc_ms, bh->static_adjust, bh->ws_offset, bh->entrylab, bh->addstaticlink, bh->addvsp, bh->addmsp, bh->addfbp, bh->addmpp);
 	return;
 }
 /*}}}*/
@@ -349,6 +353,10 @@ static krocetc_blockhook_t *krocetc_blockhook_create (int ll)
 	bh->ws_offset = 0;
 	bh->entrylab = 0;
 	bh->addstaticlink = 0;
+	bh->addvsp = 0;
+	bh->addmsp = 0;
+	bh->addfbp = 0;
+	bh->addmpp = 0;
 
 	return bh;
 }
@@ -680,9 +688,22 @@ static tnode_t *krocetc_name_create (tnode_t *fename, tnode_t *body, map_t *mdat
 	target_t *xt = mdata->target;		/* must be us! */
 	tnode_t *name;
 	krocetc_namehook_t *nh;
+	tnode_t *blk = mdata->thisblock;
 
 	nh = krocetc_namehook_create (mdata->lexlevel, asize_wsh, asize_wsl, asize_vs, asize_ms, tsize, ind);
 	name = tnode_create (xt->tag_NAME, NULL, fename, body, (void *)nh);
+
+	if (blk) {
+		krocetc_blockhook_t *bh = (krocetc_blockhook_t *)tnode_nthhookof (blk, 0);
+
+		/* if the block uses vectorspace or mobilespace, need a hidden-param */
+		if (asize_vs) {
+			bh->addvsp++;
+		}
+		if (asize_ms) {
+			bh->addmsp++;
+		}
+	}
 
 	return name;
 }
@@ -1207,8 +1228,7 @@ fprintf (stderr, "krocetc_preallocate_block(): adding static-link..\n");
 
 			parser_addtolist_front (*stptr, name);
 		}
-		/* FIXME: this don't work quite right.. */
-		if (bh->alloc_vs) {
+		if (bh->addvsp) {
 			tnode_t **stptr = tnode_nthsubaddr (blk, 1);
 			krocetc_namehook_t *nh;
 			tnode_t *name;
@@ -1227,7 +1247,7 @@ fprintf (stderr, "krocetc_preallocate_block(): adding static-link..\n");
 
 			parser_addtolist_front (*stptr, name);
 		}
-		if (bh->alloc_ms) {
+		if (bh->addmsp) {
 			tnode_t **stptr = tnode_nthsubaddr (blk, 1);
 			krocetc_namehook_t *nh;
 			tnode_t *name;
