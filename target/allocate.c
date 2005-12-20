@@ -50,6 +50,7 @@ typedef struct TAG_alloc_ivarmap {
 	int refc;		/* reference-count inside the allocator */
 	int ws_offset;		/* allocated workspace offset in block */
 	int vs_offset;		/* allocated vectorspace offset in block */
+	int ms_shadow;		/* offset of mobilespace shadow */
 	int ms_offset;		/* allocated mobilespace offset in block */
 } alloc_ivarmap_t;
 
@@ -112,6 +113,7 @@ static alloc_ivarmap_t *allocate_ivarmap_create (void)
 	ivm->refc = 0;
 	ivm->ws_offset = -1;
 	ivm->vs_offset = -1;
+	ivm->ms_shadow = -1;
 	ivm->ms_offset = -1;
 	return ivm;
 }
@@ -219,8 +221,8 @@ static void allocate_ovarmap_dump (alloc_ovarmap_t *ovm, FILE *stream, int inden
 		alloc_ivarmap_t *ivm = DA_NTHITEM (ovm->entries, i);
 		tnode_t *name = ivm->name;
 
-		fprintf (stream, "0x%8.8x (%s,%s) [%d,%d,%d,%d] @[%d,%d,%d]   ", (unsigned int)name, name->tag->name, tnode_nthsubof (name, 0)->tag->name,
-				ivm->alloc_wsh, ivm->alloc_wsl, ivm->alloc_vs, ivm->alloc_ms, ivm->ws_offset, ivm->vs_offset, ivm->ms_offset);
+		fprintf (stream, "0x%8.8x (%s,%s) [%d,%d,%d,%d] @[%d,%d,%d(%d)]   ", (unsigned int)name, name->tag->name, tnode_nthsubof (name, 0)->tag->name,
+				ivm->alloc_wsh, ivm->alloc_wsl, ivm->alloc_vs, ivm->alloc_ms, ivm->ws_offset, ivm->vs_offset, ivm->ms_offset, ivm->ms_shadow);
 	}
 	fprintf (stream, "\n");
 	for (i=0; i<DA_CUR (ovm->submaps); i++) {
@@ -603,7 +605,7 @@ static void allocate_size_map (alloc_ovarmap_t *ovm, target_t *target, int which
 			/*{{{  2 -- mobilespace*/
 		case 2:
 			j = ivm->alloc_ms;
-			k = 0;
+			k = target->pointersize;	/* shadow slot */
 			break;
 			/*}}}*/
 			/*{{{  default -- error*/
@@ -639,7 +641,7 @@ static void allocate_size_map (alloc_ovarmap_t *ovm, target_t *target, int which
 			/*{{{  1, 2 -- vectorspace/mobilespace*/
 		case 1:
 		case 2:
-			ovm->size += j;
+			ovm->size += (j + k);
 			break;
 			/*}}}*/
 		}
@@ -757,6 +759,7 @@ static void allocate_mobilespace_offsets (alloc_ovarmap_t *ovm, target_t *target
 {
 	int i;
 	int thisoffset = 0;
+	int shoffset = 0;
 
 	/*{{{  do offsets in submaps first*/
 	for (i=0; i<DA_CUR (ovm->submaps); i++) {
@@ -766,8 +769,12 @@ static void allocate_mobilespace_offsets (alloc_ovarmap_t *ovm, target_t *target
 		thisoffset = submap->offset;
 	}
 	/*}}}*/
+	/*{{{  offsets after shadows*/
+	thisoffset = DA_CUR (ovm->entries) * target->pointersize;
+
+	/*}}}*/
 	/*{{{  allocate our entries to (static) mobilespace positions*/
-	for (i=0; i<DA_CUR (ovm->entries); i++) {
+	for (i=0; i<DA_CUR (ovm->entries); i++, shoffset += target->pointersize) {
 		alloc_ivarmap_t *ivm = DA_NTHITEM (ovm->entries, i);
 		int msbytes = ivm->alloc_ms;
 
@@ -778,6 +785,8 @@ static void allocate_mobilespace_offsets (alloc_ovarmap_t *ovm, target_t *target
 				msbytes += target->slotsize;
 			}
 			ivm->ms_offset = thisoffset;
+			ivm->ms_shadow = shoffset;
+
 			thisoffset += msbytes;
 		}
 	}
@@ -804,7 +813,7 @@ static void allocate_inner_setoffsets (alloc_ovarmap_t *ovm, target_t *target)
 		alloc_ivarmap_t *ivm = DA_NTHITEM (ovm->entries, i);
 
 		if ((ivm->ws_offset >= 0) || (ivm->vs_offset >= 0) || (ivm->ms_offset >= 0)) {
-			target->be_setoffsets (ivm->name, ivm->ws_offset, ivm->vs_offset, ivm->ms_offset);
+			target->be_setoffsets (ivm->name, ivm->ws_offset, ivm->vs_offset, ivm->ms_offset, ivm->ms_shadow);
 		}
 	}
 	/*}}}*/
@@ -1003,16 +1012,16 @@ fprintf (stderr, "allocate_prewalktree_assign_namerefs(): found NAMREF!  ref_lex
 
 		if (ref_lexlevel == act_lexlevel) {
 			/* simple :) */
-			int ws_offs, vs_offs, ms_offs;
+			int ws_offs, vs_offs, ms_offs, ms_shdw;
 
-			apriv->target->be_getoffsets (namehook, &ws_offs, &vs_offs, &ms_offs);
-			apriv->target->be_setoffsets (node, ws_offs, vs_offs, ms_offs);
+			apriv->target->be_getoffsets (namehook, &ws_offs, &vs_offs, &ms_offs, &ms_shdw);
+			apriv->target->be_setoffsets (node, ws_offs, vs_offs, ms_offs, ms_shdw);
 		} else {
 			/* actually..  do the same thing here -- let code-gen take care of it */
-			int ws_offs, vs_offs, ms_offs;
+			int ws_offs, vs_offs, ms_offs, ms_shdw;
 
-			apriv->target->be_getoffsets (namehook, &ws_offs, &vs_offs, &ms_offs);
-			apriv->target->be_setoffsets (node, ws_offs, vs_offs, ms_offs);
+			apriv->target->be_getoffsets (namehook, &ws_offs, &vs_offs, &ms_offs, &ms_shdw);
+			apriv->target->be_setoffsets (node, ws_offs, vs_offs, ms_offs, ms_shdw);
 		}
 		return 0;
 	}

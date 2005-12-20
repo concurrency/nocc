@@ -72,10 +72,10 @@
 static void occampi_initvalabbrev (tnode_t *node, codegen_t *cgen, void *arg)
 {
 	tnode_t *abbrev = (tnode_t *)arg;
-	int ws_off, vs_off, ms_off;
+	int ws_off, vs_off, ms_off, ms_shdw;
 	tnode_t *mappedrhs;
 
-	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off);
+	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off, &ms_shdw);
 #if 0
 fprintf (stderr, "occampi_initvalabbrev(): node=[%s], allocated at [%d,%d,%d]:\n", node->tag->name, ws_off, vs_off, ms_off);
 tnode_dumptree (node, 1, stderr);
@@ -100,10 +100,10 @@ tnode_dumptree (mappedrhs, 1, stderr);
 static void occampi_initptrabbrev (tnode_t *node, codegen_t *cgen, void *arg)
 {
 	tnode_t *abbrev = (tnode_t *)arg;
-	int ws_off, vs_off, ms_off;
+	int ws_off, vs_off, ms_off, ms_shdw;
 	tnode_t *mappedrhs;
 
-	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off);
+	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off, &ms_shdw);
 	mappedrhs = (tnode_t *)tnode_getchook (node, cgen->pc_chook);
 
 	codegen_callops (cgen, loadpointer, mappedrhs, 0);

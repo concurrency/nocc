@@ -63,10 +63,10 @@
 static void occampi_type_initchandecl (tnode_t *node, codegen_t *cgen, void *arg)
 {
 	tnode_t *chantype = (tnode_t *)arg;
-	int ws_off, vs_off, ms_off;
+	int ws_off, vs_off, ms_off, ms_shdw;
 
 	/* FIXME: assuming single channel for now.. */
-	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off);
+	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off, &ms_shdw);
 
 #if 0
 fprintf (stderr, "occampi_initchandecl(): node=[%s], allocated at [%d,%d,%d], type is:\n", node->tag->name, ws_off, vs_off, ms_off);

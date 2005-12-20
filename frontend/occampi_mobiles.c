@@ -66,9 +66,9 @@
 static void occampi_mobiletypenode_initmobile (tnode_t *node, codegen_t *cgen, void *arg)
 {
 	tnode_t *mtype = (tnode_t *)arg;
-	int ws_off, vs_off, ms_off;
+	int ws_off, vs_off, ms_off, ms_shdw;
 
-	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off);
+	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off, &ms_shdw);
 
 	codegen_callops (cgen, loadconst, 0);
 	codegen_callops (cgen, storelocal, ws_off);

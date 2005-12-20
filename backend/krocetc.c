@@ -62,8 +62,8 @@ static tnode_t *krocetc_result_create (tnode_t *expr, map_t *mdata);
 static void krocetc_inresult (tnode_t **nodep, map_t *mdata);
 static tnode_t **krocetc_be_blockbodyaddr (tnode_t *blk);
 static int krocetc_be_allocsize (tnode_t *node, int *pwsh, int *pwsl, int *pvs, int *pms);
-static void krocetc_be_setoffsets (tnode_t *bename, int ws_offset, int vs_offset, int ms_offset);
-static void krocetc_be_getoffsets (tnode_t *bename, int *wsop, int *vsop, int *msop);
+static void krocetc_be_setoffsets (tnode_t *bename, int ws_offset, int vs_offset, int ms_offset, int ms_shadow);
+static void krocetc_be_getoffsets (tnode_t *bename, int *wsop, int *vsop, int *msop, int *mssp);
 static int krocetc_be_blocklexlevel (tnode_t *blk);
 static void krocetc_be_setblocksize (tnode_t *blk, int ws, int ws_offs, int vs, int ms, int adjust);
 static void krocetc_be_getblocksize (tnode_t *blk, int *wsp, int *wsoffsp, int *vsp, int *msp, int *adjp, int *elabp);
@@ -127,9 +127,9 @@ target_t krocetc_target = {
 	inresult:	krocetc_inresult,
 
 	be_blockbodyaddr:	krocetc_be_blockbodyaddr,
-	be_allocsize:	krocetc_be_allocsize,
-	be_setoffsets:	krocetc_be_setoffsets,
-	be_getoffsets:	krocetc_be_getoffsets,
+	be_allocsize:		krocetc_be_allocsize,
+	be_setoffsets:		krocetc_be_setoffsets,
+	be_getoffsets:		krocetc_be_getoffsets,
 	be_blocklexlevel:	krocetc_be_blocklexlevel,
 	be_setblocksize:	krocetc_be_setblocksize,
 	be_getblocksize:	krocetc_be_getblocksize,
@@ -154,6 +154,7 @@ typedef struct TAG_krocetc_namehook {
 	int ws_offset;		/* workspace offset in current block */
 	int vs_offset;		/* vectorspace offset in current block */
 	int ms_offset;		/* mobilespace offset in current block */
+	int ms_shadow;		/* offset of the shadow in mobilespace */
 } krocetc_namehook_t;
 
 typedef struct TAG_krocetc_blockhook {
@@ -294,8 +295,8 @@ static void krocetc_namehook_dumptree (tnode_t *node, void *hook, int indent, FI
 	krocetc_namehook_t *nh = (krocetc_namehook_t *)hook;
 
 	krocetc_isetindent (stream, indent);
-	fprintf (stream, "<namehook addr=\"0x%8.8x\" lexlevel=\"%d\" allocwsh=\"%d\" allocwsl=\"%d\" allocvs=\"%d\" allocms=\"%d\" typesize=\"%d\" indir=\"%d\" wsoffset=\"%d\" vsoffset=\"%d\" msoffset=\"%d\" />\n",
-			(unsigned int)nh, nh->lexlevel, nh->alloc_wsh, nh->alloc_wsl, nh->alloc_vs, nh->alloc_ms, nh->typesize, nh->indir, nh->ws_offset, nh->vs_offset, nh->ms_offset);
+	fprintf (stream, "<namehook addr=\"0x%8.8x\" lexlevel=\"%d\" allocwsh=\"%d\" allocwsl=\"%d\" allocvs=\"%d\" allocms=\"%d\" typesize=\"%d\" indir=\"%d\" wsoffset=\"%d\" vsoffset=\"%d\" msoffset=\"%d\" msshadow=\"%d\" />\n",
+			(unsigned int)nh, nh->lexlevel, nh->alloc_wsh, nh->alloc_wsl, nh->alloc_vs, nh->alloc_ms, nh->typesize, nh->indir, nh->ws_offset, nh->vs_offset, nh->ms_offset, nh->ms_shadow);
 	return;
 }
 /*}}}*/
@@ -317,6 +318,7 @@ static krocetc_namehook_t *krocetc_namehook_create (int ll, int asize_wsh, int a
 	nh->ws_offset = -1;
 	nh->vs_offset = -1;
 	nh->ms_offset = -1;
+	nh->ms_shadow = -1;
 
 	return nh;
 }
@@ -975,11 +977,11 @@ fprintf (stderr, "krocetc_be_allocsize(): got block size from BLOCKREF, ws=%d, w
 	return 0;
 }
 /*}}}*/
-/*{{{  static void krocetc_be_setoffsets (tnode_t *bename, int ws_offset, int vs_offset, int ms_offset)*/
+/*{{{  static void krocetc_be_setoffsets (tnode_t *bename, int ws_offset, int vs_offset, int ms_offset, int ms_shadow)*/
 /*
  *	sets the offsets for a back-end name after allocation
  */
-static void krocetc_be_setoffsets (tnode_t *bename, int ws_offset, int vs_offset, int ms_offset)
+static void krocetc_be_setoffsets (tnode_t *bename, int ws_offset, int vs_offset, int ms_offset, int ms_shadow)
 {
 	krocetc_namehook_t *nh;
 
@@ -995,15 +997,16 @@ static void krocetc_be_setoffsets (tnode_t *bename, int ws_offset, int vs_offset
 	nh->ws_offset = ws_offset;
 	nh->vs_offset = vs_offset;
 	nh->ms_offset = ms_offset;
+	nh->ms_shadow = ms_shadow;
 
 	return;
 }
 /*}}}*/
-/*{{{  static void krocetc_be_getoffsets (tnode_t *bename, int *wsop, int *vsop, int *msop)*/
+/*{{{  static void krocetc_be_getoffsets (tnode_t *bename, int *wsop, int *vsop, int *msop, int *mssp)*/
 /*
  *	gets the offsets for a back-end name after allocation
  */
-static void krocetc_be_getoffsets (tnode_t *bename, int *wsop, int *vsop, int *msop)
+static void krocetc_be_getoffsets (tnode_t *bename, int *wsop, int *vsop, int *msop, int *mssp)
 {
 	krocetc_namehook_t *nh;
 
@@ -1024,6 +1027,9 @@ static void krocetc_be_getoffsets (tnode_t *bename, int *wsop, int *vsop, int *m
 	}
 	if (msop) {
 		*msop = nh->ms_offset;
+	}
+	if (mssp) {
+		*mssp = nh->ms_shadow;
 	}
 
 	return;
@@ -1267,7 +1273,7 @@ fprintf (stderr, "krocetc_preallocate_block(): adding mobilespace pointer..\n");
 			nh = krocetc_namehook_create (bh->lexlevel, target->pointersize, 0, 0, 0, target->pointersize, 0);
 			name = tnode_create (target->tag_NAME, NULL, tnode_create (kpriv->tag_MSP, NULL), NULL, (void *)nh);
 
-			parser_addtolist_front (*stptr, name);
+			parser_addtolist (*stptr, name);		/* add on the back of the parameter-list */
 		}
 	}
 
