@@ -37,6 +37,7 @@ extern int allocate_shutdown (void);
 extern int allocate_tree (struct TAG_tnode **tptr, struct TAG_target *target);
 extern int preallocate_tree (struct TAG_tnode **tptr, struct TAG_target *target);
 
+extern int allocate_walkvarmap (struct TAG_tnode *t, int memsp, int (*map_func)(void *, int, int, int, int, void *), int (*item_func)(void *, struct TAG_tnode *, int *, int *, void *), void *maparg, void *itemarg);
 
 #endif	/* !__ALLOCATE_H */
 

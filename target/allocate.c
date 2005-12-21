@@ -1129,6 +1129,97 @@ fprintf (stderr, "allocate_tree(): about to assign blocks, apriv->ev_chook = 0x%
 /*}}}*/
 
 
+/*{{{  static int allocate_walkovarmap (alloc_ovarmap_t *ovm, int (*map_func)(void *, int, int, int, int, void *), int (*item_func)(void *, tnode_t *, int *, int *, void *), void *maparg, void *itemarg)*/
+/*
+ *	internal for allocate_walkvarmap() below
+ */
+static int allocate_walkovarmap (alloc_ovarmap_t *ovm, int (*map_func)(void *, int, int, int, int, void *), int (*item_func)(void *, tnode_t *, int *, int *, void *), void *maparg, void *itemarg)
+{
+	int r = 0;
+	int i;
+
+	if (map_func) {
+		r = map_func ((void *)ovm, ovm->size, ovm->offset, DA_CUR (ovm->submaps), DA_CUR (ovm->entries), maparg);
+	}
+	if (r < 0) {
+		/* abort */
+		return r;
+	}
+	if (item_func) {
+		for (i=0; i<DA_CUR (ovm->entries); i++) {
+			alloc_ivarmap_t *ivm = DA_NTHITEM (ovm->entries, i);
+			int sizes[4] = {ivm->alloc_wsh, ivm->alloc_wsl, ivm->alloc_vs, ivm->alloc_ms};
+			int offsets[4] = {ivm->ws_offset, ivm->vs_offset, ivm->ms_shadow, ivm->ms_offset};
+
+			/* each (int *) argument is to the data */
+			r = item_func ((void *)ivm, ivm->name, sizes, offsets, itemarg);
+			if (r < 0) {
+				/* abort */
+				return r;
+			}
+		}
+	}
+	for (i=0; i<DA_CUR (ovm->submaps); i++) {
+		r = allocate_walkovarmap (DA_NTHITEM (ovm->submaps, i), map_func, item_func, maparg, itemarg);
+		if (r < 0) {
+			/* abort */
+			return r;
+		}
+	}
+	return r;
+}
+/*}}}*/
+/*{{{  int allocate_walkvarmap (tnode_t *t, int memsp, int (*map_func)(void *, int, int, int, int, void *), int (*item_func)(void *, tnode_t *, int *, int *, void *), void *maparg, void *itemarg)*/
+/*
+ *	this performs a walk over the given node's varmap ("alloc:varmap" chook), in
+ *	the specified memory-space (0=workspace, 1=vectorspace, 2=mobilespace), calling
+ *	the given function with each map/sub-map or entry.
+ *
+ *	returns 0 on success, non-zero on failure
+ */
+int allocate_walkvarmap (tnode_t *t, int memsp, int (*map_func)(void *, int, int, int, int, void *), int (*item_func)(void *, tnode_t *, int *, int *, void *), void *maparg, void *itemarg)
+{
+	alloc_varmap_t *avmap = (alloc_varmap_t *)tnode_getchook (t, tnode_lookupornewchook ("alloc:varmap"));
+	int r;
+
+	if (!avmap) {
+		nocc_warning ("allocate_walkvarmap(): called with map-less tree\n");
+		return -1;
+	}
+	switch (memsp) {
+	case 0:
+		/* walk workspace */
+		if (!avmap->wsmap) {
+			nocc_warning ("allocate_walkvarmap(): no workspace map\n");
+			return -1;
+		}
+		r = allocate_walkovarmap (avmap->wsmap, map_func, item_func, maparg, itemarg);
+		break;
+	case 1:
+		/* walk vectorspace */
+		if (!avmap->vsmap) {
+			nocc_warning ("allocate_walkvarmap(): no vectorspace map\n");
+			return -1;
+		}
+		r = allocate_walkovarmap (avmap->vsmap, map_func, item_func, maparg, itemarg);
+		break;
+	case 2:
+		/* walk vectorspace */
+		if (!avmap->msmap) {
+			nocc_warning ("allocate_walkvarmap(): no mobilespace map\n");
+			return -1;
+		}
+		r = allocate_walkovarmap (avmap->msmap, map_func, item_func, maparg, itemarg);
+		break;
+	default:
+		nocc_warning ("allocate_walkvarmap(): not a map [%d]\n", memsp);
+		return -1;
+	}
+	return r;
+}
+/*}}}*/
+
+
 /*{{{  int allocate_init (void)*/
 /*
  *	initialises the allocator

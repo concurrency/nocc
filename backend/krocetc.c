@@ -45,6 +45,7 @@
 #include "map.h"
 #include "transputer.h"
 #include "codegen.h"
+#include "allocate.h"
 
 /*}}}*/
 
@@ -1299,6 +1300,31 @@ static int krocetc_precode_block (tnode_t **tptr, codegen_t *cgen)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int krocetc_msinit_map (void *mapid, int size, int offset, int nsubmaps, int nentries, void *arg)*/
+/*
+ *	called by allocate when generating mobilespace initialisation
+ */
+static int krocetc_msinit_map (void *mapid, int size, int offset, int nsubmaps, int nentries, void *arg)
+{
+	int *cptr = (int *)arg;
+
+	/* this just counts the total number of entries */
+	*cptr = *cptr + nentries;
+	return 0;
+}
+/*}}}*/
+/*{{{  static int krocetc_msinit_item (void *mapid, tnode_t *name, int *sizes, int *offsets, void *arg)*/
+/*
+ *	called by allocate when generating mobilespace initialisation
+ */
+static int krocetc_msinit_item (void *mapid, tnode_t *name, int *sizes, int *offsets, void *arg)
+{
+	codegen_t *cgen = (codegen_t *)arg;
+
+	codegen_write_fmt (cgen, ".mobileinitpair %d, %d\n", offsets[2], offsets[3]);
+	return 0;
+}
+/*}}}*/
 /*{{{  static int krocetc_codegen_block (tnode_t *blk, codegen_t *cgen)*/
 /*
  *	does code generation for a back-end block
@@ -1325,6 +1351,19 @@ static int krocetc_codegen_block (tnode_t *blk, codegen_t *cgen)
 		codegen_callops (cgen, setlabel, elab);
 	}
 	codegen_callops (cgen, wsadjust, -(ws_offset - adjust));
+
+	/* if the block uses mobilespace, generate initialisation */
+	if (ms_size > 0) {
+		int count = 0;
+
+		allocate_walkvarmap (blk, 2, krocetc_msinit_map, NULL, &count, NULL);
+		if (count > 0) {
+			codegen_write_fmt (cgen, ".mobileinit %d, %d\n", 0 /* FIXME: MSP */, count);
+			/* walk the items proper */
+			allocate_walkvarmap (blk, 2, NULL, krocetc_msinit_item, NULL, cgen);
+		}
+	}
+
 	codegen_subcodegen (tnode_nthsubof (blk, 0), cgen);
 	codegen_callops (cgen, wsadjust, (ws_offset - adjust));
 
