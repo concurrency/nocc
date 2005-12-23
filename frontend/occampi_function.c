@@ -68,12 +68,54 @@ static int occampi_codegen_valof (tnode_t *node, codegen_t *cgen)
 {
 	tnode_t *body = tnode_nthsubof (node, 1);
 	tnode_t *results = tnode_nthsubof (node, 0);
+	int nresults, resultbytes;
 
 	/* generate body */
 	codegen_subcodegen (body, cgen);
 
 	/* and results */
 	codegen_subcodegen (results, cgen);
+
+	if (results) {
+		if (parser_islistnode (results)) {
+			tnode_t **items = parser_getlistitems (results, &nresults);
+			int i;
+
+			for (i=0, resultbytes=0; i<nresults; i++) {
+				int wsh, wsl, vs, ms;
+				int thissize;
+
+				cgen->target->be_allocsize (items[i], &wsh, &wsl, &vs, &ms);
+				thissize = wsh;
+
+				if (thissize > 0) {
+					resultbytes += thissize;
+				} else {
+					codegen_warning (cgen, "occampi_codegen_valof(): result %d has size %d\n", i, thissize);
+				}
+			}
+		} else {
+			int wsh, wsl, vs, ms;
+
+			cgen->target->be_allocsize (results, &wsh, &wsl, &vs, &ms);
+			resultbytes = wsh;
+
+			if (resultbytes <= 0) {
+				codegen_warning (cgen, "occampi_codegen_valof(): result has size %d\n", resultbytes);
+				resultbytes = 0;
+			}
+		}
+	} else {
+		resultbytes = 0;
+	}
+
+#if 1
+fprintf (stderr, "occampi_codegen_valof(): resultbytes = %d\n", resultbytes);
+#endif
+	nresults = resultbytes / cgen->target->slotsize;
+
+	codegen_callops (cgen, funcreturn, nresults);
+
 	return 0;
 }
 /*}}}*/
@@ -497,44 +539,30 @@ static int occampi_namemap_funcdecl (tnode_t **node, map_t *map)
 static int occampi_codegen_funcdecl (tnode_t *node, codegen_t *cgen)
 {
 	tnode_t *body = tnode_nthsubof (node, 2);
-	tnode_t *type = tnode_nthsubof (node, 1);
 	tnode_t *name = tnode_nthsubof (node, 0);
 	int ws_size, vs_size, ms_size;
-	int ws_offset, adjust, funcresults;
+	int ws_offset, adjust;
 	name_t *pname;
 
 	body = tnode_nthsubof (node, 2);
 	cgen->target->be_getblocksize (body, &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, NULL);
 
-	/* type contains the requried result type */
-	funcresults = 0;
-	if (type->tag != opi.tag_FUNCTIONTYPE) {
-		nocc_internal ("occampi_codegen_funcdecl(): function type not FUNCTIONTYPE!\n");
-		return 0;
-	}
-	type = tnode_nthsubof (type, 0);
-	if (!type) {
-		funcresults = 0;
-	} else if (!parser_islistnode (type)) {
-		funcresults = 1;				/* FIXME! */
-	} else {
-		parser_getlistitems (type, &funcresults);	/* FIXME! */
-	}
 
 	pname = tnode_nthnameof (name, 0);
-	codegen_callops (cgen, comment, "FUNCTION %s = %d,%d,%d,%d,%d (= %d)", pname->me->name, ws_size, ws_offset, vs_size, ms_size, adjust, funcresults);
+	codegen_callops (cgen, comment, "FUNCTION %s = %d,%d,%d,%d,%d", pname->me->name, ws_size, ws_offset, vs_size, ms_size, adjust);
 	codegen_callops (cgen, setwssize, ws_size, adjust);
 	codegen_callops (cgen, setvssize, vs_size);
 	codegen_callops (cgen, setmssize, ms_size);
 	codegen_callops (cgen, setnamedlabel, pname->me->name);
 
 	/* adjust workspace and generate code for body */
-	// codegen_callops (cgen, wsadjust, -(ws_offset - adjust));
+
+	/* the body is a back-end block, which must be a VALOF/RESULT! -- that does the funcreturn, we just do the real return */
+
 	codegen_subcodegen (body, cgen);
-	// codegen_callops (cgen, wsadjust, (ws_offset - adjust));
 
 	/* return */
-	codegen_callops (cgen, funcreturn, funcresults, adjust);
+	codegen_callops (cgen, procreturn, adjust);
 
 	/* generate code following declaration */
 	codegen_subcodegen (tnode_nthsubof (node, 3), cgen);

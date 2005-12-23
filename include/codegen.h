@@ -72,7 +72,7 @@ typedef struct TAG_coderops {
 	void (*callnamedlabel)(codegen_t *, const char *, int);
 	void (*calllabel)(codegen_t *, int, int);
 	void (*procreturn)(codegen_t *, int);
-	void (*funcreturn)(codegen_t *, int, int);
+	void (*funcreturn)(codegen_t *, int);
 	void (*tsecondary)(codegen_t *, int);
 	void (*loadlabaddr)(codegen_t *, int);
 	void (*branch)(codegen_t *, int, int);

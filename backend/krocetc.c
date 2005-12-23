@@ -2318,15 +2318,15 @@ static void krocetc_coder_procreturn (codegen_t *cgen, int adjust)
 	return;
 }
 /*}}}*/
-/*{{{  static void krocetc_coder_funcreturn (codegen_t *cgen, int nresults, int adjust)*/
+/*{{{  static void krocetc_coder_funcresults (codegen_t *cgen, int nresults)*/
 /*
- *	generates a function return, with the given result count
+ *	generates a function return, with the given result count.  this is called before
+ *	a FUNCTION returns (e.g. as part of the VALOF)
  */
-static void krocetc_coder_funcreturn (codegen_t *cgen, int nresults, int adjust)
+static void krocetc_coder_funcreturn (codegen_t *cgen, int nresults)
 {
 	codegen_write_fmt (cgen, ".funcreturn %d\n", nresults);
 	krocetc_cgstate_tsdelta (cgen, -nresults);
-	codegen_write_fmt (cgen, "\tret\t%d\n", adjust);
 	return;
 }
 /*}}}*/
