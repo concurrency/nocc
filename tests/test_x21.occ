@@ -1,0 +1,5 @@
+PROC test.x21 (CHAN BYTE scr!)
+  VAL []BYTE str IS "sausages*n":
+  SEQ
+    scr ! str[0]
+:

@@ -1,0 +1,8 @@
+
+PROC TYPE PT (CHAN INT in?, out!):
+
+PROC test.x17 (CHAN BYTE scr!)
+  SEQ
+    SKIP
+:
+

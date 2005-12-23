@@ -1,0 +1,9 @@
+
+PROC test.x16 ()
+  INT x:
+  SEQ
+    ASM
+      LD x
+      SETERR
+:
+

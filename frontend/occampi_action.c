@@ -150,6 +150,10 @@ static int occampi_precheck_action (tnode_t *node)
 	} else if (node->tag == opi.tag_OUTPUT) {
 		usagecheck_marknode (tnode_nthsubof (node, 0), USAGE_OUTPUT, 0);
 		usagecheck_marknode (tnode_nthsubof (node, 1), USAGE_READ, 0);
+	} else if (node->tag == opi.tag_ASSIGN) {
+		/* deeper usage-checking may sort these out later on */
+		usagecheck_marknode (tnode_nthsubof (node, 0), USAGE_WRITE, 0);
+		usagecheck_marknode (tnode_nthsubof (node, 1), USAGE_READ, 0);
 	}
 	return 1;
 }

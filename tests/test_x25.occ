@@ -1,0 +1,9 @@
+-- test_x25.occ -- bad test for parallel usage
+
+PROC test.x25 (CHAN BYTE scr!)
+  INT x:
+  PAR
+    x := 42
+    x := 42
+:
+

@@ -1,0 +1,13 @@
+
+PROC foo ()
+  INT v:
+  SKIP
+:
+
+PROC test.x7 (CHAN BYTE screen!)
+  INITIAL INT x IS 42:
+  SEQ
+    SKIP
+:
+
+

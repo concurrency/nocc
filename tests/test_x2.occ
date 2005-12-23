@@ -1,0 +1,11 @@
+
+-- test_x2.occ -- testing parser failure/error
+
+PROC test.x2 (CHAN BYTE screen!, error!)
+  SEQ
+    screen ! 'y'
+    PAR
+      screen ! 'x'
+      screen ! '*n'
+:
+

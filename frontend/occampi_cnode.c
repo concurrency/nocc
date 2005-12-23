@@ -128,6 +128,9 @@ static int occampi_cnode_dousagecheck (tnode_t *node, uchk_state_t *ucstate)
 		usagecheck_begin_branches (node, ucstate);
 
 		bodies = parser_getlistitems (body, &nbodies);
+#if 0
+nocc_message ("occampi_cnode_dousagecheck(): there are %d PAR bodies", nbodies);
+#endif
 		for (i=0; i<nbodies; i++) {
 			/*{{{  do usage-checks on subnode*/
 			usagecheck_branch (bodies[i], ucstate);

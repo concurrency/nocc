@@ -1,0 +1,7 @@
+
+PROC test.x24 ()
+  CHAN INT c:
+  SEQ
+    SKIP
+:
+

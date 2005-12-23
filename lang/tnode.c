@@ -1298,6 +1298,7 @@ langops_t *tnode_newlangops (void)
 	langops_t *lops = (langops_t *)smalloc (sizeof (langops_t));
 
 	lops->getdescriptor = NULL;
+	lops->getname = NULL;
 	lops->do_usagecheck = NULL;
 	lops->isconst = NULL;
 	lops->constvalof = NULL;

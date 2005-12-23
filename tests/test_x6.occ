@@ -1,0 +1,8 @@
+
+PROC test.x6 (CHAN BYTE screen!, error!)
+  PAR
+    screen ! 'a'
+    error ! '*n'
+:
+
+

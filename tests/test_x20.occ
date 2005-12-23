@@ -1,0 +1,7 @@
+
+PROC test.x20 (CHAN BYTE scr!)
+  [4]BYTE b:
+  SEQ
+    b[0] := 'a'
+:
+

@@ -1,0 +1,6 @@
+
+PROC test.x23 (CHAN BYTE scr!)
+  PAR i = 0 FOR 4+1
+    SKIP
+:
+

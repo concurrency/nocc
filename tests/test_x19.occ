@@ -1,0 +1,9 @@
+
+PROC test.x19 (CHAN BYTE scr!)
+  VAL []BYTE str IS "sausages":
+  BYTE b:
+  SEQ
+    b := str[0]
+    SKIP
+:
+

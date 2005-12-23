@@ -1,0 +1,11 @@
+
+PROC foo ()
+  SEQ
+    SKIP
+:
+
+PROC test.x3 (CHAN BYTE screen!)
+  SEQ
+    foo ()
+:
+

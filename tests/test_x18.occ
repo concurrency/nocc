@@ -1,0 +1,12 @@
+
+PROC foo (CHAN BYTE out!)
+  SEQ
+    out ! 42
+:
+
+PROC test.x18 (CHAN BYTE screen!)
+  SEQ
+    foo (screen)
+:
+
+

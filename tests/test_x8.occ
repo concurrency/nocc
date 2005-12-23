@@ -1,0 +1,9 @@
+PROC test.x8 ()
+  INT v:
+  SEQ
+    v := 24
+    x IS v:
+    SEQ
+      x := 42
+:
+

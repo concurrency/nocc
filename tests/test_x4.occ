@@ -1,0 +1,17 @@
+
+-- test_x4.occ -- testing
+
+DATA TYPE FOO
+  RECORD
+    INT x:
+    BYTE y:
+:
+
+PROC test.x4 (CHAN BYTE screen!)
+  FOO k:
+  SEQ
+    k_y := 42
+    SKIP
+:
+
+

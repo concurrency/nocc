@@ -76,6 +76,38 @@ void langops_getdescriptor (tnode_t *node, char **str)
 	return;
 }
 /*}}}*/
+/*{{{  static int langops_getname_walk (tnode_t *node, void *ptr)*/
+/*
+ *	tree-walk routine for getting names
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int langops_getname_walk (tnode_t *node, void *ptr)
+{
+	int r = 1;
+
+	if (!node) {
+		return 0;
+	}
+	if (node->tag->ndef->lops && node->tag->ndef->lops->getname) {
+		r = node->tag->ndef->lops->getname (node, (char **)ptr);
+		if (r < 0) {
+			r = 1;		/* try again down the tree */
+		}
+	}
+
+	return r;
+}
+/*}}}*/
+/*{{{  void langops_getname (tnode_t *node, char **str)*/
+/*
+ *	walks a section of the tree to extract a name
+ */
+void langops_getname (tnode_t *node, char **str)
+{
+	tnode_prewalktree (node, langops_getname_walk, (void *)str);
+	return;
+}
+/*}}}*/
 /*{{{  int langops_isconst (tnode_t *node)*/
 /*
  *	determines whether or not the given node is a known constant

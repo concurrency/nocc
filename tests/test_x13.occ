@@ -1,0 +1,9 @@
+-- test_x13.occ -- MOBILE experiment..
+
+PROC test.x13 (CHAN BYTE screen!)
+  MOBILE BYTE x:
+  SEQ
+    x := 42
+    screen ! x
+:
+

@@ -1,0 +1,17 @@
+-- test_x12.occ -- testing FUNCTIONs..
+
+INT FUNCTION foo ()
+  VALOF
+    INT x:
+    SEQ
+      x := 42
+    RESULT x
+:
+
+PROC test.x12 ()
+  INT x:
+  SEQ
+    x := foo ()
+:
+
+

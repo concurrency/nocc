@@ -41,6 +41,7 @@
 #include "parsepriv.h"
 #include "dfa.h"
 #include "names.h"
+#include "langops.h"
 #include "usagecheck.h"
 
 
@@ -313,7 +314,7 @@ void usagecheck_error (tnode_t *org, uchk_state_t *ucstate, const char *fmt, ...
 	}
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (error) ", orgfile ? orgfile->fnptr : "(unknown)", org ? org->org_line : 0);
+	n = sprintf (warnbuf, "%s:%d (error): ", orgfile ? orgfile->fnptr : "(unknown)", org ? org->org_line : 0);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
@@ -346,7 +347,7 @@ void usagecheck_warning (tnode_t *org, uchk_state_t *ucstate, const char *fmt, .
 	}
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (warning) ", orgfile ? orgfile->fnptr : "(unknown)", org ? org->org_line : 0);
+	n = sprintf (warnbuf, "%s:%d (warning): ", orgfile ? orgfile->fnptr : "(unknown)", org ? org->org_line : 0);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
@@ -478,16 +479,24 @@ static int usagecheck_sub_no_overlaps (tnode_t *node, uchk_state_t *ucstate, uch
 
 			if (item1 == item2) {
 				/* same item */
+				char *i1str = NULL;
+
+				langops_getname (item1, &i1str);
+
 				if ((mode1 & USAGE_INPUT) && (mode2 & USAGE_INPUT)) {
-					usagecheck_error (node, ucstate, "parallel inputs on 0x%8.8x", (unsigned int)item1);
+					usagecheck_error (node, ucstate, "parallel inputs on %s", i1str);
 				} else if ((mode1 & USAGE_OUTPUT) && (mode2 & USAGE_OUTPUT)) {
-					usagecheck_error (node, ucstate, "parallel outputs on 0x%8.8x", (unsigned int)item1);
+					usagecheck_error (node, ucstate, "parallel outputs on %s", i1str);
 				} else if ((mode1 & USAGE_WRITE) && (mode2 & USAGE_WRITE)) {
-					usagecheck_error (node, ucstate, "0x%8.8x is written to in parallel", (unsigned int)item1);
+					usagecheck_error (node, ucstate, "%s is written to in parallel", i1str);
 				} else if ((mode1 & USAGE_WRITE) && (mode2 & USAGE_READ)) {
-					usagecheck_error (node, ucstate, "parallel read/write on 0x%8.8xparallel", (unsigned int)item1);
+					usagecheck_error (node, ucstate, "parallel read/write on %s", i1str);
 				} else if ((mode1 & USAGE_READ) && (mode2 & USAGE_WRITE)) {
-					usagecheck_error (node, ucstate, "parallel read/write on 0x%8.8xparallel", (unsigned int)item1);
+					usagecheck_error (node, ucstate, "parallel read/write on %s", i1str);
+				}
+
+				if (i1str) {
+					sfree (i1str);
 				}
 			}
 		}

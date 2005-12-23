@@ -1,0 +1,7 @@
+PROC test.x22 (CHAN BYTE scr!)
+  SEQ
+    SEQ i = 0 FOR 4
+      scr ! 'a'
+    scr ! '*n'
+:
+

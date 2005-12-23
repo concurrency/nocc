@@ -1,0 +1,10 @@
+
+-- test_x5.occ -- testing
+
+PROC test.x5 (CHAN BYTE screen!)
+  INT x:
+  SEQ
+    x := 2 + 3 * 5
+:
+
+

@@ -984,6 +984,25 @@ static int occampi_getdescriptor_fparam (tnode_t *node, char **str)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_getname_fparam (tnode_t *node, char **str)*/
+/*
+ *	gets the name of a formal parameter
+ *	returns 0 on success, -ve on failure
+ */
+static int occampi_getname_fparam (tnode_t *node, char **str)
+{
+	tnode_t *name = tnode_nthsubof (node, 0);
+	char *pname = NameNameOf (tnode_nthnameof (name, 0));
+
+	if (*str) {
+		sfree (*str);
+	}
+	*str = (char *)smalloc (strlen (pname) + 2);
+	strcpy (*str, pname);
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static void occampi_rawnamenode_hook_free (void *hook)*/
@@ -1164,6 +1183,24 @@ static int occampi_usagecheck_namenode (tnode_t *node, uchk_state_t *uc)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_getname_namenode (tnode_t *node, char **str)*/
+/*
+ *	gets the name of a namenode (var/etc. name)
+ *	return 0 on success, -ve on failure
+ */
+static int occampi_getname_namenode (tnode_t *node, char **str)
+{
+	char *pname = NameNameOf (tnode_nthnameof (node, 0));
+
+	if (*str) {
+		sfree (*str);
+	}
+	*str = (char *)smalloc (strlen (pname) + 2);
+	strcpy (*str, pname);
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static void occampi_procdecl_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)*/
@@ -1230,6 +1267,7 @@ static int occampi_decl_init_nodes (void)
 
 	lops = tnode_newlangops ();
 	lops->do_usagecheck = occampi_usagecheck_namenode;
+	lops->getname = occampi_getname_namenode;
 	tnd->lops = lops;
 
 	i = -1;
@@ -1291,6 +1329,7 @@ static int occampi_decl_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->getdescriptor = occampi_getdescriptor_fparam;
+	lops->getname = occampi_getname_fparam;
 	tnd->lops = lops;
 	i = -1;
 	opi.tag_FPARAM = tnode_newnodetag ("FPARAM", &i, tnd, NTF_NONE);
