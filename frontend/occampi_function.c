@@ -59,6 +59,26 @@
 /*}}}*/
 
 
+/*{{{  static int occampi_codegen_valof (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates code for a VALOF
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_codegen_valof (tnode_t *node, codegen_t *cgen)
+{
+	tnode_t *body = tnode_nthsubof (node, 1);
+	tnode_t *results = tnode_nthsubof (node, 0);
+
+	/* generate body */
+	codegen_subcodegen (body, cgen);
+
+	/* and results */
+	codegen_subcodegen (results, cgen);
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_typecheck_finstance (tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking for a function instance-node
@@ -477,16 +497,32 @@ static int occampi_namemap_funcdecl (tnode_t **node, map_t *map)
 static int occampi_codegen_funcdecl (tnode_t *node, codegen_t *cgen)
 {
 	tnode_t *body = tnode_nthsubof (node, 2);
+	tnode_t *type = tnode_nthsubof (node, 1);
 	tnode_t *name = tnode_nthsubof (node, 0);
 	int ws_size, vs_size, ms_size;
-	int ws_offset, adjust;
+	int ws_offset, adjust, funcresults;
 	name_t *pname;
 
 	body = tnode_nthsubof (node, 2);
 	cgen->target->be_getblocksize (body, &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, NULL);
 
+	/* type contains the requried result type */
+	funcresults = 0;
+	if (type->tag != opi.tag_FUNCTIONTYPE) {
+		nocc_internal ("occampi_codegen_funcdecl(): function type not FUNCTIONTYPE!\n");
+		return 0;
+	}
+	type = tnode_nthsubof (type, 0);
+	if (!type) {
+		funcresults = 0;
+	} else if (!parser_islistnode (type)) {
+		funcresults = 1;				/* FIXME! */
+	} else {
+		parser_getlistitems (type, &funcresults);	/* FIXME! */
+	}
+
 	pname = tnode_nthnameof (name, 0);
-	codegen_callops (cgen, comment, "FUNCTION %s = %d,%d,%d,%d,%d", pname->me->name, ws_size, ws_offset, vs_size, ms_size, adjust);
+	codegen_callops (cgen, comment, "FUNCTION %s = %d,%d,%d,%d,%d (= %d)", pname->me->name, ws_size, ws_offset, vs_size, ms_size, adjust, funcresults);
 	codegen_callops (cgen, setwssize, ws_size, adjust);
 	codegen_callops (cgen, setvssize, vs_size);
 	codegen_callops (cgen, setmssize, ms_size);
@@ -498,7 +534,7 @@ static int occampi_codegen_funcdecl (tnode_t *node, codegen_t *cgen)
 	// codegen_callops (cgen, wsadjust, (ws_offset - adjust));
 
 	/* return */
-	codegen_callops (cgen, procreturn, adjust);
+	codegen_callops (cgen, funcreturn, funcresults, adjust);
 
 	/* generate code following declaration */
 	codegen_subcodegen (tnode_nthsubof (node, 3), cgen);
@@ -619,6 +655,7 @@ static int occampi_function_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:valofnode", &i, 2, 0, 0, TNF_LONGPROC);	/* subnodes: result-exprs; body */
 	cops = tnode_newcompops ();
+	cops->codegen = occampi_codegen_valof;
 	tnd->ops = cops;
 
 	i = -1;

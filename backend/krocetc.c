@@ -2318,6 +2318,18 @@ static void krocetc_coder_procreturn (codegen_t *cgen, int adjust)
 	return;
 }
 /*}}}*/
+/*{{{  static void krocetc_coder_funcreturn (codegen_t *cgen, int nresults, int adjust)*/
+/*
+ *	generates a function return, with the given result count
+ */
+static void krocetc_coder_funcreturn (codegen_t *cgen, int nresults, int adjust)
+{
+	codegen_write_fmt (cgen, ".funcreturn %d\n", nresults);
+	krocetc_cgstate_tsdelta (cgen, -nresults);
+	codegen_write_fmt (cgen, "\tret\t%d\n", adjust);
+	return;
+}
+/*}}}*/
 /*{{{  static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)*/
 /*
  *	generates code for a secondary instruction
@@ -2589,6 +2601,7 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	cops->setlabel = krocetc_coder_setlabel;
 	cops->calllabel = krocetc_coder_calllabel;
 	cops->procreturn = krocetc_coder_procreturn;
+	cops->funcreturn = krocetc_coder_funcreturn;
 	cops->tsecondary = krocetc_coder_tsecondary;
 	cops->loadlabaddr = krocetc_coder_loadlabaddr;
 	cops->branch = krocetc_coder_branch;
