@@ -202,14 +202,19 @@ static tnode_t *tops_findtwointree (tnode_t *parent, tnode_t *tree, ntdef_t *tag
 	int i, nnodes;
 	tnode_t **subnodes;
 
+	if (!parent || !tree) {
+		return NULL;
+	}
 	if ((parent->tag == tag1) && (tree->tag == tag2)) {
 		return parent;
 	}
+
 	if (parser_islistnode (tree)) {
 		subnodes = parser_getlistitems (tree, &nnodes);
 	} else {
 		subnodes = tnode_subnodesof (tree, &nnodes);
 	}
+
 	for (i=0; i<nnodes; i++) {
 		tnode_t *result = tops_findtwointree (tree, subnodes[i], tag1, tag2);
 

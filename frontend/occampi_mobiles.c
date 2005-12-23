@@ -70,9 +70,31 @@ static void occampi_mobiletypenode_initmobile (tnode_t *node, codegen_t *cgen, v
 
 	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off, &ms_shdw);
 
-	codegen_callops (cgen, loadconst, 0);
+	codegen_callops (cgen, debugline, node);
+	codegen_callops (cgen, loadmsp, 0);
+	codegen_callops (cgen, loadnonlocal, ms_shdw);
 	codegen_callops (cgen, storelocal, ws_off);
 	codegen_callops (cgen, comment, "initmobile");
+
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_mobiletypenode_finalmobile (tnode_t *node, codegen_t *cgen, void *arg)*/
+/*
+ *	generates code to descope a mobile
+ */
+static void occampi_mobiletypenode_finalmobile (tnode_t *node, codegen_t *cgen, void *arg)
+{
+	tnode_t *mtype = (tnode_t *)arg;
+	int ws_off, vs_off, ms_off, ms_shdw;
+
+	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off, &ms_shdw);
+
+	codegen_callops (cgen, debugline, node);
+	codegen_callops (cgen, loadlocal, ws_off);
+	codegen_callops (cgen, loadmsp, 0);
+	codegen_callops (cgen, storenonlocal, ms_shdw);
+	codegen_callops (cgen, comment, "finalmobile");
 
 	return;
 }
@@ -131,6 +153,7 @@ static int occampi_mobiletypenode_initialising_decl (tnode_t *t, tnode_t *benode
 	if (t->tag == opi.tag_MOBILE) {
 		/* static mobile */
 		codegen_setinithook (benode, occampi_mobiletypenode_initmobile, (void *)t);
+		codegen_setfinalhook (benode, occampi_mobiletypenode_finalmobile, (void *)t);
 		return 1;
 	}
 	return 0;

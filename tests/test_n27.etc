@@ -1,7 +1,7 @@
 ;
 ;	tests/test_n27.etc
 ;	compiled from tests/test_n27.occ
-;	on host tadpole at Tue Oct 18 00:26:14 2005
+;	on host tadpole at Fri Dec 23 00:23:24 2005
 ;	source language: occam-pi, target: etc-kroc-unknown
 ;
 
@@ -12,6 +12,8 @@
 .setvs	0
 .setms	0
 .setnamedlabel	"O_test_n27"
+.sourcefile tests/test_n27.occ
+.sourceline 5
 .setlabel	1
 	ajw	0
 	ldl	4

@@ -207,6 +207,8 @@ typedef struct TAG_krocetc_priv {
 	chook_t *mapchook;
 	chook_t *resultsubhook;
 
+	lexfile_t *lastfile;
+
 	struct {
 		unsigned int stoperrormode:1;
 	} options;
@@ -1332,6 +1334,7 @@ static int krocetc_msinit_item (void *mapid, tnode_t *name, int *sizes, int *off
  */
 static int krocetc_codegen_block (tnode_t *blk, codegen_t *cgen)
 {
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)cgen->target->priv;
 	int ws_size, vs_size, ms_size;
 	int ws_offset, adjust;
 	int elab, lexlevel;
@@ -1358,7 +1361,25 @@ static int krocetc_codegen_block (tnode_t *blk, codegen_t *cgen)
 
 		allocate_walkvarmap (blk, 2, krocetc_msinit_map, NULL, &count, NULL);
 		if (count > 0) {
-			codegen_write_fmt (cgen, ".mobileinit %d, %d\n", 0 /* FIXME: MSP */, count);
+			/* get hold of mobilespace pointer -- should be in block statics */
+			tnode_t *statics = tnode_nthsubof (blk, 1);
+			tnode_t *msp;
+			krocetc_namehook_t *nh;
+
+			if (!statics) {
+				nocc_internal ("krocetc_codegen_block(): no statics in this block to load MSP from!");
+			}
+#if 0
+fprintf (stderr, "krocetc_codegen_block(): looking for MSP in statics:\n");
+tnode_dumptree (statics, 4, stderr);
+#endif
+			msp = treeops_findtwointree (statics, cgen->target->tag_NAME, kpriv->tag_MSP);
+			if (!msp) {
+				nocc_internal ("krocetc_codegen_block(): cannot find MSP in statics!");
+			}
+			nh = (krocetc_namehook_t *)tnode_nthhookof (msp, 0);
+
+			codegen_write_fmt (cgen, ".mobileinit %d, %d\n", nh->ws_offset, count);
 			/* walk the items proper */
 			allocate_walkvarmap (blk, 2, NULL, krocetc_msinit_item, NULL, cgen);
 		}
@@ -1375,6 +1396,7 @@ static int krocetc_codegen_block (tnode_t *blk, codegen_t *cgen)
 	return 0;
 }
 /*}}}*/
+
 
 /*{{{  static int krocetc_bytesfor_name (tnode_t *name, target_t *target)*/
 /*
@@ -1794,6 +1816,16 @@ fprintf (stderr, "krocetc_coder_loadpointer(): [%s] local=%d, ref_lexlevel=%d, a
 		if (realname->tag == cgen->target->tag_STATICLINK) {
 			codegen_write_fmt (cgen, "\tldlp\t0\n");
 			krocetc_cgstate_tsdelta (cgen, 1);
+		} else if (realname->tag == kpriv->tag_VSP) {
+			krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (name, 0);
+
+			codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset);
+			krocetc_cgstate_tsdelta (cgen, 1);
+		} else if (realname->tag == kpriv->tag_MSP) {
+			krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (name, 0);
+
+			codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset);
+			krocetc_cgstate_tsdelta (cgen, 1);
 		} else {
 			nocc_warning ("krocetc_coder_loadpointer(): don\'t know how to load a pointer to name of [%s]", name->tag->name);
 		}
@@ -1874,6 +1906,16 @@ static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)
 
 			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
 			krocetc_cgstate_tsdelta (cgen, 1);
+		} else if (realname->tag == kpriv->tag_VSP) {
+			krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (name, 0);
+
+			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
+			krocetc_cgstate_tsdelta (cgen, 1);
+		} else if (realname->tag == kpriv->tag_MSP) {
+			krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (name, 0);
+
+			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
+			krocetc_cgstate_tsdelta (cgen, 1);
 		} else {
 			nocc_warning ("krocetc_coder_loadname(): don\'t know how to load a name of [%s]", name->tag->name);
 		}
@@ -1931,6 +1973,7 @@ static void krocetc_coder_loadlexlevel (codegen_t *cgen, int lexlevel)
 	int ll;
 
 	if (blk_ll == lexlevel) {
+		/* already at this lexlevel :) */
 		return;
 	}
 	for (ll=blk_ll; ll > lexlevel; ll--) {
@@ -1954,6 +1997,62 @@ fprintf (stderr, "krocetc_coder_loadlexlevel(): in %d, loading %d..\n", ll, ll-1
 fprintf (stderr, "krocetc_coder_loadlexlevel(): found staticlink..  loading it..\n");
 #endif
 		codegen_callops (cgen, loadname, slink, 0);
+	}
+
+	return;
+}
+/*}}}*/
+/*{{{  static void krocetc_coder_loadvsp (codegen_t *cgen, int offset)*/
+/*
+ *	loads the current VSP if present
+ */
+static void krocetc_coder_loadvsp (codegen_t *cgen, int offset)
+{
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)cgen->target->priv;
+	tnode_t *be_blk = DA_NTHITEM (cgen->be_blks, DA_CUR (cgen->be_blks) - 1);
+	tnode_t *statics = tnode_nthsubof (be_blk, 1);
+	tnode_t *vsp;
+
+	if (!statics) {
+		nocc_internal ("krocetc_coder_loadvsp(): no statics in this block..");
+		return;
+	}
+	vsp = treeops_findtwointree (statics, cgen->target->tag_NAME, kpriv->tag_VSP);
+	if (!vsp) {
+		nocc_internal ("krocetc_coder_loadvsp(): no vectorspace-pointer in this block..");
+		return;
+	}
+	codegen_callops (cgen, loadname, vsp, 0);
+	if (offset) {
+		codegen_write_fmt (cgen, "\tldnlp\t%d\n", offset);
+	}
+
+	return;
+}
+/*}}}*/
+/*{{{  static void krocetc_coder_loadmsp (codegen_t *cgen, int offset)*/
+/*
+ *	loads the current MSP if present
+ */
+static void krocetc_coder_loadmsp (codegen_t *cgen, int offset)
+{
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)cgen->target->priv;
+	tnode_t *be_blk = DA_NTHITEM (cgen->be_blks, DA_CUR (cgen->be_blks) - 1);
+	tnode_t *statics = tnode_nthsubof (be_blk, 1);
+	tnode_t *msp;
+
+	if (!statics) {
+		nocc_internal ("krocetc_coder_loadvsp(): no statics in this block..");
+		return;
+	}
+	msp = treeops_findtwointree (statics, cgen->target->tag_NAME, kpriv->tag_MSP);
+	if (!msp) {
+		nocc_internal ("krocetc_coder_loadvsp(): no mobilespace-pointer in this block..");
+		return;
+	}
+	codegen_callops (cgen, loadname, msp, 0);
+	if (offset) {
+		codegen_write_fmt (cgen, "\tldnlp\t%d\n", offset);
 	}
 
 	return;
@@ -2064,6 +2163,38 @@ static void krocetc_coder_storelocal (codegen_t *cgen, int ws_offset)
 {
 	codegen_write_fmt (cgen, "\tstl\t%d\n", ws_offset);
 	krocetc_cgstate_tsdelta (cgen, -1);
+	return;
+}
+/*}}}*/
+/*{{{  static void krocetc_coder_loadlocal (codegen_t *cgen, int ws_offset)*/
+/*
+ *	stores top of stack in a local workspace slot
+ */
+static void krocetc_coder_loadlocal (codegen_t *cgen, int ws_offset)
+{
+	codegen_write_fmt (cgen, "\tldl\t%d\n", ws_offset);
+	krocetc_cgstate_tsdelta (cgen, 1);
+	return;
+}
+/*}}}*/
+/*{{{  static void krocetc_coder_loadnonlocal (codegen_t *cgen, int offset)*/
+/*
+ *	loads a non-local pointer: Areg[offset] = Breg
+ */
+static void krocetc_coder_loadnonlocal (codegen_t *cgen, int offset)
+{
+	codegen_write_fmt (cgen, "\tldnl\t%d\n", offset);
+	return;
+}
+/*}}}*/
+/*{{{  static void krocetc_coder_storenonlocal (codegen_t *cgen, int offset)*/
+/*
+ *	stores a non-local pointer: Areg[offset] = Breg
+ */
+static void krocetc_coder_storenonlocal (codegen_t *cgen, int offset)
+{
+	codegen_write_fmt (cgen, "\tstnl\t%d\n", offset);
+	krocetc_cgstate_tsdelta (cgen, -2);
 	return;
 }
 /*}}}*/
@@ -2371,7 +2502,27 @@ static void krocetc_coder_branch (codegen_t *cgen, int ins, int lbl)
 	return;
 }
 /*}}}*/
+/*{{{  static void krocetc_coder_debugline (codegen_t *cgen, tnode_t *node)*/
+/*
+ *	generates debugging information (e.g. before a process)
+ */
+static void krocetc_coder_debugline (codegen_t *cgen, tnode_t *node)
+{
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)cgen->target->priv;
 
+	if (!node->org_file || !node->org_line) {
+		/* nothing to generate */
+		return;
+	}
+	if (node->org_file != kpriv->lastfile) {
+		kpriv->lastfile = node->org_file;
+		codegen_write_fmt (cgen, ".sourcefile %s\n", node->org_file->filename ?: "(unknown)");
+	}
+	codegen_write_fmt (cgen, ".sourceline %d\n", node->org_line);
+
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static int krocetc_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)*/
@@ -2418,6 +2569,11 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	cops->loadparam = krocetc_coder_loadparam;
 	cops->loadlocalpointer = krocetc_coder_loadlocalpointer;
 	cops->loadlexlevel = krocetc_coder_loadlexlevel;
+	cops->loadvsp = krocetc_coder_loadvsp;
+	cops->loadmsp = krocetc_coder_loadmsp;
+	cops->loadlocal = krocetc_coder_loadlocal;
+	cops->loadnonlocal = krocetc_coder_loadnonlocal;
+	cops->storenonlocal = krocetc_coder_storenonlocal;
 	cops->storepointer = krocetc_coder_storepointer;
 	cops->storename = krocetc_coder_storename;
 	cops->storelocal = krocetc_coder_storelocal;
@@ -2436,6 +2592,7 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	cops->tsecondary = krocetc_coder_tsecondary;
 	cops->loadlabaddr = krocetc_coder_loadlabaddr;
 	cops->branch = krocetc_coder_branch;
+	cops->debugline = krocetc_coder_debugline;
 
 	cgen->cops = cops;
 
@@ -2503,6 +2660,7 @@ fprintf (stderr, "krocetc_target_init(): here!\n");
 	kpriv->resultsubhook->chook_free = krocetc_resultsubhook_free;
 	kpriv->maxtsdepth = 3;
 	kpriv->maxfpdepth = 3;
+	kpriv->lastfile = NULL;
 	kpriv->options.stoperrormode = 0;			/* halt error-mode by default */
 
 	target->priv = (void *)kpriv;

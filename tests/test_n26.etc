@@ -1,28 +1,30 @@
 ;
 ;	tests/test_n26.etc
 ;	compiled from tests/test_n26.occ
-;	on host tadpole at Mon Oct 17 23:07:12 2005
+;	on host tadpole at Fri Dec 23 00:22:35 2005
 ;	source language: occam-pi, target: etc-kroc-unknown
 ;
 
-.jentry	O_test3
 .setlabel	2
-.byte	0x2a, 0x00, 0x00, 0x00
-.descriptor	"PROC O_test1 (CHAN! INT out)"
+.byte	0x61, 0x00, 0x00, 0x00
+.descriptor	"PROC O_test1 (CHAN! BYTE out)"
 .setlabel	4
-.byte	0x2c, 0x00, 0x00, 0x00
-.descriptor	"PROC O_test2 (CHAN! INT out)"
+.byte	0x0a, 0x00, 0x00, 0x00
+.descriptor	"PROC O_test2 (CHAN! BYTE out)"
 .descriptor	"PROC O_test3 (CHAN? INT in)"
 ; PROC test1 = 24,8,0,0,8
 .setws	24, 8
 .setvs	0
 .setms	0
 .setnamedlabel	"O_test1"
+.sourcefile tests/test_n26.occ
+.sourceline 6
 .setlabel	1
 	ajw	0
+.sourceline 8
 .loadlabaddr	2
 	ldl	4
-	ldc	4
+	ldc	1
 	out
 	ajw	0
 	ret	8
@@ -31,11 +33,13 @@
 .setvs	0
 .setms	0
 .setnamedlabel	"O_test2"
+.sourceline 11
 .setlabel	3
 	ajw	0
+.sourceline 13
 .loadlabaddr	4
 	ldl	4
-	ldc	4
+	ldc	1
 	out
 	ajw	0
 	ret	8
@@ -44,6 +48,7 @@
 .setvs	0
 .setms	0
 .setnamedlabel	"O_test3"
+.sourceline 16
 .setlabel	5
 	ajw	0
 	ajw	0

@@ -50,10 +50,16 @@ typedef struct TAG_codegeninithook {
 	void *arg;
 } codegeninithook_t;
 
+typedef struct TAG_codegenfinalhook {
+	struct TAG_codegenfinalhook *next;
+	void (*final)(tnode_t *, codegen_t *, void *);
+	void *arg;
+} codegenfinalhook_t;
 
 /*}}}*/
 /*{{{  private data*/
 static chook_t *codegeninithook = NULL;
+static chook_t *codegenfinalhook = NULL;
 
 /*}}}*/
 
@@ -162,6 +168,76 @@ static void *codegen_inithook_copy (void *hook)
 	return cgih;
 }
 /*}}}*/
+/*{{{  static void codegen_finalhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	called to dump final-hook (debugging)
+ */
+static void codegen_finalhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	codegenfinalhook_t *cgih = (codegenfinalhook_t *)hook;
+
+	codegen_isetindent (stream, indent);
+	fprintf (stream, "<chook:codegen:finaliser final=\"0x%8.8x\" arg=\"0x%8.8x\" addr=\"0x%8.8x\"", (unsigned int)cgih->final, (unsigned int)cgih->arg, (unsigned int)cgih);
+	if (cgih->next) {
+		fprintf (stream, ">\n");
+		codegen_finalhook_dumptree (node, (void *)cgih->next, indent+1, stream);
+		codegen_isetindent (stream, indent);
+		fprintf (stream, "</chook:codegen:finaliser>\n");
+	} else {
+		fprintf (stream, " />\n");
+	}
+
+	return;
+}
+/*}}}*/
+/*{{{  static void codegen_finalhook_free (void *hook)*/
+/*
+ *	called to free an final-hook
+ */
+static void codegen_finalhook_free (void *hook)
+{
+	codegenfinalhook_t *cgih = (codegenfinalhook_t *)hook;
+
+	if (cgih) {
+		codegen_finalhook_free (cgih->next);
+		sfree (cgih);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static codegenfinalhook_t *codegen_finalhook_create (void (*final)(tnode_t *, codegen_t *, void *), void *arg)*/
+/*
+ *	creates a new final-hook
+ */
+static codegenfinalhook_t *codegen_finalhook_create (void (*final)(tnode_t *, codegen_t *, void *), void *arg)
+{
+	codegenfinalhook_t *cgih = (codegenfinalhook_t *)smalloc (sizeof (codegenfinalhook_t));
+
+	cgih->next = NULL;
+	cgih->final = final;
+	cgih->arg = arg;
+
+	return cgih;
+}
+/*}}}*/
+/*{{{  static void *codegen_finalhook_copy (void *hook)*/
+/*
+ *	called to copy an final-hook
+ */
+static void *codegen_finalhook_copy (void *hook)
+{
+	codegenfinalhook_t *cgih = (codegenfinalhook_t *)hook;
+
+	if (cgih) {
+		codegenfinalhook_t *tmp;
+
+		tmp = codegen_finalhook_create (cgih->final, cgih->arg);
+		tmp->next = codegen_finalhook_copy (cgih->next);
+		cgih = tmp;
+	}
+	return cgih;
+}
+/*}}}*/
 
 
 /*{{{  void codegen_setinithook (tnode_t *node, void (*init)(tnode_t *, codegen_t *, void *), void *arg)*/
@@ -181,6 +257,26 @@ void codegen_setinithook (tnode_t *node, void (*init)(tnode_t *, codegen_t *, vo
 	cgih->next = here;
 
 	tnode_setchook (node, codegeninithook, cgih);
+	return;
+}
+/*}}}*/
+/*{{{  void codegen_setfinalhook (tnode_t *node, void (*final)(tnode_t *, codegen_t *, void *), void *arg)*/
+/*
+ *	sets an finialisation hook for a node
+ */
+void codegen_setfinalhook (tnode_t *node, void (*final)(tnode_t *, codegen_t *, void *), void *arg)
+{
+	codegenfinalhook_t *cgih, *here;
+
+	if (!codegenfinalhook) {
+		nocc_internal ("codegen_setfinalhook(): no finalisation hook!");
+		return;
+	}
+	here = (codegenfinalhook_t *)tnode_getchook (node, codegenfinalhook);
+	cgih = codegen_finalhook_create (final, arg);
+	cgih->next = here;
+
+	tnode_setchook (node, codegenfinalhook, cgih);
 	return;
 }
 /*}}}*/
@@ -323,6 +419,8 @@ static int codegen_prewalktree_codegen (tnode_t *node, void *data)
 {
 	codegen_t *cgen = (codegen_t *)data;
 	codegeninithook_t *cgih = (codegeninithook_t *)tnode_getchook (node, codegeninithook);
+	codegenfinalhook_t *cgfh = (codegenfinalhook_t *)tnode_getchook (node, codegenfinalhook);
+	int i = 1;
 
 	/*{{{  do initialisers*/
 	while (cgih) {
@@ -334,12 +432,29 @@ static int codegen_prewalktree_codegen (tnode_t *node, void *data)
 	/*}}}*/
 
 	if (node->tag->ndef->ops && node->tag->ndef->ops->codegen) {
-		int i;
-
 		i = node->tag->ndef->ops->codegen (node, cgen);
-		return i;
 	}
-	return 1;
+
+	/*{{{  if finalisers, do subnodes then finalisers*/
+	if (cgfh) {
+		int nsnodes, j;
+		tnode_t **snodes = tnode_subnodesof (node, &nsnodes);
+
+		for (j=0; j<nsnodes; j++) {
+			tnode_prewalktree (snodes[j], codegen_prewalktree_codegen, (void *)cgen);
+		}
+
+		i = 0;
+		while (cgfh) {
+			if (cgfh->final) {
+				cgfh->final (node, cgen, cgfh->arg);
+			}
+			cgfh = cgfh->next;
+		}
+	}
+	/*}}}*/
+
+	return i;
 }
 /*}}}*/
 /*{{{  static int codegen_modprewalk_precode (tnode_t **tptr, void *data)*/
@@ -627,6 +742,10 @@ int codegen_init (void)
 	codegeninithook->chook_copy = codegen_inithook_copy;
 	codegeninithook->chook_free = codegen_inithook_free;
 	codegeninithook->chook_dumptree = codegen_inithook_dumptree;
+	codegenfinalhook = tnode_lookupornewchook ("codegen:finaliser");
+	codegenfinalhook->chook_copy = codegen_finalhook_copy;
+	codegenfinalhook->chook_free = codegen_finalhook_free;
+	codegenfinalhook->chook_dumptree = codegen_finalhook_dumptree;
 
 	return 0;
 }

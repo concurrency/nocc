@@ -201,6 +201,7 @@ static int occampi_codegen_action (tnode_t *node, codegen_t *cgen)
 	tnode_t *type = tnode_nthsubof (node, 2);
 	int bytes = tnode_bytesfor (type, cgen->target);
 
+	codegen_callops (cgen, debugline, node);
 	if (node->tag == opi.tag_ASSIGN) {
 #if 0
 fprintf (stderr, "occampi_codegen_action(): bytes = %d, cgen->target->intsize = %d\n", bytes, cgen->target->intsize);
