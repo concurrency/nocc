@@ -21,6 +21,9 @@ AC_PROG_RANLIB
 
 AC_CHECK_PROG(GPERF,gperf,gperf)
 
+dnl internationalisation
+AM_GNU_GETTEXT
+
 AM_C_PROTOTYPES
 
 dnl Checks for libraries.
