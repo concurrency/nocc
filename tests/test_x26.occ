@@ -1,0 +1,15 @@
+-- test_x26.occ -- FUNCTIONs
+
+INT FUNCTION id.int (VAL INT x)
+  VALOF
+    SKIP
+    RESULT x
+:
+
+PROC test.x26 ()
+  INT v:
+  SEQ
+    SKIP
+:
+
+

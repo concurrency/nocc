@@ -1,0 +1,9 @@
+-- test_x27.occ -- VAL parameters
+
+PROC test.x27 (VAL INT v)
+  INT x:
+  SEQ
+    x := v
+:
+
+
