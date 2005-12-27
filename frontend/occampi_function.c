@@ -81,12 +81,19 @@ static int occampi_codegen_valof (tnode_t *node, codegen_t *cgen)
 			tnode_t **items = parser_getlistitems (results, &nresults);
 			int i;
 
+#if 0
+fprintf (stderr, "occampi_codegen_valof(): list of results, %d items\n", nresults);
+#endif
 			for (i=0, resultbytes=0; i<nresults; i++) {
-				int wsh, wsl, vs, ms;
-				int thissize;
+				int thissize, indir;
 
-				cgen->target->be_allocsize (items[i], &wsh, &wsl, &vs, &ms);
-				thissize = wsh;
+				if (cgen->target->be_typesize (items[i], &thissize, &indir)) {
+					codegen_error (cgen, "occampi_codegen_valof(): cannot get typesize for [%s]", items[i]->tag->name);
+					thissize = 0;
+				}
+#if 0
+fprintf (stderr, "occampi_codegen_valof(): result %d, thissize = %d\n", i, thissize);
+#endif
 
 				if (thissize > 0) {
 					resultbytes += thissize;
@@ -95,11 +102,18 @@ static int occampi_codegen_valof (tnode_t *node, codegen_t *cgen)
 				}
 			}
 		} else {
-			int wsh, wsl, vs, ms;
+			int thissize, indir;
 
-			cgen->target->be_allocsize (results, &wsh, &wsl, &vs, &ms);
-			resultbytes = wsh;
+			if (cgen->target->be_typesize (results, &thissize, &indir)) {
+				codegen_error (cgen, "occampi_codegen_valof(): cannot get typesize for [%s]", results->tag->name);
+				resultbytes = 0;
+			} else {
+				resultbytes = thissize;
+			}
 
+#if 0
+fprintf (stderr, "occampi_codegen_valof(): single result, thissize = %d\n", thissize);
+#endif
 			if (resultbytes <= 0) {
 				codegen_warning (cgen, "occampi_codegen_valof(): result has size %d\n", resultbytes);
 				resultbytes = 0;
@@ -109,7 +123,7 @@ static int occampi_codegen_valof (tnode_t *node, codegen_t *cgen)
 		resultbytes = 0;
 	}
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_codegen_valof(): resultbytes = %d\n", resultbytes);
 #endif
 	nresults = resultbytes / cgen->target->slotsize;

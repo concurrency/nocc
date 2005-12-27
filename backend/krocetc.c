@@ -63,6 +63,7 @@ static tnode_t *krocetc_result_create (tnode_t *expr, map_t *mdata);
 static void krocetc_inresult (tnode_t **nodep, map_t *mdata);
 static tnode_t **krocetc_be_blockbodyaddr (tnode_t *blk);
 static int krocetc_be_allocsize (tnode_t *node, int *pwsh, int *pwsl, int *pvs, int *pms);
+static int krocetc_be_typesize (tnode_t *node, int *typesize, int *indir);
 static void krocetc_be_setoffsets (tnode_t *bename, int ws_offset, int vs_offset, int ms_offset, int ms_shadow);
 static void krocetc_be_getoffsets (tnode_t *bename, int *wsop, int *vsop, int *msop, int *mssp);
 static int krocetc_be_blocklexlevel (tnode_t *blk);
@@ -129,6 +130,7 @@ target_t krocetc_target = {
 
 	be_blockbodyaddr:	krocetc_be_blockbodyaddr,
 	be_allocsize:		krocetc_be_allocsize,
+	be_typesize:		krocetc_be_typesize,
 	be_setoffsets:		krocetc_be_setoffsets,
 	be_getoffsets:		krocetc_be_getoffsets,
 	be_blocklexlevel:	krocetc_be_blocklexlevel,
@@ -973,10 +975,76 @@ fprintf (stderr, "krocetc_be_allocsize(): got block size from BLOCKREF, ws=%d, w
 			*pms = nh->alloc_ms;
 		}
 		/*}}}*/
+	} else if (node->tag == krocetc_target.tag_NAMEREF) {
+		/*{{{  space required for name-reference (usually nothing)*/
+		krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (node, 0);
+
+		if (!nh) {
+			return -1;
+		}
+		if (pwsh) {
+			*pwsh = nh->alloc_wsh;
+		}
+		if (pwsl) {
+			*pwsl = nh->alloc_wsl;
+		}
+		if (pvs) {
+			*pvs = nh->alloc_vs;
+		}
+		if (pms) {
+			*pms = nh->alloc_ms;
+		}
+		/*}}}*/
 	} else {
+#if 0
+fprintf (stderr, "krocetc_be_allocsize(): unknown type node=[%s]\n", node->tag->name);
+#endif
+		nocc_warning ("krocetc_be_allocsize(): unknown node type [%s]", node->tag->name);
 		return -1;
 	}
 
+	return 0;
+}
+/*}}}*/
+/*{{{  static int krocetc_be_typesize (tnode_t *node, int *typesize, int *indir)*/
+/*
+ *	gets the typesize for a back-end name
+ *	returns 0 on success, non-zero on failure
+ */
+static int krocetc_be_typesize (tnode_t *node, int *typesize, int *indir)
+{
+	if (node->tag == krocetc_target.tag_NAME) {
+		/*{{{  typesize of a NAME*/
+		krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (node, 0);
+
+		if (!nh) {
+			return -1;
+		}
+		if (typesize) {
+			*typesize = nh->typesize;
+		}
+		if (indir) {
+			*indir = nh->indir;
+		}
+		/*}}}*/
+	} else if (node->tag == krocetc_target.tag_NAMEREF) {
+		/*{{{  typesize of a NAMEREF*/
+		krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (node, 0);
+
+		if (!nh) {
+			return -1;
+		}
+		if (typesize) {
+			*typesize = nh->typesize;
+		}
+		if (indir) {
+			*indir = nh->indir;
+		}
+		/*}}}*/
+	} else {
+		nocc_warning ("krocetc_be_allocsize(): unknown node type [%s]", node->tag->name);
+		return -1;
+	}
 	return 0;
 }
 /*}}}*/

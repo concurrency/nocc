@@ -1449,6 +1449,10 @@ int tnode_bytesfor (tnode_t *t, target_t *target)
 #if 0
 fprintf (stderr, "tnode_bytesfor(): t = [%s]\n", t->tag->name);
 #endif
+	if (target && ((t->tag == target->tag_NAME) || (t->tag == target->tag_NAMEREF))) {
+		/* look inside */
+		t = tnode_nthsubof (t, 0);
+	}
 	if (t && t->tag->ndef->ops && t->tag->ndef->ops->bytesfor) {
 		return t->tag->ndef->ops->bytesfor (t, target);
 	}

@@ -96,6 +96,8 @@ typedef struct TAG_target {
 	struct TAG_tnode **(*be_blockbodyaddr)(struct TAG_tnode *);
 				/* back-end space requirements (node, wsh, wsl, vs, ms) */
 	int (*be_allocsize)(struct TAG_tnode *, int *, int *, int *, int*);
+				/* back-end type-size (stored in NAMEs and NAMEREFs), (typesize, indir) */
+	int (*be_typesize)(struct TAG_tnode *, int *, int *);
 				/* back-end offsets (node, ws-offset, vs-offset, ms-offset, ms-shadow) */
 	void (*be_setoffsets)(struct TAG_tnode *, int, int, int, int);
 				/* back-end offsets (node, ws-offset-ptr, vs-offset-ptr, ms-offset-ptr, ms-shadow-ptr) */
