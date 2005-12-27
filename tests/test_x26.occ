@@ -6,9 +6,15 @@ INT FUNCTION id.int (VAL INT x)
     RESULT x
 :
 
+PROC blah ()
+  SKIP
+:
+
 PROC test.x26 ()
   INT v:
   SEQ
+    blah ()
+    v := id.int (42)
     SKIP
 :
 

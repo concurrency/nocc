@@ -282,6 +282,20 @@ static void occampi_namestartname_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
 	return;
 }
 /*}}}*/
+/*{{{  static void occampi_declorprocstart_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)*/
+/*
+ *	called when the parser gets stuck inside an "occampi:declorprocstart"
+ */
+static void occampi_declorprocstart_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
+{
+	char *msg;
+
+	msg = dfa_expectedmatchstr (dfanode, tok, "in declaration or process start");
+	parser_error (tok->origin, msg);
+
+	return;
+}
+/*}}}*/
 
 
 /*}}}*/
@@ -484,6 +498,7 @@ static int occampi_post_setup (void)
 	int i;
 	static dfaerrorhandler_t namestart_eh = { occampi_namestart_dfaeh_stuck };
 	static dfaerrorhandler_t namestartname_eh = { occampi_namestartname_dfaeh_stuck };
+	static dfaerrorhandler_t declorprocstart_eh = { occampi_declorprocstart_dfaeh_stuck };
 
 	for (i=0; feunit_set[i]; i++) {
 		feunit_t *thisunit = feunit_set[i];
@@ -495,6 +510,7 @@ static int occampi_post_setup (void)
 
 	dfa_seterrorhandler ("occampi:namestart", &namestart_eh);
 	dfa_seterrorhandler ("occampi:namestartname", &namestartname_eh);
+	dfa_seterrorhandler ("occampi:declorprocstart", &declorprocstart_eh);
 
 	return 0;
 }
@@ -906,7 +922,7 @@ static tnode_t *occampi_declorproc (lexfile_t *lf, int *gotall, char *thedfa)
 	int tnflags;
 
 	if (compopts.verbose) {
-		nocc_message ("occampi_declorproc(): parsing declaration or process start");
+		nocc_message ("occampi_declorproc(): %s:%d: parsing declaration or process start", lf->fnptr, lf->lineno);
 	}
 
 	tree = occampi_declorprocstart (lf, gotall, thedfa);

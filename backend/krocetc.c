@@ -1965,6 +1965,13 @@ static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)
 		codegen_subcodegen (name, cgen);
 
 		/*}}}*/
+	} else if (name->tag == krocetc_target.tag_BLOCKREF) {
+		/*{{{  block reference*/
+		/* this should be used to call things like functions, etc. */
+		tnode_t *subref = tnode_nthsubof (name, 0);
+
+		codegen_subcodegen (subref, cgen);
+		/*}}}*/
 	} else if (name->tag == cgen->target->tag_NAME) {
 		/*{{{  loading a name with no scope (specials only!)*/
 		tnode_t *realname = tnode_nthsubof (name, 0);
@@ -2398,6 +2405,18 @@ static void krocetc_coder_funcreturn (codegen_t *cgen, int nresults)
 	return;
 }
 /*}}}*/
+/*{{{  static void krocetc_coder_funcresults (codegen_t *cgen, int nresults)*/
+/*
+ *	generated after a function call with the given result count.  this is called after
+ *	a FUNCTION instance returns.
+ */
+static void krocetc_coder_funcresults (codegen_t *cgen, int nresults)
+{
+	codegen_write_fmt (cgen, ".funcresults %d\n", nresults);
+	krocetc_cgstate_tsdelta (cgen, nresults);
+	return;
+}
+/*}}}*/
 /*{{{  static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)*/
 /*
  *	generates code for a secondary instruction
@@ -2670,6 +2689,7 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	cops->calllabel = krocetc_coder_calllabel;
 	cops->procreturn = krocetc_coder_procreturn;
 	cops->funcreturn = krocetc_coder_funcreturn;
+	cops->funcresults = krocetc_coder_funcresults;
 	cops->tsecondary = krocetc_coder_tsecondary;
 	cops->loadlabaddr = krocetc_coder_loadlabaddr;
 	cops->branch = krocetc_coder_branch;

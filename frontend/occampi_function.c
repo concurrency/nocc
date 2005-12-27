@@ -197,7 +197,7 @@ tnode_dumptree (aparamlist, 1, stderr);
 			continue;
 		}
 		ftype = typecheck_gettype (fp_items[fp_ptr], NULL);
-		atype = typecheck_gettype (ap_items[ap_ptr], NULL);
+		atype = typecheck_gettype (ap_items[ap_ptr], ftype);
 #if 0
 fprintf (stderr, "occampi_typecheck_finstance: ftype=\n");
 tnode_dumptree (ftype, 1, stderr);
@@ -282,6 +282,7 @@ fprintf (stderr, "occampi_namemap_finstance: created new blockref =\n");
 tnode_dumptree (bename, 1, stderr);
 #endif
 
+	/* tnode_setnthsub (*node, 0, bename); */
 	*node = bename;
 	return 0;
 }
@@ -293,18 +294,19 @@ tnode_dumptree (bename, 1, stderr);
  */
 static int occampi_codegen_finstance (tnode_t *node, codegen_t *cgen)
 {
-	/* FIXME! */
-#if 0
 	name_t *name;
 	tnode_t *namenode;
 	tnode_t *params = tnode_nthsubof (node, 1);
 	tnode_t *finstance, *ibody;
 	int ws_size, ws_offset, vs_size, ms_size, adjust;
+	tnode_t *resulttype;
 
 	namenode = tnode_nthsubof (node, 0);
 
 	if (namenode->tag->ndef == opi.node_NAMENODE) {
-		/*{{{  finstance of a name (e.g. PROC definition)*/
+		/*{{{  finstance of a name (e.g. FUNCTION definition)*/
+		int nresults = 0;
+
 		name = tnode_nthnameof (namenode, 0);
 		finstance = NameDeclOf (name);
 		ibody = tnode_nthsubof (finstance, 2);
@@ -332,9 +334,55 @@ static int occampi_codegen_finstance (tnode_t *node, codegen_t *cgen)
 		}
 
 		codegen_callops (cgen, callnamedlabel, NameNameOf (name), adjust);
+
+		/* results left on the stack -- indicate appropriately
+		 * this is done by bytesfor()ing the formal result types (for which we only have type-information!) */
+		resulttype = NameTypeOf (name);
+
+		if (resulttype->tag != opi.tag_FUNCTIONTYPE) {
+			codegen_error (cgen, "occampi_codegen_finstance(): type of FUNCTION not FUNCTIONTYPE!");
+		} else {
+			int resultbytes = 0;
+
+			resulttype = tnode_nthsubof (resulttype, 0);
+
+			if (!resulttype) {
+				nresults = 0;
+				codegen_warning (cgen, "occampi_codegen_finstance(): FUNCTION has no return types");
+			} else if (parser_islistnode (resulttype)) {
+				tnode_t **items = parser_getlistitems (resulttype, &nresults);
+				int i;
+
+				for (i=0, resultbytes=0; i<nresults; i++) {
+					int thissize;
+
+					thissize = tnode_bytesfor (items[i], cgen->target);
+					if (thissize > 0) {
+						resultbytes += thissize;
+					} else {
+						codegen_warning (cgen, "occampi_codegen_finstance(): result %d has size %d\n", i, thissize);
+					}
+				}
+			} else {
+				int thissize;
+
+				thissize = tnode_bytesfor (resulttype, cgen->target);
+				if (thissize > 0) {
+					resultbytes += thissize;
+				} else {
+					codegen_warning (cgen, "occampi_codegen_finstance(): result has size %d\n", thissize);
+				}
+			}
+
+			nresults = resultbytes / cgen->target->slotsize;
+			codegen_callops (cgen, funcresults, nresults);
+		}
+
 		/*}}}*/
+		/* FIXME! */
+#if 0
 	} else if (namenode->tag == opi.tag_BUILTINPROC) {
-		/*{{{  finstance of a built-in PROC*/
+		/*{{{  finstance of a built-in FUNCTION*/
 		builtinprochook_t *bph = (builtinprochook_t *)tnode_nthhookof (namenode, 0);
 		builtinproc_t *builtin = bph->biptr;
 
@@ -345,10 +393,10 @@ static int occampi_codegen_finstance (tnode_t *node, codegen_t *cgen)
 			codegen_callops (cgen, comment, "BUILTINPROC finstance of [%s]", builtin->name);
 		}
 		/*}}}*/
+#endif
 	} else {
 		nocc_internal ("occampi_codegen_finstance(): don\'t know how to handle [%s]", namenode->tag->name);
 	}
-#endif
 	return 0;
 }
 /*}}}*/
@@ -784,7 +832,7 @@ static dfattbl_t **occampi_function_init_dfatrans (int *ntrans)
 	dynarray_init (transtbl);
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:fdeclstarttype ::= [ 0 @FUNCTION 1 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:funcdefreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:infinstance ::= [ 0 occampi:exprcommalist 2 ] [ 0 @@) 1 ] [ 1 {<opi:nullpush>} -* 2 ] [ 2 {<opi:finstancereduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:infinstance ::= [ 0 occampi:exprcommalist 2 ] [ 0 -@@) 1 ] [ 1 {<opi:nullpush>} -* 2 ] [ 2 @@) 3 ] [ 3 {<opi:finstancereduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:valofresult ::= [ 0 @RESULT 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:nullreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:valof ::= [ 0 +@VALOF 1 ] [ 1 {<opi:valofreduce>} -* ]"));
 
