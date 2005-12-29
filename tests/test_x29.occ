@@ -1,0 +1,9 @@
+-- test_x29.occ -- more FUNCTION tests
+
+INT FUNCTION foo ()
+  INT x:
+  VALOF
+    SKIP
+    RESULT x
+:
+

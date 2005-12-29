@@ -521,6 +521,39 @@ static int occampi_bytesfor_arraynode (tnode_t *node, target_t *target)
 	return stbytes;
 }
 /*}}}*/
+/*{{{  static int occampi_getdescriptor_arraynode (tnode_t *node, char **str)*/
+/*
+ *	gets the descriptor associated with an ARRAY node (usually producing the type)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_getdescriptor_arraynode (tnode_t *node, char **str)
+{
+	char *subtypestr = NULL;
+	char *dimstr = NULL;
+
+	langops_getdescriptor (tnode_nthsubof (node, 1), &subtypestr);
+	langops_getdescriptor (tnode_nthsubof (node, 0), &dimstr);
+
+	if (*str) {
+		sfree (*str);
+	}
+
+	if (!subtypestr) {
+		subtypestr = string_dup ("?");
+	}
+	if (!dimstr) {
+		dimstr = string_dup ("?");
+	}
+	*str = (char *)smalloc (5 + strlen (dimstr) + strlen (subtypestr));
+
+	sprintf (*str, "[%s]%s", dimstr, subtypestr);
+
+	sfree (dimstr);
+	sfree (subtypestr);
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_scopein_fielddecl (tnode_t **node, scope_t *ss)*/
@@ -834,6 +867,9 @@ static int occampi_dtype_init_nodes (void)
 	cops->typeactual = occampi_typeactual_arraynode;
 	cops->bytesfor = occampi_bytesfor_arraynode;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->getdescriptor = occampi_getdescriptor_arraynode;
+	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_ARRAY = tnode_newnodetag ("ARRAY", &i, tnd, NTF_NONE);

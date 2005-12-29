@@ -969,14 +969,14 @@ static int occampi_getdescriptor_fparam (tnode_t *node, char **str)
 	}
 
 	if (*str) {
-		char *newstr = (char *)smalloc (strlen (*str) + strlen (typestr) + strlen (pname) + 4);
+		char *newstr = (char *)smalloc (strlen (*str) + strlen (typestr) + strlen (pname) + 8);
 
-		sprintf (newstr, "%s%s %s", *str, typestr, pname);
+		sprintf (newstr, "%s%s%s %s", *str, (node->tag == opi.tag_VALFPARAM) ? "VAL " : "", typestr, pname);
 		sfree (*str);
 		*str = newstr;
 	} else {
-		*str = (char *)smalloc (strlen (typestr) + strlen (pname) + 4);
-		sprintf (*str, "%s %s", typestr, pname);
+		*str = (char *)smalloc (strlen (typestr) + strlen (pname) + 8);
+		sprintf (*str, "%s%s %s", (node->tag == opi.tag_VALFPARAM) ? "VAL " : "", typestr, pname);
 	}
 
 	sfree (typestr);

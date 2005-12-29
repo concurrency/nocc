@@ -298,6 +298,27 @@ static int cprop_constvalof_const (tnode_t *node, void *ptr)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int cprop_getdescriptor_const (tnode_t *node, char **str)*/
+/*
+ *	gets a descriptor string for a constant
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cprop_getdescriptor_const (tnode_t *node, char **str)
+{
+	if (*str) {
+		char *newstr = (char *)smalloc (strlen (*str) + 12);
+
+		sprintf (newstr, "%s%d", *str, constprop_intvalof (node));
+		sfree (*str);
+		*str = newstr;
+	} else {
+		*str = (char *)smalloc (12);
+
+		sprintf (*str, "%d", constprop_intvalof (node));
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int cprop_modprewalktree (tnode_t **tptr, void *arg)*/
@@ -351,6 +372,7 @@ int constprop_init (void)
 	lops = tnode_newlangops ();
 	lops->isconst = cprop_isconst_const;
 	lops->constvalof = cprop_constvalof_const;
+	lops->getdescriptor = cprop_getdescriptor_const;
 	tnd->lops = lops;
 
 	i = -1;

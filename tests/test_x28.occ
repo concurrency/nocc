@@ -1,0 +1,10 @@
+-- test_x28.occ -- more FUNCTION returns
+
+[3]INT FUNCTION foo (VAL INT k)
+  [3]INT x:
+  VALOF
+    SEQ
+      SKIP
+    RESULT x
+:
+

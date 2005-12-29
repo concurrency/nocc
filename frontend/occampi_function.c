@@ -523,9 +523,11 @@ static int occampi_betrans_funcdecl (tnode_t **node, target_t *target)
 	tnode_t *fnamenode = tnode_nthsubof (*node, 0);
 	name_t *fname = tnode_nthnameof (fnamenode, 0);
 	tnode_t *ftype, **rtypep, **ptypep;
+	tnode_t **ritemsp;
 	tnode_t *fbody = tnode_nthsubof (*node, 2);
-	tnode_t **items;
-	int nitems, i;
+	tnode_t **items, **ritems;
+	tnode_t *myseqlist = NULL;
+	int nitems, nritems, i;
 
 	ftype = NameTypeOf (fname);
 	if (!ftype || (ftype->tag != opi.tag_FUNCTIONTYPE)) {
@@ -541,6 +543,16 @@ static int occampi_betrans_funcdecl (tnode_t **node, target_t *target)
 		tnode_error (*node, "function has non-VALOF body");
 		return 0;
 	}
+	ritemsp = tnode_nthsubaddr (fbody, 0);
+
+	/* if VALOF result is not a list-node, make it one */
+	if (!parser_islistnode (*ritemsp)) {
+		/* make singleton result a list */
+		tnode_t *xitem = *ritemsp;
+
+		*ritemsp = parser_newlistnode ((*node)->org_file);
+		parser_addtolist (*ritemsp, xitem);
+	}
 
 	/* any return types that are bigger than an integer go into parameters */
 	if (!parser_islistnode (*rtypep)) {
@@ -552,6 +564,19 @@ static int occampi_betrans_funcdecl (tnode_t **node, target_t *target)
 	}
 
 	items = parser_getlistitems (*rtypep, &nitems);
+	ritems = parser_getlistitems (*ritemsp, &nritems);
+
+#if 0
+fprintf (stderr, "occampi_betrans_funcdecl(): items =\n");
+tnode_dumptree (*rtypep, 1, stderr);
+fprintf (stderr, "occampi_betrans_funcdecl(): results =\n");
+tnode_dumptree (*ritemsp, 1, stderr);
+#endif
+	if (nitems != nritems) {
+		tnode_error (*node, "function-type has %d results, but VALOF gives %d", nitems, nritems);
+		return 0;
+	}
+
 	for (i=0; i<nitems; i++) {
 		int bytes = tnode_bytesfor (items[i], target);
 
@@ -559,7 +584,7 @@ static int occampi_betrans_funcdecl (tnode_t **node, target_t *target)
 			/* don't know, too big, or too many -- make a parameter */
 			name_t *tmpname;
 			tnode_t *namenode = NULL;
-			tnode_t *fparam;
+			tnode_t *fparam, *rexpr;
 #if 0
 fprintf (stderr, "occampi_betrans_funcdecl(): return bytes = %d, want to move out:\n", bytes);
 tnode_dumptree (items[i], 1, stderr);
@@ -573,10 +598,24 @@ tnode_dumptree (items[i], 1, stderr);
 fprintf (stderr, "occampi_betrans_funcdecl(): fudged it into a parameter:\n");
 tnode_dumptree (items[i], 1, stderr);
 #endif
+			if (!myseqlist) {
+				tnode_t *reallist = parser_newlistnode ((*node)->org_file);
+
+				myseqlist = tnode_create (opi.tag_SEQ, (*node)->org_file, NULL, reallist);
+				parser_addtolist (reallist, tnode_nthsubof (fbody, 1));
+				tnode_setnthsub (fbody, 1, myseqlist);
+				myseqlist = reallist;
+			}
+			/* remove corresponding thing from RESULTs of VALOF, make assignment */
+			rexpr = parser_delfromlist (*ritemsp, i);
+			parser_addtolist (myseqlist, tnode_create (opi.tag_ASSIGN, (*ritemsp)->org_file, namenode, rexpr, NameTypeOf (tmpname)));
+
 			/* remove from results, add to parameters */
-			parser_delfromlist (*rtypep, i);
-			nitems--, i--;			/* wind back */
+			fparam = parser_delfromlist (*rtypep, i);
 			parser_addtolist (*ptypep, fparam);
+
+			nitems--, i--;			/* wind back */
+			
 		}
 	}
 
@@ -747,6 +786,9 @@ static int occampi_getdescriptor_funcdecl (tnode_t *node, char **str)
 		langops_getdescriptor (rtypes, str);
 	}
 
+#if 0
+fprintf (stderr, "occampi_getdescriptor_funcdecl(): return type descriptor is [%s]\n", *str);
+#endif
 	{
 		char *newstr = (char *)smalloc (strlen (*str) + strlen (realname) + 15);
 
