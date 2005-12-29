@@ -904,11 +904,24 @@ static void occampi_reduce_arrayfold (dfastate_t *dfast, parsepriv_t *pp, void *
 	decl = dfa_popnode (dfast);
 	array = dfa_popnode (dfast);
 
+#if 0
+fprintf (stderr, "occampi_reduce_arrayfold(): decl =\n");
+tnode_dumptree (decl, 4, stderr);
+fprintf (stderr, "occampi_reduce_arrayfold(): array =\n");
+tnode_dumptree (array, 4, stderr);
+#endif
 	if (!array) {
 		parser_error (pp->lf, "broken array specification");
 	} else {
-		tnode_setnthsub (array, 1, tnode_nthsubof (decl, 1));
-		tnode_setnthsub (decl, 1, array);
+		tnode_t **typep = tnode_nthsubaddr (decl, 1);
+
+		if ((*typep)->tag == opi.tag_FUNCTIONTYPE) {
+			/* put array inside FUNCTIONTYPE results */
+			typep = tnode_nthsubaddr (*typep, 0);
+		}
+
+		tnode_setnthsub (array, 1, *typep);
+		*typep = array;
 	}
 	*(dfast->ptr) = decl;
 

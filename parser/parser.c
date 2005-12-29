@@ -419,6 +419,80 @@ tnode_t **parser_addtolist_front (tnode_t *list, tnode_t *item)
 	return (array + 2);
 }
 /*}}}*/
+/*{{{  tnode_t *parser_delfromlist (tnode_t *list, int idx)*/
+/*
+ *	removes an item from a list-node by index, returns it
+ */
+tnode_t *parser_delfromlist (tnode_t *list, int idx)
+{
+	tnode_t **array;
+	int *cur, *max;
+	tnode_t *saveditem;
+
+	if (list->tag != tag_LIST) {
+		nocc_internal ("parser_delfromlist(): not list-node! [%s]", list->tag->name);
+		return NULL;
+	}
+	array = (tnode_t **)tnode_nthhookof (list, 0);
+	if (!array) {
+		nocc_internal ("parser_delfromlist(): null array in list!");
+		return NULL;
+	}
+	cur = (int *)array;
+	max = (int *)(array + 1);
+
+	if ((idx < 0) || (idx >= *cur)) {
+		nocc_internal ("parser_delfromlist(): item %d not in list (%d/%d items)", idx, *cur, *max);
+		return NULL;
+	}
+
+	saveditem = array[idx + 2];
+	if (idx == (*cur - 1)) {
+		/* removing the last item, easy :) */
+	} else {
+		int i;
+
+		for (i=idx; i<(*cur-1); i++) {
+			array[i+2] = array[i+3];
+		}
+	}
+	array[*cur + 1] = NULL;		/* blank last item always */
+	*cur = *cur - 1;
+
+	return saveditem;
+}
+/*}}}*/
+/*{{{  tnode_t *parser_rmfromlist (tnode_t *list, tnode_t *item)*/
+/*
+ *	removes an item from a list-node by reference, returns it
+ */
+tnode_t *parser_rmfromlist (tnode_t *list, tnode_t *item)
+{
+	tnode_t **array;
+	int *cur;
+	int i;
+
+	if (list->tag != tag_LIST) {
+		nocc_internal ("parser_rmfromlist(): not list-node! [%s]", list->tag->name);
+		return NULL;
+	}
+	array = (tnode_t **)tnode_nthhookof (list, 0);
+	if (!array) {
+		nocc_internal ("parser_rmfromlist(): null array in list!");
+		return NULL;
+	}
+
+	cur = (int *)array;
+
+	for (i=0; i<*cur; i++) {
+		if (array[i+2] == item) {
+			/* remove this one */
+			return parser_delfromlist (list, i);
+		}
+	}
+	return NULL;
+}
+/*}}}*/
 /*{{{  int parser_islistnode (tnode_t *node)*/
 /*
  *	returns non-zero if the node given is a list-node

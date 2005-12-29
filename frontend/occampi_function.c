@@ -54,6 +54,7 @@
 #include "transputer.h"
 #include "codegen.h"
 #include "langops.h"
+#include "treeops.h"
 
 
 /*}}}*/
@@ -512,6 +513,76 @@ static int occampi_fetrans_funcdecl (tnode_t **node)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_betrans_funcdecl (tnode_t **node, target_t *target)*/
+/*
+ *	does back-end transforms on a FUNCTION definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_betrans_funcdecl (tnode_t **node, target_t *target)
+{
+	tnode_t *fnamenode = tnode_nthsubof (*node, 0);
+	name_t *fname = tnode_nthnameof (fnamenode, 0);
+	tnode_t *ftype, **rtypep, **ptypep;
+	tnode_t *fbody = tnode_nthsubof (*node, 2);
+	tnode_t **items;
+	int nitems, i;
+
+	ftype = NameTypeOf (fname);
+	if (!ftype || (ftype->tag != opi.tag_FUNCTIONTYPE)) {
+		tnode_error (*node, "type of function not FUNCTIONTYPE");
+		return 0;
+	}
+
+	rtypep = tnode_nthsubaddr (ftype, 0);
+	ptypep = tnode_nthsubaddr (ftype, 1);
+
+	fbody = treeops_findprocess (fbody);
+	if (!fbody || (fbody->tag != opi.tag_VALOF)) {
+		tnode_error (*node, "function has non-VALOF body");
+		return 0;
+	}
+
+	/* any return types that are bigger than an integer go into parameters */
+	if (!parser_islistnode (*rtypep)) {
+		/* make singleton result a list */
+		tnode_t *xitem = *rtypep;
+
+		*rtypep = parser_newlistnode ((*node)->org_file);
+		parser_addtolist (*rtypep, xitem);
+	}
+
+	items = parser_getlistitems (*rtypep, &nitems);
+	for (i=0; i<nitems; i++) {
+		int bytes = tnode_bytesfor (items[i], target);
+
+		if ((bytes < 0) || (bytes > target->slotsize) || (i > target->maxfuncreturn)) {
+			/* don't know, too big, or too many -- make a parameter */
+			name_t *tmpname;
+			tnode_t *namenode = NULL;
+			tnode_t *fparam;
+#if 0
+fprintf (stderr, "occampi_betrans_funcdecl(): return bytes = %d, want to move out:\n", bytes);
+tnode_dumptree (items[i], 1, stderr);
+#endif
+
+			tmpname = name_addtempname (NULL, items[i], opi.tag_NPARAM, &namenode);
+			fparam = tnode_createfrom (opi.tag_FPARAM, *node, namenode, items[i]);
+			SetNameDecl (tmpname, fparam);
+			items[i] = fparam;
+#if 0
+fprintf (stderr, "occampi_betrans_funcdecl(): fudged it into a parameter:\n");
+tnode_dumptree (items[i], 1, stderr);
+#endif
+			/* remove from results, add to parameters */
+			parser_delfromlist (*rtypep, i);
+			nitems--, i--;			/* wind back */
+			parser_addtolist (*ptypep, fparam);
+		}
+	}
+
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_precheck_funcdecl (tnode_t *node)*/
 /*
  *	does pre-checking on FUNCTION declaration
@@ -771,6 +842,7 @@ static int occampi_function_init_nodes (void)
 	cops->gettype = occampi_gettype_funcdecl;
 	cops->precheck = occampi_precheck_funcdecl;
 	cops->fetrans = occampi_fetrans_funcdecl;
+	cops->betrans = occampi_betrans_funcdecl;
 	cops->codegen = occampi_codegen_funcdecl;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();

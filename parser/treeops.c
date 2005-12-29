@@ -253,6 +253,29 @@ fprintf (stderr, "searching [%s] for [%s]->[%s], %d subnodes\n", tree->tag->name
 	return NULL;
 }
 /*}}}*/
+/*{{{  tnode_t *treeops_findprocess (tnode_t *tree)*/
+/*
+ *	walks through declarations until the next process is found
+ */
+tnode_t *treeops_findprocess (tnode_t *tree)
+{
+	for (; tree;) {
+		int flags = tnode_tnflagsof (tree);
+
+		if (flags & TNF_LONGDECL) {
+			tree = tnode_nthsubof (tree, 3);
+		} else if (flags & TNF_SHORTDECL) {
+			tree = tnode_nthsubof (tree, 2);
+		} else if (flags & TNF_TRANSPARENT) {
+			tree = tnode_nthsubof (tree, 0);
+		} else {
+			/* assume process! */
+			return tree;
+		}
+	}
+	return NULL;
+}
+/*}}}*/
 
 
 /*{{{  tnode_t *treeops_transform (tnode_t *tree, ...)*/

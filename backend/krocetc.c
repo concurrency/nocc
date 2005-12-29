@@ -108,6 +108,7 @@ target_t krocetc_target = {
 	pointersize:	4,
 	slotsize:	4,
 	structalign:	4,
+	maxfuncreturn:	3,
 
 	tag_NAME:	NULL,
 	tag_NAMEREF:	NULL,

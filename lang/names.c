@@ -41,6 +41,7 @@
 STATICSTRINGHASH (namelist_t *, names, 7);
 STATICDYNARRAY (name_t *, namestack);
 
+static int tempnamecounter = 1;
 
 /*}}}*/
 
@@ -93,7 +94,7 @@ fprintf (stderr, "name_lookup(): str=[%s], nl=0x%8.8x, nl->curscope = %d, DA_CUR
 	return name;
 }
 /*}}}*/
-/*{{{  name_t *name_addname (char *str, tnode_t *decl, tnode_t *type, tnode_t *namenode)*/
+/*{{{  name_t *name_addscopename (char *str, tnode_t *decl, tnode_t *type, tnode_t *namenode)*/
 /*
  *	adds a name -- and returns it, after putting it in scope
  */
@@ -208,6 +209,49 @@ void name_delname (name_t *name)
 	sfree (name);
 
 	return;
+}
+/*}}}*/
+/*{{{  name_t *name_addtempname (tnode_t *decl, tnode_t *type, ntdef_t *nametag, tnode_t **namenode)*/
+/*
+ *	creates a temporary name and returns it, not scoped (assumed to be good)
+ *	if "nametag" and "namenode" are given, creates a NAMENODE too
+ */
+name_t *name_addtempname (tnode_t *decl, tnode_t *type, ntdef_t *nametag, tnode_t **namenode)
+{
+	name_t *name;
+	namelist_t *nl;
+	char *str;
+
+	str = (char *)smalloc (32);
+	sprintf (str, "$tmp.%d", tempnamecounter++);
+
+	name = (name_t *)smalloc (sizeof (name_t));
+	name->decl = decl;
+	name->type = type;
+	name->namenode = namenode ? *namenode : NULL;
+	name->refc = 0;
+
+#if 0
+fprintf (stderr, "name_addtempname(): adding name [%s] type:\n", str);
+tnode_dumptree (type, 1, stderr);
+#endif
+
+	nl = stringhash_lookup (names, str);
+	if (!nl) {
+		nl = (namelist_t *)smalloc (sizeof (namelist_t));
+		nl->name = string_dup (str);
+		dynarray_init (nl->scopes);
+		nl->curscope = -1;
+		stringhash_insert (names, nl, nl->name);
+	}
+	name->me = nl;
+
+	if (namenode && !*namenode) {
+		*namenode = tnode_createfrom (nametag, type, name);
+		SetNameNode (name, *namenode);
+	}
+
+	return name;
 }
 /*}}}*/
 
