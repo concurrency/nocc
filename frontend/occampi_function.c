@@ -49,6 +49,8 @@
 #include "precheck.h"
 #include "typecheck.h"
 #include "usagecheck.h"
+#include "fetrans.h"
+#include "betrans.h"
 #include "map.h"
 #include "target.h"
 #include "transputer.h"
@@ -243,6 +245,39 @@ tnode_dumptree (ftype, 1, stderr);
 	return tnode_nthsubof (ftype, 0);
 }
 /*}}}*/
+/*{{{  static int occampi_betrans_finstance (tnode_t **node, betrans_t *be)*/
+/*
+ *	does back-end transforms on a FUNCTION instance
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_betrans_finstance (tnode_t **node, betrans_t *be)
+{
+	tnode_t *fnamenode;
+	name_t *fname;
+	tnode_t *ftype;
+
+	betrans_subtree (tnode_nthsubaddr (*node, 0), be);
+	/* do betrans on params after we've messed around with them */
+
+	fnamenode = tnode_nthsubof (*node, 0);		/* name of FUNCTION being instanced */
+	fname = tnode_nthnameof (fnamenode, 0);
+	ftype = NameTypeOf (fname);
+
+	if (!ftype || (ftype->tag != opi.tag_FUNCTIONTYPE)) {
+		tnode_error (*node, "type of function not FUNCTIONTYPE");
+		return 0;
+	}
+
+#if 1
+fprintf (stderr, "occampi_betrans_finstance(): function type is:\n");
+tnode_dumptree (ftype, 1, stderr);
+#endif
+
+	betrans_subtree (tnode_nthsubaddr (*node, 1), be);
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_finstance (tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a function instance-node
@@ -401,6 +436,15 @@ static int occampi_codegen_finstance (tnode_t *node, codegen_t *cgen)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_iscomplex_finstance (tnode_t *node, int deep)*/
+/*
+ *	returns non-zero if this function instance is complex
+ */
+static int occampi_iscomplex_finstance (tnode_t *node, int deep)
+{
+	return 1;		/* FIXME: for now */
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_prescope_funcdecl (tnode_t **node, prescope_t *ps)*/
@@ -492,12 +536,12 @@ static tnode_t *occampi_gettype_funcdecl (tnode_t *node, tnode_t *defaulttype)
 	return tnode_nthsubof (node, 1);
 }
 /*}}}*/
-/*{{{  static int occampi_fetrans_funcdecl (tnode_t **node)*/
+/*{{{  static int occampi_fetrans_funcdecl (tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transforms on a FUNCTION definition
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_fetrans_funcdecl (tnode_t **node)
+static int occampi_fetrans_funcdecl (tnode_t **node, fetrans_t *fe)
 {
 	chook_t *deschook = tnode_lookupchookbyname ("fetrans:descriptor");
 	char *dstr = NULL;
@@ -513,12 +557,12 @@ static int occampi_fetrans_funcdecl (tnode_t **node)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_betrans_funcdecl (tnode_t **node, target_t *target)*/
+/*{{{  static int occampi_betrans_funcdecl (tnode_t **node, betrans_t *be)*/
 /*
  *	does back-end transforms on a FUNCTION definition
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_betrans_funcdecl (tnode_t **node, target_t *target)
+static int occampi_betrans_funcdecl (tnode_t **node, betrans_t *be)
 {
 	tnode_t *fnamenode = tnode_nthsubof (*node, 0);
 	name_t *fname = tnode_nthnameof (fnamenode, 0);
@@ -528,6 +572,7 @@ static int occampi_betrans_funcdecl (tnode_t **node, target_t *target)
 	tnode_t **items, **ritems;
 	tnode_t *myseqlist = NULL;
 	int nitems, nritems, i;
+	int resultno;
 
 	ftype = NameTypeOf (fname);
 	if (!ftype || (ftype->tag != opi.tag_FUNCTIONTYPE)) {
@@ -577,10 +622,10 @@ tnode_dumptree (*ritemsp, 1, stderr);
 		return 0;
 	}
 
-	for (i=0; i<nitems; i++) {
-		int bytes = tnode_bytesfor (items[i], target);
+	for (i=0, resultno = 0; i<nitems; i++, resultno++) {
+		int bytes = tnode_bytesfor (items[i], be->target);
 
-		if ((bytes < 0) || (bytes > target->slotsize) || (i > target->maxfuncreturn)) {
+		if ((bytes < 0) || (bytes > be->target->slotsize) || (i > be->target->maxfuncreturn)) {
 			/* don't know, too big, or too many -- make a parameter */
 			name_t *tmpname;
 			tnode_t *namenode = NULL;
@@ -613,6 +658,8 @@ tnode_dumptree (items[i], 1, stderr);
 			/* remove from results, add to parameters */
 			fparam = parser_delfromlist (*rtypep, i);
 			parser_addtolist (*ptypep, fparam);
+			/* flag the parameter to indicate it got moved from a RESULT */
+			betrans_tagnode (fparam, opi.tag_VALOF, resultno, be);
 
 			nitems--, i--;			/* wind back */
 			
@@ -847,9 +894,13 @@ static int occampi_function_init_nodes (void)
 	cops = tnode_newcompops ();
 	cops->typecheck = occampi_typecheck_finstance;
 	cops->gettype = occampi_gettype_finstance;
+	cops->betrans = occampi_betrans_finstance;
 	cops->namemap = occampi_namemap_finstance;
 	cops->codegen = occampi_codegen_finstance;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->iscomplex = occampi_iscomplex_finstance;
+	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_FINSTANCE = tnode_newnodetag ("FINSTANCE", &i, tnd, NTF_NONE);

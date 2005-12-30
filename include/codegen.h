@@ -86,6 +86,7 @@ extern int codegen_subcodegen (struct TAG_tnode *tree, codegen_t *cgen);
 extern int codegen_subprecode (struct TAG_tnode **tptr, codegen_t *cgen);
 
 extern void codegen_setinithook (struct TAG_tnode *node, void (*init)(struct TAG_tnode *, codegen_t *, void *), void *arg);
+extern void codegen_setfinalhook (struct TAG_tnode *node, void (*final)(struct TAG_tnode *, codegen_t *, void *), void *arg);
 
 extern void codegen_warning (codegen_t *cgen, const char *fmt, ...);
 extern void codegen_error (codegen_t *cgen, const char *fmt, ...);

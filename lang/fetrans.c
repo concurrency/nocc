@@ -133,6 +133,28 @@ int fetrans_shutdown (void)
 /*}}}*/
 
 
+/*{{{  tnode_t *fetrans_maketemp (tnode_t *type, fetrans_t *fe)*/
+/*
+ *	this creates a new temporary in the front-end transform pass
+ *	returns the name-reference to the generated temporary
+ */
+tnode_t *fetrans_maketemp (tnode_t *type, fetrans_t *fe)
+{
+	if (!type || !fe || !fe->lang) {
+		nocc_internal ("fetrans_maketemp(): called with a bad something");
+		return NULL;
+	}
+	if (!fe->insertpoint) {
+		nocc_error ("fetrans_maketemp(): nowhere to insert temporaries here!");
+		return NULL;
+	}
+	if (!fe->lang->maketemp) {
+		tnode_error (*(fe->insertpoint), "fetrans_maketemp(): cannot make temporaries in language [%s]", fe->lang->langname);
+		return NULL;
+	}
+	return fe->lang->maketemp (fe->insertpoint, type);
+}
+/*}}}*/
 /*{{{  static int fetrans_modprewalk (tnode_t **tptr, void *arg)*/
 /*
  *	does the front-end tree transform walk
@@ -143,9 +165,20 @@ static int fetrans_modprewalk (tnode_t **tptr, void *arg)
 	int i = 1;
 
 	if (*tptr && (*tptr)->tag->ndef->ops && (*tptr)->tag->ndef->ops->fetrans) {
-		i = (*tptr)->tag->ndef->ops->fetrans (tptr);
+		i = (*tptr)->tag->ndef->ops->fetrans (tptr, (fetrans_t *)arg);
 	}
 	return i;
+}
+/*}}}*/
+/*{{{  int fetrans_subtree (tnode_t **tptr, fetrans_t *fe)*/
+/*
+ *	does a sub-tree walk for front-end transforms
+ *	returns 0 on success, non-zero on error
+ */
+int fetrans_subtree (tnode_t **tptr, fetrans_t *fe)
+{
+	tnode_modprewalktree (tptr, fetrans_modprewalk, (void *)fe);
+	return 0;
 }
 /*}}}*/
 /*{{{  int fetrans_tree (tnode_t **tptr, langparser_t *lang)*/
@@ -155,6 +188,11 @@ static int fetrans_modprewalk (tnode_t **tptr, void *arg)
  */
 int fetrans_tree (tnode_t **tptr, langparser_t *lang)
 {
+	fetrans_t *fe = (fetrans_t *)smalloc (sizeof (fetrans_t));
+
+	fe->insertpoint = NULL;
+	fe->lang = lang;
+
 	if (!fetranschook) {
 		fetranschook = tnode_lookupornewchook ("fetrans");
 	}
@@ -165,7 +203,9 @@ int fetrans_tree (tnode_t **tptr, langparser_t *lang)
 		fetransdeschook->chook_dumptree = fetrans_deschook_dumptree;
 	}
 
-	tnode_modprewalktree (tptr, fetrans_modprewalk, (void *)lang);
+	tnode_modprewalktree (tptr, fetrans_modprewalk, (void *)fe);
+
+	sfree (fe);
 
 	return 0;
 }

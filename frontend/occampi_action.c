@@ -47,8 +47,11 @@
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
+#include "langops.h"
 #include "precheck.h"
 #include "usagecheck.h"
+#include "fetrans.h"
+#include "betrans.h"
 #include "map.h"
 #include "target.h"
 #include "transputer.h"
@@ -158,6 +161,83 @@ static int occampi_precheck_action (tnode_t *node)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_fetrans_action (tnode_t **node, fetrans_t *fe)*/
+/*
+ *	called to do front-end transforms on action nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_fetrans_action (tnode_t **node, fetrans_t *fe)
+{
+	tnode_t *t = *node;
+	tnode_t **saved_insertpoint = fe->insertpoint;
+
+	fe->insertpoint = node;				/* before process is a good place to insert temporaries */
+
+	if (t->tag == opi.tag_OUTPUT) {
+		/* if RHS looks complex, add temporary and assignment */
+		if (langops_iscomplex (tnode_nthsubof (t, 1), 1)) {
+			tnode_t *temp = fetrans_maketemp (tnode_nthsubof (t, 2), fe);
+
+			/* now assignment.. */
+		}
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_betrans_action (tnode_t **node, betrans_t *be)*/
+/*
+ *	called to do back-end transforms on action nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_betrans_action (tnode_t **node, betrans_t *be)
+{
+	tnode_t *t = *node;
+
+	if (t->tag == opi.tag_ASSIGN) {
+		tnode_t *rhs = tnode_nthsubof (t, 1);
+		tnode_t **lhsp = tnode_nthsubaddr (t, 0);
+		int nlhs, single = 0;
+
+		if (!parser_islistnode (*lhsp)) {
+			/* single result */
+			nlhs = single = 1;
+		} else {
+			lhsp = parser_getlistitems (*lhsp, &nlhs);
+		}
+
+		if (rhs->tag == opi.tag_FINSTANCE) {
+			/*{{{  special-case: check RHS for parameterised results*/
+			tnode_t *fnamenode = tnode_nthsubof (rhs, 0);
+			name_t *fname = tnode_nthnameof (fnamenode, 0);
+			tnode_t *ftype = NameTypeOf (fname);
+			tnode_t **fparams;
+			int nfparams, i;
+
+			if (!ftype || (ftype->tag != opi.tag_FUNCTIONTYPE)) {
+				tnode_error (rhs, "type of function not FUNCTIONTYPE");
+				return 0;
+			}
+
+			fparams = parser_getlistitems (tnode_nthsubof (ftype, 1), &nfparams);
+			/* look for those tagged with VALOF */
+			for (i=0; i<nfparams; i++) {
+				int x;
+				ntdef_t *tag = betrans_gettag (fparams[i], &x, be);
+
+				if (tag) {
+					/* this one was! */
+#if 1
+fprintf (stderr, "occampi_betrans_action(): FINSTANCE on ASSIGN, fparam %d used to be result %d\n", i, x);
+#endif
+				}
+			}
+			/*}}}*/
+		}
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_premap_action (tnode_t **node, map_t *map)*/
 /*
  *	does per-mapping for an action -- turns expression nodes into RESULT nodes
@@ -257,6 +337,8 @@ static int occampi_action_init_nodes (void)
 	cops = tnode_newcompops ();
 	cops->typecheck = occampi_typecheck_action;
 	cops->precheck = occampi_precheck_action;
+	cops->fetrans = occampi_fetrans_action;
+	cops->betrans = occampi_betrans_action;
 	cops->premap = occampi_premap_action;
 	cops->namemap = occampi_namemap_action;
 	cops->codegen = occampi_codegen_action;

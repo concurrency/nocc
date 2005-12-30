@@ -1301,6 +1301,7 @@ langops_t *tnode_newlangops (void)
 	lops->getname = NULL;
 	lops->do_usagecheck = NULL;
 	lops->isconst = NULL;
+	lops->iscomplex = NULL;
 	lops->constvalof = NULL;
 	lops->valbyref = NULL;
 	lops->initialising_decl = NULL;
@@ -1450,7 +1451,7 @@ int tnode_bytesfor (tnode_t *t, target_t *target)
 fprintf (stderr, "tnode_bytesfor(): t = [%s]\n", t->tag->name);
 #endif
 	if (target && ((t->tag == target->tag_NAME) || (t->tag == target->tag_NAMEREF))) {
-		/* look inside */
+		/* look at typesize */
 		t = tnode_nthsubof (t, 0);
 	}
 	if (t && t->tag->ndef->ops && t->tag->ndef->ops->bytesfor) {

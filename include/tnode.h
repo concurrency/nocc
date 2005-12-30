@@ -39,6 +39,8 @@ struct TAG_prescope;
 struct TAG_scope;
 struct TAG_typecheck;
 struct TAG_target;
+struct TAG_fetrans;
+struct TAG_betrans;
 
 /*{{{  tndef_t definition (type of node)*/
 typedef struct TAG_tndef {
@@ -105,8 +107,8 @@ typedef struct TAG_compops {
 	int (*precheck)(tnode_t *);					/* performs pre-checks on the node */
 	int (*bytesfor)(tnode_t *, struct TAG_target *);		/* returns the number of bytes required for something (target given if available) */
 	int (*issigned)(tnode_t *, struct TAG_target *);		/* returns the "signedness" of something (target given if available) */
-	int (*fetrans)(tnode_t **);					/* performs front-end transforms */
-	int (*betrans)(tnode_t **, struct TAG_target *);		/* performs back-end transforms for target */
+	int (*fetrans)(tnode_t **, struct TAG_fetrans *);		/* performs front-end transforms */
+	int (*betrans)(tnode_t **, struct TAG_betrans *);		/* performs back-end transforms for target */
 	int (*premap)(tnode_t **, struct TAG_map *);			/* performs pre-mapping for target */
 	int (*namemap)(tnode_t **, struct TAG_map *);			/* performs name-mapping for target */
 	int (*bemap)(tnode_t **, struct TAG_map *);			/* performs back-end-mapping for target */
@@ -123,6 +125,7 @@ typedef struct TAG_langops {
 	int (*getname)(tnode_t *, char **);				/* gets the name of a node (for error reporting) */
 	int (*do_usagecheck)(tnode_t *, struct TAG_uchk_state *);	/* does usage-checking for a node */
 	int (*isconst)(tnode_t *);					/* returns non-zero if the node is a known constant (returns width) */
+	int (*iscomplex)(tnode_t *, int);				/* returns non-zero if the node (typically an expr) is considered "complex" (e.g. non-const constructors, function instances, etc.) */
 	int (*constvalof)(tnode_t *, void *);				/* gets constant value for the given node (assigns to pointed-at space) */
 	int (*valbyref)(tnode_t *);					/* returns non-zero if VAL of this is treated as a reference (wide types) */
 	int (*initsizes)(tnode_t *, tnode_t *, int *, int *, int *, int *, struct TAG_map *);	/* returns special allocation sizing for types (type, declnode, wssize, vssize, mssize, indir, map-data) */

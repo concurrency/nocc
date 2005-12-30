@@ -156,6 +156,40 @@ int langops_valbyref (tnode_t *node)
 	return r;
 }
 /*}}}*/
+/*{{{  static int langops_iscomplex_prewalk (tnode_t *t, void *arg)*/
+/*
+ *	helper for langops_iscomplex()
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int langops_iscomplex_prewalk (tnode_t *t, void *arg)
+{
+	int *r = (int *)arg;
+
+	if (t && t->tag->ndef->lops && t->tag->ndef->lops->iscomplex) {
+		*r = t->tag->ndef->lops->iscomplex (t, 1);
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  int langops_iscomplex (tnode_t *node, int deep)*/
+/*
+ *	returns non-zero if a node is complex (used largely by fetrans for
+ *	simplifying expressions).
+ */
+int langops_iscomplex (tnode_t *node, int deep)
+{
+	int r = -1;
+
+	if (node && node->tag->ndef->lops && node->tag->ndef->lops->iscomplex) {
+		r = node->tag->ndef->lops->iscomplex (node, deep);
+	} else if (node && deep) {
+		r = 0;
+		tnode_prewalktree (node, langops_iscomplex_prewalk, &r);
+	}
+	return r;
+}
+/*}}}*/
 
 
 /*{{{  int langops_init (void)*/

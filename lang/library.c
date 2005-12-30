@@ -46,6 +46,7 @@
 #include "prescope.h"
 #include "scope.h"
 #include "typecheck.h"
+#include "fetrans.h"
 #include "betrans.h"
 #include "library.h"
 #include "map.h"
@@ -1496,12 +1497,12 @@ static int lib_parsedescriptors (lexfile_t *orglf, libusenodehook_t *lunh)
 /*}}}*/
 
 
-/*{{{  static int lib_betrans_libnode (tnode_t **nodep, target_t *target)*/
+/*{{{  static int lib_betrans_libnode (tnode_t **nodep, betrans_t *be)*/
 /*
  *	does back-end transform on a library node
  *	returns 0 to stop walk, 1 to continue
  */
-static int lib_betrans_libnode (tnode_t **nodep, target_t *target)
+static int lib_betrans_libnode (tnode_t **nodep, betrans_t *be)
 {
 	libnodehook_t *lnh = (libnodehook_t *)tnode_nthhookof (*nodep, 0);
 	int slen = 0;
@@ -1513,15 +1514,15 @@ fprintf (stderr, "lib_betrans_libnode(): here!\n");
 		nocc_internal ("lib_betrans_libnode(): NULL hook!");
 		return 0;
 	}
-	slen += target->tarch ? strlen (target->tarch) : 7;
-	slen += target->tvendor ? strlen (target->tvendor) : 7;
-	slen += target->tos ? strlen (target->tos) : 7;
+	slen += be->target->tarch ? strlen (be->target->tarch) : 7;
+	slen += be->target->tvendor ? strlen (be->target->tvendor) : 7;
+	slen += be->target->tos ? strlen (be->target->tos) : 7;
 
 	lnh->targetname = (char *)smalloc (slen + 4);
-	sprintf (lnh->targetname, "%s-%s-%s", target->tarch ?: "unknown", target->tvendor ?: "unknown", target->tos ?: "unknown");
+	sprintf (lnh->targetname, "%s-%s-%s", be->target->tarch ?: "unknown", be->target->tvendor ?: "unknown", be->target->tos ?: "unknown");
 
 	dynarray_add (entrystack, lnh);
-	betrans_subtree (tnode_nthsubaddr (*nodep, 0), target);
+	betrans_subtree (tnode_nthsubaddr (*nodep, 0), be);
 	dynarray_delitem (entrystack, DA_CUR (entrystack) - 1);
 
 	return 0;
@@ -1563,12 +1564,12 @@ static int lib_codegen_libnode (tnode_t *node, codegen_t *cgen)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int lib_betrans_libtag (tnode_t **nodep, target_t *target)*/
+/*{{{  static int lib_betrans_libtag (tnode_t **nodep, betrans_t *be)*/
 /*
  *	does back-end transform on a library tag node
  *	returns 0 to stop walk, 1 to continue
  */
-static int lib_betrans_libtag (tnode_t **nodep, target_t *target)
+static int lib_betrans_libtag (tnode_t **nodep, betrans_t *be)
 {
 	libtaghook_t **lthp = (libtaghook_t **)tnode_nthhookaddr (*nodep, 0);
 	libnodehook_t *lnh;
@@ -1725,12 +1726,12 @@ static int lib_scopein_libusenode (tnode_t **nodep, scope_t *ss)
 	return 0;		/* already done */
 }
 /*}}}*/
-/*{{{  static int lib_betrans_libusenode (tnode_t **nodep, target_t *target)*/
+/*{{{  static int lib_betrans_libusenode (tnode_t **nodep, betrans_t *be)*/
 /*
  *	does back-end transforms for a library-usage node
  *	returns 0 to stop walk, 1 to continue
  */
-static int lib_betrans_libusenode (tnode_t **nodep, target_t *target)
+static int lib_betrans_libusenode (tnode_t **nodep, betrans_t *be)
 {
 	return 1;
 }

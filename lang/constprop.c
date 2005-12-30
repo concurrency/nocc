@@ -263,6 +263,15 @@ static int cprop_isconst_const (tnode_t *node)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int cprop_iscomplex_const (tnode_t *node, int deep)*/
+/*
+ *	returns non-zero if the constant is complex (they're not)
+ */
+static int cprop_iscomplex_const (tnode_t *node, int deep)
+{
+	return 0;
+}
+/*}}}*/
 /*{{{  static int cprop_constvalof_const (tnode_t *node, void *ptr)*/
 /*
  *	returns the constant value of a constant node
@@ -371,6 +380,7 @@ int constprop_init (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->isconst = cprop_isconst_const;
+	lops->iscomplex = cprop_iscomplex_const;
 	lops->constvalof = cprop_constvalof_const;
 	lops->getdescriptor = cprop_getdescriptor_const;
 	tnd->lops = lops;

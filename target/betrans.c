@@ -42,8 +42,123 @@
 
 /*}}}*/
 /*{{{  private things*/
-static chook_t *betranschook = NULL;
+static chook_t *betranstaghook = NULL;
+static chook_t *betransnodehook = NULL;
 
+/*}}}*/
+
+
+/*{{{  static void betrans_isetindent (int indent, FILE *stream)*/
+/*
+ *	sets indentation for output
+ */
+static void betrans_isetindent (int indent, FILE *stream)
+{
+	int i;
+
+	for (i=0; i<indent; i++) {
+		fprintf (stream, "    ");
+	}
+	return;
+}
+/*}}}*/
+
+
+/*{{{  betrans compiler-hook routines*/
+/*{{{  static void *betrans_taghook_copy (void *hook)*/
+/*
+ *	copies a tag hook
+ */
+static void *betrans_taghook_copy (void *hook)
+{
+	betranstag_t *tag = (betranstag_t *)hook;
+	betranstag_t *ntag = NULL;
+
+	if (tag) {
+		ntag = (betranstag_t *)smalloc (sizeof (tag));
+		ntag->flag = tag->flag;
+		ntag->val = tag->val;
+	}
+
+	return (void *)ntag;
+}
+/*}}}*/
+/*{{{  static void betrans_taghook_free (void *hook)*/
+/*
+ *	frees a tag hook
+ */
+static void betrans_taghook_free (void *hook)
+{
+	betranstag_t *tag = (betranstag_t *)hook;
+
+	if (tag) {
+		sfree (tag);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void betrans_taghook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a tag hook (debugging)
+ */
+static void betrans_taghook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	betranstag_t *tag = (betranstag_t *)hook;
+
+	betrans_isetindent (indent, stream);
+	fprintf (stream, "<betrans:tag flag=\"%s\" val=\"%d\" />\n", (tag && tag->flag) ? tag->flag->name : "", tag ? tag->val : 0);
+
+	return;
+}
+/*}}}*/
+
+/*{{{  static void *betrans_nodehook_copy (void *hook)*/
+/*
+ *	copies a node hook
+ */
+static void *betrans_nodehook_copy (void *hook)
+{
+	tnode_t *node = (tnode_t *)hook;
+
+	if (node) {
+		return (void *)tnode_copytree (node);
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  static void betrans_nodehook_free (void *hook)*/
+/*
+ *	frees a node hook
+ */
+static void betrans_nodehook_free (void *hook)
+{
+	tnode_t *node = (tnode_t *)hook;
+
+	if (node) {
+		tnode_warning (node, "betrans_nodehook_free(): not freeing this hook!");
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void betrans_nodehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a node-hook (debugging)
+ */
+static void betrans_nodehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	tnode_t *hnode = (tnode_t *)hook;
+
+	betrans_isetindent (indent, stream);
+	fprintf (stream, "<betrans:node addr=\"0x%8.8x\">\n", (unsigned int)hnode);
+
+	tnode_dumptree (hnode, indent+1, stream);
+
+	betrans_isetindent (indent, stream);
+	fprintf (stream, "</betrans:node>\n");
+
+	return;
+}
+/*}}}*/
 /*}}}*/
 
 
@@ -54,6 +169,21 @@ static chook_t *betranschook = NULL;
  */
 int betrans_init (void)
 {
+	if (!betranstaghook) {
+		betranstaghook = tnode_newchook ("betrans:tag");
+
+		betranstaghook->chook_copy = betrans_taghook_copy;
+		betranstaghook->chook_free = betrans_taghook_free;
+		betranstaghook->chook_dumptree = betrans_taghook_dumptree;
+	}
+	if (!betransnodehook) {
+		betransnodehook = tnode_newchook ("betrans:node");
+
+		betransnodehook->chook_copy = betrans_nodehook_copy;
+		betransnodehook->chook_free = betrans_nodehook_free;
+		betransnodehook->chook_dumptree = betrans_nodehook_dumptree;
+	}
+
 	return 0;
 }
 /*}}}*/
@@ -65,6 +195,62 @@ int betrans_init (void)
 int betrans_shutdown (void)
 {
 	return 0;
+}
+/*}}}*/
+
+
+/*{{{  betranstag_t *betrans_newtag (ntdef_t *tag, int val)*/
+/*
+ *	creates a new betranstag_t compiler-hook node
+ */
+betranstag_t *betrans_newtag (ntdef_t *tag, int val)
+{
+	betranstag_t *btag = (betranstag_t *)smalloc (sizeof (betranstag_t));
+
+	btag->flag = tag;
+	btag->val = val;
+
+	return btag;
+}
+/*}}}*/
+/*{{{  void betrans_tagnode (tnode_t *t, ntdef_t *tag, int val, betrans_t *be)*/
+/*
+ *	creates a new betranstag_t compiler-hook and attaches it to the given node
+ */
+void betrans_tagnode (tnode_t *t, ntdef_t *tag, int val, betrans_t *be)
+{
+	betranstag_t *etag;
+
+	etag = (betranstag_t *)tnode_getchook (t, be ? be->betranstaghook : betranstaghook);
+	if (etag) {
+		tnode_warning (t, "betrans_tagnode(): already tagged with [%s]", etag->flag ? etag->flag->name : "");
+	} else {
+		etag = betrans_newtag (tag, val);
+
+		tnode_setchook (t, be ? be->betranstaghook : betranstaghook, etag);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  ntdef_t *betrans_gettag (tnode_t *t, int *valp, betrans_t *be)*/
+/*
+ *	returns the tag attached to a betrans:tag hook in the given node
+ *	returns NULL if not here (or if null)
+ */
+ntdef_t *betrans_gettag (tnode_t *t, int *valp, betrans_t *be)
+{
+	betranstag_t *etag;
+
+	etag = (betranstag_t *)tnode_getchook (t, be ? be->betranstaghook : betranstaghook);
+	if (!etag) {
+		return NULL;
+	}
+	
+	if (valp) {
+		*valp = etag->val;
+	}
+
+	return etag->flag;
 }
 /*}}}*/
 
@@ -86,19 +272,19 @@ if (*tptr) {
 }
 #endif
 	if (*tptr && (*tptr)->tag->ndef->ops && (*tptr)->tag->ndef->ops->betrans) {
-		i = (*tptr)->tag->ndef->ops->betrans (tptr, (target_t *)arg);
+		i = (*tptr)->tag->ndef->ops->betrans (tptr, (betrans_t *)arg);
 	}
 	return i;
 }
 /*}}}*/
-/*{{{  int betrans_subtree (tnode_t **tptr, target_t *target)*/
+/*{{{  int betrans_subtree (tnode_t **tptr, betrans_t *be)*/
 /*
  *	does back-end tree transformations on the given sub-tree
  *	returns 0 on success, non-zero on error
  */
-int betrans_subtree (tnode_t **tptr, target_t *target)
+int betrans_subtree (tnode_t **tptr, betrans_t *be)
 {
-	tnode_modprewalktree (tptr, betrans_modprewalk_tree, (void *)target);
+	tnode_modprewalktree (tptr, betrans_modprewalk_tree, (void *)be);
 
 	return 0;
 }
@@ -110,11 +296,16 @@ int betrans_subtree (tnode_t **tptr, target_t *target)
  */
 int betrans_tree (tnode_t **tptr, target_t *target)
 {
-	if (!betranschook) {
-		betranschook = tnode_newchook ("betrans");
-	}
+	betrans_t *be = (betrans_t *)smalloc (sizeof (betrans_t));
 
-	tnode_modprewalktree (tptr, betrans_modprewalk_tree, (void *)target);
+	be->insertpoint = NULL;
+	be->target = target;
+	be->betranstaghook = tnode_lookupornewchook ("betrans:tag");
+	be->betransnodehook = tnode_lookupornewchook ("betrans:node");
+
+	tnode_modprewalktree (tptr, betrans_modprewalk_tree, (void *)be);
+
+	sfree (be);
 
 	return 0;
 }

@@ -328,6 +328,27 @@ static int occampi_codegen_dop (tnode_t *node, codegen_t *cgen)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_iscomplex_dop (tnode_t *node, int deep)*/
+/*
+ *	returns non-zero if the dyadic operation is complex (i.e. warrants separate evaluation)
+ */
+static int occampi_iscomplex_dop (tnode_t *node, int deep)
+{
+	int i = 0;
+
+	if ((node->tag == opi.tag_REM) || (node->tag == opi.tag_DIV)) {
+		return 1;		/* yes, complex generally */
+	}
+
+	if (deep) {
+		i = langops_iscomplex (tnode_nthsubof (node, 0), deep);
+		if (!i) {
+			i = langops_iscomplex (tnode_nthsubof (node, 1), deep);
+		}
+	}
+	return i;
+}
+/*}}}*/
 
 
 /*{{{  static tnode_t *occampi_gettype_rel (tnode_t *node, tnode_t *defaulttype)*/
@@ -403,6 +424,24 @@ static int occampi_codegen_rel (tnode_t *node, codegen_t *cgen)
 	codegen_error (cgen, "occampi_codgen_rel(): don\'t know how to generate code for [%s] [%s]", node->tag->ndef->name, node->tag->name);
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_iscomplex_rel (tnode_t *node, int deep)*/
+/*
+ *	returns non-zero if the relational operation is complex
+ */
+static int occampi_iscomplex_rel (tnode_t *node, int deep)
+{
+	int i = 0;
+
+	if (deep) {
+		i = langops_iscomplex (tnode_nthsubof (node, 0), deep);
+		if (!i) {
+			i = langops_iscomplex (tnode_nthsubof (node, 1), deep);
+		}
+	}
+
+	return i;
 }
 /*}}}*/
 /*{{{  static void occampi_oper_genrelop (codegen_t *cgen, int arg)*/
@@ -525,6 +564,21 @@ static int occampi_codegen_mop (tnode_t *node, codegen_t *cgen)
 	codegen_error (cgen, "occampi_codgen_mop(): don\'t know how to generate code for [%s] [%s]", node->tag->ndef->name, node->tag->name);
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_iscomplex_mop (tnode_t *node, int deep)*/
+/*
+ *	returns non-zero if the monadic operator is complex
+ */
+static int occampi_iscomplex_mop (tnode_t *node, int deep)
+{
+	int i = 0;
+
+	if (deep) {
+		i = langops_iscomplex (tnode_nthsubof (node, 0), deep);
+	}
+
+	return i;
 }
 /*}}}*/
 
@@ -659,6 +713,7 @@ static int occampi_oper_init_nodes (void)
 {
 	tndef_t *tnd;
 	compops_t *cops;
+	langops_t *lops;
 	int i;
 
 	/*{{{  occampi:dopnode -- MUL, DIV, ADD, SUB, REM; PLUS, MINUS, TIMES*/
@@ -671,6 +726,10 @@ static int occampi_oper_init_nodes (void)
 	cops->namemap = occampi_namemap_dop;
 	cops->codegen = occampi_codegen_dop;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->iscomplex = occampi_iscomplex_dop;
+	tnd->lops = lops;
+
 	i = -1;
 	opi.tag_MUL = tnode_newnodetag ("MUL", &i, tnd, NTF_NONE);
 	i = -1;
@@ -697,6 +756,9 @@ static int occampi_oper_init_nodes (void)
 	cops->namemap = occampi_namemap_rel;
 	cops->codegen = occampi_codegen_rel;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->iscomplex = occampi_iscomplex_rel;
+	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_RELEQ = tnode_newnodetag ("RELEQ", &i, tnd, NTF_BOOLOP);
@@ -720,6 +782,10 @@ static int occampi_oper_init_nodes (void)
 	cops->namemap = occampi_namemap_mop;
 	cops->codegen = occampi_codegen_mop;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->iscomplex = occampi_iscomplex_mop;
+	tnd->lops = lops;
+
 	i = -1;
 	opi.tag_UMINUS = tnode_newnodetag ("UMINUS", &i, tnd, NTF_NONE);
 	i = -1;

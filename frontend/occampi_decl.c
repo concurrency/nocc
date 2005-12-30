@@ -54,6 +54,7 @@
 #include "transputer.h"
 #include "codegen.h"
 #include "langops.h"
+#include "fetrans.h"
 
 
 /*}}}*/
@@ -592,12 +593,12 @@ static tnode_t *occampi_gettype_procdecl (tnode_t *node, tnode_t *defaulttype)
 	return tnode_nthsubof (node, 1);
 }
 /*}}}*/
-/*{{{  static int occampi_fetrans_procdecl (tnode_t **node)*/
+/*{{{  static int occampi_fetrans_procdecl (tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transforms on a PROC definition
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_fetrans_procdecl (tnode_t **node)
+static int occampi_fetrans_procdecl (tnode_t **node, fetrans_t *fe)
 {
 	chook_t *deschook = tnode_lookupchookbyname ("fetrans:descriptor");
 	char *dstr = NULL;

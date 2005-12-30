@@ -22,11 +22,32 @@
 
 struct TAG_tnode;
 struct TAG_target;
+struct TAG_chook;
+struct TAG_ntdef;
+
+typedef struct TAG_betrans {
+	struct TAG_target *target;
+	struct TAG_tnode **insertpoint;
+	struct TAG_chook *betranstaghook;
+	struct TAG_chook *betransnodehook;
+} betrans_t;
+
+
+typedef struct TAG_betranstag {		/* used with the betrans:tag compiler-hook */
+	struct TAG_ntdef *flag;			/* node-tag used to flag certain things */
+	int val;
+} betranstag_t;
+
 
 extern int betrans_init (void);
 extern int betrans_shutdown (void);
 
-extern int betrans_subtree (struct TAG_tnode **tptr, struct TAG_target *target);
+
+extern betranstag_t *betrans_newtag (struct TAG_ntdef *tag, int val);
+extern void betrans_tagnode (struct TAG_tnode *t, struct TAG_ntdef *tag, int val, betrans_t *be);
+extern struct TAG_ntdef *betrans_gettag (struct TAG_tnode *t, int *valp, betrans_t *be);
+
+extern int betrans_subtree (struct TAG_tnode **tptr, betrans_t *bt);
 extern int betrans_tree (struct TAG_tnode **tptr, struct TAG_target *target);
 
 

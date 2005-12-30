@@ -8,3 +8,9 @@
     RESULT x
 :
 
+PROC blah ()
+  [3]INT v:
+  SEQ
+    v := foo (42)
+:
+

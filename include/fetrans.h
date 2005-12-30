@@ -23,9 +23,16 @@
 struct TAG_tnode;
 struct TAG_langparser;
 
+typedef struct TAG_fetrans {
+	struct TAG_tnode **insertpoint;
+	struct TAG_langparser *lang;
+} fetrans_t;
+
 extern int fetrans_init (void);
 extern int fetrans_shutdown (void);
 
+extern struct TAG_tnode *fetrans_maketemp (struct TAG_tnode *type, fetrans_t *fe);
+extern int fetrans_subtree (struct TAG_tnode **tptr, fetrans_t *fe);
 extern int fetrans_tree (struct TAG_tnode **tptr, struct TAG_langparser *lang);
 
 
