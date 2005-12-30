@@ -1014,6 +1014,12 @@ fprintf (stderr, "krocetc_be_allocsize(): unknown type node=[%s]\n", node->tag->
  */
 static int krocetc_be_typesize (tnode_t *node, int *typesize, int *indir)
 {
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)krocetc_target.priv;
+
+	if (!kpriv) {
+		nocc_warning ("krocetc_be_typesize(): called outside of back-end context (no private data)");
+		return -1;
+	}
 	if (node->tag == krocetc_target.tag_NAME) {
 		/*{{{  typesize of a NAME*/
 		krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (node, 0);
@@ -1042,8 +1048,19 @@ static int krocetc_be_typesize (tnode_t *node, int *typesize, int *indir)
 			*indir = nh->indir;
 		}
 		/*}}}*/
+	} else if (node->tag == kpriv->tag_CONSTREF) {
+		/*{{{  typesize of a constant reference*/
+		krocetc_consthook_t *ch = (krocetc_consthook_t *)tnode_nthhookof (node, 0);
+
+		if (typesize) {
+			*typesize = ch->size;
+		}
+		if (indir) {
+			*indir = 0;		/* yep, really here! */
+		}
+		/*}}}*/
 	} else {
-		nocc_warning ("krocetc_be_allocsize(): unknown node type [%s]", node->tag->name);
+		nocc_warning ("krocetc_be_typesize(): unknown node type [%s]", node->tag->name);
 		return -1;
 	}
 	return 0;

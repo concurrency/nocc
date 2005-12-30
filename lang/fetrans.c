@@ -152,7 +152,29 @@ tnode_t *fetrans_maketemp (tnode_t *type, fetrans_t *fe)
 		tnode_error (*(fe->insertpoint), "fetrans_maketemp(): cannot make temporaries in language [%s]", fe->lang->langname);
 		return NULL;
 	}
-	return fe->lang->maketemp (fe->insertpoint, type);
+	return fe->lang->maketemp (&fe->insertpoint, type);
+}
+/*}}}*/
+/*{{{  tnode_t *fetrans_makeseqassign (tnode_t *lhs, tnode_t *rhs, tnode_t *type, fetrans_t *fe)*/
+/*
+ *	this creates a new sequential assignment in the front-end transform pass
+ *	returns a reference to the created assignment
+ */
+tnode_t *fetrans_makeseqassign (tnode_t *lhs, tnode_t *rhs, tnode_t *type, fetrans_t *fe)
+{
+	if (!lhs || !rhs || !type || !fe || !fe->lang) {
+		nocc_internal ("fetrans_makeseqassign(): called with a bad something");
+		return NULL;
+	}
+	if (!fe->insertpoint) {
+		nocc_error ("fetrans_makeseqassign(): nowhere to insert code here!");
+		return NULL;
+	}
+	if (!fe->lang->makeseqassign) {
+		tnode_error (*(fe->insertpoint), "fetrans_makeseqassign(): cannot make sequential assignments in language [%s]", fe->lang->langname);
+		return NULL;
+	}
+	return fe->lang->makeseqassign (&fe->insertpoint, lhs, rhs, type);
 }
 /*}}}*/
 /*{{{  static int fetrans_modprewalk (tnode_t **tptr, void *arg)*/

@@ -8,9 +8,8 @@
     RESULT x
 :
 
-PROC blah ()
-  [3]INT v:
+PROC blah (CHAN [3]INT out!)
   SEQ
-    v := foo (42)
+    out ! foo (42)
 :
 

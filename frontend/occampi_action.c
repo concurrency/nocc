@@ -179,6 +179,9 @@ static int occampi_fetrans_action (tnode_t **node, fetrans_t *fe)
 			tnode_t *temp = fetrans_maketemp (tnode_nthsubof (t, 2), fe);
 
 			/* now assignment.. */
+			fetrans_makeseqassign (temp, tnode_nthsubof (t, 1), tnode_nthsubof (t, 2), fe);
+
+			tnode_setnthsub (t, 1, temp);
 		}
 	}
 
@@ -343,15 +346,19 @@ tnode_dumptree (rhs, 1, stderr);
 fprintf (stderr, "occampi_codegen_action(): ASSIGN: type =\n");
 tnode_dumptree (type, 1, stderr);
 #endif
-		if (bytes <= cgen->target->intsize) {
+		if (bytes < 0) {
+			/* unknown size! */
+			codegen_callops (cgen, comment, "FIXME!");
+		} else if (bytes <= cgen->target->intsize) {
 			/* simple load and store */
 			codegen_callops (cgen, loadname, rhs, 0);
 			codegen_callops (cgen, storename, lhs, 0);
 		} else {
 			/* load pointers, block move */
-			/* codegen_callops (cgen, loadpointer, rhs);
-			codegen_callops (cgen, loadpointer, lhs); */
-			codegen_callops (cgen, comment, "FIXME!");
+			codegen_callops (cgen, loadpointer, rhs, 0);
+			codegen_callops (cgen, loadpointer, lhs, 0);
+			codegen_callops (cgen, loadconst, bytes);
+			codegen_callops (cgen, tsecondary, I_MOVE);
 		}
 	} else if (node->tag == opi.tag_OUTPUT) {
 		/* load a pointer to value, pointer to channel, size */

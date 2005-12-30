@@ -60,7 +60,8 @@ static tnode_t *occampi_parser_descparse (lexfile_t *lf);
 static int occampi_parser_prescope (tnode_t **tptr, prescope_t *ps);
 static int occampi_parser_scope (tnode_t **tptr, scope_t *ss);
 static int occampi_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
-static tnode_t *occampi_parser_maketemp (tnode_t **insertpoint, tnode_t *type);
+static tnode_t *occampi_parser_maketemp (tnode_t ***insertpointp, tnode_t *type);
+static tnode_t *occampi_parser_makeseqassign (tnode_t ***insertpointp, tnode_t *lhs, tnode_t *rhs, tnode_t *type);
 
 static tnode_t *occampi_indented_process (lexfile_t *lf);
 static tnode_t *occampi_indented_process_trailing (lexfile_t *lf, char *extradfa, tnode_t **extrares);
@@ -82,6 +83,7 @@ langparser_t occampi_parser = {
 	scope:		occampi_parser_scope,
 	typecheck:	occampi_parser_typecheck,
 	maketemp:	occampi_parser_maketemp,
+	makeseqassign:	occampi_parser_makeseqassign,
 	tagstruct_hook:	(void *)&opi,
 	lexer:		NULL
 };
@@ -1456,21 +1458,42 @@ static int occampi_parser_typecheck (tnode_t *tptr, typecheck_t *tc)
 	return tc->err;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_parser_maketemp (tnode_t **insertpoint, tnode_t *type)*/
+/*{{{  static tnode_t *occampi_parser_maketemp (tnode_t ***insertpointp, tnode_t *type)*/
 /*
  *	called from elsewhere to create a temporary.  This creates a DECL/NDECL pair
  *	returns the NDECL part (reference)
  */
-static tnode_t *occampi_parser_maketemp (tnode_t **insertpoint, tnode_t *type)
+static tnode_t *occampi_parser_maketemp (tnode_t ***insertpointp, tnode_t *type)
 {
 	tnode_t *namenode = NULL;
 	name_t *name;
 
 	name = name_addtempname (NULL, type, opi.tag_NDECL, &namenode);
-	*insertpoint = tnode_createfrom (opi.tag_VARDECL, *insertpoint, namenode, type, *insertpoint);
-	SetNameDecl (name, *insertpoint);
+	**insertpointp = tnode_createfrom (opi.tag_VARDECL, **insertpointp, namenode, type, **insertpointp);
+	SetNameDecl (name, **insertpointp);
+
+	*insertpointp = tnode_nthsubaddr (**insertpointp, 2);
 
 	return namenode;
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_parser_makeseqassign (tnode_t ***insertpointp, tnode_t *lhs, tnode_t *rhs, tnode_t *type)*/
+/*
+ *	called from elsewhere to create a sequential assignment.
+ *	returns the ASSIGN part
+ */
+static tnode_t *occampi_parser_makeseqassign (tnode_t ***insertpointp, tnode_t *lhs, tnode_t *rhs, tnode_t *type)
+{
+	tnode_t *assnode = tnode_createfrom (opi.tag_ASSIGN, **insertpointp, lhs, rhs, type);
+	tnode_t *listnode = parser_buildlistnode ((**insertpointp)->org_file, assnode, NULL);
+	tnode_t *seqnode = tnode_createfrom (opi.tag_SEQ, **insertpointp, NULL, listnode);
+	tnode_t *savedproc = **insertpointp;
+
+	**insertpointp = seqnode;
+	*insertpointp = parser_addtolist (listnode, savedproc);
+
+	return assnode;
+}
+/*}}}*/
+
 

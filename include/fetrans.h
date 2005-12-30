@@ -32,6 +32,7 @@ extern int fetrans_init (void);
 extern int fetrans_shutdown (void);
 
 extern struct TAG_tnode *fetrans_maketemp (struct TAG_tnode *type, fetrans_t *fe);
+extern struct TAG_tnode *fetrans_makeseqassign (struct TAG_tnode *lhs, struct TAG_tnode *rhs, struct TAG_tnode *type, fetrans_t *fe);
 extern int fetrans_subtree (struct TAG_tnode **tptr, fetrans_t *fe);
 extern int fetrans_tree (struct TAG_tnode **tptr, struct TAG_langparser *lang);
 

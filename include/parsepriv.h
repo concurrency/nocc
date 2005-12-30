@@ -41,7 +41,8 @@ typedef struct TAG_langparser {
 	int (*prescope)(struct TAG_tnode **, struct TAG_prescope *);
 	int (*typecheck)(struct TAG_tnode *, struct TAG_typecheck *);
 
-	struct TAG_tnode *(*maketemp)(struct TAG_tnode **, struct TAG_tnode *);		/* insert-point, type */
+	struct TAG_tnode *(*maketemp)(struct TAG_tnode ***, struct TAG_tnode *);						/* insert-point-ptr, type */
+	struct TAG_tnode *(*makeseqassign)(struct TAG_tnode ***, struct TAG_tnode *, struct TAG_tnode *, struct TAG_tnode *);	/* insert-point-ptr, lhs, rhs, type */
 
 	void *tagstruct_hook;		/* where language can attach its tndef/ntdef/token structure */
 	struct TAG_langlexer *lexer;	/* lexer for this language */

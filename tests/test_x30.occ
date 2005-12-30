@@ -1,0 +1,13 @@
+-- test_x30.occ -- more FUNCTION returns
+
+INT FUNCTION foo ()
+  VALOF
+    SKIP
+    RESULT 42
+:
+
+PROC blah (CHAN INT out!)
+  SEQ
+    out ! foo ()
+:
+
