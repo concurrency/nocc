@@ -198,6 +198,7 @@ static int occampi_betrans_action (tnode_t **node, betrans_t *be)
 		tnode_t *rhs = tnode_nthsubof (t, 1);
 		tnode_t **lhsp = tnode_nthsubaddr (t, 0);
 		int nlhs, single = 0;
+		int modified = 0;
 
 		if (!parser_islistnode (*lhsp)) {
 			/* single result */
@@ -211,7 +212,7 @@ static int occampi_betrans_action (tnode_t **node, betrans_t *be)
 			tnode_t *fnamenode = tnode_nthsubof (rhs, 0);
 			name_t *fname = tnode_nthnameof (fnamenode, 0);
 			tnode_t *ftype = NameTypeOf (fname);
-			tnode_t **fparams;
+			tnode_t **fparams, *aparams;
 			int nfparams, i;
 
 			if (!ftype || (ftype->tag != opi.tag_FUNCTIONTYPE)) {
@@ -219,20 +220,66 @@ static int occampi_betrans_action (tnode_t **node, betrans_t *be)
 				return 0;
 			}
 
+			aparams = tnode_nthsubof (rhs, 1);
 			fparams = parser_getlistitems (tnode_nthsubof (ftype, 1), &nfparams);
-			/* look for those tagged with VALOF */
+
+			/* look for those fparams tagged with VALOF */
 			for (i=0; i<nfparams; i++) {
 				int x;
 				ntdef_t *tag = betrans_gettag (fparams[i], &x, be);
 
 				if (tag) {
 					/* this one was! */
-#if 1
-fprintf (stderr, "occampi_betrans_action(): FINSTANCE on ASSIGN, fparam %d used to be result %d\n", i, x);
+					if ((x < 0) || (x >= nlhs)) {
+						tnode_error (t, "occampi_betrans_action(): RHS function instance has missing result %d on LHS", x);
+						return 0;
+					}
+
+					/* move it over */
+#if 0
+fprintf (stderr, "occampi_betrans_action(): FINSTANCE on ASSIGN, fparam %d used to be result %d.  corresponding result is:\n", i, x);
+if (x < nlhs) {
+	tnode_dumptree (lhsp[x], 1, stderr);
+} else {
+	fprintf (stderr, "    (out of range!)\n");
+}
 #endif
+					if (single) {
+						parser_addtolist (aparams, *lhsp);
+						*lhsp = NULL;
+						nlhs--;
+					} else {
+						tnode_t *lhs = parser_delfromlist (*lhsp, x);
+
+						nlhs--;
+						parser_addtolist (aparams, lhs);
+					}
+					modified = 1;
 				}
 			}
+
+			/* did we get all of them ? */
+			if (!nlhs) {
+				/* nothing left on LHS, remove assignment */
+				if (*lhsp) {
+					tnode_free (*lhsp);
+				}
+
+				*node = tnode_nthsubof (t, 1);
+				tnode_setnthsub (t, 1, NULL);
+
+				tnode_setnthsub (t, 2, NULL); 		/* leave the type alone */
+
+				tnode_free (t);
+				modified = 1;
+			}
 			/*}}}*/
+		}
+
+		if (modified) {
+			/* if modified, transform tree again */
+			betrans_subtree (node, be);
+			return 0;
 		}
 	}
 	return 1;
@@ -288,7 +335,13 @@ static int occampi_codegen_action (tnode_t *node, codegen_t *cgen)
 	codegen_callops (cgen, debugline, node);
 	if (node->tag == opi.tag_ASSIGN) {
 #if 0
-fprintf (stderr, "occampi_codegen_action(): bytes = %d, cgen->target->intsize = %d\n", bytes, cgen->target->intsize);
+fprintf (stderr, "occampi_codegen_action(): ASSIGN: bytes = %d, cgen->target->intsize = %d\n", bytes, cgen->target->intsize);
+fprintf (stderr, "occampi_codegen_action(): ASSIGN: lhs =\n");
+tnode_dumptree (lhs, 1, stderr);
+fprintf (stderr, "occampi_codegen_action(): ASSIGN: rhs =\n");
+tnode_dumptree (rhs, 1, stderr);
+fprintf (stderr, "occampi_codegen_action(): ASSIGN: type =\n");
+tnode_dumptree (type, 1, stderr);
 #endif
 		if (bytes <= cgen->target->intsize) {
 			/* simple load and store */

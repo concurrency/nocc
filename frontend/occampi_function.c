@@ -245,6 +245,28 @@ tnode_dumptree (ftype, 1, stderr);
 	return tnode_nthsubof (ftype, 0);
 }
 /*}}}*/
+/*{{{  static int occampi_fetrans_finstance (tnode_t **node, fetrans_t *fe)*/
+/*
+ *	does front-end transforms on a FUNCTION instance
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_fetrans_finstance (tnode_t **node, fetrans_t *fe)
+{
+	tnode_t **aparams = tnode_nthsubaddr (*node, 1);
+
+	if (!parser_islistnode (*aparams)) {
+		/* make a singleton or empty list */
+		tnode_t *tmp = parser_newlistnode ((*node)->org_file);
+
+		if (*aparams) {
+			parser_addtolist (tmp, *aparams);
+		}
+		*aparams = tmp;
+	}
+
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_betrans_finstance (tnode_t **node, betrans_t *be)*/
 /*
  *	does back-end transforms on a FUNCTION instance
@@ -268,12 +290,14 @@ static int occampi_betrans_finstance (tnode_t **node, betrans_t *be)
 		return 0;
 	}
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_betrans_finstance(): function type is:\n");
 tnode_dumptree (ftype, 1, stderr);
 #endif
 
 	betrans_subtree (tnode_nthsubaddr (*node, 1), be);
+
+	/* FIXME: nothing to do here now really ? */
 
 	return 0;
 }
@@ -894,6 +918,7 @@ static int occampi_function_init_nodes (void)
 	cops = tnode_newcompops ();
 	cops->typecheck = occampi_typecheck_finstance;
 	cops->gettype = occampi_gettype_finstance;
+	cops->fetrans = occampi_fetrans_finstance;
 	cops->betrans = occampi_betrans_finstance;
 	cops->namemap = occampi_namemap_finstance;
 	cops->codegen = occampi_codegen_finstance;
