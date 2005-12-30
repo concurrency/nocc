@@ -99,6 +99,10 @@ fprintf (stderr, "occampi_codegen_valof(): result %d, thissize = %d\n", i, thiss
 #endif
 
 				if (thissize > 0) {
+					/* round up whole slots */
+					if (thissize & (cgen->target->slotsize - 1)) {
+						thissize = (thissize & ~(cgen->target->slotsize - 1)) + cgen->target->slotsize;
+					}
 					resultbytes += thissize;
 				} else {
 					codegen_warning (cgen, "occampi_codegen_valof(): result %d has size %d\n", i, thissize);
@@ -111,6 +115,9 @@ fprintf (stderr, "occampi_codegen_valof(): result %d, thissize = %d\n", i, thiss
 				codegen_error (cgen, "occampi_codegen_valof(): cannot get typesize for [%s]", results->tag->name);
 				resultbytes = 0;
 			} else {
+				if (thissize & (cgen->target->slotsize - 1)) {
+					thissize = (thissize & ~(cgen->target->slotsize - 1)) + cgen->target->slotsize;
+				}
 				resultbytes = thissize;
 			}
 
@@ -418,6 +425,9 @@ static int occampi_codegen_finstance (tnode_t *node, codegen_t *cgen)
 
 					thissize = tnode_bytesfor (items[i], cgen->target);
 					if (thissize > 0) {
+						if (thissize & (cgen->target->slotsize - 1)) {
+							thissize = (thissize & ~(cgen->target->slotsize - 1)) + cgen->target->slotsize;
+						}
 						resultbytes += thissize;
 					} else {
 						codegen_warning (cgen, "occampi_codegen_finstance(): result %d has size %d\n", i, thissize);
@@ -428,6 +438,9 @@ static int occampi_codegen_finstance (tnode_t *node, codegen_t *cgen)
 
 				thissize = tnode_bytesfor (resulttype, cgen->target);
 				if (thissize > 0) {
+					if (thissize & (cgen->target->slotsize - 1)) {
+						thissize = (thissize & ~(cgen->target->slotsize - 1)) + cgen->target->slotsize;
+					}
 					resultbytes += thissize;
 				} else {
 					codegen_warning (cgen, "occampi_codegen_finstance(): result has size %d\n", thissize);
@@ -439,9 +452,9 @@ static int occampi_codegen_finstance (tnode_t *node, codegen_t *cgen)
 		}
 
 		/*}}}*/
-		/* FIXME! */
 #if 0
 	} else if (namenode->tag == opi.tag_BUILTINPROC) {
+		/* FIXME! */
 		/*{{{  finstance of a built-in FUNCTION*/
 		builtinprochook_t *bph = (builtinprochook_t *)tnode_nthhookof (namenode, 0);
 		builtinproc_t *builtin = bph->biptr;

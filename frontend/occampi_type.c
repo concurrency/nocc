@@ -361,6 +361,22 @@ static void occampi_reduce_primtype (dfastate_t *dfast, parsepriv_t *pp, void *r
 /*}}}*/
 
 
+/*{{{  static void occampi_protocol_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)*/
+/*
+ *	called by parser when it gets stuck in an occampi:protocol DFA node
+ */
+static void occampi_protocol_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
+{
+	char *msg;
+
+	msg = dfa_expectedmatchstr (dfanode, tok, "in protocol specification");
+	parser_error (tok->origin, msg);
+
+	return;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_type_init_nodes (void)*/
 /*
  *	initialises type nodes for occam-pi
@@ -462,11 +478,27 @@ static dfattbl_t **occampi_type_init_dfatrans (int *ntrans)
 
 	dynarray_init (transtbl);
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:primtype ::= ( +@INT | +@BYTE | +@BOOL | +@INT16 | +@INT32 | +@INT64 | +@REAL32 | +@REAL64 | +@CHAR ) {Roccampi:primtype}"));
-	dynarray_add (transtbl, dfa_bnftotbl ("occampi:protocol ::= ( occampi:primtype | +Name {<opi:namepush>} ) {<opi:nullreduce>}"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:protocol ::= [ 0 occampi:primtype 3 ] [ 0 +Name 1 ] [ 0 -@@[ 2 ] [ 1 {<opi:namepush>} -* 3 ] " \
+				"[ 2 occampi:arraytypetype 3 ] " \
+				"[ 3 {<opi:nullreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:type ::= ( occampi:primtype ) {<opi:nullreduce>}"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);
+}
+/*}}}*/
+/*{{{  */
+/*
+ *	does post-setup for type nodes
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_type_post_setup (void)
+{
+	static dfaerrorhandler_t protocol_eh = { occampi_protocol_dfaeh_stuck };
+
+	dfa_seterrorhandler ("occampi:protocol", &protocol_eh);
+
+	return 0;
 }
 /*}}}*/
 
@@ -476,7 +508,7 @@ feunit_t occampi_type_feunit = {
 	init_nodes: occampi_type_init_nodes,
 	reg_reducers: occampi_type_reg_reducers,
 	init_dfatrans: occampi_type_init_dfatrans,
-	post_setup: NULL
+	post_setup: occampi_type_post_setup
 };
 /*}}}*/
 

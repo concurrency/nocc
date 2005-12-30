@@ -685,6 +685,30 @@ fprintf (stderr, "krocetc_cgstate_tsdelta(): cgs->tsdepth = %d, delta = %d\n", c
 	return cgs->tsdepth;
 }
 /*}}}*/
+/*{{{  static int krocetc_cgstate_tszero (codegen_t *cgen)*/
+/*
+ *	zeros the integer stack (needed for trashing the stack after a function return)
+ *	return the old stack depth
+ */
+static int krocetc_cgstate_tszero (codegen_t *cgen)
+{
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)cgen->target->priv;
+	krocetc_cgstate_t *cgs = krocetc_cgstate_cur (cgen);
+	int r;
+
+	if (!cgs) {
+		codegen_error (cgen, "krocetc_cgstate_tszero(): no stack to adjust!");
+		return 0;
+	}
+	r = cgs->tsdepth;
+	cgs->tsdepth = 0;
+	if (r) {
+		codegen_write_fmt (cgen, "\t.tsdepth 0\n");
+	}
+
+	return r;
+}
+/*}}}*/
 
 
 /*{{{  static tnode_t *krocetc_name_create (tnode_t *fename, tnode_t *body, map_t *mdata, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)*/
@@ -2408,6 +2432,8 @@ static void krocetc_coder_setlabel (codegen_t *cgen, int lbl)
 static void krocetc_coder_procreturn (codegen_t *cgen, int adjust)
 {
 	codegen_write_fmt (cgen, "\tret\t%d\n", adjust);
+	codegen_write_fmt (cgen, ".tsdepth 0\n");		/* a bit special.. */
+	/* krocetc_cgstate_tszero (cgen); */
 	return;
 }
 /*}}}*/

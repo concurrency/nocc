@@ -1,12 +1,12 @@
 -- test_x30.occ -- more FUNCTION returns
 
-INT FUNCTION foo ()
+BYTE FUNCTION foo ()
   VALOF
     SKIP
-    RESULT 42
+    RESULT 'x'
 :
 
-PROC blah (CHAN INT out!)
+PROC blah (CHAN BYTE out!)
   SEQ
     out ! foo ()
 :
