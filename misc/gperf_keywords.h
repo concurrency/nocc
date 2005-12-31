@@ -36,7 +36,7 @@
  */
 struct TAG_keyword;
 
-#define TOTAL_KEYWORDS 73
+#define TOTAL_KEYWORDS 74
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 11
 #define MIN_HASH_VALUE 7
@@ -137,7 +137,7 @@ static const struct TAG_keyword wordlist[] =
     {"CASE",		27,	NULL},
     {"TIMER",		31,	NULL},
     {"PUBLIC",		71,	NULL},
-    {(char*)0,-1,NULL},
+    {"BYTESIN",	73,	NULL},
     {"NOT",		55,	NULL},
     {"DATA",		17,	NULL},
     {"INT64",		10,	NULL},

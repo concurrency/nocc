@@ -1,0 +1,9 @@
+-- test_x31.occ -- SIZE operator and arrays
+
+PROC test.x31 ()
+  VAL []BYTE str IS "foobarco":
+  INT i:
+  SEQ
+    i := SIZE str
+:
+
