@@ -377,7 +377,7 @@ static int occampi_typecheck_abbrev (tnode_t *node, typecheck_t *tc)
 		xtypep = NameTypeAddr (name);
 	}
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_typecheck_abbrev(): *xtypep=0x%8.8x, *typep=0x%8.8x, *rhsp=\n", (unsigned int)(*xtypep), (unsigned int)(*typep));
 tnode_dumptree (*rhsp, 1, stderr);
 #endif
@@ -430,11 +430,24 @@ tnode_dumptree (*rhsp, 1, stderr);
 			typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
 			return 0;
 		} else {
-#if 1
+			tnode_t *realtype;
+#if 0
 fprintf (stderr, "occampi_typecheck_abbrev(): both sides have types, *typep=0x%8.8x, rtype=0x%8.8x =\n", (unsigned int)(*typep), (unsigned int)(rtype));
 tnode_dumptree (rtype, 1, stderr);
+fprintf (stderr, "occampi_typecheck_abbrev(): *typep=0x%8.8x =\n", (unsigned int)(*typep));
+tnode_dumptree (*typep, 1, stderr);
 #endif
-			typecheck_typeactual (*typep, rtype, node, tc);
+			realtype = typecheck_typeactual (*typep, rtype, node, tc);
+#if 0
+fprintf (stderr, "occampi_typecheck_abbrev(): realtype (0x%8.8x) =\n", (unsigned int)realtype);
+tnode_dumptree (realtype, 1, stderr);
+#endif
+			if (realtype) {
+				*typep = realtype;		/* put this back */
+			}
+			if (xtypep) {
+				*xtypep = realtype;		/* and in the name */
+			}
 		}
 	}
 	/* typecheck body */

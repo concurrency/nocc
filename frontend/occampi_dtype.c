@@ -607,12 +607,28 @@ static tnode_t *occampi_gettype_arraymop (tnode_t *node, tnode_t *defaulttype)
 static int occampi_constprop_arraymop (tnode_t **nodep)
 {
 	tnode_t *op = tnode_nthsubof (*nodep, 0);
+	tnode_t *rtype = tnode_nthsubof (*nodep, 1);
 	tnode_t *type = typecheck_gettype (op, NULL);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_constprop_arraymop(): type is\n");
 tnode_dumptree (type, 1, stderr);
+fprintf (stderr, "occampi_constprop_arraymop(): rtype is\n");
+tnode_dumptree (rtype, 1, stderr);
 #endif
+	if (type->tag != opi.tag_ARRAY) {
+		constprop_error (*nodep, "operand is not an array! [%s]", type->tag->name);
+		return 0;
+	}
+	if (constprop_isconst (tnode_nthsubof (type, 0))) {
+		/* constant dimension! */
+		int dim = constprop_intvalof (tnode_nthsubof (type, 0));
+
+#if 0
+fprintf (stderr, "occampi_constprop_arraymop(): constant dimension! = %d\n", dim);
+#endif
+		*nodep = constprop_newconst (CONST_INT, *nodep, NULL, dim);
+	}
 	return 1;
 }
 /*}}}*/
