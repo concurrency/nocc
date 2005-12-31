@@ -46,6 +46,7 @@
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
+#include "constprop.h"
 #include "precheck.h"
 #include "usagecheck.h"
 #include "map.h"
@@ -598,6 +599,23 @@ static tnode_t *occampi_gettype_arraymop (tnode_t *node, tnode_t *defaulttype)
 	return mytype;
 }
 /*}}}*/
+/*{{{  static int occampi_constprop_arraymop (tnode_t **nodep)*/
+/*
+ *	does constant propagation on an arraymopnode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_constprop_arraymop (tnode_t **nodep)
+{
+	tnode_t *op = tnode_nthsubof (*nodep, 0);
+	tnode_t *type = typecheck_gettype (op, NULL);
+
+#if 1
+fprintf (stderr, "occampi_constprop_arraymop(): type is\n");
+tnode_dumptree (type, 1, stderr);
+#endif
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_premap_arraymop (tnode_t **node, map_t *map)*/
 /*
  *	does pre-mapping for an arraymopnode
@@ -638,10 +656,14 @@ static int occampi_namemap_arraymop (tnode_t **node, map_t *map)
 static int occampi_codegen_arraymop (tnode_t *node, codegen_t *cgen)
 {
 	int i;
+	tnode_t *op = tnode_nthsubof (node, 0);
 
 	codegen_callops (cgen, comment, "FIXME: arraymop code");
 
-	codegen_error (cgen, "occampi_codgen_arraymop(): don\'t know how to generate code for [%s] [%s]", node->tag->ndef->name, node->tag->name);
+#if 1
+fprintf (stderr, "occampi_codegen_arraymop(): op =\n");
+tnode_dumptree (op, 1, stderr);
+#endif
 
 	return 0;
 }
@@ -987,6 +1009,7 @@ static int occampi_dtype_init_nodes (void)
 	cops = tnode_newcompops ();
 	cops->typecheck = occampi_typecheck_arraymop;
 	cops->gettype = occampi_gettype_arraymop;
+	cops->constprop = occampi_constprop_arraymop;
 	cops->premap = occampi_premap_arraymop;
 	cops->namemap = occampi_namemap_arraymop;
 	cops->codegen = occampi_codegen_arraymop;

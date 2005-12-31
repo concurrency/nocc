@@ -142,7 +142,7 @@ static tnode_t *occampi_gettype_lit (tnode_t *node, tnode_t *default_type)
 				return NULL;
 			}
 #if 0
-fprintf (stderr, "occampi_gettype_lit(): LITARRAY: mysize is %d, typesize of [%s] is %d\n", tmplit->bytes, subtype->tag->name, typesize);
+fprintf (stderr, "occampi_gettype_lit(): LITARRAY: mysize is %d, typesize of [%s] is %d, tmplit->bytes=%d\n", tmplit->bytes, subtype->tag->name, typesize, tmplit->bytes);
 #endif
 			dimcount = tmplit->bytes / typesize;
 

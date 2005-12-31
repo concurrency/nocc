@@ -377,7 +377,7 @@ static int occampi_typecheck_abbrev (tnode_t *node, typecheck_t *tc)
 		xtypep = NameTypeAddr (name);
 	}
 
-#if 0
+#if 1
 fprintf (stderr, "occampi_typecheck_abbrev(): *xtypep=0x%8.8x, *typep=0x%8.8x, *rhsp=\n", (unsigned int)(*xtypep), (unsigned int)(*typep));
 tnode_dumptree (*rhsp, 1, stderr);
 #endif
@@ -430,6 +430,10 @@ tnode_dumptree (*rhsp, 1, stderr);
 			typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
 			return 0;
 		} else {
+#if 1
+fprintf (stderr, "occampi_typecheck_abbrev(): both sides have types, *typep=0x%8.8x, rtype=0x%8.8x =\n", (unsigned int)(*typep), (unsigned int)(rtype));
+tnode_dumptree (rtype, 1, stderr);
+#endif
 			typecheck_typeactual (*typep, rtype, node, tc);
 		}
 	}
@@ -468,7 +472,7 @@ tnode_dumptree (type, 1, stderr);
 	}
 	initarg = *nodep;	/* handle on the original abbreviation */
 
-	bename = map->target->newname (*namep, *bodyp, map, map->target->pointersize, 0, 0, 0, map->target->pointersize, 1);
+	bename = map->target->newname (*namep, *bodyp, map, map->target->pointersize, 0, 0, 0, vsize, 1);
 
 	/*{{{  set initialiser up*/
 	codegen_setinithook (bename, initfunc, initarg);
