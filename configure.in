@@ -11,7 +11,7 @@ AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 AM_CONFIG_HEADER(config.h)
 
-AM_INIT_AUTOMAKE([nocc], [0.1.3])
+AM_INIT_AUTOMAKE([nocc], [0.1.4])
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -79,6 +79,6 @@ if test $enable_opt_debug = yes; then
  AC_DEFINE([DEBUG],1,[define to enable compiler debugging])
 fi
 
-AC_OUTPUT([Makefile include/Makefile misc/Makefile lexer/Makefile parser/Makefile extn/Makefile xml/Makefile frontend/Makefile backend/Makefile target/Makefile lang/Makefile])
+AC_OUTPUT([Makefile include/Makefile misc/Makefile lexer/Makefile parser/Makefile extn/Makefile xml/Makefile frontend/Makefile backend/Makefile target/Makefile lang/Makefile tests/Makefile addons/Makefile])
 
 
