@@ -108,6 +108,26 @@ static void occampi_typeattr_dumpchook (tnode_t *node, void *hook, int indent, F
 	return;
 }
 /*}}}*/
+/*{{{  static void *occampi_typeattr_copychook (void *hook)*/
+/*
+ *	copies a type-attribute hook
+ */
+static void *occampi_typeattr_copychook (void *hook)
+{
+	return hook;
+}
+/*}}}*/
+/*{{{  static void occampi_typeattr_freechook (void *hook)*/
+/*
+ *	frees a type-attribute hook
+ */
+static void occampi_typeattr_freechook (void *hook)
+{
+	return;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_type_prescope (tnode_t **nodep, prescope_t *ps)*/
 /*
  *	pre-scopes a type-node;  fixes ASINPUT/ASOUTPUT nodes
@@ -449,6 +469,8 @@ static int occampi_type_init_nodes (void)
 	/*{{{  attributes compiler hook*/
 	opi.chook_typeattr = tnode_newchook ("occampi:typeattr");
 	opi.chook_typeattr->chook_dumptree = occampi_typeattr_dumpchook;
+	opi.chook_typeattr->chook_copy = occampi_typeattr_copychook;
+	opi.chook_typeattr->chook_free = occampi_typeattr_freechook;
 
 	/*}}}*/
 

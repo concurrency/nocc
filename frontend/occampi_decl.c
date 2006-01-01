@@ -1477,8 +1477,11 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:fparamlist ::= ( -@@) {<opi:nullset>} | { occampi:fparam @@, 1 } )"));
 
 
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 +Name 1 ] [ 1 {<opi:namepush>} ] [ 1 @@: 2 ] [ 2 {<opi:declreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 +Name 1 ] [ 1 {<opi:namepush>} ] [ 1 @@: 2 ]  [ 2 {<opi:declreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @IS 1 ] [ 1 occampi:operand 7 ] [ 7 @@: 8 ] [ 8 {<opi:notypeabbrreduce>} -* ]"));
+
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:exprnamestart +:= [ 0 +Name 1 ] [ 1 @@! 2 ] [ 1 @@? 4 ] [ 2 {<opi:namepush>} -* 3 ] [ 3 {<opi:directedchanoutput>} -* 6 ] " \
+				"[ 4 {<opi:namepush>} -* 5 ] [ 5 {<opi:directedchaninput>} -* 6 ] [ 6 {<opi:nullreduce>} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

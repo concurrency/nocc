@@ -1,0 +1,12 @@
+-- test_x35.occ -- direction-specifiers
+
+PROC blah (CHAN BYTE out!)
+  SKIP
+:
+
+PROC test.x35 (CHAN BYTE screen!)
+  SEQ
+    blah (screen!)
+:
+
+

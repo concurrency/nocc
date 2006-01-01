@@ -114,7 +114,7 @@ name_t *name_lookupss (char *str, scope_t *ss)
 #if 0
 fprintf (stderr, "name_lookupss(): str=[%s], nl=0x%8.8x, nl->curscope = %d, DA_CUR (nl->scopes) = %d, DA_CUR (ss->usens) = %d\n", str, (unsigned int)nl, (unsigned int)nl->curscope, DA_CUR (nl->scopes), DA_CUR (ss->usens));
 #endif
-#if 1
+#if 0
 fprintf (stderr, "name_lookupss(): blah! str=[%s] ss = 0x%8.8x, DA_CUR (usens) = %d\n", str, (unsigned int)ss, DA_CUR (ss->usens));
 #endif
 	/* see if it's namespace-flavoured */
@@ -441,7 +441,7 @@ int name_hidenamespace (namespace_t *ns)
 	if (xns != ns) {
 		return -1;
 	}
-#if 1
+#if 0
 fprintf (stderr, "name_hidenamespace(): hiding namespace [%s]\n", ns->nspace);
 #endif
 	stringhash_remove (namespaces, ns, ns->nspace);
@@ -458,7 +458,7 @@ char *name_newwholename (name_t *name)
 	namespace_t *ns;
 	
 	for (ns = name->ns; ns && (ns->nextns); ns = ns->nextns);
-	if (ns) {
+	if (ns && strlen (ns->nspace)) {
 		str = (char *)smalloc (strlen (name->me->name) + strlen (ns->nspace) + 2);
 		sprintf (str, "%s.%s", ns->nspace, name->me->name);
 	} else {
