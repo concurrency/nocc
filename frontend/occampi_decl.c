@@ -1080,7 +1080,7 @@ static int occampi_scopein_rawname (tnode_t **node, scope_t *ss)
 #if 0
 fprintf (stderr, "occampi_scopein_rawname: here! rawname = \"%s\"\n", rawname);
 #endif
-	sname = name_lookup (rawname);
+	sname = name_lookupss (rawname, ss);
 	if (sname) {
 		/* resolved */
 		*node = NameNodeOf (sname);

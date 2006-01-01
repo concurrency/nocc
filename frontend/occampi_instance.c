@@ -228,7 +228,7 @@ tnode_dumptree (aparamlist, 1, stderr);
 			continue;
 		}
 		ftype = typecheck_gettype (fp_items[fp_ptr], NULL);
-		atype = typecheck_gettype (ap_items[ap_ptr], NULL);
+		atype = typecheck_gettype (ap_items[ap_ptr], ftype);
 #if 0
 fprintf (stderr, "occampi_typecheck_instance: ftype=\n");
 tnode_dumptree (ftype, 1, stderr);
@@ -352,7 +352,7 @@ static int occampi_codegen_instance (tnode_t *node, codegen_t *cgen)
 			codegen_callops (cgen, storelocal, -4);
 		}
 
-		codegen_callops (cgen, callnamedlabel, NameNameOf (name), adjust);
+		codegen_callops (cgen, callnamelabel, name, adjust);
 		/*}}}*/
 	} else if (namenode->tag == opi.tag_BUILTINPROC) {
 		/*{{{  instance of a built-in PROC*/

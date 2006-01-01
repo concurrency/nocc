@@ -37,8 +37,8 @@
 #include "lexer.h"
 #include "lexpriv.h"
 #include "tnode.h"
-#include "scope.h"
 #include "names.h"
+#include "scope.h"
 
 /*}}}*/
 /*{{{  private stuff*/
@@ -97,6 +97,113 @@ fprintf (stderr, "name_lookup(): str=[%s], nl=0x%8.8x, nl->curscope = %d, DA_CUR
 	} else {
 		name = DA_NTHITEM (nl->scopes, nl->curscope);
 	}
+	return name;
+}
+/*}}}*/
+/*{{{  name_t *name_lookupss (char *str, scope_t *ss)*/
+/*
+ *	looks up a name -- returns it at the current scoping level (or last if unset)
+ *	this one is name-space aware
+ */
+name_t *name_lookupss (char *str, scope_t *ss)
+{
+	namelist_t *nl;
+	name_t *name = NULL;
+	namespace_t *ns;
+
+#if 0
+fprintf (stderr, "name_lookupss(): str=[%s], nl=0x%8.8x, nl->curscope = %d, DA_CUR (nl->scopes) = %d, DA_CUR (ss->usens) = %d\n", str, (unsigned int)nl, (unsigned int)nl->curscope, DA_CUR (nl->scopes), DA_CUR (ss->usens));
+#endif
+#if 1
+fprintf (stderr, "name_lookupss(): blah! str=[%s] ss = 0x%8.8x, DA_CUR (usens) = %d\n", str, (unsigned int)ss, DA_CUR (ss->usens));
+#endif
+	/* see if it's namespace-flavoured */
+	if ((ns = name_findnamespacepfx (str)) != NULL) {
+		/* yes, lookup part missing the namespace -- after checking it's visible */
+		int i;
+
+		for (i=0; (i<DA_CUR (ss->usens)) && (ns != DA_NTHITEM (ss->usens, i)); i++);
+		if (i == DA_CUR (ss->usens)) {
+			nocc_warning ("namespace [%s] is not visible", ns->nspace);		/* shortly followed by a scope error probably */
+			/* namespace selected not in use */
+		} else {
+			nl = stringhash_lookup (names, str + strlen (ns->nspace) + 1);
+
+			if (!nl) {
+				/* no such name */
+			} else {
+				int top = (nl->curscope < 0) ? DA_CUR (nl->scopes) - 1: nl->curscope;
+
+				/* find an in-scope one that matches the namespace given */
+				for (i=top; i >= 0; i--) {
+					name_t *tname = DA_NTHITEM (nl->scopes, i);
+
+					if (tname && (tname->ns == ns)) {
+						/* this one */
+						name = tname;
+						break;			/* for() */
+					}
+				}
+			}
+		}
+	} else {
+		/* plain, find the first one in scope that has no namespace (i.e. local), failing that, the latest in-use namespace */
+		nl = stringhash_lookup (names, str);
+		if (!nl) {
+			/* no such name */
+		} else {
+			int top = (nl->curscope < 0) ? DA_CUR (nl->scopes) - 1: nl->curscope;
+			int i;
+
+#if 0
+fprintf (stderr, "name_lookupss(): found stack for [%s], looking for namespace-less one..\n", str);
+#endif
+			/* look for a namespace-less one (local) */
+			for (i=top; i >= 0; i--) {
+				name_t *tname = DA_NTHITEM (nl->scopes, i);
+
+				if (tname && !tname->ns) {
+					/* this one */
+					name = tname;
+					break;			/* for() */
+				}
+			}
+
+			if (!name) {
+#if 0
+fprintf (stderr, "name_lookupss(): found stack for [%s], looking for one in a visible namespace..\n", str);
+#endif
+				/* look for one in a visible namespace */
+				for (i=top; i >= 0; i--) {
+					name_t *tname = DA_NTHITEM (nl->scopes, i);
+					int j;
+
+					if (!tname || !tname->ns) {
+						continue;		/* for() */
+					}
+					for (j=(DA_CUR (ss->usens) - 1); (j>=0) && (tname->ns != DA_NTHITEM (ss->usens, j)); j--);
+					if (j >= 0) {
+						/* this one */
+						name = tname;
+						break;			/* for() */
+					}
+				}
+			}
+		}
+	}
+
+#if 0
+	if (!nl) {
+		name = NULL;
+	} else if ((nl->curscope < 0) && !DA_CUR (nl->scopes)) {
+		name = NULL;
+	} else if (nl->curscope < 0) {
+		name = DA_NTHITEM (nl->scopes, DA_CUR (nl->scopes) - 1);
+	} else {
+		name = DA_NTHITEM (nl->scopes, nl->curscope);
+	}
+#endif
+
 	return name;
 }
 /*}}}*/
@@ -320,6 +427,25 @@ namespace_t *name_newnamespace (char *nsname)
 	stringhash_insert (namespaces, ns, ns->nspace);
 
 	return ns;
+}
+/*}}}*/
+/*{{{  int name_hidenamespace (namespace_t *ns)*/
+/*
+ *	hides a namespace -- removing it from the stringhash
+ *	returns 0 on success, non-zero on failure
+ */
+int name_hidenamespace (namespace_t *ns)
+{
+	namespace_t *xns = stringhash_lookup (namespaces, ns->nspace);
+
+	if (xns != ns) {
+		return -1;
+	}
+#if 1
+fprintf (stderr, "name_hidenamespace(): hiding namespace [%s]\n", ns->nspace);
+#endif
+	stringhash_remove (namespaces, ns, ns->nspace);
+	return 0;
 }
 /*}}}*/
 /*{{{  char *name_newwholename (name_t *name)*/

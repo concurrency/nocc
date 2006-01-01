@@ -1848,26 +1848,44 @@ static int lib_scopein_libusenode (tnode_t **nodep, scope_t *ss)
 	tempnode = tnode_nthsubof (*nodep, 0);
 
 	/* scope them */
-	if (lunh->namespace && strlen (lunh->namespace)) {
-		ns = name_findnamespace (lunh->namespace);
+	if (lunh->namespace && lunh->asnamespace && strlen (lunh->asnamespace)) {
+		/*{{{  use namespace AS something else*/
+		ns = name_findnamespace (lunh->asnamespace);
+		if (ns) {
+			scope_error (*nodep, ss, "namespace [%s] already in use", lunh->asnamespace);
+			return 0;
+		}
 
+		ns = name_newnamespace (lunh->asnamespace);
+
+		if (strcmp (lunh->namespace, lunh->asnamespace)) {
+			/* real namespace is different from the one used */
+			namespace_t *realns = name_findnamespace (lunh->namespace);
+
+			if (realns) {
+				scope_warning (*nodep, ss, "namespace [%s] already present", lunh->namespace);
+			} else {
+				realns = name_newnamespace (lunh->namespace);
+			}
+			ns->nextns = realns;
+
+			name_hidenamespace (realns);
+		}
+
+		scope_pushdefns (ss, ns);
+		/* TEMPLIBUSENODE pops this and re-pushes onto the usage-stack */
+
+		tempnode = tnode_create (tag_templibusenode, NULL, tempnode, (void *)lunh);
+
+		/*}}}*/
+	} else if (lunh->namespace && strlen (lunh->namespace)) {
+		/*{{{  using namespace plainly*/
+
+		ns = name_findnamespace (lunh->namespace);
 		if (!ns) {
 			ns = name_newnamespace (lunh->namespace);
 		}
 
-		/* if using as a different name, define with that, linked to this */
-		if (lunh->asnamespace && strcmp (lunh->namespace, lunh->asnamespace)) {
-			namespace_t *oldns = ns;
-
-			ns = name_findnamespace (lunh->asnamespace);
-			if (ns && ns->nextns) {
-				scope_error (*nodep, ss, "namespace [%s] already in use", lunh->asnamespace);
-				return 0;
-			} else if (!ns) {
-				ns = name_newnamespace (lunh->asnamespace);
-			}
-			ns->nextns = oldns;
-		}
 #if 0
 fprintf (stderr, "lib_scopein_libusenode(): pushing defining namespace [%s]\n", ns->nspace);
 #endif
@@ -1875,6 +1893,7 @@ fprintf (stderr, "lib_scopein_libusenode(): pushing defining namespace [%s]\n", 
 		/* TEMPLIBUSENODE pops this and re-pushes onto the usage-stack */
 
 		tempnode = tnode_create (tag_templibusenode, NULL, tempnode, (void *)lunh);
+		/*}}}*/
 	}
 
 	*walkp = tempnode;
@@ -1997,32 +2016,36 @@ static int lib_scopein_templibusenode (tnode_t **nodep, scope_t *ss)
 {
 	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (*nodep, 0);
 
-	if (lunh && lunh->namespace && strlen (lunh->namespace)) {
-		namespace_t *ns = name_findnamespace (lunh->namespace);
+	if (lunh && lunh->namespace && lunh->asnamespace && strlen (lunh->asnamespace)) {
+		/*{{{  using library AS something else*/
+		namespace_t *ns = name_findnamespace (lunh->asnamespace);
 
 		if (!ns) {
-			nocc_error ("lib_scopein_templibusenode(): did not find namespace [%s]!", lunh->namespace);
+			nocc_error ("lib_scopein_templibusenode(): did not find namespace [%s]!", lunh->asnamespace);
 			return 1;
 		} else {
-			if (lunh->asnamespace && strcmp (lunh->namespace, lunh->asnamespace)) {
-				namespace_t *oldns = ns;
-
-				ns = name_findnamespace (lunh->asnamespace);
-				if (!ns) {
-					nocc_error ("lib_scopein_templibusenode(): did not find namespace [%s]!", lunh->asnamespace);
-					return 1;
-				}
-				if (ns->nextns != oldns) {
-					nocc_error ("lib_scopein_templibusenode(): next namespace is [%s], expected [%s]", ns->nextns ? ns->nextns->nspace : "(null)", oldns->nspace);
-					return 1;
-				}
-			}
 			scope_popdefns (ss, ns);
 			/* and into in-use namespaces! */
 			scope_pushusens (ss, ns);
 		}
 		/* clear hook -- prevents trying this again, though it shouldn't */
 		tnode_setnthhook (*nodep, 0, NULL);
+		/*}}}*/
+	} else if (lunh && lunh->namespace && strlen (lunh->namespace)) {
+		/*{{{  using library in its own namespace*/
+		namespace_t *ns = name_findnamespace (lunh->namespace);
+
+		if (!ns) {
+			nocc_error ("lib_scopein_templibusenode(): did not find namespace [%s]!", lunh->namespace);
+			return 1;
+		} else {
+			scope_popdefns (ss, ns);
+			/* and into in-use namespaces! */
+			scope_pushusens (ss, ns);
+		}
+		/* clear hook -- prevents trying this again, though it shouldn't */
+		tnode_setnthhook (*nodep, 0, NULL);
+		/*}}}*/
 	}
 	return 1;
 }

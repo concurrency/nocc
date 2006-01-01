@@ -48,6 +48,7 @@ typedef struct TAG_namelist {
 extern void name_init (void);
 extern void name_shutdown (void);
 extern name_t *name_lookup (char *str);
+extern name_t *name_lookupss (char *str, struct TAG_scope *ss);
 extern name_t *name_addscopename (char *str, struct TAG_tnode *decl, struct TAG_tnode *type, struct TAG_tnode *namenode);
 extern name_t *name_addscopenamess (char *str, struct TAG_tnode *decl, struct TAG_tnode *type, struct TAG_tnode *namenode, struct TAG_scope *ss);
 extern void name_scopename (name_t *name);
@@ -58,6 +59,7 @@ extern name_t *name_addtempname (struct TAG_tnode *decl, struct TAG_tnode *type,
 extern namespace_t *name_findnamespace (char *nsname);
 extern namespace_t *name_findnamespacepfx (char *nsname);
 extern namespace_t *name_newnamespace (char *nsname);
+extern int name_hidenamespace (namespace_t *ns);
 extern char *name_newwholename (name_t *name);
 
 extern void *name_markscope (void);

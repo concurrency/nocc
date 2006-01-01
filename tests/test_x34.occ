@@ -4,6 +4,6 @@
 
 PROC test.x34 (CHAN BYTE scr!)
   SEQ
-    stuffs.delay (42)
+    delay (42)
 :
 
