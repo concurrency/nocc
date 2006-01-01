@@ -70,6 +70,7 @@ typedef struct {
 	struct TAG_ntdef *tag_DYNMOBCTSHSVR;
 	struct TAG_ntdef *tag_DYNMOBPROC;
 	struct TAG_ntdef *tag_FUNCTIONTYPE;
+	struct TAG_ntdef *tag_TYPESPEC;
 
 	struct TAG_ntdef *tag_VARDECL;
 	struct TAG_ntdef *tag_ABBREV;

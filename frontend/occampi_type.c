@@ -265,6 +265,27 @@ static int occampi_type_initialising_decl (tnode_t *t, tnode_t *benode, map_t *m
 /*}}}*/
 
 
+/*{{{  static tnode_t *occampi_typespec_gettype (tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a type-spec node (largely transparent)
+ */
+static tnode_t *occampi_typespec_gettype (tnode_t *node, tnode_t *default_type)
+{
+	return typecheck_gettype (tnode_nthsubof (node, 0), default_type);
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_typespec_typeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type compatability on a type-spec node,
+ *	returns the actual type used by the operation
+ */
+static tnode_t *occampi_typespec_typeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
+{
+	return typecheck_typeactual (tnode_nthsubof (formaltype, 0), actualtype, node, tc);
+}
+/*}}}*/
+
+
 /*{{{  static tnode_t *occampi_leaftype_gettype (tnode_t *t, tnode_t *defaulttype)*/
 /*
  *	gets the type for a leaftype -- do nothing really
@@ -430,6 +451,18 @@ static int occampi_type_init_nodes (void)
 	opi.tag_ASINPUT = tnode_newnodetag ("ASINPUT", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_ASOUTPUT = tnode_newnodetag ("ASOUTPUT", &i, tnd, NTF_NONE);
+	/*}}}*/
+	/*{{{  occampi:typespecnode -- TYPESPEC*/
+	/* these appear during scoping */
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:typespecnode", &i, 1, 0, 0, TNF_TRANSPARENT);
+	cops = tnode_newcompops ();
+	cops->gettype = occampi_typespec_gettype;
+	cops->typeactual = occampi_typespec_typeactual;
+	tnd->ops = cops;
+
+	i = -1;
+	opi.tag_TYPESPEC = tnode_newnodetag ("TYPESPEC", &i, tnd, NTF_NONE);
 	/*}}}*/
 	/*{{{  occampi:leaftype -- INT, BYTE, INT16, INT32, INT64, REAL32, REAL64, CHAR*/
 	i = -1;

@@ -1070,6 +1070,7 @@ static int occampi_scopein_rawname (tnode_t **node, scope_t *ss)
 	tnode_t *name = *node;
 	char *rawname;
 	name_t *sname = NULL;
+	occampi_typeattr_t nameattrs = (occampi_typeattr_t)tnode_getchook (name, opi.chook_typeattr);
 
 	if (name->tag != opi.tag_NAME) {
 		scope_error (name, ss, "name not raw-name!");
@@ -1083,8 +1084,14 @@ fprintf (stderr, "occampi_scopein_rawname: here! rawname = \"%s\"\n", rawname);
 	sname = name_lookupss (rawname, ss);
 	if (sname) {
 		/* resolved */
-		*node = NameNodeOf (sname);
 
+		if (nameattrs) {
+			tnode_setchook (name, opi.chook_typeattr, NULL);
+			*node = tnode_createfrom (opi.tag_TYPESPEC, *node, NameNodeOf (sname));
+			tnode_setchook (*node, opi.chook_typeattr, (void *)nameattrs);
+		} else {
+			*node = NameNodeOf (sname);
+		}
 		tnode_free (name);
 	} else {
 		scope_error (name, ss, "unresolved name \"%s\"", rawname);
