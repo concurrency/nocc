@@ -17,6 +17,8 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+/*{{{  includes, etc.*/
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -38,7 +40,7 @@
 #include "scope.h"
 #include "names.h"
 
-
+/*}}}*/
 /*{{{  private stuff*/
 STATICSTRINGHASH (namelist_t *, names, 7);
 STATICDYNARRAY (name_t *, namestack);

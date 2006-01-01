@@ -24,8 +24,8 @@ Running:
 
 	nocc foobar.occ
 
-	which, currently, should generate a "foobar.etc" file.  You can't
-	do much with this file yet..
+	which, currently, should generate a "foobar.etc" file.  You can
+	build KRoC to use nocc, see the webpage for details.
 
 
 Configuration:
@@ -36,8 +36,16 @@ Configuration:
 	file.
 
 
+Licensing:
+
+	Open-source.  See the COPYING file for details.
+
+
+Further information:
+
+	http://www.cs.kent.ac.uk/projects/ofa/nocc/
 
 
 --
-Fred Barnes, May 2005.
+Fred Barnes, January 2006.
 

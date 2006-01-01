@@ -139,6 +139,8 @@ static tndef_t *tnd_libtag = NULL;
 static ntdef_t *tag_publictag = NULL;
 static tndef_t *tnd_libusenode = NULL;
 static ntdef_t *tag_libusenode = NULL;
+static tndef_t *tnd_templibusenode = NULL;
+static ntdef_t *tag_templibusenode = NULL;
 
 static char *libpath = NULL;
 static char *scpath = NULL;
@@ -1821,6 +1823,8 @@ static int lib_scopein_libusenode (tnode_t **nodep, scope_t *ss)
 	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (*nodep, 0);
 	tnode_t *decltree = lunh->decltree;
 	tnode_t **walkp;
+	tnode_t *tempnode = NULL;
+	namespace_t *ns = NULL;
 
 	/*{{{  walk declaration tree to find innermost*/
 	for (walkp = &lunh->decltree; *walkp; ) {
@@ -1841,14 +1845,56 @@ static int lib_scopein_libusenode (tnode_t **nodep, scope_t *ss)
 	/*}}}*/
 
 	/* temporarily attach body of USE to innermost of declarations for scoping */
-	*walkp = tnode_nthsubof (*nodep, 0);
-	tnode_setnthsub (*nodep, 0, NULL);
+	tempnode = tnode_nthsubof (*nodep, 0);
 
 	/* scope them */
+	if (lunh->namespace && strlen (lunh->namespace)) {
+		ns = name_findnamespace (lunh->namespace);
+
+		if (!ns) {
+			ns = name_newnamespace (lunh->namespace);
+		}
+
+		/* if using as a different name, define with that, linked to this */
+		if (lunh->asnamespace && strcmp (lunh->namespace, lunh->asnamespace)) {
+			namespace_t *oldns = ns;
+
+			ns = name_findnamespace (lunh->asnamespace);
+			if (ns && ns->nextns) {
+				scope_error (*nodep, ss, "namespace [%s] already in use", lunh->asnamespace);
+				return 0;
+			} else if (!ns) {
+				ns = name_newnamespace (lunh->asnamespace);
+			}
+			ns->nextns = oldns;
+		}
+#if 0
+fprintf (stderr, "lib_scopein_libusenode(): pushing defining namespace [%s]\n", ns->nspace);
+#endif
+		scope_pushdefns (ss, ns);
+		/* TEMPLIBUSENODE pops this and re-pushes onto the usage-stack */
+
+		tempnode = tnode_create (tag_templibusenode, NULL, tempnode, (void *)lunh);
+	}
+
+	*walkp = tempnode;
+	tnode_setnthsub (*nodep, 0, NULL);
+
 	tnode_modprepostwalktree (&lunh->decltree, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
 
+	if (ns) {
+		scope_popusens (ss, ns);
+		ns = NULL;
+	}
+
 	/* put body back */
-	tnode_setnthsub (*nodep, 0, *walkp);
+	if (lunh->namespace && strlen (lunh->namespace)) {
+		tnode_setnthsub (*nodep, 0, tnode_nthsubof (tempnode, 0));
+		tnode_setnthsub (tempnode, 0, NULL);
+		tnode_free (tempnode);
+	} else {
+		tnode_setnthsub (*nodep, 0, tempnode);
+	}
 	*walkp = NULL;
 
 	decltree = lunh->decltree;
@@ -1942,6 +1988,46 @@ static int lib_codegen_libusenode (tnode_t *node, codegen_t *cgen)
 }
 /*}}}*/
 
+/*{{{  static int lib_scopein_templibusenode (tnode_t **nodep, scope_t *ss)*/
+/*
+ *	scopes-in a TEMPLIBUSENODE -- this checks to see if the LIBUSENODE
+ *	was defining a namespace;  if so, removes it from the scoper
+ */
+static int lib_scopein_templibusenode (tnode_t **nodep, scope_t *ss)
+{
+	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (*nodep, 0);
+
+	if (lunh && lunh->namespace && strlen (lunh->namespace)) {
+		namespace_t *ns = name_findnamespace (lunh->namespace);
+
+		if (!ns) {
+			nocc_error ("lib_scopein_templibusenode(): did not find namespace [%s]!", lunh->namespace);
+			return 1;
+		} else {
+			if (lunh->asnamespace && strcmp (lunh->namespace, lunh->asnamespace)) {
+				namespace_t *oldns = ns;
+
+				ns = name_findnamespace (lunh->asnamespace);
+				if (!ns) {
+					nocc_error ("lib_scopein_templibusenode(): did not find namespace [%s]!", lunh->asnamespace);
+					return 1;
+				}
+				if (ns->nextns != oldns) {
+					nocc_error ("lib_scopein_templibusenode(): next namespace is [%s], expected [%s]", ns->nextns ? ns->nextns->nspace : "(null)", oldns->nspace);
+					return 1;
+				}
+			}
+			scope_popdefns (ss, ns);
+			/* and into in-use namespaces! */
+			scope_pushusens (ss, ns);
+		}
+		/* clear hook -- prevents trying this again, though it shouldn't */
+		tnode_setnthhook (*nodep, 0, NULL);
+	}
+	return 1;
+}
+/*}}}*/
+
 
 /*{{{  int library_init (void)*/
 /*
@@ -1985,6 +2071,16 @@ int library_init (void)
 
 	i = -1;
 	tag_libusenode = tnode_newnodetag ("LIBUSENODE", &i, tnd_libusenode, NTF_NONE);
+	/*}}}*/
+	/*{{{  nocc:templibusenode -- TEMPLIBUSENODE*/
+	i = -1;
+	tnd_templibusenode = tnode_newnodetype ("nocc:templibusenode", &i, 1, 0, 1, TNF_NONE);
+	cops = tnode_newcompops ();
+	cops->scopein = lib_scopein_templibusenode;
+	tnd_templibusenode->ops = cops;
+
+	i = -1;
+	tag_templibusenode = tnode_newnodetag ("TEMPLIBUSENODE", &i, tnd_templibusenode, NTF_NONE);
 	/*}}}*/
 	/*{{{  nocc:libtag -- PUBLICTAG*/
 	i = -1;
