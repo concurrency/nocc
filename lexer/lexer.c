@@ -178,12 +178,17 @@ fprintf (stderr, "lexer_open(): lastopen->filename=[%s] @0x%8.8x, lastopen->fnpt
 	}
 	if (i == DA_CUR (lexfiles)) {
 		lf = (lexfile_t *)smalloc (sizeof (lexfile_t));
+
 		lf->filename = string_dup (fnbuf);
 		for (lf->fnptr = lf->filename + (strlen (lf->filename) - 1); (lf->fnptr > lf->filename) && ((lf->fnptr)[-1] != '/'); (lf->fnptr)--);
 
 		lf->priv = NULL;
 		lf->lineno = 0;
 		dynarray_add (lexfiles, lf);
+
+		lf->toplevel = 0;
+		lf->islibrary = 0;
+		lf->sepcomp = 0;
 	}
 	if (lf->priv) {
 		nocc_error ("%s is already open!", lf->filename);
@@ -295,9 +300,12 @@ lexfile_t *lexer_openbuf (char *fname, char *langname, char *buf)
 	/*{{{  create the lexfile_t for this buffer*/
 	lf = (lexfile_t *)smalloc (sizeof (lexfile_t));
 	lf->filename = fname ? string_dup (fname) : string_dup ("(unknown buffer)");
+
 	for (lf->fnptr = lf->filename + (strlen (lf->filename) - 1); (lf->fnptr > lf->filename) && ((lf->fnptr)[-1] != '/'); (lf->fnptr)--);
+
 	lf->priv = NULL;
 	lf->lineno = 0;
+
 	dynarray_add (lexfiles, lf);
 
 	/*}}}*/
@@ -315,6 +323,10 @@ lexfile_t *lexer_openbuf (char *fname, char *langname, char *buf)
 	lf->errcount = 0;
 	lf->warncount = 0;
 	lf->ppriv = NULL;
+	lf->toplevel = 0;
+	lf->islibrary = 0;
+	lf->sepcomp = 0;
+
 	dynarray_init (lf->tokbuffer);
 	if (lf->lexer->openfile) {
 		lf->lexer->openfile (lf, lp);

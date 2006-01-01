@@ -1,0 +1,9 @@
+-- test_x32.occ -- separate compilation test
+
+#USE "test_x31"
+
+PROC test.x32 ()
+  SEQ
+    test.x31 ()
+:
+

@@ -45,6 +45,7 @@
 #include "feunit.h"
 #include "names.h"
 #include "scope.h"
+#include "library.h"
 #include "prescope.h"
 #include "precheck.h"
 #include "typecheck.h"
@@ -491,8 +492,12 @@ static int occampi_iscomplex_finstance (tnode_t *node, int deep)
 static int occampi_prescope_funcdecl (tnode_t **node, prescope_t *ps)
 {
 	occampi_prescope_t *ops = (occampi_prescope_t *)(ps->hook);
+	char *rawname = (char *)tnode_nthhookof (tnode_nthsubof (*node, 0), 0);
 	tnode_t **fparamsp = tnode_nthsubaddr (tnode_nthsubof (*node, 1), 1);		/* LHS is return-type */
 
+	if (library_makepublic (node, rawname)) {
+		return 1;		/* go round again */
+	}
 	ops->last_type = NULL;
 	if (!*fparamsp) {
 		/* no parameters, create empty list */

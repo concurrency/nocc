@@ -109,6 +109,7 @@ typedef struct TAG_libnodehook {
 	char *langname;		/* e.g. "occam-pi" */
 	char *targetname;	/* e.g. "kroc-etc-unknown" */
 	char *nativelib;	/* e.g. "libmylib.so" */
+	int issepcomp;		/* non-zero if generating a .xlo */
 	DYNARRAY (char *, autoinclude);
 	DYNARRAY (char *, autouse);
 
@@ -121,6 +122,8 @@ typedef struct TAG_libnodehook {
 typedef struct TAG_libusenodehook {
 	lexfile_t *lf;
 	char *libname;
+	char *namespace;
+	char *asnamespace;
 	libfile_t *libdata;
 	tnode_t *decltree;
 	DYNARRAY (tnode_t *, decls);
@@ -138,6 +141,7 @@ static tndef_t *tnd_libusenode = NULL;
 static ntdef_t *tag_libusenode = NULL;
 
 static char *libpath = NULL;
+static char *scpath = NULL;
 static int allpublic = 0;
 
 static chook_t *libchook = NULL;
@@ -188,6 +192,26 @@ static int lib_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)
 		/*{{{  --liballpublic*/
 	case 2:
 		allpublic = 1;
+		break;
+		/*}}}*/
+		/*{{{  --scoutpath <path>*/
+	case 3:
+		if ((ch = strchr (**argwalk, '=')) != NULL) {
+			ch++;
+		} else {
+			(*argwalk)++;
+			(*argleft)--;
+			if (!**argwalk || !*argleft) {
+				nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+				return -1;
+			}
+			ch = **argwalk;
+		}
+		if (scpath) {
+			nocc_warning ("replacing library path (was %s)", scpath);
+			sfree (scpath);
+		}
+		scpath = string_dup (ch);
 		break;
 		/*}}}*/
 	default:
@@ -295,20 +319,21 @@ static void lib_libtaghook_dumptree (tnode_t *node, void *hook, int indent, FILE
 /*}}}*/
 
 
-/*{{{  static libnodehook_t *lib_newlibnodehook (lexfile_t *lf, char *libname)*/
+/*{{{  static libnodehook_t *lib_newlibnodehook (lexfile_t *lf, char *libname, char *namespace)*/
 /*
  *	creates a new libnodehook_t structure
  */
-static libnodehook_t *lib_newlibnodehook (lexfile_t *lf, char *libname)
+static libnodehook_t *lib_newlibnodehook (lexfile_t *lf, char *libname, char *namespace)
 {
 	libnodehook_t *lnh = (libnodehook_t *)smalloc (sizeof (libnodehook_t));
 
 	lnh->lf = lf;
 	lnh->libname = string_dup (libname);
-	lnh->namespace = string_dup (libname);
+	lnh->namespace = namespace ? string_dup (namespace) : string_dup ("");
 	lnh->langname = lf ? string_dup (lf->parser->langname) : NULL;
 	lnh->targetname = NULL;				/* set in betrans */
 	lnh->nativelib = NULL;
+	lnh->issepcomp = 0;
 	dynarray_init (lnh->autoinclude);
 	dynarray_init (lnh->autouse);
 
@@ -367,7 +392,7 @@ static void *lib_libnodehook_copy (void *hook)
 	libnodehook_t *lnh = (libnodehook_t *)hook;
 
 	if (lnh) {
-		libnodehook_t *newlnh = lib_newlibnodehook (NULL, lnh->libname);
+		libnodehook_t *newlnh = lib_newlibnodehook (NULL, lnh->libname, lnh->namespace);
 		int i;
 
 		newlnh->langname = lnh->langname ? string_dup (lnh->langname) : NULL;
@@ -378,6 +403,7 @@ static void *lib_libnodehook_copy (void *hook)
 		for (i=0; i<DA_CUR (lnh->autouse); i++) {
 			dynarray_add (newlnh->autouse, string_dup (DA_NTHITEM (lnh->autouse, i)));
 		}
+		newlnh->issepcomp = lnh->issepcomp;
 
 		return (void *)newlnh;
 	}
@@ -453,6 +479,8 @@ static libusenodehook_t *lib_newlibusenodehook (lexfile_t *lf, char *libname)
 
 	lunh->lf = lf;
 	lunh->libname = string_dup (libname);
+	lunh->namespace = string_dup (libname);
+	lunh->asnamespace = NULL;
 	lunh->libdata = NULL;
 	lunh->decltree = NULL;
 	dynarray_init (lunh->decls);
@@ -482,6 +510,12 @@ static void lib_libusenodehook_free (void *hook)
 		if (lunh->libname) {
 			sfree (lunh->libname);
 		}
+		if (lunh->namespace) {
+			sfree (lunh->namespace);
+		}
+		if (lunh->asnamespace) {
+			sfree (lunh->asnamespace);
+		}
 		if (lunh->libdata) {
 			lib_freelibfile (lunh->libdata);
 		}
@@ -502,6 +536,17 @@ static void *lib_libusenodehook_copy (void *hook)
 	if (lunh) {
 		libusenodehook_t *newlunh = lib_newlibusenodehook (NULL, lunh->libname);
 
+		if (lunh->namespace) {
+			if (newlunh->namespace) {
+				sfree (newlunh->namespace);
+			}
+			newlunh->namespace = string_dup (lunh->namespace);
+		}
+
+		if (lunh->asnamespace) {
+			newlunh->asnamespace = string_dup (lunh->asnamespace);
+		}
+
 		return (void *)newlunh;
 	}
 
@@ -518,7 +563,7 @@ static void lib_libusenodehook_dumptree (tnode_t *node, void *hook, int indent, 
 	int i;
 
 	lib_isetindent (stream, indent);
-	fprintf (stream, "<libusenodehook addr=\"0x%8.8x\" libname=\"%s\">\n", (unsigned int)lunh, lunh->libname);
+	fprintf (stream, "<libusenodehook addr=\"0x%8.8x\" libname=\"%s\" namespace=\"%s\" as=\"%s\" >\n", (unsigned int)lunh, lunh->libname, lunh->namespace, lunh->asnamespace ? lunh->asnamespace : lunh->namespace);
 	if (lunh->libdata) {
 		libfile_t *lf = lunh->libdata;
 
@@ -1059,6 +1104,42 @@ static void lib_xmlhandler_data (xmlhandler_t *xh, void *data, const char *text,
 /*}}}*/
 
 
+/*{{{  static libfile_t *lib_newlibrary (char *libname)*/
+/*
+ *	creates a new library-file and returns it, returns NULL on failure.
+ *	Blanks the library even if one exists
+ */
+static libfile_t *lib_newlibrary (char *libname)
+{
+	libfile_t *lf = NULL;
+	char fbuf[FILENAME_MAX];
+	int flen = 0;
+
+	if (scpath) {
+		/*{{{  using separate-compilation directory prefix*/
+		flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s", scpath);
+		if ((flen > 0) && (fbuf[flen - 1] != '/')) {
+			fbuf[flen] = '/';
+			flen++;
+			fbuf[flen] = '\0';
+		}
+		/*}}}*/
+	}
+
+	flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s.xlo", libname);
+
+	lf = lib_newlibfile ();
+	lf->fname = string_dup (fbuf);
+
+	if (!access (fbuf, R_OK)) {
+		/* try and delete it */
+		if (unlink (fbuf)) {
+			nocc_error ("lib_newlibrary(): failed to remove existing .xlo file %s: %s", fbuf, strerror (errno));
+		}
+	}
+	return lf;
+}
+/*}}}*/
 /*{{{  static libfile_t *lib_readlibrary (char *libname, int using)*/
 /*
  *	reads a library-file and returns it, returns NULL on failure.
@@ -1072,32 +1153,52 @@ static libfile_t *lib_readlibrary (char *libname, int using)
 	int i;
 
 	if (using) {
+		/*{{{  must exist, or fail*/
 		/* try current directory first */
-		flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s.xml", libname);
+		flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s.xlb", libname);
 		if (access (fbuf, R_OK)) {
 			flen = 0;
 
-			/* search */
-			for (i=0; i<DA_CUR (compopts.lpath); i++) {
-				char *lpath = DA_NTHITEM (compopts.lpath, i);
-
-				flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s", lpath);
-				if (fbuf[flen-1] != '/') {
-					fbuf[flen] = '/';
-					flen++;
-					fbuf[flen] = '\0';
-				}
-				flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s.xml", libname);
-				if (!access (fbuf, R_OK)) {
-					break;		/* for() */
-				}
+			/* try .xlo version also */
+			flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s.xlo", libname);
+			if (access (fbuf, R_OK)) {
 				flen = 0;
-			}
-			if (!flen) {
-				/* none found */
-				return NULL;
+
+				/* search */
+				for (i=0; i<DA_CUR (compopts.lpath); i++) {
+					char *lpath = DA_NTHITEM (compopts.lpath, i);
+					int sflen;
+
+					flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s", lpath);
+					if (fbuf[flen-1] != '/') {
+						fbuf[flen] = '/';
+						flen++;
+						fbuf[flen] = '\0';
+					}
+					sflen = flen;
+					flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s.xlb", libname);
+#if 0
+fprintf (stderr, "lib_readlibrary(): trying [%s]\n", fbuf);
+#endif
+					if (!access (fbuf, R_OK)) {
+						break;		/* for() */
+					}
+					fbuf[flen - 1] = 'o';		/* .xlb -> .xlo */
+#if 0
+fprintf (stderr, "lib_readlibrary(): trying [%s]\n", fbuf);
+#endif
+					if (!access (fbuf, R_OK)) {
+						break;		/* for() */
+					}
+					flen = 0;
+				}
+				if (!flen) {
+					/* none found */
+					return NULL;
+				}
 			}
 		}
+		/*}}}*/
 	} else {
 		if (libpath) {
 			/*{{{  using library-directory prefix*/
@@ -1109,7 +1210,7 @@ static libfile_t *lib_readlibrary (char *libname, int using)
 			}
 			/*}}}*/
 		}
-		flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s.xml", libname);
+		flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s.xlb", libname);
 	}
 
 	lf = lib_newlibfile ();
@@ -1390,7 +1491,7 @@ static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh)
 /*
  *	processes a library usage node, parsing the descriptors
  *	FIXME: only parses descriptors for the originating language at the moment
- *	returns 0 on success, non-zer on failure
+ *	returns 0 on success, non-zero on failure
  */
 static int lib_parsedescriptors (lexfile_t *orglf, libusenodehook_t *lunh)
 {
@@ -1497,6 +1598,52 @@ static int lib_parsedescriptors (lexfile_t *orglf, libusenodehook_t *lunh)
 /*}}}*/
 
 
+/*{{{  static int lib_scopein_libnode (tnode_t **nodep, scope_t *ss)*/
+/*
+ *	scopes-in a library definition node (sets defining namespace)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int lib_scopein_libnode (tnode_t **nodep, scope_t *ss)
+{
+	libnodehook_t *lnh = (libnodehook_t *)tnode_nthhookof (*nodep, 0);
+	namespace_t *ns;
+
+	if (!lnh->namespace) {
+		return 1;
+	}
+	ns = name_findnamespace (lnh->namespace);
+
+	if (!ns) {
+		ns = name_newnamespace (lnh->namespace);
+	}
+
+	scope_pushdefns (ss, ns);
+	return 1;
+}
+/*}}}*/
+/*{{{  static int lib_scopeout_libnode (tnode_t **nodep, scope_t *ss)*/
+/*
+ *	scopes-out a library definition node (clears defining namespace)
+ *	returns 0 to stop walk, 1 to continue (defunct)
+ */
+static int lib_scopeout_libnode (tnode_t **nodep, scope_t *ss)
+{
+	libnodehook_t *lnh = (libnodehook_t *)tnode_nthhookof (*nodep, 0);
+	namespace_t *ns;
+
+	if (!lnh->namespace) {
+		return 1;
+	}
+	ns = name_findnamespace (lnh->namespace);
+
+	if (!ns) {
+		nocc_internal ("lib_scopeout_libnode(): did not find my namyspace! [%s]", lnh->namespace);
+	}
+
+	scope_popdefns (ss, ns);
+	return 1;
+}
+/*}}}*/
 /*{{{  static int lib_betrans_libnode (tnode_t **nodep, betrans_t *be)*/
 /*
  *	does back-end transform on a library node
@@ -1538,8 +1685,13 @@ static int lib_codegen_libnode (tnode_t *node, codegen_t *cgen)
 	libnodehook_t *lnh = (libnodehook_t *)tnode_nthhookof (node, 0);
 	libfile_t *lf;
 
-	/* try and open or create library */
-	lf = lib_readlibrary (lnh->libname, 0);
+	if (lnh->issepcomp) {
+		/* re-create the file each time with this */
+		lf = lib_newlibrary (lnh->libname);
+	} else {
+		/* try and open or create library */
+		lf = lib_readlibrary (lnh->libname, 0);
+	}
 	if (!lf) {
 		/* failed for some reason */
 		codegen_warning (cgen, "failed to open/create library \"%s\"", lnh->libname);
@@ -1564,6 +1716,7 @@ static int lib_codegen_libnode (tnode_t *node, codegen_t *cgen)
 	return 1;
 }
 /*}}}*/
+
 /*{{{  static int lib_betrans_libtag (tnode_t **nodep, betrans_t *be)*/
 /*
  *	does back-end transform on a library tag node
@@ -1642,6 +1795,7 @@ static int lib_precode_libtag (tnode_t **nodep, codegen_t *cgen)
 	return 1;
 }
 /*}}}*/
+
 /*{{{  static int lib_prescope_libusenode (tnode_t **nodep, prescope_t *ps)*/
 /*
  *	does pre-scoping on library usage nodes
@@ -1806,6 +1960,8 @@ int library_init (void)
 	tnd_libnode->hook_copy = lib_libnodehook_copy;
 	tnd_libnode->hook_dumptree = lib_libnodehook_dumptree;
 	cops = tnode_newcompops ();
+	cops->scopein = lib_scopein_libnode;
+	cops->scopeout = lib_scopeout_libnode;
 	cops->betrans = lib_betrans_libnode;
 	cops->codegen = lib_codegen_libnode;
 	tnd_libnode->ops = cops;
@@ -1846,9 +2002,10 @@ int library_init (void)
 	tag_publictag = tnode_newnodetag ("PUBLICTAG", &i, tnd_libtag, NTF_NONE);
 	/*}}}*/
 
-	/*{{{  command-line options: "--liboutpath <path>", "--liballpublic"*/
+	/*{{{  command-line options: "--liboutpath <path>", "--liballpublic", "--scoutpath <path>"*/
 	opts_add ("liboutpath", '\0', lib_opthandler, (void *)1, "0output directory for library info");
 	opts_add ("liballpublic", '\0', lib_opthandler, (void *)2, "1all top-level entries public in library");
+	opts_add ("scoutpath", '\0', lib_opthandler, (void *)3, "0output directory for .xlo files");
 
 	/*}}}*/
 	/*{{{  others*/
@@ -1883,9 +2040,39 @@ int library_shutdown (void)
 tnode_t *library_newlibnode (lexfile_t *lf, char *libname)
 {
 	tnode_t *lnode;
-	libnodehook_t *lnh = lib_newlibnodehook (lf, libname);
+	libnodehook_t *lnh;
+
+	if (!libname) {
+		/* probably for separate compilation, choose source filename */
+		if (!lf->filename) {
+			nocc_warning ("library_newlibnode(): no default filename for separate compilation!");
+			libname = string_dup ("unknown");
+		} else {
+			char *ch;
+
+			if (scpath) {
+				libname = string_dup (lf->fnptr);
+			} else {
+				libname = string_dup (lf->filename);
+			}
+			for (ch = libname + (strlen (libname) - 1); (ch > libname) && (*ch != '.'); ch--);
+			if (*ch == '.') {
+				/* chop off existing extension */
+				*ch = '\0';
+			}
+		}
+
+		lnh = lib_newlibnodehook (lf, libname, NULL);
+		lnh->issepcomp = 1;
+		sfree (libname);
+	} else {
+		lnh = lib_newlibnodehook (lf, libname, libname);
+	}
 
 	lnode = tnode_create (tag_libnode, lf, NULL, lnh);
+
+	/* defining this file as part of a library */
+	lf->islibrary = 1;
 
 	return lnode;
 }
@@ -1930,6 +2117,23 @@ int library_setnativelib (tnode_t *libnode, char *lname)
 		sfree (lnh->nativelib);
 	}
 	lnh->nativelib = string_dup (lname);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int library_setnamespace (tnode_t *libnode, char *nsname)*/
+/*
+ *	sets the namespace for a library (used when defining a library)
+ *	returns 0 on success, non-zero on failure
+ */
+int library_setnamespace (tnode_t *libnode, char *nsname)
+{
+	libnodehook_t *lnh = (libnodehook_t *)tnode_nthhookof (libnode, 0);
+
+	if (lnh->namespace) {
+		sfree (lnh->namespace);
+	}
+	lnh->namespace = string_dup (nsname ? nsname : "");
 
 	return 0;
 }
@@ -2007,6 +2211,13 @@ tnode_t *library_newusenode (lexfile_t *lf, char *libname)
 		return NULL;
 	}
 
+	if (lunh->libdata->namespace) {
+		if (lunh->namespace) {
+			sfree (lunh->namespace);
+		}
+		lunh->namespace = string_dup (lunh->libdata->namespace);
+	}
+
 	/* parse descriptors */
 	if (lib_parsedescriptors (lf, lunh)) {
 		nocc_error ("failed to parse descriptors in library [%s]", libname);
@@ -2017,6 +2228,25 @@ tnode_t *library_newusenode (lexfile_t *lf, char *libname)
 	unode = tnode_create (tag_libusenode, lf, NULL, lunh);
 
 	return unode;
+}
+/*}}}*/
+/*{{{  int library_setusenamespace (tnode_t *libusenode, char *nsname)*/
+/*
+ *	sets the usage namespace on a library usage node
+ *	returns 0 on success, non-zero on failure
+ */
+int library_setusenamespace (tnode_t *libusenode, char *nsname)
+{
+	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (libusenode, 0);
+
+	if (lunh->asnamespace && strcmp (lunh->asnamespace, nsname)) {
+		nocc_error ("already using library [%s] as [%s], wanted [%s]", lunh->namespace, lunh->asnamespace, nsname);
+		return -1;
+	} else if (!lunh->asnamespace) {
+		lunh->asnamespace = string_dup (nsname);
+	}
+
+	return 0;
 }
 /*}}}*/
 

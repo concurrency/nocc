@@ -2415,6 +2415,19 @@ static void krocetc_coder_setnamedlabel (codegen_t *cgen, const char *lbl)
 	return;
 }
 /*}}}*/
+/*{{{  static void krocetc_coder_setnamelabel (codegen_t *cgen, name_t *name)*/
+/*
+ *	sets a named label, but from a name_t (includes namespace)
+ */
+static void krocetc_coder_setnamelabel (codegen_t *cgen, name_t *name)
+{
+	char *lbl = name_newwholename (name);
+
+	codegen_callops (cgen, setnamedlabel, lbl);
+	sfree (lbl);
+	return;
+}
+/*}}}*/
 /*{{{  static void krocetc_coder_setlabel (codegen_t *cgen, int lbl)*/
 /*
  *	sets a numeric label
@@ -2577,6 +2590,19 @@ static void krocetc_coder_callnamedlabel (codegen_t *cgen, const char *label, in
 	return;
 }
 /*}}}*/
+/*{{{  static void krocetc_coder_callnamelabel (codegen_t *cgen, name_t *name, int ws_adjust)*/
+/*
+ *	calls a named label, but from a name_t (includes namespace)
+ */
+static void krocetc_coder_callnamelabel (codegen_t *cgen, name_t *name, int ws_adjust)
+{
+	char *lbl = name_newwholename (name);
+
+	codegen_callops (cgen, callnamedlabel, lbl, ws_adjust);
+	sfree (lbl);
+	return;
+}
+/*}}}*/
 /*{{{  static void krocetc_coder_calllabel (codegen_t *cgen, int label, int ws_adjust)*/
 /*
  *	generates code to call a numeric label
@@ -2728,7 +2754,9 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	cops->setvssize = krocetc_coder_setvssize;
 	cops->setmssize = krocetc_coder_setmssize;
 	cops->setnamedlabel = krocetc_coder_setnamedlabel;
+	cops->setnamelabel = krocetc_coder_setnamelabel;
 	cops->callnamedlabel = krocetc_coder_callnamedlabel;
+	cops->callnamelabel = krocetc_coder_callnamelabel;
 	cops->setlabel = krocetc_coder_setlabel;
 	cops->calllabel = krocetc_coder_calllabel;
 	cops->procreturn = krocetc_coder_procreturn;

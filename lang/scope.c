@@ -128,6 +128,83 @@ void scope_error (tnode_t *node, scope_t *ss, const char *fmt, ...)
 /*}}}*/
 
 
+/*{{{  int scope_pushdefns (scope_t *ss, namespace_t *ns)*/
+/*
+ *	pushes a defining namespace
+ *	returns 0 on success, non-zero on failure
+ */
+int scope_pushdefns (scope_t *ss, namespace_t *ns)
+{
+	if (!ss || !ns) {
+		return -1;
+	}
+	dynarray_add (ss->defns, ns);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int scope_popdefns (scope_t *ss, namespace_t *ns)*/
+/*
+ *	pops a defining namespace
+ *	returns 0 on success, non-zero on failure
+ */
+int scope_popdefns (scope_t *ss, namespace_t *ns)
+{
+	if (!ss || !DA_CUR (ss->defns)) {
+		return -1;
+	}
+	if (!ns) {
+		/* remove last regardless */
+		dynarray_delitem (ss->defns, DA_CUR (ss->defns) - 1);
+	} else if (DA_NTHITEM (ss->defns, DA_CUR (ss->defns) - 1) != ns) {
+		/* not us! */
+		nocc_warning ("scope_popdefns(): expected namespace [%s] found [%s]", ns->nspace, DA_NTHITEM (ss->defns, DA_CUR (ss->defns) - 1)->nspace);
+		return -1;
+	} else {
+		dynarray_delitem (ss->defns, DA_CUR (ss->defns) - 1);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  int scope_pushusens (scope_t *ss, namespace_t *ns)*/
+/*
+ *	pushes a using namespace
+ *	returns 0 on success, non-zero on failure
+ */
+int scope_pushusens (scope_t *ss, namespace_t *ns)
+{
+	if (!ss || !ns) {
+		return -1;
+	}
+	dynarray_add (ss->usens, ns);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int scope_popusens (scope_t *ss, namespace_t *ns)*/
+/*
+ *	pops a using namespace
+ *	returns 0 on success, non-zero on failure
+ */
+int scope_popusens (scope_t *ss, namespace_t *ns)
+{
+	if (!ss || !DA_CUR (ss->usens)) {
+		return -1;
+	}
+	if (!ns) {
+		/* remove last regardless */
+		dynarray_delitem (ss->usens, DA_CUR (ss->usens) - 1);
+	} else if (DA_NTHITEM (ss->usens, DA_CUR (ss->usens) - 1) != ns) {
+		/* not us! */
+		nocc_warning ("scope_popusens(): expected namespace [%s] found [%s]", ns->nspace, DA_NTHITEM (ss->usens, DA_CUR (ss->usens) - 1)->nspace);
+		return -1;
+	} else {
+		dynarray_delitem (ss->usens, DA_CUR (ss->usens) - 1);
+	}
+	return 0;
+}
+/*}}}*/
+
 /*{{{  int scope_modprewalktree (tnode_t **node, void *arg)*/
 /*
  *	generic pre-scoping function
@@ -179,6 +256,9 @@ int scope_tree (tnode_t *t, langparser_t *lang)
 		return 1;
 	}
 	ss->lang = lang;
+	dynarray_init (ss->defns);
+	dynarray_init (ss->usens);
+
 	r = lang->scope (&t, ss);
 
 	nocc_message ("scope_tree(): completed! %d names scoped, %d error(s), %d warning(s)", ss->scoped, ss->err, ss->warn);
@@ -187,6 +267,8 @@ int scope_tree (tnode_t *t, langparser_t *lang)
 		r = ss->err;
 	}
 
+	dynarray_trash (ss->defns);
+	dynarray_trash (ss->usens);
 	sfree (ss);
 	return r;
 }

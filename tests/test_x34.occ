@@ -1,0 +1,9 @@
+-- test_x34.occ -- namespace tests
+
+#USE "libx33" AS "stuffs"
+
+PROC test.x34 (CHAN BYTE scr!)
+  SEQ
+    stuffs.delay (42)
+:
+

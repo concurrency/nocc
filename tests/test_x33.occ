@@ -1,0 +1,10 @@
+-- test_x33.occ -- namespace tests
+
+#LIBRARY "libx33"
+  NAMESPACE "stdlib"
+
+PUBLIC PROC delay (VAL INT n)
+  SEQ
+    SKIP
+:
+

@@ -550,6 +550,11 @@ static tnode_t *occampi_includefile (char *fname, lexfile_t *curlf)
 		parser_error (curlf, "failed to open #INCLUDE'd file %s", fname);
 		return NULL;
 	}
+
+	lf->toplevel = 0;
+	lf->islibrary = curlf->islibrary;
+	lf->sepcomp = curlf->sepcomp;
+
 	if (compopts.verbose) {
 		nocc_message ("sub-parsing ...");
 	}
@@ -807,6 +812,27 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 							sfree (lname);
 
 							/*}}}*/
+						} else if (lexer_tokmatchlitstr (nexttok, "NAMESPACE")) {
+							/*{{{  namespace specified*/
+							char *nsname;
+
+							lexer_freetoken (nexttok);
+							nexttok = lexer_nexttoken (lf);
+
+							if (!nexttok || (nexttok->type != STRING)) {
+								parser_error (lf, "failed while processing #LIBRARY NAMESPACE directive");
+								lexer_pushback (lf, nexttok);
+								return tree;
+							}
+							nsname = string_ndup (nexttok->u.str.ptr, nexttok->u.str.len);
+							if (library_setnamespace (tree, nsname)) {
+								lexer_pushback (lf, nexttok);
+								sfree (nsname);
+								return tree;
+							}
+							sfree (nsname);
+
+							/*}}}*/
 						} else {
 							/*{{{  unknown #LIBRARY directive*/
 							parser_error (lf, "unknown #LIBRARY directive");
@@ -827,6 +853,10 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 					}
 					lexer_freetoken (nexttok);
 					/*}}}*/
+				} else if (nexttok) {
+					/*{{{  push it back!*/
+					lexer_pushback (lf, nexttok);
+					/*}}}*/
 				}
 
 				*gotall = 1;
@@ -845,7 +875,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 
 			nexttok = lexer_nexttoken (lf);
 			if (nexttok && lexer_tokmatch (opi.tok_STRING, nexttok)) {
-				/*{{{  using an external library*/
+				/*{{{  using an external library (or separately compiled file)*/
 				char *libname = string_ndup (nexttok->u.str.ptr, nexttok->u.str.len);
 
 				lexer_freetoken (nexttok);
@@ -856,6 +886,31 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 					return tree;
 				}
 				sfree (libname);
+
+				/* maybe followed up with "AS <litstring>" for changing namespaces */
+				nexttok = lexer_nexttoken (lf);
+				if (nexttok && lexer_tokmatchlitstr (nexttok, "AS")) {
+					lexer_freetoken (nexttok);
+					nexttok = lexer_nexttoken (lf);
+					if (nexttok && lexer_tokmatch (opi.tok_STRING, nexttok)) {
+						/*{{{  using library AS something else*/
+						char *usename = string_ndup (nexttok->u.str.ptr, nexttok->u.str.len);
+
+						lexer_freetoken (nexttok);
+						library_setusenamespace (tree, usename);
+
+						sfree (usename);
+						/*}}}*/
+					} else {
+						parser_error (lf, "while processing #USE AS, expected string found ");
+						lexer_dumptoken (stderr, nexttok);
+						lexer_freetoken (nexttok);
+						return tree;
+					}
+				} else {
+					/* something else, discontinue */
+					lexer_pushback (lf, nexttok);
+				}
 
 				*gotall = 1;
 				/*}}}*/
@@ -883,6 +938,10 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 	} else {
 		lexer_pushback (lf, tok);
 		tree = dfa_walk (thedfa ? thedfa : "occampi:declorprocstart", lf);
+
+		if (lf->toplevel && lf->sepcomp && tree && ((tree->tag == opi.tag_PROCDECL) || (tree->tag == opi.tag_FUNCDECL))) {
+			library_markpublic (tree);
+		}
 	}
 
 	return tree;
@@ -1338,6 +1397,14 @@ static tnode_t *occampi_parser_parse (lexfile_t *lf)
 
 		lexer_freetoken (tok);
 		tok = lexer_nexttoken (lf);
+	}
+
+	/* if building for separate compilation and top-level, drop in library node */
+	if (lf->toplevel && lf->sepcomp && !lf->islibrary) {
+		tnode_t *libnode = library_newlibnode (lf, NULL);		/* use default name */
+
+		tnode_setnthsub (libnode, 0, tree);
+		tree = libnode;
 	}
 
 	return tree;

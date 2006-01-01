@@ -568,7 +568,7 @@ static int occampi_scopein_procdecl (tnode_t **node, scope_t *ss)
 
 	/* declare and scope PROC name, then check process in the scope of it */
 	rawname = tnode_nthhookof (name, 0);
-	procname = name_addscopename (rawname, *node, *paramsptr, NULL);
+	procname = name_addscopenamess (rawname, *node, *paramsptr, NULL, ss);
 	newname = tnode_createfrom (opi.tag_NPROCDEF, name, procname);
 	SetNameNode (procname, newname);
 	tnode_setnthsub (*node, 0, newname);
@@ -754,7 +754,7 @@ static int occampi_codegen_procdecl (tnode_t *node, codegen_t *cgen)
 	codegen_callops (cgen, setwssize, ws_size, adjust);
 	codegen_callops (cgen, setvssize, vs_size);
 	codegen_callops (cgen, setmssize, ms_size);
-	codegen_callops (cgen, setnamedlabel, pname->me->name);
+	codegen_callops (cgen, setnamelabel, pname);
 	codegen_callops (cgen, debugline, node);
 
 	/* adjust workspace and generate code for body */

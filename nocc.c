@@ -862,6 +862,12 @@ int main (int argc, char **argv)
 			lexfile_t *lf = DA_NTHITEM (srclexers, i);
 			tnode_t *tree;
 
+			/* initialise lexfile flags */
+			lf->toplevel = 1;
+			if (compopts.notmainmodule) {
+				lf->sepcomp = 1;
+			}
+
 			if (compopts.verbose) {
 				nocc_message ("parsing ...");
 			}

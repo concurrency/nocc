@@ -53,6 +53,11 @@ typedef struct TAG_lexfile {
 	int errcount;
 	int warncount;
 	DYNARRAY (struct TAG_token *, tokbuffer);
+
+	/* various flags */
+	unsigned int toplevel : 1;
+	unsigned int islibrary : 1;
+	unsigned int sepcomp : 1;
 } lexfile_t;
 
 

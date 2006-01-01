@@ -68,8 +68,10 @@ typedef struct TAG_coderops {
 	void (*setvssize)(codegen_t *, int);
 	void (*setmssize)(codegen_t *, int);
 	void (*setnamedlabel)(codegen_t *, const char *);
+	void (*setnamelabel)(codegen_t *, struct TAG_name *);
 	void (*setlabel)(codegen_t *, int);
 	void (*callnamedlabel)(codegen_t *, const char *, int);
+	void (*callnamelabel)(codegen_t *, struct TAG_name *, int);
 	void (*calllabel)(codegen_t *, int, int);
 	void (*procreturn)(codegen_t *, int);
 	void (*funcreturn)(codegen_t *, int);

@@ -317,6 +317,9 @@
 /* define to use expat XML library */
 #undef USE_LIBEXPAT
 
+/* define to use SSL library */
+#undef USE_LIBSSL
+
 /* Version number of package */
 #undef VERSION
 

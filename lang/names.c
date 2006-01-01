@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
 
@@ -34,12 +35,14 @@
 #include "lexer.h"
 #include "lexpriv.h"
 #include "tnode.h"
+#include "scope.h"
 #include "names.h"
 
 
 /*{{{  private stuff*/
 STATICSTRINGHASH (namelist_t *, names, 7);
 STATICDYNARRAY (name_t *, namestack);
+STATICSTRINGHASH (namespace_t *, namespaces, 4);
 
 static int tempnamecounter = 1;
 
@@ -54,6 +57,7 @@ void name_init (void)
 {
 	stringhash_init (names);
 	dynarray_init (namestack);
+	stringhash_init (namespaces);
 
 	return;
 }
@@ -94,11 +98,12 @@ fprintf (stderr, "name_lookup(): str=[%s], nl=0x%8.8x, nl->curscope = %d, DA_CUR
 	return name;
 }
 /*}}}*/
-/*{{{  name_t *name_addscopename (char *str, tnode_t *decl, tnode_t *type, tnode_t *namenode)*/
+/*{{{  name_t *name_addscopenamess (char *str, tnode_t *decl, tnode_t *type, tnode_t *namenode, scope_t *ss)*/
 /*
- *	adds a name -- and returns it, after putting it in scope
+ *	adds a name -- and returns it, after putting it in scope.
+ *	scope state is used to get hold of namespaces.
  */
-name_t *name_addscopename (char *str, tnode_t *decl, tnode_t *type, tnode_t *namenode)
+name_t *name_addscopenamess (char *str, tnode_t *decl, tnode_t *type, tnode_t *namenode, scope_t *ss)
 {
 	name_t *name;
 	namelist_t *nl;
@@ -108,6 +113,11 @@ name_t *name_addscopename (char *str, tnode_t *decl, tnode_t *type, tnode_t *nam
 	name->type = type;
 	name->namenode = namenode;
 	name->refc = 0;
+	if (ss && DA_CUR (ss->defns)) {
+		name->ns = DA_NTHITEM (ss->defns, DA_CUR (ss->defns) - 1);
+	} else {
+		name->ns = NULL;
+	}
 #if 0
 fprintf (stderr, "name_addscopename(): adding name [%s] type:\n", str);
 tnode_dumptree (type, 1, stderr);
@@ -127,6 +137,15 @@ tnode_dumptree (type, 1, stderr);
 	dynarray_add (namestack, name);
 	
 	return name;
+}
+/*}}}*/
+/*{{{  name_t *name_addscopename (char *str, tnode_t *decl, tnode_t *type, tnode_t *namenode)*/
+/*
+ *	adds a name and returns it, after putting in scope
+ */
+name_t *name_addscopename (char *str, tnode_t *decl, tnode_t *type, tnode_t *namenode)
+{
+	return name_addscopenamess (str, decl, type, namenode, NULL);
 }
 /*}}}*/
 /*{{{  void name_scopename (name_t *name)*/
@@ -230,6 +249,7 @@ name_t *name_addtempname (tnode_t *decl, tnode_t *type, ntdef_t *nametag, tnode_
 	name->type = type;
 	name->namenode = namenode ? *namenode : NULL;
 	name->refc = 0;
+	name->ns = NULL;
 
 #if 0
 fprintf (stderr, "name_addtempname(): adding name [%s] type:\n", str);
@@ -252,6 +272,72 @@ tnode_dumptree (type, 1, stderr);
 	}
 
 	return name;
+}
+/*}}}*/
+
+
+/*{{{  namespace_t *name_findnamespace (char *nsname)*/
+/*
+ *	looks up a whole namespace by name
+ */
+namespace_t *name_findnamespace (char *nsname)
+{
+	return stringhash_lookup (namespaces, nsname);
+}
+/*}}}*/
+/*{{{  namespace_t *name_findnamespacepfx (char *nsname)*/
+/*
+ *	looks up a namespace from a name prefix (e.g. <namespace>.<name>)
+ */
+namespace_t *name_findnamespacepfx (char *nsname)
+{
+	char *lname = string_dup (nsname);
+	char *ch;
+	namespace_t *ns;
+
+	for (ch=lname; (*ch != '\0') && (*ch != '.'); ch++);
+	*ch = '\0';
+
+	ns = name_findnamespace (lname);
+
+	sfree (lname);
+	return ns;
+}
+/*}}}*/
+/*{{{  namespace_t *name_newnamespace (char *nsname)*/
+/*
+ *	creates a new namespace and returns it
+ */
+namespace_t *name_newnamespace (char *nsname)
+{
+	namespace_t *ns = (namespace_t *)smalloc (sizeof (namespace_t));
+
+	ns->nspace = string_dup (nsname);
+	ns->nextns = NULL;
+
+	stringhash_insert (namespaces, ns, ns->nspace);
+
+	return ns;
+}
+/*}}}*/
+/*{{{  char *name_newwholename (name_t *name)*/
+/*
+ *	returns a new string that is the whole name (including namespace)
+ */
+char *name_newwholename (name_t *name)
+{
+	char *str;
+	namespace_t *ns;
+	
+	for (ns = name->ns; ns && (ns->nextns); ns = ns->nextns);
+	if (ns) {
+		str = (char *)smalloc (strlen (name->me->name) + strlen (ns->nspace) + 2);
+		sprintf (str, "%s.%s", ns->nspace, name->me->name);
+	} else {
+		str = string_dup (name->me->name);
+	}
+
+	return str;
 }
 /*}}}*/
 
@@ -314,7 +400,7 @@ void name_dumpname (name_t *name, int indent, FILE *stream)
 		fprintf (stream, "    ");
 	}
 	type = NameTypeOf (name);
-	fprintf (stream, "<name name=\"%s\" type=\"%s\" />\n", name->me->name, type ? type->tag->name : "(null)");
+	fprintf (stream, "<name name=\"%s\" type=\"%s\" namespace=\"%s\" />\n", name->me->name, type ? type->tag->name : "(null)", name->ns ? name->ns->nspace : "");
 
 	return;
 }

@@ -53,6 +53,11 @@ target_cpu="ETC/T800"
 target_os="unknown"
 target_vendor="unknown"
 
+dnl Check for OpenSSL
+AC_CHECK_HEADER(openssl/ssl.h,[have_ssl_h=yes],[have_ssl_h=no])
+AC_CHECK_HEADER(openssl/sha.h,[have_sha_h=yes],[have_sha_h=no])
+AC_SEARCH_LIBS(SHA1,ssl,[have_libssl=yes],[have_libssl=no])
+
 
 AC_CHECK_HEADER(expat.h,[have_expat_h=yes],[have_expat_h=no])
 AC_SEARCH_LIBS(XML_Parse,expat,[have_libexpat=yes],[have_libexpat=no])
@@ -66,6 +71,12 @@ AC_DEFINE_UNQUOTED([TARGET_VENDOR],"$target_vendor",[target vendor])
 
 AC_DEFINE_UNQUOTED([BUILD_PREFIX],"$prefix",[build prefix])
 
+
+if test $have_sha_h = yes; then
+ if test $have_libssl = yes; then
+  AC_DEFINE([USE_LIBSSL],1,[define to use SSL library])
+ fi
+fi
 
 if test $have_expat_h = yes; then
  if test $have_libexpat = yes; then
