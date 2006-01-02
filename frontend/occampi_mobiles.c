@@ -59,6 +59,10 @@
 /*}}}*/
 
 
+/*{{{  private vars*/
+static chook_t *chook_demobiletype = NULL;
+
+/*}}}*/
 /*{{{  static void occampi_mobiletypenode_initmobile (tnode_t *node, codegen_t *cgen, void *arg)*/
 /*
  *	generates code to initialise a mobile
@@ -161,6 +165,54 @@ static int occampi_mobiletypenode_initialising_decl (tnode_t *t, tnode_t *benode
 /*}}}*/
 
 
+/*{{{  static void *occampi_copy_demobilechook (void *chook)*/
+/*
+ *	copies a demobile-type compiler hook
+ */
+static void *occampi_copy_demobilechook (void *chook)
+{
+	tnode_t *type = (tnode_t *)chook;
+
+	if (type) {
+		type = tnode_copytree (type);
+	}
+	return (void *)type;
+}
+/*}}}*/
+/*{{{  static void occampi_free_demobilechook (void *chook)*/
+/*
+ *	frees a demobile-type compiler hook
+ */
+static void occampi_free_demobilechook (void *chook)
+{
+	tnode_t *type = (tnode_t *)chook;
+
+	if (type) {
+		tnode_free (type);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_dumptree_demobilechook (tnode_t *t, void *chook, int indent, FILE *stream)*/
+/*
+ *	dumps a demobile-type compiler hook (debugging)
+ */
+static void occampi_dumptree_demobilechook (tnode_t *t, void *chook, int indent, FILE *stream)
+{
+	tnode_t *type = (tnode_t *)chook;
+
+	if (type) {
+		occampi_isetindent (stream, indent);
+		fprintf (stream, "<chook:occampi:demobiletype>\n");
+		tnode_dumptree (type, indent + 1, stream);
+		occampi_isetindent (stream, indent);
+		fprintf (stream, "</chook:occampi:demobiletype>\n");
+	}
+	return;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_mobiles_init_nodes (void)*/
 /*
  *	sets up nodes for occam-pi mobiles
@@ -200,6 +252,14 @@ static int occampi_mobiles_init_nodes (void)
 	i = -1;
 	opi.tag_DYNMOBPROC = tnode_newnodetag ("DYNMOBPROC", &i, tnd, NTF_NONE);
 	/*}}}*/
+	/*{{{  compiler hooks*/
+	if (!chook_demobiletype) {
+		chook_demobiletype = tnode_lookupornewchook ("occampi:demobiletype");
+		chook_demobiletype->chook_copy = occampi_copy_demobilechook;
+		chook_demobiletype->chook_free = occampi_free_demobilechook;
+		chook_demobiletype->chook_dumptree = occampi_dumptree_demobilechook;
+	}
+	/*}}}*/
 
 	return 0;
 }
@@ -212,6 +272,7 @@ static int occampi_mobiles_init_nodes (void)
 static int occampi_mobiles_reg_reducers (void)
 {
 	parser_register_grule ("opi:mobilise", parser_decode_grule ("SN0N+C1N-", opi.tag_MOBILE));
+	parser_register_grule ("opi:dynmobilearray", parser_decode_grule ("SN0N+C1N-", opi.tag_DYNMOBARRAY));
 
 	return 0;
 }
@@ -227,11 +288,15 @@ static dfattbl_t **occampi_mobiles_init_dfatrans (int *ntrans)
 	dynarray_init (transtbl);
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobileprocdecl ::= [ 0 @MOBILE 1 ] [ 1 @PROC 2 ] [ 2 occampi:name 3 ] [ 3 {<opi:nullreduce>} -* ]"));			/* FIXME! */
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobilevardecl ::= [ 0 @MOBILE 1 ] [ 1 occampi:primtype 2 ] [ 1 occampi:name 2 ] [ 2 {<opi:mobilise>} ] " \
-				"[ 2 occampi:namelist 3 ] [ 3 @@: 4 ] [ 4 {<opi:declreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobiletype ::= [ 0 @MOBILE 1 ] [ 1 @@[ 4 ] [ 1 occampi:primtype 2 ] [ 1 occampi:name 2 ] [ 2 {<opi:mobilise>} -* 3 ] " \
+				"[ 3 {<opi:nullreduce>} -* ] " \
+				"[ 4 @@] 5 ] [ 5 occampi:type 6 ] [ 6 {<opi:dynmobilearray>} -* 3 ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobilevardecl ::= [ 0 occampi:mobiletype 1 ] " \
+				"[ 1 occampi:namelist 2 ] [ 2 @@: 3 ] [ 3 {<opi:declreduce>} -* ] "));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobiledecl ::= [ 0 +@MOBILE 1 ] [ 1 +@PROC 2 ] [ 1 -* 3 ] " \
 				"[ 2 {<parser:rewindtokens>} -* <occampi:mobileprocdecl> ] " \
 				"[ 3 {<parser:rewindtokens>} -* <occampi:mobilevardecl> ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:type +:= [ 0 -@MOBILE 1 ] [ 1 occampi:mobiletype 2 ] [ 2 {<opi:nullreduce>} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

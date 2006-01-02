@@ -536,7 +536,7 @@ static dfattbl_t **occampi_type_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:protocol ::= [ 0 occampi:primtype 3 ] [ 0 +Name 1 ] [ 0 -@@[ 2 ] [ 1 {<opi:namepush>} -* 3 ] " \
 				"[ 2 occampi:arraytypetype 3 ] " \
 				"[ 3 {<opi:nullreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_bnftotbl ("occampi:type ::= ( occampi:primtype ) {<opi:nullreduce>}"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:type ::= [ 0 occampi:primtype 1 ] [ 1 {<opi:nullreduce>} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);
