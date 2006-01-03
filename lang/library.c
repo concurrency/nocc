@@ -72,6 +72,9 @@ typedef struct TAG_libfile_entry {
 typedef struct TAG_libfile_srcunit {
 	char *fname;		/* short name of source file */
 	DYNARRAY (libfile_entry_t *, entries);
+	char *hashalgo;
+	char *hashvalue;
+	int issigned;
 
 	/* below used when parsing, not general info! */
 	libfile_entry_t *curentry;
@@ -113,6 +116,8 @@ typedef struct TAG_libnodehook {
 	int issepcomp;		/* non-zero if generating a .xlo */
 	DYNARRAY (char *, autoinclude);
 	DYNARRAY (char *, autouse);
+	char *hashalgo;		/* of generated-code */
+	char *hashvalue;
 
 	DYNARRAY (libtaghook_t *, entries);
 } libnodehook_t;
@@ -339,6 +344,8 @@ static libnodehook_t *lib_newlibnodehook (lexfile_t *lf, char *libname, char *na
 	lnh->issepcomp = 0;
 	dynarray_init (lnh->autoinclude);
 	dynarray_init (lnh->autouse);
+	lnh->hashalgo = NULL;
+	lnh->hashvalue = NULL;
 
 	dynarray_init (lnh->entries);
 
@@ -683,6 +690,9 @@ static libfile_srcunit_t *lib_newlibfile_srcunit (void)
 
 	lfsu->fname = NULL;
 	dynarray_init (lfsu->entries);
+	lfsu->hashalgo = NULL;
+	lfsu->hashvalue = NULL;
+	lfsu->issigned = 0;
 
 	lfsu->curentry = NULL;
 
@@ -699,6 +709,12 @@ static void lib_freelibfile_srcunit (libfile_srcunit_t *lfsu)
 
 	if (lfsu->fname) {
 		sfree (lfsu->fname);
+	}
+	if (lfsu->hashalgo) {
+		sfree (lfsu->hashalgo);
+	}
+	if (lfsu->hashvalue) {
+		sfree (lfsu->hashvalue);
 	}
 	for (i=0; i<DA_CUR (lfsu->entries); i++) {
 		libfile_entry_t *lfe = DA_NTHITEM (lfsu->entries, i);
@@ -932,6 +948,36 @@ static void lib_xmlhandler_elem_start (xmlhandler_t *xh, void *data, xmlkey_t *k
 				return;
 			}
 		}
+		break;
+		/*}}}*/
+		/*{{{  XMLKEY_HASH -- hashing/digest info for compiler output*/
+	case XMLKEY_HASH:
+		if (!lf->curunit) {
+			nocc_error ("lib_xmlhandler_elem_start(): hash node outside of libunit");
+			return;
+		}
+		for (i=0; attrkeys[i]; i++) {
+			switch (attrkeys[i]->type) {
+			case XMLKEY_HASHALGO:
+				if (lf->curunit->hashalgo) {
+					nocc_error ("lib_xmlhandler_elem_start(): hashing algorithm already set");
+					return;
+				}
+				lf->curunit->hashalgo = string_dup (attrvals[i]);
+				break;
+			case XMLKEY_VALUE:
+				if (lf->curunit->hashvalue) {
+					nocc_error ("lib_xmlhandler_elem_start(): hash value already set");
+					return;
+				}
+				lf->curunit->hashvalue = string_dup (attrvals[i]);
+				break;
+			default:
+				nocc_internal ("lib_xmlhandler_elem_start(): unknown attribute [%s] in hash node", attrkeys[i]->name);
+				return;
+			}
+		}
+		lf->curunit->issigned = 0;
 		break;
 		/*}}}*/
 		/*{{{  XMLKEY_PROC -- process descriptor*/
@@ -1300,6 +1346,13 @@ static int lib_writelibrary (libfile_t *lf)
 
 		lib_isetindent (libstream, 2);
 		fprintf (libstream, "<libunit name=\"%s\">\n", lfsu->fname);
+
+		/* drop hashing information if set */
+		if (lfsu->hashalgo && lfsu->hashvalue) {
+			lib_isetindent (libstream, 3);
+			fprintf (libstream, "<%s hashalgo=\"%s\" value=\"%s\" />\n", lfsu->issigned ? "signedhash" : "hash", lfsu->hashalgo, lfsu->hashvalue);
+		}
+
 		for (j=0; j<DA_CUR (lfsu->entries); j++) {
 			libfile_entry_t *lfe = DA_NTHITEM (lfsu->entries, j);
 
@@ -1463,6 +1516,20 @@ static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh)
 		}
 		dynarray_trash (lfsu->entries);
 		dynarray_init (lfsu->entries);
+		if (lfsu->hashalgo) {
+			sfree (lfsu->hashalgo);
+			lfsu->hashalgo = NULL;
+		}
+		if (lfsu->hashvalue) {
+			sfree (lfsu->hashvalue);
+			lfsu->hashvalue = NULL;
+		}
+	}
+	if (lnh->hashalgo) {
+		lfsu->hashalgo = string_dup (lnh->hashalgo);
+	}
+	if (lnh->hashvalue) {
+		lfsu->hashvalue = string_dup (lnh->hashvalue);
 	}
 
 
@@ -1685,19 +1752,48 @@ fprintf (stderr, "lib_betrans_libnode(): here!\n");
  */
 static void lib_codegen_libnode_pcall (codegen_t *cgen, void *arg)
 {
-	libfile_t *lf = (libfile_t *)arg;
+	libnodehook_t *lnh = (libnodehook_t *)arg;
+	libfile_t *lf;
 
-#if 1
-if (cgen->digest) {
-	char *tmp = crypto_readdigest (cgen->digest);
+	if (lnh->issepcomp) {
+		/* re-create the file each time with this */
+		lf = lib_newlibrary (lnh->libname);
+	} else {
+		/* try and open or create library */
+		lf = lib_readlibrary (lnh->libname, 0);
+	}
+	if (!lf) {
+		/* failed for some reason */
+		codegen_warning (cgen, "failed to open/create library \"%s\"", lnh->libname);
+		return;
+	}
 
-	fprintf (stderr, "lib_codegen_libnode_pcall(): [%s] digest of code-gen is [%s]\n", compopts.hashalgo, tmp);
-	sfree (tmp);
-}
-#endif
+	if (cgen->digest) {
+		char *tmp = crypto_readdigest (cgen->digest);
+
+		if (tmp) {
+			if (lnh->hashalgo) {
+				sfree (lnh->hashalgo);
+			}
+			lnh->hashalgo = string_dup (compopts.hashalgo);
+
+			if (lnh->hashvalue) {
+				sfree (lnh->hashvalue);
+			}
+			lnh->hashvalue = tmp;
+		}
+	}
+
+	/* merge in information from this library node */
+	if (lib_mergeintolibrary (lf, lnh)) {
+		codegen_warning (cgen, "failed to merge library data for \"%s\"", lnh->libname);
+		lib_freelibfile (lf);
+		return;
+	}
+
 	/* write modified/new library info out and free */
 	if (lib_writelibrary (lf)) {
-		codegen_warning (cgen, "failed to write library \"%s\"", lf->libname);
+		codegen_warning (cgen, "failed to write library \"%s\"", lnh->libname);
 		lib_freelibfile (lf);
 		return;
 	}
@@ -1715,30 +1811,9 @@ if (cgen->digest) {
 static int lib_codegen_libnode (tnode_t *node, codegen_t *cgen)
 {
 	libnodehook_t *lnh = (libnodehook_t *)tnode_nthhookof (node, 0);
-	libfile_t *lf;
-
-	if (lnh->issepcomp) {
-		/* re-create the file each time with this */
-		lf = lib_newlibrary (lnh->libname);
-	} else {
-		/* try and open or create library */
-		lf = lib_readlibrary (lnh->libname, 0);
-	}
-	if (!lf) {
-		/* failed for some reason */
-		codegen_warning (cgen, "failed to open/create library \"%s\"", lnh->libname);
-		return 1;
-	}
-
-	/* merge in information from this library node */
-	if (lib_mergeintolibrary (lf, lnh)) {
-		codegen_warning (cgen, "failed to merge library data for \"%s\"", lnh->libname);
-		lib_freelibfile (lf);
-		return 1;
-	}
 
 	/* mark for later generation -- so we can get the digest for the generated code */
-	codegen_setpostcall (cgen, lib_codegen_libnode_pcall, (void *)lf);
+	codegen_setpostcall (cgen, lib_codegen_libnode_pcall, (void *)lnh);
 
 	return 1;
 }

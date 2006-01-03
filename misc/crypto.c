@@ -29,6 +29,7 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #if defined(USE_LIBGCRYPT)
 #include <gcrypt.h>
@@ -37,6 +38,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "opts.h"
 #include "crypto.h"
 
 
@@ -58,6 +60,189 @@ static int gcrypt_digestalgo = 0;
 
 
 #if defined(USE_LIBGCRYPT)
+
+
+/*{{{  static int icrypto_genkeypair (char *privpath, char *pubpath, char *type, char *nbits)*/
+/*
+ *	deals with making a new public/private key-pair
+ *	returns 0 on success, non-zero on failure
+ */
+static int icrypto_genkeypair (char *privpath, char *pubpath, char *type, char *nbits)
+{
+	gcry_sexp_t keyspec, key, pubkey, privkey;
+	int i, fd, gone;
+	char *sbuf;
+
+	sbuf = (char *)gcry_malloc_secure (64);
+	if (!sbuf) {
+		nocc_error ("icrypto_genkeypair(): failed to allocate secure memory!");
+		return -1;
+	}
+	memset (sbuf, 'G', 64);
+
+	sprintf (sbuf, "(genkey (%s (nbits %d:%s)))", type, strlen (nbits), nbits);
+	i = gcry_sexp_new (&keyspec, sbuf, 0, 1);
+	gcry_free (sbuf);
+	if (i) {
+		nocc_error ("icrypto_genkeypair(): failed to S-expression: %s", gpg_strerror (i));
+		return -1;
+	}
+#if 0
+fprintf (stderr, "icrypto_genkeypair(): here 1!\n");
+#endif
+
+	i = gcry_pk_genkey (&key, keyspec);
+	gcry_sexp_release (keyspec);
+	if (i) {
+		nocc_error ("icrypto_genkeypair(): failed to create %s key-pair: %s", type, gpg_strerror (i));
+		return -1;
+	}
+#if 0
+fprintf (stderr, "icrypto_genkeypair(): here 2!\n");
+#endif
+
+	pubkey = gcry_sexp_find_token (key, "public-key", 0);
+	if (!pubkey) {
+		nocc_error ("icrypto_genkeypair(): failed to find public-key in generated key!");
+		return -1;
+	}
+
+	privkey = gcry_sexp_find_token (key, "private-key", 0);
+	if (!privkey) {
+		nocc_error ("icrypto_genkeypair(): failed to find private-key in generated key!");
+		return -1;
+	}
+
+	gcry_sexp_release (key);
+
+	if (compopts.verbose) {
+		nocc_message ("created key-pair");
+	}
+
+	/* oki, write these out! */
+	sbuf = (char *)gcry_xmalloc_secure (4096);
+	if (!sbuf) {
+		nocc_error ("icrypto_genkeypair(): failed to allocate secure memory!");
+		return -1;
+	}
+
+	fd = open (privpath, O_CREAT | O_TRUNC | O_WRONLY, 0600);
+	if (fd < 0) {
+		nocc_error ("icrypto_genkeypair(): failed to open %s for writing: %s", privpath, strerror (errno));
+		gcry_free (sbuf);
+		return -1;
+	}
+	i = gcry_sexp_sprint (privkey, GCRYSEXP_FMT_DEFAULT, sbuf, 4095);
+	sbuf[i] = '\0';
+	for (gone=0; gone < i;) {
+		int x;
+
+		x = write (fd, sbuf + gone, i - gone);
+		if (x <= 0) {
+			nocc_error ("icrypto_genkeypair(): error writing to %s: %s", privpath, strerror (errno));
+			gcry_free (sbuf);
+			close (fd);
+			return -1;
+		}
+		gone += x;
+	}
+	close (fd);
+
+	fd = open (pubpath, O_CREAT | O_TRUNC | O_WRONLY, 0644);
+	if (fd < 0) {
+		nocc_error ("icrypto_genkeypair(): failed to open %s for writing: %s", pubpath, strerror (errno));
+		gcry_free (sbuf);
+		return -1;
+	}
+	i = gcry_sexp_sprint (pubkey, GCRYSEXP_FMT_DEFAULT, sbuf, 4095);
+	sbuf[i] = '\0';
+	for (gone=0; gone < i;) {
+		int x;
+
+		x = write (fd, sbuf + gone, i - gone);
+		if (x <= 0) {
+			nocc_error ("icrypto_genkeypair(): error writing to %s: %s", pubpath, strerror (errno));
+			gcry_free (sbuf);
+			close (fd);
+			return -1;
+		}
+		gone += x;
+	}
+	close (fd);
+
+	gcry_sexp_release (pubkey);
+	gcry_sexp_release (privkey);
+	gcry_free (sbuf);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int icrypto_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	option handler for cryptographic options
+ *	returns 0 on success, non-zero on failure
+ */
+static int icrypto_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	int optv = (int)opt->arg;
+
+	switch (optv) {
+		/*{{{  --genkey <priv-path>,<pub-path>,<type>,<nbits>*/
+	case 0:
+		{
+			char *argcopy = NULL;
+			char *argbits[4] = {NULL, };
+			int i;
+			char *ch;
+
+			if ((ch = strchr (**argwalk, '=')) != NULL) {
+				argcopy = string_dup (ch + 1);
+			} else {
+				(*argwalk)++;
+				(*argleft)--;
+				if (!**argwalk || !*argleft) {
+					nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+					return -1;
+				}
+				argcopy = string_dup (**argwalk);
+			}
+
+			/* demangle options */
+			for (i=0, ch=argcopy; (i<4) && (*ch != '\0'); i++) {
+				char *dh;
+
+				for (dh=ch+1; (*dh != '\0') && (*dh != ','); dh++);
+				if ((*dh == '\0') && (i < 3)) {
+					nocc_error ("malformed argument for genkey");
+					sfree (argcopy);
+					return -1;
+				}
+				*dh = '\0';
+				argbits[i] = string_dup (ch);
+				ch = dh + 1;
+			}
+
+			if (compopts.verbose) {
+				nocc_message ("generating [%s] type key of [%s] bits, saving private key into [%s], public key into [%s]", argbits[2], argbits[3], argbits[0], argbits[1]);
+			}
+
+			if (icrypto_genkeypair (argbits[0], argbits[1], argbits[2], argbits[3])) {
+				nocc_error ("failed to generate public/private key-pair");
+			}
+
+			sfree (argcopy);
+		}
+		break;
+		/*}}}*/
+	default:
+		nocc_error ("icrypto_opthandler(): unknown option [%s]", **argwalk);
+		return -1;
+	}
+
+	return 0;
+}
+/*}}}*/
+
 
 /*{{{  static int icrypto_newdigest (crypto_t *cry)*/
 /*
@@ -154,8 +339,13 @@ static int icrypto_init (void)
 		nocc_error ("icrypto_init(): gcrypt version mismatch");
 		return -1;
 	}
+
+	/* sort out secure memory for cryptography */
+	gcry_control (GCRYCTL_DISABLE_SECMEM_WARN);
+	gcry_control (GCRYCTL_INIT_SECMEM, 16384, 0);
+
 	if (!compopts.hashalgo) {
-		compopts.hashalgo = string_dup ("SHA1");
+		compopts.hashalgo = string_dup ("sha256");
 	}
 	gcrypt_digestalgo = gcry_md_map_name (compopts.hashalgo);
 	if (!gcrypt_digestalgo) {
@@ -165,6 +355,12 @@ static int icrypto_init (void)
 	if (compopts.verbose) {
 		nocc_message ("using message digest algorithm [%s] for hashing", compopts.hashalgo);
 	}
+
+	/*{{{  command-line options: "--genkey=<private-key-path>,<public-key-path>,<type>,<nbits>"*/
+	opts_add ("genkey", '\0', icrypto_opthandler, (void *)0, "1generate new public/private key pair");
+
+	/*}}}*/
+
 	return 0;
 }
 /*}}}*/
