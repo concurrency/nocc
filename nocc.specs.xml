@@ -24,5 +24,8 @@
 	<!-- lpath's say where library files are -->
 	<lpath>/home/frmb/kroc_linux/ukcsource/lib</lpath>
 
+	<!-- signing/hashing -->
+	<hashalgo>sha256</hashalgo>
+	<!-- <privkey>/path/to/private.key</privkey> -->
 </nocc>
 

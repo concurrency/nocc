@@ -1040,6 +1040,7 @@ static dfattbl_t **occampi_function_init_dfatrans (int *ntrans)
 	dynarray_init (transtbl);
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:fdeclstarttype ::= [ 0 @FUNCTION 1 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:funcdefreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:funcdecl ::= [ 0 occampi:typecommalist <occampi:fdeclstarttype> ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:infinstance ::= [ 0 occampi:exprcommalist 2 ] [ 0 -@@) 1 ] [ 1 {<opi:nullpush>} -* 2 ] [ 2 @@) 3 ] [ 3 {<opi:finstancereduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:valofresult ::= [ 0 @RESULT 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:nullreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:valof ::= [ 0 +@VALOF 1 ] [ 1 {<opi:valofreduce>} -* ]"));

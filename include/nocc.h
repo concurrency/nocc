@@ -37,9 +37,15 @@ struct TAG_cmd_option;
 
 /* this holds global options for the compiler */
 typedef struct TAG_compopts {
+	/* general options */
 	int verbose;
 	int notmainmodule;
 	struct TAG_cmd_option *dohelp;
+	int doaliascheck;
+	int dousagecheck;
+	int dodefcheck;
+
+	/* debugging */
 	int dmemdump;
 	int dumpspecs;
 	int dumptree;
@@ -53,23 +59,28 @@ typedef struct TAG_compopts {
 	int dumpnodetypes;
 	int dumpchooks;
 	int debugparser;
-	int doaliascheck;
-	int dousagecheck;
-	int dodefcheck;
 	int stoppoint;
 	int tracetypecheck;
-	char *specsfile;
-	char *outfile;
 	char *savenameddfa[2];
 	char *savealldfas;
+
+	/* general paths */
+	char *specsfile;
+	char *outfile;
 	DYNARRAY (char *, epath);
 	DYNARRAY (char *, ipath);
 	DYNARRAY (char *, lpath);
+
+	/* compiler settings */
 	char *maintainer;
 	char *target_str;
 	char *target_cpu;
 	char *target_os;
 	char *target_vendor;
+
+	/* signing/hashing */
+	char *hashalgo;
+	char *privkey;
 } compopts_t;
 
 /* various tree-walks performed by the compiler (bitfields) */

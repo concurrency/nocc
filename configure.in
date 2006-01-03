@@ -54,7 +54,7 @@ target_os="unknown"
 target_vendor="unknown"
 
 dnl Check for gcrypt
-AM_PATH_LIBGCRYPT([1.1.0],[usecgrypt=yes],[usegcrypt=no])
+AM_PATH_LIBGCRYPT([1.1.0],[usegcrypt=yes],[usegcrypt=no])
 
 dnl AC_CHECK_HEADER(openssl/ssl.h,[have_ssl_h=yes],[have_ssl_h=no])
 dnl AC_CHECK_HEADER(openssl/sha.h,[have_sha_h=yes],[have_sha_h=no])

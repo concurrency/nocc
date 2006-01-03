@@ -60,5 +60,9 @@ allocms,		XMLKEY_ALLOCMS
 adjust,			XMLKEY_ADJUST
 nocc:libinfo,		XMLKEY_NOCC_LIBINFO
 version,		XMLKEY_VERSION
+hashalgo,		XMLKEY_HASHALGO
+privkey,		XMLKEY_PRIVKEY
+hash,			XMLKEY_HASH
+signedhash,		XMLKEY_SIGNEDHASH
 %%
 

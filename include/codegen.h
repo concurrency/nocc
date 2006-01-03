@@ -26,12 +26,21 @@ struct TAG_name;
 struct TAG_lexfile;
 struct TAG_coderops;
 struct TAG_chook;
+struct TAG_crypto;
 
 typedef enum ENUM_codegen_parammode {
 	PARAM_INVALID = 0,
 	PARAM_REF = 1,
 	PARAM_VAL = 2
 } codegen_parammode_t;
+
+struct TAG_codegen;
+
+typedef struct TAG_codegen_pcall {
+	void (*fcn)(struct TAG_codegen *, void *);
+	void *arg;
+} codegen_pcall_t;
+
 
 typedef struct TAG_codegen {
 	struct TAG_target *target;		/* target */
@@ -44,6 +53,8 @@ typedef struct TAG_codegen {
 	DYNARRAY (struct TAG_tnode *, be_blks);	/* enclosing back-end blocks, stack of */
 	DYNARRAY (void *, tcgstates);		/* target code-generation states, stack of */
 	struct TAG_chook *pc_chook;		/* pre-code code-generation hook */
+	struct TAG_crypto *digest;		/* where we store the code-gen digest (optional) */
+	DYNARRAY (codegen_pcall_t *, pcalls);	/* post-codegen calls */
 } codegen_t;
 
 typedef struct TAG_coderops {
@@ -89,6 +100,8 @@ extern int codegen_subprecode (struct TAG_tnode **tptr, codegen_t *cgen);
 
 extern void codegen_setinithook (struct TAG_tnode *node, void (*init)(struct TAG_tnode *, codegen_t *, void *), void *arg);
 extern void codegen_setfinalhook (struct TAG_tnode *node, void (*final)(struct TAG_tnode *, codegen_t *, void *), void *arg);
+extern void codegen_setpostcall (codegen_t *cgen, void (*func)(codegen_t *, void *), void *arg);
+extern void codegen_clearpostcall (codegen_t *cgen, void (*func)(codegen_t *, void *), void *arg);
 
 extern void codegen_warning (codegen_t *cgen, const char *fmt, ...);
 extern void codegen_error (codegen_t *cgen, const char *fmt, ...);

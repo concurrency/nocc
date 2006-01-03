@@ -51,6 +51,7 @@
 #include "library.h"
 #include "map.h"
 #include "codegen.h"
+#include "crypto.h"
 #include "target.h"
 #include "treeops.h"
 #include "xml.h"
@@ -1677,6 +1678,35 @@ fprintf (stderr, "lib_betrans_libnode(): here!\n");
 	return 0;
 }
 /*}}}*/
+/*{{{  static void lib_codegen_libnode_pcall (codegen_t *cgen, void *arg)*/
+/*
+ *	this is called after code-generation has finished to write out a library -- will
+ *	have access to the code-gen digest if generated.
+ */
+static void lib_codegen_libnode_pcall (codegen_t *cgen, void *arg)
+{
+	libfile_t *lf = (libfile_t *)arg;
+
+#if 1
+if (cgen->digest) {
+	char *tmp = crypto_readdigest (cgen->digest);
+
+	fprintf (stderr, "lib_codegen_libnode_pcall(): [%s] digest of code-gen is [%s]\n", compopts.hashalgo, tmp);
+	sfree (tmp);
+}
+#endif
+	/* write modified/new library info out and free */
+	if (lib_writelibrary (lf)) {
+		codegen_warning (cgen, "failed to write library \"%s\"", lf->libname);
+		lib_freelibfile (lf);
+		return;
+	}
+
+	lib_freelibfile (lf);
+
+	return;
+}
+/*}}}*/
 /*{{{  static int lib_codegen_libnode (tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a library node (produces the library)
@@ -1707,14 +1737,9 @@ static int lib_codegen_libnode (tnode_t *node, codegen_t *cgen)
 		return 1;
 	}
 
-	/* write modified/new library info out */
-	if (lib_writelibrary (lf)) {
-		codegen_warning (cgen, "failed to write library \"%s\"", lnh->libname);
-		lib_freelibfile (lf);
-		return 1;
-	}
+	/* mark for later generation -- so we can get the digest for the generated code */
+	codegen_setpostcall (cgen, lib_codegen_libnode_pcall, (void *)lf);
 
-	lib_freelibfile (lf);
 	return 1;
 }
 /*}}}*/

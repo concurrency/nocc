@@ -59,5 +59,7 @@ output,			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					41
 include-path,		'I',	opt_addincludepath,	NULL,				"0add paths for include files",				42
 library-path,		'L',	opt_addlibrarypath,	NULL,				"0add paths for library files",				43
 extn-path,		'E',	opt_addextnpath,	NULL,				"1add paths for compiler extensions",			44
+hashing,		'H',	opt_setstr,		&(compopts.hashalgo),		"0use named algorithm for output hashing",		45
+privkey,		'P',	opt_setstr,		&(compopts.privkey),		"0sign compiler output with given key-file",		46
 %%
 

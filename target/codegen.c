@@ -39,6 +39,7 @@
 #include "names.h"
 #include "target.h"
 #include "codegen.h"
+#include "crypto.h"
 
 
 /*}}}*/
@@ -78,7 +79,6 @@ static void codegen_isetindent (FILE *stream, int indent)
 	return;
 }
 /*}}}*/
-
 
 
 /*{{{  static void codegen_precode_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
@@ -280,11 +280,53 @@ void codegen_setfinalhook (tnode_t *node, void (*final)(tnode_t *, codegen_t *, 
 	return;
 }
 /*}}}*/
+/*{{{  void codegen_setpostcall (codegen_t *cgen, void (*func)(codegen_t *, void *), void *arg)*/
+/*
+ *	sets up a post-call (routine called after code-generation has finished)
+ */
+void codegen_setpostcall (codegen_t *cgen, void (*func)(codegen_t *, void *), void *arg)
+{
+	codegen_pcall_t *pcall = (codegen_pcall_t *)smalloc (sizeof (codegen_pcall_t));
+
+	if (!cgen) {
+		nocc_internal ("codegen_setpostcall(): NULL cgen!");
+		return;
+	}
+	pcall->fcn = func;
+	pcall->arg = arg;
+	dynarray_add (cgen->pcalls, pcall);
+	return;
+}
+/*}}}*/
+/*{{{  void codegen_clearpostcall (codegen_t *cgen, void (*func)(codegen_t *, void *), void *arg)*/
+/*
+ *	clears a post-call (before it has run and been removed automatically)
+ */
+void codegen_clearpostcall (codegen_t *cgen, void (*func)(codegen_t *, void *), void *arg)
+{
+	int i;
+
+	if (!cgen) {
+		nocc_internal ("codegen_setpostcall(): NULL cgen!");
+		return;
+	}
+	for (i=0; i<DA_CUR (cgen->pcalls); i++) {
+		codegen_pcall_t *pcall = DA_NTHITEM (cgen->pcalls, i);
+
+		if (pcall && (pcall->fcn == func) && (pcall->arg == arg)) {
+			dynarray_delitem (cgen->pcalls, i);
+			sfree (pcall);
+			return;
+		}
+	}
+	return;
+}
+/*}}}*/
 
 
 /*{{{  int codegen_write_bytes (codegen_t *cgen, const char *ptr, int bytes)*/
 /*
- *	writes plain bytes to the output file
+ *	writes plain bytes to the output file -- this is, in fact, the only thing that writes bytes to the output file
  *	returns 0 on success, non-zero on error
  */
 int codegen_write_bytes (codegen_t *cgen, const char *ptr, int bytes)
@@ -295,6 +337,10 @@ int codegen_write_bytes (codegen_t *cgen, const char *ptr, int bytes)
 	if (cgen->fd < 0) {
 		nocc_internal ("codegen_write_bytes(): attempt to write to closed file!");
 		return -1;
+	}
+	if (bytes && cgen->digest) {
+		/* write into digest */
+		crypto_writedigest (cgen->digest, (unsigned char *)ptr, bytes);
 	}
 	while (left) {
 		int r = write (cgen->fd, ptr + v, left);
@@ -534,6 +580,8 @@ int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)
 	cgen->pc_chook->chook_dumptree = codegen_precode_chook_dumptree;
 	dynarray_init (cgen->be_blks);
 	dynarray_init (cgen->tcgstates);
+	cgen->digest = NULL;
+	dynarray_init (cgen->pcalls);
 
 	/*{{{  figure out the output filename*/
 	if (compopts.outfile) {
@@ -569,6 +617,12 @@ int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)
 	}
 
 	/*}}}*/
+	/*{{{  initialise cryptographic stuffs*/
+	if (compopts.hashalgo) {
+		cgen->digest = crypto_newdigest ();
+	}
+
+	/*}}}*/
 	/*{{{  initialise back-end code generation*/
 	i = target->be_codegen_init (cgen, lf);
 
@@ -593,11 +647,34 @@ int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)
 	/*}}}*/
 	/*{{{  shutdown back-end code generation*/
 	target->be_codegen_final (cgen, lf);
+	close (cgen->fd);
+	cgen->fd = -1;
+
+	/*{{{  now that we've written everything out, do postcalls*/
+	{
+		int j;
+
+		for (j=0; j<DA_CUR (cgen->pcalls); j++) {
+			codegen_pcall_t *pcall = DA_NTHITEM (cgen->pcalls, j);
+
+			if (pcall) {
+				if (!i && pcall->fcn) {			/* don't call if failed */
+					pcall->fcn (cgen, pcall->arg);
+				}
+				sfree (pcall);
+			}
+		}
+	}
+	/*}}}*/
 
 	dynarray_trash (cgen->tcgstates);
 	dynarray_trash (cgen->be_blks);
-	close (cgen->fd);
+	dynarray_trash (cgen->pcalls);
 	sfree (cgen->fname);
+	if (cgen->digest) {
+		crypto_freedigest (cgen->digest);
+		cgen->digest = NULL;
+	}
 	sfree (cgen);
 	/*}}}*/
 

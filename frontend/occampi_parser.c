@@ -362,7 +362,7 @@ static int occampi_dfas_init (void)
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:declorprocstart +:= ( occampi:vardecl | occampi:abbrdecl | occampi:valof | occampi:procdecl | occampi:typedecl | " \
 				"occampi:primproc | occampi:cproc | occampi:namestart | occampi:mobiledecl | " \
 				"occampi:builtinprocinstance | occampi:bracketstart | occampi:asmblock ) {<opi:nullreduce>}"));
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:descriptorline ::= ( occampi:procdecl ) {<opi:nullreduce>}"));
+	dynarray_add (transtbls, dfa_transtotbl ("occampi:descriptorline ::= [ 0 -@PROC 1 ] [ 0 -* 2 ] [ 1 occampi:procdecl 3 ] [ 2 occampi:funcdecl 3 ] [ 3 {<opi:nullreduce>} -* ]"));
 
 	/*{{{  load grammar items for extensions*/
 	if (extn_preloadgrammar (&occampi_parser, &DA_PTR(transtbls), &DA_CUR(transtbls), &DA_MAX(transtbls))) {

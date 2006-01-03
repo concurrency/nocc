@@ -1446,10 +1446,8 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:vardecl ::= [ 0 occampi:primtype 3 ] [ 0 +@CHAN 9 ] " \
 				"[ 1 occampi:protocol 2 ] " \
 				"[ 2 {<opi:chanpush>} -* 3 ] " \
-				"[ 3 -@FUNCTION <occampi:fdeclstarttype> ] " \
-				"[ 3 occampi:namelist 4 ] " \
-				"[ 4 @@: 5 ] " \
-				"[ 4 @IS 6 ] " \
+				"[ 3 -@FUNCTION <occampi:fdeclstarttype> ] [ 3 occampi:namelist 4 ] " \
+				"[ 4 @@: 5 ] [ 4 @IS 6 ] " \
 				"[ 5 {<opi:declreduce>} -* ] " \
 				"[ 6 occampi:operand 7 ] " \
 				"[ 7 @@: 8 ] " \

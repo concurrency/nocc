@@ -537,6 +537,7 @@ static dfattbl_t **occampi_type_init_dfatrans (int *ntrans)
 				"[ 2 occampi:arraytypetype 3 ] " \
 				"[ 3 {<opi:nullreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:type ::= [ 0 occampi:primtype 1 ] [ 1 {<opi:nullreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_bnftotbl ("occampi:typecommalist ::= { occampi:type @@, 1 }"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

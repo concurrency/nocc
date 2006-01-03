@@ -36,6 +36,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "opts.h"
+#include "crypto.h"
 #include "keywords.h"
 #include "symbols.h"
 #include "lexer.h"
@@ -98,11 +99,13 @@ compopts_t compopts = {
 	DA_CONSTINITIALISER(epath),
 	DA_CONSTINITIALISER(ipath),
 	DA_CONSTINITIALISER(lpath),
-	maintainer: "ofa-bugs@kent.ac.uk",
+	maintainer: NULL,
 	target_str: NULL,
 	target_cpu: NULL,
 	target_os: NULL,
-	target_vendor: NULL
+	target_vendor: NULL,
+	hashalgo: NULL,
+	privkey: NULL
 };
 
 /*}}}*/
@@ -277,7 +280,36 @@ fprintf (stderr, "specfile_setcomptarget(): full target is [%s] [%s] [%s]\n", co
  */
 static void specfile_setmaintainer (char *data)
 {
-	compopts.maintainer = data;
+	if (compopts.maintainer) {
+		sfree (compopts.maintainer);
+	}
+	compopts.maintainer = string_dup (data);
+	return;
+}
+/*}}}*/
+/*{{{  static void specfile_sethashalgo (char *edata)*/
+/*
+ *	sets the output hashing algorithm (included in .xlb and .xlo files)
+ */
+static void specfile_sethashalgo (char *edata)
+{
+	if (compopts.hashalgo) {
+		sfree (compopts.hashalgo);
+	}
+	compopts.hashalgo = string_dup (edata);
+	return;
+}
+/*}}}*/
+/*{{{  static void specfile_setprivkey (char *edata)*/
+/*
+ *	sets the private-key file used for signing
+ */
+static void specfile_setprivkey (char *edata)
+{
+	if (compopts.privkey) {
+		sfree (compopts.privkey);
+	}
+	compopts.privkey = string_dup (edata);
 	return;
 }
 /*}}}*/
@@ -330,6 +362,7 @@ static void specfile_elem_end (xmlhandler_t *xh, void *data, xmlkey_t *key)
 		switch (key->type) {
 		case XMLKEY_TARGET:				/* setting compiler target */
 			specfile_setcomptarget (edata);
+			sfree (edata);
 			break;
 		case XMLKEY_EPATH:				/* adding an extension path to the compiler */
 			dynarray_add (compopts.epath, edata);
@@ -342,6 +375,15 @@ static void specfile_elem_end (xmlhandler_t *xh, void *data, xmlkey_t *key)
 			break;
 		case XMLKEY_MAINTAINER:				/* setting compiler maintainer (email-address) */
 			specfile_setmaintainer (edata);
+			sfree (edata);
+			break;
+		case XMLKEY_HASHALGO:				/* setting the output hashing algorithm */
+			specfile_sethashalgo (edata);
+			sfree (edata);
+			break;
+		case XMLKEY_PRIVKEY:				/* setting the location of the private key */
+			specfile_setprivkey (edata);
+			sfree (edata);
 			break;
 		default:
 			nocc_warning ("unknown setting %s in specs file ignored", key->name);
@@ -520,6 +562,7 @@ int main (int argc, char **argv)
 	for (progname=*argv + (strlen (*argv) - 1); (progname > *argv) && (progname[-1] != '/'); progname--);
 
 	dmem_init ();
+	compopts.maintainer = string_dup ("ofa-bugs@kent.ac.uk");
 #ifdef TARGET_CPU
 	compopts.target_cpu = string_dup (TARGET_CPU);
 #else
@@ -725,6 +768,7 @@ int main (int argc, char **argv)
 	allocate_init ();
 	codegen_init ();
 	target_init ();
+	crypto_init ();
 
 	/*}}}*/
 	/*{{{  initialise occam-pi language lexer and parser (just registers them)*/

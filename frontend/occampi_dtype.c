@@ -1176,8 +1176,10 @@ static dfattbl_t **occampi_dtype_init_dfatrans (int *ntrans)
 				"[ 7 Indent 8 ] [ 8 @RECORD 9 ] [ 9 Newline 10 ] [ 10 Indent 11 ] [ 11 occampi:subtspeclist 12 ] [ 12 Newline 13 ] " \
 				"[ 13 Outdent 14 ] [ 14 Outdent 15 ] [ 15 @@: 16 ] [ 16 {<opi:datatypedeclreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:chantypedecl ::= [ 0 @CHAN 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ] [ 3 Newline 4 ] " \
-				"[ 4 Indent 5 ] [ 5 @RECORD 6 ] [ 6 Newline 7 ] [ 7 Indent 8 ] [ 8 occampi:subctspeclist 9 ] [ 9 Newline 10 ] " \
-				"[ 10 Outdent 11 ] [ 11 Outdent 12 ] [ 12 @@: 13 ] [ 13 {<opi:chantypedeclreduce>} -* ]"));
+				"[ 4 Indent 5 ] [ 5 @MOBILE 14 ] [ 5 @RECORD 6 ] [ 6 Newline 7 ] [ 7 Indent 8 ] [ 8 occampi:subctspeclist 9 ] [ 9 Newline 10 ] " \
+				"[ 10 Outdent 11 ] [ 11 Outdent 12 ] [ 12 @@: 13 ] [ 13 {<opi:chantypedeclreduce>} -* ] " \
+				"[ 14 @RECORD 15 ] [ 15 Newline 16 ] [ 16 Indent 17 ] [ 17 occampi:subctspeclist 18 ] [ 18 Newline 19 ] " \
+				"[ 19 Outdent 20 ] [ 20 Outdent 21 ] [ 21 @@: 22 ] [ 22 {<opi:mobilise>} -* 23 ] [ 23 {<opi:chantypedeclreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:proctypedecl ::= [ 0 @PROC 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ] " \
 				"[ 3 @@( 4 ] [ 4 occampi:fparamlist 5 ] [ 5 @@) 6 ] [ 6 {<opi:proctypedeclreduce>} @@: 7 ] [ 7 -* ]"));
 

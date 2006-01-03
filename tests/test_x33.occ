@@ -3,6 +3,14 @@
 #LIBRARY "libx33"
   NAMESPACE "stdlib"
 
+PUBLIC INT FUNCTION double (VAL INT x)
+  INT r:
+  VALOF
+    SEQ
+      r := x
+    RESULT r
+:
+
 PUBLIC PROC delay (VAL INT n)
   SEQ
     SKIP

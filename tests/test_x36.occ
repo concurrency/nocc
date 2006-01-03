@@ -1,0 +1,14 @@
+-- test_x36.occ -- dynamic mobile arrays
+
+CHAN TYPE FOO
+  MOBILE RECORD
+    CHAN INT c?:
+:
+
+PROC test.x36 (CHAN BYTE scr!)
+  FOO! f.cli:
+  SEQ
+    SKIP
+:
+
+
