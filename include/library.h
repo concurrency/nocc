@@ -22,6 +22,7 @@
 
 struct TAG_tnode;
 struct TAG_lexfile;
+struct TAG_crypto;
 
 extern struct TAG_tnode *library_newlibnode (struct TAG_lexfile *lf, char *libname);
 extern int library_addincludes (struct TAG_tnode *libnode, char *iname);
@@ -33,6 +34,8 @@ extern int library_markpublic (struct TAG_tnode *node);
 extern int library_makepublic (struct TAG_tnode **nodep, char *name);
 extern struct TAG_tnode *library_newusenode (struct TAG_lexfile *lf, char *libname);
 extern int library_setusenamespace (struct TAG_tnode *libusenode, char *nsname);
+
+extern int library_readlibanddigest (char *libname, struct TAG_crypto *cry, char *srcname, char **algop, char **shashp);
 
 
 extern int library_init (void);

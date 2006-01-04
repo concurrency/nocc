@@ -39,6 +39,7 @@
 #include "support.h"
 #include "version.h"
 #include "opts.h"
+#include "library.h"
 #include "crypto.h"
 
 /*}}}*/
@@ -66,6 +67,75 @@ static int gcrypt_digestalgo = 0;
  *	see: http://www.gnupg.org/
  */
 
+
+/*{{{  static int icrypto_loadkey (gcry_sexp_t *sexpp, char *keyfile, int secure)*/
+/*
+ *	reads a key from a file into a libgcrypt S-expression
+ *	returns zero on success, non-zero on failure
+ */
+static int icrypto_loadkey (gcry_sexp_t *sexpp, char *keyfile, int secure)
+{
+	int fd, in;
+	char *sbuf;
+	gcry_error_t gerr;
+
+	fd = open (keyfile, O_RDONLY);
+	if (fd < 0) {
+		nocc_error ("icrypto_loadprivkey(): failed to open %s: %s", keyfile, strerror (errno));
+		return -1;
+	}
+
+	sbuf = secure ? (char *)gcry_xmalloc_secure (4096) : (char *)smalloc (4096);
+	if (!sbuf) {
+		close (fd);
+		nocc_error ("icrypto_loadprivkey(): failed to allocate secure memory!");
+		return -1;
+	}
+
+	for (in=0;;) {
+		int x;
+
+		x = read (fd, sbuf + in, 4095 - in);
+		if (!x) {
+			/* eof */
+			break;		/* for() */
+		} else if (x < 0) {
+			int saved_errno = errno;
+
+			close (fd);
+			if (secure) {
+				gcry_free (sbuf);
+			} else {
+				sfree (sbuf);
+			}
+			nocc_error ("icrypto_loadprivkey(): read error while reading from %s: %s", keyfile, strerror (saved_errno));
+			return -1;
+		}
+		in += x;
+	}
+	/* file is binary, but stick a null on the end anyway :) */
+	sbuf[in] = '\0';
+	close (fd);
+
+	*sexpp = NULL;
+	gerr = gcry_sexp_new (sexpp, sbuf, in, 1);
+	if (secure) {
+		gcry_free (sbuf);
+	} else {
+		sfree (sbuf);
+	}
+	if (gerr) {
+		if (*sexpp) {
+			gcry_sexp_release (*sexpp);
+			*sexpp = NULL;
+		}
+		nocc_error ("icrypto_loadprivkey(): failed to convert S-expression: %s", gpg_strerror (gerr));
+		return -1;
+	}
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int icrypto_genkeypair (char *privpath, char *pubpath, char *type, char *nbits)*/
 /*
  *	deals with making a new public/private key-pair
@@ -184,6 +254,175 @@ fprintf (stderr, "icrypto_genkeypair(): here 2!\n");
 	return 0;
 }
 /*}}}*/
+/*{{{  static int icrypto_verifysig (char *pubpath, char *libfile, char *codefile)*/
+/*
+ *	does signature validation -- ensures that the "codefile" and entry-data in "libfile"
+ *	match the signature in "libfile", using public-key in "pubpath".
+ *	returns 0 on success, non-zero on failure
+ */
+static int icrypto_verifysig (char *pubpath, char *libfile, char *codefile)
+{
+	gcry_sexp_t hash, signedhash, pubkey;
+	gcry_error_t gerr;
+	crypto_t *cry;
+	int fd;
+	char *sbuf, *ch;
+	char *hashalgo, *hashvalue;	/* from the library file */
+	int i;
+	size_t geoff;
+
+	cry = crypto_newdigest ();
+	if (!cry) {
+		nocc_error ("icrypto_verifysig(): failed to create digest!");
+		return -1;
+	}
+
+	/*{{{  read "codefile" and add to the digest*/
+	fd = open (codefile, O_RDONLY);
+	if (fd < 0) {
+		nocc_error ("icrypto_verifysig(): failed to open %s: %s", codefile, strerror (errno));
+		crypto_freedigest (cry);
+		return -1;
+	}
+	sbuf = (char *)smalloc (4096);
+	for (;;) {
+		int in;
+
+		in = read (fd, sbuf, 4095);
+		if (!in) {
+			/* eof */
+			break;		/* for() */
+		} else if (in < 0) {
+			nocc_error ("icrypto_verifysig(): read error from %s: %s", codefile, strerror (errno));
+			crypto_freedigest (cry);
+			sfree (sbuf);
+			close (fd);
+			return -1;
+		}
+		sbuf[in] = '\0';
+
+		crypto_writedigest (cry, (unsigned char *)sbuf, in);
+	}
+	sfree (sbuf);
+	close (fd);
+
+	/*}}}*/
+	/*{{{  read "libfile" and add to the digest*/
+	hashalgo = NULL;
+	hashvalue = NULL;
+
+	if (library_readlibanddigest (libfile, cry, NULL, &hashalgo, &hashvalue)) {
+		nocc_error ("icrypto_verifysig(): failed to read and digest library");
+		crypto_freedigest (cry);
+		return -1;
+	}
+
+	/*}}}*/
+	/*{{{  read public key*/
+	if (icrypto_loadkey (&pubkey, pubpath, 0)) {
+		nocc_error ("icrypto_verifysig(): failed to load public key from %s", pubpath);
+		crypto_freedigest (cry);
+		sfree (hashalgo);
+		sfree (hashvalue);
+		return -1;
+	}
+
+	/*}}}*/
+	/*{{{  get our recently computed digest in hex*/
+	sbuf = crypto_readdigest (cry, &i);
+	if (!sbuf || i) {
+		if (!sbuf) {
+			nocc_error ("icrypto_verifysig(): failed to read digest");
+		} else {
+			nocc_error ("icrypto_verifysig(): digest is signed -- it should not be!");
+		}
+		crypto_freedigest (cry);
+		sfree (hashalgo);
+		sfree (hashvalue);
+		gcry_sexp_release (pubkey);
+		return -1;
+	}
+	/* convert to upper-case */
+	for (ch=sbuf; *ch != '\0'; ch++) {
+		if ((*ch >= 'a') && (*ch <= 'f')) {
+			*ch -= 'a';
+			*ch += 'A';
+		}
+	}
+
+	/*}}}*/
+	/*{{{  convert hash into S-expression*/
+	ch = (char *)smalloc (2048);
+	i = sprintf (ch, "(data\n (flags pkcs1)\n (hash %s #%s#))\n", compopts.hashalgo, sbuf);
+	hash = NULL;
+	gerr = gcry_sexp_sscan (&hash, &geoff, ch, i);
+	sfree (ch);
+
+#if 0
+fprintf (stderr, "gerr = %d, geoff = %d, hexstr = [%s]\n", gerr, (int)geoff, hexstr);
+#endif
+	sfree (sbuf);
+	if (gerr) {
+		nocc_error ("icrypto_verifysig(): failed to build S-expression: %s", gpg_strerror (gerr));
+		crypto_freedigest (cry);
+		sfree (hashalgo);
+		sfree (hashvalue);
+		gcry_sexp_release (pubkey);
+		return -1;
+	}
+
+	/* done with the digest now */
+	crypto_freedigest (cry);
+
+	/*}}}*/
+	/*{{{  turn "hashvalue" back into an S-expression in "signedhash"*/
+	{
+		int sslen;
+		char *ssexp = decode_hexstr (hashvalue, &sslen);
+
+		if (!ssexp) {
+			nocc_error ("icrypto_verifysig(): bad hash hex-string in library [%s]", libfile);
+			sfree (hashalgo);
+			sfree (hashvalue);
+			gcry_sexp_release (hash);
+			gcry_sexp_release (pubkey);
+			return -1;
+		}
+
+		signedhash = NULL;
+		gerr = gcry_sexp_new (&signedhash, (unsigned char *)ssexp, sslen, 1);
+		sfree (ssexp);
+
+		if (gerr) {
+			nocc_error ("icrypto_verifysig(): bad hash in library [%s]: %s", libfile, gpg_strerror (gerr));
+			sfree (hashalgo);
+			sfree (hashvalue);
+			gcry_sexp_release (hash);
+			gcry_sexp_release (pubkey);
+			return -1;
+		}
+	}
+
+	/*}}}*/
+	/*{{{  do the actual check (finally!)*/
+	gerr = gcry_pk_verify (signedhash, hash, pubkey);
+
+	gcry_sexp_release (hash);
+	gcry_sexp_release (signedhash);
+	gcry_sexp_release (pubkey);
+
+	if (gerr) {
+		/* failed gracefully */
+		nocc_error ("failed to verify signature: %s", gpg_strerror (gerr));
+		return -1;
+	}
+
+	/*}}}*/
+
+	/* otherwise good :) */
+	return 0;
+}
+/*}}}*/
 /*{{{  static int icrypto_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)*/
 /*
  *	option handler for cryptographic options
@@ -279,7 +518,12 @@ static int icrypto_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)
 				ch = dh + 1;
 			}
 
-			/* FIXME: do stuff! */
+			if (icrypto_verifysig (argbits[2], argbits[0], argbits[1])) {
+				nocc_fatal ("failed to verify signature");
+			}
+			if (compopts.verbose) {
+				nocc_message ("signature in %s checks out ok", argbits[0]);
+			}
 
 			sfree (argcopy);
 			nocc_cleanexit ();
@@ -290,67 +534,6 @@ static int icrypto_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)
 		nocc_error ("icrypto_opthandler(): unknown option [%s]", **argwalk);
 		return -1;
 	}
-
-	return 0;
-}
-/*}}}*/
-/*{{{  static int icrypto_loadprivkey (gcry_sexp_t *sexpp, char *privfile)*/
-/*
- *	reads a private key from a file into a libgcrypt S-expression
- *	returns zero on success, non-zero on failure
- */
-static int icrypto_loadprivkey (gcry_sexp_t *sexpp, char *privfile)
-{
-	int fd, in;
-	char *sbuf;
-	gcry_error_t gerr;
-
-	fd = open (privfile, O_RDONLY);
-	if (fd < 0) {
-		nocc_error ("icrypto_loadprivkey(): failed to open %s: %s", privfile, strerror (errno));
-		return -1;
-	}
-
-	sbuf = (char *)gcry_xmalloc_secure (4096);
-	if (!sbuf) {
-		close (fd);
-		nocc_error ("icrypto_loadprivkey(): failed to allocate secure memory!");
-		return -1;
-	}
-
-	for (in=0;;) {
-		int x;
-
-		x = read (fd, sbuf + in, 4095 - in);
-		if (!x) {
-			/* eof */
-			break;		/* for() */
-		} else if (x < 0) {
-			int saved_errno = errno;
-
-			close (fd);
-			gcry_free (sbuf);
-			nocc_error ("icrypto_loadprivkey(): read error while reading from %s: %s", privfile, strerror (saved_errno));
-			return -1;
-		}
-		in += x;
-	}
-	/* file is binary, but stick a null on the end anyway :) */
-	sbuf[in] = '\0';
-	close (fd);
-
-	*sexpp = NULL;
-	gerr = gcry_sexp_new (sexpp, sbuf, in, 1);
-	if (gerr) {
-		if (*sexpp) {
-			gcry_sexp_release (*sexpp);
-			*sexpp = NULL;
-		}
-		gcry_free (sbuf);
-		nocc_error ("icrypto_loadprivkey(): failed to convert S-expression: %s", gpg_strerror (gerr));
-		return -1;
-	}
-	gcry_free (sbuf);
 
 	return 0;
 }
@@ -479,6 +662,7 @@ static int icrypto_signdigest (crypto_t *cry, char *privfile)
 	char *hexstr, *ch, *secbuf;
 	int i;
 
+	/*{{{  get the digest in hex*/
 	digest = gcry_md_read (gc->handle, gcrypt_digestalgo);
 	if (!digest) {
 		nocc_error ("icrypto_signdigest(): gcry_md_read() returned NULL!");
@@ -492,6 +676,8 @@ static int icrypto_signdigest (crypto_t *cry, char *privfile)
 		}
 	}
 
+	/*}}}*/
+	/*{{{  convert hash into S-expression*/
 	secbuf = (char *)gcry_malloc_secure (512);
 	if (!secbuf) {
 		nocc_error ("icrypto_signdigest(): failed to allocate secure memory");
@@ -511,7 +697,9 @@ fprintf (stderr, "gerr = %d, geoff = %d, hexstr = [%s]\n", gerr, (int)geoff, hex
 		return -1;
 	}
 
-	if (icrypto_loadprivkey (&privkey, privfile)) {
+	/*}}}*/
+	/*{{{  load private key and sign*/
+	if (icrypto_loadkey (&privkey, privfile, 1)) {
 		/* already complained */
 		gcry_sexp_release (hash);
 		return -1;
@@ -526,6 +714,8 @@ fprintf (stderr, "gerr = %d, geoff = %d, hexstr = [%s]\n", gerr, (int)geoff, hex
 		nocc_error ("icrypto_signdigest(): failed to sign digest: %s", gpg_strerror (gerr));
 		return -1;
 	}
+
+	/*}}}*/
 
 	if (gc->signedhash) {
 		gcry_sexp_release (gc->signedhash);

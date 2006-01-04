@@ -834,7 +834,9 @@ int main (int argc, char **argv)
 	/*}}}*/
 	/*{{{  maybe need to do a clean exit here*/
 	if (noccexitflag) {
-		nocc_message ("exiting...");
+		if (compopts.verbose) {
+			nocc_message ("exiting...");
+		}
 		goto main_out;
 	}
 	/*}}}*/

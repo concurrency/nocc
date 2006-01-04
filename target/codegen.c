@@ -650,16 +650,6 @@ int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)
 	close (cgen->fd);
 	cgen->fd = -1;
 
-	/*{{{  if we were creating a signed hash, do it now*/
-	if (compopts.hashalgo && compopts.privkey && cgen->digest) {
-		if (crypto_signdigest (cgen->digest, compopts.privkey)) {
-			nocc_warning ("failed to sign digest with private key");
-		} else if (compopts.verbose) {
-			nocc_message ("signed digest of compiler output using private key");
-		}
-	}
-
-	/*}}}*/
 	/*{{{  now that we've written everything out, do postcalls*/
 	{
 		int j;

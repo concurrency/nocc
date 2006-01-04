@@ -1207,13 +1207,23 @@ static libfile_t *lib_readlibrary (char *libname, int using)
 
 	if (using) {
 		/*{{{  must exist, or fail*/
+
 		/* try current directory first */
-		flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s.xlb", libname);
+		if ((strlen (libname) > 4) && !strcmp (libname + (strlen (libname) - 4), ".xlb")) {
+			flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s", libname);
+		} else {
+			flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s.xlb", libname);
+		}
+
 		if (access (fbuf, R_OK)) {
 			flen = 0;
 
 			/* try .xlo version also */
-			flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s.xlo", libname);
+			if ((strlen (libname) > 4) && !strcmp (libname + (strlen (libname) - 4), ".xlo")) {
+				flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s", libname);
+			} else {
+				flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s.xlo", libname);
+			}
 			if (access (fbuf, R_OK)) {
 				flen = 0;
 
@@ -1383,12 +1393,12 @@ static int lib_writelibrary (libfile_t *lf)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh)*/
+/*{{{  static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh, libfile_srcunit_t **thisunitp)*/
 /*
  *	merges information from tree-nodes (libnodehook_t) into library-file structures (libfile_t)
  *	returns 0 on success, non-zero on failure
  */
-static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh)
+static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh, libfile_srcunit_t **thisunitp)
 {
 	int i;
 	libfile_srcunit_t *lfsu = NULL;;
@@ -1539,6 +1549,11 @@ static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh)
 	lfsu->issigned = lnh->issigned;
 
 	/*}}}*/
+	/*{{{  save pointer to the source unit if wanted*/
+	if (thisunitp) {
+		*thisunitp = lfsu;
+	}
+	/*}}}*/
 	/*{{{  merge in entries*/
 	for (i=0; i<DA_CUR (lnh->entries); i++) {
 		libtaghook_t *lth = DA_NTHITEM (lnh->entries, i);
@@ -1671,6 +1686,68 @@ static int lib_parsedescriptors (lexfile_t *orglf, libusenodehook_t *lunh)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int lib_digestlibnode (libnodehook_t *lnh, crypto_t *cry)*/
+/*
+ *	digests library information -- added to the hash when signing is used (to
+ *	guarantee the integrity of the .xlo/.xlb file..!)
+ *	returns 0 on success, non-zero on failure
+ */
+static int lib_digestlibnode (libnodehook_t *lnh, crypto_t *cry)
+{
+	int i, slen;
+	char *str;
+
+	str = (char *)smalloc (2048);
+
+	slen = sprintf (str, "%s\n", lnh->namespace);
+	crypto_writedigest (cry, (unsigned char *)str, slen);
+
+	for (i=0; i<DA_CUR (lnh->entries); i++) {
+		libtaghook_t *lth = DA_NTHITEM (lnh->entries, i);
+
+		slen = sprintf (str, "%s-%s-%s\n", lth->name, lnh->langname, lnh->targetname);
+		crypto_writedigest (cry, (unsigned char *)str, slen);
+		slen = sprintf (str, "%s\n", lth->descriptor ? lth->descriptor : "NO-DESCRIPTOR");
+		crypto_writedigest (cry, (unsigned char *)str, slen);
+		slen = sprintf (str, "%d-%d-%d-%d\n", lth->ws, lth->vs, lth->ms, lth->adjust);
+		crypto_writedigest (cry, (unsigned char *)str, slen);
+	}
+
+	sfree (str);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int lib_digestlibfilesrcunit (libfilesrcunit_t *lfsu, libfile_t *lf, crypto_t *cry)*/
+/*
+ *	digests library-file information -- added to the hash when verifying a signature
+ *	in an .xlo/.xlb file.
+ *	returns 0 on success, non-zero on failure
+ */
+static int lib_digestlibfilesrcunit (libfile_srcunit_t *lfsu, libfile_t *lf, crypto_t *cry)
+{
+	int i, slen;
+	char *str;
+
+	str = (char *)smalloc (2048);
+
+	slen = sprintf (str, "%s\n", lf->namespace);
+	crypto_writedigest (cry, (unsigned char *)str, slen);
+
+	for (i=0; i<DA_CUR (lfsu->entries); i++) {
+		libfile_entry_t *lfe = DA_NTHITEM (lfsu->entries, i);
+
+		slen = sprintf (str, "%s-%s-%s\n", lfe->name, lfe->langname, lfe->targetname);
+		crypto_writedigest (cry, (unsigned char *)str, slen);
+		slen = sprintf (str, "%s\n", lfe->descriptor ? lfe->descriptor : "NO-DESCRIPTOR");
+		crypto_writedigest (cry, (unsigned char *)str, slen);
+		slen = sprintf (str, "%d-%d-%d-%d\n", lfe->ws, lfe->vs, lfe->ms, lfe->adjust);
+		crypto_writedigest (cry, (unsigned char *)str, slen);
+	}
+
+	sfree (str);
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int lib_scopein_libnode (tnode_t **nodep, scope_t *ss)*/
@@ -1775,7 +1852,23 @@ static void lib_codegen_libnode_pcall (codegen_t *cgen, void *arg)
 
 	if (cgen->digest) {
 		int issigned = 0;
-		char *tmp = crypto_readdigest (cgen->digest, &issigned);
+		char *tmp;
+
+
+		/*{{{  if we were creating a signed hash, do it now -- also add in data from the libnode!*/
+		if (compopts.hashalgo && compopts.privkey && cgen->digest) {
+			lib_digestlibnode (lnh, cgen->digest);
+
+			if (crypto_signdigest (cgen->digest, compopts.privkey)) {
+				nocc_warning ("failed to sign digest with private key");
+			} else if (compopts.verbose) {
+				nocc_message ("signed digest of compiler output using private key");
+			}
+		}
+
+		/*}}}*/
+
+		tmp = crypto_readdigest (cgen->digest, &issigned);
 
 		if (tmp) {
 			if (lnh->hashalgo) {
@@ -1793,7 +1886,7 @@ static void lib_codegen_libnode_pcall (codegen_t *cgen, void *arg)
 	}
 
 	/* merge in information from this library node */
-	if (lib_mergeintolibrary (lf, lnh)) {
+	if (lib_mergeintolibrary (lf, lnh, NULL)) {
 		codegen_warning (cgen, "failed to merge library data for \"%s\"", lnh->libname);
 		lib_freelibfile (lf);
 		return;
@@ -2472,6 +2565,84 @@ int library_setusenamespace (tnode_t *libusenode, char *nsname)
 	} else if (!lunh->asnamespace) {
 		lunh->asnamespace = string_dup (nsname);
 	}
+
+	return 0;
+}
+/*}}}*/
+
+/*{{{  int library_readlibanddigest (char *libname, crypto_t *cry, char *srcname, char **algop, char **shashp)*/
+/*
+ *	reads in a library and "digests" the entry information.  if "srcname" is non-null,
+ *	will use the <libunit name="..."> matching, otherwise expects a single <libunit>.
+ *	returns 0 on success, non-zero on failure
+ */
+int library_readlibanddigest (char *libname, crypto_t *cry, char *srcname, char **algop, char **shashp)
+{
+	libfile_t *lf;
+	libfile_srcunit_t *lfsu = NULL;
+	int i;
+
+	lf = lib_readlibrary (libname, 1);
+	if (!lf) {
+		nocc_error ("library_readlibanddigest(): no such library [%s]", libname);
+		return -1;
+	}
+
+	if (!srcname && (DA_CUR (lf->srcs) != 1)) {
+		nocc_error ("library_readlibanddigest(): %d source-units in library [%s]", DA_CUR (lf->srcs), libname);
+		lib_freelibfile (lf);
+		return -1;
+	} else if (srcname) {
+		/* search for it */
+		for (i=0; i<DA_CUR (lf->srcs); i++) {
+			lfsu = DA_NTHITEM (lf->srcs, i);
+			if (!strcmp (lfsu->fname, srcname)) {
+				break;		/* for() */
+			}
+		}
+		if (i == DA_CUR (lf->srcs)) {
+			nocc_error ("library_readlibanddigest(): source-unit [%s] not found in library [%s]", srcname, libname);
+			lib_freelibfile (lf);
+			return -1;
+		}
+	} else {
+		/* singleton */
+		lfsu = DA_NTHITEM (lf->srcs, 0);
+	}
+
+	/* check source-unit for sanity */
+	if (!lfsu->hashalgo || !lfsu->hashvalue) {
+		nocc_error ("library_readlibanddigest(): library [%s] is not hashed", libname);
+		lib_freelibfile (lf);
+		return -1;
+	} else if (!lfsu->issigned) {
+		nocc_error ("library_readlibanddigest(): library [%s] is not signed", libname);
+		lib_freelibfile (lf);
+		return -1;
+	}
+
+	/* digest entries */
+	if (lib_digestlibfilesrcunit (lfsu, lf, cry)) {
+		nocc_error ("library_readlibanddigest(): failed to digest entries from library [%s]", libname);
+		lib_freelibfile (lf);
+		return -1;
+	}
+
+	if (algop) {
+		if (*algop) {
+			sfree (*algop);
+		}
+		*algop = string_dup (lfsu->hashalgo);
+	}
+	if (shashp) {
+		if (*shashp) {
+			sfree (*shashp);
+		}
+		*shashp = string_dup (lfsu->hashvalue);
+	}
+
+	lib_freelibfile (lf);
+	/* all good! */
 
 	return 0;
 }
