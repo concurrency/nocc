@@ -132,9 +132,19 @@ static void occampi_mobiletypenode_initdynmobarray (tnode_t *node, codegen_t *cg
 static void occampi_mobiletypenode_finaldynmobarray (tnode_t *node, codegen_t *cgen, void *arg)
 {
 	tnode_t *mtype = (tnode_t *)arg;
-	int ws_off;
+	int ws_off, skiplab;
 
-	/* FIXME: nothing here! */
+	cgen->target->be_getoffsets (node, &ws_off, NULL, NULL, NULL);
+
+	skiplab = codegen_new_label (cgen);
+	codegen_callops (cgen, debugline, node);
+	codegen_callops (cgen, loadlocal, ws_off + cgen->target->pointersize);		/* load first dimension */
+	codegen_callops (cgen, branch, I_CJ, skiplab);
+	codegen_callops (cgen, loadlocal, ws_off);					/* load pointer */
+	codegen_callops (cgen, tsecondary, I_MRELEASE);
+	codegen_callops (cgen, loadconst, 0);
+	codegen_callops (cgen, storelocal, ws_off + cgen->target->pointersize);		/* zero first dimension */
+	codegen_callops (cgen, setlabel, skiplab);
 	codegen_callops (cgen, comment, "finaldynmobarray");
 
 	return;
@@ -226,6 +236,17 @@ static int occampi_mobiletypenode_initialising_decl (tnode_t *t, tnode_t *benode
 /*}}}*/
 
 
+/*{{{  static tnode_t *occampi_mobilealloc_gettype (tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a mobile allocation node
+ */
+static tnode_t *occampi_mobilealloc_gettype (tnode_t *node, tnode_t *default_type)
+{
+	return default_type;
+}
+/*}}}*/
+
+
 /*{{{  static void *occampi_copy_demobilechook (void *chook)*/
 /*
  *	copies a demobile-type compiler hook
@@ -313,6 +334,16 @@ static int occampi_mobiles_init_nodes (void)
 	i = -1;
 	opi.tag_DYNMOBPROC = tnode_newnodetag ("DYNMOBPROC", &i, tnd, NTF_NONE);
 	/*}}}*/
+	/*{{{  occampi:mobilealloc -- NEWDYNMOBARRAY*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:mobilealloc", &i, 2, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	cops->gettype = occampi_mobilealloc_gettype;
+	tnd->ops = cops;
+
+	i = -1;
+	opi.tag_NEWDYNMOBARRAY = tnode_newnodetag ("NEWDYNMOBARRAY", &i, tnd, NTF_NONE);
+	/*}}}*/
 	/*{{{  compiler hooks*/
 	if (!chook_demobiletype) {
 		chook_demobiletype = tnode_lookupornewchook ("occampi:demobiletype");
@@ -334,6 +365,7 @@ static int occampi_mobiles_reg_reducers (void)
 {
 	parser_register_grule ("opi:mobilise", parser_decode_grule ("SN0N+C1N-", opi.tag_MOBILE));
 	parser_register_grule ("opi:dynmobilearray", parser_decode_grule ("SN0N+C1N-", opi.tag_DYNMOBARRAY));
+	parser_register_grule ("opi:dynmobarrayallocreduce", parser_decode_grule ("SN0N+N+C2R-", opi.tag_NEWDYNMOBARRAY));
 
 	return 0;
 }
@@ -357,7 +389,12 @@ static dfattbl_t **occampi_mobiles_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobiledecl ::= [ 0 +@MOBILE 1 ] [ 1 +@PROC 2 ] [ 1 -* 3 ] " \
 				"[ 2 {<parser:rewindtokens>} -* <occampi:mobileprocdecl> ] " \
 				"[ 3 {<parser:rewindtokens>} -* <occampi:mobilevardecl> ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:dynmobarrayallocexpr ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 -@@[ 5 ] [ 3 -* 4 ] [ 4 occampi:type 6 ] " \
+				"[ 5 occampi:dynmobarrayallocexpr 6 ] [ 6 {<opi:dynmobarrayallocreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobileallocexpr ::= [ 0 @MOBILE 1 ] [ 1 -@@[ <occampi:dynmobarrayallocexpr> ]"));
+
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:type +:= [ 0 -@MOBILE 1 ] [ 1 occampi:mobiletype 2 ] [ 2 {<opi:nullreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:expr +:= [ 0 -@MOBILE 1 ] [ 1 occampi:mobileallocexpr 2 ] [ 2 {<opi:nullreduce>} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

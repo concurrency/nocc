@@ -1422,6 +1422,27 @@ void tnode_setchook (tnode_t *t, chook_t *ch, void *hook)
 	return;
 }
 /*}}}*/
+/*{{{  void tnode_clearchook (tnode_t *t, chook_t *ch)*/
+/*
+ *	clears a compiler-hook node for some tree-node
+ *	this doesn't attempt to call the free -- just NULLs the entry
+ */
+void tnode_clearchook (tnode_t *t, chook_t *ch)
+{
+	int i;
+
+	if (!ch || !t) {
+		nocc_internal ("tnode_clearchook(): null chook or tree!");
+	}
+	if (ch->id >= DA_CUR (t->chooks)) {
+		return;		/* doesn't exist anyway */
+	}
+
+	DA_SETNTHITEM (t->chooks, ch->id, NULL);
+
+	return;
+}
+/*}}}*/
 /*{{{  void tnode_dumpchooks (FILE *stream)*/
 /*
  *	dumps compiler hooks (debugging)

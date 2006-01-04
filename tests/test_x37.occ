@@ -3,6 +3,7 @@
 PROC test.x37 (CHAN BYTE scr!)
   MOBILE []BYTE str:
   SEQ
+    str := MOBILE [3]BYTE
     SKIP
 :
 

@@ -1,4 +1,5 @@
 
+04/01/2006	frmb	support for verifying signatures on generated code
 04/01/2006	frmb	some support for dynamic mobile arrays
 03/01/2006	frmb	cryptographic support for hashing and signing code-gen output
 01/01/2006	frmb	various namespace additions, more constant propagation

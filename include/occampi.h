@@ -72,6 +72,8 @@ typedef struct {
 	struct TAG_ntdef *tag_FUNCTIONTYPE;
 	struct TAG_ntdef *tag_TYPESPEC;
 
+	struct TAG_ntdef *tag_NEWDYNMOBARRAY;
+
 	struct TAG_ntdef *tag_VARDECL;
 	struct TAG_ntdef *tag_ABBREV;
 	struct TAG_ntdef *tag_VALABBREV;

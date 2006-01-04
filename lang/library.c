@@ -2252,6 +2252,23 @@ static int lib_scopein_templibusenode (tnode_t **nodep, scope_t *ss)
 }
 /*}}}*/
 
+/*{{{  static void lib_libchook_free (void *chook)*/
+/*
+ *	frees a lib:mark hook -- leftover is a tree if any
+ */
+static void lib_libchook_free (void *chook)
+{
+	tnode_t *pnode = (tnode_t *)chook;
+
+	if (pnode->tag != tag_publictag) {
+		nocc_internal ("library_libchook_free(): chook not public node");
+		return;
+	}
+	tnode_free (pnode);
+	return;
+}
+/*}}}*/
+
 
 /*{{{  int library_init (void)*/
 /*
@@ -2332,6 +2349,7 @@ int library_init (void)
 	dynarray_init (entrystack);
 
 	libchook = tnode_lookupornewchook ("lib:mark");
+	libchook->chook_free = lib_libchook_free;
 	uselinkchook = tnode_lookupornewchook ("lib:uselink");
 	descriptorchook = tnode_lookupornewchook ("fetrans:descriptor");
 
@@ -2504,8 +2522,8 @@ int library_makepublic (tnode_t **nodep, char *name)
 		}
 		lth->name = string_dup (name);
 
+		tnode_clearchook (*nodep, libchook);
 		tnode_setnthsub (xnode, 0, *nodep);
-		tnode_setchook (*nodep, libchook, NULL);
 		*nodep = xnode;
 
 		return 1;
