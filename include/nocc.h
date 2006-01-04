@@ -26,6 +26,7 @@ extern void nocc_error (char *fmt, ...);
 extern void nocc_warning (char *fmt, ...);
 extern void nocc_message (char *fmt, ...);
 extern void nocc_outerrmsg (char *string);
+extern void nocc_cleanexit (void);
 
 extern int nocc_dooption (char *optstr);
 extern int nocc_dooption_arg (char *optstr, void *arg);

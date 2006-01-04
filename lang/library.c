@@ -118,6 +118,7 @@ typedef struct TAG_libnodehook {
 	DYNARRAY (char *, autouse);
 	char *hashalgo;		/* of generated-code */
 	char *hashvalue;
+	int issigned;
 
 	DYNARRAY (libtaghook_t *, entries);
 } libnodehook_t;
@@ -346,6 +347,7 @@ static libnodehook_t *lib_newlibnodehook (lexfile_t *lf, char *libname, char *na
 	dynarray_init (lnh->autouse);
 	lnh->hashalgo = NULL;
 	lnh->hashvalue = NULL;
+	lnh->issigned = 0;
 
 	dynarray_init (lnh->entries);
 
@@ -950,8 +952,9 @@ static void lib_xmlhandler_elem_start (xmlhandler_t *xh, void *data, xmlkey_t *k
 		}
 		break;
 		/*}}}*/
-		/*{{{  XMLKEY_HASH -- hashing/digest info for compiler output*/
+		/*{{{  XMLKEY_HASH, XMLKEY_SIGNEDHASH -- hashing/digest info for compiler output*/
 	case XMLKEY_HASH:
+	case XMLKEY_SIGNEDHASH:
 		if (!lf->curunit) {
 			nocc_error ("lib_xmlhandler_elem_start(): hash node outside of libunit");
 			return;
@@ -977,7 +980,8 @@ static void lib_xmlhandler_elem_start (xmlhandler_t *xh, void *data, xmlkey_t *k
 				return;
 			}
 		}
-		lf->curunit->issigned = 0;
+		lf->curunit->issigned = (key->type == XMLKEY_SIGNEDHASH) ? 1 : 0;
+
 		break;
 		/*}}}*/
 		/*{{{  XMLKEY_PROC -- process descriptor*/
@@ -1524,6 +1528,7 @@ static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh)
 			sfree (lfsu->hashvalue);
 			lfsu->hashvalue = NULL;
 		}
+		lfsu->issigned = 0;
 	}
 	if (lnh->hashalgo) {
 		lfsu->hashalgo = string_dup (lnh->hashalgo);
@@ -1531,7 +1536,7 @@ static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh)
 	if (lnh->hashvalue) {
 		lfsu->hashvalue = string_dup (lnh->hashvalue);
 	}
-
+	lfsu->issigned = lnh->issigned;
 
 	/*}}}*/
 	/*{{{  merge in entries*/
@@ -1769,7 +1774,8 @@ static void lib_codegen_libnode_pcall (codegen_t *cgen, void *arg)
 	}
 
 	if (cgen->digest) {
-		char *tmp = crypto_readdigest (cgen->digest);
+		int issigned = 0;
+		char *tmp = crypto_readdigest (cgen->digest, &issigned);
 
 		if (tmp) {
 			if (lnh->hashalgo) {
@@ -1781,6 +1787,8 @@ static void lib_codegen_libnode_pcall (codegen_t *cgen, void *arg)
 				sfree (lnh->hashvalue);
 			}
 			lnh->hashvalue = tmp;
+
+			lnh->issigned = issigned;
 		}
 	}
 

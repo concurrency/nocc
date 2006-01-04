@@ -28,7 +28,8 @@ typedef struct TAG_crypto {
 extern crypto_t *crypto_newdigest (void);
 extern void crypto_freedigest (crypto_t *cry);
 extern int crypto_writedigest (crypto_t *cry, unsigned char *data, int bytes);
-extern char *crypto_readdigest (crypto_t *cry);
+extern char *crypto_readdigest (crypto_t *cry, int *issignedp);
+extern int crypto_signdigest (crypto_t *cry, char *privfile);
 
 
 extern int crypto_init (void);

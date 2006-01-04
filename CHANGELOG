@@ -1,4 +1,6 @@
 
+04/01/2006	frmb	some support for dynamic mobile arrays
+03/01/2006	frmb	cryptographic support for hashing and signing code-gen output
 01/01/2006	frmb	various namespace additions, more constant propagation
 31/12/2005	frmb	more FUNCTION handling, some support for SIZE operator, parser fixups
 29/12/2005	frmb	various extra bits for FUNCTION handling (in progress)

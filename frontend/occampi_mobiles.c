@@ -1,6 +1,6 @@
 /*
  *	occampi_mobiles.c -- occam-pi MOBILE data, channels and processes
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2006 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -103,6 +103,43 @@ static void occampi_mobiletypenode_finalmobile (tnode_t *node, codegen_t *cgen, 
 	return;
 }
 /*}}}*/
+/*{{{  static void occampi_mobiletypenode_initdynmobarray (tnode_t *node, codegen_t *cgen, void *arg)*/
+/*
+ *	generates code to initialise a dynamic mobile array
+ */
+static void occampi_mobiletypenode_initdynmobarray (tnode_t *node, codegen_t *cgen, void *arg)
+{
+	tnode_t *mtype = (tnode_t *)arg;
+	int ws_off;
+
+	cgen->target->be_getoffsets (node, &ws_off, NULL, NULL, NULL);
+
+	codegen_callops (cgen, debugline, node);
+	codegen_callops (cgen, tsecondary, I_NULL);
+	codegen_callops (cgen, storelocal, ws_off);
+	/* FIXME: number of dimensions */
+	codegen_callops (cgen, loadconst, 0);
+	codegen_callops (cgen, storelocal, ws_off + cgen->target->pointersize);
+	codegen_callops (cgen, comment, "initdynmobarray");
+
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_mobiletypenode_finaldynmobarray (tnode_t *node, codegen_t *cgen, void *arg)*/
+/*
+ *	generates code to release a dynamic mobile array
+ */
+static void occampi_mobiletypenode_finaldynmobarray (tnode_t *node, codegen_t *cgen, void *arg)
+{
+	tnode_t *mtype = (tnode_t *)arg;
+	int ws_off;
+
+	/* FIXME: nothing here! */
+	codegen_callops (cgen, comment, "finaldynmobarray");
+
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_mobiletypenode_bytesfor (tnode_t *t, target_t *target)*/
@@ -114,6 +151,9 @@ static int occampi_mobiletypenode_bytesfor (tnode_t *t, target_t *target)
 	if (t->tag == opi.tag_MOBILE) {
 		/* static mobile of some variety */
 		return tnode_bytesfor (tnode_nthsubof (t, 0), target);
+	} else if (t->tag == opi.tag_DYNMOBARRAY) {
+		/* don't know */
+		return -1;
 	}
 	return -1;
 }
@@ -132,6 +172,13 @@ static int occampi_mobiletypenode_initsizes (tnode_t *t, tnode_t *declnode, int 
 		*mssize = tnode_bytesfor (tnode_nthsubof (t, 0), mdata->target);
 		*indir = 1;		/* pointer left in the workspace */
 		return 1;
+	} else if (t->tag == opi.tag_DYNMOBARRAY) {
+		/* dynamic mobile array, 1 + <ndim> words in workspace, no allocation elsewhere */
+		*wssize = mdata->target->pointersize + (1 * mdata->target->slotsize);		/* FIXME: ndim */
+		*vssize = 0;
+		*mssize = 0;
+		*indir = 1;
+		return 1;
 	}
 	return 0;
 }
@@ -144,6 +191,16 @@ static tnode_t *occampi_mobiletypenode_typereduce (tnode_t *type)
 {
 	if (type->tag == opi.tag_MOBILE) {
 		return tnode_nthsubof (type, 0);
+	} else if (type->tag == opi.tag_DYNMOBARRAY) {
+		tnode_t *rtype = (tnode_t *)tnode_getchook (type, chook_demobiletype);
+
+		if (!rtype) {
+			/* reducing into an array-type */
+			rtype = tnode_createfrom (opi.tag_ARRAY, type, NULL, tnode_nthsubof (type, 0));
+			tnode_setchook (type, chook_demobiletype, (void *)rtype);
+		}
+
+		return rtype;
 	}
 	return NULL;
 }
@@ -159,6 +216,10 @@ static int occampi_mobiletypenode_initialising_decl (tnode_t *t, tnode_t *benode
 		codegen_setinithook (benode, occampi_mobiletypenode_initmobile, (void *)t);
 		codegen_setfinalhook (benode, occampi_mobiletypenode_finalmobile, (void *)t);
 		return 1;
+	} else if (t->tag == opi.tag_DYNMOBARRAY) {
+		/* dynamic mobile array */
+		codegen_setinithook (benode, occampi_mobiletypenode_initdynmobarray, (void *)t);
+		codegen_setfinalhook (benode, occampi_mobiletypenode_finaldynmobarray, (void *)t);
 	}
 	return 0;
 }

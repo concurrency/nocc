@@ -58,7 +58,8 @@ typedef enum ENUM_transinstr {
 	I_LB = 41,
 	I_SW = 42,
 	I_LW = 43,
-	I_ADC = 44
+	I_ADC = 44,
+	I_NULL = 45
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {

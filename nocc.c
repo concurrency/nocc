@@ -111,6 +111,7 @@ compopts_t compopts = {
 /*}}}*/
 /*{{{  private data*/
 STATICDYNARRAY (char *, be_def_opts);
+static int noccexitflag = 0;
 
 /*}}}*/
 
@@ -217,6 +218,16 @@ void nocc_message (char *fmt, ...)
 void nocc_outerrmsg (char *string)
 {
 	fprintf (stderr, "%s\n", string);
+	return;
+}
+/*}}}*/
+/*{{{  void nocc_cleanexit (void)*/
+/*
+ *	clean-exit, called by some option-handlers if they're just doing one-shot things
+ */
+void nocc_cleanexit (void)
+{
+	noccexitflag++;
 	return;
 }
 /*}}}*/
@@ -644,17 +655,6 @@ int main (int argc, char **argv)
 		nocc_fatal ("error processing command-line options");
 		exit (EXIT_FAILURE);
 	}
-	if (!DA_CUR (srcfiles) && !compopts.dohelp) {
-		nocc_fatal ("no input files!");
-		exit (EXIT_FAILURE);
-	} else {
-		if (compopts.verbose) {
-			nocc_message ("source files are:");
-			for (i=0; i<DA_CUR (srcfiles); i++) {
-				nocc_message ("\t%s", DA_NTHITEM (srcfiles, i));
-			}
-		}
-	}
 
 	/*}}}*/
 	/*{{{  find and read a specs file*/
@@ -830,6 +830,25 @@ int main (int argc, char **argv)
 	/*{{{  dump supported targets if requested*/
 	if (compopts.dumptargets) {
 		target_dumptargets (stderr);
+	}
+	/*}}}*/
+	/*{{{  maybe need to do a clean exit here*/
+	if (noccexitflag) {
+		nocc_message ("exiting...");
+		goto main_out;
+	}
+	/*}}}*/
+	/*{{{  check that we're actually compiling something*/
+	if (!DA_CUR (srcfiles) && !compopts.dohelp) {
+		nocc_fatal ("no input files!");
+		exit (EXIT_FAILURE);
+	} else {
+		if (compopts.verbose) {
+			nocc_message ("source files are:");
+			for (i=0; i<DA_CUR (srcfiles); i++) {
+				nocc_message ("\t%s", DA_NTHITEM (srcfiles, i));
+			}
+		}
 	}
 	/*}}}*/
 

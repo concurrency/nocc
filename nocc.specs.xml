@@ -26,6 +26,6 @@
 
 	<!-- signing/hashing -->
 	<hashalgo>sha256</hashalgo>
-	<!-- <privkey>/path/to/private.key</privkey> -->
+	<privkey>/home/frmb/kroc_linux/ukcsource/nocc/keys/nocc.sec</privkey>
 </nocc>
 

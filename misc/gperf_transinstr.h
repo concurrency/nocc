@@ -36,7 +36,7 @@
  */
 struct TAG_transinstr;
 
-#define TOTAL_KEYWORDS 37
+#define TOTAL_KEYWORDS 38
 #define MIN_WORD_LENGTH 1
 #define MAX_WORD_LENGTH 10
 #define MIN_HASH_VALUE 1
@@ -61,9 +61,9 @@ hash (register const char *str, register unsigned int len)
       64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
       64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
       64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 35, 30, 15, 20, 10,
-       5, 45, 64, 35,  0, 64, 20,  5,  0, 15,
-       0,  0,  5,  0,  0, 64, 40,  5, 64, 64,
+      64, 64, 64, 64, 64, 35, 30, 15, 25, 10,
+       5, 55, 64, 35,  0, 64, 20,  5,  0, 15,
+       0,  0,  5,  0,  0, 64, 20,  5, 64, 64,
       64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
       64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
       64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
@@ -111,17 +111,17 @@ static const struct TAG_transinstr wordlist[] =
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"LT",		INS_SECONDARY,	I_LT,		NULL},
     {"MRELEASE",	INS_SECONDARY,	I_MRELEASE,	NULL},
-    {"PROD",		INS_SECONDARY,	I_PROD,		NULL},
+    {"NULL",		INS_SECONDARY,	I_NULL,		NULL},
     {"RESCHEDULE",	INS_SECONDARY,	I_RESCHEDULE,	NULL},
     {"MALLOC",		INS_SECONDARY,	I_MALLOC,	NULL},
     {"LW",		INS_SECONDARY,	I_LW,		NULL},
     {"MUL",		INS_SECONDARY,	I_MUL,		NULL},
-    {"DIFF",		INS_SECONDARY,	I_DIFF,		NULL},
+    {"PROD",		INS_SECONDARY,	I_PROD,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"SB",		INS_SECONDARY,	I_SB,		NULL},
     {"SUB",		INS_SECONDARY,	I_SUB,		NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"DIFF",		INS_SECONDARY,	I_DIFF,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"IN",		INS_SECONDARY,	I_IN,		NULL},
@@ -129,13 +129,13 @@ static const struct TAG_transinstr wordlist[] =
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"BOOLINVERT",	INS_SECONDARY,	I_BOOLINVERT,	NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"LD",		INS_OTHER,	I_LD,		NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"LDL",		INS_PRIMARY,	I_LDL,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"GT",		INS_SECONDARY,	I_GT,		NULL},
-    {"NEG",		INS_SECONDARY,	I_NEG,		NULL},
+    {"LD",		INS_OTHER,	I_LD,		NULL},
+    {"DIV",		INS_SECONDARY,	I_DIV,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
@@ -144,13 +144,13 @@ static const struct TAG_transinstr wordlist[] =
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"ADD",		INS_SECONDARY,	I_ADD,		NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"GT",		INS_SECONDARY,	I_GT,		NULL},
+    {"NEG",		INS_SECONDARY,	I_NEG,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"DIV",		INS_SECONDARY,	I_DIV,		NULL}
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"ADD",		INS_SECONDARY,	I_ADD,		NULL}
   };
 
 #ifdef __GNUC__

@@ -1,0 +1,8 @@
+-- test_x37 -- dynamic mobile arrays
+
+PROC test.x37 (CHAN BYTE scr!)
+  MOBILE []BYTE str:
+  SEQ
+    SKIP
+:
+
