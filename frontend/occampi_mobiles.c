@@ -365,7 +365,7 @@ static int occampi_mobiles_reg_reducers (void)
 {
 	parser_register_grule ("opi:mobilise", parser_decode_grule ("SN0N+C1N-", opi.tag_MOBILE));
 	parser_register_grule ("opi:dynmobilearray", parser_decode_grule ("SN0N+C1N-", opi.tag_DYNMOBARRAY));
-	parser_register_grule ("opi:dynmobarrayallocreduce", parser_decode_grule ("SN0N+N+C2R-", opi.tag_NEWDYNMOBARRAY));
+	parser_register_grule ("opi:dynmobarrayallocreduce", parser_decode_grule ("SN0N+N+VC2R-", opi.tag_NEWDYNMOBARRAY));
 
 	return 0;
 }

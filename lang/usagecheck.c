@@ -260,7 +260,7 @@ static int uchk_prewalk_cleantree (tnode_t *node, void *data)
 
 	if (thook) {
 		sfree (thook);
-		tnode_setchook (node, uchk_taghook, NULL);
+		tnode_clearchook (node, uchk_taghook);
 	}
 	return 1;
 }
