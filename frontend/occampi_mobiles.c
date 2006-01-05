@@ -236,13 +236,46 @@ static int occampi_mobiletypenode_initialising_decl (tnode_t *t, tnode_t *benode
 /*}}}*/
 
 
+/*{{{  static int occampi_mobilealloc_typecheck (tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking for a mobile allocation node, just
+ *	figures out what type we're creating and stores it in the subnode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mobilealloc_typecheck (tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *subtype = tnode_nthsubof (node, 0);
+	tnode_t *rtype = tnode_nthsubof (node, 2);
+
+	if (rtype) {
+		/* already got this */
+		return 1;
+	}
+	if (node->tag == opi.tag_NEWDYNMOBARRAY) {
+		rtype = tnode_createfrom (opi.tag_DYNMOBARRAY, node, subtype);
+
+		tnode_setnthsub (node, 2, rtype);
+	}
+#if 0
+fprintf (stderr, "occampi_mobilealloc_typecheck(): here!\n");
+#endif
+	return 1;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_mobilealloc_gettype (tnode_t *node, tnode_t *default_type)*/
 /*
  *	gets the type of a mobile allocation node
  */
 static tnode_t *occampi_mobilealloc_gettype (tnode_t *node, tnode_t *default_type)
 {
-	return default_type;
+	tnode_t *rtype = tnode_nthsubof (node, 2);
+
+	/* typecheck should have left us a type in subnode-2 */
+	if (!rtype) {
+		nocc_internal ("occampi_mobilealloc_gettype(): missing type!");
+	}
+
+	return rtype;
 }
 /*}}}*/
 
@@ -309,7 +342,7 @@ static int occampi_mobiles_init_nodes (void)
 
 	/*{{{  occampi:mobiletypenode -- MOBILE, DYNMOBARRAY, CTCLI, CTSVR, CTSHCLI, CTSHSVR*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:mobiletypenode", &i, 1, 0, 0, TNF_NONE);
+	tnd = tnode_newnodetype ("occampi:mobiletypenode", &i, 1, 0, 0, TNF_NONE);		/* subnodes: subtype */
 	cops = tnode_newcompops ();
 	cops->bytesfor = occampi_mobiletypenode_bytesfor;
 	cops->typereduce = occampi_mobiletypenode_typereduce;
@@ -333,16 +366,19 @@ static int occampi_mobiles_init_nodes (void)
 	opi.tag_DYNMOBCTSHSVR = tnode_newnodetag ("DYNMOBCTSHSVR", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_DYNMOBPROC = tnode_newnodetag ("DYNMOBPROC", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  occampi:mobilealloc -- NEWDYNMOBARRAY*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:mobilealloc", &i, 2, 0, 0, TNF_NONE);
+	tnd = tnode_newnodetype ("occampi:mobilealloc", &i, 3, 0, 0, TNF_NONE);			/* subnodes: subtype, dimtree, type */
 	cops = tnode_newcompops ();
+	cops->typecheck = occampi_mobilealloc_typecheck;
 	cops->gettype = occampi_mobilealloc_gettype;
 	tnd->ops = cops;
 
 	i = -1;
 	opi.tag_NEWDYNMOBARRAY = tnode_newnodetag ("NEWDYNMOBARRAY", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  compiler hooks*/
 	if (!chook_demobiletype) {
@@ -365,7 +401,7 @@ static int occampi_mobiles_reg_reducers (void)
 {
 	parser_register_grule ("opi:mobilise", parser_decode_grule ("SN0N+C1N-", opi.tag_MOBILE));
 	parser_register_grule ("opi:dynmobilearray", parser_decode_grule ("SN0N+C1N-", opi.tag_DYNMOBARRAY));
-	parser_register_grule ("opi:dynmobarrayallocreduce", parser_decode_grule ("SN0N+N+VC2R-", opi.tag_NEWDYNMOBARRAY));
+	parser_register_grule ("opi:dynmobarrayallocreduce", parser_decode_grule ("SN0N+N+0C3R-", opi.tag_NEWDYNMOBARRAY));
 
 	return 0;
 }

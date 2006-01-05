@@ -185,6 +185,8 @@ static int occampi_fetrans_action (tnode_t **node, fetrans_t *fe)
 		}
 	}
 
+	fe->insertpoint = saved_insertpoint;
+
 	return 1;
 }
 /*}}}*/
@@ -439,13 +441,18 @@ static dfattbl_t **occampi_action_init_dfatrans (int *ntrans)
 	dynarray_init (transtbl);
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@:= 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:assignreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:ctclidecl ::= [ 0 occampi:namelist 1 ] [ 1 @@: 2 ] [ 2 {<opi:declreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:ctsvrdecl ::= [ 0 occampi:namelist 1 ] [ 1 @@: 2 ] [ 2 {<opi:declreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@! 1 ] [ 1 +Name 2 ] [ 1 -* 4 ] [ 2 -* 4 ] [ 2 +@@, 3 ] [ 2 +@@: 3 ] [ 3 {<parser:rewindtokens>} -* <occampi:ctclidecl> ] " \
 				"[ 4 {<parser:rewindtokens>} -* 5 ] [ 5 occampi:exprsemilist 6 ] [ 6 {<opi:outputreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@? 1 ] [ 1 +Name 2 ] [ 1 -* 4 ] [ 2 -* 4 ] [ 2 +@@, 3 ] [ 2 +@@: 3 ] [ 3 {<parser:rewindtokens>} -* <occampi:ctsvrdecl> ] " \
+				"[ 4 {<parser:rewindtokens>} -* 5 ] [ 5 occampi:exprsemilist 6 ] [ 6 {<opi:inputreduce>} -* ]"));
 
-	//dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@! 1 ] [ 1 occampi:exprsemilist 2 ] [ 2 @@: 3 ] [ 3 {<opi:declreduce>} -* ] " \
-	//			"[ 2 -* 4 ] [ 4 {<opi:outputreduce>} -* ]"));
+	/*
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@! 1 ] [ 1 occampi:exprsemilist 2 ] [ 2 @@: 3 ] [ 3 {<opi:declreduce>} -* ] " \
+				"[ 2 -* 4 ] [ 4 {<opi:outputreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@? 1 ] [ 1 occampi:exprsemilist 2 ] [ 2 @@: 3 ] [ 3 {<opi:declreduce>} -* ] " \
 				"[ 2 -* 4 ] [ 4 {<opi:inputreduce>} -* ]"));
+	*/
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);
