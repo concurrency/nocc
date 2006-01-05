@@ -89,6 +89,7 @@ compopts_t compopts = {
 	debugparser: 0,
 	stoppoint: 0,
 	tracetypecheck: 0,
+	traceparser: 0,
 	doaliascheck: 1,
 	dousagecheck: 1,
 	dodefcheck: 1,

@@ -530,6 +530,54 @@ static int icrypto_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)
 		}
 		break;
 		/*}}}*/
+		/*{{{  --hashalgo <name>*/
+	case 2:
+		{
+			char *ch;
+
+			if ((ch = strchr (**argwalk, '=')) != NULL) {
+				ch++;
+			} else {
+				(*argwalk)++;
+				(*argleft)--;
+				if (!**argwalk || !*argleft) {
+					nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+					return -1;
+				}
+				ch = **argwalk;
+			}
+
+			if (compopts.hashalgo) {
+				sfree (compopts.hashalgo);
+			}
+			compopts.hashalgo = string_dup (ch);
+		}
+		break;
+		/*}}}*/
+		/*{{{  --privkey <keyfile>*/
+	case 3:
+		{
+			char *ch;
+
+			if ((ch = strchr (**argwalk, '=')) != NULL) {
+				ch++;
+			} else {
+				(*argwalk)++;
+				(*argleft)--;
+				if (!**argwalk || !*argleft) {
+					nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+					return -1;
+				}
+				ch = **argwalk;
+			}
+
+			if (compopts.privkey) {
+				sfree (compopts.privkey);
+			}
+			compopts.privkey = string_dup (ch);
+		}
+		break;
+		/*}}}*/
 	default:
 		nocc_error ("icrypto_opthandler(): unknown option [%s]", **argwalk);
 		return -1;
@@ -756,6 +804,8 @@ static int icrypto_init (void)
 	/*{{{  command-line options: "--genkey=<private-key-path>,<public-key-path>,<type>,<nbits>", "--verify=<.xlo>,<.etc>,<pub-key-path>"*/
 	opts_add ("genkey", '\0', icrypto_opthandler, (void *)0, "1generate new public/private key pair: <priv-key-path>,<pub-key-path>,<type>,<nbits>");
 	opts_add ("verify", '\0', icrypto_opthandler, (void *)1, "1verify existing signature: <xlo-path>,<file-path>,<pub-key-path>");
+	opts_add ("hashalgo", 'H', icrypto_opthandler, (void *)2, "1use named algorithm for output hashing");
+	opts_add ("privkey", 'P', icrypto_opthandler, (void *)3, "1sign compiler output with given key-file");
 
 	/*}}}*/
 

@@ -3338,6 +3338,10 @@ tnode_t *dfa_walk (char *rname, lexfile_t *lf)
 		return NULL;
 	}
 
+	if (compopts.traceparser) {
+		nocc_message ("dfa_walk(): starting walk with new state on [%s]", rname);
+	}
+
 	dfast = dfa_newstate (NULL);
 	dfast->cur = idfa;
 

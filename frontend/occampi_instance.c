@@ -62,6 +62,8 @@ typedef struct TAG_builtinproc {
 	int wsh;
 	int wsl;
 	void (*codegen)(tnode_t *, struct TAG_builtinproc *, codegen_t *);
+	const char *descriptor;			/* fed into parser_descparse() */
+	tnode_t *decltree;
 } builtinproc_t;
 
 typedef struct TAG_builtinprochook {
@@ -72,6 +74,7 @@ typedef struct TAG_builtinprochook {
 /*}}}*/
 /*{{{  forward decls*/
 static void builtin_codegen_reschedule (tnode_t *node, builtinproc_t *builtin, codegen_t *cgen);
+static void builtin_codegen_setpri (tnode_t *node, builtinproc_t *builtin, codegen_t *cgen);
 
 
 /*}}}*/
@@ -84,9 +87,9 @@ static void builtin_codegen_reschedule (tnode_t *node, builtinproc_t *builtin, c
 #define BUILTIN_DS_MAX (-5)
 
 static builtinproc_t builtins[] = {
-	{"SETPRI", "SETPRI", NULL, NULL, 4, BUILTIN_DS_MIN, NULL},
-	{"RESCHEDULE", "RESCHEDULE", NULL, NULL, 0, BUILTIN_DS_MIN, builtin_codegen_reschedule},
-	{NULL, NULL, NULL, NULL, 0, 0, NULL}
+	{"SETPRI", "SETPRI", NULL, NULL, 4, BUILTIN_DS_MIN, builtin_codegen_setpri, "PROC xxSETPRI (VAL INT newpri)\n", NULL},
+	{"RESCHEDULE", "RESCHEDULE", NULL, NULL, 0, BUILTIN_DS_MIN, builtin_codegen_reschedule, NULL, NULL},
+	{NULL, NULL, NULL, NULL, 0, 0, NULL, NULL, NULL}
 };
 
 
@@ -385,6 +388,16 @@ static void builtin_codegen_reschedule (tnode_t *node, builtinproc_t *builtin, c
 	return;
 }
 /*}}}*/
+/*{{{  static void builtin_codegen_setpri (tnode_t *node, builtinproc_t *builtin, codegen_t *cgen)*/
+/*
+ *	generates code for a SETPRI(VAL INT)
+ */
+static void builtin_codegen_setpri (tnode_t *node, builtinproc_t *builtin, codegen_t *cgen)
+{
+	codegen_callops (cgen, comment, "FIXME: builtin_codegen_setpri()");
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static tnode_t *occampi_gettype_builtinproc (tnode_t *node, tnode_t *defaulttype)*/
@@ -402,11 +415,61 @@ static tnode_t *occampi_gettype_builtinproc (tnode_t *node, tnode_t *defaulttype
 	}
 	bph = (builtinprochook_t *)tnode_nthhookof (node, 0);
 	builtin = bph->biptr;
+
+	if (!builtin) {
+		nocc_internal ("occampi_gettype_builtinproc(): builtin missing from hook");
+		return NULL;
+	}
 #if 0
-fprintf (stderr, "occampi_gettype_builtinproc(): bph->name = [%s]\n", builtin->name);
+fprintf (stderr, "occampi_gettype_builtinproc(): [%s] builtin->decltree =\n", builtin->name);
+tnode_dumptree (builtin->decltree, 1, stderr);
 #endif
 
-	return NULL;		/* FIXME... */
+	if (!builtin->decltree && builtin->descriptor) {
+		/*{{{  parse descriptor and extract declaration-tree*/
+		lexfile_t *lexbuf;
+		tnode_t *decltree;
+
+		lexbuf = lexer_openbuf (NULL, occampi_parser.langname, (char *)builtin->descriptor);
+		if (!lexbuf) {
+			nocc_error ("occampi_gettype_builtinproc(): failed to open descriptor..");
+			return NULL;
+		}
+
+		decltree = parser_descparse (lexbuf);
+		lexer_close (lexbuf);
+
+		if (!decltree) {
+			nocc_error ("occampi_gettype_builtinproc(): failed to parse descriptor..");
+			return NULL;
+		}
+
+		/* prescope and scope the declaration tree -- to fixup parameters and type */
+		if (prescope_tree (&decltree, &occampi_parser)) {
+			nocc_error ("occampi_gettype_builtinproc(): failed to prescope descriptor..");
+			return NULL;
+		}
+		if (scope_tree (decltree, &occampi_parser)) {
+			nocc_error ("occampi_gettype_builtinproc(): failed to scope descriptor..");
+			return NULL;
+		}
+		if (typecheck_tree (decltree, &occampi_parser)) {
+			nocc_error ("occampi_gettype_builtinproc(): failed to typecheck descriptor..");
+			return NULL;
+		}
+
+		/* okay, attach declaration tree! */
+		builtin->decltree = decltree;
+
+#if 0
+fprintf (stderr, "occampi_gettype_builtinproc(): parsed descriptor and got type:\n");
+tnode_dumptree (decltype, 1, stderr);
+#endif
+		/*}}}*/
+	}
+
+	/* if we have a declaration, use its type */
+	return builtin->decltree ? typecheck_gettype (builtin->decltree, defaulttype) : defaulttype;
 }
 /*}}}*/
 
@@ -471,9 +534,9 @@ static int occampi_instance_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:builtinproc", &i, 0, 0, 1, TNF_NONE);			/* hook: builtinprochook_t */
 	cops = tnode_newcompops ();
 	cops->gettype = occampi_gettype_builtinproc;
+	tnd->ops = cops;
 	tnd->hook_dumptree = builtinprochook_dumphook;
 	tnd->hook_free = builtinprochook_free;
-	tnd->ops = cops;
 
 	i = -1;
 	opi.tag_BUILTINPROC = tnode_newnodetag ("BUILTINPROC", &i, tnd, NTF_NONE);
@@ -517,12 +580,28 @@ static int occampi_instance_reg_reducers (void)
 static dfattbl_t **occampi_instance_init_dfatrans (int *ntrans)
 {
 	DYNARRAY (dfattbl_t *, transtbl);
+	int i;
+	char *tbuf;
 
 	dynarray_init (transtbl);
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:aparamlist ::= ( -@@) {<opi:nullset>} | { occampi:expr @@, 1 } )"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@( 1 ] [ 1 occampi:aparamlist 2 ] " \
 				"[ 2 @@) 3 ] [ 3 {<opi:pinstancereduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:builtinprocinstance +:= [ 0 +@RESCHEDULE 1 ] [ 1 @@( 2 ] [ 2 {Roccampi:builtinproc} ] [ 2 occampi:aparamlist 3 ] [ 3 @@) 4 ] [ 4 {<opi:pinstancereduce>} -* ]"));
+
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:builtinprocinstancei ::= [ 0 @@( 1 ] [ 1 {Roccampi:builtinproc} ] [ 1 occampi:aparamlist 2 ] [ 2 @@) 3 ] [ 3 {<opi:pinstancereduce>} -* ]"));
+
+	/* run through built-in PROCs generating starting matches */
+	tbuf = (char *)smalloc (256);
+	for (i=0; builtins[i].name; i++) {
+		if (builtins[i].keymatch) {
+			sprintf (tbuf, "occampi:builtinprocinstance +:= [ 0 +@%s 1 ] [ 1 -@@( <occampi:builtinprocinstancei> ]", builtins[i].keymatch);
+		} else if (builtins[i].symmatch) {
+			sprintf (tbuf, "occampi:builtinprocinstance +:= [ 0 +@@%s 1 ] [ 1 -@@( <occampi:builtinprocinstancei> ]", builtins[i].symmatch);
+		}
+		dynarray_add (transtbl, dfa_transtotbl (tbuf));
+	}
+	sfree (tbuf);
+
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

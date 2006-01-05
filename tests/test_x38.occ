@@ -1,0 +1,7 @@
+-- test_x38.occ -- more builtin tests
+
+PROC test.x38 ()
+  SETPRI (3)
+:
+
+

@@ -61,6 +61,7 @@ typedef struct TAG_compopts {
 	int dumpchooks;
 	int debugparser;
 	int stoppoint;
+	int traceparser;
 	int tracetypecheck;
 	char *savenameddfa[2];
 	char *savealldfas;
