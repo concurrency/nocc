@@ -117,16 +117,43 @@ static int noccexitflag = 0;
 /*}}}*/
 
 /*{{{  global report routines*/
-/*{{{  void nocc_internal (char *fmt, ...)*/
+/*{{{  void nocc_xinternal (char *fmt, ...)*/
 /*
  *	called to report a fatal internal error (compiler-wide)
  */
-void nocc_internal (char *fmt, ...)
+void nocc_xinternal (char *fmt, ...)
 {
 	va_list ap;
 
 	va_start (ap, fmt);
 	fprintf (stderr, "%s: internal error: ", progname);
+	vfprintf (stderr, fmt, ap);
+	fprintf (stderr, "\n");
+	/* do a banner for these */
+	fprintf (stderr, "\n");
+	fprintf (stderr, "*******************************************************\n");
+	fprintf (stderr, "  this is probably a compiler-bug;  please report to:  \n");
+	fprintf (stderr, "      %s\n", compopts.maintainer);
+	fprintf (stderr, "  with a copy of the code that caused the error.       \n");
+	fprintf (stderr, "*******************************************************\n");
+	fprintf (stderr, "\n");
+	fflush (stderr);
+	va_end (ap);
+	exit (EXIT_FAILURE);
+	return;
+}
+/*}}}*/
+/*{{{  void nocc_pinternal (char *fmt, const char *file, const int line, ...)*/
+/*
+ *	called to report a fatal internal error (compiler-wide)
+ *	includes location in source where generated
+ */
+void nocc_pinternal (char *fmt, const char *file, const int line, ...)
+{
+	va_list ap;
+
+	va_start (ap, line);
+	fprintf (stderr, "%s: internal error at %s:%d : ", progname, file ? file : "<unknown>", file ? line : -1);
 	vfprintf (stderr, fmt, ap);
 	fprintf (stderr, "\n");
 	/* do a banner for these */

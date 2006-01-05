@@ -61,6 +61,124 @@
 
 
 /*}}}*/
+/*{{{  private types*/
+typedef struct TAG_builtinfunction {
+	const char *name;
+	const char *keymatch;
+	const char *symmatch;
+	token_t *tok;
+	int wsh;
+	int wsl;
+	void (*codegen)(tnode_t *, struct TAG_builtinfunction *, codegen_t *);
+	const char *descriptor;			/* fed into parser_descparse() */
+	tnode_t *decltree;
+} builtinfunction_t;
+
+typedef struct TAG_builtinfunctionhook {
+	builtinfunction_t *biptr;
+} builtinfunctionhook_t;
+
+/*}}}*/
+/*{{{  forward decls*/
+
+
+/*}}}*/
+/*{{{  private data*/
+#define BUILTIN_DS_MIN (-1)
+#define BUILTIN_DS_IO (-2)
+#define BUILTIN_DS_ALTIO (-3)
+#define BUILTIN_DS_WAIT (-4)
+#define BUILTIN_DS_MAX (-5)
+
+static builtinfunction_t builtins[] = {
+	{"GETPRI", "GETPRI", NULL, NULL, 0, BUILTIN_DS_MIN, NULL, "INT FUNCTION xxGETPRI ()\n", NULL},
+	{NULL, NULL, NULL, NULL, 0, 0, NULL, NULL, NULL}
+};
+
+/*}}}*/
+
+
+
+/*{{{  builtinfunction_t/builtinfunctionhook_t routines*/
+/*{{{  static builtinfunctionhook_t *builtinfunctionhook_create (builtinfunction_t *builtin)*/
+/*
+ *	creates a new builtinfunctionhook_t structure
+ */
+static builtinfunctionhook_t *builtinfunctionhook_create (builtinfunction_t *builtin)
+{
+	builtinfunctionhook_t *bfh = (builtinfunctionhook_t *)smalloc (sizeof (builtinfunctionhook_t));
+
+	bfh->biptr = builtin;
+	
+	return bfh;
+}
+/*}}}*/
+/*{{{  static void builtinfunctionhook_free (void *hook)*/
+/*
+ *	frees a builtinfunctionhook_t structure
+ */
+static void builtinfunctionhook_free (void *hook)
+{
+	builtinfunctionhook_t *bfh = (builtinfunctionhook_t *)hook;
+
+	if (bfh) {
+		sfree (bfh);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void builtinfunctionhook_dumphook (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a builtinfunctionhook_t (debugging)
+ */
+static void builtinfunctionhook_dumphook (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	builtinfunctionhook_t *bfh = (builtinfunctionhook_t *)hook;
+
+	occampi_isetindent (stream, indent);
+	if (!hook) {
+		fprintf (stream, "<builtinfunctionhook name=\"(null)\" />\n");
+	} else {
+		builtinfunction_t *builtin = bfh->biptr;
+
+		fprintf (stream, "<builtinfunctionhook name=\"%s\" wsh=\"%d\" wsl=\"%d\" />\n", builtin->name, builtin->wsh, builtin->wsl);
+	}
+	return;
+}
+/*}}}*/
+
+/*{{{  static void builtinfunction_fixupmem (builtinfunction_t *bfi, target_t *target)*/
+/*
+ *	fixes up memory-requirements in a builtinfunction_t once target info is known
+ */
+static void builtinfunction_fixupmem (builtinfunction_t *bfi, target_t *target)
+{
+	if (bfi->wsl < 0) {
+		switch (bfi->wsl) {
+		case BUILTIN_DS_MIN:
+			bfi->wsl = target->bws.ds_min;
+			break;
+		case BUILTIN_DS_IO:
+			bfi->wsl = target->bws.ds_io;
+			break;
+		case BUILTIN_DS_ALTIO:
+			bfi->wsl = target->bws.ds_altio;
+			break;
+		case BUILTIN_DS_WAIT:
+			bfi->wsl = target->bws.ds_wait;
+			break;
+		case BUILTIN_DS_MAX:
+			bfi->wsl = target->bws.ds_max;
+			break;
+		default:
+			nocc_internal ("builtinfunction_fixupmem(): unknown size value %d", bfi->wsl);
+			break;
+		}
+	}
+	return;
+}
+/*}}}*/
+/*}}}*/
 
 
 /*{{{  static int occampi_codegen_valof (tnode_t *node, codegen_t *cgen)*/
@@ -923,6 +1041,113 @@ fprintf (stderr, "occampi_getdescriptor_funcdecl(): return type descriptor is [%
 /*}}}*/
 
 
+/*{{{  static void occampi_reduce_builtinfunction (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	reduces a built-in FUNCTION keyword token to a tree-node
+ */
+static void occampi_reduce_builtinfunction (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	token_t *tok = parser_gettok (pp);
+	int i;
+
+#if 0
+fprintf (stderr, "occampi_reduce_builtinproc(): ..\n");
+#endif
+	for (i=0; builtins[i].name; i++) {
+		if (lexer_tokmatch (builtins[i].tok, tok)) {
+			/*{{{  got a match*/
+			tnode_t *biname;
+
+			biname = tnode_create (opi.tag_BUILTINFUNCTION, tok->origin, builtinfunctionhook_create (&(builtins[i])));
+			dfa_pushnode (dfast, biname);
+
+			lexer_freetoken (tok);
+			return;
+			/*}}}*/
+		}
+	}
+	parser_pushtok (pp, tok);
+	parser_error (tok->origin, "unknown built-in FUNCTION [%s]", lexer_stokenstr (tok));
+
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static tnode_t *occampi_gettype_builtinfunction (tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	returns the type of a built-in FUNCTION
+ */
+static tnode_t *occampi_gettype_builtinfunction (tnode_t *node, tnode_t *defaulttype)
+{
+	builtinfunctionhook_t *bfh;
+	builtinfunction_t *builtin;
+
+	if (node->tag != opi.tag_BUILTINFUNCTION) {
+		nocc_internal ("occampi_gettype_builtinfunction(): node not BUILTINFUNCTION");
+		return NULL;
+	}
+	bfh = (builtinfunctionhook_t *)tnode_nthhookof (node, 0);
+	builtin = bfh->biptr;
+
+	if (!builtin) {
+		nocc_internal ("occampi_gettype_builtinfunction(): builtin missing from hook");
+		return NULL;
+	}
+#if 0
+fprintf (stderr, "occampi_gettype_builtinfunction(): [%s] builtin->decltree =\n", builtin->name);
+tnode_dumptree (builtin->decltree, 1, stderr);
+#endif
+
+	if (!builtin->decltree && builtin->descriptor) {
+		/*{{{  parse descriptor and extract declaration-tree*/
+		lexfile_t *lexbuf;
+		tnode_t *decltree;
+
+		lexbuf = lexer_openbuf (NULL, occampi_parser.langname, (char *)builtin->descriptor);
+		if (!lexbuf) {
+			nocc_error ("occampi_gettype_builtinfunction(): failed to open descriptor..");
+			return NULL;
+		}
+
+		decltree = parser_descparse (lexbuf);
+		lexer_close (lexbuf);
+
+		if (!decltree) {
+			nocc_error ("occampi_gettype_builtinfunction(): failed to parse descriptor..");
+			return NULL;
+		}
+
+		/* prescope and scope the declaration tree -- to fixup parameters and type */
+		if (prescope_tree (&decltree, &occampi_parser)) {
+			nocc_error ("occampi_gettype_builtinfunction(): failed to prescope descriptor..");
+			return NULL;
+		}
+		if (scope_tree (decltree, &occampi_parser)) {
+			nocc_error ("occampi_gettype_builtinfunction(): failed to scope descriptor..");
+			return NULL;
+		}
+		if (typecheck_tree (decltree, &occampi_parser)) {
+			nocc_error ("occampi_gettype_builtinfunction(): failed to typecheck descriptor..");
+			return NULL;
+		}
+
+		/* okay, attach declaration tree! */
+		builtin->decltree = decltree;
+
+#if 0
+fprintf (stderr, "occampi_gettype_builtinfunction(): parsed descriptor and got type:\n");
+tnode_dumptree (decltype, 1, stderr);
+#endif
+		/*}}}*/
+	}
+
+	/* if we have a declaration, use its type */
+	return builtin->decltree ? typecheck_gettype (builtin->decltree, defaulttype) : defaulttype;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_function_init_nodes (void)*/
 /*
  *	sets up nodes for occam-pi functionators (monadic, dyadic)
@@ -1016,6 +1241,34 @@ static int occampi_function_init_nodes (void)
 	i = -1;
 	opi.tag_SHORTFUNCDECL = tnode_newnodetag ("SHORTFUNCDECL", &i, tnd, NTF_NONE);
 	/*}}}*/
+	/*{{{  occampi:builtinfunction -- BUILTINFUNCTION*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:builtinfunction", &i, 0, 0, 1, TNF_NONE);		/* hook: builtinfunctionhook_t */
+	cops = tnode_newcompops ();
+	cops->gettype = occampi_gettype_builtinfunction;
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+	tnd->hook_dumptree = builtinfunctionhook_dumphook;
+	tnd->hook_free = builtinfunctionhook_free;
+
+	i = -1;
+	opi.tag_BUILTINFUNCTION = tnode_newnodetag ("BUILTINFUNCTION", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  setup builtins*/
+	for (i=0; builtins[i].name; i++) {
+		if (!builtins[i].tok) {
+			if (builtins[i].keymatch) {
+				builtins[i].tok = lexer_newtoken (KEYWORD, builtins[i].keymatch);
+			} else if (builtins[i].symmatch) {
+				builtins[i].tok = lexer_newtoken (SYMBOL, builtins[i].symmatch);
+			} else {
+				nocc_internal ("occampi_function_init_nodes(): built-in error, name = [%s]", builtins[i].name);
+			}
+		}
+	}
+	/*}}}*/
 
 	return 0;
 }
@@ -1030,6 +1283,8 @@ static int occampi_function_reg_reducers (void)
 	parser_register_grule ("opi:funcdefreduce", parser_decode_grule ("SN1N+N+N+<C200C4R-", opi.tag_FUNCTIONTYPE, opi.tag_FUNCDECL));
 	parser_register_grule ("opi:finstancereduce", parser_decode_grule ("SN1N+N+VC2R-", opi.tag_FINSTANCE));
 	parser_register_grule ("opi:valofreduce", parser_decode_grule ("ST0T+@t00C2R-", opi.tag_VALOF));
+
+	parser_register_reduce ("Roccampi:builtinfunction", occampi_reduce_builtinfunction, NULL);
 	
 	return 0;
 }
@@ -1041,6 +1296,8 @@ static int occampi_function_reg_reducers (void)
 static dfattbl_t **occampi_function_init_dfatrans (int *ntrans)
 {
 	DYNARRAY (dfattbl_t *, transtbl);
+	int i;
+	char *tbuf;
 
 	dynarray_init (transtbl);
 
@@ -1049,6 +1306,21 @@ static dfattbl_t **occampi_function_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:infinstance ::= [ 0 occampi:exprcommalist 2 ] [ 0 -@@) 1 ] [ 1 {<opi:nullpush>} -* 2 ] [ 2 @@) 3 ] [ 3 {<opi:finstancereduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:valofresult ::= [ 0 @RESULT 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:nullreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:valof ::= [ 0 +@VALOF 1 ] [ 1 {<opi:valofreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:builtinfinstancei ::= [ 0 @@( 1 ] [ 1 {Roccampi:builtinfunction} ] [ 1 occampi:exprcommalist 3 ] [ 1 @@) 2 ] [ 2 {<opi:nullpush>} ] " \
+				"[ 2 -* 3 ] [ 3 {<opi:finstancereduce>} -* ]"));
+
+	/* run-through built-in FUNCTIONs generating starting matches (in expressions) */
+	tbuf = (char *)smalloc (256);
+	for (i=0; builtins[i].name; i++) {
+		if (builtins[i].keymatch) {
+			sprintf (tbuf, "occampi:expr +:= [ 0 +@%s 1 ] [ 1 -@@( <occampi:builtinfinstancei> ]", builtins[i].keymatch);
+		} else if (builtins[i].symmatch) {
+			sprintf (tbuf, "occampi:expr +:= [ 0 +@@%s 1 ] [ 1 -@@( <occampi:builtinfinstancei> ]", builtins[i].symmatch);
+		}
+		dynarray_add (transtbl, dfa_transtotbl (tbuf));
+	}
+	sfree (tbuf);
+
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

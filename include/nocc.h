@@ -20,7 +20,8 @@
 #ifndef __NOCC_H
 #define __NOCC_H
 
-extern void nocc_internal (char *fmt, ...);
+extern void nocc_xinternal (char *fmt, ...);
+extern void nocc_pinternal (char *fmt, const char *file, const int line, ...);
 extern void nocc_fatal (char *fmt, ...);
 extern void nocc_error (char *fmt, ...);
 extern void nocc_warning (char *fmt, ...);
@@ -30,6 +31,12 @@ extern void nocc_cleanexit (void);
 
 extern int nocc_dooption (char *optstr);
 extern int nocc_dooption_arg (char *optstr, void *arg);
+
+#if 1
+#define nocc_internal(FMT,ARGS...) nocc_pinternal((FMT),__FILE__,__LINE__,## ARGS)
+#else
+#define nocc_internal(FMT,ARGS...) nocc_xinternal((FMT),## ARGS)
+#endif
 
 /* need dynamic-arrays in here */
 #include "support.h"
