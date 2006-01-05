@@ -225,8 +225,8 @@ static int occampi_betrans_action (tnode_t **node, betrans_t *be)
 		if (rhs->tag == opi.tag_FINSTANCE) {
 			/*{{{  special-case: check RHS for parameterised results*/
 			tnode_t *fnamenode = tnode_nthsubof (rhs, 0);
-			name_t *fname = tnode_nthnameof (fnamenode, 0);
-			tnode_t *ftype = NameTypeOf (fname);
+			// name_t *fname = tnode_nthnameof (fnamenode, 0);
+			tnode_t *ftype = typecheck_gettype (fnamenode, NULL); // NameTypeOf (fname);
 			tnode_t **fparams, *aparams;
 			int nfparams, i;
 

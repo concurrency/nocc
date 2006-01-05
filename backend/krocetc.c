@@ -1684,9 +1684,9 @@ static int krocetc_bemap_result (tnode_t **rnodep, map_t *mdata)
 		rh->eval_regs = max;				/* FIXME! */
 		rh->result_regs = 1;				/* FIXME! -- assumption.. */
 	} else {
-		nocc_warning ("krocetc_bemap_result(): no sub-things in result..");
+		/* nocc_warning ("krocetc_bemap_result(): no sub-things in result.."); */		/* this is probably ok -- e.g. GETPRI() is transparent */
 		rh->eval_regs = 0;
-		rh->result_regs = 0;
+		rh->result_regs = 1;				/* FIXME! -- assumption.. */
 	}
 
 	return 0;

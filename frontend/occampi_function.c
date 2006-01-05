@@ -69,6 +69,9 @@ typedef struct TAG_builtinfunction {
 	token_t *tok;
 	int wsh;
 	int wsl;
+	void (*betrans)(tnode_t **, struct TAG_builtinfunction *, betrans_t *);
+	void (*premap)(tnode_t **, struct TAG_builtinfunction *, map_t *);
+	void (*namemap)(tnode_t **, struct TAG_builtinfunction *, map_t *);
 	void (*codegen)(tnode_t *, struct TAG_builtinfunction *, codegen_t *);
 	const char *descriptor;			/* fed into parser_descparse() */
 	tnode_t *decltree;
@@ -80,6 +83,8 @@ typedef struct TAG_builtinfunctionhook {
 
 /*}}}*/
 /*{{{  forward decls*/
+static void occampi_bifunc_premap_getpri (tnode_t **node, builtinfunction_t *builtin, map_t *map);
+static void occampi_bifunc_codegen_getpri (tnode_t *node, builtinfunction_t *builtin, codegen_t *cgen);
 
 
 /*}}}*/
@@ -91,8 +96,8 @@ typedef struct TAG_builtinfunctionhook {
 #define BUILTIN_DS_MAX (-5)
 
 static builtinfunction_t builtins[] = {
-	{"GETPRI", "GETPRI", NULL, NULL, 0, BUILTIN_DS_MIN, NULL, "INT FUNCTION xxGETPRI ()\n", NULL},
-	{NULL, NULL, NULL, NULL, 0, 0, NULL, NULL, NULL}
+	{"GETPRI", "GETPRI", NULL, NULL, 0, BUILTIN_DS_MIN, NULL, occampi_bifunc_premap_getpri, NULL, occampi_bifunc_codegen_getpri, "INT FUNCTION xxGETPRI ()\n", NULL},
+	{NULL, NULL, NULL, NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL}
 };
 
 /*}}}*/
@@ -178,6 +183,31 @@ static void builtinfunction_fixupmem (builtinfunction_t *bfi, target_t *target)
 	return;
 }
 /*}}}*/
+/*}}}*/
+
+
+/*{{{  static void occampi_bifunc_premap_getpri (tnode_t **node, builtinfunction_t *builtin, map_t *map)*/
+/*
+ *	does pre-mapping for a GETPRI() instance.  Get the whole instance.
+ */
+static void occampi_bifunc_premap_getpri (tnode_t **node, builtinfunction_t *builtin, map_t *map)
+{
+#if 0
+fprintf (stderr, "occampi_bifunc_premap_getpri(): creating result!\n");
+#endif
+	*node = map->target->newresult (*node, map);
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_bifunc_codegen_getpri (tnode_t *node, builtinfunction_t *builtin, codegen_t *cgen)*/
+/*
+ *	does code-gen for a GETPRI() instance.  Get the whole instance.
+ */
+static void occampi_bifunc_codegen_getpri (tnode_t *node, builtinfunction_t *builtin, codegen_t *cgen)
+{
+	codegen_callops (cgen, tsecondary, I_GETPRI);
+	return;
+}
 /*}}}*/
 
 
@@ -280,7 +310,7 @@ static int occampi_typecheck_finstance (tnode_t *node, typecheck_t *tc)
 	int fp_ptr, ap_ptr;
 	int paramno;
 
-	if (fname->tag != opi.tag_NFUNCDEF) {
+	if ((fname->tag != opi.tag_NFUNCDEF) && (fname->tag != opi.tag_BUILTINFUNCTION)) {
 		typecheck_error (node, tc, "called name is not a function");
 	}
 
@@ -361,14 +391,32 @@ tnode_dumptree (atype, 1, stderr);
 static tnode_t *occampi_gettype_finstance (tnode_t *node, tnode_t *defaulttype)
 {
 	tnode_t *fname = tnode_nthsubof (node, 0);
-	name_t *finame = tnode_nthnameof (fname, 0);
-	tnode_t *ftype = NameTypeOf (finame);
+
+	if (fname->tag->ndef == opi.node_NAMENODE) {
+		name_t *finame = tnode_nthnameof (fname, 0);
+		tnode_t *ftype = NameTypeOf (finame);
 
 #if 0
 fprintf (stderr, "occampi_gettype_finstance(): type = [%s]:\n", ftype->tag->name);
 tnode_dumptree (ftype, 1, stderr);
 #endif
-	return tnode_nthsubof (ftype, 0);
+		return tnode_nthsubof (ftype, 0);
+	} else if (fname->tag == opi.tag_BUILTINFUNCTION) {
+		tnode_t *type = typecheck_gettype (fname, NULL);
+
+		if (!type) {
+			builtinfunctionhook_t *bfh = (builtinfunctionhook_t *)tnode_nthhookof (fname, 0);
+			builtinfunction_t *builtin = bfh->biptr;
+
+			nocc_error ("occampi_gettype_finstance(): failed to get type of builtin FUNCTION [%s]", builtin->name ? builtin->name : "<unknown>");
+		}
+#if 0
+fprintf (stderr, "occampi_gettype_finstance(): [BUILTINFUNCTION]: returned type from gettype():\n");
+tnode_dumptree (type, 1, stderr);
+#endif
+		return tnode_nthsubof (type, 0);		/* return-type */
+	}
+	return NULL;
 }
 /*}}}*/
 /*{{{  static int occampi_fetrans_finstance (tnode_t **node, fetrans_t *fe)*/
@@ -401,15 +449,13 @@ static int occampi_fetrans_finstance (tnode_t **node, fetrans_t *fe)
 static int occampi_betrans_finstance (tnode_t **node, betrans_t *be)
 {
 	tnode_t *fnamenode;
-	name_t *fname;
 	tnode_t *ftype;
 
 	betrans_subtree (tnode_nthsubaddr (*node, 0), be);
 	/* do betrans on params after we've messed around with them */
 
 	fnamenode = tnode_nthsubof (*node, 0);		/* name of FUNCTION being instanced */
-	fname = tnode_nthnameof (fnamenode, 0);
-	ftype = NameTypeOf (fname);
+	ftype = typecheck_gettype (fnamenode, NULL);
 
 	if (!ftype || (ftype->tag != opi.tag_FUNCTIONTYPE)) {
 		tnode_error (*node, "type of function not FUNCTIONTYPE");
@@ -421,9 +467,52 @@ fprintf (stderr, "occampi_betrans_finstance(): function type is:\n");
 tnode_dumptree (ftype, 1, stderr);
 #endif
 
+	if (fnamenode->tag == opi.tag_BUILTINFUNCTION) {
+		/* might have betrans to do on it directly */
+		builtinfunctionhook_t *bfh = (builtinfunctionhook_t *)tnode_nthhookof (fnamenode, 0);
+		builtinfunction_t *builtin = bfh->biptr;
+
+		/* do fixup here */
+		if (builtin) {
+			builtinfunction_fixupmem (builtin, be->target);
+		}
+		if (builtin && builtin->betrans) {
+			builtin->betrans (node, builtin, be);
+		}
+	}
+
 	betrans_subtree (tnode_nthsubaddr (*node, 1), be);
 
-	/* FIXME: nothing to do here now really ? */
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_premap_finstance (tnode_t **node, map_t *map)*/
+/*
+ *	does pre-mapping for a function instance-node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_premap_finstance (tnode_t **node, map_t *map)
+{
+	tnode_t *fnamenode;
+
+	map_subpremap (tnode_nthsubaddr (*node, 0), map);		/* premap on name */
+	map_subpremap (tnode_nthsubaddr (*node, 1), map);		/* premap on parameters */
+
+	fnamenode = tnode_nthsubof (*node, 0);
+
+#if 0
+fprintf (stderr, "occampi_premap_finstance(): premapping!  fnamenode =\n");
+tnode_dumptree (fnamenode, 1, stderr);
+#endif
+	if (fnamenode->tag == opi.tag_BUILTINFUNCTION) {
+		/* might have to premap it */
+		builtinfunctionhook_t *bfh = (builtinfunctionhook_t *)tnode_nthhookof (fnamenode, 0);
+		builtinfunction_t *builtin = bfh->biptr;
+
+		if (builtin && builtin->premap) {
+			builtin->premap (node, builtin, map);
+		}
+	}
 
 	return 0;
 }
@@ -453,23 +542,31 @@ tnode_dumptree (namenode, 1, stderr);
 
 		/* body should be a back-end BLOCK */
 		ibody = tnode_nthsubof (finstance, 2);
-	} else {
-		nocc_internal ("occampi_namemap_finstance(): don\'t know how to handle [%s]", namenode->tag->name);
-		return 0;
-	}
+
 #if 0
 fprintf (stderr, "occampi_namemap_finstance: finstance body is:\n");
 tnode_dumptree (ibody, 1, stderr);
 #endif
 
-	bename = map->target->newblockref (ibody, *node, map);
+		bename = map->target->newblockref (ibody, *node, map);
 #if 0
 fprintf (stderr, "occampi_namemap_finstance: created new blockref =\n");
 tnode_dumptree (bename, 1, stderr);
 #endif
 
-	/* tnode_setnthsub (*node, 0, bename); */
-	*node = bename;
+		/* tnode_setnthsub (*node, 0, bename); */
+		*node = bename;
+	} else if (namenode->tag == opi.tag_BUILTINFUNCTION) {
+		builtinfunctionhook_t *bfh = (builtinfunctionhook_t *)tnode_nthhookof (namenode, 0);
+		builtinfunction_t *builtin = bfh->biptr;
+
+		if (builtin->namemap) {
+			builtin->namemap (node, builtin, map);
+		}
+	} else {
+		nocc_internal ("occampi_namemap_finstance(): don\'t know how to handle [%s]", namenode->tag->name);
+		return 0;
+	}
 	return 0;
 }
 /*}}}*/
@@ -571,21 +668,18 @@ static int occampi_codegen_finstance (tnode_t *node, codegen_t *cgen)
 		}
 
 		/*}}}*/
-#if 0
-	} else if (namenode->tag == opi.tag_BUILTINPROC) {
-		/* FIXME! */
+	} else if (namenode->tag == opi.tag_BUILTINFUNCTION) {
 		/*{{{  finstance of a built-in FUNCTION*/
-		builtinprochook_t *bph = (builtinprochook_t *)tnode_nthhookof (namenode, 0);
-		builtinproc_t *builtin = bph->biptr;
+		builtinfunctionhook_t *bfh = (builtinfunctionhook_t *)tnode_nthhookof (namenode, 0);
+		builtinfunction_t *builtin = bfh->biptr;
 
 		if (builtin->codegen) {
 			builtin->codegen (node, builtin, cgen);
 		} else {
-			nocc_warning ("occampi_codegen_finstance(): don\'t know how to code for built-in PROC [%s]", builtin->name);
-			codegen_callops (cgen, comment, "BUILTINPROC finstance of [%s]", builtin->name);
+			codegen_error (cgen, "occampi_codegen_finstance(): don\'t know how to code for built-in FUNCTION [%s]", builtin->name);
+			codegen_callops (cgen, comment, "BUILTINFUNCTION finstance of [%s]", builtin->name);
 		}
 		/*}}}*/
-#endif
 	} else {
 		nocc_internal ("occampi_codegen_finstance(): don\'t know how to handle [%s]", namenode->tag->name);
 	}
@@ -1168,6 +1262,7 @@ static int occampi_function_init_nodes (void)
 	cops->gettype = occampi_gettype_finstance;
 	cops->fetrans = occampi_fetrans_finstance;
 	cops->betrans = occampi_betrans_finstance;
+	cops->premap = occampi_premap_finstance;
 	cops->namemap = occampi_namemap_finstance;
 	cops->codegen = occampi_codegen_finstance;
 	tnd->ops = cops;
