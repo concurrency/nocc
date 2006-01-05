@@ -253,7 +253,10 @@ static void specfile_setcomptarget (char *target)
 			*(srefs[i]) = NULL;
 		}
 	}
-	compopts.target_str = target;
+	if (compopts.target_str) {
+		sfree (compopts.target_str);
+	}
+	compopts.target_str = string_dup (target);
 #if 0
 fprintf (stderr, "specfile_setcomptarget(): setting compiler target to [%s]\n", compopts.target_str);
 #endif

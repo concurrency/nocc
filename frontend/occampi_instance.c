@@ -394,7 +394,14 @@ static void builtin_codegen_reschedule (tnode_t *node, builtinproc_t *builtin, c
  */
 static void builtin_codegen_setpri (tnode_t *node, builtinproc_t *builtin, codegen_t *cgen)
 {
-	codegen_callops (cgen, comment, "FIXME: builtin_codegen_setpri()");
+	tnode_t *param = tnode_nthsubof (node, 1);
+
+#if 0
+fprintf (stderr, "builtin_codegen_setpri(): param =\n");
+tnode_dumptree (param, 1, stderr);
+#endif
+	codegen_callops (cgen, loadname, param, 0);
+	codegen_callops (cgen, tsecondary, I_SETPRI);
 	return;
 }
 /*}}}*/

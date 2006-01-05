@@ -2575,6 +2575,14 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		codegen_write_string (cgen, "\tnull\n");
 		krocetc_cgstate_tsdelta (cgen, 1);
 		break;
+	case I_SETPRI:
+		codegen_write_string (cgen, "\tsetpri\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+	case I_GETPRI:
+		codegen_write_string (cgen, "\tgetpri\n");
+		krocetc_cgstate_tsdelta (cgen, 1);
+		break;
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: tsecondary %d\n", ins);
 		break;
