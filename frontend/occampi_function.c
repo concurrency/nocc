@@ -641,7 +641,12 @@ static int occampi_betrans_funcdecl (tnode_t **node, betrans_t *be)
 		parser_addtolist (*ritemsp, xitem);
 	}
 
-	/* any return types that are bigger than an integer go into parameters */
+	/* the following results get moved into parameters:
+	 *	- anything bigger than an integer
+	 *	- anything that is a complex type
+	 *	- anything results beyond "maxfuncreturn" in target (setting this to zero forces all results to parameters..!)
+	 */
+
 	if (!parser_islistnode (*rtypep)) {
 		/* make singleton result a list */
 		tnode_t *xitem = *rtypep;
@@ -667,7 +672,7 @@ tnode_dumptree (*ritemsp, 1, stderr);
 	for (i=0, resultno = 0; i<nitems; i++, resultno++) {
 		int bytes = tnode_bytesfor (items[i], be->target);
 
-		if ((bytes < 0) || (bytes > be->target->slotsize) || (i > be->target->maxfuncreturn)) {
+		if ((bytes < 0) || (bytes > be->target->slotsize) || (i > be->target->maxfuncreturn) || (langops_iscomplex (items[i], 0))) {
 			/* don't know, too big, or too many -- make a parameter */
 			name_t *tmpname;
 			tnode_t *namenode = NULL;

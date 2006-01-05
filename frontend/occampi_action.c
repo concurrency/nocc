@@ -140,6 +140,15 @@ tnode_dumptree (rhstype, 1, stderr);
 	return 0;	/* don't walk sub-nodes */
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_gettype_action (tnode_t *node, tnode_t *default_type)*/
+/*
+ *	called to get the type of an action -- just returns the held type
+ */
+static tnode_t *occampi_gettype_action (tnode_t *node, tnode_t *default_type)
+{
+	return tnode_nthsubof (node, 2);
+}
+/*}}}*/
 /*{{{  static int occampi_precheck_action (tnode_t *node)*/
 /*
  *	called to do pre-checks on an action-node
@@ -174,7 +183,7 @@ static int occampi_fetrans_action (tnode_t **node, fetrans_t *fe)
 	fe->insertpoint = node;				/* before process is a good place to insert temporaries */
 
 	if (t->tag == opi.tag_OUTPUT) {
-		/* if RHS looks complex, add temporary and assignment */
+		/*{{{  if RHS looks complex, add temporary and assignment*/
 		if (langops_iscomplex (tnode_nthsubof (t, 1), 1)) {
 			tnode_t *temp = fetrans_maketemp (tnode_nthsubof (t, 2), fe);
 
@@ -183,6 +192,7 @@ static int occampi_fetrans_action (tnode_t **node, fetrans_t *fe)
 
 			tnode_setnthsub (t, 1, temp);
 		}
+		/*}}}*/
 	}
 
 	fe->insertpoint = saved_insertpoint;
@@ -338,6 +348,17 @@ static int occampi_codegen_action (tnode_t *node, codegen_t *cgen)
 	int bytes = tnode_bytesfor (type, cgen->target);
 
 	codegen_callops (cgen, debugline, node);
+	/* some special cases for assignment, input and output -- these have codegen_typeaction() set in language-ops */
+	if (type && type->tag->ndef->lops && type->tag->ndef->lops->codegen_typeaction) {
+		int i;
+
+		i = type->tag->ndef->lops->codegen_typeaction (type, node, cgen);
+		if (i >= 0) {
+			/* did something */
+			return i;
+		}	/* else try a normal action handling on it */
+	}
+
 	if (node->tag == opi.tag_ASSIGN) {
 #if 0
 fprintf (stderr, "occampi_codegen_action(): ASSIGN: bytes = %d, cgen->target->intsize = %d\n", bytes, cgen->target->intsize);
@@ -348,9 +369,9 @@ tnode_dumptree (rhs, 1, stderr);
 fprintf (stderr, "occampi_codegen_action(): ASSIGN: type =\n");
 tnode_dumptree (type, 1, stderr);
 #endif
-		if (bytes < 0) {
-			/* unknown size! */
-			codegen_callops (cgen, comment, "FIXME!");
+		if ((bytes < 0)) {
+			/* maybe need alternate code-gen for this! */
+			codegen_error (cgen, "occampi_codegen_action(): unknown size for node [%s]", type->tag->name);
 		} else if (bytes <= cgen->target->intsize) {
 			/* simple load and store */
 			codegen_callops (cgen, loadname, rhs, 0);
@@ -398,6 +419,7 @@ static int occampi_action_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:actionnode", &i, 3, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
 	cops->typecheck = occampi_typecheck_action;
+	cops->gettype = occampi_gettype_action;
 	cops->precheck = occampi_precheck_action;
 	cops->fetrans = occampi_fetrans_action;
 	cops->betrans = occampi_betrans_action;

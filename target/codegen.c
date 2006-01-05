@@ -430,6 +430,8 @@ void codegen_error (codegen_t *cgen, const char *fmt, ...)
 	nocc_outerrmsg (buf);
 
 	sfree (buf);
+	cgen->error++;
+
 	return;
 }
 /*}}}*/
@@ -675,6 +677,12 @@ int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)
 		crypto_freedigest (cgen->digest);
 		cgen->digest = NULL;
 	}
+
+	i = cgen->error;
+
+#if 0
+fprintf (stderr, "codegen_generate_code(): cgen->error = %d\n", cgen->error);
+#endif
 	sfree (cgen);
 	/*}}}*/
 

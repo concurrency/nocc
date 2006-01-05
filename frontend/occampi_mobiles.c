@@ -74,7 +74,7 @@ static void occampi_mobiletypenode_initmobile (tnode_t *node, codegen_t *cgen, v
 
 	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off, &ms_shdw);
 
-	codegen_callops (cgen, debugline, node);
+	codegen_callops (cgen, debugline, mtype);
 	codegen_callops (cgen, loadmsp, 0);
 	codegen_callops (cgen, loadnonlocal, ms_shdw);
 	codegen_callops (cgen, storelocal, ws_off);
@@ -94,7 +94,7 @@ static void occampi_mobiletypenode_finalmobile (tnode_t *node, codegen_t *cgen, 
 
 	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off, &ms_shdw);
 
-	codegen_callops (cgen, debugline, node);
+	codegen_callops (cgen, debugline, mtype);
 	codegen_callops (cgen, loadlocal, ws_off);
 	codegen_callops (cgen, loadmsp, 0);
 	codegen_callops (cgen, storenonlocal, ms_shdw);
@@ -114,7 +114,7 @@ static void occampi_mobiletypenode_initdynmobarray (tnode_t *node, codegen_t *cg
 
 	cgen->target->be_getoffsets (node, &ws_off, NULL, NULL, NULL);
 
-	codegen_callops (cgen, debugline, node);
+	codegen_callops (cgen, debugline, mtype);
 	codegen_callops (cgen, tsecondary, I_NULL);
 	codegen_callops (cgen, storelocal, ws_off);
 	/* FIXME: number of dimensions */
@@ -137,7 +137,7 @@ static void occampi_mobiletypenode_finaldynmobarray (tnode_t *node, codegen_t *c
 	cgen->target->be_getoffsets (node, &ws_off, NULL, NULL, NULL);
 
 	skiplab = codegen_new_label (cgen);
-	codegen_callops (cgen, debugline, node);
+	codegen_callops (cgen, debugline, mtype);
 	codegen_callops (cgen, loadlocal, ws_off + cgen->target->pointersize);		/* load first dimension */
 	codegen_callops (cgen, branch, I_CJ, skiplab);
 	codegen_callops (cgen, loadlocal, ws_off);					/* load pointer */
@@ -234,6 +234,68 @@ static int occampi_mobiletypenode_initialising_decl (tnode_t *t, tnode_t *benode
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_mobiletypenode_iscomplex (tnode_t *t, int deep)*/
+/*
+ *	returns non-zero if this type is "complex" (e.g. must be moved into FUNCTION params)
+ */
+static int occampi_mobiletypenode_iscomplex (tnode_t *t, int deep)
+{
+	/* we'll assume they're all complex for now.. */
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_mobiletypenode_typeaction (tnode_t *type, tnode_t *anode, codegen_t *cgen)*/
+/*
+ *	this handles code-generation for actions involving mobile types
+ *	returns 0 to stop the code-gen walk, 1 to continue, -1 to resort to normal action handling
+ */
+static int occampi_mobiletypenode_typeaction (tnode_t *type, tnode_t *anode, codegen_t *cgen)
+{
+	tnode_t *atype = typecheck_gettype (anode, NULL);
+
+	if (anode->tag == opi.tag_ASSIGN) {
+		if (type->tag == opi.tag_MOBILE) {
+			/*{{{  MOBILE assignment -- pointer-swap*/
+			codegen_callops (cgen, comment, "FIXME! (mobile assign)");
+			/*}}}*/
+		} else if (type->tag == opi.tag_DYNMOBARRAY) {
+			/*{{{  dynamic mobile array assignment*/
+			codegen_callops (cgen, comment, "FIXME! (dynmobarray assign)");
+			/*}}}*/
+		} else {
+			codegen_warning (cgen, "occampi_mobiletypenode_typeaction(): don\'t know how to assign [%s]", type->tag->name);
+			return -1;
+		}
+	} else if (anode->tag == opi.tag_OUTPUT) {
+		if (type->tag == opi.tag_MOBILE) {
+			/*{{{  MOBILE output -- pointer-swapping*/
+			codegen_callops (cgen, comment, "FIXME! (mobile output)");
+			/*}}}*/
+		} else if (type->tag == opi.tag_DYNMOBARRAY) {
+			/*{{{  dynamic mobile array output*/
+			codegen_callops (cgen, comment, "FIXME! (dynmobarray output)");
+			/*}}}*/
+		} else {
+			codegen_warning (cgen, "occampi_mobiletypenode_typeaction(): don\'t know how to output [%s]", type->tag->name);
+			return -1;
+		}
+	} else if (anode->tag == opi.tag_INPUT) {
+		if (type->tag == opi.tag_MOBILE) {
+			/*{{{  MOBILE input -- pointer-swapping*/
+			codegen_callops (cgen, comment, "FIXME! (mobile input)");
+			/*}}}*/
+		} else if (type->tag == opi.tag_DYNMOBARRAY) {
+			/*{{{  dynamic mobile array input*/
+			codegen_callops (cgen, comment, "FIXME! (dynmobarray input)");
+			/*}}}*/
+		} else {
+			codegen_warning (cgen, "occampi_mobiletypenode_typeaction(): don\'t know how to input [%s]", type->tag->name);
+			return -1;
+		}
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_mobilealloc_typecheck (tnode_t *node, typecheck_t *tc)*/
@@ -259,6 +321,7 @@ static int occampi_mobilealloc_typecheck (tnode_t *node, typecheck_t *tc)
 #if 0
 fprintf (stderr, "occampi_mobilealloc_typecheck(): here!\n");
 #endif
+
 	return 1;
 }
 /*}}}*/
@@ -276,6 +339,53 @@ static tnode_t *occampi_mobilealloc_gettype (tnode_t *node, tnode_t *default_typ
 	}
 
 	return rtype;
+}
+/*}}}*/
+/*{{{  static int occampi_mobilealloc_premap (tnode_t **node, map_t *map)*/
+/*
+ *	does pre-mapping for a mobile allocation node -- inserts back-end result
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mobilealloc_premap (tnode_t **node, map_t *map)
+{
+	if ((*node)->tag == opi.tag_NEWDYNMOBARRAY) {
+		/* pre-map dimension */
+		map_subpremap (tnode_nthsubaddr (*node, 1), map);
+
+		*node = map->target->newresult (*node, map);
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_mobilealloc_namemap (tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a mobile allocation node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mobilealloc_namemap (tnode_t **node, map_t *map)
+{
+	if ((*node)->tag == opi.tag_NEWDYNMOBARRAY) {
+		/* name-map dimension */
+		map_subpremap (tnode_nthsubaddr (*node, 1), map);
+
+		/* set in result */
+		map_addtoresult (tnode_nthsubaddr (*node, 1), map);
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_mobilealloc_codegen (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a mobile allocation node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mobilealloc_codegen (tnode_t *node, codegen_t *cgen)
+{
+	codegen_callops (cgen, comment, "FIXME: alloc mobile!");
+	codegen_callops (cgen, loadconst, 0);
+	return 0;
 }
 /*}}}*/
 
@@ -350,6 +460,8 @@ static int occampi_mobiles_init_nodes (void)
 	lops = tnode_newlangops ();
 	lops->initsizes = occampi_mobiletypenode_initsizes;
 	lops->initialising_decl = occampi_mobiletypenode_initialising_decl;
+	lops->iscomplex = occampi_mobiletypenode_iscomplex;
+	lops->codegen_typeaction = occampi_mobiletypenode_typeaction;
 	tnd->lops = lops;
 
 	i = -1;
@@ -374,6 +486,9 @@ static int occampi_mobiles_init_nodes (void)
 	cops = tnode_newcompops ();
 	cops->typecheck = occampi_mobilealloc_typecheck;
 	cops->gettype = occampi_mobilealloc_gettype;
+	cops->premap = occampi_mobilealloc_premap;
+	cops->namemap = occampi_mobilealloc_namemap;
+	cops->codegen = occampi_mobilealloc_codegen;
 	tnd->ops = cops;
 
 	i = -1;

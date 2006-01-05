@@ -29,7 +29,7 @@
 #define TNF_LANGMASK	0xfff0
 
 #define NTF_NONE	0x0000
-#define NTF_LANGMASK	0xffff
+#define NTF_LANGMASK	0xfff0
 
 
 struct TAG_tnode;
@@ -130,6 +130,8 @@ typedef struct TAG_langops {
 	int (*valbyref)(tnode_t *);					/* returns non-zero if VAL of this is treated as a reference (wide types) */
 	int (*initsizes)(tnode_t *, tnode_t *, int *, int *, int *, int *, struct TAG_map *);	/* returns special allocation sizing for types (type, declnode, wssize, vssize, mssize, indir, map-data) */
 	int (*initialising_decl)(tnode_t *, tnode_t *, struct TAG_map *);	/* called when mapping to hook in initialiser code */
+
+	int (*codegen_typeaction)(tnode_t *, tnode_t *, struct TAG_codegen *);	/* handle type-specific action (assignment, input, output) */
 } langops_t;
 
 
