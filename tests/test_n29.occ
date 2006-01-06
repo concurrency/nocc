@@ -1,0 +1,12 @@
+
+-- test_n29.occ -- ALTy things
+
+PROC test.n29 (CHAN BYTE kyb?)
+  BYTE k:
+  ALT
+    SKIP
+      SKIP
+    kyb ? k
+      SKIP
+:
+

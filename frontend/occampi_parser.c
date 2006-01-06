@@ -360,7 +360,7 @@ static int occampi_dfas_init (void)
 	dynarray_add (transtbls, dfa_transtotbl ("occampi:bracketstart ::= [ 0 +@@[ 1 ] [ 1 +Integer 2 ] [ 2 +@@] 3 ] [ 3 {<parser:rewindtokens>} -* <occampi:vardecl:bracketstart> ]"));
 
 	dynarray_add (transtbls, dfa_bnftotbl ("occampi:declorprocstart +:= ( occampi:vardecl | occampi:abbrdecl | occampi:valof | occampi:procdecl | occampi:typedecl | " \
-				"occampi:primproc | occampi:cproc | occampi:namestart | occampi:mobiledecl | " \
+				"occampi:primproc | occampi:cproc | occampi:snode | occampi:namestart | occampi:mobiledecl | " \
 				"occampi:builtinprocinstance | occampi:bracketstart | occampi:asmblock ) {<opi:nullreduce>}"));
 	dynarray_add (transtbls, dfa_transtotbl ("occampi:descriptorline ::= [ 0 -@PROC 1 ] [ 0 -* 2 ] [ 1 occampi:procdecl 3 ] [ 2 occampi:funcdecl 3 ] [ 3 {<opi:nullreduce>} -* ]"));
 
@@ -1038,6 +1038,12 @@ tnode_dumptree (tree, 1, stderr);
 				tnode_t *body;
 
 				body = occampi_indented_process (lf);
+				tnode_setnthsub (tree, 1, body);
+			} else if (ntflags & NTF_INDENTED_GUARDPROC_LIST) {
+				/* parses a list of indented guards + processes into subnode1 */
+				tnode_t *body;
+
+				body = occampi_indented_process_list (lf, "occampi:altguard");
 				tnode_setnthsub (tree, 1, body);
 			} else if (tree->tag == opi.tag_VALOF) {
 				/* parse indented process into subnode 1, extra into subnode 0 */

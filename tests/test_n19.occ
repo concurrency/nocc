@@ -8,6 +8,8 @@ PROC test.n19 (CHAN BYTE screen!)
     IF
       24 > 42
         SKIP
+      2 < 0
+        SKIP
 :
 
 

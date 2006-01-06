@@ -33,6 +33,8 @@ extern struct TAG_langparser occampi_parser;
 #define NTF_INDENTED_PROC	0x0080		/* for TNF_LONGPROCs, parse an indented process into subnode 1,
 						 * for TNF_LONGDECLs, parse an indented process into subnode 2 */
 #define NTF_INDENTED_CONDPROC_LIST	0x0100	/* for TNF_LONGPROCs, parse a list of indented conditions and processes into subnode 1 */
+#define NTF_INDENTED_GUARDPROC_LIST	0x0200	/* for TNF_LONGPROCs, parse a list of indented ALT guards and processes into subnode 1 */
+
 
 struct TAG_tndef;
 struct TAG_ntdef;
@@ -154,6 +156,9 @@ typedef struct {
 	struct TAG_ntdef *tag_BUILTINPROC;
 	struct TAG_ntdef *tag_BUILTINFUNCTION;
 
+	struct TAG_ntdef *tag_SKIPGUARD;
+	struct TAG_ntdef *tag_INPUTGUARD;
+	struct TAG_ntdef *tag_TIMERGUARD;
 
 	struct TAG_token *tok_COLON;
 	struct TAG_token *tok_INPUT;

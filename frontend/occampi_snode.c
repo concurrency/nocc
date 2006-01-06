@@ -114,7 +114,7 @@ static int occampi_snode_init_nodes (void)
 	tnd->ops = cops;
 
 	i = -1;
-	opi.tag_ALT = tnode_newnodetag ("ALT", &i, tnd, NTF_NONE);
+	opi.tag_ALT = tnode_newnodetag ("ALT", &i, tnd, NTF_INDENTED_GUARDPROC_LIST);
 	i = -1;
 	opi.tag_IF = tnode_newnodetag ("IF", &i, tnd, NTF_INDENTED_CONDPROC_LIST);
 	i = -1;
@@ -130,6 +130,19 @@ static int occampi_snode_init_nodes (void)
 	i = -1;
 	opi.tag_CONDITIONAL = tnode_newnodetag ("CONDITIONAL", &i, tnd, NTF_INDENTED_PROC);
 	/*}}}*/
+	/*{{{  occampi:guardnode -- SKIPGUARD, INPUTGUARD, TIMERGUARD*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:guardnode", &i, 3, 0, 0, TNF_LONGPROC);	/* subnodes: 0 = guard-expr; 1 = body; 2 = pre-condition */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	opi.tag_SKIPGUARD = tnode_newnodetag ("SKIPGUARD", &i, tnd, NTF_INDENTED_PROC);
+	i = -1;
+	opi.tag_INPUTGUARD = tnode_newnodetag ("INPUTGUARD", &i, tnd, NTF_INDENTED_PROC);
+	i = -1;
+	opi.tag_TIMERGUARD = tnode_newnodetag ("TIMERGUARD", &i, tnd, NTF_INDENTED_PROC);
+	/*}}}*/
 
 	return 0;
 }
@@ -142,6 +155,9 @@ static int occampi_snode_reg_reducers (void)
 {
 	parser_register_grule ("opi:altsnode", parser_decode_grule ("ST0T+@t00C2R-", opi.tag_ALT));
 	parser_register_grule ("opi:ifcond", parser_decode_grule ("SN0N+0C2R-", opi.tag_CONDITIONAL));
+	parser_register_grule ("opi:skipguard", parser_decode_grule ("ST0T+@t00N+C3R-", opi.tag_SKIPGUARD));
+	parser_register_grule ("opi:inputguard", parser_decode_grule ("SN0N+0N+C3R-", opi.tag_INPUTGUARD));
+	parser_register_grule ("opi:timerguard", parser_decode_grule ("SN0N+0N+C3R-", opi.tag_TIMERGUARD));
 
 	return 0;
 }
@@ -158,6 +174,10 @@ static dfattbl_t **occampi_snode_init_dfatrans (int *ntrans)
 	dynarray_init (transtbl);
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:snode +:= [ 0 +@ALT 1 ] [ 1 -Newline 2 ] [ 2 {<opi:altsnode>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:ifcond ::= [ 0 occampi:expr 1 ] [ 1 -Newline 2 ] [ 2 {<opi:ifcond>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:altguard ::= [ 0 +@SKIP 1 ] [ 0 occampi:expr 3 ] [ 1 {<opi:nullpush>} -* 2 ] [ 2 {<opi:skipguard>} -* ] " \
+				"[ 3 +@@? 4 ] [ 3 @@& 5 ] [ 4 {<opi:nullpush>} -* 8 ] " \
+				"[ 5 +@SKIP 6 ] [ 5 occampi:expr 7 ] [ 6 {<opi:skipguard>} -* ] " \
+				"[ 7 +@@? 8 ] [ 8 @AFTER 9 ] [ 9 occampi:expr 10 ] [ 10 {<opi:timerguard>} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

@@ -2541,6 +2541,12 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		codegen_write_string (cgen, "\tprod\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+	case I_NEG:
+		codegen_write_string (cgen, "\tneg\n");
+		break;
+	case I_NOT:
+		codegen_write_string (cgen, "\tnot\n");
+		break;
 	case I_STOPP:
 		codegen_write_string (cgen, "\tstopp\n");
 		break;
