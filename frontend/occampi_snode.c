@@ -174,10 +174,14 @@ static dfattbl_t **occampi_snode_init_dfatrans (int *ntrans)
 	dynarray_init (transtbl);
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:snode +:= [ 0 +@ALT 1 ] [ 1 -Newline 2 ] [ 2 {<opi:altsnode>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:ifcond ::= [ 0 occampi:expr 1 ] [ 1 -Newline 2 ] [ 2 {<opi:ifcond>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:altguard ::= [ 0 +@SKIP 1 ] [ 0 occampi:expr 3 ] [ 1 {<opi:nullpush>} -* 2 ] [ 2 {<opi:skipguard>} -* ] " \
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:subaltinputguard ::= [ 0 occampi:name 1 ] [ 1 -* <occampi:namestartname> ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:altinputguard ::= [ 0 occampi:subaltinputguard 1 ] [ 1 {<opi:inputguard>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:altguard ::= [ 0 +@SKIP 1 ] [ 0 +Name 12 ] [ 0 -* 3 ] [ 1 {<opi:nullpush>} -* 2 ] [ 2 {<opi:skipguard>} -* ] " \
 				"[ 3 +@@? 4 ] [ 3 @@& 5 ] [ 4 {<opi:nullpush>} -* 8 ] " \
 				"[ 5 +@SKIP 6 ] [ 5 occampi:expr 7 ] [ 6 {<opi:skipguard>} -* ] " \
-				"[ 7 +@@? 8 ] [ 8 @AFTER 9 ] [ 9 occampi:expr 10 ] [ 10 {<opi:timerguard>} -* ]"));
+				"[ 7 +@@? 8 ] [ 8 @AFTER 9 ] [ 9 occampi:expr 10 ] [ 10 {<opi:timerguard>} -* ] " \
+				"[ 11 occampi:expr 3 ] [ 12 +@@? 13 ] [ 12 -* 16 ] [ 13 +Name 14 ] [ 13 -* 16 ] [ 14 +@@: 15 ] [ 14 +@@, 15 ] [ 14 -* 16 ] " \
+				"[ 15 {<parser:rewindtokens>} -* <occampi:vardecl> ] [ 16 {<parser:rewindtokens>} -* 17 ] [ 17 {<opi:nullpush>} -* <occampi:altinputguard> ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);
