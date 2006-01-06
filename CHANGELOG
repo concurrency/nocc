@@ -1,4 +1,6 @@
 
+06/01/2005	frmb	some work on the MCSP parser (very experimental)
+05/01/2006	frmb	some initial support for ALTs
 04/01/2006	frmb	support for verifying signatures on generated code
 04/01/2006	frmb	some support for dynamic mobile arrays
 03/01/2006	frmb	cryptographic support for hashing and signing code-gen output

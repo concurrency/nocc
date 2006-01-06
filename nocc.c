@@ -64,6 +64,7 @@
 #include "transputer.h"
 #include "codegen.h"
 #include "occampi_fe.h"
+#include "mcsp_fe.h"
 #include "version.h"
 
 /*}}}*/
@@ -805,6 +806,13 @@ int main (int argc, char **argv)
 	/*{{{  initialise occam-pi language lexer and parser (just registers them)*/
 	if (occampi_register_frontend ()) {
 		nocc_error ("failed to initialise built-in occam-pi language frontend");
+		exit (EXIT_FAILURE);
+	}
+
+	/*}}}*/
+	/*{{{  initialise MCSP language lexer and parser (again, just registration)*/
+	if (mcsp_register_frontend ()) {
+		nocc_error ("failed to initialise built-in MCSP language frontend");
 		exit (EXIT_FAILURE);
 	}
 

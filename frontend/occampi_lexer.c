@@ -17,6 +17,8 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+
+/*{{{  includes*/
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -36,7 +38,7 @@
 #include "lexpriv.h"
 #include "occampi.h"
 #include "opts.h"
-
+/*}}}*/
 
 /*{{{  forward decls.*/
 static int occampi_openfile (lexfile_t *lf, lexpriv_t *lp);

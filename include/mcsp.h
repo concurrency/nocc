@@ -1,6 +1,6 @@
 /*
  *	mcsp.h -- machine-readable CSP language interface for nocc
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2006 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -37,6 +37,8 @@ typedef struct {
 	struct TAG_tndef *node_NAMENODE;
 	struct TAG_tndef *node_ALTNODE;
 
+	struct TAG_ntdef *tag_EVENT;
+
 	struct TAG_ntdef *tag_PAR;
 	struct TAG_ntdef *tag_ILEAVE;
 	struct TAG_ntdef *tag_EXTCHOICE;
@@ -50,6 +52,7 @@ extern mcsp_pset_t mcsp;
 struct TAG_tnode;
 struct TAG_prescope;
 struct TAG_scope;
+struct TAG_feunit;
 
 
 typedef struct {
@@ -58,6 +61,8 @@ typedef struct {
 } mcsp_litdata_t;
 
 extern void mcsp_isetindent (FILE *stream, int indent);
+
+extern struct TAG_feunit mcsp_process_feunit;		/* mcsp_process.c */
 
 
 #endif	/* !__MCSP_H */

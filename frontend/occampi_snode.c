@@ -165,7 +165,6 @@ static int occampi_snode_reg_reducers (void)
 /*{{{  static dfattbl_t **occampi_snode_init_dfatrans (int *ntrans)*/
 /*
  *	creates and returns DFA transition tables for structured process nodes
- *	returns 0 on success, non-zero on failure
  */
 static dfattbl_t **occampi_snode_init_dfatrans (int *ntrans)
 {
@@ -189,7 +188,7 @@ static dfattbl_t **occampi_snode_init_dfatrans (int *ntrans)
 /*}}}*/
 
 
-/*{{{  cocampi_snode_feunit (feunit_t)*/
+/*{{{  occampi_snode_feunit (feunit_t)*/
 feunit_t occampi_snode_feunit = {
 	init_nodes: occampi_snode_init_nodes,
 	reg_reducers: occampi_snode_reg_reducers,
