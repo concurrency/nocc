@@ -3373,7 +3373,7 @@ tnode_t *dfa_walk (char *rname, lexfile_t *lf)
 	if (dfast->prev) {
 		/* chances are we have a return out without consuming any more tokens.. */
 		tok = lexer_nexttoken (lf);
-		while (tok && dfast->prev && dfast->cur) {
+		while (tok && (tok->type == END) && dfast->prev && dfast->cur) {
 			int i = dfa_advance (&dfast, pp, tok);
 
 			if (i < 0) {

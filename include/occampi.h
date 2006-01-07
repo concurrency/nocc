@@ -171,6 +171,7 @@ typedef struct {
 	struct TAG_token *tok_TRACES;
 
 	struct TAG_chook *chook_typeattr;
+	struct TAG_chook *chook_traces;
 } occampi_pset_t;
 
 extern occampi_pset_t opi;

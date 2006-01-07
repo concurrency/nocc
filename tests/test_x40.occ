@@ -1,0 +1,9 @@
+-- test_x40.occ -- more traces
+
+PROC test.x40 (CHAN INT c?, d!)
+  SEQ
+    SKIP
+TRACES
+  "(c -> a -> d) \ {a,b}"
+:
+

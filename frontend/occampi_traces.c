@@ -60,17 +60,16 @@
 
 /*}}}*/
 /*{{{  private data*/
-static chook_t *traceschook = NULL;
 
 
 /*}}}*/
 
 
-/*{{{  static void *occampi_traceschook_copy (void *chook)*/
+/*{{{  static void *occampi_chook_traces_copy (void *chook)*/
 /*
  *	copies an occampi:trace chook
  */
-static void *occampi_traceschook_copy (void *chook)
+static void *occampi_chook_traces_copy (void *chook)
 {
 	tnode_t *tree = (tnode_t *)chook;
 
@@ -80,11 +79,11 @@ static void *occampi_traceschook_copy (void *chook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void occampi_traceschook_free (void *chook)*/
+/*{{{  static void occampi_chook_traces_free (void *chook)*/
 /*
  *	frees an occampi:trace chook
  */
-static void occampi_traceschook_free (void *chook)
+static void occampi_chook_traces_free (void *chook)
 {
 	tnode_t *tree = (tnode_t *)chook;
 
@@ -94,11 +93,11 @@ static void occampi_traceschook_free (void *chook)
 	return;
 }
 /*}}}*/
-/*{{{  static void occampi_traceschook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_chook_traces_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
 /*
  *	dumps an occampi:trace chook (debugging)
  */
-static void occampi_traceschook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void occampi_chook_traces_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
 {
 	tnode_t *traces = (tnode_t *)chook;
 
@@ -114,6 +113,27 @@ static void occampi_traceschook_dumptree (tnode_t *node, void *chook, int indent
 }
 /*}}}*/
 
+
+/*{{{  static int occampi_scopein_traces (tnode_t **node, scope_t *ss)*/
+/*
+ *	called to scope-in a trace
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_scopein_traces (tnode_t **node, scope_t *ss)
+{
+	/* falls through into the MCSP below */
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_scopeout_traces (tnode_t **node, scope_t *ss)*/
+/*
+ *	called to scope-out a trace
+ */
+static int occampi_scopeout_traces (tnode_t **node, scope_t *ss)
+{
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_traces_init_nodes (void)*/
@@ -131,6 +151,8 @@ static int occampi_traces_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:formalspec", &i, 1, 0, 0, TNF_NONE);		/* subnodes: 0 = specification */
 	cops = tnode_newcompops ();
+	cops->scopein = occampi_scopein_traces;
+	cops->scopeout = occampi_scopeout_traces;
 	tnd->ops = cops;
 
 	i = -1;
@@ -147,10 +169,10 @@ static int occampi_traces_init_nodes (void)
  */
 static int occampi_traces_post_setup (void)
 {
-	traceschook = tnode_lookupornewchook ("occampi:trace");
-	traceschook->chook_copy = occampi_traceschook_copy;
-	traceschook->chook_free = occampi_traceschook_free;
-	traceschook->chook_dumptree = occampi_traceschook_dumptree;
+	opi.chook_traces = tnode_lookupornewchook ("occampi:trace");
+	opi.chook_traces->chook_copy = occampi_chook_traces_copy;
+	opi.chook_traces->chook_free = occampi_chook_traces_free;
+	opi.chook_traces->chook_dumptree = occampi_chook_traces_dumptree;
 
 	return 0;
 }

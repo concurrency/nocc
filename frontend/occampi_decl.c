@@ -546,13 +546,14 @@ static int occampi_prescope_procdecl (tnode_t **node, prescope_t *ps)
 /*}}}*/
 /*{{{  static int occampi_scopein_procdecl (tnode_t **node, scope_t *ss)*/
 /*
- *	called to scope a PROC definition
+ *	called to scope-in a PROC definition
  */
 static int occampi_scopein_procdecl (tnode_t **node, scope_t *ss)
 {
 	tnode_t *name = tnode_nthsubof (*node, 0);
 	tnode_t **paramsptr = tnode_nthsubaddr (*node, 1);
 	tnode_t **bodyptr = tnode_nthsubaddr (*node, 2);
+	tnode_t *traces = NULL;
 	void *nsmark;
 	char *rawname;
 	name_t *procname;
@@ -563,6 +564,17 @@ static int occampi_scopein_procdecl (tnode_t **node, scope_t *ss)
 	/* walk parameters and body */
 	tnode_modprepostwalktree (paramsptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
 	tnode_modprepostwalktree (bodyptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+
+	/*{{{  if we have any attached TRACES, walk these too*/
+	traces = (tnode_t *)tnode_getchook (*node, opi.chook_traces);
+	if (traces) {
+#if 0
+fprintf (stderr, "occampi_scopein_procdecl(): have traces!\n");
+#endif
+		/* won't affect TRACES node, so safe to pass local addr */
+		tnode_modprepostwalktree (&traces, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+	}
+	/*}}}*/
 
 	name_markdescope (nsmark);
 
@@ -583,7 +595,7 @@ static int occampi_scopein_procdecl (tnode_t **node, scope_t *ss)
 /*}}}*/
 /*{{{  static int occampi_scopeout_procdecl (tnode_t **node, scope_t *ss)*/
 /*
- *	called to scope a PROC definition
+ *	called to scope-out a PROC definition
  */
 static int occampi_scopeout_procdecl (tnode_t **node, scope_t *ss)
 {

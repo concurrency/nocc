@@ -695,7 +695,7 @@ fprintf (stderr, "occampi_tracesparse(): here!\n");
 		nocc_error ("occampi_tracesparse(): failed to parse descriptor");
 		goto out_error;
 	}
-#if 1
+#if 0
 fprintf (stderr, "occampi_tracesparse(): got tree!:\n");
 tnode_dumptree (tracenode, 1, stderr);
 #endif
