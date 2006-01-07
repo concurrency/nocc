@@ -43,6 +43,8 @@ typedef struct {
 	struct TAG_ntdef *tag_PAR;
 	struct TAG_ntdef *tag_ILEAVE;
 	struct TAG_ntdef *tag_SEQ;
+	struct TAG_ntdef *tag_ICHOICE;
+	struct TAG_ntdef *tag_ECHOICE;
 
 	struct TAG_ntdef *tag_HIDE;
 

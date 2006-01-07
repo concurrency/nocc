@@ -1,0 +1,7 @@
+# test_c1.mcsp -- testing MCSP stuff
+
+FOO ::= (a |~| b) \ {a,b}
+BAR ::= FOO; FOO
+
+SYSTEM ::= (BAR ||| BAR)
+

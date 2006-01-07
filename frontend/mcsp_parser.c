@@ -56,6 +56,8 @@ static int mcsp_parser_init (lexfile_t *lf);
 static void mcsp_parser_shutdown (lexfile_t *lf);
 static tnode_t *mcsp_parser_parse (lexfile_t *lf);
 static tnode_t *mcsp_parser_descparse (lexfile_t *lf);
+static int mcsp_parser_prescope (tnode_t **tptr, prescope_t *ps);
+static int mcsp_parser_scope (tnode_t **tptr, scope_t *ss);
 
 
 /*}}}*/
@@ -69,8 +71,8 @@ langparser_t mcsp_parser = {
 	shutdown:	mcsp_parser_shutdown,
 	parse:		mcsp_parser_parse,
 	descparse:	mcsp_parser_descparse,
-	prescope:	NULL,
-	scope:		NULL,
+	prescope:	mcsp_parser_prescope,
+	scope:		mcsp_parser_scope,
 	typecheck:	NULL,
 	maketemp:	NULL,
 	makeseqassign:	NULL,
@@ -95,6 +97,20 @@ static feunit_t *feunit_set[] = {
 /*}}}*/
 
 
+/*{{{  static int mcsp_tokens_init (void)*/
+/*
+ *	initialises extra tokens needed by MCSP (symbols mainly)
+ *	returns 0 on success, non-zero on failure
+ */
+static int mcsp_tokens_init (void)
+{
+	symbols_add ("|||", 3, (void *)&mcsp_parser);
+	symbols_add ("|~|", 3, (void *)&mcsp_parser);
+	symbols_add ("::=", 3, (void *)&mcsp_parser);
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int mcsp_nodes_init (void)*/
 /*
  *	initialises MCSP nodes
@@ -288,6 +304,10 @@ static int mcsp_parser_init (lexfile_t *lf)
 		memset ((void *)&mcsp, 0, sizeof (mcsp));
 
 		/* initialise! */
+		if (mcsp_tokens_init ()) {
+			nocc_error ("mcsp_parser_init(): failed to initialise tokens");
+			return 1;
+		}
 		if (mcsp_nodes_init ()) {
 			nocc_error ("mcsp_parser_init(): failed to initialise nodes");
 			return 1;
@@ -305,9 +325,9 @@ static int mcsp_parser_init (lexfile_t *lf)
 			return 1;
 		}
 
-		mcsp_priv->inode = dfa_lookupbyname ("mcsp:process");
+		mcsp_priv->inode = dfa_lookupbyname ("mcsp:procdecl");
 		if (!mcsp_priv->inode) {
-			nocc_error ("mcsp_parser_init(): could not find mcsp:process");
+			nocc_error ("mcsp_parser_init(): could not find mcsp:procdecl");
 			return 1;
 		}
 		if (compopts.dumpdfas) {
@@ -352,7 +372,7 @@ static tnode_t *mcsp_parser_parse (lexfile_t *lf)
 		int breakfor = 0;
 
 		tok = lexer_nexttoken (lf);
-		while (tok->type == NEWLINE) {
+		while ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
 			lexer_freetoken (tok);
 			tok = lexer_nexttoken (lf);
 		}
@@ -363,7 +383,7 @@ static tnode_t *mcsp_parser_parse (lexfile_t *lf)
 		}
 		lexer_pushback (lf, tok);
 
-		thisone = dfa_walk ("mcsp:process", lf);
+		thisone = dfa_walk ("mcsp:procdecl", lf);
 		if (!thisone) {
 			*target = NULL;
 			break;		/* for() */
@@ -374,6 +394,8 @@ static tnode_t *mcsp_parser_parse (lexfile_t *lf)
 			tnflags = tnode_tnflagsof (*target);
 			if (tnflags & TNF_TRANSPARENT) {
 				target = tnode_nthsubaddr (*target, 0);
+			} else if (tnflags & TNF_SHORTDECL) {
+				target = tnode_nthsubaddr (*target, 2);
 			} else {
 				/* assume done */
 				breakfor = 1;
@@ -456,6 +478,8 @@ fprintf (stderr, "mcsp_parser_descparse(): thisone->tag->name = [%s], thisone->t
 			tnflags = tnode_tnflagsof (*target);
 			if (tnflags & TNF_TRANSPARENT) {
 				target = tnode_nthsubaddr (*target, 0);
+			} else if (tnflags & TNF_SHORTDECL) {
+				target = tnode_nthsubaddr (*target, 2);
 			} else {
 				/* assume we're done! */
 				breakfor = 1;
@@ -489,4 +513,29 @@ tnode_dumptree (tree, 1, stderr);
 	return tree;
 }
 /*}}}*/
+/*{{{  static int mcsp_parser_prescope (tnode_t **tptr, prescope_t *ps)*/
+/*
+ *	called to pre-scope the parse tree (whole MCSP only!)
+ *	returns 0 on success, non-zero on failure
+ */
+static int mcsp_parser_prescope (tnode_t **tptr, prescope_t *ps)
+{
+	tnode_modprewalktree (tptr, prescope_modprewalktree, (void *)ps);
+
+	return ps->err;
+}
+/*}}}*/
+/*{{{  static int mcsp_parser_scope (tnode_t **tptr, scope_t *ss)*/
+/*
+ *	called to scope declarations in the parse tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int mcsp_parser_scope (tnode_t **tptr, scope_t *ss)
+{
+	tnode_modprepostwalktree (tptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+	return ss->err;
+}
+/*}}}*/
+
+
 

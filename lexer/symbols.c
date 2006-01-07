@@ -80,26 +80,25 @@ static symbol_t symbols[] = {
 	{"->", 2, NULL},
 	{"/\\", 2, NULL},
 	{"\\/", 2, NULL},
-	{"<<<", 3, NULL},
-	{">>>", 3, NULL},
 	{"<<", 2, NULL},
 	{">>", 2, NULL},
 	{"&", 1, NULL},
-	{"|||", 3, NULL},
 	{"||", 2, NULL},
 	{"{", 1, NULL},
 	{"}", 1, NULL},
 	{NULL, 0, NULL}
 };
 
-static symbol_t ***sym_lookup;
+static symbol_t ***sym_lookup = NULL;
+static symbol_t ***sym_extras = NULL;
 
 
 /*{{{  void symbols_init (void)*/
 /*
  *	initialises the symbols table
+ *	returns 0 on success, non-zero on failure
  */
-void symbols_init (void)
+int symbols_init (void)
 {
 	int i;
 
@@ -108,7 +107,7 @@ void symbols_init (void)
 		sym_lookup[i] = NULL;
 	}
 
-	/* initialise from built-in symbols -- always one or two characters long */
+	/* initialise from built-in symbols -- always (and only) one or two characters long */
 	for (i=0; symbols[i].match; i++) {
 		int fch = (int)(symbols[i].match[0] - SYMBASE);
 		int sch = (int)(symbols[i].match[1]);
@@ -126,7 +125,24 @@ void symbols_init (void)
 		}
 		sym_lookup[fch][sch] = &(symbols[i]);
 	}
-	return;
+
+	/* setup extras array -- holds symbols added at run-time */
+	sym_extras = (symbol_t ***)smalloc (SYMSIZE * sizeof (symbol_t **));
+	for (i=0; i<SYMSIZE; i++) {
+		sym_extras[i] = NULL;
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int symbols_shutdown (void)*/
+/*
+ *	shuts down symbols table
+ *	returns 0 on success, non-zero on failure
+ */
+int symbols_shutdown (void)
+{
+	return 0;
 }
 /*}}}*/
 /*{{{  symbol_t *symbols_lookup (const char *str, const int len)*/
@@ -141,11 +157,24 @@ symbol_t *symbols_lookup (const char *str, const int len)
 #if 0
 fprintf (stderr, "symbols_lookup(): for [%s], len = %d\n", str, len);
 #endif
-	if ((fch < SYMBASE) || ((fch - SYMBASE) >= SYMSIZE) || !sym_lookup[fch - SYMBASE] || ((len == 1) && !(sym_lookup[fch - SYMBASE][0]))) {
+	if ((fch < SYMBASE) || ((fch - SYMBASE) >= SYMSIZE) || (!sym_lookup[fch - SYMBASE] && !sym_extras[fch - SYMBASE]) || ((len == 1) && !(sym_lookup[fch - SYMBASE][0]))) {
 		return NULL;
-	} else if (len == 1) {
+	} else if (sym_extras[fch - SYMBASE]) {
+		int i;
+
+		/* look through extras */
+		for (i=0; sym_extras[fch - SYMBASE][i]; i++) {
+			if ((sym_extras[fch - SYMBASE][i]->mlen == len) && !strncmp (sym_extras[fch - SYMBASE][i]->match, str, len)) {
+				/* this one */
+				return sym_extras[fch - SYMBASE][i];
+			}
+		}
+	}
+
+	/* look at predefined symbols */
+	if (len == 1) {
 		return sym_lookup[fch - SYMBASE][0];
-	} else if ((fch >= SYMBASE) && ((sch - SYMBASE) < SYMSIZE)) {
+	} else if ((len == 2) && (fch >= SYMBASE) && ((sch - SYMBASE) < SYMSIZE)) {
 		return sym_lookup[fch - SYMBASE][sch - SYMBASE];
 	}
 	return NULL;
@@ -160,10 +189,23 @@ symbol_t *symbols_match (const char *str, const char *limit)
 	int fch = (int)(str[0]);
 	int sch;
 
-	if ((fch < SYMBASE) || ((fch - SYMBASE) >= SYMSIZE) || !sym_lookup[fch - SYMBASE]) {
+	if ((fch < SYMBASE) || ((fch - SYMBASE) >= SYMSIZE) || (!sym_lookup[fch - SYMBASE] && !sym_extras[fch - SYMBASE])) {
 		/* no such symbol (row) */
 		return NULL;
-	} else if ((str + 1) == limit) {
+	} else if (sym_extras[fch - SYMBASE]) {
+		int i;
+
+		/* look through extras */
+		for (i=0; sym_extras[fch - SYMBASE][i]; i++) {
+			if (((str + sym_extras[fch - SYMBASE][i]->mlen) <= limit) && !strncmp (sym_extras[fch - SYMBASE][i]->match, str, sym_extras[fch - SYMBASE][i]->mlen)) {
+				/* this one */
+				return sym_extras[fch - SYMBASE][i];
+			}
+		}
+	}
+
+	/* look at predefined symbols */
+	if ((str + 1) == limit) {
 		/* match at end */
 		return sym_lookup[fch - SYMBASE][0];
 	} else {
@@ -180,6 +222,59 @@ symbol_t *symbols_match (const char *str, const char *limit)
 			return sym_lookup[fch - SYMBASE][0];
 		}
 	}
+	return NULL;
+}
+/*}}}*/
+
+
+/*{{{  symbol_t *symbols_add (const char *str, const int len, void *origin)*/
+/*
+ *	adds a new symbol to the compiler -- placed in sym_extras array
+ *	returns new symbol on success, NULL on failure
+ */
+symbol_t *symbols_add (const char *str, const int len, void *origin)
+{
+	symbol_t *sym = symbols_lookup (str, len);
+	int fch;
+
+	if (sym) {
+		nocc_warning ("symbols_add(): already got symbol [%s]", sym->match);
+		return sym;
+	}
+	sym = (symbol_t *)smalloc (sizeof (symbol_t));
+	sym->match = string_ndup (str, len);
+	sym->mlen = len;
+	sym->origin = origin;
+
+	fch = (int)(str[0]);
+	if ((fch < SYMBASE) || ((fch - SYMBASE) >= SYMSIZE)) {
+		nocc_error ("symbols_add(): symbol [%s] start does not fit in table!", sym->match);
+		sfree (sym->match);
+		sfree (sym);
+		return NULL;
+	}
+	if (sym_extras[fch - SYMBASE]) {
+		int i;
+		symbol_t **newextras;
+
+		/* count entries and extend */
+		for (i=0; sym_extras[fch - SYMBASE][i]; i++);
+		newextras = (symbol_t **)smalloc ((i + 2) * sizeof (symbol_t *));
+		for (i=0; sym_extras[fch - SYMBASE][i]; newextras[i] = sym_extras[fch - SYMBASE][i], i++);
+		newextras[i++] = sym;
+		newextras[i] = NULL;
+
+		/* free old, park new */
+		sfree (sym_extras[fch - SYMBASE]);
+		sym_extras[fch - SYMBASE] = newextras;
+	} else {
+		/* creating fresh */
+		sym_extras[fch - SYMBASE] = (symbol_t **)smalloc (2 * sizeof (symbol_t *));
+		sym_extras[fch - SYMBASE][0] = sym;
+		sym_extras[fch - SYMBASE][1] = NULL;
+	}
+
+	return sym;
 }
 /*}}}*/
 

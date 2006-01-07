@@ -209,6 +209,15 @@ tokenloop:
 		return tok;
 		break;
 		/*}}}*/
+		/*{{{  #  (comment)*/
+	case '#':
+		tok->type = COMMENT;
+		/* scan to end-of-line */
+		for (dh=ch+1; (dh < chlim) && (*dh != '\n') && (*dh != '\r'); dh++);
+		lp->offset += (int)(dh - ch);
+
+		break;
+		/*}}}*/
 		/*{{{  space, tab*/
 	case ' ':
 	case '\t':

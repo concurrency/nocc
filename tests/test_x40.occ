@@ -4,6 +4,6 @@ PROC test.x40 (CHAN INT c?, d!)
   SEQ
     SKIP
 TRACES
-  "(c -> a -> d) \ {a,b}"
+  "(c -> a -> (d [] b)) \ {a,b}"
 :
 

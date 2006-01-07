@@ -26,10 +26,13 @@ typedef struct TAG_symbol {
 	void *origin;
 } symbol_t;
 
-extern void symbols_init (void);
+extern int symbols_init (void);
+extern int symbols_shutdown (void);
+
 extern symbol_t *symbols_lookup (const char *str, const int len);
 extern symbol_t *symbols_match (const char *str, const char *limit);
 
+extern symbol_t *symbols_add (const char *str, const int len, void *origin);
 
 #endif	/* !__SYMBOLS_H */
 
