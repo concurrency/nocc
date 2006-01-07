@@ -1,0 +1,8 @@
+-- test_x39.occ -- testing some MCSP stuff :)
+
+PROC test.x39 (CHAN BYTE scr!)
+  SKIP
+TRACES
+  "((a -> b) || c) -> d"
+:
+

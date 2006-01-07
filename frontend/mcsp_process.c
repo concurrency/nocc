@@ -55,6 +55,181 @@
 
 /*}}}*/
 
+/*{{{  private types/data*/
+typedef struct TAG_opmap {
+	tokentype_t ttype;
+	const char *lookup;
+	token_t *tok;
+	ntdef_t **tagp;
+} opmap_t;
+
+static opmap_t opmap[] = {
+	{SYMBOL, "->", NULL, &(mcsp.tag_THEN)},
+	{SYMBOL, "||", NULL, &(mcsp.tag_PAR)},
+	{SYMBOL, ";", NULL, &(mcsp.tag_SEQ)},
+	{NOTOKEN, NULL, NULL, NULL}
+};
+
+
+/*}}}*/
+
+/*{{{  void *mcsp_nametoken_to_hook (void *ntok)*/
+/*
+ *	turns a name token into a hooknode for a tag_NAME
+ */
+void *mcsp_nametoken_to_hook (void *ntok)
+{
+	token_t *tok = (token_t *)ntok;
+	char *rawname;
+
+	rawname = tok->u.name;
+	tok->u.name = NULL;
+
+	lexer_freetoken (tok);
+
+	return (void *)rawname;
+}
+/*}}}*/
+
+
+/*{{{  static void mcsp_rawnamenode_hook_free (void *hook)*/
+/*
+ *	frees a rawnamenode hook (name-bytes)
+ */
+static void mcsp_rawnamenode_hook_free (void *hook)
+{
+	if (hook) {
+		sfree (hook);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void *mcsp_rawnamenode_hook_copy (void *hook)*/
+/*
+ *	copies a rawnamenode hook (name-bytes)
+ */
+static void *mcsp_rawnamenode_hook_copy (void *hook)
+{
+	char *rawname = (char *)hook;
+
+	if (rawname) {
+		return string_dup (rawname);
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  static void mcsp_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dump-tree for rawnamenode hook (name-bytes)
+ */
+static void mcsp_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	mcsp_isetindent (stream, indent);
+	fprintf (stream, "<mcsprawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
+	return;
+}
+/*}}}*/
+
+/*{{{  static int mcsp_scopein_rawname (tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes in a free-floating name
+ */
+static int mcsp_scopein_rawname (tnode_t **node, scope_t *ss)
+{
+	tnode_t *name = *node;
+	char *rawname;
+	name_t *sname = NULL;
+
+	if (name->tag != mcsp.tag_NAME) {
+		scope_error (name, ss, "name not raw-name!");
+		return 0;
+	}
+	rawname = tnode_nthhookof (name, 0);
+
+#if 0
+fprintf (stderr, "mcsp_scopein_rawname: here! rawname = \"%s\"\n", rawname);
+#endif
+	sname = name_lookupss (rawname, ss);
+	if (sname) {
+		/* resolved */
+		*node = NameNodeOf (sname);
+		tnode_free (name);
+	} else {
+		scope_error (name, ss, "unresolved name \"%s\"", rawname);
+	}
+
+	return 1;
+}
+/*}}}*/
+
+
+/*{{{  static void mcsp_opreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	turns an MCSP operator (->, etc.) into a node
+ */
+static void mcsp_opreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	token_t *tok = parser_gettok (pp);
+	ntdef_t *tag = NULL;
+	int i;
+	tnode_t *dopnode;
+
+	if (!tok) {
+		parser_error (pp->lf, "mcsp_opreduce(): no token ?");
+		return;
+	}
+	for (i=0; opmap[i].lookup; i++) {
+		if (lexer_tokmatch (opmap[i].tok, tok)) {
+			tag = *(opmap[i].tagp);
+			break;		/* for() */
+		}
+	}
+	if (!tag) {
+		parser_error (pp->lf, "mcsp_opreduce(): unhandled token [%s]", lexer_stokenstr (tok));
+		return;
+	}
+
+	dopnode = tnode_create (tag, pp->lf, NULL, NULL);
+	*(dfast->ptr) = dopnode;
+	
+	return;
+}
+/*}}}*/
+/*{{{  static void mcsp_folddopreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	this folds up a dopnode, taking the operator and its LHS/RHS off the node-stack,
+ *	making the result the dopnode
+ */
+static void mcsp_folddopreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	tnode_t *lhs, *rhs, *dopnode;
+
+	rhs = dfa_popnode (dfast);
+	dopnode = dfa_popnode (dfast);
+	lhs = dfa_popnode (dfast);
+
+	if (!dopnode || !lhs || !rhs) {
+		parser_error (pp->lf, "mcsp_folddopreduce(): missing node, lhs or rhs!");
+		return;
+	}
+	if (tnode_nthsubof (dopnode, 0) || tnode_nthsubof (dopnode, 1)) {
+		parser_error (pp->lf, "mcsp_folddopreduce(): dopnode already has lhs or rhs!");
+		return;
+	}
+	
+	/* fold in */
+	tnode_setnthsub (dopnode, 0, lhs);
+	tnode_setnthsub (dopnode, 1, rhs);
+	*(dfast->ptr) = dopnode;
+
+#if 0
+fprintf (stderr, "mcsp_folddopreduce(): folded up into dopnode =\n");
+tnode_dumptree (dopnode, 1, stderr);
+#endif
+	return;
+}
+/*}}}*/
+
 
 /*{{{  static int mcsp_process_init_nodes (void)*/
 /*
@@ -67,14 +242,54 @@ static int mcsp_process_init_nodes (void)
 	int i;
 	compops_t *cops;
 
-	/*{{{  mcsp:process -- EVENT*/
+	/*{{{  mcsp:rawnamenode -- NAME*/
 	i = -1;
-	tnd = tnode_newnodetype ("mcsp:process", &i, 1, 0, 0, TNF_NONE);		/* subnodes: 0 = event */
+	tnd = tnode_newnodetype ("mcsp:rawnamenode", &i, 0, 0, 1, TNF_NONE);				/* hooks: raw-name */
+	tnd->hook_free = mcsp_rawnamenode_hook_free;
+	tnd->hook_copy = mcsp_rawnamenode_hook_copy;
+	tnd->hook_dumptree = mcsp_rawnamenode_hook_dumptree;
+	cops = tnode_newcompops ();
+	cops->scopein = mcsp_scopein_rawname;
+	tnd->ops = cops;
+
+	i = -1;
+	mcsp.tag_NAME = tnode_newnodetag ("MCSPNAME", &i, tnd, NTF_NONE);
+
+#if 0
+fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->name = [%s], mcsp.tag_NAME->ndef->name = [%s]\n", tnd->name, mcsp.tag_NAME->name, mcsp.tag_NAME->ndef->name);
+#endif
+	/*}}}*/
+	/*{{{  mcsp:dopnode -- THEN, SEQ, PAR, ILEAVE*/
+	i = -1;
+	tnd = tnode_newnodetype ("mcsp:dopnode", &i, 2, 0, 0, TNF_NONE);				/* subnodes: 0 = event, 1 = process */
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 
 	i = -1;
-	mcsp.tag_EVENT = tnode_newnodetag ("EVENT", &i, tnd, NTF_NONE);
+	mcsp.tag_THEN = tnode_newnodetag ("MCSPTHEN", &i, tnd, NTF_NONE);
+	i = -1;
+	mcsp.tag_SEQ = tnode_newnodetag ("MCSPSEQ", &i, tnd, NTF_NONE);
+	i = -1;
+	mcsp.tag_PAR = tnode_newnodetag ("MCSPPAR", &i, tnd, NTF_NONE);
+	i = -1;
+	mcsp.tag_ILEAVE = tnode_newnodetag ("MCSPILEAVE", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  mcsp:namenode -- EVENT*/
+	i = -1;
+	tnd = mcsp.node_NAMENODE = tnode_newnodetype ("mcsp:namenode", &i, 0, 1, 0, TNF_NONE);		/* subnames: 0 = name */
+	cops = tnode_newcompops ();
+/*	cops->gettype = mcsp_gettype_namenode; */
+	tnd->ops = cops;
+
+	i = -1;
+	mcsp.tag_EVENT = tnode_newnodetag ("MCSPEVENT", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  deal with operators*/
+        for (i=0; opmap[i].lookup; i++) {
+		opmap[i].tok = lexer_newtoken (opmap[i].ttype, opmap[i].lookup);
+	}
 
 	/*}}}*/
 
@@ -88,6 +303,10 @@ static int mcsp_process_init_nodes (void)
  */
 static int mcsp_process_reg_reducers (void)
 {
+	parser_register_grule ("mcsp:namereduce", parser_decode_grule ("T+St0XC1R-", mcsp_nametoken_to_hook, mcsp.tag_NAME));
+
+	parser_register_reduce ("Rmcsp:op", mcsp_opreduce, NULL);
+	parser_register_reduce ("Rmcsp:folddop", mcsp_folddopreduce, NULL);
 	return 0;
 }
 /*}}}*/
@@ -100,7 +319,12 @@ static dfattbl_t **mcsp_process_init_dfatrans (int *ntrans)
 	DYNARRAY (dfattbl_t *, transtbl);
 
 	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:process ::= [ 0 +Name 1 ] [ 1 {<mcsp:nullset>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("mcsp:name ::= [ 0 +Name 1 ] [ 1 {<mcsp:namereduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("mcsp:event ::= [ 0 mcsp:name 1 ] [ 1 {<mcsp:nullreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("mcsp:dop ::= [ 0 +@@-> 1 ] [ 0 +@@; 1 ] [ 0 +@@|| 1 ] [ 1 {Rmcsp:op} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("mcsp:restofprocess ::= [ 0 mcsp:dop 1 ] [ 1 mcsp:process 2 ] [ 2 {Rmcsp:folddop} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("mcsp:process ::= [ 0 mcsp:event 1 ] [ 0 @@( 3 ] [ 1 %mcsp:dop <mcsp:restofprocess> ] [ 1 -* 2 ] [ 2 {<mcsp:nullreduce>} -* ] " \
+				"[ 3 mcsp:process 4 ] [ 4 @@) 5 ] [ 5 %mcsp:dop <mcsp:restofprocess> ] [ 5 -* 6 ] [ 6 {<mcsp:nullreduce>} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

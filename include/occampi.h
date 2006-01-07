@@ -34,6 +34,7 @@ extern struct TAG_langparser occampi_parser;
 						 * for TNF_LONGDECLs, parse an indented process into subnode 2 */
 #define NTF_INDENTED_CONDPROC_LIST	0x0100	/* for TNF_LONGPROCs, parse a list of indented conditions and processes into subnode 1 */
 #define NTF_INDENTED_GUARDPROC_LIST	0x0200	/* for TNF_LONGPROCs, parse a list of indented ALT guards and processes into subnode 1 */
+#define NTF_ALLOW_TRACES		0x0400	/* allow TRACES at the end of a something */
 
 
 struct TAG_tndef;
@@ -155,6 +156,7 @@ typedef struct {
 	struct TAG_ntdef *tag_FINSTANCE;
 	struct TAG_ntdef *tag_BUILTINPROC;
 	struct TAG_ntdef *tag_BUILTINFUNCTION;
+	struct TAG_ntdef *tag_TRACES;
 
 	struct TAG_ntdef *tag_SKIPGUARD;
 	struct TAG_ntdef *tag_INPUTGUARD;
@@ -166,6 +168,7 @@ typedef struct {
 	struct TAG_token *tok_HASH;
 	struct TAG_token *tok_STRING;
 	struct TAG_token *tok_PUBLIC;
+	struct TAG_token *tok_TRACES;
 
 	struct TAG_chook *chook_typeattr;
 } occampi_pset_t;
@@ -210,6 +213,7 @@ extern struct TAG_feunit occampi_function_feunit;	/* occampi_function.c */
 extern struct TAG_feunit occampi_mobiles_feunit;	/* occampi_mobiles.c */
 extern struct TAG_feunit occampi_initial_feunit;	/* occampi_initial.c */
 extern struct TAG_feunit occampi_asm_feunit;		/* occampi_asm.c */
+extern struct TAG_feunit occampi_traces_feunit;		/* occampi_traces.c */
 
 /* these are for language units to use in reductions */
 extern void *occampi_nametoken_to_hook (void *ntok);

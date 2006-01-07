@@ -113,6 +113,7 @@ static feunit_t *feunit_set[] = {
 	&occampi_mobiles_feunit,
 	&occampi_initial_feunit,
 	&occampi_asm_feunit,
+	&occampi_traces_feunit,
 	NULL
 };
 
@@ -452,6 +453,7 @@ static int occampi_dfas_init (void)
 	opi.tok_HASH = lexer_newtoken (SYMBOL, "#");
 	opi.tok_STRING = lexer_newtoken (STRING, NULL);
 	opi.tok_PUBLIC = lexer_newtoken (KEYWORD, "PUBLIC");
+	opi.tok_TRACES = lexer_newtoken (KEYWORD, "TRACES");
 
 	/*}}}*/
 	/*{{{  COMMENT: very manual construction*/
@@ -630,6 +632,113 @@ static void occampi_parser_shutdown (lexfile_t *lf)
 /*}}}*/
 
 
+/*{{{  static int occampi_tracesparse (lexfile_t *lf, tnode_t *tree)*/
+/*
+ *	parses a traces specification and attaches to the given tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_tracesparse (lexfile_t *lf, tnode_t *tree)
+{
+	/*
+	 * this parses:
+	 *	TRACES
+	 *	  <0 or more String trace specifications>
+	 *	:
+	 */
+	tnode_t *tracenode = NULL;
+	char *sbuf;
+	token_t *tok;
+	lexfile_t *newlex;
+#if 0
+fprintf (stderr, "occampi_tracesparse(): here!\n");
+#endif
+
+	tok = lexer_nexttoken (lf);
+	if (!lexer_tokmatch (opi.tok_TRACES, tok)) {
+		parser_error (lf, "expected TRACES");
+		lexer_pushback (lf, tok);
+		return -1;
+	}
+	lexer_freetoken (tok);
+
+	/* eat up comments and newlines */
+	for (tok = lexer_nexttoken (lf); tok && ((tok->type == COMMENT) || (tok->type == NEWLINE)); lexer_freetoken (tok), tok = lexer_nexttoken (lf));
+
+	/* expecting indentation */
+	if (!tok || (tok->type != INDENT)) {
+		parser_error (lf, "expected indent");
+		goto out_error;
+	}
+	lexer_freetoken (tok);
+	tok = lexer_nexttoken (lf);
+
+	if (!tok || (tok->type != STRING)) {
+		parser_error (lf, "expected string");
+		goto out_error;
+	}
+
+	/* feed it to the MCSP parser */
+	sbuf = string_ndup (tok->u.str.ptr, tok->u.str.len);
+	lexer_freetoken (tok);
+	newlex = lexer_openbuf (NULL, "mcsp", sbuf);
+	if (!newlex) {
+		nocc_error ("occampi_tracesparse(): failed to open traces string");
+		sfree (sbuf);
+		goto out_error;
+	}
+
+	tracenode = parser_descparse (newlex);
+	lexer_close (newlex);
+	sfree (sbuf);
+
+	if (!tracenode) {
+		nocc_error ("occampi_tracesparse(): failed to parse descriptor");
+		goto out_error;
+	}
+#if 1
+fprintf (stderr, "occampi_tracesparse(): got tree!:\n");
+tnode_dumptree (tracenode, 1, stderr);
+#endif
+
+	tracenode = tnode_create (opi.tag_TRACES, lf, tracenode);
+	/* attach to tree given */
+	tnode_setchook (tree, tnode_lookupchookbyname ("occampi:trace"), (void *)tracenode);
+
+	/* eat up comments and newlines */
+	for (tok = lexer_nexttoken (lf); tok && ((tok->type == COMMENT) || (tok->type == NEWLINE)); lexer_freetoken (tok), tok = lexer_nexttoken (lf));
+
+	/* expecting outdent */
+	if (!tok || (tok->type != OUTDENT)) {
+		parser_error (lf, "expected indent");
+		goto out_error;
+	}
+	lexer_freetoken (tok);
+	tok = lexer_nexttoken (lf);
+
+	if (!tok || !lexer_tokmatch (opi.tok_COLON, tok)) {
+		parser_error (lf, "expected :");
+		goto out_error;
+	}
+	lexer_freetoken (tok);
+
+	/* all done.. (hope) */
+
+	return 0;
+out_error:
+	/* scan to newline */
+	if (!tok) {
+		tok = lexer_nexttoken (lf);
+	}
+	while (tok && (tok->type != NEWLINE)) {
+		lexer_freetoken (tok);
+		tok = lexer_nexttoken (lf);
+	}
+	if (tok) {
+		lexer_pushback (lf, tok);
+	}
+	return -1;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_declorprocstart (lexfile_t *lf, int *gotall, char *thedfa)*/
 /*
  *	parses a declaration/process for single-liner's, or start of a declaration/process
@@ -965,13 +1074,17 @@ static int occampi_procend (lexfile_t *lf)
 		parser_error (lf, "end!");
 		return -1;
 	}
-	if (!lexer_tokmatch (opi.tok_COLON, tok)) {
+	if (lexer_tokmatch (opi.tok_COLON, tok)) {
+		lexer_freetoken (tok);
+	} else if (lexer_tokmatch (opi.tok_TRACES, tok)) {
+		/* hang onto this, push back into the lexer */
+		lexer_pushback (lf, tok);
+	} else {
 		parser_error (lf, "expected : found");
 		lexer_dumptoken (stderr, tok);
 		lexer_pushback (lf, tok);
 		return -1;
 	}
-	lexer_freetoken (tok);
 	return 0;
 }
 /*}}}*/
@@ -1007,6 +1120,7 @@ tnode_dumptree (tree, 1, stderr);
 			if (ntflags & NTF_INDENTED_PROC) {
 				/* parse body into subnode 2 */
 				tnode_t *body;
+				token_t *tok;
 
 				body = occampi_indented_process (lf);
 				tnode_setnthsub (tree, 2, body);
@@ -1014,6 +1128,16 @@ tnode_dumptree (tree, 1, stderr);
 				/* check trailing colon */
 				if (occampi_procend (lf) < 0) {
 					/* failed, but error already reported */
+				}
+
+				/* might have some TRACEs left */
+				tok = lexer_nexttoken (lf);
+				if (lexer_tokmatch (opi.tok_TRACES, tok)) {
+					lexer_pushback (lf, tok);
+					occampi_tracesparse (lf, tree);
+				} else {
+					/* nope, pop it back */
+					lexer_pushback (lf, tok);
 				}
 			}
 			/*}}}*/

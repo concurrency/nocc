@@ -85,7 +85,7 @@ static int mcsp_openfile (lexfile_t *lf, lexpriv_t *lp)
 /*}}}*/
 /*{{{  static int mcsp_closefile (lexfile_t *lf, lexpriv_t *lp)*/
 /*
- *	called before an occam-pi source file is closed
+ *	called before an MCSP source file is closed
  */
 static int mcsp_closefile (lexfile_t *lf, lexpriv_t *lp)
 {

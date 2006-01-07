@@ -454,7 +454,8 @@ void dfa_addmatch (dfanode_t *dfa, token_t *tok, dfanode_t *target, int flags)
 		token_t *thismatch = DA_NTHITEM (dfa->match, i);
 
 		if ((((tok->type != NOTOKEN) && (thismatch->type != NOTOKEN)) || (tok->type == thismatch->type)) && lexer_tokmatch (thismatch, tok)) {
-			nocc_warning ("dfa_addmatch(): displacing existing match");
+			nocc_warning ("dfa_addmatch(): displacing existing match (from [%s] to [%s] with [%s])", dfa->dfainfo ? ((nameddfa_t *)dfa->dfainfo)->name : "<unknown>",
+					target->dfainfo ? ((nameddfa_t *)target->dfainfo)->name : "<unknown>", lexer_stokenstr (tok));
 #if 0
 			lexer_dumptoken (stderr, tok);
 			lexer_dumptoken (stderr, thismatch);
@@ -3163,8 +3164,8 @@ int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)
 		return -1;
 	}
 	if (compopts.debugparser) {
-		nocc_message ("dfa_advance(): dfa->cur = 0x%8.8x  TS=%d  NS=%d  RES=0x%8.8x  [%s]", (unsigned int)cnode, DA_CUR (pp->tokstack), DA_CUR ((*dfast)->nodestack),
-				(unsigned int)((*dfast)->local), (cnode->dfainfo ? ((nameddfa_t *)(cnode->dfainfo))->name : "??"));
+		nocc_message ("dfa_advance(): dfa->cur = 0x%8.8x  TS=%d  NS=%d  RES=0x%8.8x  [%s], token = [%s]", (unsigned int)cnode, DA_CUR (pp->tokstack), DA_CUR ((*dfast)->nodestack),
+				(unsigned int)((*dfast)->local), (cnode->dfainfo ? ((nameddfa_t *)(cnode->dfainfo))->name : "??"), lexer_stokenstr (tok));
 	}
 	/* check for a matched exit transition */
 	for (i=0; i<DA_CUR (cnode->match); i++) {
@@ -3360,10 +3361,35 @@ tnode_t *dfa_walk (char *rname, lexfile_t *lf)
 			break;
 		}
 		tok = lexer_nexttoken (lf);
+		if (compopts.traceparser) {
+			nocc_message ("dfa_walk(): next token is [%s]", lexer_stokenstr (tok));
+		}
 	}
 	if (tok) {
 		lexer_pushback (tok->origin, tok);
 		tok = NULL;
+	}
+
+	if (dfast->prev) {
+		/* chances are we have a return out without consuming any more tokens.. */
+		tok = lexer_nexttoken (lf);
+		while (tok && dfast->prev && dfast->cur) {
+			int i = dfa_advance (&dfast, pp, tok);
+
+			if (i < 0) {
+				tok = NULL;
+				break;		/* while() */
+			} else if (!i) {
+				/* got stuck */
+				lexer_pushback (lf, tok);
+				tok = NULL;
+				break;		/* while() */
+			}
+			tok = lexer_nexttoken (lf);
+		}
+		if (tok) {
+			lexer_pushback (tok->origin, tok);
+		}
 	}
 
 	/* should be left with a single something */

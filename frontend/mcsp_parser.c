@@ -55,6 +55,7 @@
 static int mcsp_parser_init (lexfile_t *lf);
 static void mcsp_parser_shutdown (lexfile_t *lf);
 static tnode_t *mcsp_parser_parse (lexfile_t *lf);
+static tnode_t *mcsp_parser_descparse (lexfile_t *lf);
 
 
 /*}}}*/
@@ -67,7 +68,7 @@ langparser_t mcsp_parser = {
 	init:		mcsp_parser_init,
 	shutdown:	mcsp_parser_shutdown,
 	parse:		mcsp_parser_parse,
-	descparse:	NULL,
+	descparse:	mcsp_parser_descparse,
 	prescope:	NULL,
 	scope:		NULL,
 	typecheck:	NULL,
@@ -148,6 +149,89 @@ static int mcsp_register_reducers (void)
  */
 static int mcsp_dfas_init (void)
 {
+	DYNARRAY (dfattbl_t *, transtbls);
+	int i, x;
+
+	/*{{{  create DFAs*/
+	dfa_clear_deferred ();
+	dynarray_init (transtbls);
+
+	for (i=0; feunit_set[i]; i++) {
+		feunit_t *thisunit = feunit_set[i];
+
+		if (thisunit->init_dfatrans) {
+			dfattbl_t **t_table;
+			int t_size = 0;
+
+			t_table = thisunit->init_dfatrans (&t_size);
+			if (t_size > 0) {
+				int j;
+
+				for (j=0; j<t_size; j++) {
+					dynarray_add (transtbls, t_table[j]);
+				}
+			}
+			if (t_table) {
+				sfree (t_table);
+			}
+		}
+	}
+
+	dfa_mergetables (DA_PTR (transtbls), DA_CUR (transtbls));
+
+	/*{{{  debug dump of grammars if requested*/
+	if (compopts.dumpgrammar) {
+		for (i=0; i<DA_CUR (transtbls); i++) {
+			dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
+
+			if (ttbl) {
+				dfa_dumpttbl (stderr, ttbl);
+			}
+		}
+	}
+
+	/*}}}*/
+	/*{{{  convert into DFA nodes proper*/
+
+	x = 0;
+	for (i=0; i<DA_CUR (transtbls); i++) {
+		dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
+
+		/* only convert non-addition nodes */
+		if (ttbl && !ttbl->op) {
+			x += !dfa_tbltodfa (ttbl);
+		}
+	}
+
+	if (compopts.dumpgrammar) {
+		dfa_dumpdeferred (stderr);
+	}
+
+	if (dfa_match_deferred ()) {
+		/* failed here, get out */
+		return 1;
+	}
+
+	/*}}}*/
+	/*{{{  free up tables*/
+	for (i=0; i<DA_CUR (transtbls); i++) {
+		dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
+
+		if (ttbl) {
+			dfa_freettbl (ttbl);
+		}
+	}
+	dynarray_trash (transtbls);
+
+	/*}}}*/
+
+	if (x) {
+		return -1;
+	}
+
+	/*}}}*/
+
+
 	return 0;
 }
 /*}}}*/
@@ -325,5 +409,84 @@ static tnode_t *mcsp_parser_parse (lexfile_t *lf)
 	return tree;
 }
 /*}}}*/
+/*{{{  static tnode_t *mcsp_parser_descparse (lexfile_t *lf)*/
+/*
+ *	parses an MCSP descriptor -- actually some specification/process
+ *	returns tree on success, NULL on failure
+ */
+static tnode_t *mcsp_parser_descparse (lexfile_t *lf)
+{
+	token_t *tok;
+	tnode_t *tree = NULL;
+	tnode_t **target = &tree;
 
+	if (compopts.verbose) {
+		nocc_message ("mcsp_parser_descparse(): parsing descriptor (specification)..");
+	}
+
+	for (;;) {
+		tnode_t *thisone;
+		int breakfor = 0;
+		int tnflags;
+
+		tok = lexer_nexttoken (lf);
+		while (tok->type == NEWLINE) {
+			lexer_freetoken (tok);
+			tok = lexer_nexttoken (lf);
+		}
+		if ((tok->type == END) || (tok->type == NOTOKEN)) {
+			/* done */
+			lexer_freetoken (tok);
+			break;		/* for() */
+		}
+		lexer_pushback (lf, tok);
+
+		/* walk as a descriptor-line */
+		thisone = dfa_walk ("mcsp:process", lf);
+		if (!thisone) {
+			*target = NULL;
+			break;		/* for() */
+		}
+#if 0
+fprintf (stderr, "mcsp_parser_descparse(): thisone->tag->name = [%s], thisone->tag->ndef->name = [%s]\n", thisone->tag->name, thisone->tag->ndef->name);
+#endif
+		*target = thisone;
+		while (*target) {
+			/* sink through things */
+			tnflags = tnode_tnflagsof (*target);
+			if (tnflags & TNF_TRANSPARENT) {
+				target = tnode_nthsubaddr (*target, 0);
+			} else {
+				/* assume we're done! */
+				breakfor = 1;
+				break;		/* while() */
+			}
+		}
+		if (breakfor) {
+			break;		/* for() */
+		}
+
+		/* next token should be newline or end */
+		tok = lexer_nexttoken (lf);
+		if ((tok->type != NEWLINE) && (tok->type != END)) {
+			parser_error (lf, "in descriptor, expected newline or end, found [%s]", lexer_stokenstr (tok));
+			if (tree) {
+				tnode_free (tree);
+			}
+			lexer_freetoken (tok);
+			tree = NULL;
+			break;		/* for() */
+		}
+		lexer_pushback (lf, tok);
+		/* and go round */
+	}
+
+#if 0
+fprintf (stderr, "mcsp_parser_descparse(): got tree:\n");
+tnode_dumptree (tree, 1, stderr);
+#endif
+
+	return tree;
+}
+/*}}}*/
 
