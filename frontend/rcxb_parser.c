@@ -1,0 +1,228 @@
+/*
+ *	rcxb_parser.c -- RCX-BASIC parser for nocc
+ *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *
+ *	This program is free software; you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation; either version 2 of the License, or
+ *	(at your option) any later version.
+ *
+ *	This program is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *	You should have received a copy of the GNU General Public License
+ *	along with this program; if not, write to the Free Software
+ *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+/*{{{  includes*/
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdarg.h>
+#include <sys/types.h>
+#include <errno.h>
+
+#include "nocc.h"
+#include "support.h"
+#include "version.h"
+#include "symbols.h"
+#include "keywords.h"
+#include "lexer.h"
+#include "lexpriv.h"
+#include "tnode.h"
+#include "parser.h"
+#include "dfa.h"
+#include "parsepriv.h"
+#include "rcxb.h"
+#include "library.h"
+#include "feunit.h"
+#include "names.h"
+#include "scope.h"
+#include "prescope.h"
+#include "typecheck.h"
+#include "extn.h"
+
+/*}}}*/
+/*{{{  forward decls*/
+static int rcxb_parser_init (lexfile_t *lf);
+static void rcxb_parser_shutdown (lexfile_t *lf);
+
+
+/*}}}*/
+/*{{{  global vars*/
+
+rcxb_pset_t rcxb;
+
+langparser_t rcxb_parser = {
+	langname:	"rcxbasic",
+	init:		rcxb_parser_init,
+	shutdown:	rcxb_parser_shutdown,
+	parse:		NULL, // mcsp_parser_parse,
+	descparse:	NULL, // mcsp_parser_descparse,
+	prescope:	NULL, // mcsp_parser_prescope,
+	scope:		NULL, // mcsp_parser_scope,
+	typecheck:	NULL, // mcsp_parser_typecheck,
+	maketemp:	NULL,
+	makeseqassign:	NULL,
+	tagstruct_hook:	(void *)&rcxb,
+	lexer:		NULL
+};
+
+
+/*}}}*/
+/*{{{  private types/vars*/
+typedef struct {
+	dfanode_t *inode;
+} rcxb_parse_t;
+
+static rcxb_parse_t *rcxb_priv = NULL;
+
+static feunit_t *feunit_set[] = {
+	&rcxb_program_feunit,
+	NULL
+};
+
+/*}}}*/
+
+
+/*{{{  void rcxb_isetindent (FILE *stream, int indent)*/
+/*
+ *	set-indent for debugging output
+ */
+void rcxb_isetindent (FILE *stream, int indent)
+{
+	int i;
+
+	for (i=0; i<indent; i++) {
+		fprintf (stream, "    ");
+	}
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static int rcxb_tokens_init (void)*/
+/*
+ *	initialises RCX-BASIC tokens (keywords + symbols)
+ *	returns 0 on success, non-zero on failure
+ */
+static int rcxb_tokens_init (void)
+{
+	return 0;
+}
+/*}}}*/
+/*{{{  static int rcxb_nodes_init (void)*/
+/*
+ *	initialises the RCX-BASIC nodes
+ *	returns 0 on success, non-zero on failure
+ */
+static int rcxb_nodes_init (void)
+{
+	return 0;
+}
+/*}}}*/
+/*{{{  static int rcxb_register_reducers (void)*/
+/*
+ *	initialises RCX-BASIC reducers
+ *	returns 0 on success, non-zero on failure
+ */
+static int rcxb_register_reducers (void)
+{
+	return 0;
+}
+/*}}}*/
+/*{{{  static int rcxb_dfas_init (void)*/
+/*
+ *	initialises RCX-BASIC DFAs
+ *	returns 0 on success, non-zero on failure
+ */
+static int rcxb_dfas_init (void)
+{
+	return 0;
+}
+/*}}}*/
+/*{{{  static int rcxb_post_setup (void)*/
+/*
+ *	does post-setup for RCX-BASIC
+ *	returns 0 on success, non-zero on failure
+ */
+static int rcxb_post_setup (void)
+{
+	return 0;
+}
+/*}}}*/
+
+
+/*{{{  static int rcxb_parser_init (lexfile_t *lf)*/
+/*
+ *	initialises the RCX-BASIC parser
+ *	returns 0 on success, non-zero on failure
+ */
+static int rcxb_parser_init (lexfile_t *lf)
+{
+	if (compopts.verbose) {
+		nocc_message ("initialising RCX-BASIC parser..");
+	}
+	if (!rcxb_priv) {
+		rcxb_priv = (rcxb_parse_t *)smalloc (sizeof (rcxb_parse_t));
+		rcxb_priv->inode = NULL;
+
+		memset ((void *)&rcxb, 0, sizeof (rcxb));
+
+		/* initialise! */
+		if (rcxb_tokens_init ()) {
+			nocc_error ("rcxb_parser_init(): failed to initialise tokens");
+			return 1;
+		}
+		if (rcxb_nodes_init ()) {
+			nocc_error ("rcxb_parser_init(): failed to initialise nodes");
+			return 1;
+		}
+		if (rcxb_register_reducers ()) {
+			nocc_error ("rcxb_parser_init(): failed to register reducers");
+			return 1;
+		}
+		if (rcxb_dfas_init ()) {
+			nocc_error ("rcxb_parser_init(): failed to initialise DFAs");
+			return 1;
+		}
+		if (rcxb_post_setup ()) {
+			nocc_error ("rcxb_parser_init(): failed to post-setup");
+			return 1;
+		}
+
+		rcxb_priv->inode = dfa_lookupbyname ("rcxb:program");
+		if (!rcxb_priv->inode) {
+			nocc_error ("rcxb_parser_init(): could not find rcxb:program");
+			return 1;
+		}
+		if (compopts.dumpdfas) {
+			dfa_dumpdfas (stderr);
+		}
+		if (compopts.dumpgrules) {
+			parser_dumpgrules (stderr);
+		}
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static void rcxb_parser_shutdown (lexfile_t *lf)*/
+/*
+ *	shuts-down the RCX-BASIC parser
+ */
+static void rcxb_parser_shutdown (lexfile_t *lf)
+{
+	return;
+}
+/*}}}*/
+
+
+

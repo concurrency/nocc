@@ -73,11 +73,6 @@ struct TAG_scope;
 struct TAG_feunit;
 
 
-typedef struct {
-	void *data;
-	int bytes;
-} mcsp_litdata_t;
-
 extern void mcsp_isetindent (FILE *stream, int indent);
 
 extern struct TAG_feunit mcsp_process_feunit;		/* mcsp_process.c */
