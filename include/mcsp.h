@@ -34,11 +34,16 @@ struct TAG_token;
 
 typedef struct {
 	struct TAG_tndef *node_NAMENODE;
+	struct TAG_tndef *node_DOPNODE;
+	struct TAG_tndef *node_SCOPENODE;
+	struct TAG_tndef *node_LEAFPROC;
+	struct TAG_tndef *node_CONSTNODE;
 
 	struct TAG_ntdef *tag_NAME;
 	struct TAG_ntdef *tag_EVENT;
 	struct TAG_ntdef *tag_PROCDEF;
 
+	struct TAG_ntdef *tag_SUBEVENT;
 	struct TAG_ntdef *tag_THEN;
 	struct TAG_ntdef *tag_PAR;
 	struct TAG_ntdef *tag_ILEAVE;
@@ -46,9 +51,17 @@ typedef struct {
 	struct TAG_ntdef *tag_ICHOICE;
 	struct TAG_ntdef *tag_ECHOICE;
 
+	struct TAG_ntdef *tag_SKIP;
+	struct TAG_ntdef *tag_STOP;
+	struct TAG_ntdef *tag_DIV;
+	struct TAG_ntdef *tag_CHAOS;
+
 	struct TAG_ntdef *tag_HIDE;
+	struct TAG_ntdef *tag_FIXPOINT;
 
 	struct TAG_ntdef *tag_PROCDECL;
+
+	struct TAG_ntdef *tag_STRING;
 } mcsp_pset_t;
 
 extern mcsp_pset_t mcsp;

@@ -67,6 +67,102 @@ typedef struct TAG_mcsp_lex {
 /*}}}*/
 
 
+/*{{{  static int check_hex (char *ptr, int len)*/
+/*
+ *	checks that a hex-value is valid (as in digits)
+ *	return 0 if ok, non-zero otherwise
+ */
+static int check_hex (char *ptr, int len)
+{
+	for (; len; len--, ptr++) {
+		if (((*ptr >= 'a') && (*ptr <= 'f')) ||
+				((*ptr >= 'A') && (*ptr <= 'F')) ||
+				((*ptr >= '0') && (*ptr <= '9'))) {
+			/* skip */
+		} else {
+			return 1;
+		}
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int decode_hex (char *ptr, int len)*/
+/*
+ *	decodes a hex value.  returns it
+ */
+static int decode_hex (char *ptr, int len)
+{
+	int val = 0;
+
+	for (; len; len--, ptr++) {
+		val <<= 4;
+		if ((*ptr >= 'a') && (*ptr <= 'f')) {
+			val |= ((*ptr - 'a') + 10);
+		} else if ((*ptr >= 'A') && (*ptr <= 'F')) {
+			val |= ((*ptr - 'A') + 10);
+		} else {
+			val |= (*ptr - '0');
+		}
+	}
+	return val;
+}
+/*}}}*/
+/*{{{  static int mcsp_escape_char (lexfile_t *lf, mcsp_lex_t *lop, char **ptr)*/
+/*
+ *	extracts an escape sequence from a string
+ *	returns the character it represents, -255 on error
+ */
+static int mcsp_escape_char (lexfile_t *lf, mcsp_lex_t *lmp, char **ptr)
+{
+	int echr = 0;
+
+	if (**ptr != '\\') {
+		lexer_error (lf, "mcsp_escape_char(): called incorrectly");
+		(*ptr)++;
+		goto out_error1;
+	} else {
+		(*ptr)++;
+		switch (**ptr) {
+		case 'n':
+			echr = (int)'\n';
+			(*ptr)++;
+			break;
+		case 'r':
+			echr = (int)'\r';
+			(*ptr)++;
+			break;
+		case 't':
+			echr = (int)'\t';
+			(*ptr)++;
+			break;
+		case '\\':
+		case '\'':
+		case '\"':
+			echr = (int)(**ptr);
+			(*ptr)++;
+			break;
+		case 'x':
+			if (check_hex (*ptr + 1, 2)) {
+				lexer_error (lf, "malformed hexidecimal escape in character constant");
+				goto out_error1;
+			}
+			echr = decode_hex (*ptr + 1, 2);
+			(*ptr) += 3;
+			break;
+		default:
+			lexer_error (lf, "unknown escape character \'%c\'", **ptr);
+			(*ptr)++;
+			goto out_error1;
+		}
+	}
+
+	return echr;
+out_error1:
+	return -255;
+}
+/*}}}*/
+
+
 /*{{{  static int mcsp_openfile (lexfile_t *lf, lexpriv_t *lp)*/
 /*
  *	called once an MCSP source file has been opened
@@ -101,7 +197,7 @@ static int mcsp_closefile (lexfile_t *lf, lexpriv_t *lp)
 	return 0;
 }
 /*}}}*/
-/*{{{  */
+/*{{{  static token_t *mcsp_nexttoken (lexfile_t *lf, lexpriv_t *lp)*/
 /*
  *	returns the next token
  */
@@ -138,7 +234,7 @@ tokenloop:
 		/* scan something that matches a word */
 		for (dh=ch+1; (dh < chlim) && (((*dh >= 'a') && (*dh <= 'z')) ||
 				((*dh >= 'A') && (*dh <= 'Z')) ||
-				(*dh == '.') ||
+				(*dh == '_') ||
 				((*dh >= '0') && (*dh <= '9'))); dh++);
 		
 		tmpstr = string_ndup (ch, (int)(dh - ch));
@@ -209,7 +305,7 @@ tokenloop:
 		return tok;
 		break;
 		/*}}}*/
-		/*{{{  #  (comment)*/
+		/*{{{  # (comment)*/
 	case '#':
 		tok->type = COMMENT;
 		/* scan to end-of-line */
@@ -225,6 +321,144 @@ tokenloop:
 		lexer_warning (lf, "unexpected whitespace");
 		lp->offset++;
 		goto tokenloop;
+		break;
+		/*}}}*/
+		/*{{{  ' (character)*/
+	case '\'':
+		/* returned as an integer */
+		{
+			char *dh = ch;
+			int eschar;
+
+			tok->type = INTEGER;
+			dh++;
+			if (*dh == '\\') {
+				/* escape character */
+				eschar = mcsp_escape_char (lf, lmp, &dh);
+				if (eschar == -255) {
+					goto out_error1;
+				}
+				tok->u.ival = eschar;
+			} else {
+				/* regular character */
+				tok->u.ival = (int)(*dh);
+				dh++;
+			}
+			/* expect closing quote */
+			if (*dh != '\'') {
+				lexer_error (lf, "malformed character constant");
+				goto out_error1;
+			}
+			dh++;
+
+			lp->offset += (int)(dh - ch);
+		}
+		break;
+		/*}}}*/
+		/*{{{  " (string)*/
+	case '\"':
+		tok->type = STRING;
+		/* scan string */
+		{
+			int slen = 0;
+			char *xch;
+
+			/*{{{  scan string*/
+			for (dh = ch + 1; (dh < chlim) && (*dh != '\"'); dh++, slen++) {
+				switch (*dh) {
+				case '\\':
+					/* escape char */
+					dh++;
+					if (dh == chlim) {
+						lexer_error (lf, "unexpected end of file");
+						goto out_error1;
+					}
+					switch (*dh) {
+					case 'n':
+					case 'r':
+					case 't':
+					case '\'':
+					case '\"':
+					case '\\':
+						break;
+					case 'x':
+						/* eat up 2 hex chars */
+						if ((dh + 2) >= chlim) {
+							lexer_error (lf, "bad hex constant");
+							goto out_error1;
+						}
+						if (check_hex (dh + 1, 2)) {
+							lexer_error (lf, "bad hex value");
+							goto out_error1;
+						}
+						dh += 2;
+						break;
+					default:
+						lexer_error (lf, "unhandled escape: \\%c", *dh);
+						goto out_error1;
+					}
+					break;
+				}
+			}
+			/*}}}*/
+			if (dh == chlim) {
+				lexer_error (lf, "unexpected end of file");
+				goto out_error1;
+			}
+			tok->u.str.ptr = (char *)smalloc (slen + 1);
+			tok->u.str.len = 0;		/* fixup in a bit */
+			xch = tok->u.str.ptr;
+			slen = 0;
+			/*{{{  now actually process it*/
+			for (dh = (ch + 1); (dh < chlim) && (*dh != '\"'); dh++) {
+				switch (*dh) {
+				case '\\':
+					/* escape char */
+					dh++;
+					switch (*dh) {
+					case 'n':
+						*(xch++) = '\n';
+						slen++;
+						break;
+					case 'r':
+						*(xch++) = '\r';
+						slen++;
+						break;
+					case '\'':
+						*(xch++) = '\'';
+						slen++;
+						break;
+					case '\"':
+						*(xch++) = '\"';
+						slen++;
+						break;
+					case 't':
+						*(xch++) = '\t';
+						slen++;
+						break;
+					case '\\':
+						*(xch++) = '\\';
+						slen++;
+						break;
+					case 'x':
+						*(xch++) = (char)decode_hex (dh + 1, 2);
+						slen++;
+						dh += 2;
+						break;
+					}
+					break;
+				default:
+					*(xch++) = *dh;
+					slen++;
+					break;
+				}
+			}
+			/*}}}*/
+			dh++;
+			*xch = '\0';
+			tok->u.str.len = slen;
+			lp->offset += (int)(dh - ch);
+		}
 		break;
 		/*}}}*/
 		/*{{{  default (symbol)*/

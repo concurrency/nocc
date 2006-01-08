@@ -58,6 +58,7 @@ static tnode_t *mcsp_parser_parse (lexfile_t *lf);
 static tnode_t *mcsp_parser_descparse (lexfile_t *lf);
 static int mcsp_parser_prescope (tnode_t **tptr, prescope_t *ps);
 static int mcsp_parser_scope (tnode_t **tptr, scope_t *ss);
+static int mcsp_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
 
 
 /*}}}*/
@@ -73,7 +74,7 @@ langparser_t mcsp_parser = {
 	descparse:	mcsp_parser_descparse,
 	prescope:	mcsp_parser_prescope,
 	scope:		mcsp_parser_scope,
-	typecheck:	NULL,
+	typecheck:	mcsp_parser_typecheck,
 	maketemp:	NULL,
 	makeseqassign:	NULL,
 	tagstruct_hook:	(void *)&mcsp,
@@ -99,7 +100,7 @@ static feunit_t *feunit_set[] = {
 
 /*{{{  static int mcsp_tokens_init (void)*/
 /*
- *	initialises extra tokens needed by MCSP (symbols mainly)
+ *	initialises extra tokens needed by MCSP (symbols and keywords)
  *	returns 0 on success, non-zero on failure
  */
 static int mcsp_tokens_init (void)
@@ -107,6 +108,10 @@ static int mcsp_tokens_init (void)
 	symbols_add ("|||", 3, (void *)&mcsp_parser);
 	symbols_add ("|~|", 3, (void *)&mcsp_parser);
 	symbols_add ("::=", 3, (void *)&mcsp_parser);
+	symbols_add (".", 1, (void *)&mcsp_parser);
+
+	keywords_add ("DIV", -1, (void *)&mcsp_parser);
+	keywords_add ("CHAOS", -1, (void *)&mcsp_parser);
 
 	return 0;
 }
@@ -394,8 +399,8 @@ static tnode_t *mcsp_parser_parse (lexfile_t *lf)
 			tnflags = tnode_tnflagsof (*target);
 			if (tnflags & TNF_TRANSPARENT) {
 				target = tnode_nthsubaddr (*target, 0);
-			} else if (tnflags & TNF_SHORTDECL) {
-				target = tnode_nthsubaddr (*target, 2);
+			} else if (tnflags & TNF_LONGDECL) {
+				target = tnode_nthsubaddr (*target, 3);
 			} else {
 				/* assume done */
 				breakfor = 1;
@@ -478,8 +483,8 @@ fprintf (stderr, "mcsp_parser_descparse(): thisone->tag->name = [%s], thisone->t
 			tnflags = tnode_tnflagsof (*target);
 			if (tnflags & TNF_TRANSPARENT) {
 				target = tnode_nthsubaddr (*target, 0);
-			} else if (tnflags & TNF_SHORTDECL) {
-				target = tnode_nthsubaddr (*target, 2);
+			} else if (tnflags & TNF_LONGDECL) {
+				target = tnode_nthsubaddr (*target, 3);
 			} else {
 				/* assume we're done! */
 				breakfor = 1;
@@ -534,6 +539,17 @@ static int mcsp_parser_scope (tnode_t **tptr, scope_t *ss)
 {
 	tnode_modprepostwalktree (tptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
 	return ss->err;
+}
+/*}}}*/
+/*{{{  static int mcsp_parser_typecheck (tnode_t *tptr, typecheck_t *tc)*/
+/*
+ *	called to type-check a tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int mcsp_parser_typecheck (tnode_t *tptr, typecheck_t *tc)
+{
+	tnode_prewalktree (tptr, typecheck_prewalktree, (void *)tc);
+	return tc->err;
 }
 /*}}}*/
 

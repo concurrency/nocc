@@ -77,6 +77,7 @@ static symbol_t symbols[] = {
 	{"_", 1, NULL},
 	{"~", 1, NULL},
 	{"#", 1, NULL},
+	{"@", 1, NULL},
 	{"->", 2, NULL},
 	{"/\\", 2, NULL},
 	{"\\/", 2, NULL},
@@ -253,25 +254,45 @@ symbol_t *symbols_add (const char *str, const int len, void *origin)
 		sfree (sym);
 		return NULL;
 	}
-	if (sym_extras[fch - SYMBASE]) {
-		int i;
-		symbol_t **newextras;
+	fch -= SYMBASE;
+	if (len >= 3) {
+		/* must go in extras */
+		if (sym_extras[fch]) {
+			int i;
+			symbol_t **newextras;
 
-		/* count entries and extend */
-		for (i=0; sym_extras[fch - SYMBASE][i]; i++);
-		newextras = (symbol_t **)smalloc ((i + 2) * sizeof (symbol_t *));
-		for (i=0; sym_extras[fch - SYMBASE][i]; newextras[i] = sym_extras[fch - SYMBASE][i], i++);
-		newextras[i++] = sym;
-		newextras[i] = NULL;
+			/* count entries and extend */
+			for (i=0; sym_extras[fch][i]; i++);
+			newextras = (symbol_t **)smalloc ((i + 2) * sizeof (symbol_t *));
+			for (i=0; sym_extras[fch][i]; newextras[i] = sym_extras[fch][i], i++);
+			newextras[i++] = sym;
+			newextras[i] = NULL;
 
-		/* free old, park new */
-		sfree (sym_extras[fch - SYMBASE]);
-		sym_extras[fch - SYMBASE] = newextras;
+			/* free old, park new */
+			sfree (sym_extras[fch]);
+			sym_extras[fch] = newextras;
+		} else {
+			/* creating fresh */
+			sym_extras[fch] = (symbol_t **)smalloc (2 * sizeof (symbol_t *));
+			sym_extras[fch][0] = sym;
+			sym_extras[fch][1] = NULL;
+		}
 	} else {
-		/* creating fresh */
-		sym_extras[fch - SYMBASE] = (symbol_t **)smalloc (2 * sizeof (symbol_t *));
-		sym_extras[fch - SYMBASE][0] = sym;
-		sym_extras[fch - SYMBASE][1] = NULL;
+		/* must go in fixed symbol table */
+		int sch = (int)(sym->match[1]);
+
+		if (sch != 0) {
+			sch -= SYMBASE;
+		}
+		if (!sym_lookup[fch]) {
+			int j;
+
+			sym_lookup[fch] = (symbol_t **)smalloc (SYMSIZE * sizeof (symbol_t *));
+			for (j=0; j<SYMSIZE; j++) {
+				sym_lookup[fch][j] = NULL;
+			}
+		}
+		sym_lookup[fch][sch] = sym;
 	}
 
 	return sym;

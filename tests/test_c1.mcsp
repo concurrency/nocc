@@ -1,7 +1,11 @@
 # test_c1.mcsp -- testing MCSP stuff
 
-FOO ::= (a |~| b) \ {a,b}
+FOO ::= ((a -> STOP) |~| (b -> SKIP)) \ {a,b}
 BAR ::= FOO; FOO
+
+BLIP ::= (z -> STOP) \ {z}
+
+BLING ::= (@X.(a -> b -> X)) \ {a,b}
 
 SYSTEM ::= (BAR ||| BAR)
 

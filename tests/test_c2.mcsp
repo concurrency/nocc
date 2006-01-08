@@ -1,0 +1,5 @@
+# test_c2.mcsp -- testing parameterised processes
+
+SYSTEM (screen) ::= screen."a" -> STOP
+
+
