@@ -50,7 +50,7 @@ static token_t *rcxb_nexttoken (lexfile_t *lf, lexpriv_t *lp);
 /*{{{  public lexer struct*/
 langlexer_t rcxb_lexer = {
 	langname: "rcxbasic",
-	fileexts: {".bas", NULL},
+	fileexts: {".bas", ".ncb", NULL},
 	openfile: rcxb_openfile,
 	closefile: rcxb_closefile,
 	nexttoken: rcxb_nexttoken,

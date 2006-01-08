@@ -1,0 +1,13 @@
+# test_b1.ncb -- testing BASIC for LEGO RCX
+# Fred Barnes, Jan 2006
+
+# initialise brick
+
+set sensor 1 "light"
+set sensor 2 "touch"
+
+# sausages
+
+set sensor 3 "earth invasion!"
+
+

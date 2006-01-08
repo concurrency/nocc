@@ -81,11 +81,11 @@ static opmap_t opmap[] = {
 
 /*}}}*/
 
-/*{{{  void *mcsp_nametoken_to_hook (void *ntok)*/
+/*{{{  static void *mcsp_nametoken_to_hook (void *ntok)*/
 /*
  *	turns a name token into a hooknode for a tag_NAME
  */
-void *mcsp_nametoken_to_hook (void *ntok)
+static void *mcsp_nametoken_to_hook (void *ntok)
 {
 	token_t *tok = (token_t *)ntok;
 	char *rawname;
@@ -98,11 +98,11 @@ void *mcsp_nametoken_to_hook (void *ntok)
 	return (void *)rawname;
 }
 /*}}}*/
-/*{{{  void *mcsp_stringtoken_to_hook (void *ntok)*/
+/*{{{  static void *mcsp_stringtoken_to_hook (void *ntok)*/
 /*
  *	turns a string token into a hooknode for a tag_STRING
  */
-void *mcsp_stringtoken_to_hook (void *ntok)
+static void *mcsp_stringtoken_to_hook (void *ntok)
 {
 	token_t *tok = (token_t *)ntok;
 	mcsp_consthook_t *ch;

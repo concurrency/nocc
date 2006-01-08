@@ -54,6 +54,7 @@
 /*{{{  forward decls*/
 static int rcxb_parser_init (lexfile_t *lf);
 static void rcxb_parser_shutdown (lexfile_t *lf);
+static tnode_t *rcxb_parser_parse (lexfile_t *lf);
 
 
 /*}}}*/
@@ -65,7 +66,7 @@ langparser_t rcxb_parser = {
 	langname:	"rcxbasic",
 	init:		rcxb_parser_init,
 	shutdown:	rcxb_parser_shutdown,
-	parse:		NULL, // mcsp_parser_parse,
+	parse:		rcxb_parser_parse,
 	descparse:	NULL, // mcsp_parser_descparse,
 	prescope:	NULL, // mcsp_parser_prescope,
 	scope:		NULL, // mcsp_parser_scope,
@@ -116,6 +117,10 @@ void rcxb_isetindent (FILE *stream, int indent)
  */
 static int rcxb_tokens_init (void)
 {
+	keywords_add ("set", -1, (void *)&rcxb_parser);
+	keywords_add ("motor", -1, (void *)&rcxb_parser);
+	keywords_add ("sensor", -1, (void *)&rcxb_parser);
+
 	return 0;
 }
 /*}}}*/
@@ -126,6 +131,16 @@ static int rcxb_tokens_init (void)
  */
 static int rcxb_nodes_init (void)
 {
+	int i;
+
+	for (i=0; feunit_set[i]; i++) {
+		feunit_t *thisunit = feunit_set[i];
+
+		if (thisunit->init_nodes && thisunit->init_nodes ()) {
+			return -1;
+		}
+	}
+
 	return 0;
 }
 /*}}}*/
@@ -136,6 +151,23 @@ static int rcxb_nodes_init (void)
  */
 static int rcxb_register_reducers (void)
 {
+	int i;
+
+	/*{{{  generic reductions*/
+	parser_register_grule ("rcxb:nullreduce", parser_decode_grule ("N+R-"));
+	parser_register_grule ("rcxb:nullpush", parser_decode_grule ("0N-"));
+	parser_register_grule ("rcxb:nullset", parser_decode_grule ("0R-"));
+
+	/*}}}*/
+
+	for (i=0; feunit_set[i]; i++) {
+		feunit_t *thisunit = feunit_set[i];
+
+		if (thisunit->reg_reducers && thisunit->reg_reducers ()) {
+			return -1;
+		}
+	}
+
 	return 0;
 }
 /*}}}*/
@@ -146,6 +178,87 @@ static int rcxb_register_reducers (void)
  */
 static int rcxb_dfas_init (void)
 {
+	DYNARRAY (dfattbl_t *, transtbls);
+	int i, x;
+
+	/*{{{  create DFAs*/
+	dfa_clear_deferred ();
+	dynarray_init (transtbls);
+
+	for (i=0; feunit_set[i]; i++) {
+		feunit_t *thisunit = feunit_set[i];
+
+		if (thisunit->init_dfatrans) {
+			dfattbl_t **t_table;
+			int t_size = 0;
+
+			t_table = thisunit->init_dfatrans (&t_size);
+			if (t_size > 0) {
+				int j;
+
+				for (j=0; j<t_size; j++) {
+					dynarray_add (transtbls, t_table[j]);
+				}
+			}
+			if (t_table) {
+				sfree (t_table);
+			}
+		}
+	}
+
+	dfa_mergetables (DA_PTR (transtbls), DA_CUR (transtbls));
+
+	/*{{{  debug dump of grammars if requested*/
+	if (compopts.dumpgrammar) {
+		for (i=0; i<DA_CUR (transtbls); i++) {
+			dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
+
+			if (ttbl) {
+				dfa_dumpttbl (stderr, ttbl);
+			}
+		}
+	}
+
+	/*}}}*/
+	/*{{{  convert into DFA nodes proper*/
+
+	x = 0;
+	for (i=0; i<DA_CUR (transtbls); i++) {
+		dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
+
+		/* only convert non-addition nodes */
+		if (ttbl && !ttbl->op) {
+			x += !dfa_tbltodfa (ttbl);
+		}
+	}
+
+	if (compopts.dumpgrammar) {
+		dfa_dumpdeferred (stderr);
+	}
+
+	if (dfa_match_deferred ()) {
+		/* failed here, get out */
+		return 1;
+	}
+
+	/*}}}*/
+	/*{{{  free up tables*/
+	for (i=0; i<DA_CUR (transtbls); i++) {
+		dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
+
+		if (ttbl) {
+			dfa_freettbl (ttbl);
+		}
+	}
+	dynarray_trash (transtbls);
+
+	/*}}}*/
+
+	if (x) {
+		return -1;
+	}
+
+	/*}}}*/
 	return 0;
 }
 /*}}}*/
@@ -156,6 +269,16 @@ static int rcxb_dfas_init (void)
  */
 static int rcxb_post_setup (void)
 {
+	int i;
+
+	for (i=0; feunit_set[i]; i++) {
+		feunit_t *thisunit = feunit_set[i];
+
+		if (thisunit->post_setup && thisunit->post_setup ()) {
+			return -1;
+		}
+	}
+
 	return 0;
 }
 /*}}}*/
@@ -221,6 +344,86 @@ static int rcxb_parser_init (lexfile_t *lf)
 static void rcxb_parser_shutdown (lexfile_t *lf)
 {
 	return;
+}
+/*}}}*/
+
+
+/*{{{  static tnode_t *rcxb_parser_parse (lexfile_t *lf)*/
+/*
+ *	called to parse a file (containing RCX-BASIC)
+ *	returns a tree on success, NULL on failure
+ */
+static tnode_t *rcxb_parser_parse (lexfile_t *lf)
+{
+	token_t *tok;
+	tnode_t *tree = NULL;
+	tnode_t **target = &tree;
+
+	if (compopts.verbose) {
+		nocc_message ("rcxb_parser_parse(): starting parse..");
+	}
+
+	for (;;) {
+		tnode_t *thisone;
+		int tnflags;
+		int breakfor = 0;
+
+		tok = lexer_nexttoken (lf);
+		while ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
+			lexer_freetoken (tok);
+			tok = lexer_nexttoken (lf);
+		}
+		if ((tok->type == END) || (tok->type == NOTOKEN)) {
+			/* done */
+			lexer_freetoken (tok);
+			break;		/* for() */
+		}
+		lexer_pushback (lf, tok);
+
+		thisone = dfa_walk ("rcxb:program", lf);
+		if (!thisone) {
+			*target = NULL;
+			break;		/* for() */
+		}
+		*target = thisone;
+		while (*target) {
+			/* sink through nodes */
+			tnflags = tnode_tnflagsof (*target);
+			if (tnflags & TNF_TRANSPARENT) {
+				target = tnode_nthsubaddr (*target, 0);
+			} else {
+				/* assume done */
+				breakfor = 1;
+				break;		/* while() */
+			}
+		}
+		if (breakfor) {
+			break;		/* for() */
+		}
+	}
+
+	if (compopts.verbose) {
+		nocc_message ("leftover tokens:");
+	}
+
+	tok = lexer_nexttoken (lf);
+	while (tok) {
+		if (compopts.verbose) {
+			lexer_dumptoken (stderr, tok);
+		}
+		if ((tok->type == END) || (tok->type == NOTOKEN)) {
+			lexer_freetoken (tok);
+			break;
+		}
+		if ((tok->type != NEWLINE) && (tok->type != COMMENT)) {
+			lf->errcount++;				/* errors.. */
+		}
+
+		lexer_freetoken (tok);
+		tok = lexer_nexttoken (lf);
+	}
+
+	return tree;
 }
 /*}}}*/
 

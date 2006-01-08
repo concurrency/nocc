@@ -33,10 +33,22 @@ struct TAG_token;
 
 typedef struct {
 	struct TAG_tndef *node_ACTIONNODE;
+	struct TAG_tndef *node_LEAFNODE;
 
 	struct TAG_ntdef *tag_NAME;
 
+	struct TAG_ntdef *tag_MOTORA;
+	struct TAG_ntdef *tag_MOTORB;
+	struct TAG_ntdef *tag_MOTORC;
+	struct TAG_ntdef *tag_SENSOR1;
+	struct TAG_ntdef *tag_SENSOR2;
+	struct TAG_ntdef *tag_SENSOR3;
+
+	struct TAG_ntdef *tag_LITSTR;
+	struct TAG_ntdef *tag_LITINT;
+
 	struct TAG_ntdef *tag_SETMOTOR;
+	struct TAG_ntdef *tag_SETSENSOR;
 } rcxb_pset_t;
 
 extern rcxb_pset_t rcxb;
