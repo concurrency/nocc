@@ -583,7 +583,21 @@ static int mcsp_namemap_declnode (tnode_t **node, map_t *map)
 
 	/* map formal params and body */
 	paramsptr = tnode_nthsubaddr (*node, 1);
-	map_submapnames (paramsptr, map);
+
+	/*{{{  make back-end names for parameters manually*/
+	{
+		int ndparams;
+		tnode_t **dparams = parser_getlistitems (*paramsptr, &ndparams);
+		int i;
+
+		for (i=0; i<ndparams; i++) {
+			tnode_t *bename = map->target->newname (dparams[i], NULL, map, map->target->pointersize, 0, 0, 0, map->target->pointersize, 1);		/* always pointers.. (FIXME: tsize)*/
+
+			tnode_setchook (dparams[i], map->mapchook, (void *)bename);
+			dparams[i] = bename;
+		}
+	}
+	/*}}}*/
 	map_submapnames (tnode_nthsubaddr (blk, 0), map);		/* do this under the back-end block */
 	map->lexlevel--;
 	map->thisblock = saved_blk;
@@ -606,6 +620,37 @@ static int mcsp_namemap_declnode (tnode_t **node, map_t *map)
 	tmpname = map->target->newname (tnode_create (mcsp.tag_HIDDENPARAM, NULL, tnode_create (mcsp.tag_RETURNADDRESS, NULL)), NULL, map,
 			map->target->pointersize, 0, 0, 0, map->target->pointersize, 0);
 	parser_addtolist_front (*paramsptr, tmpname);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int mcsp_codegen_declnode (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a process definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_codegen_declnode (tnode_t *node, codegen_t *cgen)
+{
+	tnode_t *body = tnode_nthsubof (node, 2);
+	tnode_t *name = tnode_nthsubof (node, 0);
+	int ws_size, ws_offset, adjust;
+	name_t *pname;
+
+	cgen->target->be_getblocksize (body, &ws_size, &ws_offset, NULL, NULL, &adjust, NULL);
+	pname = tnode_nthnameof (name, 0);
+	codegen_callops (cgen, comment, "PROCESS %s = %d,%d,%d", pname->me->name, ws_size, ws_offset, adjust);
+	codegen_callops (cgen, setwssize, ws_size, adjust);
+	codegen_callops (cgen, setvssize, 0);
+	codegen_callops (cgen, setmssize, 0);
+	codegen_callops (cgen, setnamelabel, pname);
+	codegen_callops (cgen, debugline, node);
+
+	/* generate body */
+	codegen_subcodegen (body, cgen);
+	codegen_callops (cgen, procreturn, adjust);
+
+	/* generate code following declaration */
+	codegen_subcodegen (tnode_nthsubof (node, 3), cgen);
 
 	return 0;
 }
@@ -755,6 +800,7 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	cops->fetrans = mcsp_fetrans_declnode;
 	cops->betrans = mcsp_betrans_declnode;
 	cops->namemap = mcsp_namemap_declnode;
+	cops->codegen = mcsp_codegen_declnode;
 	tnd->ops = cops;
 
 	i = -1;
