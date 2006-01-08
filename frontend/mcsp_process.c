@@ -47,6 +47,8 @@
 #include "prescope.h"
 #include "typecheck.h"
 #include "usagecheck.h"
+#include "fetrans.h"
+#include "betrans.h"
 #include "map.h"
 #include "codegen.h"
 #include "target.h"
@@ -518,7 +520,7 @@ static int mcsp_scopein_declnode (tnode_t **node, scope_t *ss)
 
 	/* declare and scope PROCDEF name, then scope process in scope of it */
 	rawname = (char *)tnode_nthhookof (name, 0);
-	procname = name_addscopenamess (rawname, *node, NULL, NULL, ss);
+	procname = name_addscopenamess (rawname, *node, params, NULL, ss);
 	newname = tnode_createfrom (mcsp.tag_PROCDEF, name, procname);
 	SetNameNode (procname, newname);
 	tnode_setnthsub (*node, 0, newname);
@@ -539,6 +541,73 @@ static int mcsp_scopein_declnode (tnode_t **node, scope_t *ss)
 static int mcsp_scopeout_declnode (tnode_t **node, scope_t *ss)
 {
 	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_fetrans_declnode (tnode_t **node, fetrans_t *fe)*/
+/*
+ *	does front-end transforms on a process declaration node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_fetrans_declnode (tnode_t **node, fetrans_t *fe)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_betrans_declnode (tnode_t **node, betrans_t *be)*/
+/*
+ *	does back-end transforms on a process declaration node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_betrans_declnode (tnode_t **node, betrans_t *be)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_namemap_declnode (tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a process declaration node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_namemap_declnode (tnode_t **node, map_t *map)
+{
+	tnode_t *blk;
+	tnode_t *saved_blk = map->thisblock;
+	tnode_t **saved_params = map->thisprocparams;
+	tnode_t **paramsptr;
+	tnode_t *tmpname;
+
+	blk = map->target->newblock (tnode_nthsubof (*node, 2), map, tnode_nthsubof (*node, 1), map->lexlevel + 1);
+	map->thisblock = blk;
+	map->thisprocparams = tnode_nthsubaddr (*node, 1);
+	map->lexlevel++;
+
+	/* map formal params and body */
+	paramsptr = tnode_nthsubaddr (*node, 1);
+	map_submapnames (paramsptr, map);
+	map_submapnames (tnode_nthsubaddr (blk, 0), map);		/* do this under the back-end block */
+	map->lexlevel--;
+	map->thisblock = saved_blk;
+	map->thisprocparams = saved_params;
+
+	/* insert the BLOCK node before the body of the process */
+	tnode_setnthsub (*node, 2, blk);
+
+	/* map scoped body */
+	map_submapnames (tnode_nthsubaddr (*node, 3), map);
+
+	/* add static-link, etc. if required and return-address */
+	if (!parser_islistnode (*paramsptr)) {
+		tnode_t *flist = parser_newlistnode (NULL);
+
+		parser_addtolist (flist, *paramsptr);
+		*paramsptr = flist;
+	}
+
+	tmpname = map->target->newname (tnode_create (mcsp.tag_HIDDENPARAM, NULL, tnode_create (mcsp.tag_RETURNADDRESS, NULL)), NULL, map,
+			map->target->pointersize, 0, 0, 0, map->target->pointersize, 0);
+	parser_addtolist_front (*paramsptr, tmpname);
+
+	return 0;
 }
 /*}}}*/
 
@@ -683,10 +752,29 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	cops->prescope = mcsp_prescope_declnode;
 	cops->scopein = mcsp_scopein_declnode;
 	cops->scopeout = mcsp_scopeout_declnode;
+	cops->fetrans = mcsp_fetrans_declnode;
+	cops->betrans = mcsp_betrans_declnode;
+	cops->namemap = mcsp_namemap_declnode;
 	tnd->ops = cops;
 
 	i = -1;
 	mcsp.tag_PROCDECL = tnode_newnodetag ("MCSPPROCDECL", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  mcsp:hiddennode -- HIDDENPARAM*/
+	i = -1;
+	tnd = tnode_newnodetype ("mcsp:hiddennode", &i, 1, 0, 0, TNF_NONE);				/* subnodes: 0 = hidden-param */
+
+	i = -1;
+	mcsp.tag_HIDDENPARAM = tnode_newnodetag ("MCSPHIDDENPARAM", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  mcsp:leafnode -- RETURNADDRESS*/
+	i = -1;
+	tnd = tnode_newnodetype ("mcsp:leafnode", &i, 0, 0, 0, TNF_NONE);
+
+	i = -1;
+	mcsp.tag_RETURNADDRESS = tnode_newnodetag ("MCSPRETURNADDRESS", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  mcsp:leafproc -- SKIP, STOP, DIV, CHAOS*/

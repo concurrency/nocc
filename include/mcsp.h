@@ -33,12 +33,14 @@ struct TAG_token;
 
 
 typedef struct {
+	/* saved node-types */
 	struct TAG_tndef *node_NAMENODE;
 	struct TAG_tndef *node_DOPNODE;
 	struct TAG_tndef *node_SCOPENODE;
 	struct TAG_tndef *node_LEAFPROC;
 	struct TAG_tndef *node_CONSTNODE;
 
+	/* front-end tags */
 	struct TAG_ntdef *tag_NAME;
 	struct TAG_ntdef *tag_EVENT;
 	struct TAG_ntdef *tag_PROCDEF;
@@ -62,6 +64,11 @@ typedef struct {
 	struct TAG_ntdef *tag_PROCDECL;
 
 	struct TAG_ntdef *tag_STRING;
+
+	/* heading into the back-end */
+	struct TAG_ntdef *tag_HIDDENPARAM;
+	struct TAG_ntdef *tag_RETURNADDRESS;
+
 } mcsp_pset_t;
 
 extern mcsp_pset_t mcsp;
