@@ -256,6 +256,7 @@ int scope_tree (tnode_t *t, langparser_t *lang)
 		return 1;
 	}
 	ss->lang = lang;
+	ss->langpriv = NULL;
 	dynarray_init (ss->defns);
 	dynarray_init (ss->usens);
 

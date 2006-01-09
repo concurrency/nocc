@@ -237,7 +237,7 @@ int occampi_lexer_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argl
 	case 1:
 		/* set C-style operators */
 		if (*argleft < 2) {
-			nocc_error ("occampi_opthandler_flag(): missing pointer argument!");
+			nocc_error ("occampi_lexer_opthandler_flag(): missing pointer argument!");
 			return -1;
 		}
 		ptrarg = (lexfile_t *)((*argwalk)[1]);

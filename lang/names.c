@@ -243,6 +243,7 @@ tnode_dumptree (type, 1, stderr);
 	dynarray_add (nl->scopes, name);
 	nl->curscope = DA_CUR (nl->scopes) - 1;
 	name->me = nl;
+
 	dynarray_add (namestack, name);
 	
 	return name;

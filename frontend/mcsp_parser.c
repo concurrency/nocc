@@ -537,7 +537,14 @@ static int mcsp_parser_prescope (tnode_t **tptr, prescope_t *ps)
  */
 static int mcsp_parser_scope (tnode_t **tptr, scope_t *ss)
 {
+	mcsp_scope_t *mss = (mcsp_scope_t *)smalloc (sizeof (mcsp_scope_t));
+
+	mss->uvinsertlist = NULL;
+	ss->langpriv = (void *)mss;
+
 	tnode_modprepostwalktree (tptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+
+	sfree (mss);
 	return ss->err;
 }
 /*}}}*/

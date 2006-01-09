@@ -58,10 +58,8 @@ langlexer_t mcsp_lexer = {
 };
 
 /*}}}*/
-/*{{{  private types*/
-typedef struct TAG_mcsp_lex {
-	int curindent;			/* current indent */
-} mcsp_lex_t;
+/*{{{  private data*/
+static int default_unboundvars = 0;
 
 
 /*}}}*/
@@ -163,6 +161,49 @@ out_error1:
 /*}}}*/
 
 
+/*{{{  int mcsp_lexer_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	option handler for MCSP language options
+ *	returns 0 on success, non-zero on failure
+ */
+int mcsp_lexer_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	int optv = (int)opt->arg;
+/*	lexfile_t *ptrarg; */
+
+	switch (optv) {
+	case 1:
+		/* allow unbound vars */
+		/* FIXME: this responds to option processing in code */
+#if 0
+		if (*argleft < 2) {
+			nocc_error ("mcsp_lexer_opthandler_flag(): missing pointer argument!");
+			return -1;
+		}
+		ptrarg = (lexfile_t *)((*argwalk)[1]);
+
+		nocc_message ("allowing unbound events in %s", ptrarg ? ptrarg->fnptr : "(unknown)");
+		/*{{{  actually set inside lexer private data*/
+		{
+			lexpriv_t *lp = (lexpriv_t *)ptrarg->priv;
+			mcsp_lex_t *lmp = (mcsp_lex_t *)lp->langpriv;
+
+			lmp->unboundvars = 1;
+		}
+		/*}}}*/
+#else
+		default_unboundvars = 1;
+#endif
+		break;
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int mcsp_openfile (lexfile_t *lf, lexpriv_t *lp)*/
 /*
  *	called once an MCSP source file has been opened
@@ -172,7 +213,7 @@ static int mcsp_openfile (lexfile_t *lf, lexpriv_t *lp)
 	mcsp_lex_t *lmp;
 
 	lmp = (mcsp_lex_t *)smalloc (sizeof (mcsp_lex_t));
-	lmp->curindent = 0;
+	lmp->unboundvars = default_unboundvars;
 	
 	lp->langpriv = (void *)lmp;
 	lf->lineno = 1;
@@ -464,7 +505,6 @@ tokenloop:
 		/*{{{  default (symbol)*/
 	default:
 		/* try and match as a symbol */
-default_label:
 		{
 			symbol_t *sym = symbols_match (ch, chlim);
 

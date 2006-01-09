@@ -1,4 +1,4 @@
 # test_c3.mcsp -- another MCSP test
 
-SYSTEM (a, b) ::= ((a -> SKIP) [] (b -> STOP))
+SYSTEM (a) ::= ((a -> SKIP) [] (b -> STOP))
 

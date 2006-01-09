@@ -29,6 +29,7 @@ typedef struct TAG_scope {
 	int warn;		/* warning count */
 	int scoped;		/* count of scoped names */
 	struct TAG_langparser *lang;
+	void *langpriv;		/* private structure for the langauage during scope */
 	DYNARRAY (struct TAG_namespace *, defns);	/* defining namespaces */
 	DYNARRAY (struct TAG_namespace *, usens);	/* in-use namespaces */
 } scope_t;

@@ -55,6 +55,8 @@ int mcsp_register_frontend (void)
 		return -1;
 	}
 
+	opts_add ("unbound-events", '\0', mcsp_lexer_opthandler_flag, (void *)1, "1permit the use of unbounded events in MCSP");
+
 	return 0;
 }
 /*}}}*/

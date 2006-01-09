@@ -68,6 +68,7 @@ typedef struct {
 
 	/* heading into the back-end */
 	struct TAG_ntdef *tag_FPARAM;
+	struct TAG_ntdef *tag_UPARAM;
 	struct TAG_ntdef *tag_HIDDENPARAM;
 	struct TAG_ntdef *tag_RETURNADDRESS;
 	struct TAG_ntdef *tag_SYNC;
@@ -90,6 +91,26 @@ struct TAG_feunit;
 extern void mcsp_isetindent (FILE *stream, int indent);
 
 extern struct TAG_feunit mcsp_process_feunit;		/* mcsp_process.c */
+
+/* option handlers inside MCSP front-end */
+struct TAG_cmd_option;
+extern int mcsp_lexer_opthandler_flag (struct TAG_cmd_option *opt, char ***argwalk, int *argleft);
+
+
+/*{{{  mcsp_lex_t structure (private lang-specific lexer state, here for mcsp_process to inspect)*/
+typedef struct TAG_mcsp_lex {
+	int unboundvars;		/* permit unbound variables ? */
+} mcsp_lex_t;
+
+
+/*}}}*/
+/*{{{  mcsp_scope_t structure (private lang-specific scope state)*/
+typedef struct TAG_mcsp_scope {
+	struct TAG_tnode *uvinsertlist;		/* insert-list for unbound variables */
+} mcsp_scope_t;
+
+
+/*}}}*/
 
 
 #endif	/* !__MCSP_H */

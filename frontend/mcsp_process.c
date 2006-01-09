@@ -251,6 +251,16 @@ static int mcsp_scopein_rawname (tnode_t **node, scope_t *ss)
 	tnode_t *name = *node;
 	char *rawname;
 	name_t *sname = NULL;
+	mcsp_lex_t *lmp;
+	mcsp_scope_t *mss = (mcsp_scope_t *)ss->langpriv;
+
+	if ((*node)->org_file && (*node)->org_file->priv) {
+		lexpriv_t *lp = (lexpriv_t *)(*node)->org_file->priv;
+		
+		lmp = (mcsp_lex_t *)lp->langpriv;
+	} else {
+		lmp = NULL;
+	}
 
 	if (name->tag != mcsp.tag_NAME) {
 		scope_error (name, ss, "name not raw-name!");
@@ -267,7 +277,20 @@ fprintf (stderr, "mcsp_scopein_rawname: here! rawname = \"%s\"\n", rawname);
 		*node = NameNodeOf (sname);
 		tnode_free (name);
 	} else {
-		scope_error (name, ss, "unresolved name \"%s\"", rawname);
+#if 0
+fprintf (stderr, "mcsp_scopein_rawname(): unresolved name \"%s\", unbound-events = %d, mss->uvinsertlist = 0x%8.8x\n", rawname, lmp ? lmp->unboundvars : -1, (unsigned int)mss->uvinsertlist);
+#endif
+		if (lmp && lmp->unboundvars) {
+			if (mss && mss->uvinsertlist) {
+				/*{{{  add the name manually*/
+				scope_error (name, ss, "FIXME: unresolved name \"%s\"", rawname);
+				/*}}}*/
+			} else {
+				scope_error (name, ss, "unresolved name \"%s\" cannot be captured", rawname);
+			}
+		} else {
+			scope_error (name, ss, "unresolved name \"%s\"", rawname);
+		}
 	}
 
 	return 1;
@@ -564,6 +587,7 @@ static int mcsp_prescope_declnode (tnode_t **node, prescope_t *ps)
  */
 static int mcsp_scopein_declnode (tnode_t **node, scope_t *ss)
 {
+	mcsp_scope_t *mss = (mcsp_scope_t *)ss->langpriv;
 	tnode_t *name = tnode_nthsubof (*node, 0);
 	tnode_t **paramptr = tnode_nthsubaddr (*node, 1);
 	tnode_t **bodyptr = tnode_nthsubaddr (*node, 2);
@@ -571,13 +595,16 @@ static int mcsp_scopein_declnode (tnode_t **node, scope_t *ss)
 	char *rawname;
 	name_t *procname;
 	tnode_t *newname;
+	tnode_t *saved_uvil = mss->uvinsertlist;
 
 	nsmark = name_markscope ();
 	/* scope-in any parameters and walk body */
 	tnode_modprepostwalktree (paramptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+	mss->uvinsertlist = *paramptr;										/* prescope made sure it's a list */
 	tnode_modprepostwalktree (bodyptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
 
 	name_markdescope (nsmark);
+	mss->uvinsertlist = saved_uvil;
 
 	/* declare and scope PROCDEF name, then scope process in scope of it */
 	rawname = (char *)tnode_nthhookof (name, 0);
@@ -1095,7 +1122,7 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	mcsp.tag_GUARD = tnode_newnodetag ("MCSPGUARD", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  mcsp:spacenode -- FPARAM*/
+	/*{{{  mcsp:spacenode -- FPARAM, UPARAM*/
 	/* this is used in front of formal parameters */
 	i = -1;
 	tnd = mcsp.node_SPACENODE = tnode_newnodetype ("mcsp:spacenode", &i, 1, 0, 0, TNF_NONE);	/* subnodes: 1 = namenode/name */
@@ -1110,6 +1137,8 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 
 	i = -1;
 	mcsp.tag_FPARAM = tnode_newnodetag ("MCSPFPARAM", &i, tnd, NTF_NONE);
+	i = -1;
+	mcsp.tag_UPARAM = tnode_newnodetag ("MCSPUPARAM", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  mcsp:constnode -- STRING*/
