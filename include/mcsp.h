@@ -39,6 +39,7 @@ typedef struct {
 	struct TAG_tndef *node_SCOPENODE;
 	struct TAG_tndef *node_LEAFPROC;
 	struct TAG_tndef *node_CONSTNODE;
+	struct TAG_tndef *node_SPACENODE;
 
 	/* front-end tags */
 	struct TAG_ntdef *tag_NAME;
@@ -66,8 +67,14 @@ typedef struct {
 	struct TAG_ntdef *tag_STRING;
 
 	/* heading into the back-end */
+	struct TAG_ntdef *tag_FPARAM;
 	struct TAG_ntdef *tag_HIDDENPARAM;
 	struct TAG_ntdef *tag_RETURNADDRESS;
+	struct TAG_ntdef *tag_SYNC;
+	struct TAG_ntdef *tag_SEQCODE;
+	struct TAG_ntdef *tag_PARCODE;
+	struct TAG_ntdef *tag_ALT;
+	struct TAG_ntdef *tag_GUARD;
 
 } mcsp_pset_t;
 
