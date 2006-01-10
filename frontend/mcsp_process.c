@@ -283,7 +283,20 @@ fprintf (stderr, "mcsp_scopein_rawname(): unresolved name \"%s\", unbound-events
 		if (lmp && lmp->unboundvars) {
 			if (mss && mss->uvinsertlist) {
 				/*{{{  add the name manually*/
-				scope_error (name, ss, "FIXME: unresolved name \"%s\"", rawname);
+				tnode_t *decl = tnode_create (mcsp.tag_UPARAM, NULL, NULL);
+				tnode_t *newname;
+
+				sname = name_addsubscopenamess (rawname, mss->uvscopemark, decl, NULL, name, ss);
+				parser_addtolist (mss->uvinsertlist, decl);
+				newname = tnode_createfrom (mcsp.tag_EVENT, decl, sname);
+				SetNameNode (sname, newname);
+				tnode_setnthsub (decl, 0, newname);
+
+				/* and replace local node! */
+				*node = newname;
+				tnode_free (name);
+
+				ss->scoped++;
 				/*}}}*/
 			} else {
 				scope_error (name, ss, "unresolved name \"%s\" cannot be captured", rawname);
@@ -388,70 +401,76 @@ static int mcsp_typecheck_dopnode (tnode_t *node, typecheck_t *tc)
  */
 static int mcsp_fetrans_dopnode (tnode_t **node, fetrans_t *fe)
 {
+	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
 	tnode_t *t = *node;
 
-	/* these have to be done in the right order..! */
-	if (t->tag == mcsp.tag_ECHOICE) {
-		/*{{{  external-choice: scoop up events and build ALT*/
-		tnode_t **lhsp = tnode_nthsubaddr (t, 0);
-		tnode_t **rhsp = tnode_nthsubaddr (t, 1);
-		tnode_t *list, *altnode;
+	switch (mfe->parse) {
+	case 0:
+		/* these have to be done in the right order..! */
+		if (t->tag == mcsp.tag_ECHOICE) {
+			/*{{{  external-choice: scoop up events and build ALT*/
+			tnode_t **lhsp = tnode_nthsubaddr (t, 0);
+			tnode_t **rhsp = tnode_nthsubaddr (t, 1);
+			tnode_t *list, *altnode;
 
-		if ((*lhsp)->tag == mcsp.tag_THEN) {
-			tnode_t *event = tnode_nthsubof (*lhsp, 0);
-			tnode_t *guard;
+			if ((*lhsp)->tag == mcsp.tag_THEN) {
+				tnode_t *event = tnode_nthsubof (*lhsp, 0);
+				tnode_t *guard;
 
-			if (event->tag == mcsp.tag_SUBEVENT) {
-				/* sub-event, just pick LHS */
-				event = tnode_nthsubof (*lhsp, 0);
+				if (event->tag == mcsp.tag_SUBEVENT) {
+					/* sub-event, just pick LHS */
+					event = tnode_nthsubof (*lhsp, 0);
+				}
+				*lhsp = tnode_create (mcsp.tag_GUARD, NULL, event, *lhsp);
 			}
-			*lhsp = tnode_create (mcsp.tag_GUARD, NULL, event, *lhsp);
-		}
-		if ((*rhsp)->tag == mcsp.tag_THEN) {
-			tnode_t *event = tnode_nthsubof (*rhsp, 0);
-			tnode_t *guard;
+			if ((*rhsp)->tag == mcsp.tag_THEN) {
+				tnode_t *event = tnode_nthsubof (*rhsp, 0);
+				tnode_t *guard;
 
-			if (event->tag == mcsp.tag_SUBEVENT) {
-				/* sub-event, just pick LHS */
-				event = tnode_nthsubof (*rhsp, 0);
+				if (event->tag == mcsp.tag_SUBEVENT) {
+					/* sub-event, just pick LHS */
+					event = tnode_nthsubof (*rhsp, 0);
+				}
+				*rhsp = tnode_create (mcsp.tag_GUARD, NULL, event, *rhsp);
 			}
-			*rhsp = tnode_create (mcsp.tag_GUARD, NULL, event, *rhsp);
-		}
 
-		list = parser_buildlistnode (NULL, *lhsp, *rhsp, NULL);
-		altnode = tnode_create (mcsp.tag_ALT, NULL, list);
+			list = parser_buildlistnode (NULL, *lhsp, *rhsp, NULL);
+			altnode = tnode_create (mcsp.tag_ALT, NULL, list);
 
-		tnode_setnthsub (*node, 0, NULL);
-		tnode_setnthsub (*node, 1, NULL);
-		tnode_free (*node);
-
-		*node = altnode;
-		/*}}}*/
-	} else if (t->tag == mcsp.tag_THEN) {
-		/*{{{  then: scoop up "event-train" and build SEQ*/
-		tnode_t *list = parser_newlistnode (NULL);
-		tnode_t *next = NULL;
-
-		while ((*node)->tag == mcsp.tag_THEN) {
-			next = tnode_nthsubof (*node, 1);
-			parser_addtolist (list, tnode_nthsubof (*node, 0));
 			tnode_setnthsub (*node, 0, NULL);
 			tnode_setnthsub (*node, 1, NULL);
 			tnode_free (*node);
-			*node = next;
-		}
 
-		/* add final process, left in *node */
-		parser_addtolist (list, *node);
-		list = tnode_create (mcsp.tag_SEQCODE, NULL, list);
+			*node = altnode;
+			/*}}}*/
+		} else if (t->tag == mcsp.tag_THEN) {
+			/*{{{  then: scoop up "event-train" and build SEQ*/
+			tnode_t *list = parser_newlistnode (NULL);
+			tnode_t *next = NULL;
+
+			while ((*node)->tag == mcsp.tag_THEN) {
+				next = tnode_nthsubof (*node, 1);
+				parser_addtolist (list, tnode_nthsubof (*node, 0));
+				tnode_setnthsub (*node, 0, NULL);
+				tnode_setnthsub (*node, 1, NULL);
+				tnode_free (*node);
+				*node = next;
+			}
+
+			/* add final process, left in *node */
+			parser_addtolist (list, *node);
+			list = tnode_create (mcsp.tag_SEQCODE, NULL, list);
 
 #if 0
 fprintf (stderr, "mcsp_fetrans_dopnode(): list is now:\n");
 tnode_dumptree (list, 1, stderr);
 #endif
-		*node = list;
-		/*}}}*/
+			*node = list;
+			/*}}}*/
+		}
+		break;
 	}
+
 	return 1;
 }
 /*}}}*/
@@ -548,6 +567,53 @@ static int mcsp_scopeout_scopenode (tnode_t **node, scope_t *ss)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int mcsp_fetrans_scopenode (tnode_t **node, fetrans_t *fe)*/
+/*
+ *	does front-end transforms on a scopenode -- turns HIDE vars into declarations
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_fetrans_scopenode (tnode_t **node, fetrans_t *fe)
+{
+	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
+	tnode_t *t = *node;
+
+	switch (mfe->parse) {
+	case 0:
+		if (t->tag == mcsp.tag_HIDE) {
+			/*{{{  hiding-operator: turn into VARDECLs*/
+			tnode_t *varlist = tnode_nthsubof (t, 0);
+			tnode_t *process = tnode_nthsubof (t, 1);
+			tnode_t **vars;
+			tnode_t **top = node;
+			int nvars, i;
+
+			/* create var-declarations for each name in the list */
+			vars = parser_getlistitems (varlist, &nvars);
+			for (i=0; i<nvars; i++) {
+				*node = tnode_createfrom (mcsp.tag_VARDECL, t, vars[i], NULL, NULL);
+				node = tnode_nthsubaddr (*node, 2);
+				vars[i] = NULL;
+			}
+
+			/* drop in process */
+			*node = process;
+
+			/* free up HIDE */
+			tnode_setnthsub (t, 1, NULL);
+			tnode_free (t);
+
+			/* explicitly sub-walk new node */
+			fetrans_subtree (top, fe);
+
+			return 0;
+			/*}}}*/
+		}
+		break;
+	}
+
+	return 1;
+}
+/*}}}*/
 
 /*{{{  static int mcsp_prescope_declnode (tnode_t **node, prescope_t *ps)*/
 /*
@@ -596,15 +662,18 @@ static int mcsp_scopein_declnode (tnode_t **node, scope_t *ss)
 	name_t *procname;
 	tnode_t *newname;
 	tnode_t *saved_uvil = mss->uvinsertlist;
+	void *saved_uvsm = mss->uvscopemark;
 
 	nsmark = name_markscope ();
 	/* scope-in any parameters and walk body */
 	tnode_modprepostwalktree (paramptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
 	mss->uvinsertlist = *paramptr;										/* prescope made sure it's a list */
+	mss->uvscopemark = nsmark;
 	tnode_modprepostwalktree (bodyptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
 
 	name_markdescope (nsmark);
 	mss->uvinsertlist = saved_uvil;
+	mss->uvscopemark = saved_uvsm;
 
 	/* declare and scope PROCDEF name, then scope process in scope of it */
 	rawname = (char *)tnode_nthhookof (name, 0);
@@ -638,6 +707,8 @@ static int mcsp_scopeout_declnode (tnode_t **node, scope_t *ss)
  */
 static int mcsp_fetrans_declnode (tnode_t **node, fetrans_t *fe)
 {
+	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
+
 	return 1;
 }
 /*}}}*/
@@ -731,6 +802,39 @@ static int mcsp_codegen_declnode (tnode_t *node, codegen_t *cgen)
 }
 /*}}}*/
 
+/*{{{  static int mcsp_namemap_leafproc (tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a leaf-process
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_namemap_leafproc (tnode_t **node, map_t *map)
+{
+	return 0;
+}
+/*}}}*/
+/*{{{  static int mcsp_codegen_leafproc (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a leaf-process
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_codegen_leafproc (tnode_t *node, codegen_t *cgen)
+{
+	if (node->tag == mcsp.tag_SKIP) {
+		/* nothing :) */
+		return 0;
+	} else if (node->tag == mcsp.tag_STOP) {
+		codegen_callops (cgen, tsecondary, I_SETERR);
+		return 0;
+	} else if ((node->tag == mcsp.tag_DIV) || (node->tag == mcsp.tag_CHAOS)) {
+		/* just stop for now -- maybe get creative later ;) */
+		codegen_callops (cgen, tsecondary, I_SETERR);
+		return 0;
+	}
+	codegen_warning (cgen, "don\'t know how to generate code for [%s]", node->tag->name);
+	return 1;
+}
+/*}}}*/
+
 /*{{{  static int mcsp_fetrans_namenode (tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transformation on an EVENT
@@ -738,14 +842,20 @@ static int mcsp_codegen_declnode (tnode_t *node, codegen_t *cgen)
  */
 static int mcsp_fetrans_namenode (tnode_t **node, fetrans_t *fe)
 {
+	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
 	tnode_t *t = *node;
 
-	if (t->tag == mcsp.tag_EVENT) {
-		/*{{{  turn event into SYNC -- not a declaration occurence*/
-		*node = tnode_create (mcsp.tag_SYNC, NULL, *node, NULL);
-		return 0;
-		/*}}}*/
+	switch (mfe->parse) {
+	case 0:
+		if (t->tag == mcsp.tag_EVENT) {
+			/*{{{  turn event into SYNC -- not a declaration occurence*/
+			*node = tnode_create (mcsp.tag_SYNC, NULL, *node, NULL);
+			return 0;
+			/*}}}*/
+		}
+		break;
 	}
+
 	return 1;
 }
 /*}}}*/
@@ -768,6 +878,88 @@ static int mcsp_namemap_namenode (tnode_t **node, map_t *map)
 }
 /*}}}*/
 
+/*{{{  static int mcsp_namemap_actionnode (tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for an action-node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_namemap_actionnode (tnode_t **node, map_t *map)
+{
+	tnode_t *t = *node;
+
+	if (t->tag == mcsp.tag_SYNC) {
+		/* walk argument */
+		map_submapnames (tnode_nthsubaddr (t, 0), map);
+
+		/* need to reserve space for IO */
+		*node = map->target->newname (*node, NULL, map, 0, map->target->bws.ds_io, 0, 0, 0, 0);
+
+		return 0;
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_codegen_actionnode (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for an action-node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_codegen_actionnode (tnode_t *node, codegen_t *cgen)
+{
+	if (node->tag == mcsp.tag_SYNC) {
+		tnode_t *event = tnode_nthsubof (node, 0);
+
+		codegen_callops (cgen, loadpointer, event, 0);
+		codegen_callops (cgen, tsecondary, I_POP);
+		codegen_callops (cgen, comment, "FIXME: SYNC not POP!");
+
+		return 0;
+	}
+	codegen_warning (cgen, "don\'t know how to generate code for [%s]", node->tag->name);
+	return 1;
+}
+/*}}}*/
+
+/*{{{  static int mcsp_namemap_snode (tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a structured node (IF, ALT)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_namemap_snode (tnode_t **node, map_t *map)
+{
+	tnode_t *glist = tnode_nthsubof (*node, 0);
+	tnode_t **guards;
+	int nguards, i;
+
+	/* do guards one-by-one */
+	guards = parser_getlistitems (glist, &nguards);
+	for (i=0; i<nguards; i++) {
+		tnode_t *guard = guards[i];
+
+		if (guard && (guard->tag == mcsp.tag_GUARD)) {
+			tnode_t **eventp = tnode_nthsubaddr (guard, 0);
+			tnode_t **bodyp = tnode_nthsubaddr (guard, 1);
+
+			map_submapnames (eventp, map);
+			map_submapnames (bodyp, map);
+		}
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int mcsp_codegen_snode (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a structured node (IF, ALT)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_codegen_snode (tnode_t *node, codegen_t *cgen)
+{
+	return 0;
+}
+/*}}}*/
+
 /*{{{  static int mcsp_fetrans_guardnode (tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transformation on a GUARD
@@ -775,10 +967,16 @@ static int mcsp_namemap_namenode (tnode_t **node, map_t *map)
  */
 static int mcsp_fetrans_guardnode (tnode_t **node, fetrans_t *fe)
 {
-	if ((*node)->tag == mcsp.tag_GUARD) {
-		/* don't walk LHS */
-		fetrans_subtree (tnode_nthsubaddr (*node, 1), fe);
-		return 0;
+	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
+
+	switch (mfe->parse) {
+	case 0:
+		if ((*node)->tag == mcsp.tag_GUARD) {
+			/* don't walk LHS */
+			fetrans_subtree (tnode_nthsubaddr (*node, 1), fe);
+			return 0;
+		}
+		break;
 	}
 	return 1;
 }
@@ -844,10 +1042,17 @@ static int mcsp_typecheck_spacenode (tnode_t *node, typecheck_t *tc)
  */
 static int mcsp_fetrans_spacenode (tnode_t **node, fetrans_t *fe)
 {
-	if ((*node)->tag == mcsp.tag_FPARAM) {
-		/* nothing to do, don't walk EVENT underneath */
-		return 0;
+	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
+
+	switch (mfe->parse) {
+	case 0:
+		if (((*node)->tag == mcsp.tag_FPARAM) || ((*node)->tag == mcsp.tag_UPARAM)) {
+			/* nothing to do, don't walk EVENT underneath */
+			return 0;
+		}
+		break;
 	}
+
 	return 1;
 }
 /*}}}*/
@@ -877,6 +1082,54 @@ static int mcsp_namemap_spacenode (tnode_t **node, map_t *map)
  */
 static int mcsp_codegen_spacenode (tnode_t *node, codegen_t *cgen)
 {
+	return 0;
+}
+/*}}}*/
+
+/*{{{  static int mcsp_fetrans_vardeclnode (tnode_t **node, fetrans_t *fe)*/
+/*
+ *	does front-end transforms for vardeclnodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_fetrans_vardeclnode (tnode_t **node, fetrans_t *fe)
+{
+	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
+	tnode_t *t = *node;
+
+	switch (mfe->parse) {
+	case 0:
+		if (t->tag == mcsp.tag_VARDECL) {
+			/* just walk subnodes 1+2 */
+			fetrans_subtree (tnode_nthsubaddr (t, 1), fe);
+			fetrans_subtree (tnode_nthsubaddr (t, 2), fe);
+			return 0;
+		}
+		break;
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_namemap_vardeclnode (tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a vardeclnodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_namemap_vardeclnode (tnode_t **node, map_t *map)
+{
+	tnode_t **namep = tnode_nthsubaddr (*node, 0);
+	tnode_t **bodyp = tnode_nthsubaddr (*node, 2);
+	tnode_t *type = NULL;
+	tnode_t *bename;
+
+	bename = map->target->newname (*namep, *bodyp, map, map->target->pointersize, 0, 0, 0, map->target->pointersize, 1);		/* always pointers.. (FIXME: tsize)*/
+
+	tnode_setchook (*namep, map->mapchook, (void *)bename);
+	*node = bename;
+
+	bodyp = tnode_nthsubaddr (*node, 1);
+	map_submapnames (bodyp, map);			/* map body */
+	
 	return 0;
 }
 /*}}}*/
@@ -1007,6 +1260,7 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	cops->prescope = mcsp_prescope_scopenode;
 	cops->scopein = mcsp_scopein_scopenode;
 	cops->scopeout = mcsp_scopeout_scopenode;
+	cops->fetrans = mcsp_fetrans_scopenode;
 	tnd->ops = cops;
 
 	i = -1;
@@ -1052,6 +1306,8 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	i = -1;
 	tnd = mcsp.node_LEAFPROC = tnode_newnodetype ("mcsp:leafproc", &i, 0, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
+	cops->namemap = mcsp_namemap_leafproc;
+	cops->codegen = mcsp_codegen_leafproc;
 	tnd->ops = cops;
 
 	i = -1;
@@ -1083,6 +1339,8 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	i = -1;
 	tnd = tnode_newnodetype ("mcsp:actionnode", &i, 2, 0, 0, TNF_NONE);				/* subnodes: 0 = event(s), 1 = data/null */
 	cops = tnode_newcompops ();
+	cops->namemap = mcsp_namemap_actionnode;
+	cops->codegen = mcsp_codegen_actionnode;
 	tnd->ops = cops;
 
 	i = -1;
@@ -1105,6 +1363,8 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	i = -1;
 	tnd = tnode_newnodetype ("mcsp:snode", &i, 1, 0, 0, TNF_NONE);					/* subnodes: 0 = list of guards/nested ALTs */
 	cops = tnode_newcompops ();
+	cops->namemap = mcsp_namemap_snode;
+	cops->codegen = mcsp_codegen_snode;
 	tnd->ops = cops;
 
 	i = -1;
@@ -1122,8 +1382,8 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	mcsp.tag_GUARD = tnode_newnodetag ("MCSPGUARD", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  mcsp:spacenode -- FPARAM, UPARAM*/
-	/* this is used in front of formal parameters */
+	/*{{{  mcsp:spacenode -- FPARAM, UPARAM, VARDECL*/
+	/* this is used in front of formal parameters and local variables*/
 	i = -1;
 	tnd = mcsp.node_SPACENODE = tnode_newnodetype ("mcsp:spacenode", &i, 1, 0, 0, TNF_NONE);	/* subnodes: 1 = namenode/name */
 	cops = tnode_newcompops ();
@@ -1139,6 +1399,18 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	mcsp.tag_FPARAM = tnode_newnodetag ("MCSPFPARAM", &i, tnd, NTF_NONE);
 	i = -1;
 	mcsp.tag_UPARAM = tnode_newnodetag ("MCSPUPARAM", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  mcsp:vardeclnode -- VARDECL*/
+	i = -1;
+	tnd = tnode_newnodetype ("mcsp:vardeclnode", &i, 3, 0, 0, TNF_SHORTDECL);
+	cops = tnode_newcompops ();
+	cops->namemap = mcsp_namemap_vardeclnode;
+	cops->fetrans = mcsp_fetrans_vardeclnode;
+	tnd->ops = cops;
+
+	i = -1;
+	mcsp.tag_VARDECL = tnode_newnodetag ("MCSPVARDECL", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  mcsp:constnode -- STRING*/

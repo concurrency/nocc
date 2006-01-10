@@ -36,12 +36,12 @@
  */
 struct TAG_transinstr;
 
-#define TOTAL_KEYWORDS 40
+#define TOTAL_KEYWORDS 41
 #define MIN_WORD_LENGTH 1
 #define MAX_WORD_LENGTH 10
-#define MIN_HASH_VALUE 2
-#define MAX_HASH_VALUE 63
-/* maximum key range = 62, duplicates = 0 */
+#define MIN_HASH_VALUE 1
+#define MAX_HASH_VALUE 67
+/* maximum key range = 67, duplicates = 0 */
 
 #ifdef __GNUC__
 __inline
@@ -55,32 +55,32 @@ hash (register const char *str, register unsigned int len)
 {
   static const unsigned char asso_values[] =
     {
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 30, 30, 15, 25, 10,
-       5, 15, 64, 10, 10, 64, 20,  5,  0, 60,
-       0, 30,  5,  0,  0, 64, 25, 35, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-      64, 64, 64, 64, 64, 64
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 40, 30, 15, 20, 10,
+      10, 35, 68, 10,  0, 68, 20,  5, 15, 26,
+       0,  0,  5,  0,  0, 68, 25, 45, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68, 68, 68, 68, 68,
+      68, 68, 68, 68, 68, 68
     };
   return len + asso_values[(unsigned char)str[len - 1]] + asso_values[(unsigned char)str[0]];
 }
@@ -88,9 +88,9 @@ hash (register const char *str, register unsigned int len)
 static const struct TAG_transinstr wordlist[] =
   {
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"J",		INS_PRIMARY, 	I_J,		NULL},
     {"ST",		INS_OTHER,	I_ST,		NULL},
-    {"NOT",		INS_SECONDARY,	I_NOT,		NULL},
+    {"POP",		INS_SECONDARY,	I_POP,		NULL},
     {"TRAP",		INS_SECONDARY,	I_TRAP,		NULL},
     {"STOPP",		INS_SECONDARY,	I_STOPP,	NULL},
     {"STARTP",		INS_SECONDARY,	I_STARTP,	NULL},
@@ -99,58 +99,62 @@ static const struct TAG_transinstr wordlist[] =
     {"RUNP",		INS_SECONDARY,	I_RUNP,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"SETERR",		INS_SECONDARY,	I_SETERR,	NULL},
-    {"IN",		INS_SECONDARY,	I_IN,		NULL},
+    {"EQ",		INS_SECONDARY,	I_EQ,		NULL},
     {"REM",		INS_SECONDARY,	I_REM,		NULL},
     {"ENDP",		INS_SECONDARY,	I_ENDP,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"SETPRI",		INS_SECONDARY,	I_SETPRI,	NULL},
-    {"GT",		INS_SECONDARY,	I_GT,		NULL},
-    {"NEG",		INS_SECONDARY,	I_NEG,		NULL},
+    {"CJ",		INS_PRIMARY,	I_CJ,		NULL},
+    {"NOT",		INS_SECONDARY,	I_NOT,		NULL},
     {"MOVE",		INS_SECONDARY,	I_MOVE,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"J",		INS_PRIMARY, 	I_J,		NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"LT",		INS_SECONDARY,	I_LT,		NULL},
     {"MRELEASE",	INS_SECONDARY,	I_MRELEASE,	NULL},
-    {"NULL",		INS_SECONDARY,	I_NULL,		NULL},
+    {"PROD",		INS_SECONDARY,	I_PROD,		NULL},
     {"RESCHEDULE",	INS_SECONDARY,	I_RESCHEDULE,	NULL},
     {"MALLOC",		INS_SECONDARY,	I_MALLOC,	NULL},
-    {"CJ",		INS_PRIMARY,	I_CJ,		NULL},
+    {"IN",		INS_SECONDARY,	I_IN,		NULL},
     {"MUL",		INS_SECONDARY,	I_MUL,		NULL},
-    {"PROD",		INS_SECONDARY,	I_PROD,		NULL},
+    {"OUT",		INS_SECONDARY,	I_OUT,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"GETPRI",		INS_SECONDARY,	I_GETPRI,	NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"SB",		INS_SECONDARY,	I_SB,		NULL},
     {"SUB",		INS_SECONDARY,	I_SUB,		NULL},
     {"DIFF",		INS_SECONDARY,	I_DIFF,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"SW",		INS_SECONDARY,	I_SW,		NULL},
+    {"GT",		INS_SECONDARY,	I_GT,		NULL},
     {"LDC",		INS_PRIMARY,	I_LDC,		NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"NULL",		INS_SECONDARY,	I_NULL,		NULL},
     {"BOOLINVERT",	INS_SECONDARY,	I_BOOLINVERT,	NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"EQ",		INS_SECONDARY,	I_EQ,		NULL},
+    {"LD",		INS_OTHER,	I_LD,		NULL},
     {"LDL",		INS_PRIMARY,	I_LDL,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"LD",		INS_OTHER,	I_LD,		NULL},
+    {"SW",		INS_SECONDARY,	I_SW,		NULL},
+    {"DIV",		INS_SECONDARY,	I_DIV,		NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"GETPRI",		INS_SECONDARY,	I_GETPRI,	NULL},
+    {"LB",		INS_SECONDARY,	I_LB,		NULL},
+    {"NEG",		INS_SECONDARY,	I_NEG,		NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"ADC",		INS_PRIMARY,	I_ADC,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"LB",		INS_SECONDARY,	I_LB,		NULL},
-    {"DIV",		INS_SECONDARY,	I_DIV,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"LW",		INS_SECONDARY,	I_LW,		NULL},
     {"ADD",		INS_SECONDARY,	I_ADD,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"OUT",		INS_SECONDARY,	I_OUT,		NULL}
+    {"LW",		INS_SECONDARY,	I_LW,		NULL}
   };
 
 #ifdef __GNUC__

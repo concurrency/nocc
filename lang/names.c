@@ -258,6 +258,81 @@ name_t *name_addscopename (char *str, tnode_t *decl, tnode_t *type, tnode_t *nam
 	return name_addscopenamess (str, decl, type, namenode, NULL);
 }
 /*}}}*/
+/*{{{  name_t *name_addsubscopenamess (char *str, void *scopemark, tnode_t *decl, tnode_t *type, tnode_t *namenode, scope_t *ss)*/
+/*
+ *	adds a name and returns it, after putting it in scope.
+ *	Unlike the others, this inserts the name in the scope stack at the point of the given marker
+ */
+name_t *name_addsubscopenamess (char *str, void *scopemark, tnode_t *decl, tnode_t *type, tnode_t *namenode, scope_t *ss)
+{
+	name_t *name;
+	namelist_t *nl;
+
+	name = (name_t *)smalloc (sizeof (name_t));
+	name->decl = decl;
+	name->type = type;
+	name->namenode = namenode;
+	name->refc = 0;
+	if (ss && DA_CUR (ss->defns)) {
+		name->ns = DA_NTHITEM (ss->defns, DA_CUR (ss->defns) - 1);
+	} else {
+		name->ns = NULL;
+	}
+
+	nl = stringhash_lookup (names, str);
+	if (!nl) {
+		nl = (namelist_t *)smalloc (sizeof (namelist_t));
+		nl->name = string_dup (str);
+		dynarray_init (nl->scopes);
+		nl->curscope = -1;
+		stringhash_insert (names, nl, nl->name);
+	}
+
+#if 0
+fprintf (stderr, "name_addsubscopenamess(): str=\"%s\", scopemark=0x%8.8x, nl->curscope=%d\n", str, (unsigned int)scopemark, nl->curscope);
+#endif
+	if (!scopemark) {
+		/* nothing was in scope, add at front */
+		dynarray_insert (nl->scopes, name, 0);
+		nl->curscope++;					/* whatever it was got pushed along */
+		name->me = nl;
+
+		dynarray_insert (namestack, name, 0);
+	} else {
+		int i = 0;
+
+		/* something was in scope */
+		if (nl->curscope < 0) {
+			/* created this fresh, put name in */
+			dynarray_add (nl->scopes, name);
+			nl->curscope = DA_CUR (nl->scopes) - 1;
+
+			/* find out where in namestack it goes */
+			for (i=DA_CUR (namestack) - 1; (i >= 0) && ((void *)DA_NTHITEM (namestack, i) != scopemark); i--);
+		} else {
+			/* something may have been in scope here, need to search */
+			int j;
+
+			j = nl->curscope;
+			for (i=DA_CUR (namestack) - 1; (i >= 0) && ((void *)DA_NTHITEM (namestack, i) != scopemark); i--) {
+				if (DA_NTHITEM (nl->scopes, j) == DA_NTHITEM (namestack, i)) {
+					/* before this one */
+					j--;
+				}
+			}
+			/* add after element j */
+			dynarray_insert (nl->scopes, name, j+1);
+			nl->curscope++;			/* pushes active one along */
+		}
+		name->me = nl;
+
+		/* add to namestack after i */
+		dynarray_insert (namestack, name, i+1);
+	}
+
+	return name;
+}
+/*}}}*/
 /*{{{  void name_scopename (name_t *name)*/
 /*
  *	scopes in a name

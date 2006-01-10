@@ -48,6 +48,7 @@
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
+#include "fetrans.h"
 #include "extn.h"
 
 /*}}}*/
@@ -59,6 +60,7 @@ static tnode_t *mcsp_parser_descparse (lexfile_t *lf);
 static int mcsp_parser_prescope (tnode_t **tptr, prescope_t *ps);
 static int mcsp_parser_scope (tnode_t **tptr, scope_t *ss);
 static int mcsp_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
+static int mcsp_parser_fetrans (tnode_t **tptr, fetrans_t *fe);
 
 
 /*}}}*/
@@ -75,6 +77,7 @@ langparser_t mcsp_parser = {
 	prescope:	mcsp_parser_prescope,
 	scope:		mcsp_parser_scope,
 	typecheck:	mcsp_parser_typecheck,
+	fetrans:	mcsp_parser_fetrans,
 	maketemp:	NULL,
 	makeseqassign:	NULL,
 	tagstruct_hook:	(void *)&mcsp,
@@ -399,6 +402,8 @@ static tnode_t *mcsp_parser_parse (lexfile_t *lf)
 			tnflags = tnode_tnflagsof (*target);
 			if (tnflags & TNF_TRANSPARENT) {
 				target = tnode_nthsubaddr (*target, 0);
+			} else if (tnflags & TNF_SHORTDECL) {
+				target = tnode_nthsubaddr (*target, 2);
 			} else if (tnflags & TNF_LONGDECL) {
 				target = tnode_nthsubaddr (*target, 3);
 			} else {
@@ -483,6 +488,8 @@ fprintf (stderr, "mcsp_parser_descparse(): thisone->tag->name = [%s], thisone->t
 			tnflags = tnode_tnflagsof (*target);
 			if (tnflags & TNF_TRANSPARENT) {
 				target = tnode_nthsubaddr (*target, 0);
+			} else if (tnflags & TNF_SHORTDECL) {
+				target = tnode_nthsubaddr (*target, 2);
 			} else if (tnflags & TNF_LONGDECL) {
 				target = tnode_nthsubaddr (*target, 3);
 			} else {
@@ -559,6 +566,28 @@ static int mcsp_parser_typecheck (tnode_t *tptr, typecheck_t *tc)
 	return tc->err;
 }
 /*}}}*/
+/*{{{  static int mcsp_parser_fetrans (tnode_t **tptr, fetrans_t *fe)*/
+/*
+ *	called to do front-end transforms on a tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int mcsp_parser_fetrans (tnode_t **tptr, fetrans_t *fe)
+{
+	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)smalloc (sizeof (mcsp_fetrans_t));
+	int err;
 
+	fe->langpriv = (void *)mfe;
+	mfe->errcount = 0;
+
+	for (mfe->parse=0; mfe->parse < 2; mfe->parse++) {
+		fetrans_subtree (tptr, fe);
+	}
+
+	err = mfe->errcount;
+	sfree (mfe);
+
+	return err;
+}
+/*}}}*/
 
 

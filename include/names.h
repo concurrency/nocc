@@ -51,6 +51,7 @@ extern name_t *name_lookup (char *str);
 extern name_t *name_lookupss (char *str, struct TAG_scope *ss);
 extern name_t *name_addscopename (char *str, struct TAG_tnode *decl, struct TAG_tnode *type, struct TAG_tnode *namenode);
 extern name_t *name_addscopenamess (char *str, struct TAG_tnode *decl, struct TAG_tnode *type, struct TAG_tnode *namenode, struct TAG_scope *ss);
+extern name_t *name_addsubscopenamess (char *str, void *scopemark, struct TAG_tnode *decl, struct TAG_tnode *type, struct TAG_tnode *namenode, struct TAG_scope *ss);
 extern void name_scopename (name_t *name);
 extern void name_descopename (name_t *name);
 extern void name_delname (name_t *name);

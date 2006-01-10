@@ -214,6 +214,7 @@ int fetrans_tree (tnode_t **tptr, langparser_t *lang)
 
 	fe->insertpoint = NULL;
 	fe->lang = lang;
+	fe->langpriv = NULL;
 
 	if (!fetranschook) {
 		fetranschook = tnode_lookupornewchook ("fetrans");
@@ -225,7 +226,12 @@ int fetrans_tree (tnode_t **tptr, langparser_t *lang)
 		fetransdeschook->chook_dumptree = fetrans_deschook_dumptree;
 	}
 
-	tnode_modprewalktree (tptr, fetrans_modprewalk, (void *)fe);
+	if (lang->fetrans) {
+		/* lets language attach extra bits to the fetrans_t structure */
+		lang->fetrans (tptr, fe);
+	} else {
+		tnode_modprewalktree (tptr, fetrans_modprewalk, (void *)fe);
+	}
 
 	sfree (fe);
 

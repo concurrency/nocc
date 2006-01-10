@@ -26,6 +26,7 @@ struct TAG_langparser;
 typedef struct TAG_fetrans {
 	struct TAG_tnode **insertpoint;
 	struct TAG_langparser *lang;
+	void *langpriv;
 } fetrans_t;
 
 extern int fetrans_init (void);
