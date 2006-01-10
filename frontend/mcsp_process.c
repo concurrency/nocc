@@ -921,6 +921,69 @@ static int mcsp_codegen_actionnode (tnode_t *node, codegen_t *cgen)
 }
 /*}}}*/
 
+/*{{{  static int mcsp_fetrans_snode (tnode_t **node, fetrans_t *fe)*/
+/*
+ *	does front-end transforms on an ALT/IF (ALT pass 1+ only)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_fetrans_snode (tnode_t **node, fetrans_t *fe)
+{
+	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
+	tnode_t *t = *node;
+
+	switch (mfe->parse) {
+	case 0:
+		/* nothing in this pass! */
+		break;
+	case 1:
+		if (t->tag == mcsp.tag_ALT) {
+			tnode_t *glist = tnode_nthsubof (t, 0);
+			tnode_t **guards;
+			int nguards, i;
+
+			guards = parser_getlistitems (glist, &nguards);
+			for (i=0; i<nguards; i++) {
+				if (guards[i] && (guards[i]->tag == mcsp.tag_ALT)) {
+					tnode_t *xglist;
+					tnode_t **xguards;
+					int nxguards, j;
+
+					/* flatten */
+					fetrans_subtree (&guards[i], fe);
+					/* scoop out guards and add to ours */
+
+					xglist = tnode_nthsubof (guards[i], 0);
+					xguards = parser_getlistitems (xglist, &nxguards);
+					for (j=0; j<nxguards; j++) {
+						if (xguards[j] && (xguards[j]->tag == mcsp.tag_GUARD)) {
+							/* add this one */
+							parser_addtolist (glist, xguards[j]);
+							xguards[j] = NULL;
+						} else if (xguards[j]) {
+							nocc_error ("mcsp_fetrans_snode(): unexpected tag [%s] while flattening ALT guards", xguards[j]->tag->name);
+							mfe->errcount++;
+						}
+					}
+
+					/* assume we got them all (or errored) */
+					tnode_free (guards[i]);
+					guards[i] = NULL;
+				} else if (guards[i] && (guards[i]->tag != mcsp.tag_GUARD)) {
+					nocc_error ("mcsp_fetrans_snode(): unexpected tag [%s] in ALT guards", guards[i]->tag->name);
+					mfe->errcount++;
+				}
+			}
+
+			/* clean up alt list */
+			parser_cleanuplist (glist);
+
+			return 0;
+		}
+		break;
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int mcsp_namemap_snode (tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a structured node (IF, ALT)
@@ -1363,6 +1426,7 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	i = -1;
 	tnd = tnode_newnodetype ("mcsp:snode", &i, 1, 0, 0, TNF_NONE);					/* subnodes: 0 = list of guards/nested ALTs */
 	cops = tnode_newcompops ();
+	cops->fetrans = mcsp_fetrans_snode;
 	cops->namemap = mcsp_namemap_snode;
 	cops->codegen = mcsp_codegen_snode;
 	tnd->ops = cops;
@@ -1474,8 +1538,8 @@ static dfattbl_t **mcsp_process_init_dfatrans (int *ntrans)
 				"[ 3 mcsp:expr 4 ] [ 4 {<mcsp:subevent>} -* ]"));
 	dynarray_add (transtbl, dfa_bnftotbl ("mcsp:eventset ::= ( mcsp:event | @@{ { mcsp:event @@, 1 } @@} )"));
 	dynarray_add (transtbl, dfa_bnftotbl ("mcsp:fparams ::= { mcsp:name @@, 0 }"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:dop ::= [ 0 +@@-> 1 ] [ 0 +@@; 1 ] [ 0 +@@|| 1 ] [ 0 +@@||| 1 ] [ 0 +@@|~| 1 ] [ 0 +@@[ 2 ] [ 1 {Rmcsp:op} -* ] "\
-				"[ 2 @@] 3 ] [ 3 {<mcsp:nullechoicereduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("mcsp:dop ::= [ 0 +@@-> 1 ] [ 0 +@@; 1 ] [ 0 +@@|| 1 ] [ 0 +@@||| 1 ] [ 0 +@@|~| 1 ] [ 0 +@@[ 3 ] [ 1 Newline 1 ] [ 1 -* 2 ] [ 2 {Rmcsp:op} -* ] "\
+				"[ 3 @@] 4 ] [ 4 Newline 4 ] [ 4 -* 5 ] [ 5 {<mcsp:nullechoicereduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:leafproc ::= [ 0 +@SKIP 1 ] [ 0 +@STOP 1 ] [ 0 +@DIV 1 ] [ 0 +@CHAOS 1 ] [ 1 {<mcsp:ppreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:fixpoint ::= [ 0 @@@ 1 ] [ 1 mcsp:name 2 ] [ 2 @@. 3 ] [ 3 mcsp:process 4 ] [ 4 {<mcsp:fixreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:hide ::= [ 0 +@@\\ 1 ] [ 1 mcsp:eventset 2 ] [ 2 {<mcsp:hidereduce>} -* ]"));

@@ -46,6 +46,7 @@ extern struct TAG_tnode *parser_delfromlist (struct TAG_tnode *list, int idx);
 extern struct TAG_tnode *parser_rmfromlist (struct TAG_tnode *list, struct TAG_tnode *item);
 extern int parser_islistnode (struct TAG_tnode *node);
 extern struct TAG_tnode **parser_getlistitems (struct TAG_tnode *list, int *nitems);
+extern int parser_cleanuplist (struct TAG_tnode *list);
 extern void parser_inlistfixup (void **tos);
 
 extern void parser_warning (struct TAG_lexfile *lf, const char *fmt, ...);

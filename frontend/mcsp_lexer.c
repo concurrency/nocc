@@ -342,8 +342,6 @@ tokenloop:
 		}
 		lp->offset += (int)(dh - ch);
 
-		/* return here, don't walk over whitespace */
-		return tok;
 		break;
 		/*}}}*/
 		/*{{{  # (comment)*/

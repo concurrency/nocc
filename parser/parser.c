@@ -543,6 +543,49 @@ void parser_inlistreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 	return;
 }
 /*}}}*/
+/*{{{  int parser_cleanuplist (tnode_t *list)*/
+/*
+ *	removes NULL items from a list
+ *	returns the number of items removed on success, < 0 on failure
+ */
+int parser_cleanuplist (tnode_t *list)
+{
+	tnode_t **array;
+	int *cur, *max;
+	int removed = 0;
+	int i, j;
+
+	if (list->tag != tag_LIST) {
+		nocc_internal ("parser_cleanuplist(): not list-node! [%s]", list->tag->name);
+		return -1;
+	}
+	array = (tnode_t **)tnode_nthhookof (list, 0);
+	if (!array) {
+		nocc_internal ("parser_cleanuplist(): null array in list!");
+		return -1;
+	}
+	cur = (int *)array;
+	max = (int *)(array + 1);
+
+	for (i=j=0; i<*cur; i++) {
+		if (i > j) {
+			array[j+2] = array[i+2];
+		}
+		if (array[i+2]) {
+			/* keep this one */
+			j++;
+		}
+	}
+	removed = (i-j);
+	for (; j<i; j++) {
+		/* blank */
+		array[j+2] = NULL;
+	}
+	*cur = *cur - removed;
+
+	return removed;
+}
+/*}}}*/
 /*{{{  void parser_inlistfixup (void **tos)*/
 /*
  *	this is used to fixup after inlistreduce's, which leaves a NULL at the end of the list

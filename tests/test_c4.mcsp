@@ -1,0 +1,5 @@
+# test_c4.mcsp -- testing ALT flattening
+
+SYSTEM (a,b,c,d) ::= ((a -> SKIP) [] (b -> STOP)) []
+			(((c -> DIV) [] (e -> SKIP)) [] (d -> CHAOS))
+
