@@ -64,6 +64,8 @@ typedef struct {
 
 	struct TAG_ntdef *tag_PROCDECL;
 
+	struct TAG_ntdef *tag_INSTANCE;
+
 	struct TAG_ntdef *tag_STRING;
 
 	/* heading into the back-end */
@@ -109,12 +111,14 @@ typedef struct TAG_mcsp_lex {
 typedef struct TAG_mcsp_scope {
 	struct TAG_tnode *uvinsertlist;		/* insert-list for unbound variables */
 	void *uvscopemark;			/* where the scoper was */
+	unsigned int inamescope : 1;		/* non-zero if scoping instance name (lhs) */
 } mcsp_scope_t;
 
 
 /*}}}*/
 /*{{{  mcsp_fetrans_t structure (private lang-specific front-end transform state)*/
 typedef struct TAG_mcsp_fetrans {
+	struct TAG_tnode *uvinsertlist;		/* insert-list for unbound variables */
 	int errcount;				/* errors */
 	int parse;				/* counter round front-end transforms */
 } mcsp_fetrans_t;

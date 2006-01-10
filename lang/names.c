@@ -207,6 +207,34 @@ fprintf (stderr, "name_lookupss(): found stack for [%s], looking for one in a vi
 	return name;
 }
 /*}}}*/
+/*{{{  name_t *name_addname (char *str, tnode_t *decl, tnode_t *type, tnode_t *namenode)*/
+/*
+ *	adds a name and returns it, not scoped
+ */
+name_t *name_addname (char *str, tnode_t *decl, tnode_t *type, tnode_t *namenode)
+{
+	name_t *name;
+	namelist_t *nl;
+
+	name = (name_t *)smalloc (sizeof (name_t));
+	name->decl = decl;
+	name->type = type;
+	name->namenode = namenode;
+	name->refc = 1;				/* because it won't ever be looked up really */
+
+	nl = stringhash_lookup (names, str);
+	if (!nl) {
+		nl = (namelist_t *)smalloc (sizeof (namelist_t));
+		nl->name = string_dup (str);
+		dynarray_init (nl->scopes);
+		nl->curscope = -1;
+		stringhash_insert (names, nl, nl->name);
+	}
+	name->me = nl;
+
+	return name;
+}
+/*}}}*/
 /*{{{  name_t *name_addscopenamess (char *str, tnode_t *decl, tnode_t *type, tnode_t *namenode, scope_t *ss)*/
 /*
  *	adds a name -- and returns it, after putting it in scope.

@@ -275,6 +275,12 @@ fprintf (stderr, "mcsp_scopein_rawname: here! rawname = \"%s\"\n", rawname);
 	if (sname) {
 		/* resolved */
 		*node = NameNodeOf (sname);
+
+		/* if it looks like a PROCDEF, turn into an INSTANCE -- if we're not already in an instance!*/
+		if (!mss->inamescope && ((*node)->tag == mcsp.tag_PROCDEF)) {
+			*node = tnode_createfrom (mcsp.tag_INSTANCE, name, *node, parser_newlistnode (NULL));
+		}
+
 		tnode_free (name);
 	} else {
 #if 0
@@ -708,6 +714,22 @@ static int mcsp_scopeout_declnode (tnode_t **node, scope_t *ss)
 static int mcsp_fetrans_declnode (tnode_t **node, fetrans_t *fe)
 {
 	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
+
+	switch (mfe->parse) {
+	case 0:
+		if ((*node)->tag == mcsp.tag_PROCDECL) {
+			void *saved_uvil = mfe->uvinsertlist;
+
+			mfe->uvinsertlist = tnode_nthsubof (*node, 1);
+			fetrans_subtree (tnode_nthsubaddr (*node, 1), fe);		/* params */
+			fetrans_subtree (tnode_nthsubaddr (*node, 2), fe);		/* body */
+			mfe->uvinsertlist = saved_uvil;
+			fetrans_subtree (tnode_nthsubaddr (*node, 3), fe);		/* in-scope body */
+
+			return 0;
+		}
+		break;
+	}
 
 	return 1;
 }
@@ -1197,6 +1219,210 @@ static int mcsp_namemap_vardeclnode (tnode_t **node, map_t *map)
 }
 /*}}}*/
 
+/*{{{  static int mcsp_prescope_instancenode (tnode_t **node, prescope_t *ps)*/
+/*
+ *	called to pre-scope an instance node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_prescope_instancenode (tnode_t **node, prescope_t *ps)
+{
+	tnode_t **paramsptr = tnode_nthsubaddr (*node, 1);
+
+	if (!*paramsptr) {
+		/* empty-list */
+		*paramsptr = parser_newlistnode (NULL);
+	} else if (!parser_islistnode (*paramsptr)) {
+		/* singleton */
+		tnode_t *list = parser_newlistnode (NULL);
+
+		parser_addtolist (list, *paramsptr);
+		*paramsptr = list;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_scopein_instancenode (tnode_t **node, scope_t *ss)*/
+/*
+ *	called to scope-in an instance node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_scopein_instancenode (tnode_t **node, scope_t *ss)
+{
+	mcsp_scope_t *mss = (mcsp_scope_t *)ss->langpriv;
+
+	mss->inamescope = 1;
+	tnode_modprepostwalktree (tnode_nthsubaddr (*node, 0), scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+	mss->inamescope = 0;
+	tnode_modprepostwalktree (tnode_nthsubaddr (*node, 1), scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int mcsp_typecheck_instancenode (tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on an instancenode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_typecheck_instancenode (tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *name = tnode_nthsubof (node, 0);
+	tnode_t *aparams = tnode_nthsubof (node, 1);
+	name_t *pname;
+	tnode_t *fparams;
+	tnode_t **fplist, **aplist;
+	int nfp, nap;
+	int i;
+
+	if (!name || (name->tag->ndef != mcsp.node_NAMENODE)) {
+		typecheck_error (node, tc, "instanced object is not a name");
+		return 0;
+	} else if (name->tag != mcsp.tag_PROCDEF) {
+		typecheck_error (node, tc, "called name is not a process");
+		return 0;
+	}
+	pname = tnode_nthnameof (name, 0);
+	fparams = NameTypeOf (pname);
+
+#if 0
+fprintf (stderr, "mcsp_typecheck_instancenode(): fparams = \n");
+tnode_dumptree (fparams, 1, stderr);
+fprintf (stderr, "mcsp_typecheck_instancenode(): aparams = \n");
+tnode_dumptree (aparams, 1, stderr);
+#endif
+	fplist = parser_getlistitems (fparams, &nfp);
+	aplist = parser_getlistitems (aparams, &nap);
+
+	if (nap > nfp) {
+		/* must be wrong */
+		typecheck_error (node, tc, "too many actual parameters");
+		return 0;
+	}
+
+	/* parameters up to a certain point must match */
+	for (i = 0; (i < nfp) && (i < nap); i++) {
+		if (fplist[i]->tag == mcsp.tag_FPARAM) {
+			/* must have an actual event */
+			if (aplist[i]->tag != mcsp.tag_EVENT) {
+				typecheck_error (node, tc, "parameter %d is not an event", i+1);
+				/* keep going.. */
+			}
+		} else if (fplist[i]->tag == mcsp.tag_UPARAM) {
+			/* should not have a matching actual.. */
+			typecheck_error (node, tc, "too many actual parameters");
+			return 0;
+		} else {
+			nocc_internal ("mcsp_typecheck_instancenode(): formal parameter (1) is [%s]", fplist[i]->tag->name);
+			return 0;
+		}
+	}
+	/* any remaining formals must be UPARAMs */
+	for (; i<nfp; i++) {
+		if (fplist[i]->tag == mcsp.tag_FPARAM) {
+			/* should have had an actual */
+			typecheck_error (node, tc, "too few actual parameters");
+			return 0;
+		} else if (fplist[i]->tag != mcsp.tag_UPARAM) {
+			nocc_internal ("mcsp_typecheck_instancenode(): formal parameter (2) is [%s]", fplist[i]->tag->name);
+			return 0;
+		}
+	}
+
+	/* all good :) */
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_fetrans_instancenode (tnode_t **node, fetrans_t *fe)*/
+/*
+ *	does front-end transforms on an instancenode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_fetrans_instancenode (tnode_t **node, fetrans_t *fe)
+{
+	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
+	tnode_t *t = *node;
+
+	switch (mfe->parse) {
+	case 0:
+		if (t->tag == mcsp.tag_INSTANCE) {
+			/*{{{  add any missing actual parameters to UPARAM formals*/
+			tnode_t *aparams = tnode_nthsubof (t, 1);
+			tnode_t *iname = tnode_nthsubof (t, 0);
+			name_t *pname = tnode_nthnameof (iname, 0);
+			tnode_t *fparams = NameTypeOf (pname);
+			tnode_t **fplist, **aplist;
+			int nfp, nap;
+
+			fplist = parser_getlistitems (fparams, &nfp);
+			aplist = parser_getlistitems (aparams, &nap);
+
+#if 0
+fprintf (stderr, "mcsp_fetrans_instancenode(): fparams = \n");
+tnode_dumptree (fparams, 1, stderr);
+fprintf (stderr, "mcsp_fetrans_instancenode(): aparams = \n");
+tnode_dumptree (aparams, 1, stderr);
+#endif
+			if (nap < nfp) {
+				/* need to add some missing actuals */
+				if (!mfe->uvinsertlist) {
+					nocc_internal ("mcsp_fetrans_instancenode(): need to add %d hidden actuals, but no insertlist!", nfp - nap);
+					return 0;
+				} else {
+					int i;
+
+					for (i=nap; i<nfp; i++) {
+						/*{{{  add the name manually*/
+						tnode_t *decl = tnode_create (mcsp.tag_UPARAM, NULL, NULL);
+						tnode_t *newname;
+						name_t *sname;
+						char *rawname = (char *)smalloc (128);
+
+						sprintf (rawname, "%s.%s", NameNameOf (pname), NameNameOf (tnode_nthnameof (tnode_nthsubof (fplist[i], 0), 0)));
+						sname = name_addname (rawname, decl, NULL, NULL);
+						sfree (rawname);
+
+						parser_addtolist (mfe->uvinsertlist, decl);
+						newname = tnode_createfrom (mcsp.tag_EVENT, decl, sname);
+						SetNameNode (sname, newname);
+						tnode_setnthsub (decl, 0, newname);
+
+						parser_addtolist (aparams, newname);
+						/*}}}*/
+					}
+				}
+			}
+
+			return 0;
+			/*}}}*/
+		}
+		break;
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_namemap_instancenode (tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for an instancenode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_namemap_instancenode (tnode_t **node, map_t *map)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_codegen_instancenode (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for an instancenode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_codegen_instancenode (tnode_t *node, codegen_t *cgen)
+{
+	codegen_callops (cgen, comment, "FIXME: mcsp_codegen_instancenode()");
+	return 0;
+}
+/*}}}*/
+
 /*{{{  static void mcsp_opreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
  *	turns an MCSP operator (->, etc.) into a node
@@ -1490,6 +1716,22 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	mcsp.tag_STRING = tnode_newnodetag ("MCSPSTRING", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  mcsp:instancenode -- INSTANCE*/
+	i = -1;
+	tnd = tnode_newnodetype ("mcsp:instancenode", &i, 2, 0, 0, TNF_NONE);				/* subnodes: 0 = name, 1 = parameters */
+	cops = tnode_newcompops ();
+	cops->prescope = mcsp_prescope_instancenode;
+	cops->scopein = mcsp_scopein_instancenode;
+	cops->typecheck = mcsp_typecheck_instancenode;
+	cops->fetrans = mcsp_fetrans_instancenode;
+	cops->namemap = mcsp_namemap_instancenode;
+	cops->codegen = mcsp_codegen_instancenode;
+	tnd->ops = cops;
+
+	i = -1;
+	mcsp.tag_INSTANCE = tnode_newnodetag ("MCSPINSTANCE", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 	/*{{{  deal with operators*/
         for (i=0; opmap[i].lookup; i++) {
 		opmap[i].tok = lexer_newtoken (opmap[i].ttype, opmap[i].lookup);
@@ -1516,6 +1758,7 @@ static int mcsp_process_reg_reducers (void)
 	parser_register_grule ("mcsp:fixreduce", parser_decode_grule ("SN0N+N+VC2R-", mcsp.tag_FIXPOINT));
 	parser_register_grule ("mcsp:subevent", parser_decode_grule ("SN0N+N+V0C3R-", mcsp.tag_SUBEVENT));
 	parser_register_grule ("mcsp:stringreduce", parser_decode_grule ("ST0T+XC1R-", mcsp_stringtoken_to_hook, mcsp.tag_STRING));
+	parser_register_grule ("mcsp:instancereduce", parser_decode_grule ("SN0N+N+VC2R-", mcsp.tag_INSTANCE));
 
 	parser_register_reduce ("Rmcsp:op", mcsp_opreduce, NULL);
 	parser_register_reduce ("Rmcsp:folddop", mcsp_folddopreduce, NULL);
@@ -1538,6 +1781,7 @@ static dfattbl_t **mcsp_process_init_dfatrans (int *ntrans)
 				"[ 3 mcsp:expr 4 ] [ 4 {<mcsp:subevent>} -* ]"));
 	dynarray_add (transtbl, dfa_bnftotbl ("mcsp:eventset ::= ( mcsp:event | @@{ { mcsp:event @@, 1 } @@} )"));
 	dynarray_add (transtbl, dfa_bnftotbl ("mcsp:fparams ::= { mcsp:name @@, 0 }"));
+	dynarray_add (transtbl, dfa_bnftotbl ("mcsp:aparams ::= { mcsp:name @@, 0 }"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:dop ::= [ 0 +@@-> 1 ] [ 0 +@@; 1 ] [ 0 +@@|| 1 ] [ 0 +@@||| 1 ] [ 0 +@@|~| 1 ] [ 0 +@@[ 3 ] [ 1 Newline 1 ] [ 1 -* 2 ] [ 2 {Rmcsp:op} -* ] "\
 				"[ 3 @@] 4 ] [ 4 Newline 4 ] [ 4 -* 5 ] [ 5 {<mcsp:nullechoicereduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:leafproc ::= [ 0 +@SKIP 1 ] [ 0 +@STOP 1 ] [ 0 +@DIV 1 ] [ 0 +@CHAOS 1 ] [ 1 {<mcsp:ppreduce>} -* ]"));
@@ -1545,8 +1789,10 @@ static dfattbl_t **mcsp_process_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:hide ::= [ 0 +@@\\ 1 ] [ 1 mcsp:eventset 2 ] [ 2 {<mcsp:hidereduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:restofprocess ::= [ 0 mcsp:dop 1 ] [ 1 mcsp:process 2 ] [ 2 {Rmcsp:folddop} -* ] " \
 				"[ 0 %mcsp:hide <mcsp:hide> ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:process ::= [ 0 mcsp:event 1 ] [ 0 mcsp:leafproc 2 ] [ 0 mcsp:fixpoint 2 ] [ 0 @@( 3 ] [ 1 %mcsp:restofprocess <mcsp:restofprocess> ] [ 1 -* 2 ] [ 2 {<mcsp:nullreduce>} -* ] " \
-				"[ 3 mcsp:process 4 ] [ 4 @@) 5 ] [ 5 %mcsp:restofprocess <mcsp:restofprocess> ] [ 5 -* 6 ] [ 6 {<mcsp:nullreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("mcsp:instance ::= [ 0 mcsp:name 1 ] [ 1 @@( 2 ] [ 2 mcsp:aparams 3 ] [ 3 @@) 4 ] [ 4 {<mcsp:instancereduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("mcsp:process ::= [ 0 +Name 7 ] [ 0 mcsp:leafproc 2 ] [ 0 mcsp:fixpoint 2 ] [ 0 @@( 3 ] [ 1 %mcsp:restofprocess <mcsp:restofprocess> ] [ 1 -* 2 ] [ 2 {<mcsp:nullreduce>} -* ] " \
+				"[ 3 mcsp:process 4 ] [ 4 @@) 5 ] [ 5 %mcsp:restofprocess <mcsp:restofprocess> ] [ 5 -* 6 ] [ 6 {<mcsp:nullreduce>} -* ] " \
+				"[ 7 -@@( 8 ] [ 7 -* 10 ] [ 8 {<parser:rewindtokens>} -* 9 ] [ 9 mcsp:instance 1 ] [ 10 {<parser:rewindtokens>} -* 11 ] [ 11 mcsp:event 1 ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:procdecl ::= [ 0 +Name 1 ] [ 1 {<mcsp:namepush>} ] [ 1 @@::= 2 ] [ 1 @@( 4 ] [ 2 {<mcsp:nullpush>} ] [ 2 mcsp:process 3 ] [ 3 {<mcsp:procdeclreduce>} -* ] " \
 				"[ 4 mcsp:fparams 5 ] [ 5 @@) 6 ] [ 6 @@::= 7 ] [ 7 mcsp:process 3 ]"));
 

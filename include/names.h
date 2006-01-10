@@ -55,6 +55,7 @@ extern name_t *name_addsubscopenamess (char *str, void *scopemark, struct TAG_tn
 extern void name_scopename (name_t *name);
 extern void name_descopename (name_t *name);
 extern void name_delname (name_t *name);
+extern name_t *name_addname (char *str, struct TAG_tnode *decl, struct TAG_tnode *type, struct TAG_tnode *namenode);
 extern name_t *name_addtempname (struct TAG_tnode *decl, struct TAG_tnode *type, struct TAG_ntdef *nametag, struct TAG_tnode **namenode);
 
 extern namespace_t *name_findnamespace (char *nsname);

@@ -1,0 +1,6 @@
+# test_c5.mcsp -- testing instances
+
+FOO (x) ::= x -> v -> STOP
+
+SYSTEM ::= FOO (n)
+
