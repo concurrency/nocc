@@ -50,6 +50,7 @@ typedef struct TAG_target {
 	} bws;
 
 	struct {
+		unsigned int as_alt:8;								/* above workspace bytes for ALT */
 		unsigned int as_par:8;								/* above workspace bytes for PAR */
 	} aws;
 

@@ -1,6 +1,6 @@
 # test_c5.mcsp -- testing instances
 
-FOO (x) ::= x -> v -> STOP
+FOO (x) ::= x -> ((v -> SKIP) [] (u -> SKIP)); STOP
 
 SYSTEM ::= FOO (n)
 

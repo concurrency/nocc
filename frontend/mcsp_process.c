@@ -1017,21 +1017,26 @@ static int mcsp_namemap_snode (tnode_t **node, map_t *map)
 	tnode_t **guards;
 	int nguards, i;
 
-	/* do guards one-by-one */
-	guards = parser_getlistitems (glist, &nguards);
-	for (i=0; i<nguards; i++) {
-		tnode_t *guard = guards[i];
+	if ((*node)->tag == mcsp.tag_ALT) {
+		/* do guards one-by-one */
+		guards = parser_getlistitems (glist, &nguards);
+		for (i=0; i<nguards; i++) {
+			tnode_t *guard = guards[i];
 
-		if (guard && (guard->tag == mcsp.tag_GUARD)) {
-			tnode_t **eventp = tnode_nthsubaddr (guard, 0);
-			tnode_t **bodyp = tnode_nthsubaddr (guard, 1);
+			if (guard && (guard->tag == mcsp.tag_GUARD)) {
+				tnode_t **eventp = tnode_nthsubaddr (guard, 0);
+				tnode_t **bodyp = tnode_nthsubaddr (guard, 1);
 
-			map_submapnames (eventp, map);
-			map_submapnames (bodyp, map);
+				map_submapnames (eventp, map);
+				map_submapnames (bodyp, map);
+			}
 		}
-	}
 
-	return 0;
+		/* ALT itself needs a bit of space */
+		*node = map->target->newname (*node, NULL, map, map->target->aws.as_alt, map->target->bws.ds_altio, 0, 0, 0, 0);
+		return 0;
+	}
+	return 1;
 }
 /*}}}*/
 /*{{{  static int mcsp_codegen_snode (tnode_t *node, codegen_t *cgen)*/
@@ -1041,7 +1046,32 @@ static int mcsp_namemap_snode (tnode_t **node, map_t *map)
  */
 static int mcsp_codegen_snode (tnode_t *node, codegen_t *cgen)
 {
-	return 0;
+	tnode_t *glist = tnode_nthsubof (node, 0);
+	tnode_t **guards;
+	int nguards, i;
+
+	if (node->tag == mcsp.tag_ALT) {
+		guards = parser_getlistitems (glist, &nguards);
+
+		/*{{{  ALT enable*/
+		/*}}}*/
+		/*{{{  enabling sequence*/
+		for (i=0; i<nguards; i++) {
+			tnode_t *guard = guards[i];
+
+			if (guard && (guard->tag == mcsp.tag_GUARD)) {
+				tnode_t *event = tnode_nthsubof (guard, 0);
+
+				codegen_callops (cgen, loadpointer, event, 0);
+				codegen_callops (cgen, tsecondary, I_POP);
+				codegen_callops (cgen, comment, "FIXME: MWENB not POP!");
+			}
+		}
+		/*}}}*/
+
+		return 0;
+	}
+	return 1;
 }
 /*}}}*/
 
@@ -1408,7 +1438,31 @@ tnode_dumptree (aparams, 1, stderr);
  */
 static int mcsp_namemap_instancenode (tnode_t **node, map_t *map)
 {
-	return 1;
+	tnode_t *bename, *ibody, *namenode;
+
+	/* map parameters and called name */
+	map_submapnames (tnode_nthsubaddr (*node, 0), map);
+	map_submapnames (tnode_nthsubaddr (*node, 1), map);
+
+	namenode = tnode_nthsubof (*node, 0);
+	if (namenode->tag == mcsp.tag_PROCDEF) {
+		tnode_t *instance;
+		name_t *name;
+
+		name = tnode_nthnameof (namenode, 0);
+		instance = NameDeclOf (name);
+
+		/* body should be a back-end block */
+		ibody = tnode_nthsubof (instance, 2);
+	} else {
+		nocc_internal ("mcsp_namemap_instancenode(): don\'t know how to handle [%s]", namenode->tag->name);
+		return 0;
+	}
+
+	bename = map->target->newblockref (ibody, *node, map);
+	*node = bename;
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int mcsp_codegen_instancenode (tnode_t *node, codegen_t *cgen)*/
@@ -1418,7 +1472,37 @@ static int mcsp_namemap_instancenode (tnode_t **node, map_t *map)
  */
 static int mcsp_codegen_instancenode (tnode_t *node, codegen_t *cgen)
 {
-	codegen_callops (cgen, comment, "FIXME: mcsp_codegen_instancenode()");
+	tnode_t *namenode = tnode_nthsubof (node, 0);
+	tnode_t *params = tnode_nthsubof (node, 1);
+
+	if (namenode->tag == mcsp.tag_PROCDEF) {
+		int ws_size, ws_offset, vs_size, ms_size, adjust;
+		name_t *name = tnode_nthnameof (namenode, 0);
+		tnode_t *instance = NameDeclOf (name);
+		tnode_t *ibody = tnode_nthsubof (instance, 2);
+
+		codegen_check_beblock (ibody, cgen, 1);
+
+		/* get the size of the block */
+		cgen->target->be_getblocksize (ibody, &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, NULL);
+
+		if (!parser_islistnode (params)) {
+			nocc_internal ("mcsp_codegen_instancenode(): expected list of parameters, got [%s]", params ? params->tag->name : "(null)");
+			return 0;
+		} else {
+			int nitems, i, wsoff;
+			tnode_t **items = parser_getlistitems (params, &nitems);
+
+			for (i=nitems - 1, wsoff = -4; i>=0; i--, wsoff -= 4) {
+				codegen_callops (cgen, loadparam, items[i], PARAM_REF);
+				codegen_callops (cgen, storelocal, wsoff);
+			}
+		}
+		codegen_callops (cgen, callnamelabel, name, adjust);
+	} else {
+		nocc_internal ("mcsp_codegen_instancenode(): don\'t know how to handle [%s]", namenode->tag->name);
+	}
+
 	return 0;
 }
 /*}}}*/

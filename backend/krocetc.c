@@ -99,6 +99,7 @@ target_t krocetc_target = {
 		ds_max: 24
 	},
 	aws: {
+		as_alt: 4,
 		as_par: 12,
 	},
 

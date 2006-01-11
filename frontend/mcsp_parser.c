@@ -589,6 +589,11 @@ static int mcsp_parser_fetrans (tnode_t **tptr, fetrans_t *fe)
 	err = mfe->errcount;
 	sfree (mfe);
 
+	if (!err) {
+		/*{{{  need to do a little work for interfacing with the world*/
+		/*}}}*/
+	}
+
 	return err;
 }
 /*}}}*/
