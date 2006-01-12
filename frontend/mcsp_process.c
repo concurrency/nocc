@@ -1049,11 +1049,19 @@ static int mcsp_codegen_snode (tnode_t *node, codegen_t *cgen)
 	tnode_t *glist = tnode_nthsubof (node, 0);
 	tnode_t **guards;
 	int nguards, i;
+	int *labels;
 
 	if (node->tag == mcsp.tag_ALT) {
+		int resumelab = codegen_new_label (cgen);
+
 		guards = parser_getlistitems (glist, &nguards);
 
+		/*{{{  invent some labels for guarded processes*/
+		labels = (int *)smalloc (nguards * sizeof (int));
+
+		/*}}}*/
 		/*{{{  ALT enable*/
+		codegen_callops (cgen, comment, "FIXME: ALT enable");
 		/*}}}*/
 		/*{{{  enabling sequence*/
 		for (i=0; i<nguards; i++) {
@@ -1067,6 +1075,51 @@ static int mcsp_codegen_snode (tnode_t *node, codegen_t *cgen)
 				codegen_callops (cgen, comment, "FIXME: MWENB not POP!");
 			}
 		}
+		/*}}}*/
+		/*{{{  ALT wait*/
+		codegen_callops (cgen, comment, "FIXME: ALT wait");
+		/*}}}*/
+		/*{{{  disabling sequence*/
+		for (i=0; i<nguards; i++) {
+			tnode_t *guard = guards[i];
+
+			if (guard && (guard->tag == mcsp.tag_GUARD)) {
+				tnode_t *event = tnode_nthsubof (guard, 0);
+
+				/* drop in label */
+				labels[i] = codegen_new_label (cgen);
+
+				codegen_callops (cgen, loadpointer, event, 0);
+				codegen_callops (cgen, loadlabaddr, labels[i]);
+				codegen_callops (cgen, tsecondary, I_POP);
+				codegen_callops (cgen, tsecondary, I_POP);
+				codegen_callops (cgen, comment, "FIXME: MWDIS not POP!");
+			}
+		}
+		/*}}}*/
+		/*{{{  ALT end*/
+		codegen_callops (cgen, comment, "FIXME: ALT end");
+		codegen_callops (cgen, tsecondary, I_SETERR);		/* if we fell of the ALT */
+
+		/*}}}*/
+		/*{{{  guarded processes*/
+		for (i=0; i<nguards; i++) {
+			tnode_t *guard = guards[i];
+
+			if (guard && (guard->tag == mcsp.tag_GUARD)) {
+				codegen_callops (cgen, setlabel, labels[i]);
+				codegen_subcodegen (tnode_nthsubof (guard, 1), cgen);
+				codegen_callops (cgen, branch, I_J, resumelab);
+			}
+		}
+		/*}}}*/
+		/*{{{  next!*/
+		codegen_callops (cgen, setlabel, resumelab);
+
+		/*}}}*/
+		/*{{{  cleanup*/
+		sfree (labels);
+
 		/*}}}*/
 
 		return 0;
