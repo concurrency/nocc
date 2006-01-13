@@ -2484,116 +2484,294 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 	transinstr_e tins = (transinstr_e)ins;
 
 	switch (tins) {
+		/*{{{  OUT: channel output*/
 	case I_OUT:
 		codegen_write_string (cgen, "\tout\n");
 		krocetc_cgstate_tsdelta (cgen, -3);
 		break;
+		/*}}}*/
+		/*{{{  IN: channel input*/
 	case I_IN:
 		codegen_write_string (cgen, "\tin\n");
 		krocetc_cgstate_tsdelta (cgen, -3);
 		break;
+		/*}}}*/
+		/*{{{  MOVE: block move*/
 	case I_MOVE:
 		codegen_write_string (cgen, "\tmove\n");
 		krocetc_cgstate_tsdelta (cgen, -3);
 		break;
+		/*}}}*/
+		/*{{{  STARTP: start process*/
 	case I_STARTP:
 		codegen_write_string (cgen, "\tstartp\n");
 		krocetc_cgstate_tsdelta (cgen, -2);
 		break;
+		/*}}}*/
+		/*{{{  ENDP: end process*/
 	case I_ENDP:
 		codegen_write_string (cgen, "\tendp\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+		/*}}}*/
+		/*{{{  RESCHEDULE: reschedule processes*/
 	case I_RESCHEDULE:
 		codegen_write_string (cgen, "\t.reschedule\n");
 		break;
+		/*}}}*/
+		/*{{{  BOOLINVERT: invert boolean*/
 	case I_BOOLINVERT:
 		codegen_write_string (cgen, "\t.boolinvert\n");
 		break;
+		/*}}}*/
+		/*{{{  ADD: add checking for overflow*/
 	case I_ADD:
 		codegen_write_string (cgen, "\tadd\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+		/*}}}*/
+		/*{{{  SUB: subtract checking for overflow*/
 	case I_SUB:
 		codegen_write_string (cgen, "\tsub\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+		/*}}}*/
+		/*{{{  MUL: multiply checking for overflow*/
 	case I_MUL:
 		codegen_write_string (cgen, "\tmul\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+		/*}}}*/
+		/*{{{  DIV: divide checking for overflow*/
 	case I_DIV:
 		codegen_write_string (cgen, "\tdiv\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+		/*}}}*/
+		/*{{{  REM: remainder checking for overflow*/
 	case I_REM:
 		codegen_write_string (cgen, "\trem\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+		/*}}}*/
+		/*{{{  SUM: add without checking for overflow*/
 	case I_SUM:
 		codegen_write_string (cgen, "\tsum\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+		/*}}}*/
+		/*{{{  DIFF: subtract without checking for overflow*/
 	case I_DIFF:
 		codegen_write_string (cgen, "\tdiff\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+		/*}}}*/
+		/*{{{  PROD: multiply without checking for overflow*/
 	case I_PROD:
 		codegen_write_string (cgen, "\tprod\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+		/*}}}*/
+		/*{{{  NEG: invert checking for overflow*/
 	case I_NEG:
 		codegen_write_string (cgen, "\tneg\n");
 		break;
+		/*}}}*/
+		/*{{{  NOT: boolean inversion*/
 	case I_NOT:
 		codegen_write_string (cgen, "\tnot\n");
 		break;
+		/*}}}*/
+		/*{{{  STOPP: stop process*/
 	case I_STOPP:
 		codegen_write_string (cgen, "\tstopp\n");
 		break;
+		/*}}}*/
+		/*{{{  RUNP: run process*/
 	case I_RUNP:
 		codegen_write_string (cgen, "\trunp\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+		/*}}}*/
+		/*{{{  SETERR: set error flag (runtime error)*/
 	case I_SETERR:
 		codegen_write_string (cgen, "\tseterr\n");
 		break;
+		/*}}}*/
+		/*{{{  GT: greater-than test*/
 	case I_GT:
 		codegen_write_string (cgen, "\tgt\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+		/*}}}*/
+		/*{{{  LT: less-than test*/
 	case I_LT:
 		codegen_write_string (cgen, "\tlt\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+		/*}}}*/
+		/*{{{  MALLOC: dynamic memory allocation*/
 	case I_MALLOC:
 		codegen_write_string (cgen, "\tmalloc\n");
 		krocetc_cgstate_tsdelta (cgen, 0);
 		break;
+		/*}}}*/
+		/*{{{  MRELEASE: dynamic memory free*/
 	case I_MRELEASE:
 		codegen_write_string (cgen, "\tmrelease\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+		/*}}}*/
+		/*{{{  TRAP: debugging trap*/
 	case I_TRAP:
 		codegen_write_string (cgen, "\ttrap\n");
 		krocetc_cgstate_tsdelta (cgen, 0);
 		break;
+		/*}}}*/
+		/*{{{  NULL: load null value*/
 	case I_NULL:
 		codegen_write_string (cgen, "\tnull\n");
 		krocetc_cgstate_tsdelta (cgen, 1);
 		break;
+		/*}}}*/
+		/*{{{  SETPRI: set priority*/
 	case I_SETPRI:
 		codegen_write_string (cgen, "\tsetpri\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+		/*}}}*/
+		/*{{{  GETPRI: get priority*/
 	case I_GETPRI:
 		codegen_write_string (cgen, "\tgetpri\n");
 		krocetc_cgstate_tsdelta (cgen, 1);
 		break;
+		/*}}}*/
+		/*{{{  POP: remove element from stack*/
 	case I_POP:
 		codegen_write_string (cgen, "\tpop\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
+		/*}}}*/
+		/*{{{  ALT: start alternative*/
+	case I_ALT:
+		codegen_write_string (cgen, "\talt\n");
+		krocetc_cgstate_tsdelta (cgen, 0);
+		break;
+		/*}}}*/
+		/*{{{  ALTWT: alternative wait*/
+	case I_ALTWT:
+		codegen_write_string (cgen, "\taltwt\n");
+		krocetc_cgstate_tsdelta (cgen, 0);
+		break;
+		/*}}}*/
+		/*{{{  TALTWT: alternative wait with timeout*/
+	case I_TALTWT:
+		codegen_write_string (cgen, "\ttaltwt\n");
+		krocetc_cgstate_tsdelta (cgen, 0);
+		break;
+		/*}}}*/
+		/*{{{  ALTEND: end alternative*/
+	case I_ALTEND:
+		codegen_write_string (cgen, "\taltend\n");
+		krocetc_cgstate_tsdelta (cgen, 0);
+		break;
+		/*}}}*/
+		/*{{{  ENBC: enable channel guard*/
+	case I_ENBC:
+		codegen_write_string (cgen, "\tenbc\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  ENBS: enable skip buard*/
+	case I_ENBS:
+		codegen_write_string (cgen, "\tenbs\n");
+		krocetc_cgstate_tsdelta (cgen, 0);
+		break;
+		/*}}}*/
+		/*{{{  ENBT: enable timer guard*/
+	case I_ENBT:
+		codegen_write_string (cgen, "\tenbt\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  DISC: disable channel guard*/
+	case I_DISC:
+		codegen_write_string (cgen, "\tdisc\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  DISS: disable skip guard*/
+	case I_DISS:
+		codegen_write_string (cgen, "\tdiss\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  DIST: disable timer guard*/
+	case I_DIST:
+		codegen_write_string (cgen, "\tdist\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  FBARINIT: initialise barrier*/
+	case I_FBARINIT:
+		codegen_write_string (cgen, "\tfbarinit\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  FBARSYNC: synchronise on barrier*/
+	case I_FBARSYNC:
+		codegen_write_string (cgen, "\tfbarsync\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  FBARRESIGN: resign from barrier*/
+	case I_FBARRESIGN:
+		codegen_write_string (cgen, "\tfbarresign\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  FBARENROLL: enroll on barrier*/
+	case I_FBARENROLL:
+		codegen_write_string (cgen, "\tfbarenroll\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  MTNEW: create complex mobile*/
+	case I_MTNEW:
+		codegen_write_string (cgen, "\tmtnew\n");
+		krocetc_cgstate_tsdelta (cgen, 0);
+		break;
+		/*}}}*/
+		/*{{{  MTFREE: free complex mobile*/
+	case I_MTFREE:
+		codegen_write_string (cgen, "\tmtfree\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  MTCLONE: clone complex mobile*/
+	case I_MTCLONE:
+		codegen_write_string (cgen, "\tmtclone\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  MWENB: enable multiway sync guard*/
+	case I_MWENB:
+		codegen_write_string (cgen, "\tmwenb\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  MWDIS: disable multiway sync guard*/
+	case I_MWDIS:
+		codegen_write_string (cgen, "\tmwdis\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  MWSYNC: multiway synchronisation*/
+	case I_MWSYNC:
+		codegen_write_string (cgen, "\tmwsync\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: tsecondary %d\n", ins);
 		break;

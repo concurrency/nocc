@@ -933,8 +933,7 @@ static int mcsp_codegen_actionnode (tnode_t *node, codegen_t *cgen)
 		tnode_t *event = tnode_nthsubof (node, 0);
 
 		codegen_callops (cgen, loadpointer, event, 0);
-		codegen_callops (cgen, tsecondary, I_POP);
-		codegen_callops (cgen, comment, "FIXME: SYNC not POP!");
+		codegen_callops (cgen, tsecondary, I_MWSYNC);
 
 		return 0;
 	}
@@ -1061,7 +1060,8 @@ static int mcsp_codegen_snode (tnode_t *node, codegen_t *cgen)
 
 		/*}}}*/
 		/*{{{  ALT enable*/
-		codegen_callops (cgen, comment, "FIXME: ALT enable");
+		codegen_callops (cgen, tsecondary, I_ALT);
+
 		/*}}}*/
 		/*{{{  enabling sequence*/
 		for (i=0; i<nguards; i++) {
@@ -1071,13 +1071,13 @@ static int mcsp_codegen_snode (tnode_t *node, codegen_t *cgen)
 				tnode_t *event = tnode_nthsubof (guard, 0);
 
 				codegen_callops (cgen, loadpointer, event, 0);
-				codegen_callops (cgen, tsecondary, I_POP);
-				codegen_callops (cgen, comment, "FIXME: MWENB not POP!");
+				codegen_callops (cgen, tsecondary, I_MWENB);
 			}
 		}
 		/*}}}*/
 		/*{{{  ALT wait*/
-		codegen_callops (cgen, comment, "FIXME: ALT wait");
+		codegen_callops (cgen, tsecondary, I_ALTWT);
+
 		/*}}}*/
 		/*{{{  disabling sequence*/
 		for (i=0; i<nguards; i++) {
@@ -1091,14 +1091,12 @@ static int mcsp_codegen_snode (tnode_t *node, codegen_t *cgen)
 
 				codegen_callops (cgen, loadpointer, event, 0);
 				codegen_callops (cgen, loadlabaddr, labels[i]);
-				codegen_callops (cgen, tsecondary, I_POP);
-				codegen_callops (cgen, tsecondary, I_POP);
-				codegen_callops (cgen, comment, "FIXME: MWDIS not POP!");
+				codegen_callops (cgen, tsecondary, I_MWDIS);
 			}
 		}
 		/*}}}*/
 		/*{{{  ALT end*/
-		codegen_callops (cgen, comment, "FIXME: ALT end");
+		codegen_callops (cgen, tsecondary, I_ALTEND);
 		codegen_callops (cgen, tsecondary, I_SETERR);		/* if we fell of the ALT */
 
 		/*}}}*/

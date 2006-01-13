@@ -20,6 +20,8 @@
 #ifndef __TRANSPUTER_H
 #define __TRANSPUTER_H
 
+/* note: these don't have to be in a particular order */
+
 typedef enum ENUM_transinstr {
 	I_INVALID = 0,
 	I_LDC = 1,
@@ -62,7 +64,27 @@ typedef enum ENUM_transinstr {
 	I_NULL = 45,
 	I_SETPRI = 46,
 	I_GETPRI = 47,
-	I_POP = 48
+	I_POP = 48,
+	I_ALT = 49,
+	I_ALTWT = 50,
+	I_TALTWT = 51,
+	I_ALTEND = 52,
+	I_ENBC = 53,
+	I_ENBS = 54,
+	I_ENBT = 55,
+	I_DISC = 56,
+	I_DISS = 57,
+	I_DIST = 58,
+	I_FBARINIT = 59,
+	I_FBARSYNC = 60,
+	I_FBARRESIGN = 61,
+	I_FBARENROLL = 62,
+	I_MTNEW = 63,
+	I_MTFREE = 64,
+	I_MTCLONE = 65,
+	I_MWENB = 66,
+	I_MWDIS = 67,
+	I_MWSYNC = 68
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {
