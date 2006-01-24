@@ -1,0 +1,7 @@
+# test_c6.mcsp -- PAR test
+
+FOO(v) ::= v -> SKIP
+BAR(w) ::= w -> SKIP
+
+SYSTEM ::= FOO(x) || BAR(x)
+

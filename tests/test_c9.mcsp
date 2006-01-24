@@ -1,0 +1,8 @@
+# test_c9.mcsp -- more tests
+
+FOO(x) ::= csp -> x -> SKIP
+BAR(y) ::= y -> rocks -> SKIP
+
+SYSTEM ::= (FOO(z) || BAR(z)) \ {z}
+
+

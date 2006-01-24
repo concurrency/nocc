@@ -35,7 +35,9 @@ struct TAG_token;
 typedef struct {
 	/* saved node-types */
 	struct TAG_tndef *node_NAMENODE;
-	struct TAG_tndef *node_DOPNODE;
+	struct TAG_tndef *node_DOPNODE;			/* hooks mcsp_alpha_t */
+	struct TAG_tndef *node_SNODE;			/* hooks mcsp_alpha_t */
+	struct TAG_tndef *node_CNODE;			/* hooks mcsp_alpha_t */
 	struct TAG_tndef *node_SCOPENODE;
 	struct TAG_tndef *node_LEAFPROC;
 	struct TAG_tndef *node_CONSTNODE;
@@ -45,6 +47,7 @@ typedef struct {
 	struct TAG_ntdef *tag_NAME;
 	struct TAG_ntdef *tag_EVENT;
 	struct TAG_ntdef *tag_PROCDEF;
+	struct TAG_ntdef *tag_CHAN;
 
 	struct TAG_ntdef *tag_SUBEVENT;
 	struct TAG_ntdef *tag_THEN;
@@ -63,6 +66,7 @@ typedef struct {
 	struct TAG_ntdef *tag_FIXPOINT;
 
 	struct TAG_ntdef *tag_PROCDECL;
+	struct TAG_ntdef *tag_XPROCDECL;
 
 	struct TAG_ntdef *tag_INSTANCE;
 
@@ -79,6 +83,10 @@ typedef struct {
 	struct TAG_ntdef *tag_PARCODE;
 	struct TAG_ntdef *tag_ALT;
 	struct TAG_ntdef *tag_GUARD;
+	struct TAG_ntdef *tag_CHANWRITE;
+	struct TAG_ntdef *tag_PARSPACE;
+	struct TAG_ntdef *tag_ILOOP;
+	struct TAG_ntdef *tag_PRIDROP;
 
 } mcsp_pset_t;
 
@@ -116,11 +124,18 @@ typedef struct TAG_mcsp_scope {
 
 
 /*}}}*/
+/*{{{  mcsp_alpha_t structure (hooked onto various nodes to indicate alphabets involved)*/
+typedef struct TAG_mcsp_alpha {
+	struct TAG_tnode *elist;
+} mcsp_alpha_t;
+
+/*}}}*/
 /*{{{  mcsp_fetrans_t structure (private lang-specific front-end transform state)*/
 typedef struct TAG_mcsp_fetrans {
 	struct TAG_tnode *uvinsertlist;		/* insert-list for unbound variables */
 	int errcount;				/* errors */
 	int parse;				/* counter round front-end transforms */
+	mcsp_alpha_t *curalpha;			/* current alphabet -- used in the last fetrans pass */
 } mcsp_fetrans_t;
 
 

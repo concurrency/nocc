@@ -99,6 +99,7 @@ static int occampi_namemap_leafnode (tnode_t **nodep, map_t *mapdata)
 static int occampi_codegen_leafnode (tnode_t *node, codegen_t *cgen)
 {
 	if (node->tag == opi.tag_STOP) {
+		codegen_callops (cgen, debugline, node);
 		codegen_callops (cgen, tsecondary, I_SETERR);
 	}
 	return 0;

@@ -581,18 +581,178 @@ static int mcsp_parser_fetrans (tnode_t **tptr, fetrans_t *fe)
 
 	fe->langpriv = (void *)mfe;
 	mfe->errcount = 0;
+	mfe->curalpha = NULL;
+	mfe->uvinsertlist = NULL;
 
 	for (mfe->parse=0; mfe->parse < 2; mfe->parse++) {
 		fetrans_subtree (tptr, fe);
 	}
 
 	err = mfe->errcount;
-	sfree (mfe);
 
-	if (!err) {
+	if (!err && !compopts.notmainmodule) {
 		/*{{{  need to do a little work for interfacing with the world*/
+		tnode_t **xptr, *lastlongdecl;
+
+		for (xptr = tptr, lastlongdecl = NULL; *xptr;) {
+			int tnflags = tnode_tnflagsof (*xptr);
+
+			if (tnflags & TNF_TRANSPARENT) {
+				xptr = tnode_nthsubaddr (*xptr, 0);
+			} else if (tnflags & TNF_SHORTDECL) {
+				xptr = tnode_nthsubaddr (*xptr, 2);
+			} else if (tnflags & TNF_LONGDECL) {
+				lastlongdecl = *xptr;
+				xptr = tnode_nthsubaddr (*xptr, 3);
+			} else {
+				/* dunno! */
+				nocc_warning ("mcsp_parser_fetrans(): stopping innermost walk at [%s]", (*xptr)->tag->name);
+				break;
+			}
+		}
+		
+		if (!lastlongdecl) {
+			nocc_warning ("mcsp_parser_fetrans(): did not find a long declaration..");
+			err = 1;
+		} else {
+			/*{{{  do the hard work*/
+			tnode_t *xdeclnode, *xparams, *xvardecls, *xiseq, *xiargs, *xscreenname;
+			tnode_t *realparams = tnode_nthsubof (lastlongdecl, 1);
+			tnode_t *realname = tnode_nthsubof (lastlongdecl, 0);
+			tnode_t **rplist;
+			int nrpitems, i;
+
+			rplist = parser_getlistitems (realparams, &nrpitems);
+#if 0
+fprintf (stderr, "mcsp_parser_fetrans(): wanting to build environment, %d realparams =\n", nrpitems);
+tnode_dumptree (realparams, 1, stderr);
+#endif
+
+			/*{{{  build VARDECLs for parameters*/
+			xiseq = tnode_create (mcsp.tag_SEQCODE, NULL, NULL, parser_newlistnode (NULL), NULL);
+			xvardecls = xiseq;
+			xiargs = parser_newlistnode (NULL);
+			for (i=0; i<nrpitems; i++) {
+				tnode_t *namenode = tnode_nthsubof (rplist[i], 0);
+				name_t *pname = tnode_nthnameof (namenode, 0);
+				tnode_t *xnamenode;
+				name_t *xname;
+
+				xname = name_addname (NameNameOf (pname), NULL, NameTypeOf (pname), NULL);
+				xnamenode = tnode_create (mcsp.tag_EVENT, NULL, xname);
+				SetNameNode (xname, xnamenode);
+				xvardecls = tnode_create (mcsp.tag_VARDECL, NULL, xnamenode, NULL, xvardecls);
+				SetNameDecl (xname, xvardecls);
+
+				/* also add namenodes to a list we'll use for params later */
+				parser_addtolist (xiargs, xnamenode);
+			}
+
+			/*}}}*/
+#if 0
+fprintf (stderr, "mcsp_parser_fetrans(): built xvardecls =\n");
+tnode_dumptree (xvardecls, 1, stderr);
+#endif
+			/*{{{  build the top-level parameter list*/
+			{
+				tnode_t *xnamenode, *fparam;
+				name_t *xname;
+
+				xname = name_addname ("screenchannel", NULL, NULL, NULL);
+				xnamenode = tnode_create (mcsp.tag_CHAN, NULL, xname);
+				xscreenname = xnamenode;
+				SetNameNode (xname, xnamenode);
+				fparam = tnode_create (mcsp.tag_FPARAM, NULL, xnamenode);
+				SetNameDecl (xname, fparam);
+
+				xparams = parser_newlistnode (NULL);
+				parser_addtolist (xparams, fparam);
+			}
+			/*}}}*/
+			/*{{{  build the top-level XPROCDECL*/
+			{
+				name_t *pname = tnode_nthnameof (realname, 0);
+				name_t *xname;
+				tnode_t *xnamenode;
+				char *nbuf;
+				
+				nbuf = (char *)smalloc (strlen (NameNameOf (pname)) + 8);
+				sprintf (nbuf, "MCSP$%s", NameNameOf (pname));
+				xname = name_addname (nbuf, NULL, xparams, NULL);
+				sfree (nbuf);
+				xnamenode = tnode_create (mcsp.tag_PROCDEF, NULL, xname);
+				SetNameNode (xname, xnamenode);
+
+				xdeclnode = tnode_create (mcsp.tag_XPROCDECL, NULL, xnamenode, xparams, xvardecls, NULL);
+				SetNameDecl (xname, xdeclnode);
+			}
+			/*}}}*/
+#if 0
+fprintf (stderr, "mcsp_parser_fetrans(): built xdeclnode =\n");
+tnode_dumptree (xdeclnode, 1, stderr);
+#endif
+			/*{{{  fudge in a descriptor line*/
+			{
+				name_t *pname = tnode_nthnameof (realname, 0);
+				char *dbuf = (char *)smalloc (strlen (NameNameOf (pname)) + 128);
+				chook_t *deschook = tnode_lookupchookbyname ("fetrans:descriptor");
+
+				sprintf (dbuf, "PROC MCSP$%s (CHAN! BYTE screen)", NameNameOf (pname));
+				tnode_setchook (xdeclnode, deschook, dbuf);
+			}
+			/*}}}*/
+			/*{{{  park it..*/
+			*xptr = xdeclnode;
+
+			/*}}}*/
+			/*{{{  create main process body and add*/
+			{
+				tnode_t *xinstance;		/* of "realname" */
+				tnode_t *xalt;
+				tnode_t *xparnode, *xparlist;
+
+				xinstance = tnode_create (mcsp.tag_INSTANCE, NULL, realname, xiargs);
+				/*{{{  build "xalt"*/
+				{
+					tnode_t *guardlist = parser_newlistnode (NULL);
+					tnode_t **xitems;
+					int nxitems, i;
+
+					xalt = tnode_create (mcsp.tag_ALT, NULL, guardlist, NULL);
+					xitems = parser_getlistitems (xiargs, &nxitems);
+
+					for (i=0; i<nxitems; i++) {
+						tnode_t *gproc = tnode_create (mcsp.tag_CHANWRITE, NULL, xscreenname, xitems[i]);
+						tnode_t *guard;
+
+						guard = tnode_create (mcsp.tag_GUARD, NULL, xitems[i], gproc);
+
+						parser_addtolist (guardlist, guard);
+					}
+
+					xalt = tnode_create (mcsp.tag_ILOOP, NULL, xalt, NULL);
+				}
+				/*}}}*/
+
+				xparlist = parser_buildlistnode (NULL, xinstance, xalt, NULL);
+				xparnode = tnode_create (mcsp.tag_PARCODE, NULL, NULL, xparlist, NULL);
+				xparnode = tnode_create (mcsp.tag_PRIDROP, NULL, xparnode, NULL);
+
+
+				parser_addtolist (tnode_nthsubof (xiseq, 1), xparnode);
+			}
+			/*}}}*/
+			/*}}}*/
+		}
 		/*}}}*/
 	}
+
+	/* do a 3rd pass to get PARCODE events */
+	mfe->parse = 2;
+	mfe->curalpha = NULL;
+	fetrans_subtree (tptr, fe);
+
+	sfree (mfe);
 
 	return err;
 }

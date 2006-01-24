@@ -767,6 +767,7 @@ static int occampi_codegen_procdecl (tnode_t *node, codegen_t *cgen)
 	codegen_callops (cgen, setvssize, vs_size);
 	codegen_callops (cgen, setmssize, ms_size);
 	codegen_callops (cgen, setnamelabel, pname);
+	codegen_callops (cgen, procnameentry, pname);
 	codegen_callops (cgen, debugline, node);
 
 	/* adjust workspace and generate code for body */

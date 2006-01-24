@@ -84,7 +84,10 @@ typedef enum ENUM_transinstr {
 	I_MTCLONE = 65,
 	I_MWENB = 66,
 	I_MWDIS = 67,
-	I_MWSYNC = 68
+	I_MWALTWT = 68,
+	I_MWTALTWT = 69,
+	I_MWALT = 70,
+	I_MWALTEND = 71
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {

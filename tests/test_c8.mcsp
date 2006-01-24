@@ -1,0 +1,6 @@
+# test_c8.mcsp
+
+WIBBLE(x) ::= x -> y -> SKIP
+
+SYSTEM ::= a -> b -> b -> a -> ((a -> SKIP) || WIBBLE (b))
+

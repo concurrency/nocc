@@ -242,6 +242,252 @@ static void mcsp_constnode_hook_dumptree (tnode_t *node, void *hook, int indent,
 }
 /*}}}*/
 
+/*{{{  static mcsp_alpha_t *mcsp_newalpha (void)*/
+/*
+ *	creates an empty mcsp_alpha_t structure
+ */
+static mcsp_alpha_t *mcsp_newalpha (void)
+{
+	mcsp_alpha_t *alpha = (mcsp_alpha_t *)smalloc (sizeof (mcsp_alpha_t));
+
+	alpha->elist = parser_newlistnode (NULL);
+	return alpha;
+}
+/*}}}*/
+/*{{{  static void mcsp_addtoalpha (mcsp_alpha_t *alpha, tnode_t *event)*/
+/*
+ *	adds an event to an mcsp_alpha_t hook
+ */
+static void mcsp_addtoalpha (mcsp_alpha_t *alpha, tnode_t *event)
+{
+	tnode_t **items;
+	int nitems, i;
+
+	if (!alpha) {
+		nocc_internal ("mcsp_addtoalpha(): NULL alphabet!");
+		return;
+	}
+	if (!event) {
+		return;
+	}
+
+	items = parser_getlistitems (alpha->elist, &nitems);
+	for (i=0; i<nitems; i++) {
+		if (items[i] == event) {
+			/* already here */
+			return;
+		}
+	}
+	parser_addtolist (alpha->elist, event);
+	return;
+}
+/*}}}*/
+/*{{{  static void mcsp_mergealpha (mcsp_alpha_t *alpha, mcsp_alpha_t *others)*/
+/*
+ *	merges one alphabet into another
+ */
+static void mcsp_mergealpha (mcsp_alpha_t *alpha, mcsp_alpha_t *others)
+{
+	tnode_t **items;
+	int nitems, i;
+
+	if (!alpha) {
+		nocc_internal ("mcsp_mergealpha(): NULL alphabet!");
+		return;
+	}
+	if (!others) {
+		return;
+	}
+
+	items = parser_getlistitems (others->elist, &nitems);
+	for (i=0; i<nitems; i++) {
+		mcsp_addtoalpha (alpha, items[i]);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void mcsp_mergeifalpha (mcsp_alpha_t *alpha, tnode_t *node)*/
+/*
+ *	merges alphabet from a node into another alphabet
+ *	(checks to see that the given node has one first!)
+ */
+static void mcsp_mergeifalpha (mcsp_alpha_t *alpha, tnode_t *node)
+{
+	if ((node->tag->ndef == mcsp.node_DOPNODE) || (node->tag->ndef == mcsp.node_SNODE) || (node->tag->ndef == mcsp.node_CNODE)) {
+		mcsp_alpha_t *other = (mcsp_alpha_t *)tnode_nthhookof (node, 0);
+
+		if (other) {
+			mcsp_mergealpha (alpha, other);
+		}
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void mcsp_freealpha (mcsp_alpha_t *alpha)*/
+/*
+ *	frees an mcsp_alpha_t
+ */
+static void mcsp_freealpha (mcsp_alpha_t *alpha)
+{
+	if (alpha) {
+		/* the list is of references */
+		tnode_t **events;
+		int nevents, i;
+
+		events = parser_getlistitems (alpha->elist, &nevents);
+		for (i=0; i<nevents; i++) {
+			events[i] = NULL;
+		}
+		tnode_free (alpha->elist);
+		alpha->elist = NULL;
+
+		sfree (alpha);
+	} else {
+		nocc_warning ("mcsp_freealpha(): tried to free NULL!");
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static int mcsp_cmpalphaentry (tnode_t *t1, tnode_t *t2)*/
+/*
+ *	compares two alphabet entries when sorting
+ */
+static int mcsp_cmpalphaentry (tnode_t *t1, tnode_t *t2)
+{
+	if ((t1->tag != mcsp.tag_EVENT) || (t2->tag != mcsp.tag_EVENT)) {
+		nocc_warning ("mcsp_cmpalphaentry(): non-event in alphabet");
+	}
+
+	if ((t1->tag != mcsp.tag_EVENT) && (t2->tag != mcsp.tag_EVENT)) {
+		return 0;
+	} else if (t1->tag != mcsp.tag_EVENT) {
+		return -1;
+	} else if (t2->tag != mcsp.tag_EVENT) {
+		return 1;
+	}
+	if (t1 == t2) {
+		return 0;
+	}
+	return strcmp (NameNameOf (tnode_nthnameof (t1, 0)), NameNameOf (tnode_nthnameof (t2, 0)));
+}
+/*}}}*/
+/*{{{  static void mcsp_sortandmergealpha (mcsp_alpha_t *a1, mcsp_alpha_t *a2, mcsp_alpha_t *isect, mcsp_alpha_t *diff)*/
+/*
+ *	sorts two alphabets and merges them.  "isect" gets ("a1" intersect "a2"),
+ *	"diff" gets (("a1" union "a2") - ("a1" intersect "a2"))
+ */
+static void mcsp_sortandmergealpha (mcsp_alpha_t *a1, mcsp_alpha_t *a2, mcsp_alpha_t *isect, mcsp_alpha_t *diff)
+{
+	tnode_t **a1items, **a2items;
+	int a1n, a2n;
+	int a1i, a2i;
+
+#if 0
+fprintf (stderr, "mcsp_sortandmergealpha():\na1 = \n");
+mcsp.node_CNODE->hook_dumptree (NULL, (void *)a1, 1, stderr);
+fprintf (stderr, "mcsp_sortandmergealpha():\na2 = \n");
+mcsp.node_CNODE->hook_dumptree (NULL, (void *)a2, 1, stderr);
+#endif
+	parser_sortlist (a1->elist, mcsp_cmpalphaentry);
+	parser_sortlist (a2->elist, mcsp_cmpalphaentry);
+#if 0
+fprintf (stderr, "mcsp_sortandmergealpha(): here!\n");
+#endif
+
+	a1items = parser_getlistitems (a1->elist, &a1n);
+	a2items = parser_getlistitems (a2->elist, &a2n);
+
+	for (a1i = a2i = 0; (a1i < a1n) && (a2i < a2n); ) {
+		tnode_t *a1item = a1items[a1i];
+		tnode_t *a2item = a2items[a2i];
+		int r;
+
+		r = mcsp_cmpalphaentry (a1item, a2item);
+		if (r == 0) {
+			/* same, add to intersections */
+			if (isect) {
+				mcsp_addtoalpha (isect, a1item);
+			}
+			a1i++;
+			a2i++;
+		} else if (r < 0) {
+			/* in a1, not in a2, add to differences */
+			if (diff) {
+				mcsp_addtoalpha (diff, a1item);
+			}
+			a1i++;
+		} else {
+			/* in a2, not in a1, add to differences */
+			if (diff) {
+				mcsp_addtoalpha (diff, a2item);
+			}
+			a2i++;
+		}
+	}
+	return;
+}
+/*}}}*/
+
+/*{{{  static void mcsp_alpha_hook_free (void *hook)*/
+/*
+ *	frees an alpha hook (mcsp_alpha_t)
+ */
+static void mcsp_alpha_hook_free (void *hook)
+{
+	mcsp_alpha_t *alpha = (mcsp_alpha_t *)hook;
+
+	if (alpha) {
+		mcsp_freealpha (alpha);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void *mcsp_alpha_hook_copy (void *hook)*/
+/*
+ *	copies an alpha hook (mcsp_alpha_t)
+ */
+static void *mcsp_alpha_hook_copy (void *hook)
+{
+	mcsp_alpha_t *alpha = (mcsp_alpha_t *)hook;
+	mcsp_alpha_t *nalpha;
+	tnode_t **items;
+	int nitems, i;
+
+	if (!alpha) {
+		return NULL;
+	}
+	nalpha = mcsp_newalpha ();
+
+	items = parser_getlistitems (alpha->elist, &nitems);
+	for (i=0; i<nitems; i++) {
+		if (items[i]) {
+			parser_addtolist (nalpha->elist, items[i]);
+		}
+	}
+	
+	return nalpha;
+}
+/*}}}*/
+/*{{{  static void mcsp_alpha_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps an alpha hook (debugging)
+ */
+static void mcsp_alpha_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	mcsp_alpha_t *alpha = (mcsp_alpha_t *)hook;
+	
+	if (alpha) {
+		mcsp_isetindent (stream, indent);
+		fprintf (stream, "<mcsp:alphahook addr=\"0x%8.8x\">\n", (unsigned int)alpha);
+		tnode_dumptree (alpha->elist, indent + 1, stream);
+		mcsp_isetindent (stream, indent);
+		fprintf (stream, "</mcsp:alphahook>\n");
+	}
+	return;
+}
+/*}}}*/
+
+
 /*{{{  static int mcsp_scopein_rawname (tnode_t **node, scope_t *ss)*/
 /*
  *	scopes in a free-floating name
@@ -324,6 +570,8 @@ static int mcsp_checkisevent (tnode_t *node)
 {
 	if (node->tag == mcsp.tag_EVENT) {
 		return 1;
+	} else if (node->tag == mcsp.tag_CHAN) {
+		return 1;
 	} else if (node->tag == mcsp.tag_SUBEVENT) {
 		return 1;
 	}
@@ -344,6 +592,8 @@ static int mcsp_checkisprocess (tnode_t *node)
 		return 1;
 	} else if (node->tag->ndef == mcsp.node_LEAFPROC) {
 		return 1;
+	} else if (node->tag == mcsp.tag_INSTANCE) {
+		return 1;
 	}
 	return 0;
 }
@@ -362,6 +612,7 @@ static int mcsp_checkisexpr (tnode_t *node)
 	return 0;
 }
 /*}}}*/
+
 /*{{{  static int mcsp_typecheck_dopnode (tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking on a dop-node
@@ -397,6 +648,18 @@ static int mcsp_typecheck_dopnode (tnode_t *node, typecheck_t *tc)
 		}
 		/*}}}*/
 	}
+
+	/* deal with -> collection here */
+	if (node->tag == mcsp.tag_THEN) {
+		tnode_t *event = tnode_nthsubof (node, 0);
+		mcsp_alpha_t **alphap = (mcsp_alpha_t **)tnode_nthhookaddr (node, 0);
+
+		if (!*alphap) {
+			*alphap = mcsp_newalpha ();
+		}
+		mcsp_addtoalpha (*alphap, event);
+	}
+
 	return 1;
 }
 /*}}}*/
@@ -421,27 +684,41 @@ static int mcsp_fetrans_dopnode (tnode_t **node, fetrans_t *fe)
 
 			if ((*lhsp)->tag == mcsp.tag_THEN) {
 				tnode_t *event = tnode_nthsubof (*lhsp, 0);
+				tnode_t *process = tnode_nthsubof (*lhsp, 1);
 				tnode_t *guard;
 
 				if (event->tag == mcsp.tag_SUBEVENT) {
 					/* sub-event, just pick LHS */
 					event = tnode_nthsubof (*lhsp, 0);
 				}
-				*lhsp = tnode_create (mcsp.tag_GUARD, NULL, event, *lhsp);
+				guard = tnode_create (mcsp.tag_GUARD, NULL, event, process);
+
+				tnode_setnthsub (*lhsp, 0, NULL);
+				tnode_setnthsub (*lhsp, 1, NULL);
+				tnode_free (*lhsp);
+
+				*lhsp = guard;
 			}
 			if ((*rhsp)->tag == mcsp.tag_THEN) {
 				tnode_t *event = tnode_nthsubof (*rhsp, 0);
+				tnode_t *process = tnode_nthsubof (*rhsp, 1);
 				tnode_t *guard;
 
 				if (event->tag == mcsp.tag_SUBEVENT) {
 					/* sub-event, just pick LHS */
 					event = tnode_nthsubof (*rhsp, 0);
 				}
-				*rhsp = tnode_create (mcsp.tag_GUARD, NULL, event, *rhsp);
+				guard = tnode_create (mcsp.tag_GUARD, NULL, event, process);
+
+				tnode_setnthsub (*rhsp, 0, NULL);
+				tnode_setnthsub (*rhsp, 1, NULL);
+				tnode_free (*rhsp);
+
+				*rhsp = guard;
 			}
 
 			list = parser_buildlistnode (NULL, *lhsp, *rhsp, NULL);
-			altnode = tnode_create (mcsp.tag_ALT, NULL, list);
+			altnode = tnode_create (mcsp.tag_ALT, NULL, list, NULL);
 
 			tnode_setnthsub (*node, 0, NULL);
 			tnode_setnthsub (*node, 1, NULL);
@@ -465,13 +742,43 @@ static int mcsp_fetrans_dopnode (tnode_t **node, fetrans_t *fe)
 
 			/* add final process, left in *node */
 			parser_addtolist (list, *node);
-			list = tnode_create (mcsp.tag_SEQCODE, NULL, list);
+			list = tnode_create (mcsp.tag_SEQCODE, NULL, NULL, list, NULL);
 
 #if 0
 fprintf (stderr, "mcsp_fetrans_dopnode(): list is now:\n");
 tnode_dumptree (list, 1, stderr);
 #endif
 			*node = list;
+			/*}}}*/
+		} else if (t->tag == mcsp.tag_PAR) {
+			/*{{{  parallel: scoop up and build PARCODE*/
+			tnode_t *list, *parnode;
+			tnode_t *lhs = tnode_nthsubof (t, 0);
+			tnode_t *rhs = tnode_nthsubof (t, 1);
+
+			list = parser_buildlistnode (NULL, lhs, rhs, NULL);
+			parnode = tnode_create (mcsp.tag_PARCODE, NULL, NULL, list, NULL);
+
+			tnode_setnthsub (t, 0, NULL);
+			tnode_setnthsub (t, 1, NULL);
+			tnode_free (t);
+
+			*node = parnode;
+			/*}}}*/
+		} else if (t->tag == mcsp.tag_SEQ) {
+			/*{{{  serial: scoop up and build SEQCODE*/
+			tnode_t *list, *seqnode;
+			tnode_t *lhs = tnode_nthsubof (t, 0);
+			tnode_t *rhs = tnode_nthsubof (t, 1);
+
+			list = parser_buildlistnode (NULL, lhs, rhs, NULL);
+			seqnode = tnode_create (mcsp.tag_SEQCODE, NULL, NULL, list, NULL);
+
+			tnode_setnthsub (t, 0, NULL);
+			tnode_setnthsub (t, 1, NULL);
+			tnode_free (t);
+
+			*node = seqnode;
 			/*}}}*/
 		}
 		break;
@@ -481,6 +788,111 @@ tnode_dumptree (list, 1, stderr);
 }
 /*}}}*/
 
+/*{{{  static int mcsp_scopenode_checktail_walktree (tnode_t *node, void *arg)*/
+/*
+ *	checks that all tail nodes of the given tree are instances of itself,
+ *	used to turn FIXPOINTs into ILOOPs (tail-recursion only)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_scopenode_checktail_walktree (tnode_t *node, void *arg)
+{
+	tnode_t **tmpnodes = (tnode_t **)arg;
+
+	if (!node) {
+		nocc_internal ("mcsp_scopenode_checktail(): null node!");
+		return 0;
+	}
+	if (node->tag == mcsp.tag_INSTANCE) {
+		if (tnode_nthsubof (node, 0) != tmpnodes[1]) {
+			tmpnodes[0] = (tnode_t *)0;			/* instance of something else */
+		}
+		return 0;
+	} else if (node->tag == mcsp.tag_SEQCODE) {
+		tnode_t **items;
+		int nitems;
+
+		items = parser_getlistitems (tnode_nthsubof (node, 1), &nitems);
+		if (nitems > 0) {
+			tnode_prewalktree (items[nitems - 1], mcsp_scopenode_checktail_walktree, arg);
+		} else {
+			tmpnodes[0] = (tnode_t *)0;			/* empty SEQ */
+		}
+		return 0;
+	} else if (node->tag == mcsp.tag_ALT) {
+		tnode_t **items;
+		int nitems, i;
+
+		items = parser_getlistitems (tnode_nthsubof (node, 0), &nitems);
+		for (i=0; i<nitems; i++) {
+			if (items[i]->tag == mcsp.tag_GUARD) {
+				tnode_prewalktree (tnode_nthsubof (items[i], 1), mcsp_scopenode_checktail_walktree, arg);
+			}
+			if (tmpnodes[0] == (tnode_t *)0) {
+				/* early getout */
+				return 0;
+			}
+		}
+		return 0;
+	} else if (node->tag == mcsp.tag_PAR) {
+		tmpnodes[0] = (tnode_t *)0;				/* PAR makes things complex */
+		return 0;
+	} else if (node->tag == mcsp.tag_THEN) {
+		/* shouldn't really see this after fetrans */
+		nocc_warning ("mcsp_scopenode_checktail(): found unexpected [%s]", node->tag->name);
+
+		tnode_prewalktree (tnode_nthsubof (node, 1), mcsp_scopenode_checktail_walktree, arg);
+		return 0;
+	}
+
+	/* otherwise assume that it's not a tail instance */
+	tmpnodes[0] = (tnode_t *)0;
+	return 0;
+}
+/*}}}*/
+/*{{{  static int mcsp_scopenode_rminstancetail_modwalktree (tnode_t **nodep, void *arg)*/
+/*
+ *	removes tail instance nodes, used to turn FIXPOINTs into ILOOPs (tail-recursion only)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_scopenode_rminstancetail_modwalktree (tnode_t **nodep, void *arg)
+{
+	tnode_t *iname = (tnode_t *)arg;
+	tnode_t *node = *nodep;
+
+	if (!node || !iname) {
+		nocc_internal ("mcsp_scopenode_rminstancetail(): null node or instance-name!");
+		return 0;
+	}
+	if (node->tag == mcsp.tag_INSTANCE) {
+		/* turn into SKIP */
+		*nodep = tnode_create (mcsp.tag_SKIP, NULL);
+	} else if (node->tag == mcsp.tag_SEQCODE) {
+		tnode_t **items;
+		int nitems;
+
+		items = parser_getlistitems (tnode_nthsubof (node, 1), &nitems);
+		if (nitems > 0) {
+			tnode_modprewalktree (&items[nitems - 1], mcsp_scopenode_rminstancetail_modwalktree, arg);
+		}
+		return 0;
+	} else if (node->tag == mcsp.tag_ALT) {
+		tnode_t **items;
+		int nitems, i;
+
+		items = parser_getlistitems (tnode_nthsubof (node, 0), &nitems);
+		for (i=0; i<nitems; i++) {
+			if (items[i]->tag == mcsp.tag_GUARD) {
+				tnode_modprewalktree (tnode_nthsubaddr (items[i], 1), mcsp_scopenode_rminstancetail_modwalktree, arg);
+			}
+		}
+		return 0;
+	} else if (node->tag == mcsp.tag_THEN) {
+		tnode_modprewalktree (tnode_nthsubaddr (node, 1), mcsp_scopenode_rminstancetail_modwalktree, arg);
+		return 0;
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int mcsp_prescope_scopenode (tnode_t **node, prescope_t *ps)*/
 /*
  *	does pre-scoping on an MCSP scope node (ensures vars are a list)
@@ -514,11 +926,13 @@ static int mcsp_scopein_scopenode (tnode_t **node, scope_t *ss)
 	tnode_t **varlist;
 	int nvars, i;
 	ntdef_t *xtag;
+	tnode_t *ntype = NULL;
 
 	if ((*node)->tag == mcsp.tag_HIDE) {
 		xtag = mcsp.tag_EVENT;
 	} else if ((*node)->tag == mcsp.tag_FIXPOINT) {
 		xtag = mcsp.tag_PROCDEF;
+		ntype = parser_newlistnode (NULL);
 	} else {
 		scope_error (*node, ss, "mcsp_scopein_scopename(): can't scope [%s] ?", (*node)->tag->name);
 		return 1;
@@ -544,7 +958,7 @@ tnode_dumptree (name, 1, stderr);
 #endif
 		rawname = (char *)tnode_nthhookof (name, 0);
 
-		sname = name_addscopename (rawname, *node, NULL, NULL);
+		sname = name_addscopename (rawname, *node, ntype, NULL);
 		newname = tnode_createfrom (xtag, name, sname);
 		SetNameNode (sname, newname);
 		varlist[i] = newname;		/* put new name in list */
@@ -615,11 +1029,46 @@ static int mcsp_fetrans_scopenode (tnode_t **node, fetrans_t *fe)
 			/*}}}*/
 		}
 		break;
+	case 2:
+		if (t->tag == mcsp.tag_FIXPOINT) {
+			/*{{{  see if we have tail-call recursion only*/
+			tnode_t *tmpnodes[2];
+
+			/* walk body first */
+			fetrans_subtree (tnode_nthsubaddr (t, 1), fe);
+
+			tmpnodes[0] = (tnode_t *)1;
+			tmpnodes[1] = tnode_nthsubof (t, 0);		/* this instance */
+
+			if (parser_islistnode (tmpnodes[1])) {
+				tmpnodes[1] = parser_getfromlist (tmpnodes[1], 0);
+			}
+			tnode_prewalktree (tnode_nthsubof (t, 1), mcsp_scopenode_checktail_walktree, (void *)tmpnodes);
+
+			if (tmpnodes[0] == (tnode_t *)1) {
+				/* means we can turn it into a loop :) */
+				tnode_modprewalktree (tnode_nthsubaddr (t, 1), mcsp_scopenode_rminstancetail_modwalktree, (void *)tmpnodes[1]);
+
+				tnode_free (tnode_nthsubof (t, 0));
+				tnode_setnthsub (t, 0, NULL);
+
+				*node = tnode_create (mcsp.tag_ILOOP, NULL, tnode_nthsubof (t, 1), NULL);
+				tnode_setnthsub (t, 1, NULL);
+
+				tnode_free (t);
+			}
+
+			return 0;
+			/*}}}*/
+		}
+		break;
 	}
 
 	return 1;
 }
 /*}}}*/
+
+
 
 /*{{{  static int mcsp_prescope_declnode (tnode_t **node, prescope_t *ps)*/
 /*
@@ -792,6 +1241,27 @@ static int mcsp_namemap_declnode (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int mcsp_precode_declnode (tnode_t **node, codegen_t *cgen)*/
+/*
+ *	does pre-code on a process declaration node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_precode_declnode (tnode_t **node, codegen_t *cgen)
+{
+	tnode_t *t = *node;
+	tnode_t *name = tnode_nthsubof (t, 0);
+
+	/* walk body */
+	codegen_subprecode (tnode_nthsubaddr (t, 2), cgen);
+
+	codegen_precode_seenproc (cgen, tnode_nthnameof (name, 0), t);
+
+	/* pre-code stuff following declaration */
+	codegen_subprecode (tnode_nthsubaddr (t, 3), cgen);
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int mcsp_codegen_declnode (tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a process definition
@@ -811,6 +1281,7 @@ static int mcsp_codegen_declnode (tnode_t *node, codegen_t *cgen)
 	codegen_callops (cgen, setvssize, 0);
 	codegen_callops (cgen, setmssize, 0);
 	codegen_callops (cgen, setnamelabel, pname);
+	codegen_callops (cgen, procnameentry, pname);
 	codegen_callops (cgen, debugline, node);
 
 	/* generate body */
@@ -899,7 +1370,491 @@ static int mcsp_namemap_namenode (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
+/*{{{  static void mcsp_namenode_initevent (tnode_t *node, codegen_t *cgen, void *arg)*/
+/*
+ *	generates code to initialise an EVENT
+ */
+static void mcsp_namenode_initevent (tnode_t *node, codegen_t *cgen, void *arg)
+{
+	int ws_offs;
 
+	cgen->target->be_getoffsets (node, &ws_offs, NULL, NULL, NULL);
+	/* FIXME: this needs tidying */
+	codegen_callops (cgen, loadconst, 5 * cgen->target->slotsize);
+	codegen_callops (cgen, tsecondary, I_MALLOC);
+	codegen_callops (cgen, storelocal, ws_offs);
+
+	/* initialise */
+	codegen_callops (cgen, loadconst, 1);
+	codegen_callops (cgen, loadlocal, ws_offs);
+	codegen_callops (cgen, storenonlocal, 0);		/* ref-count */
+
+	codegen_callops (cgen, loadconst, 1);
+	codegen_callops (cgen, loadlocal, ws_offs);
+	codegen_callops (cgen, storenonlocal, 4);		/* enrolled-count */
+
+	codegen_callops (cgen, loadconst, 1);
+	codegen_callops (cgen, loadlocal, ws_offs);
+	codegen_callops (cgen, storenonlocal, 8);		/* count-down */
+
+	codegen_callops (cgen, tsecondary, I_NULL);
+	codegen_callops (cgen, loadlocal, ws_offs);
+	codegen_callops (cgen, storenonlocal, 12);		/* fptr */
+
+	codegen_callops (cgen, tsecondary, I_NULL);
+	codegen_callops (cgen, loadlocal, ws_offs);
+	codegen_callops (cgen, storenonlocal, 16);		/* bptr */
+
+	return;
+}
+/*}}}*/
+/*{{{  static void mcsp_namenode_finalevent (tnode_t *node, codegen_t *cgen, void *arg)*/
+/*
+ *	generates code to destroy an EVENT
+ */
+static void mcsp_namenode_finalevent (tnode_t *node, codegen_t *cgen, void *arg)
+{
+	int ws_offs;
+
+	cgen->target->be_getoffsets (node, &ws_offs, NULL, NULL, NULL);
+
+	codegen_callops (cgen, loadlocal, ws_offs);
+	codegen_callops (cgen, tsecondary, I_MRELEASE);
+	codegen_callops (cgen, tsecondary, I_NULL);
+	codegen_callops (cgen, storelocal, ws_offs);
+
+	return;
+}
+/*}}}*/
+/*{{{  static int mcsp_namenode_initialising_decl (tnode_t *node, tnode_t *bename, map_t *map)*/
+/*
+ *	used to initialise EVENTs
+ */
+static int mcsp_namenode_initialising_decl (tnode_t *node, tnode_t *bename, map_t *map)
+{
+	if (node->tag == mcsp.tag_EVENT) {
+		codegen_setinithook (bename, mcsp_namenode_initevent, (void *)node);
+		codegen_setfinalhook (bename, mcsp_namenode_finalevent, (void *)node);
+	}
+	return 0;
+}
+/*}}}*/
+
+/*{{{  static int mcsp_fetrans_cnode (tnode_t **node, fetrans_t *fe)*/
+/*
+ *	does front-end transforms on SEQ/PAR nodes (pass 1+ only)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_fetrans_cnode (tnode_t **node, fetrans_t *fe)
+{
+	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
+	tnode_t *t = *node;
+
+	switch (mfe->parse) {
+	case 0:
+		/* nothing in this pass! */
+		break;
+	case 1:
+		if (t->tag == mcsp.tag_SEQCODE) {
+			/*{{{  flatten SEQCODEs*/
+			tnode_t *slist = tnode_nthsubof (t, 1);
+			tnode_t **procs;
+			int nprocs, i;
+			tnode_t *newlist = parser_newlistnode (NULL);
+
+			procs = parser_getlistitems (slist, &nprocs);
+			for (i=0; i<nprocs; i++) {
+				if (procs[i] && (procs[i]->tag == mcsp.tag_SEQCODE)) {
+					tnode_t *xslist;
+					tnode_t **xprocs;
+					int nxprocs, j;
+
+					/* flatten */
+					fetrans_subtree (&procs[i], fe);
+
+					xslist = tnode_nthsubof (procs[i], 1);
+					xprocs = parser_getlistitems (xslist, &nxprocs);
+					for (j=0; j<nxprocs; j++) {
+						parser_addtolist (newlist, xprocs[j]);
+						xprocs[j] = NULL;
+					}
+
+					/* assume we got them all */
+					tnode_free (procs[i]);
+					procs[i] = NULL;
+				} else {
+					/* move over to new list after sub-fetrans (preserves order) */
+					fetrans_subtree (&procs[i], fe);
+
+					parser_addtolist (newlist, procs[i]);
+					procs[i] = NULL;
+				}
+			}
+
+			/* park new list and free old */
+			tnode_setnthsub (t, 1, newlist);
+			tnode_free (slist);
+
+			return 0;
+			/*}}}*/
+		}
+		break;
+	case 2:
+		if (t->tag == mcsp.tag_PARCODE) {
+			/*{{{  build the alphabet for this node, store unbound ones in parent*/
+			mcsp_alpha_t *savedalpha = mfe->curalpha;
+			mcsp_alpha_t *a_lhs, *a_rhs;
+			mcsp_alpha_t *paralpha;
+			tnode_t **subnodes;
+			int nsnodes;
+
+			/* always two subtrees */
+			subnodes = parser_getlistitems (tnode_nthsubof (t, 1), &nsnodes);
+			if (nsnodes != 2) {
+				nocc_internal ("mcsp_fetrans_dopnode(): pass2 for PARCODE: have %d items", nsnodes);
+				return 0;
+			}
+
+			mfe->curalpha = mcsp_newalpha ();
+			fetrans_subtree (&subnodes[0], fe);
+			a_lhs = mfe->curalpha;
+
+			mfe->curalpha = mcsp_newalpha ();
+			fetrans_subtree (&subnodes[1], fe);
+			a_rhs = mfe->curalpha;
+
+			mfe->curalpha = savedalpha;
+			paralpha = mcsp_newalpha ();
+
+			mcsp_sortandmergealpha (a_lhs, a_rhs, paralpha, mfe->curalpha);
+
+			mcsp_freealpha (a_lhs);
+			mcsp_freealpha (a_rhs);
+
+			tnode_setnthhook (t, 0, (void *)paralpha);
+			return 0;
+			/*}}}*/
+		}
+		break;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_namemap_cnode (tnode_t **node, map_t *map)*/
+/*
+ *	does mapping for a constructor node (SEQ/PAR)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_namemap_cnode (tnode_t **node, map_t *map)
+{
+	if ((*node)->tag == mcsp.tag_SEQCODE) {
+		/* nothing special */
+		return 1;
+	} else if ((*node)->tag == mcsp.tag_PARCODE) {
+		/*{{{  map PAR bodies*/
+		tnode_t *body = tnode_nthsubof (*node, 1);
+		tnode_t **bodies;
+		int nbodies, i;
+		tnode_t *parnode = *node;
+		mcsp_alpha_t *alpha = (mcsp_alpha_t *)tnode_nthhookof (*node, 0);		/* events the _two_ processes synchronise on */
+
+		if (!parser_islistnode (body)) {
+			nocc_internal ("mcsp_namemap_cnode(): body of PARCODE not list");
+			return 1;
+		}
+
+		/* if we have an alphabet, map these first (done in PAR context) */
+		if (alpha) {
+			map_submapnames (&(alpha->elist), map);
+#if 0
+fprintf (stderr, "mcsp_namemap_cnode(): mapped alphabet, got list:\n");
+tnode_dumptree (alpha->elist, 1, stderr);
+#endif
+		}
+
+		bodies = parser_getlistitems (body, &nbodies);
+		for (i=0; i<nbodies; i++) {
+			/*{{{  turn body into back-end block*/
+			tnode_t *blk, *parbodyspace;
+			tnode_t *saved_blk = map->thisblock;
+			tnode_t **saved_params = map->thisprocparams;
+
+			blk = map->target->newblock (bodies[i], map, NULL, map->lexlevel + 1);
+			map->thisblock = blk;
+			map->thisprocparams = NULL;
+			map->lexlevel++;
+
+			/* map body */
+			map_submapnames (&(bodies[i]), map);
+			parbodyspace = map->target->newname (tnode_create (mcsp.tag_PARSPACE, NULL), bodies[i], map, 0, 16, 0, 0, 0, 0);	/* FIXME! */
+			*(map->target->be_blockbodyaddr (blk)) = parbodyspace;
+
+			map->lexlevel--;
+			map->thisblock = saved_blk;
+			map->thisprocparams = saved_params;
+
+			/* make block node the individual PAR process */
+			bodies[i] = blk;
+			/*}}}*/
+		}
+
+		if (nbodies > 1) {
+			/*{{{  make space for PAR*/
+			tnode_t *bename, *bodyref, *blist;
+			tnode_t *fename = tnode_create (mcsp.tag_PARSPACE, NULL);
+
+			blist = parser_newlistnode (NULL);
+			for (i=0; i<nbodies; i++) {
+				parser_addtolist (blist, bodies[i]);
+			}
+			bodyref = map->target->newblockref (blist, *node, map);
+			bename = map->target->newname (fename, bodyref, map, map->target->aws.as_par, 0, 0, 0, 0, 0);
+			tnode_setchook (fename, map->mapchook, (void *)bename);
+
+			*node = bename;
+
+			tnode_setnthsub (parnode, 0, map->target->newnameref (bename, map));
+			/*}}}*/
+			/*{{{  if we have an alphabet, link in with alloc:extravars*/
+			if (alpha) {
+				tnode_setchook (bename, map->allocevhook, alpha->elist);
+			}
+			/*}}}*/
+		}
+
+		/*}}}*/
+	} else {
+		nocc_internal ("mcsp_namemap_cnode(): don\'t know how to handle tag [%s]", (*node)->tag->name);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int mcsp_codegen_cnode (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a constructor node (SEQ/PAR)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_codegen_cnode (tnode_t *node, codegen_t *cgen)
+{
+	if (node->tag == mcsp.tag_SEQCODE) {
+		return 1;
+	} else if (node->tag == mcsp.tag_PARCODE) {
+		/*{{{  generate code for PAR*/
+		tnode_t *body = tnode_nthsubof (node, 1);
+		tnode_t **bodies;
+		int nbodies, i;
+		int joinlab = codegen_new_label (cgen);
+		int pp_wsoffs = 0;
+		tnode_t *parspaceref = tnode_nthsubof (node, 0);
+		mcsp_alpha_t *alpha = (mcsp_alpha_t *)tnode_nthhookof (node, 0);
+
+		bodies = parser_getlistitems (body, &nbodies);
+		/*{{{  if we've got an alphabet, up ref-counts by (nbodies), enroll-counts by (nbodies - 1), down-counts by (nbodies - 1)*/
+		if (alpha) {
+			tnode_t **events;
+			int nevents, j;
+
+			codegen_callops (cgen, comment, "start barrier enrolls");
+			events = parser_getlistitems (alpha->elist, &nevents);
+			for (j=0; j<nevents; j++) {
+				codegen_callops (cgen, loadpointer, events[j], 0);
+				codegen_callops (cgen, loadnonlocal, 0);		/* refcount */
+				codegen_callops (cgen, loadconst, nbodies);
+				codegen_callops (cgen, tsecondary, I_SUM);
+				codegen_callops (cgen, loadpointer, events[j], 0);
+				codegen_callops (cgen, storenonlocal, 0);		/* refcount */
+
+				codegen_callops (cgen, loadpointer, events[j], 0);
+				codegen_callops (cgen, loadnonlocal, 4);		/* enroll-count */
+				codegen_callops (cgen, loadconst, nbodies - 1);
+				codegen_callops (cgen, tsecondary, I_SUM);
+				codegen_callops (cgen, loadpointer, events[j], 0);
+				codegen_callops (cgen, storenonlocal, 4);		/* enroll-count */
+
+				codegen_callops (cgen, loadpointer, events[j], 0);
+				codegen_callops (cgen, loadnonlocal, 8);		/* down-count */
+				codegen_callops (cgen, loadconst, nbodies - 1);
+				codegen_callops (cgen, tsecondary, I_SUM);
+				codegen_callops (cgen, loadpointer, events[j], 0);
+				codegen_callops (cgen, storenonlocal, 8);		/* down-count */
+			}
+			codegen_callops (cgen, comment, "finish barrier enrolls");
+		}
+		/*}}}*/
+		/*{{{  PAR setup*/
+		codegen_callops (cgen, comment, "BEGIN PAR SETUP");
+		for (i=0; i<nbodies; i++) {
+			int ws_size, vs_size, ms_size;
+			int ws_offset, adjust, elab;
+			tnode_t *statics = tnode_nthsubof (bodies[i], 1);
+
+			codegen_check_beblock (bodies[i], cgen, 1);
+			cgen->target->be_getblocksize (bodies[i], &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
+
+			/*{{{  setup statics in workspace of PAR process*/
+			if (statics && parser_islistnode (statics)) {
+				int nitems, p, wsoff;
+				tnode_t **items = parser_getlistitems (statics, &nitems);
+
+				for (p=nitems - 1, wsoff = pp_wsoffs-4; p>=0; p--, wsoff -= 4) {
+					codegen_callops (cgen, loadparam, items[p], PARAM_REF);
+					codegen_callops (cgen, storelocal, wsoff);
+				}
+			} else if (statics) {
+				codegen_callops (cgen, loadparam, statics, PARAM_REF);
+				codegen_callops (cgen, storelocal, pp_wsoffs-4);
+			}
+			/*}}}*/
+
+			pp_wsoffs -= ws_size;
+		}
+		/*{{{  setup local PAR workspace*/
+		codegen_callops (cgen, loadconst, nbodies + 1);		/* par-count */
+		codegen_callops (cgen, storename, parspaceref, 4);
+		codegen_callops (cgen, loadconst, 0);			/* priority */
+		codegen_callops (cgen, storename, parspaceref, 8);
+		codegen_callops (cgen, loadlabaddr, joinlab);		/* join-lab */
+		codegen_callops (cgen, storename, parspaceref, 0);
+		/*}}}*/
+		pp_wsoffs = 0;
+		for (i=0; i<nbodies; i++) {
+			int ws_size, vs_size, ms_size;
+			int ws_offset, adjust, elab;
+
+			codegen_check_beblock (bodies[i], cgen, 1);
+			cgen->target->be_getblocksize (bodies[i], &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
+
+			/*{{{  start PAR process*/
+			codegen_callops (cgen, loadlabaddr, elab);
+			codegen_callops (cgen, loadlocalpointer, pp_wsoffs - adjust);
+			codegen_callops (cgen, tsecondary, I_STARTP);
+			/*}}}*/
+
+			pp_wsoffs -= ws_size;
+		}
+		codegen_callops (cgen, comment, "END PAR SETUP");
+		/*}}}*/
+		/*{{{  end process doing PAR*/
+		codegen_callops (cgen, loadpointer, parspaceref, 0);
+		codegen_callops (cgen, tsecondary, I_ENDP);
+		/*}}}*/
+		pp_wsoffs = 0;
+		for (i=0; i<nbodies; i++) {
+			/*{{{  PAR body*/
+			int ws_size, vs_size, ms_size;
+			int ws_offset, adjust, elab;
+
+			cgen->target->be_getblocksize (bodies[i], &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
+			codegen_callops (cgen, comment, "PAR = %d,%d,%d,%d,%d", ws_size, ws_offset, vs_size, ms_size, adjust);
+
+			codegen_subcodegen (bodies[i], cgen);
+
+			codegen_callops (cgen, loadpointer, parspaceref, pp_wsoffs + adjust);
+			codegen_callops (cgen, tsecondary, I_ENDP);
+			/*}}}*/
+
+			pp_wsoffs += ws_size;
+		}
+		/*}}}*/
+		/*{{{  PAR cleanup*/
+		codegen_callops (cgen, setlabel, joinlab);
+		/*}}}*/
+		/*{{{  if we've got an alphabet, down ref-counts by (nbodies), enroll-counts by (nbodies - 1), down-counts by (nbodies - 1)*/
+		if (alpha) {
+			tnode_t **events;
+			int nevents, j;
+
+			codegen_callops (cgen, comment, "start barrier resigns");
+			events = parser_getlistitems (alpha->elist, &nevents);
+			for (j=0; j<nevents; j++) {
+				codegen_callops (cgen, loadpointer, events[j], 0);
+				codegen_callops (cgen, loadnonlocal, 0);		/* refcount */
+				codegen_callops (cgen, loadconst, nbodies);
+				codegen_callops (cgen, tsecondary, I_DIFF);
+				codegen_callops (cgen, loadpointer, events[j], 0);
+				codegen_callops (cgen, storenonlocal, 0);		/* refcount */
+
+				codegen_callops (cgen, loadpointer, events[j], 0);
+				codegen_callops (cgen, loadnonlocal, 4);		/* enroll-count */
+				codegen_callops (cgen, loadconst, nbodies - 1);
+				codegen_callops (cgen, tsecondary, I_DIFF);
+				codegen_callops (cgen, loadpointer, events[j], 0);
+				codegen_callops (cgen, storenonlocal, 4);		/* enroll-count */
+
+				codegen_callops (cgen, loadpointer, events[j], 0);
+				codegen_callops (cgen, loadnonlocal, 8);		/* down-count */
+				codegen_callops (cgen, loadconst, nbodies - 1);
+				codegen_callops (cgen, tsecondary, I_DIFF);
+				codegen_callops (cgen, loadpointer, events[j], 0);
+				codegen_callops (cgen, storenonlocal, 8);		/* down-count */
+			}
+			codegen_callops (cgen, comment, "finish barrier resigns");
+		}
+		/*}}}*/
+	} else {
+		codegen_error (cgen, "mcsp_codegen_cnode(): how to handle [%s] ?", node->tag->name);
+	}
+	return 0;
+}
+/*}}}*/
+
+/*{{{  static int mcsp_fetrans_actionnode (tnode_t **node, fetrans_t *fe)*/
+/*
+ *	does front-end transforms for an action-node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_fetrans_actionnode (tnode_t **node, fetrans_t *fe)
+{
+	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
+	tnode_t *t = *node;
+
+	switch (mfe->parse) {
+	case 0:
+	case 1:
+		/* nothing in these passes! */
+		break;
+	case 2:
+		if (t->tag == mcsp.tag_SYNC) {
+			/*{{{  add event to list*/
+			if (mfe->curalpha) {
+				mcsp_addtoalpha (mfe->curalpha, tnode_nthsubof (t, 0));
+			}
+			/*}}}*/
+		}
+		break;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_betrans_actionnode (tnode_t **node, betrans_t *be)*/
+/*
+ *	does back-end transforms for an action-node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_betrans_actionnode (tnode_t **node, betrans_t *be)
+{
+	tnode_t *t = *node;
+
+	if (t->tag == mcsp.tag_SYNC) {
+		/* we need to turn this into a single-guard ALT */
+		tnode_t *altnode, *guard, *glist, *event;
+
+		event = tnode_nthsubof (t, 0);
+		guard = tnode_createfrom (mcsp.tag_GUARD, t, event, tnode_create (mcsp.tag_SKIP, NULL));
+		glist = parser_newlistnode (NULL);
+		parser_addtolist (glist, guard);
+		altnode = tnode_createfrom (mcsp.tag_ALT, t, glist, NULL);
+
+		tnode_setnthsub (t, 0, NULL);
+		tnode_free (t);
+		*node = altnode;
+
+		betrans_subtree (node, be);
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int mcsp_namemap_actionnode (tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for an action-node
@@ -910,11 +1865,34 @@ static int mcsp_namemap_actionnode (tnode_t **node, map_t *map)
 	tnode_t *t = *node;
 
 	if (t->tag == mcsp.tag_SYNC) {
-		/* walk argument */
-		map_submapnames (tnode_nthsubaddr (t, 0), map);
+		nocc_internal ("mcsp_namemap_actionnode(): should not see SYNC here!");
+		return 0;
+	} else if (t->tag == mcsp.tag_CHANWRITE) {
+		tnode_t *bename;
+		tnode_t **opp;
+		int aslots = 0;		/* above workspace slots that we might need */
 
-		/* need to reserve space for IO */
-		*node = map->target->newname (*node, NULL, map, 0, map->target->bws.ds_io, 0, 0, 0, 0);
+		/* do channel (and argument if not an event) */
+		map_submapnames (tnode_nthsubaddr (*node, 0), map);
+
+		opp = tnode_nthsubaddr (*node, 1);
+		if (*opp && ((*opp)->tag != mcsp.tag_EVENT)) {
+			map_submapnames (opp, map);
+		} else if (*opp) {
+			/* slightly crafty -- turn operand into a back-end constant containing the EVENT's name */
+			name_t *evname = tnode_nthnameof (*opp, 0);
+			char *thename = NameNameOf (evname);
+			char *localname = (char *)smalloc (strlen (thename) + 3);
+
+			sprintf (localname, "%s\n", thename);
+			*opp = map->target->newconst (*opp, map, (void *)localname, strlen (localname) + 1);		/* null terminator for free */
+			sfree (localname);
+			aslots = 1;											/* need a counter for output */
+		}
+
+		/* make space for output */
+		bename = map->target->newname (*node, NULL, map, aslots * map->target->slotsize, map->target->bws.ds_io, 0, 0, 0, 0);
+		*node = bename;
 
 		return 0;
 	}
@@ -930,10 +1908,45 @@ static int mcsp_namemap_actionnode (tnode_t **node, map_t *map)
 static int mcsp_codegen_actionnode (tnode_t *node, codegen_t *cgen)
 {
 	if (node->tag == mcsp.tag_SYNC) {
-		tnode_t *event = tnode_nthsubof (node, 0);
+		codegen_error (cgen, "mcsp_codegen_actionnode(): cannot generate code for SYNC!");
+		return 0;
+	} else if (node->tag == mcsp.tag_CHANWRITE) {
+		tnode_t *chan = tnode_nthsubof (node, 0);
+		tnode_t *data = tnode_nthsubof (node, 1);
+		int tempslot = 0;				/* reserved a slot -- should really be_getoffsets for it */
+		int looplab, skiplab;
 
-		codegen_callops (cgen, loadpointer, event, 0);
-		codegen_callops (cgen, tsecondary, I_MWSYNC);
+		/* FIXME: this is crude.. */
+		looplab = codegen_new_label (cgen);
+		skiplab = codegen_new_label (cgen);
+
+		codegen_callops (cgen, loadconst, 0);
+		codegen_callops (cgen, storelocal, tempslot);
+
+		codegen_callops (cgen, setlabel, looplab);
+		codegen_callops (cgen, loadpointer, data, 0);
+		codegen_callops (cgen, loadlocal, tempslot);
+		codegen_callops (cgen, tsecondary, I_SUM);
+		codegen_callops (cgen, tsecondary, I_LB);
+		codegen_callops (cgen, branch, I_CJ, skiplab);		/* if we saw the NULL terminator */
+		codegen_callops (cgen, trashistack);
+
+		codegen_callops (cgen, loadpointer, data, 0);
+		codegen_callops (cgen, loadlocal, tempslot);
+		codegen_callops (cgen, tsecondary, I_SUM);
+
+		codegen_callops (cgen, loadpointer, chan, 0);
+		codegen_callops (cgen, loadconst, 1);			/* BYTE output only! */
+		codegen_callops (cgen, tsecondary, I_OUT);
+
+		codegen_callops (cgen, loadlocal, tempslot);
+		codegen_callops (cgen, loadconst, 1);
+		codegen_callops (cgen, tsecondary, I_SUM);
+		codegen_callops (cgen, storelocal, tempslot);
+
+		codegen_callops (cgen, branch, I_J, looplab);
+
+		codegen_callops (cgen, setlabel, skiplab);
 
 		return 0;
 	}
@@ -992,6 +2005,9 @@ static int mcsp_fetrans_snode (tnode_t **node, fetrans_t *fe)
 				} else if (guards[i] && (guards[i]->tag != mcsp.tag_GUARD)) {
 					nocc_error ("mcsp_fetrans_snode(): unexpected tag [%s] in ALT guards", guards[i]->tag->name);
 					mfe->errcount++;
+				} else {
+					/* better do inside guard! */
+					fetrans_subtree (&guards[i], fe);
 				}
 			}
 
@@ -1015,6 +2031,7 @@ static int mcsp_namemap_snode (tnode_t **node, map_t *map)
 	tnode_t *glist = tnode_nthsubof (*node, 0);
 	tnode_t **guards;
 	int nguards, i;
+	int extraslots = 1;
 
 	if ((*node)->tag == mcsp.tag_ALT) {
 		/* do guards one-by-one */
@@ -1032,7 +2049,7 @@ static int mcsp_namemap_snode (tnode_t **node, map_t *map)
 		}
 
 		/* ALT itself needs a bit of space */
-		*node = map->target->newname (*node, NULL, map, map->target->aws.as_alt, map->target->bws.ds_altio, 0, 0, 0, 0);
+		*node = map->target->newname (*node, NULL, map, map->target->aws.as_alt + (extraslots * map->target->slotsize), map->target->bws.ds_altio, 0, 0, 0, 0);
 		return 0;
 	}
 	return 1;
@@ -1049,18 +2066,24 @@ static int mcsp_codegen_snode (tnode_t *node, codegen_t *cgen)
 	tnode_t **guards;
 	int nguards, i;
 	int *labels;
+	int *dlabels;
+	int chosen_slot = cgen->target->aws.as_alt;
 
 	if (node->tag == mcsp.tag_ALT) {
 		int resumelab = codegen_new_label (cgen);
 
 		guards = parser_getlistitems (glist, &nguards);
 
-		/*{{{  invent some labels for guarded processes*/
+		/*{{{  invent some labels for guarded processes and disabling sequences*/
 		labels = (int *)smalloc (nguards * sizeof (int));
+		dlabels = (int *)smalloc (nguards * sizeof (int));
 
 		/*}}}*/
 		/*{{{  ALT enable*/
-		codegen_callops (cgen, tsecondary, I_ALT);
+		codegen_callops (cgen, loadconst, -1);
+		codegen_callops (cgen, storelocal, chosen_slot);
+
+		codegen_callops (cgen, tsecondary, I_MWALT);
 
 		/*}}}*/
 		/*{{{  enabling sequence*/
@@ -1070,33 +2093,38 @@ static int mcsp_codegen_snode (tnode_t *node, codegen_t *cgen)
 			if (guard && (guard->tag == mcsp.tag_GUARD)) {
 				tnode_t *event = tnode_nthsubof (guard, 0);
 
+				/* drop in labels */
+				labels[i] = codegen_new_label (cgen);
+				dlabels[i] = codegen_new_label (cgen);
+
 				codegen_callops (cgen, loadpointer, event, 0);
+				codegen_callops (cgen, loadlabaddr, dlabels[i]);
+
 				codegen_callops (cgen, tsecondary, I_MWENB);
 			}
 		}
 		/*}}}*/
 		/*{{{  ALT wait*/
-		codegen_callops (cgen, tsecondary, I_ALTWT);
+		codegen_callops (cgen, tsecondary, I_MWALTWT);
 
 		/*}}}*/
-		/*{{{  disabling sequence*/
-		for (i=0; i<nguards; i++) {
+		/*{{{  disabling sequence -- backwards please!*/
+		for (i=nguards - 1; i>=0; i--) {
 			tnode_t *guard = guards[i];
 
+			codegen_callops (cgen, setlabel, dlabels[i]);
 			if (guard && (guard->tag == mcsp.tag_GUARD)) {
 				tnode_t *event = tnode_nthsubof (guard, 0);
 
-				/* drop in label */
-				labels[i] = codegen_new_label (cgen);
-
 				codegen_callops (cgen, loadpointer, event, 0);
 				codegen_callops (cgen, loadlabaddr, labels[i]);
+
 				codegen_callops (cgen, tsecondary, I_MWDIS);
 			}
 		}
 		/*}}}*/
 		/*{{{  ALT end*/
-		codegen_callops (cgen, tsecondary, I_ALTEND);
+		codegen_callops (cgen, tsecondary, I_MWALTEND);
 		codegen_callops (cgen, tsecondary, I_SETERR);		/* if we fell of the ALT */
 
 		/*}}}*/
@@ -1116,11 +2144,82 @@ static int mcsp_codegen_snode (tnode_t *node, codegen_t *cgen)
 
 		/*}}}*/
 		/*{{{  cleanup*/
+		sfree (dlabels);
 		sfree (labels);
 
 		/*}}}*/
 
 		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+
+/*{{{  static int mcsp_namemap_loopnode (tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a loopnode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_namemap_loopnode (tnode_t **node, map_t *map)
+{
+	tnode_t *t = *node;
+
+	if (t->tag == mcsp.tag_ILOOP) {
+		/*{{{  loop*/
+		tnode_t **condp = tnode_nthsubaddr (t, 1);
+
+		if (*condp) {
+			map_submapnames (condp, map);
+		}
+		map_submapnames (tnode_nthsubaddr (t, 0), map);
+
+		return 0;
+		/*}}}*/
+	} else if (t->tag == mcsp.tag_PRIDROP) {
+		/*{{{  drop priority*/
+		/* allocate a temporary anyway, not used yet */
+		*node = map->target->newname (t, NULL, map, map->target->slotsize, map->target->bws.ds_min, 0, 0, 0, 0);
+
+		/* map body */
+		map_submapnames (tnode_nthsubaddr (t, 0), map);
+
+		return 0;
+		/*}}}*/
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_codegen_loopnode (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a loopnode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_codegen_loopnode (tnode_t *node, codegen_t *cgen)
+{
+	if (node->tag == mcsp.tag_ILOOP) {
+		/*{{{  infinite loop!*/
+		int looplab = codegen_new_label (cgen);
+
+		codegen_callops (cgen, setlabel, looplab);
+		codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+		codegen_callops (cgen, branch, I_J, looplab);
+
+		return 0;
+		/*}}}*/
+	} else if (node->tag == mcsp.tag_PRIDROP) {
+		/*{{{  drop priority*/
+		codegen_callops (cgen, tsecondary, I_GETPRI);
+		codegen_callops (cgen, loadconst, 1);
+		codegen_callops (cgen, tsecondary, I_SUM);
+		codegen_callops (cgen, tsecondary, I_SETPRI);
+
+		codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+
+		codegen_callops (cgen, tsecondary, I_GETPRI);
+		codegen_callops (cgen, loadconst, 1);
+		codegen_callops (cgen, tsecondary, I_DIFF);
+		codegen_callops (cgen, tsecondary, I_SETPRI);
+		/*}}}*/
 	}
 	return 1;
 }
@@ -1141,6 +2240,20 @@ static int mcsp_fetrans_guardnode (tnode_t **node, fetrans_t *fe)
 			/* don't walk LHS */
 			fetrans_subtree (tnode_nthsubaddr (*node, 1), fe);
 			return 0;
+		}
+		break;
+	case 1:
+		/* nothing in this pass! */
+		break;
+	case 2:
+		if ((*node)->tag == mcsp.tag_GUARD) {
+			/*{{{  add event to current alphabet*/
+			tnode_t *event = tnode_nthsubof (*node, 0);
+
+			if (mfe->curalpha && (event->tag == mcsp.tag_EVENT)) {
+				mcsp_addtoalpha (mfe->curalpha, event);
+			}
+			/*}}}*/
 		}
 		break;
 	}
@@ -1271,6 +2384,30 @@ static int mcsp_fetrans_vardeclnode (tnode_t **node, fetrans_t *fe)
 			return 0;
 		}
 		break;
+	case 1:
+		/* nothing in this pass */
+		break;
+	case 2:
+		if (t->tag == mcsp.tag_VARDECL) {
+			/*{{{  collect up events in body of declaration, hide the one declared*/
+			mcsp_alpha_t *savedalpha = mfe->curalpha;
+			mcsp_alpha_t *myalpha;
+
+			mfe->curalpha = mcsp_newalpha ();
+			fetrans_subtree (tnode_nthsubaddr (t, 2), fe);		/* walk process in scope of variable */
+			myalpha = mfe->curalpha;
+			mfe->curalpha = savedalpha;
+
+			parser_rmfromlist (myalpha->elist, tnode_nthsubof (t, 0));
+			if (mfe->curalpha) {
+				mcsp_mergealpha (mfe->curalpha, myalpha);
+			}
+			mcsp_freealpha (myalpha);
+
+			return 0;
+			/*}}}*/
+		}
+		break;
 	}
 
 	return 1;
@@ -1292,6 +2429,13 @@ static int mcsp_namemap_vardeclnode (tnode_t **node, map_t *map)
 
 	tnode_setchook (*namep, map->mapchook, (void *)bename);
 	*node = bename;
+
+	if ((*namep)->tag == mcsp.tag_EVENT) {
+		/* probably need initialisation/finalisation */
+		if ((*namep)->tag->ndef->lops && (*namep)->tag->ndef->lops->initialising_decl) {
+			(*namep)->tag->ndef->lops->initialising_decl (*namep, bename, map);
+		}
+	}
 
 	bodyp = tnode_nthsubaddr (*node, 1);
 	map_submapnames (bodyp, map);			/* map body */
@@ -1477,6 +2621,27 @@ tnode_dumptree (aparams, 1, stderr);
 			/*}}}*/
 		}
 		break;
+	case 1:
+		/* nothing in this pass */
+		break;
+	case 2:
+		if (t->tag == mcsp.tag_INSTANCE) {
+			/*{{{  add any events in actual parameters to alphabet*/
+			if (mfe->curalpha) {
+				tnode_t *aparams = tnode_nthsubof (t, 1);
+				tnode_t **aplist;
+				int nap, i;
+
+				aplist = parser_getlistitems (aparams, &nap);
+				for (i=0; i<nap; i++) {
+					if (aplist[i] && (aplist[i]->tag == mcsp.tag_EVENT)) {
+						mcsp_addtoalpha (mfe->curalpha, aplist[i]);
+					}
+				}
+			}
+			/*}}}*/
+		}
+		break;
 	}
 
 	return 1;
@@ -1584,7 +2749,7 @@ static void mcsp_opreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 		return;
 	}
 
-	dopnode = tnode_create (tag, pp->lf, NULL, NULL, NULL);
+	dopnode = tnode_create (tag, pp->lf, NULL, NULL, NULL, NULL, NULL);
 	*(dfast->ptr) = dopnode;
 	
 	return;
@@ -1635,6 +2800,7 @@ static int mcsp_process_init_nodes (void)
 	tndef_t *tnd;
 	int i;
 	compops_t *cops;
+	langops_t *lops;
 
 	/*{{{  mcsp:rawnamenode -- NAME*/
 	i = -1;
@@ -1655,7 +2821,10 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	/*}}}*/
 	/*{{{  mcsp:dopnode -- SUBEVENT, THEN, SEQ, PAR, ILEAVE, ICHOICE, ECHOICE*/
 	i = -1;
-	tnd = mcsp.node_DOPNODE = tnode_newnodetype ("mcsp:dopnode", &i, 3, 0, 0, TNF_NONE);		/* subnodes: 0 = LHS, 1 = RHS, 2 = type */
+	tnd = mcsp.node_DOPNODE = tnode_newnodetype ("mcsp:dopnode", &i, 3, 0, 1, TNF_NONE);		/* subnodes: 0 = LHS, 1 = RHS, 2 = type;  hooks: 0 = mcsp_alpha_t */
+	tnd->hook_free = mcsp_alpha_hook_free;
+	tnd->hook_copy = mcsp_alpha_hook_copy;
+	tnd->hook_dumptree = mcsp_alpha_hook_dumptree;
 	cops = tnode_newcompops ();
 	cops->typecheck = mcsp_typecheck_dopnode;
 	cops->fetrans = mcsp_fetrans_dopnode;
@@ -1703,11 +2872,14 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	cops->fetrans = mcsp_fetrans_declnode;
 	cops->betrans = mcsp_betrans_declnode;
 	cops->namemap = mcsp_namemap_declnode;
+	cops->precode = mcsp_precode_declnode;
 	cops->codegen = mcsp_codegen_declnode;
 	tnd->ops = cops;
 
 	i = -1;
 	mcsp.tag_PROCDECL = tnode_newnodetag ("MCSPPROCDECL", &i, tnd, NTF_NONE);
+	i = -1;
+	mcsp.tag_XPROCDECL = tnode_newnodetag ("MCSPXPROCDECL", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  mcsp:hiddennode -- HIDDENPARAM*/
@@ -1718,12 +2890,14 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	mcsp.tag_HIDDENPARAM = tnode_newnodetag ("MCSPHIDDENPARAM", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  mcsp:leafnode -- RETURNADDRESS*/
+	/*{{{  mcsp:leafnode -- RETURNADDRESS, PARSPACE*/
 	i = -1;
 	tnd = tnode_newnodetype ("mcsp:leafnode", &i, 0, 0, 0, TNF_NONE);
 
 	i = -1;
 	mcsp.tag_RETURNADDRESS = tnode_newnodetag ("MCSPRETURNADDRESS", &i, tnd, NTF_NONE);
+	i = -1;
+	mcsp.tag_PARSPACE = tnode_newnodetag ("MCSPPARSPACE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  mcsp:leafproc -- SKIP, STOP, DIV, CHAOS*/
@@ -1744,7 +2918,7 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	mcsp.tag_CHAOS = tnode_newnodetag ("MCSPCHAOS", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  mcsp:namenode -- EVENT, PROCDEF*/
+	/*{{{  mcsp:namenode -- EVENT, PROCDEF, CHAN*/
 	i = -1;
 	tnd = mcsp.node_NAMENODE = tnode_newnodetype ("mcsp:namenode", &i, 0, 1, 0, TNF_NONE);		/* subnames: 0 = name */
 	cops = tnode_newcompops ();
@@ -1752,29 +2926,44 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	cops->namemap = mcsp_namemap_namenode;
 /*	cops->gettype = mcsp_gettype_namenode; */
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->initialising_decl = mcsp_namenode_initialising_decl;
+	tnd->lops = lops;
 
 	i = -1;
 	mcsp.tag_EVENT = tnode_newnodetag ("MCSPEVENT", &i, tnd, NTF_NONE);
 	i = -1;
 	mcsp.tag_PROCDEF = tnode_newnodetag ("MCSPPROCDEF", &i, tnd, NTF_NONE);
+	i = -1;
+	mcsp.tag_CHAN = tnode_newnodetag ("MCSPCHAN", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  mcsp:actionnode -- SYNC*/
+	/*{{{  mcsp:actionnode -- SYNC, CHANWRITE*/
 	i = -1;
 	tnd = tnode_newnodetype ("mcsp:actionnode", &i, 2, 0, 0, TNF_NONE);				/* subnodes: 0 = event(s), 1 = data/null */
 	cops = tnode_newcompops ();
+	cops->fetrans = mcsp_fetrans_actionnode;
+	cops->betrans = mcsp_betrans_actionnode;
 	cops->namemap = mcsp_namemap_actionnode;
 	cops->codegen = mcsp_codegen_actionnode;
 	tnd->ops = cops;
 
 	i = -1;
 	mcsp.tag_SYNC = tnode_newnodetag ("MCSPSYNC", &i, tnd, NTF_NONE);
+	i = -1;
+	mcsp.tag_CHANWRITE = tnode_newnodetag ("MCSPCHANWRITE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  mcsp:cnode -- SEQCODE, PARCODE*/
 	i = -1;
-	tnd = tnode_newnodetype ("mcsp:cnode", &i, 1, 0, 0, TNF_NONE);					/* subnodes: 0 = list of processes */
+	tnd = mcsp.node_CNODE = tnode_newnodetype ("mcsp:cnode", &i, 2, 0, 1, TNF_NONE);		/* subnodes: 0 = back-end space reference, 1 = list of processes;  hooks: 0 = mcsp_alpha_t */
+	tnd->hook_free = mcsp_alpha_hook_free;
+	tnd->hook_copy = mcsp_alpha_hook_copy;
+	tnd->hook_dumptree = mcsp_alpha_hook_dumptree;
 	cops = tnode_newcompops ();
+	cops->fetrans = mcsp_fetrans_cnode;
+	cops->namemap = mcsp_namemap_cnode;
+	cops->codegen = mcsp_codegen_cnode;
 	tnd->ops = cops;
 
 	i = -1;
@@ -1785,7 +2974,10 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	/*}}}*/
 	/*{{{  mcsp:snode -- ALT*/
 	i = -1;
-	tnd = tnode_newnodetype ("mcsp:snode", &i, 1, 0, 0, TNF_NONE);					/* subnodes: 0 = list of guards/nested ALTs */
+	tnd = mcsp.node_SNODE = tnode_newnodetype ("mcsp:snode", &i, 1, 0, 1, TNF_NONE);		/* subnodes: 0 = list of guards/nested ALTs; hooks: 0 = mcsp_alpha_t */
+	tnd->hook_free = mcsp_alpha_hook_free;
+	tnd->hook_copy = mcsp_alpha_hook_copy;
+	tnd->hook_dumptree = mcsp_alpha_hook_dumptree;
 	cops = tnode_newcompops ();
 	cops->fetrans = mcsp_fetrans_snode;
 	cops->namemap = mcsp_namemap_snode;
@@ -1794,6 +2986,20 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 
 	i = -1;
 	mcsp.tag_ALT = tnode_newnodetag ("MCSPALT", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  mcsp:loopnode -- ILOOP, PRIDROP*/
+	i = -1;
+	tnd = tnode_newnodetype ("mcsp:loopnode", &i, 2, 0, 0, TNF_NONE);				/* subnodes: 0 = body; 1 = condition */
+	cops = tnode_newcompops ();
+	cops->namemap = mcsp_namemap_loopnode;
+	cops->codegen = mcsp_codegen_loopnode;
+	tnd->ops = cops;
+
+	i = -1;
+	mcsp.tag_ILOOP = tnode_newnodetag ("MCSPILOOP", &i, tnd, NTF_NONE);
+	i = -1;
+	mcsp.tag_PRIDROP = tnode_newnodetag ("MCSPPRIDROP", &i, tnd, NTF_NONE);		/* maybe not a loopnode as such, but will do for now */
 
 	/*}}}*/
 	/*{{{  mcsp:guardnode -- GUARD*/
@@ -1810,7 +3016,7 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	/*{{{  mcsp:spacenode -- FPARAM, UPARAM, VARDECL*/
 	/* this is used in front of formal parameters and local variables*/
 	i = -1;
-	tnd = mcsp.node_SPACENODE = tnode_newnodetype ("mcsp:spacenode", &i, 1, 0, 0, TNF_NONE);	/* subnodes: 1 = namenode/name */
+	tnd = mcsp.node_SPACENODE = tnode_newnodetype ("mcsp:spacenode", &i, 1, 0, 0, TNF_NONE);	/* subnodes: 0 = namenode/name */
 	cops = tnode_newcompops ();
 	cops->scopein = mcsp_scopein_spacenode;
 	cops->scopeout = mcsp_scopeout_spacenode;
@@ -1828,7 +3034,7 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	/*}}}*/
 	/*{{{  mcsp:vardeclnode -- VARDECL*/
 	i = -1;
-	tnd = tnode_newnodetype ("mcsp:vardeclnode", &i, 3, 0, 0, TNF_SHORTDECL);
+	tnd = tnode_newnodetype ("mcsp:vardeclnode", &i, 3, 0, 0, TNF_SHORTDECL);			/* subnodes: 0 = name, 1 = initialiser, 2 = body */
 	cops = tnode_newcompops ();
 	cops->namemap = mcsp_namemap_vardeclnode;
 	cops->fetrans = mcsp_fetrans_vardeclnode;
@@ -1888,10 +3094,10 @@ static int mcsp_process_reg_reducers (void)
 	parser_register_grule ("mcsp:namepush", parser_decode_grule ("T+St0XC1N-", mcsp_nametoken_to_hook, mcsp.tag_NAME));
 	parser_register_grule ("mcsp:hidereduce", parser_decode_grule ("ST0T+@tN+N+0C3R-", mcsp.tag_HIDE));
 	parser_register_grule ("mcsp:procdeclreduce", parser_decode_grule ("SN2N+N+N+>V0C4R-", mcsp.tag_PROCDECL));
-	parser_register_grule ("mcsp:nullechoicereduce", parser_decode_grule ("ST0T+@t000C3R-", mcsp.tag_ECHOICE));
+	parser_register_grule ("mcsp:nullechoicereduce", parser_decode_grule ("ST0T+@t0000C4R-", mcsp.tag_ECHOICE));
 	parser_register_grule ("mcsp:ppreduce", parser_decode_grule ("ST0T+XR-", mcsp_pptoken_to_node));
 	parser_register_grule ("mcsp:fixreduce", parser_decode_grule ("SN0N+N+VC2R-", mcsp.tag_FIXPOINT));
-	parser_register_grule ("mcsp:subevent", parser_decode_grule ("SN0N+N+V0C3R-", mcsp.tag_SUBEVENT));
+	parser_register_grule ("mcsp:subevent", parser_decode_grule ("SN0N+N+V00C4R-", mcsp.tag_SUBEVENT));
 	parser_register_grule ("mcsp:stringreduce", parser_decode_grule ("ST0T+XC1R-", mcsp_stringtoken_to_hook, mcsp.tag_STRING));
 	parser_register_grule ("mcsp:instancereduce", parser_decode_grule ("SN0N+N+VC2R-", mcsp.tag_INSTANCE));
 

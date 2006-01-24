@@ -462,6 +462,35 @@ tnode_t *parser_delfromlist (tnode_t *list, int idx)
 	return saveditem;
 }
 /*}}}*/
+/*{{{  tnode_t *parser_getfromlist (tnode_t *list, int idx)*/
+/*
+ *	returns an item from a list-node by index
+ */
+tnode_t *parser_getfromlist (tnode_t *list, int idx)
+{
+	tnode_t **array;
+	int *cur, *max;
+
+	if (list->tag != tag_LIST) {
+		nocc_internal ("parser_getfromlist(): not list-node! [%s]", list->tag->name);
+		return NULL;
+	}
+	array = (tnode_t **)tnode_nthhookof (list, 0);
+	if (!array) {
+		nocc_internal ("parser_getfromlist(): null array in list!");
+		return NULL;
+	}
+	cur = (int *)array;
+	max = (int *)(array + 1);
+
+	if ((idx < 0) || (idx >= *cur)) {
+		nocc_internal ("parser_getfromlist(): item %d not in list (%d/%d items)", idx, *cur, *max);
+		return NULL;
+	}
+
+	return array[idx + 2];
+}
+/*}}}*/
 /*{{{  tnode_t *parser_rmfromlist (tnode_t *list, tnode_t *item)*/
 /*
  *	removes an item from a list-node by reference, returns it
@@ -613,6 +642,37 @@ void parser_inlistfixup (void **tos)
 	} else {
 		nocc_warning ("parser_inlistfixup(): not a list!");
 	}
+	return;
+}
+/*}}}*/
+/*{{{  void parser_sortlist (tnode_t *list, int (*cmpfcn)(tnode_t *, tnode_t *))*/
+/*
+ *	sorts the items in a listnode -- NOTE: only for certain things really!
+ */
+void parser_sortlist (tnode_t *list, int (*cmpfcn)(tnode_t *, tnode_t *))
+{
+	tnode_t **array;
+	int *cur, *max;
+
+	if (list->tag != tag_LIST) {
+		nocc_internal ("parser_sortlist(): not list-node! [%s]", list->tag->name);
+		return;
+	}
+	array = (tnode_t **)tnode_nthhookof (list, 0);
+	if (!array) {
+		nocc_internal ("parser_sortlist(): null array in list!");
+		return;
+	}
+	cur = (int *)array;
+	max = (int *)(array + 1);
+
+#if 0
+fprintf (stderr, "parser_sortlist(): array = 0x%8.8x, cur = 0x%8.8x (%d), max = 0x%8.8x (%d)\n", (unsigned int)array, (unsigned int)cur, *cur, (unsigned int)max, *max);
+#endif
+	if (*cur < 2) {
+		return;			/* nothing to do */
+	}
+	da_qsort ((void **)(array + 2), 0, *cur - 1, (int (*)(void *, void *))cmpfcn);
 	return;
 }
 /*}}}*/

@@ -2439,6 +2439,29 @@ static void krocetc_coder_setlabel (codegen_t *cgen, int lbl)
 	return;
 }
 /*}}}*/
+/*{{{  static void krocetc_coder_procentry (codegen_t *cgen, const char *lbl)*/
+/*
+ *	generates a procedure entry stub
+ */
+static void krocetc_coder_procentry (codegen_t *cgen, const char *lbl)
+{
+	codegen_write_fmt (cgen, ".procentry\t\"%s\"\n", lbl);
+	return;
+}
+/*}}}*/
+/*{{{  static void krocetc_coder_procnameentry (codegen_t *cgen, name_t *name)*/
+/*
+ *	generates a procedure entry from a name_t (includes namespace)
+ */
+static void krocetc_coder_procnameentry (codegen_t *cgen, name_t *name)
+{
+	char *lbl = name_newwholename (name);
+
+	codegen_callops (cgen, procentry, lbl);
+	sfree (lbl);
+	return;
+}
+/*}}}*/
 /*{{{  static void krocetc_coder_procreturn (codegen_t *cgen, int adjust)*/
 /*
  *	generates a procedure return
@@ -2628,6 +2651,17 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		krocetc_cgstate_tsdelta (cgen, 0);
 		break;
 		/*}}}*/
+		/*{{{  SB: store byte*/
+	case I_SB:
+		codegen_write_fmt (cgen, "\tsb\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  LB: load byte*/
+	case I_LB:
+		codegen_write_fmt (cgen, "\tlb\n");
+		break;
+		/*}}}*/
 		/*{{{  NULL: load null value*/
 	case I_NULL:
 		codegen_write_string (cgen, "\tnull\n");
@@ -2745,19 +2779,19 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		/*{{{  MTFREE: free complex mobile*/
 	case I_MTFREE:
 		codegen_write_string (cgen, "\tmtfree\n");
-		krocetc_cgstate_tsdelta (cgen, -1);
+		krocetc_cgstate_tsdelta (cgen, -2);
 		break;
 		/*}}}*/
 		/*{{{  MTCLONE: clone complex mobile*/
 	case I_MTCLONE:
 		codegen_write_string (cgen, "\tmtclone\n");
-		krocetc_cgstate_tsdelta (cgen, -2);
+		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 		/*}}}*/
 		/*{{{  MWENB: enable multiway sync guard*/
 	case I_MWENB:
 		codegen_write_string (cgen, "\tmwenb\n");
-		krocetc_cgstate_tsdelta (cgen, -1);
+		krocetc_cgstate_tsdelta (cgen, -2);
 		break;
 		/*}}}*/
 		/*{{{  MWDIS: disable multiway sync guard*/
@@ -2766,10 +2800,24 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		krocetc_cgstate_tsdelta (cgen, -2);
 		break;
 		/*}}}*/
-		/*{{{  MWSYNC: multiway synchronisation*/
-	case I_MWSYNC:
-		codegen_write_string (cgen, "\tmwsync\n");
-		krocetc_cgstate_tsdelta (cgen, -1);
+		/*{{{  MWALT: multiway sync start*/
+	case I_MWALT:
+		codegen_write_string (cgen, "\tmwalt\n");
+		break;
+		/*}}}*/
+		/*{{{  MWALTWT: multiway sync alternative wait*/
+	case I_MWALTWT:
+		codegen_write_string (cgen, "\tmwaltwt\n");
+		break;
+		/*}}}*/
+		/*{{{  MWTALTWT: multiway sync alternative wait with timeout*/
+	case I_MWTALTWT:
+		codegen_write_string (cgen, "\tmwtaltwt\n");
+		break;
+		/*}}}*/
+		/*{{{  MWALTEND: multiway sync alternative end*/
+	case I_MWALTEND:
+		codegen_write_string (cgen, "\tmwaltend\n");
 		break;
 		/*}}}*/
 	default:
@@ -2893,6 +2941,16 @@ static void krocetc_coder_debugline (codegen_t *cgen, tnode_t *node)
 	return;
 }
 /*}}}*/
+/*{{{  static void krocetc_coder_trashistack (codegen_t *cgen)*/
+/*
+ *	trashes the integer stack
+ */
+static void krocetc_coder_trashistack (codegen_t *cgen)
+{
+	krocetc_cgstate_tszero (cgen);
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static int krocetc_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)*/
@@ -2960,6 +3018,8 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	cops->callnamelabel = krocetc_coder_callnamelabel;
 	cops->setlabel = krocetc_coder_setlabel;
 	cops->calllabel = krocetc_coder_calllabel;
+	cops->procentry = krocetc_coder_procentry;
+	cops->procnameentry = krocetc_coder_procnameentry;
 	cops->procreturn = krocetc_coder_procreturn;
 	cops->funcreturn = krocetc_coder_funcreturn;
 	cops->funcresults = krocetc_coder_funcresults;
@@ -2967,6 +3027,7 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	cops->loadlabaddr = krocetc_coder_loadlabaddr;
 	cops->branch = krocetc_coder_branch;
 	cops->debugline = krocetc_coder_debugline;
+	cops->trashistack = krocetc_coder_trashistack;
 
 	cgen->cops = cops;
 

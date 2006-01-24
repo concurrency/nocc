@@ -1,0 +1,6 @@
+# test_c6.mcsp
+
+WARBLE (bling) ::= bling -> ok -> SKIP
+BLAH ::= hello -> SKIP
+SYSTEM ::= (hello -> csp -> world -> BLAH); WARBLE (csp)
+

@@ -390,6 +390,10 @@ fprintf (stderr, "allocate_ovarmap_delname(): i_ws = %d, i_vs = %d, i_ms = %d\n"
 #endif
 	/*{{{  (serious) error it not here*/
 	if ((i_ws == -1) && (i_vs == -1) && (i_ms == -1)) {
+#if 1
+fprintf (stderr, "allocate_ovarmap_delname(): bename was:\n");
+tnode_dumptree (bename, 1, stderr);
+#endif
 		nocc_internal ("allocate_ovarmap_delname(): name not found\n");
 		return;
 	}
