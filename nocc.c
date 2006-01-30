@@ -1,6 +1,6 @@
 /*
  *	nocc.c -- new occam-pi compiler (harness)
- *	Copyright (C) 2004 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2006 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@
 #include "symbols.h"
 #include "lexer.h"
 #include "parser.h"
+#include "parsepriv.h"
 #include "dfa.h"
 #include "prescope.h"
 #include "precheck.h"
@@ -102,6 +103,7 @@ compopts_t compopts = {
 	DA_CONSTINITIALISER(epath),
 	DA_CONSTINITIALISER(ipath),
 	DA_CONSTINITIALISER(lpath),
+	DA_CONSTINITIALISER(eload),
 	maintainer: NULL,
 	target_str: NULL,
 	target_cpu: NULL,
@@ -112,9 +114,25 @@ compopts_t compopts = {
 };
 
 /*}}}*/
+/*{{{  private types*/
+
+typedef struct TAG_compilerpass {
+	const char *name;		/* of this pass */
+	void *origin;
+	int (*fcn)(void *);		/* pointer to pass function (arguments fudged) */
+	comppassarg_t fargs;		/* bitfield describing the arguments required */
+	int stoppoint;
+	int *flagptr;			/* whether this pass is enabled */
+} compilerpass_t;
+
+
+/*}}}*/
 /*{{{  private data*/
 STATICDYNARRAY (char *, be_def_opts);
 static int noccexitflag = 0;
+
+STATICDYNARRAY (compilerpass_t *, cfepasses);
+STATICDYNARRAY (compilerpass_t *, cbepasses);
 
 /*}}}*/
 
@@ -411,6 +429,9 @@ static void specfile_elem_end (xmlhandler_t *xh, void *data, xmlkey_t *key)
 		case XMLKEY_EPATH:				/* adding an extension path to the compiler */
 			dynarray_add (compopts.epath, edata);
 			break;
+		case XMLKEY_EXTN:				/* adding an extension name to load */
+			dynarray_add (compopts.eload, edata);
+			break;
 		case XMLKEY_IPATH:				/* adding an include path to the compiler */
 			dynarray_add (compopts.ipath, edata);
 			break;
@@ -589,6 +610,54 @@ int nocc_dooption_arg (char *optstr, void *arg)
 /*}}}*/
 
 
+/*{{{  static compilerpass_t *nocc_new_compilerpass (const char *name, void *origin, int (*fcn)(void *), comppassarg_t fargs, int spoint, int *flagptr)*/
+/*
+ *	creates a new compilerpass_t structure (initialised)
+ */
+static compilerpass_t *nocc_new_compilerpass (const char *name, void *origin, int (*fcn)(void *), comppassarg_t fargs, int spoint, int *flagptr)
+{
+	compilerpass_t *cpass = (compilerpass_t *)smalloc (sizeof (compilerpass_t));
+
+	cpass->name = (const char *)string_dup (name);
+	cpass->origin = origin;
+	cpass->fcn = fcn;
+	cpass->fargs = fargs;
+	cpass->stoppoint = spoint;
+	cpass->flagptr = flagptr;
+
+	return cpass;
+}
+/*}}}*/
+/*{{{  static int nocc_init_cpasses (void)*/
+/*
+ *	initialises the default passes in the compiler
+ *	returns 0 on success, non-zero on failure
+ */
+static int nocc_init_cpasses (void)
+{
+	/* stock front-end passes */
+	dynarray_add (cfepasses, nocc_new_compilerpass ("pre-scope", NULL, (int (*)(void *))prescope_tree, CPASS_TREEPTR | CPASS_LANGPARSER, 3, NULL));
+	dynarray_add (cfepasses, nocc_new_compilerpass ("scope", NULL, (int (*)(void *))scope_tree, CPASS_TREE | CPASS_LANGPARSER, 4, NULL));
+	dynarray_add (cfepasses, nocc_new_compilerpass ("type-check", NULL, (int (*)(void *))typecheck_tree, CPASS_TREE | CPASS_LANGPARSER, 5, NULL));
+	dynarray_add (cfepasses, nocc_new_compilerpass ("const-prop", NULL, (int (*)(void *))constprop_tree, CPASS_TREEPTR, 6, NULL));
+	dynarray_add (cfepasses, nocc_new_compilerpass ("pre-check", NULL, (int (*)(void *))precheck_tree, CPASS_TREE, 7, NULL));
+	dynarray_add (cfepasses, nocc_new_compilerpass ("alias-check", NULL, (int (*)(void *))aliascheck_tree, CPASS_TREE | CPASS_LANGPARSER, 8, &(compopts.doaliascheck)));
+	dynarray_add (cfepasses, nocc_new_compilerpass ("usage-check", NULL, (int (*)(void *))usagecheck_tree, CPASS_TREE | CPASS_LANGPARSER, 9, &(compopts.dousagecheck)));
+	dynarray_add (cfepasses, nocc_new_compilerpass ("def-check", NULL, (int (*)(void *))defcheck_tree, CPASS_TREE | CPASS_LANGPARSER, 10, &(compopts.dodefcheck)));
+	dynarray_add (cfepasses, nocc_new_compilerpass ("fetrans", NULL, (int (*)(void *))fetrans_tree, CPASS_TREEPTR | CPASS_LANGPARSER, 11, NULL));
+
+	/* stock back-end passes */
+	dynarray_add (cbepasses, nocc_new_compilerpass ("betrans", NULL, (int (*)(void *))betrans_tree, CPASS_TREEPTR | CPASS_TARGET, 12, NULL));
+	dynarray_add (cbepasses, nocc_new_compilerpass ("name-map", NULL, (int (*)(void *))map_mapnames, CPASS_TREEPTR | CPASS_TARGET, 13, NULL));
+	dynarray_add (cbepasses, nocc_new_compilerpass ("pre-alloc", NULL, (int (*)(void *))preallocate_tree, CPASS_TREEPTR | CPASS_TARGET, 14, NULL));
+	dynarray_add (cbepasses, nocc_new_compilerpass ("allocate", NULL, (int (*)(void *))allocate_tree, CPASS_TREEPTR | CPASS_TARGET, 15, NULL));
+	dynarray_add (cbepasses, nocc_new_compilerpass ("codegen", NULL, (int (*)(void *))codegen_generate_code, CPASS_TREEPTR | CPASS_LEXFILE | CPASS_TARGET, 16, NULL));
+
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  int main (int argc, char **argv)*/
 /*
  *	start here
@@ -629,6 +698,9 @@ int main (int argc, char **argv)
 	dynarray_init (be_def_opts);
 	dynarray_init (srcfiles);
 
+	dynarray_init (cfepasses);
+	dynarray_init (cbepasses);
+
 	/*}}}*/
 	/*{{{  general initialisation*/
 #ifdef DEBUG
@@ -639,6 +711,8 @@ int main (int argc, char **argv)
 	transinstr_init ();
 	xml_init ();
 	xmlkeys_init ();
+
+	nocc_init_cpasses ();
 
 	/*}}}*/
 	/*{{{  process command-line arguments*/
@@ -771,6 +845,10 @@ int main (int argc, char **argv)
 		nocc_message ("    lpaths:");
 		for (i=0; i<DA_CUR (compopts.lpath); i++) {
 			nocc_message ("                     %s", DA_NTHITEM (compopts.lpath, i));
+		}
+		nocc_message ("    eloads:");
+		for (i=0; i<DA_CUR (compopts.eload); i++) {
+			nocc_message ("                     %s", DA_NTHITEM (compopts.eload, i));
 		}
 
 		nocc_message ("    not-main-module: %s", compopts.notmainmodule ? "yes" : "no");
@@ -1004,193 +1082,81 @@ int main (int argc, char **argv)
 		}
 		/*}}}*/
 
-		/*{{{  pre-scope*/
+		/*{{{  front-end compiler passes*/
 		if (compopts.verbose) {
-			nocc_message ("pre-scoping ...");
+			nocc_message ("front-end passes:");
 		}
-		for (i=0; i<DA_CUR (srctrees); i++) {
-			if (prescope_tree (DA_NTHITEMADDR (srctrees, i), (DA_NTHITEM (srclexers, i))->parser)) {
-				nocc_error ("failed to pre-scope %s", DA_NTHITEM (srcfiles, i));
-				errored = 1;
-			}
-		}
-		if (compopts.stoppoint == 3) {
-			/*{{{  stop after pre-scope*/
-			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-			goto main_out;
-			/*}}}*/
-		}
-		if (errored) {
-			goto main_out;
-		}
-		/*}}}*/
-		/*{{{  scope*/
-		if (compopts.verbose) {
-			nocc_message ("scoping ...");
-		}
-		for (i=0; i<DA_CUR (srctrees); i++) {
-			if (scope_tree (DA_NTHITEM (srctrees, i), (DA_NTHITEM (srclexers, i))->parser)) {
-				nocc_error ("failed to scope %s", DA_NTHITEM (srcfiles, i));
-				errored = 1;
-			}
-		}
-		if (compopts.dumpnames) {
-			name_dumpnames (stderr);
-		}
-		if (compopts.stoppoint == 4) {
-			/*{{{  stop after scope*/
-			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-			goto main_out;
-			/*}}}*/
-		}
-		if (errored) {
-			goto main_out;
-		}
-		/*}}}*/
-		/*{{{  type-check*/
-		if (compopts.verbose) {
-			nocc_message ("type-check ...");
-		}
-		for (i=0; i<DA_CUR (srctrees); i++) {
-			if (typecheck_tree (DA_NTHITEM (srctrees, i), (DA_NTHITEM (srclexers, i))->parser)) {
-				nocc_error ("failed to type-check %s", DA_NTHITEM (srcfiles, i));
-				errored = 1;
-			}
-		}
-		if (compopts.stoppoint == 5) {
-			/*{{{  stop after type-check*/
-			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-			goto main_out;
-			/*}}}*/
-		}
-		if (errored) {
-			goto main_out;
-		}
-		/*}}}*/
-		/*{{{  constant propagation*/
-		if (compopts.verbose) {
-			nocc_message ("constant propagation ...");
-		}
-		for (i=0; i<DA_CUR (srctrees); i++) {
-			if (constprop_tree (DA_NTHITEMADDR (srctrees, i))) {
-				nocc_error ("failed to constant-propagate in %s", DA_NTHITEM (srcfiles, i));
-				errored = 1;
-			}
-		}
-		if (compopts.stoppoint == 6) {
-			/*{{{  stop after constant propagation*/
-			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-			goto main_out;
-			/*}}}*/
-		}
-		if (errored) {
-			goto main_out;
-		}
-		/*}}}*/
-		/*{{{  pre-check*/
-		if (compopts.verbose) {
-			nocc_message ("pre-check ...");
-		}
-		for (i=0; i<DA_CUR (srctrees); i++) {
-			if (precheck_tree (DA_NTHITEM (srctrees, i))) {
-				nocc_error ("failed to pre-check %s", DA_NTHITEM (srcfiles, i));
-				errored = 1;
-			}
-		}
-		if (compopts.stoppoint == 7) {
-			/*{{{  stop after pre-check*/
-			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-			goto main_out;
-			/*}}}*/
-		}
-		if (errored) {
-			goto main_out;
-		}
-		/*}}}*/
-		/*{{{  alias check*/
-		if (compopts.doaliascheck) {
-			if (compopts.verbose) {
-				nocc_message ("alias check ...");
-			}
-			for (i=0; i<DA_CUR (srctrees); i++) {
-				if (aliascheck_tree (DA_NTHITEM (srctrees, i), (DA_NTHITEM (srclexers, i))->parser)) {
-					nocc_error ("failed alias-check in %s", DA_NTHITEM (srcfiles, i));
-					errored = 1;
+		for (i=0; i<DA_CUR (cfepasses); i++) {
+			compilerpass_t *cpass = DA_NTHITEM (cfepasses, i);
+
+			if (!cpass->flagptr || (*(cpass->flagptr) == 1)) {
+				int j;
+
+				if (compopts.verbose) {
+					nocc_message ("   %s ...", cpass->name);
+				}
+				for (j=0; j<DA_CUR (srctrees); j++) {
+					int result;
+
+					/* switch on argument calling pattern */
+					switch (cpass->fargs) {
+						/*{{{  (tnode_t **, langparser_t *)*/
+					case (CPASS_TREEPTR | CPASS_LANGPARSER):
+						{
+							int (*fcnptr)(tnode_t **, langparser_t *) = (int (*)(tnode_t **, langparser_t *))cpass->fcn;
+
+							result = fcnptr (DA_NTHITEMADDR (srctrees, j), (DA_NTHITEM (srclexers, j))->parser);
+						}
+						break;
+						/*}}}*/
+						/*{{{  (tnode_t *, langparser_t *)*/
+					case (CPASS_TREE | CPASS_LANGPARSER):
+						{
+							int (*fcnptr)(tnode_t *, langparser_t *) = (int (*)(tnode_t *, langparser_t *))cpass->fcn;
+
+							result = fcnptr (DA_NTHITEM (srctrees, j), (DA_NTHITEM (srclexers, j))->parser);
+						}
+						break;
+						/*}}}*/
+						/*{{{  (tnode_t **)*/
+					case CPASS_TREEPTR:
+						{
+							int (*fcnptr)(tnode_t **) = (int (*)(tnode_t **))cpass->fcn;
+
+							result = fcnptr (DA_NTHITEMADDR (srctrees, j));
+						}
+						break;
+						/*}}}*/
+						/*{{{  (tnode_t *)*/
+					case CPASS_TREE:
+						{
+							int (*fcnptr)(tnode_t *) = (int (*)(tnode_t *))cpass->fcn;
+
+							result = fcnptr (DA_NTHITEM (srctrees, j));
+						}
+						break;
+						/*}}}*/
+					default:
+						nocc_fatal ("unhandled compiler-pass argument combination 0x%8.8x for pass [%s]", (unsigned int)cpass->fargs, cpass->name);
+						result = -1;
+						break;
+					}
+					if (result) {
+						nocc_error ("failed to %s %s", cpass->name, DA_NTHITEM (srcfiles, j));
+						errored = 1;
+					}
 				}
 			}
-		}
-		if (compopts.stoppoint == 8) {
-			/*{{{  stop after alias-check*/
-			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-			goto main_out;
-			/*}}}*/
-		}
-		if (errored) {
-			goto main_out;
-		}
-		/*}}}*/
-		/*{{{  parallel-usage check*/
-		if (compopts.dousagecheck) {
-			if (compopts.verbose) {
-				nocc_message ("usage check ...");
+			/* can still stop even if pass not enabled */
+
+			if (compopts.stoppoint == cpass->stoppoint) {
+				/* stopping here */
+				maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+				goto main_out;
 			}
-			for (i=0; i<DA_CUR (srctrees); i++) {
-				if (usagecheck_tree (DA_NTHITEM (srctrees, i), (DA_NTHITEM (srclexers, i))->parser)) {
-					nocc_error ("failed usage-check in %s", DA_NTHITEM (srcfiles, i));
-					errored = 1;
-				}
+			if (errored) {
+				goto main_out;
 			}
-		}
-		if (compopts.stoppoint == 9) {
-			/*{{{  stop after usage-check*/
-			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-			goto main_out;
-			/*}}}*/
-		}
-		if (errored) {
-			goto main_out;
-		}
-		/*}}}*/
-		/*{{{  undefined-usage check*/
-		if (compopts.dodefcheck) {
-			if (compopts.verbose) {
-				nocc_message ("undefinedness check ...");
-			}
-			for (i=0; i<DA_CUR (srctrees); i++) {
-				if (defcheck_tree (DA_NTHITEM (srctrees, i), (DA_NTHITEM (srclexers, i))->parser)) {
-					nocc_error ("failed undefinedness check in %s", DA_NTHITEM (srcfiles, i));
-					errored = 1;
-				}
-			}
-		}
-		if (compopts.stoppoint == 10) {
-			/*{{{  stop after undefinedness-check*/
-			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-			goto main_out;
-			/*}}}*/
-		}
-		if (errored) {
-			goto main_out;
-		}
-		/*}}}*/
-		/*{{{  front-end tree transform*/
-		if (compopts.verbose) {
-			nocc_message ("front-end tree transform ...");
-		}
-		for (i=0; i<DA_CUR (srctrees); i++) {
-			if (fetrans_tree (DA_NTHITEMADDR (srctrees, i), (DA_NTHITEM (srclexers, i))->parser)) {
-				nocc_error ("failed front-end tree transform in %s", DA_NTHITEM (srcfiles, i));
-				errored = 1;
-			}
-		}
-		if (compopts.stoppoint == 11) {
-			/*{{{  stop after front-end tree transform*/
-			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-			goto main_out;
-			/*}}}*/
-		}
-		if (errored) {
-			goto main_out;
 		}
 		/*}}}*/
 
@@ -1243,104 +1209,63 @@ int main (int argc, char **argv)
 
 		/*}}}*/
 
-		/*{{{  back-end tree transform*/
+		/*{{{  back-end compiler passes*/
 		if (compopts.verbose) {
-			nocc_message ("back-end tree transform ...");
+			nocc_message ("back-end passes:");
 		}
-		for (i=0; i<DA_CUR (srctrees); i++) {
-			if (betrans_tree (DA_NTHITEMADDR (srctrees, i), target)) {
-				nocc_error ("failed back-end tree transform in %s", DA_NTHITEM (srcfiles, i));
-				errored = 1;
+		for (i=0; i<DA_CUR (cbepasses); i++) {
+			compilerpass_t *cpass = DA_NTHITEM (cbepasses, i);
+
+			if (!cpass->flagptr || (*(cpass->flagptr) == 1)) {
+				int j;
+
+				if (compopts.verbose) {
+					nocc_message ("   %s ...", cpass->name);
+				}
+				for (j=0; j<DA_CUR (srctrees); j++) {
+					int result;
+
+					/* switch on argument calling pattern */
+					switch (cpass->fargs) {
+						/*{{{  (tnode_t **, target_t *)*/
+					case (CPASS_TREEPTR | CPASS_TARGET):
+						{
+							int (*fcnptr)(tnode_t **, target_t *) = (int (*)(tnode_t **, target_t *))cpass->fcn;
+
+							result = fcnptr (DA_NTHITEMADDR (srctrees, j), target);
+						}
+						break;
+						/*}}}*/
+						/*{{{  (tnode_t **, lexfile_t *, target_t *)*/
+					case (CPASS_TREEPTR | CPASS_LEXFILE | CPASS_TARGET):
+						{
+							int (*fcnptr)(tnode_t **, lexfile_t *, target_t *) = (int (*)(tnode_t **, lexfile_t *, target_t *))cpass->fcn;
+
+							result = fcnptr (DA_NTHITEMADDR (srctrees, j), DA_NTHITEM (srclexers, j), target);
+						}
+						break;
+						/*}}}*/
+					default:
+						nocc_fatal ("unhandled compiler-pass argument combination 0x%8.8x for pass [%s]", (unsigned int)cpass->fargs, cpass->name);
+						result = -1;
+						break;
+					}
+					if (result) {
+						nocc_error ("failed to %s %s", cpass->name, DA_NTHITEM (srcfiles, j));
+						errored = 1;
+					}
+				}
 			}
-		}
-		if (compopts.stoppoint == 12) {
-			/*{{{  stop after back-end tree transform*/
-			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-			goto main_out;
-			/*}}}*/
-		}
-		if (errored) {
-			goto main_out;
-		}
-		/*}}}*/
-		/*{{{  map names (back-end scope)*/
-		if (compopts.verbose) {
-			nocc_message ("name-map ...");
-		}
-		for (i=0; i<DA_CUR (srctrees); i++) {
-			if (map_mapnames (DA_NTHITEMADDR (srctrees, i), target)) {
-				nocc_error ("failed name-map in %s", DA_NTHITEM (srcfiles, i));
-				errored = 1;
+			/* can still stop even if pass not enabled */
+
+			if (compopts.stoppoint == cpass->stoppoint) {
+				/* stopping here */
+				maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+				goto main_out;
 			}
-		}
-		if (compopts.stoppoint == 13) {
-			/*{{{  stop after name-map*/
-			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-			goto main_out;
-			/*}}}*/
-		}
-		if (errored) {
-			goto main_out;
-		}
-		/*}}}*/
-		/*{{{  pre-allocation*/
-		if (compopts.verbose) {
-			nocc_message ("pre-allocation ...");
-		}
-		for (i=0; i<DA_CUR (srctrees); i++) {
-			if (preallocate_tree (DA_NTHITEMADDR (srctrees, i), target)) {
-				nocc_error ("failed pre-allocation in %s", DA_NTHITEM (srcfiles, i));
-				errored = 1;
+			if (errored) {
+				goto main_out;
 			}
-		}
-		if (compopts.stoppoint == 14) {
-			/*{{{  stop after pre-allocation*/
-			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-			goto main_out;
-			/*}}}*/
-		}
-		if (errored) {
-			goto main_out;
-		}
-		/*}}}*/
-		/*{{{  allocate workspace/vectorspace/mobilespace*/
-		if (compopts.verbose) {
-			nocc_message ("memory allocation ...");
-		}
-		for (i=0; i<DA_CUR (srctrees); i++) {
-			if (allocate_tree (DA_NTHITEMADDR (srctrees, i), target)) {
-				nocc_error ("failed allocate in %s", DA_NTHITEM (srcfiles, i));
-				errored = 1;
-			}
-		}
-		if (compopts.stoppoint == 15) {
-			/*{{{  stop after memory allocation*/
-			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-			goto main_out;
-			/*}}}*/
-		}
-		if (errored) {
-			goto main_out;
-		}
-		/*}}}*/
-		/*{{{  generate code*/
-		if (compopts.verbose) {
-			nocc_message ("code generation ...");
-		}
-		for (i=0; i<DA_CUR (srctrees); i++) {
-			if (codegen_generate_code (DA_NTHITEMADDR (srctrees, i), DA_NTHITEM (srclexers, i), target)) {
-				nocc_error ("failed code-generation in %s", DA_NTHITEM (srcfiles, i));
-				errored = 1;
-			}
-		}
-		if (compopts.stoppoint == 16) {
-			/*{{{  stop after code generation*/
-			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-			goto main_out;
-			/*}}}*/
-		}
-		if (errored) {
-			goto main_out;
 		}
 		/*}}}*/
 

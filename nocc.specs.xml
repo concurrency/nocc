@@ -12,16 +12,19 @@
 	<!-- default compiler target -->
 	<target>etc-kroc-unknown</target>
 
-	<!-- epath's say where extensions/plugins are located -->
+	<!-- epath's say where extensions/plugins are located (-E) -->
 	<epath>/home/frmb/kroc_linux/ukcsource/nocc/addons</epath>
 	<epath>/usr/local/nocc/addons</epath>
 	<epath>/usr/share/nocc/addons</epath>
 	<epath>/usr/lib/nocc/addons</epath>
+	<epath>/home/frmb/kroc_linux/ukcsource/nocc-extn/lib</epath>
 
-	<!-- ipath's say where include files are -->
+	<!-- extn's say what extensions to load (-e) -->
+
+	<!-- ipath's say where include files are (-I) -->
 	<ipath>/home/frmb/kroc_linux/ukcsource/lib</ipath>
 
-	<!-- lpath's say where library files are -->
+	<!-- lpath's say where library files are (-L) -->
 	<lpath>/home/frmb/kroc_linux/ukcsource/lib</lpath>
 
 	<!-- signing/hashing -->

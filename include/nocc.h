@@ -1,6 +1,6 @@
 /*
  *	nocc.h -- global definitions for nocc
- *	Copyright (C) 2004 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2006 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -79,6 +79,7 @@ typedef struct TAG_compopts {
 	DYNARRAY (char *, epath);
 	DYNARRAY (char *, ipath);
 	DYNARRAY (char *, lpath);
+	DYNARRAY (char *, eload);
 
 	/* compiler settings */
 	char *maintainer;
@@ -106,6 +107,17 @@ typedef enum ENUM_treewalk {
 	WALK_PRECODE = 0x00000200,
 	WALK_CODEGEN = 0x00000400
 } treewalk_t;
+
+/* used to identify arguments passed to compiler-passes */
+typedef enum ENUM_comppassarg {
+	CPASS_INVALID = 0x00000000,
+	CPASS_TREE = 0x00000001,
+	CPASS_TREEPTR = 0x00000002,
+	CPASS_LANGPARSER = 0x00000004,
+	CPASS_FILENAME = 0x00000008,
+	CPASS_LEXFILE = 0x00000010,
+	CPASS_TARGET = 0x00000020
+} comppassarg_t;
 
 
 extern char *progname;

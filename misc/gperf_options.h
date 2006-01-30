@@ -35,12 +35,12 @@
  */
 struct TAG_cmd_option;
 
-#define TOTAL_KEYWORDS 46
+#define TOTAL_KEYWORDS 47
 #define MIN_WORD_LENGTH 4
 #define MAX_WORD_LENGTH 15
-#define MIN_HASH_VALUE 6
+#define MIN_HASH_VALUE 4
 #define MAX_HASH_VALUE 82
-/* maximum key range = 77, duplicates = 0 */
+/* maximum key range = 79, duplicates = 0 */
 
 #ifdef __GNUC__
 __inline
@@ -109,7 +109,7 @@ static const struct TAG_cmd_option wordlist[] =
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {"extn",			'e',	opt_addextn,		NULL,				"0compiler extension to load",				46},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"output",			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					42},
     {(char*)0,'\0',NULL,NULL,NULL,-1},

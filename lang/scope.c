@@ -271,6 +271,12 @@ int scope_tree (tnode_t *t, langparser_t *lang)
 	dynarray_trash (ss->defns);
 	dynarray_trash (ss->usens);
 	sfree (ss);
+
+	if (compopts.dumpnames) {
+		/* bit hackish perhaps (moved out from main) */
+		name_dumpnames (stderr);
+	}
+
 	return r;
 }
 /*}}}*/

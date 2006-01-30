@@ -60,5 +60,6 @@ output,			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					42
 include-path,		'I',	opt_addincludepath,	NULL,				"0add paths for include files",				43
 library-path,		'L',	opt_addlibrarypath,	NULL,				"0add paths for library files",				44
 extn-path,		'E',	opt_addextnpath,	NULL,				"1add paths for compiler extensions",			45
+extn,			'e',	opt_addextn,		NULL,				"0compiler extension to load",				46
 %%
 

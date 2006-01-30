@@ -64,5 +64,6 @@ hashalgo,		XMLKEY_HASHALGO
 privkey,		XMLKEY_PRIVKEY
 hash,			XMLKEY_HASH
 signedhash,		XMLKEY_SIGNEDHASH
+extn,			XMLKEY_EXTN
 %%
 
