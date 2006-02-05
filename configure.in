@@ -10,6 +10,7 @@ AC_PREREQ(2.12)
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 AM_CONFIG_HEADER(config.h)
+AM_CONFIG_HEADER(include/noccconfig.h)
 
 AM_INIT_AUTOMAKE([nocc], [0.1.4])
 
@@ -62,8 +63,10 @@ dnl AC_SEARCH_LIBS(SHA1,ssl,[have_libssl=yes],[have_libssl=no])
 
 AC_CHECK_HEADER(expat.h,[have_expat_h=yes],[have_expat_h=no])
 AC_SEARCH_LIBS(XML_Parse,expat,[have_libexpat=yes],[have_libexpat=no])
+AC_SEARCH_LIBS(dlsym,dl,[have_lib_dl=yes],[have_lib_dl=no])
 
 AC_CHECK_TOOL(LD,ld)
+
 
 AC_DEFINE_UNQUOTED([HOST_CPU],"$host_cpu",[host CPU type])
 AC_DEFINE_UNQUOTED([HOST_OS],"$host_os",[host OS])
@@ -95,6 +98,10 @@ fi
 
 if test $enable_opt_debug = yes; then
  AC_DEFINE([DEBUG],1,[define to enable compiler debugging])
+fi
+
+if test $have_lib_dl = yes; then
+ AC_DEFINE([LIBDL],1,[define to enable use of dynamic linker])
 fi
 
 AC_OUTPUT([Makefile include/Makefile misc/Makefile lexer/Makefile parser/Makefile extn/Makefile xml/Makefile frontend/Makefile backend/Makefile target/Makefile lang/Makefile tests/Makefile addons/Makefile])

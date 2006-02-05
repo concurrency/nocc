@@ -27,6 +27,7 @@ typedef struct TAG_extn {
 	char *name;
 	char *desc;
 	char *filename;
+	char *versionstr;		/* compiler version */
 
 	int (*init)(struct TAG_extn *);
 	int (*preloadgrammar)(struct TAG_extn *, struct TAG_langparser *, struct TAG_dfattbl ***, int *, int *);

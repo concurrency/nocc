@@ -263,6 +263,9 @@
 /* Define if integer division by zero raises signal SIGFPE. */
 #undef INTDIV0_RAISES_SIGFPE
 
+/* define to enable use of dynamic linker */
+#undef LIBDL
+
 /* Name of package */
 #undef PACKAGE
 

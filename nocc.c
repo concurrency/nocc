@@ -75,6 +75,7 @@
 /*{{{  global variables*/
 char *progname = NULL;
 compopts_t compopts = {
+	progpath: NULL,
 	verbose: 0,
 	notmainmodule: 0,
 	dohelp: NULL,
@@ -673,6 +674,7 @@ int main (int argc, char **argv)
 	
 	/*{{{  basic initialisation*/
 	for (progname=*argv + (strlen (*argv) - 1); (progname > *argv) && (progname[-1] != '/'); progname--);
+	compopts.progpath = *argv;
 
 	dmem_init ();
 	compopts.maintainer = string_dup ("ofa-bugs@kent.ac.uk");
@@ -825,8 +827,6 @@ int main (int argc, char **argv)
 
 	/* dump specs if wanted */
 	if (compopts.dumpspecs) {
-		int i;
-
 		nocc_message ("detailed compiler settings:");
 
 		nocc_message ("    target:          %s", compopts.target_str ? compopts.target_str : "<unset>");
@@ -960,6 +960,13 @@ int main (int argc, char **argv)
 			nocc_message ("exiting...");
 		}
 		goto main_out;
+	}
+	/*}}}*/
+	/*{{{  load extensions*/
+	for (i=0; i<DA_CUR (compopts.eload); i++) {
+		if (extn_loadextn (DA_NTHITEM (compopts.eload, i))) {
+			errored++;
+		}
 	}
 	/*}}}*/
 	/*{{{  check that we're actually compiling something*/

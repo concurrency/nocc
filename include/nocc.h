@@ -46,6 +46,7 @@ struct TAG_cmd_option;
 /* this holds global options for the compiler */
 typedef struct TAG_compopts {
 	/* general options */
+	char *progpath;			/* argv[0] */
 	int verbose;
 	int notmainmodule;
 	struct TAG_cmd_option *dohelp;

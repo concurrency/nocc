@@ -24,7 +24,7 @@ nocc_LDADD = lexer/liblexer.a parser/libparser.a extn/libextn.a xml/libxml.a fro
 SUBDIRS = include misc lexer parser extn xml frontend target backend lang tests addons
 
 CFLAGS = @CFLAGS@ @EXTRA_CFLAGS@ @LIBGCRYPT_CFLAGS@
-LIBS = @LIBS@ @LIBGCRYPT_LIBS@
+LIBS = @LIBS@ @LIBGCRYPT_LIBS@ -Xlinker --export-dynamic
 
 EXTRA_DIST = README CHANGELOG TODO AUTHORS nocc.specs.xml
 

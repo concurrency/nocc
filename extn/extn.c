@@ -34,6 +34,10 @@
 #include "parsepriv.h"
 #include "dfa.h"
 
+#if defined(LIBDL)
+
+#include <dlfcn.h>
+
 
 STATICDYNARRAY (extn_t *, extensions);
 
@@ -46,6 +50,10 @@ void extn_init (void)
 {
 	dynarray_init (extensions);
 
+	if (!dlsym ((void *)0, "nocc_error")) {
+		nocc_error ("extn_init(): could not find nocc_error symbol");
+	}
+
 	return;
 }
 /*}}}*/
@@ -57,9 +65,72 @@ void extn_init (void)
  */
 int extn_loadextn (const char *fname)
 {
-	/*
-	 *	TODO: load library, see if it registers, add to list if not
-	 */
+	int curecount = DA_CUR (extensions);
+	int i;
+	char *fnbuf = NULL;
+	void *libhandle;
+
+	fnbuf = (char *)smalloc (FILENAME_MAX);
+
+	for (i=0; i<DA_CUR (compopts.epath); i++) {
+		char *epath = DA_NTHITEM (compopts.epath, i);
+		int eplen = strlen (epath);
+
+		snprintf (fnbuf, FILENAME_MAX-1, "%s%slib%s.so", epath, (epath[eplen - 1] == '/') ? "" : "/", fname);
+		if (!access (fnbuf, R_OK)) {
+			break;		/* for() */
+		}
+	}
+	if (i == DA_CUR (compopts.epath)) {
+		nocc_error ("extn_loadextn(): failed to find library %s", fname);
+		sfree (fnbuf);
+		return -1;
+	}
+
+	/* open library */
+	libhandle = dlopen (fnbuf, RTLD_NOW | RTLD_LOCAL);
+	if (!libhandle) {
+		nocc_error ("extn_loadextn(): failed to open library %s (from %s): %s", fname, fnbuf, dlerror ());
+		sfree (fnbuf);
+		return -1;
+	}
+
+	/* if the library had a constructor, it would have called register already */
+	if (curecount == DA_CUR (extensions)) {
+		/*{{{  didn't register yet, prod it manually*/
+		int (*initfcn)(void);
+		char *derr;
+
+		dlerror ();		/* clear any error message */
+		initfcn = (int (*)(void))dlsym (libhandle, "nocc_extn_init");
+		derr = dlerror ();
+		if (derr) {
+			nocc_error ("extn_loadextn(): failed to resolve \"nocc_extn_init\" in %s (file %s): %s", fname, fnbuf, derr);
+			sfree (fnbuf);
+			dlclose (libhandle);
+			return -1;
+		}
+
+		/* call init function -- should register it */
+		if (initfcn ()) {
+			nocc_error ("extn_loadextn(): failed to initialise %s (file %s)", fname, fnbuf);
+			sfree (fnbuf);
+			dlclose (libhandle);
+			return -1;
+		}
+		if (curecount == DA_CUR (extensions)) {
+			nocc_error ("extn_loadextn(): extension %s (file %s) did not register", fname, fnbuf);
+			sfree (fnbuf);
+			dlclose (libhandle);
+			return -1;
+		}
+		/*}}}*/
+	}
+
+	/* leave library open and forget about it */
+
+	sfree (fnbuf);
+
 	return 0;
 }
 /*}}}*/
@@ -128,4 +199,48 @@ int extn_postloadgrammar (langparser_t *lang)
 }
 /*}}}*/
 
+#else	/* !defined(LIBDL) */
+
+/*{{{  void extn_init (void)*/
+/*
+ *	dummy initialisation routine
+ */
+void extn_init (void)
+{
+	return;
+}
+/*}}}*/
+/*{{{  int extn_loadextn (const char *fname)*/
+/*
+ *	dummy load extension
+ *	returns 0 on success, non-zero on failure
+ */
+int extn_loadextn (const char *fname)
+{
+	nocc_warning ("cannot load extension [%s], no dynamic library support", fname);
+	return 0;
+}
+/*}}}*/
+/*{{{  int extn_preloadgrammar (langparser_t *lang, dfattbl_t ***ttblptr, int *ttblcur, int *ttblmax)*/
+/*
+ *	dummy preloadgrammar
+ *	returns 0 on success, non-zero on failure
+ */
+int extn_preloadgrammar (langparser_t *lang, dfattbl_t ***ttblptr, int *ttblcur, int *ttblmax)
+{
+	return 0;
+}
+/*}}}*/
+/*{{{  int extn_postloadgrammar (langparser_t *lang)*/
+/*
+ *	dummy postloadgrammar
+ *	return 0 on success, non-zero on failure
+ */
+int extn_postloadgrammar (langparser_t *lang)
+{
+	return 0;
+}
+/*}}}*/
+
+#endif	/* !defined(LIBDL) */
 
