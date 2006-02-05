@@ -90,6 +90,7 @@ compopts_t compopts = {
 	dumptargets: 0,
 	dumpvarmaps: 0,
 	dumpnodetypes: 0,
+	dumpextns: 0,
 	debugparser: 0,
 	stoppoint: 0,
 	tracetypecheck: 0,
@@ -969,6 +970,11 @@ int main (int argc, char **argv)
 		}
 	}
 	/*}}}*/
+	/*{{{  dump extensions if requested*/
+	if (compopts.dumpextns) {
+		extn_dumpextns ();
+	}
+	/*}}}*/
 	/*{{{  check that we're actually compiling something*/
 	if (!DA_CUR (srcfiles) && !compopts.dohelp) {
 		nocc_fatal ("no input files!");
@@ -981,6 +987,10 @@ int main (int argc, char **argv)
 			}
 		}
 	}
+	/*}}}*/
+	/*{{{  initialise extensions*/
+	extn_initialise ();
+
 	/*}}}*/
 
 	/*{{{  get hold of the desired target*/

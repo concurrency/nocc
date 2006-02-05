@@ -27,7 +27,8 @@ typedef struct TAG_extn {
 	char *name;
 	char *desc;
 	char *filename;
-	char *versionstr;		/* compiler version */
+	char *cversionstr;		/* for compiler version */
+	char *version;			/* extension version */
 
 	int (*init)(struct TAG_extn *);
 	int (*preloadgrammar)(struct TAG_extn *, struct TAG_langparser *, struct TAG_dfattbl ***, int *, int *);
@@ -38,9 +39,11 @@ typedef struct TAG_extn {
 
 extern void extn_init (void);
 extern int extn_loadextn (const char *fname);
+extern void extn_dumpextns (void);
 
 extern int extn_register (extn_t *extn);
 
+extern int extn_initialise (void);
 extern int extn_preloadgrammar (struct TAG_langparser *lang, struct TAG_dfattbl ***ttblptr, int *ttblcur, int *ttblmax);
 extern int extn_postloadgrammar (struct TAG_langparser *lang);
 

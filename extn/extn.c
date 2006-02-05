@@ -69,6 +69,7 @@ int extn_loadextn (const char *fname)
 	int i;
 	char *fnbuf = NULL;
 	void *libhandle;
+	extn_t *theextn = NULL;
 
 	fnbuf = (char *)smalloc (FILENAME_MAX);
 
@@ -124,14 +125,37 @@ int extn_loadextn (const char *fname)
 			dlclose (libhandle);
 			return -1;
 		}
+
 		/*}}}*/
 	}
+
+	/* should have registered as the last one, set filename */
+	theextn = DA_NTHITEM (extensions, DA_CUR (extensions) - 1);
+	theextn->filename = string_dup (fnbuf);
 
 	/* leave library open and forget about it */
 
 	sfree (fnbuf);
 
 	return 0;
+}
+/*}}}*/
+/*{{{  void extn_dumpextns (void)*/
+/*
+ *	dumps loaded extensions (debugging)
+ */
+void extn_dumpextns (void)
+{
+	int i;
+
+	nocc_message ("%d loaded extensions:", DA_CUR (extensions));
+	for (i=0; i<DA_CUR (extensions); i++) {
+		extn_t *extn = DA_NTHITEM (extensions, i);
+
+		nocc_message ("    %-16s %-8s %-8s (%s)", extn->name, extn->cversionstr, extn->version, extn->desc);
+	}
+
+	return;
 }
 /*}}}*/
 /*{{{  int extn_register (extn_t *extn)*/
@@ -158,6 +182,26 @@ int extn_register (extn_t *extn)
 /*}}}*/
 
 
+/*{{{  int extn_initialise (void)*/
+/*
+ *	called to initialise extensions (calling the extn_t init routine)
+ *	returns 0 on success, non-zero on failure
+ */
+int extn_initialise (void)
+{
+	int i;
+
+	for (i=0; i<DA_CUR (extensions); i++) {
+		extn_t *extn = DA_NTHITEM (extensions, i);
+
+		if (extn->init && extn->init (extn)) {
+			nocc_error ("extn_initialise(): failed to initialise extension [%s]", extn->name);
+			return -1;
+		}
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  int extn_preloadgrammar (langparser_t *lang, dfattbl_t ***ttblptr, int *ttblcur, int *ttblmax)*/
 /*
  *	called to pre-load grammars for extensions, language involved is passed
@@ -218,6 +262,16 @@ void extn_init (void)
 int extn_loadextn (const char *fname)
 {
 	nocc_warning ("cannot load extension [%s], no dynamic library support", fname);
+	return 0;
+}
+/*}}}*/
+/*{{{  int extn_initialise (void)*/
+/*
+ *	dummy initialise extensions
+ *	returns 0 on success, non-zero on failure
+ */
+int extn_initialise (void)
+{
 	return 0;
 }
 /*}}}*/
