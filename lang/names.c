@@ -156,13 +156,17 @@ fprintf (stderr, "name_lookupss(): blah! str=[%s] ss = 0x%8.8x, DA_CUR (usens) =
 			int i;
 
 #if 0
-fprintf (stderr, "name_lookupss(): found stack for [%s], looking for namespace-less one..\n", str);
+fprintf (stderr, "name_lookupss(): found stack for [%s], looking for namespace-less one..  namestack is:\n", str);
+name_dumpnames (stderr);
 #endif
 			/* look for a namespace-less one (local) */
 			for (i=top; i >= 0; i--) {
 				name_t *tname = DA_NTHITEM (nl->scopes, i);
 
-				if (tname && !tname->ns) {
+#if 0
+fprintf (stderr, "tname->me->name = [%s], tname->ns->nspace = [%s]\n", tname->me->name, tname->ns ? tname->ns->nspace : "<empty>");
+#endif
+				if (tname && (!tname->ns || !strlen (tname->ns->nspace))) {
 					/* this one */
 					name = tname;
 					break;			/* for() */
@@ -178,7 +182,7 @@ fprintf (stderr, "name_lookupss(): found stack for [%s], looking for one in a vi
 					name_t *tname = DA_NTHITEM (nl->scopes, i);
 					int j;
 
-					if (!tname || !tname->ns) {
+					if (!tname || !tname->ns || !strlen (tname->ns->nspace)) {
 						continue;		/* for() */
 					}
 					for (j=(DA_CUR (ss->usens) - 1); (j>=0) && (tname->ns != DA_NTHITEM (ss->usens, j)); j--);

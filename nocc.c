@@ -658,7 +658,65 @@ static int nocc_init_cpasses (void)
 	return 0;
 }
 /*}}}*/
+/*{{{  int nocc_addcompilerpass (const char *name, void *origin, const char *other, int before, int (*pfcn)(void *), comppassarg_t parg, int stopat, int *eflagptr)*/
+/*
+ *	this can be called by extensions to add passes to the compiler at run-time
+ *	returns 0 on success, non-zero on failure
+ */
+int nocc_addcompilerpass (const char *name, void *origin, const char *other, int before, int (*pfcn)(void *), comppassarg_t parg, int stopat, int *eflagptr)
+{
+	int i;
+	compilerpass_t *cpass, **cpasses = NULL;
+	int where = -1;
 
+	if (!name || !origin || !other || !pfcn) {
+		nocc_internal ("nocc_addcompilerpass(): bad parameters");
+		return -1;
+	}
+
+	/*{{{  find out where we're trying to add it*/
+	for (i=0; i<DA_CUR (cfepasses); i++) {
+		cpass = DA_NTHITEM (cfepasses, i);
+		if (!strcmp (cpass->name, name)) {
+			nocc_error ("nocc_addcompilerpass(): [%s] already registered", name);
+			return -1;
+		}
+		if (!strcmp (cpass->name, other)) {
+			where = before ? i : i+1;
+			cpasses = DA_PTR (cfepasses);
+			break;		/* for() */
+		}
+	}
+	for (i=0; i<DA_CUR (cbepasses); i++) {
+		cpass = DA_NTHITEM (cbepasses, i);
+		if (!strcmp (cpass->name, name)) {
+			nocc_error ("nocc_addcompilerpass(): [%s] already registered", name);
+			return -1;
+		}
+		if (!strcmp (cpass->name, other)) {
+			if (where > -1) {
+				nocc_internal ("nocc_addcompilerpass(): confused..");
+				return -1;
+			}
+			where = before ? i : i+1;
+			cpasses = DA_PTR (cbepasses);
+			break;		/* for() */
+		}
+	}
+	/*}}}*/
+
+	/* make compiler pass */
+	cpass = nocc_new_compilerpass (name, origin, pfcn, parg, stopat, eflagptr);
+
+	if (cpasses == DA_PTR (cfepasses)) {
+		dynarray_insert (cfepasses, cpass, where);
+	} else {
+		dynarray_insert (cbepasses, cpass, where);
+	}
+
+	return 0;
+}
+/*}}}*/
 
 /*{{{  int main (int argc, char **argv)*/
 /*

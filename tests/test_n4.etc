@@ -1,24 +1,39 @@
 ;
 ;	tests/test_n4.etc
 ;	compiled from tests/test_n4.occ
+;	on host tadpole at Wed Feb  8 22:46:04 2006
+;	source language: occam-pi, target: etc-kroc-unknown
 ;
 
-; PROC foo = 0,0,0,0,0
-.setws	0, 0
+.descriptor	"PROC O_bar ()"
+.descriptor	"PROC O_foo ()"
+; PROC foo = 20,8,0,0,4
+.setws	20, 4
 .setvs	0
 .setms	0
 .setnamedlabel	"O_foo"
-	ajw	0
-; PROC bar = 0,0,0,0,0
-.setws	0, 0
+.procentry	"foo"
+.sourcefile tests/test_n4.occ
+.sourceline 2
+.setlabel	1
+	ajw	-4
+; PROC bar = 4,4,0,0,4
+.setws	4, 4
 .setvs	0
 .setms	0
 .setnamedlabel	"O_bar"
+.procentry	"bar"
+.sourceline 3
+.setlabel	2
 	ajw	0
 	ajw	0
-	ret
-	ajw	0
-	ret
+	ret	4
+.tsdepth 0
+.sourceline 6
+	seterr
+	ajw	4
+	ret	4
+.tsdepth 0
 
 ;
 ;	end of compilation

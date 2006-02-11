@@ -3,6 +3,6 @@
 PROC test.x39 (CHAN BYTE scr!)
   SKIP
 TRACES
-  "((a -> b) || c) -> d"
+  "scr -> SKIP"
 :
 

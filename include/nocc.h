@@ -121,9 +121,12 @@ typedef enum ENUM_comppassarg {
 	CPASS_TARGET = 0x00000020
 } comppassarg_t;
 
-
 extern char *progname;
 extern compopts_t compopts;
+
+/* this can be called by extensions to add passes to the compiler */
+extern int nocc_addcompilerpass (const char *name, void *origin, const char *other, int before, int (*pfcn)(void *), comppassarg_t parg, int stopat, int *eflagptr);
+
 
 #endif	/* !__NOCC_H */
 
