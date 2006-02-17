@@ -1757,6 +1757,7 @@ static int mcsp_codegen_cnode (tnode_t *node, codegen_t *cgen)
 		}
 		/*}}}*/
 		/*{{{  PAR cleanup*/
+		codegen_callops (cgen, comment, "END PAR BODIES");
 		codegen_callops (cgen, setlabel, joinlab);
 		/*}}}*/
 		/*{{{  if we've got an alphabet, down ref-counts by (nbodies), enroll-counts by (nbodies - 1), down-counts by (nbodies - 1)*/
@@ -2219,6 +2220,8 @@ static int mcsp_codegen_loopnode (tnode_t *node, codegen_t *cgen)
 		codegen_callops (cgen, loadconst, 1);
 		codegen_callops (cgen, tsecondary, I_DIFF);
 		codegen_callops (cgen, tsecondary, I_SETPRI);
+
+		return 0;
 		/*}}}*/
 	}
 	return 1;

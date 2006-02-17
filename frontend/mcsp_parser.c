@@ -736,7 +736,7 @@ tnode_dumptree (xdeclnode, 1, stderr);
 
 				xparlist = parser_buildlistnode (NULL, xinstance, xalt, NULL);
 				xparnode = tnode_create (mcsp.tag_PARCODE, NULL, NULL, xparlist, NULL);
-				xparnode = tnode_create (mcsp.tag_PRIDROP, NULL, xparnode, NULL);
+				/* xparnode = tnode_create (mcsp.tag_PRIDROP, NULL, xparnode, NULL); */
 
 
 				parser_addtolist (tnode_nthsubof (xiseq, 1), xparnode);
