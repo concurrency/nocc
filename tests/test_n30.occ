@@ -1,0 +1,13 @@
+
+-- test_n30.occ -- more occam-pi tests
+
+PROC test.n30 (CHAN BYTE kyb?, scr!)
+  WHILE TRUE
+    BYTE ch:
+    SEQ
+      kyb ? ch
+      scr ! ch
+      scr ! #FF
+:
+
+

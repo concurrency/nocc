@@ -64,6 +64,7 @@ typedef struct TAG_occampi_lex {
 	int curindent;			/* current indent */
 	int scanto_indent;		/* target indent when it changes */
 	int newlineflag;
+	int oldnewline;
 	int cescapes;			/* whether we're using C-style escape characters */
 	int coperators;			/* whether we're using C-style operators */
 } occampi_lex_t;
@@ -275,6 +276,7 @@ static int occampi_openfile (lexfile_t *lf, lexpriv_t *lp)
 	lop->curindent = 0;
 	lop->scanto_indent = 0;
 	lop->newlineflag = 1;		/* effectively get a newline straight-away */
+	lop->oldnewline = 0;
 	lop->cescapes = 0;
 	lop->coperators = 0;
 	
@@ -347,10 +349,13 @@ tokenloop:
 		}
 		lp->offset += (int)(dh - ch);
 		lop->newlineflag = 0;
+		lop->oldnewline = 1;
 		ch = dh;
 		lop->scanto_indent = thisindent;
 		/* then scoop this up next */
 		/*}}}*/
+	} else {
+		lop->oldnewline = 0;
 	}
 
 	/* might still be scanning to a specific indent point */
@@ -665,6 +670,34 @@ tokenloop:
 			*xch = '\0';
 			tok->u.str.len = slen;
 			lp->offset += (int)(dh - ch);
+		}
+		break;
+		/*}}}*/
+		/*{{{  # (symbol or hex-constant)*/
+	case '#':
+		if (lop->oldnewline) {
+			/* recently had a newline, probably a symbol (pre-processor) */
+			goto default_label;
+		} else {
+			/*{{{  hexidecimal number*/
+			char *dh;
+			char *npbuf = NULL;
+
+			tok->type = INTEGER;
+			for (dh=ch+1; (dh < chlim) && (((*dh >= '0') && (*dh <= '9')) || ((*dh >= 'A') && (*dh <= 'F'))); dh++);
+			lp->offset += (int)(dh - ch);
+			/* parse it */
+			npbuf = (char *)smalloc ((int)(dh - ch));
+			memcpy (npbuf, ch+1, (int)(dh - ch) - 1);
+			npbuf[(int)(dh - ch) - 1] = '\0';
+			if (sscanf (npbuf, "%x", &tok->u.ival) != 1) {
+				lexer_error (lf, "malformed hexidecimal constant: %s", npbuf);
+				sfree (npbuf);
+				goto out_error1;
+			} else {
+				sfree (npbuf);
+			}
+			/*}}}*/
 		}
 		break;
 		/*}}}*/
