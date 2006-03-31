@@ -1,0 +1,13 @@
+
+-- test_n31.occ -- more tests
+
+PROC test.n31 (CHAN BYTE scr!)
+  PROC inner ()
+    SKIP
+  :
+  INT v:
+  SEQ
+    inner ()
+:
+
+
