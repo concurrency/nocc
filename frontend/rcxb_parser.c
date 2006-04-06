@@ -118,7 +118,7 @@ void rcxb_isetindent (FILE *stream, int indent)
  */
 static int rcxb_tokens_init (void)
 {
-	keywords_add ("REM", -1, (void *)&rcxb_parser);
+	keywords_add ("rem", -1, (void *)&rcxb_parser);
 
 	keywords_add ("set", -1, (void *)&rcxb_parser);
 	keywords_add ("motor", -1, (void *)&rcxb_parser);
@@ -140,6 +140,8 @@ static int rcxb_tokens_init (void)
 	keywords_add ("else", -1, (void *)&rcxb_parser);
 	keywords_add ("elsif", -1, (void *)&rcxb_parser);
 	keywords_add ("endif", -1, (void *)&rcxb_parser);
+	keywords_add ("sleep", -1, (void *)&rcxb_parser);
+	keywords_add ("sound", -1, (void *)&rcxb_parser);
 
 	return 0;
 }

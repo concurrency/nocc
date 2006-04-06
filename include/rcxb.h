@@ -38,6 +38,7 @@ typedef struct {
 	struct TAG_tndef *node_DOPNODE;
 	struct TAG_tndef *node_RELNODE;
 	struct TAG_tndef *node_LOOPNODE;
+	struct TAG_tndef *node_OPERNODE;
 
 	struct TAG_ntdef *tag_NAME;
 
@@ -70,10 +71,20 @@ typedef struct {
 	struct TAG_ntdef *tag_SETSENSOR;
 	struct TAG_ntdef *tag_SETPOWER;
 	struct TAG_ntdef *tag_SETDIRECTION;
+	struct TAG_ntdef *tag_ASSIGN;
 
 	struct TAG_ntdef *tag_FOR;
 	struct TAG_ntdef *tag_WHILE;
 	struct TAG_ntdef *tag_NEXT;
+
+	struct TAG_ntdef *tag_GOTO;
+	struct TAG_ntdef *tag_SLEEP;
+	struct TAG_ntdef *tag_SETLABEL;
+	struct TAG_ntdef *tag_SOUND;
+
+	struct TAG_ntdef *tag_RCXBGOTO;
+	struct TAG_ntdef *tag_RCXBSETLABEL;
+	struct TAG_ntdef *tag_RCXBSLEEP;
 
 	struct TAG_token *tok_REM;
 	struct TAG_token *tok_FORWARD;

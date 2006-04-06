@@ -116,7 +116,7 @@ static token_t *rcxb_nexttoken (lexfile_t *lf, lexpriv_t *lp)
 		return NULL;
 	}
 	if (!lrp->is_setup) {
-		lrp->kw_rem = keywords_lookup ("REM", 3);
+		lrp->kw_rem = keywords_lookup ("rem", 3);
 	}
 
 	tok = (token_t *)smalloc (sizeof (token_t));
@@ -154,7 +154,7 @@ tokenloop:
 			tok->type = NAME;
 			tok->u.name = string_ndup (ch, (int)(dh - ch));
 		} else if (kw == lrp->kw_rem) {
-			/* REM ... -- comment to end-of-line */
+			/* rem ... -- comment to end-of-line */
 			for (dh=ch+1; (dh < chlim) && (*dh != '\n') && (*dh != '\r'); dh++);
 			tok->type = COMMENT;
 		} else {

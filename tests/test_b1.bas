@@ -1,8 +1,9 @@
-REM	test_b1.bas -- testing BASIC for LEGO RCX ..
-REM	Fred Barnes, Jan 2006
+rem	vim:syntax=rcxbasic
+rem	test_b1.bas -- testing BASIC for LEGO RCX ..
+rem	Fred Barnes, Jan 2006
 
 
-REM	initialise brick
+rem	initialise brick
 
 set sensor 1 "light"
 set sensor 2 "touch"
@@ -15,10 +16,13 @@ set motor A -3
 set motor B 2
 
 for x = 0 to 10
-	wait 10
+	sleep 10
+	sound "click"
 next x
 
-REM 
-REM start:
-REM 	goto start
+rem 
+rem start:
+rem 	goto start
+
+
 

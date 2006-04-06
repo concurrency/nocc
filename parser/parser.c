@@ -380,7 +380,12 @@ tnode_t **parser_addtolist (tnode_t *list, tnode_t *item)
 	if (*cur == *max) {
 		/* need to make the array a bit larger */
 		array = (tnode_t **)srealloc (array, (*max + 2) * sizeof (tnode_t *), (*max + 10) * sizeof (tnode_t *));
+
+		cur = (int *)(array);
+		max = (int *)(array + 1);
+
 		*max = *max + 8;
+		tnode_setnthhook (list, 0, array);
 	}
 	array[*cur + 2] = item;
 	*cur = *cur + 1;
@@ -408,7 +413,12 @@ tnode_t **parser_addtolist_front (tnode_t *list, tnode_t *item)
 	if (*cur == *max) {
 		/* need to make the array a bit larger */
 		array = (tnode_t **)srealloc (array, (*max + 2) * sizeof (tnode_t *), (*max + 10) * sizeof (tnode_t *));
+
+		cur = (int *)(array);
+		max = (int *)(array + 1);
+
 		*max = *max + 8;
+		tnode_setnthhook (list, 0, array);
 	}
 	for (i=*cur + 1; i>1; i--) {
 		array[i+1] = array[i];
