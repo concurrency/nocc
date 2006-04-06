@@ -60,7 +60,8 @@ langlexer_t rcxb_lexer = {
 /*}}}*/
 /*{{{  private types*/
 typedef struct TAG_rcxb_lex {
-	int dummy;
+	int is_setup;
+	keyword_t *kw_rem;
 } rcxb_lex_t;
 
 /*}}}*/
@@ -75,7 +76,8 @@ static int rcxb_openfile (lexfile_t *lf, lexpriv_t *lp)
 	rcxb_lex_t *lrp;
 
 	lrp = (rcxb_lex_t *)smalloc (sizeof (rcxb_lex_t));
-	lrp->dummy = 0;
+	lrp->is_setup = 0;
+	lrp->kw_rem = NULL;
 	
 	lp->langpriv = (void *)lrp;
 	lf->lineno = 1;
@@ -113,6 +115,9 @@ static token_t *rcxb_nexttoken (lexfile_t *lf, lexpriv_t *lp)
 	if (!lf || !lp) {
 		return NULL;
 	}
+	if (!lrp->is_setup) {
+		lrp->kw_rem = keywords_lookup ("REM", 3);
+	}
 
 	tok = (token_t *)smalloc (sizeof (token_t));
 	tok->type = NOTOKEN;
@@ -148,6 +153,10 @@ tokenloop:
 			/* assume name */
 			tok->type = NAME;
 			tok->u.name = string_ndup (ch, (int)(dh - ch));
+		} else if (kw == lrp->kw_rem) {
+			/* REM ... -- comment to end-of-line */
+			for (dh=ch+1; (dh < chlim) && (*dh != '\n') && (*dh != '\r'); dh++);
+			tok->type = COMMENT;
 		} else {
 			/* keyword found */
 			tok->type = KEYWORD;

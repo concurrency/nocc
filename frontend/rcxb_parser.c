@@ -45,6 +45,7 @@
 #include "library.h"
 #include "feunit.h"
 #include "names.h"
+#include "prescope.h"
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
@@ -55,7 +56,7 @@
 static int rcxb_parser_init (lexfile_t *lf);
 static void rcxb_parser_shutdown (lexfile_t *lf);
 static tnode_t *rcxb_parser_parse (lexfile_t *lf);
-
+static int rcxb_parser_prescope (tnode_t **tptr, prescope_t *ps);
 
 /*}}}*/
 /*{{{  global vars*/
@@ -68,7 +69,7 @@ langparser_t rcxb_parser = {
 	shutdown:	rcxb_parser_shutdown,
 	parse:		rcxb_parser_parse,
 	descparse:	NULL, // mcsp_parser_descparse,
-	prescope:	NULL, // mcsp_parser_prescope,
+	prescope:	rcxb_parser_prescope,
 	scope:		NULL, // mcsp_parser_scope,
 	typecheck:	NULL, // mcsp_parser_typecheck,
 	maketemp:	NULL,
@@ -117,9 +118,28 @@ void rcxb_isetindent (FILE *stream, int indent)
  */
 static int rcxb_tokens_init (void)
 {
+	keywords_add ("REM", -1, (void *)&rcxb_parser);
+
 	keywords_add ("set", -1, (void *)&rcxb_parser);
 	keywords_add ("motor", -1, (void *)&rcxb_parser);
 	keywords_add ("sensor", -1, (void *)&rcxb_parser);
+	keywords_add ("power", -1, (void *)&rcxb_parser);
+	keywords_add ("direction", -1, (void *)&rcxb_parser);
+	keywords_add ("forward", -1, (void *)&rcxb_parser);
+	keywords_add ("reverse", -1, (void *)&rcxb_parser);
+	keywords_add ("off", -1, (void *)&rcxb_parser);
+	keywords_add ("for", -1, (void *)&rcxb_parser);
+	keywords_add ("to", -1, (void *)&rcxb_parser);
+	keywords_add ("step", -1, (void *)&rcxb_parser);
+	keywords_add ("next", -1, (void *)&rcxb_parser);
+	keywords_add ("while", -1, (void *)&rcxb_parser);
+	keywords_add ("gosub", -1, (void *)&rcxb_parser);
+	keywords_add ("goto", -1, (void *)&rcxb_parser);
+	keywords_add ("if", -1, (void *)&rcxb_parser);
+	keywords_add ("then", -1, (void *)&rcxb_parser);
+	keywords_add ("else", -1, (void *)&rcxb_parser);
+	keywords_add ("elsif", -1, (void *)&rcxb_parser);
+	keywords_add ("endif", -1, (void *)&rcxb_parser);
 
 	return 0;
 }
@@ -352,12 +372,14 @@ static void rcxb_parser_shutdown (lexfile_t *lf)
 /*
  *	called to parse a file (containing RCX-BASIC)
  *	returns a tree on success, NULL on failure
+ *
+ *	note: for this BASIC-ish language, the tree is just a list of
+ *	things at the top-level
  */
 static tnode_t *rcxb_parser_parse (lexfile_t *lf)
 {
 	token_t *tok;
-	tnode_t *tree = NULL;
-	tnode_t **target = &tree;
+	tnode_t *tree = parser_newlistnode (lf);
 
 	if (compopts.verbose) {
 		nocc_message ("rcxb_parser_parse(): starting parse..");
@@ -366,7 +388,6 @@ static tnode_t *rcxb_parser_parse (lexfile_t *lf)
 	for (;;) {
 		tnode_t *thisone;
 		int tnflags;
-		int breakfor = 0;
 
 		tok = lexer_nexttoken (lf);
 		while ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
@@ -380,26 +401,13 @@ static tnode_t *rcxb_parser_parse (lexfile_t *lf)
 		}
 		lexer_pushback (lf, tok);
 
-		thisone = dfa_walk ("rcxb:program", lf);
+		thisone = dfa_walk ("rcxb:statement", lf);
 		if (!thisone) {
-			*target = NULL;
 			break;		/* for() */
 		}
-		*target = thisone;
-		while (*target) {
-			/* sink through nodes */
-			tnflags = tnode_tnflagsof (*target);
-			if (tnflags & TNF_TRANSPARENT) {
-				target = tnode_nthsubaddr (*target, 0);
-			} else {
-				/* assume done */
-				breakfor = 1;
-				break;		/* while() */
-			}
-		}
-		if (breakfor) {
-			break;		/* for() */
-		}
+
+		/* add to program */
+		parser_addtolist (tree, thisone);
 	}
 
 	if (compopts.verbose) {
@@ -424,6 +432,19 @@ static tnode_t *rcxb_parser_parse (lexfile_t *lf)
 	}
 
 	return tree;
+}
+/*}}}*/
+/*{{{  static int rcxb_parser_prescope (tnode_t **tptr, prescope_t *ps)*/
+/*
+ *	called to pre-scope the parse tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int rcxb_parser_prescope (tnode_t **tptr, prescope_t *ps)
+{
+	ps->hook = NULL;
+	tnode_modprewalktree (tptr, prescope_modprewalktree, (void *)ps);
+
+	return ps->err;
 }
 /*}}}*/
 

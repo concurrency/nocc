@@ -7,7 +7,7 @@
 
 <nocc>
 	<!-- maintainer says where to report compiler bugs -->
-	<maintainer>ofa-bugs@kent.ac.uk</maintainer>
+	<maintainer>kroc-bugs@kent.ac.uk</maintainer>
 
 	<!-- default compiler target -->
 	<target>etc-kroc-unknown</target>

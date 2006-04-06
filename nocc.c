@@ -736,7 +736,7 @@ int main (int argc, char **argv)
 	compopts.progpath = *argv;
 
 	dmem_init ();
-	compopts.maintainer = string_dup ("ofa-bugs@kent.ac.uk");
+	compopts.maintainer = string_dup ("kroc-bugs@kent.ac.uk");
 #ifdef TARGET_CPU
 	compopts.target_cpu = string_dup (TARGET_CPU);
 #else

@@ -34,6 +34,10 @@ struct TAG_token;
 typedef struct {
 	struct TAG_tndef *node_ACTIONNODE;
 	struct TAG_tndef *node_LEAFNODE;
+	struct TAG_tndef *node_MOPNODE;
+	struct TAG_tndef *node_DOPNODE;
+	struct TAG_tndef *node_RELNODE;
+	struct TAG_tndef *node_LOOPNODE;
 
 	struct TAG_ntdef *tag_NAME;
 
@@ -43,12 +47,37 @@ typedef struct {
 	struct TAG_ntdef *tag_SENSOR1;
 	struct TAG_ntdef *tag_SENSOR2;
 	struct TAG_ntdef *tag_SENSOR3;
+	struct TAG_ntdef *tag_OFF;
+	struct TAG_ntdef *tag_FORWARD;
+	struct TAG_ntdef *tag_REVERSE;
 
 	struct TAG_ntdef *tag_LITSTR;
 	struct TAG_ntdef *tag_LITINT;
 
+	struct TAG_ntdef *tag_UMINUS;
+	struct TAG_ntdef *tag_ADD;
+	struct TAG_ntdef *tag_SUB;
+	struct TAG_ntdef *tag_MUL;
+	struct TAG_ntdef *tag_DIV;
+	struct TAG_ntdef *tag_RELEQ;
+	struct TAG_ntdef *tag_RELNEQ;
+	struct TAG_ntdef *tag_RELLT;
+	struct TAG_ntdef *tag_RELGEQ;
+	struct TAG_ntdef *tag_RELGT;
+	struct TAG_ntdef *tag_RELLEQ;
+
 	struct TAG_ntdef *tag_SETMOTOR;
 	struct TAG_ntdef *tag_SETSENSOR;
+	struct TAG_ntdef *tag_SETPOWER;
+	struct TAG_ntdef *tag_SETDIRECTION;
+
+	struct TAG_ntdef *tag_FOR;
+	struct TAG_ntdef *tag_WHILE;
+	struct TAG_ntdef *tag_NEXT;
+
+	struct TAG_token *tok_REM;
+	struct TAG_token *tok_FORWARD;
+	struct TAG_token *tok_REVERSE;
 } rcxb_pset_t;
 
 extern rcxb_pset_t rcxb;
