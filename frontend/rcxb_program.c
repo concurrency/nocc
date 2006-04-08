@@ -663,6 +663,16 @@ static int rcxb_program_init_nodes (void)
 	rcxb.tag_WHILE = tnode_newnodetag ("RCXBWHILE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  rcxb:eventnode -- ONEVENT*/
+	i = -1;
+	tnd = rcxb.node_EVENTNODE = tnode_newnodetype ("rcxb:eventnode", &i, 3, 0, 0, TNF_NONE);	/* subnodes: 0 = sensor id, 1 = event, 2 = label */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	rcxb.tag_ONEVENT = tnode_newnodetag ("RCXBONEVENT", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 	/*{{{  lookup various tokens*/
 	rcxb.tok_REM = lexer_newtoken (KEYWORD, "REM");
 	rcxb.tok_FORWARD = lexer_newtoken (KEYWORD, "forward");
@@ -710,6 +720,7 @@ static int rcxb_program_reg_reducers (void)
 	parser_register_grule ("rcxb:sleepreduce", parser_decode_grule ("SN0N+C1R-", rcxb.tag_SLEEP));
 	parser_register_grule ("rcxb:nextreduce", parser_decode_grule ("SN0N+000C4R-", rcxb.tag_NEXT));
 	parser_register_grule ("rcxb:soundreduce", parser_decode_grule ("SN0N+C1R-", rcxb.tag_SOUND));
+	parser_register_grule ("rcxb:eventreduce", parser_decode_grule ("SN0N+N+N+C3R-", rcxb.tag_ONEVENT));
 
 	parser_register_reduce ("Rrcxb:mopreduce", rcxb_reduce_mop, NULL);
 	parser_register_reduce ("Rrcxb:dopreduce", rcxb_reduce_dop, NULL);
@@ -735,7 +746,7 @@ dfattbl_t **rcxb_program_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_transtotbl ("rcxb:namestart ::= [ 0 rcxb:name 1 ] [ 1 @@: 2 ] [ 1 @@= 3 ] " \
 				"[ 2 {<rcxb:setlabelreduce>} -* ] " \
 				"[ 3 rcxb:expr 4 ] [ 4 {<rcxb:assignreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("rcxb:statement ::= [ 0 @set 1 ] [ 0 Comment 8 ] [ 0 -Name <rcxb:namestart> ] [ 0 @goto 15 ] [ 0 @sleep 17 ] [ 0 @next 19 ] [ 0 @sound 21 ] " \
+	dynarray_add (transtbl, dfa_transtotbl ("rcxb:statement ::= [ 0 @set 1 ] [ 0 Comment 8 ] [ 0 -Name <rcxb:namestart> ] [ 0 @goto 15 ] [ 0 @sleep 17 ] [ 0 @next 19 ] [ 0 @sound 21 ] [ 0 @on 25 ] " \
 				"[ 1 @motor 2 ] [ 1 @sensor 5 ] [ 1 @power 9 ] [ 1 @direction 12 ] " \
 				"[ 2 rcxb:id 3 ] [ 3 rcxb:expr 4 ] [ 4 {<rcxb:setmotorreduce>} -* ] " \
 				"[ 5 rcxb:id 6 ] [ 6 rcxb:expr 7 ] [ 7 {<rcxb:setsensorreduce>} -* ] " \
@@ -745,7 +756,8 @@ dfattbl_t **rcxb_program_init_dfatrans (int *ntrans)
 				"[ 15 rcxb:name 16 ] [ 16 {<rcxb:gotoreduce>} -* ] " \
 				"[ 17 rcxb:expr 18 ] [ 18 {<rcxb:sleepreduce>} -* ] " \
 				"[ 19 rcxb:name 20 ] [ 20 {<rcxb:nextreduce>} -* ] " \
-				"[ 21 +String 22 ] [ 21 +Integer 23 ] [ 22 {<rcxb:stringpush>} -* 24 ] [ 23 {<rcxb:integerpush>} -* 24 ] [ 24 {<rcxb:soundreduce>} -* ]"));
+				"[ 21 +String 22 ] [ 21 +Integer 23 ] [ 22 {<rcxb:stringpush>} -* 24 ] [ 23 {<rcxb:integerpush>} -* 24 ] [ 24 {<rcxb:soundreduce>} -* ] " \
+				"[ 25 @sensor 26 ] [ 26 rcxb:id 27 ] [ 27 rcxb:expr 28 ] [ 28 @goto 29 ] [ 29 rcxb:name 30 ] [ 30 {<rcxb:eventreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("rcxb:statement +:= [ 0 @for 1 ] [ 1 rcxb:name 2 ] [ 2 @@= 3 ] [ 3 rcxb:expr 4 ] [ 4 @to 5 ] [ 5 rcxb:expr 6 ] [ 6 {<rcxb:forreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_bnftotbl ("rcxb:program ::= { rcxb:statement Newline 1 }"));
 

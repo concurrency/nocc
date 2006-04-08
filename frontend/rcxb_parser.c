@@ -130,6 +130,7 @@ static int rcxb_tokens_init (void)
 	keywords_add ("off", -1, (void *)&rcxb_parser);
 	keywords_add ("for", -1, (void *)&rcxb_parser);
 	keywords_add ("to", -1, (void *)&rcxb_parser);
+	keywords_add ("on", -1, (void *)&rcxb_parser);
 	keywords_add ("step", -1, (void *)&rcxb_parser);
 	keywords_add ("next", -1, (void *)&rcxb_parser);
 	keywords_add ("while", -1, (void *)&rcxb_parser);

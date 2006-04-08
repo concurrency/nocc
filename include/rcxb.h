@@ -39,6 +39,7 @@ typedef struct {
 	struct TAG_tndef *node_RELNODE;
 	struct TAG_tndef *node_LOOPNODE;
 	struct TAG_tndef *node_OPERNODE;
+	struct TAG_tndef *node_EVENTNODE;
 
 	struct TAG_ntdef *tag_NAME;
 
@@ -85,6 +86,8 @@ typedef struct {
 	struct TAG_ntdef *tag_RCXBGOTO;
 	struct TAG_ntdef *tag_RCXBSETLABEL;
 	struct TAG_ntdef *tag_RCXBSLEEP;
+
+	struct TAG_ntdef *tag_ONEVENT;
 
 	struct TAG_token *tok_REM;
 	struct TAG_token *tok_FORWARD;
