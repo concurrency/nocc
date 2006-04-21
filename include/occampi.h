@@ -189,7 +189,8 @@ struct TAG_feunit;
 
 
 typedef struct {
-	struct TAG_tnode *last_type;
+	struct TAG_tnode *last_type;			/* used when handling things like "INT a, b, c" */
+	int procdepth;					/* PROC nesting depth for PUBLIC/non-PUBLIC names */
 } occampi_prescope_t;
 
 typedef struct {

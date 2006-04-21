@@ -1626,6 +1626,7 @@ static int occampi_parser_prescope (tnode_t **tptr, prescope_t *ps)
 	occampi_prescope_t *ops = (occampi_prescope_t *)smalloc (sizeof (occampi_prescope_t));
 
 	ops->last_type = NULL;
+	ops->procdepth = 0;
 	ps->hook = (void *)ops;
 	tnode_modprewalktree (tptr, prescope_modprewalktree, (void *)ps);
 

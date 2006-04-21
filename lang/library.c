@@ -144,6 +144,7 @@ static tndef_t *tnd_libnode = NULL;
 static ntdef_t *tag_libnode = NULL;
 static tndef_t *tnd_libtag = NULL;
 static ntdef_t *tag_publictag = NULL;
+static ntdef_t *tag_privatetag = NULL;
 static tndef_t *tnd_libusenode = NULL;
 static ntdef_t *tag_libusenode = NULL;
 static tndef_t *tnd_templibusenode = NULL;
@@ -2260,8 +2261,8 @@ static void lib_libchook_free (void *chook)
 {
 	tnode_t *pnode = (tnode_t *)chook;
 
-	if (pnode->tag != tag_publictag) {
-		nocc_internal ("library_libchook_free(): chook not public node");
+	if ((pnode->tag != tag_publictag) && (pnode->tag != tag_privatetag)) {
+		nocc_internal ("library_libchook_free(): chook not public or private node");
 		return;
 	}
 	tnode_free (pnode);
@@ -2323,7 +2324,7 @@ int library_init (void)
 	i = -1;
 	tag_templibusenode = tnode_newnodetag ("TEMPLIBUSENODE", &i, tnd_templibusenode, NTF_NONE);
 	/*}}}*/
-	/*{{{  nocc:libtag -- PUBLICTAG*/
+	/*{{{  nocc:libtag -- PUBLICTAG, PRIVATETAG*/
 	i = -1;
 	tnd_libtag = tnode_newnodetype ("nocc:libtag", &i, 1, 0, 1, TNF_TRANSPARENT);
 	tnd_libtag->hook_free = lib_libtaghook_free;
@@ -2337,6 +2338,8 @@ int library_init (void)
 
 	i = -1;
 	tag_publictag = tnode_newnodetag ("PUBLICTAG", &i, tnd_libtag, NTF_NONE);
+	i = -1;
+	tag_privatetag = tnode_newnodetag ("PRIVATETAG", &i, tnd_libtag, NTF_NONE);
 	/*}}}*/
 
 	/*{{{  command-line options: "--liboutpath <path>", "--liballpublic", "--scoutpath <path>"*/
@@ -2487,6 +2490,21 @@ tnode_t *library_newlibpublictag (lexfile_t *lf, char *name)
 	libtaghook_t *lth = lib_newlibtaghook (NULL, name);
 
 	pnode = tnode_create (tag_publictag, lf, NULL, lth);
+
+	return pnode;
+}
+/*}}}*/
+/*{{{  tnode_t *library_newlibprivatetag (lexfile_t *lf, char *name)*/
+/*
+ *	creates a new private-tag node, used when building libraries
+ *	returns node on success, NULL on failure
+ */
+tnode_t *library_newlibprivatetag (lexfile_t *lf, char *name)
+{
+	tnode_t *pnode;
+	libtaghook_t *lth = lib_newlibtaghook (NULL, name);
+
+	pnode = tnode_create (tag_privatetag, lf, NULL, lth);
 
 	return pnode;
 }

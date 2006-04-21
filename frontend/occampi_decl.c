@@ -527,9 +527,14 @@ static int occampi_prescope_procdecl (tnode_t **node, prescope_t *ps)
 	occampi_prescope_t *ops = (occampi_prescope_t *)(ps->hook);
 	char *rawname = (char *)tnode_nthhookof (tnode_nthsubof (*node, 0), 0);
 
-	if (library_makepublic (node, rawname)) {
+	if (!ops->procdepth && library_makepublic (node, rawname)) {
 		return 1;			/* go round again */
 	}
+	/* do a prescope on the body, at a higher procdepth */
+	ops->procdepth++;
+	prescope_subtree (tnode_nthsubaddr (*node, 2), ps);
+	ops->procdepth--;
+
 	ops->last_type = NULL;
 	if (!tnode_nthsubof (*node, 1)) {
 		/* no parameters, create empty list */
