@@ -2549,6 +2549,31 @@ int library_makepublic (tnode_t **nodep, char *name)
 	return 0;
 }
 /*}}}*/
+/*{{{  int library_makeprivate (tnode_t **nodep, char *name)*/
+/*
+ *	takes a library marker out of a node completely -- prevents a descriptor being held for it, amongst other things
+ *	returns 0 if nothing changed, non-zero otherwise
+ */
+int library_makeprivate (tnode_t **nodep, char *name)
+{
+	if (tnode_getchook (*nodep, libchook)) {
+		tnode_t *xnode = (tnode_t *)tnode_getchook (*nodep, libchook);
+		libtaghook_t *lth = (libtaghook_t *)tnode_nthhookof (xnode, 0);
+
+		if (lth->name) {
+			sfree (lth->name);
+		}
+		lth->name = string_dup (name);
+
+		tnode_clearchook (*nodep, libchook);
+		tnode_setnthsub (xnode, 0, *nodep);
+		*nodep = xnode;
+
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  tnode_t *library_newusenode (lexfile_t *lf, char *libname)*/
 /*
  *	creates a new library-usage node

@@ -30,8 +30,10 @@ extern int library_adduses (struct TAG_tnode *libnode, char *lname);
 extern int library_setnativelib (struct TAG_tnode *libnode, char *lname);
 extern int library_setnamespace (struct TAG_tnode *libnode, char *nsname);
 extern struct TAG_tnode *library_newlibpublictag (struct TAG_lexfile *lf, char *name);
+extern struct TAG_tnode *library_newlibprivatetag (struct TAG_lexfile *lf, char *name);
 extern int library_markpublic (struct TAG_tnode *node);
 extern int library_makepublic (struct TAG_tnode **nodep, char *name);
+extern int library_makeprivate (struct TAG_tnode **nodep, char *name);
 extern struct TAG_tnode *library_newusenode (struct TAG_lexfile *lf, char *libname);
 extern int library_setusenamespace (struct TAG_tnode *libusenode, char *nsname);
 
