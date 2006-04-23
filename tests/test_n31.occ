@@ -3,11 +3,18 @@
 
 PROC test.n31 (CHAN BYTE scr!)
   PROC inner ()
-    SKIP
+    INT k:
+    SEQ
+      k := 42
+      SKIP
   :
   INT v:
   SEQ
     inner ()
+:
+
+PROC other ()
+  SKIP
 :
 
 

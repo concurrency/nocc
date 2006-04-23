@@ -2526,7 +2526,7 @@ int library_markpublic (tnode_t *node)
 /*}}}*/
 /*{{{  int library_makepublic (tnode_t **nodep, char *name)*/
 /*
- *	takes a library marker ("lib:mark") out of a node
+ *	takes a library marker ("lib:mark") out of a node and inserts it in front
  *	returns 0 if nothing changed, non-zero otherwise
  */
 int library_makepublic (tnode_t **nodep, char *name)
@@ -2557,17 +2557,11 @@ int library_makepublic (tnode_t **nodep, char *name)
 int library_makeprivate (tnode_t **nodep, char *name)
 {
 	if (tnode_getchook (*nodep, libchook)) {
+		/* definitely a libnode */
 		tnode_t *xnode = (tnode_t *)tnode_getchook (*nodep, libchook);
-		libtaghook_t *lth = (libtaghook_t *)tnode_nthhookof (xnode, 0);
 
-		if (lth->name) {
-			sfree (lth->name);
-		}
-		lth->name = string_dup (name);
-
+		tnode_free (xnode);
 		tnode_clearchook (*nodep, libchook);
-		tnode_setnthsub (xnode, 0, *nodep);
-		*nodep = xnode;
 
 		return 1;
 	}

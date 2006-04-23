@@ -29,6 +29,7 @@ typedef struct TAG_map {
 	struct TAG_target *target;
 	int err;
 	int warn;
+	void *hook;			/* for language-specific things */
 
 	struct TAG_chook *mapchook;
 	struct TAG_chook *allocevhook;

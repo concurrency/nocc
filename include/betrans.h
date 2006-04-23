@@ -30,6 +30,7 @@ typedef struct TAG_betrans {
 	struct TAG_tnode **insertpoint;
 	struct TAG_chook *betranstaghook;
 	struct TAG_chook *betransnodehook;
+	void *priv;			/* for language attachment */
 } betrans_t;
 
 

@@ -302,6 +302,7 @@ int betrans_tree (tnode_t **tptr, target_t *target)
 	be->target = target;
 	be->betranstaghook = tnode_lookupornewchook ("betrans:tag");
 	be->betransnodehook = tnode_lookupornewchook ("betrans:node");
+	be->priv = NULL;
 
 	tnode_modprewalktree (tptr, betrans_modprewalk_tree, (void *)be);
 

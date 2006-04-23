@@ -194,6 +194,11 @@ typedef struct {
 } occampi_prescope_t;
 
 typedef struct {
+	int procdepth;					/* PROC nesting depth */
+	struct TAG_tnode **insertpoint;			/* where nested PROCs get unwound to */
+} occampi_betrans_t;
+
+typedef struct {
 	void *data;
 	int bytes;
 } occampi_litdata_t;

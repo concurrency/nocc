@@ -55,6 +55,7 @@
 #include "codegen.h"
 #include "langops.h"
 #include "fetrans.h"
+#include "betrans.h"
 
 
 /*}}}*/
@@ -526,24 +527,22 @@ static int occampi_prescope_procdecl (tnode_t **node, prescope_t *ps)
 {
 	occampi_prescope_t *ops = (occampi_prescope_t *)(ps->hook);
 	char *rawname = (char *)tnode_nthhookof (tnode_nthsubof (*node, 0), 0);
-	int x;
 
-#if 1
+#if 0
 nocc_message ("occampi_prescope_procdecl(): rawname = \"%s\", ops->procdepth = %d", rawname, ops->procdepth);
 #endif
 	if (!ops->procdepth) {
+		int x;
+
 		x = library_makepublic (node, rawname);
+		if (x) {
+			return 1;			/* go round again */
+		}
 	} else {
-		x = library_makeprivate (node, rawname);
-	}
-	if (x) {
-		return 1;			/* go round again */
+		library_makeprivate (node, rawname);
+		/* continue processing */
 	}
 
-	/* do a prescope on the body, at a higher procdepth */
-	ops->procdepth++;
-	prescope_subtree (tnode_nthsubaddr (*node, 2), ps);
-	ops->procdepth--;
 
 	ops->last_type = NULL;
 	if (!tnode_nthsubof (*node, 1)) {
@@ -556,7 +555,19 @@ nocc_message ("occampi_prescope_procdecl(): rawname = \"%s\", ops->procdepth = %
 		parser_addtolist (list, tnode_nthsubof (*node, 1));
 		tnode_setnthsub (*node, 1, list);
 	}
-	return 1;
+
+	/* prescope params */
+	prescope_subtree (tnode_nthsubaddr (*node, 1), ps);
+
+	/* do a prescope on the body, at a higher procdepth */
+	ops->procdepth++;
+	prescope_subtree (tnode_nthsubaddr (*node, 2), ps);
+	ops->procdepth--;
+
+	/* prescope in-scope process */
+	prescope_subtree (tnode_nthsubaddr (*node, 3), ps);
+
+	return 0;				/* done them all */
 }
 /*}}}*/
 /*{{{  static int occampi_scopein_procdecl (tnode_t **node, scope_t *ss)*/
@@ -689,6 +700,55 @@ static int occampi_usagecheck_procdecl (tnode_t *node, uchk_state_t *ucstate)
 	usagecheck_subtree (tnode_nthsubof (node, 3), ucstate);		/* usage-check in-scope code */
 	usagecheck_endbranch (ucstate);
 	usagecheck_end_branches (node, ucstate);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_betrans_procdecl (tnode_t **node, betrans_t *bt)*/
+/*
+ *	does back-end mapping for a PROC definition -- pulls out nested PROCs
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_betrans_procdecl (tnode_t **node, betrans_t *be)
+{
+	occampi_betrans_t *opibe = (occampi_betrans_t *)be->priv;
+
+	if (!opibe) {
+		/* this is a top-level PROC of some kind, put an insertpoint here */
+		opibe = (occampi_betrans_t *)smalloc (sizeof (occampi_betrans_t));
+		opibe->procdepth = 0;
+		opibe->insertpoint = node;
+		be->priv = opibe;
+
+		betrans_subtree (tnode_nthsubaddr (*node, 0), be);
+		betrans_subtree (tnode_nthsubaddr (*node, 1), be);
+		opibe->procdepth = 1;
+		betrans_subtree (tnode_nthsubaddr (*node, 2), be);
+		opibe->procdepth = 0;
+
+		sfree (opibe);
+		be->priv = NULL;
+
+		/* do in-scope body */
+		betrans_subtree (tnode_nthsubaddr (*node, 3), be);
+	} else {
+		/* this is a nested PROC -- move it up to the insertpoint */
+		tnode_t *thisproc = *node;
+		tnode_t *ibody = tnode_nthsubof (*node, 3);
+		tnode_t *ipproc = *(opibe->insertpoint);
+
+		betrans_subtree (tnode_nthsubaddr (*node, 0), be);
+		betrans_subtree (tnode_nthsubaddr (*node, 1), be);
+		opibe->procdepth++;
+		betrans_subtree (tnode_nthsubaddr (*node, 2), be);
+		opibe->procdepth--;
+		betrans_subtree (tnode_nthsubaddr (*node, 3), be);
+
+		*(opibe->insertpoint) = thisproc;
+		tnode_setnthsub (thisproc, 3, ipproc);
+		*node = ibody;
+
+	}
+
 	return 0;
 }
 /*}}}*/
@@ -1150,6 +1210,10 @@ tnode_dumptree (name->type, 1, stderr);
 #endif
 		return name->type;
 	}
+#if 1
+nocc_message ("occampi_gettype_namenode(): null type on name, node was:");
+tnode_dumptree (node, 4, stderr);
+#endif
 	nocc_fatal ("occampi_gettype_namenode(): name has NULL type (FIXME!)");
 	return NULL;
 }
@@ -1415,6 +1479,7 @@ static int occampi_decl_init_nodes (void)
 	cops->gettype = occampi_gettype_procdecl;
 	cops->precheck = occampi_precheck_procdecl;
 	cops->fetrans = occampi_fetrans_procdecl;
+	cops->betrans = occampi_betrans_procdecl;
 	cops->precode = occampi_precode_procdecl;
 	cops->codegen = occampi_codegen_procdecl;
 	tnd->ops = cops;

@@ -185,6 +185,7 @@ int map_mapnames (tnode_t **tptr, target_t *target)
 	mdata->target = target;
 	mdata->err = 0;
 	mdata->warn = 0;
+	mdata->hook = NULL;
 	mdata->thisblock = NULL;
 	mdata->thisprocparams = NULL;
 	mdata->thisberesult = NULL;

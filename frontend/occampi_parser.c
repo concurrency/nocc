@@ -1618,19 +1618,25 @@ static tnode_t *occampi_parser_descparse (lexfile_t *lf)
 /*}}}*/
 /*{{{  static int occampi_parser_prescope (tnode_t **tptr, prescope_t *ps)*/
 /*
- *	called to pre-scope the parse tree
+ *	called to pre-scope the parse tree (or a chunk of it)
  *	returns 0 on success, non-zero on failure
  */
 static int occampi_parser_prescope (tnode_t **tptr, prescope_t *ps)
 {
-	occampi_prescope_t *ops = (occampi_prescope_t *)smalloc (sizeof (occampi_prescope_t));
 
-	ops->last_type = NULL;
-	ops->procdepth = 0;
-	ps->hook = (void *)ops;
-	tnode_modprewalktree (tptr, prescope_modprewalktree, (void *)ps);
+	if (!ps->hook) {
+		occampi_prescope_t *ops = (occampi_prescope_t *)smalloc (sizeof (occampi_prescope_t));
 
-	sfree (ops);
+		ops->last_type = NULL;
+		ops->procdepth = 0;
+		ps->hook = (void *)ops;
+		tnode_modprewalktree (tptr, prescope_modprewalktree, (void *)ps);
+
+		ps->hook = NULL;
+		sfree (ops);
+	} else {
+		tnode_modprewalktree (tptr, prescope_modprewalktree, (void *)ps);
+	}
 	return ps->err;
 }
 /*}}}*/
