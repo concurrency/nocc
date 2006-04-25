@@ -641,6 +641,24 @@ void name_dumpname (name_t *name, int indent, FILE *stream)
 	return;
 }
 /*}}}*/
+/*{{{  void name_dumpsname (name_t *name, int indent, FILE *stream)*/
+/*
+ *	dumps a name in s-record format (global call)
+ */
+void name_dumpsname (name_t *name, int indent, FILE *stream)
+{
+	int i;
+	tnode_t *type;
+
+	for (i=0; i<indent; i++) {
+		fprintf (stream, "  ");
+	}
+	type = NameTypeOf (name);
+	fprintf (stream, "(name (name \"%s\") (type \"%s\") (namespace \"%s\"))\n", name->me->name, type ? type->tag->name : "(null)", name->ns ? name->ns->nspace : "");
+
+	return;
+}
+/*}}}*/
 /*{{{  static void name_walkdumpname (namelist_t *nl, char *key, void *ptr)*/
 /*
  *	dumps a single name

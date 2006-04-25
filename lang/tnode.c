@@ -1165,6 +1165,23 @@ static void tnode_isetindent (FILE *stream, int indent)
 	return;
 }
 /*}}}*/
+/*{{{  static void tnode_ssetindent (FILE *stream, int indent)*/
+/*
+ *	sets indentation level (debug output in s-records)
+ */
+static void tnode_ssetindent (FILE *stream, int indent)
+{
+	int i;
+
+	if (indent) {
+		for (i=0; i<indent; i++) {
+			fprintf (stream, "  ");
+		}
+	}
+
+	return;
+}
+/*}}}*/
 /*{{{  void tnode_dumptree (tnode_t *t, int indent, FILE *stream)*/
 /*
  *	dumps a parse tree
@@ -1213,6 +1230,60 @@ void tnode_dumptree (tnode_t *t, int indent, FILE *stream)
 	}
 	tnode_isetindent (stream, indent);
 	fprintf (stream, "</%s>\n", tnd->name);
+
+	return;
+}
+/*}}}*/
+/*{{{  void tnode_dumpstree (tnode_t *t, int indent, FILE *stream)*/
+/*
+ *	dumps a parse tree in s-record format
+ */
+void tnode_dumpstree (tnode_t *t, int indent, FILE *stream)
+{
+	int i;
+	tndef_t *tnd;
+
+	tnode_ssetindent (stream, indent);
+	if (!t) {
+		fprintf (stream, "null\n");
+		return;
+	}
+	tnd = t->tag->ndef;
+
+	fprintf (stream, "(%s\n", t->tag->name);
+
+	for (i=0; i<DA_CUR (t->items); i++) {
+		if (i < tnd->nsub) {
+			/* subnode */
+			tnode_dumpstree ((tnode_t *)DA_NTHITEM (t->items, i), indent + 1, stream);
+		} else if (i < (tnd->nsub + tnd->nname)) {
+			/* name */
+			name_dumpsname ((name_t *)DA_NTHITEM (t->items, i), indent + 1, stream);
+		} else {
+			/* hook */
+			if (tnd->hook_dumpstree) {
+				tnd->hook_dumpstree (t, DA_NTHITEM (t->items, i), indent + 1, stream);
+			} else {
+				tnode_ssetindent (stream, indent + 1);
+				fprintf (stream, "(hook (addr 0x%8.8x))\n", (unsigned int)(DA_NTHITEM (t->items, i)));
+			}
+		}
+	}
+	for (i=0; i<DA_CUR (t->chooks); i++) {
+		/* compiler hooks */
+		chook_t *ch = DA_NTHITEM (acomphooks, i);
+		void *chc = DA_NTHITEM (t->chooks, i);
+
+		if (ch && chc && ch->chook_dumpstree) {
+			ch->chook_dumpstree (t, chc, indent + 1, stream);
+		} else if (ch && chc) {
+			tnode_ssetindent (stream, indent + 1);
+			fprintf (stream, "(chook (id \"%s\") (addr 0x%8.8x))\n", ch->name, (unsigned int)chc);
+		}
+	}
+
+	tnode_ssetindent (stream, indent);
+	fprintf (stream, ")\n");
 
 	return;
 }
@@ -1430,8 +1501,6 @@ void tnode_setchook (tnode_t *t, chook_t *ch, void *hook)
  */
 void tnode_clearchook (tnode_t *t, chook_t *ch)
 {
-	int i;
-
 	if (!ch || !t) {
 		nocc_internal ("tnode_clearchook(): null chook or tree!");
 	}

@@ -68,6 +68,7 @@ extern void *name_markscope (void);
 extern void name_markdescope (void *mark);
 
 extern void name_dumpname (name_t *name, int indent, FILE *stream);
+extern void name_dumpsname (name_t *name, int indent, FILE *stream);
 extern void name_dumpnames (FILE *stream);
 
 

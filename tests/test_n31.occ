@@ -2,14 +2,15 @@
 -- test_n31.occ -- more tests
 
 PROC test.n31 (CHAN BYTE scr!)
+  INT v, w:
   PROC inner ()
     INT k:
     SEQ
-      k := 42
+      k := v
       SKIP
   :
-  INT v:
   SEQ
+    v := 10
     inner ()
 :
 

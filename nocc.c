@@ -83,6 +83,8 @@ compopts_t compopts = {
 	dumpspecs: 0,
 	dumptree: 0,
 	dumptreeto: NULL,
+	dumpstree: 0,
+	dumpstreeto: NULL,
 	dumpgrammar: 0,
 	dumpgrules: 0,
 	dumpdfas: 0,
@@ -525,6 +527,31 @@ static void maybedumptrees (char **fnames, int nfnames, tnode_t **trees, int ntr
 				fprintf (stream, "    </nocc:parsetree>\n");
 			}
 			fprintf (stream, "</nocc:treedump>\n");
+
+			fclose (stream);
+		}
+	} else if (compopts.dumpstree) {
+		fprintf (stderr, "(nocc:treedump (version \"%s\")\n", version_string ());
+		for (i=0; i<ntrees; i++) {
+			fprintf (stderr, "  (nocc:parsetree (src \"%s\")\n", fnames[i]);
+			tnode_dumpstree (trees[i], 2, stderr);
+			fprintf (stderr, "  )\n");
+		}
+		fprintf (stderr, ")\n");
+	} else if (compopts.dumpstreeto) {
+		FILE *stream;
+
+		stream = fopen (compopts.dumpstreeto, "w");
+		if (!stream) {
+			nocc_error ("failed to open %s for writing: %s", compopts.dumptreeto, strerror (errno));
+		} else {
+			fprintf (stderr, "(nocc:treedump (version \"%s\")\n", version_string ());
+			for (i=0; i<ntrees; i++) {
+				fprintf (stderr, "  (nocc:parsetree (src \"%s\")\n", fnames[i]);
+				tnode_dumpstree (trees[i], 2, stderr);
+				fprintf (stderr, "  )\n");
+			}
+			fprintf (stderr, ")\n");
 
 			fclose (stream);
 		}

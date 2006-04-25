@@ -53,6 +53,7 @@ typedef struct TAG_tndef {
 	void *(*hook_copy)(void *);
 	void (*hook_free)(void *);
 	void (*hook_dumptree)(struct TAG_tnode *, void *, int, FILE *);
+	void (*hook_dumpstree)(struct TAG_tnode *, void *, int, FILE *);
 	void (*hook_postwalktree)(struct TAG_tnode *, void *, void (*)(struct TAG_tnode *, void *), void *);
 	void (*hook_prewalktree)(struct TAG_tnode *, void *, int (*)(struct TAG_tnode *, void *), void *);
 	void (*hook_modprewalktree)(struct TAG_tnode **, void *, int (*)(struct TAG_tnode **, void *), void *);
@@ -144,6 +145,7 @@ typedef struct TAG_chook {
 	void *(*chook_copy)(void *);
 	void (*chook_free)(void *);
 	void (*chook_dumptree)(tnode_t *, void *, int, FILE *);
+	void (*chook_dumpstree)(tnode_t *, void *, int, FILE *);
 } chook_t;
 
 
@@ -184,6 +186,7 @@ extern tnode_t *tnode_createfrom (ntdef_t *tag, tnode_t *src, ...);
 extern tnode_t *tnode_copytree (tnode_t *t);
 extern void tnode_free (tnode_t *t);
 extern void tnode_dumptree (tnode_t *t, int indent, FILE *stream);
+extern void tnode_dumpstree (tnode_t *t, int indent, FILE *stream);
 extern void tnode_dumpnodetypes (FILE *stream);
 
 extern compops_t *tnode_newcompops (void);

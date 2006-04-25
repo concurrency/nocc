@@ -59,6 +59,8 @@ typedef struct TAG_compopts {
 	int dumpspecs;
 	int dumptree;
 	char *dumptreeto;
+	int dumpstree;
+	char *dumpstreeto;
 	int dumpgrammar;
 	int dumpgrules;
 	int dumpdfas;
