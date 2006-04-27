@@ -55,6 +55,7 @@ STATICDYNARRAY (chook_t *, acomphooks);
 
 /* forwards */
 static void tnode_isetindent (FILE *stream, int indent);
+static void tnode_ssetindent (FILE *stream, int indent);
 
 /*}}}*/
 
@@ -90,6 +91,18 @@ static void tnode_const_hookdumptree (tnode_t *node, void *hook, int indent, FIL
 {
 	tnode_isetindent (stream, indent);
 	fprintf (stream, "<hook ptr=\"0x%8.8x\" />\n", (unsigned int)hook);
+
+	return;
+}
+/*}}}*/
+/*{{{  static void tnode_const_hookdumpstree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	hook-dumptree function for constant nodes (s-record format)
+ */
+static void tnode_const_hookdumpstree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	tnode_ssetindent (stream, indent);
+	fprintf (stream, "(hook (ptr 0x%8.8x))\n", (unsigned int)hook);
 
 	return;
 }
@@ -186,6 +199,31 @@ static void tnode_list_hookdumptree (tnode_t *node, void *hook, int indent, FILE
 
 	for (i=0; i<*cur; i++) {
 		tnode_dumptree (array[i], indent, stream);
+	}
+
+	return;
+}
+/*}}}*/
+/*{{{  static void tnode_list_hookdumpstree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	hook-dumptree function for a list (s-record format)
+ */
+static void tnode_list_hookdumpstree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	tnode_t **array = (tnode_t **)hook;
+	int *cur, *max;
+	int i;
+
+	if (!array) {
+		/* nothing to do! */
+		return;
+	}
+	cur = (int *)hook;
+	max = (int *)hook + 1;
+	array += 2;
+
+	for (i=0; i<*cur; i++) {
+		tnode_dumpstree (array[i], indent, stream);
 	}
 
 	return;
@@ -327,6 +365,7 @@ void tnode_init (void)
 	tnd->hook_free = tnode_const_hookfree;
 	tnd->hook_copy = tnode_const_hookcopy;
 	tnd->hook_dumptree = tnode_const_hookdumptree;
+	tnd->hook_dumpstree = tnode_const_hookdumpstree;
 	i = -1;
 	ntd = tnode_newnodetag ("intlit", &i, tnd, 0);
 
@@ -335,6 +374,7 @@ void tnode_init (void)
 	tnd->hook_free = tnode_list_hookfree;
 	tnd->hook_copy = tnode_list_hookcopy;
 	tnd->hook_dumptree = tnode_list_hookdumptree;
+	tnd->hook_dumpstree = tnode_list_hookdumpstree;
 	tnd->hook_postwalktree = tnode_list_hookpostwalktree;
 	tnd->hook_prewalktree = tnode_list_hookprewalktree;
 	tnd->hook_modprewalktree = tnode_list_hookmodprewalktree;
@@ -401,6 +441,7 @@ tndef_t *tnode_newnodetype (char *name, int *idx, int nsub, int nname, int nhook
 		tnd->hook_copy = NULL;
 		tnd->hook_free = NULL;
 		tnd->hook_dumptree = NULL;
+		tnd->hook_dumpstree = NULL;
 		tnd->hook_postwalktree = NULL;
 		tnd->hook_prewalktree = NULL;
 
@@ -1417,6 +1458,7 @@ chook_t *tnode_newchook (const char *name)
 	ch->chook_copy = NULL;
 	ch->chook_free = NULL;
 	ch->chook_dumptree = NULL;
+	ch->chook_dumpstree = NULL;
 
 	stringhash_insert (comphooks, ch, ch->name);
 	dynarray_add (acomphooks, ch);

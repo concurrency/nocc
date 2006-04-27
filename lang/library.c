@@ -234,7 +234,7 @@ static int lib_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)
 /*}}}*/
 /*{{{  static void lib_isetindent (FILE *stream, int indent)*/
 /*
- *	produces indentation (debugging+output)
+ *	produces indentation (debugging output)
  */
 static void lib_isetindent (FILE *stream, int indent)
 {
@@ -242,6 +242,20 @@ static void lib_isetindent (FILE *stream, int indent)
 
 	for (i=0; i<indent; i++) {
 		fprintf (stream, "    ");
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void lib_ssetindent (FILE *stream, int indent)*/
+/*
+ *	produces indentation (s-record format, debugging output)
+ */
+static void lib_ssetindent (FILE *stream, int indent)
+{
+	int i;
+
+	for (i=0; i<indent; i++) {
+		fprintf (stream, "  ");
 	}
 	return;
 }
@@ -323,7 +337,20 @@ static void lib_libtaghook_dumptree (tnode_t *node, void *hook, int indent, FILE
 	lib_isetindent (stream, indent);
 	fprintf (stream, "<libtaghook addr=\"0x%8.8x\" name=\"%s\" ws=\"%d\" vs=\"%d\" ms=\"%d\" adjust=\"%d\" bnode=\"0x%8.8x\" descriptor=\"%s\" />\n",
 			(unsigned int)lth, lth->name ?: "(null)", lth->ws, lth->vs, lth->ms, lth->adjust, (unsigned int)lth->bnode, lth->descriptor ?: "(null)");
+	return;
+}
+/*}}}*/
+/*{{{  static void lib_libtaghook_dumpstree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dump-tree for libtag hook (s-record format, debugging)
+ */
+static void lib_libtaghook_dumpstree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	libtaghook_t *lth = (libtaghook_t *)hook;
 
+	lib_ssetindent (stream, indent);
+	fprintf (stream, "(libtaghook (addr 0x%8.8x) (name \"%s\") (ws %d) (vs %d) (ms %d) (adjust %d) (bnode 0x%8.8x) (descriptor \"%s\")\n",
+			(unsigned int)lth, lth->name ?: "(null)", lth->ws, lth->vs, lth->ms, lth->adjust, (unsigned int)lth->bnode, lth->descriptor ?: "(null)");
 	return;
 }
 /*}}}*/
@@ -477,6 +504,15 @@ static void lib_libnodehook_dumptree (tnode_t *node, void *hook, int indent, FIL
 
 	lib_isetindent (stream, indent);
 	fprintf (stream, "</libnodehook>\n");
+	return;
+}
+/*}}}*/
+/*{{{  static void lib_libnodehook_dumpstree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a library node hook (s-record format)
+ */
+static void lib_libnodehook_dumpstree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
 	return;
 }
 /*}}}*/
@@ -635,6 +671,15 @@ static void lib_libusenodehook_dumptree (tnode_t *node, void *hook, int indent, 
 	lib_isetindent (stream, indent);
 	fprintf (stream, "</libusenodehook>\n");
 
+	return;
+}
+/*}}}*/
+/*{{{  static void lib_libusenodehook_dumpstree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a library usage node (s-record format)
+ */
+static void lib_libusenodehook_dumpstree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
 	return;
 }
 /*}}}*/
@@ -2287,6 +2332,7 @@ int library_init (void)
 	tnd_libnode->hook_free = lib_libnodehook_free;
 	tnd_libnode->hook_copy = lib_libnodehook_copy;
 	tnd_libnode->hook_dumptree = lib_libnodehook_dumptree;
+	tnd_libnode->hook_dumpstree = lib_libnodehook_dumpstree;
 	cops = tnode_newcompops ();
 	cops->scopein = lib_scopein_libnode;
 	cops->scopeout = lib_scopeout_libnode;
@@ -2303,6 +2349,7 @@ int library_init (void)
 	tnd_libusenode->hook_free = lib_libusenodehook_free;
 	tnd_libusenode->hook_copy = lib_libusenodehook_copy;
 	tnd_libusenode->hook_dumptree = lib_libusenodehook_dumptree;
+	tnd_libusenode->hook_dumpstree = lib_libusenodehook_dumpstree;
 	cops = tnode_newcompops ();
 	cops->prescope = lib_prescope_libusenode;
 	cops->scopein = lib_scopein_libusenode;
@@ -2330,6 +2377,7 @@ int library_init (void)
 	tnd_libtag->hook_free = lib_libtaghook_free;
 	tnd_libtag->hook_copy = lib_libtaghook_copy;
 	tnd_libtag->hook_dumptree = lib_libtaghook_dumptree;
+	tnd_libtag->hook_dumpstree = lib_libtaghook_dumpstree;
 	cops = tnode_newcompops ();
 	cops->betrans = lib_betrans_libtag;
 	cops->namemap = lib_namemap_libtag;

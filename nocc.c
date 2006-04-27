@@ -543,7 +543,7 @@ static void maybedumptrees (char **fnames, int nfnames, tnode_t **trees, int ntr
 
 		stream = fopen (compopts.dumpstreeto, "w");
 		if (!stream) {
-			nocc_error ("failed to open %s for writing: %s", compopts.dumptreeto, strerror (errno));
+			nocc_error ("failed to open %s for writing: %s", compopts.dumpstreeto, strerror (errno));
 		} else {
 			fprintf (stderr, "(nocc:treedump (version \"%s\")\n", version_string ());
 			for (i=0; i<ntrees; i++) {
