@@ -2099,7 +2099,7 @@ static void krocetc_coder_loadlexlevel (codegen_t *cgen, int lexlevel)
 		tnode_t *statics = tnode_nthsubof (thisblk, 1);
 		tnode_t *slink;
 
-#if 0
+#if 1
 fprintf (stderr, "krocetc_coder_loadlexlevel(): in %d, loading %d..\n", ll, ll-1);
 #endif
 		if (!statics) {
@@ -2111,7 +2111,7 @@ fprintf (stderr, "krocetc_coder_loadlexlevel(): in %d, loading %d..\n", ll, ll-1
 			nocc_internal ("krocetc_coder_loadlexlevel(): no static-link in this block..");
 			return;
 		}
-#if 0
+#if 1
 fprintf (stderr, "krocetc_coder_loadlexlevel(): found staticlink..  loading it..\n");
 #endif
 		codegen_callops (cgen, loadname, slink, 0);

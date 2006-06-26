@@ -1,0 +1,4 @@
+# another MCSP test :)
+
+PROCESS (e) ::= @x.(e -> x)
+
