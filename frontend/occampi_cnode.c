@@ -174,22 +174,24 @@ static int occampi_namemap_cnode (tnode_t **node, map_t *map)
 		for (i=0; i<nbodies; i++) {
 			/*{{{  turn body into back-end block*/
 			tnode_t *blk, *parbodyspace;
-			tnode_t *saved_blk = map->thisblock;
-			tnode_t **saved_params = map->thisprocparams;
+			/* tnode_t *saved_blk = map->thisblock;
+			tnode_t **saved_params = map->thisprocparams; */
 
 			blk = map->target->newblock (bodies[i], map, NULL, map->lexlevel + 1);
-			map->thisblock = blk;
-			map->thisprocparams = NULL;
-			map->lexlevel++;
+			map_pushlexlevel (map, blk, NULL);
+			/* map->thisblock = blk;
+			 * map->thisprocparams = NULL;
+			 * map->lexlevel++; */
 
 			/* map body */
 			map_submapnames (&(bodies[i]), map);
 			parbodyspace = map->target->newname (tnode_create (opi.tag_PARSPACE, NULL), bodies[i], map, 0, 16, 0, 0, 0, 0);	/* FIXME! */
 			*(map->target->be_blockbodyaddr (blk)) = parbodyspace;
 
-			map->lexlevel--;
-			map->thisblock = saved_blk;
-			map->thisprocparams = saved_params;
+			map_poplexlevel (map);
+			/* map->lexlevel--;
+			 * map->thisblock = saved_blk;
+			 * map->thisprocparams = saved_params; */
 
 			/* make block node the individual PAR process */
 			bodies[i] = blk;
@@ -478,23 +480,25 @@ static int occampi_namemap_replcnode (tnode_t **node, map_t *map)
 	if (orgnode->tag == opi.tag_REPLPAR) {
 		tnode_t *blk, *params = NULL;
 		tnode_t *parbodyspace;
-		tnode_t *saved_blk = map->thisblock;
-		tnode_t **saved_params = map->thisprocparams;
+		/* tnode_t *saved_blk = map->thisblock;
+		tnode_t **saved_params = map->thisprocparams; */
 		int replcount = constprop_intvalof (tnode_nthsubof (orgnode, 4));
 
 		blk = map->target->newblock (tnode_nthsubof (bename, 1), map, NULL, map->lexlevel + 1);
-		map->thisblock = blk;
-		map->thisprocparams = &params;
-		map->lexlevel++;
+		map_pushlexlevel (map, blk, &params);
+		/* map->thisblock = blk;
+		 * map->thisprocparams = &params;
+		 * map->lexlevel++; */
 
 		/* map original body in new lexlevel */
 		map_submapnames (bodyp, map);
 		parbodyspace = map->target->newname (tnode_create (opi.tag_PARSPACE, NULL), *bodyp, map, 0, 16, 0, 0, 0, 0);		/* FIXME! */
 		*bodyp = parbodyspace;
 
-		map->lexlevel--;
-		map->thisprocparams = saved_params;
-		map->thisblock = saved_blk;
+		map_poplexlevel (map);
+		/* map->lexlevel--;
+		 * map->thisprocparams = saved_params;
+		 * map->thisblock = saved_blk; */
 
 		/* attach block to the earlier name */
 		tnode_setnthsub (bename, 1, blk);

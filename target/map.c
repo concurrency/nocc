@@ -186,8 +186,8 @@ int map_mapnames (tnode_t **tptr, target_t *target)
 	mdata->err = 0;
 	mdata->warn = 0;
 	mdata->hook = NULL;
-	mdata->thisblock = NULL;
-	mdata->thisprocparams = NULL;
+	dynarray_init (mdata->thisblock);
+	dynarray_init (mdata->thisprocparams);
 	mdata->thisberesult = NULL;
 	mdata->mapchook = tnode_lookupornewchook ("map:mapnames");
 	mdata->mapchook->chook_dumptree = map_namemap_chook_dumptree;
@@ -219,6 +219,108 @@ int map_addtoresult (tnode_t **nodep, map_t *mdata)
 }
 /*}}}*/
 
+
+/*{{{  int map_pushlexlevel (map_t *map, tnode_t *thisblock, tnode_t **thisprocparams)*/
+/*
+ *	pushes the mapping lex-level down and adds the given block and params-ptr
+ *	returns new lex-level
+ */
+int map_pushlexlevel (map_t *map, tnode_t *thisblock, tnode_t **thisprocparams)
+{
+	int i;
+
+	map->lexlevel++;
+	while (DA_CUR (map->thisblock) <= (map->lexlevel + 1)) {
+		/* adds NULLs to current level */
+		dynarray_add (map->thisblock, NULL);
+		dynarray_add (map->thisprocparams, NULL);
+	}
+	DA_SETNTHITEM (map->thisblock, map->lexlevel, thisblock);
+	DA_SETNTHITEM (map->thisprocparams, map->lexlevel, thisprocparams);
+
+	return map->lexlevel;
+}
+/*}}}*/
+/*{{{  int map_poplexlevel (map_t *map)*/
+/*
+ *	pops the mapping lex-level (up)
+ *	returns the new lex-level
+ */
+int map_poplexlevel (map_t *map)
+{
+	if (map->lexlevel <= 0) {
+		nocc_internal ("map_poplexlevel(): at bottom!");
+	}
+	if (map->lexlevel >= DA_CUR (map->thisblock)) {
+		nocc_internal ("map_poplexlevel(): at level %d, but only got %d items!", map->lexlevel, DA_CUR (map->thisblock));
+	}
+	DA_SETNTHITEM (map->thisblock, map->lexlevel, NULL);
+	DA_SETNTHITEM (map->thisprocparams, map->lexlevel, NULL);
+	map->lexlevel--;
+
+	return map->lexlevel;
+}
+/*}}}*/
+/*{{{  tnode_t *map_thisblock_cll (map_t *mdata)*/
+/*
+ *	returns the 'thisblock' pointer for the current lex-level
+ */
+tnode_t *map_thisblock_cll (map_t *mdata)
+{
+	if (mdata->lexlevel < 0) {
+		nocc_internal ("map_thisblock_cll: at bottom!");
+	}
+	if (mdata->lexlevel >= DA_CUR (mdata->thisblock)) {
+		nocc_internal ("map_thisblock_cll(): at level %d, but only got %d items!", mdata->lexlevel, DA_CUR (mdata->thisblock));
+	}
+	return DA_NTHITEM (mdata->thisblock, mdata->lexlevel);
+}
+/*}}}*/
+/*{{{  tnode_t **map_thisprocparams_cll (map_t *mdata)*/
+/*
+ *	returns the 'thisprocparams' pointer for the current lex-level
+ */
+tnode_t **map_thisprocparams_cll (map_t *mdata)
+{
+	if (mdata->lexlevel < 0) {
+		nocc_internal ("map_thisprocparams_cll: at bottom!");
+	}
+	if (mdata->lexlevel >= DA_CUR (mdata->thisprocparams)) {
+		nocc_internal ("map_thisprocparams_cll(): at level %d, but only got %d items!", mdata->lexlevel, DA_CUR (mdata->thisblock));
+	}
+	return DA_NTHITEM (mdata->thisprocparams, mdata->lexlevel);
+}
+/*}}}*/
+/*{{{  tnode_t *map_thisblock_ll (map_t *mdata, int lexlevel)*/
+/*
+ *	returns the 'thisblock' pointer for a particular lex-level
+ */
+tnode_t *map_thisblock_ll (map_t *mdata, int lexlevel)
+{
+	if ((lexlevel < 0) || (lexlevel > mdata->lexlevel)) {
+		nocc_internal ("map_thisblock_ll: lexlevel out of range!");
+	}
+	if (mdata->lexlevel >= DA_CUR (mdata->thisblock)) {
+		nocc_internal ("map_thisblock_ll(): at level %d, but only got %d items!", mdata->lexlevel, DA_CUR (mdata->thisblock));
+	}
+	return DA_NTHITEM (mdata->thisblock, lexlevel);
+}
+/*}}}*/
+/*{{{  tnode_t **map_thisprocparams_ll (map_t *mdata, int lexlevel)*/
+/*
+ *	returns the 'thisprocparams' pointer for a particular lex-level
+ */
+tnode_t **map_thisprocparams_ll (map_t *mdata, int lexlevel)
+{
+	if ((lexlevel < 0) || (lexlevel > mdata->lexlevel)) {
+		nocc_internal ("map_thisprocparams_ll: lexlevel out of range!");
+	}
+	if (mdata->lexlevel >= DA_CUR (mdata->thisprocparams)) {
+		nocc_internal ("map_thisprocparams_cll(): at level %d, but only got %d items!", mdata->lexlevel, DA_CUR (mdata->thisblock));
+	}
+	return DA_NTHITEM (mdata->thisprocparams, lexlevel);
+}
+/*}}}*/
 
 /*{{{  int map_init (void)*/
 /*

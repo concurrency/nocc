@@ -35,8 +35,10 @@ typedef struct TAG_map {
 	struct TAG_chook *allocevhook;
 	struct TAG_chook *precodehook;
 
-	struct TAG_tnode *thisblock;
-	struct TAG_tnode **thisprocparams;
+	DYNARRAY (struct TAG_tnode *, thisblock);		/* indexed by lex-level */
+	DYNARRAY (struct TAG_tnode **, thisprocparams);		/* indexed by lex-level */
+	/* struct TAG_tnode *thisblock;
+	struct TAG_tnode **thisprocparams; */
 	struct TAG_tnode *thisberesult;
 } map_t;
 
@@ -46,6 +48,13 @@ extern int map_subpremap (struct TAG_tnode **tptr, map_t *mdata);
 extern int map_submapnames (struct TAG_tnode **tptr, map_t *mdata);
 extern int map_subbemap (struct TAG_tnode **tptr, map_t *mdata);
 extern int map_addtoresult (struct TAG_tnode **nodep, map_t *mdata);
+
+extern int map_pushlexlevel (map_t *mdata, struct TAG_tnode *thisblock, struct TAG_tnode **thisprocparams);
+extern int map_poplexlevel (map_t *mdata);
+extern struct TAG_tnode *map_thisblock_cll (map_t *mdata);
+extern struct TAG_tnode **map_thisprocparams_cll (map_t *mdata);
+extern struct TAG_tnode *map_thisblock_ll (map_t *mdata, int lexlevel);
+extern struct TAG_tnode **map_thisprocparams_ll (map_t *mdata, int lexlevel);
 
 extern int map_init (void);
 extern int map_shutdown (void);

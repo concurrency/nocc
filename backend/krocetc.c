@@ -721,7 +721,7 @@ static tnode_t *krocetc_name_create (tnode_t *fename, tnode_t *body, map_t *mdat
 	target_t *xt = mdata->target;		/* must be us! */
 	tnode_t *name;
 	krocetc_namehook_t *nh;
-	tnode_t *blk = mdata->thisblock;
+	tnode_t *blk = map_thisblock_cll (mdata);
 
 	nh = krocetc_namehook_create (mdata->lexlevel, asize_wsh, asize_wsl, asize_vs, asize_ms, tsize, ind);
 	name = tnode_create (xt->tag_NAME, NULL, fename, body, (void *)nh);
@@ -750,7 +750,7 @@ static tnode_t *krocetc_nameref_create (tnode_t *bename, map_t *mdata)
 	krocetc_namehook_t *nh, *be_nh;
 	krocetc_blockhook_t *bh;
 	tnode_t *name, *fename;
-	tnode_t *blk = mdata->thisblock;
+	tnode_t *blk = map_thisblock_cll (mdata);
 
 	if (!blk) {
 		nocc_internal ("krocetc_nameref_create(): reference to name outside of block");
@@ -763,7 +763,18 @@ fprintf (stderr, "krocetc_nameref_create (): referenced lexlevel=%d, map lexleve
 #endif
 	if (be_nh->lexlevel < bh->lexlevel) {
 		/*{{{  need a static-link to get at this one*/
-		bh->addstaticlink = 1;
+		int i;
+
+		for (i=bh->lexlevel; i>be_nh->lexlevel; i--) {
+			tnode_t *llblk = map_thisblock_ll (mdata, i);
+			krocetc_blockhook_t *llbh = (krocetc_blockhook_t *)tnode_nthhookof (llblk, 0);
+
+			if (llbh) {
+				llbh->addstaticlink = 1;
+			} else {
+				nocc_warning ("krocetc_nameref_create(): no block at lexlevel %d", i);
+			}
+		}
 		/*}}}*/
 	}
 	/* nh = krocetc_namehook_create (be_nh->lexlevel, 0, 0, 0, 0, be_nh->typesize, be_nh->indir); */
@@ -2098,8 +2109,9 @@ static void krocetc_coder_loadlexlevel (codegen_t *cgen, int lexlevel)
 		tnode_t *thisblk = DA_NTHITEM (cgen->be_blks, ll);
 		tnode_t *statics = tnode_nthsubof (thisblk, 1);
 		tnode_t *slink;
+		krocetc_namehook_t *nh;
 
-#if 1
+#if 0
 fprintf (stderr, "krocetc_coder_loadlexlevel(): in %d, loading %d..\n", ll, ll-1);
 #endif
 		if (!statics) {
@@ -2111,10 +2123,18 @@ fprintf (stderr, "krocetc_coder_loadlexlevel(): in %d, loading %d..\n", ll, ll-1
 			nocc_internal ("krocetc_coder_loadlexlevel(): no static-link in this block..");
 			return;
 		}
-#if 1
+#if 0
 fprintf (stderr, "krocetc_coder_loadlexlevel(): found staticlink..  loading it..\n");
 #endif
-		codegen_callops (cgen, loadname, slink, 0);
+		nh = (krocetc_namehook_t *)tnode_nthhookof (slink, 0);
+
+		if (ll == blk_ll) {
+			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
+			krocetc_cgstate_tsdelta (cgen, 1);
+		} else {
+			codegen_write_fmt (cgen, "\tldnl\t%d\n", nh->ws_offset);
+		}
+		/* codegen_callops (cgen, loadname, slink, 0); */
 	}
 
 	return;

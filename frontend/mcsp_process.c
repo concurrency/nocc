@@ -1201,24 +1201,26 @@ static int mcsp_betrans_declnode (tnode_t **node, betrans_t *be)
 static int mcsp_namemap_declnode (tnode_t **node, map_t *map)
 {
 	tnode_t *blk;
-	tnode_t *saved_blk = map->thisblock;
-	tnode_t **saved_params = map->thisprocparams;
+	/* tnode_t *saved_blk = map->thisblock;
+	tnode_t **saved_params = map->thisprocparams; */
 	tnode_t **paramsptr;
 	tnode_t *tmpname;
 
 	blk = map->target->newblock (tnode_nthsubof (*node, 2), map, tnode_nthsubof (*node, 1), map->lexlevel + 1);
-	map->thisblock = blk;
-	map->thisprocparams = tnode_nthsubaddr (*node, 1);
-	map->lexlevel++;
+	map_pushlexlevel (map, blk, tnode_nthsubaddr (*node, 1));
+	/* map->thisblock = blk;
+	 * map->thisprocparams = tnode_nthsubaddr (*node, 1);
+	 * map->lexlevel++; */
 
 	/* map formal params and body */
 	paramsptr = tnode_nthsubaddr (*node, 1);
 	map_submapnames (paramsptr, map);
 	map_submapnames (tnode_nthsubaddr (blk, 0), map);		/* do this under the back-end block */
 
-	map->lexlevel--;
-	map->thisblock = saved_blk;
-	map->thisprocparams = saved_params;
+	map_poplexlevel (map);
+	/* map->lexlevel--;
+	 * map->thisblock = saved_blk;
+	 * map->thisprocparams = saved_params; */
 
 	/* insert the BLOCK node before the body of the process */
 	tnode_setnthsub (*node, 2, blk);
@@ -1576,22 +1578,24 @@ tnode_dumptree (alpha->elist, 1, stderr);
 		for (i=0; i<nbodies; i++) {
 			/*{{{  turn body into back-end block*/
 			tnode_t *blk, *parbodyspace;
-			tnode_t *saved_blk = map->thisblock;
-			tnode_t **saved_params = map->thisprocparams;
+			/* tnode_t *saved_blk = map->thisblock;
+			tnode_t **saved_params = map->thisprocparams; */
 
 			blk = map->target->newblock (bodies[i], map, NULL, map->lexlevel + 1);
-			map->thisblock = blk;
-			map->thisprocparams = NULL;
-			map->lexlevel++;
+			map_pushlexlevel (map, blk, NULL);
+			/* map->thisblock = blk;
+			 * map->thisprocparams = NULL;
+			 * map->lexlevel++; */
 
 			/* map body */
 			map_submapnames (&(bodies[i]), map);
 			parbodyspace = map->target->newname (tnode_create (mcsp.tag_PARSPACE, NULL), bodies[i], map, 0, 16, 0, 0, 0, 0);	/* FIXME! */
 			*(map->target->be_blockbodyaddr (blk)) = parbodyspace;
 
-			map->lexlevel--;
-			map->thisblock = saved_blk;
-			map->thisprocparams = saved_params;
+			map_poplexlevel (map);
+			/* map->lexlevel--;
+			 * map->thisblock = saved_blk;
+			 * map->thisprocparams = saved_params; */
 
 			/* make block node the individual PAR process */
 			bodies[i] = blk;

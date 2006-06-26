@@ -760,23 +760,26 @@ static int occampi_betrans_procdecl (tnode_t **node, betrans_t *be)
 static int occampi_namemap_procdecl (tnode_t **node, map_t *map)
 {
 	tnode_t *blk;
-	tnode_t *saved_blk = map->thisblock;
-	tnode_t **saved_params = map->thisprocparams;
+	/* tnode_t *saved_blk = map->thisblock;
+	tnode_t **saved_params = map->thisprocparams; */
 	tnode_t **paramsptr;
 	tnode_t *tmpname;
 
 	blk = map->target->newblock (tnode_nthsubof (*node, 2), map, tnode_nthsubof (*node, 1), map->lexlevel + 1);
-	map->thisblock = blk;
-	map->thisprocparams = tnode_nthsubaddr (*node, 1);
-	map->lexlevel++;
+	map_pushlexlevel (map, blk, tnode_nthsubaddr (*node, 1));
+	/* map->thisblock = blk;
+	 * map->thisprocparams = tnode_nthsubaddr (*node, 1);
+	 * map->lexlevel++; */
 
 	/* map formal params and body */
 	paramsptr = tnode_nthsubaddr (*node, 1);
 	map_submapnames (paramsptr, map);
 	map_submapnames (tnode_nthsubaddr (blk, 0), map);		/* do this under the back-end block */
-	map->lexlevel--;
-	map->thisblock = saved_blk;
-	map->thisprocparams = saved_params;
+
+	map_poplexlevel (map);
+	/* map->lexlevel--;
+	 * map->thisblock = saved_blk;
+	 * map->thisprocparams = saved_params; */
 
 	/* insert the BLOCK node before the body of the process */
 	tnode_setnthsub (*node, 2, blk);
