@@ -1,0 +1,10 @@
+# commstime in MCSP ..!
+
+PREFIX (in,out) ::= out -> @x.(in -> out -> x)
+SUCC (in,out) ::= @x.(in -> out -> x)
+DELTA (in,out1,out2) ::= @x.(in -> out1 -> out2 -> x)
+CONSUME (in,report) ::= @x.(in -> in -> in -> in -> in -> in -> in -> in -> in -> in -> report -> x)
+
+SYSTEM (report) ::= ((PREFIX (a, b) || DELTA (b, c, d)) || (SUCC (c, a) || CONSUME (d, report))) \ {a,b,c,d}
+
+

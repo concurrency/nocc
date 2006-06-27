@@ -2232,6 +2232,48 @@ static int mcsp_codegen_loopnode (tnode_t *node, codegen_t *cgen)
 }
 /*}}}*/
 
+/*{{{  static int mcsp_scopein_replnode (tnode_t **node, scope_t *ss)*/
+/*
+ *	called to scope-in a replicator node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_scopein_replnode (tnode_t **node, scope_t *ss)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_scopeout_replnode (tnode_t **node, scope_t *ss)*/
+/*
+ *	called to scope-out a replicator node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_scopeout_replnode (tnode_t **node, scope_t *ss)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_namemap_replnode (tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a replnode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_namemap_replnode (tnode_t **node, map_t *map)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_codegen_replnode (tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a replnode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_codegen_replnode (tnode_t *node, codegen_t *cgen)
+{
+	return 1;
+}
+/*}}}*/
+
+
 /*{{{  static int mcsp_fetrans_guardnode (tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transformation on a GUARD
@@ -2826,7 +2868,7 @@ static int mcsp_process_init_nodes (void)
 fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->name = [%s], mcsp.tag_NAME->ndef->name = [%s]\n", tnd->name, mcsp.tag_NAME->name, mcsp.tag_NAME->ndef->name);
 #endif
 	/*}}}*/
-	/*{{{  mcsp:dopnode -- SUBEVENT, THEN, SEQ, PAR, ILEAVE, ICHOICE, ECHOICE*/
+	/*{{{  mcsp:dopnode -- SUBEVENT, THEN, SEQ, PAR, ALPHAPAR, ILEAVE, ICHOICE, ECHOICE*/
 	i = -1;
 	tnd = mcsp.node_DOPNODE = tnode_newnodetype ("mcsp:dopnode", &i, 3, 0, 1, TNF_NONE);		/* subnodes: 0 = LHS, 1 = RHS, 2 = type;  hooks: 0 = mcsp_alpha_t */
 	tnd->hook_free = mcsp_alpha_hook_free;
@@ -2845,6 +2887,8 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	mcsp.tag_SEQ = tnode_newnodetag ("MCSPSEQ", &i, tnd, NTF_NONE);
 	i = -1;
 	mcsp.tag_PAR = tnode_newnodetag ("MCSPPAR", &i, tnd, NTF_NONE);
+	i = -1;
+	mcsp.tag_ALPHAPAR = tnode_newnodetag ("MCSPALPHAPAR", &i, tnd, NTF_NONE);
 	i = -1;
 	mcsp.tag_ILEAVE = tnode_newnodetag ("MCSPILEAVE", &i, tnd, NTF_NONE);
 	i = -1;
@@ -2925,7 +2969,7 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	mcsp.tag_CHAOS = tnode_newnodetag ("MCSPCHAOS", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  mcsp:namenode -- EVENT, PROCDEF, CHAN*/
+	/*{{{  mcsp:namenode -- EVENT, PROCDEF, CHAN, VAR*/
 	i = -1;
 	tnd = mcsp.node_NAMENODE = tnode_newnodetype ("mcsp:namenode", &i, 0, 1, 0, TNF_NONE);		/* subnames: 0 = name */
 	cops = tnode_newcompops ();
@@ -2943,6 +2987,8 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	mcsp.tag_PROCDEF = tnode_newnodetag ("MCSPPROCDEF", &i, tnd, NTF_NONE);
 	i = -1;
 	mcsp.tag_CHAN = tnode_newnodetag ("MCSPCHAN", &i, tnd, NTF_NONE);
+	i = -1;
+	mcsp.tag_VAR = tnode_newnodetag ("MCSPVAR", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  mcsp:actionnode -- SYNC, CHANWRITE*/
@@ -3007,6 +3053,24 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	mcsp.tag_ILOOP = tnode_newnodetag ("MCSPILOOP", &i, tnd, NTF_NONE);
 	i = -1;
 	mcsp.tag_PRIDROP = tnode_newnodetag ("MCSPPRIDROP", &i, tnd, NTF_NONE);		/* maybe not a loopnode as such, but will do for now */
+
+	/*}}}*/
+	/*{{{  mcsp:replnode -- REPLSEQ, REPLPAR, REPLILEAVE*/
+	i = -1;
+	tnd = mcsp.node_REPLNODE = tnode_newnodetype ("mcsp:replnode", &i, 4, 0, 0, TNF_NONE);		/* subnodes: 0 = body; 1 = repl-var, 2 = start, 3 = end */
+	cops = tnode_newcompops ();
+	cops->scopein = mcsp_scopein_replnode;
+	cops->scopeout = mcsp_scopeout_replnode;
+	cops->namemap = mcsp_namemap_replnode;
+	cops->codegen = mcsp_codegen_replnode;
+	tnd->ops = cops;
+
+	i = -1;
+	mcsp.tag_REPLSEQ = tnode_newnodetag ("MCSPREPLSEQ", &i, tnd, NTF_NONE);
+	i = -1;
+	mcsp.tag_REPLPAR = tnode_newnodetag ("MCSPREPLSEQ", &i, tnd, NTF_NONE);
+	i = -1;
+	mcsp.tag_REPLILEAVE = tnode_newnodetag ("MCSPREPLSEQ", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  mcsp:guardnode -- GUARD*/
@@ -3107,6 +3171,7 @@ static int mcsp_process_reg_reducers (void)
 	parser_register_grule ("mcsp:subevent", parser_decode_grule ("SN0N+N+V00C4R-", mcsp.tag_SUBEVENT));
 	parser_register_grule ("mcsp:stringreduce", parser_decode_grule ("ST0T+XC1R-", mcsp_stringtoken_to_hook, mcsp.tag_STRING));
 	parser_register_grule ("mcsp:instancereduce", parser_decode_grule ("SN0N+N+VC2R-", mcsp.tag_INSTANCE));
+	parser_register_grule ("mcsp:replseqreduce", parser_decode_grule ("N+N+N+VN+VN-VN+C4R-", mcsp.tag_REPLSEQ));
 
 	parser_register_reduce ("Rmcsp:op", mcsp_opreduce, NULL);
 	parser_register_reduce ("Rmcsp:folddop", mcsp_folddopreduce, NULL);
@@ -3134,13 +3199,17 @@ static dfattbl_t **mcsp_process_init_dfatrans (int *ntrans)
 				"[ 3 @@] 4 ] [ 4 Newline 4 ] [ 4 -* 5 ] [ 5 {<mcsp:nullechoicereduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:leafproc ::= [ 0 +@SKIP 1 ] [ 0 +@STOP 1 ] [ 0 +@DIV 1 ] [ 0 +@CHAOS 1 ] [ 1 {<mcsp:ppreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:fixpoint ::= [ 0 @@@ 1 ] [ 1 mcsp:name 2 ] [ 2 @@. 3 ] [ 3 mcsp:process 4 ] [ 4 {<mcsp:fixreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("mcsp:replseq ::= [ 0 @@; 1 ] [ 1 @@[ 2 ] [ 2 mcsp:name 3 ] [ 3 @@= 4 ] [ 4 mcsp:expr 5 ] [ 5 @@.. 6 ] [ 6 mcsp:expr 7 ] " \
+				"[ 7 @@] 8 ] [ 8 mcsp:process 9 ] [ 9 {<mcsp:replseqreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:hide ::= [ 0 +@@\\ 1 ] [ 1 mcsp:eventset 2 ] [ 2 {<mcsp:hidereduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:restofprocess ::= [ 0 mcsp:dop 1 ] [ 1 mcsp:process 2 ] [ 2 {Rmcsp:folddop} -* ] " \
 				"[ 0 %mcsp:hide <mcsp:hide> ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:instance ::= [ 0 mcsp:name 1 ] [ 1 @@( 2 ] [ 2 mcsp:aparams 3 ] [ 3 @@) 4 ] [ 4 {<mcsp:instancereduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:process ::= [ 0 +Name 7 ] [ 0 mcsp:leafproc 2 ] [ 0 mcsp:fixpoint 2 ] [ 0 @@( 3 ] [ 1 %mcsp:restofprocess <mcsp:restofprocess> ] [ 1 -* 2 ] [ 2 {<mcsp:nullreduce>} -* ] " \
+	dynarray_add (transtbl, dfa_transtotbl ("mcsp:process ::= [ 0 +Name 7 ] [ 0 mcsp:leafproc 2 ] [ 0 mcsp:fixpoint 2 ] [ 0 @@( 3 ] [ 0 -@@; 12 ] " \
+				"[ 1 %mcsp:restofprocess <mcsp:restofprocess> ] [ 1 -* 2 ] [ 2 {<mcsp:nullreduce>} -* ] " \
 				"[ 3 mcsp:process 4 ] [ 4 @@) 5 ] [ 5 %mcsp:restofprocess <mcsp:restofprocess> ] [ 5 -* 6 ] [ 6 {<mcsp:nullreduce>} -* ] " \
-				"[ 7 -@@( 8 ] [ 7 -* 10 ] [ 8 {<parser:rewindtokens>} -* 9 ] [ 9 mcsp:instance 1 ] [ 10 {<parser:rewindtokens>} -* 11 ] [ 11 mcsp:event 1 ]"));
+				"[ 7 -@@( 8 ] [ 7 -* 10 ] [ 8 {<parser:rewindtokens>} -* 9 ] [ 9 mcsp:instance 1 ] [ 10 {<parser:rewindtokens>} -* 11 ] [ 11 mcsp:event 1 ] " \
+				"[ 12 mcsp:replseq 13 ] [ 13 {<mcsp:nullreduce>} -* ]"));
 	/* dynarray_add (transtbl, dfa_transtotbl ("mcsp:traceline ::= [ 0 +Name 7 ] [ 0 mcsp:leafproc 2 ]")); */
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:procdecl ::= [ 0 +Name 1 ] [ 1 {<mcsp:namepush>} ] [ 1 @@::= 2 ] [ 1 @@( 4 ] [ 2 {<mcsp:nullpush>} ] [ 2 mcsp:process 3 ] [ 3 {<mcsp:procdeclreduce>} -* ] " \
 				"[ 4 mcsp:fparams 5 ] [ 5 @@) 6 ] [ 6 @@::= 7 ] [ 7 mcsp:process 3 ]"));

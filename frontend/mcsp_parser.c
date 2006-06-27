@@ -111,7 +111,10 @@ static int mcsp_tokens_init (void)
 	symbols_add ("|||", 3, (void *)&mcsp_parser);
 	symbols_add ("|~|", 3, (void *)&mcsp_parser);
 	symbols_add ("::=", 3, (void *)&mcsp_parser);
+	symbols_add ("..", 2, (void *)&mcsp_parser);
 	symbols_add (".", 1, (void *)&mcsp_parser);
+	symbols_add ("|{", 2, (void *)&mcsp_parser);
+	symbols_add ("}|", 2, (void *)&mcsp_parser);
 
 	keywords_add ("DIV", -1, (void *)&mcsp_parser);
 	keywords_add ("CHAOS", -1, (void *)&mcsp_parser);

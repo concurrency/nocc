@@ -1,0 +1,4 @@
+# testing a new feature..
+
+SYSTEM ::= ;[i=a..b] (x -> SKIP)
+

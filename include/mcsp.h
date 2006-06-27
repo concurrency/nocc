@@ -42,16 +42,19 @@ typedef struct {
 	struct TAG_tndef *node_LEAFPROC;
 	struct TAG_tndef *node_CONSTNODE;
 	struct TAG_tndef *node_SPACENODE;
+	struct TAG_tndef *node_REPLNODE;
 
 	/* front-end tags */
 	struct TAG_ntdef *tag_NAME;
 	struct TAG_ntdef *tag_EVENT;
 	struct TAG_ntdef *tag_PROCDEF;
 	struct TAG_ntdef *tag_CHAN;
+	struct TAG_ntdef *tag_VAR;
 
 	struct TAG_ntdef *tag_SUBEVENT;
 	struct TAG_ntdef *tag_THEN;
 	struct TAG_ntdef *tag_PAR;
+	struct TAG_ntdef *tag_ALPHAPAR;
 	struct TAG_ntdef *tag_ILEAVE;
 	struct TAG_ntdef *tag_SEQ;
 	struct TAG_ntdef *tag_ICHOICE;
@@ -71,6 +74,10 @@ typedef struct {
 	struct TAG_ntdef *tag_INSTANCE;
 
 	struct TAG_ntdef *tag_STRING;
+
+	struct TAG_ntdef *tag_REPLSEQ;
+	struct TAG_ntdef *tag_REPLPAR;
+	struct TAG_ntdef *tag_REPLILEAVE;
 
 	/* heading into the back-end */
 	struct TAG_ntdef *tag_FPARAM;
