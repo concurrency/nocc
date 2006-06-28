@@ -2239,7 +2239,36 @@ static int mcsp_codegen_loopnode (tnode_t *node, codegen_t *cgen)
  */
 static int mcsp_scopein_replnode (tnode_t **node, scope_t *ss)
 {
-	return 1;
+	mcsp_scope_t *mss = (mcsp_scope_t *)ss->langpriv;
+	tnode_t *name = tnode_nthsubof (*node, 1);
+	tnode_t **bodyptr = tnode_nthsubaddr (*node, 0);
+	void *nsmark;
+	char *rawname;
+	name_t *replname;
+	tnode_t *newname;
+	tnode_t *saved_uvil = mss->uvinsertlist;
+	void *saved_uvsm = mss->uvscopemark;
+
+	nsmark = name_markscope ();
+	mss->uvinsertlist = NULL;
+	mss->uvscopemark = nsmark;
+	/* scope in replicator name and walk body */
+	rawname = (char *)tnode_nthhookof (name, 0);
+	replname = name_addscopenamess (rawname, *node, NULL, NULL, ss);
+	newname = tnode_createfrom (mcsp.tag_VAR, name, replname);
+	SetNameNode (replname, newname);
+	tnode_setnthsub (*node, 1, newname);
+
+	/* free old name, scope body */
+	tnode_free (name);
+
+	tnode_modprepostwalktree (bodyptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+
+	name_markdescope (nsmark);
+	mss->uvinsertlist = saved_uvil;
+	mss->uvscopemark = saved_uvsm;
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int mcsp_scopeout_replnode (tnode_t **node, scope_t *ss)*/
