@@ -45,6 +45,7 @@
 #include "names.h"
 #include "scope.h"
 #include "prescope.h"
+#include "constprop.h"
 #include "typecheck.h"
 #include "usagecheck.h"
 #include "fetrans.h"
@@ -2325,7 +2326,7 @@ static int mcsp_namemap_replnode (tnode_t **node, map_t *map)
 {
 	if ((*node)->tag == mcsp.tag_REPLSEQ) {
 		tnode_t **rptr = tnode_nthsubaddr (*node, 1);
-		tnode_t *fename = tnode_create (mcsp.tag_LOOPSPACE, NULL);
+		tnode_t *fename;
 		tnode_t *nameref = NULL;
 
 		map_submapnames (tnode_nthsubaddr (*node, 0), map);		/* map body */
@@ -2333,11 +2334,17 @@ static int mcsp_namemap_replnode (tnode_t **node, map_t *map)
 		map_submapnames (tnode_nthsubaddr (*node, 3), map);		/* map end expression */
 
 		/* reserve two words for replicator */
+		if (*rptr) {
+			fename = *rptr;
+			*rptr = NULL;
+		} else {
+			fename = tnode_create (mcsp.tag_LOOPSPACE, NULL);
+		}
+
 		*node = map->target->newname (fename, *node, map, 2 * map->target->intsize, 0, 0, 0, map->target->intsize, 0);
 		tnode_setchook (fename, map->mapchook, (void *)*node);
 
 		/* transform replicator name into a reference to the space just reserved */
-		tnode_free (*rptr);
 		nameref = map->target->newnameref (*node, map);
 		/* *rptr = nameref; */
 #if 0
@@ -2347,6 +2354,9 @@ fprintf (stderr, "*rptr is:\n");
 tnode_dumptree (*rptr, 1, stderr);
 #endif
 		/* *rptr = map->target->newnameref (*node, map); */
+		if (*rptr) {
+			tnode_free (*rptr);
+		}
 		*rptr = nameref;
 
 		return 0;
@@ -2367,10 +2377,12 @@ static int mcsp_codegen_replnode (tnode_t *node, codegen_t *cgen)
 		tnode_t *rref = tnode_nthsubof (node, 1);
 
 		/*{{{  loop-head*/
-		codegen_callops (cgen, loadconst, 0);
-		codegen_callops (cgen, storename, rref, 0);
-		codegen_callops (cgen, loadconst, 0);
-		codegen_callops (cgen, storename, rref, 1);
+		codegen_callops (cgen, loadname, tnode_nthsubof (node, 2), 0);		/* start */
+		codegen_callops (cgen, storename, rref, 0);				/* => value */
+		codegen_callops (cgen, loadname, tnode_nthsubof (node, 3), 0);		/* end */
+		codegen_callops (cgen, loadname, tnode_nthsubof (node, 2), 0);		/* start */
+		codegen_callops (cgen, tsecondary, I_SUB);
+		codegen_callops (cgen, storename, rref, cgen->target->intsize);		/* => count */
 
 		codegen_callops (cgen, setlabel, toplab);
 
@@ -2381,7 +2393,19 @@ static int mcsp_codegen_replnode (tnode_t *node, codegen_t *cgen)
 		/*}}}*/
 		/*{{{  loop-end*/
 
-		/* FIXME! */
+		codegen_callops (cgen, loadname, rref, cgen->target->intsize);		/* count */
+		codegen_callops (cgen, branch, I_CJ, botlab);
+		codegen_callops (cgen, loadname, rref, 0);				/* value */
+		codegen_callops (cgen, loadconst, 1);
+		codegen_callops (cgen, tsecondary, I_ADD);
+		codegen_callops (cgen, storename, rref, 0);				/* value = value - 1*/
+		codegen_callops (cgen, loadname, rref, cgen->target->intsize);		/* count */
+		codegen_callops (cgen, loadconst, 1);
+		codegen_callops (cgen, tsecondary, I_SUB);
+		codegen_callops (cgen, storename, rref, cgen->target->intsize);		/* count = count - 1*/
+		codegen_callops (cgen, branch, I_J, toplab);
+
+		codegen_callops (cgen, setlabel, botlab);
 		/*}}}*/
 		return 0;
 	}
@@ -2605,6 +2629,77 @@ static int mcsp_namemap_vardeclnode (tnode_t **node, map_t *map)
 	bodyp = tnode_nthsubaddr (*node, 1);
 	map_submapnames (bodyp, map);			/* map body */
 	
+	return 0;
+}
+/*}}}*/
+
+
+/*{{{  static int mcsp_constprop_const (tnode_t **node)*/
+/*
+ *	does constant propagation on a constant node (post walk)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_constprop_const (tnode_t **node)
+{
+	mcsp_consthook_t *ch = (mcsp_consthook_t *)tnode_nthhookof (*node, 0);
+
+	if ((*node)->tag == mcsp.tag_INTEGER) {
+		*node = constprop_newconst (CONST_INT, *node, NULL, *(int *)(ch->data));
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int mcsp_namemap_const (tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a constant
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_namemap_const (tnode_t **node, map_t *map)
+{
+	mcsp_consthook_t *ch = (mcsp_consthook_t *)tnode_nthhookof (*node, 0);
+
+	*node = map->target->newconst (*node, map, ch->data, ch->length);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int mcsp_isconst_const (tnode_t *node)*/
+/*
+ *	returns non-zero if the node is a constant (returns width)
+ */
+static int mcsp_isconst_const (tnode_t *node)
+{
+	mcsp_consthook_t *ch = (mcsp_consthook_t *)tnode_nthhookof (node, 0);
+
+	return ch->length;
+}
+/*}}}*/
+/*{{{  static int mcsp_constvalof_const (tnode_t *node, void *ptr)*/
+/*
+ *	returns the constant value of a constant node (assigns to pointer if non-null)
+ */
+static int mcsp_constvalof_const (tnode_t *node, void *ptr)
+{
+	mcsp_consthook_t *ch = (mcsp_consthook_t *)tnode_nthhookof (node, 0);
+	int r = 0;
+
+	if (node->tag == mcsp.tag_INTEGER) {
+		if (ptr) {
+			*(int *)ptr = *(int *)(ch->data);
+		}
+		r = *(int *)(ch->data);
+	}
+	return r;
+}
+/*}}}*/
+/*{{{  static int mcsp_valbyref_const (tnode_t *node)*/
+/*
+ *	returns non-zero if value-references of this constant get passed by reference
+ */
+static int mcsp_valbyref_const (tnode_t *node)
+{
+	if (node->tag == mcsp.tag_STRING) {
+		return 1;
+	}
 	return 0;
 }
 /*}}}*/
@@ -3233,13 +3328,19 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	mcsp.tag_VARDECL = tnode_newnodetag ("MCSPVARDECL", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  mcsp:constnode -- STRING*/
+	/*{{{  mcsp:constnode -- STRING, INTEGER*/
 	i = -1;
 	tnd = tnode_newnodetype ("mcsp:constnode", &i, 0, 0, 1, TNF_NONE);				/* hooks: data */
 	tnd->hook_free = mcsp_constnode_hook_free;
 	tnd->hook_copy = mcsp_constnode_hook_copy;
 	tnd->hook_dumptree = mcsp_constnode_hook_dumptree;
 	cops = tnode_newcompops ();
+	cops->constprop = mcsp_constprop_const;
+	cops->namemap = mcsp_namemap_const;
+	lops = tnode_newlangops ();
+	lops->isconst = mcsp_isconst_const;
+	lops->constvalof = mcsp_constvalof_const;
+	lops->valbyref = mcsp_valbyref_const;
 	tnd->ops = cops;
 
 	i = -1;

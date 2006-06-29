@@ -513,6 +513,22 @@ static void allocate_squeeze_curmap (alloc_varmap_t *varmap, target_t *target)
 /*}}}*/
 
 
+/*{{{  static int allocate_compare_wsentries (alloc_ivarmap_t *ivm1, alloc_ivarmap_t *ivm2)*/
+/*
+ *	compares two workspace entities -- fudged by the fact that entries sharing high and low ws are pulled down
+ */
+static int allocate_compare_wsentries (alloc_ivarmap_t *ivm1, alloc_ivarmap_t *ivm2)
+{
+	if (ivm1->alloc_wsh && ivm1->alloc_wsl) {
+		return -1;
+	} else if (ivm2->alloc_wsh && ivm2->alloc_wsl) {
+		return 1;
+	}
+
+	/* sort remaining ones by high-size */
+	return ivm2->alloc_wsh - ivm1->alloc_wsh;
+}
+/*}}}*/
 /*{{{  static int allocate_compare_submaps (alloc_ovarmap_t *ovm1, alloc_ovarmap_t *ovm2)*/
 /*
  *	compares submap sizes for sorting
@@ -538,6 +554,12 @@ static void allocate_size_map (alloc_ovarmap_t *ovm, target_t *target, int which
 	/*{{{  size submaps*/
 	for (i=0; i<DA_CUR (ovm->submaps); i++) {
 		allocate_size_map (DA_NTHITEM (ovm->submaps, i), target, which);
+	}
+
+	/*}}}*/
+	/*{{{  if any entry shares high-ws and low-ws, it must go first (slot 0 counts as high-ws, possibly used by descheduling calls)*/
+	if (which == 0) {
+		dynarray_qsort (ovm->entries, allocate_compare_wsentries);
 	}
 
 	/*}}}*/
@@ -1009,6 +1031,9 @@ fprintf (stderr, "allocate_prewalktree_assign_namerefs(): node=0x%8.8x, data=0x%
 
 
 		/* namehook should be the corresponding back-end NAME */
+		if (!namehook) {
+			nocc_internal ("allocate_prewalktree_assign_namerefs(): nameref has no mapchook!");
+		}
 		act_lexlevel = apriv->target->be_blocklexlevel (namehook);
 #if 0
 fprintf (stderr, "allocate_prewalktree_assign_namerefs(): found NAMREF!  ref_lexlevel = %d, act_lexlevel = %d\n", ref_lexlevel, act_lexlevel);
