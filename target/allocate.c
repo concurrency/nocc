@@ -300,7 +300,15 @@ fprintf (stderr, "allocate_ovarmap_addname(): new ivm, allocating [%d,%d,%d,%d]\
 
 		newovm->parent = ovm;
 		dynarray_add (ovm->submaps, newovm);
-		dynarray_add (newovm->entries, ivm);
+		/* if this needs high and low WS, goes in at the bottom */
+		if (ivm->alloc_wsh && ivm->alloc_wsl) {
+#if 0
+fprintf (stderr, "allocate_ovarmap_addname(): shared high/low WS, inserting at start-of-list\n");
+#endif
+			dynarray_insert (newovm->entries, ivm, 0);
+		} else {
+			dynarray_add (newovm->entries, ivm);
+		}
 
 		avm->curwsmap = newovm;
 		ivm->refc++;
@@ -390,7 +398,7 @@ fprintf (stderr, "allocate_ovarmap_delname(): i_ws = %d, i_vs = %d, i_ms = %d\n"
 #endif
 	/*{{{  (serious) error it not here*/
 	if ((i_ws == -1) && (i_vs == -1) && (i_ms == -1)) {
-#if 1
+#if 0
 fprintf (stderr, "allocate_ovarmap_delname(): bename was:\n");
 tnode_dumptree (bename, 1, stderr);
 #endif
@@ -442,7 +450,12 @@ static void allocate_squeeze_map_inner (alloc_ovarmap_t *ovm, alloc_ovarmap_t **
 			alloc_ivarmap_t *ivm = DA_NTHITEM (next_ovm->entries, i);
 
 			DA_SETNTHITEM (next_ovm->entries, i, NULL);
-			dynarray_add (ovm->entries, ivm);
+			if (ivm->alloc_wsh && ivm->alloc_wsl) {
+				/* high and low WS required, put at start of map */
+				dynarray_insert (ovm->entries, ivm, 0);
+			} else {
+				dynarray_add (ovm->entries, ivm);
+			}
 		}
 		for (i=0; i<DA_CUR (next_ovm->submaps); i++) {
 			alloc_ovarmap_t *submap = DA_NTHITEM (next_ovm->submaps, i);
@@ -519,6 +532,14 @@ static void allocate_squeeze_curmap (alloc_varmap_t *varmap, target_t *target)
  */
 static int allocate_compare_wsentries (alloc_ivarmap_t *ivm1, alloc_ivarmap_t *ivm2)
 {
+	if (!ivm1 && !ivm2) {
+		return 0;
+	} else if (!ivm2) {
+		return -1;
+	} else if (!ivm1) {
+		return 1;
+	}
+
 	if (ivm1->alloc_wsh && ivm1->alloc_wsl) {
 		return -1;
 	} else if (ivm2->alloc_wsh && ivm2->alloc_wsl) {
@@ -558,9 +579,12 @@ static void allocate_size_map (alloc_ovarmap_t *ovm, target_t *target, int which
 
 	/*}}}*/
 	/*{{{  if any entry shares high-ws and low-ws, it must go first (slot 0 counts as high-ws, possibly used by descheduling calls)*/
-	if (which == 0) {
+#if 0
+	if ((which == 0) && DA_CUR (ovm->entries)) {
 		dynarray_qsort (ovm->entries, allocate_compare_wsentries);
 	}
+#endif
+	/* FIXME: can't do this here cos it may re-arrange statics (not allowed!) */
 
 	/*}}}*/
 	/*{{{  set our size to the size of the largest submap*/

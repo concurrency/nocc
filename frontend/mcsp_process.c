@@ -631,6 +631,8 @@ static int mcsp_checkisprocess (tnode_t *node)
 		return 1;
 	} else if (node->tag == mcsp.tag_INSTANCE) {
 		return 1;
+	} else if (node->tag == mcsp.tag_REPLSEQ) {
+		return 1;
 	}
 	return 0;
 }
