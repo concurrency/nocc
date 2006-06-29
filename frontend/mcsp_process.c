@@ -61,6 +61,7 @@
 typedef struct TAG_mcsp_consthook {
 	char *data;
 	int length;
+	int valtype;		/* whether 'data' should be interpreted as a number */
 } mcsp_consthook_t;
 
 typedef struct TAG_opmap {
@@ -112,6 +113,25 @@ static void *mcsp_stringtoken_to_hook (void *ntok)
 	ch = (mcsp_consthook_t *)smalloc (sizeof (mcsp_consthook_t));
 	ch->data = string_ndup (tok->u.str.ptr, tok->u.str.len);
 	ch->length = tok->u.str.len;
+	ch->valtype = 0;
+
+	lexer_freetoken (tok);
+	return (void *)ch;
+}
+/*}}}*/
+/*{{{  static void *mcsp_integertoken_to_hook (void *ntok)*/
+/*
+ *	turns an integer token into a hooknode for a tag_INTEGER
+ */
+static void *mcsp_integertoken_to_hook (void *ntok)
+{
+	token_t *tok = (token_t *)ntok;
+	mcsp_consthook_t *ch;
+
+	ch = (mcsp_consthook_t *)smalloc (sizeof (mcsp_consthook_t));
+	ch->data = mem_ndup (&(tok->u.ival), sizeof (int));
+	ch->length = sizeof (int);
+	ch->valtype = 1;
 
 	lexer_freetoken (tok);
 	return (void *)ch;
@@ -220,8 +240,13 @@ static void *mcsp_constnode_hook_copy (void *hook)
 	if (ch) {
 		mcsp_consthook_t *newch = (mcsp_consthook_t *)smalloc (sizeof (mcsp_consthook_t));
 
-		newch->data = ch->data ? string_dup (ch->data) : NULL;
+		if (ch->valtype) {
+			newch->data = ch->data ? mem_ndup (ch->data, ch->length) : NULL;
+		} else {
+			newch->data = ch->data ? string_dup (ch->data) : NULL;
+		}
 		newch->length = ch->length;
+		newch->valtype = ch->valtype;
 
 		return (void *)newch;
 	}
@@ -237,7 +262,18 @@ static void mcsp_constnode_hook_dumptree (tnode_t *node, void *hook, int indent,
 	mcsp_consthook_t *ch = (mcsp_consthook_t *)hook;
 
 	mcsp_isetindent (stream, indent);
-	fprintf (stream, "<mcspconsthook length=\"%d\" value=\"%s\" />\n", ch ? ch->length : 0, (ch && ch->data) ? ch->data : "(null)");
+	if (!ch) {
+		fprintf (stream, "<mcspconsthook length=\"0\" value=\"(null)\" />\n");
+	} else if (!ch->valtype) {
+		fprintf (stream, "<mcspconsthook length=\"%d\" value=\"%s\" />\n", ch->length, ch->data ? ch->data : "(null)");
+	} else if (ch->length == 4) {
+		fprintf (stream, "<mcspconsthook length=\"%d\" value=\"%d\" />\n", ch->length, ch->data ? *(int *)ch->data : 0);
+	} else {
+		char *vstr = mkhexbuf ((unsigned char *)ch->data, ch->length);
+
+		fprintf (stream, "<mcspconsthook length=\"%d\" hexvalue=\"%s\" />\n", ch->length, vstr);
+		sfree (vstr);
+	}
 	return;
 }
 /*}}}*/
@@ -607,6 +643,8 @@ static int mcsp_checkisexpr (tnode_t *node)
 	if (node->tag == mcsp.tag_EVENT) {
 		return 1;
 	} else if (node->tag == mcsp.tag_STRING) {
+		return 1;
+	} else if (node->tag == mcsp.tag_INTEGER) {
 		return 1;
 	}
 	return 0;
@@ -2239,19 +2277,18 @@ static int mcsp_codegen_loopnode (tnode_t *node, codegen_t *cgen)
  */
 static int mcsp_scopein_replnode (tnode_t **node, scope_t *ss)
 {
-	mcsp_scope_t *mss = (mcsp_scope_t *)ss->langpriv;
 	tnode_t *name = tnode_nthsubof (*node, 1);
 	tnode_t **bodyptr = tnode_nthsubaddr (*node, 0);
 	void *nsmark;
 	char *rawname;
 	name_t *replname;
 	tnode_t *newname;
-	tnode_t *saved_uvil = mss->uvinsertlist;
-	void *saved_uvsm = mss->uvscopemark;
+
+	/* scope the start and end expressions */
+	tnode_modprepostwalktree (tnode_nthsubaddr (*node, 2), scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+	tnode_modprepostwalktree (tnode_nthsubaddr (*node, 3), scope_modprewalktree, scope_modpostwalktree, (void *)ss);
 
 	nsmark = name_markscope ();
-	mss->uvinsertlist = NULL;
-	mss->uvscopemark = nsmark;
 	/* scope in replicator name and walk body */
 	rawname = (char *)tnode_nthhookof (name, 0);
 	replname = name_addscopenamess (rawname, *node, NULL, NULL, ss);
@@ -2265,8 +2302,6 @@ static int mcsp_scopein_replnode (tnode_t **node, scope_t *ss)
 	tnode_modprepostwalktree (bodyptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
 
 	name_markdescope (nsmark);
-	mss->uvinsertlist = saved_uvil;
-	mss->uvscopemark = saved_uvsm;
 
 	return 0;
 }
@@ -2288,6 +2323,34 @@ static int mcsp_scopeout_replnode (tnode_t **node, scope_t *ss)
  */
 static int mcsp_namemap_replnode (tnode_t **node, map_t *map)
 {
+	if ((*node)->tag == mcsp.tag_REPLSEQ) {
+		tnode_t **rptr = tnode_nthsubaddr (*node, 1);
+		tnode_t *fename = tnode_create (mcsp.tag_LOOPSPACE, NULL);
+		tnode_t *nameref = NULL;
+
+		map_submapnames (tnode_nthsubaddr (*node, 0), map);		/* map body */
+		map_submapnames (tnode_nthsubaddr (*node, 2), map);		/* map start expression */
+		map_submapnames (tnode_nthsubaddr (*node, 3), map);		/* map end expression */
+
+		/* reserve two words for replicator */
+		*node = map->target->newname (fename, *node, map, 2 * map->target->intsize, 0, 0, 0, map->target->intsize, 0);
+		tnode_setchook (fename, map->mapchook, (void *)*node);
+
+		/* transform replicator name into a reference to the space just reserved */
+		tnode_free (*rptr);
+		nameref = map->target->newnameref (*node, map);
+		/* *rptr = nameref; */
+#if 0
+fprintf (stderr, "got nameref for REPLSEQ space:\n");
+tnode_dumptree (nameref, 1, stderr);
+fprintf (stderr, "*rptr is:\n");
+tnode_dumptree (*rptr, 1, stderr);
+#endif
+		/* *rptr = map->target->newnameref (*node, map); */
+		*rptr = nameref;
+
+		return 0;
+	}
 	return 1;
 }
 /*}}}*/
@@ -2298,6 +2361,30 @@ static int mcsp_namemap_replnode (tnode_t **node, map_t *map)
  */
 static int mcsp_codegen_replnode (tnode_t *node, codegen_t *cgen)
 {
+	if (node->tag == mcsp.tag_REPLSEQ) {
+		int toplab = codegen_new_label (cgen);
+		int botlab = codegen_new_label (cgen);
+		tnode_t *rref = tnode_nthsubof (node, 1);
+
+		/*{{{  loop-head*/
+		codegen_callops (cgen, loadconst, 0);
+		codegen_callops (cgen, storename, rref, 0);
+		codegen_callops (cgen, loadconst, 0);
+		codegen_callops (cgen, storename, rref, 1);
+
+		codegen_callops (cgen, setlabel, toplab);
+
+		/*}}}*/
+		/*{{{  loop-body*/
+		codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+
+		/*}}}*/
+		/*{{{  loop-end*/
+
+		/* FIXME! */
+		/*}}}*/
+		return 0;
+	}
 	return 1;
 }
 /*}}}*/
@@ -2970,7 +3057,7 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	mcsp.tag_HIDDENPARAM = tnode_newnodetag ("MCSPHIDDENPARAM", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  mcsp:leafnode -- RETURNADDRESS, PARSPACE*/
+	/*{{{  mcsp:leafnode -- RETURNADDRESS, PARSPACE, LOOPSPACE*/
 	i = -1;
 	tnd = tnode_newnodetype ("mcsp:leafnode", &i, 0, 0, 0, TNF_NONE);
 
@@ -2978,6 +3065,8 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	mcsp.tag_RETURNADDRESS = tnode_newnodetag ("MCSPRETURNADDRESS", &i, tnd, NTF_NONE);
 	i = -1;
 	mcsp.tag_PARSPACE = tnode_newnodetag ("MCSPPARSPACE", &i, tnd, NTF_NONE);
+	i = -1;
+	mcsp.tag_LOOPSPACE = tnode_newnodetag ("MCSPLOOPSPACE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  mcsp:leafproc -- SKIP, STOP, DIV, CHAOS*/
@@ -3155,6 +3244,8 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 
 	i = -1;
 	mcsp.tag_STRING = tnode_newnodetag ("MCSPSTRING", &i, tnd, NTF_NONE);
+	i = -1;
+	mcsp.tag_INTEGER = tnode_newnodetag ("MCSPINTEGER", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  mcsp:instancenode -- INSTANCE*/
@@ -3198,6 +3289,7 @@ static int mcsp_process_reg_reducers (void)
 	parser_register_grule ("mcsp:ppreduce", parser_decode_grule ("ST0T+XR-", mcsp_pptoken_to_node));
 	parser_register_grule ("mcsp:fixreduce", parser_decode_grule ("SN0N+N+VC2R-", mcsp.tag_FIXPOINT));
 	parser_register_grule ("mcsp:subevent", parser_decode_grule ("SN0N+N+V00C4R-", mcsp.tag_SUBEVENT));
+	parser_register_grule ("mcsp:integerreduce", parser_decode_grule ("ST0T+XC1R-", mcsp_integertoken_to_hook, mcsp.tag_INTEGER));
 	parser_register_grule ("mcsp:stringreduce", parser_decode_grule ("ST0T+XC1R-", mcsp_stringtoken_to_hook, mcsp.tag_STRING));
 	parser_register_grule ("mcsp:instancereduce", parser_decode_grule ("SN0N+N+VC2R-", mcsp.tag_INSTANCE));
 	parser_register_grule ("mcsp:replseqreduce", parser_decode_grule ("N+N+N+VN+VN-VN+C4R-", mcsp.tag_REPLSEQ));
@@ -3218,7 +3310,8 @@ static dfattbl_t **mcsp_process_init_dfatrans (int *ntrans)
 	dynarray_init (transtbl);
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:name ::= [ 0 +Name 1 ] [ 1 {<mcsp:namereduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:string ::= [ 0 +String 1 ] [ 1 {<mcsp:stringreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:expr ::= [ 0 mcsp:name 1 ] [ 0 mcsp:string 1 ] [ 1 {<mcsp:nullreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("mcsp:integer ::= [ 0 +Integer 1 ] [ 1 {<mcsp:integerreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("mcsp:expr ::= [ 0 mcsp:name 1 ] [ 0 mcsp:string 1 ] [ 0 mcsp:integer 1 ] [ 1 {<mcsp:nullreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:event ::= [ 0 mcsp:name 1 ] [ 1 @@. 3 ] [ 1 -* 2 ] [ 2 {<mcsp:nullreduce>} -* ] " \
 				"[ 3 mcsp:expr 4 ] [ 4 {<mcsp:subevent>} -* ]"));
 	dynarray_add (transtbl, dfa_bnftotbl ("mcsp:eventset ::= ( mcsp:event | @@{ { mcsp:event @@, 1 } @@} )"));
@@ -3228,7 +3321,7 @@ static dfattbl_t **mcsp_process_init_dfatrans (int *ntrans)
 				"[ 3 @@] 4 ] [ 4 Newline 4 ] [ 4 -* 5 ] [ 5 {<mcsp:nullechoicereduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:leafproc ::= [ 0 +@SKIP 1 ] [ 0 +@STOP 1 ] [ 0 +@DIV 1 ] [ 0 +@CHAOS 1 ] [ 1 {<mcsp:ppreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:fixpoint ::= [ 0 @@@ 1 ] [ 1 mcsp:name 2 ] [ 2 @@. 3 ] [ 3 mcsp:process 4 ] [ 4 {<mcsp:fixreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:replseq ::= [ 0 @@; 1 ] [ 1 @@[ 2 ] [ 2 mcsp:name 3 ] [ 3 @@= 4 ] [ 4 mcsp:expr 5 ] [ 5 @@.. 6 ] [ 6 mcsp:expr 7 ] " \
+	dynarray_add (transtbl, dfa_transtotbl ("mcsp:replseq ::= [ 0 @@; 1 ] [ 1 @@[ 2 ] [ 2 mcsp:name 3 ] [ 3 @@= 4 ] [ 4 mcsp:expr 5 ] [ 5 @@, 6 ] [ 6 mcsp:expr 7 ] " \
 				"[ 7 @@] 8 ] [ 8 mcsp:process 9 ] [ 9 {<mcsp:replseqreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:hide ::= [ 0 +@@\\ 1 ] [ 1 mcsp:eventset 2 ] [ 2 {<mcsp:hidereduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:restofprocess ::= [ 0 mcsp:dop 1 ] [ 1 mcsp:process 2 ] [ 2 {Rmcsp:folddop} -* ] " \

@@ -74,6 +74,7 @@ typedef struct {
 	struct TAG_ntdef *tag_INSTANCE;
 
 	struct TAG_ntdef *tag_STRING;
+	struct TAG_ntdef *tag_INTEGER;
 
 	struct TAG_ntdef *tag_REPLSEQ;
 	struct TAG_ntdef *tag_REPLPAR;
@@ -92,6 +93,7 @@ typedef struct {
 	struct TAG_ntdef *tag_GUARD;
 	struct TAG_ntdef *tag_CHANWRITE;
 	struct TAG_ntdef *tag_PARSPACE;
+	struct TAG_ntdef *tag_LOOPSPACE;
 	struct TAG_ntdef *tag_ILOOP;
 	struct TAG_ntdef *tag_PRIDROP;
 
