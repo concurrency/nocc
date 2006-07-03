@@ -3396,6 +3396,7 @@ static int mcsp_process_reg_reducers (void)
 	parser_register_grule ("mcsp:stringreduce", parser_decode_grule ("ST0T+XC1R-", mcsp_stringtoken_to_hook, mcsp.tag_STRING));
 	parser_register_grule ("mcsp:instancereduce", parser_decode_grule ("SN0N+N+VC2R-", mcsp.tag_INSTANCE));
 	parser_register_grule ("mcsp:replseqreduce", parser_decode_grule ("N+N+N+VN+VN-VN+C4R-", mcsp.tag_REPLSEQ));
+	parser_register_grule ("mcsp:replseqlreduce", parser_decode_grule ("N+00N+C4R-", mcsp.tag_REPLSEQ));
 
 	parser_register_reduce ("Rmcsp:op", mcsp_opreduce, NULL);
 	parser_register_reduce ("Rmcsp:folddop", mcsp_folddopreduce, NULL);
@@ -3424,8 +3425,8 @@ static dfattbl_t **mcsp_process_init_dfatrans (int *ntrans)
 				"[ 3 @@] 4 ] [ 4 Newline 4 ] [ 4 -* 5 ] [ 5 {<mcsp:nullechoicereduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:leafproc ::= [ 0 +@SKIP 1 ] [ 0 +@STOP 1 ] [ 0 +@DIV 1 ] [ 0 +@CHAOS 1 ] [ 1 {<mcsp:ppreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:fixpoint ::= [ 0 @@@ 1 ] [ 1 mcsp:name 2 ] [ 2 @@. 3 ] [ 3 mcsp:process 4 ] [ 4 {<mcsp:fixreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:replseq ::= [ 0 @@; 1 ] [ 1 @@[ 2 ] [ 2 mcsp:name 3 ] [ 3 @@= 4 ] [ 4 mcsp:expr 5 ] [ 5 @@, 6 ] [ 6 mcsp:expr 7 ] " \
-				"[ 7 @@] 8 ] [ 8 mcsp:process 9 ] [ 9 {<mcsp:replseqreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("mcsp:replseq ::= [ 0 @@; 1 ] [ 1 @@[ 2 ] [ 2 mcsp:expr 3 ] [ 3 @@= 4 ] [ 3 @@] 10 ] [ 4 mcsp:expr 5 ] [ 5 @@, 6 ] [ 6 mcsp:expr 7 ] " \
+				"[ 7 @@] 8 ] [ 8 mcsp:process 9 ] [ 9 {<mcsp:replseqreduce>} -* ] [ 10 mcsp:process 11 ] [ 11 {<mcsp:replseqlreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:hide ::= [ 0 +@@\\ 1 ] [ 1 mcsp:eventset 2 ] [ 2 {<mcsp:hidereduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("mcsp:restofprocess ::= [ 0 mcsp:dop 1 ] [ 1 mcsp:process 2 ] [ 2 {Rmcsp:folddop} -* ] " \
 				"[ 0 %mcsp:hide <mcsp:hide> ]"));
