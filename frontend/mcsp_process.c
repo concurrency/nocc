@@ -2287,24 +2287,30 @@ static int mcsp_scopein_replnode (tnode_t **node, scope_t *ss)
 	name_t *replname;
 	tnode_t *newname;
 
-	/* scope the start and end expressions */
-	tnode_modprepostwalktree (tnode_nthsubaddr (*node, 2), scope_modprewalktree, scope_modpostwalktree, (void *)ss);
-	tnode_modprepostwalktree (tnode_nthsubaddr (*node, 3), scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+	if (!name && !tnode_nthsubof (*node, 2)) {
+		/* just have a length expression, nothing to scope in */
+		tnode_modprepostwalktree (tnode_nthsubaddr (*node, 3), scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+		tnode_modprepostwalktree (bodyptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+	} else {
+		/* scope the start and end expressions */
+		tnode_modprepostwalktree (tnode_nthsubaddr (*node, 2), scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+		tnode_modprepostwalktree (tnode_nthsubaddr (*node, 3), scope_modprewalktree, scope_modpostwalktree, (void *)ss);
 
-	nsmark = name_markscope ();
-	/* scope in replicator name and walk body */
-	rawname = (char *)tnode_nthhookof (name, 0);
-	replname = name_addscopenamess (rawname, *node, NULL, NULL, ss);
-	newname = tnode_createfrom (mcsp.tag_VAR, name, replname);
-	SetNameNode (replname, newname);
-	tnode_setnthsub (*node, 1, newname);
+		nsmark = name_markscope ();
+		/* scope in replicator name and walk body */
+		rawname = (char *)tnode_nthhookof (name, 0);
+		replname = name_addscopenamess (rawname, *node, NULL, NULL, ss);
+		newname = tnode_createfrom (mcsp.tag_VAR, name, replname);
+		SetNameNode (replname, newname);
+		tnode_setnthsub (*node, 1, newname);
 
-	/* free old name, scope body */
-	tnode_free (name);
+		/* free old name, scope body */
+		tnode_free (name);
 
-	tnode_modprepostwalktree (bodyptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+		tnode_modprepostwalktree (bodyptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
 
-	name_markdescope (nsmark);
+		name_markdescope (nsmark);
+	}
 
 	return 0;
 }
@@ -2317,6 +2323,32 @@ static int mcsp_scopein_replnode (tnode_t **node, scope_t *ss)
 static int mcsp_scopeout_replnode (tnode_t **node, scope_t *ss)
 {
 	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_fetrans_replnode (tnode_t **node, fetrans_t *fe)*/
+/*
+ *	does front-end transform for a replnode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_fetrans_replnode (tnode_t **node, fetrans_t *fe)
+{
+	tnode_t *rname = tnode_nthsubof (*node, 1);
+	tnode_t **rstartptr = tnode_nthsubaddr (*node, 2);
+	tnode_t **rendptr = tnode_nthsubaddr (*node, 3);
+
+	fetrans_subtree (tnode_nthsubaddr (*node, 0), fe);			/* fetrans body */
+	if (!rname && !(*rstartptr)) {
+		/* only got replicator length, start start to constant 1 */
+		*rstartptr = constprop_newconst (CONST_INT, NULL, NULL, 1);
+	}
+	if (rname) {
+		fetrans_subtree (tnode_nthsubaddr (*node, 1), fe);		/* fetrans name */
+	}
+	/* trans start/end expressions */
+	fetrans_subtree (rstartptr, fe);
+	fetrans_subtree (rendptr, fe);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int mcsp_namemap_replnode (tnode_t **node, map_t *map)*/
@@ -3276,6 +3308,7 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	cops = tnode_newcompops ();
 	cops->scopein = mcsp_scopein_replnode;
 	cops->scopeout = mcsp_scopeout_replnode;
+	cops->fetrans = mcsp_fetrans_replnode;
 	cops->namemap = mcsp_namemap_replnode;
 	cops->codegen = mcsp_codegen_replnode;
 	tnd->ops = cops;

@@ -1,0 +1,4 @@
+# mcsp test 15
+
+SYSTEM ::= ;[20] timer -> SKIP
+
