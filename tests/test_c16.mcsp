@@ -1,0 +1,4 @@
+# test_c16.mcsp -- interleave
+
+SYSTEM ::= (x -> SKIP) ||| (y -> SKIP)
+
