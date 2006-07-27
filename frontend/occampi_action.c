@@ -416,7 +416,7 @@ static int occampi_action_init_nodes (void)
 
 	/*{{{  occampi:actionnode -- ASSIGN, INPUT, OUTPUT*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:actionnode", &i, 3, 0, 0, TNF_NONE);
+	opi.node_ACTIONNODE = tnd = tnode_newnodetype ("occampi:actionnode", &i, 3, 0, 0, TNF_NONE);		/* subnodes: left, right, type */
 	cops = tnode_newcompops ();
 	cops->typecheck = occampi_typecheck_action;
 	cops->gettype = occampi_gettype_action;

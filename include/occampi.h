@@ -47,6 +47,7 @@ typedef struct {
 	struct TAG_tndef *node_NAMENODE;
 	struct TAG_tndef *node_LEAFNODE;
 	struct TAG_tndef *node_TYPENODE;
+	struct TAG_tndef *node_ACTIONNODE;
 
 	struct TAG_ntdef *tag_BOOL;
 	struct TAG_ntdef *tag_BYTE;
@@ -74,6 +75,7 @@ typedef struct {
 	struct TAG_ntdef *tag_DYNMOBPROC;
 	struct TAG_ntdef *tag_FUNCTIONTYPE;
 	struct TAG_ntdef *tag_TYPESPEC;
+	struct TAG_ntdef *tag_BARRIER;
 
 	struct TAG_ntdef *tag_NEWDYNMOBARRAY;
 

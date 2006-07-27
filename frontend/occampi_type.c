@@ -302,11 +302,11 @@ static tnode_t *occampi_leaftype_gettype (tnode_t *t, tnode_t *defaulttype)
 static int occampi_leaftype_bytesfor (tnode_t *t, target_t *target)
 {
 	if (t->tag == opi.tag_BOOL) {
-		return 4;
+		return target->intsize;
 	} else if (t->tag == opi.tag_BYTE) {
 		return 1;
 	} else if (t->tag == opi.tag_INT) {
-		return 4;
+		return target->intsize;
 	} else if (t->tag == opi.tag_INT16) {
 		return 2;
 	} else if (t->tag == opi.tag_INT32) {
@@ -318,7 +318,7 @@ static int occampi_leaftype_bytesfor (tnode_t *t, target_t *target)
 	} else if (t->tag == opi.tag_REAL64) {
 		return 8;
 	} else if (t->tag == opi.tag_CHAR) {
-		return 1;
+		return target->charsize;
 	}
 	return -1;
 }
@@ -543,7 +543,7 @@ static dfattbl_t **occampi_type_init_dfatrans (int *ntrans)
 	return DA_PTR (transtbl);
 }
 /*}}}*/
-/*{{{  */
+/*{{{  static int occampi_type_post_setup (void)*/
 /*
  *	does post-setup for type nodes
  *	returns 0 on success, non-zero on failure

@@ -71,6 +71,12 @@ static int occampi_mwsync_init_nodes (void)
 	langops_t *lops;
 	int i;
 
+	tnd = tnode_lookupnodetype ("occampi:vardecl");
+	if (!tnd) {
+		nocc_error ("occampi_mwsync_init_nodes(): failed to find occampi:vardecl");
+		return -1;
+	}
+
 #if 0
 	/*{{{  occampi:mobiletypenode -- MOBILE, DYNMOBARRAY, CTCLI, CTSVR, CTSHCLI, CTSHSVR*/
 	i = -1;
