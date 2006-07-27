@@ -2080,6 +2080,7 @@ static int mcsp_namemap_snode (tnode_t **node, map_t *map)
 	int extraslots = 1;
 
 	if ((*node)->tag == mcsp.tag_ALT) {
+		/*{{{  ALTing process -- do guards and bodies one by one*/
 		/* do guards one-by-one */
 		guards = parser_getlistitems (glist, &nguards);
 		for (i=0; i<nguards; i++) {
@@ -2097,6 +2098,7 @@ static int mcsp_namemap_snode (tnode_t **node, map_t *map)
 		/* ALT itself needs a bit of space */
 		*node = map->target->newname (*node, NULL, map, map->target->aws.as_alt + (extraslots * map->target->slotsize), map->target->bws.ds_altio, 0, 0, 0, 0);
 		return 0;
+		/*}}}*/
 	}
 	return 1;
 }
@@ -2125,7 +2127,7 @@ static int mcsp_codegen_snode (tnode_t *node, codegen_t *cgen)
 		dlabels = (int *)smalloc (nguards * sizeof (int));
 
 		/*}}}*/
-		/*{{{  ALT enable*/
+		/*{{{  ALT start*/
 		codegen_callops (cgen, loadconst, -1);
 		codegen_callops (cgen, storelocal, chosen_slot);
 
