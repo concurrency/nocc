@@ -97,6 +97,7 @@ typedef struct TAG_tnode {
 /*}}}*/
 /*{{{  compops_t (compiler operations)*/
 typedef struct TAG_compops {
+	struct TAG_compops *next;
 	int (*prescope)(tnode_t **, struct TAG_prescope *);		/* called before scoping */
 	int (*scopein)(tnode_t **, struct TAG_scope *);			/* scopes in declarations made by this node */
 	int (*scopeout)(tnode_t **, struct TAG_scope *);		/* scopes out declarations made by this node */
@@ -122,6 +123,7 @@ typedef struct TAG_compops {
 /*}}}*/
 /*{{{  langops_t (language operations)*/
 typedef struct TAG_langops {
+	struct TAG_langops *next;
 	int (*getdescriptor)(tnode_t *, char **);			/* gets a descriptor string for the given node */
 	int (*getname)(tnode_t *, char **);				/* gets the name of a node (for error reporting) */
 	int (*do_usagecheck)(tnode_t *, struct TAG_uchk_state *);	/* does usage-checking for a node */
@@ -191,9 +193,13 @@ extern void tnode_dumpnodetypes (FILE *stream);
 
 extern compops_t *tnode_newcompops (void);
 extern void tnode_freecompops (compops_t *cops);
+extern compops_t *tnode_insertcompops (compops_t *nextcops);
+extern compops_t *tnode_removecompops (compops_t *cops);
 
 extern langops_t *tnode_newlangops (void);
 extern void tnode_freelangops (langops_t *lops);
+extern langops_t *tnode_insertlangops (langops_t *nextlops);
+extern langops_t *tnode_removelangops (langops_t *lops);
 
 extern chook_t *tnode_newchook (const char *name);
 extern chook_t *tnode_lookupchookbyname (const char *name);

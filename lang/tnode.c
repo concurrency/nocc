@@ -1362,6 +1362,7 @@ compops_t *tnode_newcompops (void)
 {
 	compops_t *cops = (compops_t *)smalloc (sizeof (compops_t));
 
+	cops->next = NULL;
 	cops->prescope = NULL;
 	cops->scopein = NULL;
 	cops->scopeout = NULL;
@@ -1397,6 +1398,50 @@ void tnode_freecompops (compops_t *cops)
 	}
 	sfree (cops);
 	return;
+}
+/*}}}*/
+/*{{{  compops_t *tnode_insertcompops (compops_t *nextcops)*/
+/*
+ *	creates a new compops_t structure that calls through to another
+ */
+compops_t *tnode_insertcompops (compops_t *nextcops)
+{
+	compops_t *cops = tnode_newcompops ();
+
+	cops->next = nextcops;
+	cops->prescope = nextcops->prescope;
+	cops->scopein = nextcops->scopein;
+	cops->scopeout = nextcops->scopeout;
+	cops->typecheck = nextcops->typecheck;
+	cops->typeactual = nextcops->typeactual;
+	cops->typereduce = nextcops->typereduce;
+	cops->gettype = nextcops->gettype;
+	cops->constprop = nextcops->constprop;
+	cops->precheck = nextcops->precheck;
+	cops->bytesfor = nextcops->bytesfor;
+	cops->issigned = nextcops->issigned;
+	cops->fetrans = nextcops->fetrans;
+	cops->betrans = nextcops->betrans;
+	cops->premap = nextcops->premap;
+	cops->namemap = nextcops->namemap;
+	cops->bemap = nextcops->bemap;
+	cops->preallocate = nextcops->preallocate;
+	cops->precode = nextcops->precode;
+	cops->codegen = nextcops->codegen;
+
+	return cops;
+}
+/*}}}*/
+/*{{{  compops_t *tnode_removecompops (compops_t *cops)*/
+/*
+ *	removes a compops_t structure that calls through to another
+ */
+compops_t *tnode_removecompops (compops_t *cops)
+{
+	compops_t *nextcops = cops->next;
+
+	tnode_freecompops (cops);
+	return nextcops;
 }
 /*}}}*/
 
@@ -1435,6 +1480,41 @@ void tnode_freelangops (langops_t *lops)
 	}
 	sfree (lops);
 	return;
+}
+/*}}}*/
+/*{{{  langops_t *tnode_insertlangops (langops_t *nextlops)*/
+/*
+ *	creates a new langops_t structure that calls through to another
+ */
+langops_t *tnode_insertlangops (langops_t *nextlops)
+{
+	langops_t *lops = tnode_newlangops ();
+
+	lops->next = nextlops;
+	lops->getdescriptor = nextlops->getdescriptor;
+	lops->getname = nextlops->getname;
+	lops->do_usagecheck = nextlops->do_usagecheck;
+	lops->isconst = nextlops->isconst;
+	lops->iscomplex = nextlops->iscomplex;
+	lops->constvalof = nextlops->constvalof;
+	lops->valbyref = nextlops->valbyref;
+	lops->initialising_decl = nextlops->initialising_decl;
+	lops->initsizes = nextlops->initsizes;
+	lops->codegen_typeaction = nextlops->codegen_typeaction;
+
+	return lops;
+}
+/*}}}*/
+/*{{{  langops_t *tnode_removelangops (langops_t *lops)*/
+/*
+ *	removes a langops_t structure that calls through to another
+ */
+langops_t *tnode_removelangops (langops_t *lops)
+{
+	langops_t *nextlops = lops->next;
+
+	tnode_freelangops (lops);
+	return nextlops;
 }
 /*}}}*/
 

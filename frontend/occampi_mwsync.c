@@ -58,6 +58,71 @@
 /*}}}*/
 
 
+/*{{{  static tnode_t *occampi_mwsync_leaftype_gettype (tnode_t *t, tnode_t *defaulttype)*/
+/*
+ *	gets the type for a mwsync leaftype -- do nothing really
+ */
+static tnode_t *occampi_mwsync_leaftype_gettype (tnode_t *t, tnode_t *defaulttype)
+{
+	if (t->tag == opi.tag_BARRIER) {
+		return t;
+	}
+	return defaulttype;
+}
+/*}}}*/
+/*{{{  static int occampi_mwsync_leaftype_bytesfor (tnode_t *t, target_t *target)*/
+/*
+ *	returns the number of bytes required by a basic type
+ */
+static int occampi_mwsync_leaftype_bytesfor (tnode_t *t, target_t *target)
+{
+	if (t->tag == opi.tag_BARRIER) {
+		return target->intsize * 5;
+	}
+	return -1;
+}
+/*}}}*/
+/*{{{  static int occampi_mwsync_leaftype_issigned (tnode_t *t, target_t *target)*/
+/*
+ *	returns 0 if the given basic type is unsigned
+ */
+static int occampi_mwsync_leaftype_issigned (tnode_t *t, target_t *target)
+{
+	if (t->tag == opi.tag_BARRIER) {
+		return 0;
+	}
+	/* FIXME! */
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_mwsync_leaftype_getdescriptor (tnode_t *node, char **str)*/
+/*
+ *	gets descriptor information for a leaf-type
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mwsync_leaftype_getdescriptor (tnode_t *node, char **str)
+{
+	char *sptr;
+
+	if (*str) {
+		char *newstr = (char *)smalloc (strlen (*str) + 16);
+
+		sptr = newstr;
+		sptr += sprintf (newstr, "%s", *str);
+		sfree (*str);
+		*str = newstr;
+	} else {
+		*str = (char *)smalloc (16);
+		sptr = *str;
+	}
+	if (node->tag == opi.tag_BARRIER) {
+		sprintf (sptr, "BARRIER");
+	}
+
+	return 0;
+}
+/*}}}*/
+
 
 /*{{{  static int occampi_mwsync_init_nodes (void)*/
 /*
@@ -71,12 +136,24 @@ static int occampi_mwsync_init_nodes (void)
 	langops_t *lops;
 	int i;
 
-	tnd = tnode_lookupnodetype ("occampi:vardecl");
+	/*{{{  occampi:leaftype ++ BARRIER*/
+	tnd = tnode_lookupnodetype ("occampi:leaftype");
 	if (!tnd) {
-		nocc_error ("occampi_mwsync_init_nodes(): failed to find occampi:vardecl");
+		nocc_error ("occampi_mwsync_init_nodes(): failed to find occampi:leaftype");
 		return -1;
 	}
+	cops = tnode_insertcompops (tnd->ops);
+	cops->gettype = occampi_mwsync_leaftype_gettype;
+	cops->bytesfor = occampi_mwsync_leaftype_bytesfor;
+	cops->issigned = occampi_mwsync_leaftype_issigned;
+	tnd->ops = cops;
+	lops = tnode_insertlangops (tnd->lops);
+	lops->getdescriptor = occampi_mwsync_leaftype_getdescriptor;
+	tnd->lops = lops;
 
+	i = -1;
+	opi.tag_BARRIER = tnode_newnodetag ("BARRIER", &i, tnd, NTF_NONE);
+	/*}}}*/
 #if 0
 	/*{{{  occampi:mobiletypenode -- MOBILE, DYNMOBARRAY, CTCLI, CTSVR, CTSHCLI, CTSHSVR*/
 	i = -1;
