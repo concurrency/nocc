@@ -53,6 +53,9 @@ STATICDYNARRAY (ntdef_t *, anodetags);
 STATICSTRINGHASH (chook_t *, comphooks, 4);
 STATICDYNARRAY (chook_t *, acomphooks);
 
+STATICSTRINGHASH (compop_t *, compops, 4);
+STATICDYNARRAY (compop_t *, acompops);
+
 /* forwards */
 static void tnode_isetindent (FILE *stream, int indent);
 static void tnode_ssetindent (FILE *stream, int indent);
@@ -349,7 +352,15 @@ void tnode_init (void)
 	stringhash_init (comphooks);
 	dynarray_init (acomphooks);
 
-	/* setup the static node types */
+	stringhash_init (compops);
+	dynarray_init (acompops);
+
+	/*{{{  default compiler operations*/
+	tnode_newcompop ("prescope", COPS_PRESCOPE, 2, NULL);
+	tnode_newcompop ("scopein", COPS_SCOPEIN, 2, NULL);
+
+	/*}}}*/
+	/*{{{  setup the static node types*/
 	i = -1;
 	tnd = tnode_newnodetype ("nonodetype", &i, 0, 0, 0, 0);
 	i = -1;
@@ -381,6 +392,8 @@ void tnode_init (void)
 	tnd->hook_modprepostwalktree = tnode_list_hookmodprepostwalktree;
 	i = -1;
 	ntd = tnode_newnodetag ("list", &i, tnd, 0);
+
+	/*}}}*/
 
 	return;
 }
@@ -1361,19 +1374,21 @@ void tnode_dumpnodetypes (FILE *stream)
 compops_t *tnode_newcompops (void)
 {
 	compops_t *cops = (compops_t *)smalloc (sizeof (compops_t));
+	int i;
 
 	cops->next = NULL;
+	dynarray_init (cops->opfuncs);
+	dynarray_setsize (cops->opfuncs, DA_CUR (acompops) + 1);
+	for (i=0; i<DA_CUR (cops->opfuncs); i++) {
+		DA_SETNTHITEM (cops->opfuncs, i, NULL);
+	}
+#if 0
 	cops->prescope = NULL;
 	cops->scopein = NULL;
 	cops->scopeout = NULL;
 	cops->typecheck = NULL;
-	cops->typeactual = NULL;
-	cops->typereduce = NULL;
-	cops->gettype = NULL;
 	cops->constprop = NULL;
 	cops->precheck = NULL;
-	cops->bytesfor = NULL;
-	cops->issigned = NULL;
 	cops->fetrans = NULL;
 	cops->betrans = NULL;
 	cops->premap = NULL;
@@ -1382,6 +1397,7 @@ compops_t *tnode_newcompops (void)
 	cops->preallocate = NULL;
 	cops->precode = NULL;
 	cops->codegen = NULL;
+#endif
 
 	return cops;
 }
@@ -1409,17 +1425,13 @@ compops_t *tnode_insertcompops (compops_t *nextcops)
 	compops_t *cops = tnode_newcompops ();
 
 	cops->next = nextcops;
+#if 0
 	cops->prescope = nextcops->prescope;
 	cops->scopein = nextcops->scopein;
 	cops->scopeout = nextcops->scopeout;
 	cops->typecheck = nextcops->typecheck;
-	cops->typeactual = nextcops->typeactual;
-	cops->typereduce = nextcops->typereduce;
-	cops->gettype = nextcops->gettype;
 	cops->constprop = nextcops->constprop;
 	cops->precheck = nextcops->precheck;
-	cops->bytesfor = nextcops->bytesfor;
-	cops->issigned = nextcops->issigned;
 	cops->fetrans = nextcops->fetrans;
 	cops->betrans = nextcops->betrans;
 	cops->premap = nextcops->premap;
@@ -1428,6 +1440,7 @@ compops_t *tnode_insertcompops (compops_t *nextcops)
 	cops->preallocate = nextcops->preallocate;
 	cops->precode = nextcops->precode;
 	cops->codegen = nextcops->codegen;
+#endif
 
 	return cops;
 }
@@ -1444,6 +1457,159 @@ compops_t *tnode_removecompops (compops_t *cops)
 	return nextcops;
 }
 /*}}}*/
+/*{{{  int tnode_setcompop (compops_t *cops, char *name, int nparams, int (*fcn)(compops_t *, ...))*/
+/*
+ *	sets a compiler operation on a compops_t structure by name
+ *	returns 0 on success, non-zero on failure
+ */
+int tnode_setcompop (compops_t *cops, char *name, int nparams, int (*fcn)(compops_t *, ...))
+{
+	compop_t *cop = stringhash_lookup (compops, name);
+
+	if (!cop) {
+		nocc_internal ("tnode_setcompop(): no such compiler operation [%s]", name);
+		return -1;
+	} else if (cop->nparams != nparams) {
+		nocc_error ("tnode_setcompop(): nparams given as %d, expected %d", nparams, cop->nparams);
+		return -1;
+	}
+	if ((int)cop->opno >= DA_CUR (cops->opfuncs)) {
+		int i = DA_CUR (cops->opfuncs);
+
+		dynarray_setsize (cops->opfuncs, (int)cop->opno + 1);
+		for (; i<DA_CUR (cops->opfuncs); i++) {
+			DA_SETNTHITEM (cops->opfuncs, i, NULL);
+		}
+	}
+	DA_SETNTHITEM (cops->opfuncs, (int)cop->opno, (void *)fcn);
+
+	return -1;
+}
+/*}}}*/
+/*{{{  int tnode_callcompop (compops_t *cops, char *name, int nparams, ...)*/
+/*
+ *	calls a compiler operation from the given compops_t structure by name, passing the given parameters
+ *	returns function's return value on success (usually 0 or 1), <0 on failure
+ */
+int tnode_callcompop (compops_t *cops, char *name, int nparams, ...)
+{
+	compop_t *cop = stringhash_lookup (compops, name);
+	va_list ap;
+	int (*fcn)(compops_t *, ...);
+	int r;
+
+	if (!cop) {
+		nocc_internal ("tnode_callcompop(): no such compiler operation [%s]", name);
+		return -1;
+	} else if (cop->nparams != nparams) {
+		nocc_error ("tnode_callcompop(): nparams given as %d, expected %d", nparams, cop->nparams);
+		return -1;
+	}
+	if (((int)cop->opno >= DA_CUR (cops->opfuncs)) || !DA_NTHITEM (cops->opfuncs, (int)cop->opno)) {
+		nocc_warning ("tnode_callcompop(): no such operation [%s] in compops at 0x%8.8x", cop->name, (unsigned int)cops);
+		return -1;
+	}
+	fcn = (int (*)(compops_t *, ...))DA_NTHITEM (cops->opfuncs, (int)cop->opno);
+
+	va_start (ap, nparams);
+	
+	switch (nparams) {
+	case 0:
+		r = fcn (cops);
+		break;
+	case 1:
+		{
+			void *arg0 = va_arg (ap, void *);
+
+			r = fcn (cops, arg0);
+		}
+		break;
+	case 2:
+		{
+			void *arg0 = va_arg (ap, void *);
+			void *arg1 = va_arg (ap, void *);
+
+			r = fcn (cops, arg0, arg1);
+		}
+		break;
+	case 3:
+		{
+			void *arg0 = va_arg (ap, void *);
+			void *arg1 = va_arg (ap, void *);
+			void *arg2 = va_arg (ap, void *);
+
+			r = fcn (cops, arg0, arg1, arg2);
+		}
+		break;
+	case 4:
+		{
+			void *arg0 = va_arg (ap, void *);
+			void *arg1 = va_arg (ap, void *);
+			void *arg2 = va_arg (ap, void *);
+			void *arg3 = va_arg (ap, void *);
+
+			r = fcn (cops, arg0, arg1, arg2, arg3);
+		}
+		break;
+	default:
+		nocc_error ("tnode_callcompop(): asked for %d params, but not that many supported here!", nparams);
+		r = -1;
+		break;
+	}
+	va_end (ap);
+
+	return r;
+}
+/*}}}*/
+/*{{{  int tnode_newcompop (char *name, compops_e opno, int nparams, void *origin)*/
+/*
+ *	creates a new compiler operation with the given name;  if 'opno' is valid (!= COPS_INVALID), setting a preset one
+ *	returns index on success, <0 on failure
+ */
+int tnode_newcompop (char *name, compops_e opno, int nparams, void *origin)
+{
+	compop_t *cop = stringhash_lookup (compops, name);
+
+	if (cop) {
+		nocc_warning ("tnode_newcompop(): already got [%s]", name);
+		return (int)cop->opno;
+	}
+	cop = (compop_t *)smalloc (sizeof (compop_t));
+	cop->name = string_dup (name);
+	if (opno == COPS_INVALID) {
+		/* means select one */
+		cop->opno = (compops_e)DA_CUR (acompops);
+	} else {
+		cop->opno = opno;
+	}
+	if ((int)cop->opno >= DA_CUR (acompops)) {
+		/* need a bit more room */
+		int i = DA_CUR (acompops);
+
+		dynarray_setsize (acompops, (int)cop->opno + 1);
+		for (; i<DA_CUR (acompops); i++) {
+			DA_SETNTHITEM (acompops, i, NULL);
+		}
+	}
+	cop->nparams = nparams;
+	cop->origin = origin;
+
+	stringhash_insert (compops, cop, cop->name);
+	DA_SETNTHITEM (acompops, (int)cop->opno, cop);
+
+	return (int)cop->opno;
+}
+/*}}}*/
+/*{{{  compop_t *tnode_findcompop (char *name)*/
+/*
+ *	finds a compiler operation by name
+ *	returns compop_t pointer on success, NULL on failure
+ */
+compop_t *tnode_findcompop (char *name)
+{
+	return stringhash_lookup (compops, name);
+}
+/*}}}*/
 
 
 /*{{{  langops_t *tnode_newlangops (void)*/
@@ -1457,6 +1623,11 @@ langops_t *tnode_newlangops (void)
 	lops->getdescriptor = NULL;
 	lops->getname = NULL;
 	lops->do_usagecheck = NULL;
+	lops->typeactual = NULL;
+	lops->typereduce = NULL;
+	lops->gettype = NULL;
+	lops->bytesfor = NULL;
+	lops->issigned = NULL;
 	lops->isconst = NULL;
 	lops->iscomplex = NULL;
 	lops->constvalof = NULL;
@@ -1494,6 +1665,11 @@ langops_t *tnode_insertlangops (langops_t *nextlops)
 	lops->getdescriptor = nextlops->getdescriptor;
 	lops->getname = nextlops->getname;
 	lops->do_usagecheck = nextlops->do_usagecheck;
+	lops->typeactual = nextlops->typeactual;
+	lops->typereduce = nextlops->typereduce;
+	lops->gettype = nextlops->gettype;
+	lops->bytesfor = nextlops->bytesfor;
+	lops->issigned = nextlops->issigned;
 	lops->isconst = nextlops->isconst;
 	lops->iscomplex = nextlops->iscomplex;
 	lops->constvalof = nextlops->constvalof;
@@ -1667,8 +1843,8 @@ fprintf (stderr, "tnode_bytesfor(): t = [%s]\n", t->tag->name);
 		/* look at typesize */
 		t = tnode_nthsubof (t, 0);
 	}
-	if (t && t->tag->ndef->ops && t->tag->ndef->ops->bytesfor) {
-		return t->tag->ndef->ops->bytesfor (t, target);
+	if (t && t->tag->ndef->lops && t->tag->ndef->lops->bytesfor) {
+		return t->tag->ndef->lops->bytesfor (t, target);
 	}
 	return -1;		/* don't know */
 }
@@ -1680,8 +1856,8 @@ fprintf (stderr, "tnode_bytesfor(): t = [%s]\n", t->tag->name);
  */
 int tnode_issigned (tnode_t *t, target_t *target)
 {
-	if (t && t->tag->ndef->ops && t->tag->ndef->ops->issigned) {
-		return t->tag->ndef->ops->issigned (t, target);
+	if (t && t->tag->ndef->lops && t->tag->ndef->lops->issigned) {
+		return t->tag->ndef->lops->issigned (t, target);
 	}
 	return -1;		/* don't know */
 }

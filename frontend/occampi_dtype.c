@@ -991,10 +991,10 @@ static int occampi_dtype_init_nodes (void)
 	cops = tnode_newcompops ();
 	cops->scopein = occampi_scopein_typedecl;
 	cops->typecheck = occampi_typecheck_typedecl;
-	cops->bytesfor = occampi_bytesfor_typedecl;
 	cops->namemap = occampi_namemap_typedecl;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	lops->bytesfor = occampi_bytesfor_typedecl;
 	lops->do_usagecheck = occampi_usagecheck_typedecl;
 	tnd->lops = lops;
 
@@ -1009,11 +1009,11 @@ static int occampi_dtype_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:arraynode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = dim, 1 = sub-type */
 	cops = tnode_newcompops ();
-	cops->typeactual = occampi_typeactual_arraynode;
-	cops->bytesfor = occampi_bytesfor_arraynode;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->getdescriptor = occampi_getdescriptor_arraynode;
+	lops->typeactual = occampi_typeactual_arraynode;
+	lops->bytesfor = occampi_bytesfor_arraynode;
 	tnd->lops = lops;
 
 	i = -1;
@@ -1024,13 +1024,13 @@ static int occampi_dtype_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:arraymopnode", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = operand, 1 = type */
 	cops = tnode_newcompops ();
 	cops->typecheck = occampi_typecheck_arraymop;
-	cops->gettype = occampi_gettype_arraymop;
 	cops->constprop = occampi_constprop_arraymop;
 	cops->premap = occampi_premap_arraymop;
 	cops->namemap = occampi_namemap_arraymop;
 	cops->codegen = occampi_codegen_arraymop;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	lops->gettype = occampi_gettype_arraymop;
 	lops->iscomplex = occampi_iscomplex_arraymop;
 	tnd->lops = lops;
 
@@ -1042,8 +1042,10 @@ static int occampi_dtype_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:fielddecl", &i, 2, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
 	cops->scopein = occampi_scopein_fielddecl;
-	cops->bytesfor = occampi_bytesfor_fielddecl;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->bytesfor = occampi_bytesfor_fielddecl;
+	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_FIELDDECL = tnode_newnodetag ("FIELDDECL", &i, tnd, NTF_NONE);
@@ -1054,9 +1056,11 @@ static int occampi_dtype_init_nodes (void)
 	cops = tnode_newcompops ();
 	cops->scopein = occampi_scopein_subscript;
 	cops->typecheck = occampi_typecheck_subscript;
-	cops->gettype = occampi_gettype_subscript;
 	cops->namemap = occampi_namemap_subscript;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->gettype = occampi_gettype_subscript;
+	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_SUBSCRIPT = tnode_newnodetag ("SUBSCRIPT", &i, tnd, NTF_NONE);

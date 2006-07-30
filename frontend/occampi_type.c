@@ -435,13 +435,13 @@ static int occampi_type_init_nodes (void)
 	tnd = opi.node_TYPENODE = tnode_newnodetype ("occampi:typenode", &i, 1, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
 	cops->prescope = occampi_type_prescope;
-	cops->gettype = occampi_type_gettype;
-	cops->typeactual = occampi_type_typeactual;
-	cops->bytesfor = occampi_type_bytesfor;
-	cops->issigned = occampi_type_issigned;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->getdescriptor = occampi_type_getdescriptor;
+	lops->gettype = occampi_type_gettype;
+	lops->typeactual = occampi_type_typeactual;
+	lops->bytesfor = occampi_type_bytesfor;
+	lops->issigned = occampi_type_issigned;
 	lops->initialising_decl = occampi_type_initialising_decl;
 	tnd->lops = lops;
 
@@ -456,10 +456,10 @@ static int occampi_type_init_nodes (void)
 	/* these appear during scoping */
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:typespecnode", &i, 1, 0, 0, TNF_TRANSPARENT);
-	cops = tnode_newcompops ();
-	cops->gettype = occampi_typespec_gettype;
-	cops->typeactual = occampi_typespec_typeactual;
-	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->gettype = occampi_typespec_gettype;
+	lops->typeactual = occampi_typespec_typeactual;
+	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_TYPESPEC = tnode_newnodetag ("TYPESPEC", &i, tnd, NTF_NONE);
@@ -467,13 +467,11 @@ static int occampi_type_init_nodes (void)
 	/*{{{  occampi:leaftype -- INT, BYTE, INT16, INT32, INT64, REAL32, REAL64, CHAR*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:leaftype", &i, 0, 0, 0, TNF_NONE);
-	cops = tnode_newcompops ();
-	cops->gettype = occampi_leaftype_gettype;
-	cops->bytesfor = occampi_leaftype_bytesfor;
-	cops->issigned = occampi_leaftype_issigned;
-	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->getdescriptor = occampi_leaftype_getdescriptor;
+	lops->gettype = occampi_leaftype_gettype;
+	lops->bytesfor = occampi_leaftype_bytesfor;
+	lops->issigned = occampi_leaftype_issigned;
 	tnd->lops = lops;
 
 	i = -1;

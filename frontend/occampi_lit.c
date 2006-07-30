@@ -423,12 +423,12 @@ static int occampi_lit_init_nodes (void)
 	tnd->hook_copy = occampi_litnode_hook_copy;
 	tnd->hook_dumptree = occampi_litnode_hook_dumptree;
 	cops = tnode_newcompops ();
-	cops->gettype = occampi_gettype_lit;
-	cops->bytesfor = occampi_bytesfor_lit;
 	cops->constprop = occampi_constprop_lit;
 	cops->namemap = occampi_namemap_lit;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	lops->gettype = occampi_gettype_lit;
+	lops->bytesfor = occampi_bytesfor_lit;
 	lops->isconst = occampi_isconst_lit;
 	lops->constvalof = occampi_constvalof_lit;
 	lops->valbyref = occampi_valbyref_lit;

@@ -478,10 +478,10 @@ static int occampi_mobiles_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:mobiletypenode", &i, 1, 0, 0, TNF_NONE);		/* subnodes: subtype */
 	cops = tnode_newcompops ();
-	cops->bytesfor = occampi_mobiletypenode_bytesfor;
-	cops->typereduce = occampi_mobiletypenode_typereduce;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	lops->bytesfor = occampi_mobiletypenode_bytesfor;
+	lops->typereduce = occampi_mobiletypenode_typereduce;
 	lops->initsizes = occampi_mobiletypenode_initsizes;
 	lops->initialising_decl = occampi_mobiletypenode_initialising_decl;
 	lops->iscomplex = occampi_mobiletypenode_iscomplex;
@@ -509,11 +509,13 @@ static int occampi_mobiles_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:mobilealloc", &i, 3, 0, 0, TNF_NONE);			/* subnodes: subtype, dimtree, type */
 	cops = tnode_newcompops ();
 	cops->typecheck = occampi_mobilealloc_typecheck;
-	cops->gettype = occampi_mobilealloc_gettype;
 	cops->premap = occampi_mobilealloc_premap;
 	cops->namemap = occampi_mobilealloc_namemap;
 	cops->codegen = occampi_mobilealloc_codegen;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->gettype = occampi_mobilealloc_gettype;
+	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_NEWDYNMOBARRAY = tnode_newnodetag ("NEWDYNMOBARRAY", &i, tnd, NTF_NONE);

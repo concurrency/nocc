@@ -413,13 +413,13 @@ static int occampi_action_init_nodes (void)
 	tndef_t *tnd;
 	int i;
 	compops_t *cops;
+	langops_t *lops;
 
 	/*{{{  occampi:actionnode -- ASSIGN, INPUT, OUTPUT*/
 	i = -1;
 	opi.node_ACTIONNODE = tnd = tnode_newnodetype ("occampi:actionnode", &i, 3, 0, 0, TNF_NONE);		/* subnodes: left, right, type */
 	cops = tnode_newcompops ();
 	cops->typecheck = occampi_typecheck_action;
-	cops->gettype = occampi_gettype_action;
 	cops->precheck = occampi_precheck_action;
 	cops->fetrans = occampi_fetrans_action;
 	cops->betrans = occampi_betrans_action;
@@ -427,6 +427,10 @@ static int occampi_action_init_nodes (void)
 	cops->namemap = occampi_namemap_action;
 	cops->codegen = occampi_codegen_action;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->gettype = occampi_gettype_action;
+	tnd->lops = lops;
+
 
 	i = -1;
 	opi.tag_ASSIGN = tnode_newnodetag ("ASSIGN", &i, tnd, NTF_NONE);

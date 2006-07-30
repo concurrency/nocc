@@ -1262,7 +1262,6 @@ static int occampi_function_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:finstancenode", &i, 2, 0, 0, TNF_NONE);	/* subnodes: name; params */
 	cops = tnode_newcompops ();
 	cops->typecheck = occampi_typecheck_finstance;
-	cops->gettype = occampi_gettype_finstance;
 	cops->fetrans = occampi_fetrans_finstance;
 	cops->betrans = occampi_betrans_finstance;
 	cops->premap = occampi_premap_finstance;
@@ -1270,6 +1269,7 @@ static int occampi_function_init_nodes (void)
 	cops->codegen = occampi_codegen_finstance;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	lops->gettype = occampi_gettype_finstance;
 	lops->iscomplex = occampi_iscomplex_finstance;
 	tnd->lops = lops;
 
@@ -1303,7 +1303,6 @@ static int occampi_function_init_nodes (void)
 	cops->scopein = occampi_scopein_funcdecl;
 	cops->scopeout = occampi_scopeout_funcdecl;
 	cops->namemap = occampi_namemap_funcdecl;
-	cops->gettype = occampi_gettype_funcdecl;
 	cops->precheck = occampi_precheck_funcdecl;
 	cops->fetrans = occampi_fetrans_funcdecl;
 	cops->betrans = occampi_betrans_funcdecl;
@@ -1311,6 +1310,7 @@ static int occampi_function_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->getdescriptor = occampi_getdescriptor_funcdecl;
+	lops->gettype = occampi_gettype_funcdecl;
 	lops->do_usagecheck = occampi_usagecheck_funcdecl;
 	tnd->lops = lops;
 
@@ -1343,9 +1343,9 @@ static int occampi_function_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:builtinfunction", &i, 0, 0, 1, TNF_NONE);		/* hook: builtinfunctionhook_t */
 	cops = tnode_newcompops ();
-	cops->gettype = occampi_gettype_builtinfunction;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	lops->gettype = occampi_gettype_builtinfunction;
 	tnd->lops = lops;
 	tnd->hook_dumptree = builtinfunctionhook_dumphook;
 	tnd->hook_free = builtinfunctionhook_free;

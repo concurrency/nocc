@@ -522,6 +522,7 @@ static int occampi_instance_init_nodes (void)
 	tndef_t *tnd;
 	int i;
 	compops_t *cops;
+	langops_t *lops;
 
 	/*{{{  occampi:instancenode -- PINSTANCE*/
 	i = -1;
@@ -539,9 +540,9 @@ static int occampi_instance_init_nodes (void)
 	/*{{{  occampi:builtinproc -- BUILTINPROC*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:builtinproc", &i, 0, 0, 1, TNF_NONE);			/* hook: builtinprochook_t */
-	cops = tnode_newcompops ();
-	cops->gettype = occampi_gettype_builtinproc;
-	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->gettype = occampi_gettype_builtinproc;
+	tnd->lops = lops;
 	tnd->hook_dumptree = builtinprochook_dumphook;
 	tnd->hook_free = builtinprochook_free;
 

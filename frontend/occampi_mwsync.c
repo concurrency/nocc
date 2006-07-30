@@ -143,12 +143,12 @@ static int occampi_mwsync_init_nodes (void)
 		return -1;
 	}
 	cops = tnode_insertcompops (tnd->ops);
-	cops->gettype = occampi_mwsync_leaftype_gettype;
-	cops->bytesfor = occampi_mwsync_leaftype_bytesfor;
-	cops->issigned = occampi_mwsync_leaftype_issigned;
 	tnd->ops = cops;
 	lops = tnode_insertlangops (tnd->lops);
 	lops->getdescriptor = occampi_mwsync_leaftype_getdescriptor;
+	lops->gettype = occampi_mwsync_leaftype_gettype;
+	lops->bytesfor = occampi_mwsync_leaftype_bytesfor;
+	lops->issigned = occampi_mwsync_leaftype_issigned;
 	tnd->lops = lops;
 
 	i = -1;

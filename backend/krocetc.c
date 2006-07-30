@@ -3095,6 +3095,7 @@ static int krocetc_target_init (target_t *target)
 {
 	tndef_t *tnd;
 	compops_t *cops;
+	langops_t *lops;
 	krocetc_priv_t *kpriv;
 	int i;
 
@@ -3131,8 +3132,10 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	tnd = tnode_newnodetype ("krocetc:name", &i, 2, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_namehook_dumptree;
 	cops = tnode_newcompops ();
-	cops->bytesfor = krocetc_bytesfor_name;
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->bytesfor = krocetc_bytesfor_name;
+	tnd->lops = lops;
 	i = -1;
 	target->tag_NAME = tnode_newnodetag ("KROCETCNAME", &i, tnd, 0);
 	/*}}}*/

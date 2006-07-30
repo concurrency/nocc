@@ -375,10 +375,10 @@ int constprop_init (void)
 	tnd->hook_free = cprop_consthook_hook_free;
 	tnd->hook_dumptree = cprop_consthook_hook_dumptree;
 	cops = tnode_newcompops ();
-	cops->gettype = cprop_gettype_const;
 	cops->namemap = cprop_namemap_const;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	lops->gettype = cprop_gettype_const;
 	lops->isconst = cprop_isconst_const;
 	lops->iscomplex = cprop_iscomplex_const;
 	lops->constvalof = cprop_constvalof_const;

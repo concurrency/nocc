@@ -1380,12 +1380,12 @@ static int occampi_decl_init_nodes (void)
 	i = -1;
 	tnd = opi.node_NAMENODE = tnode_newnodetype ("occampi:namenode", &i, 0, 1, 0, TNF_NONE);	/* subnames: name */
 	cops = tnode_newcompops ();
-	cops->gettype = occampi_gettype_namenode;
-	cops->bytesfor = occampi_bytesfor_namenode;
 	cops->namemap = occampi_namemap_namenode;
 	tnd->ops = cops;
 
 	lops = tnode_newlangops ();
+	lops->gettype = occampi_gettype_namenode;
+	lops->bytesfor = occampi_bytesfor_namenode;
 	lops->do_usagecheck = occampi_usagecheck_namenode;
 	lops->getname = occampi_getname_namenode;
 	tnd->lops = lops;
@@ -1444,11 +1444,11 @@ static int occampi_decl_init_nodes (void)
 	cops = tnode_newcompops ();
 	cops->prescope = occampi_prescope_fparam;
 	cops->scopein = occampi_scopein_fparam;
-	cops->gettype = occampi_gettype_fparam;
 	cops->namemap = occampi_namemap_fparam;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->getdescriptor = occampi_getdescriptor_fparam;
+	lops->gettype = occampi_gettype_fparam;
 	lops->getname = occampi_getname_fparam;
 	tnd->lops = lops;
 	i = -1;
@@ -1479,7 +1479,6 @@ static int occampi_decl_init_nodes (void)
 	cops->scopein = occampi_scopein_procdecl;
 	cops->scopeout = occampi_scopeout_procdecl;
 	cops->namemap = occampi_namemap_procdecl;
-	cops->gettype = occampi_gettype_procdecl;
 	cops->precheck = occampi_precheck_procdecl;
 	cops->fetrans = occampi_fetrans_procdecl;
 	cops->betrans = occampi_betrans_procdecl;
@@ -1488,6 +1487,7 @@ static int occampi_decl_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->getdescriptor = occampi_getdescriptor_procdecl;
+	lops->gettype = occampi_gettype_procdecl;
 	lops->do_usagecheck = occampi_usagecheck_procdecl;
 	tnd->lops = lops;
 	i = -1;

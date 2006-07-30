@@ -720,13 +720,13 @@ static int occampi_oper_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:dopnode", &i, 3, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
-	cops->gettype = occampi_gettype_dop;
 	cops->constprop = occampi_constprop_dop;
 	cops->premap = occampi_premap_dop;
 	cops->namemap = occampi_namemap_dop;
 	cops->codegen = occampi_codegen_dop;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	lops->gettype = occampi_gettype_dop;
 	lops->iscomplex = occampi_iscomplex_dop;
 	tnd->lops = lops;
 
@@ -751,12 +751,12 @@ static int occampi_oper_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:relnode", &i, 3, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
-	cops->gettype = occampi_gettype_rel;
 	cops->premap = occampi_premap_rel;
 	cops->namemap = occampi_namemap_rel;
 	cops->codegen = occampi_codegen_rel;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	lops->gettype = occampi_gettype_rel;
 	lops->iscomplex = occampi_iscomplex_rel;
 	tnd->lops = lops;
 
@@ -777,12 +777,12 @@ static int occampi_oper_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:mopnode", &i, 2, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
-	cops->gettype = occampi_gettype_mop;
 	cops->premap = occampi_premap_mop;
 	cops->namemap = occampi_namemap_mop;
 	cops->codegen = occampi_codegen_mop;
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	lops->gettype = occampi_gettype_mop;
 	lops->iscomplex = occampi_iscomplex_mop;
 	tnd->lops = lops;
 

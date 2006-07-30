@@ -95,20 +95,48 @@ typedef struct TAG_tnode {
 
 
 /*}}}*/
-/*{{{  compops_t (compiler operations)*/
+/*{{{  enum compops_e*/
+typedef enum ENUM_compops {
+	COPS_INVALID = 0,
+	COPS_PRESCOPE = 1,
+	COPS_SCOPEIN = 2,
+	COPS_SCOPEOUT = 3,
+	COPS_TYPECHECK = 4,
+	COPS_CONSTPROP = 5,
+	COPS_PRECHECK = 6,
+	COPS_FETRANS = 7,
+	COPS_BETRANS = 8,
+	COPS_PREMAP = 9,
+	COPS_NAMEMAP = 10,
+	COPS_BEMAP = 11,
+	COPS_PREALLOCATE = 12,
+	COPS_PRECODE = 13,
+	COPS_CODEGEN = 14,
+	COPS_MAX = 256
+} compops_e;
+
+#define COPS_LAST COPS_CODEGEN
+
+/*}}}*/
+/*{{{  compopt_t,compops_t (compiler operations)*/
+
+typedef struct TAG_compop {
+	char *name;
+	compops_e opno;
+	int nparams;
+	void *origin;
+} compop_t;
+
 typedef struct TAG_compops {
 	struct TAG_compops *next;
+	DYNARRAY (void *, opfuncs);
+#if 0
 	int (*prescope)(tnode_t **, struct TAG_prescope *);		/* called before scoping */
 	int (*scopein)(tnode_t **, struct TAG_scope *);			/* scopes in declarations made by this node */
 	int (*scopeout)(tnode_t **, struct TAG_scope *);		/* scopes out declarations made by this node */
 	int (*typecheck)(tnode_t *, struct TAG_typecheck *);		/* type-checks this node */
-	tnode_t *(*typeactual)(tnode_t *, tnode_t *, tnode_t *, struct TAG_typecheck *);	/* tests whether one type is valid as an "actual" for another */
-	tnode_t *(*typereduce)(tnode_t *);				/* returns the reduced type */
-	tnode_t *(*gettype)(tnode_t *, tnode_t *);			/* returns the type of this node (second param is a "default" type) */
 	int (*constprop)(tnode_t **);					/* performs constant-propagation on the node (mod-post-walk) */
 	int (*precheck)(tnode_t *);					/* performs pre-checks on the node */
-	int (*bytesfor)(tnode_t *, struct TAG_target *);		/* returns the number of bytes required for something (target given if available) */
-	int (*issigned)(tnode_t *, struct TAG_target *);		/* returns the "signedness" of something (target given if available) */
 	int (*fetrans)(tnode_t **, struct TAG_fetrans *);		/* performs front-end transforms */
 	int (*betrans)(tnode_t **, struct TAG_betrans *);		/* performs back-end transforms for target */
 	int (*premap)(tnode_t **, struct TAG_map *);			/* performs pre-mapping for target */
@@ -117,16 +145,45 @@ typedef struct TAG_compops {
 	int (*preallocate)(tnode_t *, struct TAG_target *);		/* performs pre-allocations for target */
 	int (*precode)(tnode_t **, struct TAG_codegen *);		/* performs pre-codegen for target */
 	int (*codegen)(tnode_t *, struct TAG_codegen *);		/* performs code-generation for target */
+#endif
 } compops_t;
+
+
+/*}}}*/
+/*{{{  enum langops_e*/
+typedef enum ENUM_langops {
+	LOPS_INVALID = 0,
+	LOPS_GETDESCRIPTOR = 1,
+	LOPS_GETNAME = 2,
+	LOPS_DO_USAGECHECK = 3,
+	LOPS_TYPEACTUAL = 4,
+	LOPS_TYPEREDUCE = 5,
+	LOPS_GETTYPE = 6,
+	LOPS_BYTESFOR = 7,
+	LOPS_ISSIGNED = 8,
+	LOPS_ISCONST = 9,
+	LOPS_ISCOMPLEX = 10,
+	LOPS_CONSTVALOF = 11,
+	LOPS_VALBYREF = 12,
+	LOPS_INITSIZES = 13,
+	LOPS_INITIALISING_DECL = 14,
+	LOPS_CODEGEN_TYPEACTION = 15
+} langops_e;
 
 
 /*}}}*/
 /*{{{  langops_t (language operations)*/
 typedef struct TAG_langops {
 	struct TAG_langops *next;
+
 	int (*getdescriptor)(tnode_t *, char **);			/* gets a descriptor string for the given node */
 	int (*getname)(tnode_t *, char **);				/* gets the name of a node (for error reporting) */
 	int (*do_usagecheck)(tnode_t *, struct TAG_uchk_state *);	/* does usage-checking for a node */
+	tnode_t *(*typeactual)(tnode_t *, tnode_t *, tnode_t *, struct TAG_typecheck *);	/* tests whether one type is valid as an "actual" for another */
+	tnode_t *(*typereduce)(tnode_t *);				/* returns the reduced type */
+	tnode_t *(*gettype)(tnode_t *, tnode_t *);			/* returns the type of this node (second param is a "default" type) */
+	int (*bytesfor)(tnode_t *, struct TAG_target *);		/* returns the number of bytes required for something (target given if available) */
+	int (*issigned)(tnode_t *, struct TAG_target *);		/* returns the "signedness" of something (target given if available) */
 	int (*isconst)(tnode_t *);					/* returns non-zero if the node is a known constant (returns width) */
 	int (*iscomplex)(tnode_t *, int);				/* returns non-zero if the node (typically an expr) is considered "complex" (e.g. non-const constructors, function instances, etc.) */
 	int (*constvalof)(tnode_t *, void *);				/* gets constant value for the given node (assigns to pointed-at space) */
@@ -193,6 +250,10 @@ extern void tnode_dumpnodetypes (FILE *stream);
 
 extern compops_t *tnode_newcompops (void);
 extern void tnode_freecompops (compops_t *cops);
+extern int tnode_setcompop (compops_t *cops, char *name, int nparams, int (*fcn)(compops_t *, ...));
+extern int tnode_callcompop (compops_t *cops, char *name, int nparams, ...);
+extern int tnode_newcompop (char *name, compops_e opno, int nparams, void *origin);
+extern compop_t *tnode_findcompop (char *name);
 extern compops_t *tnode_insertcompops (compops_t *nextcops);
 extern compops_t *tnode_removecompops (compops_t *cops);
 
