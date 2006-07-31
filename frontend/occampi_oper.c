@@ -126,11 +126,11 @@ static mopmap_t mopmap[] = {
 /*}}}*/
 
 
-/*{{{  static tnode_t *occampi_gettype_dop (tnode_t *node, tnode_t *defaulttype)*/
+/*{{{  static tnode_t *occampi_gettype_dop (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
 /*
  *	returns the type associated with a DOPNODE, also sets the type in the node
  */
-static tnode_t *occampi_gettype_dop (tnode_t *node, tnode_t *defaulttype)
+static tnode_t *occampi_gettype_dop (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
 	tnode_t *lefttype, *righttype;
 
@@ -328,11 +328,11 @@ static int occampi_codegen_dop (compops_t *cops, tnode_t *node, codegen_t *cgen)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_iscomplex_dop (tnode_t *node, int deep)*/
+/*{{{  static int occampi_iscomplex_dop (langops_t *lops, tnode_t *node, int deep)*/
 /*
  *	returns non-zero if the dyadic operation is complex (i.e. warrants separate evaluation)
  */
-static int occampi_iscomplex_dop (tnode_t *node, int deep)
+static int occampi_iscomplex_dop (langops_t *lops, tnode_t *node, int deep)
 {
 	int i = 0;
 
@@ -351,11 +351,11 @@ static int occampi_iscomplex_dop (tnode_t *node, int deep)
 /*}}}*/
 
 
-/*{{{  static tnode_t *occampi_gettype_rel (tnode_t *node, tnode_t *defaulttype)*/
+/*{{{  static tnode_t *occampi_gettype_rel (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
 /*
  *	returns the type associated with a DOPNODE, also sets the type in the node
  */
-static tnode_t *occampi_gettype_rel (tnode_t *node, tnode_t *defaulttype)
+static tnode_t *occampi_gettype_rel (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
 	tnode_t *lefttype, *righttype;
 
@@ -426,11 +426,11 @@ static int occampi_codegen_rel (compops_t *cops, tnode_t *node, codegen_t *cgen)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_iscomplex_rel (tnode_t *node, int deep)*/
+/*{{{  static int occampi_iscomplex_rel (langops_t *lops, tnode_t *node, int deep)*/
 /*
  *	returns non-zero if the relational operation is complex
  */
-static int occampi_iscomplex_rel (tnode_t *node, int deep)
+static int occampi_iscomplex_rel (langops_t *lops, tnode_t *node, int deep)
 {
 	int i = 0;
 
@@ -499,11 +499,11 @@ static void occampi_oper_geninvrelop (codegen_t *cgen, int arg)
 /*}}}*/
 
 
-/*{{{  static tnode_t *occampi_gettype_mop (tnode_t *node, tnode_t *defaulttype)*/
+/*{{{  static tnode_t *occampi_gettype_mop (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
 /*
  *	gets type of a MOPNODE
  */
-static tnode_t *occampi_gettype_mop (tnode_t *node, tnode_t *defaulttype)
+static tnode_t *occampi_gettype_mop (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
 	tnode_t *optype;
 
@@ -566,11 +566,11 @@ static int occampi_codegen_mop (compops_t *cops, tnode_t *node, codegen_t *cgen)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_iscomplex_mop (tnode_t *node, int deep)*/
+/*{{{  static int occampi_iscomplex_mop (langops_t *lops, tnode_t *node, int deep)*/
 /*
  *	returns non-zero if the monadic operator is complex
  */
-static int occampi_iscomplex_mop (tnode_t *node, int deep)
+static int occampi_iscomplex_mop (langops_t *lops, tnode_t *node, int deep)
 {
 	int i = 0;
 

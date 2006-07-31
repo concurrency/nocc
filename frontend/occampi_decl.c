@@ -234,7 +234,7 @@ tnode_dumptree (type, 1, stderr);
 	/* see how big this type is */
 	tsize = tnode_bytesfor (type, map->target);
 
-	if (type->tag->ndef->lops && type->tag->ndef->lops->initsizes && type->tag->ndef->lops->initsizes (type, *node, &wssize, &vssize, &mssize, &indir, map)) {
+	if (type->tag->ndef->lops && type->tag->ndef->lops->initsizes && type->tag->ndef->lops->initsizes (type->tag->ndef->lops, type, *node, &wssize, &vssize, &mssize, &indir, map)) {
 		/* some declarations will need special allocation (e.g. in vectorspace and/or mobilespace) -- collected above */
 	} else {
 		wssize = tsize;
@@ -245,7 +245,7 @@ tnode_dumptree (type, 1, stderr);
 	bename = map->target->newname (*namep, *bodyp, map, (wssize < 0) ? 0 : wssize, (wssize < 0) ? -wssize : 0, vssize, mssize, tsize, indir);
 
 	if (type->tag->ndef->lops && type->tag->ndef->lops->initialising_decl) {
-		type->tag->ndef->lops->initialising_decl (type, bename, map);
+		type->tag->ndef->lops->initialising_decl (type->tag->ndef->lops, type, bename, map);
 	}
 
 	tnode_setchook (*namep, map->mapchook, (void *)bename);
@@ -639,11 +639,11 @@ static int occampi_scopeout_procdecl (compops_t *cops, tnode_t **node, scope_t *
 	return 1;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_gettype_procdecl (tnode_t *node, tnode_t *defaulttype)*/
+/*{{{  static tnode_t *occampi_gettype_procdecl (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
 /*
  *	returns the type of a PROC definition (= parameter list)
  */
-static tnode_t *occampi_gettype_procdecl (tnode_t *node, tnode_t *defaulttype)
+static tnode_t *occampi_gettype_procdecl (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
 	return tnode_nthsubof (node, 1);
 }
@@ -687,12 +687,12 @@ fprintf (stderr, "occampi_precheck_procdecl(): returning 0\n");
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_usagecheck_procdecl (tnode_t *node, uchk_state_t *ucstate)*/
+/*{{{  static int occampi_usagecheck_procdecl (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)*/
 /*
  *	does usage-checking on a PROC declaration
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_usagecheck_procdecl (tnode_t *node, uchk_state_t *ucstate)
+static int occampi_usagecheck_procdecl (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)
 {
 	usagecheck_begin_branches (node, ucstate);
 	usagecheck_newbranch (ucstate);
@@ -864,12 +864,12 @@ fprintf (stderr, "occampi_codegen_procdecl!\n");
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_getdescriptor_procdecl (tnode_t *node, char **str)*/
+/*{{{  static int occampi_getdescriptor_procdecl (langops_t *lops, tnode_t *node, char **str)*/
 /*
  *	generates a descriptor line for a PROC definition
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_getdescriptor_procdecl (tnode_t *node, char **str)
+static int occampi_getdescriptor_procdecl (langops_t *lops, tnode_t *node, char **str)
 {
 	tnode_t *name = tnode_nthsubof (node, 0);
 	char *realname;
@@ -1014,15 +1014,6 @@ fprintf (stderr, "occampi_scopein_fparam: here! rawname = \"%s\"\n", rawname);
 	return 1;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_gettype_fparam (tnode_t *node, tnode_t *defaulttype)*/
-/*
- *	returns the type of a formal parameter
- */
-static tnode_t *occampi_gettype_fparam (tnode_t *node, tnode_t *defaulttype)
-{
-	return tnode_nthsubof (node, 1);
-}
-/*}}}*/
 /*{{{  static int occampi_namemap_fparam (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	transforms a formal parameter into a back-end name
@@ -1059,12 +1050,21 @@ tnode_dumptree (type, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_getdescriptor_fparam (tnode_t *node, char **str)*/
+/*{{{  static tnode_t *occampi_gettype_fparam (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	returns the type of a formal parameter
+ */
+static tnode_t *occampi_gettype_fparam (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
+{
+	return tnode_nthsubof (node, 1);
+}
+/*}}}*/
+/*{{{  static int occampi_getdescriptor_fparam (langops_t *lops, tnode_t *node, char **str)*/
 /*
  *	gets descriptor information for a formal parameter
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_getdescriptor_fparam (tnode_t *node, char **str)
+static int occampi_getdescriptor_fparam (langops_t *lops, tnode_t *node, char **str)
 {
 	tnode_t *name = tnode_nthsubof (node, 0);
 	tnode_t *type = tnode_nthsubof (node, 1);
@@ -1093,12 +1093,12 @@ static int occampi_getdescriptor_fparam (tnode_t *node, char **str)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_getname_fparam (tnode_t *node, char **str)*/
+/*{{{  static int occampi_getname_fparam (langops_t *lops, tnode_t *node, char **str)*/
 /*
  *	gets the name of a formal parameter
  *	returns 0 on success, -ve on failure
  */
-static int occampi_getname_fparam (tnode_t *node, char **str)
+static int occampi_getname_fparam (langops_t *lops, tnode_t *node, char **str)
 {
 	tnode_t *name = tnode_nthsubof (node, 0);
 	char *pname = NameNameOf (tnode_nthnameof (name, 0));
@@ -1192,11 +1192,11 @@ fprintf (stderr, "occampi_scopein_rawname: here! rawname = \"%s\"\n", rawname);
 }
 /*}}}*/
 
-/*{{{  static tnode_t *occampi_gettype_namenode (tnode_t *node, tnode_t *default_type)*/
+/*{{{  static tnode_t *occampi_gettype_namenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
  *	returns the type of a name-node (trivial)
  */
-static tnode_t *occampi_gettype_namenode (tnode_t *node, tnode_t *default_type)
+static tnode_t *occampi_gettype_namenode (langops_t *lops, tnode_t *node, tnode_t *default_type)
 {
 	name_t *name = tnode_nthnameof (node, 0);
 
@@ -1221,11 +1221,11 @@ tnode_dumptree (node, 4, stderr);
 	return NULL;
 }
 /*}}}*/
-/*{{{  static int occampi_bytesfor_namenode (tnode_t *node, target_t *target)*/
+/*{{{  static int occampi_bytesfor_namenode (langops_t *lops, tnode_t *node, target_t *target)*/
 /*
  *	returns the number of bytes in a name-node, associated with its type only
  */
-static int occampi_bytesfor_namenode (tnode_t *node, target_t *target)
+static int occampi_bytesfor_namenode (langops_t *lops, tnode_t *node, target_t *target)
 {
 	if (node->tag == opi.tag_NDATATYPEDECL) {
 		name_t *name = tnode_nthnameof (node, 0);
@@ -1284,12 +1284,12 @@ tnode_dumptree (bename, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_usagecheck_namenode (tnode_t *node, uchk_state_t *uc)*/
+/*{{{  static int occampi_usagecheck_namenode (langops_t *lops, tnode_t *node, uchk_state_t *uc)*/
 /*
  *	does usage-check on a namenode
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_usagecheck_namenode (tnode_t *node, uchk_state_t *uc)
+static int occampi_usagecheck_namenode (langops_t *lops, tnode_t *node, uchk_state_t *uc)
 {
 	if (node->tag == opi.tag_NVALABBR) {
 		/* allowed to be at the outermost lex-level.. */
@@ -1303,12 +1303,12 @@ static int occampi_usagecheck_namenode (tnode_t *node, uchk_state_t *uc)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_getname_namenode (tnode_t *node, char **str)*/
+/*{{{  static int occampi_getname_namenode (langops_t *lops, tnode_t *node, char **str)*/
 /*
  *	gets the name of a namenode (var/etc. name)
  *	return 0 on success, -ve on failure
  */
-static int occampi_getname_namenode (tnode_t *node, char **str)
+static int occampi_getname_namenode (langops_t *lops, tnode_t *node, char **str)
 {
 	char *pname = NameNameOf (tnode_nthnameof (node, 0));
 

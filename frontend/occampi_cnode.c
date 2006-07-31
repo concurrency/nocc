@@ -106,12 +106,12 @@ static void occampi_reduce_replcnode (dfastate_t *dfast, parsepriv_t *pp, void *
 /*}}}*/
 
 
-/*{{{  static int occampi_cnode_dousagecheck (tnode_t *node, uchk_state_t *ucstate)*/
+/*{{{  static int occampi_cnode_dousagecheck (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)*/
 /*
  *	does usage-checking for a CNODE
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_cnode_dousagecheck (tnode_t *node, uchk_state_t *ucstate)
+static int occampi_cnode_dousagecheck (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)
 {
 	if (node->tag == opi.tag_PAR) {
 		/*{{{  usage-check PAR bodies*/
@@ -330,12 +330,12 @@ static int occampi_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cge
 /*}}}*/
 
 
-/*{{{  static int occampi_replcnode_dousagecheck (tnode_t *node, uchk_state_t *ucstate)*/
+/*{{{  static int occampi_replcnode_dousagecheck (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)*/
 /*
  *	does usage-checking for a replicated constructor-node (REPLSEQ, REPLPAR)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_replcnode_dousagecheck (tnode_t *node, uchk_state_t *ucstate)
+static int occampi_replcnode_dousagecheck (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)
 {
 	return 1;
 }

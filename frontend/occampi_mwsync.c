@@ -58,11 +58,11 @@
 /*}}}*/
 
 
-/*{{{  static tnode_t *occampi_mwsync_leaftype_gettype (tnode_t *t, tnode_t *defaulttype)*/
+/*{{{  static tnode_t *occampi_mwsync_leaftype_gettype (langops_t *lops, tnode_t *t, tnode_t *defaulttype)*/
 /*
  *	gets the type for a mwsync leaftype -- do nothing really
  */
-static tnode_t *occampi_mwsync_leaftype_gettype (tnode_t *t, tnode_t *defaulttype)
+static tnode_t *occampi_mwsync_leaftype_gettype (langops_t *lops, tnode_t *t, tnode_t *defaulttype)
 {
 	if (t->tag == opi.tag_BARRIER) {
 		return t;
@@ -70,11 +70,11 @@ static tnode_t *occampi_mwsync_leaftype_gettype (tnode_t *t, tnode_t *defaulttyp
 	return defaulttype;
 }
 /*}}}*/
-/*{{{  static int occampi_mwsync_leaftype_bytesfor (tnode_t *t, target_t *target)*/
+/*{{{  static int occampi_mwsync_leaftype_bytesfor (langops_t *lops, tnode_t *t, target_t *target)*/
 /*
  *	returns the number of bytes required by a basic type
  */
-static int occampi_mwsync_leaftype_bytesfor (tnode_t *t, target_t *target)
+static int occampi_mwsync_leaftype_bytesfor (langops_t *lops, tnode_t *t, target_t *target)
 {
 	if (t->tag == opi.tag_BARRIER) {
 		return target->intsize * 5;
@@ -82,11 +82,11 @@ static int occampi_mwsync_leaftype_bytesfor (tnode_t *t, target_t *target)
 	return -1;
 }
 /*}}}*/
-/*{{{  static int occampi_mwsync_leaftype_issigned (tnode_t *t, target_t *target)*/
+/*{{{  static int occampi_mwsync_leaftype_issigned (langops_t *lops, tnode_t *t, target_t *target)*/
 /*
  *	returns 0 if the given basic type is unsigned
  */
-static int occampi_mwsync_leaftype_issigned (tnode_t *t, target_t *target)
+static int occampi_mwsync_leaftype_issigned (langops_t *lops, tnode_t *t, target_t *target)
 {
 	if (t->tag == opi.tag_BARRIER) {
 		return 0;
@@ -95,12 +95,12 @@ static int occampi_mwsync_leaftype_issigned (tnode_t *t, target_t *target)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_mwsync_leaftype_getdescriptor (tnode_t *node, char **str)*/
+/*{{{  static int occampi_mwsync_leaftype_getdescriptor (langops_t *lops, tnode_t *node, char **str)*/
 /*
  *	gets descriptor information for a leaf-type
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_mwsync_leaftype_getdescriptor (tnode_t *node, char **str)
+static int occampi_mwsync_leaftype_getdescriptor (langops_t *lops, tnode_t *node, char **str)
 {
 	char *sptr;
 

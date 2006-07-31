@@ -154,7 +154,7 @@ tnode_t *typecheck_gettype (tnode_t *node, tnode_t *default_type)
 		nocc_internal ("typecheck_gettype(): don't know how to get type of [%s]", node->tag->ndef->name);
 		return NULL;
 	}
-	type = node->tag->ndef->lops->gettype (node, default_type);
+	type = node->tag->ndef->lops->gettype (node->tag->ndef->lops, node, default_type);
 
 	return type;
 }
@@ -176,7 +176,7 @@ tnode_t *typecheck_typeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t
 	}
 
 	if (formaltype->tag->ndef->lops && formaltype->tag->ndef->lops->typeactual) {
-		usedtype = formaltype->tag->ndef->lops->typeactual (formaltype, actualtype, node, tc);
+		usedtype = formaltype->tag->ndef->lops->typeactual (formaltype->tag->ndef->lops, formaltype, actualtype, node, tc);
 	} else {
 		if (typecheck_fixedtypeactual (formaltype, actualtype, node, tc, 0)) {
 			/* assume OK and use the actual-type */
@@ -259,7 +259,7 @@ tnode_t *typecheck_typereduce (tnode_t *type)
 			nocc_message ("typecheck_typereduce(): reducing [%s (%s)]", type->tag->name, type->tag->ndef->name);
 			/*}}}*/
 		}
-		return type->tag->ndef->lops->typereduce (type);
+		return type->tag->ndef->lops->typereduce (type->tag->ndef->lops, type);
 	}
 	return NULL;
 }

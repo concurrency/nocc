@@ -1469,11 +1469,11 @@ static void mcsp_namenode_finalevent (tnode_t *node, codegen_t *cgen, void *arg)
 	return;
 }
 /*}}}*/
-/*{{{  static int mcsp_namenode_initialising_decl (tnode_t *node, tnode_t *bename, map_t *map)*/
+/*{{{  static int mcsp_namenode_initialising_decl (langops_t *lops, tnode_t *node, tnode_t *bename, map_t *map)*/
 /*
  *	used to initialise EVENTs
  */
-static int mcsp_namenode_initialising_decl (tnode_t *node, tnode_t *bename, map_t *map)
+static int mcsp_namenode_initialising_decl (langops_t *lops, tnode_t *node, tnode_t *bename, map_t *map)
 {
 	if (node->tag == mcsp.tag_EVENT) {
 		codegen_setinithook (bename, mcsp_namenode_initevent, (void *)node);
@@ -2658,7 +2658,7 @@ static int mcsp_namemap_vardeclnode (compops_t *cops, tnode_t **node, map_t *map
 	if ((*namep)->tag == mcsp.tag_EVENT) {
 		/* probably need initialisation/finalisation */
 		if ((*namep)->tag->ndef->lops && (*namep)->tag->ndef->lops->initialising_decl) {
-			(*namep)->tag->ndef->lops->initialising_decl (*namep, bename, map);
+			(*namep)->tag->ndef->lops->initialising_decl ((*namep)->tag->ndef->lops, *namep, bename, map);
 		}
 	}
 
@@ -2698,22 +2698,22 @@ static int mcsp_namemap_const (compops_t *cops, tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_isconst_const (tnode_t *node)*/
+/*{{{  static int mcsp_isconst_const (langops_t *lops, tnode_t *node)*/
 /*
  *	returns non-zero if the node is a constant (returns width)
  */
-static int mcsp_isconst_const (tnode_t *node)
+static int mcsp_isconst_const (langops_t *lops, tnode_t *node)
 {
 	mcsp_consthook_t *ch = (mcsp_consthook_t *)tnode_nthhookof (node, 0);
 
 	return ch->length;
 }
 /*}}}*/
-/*{{{  static int mcsp_constvalof_const (tnode_t *node, void *ptr)*/
+/*{{{  static int mcsp_constvalof_const (langops_t *lops, tnode_t *node, void *ptr)*/
 /*
  *	returns the constant value of a constant node (assigns to pointer if non-null)
  */
-static int mcsp_constvalof_const (tnode_t *node, void *ptr)
+static int mcsp_constvalof_const (langops_t *lops, tnode_t *node, void *ptr)
 {
 	mcsp_consthook_t *ch = (mcsp_consthook_t *)tnode_nthhookof (node, 0);
 	int r = 0;
@@ -2727,11 +2727,11 @@ static int mcsp_constvalof_const (tnode_t *node, void *ptr)
 	return r;
 }
 /*}}}*/
-/*{{{  static int mcsp_valbyref_const (tnode_t *node)*/
+/*{{{  static int mcsp_valbyref_const (langops_t *lops, tnode_t *node)*/
 /*
  *	returns non-zero if value-references of this constant get passed by reference
  */
-static int mcsp_valbyref_const (tnode_t *node)
+static int mcsp_valbyref_const (langops_t *lops, tnode_t *node)
 {
 	if (node->tag == mcsp.tag_STRING) {
 		return 1;

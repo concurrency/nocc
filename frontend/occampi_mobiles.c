@@ -172,11 +172,11 @@ static void occampi_mobiletypenode_finaldynmobarray (tnode_t *node, codegen_t *c
 /*}}}*/
 
 
-/*{{{  static int occampi_mobiletypenode_bytesfor (tnode_t *t, target_t *target)*/
+/*{{{  static int occampi_mobiletypenode_bytesfor (langops_t *lops, tnode_t *t, target_t *target)*/
 /*
  *	determines the number of bytes needed for a MOBILE
  */
-static int occampi_mobiletypenode_bytesfor (tnode_t *t, target_t *target)
+static int occampi_mobiletypenode_bytesfor (langops_t *lops, tnode_t *t, target_t *target)
 {
 	if (t->tag == opi.tag_MOBILE) {
 		/* static mobile of some variety */
@@ -188,12 +188,12 @@ static int occampi_mobiletypenode_bytesfor (tnode_t *t, target_t *target)
 	return -1;
 }
 /*}}}*/
-/*{{{  static int occampi_mobiletypenode_initsizes (tnode_t *t, tnode_t *declnode, int *wssize, int *vssize, int *mssize, int *indir, map_t *mdata)*/
+/*{{{  static int occampi_mobiletypenode_initsizes (langops_t *lops, tnode_t *t, tnode_t *declnode, int *wssize, int *vssize, int *mssize, int *indir, map_t *mdata)*/
 /*
  *	returns special allocation requirements for MOBILEs
  *	return value is non-zero if settings were made
  */
-static int occampi_mobiletypenode_initsizes (tnode_t *t, tnode_t *declnode, int *wssize, int *vssize, int *mssize, int *indir, map_t *mdata)
+static int occampi_mobiletypenode_initsizes (langops_t *lops, tnode_t *t, tnode_t *declnode, int *wssize, int *vssize, int *mssize, int *indir, map_t *mdata)
 {
 	if (t->tag == opi.tag_MOBILE) {
 		/* static mobile, single pointer in workspace, real sized allocation in mobilespace */
@@ -213,11 +213,11 @@ static int occampi_mobiletypenode_initsizes (tnode_t *t, tnode_t *declnode, int 
 	return 0;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_mobiletypenode_typereduce (tnode_t *type)*/
+/*{{{  static tnode_t *occampi_mobiletypenode_typereduce (langops_t *lops, tnode_t *type)*/
 /*
  *	de-mobilises a type and return it (used in type-checking)
  */
-static tnode_t *occampi_mobiletypenode_typereduce (tnode_t *type)
+static tnode_t *occampi_mobiletypenode_typereduce (langops_t *lops, tnode_t *type)
 {
 	if (type->tag == opi.tag_MOBILE) {
 		return tnode_nthsubof (type, 0);
@@ -235,11 +235,11 @@ static tnode_t *occampi_mobiletypenode_typereduce (tnode_t *type)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static int occampi_mobiletypenode_initialising_decl (tnode_t *t, tnode_t *benode, map_t *mdata)*/
+/*{{{  static int occampi_mobiletypenode_initialising_decl (langops_t *lops, tnode_t *t, tnode_t *benode, map_t *mdata)*/
 /*
  *	initialises a mobile declaration node of some form
  */
-static int occampi_mobiletypenode_initialising_decl (tnode_t *t, tnode_t *benode, map_t *mdata)
+static int occampi_mobiletypenode_initialising_decl (langops_t *lops, tnode_t *t, tnode_t *benode, map_t *mdata)
 {
 	if (t->tag == opi.tag_MOBILE) {
 		/* static mobile */
@@ -254,22 +254,22 @@ static int occampi_mobiletypenode_initialising_decl (tnode_t *t, tnode_t *benode
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_mobiletypenode_iscomplex (tnode_t *t, int deep)*/
+/*{{{  static int occampi_mobiletypenode_iscomplex (langops_t *lops, tnode_t *t, int deep)*/
 /*
  *	returns non-zero if this type is "complex" (e.g. must be moved into FUNCTION params)
  */
-static int occampi_mobiletypenode_iscomplex (tnode_t *t, int deep)
+static int occampi_mobiletypenode_iscomplex (langops_t *lops, tnode_t *t, int deep)
 {
 	/* we'll assume they're all complex for now.. */
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_mobiletypenode_typeaction (tnode_t *type, tnode_t *anode, codegen_t *cgen)*/
+/*{{{  static int occampi_mobiletypenode_typeaction (langops_t *lops, tnode_t *type, tnode_t *anode, codegen_t *cgen)*/
 /*
  *	this handles code-generation for actions involving mobile types
  *	returns 0 to stop the code-gen walk, 1 to continue, -1 to resort to normal action handling
  */
-static int occampi_mobiletypenode_typeaction (tnode_t *type, tnode_t *anode, codegen_t *cgen)
+static int occampi_mobiletypenode_typeaction (langops_t *lops, tnode_t *type, tnode_t *anode, codegen_t *cgen)
 {
 	if (anode->tag == opi.tag_ASSIGN) {
 		if (type->tag == opi.tag_MOBILE) {
@@ -349,11 +349,11 @@ fprintf (stderr, "occampi_mobilealloc_typecheck(): here!\n");
 	return 1;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_mobilealloc_gettype (tnode_t *node, tnode_t *default_type)*/
+/*{{{  static tnode_t *occampi_mobilealloc_gettype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
  *	gets the type of a mobile allocation node
  */
-static tnode_t *occampi_mobilealloc_gettype (tnode_t *node, tnode_t *default_type)
+static tnode_t *occampi_mobilealloc_gettype (langops_t *lops, tnode_t *node, tnode_t *default_type)
 {
 	tnode_t *rtype = tnode_nthsubof (node, 2);
 

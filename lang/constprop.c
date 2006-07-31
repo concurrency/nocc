@@ -184,11 +184,11 @@ static void cprop_consthook_hook_dumptree (tnode_t *node, void *hook, int indent
 /*}}}*/
 
 
-/*{{{  static tnode_t *cprop_gettype_const (tnode_t *node, tnode_t *default_type)*/
+/*{{{  static tnode_t *cprop_gettype_const (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
  *	gets the type of a constant node
  */
-static tnode_t *cprop_gettype_const (tnode_t *node, tnode_t *default_type)
+static tnode_t *cprop_gettype_const (langops_t *lops, tnode_t *node, tnode_t *default_type)
 {
 	if (!tnode_nthsubof (node, 0) && default_type) {
 		/* FIXME: check what we already have fits the default type if given */
@@ -241,11 +241,11 @@ static int cprop_namemap_const (compops_t *cops, tnode_t **nodep, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int cprop_isconst_const (tnode_t *node)*/
+/*{{{  static int cprop_isconst_const (langops_t *lops, tnode_t *node)*/
 /*
  *	returns the width of a constant (in bytes)
  */
-static int cprop_isconst_const (tnode_t *node)
+static int cprop_isconst_const (langops_t *lops, tnode_t *node)
 {
 	consthook_t *ch = (consthook_t *)tnode_nthhookof (node, 0);
 
@@ -263,20 +263,20 @@ static int cprop_isconst_const (tnode_t *node)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int cprop_iscomplex_const (tnode_t *node, int deep)*/
+/*{{{  static int cprop_iscomplex_const (langops_t *lops, tnode_t *node, int deep)*/
 /*
  *	returns non-zero if the constant is complex (they're not)
  */
-static int cprop_iscomplex_const (tnode_t *node, int deep)
+static int cprop_iscomplex_const (langops_t *lops, tnode_t *node, int deep)
 {
 	return 0;
 }
 /*}}}*/
-/*{{{  static int cprop_constvalof_const (tnode_t *node, void *ptr)*/
+/*{{{  static int cprop_constvalof_const (langops_t *lops, tnode_t *node, void *ptr)*/
 /*
  *	returns the constant value of a constant node
  */
-static int cprop_constvalof_const (tnode_t *node, void *ptr)
+static int cprop_constvalof_const (langops_t *lops, tnode_t *node, void *ptr)
 {
 	consthook_t *ch = (consthook_t *)tnode_nthhookof (node, 0);
 
@@ -307,12 +307,12 @@ static int cprop_constvalof_const (tnode_t *node, void *ptr)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int cprop_getdescriptor_const (tnode_t *node, char **str)*/
+/*{{{  static int cprop_getdescriptor_const (langops_t *lops, tnode_t *node, char **str)*/
 /*
  *	gets a descriptor string for a constant
  *	returns 0 to stop walk, 1 to continue
  */
-static int cprop_getdescriptor_const (tnode_t *node, char **str)
+static int cprop_getdescriptor_const (langops_t *lops, tnode_t *node, char **str)
 {
 	if (*str) {
 		char *newstr = (char *)smalloc (strlen (*str) + 12);

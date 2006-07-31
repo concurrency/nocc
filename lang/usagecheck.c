@@ -232,7 +232,7 @@ fprintf (stderr, "uchk_prewalk_tree(): [%s]\n", node->tag->name);
 			uchk_mode_t savedmode = ucstate->defmode;
 
 			ucstate->defmode = thook->mode;
-			result = node->tag->ndef->lops->do_usagecheck (node, ucstate);
+			result = node->tag->ndef->lops->do_usagecheck (node->tag->ndef->lops, node, ucstate);
 			/*}}}*/
 		} else {
 			if (usagecheck_addname (node, ucstate, thook->mode)) {
@@ -242,7 +242,7 @@ fprintf (stderr, "uchk_prewalk_tree(): [%s]\n", node->tag->name);
 		}
 	} else {
 		if (node->tag->ndef->lops && node->tag->ndef->lops->do_usagecheck) {
-			result = node->tag->ndef->lops->do_usagecheck (node, ucstate);
+			result = node->tag->ndef->lops->do_usagecheck (node->tag->ndef->lops, node, ucstate);
 		}
 	}
 

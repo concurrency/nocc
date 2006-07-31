@@ -1520,12 +1520,12 @@ tnode_dumptree (statics, 4, stderr);
 /*}}}*/
 
 
-/*{{{  static int krocetc_bytesfor_name (tnode_t *name, target_t *target)*/
+/*{{{  static int krocetc_bytesfor_name (langops_t *lops, tnode_t *name, target_t *target)*/
 /*
  *	used to get the type-size of a back-end name
  *	returns type-size or -1 if not known
  */
-static int krocetc_bytesfor_name (tnode_t *name, target_t *target)
+static int krocetc_bytesfor_name (langops_t *lops, tnode_t *name, target_t *target)
 {
 	krocetc_namehook_t *nh;
 

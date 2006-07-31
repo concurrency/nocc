@@ -151,11 +151,11 @@ static int occampi_type_prescope (compops_t *cops, tnode_t **nodep, prescope_t *
 	return 1;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_type_gettype (tnode_t *node, tnode_t *default_type)*/
+/*{{{  static tnode_t *occampi_type_gettype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
  *	returns the type of a type-node (typically the sub-type)
  */
-static tnode_t *occampi_type_gettype (tnode_t *node, tnode_t *default_type)
+static tnode_t *occampi_type_gettype (langops_t *lops, tnode_t *node, tnode_t *default_type)
 {
 	tnode_t *type;
 
@@ -167,11 +167,11 @@ static tnode_t *occampi_type_gettype (tnode_t *node, tnode_t *default_type)
 	return type;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_type_typeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
+/*{{{  static tnode_t *occampi_type_typeactual (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type compatibility on a type-node, returns the actual type used by the operation
  */
-static tnode_t *occampi_type_typeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
+static tnode_t *occampi_type_typeactual (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *atype;
 
@@ -204,11 +204,11 @@ fprintf (stderr, "occampi_type_typeactual(): channel: node->tag = [%s]\n", node-
 	return atype;
 }
 /*}}}*/
-/*{{{  static int occampi_type_bytesfor (tnode_t *t, target_t *target)*/
+/*{{{  static int occampi_type_bytesfor (langops_t *lops, tnode_t *t, target_t *target)*/
 /*
  *	returns the number of bytes required by this type (or -1 if not known)
  */
-static int occampi_type_bytesfor (tnode_t *t, target_t *target)
+static int occampi_type_bytesfor (langops_t *lops, tnode_t *t, target_t *target)
 {
 	if (t->tag == opi.tag_CHAN) {
 		return target->chansize;
@@ -216,21 +216,21 @@ static int occampi_type_bytesfor (tnode_t *t, target_t *target)
 	return -1;
 }
 /*}}}*/
-/*{{{  static int occampi_type_issigned (tnode_t *t, target_t *target)*/
+/*{{{  static int occampi_type_issigned (langops_t *lops, tnode_t *t, target_t *target)*/
 /*
  *	returns the signedness of a type (or -1 if not known)
  */
-static int occampi_type_issigned (tnode_t *t, target_t *target)
+static int occampi_type_issigned (langops_t *lops, tnode_t *t, target_t *target)
 {
 	return -1;
 }
 /*}}}*/
-/*{{{  static int occampi_type_getdescriptor (tnode_t *node, char **str)*/
+/*{{{  static int occampi_type_getdescriptor (langops_t *lops, tnode_t *node, char **str)*/
 /*
  *	gets descriptor information for a type
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_type_getdescriptor (tnode_t *node, char **str)
+static int occampi_type_getdescriptor (langops_t *lops, tnode_t *node, char **str)
 {
 	if (node->tag == opi.tag_CHAN) {
 		occampi_typeattr_t typeattr = (occampi_typeattr_t)tnode_getchook (node, opi.chook_typeattr);
@@ -249,12 +249,12 @@ static int occampi_type_getdescriptor (tnode_t *node, char **str)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_type_initialising_decl (tnode_t *t, tnode_t *benode, map_t *mdata)*/
+/*{{{  static int occampi_type_initialising_decl (langops_t *lops, tnode_t *t, tnode_t *benode, map_t *mdata)*/
 /*
  *	called for declarations to handle initialisation if needed
  *	returns 0 if nothing needed, non-zero otherwise
  */
-static int occampi_type_initialising_decl (tnode_t *t, tnode_t *benode, map_t *mdata)
+static int occampi_type_initialising_decl (langops_t *lops, tnode_t *t, tnode_t *benode, map_t *mdata)
 {
 	if (t->tag == opi.tag_CHAN) {
 		codegen_setinithook (benode, occampi_type_initchandecl, (void *)t);
@@ -265,41 +265,41 @@ static int occampi_type_initialising_decl (tnode_t *t, tnode_t *benode, map_t *m
 /*}}}*/
 
 
-/*{{{  static tnode_t *occampi_typespec_gettype (tnode_t *node, tnode_t *default_type)*/
+/*{{{  static tnode_t *occampi_typespec_gettype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
  *	gets the type of a type-spec node (largely transparent)
  */
-static tnode_t *occampi_typespec_gettype (tnode_t *node, tnode_t *default_type)
+static tnode_t *occampi_typespec_gettype (langops_t *lops, tnode_t *node, tnode_t *default_type)
 {
 	return typecheck_gettype (tnode_nthsubof (node, 0), default_type);
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_typespec_typeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
+/*{{{  static tnode_t *occampi_typespec_typeactual (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type compatability on a type-spec node,
  *	returns the actual type used by the operation
  */
-static tnode_t *occampi_typespec_typeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
+static tnode_t *occampi_typespec_typeactual (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
 {
 	return typecheck_typeactual (tnode_nthsubof (formaltype, 0), actualtype, node, tc);
 }
 /*}}}*/
 
 
-/*{{{  static tnode_t *occampi_leaftype_gettype (tnode_t *t, tnode_t *defaulttype)*/
+/*{{{  static tnode_t *occampi_leaftype_gettype (langops_t *lops, tnode_t *t, tnode_t *defaulttype)*/
 /*
  *	gets the type for a leaftype -- do nothing really
  */
-static tnode_t *occampi_leaftype_gettype (tnode_t *t, tnode_t *defaulttype)
+static tnode_t *occampi_leaftype_gettype (langops_t *lops, tnode_t *t, tnode_t *defaulttype)
 {
 	return t;
 }
 /*}}}*/
-/*{{{  static int occampi_leaftype_bytesfor (tnode_t *t, target_t *target)*/
+/*{{{  static int occampi_leaftype_bytesfor (langops_t *lops, tnode_t *t, target_t *target)*/
 /*
  *	returns the number of bytes required by a basic type
  */
-static int occampi_leaftype_bytesfor (tnode_t *t, target_t *target)
+static int occampi_leaftype_bytesfor (langops_t *lops, tnode_t *t, target_t *target)
 {
 	if (t->tag == opi.tag_BOOL) {
 		return target->intsize;
@@ -323,11 +323,11 @@ static int occampi_leaftype_bytesfor (tnode_t *t, target_t *target)
 	return -1;
 }
 /*}}}*/
-/*{{{  static int occampi_leaftype_issigned (tnode_t *t, target_t *target)*/
+/*{{{  static int occampi_leaftype_issigned (langops_t *lops, tnode_t *t, target_t *target)*/
 /*
  *	returns 0 if the given basic type is unsigned
  */
-static int occampi_leaftype_issigned (tnode_t *t, target_t *target)
+static int occampi_leaftype_issigned (langops_t *lops, tnode_t *t, target_t *target)
 {
 	if (t->tag == opi.tag_BYTE) {
 		return 0;
@@ -338,12 +338,12 @@ static int occampi_leaftype_issigned (tnode_t *t, target_t *target)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_leaftype_getdescriptor (tnode_t *node, char **str)*/
+/*{{{  static int occampi_leaftype_getdescriptor (langops_t *lops, tnode_t *node, char **str)*/
 /*
  *	gets descriptor information for a leaf-type
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_leaftype_getdescriptor (tnode_t *node, char **str)
+static int occampi_leaftype_getdescriptor (langops_t *lops, tnode_t *node, char **str)
 {
 	char *sptr;
 

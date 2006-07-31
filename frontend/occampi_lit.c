@@ -113,12 +113,12 @@ static void occampi_litnode_hook_dumptree (tnode_t *node, void *hook, int indent
 /*}}}*/
 
 
-/*{{{  static tnode_t *occampi_gettype_lit (tnode_t *node, tnode_t *default_type)*/
+/*{{{  static tnode_t *occampi_gettype_lit (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
  *	returns the type of a literal.
  *	If the type is not set, the default_type is used to guess it
  */
-static tnode_t *occampi_gettype_lit (tnode_t *node, tnode_t *default_type)
+static tnode_t *occampi_gettype_lit (langops_t *lops, tnode_t *node, tnode_t *default_type)
 {
 	tnode_t *type = tnode_nthsubof (node, 0);
 
@@ -229,11 +229,11 @@ fprintf (stderr, "occampi_gettype_lit(): adjusting literal size from %d to %d..\
 	return type;
 }
 /*}}}*/
-/*{{{  static int occampi_bytesfor_lit (tnode_t *node, target_t *target)*/
+/*{{{  static int occampi_bytesfor_lit (langops_t *lops, tnode_t *node, target_t *target)*/
 /*
  *	returns the number of bytes required for this literal, target given if available
  */
-static int occampi_bytesfor_lit (tnode_t *node, target_t *target)
+static int occampi_bytesfor_lit (langops_t *lops, tnode_t *node, target_t *target)
 {
 	occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof (node, 0);
 
@@ -274,22 +274,22 @@ static int occampi_namemap_lit (compops_t *cops, tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_isconst_lit (tnode_t *node)*/
+/*{{{  static int occampi_isconst_lit (langops_t *lops, tnode_t *node)*/
 /*
  *	returns non-zero if the node is a constant (returns width)
  */
-static int occampi_isconst_lit (tnode_t *node)
+static int occampi_isconst_lit (langops_t *lops, tnode_t *node)
 {
 	occampi_litdata_t *ldata = (occampi_litdata_t *)tnode_nthhookof (node, 0);
 
 	return ldata->bytes;
 }
 /*}}}*/
-/*{{{  static int occampi_constvalof_lit (tnode_t *node, void *ptr)*/
+/*{{{  static int occampi_constvalof_lit (langops_t *lops, tnode_t *node, void *ptr)*/
 /*
  *	returns constant value of a literal node (assigns to pointer if non-null)
  */
-static int occampi_constvalof_lit (tnode_t *node, void *ptr)
+static int occampi_constvalof_lit (langops_t *lops, tnode_t *node, void *ptr)
 {
 	occampi_litdata_t *ldata = (occampi_litdata_t *)tnode_nthhookof (node, 0);
 	int r = 0;
@@ -347,11 +347,11 @@ static int occampi_constvalof_lit (tnode_t *node, void *ptr)
 	return r;
 }
 /*}}}*/
-/*{{{  static int occampi_valbyref_lit (tnode_t *node)*/
+/*{{{  static int occampi_valbyref_lit (langops_t *lops, tnode_t *node)*/
 /*
  *	returns non-zero if VALs of this literal are handled as references (LITARRAY)
  */
-static int occampi_valbyref_lit (tnode_t *node)
+static int occampi_valbyref_lit (langops_t *lops, tnode_t *node)
 {
 	if (node->tag == opi.tag_LITARRAY) {
 		return 1;

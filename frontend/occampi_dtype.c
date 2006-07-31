@@ -235,11 +235,11 @@ fprintf (stderr, "occampi_prewalk_bytesfor_typedecl(): incrementing tdh->wssize\
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_bytesfor_typedecl (tnode_t *node, target_t *target)*/
+/*{{{  static int occampi_bytesfor_typedecl (langops_t *lops, tnode_t *node, target_t *target)*/
 /*
  *	returns the number of bytes required by a type declaration (DATA TYPE ...)
  */
-static int occampi_bytesfor_typedecl (tnode_t *node, target_t *target)
+static int occampi_bytesfor_typedecl (langops_t *lops, tnode_t *node, target_t *target)
 {
 	typedeclhook_t *tdh = (typedeclhook_t *)tnode_nthhookof (node, 0);
 	tnode_t *type = tnode_nthsubof (node, 1);
@@ -441,12 +441,12 @@ static int occampi_namemap_typedecl (compops_t *cops, tnode_t **node, map_t *mda
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_usagecheck_typedecl (tnode_t *node, uchk_state_t *ucstate)*/
+/*{{{  static int occampi_usagecheck_typedecl (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)*/
 /*
  *	does usage-checking for a type declaration (dummy, because we don't want to check inside..)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_usagecheck_typedecl (tnode_t *node, uchk_state_t *ucstate)
+static int occampi_usagecheck_typedecl (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)
 {
 	usagecheck_subtree (tnode_nthsubof (node, 2), ucstate);
 	return 0;
@@ -454,14 +454,14 @@ static int occampi_usagecheck_typedecl (tnode_t *node, uchk_state_t *ucstate)
 /*}}}*/
 
 
-/*{{{  static tnode_t *occampi_typeactual_arraynode (tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
+/*{{{  static tnode_t *occampi_typeactual_arraynode (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-compatibility checking for an ARRAY type
  *	if the formal type is open, actual type can be open or finite
  *	if the formal type is finite, actual type must be finite too (same dimension)
  *	returns the type actually used
  */
-static tnode_t *occampi_typeactual_arraynode (tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
+static tnode_t *occampi_typeactual_arraynode (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *fdim = tnode_nthsubof (formaltype, 0);
 	tnode_t *adim = tnode_nthsubof (actualtype, 0);
@@ -500,12 +500,12 @@ static tnode_t *occampi_typeactual_arraynode (tnode_t *formaltype, tnode_t *actu
 	return actualtype;
 }
 /*}}}*/
-/*{{{  static int occampi_bytesfor_arraynode (tnode_t *node, target_t *target)*/
+/*{{{  static int occampi_bytesfor_arraynode (langops_t *lops, tnode_t *node, target_t *target)*/
 /*
  *	returns the number of bytes required by an array-node,
  *	of -1 if not known
  */
-static int occampi_bytesfor_arraynode (tnode_t *node, target_t *target)
+static int occampi_bytesfor_arraynode (langops_t *lops, tnode_t *node, target_t *target)
 {
 	tnode_t *dim = tnode_nthsubof (node, 0);
 	tnode_t *subtype = tnode_nthsubof (node, 1);
@@ -522,12 +522,12 @@ static int occampi_bytesfor_arraynode (tnode_t *node, target_t *target)
 	return stbytes;
 }
 /*}}}*/
-/*{{{  static int occampi_getdescriptor_arraynode (tnode_t *node, char **str)*/
+/*{{{  static int occampi_getdescriptor_arraynode (langops_t *lops, tnode_t *node, char **str)*/
 /*
  *	gets the descriptor associated with an ARRAY node (usually producing the type)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_getdescriptor_arraynode (tnode_t *node, char **str)
+static int occampi_getdescriptor_arraynode (langops_t *lops, tnode_t *node, char **str)
 {
 	char *subtypestr = NULL;
 	char *dimstr = NULL;
@@ -582,11 +582,11 @@ tnode_dumptree (optype, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_gettype_arraymop (tnode_t *node, tnode_t *defaulttype)*/
+/*{{{  static tnode_t *occampi_gettype_arraymop (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
 /*
  *	gets type of an arraymopnode
  */
-static tnode_t *occampi_gettype_arraymop (tnode_t *node, tnode_t *defaulttype)
+static tnode_t *occampi_gettype_arraymop (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
 	tnode_t *mytype;
 
@@ -684,11 +684,11 @@ tnode_dumptree (op, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_iscomplex_arraymop (tnode_t *node, int deep)*/
+/*{{{  static int occampi_iscomplex_arraymop (langops_t *lops, tnode_t *node, int deep)*/
 /*
  *	returns non-zero if the monadic array operator is complex
  */
-static int occampi_iscomplex_arraymop (tnode_t *node, int deep)
+static int occampi_iscomplex_arraymop (langops_t *lops, tnode_t *node, int deep)
 {
 	int i = 0;
 
@@ -772,11 +772,11 @@ fprintf (stderr, "occampi_fielddecl_prewalk_scopefields(): adding name [%s]\n", 
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_bytesfor_fielddecl (tnode_t *node, target_t *target)*/
+/*{{{  static int occampi_bytesfor_fielddecl (langops_t *lops, tnode_t *node, target_t *target)*/
 /*
  *	returns the number of bytes required by a FIELDDECL
  */
-static int occampi_bytesfor_fielddecl (tnode_t *node, target_t *target)
+static int occampi_bytesfor_fielddecl (langops_t *lops, tnode_t *node, target_t *target)
 {
 	tnode_t *type = tnode_nthsubof (node, 1);
 	int bytes = tnode_bytesfor (type, target);
@@ -874,11 +874,11 @@ static int occampi_typecheck_subscript (compops_t *cops, tnode_t *node, typechec
 	return 1;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_gettype_subscript (tnode_t *node, tnode_t *defaulttype)*/
+/*{{{  static tnode_t *occampi_gettype_subscript (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
 /*
  *	called to get the type of a subscript
  */
-static tnode_t *occampi_gettype_subscript (tnode_t *node, tnode_t *defaulttype)
+static tnode_t *occampi_gettype_subscript (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
 	if (node->tag == opi.tag_RECORDSUB) {
 		/* type is that of the field */

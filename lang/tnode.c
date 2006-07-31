@@ -1954,7 +1954,7 @@ fprintf (stderr, "tnode_bytesfor(): t = [%s]\n", t->tag->name);
 		t = tnode_nthsubof (t, 0);
 	}
 	if (t && t->tag->ndef->lops && t->tag->ndef->lops->bytesfor) {
-		return t->tag->ndef->lops->bytesfor (t, target);
+		return t->tag->ndef->lops->bytesfor (t->tag->ndef->lops, t, target);
 	}
 	return -1;		/* don't know */
 }
@@ -1967,7 +1967,7 @@ fprintf (stderr, "tnode_bytesfor(): t = [%s]\n", t->tag->name);
 int tnode_issigned (tnode_t *t, target_t *target)
 {
 	if (t && t->tag->ndef->lops && t->tag->ndef->lops->issigned) {
-		return t->tag->ndef->lops->issigned (t, target);
+		return t->tag->ndef->lops->issigned (t->tag->ndef->lops, t, target);
 	}
 	return -1;		/* don't know */
 }

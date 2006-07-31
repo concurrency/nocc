@@ -140,11 +140,11 @@ tnode_dumptree (rhstype, 1, stderr);
 	return 0;	/* don't walk sub-nodes */
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_gettype_action (tnode_t *node, tnode_t *default_type)*/
+/*{{{  static tnode_t *occampi_gettype_action (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
  *	called to get the type of an action -- just returns the held type
  */
-static tnode_t *occampi_gettype_action (tnode_t *node, tnode_t *default_type)
+static tnode_t *occampi_gettype_action (langops_t *lops, tnode_t *node, tnode_t *default_type)
 {
 	return tnode_nthsubof (node, 2);
 }
@@ -352,7 +352,7 @@ static int occampi_codegen_action (compops_t *cops, tnode_t *node, codegen_t *cg
 	if (type && type->tag->ndef->lops && type->tag->ndef->lops->codegen_typeaction) {
 		int i;
 
-		i = type->tag->ndef->lops->codegen_typeaction (type, node, cgen);
+		i = type->tag->ndef->lops->codegen_typeaction (type->tag->ndef->lops, type, node, cgen);
 		if (i >= 0) {
 			/* did something */
 			return i;

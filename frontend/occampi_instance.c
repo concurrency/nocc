@@ -407,11 +407,11 @@ tnode_dumptree (param, 1, stderr);
 /*}}}*/
 
 
-/*{{{  static tnode_t *occampi_gettype_builtinproc (tnode_t *node, tnode_t *defaulttype)*/
+/*{{{  static tnode_t *occampi_gettype_builtinproc (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
 /*
  *	returns the type of a built-in PROC
  */
-static tnode_t *occampi_gettype_builtinproc (tnode_t *node, tnode_t *defaulttype)
+static tnode_t *occampi_gettype_builtinproc (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
 	builtinprochook_t *bph;
 	builtinproc_t *builtin;

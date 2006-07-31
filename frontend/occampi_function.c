@@ -384,11 +384,11 @@ tnode_dumptree (atype, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_gettype_finstance (tnode_t *node, tnode_t *defaulttype)*/
+/*{{{  static tnode_t *occampi_gettype_finstance (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
 /*
  *	returns the type of a FUNCTION instance (= return-type from FUNCTIONTYPE)
  */
-static tnode_t *occampi_gettype_finstance (tnode_t *node, tnode_t *defaulttype)
+static tnode_t *occampi_gettype_finstance (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
 	tnode_t *fname = tnode_nthsubof (node, 0);
 
@@ -686,11 +686,11 @@ static int occampi_codegen_finstance (compops_t *cops, tnode_t *node, codegen_t 
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_iscomplex_finstance (tnode_t *node, int deep)*/
+/*{{{  static int occampi_iscomplex_finstance (langops_t *lops, tnode_t *node, int deep)*/
 /*
  *	returns non-zero if this function instance is complex
  */
-static int occampi_iscomplex_finstance (tnode_t *node, int deep)
+static int occampi_iscomplex_finstance (langops_t *lops, tnode_t *node, int deep)
 {
 	return 1;		/* FIXME: for now */
 }
@@ -781,11 +781,11 @@ static int occampi_scopeout_funcdecl (compops_t *cops, tnode_t **node, scope_t *
 	return 1;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_gettype_funcdecl (tnode_t *node, tnode_t *defaulttype)*/
+/*{{{  static tnode_t *occampi_gettype_funcdecl (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
 /*
  *	returns the type of a FUNCTION definition (= FUNCTIONTYPE(return-type, parameter-list))
  */
-static tnode_t *occampi_gettype_funcdecl (tnode_t *node, tnode_t *defaulttype)
+static tnode_t *occampi_gettype_funcdecl (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
 	return tnode_nthsubof (node, 1);
 }
@@ -946,12 +946,12 @@ fprintf (stderr, "occampi_precheck_funcdecl(): returning 0\n");
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_usagecheck_funcdecl (tnode_t *node, uchk_state_t *ucstate)*/
+/*{{{  static int occampi_usagecheck_funcdecl (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)*/
 /*
  *	does usage-checking on a FUNCTION declaration
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_usagecheck_funcdecl (tnode_t *node, uchk_state_t *ucstate)
+static int occampi_usagecheck_funcdecl (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)
 {
 	usagecheck_begin_branches (node, ucstate);
 	usagecheck_newbranch (ucstate);
@@ -1053,12 +1053,12 @@ fprintf (stderr, "occampi_codegen_funcdecl!\n");
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_getdescriptor_funcdecl (tnode_t *node, char **str)*/
+/*{{{  static int occampi_getdescriptor_funcdecl (langops_t *lops, tnode_t *node, char **str)*/
 /*
  *	generates a descriptor line for a FUNCTION definition
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_getdescriptor_funcdecl (tnode_t *node, char **str)
+static int occampi_getdescriptor_funcdecl (langops_t *lops, tnode_t *node, char **str)
 {
 	tnode_t *name = tnode_nthsubof (node, 0);
 	char *realname;
@@ -1171,11 +1171,11 @@ fprintf (stderr, "occampi_reduce_builtinproc(): ..\n");
 /*}}}*/
 
 
-/*{{{  static tnode_t *occampi_gettype_builtinfunction (tnode_t *node, tnode_t *defaulttype)*/
+/*{{{  static tnode_t *occampi_gettype_builtinfunction (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
 /*
  *	returns the type of a built-in FUNCTION
  */
-static tnode_t *occampi_gettype_builtinfunction (tnode_t *node, tnode_t *defaulttype)
+static tnode_t *occampi_gettype_builtinfunction (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
 	builtinfunctionhook_t *bfh;
 	builtinfunction_t *builtin;
