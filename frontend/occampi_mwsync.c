@@ -67,6 +67,10 @@ static tnode_t *occampi_mwsync_leaftype_gettype (langops_t *lops, tnode_t *t, tn
 	if (t->tag == opi.tag_BARRIER) {
 		return t;
 	}
+	if (lops->next && lops->next->gettype) {
+		return lops->next->gettype (lops->next, t, defaulttype);
+	}
+	nocc_error ("occampi_mwsync_leaftype_gettype(): no next function!");
 	return defaulttype;
 }
 /*}}}*/
@@ -79,6 +83,10 @@ static int occampi_mwsync_leaftype_bytesfor (langops_t *lops, tnode_t *t, target
 	if (t->tag == opi.tag_BARRIER) {
 		return target->intsize * 5;
 	}
+	if (lops->next && lops->next->bytesfor) {
+		return lops->next->bytesfor (lops->next, t, target);
+	}
+	nocc_error ("occampi_mwsync_leaftype_bytesfor(): no next function!");
 	return -1;
 }
 /*}}}*/
@@ -91,7 +99,10 @@ static int occampi_mwsync_leaftype_issigned (langops_t *lops, tnode_t *t, target
 	if (t->tag == opi.tag_BARRIER) {
 		return 0;
 	}
-	/* FIXME! */
+	if (lops->next && lops->next->issigned) {
+		return lops->next->issigned (lops->next, t, target);
+	}
+	nocc_error ("occampi_mwsync_leaftype_issigned(): no next function!");
 	return 0;
 }
 /*}}}*/
@@ -104,20 +115,25 @@ static int occampi_mwsync_leaftype_getdescriptor (langops_t *lops, tnode_t *node
 {
 	char *sptr;
 
-	if (*str) {
-		char *newstr = (char *)smalloc (strlen (*str) + 16);
-
-		sptr = newstr;
-		sptr += sprintf (newstr, "%s", *str);
-		sfree (*str);
-		*str = newstr;
-	} else {
-		*str = (char *)smalloc (16);
-		sptr = *str;
-	}
 	if (node->tag == opi.tag_BARRIER) {
+		if (*str) {
+			char *newstr = (char *)smalloc (strlen (*str) + 16);
+
+			sptr = newstr;
+			sptr += sprintf (newstr, "%s", *str);
+			sfree (*str);
+			*str = newstr;
+		} else {
+			*str = (char *)smalloc (16);
+			sptr = *str;
+		}
 		sprintf (sptr, "BARRIER");
+		return 0;
 	}
+	if (lops->next && lops->next->getdescriptor) {
+		lops->next->getdescriptor (lops->next, node, str);
+	}
+	nocc_error ("occampi_mwsync_leaftype_getdescriptor(): no next function!");
 
 	return 0;
 }
