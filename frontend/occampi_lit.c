@@ -240,12 +240,12 @@ static int occampi_bytesfor_lit (tnode_t *node, target_t *target)
 	return tmplit->bytes;
 }
 /*}}}*/
-/*{{{  static int occampi_constprop_lit (tnode_t **nodep)*/
+/*{{{  static int occampi_constprop_lit (compops_t *cops, tnode_t **nodep)*/
 /*
  *	does constant propagation on a literal node (post walk)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_constprop_lit (tnode_t **nodep)
+static int occampi_constprop_lit (compops_t *cops, tnode_t **nodep)
 {
 	occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof ((*nodep), 0);
 
@@ -258,12 +258,12 @@ static int occampi_constprop_lit (tnode_t **nodep)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_namemap_lit (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_namemap_lit (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	name-maps a literal
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_namemap_lit (tnode_t **node, map_t *map)
+static int occampi_namemap_lit (compops_t *cops, tnode_t **node, map_t *map)
 {
 	occampi_litdata_t *ldata = (occampi_litdata_t *)tnode_nthhookof (*node, 0);
 	tnode_t *cnst;
@@ -423,8 +423,8 @@ static int occampi_lit_init_nodes (void)
 	tnd->hook_copy = occampi_litnode_hook_copy;
 	tnd->hook_dumptree = occampi_litnode_hook_dumptree;
 	cops = tnode_newcompops ();
-	cops->constprop = occampi_constprop_lit;
-	cops->namemap = occampi_namemap_lit;
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_lit));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_lit));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->gettype = occampi_gettype_lit;

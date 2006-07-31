@@ -149,12 +149,12 @@ static tnode_t *occampi_gettype_dop (tnode_t *node, tnode_t *defaulttype)
 	return tnode_nthsubof (node, 2);
 }
 /*}}}*/
-/*{{{  static int occampi_constprop_dop (tnode_t **tptr)*/
+/*{{{  static int occampi_constprop_dop (compops_t *cops, tnode_t **tptr)*/
 /*
  *	does constant propagation for a DOPNODE
  *	returns 0 to stop walk, 1 to continue (post-walk)
  */
-static int occampi_constprop_dop (tnode_t **tptr)
+static int occampi_constprop_dop (compops_t *cops, tnode_t **tptr)
 {
 	tnode_t *left, *right;
 
@@ -273,12 +273,12 @@ static int occampi_constprop_dop (tnode_t **tptr)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_premap_dop (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_premap_dop (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	maps out a DOPNODE, turning into a back-end RESULT
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_premap_dop (tnode_t **node, map_t *map)
+static int occampi_premap_dop (compops_t *cops, tnode_t **node, map_t *map)
 {
 	/* pre-map left and right */
 	map_subpremap (tnode_nthsubaddr (*node, 0), map);
@@ -289,12 +289,12 @@ static int occampi_premap_dop (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_namemap_dop (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_namemap_dop (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	name-maps a DOPNODE, adding child nodes to any enclosing result
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_namemap_dop (tnode_t **node, map_t *map)
+static int occampi_namemap_dop (compops_t *cops, tnode_t **node, map_t *map)
 {
 	/* name-map left and right */
 	map_submapnames (tnode_nthsubaddr (*node, 0), map);
@@ -307,12 +307,12 @@ static int occampi_namemap_dop (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_codegen_dop (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int occampi_codegen_dop (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	called to do code-generation for a DOPNODE -- operands are already on the stack
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_codegen_dop (tnode_t *node, codegen_t *cgen)
+static int occampi_codegen_dop (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	int i;
 
@@ -371,12 +371,12 @@ static tnode_t *occampi_gettype_rel (tnode_t *node, tnode_t *defaulttype)
 	return tnode_nthsubof (node, 2);
 }
 /*}}}*/
-/*{{{  static int occampi_premap_rel (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_premap_rel (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	maps out a DOPNODE, turning into a back-end RESULT
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_premap_rel (tnode_t **node, map_t *map)
+static int occampi_premap_rel (compops_t *cops, tnode_t **node, map_t *map)
 {
 	/* pre-map left and right */
 	map_subpremap (tnode_nthsubaddr (*node, 0), map);
@@ -387,12 +387,12 @@ static int occampi_premap_rel (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_namemap_rel (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_namemap_rel (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	name-maps a DOPNODE, adding child nodes to any enclosing result
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_namemap_rel (tnode_t **node, map_t *map)
+static int occampi_namemap_rel (compops_t *cops, tnode_t **node, map_t *map)
 {
 	/* name-map left and right */
 	map_submapnames (tnode_nthsubaddr (*node, 0), map);
@@ -405,12 +405,12 @@ static int occampi_namemap_rel (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_codegen_rel (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int occampi_codegen_rel (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	called to do code-generation for a RELNODE -- operands are already on the stack
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_codegen_rel (tnode_t *node, codegen_t *cgen)
+static int occampi_codegen_rel (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	int i;
 
@@ -514,12 +514,12 @@ static tnode_t *occampi_gettype_mop (tnode_t *node, tnode_t *defaulttype)
 	return optype;
 }
 /*}}}*/
-/*{{{  static int occampi_premap_mop (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_premap_mop (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does pre-mapping for a MOPNODE -- inserts back-end RESULT nodes
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_premap_mop (tnode_t **node, map_t *map)
+static int occampi_premap_mop (compops_t *cops, tnode_t **node, map_t *map)
 {
 	/* pre-map operand */
 	map_subpremap (tnode_nthsubaddr (*node, 0), map);
@@ -529,12 +529,12 @@ static int occampi_premap_mop (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_namemap_mop (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_namemap_mop (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a MOPNODE
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_namemap_mop (tnode_t **node, map_t *map)
+static int occampi_namemap_mop (compops_t *cops, tnode_t **node, map_t *map)
 {
 	/* name-map operand */
 	map_submapnames (tnode_nthsubaddr (*node, 0), map);
@@ -545,12 +545,12 @@ static int occampi_namemap_mop (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_codegen_mop (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int occampi_codegen_mop (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	called to do code-generation for a MOPNODE -- operand already on the stack
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_codegen_mop (tnode_t *node, codegen_t *cgen)
+static int occampi_codegen_mop (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	int i;
 
@@ -720,10 +720,10 @@ static int occampi_oper_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:dopnode", &i, 3, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
-	cops->constprop = occampi_constprop_dop;
-	cops->premap = occampi_premap_dop;
-	cops->namemap = occampi_namemap_dop;
-	cops->codegen = occampi_codegen_dop;
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_dop));
+	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_dop));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_dop));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_dop));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->gettype = occampi_gettype_dop;
@@ -751,9 +751,9 @@ static int occampi_oper_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:relnode", &i, 3, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
-	cops->premap = occampi_premap_rel;
-	cops->namemap = occampi_namemap_rel;
-	cops->codegen = occampi_codegen_rel;
+	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_rel));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_rel));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_rel));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->gettype = occampi_gettype_rel;
@@ -777,9 +777,9 @@ static int occampi_oper_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:mopnode", &i, 2, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
-	cops->premap = occampi_premap_mop;
-	cops->namemap = occampi_namemap_mop;
-	cops->codegen = occampi_codegen_mop;
+	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_mop));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_mop));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_mop));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->gettype = occampi_gettype_mop;

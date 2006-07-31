@@ -146,12 +146,12 @@ static void *occampi_fielddecloffset_chook_create (int offset)
 /*}}}*/
 
 
-/*{{{  static int occampi_scopein_typedecl (tnode_t **node, scope_t *ss)*/
+/*{{{  static int occampi_scopein_typedecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope a type declaration (DATA TYPE ...)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_scopein_typedecl (tnode_t **node, scope_t *ss)
+static int occampi_scopein_typedecl (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	tnode_t *name = tnode_nthsubof (*node, 0);
 	tnode_t *type;
@@ -278,12 +278,12 @@ tnode_dumptree (type, 1, stderr);
 	return tdh->wssize;
 }
 /*}}}*/
-/*{{{  static int occampi_typecheck_typedecl (tnode_t *node, typecheck_t *tc)*/
+/*{{{  static int occampi_typecheck_typedecl (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking for type declarations
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_typecheck_typedecl (tnode_t *node, typecheck_t *tc)
+static int occampi_typecheck_typedecl (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t **typep = tnode_nthsubaddr (node, 1);
 
@@ -391,12 +391,12 @@ static int occampi_typecheck_typedecl (tnode_t *node, typecheck_t *tc)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_namemap_typedecl (tnode_t **node, map_t *mdata)*/
+/*{{{  static int occampi_namemap_typedecl (compops_t *cops, tnode_t **node, map_t *mdata)*/
 /*
  *	does name mapping for a type declaration (allocates offsets in structured types)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_namemap_typedecl (tnode_t **node, map_t *mdata)
+static int occampi_namemap_typedecl (compops_t *cops, tnode_t **node, map_t *mdata)
 {
 	tnode_t *type = tnode_nthsubof (*node, 1);
 	tnode_t **bodyp = tnode_nthsubaddr (*node, 2);
@@ -557,12 +557,12 @@ static int occampi_getdescriptor_arraynode (tnode_t *node, char **str)
 /*}}}*/
 
 
-/*{{{  static int occampi_typecheck_arraymop (tnode_t *node, typecheck_t *tc)*/
+/*{{{  static int occampi_typecheck_arraymop (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking in an arraymopnode (that the argument is an array usually)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_typecheck_arraymop (tnode_t *node, typecheck_t *tc)
+static int occampi_typecheck_arraymop (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *optype;
 
@@ -599,12 +599,12 @@ static tnode_t *occampi_gettype_arraymop (tnode_t *node, tnode_t *defaulttype)
 	return mytype;
 }
 /*}}}*/
-/*{{{  static int occampi_constprop_arraymop (tnode_t **nodep)*/
+/*{{{  static int occampi_constprop_arraymop (compops_t *cops, tnode_t **nodep)*/
 /*
  *	does constant propagation on an arraymopnode
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_constprop_arraymop (tnode_t **nodep)
+static int occampi_constprop_arraymop (compops_t *cops, tnode_t **nodep)
 {
 	tnode_t *op = tnode_nthsubof (*nodep, 0);
 	tnode_t *rtype = tnode_nthsubof (*nodep, 1);
@@ -632,12 +632,12 @@ fprintf (stderr, "occampi_constprop_arraymop(): constant dimension! = %d\n", dim
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_premap_arraymop (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_premap_arraymop (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does pre-mapping for an arraymopnode
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_premap_arraymop (tnode_t **node, map_t *map)
+static int occampi_premap_arraymop (compops_t *cops, tnode_t **node, map_t *map)
 {
 	/* pre-map operand */
 	map_subpremap (tnode_nthsubaddr (*node, 0), map);
@@ -648,12 +648,12 @@ static int occampi_premap_arraymop (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_namemap_arraymop (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_namemap_arraymop (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for an arraymopnode
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_namemap_arraymop (tnode_t **node, map_t *map)
+static int occampi_namemap_arraymop (compops_t *cops, tnode_t **node, map_t *map)
 {
 	/* name-map operand */
 	map_submapnames (tnode_nthsubaddr (*node, 0), map);
@@ -664,12 +664,12 @@ static int occampi_namemap_arraymop (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_codegen_arraymop (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int occampi_codegen_arraymop (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	called to do code-generation for an arraymopnode
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_codegen_arraymop (tnode_t *node, codegen_t *cgen)
+static int occampi_codegen_arraymop (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	int i;
 	tnode_t *op = tnode_nthsubof (node, 0);
@@ -701,12 +701,12 @@ static int occampi_iscomplex_arraymop (tnode_t *node, int deep)
 /*}}}*/
 
 
-/*{{{  static int occampi_scopein_fielddecl (tnode_t **node, scope_t *ss)*/
+/*{{{  static int occampi_scopein_fielddecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope in a field declaration (inside a DATA TYPE)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_scopein_fielddecl (tnode_t **node, scope_t *ss)
+static int occampi_scopein_fielddecl (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	tnode_t *name = tnode_nthsubof (*node, 0);
 	tnode_t *type;
@@ -790,12 +790,12 @@ tnode_dumptree (type, 1, stderr);
 /*}}}*/
 
 
-/*{{{  static int occampi_scopein_subscript (tnode_t **node, scope_t *ss)*/
+/*{{{  static int occampi_scopein_subscript (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope a subscript node -- turns into an ARRAYSUB or RECORDSUB as appropriate
  *	return 0 to stop walk, 1 to continue
  */
-static int occampi_scopein_subscript (tnode_t **node, scope_t *ss)
+static int occampi_scopein_subscript (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	tnode_t *base;
 	tnode_t *oldnode = *node;
@@ -849,12 +849,12 @@ tnode_dumptree (*node, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_typecheck_subscript (tnode_t *node, typecheck_t *tc)*/
+/*{{{  static int occampi_typecheck_subscript (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking on a subscript (makes sure ARRAYSUB base is integer)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_typecheck_subscript (tnode_t *node, typecheck_t *tc)
+static int occampi_typecheck_subscript (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	if (node->tag == opi.tag_ARRAYSUB) {
 		tnode_t *base = tnode_nthsubof (node, 0);
@@ -916,12 +916,12 @@ tnode_dumptree (fldtype, 1, stderr);
 	return defaulttype;
 }
 /*}}}*/
-/*{{{  static int occampi_namemap_subscript (tnode_t **node, map_t *mdata)*/
+/*{{{  static int occampi_namemap_subscript (compops_t *cops, tnode_t **node, map_t *mdata)*/
 /*
  *	name-maps a subscript-node, turning it into a back-end INDEXED node
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_namemap_subscript (tnode_t **node, map_t *mdata)
+static int occampi_namemap_subscript (compops_t *cops, tnode_t **node, map_t *mdata)
 {
 	if ((*node)->tag == opi.tag_RECORDSUB) {
 		fielddecloffset_t *fdh;
@@ -989,9 +989,9 @@ static int occampi_dtype_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:typedecl", &i, 3, 0, 1, TNF_SHORTDECL);		/* subnodes: 0 = name; 1 = type; 2 = body */
 	tnd->hook_dumptree = occampi_typedecl_hook_dumptree;
 	cops = tnode_newcompops ();
-	cops->scopein = occampi_scopein_typedecl;
-	cops->typecheck = occampi_typecheck_typedecl;
-	cops->namemap = occampi_namemap_typedecl;
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_typedecl));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_typedecl));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_typedecl));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->bytesfor = occampi_bytesfor_typedecl;
@@ -1023,11 +1023,11 @@ static int occampi_dtype_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:arraymopnode", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = operand, 1 = type */
 	cops = tnode_newcompops ();
-	cops->typecheck = occampi_typecheck_arraymop;
-	cops->constprop = occampi_constprop_arraymop;
-	cops->premap = occampi_premap_arraymop;
-	cops->namemap = occampi_namemap_arraymop;
-	cops->codegen = occampi_codegen_arraymop;
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_arraymop));
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_arraymop));
+	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_arraymop));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_arraymop));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_arraymop));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->gettype = occampi_gettype_arraymop;
@@ -1041,7 +1041,7 @@ static int occampi_dtype_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:fielddecl", &i, 2, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
-	cops->scopein = occampi_scopein_fielddecl;
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_fielddecl));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->bytesfor = occampi_bytesfor_fielddecl;
@@ -1054,9 +1054,9 @@ static int occampi_dtype_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:subscript", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = base; 1 = field/index; 2 = subscript-type */
 	cops = tnode_newcompops ();
-	cops->scopein = occampi_scopein_subscript;
-	cops->typecheck = occampi_typecheck_subscript;
-	cops->namemap = occampi_namemap_subscript;
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_subscript));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_subscript));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_subscript));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->gettype = occampi_gettype_subscript;

@@ -178,12 +178,12 @@ static void builtinproc_fixupmem (builtinproc_t *bpi, target_t *target)
 /*}}}*/
 
 
-/*{{{  static int occampi_typecheck_instance (tnode_t *node, typecheck_t *tc)*/
+/*{{{  static int occampi_typecheck_instance (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking for an instance-node
  *	returns 1 to continue walk, 0 to stop
  */
-static int occampi_typecheck_instance (tnode_t *node, typecheck_t *tc)
+static int occampi_typecheck_instance (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *fparamlist = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
 	tnode_t *aparamlist = tnode_nthsubof (node, 1);
@@ -259,12 +259,12 @@ tnode_dumptree (atype, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_namemap_instance (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_namemap_instance (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for an instance-node
  *	returns 1 to continue walk, 0 to stop
  */
-static int occampi_namemap_instance (tnode_t **node, map_t *map)
+static int occampi_namemap_instance (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t *bename, *instance, *ibody, *namenode;
 	name_t *name;
@@ -312,12 +312,12 @@ tnode_dumptree (bename, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_codegen_instance (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int occampi_codegen_instance (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	generates code for an instance
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_codegen_instance (tnode_t *node, codegen_t *cgen)
+static int occampi_codegen_instance (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	name_t *name;
 	tnode_t *namenode;
@@ -528,9 +528,9 @@ static int occampi_instance_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:instancenode", &i, 2, 0, 1, TNF_NONE);		/* subnodes: names; params */
 	cops = tnode_newcompops ();
-	cops->typecheck = occampi_typecheck_instance;
-	cops->namemap = occampi_namemap_instance;
-	cops->codegen = occampi_codegen_instance;
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_instance));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_instance));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_instance));
 	tnd->ops = cops;
 
 	i = -1;

@@ -56,12 +56,12 @@
 /*}}}*/
 
 
-/*{{{  static int occampi_codegen_snode (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for structured process nodes
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_codegen_snode (tnode_t *node, codegen_t *cgen)
+static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	if (node->tag == opi.tag_IF) {
 		tnode_t *body = tnode_nthsubof (node, 1);
@@ -110,7 +110,7 @@ static int occampi_snode_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:snode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr; 1 = body */
 	cops = tnode_newcompops ();
-	cops->codegen = occampi_codegen_snode;
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_snode));
 	tnd->ops = cops;
 
 	i = -1;

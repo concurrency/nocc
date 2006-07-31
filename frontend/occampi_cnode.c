@@ -148,12 +148,12 @@ nocc_message ("occampi_cnode_dousagecheck(): there are %d PAR bodies", nbodies);
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_namemap_cnode (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_namemap_cnode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name mapping for constructor nodes (SEQ, PAR)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_namemap_cnode (tnode_t **node, map_t *map)
+static int occampi_namemap_cnode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	if ((*node)->tag == opi.tag_SEQ) {
 		/* SEQ nodes don't need any special processing */
@@ -224,12 +224,12 @@ static int occampi_namemap_cnode (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_codegen_cnode (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int occampi_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for certain conditional-nodes
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_codegen_cnode (tnode_t *node, codegen_t *cgen)
+static int occampi_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	if (node->tag == opi.tag_SEQ) {
 		/* SEQ nodes don't need any special processing */
@@ -340,12 +340,12 @@ static int occampi_replcnode_dousagecheck (tnode_t *node, uchk_state_t *ucstate)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_scopein_replcnode (tnode_t **node, scope_t *ss)*/
+/*{{{  static int occampi_scopein_replcnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes in a replicated constructor node
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_scopein_replcnode (tnode_t **node, scope_t *ss)
+static int occampi_scopein_replcnode (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	tnode_t *replname = tnode_nthsubof (*node, 2);
 	tnode_t *type = tnode_create (opi.tag_INT, NULL);
@@ -381,12 +381,12 @@ static int occampi_scopein_replcnode (tnode_t **node, scope_t *ss)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_scopeout_replcnode (tnode_t **node, scope_t *ss)*/
+/*{{{  static int occampi_scopeout_replcnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes out a replicated constructor node
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_scopeout_replcnode (tnode_t **node, scope_t *ss)
+static int occampi_scopeout_replcnode (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	tnode_t *replname = tnode_nthsubof (*node, 2);
 	name_t *sname;
@@ -402,12 +402,12 @@ static int occampi_scopeout_replcnode (tnode_t **node, scope_t *ss)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_typecheck_replcnode (tnode_t *node, typecheck_t *tc)*/
+/*{{{  static int occampi_typecheck_replcnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking on a replicated constructor node (REPLSEQ, REPLPAR)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_typecheck_replcnode (tnode_t *node, typecheck_t *tc)
+static int occampi_typecheck_replcnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *start = tnode_nthsubof (node, 3);
 	tnode_t *length = tnode_nthsubof (node, 4);
@@ -433,12 +433,12 @@ static int occampi_typecheck_replcnode (tnode_t *node, typecheck_t *tc)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_constprop_replcnode (tnode_t **tptr)*/
+/*{{{  static int occampi_constprop_replcnode (compops_t *cops, tnode_t **tptr)*/
 /*
  *	does constant propagation for a replicated constructor node (REPLSEQ, REPLPAR)
  *	returns 0 to stop walk, 1 to continue (post walk)
  */
-static int occampi_constprop_replcnode (tnode_t **tptr)
+static int occampi_constprop_replcnode (compops_t *cops, tnode_t **tptr)
 {
 	tnode_t **startp = tnode_nthsubaddr (*tptr, 3);
 	tnode_t **lengthp = tnode_nthsubaddr (*tptr, 4);
@@ -453,12 +453,12 @@ static int occampi_constprop_replcnode (tnode_t **tptr)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_namemap_replcnode (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_namemap_replcnode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for replicated constructor nodes (REPLSEQ, REPLPAR)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_namemap_replcnode (tnode_t **node, map_t *map)
+static int occampi_namemap_replcnode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t *orgnode = *node;
 	tnode_t **namep = tnode_nthsubaddr (*node, 2);
@@ -516,12 +516,12 @@ static int occampi_namemap_replcnode (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_codegen_replcnode (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int occampi_codegen_replcnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for replicated constructor nodes (REPLSEQ, REPLPAR)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_codegen_replcnode (tnode_t *node, codegen_t *cgen)
+static int occampi_codegen_replcnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	tnode_t *replname = tnode_nthsubof (node, 2);
 	tnode_t *start = tnode_nthsubof (node, 3);
@@ -557,12 +557,12 @@ static int occampi_codegen_replcnode (tnode_t *node, codegen_t *cgen)
 /*}}}*/
 
 
-/*{{{  static int occampi_typecheck_cexpnode (tnode_t *node, typecheck_t *tc)*/
+/*{{{  static int occampi_typecheck_cexpnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking for a cexpnode
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_typecheck_cexpnode (tnode_t *node, typecheck_t *tc)
+static int occampi_typecheck_cexpnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *littype;
 
@@ -576,12 +576,12 @@ static int occampi_typecheck_cexpnode (tnode_t *node, typecheck_t *tc)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_namemap_cexpnode (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_namemap_cexpnode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a cexpnode
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_namemap_cexpnode (tnode_t **node, map_t *map)
+static int occampi_namemap_cexpnode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	if ((*node)->tag == opi.tag_SHORTIF) {
 		/* no special processing for short IFs */
@@ -593,12 +593,12 @@ static int occampi_namemap_cexpnode (tnode_t **node, map_t *map)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_codegen_cexpnode (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int occampi_codegen_cexpnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-gen for a cexpnode
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_codegen_cexpnode (tnode_t *node, codegen_t *cgen)
+static int occampi_codegen_cexpnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	if (node->tag == opi.tag_SHORTIF) {
 		/*{{{  generate code for a short IF*/
@@ -648,8 +648,8 @@ static int occampi_cnode_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:cnode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr/operand/parspaceref; 1 = body */
 	cops = tnode_newcompops ();
-	cops->namemap = occampi_namemap_cnode;
-	cops->codegen = occampi_codegen_cnode;
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_cnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_cnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->do_usagecheck = occampi_cnode_dousagecheck;
@@ -665,12 +665,12 @@ static int occampi_cnode_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:replcnode", &i, 5, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr/operand/parspaceref; 1 = body; 2 = name; 3 = start; 4 = length */
 	cops = tnode_newcompops ();
-	cops->scopein = occampi_scopein_replcnode;
-	cops->scopeout = occampi_scopeout_replcnode;
-	cops->typecheck = occampi_typecheck_replcnode;
-	cops->constprop = occampi_constprop_replcnode;
-	cops->namemap = occampi_namemap_replcnode;
-	cops->codegen = occampi_codegen_replcnode;
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_replcnode));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_replcnode));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_replcnode));
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_replcnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_replcnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_replcnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->do_usagecheck = occampi_replcnode_dousagecheck;
@@ -686,9 +686,9 @@ static int occampi_cnode_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:cexpnode", &i, 2, 0, 0, TNF_LONGPROC);	/* subnodes: 0 = expr; 1 = body */
 	cops = tnode_newcompops ();
-	cops->typecheck = occampi_typecheck_cexpnode;
-	cops->namemap = occampi_namemap_cexpnode;
-	cops->codegen = occampi_codegen_cexpnode;
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_cexpnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_cexpnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_cexpnode));
 	tnd->ops = cops;
 
 	i = -1;

@@ -358,6 +358,18 @@ void tnode_init (void)
 	/*{{{  default compiler operations*/
 	tnode_newcompop ("prescope", COPS_PRESCOPE, 2, NULL);
 	tnode_newcompop ("scopein", COPS_SCOPEIN, 2, NULL);
+	tnode_newcompop ("scopeout", COPS_SCOPEOUT, 2, NULL);
+	tnode_newcompop ("typecheck", COPS_TYPECHECK, 2, NULL);
+	tnode_newcompop ("constprop", COPS_CONSTPROP, 1, NULL);
+	tnode_newcompop ("precheck", COPS_PRECHECK, 1, NULL);
+	tnode_newcompop ("fetrans", COPS_FETRANS, 2, NULL);
+	tnode_newcompop ("betrans", COPS_BETRANS, 2, NULL);
+	tnode_newcompop ("premap", COPS_PREMAP, 2, NULL);
+	tnode_newcompop ("namemap", COPS_NAMEMAP, 2, NULL);
+	tnode_newcompop ("bemap", COPS_BEMAP, 2, NULL);
+	tnode_newcompop ("preallocate", COPS_PREALLOCATE, 2, NULL);
+	tnode_newcompop ("precode", COPS_PRECODE, 2, NULL);
+	tnode_newcompop ("codegen", COPS_CODEGEN, 2, NULL);
 
 	/*}}}*/
 	/*{{{  setup the static node types*/
@@ -1484,6 +1496,27 @@ int tnode_setcompop (compops_t *cops, char *name, int nparams, int (*fcn)(compop
 	DA_SETNTHITEM (cops->opfuncs, (int)cop->opno, (void *)fcn);
 
 	return -1;
+}
+/*}}}*/
+/*{{{  int tnode_hascompop (compops_t *cops, char *name)*/
+/*
+ *	returns non-zero if the specified compops_t structure has an entry for 'name'
+ */
+int tnode_hascompop (compops_t *cops, char *name)
+{
+	compop_t *cop = stringhash_lookup (compops, name);
+
+	if (!cop) {
+		nocc_internal ("tnode_setcompop(): no such compiler operation [%s]", name);
+		return -1;
+	}
+	if ((int)cop->opno >= DA_CUR (cops->opfuncs)) {
+		return 0;
+	}
+	if (DA_NTHITEM (cops->opfuncs, (int)cop->opno)) {
+		return 1;
+	}
+	return 0;
 }
 /*}}}*/
 /*{{{  int tnode_callcompop (compops_t *cops, char *name, int nparams, ...)*/

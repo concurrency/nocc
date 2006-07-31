@@ -128,12 +128,12 @@ static void occampi_typeattr_freechook (void *hook)
 /*}}}*/
 
 
-/*{{{  static int occampi_type_prescope (tnode_t **nodep, prescope_t *ps)*/
+/*{{{  static int occampi_type_prescope (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
 /*
  *	pre-scopes a type-node;  fixes ASINPUT/ASOUTPUT nodes
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_type_prescope (tnode_t **nodep, prescope_t *ps)
+static int occampi_type_prescope (compops_t *cops, tnode_t **nodep, prescope_t *ps)
 {
 	if (((*nodep)->tag == opi.tag_ASINPUT) || ((*nodep)->tag == opi.tag_ASOUTPUT)) {
 		tnode_t *losing = *nodep;
@@ -434,7 +434,7 @@ static int occampi_type_init_nodes (void)
 	i = -1;
 	tnd = opi.node_TYPENODE = tnode_newnodetype ("occampi:typenode", &i, 1, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
-	cops->prescope = occampi_type_prescope;
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_type_prescope));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->getdescriptor = occampi_type_getdescriptor;

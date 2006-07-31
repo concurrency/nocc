@@ -248,12 +248,18 @@ extern void tnode_dumptree (tnode_t *t, int indent, FILE *stream);
 extern void tnode_dumpstree (tnode_t *t, int indent, FILE *stream);
 extern void tnode_dumpnodetypes (FILE *stream);
 
-extern compops_t *tnode_newcompops (void);
-extern void tnode_freecompops (compops_t *cops);
 extern int tnode_setcompop (compops_t *cops, char *name, int nparams, int (*fcn)(compops_t *, ...));
+extern int tnode_hascompop (compops_t *cops, char *name);
 extern int tnode_callcompop (compops_t *cops, char *name, int nparams, ...);
+extern int tnode_hascompop_i (compops_t *cops, int idx);
+extern int tnode_callcompop_i (compops_t *cops, int idx, int nparams, ...);
 extern int tnode_newcompop (char *name, compops_e opno, int nparams, void *origin);
 extern compop_t *tnode_findcompop (char *name);
+
+#define COMPOPTYPE(X) ((int (*)(compops_t *, ...))(X))
+
+extern compops_t *tnode_newcompops (void);
+extern void tnode_freecompops (compops_t *cops);
 extern compops_t *tnode_insertcompops (compops_t *nextcops);
 extern compops_t *tnode_removecompops (compops_t *cops);
 

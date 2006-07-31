@@ -66,12 +66,12 @@
  *	e.g. assignment, input and output
  */
 
-/*{{{  static int occampi_typecheck_action (tnode_t *node, typecheck_t *tc)*/
+/*{{{  static int occampi_typecheck_action (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	called to type-check an action-node
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_typecheck_action (tnode_t *node, typecheck_t *tc)
+static int occampi_typecheck_action (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	/* FIXME: to handle multiple-assignment more transparently ? */
 	tnode_t *lhs = tnode_nthsubof (node, 0);
@@ -149,12 +149,12 @@ static tnode_t *occampi_gettype_action (tnode_t *node, tnode_t *default_type)
 	return tnode_nthsubof (node, 2);
 }
 /*}}}*/
-/*{{{  static int occampi_precheck_action (tnode_t *node)*/
+/*{{{  static int occampi_precheck_action (compops_t *cops, tnode_t *node)*/
 /*
  *	called to do pre-checks on an action-node
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_precheck_action (tnode_t *node)
+static int occampi_precheck_action (compops_t *cops, tnode_t *node)
 {
 	if (node->tag == opi.tag_INPUT) {
 		usagecheck_marknode (tnode_nthsubof (node, 0), USAGE_INPUT, 0);
@@ -170,12 +170,12 @@ static int occampi_precheck_action (tnode_t *node)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_fetrans_action (tnode_t **node, fetrans_t *fe)*/
+/*{{{  static int occampi_fetrans_action (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	called to do front-end transforms on action nodes
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_fetrans_action (tnode_t **node, fetrans_t *fe)
+static int occampi_fetrans_action (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	tnode_t *t = *node;
 	tnode_t **saved_insertpoint = fe->insertpoint;
@@ -200,12 +200,12 @@ static int occampi_fetrans_action (tnode_t **node, fetrans_t *fe)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_betrans_action (tnode_t **node, betrans_t *be)*/
+/*{{{  static int occampi_betrans_action (compops_t *cops, tnode_t **node, betrans_t *be)*/
 /*
  *	called to do back-end transforms on action nodes
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_betrans_action (tnode_t **node, betrans_t *be)
+static int occampi_betrans_action (compops_t *cops, tnode_t **node, betrans_t *be)
 {
 	tnode_t *t = *node;
 
@@ -300,12 +300,12 @@ if (x < nlhs) {
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_premap_action (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_premap_action (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does per-mapping for an action -- turns expression nodes into RESULT nodes
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_premap_action (tnode_t **node, map_t *map)
+static int occampi_premap_action (compops_t *cops, tnode_t **node, map_t *map)
 {
 	/* premap LHS and RHS */
 	map_subpremap (tnode_nthsubaddr (*node, 0), map);
@@ -314,12 +314,12 @@ static int occampi_premap_action (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_namemap_action (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_namemap_action (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	allocates space necessary for an action
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_namemap_action (tnode_t **node, map_t *map)
+static int occampi_namemap_action (compops_t *cops, tnode_t **node, map_t *map)
 {
 	/* do left/right sides first */
 	map_submapnames (tnode_nthsubaddr (*node, 0), map);
@@ -335,12 +335,12 @@ static int occampi_namemap_action (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_codegen_action (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int occampi_codegen_action (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	generates code for an action
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_codegen_action (tnode_t *node, codegen_t *cgen)
+static int occampi_codegen_action (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	tnode_t *lhs = tnode_nthsubof (node, 0);
 	tnode_t *rhs = tnode_nthsubof (node, 1);
@@ -419,13 +419,13 @@ static int occampi_action_init_nodes (void)
 	i = -1;
 	opi.node_ACTIONNODE = tnd = tnode_newnodetype ("occampi:actionnode", &i, 3, 0, 0, TNF_NONE);		/* subnodes: left, right, type */
 	cops = tnode_newcompops ();
-	cops->typecheck = occampi_typecheck_action;
-	cops->precheck = occampi_precheck_action;
-	cops->fetrans = occampi_fetrans_action;
-	cops->betrans = occampi_betrans_action;
-	cops->premap = occampi_premap_action;
-	cops->namemap = occampi_namemap_action;
-	cops->codegen = occampi_codegen_action;
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_action));
+	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (occampi_precheck_action));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_action));
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_action));
+	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_action));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_action));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_action));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->gettype = occampi_gettype_action;

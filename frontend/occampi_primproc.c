@@ -75,12 +75,12 @@ static void occampi_reduce_primproc (dfastate_t *dfast, parsepriv_t *pp, void *r
 /*}}}*/
 
 
-/*{{{  static int occampi_namemap_leafnode (tnode_t **nodep, map_t *mapdata)*/
+/*{{{  static int occampi_namemap_leafnode (compops_t *cops, tnode_t **nodep, map_t *mapdata)*/
 /*
  *	called to do name-mapping on a primitive process
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_namemap_leafnode (tnode_t **nodep, map_t *mapdata)
+static int occampi_namemap_leafnode (compops_t *cops, tnode_t **nodep, map_t *mapdata)
 {
 	if ((*nodep)->tag == opi.tag_STOP) {
 		tnode_t *bename;
@@ -91,12 +91,12 @@ static int occampi_namemap_leafnode (tnode_t **nodep, map_t *mapdata)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_codegen_leafnode (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int occampi_codegen_leafnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	called to do code-generation for a primitive process
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_codegen_leafnode (tnode_t *node, codegen_t *cgen)
+static int occampi_codegen_leafnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	if (node->tag == opi.tag_STOP) {
 		codegen_callops (cgen, debugline, node);
@@ -122,8 +122,8 @@ static int occampi_primproc_init_nodes (void)
 	i = -1;
 	tnd = opi.node_LEAFNODE = tnode_newnodetype ("occampi:leafnode", &i, 0, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
-	cops->namemap = occampi_namemap_leafnode;
-	cops->codegen = occampi_codegen_leafnode;
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_leafnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_leafnode));
 	tnd->ops = cops;
 
 
