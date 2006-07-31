@@ -211,12 +211,12 @@ static void occampi_bifunc_codegen_getpri (tnode_t *node, builtinfunction_t *bui
 /*}}}*/
 
 
-/*{{{  static int occampi_codegen_valof (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int occampi_codegen_valof (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	generates code for a VALOF
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_codegen_valof (tnode_t *node, codegen_t *cgen)
+static int occampi_codegen_valof (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	tnode_t *body = tnode_nthsubof (node, 1);
 	tnode_t *results = tnode_nthsubof (node, 0);
@@ -294,12 +294,12 @@ fprintf (stderr, "occampi_codegen_valof(): resultbytes = %d\n", resultbytes);
 /*}}}*/
 
 
-/*{{{  static int occampi_typecheck_finstance (tnode_t *node, typecheck_t *tc)*/
+/*{{{  static int occampi_typecheck_finstance (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking for a function instance-node
  *	returns 1 to continue walk, 0 to stop
  */
-static int occampi_typecheck_finstance (tnode_t *node, typecheck_t *tc)
+static int occampi_typecheck_finstance (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *fname = tnode_nthsubof (node, 0);
 	tnode_t *functype;
@@ -419,12 +419,12 @@ tnode_dumptree (type, 1, stderr);
 	return NULL;
 }
 /*}}}*/
-/*{{{  static int occampi_fetrans_finstance (tnode_t **node, fetrans_t *fe)*/
+/*{{{  static int occampi_fetrans_finstance (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transforms on a FUNCTION instance
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_fetrans_finstance (tnode_t **node, fetrans_t *fe)
+static int occampi_fetrans_finstance (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	tnode_t **aparams = tnode_nthsubaddr (*node, 1);
 
@@ -441,12 +441,12 @@ static int occampi_fetrans_finstance (tnode_t **node, fetrans_t *fe)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_betrans_finstance (tnode_t **node, betrans_t *be)*/
+/*{{{  static int occampi_betrans_finstance (compops_t *cops, tnode_t **node, betrans_t *be)*/
 /*
  *	does back-end transforms on a FUNCTION instance
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_betrans_finstance (tnode_t **node, betrans_t *be)
+static int occampi_betrans_finstance (compops_t *cops, tnode_t **node, betrans_t *be)
 {
 	tnode_t *fnamenode;
 	tnode_t *ftype;
@@ -486,12 +486,12 @@ tnode_dumptree (ftype, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_premap_finstance (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_premap_finstance (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does pre-mapping for a function instance-node
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_premap_finstance (tnode_t **node, map_t *map)
+static int occampi_premap_finstance (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t *fnamenode;
 
@@ -517,12 +517,12 @@ tnode_dumptree (fnamenode, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_namemap_finstance (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_namemap_finstance (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a function instance-node
  *	returns 1 to continue walk, 0 to stop
  */
-static int occampi_namemap_finstance (tnode_t **node, map_t *map)
+static int occampi_namemap_finstance (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t *bename, *finstance, *ibody, *namenode;
 	name_t *name;
@@ -570,12 +570,12 @@ tnode_dumptree (bename, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_codegen_finstance (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int occampi_codegen_finstance (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	generates code for an finstance
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_codegen_finstance (tnode_t *node, codegen_t *cgen)
+static int occampi_codegen_finstance (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	name_t *name;
 	tnode_t *namenode;
@@ -697,11 +697,11 @@ static int occampi_iscomplex_finstance (tnode_t *node, int deep)
 /*}}}*/
 
 
-/*{{{  static int occampi_prescope_funcdecl (tnode_t **node, prescope_t *ps)*/
+/*{{{  static int occampi_prescope_funcdecl (compops_t *cops, tnode_t **node, prescope_t *ps)*/
 /*
  *	called to prescope a long FUNCTION definition
  */
-static int occampi_prescope_funcdecl (tnode_t **node, prescope_t *ps)
+static int occampi_prescope_funcdecl (compops_t *cops, tnode_t **node, prescope_t *ps)
 {
 	occampi_prescope_t *ops = (occampi_prescope_t *)(ps->hook);
 	char *rawname = (char *)tnode_nthhookof (tnode_nthsubof (*node, 0), 0);
@@ -724,11 +724,11 @@ static int occampi_prescope_funcdecl (tnode_t **node, prescope_t *ps)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_scopein_funcdecl (tnode_t **node, scope_t *ss)*/
+/*{{{  static int occampi_scopein_funcdecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope a FUNCTION definition
  */
-static int occampi_scopein_funcdecl (tnode_t **node, scope_t *ss)
+static int occampi_scopein_funcdecl (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	tnode_t *name = tnode_nthsubof (*node, 0);
 	tnode_t **paramsptr = tnode_nthsubaddr (tnode_nthsubof (*node, 1), 1);		/* LHS is return-type */
@@ -761,11 +761,11 @@ static int occampi_scopein_funcdecl (tnode_t **node, scope_t *ss)
 	return 0;		/* already walked child nodes */
 }
 /*}}}*/
-/*{{{  static int occampi_scopeout_funcdecl (tnode_t **node, scope_t *ss)*/
+/*{{{  static int occampi_scopeout_funcdecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope a FUNCTION definition
  */
-static int occampi_scopeout_funcdecl (tnode_t **node, scope_t *ss)
+static int occampi_scopeout_funcdecl (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	tnode_t *name = tnode_nthsubof (*node, 0);
 	name_t *sname;
@@ -790,12 +790,12 @@ static tnode_t *occampi_gettype_funcdecl (tnode_t *node, tnode_t *defaulttype)
 	return tnode_nthsubof (node, 1);
 }
 /*}}}*/
-/*{{{  static int occampi_fetrans_funcdecl (tnode_t **node, fetrans_t *fe)*/
+/*{{{  static int occampi_fetrans_funcdecl (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transforms on a FUNCTION definition
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_fetrans_funcdecl (tnode_t **node, fetrans_t *fe)
+static int occampi_fetrans_funcdecl (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	chook_t *deschook = tnode_lookupchookbyname ("fetrans:descriptor");
 	char *dstr = NULL;
@@ -811,12 +811,12 @@ static int occampi_fetrans_funcdecl (tnode_t **node, fetrans_t *fe)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_betrans_funcdecl (tnode_t **node, betrans_t *be)*/
+/*{{{  static int occampi_betrans_funcdecl (compops_t *cops, tnode_t **node, betrans_t *be)*/
 /*
  *	does back-end transforms on a FUNCTION definition
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_betrans_funcdecl (tnode_t **node, betrans_t *be)
+static int occampi_betrans_funcdecl (compops_t *cops, tnode_t **node, betrans_t *be)
 {
 	tnode_t *fnamenode = tnode_nthsubof (*node, 0);
 	name_t *fname = tnode_nthnameof (fnamenode, 0);
@@ -928,12 +928,12 @@ tnode_dumptree (items[i], 1, stderr);
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_precheck_funcdecl (tnode_t *node)*/
+/*{{{  static int occampi_precheck_funcdecl (compops_t *cops, tnode_t *node)*/
 /*
  *	does pre-checking on FUNCTION declaration
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_precheck_funcdecl (tnode_t *node)
+static int occampi_precheck_funcdecl (compops_t *cops, tnode_t *node)
 {
 #if 0
 fprintf (stderr, "occampi_precheck_funcdecl(): here!\n");
@@ -962,12 +962,12 @@ static int occampi_usagecheck_funcdecl (tnode_t *node, uchk_state_t *ucstate)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_namemap_funcdecl (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_namemap_funcdecl (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	name-maps a FUNCTION definition
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_namemap_funcdecl (tnode_t **node, map_t *map)
+static int occampi_namemap_funcdecl (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t *blk;
 	/* tnode_t *saved_blk = map->thisblock;
@@ -1012,12 +1012,12 @@ static int occampi_namemap_funcdecl (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_codegen_funcdecl (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int occampi_codegen_funcdecl (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	generates code for a FUNCTION definition
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_codegen_funcdecl (tnode_t *node, codegen_t *cgen)
+static int occampi_codegen_funcdecl (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	tnode_t *body = tnode_nthsubof (node, 2);
 	tnode_t *name = tnode_nthsubof (node, 0);
@@ -1261,12 +1261,12 @@ static int occampi_function_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:finstancenode", &i, 2, 0, 0, TNF_NONE);	/* subnodes: name; params */
 	cops = tnode_newcompops ();
-	cops->typecheck = occampi_typecheck_finstance;
-	cops->fetrans = occampi_fetrans_finstance;
-	cops->betrans = occampi_betrans_finstance;
-	cops->premap = occampi_premap_finstance;
-	cops->namemap = occampi_namemap_finstance;
-	cops->codegen = occampi_codegen_finstance;
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_finstance));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_finstance));
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_finstance));
+	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_finstance));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_finstance));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_finstance));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->gettype = occampi_gettype_finstance;
@@ -1280,7 +1280,7 @@ static int occampi_function_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:valofnode", &i, 2, 0, 0, TNF_LONGPROC);	/* subnodes: result-exprs; body */
 	cops = tnode_newcompops ();
-	cops->codegen = occampi_codegen_valof;
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_valof));
 	tnd->ops = cops;
 
 	i = -1;
@@ -1299,14 +1299,14 @@ static int occampi_function_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:funcdecl", &i, 4, 0, 0, TNF_LONGDECL);	/* subnodes: name; (return-type/fparams); body; in-scope-body */
 	cops = tnode_newcompops ();
-	cops->prescope = occampi_prescope_funcdecl;
-	cops->scopein = occampi_scopein_funcdecl;
-	cops->scopeout = occampi_scopeout_funcdecl;
-	cops->namemap = occampi_namemap_funcdecl;
-	cops->precheck = occampi_precheck_funcdecl;
-	cops->fetrans = occampi_fetrans_funcdecl;
-	cops->betrans = occampi_betrans_funcdecl;
-	cops->codegen = occampi_codegen_funcdecl;
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_funcdecl));
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_funcdecl));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_funcdecl));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_funcdecl));
+	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (occampi_precheck_funcdecl));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_funcdecl));
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_funcdecl));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_funcdecl));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->getdescriptor = occampi_getdescriptor_funcdecl;
@@ -1322,18 +1322,20 @@ static int occampi_function_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:shortfuncdecl", &i, 4, 0, 0, TNF_SHORTDECL);		/* subnodes: name; (return-type/fparams); in-scope-body; expr */
 	cops = tnode_newcompops ();
 #if 0
-	cops->prescope = occampi_prescope_shortfuncdecl;
-	cops->scopein = occampi_scopein_shortfuncdecl;
-	cops->scopeout = occampi_scopeout_shortfuncdecl;
-	cops->namemap = occampi_namemap_shortfuncdecl;
-	cops->gettype = occampi_gettype_shortfuncdecl;
-	cops->precheck = occampi_precheck_shortfuncdecl;
-	cops->fetrans = occampi_fetrans_shortfuncdecl;
-	cops->precode = occampi_precode_shortfuncdecl;
-	cops->codegen = occampi_codegen_shortfuncdecl;
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_shortfuncdecl));
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_shortfuncdecl));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_shortfuncdecl));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_shortfuncdecl));
+	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (occampi_precheck_shortfuncdecl));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_shortfuncdecl));
+	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_precode_shortfuncdecl));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_shortfuncdecl));
 #endif
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+#if 0
+	lops->gettype = occampi_gettype_shortfuncdecl;
+#endif
 	tnd->lops = lops;
 
 	i = -1;

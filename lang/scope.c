@@ -214,8 +214,8 @@ int scope_modprewalktree (tnode_t **node, void *arg)
 	scope_t *sarg = (scope_t *)arg;
 	int i = 1;
 
-	if ((*node)->tag->ndef->ops && (*node)->tag->ndef->ops->scopein) {
-		i = (*node)->tag->ndef->ops->scopein (node, sarg);
+	if ((*node)->tag->ndef->ops && tnode_hascompop_i ((*node)->tag->ndef->ops, (int)COPS_SCOPEIN)) {
+		i = tnode_callcompop_i ((*node)->tag->ndef->ops, (int)COPS_SCOPEIN, 2, node, sarg);
 	}
 
 	return i;
@@ -230,8 +230,8 @@ int scope_modpostwalktree (tnode_t **node, void *arg)
 	scope_t *sarg = (scope_t *)arg;
 	int i = 1;
 
-	if ((*node)->tag->ndef->ops && (*node)->tag->ndef->ops->scopeout) {
-		i = (*node)->tag->ndef->ops->scopeout (node, sarg);
+	if ((*node)->tag->ndef->ops && tnode_hascompop_i ((*node)->tag->ndef->ops, (int)COPS_SCOPEOUT)) {
+		i = tnode_callcompop_i ((*node)->tag->ndef->ops, (int)COPS_SCOPEOUT, 2, node, sarg);
 	}
 
 	return i;

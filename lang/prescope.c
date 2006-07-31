@@ -136,8 +136,8 @@ int prescope_modprewalktree (tnode_t **node, void *arg)
 {
 	int i = 1;
 
-	if ((*node)->tag->ndef->ops && (*node)->tag->ndef->ops->prescope) {
-		i = (*node)->tag->ndef->ops->prescope (node, (prescope_t *)arg);
+	if ((*node)->tag->ndef->ops && tnode_hascompop_i ((*node)->tag->ndef->ops, (int)COPS_PRESCOPE)) {
+		i = tnode_callcompop_i ((*node)->tag->ndef->ops, (int)COPS_PRESCOPE, 2, node, (prescope_t *)arg);
 	}
 	return i;
 }

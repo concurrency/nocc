@@ -1322,12 +1322,12 @@ fprintf (stderr, "krocetc_be_regsfor(): regsfor [%s] [%s] ?\n", benode->tag->nde
 }
 /*}}}*/
 
-/*{{{  static int krocetc_preallocate_block (tnode_t *blk, target_t *target)*/
+/*{{{  static int krocetc_preallocate_block (compops_t *cops, tnode_t *blk, target_t *target)*/
 /*
  *	does pre-allocation for a back-end block
  *	returns 0 to stop walk, 1 to continue
  */
-static int krocetc_preallocate_block (tnode_t *blk, target_t *target)
+static int krocetc_preallocate_block (compops_t *cops, tnode_t *blk, target_t *target)
 {
 	krocetc_priv_t *kpriv = (krocetc_priv_t *)target->priv;
 
@@ -1405,12 +1405,12 @@ fprintf (stderr, "krocetc_preallocate_block(): adding mobilespace pointer..\n");
 	return 1;
 }
 /*}}}*/
-/*{{{  static int krocetc_precode_block (tnode_t **tptr, codegen_t *cgen)*/
+/*{{{  static int krocetc_precode_block (compops_t *cops, tnode_t **tptr, codegen_t *cgen)*/
 /*
  *	does pre-code generation for a back-end block
  *	return 0 to stop walk, 1 to continue it
  */
-static int krocetc_precode_block (tnode_t **tptr, codegen_t *cgen)
+static int krocetc_precode_block (compops_t *cops, tnode_t **tptr, codegen_t *cgen)
 {
 	krocetc_blockhook_t *bh = (krocetc_blockhook_t *)tnode_nthhookof (*tptr, 0);
 
@@ -1449,12 +1449,12 @@ static int krocetc_msinit_item (void *mapid, tnode_t *name, int *sizes, int *off
 	return 0;
 }
 /*}}}*/
-/*{{{  static int krocetc_codegen_block (tnode_t *blk, codegen_t *cgen)*/
+/*{{{  static int krocetc_codegen_block (compops_t *cops, tnode_t *blk, codegen_t *cgen)*/
 /*
  *	does code generation for a back-end block
  *	return 0 to stop walk, 1 to continue it
  */
-static int krocetc_codegen_block (tnode_t *blk, codegen_t *cgen)
+static int krocetc_codegen_block (compops_t *cops, tnode_t *blk, codegen_t *cgen)
 {
 	krocetc_priv_t *kpriv = (krocetc_priv_t *)cgen->target->priv;
 	int ws_size, vs_size, ms_size;
@@ -1540,12 +1540,12 @@ static int krocetc_bytesfor_name (tnode_t *name, target_t *target)
 }
 /*}}}*/
 
-/*{{{  static int krocetc_precode_const (tnode_t **cnst, codegen_t *cgen)*/
+/*{{{  static int krocetc_precode_const (compops_t *cops, tnode_t **cnst, codegen_t *cgen)*/
 /*
  *	does pre-code for a back-end constant
  *	returns 0 to stop walk, 1 to continue
  */
-static int krocetc_precode_const (tnode_t **cnst, codegen_t *cgen)
+static int krocetc_precode_const (compops_t *cops, tnode_t **cnst, codegen_t *cgen)
 {
 	krocetc_priv_t *kpriv = (krocetc_priv_t *)cgen->target->priv;
 	krocetc_consthook_t *ch = (krocetc_consthook_t *)tnode_nthhookof (*cnst, 0);
@@ -1560,12 +1560,12 @@ static int krocetc_precode_const (tnode_t **cnst, codegen_t *cgen)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int krocetc_codegen_const (tnode_t *cnst, codegen_t *cgen)*/
+/*{{{  static int krocetc_codegen_const (compops_t *cops, tnode_t *cnst, codegen_t *cgen)*/
 /*
  *	does code-generation for a constant -- these have been pulled out in front of the program
  *	returns 0 to stop walk, 1 to continue
  */
-static int krocetc_codegen_const (tnode_t *cnst, codegen_t *cgen)
+static int krocetc_codegen_const (compops_t *cops, tnode_t *cnst, codegen_t *cgen)
 {
 	krocetc_consthook_t *ch = (krocetc_consthook_t *)tnode_nthhookof (cnst, 0);
 
@@ -1580,24 +1580,24 @@ fprintf (stderr, "krocetc_codegen_const(): ch->label = %d, ch->labrefs = %d\n", 
 }
 /*}}}*/
 
-/*{{{  static int krocetc_codegen_nameref (tnode_t *nameref, codegen_t *cgen)*/
+/*{{{  static int krocetc_codegen_nameref (compops_t *cops, tnode_t *nameref, codegen_t *cgen)*/
 /*
  *	generates code to load a name -- usually happens inside a RESULT
  *	return 0 to stop walk, 1 to continue
  */
-static int krocetc_codegen_nameref (tnode_t *nameref, codegen_t *cgen)
+static int krocetc_codegen_nameref (compops_t *cops, tnode_t *nameref, codegen_t *cgen)
 {
 	codegen_callops (cgen, loadname, nameref, 0);
 	return 0;
 }
 /*}}}*/
 
-/*{{{  static int krocetc_codegen_constref (tnode_t *constref, codegen_t *cgen)*/
+/*{{{  static int krocetc_codegen_constref (compops_t *cops, tnode_t *constref, codegen_t *cgen)*/
 /*
  *	generates code for a constant reference -- loads the constant
  *	return 0 to stop walk, 1 to continue
  */
-static int krocetc_codegen_constref (tnode_t *constref, codegen_t *cgen)
+static int krocetc_codegen_constref (compops_t *cops, tnode_t *constref, codegen_t *cgen)
 {
 	krocetc_consthook_t *ch = (krocetc_consthook_t *)tnode_nthhookof (constref, 0);
 	int val;
@@ -1623,12 +1623,12 @@ static int krocetc_codegen_constref (tnode_t *constref, codegen_t *cgen)
 }
 /*}}}*/
 
-/*{{{  static int krocetc_namemap_result (tnode_t **rnodep, map_t *mdata)*/
+/*{{{  static int krocetc_namemap_result (compops_t *cops, tnode_t **rnodep, map_t *mdata)*/
 /*
  *	name-map for a back-end result, sets hook in the map-data and sub-walks
  *	returns 0 to stop walk, 1 to continue
  */
-static int krocetc_namemap_result (tnode_t **rnodep, map_t *mdata)
+static int krocetc_namemap_result (compops_t *cops, tnode_t **rnodep, map_t *mdata)
 {
 	krocetc_priv_t *kpriv = (krocetc_priv_t *)mdata->target->priv;
 	krocetc_resultsubhook_t *rh;
@@ -1649,12 +1649,12 @@ static int krocetc_namemap_result (tnode_t **rnodep, map_t *mdata)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int krocetc_bemap_result (tnode_t **rnodep, map_t *mdata)*/
+/*{{{  static int krocetc_bemap_result (compops_t *cops, tnode_t **rnodep, map_t *mdata)*/
 /*
  *	back-end map for back-end result, collects up size needed for result evaluation
  *	returns 0 to stop walk, 1 to continue
  */
-static int krocetc_bemap_result (tnode_t **rnodep, map_t *mdata)
+static int krocetc_bemap_result (compops_t *cops, tnode_t **rnodep, map_t *mdata)
 {
 	krocetc_priv_t *kpriv = (krocetc_priv_t *)mdata->target->priv;
 	krocetc_resultsubhook_t *rh;
@@ -1704,12 +1704,12 @@ static int krocetc_bemap_result (tnode_t **rnodep, map_t *mdata)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int krocetc_codegen_result (tnode_t *rnode, codegen_t *cgen)*/
+/*{{{  static int krocetc_codegen_result (compops_t *cops, tnode_t *rnode, codegen_t *cgen)*/
 /*
  *	generates code for a result -- evaluates as necessary
  *	returns 0 to stop walk, 1 to continue
  */
-static int krocetc_codegen_result (tnode_t *rnode, codegen_t *cgen)
+static int krocetc_codegen_result (compops_t *cops, tnode_t *rnode, codegen_t *cgen)
 {
 	krocetc_priv_t *kpriv = (krocetc_priv_t *)krocetc_target.priv;
 	krocetc_resultsubhook_t *rh = (krocetc_resultsubhook_t *)tnode_getchook (rnode, kpriv->resultsubhook);
@@ -1733,22 +1733,22 @@ fprintf (stderr, "krocetc_codegen_result(): loading %d bits..\n", DA_CUR (rh->su
 /*}}}*/
 
 
-/*{{{  static int krocetc_precode_special (tnode_t **spec, codegen_t *cgen)*/
+/*{{{  static int krocetc_precode_special (compops_t *cops, tnode_t **spec, codegen_t *cgen)*/
 /*
  *	does pre-code for a back-end special
  *	returns 0 to stop walk, 1 to continue
  */
-static int krocetc_precode_special (tnode_t **spec, codegen_t *cgen)
+static int krocetc_precode_special (compops_t *cops, tnode_t **spec, codegen_t *cgen)
 {
 	return 1;
 }
 /*}}}*/
-/*{{{  static int krocetc_codegen_special (tnode_t *spec, codegen_t *cgen)*/
+/*{{{  static int krocetc_codegen_special (compops_t *cops, tnode_t *spec, codegen_t *cgen)*/
 /*
  *	does code-gen for a back-end special
  *	returns 0 to stop walk, 1 to continue
  */
-static int krocetc_codegen_special (tnode_t *spec, codegen_t *cgen)
+static int krocetc_codegen_special (compops_t *cops, tnode_t *spec, codegen_t *cgen)
 {
 	krocetc_priv_t *kpriv = (krocetc_priv_t *)cgen->target->priv;
 
@@ -3144,7 +3144,7 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	tnd = tnode_newnodetype ("krocetc:nameref", &i, 1, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_namehook_dumptree;
 	cops = tnode_newcompops ();
-	cops->codegen = krocetc_codegen_nameref;
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_nameref));
 	tnd->ops = cops;
 	i = -1;
 	target->tag_NAMEREF = tnode_newnodetag ("KROCETCNAMEREF", &i, tnd, 0);
@@ -3154,9 +3154,9 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	tnd = tnode_newnodetype ("krocetc:block", &i, 2, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_blockhook_dumptree;
 	cops = tnode_newcompops ();
-	cops->preallocate = krocetc_preallocate_block;
-	cops->precode = krocetc_precode_block;
-	cops->codegen = krocetc_codegen_block;
+	tnode_setcompop (cops, "preallocate", 2, COMPOPTYPE (krocetc_preallocate_block));
+	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (krocetc_precode_block));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_block));
 	tnd->ops = cops;
 	i = -1;
 	target->tag_BLOCK = tnode_newnodetag ("KROCETCBLOCK", &i, tnd, 0);
@@ -3166,8 +3166,8 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	tnd = tnode_newnodetype ("krocetc:const", &i, 1, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_consthook_dumptree;
 	cops = tnode_newcompops ();
-	cops->precode = krocetc_precode_const;
-	cops->codegen = krocetc_codegen_const;
+	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (krocetc_precode_const));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_const));
 	tnd->ops = cops;
 	i = -1;
 	target->tag_CONST = tnode_newnodetag ("KROCETCCONST", &i, tnd, 0);
@@ -3183,8 +3183,8 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	tnd = tnode_newnodetype ("krocetc:special", &i, 0, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_specialhook_dumptree;
 	cops = tnode_newcompops ();
-	cops->precode = krocetc_precode_special;
-	cops->codegen = krocetc_codegen_special;
+	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (krocetc_precode_special));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_special));
 	tnd->ops = cops;
 	i = -1;
 	kpriv->tag_JENTRY = tnode_newnodetag ("KROCETCJENTRY", &i, tnd, 0);
@@ -3196,7 +3196,7 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	tnd = tnode_newnodetype ("krocetc:constref", &i, 0, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_consthook_dumptree;
 	cops = tnode_newcompops ();
-	cops->codegen = krocetc_codegen_constref;
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_constref));
 	tnd->ops = cops;
 	i = -1;
 	kpriv->tag_CONSTREF = tnode_newnodetag ("KROCETCCONSTREF", &i, tnd, 0);
@@ -3237,9 +3237,9 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:result", &i, 1, 0, 0, 0);
 	cops = tnode_newcompops ();
-	cops->namemap = krocetc_namemap_result;
-	cops->bemap = krocetc_bemap_result;
-	cops->codegen = krocetc_codegen_result;
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (krocetc_namemap_result));
+	tnode_setcompop (cops, "bemap", 2, COMPOPTYPE (krocetc_bemap_result));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_result));
 	tnd->ops = cops;
 	i = -1;
 	target->tag_RESULT = tnode_newnodetag ("KROCETCRESULT", &i, tnd, 0);

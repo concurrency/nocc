@@ -468,11 +468,11 @@ static void rcxb_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, F
 }
 /*}}}*/
 
-/*{{{  static int rcxb_scopein_rawname (tnode_t **node, scope_t *ss)*/
+/*{{{  static int rcxb_scopein_rawname (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes in a free-floating name
  */
-static int rcxb_scopein_rawname (tnode_t **node, scope_t *ss)
+static int rcxb_scopein_rawname (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	tnode_t *name = *node;
 	char *rawname;
@@ -519,7 +519,7 @@ static int rcxb_program_init_nodes (void)
 	tnd->hook_copy = rcxb_rawnamenode_hook_copy;
 	tnd->hook_dumptree = rcxb_rawnamenode_hook_dumptree;
 	cops = tnode_newcompops ();
-	cops->scopein = rcxb_scopein_rawname;
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (rcxb_scopein_rawname));
 	tnd->ops = cops;
 
 	i = -1;

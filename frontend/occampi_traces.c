@@ -114,22 +114,22 @@ static void occampi_chook_traces_dumptree (tnode_t *node, void *chook, int inden
 /*}}}*/
 
 
-/*{{{  static int occampi_scopein_traces (tnode_t **node, scope_t *ss)*/
+/*{{{  static int occampi_scopein_traces (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope-in a trace
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_scopein_traces (tnode_t **node, scope_t *ss)
+static int occampi_scopein_traces (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	/* falls through into the MCSP below */
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_scopeout_traces (tnode_t **node, scope_t *ss)*/
+/*{{{  static int occampi_scopeout_traces (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope-out a trace
  */
-static int occampi_scopeout_traces (tnode_t **node, scope_t *ss)
+static int occampi_scopeout_traces (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	return 1;
 }
@@ -151,8 +151,8 @@ static int occampi_traces_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:formalspec", &i, 1, 0, 0, TNF_NONE);		/* subnodes: 0 = specification */
 	cops = tnode_newcompops ();
-	cops->scopein = occampi_scopein_traces;
-	cops->scopeout = occampi_scopeout_traces;
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_traces));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_traces));
 	tnd->ops = cops;
 
 	i = -1;

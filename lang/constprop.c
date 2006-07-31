@@ -198,12 +198,12 @@ static tnode_t *cprop_gettype_const (tnode_t *node, tnode_t *default_type)
 	return tnode_nthsubof (node, 0);
 }
 /*}}}*/
-/*{{{  static int cprop_namemap_const (tnode_t **nodep, map_t *map)*/
+/*{{{  static int cprop_namemap_const (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	maps a constant node, generating back-end constant
  *	returns 0 to stop walk, 1 to continue
  */
-static int cprop_namemap_const (tnode_t **nodep, map_t *map)
+static int cprop_namemap_const (compops_t *cops, tnode_t **nodep, map_t *map)
 {
 	consthook_t *ch = (consthook_t *)tnode_nthhookof ((*nodep), 0);
 	void *dptr = NULL;
@@ -349,8 +349,8 @@ static int cprop_modpostwalktree (tnode_t **tptr, void *arg)
 {
 	int i = 0;
 
-	if (tptr && *tptr && (*tptr)->tag->ndef->ops && (*tptr)->tag->ndef->ops->constprop) {
-		i = (*tptr)->tag->ndef->ops->constprop (tptr);
+	if (tptr && *tptr && (*tptr)->tag->ndef->ops && tnode_hascompop_i ((*tptr)->tag->ndef->ops, (int)COPS_CONSTPROP)) {
+		i = tnode_callcompop_i ((*tptr)->tag->ndef->ops, (int)COPS_CONSTPROP, 1, tptr);
 	}
 	return i;
 }
@@ -375,7 +375,7 @@ int constprop_init (void)
 	tnd->hook_free = cprop_consthook_hook_free;
 	tnd->hook_dumptree = cprop_consthook_hook_dumptree;
 	cops = tnode_newcompops ();
-	cops->namemap = cprop_namemap_const;
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (cprop_namemap_const));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->gettype = cprop_gettype_const;

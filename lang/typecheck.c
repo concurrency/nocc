@@ -136,8 +136,8 @@ int typecheck_prewalktree (tnode_t *node, void *arg)
 {
 	int i = 1;
 
-	if (node->tag->ndef->ops && node->tag->ndef->ops->typecheck) {
-		i = node->tag->ndef->ops->typecheck (node, (typecheck_t *)arg);
+	if (node->tag->ndef->ops && tnode_hascompop_i (node->tag->ndef->ops, (int)COPS_TYPECHECK)) {
+		i = tnode_callcompop_i (node->tag->ndef->ops, (int)COPS_TYPECHECK, 2, node, (typecheck_t *)arg);
 	}
 	return i;
 }

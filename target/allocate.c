@@ -1123,8 +1123,8 @@ static int allocate_prewalktree_preallocate (tnode_t *tptr, void *data)
 {
 	target_t *target = (target_t *)data;
 
-	if (tptr && tptr->tag->ndef->ops && tptr->tag->ndef->ops->preallocate) {
-		return tptr->tag->ndef->ops->preallocate (tptr, target);
+	if (tptr && tptr->tag->ndef->ops && tnode_hascompop_i (tptr->tag->ndef->ops, (int)COPS_PREALLOCATE)) {
+		return tnode_callcompop_i (tptr->tag->ndef->ops, (int)COPS_PREALLOCATE, 2, tptr, target);
 	}
 	return 1;
 }

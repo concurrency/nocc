@@ -479,8 +479,8 @@ static int codegen_prewalktree_codegen (tnode_t *node, void *data)
 	}
 	/*}}}*/
 
-	if (node->tag->ndef->ops && node->tag->ndef->ops->codegen) {
-		i = node->tag->ndef->ops->codegen (node, cgen);
+	if (node->tag->ndef->ops && tnode_hascompop_i (node->tag->ndef->ops, (int)COPS_CODEGEN)) {
+		i = tnode_callcompop_i (node->tag->ndef->ops, (int)COPS_CODEGEN, 2, node, cgen);
 	}
 
 	/*{{{  if finalisers, do subnodes then finalisers*/
@@ -532,8 +532,8 @@ fprintf (stderr, "codegen_modprewalk_precode(): pre-coding pc_chook vars.\n");
 	}
 
 	i = 1;
-	if ((*tptr)->tag->ndef->ops && (*tptr)->tag->ndef->ops->precode) {
-		i = (*tptr)->tag->ndef->ops->precode (tptr, cgen);
+	if ((*tptr)->tag->ndef->ops && tnode_hascompop_i ((*tptr)->tag->ndef->ops, (int)COPS_PRECODE)) {
+		i = tnode_callcompop_i ((*tptr)->tag->ndef->ops, (int)COPS_PRECODE, 2, tptr, cgen);
 	}
 	return i;
 }

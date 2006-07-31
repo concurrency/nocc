@@ -67,22 +67,22 @@ static ntdef_t *tag_INITIAL = NULL;
 /*}}}*/
 
 
-/*{{{  static int occampi_prescope_initial (tnode_t **nodep, prescope_t *ps)*/
+/*{{{  static int occampi_prescope_initial (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
 /*
  *	pre-scopes an INITIAL declaration -- doesn't do anything yet ... (FIXME)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_prescope_initial (tnode_t **nodep, prescope_t *ps)
+static int occampi_prescope_initial (compops_t *cops, tnode_t **nodep, prescope_t *ps)
 {
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_scopein_initial (tnode_t **nodep, scope_t *ss)*/
+/*{{{  static int occampi_scopein_initial (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
 /*
  *	scopes an INITIAL declaration -- which shouldn't really be here, but for now..
  *	FIXME: in prescope once abbreviations are sorted
  */
-static int occampi_scopein_initial (tnode_t **nodep, scope_t *ss)
+static int occampi_scopein_initial (compops_t *cops, tnode_t **nodep, scope_t *ss)
 {
 	tnode_t *name = tnode_nthsubof (*nodep, 0);
 	tnode_t *type;
@@ -140,12 +140,12 @@ tnode_dumptree (*bodyp, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_scopeout_initial (tnode_t **nodep, scope_t *ss)*/
+/*{{{  static int occampi_scopeout_initial (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
 /*
  *	scopes out an INITIAL declaration -- dummy..
  *	FIXME: in prescope once abbreviations are sorted
  */
-static int occampi_scopeout_initial (tnode_t **nodep, scope_t *ss)
+static int occampi_scopeout_initial (compops_t *cops, tnode_t **nodep, scope_t *ss)
 {
 	tnode_t *name = tnode_nthsubof (*nodep, 0);
 	name_t *sname;
@@ -181,9 +181,9 @@ static int occampi_initial_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:initialnode", &i, 4, 0, 0, TNF_SHORTDECL);
 	cops = tnode_newcompops ();
-	cops->prescope = occampi_prescope_initial;
-	cops->scopein = occampi_scopein_initial;
-	cops->scopeout = occampi_scopeout_initial;
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_initial));
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_initial));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_initial));
 	tnd->ops = cops;
 
 	i = -1;

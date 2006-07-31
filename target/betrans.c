@@ -271,8 +271,8 @@ if (*tptr) {
 			((*tptr)->tag->ndef->ops) ? (unsigned int)((*tptr)->tag->ndef->ops->betrans) : 0);
 }
 #endif
-	if (*tptr && (*tptr)->tag->ndef->ops && (*tptr)->tag->ndef->ops->betrans) {
-		i = (*tptr)->tag->ndef->ops->betrans (tptr, (betrans_t *)arg);
+	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop_i ((*tptr)->tag->ndef->ops, (int)COPS_BETRANS)) {
+		i = tnode_callcompop_i ((*tptr)->tag->ndef->ops, (int)COPS_BETRANS, 2, tptr, (betrans_t *)arg);
 	}
 	return i;
 }

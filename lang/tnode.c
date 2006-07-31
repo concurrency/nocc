@@ -1498,55 +1498,19 @@ int tnode_setcompop (compops_t *cops, char *name, int nparams, int (*fcn)(compop
 	return -1;
 }
 /*}}}*/
-/*{{{  int tnode_hascompop (compops_t *cops, char *name)*/
+/*{{{  static int tnode_icallcompop (compops_t *cops, compop_t *op, va_list ap)*/
 /*
- *	returns non-zero if the specified compops_t structure has an entry for 'name'
- */
-int tnode_hascompop (compops_t *cops, char *name)
-{
-	compop_t *cop = stringhash_lookup (compops, name);
-
-	if (!cop) {
-		nocc_internal ("tnode_setcompop(): no such compiler operation [%s]", name);
-		return -1;
-	}
-	if ((int)cop->opno >= DA_CUR (cops->opfuncs)) {
-		return 0;
-	}
-	if (DA_NTHITEM (cops->opfuncs, (int)cop->opno)) {
-		return 1;
-	}
-	return 0;
-}
-/*}}}*/
-/*{{{  int tnode_callcompop (compops_t *cops, char *name, int nparams, ...)*/
-/*
- *	calls a compiler operation from the given compops_t structure by name, passing the given parameters
+ *	internal function to call a compiler operation from the given compops_t structure, passing the given parameters
  *	returns function's return value on success (usually 0 or 1), <0 on failure
  */
-int tnode_callcompop (compops_t *cops, char *name, int nparams, ...)
+static int tnode_icallcompop (compops_t *cops, compop_t *op, va_list ap)
 {
-	compop_t *cop = stringhash_lookup (compops, name);
-	va_list ap;
 	int (*fcn)(compops_t *, ...);
 	int r;
 
-	if (!cop) {
-		nocc_internal ("tnode_callcompop(): no such compiler operation [%s]", name);
-		return -1;
-	} else if (cop->nparams != nparams) {
-		nocc_error ("tnode_callcompop(): nparams given as %d, expected %d", nparams, cop->nparams);
-		return -1;
-	}
-	if (((int)cop->opno >= DA_CUR (cops->opfuncs)) || !DA_NTHITEM (cops->opfuncs, (int)cop->opno)) {
-		nocc_warning ("tnode_callcompop(): no such operation [%s] in compops at 0x%8.8x", cop->name, (unsigned int)cops);
-		return -1;
-	}
-	fcn = (int (*)(compops_t *, ...))DA_NTHITEM (cops->opfuncs, (int)cop->opno);
-
-	va_start (ap, nparams);
+	fcn = (int (*)(compops_t *, ...))DA_NTHITEM (cops->opfuncs, (int)op->opno);
 	
-	switch (nparams) {
+	switch (op->nparams) {
 	case 0:
 		r = fcn (cops);
 		break;
@@ -1585,10 +1549,123 @@ int tnode_callcompop (compops_t *cops, char *name, int nparams, ...)
 		}
 		break;
 	default:
-		nocc_error ("tnode_callcompop(): asked for %d params, but not that many supported here!", nparams);
+		nocc_error ("tnode_icallcompop(): asked for %d params, but not that many supported here!", op->nparams);
 		r = -1;
 		break;
 	}
+
+	return r;
+}
+/*}}}*/
+/*{{{  int tnode_hascompop (compops_t *cops, char *name)*/
+/*
+ *	returns non-zero if the specified compops_t structure has an entry for 'name'
+ */
+int tnode_hascompop (compops_t *cops, char *name)
+{
+	compop_t *cop = stringhash_lookup (compops, name);
+
+	if (!cop) {
+		nocc_internal ("tnode_hascompop(): no such compiler operation [%s]", name);
+		return -1;
+	}
+	if ((int)cop->opno >= DA_CUR (cops->opfuncs)) {
+		return 0;
+	}
+	if (DA_NTHITEM (cops->opfuncs, (int)cop->opno)) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  int tnode_callcompop (compops_t *cops, char *name, int nparams, ...)*/
+/*
+ *	calls a compiler operation from the given compops_t structure by name, passing the given parameters
+ *	returns function's return value on success (usually 0 or 1), <0 on failure
+ */
+int tnode_callcompop (compops_t *cops, char *name, int nparams, ...)
+{
+	compop_t *cop = stringhash_lookup (compops, name);
+	va_list ap;
+	int r;
+
+	if (!cop) {
+		nocc_internal ("tnode_callcompop(): no such compiler operation [%s]", name);
+		return -1;
+	} else if (cop->nparams != nparams) {
+		nocc_error ("tnode_callcompop(): nparams given as %d, expected %d", nparams, cop->nparams);
+		return -1;
+	}
+	if (((int)cop->opno >= DA_CUR (cops->opfuncs)) || !DA_NTHITEM (cops->opfuncs, (int)cop->opno)) {
+		nocc_warning ("tnode_callcompop(): no such operation [%s] in compops at 0x%8.8x", cop->name, (unsigned int)cops);
+		return -1;
+	}
+
+	va_start (ap, nparams);
+	r = tnode_icallcompop (cops, cop, ap);
+	va_end (ap);
+
+	return r;
+}
+/*}}}*/
+/*{{{  int tnode_hascompop_i (compops_t *cops, int idx)*/
+/*
+ *	returns non-zero if the specified compops_t structure has an entry for 'op'
+ */
+int tnode_hascompop_i (compops_t *cops, int idx)
+{
+	compop_t *cop;
+	
+	if ((idx < 0) || (idx >= DA_CUR (acompops))) {
+		nocc_error ("tnode_hascomp_i(): no such compiler operation [index %d]", idx);
+		return -1;
+	} else {
+		cop = DA_NTHITEM (acompops, idx);
+	}
+	if (!cop) {
+		nocc_internal ("tnode_setcompop(): no such compiler operation [index %d]", idx);
+		return -1;
+	}
+	if ((int)cop->opno >= DA_CUR (cops->opfuncs)) {
+		return 0;
+	}
+	if (DA_NTHITEM (cops->opfuncs, (int)cop->opno)) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  int tnode_callcompop_i (compops_t *cops, int idx, int nparams, ...)*/
+/*
+ *	calls a compiler operation from the given compops_t structure by index, passing the given parameters
+ *	returns function's return value on success (usually 0 or 1), <0 on failure
+ */
+int tnode_callcompop_i (compops_t *cops, int idx, int nparams, ...)
+{
+	compop_t *cop;
+	va_list ap;
+	int r;
+
+	if ((idx < 0) || (idx >= DA_CUR (acompops))) {
+		nocc_error ("tnode_callcompop_i(): no such compiler operation [index %d]", idx);
+		return -1;
+	} else {
+		cop = DA_NTHITEM (acompops, idx);
+	}
+	if (!cop) {
+		nocc_internal ("tnode_callcompop_i(): no such compiler operation [index %d]", idx);
+		return -1;
+	} else if (cop->nparams != nparams) {
+		nocc_error ("tnode_callcompop(): nparams given as %d, expected %d", nparams, cop->nparams);
+		return -1;
+	}
+	if (((int)cop->opno >= DA_CUR (cops->opfuncs)) || !DA_NTHITEM (cops->opfuncs, (int)cop->opno)) {
+		nocc_warning ("tnode_callcompop(): no such operation [%s, index %d] in compops at 0x%8.8x", cop->name, idx, (unsigned int)cops);
+		return -1;
+	}
+
+	va_start (ap, nparams);
+	r = tnode_icallcompop (cops, cop, ap);
 	va_end (ap);
 
 	return r;

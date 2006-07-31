@@ -254,12 +254,12 @@ static void occampi_asmophook_modprepostwalktree (tnode_t **nodep, void *hook, i
 /*}}}*/
 
 
-/*{{{  static int occampi_typecheck_asmop (tnode_t *node, typecheck_t *tc)*/
+/*{{{  static int occampi_typecheck_asmop (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checks on inline assembly statements
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_typecheck_asmop (tnode_t *node, typecheck_t *tc)
+static int occampi_typecheck_asmop (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	asmophook_t *oh = (asmophook_t *)tnode_nthhookof (node, 0);
 	int i;
@@ -310,12 +310,12 @@ static int occampi_typecheck_asmop (tnode_t *node, typecheck_t *tc)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_codegen_asmop (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int occampi_codegen_asmop (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	generates-code for an inline assembly statement
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_codegen_asmop (tnode_t *node, codegen_t *cgen)
+static int occampi_codegen_asmop (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	asmophook_t *oh = (asmophook_t *)tnode_nthhookof (node, 0);
 
@@ -451,8 +451,8 @@ static int occampi_asm_init_nodes (void)
 	tnd->hook_modprewalktree = occampi_asmophook_modprewalktree;
 	tnd->hook_modprepostwalktree = occampi_asmophook_modprepostwalktree;
 	cops = tnode_newcompops ();
-	cops->typecheck = occampi_typecheck_asmop;
-	cops->codegen = occampi_codegen_asmop;
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_asmop));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_asmop));
 	tnd->ops = cops;
 
 	i = -1;

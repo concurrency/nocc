@@ -322,13 +322,13 @@ static int occampi_mobiletypenode_typeaction (tnode_t *type, tnode_t *anode, cod
 /*}}}*/
 
 
-/*{{{  static int occampi_mobilealloc_typecheck (tnode_t *node, typecheck_t *tc)*/
+/*{{{  static int occampi_mobilealloc_typecheck (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking for a mobile allocation node, just
  *	figures out what type we're creating and stores it in the subnode
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_mobilealloc_typecheck (tnode_t *node, typecheck_t *tc)
+static int occampi_mobilealloc_typecheck (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *subtype = tnode_nthsubof (node, 0);
 	tnode_t *rtype = tnode_nthsubof (node, 2);
@@ -365,12 +365,12 @@ static tnode_t *occampi_mobilealloc_gettype (tnode_t *node, tnode_t *default_typ
 	return rtype;
 }
 /*}}}*/
-/*{{{  static int occampi_mobilealloc_premap (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_mobilealloc_premap (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does pre-mapping for a mobile allocation node -- inserts back-end result
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_mobilealloc_premap (tnode_t **node, map_t *map)
+static int occampi_mobilealloc_premap (compops_t *cops, tnode_t **node, map_t *map)
 {
 	if ((*node)->tag == opi.tag_NEWDYNMOBARRAY) {
 		/* pre-map dimension */
@@ -382,12 +382,12 @@ static int occampi_mobilealloc_premap (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_mobilealloc_namemap (tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_mobilealloc_namemap (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a mobile allocation node
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_mobilealloc_namemap (tnode_t **node, map_t *map)
+static int occampi_mobilealloc_namemap (compops_t *cops, tnode_t **node, map_t *map)
 {
 	if ((*node)->tag == opi.tag_NEWDYNMOBARRAY) {
 		/* name-map dimension */
@@ -400,12 +400,12 @@ static int occampi_mobilealloc_namemap (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_mobilealloc_codegen (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int occampi_mobilealloc_codegen (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a mobile allocation node
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_mobilealloc_codegen (tnode_t *node, codegen_t *cgen)
+static int occampi_mobilealloc_codegen (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	codegen_callops (cgen, comment, "FIXME: alloc mobile!");
 	codegen_callops (cgen, loadconst, 0);
@@ -508,10 +508,10 @@ static int occampi_mobiles_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:mobilealloc", &i, 3, 0, 0, TNF_NONE);			/* subnodes: subtype, dimtree, type */
 	cops = tnode_newcompops ();
-	cops->typecheck = occampi_mobilealloc_typecheck;
-	cops->premap = occampi_mobilealloc_premap;
-	cops->namemap = occampi_mobilealloc_namemap;
-	cops->codegen = occampi_mobilealloc_codegen;
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_mobilealloc_typecheck));
+	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_mobilealloc_premap));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_mobilealloc_namemap));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_mobilealloc_codegen));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->gettype = occampi_mobilealloc_gettype;

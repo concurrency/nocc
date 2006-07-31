@@ -73,8 +73,8 @@ static int map_modprewalk_mapnames (tnode_t **tptr, void *arg)
 	}
 
 	i = 1;
-	if ((*tptr)->tag->ndef->ops && (*tptr)->tag->ndef->ops->namemap) {
-		i = (*tptr)->tag->ndef->ops->namemap (tptr, mdata);
+	if ((*tptr)->tag->ndef->ops && tnode_hascompop_i ((*tptr)->tag->ndef->ops, (int)COPS_NAMEMAP)) {
+		i = tnode_callcompop_i ((*tptr)->tag->ndef->ops, (int)COPS_NAMEMAP, 2, tptr, mdata);
 	}
 	return i;
 }
@@ -95,8 +95,8 @@ static int map_modprewalk_premap (tnode_t **tptr, void *arg)
 		return 0;
 	}
 	i = 1;
-	if ((*tptr)->tag->ndef->ops && (*tptr)->tag->ndef->ops->premap) {
-		i = (*tptr)->tag->ndef->ops->premap (tptr, mdata);
+	if ((*tptr)->tag->ndef->ops && tnode_hascompop_i ((*tptr)->tag->ndef->ops, (int)COPS_PREMAP)) {
+		i = tnode_callcompop_i ((*tptr)->tag->ndef->ops, (int)COPS_PREMAP, 2, tptr, mdata);
 	}
 	return i;
 }
@@ -116,8 +116,8 @@ static int map_modprewalk_bemap (tnode_t **tptr, void *arg)
 		mdata->warn++;
 	}
 	i = 1;
-	if ((*tptr)->tag->ndef->ops && (*tptr)->tag->ndef->ops->bemap) {
-		i = (*tptr)->tag->ndef->ops->bemap (tptr, mdata);
+	if ((*tptr)->tag->ndef->ops && tnode_hascompop_i ((*tptr)->tag->ndef->ops, (int)COPS_BEMAP)) {
+		i = tnode_callcompop_i ((*tptr)->tag->ndef->ops, (int)COPS_BEMAP, 2, tptr, mdata);
 	}
 	return i;
 }

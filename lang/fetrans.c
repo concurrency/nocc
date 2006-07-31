@@ -186,8 +186,8 @@ static int fetrans_modprewalk (tnode_t **tptr, void *arg)
 {
 	int i = 1;
 
-	if (*tptr && (*tptr)->tag->ndef->ops && (*tptr)->tag->ndef->ops->fetrans) {
-		i = (*tptr)->tag->ndef->ops->fetrans (tptr, (fetrans_t *)arg);
+	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop_i ((*tptr)->tag->ndef->ops, (int)COPS_FETRANS)) {
+		i = tnode_callcompop_i ((*tptr)->tag->ndef->ops, (int)COPS_FETRANS, 2, tptr, (fetrans_t *)arg);
 	}
 	return i;
 }

@@ -525,11 +525,11 @@ static void mcsp_alpha_hook_dumptree (tnode_t *node, void *hook, int indent, FIL
 /*}}}*/
 
 
-/*{{{  static int mcsp_scopein_rawname (tnode_t **node, scope_t *ss)*/
+/*{{{  static int mcsp_scopein_rawname (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes in a free-floating name
  */
-static int mcsp_scopein_rawname (tnode_t **node, scope_t *ss)
+static int mcsp_scopein_rawname (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	tnode_t *name = *node;
 	char *rawname;
@@ -654,12 +654,12 @@ static int mcsp_checkisexpr (tnode_t *node)
 }
 /*}}}*/
 
-/*{{{  static int mcsp_typecheck_dopnode (tnode_t *node, typecheck_t *tc)*/
+/*{{{  static int mcsp_typecheck_dopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking on a dop-node
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_typecheck_dopnode (tnode_t *node, typecheck_t *tc)
+static int mcsp_typecheck_dopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	if (node->tag == mcsp.tag_THEN) {
 		/*{{{  LHS should be an event, RHS should be process*/
@@ -704,12 +704,12 @@ static int mcsp_typecheck_dopnode (tnode_t *node, typecheck_t *tc)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_fetrans_dopnode (tnode_t **node, fetrans_t *fe)*/
+/*{{{  static int mcsp_fetrans_dopnode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transformations on a DOPNODE (quite a lot done here)
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_fetrans_dopnode (tnode_t **node, fetrans_t *fe)
+static int mcsp_fetrans_dopnode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
 	tnode_t *t = *node;
@@ -934,12 +934,12 @@ static int mcsp_scopenode_rminstancetail_modwalktree (tnode_t **nodep, void *arg
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_prescope_scopenode (tnode_t **node, prescope_t *ps)*/
+/*{{{  static int mcsp_prescope_scopenode (compops_t *cops, tnode_t **node, prescope_t *ps)*/
 /*
  *	does pre-scoping on an MCSP scope node (ensures vars are a list)
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_prescope_scopenode (tnode_t **node, prescope_t *ps)
+static int mcsp_prescope_scopenode (compops_t *cops, tnode_t **node, prescope_t *ps)
 {
 	if (!tnode_nthsubof (*node, 0)) {
 		/* no vars, make empty list */
@@ -954,12 +954,12 @@ static int mcsp_prescope_scopenode (tnode_t **node, prescope_t *ps)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_scopein_scopenode (tnode_t **node, scope_t *ss)*/
+/*{{{  static int mcsp_scopein_scopenode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope in an MCSP something that introduces scope (names)
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_scopein_scopenode (tnode_t **node, scope_t *ss)
+static int mcsp_scopein_scopenode (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	void *nsmark;
 	tnode_t *vars = tnode_nthsubof (*node, 0);
@@ -1018,22 +1018,22 @@ tnode_dumptree (name, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_scopeout_scopenode (tnode_t **node, scope_t *ss)*/
+/*{{{  static int mcsp_scopeout_scopenode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope-out an MCSP something
  */
-static int mcsp_scopeout_scopenode (tnode_t **node, scope_t *ss)
+static int mcsp_scopeout_scopenode (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	/* all done in scope-in */
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_fetrans_scopenode (tnode_t **node, fetrans_t *fe)*/
+/*{{{  static int mcsp_fetrans_scopenode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transforms on a scopenode -- turns HIDE vars into declarations
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_fetrans_scopenode (tnode_t **node, fetrans_t *fe)
+static int mcsp_fetrans_scopenode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
 	tnode_t *t = *node;
@@ -1111,12 +1111,12 @@ static int mcsp_fetrans_scopenode (tnode_t **node, fetrans_t *fe)
 
 
 
-/*{{{  static int mcsp_prescope_declnode (tnode_t **node, prescope_t *ps)*/
+/*{{{  static int mcsp_prescope_declnode (compops_t *cops, tnode_t **node, prescope_t *ps)*/
 /*
  *	pre-scopes a process definition
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_prescope_declnode (tnode_t **node, prescope_t *ps)
+static int mcsp_prescope_declnode (compops_t *cops, tnode_t **node, prescope_t *ps)
 {
 	tnode_t **paramptr = tnode_nthsubaddr (*node, 1);
 	tnode_t **params;
@@ -1142,12 +1142,12 @@ static int mcsp_prescope_declnode (tnode_t **node, prescope_t *ps)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_scopein_declnode (tnode_t **node, scope_t *ss)*/
+/*{{{  static int mcsp_scopein_declnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope-in a process definition
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_scopein_declnode (tnode_t **node, scope_t *ss)
+static int mcsp_scopein_declnode (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	mcsp_scope_t *mss = (mcsp_scope_t *)ss->langpriv;
 	tnode_t *name = tnode_nthsubof (*node, 0);
@@ -1186,22 +1186,22 @@ static int mcsp_scopein_declnode (tnode_t **node, scope_t *ss)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_scopeout_declnode (tnode_t **node, scope_t *ss)*/
+/*{{{  static int mcsp_scopeout_declnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope-out a process definition
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_scopeout_declnode (tnode_t **node, scope_t *ss)
+static int mcsp_scopeout_declnode (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_fetrans_declnode (tnode_t **node, fetrans_t *fe)*/
+/*{{{  static int mcsp_fetrans_declnode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transforms on a process declaration node
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_fetrans_declnode (tnode_t **node, fetrans_t *fe)
+static int mcsp_fetrans_declnode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
 
@@ -1224,22 +1224,22 @@ static int mcsp_fetrans_declnode (tnode_t **node, fetrans_t *fe)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_betrans_declnode (tnode_t **node, betrans_t *be)*/
+/*{{{  static int mcsp_betrans_declnode (compops_t *cops, tnode_t **node, betrans_t *be)*/
 /*
  *	does back-end transforms on a process declaration node
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_betrans_declnode (tnode_t **node, betrans_t *be)
+static int mcsp_betrans_declnode (compops_t *cops, tnode_t **node, betrans_t *be)
 {
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_namemap_declnode (tnode_t **node, map_t *map)*/
+/*{{{  static int mcsp_namemap_declnode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a process declaration node
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_namemap_declnode (tnode_t **node, map_t *map)
+static int mcsp_namemap_declnode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t *blk;
 	/* tnode_t *saved_blk = map->thisblock;
@@ -1284,12 +1284,12 @@ static int mcsp_namemap_declnode (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_precode_declnode (tnode_t **node, codegen_t *cgen)*/
+/*{{{  static int mcsp_precode_declnode (compops_t *cops, tnode_t **node, codegen_t *cgen)*/
 /*
  *	does pre-code on a process declaration node
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_precode_declnode (tnode_t **node, codegen_t *cgen)
+static int mcsp_precode_declnode (compops_t *cops, tnode_t **node, codegen_t *cgen)
 {
 	tnode_t *t = *node;
 	tnode_t *name = tnode_nthsubof (t, 0);
@@ -1305,12 +1305,12 @@ static int mcsp_precode_declnode (tnode_t **node, codegen_t *cgen)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_codegen_declnode (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int mcsp_codegen_declnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a process definition
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_codegen_declnode (tnode_t *node, codegen_t *cgen)
+static int mcsp_codegen_declnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	tnode_t *body = tnode_nthsubof (node, 2);
 	tnode_t *name = tnode_nthsubof (node, 0);
@@ -1338,22 +1338,22 @@ static int mcsp_codegen_declnode (tnode_t *node, codegen_t *cgen)
 }
 /*}}}*/
 
-/*{{{  static int mcsp_namemap_leafproc (tnode_t **node, map_t *map)*/
+/*{{{  static int mcsp_namemap_leafproc (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a leaf-process
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_namemap_leafproc (tnode_t **node, map_t *map)
+static int mcsp_namemap_leafproc (compops_t *cops, tnode_t **node, map_t *map)
 {
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_codegen_leafproc (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int mcsp_codegen_leafproc (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a leaf-process
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_codegen_leafproc (tnode_t *node, codegen_t *cgen)
+static int mcsp_codegen_leafproc (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	if (node->tag == mcsp.tag_SKIP) {
 		/* nothing :) */
@@ -1371,12 +1371,12 @@ static int mcsp_codegen_leafproc (tnode_t *node, codegen_t *cgen)
 }
 /*}}}*/
 
-/*{{{  static int mcsp_fetrans_namenode (tnode_t **node, fetrans_t *fe)*/
+/*{{{  static int mcsp_fetrans_namenode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transformation on an EVENT
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_fetrans_namenode (tnode_t **node, fetrans_t *fe)
+static int mcsp_fetrans_namenode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
 	tnode_t *t = *node;
@@ -1395,12 +1395,12 @@ static int mcsp_fetrans_namenode (tnode_t **node, fetrans_t *fe)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_namemap_namenode (tnode_t **node, map_t *map)*/
+/*{{{  static int mcsp_namemap_namenode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for namenodes (unbound references)
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_namemap_namenode (tnode_t **node, map_t *map)
+static int mcsp_namemap_namenode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t *bename = (tnode_t *)tnode_getchook (*node, map->mapchook);
 	tnode_t *tname;
@@ -1483,12 +1483,12 @@ static int mcsp_namenode_initialising_decl (tnode_t *node, tnode_t *bename, map_
 }
 /*}}}*/
 
-/*{{{  static int mcsp_fetrans_cnode (tnode_t **node, fetrans_t *fe)*/
+/*{{{  static int mcsp_fetrans_cnode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transforms on SEQ/PAR nodes (pass 1+ only)
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_fetrans_cnode (tnode_t **node, fetrans_t *fe)
+static int mcsp_fetrans_cnode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
 	tnode_t *t = *node;
@@ -1583,12 +1583,12 @@ static int mcsp_fetrans_cnode (tnode_t **node, fetrans_t *fe)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_namemap_cnode (tnode_t **node, map_t *map)*/
+/*{{{  static int mcsp_namemap_cnode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does mapping for a constructor node (SEQ/PAR)
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_namemap_cnode (tnode_t **node, map_t *map)
+static int mcsp_namemap_cnode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	if ((*node)->tag == mcsp.tag_SEQCODE) {
 		/* nothing special */
@@ -1674,12 +1674,12 @@ tnode_dumptree (alpha->elist, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_codegen_cnode (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int mcsp_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a constructor node (SEQ/PAR)
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_codegen_cnode (tnode_t *node, codegen_t *cgen)
+static int mcsp_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	if (node->tag == mcsp.tag_SEQCODE) {
 		return 1;
@@ -1844,12 +1844,12 @@ static int mcsp_codegen_cnode (tnode_t *node, codegen_t *cgen)
 }
 /*}}}*/
 
-/*{{{  static int mcsp_fetrans_actionnode (tnode_t **node, fetrans_t *fe)*/
+/*{{{  static int mcsp_fetrans_actionnode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transforms for an action-node
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_fetrans_actionnode (tnode_t **node, fetrans_t *fe)
+static int mcsp_fetrans_actionnode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
 	tnode_t *t = *node;
@@ -1872,12 +1872,12 @@ static int mcsp_fetrans_actionnode (tnode_t **node, fetrans_t *fe)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_betrans_actionnode (tnode_t **node, betrans_t *be)*/
+/*{{{  static int mcsp_betrans_actionnode (compops_t *cops, tnode_t **node, betrans_t *be)*/
 /*
  *	does back-end transforms for an action-node
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_betrans_actionnode (tnode_t **node, betrans_t *be)
+static int mcsp_betrans_actionnode (compops_t *cops, tnode_t **node, betrans_t *be)
 {
 	tnode_t *t = *node;
 
@@ -1901,12 +1901,12 @@ static int mcsp_betrans_actionnode (tnode_t **node, betrans_t *be)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_namemap_actionnode (tnode_t **node, map_t *map)*/
+/*{{{  static int mcsp_namemap_actionnode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for an action-node
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_namemap_actionnode (tnode_t **node, map_t *map)
+static int mcsp_namemap_actionnode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t *t = *node;
 
@@ -1946,12 +1946,12 @@ static int mcsp_namemap_actionnode (tnode_t **node, map_t *map)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_codegen_actionnode (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int mcsp_codegen_actionnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for an action-node
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_codegen_actionnode (tnode_t *node, codegen_t *cgen)
+static int mcsp_codegen_actionnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	if (node->tag == mcsp.tag_SYNC) {
 		codegen_error (cgen, "mcsp_codegen_actionnode(): cannot generate code for SYNC!");
@@ -2001,12 +2001,12 @@ static int mcsp_codegen_actionnode (tnode_t *node, codegen_t *cgen)
 }
 /*}}}*/
 
-/*{{{  static int mcsp_fetrans_snode (tnode_t **node, fetrans_t *fe)*/
+/*{{{  static int mcsp_fetrans_snode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transforms on an ALT/IF (ALT pass 1+ only)
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_fetrans_snode (tnode_t **node, fetrans_t *fe)
+static int mcsp_fetrans_snode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
 	tnode_t *t = *node;
@@ -2067,12 +2067,12 @@ static int mcsp_fetrans_snode (tnode_t **node, fetrans_t *fe)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_namemap_snode (tnode_t **node, map_t *map)*/
+/*{{{  static int mcsp_namemap_snode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a structured node (IF, ALT)
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_namemap_snode (tnode_t **node, map_t *map)
+static int mcsp_namemap_snode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t *glist = tnode_nthsubof (*node, 0);
 	tnode_t **guards;
@@ -2103,12 +2103,12 @@ static int mcsp_namemap_snode (tnode_t **node, map_t *map)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_codegen_snode (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int mcsp_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a structured node (IF, ALT)
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_codegen_snode (tnode_t *node, codegen_t *cgen)
+static int mcsp_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	tnode_t *glist = tnode_nthsubof (node, 0);
 	tnode_t **guards;
@@ -2203,12 +2203,12 @@ static int mcsp_codegen_snode (tnode_t *node, codegen_t *cgen)
 }
 /*}}}*/
 
-/*{{{  static int mcsp_namemap_loopnode (tnode_t **node, map_t *map)*/
+/*{{{  static int mcsp_namemap_loopnode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a loopnode
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_namemap_loopnode (tnode_t **node, map_t *map)
+static int mcsp_namemap_loopnode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t *t = *node;
 
@@ -2237,12 +2237,12 @@ static int mcsp_namemap_loopnode (tnode_t **node, map_t *map)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_codegen_loopnode (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int mcsp_codegen_loopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a loopnode
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_codegen_loopnode (tnode_t *node, codegen_t *cgen)
+static int mcsp_codegen_loopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	if (node->tag == mcsp.tag_ILOOP) {
 		/*{{{  infinite loop!*/
@@ -2275,12 +2275,12 @@ static int mcsp_codegen_loopnode (tnode_t *node, codegen_t *cgen)
 }
 /*}}}*/
 
-/*{{{  static int mcsp_scopein_replnode (tnode_t **node, scope_t *ss)*/
+/*{{{  static int mcsp_scopein_replnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope-in a replicator node
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_scopein_replnode (tnode_t **node, scope_t *ss)
+static int mcsp_scopein_replnode (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	tnode_t *name = tnode_nthsubof (*node, 1);
 	tnode_t **bodyptr = tnode_nthsubaddr (*node, 0);
@@ -2317,22 +2317,22 @@ static int mcsp_scopein_replnode (tnode_t **node, scope_t *ss)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_scopeout_replnode (tnode_t **node, scope_t *ss)*/
+/*{{{  static int mcsp_scopeout_replnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope-out a replicator node
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_scopeout_replnode (tnode_t **node, scope_t *ss)
+static int mcsp_scopeout_replnode (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_fetrans_replnode (tnode_t **node, fetrans_t *fe)*/
+/*{{{  static int mcsp_fetrans_replnode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transform for a replnode
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_fetrans_replnode (tnode_t **node, fetrans_t *fe)
+static int mcsp_fetrans_replnode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	tnode_t *rname = tnode_nthsubof (*node, 1);
 	tnode_t **rstartptr = tnode_nthsubaddr (*node, 2);
@@ -2353,12 +2353,12 @@ static int mcsp_fetrans_replnode (tnode_t **node, fetrans_t *fe)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_namemap_replnode (tnode_t **node, map_t *map)*/
+/*{{{  static int mcsp_namemap_replnode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a replnode
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_namemap_replnode (tnode_t **node, map_t *map)
+static int mcsp_namemap_replnode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	if ((*node)->tag == mcsp.tag_REPLSEQ) {
 		tnode_t **rptr = tnode_nthsubaddr (*node, 1);
@@ -2400,12 +2400,12 @@ tnode_dumptree (*rptr, 1, stderr);
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_codegen_replnode (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int mcsp_codegen_replnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a replnode
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_codegen_replnode (tnode_t *node, codegen_t *cgen)
+static int mcsp_codegen_replnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	if (node->tag == mcsp.tag_REPLSEQ) {
 		int toplab = codegen_new_label (cgen);
@@ -2450,12 +2450,12 @@ static int mcsp_codegen_replnode (tnode_t *node, codegen_t *cgen)
 /*}}}*/
 
 
-/*{{{  static int mcsp_fetrans_guardnode (tnode_t **node, fetrans_t *fe)*/
+/*{{{  static int mcsp_fetrans_guardnode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transformation on a GUARD
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_fetrans_guardnode (tnode_t **node, fetrans_t *fe)
+static int mcsp_fetrans_guardnode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
 
@@ -2486,12 +2486,12 @@ static int mcsp_fetrans_guardnode (tnode_t **node, fetrans_t *fe)
 }
 /*}}}*/
 
-/*{{{  static int mcsp_scopein_spacenode (tnode_t **node, scope_t *ss)*/
+/*{{{  static int mcsp_scopein_spacenode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes-in a SPACENODE (formal parameters and declarations)
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_scopein_spacenode (tnode_t **node, scope_t *ss)
+static int mcsp_scopein_spacenode (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	if ((*node)->tag == mcsp.tag_FPARAM) {
 		/*{{{  scope in parameter*/
@@ -2516,12 +2516,12 @@ static int mcsp_scopein_spacenode (tnode_t **node, scope_t *ss)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_scopeout_spacenode (tnode_t **node, scope_t *ss)*/
+/*{{{  static int mcsp_scopeout_spacenode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes-out a SPACENODE (formal parameters and declarations)
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_scopeout_spacenode (tnode_t **node, scope_t *ss)
+static int mcsp_scopeout_spacenode (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	if ((*node)->tag == mcsp.tag_FPARAM) {
 		return 0;
@@ -2529,22 +2529,22 @@ static int mcsp_scopeout_spacenode (tnode_t **node, scope_t *ss)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_typecheck_spacenode (tnode_t *node, typecheck_t *tc)*/
+/*{{{  static int mcsp_typecheck_spacenode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking on a spacenode
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_typecheck_spacenode (tnode_t *node, typecheck_t *tc)
+static int mcsp_typecheck_spacenode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_fetrans_spacenode (tnode_t **node, fetrans_t *fe)*/
+/*{{{  static int mcsp_fetrans_spacenode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transformation on an FPARAM
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_fetrans_spacenode (tnode_t **node, fetrans_t *fe)
+static int mcsp_fetrans_spacenode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
 
@@ -2560,12 +2560,12 @@ static int mcsp_fetrans_spacenode (tnode_t **node, fetrans_t *fe)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_namemap_spacenode (tnode_t **node, map_t *map)*/
+/*{{{  static int mcsp_namemap_spacenode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping on s spacenode (formal params, decls)
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_namemap_spacenode (tnode_t **node, map_t *map)
+static int mcsp_namemap_spacenode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t **namep = tnode_nthsubaddr (*node, 0);
 	tnode_t *type = NULL;
@@ -2579,23 +2579,23 @@ static int mcsp_namemap_spacenode (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_codegen_spacenode (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int mcsp_codegen_spacenode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-gen on a spacenode (formal params, decls)
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_codegen_spacenode (tnode_t *node, codegen_t *cgen)
+static int mcsp_codegen_spacenode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	return 0;
 }
 /*}}}*/
 
-/*{{{  static int mcsp_fetrans_vardeclnode (tnode_t **node, fetrans_t *fe)*/
+/*{{{  static int mcsp_fetrans_vardeclnode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transforms for vardeclnodes
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_fetrans_vardeclnode (tnode_t **node, fetrans_t *fe)
+static int mcsp_fetrans_vardeclnode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
 	tnode_t *t = *node;
@@ -2638,12 +2638,12 @@ static int mcsp_fetrans_vardeclnode (tnode_t **node, fetrans_t *fe)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_namemap_vardeclnode (tnode_t **node, map_t *map)*/
+/*{{{  static int mcsp_namemap_vardeclnode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a vardeclnodes
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_namemap_vardeclnode (tnode_t **node, map_t *map)
+static int mcsp_namemap_vardeclnode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t **namep = tnode_nthsubaddr (*node, 0);
 	tnode_t **bodyp = tnode_nthsubaddr (*node, 2);
@@ -2670,12 +2670,12 @@ static int mcsp_namemap_vardeclnode (tnode_t **node, map_t *map)
 /*}}}*/
 
 
-/*{{{  static int mcsp_constprop_const (tnode_t **node)*/
+/*{{{  static int mcsp_constprop_const (compops_t *cops, tnode_t **node)*/
 /*
  *	does constant propagation on a constant node (post walk)
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_constprop_const (tnode_t **node)
+static int mcsp_constprop_const (compops_t *cops, tnode_t **node)
 {
 	mcsp_consthook_t *ch = (mcsp_consthook_t *)tnode_nthhookof (*node, 0);
 
@@ -2685,12 +2685,12 @@ static int mcsp_constprop_const (tnode_t **node)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_namemap_const (tnode_t **node, map_t *map)*/
+/*{{{  static int mcsp_namemap_const (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a constant
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_namemap_const (tnode_t **node, map_t *map)
+static int mcsp_namemap_const (compops_t *cops, tnode_t **node, map_t *map)
 {
 	mcsp_consthook_t *ch = (mcsp_consthook_t *)tnode_nthhookof (*node, 0);
 
@@ -2740,12 +2740,12 @@ static int mcsp_valbyref_const (tnode_t *node)
 }
 /*}}}*/
 
-/*{{{  static int mcsp_prescope_instancenode (tnode_t **node, prescope_t *ps)*/
+/*{{{  static int mcsp_prescope_instancenode (compops_t *cops, tnode_t **node, prescope_t *ps)*/
 /*
  *	called to pre-scope an instance node
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_prescope_instancenode (tnode_t **node, prescope_t *ps)
+static int mcsp_prescope_instancenode (compops_t *cops, tnode_t **node, prescope_t *ps)
 {
 	tnode_t **paramsptr = tnode_nthsubaddr (*node, 1);
 
@@ -2762,12 +2762,12 @@ static int mcsp_prescope_instancenode (tnode_t **node, prescope_t *ps)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_scopein_instancenode (tnode_t **node, scope_t *ss)*/
+/*{{{  static int mcsp_scopein_instancenode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope-in an instance node
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_scopein_instancenode (tnode_t **node, scope_t *ss)
+static int mcsp_scopein_instancenode (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	mcsp_scope_t *mss = (mcsp_scope_t *)ss->langpriv;
 
@@ -2779,12 +2779,12 @@ static int mcsp_scopein_instancenode (tnode_t **node, scope_t *ss)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_typecheck_instancenode (tnode_t *node, typecheck_t *tc)*/
+/*{{{  static int mcsp_typecheck_instancenode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking on an instancenode
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_typecheck_instancenode (tnode_t *node, typecheck_t *tc)
+static int mcsp_typecheck_instancenode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *name = tnode_nthsubof (node, 0);
 	tnode_t *aparams = tnode_nthsubof (node, 1);
@@ -2853,12 +2853,12 @@ tnode_dumptree (aparams, 1, stderr);
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_fetrans_instancenode (tnode_t **node, fetrans_t *fe)*/
+/*{{{  static int mcsp_fetrans_instancenode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transforms on an instancenode
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_fetrans_instancenode (tnode_t **node, fetrans_t *fe)
+static int mcsp_fetrans_instancenode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
 	tnode_t *t = *node;
@@ -2943,12 +2943,12 @@ tnode_dumptree (aparams, 1, stderr);
 	return 1;
 }
 /*}}}*/
-/*{{{  static int mcsp_namemap_instancenode (tnode_t **node, map_t *map)*/
+/*{{{  static int mcsp_namemap_instancenode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for an instancenode
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_namemap_instancenode (tnode_t **node, map_t *map)
+static int mcsp_namemap_instancenode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t *bename, *ibody, *namenode;
 
@@ -2977,12 +2977,12 @@ static int mcsp_namemap_instancenode (tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_codegen_instancenode (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int mcsp_codegen_instancenode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for an instancenode
  *	returns 0 to stop walk, 1 to continue
  */
-static int mcsp_codegen_instancenode (tnode_t *node, codegen_t *cgen)
+static int mcsp_codegen_instancenode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	tnode_t *namenode = tnode_nthsubof (node, 0);
 	tnode_t *params = tnode_nthsubof (node, 1);
@@ -3105,7 +3105,7 @@ static int mcsp_process_init_nodes (void)
 	tnd->hook_copy = mcsp_rawnamenode_hook_copy;
 	tnd->hook_dumptree = mcsp_rawnamenode_hook_dumptree;
 	cops = tnode_newcompops ();
-	cops->scopein = mcsp_scopein_rawname;
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (mcsp_scopein_rawname));
 	tnd->ops = cops;
 
 	i = -1;
@@ -3122,8 +3122,8 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	tnd->hook_copy = mcsp_alpha_hook_copy;
 	tnd->hook_dumptree = mcsp_alpha_hook_dumptree;
 	cops = tnode_newcompops ();
-	cops->typecheck = mcsp_typecheck_dopnode;
-	cops->fetrans = mcsp_fetrans_dopnode;
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (mcsp_typecheck_dopnode));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_dopnode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -3148,10 +3148,10 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	i = -1;
 	tnd = mcsp.node_SCOPENODE = tnode_newnodetype ("mcsp:scopenode", &i, 2, 0, 0, TNF_NONE);	/* subnodes: 0 = vars, 1 = process */
 	cops = tnode_newcompops ();
-	cops->prescope = mcsp_prescope_scopenode;
-	cops->scopein = mcsp_scopein_scopenode;
-	cops->scopeout = mcsp_scopeout_scopenode;
-	cops->fetrans = mcsp_fetrans_scopenode;
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (mcsp_prescope_scopenode));
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (mcsp_scopein_scopenode));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (mcsp_scopeout_scopenode));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_scopenode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -3164,14 +3164,14 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	i = -1;
 	tnd = tnode_newnodetype ("mcsp:declnode", &i, 4, 0, 0, TNF_LONGDECL);				/* subnodes: 0 = name, 1 = params, 2 = body, 3 = in-scope-body */
 	cops = tnode_newcompops ();
-	cops->prescope = mcsp_prescope_declnode;
-	cops->scopein = mcsp_scopein_declnode;
-	cops->scopeout = mcsp_scopeout_declnode;
-	cops->fetrans = mcsp_fetrans_declnode;
-	cops->betrans = mcsp_betrans_declnode;
-	cops->namemap = mcsp_namemap_declnode;
-	cops->precode = mcsp_precode_declnode;
-	cops->codegen = mcsp_codegen_declnode;
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (mcsp_prescope_declnode));
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (mcsp_scopein_declnode));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (mcsp_scopeout_declnode));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_declnode));
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (mcsp_betrans_declnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_declnode));
+	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (mcsp_precode_declnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (mcsp_codegen_declnode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -3204,8 +3204,8 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	i = -1;
 	tnd = mcsp.node_LEAFPROC = tnode_newnodetype ("mcsp:leafproc", &i, 0, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
-	cops->namemap = mcsp_namemap_leafproc;
-	cops->codegen = mcsp_codegen_leafproc;
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_leafproc));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (mcsp_codegen_leafproc));
 	tnd->ops = cops;
 
 	i = -1;
@@ -3222,8 +3222,8 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	i = -1;
 	tnd = mcsp.node_NAMENODE = tnode_newnodetype ("mcsp:namenode", &i, 0, 1, 0, TNF_NONE);		/* subnames: 0 = name */
 	cops = tnode_newcompops ();
-	cops->fetrans = mcsp_fetrans_namenode;
-	cops->namemap = mcsp_namemap_namenode;
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_namenode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_namenode));
 /*	cops->gettype = mcsp_gettype_namenode; */
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
@@ -3244,10 +3244,10 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	i = -1;
 	tnd = tnode_newnodetype ("mcsp:actionnode", &i, 2, 0, 0, TNF_NONE);				/* subnodes: 0 = event(s), 1 = data/null */
 	cops = tnode_newcompops ();
-	cops->fetrans = mcsp_fetrans_actionnode;
-	cops->betrans = mcsp_betrans_actionnode;
-	cops->namemap = mcsp_namemap_actionnode;
-	cops->codegen = mcsp_codegen_actionnode;
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_actionnode));
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (mcsp_betrans_actionnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_actionnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (mcsp_codegen_actionnode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -3263,9 +3263,9 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	tnd->hook_copy = mcsp_alpha_hook_copy;
 	tnd->hook_dumptree = mcsp_alpha_hook_dumptree;
 	cops = tnode_newcompops ();
-	cops->fetrans = mcsp_fetrans_cnode;
-	cops->namemap = mcsp_namemap_cnode;
-	cops->codegen = mcsp_codegen_cnode;
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_cnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_cnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (mcsp_codegen_cnode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -3281,9 +3281,9 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	tnd->hook_copy = mcsp_alpha_hook_copy;
 	tnd->hook_dumptree = mcsp_alpha_hook_dumptree;
 	cops = tnode_newcompops ();
-	cops->fetrans = mcsp_fetrans_snode;
-	cops->namemap = mcsp_namemap_snode;
-	cops->codegen = mcsp_codegen_snode;
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_snode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_snode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (mcsp_codegen_snode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -3294,8 +3294,8 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	i = -1;
 	tnd = tnode_newnodetype ("mcsp:loopnode", &i, 2, 0, 0, TNF_NONE);				/* subnodes: 0 = body; 1 = condition */
 	cops = tnode_newcompops ();
-	cops->namemap = mcsp_namemap_loopnode;
-	cops->codegen = mcsp_codegen_loopnode;
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_loopnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (mcsp_codegen_loopnode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -3308,11 +3308,11 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	i = -1;
 	tnd = mcsp.node_REPLNODE = tnode_newnodetype ("mcsp:replnode", &i, 4, 0, 0, TNF_NONE);		/* subnodes: 0 = body; 1 = repl-var, 2 = start, 3 = end */
 	cops = tnode_newcompops ();
-	cops->scopein = mcsp_scopein_replnode;
-	cops->scopeout = mcsp_scopeout_replnode;
-	cops->fetrans = mcsp_fetrans_replnode;
-	cops->namemap = mcsp_namemap_replnode;
-	cops->codegen = mcsp_codegen_replnode;
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (mcsp_scopein_replnode));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (mcsp_scopeout_replnode));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_replnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_replnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (mcsp_codegen_replnode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -3327,7 +3327,7 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	i = -1;
 	tnd = tnode_newnodetype ("mcsp:guardnode", &i, 2, 0, 0, TNF_NONE);				/* subnodes: 0 = guard, 1 = process */
 	cops = tnode_newcompops ();
-	cops->fetrans = mcsp_fetrans_guardnode;
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_guardnode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -3339,12 +3339,12 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	i = -1;
 	tnd = mcsp.node_SPACENODE = tnode_newnodetype ("mcsp:spacenode", &i, 1, 0, 0, TNF_NONE);	/* subnodes: 0 = namenode/name */
 	cops = tnode_newcompops ();
-	cops->scopein = mcsp_scopein_spacenode;
-	cops->scopeout = mcsp_scopeout_spacenode;
-	cops->typecheck = mcsp_typecheck_spacenode;
-	cops->fetrans = mcsp_fetrans_spacenode;
-	cops->namemap = mcsp_namemap_spacenode;
-	cops->codegen = mcsp_codegen_spacenode;
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (mcsp_scopein_spacenode));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (mcsp_scopeout_spacenode));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (mcsp_typecheck_spacenode));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_spacenode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_spacenode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (mcsp_codegen_spacenode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -3357,8 +3357,8 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	i = -1;
 	tnd = tnode_newnodetype ("mcsp:vardeclnode", &i, 3, 0, 0, TNF_SHORTDECL);			/* subnodes: 0 = name, 1 = initialiser, 2 = body */
 	cops = tnode_newcompops ();
-	cops->namemap = mcsp_namemap_vardeclnode;
-	cops->fetrans = mcsp_fetrans_vardeclnode;
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_vardeclnode));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_vardeclnode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -3372,8 +3372,8 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	tnd->hook_copy = mcsp_constnode_hook_copy;
 	tnd->hook_dumptree = mcsp_constnode_hook_dumptree;
 	cops = tnode_newcompops ();
-	cops->constprop = mcsp_constprop_const;
-	cops->namemap = mcsp_namemap_const;
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (mcsp_constprop_const));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_const));
 	lops = tnode_newlangops ();
 	lops->isconst = mcsp_isconst_const;
 	lops->constvalof = mcsp_constvalof_const;
@@ -3390,12 +3390,12 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	i = -1;
 	tnd = tnode_newnodetype ("mcsp:instancenode", &i, 2, 0, 0, TNF_NONE);				/* subnodes: 0 = name, 1 = parameters */
 	cops = tnode_newcompops ();
-	cops->prescope = mcsp_prescope_instancenode;
-	cops->scopein = mcsp_scopein_instancenode;
-	cops->typecheck = mcsp_typecheck_instancenode;
-	cops->fetrans = mcsp_fetrans_instancenode;
-	cops->namemap = mcsp_namemap_instancenode;
-	cops->codegen = mcsp_codegen_instancenode;
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (mcsp_prescope_instancenode));
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (mcsp_scopein_instancenode));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (mcsp_typecheck_instancenode));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_instancenode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_instancenode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (mcsp_codegen_instancenode));
 	tnd->ops = cops;
 
 	i = -1;

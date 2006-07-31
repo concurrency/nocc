@@ -60,8 +60,8 @@ static int precheck_prewalk_tree (tnode_t *node, void *data)
 		nocc_internal ("precheck_prewalk_tree(): NULL node!");
 		return 0;
 	}
-	if (node->tag->ndef->ops && node->tag->ndef->ops->precheck) {
-		result = node->tag->ndef->ops->precheck (node);
+	if (node->tag->ndef->ops && tnode_hascompop_i (node->tag->ndef->ops, (int)COPS_PRECHECK)) {
+		result = tnode_callcompop_i (node->tag->ndef->ops, (int)COPS_PRECHECK, 1, node);
 	}
 
 	return result;

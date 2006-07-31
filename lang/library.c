@@ -1906,12 +1906,12 @@ static int lib_digestlibfilesrcunit (libfile_srcunit_t *lfsu, libfile_t *lf, cry
 /*}}}*/
 
 
-/*{{{  static int lib_scopein_libnode (tnode_t **nodep, scope_t *ss)*/
+/*{{{  static int lib_scopein_libnode (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
 /*
  *	scopes-in a library definition node (sets defining namespace)
  *	returns 0 to stop walk, 1 to continue
  */
-static int lib_scopein_libnode (tnode_t **nodep, scope_t *ss)
+static int lib_scopein_libnode (compops_t *cops, tnode_t **nodep, scope_t *ss)
 {
 	libnodehook_t *lnh = (libnodehook_t *)tnode_nthhookof (*nodep, 0);
 	namespace_t *ns;
@@ -1929,12 +1929,12 @@ static int lib_scopein_libnode (tnode_t **nodep, scope_t *ss)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int lib_scopeout_libnode (tnode_t **nodep, scope_t *ss)*/
+/*{{{  static int lib_scopeout_libnode (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
 /*
  *	scopes-out a library definition node (clears defining namespace)
  *	returns 0 to stop walk, 1 to continue (defunct)
  */
-static int lib_scopeout_libnode (tnode_t **nodep, scope_t *ss)
+static int lib_scopeout_libnode (compops_t *cops, tnode_t **nodep, scope_t *ss)
 {
 	libnodehook_t *lnh = (libnodehook_t *)tnode_nthhookof (*nodep, 0);
 	namespace_t *ns;
@@ -1952,12 +1952,12 @@ static int lib_scopeout_libnode (tnode_t **nodep, scope_t *ss)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int lib_betrans_libnode (tnode_t **nodep, betrans_t *be)*/
+/*{{{  static int lib_betrans_libnode (compops_t *cops, tnode_t **nodep, betrans_t *be)*/
 /*
  *	does back-end transform on a library node
  *	returns 0 to stop walk, 1 to continue
  */
-static int lib_betrans_libnode (tnode_t **nodep, betrans_t *be)
+static int lib_betrans_libnode (compops_t *cops, tnode_t **nodep, betrans_t *be)
 {
 	libnodehook_t *lnh = (libnodehook_t *)tnode_nthhookof (*nodep, 0);
 	int slen = 0;
@@ -2060,12 +2060,12 @@ static void lib_codegen_libnode_pcall (codegen_t *cgen, void *arg)
 	return;
 }
 /*}}}*/
-/*{{{  static int lib_codegen_libnode (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int lib_codegen_libnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a library node (produces the library)
  *	returns 0 to stop walk, 1 to continue
  */
-static int lib_codegen_libnode (tnode_t *node, codegen_t *cgen)
+static int lib_codegen_libnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	libnodehook_t *lnh = (libnodehook_t *)tnode_nthhookof (node, 0);
 
@@ -2076,12 +2076,12 @@ static int lib_codegen_libnode (tnode_t *node, codegen_t *cgen)
 }
 /*}}}*/
 
-/*{{{  static int lib_betrans_libtag (tnode_t **nodep, betrans_t *be)*/
+/*{{{  static int lib_betrans_libtag (compops_t *cops, tnode_t **nodep, betrans_t *be)*/
 /*
  *	does back-end transform on a library tag node
  *	returns 0 to stop walk, 1 to continue
  */
-static int lib_betrans_libtag (tnode_t **nodep, betrans_t *be)
+static int lib_betrans_libtag (compops_t *cops, tnode_t **nodep, betrans_t *be)
 {
 	libtaghook_t **lthp = (libtaghook_t **)tnode_nthhookaddr (*nodep, 0);
 	libnodehook_t *lnh;
@@ -2118,12 +2118,12 @@ static int lib_betrans_libtag (tnode_t **nodep, betrans_t *be)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int lib_namemap_libtag (tnode_t **nodep, map_t *mdata)*/
+/*{{{  static int lib_namemap_libtag (compops_t *cops, tnode_t **nodep, map_t *mdata)*/
 /*
  *	does name-mapping on a library-tag
  *	returns 0 to stop walk, 1 to continue
  */
-static int lib_namemap_libtag (tnode_t **nodep, map_t *mdata)
+static int lib_namemap_libtag (compops_t *cops, tnode_t **nodep, map_t *mdata)
 {
 	libtaghook_t *lthp = (libtaghook_t *)tnode_nthhookof (*nodep, 0);
 	tnode_t *bnode;
@@ -2141,12 +2141,12 @@ static int lib_namemap_libtag (tnode_t **nodep, map_t *mdata)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int lib_precode_libtag (tnode_t **nodep, codegen_t *cgen)*/
+/*{{{  static int lib_precode_libtag (compops_t *cops, tnode_t **nodep, codegen_t *cgen)*/
 /*
  *	does pre-code generation on a library-tag
  *	returns 0 to stop walk, 1 to continue
  */
-static int lib_precode_libtag (tnode_t **nodep, codegen_t *cgen)
+static int lib_precode_libtag (compops_t *cops, tnode_t **nodep, codegen_t *cgen)
 {
 	libtaghook_t *lthp = (libtaghook_t *)tnode_nthhookof (*nodep, 0);
 
@@ -2155,12 +2155,12 @@ static int lib_precode_libtag (tnode_t **nodep, codegen_t *cgen)
 }
 /*}}}*/
 
-/*{{{  static int lib_prescope_libusenode (tnode_t **nodep, prescope_t *ps)*/
+/*{{{  static int lib_prescope_libusenode (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
 /*
  *	does pre-scoping on library usage nodes
  *	returns 0 to stop walk, 1 to continue
  */
-static int lib_prescope_libusenode (tnode_t **nodep, prescope_t *ps)
+static int lib_prescope_libusenode (compops_t *cops, tnode_t **nodep, prescope_t *ps)
 {
 	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (*nodep, 0);
 
@@ -2170,12 +2170,12 @@ static int lib_prescope_libusenode (tnode_t **nodep, prescope_t *ps)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int lib_scopein_libusenode (tnode_t **nodep, scope_t *ss)*/
+/*{{{  static int lib_scopein_libusenode (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
 /*
  *	scopes-in library usage nodes (puts declarations into scope)
  *	returns 0 to stop walk, 1 to continue
  */
-static int lib_scopein_libusenode (tnode_t **nodep, scope_t *ss)
+static int lib_scopein_libusenode (compops_t *cops, tnode_t **nodep, scope_t *ss)
 {
 	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (*nodep, 0);
 	tnode_t *decltree = lunh->decltree;
@@ -2302,22 +2302,22 @@ fprintf (stderr, "lib_scopein_libusenode(): pushing defining namespace [%s]\n", 
 	return 0;		/* already done */
 }
 /*}}}*/
-/*{{{  static int lib_betrans_libusenode (tnode_t **nodep, betrans_t *be)*/
+/*{{{  static int lib_betrans_libusenode (compops_t *cops, tnode_t **nodep, betrans_t *be)*/
 /*
  *	does back-end transforms for a library-usage node
  *	returns 0 to stop walk, 1 to continue
  */
-static int lib_betrans_libusenode (tnode_t **nodep, betrans_t *be)
+static int lib_betrans_libusenode (compops_t *cops, tnode_t **nodep, betrans_t *be)
 {
 	return 1;
 }
 /*}}}*/
-/*{{{  static int lib_namemap_libusenode (tnode_t **nodep, map_t *mdata)*/
+/*{{{  static int lib_namemap_libusenode (compops_t *cops, tnode_t **nodep, map_t *mdata)*/
 /*
  *	does name-mapping for library-usage nodes, generates back-end BLOCKs
  *	returns 0 to stop walk, 1 to continue
  */
-static int lib_namemap_libusenode (tnode_t **nodep, map_t *mdata)
+static int lib_namemap_libusenode (compops_t *cops, tnode_t **nodep, map_t *mdata)
 {
 	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (*nodep, 0);
 	int i;
@@ -2353,23 +2353,23 @@ tnode_dumptree (decl, 1, stderr);
 	return 1;
 }
 /*}}}*/
-/*{{{  static int lib_codegen_libusenode (tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int lib_codegen_libusenode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a library-usage node
  *	returns 0 to stop walk, 1 to continue
  */
-static int lib_codegen_libusenode (tnode_t *node, codegen_t *cgen)
+static int lib_codegen_libusenode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	return 1;
 }
 /*}}}*/
 
-/*{{{  static int lib_scopein_templibusenode (tnode_t **nodep, scope_t *ss)*/
+/*{{{  static int lib_scopein_templibusenode (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
 /*
  *	scopes-in a TEMPLIBUSENODE -- this checks to see if the LIBUSENODE
  *	was defining a namespace;  if so, removes it from the scoper
  */
-static int lib_scopein_templibusenode (tnode_t **nodep, scope_t *ss)
+static int lib_scopein_templibusenode (compops_t *cops, tnode_t **nodep, scope_t *ss)
 {
 	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (*nodep, 0);
 
@@ -2444,10 +2444,10 @@ int library_init (void)
 	tnd_libnode->hook_dumptree = lib_libnodehook_dumptree;
 	tnd_libnode->hook_dumpstree = lib_libnodehook_dumpstree;
 	cops = tnode_newcompops ();
-	cops->scopein = lib_scopein_libnode;
-	cops->scopeout = lib_scopeout_libnode;
-	cops->betrans = lib_betrans_libnode;
-	cops->codegen = lib_codegen_libnode;
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (lib_scopein_libnode));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (lib_scopeout_libnode));
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (lib_betrans_libnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (lib_codegen_libnode));
 	tnd_libnode->ops = cops;
 
 	i = -1;
@@ -2461,11 +2461,11 @@ int library_init (void)
 	tnd_libusenode->hook_dumptree = lib_libusenodehook_dumptree;
 	tnd_libusenode->hook_dumpstree = lib_libusenodehook_dumpstree;
 	cops = tnode_newcompops ();
-	cops->prescope = lib_prescope_libusenode;
-	cops->scopein = lib_scopein_libusenode;
-	cops->betrans = lib_betrans_libusenode;
-	cops->namemap = lib_namemap_libusenode;
-	cops->codegen = lib_codegen_libusenode;
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (lib_prescope_libusenode));
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (lib_scopein_libusenode));
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (lib_betrans_libusenode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (lib_namemap_libusenode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (lib_codegen_libusenode));
 	tnd_libusenode->ops = cops;
 
 	i = -1;
@@ -2475,7 +2475,7 @@ int library_init (void)
 	i = -1;
 	tnd_templibusenode = tnode_newnodetype ("nocc:templibusenode", &i, 1, 0, 1, TNF_NONE);
 	cops = tnode_newcompops ();
-	cops->scopein = lib_scopein_templibusenode;
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (lib_scopein_templibusenode));
 	tnd_templibusenode->ops = cops;
 
 	i = -1;
@@ -2489,9 +2489,9 @@ int library_init (void)
 	tnd_libtag->hook_dumptree = lib_libtaghook_dumptree;
 	tnd_libtag->hook_dumpstree = lib_libtaghook_dumpstree;
 	cops = tnode_newcompops ();
-	cops->betrans = lib_betrans_libtag;
-	cops->namemap = lib_namemap_libtag;
-	cops->precode = lib_precode_libtag;
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (lib_betrans_libtag));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (lib_namemap_libtag));
+	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (lib_precode_libtag));
 	tnd_libtag->ops = cops;
 
 	i = -1;
