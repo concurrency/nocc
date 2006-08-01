@@ -170,53 +170,6 @@ static int occampi_mwsync_init_nodes (void)
 	i = -1;
 	opi.tag_BARRIER = tnode_newnodetag ("BARRIER", &i, tnd, NTF_NONE);
 	/*}}}*/
-#if 0
-	/*{{{  occampi:mobiletypenode -- MOBILE, DYNMOBARRAY, CTCLI, CTSVR, CTSHCLI, CTSHSVR*/
-	i = -1;
-	tnd = tnode_newnodetype ("occampi:mobiletypenode", &i, 1, 0, 0, TNF_NONE);		/* subnodes: subtype */
-	cops = tnode_newcompops ();
-	cops->bytesfor = occampi_mobiletypenode_bytesfor;
-	cops->typereduce = occampi_mobiletypenode_typereduce;
-	tnd->ops = cops;
-	lops = tnode_newlangops ();
-	lops->initsizes = occampi_mobiletypenode_initsizes;
-	lops->initialising_decl = occampi_mobiletypenode_initialising_decl;
-	lops->iscomplex = occampi_mobiletypenode_iscomplex;
-	lops->codegen_typeaction = occampi_mobiletypenode_typeaction;
-	tnd->lops = lops;
-
-	i = -1;
-	opi.tag_MOBILE = tnode_newnodetag ("MOBILE", &i, tnd, NTF_NONE);
-	i = -1;
-	opi.tag_DYNMOBARRAY = tnode_newnodetag ("DYNMOBARRAY", &i, tnd, NTF_NONE);
-	i = -1;
-	opi.tag_DYNMOBCTCLI = tnode_newnodetag ("DYNMOBCTCLI", &i, tnd, NTF_NONE);
-	i = -1;
-	opi.tag_DYNMOBCTSVR = tnode_newnodetag ("DYNMOBCTSVR", &i, tnd, NTF_NONE);
-	i = -1;
-	opi.tag_DYNMOBCTSHCLI = tnode_newnodetag ("DYNMOBCTSHCLI", &i, tnd, NTF_NONE);
-	i = -1;
-	opi.tag_DYNMOBCTSHSVR = tnode_newnodetag ("DYNMOBCTSHSVR", &i, tnd, NTF_NONE);
-	i = -1;
-	opi.tag_DYNMOBPROC = tnode_newnodetag ("DYNMOBPROC", &i, tnd, NTF_NONE);
-
-	/*}}}*/
-	/*{{{  occampi:mobilealloc -- NEWDYNMOBARRAY*/
-	i = -1;
-	tnd = tnode_newnodetype ("occampi:mobilealloc", &i, 3, 0, 0, TNF_NONE);			/* subnodes: subtype, dimtree, type */
-	cops = tnode_newcompops ();
-	cops->typecheck = occampi_mobilealloc_typecheck;
-	cops->gettype = occampi_mobilealloc_gettype;
-	cops->premap = occampi_mobilealloc_premap;
-	cops->namemap = occampi_mobilealloc_namemap;
-	cops->codegen = occampi_mobilealloc_codegen;
-	tnd->ops = cops;
-
-	i = -1;
-	opi.tag_NEWDYNMOBARRAY = tnode_newnodetag ("NEWDYNMOBARRAY", &i, tnd, NTF_NONE);
-
-	/*}}}*/
-#endif
 
 	return 0;
 }
@@ -228,11 +181,7 @@ static int occampi_mwsync_init_nodes (void)
  */
 static int occampi_mwsync_reg_reducers (void)
 {
-#if 0
-	parser_register_grule ("opi:mobilise", parser_decode_grule ("SN0N+C1N-", opi.tag_MOBILE));
-	parser_register_grule ("opi:dynmobilearray", parser_decode_grule ("SN0N+C1N-", opi.tag_DYNMOBARRAY));
-	parser_register_grule ("opi:dynmobarrayallocreduce", parser_decode_grule ("SN0N+N+0C3R-", opi.tag_NEWDYNMOBARRAY));
-#endif
+	parser_register_grule ("opi:barrierreduce", parser_decode_grule ("ST0T+@tC0R-", opi.tag_BARRIER));
 
 	return 0;
 }
@@ -247,6 +196,7 @@ static dfattbl_t **occampi_mwsync_init_dfatrans (int *ntrans)
 
 	dynarray_init (transtbl);
 
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:primtype +:= [ 0 +@BARRIER 1 ] [ 1 {<opi:barrierreduce>} -* ]"));
 	/* FIXME! */
 	/* dynarray_add (transtbl, dfa_transtotbl ("occampi:mobileprocdecl ::= [ 0 @MOBILE 1 ] [ 1 @PROC 2 ] [ 2 occampi:name 3 ] [ 3 {<opi:nullreduce>} -* ]")); */
 
