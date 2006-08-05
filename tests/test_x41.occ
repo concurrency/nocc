@@ -1,0 +1,10 @@
+
+-- test_x41.occ -- testing barriers
+
+PROC test.x41 ()
+  BARRIER x:
+  SEQ
+    SKIP
+:
+
+

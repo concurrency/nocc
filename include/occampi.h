@@ -76,6 +76,8 @@ typedef struct {
 	struct TAG_ntdef *tag_FUNCTIONTYPE;
 	struct TAG_ntdef *tag_TYPESPEC;
 	struct TAG_ntdef *tag_BARRIER;
+	struct TAG_ntdef *tag_PARBARRIER;
+	struct TAG_ntdef *tag_PROCBARRIER;
 
 	struct TAG_ntdef *tag_NEWDYNMOBARRAY;
 

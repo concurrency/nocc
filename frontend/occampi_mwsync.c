@@ -152,7 +152,7 @@ static int occampi_mwsync_init_nodes (void)
 	langops_t *lops;
 	int i;
 
-	/*{{{  occampi:leaftype ++ BARRIER*/
+	/*{{{  occampi:leaftype -- BARRIER*/
 	tnd = tnode_lookupnodetype ("occampi:leaftype");
 	if (!tnd) {
 		nocc_error ("occampi_mwsync_init_nodes(): failed to find occampi:leaftype");
@@ -169,6 +169,16 @@ static int occampi_mwsync_init_nodes (void)
 
 	i = -1;
 	opi.tag_BARRIER = tnode_newnodetag ("BARRIER", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:leafnode -- PARBARRIER, PROCBARRIER*/
+	tnd = tnode_lookupnodetype ("occampi:leafnode");
+
+	i = -1;
+	opi.tag_PARBARRIER = tnode_newnodetag ("PARBARRIER", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_PROCBARRIER = tnode_newnodetag ("PROCBARRIER", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 
 	return 0;
