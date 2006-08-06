@@ -140,6 +140,42 @@ static int occampi_mwsync_leaftype_getdescriptor (langops_t *lops, tnode_t *node
 /*}}}*/
 
 
+/*{{{  static int occampi_mwsync_action_typecheck (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	called to type-check a sync action-node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mwsync_action_typecheck (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	int i = 1;
+
+	if (node->tag == opi.tag_SYNC) {
+		tnode_t *lhs = tnode_nthsubof (node, 0);
+		tnode_t *acttype = tnode_nthsubof (node, 2);
+		tnode_t *lhstype;
+
+		if (acttype) {
+			nocc_warning ("occampi_mwsync_action_typecheck(): strange, already type-checked this action");
+			return 0;
+		}
+		lhstype = typecheck_gettype (lhs, NULL);
+		i = 0;
+		if (!lhstype || (lhstype->tag != opi.tag_BARRIER)) {
+			typecheck_error (node, tc, "can only synchronise on a BARRIER");
+		} else {
+			tnode_setnthsub (node, 2, lhstype);
+		}
+	} else {
+		/* down-stream typecheck */
+		if (cops->next && tnode_hascompop_i (cops->next, (int)COPS_TYPECHECK)) {
+			i = tnode_callcompop_i (cops->next, (int)COPS_TYPECHECK, 2, node, tc);
+		}
+	}
+	return i;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_mwsync_init_nodes (void)*/
 /*
  *	sets up nodes for occam-pi multi-way synchronisations
@@ -180,6 +216,19 @@ static int occampi_mwsync_init_nodes (void)
 	opi.tag_PROCBARRIER = tnode_newnodetag ("PROCBARRIER", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  occampi:actionnode -- SYNC*/
+	tnd = tnode_lookupnodetype ("occampi:actionnode");
+
+	cops = tnode_insertcompops (tnd->ops);
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_mwsync_action_typecheck));
+	tnd->ops = cops;
+	lops = tnode_insertlangops (tnd->lops);
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_SYNC = tnode_newnodetag ("SYNC", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 
 	return 0;
 }
@@ -192,6 +241,7 @@ static int occampi_mwsync_init_nodes (void)
 static int occampi_mwsync_reg_reducers (void)
 {
 	parser_register_grule ("opi:barrierreduce", parser_decode_grule ("ST0T+@tC0R-", opi.tag_BARRIER));
+	parser_register_grule ("opi:syncreduce", parser_decode_grule ("ST0T+@tN+00C3R-", opi.tag_SYNC));
 
 	return 0;
 }
@@ -207,6 +257,8 @@ static dfattbl_t **occampi_mwsync_init_dfatrans (int *ntrans)
 	dynarray_init (transtbl);
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:primtype +:= [ 0 +@BARRIER 1 ] [ 1 {<opi:barrierreduce>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:declorprocstart +:= [ 0 +@SYNC 1 ] [ 1 occampi:operand 2 ] [ 2 {<opi:syncreduce>} -* ]"));
+
 	/* FIXME! */
 	/* dynarray_add (transtbl, dfa_transtotbl ("occampi:mobileprocdecl ::= [ 0 @MOBILE 1 ] [ 1 @PROC 2 ] [ 2 occampi:name 3 ] [ 3 {<opi:nullreduce>} -* ]")); */
 
