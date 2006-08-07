@@ -2840,6 +2840,54 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		codegen_write_string (cgen, "\tmwaltend\n");
 		break;
 		/*}}}*/
+		/*{{{  MWS_BINIT: multiway syncs (new) initialise BARRIER*/
+	case I_MWS_BINIT:
+		codegen_write_string (cgen, "\tmws_binit\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  MWS_PBRILNK: initialise and link PARBARRIER*/
+	case I_MWS_PBRILNK:
+		codegen_write_string (cgen, "\tmws_pbrilnk\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  MWS_PBRULNK: unlink PARBARRIER*/
+	case I_MWS_PBRULNK:
+		codegen_write_string (cgen, "\tmws_pbrulnk\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  MWS_PPILNK: initialise and link PROCBARRIER*/
+	case I_MWS_PPILNK:
+		codegen_write_string (cgen, "\tmws_ppilnk\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  MWS_PBENROLL: enroll processes on PARBARRIER*/
+	case I_MWS_PBENROLL:
+		codegen_write_string (cgen, "\tmws_pbenroll\n");
+		krocetc_cgstate_tsdelta (cgen, -3);
+		break;
+		/*}}}*/
+		/*{{{  MWS_PBRESIGN: resign processes from PARBARRIER*/
+	case I_MWS_PBRESIGN:
+		codegen_write_string (cgen, "\tmws_pbresign\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  MWS_PBADJSYNC: adjust the number of processes required to synchronise on a PARBARRIER*/
+	case I_MWS_PBADJSYNC:
+		codegen_write_string (cgen, "\tmws_pbadjsync\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  MWS_SYNC: synchronise on a multi-way sync (new)*/
+	case I_MWS_SYNC:
+		codegen_write_string (cgen, "\tmws_sync\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: tsecondary %d\n", ins);
 		break;
