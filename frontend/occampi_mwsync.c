@@ -72,11 +72,18 @@ typedef struct TAG_mwsynctrans {
 	int error;
 } mwsynctrans_t;
 
+typedef struct TAG_mwsyncpbinfo {
+	int ecount;				/* enroll count */
+	int sadjust;				/* sync adjust */
+	tnode_t *parent;			/* parent PARBARRIER */
+} mwsyncpbinfo_t;
+
 
 /*}}}*/
 /*{{{  private data*/
 
 static chook_t *mapchook = NULL;
+static chook_t *mwsyncpbihook = NULL;
 
 
 /*}}}*/
@@ -154,6 +161,82 @@ static void mwsync_freemwsynctrans (mwsynctrans_t *mwi)
 	sfree (mwi);
 
 	return;
+}
+/*}}}*/
+/*{{{  static mwsyncpbinfo_t *mwsync_newmwsyncpbinfo (void)*/
+/*
+ *	creates a new mwsyncpbinfo_t structure
+ */
+static mwsyncpbinfo_t *mwsync_newmwsyncpbinfo (void)
+{
+	mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)smalloc (sizeof (mwsyncpbinfo_t));
+
+	pbinf->ecount = 0;
+	pbinf->sadjust = 0;
+	pbinf->parent = NULL;
+
+	return pbinf;
+}
+/*}}}*/
+/*{{{  static void mwsync_freemwsyncpbinfo (mwsyncpbinfo_t *pbinf)*/
+/*
+ *	frees a mwsyncpbinfo_t structure
+ */
+static void mwsync_freemwsyncpbinfo (mwsyncpbinfo_t *pbinf)
+{
+	sfree (pbinf);
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static void mwsync_pbihook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*
+ *	displays the contents of a mwsyncpbinfo compiler hook
+ */
+static void mwsync_pbihook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+{
+	if (chook) {
+		mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)chook;
+
+		occampi_isetindent (stream, indent);
+		fprintf (stream, "<mwsync:parbarrierinfo ecount=\"%d\" sadjust=\"%d\" parent=\"0x%8.8x\" addr=\"0x%8.8x\" />\n", pbinf->ecount, pbinf->sadjust, (unsigned int)pbinf->parent, (unsigned int)chook);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void mwsync_pbihook_free (void *chook)*/
+/*
+ *	frees a mwsyncpbinfo compiler hook
+ */
+static void mwsync_pbihook_free (void *chook)
+{
+	mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)chook;
+
+	mwsync_freemwsyncpbinfo (pbinf);
+	return;
+}
+/*}}}*/
+/*{{{  static void *mwsync_pbihook_copy (void *chook)*/
+/*
+ *	duplicates a mwsyncpbinfo compiler hook
+ */
+static void *mwsync_pbihook_copy (void *chook)
+{
+	mwsyncpbinfo_t *other = (mwsyncpbinfo_t *)chook;
+	mwsyncpbinfo_t *pbinf;
+
+	if (!other) {
+		return NULL;
+	}
+
+	pbinf = mwsync_newmwsyncpbinfo ();
+
+	pbinf->ecount = other->ecount;
+	pbinf->sadjust = other->sadjust;
+	pbinf->parent = other->parent;
+
+	return (void *)pbinf;
 }
 /*}}}*/
 
@@ -321,7 +404,11 @@ static int occampi_mwsync_action_namemap (compops_t *cops, tnode_t **node, map_t
 	int i = 1;
 
 	if ((*node)->tag == opi.tag_SYNC) {
-		/* FIXME! */
+		tnode_t *bename;
+
+		map_submapnames (tnode_nthsubaddr (*node, 0), map);		/* map barrier operand */
+		bename = map->target->newname (*node, NULL, map, 0, map->target->bws.ds_min, 0, 0, 0, 0);
+		*node = bename;
 		i = 0;
 	} else {
 		if (cops->next && tnode_hascompop_i (cops->next, (int)COPS_NAMEMAP)) {
@@ -341,7 +428,11 @@ static int occampi_mwsync_action_codegen (compops_t *cops, tnode_t *node, codege
 	int i = 1;
 
 	if (node->tag == opi.tag_SYNC) {
-		/* FIXME! */
+		tnode_t *bar = tnode_nthsubof (node, 0);
+
+		codegen_callops (cgen, debugline, node);
+		codegen_callops (cgen, loadpointer, bar, 0);
+		codegen_callops (cgen, tsecondary, I_MWS_SYNC);
 		i = 0;
 	} else {
 		if (cops->next && tnode_hascompop_i (cops->next, (int)COPS_CODEGEN)) {
@@ -427,6 +518,8 @@ static int occampi_mwsync_namenode_mwsynctrans (compops_t *cops, tnode_t **tptr,
 				mwps = DA_NTHITEM (mwi->pstack, i);
 				if (!DA_CUR (mwps->parblks)) {
 					/*{{{  outside of any PAR block, won't have local*/
+					mwsyncpbinfo_t *pbinf = NULL;
+
 					nocc_message ("occampi_mwsync_namenode_mwsynctrans(): no pstack, creating PARBARRIER");
 
 					parbardecl = tnode_create (opi.tag_PARBARRIER, NULL, NULL, tnode_create (opi.tag_BARRIER, NULL), NULL, *tptr);
@@ -444,6 +537,13 @@ static int occampi_mwsync_namenode_mwsynctrans (compops_t *cops, tnode_t **tptr,
 					tnode_setnthsub (parbardecl, 2, tnode_nthsubof (vdecl, 2));
 					tnode_setnthsub (vdecl, 2, parbardecl);
 					DA_SETNTHITEM (mwps->bipoints, j, tnode_nthsubaddr (parbardecl, 2));		/* inside the PAR-BARRIER decl */
+
+					/* setup info hook (single process) */
+					pbinf = mwsync_newmwsyncpbinfo ();
+					pbinf->ecount = 1;
+					pbinf->sadjust = 1;
+					pbinf->parent = NULL;
+					tnode_setchook (parbardecl, mwsyncpbihook, (void *)pbinf);
 
 #if 0
 					nocc_message ("occampi_mwsync_namenode_mwsynctrans(): parbardecl is:");
@@ -503,7 +603,12 @@ static int occampi_mwsyncvar_namemap (compops_t *cops, tnode_t **node, map_t *ma
 	int wssize;
 
 	if ((*node)->tag == opi.tag_PARBARRIER) {
-		wssize = map->target->slotsize * 8;
+		mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)tnode_getchook (*node, mwsyncpbihook);
+
+		wssize = map->target->slotsize * 9;
+		if (pbinf && pbinf->parent) {
+			/* FIXME: map out pbinf->parent perhaps */
+		}
 	} else if ((*node)->tag == opi.tag_PROCBARRIER) {
 		wssize = map->target->slotsize * 4;
 	} else {
@@ -546,6 +651,8 @@ static int occampi_mwsyncvar_codegen (compops_t *cops, tnode_t *node, codegen_t 
 	cgen->target->be_getoffsets (thisvar, &ws_off, NULL, NULL, NULL);
 
 	if (node->tag == opi.tag_PARBARRIER) {
+		mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)tnode_getchook (node, mwsyncpbihook);
+
 		/*{{{  initialise PARBARRIER structure*/
 
 		codegen_callops (cgen, loadpointer, othervar, 0);
@@ -554,6 +661,28 @@ static int occampi_mwsyncvar_codegen (compops_t *cops, tnode_t *node, codegen_t 
 		codegen_callops (cgen, comment, "initparbarrier");
 
 		/*}}}*/
+		if (pbinf && pbinf->ecount) {
+			/*{{{  enroll processes on barrier*/
+			codegen_callops (cgen, loadconst, pbinf->ecount);
+			if (pbinf->parent) {
+				codegen_callops (cgen, comment, "FIXME! -- get address of parent (via nameref)");
+				codegen_callops (cgen, loadconst, 0);
+			} else {
+				codegen_callops (cgen, loadconst, 0);
+			}
+			codegen_callops (cgen, loadlocalpointer, ws_off);
+			codegen_callops (cgen, tsecondary, I_MWS_PBENROLL);
+			codegen_callops (cgen, comment, "parbarrierenroll");
+			/*}}}*/
+		}
+		if (pbinf && pbinf->sadjust) {
+			/*{{{  adjust synchronisation count on barrier*/
+			codegen_callops (cgen, loadconst, pbinf->sadjust);
+			codegen_callops (cgen, loadlocalpointer, ws_off);
+			codegen_callops (cgen, tsecondary, I_MWS_PBADJSYNC);
+			codegen_callops (cgen, comment, "parbarrieradjustsync");
+			/*}}}*/
+		}
 	} else if (node->tag == opi.tag_PROCBARRIER) {
 		/*{{{  initialise PROCBARRIER structure*/
 
@@ -652,8 +781,12 @@ static int occampi_mwsync_init_nodes (void)
 	tnode_newcompop ("mwsynctrans", COPS_INVALID, 2, NULL);
 
 	/*}}}*/
-	/*{{{  mapchook -- compiler hook*/
+	/*{{{  mapchook, mwsyncpbihook -- compiler hooks*/
 	mapchook = tnode_lookupornewchook ("map:mapnames");
+	mwsyncpbihook = tnode_lookupornewchook ("mwsync:parbarrierinfo");
+	mwsyncpbihook->chook_dumptree = mwsync_pbihook_dumptree;
+	mwsyncpbihook->chook_free = mwsync_pbihook_free;
+	mwsyncpbihook->chook_copy = mwsync_pbihook_copy;
 
 	/*}}}*/
 	/*{{{  occampi:leaftype -- BARRIER*/
