@@ -130,22 +130,6 @@ typedef struct TAG_compop {
 typedef struct TAG_compops {
 	struct TAG_compops *next;
 	DYNARRAY (void *, opfuncs);
-#if 0
-	int (*prescope)(tnode_t **, struct TAG_prescope *);		/* called before scoping */
-	int (*scopein)(tnode_t **, struct TAG_scope *);			/* scopes in declarations made by this node */
-	int (*scopeout)(tnode_t **, struct TAG_scope *);		/* scopes out declarations made by this node */
-	int (*typecheck)(tnode_t *, struct TAG_typecheck *);		/* type-checks this node */
-	int (*constprop)(tnode_t **);					/* performs constant-propagation on the node (mod-post-walk) */
-	int (*precheck)(tnode_t *);					/* performs pre-checks on the node */
-	int (*fetrans)(tnode_t **, struct TAG_fetrans *);		/* performs front-end transforms */
-	int (*betrans)(tnode_t **, struct TAG_betrans *);		/* performs back-end transforms for target */
-	int (*premap)(tnode_t **, struct TAG_map *);			/* performs pre-mapping for target */
-	int (*namemap)(tnode_t **, struct TAG_map *);			/* performs name-mapping for target */
-	int (*bemap)(tnode_t **, struct TAG_map *);			/* performs back-end-mapping for target */
-	int (*preallocate)(tnode_t *, struct TAG_target *);		/* performs pre-allocations for target */
-	int (*precode)(tnode_t **, struct TAG_codegen *);		/* performs pre-codegen for target */
-	int (*codegen)(tnode_t *, struct TAG_codegen *);		/* performs code-generation for target */
-#endif
 } compops_t;
 
 

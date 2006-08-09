@@ -60,9 +60,10 @@
 
 typedef struct TAG_mwsyncpstk {
 	DYNARRAY (tnode_t *, parblks);		/* PAR nodes themselves */
+	DYNARRAY (tnode_t **, paripoints);	/* barrier name insert point for par (parbarrier) */
 	DYNARRAY (tnode_t *, parbarriers);	/* associated PAR barrier variables */
 	DYNARRAY (tnode_t *, bnames);		/* barrier name variables */
-	DYNARRAY (tnode_t **, bipoints);	/* barrier name insert point */
+	DYNARRAY (tnode_t **, bipoints);	/* barrier name insert point (procbarrier) */
 } mwsyncpstk_t;
 
 typedef struct TAG_mwsynctrans {
@@ -104,6 +105,7 @@ static mwsyncpstk_t *mwsync_newmwsyncpstk (void)
 	mwsyncpstk_t *mwps = (mwsyncpstk_t *)smalloc (sizeof (mwsyncpstk_t));
 
 	dynarray_init (mwps->parblks);
+	dynarray_init (mwps->paripoints);
 	dynarray_init (mwps->parbarriers);
 	dynarray_init (mwps->bnames);
 	dynarray_init (mwps->bipoints);
@@ -118,6 +120,7 @@ static mwsyncpstk_t *mwsync_newmwsyncpstk (void)
 static void mwsync_freemwsyncpstk (mwsyncpstk_t *mwps)
 {
 	dynarray_trash (mwps->parblks);
+	dynarray_trash (mwps->paripoints);
 	dynarray_trash (mwps->parbarriers);
 	dynarray_trash (mwps->bnames);
 	dynarray_trash (mwps->bipoints);
@@ -334,7 +337,7 @@ static int occampi_mwsync_leaftype_getdescriptor (langops_t *lops, tnode_t *node
 		return 0;
 	}
 	if (lops->next && lops->next->getdescriptor) {
-		lops->next->getdescriptor (lops->next, node, str);
+		return lops->next->getdescriptor (lops->next, node, str);
 	}
 	nocc_error ("occampi_mwsync_leaftype_getdescriptor(): no next function!");
 
@@ -528,6 +531,7 @@ static int occampi_mwsync_namenode_mwsynctrans (compops_t *cops, tnode_t **tptr,
 					tnode_setnthsub (parbardecl, 0, parbarname);
 
 					dynarray_add (mwps->parblks, NULL);
+					dynarray_add (mwps->paripoints, NULL);
 					dynarray_add (mwps->parbarriers, parbarname);
 					dynarray_add (mwps->bnames, NULL);
 					dynarray_add (mwps->bipoints, NULL);
@@ -541,7 +545,7 @@ static int occampi_mwsync_namenode_mwsynctrans (compops_t *cops, tnode_t **tptr,
 					/* setup info hook (single process) */
 					pbinf = mwsync_newmwsyncpbinfo ();
 					pbinf->ecount = 1;
-					pbinf->sadjust = 1;
+					pbinf->sadjust = 0;
 					pbinf->parent = NULL;
 					tnode_setchook (parbardecl, mwsyncpbihook, (void *)pbinf);
 
@@ -552,7 +556,43 @@ static int occampi_mwsync_namenode_mwsynctrans (compops_t *cops, tnode_t **tptr,
 
 					/*}}}*/
 				} else {
+					/*{{{  inside a PAR block, check to see if it's got a PARBARRIER*/
 					j = DA_CUR (mwps->parblks) - 1;
+
+					/* FIXME: may need to work backwards if nested PARs */
+					if (!DA_NTHITEM (mwps->parbarriers, j)) {
+						mwsyncpbinfo_t *pbinf = NULL;
+
+						nocc_message ("occampi_mwsync_namenode_mwsynctrans(): got pstack, creating PARBARRIER");
+
+						parbardecl = tnode_create (opi.tag_PARBARRIER, NULL, NULL, tnode_create (opi.tag_BARRIER, NULL), NULL, *tptr);
+						/* parbarname = tnode_createfrom (opi.tag_NDECL, *tptr, name_addtempname (parbardecl, NULL, NULL, NULL)); */
+						name_addtempname (parbardecl, tnode_nthsubof (parbardecl, 1), opi.tag_NDECL, &parbarname);
+						tnode_setnthsub (parbardecl, 0, parbarname);
+
+						/* stitch it in at the given insert-point */
+						if (!DA_NTHITEM (mwps->paripoints, j)) {
+							nocc_internal ("occampi_mwsync_namenode_mwsynctrans(): no PARBARRIER insert point!");
+							return -1;
+						}
+
+						tnode_setnthsub (parbardecl, 2, *(DA_NTHITEM (mwps->paripoints, j)));
+						*(DA_NTHITEM (mwps->paripoints, j)) = parbardecl;
+
+						DA_SETNTHITEM (mwps->paripoints, j, tnode_nthsubaddr (parbardecl, 2));		/* inside the new PAR-BARRIER decl */
+						DA_SETNTHITEM (mwps->parbarriers, j, parbarname);
+
+						/* setup info hook (filled in after PAR) */
+						pbinf = mwsync_newmwsyncpbinfo ();
+						pbinf->ecount = 0;
+						pbinf->sadjust = 0;
+						pbinf->parent = NULL;
+						tnode_setchook (parbardecl, mwsyncpbihook, (void *)pbinf);
+					} else {
+						/* else we've already got one here */
+						procbarname = DA_NTHITEM (mwps->parbarriers, j);
+					}
+					/*}}}*/
 				}
 
 				procbarname = DA_NTHITEM (mwps->bnames, j);
@@ -587,6 +627,93 @@ static int occampi_mwsync_namenode_mwsynctrans (compops_t *cops, tnode_t **tptr,
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_mwsync_cnode_mwsynctrans (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)*/
+/*
+ *	does multi-way synchronisation transforms for a PAR (constructor node, occampi:cnode)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mwsync_cnode_mwsynctrans (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)
+{
+	if ((*tptr)->tag == opi.tag_PAR) {
+		tnode_t *parnode = *tptr;
+		tnode_t **bodies;
+		int i, nbodies;
+
+		/* go through each one in turn */
+		for (i=0; i<DA_CUR (mwi->varptr); i++) {
+			mwsyncpstk_t *mwps = DA_NTHITEM (mwi->pstack, i);
+
+			/* start to add a PAR block for this node */
+#if 1
+			nocc_message ("occampi_mwsync_cnode_mwsynctrans(): encountered PAR, adding an entry to its pstk");
+#endif
+
+			dynarray_add (mwps->parblks, parnode);
+			dynarray_add (mwps->paripoints, tptr);		/* if we create a PARBARRIER, want it here */
+			dynarray_add (mwps->parbarriers, NULL);
+			dynarray_add (mwps->bnames, NULL);
+			dynarray_add (mwps->bipoints, NULL);
+		}
+
+		bodies = parser_getlistitems (tnode_nthsubof (parnode, 1), &nbodies);
+		for (i=0; i<nbodies; i++) {
+			tnode_t **bodyp = bodies + i;
+			int j;
+
+			/* setup bipoints for each var */
+			for (j=0; j<DA_CUR (mwi->varptr); j++) {
+				mwsyncpstk_t *mwps = DA_NTHITEM (mwi->pstack, j);
+				int k = DA_CUR (mwps->parblks) - 1;
+
+				DA_SETNTHITEM (mwps->bipoints, k, bodyp);		/* insert things at the PAR body */
+			}
+
+			mwsync_transsubtree (bodyp, mwi);
+
+			/* check each var to see if something in the body used it -- should be favourable to freevars and the like */
+			for (j=0; j<DA_CUR (mwi->varptr); j++) {
+				mwsyncpstk_t *mwps = DA_NTHITEM (mwi->pstack, j);
+				int k = DA_CUR (mwps->parblks) - 1;
+				tnode_t *parbarrier = DA_NTHITEM (mwps->parbarriers, k);
+				tnode_t *procbarrier = DA_NTHITEM (mwps->bnames, k);
+				mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)tnode_getchook (NameDeclOf (tnode_nthnameof (parbarrier, 0)), mwsyncpbihook);
+
+				if (procbarrier) {
+					/* yes, this one was used, kick up enroll count */
+					pbinf->ecount++;
+				}
+				DA_SETNTHITEM (mwps->bnames, k, NULL);
+			}
+#if 1
+#endif
+		}
+
+		for (i=0; i<DA_CUR (mwi->varptr); i++) {
+			mwsyncpstk_t *mwps = DA_NTHITEM (mwi->pstack, i);
+			tnode_t *parbarrier;
+
+			/* remove recent PAR */
+			if (!DA_CUR (mwps->parblks) || (DA_NTHITEM (mwps->parblks, DA_CUR (mwps->parblks) - 1) != parnode)) {
+				nocc_internal ("occampi_mwsync_cnode_mwsynctrans(): erk, not this PAR!");
+			}
+
+			dynarray_delitem (mwps->parblks, DA_CUR (mwps->parblks) - 1);
+			dynarray_delitem (mwps->paripoints, DA_CUR (mwps->paripoints) - 1);
+			dynarray_delitem (mwps->parbarriers, DA_CUR (mwps->parbarriers) - 1);
+			dynarray_delitem (mwps->bnames, DA_CUR (mwps->bnames) - 1);
+			dynarray_delitem (mwps->bipoints, DA_CUR (mwps->bipoints) - 1);
+		}
+
+#if 1
+		nocc_message ("occampi_mwsync_cnode_mwsynctrans(): PAR here (DA_CUR (varptr) = %d)! tree is:", DA_CUR (mwi->varptr));
+		tnode_dumptree (*tptr, 1, stderr);
+#endif
+
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_mwsyncvar_namemap (compops_t *cops, tnode_t **node, map_t *map)*/
@@ -610,7 +737,7 @@ static int occampi_mwsyncvar_namemap (compops_t *cops, tnode_t **node, map_t *ma
 			/* FIXME: map out pbinf->parent perhaps */
 		}
 	} else if ((*node)->tag == opi.tag_PROCBARRIER) {
-		wssize = map->target->slotsize * 4;
+		wssize = map->target->slotsize * 5;
 	} else {
 		nocc_error ("occampi_mwsyncvar_namemap(): not PARBARRIER/PROCBARRIER: [%s, %s]", (*node)->tag->name, (*node)->tag->ndef->name);
 		return 0;
@@ -846,6 +973,11 @@ static int occampi_mwsync_init_nodes (void)
 	/*{{{  occampi:namenode -- (mods for barriers)*/
 	tnd = tnode_lookupnodetype ("occampi:namenode");
 	tnode_setcompop (tnd->ops, "mwsynctrans", 2, COMPOPTYPE (occampi_mwsync_namenode_mwsynctrans));
+
+	/*}}}*/
+	/*{{{  occampi:cnode -- (mods for barriers)*/
+	tnd = tnode_lookupnodetype ("occampi:cnode");
+	tnode_setcompop (tnd->ops, "mwsynctrans", 2, COMPOPTYPE (occampi_mwsync_cnode_mwsynctrans));
 
 	/*}}}*/
 

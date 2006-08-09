@@ -1379,6 +1379,18 @@ void tnode_dumpnodetypes (FILE *stream)
 /*}}}*/
 
 
+/*{{{  static int tnode_callthroughcompops (compops_t *cops, ...)*/
+/*
+ *	this is a dummy function -- used to indicate that we call-through to something underneath
+ */
+static int tnode_callthroughcompops (compops_t *cops, ...)
+{
+	nocc_error ("tnode_callthroughcompops(): shouldn't actually be called!");
+	return -1;
+}
+/*}}}*/
+
+
 /*{{{  compops_t *tnode_newcompops (void)*/
 /*
  *	creates a new compops_t structure
@@ -1394,22 +1406,6 @@ compops_t *tnode_newcompops (void)
 	for (i=0; i<DA_CUR (cops->opfuncs); i++) {
 		DA_SETNTHITEM (cops->opfuncs, i, NULL);
 	}
-#if 0
-	cops->prescope = NULL;
-	cops->scopein = NULL;
-	cops->scopeout = NULL;
-	cops->typecheck = NULL;
-	cops->constprop = NULL;
-	cops->precheck = NULL;
-	cops->fetrans = NULL;
-	cops->betrans = NULL;
-	cops->premap = NULL;
-	cops->namemap = NULL;
-	cops->bemap = NULL;
-	cops->preallocate = NULL;
-	cops->precode = NULL;
-	cops->codegen = NULL;
-#endif
 
 	return cops;
 }
@@ -1435,24 +1431,16 @@ void tnode_freecompops (compops_t *cops)
 compops_t *tnode_insertcompops (compops_t *nextcops)
 {
 	compops_t *cops = tnode_newcompops ();
+	int i;
 
 	cops->next = nextcops;
-#if 0
-	cops->prescope = nextcops->prescope;
-	cops->scopein = nextcops->scopein;
-	cops->scopeout = nextcops->scopeout;
-	cops->typecheck = nextcops->typecheck;
-	cops->constprop = nextcops->constprop;
-	cops->precheck = nextcops->precheck;
-	cops->fetrans = nextcops->fetrans;
-	cops->betrans = nextcops->betrans;
-	cops->premap = nextcops->premap;
-	cops->namemap = nextcops->namemap;
-	cops->bemap = nextcops->bemap;
-	cops->preallocate = nextcops->preallocate;
-	cops->precode = nextcops->precode;
-	cops->codegen = nextcops->codegen;
-#endif
+	for (i=0; (i<DA_CUR (cops->opfuncs)) && (!nextcops || (i<DA_CUR (nextcops->opfuncs))); i++) {
+		compop_t *cop = DA_NTHITEM (acompops, i);
+
+		if (cop && nextcops && DA_NTHITEM (nextcops->opfuncs, i)) {
+			DA_SETNTHITEM (cops->opfuncs, i, COMPOPTYPE (tnode_callthroughcompops));
+		}
+	}
 
 	return cops;
 }
@@ -1509,6 +1497,18 @@ static int tnode_icallcompop (compops_t *cops, compop_t *op, va_list ap)
 	int r;
 
 	fcn = (int (*)(compops_t *, ...))DA_NTHITEM (cops->opfuncs, (int)op->opno);
+	while (fcn == COMPOPTYPE (tnode_callthroughcompops)) {
+		if (!cops->next) {
+			nocc_internal ("tnode_icallcompop(): called operation [%s] ran out of call-through markers!", op->name);
+			return -1;
+		}
+		cops = cops->next;
+		if (((int)op->opno >= DA_CUR (cops->opfuncs)) || !DA_NTHITEM (cops->opfuncs, (int)op->opno)) {
+			nocc_warning ("tnode_icallcompop(): no such operation [%s] in compops at 0x%8.8x", op->name, (unsigned int)cops);
+			return -1;
+		}
+		fcn = (int (*)(compops_t *, ...))DA_NTHITEM (cops->opfuncs, (int)op->opno);
+	}
 	
 	switch (op->nparams) {
 	case 0:
