@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "opts.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -73,6 +74,8 @@ typedef struct TAG_mwsynctrans {
 	int error;
 } mwsynctrans_t;
 
+
+/* this one gets attached to a PARBARRIER node */
 typedef struct TAG_mwsyncpbinfo {
 	int ecount;				/* enroll count */
 	int sadjust;				/* sync adjust */
@@ -86,6 +89,8 @@ typedef struct TAG_mwsyncpbinfo {
 static chook_t *mapchook = NULL;
 static chook_t *mwsyncpbihook = NULL;
 
+static int mws_opt_rpp = 0;			/* multi-way syncs resign after PARs: --mws-rpp */
+
 
 /*}}}*/
 /*{{{  forward decls.*/
@@ -93,6 +98,29 @@ static chook_t *mwsyncpbihook = NULL;
 static int mwsync_transsubtree (tnode_t **tptr, mwsynctrans_t *mwi);
 
 
+/*}}}*/
+
+
+/*{{{  int occampi_mwsync_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	option-handler for occam-pi multiway-sync options
+ *	returns 0 on success, non-zero on failure
+ */
+int occampi_mwsync_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	int optv = (int)opt->arg;
+
+	switch (optv) {
+	case 1:
+		/* multi-way syncs resign after PAR */
+		nocc_message ("multiway synchronisations will resign after PAR");
+		break;
+	default:
+		return -1;
+	}
+
+	return 0;
+}
 /*}}}*/
 
 
@@ -272,7 +300,12 @@ static tnode_t *occampi_mwsync_leaftype_gettype (langops_t *lops, tnode_t *t, tn
 {
 	if (t->tag == opi.tag_BARRIER) {
 		return t;
+	} else if (t->tag == opi.tag_PARBARRIERTYPE) {
+		return t;
+	} else if (t->tag == opi.tag_PROCBARRIERTYPE) {
+		return t;
 	}
+
 	if (lops->next && lops->next->gettype) {
 		return lops->next->gettype (lops->next, t, defaulttype);
 	}
@@ -288,7 +321,12 @@ static int occampi_mwsync_leaftype_bytesfor (langops_t *lops, tnode_t *t, target
 {
 	if (t->tag == opi.tag_BARRIER) {
 		return target->intsize * 4;
+	} else if (t->tag == opi.tag_PARBARRIERTYPE) {
+		return target->intsize * 9;
+	} else if (t->tag == opi.tag_PROCBARRIERTYPE) {
+		return target->intsize * 5;
 	}
+
 	if (lops->next && lops->next->bytesfor) {
 		return lops->next->bytesfor (lops->next, t, target);
 	}
@@ -304,7 +342,12 @@ static int occampi_mwsync_leaftype_issigned (langops_t *lops, tnode_t *t, target
 {
 	if (t->tag == opi.tag_BARRIER) {
 		return 0;
+	} else if (t->tag == opi.tag_PARBARRIERTYPE) {
+		return 0;
+	} else if (t->tag == opi.tag_PROCBARRIERTYPE) {
+		return 0;
 	}
+
 	if (lops->next && lops->next->issigned) {
 		return lops->next->issigned (lops->next, t, target);
 	}
@@ -335,6 +378,10 @@ static int occampi_mwsync_leaftype_getdescriptor (langops_t *lops, tnode_t *node
 		}
 		sprintf (sptr, "BARRIER");
 		return 0;
+	} else if (node->tag == opi.tag_PARBARRIERTYPE) {
+		return 0;
+	} else if (node->tag == opi.tag_PROCBARRIERTYPE) {
+		return 0;
 	}
 	if (lops->next && lops->next->getdescriptor) {
 		return lops->next->getdescriptor (lops->next, node, str);
@@ -354,6 +401,10 @@ static int occampi_mwsync_leaftype_initialising_decl (langops_t *lops, tnode_t *
 	if (t->tag == opi.tag_BARRIER) {
 		codegen_setinithook (benode, occampi_mwsync_initbarrier, NULL);
 		return 1;
+	} else if (t->tag == opi.tag_PARBARRIERTYPE) {
+		return 0;
+	} else if (t->tag == opi.tag_PROCBARRIERTYPE) {
+		return 0;
 	}
 	if (lops->next && lops->next->initialising_decl) {
 		return lops->next->initialising_decl (lops->next, t, benode, mdata);
@@ -512,6 +563,9 @@ static int occampi_mwsync_namenode_mwsynctrans (compops_t *cops, tnode_t **tptr,
 			}
 			if (i == DA_CUR (mwi->bnames)) {
 				nocc_warning ("occampi_mwsync_namenode_mwsynctrans(): name not on barrier stack ..");
+#if 1
+				tnode_dumptree (*tptr, 1, stderr);
+#endif
 			} else {
 				tnode_t *vdecl = DA_NTHITEM (mwi->varptr, i);
 				tnode_t *parbarname = NULL, *procbarname = NULL;
@@ -525,7 +579,7 @@ static int occampi_mwsync_namenode_mwsynctrans (compops_t *cops, tnode_t **tptr,
 
 					nocc_message ("occampi_mwsync_namenode_mwsynctrans(): no pstack, creating PARBARRIER");
 
-					parbardecl = tnode_create (opi.tag_PARBARRIER, NULL, NULL, tnode_create (opi.tag_BARRIER, NULL), NULL, *tptr);
+					parbardecl = tnode_create (opi.tag_PARBARRIER, NULL, NULL, tnode_create (opi.tag_PARBARRIERTYPE, NULL), NULL, *tptr);
 					/* parbarname = tnode_createfrom (opi.tag_NDECL, *tptr, name_addtempname (parbardecl, NULL, NULL, NULL)); */
 					name_addtempname (parbardecl, tnode_nthsubof (parbardecl, 1), opi.tag_NDECL, &parbarname);
 					tnode_setnthsub (parbardecl, 0, parbarname);
@@ -565,7 +619,7 @@ static int occampi_mwsync_namenode_mwsynctrans (compops_t *cops, tnode_t **tptr,
 
 						nocc_message ("occampi_mwsync_namenode_mwsynctrans(): got pstack, creating PARBARRIER");
 
-						parbardecl = tnode_create (opi.tag_PARBARRIER, NULL, NULL, tnode_create (opi.tag_BARRIER, NULL), NULL, *tptr);
+						parbardecl = tnode_create (opi.tag_PARBARRIER, NULL, NULL, tnode_create (opi.tag_PARBARRIERTYPE, NULL), NULL, *tptr);
 						/* parbarname = tnode_createfrom (opi.tag_NDECL, *tptr, name_addtempname (parbardecl, NULL, NULL, NULL)); */
 						name_addtempname (parbardecl, tnode_nthsubof (parbardecl, 1), opi.tag_NDECL, &parbarname);
 						tnode_setnthsub (parbardecl, 0, parbarname);
@@ -590,7 +644,7 @@ static int occampi_mwsync_namenode_mwsynctrans (compops_t *cops, tnode_t **tptr,
 						tnode_setchook (parbardecl, mwsyncpbihook, (void *)pbinf);
 					} else {
 						/* else we've already got one here */
-						procbarname = DA_NTHITEM (mwps->parbarriers, j);
+						parbarname = DA_NTHITEM (mwps->parbarriers, j);
 					}
 					/*}}}*/
 				}
@@ -602,7 +656,7 @@ static int occampi_mwsync_namenode_mwsynctrans (compops_t *cops, tnode_t **tptr,
 
 					nocc_message ("occampi_mwsync_namenode_mwsynctrans(): no bname, creating PROCBARRIER");
 
-					procbardecl = tnode_create (opi.tag_PROCBARRIER, NULL, NULL, tnode_create (opi.tag_BARRIER, NULL), NULL, parbarname);
+					procbardecl = tnode_create (opi.tag_PROCBARRIER, NULL, NULL, tnode_create (opi.tag_PROCBARRIERTYPE, NULL), NULL, parbarname);
 					name_addtempname (procbardecl, tnode_nthsubof (procbardecl, 1), opi.tag_NDECL, &procbarname);
 					tnode_setnthsub (procbardecl, 0, procbarname);
 
@@ -704,7 +758,7 @@ static int occampi_mwsync_cnode_mwsynctrans (compops_t *cops, tnode_t **tptr, mw
 			dynarray_delitem (mwps->bipoints, DA_CUR (mwps->bipoints) - 1);
 		}
 
-#if 1
+#if 0
 		nocc_message ("occampi_mwsync_cnode_mwsynctrans(): PAR here (DA_CUR (varptr) = %d)! tree is:", DA_CUR (mwi->varptr));
 		tnode_dumptree (*tptr, 1, stderr);
 #endif
@@ -724,6 +778,7 @@ static int occampi_mwsync_cnode_mwsynctrans (compops_t *cops, tnode_t **tptr, mw
 static int occampi_mwsyncvar_namemap (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t **namep = tnode_nthsubaddr (*node, 0);
+	tnode_t *type = tnode_nthsubof (*node, 1);
 	tnode_t **bodyp = tnode_nthsubaddr (*node, 2);
 	tnode_t **exprp = tnode_nthsubaddr (*node, 3);
 	tnode_t *bename;
@@ -732,12 +787,12 @@ static int occampi_mwsyncvar_namemap (compops_t *cops, tnode_t **node, map_t *ma
 	if ((*node)->tag == opi.tag_PARBARRIER) {
 		mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)tnode_getchook (*node, mwsyncpbihook);
 
-		wssize = map->target->slotsize * 9;
+		wssize = tnode_bytesfor (type, map->target);
 		if (pbinf && pbinf->parent) {
 			/* FIXME: map out pbinf->parent perhaps */
 		}
 	} else if ((*node)->tag == opi.tag_PROCBARRIER) {
-		wssize = map->target->slotsize * 5;
+		wssize = tnode_bytesfor (type, map->target);
 	} else {
 		nocc_error ("occampi_mwsyncvar_namemap(): not PARBARRIER/PROCBARRIER: [%s, %s]", (*node)->tag->name, (*node)->tag->ndef->name);
 		return 0;
@@ -825,12 +880,35 @@ static int occampi_mwsyncvar_codegen (compops_t *cops, tnode_t *node, codegen_t 
 	codegen_subcodegen (tnode_nthsubof (node, 2), cgen);
 
 	if (node->tag == opi.tag_PARBARRIER) {
+		/*{{{  maybe resign processes if they leave here*/
+		if (mws_opt_rpp) {
+			mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)tnode_getchook (node, mwsyncpbihook);
+
+			if (pbinf && pbinf->ecount) {
+				/*{{{  resign processes from barrier*/
+				codegen_callops (cgen, loadconst, pbinf->ecount);
+				codegen_callops (cgen, loadlocalpointer, ws_off);
+				codegen_callops (cgen, tsecondary, I_MWS_PBRESIGN);
+				codegen_callops (cgen, comment, "parbarrierresign(post-par)");
+				/*}}}*/
+			}
+		}
+		/*}}}*/
 		/*{{{  dismantle PARBARRIER structure*/
 
 		codegen_callops (cgen, loadlocalpointer, ws_off);
 		codegen_callops (cgen, tsecondary, I_MWS_PBRULNK);
 		codegen_callops (cgen, comment, "unlinkparbarrier");
 
+		/*}}}*/
+	} else if (node->tag == opi.tag_PROCBARRIER) {
+		/*{{{  maybe resign processes as they leave a PAR*/
+		if (!mws_opt_rpp) {
+			codegen_callops (cgen, loadconst, 1);
+			codegen_callops (cgen, loadpointer, othervar, 0);
+			codegen_callops (cgen, tsecondary, I_MWS_PBRESIGN);
+			codegen_callops (cgen, comment, "parbarrierresign(in-par)");
+		}
 		/*}}}*/
 	}
 
@@ -916,7 +994,7 @@ static int occampi_mwsync_init_nodes (void)
 	mwsyncpbihook->chook_copy = mwsync_pbihook_copy;
 
 	/*}}}*/
-	/*{{{  occampi:leaftype -- BARRIER*/
+	/*{{{  occampi:leaftype -- BARRIER, PARBARRIERTYPE, PROCBARRIERTYPE*/
 	tnd = tnode_lookupnodetype ("occampi:leaftype");
 	if (!tnd) {
 		nocc_error ("occampi_mwsync_init_nodes(): failed to find occampi:leaftype");
@@ -934,6 +1012,10 @@ static int occampi_mwsync_init_nodes (void)
 
 	i = -1;
 	opi.tag_BARRIER = tnode_newnodetag ("BARRIER", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_PARBARRIERTYPE = tnode_newnodetag ("PARBARRIERTYPE", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_PROCBARRIERTYPE = tnode_newnodetag ("PROCBARRIERTYPE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  occampi:actionnode -- SYNC*/

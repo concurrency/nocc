@@ -78,6 +78,8 @@ typedef struct {
 	struct TAG_ntdef *tag_BARRIER;
 	struct TAG_ntdef *tag_PARBARRIER;
 	struct TAG_ntdef *tag_PROCBARRIER;
+	struct TAG_ntdef *tag_PARBARRIERTYPE;
+	struct TAG_ntdef *tag_PROCBARRIERTYPE;
 	struct TAG_ntdef *tag_SYNC;
 
 	struct TAG_ntdef *tag_NEWDYNMOBARRAY;
@@ -237,6 +239,7 @@ extern void *occampi_stringtoken_to_hook (void *itok);
 /* option handlers inside occam-pi front-end */
 struct TAG_cmd_option;
 extern int occampi_lexer_opthandler_flag (struct TAG_cmd_option *opt, char ***argwalk, int *argleft);
+extern int occampi_mwsync_opthandler_flag (struct TAG_cmd_option *opt, char ***argwalk, int *argleft);
 
 
 #endif	/* !__OCCAMPI_H */

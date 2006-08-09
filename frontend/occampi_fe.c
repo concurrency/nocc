@@ -56,6 +56,7 @@ int occampi_register_frontend (void)
 	}
 
 	opts_add ("c-operators", '\0', occampi_lexer_opthandler_flag, (void *)1, "1use C style operators");
+	opts_add ("mws-rpp", '\0', occampi_mwsync_opthandler_flag, (void *)1, "1multiway synchronisations resign after PAR completes");
 
 	return 0;
 }

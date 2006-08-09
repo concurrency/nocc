@@ -1434,7 +1434,7 @@ compops_t *tnode_insertcompops (compops_t *nextcops)
 	int i;
 
 	cops->next = nextcops;
-	for (i=0; (i<DA_CUR (cops->opfuncs)) && (!nextcops || (i<DA_CUR (nextcops->opfuncs))); i++) {
+	for (i=0; (i<DA_CUR (acompops)) && (i<DA_CUR (cops->opfuncs)) && (!nextcops || (i<DA_CUR (nextcops->opfuncs))); i++) {
 		compop_t *cop = DA_NTHITEM (acompops, i);
 
 		if (cop && nextcops && DA_NTHITEM (nextcops->opfuncs, i)) {
