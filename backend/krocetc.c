@@ -2888,6 +2888,38 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 		/*}}}*/
+		/*{{{  MWS_ALTLOCK: multi-way sync ALT lock (new)*/
+	case I_MWS_ALTLOCK:
+		codegen_write_string (cgen, "\tmws_altlock\n");
+		break;
+		/*}}}*/
+		/*{{{  MWS_ALTUNLOCK: multi-way sync ALT unlock (new)*/
+	case I_MWS_ALTUNLOCK:
+		codegen_write_string (cgen, "\tmws_altunlock\n");
+		break;
+		/*}}}*/
+		/*{{{  MWS_ALT: multi-way sync ALT start (new)*/
+	case I_MWS_ALT:
+		codegen_write_string (cgen, "\tmws_alt\n");
+		break;
+		/*}}}*/
+		/*{{{  MWS_ALTEND: multi-way sync ALT end (new)*/
+	case I_MWS_ALTEND:
+		codegen_write_string (cgen, "\tmws_altend\n");
+		break;
+		/*}}}*/
+		/*{{{  MWS_ENB: multi-way sync ALT enable (new)*/
+	case I_MWS_ENB:
+		codegen_write_string (cgen, "\tmws_enb\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  MWS_DIS: multi-way sync ALT disable (new)*/
+	case I_MWS_DIS:
+		codegen_write_string (cgen, "\tmws_dis\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: tsecondary %d\n", ins);
 		break;

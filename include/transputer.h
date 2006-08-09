@@ -95,7 +95,13 @@ typedef enum ENUM_transinstr {
 	I_MWS_PBENROLL = 76,
 	I_MWS_PBRESIGN = 77,
 	I_MWS_PBADJSYNC = 78,
-	I_MWS_SYNC = 79
+	I_MWS_SYNC = 79,
+	I_MWS_ALTLOCK = 80,
+	I_MWS_ALTUNLOCK = 81,
+	I_MWS_ALT = 82,
+	I_MWS_ALTEND = 83,
+	I_MWS_ENB = 84,
+	I_MWS_DIS = 85
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {
