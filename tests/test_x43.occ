@@ -1,0 +1,15 @@
+
+-- test_x42.occ -- testing barriers
+
+PROC test.x42 ()
+  BARRIER x:
+  SEQ
+    SEQ i = 0 FOR 2
+      PAR
+        SYNC x
+        SYNC x
+        SKIP
+    SKIP
+:
+
+

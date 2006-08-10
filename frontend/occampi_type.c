@@ -302,11 +302,11 @@ static tnode_t *occampi_leaftype_gettype (langops_t *lops, tnode_t *t, tnode_t *
 static int occampi_leaftype_bytesfor (langops_t *lops, tnode_t *t, target_t *target)
 {
 	if (t->tag == opi.tag_BOOL) {
-		return target->intsize;
+		return target ? target->intsize : 4;
 	} else if (t->tag == opi.tag_BYTE) {
 		return 1;
 	} else if (t->tag == opi.tag_INT) {
-		return target->intsize;
+		return target ? target->intsize : 4;
 	} else if (t->tag == opi.tag_INT16) {
 		return 2;
 	} else if (t->tag == opi.tag_INT32) {
@@ -318,7 +318,7 @@ static int occampi_leaftype_bytesfor (langops_t *lops, tnode_t *t, target_t *tar
 	} else if (t->tag == opi.tag_REAL64) {
 		return 8;
 	} else if (t->tag == opi.tag_CHAR) {
-		return target->charsize;
+		return target ? target->charsize : 1;
 	}
 	return -1;
 }
