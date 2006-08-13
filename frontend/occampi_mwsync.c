@@ -537,6 +537,30 @@ static int occampi_mwsync_vardecl_mwsynctrans (compops_t *cops, tnode_t **tptr, 
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_mwsync_procdecl_mwsynctrans (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)*/
+/*
+ *	does multi-way synchronisation transforms for a procedure declaration
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mwsync_procdecl_mwsynctrans (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)
+{
+	tnode_t *params = tnode_nthsubof (*tptr, 1);
+	tnode_t **bodyp = tnode_nthsubaddr (*tptr, 2);
+	tnode_t **nextp = tnode_nthsubaddr (*tptr, 3);
+
+	/* FIXME: add any variables in the PROC definition to the variable stack */
+
+	/* do PROC body */
+	mwsync_transsubtree (bodyp, mwi);
+
+	/* FIXME: remove any variables from the PROC definition */
+
+	/* do in-scope process */
+	mwsync_transsubtree (nextp, mwi);
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_mwsync_namenode_mwsynctrans (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)*/
 /*
  *	does multi-way synchronisation transforms for a name-node (not in a declaration)
@@ -1050,6 +1074,11 @@ static int occampi_mwsync_init_nodes (void)
 	/*{{{  occampi:vardecl -- (mods for barriers)*/
 	tnd = tnode_lookupnodetype ("occampi:vardecl");
 	tnode_setcompop (tnd->ops, "mwsynctrans", 2, COMPOPTYPE (occampi_mwsync_vardecl_mwsynctrans));
+
+	/*}}}*/
+	/*{{{  occampi:procdecl -- (mods for barriers)*/
+	tnd = tnode_lookupnodetype ("occampi:procdecl");
+	tnode_setcompop (tnd->ops, "mwsynctrans", 2, COMPOPTYPE (occampi_mwsync_procdecl_mwsynctrans));
 
 	/*}}}*/
 	/*{{{  occampi:namenode -- (mods for barriers)*/
