@@ -467,6 +467,8 @@ static int occampi_type_init_nodes (void)
 	/*{{{  occampi:leaftype -- INT, BYTE, INT16, INT32, INT64, REAL32, REAL64, CHAR*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:leaftype", &i, 0, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	lops->getdescriptor = occampi_leaftype_getdescriptor;
 	lops->gettype = occampi_leaftype_gettype;

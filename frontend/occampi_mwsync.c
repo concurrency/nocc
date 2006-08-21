@@ -256,6 +256,20 @@ static int occampi_mwsync_action_codegen (compops_t *cops, tnode_t *node, codege
 /*}}}*/
 
 
+/*{{{  static int occampi_mwsync_leaftype_mwsynctrans (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)*/
+/*
+ *	does mwsync transforms on an occampi:leaftype -- to turn occam-pi BARRIERs into mwsync BARRIERTYPEs
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mwsync_leaftype_mwsynctrans (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)
+{
+	if ((*tptr)->tag == opi.tag_BARRIER) {
+		mwsync_mwsynctrans_makebarriertype (tptr, mwi);
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_mwsync_vardecl_mwsynctrans (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)*/
 /*
  *	does multi-way synchronisation transforms for a variable declaration
@@ -268,8 +282,10 @@ static int occampi_mwsync_vardecl_mwsynctrans (compops_t *cops, tnode_t **tptr, 
 
 	if ((name->tag == opi.tag_NDECL) && (NameTypeOf (tnode_nthnameof (name, 0))->tag == opi.tag_BARRIER)) {
 		/*{{{  BARRIER variable declaration, add to stack*/
+		mwsync_transsubtree (tnode_nthsubaddr (*tptr, 1), mwi);		/* transform type */
+		SetNameType (tnode_nthnameof (name, 0), tnode_nthsubof (*tptr, 1));
+
 		mwsync_mwsynctrans_pushvar (*tptr, name, mwi);
-		mwsync_mwsynctrans_makebarriertype (tnode_nthsubaddr (*tptr, 1), tnode_nthnameof (name, 0), mwi);
 		var_to_remove = *tptr;
 
 		/*}}}*/
@@ -353,7 +369,7 @@ static int occampi_mwsync_cnode_mwsynctrans (compops_t *cops, tnode_t **tptr, mw
 /*{{{  static int occampi_mwsync_init_nodes (void)*/
 /*
  *	sets up nodes for occam-pi multi-way synchronisations
- *	returns 0 on success, non-zero on error
+ *	returns 0 on success, non-zero on failure
  */
 static int occampi_mwsync_init_nodes (void)
 {
@@ -372,8 +388,8 @@ static int occampi_mwsync_init_nodes (void)
 		nocc_error ("occampi_mwsync_init_nodes(): failed to find occampi:leaftype");
 		return -1;
 	}
-	cops = tnode_insertcompops (tnd->ops);
-	tnd->ops = cops;
+	tnode_setcompop (tnd->ops, "mwsynctrans", 2, COMPOPTYPE (occampi_mwsync_leaftype_mwsynctrans));
+
 	lops = tnode_insertlangops (tnd->lops);
 	lops->getdescriptor = occampi_mwsync_leaftype_getdescriptor;
 	lops->gettype = occampi_mwsync_leaftype_gettype;

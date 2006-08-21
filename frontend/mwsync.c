@@ -555,44 +555,14 @@ static int mwsync_mwsyncvar_codegen (compops_t *cops, tnode_t *node, codegen_t *
 /*}}}*/
 
 
-/*{{{  int mwsync_mwsynctrans_makebarriertype (tnode_t **typep, name_t *namep, mwsynctrans_t *mwi)*/
+/*{{{  int mwsync_mwsynctrans_makebarriertype (tnode_t **typep, mwsynctrans_t *mwi)*/
 /*
- *	turns a language-level type into a mwsync barrier type -- e.g. inside a name or declaration
+ *	turns a language-level type into a mwsync barrier type
  *	returns 0 on success, non-zero on failure
  */
-int mwsync_mwsynctrans_makebarriertype (tnode_t **typep, name_t *namep, mwsynctrans_t *mwi)
+int mwsync_mwsynctrans_makebarriertype (tnode_t **typep, mwsynctrans_t *mwi)
 {
-	tnode_t *newtypenode = tnode_createfrom (mwsi.tag_BARRIERTYPE, *typep);
-
-#if 0
-fprintf (stderr, "mwsync_mwsynctrans_makebarriertype(): transforming *typep:\n");
-tnode_dumptree (*typep, 1, stderr);
-fprintf (stderr, "mwsync_mwsynctrans_makebarriertype(): into newtypenode:\n");
-tnode_dumptree (newtypenode, 1, stderr);
-fprintf (stderr, "mwsync_mwsynctrans_makebarriertype(): possibly affected name (type at 0x%8.8x) is:\n", (unsigned int)NameTypeOf (namep));
-name_dumpname (namep, 1, stderr);
-#endif
-	if (namep) {
-		if (NameTypeOf (namep) != *typep) {
-			nocc_warning ("mwsync_mwsynctrans_makebarriertype(): name type (%s,%s) not given type (%s,%s)",
-					NameTypeOf (namep) ? NameTypeOf (namep)->tag->ndef->name : "", NameTypeOf (namep) ? NameTypeOf (namep)->tag->name : "",
-					(*typep) ? (*typep)->tag->ndef->name : "", (*typep) ? (*typep)->tag->name : "");
-		}
-		SetNameType (namep, newtypenode);
-	}
-
-	if (*typep) {
-		/* don't free type.. */
-		*typep = NULL;
-	}
-	*typep = newtypenode;
-#if 0
-fprintf (stderr, "mwsync_mwsynctrans_makebarriertype(): transformed *typep:\n");
-tnode_dumptree (*typep, 1, stderr);
-fprintf (stderr, "mwsync_mwsynctrans_makebarriertype(): possibly affected name (type at 0x%8.8x) is:\n", (unsigned int)NameTypeOf (namep));
-name_dumpname (namep, 1, stderr);
-#endif
-
+	*typep = tnode_createfrom (mwsi.tag_BARRIERTYPE, *typep);
 	return 0;
 }
 /*}}}*/
