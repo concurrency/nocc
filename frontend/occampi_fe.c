@@ -38,6 +38,8 @@
 #include "opts.h"
 #include "occampi_fe.h"
 
+#include "mwsync.h"
+
 /*}}}*/
 
 
@@ -56,7 +58,9 @@ int occampi_register_frontend (void)
 	}
 
 	opts_add ("c-operators", '\0', occampi_lexer_opthandler_flag, (void *)1, "1use C style operators");
-	opts_add ("mws-rpp", '\0', occampi_mwsync_opthandler_flag, (void *)1, "1multiway synchronisations resign after PAR completes");
+	if (mwsync_init (0)) {
+		return -1;
+	}
 
 	return 0;
 }
@@ -68,6 +72,7 @@ int occampi_register_frontend (void)
  */
 int occampi_unregister_frontend (void)
 {
+	mwsync_shutdown ();
 	if (lexer_unregisterlang (&occampi_lexer)) {
 		return -1;
 	}

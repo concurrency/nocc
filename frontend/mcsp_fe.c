@@ -37,6 +37,7 @@
 #include "mcsp.h"
 #include "opts.h"
 #include "mcsp_fe.h"
+#include "mwsync.h"
 
 /*}}}*/
 
@@ -57,6 +58,10 @@ int mcsp_register_frontend (void)
 
 	opts_add ("unbound-events", '\0', mcsp_lexer_opthandler_flag, (void *)1, "1permit the use of unbounded events in MCSP");
 
+	if (mwsync_init (1)) {
+		return -1;
+	}
+
 	return 0;
 }
 /*}}}*/
@@ -67,6 +72,8 @@ int mcsp_register_frontend (void)
  */
 int mcsp_unregister_frontend (void)
 {
+	mwsync_shutdown ();
+
 	if (lexer_unregisterlang (&mcsp_lexer)) {
 		return -1;
 	}

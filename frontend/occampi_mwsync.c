@@ -59,236 +59,13 @@
 /*}}}*/
 /*{{{  private types*/
 
-typedef struct TAG_mwsyncpstk {
-	DYNARRAY (tnode_t *, parblks);		/* PAR nodes themselves */
-	DYNARRAY (tnode_t **, paripoints);	/* barrier name insert point for par (parbarrier) */
-	DYNARRAY (tnode_t *, parbarriers);	/* associated PAR barrier variables */
-	DYNARRAY (tnode_t *, bnames);		/* barrier name variables */
-	DYNARRAY (tnode_t **, bipoints);	/* barrier name insert point (procbarrier) */
-} mwsyncpstk_t;
-
-typedef struct TAG_mwsynctrans {
-	DYNARRAY (tnode_t *, varptr);		/* barrier var-decl */
-	DYNARRAY (tnode_t *, bnames);		/* barrier name variables (in declarations) */
-	DYNARRAY (mwsyncpstk_t *, pstack);	/* PAR stack */
-	int error;
-} mwsynctrans_t;
-
-
-/* this one gets attached to a PARBARRIER node */
-typedef struct TAG_mwsyncpbinfo {
-	int ecount;				/* enroll count */
-	int sadjust;				/* sync adjust */
-	tnode_t *parent;			/* parent PARBARRIER */
-} mwsyncpbinfo_t;
-
 
 /*}}}*/
 /*{{{  private data*/
 
 static chook_t *mapchook = NULL;
-static chook_t *mwsyncpbihook = NULL;
-
-static int mws_opt_rpp = 0;			/* multi-way syncs resign after PARs: --mws-rpp */
 
 
-/*}}}*/
-/*{{{  forward decls.*/
-
-static int mwsync_transsubtree (tnode_t **tptr, mwsynctrans_t *mwi);
-
-
-/*}}}*/
-
-
-/*{{{  int occampi_mwsync_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argleft)*/
-/*
- *	option-handler for occam-pi multiway-sync options
- *	returns 0 on success, non-zero on failure
- */
-int occampi_mwsync_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argleft)
-{
-	int optv = (int)opt->arg;
-
-	switch (optv) {
-	case 1:
-		/* multi-way syncs resign after PAR */
-		nocc_message ("multiway synchronisations will resign after PAR");
-		break;
-	default:
-		return -1;
-	}
-
-	return 0;
-}
-/*}}}*/
-
-
-/*{{{  static mwsyncpstk_t *mwsync_newmwsyncpstk (void)*/
-/*
- *	creates a new mwsyncpstk_t structure
- */
-static mwsyncpstk_t *mwsync_newmwsyncpstk (void)
-{
-	mwsyncpstk_t *mwps = (mwsyncpstk_t *)smalloc (sizeof (mwsyncpstk_t));
-
-	dynarray_init (mwps->parblks);
-	dynarray_init (mwps->paripoints);
-	dynarray_init (mwps->parbarriers);
-	dynarray_init (mwps->bnames);
-	dynarray_init (mwps->bipoints);
-
-	return mwps;
-}
-/*}}}*/
-/*{{{  static void mwsync_freemwsyncpstk (mwsyncpstk_t *mwps)*/
-/*
- *	frees a mwsyncpstk_t structure
- */
-static void mwsync_freemwsyncpstk (mwsyncpstk_t *mwps)
-{
-	dynarray_trash (mwps->parblks);
-	dynarray_trash (mwps->paripoints);
-	dynarray_trash (mwps->parbarriers);
-	dynarray_trash (mwps->bnames);
-	dynarray_trash (mwps->bipoints);
-	sfree (mwps);
-	return;
-}
-/*}}}*/
-/*{{{  static mwsynctrans_t *mwsync_newmwsynctrans (void)*/
-/*
- *	creates a new mwsynctrans_t structure
- */
-static mwsynctrans_t *mwsync_newmwsynctrans (void)
-{
-	mwsynctrans_t *mwi = (mwsynctrans_t *)smalloc (sizeof (mwsynctrans_t));
-
-	dynarray_init (mwi->varptr);
-	dynarray_init (mwi->bnames);
-	dynarray_init (mwi->pstack);
-	mwi->error = 0;
-
-	return mwi;
-}
-/*}}}*/
-/*{{{  static void mwsync_freemwsynctrans (mwsynctrans_t *mwi)*/
-/*
- *	frees a mwsynctrans_t structure
- */
-static void mwsync_freemwsynctrans (mwsynctrans_t *mwi)
-{
-	int i;
-
-	dynarray_trash (mwi->varptr);
-	dynarray_trash (mwi->bnames);
-	for (i=0; i<DA_CUR (mwi->pstack); i++) {
-		if (DA_NTHITEM (mwi->pstack, i)) {
-			mwsync_freemwsyncpstk (DA_NTHITEM (mwi->pstack, i));
-		}
-	}
-	dynarray_trash (mwi->pstack);
-
-	sfree (mwi);
-
-	return;
-}
-/*}}}*/
-/*{{{  static mwsyncpbinfo_t *mwsync_newmwsyncpbinfo (void)*/
-/*
- *	creates a new mwsyncpbinfo_t structure
- */
-static mwsyncpbinfo_t *mwsync_newmwsyncpbinfo (void)
-{
-	mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)smalloc (sizeof (mwsyncpbinfo_t));
-
-	pbinf->ecount = 0;
-	pbinf->sadjust = 0;
-	pbinf->parent = NULL;
-
-	return pbinf;
-}
-/*}}}*/
-/*{{{  static void mwsync_freemwsyncpbinfo (mwsyncpbinfo_t *pbinf)*/
-/*
- *	frees a mwsyncpbinfo_t structure
- */
-static void mwsync_freemwsyncpbinfo (mwsyncpbinfo_t *pbinf)
-{
-	sfree (pbinf);
-	return;
-}
-/*}}}*/
-
-
-/*{{{  static void mwsync_pbihook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
-/*
- *	displays the contents of a mwsyncpbinfo compiler hook
- */
-static void mwsync_pbihook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
-{
-	if (chook) {
-		mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)chook;
-
-		occampi_isetindent (stream, indent);
-		fprintf (stream, "<mwsync:parbarrierinfo ecount=\"%d\" sadjust=\"%d\" parent=\"0x%8.8x\" addr=\"0x%8.8x\" />\n", pbinf->ecount, pbinf->sadjust, (unsigned int)pbinf->parent, (unsigned int)chook);
-	}
-	return;
-}
-/*}}}*/
-/*{{{  static void mwsync_pbihook_free (void *chook)*/
-/*
- *	frees a mwsyncpbinfo compiler hook
- */
-static void mwsync_pbihook_free (void *chook)
-{
-	mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)chook;
-
-	mwsync_freemwsyncpbinfo (pbinf);
-	return;
-}
-/*}}}*/
-/*{{{  static void *mwsync_pbihook_copy (void *chook)*/
-/*
- *	duplicates a mwsyncpbinfo compiler hook
- */
-static void *mwsync_pbihook_copy (void *chook)
-{
-	mwsyncpbinfo_t *other = (mwsyncpbinfo_t *)chook;
-	mwsyncpbinfo_t *pbinf;
-
-	if (!other) {
-		return NULL;
-	}
-
-	pbinf = mwsync_newmwsyncpbinfo ();
-
-	pbinf->ecount = other->ecount;
-	pbinf->sadjust = other->sadjust;
-	pbinf->parent = other->parent;
-
-	return (void *)pbinf;
-}
-/*}}}*/
-
-
-/*{{{  static void occampi_mwsync_initbarrier (tnode_t *node, codegen_t *cgen, void *arg)*/
-/*
- *	does initialiser code-gen for a multi-way synchronisation barrier
- */
-static void occampi_mwsync_initbarrier (tnode_t *node, codegen_t *cgen, void *arg)
-{
-	int ws_off;
-
-	cgen->target->be_getoffsets (node, &ws_off, NULL, NULL, NULL);
-
-	codegen_callops (cgen, debugline, node);
-	codegen_callops (cgen, loadlocalpointer, ws_off);
-	codegen_callops (cgen, tsecondary, I_MWS_BINIT);
-	codegen_callops (cgen, comment, "initbarrier");
-
-	return;
-}
 /*}}}*/
 
 
@@ -299,10 +76,6 @@ static void occampi_mwsync_initbarrier (tnode_t *node, codegen_t *cgen, void *ar
 static tnode_t *occampi_mwsync_leaftype_gettype (langops_t *lops, tnode_t *t, tnode_t *defaulttype)
 {
 	if (t->tag == opi.tag_BARRIER) {
-		return t;
-	} else if (t->tag == opi.tag_PARBARRIERTYPE) {
-		return t;
-	} else if (t->tag == opi.tag_PROCBARRIERTYPE) {
 		return t;
 	}
 
@@ -321,10 +94,6 @@ static int occampi_mwsync_leaftype_bytesfor (langops_t *lops, tnode_t *t, target
 {
 	if (t->tag == opi.tag_BARRIER) {
 		return target->intsize * 4;
-	} else if (t->tag == opi.tag_PARBARRIERTYPE) {
-		return target->intsize * 9;
-	} else if (t->tag == opi.tag_PROCBARRIERTYPE) {
-		return target->intsize * 5;
 	}
 
 	if (lops->next && lops->next->bytesfor) {
@@ -341,10 +110,6 @@ static int occampi_mwsync_leaftype_bytesfor (langops_t *lops, tnode_t *t, target
 static int occampi_mwsync_leaftype_issigned (langops_t *lops, tnode_t *t, target_t *target)
 {
 	if (t->tag == opi.tag_BARRIER) {
-		return 0;
-	} else if (t->tag == opi.tag_PARBARRIERTYPE) {
-		return 0;
-	} else if (t->tag == opi.tag_PROCBARRIERTYPE) {
 		return 0;
 	}
 
@@ -378,10 +143,6 @@ static int occampi_mwsync_leaftype_getdescriptor (langops_t *lops, tnode_t *node
 		}
 		sprintf (sptr, "BARRIER");
 		return 0;
-	} else if (node->tag == opi.tag_PARBARRIERTYPE) {
-		return 0;
-	} else if (node->tag == opi.tag_PROCBARRIERTYPE) {
-		return 0;
 	}
 	if (lops->next && lops->next->getdescriptor) {
 		return lops->next->getdescriptor (lops->next, node, str);
@@ -401,10 +162,6 @@ static int occampi_mwsync_leaftype_initialising_decl (langops_t *lops, tnode_t *
 	if (t->tag == opi.tag_BARRIER) {
 		codegen_setinithook (benode, occampi_mwsync_initbarrier, NULL);
 		return 1;
-	} else if (t->tag == opi.tag_PARBARRIERTYPE) {
-		return 0;
-	} else if (t->tag == opi.tag_PROCBARRIERTYPE) {
-		return 0;
 	}
 	if (lops->next && lops->next->initialising_decl) {
 		return lops->next->initialising_decl (lops->next, t, benode, mdata);
@@ -941,53 +698,6 @@ static int occampi_mwsyncvar_codegen (compops_t *cops, tnode_t *node, codegen_t 
 /*}}}*/
 
 
-/*{{{  static int mwsync_modprewalk (tnode_t **tptr, void *arg)*/
-/*
- *	called during tree walk to do multiway-sync checks
- *	returns 0 to stop walk, 1 to continue
- */
-static int mwsync_modprewalk (tnode_t **tptr, void *arg)
-{
-	int i = 1;
-
-#if 0
-nocc_message ("mwsync_modprewalk(): *(tptr @ 0x%8.8x) = [%s, %s]", (unsigned int)tptr, (*tptr)->tag->name, (*tptr)->tag->ndef->name);
-#endif
-	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop ((*tptr)->tag->ndef->ops, "mwsynctrans")) {
-		i = tnode_callcompop ((*tptr)->tag->ndef->ops, "mwsynctrans", 2, tptr, (mwsynctrans_t *)arg);
-	}
-	return i;
-}
-/*}}}*/
-/*{{{  static int mwsync_transsubtree (tnode_t **tptr, mwsynctrans_t *mwi)*/
-/*
- *	does multi-way synchronisation transforms on a sub-tree
- *	returns 0 on success, non-zero on failure
- */
-static int mwsync_transsubtree (tnode_t **tptr, mwsynctrans_t *mwi)
-{
-	tnode_modprewalktree (tptr, mwsync_modprewalk, (void *)mwi);
-	return mwi->error;
-}
-/*}}}*/
-/*{{{  static int occampi_mwsynctrans_cpass (tnode_t *tree)*/
-/*
- *	called for a compiler pass that flattens out BARRIERs for multi-way synchronisations
- *	returns 0 on success, non-zero on failure
- */
-static int occampi_mwsynctrans_cpass (tnode_t *tree)
-{
-	mwsynctrans_t *mwi = mwsync_newmwsynctrans ();
-	int err = 0;
-
-	mwsync_transsubtree (&tree, mwi);
-	err = mwi->error;
-
-	mwsync_freemwsynctrans (mwi);
-	return err;
-}
-/*}}}*/
-
 
 /*{{{  static int occampi_mwsync_init_nodes (void)*/
 /*
@@ -1001,24 +711,11 @@ static int occampi_mwsync_init_nodes (void)
 	langops_t *lops;
 	int i;
 
-	/*{{{  mwsynctrans -- new compiler pass and compiler operation*/
-	if (nocc_addcompilerpass ("mwsynctrans", (void *)&occampi_parser, "fetrans", 1, (int (*)(void *))occampi_mwsynctrans_cpass, CPASS_TREE, -1, NULL)) {
-		nocc_internal ("occampi_mwsync_init_nodes(): failed to add mwsynctrans compiler pass");
-		return -1;
-	}
-
-	tnode_newcompop ("mwsynctrans", COPS_INVALID, 2, NULL);
-
-	/*}}}*/
-	/*{{{  mapchook, mwsyncpbihook -- compiler hooks*/
+	/*{{{  mapchook -- compiler hook*/
 	mapchook = tnode_lookupornewchook ("map:mapnames");
-	mwsyncpbihook = tnode_lookupornewchook ("mwsync:parbarrierinfo");
-	mwsyncpbihook->chook_dumptree = mwsync_pbihook_dumptree;
-	mwsyncpbihook->chook_free = mwsync_pbihook_free;
-	mwsyncpbihook->chook_copy = mwsync_pbihook_copy;
 
 	/*}}}*/
-	/*{{{  occampi:leaftype -- BARRIER, PARBARRIERTYPE, PROCBARRIERTYPE*/
+	/*{{{  occampi:leaftype -- BARRIER*/
 	tnd = tnode_lookupnodetype ("occampi:leaftype");
 	if (!tnd) {
 		nocc_error ("occampi_mwsync_init_nodes(): failed to find occampi:leaftype");
@@ -1036,10 +733,6 @@ static int occampi_mwsync_init_nodes (void)
 
 	i = -1;
 	opi.tag_BARRIER = tnode_newnodetag ("BARRIER", &i, tnd, NTF_NONE);
-	i = -1;
-	opi.tag_PARBARRIERTYPE = tnode_newnodetag ("PARBARRIERTYPE", &i, tnd, NTF_NONE);
-	i = -1;
-	opi.tag_PROCBARRIERTYPE = tnode_newnodetag ("PROCBARRIERTYPE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  occampi:actionnode -- SYNC*/
@@ -1055,20 +748,6 @@ static int occampi_mwsync_init_nodes (void)
 
 	i = -1;
 	opi.tag_SYNC = tnode_newnodetag ("SYNC", &i, tnd, NTF_NONE);
-
-	/*}}}*/
-	/*{{{  occampi:mwsyncvar -- PARBARRIER, PROCBARRIER*/
-	i = -1;
-	tnd = tnode_newnodetype ("occampi:mwsyncvar", &i, 4, 0, 0, TNF_SHORTDECL);			/* subnodes: (name), (type), in-scope-body, expr */
-	cops = tnode_newcompops ();
-	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_mwsyncvar_namemap));
-	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_mwsyncvar_codegen));
-	tnd->ops = cops;
-
-	i = -1;
-	opi.tag_PARBARRIER = tnode_newnodetag ("PARBARRIER", &i, tnd, NTF_NONE);
-	i = -1;
-	opi.tag_PROCBARRIER = tnode_newnodetag ("PROCBARRIER", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  occampi:vardecl -- (mods for barriers)*/
