@@ -49,6 +49,7 @@
 #include "prescope.h"
 #include "typecheck.h"
 #include "extn.h"
+#include "mwsync.h"
 
 /*}}}*/
 
@@ -114,6 +115,7 @@ static feunit_t *feunit_set[] = {
 	&occampi_initial_feunit,
 	&occampi_asm_feunit,
 	&occampi_traces_feunit,
+	&mwsync_feunit,
 	&occampi_mwsync_feunit,
 	NULL
 };

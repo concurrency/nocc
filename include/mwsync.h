@@ -24,6 +24,9 @@
 struct TAG_feunit;
 struct TAG_cmd_option;
 struct TAG_tnode;
+struct TAG_name;
+struct TAG_ntdef;
+struct TAG_tndef;
 
 
 typedef struct TAG_mwsyncpstk {
@@ -65,12 +68,17 @@ typedef struct TAG_mwsi {
 extern mwsi_t mwsi;
 
 extern int mwsync_transsubtree (struct TAG_tnode **tptr, mwsynctrans_t *mwi);
-extern int mwsync_opthandler_flag (struct TAG_cmd_option *opt, char ***argwalk, int *argleft);
+
+extern int mwsync_mwsynctrans_makebarriertype (struct TAG_tnode **typep, struct TAG_name *namep, mwsynctrans_t *mwi);
+extern int mwsync_mwsynctrans_pushvar (struct TAG_tnode *varptr, struct TAG_tnode *bnames, mwsynctrans_t *mwi);
+extern int mwsync_mwsynctrans_popvar (struct TAG_tnode *varptr, mwsynctrans_t *mwi);
+extern int mwsync_mwsynctrans_nameref (struct TAG_tnode **tptr, struct TAG_name *name, struct TAG_ntdef *decltag, mwsynctrans_t *mwi);
+extern int mwsync_mwsynctrans_parallel (struct TAG_tnode *parnode, struct TAG_tnode **ipoint, struct TAG_tnode **bodies, int nbodies, mwsynctrans_t *mwi);
 
 extern int mwsync_init (int resign_after_par);
 extern int mwsync_shutdown (void);
 
-extern struct TAG_feunit *mwsync_feunit;
+extern struct TAG_feunit mwsync_feunit;
 
 
 #endif	/* !__MWSYNC_H */
