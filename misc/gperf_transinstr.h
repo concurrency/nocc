@@ -36,9 +36,9 @@
  */
 struct TAG_transinstr;
 
-#define TOTAL_KEYWORDS 78
+#define TOTAL_KEYWORDS 79
 #define MIN_WORD_LENGTH 1
-#define MAX_WORD_LENGTH 13
+#define MAX_WORD_LENGTH 15
 #define MIN_HASH_VALUE 2
 #define MAX_HASH_VALUE 163
 /* maximum key range = 162, duplicates = 0 */
@@ -151,7 +151,7 @@ static const struct TAG_transinstr wordlist[] =
     {"LD",		INS_OTHER,	I_LD,		NULL},
     {"NOT",		INS_SECONDARY,	I_NOT,		NULL},
     {"PROD",		INS_SECONDARY,	I_PROD,		NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"MWS_ALTPOSTLOCK",INS_SECONDARY,	I_MWS_ALTPOSTLOCK,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"LT",		INS_SECONDARY,	I_LT,		NULL},
     {"MWS_PBADJSYNC",	INS_SECONDARY,	I_MWS_PBADJSYNC,NULL},

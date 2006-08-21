@@ -101,7 +101,8 @@ typedef enum ENUM_transinstr {
 	I_MWS_ALT = 82,
 	I_MWS_ALTEND = 83,
 	I_MWS_ENB = 84,
-	I_MWS_DIS = 85
+	I_MWS_DIS = 85,
+	I_MWS_ALTPOSTLOCK = 86
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {

@@ -2920,6 +2920,11 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		krocetc_cgstate_tsdelta (cgen, -2);
 		break;
 		/*}}}*/
+		/*{{{  MWS_ALTPOSTLOCK: multi-way sync reclaim-lock-after-ALT (new)*/
+	case I_MWS_ALTPOSTLOCK:
+		codegen_write_string (cgen, "\tmws_altpostlock\n");
+		break;
+		/*}}}*/
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: tsecondary %d\n", ins);
 		break;
