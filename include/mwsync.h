@@ -27,6 +27,7 @@ struct TAG_tnode;
 struct TAG_name;
 struct TAG_ntdef;
 struct TAG_tndef;
+struct TAG_langparser;
 
 
 typedef struct TAG_mwsyncpstk {
@@ -41,6 +42,7 @@ typedef struct TAG_mwsynctrans {
 	DYNARRAY (struct TAG_tnode *, varptr);		/* barrier var-decl */
 	DYNARRAY (struct TAG_tnode *, bnames);		/* barrier name variables (in declarations) */
 	DYNARRAY (mwsyncpstk_t *, pstack);		/* PAR stack */
+	int inparams;					/* set if we're currently walking over formal params (or other PROCBARRIER references) */
 	int error;
 } mwsynctrans_t;
 
@@ -69,14 +71,19 @@ extern mwsi_t mwsi;
 
 extern int mwsync_transsubtree (struct TAG_tnode **tptr, mwsynctrans_t *mwi);
 
-/* extern int mwsync_mwsynctrans_makebarriertype (struct TAG_tnode **typep, struct TAG_name *namep, mwsynctrans_t *mwi); */
 extern int mwsync_mwsynctrans_makebarriertype (struct TAG_tnode **typep, mwsynctrans_t *mwi);
 extern int mwsync_mwsynctrans_pushvar (struct TAG_tnode *varptr, struct TAG_tnode *bnames, mwsynctrans_t *mwi);
+extern int mwsync_mwsynctrans_pushparam (struct TAG_tnode *paramptr, struct TAG_tnode *pname, mwsynctrans_t *mwi);
 extern int mwsync_mwsynctrans_popvar (struct TAG_tnode *varptr, mwsynctrans_t *mwi);
+extern int mwsync_mwsynctrans_pushvarmark (mwsynctrans_t *mwi);
+extern int mwsync_mwsynctrans_popvarto (const int level, mwsynctrans_t *mwi);
 extern int mwsync_mwsynctrans_nameref (struct TAG_tnode **tptr, struct TAG_name *name, struct TAG_ntdef *decltag, mwsynctrans_t *mwi);
 extern int mwsync_mwsynctrans_parallel (struct TAG_tnode *parnode, struct TAG_tnode **ipoint, struct TAG_tnode **bodies, int nbodies, mwsynctrans_t *mwi);
 
-extern int mwsync_init (int resign_after_par);
+extern int mwsync_mwsynctrans_startnamerefs (mwsynctrans_t *mwi);
+extern int mwsync_mwsynctrans_endnamerefs (mwsynctrans_t *mwi);
+
+extern int mwsync_init (int resign_after_par, struct TAG_langparser *langptr);
 extern int mwsync_shutdown (void);
 
 extern struct TAG_feunit mwsync_feunit;

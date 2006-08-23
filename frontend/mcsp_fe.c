@@ -58,7 +58,7 @@ int mcsp_register_frontend (void)
 
 	opts_add ("unbound-events", '\0', mcsp_lexer_opthandler_flag, (void *)1, "1permit the use of unbounded events in MCSP");
 
-	if (mwsync_init (1)) {
+	if (mwsync_init (1, &mcsp_parser)) {
 		return -1;
 	}
 

@@ -1,7 +1,7 @@
 
--- test_x42.occ -- testing barriers
+-- test_x43.occ -- testing barriers
 
-PROC test.x42 ()
+PROC test.x43 ()
   BARRIER x:
   SEQ
     SEQ i = 0 FOR 2

@@ -1,0 +1,9 @@
+
+-- test_x44.occ -- more BARRIER tests (params)
+
+PROC test.x44 (BARRIER b)
+  SEQ
+    SKIP
+:
+
+

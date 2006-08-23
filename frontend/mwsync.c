@@ -66,13 +66,11 @@
 /*{{{  private data*/
 static int mws_opt_rpp = 0;			/* multi-way syncs resign after PARs: --mws-rpp */
 
+static langparser_t *mws_langptr = NULL;	/* language using this */
+
 static chook_t *mapchook = NULL;
 static chook_t *mwsyncpbihook = NULL;
 
-
-/*}}}*/
-/*{{{  FIXME: externally referenced data*/
-extern langparser_t occampi_parser;
 
 /*}}}*/
 /*{{{  public data*/
@@ -162,6 +160,7 @@ static mwsynctrans_t *mwsync_newmwsynctrans (void)
 	dynarray_init (mwi->bnames);
 	dynarray_init (mwi->pstack);
 	mwi->error = 0;
+	mwi->inparams = 0;
 
 	return mwi;
 }
@@ -359,6 +358,7 @@ static int mwsync_leaftype_getdescriptor (langops_t *lops, tnode_t *node, char *
 	char *sptr;
 
 	if (node->tag == mwsi.tag_BARRIERTYPE) {
+#if 0
 		if (*str) {
 			char *newstr = (char *)smalloc (strlen (*str) + 16);
 
@@ -371,6 +371,7 @@ static int mwsync_leaftype_getdescriptor (langops_t *lops, tnode_t *node, char *
 			sptr = *str;
 		}
 		sprintf (sptr, "BARRIER");
+#endif
 		return 0;
 	} else if (node->tag == mwsi.tag_PARBARRIERTYPE) {
 		return 0;
@@ -396,11 +397,13 @@ static int mwsync_leaftype_initialising_decl (langops_t *lops, tnode_t *t, tnode
 		codegen_setinithook (benode, mwsync_initbarrier, NULL);
 		return 1;
 	} else if (t->tag == mwsi.tag_PARBARRIERTYPE) {
+		/* handled by PARBARRIER node */
 		return 0;
 	} else if (t->tag == mwsi.tag_PROCBARRIERTYPE) {
 		return 0;
 	}
 	if (lops->next && lops->next->initialising_decl) {
+		/* handled by PROCBARRIER node */
 		return lops->next->initialising_decl (lops->next, t, benode, mdata);
 	}
 	return 0;
@@ -562,7 +565,7 @@ static int mwsync_mwsyncvar_codegen (compops_t *cops, tnode_t *node, codegen_t *
  */
 int mwsync_mwsynctrans_makebarriertype (tnode_t **typep, mwsynctrans_t *mwi)
 {
-	*typep = tnode_createfrom (mwsi.tag_BARRIERTYPE, *typep);
+	*typep = tnode_createfrom (mwi->inparams ? mwsi.tag_PROCBARRIERTYPE : mwsi.tag_BARRIERTYPE, *typep);
 	return 0;
 }
 /*}}}*/
@@ -580,6 +583,25 @@ int mwsync_mwsynctrans_pushvar (tnode_t *varptr, tnode_t *bnames, mwsynctrans_t 
 
 	dynarray_add (mwi->varptr, varptr);
 	dynarray_add (mwi->bnames, bnames);
+	dynarray_add (mwi->pstack, mwsync_newmwsyncpstk ());
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int mwsync_mwsynctrans_pushparam (tnode_t *paramptr, tnode_t *pname, mwsynctrans_t *mwi)*/
+/*
+ *	pushes a new parameter onto the mwsync stack -- used to track usage of it
+ *	returns 0 on success, non-zero on failure
+ */
+int mwsync_mwsynctrans_pushparam (tnode_t *paramptr, tnode_t *pname, mwsynctrans_t *mwi)
+{
+	if (!mwi) {
+		nocc_internal ("mwsync_mwsynctrans_pushparam(): no mwi!");
+		return -1;
+	}
+
+	dynarray_add (mwi->varptr, paramptr);
+	dynarray_add (mwi->bnames, pname);
 	dynarray_add (mwi->pstack, mwsync_newmwsyncpstk ());
 
 	return 0;
@@ -620,6 +642,50 @@ int mwsync_mwsynctrans_popvar (tnode_t *varptr, mwsynctrans_t *mwi)
 		mwsync_freemwsyncpstk (mwps);
 	}
 
+	return 0;
+}
+/*}}}*/
+/*{{{  int mwsync_mwsynctrans_pushvarmark (mwsynctrans_t *mwi)*/
+/*
+ *	marks the mwsync variable stack
+ *	returns current index on success, < 0 on error
+ */
+int mwsync_mwsynctrans_pushvarmark (mwsynctrans_t *mwi)
+{
+	if (!mwi) {
+		nocc_internal ("mwsync_mwsynctrans_pushvarmark(): no mwi!");
+		return -1;
+	}
+	return DA_CUR (mwi->varptr);
+}
+/*}}}*/
+/*{{{  int mwsync_mwsynctrans_popvarto (const int level, mwsynctrans_t *mwi)*/
+/*
+ *	pops the mwsync variable stack to a specific point
+ *	returns 0 on success, non-zero on failure
+ */
+int mwsync_mwsynctrans_popvarto (const int level, mwsynctrans_t *mwi)
+{
+	if (!mwi) {
+		nocc_internal ("mwsync_mwsynctrans_popvarto(): no mwi!");
+		return -1;
+	}
+	if (level > DA_CUR (mwi->varptr)) {
+		nocc_warning ("mwsync_mwsynctrans_popvarto(): old level! (%d of %d)", level, DA_CUR (mwi->varptr));
+		return -1;
+	}
+	while (DA_CUR (mwi->varptr) > level) {
+		int i = DA_CUR (mwi->varptr) - 1;
+		mwsyncpstk_t *mwps = DA_NTHITEM (mwi->pstack, i);
+
+		dynarray_delitem (mwi->varptr, i);
+		dynarray_delitem (mwi->bnames, i);
+		dynarray_delitem (mwi->pstack, i);
+
+		if (mwps) {
+			mwsync_freemwsyncpstk (mwps);
+		}
+	}
 	return 0;
 }
 /*}}}*/
@@ -847,6 +913,42 @@ int mwsync_mwsynctrans_parallel (tnode_t *parnode, tnode_t **ipoint, tnode_t **b
 /*}}}*/
 
 
+/*{{{  int mwsync_mwsynctrans_startnamerefs (mwsynctrans_t *mwi)*/
+/*
+ *	called to indicate that we're parsing name reference nodes (e.g. params and abbreviations)
+ *	returns 0 on success, non-zero on failure
+ */
+int mwsync_mwsynctrans_startnamerefs (mwsynctrans_t *mwi)
+{
+	if (!mwi) {
+		nocc_internal ("mwsync_mwsynctrans_startnamerefs(): bad mwi!");
+		return -1;
+	}
+	mwi->inparams++;
+	return 0;
+}
+/*}}}*/
+/*{{{  int mwsync_mwsynctrans_endnamerefs (mwsynctrans_t *mwi)*/
+/*
+ *	called to indicate that we're no long parsing name reference nodes
+ *	returns 0 on success, non-zero on failure
+ */
+int mwsync_mwsynctrans_endnamerefs (mwsynctrans_t *mwi)
+{
+	if (!mwi) {
+		nocc_internal ("mwsync_mwsynctrans_endnamerefs(): bad mwi!");
+		return -1;
+	}
+	if (!mwi->inparams) {
+		nocc_warning ("mwsync_mwsynctrans_endnamerefs(): reached bottom already!");
+		return -1;
+	}
+	mwi->inparams--;
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int mwsync_modprewalk (tnode_t **tptr, void *arg)*/
 /*
  *	called during tree walk to do multiway-sync checks
@@ -908,7 +1010,7 @@ static int mwsync_init_nodes (void)
 	int i;
 
 	/*{{{  mwsynctrans -- new compiler pass and compiler operation*/
-	if (nocc_addcompilerpass ("mwsynctrans", (void *)&occampi_parser, "fetrans", 1, (int (*)(void *))mwsynctrans_cpass, CPASS_TREE, -1, NULL)) {
+	if (nocc_addcompilerpass ("mwsynctrans", (void *)mws_langptr, "fetrans", 1, (int (*)(void *))mwsynctrans_cpass, CPASS_TREE, -1, NULL)) {
 		nocc_internal ("mwsync_init_nodes(): failed to add mwsynctrans compiler pass");
 		return -1;
 	}
@@ -1014,14 +1116,15 @@ feunit_t mwsync_feunit = {
 /*}}}*/
 
 
-/*{{{  int mwsync_init (int resign_after_par)*/
+/*{{{  int mwsync_init (int resign_after_par, langparser_t *langptr)*/
 /*
  *	called by front-end initialisers to initialise multi-way sync bits
  *	returns 0 on success, non-zero on failure
  */
-int mwsync_init (int resign_after_par)
+int mwsync_init (int resign_after_par, langparser_t *langptr)
 {
 	mws_opt_rpp = resign_after_par;
+	mws_langptr = langptr;
 	opts_add ("mws-rpp", '\0', mwsync_opthandler_flag, (void *)1, "1multiway synchronisations resign after parallel completes");
 
 	return 0;

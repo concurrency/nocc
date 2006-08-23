@@ -94,7 +94,8 @@ static tnode_t *occampi_mwsync_leaftype_gettype (langops_t *lops, tnode_t *t, tn
 static int occampi_mwsync_leaftype_bytesfor (langops_t *lops, tnode_t *t, target_t *target)
 {
 	if (t->tag == opi.tag_BARRIER) {
-		return target->intsize * 4;
+		nocc_warning ("occampi_mwsync_leaftype_bytesfor(): unreplaced BARRIER type probably!");
+		return 0;
 	}
 
 	if (lops->next && lops->next->bytesfor) {
@@ -281,14 +282,11 @@ static int occampi_mwsync_vardecl_mwsynctrans (compops_t *cops, tnode_t **tptr, 
 	tnode_t *var_to_remove = NULL;
 
 	if ((name->tag == opi.tag_NDECL) && (NameTypeOf (tnode_nthnameof (name, 0))->tag == opi.tag_BARRIER)) {
-		/*{{{  BARRIER variable declaration, add to stack*/
 		mwsync_transsubtree (tnode_nthsubaddr (*tptr, 1), mwi);		/* transform type */
 		SetNameType (tnode_nthnameof (name, 0), tnode_nthsubof (*tptr, 1));
 
 		mwsync_mwsynctrans_pushvar (*tptr, name, mwi);
 		var_to_remove = *tptr;
-
-		/*}}}*/
 	}
 
 	/* walk over body */
@@ -310,20 +308,43 @@ static int occampi_mwsync_vardecl_mwsynctrans (compops_t *cops, tnode_t **tptr, 
  */
 static int occampi_mwsync_procdecl_mwsynctrans (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)
 {
-	tnode_t *params = tnode_nthsubof (*tptr, 1);
+	tnode_t **paramsp = tnode_nthsubaddr (*tptr, 1);
 	tnode_t **bodyp = tnode_nthsubaddr (*tptr, 2);
 	tnode_t **nextp = tnode_nthsubaddr (*tptr, 3);
-
-	/* FIXME: add any variables in the PROC definition to the variable stack */
+	int mlvl = mwsync_mwsynctrans_pushvarmark (mwi);
+	
+	/* add any variables in the PROC definition to the variable stack (done in occampi:fparam node) */
+	mwsync_mwsynctrans_startnamerefs (mwi);
+	mwsync_transsubtree (paramsp, mwi);
+	mwsync_mwsynctrans_endnamerefs (mwi);
 
 	/* do PROC body */
 	mwsync_transsubtree (bodyp, mwi);
 
-	/* FIXME: remove any variables from the PROC definition */
+	/* remove parameters */
+	mwsync_mwsynctrans_popvarto (mlvl, mwi);
 
 	/* do in-scope process */
 	mwsync_transsubtree (nextp, mwi);
 
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_mwsync_fparam_mwsynctrans (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)*/
+/*
+ *	does multi-way synchronisation transforms for a formal-parameter declaration
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mwsync_fparam_mwsynctrans (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)
+{
+	tnode_t *name = tnode_nthsubof (*tptr, 0);
+
+	if ((name->tag == opi.tag_NPARAM) && (NameTypeOf (tnode_nthnameof (name, 0))->tag == opi.tag_BARRIER)) {
+		mwsync_transsubtree (tnode_nthsubaddr (*tptr, 1), mwi);			/* transform type */
+		SetNameType (tnode_nthnameof (name, 0), tnode_nthsubof (*tptr, 1));
+
+		mwsync_mwsynctrans_pushparam (*tptr, name, mwi);
+	}
 	return 0;
 }
 /*}}}*/
@@ -425,6 +446,11 @@ static int occampi_mwsync_init_nodes (void)
 	/*{{{  occampi:procdecl -- (mods for barriers)*/
 	tnd = tnode_lookupnodetype ("occampi:procdecl");
 	tnode_setcompop (tnd->ops, "mwsynctrans", 2, COMPOPTYPE (occampi_mwsync_procdecl_mwsynctrans));
+
+	/*}}}*/
+	/*{{{  occampi:fparam -- (mods for barriers)*/
+	tnd = tnode_lookupnodetype ("occampi:fparam");
+	tnode_setcompop (tnd->ops, "mwsynctrans", 2, COMPOPTYPE (occampi_mwsync_fparam_mwsynctrans));
 
 	/*}}}*/
 	/*{{{  occampi:namenode -- (mods for barriers)*/

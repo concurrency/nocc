@@ -58,7 +58,7 @@ int occampi_register_frontend (void)
 	}
 
 	opts_add ("c-operators", '\0', occampi_lexer_opthandler_flag, (void *)1, "1use C style operators");
-	if (mwsync_init (0)) {
+	if (mwsync_init (0, &occampi_parser)) {
 		return -1;
 	}
 

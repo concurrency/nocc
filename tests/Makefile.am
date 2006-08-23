@@ -23,7 +23,8 @@ EXTRA_DIST = test1.occ \
 		test_x20.occ test_x21.occ test_x22.occ test_x23.occ \
 		test_x24.occ test_x25.occ test_x26.occ test_x27.occ test_x28.occ test_x29.occ \
 		test_x30.occ test_x31.occ test_x32.occ test_x33.occ test_x34.occ test_x35.occ \
-		test_x36.occ tesT_x37.occ test_x38.occ test_x39.occ \
+		test_x36.occ test_x37.occ test_x38.occ test_x39.occ test_x40.occ test_x41.occ \
+		test_x42.occ test_x43.occ \
 		test_b1.bas test_b2.bas \
 		test_c1.mcsp test_c2.mcsp test_c3.mcsp test_c4.mcsp test_c5.mcsp test_c6.mcsp \
 		test_c7.mcsp test_c8.mcsp test_c9.mcsp test_c10.mcsp test_c11.mcsp
