@@ -1,9 +1,17 @@
 
 -- test_x44.occ -- more BARRIER tests (params)
 
-PROC test.x44 (BARRIER b)
+PROC func (BARRIER b)
   SEQ
+    SYNC b
+    SYNC b
     SKIP
+:
+
+PROC test.x44 ()
+  BARRIER bar:
+  SEQ
+    func (bar)
 :
 
 

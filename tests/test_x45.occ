@@ -1,0 +1,16 @@
+
+-- test_x45.occ -- more BARRIER tests (params)
+
+PROC test.x45 (BARRIER b)
+  PAR
+    SYNC b
+    SKIP
+:
+
+-- PROC test.x45 ()
+--   BARRIER bar:
+--   SEQ
+--     func (bar)
+-- :
+
+

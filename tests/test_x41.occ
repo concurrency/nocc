@@ -5,6 +5,7 @@ PROC test.x41 ()
   BARRIER x:
   SEQ
     SYNC x
+    SYNC x
     SKIP
 :
 
