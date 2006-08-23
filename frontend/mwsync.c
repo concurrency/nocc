@@ -64,7 +64,7 @@
 
 /*}}}*/
 /*{{{  private data*/
-static int mws_opt_rpp = 0;			/* multi-way syncs resign after PARs: --mws-rpp */
+static int mws_opt_rpp = -1;			/* multi-way syncs resign after PARs: --mws-rpp */
 
 static langparser_t *mws_langptr = NULL;	/* language using this */
 
@@ -93,6 +93,7 @@ static int mwsync_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argl
 	case 1:
 		/* multi-way syncs resign after parallel */
 		nocc_message ("multiway synchronisations will resign after parallel");
+		mws_opt_rpp = 1;
 		break;
 	default:
 		return -1;
@@ -1289,14 +1290,13 @@ feunit_t mwsync_feunit = {
 /*}}}*/
 
 
-/*{{{  int mwsync_init (int resign_after_par, langparser_t *langptr)*/
+/*{{{  int mwsync_init (langparser_t *langptr)*/
 /*
  *	called by front-end initialisers to initialise multi-way sync bits
  *	returns 0 on success, non-zero on failure
  */
-int mwsync_init (int resign_after_par, langparser_t *langptr)
+int mwsync_init (langparser_t *langptr)
 {
-	mws_opt_rpp = resign_after_par;
 	mws_langptr = langptr;
 	opts_add ("mws-rpp", '\0', mwsync_opthandler_flag, (void *)1, "1multiway synchronisations resign after parallel completes");
 
@@ -1311,6 +1311,20 @@ int mwsync_init (int resign_after_par, langparser_t *langptr)
 int mwsync_shutdown (void)
 {
 	return 0;
+}
+/*}}}*/
+/*{{{  int mwsync_setresignafterpar (int resign_after_par)*/
+/*
+ *	sets the default behaviour for resigning after a PAR
+ *	returns 0 on success (option set), non-zero on failure (option not set)
+ */
+int mwsync_setresignafterpar (int resign_after_par)
+{
+	if (mws_opt_rpp < 0) {
+		mws_opt_rpp = resign_after_par;
+		return 0;
+	}
+	return -1;
 }
 /*}}}*/
 

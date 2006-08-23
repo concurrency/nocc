@@ -620,6 +620,9 @@ static int occampi_parser_init (lexfile_t *lf)
 		if (compopts.dumpgrules) {
 			parser_dumpgrules (stderr);
 		}
+
+		/* last, re-init multiway syncs with default end-of-par option */
+		mwsync_setresignafterpar (0);
 	}
 	return 0;
 }
