@@ -49,6 +49,8 @@
 #include "constprop.h"
 #include "langops.h"
 #include "usagecheck.h"
+#include "fetrans.h"
+#include "betrans.h"
 #include "map.h"
 #include "codegen.h"
 #include "target.h"
@@ -143,6 +145,35 @@ nocc_message ("occampi_cnode_dousagecheck(): there are %d PAR bodies", nbodies);
 		} /* else don't merge from something that failed (XXX: maybe..) */
 		/*}}}*/
 
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_betrans_cnode (compops_t *cops, tnode_t **tptr, betrans_t *be)*/
+/*
+ *	does back-end transforms for constructor nodes (SEQ, PAR)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_betrans_cnode (compops_t *cops, tnode_t **tptr, betrans_t *be)
+{
+	int nbodies;
+	tnode_t **bodies;
+	
+	if (!parser_islistnode (tnode_nthsubof (*tptr, 1))) {
+		nocc_internal ("occampi_betrans_cnode(): body of cnode not list");
+		return 1;
+	}
+	bodies = parser_getlistitems (tnode_nthsubof (*tptr, 1), &nbodies);
+
+	if (nbodies == 1) {
+		tnode_t *node = *tptr;
+
+		betrans_subtree (bodies, be);
+		*tptr = bodies[0];
+		bodies[0] = NULL;
+
+		tnode_free (node);
 		return 0;
 	}
 	return 1;
@@ -649,6 +680,7 @@ static int occampi_cnode_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:cnode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr/operand/parspaceref; 1 = body */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_cnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_cnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_cnode));
 	tnd->ops = cops;

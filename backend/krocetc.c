@@ -1322,6 +1322,7 @@ fprintf (stderr, "krocetc_be_regsfor(): regsfor [%s] [%s] ?\n", benode->tag->nde
 }
 /*}}}*/
 
+
 /*{{{  static int krocetc_preallocate_block (compops_t *cops, tnode_t *blk, target_t *target)*/
 /*
  *	does pre-allocation for a back-end block
@@ -2706,6 +2707,13 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 		/*}}}*/
+		/*{{{  REV: reverse top two stack elements*/
+	case I_REV:
+		codegen_write_string (cgen, "\trev\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		krocetc_cgstate_tsdelta (cgen, 2);
+		break;
+		/*}}}*/
 		/*{{{  ALT: start alternative*/
 	case I_ALT:
 		codegen_write_string (cgen, "\talt\n");
@@ -2923,6 +2931,16 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		/*{{{  MWS_ALTPOSTLOCK: multi-way sync reclaim-lock-after-ALT (new)*/
 	case I_MWS_ALTPOSTLOCK:
 		codegen_write_string (cgen, "\tmws_altpostlock\n");
+		break;
+		/*}}}*/
+		/*{{{  MWS_PPBASEOF: multi-way sync barrier-base from proc-barrier*/
+	case I_MWS_PPBASEOF:
+		codegen_write_string (cgen, "\tmws_ppbaseof\n");
+		break;
+		/*}}}*/
+		/*{{{  MWS_PPPAROF: multi-way sync par-barrier from proc-barrier*/
+	case I_MWS_PPPAROF:
+		codegen_write_string (cgen, "\tmws_ppparof\n");
 		break;
 		/*}}}*/
 	default:
@@ -3214,7 +3232,7 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	/* setup back-end nodes */
 	/*{{{  krocetc:name -- KROCETCNAME*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:name", &i, 2, 0, 1, 0);
+	tnd = tnode_newnodetype ("krocetc:name", &i, 2, 0, 1, 0);		/* subnodes: orginal name, in-scope body; hooks: krocetc_namehook_t */
 	tnd->hook_dumptree = krocetc_namehook_dumptree;
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
@@ -3226,7 +3244,7 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	/*}}}*/
 	/*{{{  krocetc:nameref -- KROCETCNAMEREF*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:nameref", &i, 1, 0, 1, 0);
+	tnd = tnode_newnodetype ("krocetc:nameref", &i, 1, 0, 1, 0);		/* subnodes: original name; hooks: krocetc_namehook_t */
 	tnd->hook_dumptree = krocetc_namehook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_nameref));
@@ -3236,7 +3254,7 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	/*}}}*/
 	/*{{{  krocetc:block -- KROCETCBLOCK*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:block", &i, 2, 0, 1, 0);
+	tnd = tnode_newnodetype ("krocetc:block", &i, 2, 0, 1, 0);		/* subnodes: block body, statics; hooks: krocetc_blockhook_t */
 	tnd->hook_dumptree = krocetc_blockhook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "preallocate", 2, COMPOPTYPE (krocetc_preallocate_block));
@@ -3295,7 +3313,7 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	/*}}}*/
 	/*{{{  krocetc:blockref -- KROCETCBLOCKREF*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:blockref", &i, 1, 0, 1, 0);
+	tnd = tnode_newnodetype ("krocetc:blockref", &i, 1, 0, 1, 0);		/* subnodes: body; hooks: krocetc_blockrefhook_t */
 	tnd->hook_dumptree = krocetc_blockrefhook_dumptree;
 	i = -1;
 	target->tag_BLOCKREF = tnode_newnodetag ("KROCETCBLOCKREF", &i, tnd, 0);

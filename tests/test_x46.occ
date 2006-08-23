@@ -1,0 +1,15 @@
+
+-- test_x46.occ -- barriers
+
+PROC func (BARRIER b)
+  SEQ
+    SKIP
+:
+
+PROC test.x46 ()
+  BARRIER b:
+  PAR
+    func (b)
+:
+
+

@@ -73,6 +73,100 @@ static chook_t *uchk_taghook = NULL;
 /*}}}*/
 
 
+/*{{{  static uchk_chook_set_t *uchk_newuchkchookset (void)*/
+/*
+ *	creates a blank uchk_chook_set_t structure
+ */
+static uchk_chook_set_t *uchk_newuchkchookset (void)
+{
+	uchk_chook_set_t *ucset = (uchk_chook_set_t *)smalloc (sizeof (uchk_chook_set_t));
+
+	dynarray_init (ucset->items);
+	dynarray_init (ucset->modes);
+
+	return ucset;
+}
+/*}}}*/
+/*{{{  static uchk_chook_t *uchk_newuchkchook (void)*/
+/*
+ *	creates a blank uchk_chook_t structure
+ */
+static uchk_chook_t *uchk_newuchkchook (void)
+{
+	uchk_chook_t *uch = (uchk_chook_t *)smalloc (sizeof (uchk_chook_t));
+
+	dynarray_init (uch->parusage);
+
+	return uch;
+}
+/*}}}*/
+/*{{{  static uchk_taghook_t *uchk_newuchktaghook (void)*/
+/*
+ *	creates a blank uchk_taghook_t structure
+ */
+static uchk_taghook_t *uchk_newuchktaghook (void)
+{
+	uchk_taghook_t *tagh = (uchk_taghook_t *)smalloc (sizeof (uchk_taghook_t));
+
+	tagh->node = NULL;
+	tagh->mode = USAGE_NONE;
+	tagh->do_nested = 0;
+
+	return tagh;
+}
+/*}}}*/
+/*{{{  static void uchk_freeuchkchookset (uchk_chook_set_t *ucset)*/
+/*
+ *	frees a uchk_chook_set_t structure
+ */
+static void uchk_freeuchkchookset (uchk_chook_set_t *ucset)
+{
+	if (!ucset) {
+		return;
+	}
+	dynarray_trash (ucset->items);
+	dynarray_trash (ucset->modes);
+
+	sfree (ucset);
+	return;
+}
+/*}}}*/
+/*{{{  static void uchk_freeuchkchook (uchk_chook_t *uch)*/
+/*
+ *	frees a uchk_chook_t structure (deep)
+ */
+static void uchk_freeuchkchook (uchk_chook_t *uch)
+{
+	int i;
+
+	if (!uch) {
+		return;
+	}
+	for (i=0; i<DA_CUR (uch->parusage); i++) {
+		uchk_freeuchkchookset (DA_NTHITEM (uch->parusage, i));
+	}
+	dynarray_trash (uch->parusage);
+	sfree (uch);
+	return;
+}
+/*}}}*/
+/*{{{  static void uchk_freeuchktaghook (uchk_taghook_t *tagh)*/
+/*
+ *	frees a uchk_taghook_t structure
+ */
+static void uchk_freeuchktaghook (uchk_taghook_t *tagh)
+{
+	if (!tagh) {
+		return;
+	}
+	sfree (tagh);
+
+	return;
+}
+/*}}}*/
+
+
+
 /*{{{  static void uchk_isetindent (FILE *stream, int indent)*/
 /*
  *	sets indentation level
@@ -159,6 +253,18 @@ static void uchk_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *st
 	return;
 }
 /*}}}*/
+/*{{{  static void uchk_chook_free (void *hook)*/
+/*
+ *	called to free a uchk_chook_t compiler hook
+ */
+static void uchk_chook_free (void *hook)
+{
+	uchk_chook_t *uch = (uchk_chook_t *)hook;
+
+	uchk_freeuchkchook (uch);
+	return;
+}
+/*}}}*/
 /*{{{  static void uchk_taghook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
 /*
  *	dumps a usage-check-tag compiler hook
@@ -196,6 +302,18 @@ static void uchk_taghook_dumptree (tnode_t *node, void *hook, int indent, FILE *
 		fprintf (stream, "<chook id=\"uchk:tagged\" node=\"0x%8.8x\" mode=\"%s\" />\n", (unsigned int)thook->node, buf);
 	}
 
+	return;
+}
+/*}}}*/
+/*{{{  static void uchk_taghook_free (void *hook)*/
+/*
+ *	called to free a uchk_taghook_t compiler hook
+ */
+static void uchk_taghook_free (void *hook)
+{
+	uchk_taghook_t *tagh = (uchk_taghook_t *)hook;
+
+	uchk_freeuchktaghook (tagh);
 	return;
 }
 /*}}}*/
@@ -277,9 +395,11 @@ int usagecheck_init (void)
 	if (!uchk_chook) {
 		uchk_chook = tnode_newchook ("usagecheck");
 		uchk_chook->chook_dumptree = uchk_chook_dumptree;
+		uchk_chook->chook_free = uchk_chook_free;
 
 		uchk_taghook = tnode_newchook ("uchk:tagged");
 		uchk_taghook->chook_dumptree = uchk_taghook_dumptree;
+		uchk_taghook->chook_free = uchk_taghook_free;
 	}
 	return 0;
 }
@@ -551,9 +671,7 @@ int usagecheck_begin_branches (tnode_t *node, uchk_state_t *ucstate)
 	uchk_chook_t *uchook = (uchk_chook_t *)tnode_getchook (node, uchk_chook);
 	
 	if (!uchook) {
-		uchook = (uchk_chook_t *)smalloc (sizeof (uchk_chook_t));
-		dynarray_init (uchook->parusage);
-
+		uchook = uchk_newuchkchook ();
 		tnode_setchook (node, uchk_chook, (void *)uchook);
 	}
 
@@ -613,9 +731,7 @@ int usagecheck_branch (tnode_t *tree, uchk_state_t *ucstate)
 	}
 	uchook = DA_NTHITEM (ucstate->ucstack, ucstate->ucptr);
 
-	ucset = (uchk_chook_set_t *)smalloc (sizeof (uchk_chook_set_t));
-	dynarray_init (ucset->items);
-	dynarray_init (ucset->modes);
+	ucset = uchk_newuchkchookset ();
 
 	dynarray_add (uchook->parusage, ucset);
 	DA_SETNTHITEM (ucstate->setptrs, ucstate->ucptr, (void *)ucset);
@@ -641,9 +757,7 @@ void usagecheck_newbranch (uchk_state_t *ucstate)
 	}
 	uchook = DA_NTHITEM (ucstate->ucstack, ucstate->ucptr);
 
-	ucset = (uchk_chook_set_t *)smalloc (sizeof (uchk_chook_set_t));
-	dynarray_init (ucset->items);
-	dynarray_init (ucset->modes);
+	ucset = uchk_newuchkchookset ();
 
 	dynarray_add (uchook->parusage, ucset);
 	DA_SETNTHITEM (ucstate->setptrs, ucstate->ucptr, (void *)ucset);
@@ -749,7 +863,7 @@ int usagecheck_marknode (tnode_t *node, uchk_mode_t mode, int do_nested)
 		thook->mode |= mode;
 		thook->do_nested |= do_nested;
 	} else {
-		thook = (uchk_taghook_t *)smalloc (sizeof (uchk_taghook_t));
+		thook = uchk_newuchktaghook ();
 
 		thook->node = node;
 		thook->mode = mode;

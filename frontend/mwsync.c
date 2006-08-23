@@ -199,6 +199,7 @@ static mwsyncpbinfo_t *mwsync_newmwsyncpbinfo (void)
 	pbinf->ecount = 0;
 	pbinf->sadjust = 0;
 	pbinf->parent = NULL;
+	pbinf->exprisproctype = 0;
 
 	return pbinf;
 }
@@ -225,7 +226,8 @@ static void mwsync_pbihook_dumptree (tnode_t *node, void *chook, int indent, FIL
 		mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)chook;
 
 		mwsync_isetindent (stream, indent);
-		fprintf (stream, "<mwsync:parbarrierinfo ecount=\"%d\" sadjust=\"%d\" parent=\"0x%8.8x\" addr=\"0x%8.8x\" />\n", pbinf->ecount, pbinf->sadjust, (unsigned int)pbinf->parent, (unsigned int)chook);
+		fprintf (stream, "<mwsync:parbarrierinfo ecount=\"%d\" sadjust=\"%d\" parent=\"0x%8.8x\" exprisproctype=\"%d\" addr=\"0x%8.8x\" />\n",
+				pbinf->ecount, pbinf->sadjust, (unsigned int)pbinf->parent, pbinf->exprisproctype, (unsigned int)chook);
 	}
 	return;
 }
@@ -260,6 +262,7 @@ static void *mwsync_pbihook_copy (void *chook)
 	pbinf->ecount = other->ecount;
 	pbinf->sadjust = other->sadjust;
 	pbinf->parent = other->parent;
+	pbinf->exprisproctype = other->exprisproctype;
 
 	return (void *)pbinf;
 }
@@ -512,6 +515,9 @@ static int mwsync_mwsyncvar_codegen (compops_t *cops, tnode_t *node, codegen_t *
 		/*{{{  initialise PARBARRIER structure*/
 
 		codegen_callops (cgen, loadpointer, othervar, 0);
+		if (pbinf && pbinf->exprisproctype) {
+			codegen_callops (cgen, tsecondary, I_MWS_PPBASEOF);
+		}
 		codegen_callops (cgen, loadlocalpointer, ws_off);
 		codegen_callops (cgen, tsecondary, I_MWS_PBRILNK);
 		codegen_callops (cgen, comment, "initparbarrier");
@@ -519,13 +525,18 @@ static int mwsync_mwsyncvar_codegen (compops_t *cops, tnode_t *node, codegen_t *
 		/*}}}*/
 		if (pbinf && pbinf->ecount) {
 			/*{{{  enroll processes on barrier*/
-			codegen_callops (cgen, loadconst, pbinf->ecount);
 			if (pbinf->parent) {
 				codegen_callops (cgen, comment, "FIXME! -- get address of parent (via nameref)");
 				codegen_callops (cgen, loadconst, 0);
+			} else if (pbinf->exprisproctype) {
+				/* must have a parent par-barrier */
+				codegen_callops (cgen, loadpointer, othervar, 0);
+				codegen_callops (cgen, tsecondary, I_MWS_PPPAROF);
 			} else {
 				codegen_callops (cgen, loadconst, 0);
 			}
+			codegen_callops (cgen, loadconst, pbinf->ecount);
+			codegen_callops (cgen, tsecondary, I_REV);
 			codegen_callops (cgen, loadlocalpointer, ws_off);
 			codegen_callops (cgen, tsecondary, I_MWS_PBENROLL);
 			codegen_callops (cgen, comment, "parbarrierenroll");
@@ -794,6 +805,7 @@ int mwsync_mwsynctrans_nameref (tnode_t **tptr, name_t *name, ntdef_t *decltag, 
 				pbinf->ecount = 1;
 				pbinf->sadjust = 0;
 				pbinf->parent = NULL;
+				pbinf->exprisproctype = 0;
 				tnode_setchook (parbardecl, mwsyncpbihook, (void *)pbinf);
 
 #if 0
@@ -833,6 +845,7 @@ int mwsync_mwsynctrans_nameref (tnode_t **tptr, name_t *name, ntdef_t *decltag, 
 					pbinf->ecount = 0;
 					pbinf->sadjust = 0;
 					pbinf->parent = NULL;
+					pbinf->exprisproctype = 0;
 					tnode_setchook (parbardecl, mwsyncpbihook, (void *)pbinf);
 				} else {
 					/* else we've already got one here */
@@ -939,6 +952,7 @@ int mwsync_mwsynctrans_nameref (tnode_t **tptr, name_t *name, ntdef_t *decltag, 
 						pbinf->ecount = 0;
 						pbinf->sadjust = 0;
 						pbinf->parent = NULL;
+						pbinf->exprisproctype = 1;
 						tnode_setchook (parbardecl, mwsyncpbihook, (void *)pbinf);
 					} else {
 						/* else we've already got one here */
