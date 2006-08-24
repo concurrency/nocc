@@ -375,7 +375,6 @@ static int occampi_mwsync_cnode_mwsynctrans (compops_t *cops, tnode_t **tptr, mw
 		tnode_t **bodies;
 		int nbodies;
 
-
 		bodies = parser_getlistitems (tnode_nthsubof (parnode, 1), &nbodies);
 
 		mwsync_mwsynctrans_parallel (parnode, tptr, bodies, nbodies, mwi);

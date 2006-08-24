@@ -313,6 +313,36 @@ static int occampi_scopeout_cnode (compops_t *cops, tnode_t **node, scope_t *ss)
  */
 static int occampi_typecheck_cnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
+	if (node->tag == opi.tag_PAR) {
+		occampi_ileaveinfo_t *ilv = (occampi_ileaveinfo_t *)tnode_getchook (node, opi.chook_ileaveinfo);
+
+		if (ilv) {
+			tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
+			tnode_t *defbartype = tnode_create (opi.tag_BARRIER, NULL);
+			int i;
+
+			for (i=0; (i<DA_CUR (ilv->names)) && (i<DA_CUR (ilv->values)); i++) {
+				tnode_t *nametype, *valuetype;
+
+				typecheck_subtree (DA_NTHITEM (ilv->names, i), tc);
+				typecheck_subtree (DA_NTHITEM (ilv->values, i), tc);
+
+				/* name should be a BARRIER */
+				nametype = typecheck_gettype (DA_NTHITEM (ilv->names, i), defbartype);
+				if (!nametype || !typecheck_typeactual (defbartype, nametype, node, tc)) {
+					typecheck_error (node, tc, "interleaving name must be a BARRIER");
+				}
+
+				valuetype = typecheck_gettype (DA_NTHITEM (ilv->values, i), definttype);
+				if (!valuetype || !typecheck_typeactual (definttype, valuetype, node, tc)) {
+					typecheck_error (node, tc, "interleaving value must be integer");
+				}
+			}
+
+			tnode_free (definttype);
+			tnode_free (defbartype);
+		}
+	}
 	return 1;
 }
 /*}}}*/
@@ -323,6 +353,18 @@ static int occampi_typecheck_cnode (compops_t *cops, tnode_t *node, typecheck_t 
  */
 static int occampi_constprop_cnode (compops_t *cops, tnode_t **tptr)
 {
+	if ((*tptr)->tag == opi.tag_PAR) {
+		occampi_ileaveinfo_t *ilv = (occampi_ileaveinfo_t *)tnode_getchook (*tptr, opi.chook_ileaveinfo);
+
+		if (ilv) {
+			int i;
+
+			for (i=0; (i<DA_CUR (ilv->names)) && (i<DA_CUR (ilv->values)); i++) {
+				constprop_tree (DA_NTHITEMADDR (ilv->names, i));
+				constprop_tree (DA_NTHITEMADDR (ilv->values, i));
+			}
+		}
+	}
 	return 1;
 }
 /*}}}*/
