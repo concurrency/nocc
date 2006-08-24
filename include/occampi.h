@@ -175,6 +175,7 @@ typedef struct {
 
 	struct TAG_chook *chook_typeattr;
 	struct TAG_chook *chook_traces;
+	struct TAG_chook *chook_ileaveinfo;
 } occampi_pset_t;
 
 extern occampi_pset_t opi;
@@ -205,6 +206,14 @@ typedef struct {
 	void *data;
 	int bytes;
 } occampi_litdata_t;
+
+
+/* this one tags PAR nodes (on a compiler hook) */
+typedef struct {
+	DYNARRAY (struct TAG_tnode *, names);
+	DYNARRAY (struct TAG_tnode *, values);
+} occampi_ileaveinfo_t;
+
 
 extern void occampi_isetindent (FILE *stream, int indent);
 

@@ -60,6 +60,109 @@
 /*}}}*/
 
 
+/*{{{  static occampi_ileaveinfo_t *occampi_newileaveinfo (void)*/
+/*
+ *	creates a blank occampi_ileaveinfo_t structure
+ */
+static occampi_ileaveinfo_t *occampi_newileaveinfo (void)
+{
+	occampi_ileaveinfo_t *ilv = (occampi_ileaveinfo_t *)smalloc (sizeof (occampi_ileaveinfo_t));
+
+	dynarray_init (ilv->names);
+	dynarray_init (ilv->values);
+
+	return ilv;
+}
+/*}}}*/
+/*{{{  static void occampi_freeileaveinfo (occampi_ileaveinfo_t *ilv)*/
+/*
+ *	frees an occampi_ileaveinfo_t structure
+ */
+static void occampi_freeileaveinfo (occampi_ileaveinfo_t *ilv)
+{
+	int i;
+
+	if (!ilv) {
+		nocc_warning ("occampi_freeileaveinfo(): null pointer!");
+		return;
+	}
+	for (i=0; i<DA_CUR (ilv->names); i++) {
+		tnode_free (DA_NTHITEM (ilv->names, i));
+	}
+	for (i=0; i<DA_CUR (ilv->values); i++) {
+		tnode_free (DA_NTHITEM (ilv->values, i));
+	}
+	dynarray_trash (ilv->names);
+	dynarray_trash (ilv->values);
+	sfree (ilv);
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_ileaveinfo_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps an interleave chook tree
+ */
+static void occampi_ileaveinfo_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	occampi_ileaveinfo_t *ilv = (occampi_ileaveinfo_t *)hook;
+	int i;
+
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "<ileaveinfo addr=\"0x%8.8x\" nnames=\"%d\" nvalues=\"%d\">\n", (unsigned int)ilv, DA_CUR (ilv->names), DA_CUR (ilv->values));
+	for (i=0; (i<DA_CUR (ilv->names)) && (i<DA_CUR (ilv->values)); i++) {
+		occampi_isetindent (stream, indent + 1);
+		fprintf (stream, "<ileaveinfo:namevaluepair>\n");
+		tnode_dumptree (DA_NTHITEM (ilv->names, i), indent + 2, stream);
+		tnode_dumptree (DA_NTHITEM (ilv->values, i), indent + 2, stream);
+		occampi_isetindent (stream, indent + 1);
+		fprintf (stream, "</ileaveinfo:namevaluepair>\n");
+	}
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "</ileaveinfo>\n");
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_ileaveinfo_chook_free (void *hook)*/
+/*
+ *	frees an interleave chook tree
+ */
+static void occampi_ileaveinfo_chook_free (void *hook)
+{
+	occampi_ileaveinfo_t *ilv = (occampi_ileaveinfo_t *)hook;
+
+	occampi_freeileaveinfo (ilv);
+	return;
+}
+/*}}}*/
+/*{{{  static void *occampi_ileaveinfo_chook_copy (void *hook)*/
+/*
+ *	copies an interleave chook tree
+ */
+static void *occampi_ileaveinfo_chook_copy (void *hook)
+{
+	occampi_ileaveinfo_t *ilv = (occampi_ileaveinfo_t *)hook;
+	occampi_ileaveinfo_t *newlv = NULL;
+
+	if (ilv) {
+		int i;
+
+		newlv = occampi_newileaveinfo ();
+		for (i=0; (i<DA_CUR (ilv->names)) && (i<DA_CUR (ilv->values)); i++) {
+			tnode_t *namecopy, *valuecopy;
+
+			namecopy = tnode_copytree (DA_NTHITEM (ilv->names, i));
+			valuecopy = tnode_copytree (DA_NTHITEM (ilv->values, i));
+
+			dynarray_add (newlv->names, namecopy);
+			dynarray_add (newlv->values, valuecopy);
+		}
+	}
+
+	return (void *)newlv;
+}
+/*}}}*/
+
+
 /*{{{  static void occampi_reduce_cnode (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
  *	reduces a constructor node (e.g. SEQ, PAR, FORKING, CLAIM, ..)
@@ -106,6 +209,27 @@ static void occampi_reduce_replcnode (dfastate_t *dfast, parsepriv_t *pp, void *
 	return;
 }
 /*}}}*/
+/*{{{  static void occampi_reduce_ileave (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	takes two nodes off the nodestack and adds them to a occampi_ileaveinfo_t chook in the PAR result node
+ */
+static void occampi_reduce_ileave (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	tnode_t *value = dfa_popnode (dfast);
+	tnode_t *name = dfa_popnode (dfast);
+	tnode_t *parnode = *(dfast->ptr);
+	occampi_ileaveinfo_t *ilv = (occampi_ileaveinfo_t *)tnode_getchook (parnode, opi.chook_ileaveinfo);
+
+	if (!ilv) {
+		ilv = occampi_newileaveinfo ();
+		tnode_setchook (parnode, opi.chook_ileaveinfo, (void *)ilv);
+	}
+	dynarray_add (ilv->names, name);
+	dynarray_add (ilv->values, value);
+
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_cnode_dousagecheck (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)*/
@@ -147,6 +271,58 @@ nocc_message ("occampi_cnode_dousagecheck(): there are %d PAR bodies", nbodies);
 
 		return 0;
 	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_scopein_cnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes in a constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_scopein_cnode (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	if ((*node)->tag == opi.tag_PAR) {
+		occampi_ileaveinfo_t *ilv = (occampi_ileaveinfo_t *)tnode_getchook (*node, opi.chook_ileaveinfo);
+
+		if (ilv) {
+			int i;
+
+			for (i=0; (i<DA_CUR (ilv->names)) && (i<DA_CUR (ilv->values)); i++) {
+				scope_subtree (DA_NTHITEMADDR (ilv->names, i), ss);
+				scope_subtree (DA_NTHITEMADDR (ilv->values, i), ss);
+			}
+		}
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_scopeout_cnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes out a constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_scopeout_cnode (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_typecheck_cnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a constructor node (SEQ, PAR)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_cnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_constprop_cnode (compops_t *cops, tnode_t **tptr)*/
+/*
+ *	does constant propagation for a constructor node (SEQ, PAR)
+ *	return 0 to stop walk, 1 to continue
+ */
+static int occampi_constprop_cnode (compops_t *cops, tnode_t **tptr)
+{
 	return 1;
 }
 /*}}}*/
@@ -676,10 +852,21 @@ static int occampi_cnode_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
+	/*{{{  ileaveinfo -- compiler hook*/
+	opi.chook_ileaveinfo = tnode_lookupornewchook ("ileaveinfo");
+	opi.chook_ileaveinfo->chook_dumptree = occampi_ileaveinfo_chook_dumptree;
+	opi.chook_ileaveinfo->chook_free = occampi_ileaveinfo_chook_free;
+	opi.chook_ileaveinfo->chook_copy = occampi_ileaveinfo_chook_copy;
+
+	/*}}}*/
 	/*{{{  occampi:cnode -- SEQ, PAR*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:cnode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr/operand/parspaceref; 1 = body */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_cnode));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_cnode));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_cnode));
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_cnode));
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_cnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_cnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_cnode));
@@ -750,6 +937,7 @@ static int occampi_cnode_reg_reducers (void)
 {
 	parser_register_reduce ("Roccampi:cnode", occampi_reduce_cnode, NULL);
 	parser_register_reduce ("Roccampi:replcnode", occampi_reduce_replcnode, NULL);
+	parser_register_reduce ("Roccampi:ileave", occampi_reduce_ileave, NULL);
 
 	parser_register_grule ("opi:shortif", parser_decode_grule ("T+@tSN0N+0C2R-", opi.tag_SHORTIF));
 	parser_register_grule ("opi:while", parser_decode_grule ("SN0N+0C2R-", opi.tag_WHILE));
@@ -767,8 +955,10 @@ static dfattbl_t **occampi_cnode_init_dfatrans (int *ntrans)
 	DYNARRAY (dfattbl_t *, transtbl);
 
 	dynarray_init (transtbl);
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:interleaving ::= [ 0 occampi:name 1 ] [ 1 @@( 2 ] [ 2 occampi:expr 3 ] [ 3 @@) 4 ] [ 4 {Roccampi:ileave} -* 5 ] [ 5 @@, 0 ] [ 5 -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:replcproc ::= [ 0 occampi:name 1 ] [ 1 @@= 2 ] [ 2 occampi:expr 3 ] [ 3 @FOR 4 ] [ 4 occampi:expr 5 ] [ 5 {Roccampi:replcnode} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:cproc ::= [ 0 +@SEQ 1 ] [ 0 +@PAR 1 ] [ 1 -Newline 2 ] [ 1 -Name <occampi:replcproc> ] [ 2 {Roccampi:cnode} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:cproc ::= [ 0 +@SEQ 1 ] [ 0 +@PAR 1 ] [ 1 -Newline 2 ] [ 1 -Name <occampi:replcproc> ] [ 1 -@INTERLEAVE 3 ] [ 2 {Roccampi:cnode} -* ] " \
+				"[ 3 {Roccampi:cnode} @INTERLEAVE <occampi:interleaving> ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:cproc +:= [ 0 +@IF 1 ] [ 1 -Newline 2 ] [ 1 %occampi:expr 3 ] [ 2 {<opi:ifstart>} -* ] " \
 				"[ 3 occampi:expr 4 ] [ 4 -Newline 5 ] [ 5 {<opi:shortif>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:cproc +:= [ 0 @WHILE 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:while>} -* ]"));

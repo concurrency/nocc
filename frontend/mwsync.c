@@ -1297,6 +1297,10 @@ feunit_t mwsync_feunit = {
  */
 int mwsync_init (langparser_t *langptr)
 {
+	if (mws_langptr) {
+		/* already initialised */
+		return 0;
+	}
 	mws_langptr = langptr;
 	opts_add ("mws-rpp", '\0', mwsync_opthandler_flag, (void *)1, "1multiway synchronisations resign after parallel completes");
 

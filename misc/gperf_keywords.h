@@ -1,4 +1,4 @@
-/* ANSI-C code produced by gperf version 3.0.1 */
+/* ANSI-C code produced by gperf version 3.0.2 */
 /* Command-line: gperf  */
 /* Computed positions: -k'1,3,$' */
 
@@ -36,7 +36,7 @@
  */
 struct TAG_keyword;
 
-#define TOTAL_KEYWORDS 76
+#define TOTAL_KEYWORDS 77
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 11
 #define MIN_HASH_VALUE 8
@@ -60,11 +60,11 @@ hash (register const char *str, register unsigned int len)
       121, 121, 121, 121, 121, 121, 121, 121, 121, 121,
       121, 121, 121, 121, 121, 121, 121, 121, 121, 121,
       121, 121, 121, 121, 121, 121, 121, 121, 121, 121,
-       70, 121,  35, 121,  40, 121, 121, 121, 121, 121,
+       80, 121,  70, 121,  40, 121, 121, 121, 121, 121,
       121, 121, 121, 121, 121,  20,  25,  30,  35,   0,
        40,  25, 121,  10, 121,   5,   0,  25,  25,  45,
-       15,   0,   0,   5,   0,  80,  45,   5, 121,   5,
-       35, 121, 121, 121, 121, 121, 121, 121, 121, 121,
+       15,   0,   0,   5,   0,  80,  45,  35, 121,   5,
+        5, 121, 121, 121, 121, 121, 121, 121, 121, 121,
       121, 121, 121, 121, 121, 121, 121, 121, 121, 121,
       121, 121, 121, 121, 121, 121, 121, 121, 121, 121,
       121, 121, 121, 121, 121, 121, 121, 121, 121, 121,
@@ -109,13 +109,13 @@ static const struct TAG_keyword wordlist[] =
     {"RESULT",		37,	NULL},
     {"RETYPES",	38,	NULL},
     {"INT",		7,	NULL},
-    {"WORKSPACE",	63,	NULL},
+    {"SIZE",		33,	NULL},
     {"RESCHEDULE",	69,	NULL},
     {"INLINE",		21,	NULL},
     {"IS",		13,	NULL},
     {"PAR",		2,	NULL},
     {"TYPE",		18,	NULL},
-    {"WHILE",		50,	NULL},
+    {"INTERLEAVE",	76,	NULL},
     {"SETPRI",		70,	NULL},
     {"AT",		19,	NULL},
     {"ALT",		47,	NULL},
@@ -139,13 +139,13 @@ static const struct TAG_keyword wordlist[] =
     {"GETPRI",		74,	NULL},
     {"MOSTPOS",	41,	NULL},
     {"FOR",		35,	NULL},
-    {"SIZE",		33,	NULL},
+    {"WORKSPACE",	63,	NULL},
     {"FALSE",		29,	NULL},
     {(char*)0,-1,NULL},
     {"OR",		52,	NULL},
     {"VAL",		20,	NULL},
     {"FORK",		22,	NULL},
-    {"INT64",		10,	NULL},
+    {"WHILE",		50,	NULL},
     {(char*)0,-1,NULL},
     {"IF",		32,	NULL},
     {(char*)0,-1,NULL},
@@ -156,7 +156,7 @@ static const struct TAG_keyword wordlist[] =
     {"MOBSPACE",	65,	NULL},
     {"DATA",		17,	NULL},
     {"MINUS",		54,	NULL},
-    {"REAL64",		12,	NULL},
+    {(char*)0,-1,NULL},
     {"MOSTNEG",	42,	NULL},
     {(char*)0,-1,NULL},
     {"SYNC",		25,	NULL},
@@ -179,7 +179,7 @@ static const struct TAG_keyword wordlist[] =
     {(char*)0,-1,NULL},
     {"VECSPACE",	64,	NULL},
     {"TRUE",		28,	NULL},
-    {"INT32",		9,	NULL},
+    {"INT64",		10,	NULL},
     {"MOBILE.CHAN",	57,	NULL},
     {"OF",		14,	NULL},
     {(char*)0,-1,NULL}, {(char*)0,-1,NULL},
@@ -188,15 +188,16 @@ static const struct TAG_keyword wordlist[] =
     {(char*)0,-1,NULL},
     {"AND",		51,	NULL},
     {"PROC",		4,	NULL},
-    {(char*)0,-1,NULL},
-    {"REAL32",		11,	NULL},
+    {"INT32",		9,	NULL},
+    {"REAL64",		12,	NULL},
     {(char*)0,-1,NULL},
     {"FUNCTION",	15,	NULL},
     {(char*)0,-1,NULL}, {(char*)0,-1,NULL},
     {(char*)0,-1,NULL}, {(char*)0,-1,NULL},
     {(char*)0,-1,NULL},
     {"PLUS",		53,	NULL},
-    {(char*)0,-1,NULL}, {(char*)0,-1,NULL},
+    {(char*)0,-1,NULL},
+    {"REAL32",		11,	NULL},
     {(char*)0,-1,NULL}, {(char*)0,-1,NULL},
     {(char*)0,-1,NULL}, {(char*)0,-1,NULL},
     {(char*)0,-1,NULL}, {(char*)0,-1,NULL},
