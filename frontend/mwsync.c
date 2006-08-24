@@ -198,7 +198,9 @@ static mwsyncpbinfo_t *mwsync_newmwsyncpbinfo (void)
 	mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)smalloc (sizeof (mwsyncpbinfo_t));
 
 	pbinf->ecount = 0;
+	pbinf->ecount_expr = NULL;
 	pbinf->sadjust = 0;
+	pbinf->sadjust_expr = NULL;
 	pbinf->parent = NULL;
 	pbinf->exprisproctype = 0;
 
@@ -985,7 +987,7 @@ int mwsync_mwsynctrans_nameref (tnode_t **tptr, name_t *name, ntdef_t *decltag, 
 					}
 
 					/* mark barrier declaration with barrierdecllink hook */
-					/*tnode_setchook (NameDeclOf (name), mwsyncpbdhook, parbarname);*/
+					tnode_setchook (NameDeclOf (name), mwsyncpbdhook, parbarname);
 					tnode_setchook (procbardecl, mwsyncpbdhook, parbarname);
 
 					/* finally, replace this namenode with the proc-barrier name */
@@ -1046,9 +1048,10 @@ int mwsync_mwsynctrans_parallel (tnode_t *parnode, tnode_t **ipoint, tnode_t **b
 			int k = DA_CUR (mwps->parblks) - 1;
 			tnode_t *parbarrier = DA_NTHITEM (mwps->parbarriers, k);
 			tnode_t *procbarrier = DA_NTHITEM (mwps->bnames, k);
-			mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)tnode_getchook (NameDeclOf (tnode_nthnameof (parbarrier, 0)), mwsyncpbihook);
 
 			if (procbarrier) {
+				mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)tnode_getchook (NameDeclOf (tnode_nthnameof (parbarrier, 0)), mwsyncpbihook);
+
 				/* yes, this one was used, kick up enroll count */
 				pbinf->ecount++;
 			}

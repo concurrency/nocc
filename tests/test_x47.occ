@@ -1,0 +1,9 @@
+
+-- test_x47.occ -- more BARRIER tests (interleaving)
+
+PROC test.x47 ()
+  BARRIER bar:
+  PAR INTERLEAVE bar (1)
+    SYNC bar
+:
+

@@ -374,10 +374,14 @@ static int occampi_mwsync_cnode_mwsynctrans (compops_t *cops, tnode_t **tptr, mw
 		tnode_t *parnode = *tptr;
 		tnode_t **bodies;
 		int nbodies;
+		occampi_ileaveinfo_t *ilv = (occampi_ileaveinfo_t *)tnode_getchook (*tptr, opi.chook_ileaveinfo);
 
 		bodies = parser_getlistitems (tnode_nthsubof (parnode, 1), &nbodies);
 
 		mwsync_mwsynctrans_parallel (parnode, tptr, bodies, nbodies, mwi);
+		if (ilv) {
+			/* means we have some interleaving info which needs to be taken into account */
+		}
 
 		return 0;
 	}
