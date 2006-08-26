@@ -1,0 +1,11 @@
+
+-- test_x48.occ -- BARRIER tests (nested PAR)
+
+PROC test.x48 ()
+  BARRIER bar:
+  PAR
+    PAR
+      SYNC bar
+      SYNC bar
+:
+

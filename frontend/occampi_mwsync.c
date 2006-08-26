@@ -379,11 +379,11 @@ static int occampi_mwsync_cnode_mwsynctrans (compops_t *cops, tnode_t **tptr, mw
 
 		bodies = parser_getlistitems (tnode_nthsubof (parnode, 1), &nbodies);
 
-#if 0
+#if 1
 		nocc_message ("occampi_mwsync_cnode_mwsynctrans(): about to do parallel transform");
 #endif
 		mwsync_mwsynctrans_parallel (parnode, tptr, bodies, nbodies, mwi);
-#if 0
+#if 1
 		nocc_message ("occampi_mwsync_cnode_mwsynctrans(): done with parallel transform");
 #endif
 		if (ilv) {
