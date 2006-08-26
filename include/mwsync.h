@@ -77,7 +77,7 @@ extern mwsi_t mwsi;
 extern int mwsync_transsubtree (struct TAG_tnode **tptr, mwsynctrans_t *mwi);
 
 extern int mwsync_mwsynctrans_makebarriertype (struct TAG_tnode **typep, mwsynctrans_t *mwi);
-extern int mwsync_mwsynctrans_pushvar (struct TAG_tnode *varptr, struct TAG_tnode *bnames, mwsynctrans_t *mwi);
+extern int mwsync_mwsynctrans_pushvar (struct TAG_tnode *varptr, struct TAG_tnode *bnames, struct TAG_tnode ***bodypp, struct TAG_ntdef *decltag, mwsynctrans_t *mwi);
 extern int mwsync_mwsynctrans_pushparam (struct TAG_tnode *paramptr, struct TAG_tnode *pname, mwsynctrans_t *mwi);
 extern int mwsync_mwsynctrans_popvar (struct TAG_tnode *varptr, mwsynctrans_t *mwi);
 extern int mwsync_mwsynctrans_pushvarmark (mwsynctrans_t *mwi);

@@ -633,21 +633,76 @@ int mwsync_mwsynctrans_makebarriertype (tnode_t **typep, mwsynctrans_t *mwi)
 	return 0;
 }
 /*}}}*/
-/*{{{  int mwsync_mwsynctrans_pushvar (tnode_t *varptr, tnode_t *bnames, mwsynctrans_t *mwi)*/
+/*{{{  int mwsync_mwsynctrans_pushvar (tnode_t *varptr, tnode_t *bnames, tnode_t ***bodypp, ntdef_t *decltag, mwsynctrans_t *mwi)*/
 /*
- *	pushes a new name onto the mwsync stack -- used to track the usage of it
+ *	pushes a new name onto the mwsync stack -- used to track the usage of it.  If 'decltag' is NULL,
+ *	will not create a local PARBARRIER declaration, otherwise will.
  *	returns 0 on success, non-zero on failure
  */
-int mwsync_mwsynctrans_pushvar (tnode_t *varptr, tnode_t *bnames, mwsynctrans_t *mwi)
+int mwsync_mwsynctrans_pushvar (tnode_t *varptr, tnode_t *bnames, tnode_t ***bodypp, ntdef_t *decltag, mwsynctrans_t *mwi)
 {
+	mwsyncpstk_t *mwps = NULL;
+
 	if (!mwi) {
 		nocc_internal ("mwsync_mwsynctrans_pushvar(): no mwi!");
 		return -1;
 	}
 
+	mwps = mwsync_newmwsyncpstk ();
+
 	dynarray_add (mwi->varptr, varptr);
 	dynarray_add (mwi->bnames, bnames);
-	dynarray_add (mwi->pstack, mwsync_newmwsyncpstk ());
+	dynarray_add (mwi->pstack, mwps);
+
+	/*{{{  outside of any PAR block, won't have local*/
+	if (decltag) {
+		tnode_t *parbardecl = NULL, *parbarname = NULL;
+		tnode_t *procbardecl = NULL, *procbarname = NULL;
+		mwsyncpbinfo_t *pbinf = NULL;
+
+		parbardecl = tnode_create (mwsi.tag_PARBARRIER, NULL, NULL, tnode_create (mwsi.tag_PARBARRIERTYPE, NULL), NULL, tnode_nthsubof (varptr, 0));
+		name_addtempname (parbardecl, tnode_nthsubof (parbardecl, 1), decltag, &parbarname);
+		tnode_setnthsub (parbardecl, 0, parbarname);
+		/* stitch it into the body (at *bodypp) */
+		tnode_setnthsub (parbardecl, 2, **bodypp);
+		**bodypp = parbardecl;
+		*bodypp = tnode_nthsubaddr (parbardecl, 2);
+
+		procbardecl = tnode_create (mwsi.tag_PROCBARRIER, NULL, NULL, tnode_create (mwsi.tag_PROCBARRIERTYPE, NULL), NULL, parbarname);
+		name_addtempname (procbardecl, tnode_nthsubof (procbardecl, 1), decltag, &procbarname);
+		tnode_setnthsub (procbardecl, 0, procbarname);
+		/* stitch it into the body (at *bodypp) */
+		tnode_setnthsub (procbardecl, 2, **bodypp);
+		**bodypp = procbardecl;
+		*bodypp = tnode_nthsubaddr (procbardecl, 2);
+
+		/* setup info hook (single process) */
+		pbinf = mwsync_newmwsyncpbinfo ();
+		pbinf->ecount = 1;
+		pbinf->sadjust = 0;
+		pbinf->parent = NULL;
+		pbinf->exprisproctype = 0;
+		tnode_setchook (parbardecl, mwsyncpbihook, (void *)pbinf);
+
+		dynarray_add (mwps->parblks, NULL);
+		dynarray_add (mwps->paripoints, NULL);
+		dynarray_add (mwps->parbarriers, parbarname);
+		dynarray_add (mwps->bnames, procbarname);
+		dynarray_add (mwps->bipoints, NULL);
+
+#if 1
+		nocc_message ("mwsync_mwsynctrans_pushvar(): empty pstack, created outer PARBARRIER and PROCBARRIER:");
+		tnode_dumptree (parbardecl, 1, stderr);
+#endif
+
+
+#if 0
+		nocc_message ("mwsync_namenode_mwsynctrans(): parbardecl is:");
+		tnode_dumptree (parbardecl, 1, stderr);
+#endif
+	}
+
+	/*}}}*/
 
 	return 0;
 }
@@ -955,6 +1010,7 @@ int mwsync_mwsynctrans_nameref (tnode_t **tptr, name_t *name, ntdef_t *decltag, 
 					int j = DA_CUR (mwps->parblks) - 1;
 					tnode_t *procbarname = NULL;
 					tnode_t *parbardecl = NULL, *procbardecl = NULL;
+					int k;
 
 #if 1
 					nocc_message ("mwsync_mwsynctrans_nameref(): pstack has %d entries (parblk = 0x%8.8x, paripoint = 0x%8.8x, parbarrier = 0x%8.8x, bname = 0x%8.8x, bipoint = 0x%8.8x.  vdecl is:",
@@ -963,6 +1019,55 @@ int mwsync_mwsynctrans_nameref (tnode_t **tptr, name_t *name, ntdef_t *decltag, 
 					tnode_dumptree (vdecl, 1, stderr);
 #endif
 
+#if 0
+					/*{{{  inside a PAR block, check to see if it's got a PARBARRIER*/
+
+					j = DA_CUR (mwps->parblks) - 1;
+
+					for (k=0; (k<=j) && DA_NTHITEM (mwps->parbarriers, k); k++);		/* find outermost block without PARBARRIER */
+					for (; (k<=j); k++) {
+						mwsyncpbinfo_t *pbinf = NULL;
+
+						if (DA_NTHITEM (mwps->parbarriers, k)) {
+							nocc_error ("mwsync_mwsynctrans_nameref(): unexpected PARBARRIER at level %d of %d", k, j);
+							continue;
+						}
+
+						/* put a PARBARRIER here */
+
+						parbarname = NULL;
+						parbardecl = tnode_create (mwsi.tag_PARBARRIER, NULL, NULL, tnode_create (mwsi.tag_PARBARRIERTYPE, NULL), NULL, *tptr);
+						name_addtempname (parbardecl, tnode_nthsubof (parbardecl, 1), decltag, &parbarname);
+						tnode_setnthsub (parbardecl, 0, parbarname);
+
+	#if 1
+						nocc_message ("mwsync_mwsynctrans_nameref(): got pstack, created PARBARRIER 0x%8.8x at level %d of %d", (unsigned int)parbarname, k, j);
+	#endif
+
+						/* stitch it in at the given insert-point */
+						if (!DA_NTHITEM (mwps->paripoints, k)) {
+							nocc_internal ("mwsync_mwsynctrans_nameref(): no PARBARRIER insert point at level %d of %d!", k, j);
+							return -1;
+						}
+
+						tnode_setnthsub (parbardecl, 2, *(DA_NTHITEM (mwps->paripoints, k)));
+						*(DA_NTHITEM (mwps->paripoints, k)) = parbardecl;
+
+						DA_SETNTHITEM (mwps->paripoints, k, tnode_nthsubaddr (parbardecl, 2));		/* inside the new PAR-BARRIER decl */
+						DA_SETNTHITEM (mwps->parbarriers, k, parbarname);
+
+						/* setup info hook (filled in after PAR) */
+						pbinf = mwsync_newmwsyncpbinfo ();
+						pbinf->ecount = 0;
+						pbinf->sadjust = 0;
+						pbinf->parent = !k ? NULL : DA_NTHITEM (mwps->parbarriers, k-1);
+						pbinf->exprisproctype = 0;
+						tnode_setchook (parbardecl, mwsyncpbihook, (void *)pbinf);
+					}
+
+					parbarname = DA_NTHITEM (mwps->parbarriers, j);
+					/*}}}*/
+#endif
 					/*{{{  inside a PAR block, check to see if it's got a PARBARRIER*/
 
 					/* FIXME: may need to work backwards if nested PARs */
@@ -991,7 +1096,7 @@ int mwsync_mwsynctrans_nameref (tnode_t **tptr, name_t *name, ntdef_t *decltag, 
 						pbinf = mwsync_newmwsyncpbinfo ();
 						pbinf->ecount = 0;
 						pbinf->sadjust = 0;
-						pbinf->parent = NULL;
+						pbinf->parent = !j ? NULL : DA_NTHITEM (mwps->parbarriers, j-1);
 						pbinf->exprisproctype = 1;
 						tnode_setchook (parbardecl, mwsyncpbihook, (void *)pbinf);
 					} else {
@@ -1118,7 +1223,7 @@ int mwsync_mwsynctrans_parallel (tnode_t *parnode, tnode_t **ipoint, tnode_t **b
 #endif
 					procbardecl = tnode_create (mwsi.tag_PROCBARRIER, NULL, NULL, tnode_create (mwsi.tag_PROCBARRIERTYPE, NULL), NULL, parbarrier);
 					name_addtempname (procbardecl, tnode_nthsubof (procbardecl, 1), parbarrier->tag, &procbarrier);
-#if 0
+#if 1
 					nocc_message ("mwsync_mwsynctrans_parallel(): created PROCBARRIER:");
 					tnode_dumptree (procbarrier, 1, stderr);
 #endif

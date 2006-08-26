@@ -281,17 +281,18 @@ static int occampi_mwsync_vardecl_mwsynctrans (compops_t *cops, tnode_t **tptr, 
 {
 	tnode_t *name = tnode_nthsubof (*tptr, 0);
 	tnode_t *var_to_remove = NULL;
+	tnode_t **bodyp = tnode_nthsubaddr (*tptr, 2);
 
 	if ((name->tag == opi.tag_NDECL) && (NameTypeOf (tnode_nthnameof (name, 0))->tag == opi.tag_BARRIER)) {
 		mwsync_transsubtree (tnode_nthsubaddr (*tptr, 1), mwi);		/* transform type */
 		SetNameType (tnode_nthnameof (name, 0), tnode_nthsubof (*tptr, 1));
 
-		mwsync_mwsynctrans_pushvar (*tptr, name, mwi);
+		mwsync_mwsynctrans_pushvar (*tptr, name, &bodyp, opi.tag_NDECL, mwi);
 		var_to_remove = *tptr;
 	}
 
 	/* walk over body */
-	mwsync_transsubtree (tnode_nthsubaddr (*tptr, 2), mwi);
+	mwsync_transsubtree (bodyp, mwi);
 
 	if (var_to_remove) {
 		/* a name got added, remove it */
