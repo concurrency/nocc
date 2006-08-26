@@ -229,8 +229,12 @@ static void mwsync_pbihook_dumptree (tnode_t *node, void *chook, int indent, FIL
 		mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)chook;
 
 		mwsync_isetindent (stream, indent);
-		fprintf (stream, "<mwsync:parbarrierinfo ecount=\"%d\" sadjust=\"%d\" parent=\"0x%8.8x\" exprisproctype=\"%d\" addr=\"0x%8.8x\" />\n",
+		fprintf (stream, "<mwsync:parbarrierinfo ecount=\"%d\" sadjust=\"%d\" parent=\"0x%8.8x\" exprisproctype=\"%d\" addr=\"0x%8.8x\">\n",
 				pbinf->ecount, pbinf->sadjust, (unsigned int)pbinf->parent, pbinf->exprisproctype, (unsigned int)chook);
+		tnode_dumptree (pbinf->ecount_expr, indent + 1, stream);
+		tnode_dumptree (pbinf->sadjust_expr, indent + 1, stream);
+		mwsync_isetindent (stream, indent);
+		fprintf (stream, "</mwsync:parbarrierinfo>\n");
 	}
 	return;
 }
@@ -883,6 +887,7 @@ int mwsync_mwsynctrans_nameref (tnode_t **tptr, name_t *name, ntdef_t *decltag, 
 
 			/* mark original name declaration with barrierdecllink hook */
 			tnode_setchook (NameDeclOf (name), mwsyncpbdhook, parbarname);
+			tnode_setchook (NameDeclOf (tnode_nthnameof (procbarname, 0)), mwsyncpbdhook, parbarname);
 
 			/* finally, replace this namenode with the proc-barrier name */
 			*tptr = procbarname;
@@ -1080,6 +1085,28 @@ int mwsync_mwsynctrans_parallel (tnode_t *parnode, tnode_t **ipoint, tnode_t **b
 	tnode_dumptree (*tptr, 1, stderr);
 #endif
 	return 0;
+}
+/*}}}*/
+
+
+/*{{{  mwsyncpbinfo_t *mwsync_findpbinfointree (tnode_t *tptr, tnode_t *name)*/
+/*
+ *	finds a PARBARRIER node in a tree of PARBARRIER declarations that has the given 'name' as its
+ *	source (should be a BARRIERTYPE or PROCBARRIERTYPE).  Returns a pointer to the mwsyncpbinfo_t
+ *	structure for it.  Used by language-specific modules for adjusting sync-counts and the like.
+ *	Returns NULL on failure.
+ */
+mwsyncpbinfo_t *mwsync_findpbinfointree (tnode_t *tptr, tnode_t *name)
+{
+	while (tptr && (tptr->tag == mwsi.tag_PARBARRIER)) {
+		tnode_t *pbexpr = tnode_nthsubof (tptr, 3);
+
+		if (pbexpr && (pbexpr == name)) {
+			return (mwsyncpbinfo_t *)tnode_getchook (tptr, mwsyncpbihook);
+		}
+		tptr = tnode_nthsubof (tptr, 2);		/* body */
+	}
+	return NULL;
 }
 /*}}}*/
 

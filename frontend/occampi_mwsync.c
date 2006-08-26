@@ -49,6 +49,7 @@
 #include "precheck.h"
 #include "typecheck.h"
 #include "usagecheck.h"
+#include "constprop.h"
 #include "map.h"
 #include "target.h"
 #include "transputer.h"
@@ -378,9 +379,54 @@ static int occampi_mwsync_cnode_mwsynctrans (compops_t *cops, tnode_t **tptr, mw
 
 		bodies = parser_getlistitems (tnode_nthsubof (parnode, 1), &nbodies);
 
+#if 0
+		nocc_message ("occampi_mwsync_cnode_mwsynctrans(): about to do parallel transform");
+#endif
 		mwsync_mwsynctrans_parallel (parnode, tptr, bodies, nbodies, mwi);
+#if 0
+		nocc_message ("occampi_mwsync_cnode_mwsynctrans(): done with parallel transform");
+#endif
 		if (ilv) {
 			/* means we have some interleaving info which needs to be taken into account */
+			int i;
+
+			for (i=0; i<DA_CUR (ilv->names); i++) {
+				mwsyncpbinfo_t *binf = NULL;
+
+				binf = mwsync_findpbinfointree (*tptr, DA_NTHITEM (ilv->names, i));
+				if (!binf) {
+					tnode_warning (DA_NTHITEM (ilv->names, i), "barrier not used by PAR");
+				} else {
+					tnode_t *value = DA_NTHITEM (ilv->values, i);
+
+					if (constprop_isconst (value)) {
+						int icount = constprop_intvalof (value);
+
+						/* icount is how many we need to synchronise */
+						/* FIXME: maybe want to check this for being in a sensible range */
+						if (!binf->ecount_expr) {
+							/* constant enroll count */
+							binf->sadjust = icount - binf->ecount;
+						} else {
+							/* non-constant enroll count, build an expression */
+							binf->sadjust_expr = tnode_createfrom (opi.tag_MINUS, value, value, binf->ecount_expr, tnode_createfrom (opi.tag_INT, NULL));
+						}
+					} else {
+						if (!binf->ecount_expr) {
+							/* constant enroll count, but non-const interleave count -- build an expression */
+							binf->sadjust_expr = tnode_createfrom (opi.tag_MINUS, value, value,
+									constprop_newconst (CONST_INT, NULL, tnode_createfrom (opi.tag_INT, NULL), binf->ecount), tnode_createfrom (opi.tag_INT, NULL));
+						} else {
+							/* non-constant enroll count, build an expression */
+							binf->sadjust_expr = tnode_createfrom (opi.tag_MINUS, value, value, binf->ecount_expr, tnode_createfrom (opi.tag_INT, NULL));
+						}
+					}
+#if 0
+					nocc_message ("here!  values[i] = ");
+					tnode_dumptree (DA_NTHITEM (ilv->values, i), 1, stderr);
+#endif
+				}
+			}
 		}
 
 		return 0;
