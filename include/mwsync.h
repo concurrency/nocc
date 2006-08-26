@@ -56,6 +56,7 @@ typedef struct TAG_mwsyncpbinfo {
 
 	struct TAG_tnode *parent;			/* parent PARBARRIER */
 	int exprisproctype;				/* set if the 'expression' of a PAR barrier is a PROCBARRIER reference (rather than something of type BARRIERTYPE) */
+	int nprocbarriers;				/* incremented as PROCBARRIERs attached to this PARBARRIER are created */
 } mwsyncpbinfo_t;
 
 
