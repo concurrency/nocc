@@ -28,6 +28,6 @@ LIBS = @LIBS@ @LIBGCRYPT_LIBS@ -Xlinker --export-dynamic
 
 sysconf_DATA = nocc.specs.xml
 
-EXTRA_DIST = README CHANGELOG TODO AUTHORS
+EXTRA_DIST = README CHANGELOG TODO AUTHORS extras
 
 

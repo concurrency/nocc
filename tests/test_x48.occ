@@ -3,9 +3,8 @@
 
 PROC test.x48 ()
   BARRIER bar:
-  SEQ
-    PAR
-      SYNC bar
+  PAR
     SYNC bar
+    SKIP
 :
 

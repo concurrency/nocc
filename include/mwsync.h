@@ -68,6 +68,7 @@ typedef struct TAG_mwsi {
 	struct TAG_ntdef *tag_PROCBARRIER;
 
 	struct TAG_ntdef *tag_BARRIERTYPE;
+	struct TAG_ntdef *tag_BARRIERREFTYPE;
 	struct TAG_ntdef *tag_PARBARRIERTYPE;
 	struct TAG_ntdef *tag_PROCBARRIERTYPE;
 } mwsi_t;
