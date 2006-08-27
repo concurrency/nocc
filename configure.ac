@@ -104,6 +104,6 @@ if test $have_lib_dl = yes; then
  AC_DEFINE([LIBDL],1,[define to enable use of dynamic linker])
 fi
 
-AC_OUTPUT([Makefile include/Makefile misc/Makefile lexer/Makefile parser/Makefile extn/Makefile xml/Makefile frontend/Makefile backend/Makefile target/Makefile lang/Makefile tests/Makefile addons/Makefile])
+AC_OUTPUT([Makefile include/Makefile misc/Makefile lexer/Makefile parser/Makefile extn/Makefile xml/Makefile frontend/Makefile backend/Makefile target/Makefile lang/Makefile tests/Makefile addons/Makefile nocc.specs.xml])
 
 

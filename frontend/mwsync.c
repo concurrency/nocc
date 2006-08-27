@@ -915,41 +915,26 @@ int mwsync_mwsynctrans_nameref (tnode_t **tptr, name_t *name, ntdef_t *decltag, 
 				for (k=0; (k<=j) && DA_NTHITEM (mwps->parbarriers, k); k++);		/* find outermost block without PARBARRIER */
 				for (; (k<=j); k++) {
 					mwsyncpbinfo_t *pbinf = NULL;
+					tnode_t **insertp;
 
 					if (DA_NTHITEM (mwps->parbarriers, k)) {
 						nocc_error ("mwsync_mwsynctrans_nameref(): unexpected PARBARRIER at level %d of %d", k, j);
 						continue;
 					}
+					if (!DA_NTHITEM (mwps->paripoints, k)) {
+						nocc_internal ("mwsync_mwsynctrans_nameref(): no PARBARRIER insert point at level %d of %d!", k, j);
+						return -1;
+					}
+					insertp = DA_NTHITEM (mwps->paripoints, k);
 
-					/* put a PARBARRIER here */
-					parbarname = NULL;
-					parbardecl = tnode_create (mwsi.tag_PARBARRIER, NULL, NULL, tnode_create (mwsi.tag_PARBARRIERTYPE, NULL), NULL, *tptr);
-					name_addtempname (parbardecl, tnode_nthsubof (parbardecl, 1), decltag, &parbarname);
-					tnode_setnthsub (parbardecl, 0, parbarname);
+					mwsync_insertnewparbarrier (decltag, *tptr, 0, (!k ? NULL : DA_NTHITEM (mwps->parbarriers, k-1)), &parbarname, &insertp, mwi);
 
 #if 1
 					nocc_message ("mwsync_mwsynctrans_nameref(): got pstack, created PARBARRIER 0x%8.8x at level %d of %d", (unsigned int)parbarname, k, j);
 #endif
 
-					/* stitch it in at the given insert-point */
-					if (!DA_NTHITEM (mwps->paripoints, k)) {
-						nocc_internal ("mwsync_mwsynctrans_nameref(): no PARBARRIER insert point at level %d of %d!", k, j);
-						return -1;
-					}
-
-					tnode_setnthsub (parbardecl, 2, *(DA_NTHITEM (mwps->paripoints, k)));
-					*(DA_NTHITEM (mwps->paripoints, k)) = parbardecl;
-
-					DA_SETNTHITEM (mwps->paripoints, k, tnode_nthsubaddr (parbardecl, 2));		/* inside the new PAR-BARRIER decl */
+					DA_SETNTHITEM (mwps->paripoints, k, insertp);			/* inside the new PAR-BARRIER decl */
 					DA_SETNTHITEM (mwps->parbarriers, k, parbarname);
-
-					/* setup info hook (filled in after PAR) */
-					pbinf = mwsync_newmwsyncpbinfo ();
-					pbinf->ecount = 0;
-					pbinf->sadjust = 0;
-					pbinf->parent = !k ? NULL : DA_NTHITEM (mwps->parbarriers, k-1);
-					pbinf->exprisproctype = 0;
-					tnode_setchook (parbardecl, mwsyncpbihook, (void *)pbinf);
 				}
 
 				parbarname = DA_NTHITEM (mwps->parbarriers, j);
