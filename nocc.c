@@ -121,13 +121,18 @@ compopts_t compopts = {
 /*{{{  private types*/
 
 typedef struct TAG_compilerpass {
-	const char *name;		/* of this pass */
+	char *name;			/* of this pass */
 	void *origin;
 	int (*fcn)(void *);		/* pointer to pass function (arguments fudged) */
 	comppassarg_t fargs;		/* bitfield describing the arguments required */
 	int stoppoint;
 	int *flagptr;			/* whether this pass is enabled */
 } compilerpass_t;
+
+typedef struct TAG_xmlnamespace {
+	char *name;			/* of this namespace */
+	char *uri;			/* associated URI (nice to have something valid on the end) */
+} xmlnamespace_t;
 
 
 /*}}}*/
@@ -137,6 +142,8 @@ static int noccexitflag = 0;
 
 STATICDYNARRAY (compilerpass_t *, cfepasses);
 STATICDYNARRAY (compilerpass_t *, cbepasses);
+
+STATICDYNARRAY (xmlnamespace_t *, xmlnamespaces);
 
 /*}}}*/
 
@@ -520,6 +527,15 @@ static void maybedumptrees (char **fnames, int nfnames, tnode_t **trees, int ntr
 		if (!stream) {
 			nocc_error ("failed to open %s for writing: %s", compopts.dumptreeto, strerror (errno));
 		} else {
+			int j;
+
+			/* dump XML namespaces to start with */
+			for (j=0; j<DA_CUR (xmlnamespaces); j++) {
+				xmlnamespace_t *xmlns = DA_NTHITEM (xmlnamespaces, j);
+
+				fprintf (stream, "<%s:namespace xmlns:%s=\"%s\">\n", xmlns->name, xmlns->name, xmlns->uri);
+			}
+
 			fprintf (stream, "<nocc:treedump version=\"%s\">\n", version_string ());
 			for (i=0; i<ntrees; i++) {
 				fprintf (stream, "    <nocc:parsetree src=\"%s\">\n", fnames[i]);
@@ -527,6 +543,13 @@ static void maybedumptrees (char **fnames, int nfnames, tnode_t **trees, int ntr
 				fprintf (stream, "    </nocc:parsetree>\n");
 			}
 			fprintf (stream, "</nocc:treedump>\n");
+
+			/* finish off XML namespaces */
+			for (j--; j>=0; j--) {
+				xmlnamespace_t *xmlns = DA_NTHITEM (xmlnamespaces, j);
+
+				fprintf (stream, "</%s:namespace>\n", xmlns->name);
+			}
 
 			fclose (stream);
 		}
@@ -647,7 +670,7 @@ static compilerpass_t *nocc_new_compilerpass (const char *name, void *origin, in
 {
 	compilerpass_t *cpass = (compilerpass_t *)smalloc (sizeof (compilerpass_t));
 
-	cpass->name = (const char *)string_dup (name);
+	cpass->name = string_dup (name);
 	cpass->origin = origin;
 	cpass->fcn = fcn;
 	cpass->fargs = fargs;
@@ -674,6 +697,7 @@ static int nocc_init_cpasses (void)
 	dynarray_add (cfepasses, nocc_new_compilerpass ("usage-check", NULL, (int (*)(void *))usagecheck_tree, CPASS_TREE | CPASS_LANGPARSER, 9, &(compopts.dousagecheck)));
 	dynarray_add (cfepasses, nocc_new_compilerpass ("def-check", NULL, (int (*)(void *))defcheck_tree, CPASS_TREE | CPASS_LANGPARSER, 10, &(compopts.dodefcheck)));
 	dynarray_add (cfepasses, nocc_new_compilerpass ("fetrans", NULL, (int (*)(void *))fetrans_tree, CPASS_TREEPTR | CPASS_LANGPARSER, 11, NULL));
+	nocc_addxmlnamespace ("fetrans", "http://www.cs.kent.ac.uk/projects/ofa/nocc/NAMESPACES/fetrans");
 
 	/* stock back-end passes */
 	dynarray_add (cbepasses, nocc_new_compilerpass ("betrans", NULL, (int (*)(void *))betrans_tree, CPASS_TREEPTR | CPASS_TARGET, 12, NULL));
@@ -745,6 +769,40 @@ int nocc_addcompilerpass (const char *name, void *origin, const char *other, int
 }
 /*}}}*/
 
+
+/*{{{  int nocc_addxmlnamespace (const char *name, const char *uri)*/
+/*
+ *	used to add an XML namespace to the list of those generated when dumping trees
+ *	returns 0 on success, non-zero on failure
+ */
+int nocc_addxmlnamespace (const char *name, const char *uri)
+{
+	xmlnamespace_t *xmlns = NULL;
+	int i;
+
+	if (!name || !uri) {
+		return -1;
+	}
+	for (i=0; i<DA_CUR (xmlnamespaces); i++) {
+		xmlns = DA_NTHITEM (xmlnamespaces, i);
+		if (!strcmp (xmlns->name, name)) {
+			if (xmlns->uri) {
+				sfree (xmlns->uri);
+			}
+			xmlns->uri = string_dup (uri);		/* update URI */
+			return 0;
+		}
+	}
+	xmlns = (xmlnamespace_t *)smalloc (sizeof (xmlnamespace_t));
+	xmlns->name = string_dup (name);
+	xmlns->uri = string_dup (uri);
+	dynarray_add (xmlnamespaces, xmlns);
+
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  int main (int argc, char **argv)*/
 /*
  *	start here
@@ -789,6 +847,8 @@ int main (int argc, char **argv)
 	dynarray_init (cfepasses);
 	dynarray_init (cbepasses);
 
+	dynarray_init (xmlnamespaces);
+
 	/*}}}*/
 	/*{{{  general initialisation*/
 #ifdef DEBUG
@@ -801,6 +861,8 @@ int main (int argc, char **argv)
 	xmlkeys_init ();
 
 	nocc_init_cpasses ();
+
+	nocc_addxmlnamespace ("nocc", "http://www.cs.kent.ac.uk/projects/ofa/nocc/NAMESPACES/nocc");
 
 	/*}}}*/
 	/*{{{  process command-line arguments*/

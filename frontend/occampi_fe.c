@@ -56,11 +56,12 @@ int occampi_register_frontend (void)
 	if (lexer_registerlang (&occampi_lexer)) {
 		return -1;
 	}
-
-	opts_add ("c-operators", '\0', occampi_lexer_opthandler_flag, (void *)1, "1use C style operators");
 	if (mwsync_init (&occampi_parser)) {
 		return -1;
 	}
+
+	opts_add ("c-operators", '\0', occampi_lexer_opthandler_flag, (void *)1, "1use C style operators");
+	nocc_addxmlnamespace ("occampi", "http://www.cs.kent.ac.uk/projects/ofa/nocc/NAMESPACES/occampi");
 
 	return 0;
 }

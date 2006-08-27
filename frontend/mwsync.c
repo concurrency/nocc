@@ -1294,6 +1294,8 @@ int mwsync_init (langparser_t *langptr)
 	mws_langptr = langptr;
 	opts_add ("mws-rpp", '\0', mwsync_opthandler_flag, (void *)1, "1multiway synchronisations resign after parallel completes");
 
+	nocc_addxmlnamespace ("mwsync", "http://www.cs.kent.ac.uk/projects/ofa/nocc/NAMESPACES/mwsync");
+
 	return 0;
 }
 /*}}}*/

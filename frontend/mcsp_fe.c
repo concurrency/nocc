@@ -55,12 +55,12 @@ int mcsp_register_frontend (void)
 	if (lexer_registerlang (&mcsp_lexer)) {
 		return -1;
 	}
-
-	opts_add ("unbound-events", '\0', mcsp_lexer_opthandler_flag, (void *)1, "1permit the use of unbounded events in MCSP");
-
 	if (mwsync_init (&mcsp_parser)) {
 		return -1;
 	}
+
+	opts_add ("unbound-events", '\0', mcsp_lexer_opthandler_flag, (void *)1, "1permit the use of unbounded events in MCSP");
+	nocc_addxmlnamespace ("mcsp", "http://www.cs.kent.ac.uk/projects/ofa/nocc/NAMESPACES/mcsp");
 
 	return 0;
 }
