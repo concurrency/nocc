@@ -152,6 +152,8 @@ typedef enum ENUM_langops {
 	LOPS_INITSIZES = 13,
 	LOPS_INITIALISING_DECL = 14,
 	LOPS_CODEGEN_TYPEACTION = 15,
+	LOPS_CODEGEN_ALTENABLE = 16,
+	LOPS_CODEGEN_ALTDISABLE = 17,
 	LOPS_MAX = 256
 } langops_e;
 
@@ -169,6 +171,8 @@ typedef struct TAG_langop {
 typedef struct TAG_langops {
 	struct TAG_langops *next;
 	DYNARRAY (void *, opfuncs);
+} langops_t;
+
 #if 0
 	int (*getdescriptor)(struct TAG_langops *, tnode_t *, char **);				/* gets a descriptor string for the given node */
 	int (*getname)(struct TAG_langops *, tnode_t *, char **);				/* gets the name of a node (for error reporting) */
@@ -187,8 +191,6 @@ typedef struct TAG_langops {
 
 	int (*codegen_typeaction)(struct TAG_langops *, tnode_t *, tnode_t *, struct TAG_codegen *);	/* handle type-specific action (assignment, input, output) */
 #endif
-} langops_t;
-
 
 /*}}}*/
 /*{{{  chook_t definition*/

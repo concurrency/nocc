@@ -148,6 +148,65 @@ static int occampi_namemap_guardnode (compops_t *cops, tnode_t **nodep, map_t *m
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_codegen_altenable_guardnode (langops_t *lops, tnode_t *guard, int dlabel, codegen_t *cgen)*/
+/*
+ *	does code-generation for an ALT guard enable
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_codegen_altenable_guardnode (langops_t *lops, tnode_t *guard, int dlabel, codegen_t *cgen)
+{
+	tnode_t *guardexpr = (tnode_t *)tnode_getchook (guard, guardexphook);
+
+	if (guard->tag == opi.tag_INPUTGUARD) {
+		if (!guardexpr) {
+			nocc_internal ("occampi_codegen_snode(): no guard expression on INPUTGUARD!");
+		} else {
+			tnode_t *precond = tnode_nthsubof (guard, 2);
+
+			codegen_callops (cgen, loadpointer, guardexpr, 0);
+			if (precond) {
+				codegen_subcodegen (precond, cgen);
+			} else {
+				codegen_callops (cgen, loadconst, 1);
+			}
+			codegen_callops (cgen, loadlabaddr, dlabel);
+			codegen_callops (cgen, tsecondary, I_ENBC);
+			codegen_callops (cgen, trashistack);
+		}
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_codegen_altdisable_guardnode (langops_t *lops, tnode_t *guard, int dlabel, int plabel, codegen_t *cgen)*/
+/*
+ *	does code-generation for an ALT guard disable
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_codegen_altdisable_guardnode (langops_t *lops, tnode_t *guard, int dlabel, int plabel, codegen_t *cgen)
+{
+	tnode_t *guardexpr = (tnode_t *)tnode_getchook (guard, guardexphook);
+
+	codegen_callops (cgen, setlabel, dlabel);
+	if (guard->tag == opi.tag_INPUTGUARD) {
+		if (!guardexpr) {
+			nocc_internal ("occampi_codegen_snode(): guard expression on INPUTGUARD vanished!");
+		} else {
+			tnode_t *precond = tnode_nthsubof (guard, 2);
+
+			codegen_callops (cgen, loadpointer, guardexpr, 0);
+			if (precond) {
+				codegen_subcodegen (precond, cgen);
+			} else {
+				codegen_callops (cgen, loadconst, 1);
+			}
+			codegen_callops (cgen, loadlabaddr, plabel);
+			codegen_callops (cgen, tsecondary, I_DISC);
+			codegen_callops (cgen, trashistack);
+		}
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_namemap_snode (compops_t *cops, tnode_t **nodep, map_t *map)*/
@@ -239,24 +298,10 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 		/*}}}*/
 		/*{{{  ALT enabling sequence*/
 		for (i=0; i<nguards; i++) {
-			tnode_t *guardexpr = (tnode_t *)tnode_getchook (guards[i], guardexphook);
-
-			if (guards[i]->tag == opi.tag_INPUTGUARD) {
-				if (!guardexpr) {
-					nocc_internal ("occampi_codegen_snode(): no guard expression on INPUTGUARD!");
-				} else {
-					tnode_t *precond = tnode_nthsubof (guards[i], 2);
-
-					codegen_callops (cgen, loadpointer, guardexpr, 0);
-					if (precond) {
-						codegen_subcodegen (precond, cgen);
-					} else {
-						codegen_callops (cgen, loadconst, 1);
-					}
-					codegen_callops (cgen, loadlabaddr, d_labels[i]);
-					codegen_callops (cgen, tsecondary, I_ENBC);
-					codegen_callops (cgen, trashistack);
-				}
+			if (tnode_haslangop_i (guards[i]->tag->ndef->lops, (int)LOPS_CODEGEN_ALTENABLE)) {
+				tnode_calllangop_i (guards[i]->tag->ndef->lops, (int)LOPS_CODEGEN_ALTENABLE, 3, guards[i], d_labels[i], cgen);
+			} else {
+				nocc_warning ("occampi_codegen_snode(): don\'t know how to generate ALT enable code for (%s,%s)", guards[i]->tag->name, guards[i]->tag->ndef->name);
 			}
 		}
 
@@ -267,25 +312,10 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 		/*}}}*/
 		/*{{{  ALT disabling sequence*/
 		for (i--; i >= 0; i--) {
-			tnode_t *guardexpr = (tnode_t *)tnode_getchook (guards[i], guardexphook);
-
-			codegen_callops (cgen, setlabel, d_labels[i]);
-			if (guards[i]->tag == opi.tag_INPUTGUARD) {
-				if (!guardexpr) {
-					nocc_internal ("occampi_codegen_snode(): guard expression on INPUTGUARD vanished!");
-				} else {
-					tnode_t *precond = tnode_nthsubof (guards[i], 2);
-
-					codegen_callops (cgen, loadpointer, guardexpr, 0);
-					if (precond) {
-						codegen_subcodegen (precond, cgen);
-					} else {
-						codegen_callops (cgen, loadconst, 1);
-					}
-					codegen_callops (cgen, loadlabaddr, p_labels[i]);
-					codegen_callops (cgen, tsecondary, I_DISC);
-					codegen_callops (cgen, trashistack);
-				}
+			if (tnode_haslangop_i (guards[i]->tag->ndef->lops, (int)LOPS_CODEGEN_ALTDISABLE)) {
+				tnode_calllangop_i (guards[i]->tag->ndef->lops, (int)LOPS_CODEGEN_ALTDISABLE, 4, guards[i], d_labels[i], p_labels[i], cgen);
+			} else {
+				nocc_warning ("occampi_codegen_snode(): don\'t know how to generate ALT disable code for (%s,%s)", guards[i]->tag->name, guards[i]->tag->ndef->name);
 			}
 		}
 
@@ -327,6 +357,7 @@ static int occampi_snode_init_nodes (void)
 	tndef_t *tnd;
 	int i;
 	compops_t *cops;
+	langops_t *lops;
 
 	/*{{{  guardexphook -- compiler hook*/
 	guardexphook = tnode_lookupornewchook ("occampi:guardexphook");
@@ -367,6 +398,10 @@ static int occampi_snode_init_nodes (void)
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_guardnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_guardnode));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "codegen_altenable", 3, LANGOPTYPE (occampi_codegen_altenable_guardnode));
+	tnode_setlangop (lops, "codegen_altdisable", 4, LANGOPTYPE (occampi_codegen_altdisable_guardnode));
+	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_SKIPGUARD = tnode_newnodetag ("SKIPGUARD", &i, tnd, NTF_INDENTED_PROC);

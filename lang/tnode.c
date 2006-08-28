@@ -392,6 +392,8 @@ void tnode_init (void)
 	tnode_newlangop ("initsizes", LOPS_INITSIZES, 7, NULL);
 	tnode_newlangop ("initialising_decl", LOPS_INITIALISING_DECL, 3, NULL);
 	tnode_newlangop ("codegen_typeaction", LOPS_CODEGEN_TYPEACTION, 3, NULL);
+	tnode_newlangop ("codegen_altenable", LOPS_CODEGEN_ALTENABLE, 3, NULL);
+	tnode_newlangop ("codegen_altdisable", LOPS_CODEGEN_ALTDISABLE, 4, NULL);
 
 	/*}}}*/
 	/*{{{  setup the static node types*/
@@ -1984,6 +1986,9 @@ int tnode_haslangop_i (langops_t *lops, int idx)
 {
 	langop_t *lop;
 	
+	if (!lops) {
+		return 0;
+	}
 	if ((idx < 0) || (idx >= DA_CUR (alangops))) {
 		nocc_error ("tnode_haslangop_i(): no such language operation [index %d]", idx);
 		return -1;
