@@ -994,8 +994,8 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_typedecl));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->bytesfor = occampi_bytesfor_typedecl;
-	lops->do_usagecheck = occampi_usagecheck_typedecl;
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_typedecl));
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_usagecheck_typedecl));
 	tnd->lops = lops;
 
 	i = -1;
@@ -1011,9 +1011,9 @@ static int occampi_dtype_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->getdescriptor = occampi_getdescriptor_arraynode;
-	lops->typeactual = occampi_typeactual_arraynode;
-	lops->bytesfor = occampi_bytesfor_arraynode;
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_getdescriptor_arraynode));
+	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_typeactual_arraynode));
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_arraynode));
 	tnd->lops = lops;
 
 	i = -1;
@@ -1030,8 +1030,8 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_arraymop));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->gettype = occampi_gettype_arraymop;
-	lops->iscomplex = occampi_iscomplex_arraymop;
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_arraymop));
+	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_iscomplex_arraymop));
 	tnd->lops = lops;
 
 	i = -1;
@@ -1044,7 +1044,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_fielddecl));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->bytesfor = occampi_bytesfor_fielddecl;
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_fielddecl));
 	tnd->lops = lops;
 
 	i = -1;
@@ -1059,7 +1059,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_subscript));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->gettype = occampi_gettype_subscript;
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_subscript));
 	tnd->lops = lops;
 
 	i = -1;

@@ -55,6 +55,8 @@ STATICDYNARRAY (chook_t *, acomphooks);
 
 STATICSTRINGHASH (compop_t *, compops, 4);
 STATICDYNARRAY (compop_t *, acompops);
+STATICSTRINGHASH (langop_t *, langops, 4);
+STATICDYNARRAY (langop_t *, alangops);
 
 /* forwards */
 static void tnode_isetindent (FILE *stream, int indent);
@@ -354,6 +356,8 @@ void tnode_init (void)
 
 	stringhash_init (compops);
 	dynarray_init (acompops);
+	stringhash_init (langops);
+	dynarray_init (alangops);
 
 	/*{{{  default compiler operations*/
 	tnode_newcompop ("prescope", COPS_PRESCOPE, 2, NULL);
@@ -370,6 +374,24 @@ void tnode_init (void)
 	tnode_newcompop ("preallocate", COPS_PREALLOCATE, 2, NULL);
 	tnode_newcompop ("precode", COPS_PRECODE, 2, NULL);
 	tnode_newcompop ("codegen", COPS_CODEGEN, 2, NULL);
+
+	/*}}}*/
+	/*{{{  default language operations*/
+	tnode_newlangop ("getdescriptor", LOPS_GETDESCRIPTOR, 2, NULL);
+	tnode_newlangop ("getname", LOPS_GETNAME, 2, NULL);
+	tnode_newlangop ("do_usagecheck", LOPS_DO_USAGECHECK, 2, NULL);
+	tnode_newlangop ("typeactual", LOPS_TYPEACTUAL, 4, NULL);
+	tnode_newlangop ("typereduce", LOPS_TYPEREDUCE, 1, NULL);
+	tnode_newlangop ("gettype", LOPS_GETTYPE, 2, NULL);
+	tnode_newlangop ("bytesfor", LOPS_BYTESFOR, 2, NULL);
+	tnode_newlangop ("issigned", LOPS_ISSIGNED, 2, NULL);
+	tnode_newlangop ("isconst", LOPS_ISCONST, 1, NULL);
+	tnode_newlangop ("iscomplex", LOPS_ISCOMPLEX, 2, NULL);
+	tnode_newlangop ("constvalof", LOPS_CONSTVALOF, 2, NULL);
+	tnode_newlangop ("valbyref", LOPS_VALBYREF, 1, NULL);
+	tnode_newlangop ("initsizes", LOPS_INITSIZES, 7, NULL);
+	tnode_newlangop ("initialising_decl", LOPS_INITIALISING_DECL, 3, NULL);
+	tnode_newlangop ("codegen_typeaction", LOPS_CODEGEN_TYPEACTION, 3, NULL);
 
 	/*}}}*/
 	/*{{{  setup the static node types*/
@@ -1389,6 +1411,16 @@ static int tnode_callthroughcompops (compops_t *cops, ...)
 	return -1;
 }
 /*}}}*/
+/*{{{  static int tnode_callthroughlangops (langops_t *lops, ...)*/
+/*
+ *	this is a dummy function -- used to indicate that we call-through to something underneath
+ */
+static int tnode_callthroughlangops (langops_t *lops, ...)
+{
+	nocc_error ("tnode_callthroughlangops(): shouldn't actually be called!");
+	return -1;
+}
+/*}}}*/
 
 
 /*{{{  compops_t *tnode_newcompops (void)*/
@@ -1420,6 +1452,7 @@ void tnode_freecompops (compops_t *cops)
 		nocc_internal ("tnode_freecompops(): called with NULL argument!");
 		return;
 	}
+	dynarray_trash (cops->opfuncs);
 	sfree (cops);
 	return;
 }
@@ -1457,6 +1490,7 @@ compops_t *tnode_removecompops (compops_t *cops)
 	return nextcops;
 }
 /*}}}*/
+
 /*{{{  int tnode_setcompop (compops_t *cops, char *name, int nparams, int (*fcn)(compops_t *, ...))*/
 /*
  *	sets a compiler operation on a compops_t structure by name
@@ -1483,7 +1517,28 @@ int tnode_setcompop (compops_t *cops, char *name, int nparams, int (*fcn)(compop
 	}
 	DA_SETNTHITEM (cops->opfuncs, (int)cop->opno, (void *)fcn);
 
-	return -1;
+	return 0;
+}
+/*}}}*/
+/*{{{  int tnode_hascompop (compops_t *cops, char *name)*/
+/*
+ *	returns non-zero if the specified compops_t structure has an entry for 'name'
+ */
+int tnode_hascompop (compops_t *cops, char *name)
+{
+	compop_t *cop = stringhash_lookup (compops, name);
+
+	if (!cop) {
+		nocc_internal ("tnode_hascompop(): no such compiler operation [%s]", name);
+		return -1;
+	}
+	if ((int)cop->opno >= DA_CUR (cops->opfuncs)) {
+		return 0;
+	}
+	if (DA_NTHITEM (cops->opfuncs, (int)cop->opno)) {
+		return 1;
+	}
+	return 0;
 }
 /*}}}*/
 /*{{{  static int tnode_icallcompop (compops_t *cops, compop_t *op, va_list ap)*/
@@ -1557,27 +1612,6 @@ static int tnode_icallcompop (compops_t *cops, compop_t *op, va_list ap)
 	return r;
 }
 /*}}}*/
-/*{{{  int tnode_hascompop (compops_t *cops, char *name)*/
-/*
- *	returns non-zero if the specified compops_t structure has an entry for 'name'
- */
-int tnode_hascompop (compops_t *cops, char *name)
-{
-	compop_t *cop = stringhash_lookup (compops, name);
-
-	if (!cop) {
-		nocc_internal ("tnode_hascompop(): no such compiler operation [%s]", name);
-		return -1;
-	}
-	if ((int)cop->opno >= DA_CUR (cops->opfuncs)) {
-		return 0;
-	}
-	if (DA_NTHITEM (cops->opfuncs, (int)cop->opno)) {
-		return 1;
-	}
-	return 0;
-}
-/*}}}*/
 /*{{{  int tnode_callcompop (compops_t *cops, char *name, int nparams, ...)*/
 /*
  *	calls a compiler operation from the given compops_t structure by name, passing the given parameters
@@ -1617,13 +1651,13 @@ int tnode_hascompop_i (compops_t *cops, int idx)
 	compop_t *cop;
 	
 	if ((idx < 0) || (idx >= DA_CUR (acompops))) {
-		nocc_error ("tnode_hascomp_i(): no such compiler operation [index %d]", idx);
+		nocc_error ("tnode_hascompop_i(): no such compiler operation [index %d]", idx);
 		return -1;
 	} else {
 		cop = DA_NTHITEM (acompops, idx);
 	}
 	if (!cop) {
-		nocc_internal ("tnode_setcompop(): no such compiler operation [index %d]", idx);
+		nocc_internal ("tnode_haslangop_i(): no such compiler operation [index %d]", idx);
 		return -1;
 	}
 	if ((int)cop->opno >= DA_CUR (cops->opfuncs)) {
@@ -1729,22 +1763,14 @@ compop_t *tnode_findcompop (char *name)
 langops_t *tnode_newlangops (void)
 {
 	langops_t *lops = (langops_t *)smalloc (sizeof (langops_t));
+	int i;
 
-	lops->getdescriptor = NULL;
-	lops->getname = NULL;
-	lops->do_usagecheck = NULL;
-	lops->typeactual = NULL;
-	lops->typereduce = NULL;
-	lops->gettype = NULL;
-	lops->bytesfor = NULL;
-	lops->issigned = NULL;
-	lops->isconst = NULL;
-	lops->iscomplex = NULL;
-	lops->constvalof = NULL;
-	lops->valbyref = NULL;
-	lops->initialising_decl = NULL;
-	lops->initsizes = NULL;
-	lops->codegen_typeaction = NULL;
+	lops->next = NULL;
+	dynarray_init (lops->opfuncs);
+	dynarray_setsize (lops->opfuncs, DA_CUR (alangops) + 1);
+	for (i=0; i<DA_CUR (lops->opfuncs); i++) {
+		DA_SETNTHITEM (lops->opfuncs, i, NULL);
+	}
 
 	return lops;
 }
@@ -1759,6 +1785,7 @@ void tnode_freelangops (langops_t *lops)
 		nocc_internal ("tnode_freelangops(): called with NULL argument!");
 		return;
 	}
+	dynarray_trash (lops->opfuncs);
 	sfree (lops);
 	return;
 }
@@ -1770,23 +1797,16 @@ void tnode_freelangops (langops_t *lops)
 langops_t *tnode_insertlangops (langops_t *nextlops)
 {
 	langops_t *lops = tnode_newlangops ();
+	int i;
 
 	lops->next = nextlops;
-	lops->getdescriptor = nextlops->getdescriptor;
-	lops->getname = nextlops->getname;
-	lops->do_usagecheck = nextlops->do_usagecheck;
-	lops->typeactual = nextlops->typeactual;
-	lops->typereduce = nextlops->typereduce;
-	lops->gettype = nextlops->gettype;
-	lops->bytesfor = nextlops->bytesfor;
-	lops->issigned = nextlops->issigned;
-	lops->isconst = nextlops->isconst;
-	lops->iscomplex = nextlops->iscomplex;
-	lops->constvalof = nextlops->constvalof;
-	lops->valbyref = nextlops->valbyref;
-	lops->initialising_decl = nextlops->initialising_decl;
-	lops->initsizes = nextlops->initsizes;
-	lops->codegen_typeaction = nextlops->codegen_typeaction;
+	for (i=0; (i<DA_CUR (alangops)) && (i<DA_CUR (lops->opfuncs)) && (!nextlops || (i<DA_CUR (nextlops->opfuncs))); i++) {
+		langop_t *lop = DA_NTHITEM (alangops, i);
+
+		if (lop && nextlops && DA_NTHITEM (nextlops->opfuncs, i)) {
+			DA_SETNTHITEM (lops->opfuncs, i, LANGOPTYPE (tnode_callthroughlangops));
+		}
+	}
 
 	return lops;
 }
@@ -1801,6 +1821,271 @@ langops_t *tnode_removelangops (langops_t *lops)
 
 	tnode_freelangops (lops);
 	return nextlops;
+}
+/*}}}*/
+
+/*{{{  int tnode_setlangop (langops_t *lops, char *name, int nparams, int (*fcn)(langops_t *, ...))*/
+/*
+ *	sets a language-operation on a node
+ *	returns 0 on success, non-zero on failure
+ */
+int tnode_setlangop (langops_t *lops, char *name, int nparams, int (*fcn)(langops_t *, ...))
+{
+	langop_t *lop = stringhash_lookup (langops, name);
+
+	if (!lop) {
+		nocc_internal ("tnode_setlangop(): no such language operation [%s]", name);
+		return -1;
+	} else if (lop->nparams != nparams) {
+		nocc_error ("tnode_setlangop(): nparams given as %d, expected %d", nparams, lop->nparams);
+		return -1;
+	}
+	if ((int)lop->opno >= DA_CUR (lops->opfuncs)) {
+		int i = DA_CUR (lops->opfuncs);
+
+		dynarray_setsize (lops->opfuncs, (int)lop->opno + 1);
+		for (; i<DA_CUR (lops->opfuncs); i++) {
+			DA_SETNTHITEM (lops->opfuncs, i, NULL);
+		}
+	}
+	DA_SETNTHITEM (lops->opfuncs, (int)lop->opno, (void *)fcn);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int tnode_haslangop (langops_t *lops, char *name)*/
+/*
+ *	tests to see whether the specified language-operation is set
+ *	returns non-zero if set, zero otherwise
+ */
+int tnode_haslangop (langops_t *lops, char *name)
+{
+	langop_t *lop = stringhash_lookup (langops, name);
+
+	if (!lop) {
+		nocc_internal ("tnode_haslangop(): no such language operation [%s]", name);
+		return -1;
+	}
+	if ((int)lop->opno >= DA_CUR (lops->opfuncs)) {
+		return 0;
+	}
+	if (DA_NTHITEM (lops->opfuncs, (int)lop->opno)) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int tnode_icalllangop (langops_t *lops, langop_t *op, va_list ap)*/
+/*
+ *	internal function to call a language operation from the given langops_t structure, passing the given parameters
+ *	returns function's return value on success (could be anything), <0 on failure
+ */
+static int tnode_icalllangop (langops_t *lops, langop_t *op, va_list ap)
+{
+	int (*fcn)(langops_t *, ...);
+	int r;
+
+	fcn = (int (*)(langops_t *, ...))DA_NTHITEM (lops->opfuncs, (int)op->opno);
+	while (fcn == LANGOPTYPE (tnode_callthroughlangops)) {
+		if (!lops->next) {
+			nocc_internal ("tnode_icalllangop(): called operation [%s] ran out of call-through markers!", op->name);
+			return -1;
+		}
+		lops = lops->next;
+		if (((int)op->opno >= DA_CUR (lops->opfuncs)) || !DA_NTHITEM (lops->opfuncs, (int)op->opno)) {
+			nocc_warning ("tnode_icalllangop(): no such operation [%s] in langops at 0x%8.8x", op->name, (unsigned int)lops);
+			return -1;
+		}
+		fcn = (int (*)(langops_t *, ...))DA_NTHITEM (lops->opfuncs, (int)op->opno);
+	}
+	
+	switch (op->nparams) {
+	case 0:
+		r = fcn (lops);
+		break;
+	case 1:
+		{
+			void *arg0 = va_arg (ap, void *);
+
+			r = fcn (lops, arg0);
+		}
+		break;
+	case 2:
+		{
+			void *arg0 = va_arg (ap, void *);
+			void *arg1 = va_arg (ap, void *);
+
+			r = fcn (lops, arg0, arg1);
+		}
+		break;
+	case 3:
+		{
+			void *arg0 = va_arg (ap, void *);
+			void *arg1 = va_arg (ap, void *);
+			void *arg2 = va_arg (ap, void *);
+
+			r = fcn (lops, arg0, arg1, arg2);
+		}
+		break;
+	case 4:
+		{
+			void *arg0 = va_arg (ap, void *);
+			void *arg1 = va_arg (ap, void *);
+			void *arg2 = va_arg (ap, void *);
+			void *arg3 = va_arg (ap, void *);
+
+			r = fcn (lops, arg0, arg1, arg2, arg3);
+		}
+		break;
+	default:
+		nocc_error ("tnode_icalllangop(): asked for %d params, but not that many supported here!", op->nparams);
+		r = -1;
+		break;
+	}
+
+	return r;
+}
+/*}}}*/
+/*{{{  int tnode_calllangop (langops_t *lops, char *name, int nparams, ...)*/
+/*
+ *	calls a language operation from the given langops_t structure by name, passing the given parameters
+ *	returns function's return value on success (could be any type for langops), <0 on failure
+ */
+int tnode_calllangop (langops_t *lops, char *name, int nparams, ...)
+{
+	langop_t *lop = stringhash_lookup (langops, name);
+	va_list ap;
+	int r;
+
+	if (!lop) {
+		nocc_internal ("tnode_calllangop(): no such language operation [%s]", name);
+		return -1;
+	} else if (lop->nparams != nparams) {
+		nocc_error ("tnode_calllangop(): nparams given as %d, expected %d", nparams, lop->nparams);
+		return -1;
+	}
+	if (((int)lop->opno >= DA_CUR (lops->opfuncs)) || !DA_NTHITEM (lops->opfuncs, (int)lop->opno)) {
+		nocc_warning ("tnode_calllangop(): no such operation [%s] in langops at 0x%8.8x", lop->name, (unsigned int)lops);
+		return -1;
+	}
+
+	va_start (ap, nparams);
+	r = tnode_icalllangop (lops, lop, ap);
+	va_end (ap);
+
+	return r;
+}
+/*}}}*/
+/*{{{  int tnode_haslangop_i (langops_t *lops, int idx)*/
+/*
+ *	returns non-zero if the specified langops_t structure has an entry for 'idx'
+ */
+int tnode_haslangop_i (langops_t *lops, int idx)
+{
+	langop_t *lop;
+	
+	if ((idx < 0) || (idx >= DA_CUR (alangops))) {
+		nocc_error ("tnode_haslangop_i(): no such language operation [index %d]", idx);
+		return -1;
+	} else {
+		lop = DA_NTHITEM (alangops, idx);
+	}
+	if (!lop) {
+		nocc_internal ("tnode_haslangop_i(): no such language operation [index %d]", idx);
+		return -1;
+	}
+	if ((int)lop->opno >= DA_CUR (lops->opfuncs)) {
+		return 0;
+	}
+	if (DA_NTHITEM (lops->opfuncs, (int)lop->opno)) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  int tnode_calllangop_i (langops_t *lops, int idx, int nparams, ...)*/
+/*
+ *	calls a language operation from the given langops_t structure by index, passing the given parameters
+ *	returns function's return value on success (may be anything for language-ops), <0 on failure
+ */
+int tnode_calllangop_i (langops_t *lops, int idx, int nparams, ...)
+{
+	langop_t *lop;
+	va_list ap;
+	int r;
+
+	if ((idx < 0) || (idx >= DA_CUR (alangops))) {
+		nocc_error ("tnode_calllangop_i(): no such compiler operation [index %d]", idx);
+		return -1;
+	} else {
+		lop = DA_NTHITEM (alangops, idx);
+	}
+	if (!lop) {
+		nocc_internal ("tnode_calllangop_i(): no such compiler operation [index %d]", idx);
+		return -1;
+	} else if (lop->nparams != nparams) {
+		nocc_error ("tnode_calllangop(): nparams given as %d, expected %d", nparams, lop->nparams);
+		return -1;
+	}
+	if (((int)lop->opno >= DA_CUR (lops->opfuncs)) || !DA_NTHITEM (lops->opfuncs, (int)lop->opno)) {
+		nocc_warning ("tnode_calllangop(): no such operation [%s, index %d] in langops at 0x%8.8x", lop->name, idx, (unsigned int)lops);
+		return -1;
+	}
+
+	va_start (ap, nparams);
+	r = tnode_icalllangop (lops, lop, ap);
+	va_end (ap);
+
+	return r;
+}
+/*}}}*/
+/*{{{  int tnode_newlangop (char *name, langops_e opno, int nparams, void *origin)*/
+/*
+ *	creates a new language operation with the given name;  if 'opno' is valid (!= LOPS_INVALID), setting a preset one
+ *	returns index on success, <0 on failure
+ */
+int tnode_newlangop (char *name, langops_e opno, int nparams, void *origin)
+{
+	langop_t *lop = stringhash_lookup (langops, name);
+
+	if (lop) {
+		nocc_warning ("tnode_newlangop(): already got [%s]", name);
+		return (int)lop->opno;
+	}
+	lop = (langop_t *)smalloc (sizeof (langop_t));
+	lop->name = string_dup (name);
+	if (opno == COPS_INVALID) {
+		/* means select one */
+		lop->opno = (langops_e)DA_CUR (alangops);
+	} else {
+		lop->opno = opno;
+	}
+	if ((int)lop->opno >= DA_CUR (alangops)) {
+		/* need a bit more room */
+		int i = DA_CUR (alangops);
+
+		dynarray_setsize (alangops, (int)lop->opno + 1);
+		for (; i<DA_CUR (alangops); i++) {
+			DA_SETNTHITEM (alangops, i, NULL);
+		}
+	}
+	lop->nparams = nparams;
+	lop->origin = origin;
+
+	stringhash_insert (langops, lop, lop->name);
+	DA_SETNTHITEM (alangops, (int)lop->opno, lop);
+
+	return (int)lop->opno;
+}
+/*}}}*/
+/*{{{  langop_t *tnode_findlangop (char *name)*/
+/*
+ *	finds a language operation by name
+ *	returns langop_t pointer on success, NULL on failure
+ */
+langop_t *tnode_findlangop (char *name)
+{
+	return stringhash_lookup (langops, name);
 }
 /*}}}*/
 
@@ -1953,8 +2238,8 @@ fprintf (stderr, "tnode_bytesfor(): t = [%s]\n", t->tag->name);
 		/* look at typesize */
 		t = tnode_nthsubof (t, 0);
 	}
-	if (t && t->tag->ndef->lops && t->tag->ndef->lops->bytesfor) {
-		return t->tag->ndef->lops->bytesfor (t->tag->ndef->lops, t, target);
+	if (t && t->tag->ndef->lops && tnode_haslangop_i (t->tag->ndef->lops, (int)LOPS_BYTESFOR)) {
+		return tnode_calllangop_i (t->tag->ndef->lops, (int)LOPS_BYTESFOR, 2, t, target);
 	}
 	return -1;		/* don't know */
 }
@@ -1966,8 +2251,8 @@ fprintf (stderr, "tnode_bytesfor(): t = [%s]\n", t->tag->name);
  */
 int tnode_issigned (tnode_t *t, target_t *target)
 {
-	if (t && t->tag->ndef->lops && t->tag->ndef->lops->issigned) {
-		return t->tag->ndef->lops->issigned (t->tag->ndef->lops, t, target);
+	if (t && t->tag->ndef->lops && tnode_haslangop_i (t->tag->ndef->lops, (int)LOPS_ISSIGNED)) {
+		return tnode_calllangop_i (t->tag->ndef->lops, (int)LOPS_ISSIGNED, 2, t, target);
 	}
 	return -1;		/* don't know */
 }

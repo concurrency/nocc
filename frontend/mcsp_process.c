@@ -2666,8 +2666,8 @@ static int mcsp_namemap_vardeclnode (compops_t *cops, tnode_t **node, map_t *map
 
 	if ((*namep)->tag == mcsp.tag_EVENT) {
 		/* probably need initialisation/finalisation */
-		if ((*namep)->tag->ndef->lops && (*namep)->tag->ndef->lops->initialising_decl) {
-			(*namep)->tag->ndef->lops->initialising_decl ((*namep)->tag->ndef->lops, *namep, bename, map);
+		if ((*namep)->tag->ndef->lops && tnode_haslangop_i ((*namep)->tag->ndef->lops, (int)LOPS_INITIALISING_DECL)) {
+			tnode_calllangop_i ((*namep)->tag->ndef->lops, (int)LOPS_INITIALISING_DECL, 3, *namep, bename, map);
 		}
 	}
 
@@ -3239,7 +3239,7 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 /*	cops->gettype = mcsp_gettype_namenode; */
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->initialising_decl = mcsp_namenode_initialising_decl;
+	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (mcsp_namenode_initialising_decl));
 	tnd->lops = lops;
 
 	i = -1;
@@ -3387,9 +3387,9 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (mcsp_constprop_const));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_const));
 	lops = tnode_newlangops ();
-	lops->isconst = mcsp_isconst_const;
-	lops->constvalof = mcsp_constvalof_const;
-	lops->valbyref = mcsp_valbyref_const;
+	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (mcsp_isconst_const));
+	tnode_setlangop (lops, "constvalof", 2, LANGOPTYPE (mcsp_constvalof_const));
+	tnode_setlangop (lops, "valbyref", 1, LANGOPTYPE (mcsp_valbyref_const));
 	tnd->ops = cops;
 
 	i = -1;

@@ -14,9 +14,27 @@
 <!--{{{  TEMPLATE occampi:namenode-->
 <xsl:template match="occampi/namenode"><xsl:value-of select="name/@name" /></xsl:template>
 <!--}}}-->
+<!--{{{  TEMPLATE occampi:fparam-->
+<xsl:template match="occampi/fparam"><xsl:apply-templates select="child::*[2]" /><xsl:text> </xsl:text><xsl:apply-templates select="child::*[1]" />
+</xsl:template>
+<!--}}}-->
+<!--{{{  TEMPLATE occampi-formalparams-->
+<xsl:template name="occampi-formalparams"><xsl:for-each select="child::*[2]"><xsl:apply-templates /><xsl:if test="position() != last()">, </xsl:if></xsl:for-each>
+</xsl:template>
+<!--}}}-->
+<!--{{{  TEMPLATE occampi-actualparams-->
+<xsl:template name="occampi-actualparams">
+<xsl:for-each select="child::*[2]"><xsl:apply-templates /><xsl:if test="position() != last()">, </xsl:if></xsl:for-each>
+</xsl:template>
+<!--}}}-->
+<!--{{{  TEMPLATE occampi:instancenode-->
+<xsl:template match="occampi/instancenode"><xsl:param name="il" />
++<xsl:value-of select="$il" />+<xsl:apply-templates select="child::*[1]" /> (<xsl:call-template name="occampi-actualparams" />)
+</xsl:template>
+<!--}}}-->
 <!--{{{  TEMPLATE occampi:procdecl-->
 <xsl:template match="occampi/procdecl"><xsl:param name="il" />
-+<xsl:value-of select="$il" />+PROC <xsl:apply-templates select="child::*[1]" /> (<xsl:apply-templates select="child::*[2]" />)
++<xsl:value-of select="$il" />+PROC <xsl:apply-templates select="child::*[1]" /> (<xsl:call-template name="occampi-formalparams" />)
 <xsl:apply-templates select="child::*[3]"><xsl:with-param name="il" select="$il+1" /></xsl:apply-templates>
 +<xsl:value-of select="$il" />+:
 

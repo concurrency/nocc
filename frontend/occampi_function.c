@@ -1269,8 +1269,8 @@ static int occampi_function_init_nodes (void)
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_finstance));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->gettype = occampi_gettype_finstance;
-	lops->iscomplex = occampi_iscomplex_finstance;
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_finstance));
+	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_iscomplex_finstance));
 	tnd->lops = lops;
 
 	i = -1;
@@ -1309,9 +1309,9 @@ static int occampi_function_init_nodes (void)
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_funcdecl));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->getdescriptor = occampi_getdescriptor_funcdecl;
-	lops->gettype = occampi_gettype_funcdecl;
-	lops->do_usagecheck = occampi_usagecheck_funcdecl;
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_getdescriptor_funcdecl));
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_funcdecl));
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_usagecheck_funcdecl));
 	tnd->lops = lops;
 
 	i = -1;
@@ -1334,7 +1334,7 @@ static int occampi_function_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 #if 0
-	lops->gettype = occampi_gettype_shortfuncdecl;
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_shortfuncdecl));
 #endif
 	tnd->lops = lops;
 
@@ -1347,7 +1347,7 @@ static int occampi_function_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->gettype = occampi_gettype_builtinfunction;
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_builtinfunction));
 	tnd->lops = lops;
 	tnd->hook_dumptree = builtinfunctionhook_dumphook;
 	tnd->hook_free = builtinfunctionhook_free;

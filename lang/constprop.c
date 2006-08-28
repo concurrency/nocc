@@ -378,11 +378,11 @@ int constprop_init (void)
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (cprop_namemap_const));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->gettype = cprop_gettype_const;
-	lops->isconst = cprop_isconst_const;
-	lops->iscomplex = cprop_iscomplex_const;
-	lops->constvalof = cprop_constvalof_const;
-	lops->getdescriptor = cprop_getdescriptor_const;
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (cprop_gettype_const));
+	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (cprop_isconst_const));
+	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (cprop_iscomplex_const));
+	tnode_setlangop (lops, "constvalof", 2, LANGOPTYPE (cprop_constvalof_const));
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (cprop_getdescriptor_const));
 	tnd->lops = lops;
 
 	i = -1;

@@ -150,11 +150,11 @@ tnode_t *typecheck_gettype (tnode_t *node, tnode_t *default_type)
 {
 	tnode_t *type;
 
-	if (!node->tag->ndef->lops || !node->tag->ndef->lops->gettype) {
+	if (!node->tag->ndef->lops || !tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GETTYPE)) {
 		nocc_internal ("typecheck_gettype(): don't know how to get type of [%s]", node->tag->ndef->name);
 		return NULL;
 	}
-	type = node->tag->ndef->lops->gettype (node->tag->ndef->lops, node, default_type);
+	type = (tnode_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GETTYPE, 2, node, default_type);
 
 	return type;
 }
@@ -175,8 +175,8 @@ tnode_t *typecheck_typeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t
 		/*}}}*/
 	}
 
-	if (formaltype->tag->ndef->lops && formaltype->tag->ndef->lops->typeactual) {
-		usedtype = formaltype->tag->ndef->lops->typeactual (formaltype->tag->ndef->lops, formaltype, actualtype, node, tc);
+	if (formaltype->tag->ndef->lops && tnode_haslangop_i (formaltype->tag->ndef->lops, (int)LOPS_TYPEACTUAL)) {
+		usedtype = (tnode_t *)tnode_calllangop_i (formaltype->tag->ndef->lops, (int)LOPS_TYPEACTUAL, 4, formaltype, actualtype, node, tc);
 	} else {
 		if (typecheck_fixedtypeactual (formaltype, actualtype, node, tc, 0)) {
 			/* assume OK and use the actual-type */
@@ -253,13 +253,13 @@ tnode_t *typecheck_typereduce (tnode_t *type)
 	if (!type) {
 		return NULL;
 	}
-	if (type->tag->ndef->lops && type->tag->ndef->lops->typereduce) {
+	if (type->tag->ndef->lops && tnode_haslangop_i (type->tag->ndef->lops, (int)LOPS_TYPEREDUCE)) {
 		if (compopts.tracetypecheck) {
 			/*{{{  report attempted type reduction*/
 			nocc_message ("typecheck_typereduce(): reducing [%s (%s)]", type->tag->name, type->tag->ndef->name);
 			/*}}}*/
 		}
-		return type->tag->ndef->lops->typereduce (type->tag->ndef->lops, type);
+		return (tnode_t *)tnode_calllangop_i (type->tag->ndef->lops, (int)LOPS_TYPEREDUCE, 1, type);
 	}
 	return NULL;
 }

@@ -234,7 +234,7 @@ tnode_dumptree (type, 1, stderr);
 	/* see how big this type is */
 	tsize = tnode_bytesfor (type, map->target);
 
-	if (type->tag->ndef->lops && type->tag->ndef->lops->initsizes && type->tag->ndef->lops->initsizes (type->tag->ndef->lops, type, *node, &wssize, &vssize, &mssize, &indir, map)) {
+	if (type->tag->ndef->lops && tnode_haslangop (type->tag->ndef->lops, "initsizes") && tnode_calllangop (type->tag->ndef->lops, "initsizes", 7, type, *node, &wssize, &vssize, &mssize, &indir, map)) {
 		/* some declarations will need special allocation (e.g. in vectorspace and/or mobilespace) -- collected above */
 	} else {
 		wssize = tsize;
@@ -244,8 +244,8 @@ tnode_dumptree (type, 1, stderr);
 	}
 	bename = map->target->newname (*namep, *bodyp, map, (wssize < 0) ? 0 : wssize, (wssize < 0) ? -wssize : 0, vssize, mssize, tsize, indir);
 
-	if (type->tag->ndef->lops && type->tag->ndef->lops->initialising_decl) {
-		type->tag->ndef->lops->initialising_decl (type->tag->ndef->lops, type, bename, map);
+	if (type->tag->ndef->lops && tnode_haslangop (type->tag->ndef->lops, "initialising_decl")) {
+		tnode_calllangop (type->tag->ndef->lops, "initialising_decl", 3, type, bename, map);
 	}
 
 	tnode_setchook (*namep, map->mapchook, (void *)bename);
@@ -1384,10 +1384,10 @@ static int occampi_decl_init_nodes (void)
 	tnd->ops = cops;
 
 	lops = tnode_newlangops ();
-	lops->gettype = occampi_gettype_namenode;
-	lops->bytesfor = occampi_bytesfor_namenode;
-	lops->do_usagecheck = occampi_usagecheck_namenode;
-	lops->getname = occampi_getname_namenode;
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_namenode));
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_namenode));
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_usagecheck_namenode));
+	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (occampi_getname_namenode));
 	tnd->lops = lops;
 
 	i = -1;
@@ -1447,9 +1447,9 @@ static int occampi_decl_init_nodes (void)
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_fparam));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->getdescriptor = occampi_getdescriptor_fparam;
-	lops->gettype = occampi_gettype_fparam;
-	lops->getname = occampi_getname_fparam;
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_getdescriptor_fparam));
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_fparam));
+	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (occampi_getname_fparam));
 	tnd->lops = lops;
 	i = -1;
 	opi.tag_FPARAM = tnode_newnodetag ("FPARAM", &i, tnd, NTF_NONE);
@@ -1486,9 +1486,9 @@ static int occampi_decl_init_nodes (void)
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_procdecl));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->getdescriptor = occampi_getdescriptor_procdecl;
-	lops->gettype = occampi_gettype_procdecl;
-	lops->do_usagecheck = occampi_usagecheck_procdecl;
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_getdescriptor_procdecl));
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_procdecl));
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_usagecheck_procdecl));
 	tnd->lops = lops;
 	i = -1;
 	opi.tag_PROCDECL = tnode_newnodetag ("PROCDECL", &i, tnd, NTF_INDENTED_PROC);

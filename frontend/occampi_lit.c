@@ -427,11 +427,11 @@ static int occampi_lit_init_nodes (void)
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_lit));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->gettype = occampi_gettype_lit;
-	lops->bytesfor = occampi_bytesfor_lit;
-	lops->isconst = occampi_isconst_lit;
-	lops->constvalof = occampi_constvalof_lit;
-	lops->valbyref = occampi_valbyref_lit;
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_lit));
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_lit));
+	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (occampi_isconst_lit));
+	tnode_setlangop (lops, "constvalof", 2, LANGOPTYPE (occampi_constvalof_lit));
+	tnode_setlangop (lops, "valbyref", 1, LANGOPTYPE (occampi_valbyref_lit));
 	tnd->lops = lops;
 
 	i = -1;

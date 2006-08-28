@@ -726,8 +726,8 @@ static int occampi_oper_init_nodes (void)
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_dop));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->gettype = occampi_gettype_dop;
-	lops->iscomplex = occampi_iscomplex_dop;
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_dop));
+	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_iscomplex_dop));
 	tnd->lops = lops;
 
 	i = -1;
@@ -756,8 +756,8 @@ static int occampi_oper_init_nodes (void)
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_rel));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->gettype = occampi_gettype_rel;
-	lops->iscomplex = occampi_iscomplex_rel;
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_rel));
+	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_iscomplex_rel));
 	tnd->lops = lops;
 
 	i = -1;
@@ -782,8 +782,8 @@ static int occampi_oper_init_nodes (void)
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_mop));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->gettype = occampi_gettype_mop;
-	lops->iscomplex = occampi_iscomplex_mop;
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_mop));
+	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_iscomplex_mop));
 	tnd->lops = lops;
 
 	i = -1;

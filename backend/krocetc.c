@@ -3237,7 +3237,7 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->bytesfor = krocetc_bytesfor_name;
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (krocetc_bytesfor_name));
 	tnd->lops = lops;
 	i = -1;
 	target->tag_NAME = tnode_newnodetag ("KROCETCNAME", &i, tnd, 0);

@@ -135,7 +135,6 @@ typedef struct TAG_compops {
 
 /*}}}*/
 /*{{{  enum langops_e*/
-#if 0
 typedef enum ENUM_langops {
 	LOPS_INVALID = 0,
 	LOPS_GETDESCRIPTOR = 1,
@@ -152,15 +151,25 @@ typedef enum ENUM_langops {
 	LOPS_VALBYREF = 12,
 	LOPS_INITSIZES = 13,
 	LOPS_INITIALISING_DECL = 14,
-	LOPS_CODEGEN_TYPEACTION = 15
+	LOPS_CODEGEN_TYPEACTION = 15,
+	LOPS_MAX = 256
 } langops_e;
-#endif
+
+#define LOPS_LAST LOPS_CODEGEN_TYPEACTION
 
 /*}}}*/
-/*{{{  langops_t (language operations)*/
+/*{{{  langop_t, langops_t (language operations)*/
+typedef struct TAG_langop {
+	char *name;
+	langops_e opno;
+	int nparams;
+	void *origin;
+} langop_t;
+
 typedef struct TAG_langops {
 	struct TAG_langops *next;
-
+	DYNARRAY (void *, opfuncs);
+#if 0
 	int (*getdescriptor)(struct TAG_langops *, tnode_t *, char **);				/* gets a descriptor string for the given node */
 	int (*getname)(struct TAG_langops *, tnode_t *, char **);				/* gets the name of a node (for error reporting) */
 	int (*do_usagecheck)(struct TAG_langops *, tnode_t *, struct TAG_uchk_state *);		/* does usage-checking for a node */
@@ -177,6 +186,7 @@ typedef struct TAG_langops {
 	int (*initialising_decl)(struct TAG_langops *, tnode_t *, tnode_t *, struct TAG_map *);	/* called when mapping to hook in initialiser code */
 
 	int (*codegen_typeaction)(struct TAG_langops *, tnode_t *, tnode_t *, struct TAG_codegen *);	/* handle type-specific action (assignment, input, output) */
+#endif
 } langops_t;
 
 
@@ -242,6 +252,16 @@ extern int tnode_newcompop (char *name, compops_e opno, int nparams, void *origi
 extern compop_t *tnode_findcompop (char *name);
 
 #define COMPOPTYPE(X) ((int (*)(compops_t *, ...))(X))
+
+extern int tnode_setlangop (langops_t *lops, char *name, int nparams, int (*fcn)(langops_t *, ...));
+extern int tnode_haslangop (langops_t *lops, char *name);
+extern int tnode_calllangop (langops_t *lops, char *name, int nparams, ...);
+extern int tnode_haslangop_i (langops_t *lops, int idx);
+extern int tnode_calllangop_i (langops_t *lops, int idx, int nparams, ...);
+extern int tnode_newlangop (char *name, langops_e opno, int nparams, void *origin);
+extern langop_t *tnode_findlangop (char *name);
+
+#define LANGOPTYPE(X) ((int (*)(langops_t *, ...))(X))
 
 extern compops_t *tnode_newcompops (void);
 extern void tnode_freecompops (compops_t *cops);

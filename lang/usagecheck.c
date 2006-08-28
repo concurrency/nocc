@@ -345,12 +345,12 @@ fprintf (stderr, "uchk_prewalk_tree(): [%s]\n", node->tag->name);
 	thook = tnode_getchook (node, uchk_taghook);
 	if (thook) {
 		/* gets applied before any implicit usage-check */
-		if (node->tag->ndef->lops && node->tag->ndef->lops->do_usagecheck) {
+		if (node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_DO_USAGECHECK)) {
 			/*{{{  do usage-check on node directly*/
 			uchk_mode_t savedmode = ucstate->defmode;
 
 			ucstate->defmode = thook->mode;
-			result = node->tag->ndef->lops->do_usagecheck (node->tag->ndef->lops, node, ucstate);
+			result = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_DO_USAGECHECK, 2, node, ucstate);
 			/*}}}*/
 		} else {
 			if (usagecheck_addname (node, ucstate, thook->mode)) {
@@ -359,8 +359,8 @@ fprintf (stderr, "uchk_prewalk_tree(): [%s]\n", node->tag->name);
 			result = thook->do_nested;
 		}
 	} else {
-		if (node->tag->ndef->lops && node->tag->ndef->lops->do_usagecheck) {
-			result = node->tag->ndef->lops->do_usagecheck (node->tag->ndef->lops, node, ucstate);
+		if (node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_DO_USAGECHECK)) {
+			result = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_DO_USAGECHECK, 2, node, ucstate);
 		}
 	}
 

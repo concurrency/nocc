@@ -1,4 +1,6 @@
 
+28/08/2006	frmb	more work on occam-pi ALTs
+27/08/2006	frmb	various updates to multiway synchronisation handling
 20/08/2006	frmb	separated out new multiway synchronisation code into mysync.c
 27/07/2006	frmb	more MCSP work, start on occam-pi multi-way synchronisations
 06/04/2006	frmb	fixed a slight bug in the parser

@@ -349,10 +349,10 @@ static int occampi_codegen_action (compops_t *cops, tnode_t *node, codegen_t *cg
 
 	codegen_callops (cgen, debugline, node);
 	/* some special cases for assignment, input and output -- these have codegen_typeaction() set in language-ops */
-	if (type && type->tag->ndef->lops && type->tag->ndef->lops->codegen_typeaction) {
+	if (type && type->tag->ndef->lops && tnode_haslangop (type->tag->ndef->lops, "codegen_typeaction")) {
 		int i;
 
-		i = type->tag->ndef->lops->codegen_typeaction (type->tag->ndef->lops, type, node, cgen);
+		i = tnode_calllangop (type->tag->ndef->lops, "codegen_typeaction", 3, type, node, cgen);
 		if (i >= 0) {
 			/* did something */
 			return i;
@@ -428,7 +428,7 @@ static int occampi_action_init_nodes (void)
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_action));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->gettype = occampi_gettype_action;
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_action));
 	tnd->lops = lops;
 
 

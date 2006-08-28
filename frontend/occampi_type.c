@@ -437,12 +437,12 @@ static int occampi_type_init_nodes (void)
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_type_prescope));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->getdescriptor = occampi_type_getdescriptor;
-	lops->gettype = occampi_type_gettype;
-	lops->typeactual = occampi_type_typeactual;
-	lops->bytesfor = occampi_type_bytesfor;
-	lops->issigned = occampi_type_issigned;
-	lops->initialising_decl = occampi_type_initialising_decl;
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_type_getdescriptor));
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_type_gettype));
+	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_type_typeactual));
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_type_bytesfor));
+	tnode_setlangop (lops, "issigned", 2, LANGOPTYPE (occampi_type_issigned));
+	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_type_initialising_decl));
 	tnd->lops = lops;
 
 	i = -1;
@@ -457,8 +457,8 @@ static int occampi_type_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:typespecnode", &i, 1, 0, 0, TNF_TRANSPARENT);
 	lops = tnode_newlangops ();
-	lops->gettype = occampi_typespec_gettype;
-	lops->typeactual = occampi_typespec_typeactual;
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_typespec_gettype));
+	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_typespec_typeactual));
 	tnd->lops = lops;
 
 	i = -1;
@@ -470,10 +470,10 @@ static int occampi_type_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->getdescriptor = occampi_leaftype_getdescriptor;
-	lops->gettype = occampi_leaftype_gettype;
-	lops->bytesfor = occampi_leaftype_bytesfor;
-	lops->issigned = occampi_leaftype_issigned;
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_leaftype_getdescriptor));
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_leaftype_gettype));
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_leaftype_bytesfor));
+	tnode_setlangop (lops, "issigned", 2, LANGOPTYPE (occampi_leaftype_issigned));
 	tnd->lops = lops;
 
 	i = -1;

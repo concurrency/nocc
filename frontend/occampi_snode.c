@@ -221,6 +221,7 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 		tnode_t **guards = parser_getlistitems (tnode_nthsubof (node, 1), &nguards);
 		int *p_labels, *d_labels;
 		int joinlab = codegen_new_label (cgen);
+		int have_timeout_guard = 0;
 
 		/*{{{  invent some labels for ALT bodies*/
 		p_labels = (int *)smalloc (nguards * sizeof (int));

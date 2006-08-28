@@ -480,12 +480,12 @@ static int occampi_mobiles_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->bytesfor = occampi_mobiletypenode_bytesfor;
-	lops->typereduce = occampi_mobiletypenode_typereduce;
-	lops->initsizes = occampi_mobiletypenode_initsizes;
-	lops->initialising_decl = occampi_mobiletypenode_initialising_decl;
-	lops->iscomplex = occampi_mobiletypenode_iscomplex;
-	lops->codegen_typeaction = occampi_mobiletypenode_typeaction;
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_mobiletypenode_bytesfor));
+	tnode_setlangop (lops, "typereduce", 2, LANGOPTYPE (occampi_mobiletypenode_typereduce));
+	tnode_setlangop (lops, "initsizes", 7, LANGOPTYPE (occampi_mobiletypenode_initsizes));
+	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_mobiletypenode_initialising_decl));
+	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_mobiletypenode_iscomplex));
+	tnode_setlangop (lops, "codegen_typeaction", 3, LANGOPTYPE (occampi_mobiletypenode_typeaction));
 	tnd->lops = lops;
 
 	i = -1;
@@ -514,7 +514,7 @@ static int occampi_mobiles_init_nodes (void)
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_mobilealloc_codegen));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->gettype = occampi_mobilealloc_gettype;
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_mobilealloc_gettype));
 	tnd->lops = lops;
 
 	i = -1;

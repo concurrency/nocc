@@ -342,8 +342,8 @@ static tnode_t *mwsync_leaftype_gettype (langops_t *lops, tnode_t *t, tnode_t *d
 		return t;
 	}
 
-	if (lops->next && lops->next->gettype) {
-		return lops->next->gettype (lops->next, t, defaulttype);
+	if (lops->next && tnode_haslangop_i (lops->next, (int)LOPS_GETTYPE)) {
+		return (tnode_t *)tnode_calllangop_i (lops->next, (int)LOPS_GETTYPE, 2, t, defaulttype);
 	}
 	nocc_error ("mwsync_leaftype_gettype(): no next function!");
 	return defaulttype;
@@ -363,8 +363,8 @@ static int mwsync_leaftype_bytesfor (langops_t *lops, tnode_t *t, target_t *targ
 		return target->intsize * 5;
 	}
 
-	if (lops->next && lops->next->bytesfor) {
-		return lops->next->bytesfor (lops->next, t, target);
+	if (lops->next && tnode_haslangop_i (lops->next, (int)LOPS_BYTESFOR)) {
+		return tnode_calllangop_i (lops->next, (int)LOPS_BYTESFOR, 2, t, target);
 	}
 	nocc_error ("mwsync_leaftype_bytesfor(): no next function!");
 	return -1;
@@ -384,8 +384,8 @@ static int mwsync_leaftype_issigned (langops_t *lops, tnode_t *t, target_t *targ
 		return 0;
 	}
 
-	if (lops->next && lops->next->issigned) {
-		return lops->next->issigned (lops->next, t, target);
+	if (lops->next && tnode_haslangop_i (lops->next, (int)LOPS_ISSIGNED)) {
+		return tnode_calllangop_i (lops->next, (int)LOPS_ISSIGNED, 2, t, target);
 	}
 	nocc_error ("mwsync_leaftype_issigned(): no next function!");
 	return 0;
@@ -419,8 +419,8 @@ static int mwsync_leaftype_getdescriptor (langops_t *lops, tnode_t *node, char *
 	} else if ((node->tag == mwsi.tag_PROCBARRIERTYPE) || (node->tag == mwsi.tag_BARRIERREFTYPE)) {
 		return 0;
 	}
-	if (lops->next && lops->next->getdescriptor) {
-		return lops->next->getdescriptor (lops->next, node, str);
+	if (lops->next && tnode_haslangop_i (lops->next, (int)LOPS_GETDESCRIPTOR)) {
+		return tnode_calllangop_i (lops->next, (int)LOPS_GETDESCRIPTOR, 2, node, str);
 	}
 	nocc_error ("mwsync_leaftype_getdescriptor(): no next function!");
 
@@ -443,9 +443,9 @@ static int mwsync_leaftype_initialising_decl (langops_t *lops, tnode_t *t, tnode
 	} else if ((t->tag == mwsi.tag_PROCBARRIERTYPE) || (t->tag == mwsi.tag_BARRIERREFTYPE)) {
 		return 0;
 	}
-	if (lops->next && lops->next->initialising_decl) {
+	if (lops->next && tnode_haslangop_i (lops->next, (int)LOPS_INITIALISING_DECL)) {
 		/* handled by PROCBARRIER node */
-		return lops->next->initialising_decl (lops->next, t, benode, mdata);
+		return tnode_calllangop_i (lops->next, (int)LOPS_INITIALISING_DECL, 3, t, benode, mdata);
 	}
 	return 0;
 }
@@ -1198,11 +1198,11 @@ static int mwsync_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->getdescriptor = mwsync_leaftype_getdescriptor;
-	lops->gettype = mwsync_leaftype_gettype;
-	lops->bytesfor = mwsync_leaftype_bytesfor;
-	lops->issigned = mwsync_leaftype_issigned;
-	lops->initialising_decl = mwsync_leaftype_initialising_decl;
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (mwsync_leaftype_getdescriptor));
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (mwsync_leaftype_gettype));
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (mwsync_leaftype_bytesfor));
+	tnode_setlangop (lops, "issigned", 2, LANGOPTYPE (mwsync_leaftype_issigned));
+	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (mwsync_leaftype_initialising_decl));
 	tnd->lops = lops;
 
 	i = -1;

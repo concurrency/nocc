@@ -58,8 +58,8 @@ static int langops_getdescriptor_walk (tnode_t *node, void *ptr)
 	if (!node) {
 		return 0;
 	}
-	if (node->tag->ndef->lops && node->tag->ndef->lops->getdescriptor) {
-		r = node->tag->ndef->lops->getdescriptor (node->tag->ndef->lops, node, (char **)ptr);
+	if (node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GETDESCRIPTOR)) {
+		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GETDESCRIPTOR, 2, node, (char **)ptr);
 	} else {
 		r = 1;
 	}
@@ -88,8 +88,8 @@ static int langops_getname_walk (tnode_t *node, void *ptr)
 	if (!node) {
 		return 0;
 	}
-	if (node->tag->ndef->lops && node->tag->ndef->lops->getname) {
-		r = node->tag->ndef->lops->getname (node->tag->ndef->lops, node, (char **)ptr);
+	if (node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GETNAME)) {
+		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GETNAME, 2, node, (char **)ptr);
 		if (r < 0) {
 			r = 1;		/* try again down the tree */
 		}
@@ -116,8 +116,8 @@ int langops_isconst (tnode_t *node)
 {
 	int r = 0;
 
-	if (node && node->tag->ndef->lops && node->tag->ndef->lops->isconst) {
-		r = node->tag->ndef->lops->isconst (node->tag->ndef->lops, node);
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_ISCONST)) {
+		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_ISCONST, 1, node);
 	}
 	return r;
 }
@@ -132,8 +132,8 @@ int langops_constvalof (tnode_t *node, void *ptr)
 {
 	int r = 0;
 
-	if (node && node->tag->ndef->lops && node->tag->ndef->lops->constvalof) {
-		r = node->tag->ndef->lops->constvalof (node->tag->ndef->lops, node, ptr);
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_CONSTVALOF)) {
+		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_CONSTVALOF, 2, node, ptr);
 	} else {
 		tnode_warning (node, "extracting non-existant constant value!");
 	}
@@ -149,8 +149,8 @@ int langops_valbyref (tnode_t *node)
 {
 	int r = 0;
 
-	if (node && node->tag->ndef->lops && node->tag->ndef->lops->valbyref) {
-		r = node->tag->ndef->lops->valbyref (node->tag->ndef->lops, node);
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_VALBYREF)) {
+		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_VALBYREF, 1, node);
 	}
 
 	return r;
@@ -165,8 +165,8 @@ static int langops_iscomplex_prewalk (tnode_t *t, void *arg)
 {
 	int *r = (int *)arg;
 
-	if (t && t->tag->ndef->lops && t->tag->ndef->lops->iscomplex) {
-		*r = t->tag->ndef->lops->iscomplex (t->tag->ndef->lops, t, 1);
+	if (t && t->tag->ndef->lops && tnode_haslangop_i (t->tag->ndef->lops, (int)LOPS_ISCOMPLEX)) {
+		*r = tnode_calllangop_i (t->tag->ndef->lops, (int)LOPS_ISCOMPLEX, 2, t, 1);
 		return 0;
 	}
 	return 1;
@@ -181,8 +181,8 @@ int langops_iscomplex (tnode_t *node, int deep)
 {
 	int r = -1;
 
-	if (node && node->tag->ndef->lops && node->tag->ndef->lops->iscomplex) {
-		r = node->tag->ndef->lops->iscomplex (node->tag->ndef->lops, node, deep);
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_ISCOMPLEX)) {
+		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_ISCOMPLEX, 2, node, deep);
 	} else if (node && deep) {
 		r = 0;
 		tnode_prewalktree (node, langops_iscomplex_prewalk, &r);

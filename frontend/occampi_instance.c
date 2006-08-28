@@ -541,7 +541,7 @@ static int occampi_instance_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:builtinproc", &i, 0, 0, 1, TNF_NONE);			/* hook: builtinprochook_t */
 	lops = tnode_newlangops ();
-	lops->gettype = occampi_gettype_builtinproc;
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_builtinproc));
 	tnd->lops = lops;
 	tnd->hook_dumptree = builtinprochook_dumphook;
 	tnd->hook_free = builtinprochook_free;

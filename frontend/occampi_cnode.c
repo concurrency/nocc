@@ -914,7 +914,7 @@ static int occampi_cnode_init_nodes (void)
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_cnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->do_usagecheck = occampi_cnode_dousagecheck;
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_cnode_dousagecheck));
 	tnd->lops = lops;
 
 	i = -1;
@@ -935,7 +935,7 @@ static int occampi_cnode_init_nodes (void)
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_replcnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	lops->do_usagecheck = occampi_replcnode_dousagecheck;
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_replcnode_dousagecheck));
 	tnd->lops = lops;
 
 	i = -1;
