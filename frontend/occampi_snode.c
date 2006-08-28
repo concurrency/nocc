@@ -56,6 +56,49 @@
 /*}}}*/
 
 
+
+/*{{{  static int occampi_namemap_guardnode (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for an ALT guard
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_guardnode (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	return 1;
+}
+/*}}}*/
+
+
+/*{{{  static int occampi_namemap_snode (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for structured process nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_snode (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t *glist = tnode_nthsubof (*nodep, 1);
+	int extraslots = 1;		/* FIXME: depends */
+
+	if ((*nodep)->tag == opi.tag_IF) {
+		/* FIXME: name-mapping for IF */
+	} else if ((*nodep)->tag == opi.tag_ALT) {
+		/*{{{  ALTing process -- do guards and bodies one-by-one*/
+		int nguards, i;
+		tnode_t **guards = parser_getlistitems (glist, &nguards);
+
+		for (i=0; i<nguards; i++) {
+			map_submapnames (guards + i, map);
+		}
+
+		/* ALT itself needs a bit of space */
+		*nodep = map->target->newname (*nodep, NULL, map, map->target->aws.as_alt + (extraslots * map->target->slotsize), map->target->bws.ds_altio, 0, 0, 0, 0);
+
+		/*}}}*/
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for structured process nodes
@@ -64,6 +107,7 @@
 static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	if (node->tag == opi.tag_IF) {
+		/*{{{  structured IF -- list of condition-process*/
 		tnode_t *body = tnode_nthsubof (node, 1);
 		tnode_t **bodies;
 		int nbodies, i;
@@ -89,6 +133,28 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 
 		codegen_callops (cgen, tsecondary, I_SETERR);
 		codegen_callops (cgen, setlabel, joinlab);
+		/*}}}*/
+	} else if (node->tag == opi.tag_ALT) {
+		/*{{{  ALTing process -- alt-start, enabling, wait, disabling, alt-end*/
+		int nguards, i;
+		tnode_t **guards = parser_getlistitems (tnode_nthsubof (node, 1), &nguards);
+		int *p_labels, *d_labels;
+
+		/*{{{  invent some labels for ALT bodies*/
+		p_labels = (int *)smalloc (nguards * sizeof (int));
+		d_labels = (int *)smalloc (nguards * sizeof (int));
+
+		for (i=0; i<nguards; i++) {
+			p_labels[i] = codegen_new_label (cgen);
+			d_labels[i] = codegen_new_label (cgen);
+		}
+
+		/*}}}*/
+		/*{{{  ALT start*/
+		codegen_callops (cgen, tsecondary, I_ALT);
+
+		/*}}}*/
+		/*}}}*/
 	}
 	return 0;
 }
@@ -110,6 +176,7 @@ static int occampi_snode_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:snode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr; 1 = body */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_snode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_snode));
 	tnd->ops = cops;
 
@@ -134,6 +201,7 @@ static int occampi_snode_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:guardnode", &i, 3, 0, 0, TNF_LONGPROC);	/* subnodes: 0 = guard-expr; 1 = body; 2 = pre-condition */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_guardnode));
 	tnd->ops = cops;
 
 	i = -1;
