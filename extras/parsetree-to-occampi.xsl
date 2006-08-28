@@ -6,30 +6,53 @@
 -->
 
 <xsl:output method="text" encoding="UTF-8" media-type="text/plain" />
+<xsl:variable name="il" select="0" />
 
+<!--{{{  TEMPLATE mwsync:leaftype-->
 <xsl:template match="mwsync/leaftype"><xsl:value-of select="@type" /></xsl:template>
-
+<!--}}}-->
+<!--{{{  TEMPLATE occampi:namenode-->
 <xsl:template match="occampi/namenode"><xsl:value-of select="name/@name" /></xsl:template>
+<!--}}}-->
+<!--{{{  TEMPLATE occampi:procdecl-->
+<xsl:template match="occampi/procdecl"><xsl:param name="il" />
++<xsl:value-of select="$il" />+PROC <xsl:apply-templates select="child::*[1]" /> (<xsl:apply-templates select="child::*[2]" />)
+<xsl:apply-templates select="child::*[3]"><xsl:with-param name="il" select="$il+1" /></xsl:apply-templates>
++<xsl:value-of select="$il" />+:
 
-<xsl:template match="occampi/procdecl">
-PROC <xsl:apply-templates select="child::*[1]" /> (<xsl:apply-templates select="child::*[2]" />)
-  <xsl:apply-templates select="child::*[3]" />
-:
-
-<xsl:apply-templates select="child::*[4]" />
+<xsl:apply-templates select="child::*[4]"><xsl:with-param name="il" select="$il" /></xsl:apply-templates>
 </xsl:template>
-
-<xsl:template match="occampi/vardecl"><xsl:apply-templates select="child::*[2]" /><xsl:text> </xsl:text><xsl:apply-templates select="child::*[1]" />:
-<xsl:apply-templates select="child::*[3]" />
+<!--}}}-->
+<!--{{{  TEMPLATE occampi:cnode-->
+<xsl:template match="occampi/cnode"><xsl:param name="il" />+<xsl:value-of select="$il" />+<xsl:value-of select="@type" /><xsl:text>
+</xsl:text><xsl:apply-templates select="child::*[2]"><xsl:with-param name="il" select="$il+1" /></xsl:apply-templates>
 </xsl:template>
-
-<xsl:template match="mwsync/mwsyncvar"><xsl:apply-templates select="child::*[2]" /><xsl:text> </xsl:text><xsl:apply-templates select="child::*[1]" />:
-<xsl:apply-templates select="child::*[3]" />
+<!--}}}-->
+<!--{{{  TEMPLATE occampi:actionnode-->
+<xsl:template match="occampi/actionnode"><xsl:param name="il" />+<xsl:value-of select="$il" />+<xsl:choose>
+<xsl:when test="@type='SYNC'">SYNC <xsl:apply-templates select="child::*[1]" /><xsl:text>
+</xsl:text></xsl:when>
+</xsl:choose>
 </xsl:template>
-
+<!--}}}-->
+<!--{{{  TEMPLATE occampi:vardecl-->
+<xsl:template match="occampi/vardecl"><xsl:param name="il" />+<xsl:value-of select="$il" />+<xsl:apply-templates select="child::*[2]" /><xsl:text> </xsl:text><xsl:apply-templates select="child::*[1]" />:
+<xsl:apply-templates select="child::*[3]"><xsl:with-param name="il" select="$il" /></xsl:apply-templates>
+</xsl:template>
+<!--}}}-->
+<!--{{{  TEMPLATE mwsync:mwsyncvar-->
+<xsl:template match="mwsync/mwsyncvar"><xsl:param name="il" />+<xsl:value-of select="$il" />+<xsl:apply-templates select="child::*[2]" /><xsl:text> </xsl:text><xsl:apply-templates select="child::*[1]" /> (<xsl:apply-templates select="child::*[4]" />):
+<xsl:apply-templates select="child::*[3]"><xsl:with-param name="il" select="$il" /></xsl:apply-templates>
+</xsl:template>
+<!--}}}-->
+<!--{{{  TEMPLATE nocc:treedump-->
 <xsl:template match="nocc/treedump">-- compiler tree-dump
-<xsl:apply-templates /></xsl:template>
+<xsl:apply-templates><xsl:with-param name="il" select="0" /></xsl:apply-templates></xsl:template>
+<!--}}}-->
+<!--{{{  TEMPLATE nocc:namespace-->
 <xsl:template match="nocc/namespace">-- using NOCC namespace
 <xsl:apply-templates /></xsl:template>
+<!--}}}-->
+
 </xsl:stylesheet>
 
