@@ -1,0 +1,11 @@
+
+-- test_n32.occ -- ALTy things
+
+PROC test.n32 (CHAN INT in?)
+  INT x:
+  SEQ
+    ALT
+      in ? x
+        SKIP
+:
+

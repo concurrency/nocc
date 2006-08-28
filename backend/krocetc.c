@@ -2741,19 +2741,19 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		/*{{{  ENBC: enable channel guard*/
 	case I_ENBC:
 		codegen_write_string (cgen, "\tenbc\n");
-		krocetc_cgstate_tsdelta (cgen, -1);
+		krocetc_cgstate_tsdelta (cgen, -2);
 		break;
 		/*}}}*/
 		/*{{{  ENBS: enable skip buard*/
 	case I_ENBS:
 		codegen_write_string (cgen, "\tenbs\n");
-		krocetc_cgstate_tsdelta (cgen, 0);
+		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 		/*}}}*/
 		/*{{{  ENBT: enable timer guard*/
 	case I_ENBT:
 		codegen_write_string (cgen, "\tenbt\n");
-		krocetc_cgstate_tsdelta (cgen, -1);
+		krocetc_cgstate_tsdelta (cgen, -2);
 		break;
 		/*}}}*/
 		/*{{{  DISC: disable channel guard*/

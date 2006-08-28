@@ -37,6 +37,7 @@
 #include "lexer.h"
 #include "lexpriv.h"
 #include "tnode.h"
+#include "treeops.h"
 #include "parser.h"
 #include "dfa.h"
 #include "parsepriv.h"
@@ -47,16 +48,88 @@
 #include "prescope.h"
 #include "typecheck.h"
 #include "usagecheck.h"
+#include "fetrans.h"
+#include "betrans.h"
 #include "map.h"
 #include "codegen.h"
 #include "target.h"
 #include "transputer.h"
+#include "mwsync.h"
+
+
+/*}}}*/
+/*{{{  private data*/
+
+/* this is a chook attached to guard-nodes that indicates what needs to be enabled */
+static chook_t *guardexphook = NULL;
 
 
 /*}}}*/
 
 
+/*{{{  static void occampi_guardexphook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*
+ *	display the contents of a guardexphook compiler hook (just a node)
+ */
+static void occampi_guardexphook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+{
+	if (chook) {
+		occampi_isetindent (stream, indent);
+		fprintf (stream, "<occampi:guardexphook addr=\"0x%8.8x\">\n", (unsigned int)chook);
+		tnode_dumptree ((tnode_t *)chook, indent + 1, stream);
+		occampi_isetindent (stream, indent);
+		fprintf (stream, "</occampi:guardexphook>\n");
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_guardexphook_free (void *chook)*/
+/*
+ *	frees a guardexphook
+ */
+static void occampi_guardexphook_free (void *chook)
+{
+	return;
+}
+/*}}}*/
+/*{{{  static void *occampi_guardexphook_copy (void *chook)*/
+/*
+ *	copies a guardexphook
+ */
+static void *occampi_guardexphook_copy (void *chook)
+{
+	return chook;
+}
+/*}}}*/
 
+
+/*{{{  static int occampi_betrans_guardnode (compops_t *cops, tnode_t **nodep, betrans_t *be)*/
+/*
+ *	does back-end transformations for a guard node (pulls out guarded expression before mapping)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_betrans_guardnode (compops_t *cops, tnode_t **nodep, betrans_t *be)
+{
+	if ((*nodep)->tag == opi.tag_INPUTGUARD) {
+		/*{{{  pull out channel expression*/
+		tnode_t *input = treeops_findintree (tnode_nthsubof (*nodep, 0), opi.tag_INPUT);
+
+		if (!input) {
+			tnode_error (*nodep, "did not find INPUT in INPUTGUARD!");
+		} else {
+			tnode_t *lhs = tnode_nthsubof (input, 0);
+
+			tnode_setchook (*nodep, guardexphook, (void *)lhs);
+		}
+		/*}}}*/
+	} else if ((*nodep)->tag == opi.tag_TIMERGUARD) {
+		/*{{{  pull out timeout expression*/
+		/* FIXME! */
+		/*}}}*/
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_guardnode (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for an ALT guard
@@ -64,6 +137,14 @@
  */
 static int occampi_namemap_guardnode (compops_t *cops, tnode_t **nodep, map_t *map)
 {
+	tnode_t *guardexp = (tnode_t *)tnode_getchook (*nodep, guardexphook);
+
+	if (guardexp) {
+		map_submapnames (&guardexp, map);
+		tnode_setchook (*nodep, guardexphook, (void *)guardexp);
+		tnode_setchook (*nodep, map->allocevhook, (void *)guardexp);
+	}
+
 	return 1;
 }
 /*}}}*/
@@ -139,6 +220,7 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 		int nguards, i;
 		tnode_t **guards = parser_getlistitems (tnode_nthsubof (node, 1), &nguards);
 		int *p_labels, *d_labels;
+		int joinlab = codegen_new_label (cgen);
 
 		/*{{{  invent some labels for ALT bodies*/
 		p_labels = (int *)smalloc (nguards * sizeof (int));
@@ -154,6 +236,79 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 		codegen_callops (cgen, tsecondary, I_ALT);
 
 		/*}}}*/
+		/*{{{  ALT enabling sequence*/
+		for (i=0; i<nguards; i++) {
+			tnode_t *guardexpr = (tnode_t *)tnode_getchook (guards[i], guardexphook);
+
+			if (guards[i]->tag == opi.tag_INPUTGUARD) {
+				if (!guardexpr) {
+					nocc_internal ("occampi_codegen_snode(): no guard expression on INPUTGUARD!");
+				} else {
+					tnode_t *precond = tnode_nthsubof (guards[i], 2);
+
+					codegen_callops (cgen, loadpointer, guardexpr, 0);
+					if (precond) {
+						codegen_subcodegen (precond, cgen);
+					} else {
+						codegen_callops (cgen, loadconst, 1);
+					}
+					codegen_callops (cgen, loadlabaddr, d_labels[i]);
+					codegen_callops (cgen, tsecondary, I_ENBC);
+					codegen_callops (cgen, trashistack);
+				}
+			}
+		}
+
+		/*}}}*/
+		/*{{{  ALT wait*/
+		codegen_callops (cgen, tsecondary, I_ALTWT);
+
+		/*}}}*/
+		/*{{{  ALT disabling sequence*/
+		for (i--; i >= 0; i--) {
+			tnode_t *guardexpr = (tnode_t *)tnode_getchook (guards[i], guardexphook);
+
+			codegen_callops (cgen, setlabel, d_labels[i]);
+			if (guards[i]->tag == opi.tag_INPUTGUARD) {
+				if (!guardexpr) {
+					nocc_internal ("occampi_codegen_snode(): guard expression on INPUTGUARD vanished!");
+				} else {
+					tnode_t *precond = tnode_nthsubof (guards[i], 2);
+
+					codegen_callops (cgen, loadpointer, guardexpr, 0);
+					if (precond) {
+						codegen_subcodegen (precond, cgen);
+					} else {
+						codegen_callops (cgen, loadconst, 1);
+					}
+					codegen_callops (cgen, loadlabaddr, p_labels[i]);
+					codegen_callops (cgen, tsecondary, I_DISC);
+					codegen_callops (cgen, trashistack);
+				}
+			}
+		}
+
+		/*}}}*/
+		/*{{{  ALT end*/
+		codegen_callops (cgen, tsecondary, I_ALTEND);
+		codegen_callops (cgen, tsecondary, I_SETERR);
+
+		/*}}}*/
+
+		/*{{{  generate code for guarded processes*/
+		for (i=0; i<nguards; i++) {
+			codegen_callops (cgen, setlabel, p_labels[i]);
+
+			if (guards[i]->tag == opi.tag_INPUTGUARD) {
+				codegen_subcodegen (tnode_nthsubof (guards[i], 0), cgen);		/* generate input */
+				codegen_subcodegen (tnode_nthsubof (guards[i], 1), cgen);		/* generate body */
+				codegen_callops (cgen, branch, I_J, joinlab);
+			}
+		}
+
+		/*}}}*/
+		codegen_callops (cgen, setlabel, joinlab);
+
 		/*}}}*/
 	}
 	return 0;
@@ -172,9 +327,16 @@ static int occampi_snode_init_nodes (void)
 	int i;
 	compops_t *cops;
 
+	/*{{{  guardexphook -- compiler hook*/
+	guardexphook = tnode_lookupornewchook ("occampi:guardexphook");
+	guardexphook->chook_dumptree = occampi_guardexphook_dumptree;
+	guardexphook->chook_free = occampi_guardexphook_free;
+	guardexphook->chook_copy = occampi_guardexphook_copy;
+
+	/*}}}*/
 	/*{{{  occampi:snode -- IF, ALT, CASE*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:snode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr; 1 = body */
+	tnd = tnode_newnodetype ("occampi:snode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr, 1 = body */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_snode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_snode));
@@ -199,8 +361,9 @@ static int occampi_snode_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:guardnode -- SKIPGUARD, INPUTGUARD, TIMERGUARD*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:guardnode", &i, 3, 0, 0, TNF_LONGPROC);	/* subnodes: 0 = guard-expr; 1 = body; 2 = pre-condition */
+	tnd = tnode_newnodetype ("occampi:guardnode", &i, 3, 0, 0, TNF_LONGPROC);	/* subnodes: 0 = guard-expr, 1 = body, 2 = pre-condition */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_guardnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_guardnode));
 	tnd->ops = cops;
 
