@@ -1530,6 +1530,9 @@ int tnode_hascompop (compops_t *cops, char *name)
 {
 	compop_t *cop = stringhash_lookup (compops, name);
 
+	if (!cops) {
+		return 0;
+	}
 	if (!cop) {
 		nocc_internal ("tnode_hascompop(): no such compiler operation [%s]", name);
 		return -1;

@@ -209,6 +209,42 @@ static int occampi_codegen_altdisable_guardnode (langops_t *lops, tnode_t *guard
 /*}}}*/
 
 
+/*{{{  static int occampi_codegen_altstart (langops_t *lops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates code for occam-pi ALT start
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_codegen_altstart (langops_t *lops, tnode_t *node, codegen_t *cgen)
+{
+	codegen_callops (cgen, tsecondary, I_ALT);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_codegen_altwait (langops_t *lops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates code for basic occam-pi ALT wait
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_codegen_altwait (langops_t *lops, tnode_t *node, codegen_t *cgen)
+{
+	codegen_callops (cgen, tsecondary, I_ALTWT);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_codegen_altend (langops_t *lops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates code for occam-pi ALT end
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_codegen_altend (langops_t *lops, tnode_t *node, codegen_t *cgen)
+{
+	codegen_callops (cgen, tsecondary, I_ALTEND);
+	codegen_callops (cgen, tsecondary, I_SETERR);
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_namemap_snode (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for structured process nodes
@@ -293,7 +329,9 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 
 		/*}}}*/
 		/*{{{  ALT start*/
-		codegen_callops (cgen, tsecondary, I_ALT);
+		if (tnode_haslangop (node->tag->ndef->lops, "codegen_altstart")) {
+			tnode_calllangop (node->tag->ndef->lops, "codegen_altstart", 2, node, cgen);
+		}
 
 		/*}}}*/
 		/*{{{  ALT enabling sequence*/
@@ -307,7 +345,9 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 
 		/*}}}*/
 		/*{{{  ALT wait*/
-		codegen_callops (cgen, tsecondary, I_ALTWT);
+		if (tnode_haslangop (node->tag->ndef->lops, "codegen_altwait")) {
+			tnode_calllangop (node->tag->ndef->lops, "codegen_altwait", 2, node, cgen);
+		}
 
 		/*}}}*/
 		/*{{{  ALT disabling sequence*/
@@ -321,8 +361,9 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 
 		/*}}}*/
 		/*{{{  ALT end*/
-		codegen_callops (cgen, tsecondary, I_ALTEND);
-		codegen_callops (cgen, tsecondary, I_SETERR);
+		if (tnode_haslangop (node->tag->ndef->lops, "codegen_altend")) {
+			tnode_calllangop (node->tag->ndef->lops, "codegen_altend", 2, node, cgen);
+		}
 
 		/*}}}*/
 
@@ -366,6 +407,12 @@ static int occampi_snode_init_nodes (void)
 	guardexphook->chook_copy = occampi_guardexphook_copy;
 
 	/*}}}*/
+	/*{{{  ALT codegen language ops*/
+	tnode_newlangop ("codegen_altstart", LOPS_INVALID, 2, (void *)&occampi_parser);
+	tnode_newlangop ("codegen_altwait", LOPS_INVALID, 2, (void *)&occampi_parser);
+	tnode_newlangop ("codegen_altend", LOPS_INVALID, 2, (void *)&occampi_parser);
+
+	/*}}}*/
 	/*{{{  occampi:snode -- IF, ALT, CASE*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:snode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr, 1 = body */
@@ -373,6 +420,11 @@ static int occampi_snode_init_nodes (void)
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_snode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_snode));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "codegen_altstart", 2, LANGOPTYPE (occampi_codegen_altstart));
+	tnode_setlangop (lops, "codegen_altwait", 2, LANGOPTYPE (occampi_codegen_altwait));
+	tnode_setlangop (lops, "codegen_altend", 2, LANGOPTYPE (occampi_codegen_altend));
+	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_ALT = tnode_newnodetag ("ALT", &i, tnd, NTF_INDENTED_GUARDPROC_LIST);

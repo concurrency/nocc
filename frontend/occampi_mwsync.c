@@ -50,6 +50,8 @@
 #include "typecheck.h"
 #include "usagecheck.h"
 #include "constprop.h"
+#include "fetrans.h"
+#include "betrans.h"
 #include "map.h"
 #include "target.h"
 #include "transputer.h"
@@ -254,6 +256,80 @@ static int occampi_mwsync_action_codegen (compops_t *cops, tnode_t *node, codege
 		}
 	}
 	return i;
+}
+/*}}}*/
+
+
+/*{{{  static int occampi_mwsync_guard_betrans (compops_t *cops, tnode_t **nodep, betrans_t *be)*/
+/*
+ *	does back-end transforms for a SYNC guard node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mwsync_guard_betrans (compops_t *cops, tnode_t **nodep, betrans_t *be)
+{
+	if ((*nodep)->tag == opi.tag_SYNCGUARD) {
+		/* FIXME! */
+	} else {
+		/* down-stream betrans */
+		if (tnode_hascompop (cops->next, "betrans")) {
+			return tnode_callcompop (cops->next, "betrans", 2, nodep, be);
+		}
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_mwsync_guard_namemap (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for a SYNC guard node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mwsync_guard_namemap (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	if ((*nodep)->tag == opi.tag_SYNCGUARD) {
+		/* FIXME! */
+	} else {
+		/* down-stream name-map */
+		if (tnode_hascompop (cops->next, "namemap")) {
+			return tnode_callcompop (cops->next, "namemap", 2, nodep, map);
+		}
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_mwsync_codegen_altenable (langops_t *lops, tnode_t *guard, int dlabel, codegen_t *cgen)*/
+/*
+ *	does code-generation for SYNC guard ALT enable
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_mwsync_codegen_altenable (langops_t *lops, tnode_t *guard, int dlabel, codegen_t *cgen)
+{
+	if (guard->tag == opi.tag_SYNCGUARD) {
+		/* FIXME! */
+	} else {
+		/* down-stream alt-enable */
+		if (tnode_haslangop (lops, "codegen_altenable")) {
+			return tnode_calllangop (lops->next, "codegen_altenable", 3, guard, dlabel, cgen);
+		}
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_mwsync_codegen_altdisable (langops_t *lops, tnode_t *guard, int dlabel, int plabel, codegen_t *cgen)*/
+/*
+ *	does code-generation for SYNC guard ALT disable
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_mwsync_codegen_altdisable (langops_t *lops, tnode_t *guard, int dlabel, int plabel, codegen_t *cgen)
+{
+	if (guard->tag == opi.tag_SYNCGUARD) {
+		/* FIXME! */
+	} else {
+		/* down-stream alt-disable */
+		if (tnode_haslangop (lops, "codegen_altdisable")) {
+			return tnode_calllangop (lops->next, "codegen_altdisable", 4, guard, dlabel, plabel, cgen);
+		}
+	}
+	return 0;
 }
 /*}}}*/
 
@@ -488,6 +564,22 @@ static int occampi_mwsync_init_nodes (void)
 	opi.tag_SYNC = tnode_newnodetag ("SYNC", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  occampi:guardnode -- SYNCGUARD*/
+	tnd = tnode_lookupnodetype ("occampi:guardnode");
+
+	cops = tnode_insertcompops (tnd->ops);
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_mwsync_guard_betrans));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_mwsync_guard_namemap));
+	tnd->ops = cops;
+	lops = tnode_insertlangops (tnd->lops);
+	tnode_setlangop (lops, "codegen_altenable", 3, LANGOPTYPE (occampi_mwsync_codegen_altenable));
+	tnode_setlangop (lops, "codegen_altdisable", 4, LANGOPTYPE (occampi_mwsync_codegen_altdisable));
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_SYNCGUARD = tnode_newnodetag ("SYNCGUARD", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 	/*{{{  occampi:vardecl -- (mods for barriers)*/
 	tnd = tnode_lookupnodetype ("occampi:vardecl");
 	tnode_setcompop (tnd->ops, "mwsynctrans", 2, COMPOPTYPE (occampi_mwsync_vardecl_mwsynctrans));
@@ -526,6 +618,7 @@ static int occampi_mwsync_reg_reducers (void)
 {
 	parser_register_grule ("opi:barrierreduce", parser_decode_grule ("ST0T+@tC0R-", opi.tag_BARRIER));
 	parser_register_grule ("opi:syncreduce", parser_decode_grule ("ST0T+@tN+00C3R-", opi.tag_SYNC));
+	parser_register_grule ("opi:syncguardreduce", parser_decode_grule ("ST0T+@tN+00C3R-", opi.tag_SYNCGUARD));
 
 	return 0;
 }
@@ -542,14 +635,7 @@ static dfattbl_t **occampi_mwsync_init_dfatrans (int *ntrans)
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:primtype +:= [ 0 +@BARRIER 1 ] [ 1 {<opi:barrierreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:declorprocstart +:= [ 0 +@SYNC 1 ] [ 1 occampi:operand 2 ] [ 2 {<opi:syncreduce>} -* ]"));
-
-	/* FIXME! */
-	/* dynarray_add (transtbl, dfa_transtotbl ("occampi:mobileprocdecl ::= [ 0 @MOBILE 1 ] [ 1 @PROC 2 ] [ 2 occampi:name 3 ] [ 3 {<opi:nullreduce>} -* ]")); */
-
-#if 0
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:type +:= [ 0 -@MOBILE 1 ] [ 1 occampi:mobiletype 2 ] [ 2 {<opi:nullreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:expr +:= [ 0 -@MOBILE 1 ] [ 1 occampi:mobileallocexpr 2 ] [ 2 {<opi:nullreduce>} -* ]"));
-#endif
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:altguard +:= [ 0 +@SYNC 1 ] [ 1 occampi:operand 2 ] [ 2 {<opi:syncguardreduce>} -* ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

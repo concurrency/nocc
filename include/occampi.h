@@ -164,6 +164,7 @@ typedef struct {
 	struct TAG_ntdef *tag_SKIPGUARD;
 	struct TAG_ntdef *tag_INPUTGUARD;
 	struct TAG_ntdef *tag_TIMERGUARD;
+	struct TAG_ntdef *tag_SYNCGUARD;
 
 	struct TAG_token *tok_COLON;
 	struct TAG_token *tok_INPUT;
