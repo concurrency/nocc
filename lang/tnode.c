@@ -1842,7 +1842,7 @@ int tnode_setlangop (langops_t *lops, char *name, int nparams, int (*fcn)(langop
 		nocc_internal ("tnode_setlangop(): no such language operation [%s]", name);
 		return -1;
 	} else if (lop->nparams != nparams) {
-		nocc_error ("tnode_setlangop(): nparams given as %d, expected %d", nparams, lop->nparams);
+		nocc_error ("tnode_setlangop(): nparams given as %d, expected %d [%s]", nparams, lop->nparams, lop->name);
 		return -1;
 	}
 	if ((int)lop->opno >= DA_CUR (lops->opfuncs)) {
