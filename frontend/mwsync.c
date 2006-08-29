@@ -71,6 +71,7 @@ static langparser_t *mws_langptr = NULL;	/* language using this */
 static chook_t *mapchook = NULL;
 static chook_t *mwsyncpbihook = NULL;		/* attaches mwsyncpbinfo_t structure to PARBARRIER */
 static chook_t *mwsyncpbdhook = NULL;		/* direct tree-linkage from a declaration node to its PARBARRIER (may be NULL) */
+static chook_t *mwsyncalthook = NULL;		/* attaches mwsyncaltinfo_t structure to ALT-ish nodes */
 
 
 /*}}}*/
@@ -304,6 +305,101 @@ static void mwsync_pbdhook_free (void *chook)
 static void *mwsync_pbdhook_copy (void *chook)
 {
 	return chook;
+}
+/*}}}*/
+/*{{{  static void mwsync_althook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*
+ *	dumps an mwsyncaltinfo_t structure (debugging/dump)
+ */
+static void mwsync_althook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+{
+	if (chook) {
+		mwsyncaltinfo_t *altinf = (mwsyncaltinfo_t *)chook;
+
+		mwsync_isetindent (stream, indent);
+		fprintf (stream, "<mwsync:altbarrierinfo bcount=\"%d\" nbcount=\"%d\" />\n", altinf->bcount, altinf->nbcount);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void mwsync_althook_free (void *chook)*/
+/*
+ *	frees a mwsyncalthook_t structure (compiler hook)
+ */
+static void mwsync_althook_free (void *chook)
+{
+	if (chook) {
+		sfree (chook);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void *mwsync_althook_copy (void *chook)*/
+/*
+ *	copies a mwsyncalthook_t structure (compiler hook)
+ */
+static void *mwsync_althook_copy (void *chook)
+{
+	if (chook) {
+		mwsyncaltinfo_t *altinf = (mwsyncaltinfo_t *)chook;
+		mwsyncaltinfo_t *nalt = mwsync_newmwsyncaltinfo ();
+
+		nalt->bcount = altinf->bcount;
+		nalt->nbcount = altinf->nbcount;
+
+		return (void *)nalt;
+	}
+	return NULL;
+}
+/*}}}*/
+
+
+/*{{{  mwsyncaltinfo_t *mwsync_newmwsyncaltinfo (void)*/
+/*
+ *	creates a blank alt-info structure
+ */
+mwsyncaltinfo_t *mwsync_newmwsyncaltinfo (void)
+{
+	mwsyncaltinfo_t *altinf = (mwsyncaltinfo_t *)smalloc (sizeof (mwsyncaltinfo_t));
+
+	altinf->bcount = 0;
+	altinf->nbcount = 0;
+
+	return altinf;
+}
+/*}}}*/
+/*{{{  void mwsync_freemwsyncaltinfo (mwsyncaltinfo_t *altinf)*/
+/*
+ *	frees an alt-info structure
+ */
+void mwsync_freemwsyncaltinfo (mwsyncaltinfo_t *altinf)
+{
+	if (!altinf) {
+		nocc_warning ("mwsync_freemwsyncaltinfo(): NULL pointer!");
+		return;
+	}
+	mwsync_althook_free ((void *)altinf);
+	return;
+}
+/*}}}*/
+/*{{{  void mwsync_setaltinfo (tnode_t *node, mwsyncaltinfo_t *altinf)*/
+/*
+ *	hooks an alt-info structure onto an ALTy node
+ */
+void mwsync_setaltinfo (tnode_t *node, mwsyncaltinfo_t *altinf)
+{
+	tnode_setchook (node, mwsyncalthook, (void *)altinf);
+	return;
+}
+/*}}}*/
+/*{{{  mwsyncaltinfo_t *mwsync_getaltinfo (tnode_t *node)*/
+/*
+ *	gets the alt-info structure hooked onto an ALTy node
+ *	returns NULL if none
+ */
+mwsyncaltinfo_t *mwsync_getaltinfo (tnode_t *node)
+{
+	return (mwsyncaltinfo_t *)tnode_getchook (node, mwsyncalthook);
 }
 /*}}}*/
 
@@ -866,7 +962,7 @@ int mwsync_mwsynctrans_nameref (tnode_t **tptr, name_t *name, ntdef_t *decltag, 
 		return -1;
 	}
 
-#if 1
+#if 0
 	nocc_message ("mwsync_mwsynctrans_nameref(): tptr = (%s,%s), name is [%s], nametype is (%s,%s)", (*tptr)->tag->name, (*tptr)->tag->ndef->name, NameNameOf (name),
 			NameTypeOf (name)->tag->name, NameTypeOf (name)->tag->ndef->name);
 #endif
@@ -1174,7 +1270,7 @@ static int mwsync_init_nodes (void)
 	tnode_newcompop ("mwsynctrans", COPS_INVALID, 2, NULL);
 
 	/*}}}*/
-	/*{{{  mapchook, mwsyncpbihook, mwsyncpbdhook -- compiler hooks*/
+	/*{{{  mapchook, mwsyncpbihook, mwsyncpbdhook, mwsyncalthook -- compiler hooks*/
 	mapchook = tnode_lookupornewchook ("map:mapnames");
 
 	mwsyncpbihook = tnode_lookupornewchook ("mwsync:parbarrierinfo");
@@ -1186,6 +1282,11 @@ static int mwsync_init_nodes (void)
 	mwsyncpbdhook->chook_dumptree = mwsync_pbdhook_dumptree;
 	mwsyncpbdhook->chook_free = mwsync_pbdhook_free;
 	mwsyncpbdhook->chook_copy = mwsync_pbdhook_copy;
+
+	mwsyncalthook = tnode_lookupornewchook ("mwsync:altbarrierinfo");
+	mwsyncalthook->chook_dumptree = mwsync_althook_dumptree;
+	mwsyncalthook->chook_free = mwsync_althook_free;
+	mwsyncalthook->chook_copy = mwsync_althook_copy;
 
 	/*}}}*/
 	/*{{{  mwsync:leaftype -- BARRIERTYPE, PARBARRIERTYPE, PROCBARRIERTYPE*/

@@ -59,6 +59,12 @@ typedef struct TAG_mwsyncpbinfo {
 	int nprocbarriers;				/* incremented as PROCBARRIERs attached to this PARBARRIER are created */
 } mwsyncpbinfo_t;
 
+/* this one gets attached to an ALT or equivalent node */
+typedef struct TAG_mwsyncaltinfo {
+	int bcount;					/* non-zero if we have barrier syncs here */
+	int nbcount;					/* non-zero if we have non-barrier syncs here */
+} mwsyncaltinfo_t;
+
 
 /* node types for multiway syncs */
 typedef struct TAG_mwsi {
@@ -76,6 +82,11 @@ typedef struct TAG_mwsi {
 extern mwsi_t mwsi;
 
 extern int mwsync_transsubtree (struct TAG_tnode **tptr, mwsynctrans_t *mwi);
+
+extern mwsyncaltinfo_t *mwsync_newmwsyncaltinfo (void);
+extern void mwsync_freemwsyncaltinfo (mwsyncaltinfo_t *altinf);
+extern void mwsync_setaltinfo (struct TAG_tnode *node, mwsyncaltinfo_t *altinf);
+extern mwsyncaltinfo_t *mwsync_getaltinfo (struct TAG_tnode *node);
 
 extern int mwsync_mwsynctrans_makebarriertype (struct TAG_tnode **typep, mwsynctrans_t *mwi);
 extern int mwsync_mwsynctrans_pushvar (struct TAG_tnode *varptr, struct TAG_tnode *bnames, struct TAG_tnode ***bodypp, struct TAG_ntdef *decltag, mwsynctrans_t *mwi);

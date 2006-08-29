@@ -461,6 +461,7 @@ static int occampi_snode_init_nodes (void)
 	opi.tag_INPUTGUARD = tnode_newnodetag ("INPUTGUARD", &i, tnd, NTF_INDENTED_PROC);
 	i = -1;
 	opi.tag_TIMERGUARD = tnode_newnodetag ("TIMERGUARD", &i, tnd, NTF_INDENTED_PROC);
+
 	/*}}}*/
 
 	return 0;

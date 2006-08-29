@@ -315,7 +315,7 @@ static int occampi_mwsync_codegen_altenable (langops_t *lops, tnode_t *guard, in
 		codegen_callops (cgen, trashistack);
 	} else {
 		/* down-stream alt-enable */
-		if (tnode_haslangop (lops, "codegen_altenable")) {
+		if (tnode_haslangop (lops->next, "codegen_altenable")) {
 			return tnode_calllangop (lops->next, "codegen_altenable", 3, guard, dlabel, cgen);
 		}
 	}
@@ -342,7 +342,7 @@ static int occampi_mwsync_codegen_altdisable (langops_t *lops, tnode_t *guard, i
 		codegen_callops (cgen, trashistack);
 	} else {
 		/* down-stream alt-disable */
-		if (tnode_haslangop (lops, "codegen_altdisable")) {
+		if (tnode_haslangop (lops->next, "codegen_altdisable")) {
 			return tnode_calllangop (lops->next, "codegen_altdisable", 4, guard, dlabel, plabel, cgen);
 		}
 	}
@@ -394,6 +394,39 @@ static int occampi_mwsync_vardecl_mwsynctrans (compops_t *cops, tnode_t **tptr, 
 	}
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_mwsync_snode_mwsynctrans (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)*/
+/*
+ *	does multiway synchronisation transforms for a structured process node (ALTs)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mwsync_snode_mwsynctrans (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)
+{
+	if ((*tptr)->tag == opi.tag_ALT) {
+		/*{{{  ALTing process -- look for BARRIER guards*/
+		tnode_t *glist = tnode_nthsubof (*tptr, 1);
+		int nguards, i;
+		tnode_t **guards = parser_getlistitems (glist, &nguards);
+		mwsyncaltinfo_t *altinf = mwsync_newmwsyncaltinfo ();
+
+		mwsync_transsubtree (tnode_nthsubaddr (*tptr, 0), mwi);
+
+		for (i=0; i<nguards; i++) {
+			mwsync_transsubtree (guards + i, mwi);
+			if (guards[i]->tag == opi.tag_SYNCGUARD) {
+				altinf->bcount++;
+			} else {
+				altinf->nbcount++;
+			}
+		}
+
+		mwsync_setaltinfo (*tptr, altinf);
+
+		/*}}}*/
+	}
+
+	return 1;
 }
 /*}}}*/
 /*{{{  static int occampi_mwsync_procdecl_mwsynctrans (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)*/
@@ -530,6 +563,76 @@ static int occampi_mwsync_cnode_mwsynctrans (compops_t *cops, tnode_t **tptr, mw
 /*}}}*/
 
 
+/*{{{  static int occampi_mwsync_codegen_altstart (langops_t *lops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates code for occam-pi ALT start (possibly multiway sync)
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_mwsync_codegen_altstart (langops_t *lops, tnode_t *node, codegen_t *cgen)
+{
+	mwsyncaltinfo_t *altinf = mwsync_getaltinfo (node);
+
+	if (altinf && altinf->bcount) {
+		/* need a multiway sync start */
+		codegen_callops (cgen, tsecondary, I_MWS_ALTLOCK);
+		codegen_callops (cgen, tsecondary, I_MWS_ALT);
+	} else {
+		/* down-stream alt-start */
+		if (tnode_haslangop (lops->next, "codegen_altstart")) {
+			return tnode_calllangop (lops->next, "codegen_altstart", 2, node, cgen);
+		}
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_mwsync_codegen_altwait (langops_t *lops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates code for basic occam-pi ALT wait
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_mwsync_codegen_altwait (langops_t *lops, tnode_t *node, codegen_t *cgen)
+{
+	mwsyncaltinfo_t *altinf = mwsync_getaltinfo (node);
+
+	if (altinf && altinf->bcount) {
+		/* we're multi-way synching, better unlock before wait */
+		codegen_callops (cgen, tsecondary, I_MWS_ALTUNLOCK);
+	}
+	/* down-stream alt-wait */
+	if (tnode_haslangop (lops->next, "codegen_altwait")) {
+		return tnode_calllangop (lops->next, "codegen_altwait", 2, node, cgen);
+	}
+	if (altinf && altinf->bcount) {
+		/* and re-lock afterwards */
+		codegen_callops (cgen, tsecondary, I_MWS_ALTPOSTLOCK);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_mwsync_codegen_altend (langops_t *lops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates code for occam-pi ALT end
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_mwsync_codegen_altend (langops_t *lops, tnode_t *node, codegen_t *cgen)
+{
+	mwsyncaltinfo_t *altinf = mwsync_getaltinfo (node);
+
+	if (altinf && altinf->bcount) {
+		/* need a multiway sync end */
+		codegen_callops (cgen, tsecondary, I_MWS_ALTEND);
+		codegen_callops (cgen, tsecondary, I_SETERR);
+	} else {
+		/* down-stream alt-end */
+		if (tnode_haslangop (lops->next, "codegen_altend")) {
+			return tnode_calllangop (lops->next, "codegen_altend", 2, node, cgen);
+		}
+	}
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_mwsync_init_nodes (void)*/
 /*
  *	sets up nodes for occam-pi multi-way synchronisations
@@ -595,6 +698,16 @@ static int occampi_mwsync_init_nodes (void)
 
 	i = -1;
 	opi.tag_SYNCGUARD = tnode_newnodetag ("SYNCGUARD", &i, tnd, NTF_INDENTED_PROC);
+
+	/*}}}*/
+	/*{{{  occampi:snode -- (mods for barriers)*/
+	tnd = tnode_lookupnodetype ("occampi:snode");
+	lops = tnode_insertlangops (tnd->lops);
+	tnode_setlangop (lops, "codegen_altstart", 2, LANGOPTYPE (occampi_mwsync_codegen_altstart));
+	tnode_setlangop (lops, "codegen_altwait", 2, LANGOPTYPE (occampi_mwsync_codegen_altwait));
+	tnode_setlangop (lops, "codegen_altend", 2, LANGOPTYPE (occampi_mwsync_codegen_altend));
+	tnd->lops = lops;
+	tnode_setcompop (tnd->ops, "mwsynctrans", 2, COMPOPTYPE (occampi_mwsync_snode_mwsynctrans));
 
 	/*}}}*/
 	/*{{{  occampi:vardecl -- (mods for barriers)*/
