@@ -3,9 +3,12 @@
 
 PROC test.n32 (CHAN INT in?)
   INT x:
+  BARRIER bar:
   SEQ
     ALT
       in ? x
+        SKIP
+      SYNC bar
         SKIP
 :
 

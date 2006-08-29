@@ -268,7 +268,7 @@ static int occampi_mwsync_action_codegen (compops_t *cops, tnode_t *node, codege
 static int occampi_mwsync_guard_betrans (compops_t *cops, tnode_t **nodep, betrans_t *be)
 {
 	if ((*nodep)->tag == opi.tag_SYNCGUARD) {
-		/* FIXME! */
+		/* nothing to do here */
 	} else {
 		/* down-stream betrans */
 		if (tnode_hascompop (cops->next, "betrans")) {
@@ -286,7 +286,7 @@ static int occampi_mwsync_guard_betrans (compops_t *cops, tnode_t **nodep, betra
 static int occampi_mwsync_guard_namemap (compops_t *cops, tnode_t **nodep, map_t *map)
 {
 	if ((*nodep)->tag == opi.tag_SYNCGUARD) {
-		/* FIXME! */
+		/* nothing to do here -- submap as per default */
 	} else {
 		/* down-stream name-map */
 		if (tnode_hascompop (cops->next, "namemap")) {
@@ -304,7 +304,15 @@ static int occampi_mwsync_guard_namemap (compops_t *cops, tnode_t **nodep, map_t
 static int occampi_mwsync_codegen_altenable (langops_t *lops, tnode_t *guard, int dlabel, codegen_t *cgen)
 {
 	if (guard->tag == opi.tag_SYNCGUARD) {
-		/* FIXME! */
+		tnode_t *precond = tnode_nthsubof (guard, 2);
+
+		codegen_callops (cgen, loadpointer, tnode_nthsubof (guard, 0), 0);
+		if (precond) {
+			nocc_warning ("occampi_mwsync_codegen_altenable(): don\'t handle preconditions here!");
+		}
+		codegen_callops (cgen, loadlabaddr, dlabel);
+		codegen_callops (cgen, tsecondary, I_MWS_ENB);
+		codegen_callops (cgen, trashistack);
 	} else {
 		/* down-stream alt-enable */
 		if (tnode_haslangop (lops, "codegen_altenable")) {
@@ -322,7 +330,16 @@ static int occampi_mwsync_codegen_altenable (langops_t *lops, tnode_t *guard, in
 static int occampi_mwsync_codegen_altdisable (langops_t *lops, tnode_t *guard, int dlabel, int plabel, codegen_t *cgen)
 {
 	if (guard->tag == opi.tag_SYNCGUARD) {
-		/* FIXME! */
+		tnode_t *precond = tnode_nthsubof (guard, 2);
+
+		codegen_callops (cgen, setlabel, dlabel);
+		codegen_callops (cgen, loadpointer, tnode_nthsubof (guard, 0), 0);
+		if (precond) {
+			nocc_warning ("occampi_mwsync_codegen_altdisable(): don\'t handle preconditions here!");
+		}
+		codegen_callops (cgen, loadlabaddr, plabel);
+		codegen_callops (cgen, tsecondary, I_MWS_DIS);
+		codegen_callops (cgen, trashistack);
 	} else {
 		/* down-stream alt-disable */
 		if (tnode_haslangop (lops, "codegen_altdisable")) {
@@ -577,7 +594,7 @@ static int occampi_mwsync_init_nodes (void)
 	tnd->lops = lops;
 
 	i = -1;
-	opi.tag_SYNCGUARD = tnode_newnodetag ("SYNCGUARD", &i, tnd, NTF_NONE);
+	opi.tag_SYNCGUARD = tnode_newnodetag ("SYNCGUARD", &i, tnd, NTF_INDENTED_PROC);
 
 	/*}}}*/
 	/*{{{  occampi:vardecl -- (mods for barriers)*/
