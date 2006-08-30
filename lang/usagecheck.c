@@ -351,6 +351,7 @@ fprintf (stderr, "uchk_prewalk_tree(): [%s]\n", node->tag->name);
 
 			ucstate->defmode = thook->mode;
 			result = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_DO_USAGECHECK, 2, node, ucstate);
+			ucstate->defmode = savedmode;
 			/*}}}*/
 		} else {
 			if (usagecheck_addname (node, ucstate, thook->mode)) {
@@ -495,6 +496,9 @@ int usagecheck_addname (tnode_t *node, uchk_state_t *ucstate, uchk_mode_t mode)
 	uchk_chook_set_t *ucset;
 	int i;
 
+#if 0
+	nocc_message ("usagecheck_addname(): allocating [%s,%s] with mode 0x%x", node->tag->name, node->tag->ndef->name, (int)mode);
+#endif
 	if ((ucstate->ucptr < 0) || (ucstate->ucptr >= DA_CUR (ucstate->ucstack)) || (ucstate->ucptr >= DA_CUR (ucstate->setptrs))) {
 		nocc_internal ("usagecheck_addname(): [%s]: ucstate->ucptr=%d, DA_CUR(ucstack)=%d, DA_CUR(setptrs)=%d", node->tag->name, ucstate->ucptr, DA_CUR (ucstate->ucstack), DA_CUR (ucstate->setptrs));
 		return -1;
@@ -846,6 +850,9 @@ int usagecheck_marknode (tnode_t *node, uchk_mode_t mode, int do_nested)
 {
 	uchk_taghook_t *thook = (uchk_taghook_t *)tnode_getchook (node, uchk_taghook);
 
+#if 0
+	nocc_message ("usagecheck_marknode(): marking [%s,%s] with 0x%x", node->tag->name, node->tag->ndef->name, (int)mode);
+#endif
 	if (thook) {
 		if (thook->node != node) {
 			nocc_internal ("usagecheck_marknode(): node/taghook mislinkage, node=0x%8.8x [%s], thook->node=0x%8.8x [%s]", (unsigned int)node, node->tag->name, (unsigned int)thook->node, thook->node->tag->name);

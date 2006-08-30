@@ -1639,6 +1639,10 @@ static int occampi_parser_prescope (tnode_t **tptr, prescope_t *ps)
 		tnode_modprewalktree (tptr, prescope_modprewalktree, (void *)ps);
 
 		ps->hook = NULL;
+		if (ops->last_type) {
+			tnode_free (ops->last_type);
+			ops->last_type = NULL;
+		}
 		sfree (ops);
 	} else {
 		tnode_modprewalktree (tptr, prescope_modprewalktree, (void *)ps);

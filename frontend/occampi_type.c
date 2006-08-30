@@ -143,6 +143,9 @@ static int occampi_type_prescope (compops_t *cops, tnode_t **nodep, prescope_t *
 		tnode_setnthsub (losing, 0, NULL);
 
 		typeattr = (occampi_typeattr_t)tnode_getchook (*nodep, opi.chook_typeattr);
+#if 0
+		nocc_message ("occampi_type_prescope(): got typeattr = 0x%8.8x on asinput/asoutput node", (unsigned int)typeattr);
+#endif
 		typeattr |= (losing->tag == opi.tag_ASINPUT) ? TYPEATTR_MARKED_IN : TYPEATTR_MARKED_OUT;
 		tnode_setchook (*nodep, opi.chook_typeattr, (void *)typeattr);
 

@@ -932,6 +932,11 @@ tnode_dumptree (*node, 1, stderr);
 	if (tnode_nthsubof (*node, 1)) {
 		tnode_t **namep = tnode_nthsubaddr (*node, 0);
 
+		if (ops->last_type) {
+			/* this is always a copy.. */
+			tnode_free (ops->last_type);
+			ops->last_type = NULL;
+		}
 		ops->last_type = tnode_nthsubof (*node, 1);
 		if ((ops->last_type->tag == opi.tag_ASINPUT) || (ops->last_type->tag == opi.tag_ASOUTPUT)) {
 			/* lose this from the type, associated primarily with name in FPARAMs */
@@ -947,6 +952,9 @@ tnode_dumptree (*node, 1, stderr);
 			*namep = name;
 			tnode_setnthsub (*node, 1, type);
 		}
+
+		ops->last_type = tnode_copytree (ops->last_type);
+
 	} else if (!ops->last_type) {
 		prescope_error (*node, ps, "missing type on formal parameter");
 	} else {

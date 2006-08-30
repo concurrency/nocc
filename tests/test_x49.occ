@@ -1,0 +1,18 @@
+
+PROC foo (CHAN INT in?, out!)
+  SKIP
+:
+
+PROC bar (CHAN INT in?, out!)
+  INT x:
+  SEQ
+    in ? x
+:
+
+PROC ltest ()
+  CHAN INT a, b, c:
+  PAR
+    foo (a, b)
+    bar (b, c)
+:
+
