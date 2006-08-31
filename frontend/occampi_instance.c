@@ -46,6 +46,9 @@
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
+#include "usagecheck.h"
+#include "fetrans.h"
+#include "betrans.h"
 #include "map.h"
 #include "target.h"
 #include "transputer.h"
@@ -254,6 +257,91 @@ tnode_dumptree (atype, 1, stderr);
 		typecheck_error (node, tc, "too few actual parameters");
 	} else if (ap_ptr < ap_nitems) {
 		typecheck_error (node, tc, "too many actual parameters");
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_usagecheck_instance (langops_t *lops, tnode_t *node, uchk_state_t *uc)*/
+/*
+ *	does usage-checking for an instance node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_usagecheck_instance (langops_t *lops, tnode_t *node, uchk_state_t *uc)
+{
+	tnode_t *fparamlist = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
+	tnode_t *aparamlist = tnode_nthsubof (node, 1);
+	tnode_t **fp_items, **ap_items;
+	int fp_nitems, ap_nitems;
+	int fp_ptr, ap_ptr;
+	int paramno;
+
+	if (!fparamlist) {
+		fp_items = NULL;
+		fp_nitems = 0;
+	} else if (parser_islistnode (fparamlist)) {
+		fp_items = parser_getlistitems (fparamlist, &fp_nitems);
+	} else {
+		fp_items = &fparamlist;
+		fp_nitems = 1;
+	}
+	if (!aparamlist) {
+		ap_items = NULL;
+		ap_nitems = 0;
+	} else if (parser_islistnode (aparamlist)) {
+		ap_items = parser_getlistitems (aparamlist, &ap_nitems);
+	} else {
+		ap_items = &aparamlist;
+		ap_nitems = 1;
+	}
+
+	for (paramno = 1, fp_ptr = 0, ap_ptr = 0; (fp_ptr < fp_nitems) && (ap_ptr < ap_nitems);) {
+		tnode_t *ftype;
+		occampi_typeattr_t fattr = TYPEATTR_NONE;
+		uchk_mode_t savedmode = uc->defmode;
+
+		/* skip over hidden parameters */
+		if (fp_items[fp_ptr]->tag == opi.tag_HIDDENPARAM) {
+			fp_ptr++;
+			continue;
+		}
+		if (ap_items[ap_ptr]->tag == opi.tag_HIDDENPARAM) {
+			ap_ptr++;
+			continue;
+		}
+		ftype = typecheck_gettype (fp_items[fp_ptr], NULL);
+		if (!ftype) {
+			tnode_error (node, "occampi_usagecheck_instance(): no type on parameter %d!", paramno);
+			return 0;
+		}
+
+		fattr = (occampi_typeattr_t)tnode_getchook (ftype, opi.chook_typeattr);
+
+#if 0
+fprintf (stderr, "occampi_usagecheck_instance: fattr = 0x%8.8x, ftype =\n", (unsigned int)fattr);
+tnode_dumptree (ftype, 1, stderr);
+fprintf (stderr, "occampi_usagecheck_instance: aparam =\n");
+tnode_dumptree (ap_items[ap_ptr], 1, stderr);
+#endif
+
+		if (fattr & TYPEATTR_MARKED_IN) {
+			uc->defmode = USAGE_INPUT;
+		} else if (fattr & TYPEATTR_MARKED_OUT) {
+			uc->defmode = USAGE_OUTPUT;
+		} else if (fp_items[fp_ptr]->tag == opi.tag_NPARAM) {
+			uc->defmode = USAGE_WRITE;
+		} else if (fp_items[fp_ptr]->tag == opi.tag_NVALPARAM) {
+			uc->defmode = USAGE_READ;
+		}
+
+		/* usagecheck the actual parameter */
+		usagecheck_subtree (ap_items[ap_ptr], uc);
+
+		uc->defmode = savedmode;
+
+		fp_ptr++;
+		ap_ptr++;
+		paramno++;
 	}
 
 	return 0;
@@ -532,6 +620,9 @@ static int occampi_instance_init_nodes (void)
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_instance));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_instance));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_usagecheck_instance));
+	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_PINSTANCE = tnode_newnodetag ("PINSTANCE", &i, tnd, NTF_NONE);
