@@ -1,0 +1,15 @@
+
+-- test_n33.occ -- testing channel-direction specifiers
+
+PROC foo (CHAN INT out!)
+  SEQ
+    out ! 42
+:
+
+PROC test.n33 ()
+  CHAN INT x:
+  SEQ
+    foo (x!)
+:
+
+

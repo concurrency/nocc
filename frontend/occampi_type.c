@@ -47,6 +47,7 @@
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
+#include "betrans.h"
 #include "langops.h"
 #include "target.h"
 #include "map.h"
@@ -287,6 +288,37 @@ static tnode_t *occampi_typespec_typeactual (langops_t *lops, tnode_t *formaltyp
 	return typecheck_typeactual (tnode_nthsubof (formaltype, 0), actualtype, node, tc);
 }
 /*}}}*/
+/*{{{  static int occampi_typespec_occampi_typeattrof (langops_t *lops, tnode_t *node, occampi_typeattr_t *taptr)*/
+/*
+ *	gets the type attributes of a type-spec node
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_typespec_occampi_typeattrof (langops_t *lops, tnode_t *node, occampi_typeattr_t *taptr)
+{
+	if (!node || !taptr) {
+		nocc_internal ("occampi_typespec_occampi_typeattrof(): NULL node or attr-ptr!");
+	}
+	*taptr = (occampi_typeattr_t)tnode_getchook (node, opi.chook_typeattr);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_typespec_betrans (compops_t *cops, tnode_t **tptr, betrans_t *be)*/
+/*
+ *	does back-end transformations for a type-spec node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typespec_betrans (compops_t *cops, tnode_t **tptr, betrans_t *be)
+{
+	tnode_t *thisnode = *tptr;
+
+	betrans_subtree (tnode_nthsubaddr (thisnode, 0), be);
+	*tptr = tnode_nthsubof (thisnode, 0);
+	tnode_setnthsub (thisnode, 0, NULL);
+
+	tnode_free (thisnode);
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static tnode_t *occampi_leaftype_gettype (langops_t *lops, tnode_t *t, tnode_t *defaulttype)*/
@@ -421,6 +453,27 @@ static void occampi_protocol_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
 /*}}}*/
 
 
+/*{{{  occampi_typeattr_t occampi_typeattrof (tnode_t *node)*/
+/*
+ *	this can be called by other occam-pi parts to get the type-attributes of a node
+ *	does it via compiler-hook then langops-call
+ *	returns type attribute(s)
+ */
+occampi_typeattr_t occampi_typeattrof (tnode_t *node)
+{
+	occampi_typeattr_t attr;
+
+	attr = (occampi_typeattr_t)tnode_getchook (node, opi.chook_typeattr);
+	if (attr == TYPEATTR_NONE) {
+		if (tnode_haslangop (node->tag->ndef->lops, "occampi_typeattrof")) {
+			tnode_calllangop (node->tag->ndef->lops, "occampi_typeattrof", 2, node, &attr);
+		}
+	}
+	return attr;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_type_init_nodes (void)*/
 /*
  *	initialises type nodes for occam-pi
@@ -433,6 +486,17 @@ static int occampi_type_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
+	/*{{{  attributes compiler hook*/
+	opi.chook_typeattr = tnode_newchook ("occampi:typeattr");
+	opi.chook_typeattr->chook_dumptree = occampi_typeattr_dumpchook;
+	opi.chook_typeattr->chook_copy = occampi_typeattr_copychook;
+	opi.chook_typeattr->chook_free = occampi_typeattr_freechook;
+
+	/*}}}*/
+	/*{{{  occampi_typeattrof -- language op.*/
+	tnode_newlangop ("occampi_typeattrof", LOPS_INVALID, 2, (void *)&occampi_parser);
+
+	/*}}}*/
 	/*{{{  occampi:typenode -- CHAN, ASINPUT, ASOUTPUT*/
 	i = -1;
 	tnd = opi.node_TYPENODE = tnode_newnodetype ("occampi:typenode", &i, 1, 0, 0, TNF_NONE);
@@ -454,18 +518,24 @@ static int occampi_type_init_nodes (void)
 	opi.tag_ASINPUT = tnode_newnodetag ("ASINPUT", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_ASOUTPUT = tnode_newnodetag ("ASOUTPUT", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  occampi:typespecnode -- TYPESPEC*/
 	/* these appear during scoping */
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:typespecnode", &i, 1, 0, 0, TNF_TRANSPARENT);
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_typespec_betrans));
+	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_typespec_gettype));
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_typespec_typeactual));
+	tnode_setlangop (lops, "occampi_typeattrof", 2, LANGOPTYPE (occampi_typespec_occampi_typeattrof));
 	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_TYPESPEC = tnode_newnodetag ("TYPESPEC", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  occampi:leaftype -- INT, BYTE, INT16, INT32, INT64, REAL32, REAL64, CHAR*/
 	i = -1;
@@ -497,16 +567,11 @@ static int occampi_type_init_nodes (void)
 	opi.tag_REAL64 = tnode_newnodetag ("REAL64", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_CHAR = tnode_newnodetag ("CHAR", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  input/output tokens*/
 	opi.tok_INPUT = lexer_newtoken (SYMBOL, "?");
 	opi.tok_OUTPUT = lexer_newtoken (SYMBOL, "!");
-	/*}}}*/
-	/*{{{  attributes compiler hook*/
-	opi.chook_typeattr = tnode_newchook ("occampi:typeattr");
-	opi.chook_typeattr->chook_dumptree = occampi_typeattr_dumpchook;
-	opi.chook_typeattr->chook_copy = occampi_typeattr_copychook;
-	opi.chook_typeattr->chook_free = occampi_typeattr_freechook;
 
 	/*}}}*/
 

@@ -223,6 +223,8 @@ tnode_dumptree (aparamlist, 1, stderr);
 
 	for (paramno = 1, fp_ptr = 0, ap_ptr = 0; (fp_ptr < fp_nitems) && (ap_ptr < ap_nitems);) {
 		tnode_t *ftype, *atype;
+		occampi_typeattr_t fattr = TYPEATTR_NONE;
+		occampi_typeattr_t aattr = TYPEATTR_NONE;
 
 		/* skip over hidden parameters */
 		if (fp_items[fp_ptr]->tag == opi.tag_HIDDENPARAM) {
@@ -235,16 +237,29 @@ tnode_dumptree (aparamlist, 1, stderr);
 		}
 		ftype = typecheck_gettype (fp_items[fp_ptr], NULL);
 		atype = typecheck_gettype (ap_items[ap_ptr], ftype);
+
+		fattr = occampi_typeattrof (ftype);
+		aattr = occampi_typeattrof (ap_items[ap_ptr]);
+
 #if 0
-fprintf (stderr, "occampi_typecheck_instance: ftype=\n");
+fprintf (stderr, "occampi_typecheck_instance: fattr=0x%8.8x, ftype=\n", (unsigned int)fattr);
 tnode_dumptree (ftype, 1, stderr);
-fprintf (stderr, "occampi_typecheck_instance: atype=\n");
+fprintf (stderr, "occampi_typecheck_instance: aattr=0x%8.8x, atype=\n", (unsigned int)aattr);
 tnode_dumptree (atype, 1, stderr);
+fprintf (stderr, "occampi_typecheck_instance: ap_items[ap_ptr]=\n");
+tnode_dumptree (ap_items[ap_ptr], 1, stderr);
 #endif
 
 		if (!typecheck_typeactual (ftype, atype, node, tc)) {
 			typecheck_error (node, tc, "incompatible types for parameter %d", paramno);
 		}
+
+		if (fattr && aattr) {
+			if ((fattr ^ aattr) & (TYPEATTR_MARKED_IN | TYPEATTR_MARKED_OUT)) {
+				typecheck_error (node, tc, "incompatible type attributes for parameter %d", paramno);
+			}
+		}
+
 		fp_ptr++;
 		ap_ptr++;
 		paramno++;
@@ -315,7 +330,7 @@ static int occampi_usagecheck_instance (langops_t *lops, tnode_t *node, uchk_sta
 			return 0;
 		}
 
-		fattr = (occampi_typeattr_t)tnode_getchook (ftype, opi.chook_typeattr);
+		fattr = occampi_typeattrof (ftype);
 
 #if 0
 fprintf (stderr, "occampi_usagecheck_instance: fattr = 0x%8.8x, ftype =\n", (unsigned int)fattr);

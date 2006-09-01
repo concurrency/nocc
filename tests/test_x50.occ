@@ -1,0 +1,34 @@
+
+-- test_x50.occ -- testing multiway syncs, ALTs and PARs
+
+PROC foo (BARRIER x, y)
+  WHILE TRUE
+    ALT
+      SYNC x
+        SKIP
+      SYNC y
+        SKIP
+:
+
+PROC bar (BARRIER a, b, CHAN BYTE out!)
+  WHILE TRUE
+    SEQ
+      ALT
+        SYNC a
+          out ! 'a'
+        SYNC b
+          out ! 'b'
+      out ! '*n'
+:
+
+PROC test.x50 (CHAN BYTE screen!)
+  BARRIER f, g:
+  PAR
+    foo (f, g)
+    bar (f, g, screen!)
+    SEQ
+      SYNC f
+      SYNC g
+      SYNC f
+:
+

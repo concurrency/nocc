@@ -247,6 +247,9 @@ struct TAG_cmd_option;
 extern int occampi_lexer_opthandler_flag (struct TAG_cmd_option *opt, char ***argwalk, int *argleft);
 extern int occampi_mwsync_opthandler_flag (struct TAG_cmd_option *opt, char ***argwalk, int *argleft);
 
+/* other useful functions */
+extern occampi_typeattr_t occampi_typeattrof (struct TAG_tnode *node);
+
 
 #endif	/* !__OCCAMPI_H */
 

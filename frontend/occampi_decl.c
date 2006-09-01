@@ -1200,6 +1200,7 @@ fprintf (stderr, "occampi_scopein_rawname: here! rawname = \"%s\"\n", rawname);
 }
 /*}}}*/
 
+
 /*{{{  static tnode_t *occampi_gettype_namenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
  *	returns the type of a name-node (trivial)

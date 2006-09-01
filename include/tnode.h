@@ -137,27 +137,27 @@ typedef struct TAG_compops {
 /*{{{  enum langops_e*/
 typedef enum ENUM_langops {
 	LOPS_INVALID = 0,
-	LOPS_GETDESCRIPTOR = 1,
-	LOPS_GETNAME = 2,
-	LOPS_DO_USAGECHECK = 3,
-	LOPS_TYPEACTUAL = 4,
-	LOPS_TYPEREDUCE = 5,
-	LOPS_GETTYPE = 6,
-	LOPS_BYTESFOR = 7,
-	LOPS_ISSIGNED = 8,
-	LOPS_ISCONST = 9,
-	LOPS_ISCOMPLEX = 10,
-	LOPS_CONSTVALOF = 11,
-	LOPS_VALBYREF = 12,
-	LOPS_INITSIZES = 13,
-	LOPS_INITIALISING_DECL = 14,
-	LOPS_CODEGEN_TYPEACTION = 15,
-	LOPS_CODEGEN_ALTENABLE = 16,
-	LOPS_CODEGEN_ALTDISABLE = 17,
+	LOPS_GETDESCRIPTOR = 1,			/* 2: tnode_t *, char ** -> int */
+	LOPS_GETNAME = 2,			/* 2: tnode_t *, char ** -> int */
+	LOPS_DO_USAGECHECK = 3,			/* 2: tnode_t *, uchk_state_t * -> int */
+	LOPS_TYPEACTUAL = 4,			/* 4: tnode_t *, tnode_t *, tnode_t *, typecheck_t * -> tnode_t * */
+	LOPS_TYPEREDUCE = 5,			/* 1: tnode_t * -> tnode_t * */
+	LOPS_GETTYPE = 6,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
+	LOPS_BYTESFOR = 7,			/* 2: tnode_t *, target_t * -> int */
+	LOPS_ISSIGNED = 8,			/* 2: tnode_t *, target_t * -> int */
+	LOPS_ISCONST = 9,			/* 1: tnode_t * -> int */
+	LOPS_ISCOMPLEX = 10,			/* 2: tnode_t *, int -> int */
+	LOPS_CONSTVALOF = 11,			/* 2: tnode_t *, void * -> int */
+	LOPS_VALBYREF = 12,			/* 1: tnode_t * -> int */
+	LOPS_INITSIZES = 13,			/* 7: tnode_t *, tnode_t *, int *, int *, int *, int *, map_t * -> int */
+	LOPS_INITIALISING_DECL = 14,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
+	LOPS_CODEGEN_TYPEACTION = 15,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
+	LOPS_CODEGEN_ALTENABLE = 16,		/* 3: tnode_t *, int, codegen_t * -> int */
+	LOPS_CODEGEN_ALTDISABLE = 17,		/* 4: tnode_t *, int, int, codegen_t * -> int */
 	LOPS_MAX = 256
 } langops_e;
 
-#define LOPS_LAST LOPS_CODEGEN_TYPEACTION
+#define LOPS_LAST LOPS_CODEGEN_ALTDISABLE
 
 /*}}}*/
 /*{{{  langop_t, langops_t (language operations)*/
@@ -172,25 +172,6 @@ typedef struct TAG_langops {
 	struct TAG_langops *next;
 	DYNARRAY (void *, opfuncs);
 } langops_t;
-
-#if 0
-	int (*getdescriptor)(struct TAG_langops *, tnode_t *, char **);				/* gets a descriptor string for the given node */
-	int (*getname)(struct TAG_langops *, tnode_t *, char **);				/* gets the name of a node (for error reporting) */
-	int (*do_usagecheck)(struct TAG_langops *, tnode_t *, struct TAG_uchk_state *);		/* does usage-checking for a node */
-	tnode_t *(*typeactual)(struct TAG_langops *, tnode_t *, tnode_t *, tnode_t *, struct TAG_typecheck *);	/* tests whether one type is valid as an "actual" for another */
-	tnode_t *(*typereduce)(struct TAG_langops *, tnode_t *);				/* returns the reduced type */
-	tnode_t *(*gettype)(struct TAG_langops *, tnode_t *, tnode_t *);			/* returns the type of this node (second param is a "default" type) */
-	int (*bytesfor)(struct TAG_langops *, tnode_t *, struct TAG_target *);			/* returns the number of bytes required for something (target given if available) */
-	int (*issigned)(struct TAG_langops *, tnode_t *, struct TAG_target *);			/* returns the "signedness" of something (target given if available) */
-	int (*isconst)(struct TAG_langops *, tnode_t *);					/* returns non-zero if the node is a known constant (returns width) */
-	int (*iscomplex)(struct TAG_langops *, tnode_t *, int);					/* returns non-zero if the node (typically an expr) is considered "complex" (e.g. non-const constructors, function instances, etc.) */
-	int (*constvalof)(struct TAG_langops *, tnode_t *, void *);				/* gets constant value for the given node (assigns to pointed-at space) */
-	int (*valbyref)(struct TAG_langops *, tnode_t *);					/* returns non-zero if VAL of this is treated as a reference (wide types) */
-	int (*initsizes)(struct TAG_langops *, tnode_t *, tnode_t *, int *, int *, int *, int *, struct TAG_map *);	/* returns special allocation sizing for types (type, declnode, wssize, vssize, mssize, indir, map-data) */
-	int (*initialising_decl)(struct TAG_langops *, tnode_t *, tnode_t *, struct TAG_map *);	/* called when mapping to hook in initialiser code */
-
-	int (*codegen_typeaction)(struct TAG_langops *, tnode_t *, tnode_t *, struct TAG_codegen *);	/* handle type-specific action (assignment, input, output) */
-#endif
 
 /*}}}*/
 /*{{{  chook_t definition*/
