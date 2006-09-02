@@ -95,6 +95,8 @@ static mcsp_parse_t *mcsp_priv = NULL;
 
 static feunit_t *feunit_set[] = {
 	&mcsp_process_feunit,
+	&mcsp_oper_feunit,
+	&mcsp_snode_feunit,
 	NULL
 };
 
@@ -292,6 +294,253 @@ void mcsp_isetindent (FILE *stream, int indent)
 
 	for (i=0; i<indent; i++) {
 		fprintf (stream, "    ");
+	}
+	return;
+}
+/*}}}*/
+
+
+/*{{{  mcsp_alpha_t *mcsp_newalpha (void)*/
+/*
+ *	creates an empty mcsp_alpha_t structure
+ */
+mcsp_alpha_t *mcsp_newalpha (void)
+{
+	mcsp_alpha_t *alpha = (mcsp_alpha_t *)smalloc (sizeof (mcsp_alpha_t));
+
+	alpha->elist = parser_newlistnode (NULL);
+	return alpha;
+}
+/*}}}*/
+/*{{{  void mcsp_addtoalpha (mcsp_alpha_t *alpha, tnode_t *event)*/
+/*
+ *	adds an event to an mcsp_alpha_t hook
+ */
+void mcsp_addtoalpha (mcsp_alpha_t *alpha, tnode_t *event)
+{
+	tnode_t **items;
+	int nitems, i;
+
+	if (!alpha) {
+		nocc_internal ("mcsp_addtoalpha(): NULL alphabet!");
+		return;
+	}
+	if (!event) {
+		return;
+	}
+
+	items = parser_getlistitems (alpha->elist, &nitems);
+	for (i=0; i<nitems; i++) {
+		if (items[i] == event) {
+			/* already here */
+			return;
+		}
+	}
+	parser_addtolist (alpha->elist, event);
+	return;
+}
+/*}}}*/
+/*{{{  void mcsp_mergealpha (mcsp_alpha_t *alpha, mcsp_alpha_t *others)*/
+/*
+ *	merges one alphabet into another
+ */
+void mcsp_mergealpha (mcsp_alpha_t *alpha, mcsp_alpha_t *others)
+{
+	tnode_t **items;
+	int nitems, i;
+
+	if (!alpha) {
+		nocc_internal ("mcsp_mergealpha(): NULL alphabet!");
+		return;
+	}
+	if (!others) {
+		return;
+	}
+
+	items = parser_getlistitems (others->elist, &nitems);
+	for (i=0; i<nitems; i++) {
+		mcsp_addtoalpha (alpha, items[i]);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  void mcsp_mergeifalpha (mcsp_alpha_t *alpha, tnode_t *node)*/
+/*
+ *	merges alphabet from a node into another alphabet
+ *	(checks to see that the given node has one first!)
+ */
+void mcsp_mergeifalpha (mcsp_alpha_t *alpha, tnode_t *node)
+{
+	if ((node->tag->ndef == mcsp.node_DOPNODE) || (node->tag->ndef == mcsp.node_SNODE) || (node->tag->ndef == mcsp.node_CNODE)) {
+		mcsp_alpha_t *other = (mcsp_alpha_t *)tnode_nthhookof (node, 0);
+
+		if (other) {
+			mcsp_mergealpha (alpha, other);
+		}
+	}
+	return;
+}
+/*}}}*/
+/*{{{  void mcsp_freealpha (mcsp_alpha_t *alpha)*/
+/*
+ *	frees an mcsp_alpha_t
+ */
+void mcsp_freealpha (mcsp_alpha_t *alpha)
+{
+	if (alpha) {
+		/* the list is of references */
+		tnode_t **events;
+		int nevents, i;
+
+		events = parser_getlistitems (alpha->elist, &nevents);
+		for (i=0; i<nevents; i++) {
+			events[i] = NULL;
+		}
+		tnode_free (alpha->elist);
+		alpha->elist = NULL;
+
+		sfree (alpha);
+	} else {
+		nocc_warning ("mcsp_freealpha(): tried to free NULL!");
+	}
+	return;
+}
+/*}}}*/
+/*{{{  int mcsp_cmpalphaentry (tnode_t *t1, tnode_t *t2)*/
+/*
+ *	compares two alphabet entries when sorting
+ */
+int mcsp_cmpalphaentry (tnode_t *t1, tnode_t *t2)
+{
+	if ((t1->tag != mcsp.tag_EVENT) || (t2->tag != mcsp.tag_EVENT)) {
+		nocc_warning ("mcsp_cmpalphaentry(): non-event in alphabet");
+	}
+
+	if ((t1->tag != mcsp.tag_EVENT) && (t2->tag != mcsp.tag_EVENT)) {
+		return 0;
+	} else if (t1->tag != mcsp.tag_EVENT) {
+		return -1;
+	} else if (t2->tag != mcsp.tag_EVENT) {
+		return 1;
+	}
+	if (t1 == t2) {
+		return 0;
+	}
+	return strcmp (NameNameOf (tnode_nthnameof (t1, 0)), NameNameOf (tnode_nthnameof (t2, 0)));
+}
+/*}}}*/
+/*{{{  void mcsp_sortandmergealpha (mcsp_alpha_t *a1, mcsp_alpha_t *a2, mcsp_alpha_t *isect, mcsp_alpha_t *diff)*/
+/*
+ *	sorts two alphabets and merges them.  "isect" gets ("a1" intersect "a2"),
+ *	"diff" gets (("a1" union "a2") - ("a1" intersect "a2"))
+ */
+void mcsp_sortandmergealpha (mcsp_alpha_t *a1, mcsp_alpha_t *a2, mcsp_alpha_t *isect, mcsp_alpha_t *diff)
+{
+	tnode_t **a1items, **a2items;
+	int a1n, a2n;
+	int a1i, a2i;
+
+#if 0
+fprintf (stderr, "mcsp_sortandmergealpha():\na1 = \n");
+mcsp.node_CNODE->hook_dumptree (NULL, (void *)a1, 1, stderr);
+fprintf (stderr, "mcsp_sortandmergealpha():\na2 = \n");
+mcsp.node_CNODE->hook_dumptree (NULL, (void *)a2, 1, stderr);
+#endif
+	parser_sortlist (a1->elist, mcsp_cmpalphaentry);
+	parser_sortlist (a2->elist, mcsp_cmpalphaentry);
+#if 0
+fprintf (stderr, "mcsp_sortandmergealpha(): here!\n");
+#endif
+
+	a1items = parser_getlistitems (a1->elist, &a1n);
+	a2items = parser_getlistitems (a2->elist, &a2n);
+
+	for (a1i = a2i = 0; (a1i < a1n) && (a2i < a2n); ) {
+		tnode_t *a1item = a1items[a1i];
+		tnode_t *a2item = a2items[a2i];
+		int r;
+
+		r = mcsp_cmpalphaentry (a1item, a2item);
+		if (r == 0) {
+			/* same, add to intersections */
+			if (isect) {
+				mcsp_addtoalpha (isect, a1item);
+			}
+			a1i++;
+			a2i++;
+		} else if (r < 0) {
+			/* in a1, not in a2, add to differences */
+			if (diff) {
+				mcsp_addtoalpha (diff, a1item);
+			}
+			a1i++;
+		} else {
+			/* in a2, not in a1, add to differences */
+			if (diff) {
+				mcsp_addtoalpha (diff, a2item);
+			}
+			a2i++;
+		}
+	}
+	return;
+}
+/*}}}*/
+
+
+/*{{{  void mcsp_alpha_hook_free (void *hook)*/
+/*
+ *	frees an alpha hook (mcsp_alpha_t)
+ */
+void mcsp_alpha_hook_free (void *hook)
+{
+	mcsp_alpha_t *alpha = (mcsp_alpha_t *)hook;
+
+	if (alpha) {
+		mcsp_freealpha (alpha);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  void *mcsp_alpha_hook_copy (void *hook)*/
+/*
+ *	copies an alpha hook (mcsp_alpha_t)
+ */
+void *mcsp_alpha_hook_copy (void *hook)
+{
+	mcsp_alpha_t *alpha = (mcsp_alpha_t *)hook;
+	mcsp_alpha_t *nalpha;
+	tnode_t **items;
+	int nitems, i;
+
+	if (!alpha) {
+		return NULL;
+	}
+	nalpha = mcsp_newalpha ();
+
+	items = parser_getlistitems (alpha->elist, &nitems);
+	for (i=0; i<nitems; i++) {
+		if (items[i]) {
+			parser_addtolist (nalpha->elist, items[i]);
+		}
+	}
+	
+	return nalpha;
+}
+/*}}}*/
+/*{{{  void mcsp_alpha_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps an alpha hook (debugging)
+ */
+void mcsp_alpha_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	mcsp_alpha_t *alpha = (mcsp_alpha_t *)hook;
+	
+	if (alpha) {
+		mcsp_isetindent (stream, indent);
+		fprintf (stream, "<mcsp:alphahook addr=\"0x%8.8x\">\n", (unsigned int)alpha);
+		tnode_dumptree (alpha->elist, indent + 1, stream);
+		mcsp_isetindent (stream, indent);
+		fprintf (stream, "</mcsp:alphahook>\n");
 	}
 	return;
 }

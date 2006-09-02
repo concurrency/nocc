@@ -111,6 +111,9 @@ struct TAG_feunit;
 extern void mcsp_isetindent (FILE *stream, int indent);
 
 extern struct TAG_feunit mcsp_process_feunit;		/* mcsp_process.c */
+extern struct TAG_feunit mcsp_snode_feunit;		/* mcsp_snode.c */
+extern struct TAG_feunit mcsp_oper_feunit;		/* mcsp_oper.c */
+
 
 /* option handlers inside MCSP front-end */
 struct TAG_cmd_option;
@@ -149,6 +152,20 @@ typedef struct TAG_mcsp_fetrans {
 
 
 /*}}}*/
+
+
+/* alphabet structure handling */
+extern mcsp_alpha_t *mcsp_newalpha (void);
+extern void mcsp_addtoalpha (mcsp_alpha_t *alpha, struct TAG_tnode *event);
+extern void mcsp_mergealpha (mcsp_alpha_t *alpha, mcsp_alpha_t *others);
+extern void mcsp_mergeifalpha (mcsp_alpha_t *alpha, struct TAG_tnode *node);
+extern void mcsp_freealpha (mcsp_alpha_t *alpha);
+extern int mcsp_cmpalphaentry (struct TAG_tnode *t1, struct TAG_tnode *t2);
+extern void mcsp_sortandmergealpha (mcsp_alpha_t *a1, mcsp_alpha_t *a2, mcsp_alpha_t *isect, mcsp_alpha_t *diff);
+
+extern void mcsp_alpha_hook_free (void *hook);
+extern void *mcsp_alpha_hook_copy (void *hook);
+extern void mcsp_alpha_hook_dumptree (struct TAG_tnode *node, void *hook, int indent, FILE *stream);
 
 
 #endif	/* !__MCSP_H */
