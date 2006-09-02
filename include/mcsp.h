@@ -113,6 +113,7 @@ extern void mcsp_isetindent (FILE *stream, int indent);
 extern struct TAG_feunit mcsp_process_feunit;		/* mcsp_process.c */
 extern struct TAG_feunit mcsp_snode_feunit;		/* mcsp_snode.c */
 extern struct TAG_feunit mcsp_oper_feunit;		/* mcsp_oper.c */
+extern struct TAG_feunit mcsp_decl_feunit;		/* mcsp_decl.c */
 
 
 /* option handlers inside MCSP front-end */
