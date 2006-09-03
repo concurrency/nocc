@@ -196,6 +196,8 @@ extern tndef_t *tnode_newnodetype (char *name, int *idx, int nsub, int nname, in
 extern ntdef_t *tnode_newnodetag (char *name, int *idx, tndef_t *type, int flags);
 extern tndef_t *tnode_lookupnodetype (char *name);
 extern ntdef_t *tnode_lookupnodetag (char *name);
+extern tndef_t *tnode_lookupornewnodetype (char *name, int *idx, int nsub, int nname, int nhooks, int flags);
+extern ntdef_t *tnode_lookupornewnodetag (char *name, int *idx, tndef_t *type, int flags);
 
 extern void tnode_setnthsub (tnode_t *t, int i, tnode_t *subnode);
 extern void tnode_setnthname (tnode_t *t, int i, struct TAG_name *name);

@@ -219,6 +219,23 @@ void nocc_fatal (char *fmt, ...)
 	return;
 }
 /*}}}*/
+/*{{{  void nocc_serious (char *fmt, ...)*/
+/*
+ *	called to report a serious, but not necessarily fatal, error (compiler-wide)
+ */
+void nocc_serious (char *fmt, ...)
+{
+	va_list ap;
+
+	va_start (ap, fmt);
+	fprintf (stderr, "%s: **serious**: ", progname);
+	vfprintf (stderr, fmt, ap);
+	fprintf (stderr, "\n");
+	fflush (stderr);
+	va_end (ap);
+	return;
+}
+/*}}}*/
 /*{{{  void nocc_error (char *fmt, ...)*/
 /*
  *	called to report an error (compiler-wide)

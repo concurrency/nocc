@@ -23,6 +23,7 @@
 extern void nocc_xinternal (char *fmt, ...);
 extern void nocc_pinternal (char *fmt, const char *file, const int line, ...);
 extern void nocc_fatal (char *fmt, ...);
+extern void nocc_serious (char *fmt, ...);
 extern void nocc_error (char *fmt, ...);
 extern void nocc_warning (char *fmt, ...);
 extern void nocc_message (char *fmt, ...);

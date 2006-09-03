@@ -514,6 +514,9 @@ ntdef_t *tnode_newnodetag (char *name, int *idx, tndef_t *type, int flags)
 {
 	ntdef_t *ntd;
 
+	if (!type) {
+		nocc_serious ("tnode_newnodetag(): NULL node type! (creating [%s])", name);
+	}
 	ntd = tnode_lookupnodetag (name);
 	if (!ntd) {
 		ntd = (ntdef_t *)smalloc (sizeof (ntdef_t));
@@ -577,6 +580,45 @@ ntdef_t *tnode_lookupnodetag (char *name)
 	ntdef_t *ntd;
 
 	ntd = stringhash_lookup (nodetags, name);
+	return ntd;
+}
+/*}}}*/
+/*{{{  tndef_t *tnode_lookupornewnodetype (char *name, int *idx, int nsub, int nname, int nhooks, int flags)*/
+/*
+ *	creates a new node-type only if it doesn't exist
+ */
+tndef_t *tnode_lookupornewnodetype (char *name, int *idx, int nsub, int nname, int nhooks, int flags)
+{
+	tndef_t *tnd = tnode_lookupnodetype (name);
+
+	if (!tnd) {
+		return tnode_newnodetype (name, idx, nsub, nname, nhooks, flags);
+	} else {
+		if ((tnd->nsub != nsub) || (tnd->nname != nname) || (tnd->nhooks != nhooks)) {
+			nocc_serious ("tnode_lookupornewnodetype(): already registered node type [%s] has a different structure (%d,%d,%d), specified (%d,%d,%d)", name, tnd->nsub, tnd->nname, tnd->nhooks, nsub, nname, nhooks);
+		} else if (tnd->tn_flags != flags) {
+			nocc_serious ("tnode_lookupornewnodetype(): already registered node type [%s] has different flags (0x%8.8x), specified (0x%8.8x)", name, (unsigned int)tnd->tn_flags, (unsigned int)flags);
+		}
+	}
+	return tnd;
+}
+/*}}}*/
+/*{{{  ntdef_t *tnode_lookupornewnodetag (char *name, int *idx, tndef_t *type, int flags)*/
+/*
+ *	creates a new node-tag only if it doesn't exist
+ */
+ntdef_t *tnode_lookupornewnodetag (char *name, int *idx, tndef_t *type, int flags)
+{
+	ntdef_t *ntd = tnode_lookupnodetag (name);
+
+	if (!ntd) {
+		return tnode_newnodetag (name, idx, type, flags);
+	} else {
+		if (ntd->ndef != type) {
+			nocc_serious ("tnode_lookupornewnodetag(): already registered node tag [%s] has different type (%s), specified (%s)", name,
+					ntd->ndef ? ntd->ndef->name : "(unknown)", type ? type->name : "(unknown)");
+		}
+	}
 	return ntd;
 }
 /*}}}*/

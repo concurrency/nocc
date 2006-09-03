@@ -94,9 +94,11 @@ typedef struct {
 static mcsp_parse_t *mcsp_priv = NULL;
 
 static feunit_t *feunit_set[] = {
+	&mcsp_decl_feunit,
 	&mcsp_process_feunit,
 	&mcsp_oper_feunit,
 	&mcsp_snode_feunit,
+	&mcsp_instance_feunit,
 	NULL
 };
 
