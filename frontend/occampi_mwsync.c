@@ -600,7 +600,7 @@ static int occampi_mwsync_codegen_altwait (langops_t *lops, tnode_t *node, codeg
 	}
 	/* down-stream alt-wait */
 	if (tnode_haslangop (lops->next, "codegen_altwait")) {
-		return tnode_calllangop (lops->next, "codegen_altwait", 2, node, cgen);
+		tnode_calllangop (lops->next, "codegen_altwait", 2, node, cgen);
 	}
 	if (altinf && altinf->bcount) {
 		/* and re-lock afterwards */
