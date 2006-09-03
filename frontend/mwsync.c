@@ -685,6 +685,8 @@ static int mwsync_mwsyncvar_codegen (compops_t *cops, tnode_t *node, codegen_t *
 		if (pbinf && pbinf->ecount) {
 			if (mws_opt_rpp) {
 				/*{{{  resign processes from barrier at end-of-par*/
+				codegen_callops (cgen, tsecondary, I_MWS_ALTLOCK);
+
 				codegen_callops (cgen, loadconst, pbinf->ecount);
 				codegen_callops (cgen, loadlocalpointer, ws_off);
 				codegen_callops (cgen, tsecondary, I_MWS_PBRESIGN);
@@ -703,6 +705,8 @@ static int mwsync_mwsyncvar_codegen (compops_t *cops, tnode_t *node, codegen_t *
 	} else if (node->tag == mwsi.tag_PROCBARRIER) {
 		/*{{{  maybe resign processes as they leave a PAR*/
 		if (!mws_opt_rpp) {
+			codegen_callops (cgen, tsecondary, I_MWS_ALTLOCK);
+
 			codegen_callops (cgen, loadconst, 1);
 			codegen_callops (cgen, loadpointer, othervar, 0);
 			codegen_callops (cgen, tsecondary, I_MWS_PBRESIGN);

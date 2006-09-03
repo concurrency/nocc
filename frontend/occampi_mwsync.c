@@ -247,6 +247,7 @@ static int occampi_mwsync_action_codegen (compops_t *cops, tnode_t *node, codege
 		tnode_t *bar = tnode_nthsubof (node, 0);
 
 		codegen_callops (cgen, debugline, node);
+		codegen_callops (cgen, tsecondary, I_MWS_ALTLOCK);
 		codegen_callops (cgen, loadpointer, bar, 0);
 		codegen_callops (cgen, tsecondary, I_MWS_SYNC);
 		i = 0;
