@@ -262,6 +262,43 @@ static int mcsp_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 /*}}}*/
 
 
+/*{{{  static int mcsp_fetrans_guardnode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
+/*
+ *	does front-end transformation on a GUARD
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_fetrans_guardnode (compops_t *cops, tnode_t **node, fetrans_t *fe)
+{
+	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
+
+	switch (mfe->parse) {
+	case 0:
+		if ((*node)->tag == mcsp.tag_GUARD) {
+			/* don't walk LHS */
+			fetrans_subtree (tnode_nthsubaddr (*node, 1), fe);
+			return 0;
+		}
+		break;
+	case 1:
+		/* nothing in this pass! */
+		break;
+	case 2:
+		if ((*node)->tag == mcsp.tag_GUARD) {
+			/*{{{  add event to current alphabet*/
+			tnode_t *event = tnode_nthsubof (*node, 0);
+
+			if (mfe->curalpha && (event->tag == mcsp.tag_EVENT)) {
+				mcsp_addtoalpha (mfe->curalpha, event);
+			}
+			/*}}}*/
+		}
+		break;
+	}
+	return 1;
+}
+/*}}}*/
+
+
 /*{{{  static int mcsp_snode_init_nodes (void)*/
 /*
  *	initialises MCSP structured nodes
@@ -287,6 +324,17 @@ static int mcsp_snode_init_nodes (void)
 
 	i = -1;
 	mcsp.tag_ALT = tnode_newnodetag ("MCSPALT", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  mcsp:guardnode -- GUARD*/
+	i = -1;
+	tnd = tnode_newnodetype ("mcsp:guardnode", &i, 2, 0, 0, TNF_NONE);				/* subnodes: 0 = guard, 1 = process */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_guardnode));
+	tnd->ops = cops;
+
+	i = -1;
+	mcsp.tag_GUARD = tnode_newnodetag ("MCSPGUARD", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

@@ -115,6 +115,7 @@ extern struct TAG_feunit mcsp_snode_feunit;		/* mcsp_snode.c */
 extern struct TAG_feunit mcsp_oper_feunit;		/* mcsp_oper.c */
 extern struct TAG_feunit mcsp_decl_feunit;		/* mcsp_decl.c */
 extern struct TAG_feunit mcsp_instance_feunit;		/* mcsp_instance.c */
+extern struct TAG_feunit mcsp_cnode_feunit;		/* mcsp_cnode.c */
 
 
 /* option handlers inside MCSP front-end */

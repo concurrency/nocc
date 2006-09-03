@@ -99,6 +99,7 @@ static feunit_t *feunit_set[] = {
 	&mcsp_oper_feunit,
 	&mcsp_snode_feunit,
 	&mcsp_instance_feunit,
+	&mcsp_cnode_feunit,
 	NULL
 };
 
