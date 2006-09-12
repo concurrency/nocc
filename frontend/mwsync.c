@@ -452,7 +452,7 @@ static tnode_t *mwsync_leaftype_gettype (langops_t *lops, tnode_t *t, tnode_t *d
 static int mwsync_leaftype_bytesfor (langops_t *lops, tnode_t *t, target_t *target)
 {
 	if (t->tag == mwsi.tag_BARRIERTYPE) {
-		return target->intsize * 4;
+		return target->intsize * 5;
 	} else if (t->tag == mwsi.tag_PARBARRIERTYPE) {
 		return target->intsize * 9;
 	} else if ((t->tag == mwsi.tag_PROCBARRIERTYPE) || (t->tag == mwsi.tag_BARRIERREFTYPE)) {
