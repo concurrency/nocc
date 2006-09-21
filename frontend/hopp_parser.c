@@ -85,6 +85,92 @@ langparser_t hopp_parser = {
 
 
 /*}}}*/
+/*{{{  private types/data*/
+
+/* FIXME: this should probably be generated from Adam's "Tree.hs" which defines the various nodes generated */
+
+
+typedef enum ENUM_hopp_tag {
+	HTAG_INVALID = 400,
+	HTAG_INTDECLSET = 401,
+	HTAG_OCPROC = 402,
+	HTAG_OCNAME = 403,
+	HTAG_OCFORMAL = 404,
+	HTAG_OCCHANOF = 405,
+	HTAG_OCBYTE = 406,
+	HTAG_OCSEQ = 407,
+	HTAG_OCSKIP = 408,
+	HTAG_OCMAINPROCESS = 409
+} hopp_tag_e;
+
+typedef struct TAG_hopp_tag {
+	char *name;
+	hopp_tag_e id;
+} hopp_tag_t;
+
+static hopp_tag_t htagdata[] = {
+	{"IntDeclSet", HTAG_INTDECLSET},
+	{"OcProc", HTAG_OCPROC},
+	{"OcName", HTAG_OCNAME},
+	{"OcFormal", HTAG_OCFORMAL},
+	{"OcChanOf", HTAG_OCCHANOF},
+	{"OcByte", HTAG_OCBYTE},
+	{"OcSeq", HTAG_OCSEQ},
+	{"OcSkip", HTAG_OCSKIP},
+	{"OcMainProcess", HTAG_OCMAINPROCESS},
+	{NULL, HTAG_INVALID}
+};
+
+
+typedef struct TAG_hopp_pstack {
+	hopp_tag_e id;
+	token_t *basetoken;
+	int subitems;
+	tnode_t *rnode;
+} hopp_pstack_t;
+
+
+/*}}}*/
+
+
+/*{{{  static hopp_pstack_t *hopp_newpstack (void)*/
+/*
+ *	creates a new hopp_pstack_t structure
+ */
+static hopp_pstack_t *hopp_newpstack (void)
+{
+	hopp_pstack_t *hps = (hopp_pstack_t *)smalloc (sizeof (hopp_pstack_t));
+
+	hps->id = HTAG_INVALID;
+	hps->basetoken = NULL;
+	hps->subitems = 0;
+	hps->rnode = NULL;
+
+	return hps;
+}
+/*}}}*/
+/*{{{  static void hopp_freepstack (hopp_pstack_t *hps)*/
+/*
+ *	frees a hopp_pstack_t structure
+ */
+static void hopp_freepstack (hopp_pstack_t *hps)
+{
+	if (!hps) {
+		nocc_warning ("hopp_freepstack(): NULL pointer!");
+		return;
+	}
+	if (hps->basetoken) {
+		lexer_freetoken (hps->basetoken);
+		hps->basetoken = NULL;
+	}
+	if (hps->rnode) {
+		tnode_free (hps->rnode);
+		hps->rnode = NULL;
+	}
+	sfree (hps);
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static int hopp_parser_init (lexfile_t *lf)*/
@@ -94,6 +180,8 @@ langparser_t hopp_parser = {
  */
 static int hopp_parser_init (lexfile_t *lf)
 {
+	int i;
+
 	if (compopts.verbose) {
 		nocc_message ("initialising haskell occam-pi parser parser..");
 	}
@@ -101,6 +189,11 @@ static int hopp_parser_init (lexfile_t *lf)
 		nocc_message ("hopp: failed to initialise occam-pi parser");
 		return -1;
 	}
+
+	for (i=0; htagdata[i].name && (htagdata[i].id != HTAG_INVALID); i++) {
+		keywords_add (htagdata[i].name, (int)htagdata[i].id, (void *)&hopp_parser);
+	}
+
 	return 0;
 }
 /*}}}*/
@@ -123,8 +216,59 @@ static void hopp_parser_shutdown (lexfile_t *lf)
  */
 static tnode_t *hopp_parser_parse (lexfile_t *lf)
 {
-	/* FIXME! */
-	return NULL;
+	token_t *tok;
+	tnode_t *tree = NULL;
+	DYNARRAY (hopp_pstack_t *, pstk);
+	int i;
+	
+	if (compopts.verbose) {
+		nocc_message ("hopp_parser_parse(): starting parse..");
+	}
+
+	dynarray_init (pstk);
+
+	for (;;) {
+		tok = lexer_nexttoken (lf);
+
+#if 1
+		lexer_dumptoken (stderr, tok);
+#endif
+
+		if (!tok) {
+			break;
+		} else if (tok->type == END) {
+			lexer_freetoken (tok);
+			break;
+		}
+
+		if (tok) {
+			lexer_freetoken (tok);
+		}
+	}
+
+	if (DA_CUR (pstk) == 1) {
+		hopp_pstack_t *tos = DA_NTHITEM (pstk, 0);
+
+		if (!tos->rnode) {
+			nocc_error ("hopp_parser_parse(): nothing at top-level!");
+		}
+		tree = tos->rnode;
+		tos->rnode = NULL;
+	} else if (DA_CUR (pstk) > 1) {
+		nocc_error ("hopp_parser_parse(): failed to parse!");
+	} else if (!DA_CUR (pstk)) {
+		nocc_error ("hopp_parser_parse(): nothing left after parse!");
+	}
+
+	/* trash partial stack */
+	for (i=0; i<DA_CUR (pstk); i++) {
+		hopp_pstack_t *si = DA_NTHITEM (pstk, i);
+
+		hopp_freepstack (si);
+	}
+	dynarray_trash (pstk);
+		
+	return tree;
 }
 /*}}}*/
 /*{{{  static tnode_t *hopp_parser_descparse (lexfile_t *lf)*/

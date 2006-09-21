@@ -322,6 +322,8 @@ static token_t *occampi_nexttoken (lexfile_t *lf, lexpriv_t *lp)
 	tok = lexer_newtoken (NOTOKEN);
 	tok->origin = (void *)lf;
 	tok->lineno = lf->lineno;
+
+tokenloop:
 	if (lp->offset == lp->size) {
 		/* reached EOF */
 		tok->type = END;
@@ -329,7 +331,6 @@ static token_t *occampi_nexttoken (lexfile_t *lf, lexpriv_t *lp)
 	}
 
 	/* make some sort of guess on what we're dealing with */
-tokenloop:
 	ch = lp->buffer + lp->offset;
 	chlim = lp->buffer + lp->size;
 
