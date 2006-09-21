@@ -12,5 +12,6 @@ noinst_HEADERS = version.h nocc.h support.h platform.h opts.h keywords.h \
 			defcheck.h map.h allocate.h target.h codegen.h krocetc.h transputer.h \
 			extn.h fetrans.h betrans.h feunit.h occampi_fe.h crypto.h mcsp_fe.h \
 			rcxb.h rcxb_fe.h \
-			mwsync.h
+			mwsync.h \
+			hopp.h hopp_fe.h
 

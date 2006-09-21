@@ -44,6 +44,9 @@
 
 /*{{{  forward decls*/
 
+static int hopp_openfile (lexfile_t *lf, lexpriv_t *lp);
+static int hopp_closefile (lexfile_t *lf, lexpriv_t *lp);
+static token_t *hopp_nexttoken (lexfile_t *lf, lexpriv_t *lp);
 
 /*}}}*/
 /*{{{  public lexer struct*/

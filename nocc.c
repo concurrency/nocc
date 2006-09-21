@@ -67,6 +67,7 @@
 #include "occampi_fe.h"
 #include "mcsp_fe.h"
 #include "rcxb_fe.h"
+#include "hopp_fe.h"
 #include "version.h"
 
 /*}}}*/
@@ -1057,6 +1058,12 @@ int main (int argc, char **argv)
 		exit (EXIT_FAILURE);
 	}
 
+	/*}}}*/
+	/*{{{  initialise haskell occam-pi language lexer and parser (just registers)*/
+	if (hopp_register_frontend ()) {
+		nocc_error ("failed to initialise built-in hopp language frontend");
+		exit (EXIT_FAILURE);
+	}
 	/*}}}*/
 	/*{{{  initialise MCSP and RCX-BASIC language lexers and parsers (again, just registration)*/
 	if (mcsp_register_frontend ()) {
