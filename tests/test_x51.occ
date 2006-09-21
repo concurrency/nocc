@@ -1,0 +1,9 @@
+
+-- test_x50.occ -- mirroring test_h1.hopp
+
+PROC fred1 (CHAN OF BYTE scr)
+  SEQ
+    SKIP
+:
+
+

@@ -1,0 +1,2 @@
+IntDeclSet [OcProc (OcName "fred1") [OcFormal (OcChanOf OcByte) (OcName "scr")] (OcSeq [OcSkip])] OcMainProcess
+

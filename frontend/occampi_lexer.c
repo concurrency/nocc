@@ -319,8 +319,7 @@ static token_t *occampi_nexttoken (lexfile_t *lf, lexpriv_t *lp)
 		return NULL;
 	}
 
-	tok = (token_t *)smalloc (sizeof (token_t));
-	tok->type = NOTOKEN;
+	tok = lexer_newtoken (NOTOKEN);
 	tok->origin = (void *)lf;
 	tok->lineno = lf->lineno;
 	if (lp->offset == lp->size) {

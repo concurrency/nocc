@@ -1574,7 +1574,7 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:fparam ::= [ 0 occampi:primtype 1 ] [ 0 @CHAN 3 ] [ 0 occampi:name 9 ] [ 0 @VAL 22 ] " \
 				"[ 1 occampi:name 2 ] [ 2 {<opi:fparam2nsreduce>} ] [ 2 -* ] " \
-				"[ 3 occampi:protocol 4 ] [ 3 @@! 16 ] [ 3 @@? 19 ] [ 4 {<opi:chanpush>} ] [ 4 occampi:name 5 ] [ 5 @@! 6 ] [ 5 @@? 7 ] [ 5 -* 8 ] [ 6 {<opi:directedchanoutput>} ] [ 6 -* 8 ] " \
+				"[ 3 @OF 3 ] [ 3 occampi:protocol 4 ] [ 3 @@! 16 ] [ 3 @@? 19 ] [ 4 {<opi:chanpush>} ] [ 4 occampi:name 5 ] [ 5 @@! 6 ] [ 5 @@? 7 ] [ 5 -* 8 ] [ 6 {<opi:directedchanoutput>} ] [ 6 -* 8 ] " \
 				"[ 7 {<opi:directedchaninput>} ] [ 7 -* 8 ] [ 8 {<opi:fparam2nsreduce>} -* ] " \
 				"[ 9 -* 10 ] [ 10 @@! 11 ] [ 10 @@? 12 ] [ 10 -* 13 ] [ 11 {<opi:directedchanoutput>} ] [ 11 -* 13 ] [ 12 {<opi:directedchaninput>} ] [ 12 -* 13 ] " \
 				"[ 13 occampi:name 14 ] [ 13 -* 15 ] [ 14 {<opi:fparam2nsreduce>} -* ] [ 15 {<opi:fparam1nsreduce>} -* ] " \
