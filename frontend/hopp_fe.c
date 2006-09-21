@@ -51,7 +51,8 @@
  */
 int hopp_register_frontend (void)
 {
-	hopp_lexer.parser = &occampi_parser;
+	hopp_lexer.parser = &hopp_parser;
+	hopp_parser.lexer = &hopp_lexer;
 
 	if (lexer_registerlang (&hopp_lexer)) {
 		return -1;

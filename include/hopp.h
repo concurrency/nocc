@@ -21,8 +21,10 @@
 #define __HOPP_H
 
 struct TAG_langlexer;
+struct TAG_langparser;
 
 extern struct TAG_langlexer hopp_lexer;
+extern struct TAG_langparser hopp_parser;
 
 
 #endif	/* !__HOPP_H */
