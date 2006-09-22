@@ -83,11 +83,11 @@ keyword_t *keywords_lookup (const char *str, const int len)
 	return kw;
 }
 /*}}}*/
-/*{{{  void keywords_add (const char *str, const int tagval, void *origin)*/
+/*{{{  keyword_t *keywords_add (const char *str, const int tagval, void *origin)*/
 /*
  *	adds a keyword to the compiler
  */
-void keywords_add (const char *str, const int tagval, void *origin)
+keyword_t *keywords_add (const char *str, const int tagval, void *origin)
 {
 	keyword_t *kw = (keyword_t *)smalloc (sizeof (keyword_t));
 
@@ -96,7 +96,7 @@ void keywords_add (const char *str, const int tagval, void *origin)
 	kw->origin = origin;
 
 	stringhash_insert (extrakeywords, kw, kw->name);
-	return;
+	return kw;
 }
 /*}}}*/
 

@@ -91,6 +91,7 @@ langparser_t hopp_parser = {
 
 
 typedef enum ENUM_hopp_tag {
+	HTAG_LIST = 399,
 	HTAG_INVALID = 400,
 	HTAG_INTDECLSET = 401,
 	HTAG_OCPROC = 402,
@@ -106,19 +107,20 @@ typedef enum ENUM_hopp_tag {
 typedef struct TAG_hopp_tag {
 	char *name;
 	hopp_tag_e id;
+	keyword_t *kw;
 } hopp_tag_t;
 
 static hopp_tag_t htagdata[] = {
-	{"IntDeclSet", HTAG_INTDECLSET},
-	{"OcProc", HTAG_OCPROC},
-	{"OcName", HTAG_OCNAME},
-	{"OcFormal", HTAG_OCFORMAL},
-	{"OcChanOf", HTAG_OCCHANOF},
-	{"OcByte", HTAG_OCBYTE},
-	{"OcSeq", HTAG_OCSEQ},
-	{"OcSkip", HTAG_OCSKIP},
-	{"OcMainProcess", HTAG_OCMAINPROCESS},
-	{NULL, HTAG_INVALID}
+	{"IntDeclSet", HTAG_INTDECLSET, NULL},
+	{"OcProc", HTAG_OCPROC, NULL},
+	{"OcName", HTAG_OCNAME, NULL},
+	{"OcFormal", HTAG_OCFORMAL, NULL},
+	{"OcChanOf", HTAG_OCCHANOF, NULL},
+	{"OcByte", HTAG_OCBYTE, NULL},
+	{"OcSeq", HTAG_OCSEQ, NULL},
+	{"OcSkip", HTAG_OCSKIP, NULL},
+	{"OcMainProcess", HTAG_OCMAINPROCESS, NULL},
+	{NULL, HTAG_INVALID, NULL}
 };
 
 
@@ -127,8 +129,16 @@ typedef struct TAG_hopp_pstack {
 	token_t *basetoken;
 	int subitems;
 	tnode_t *rnode;
+	int inlist;
+	int bracketed;
 } hopp_pstack_t;
 
+
+static symbol_t *sym_lbracket = NULL;
+static symbol_t *sym_rbracket = NULL;
+static symbol_t *sym_box = NULL;
+static symbol_t *sym_lparen = NULL;
+static symbol_t *sym_rparen = NULL;
 
 /*}}}*/
 
@@ -145,6 +155,8 @@ static hopp_pstack_t *hopp_newpstack (void)
 	hps->basetoken = NULL;
 	hps->subitems = 0;
 	hps->rnode = NULL;
+	hps->inlist = 0;
+	hps->bracketed = 0;
 
 	return hps;
 }
@@ -173,6 +185,28 @@ static void hopp_freepstack (hopp_pstack_t *hps)
 /*}}}*/
 
 
+/*{{{  static int hopp_pstackstart (hopp_pstack_t *hps)*/
+/*
+ *	called when a keyword token is encountered
+ *	returns 1 if the stack node should be added to the parser stack, 0 otherwise
+ */
+static int hopp_pstackstart (hopp_pstack_t *hps)
+{
+	switch ((hopp_tag_e)hps->basetoken->u.kw->tagval) {
+	case HTAG_INVALID:
+		return 0;
+	case HTAG_INTDECLSET:
+		hps->subitems = 1;
+		return 1;
+	case HTAG_OCPROC:
+		hps->subitems = 3;
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int hopp_parser_init (lexfile_t *lf)*/
 /*
  *	initialises the hopp parser
@@ -190,9 +224,19 @@ static int hopp_parser_init (lexfile_t *lf)
 		return -1;
 	}
 
+	/* keywords */
 	for (i=0; htagdata[i].name && (htagdata[i].id != HTAG_INVALID); i++) {
-		keywords_add (htagdata[i].name, (int)htagdata[i].id, (void *)&hopp_parser);
+		keyword_t *kw = keywords_add (htagdata[i].name, (int)htagdata[i].id, (void *)&hopp_parser);
+
+		htagdata[i].kw = kw;
 	}
+
+	/* symbols */
+	sym_lbracket = symbols_lookup ("[", 1);
+	sym_rbracket = symbols_lookup ("]", 1);
+	sym_box = symbols_lookup ("[]", 2);
+	sym_lparen = symbols_lookup ("(", 1);
+	sym_rparen = symbols_lookup (")", 1);
 
 	return 0;
 }
@@ -216,10 +260,9 @@ static void hopp_parser_shutdown (lexfile_t *lf)
  */
 static tnode_t *hopp_parser_parse (lexfile_t *lf)
 {
-	token_t *tok;
 	tnode_t *tree = NULL;
 	DYNARRAY (hopp_pstack_t *, pstk);
-	int i;
+	int i, r;
 	
 	if (compopts.verbose) {
 		nocc_message ("hopp_parser_parse(): starting parse..");
@@ -228,19 +271,78 @@ static tnode_t *hopp_parser_parse (lexfile_t *lf)
 	dynarray_init (pstk);
 
 	for (;;) {
-		tok = lexer_nexttoken (lf);
+		hopp_pstack_t *thispstk = NULL;
+		token_t *tok = NULL;
+		int dofree = 0;
 
+		tok = lexer_nexttoken (lf);
+		if (!tok) {
+			break;
+		}
 #if 1
 		lexer_dumptoken (stderr, tok);
 #endif
 
-		if (!tok) {
+		switch (tok->type) {
+			/*{{{  SYMBOL -- meta-data for the haskell tree probably*/
+		case SYMBOL:
+			if (tok->u.sym == sym_lbracket) {
+				/* starting list */
+				thispstk = hopp_newpstack ();
+				thispstk->id = HTAG_LIST;
+				thispstk->rnode = parser_newlistnode (lf);
+
+				dynarray_add (pstk, thispstk);
+			} else if (tok->u.sym == sym_lparen) {
+				/* starting list */
+				thispstk = hopp_newpstack ();
+				thispstk->id = HTAG_INVALID;
+				thispstk->bracketed = 1;
+
+				dynarray_add (pstk, thispstk);
+			}
 			break;
-		} else if (tok->type == END) {
+			/*}}}*/
+			/*{{{  KEYWORD -- probably a tree token*/
+		case KEYWORD:
+			if (DA_CUR (pstk) >= 1) {
+				thispstk = DA_NTHITEM (pstk, DA_CUR (pstk) - 1);
+				if (thispstk->id == HTAG_INVALID) {
+					/* use this */
+					thispstk->basetoken = tok;
+					tok = NULL;
+				} else {
+					/* don't use this one */
+					thispstk = NULL;
+				}
+			}
+			if (!thispstk) {
+				thispstk = hopp_newpstack ();
+				thispstk->basetoken = tok;
+				tok = NULL;
+				dofree = 1;
+			}
+
+			r = hopp_pstackstart (thispstk);
+			if (r == 1) {
+				/* add to stack */
+				dynarray_add (pstk, thispstk);
+			} else if (!r && dofree) {
+				hopp_freepstack (thispstk);
+			}
+
+			break;
+			/*}}}*/
+			/*{{{  default -- ignore*/
+		default:
+			break;
+			/*}}}*/
+		}
+
+		if (tok && (tok->type == END)) {
 			lexer_freetoken (tok);
 			break;
 		}
-
 		if (tok) {
 			lexer_freetoken (tok);
 		}
@@ -255,7 +357,7 @@ static tnode_t *hopp_parser_parse (lexfile_t *lf)
 		tree = tos->rnode;
 		tos->rnode = NULL;
 	} else if (DA_CUR (pstk) > 1) {
-		nocc_error ("hopp_parser_parse(): failed to parse!");
+		nocc_error ("hopp_parser_parse(): failed to parse! (%d things left on pstack)", DA_CUR (pstk));
 	} else if (!DA_CUR (pstk)) {
 		nocc_error ("hopp_parser_parse(): nothing left after parse!");
 	}

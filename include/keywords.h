@@ -28,7 +28,7 @@ typedef struct TAG_keyword {
 
 extern void keywords_init (void);
 extern keyword_t *keywords_lookup (const char *str, const int len);
-extern void keywords_add (const char *str, const int tagval, void *origin);
+extern keyword_t *keywords_add (const char *str, const int tagval, void *origin);
 
 
 #endif	/* !__KEYWORDS_H */
