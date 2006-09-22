@@ -185,22 +185,59 @@ static void hopp_freepstack (hopp_pstack_t *hps)
 /*}}}*/
 
 
-/*{{{  static int hopp_pstackstart (hopp_pstack_t *hps)*/
+/*{{{  static int hopp_pstackstart (hopp_pstack_t *hps, lexfile_t *lf)*/
 /*
  *	called when a keyword token is encountered
  *	returns 1 if the stack node should be added to the parser stack, 0 otherwise
  */
-static int hopp_pstackstart (hopp_pstack_t *hps)
+static int hopp_pstackstart (hopp_pstack_t *hps, lexfile_t *lf)
 {
 	switch ((hopp_tag_e)hps->basetoken->u.kw->tagval) {
 	case HTAG_INVALID:
 		return 0;
 	case HTAG_INTDECLSET:
+		hps->id = HTAG_INTDECLSET;
 		hps->subitems = 1;
 		return 1;
 	case HTAG_OCPROC:
+		hps->id = HTAG_OCPROC;
 		hps->subitems = 3;
+		hps->rnode = tnode_create (opi.tag_PROCDECL, lf, NULL, NULL, NULL, NULL);
 		return 1;
+	case HTAG_OCNAME:
+		hps->id = HTAG_OCNAME;
+		hps->subitems = 1;
+		hps->rnode = tnode_create (opi.tag_NAME, lf, NULL);
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  */
+/*
+ *	called to handle a string
+ *	returns -1 on failure, 1 if this node is now complete, 0 otherwise
+ */
+static int hopp_pstack_addstring (hopp_pstack_t *hps, token_t **stokp, lexfile_t *lf)
+{
+	if (!hps || !stokp || !*stokp) {
+		nocc_error ("hopp_pstack_addstring(): NULL parameters!");
+		return -1;
+	}
+#if 0
+	nocc_message ("hopp_pstack_addstring(): hps->id = %d", (int)hps->id);
+#endif
+	switch (hps->id) {
+	case HTAG_OCNAME:
+		tnode_setnthhook (hps->rnode, 0, occampi_stringtoken_to_namehook (*stokp));
+		*stokp = NULL;
+#if 0
+		nocc_message ("hopp_pstack_addstring(): set name in tree:");
+		tnode_dumptree (hps->rnode, 1, stderr);
+#endif
+		return 1;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -274,6 +311,7 @@ static tnode_t *hopp_parser_parse (lexfile_t *lf)
 		hopp_pstack_t *thispstk = NULL;
 		token_t *tok = NULL;
 		int dofree = 0;
+		int testend = 0;
 
 		tok = lexer_nexttoken (lf);
 		if (!tok) {
@@ -294,12 +332,23 @@ static tnode_t *hopp_parser_parse (lexfile_t *lf)
 
 				dynarray_add (pstk, thispstk);
 			} else if (tok->u.sym == sym_lparen) {
-				/* starting list */
+				/* starting item */
 				thispstk = hopp_newpstack ();
 				thispstk->id = HTAG_INVALID;
 				thispstk->bracketed = 1;
 
 				dynarray_add (pstk, thispstk);
+			} else if (tok->u.sym == sym_rparen) {
+				/* ending item */
+			}
+			break;
+			/*}}}*/
+			/*{{{  STRING -- quoted string*/
+		case STRING:
+			if (!DA_CUR (pstk)) {
+				nocc_error ("got string but nothing on stack!");
+			} else {
+				r = hopp_pstack_addstring (DA_NTHITEM (pstk, DA_CUR (pstk) - 1), &tok, lf);
 			}
 			break;
 			/*}}}*/
@@ -317,18 +366,23 @@ static tnode_t *hopp_parser_parse (lexfile_t *lf)
 				}
 			}
 			if (!thispstk) {
+				/* create a new pstack */
+
 				thispstk = hopp_newpstack ();
 				thispstk->basetoken = tok;
 				tok = NULL;
-				dofree = 1;
-			}
 
-			r = hopp_pstackstart (thispstk);
-			if (r == 1) {
-				/* add to stack */
-				dynarray_add (pstk, thispstk);
-			} else if (!r && dofree) {
-				hopp_freepstack (thispstk);
+				r = hopp_pstackstart (thispstk, lf);
+
+				if (r == 1) {
+					/* add to stack */
+					dynarray_add (pstk, thispstk);
+				} else if (!r && dofree) {
+					hopp_freepstack (thispstk);
+					thispstk = NULL;
+				}
+			} else {
+				r = hopp_pstackstart (thispstk, lf);
 			}
 
 			break;
@@ -366,6 +420,10 @@ static tnode_t *hopp_parser_parse (lexfile_t *lf)
 	for (i=0; i<DA_CUR (pstk); i++) {
 		hopp_pstack_t *si = DA_NTHITEM (pstk, i);
 
+		if (si->rnode) {
+			nocc_message ("hopp_parser_parse(): leftover tree fragment at level %d:", i);
+			tnode_dumptree (si->rnode, 1, stderr);
+		}
 		hopp_freepstack (si);
 	}
 	dynarray_trash (pstk);

@@ -141,6 +141,22 @@ void *occampi_nametoken_to_hook (void *ntok)
 	return (void *)rawname;
 }
 /*}}}*/
+/*{{{  void *occampi_stringtoken_to_namehook (void *ntok)*/
+/*
+ *	turns a string token into a hooknode for a tag_NAME
+ */
+void *occampi_stringtoken_to_namehook (void *ntok)
+{
+	token_t *tok = (token_t *)ntok;
+	char *rawname;
+
+	rawname = string_ndup (tok->u.str.ptr, tok->u.str.len);
+
+	lexer_freetoken (tok);
+
+	return (void *)rawname;
+}
+/*}}}*/
 /*{{{  void *occampi_integertoken_to_hook (void *itok)*/
 /*
  *	turns an integer token into a hooknode for tag_LITINT

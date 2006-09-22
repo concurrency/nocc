@@ -238,6 +238,7 @@ extern struct TAG_feunit occampi_mwsync_feunit;		/* occampi_mwsync.c */
 
 /* these are for language units to use in reductions */
 extern void *occampi_nametoken_to_hook (void *ntok);
+extern void *occampi_stringtoken_to_namehook (void *ntok);
 extern void *occampi_integertoken_to_hook (void *itok);
 extern void *occampi_realtoken_to_hook (void *itok);
 extern void *occampi_stringtoken_to_hook (void *itok);
