@@ -124,16 +124,6 @@ static hopp_tag_t htagdata[] = {
 };
 
 
-typedef struct TAG_hopp_pstack {
-	hopp_tag_e id;
-	token_t *basetoken;
-	int subitems;
-	tnode_t *rnode;
-	int inlist;
-	int bracketed;
-} hopp_pstack_t;
-
-
 static symbol_t *sym_lbracket = NULL;
 static symbol_t *sym_rbracket = NULL;
 static symbol_t *sym_box = NULL;
@@ -143,105 +133,59 @@ static symbol_t *sym_rparen = NULL;
 /*}}}*/
 
 
-/*{{{  static hopp_pstack_t *hopp_newpstack (void)*/
-/*
- *	creates a new hopp_pstack_t structure
- */
-static hopp_pstack_t *hopp_newpstack (void)
-{
-	hopp_pstack_t *hps = (hopp_pstack_t *)smalloc (sizeof (hopp_pstack_t));
 
-	hps->id = HTAG_INVALID;
-	hps->basetoken = NULL;
-	hps->subitems = 0;
-	hps->rnode = NULL;
-	hps->inlist = 0;
-	hps->bracketed = 0;
-
-	return hps;
-}
-/*}}}*/
-/*{{{  static void hopp_freepstack (hopp_pstack_t *hps)*/
+/*{{{  static tnode_t *hopp_parse_toplevel (lexfile_t *lf)*/
 /*
- *	frees a hopp_pstack_t structure
+ *	called to parse a whole chunk of input (tag and argument(s))
+ *	does this through recursive drop-down
+ *	returns tree on success, NULL on failure
  */
-static void hopp_freepstack (hopp_pstack_t *hps)
+static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 {
-	if (!hps) {
-		nocc_warning ("hopp_freepstack(): NULL pointer!");
-		return;
-	}
-	if (hps->basetoken) {
-		lexer_freetoken (hps->basetoken);
-		hps->basetoken = NULL;
-	}
-	if (hps->rnode) {
-		tnode_free (hps->rnode);
-		hps->rnode = NULL;
-	}
-	sfree (hps);
-	return;
-}
-/*}}}*/
+	token_t *tok = lexer_nexttoken (lf);
+	tnode_t *tree = NULL;
 
+	if (!tok) {
+		return NULL;
+	} else if (tok->type == END) {
+		lexer_freetoken (tok);
+		return NULL;
+	}
 
-/*{{{  static int hopp_pstackstart (hopp_pstack_t *hps, lexfile_t *lf)*/
-/*
- *	called when a keyword token is encountered
- *	returns 1 if the stack node should be added to the parser stack, 0 otherwise
- */
-static int hopp_pstackstart (hopp_pstack_t *hps, lexfile_t *lf)
-{
-	switch ((hopp_tag_e)hps->basetoken->u.kw->tagval) {
-	case HTAG_INVALID:
-		return 0;
-	case HTAG_INTDECLSET:
-		hps->id = HTAG_INTDECLSET;
-		hps->subitems = 1;
-		return 1;
-	case HTAG_OCPROC:
-		hps->id = HTAG_OCPROC;
-		hps->subitems = 3;
-		hps->rnode = tnode_create (opi.tag_PROCDECL, lf, NULL, NULL, NULL, NULL);
-		return 1;
-	case HTAG_OCNAME:
-		hps->id = HTAG_OCNAME;
-		hps->subitems = 1;
-		hps->rnode = tnode_create (opi.tag_NAME, lf, NULL);
-		return 1;
-	}
-	return 0;
-}
-/*}}}*/
-/*{{{  */
-/*
- *	called to handle a string
- *	returns -1 on failure, 1 if this node is now complete, 0 otherwise
- */
-static int hopp_pstack_addstring (hopp_pstack_t *hps, token_t **stokp, lexfile_t *lf)
-{
-	if (!hps || !stokp || !*stokp) {
-		nocc_error ("hopp_pstack_addstring(): NULL parameters!");
-		return -1;
-	}
-#if 0
-	nocc_message ("hopp_pstack_addstring(): hps->id = %d", (int)hps->id);
-#endif
-	switch (hps->id) {
-	case HTAG_OCNAME:
-		tnode_setnthhook (hps->rnode, 0, occampi_stringtoken_to_namehook (*stokp));
-		*stokp = NULL;
-#if 0
-		nocc_message ("hopp_pstack_addstring(): set name in tree:");
-		tnode_dumptree (hps->rnode, 1, stderr);
-#endif
-		return 1;
-	default:
+	switch (tok->type) {
+		/*{{{  SYMBOL -- probably meta-level stuff*/
+	case SYMBOL:
+		if (tok->u.sym == sym_lparen) {
+			/* this is a closed chunk */
+			lexer_freetoken (tok);
+
+			tree = hopp_parse_toplevel (lf);
+			tok = lexer_nexttoken (lf);
+			if (!tok || (tok->type != SYMBOL) || (tok->u.sym != sym_rparen)) {
+				nocc_warning ("hopp_parse_toplevel(): expected ')' but got:");
+				lexer_dumptoken (stderr, tok);
+			} else {
+				break;
+			}
+		}
 		break;
+		/*}}}*/
+		/*{{{  default -- warning and ignore*/
+	default:
+		nocc_warning ("hopp_parse_toplevel(): unhandled token:");
+		lexer_dumptoken (stderr, tok);
+		break;
+		/*}}}*/
 	}
-	return 0;
+
+	if (tok) {
+		lexer_freetoken (tok);
+	}
+
+	return tree;
 }
 /*}}}*/
+
 
 
 /*{{{  static int hopp_parser_init (lexfile_t *lf)*/
@@ -298,136 +242,17 @@ static void hopp_parser_shutdown (lexfile_t *lf)
 static tnode_t *hopp_parser_parse (lexfile_t *lf)
 {
 	tnode_t *tree = NULL;
-	DYNARRAY (hopp_pstack_t *, pstk);
 	int i, r;
 	
 	if (compopts.verbose) {
 		nocc_message ("hopp_parser_parse(): starting parse..");
 	}
 
-	dynarray_init (pstk);
-
-	for (;;) {
-		hopp_pstack_t *thispstk = NULL;
-		token_t *tok = NULL;
-		int dofree = 0;
-		int testend = 0;
-
-		tok = lexer_nexttoken (lf);
-		if (!tok) {
-			break;
-		}
-#if 1
-		lexer_dumptoken (stderr, tok);
-#endif
-
-		switch (tok->type) {
-			/*{{{  SYMBOL -- meta-data for the haskell tree probably*/
-		case SYMBOL:
-			if (tok->u.sym == sym_lbracket) {
-				/* starting list */
-				thispstk = hopp_newpstack ();
-				thispstk->id = HTAG_LIST;
-				thispstk->rnode = parser_newlistnode (lf);
-
-				dynarray_add (pstk, thispstk);
-			} else if (tok->u.sym == sym_lparen) {
-				/* starting item */
-				thispstk = hopp_newpstack ();
-				thispstk->id = HTAG_INVALID;
-				thispstk->bracketed = 1;
-
-				dynarray_add (pstk, thispstk);
-			} else if (tok->u.sym == sym_rparen) {
-				/* ending item */
-			}
-			break;
-			/*}}}*/
-			/*{{{  STRING -- quoted string*/
-		case STRING:
-			if (!DA_CUR (pstk)) {
-				nocc_error ("got string but nothing on stack!");
-			} else {
-				r = hopp_pstack_addstring (DA_NTHITEM (pstk, DA_CUR (pstk) - 1), &tok, lf);
-			}
-			break;
-			/*}}}*/
-			/*{{{  KEYWORD -- probably a tree token*/
-		case KEYWORD:
-			if (DA_CUR (pstk) >= 1) {
-				thispstk = DA_NTHITEM (pstk, DA_CUR (pstk) - 1);
-				if (thispstk->id == HTAG_INVALID) {
-					/* use this */
-					thispstk->basetoken = tok;
-					tok = NULL;
-				} else {
-					/* don't use this one */
-					thispstk = NULL;
-				}
-			}
-			if (!thispstk) {
-				/* create a new pstack */
-
-				thispstk = hopp_newpstack ();
-				thispstk->basetoken = tok;
-				tok = NULL;
-
-				r = hopp_pstackstart (thispstk, lf);
-
-				if (r == 1) {
-					/* add to stack */
-					dynarray_add (pstk, thispstk);
-				} else if (!r && dofree) {
-					hopp_freepstack (thispstk);
-					thispstk = NULL;
-				}
-			} else {
-				r = hopp_pstackstart (thispstk, lf);
-			}
-
-			break;
-			/*}}}*/
-			/*{{{  default -- ignore*/
-		default:
-			break;
-			/*}}}*/
-		}
-
-		if (tok && (tok->type == END)) {
-			lexer_freetoken (tok);
-			break;
-		}
-		if (tok) {
-			lexer_freetoken (tok);
-		}
+	tree = hopp_parse_toplevel (lf);
+	if (!tree) {
+		nocc_warning ("hopp_parser_parse(): got nothing back at top-level..");
 	}
 
-	if (DA_CUR (pstk) == 1) {
-		hopp_pstack_t *tos = DA_NTHITEM (pstk, 0);
-
-		if (!tos->rnode) {
-			nocc_error ("hopp_parser_parse(): nothing at top-level!");
-		}
-		tree = tos->rnode;
-		tos->rnode = NULL;
-	} else if (DA_CUR (pstk) > 1) {
-		nocc_error ("hopp_parser_parse(): failed to parse! (%d things left on pstack)", DA_CUR (pstk));
-	} else if (!DA_CUR (pstk)) {
-		nocc_error ("hopp_parser_parse(): nothing left after parse!");
-	}
-
-	/* trash partial stack */
-	for (i=0; i<DA_CUR (pstk); i++) {
-		hopp_pstack_t *si = DA_NTHITEM (pstk, i);
-
-		if (si->rnode) {
-			nocc_message ("hopp_parser_parse(): leftover tree fragment at level %d:", i);
-			tnode_dumptree (si->rnode, 1, stderr);
-		}
-		hopp_freepstack (si);
-	}
-	dynarray_trash (pstk);
-		
 	return tree;
 }
 /*}}}*/
