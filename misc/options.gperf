@@ -43,12 +43,12 @@ stop-aliascheck,	'\0',	opt_setstopflag,	(void *)8,			"1stop after alias check",	
 stop-usagecheck,	'\0',	opt_setstopflag,	(void *)9,			"1stop after parallel-usage check",			26
 stop-undefcheck,	'\0',	opt_setstopflag,	(void *)10,			"1stop after undefined-usage check",			27
 stop-postcheck,		'\0',	opt_setstopflag,	(void *)11,			"1stop after post-check",				28
-stop-fetrans,		'\0',	opt_setstopflag,	(void *)11,			"1stop after front-end tree transform",			29
-stop-betrans,		'\0',	opt_setstopflag,	(void *)12,			"1stop after back-end tree transform",			30
-stop-namemap,		'\0',	opt_setstopflag,	(void *)13,			"1stop after name-map",					31
-stop-prealloc,		'\0',	opt_setstopflag,	(void *)14,			"1stop after pre-allocation",				32
-stop-alloc,		'\0',	opt_setstopflag,	(void *)15,			"1stop after variable allocation",			33
-stop-codegen,		'\0',	opt_setstopflag,	(void *)16,			"1stop after code-generation",				34
+stop-fetrans,		'\0',	opt_setstopflag,	(void *)12,			"1stop after front-end tree transform",			29
+stop-betrans,		'\0',	opt_setstopflag,	(void *)13,			"1stop after back-end tree transform",			30
+stop-namemap,		'\0',	opt_setstopflag,	(void *)14,			"1stop after name-map",					31
+stop-prealloc,		'\0',	opt_setstopflag,	(void *)15,			"1stop after pre-allocation",				32
+stop-alloc,		'\0',	opt_setstopflag,	(void *)16,			"1stop after variable allocation",			33
+stop-codegen,		'\0',	opt_setstopflag,	(void *)17,			"1stop after code-generation",				34
 skip-aliascheck,	'\0',	opt_clearintflag,	&(compopts.doaliascheck),	"1skip alias checks",					35
 skip-usagecheck,	'\0',	opt_clearintflag,	&(compopts.dousagecheck),	"1skip parallel usage checks",				36
 skip-defcheck,		'\0',	opt_clearintflag,	&(compopts.dodefcheck),		"1skip undefinedness checks",				37

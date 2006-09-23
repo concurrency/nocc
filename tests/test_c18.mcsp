@@ -1,0 +1,7 @@
+
+# test_c18.mcsp -- testing
+
+THING (x) ::= x -> SKIP
+
+# SYSTEM (x,y) ::= (x -> SKIP) [] (y -> SKIP)
+

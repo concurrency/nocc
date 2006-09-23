@@ -48,6 +48,7 @@
 #include "constprop.h"
 #include "typecheck.h"
 #include "usagecheck.h"
+#include "postcheck.h"
 #include "fetrans.h"
 #include "betrans.h"
 #include "map.h"
@@ -155,6 +156,7 @@ static int mcsp_namemap_snode (compops_t *cops, tnode_t **node, map_t *map)
 
 		/* ALT itself needs a bit of space */
 		*node = map->target->newname (*node, NULL, map, map->target->aws.as_alt + (extraslots * map->target->slotsize), map->target->bws.ds_altio, 0, 0, 0, 0);
+
 		return 0;
 		/*}}}*/
 	}
@@ -262,6 +264,21 @@ static int mcsp_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 /*}}}*/
 
 
+/*{{{  static int mcsp_postcheck_guardnode (compops_t *cops, tnode_t **node, postcheck_t *pc)*/
+/*
+ *	does post-checking transform on a GUARD
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_postcheck_guardnode (compops_t *cops, tnode_t **node, postcheck_t *pc)
+{
+	if ((*node)->tag == mcsp.tag_GUARD) {
+		/* don't walk LHS */
+		postcheck_subtree (tnode_nthsubaddr (*node, 1), pc);
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int mcsp_fetrans_guardnode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transformation on a GUARD
@@ -330,6 +347,7 @@ static int mcsp_snode_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("mcsp:guardnode", &i, 2, 0, 0, TNF_NONE);				/* subnodes: 0 = guard, 1 = process */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "postcheck", 2, COMPOPTYPE (mcsp_postcheck_guardnode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_guardnode));
 	tnd->ops = cops;
 

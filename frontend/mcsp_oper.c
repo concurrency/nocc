@@ -48,6 +48,7 @@
 #include "constprop.h"
 #include "typecheck.h"
 #include "usagecheck.h"
+#include "postcheck.h"
 #include "fetrans.h"
 #include "betrans.h"
 #include "map.h"
@@ -182,6 +183,23 @@ static int mcsp_typecheck_dopnode (compops_t *cops, tnode_t *node, typecheck_t *
 		mcsp_addtoalpha (*alphap, event);
 	}
 
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_postcheck_dopnode (compopts_t *cops, tnode_t **node, postcheck_t *pc)*/
+/*
+ *	does post-check transformations on a DOPNODE
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_postcheck_dopnode (compopts_t *cops, tnode_t **node, postcheck_t *pc)
+{
+	tnode_t *t = *node;
+
+	if (t->tag == mcsp.tag_THEN) {
+		/* don't walk LHS in this pass */
+		postcheck_subtree (tnode_nthsubaddr (*node, 1), pc);
+		return 0;
+	}
 	return 1;
 }
 /*}}}*/
@@ -398,6 +416,7 @@ static int mcsp_oper_init_nodes (void)
 	tnd->hook_dumptree = mcsp_alpha_hook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (mcsp_typecheck_dopnode));
+	tnode_setcompop (cops, "postcheck", 2, COMPOPTYPE (mcsp_postcheck_dopnode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_dopnode));
 	tnd->ops = cops;
 
