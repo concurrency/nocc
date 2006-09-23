@@ -93,15 +93,16 @@ langparser_t hopp_parser = {
 typedef enum ENUM_hopp_tag {
 	HTAG_LIST = 399,
 	HTAG_INVALID = 400,
-	HTAG_INTDECLSET = 401,
-	HTAG_OCPROC = 402,
-	HTAG_OCNAME = 403,
-	HTAG_OCFORMAL = 404,
-	HTAG_OCCHANOF = 405,
-	HTAG_OCBYTE = 406,
-	HTAG_OCSEQ = 407,
-	HTAG_OCSKIP = 408,
-	HTAG_OCMAINPROCESS = 409
+	HTAG_DECL = 401,
+	HTAG_PROC = 402,
+	HTAG_NAME = 403,
+	HTAG_FORMAL = 404,
+	HTAG_CHAN = 405,
+	HTAG_BYTE = 406,
+	HTAG_SEQ = 407,
+	HTAG_SKIP = 408,
+	HTAG_MAIN = 409,
+	HTAG_STOP = 410
 } hopp_tag_e;
 
 typedef struct TAG_hopp_tag {
@@ -111,15 +112,16 @@ typedef struct TAG_hopp_tag {
 } hopp_tag_t;
 
 static hopp_tag_t htagdata[] = {
-	{"IntDeclSet", HTAG_INTDECLSET, NULL},
-	{"OcProc", HTAG_OCPROC, NULL},
-	{"OcName", HTAG_OCNAME, NULL},
-	{"OcFormal", HTAG_OCFORMAL, NULL},
-	{"OcChanOf", HTAG_OCCHANOF, NULL},
-	{"OcByte", HTAG_OCBYTE, NULL},
-	{"OcSeq", HTAG_OCSEQ, NULL},
-	{"OcSkip", HTAG_OCSKIP, NULL},
-	{"OcMainProcess", HTAG_OCMAINPROCESS, NULL},
+	{"decl", HTAG_DECL, NULL},
+	{"proc", HTAG_PROC, NULL},
+	{"name", HTAG_NAME, NULL},
+	{"formal", HTAG_FORMAL, NULL},
+	{"chan", HTAG_CHAN, NULL},
+	{"byte", HTAG_BYTE, NULL},
+	{"seq", HTAG_SEQ, NULL},
+	{"skip", HTAG_SKIP, NULL},
+	{"main", HTAG_MAIN, NULL},
+	{"stop", HTAG_STOP, NULL},
 	{NULL, HTAG_INVALID, NULL}
 };
 
@@ -129,6 +131,7 @@ static symbol_t *sym_rbracket = NULL;
 static symbol_t *sym_box = NULL;
 static symbol_t *sym_lparen = NULL;
 static symbol_t *sym_rparen = NULL;
+static symbol_t *sym_comma = NULL;
 
 /*}}}*/
 
@@ -156,23 +159,191 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 		/*{{{  SYMBOL -- probably meta-level stuff*/
 	case SYMBOL:
 		if (tok->u.sym == sym_lparen) {
-			/* this is a closed chunk */
+			/*{{{  this is a closed chunk or list*/
 			lexer_freetoken (tok);
 
 			tree = hopp_parse_toplevel (lf);
 			tok = lexer_nexttoken (lf);
-			if (!tok || (tok->type != SYMBOL) || (tok->u.sym != sym_rparen)) {
-				nocc_warning ("hopp_parse_toplevel(): expected ')' but got:");
+			if (!tok || (tok->type == END)) {
+				parser_error (lf, "unexpected end");
+			} else if ((tok->type == SYMBOL) && (tok->u.sym == sym_rparen)) {
+				/* good, got a closed chunk */
+			} else {
+				tnode_t *tmp;
+
+				/* assume a list .. */
+				lexer_pushback (lf, tok);
+				tok = NULL;
+				tmp = tree;
+				tree = parser_newlistnode (lf);
+				parser_addtolist (tree, tmp);
+
+				for (;;) {
+					tmp = hopp_parse_toplevel (lf);
+
+					if (!tmp) {
+						parser_error (lf, "null item while parsing for list");
+						break;		/* for() */
+					}
+					parser_addtolist (tree, tmp);
+					tok = lexer_nexttoken (lf);
+					if (tok && (tok->type == SYMBOL) && (tok->u.sym == sym_rparen)) {
+						/* end of list */
+						break;		/* for() */
+					}
+					lexer_pushback (lf, tok);
+					tok = NULL;
+				}
+			}
+			/*}}}*/
+		} else if (tok->u.sym == sym_rparen) {
+			/*{{{  unexpected*/
+			parser_error (lf, "unexpected ')'");
+			/*}}}*/
+		}
+		break;
+		/*}}}*/
+		/*{{{  KEYWORD -- probably a directive*/
+	case KEYWORD:
+		switch ((hopp_tag_e)tok->u.kw->tagval) {
+			/*{{{  DECL -- declaration of something*/
+		case HTAG_DECL:
+			{
+				tnode_t *ibody;
+
+				tree = hopp_parse_toplevel (lf);		/* actual declaration */
+				ibody = hopp_parse_toplevel (lf);
+
+				if (!tree) {
+					parser_error (lf, "DECL: bad declaration");
+					tree = ibody;
+				} else {
+					tnode_setnthsub (tree, 3, ibody);
+				}
+			}
+			break;
+			/*}}}*/
+			/*{{{  PROC -- process definition*/
+		case HTAG_PROC:
+			{
+				tnode_t *name, *params, *body;
+
+				tree = tnode_create (opi.tag_PROCDECL, lf, NULL, NULL, NULL, NULL);		/* name, params, process-body, in-scope-body */
+				name = hopp_parse_toplevel (lf);
+				params = hopp_parse_toplevel (lf);
+				body = hopp_parse_toplevel (lf);
+
+				if (!name || !body) {
+					parser_error (lf, "PROC: bad name or body");
+				}
+				tnode_setnthsub (tree, 0, name);
+				tnode_setnthsub (tree, 1, params);
+				tnode_setnthsub (tree, 2, body);
+			}
+			break;
+			/*}}}*/
+			/*{{{  NAME -- quoted name*/
+		case HTAG_NAME:
+			tree = tnode_create (opi.tag_NAME, lf, NULL);
+			lexer_freetoken (tok);
+			tok = lexer_nexttoken (lf);
+
+			if (!tok) {
+				parser_error (lf, "NAME: missing name ?");
+			} else if (tok->type == KEYWORD) {
+				/* assume ok for now -- extract keyword and make it a name */
+				tnode_setnthhook (tree, 0, occampi_keywordtoken_to_namehook ((void *)tok));
+				tok = NULL;
+			} else if (tok->type != NAME) {
+				parser_error (lf, "NAME: following token not NAME, was:");
 				lexer_dumptoken (stderr, tok);
 			} else {
-				break;
+				tnode_setnthhook (tree, 0, occampi_nametoken_to_hook ((void *)tok));
+				tok = NULL;
 			}
+			break;
+			/*}}}*/
+			/*{{{  FORMAL -- formal parameter*/
+		case HTAG_FORMAL:
+			{
+				tnode_t *name, *type;
+
+				tree = tnode_create (opi.tag_FPARAM, lf, NULL, NULL);					/* name, type */
+				type = hopp_parse_toplevel (lf);
+				name = hopp_parse_toplevel (lf);
+
+				if (!name || !type) {
+					parser_error (lf, "FORMAL: bad name or type");
+				}
+				tnode_setnthsub (tree, 0, name);
+				tnode_setnthsub (tree, 1, type);
+			}
+			break;
+			/*}}}*/
+			/*{{{  CHAN -- CHAN type (not channel-type!)*/
+		case HTAG_CHAN:
+			{
+				tnode_t *protocol;
+
+				tree = tnode_create (opi.tag_CHAN, lf, NULL);						/* protocol */
+				protocol = hopp_parse_toplevel (lf);
+
+				if (!protocol) {
+					parser_error (lf, "CHAN: bad protocol");
+				}
+				tnode_setnthsub (tree, 0, protocol);
+			}
+			break;
+			/*}}}*/
+			/*{{{  BYTE -- BYTE*/
+		case HTAG_BYTE:
+			tree = tnode_create (opi.tag_BYTE, lf);
+			break;
+			/*}}}*/
+			/*{{{  SKIP -- SKIP*/
+		case HTAG_SKIP:
+			tree = tnode_create (opi.tag_SKIP, lf);
+			break;
+			/*}}}*/
+			/*{{{  STOP*/
+		case HTAG_STOP:
+			tree = tnode_create (opi.tag_STOP, lf);
+			break;
+			/*}}}*/
+			/*{{{  SEQ*/
+		case HTAG_SEQ:
+			{
+				tnode_t *body;
+
+				tree = tnode_create (opi.tag_SEQ, lf, NULL, NULL);				/* par-specials, body */
+				body = hopp_parse_toplevel (lf);
+
+				if (!body) {
+					parser_error (lf, "SEQ: bad body");
+				} else if (!parser_islistnode (body)) {
+					body = parser_buildlistnode (lf, body, NULL);
+				}
+				tnode_setnthsub (tree, 1, body);
+			}
+			break;
+			/*}}}*/
+			/*{{{  MAIN -- top-level identifier*/
+		case HTAG_MAIN:
+			tree = NULL;
+			break;
+			/*}}}*/
+			/*{{{  default -- warning*/
+		default:
+			parser_warning (lf, "unhandled keyword token:");
+			lexer_dumptoken (stderr, tok);
+			break;
+			/*}}}*/
 		}
 		break;
 		/*}}}*/
 		/*{{{  default -- warning and ignore*/
 	default:
-		nocc_warning ("hopp_parse_toplevel(): unhandled token:");
+		parser_warning (lf, "unhandled token:");
 		lexer_dumptoken (stderr, tok);
 		break;
 		/*}}}*/
@@ -218,6 +389,7 @@ static int hopp_parser_init (lexfile_t *lf)
 	sym_box = symbols_lookup ("[]", 2);
 	sym_lparen = symbols_lookup ("(", 1);
 	sym_rparen = symbols_lookup (")", 1);
+	sym_comma = symbols_lookup (",", 1);
 
 	return 0;
 }
@@ -250,7 +422,7 @@ static tnode_t *hopp_parser_parse (lexfile_t *lf)
 
 	tree = hopp_parse_toplevel (lf);
 	if (!tree) {
-		nocc_warning ("hopp_parser_parse(): got nothing back at top-level..");
+		parser_error (lf, "hopp_parser_parse(): got nothing back at top-level..");
 	}
 
 	return tree;

@@ -151,7 +151,21 @@ void *occampi_stringtoken_to_namehook (void *ntok)
 	char *rawname;
 
 	rawname = string_ndup (tok->u.str.ptr, tok->u.str.len);
+	lexer_freetoken (tok);
 
+	return (void *)rawname;
+}
+/*}}}*/
+/*{{{  void *occampi_keywordtoken_to_namehook (void *ntok)*/
+/*
+ *	turns a keyword token in to a hooknode for a tag_NAME
+ */
+void *occampi_keywordtoken_to_namehook (void *ntok)
+{
+	token_t *tok = (token_t *)ntok;
+	char *rawname;
+
+	rawname = string_dup (tok->u.kw->name);
 	lexer_freetoken (tok);
 
 	return (void *)rawname;

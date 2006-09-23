@@ -1,2 +1,1 @@
-IntDeclSet [OcProc (OcName "fred1") [OcFormal (OcChanOf OcByte) (OcName "scr")] (OcSeq [OcSkip])] OcMainProcess
-
+(decl (proc (name fred1) ((formal (chan byte) (name scr)) (formal (chan byte) (name err))) (seq skip)) main)
