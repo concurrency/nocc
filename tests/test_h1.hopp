@@ -1,1 +1,1 @@
-(decl (proc (name fred1) ((formal (chan byte) (name scr)) (formal (chan byte) (name err))) (seq skip)) main)
+(: (proc (name fred1) ((formal (chan byte) (name scr)) (formal (chan byte) (name err))) (seq skip)) main)

@@ -483,6 +483,15 @@ static dfattbl_t **occampi_lit_init_dfatrans (int *ntrans)
 /*}}}*/
 
 
+/*{{{  tnode_t *occampi_makelitbool (lexfile_t *lf, const int istrue)*/
+/*
+ *	creates a boolean constant node
+ */
+tnode_t *occampi_makelitbool (lexfile_t *lf, const int istrue)
+{
+	return tnode_create (opi.tag_LITBOOL, lf, NULL, occampi_bool_hook (istrue ? 1 : 0));
+}
+/*}}}*/
 /*{{{  occampi_lit_feunit (feunit_t)*/
 feunit_t occampi_lit_feunit = {
 	init_nodes: occampi_lit_init_nodes,

@@ -102,7 +102,14 @@ typedef enum ENUM_hopp_tag {
 	HTAG_SEQ = 407,
 	HTAG_SKIP = 408,
 	HTAG_MAIN = 409,
-	HTAG_STOP = 410
+	HTAG_STOP = 410,
+	HTAG_INT = 411,
+	HTAG_WHILE = 412,
+	HTAG_TRUE = 413,
+	HTAG_FALSE = 414,
+	HTAG_VARS = 415,
+	HTAG_VAL = 416,
+	HTAG_IS = 417,
 } hopp_tag_e;
 
 typedef struct TAG_hopp_tag {
@@ -122,6 +129,13 @@ static hopp_tag_t htagdata[] = {
 	{"skip", HTAG_SKIP, NULL},
 	{"main", HTAG_MAIN, NULL},
 	{"stop", HTAG_STOP, NULL},
+	{"int", HTAG_INT, NULL},
+	{"while", HTAG_WHILE, NULL},
+	{"true", HTAG_TRUE, NULL},
+	{"false", HTAG_FALSE, NULL},
+	{"vars", HTAG_VARS, NULL},
+	{"val", HTAG_VAL, NULL},
+	{"is", HTAG_IS, NULL},
 	{NULL, HTAG_INVALID, NULL}
 };
 
@@ -132,6 +146,7 @@ static symbol_t *sym_box = NULL;
 static symbol_t *sym_lparen = NULL;
 static symbol_t *sym_rparen = NULL;
 static symbol_t *sym_comma = NULL;
+static symbol_t *sym_colon = NULL;
 
 /*}}}*/
 
@@ -200,29 +215,30 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			/*{{{  unexpected*/
 			parser_error (lf, "unexpected ')'");
 			/*}}}*/
+		} else if (tok->u.sym == sym_colon) {
+			/*{{{  declaration of something*/
+			tnode_t *ibody;
+
+			tree = hopp_parse_toplevel (lf);		/* actual declaration */
+			ibody = hopp_parse_toplevel (lf);
+
+			if (!tree) {
+				parser_error (lf, "DECL: bad declaration");
+				tree = ibody;
+			} else {
+				if (tree->tag == opi.tag_PROCDECL) {
+					tnode_setnthsub (tree, 3, ibody);
+				} else if (tree->tag == opi.tag_VARDECL) {
+					tnode_setnthsub (tree, 2, ibody);
+				}
+			}
+			/*}}}*/
 		}
 		break;
 		/*}}}*/
 		/*{{{  KEYWORD -- probably a directive*/
 	case KEYWORD:
 		switch ((hopp_tag_e)tok->u.kw->tagval) {
-			/*{{{  DECL -- declaration of something*/
-		case HTAG_DECL:
-			{
-				tnode_t *ibody;
-
-				tree = hopp_parse_toplevel (lf);		/* actual declaration */
-				ibody = hopp_parse_toplevel (lf);
-
-				if (!tree) {
-					parser_error (lf, "DECL: bad declaration");
-					tree = ibody;
-				} else {
-					tnode_setnthsub (tree, 3, ibody);
-				}
-			}
-			break;
-			/*}}}*/
 			/*{{{  PROC -- process definition*/
 		case HTAG_PROC:
 			{
@@ -239,6 +255,23 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 				tnode_setnthsub (tree, 0, name);
 				tnode_setnthsub (tree, 1, params);
 				tnode_setnthsub (tree, 2, body);
+			}
+			break;
+			/*}}}*/
+			/*{{{  VARS -- variable declaration*/
+		case HTAG_VARS:
+			{
+				tnode_t *name, *type;
+
+				tree = tnode_create (opi.tag_VARDECL, lf, NULL, NULL, NULL);			/* name, type, in-scope-body */
+				type = hopp_parse_toplevel (lf);
+				name = hopp_parse_toplevel (lf);
+
+				if (!name || !type) {
+					parser_error (lf, "VARS: bad name or type");
+				}
+				tnode_setnthsub (tree, 0, name);
+				tnode_setnthsub (tree, 1, type);
 			}
 			break;
 			/*}}}*/
@@ -295,12 +328,17 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			}
 			break;
 			/*}}}*/
-			/*{{{  BYTE -- BYTE*/
+			/*{{{  BYTE*/
 		case HTAG_BYTE:
 			tree = tnode_create (opi.tag_BYTE, lf);
 			break;
 			/*}}}*/
-			/*{{{  SKIP -- SKIP*/
+			/*{{{  INT*/
+		case HTAG_INT:
+			tree = tnode_create (opi.tag_INT, lf);
+			break;
+			/*}}}*/
+			/*{{{  SKIP*/
 		case HTAG_SKIP:
 			tree = tnode_create (opi.tag_SKIP, lf);
 			break;
@@ -308,6 +346,16 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			/*{{{  STOP*/
 		case HTAG_STOP:
 			tree = tnode_create (opi.tag_STOP, lf);
+			break;
+			/*}}}*/
+			/*{{{  TRUE*/
+		case HTAG_TRUE:
+			tree = occampi_makelitbool (lf, 1);
+			break;
+			/*}}}*/
+			/*{{{  FALSE*/
+		case HTAG_FALSE:
+			tree = occampi_makelitbool (lf, 0);
 			break;
 			/*}}}*/
 			/*{{{  SEQ*/
@@ -330,6 +378,23 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			/*{{{  MAIN -- top-level identifier*/
 		case HTAG_MAIN:
 			tree = NULL;
+			break;
+			/*}}}*/
+			/*{{{  WHILE*/
+		case HTAG_WHILE:
+			{
+				tnode_t *cond, *body;
+
+				tree = tnode_create (opi.tag_WHILE, lf, NULL, NULL);					/* expr, body */
+				cond = hopp_parse_toplevel (lf);
+				body = hopp_parse_toplevel (lf);
+
+				if (!cond || !body) {
+					parser_error (lf, "WHILE: bad expression or body");
+				}
+				tnode_setnthsub (tree, 0, cond);
+				tnode_setnthsub (tree, 1, body);
+			}
 			break;
 			/*}}}*/
 			/*{{{  default -- warning*/
@@ -390,6 +455,7 @@ static int hopp_parser_init (lexfile_t *lf)
 	sym_lparen = symbols_lookup ("(", 1);
 	sym_rparen = symbols_lookup (")", 1);
 	sym_comma = symbols_lookup (",", 1);
+	sym_colon = symbols_lookup (":", 1);
 
 	return 0;
 }
