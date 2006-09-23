@@ -28,6 +28,7 @@ struct TAG_dfastate;
 struct TAG_prescope;
 struct TAG_scope;
 struct TAG_typecheck;
+struct TAG_postcheck;
 struct TAG_fetrans;
 struct TAG_langlexer;
 
@@ -41,6 +42,7 @@ typedef struct TAG_langparser {
 	int (*scope)(struct TAG_tnode **, struct TAG_scope *);
 	int (*prescope)(struct TAG_tnode **, struct TAG_prescope *);
 	int (*typecheck)(struct TAG_tnode *, struct TAG_typecheck *);
+	int (*postcheck)(struct TAG_tnode **, struct TAG_postcheck *);
 	int (*fetrans)(struct TAG_tnode **, struct TAG_fetrans *);
 
 	struct TAG_tnode *(*maketemp)(struct TAG_tnode ***, struct TAG_tnode *);						/* insert-point-ptr, type */

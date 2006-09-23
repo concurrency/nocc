@@ -54,6 +54,7 @@
 #include "aliascheck.h"
 #include "usagecheck.h"
 #include "defcheck.h"
+#include "postcheck.h"
 #include "library.h"
 #include "fetrans.h"
 #include "betrans.h"
@@ -714,15 +715,16 @@ static int nocc_init_cpasses (void)
 	dynarray_add (cfepasses, nocc_new_compilerpass ("alias-check", NULL, (int (*)(void *))aliascheck_tree, CPASS_TREE | CPASS_LANGPARSER, 8, &(compopts.doaliascheck)));
 	dynarray_add (cfepasses, nocc_new_compilerpass ("usage-check", NULL, (int (*)(void *))usagecheck_tree, CPASS_TREE | CPASS_LANGPARSER, 9, &(compopts.dousagecheck)));
 	dynarray_add (cfepasses, nocc_new_compilerpass ("def-check", NULL, (int (*)(void *))defcheck_tree, CPASS_TREE | CPASS_LANGPARSER, 10, &(compopts.dodefcheck)));
-	dynarray_add (cfepasses, nocc_new_compilerpass ("fetrans", NULL, (int (*)(void *))fetrans_tree, CPASS_TREEPTR | CPASS_LANGPARSER, 11, NULL));
+	dynarray_add (cfepasses, nocc_new_compilerpass ("post-check", NULL, (int (*)(void *))postcheck_tree, CPASS_TREEPTR | CPASS_LANGPARSER, 11, NULL));
+	dynarray_add (cfepasses, nocc_new_compilerpass ("fetrans", NULL, (int (*)(void *))fetrans_tree, CPASS_TREEPTR | CPASS_LANGPARSER, 12, NULL));
 	nocc_addxmlnamespace ("fetrans", "http://www.cs.kent.ac.uk/projects/ofa/nocc/NAMESPACES/fetrans");
 
 	/* stock back-end passes */
-	dynarray_add (cbepasses, nocc_new_compilerpass ("betrans", NULL, (int (*)(void *))betrans_tree, CPASS_TREEPTR | CPASS_TARGET, 12, NULL));
-	dynarray_add (cbepasses, nocc_new_compilerpass ("name-map", NULL, (int (*)(void *))map_mapnames, CPASS_TREEPTR | CPASS_TARGET, 13, NULL));
-	dynarray_add (cbepasses, nocc_new_compilerpass ("pre-alloc", NULL, (int (*)(void *))preallocate_tree, CPASS_TREEPTR | CPASS_TARGET, 14, NULL));
-	dynarray_add (cbepasses, nocc_new_compilerpass ("allocate", NULL, (int (*)(void *))allocate_tree, CPASS_TREEPTR | CPASS_TARGET, 15, NULL));
-	dynarray_add (cbepasses, nocc_new_compilerpass ("codegen", NULL, (int (*)(void *))codegen_generate_code, CPASS_TREEPTR | CPASS_LEXFILE | CPASS_TARGET, 16, NULL));
+	dynarray_add (cbepasses, nocc_new_compilerpass ("betrans", NULL, (int (*)(void *))betrans_tree, CPASS_TREEPTR | CPASS_TARGET, 13, NULL));
+	dynarray_add (cbepasses, nocc_new_compilerpass ("name-map", NULL, (int (*)(void *))map_mapnames, CPASS_TREEPTR | CPASS_TARGET, 14, NULL));
+	dynarray_add (cbepasses, nocc_new_compilerpass ("pre-alloc", NULL, (int (*)(void *))preallocate_tree, CPASS_TREEPTR | CPASS_TARGET, 15, NULL));
+	dynarray_add (cbepasses, nocc_new_compilerpass ("allocate", NULL, (int (*)(void *))allocate_tree, CPASS_TREEPTR | CPASS_TARGET, 16, NULL));
+	dynarray_add (cbepasses, nocc_new_compilerpass ("codegen", NULL, (int (*)(void *))codegen_generate_code, CPASS_TREEPTR | CPASS_LEXFILE | CPASS_TARGET, 17, NULL));
 
 	return 0;
 }
@@ -1043,6 +1045,7 @@ int main (int argc, char **argv)
 	aliascheck_init ();
 	usagecheck_init ();
 	defcheck_init ();
+	postcheck_init ();
 	fetrans_init ();
 	betrans_init ();
 	map_init ();

@@ -77,6 +77,8 @@ langparser_t hopp_parser = {
 	prescope:	hopp_parser_prescope,
 	scope:		hopp_parser_scope,
 	typecheck:	hopp_parser_typecheck,
+	postcheck:	NULL,
+	fetrans:	NULL,
 	maketemp:	hopp_parser_maketemp,
 	makeseqassign:	hopp_parser_makeseqassign,
 	tagstruct_hook:	NULL,

@@ -48,6 +48,8 @@
 #include "constprop.h"
 #include "typecheck.h"
 #include "usagecheck.h"
+#include "postcheck.h"
+#include "mwsync.h"
 #include "fetrans.h"
 #include "betrans.h"
 #include "map.h"
@@ -373,6 +375,28 @@ static int mcsp_codegen_leafproc (compops_t *cops, tnode_t *node, codegen_t *cge
 /*}}}*/
 
 
+/*{{{  static int mcsp_postcheck_namenode (compops_t *cops, tnode_t **node, postcheck_t *pc)*/
+/*
+ *	does post-check transformation on an EVENT
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_postcheck_namenode (compops_t *cops, tnode_t **node, postcheck_t *pc)
+{
+	tnode_t *t = *node;
+
+#if 0
+fprintf (stderr, "mcsp_postcheck_namenode(): t =\n");
+tnode_dumptree (t, 1, stderr);
+#endif
+	if (t->tag == mcsp.tag_EVENT) {
+		/*{{{  turn event into SYNC -- not a declaration occurence*/
+		*node = tnode_create (mcsp.tag_SYNC, NULL, *node, NULL);
+		return 0;
+		/*}}}*/
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int mcsp_fetrans_namenode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transformation on an EVENT
@@ -386,10 +410,7 @@ static int mcsp_fetrans_namenode (compops_t *cops, tnode_t **node, fetrans_t *fe
 	switch (mfe->parse) {
 	case 0:
 		if (t->tag == mcsp.tag_EVENT) {
-			/*{{{  turn event into SYNC -- not a declaration occurence*/
-			*node = tnode_create (mcsp.tag_SYNC, NULL, *node, NULL);
-			return 0;
-			/*}}}*/
+			tnode_warning (*node, "mcsp_fetrans_namenode(): unexpected EVENT");
 		}
 		break;
 	}
@@ -486,6 +507,16 @@ static int mcsp_namenode_initialising_decl (langops_t *lops, tnode_t *node, tnod
 /*}}}*/
 
 
+/*{{{  static int mcsp_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checkking on an action-node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	return 1;
+}
+/*}}}*/
 /*{{{  static int mcsp_fetrans_actionnode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transforms for an action-node
@@ -498,6 +529,11 @@ static int mcsp_fetrans_actionnode (compops_t *cops, tnode_t **node, fetrans_t *
 
 	switch (mfe->parse) {
 	case 0:
+		if (t->tag == mcsp.tag_SYNC) {
+			/* ignore on this pass */
+			return 0;
+		}
+		/* fall through */
 	case 1:
 		/* nothing in these passes! */
 		break;
@@ -766,6 +802,7 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	i = -1;
 	tnd = mcsp.node_NAMENODE = tnode_newnodetype ("mcsp:namenode", &i, 0, 1, 0, TNF_NONE);		/* subnames: 0 = name */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "postcheck", 2, COMPOPTYPE (mcsp_postcheck_namenode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_namenode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_namenode));
 /*	cops->gettype = mcsp_gettype_namenode; */
@@ -790,6 +827,7 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_actionnode));
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (mcsp_betrans_actionnode));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (mcsp_typecheck_actionnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_actionnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (mcsp_codegen_actionnode));
 	tnd->ops = cops;

@@ -50,6 +50,7 @@
 #include "typecheck.h"
 #include "fetrans.h"
 #include "extn.h"
+#include "mwsync.h"
 
 /*}}}*/
 /*{{{  forward decls*/
@@ -77,6 +78,7 @@ langparser_t mcsp_parser = {
 	prescope:	mcsp_parser_prescope,
 	scope:		mcsp_parser_scope,
 	typecheck:	mcsp_parser_typecheck,
+	postcheck:	NULL,
 	fetrans:	mcsp_parser_fetrans,
 	maketemp:	NULL,
 	makeseqassign:	NULL,
@@ -95,6 +97,7 @@ static mcsp_parse_t *mcsp_priv = NULL;
 
 static feunit_t *feunit_set[] = {
 	&mcsp_decl_feunit,
+	&mwsync_feunit,
 	&mcsp_process_feunit,
 	&mcsp_oper_feunit,
 	&mcsp_snode_feunit,
@@ -599,6 +602,9 @@ static int mcsp_parser_init (lexfile_t *lf)
 		if (compopts.dumpgrules) {
 			parser_dumpgrules (stderr);
 		}
+
+		/* last, re-init multiway syncs with default end-of-par option */
+		mwsync_setresignafterpar (1);
 	}
 	return 0;
 }

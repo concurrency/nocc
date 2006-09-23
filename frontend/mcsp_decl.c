@@ -48,6 +48,7 @@
 #include "constprop.h"
 #include "typecheck.h"
 #include "usagecheck.h"
+#include "postcheck.h"
 #include "fetrans.h"
 #include "betrans.h"
 #include "map.h"
@@ -621,6 +622,20 @@ static int mcsp_typecheck_spacenode (compops_t *cops, tnode_t *node, typecheck_t
 	return 1;
 }
 /*}}}*/
+/*{{{  static int mcsp_postcheck_spacenode (compops_t *cops, tnode_t **node, postcheck_t *pc)*/
+/*
+ *	does post-check transformation on a space-node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_postcheck_spacenode (compops_t *cops, tnode_t **node, postcheck_t *pc)
+{
+	if (((*node)->tag == mcsp.tag_FPARAM) || ((*node)->tag == mcsp.tag_UPARAM)) {
+		/* don't do event underneath */
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int mcsp_fetrans_spacenode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transformation on an FPARAM
@@ -826,6 +841,7 @@ static int mcsp_decl_init_nodes (void)
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (mcsp_scopein_spacenode));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (mcsp_scopeout_spacenode));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (mcsp_typecheck_spacenode));
+	tnode_setcompop (cops, "postcheck", 2, COMPOPTYPE (mcsp_postcheck_spacenode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_spacenode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_spacenode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (mcsp_codegen_spacenode));

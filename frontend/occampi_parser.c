@@ -83,6 +83,8 @@ langparser_t occampi_parser = {
 	prescope:	occampi_parser_prescope,
 	scope:		occampi_parser_scope,
 	typecheck:	occampi_parser_typecheck,
+	postcheck:	NULL,
+	fetrans:	NULL,
 	maketemp:	occampi_parser_maketemp,
 	makeseqassign:	occampi_parser_makeseqassign,
 	tagstruct_hook:	(void *)&opi,

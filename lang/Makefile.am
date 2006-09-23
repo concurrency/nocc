@@ -9,7 +9,7 @@ AUTOMAKE_OPTIONS=foreign
 INCLUDES=-I@srcdir@/../include
 
 liblang_a_SOURCES=tnode.c names.c prescope.c scope.c typecheck.c langops.c constprop.c precheck.c \
-		aliascheck.c usagecheck.c library.c defcheck.c fetrans.c
+		aliascheck.c usagecheck.c library.c defcheck.c postcheck.c fetrans.c
 
 CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@
 

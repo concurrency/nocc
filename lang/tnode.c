@@ -366,6 +366,7 @@ void tnode_init (void)
 	tnode_newcompop ("typecheck", COPS_TYPECHECK, 2, NULL);
 	tnode_newcompop ("constprop", COPS_CONSTPROP, 1, NULL);
 	tnode_newcompop ("precheck", COPS_PRECHECK, 1, NULL);
+	tnode_newcompop ("postcheck", COPS_POSTCHECK, 2, NULL);
 	tnode_newcompop ("fetrans", COPS_FETRANS, 2, NULL);
 	tnode_newcompop ("betrans", COPS_BETRANS, 2, NULL);
 	tnode_newcompop ("premap", COPS_PREMAP, 2, NULL);

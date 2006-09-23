@@ -72,6 +72,8 @@ langparser_t rcxb_parser = {
 	prescope:	rcxb_parser_prescope,
 	scope:		NULL, // mcsp_parser_scope,
 	typecheck:	NULL, // mcsp_parser_typecheck,
+	postcheck:	NULL,
+	fetrans:	NULL,
 	maketemp:	NULL,
 	makeseqassign:	NULL,
 	tagstruct_hook:	(void *)&rcxb,

@@ -42,27 +42,28 @@ stop-precheck,		'\0',	opt_setstopflag,	(void *)7,			"1stop after pre-check",				
 stop-aliascheck,	'\0',	opt_setstopflag,	(void *)8,			"1stop after alias check",				25
 stop-usagecheck,	'\0',	opt_setstopflag,	(void *)9,			"1stop after parallel-usage check",			26
 stop-undefcheck,	'\0',	opt_setstopflag,	(void *)10,			"1stop after undefined-usage check",			27
-stop-fetrans,		'\0',	opt_setstopflag,	(void *)11,			"1stop after front-end tree transform",			28
-stop-betrans,		'\0',	opt_setstopflag,	(void *)12,			"1stop after back-end tree transform",			29
-stop-namemap,		'\0',	opt_setstopflag,	(void *)13,			"1stop after name-map",					30
-stop-prealloc,		'\0',	opt_setstopflag,	(void *)14,			"1stop after pre-allocation",				31
-stop-alloc,		'\0',	opt_setstopflag,	(void *)15,			"1stop after variable allocation",			32
-stop-codegen,		'\0',	opt_setstopflag,	(void *)16,			"1stop after code-generation",				33
-skip-aliascheck,	'\0',	opt_clearintflag,	&(compopts.doaliascheck),	"1skip alias checks",					34
-skip-usagecheck,	'\0',	opt_clearintflag,	&(compopts.dousagecheck),	"1skip parallel usage checks",				35
-skip-defcheck,		'\0',	opt_clearintflag,	&(compopts.dodefcheck),		"1skip undefinedness checks",				36
-trace-parser,		'\0',	opt_setintflag,		&(compopts.traceparser),	"1trace parser (debugging)",				37
-trace-typecheck,	'\0',	opt_setintflag,		&(compopts.tracetypecheck),	"1trace type-check (debugging)",			38
-verbose,		'v',	opt_setintflag,		&(compopts.verbose),		"0verbose compilation",					39
-debug-parser,		'\0',	opt_setintflag,		&(compopts.debugparser),	"1debug parser",					40
-version,		'V',	opt_do_version,		NULL,				"0print version and exit",				41
-compile,		'c',	opt_setintflag,		&(compopts.notmainmodule),	"0compile for separate compilation",			42
-dump-dmem,		'\0',	opt_setintflag,		&(compopts.dmemdump),		"1display dynamic memory pool information",		43
-specs-file,		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				44
-output,			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					45
-include-path,		'I',	opt_addincludepath,	NULL,				"0add paths for include files",				46
-library-path,		'L',	opt_addlibrarypath,	NULL,				"0add paths for library files",				47
-extn-path,		'E',	opt_addextnpath,	NULL,				"1add paths for compiler extensions",			48
-extn,			'e',	opt_addextn,		NULL,				"0compiler extension to load",				49
+stop-postcheck,		'\0',	opt_setstopflag,	(void *)11,			"1stop after post-check",				28
+stop-fetrans,		'\0',	opt_setstopflag,	(void *)11,			"1stop after front-end tree transform",			29
+stop-betrans,		'\0',	opt_setstopflag,	(void *)12,			"1stop after back-end tree transform",			30
+stop-namemap,		'\0',	opt_setstopflag,	(void *)13,			"1stop after name-map",					31
+stop-prealloc,		'\0',	opt_setstopflag,	(void *)14,			"1stop after pre-allocation",				32
+stop-alloc,		'\0',	opt_setstopflag,	(void *)15,			"1stop after variable allocation",			33
+stop-codegen,		'\0',	opt_setstopflag,	(void *)16,			"1stop after code-generation",				34
+skip-aliascheck,	'\0',	opt_clearintflag,	&(compopts.doaliascheck),	"1skip alias checks",					35
+skip-usagecheck,	'\0',	opt_clearintflag,	&(compopts.dousagecheck),	"1skip parallel usage checks",				36
+skip-defcheck,		'\0',	opt_clearintflag,	&(compopts.dodefcheck),		"1skip undefinedness checks",				37
+trace-parser,		'\0',	opt_setintflag,		&(compopts.traceparser),	"1trace parser (debugging)",				38
+trace-typecheck,	'\0',	opt_setintflag,		&(compopts.tracetypecheck),	"1trace type-check (debugging)",			39
+verbose,		'v',	opt_setintflag,		&(compopts.verbose),		"0verbose compilation",					40
+debug-parser,		'\0',	opt_setintflag,		&(compopts.debugparser),	"1debug parser",					41
+version,		'V',	opt_do_version,		NULL,				"0print version and exit",				42
+compile,		'c',	opt_setintflag,		&(compopts.notmainmodule),	"0compile for separate compilation",			43
+dump-dmem,		'\0',	opt_setintflag,		&(compopts.dmemdump),		"1display dynamic memory pool information",		44
+specs-file,		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				45
+output,			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					46
+include-path,		'I',	opt_addincludepath,	NULL,				"0add paths for include files",				47
+library-path,		'L',	opt_addlibrarypath,	NULL,				"0add paths for library files",				48
+extn-path,		'E',	opt_addextnpath,	NULL,				"1add paths for compiler extensions",			49
+extn,			'e',	opt_addextn,		NULL,				"0compiler extension to load",				50
 %%
 
