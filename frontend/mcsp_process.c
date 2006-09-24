@@ -451,6 +451,7 @@ static int mcsp_namemap_namenode (compops_t *cops, tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
+#if 0
 /*{{{  static void mcsp_namenode_initevent (tnode_t *node, codegen_t *cgen, void *arg)*/
 /*
  *	generates code to initialise an EVENT
@@ -507,6 +508,7 @@ static void mcsp_namenode_finalevent (tnode_t *node, codegen_t *cgen, void *arg)
 	return;
 }
 /*}}}*/
+#endif
 /*{{{  static int mcsp_namenode_initialising_decl (langops_t *lops, tnode_t *node, tnode_t *bename, map_t *map)*/
 /*
  *	used to initialise EVENTs
@@ -514,8 +516,10 @@ static void mcsp_namenode_finalevent (tnode_t *node, codegen_t *cgen, void *arg)
 static int mcsp_namenode_initialising_decl (langops_t *lops, tnode_t *node, tnode_t *bename, map_t *map)
 {
 	if (node->tag == mcsp.tag_EVENT) {
+#if 0
 		codegen_setinithook (bename, mcsp_namenode_initevent, (void *)node);
 		codegen_setfinalhook (bename, mcsp_namenode_finalevent, (void *)node);
+#endif
 	}
 	return 0;
 }
@@ -590,6 +594,7 @@ static int mcsp_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_
 	int i = 1;
 
 	if (node->tag == mcsp.tag_SYNC) {
+		return 0;
 	}
 	return i;
 }
@@ -716,7 +721,13 @@ static int mcsp_namemap_actionnode (compops_t *cops, tnode_t **node, map_t *map)
 static int mcsp_codegen_actionnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	if (node->tag == mcsp.tag_SYNC) {
-		codegen_error (cgen, "mcsp_codegen_actionnode(): cannot generate code for SYNC!");
+		tnode_t *bar = tnode_nthsubof (node, 0);
+
+		codegen_callops (cgen, debugline, node);
+		codegen_callops (cgen, tsecondary, I_MWS_ALTLOCK);
+		codegen_callops (cgen, loadpointer, bar, 0);
+		codegen_callops (cgen, tsecondary, I_MWS_SYNC);
+		//codegen_error (cgen, "mcsp_codegen_actionnode(): cannot generate code for SYNC!");
 		return 0;
 	} else if (node->tag == mcsp.tag_CHANWRITE) {
 		tnode_t *chan = tnode_nthsubof (node, 0);
@@ -1033,7 +1044,6 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (mcsp_namenode_gettype));
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (mcsp_namenode_bytesfor));
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (mcsp_namenode_getname));
-	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (mcsp_namenode_initialising_decl));
 	tnd->lops = lops;
 
 	i = -1;

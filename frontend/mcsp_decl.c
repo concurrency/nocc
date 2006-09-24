@@ -822,23 +822,44 @@ static int mcsp_fetrans_vardeclnode (compops_t *cops, tnode_t **node, fetrans_t 
 static int mcsp_namemap_vardeclnode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t **namep = tnode_nthsubaddr (*node, 0);
+	tnode_t *type = tnode_nthsubof (*node, 1);
 	tnode_t **bodyp = tnode_nthsubaddr (*node, 3);
-	tnode_t *type = NULL;
 	tnode_t *bename;
 
-	bename = map->target->newname (*namep, *bodyp, map, map->target->pointersize, 0, 0, 0, map->target->pointersize, 1);		/* always pointers.. (FIXME: tsize)*/
+	int tsize;
+	int wssize, vssize, mssize, indir;
 
-	tnode_setchook (*namep, map->mapchook, (void *)bename);
-	*node = bename;
+#if 0
+fprintf (stderr, "mcsp_namemap_vardeclnode(): here!  target is [%s].  Type is:\n", map->target->name);
+tnode_dumptree (type, 1, stderr);
+#endif
 
-	if ((*namep)->tag == mcsp.tag_EVENT) {
-		/* probably need initialisation/finalisation */
-		if ((*namep)->tag->ndef->lops && tnode_haslangop_i ((*namep)->tag->ndef->lops, (int)LOPS_INITIALISING_DECL)) {
-			tnode_calllangop_i ((*namep)->tag->ndef->lops, (int)LOPS_INITIALISING_DECL, 3, *namep, bename, map);
-		}
+	/* see how big this type is */
+	tsize = tnode_bytesfor (type, map->target);
+
+	if (type->tag->ndef->lops && tnode_haslangop (type->tag->ndef->lops, "initsizes") && tnode_calllangop (type->tag->ndef->lops, "initsizes", 7, type, *node, &wssize, &vssize, &mssize, &indir, map)) {
+		/* some declarations will need special allocation (e.g. in vectorspace and/or mobilespace) -- collected above */
+	} else {
+		wssize = tsize;
+		vssize = 0;
+		mssize = 0;
+		indir = 0;
+	}
+	bename = map->target->newname (*namep, *bodyp, map, (wssize < 0) ? 0 : wssize, (wssize < 0) ? -wssize : 0, vssize, mssize, tsize, indir);
+
+	if (type->tag->ndef->lops && tnode_haslangop (type->tag->ndef->lops, "initialising_decl")) {
+		tnode_calllangop (type->tag->ndef->lops, "initialising_decl", 3, type, bename, map);
 	}
 
+	tnode_setchook (*namep, map->mapchook, (void *)bename);
+#if 0
+fprintf (stderr, "got new bename:\n");
+tnode_dumptree (bename, 1, stderr);
+#endif
+
+	*node = bename;
 	bodyp = tnode_nthsubaddr (*node, 1);
+
 	map_submapnames (bodyp, map);			/* map body */
 	
 	return 0;

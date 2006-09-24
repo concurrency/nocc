@@ -8,5 +8,7 @@
 
 # SYSTEM (x,y) ::= (x -> SKIP) [] (y -> SKIP)
 
-BASIC (x) ::= SKIP
+# BASIC (x) ::= SKIP
+
+TRIVIAL ::= ((a -> SKIP) || (a -> SKIP)) \ {a}
 

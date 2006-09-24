@@ -48,7 +48,9 @@
 #include "constprop.h"
 #include "typecheck.h"
 #include "usagecheck.h"
+#include "postcheck.h"
 #include "fetrans.h"
+#include "mwsync.h"
 #include "betrans.h"
 #include "map.h"
 #include "codegen.h"
@@ -159,6 +161,56 @@ static int mcsp_fetrans_cnode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int mcsp_mwsynctrans_cnode (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)*/
+/*
+ *	does multi-way synchronisation transforms for a PAR (constructor node, mcsp:cnode)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_mwsynctrans_cnode (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)
+{
+	if ((*tptr)->tag == mcsp.tag_PARCODE) {
+		tnode_t *parnode = *tptr;
+		tnode_t **bodies;
+		int nbodies;
+		mwsyncpbinfo_t *binf = NULL;
+		mcsp_alpha_t *paralpha = (mcsp_alpha_t *)tnode_nthhookof (parnode, 0);
+		int interleaving = 0;
+
+		bodies = parser_getlistitems (tnode_nthsubof (parnode, 1), &nbodies);
+		if (nbodies != 2) {
+			nocc_internal ("mcsp_mwsynctrans_cnode(): pass for PARCODE: have %d items", nbodies);
+			return 0;
+		}
+
+#if 1
+		nocc_message ("mcsp_mwsynctrans_cnode(): about to do parallel transform");
+#endif
+		mwsync_mwsynctrans_parallel (parnode, tptr, bodies, nbodies, mwi);
+#if 1
+		nocc_message ("mcsp_mwsynctrans_cnode(): done with parallel transform");
+#endif
+		if (interleaving && paralpha) {
+			int i;
+			int nevents;
+			tnode_t **elist = parser_getlistitems (paralpha->elist, &nevents);
+
+			for (i=0; i<nevents; i++) {
+				binf = mwsync_findpbinfointree (*tptr, elist[i]);
+
+				if (!binf) {
+					tnode_warning (elist[i], "barrier not used by PAR");
+				} else {
+					binf->sadjust = -1;
+				}
+			}
+		}
+
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+
 /*{{{  static int mcsp_namemap_cnode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does mapping for a constructor node (SEQ/PAR)
@@ -270,6 +322,7 @@ static int mcsp_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 		mcsp_alpha_t *alpha = (mcsp_alpha_t *)tnode_nthhookof (node, 0);
 
 		bodies = parser_getlistitems (body, &nbodies);
+#if 0
 		/*{{{  if we've got an alphabet, up ref-counts by (nbodies), enroll-counts by (nbodies - 1), down-counts by (nbodies - 1)*/
 		if (alpha) {
 			tnode_t **events;
@@ -302,6 +355,7 @@ static int mcsp_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 			codegen_callops (cgen, comment, "finish barrier enrolls");
 		}
 		/*}}}*/
+#endif
 		/*{{{  PAR setup*/
 		codegen_callops (cgen, comment, "BEGIN PAR SETUP");
 		for (i=0; i<nbodies; i++) {
@@ -381,6 +435,7 @@ static int mcsp_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 		codegen_callops (cgen, comment, "END PAR BODIES");
 		codegen_callops (cgen, setlabel, joinlab);
 		/*}}}*/
+#if 0
 		/*{{{  if we've got an alphabet, down ref-counts by (nbodies), enroll-counts by (nbodies - 1), down-counts by (nbodies - 1)*/
 		if (alpha) {
 			tnode_t **events;
@@ -413,6 +468,7 @@ static int mcsp_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 			codegen_callops (cgen, comment, "finish barrier resigns");
 		}
 		/*}}}*/
+#endif
 	} else {
 		codegen_error (cgen, "mcsp_codegen_cnode(): how to handle [%s] ?", node->tag->name);
 	}
@@ -699,6 +755,7 @@ static int mcsp_cnode_init_nodes (void)
 	tnd->hook_dumptree = mcsp_alpha_hook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_cnode));
+	tnode_setcompop (cops, "mwsynctrans", 2, COMPOPTYPE (mcsp_mwsynctrans_cnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_cnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (mcsp_codegen_cnode));
 	tnd->ops = cops;
