@@ -927,7 +927,7 @@ tnode_dumptree (xvardecls, 1, stderr);
 				xnamenode = tnode_create (mcsp.tag_CHAN, NULL, xname);
 				xscreenname = xnamenode;
 				SetNameNode (xname, xnamenode);
-				fparam = tnode_create (mcsp.tag_FPARAM, NULL, xnamenode);
+				fparam = tnode_create (mcsp.tag_FPARAM, NULL, xnamenode, NULL);
 				SetNameDecl (xname, fparam);
 
 				xparams = parser_newlistnode (NULL);
@@ -987,7 +987,7 @@ tnode_dumptree (xdeclnode, 1, stderr);
 					xitems = parser_getlistitems (xiargs, &nxitems);
 
 					for (i=0; i<nxitems; i++) {
-						tnode_t *gproc = tnode_create (mcsp.tag_CHANWRITE, NULL, xscreenname, xitems[i]);
+						tnode_t *gproc = tnode_create (mcsp.tag_CHANWRITE, NULL, xscreenname, xitems[i], NULL);
 						tnode_t *guard;
 
 						guard = tnode_create (mcsp.tag_GUARD, NULL, xitems[i], gproc);

@@ -772,6 +772,10 @@ static int mcsp_fetrans_vardeclnode (compops_t *cops, tnode_t **node, fetrans_t 
 	mcsp_fetrans_t *mfe = (mcsp_fetrans_t *)fe->langpriv;
 	tnode_t *t = *node;
 
+#if 0
+	nocc_message ("mcsp_fetrans_vardeclnode(): mfe->parse = %d, tag = [%s], *node =", mfe->parse, (*node)->tag->name);
+	tnode_dumptree (*node, 1, stderr);
+#endif
 	switch (mfe->parse) {
 	case 0:
 		if (t->tag == mcsp.tag_VARDECL) {

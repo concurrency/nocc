@@ -390,7 +390,7 @@ tnode_dumptree (t, 1, stderr);
 #endif
 	if (t->tag == mcsp.tag_EVENT) {
 		/*{{{  turn event into SYNC -- not a declaration occurence*/
-		*node = tnode_create (mcsp.tag_SYNC, NULL, *node, NULL);
+		*node = tnode_create (mcsp.tag_SYNC, NULL, *node, NULL, NameTypeOf (tnode_nthnameof (t, 0)));
 		return 0;
 		/*}}}*/
 	}
@@ -416,6 +416,21 @@ static int mcsp_fetrans_namenode (compops_t *cops, tnode_t **node, fetrans_t *fe
 	}
 
 	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_mwsynctrans_namenode (compops_t *cops, tnode_t **node, mwsynctrans_t *mwi)*/
+/*
+ *	does multiway sync transform for an EVENT
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_mwsynctrans_namenode (compops_t *cops, tnode_t **node, mwsynctrans_t *mwi)
+{
+	if ((*node)->tag == mcsp.tag_EVENT) {
+		name_t *name = tnode_nthnameof (*node, 0);
+
+		mwsync_mwsynctrans_nameref (node, name, mcsp.tag_EVENT, mwi);
+	}
+	return 0;
 }
 /*}}}*/
 /*{{{  static int mcsp_namemap_namenode (compops_t *cops, tnode_t **node, map_t *map)*/
@@ -572,7 +587,11 @@ static int mcsp_namenode_getname (langops_t *lops, tnode_t *node, char **str)
  */
 static int mcsp_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
-	return 1;
+	int i = 1;
+
+	if (node->tag == mcsp.tag_SYNC) {
+	}
+	return i;
 }
 /*}}}*/
 /*{{{  static int mcsp_fetrans_actionnode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
@@ -617,6 +636,7 @@ static int mcsp_betrans_actionnode (compops_t *cops, tnode_t **node, betrans_t *
 {
 	tnode_t *t = *node;
 
+#if 0
 	if (t->tag == mcsp.tag_SYNC) {
 		/* we need to turn this into a single-guard ALT */
 		tnode_t *altnode, *guard, *glist, *event;
@@ -634,6 +654,7 @@ static int mcsp_betrans_actionnode (compops_t *cops, tnode_t **node, betrans_t *
 		betrans_subtree (node, be);
 		return 0;
 	}
+#endif
 	return 1;
 }
 /*}}}*/
@@ -647,7 +668,12 @@ static int mcsp_namemap_actionnode (compops_t *cops, tnode_t **node, map_t *map)
 	tnode_t *t = *node;
 
 	if (t->tag == mcsp.tag_SYNC) {
-		nocc_internal ("mcsp_namemap_actionnode(): should not see SYNC here!");
+		tnode_t *bename;
+
+		map_submapnames (tnode_nthsubaddr (*node, 0), map);		/* map event operand */
+		bename = map->target->newname (*node, NULL, map, 0, map->target->bws.ds_min, 0, 0, 0, 0);
+		*node = bename;
+
 		return 0;
 	} else if (t->tag == mcsp.tag_CHANWRITE) {
 		tnode_t *bename;
@@ -999,6 +1025,7 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "postcheck", 2, COMPOPTYPE (mcsp_postcheck_namenode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_namenode));
+	tnode_setcompop (cops, "mwsynctrans", 2, COMPOPTYPE (mcsp_mwsynctrans_namenode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_namenode));
 /*	cops->gettype = mcsp_gettype_namenode; */
 	tnd->ops = cops;
@@ -1021,7 +1048,7 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	/*}}}*/
 	/*{{{  mcsp:actionnode -- SYNC, CHANWRITE*/
 	i = -1;
-	tnd = tnode_newnodetype ("mcsp:actionnode", &i, 2, 0, 0, TNF_NONE);				/* subnodes: 0 = event(s), 1 = data/null */
+	tnd = tnode_newnodetype ("mcsp:actionnode", &i, 3, 0, 0, TNF_NONE);				/* subnodes: 0 = event(s), 1 = data/null, 2 = action-type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_actionnode));
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (mcsp_betrans_actionnode));

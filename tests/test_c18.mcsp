@@ -4,7 +4,9 @@
 #THING (x,y) ::= @z.(x -> x -> y -> z)
 #BLIP (z,y) ::= THING (z,y)
 
-SYSTEM (report) ::= (a -> SKIP) \ {a}
+# SYSTEM (report) ::= (a -> SKIP) \ {a}
 
 # SYSTEM (x,y) ::= (x -> SKIP) [] (y -> SKIP)
+
+BASIC (x) ::= SKIP
 
