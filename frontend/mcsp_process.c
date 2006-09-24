@@ -505,6 +505,64 @@ static int mcsp_namenode_initialising_decl (langops_t *lops, tnode_t *node, tnod
 	return 0;
 }
 /*}}}*/
+/*{{{  static tnode_t *mcsp_namenode_gettype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	returns the type of a name-node (trivial)
+ */
+static tnode_t *mcsp_namenode_gettype (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	name_t *name = tnode_nthnameof (node, 0);
+
+	if (!name) {
+		nocc_fatal ("mcsp_namenode_gettype(): NULL name!");
+		return NULL;
+	}
+	if (name->type) {
+#if 0
+fprintf (stderr, "occmpi_gettype_namenode(): node = [%s], name:\n", node->tag->name);
+name_dumpname (name, 1, stderr);
+fprintf (stderr, "   \"   name->type:\n");
+tnode_dumptree (name->type, 1, stderr);
+#endif
+		return name->type;
+	}
+#if 1
+nocc_message ("mcsp_namenode_gettype(): null type on name, node was:");
+tnode_dumptree (node, 4, stderr);
+#endif
+	nocc_fatal ("mcsp_namenode_gettype(): name has NULL type (FIXME!)");
+	return NULL;
+}
+/*}}}*/
+/*{{{  static int mcsp_namenode_bytesfor (langops_t *lops, tnode_t *node, target_t *target)*/
+/*
+ *	returns the number of bytes in a name-node, associated with its type only
+ */
+static int mcsp_namenode_bytesfor (langops_t *lops, tnode_t *node, target_t *target)
+{
+	nocc_error ("mcsp_namenode_bytesfor(): no bytes for [%s]", node->tag->name);
+	return -1;
+}
+/*}}}*/
+/*{{{  static int mcsp_namenode_getname (langops_t *lops, tnode_t *node, char **str)*/
+/*
+ *	gets the name of a namenode (var/etc. name)
+ *	return 0 on success, -ve on failure
+ */
+static int mcsp_namenode_getname (langops_t *lops, tnode_t *node, char **str)
+{
+	char *pname = NameNameOf (tnode_nthnameof (node, 0));
+
+	if (*str) {
+		sfree (*str);
+	}
+	*str = (char *)smalloc (strlen (pname) + 2);
+	strcpy (*str, pname);
+
+	return 0;
+}
+/*}}}*/
+
 
 
 /*{{{  static int mcsp_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
@@ -751,6 +809,125 @@ static int mcsp_valbyref_const (langops_t *lops, tnode_t *node)
 /*}}}*/
 
 
+/*{{{  static int mcsp_mwsynctrans_leaftype (compops_t *cops, tnode_t **node, mwsynctrans_t *mwi)*/
+/*
+ *	does multiway synchronisation transforms on a leaftype
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_mwsynctrans_leaftype (compops_t *cops, tnode_t **node, mwsynctrans_t *mwi)
+{
+	if ((*node)->tag == mcsp.tag_EVENTTYPE) {
+		mwsync_mwsynctrans_makebarriertype (node, mwi);
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static tnode_t *mcsp_gettype_leaftype (langops_t *lops, tnode_t *t, tnode_t *defaulttype)*/
+/*
+ *	gets the type for a mwsync leaftype -- do nothing really
+ */
+static tnode_t *mcsp_gettype_leaftype (langops_t *lops, tnode_t *t, tnode_t *defaulttype)
+{
+	if (t->tag == mcsp.tag_EVENTTYPE) {
+		return t;
+	}
+
+	if (lops->next && tnode_haslangop_i (lops->next, (int)LOPS_GETTYPE)) {
+		return (tnode_t *)tnode_calllangop_i (lops->next, (int)LOPS_GETTYPE, 2, t, defaulttype);
+	}
+	nocc_error ("mcsp_gettype_leaftype(): no next function!");
+	return defaulttype;
+}
+/*}}}*/
+/*{{{  static int mcsp_bytesfor_leaftype (langops_t *lops, tnode_t *t, target_t *target)*/
+/*
+ *	returns the number of bytes required by a basic type
+ */
+static int mcsp_bytesfor_leaftype (langops_t *lops, tnode_t *t, target_t *target)
+{
+	if (t->tag == mcsp.tag_EVENTTYPE) {
+		nocc_warning ("mcsp_bytesfor_leaftype(): unreplaced EVENTTYPE type probably!");
+		return 0;
+	}
+
+	if (lops->next && tnode_haslangop_i (lops->next, (int)LOPS_BYTESFOR)) {
+		return tnode_calllangop_i (lops->next, (int)LOPS_BYTESFOR, 2, t, target);
+	}
+	nocc_error ("mcsp_bytesfor_leaftype(): no next function!");
+	return -1;
+}
+/*}}}*/
+/*{{{  static int mcsp_issigned_leaftype (langops_t *lops, tnode_t *t, target_t *target)*/
+/*
+ *	returns 0 if the given basic type is unsigned
+ */
+static int mcsp_issigned_leaftype (langops_t *lops, tnode_t *t, target_t *target)
+{
+	if (t->tag == mcsp.tag_EVENTTYPE) {
+		return 0;
+	}
+
+	if (lops->next && tnode_haslangop_i (lops->next, (int)LOPS_ISSIGNED)) {
+		return tnode_calllangop_i (lops->next, (int)LOPS_ISSIGNED, 2, t, target);
+	}
+	nocc_error ("mcsp_issigned_leaftype(): no next function!");
+	return 0;
+}
+/*}}}*/
+/*{{{  static int mcsp_getdescriptor_leaftype (langops_t *lops, tnode_t *node, char **str)*/
+/*
+ *	gets descriptor information for a leaf-type
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_getdescriptor_leaftype (langops_t *lops, tnode_t *node, char **str)
+{
+	char *sptr;
+
+	if (node->tag == mcsp.tag_EVENTTYPE) {
+		if (*str) {
+			char *newstr = (char *)smalloc (strlen (*str) + 16);
+
+			sptr = newstr;
+			sptr += sprintf (newstr, "%s", *str);
+			sfree (*str);
+			*str = newstr;
+		} else {
+			*str = (char *)smalloc (16);
+			sptr = *str;
+		}
+		sprintf (sptr, "EVENT");
+		return 0;
+	}
+	if (lops->next && tnode_haslangop_i (lops->next, (int)LOPS_GETDESCRIPTOR)) {
+		return tnode_calllangop_i (lops->next, (int)LOPS_GETDESCRIPTOR, 2, node, str);
+	}
+	nocc_error ("mcsp_getdescriptor_leaftype(): no next function!");
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int mcsp_initialising_decl_leaftype (langops_t *lops, tnode_t *t, tnode_t *benode, map_t *mdata)*/
+/*
+ *	called for declarations to handle initialisation if needed
+ *	returns 0 if nothing needed, 1 otherwise
+ */
+static int mcsp_initialising_decl_leaftype (langops_t *lops, tnode_t *t, tnode_t *benode, map_t *mdata)
+{
+	if (t->tag == mcsp.tag_EVENTTYPE) {
+		nocc_warning ("mcsp_initialising_decl_leaftype(): not expecting an EVENTTYPE here..");
+		return 0;
+	}
+	if (lops->next && tnode_haslangop_i (lops->next, (int)LOPS_INITIALISING_DECL)) {
+		return tnode_calllangop_i (lops->next, (int)LOPS_INITIALISING_DECL, 3, t, benode, mdata);
+	}
+	return 0;
+}
+/*}}}*/
+
+
+
+
 /*{{{  static int mcsp_process_init_nodes (void)*/
 /*
  *	initialises MCSP process nodes
@@ -798,6 +975,24 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	mcsp.tag_CHAOS = tnode_newnodetag ("MCSPCHAOS", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  mcsp:leaftype -- EVENTTYPE*/
+	i = -1;
+	tnd = mcsp.node_LEAFTYPE = tnode_newnodetype ("mcsp:leaftype", &i, 0, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "mwsynctrans", 2, COMPOPTYPE (mcsp_mwsynctrans_leaftype));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (mcsp_getdescriptor_leaftype));
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (mcsp_gettype_leaftype));
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (mcsp_bytesfor_leaftype));
+	tnode_setlangop (lops, "issigned", 2, LANGOPTYPE (mcsp_issigned_leaftype));
+	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (mcsp_initialising_decl_leaftype));
+	tnd->lops = lops;
+
+	i = -1;
+	mcsp.tag_EVENTTYPE = tnode_newnodetag ("MCSPEVENTTYPE", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 	/*{{{  mcsp:namenode -- EVENT, PROCDEF, CHAN, VAR*/
 	i = -1;
 	tnd = mcsp.node_NAMENODE = tnode_newnodetype ("mcsp:namenode", &i, 0, 1, 0, TNF_NONE);		/* subnames: 0 = name */
@@ -808,6 +1003,9 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 /*	cops->gettype = mcsp_gettype_namenode; */
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (mcsp_namenode_gettype));
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (mcsp_namenode_bytesfor));
+	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (mcsp_namenode_getname));
 	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (mcsp_namenode_initialising_decl));
 	tnd->lops = lops;
 

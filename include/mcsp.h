@@ -40,11 +40,14 @@ typedef struct {
 	struct TAG_tndef *node_CNODE;			/* hooks mcsp_alpha_t */
 	struct TAG_tndef *node_SCOPENODE;
 	struct TAG_tndef *node_LEAFPROC;
+	struct TAG_tndef *node_LEAFTYPE;
 	struct TAG_tndef *node_CONSTNODE;
 	struct TAG_tndef *node_SPACENODE;
 	struct TAG_tndef *node_REPLNODE;
 
 	/* front-end tags */
+	struct TAG_ntdef *tag_EVENTTYPE;
+
 	struct TAG_ntdef *tag_NAME;
 	struct TAG_ntdef *tag_EVENT;
 	struct TAG_ntdef *tag_PROCDEF;

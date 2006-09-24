@@ -905,7 +905,8 @@ tnode_dumptree (realparams, 1, stderr);
 				xname = name_addname (NameNameOf (pname), NULL, NameTypeOf (pname), NULL);
 				xnamenode = tnode_create (mcsp.tag_EVENT, NULL, xname);
 				SetNameNode (xname, xnamenode);
-				xvardecls = tnode_create (mcsp.tag_VARDECL, NULL, xnamenode, NULL, xvardecls);
+				xvardecls = tnode_create (mcsp.tag_VARDECL, NULL, xnamenode, tnode_create (mcsp.tag_EVENTTYPE, NULL), NULL, xvardecls);
+				SetNameType (xname, tnode_nthsubof (xvardecls, 1));
 				SetNameDecl (xname, xvardecls);
 
 				/* also add namenodes to a list we'll use for params later */

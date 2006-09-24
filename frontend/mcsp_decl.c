@@ -299,8 +299,9 @@ static int mcsp_fetrans_scopenode (compops_t *cops, tnode_t **node, fetrans_t *f
 			/* create var-declarations for each name in the list */
 			vars = parser_getlistitems (varlist, &nvars);
 			for (i=0; i<nvars; i++) {
-				*node = tnode_createfrom (mcsp.tag_VARDECL, t, vars[i], NULL, NULL);
-				node = tnode_nthsubaddr (*node, 2);
+				*node = tnode_createfrom (mcsp.tag_VARDECL, t, vars[i], tnode_create (mcsp.tag_EVENTTYPE, NULL), NULL, NULL);
+				SetNameType (tnode_nthnameof (vars[i], 0), tnode_nthsubof (*node, 1));
+				node = tnode_nthsubaddr (*node, 3);
 				vars[i] = NULL;
 			}
 
@@ -383,7 +384,7 @@ static int mcsp_prescope_declnode (compops_t *cops, tnode_t **node, prescope_t *
 	/* now go through and turn into FPARAM nodes -- needed for allocation later */
 	params = parser_getlistitems (*paramptr, &nparams);
 	for (i=0; i<nparams; i++) {
-		params[i] = tnode_createfrom (mcsp.tag_FPARAM, params[i], params[i]);
+		params[i] = tnode_createfrom (mcsp.tag_FPARAM, params[i], params[i], tnode_create (mcsp.tag_EVENTTYPE, NULL));
 	}
 
 	return 1;
@@ -469,6 +470,35 @@ static int mcsp_fetrans_declnode (compops_t *cops, tnode_t **node, fetrans_t *fe
 	}
 
 	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_mwsynctrans_declnode (compops_t *cops, tnode_t **node, mwsynctrans_t *mwi)*/
+/*
+ *	does multiway synchronisation transforms on a process declaration node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_mwsynctrans_declnode (compops_t *cops, tnode_t **node, mwsynctrans_t *mwi)
+{
+	tnode_t **paramsp = tnode_nthsubaddr (*node, 1);
+	tnode_t **bodyp = tnode_nthsubaddr (*node, 2);
+	tnode_t **nextp = tnode_nthsubaddr (*node, 3);
+	int mlvl = mwsync_mwsynctrans_pushvarmark (mwi);
+	
+	/* add any variables in the PROC definition to the variable stack (done in occampi:fparam node) */
+	mwsync_mwsynctrans_startnamerefs (mwi);
+	mwsync_transsubtree (paramsp, mwi);
+	mwsync_mwsynctrans_endnamerefs (mwi);
+
+	/* do PROC body */
+	mwsync_transsubtree (bodyp, mwi);
+
+	/* remove parameters */
+	mwsync_mwsynctrans_popvarto (mlvl, mwi);
+
+	/* do in-scope process */
+	mwsync_transsubtree (nextp, mwi);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int mcsp_betrans_declnode (compops_t *cops, tnode_t **node, betrans_t *be)*/
@@ -647,7 +677,16 @@ static int mcsp_typecheck_spacenode (compops_t *cops, tnode_t *node, typecheck_t
 static int mcsp_postcheck_spacenode (compops_t *cops, tnode_t **node, postcheck_t *pc)
 {
 	if (((*node)->tag == mcsp.tag_FPARAM) || ((*node)->tag == mcsp.tag_UPARAM)) {
-		/* don't do event underneath */
+		/* don't do event underneath, but check for type */
+		tnode_t **namep = tnode_nthsubaddr (*node, 0);
+		tnode_t **typep = tnode_nthsubaddr (*node, 1);
+
+		if (!*typep) {
+			*typep = tnode_create (mcsp.tag_EVENTTYPE, NULL);
+		}
+		if (*namep) {
+			SetNameType (tnode_nthnameof (*namep, 0), *typep);
+		}
 		return 0;
 	}
 	return 1;
@@ -672,6 +711,24 @@ static int mcsp_fetrans_spacenode (compops_t *cops, tnode_t **node, fetrans_t *f
 	}
 
 	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_mwsynctrans_spacenode (compops_t *cops, tnode_t **node, mwsynctrans_t *mwi)*/
+/*
+ *	does multiway sync transforms on an FPARAM/UPARAM
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_mwsynctrans_spacenode (compops_t *cops, tnode_t **node, mwsynctrans_t *mwi)
+{
+	tnode_t *name = tnode_nthsubof (*node, 0);
+
+	if ((name->tag == mcsp.tag_EVENT) && (NameTypeOf (tnode_nthnameof (name, 0))->tag == mcsp.tag_EVENTTYPE)) {
+		mwsync_transsubtree (tnode_nthsubaddr (*node, 1), mwi);			/* transform type */
+		SetNameType (tnode_nthnameof (name, 0), tnode_nthsubof (*node, 1));
+
+		mwsync_mwsynctrans_pushparam (*node, name, mwi);
+	}
+	return 0;
 }
 /*}}}*/
 /*{{{  static int mcsp_namemap_spacenode (compops_t *cops, tnode_t **node, map_t *map)*/
@@ -718,9 +775,9 @@ static int mcsp_fetrans_vardeclnode (compops_t *cops, tnode_t **node, fetrans_t 
 	switch (mfe->parse) {
 	case 0:
 		if (t->tag == mcsp.tag_VARDECL) {
-			/* just walk subnodes 1+2 */
-			fetrans_subtree (tnode_nthsubaddr (t, 1), fe);
+			/* just walk subnodes 2+3 */
 			fetrans_subtree (tnode_nthsubaddr (t, 2), fe);
+			fetrans_subtree (tnode_nthsubaddr (t, 3), fe);
 			return 0;
 		}
 		break;
@@ -734,7 +791,7 @@ static int mcsp_fetrans_vardeclnode (compops_t *cops, tnode_t **node, fetrans_t 
 			mcsp_alpha_t *myalpha;
 
 			mfe->curalpha = mcsp_newalpha ();
-			fetrans_subtree (tnode_nthsubaddr (t, 2), fe);		/* walk process in scope of variable */
+			fetrans_subtree (tnode_nthsubaddr (t, 3), fe);		/* walk process in scope of variable */
 			myalpha = mfe->curalpha;
 			mfe->curalpha = savedalpha;
 
@@ -761,7 +818,7 @@ static int mcsp_fetrans_vardeclnode (compops_t *cops, tnode_t **node, fetrans_t 
 static int mcsp_namemap_vardeclnode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t **namep = tnode_nthsubaddr (*node, 0);
-	tnode_t **bodyp = tnode_nthsubaddr (*node, 2);
+	tnode_t **bodyp = tnode_nthsubaddr (*node, 3);
 	tnode_t *type = NULL;
 	tnode_t *bename;
 
@@ -793,9 +850,13 @@ static int mcsp_mwsynctrans_vardeclnode (compops_t *cops, tnode_t **node, mwsync
 	tnode_t *t = *node;
 	tnode_t *name = tnode_nthsubof (t, 0);
 	tnode_t *var_to_remove = NULL;
-	tnode_t **bodyp = tnode_nthsubaddr (t, 2);
+	tnode_t **typep = tnode_nthsubaddr (t, 1);
+	tnode_t **bodyp = tnode_nthsubaddr (t, 3);
 
-	if ((name->tag == mcsp.tag_VARDECL) && (NameTypeOf (tnode_nthnameof (name, 0))->tag == mcsp.tag_EVENT)) {
+	if ((name->tag == mcsp.tag_EVENT) && (NameTypeOf (tnode_nthnameof (name, 0))->tag == mcsp.tag_EVENTTYPE)) {
+		mwsync_transsubtree (typep, mwi);         /* transform type */
+		SetNameType (tnode_nthnameof (name, 0), *typep);
+
 		mwsync_mwsynctrans_pushvar (*node, name, &bodyp, mcsp.tag_EVENT, mwi);
 		var_to_remove = *node;
 	}
@@ -851,6 +912,7 @@ static int mcsp_decl_init_nodes (void)
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (mcsp_scopein_declnode));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (mcsp_scopeout_declnode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_declnode));
+	tnode_setcompop (cops, "mwsynctrans", 2, COMPOPTYPE (mcsp_mwsynctrans_declnode));
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (mcsp_betrans_declnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_declnode));
 	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (mcsp_precode_declnode));
@@ -882,13 +944,14 @@ static int mcsp_decl_init_nodes (void)
 	/*{{{  mcsp:spacenode -- FPARAM, UPARAM*/
 	/* this is used in front of formal parameters and local variables*/
 	i = -1;
-	tnd = mcsp.node_SPACENODE = tnode_newnodetype ("mcsp:spacenode", &i, 1, 0, 0, TNF_NONE);	/* subnodes: 0 = namenode/name */
+	tnd = mcsp.node_SPACENODE = tnode_newnodetype ("mcsp:spacenode", &i, 2, 0, 0, TNF_NONE);	/* subnodes: 0 = namenode/name, 1 = type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (mcsp_scopein_spacenode));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (mcsp_scopeout_spacenode));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (mcsp_typecheck_spacenode));
 	tnode_setcompop (cops, "postcheck", 2, COMPOPTYPE (mcsp_postcheck_spacenode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_spacenode));
+	tnode_setcompop (cops, "mwsynctrans", 2, COMPOPTYPE (mcsp_mwsynctrans_spacenode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_spacenode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (mcsp_codegen_spacenode));
 	tnd->ops = cops;
@@ -901,7 +964,7 @@ static int mcsp_decl_init_nodes (void)
 	/*}}}*/
 	/*{{{  mcsp:vardeclnode -- VARDECL*/
 	i = -1;
-	tnd = tnode_newnodetype ("mcsp:vardeclnode", &i, 3, 0, 0, TNF_SHORTDECL);			/* subnodes: 0 = name, 1 = initialiser, 2 = body */
+	tnd = tnode_newnodetype ("mcsp:vardeclnode", &i, 4, 0, 0, TNF_SHORTDECL);			/* subnodes: 0 = name, 1 = type, 2 = initialiser, 3 = body */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_vardeclnode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_vardeclnode));
