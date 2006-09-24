@@ -196,7 +196,7 @@ static int mcsp_postcheck_dopnode (compopts_t *cops, tnode_t **node, postcheck_t
 	tnode_t *t = *node;
 
 	if (t->tag == mcsp.tag_THEN) {
-		/* don't walk LHS in this pass */
+		postcheck_subtree (tnode_nthsubaddr (*node, 0), pc);
 		postcheck_subtree (tnode_nthsubaddr (*node, 1), pc);
 		return 0;
 	}
@@ -227,6 +227,9 @@ static int mcsp_fetrans_dopnode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 				tnode_t *process = tnode_nthsubof (*lhsp, 1);
 				tnode_t *guard;
 
+				if (event->tag == mcsp.tag_SYNC) {
+					event = tnode_nthsubof (event, 0);
+				}
 				if (event->tag == mcsp.tag_SUBEVENT) {
 					/* sub-event, just pick LHS */
 					event = tnode_nthsubof (*lhsp, 0);
@@ -244,6 +247,9 @@ static int mcsp_fetrans_dopnode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 				tnode_t *process = tnode_nthsubof (*rhsp, 1);
 				tnode_t *guard;
 
+				if (event->tag == mcsp.tag_SYNC) {
+					event = tnode_nthsubof (event, 0);
+				}
 				if (event->tag == mcsp.tag_SUBEVENT) {
 					/* sub-event, just pick LHS */
 					event = tnode_nthsubof (*rhsp, 0);

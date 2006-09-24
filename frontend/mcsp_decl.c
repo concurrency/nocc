@@ -259,6 +259,22 @@ static int mcsp_scopeout_scopenode (compops_t *cops, tnode_t **node, scope_t *ss
 	return 1;
 }
 /*}}}*/
+/*{{{  static int mcsp_postcheck_scopenode (compops_t *cops, tnode_t **node, postcheck_t *pc)*/
+/*
+ *	does post-check transforms on a scopenode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_postcheck_scopenode (compops_t *cops, tnode_t **node, postcheck_t *pc)
+{
+	tnode_t *t = *node;
+
+	if (t->tag == mcsp.tag_HIDE) {
+		postcheck_subtree (tnode_nthsubaddr (t, 1), pc);
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int mcsp_fetrans_scopenode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transforms on a scopenode -- turns HIDE vars into declarations
@@ -788,6 +804,7 @@ static int mcsp_decl_init_nodes (void)
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (mcsp_prescope_scopenode));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (mcsp_scopein_scopenode));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (mcsp_scopeout_scopenode));
+	tnode_setcompop (cops, "postcheck", 2, COMPOPTYPE (mcsp_postcheck_scopenode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_scopenode));
 	tnd->ops = cops;
 

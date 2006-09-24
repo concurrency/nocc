@@ -48,6 +48,7 @@
 #include "constprop.h"
 #include "typecheck.h"
 #include "usagecheck.h"
+#include "postcheck.h"
 #include "fetrans.h"
 #include "betrans.h"
 #include "map.h"
@@ -170,6 +171,16 @@ tnode_dumptree (aparams, 1, stderr);
 	/* all good :) */
 
 	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_postcheck_instancenode (compops_t *cops, tnode_t **node, postcheck_t *pc)*/
+/*
+ *	does post-check transforms on an instancenode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_postcheck_instancenode (compops_t *cops, tnode_t **node, postcheck_t *pc)
+{
+	return 0;
 }
 /*}}}*/
 /*{{{  static int mcsp_fetrans_instancenode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
@@ -357,6 +368,7 @@ static int mcsp_instance_init_nodes (void)
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (mcsp_prescope_instancenode));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (mcsp_scopein_instancenode));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (mcsp_typecheck_instancenode));
+	tnode_setcompop (cops, "postcheck", 2, COMPOPTYPE (mcsp_postcheck_instancenode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_instancenode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_instancenode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (mcsp_codegen_instancenode));
