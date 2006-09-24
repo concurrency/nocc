@@ -104,6 +104,7 @@ extern int mwsync_mwsynctrans_endnamerefs (mwsynctrans_t *mwi);
 
 extern int mwsync_init (struct TAG_langparser *langptr);
 extern int mwsync_setresignafterpar (int resign_after_par);
+extern int mwsync_settransafterfetrans (int trans_after_fetrans);
 extern int mwsync_shutdown (void);
 
 extern struct TAG_feunit mwsync_feunit;

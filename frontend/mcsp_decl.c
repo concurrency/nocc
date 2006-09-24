@@ -50,6 +50,7 @@
 #include "usagecheck.h"
 #include "postcheck.h"
 #include "fetrans.h"
+#include "mwsync.h"
 #include "betrans.h"
 #include "map.h"
 #include "codegen.h"
@@ -782,7 +783,35 @@ static int mcsp_namemap_vardeclnode (compops_t *cops, tnode_t **node, map_t *map
 	return 0;
 }
 /*}}}*/
+/*{{{  static int mcsp_mwsynctrans_vardeclnode (compops_t *cops, tnode_t **node, mwsynctrans_t *mwi)*/
+/*
+ *	does multiway sync transforms for a vardeclnode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_mwsynctrans_vardeclnode (compops_t *cops, tnode_t **node, mwsynctrans_t *mwi)
+{
+	tnode_t *t = *node;
+	tnode_t *name = tnode_nthsubof (t, 0);
+	tnode_t *var_to_remove = NULL;
+	tnode_t **bodyp = tnode_nthsubaddr (t, 2);
 
+	if ((name->tag == mcsp.tag_VARDECL) && (NameTypeOf (tnode_nthnameof (name, 0))->tag == mcsp.tag_EVENT)) {
+		mwsync_mwsynctrans_pushvar (*node, name, &bodyp, mcsp.tag_EVENT, mwi);
+		var_to_remove = *node;
+	}
+
+	/* walk over body */
+	mwsync_transsubtree (bodyp, mwi);
+
+	if (var_to_remove) {
+		/* a name got added, remove it */
+		mwsync_mwsynctrans_popvar (var_to_remove, mwi);
+		var_to_remove = NULL;
+	}
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int mcsp_decl_init_nodes (void)*/
@@ -876,6 +905,7 @@ static int mcsp_decl_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_vardeclnode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_vardeclnode));
+	tnode_setcompop (cops, "mwsynctrans", 2, COMPOPTYPE (mcsp_mwsynctrans_vardeclnode));
 	tnd->ops = cops;
 
 	i = -1;

@@ -65,6 +65,7 @@
 /*}}}*/
 /*{{{  private data*/
 static int mws_opt_rpp = -1;			/* multi-way syncs resign after PARs: --mws-rpp */
+static int mws_opt_taf = 0;			/* multiway sync transform after fetrans */
 
 static langparser_t *mws_langptr = NULL;	/* language using this */
 
@@ -1266,7 +1267,7 @@ static int mwsync_init_nodes (void)
 	int i;
 
 	/*{{{  mwsynctrans -- new compiler pass and compiler operation*/
-	if (nocc_addcompilerpass ("mwsynctrans", (void *)mws_langptr, "fetrans", 1, (int (*)(void *))mwsynctrans_cpass, CPASS_TREE, -1, NULL)) {
+	if (nocc_addcompilerpass ("mwsynctrans", (void *)mws_langptr, "fetrans", mws_opt_taf ? 0 : 1, (int (*)(void *))mwsynctrans_cpass, CPASS_TREE, -1, NULL)) {
 		nocc_internal ("mwsync_init_nodes(): failed to add mwsynctrans compiler pass");
 		return -1;
 	}
@@ -1426,6 +1427,17 @@ int mwsync_setresignafterpar (int resign_after_par)
 		return 0;
 	}
 	return -1;
+}
+/*}}}*/
+/*{{{  int mwsync_settransafterfetrans (int trans_after_fetrans)*/
+/*
+ *	sets the placement of mwsynctrans
+ *	returns 0 on success (option set), non-zero on failure (option not set)
+ */
+int mwsync_settransafterfetrans (int trans_after_fetrans)
+{
+	mws_opt_taf = trans_after_fetrans;
+	return 0;
 }
 /*}}}*/
 

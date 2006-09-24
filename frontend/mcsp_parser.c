@@ -96,8 +96,8 @@ typedef struct {
 static mcsp_parse_t *mcsp_priv = NULL;
 
 static feunit_t *feunit_set[] = {
-	&mcsp_decl_feunit,
 	&mwsync_feunit,
+	&mcsp_decl_feunit,
 	&mcsp_process_feunit,
 	&mcsp_oper_feunit,
 	&mcsp_snode_feunit,
@@ -568,6 +568,9 @@ static int mcsp_parser_init (lexfile_t *lf)
 		mcsp_priv->inode = NULL;
 
 		memset ((void *)&mcsp, 0, sizeof (mcsp));
+
+		/* tell multiway syncs that synctrans should happen _after_ fetrans */
+		mwsync_settransafterfetrans (1);
 
 		/* initialise! */
 		if (mcsp_tokens_init ()) {
