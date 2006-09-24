@@ -694,8 +694,13 @@ static int mcsp_namemap_actionnode (compops_t *cops, tnode_t **node, map_t *map)
 		} else if (*opp) {
 			/* slightly crafty -- turn operand into a back-end constant containing the EVENT's name */
 			name_t *evname = tnode_nthnameof (*opp, 0);
-			char *thename = NameNameOf (evname);
-			char *localname = (char *)smalloc (strlen (thename) + 3);
+			char *thename;
+			char *localname;
+
+			/* may need to hunt back through modified barrier tree */
+			evname = mwsync_basenameof (evname, map);
+			thename = NameNameOf (evname);
+			localname = (char *)smalloc (strlen (thename) + 3);
 
 			sprintf (localname, "%s\n", thename);
 			*opp = map->target->newconst (*opp, map, (void *)localname, strlen (localname) + 1);		/* null terminator for free */

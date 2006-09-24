@@ -28,6 +28,7 @@ struct TAG_name;
 struct TAG_ntdef;
 struct TAG_tndef;
 struct TAG_langparser;
+struct TAG_map;
 
 
 typedef struct TAG_mwsyncpstk {
@@ -98,6 +99,7 @@ extern int mwsync_mwsynctrans_nameref (struct TAG_tnode **tptr, struct TAG_name 
 extern int mwsync_mwsynctrans_parallel (struct TAG_tnode *parnode, struct TAG_tnode **ipoint, struct TAG_tnode **bodies, int nbodies, mwsynctrans_t *mwi);
 
 extern mwsyncpbinfo_t *mwsync_findpbinfointree (struct TAG_tnode *tptr, struct TAG_tnode *name);
+extern struct TAG_name *mwsync_basenameof (struct TAG_name *name, struct TAG_map *mdata);
 
 extern int mwsync_mwsynctrans_startnamerefs (mwsynctrans_t *mwi);
 extern int mwsync_mwsynctrans_endnamerefs (mwsynctrans_t *mwi);

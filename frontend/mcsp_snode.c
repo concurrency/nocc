@@ -192,7 +192,7 @@ static int mcsp_mwsynctrans_snode (compops_t *cops, tnode_t **tptr, mwsynctrans_
 			tnode_t *guard = NULL;
 
 			mwsync_transsubtree (guards + i, mwi);
-#if 1
+#if 0
 			nocc_message ("mcsp_mwsynctrans_snode(): did trans on guard, got back:");
 			tnode_dumptree (guards[i], 1, stderr);
 #endif
@@ -228,7 +228,7 @@ static int mcsp_namemap_snode (compops_t *cops, tnode_t **node, map_t *map)
 		/*{{{  ALTing process -- do guards and bodies one by one*/
 		/* do guards one-by-one */
 		guards = parser_getlistitems (glist, &nguards);
-#if 1
+#if 0
 		nocc_message ("mcsp_namemap_snode(): here! %d guards", nguards);
 #endif
 		for (i=0; i<nguards; i++) {
@@ -352,7 +352,7 @@ static int mcsp_codegen_altstart (langops_t *lops, tnode_t *node, codegen_t *cge
 {
 	mwsyncaltinfo_t *altinf = mwsync_getaltinfo (node);
 
-#if 1
+#if 0
 	nocc_message ("mcsp_codegen_altstart(): altinf at 0x%8.8x, bcount = %d", (unsigned int)altinf, altinf ? altinf->bcount : 0);
 #endif
 	if (altinf && altinf->bcount) {
@@ -487,7 +487,7 @@ static int mcsp_betrans_guardnode (compops_t *cops, tnode_t **node, betrans_t *b
 	if ((*node)->tag == mcsp.tag_GUARD) {
 		tnode_t *event = tnode_nthsubof (*node, 0);
 
-#if 1
+#if 0
 		nocc_message ("mcsp_betrans_guardnode(): setting guardexphook to event =");
 		tnode_dumptree (event, 1, stderr);
 #endif
@@ -505,12 +505,12 @@ static int mcsp_namemap_guardnode (compops_t *cops, tnode_t **nodep, map_t *map)
 {
 	tnode_t *guardexp = (tnode_t *)tnode_getchook (*nodep, guardexphook);
 
-#if 1
+#if 0
 	nocc_message ("mcsp_namemap_guardnode(): here!");
 #endif
 	if (guardexp) {
 		map_submapnames (&guardexp, map);
-#if 1
+#if 0
 		nocc_message ("mcsp_namemap_guardnode(): mapped guardexphook and got:");
 		tnode_dumptree (guardexp, 1, stderr);
 #endif

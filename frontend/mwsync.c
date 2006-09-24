@@ -982,7 +982,7 @@ int mwsync_mwsynctrans_nameref (tnode_t **tptr, name_t *name, ntdef_t *decltag, 
 		}
 		if (i == DA_CUR (mwi->bnames)) {
 			nocc_warning ("mwsync_mwsynctrans_nameref(): name not on barrier stack ..");
-#if 1
+#if 0
 			tnode_dumptree (*tptr, 1, stderr);
 #endif
 		} else {
@@ -1011,7 +1011,7 @@ int mwsync_mwsynctrans_nameref (tnode_t **tptr, name_t *name, ntdef_t *decltag, 
 
 					mwsync_insertnewparbarrier (decltag, bname, 0, (!k ? NULL : DA_NTHITEM (mwps->parbarriers, k-1)), &parbarname, DA_NTHITEMADDR (mwps->paripoints, k), mwi);
 					DA_SETNTHITEM (mwps->parbarriers, k, parbarname);
-#if 1
+#if 0
 					nocc_message ("mwsync_mwsynctrans_nameref(): created PARBARRIER 0x%8.8x at level %d of %d", (unsigned int)parbarname, k, j);
 #endif
 					/*}}}*/
@@ -1033,7 +1033,7 @@ int mwsync_mwsynctrans_nameref (tnode_t **tptr, name_t *name, ntdef_t *decltag, 
 					} else {
 						pbinf->nprocbarriers++;
 					}
-#if 1
+#if 0
 					nocc_message ("mwsync_mwsynctrans_nameref(): created PROCBARRIER 0x%8.8x at level %d of %d", (unsigned int)procbarname, k, j);
 #endif
 					/*}}}*/
@@ -1166,6 +1166,54 @@ mwsyncpbinfo_t *mwsync_findpbinfointree (tnode_t *tptr, tnode_t *name)
 		tptr = tnode_nthsubof (tptr, 2);		/* body */
 	}
 	return NULL;
+}
+/*}}}*/
+/*{{{  name_t *mwsync_basenameof (name_t *name, map_t *mdata)*/
+/*
+ *	finds the top name of a PROCBARRIER/PARBARRIER
+ */
+name_t *mwsync_basenameof (name_t *name, map_t *mdata)
+{
+	for (;;) {
+		if (NameTypeOf (name)->tag == mwsi.tag_PROCBARRIERTYPE) {
+			tnode_t *decl = NameDeclOf (name);
+			tnode_t *namenode = NULL;
+
+#if 0
+			nocc_message ("mwsync_basenameof(): thisname [%s] PROCBARRIERTYPE has decl [%s]", NameNameOf (name), decl ? decl->tag->name : "");
+#endif
+			if (decl) {
+				namenode = tnode_nthsubof (decl, 3);
+				if (namenode->tag == mdata->target->tag_NAMEREF) {
+					namenode = tnode_nthsubof (namenode, 0);
+				}
+#if 0
+				nocc_message ("mwsync_basenameof(): thisname [%s] PROCBARRIERTYPE has decl namenode [%s]", NameNameOf (name), namenode ? namenode->tag->name : "");
+#endif
+				name = tnode_nthnameof (namenode, 0);
+			}
+		} else if (NameTypeOf (name)->tag == mwsi.tag_PARBARRIERTYPE) {
+			tnode_t *decl = NameDeclOf (name);
+			tnode_t *namenode = NULL;
+
+#if 0
+			nocc_message ("mwsync_basenameof(): thisname [%s] PARBARRIERTYPE has decl [%s]", NameNameOf (name), decl ? decl->tag->name : "");
+#endif
+			if (decl) {
+				namenode = tnode_nthsubof (decl, 3);
+				if (namenode->tag == mdata->target->tag_NAMEREF) {
+					namenode = tnode_nthsubof (namenode, 0);
+				}
+#if 0
+				nocc_message ("mwsync_basenameof(): thisname [%s] PARBARRIERTYPE has decl namenode [%s]", NameNameOf (name), namenode ? namenode->tag->name : "");
+#endif
+				name = tnode_nthnameof (namenode, 0);
+			}
+		} else {
+			break;
+		}
+	}
+	return name;
 }
 /*}}}*/
 
