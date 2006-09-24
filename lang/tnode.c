@@ -1331,7 +1331,8 @@ void tnode_dumptree (tnode_t *t, int indent, FILE *stream)
 	}
 	tnd = t->tag->ndef;
 
-	fprintf (stream, "<%s type=\"%s\" origin=\"%s:%d\" addr=\"0x%8.8x\">\n", tnd->name, t->tag->name, (t->org_file) ? t->org_file->fnptr : "(none)", t->org_line, (unsigned int)t);
+	fprintf (stream, "<%s type=\"%s\" origin=\"%s:%d\" addr=\"0x%8.8x\">%s\n", tnd->name, t->tag->name, (t->org_file) ? t->org_file->fnptr : "(none)", t->org_line, (unsigned int)t,
+			compopts.dumpfolded ? "<!--{{{-->" : "");
 	for (i=0; i<DA_CUR (t->items); i++) {
 		if (i < tnd->nsub) {
 			/* subnode */
@@ -1362,7 +1363,7 @@ void tnode_dumptree (tnode_t *t, int indent, FILE *stream)
 		}
 	}
 	tnode_isetindent (stream, indent);
-	fprintf (stream, "</%s>\n", tnd->name);
+	fprintf (stream, "</%s>%s\n", tnd->name, compopts.dumpfolded ? "<!--}}}-->" : "");
 
 	return;
 }
@@ -1910,6 +1911,9 @@ int tnode_haslangop (langops_t *lops, char *name)
 {
 	langop_t *lop = stringhash_lookup (langops, name);
 
+	if (!lops) {
+		return 0;
+	}
 	if (!lop) {
 		nocc_internal ("tnode_haslangop(): no such language operation [%s]", name);
 		return -1;

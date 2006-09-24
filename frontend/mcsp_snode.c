@@ -50,6 +50,7 @@
 #include "usagecheck.h"
 #include "postcheck.h"
 #include "fetrans.h"
+#include "mwsync.h"
 #include "betrans.h"
 #include "map.h"
 #include "codegen.h"
@@ -58,6 +59,51 @@
 
 
 /*}}}*/
+/*{{{  private data*/
+
+/* this is a chook attached to guard-nodes that indicates what needs to be enabled */
+static chook_t *guardexphook = NULL;
+
+
+/*}}}*/
+
+
+/*{{{  static void mcsp_guardexphook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*
+ *	display the contents of a guardexphook compiler hook (just a node)
+ */
+static void mcsp_guardexphook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+{
+	if (chook) {
+		mcsp_isetindent (stream, indent);
+		fprintf (stream, "<mcsp:guardexphook addr=\"0x%8.8x\">\n", (unsigned int)chook);
+		tnode_dumptree ((tnode_t *)chook, indent + 1, stream);
+		mcsp_isetindent (stream, indent);
+		fprintf (stream, "</mcsp:guardexphook>\n");
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void mcsp_guardexphook_free (void *chook)*/
+/*
+ *	frees a guardexphook
+ */
+static void mcsp_guardexphook_free (void *chook)
+{
+	return;
+}
+/*}}}*/
+/*{{{  static void *mcsp_guardexphook_copy (void *chook)*/
+/*
+ *	copies a guardexphook
+ */
+static void *mcsp_guardexphook_copy (void *chook)
+{
+	return chook;
+}
+/*}}}*/
+
+
 
 
 /*{{{  static int mcsp_fetrans_snode (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
@@ -126,6 +172,46 @@ static int mcsp_fetrans_snode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int mcsp_mwsynctrans_snode (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)*/
+/*
+ *	does multiway synchronisation transforms for a structured process node (ALTs)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_mwsynctrans_snode (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)
+{
+	if ((*tptr)->tag == mcsp.tag_ALT) {
+		/*{{{  ALTing process -- look for EVENT guards*/
+		tnode_t *glist = tnode_nthsubof (*tptr, 0);
+		int nguards, i;
+		tnode_t **guards = parser_getlistitems (glist, &nguards);
+		mwsyncaltinfo_t *altinf = mwsync_newmwsyncaltinfo ();
+
+		// mwsync_transsubtree (tnode_nthsubaddr (*tptr, 0), mwi);
+
+		for (i=0; i<nguards; i++) {
+			tnode_t *guard = NULL;
+
+			mwsync_transsubtree (guards + i, mwi);
+#if 1
+			nocc_message ("mcsp_mwsynctrans_snode(): did trans on guard, got back:");
+			tnode_dumptree (guards[i], 1, stderr);
+#endif
+			
+			if ((guards[i]->tag == mcsp.tag_GUARD) && (tnode_nthsubof (guards[i], 0)->tag == mcsp.tag_EVENT)) {
+				altinf->bcount++;
+			} else {
+				altinf->nbcount++;
+			}
+		}
+
+		mwsync_setaltinfo (*tptr, altinf);
+
+		/*}}}*/
+	}
+
+	return 1;
+}
+/*}}}*/
 /*{{{  static int mcsp_namemap_snode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a structured node (IF, ALT)
@@ -142,16 +228,16 @@ static int mcsp_namemap_snode (compops_t *cops, tnode_t **node, map_t *map)
 		/*{{{  ALTing process -- do guards and bodies one by one*/
 		/* do guards one-by-one */
 		guards = parser_getlistitems (glist, &nguards);
+#if 1
+		nocc_message ("mcsp_namemap_snode(): here! %d guards", nguards);
+#endif
 		for (i=0; i<nguards; i++) {
-			tnode_t *guard = guards[i];
 
-			if (guard && (guard->tag == mcsp.tag_GUARD)) {
-				tnode_t **eventp = tnode_nthsubaddr (guard, 0);
-				tnode_t **bodyp = tnode_nthsubaddr (guard, 1);
-
-				map_submapnames (eventp, map);
-				map_submapnames (bodyp, map);
-			}
+#if 0
+			nocc_message ("mcsp_namemap_snode(): guard %d is:", i);
+			tnode_dumptree (guard, 1, stderr);
+#endif
+			map_submapnames (guards + i, map);
 		}
 
 		/* ALT itself needs a bit of space */
@@ -175,7 +261,7 @@ static int mcsp_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 	int nguards, i;
 	int *labels;
 	int *dlabels;
-	int chosen_slot = cgen->target->aws.as_alt;
+	// int chosen_slot = cgen->target->aws.as_alt;
 
 	if (node->tag == mcsp.tag_ALT) {
 		int resumelab = codegen_new_label (cgen);
@@ -186,56 +272,51 @@ static int mcsp_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 		labels = (int *)smalloc (nguards * sizeof (int));
 		dlabels = (int *)smalloc (nguards * sizeof (int));
 
+		for (i=0; i<nguards; i++) {
+			labels[i] = codegen_new_label (cgen);
+			dlabels[i] = codegen_new_label (cgen);
+		}
+
 		/*}}}*/
 		/*{{{  ALT start*/
-		codegen_callops (cgen, loadconst, -1);
-		codegen_callops (cgen, storelocal, chosen_slot);
-
-		codegen_callops (cgen, tsecondary, I_MWALT);
+		if (tnode_haslangop (node->tag->ndef->lops, "codegen_altstart")) {
+			tnode_calllangop (node->tag->ndef->lops, "codegen_altstart", 2, node, cgen);
+		}
 
 		/*}}}*/
-		/*{{{  enabling sequence*/
+		/*{{{  ALT enabling sequence*/
 		for (i=0; i<nguards; i++) {
-			tnode_t *guard = guards[i];
-
-			if (guard && (guard->tag == mcsp.tag_GUARD)) {
-				tnode_t *event = tnode_nthsubof (guard, 0);
-
-				/* drop in labels */
-				labels[i] = codegen_new_label (cgen);
-				dlabels[i] = codegen_new_label (cgen);
-
-				codegen_callops (cgen, loadpointer, event, 0);
-				codegen_callops (cgen, loadlabaddr, dlabels[i]);
-
-				codegen_callops (cgen, tsecondary, I_MWENB);
+			if (tnode_haslangop_i (guards[i]->tag->ndef->lops, (int)LOPS_CODEGEN_ALTENABLE)) {
+				tnode_calllangop_i (guards[i]->tag->ndef->lops, (int)LOPS_CODEGEN_ALTENABLE, 3, guards[i], dlabels[i], cgen);
+			} else {
+				nocc_warning ("mcsp_codegen_snode(): don\'t know how to generate ALT enable code for (%s,%s)", guards[i]->tag->name, guards[i]->tag->ndef->name);
 			}
 		}
+
 		/*}}}*/
 		/*{{{  ALT wait*/
-		codegen_callops (cgen, tsecondary, I_MWALTWT);
+		if (tnode_haslangop (node->tag->ndef->lops, "codegen_altwait")) {
+			tnode_calllangop (node->tag->ndef->lops, "codegen_altwait", 2, node, cgen);
+		}
 
 		/*}}}*/
-		/*{{{  disabling sequence -- backwards please!*/
-		for (i=nguards - 1; i>=0; i--) {
-			tnode_t *guard = guards[i];
-
-			codegen_callops (cgen, setlabel, dlabels[i]);
-			if (guard && (guard->tag == mcsp.tag_GUARD)) {
-				tnode_t *event = tnode_nthsubof (guard, 0);
-
-				codegen_callops (cgen, loadpointer, event, 0);
-				codegen_callops (cgen, loadlabaddr, labels[i]);
-
-				codegen_callops (cgen, tsecondary, I_MWDIS);
+		/*{{{  ALT disabling sequence*/
+		for (i--; i >= 0; i--) {
+			if (tnode_haslangop_i (guards[i]->tag->ndef->lops, (int)LOPS_CODEGEN_ALTDISABLE)) {
+				tnode_calllangop_i (guards[i]->tag->ndef->lops, (int)LOPS_CODEGEN_ALTDISABLE, 4, guards[i], dlabels[i], labels[i], cgen);
+			} else {
+				nocc_warning ("mcsp_codegen_snode(): don\'t know how to generate ALT disable code for (%s,%s)", guards[i]->tag->name, guards[i]->tag->ndef->name);
 			}
 		}
-		/*}}}*/
-		/*{{{  ALT end*/
-		codegen_callops (cgen, tsecondary, I_MWALTEND);
-		codegen_callops (cgen, tsecondary, I_SETERR);		/* if we fell of the ALT */
 
 		/*}}}*/
+		/*{{{  ALT end*/
+		if (tnode_haslangop (node->tag->ndef->lops, "codegen_altend")) {
+			tnode_calllangop (node->tag->ndef->lops, "codegen_altend", 2, node, cgen);
+		}
+
+		/*}}}*/
+
 		/*{{{  guarded processes*/
 		for (i=0; i<nguards; i++) {
 			tnode_t *guard = guards[i];
@@ -262,6 +343,88 @@ static int mcsp_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int mcsp_codegen_altstart (langops_t *lops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates code for MCSP ALT start
+ *	returns 0 on success, non-zero on failure
+ */
+static int mcsp_codegen_altstart (langops_t *lops, tnode_t *node, codegen_t *cgen)
+{
+	mwsyncaltinfo_t *altinf = mwsync_getaltinfo (node);
+
+#if 1
+	nocc_message ("mcsp_codegen_altstart(): altinf at 0x%8.8x, bcount = %d", (unsigned int)altinf, altinf ? altinf->bcount : 0);
+#endif
+	if (altinf && altinf->bcount) {
+		/* need a multiway sync start */
+		codegen_callops (cgen, tsecondary, I_MWS_ALTLOCK);
+		codegen_callops (cgen, tsecondary, I_MWS_ALT);
+	} else {
+		/* down-stream alt-start */
+		if (tnode_haslangop (lops->next, "codegen_altstart")) {
+			return tnode_calllangop (lops->next, "codegen_altstart", 2, node, cgen);
+		} else {
+			/* basic */
+			codegen_callops (cgen, tsecondary, I_ALT);
+		}
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int mcsp_codegen_altwait (langops_t *lops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates code for basic MCSP ALT wait
+ *	returns 0 on success, non-zero on failure
+ */
+static int mcsp_codegen_altwait (langops_t *lops, tnode_t *node, codegen_t *cgen)
+{
+	mwsyncaltinfo_t *altinf = mwsync_getaltinfo (node);
+
+	if (altinf && altinf->bcount) {
+		/* we're multi-way synching, better unlock before wait */
+		codegen_callops (cgen, tsecondary, I_MWS_ALTUNLOCK);
+	}
+
+	/* down-stream alt-wait */
+	if (tnode_haslangop (lops->next, "codegen_altwait")) {
+		tnode_calllangop (lops->next, "codegen_altwait", 2, node, cgen);
+	} else {
+		codegen_callops (cgen, tsecondary, I_ALTWT);
+	}
+
+	if (altinf && altinf->bcount) {
+		/* and re-lock afterwards */
+		codegen_callops (cgen, tsecondary, I_MWS_ALTPOSTLOCK);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int mcsp_codegen_altend (langops_t *lops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates code for MCSP ALT end
+ *	returns 0 on success, non-zero on failure
+ */
+static int mcsp_codegen_altend (langops_t *lops, tnode_t *node, codegen_t *cgen)
+{
+	mwsyncaltinfo_t *altinf = mwsync_getaltinfo (node);
+
+	if (altinf && altinf->bcount) {
+		/* need a multiway sync end */
+		codegen_callops (cgen, tsecondary, I_MWS_ALTEND);
+		codegen_callops (cgen, tsecondary, I_SETERR);
+	} else {
+		/* down-stream alt-end */
+		if (tnode_haslangop (lops->next, "codegen_altend")) {
+			return tnode_calllangop (lops->next, "codegen_altend", 2, node, cgen);
+		} else {
+			codegen_callops (cgen, tsecondary, I_ALTEND);
+			codegen_callops (cgen, tsecondary, I_SETERR);
+		}
+	}
+	return 0;
+}
+/*}}}*/
+
 
 
 /*{{{  static int mcsp_postcheck_guardnode (compops_t *cops, tnode_t **node, postcheck_t *pc)*/
@@ -314,7 +477,169 @@ static int mcsp_fetrans_guardnode (compops_t *cops, tnode_t **node, fetrans_t *f
 	return 1;
 }
 /*}}}*/
+/*{{{  static int mcsp_betrans_guardnode (compops_t *cops, tnode_t **node, betrans_t *be)*/
+/*
+ *	does back-end transformation on a GUARD
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_betrans_guardnode (compops_t *cops, tnode_t **node, betrans_t *be)
+{
+	if ((*node)->tag == mcsp.tag_GUARD) {
+		tnode_t *event = tnode_nthsubof (*node, 0);
 
+#if 1
+		nocc_message ("mcsp_betrans_guardnode(): setting guardexphook to event =");
+		tnode_dumptree (event, 1, stderr);
+#endif
+		tnode_setchook (*node, guardexphook, (void *)event);
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_namemap_guardnode (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for an ALT guard
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mcsp_namemap_guardnode (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t *guardexp = (tnode_t *)tnode_getchook (*nodep, guardexphook);
+
+#if 1
+	nocc_message ("mcsp_namemap_guardnode(): here!");
+#endif
+	if (guardexp) {
+		map_submapnames (&guardexp, map);
+#if 1
+		nocc_message ("mcsp_namemap_guardnode(): mapped guardexphook and got:");
+		tnode_dumptree (guardexp, 1, stderr);
+#endif
+		tnode_setchook (*nodep, guardexphook, (void *)guardexp);
+		tnode_setchook (*nodep, map->allocevhook, (void *)guardexp);
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int mcsp_codegen_altenable_guardnode (langops_t *lops, tnode_t *guard, int dlabel, codegen_t *cgen)*/
+/*
+ *	does code-generation for SYNC guard ALT enable
+ *	returns 0 on success, non-zero on failure
+ */
+static int mcsp_codegen_altenable_guardnode (langops_t *lops, tnode_t *guard, int dlabel, codegen_t *cgen)
+{
+	if (guard->tag == mcsp.tag_GUARD) {
+		//tnode_t *precond = tnode_nthsubof (guard, 2);
+		tnode_t *precond = NULL;
+
+		codegen_callops (cgen, loadpointer, tnode_nthsubof (guard, 0), 0);
+		if (precond) {
+			nocc_warning ("mcsp_codegen_altenable_guardnode(): don\'t handle preconditions here!");
+		}
+		codegen_callops (cgen, loadlabaddr, dlabel);
+		codegen_callops (cgen, tsecondary, I_MWS_ENB);
+		codegen_callops (cgen, trashistack);
+	} else {
+		/* down-stream alt-enable */
+		if (tnode_haslangop (lops->next, "codegen_altenable")) {
+			return tnode_calllangop (lops->next, "codegen_altenable", 3, guard, dlabel, cgen);
+		}
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int mcsp_codegen_altdisable_guardnode (langops_t *lops, tnode_t *guard, int dlabel, int plabel, codegen_t *cgen)*/
+/*
+ *	does code-generation for SYNC guard ALT disable
+ *	returns 0 on success, non-zero on failure
+ */
+static int mcsp_codegen_altdisable_guardnode (langops_t *lops, tnode_t *guard, int dlabel, int plabel, codegen_t *cgen)
+{
+	if (guard->tag == mcsp.tag_GUARD) {
+		//tnode_t *precond = tnode_nthsubof (guard, 2);
+		tnode_t *precond = NULL;
+
+		codegen_callops (cgen, setlabel, dlabel);
+		codegen_callops (cgen, loadpointer, tnode_nthsubof (guard, 0), 0);
+		if (precond) {
+			nocc_warning ("mcsp_codegen_altdisable_guardnode(): don\'t handle preconditions here!");
+		}
+		codegen_callops (cgen, loadlabaddr, plabel);
+		codegen_callops (cgen, tsecondary, I_MWS_DIS);
+		codegen_callops (cgen, trashistack);
+	} else {
+		/* down-stream alt-disable */
+		if (tnode_haslangop (lops->next, "codegen_altdisable")) {
+			return tnode_calllangop (lops->next, "codegen_altdisable", 4, guard, dlabel, plabel, cgen);
+		}
+	}
+	return 0;
+}
+/*}}}*/
+
+#if 0
+/*{{{  static int mcsp_codegen_altenable_guardnode (langops_t *lops, tnode_t *guard, int dlabel, codegen_t *cgen)*/
+/*
+ *	does code-generation for an ALT guard enable
+ *	returns 0 on success, non-zero on failure
+ */
+static int mcsp_codegen_altenable_guardnode (langops_t *lops, tnode_t *guard, int dlabel, codegen_t *cgen)
+{
+	tnode_t *guardexpr = (tnode_t *)tnode_getchook (guard, guardexphook);
+
+	if (guard->tag == mcsp.tag_GUARD) {
+		if (!guardexpr) {
+			nocc_internal ("mcsp_codegen_altenable_guardnode(): no guard expression on INPUTGUARD!");
+		} else {
+			// tnode_t *precond = tnode_nthsubof (guard, 2);
+			tnode_t *precond = NULL;
+
+			codegen_callops (cgen, loadpointer, guardexpr, 0);
+			if (precond) {
+				codegen_subcodegen (precond, cgen);
+			} else {
+				codegen_callops (cgen, loadconst, 1);
+			}
+			codegen_callops (cgen, loadlabaddr, dlabel);
+			codegen_callops (cgen, tsecondary, I_ENBC);
+			codegen_callops (cgen, trashistack);
+		}
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int mcsp_codegen_altdisable_guardnode (langops_t *lops, tnode_t *guard, int dlabel, int plabel, codegen_t *cgen)*/
+/*
+ *	does code-generation for an ALT guard disable
+ *	returns 0 on success, non-zero on failure
+ */
+static int mcsp_codegen_altdisable_guardnode (langops_t *lops, tnode_t *guard, int dlabel, int plabel, codegen_t *cgen)
+{
+	tnode_t *guardexpr = (tnode_t *)tnode_getchook (guard, guardexphook);
+
+	codegen_callops (cgen, setlabel, dlabel);
+	if (guard->tag == mcsp.tag_GUARD) {
+		if (!guardexpr) {
+			nocc_internal ("mcsp_codegen_altdisable_guardnode(): guard expression on INPUTGUARD vanished!");
+		} else {
+			// tnode_t *precond = tnode_nthsubof (guard, 2);
+			tnode_t *precond = NULL;
+
+			codegen_callops (cgen, loadpointer, guardexpr, 0);
+			if (precond) {
+				codegen_subcodegen (precond, cgen);
+			} else {
+				codegen_callops (cgen, loadconst, 1);
+			}
+			codegen_callops (cgen, loadlabaddr, plabel);
+			codegen_callops (cgen, tsecondary, I_DISC);
+			codegen_callops (cgen, trashistack);
+		}
+	}
+	return 0;
+}
+/*}}}*/
+#endif
 
 /*{{{  static int mcsp_snode_init_nodes (void)*/
 /*
@@ -326,7 +651,22 @@ static int mcsp_snode_init_nodes (void)
 	tndef_t *tnd;
 	int i;
 	compops_t *cops;
+	langops_t *lops;
 
+
+	/*{{{  guardexphook -- compiler hook*/
+	guardexphook = tnode_lookupornewchook ("mcsp:guardexphook");
+	guardexphook->chook_dumptree = mcsp_guardexphook_dumptree;
+	guardexphook->chook_free = mcsp_guardexphook_free;
+	guardexphook->chook_copy = mcsp_guardexphook_copy;
+
+	/*}}}*/
+	/*{{{  ALT codegen language ops*/
+	tnode_newlangop ("codegen_altstart", LOPS_INVALID, 2, (void *)&mcsp_parser);
+	tnode_newlangop ("codegen_altwait", LOPS_INVALID, 2, (void *)&mcsp_parser);
+	tnode_newlangop ("codegen_altend", LOPS_INVALID, 2, (void *)&mcsp_parser);
+
+	/*}}}*/
 	/*{{{  mcsp:snode -- ALT*/
 	i = -1;
 	tnd = mcsp.node_SNODE = tnode_newnodetype ("mcsp:snode", &i, 1, 0, 1, TNF_NONE);		/* subnodes: 0 = list of guards/nested ALTs; hooks: 0 = mcsp_alpha_t */
@@ -335,9 +675,15 @@ static int mcsp_snode_init_nodes (void)
 	tnd->hook_dumptree = mcsp_alpha_hook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_snode));
+	tnode_setcompop (cops, "mwsynctrans", 2, COMPOPTYPE (mcsp_mwsynctrans_snode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_snode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (mcsp_codegen_snode));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "codegen_altstart", 2, LANGOPTYPE (mcsp_codegen_altstart));
+	tnode_setlangop (lops, "codegen_altwait", 2, LANGOPTYPE (mcsp_codegen_altwait));
+	tnode_setlangop (lops, "codegen_altend", 2, LANGOPTYPE (mcsp_codegen_altend));
+	tnd->lops = lops;
 
 	i = -1;
 	mcsp.tag_ALT = tnode_newnodetag ("MCSPALT", &i, tnd, NTF_NONE);
@@ -349,7 +695,13 @@ static int mcsp_snode_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "postcheck", 2, COMPOPTYPE (mcsp_postcheck_guardnode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (mcsp_fetrans_guardnode));
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (mcsp_betrans_guardnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (mcsp_namemap_guardnode));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "codegen_altenable", 3, LANGOPTYPE (mcsp_codegen_altenable_guardnode));
+	tnode_setlangop (lops, "codegen_altdisable", 4, LANGOPTYPE (mcsp_codegen_altdisable_guardnode));
+	tnd->lops = lops;
 
 	i = -1;
 	mcsp.tag_GUARD = tnode_newnodetag ("MCSPGUARD", &i, tnd, NTF_NONE);

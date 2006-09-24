@@ -95,6 +95,7 @@ compopts_t compopts = {
 	dumpvarmaps: 0,
 	dumpnodetypes: 0,
 	dumpextns: 0,
+	dumpfolded: 0,
 	debugparser: 0,
 	stoppoint: 0,
 	tracetypecheck: 0,

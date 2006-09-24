@@ -216,7 +216,21 @@ static int occampi_codegen_altdisable_guardnode (langops_t *lops, tnode_t *guard
  */
 static int occampi_codegen_altstart (langops_t *lops, tnode_t *node, codegen_t *cgen)
 {
-	codegen_callops (cgen, tsecondary, I_ALT);
+	mwsyncaltinfo_t *altinf = mwsync_getaltinfo (node);
+
+	if (altinf && altinf->bcount) {
+		/* need a multiway sync start */
+		codegen_callops (cgen, tsecondary, I_MWS_ALTLOCK);
+		codegen_callops (cgen, tsecondary, I_MWS_ALT);
+	} else {
+		/* down-stream alt-start */
+		if (tnode_haslangop (lops->next, "codegen_altstart")) {
+			return tnode_calllangop (lops->next, "codegen_altstart", 2, node, cgen);
+		} else {
+			/* basic */
+			codegen_callops (cgen, tsecondary, I_ALT);
+		}
+	}
 	return 0;
 }
 /*}}}*/
@@ -227,7 +241,24 @@ static int occampi_codegen_altstart (langops_t *lops, tnode_t *node, codegen_t *
  */
 static int occampi_codegen_altwait (langops_t *lops, tnode_t *node, codegen_t *cgen)
 {
-	codegen_callops (cgen, tsecondary, I_ALTWT);
+	mwsyncaltinfo_t *altinf = mwsync_getaltinfo (node);
+
+	if (altinf && altinf->bcount) {
+		/* we're multi-way synching, better unlock before wait */
+		codegen_callops (cgen, tsecondary, I_MWS_ALTUNLOCK);
+	}
+
+	/* down-stream alt-wait */
+	if (tnode_haslangop (lops->next, "codegen_altwait")) {
+		tnode_calllangop (lops->next, "codegen_altwait", 2, node, cgen);
+	} else {
+		codegen_callops (cgen, tsecondary, I_ALTWT);
+	}
+
+	if (altinf && altinf->bcount) {
+		/* and re-lock afterwards */
+		codegen_callops (cgen, tsecondary, I_MWS_ALTPOSTLOCK);
+	}
 	return 0;
 }
 /*}}}*/
@@ -238,8 +269,21 @@ static int occampi_codegen_altwait (langops_t *lops, tnode_t *node, codegen_t *c
  */
 static int occampi_codegen_altend (langops_t *lops, tnode_t *node, codegen_t *cgen)
 {
-	codegen_callops (cgen, tsecondary, I_ALTEND);
-	codegen_callops (cgen, tsecondary, I_SETERR);
+	mwsyncaltinfo_t *altinf = mwsync_getaltinfo (node);
+
+	if (altinf && altinf->bcount) {
+		/* need a multiway sync end */
+		codegen_callops (cgen, tsecondary, I_MWS_ALTEND);
+		codegen_callops (cgen, tsecondary, I_SETERR);
+	} else {
+		/* down-stream alt-end */
+		if (tnode_haslangop (lops->next, "codegen_altend")) {
+			return tnode_calllangop (lops->next, "codegen_altend", 2, node, cgen);
+		} else {
+			codegen_callops (cgen, tsecondary, I_ALTEND);
+			codegen_callops (cgen, tsecondary, I_SETERR);
+		}
+	}
 	return 0;
 }
 /*}}}*/
