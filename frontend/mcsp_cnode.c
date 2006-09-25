@@ -121,7 +121,7 @@ static int mcsp_fetrans_cnode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 		}
 		break;
 	case 2:
-		if (t->tag == mcsp.tag_PARCODE) {
+		if ((t->tag == mcsp.tag_PARCODE) || (t->tag == mcsp.tag_ILEAVECODE)) {
 			/*{{{  build the alphabet for this node, store unbound ones in parent*/
 			mcsp_alpha_t *savedalpha = mfe->curalpha;
 			mcsp_alpha_t *a_lhs, *a_rhs;
@@ -132,7 +132,7 @@ static int mcsp_fetrans_cnode (compops_t *cops, tnode_t **node, fetrans_t *fe)
 			/* always two subtrees */
 			subnodes = parser_getlistitems (tnode_nthsubof (t, 1), &nsnodes);
 			if (nsnodes != 2) {
-				nocc_internal ("mcsp_fetrans_dopnode(): pass2 for PARCODE: have %d items", nsnodes);
+				nocc_internal ("mcsp_fetrans_dopnode(): pass2 for PARCODE/ILEAVECODE: have %d items", nsnodes);
 				return 0;
 			}
 
@@ -168,7 +168,7 @@ static int mcsp_fetrans_cnode (compops_t *cops, tnode_t **node, fetrans_t *fe)
  */
 static int mcsp_mwsynctrans_cnode (compops_t *cops, tnode_t **tptr, mwsynctrans_t *mwi)
 {
-	if ((*tptr)->tag == mcsp.tag_PARCODE) {
+	if (((*tptr)->tag == mcsp.tag_PARCODE) || ((*tptr)->tag == mcsp.tag_ILEAVECODE)) {
 		tnode_t *parnode = *tptr;
 		tnode_t **bodies;
 		int nbodies;
@@ -178,7 +178,7 @@ static int mcsp_mwsynctrans_cnode (compops_t *cops, tnode_t **tptr, mwsynctrans_
 
 		bodies = parser_getlistitems (tnode_nthsubof (parnode, 1), &nbodies);
 		if (nbodies != 2) {
-			nocc_internal ("mcsp_mwsynctrans_cnode(): pass for PARCODE: have %d items", nbodies);
+			nocc_internal ("mcsp_mwsynctrans_cnode(): pass for PARCODE/ILEAVECODE: have %d items", nbodies);
 			return 0;
 		}
 
@@ -221,7 +221,7 @@ static int mcsp_namemap_cnode (compops_t *cops, tnode_t **node, map_t *map)
 	if ((*node)->tag == mcsp.tag_SEQCODE) {
 		/* nothing special */
 		return 1;
-	} else if ((*node)->tag == mcsp.tag_PARCODE) {
+	} else if (((*node)->tag == mcsp.tag_PARCODE) || ((*node)->tag == mcsp.tag_ILEAVECODE)) {
 		/*{{{  map PAR bodies*/
 		tnode_t *body = tnode_nthsubof (*node, 1);
 		tnode_t **bodies;
@@ -230,7 +230,7 @@ static int mcsp_namemap_cnode (compops_t *cops, tnode_t **node, map_t *map)
 		mcsp_alpha_t *alpha = (mcsp_alpha_t *)tnode_nthhookof (*node, 0);		/* events the _two_ processes synchronise on */
 
 		if (!parser_islistnode (body)) {
-			nocc_internal ("mcsp_namemap_cnode(): body of PARCODE not list");
+			nocc_internal ("mcsp_namemap_cnode(): body of PARCODE/ILEAVECODE not list");
 			return 1;
 		}
 
@@ -311,7 +311,7 @@ static int mcsp_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	if (node->tag == mcsp.tag_SEQCODE) {
 		return 1;
-	} else if (node->tag == mcsp.tag_PARCODE) {
+	} else if ((node->tag == mcsp.tag_PARCODE) || (node->tag == mcsp.tag_ILEAVECODE)) {
 		/*{{{  generate code for PAR*/
 		tnode_t *body = tnode_nthsubof (node, 1);
 		tnode_t **bodies;
@@ -747,7 +747,7 @@ static int mcsp_cnode_init_nodes (void)
 	mcsp.tag_LOOPSPACE = tnode_newnodetag ("MCSPLOOPSPACE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  mcsp:cnode -- SEQCODE, PARCODE*/
+	/*{{{  mcsp:cnode -- SEQCODE, PARCODE, ILEAVECODE*/
 	i = -1;
 	tnd = mcsp.node_CNODE = tnode_newnodetype ("mcsp:cnode", &i, 2, 0, 1, TNF_NONE);		/* subnodes: 0 = back-end space reference, 1 = list of processes;  hooks: 0 = mcsp_alpha_t */
 	tnd->hook_free = mcsp_alpha_hook_free;
@@ -764,6 +764,8 @@ static int mcsp_cnode_init_nodes (void)
 	mcsp.tag_SEQCODE = tnode_newnodetag ("MCSPSEQNODE", &i, tnd, NTF_NONE);
 	i = -1;
 	mcsp.tag_PARCODE = tnode_newnodetag ("MCSPPARNODE", &i, tnd, NTF_NONE);
+	i = -1;
+	mcsp.tag_ILEAVECODE = tnode_newnodetag ("MCSPILEAVENODE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  mcsp:loopnode -- ILOOP, PRIDROP*/

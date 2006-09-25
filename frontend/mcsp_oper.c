@@ -311,6 +311,21 @@ tnode_dumptree (list, 1, stderr);
 
 			*node = parnode;
 			/*}}}*/
+		} else if (t->tag == mcsp.tag_ILEAVE) {
+			/*{{{  interleave: scoop up and build ILEAVECODE*/
+			tnode_t *list, *parnode;
+			tnode_t *lhs = tnode_nthsubof (t, 0);
+			tnode_t *rhs = tnode_nthsubof (t, 1);
+
+			list = parser_buildlistnode (NULL, lhs, rhs, NULL);
+			parnode = tnode_create (mcsp.tag_ILEAVECODE, NULL, NULL, list, NULL);
+
+			tnode_setnthsub (t, 0, NULL);
+			tnode_setnthsub (t, 1, NULL);
+			tnode_free (t);
+
+			*node = parnode;
+			/*}}}*/
 		} else if (t->tag == mcsp.tag_SEQ) {
 			/*{{{  serial: scoop up and build SEQCODE*/
 			tnode_t *list, *seqnode;

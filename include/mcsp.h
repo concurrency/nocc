@@ -92,6 +92,7 @@ typedef struct {
 	struct TAG_ntdef *tag_SYNC;
 	struct TAG_ntdef *tag_SEQCODE;
 	struct TAG_ntdef *tag_PARCODE;
+	struct TAG_ntdef *tag_ILEAVECODE;
 	struct TAG_ntdef *tag_ALT;
 	struct TAG_ntdef *tag_GUARD;
 	struct TAG_ntdef *tag_CHANWRITE;

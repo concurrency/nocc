@@ -1,0 +1,5 @@
+
+# test_c19.mcsp -- interleaving test
+
+SYSTEM (a,b) ::= (a -> b -> SKIP) ||| (a -> SKIP)
+
