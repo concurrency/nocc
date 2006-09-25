@@ -258,7 +258,7 @@ tnode_dumptree (alpha->elist, 1, stderr);
 
 			/* map body */
 			map_submapnames (&(bodies[i]), map);
-			parbodyspace = map->target->newname (tnode_create (mcsp.tag_PARSPACE, NULL), bodies[i], map, 0, 16, 0, 0, 0, 0);	/* FIXME! */
+			parbodyspace = map->target->newname (tnode_create (mcsp.tag_PARSPACE, NULL), bodies[i], map, 0, map->target->bws.ds_min, 0, 0, 0, 0);
 			*(map->target->be_blockbodyaddr (blk)) = parbodyspace;
 
 			map_poplexlevel (map);
@@ -281,7 +281,7 @@ tnode_dumptree (alpha->elist, 1, stderr);
 				parser_addtolist (blist, bodies[i]);
 			}
 			bodyref = map->target->newblockref (blist, *node, map);
-			bename = map->target->newname (fename, bodyref, map, map->target->aws.as_par, 0, 0, 0, 0, 0);
+			bename = map->target->newname (fename, bodyref, map, map->target->aws.as_par, map->target->bws.ds_min, 0, 0, 0, 0);
 			tnode_setchook (fename, map->mapchook, (void *)bename);
 
 			*node = bename;
