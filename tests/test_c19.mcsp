@@ -1,5 +1,7 @@
 
 # test_c19.mcsp -- interleaving test
 
-SYSTEM (a,b) ::= (a -> b -> SKIP) ||| (a -> SKIP)
+SYSTEM (a,b,c) ::= @foo.(((a -> b -> SKIP) ||| (a -> c -> SKIP)); foo)
+
+#SYSTEM (a) ::= @foo.(((a -> SKIP) ||| (a -> SKIP)); foo)
 
