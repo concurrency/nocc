@@ -683,6 +683,16 @@ static int mwsync_mwsyncvar_codegen (compops_t *cops, tnode_t *node, codegen_t *
 		/*{{{  maybe resign processes if they leave here*/
 		mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)tnode_getchook (node, mwsyncpbihook);
 
+		if (pbinf && pbinf->sadjust) {
+			if (mws_opt_rpp) {
+				/*{{{  adjust synchronisation count on barrier at end-of-par*/
+				codegen_callops (cgen, loadconst, -(pbinf->sadjust));
+				codegen_callops (cgen, loadlocalpointer, ws_off);
+				codegen_callops (cgen, tsecondary, I_MWS_PBADJSYNC);
+				codegen_callops (cgen, comment, "parbarrieradjustsync");
+				/*}}}*/
+			}
+		}
 		if (pbinf && pbinf->ecount) {
 			if (mws_opt_rpp) {
 				/*{{{  resign processes from barrier at end-of-par*/

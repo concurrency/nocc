@@ -174,7 +174,7 @@ static int mcsp_mwsynctrans_cnode (compops_t *cops, tnode_t **tptr, mwsynctrans_
 		int nbodies;
 		mwsyncpbinfo_t *binf = NULL;
 		mcsp_alpha_t *paralpha = (mcsp_alpha_t *)tnode_nthhookof (parnode, 0);
-		int interleaving = 0;
+		int interleaving = (parnode->tag == mcsp.tag_ILEAVECODE) ? 1 : 0;
 
 		bodies = parser_getlistitems (tnode_nthsubof (parnode, 1), &nbodies);
 		if (nbodies != 2) {
@@ -322,40 +322,6 @@ static int mcsp_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 		mcsp_alpha_t *alpha = (mcsp_alpha_t *)tnode_nthhookof (node, 0);
 
 		bodies = parser_getlistitems (body, &nbodies);
-#if 0
-		/*{{{  if we've got an alphabet, up ref-counts by (nbodies), enroll-counts by (nbodies - 1), down-counts by (nbodies - 1)*/
-		if (alpha) {
-			tnode_t **events;
-			int nevents, j;
-
-			codegen_callops (cgen, comment, "start barrier enrolls");
-			events = parser_getlistitems (alpha->elist, &nevents);
-			for (j=0; j<nevents; j++) {
-				codegen_callops (cgen, loadpointer, events[j], 0);
-				codegen_callops (cgen, loadnonlocal, 0);		/* refcount */
-				codegen_callops (cgen, loadconst, nbodies);
-				codegen_callops (cgen, tsecondary, I_SUM);
-				codegen_callops (cgen, loadpointer, events[j], 0);
-				codegen_callops (cgen, storenonlocal, 0);		/* refcount */
-
-				codegen_callops (cgen, loadpointer, events[j], 0);
-				codegen_callops (cgen, loadnonlocal, 4);		/* enroll-count */
-				codegen_callops (cgen, loadconst, nbodies - 1);
-				codegen_callops (cgen, tsecondary, I_SUM);
-				codegen_callops (cgen, loadpointer, events[j], 0);
-				codegen_callops (cgen, storenonlocal, 4);		/* enroll-count */
-
-				codegen_callops (cgen, loadpointer, events[j], 0);
-				codegen_callops (cgen, loadnonlocal, 8);		/* down-count */
-				codegen_callops (cgen, loadconst, nbodies - 1);
-				codegen_callops (cgen, tsecondary, I_SUM);
-				codegen_callops (cgen, loadpointer, events[j], 0);
-				codegen_callops (cgen, storenonlocal, 8);		/* down-count */
-			}
-			codegen_callops (cgen, comment, "finish barrier enrolls");
-		}
-		/*}}}*/
-#endif
 		/*{{{  PAR setup*/
 		codegen_callops (cgen, comment, "BEGIN PAR SETUP");
 		for (i=0; i<nbodies; i++) {
@@ -435,40 +401,6 @@ static int mcsp_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 		codegen_callops (cgen, comment, "END PAR BODIES");
 		codegen_callops (cgen, setlabel, joinlab);
 		/*}}}*/
-#if 0
-		/*{{{  if we've got an alphabet, down ref-counts by (nbodies), enroll-counts by (nbodies - 1), down-counts by (nbodies - 1)*/
-		if (alpha) {
-			tnode_t **events;
-			int nevents, j;
-
-			codegen_callops (cgen, comment, "start barrier resigns");
-			events = parser_getlistitems (alpha->elist, &nevents);
-			for (j=0; j<nevents; j++) {
-				codegen_callops (cgen, loadpointer, events[j], 0);
-				codegen_callops (cgen, loadnonlocal, 0);		/* refcount */
-				codegen_callops (cgen, loadconst, nbodies);
-				codegen_callops (cgen, tsecondary, I_DIFF);
-				codegen_callops (cgen, loadpointer, events[j], 0);
-				codegen_callops (cgen, storenonlocal, 0);		/* refcount */
-
-				codegen_callops (cgen, loadpointer, events[j], 0);
-				codegen_callops (cgen, loadnonlocal, 4);		/* enroll-count */
-				codegen_callops (cgen, loadconst, nbodies - 1);
-				codegen_callops (cgen, tsecondary, I_DIFF);
-				codegen_callops (cgen, loadpointer, events[j], 0);
-				codegen_callops (cgen, storenonlocal, 4);		/* enroll-count */
-
-				codegen_callops (cgen, loadpointer, events[j], 0);
-				codegen_callops (cgen, loadnonlocal, 8);		/* down-count */
-				codegen_callops (cgen, loadconst, nbodies - 1);
-				codegen_callops (cgen, tsecondary, I_DIFF);
-				codegen_callops (cgen, loadpointer, events[j], 0);
-				codegen_callops (cgen, storenonlocal, 8);		/* down-count */
-			}
-			codegen_callops (cgen, comment, "finish barrier resigns");
-		}
-		/*}}}*/
-#endif
 	} else {
 		codegen_error (cgen, "mcsp_codegen_cnode(): how to handle [%s] ?", node->tag->name);
 	}
