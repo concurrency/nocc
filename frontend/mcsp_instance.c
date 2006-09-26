@@ -294,7 +294,7 @@ static int mcsp_namemap_instancenode (compops_t *cops, tnode_t **node, map_t *ma
 		name = tnode_nthnameof (namenode, 0);
 		instance = NameDeclOf (name);
 
-#if 1
+#if 0
 		nocc_message ("mapping instance of PROCDEF, instance of:");
 		tnode_dumptree (instance, 1, stderr);
 #endif

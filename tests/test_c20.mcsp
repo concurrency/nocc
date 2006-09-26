@@ -1,0 +1,13 @@
+
+# test_c20.mcsp
+
+CHOC_MACHINE (coin,choc) ::= @foo.(coin -> choc -> foo)
+BISCUIT_MACHINE (coin,biscuit) ::= @bar.(coin -> biscuit -> bar)
+
+MACHINE (coin,biscuit,choc) ::= CHOC_MACHINE (coin,choc) ||| BISCUIT_MACHINE (coin,biscuit)
+
+USER (coin,biscuit,choc) ::= @zog.((coin -> ((biscuit -> SKIP) [] (choc -> SKIP))); zog)
+
+SYSTEM (coin,biscuit,choc) ::= USER (coin,biscuit,choc) || MACHINE (coin,biscuit,choc)
+
+
