@@ -313,7 +313,7 @@ fprintf (stderr, "mcsp_scopein_rawname(): unresolved name \"%s\", unbound-events
 		if (lmp && lmp->unboundvars) {
 			if (mss && mss->uvinsertlist) {
 				/*{{{  add the name manually*/
-				tnode_t *decl = tnode_create (mcsp.tag_UPARAM, NULL, NULL);
+				tnode_t *decl = tnode_create (mcsp.tag_UPARAM, NULL, NULL, tnode_create (mcsp.tag_EVENTTYPE, NULL));
 				tnode_t *newname;
 
 				sname = name_addsubscopenamess (rawname, mss->uvscopemark, decl, NULL, name, ss);
