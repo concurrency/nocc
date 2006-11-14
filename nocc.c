@@ -746,13 +746,26 @@ int nocc_addcompilerpass (const char *name, void *origin, const char *other, int
 		return -1;
 	}
 
-	/*{{{  find out where we're trying to add it*/
+	/*{{{  just check that we're not trying to add it already*/
 	for (i=0; i<DA_CUR (cfepasses); i++) {
 		cpass = DA_NTHITEM (cfepasses, i);
 		if (!strcmp (cpass->name, name)) {
-			nocc_error ("nocc_addcompilerpass(): [%s] already registered", name);
+			nocc_error ("nocc_addcompilerpass(): [%s] already registered (front-end)", name);
 			return -1;
 		}
+	}
+	for (i=0; i<DA_CUR (cbepasses); i++) {
+		cpass = DA_NTHITEM (cbepasses, i);
+		if (!strcmp (cpass->name, name)) {
+			nocc_error ("nocc_addcompilerpass(): [%s] already registered (back-end)", name);
+			return -1;
+		}
+	}
+	/*}}}*/
+	/*{{{  find out where we're trying to add it*/
+
+	for (i=0; i<DA_CUR (cfepasses); i++) {
+		cpass = DA_NTHITEM (cfepasses, i);
 		if (!strcmp (cpass->name, other)) {
 			where = before ? i : i+1;
 			cpasses = DA_PTR (cfepasses);
@@ -761,10 +774,6 @@ int nocc_addcompilerpass (const char *name, void *origin, const char *other, int
 	}
 	for (i=0; i<DA_CUR (cbepasses); i++) {
 		cpass = DA_NTHITEM (cbepasses, i);
-		if (!strcmp (cpass->name, name)) {
-			nocc_error ("nocc_addcompilerpass(): [%s] already registered", name);
-			return -1;
-		}
 		if (!strcmp (cpass->name, other)) {
 			if (where > -1) {
 				nocc_internal ("nocc_addcompilerpass(): confused..");
@@ -775,6 +784,12 @@ int nocc_addcompilerpass (const char *name, void *origin, const char *other, int
 			break;		/* for() */
 		}
 	}
+
+	if (where == -1) {
+		nocc_error ("nocc_addcompilerpass(): [%s] cannot be registered, said %s [%s], but did not find that", name, before ? "before" : "after", other ?: "(unknown)");
+		return -1;
+	}
+
 	/*}}}*/
 
 	/* make compiler pass */
