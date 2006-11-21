@@ -1190,7 +1190,7 @@ tnode_dumptree (tree, 1, stderr);
 				body = occampi_indented_process_list (lf, NULL);
 				tnode_setnthsub (tree, 1, body);
 			} else if (ntflags & NTF_INDENTED_CONDPROC_LIST) {
-				/* parse a list of indented conditions + processes into subnode1 */
+				/* parse a list of indented conditions + processes into subnode 1 */
 				tnode_t *body;
 
 				body = occampi_indented_process_list (lf, "occampi:ifcond");
@@ -1202,7 +1202,7 @@ tnode_dumptree (tree, 1, stderr);
 				body = occampi_indented_process (lf);
 				tnode_setnthsub (tree, 1, body);
 			} else if (ntflags & NTF_INDENTED_GUARDPROC_LIST) {
-				/* parses a list of indented guards + processes into subnode1 */
+				/* parses a list of indented guards + processes into subnode 1 */
 				tnode_t *body;
 
 				body = occampi_indented_process_list (lf, "occampi:altguard");

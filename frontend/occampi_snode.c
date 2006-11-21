@@ -296,6 +296,43 @@ static int occampi_codegen_altend (langops_t *lops, tnode_t *node, codegen_t *cg
  */
 static int occampi_typecheck_snode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
+	if (node->tag == opi.tag_CASE) {
+		tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
+		tnode_t *swtype = NULL;
+		tnode_t **items;
+		int nitems, i;
+
+		typecheck_subtree (tnode_nthsubof (node, 0), tc);		/* check expression */
+
+		swtype = typecheck_gettype (tnode_nthsubof (node, 0), definttype);
+		if (!swtype || !typecheck_typeactual (definttype, swtype, node, tc)) {
+			typecheck_error (node, tc, "case expression is non-integer");
+			return 1;
+		}
+		items = parser_getlistitems (tnode_nthsubof (node, 1), &nitems);
+
+		for (i=0; i<nitems; i++) {
+			if (items[i] && (items[i]->tag != opi.tag_CONDITIONAL)) {
+				nocc_error ("occampi_typecheck_snode(): item not CONDITIONAL! (was [%s])", items[i]->tag->name);
+				return 0;
+			} else if (items[i]) {
+				tnode_t *ctype = NULL;
+
+				typecheck_subtree (tnode_nthsubof (items[i], 0), tc);		/* check constant case */
+				typecheck_subtree (tnode_nthsubof (items[i], 1), tc);		/* check process */
+
+				ctype = typecheck_gettype (tnode_nthsubof (items[i], 0), definttype);
+				if (!ctype || !typecheck_typeactual (definttype, ctype, items[i], tc)) {
+					typecheck_error (items[i], tc, "case constant is non-integer");
+				}
+			}
+		}
+
+		tnode_setnthsub (node, 2, swtype);
+		tnode_free (definttype);
+
+		return 0;
+	}
 	return 1;
 }
 /*}}}*/
@@ -469,7 +506,7 @@ static int occampi_snode_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:snode -- IF, ALT, CASE*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:snode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr, 1 = body */
+	tnd = tnode_newnodetype ("occampi:snode", &i, 3, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr, 1 = body, 2 = type-of-expression */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_snode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_snode));
@@ -528,8 +565,8 @@ static int occampi_snode_init_nodes (void)
  */
 static int occampi_snode_reg_reducers (void)
 {
-	parser_register_grule ("opi:altsnode", parser_decode_grule ("ST0T+@t00C2R-", opi.tag_ALT));
-	parser_register_grule ("opi:casenode", parser_decode_grule ("ST0T+@t0N+VC2R-", opi.tag_CASE));
+	parser_register_grule ("opi:altsnode", parser_decode_grule ("ST0T+@t000C3R-", opi.tag_ALT));
+	parser_register_grule ("opi:casenode", parser_decode_grule ("ST0T+@t0N+V0C3R-", opi.tag_CASE));
 	parser_register_grule ("opi:ifcond", parser_decode_grule ("SN0N+0C2R-", opi.tag_CONDITIONAL));
 	parser_register_grule ("opi:skipguard", parser_decode_grule ("ST0T+@t00N+C3R-", opi.tag_SKIPGUARD));
 	parser_register_grule ("opi:inputguard", parser_decode_grule ("SN0N+0N+C3R-", opi.tag_INPUTGUARD));
