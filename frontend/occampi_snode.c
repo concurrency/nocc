@@ -289,6 +289,16 @@ static int occampi_codegen_altend (langops_t *lops, tnode_t *node, codegen_t *cg
 /*}}}*/
 
 
+/*{{{  static int occampi_typecheck_snode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking for a structured node (IF/ALT/CASE)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_snode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_snode (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for structured process nodes
@@ -461,6 +471,7 @@ static int occampi_snode_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:snode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr, 1 = body */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_snode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_snode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_snode));
 	tnd->ops = cops;
@@ -475,7 +486,7 @@ static int occampi_snode_init_nodes (void)
 	i = -1;
 	opi.tag_IF = tnode_newnodetag ("IF", &i, tnd, NTF_INDENTED_CONDPROC_LIST);
 	i = -1;
-	opi.tag_CASE = tnode_newnodetag ("CASE", &i, tnd, NTF_NONE);
+	opi.tag_CASE = tnode_newnodetag ("CASE", &i, tnd, NTF_INDENTED_CONDPROC_LIST);
 
 	/*}}}*/
 	/*{{{  occampi:condnode -- CONDITIONAL*/
@@ -518,6 +529,7 @@ static int occampi_snode_init_nodes (void)
 static int occampi_snode_reg_reducers (void)
 {
 	parser_register_grule ("opi:altsnode", parser_decode_grule ("ST0T+@t00C2R-", opi.tag_ALT));
+	parser_register_grule ("opi:casenode", parser_decode_grule ("ST0T+@t0N+VC2R-", opi.tag_CASE));
 	parser_register_grule ("opi:ifcond", parser_decode_grule ("SN0N+0C2R-", opi.tag_CONDITIONAL));
 	parser_register_grule ("opi:skipguard", parser_decode_grule ("ST0T+@t00N+C3R-", opi.tag_SKIPGUARD));
 	parser_register_grule ("opi:inputguard", parser_decode_grule ("SN0N+0N+C3R-", opi.tag_INPUTGUARD));
@@ -535,7 +547,7 @@ static dfattbl_t **occampi_snode_init_dfatrans (int *ntrans)
 	DYNARRAY (dfattbl_t *, transtbl);
 
 	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:snode +:= [ 0 +@ALT 1 ] [ 1 -Newline 2 ] [ 2 {<opi:altsnode>} -* ]"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:snode +:= [ 0 +@ALT 1 ] [ 0 +@CASE 3 ] [ 1 -Newline 2 ] [ 2 {<opi:altsnode>} -* ] [ 3 occampi:expr 4 ] [ 4 -Newline 5 ] [ 5 {<opi:casenode>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:ifcond ::= [ 0 occampi:expr 1 ] [ 1 -Newline 2 ] [ 2 {<opi:ifcond>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:subaltinputguard ::= [ 0 occampi:name 1 ] [ 1 -* <occampi:namestartname> ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:altinputguard ::= [ 0 occampi:subaltinputguard 1 ] [ 1 {<opi:inputguard>} -* ]"));

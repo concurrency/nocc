@@ -1,0 +1,7 @@
+
+# test_c21.mcsp -- testing some broken things
+
+SECONDARY (x) ::= (x -> y -> SKIP)
+
+SYSTEM (x) ::= SECONDARY (x)
+

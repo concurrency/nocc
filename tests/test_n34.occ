@@ -1,0 +1,12 @@
+
+-- test_n34.occ -- CASE statements
+
+PROC test.n34 ()
+  INT x:
+  CASE x
+    0
+      SKIP
+    1
+      STOP
+:
+
