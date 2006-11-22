@@ -8,7 +8,5 @@ PROC test.n34 ()
       SKIP
     1
       STOP
-    3.4
-      STOP
 :
 

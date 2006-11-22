@@ -162,6 +162,10 @@ fprintf (stderr, "occampi_gettype_lit(): LITARRAY: mysize is %d, typesize of [%s
 			/* ignore default type */
 			tnode_setnthsub (node, 0, tnode_create (opi.tag_BOOL, NULL));
 			type = tnode_nthsubof (node, 0);
+		} else if (node->tag == opi.tag_LITREAL) {
+			/* ignore default type */
+			tnode_setnthsub (node, 0, tnode_create (opi.tag_REAL64, NULL));
+			type = tnode_nthsubof (node, 0);
 		} else {
 			/* no type yet, use default_type */
 			occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof (node, 0);
