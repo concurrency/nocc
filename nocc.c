@@ -1508,6 +1508,9 @@ main_out:
 	}
 	dmem_shutdown ();
 
+#ifdef TRACE_MEMORY
+	ss_cleanup();
+#endif
 	/*}}}*/
 	return (errored ? EXIT_FAILURE : EXIT_SUCCESS);
 }

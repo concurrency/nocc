@@ -621,7 +621,7 @@ void ss_cleanup (void)
 	fprintf (stderr, "%d blocks allocated\n", ss_numalloc);
 	fprintf (stderr, "%d blocks freed\n", ss_numfree);
 	fprintf (stderr, "%d blocks re-allocated\n", ss_numrealloc);
-	fprintf (stderr, "%d blocks coppied for re-allocation\n", ss_numhardrealloc);
+	fprintf (stderr, "%d blocks copied for re-allocation\n", ss_numhardrealloc);
 	fprintf (stderr, "left-over memory blocks:\n");
 	for (tmpblk = ss_head; tmpblk; tmpblk = tmpblk->next) {
 		fprintf (stderr, "0x%-8x  %-8d  %s:%d\n", tmpblk->vptr, tmpblk->size, tmpblk->file, tmpblk->line);
@@ -734,38 +734,102 @@ void *srealloc (void *ptr, size_t old_size, size_t new_size)
 	void *tmp;
 
 	if (!ptr || !old_size) {
+#ifdef TRACE_MEMORY
+		tmp = ss_malloc (file, line, new_size);
+#else
 		tmp = dmem_alloc (new_size);
+#endif
 	} else {
 #if defined (SLAB_ALLOCATOR)
 		/* need to be slightly more smart with the pool allocator */
 
 		if ((old_size <= MAX_SLAB_SIZE) && (new_size <= MAX_SLAB_SIZE)) {
 			/* pool-pool reallocation */
+#ifdef TRACE_MEMORY
+			ss_memblock *tmpblk;
+			for (tmpblk = ss_head; tmpblk; tmpblk = tmpblk->next) {
+				if (tmpblk->ptr == ptr) {
+					break;
+				}
+			}
+#endif
 			tmp = dmem_realloc (ptr, old_size, new_size);
+#ifdef TRACE_MEMORY
+			ss_numrealloc++;
+			if (!tmpblk) {
+				fprintf (stderr, "%s: serious: attempt to srealloc() non-allocated memory in %s:%d\n", progname, file, line);
+			} else {
+				tmpblk->ptr = tmp;
+				tmpblk->vptr = (unsigned int)tmp;
+			}
+#endif
 		} else if (old_size <= MAX_SLAB_SIZE) {
 			/* pool-malloc reallocation (growing) */
+#ifdef TRACE_MEMORY
+			tmp = ss_malloc (file, line, new_size);
+			memcpy (tmp, ptr, old_size);
+			ss_free (file, line, ptr);
+#else
 			tmp = dmem_alloc (new_size);
 			memcpy (tmp, ptr, old_size);
 			sfree (ptr);
+#endif
 		} else if (new_size <= MAX_SLAB_SIZE) {
 			/* malloc-pool reallocation (shrinking) */
+#ifdef TRACE_MEMORY
+			tmp = ss_malloc (file, line, new_size);
+			memcpy (tmp, ptr, new_size);
+			ss_free (file, line, ptr);
+#else
 			tmp = dmem_alloc (new_size);
 			memcpy (tmp, ptr, new_size);
 			sfree (ptr);
-		} else
 #endif
+		} else
+#endif /* SLAB_ALLOCATOR */
 		{
 			/* malloc-malloc reallocation */
+#ifdef TRACE_MEMORY
+			ss_memblock *tmpblk;
+			for (tmpblk = ss_head; tmpblk; tmpblk = tmpblk->next) {
+				if (tmpblk->ptr == ptr) {
+					break;
+				}
+			}
+#endif
 			tmp = realloc (ptr, new_size);
 			if (!tmp) {
+#ifdef TRACE_MEMORY
+				tmp = ss_malloc (file, line, new_size);
+#else
 				tmp = smalloc (new_size);
+#endif
 				if (new_size > old_size) {
 					memcpy (tmp, ptr, old_size);
 				} else {
 					memcpy (tmp, ptr, new_size);
 				}
-			} else if (new_size > old_size) {
+#ifdef TRACE_MEMORY
+				ss_free (file, line, ptr);
+#else
+				sfree (ptr);
+#endif
+			} else 
+#ifdef TRACE_MEMORY
+			{	
+				ss_numrealloc++;
+				if (!tmpblk) {
+					fprintf (stderr, "%s: serious: attempt to srealloc() non-allocated memory in %s:%d\n", progname, file, line);
+				} else {
+					tmpblk->ptr = tmp;
+					tmpblk->vptr = (unsigned int)tmp;
+				}
+#endif
+				if (new_size > old_size) {
 				memset (tmp + old_size, 0, new_size - old_size);
+#ifdef TRACE_MEMORY
+				}
+#endif
 			}
 		}
 	}
@@ -810,11 +874,19 @@ void sfree (void *ptr)
 /*
  *	duplicates a chunk of string
  */
+#ifdef TRACE_MEMORY
+char *ss_string_ndup (char *file, int line, const char *str, int length)
+#else
 char *string_ndup (const char *str, int length)
+#endif
 {
 	char *tmp;
 
+#ifdef TRACE_MEMORY
+	tmp = (char *)ss_malloc (file, line, length + 1);
+#else
 	tmp = (char *)smalloc (length + 1);
+#endif
 	memcpy (tmp, str, length);
 	tmp[length] = '\0';
 	return tmp;
@@ -824,20 +896,36 @@ char *string_ndup (const char *str, int length)
 /*
  *	duplicates a string
  */
+#ifdef TRACE_MEMORY
+char *ss_string_dup (char *file, int line, const char *str)
+#else
 char *string_dup (const char *str)
+#endif
 {
+#ifdef TRACE_MEMORY
+	return ss_string_ndup (file, line, str, strlen (str));
+#else
 	return string_ndup (str, strlen (str));
+#endif
 }
 /*}}}*/
 /*{{{  void *mem_ndup (const void *ptr, int length)*/
 /*
  *	duplicates a bit of memory
  */
+#ifdef TRACE_MEMORY
+void *ss_mem_ndup (char *file, int line, const void *ptr, int length)
+#else
 void *mem_ndup (const void *ptr, int length)
+#endif
 {
 	void *tmp;
 
+#ifdef TRACE_MEMORY
+	tmp = ss_malloc (file, line, length);
+#else
 	tmp = smalloc (length);
+#endif
 	memcpy (tmp, ptr, length);
 	return tmp;
 }
@@ -859,13 +947,25 @@ void da_init (int *cur, int *max, void ***array)
 /*
  *	adds an item to a dynamic array (at the end of it)
  */
+#ifdef TRACE_MEMORY
+void ss_da_additem (char *file, int line, int *cur, int *max, void ***array, void *item)
+#else
 void da_additem (int *cur, int *max, void ***array, void *item)
+#endif
 {
 	if (*max == 0) {
+#ifdef TRACE_MEMORY
+		*array = (void **)ss_malloc (file, line, 8 * sizeof (void *));
+#else
 		*array = (void **)smalloc (8 * sizeof (void *));
+#endif
 		*max = 8;
 	} else if (*cur == *max) {
+#ifdef TRACE_MEMORY
+		*array = (void **)ss_realloc (file, line, (void *)(*array), *max * sizeof(void *), (*max + 8) * sizeof(void *));
+#else
 		*array = (void **)srealloc ((void *)(*array), *max * sizeof(void *), (*max + 8) * sizeof(void *));
+#endif
 		*max = *max + 8;
 	}
 	(*array)[*cur] = item;
@@ -877,15 +977,27 @@ void da_additem (int *cur, int *max, void ***array, void *item)
 /*
  *	inserts an item in a dynamic array (first position is 0)
  */
+#ifdef TRACE_MEMORY
+void ss_da_insertitem (char *file, int line, int *cur, int *max, void ***array, void *item, int idx)
+#else
 void da_insertitem (int *cur, int *max, void ***array, void *item, int idx)
+#endif
 {
 	int i;
 
 	if (*max == 0) {
+#ifdef TRACE_MEMORY
+		*array = (void **)ss_malloc (file, line, 8 * sizeof (void *));
+#else
 		*array = (void **)smalloc (8 * sizeof (void *));
+#endif
 		*max = 8;
 	} else if (*cur == *max) {
+#ifdef TRACE_MEMORY
+		*array = (void **)ss_realloc (file, line, (void *)(*array), *max * sizeof(void *), (*max + 8) * sizeof(void *));
+#else
 		*array = (void **)srealloc ((void *)(*array), *max * sizeof(void *), (*max + 8) * sizeof(void *));
+#endif
 		*max = *max + 8;
 	}
 	if (idx > *cur) {
@@ -903,7 +1015,11 @@ void da_insertitem (int *cur, int *max, void ***array, void *item, int idx)
 /*
  *	adds an item to a dynamic array, but only if it's not there already
  */
+#ifdef TRACE_MEMORY
+int ss_da_maybeadditem (char *file, int line, int *cur, int *max, void ***array, void *item)
+#else
 int da_maybeadditem (int *cur, int *max, void ***array, void *item)
+#endif
 {
 	int idx;
 
@@ -912,7 +1028,11 @@ int da_maybeadditem (int *cur, int *max, void ***array, void *item)
 			return 0;
 		}
 	}
+#ifdef TRACE_MEMORY
+	ss_da_additem (file, line, cur, max, array, item);
+#else
 	da_additem (cur, max, array, item);
+#endif
 	return 1;
 }
 /*}}}*/
@@ -962,10 +1082,18 @@ void da_rmitem (int *cur, int *max, void ***array, void *item)
 /*
  *	trashes a dynamic array and resets it to zero.  doesn't do anything with any contents
  */
+#ifdef TRACE_MEMORY
+void ss_da_trash (char *file, int line, int *cur, int *max, void ***array)
+#else
 void da_trash (int *cur, int *max, void ***array)
+#endif
 {
 	if (*max && *array) {
+#ifdef TRACE_MEMORY
+		ss_free (file, line, *array);
+#else
 		sfree (*array);
+#endif
 	}
 	*array = NULL;
 	*cur = 0;
@@ -1021,20 +1149,37 @@ fprintf (stderr, "da_qsort(): i=%d, j=%d, pivot=(0x%8.8x), array[i]=(0x%8.8x), a
 /*
  *	sets the size of a dynamic array
  */
+#ifdef TRACE_MEMORY
+void ss_da_setsize (char *file, int line, int *cur, int *max, void ***array, int size)
+#else
 void da_setsize (int *cur, int *max, void ***array, int size)
+#endif
 {
 	if (size < 0) {
 		nocc_internal ("dynarray_setsize to %d", size);
 	} else if (!size) {
+#ifdef TRACE_MEMORY
+		ss_da_trash (file, line, cur, max, array);
+#else
 		da_trash (cur, max, array);
+#endif
 	} else {
 		if (*max == 0) {
+#ifdef TRACE_MEMORY
+			*array = (void **)ss_malloc (file, line, size * sizeof (void *));
+#else
 			*array = (void **)smalloc (size * sizeof (void *));
+#endif
 			*max = size;
 			*cur = size;
 		} else if (size > *max) {
+#ifdef TRACE_MEMORY
+			*array = (void **)ss_realloc (file, line, (void *)(*array),
+					*max * sizeof(void  *), size * sizeof(void *));
+#else
 			*array = (void **)srealloc ((void *)(*array), *max * sizeof(void *),
 					size * sizeof(void *));
+#endif
 			*max = size;
 			*cur = size;
 		} else {
@@ -1047,25 +1192,47 @@ void da_setsize (int *cur, int *max, void ***array, int size)
 /*
  *	sets the maximum size of a dynamic array
  */
+#ifdef TRACE_MEMORY
+void ss_da_setmax (char *file, int line, int *cur, int *max, void ***array, int size)
+#else
 void da_setmax (int *cur, int *max, void ***array, int size)
+#endif
 {
 	if (size < 0) {
 		nocc_internal ("dynarray_setmax to %d", size);
 	} else if (!size) {
+#ifdef TRACE_MEMORY
+		ss_da_trash (file, line, cur, max, array);
+#else
 		da_trash (cur, max, array);
+#endif
 	} else {
 		if (*max == 0) {
+#ifdef TRACE_MEMORY
+			*array = (void **)ss_malloc (file, line, size * sizeof (void *));
+#else
 			*array = (void **)smalloc (size * sizeof (void *));
+#endif
 			*max = size;
 			*cur = 0;
 		} else if (size > *max) {
+#ifdef TRACE_MEMORY
+			*array = (void **)ss_realloc (file, line, (void *)(*array),
+					*max * sizeof(void *), size * sizeof(void *));
+#else
 			*array = (void **)srealloc ((void *)(*array), *max * sizeof(void *),
 					size * sizeof(void *));
+#endif
 			*max = size;
 		} else if (size < *max) {
 			/* making the array smaller */
+#ifdef TRACE_MEMORY
+			*array = (void **)ss_realloc (file, line, (void *)(*array),
+					*max * sizeof(void *), size * sizeof(void *));
+#else
 			*array = (void **)srealloc ((void *)(*array), *max * sizeof(void *),
 					size * sizeof(void *));
+#endif
 			*max = size;
 			if (*cur > *max) {
 				*cur = *max;
@@ -1078,7 +1245,11 @@ void da_setmax (int *cur, int *max, void ***array, int size)
 /*
  *	copies a dynamic array (and its contents)
  */
+#ifdef TRACE_MEMORY
+void ss_da_copy (char *file, int line, int srccur, int srcmax, void **srcarray, int *dstcur, int *dstmax, void ***dstarray)
+#else
 void da_copy (int srccur, int srcmax, void **srcarray, int *dstcur, int *dstmax, void ***dstarray)
+#endif
 {
 	if (!srccur) {
 		/* nothing to copy! */
@@ -1086,13 +1257,22 @@ void da_copy (int srccur, int srcmax, void **srcarray, int *dstcur, int *dstmax,
 	}
 	if (!(*dstmax)) {
 		/* empty destination, allocate it */
+#ifdef TRACE_MEMORY
+		*dstarray = (void **)ss_malloc (file, line, srcmax * sizeof (void *));
+#else
 		*dstarray = (void **)smalloc (srcmax * sizeof (void *));
+#endif
 		*dstmax = srcmax;
 		*dstcur = 0;
 	} else if ((*dstcur + srccur) >= *dstmax) {
 		/* destination (maybe) needs reallocating */
+#ifdef TRACE_MEMORY
+		*dstarray = (void **)ss_realloc (file, line, (void *)(*dstarray), (*dstmax) * sizeof(void *),
+				(*dstcur + srccur + 1) * sizeof(void *));
+#else
 		*dstarray = (void **)srealloc ((void *)(*dstarray), (*dstmax) * sizeof(void *),
 				(*dstcur + srccur + 1) * sizeof(void *));
+#endif
 		*dstmax = (*dstcur + srccur + 1);
 	}
 	/* stick elements from srcarray[0..srccur-1] into dstarray[dstcur..] */
@@ -1144,7 +1324,11 @@ static unsigned int sh_hashcode (char *str, int bitsize)
 /*
  *	inserts an item into a string-hash
  */
+#ifdef TRACE_MEMORY
+void ss_sh_insert (char *file, int line, int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key)
+#else
 void sh_insert (int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key)
+#endif
 {
 	unsigned int hcode = sh_hashcode (key, bitsize);
 	int bucket = hcode & ((1 << bitsize) - 1);
@@ -1153,21 +1337,41 @@ void sh_insert (int *bsizes, void ***table, char ***keys, int bitsize, void *ite
 fprintf (stderr, "sh_insert: adding item [%s] (0x%8.8x)\n", key, (unsigned int)item);
 #endif
 	if (!bsizes[bucket] || !table[bucket] || !keys[bucket]) {
+#ifdef TRACE_MEMORY
+		table[bucket] = (void **)ss_malloc (file, line, sizeof (void *));
+#else
 		table[bucket] = (void **)smalloc (sizeof (void *));
+#endif
 		table[bucket][0] = item;
 
+#ifdef TRACE_MEMORY
+		keys[bucket] = (char **)ss_malloc (file, line, sizeof (char *));
+#else
 		keys[bucket] = (char **)smalloc (sizeof (char *));
+#endif
 		keys[bucket][0] = key;
 
 		bsizes[bucket] = 1;
 	} else {
+#ifdef TRACE_MEMORY
+		table[bucket] = (void **)ss_realloc (file, line, (void *)table[bucket],
+					bsizes[bucket] * sizeof(void *),
+					(bsizes[bucket] + 1) * sizeof(void *));
+#else
 		table[bucket] = (void **)srealloc ((void *)table[bucket],
 					bsizes[bucket] * sizeof(void *),
 					(bsizes[bucket] + 1) * sizeof(void *));
+#endif
 		table[bucket][bsizes[bucket]] = item;
+#ifdef TRACE_MEMORY
+		keys[bucket] = (char **)ss_realloc (file, line, (void *)keys[bucket],
+					bsizes[bucket] * sizeof(char *),
+					(bsizes[bucket] + 1) * sizeof(char *));
+#else
 		keys[bucket] = (char **)srealloc ((void *)keys[bucket],
 					bsizes[bucket] * sizeof(char *),
 					(bsizes[bucket] + 1) * sizeof(char *));
+#endif
 		keys[bucket][bsizes[bucket]] = key;
 
 		bsizes[bucket]++;
@@ -1179,7 +1383,11 @@ fprintf (stderr, "sh_insert: adding item [%s] (0x%8.8x)\n", key, (unsigned int)i
 /*
  *	removes an item from a string-hash
  */
+#ifdef TRACE_MEMORY
+void ss_sh_remove (char *file, int line, int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key)
+#else
 void sh_remove (int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key)
+#endif
 {
 	unsigned int hcode = sh_hashcode (key, bitsize);
 	int bucket = hcode & ((1 << bitsize) - 1);
@@ -1203,15 +1411,27 @@ void sh_remove (int *bsizes, void ***table, char ***keys, int bitsize, void *ite
 
 				/* now we have to make smaller */
 				if (bsizes[bucket] == 1) {
+#ifdef TRACE_MEMORY
+					ss_free (file, line, table[bucket]);
+					ss_free (file, line, keys[bucket]);
+#else
 					sfree (table[bucket]);
 					sfree (keys[bucket]);
+#endif
 					table[bucket] = NULL;
 					keys[bucket] = NULL;
 				} else {
+#ifdef TRACE_MEMORY
+					table[bucket] = (void **)ss_realloc (file, line, (void *)table[bucket], bsizes[bucket] * sizeof (void *),
+							(bsizes[bucket] - 1) * sizeof (void *));
+					keys[bucket] = (char **)ss_realloc (file, line, (void *)keys[bucket], bsizes[bucket] * sizeof (void *),
+							(bsizes[bucket] - 1) * sizeof (void *));
+#else
 					table[bucket] = (void **)srealloc ((void *)table[bucket], bsizes[bucket] * sizeof (void *),
 							(bsizes[bucket] - 1) * sizeof (void *));
 					keys[bucket] = (char **)srealloc ((void *)keys[bucket], bsizes[bucket] * sizeof (void *),
 							(bsizes[bucket] - 1) * sizeof (void *));
+#endif
 				}
 				bsizes[bucket] = bsizes[bucket] - 1;
 
@@ -1293,16 +1513,28 @@ void sh_walk (int *bsizes, void ***table, char ***keys, int size, void (*func)(v
 /*
  *	destroys a string-hash
  */
+#ifdef TRACE_MEMORY
+void ss_sh_trash (char *file, int line, int *bsizes, void ***table, char ***keys, int size)
+#else
 void sh_trash (int *bsizes, void ***table, char ***keys, int size)
+#endif
 {
 	int i;
 
 	for (i=0; i<size; i++) {
 		if (table[i]) {
+#ifdef TRACE_MEMORY
+			ss_free (file, line, table[i]);
+#else
 			sfree (table[i]);
+#endif
 		}
 		if (keys[i]) {
+#ifdef TRACE_MEMORY
+			ss_free (file, line, keys[i]);
+#else
 			sfree (keys[i]);
+#endif
 		}
 	}
 
@@ -1357,27 +1589,51 @@ static unsigned int ph_hashcode (void *ptr, int bitsize)
 /*
  *	inserts an item into a pointer-hash
  */
+#ifdef TRACE_MEMORY
+void ss_ph_insert (char *file, int line, int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key)
+#else
 void ph_insert (int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key)
+#endif
 {
 	unsigned int hcode = ph_hashcode (key, bitsize);
 	int bucket = hcode & ((1 << bitsize) - 1);
 
 	if (!bsizes[bucket] || !table[bucket] || !keys[bucket]) {
+#ifdef TRACE_MEMORY
+		table[bucket] = (void **)ss_malloc (file, line, sizeof (void *));
+#else
 		table[bucket] = (void **)smalloc (sizeof (void *));
+#endif
 		table[bucket][0] = item;
 
+#ifdef TRACE_MEMORY
+		keys[bucket] = (void **)ss_malloc (file, line, sizeof (void *));
+#else
 		keys[bucket] = (void **)smalloc (sizeof (void *));
+#endif
 		keys[bucket][0] = key;
 
 		bsizes[bucket] = 1;
 	} else {
+#ifdef TRACE_MEMORY
+		table[bucket] = (void **)ss_realloc (file, line, (void *)table[bucket],
+					bsizes[bucket] * sizeof(void *),
+					(bsizes[bucket] + 1) * sizeof(void *));
+#else
 		table[bucket] = (void **)srealloc ((void *)table[bucket],
 					bsizes[bucket] * sizeof(void *),
 					(bsizes[bucket] + 1) * sizeof(void *));
+#endif
 		table[bucket][bsizes[bucket]] = item;
+#ifdef TRACE_MEMORY
+		keys[bucket] = (void **)ss_realloc (file, line, (void *)keys[bucket],
+					bsizes[bucket] * sizeof(void *),
+					(bsizes[bucket] + 1) * sizeof(void *));
+#else
 		keys[bucket] = (void **)srealloc ((void *)keys[bucket],
 					bsizes[bucket] * sizeof(void *),
 					(bsizes[bucket] + 1) * sizeof(void *));
+#endif
 		keys[bucket][bsizes[bucket]] = key;
 
 		bsizes[bucket]++;
@@ -1389,7 +1645,11 @@ void ph_insert (int *bsizes, void ***table, void ***keys, int bitsize, void *ite
 /*
  *	removes an item from a pointer-hash
  */
+#ifdef TRACE_MEMORY
+void ss_ph_remove (char *file, int line, int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key)
+#else
 void ph_remove (int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key)
+#endif
 {
 	unsigned int hcode = ph_hashcode (key, bitsize);
 	int bucket = hcode & ((1 << bitsize) - 1);
@@ -1413,15 +1673,27 @@ void ph_remove (int *bsizes, void ***table, void ***keys, int bitsize, void *ite
 
 				/* now we have to make smaller */
 				if (bsizes[bucket] == 1) {
+#ifdef TRACE_MEMORY
+					ss_free (file, line, table[bucket]);
+					ss_free (file, line, keys[bucket]);
+#else
 					sfree (table[bucket]);
 					sfree (keys[bucket]);
+#endif
 					table[bucket] = NULL;
 					keys[bucket] = NULL;
 				} else {
+#ifdef TRACE_MEMORY
+					table[bucket] = (void **)ss_realloc (file, line, (void *)table[bucket], bsizes[bucket] * sizeof (void *),
+							(bsizes[bucket] - 1) * sizeof (void *));
+					keys[bucket] = (void **)ss_realloc (file, line, (void *)keys[bucket], bsizes[bucket] * sizeof (void *),
+							(bsizes[bucket] - 1) * sizeof (void *));
+#else
 					table[bucket] = (void **)srealloc ((void *)table[bucket], bsizes[bucket] * sizeof (void *),
 							(bsizes[bucket] - 1) * sizeof (void *));
 					keys[bucket] = (void **)srealloc ((void *)keys[bucket], bsizes[bucket] * sizeof (void *),
 							(bsizes[bucket] - 1) * sizeof (void *));
+#endif
 				}
 				bsizes[bucket] = bsizes[bucket] - 1;
 
@@ -1526,16 +1798,28 @@ void ph_lwalk (int *bsizes, void ***table, void ***keys, int bitsize, void *matc
 /*
  *	destroys a string-hash
  */
+#ifdef TRACE_MEMORY
+void ss_ph_trash (char *file, int line, int *bsizes, void ***table, void ***keys, int size)
+#else
 void ph_trash (int *bsizes, void ***table, void ***keys, int size)
+#endif
 {
 	int i;
 
 	for (i=0; i<size; i++) {
 		if (table[i]) {
+#ifdef TRACE_MEMORY
+			ss_free (file, line, table[i]);
+#else
 			sfree (table[i]);
+#endif
 		}
 		if (keys[i]) {
+#ifdef TRACE_MEMORY
+			ss_free (file, line, keys[i]);
+#else
 			sfree (keys[i]);
+#endif
 		}
 	}
 
@@ -1597,10 +1881,18 @@ int parse_uint16hex (char *ch)
 /*
  *	turns a byte buffer into a nice hex string
  */
+#ifdef TRACE_MEMORY
+char *ss_mkhexbuf (char *file, int line, unsigned char *buffer, int buflen)
+#else
 char *mkhexbuf (unsigned char *buffer, int buflen)
+#endif
 {
 	static char *hexstr = "0123456789abcdef";
+#ifdef TRACE_MEMORY
+	char *str = (char *)ss_malloc (file, line, (buflen << 1) + 1);
+#else
 	char *str = (char *)smalloc ((buflen << 1) + 1);
+#endif
 	int i;
 
 	for (i=0; i<buflen; i++) {
@@ -1617,7 +1909,11 @@ char *mkhexbuf (unsigned char *buffer, int buflen)
  *	if "copy" is non-zero, original string is unaffected -- returned bits are all copies
  *	otherwise original string is munged and returned bits point into it.
  */
+#ifdef TRACE_MEMORY
+char **ss_split_string (char *file, int line, char *str, int copy)
+#else
 char **split_string (char *str, int copy)
+#endif
 {
 	char **bits;
 	int nbits;
@@ -1633,7 +1929,11 @@ char **split_string (char *str, int copy)
 #if 0
 fprintf (stderr, "split_string: splitting [%s] into %d bits\n", str, nbits);
 #endif
+#ifdef TRACE_MEMORY
+	bits = (char **)ss_malloc (file, line, (nbits + 1) * sizeof (char *));
+#else
 	bits = (char **)smalloc ((nbits + 1) * sizeof (char *));
+#endif
 	bits[nbits] = NULL;
 
 	/* skip any leading whitespace */
@@ -1642,7 +1942,11 @@ fprintf (stderr, "split_string: splitting [%s] into %d bits\n", str, nbits);
 		start = ch;
 		for (; (*ch != '\0') && (*ch != ' ') && (*ch != '\t'); ch++);
 		if (copy) {
+#ifdef TRACE_MEMORY
+			bits[nbits] = ss_string_ndup (file, line, start, (int)(ch - start));
+#else
 			bits[nbits] = string_ndup (start, (int)(ch - start));
+#endif
 			if (*ch != '\0') {
 				ch++;
 			}
@@ -1665,7 +1969,11 @@ fprintf (stderr, "split_string: splitting [%s] into %d bits\n", str, nbits);
  *	this turns a string of HEX values into a regular string (undoes "mkhexbuf")
  *	returns NULL on error.  stores the resulting string length in `*slen'
  */
+#ifdef TRACE_MEMORY
+char *ss_decode_hexstr (char *file, int line, char *str, int *slen)
+#else
 char *decode_hexstr (char *str, int *slen)
+#endif
 {
 	int len, i;
 	char *newstr;
@@ -1679,11 +1987,19 @@ char *decode_hexstr (char *str, int *slen)
 		return NULL;
 	}
 	*slen = (len >> 1);
+#ifdef TRACE_MEMORY
+	newstr = (char *)ss_malloc (file, line, *slen + 1);
+#else
 	newstr = (char *)smalloc (*slen + 1);
+#endif
 	newstr[*slen] = '\0';
 	for (i=0; i<*slen; i++) {
 		if (decode_hex_byte (str[(i << 1)], str[(i << 1) + 1], (unsigned char *)newstr + i) < 0) {
+#ifdef TRACE_MEMORY
+			ss_free (file, line, newstr);
+#else
 			sfree (newstr);
+#endif
 			*slen = 0;
 			return NULL;
 		}

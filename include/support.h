@@ -62,18 +62,27 @@ extern void dmem_usagedump (void);
 	#define srealloc(X,A,B) ss_realloc(__FILE__,__LINE__,X,A,B)
 	#define sfree(X) ss_free(__FILE__,__LINE__,X)
 
+	#define string_ndup(X,A) ss_string_ndup(__FILE__,__LINE__,X,A)
+	#define string_dup(X) ss_string_dup(__FILE__,__LINE__,X)
+	#define mem_ndup(X,A) ss_mem_ndup(__FILE__,__LINE__,X,A)
+
 	extern void *ss_malloc (char *, int, size_t);
 	extern void *ss_realloc (char *, int, void *, size_t, size_t);
 	extern void ss_free (char *, int, void *);
 	extern void ss_cleanup (void);
+
+	extern char *ss_string_ndup (char *, int, const char *, int);
+	extern char *ss_string_dup (char *, int, const char *);
+	extern void *ss_mem_ndup (char *, int, const void *, int);
 #else
 	extern void *smalloc (size_t);
 	extern void *srealloc (void *, size_t, size_t);
 	extern void sfree (void *);
+
+	extern char *string_ndup (const char *, int);
+	extern char *string_dup (const char *);
+	extern void *mem_ndup (const void *, int);
 #endif
-extern char *string_ndup (const char *, int);
-extern char *string_dup (const char *);
-extern void *mem_ndup (const void *, int);
 
 /* fresh dynamic array stuff: HACK */
 #define DA_CUR(NAME) NAME ## _cur
@@ -87,17 +96,35 @@ extern void *mem_ndup (const void *, int);
 #define STATICDYNARRAY(TYPE,NAME) static int DA_CUR(NAME), DA_MAX(NAME); static TYPE* DA_PTR(NAME)
 #define DA_CONSTINITIALISER(NAME) DA_PTR(NAME): NULL, DA_CUR(NAME): 0, DA_MAX(NAME): 0
 
+#ifdef TRACE_MEMORY
+	#define da_additem(X,A,B,C) ss_da_additem(__FILE__,__LINE__,X,A,B,C)
+	#define da_insertitem(X,A,B,C,D) ss_da_insertitem(__FILE__,__LINE__,X,A,B,C,D)
+	#define da_maybeadditem(X,A,B,C) ss_da_maybeadditem(__FILE__,__LINE__,X,A,B,C)
+	#define da_trash(X,A,B) ss_da_trash(__FILE__,__LINE__,X,A,B)
+	#define da_setsize(X,A,B,C) ss_da_setsize(__FILE__,__LINE__,X,A,B,C)
+	#define da_setmax(X,A,B,C) ss_da_setmax(__FILE__,__LINE__,X,A,B,C)
+	#define da_copy(X,A,B,C,D,E) ss_da_copy(__FILE__,__LINE__,X,A,B,C,D,E)
+
+	extern void ss_da_additem (char *file, int line, int *cur, int *max, void ***array, void *item);
+	extern void ss_da_insertitem (char *file, int line, int *cur, int *max, void ***array, void *item, int idx);
+	extern int ss_da_maybeadditem (char *file, int line, int *cur, int *max, void ***array, void *item);
+	extern void ss_da_trash (char *file, int line, int *cur, int *max, void ***array);
+	extern void ss_da_setsize (char *file, int line, int *cur, int *max, void ***array, int size);
+	extern void ss_da_setmax (char *file, int line, int *cur, int *max, void ***array, int size);
+	extern void ss_da_copy (char *file, int line, int srccur, int srcmax, void **srcarray, int *dstcur, int *dstmax, void ***dstarray);
+#else
+	extern void da_additem (int *cur, int *max, void ***array, void *item);
+	extern void da_insertitem (int *cur, int *max, void ***array, void *item, int idx);
+	extern int da_maybeadditem (int *cur, int *max, void ***array, void *item);
+	extern void da_trash (int *cur, int *max, void ***array);
+	extern void da_setsize (int *cur, int *max, void ***array, int size);
+	extern void da_setmax (int *cur, int *max, void ***array, int size);
+	extern void da_copy (int srccur, int srcmax, void **srcarray, int *dstcur, int *dstmax, void ***dstarray);
+#endif
 extern void da_init (int *cur, int *max, void ***array);
-extern void da_additem (int *cur, int *max, void ***array, void *item);
-extern void da_insertitem (int *cur, int *max, void ***array, void *item, int idx);
-extern int da_maybeadditem (int *cur, int *max, void ***array, void *item);
 extern void da_delitem (int *cur, int *max, void ***array, int idx);
 extern void da_rmitem (int *cur, int *max, void ***array, void *item);
-extern void da_trash (int *cur, int *max, void ***array);
 extern void da_qsort (void **array, int first, int last, int (*)(void *, void *));
-extern void da_setsize (int *cur, int *max, void ***array, int size);
-extern void da_setmax (int *cur, int *max, void ***array, int size);
-extern void da_copy (int srccur, int srcmax, void **srcarray, int *dstcur, int *dstmax, void ***dstarray);
 
 #define dynarray_init(ARRAY) da_init(&(DA_CUR(ARRAY)), &(DA_MAX(ARRAY)), (void ***)&(DA_PTR(ARRAY)))
 #define dynarray_add(ARRAY,ITEM) da_additem(&(DA_CUR(ARRAY)), &(DA_MAX(ARRAY)), (void ***)&(DA_PTR(ARRAY)), (void *)(ITEM))
@@ -127,13 +154,24 @@ extern void da_copy (int srccur, int srcmax, void **srcarray, int *dstcur, int *
 		static TYPE (*SH_LOOKUP(NAME))(int *, void ***, char ***, int, char *) = (TYPE(*)(int *, void ***, char ***, int, char *))sh_lookup
 
 
+#ifdef TRACE_MEMORY
+	#define sh_insert(X,A,B,C,D,E) ss_sh_insert(__FILE__,__LINE__,X,A,B,C,D,E)
+	#define sh_remove(X,A,B,C,D,E) ss_sh_remove(__FILE__,__LINE__,X,A,B,C,D,E)
+	#define sh_trash(X,A,B,C) ss_sh_trash(__FILE__,__LINE__,X,A,B,C)
+
+	extern void ss_sh_insert (char *file, int line, int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key);
+	extern void ss_sh_remove (char *file, int line, int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key);
+	extern void ss_sh_trash (char *file, int line, int *bsizes, void ***table, char ***keys, int size);
+#else
+	extern void sh_insert (int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key);
+	extern void sh_remove (int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key);
+	extern void sh_trash (int *bsizes, void ***table, char ***keys, int size);
+#endif
+
 extern void sh_init (int *bsizes, void ***table, char ***keys, int size);
-extern void sh_insert (int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key);
-extern void sh_remove (int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key);
 extern void *sh_lookup (int *bsizes, void ***table, char ***keys, int bitsize, char *match);
 extern void sh_dump (FILE *stream, int *bsizes, void ***table, char ***keys, int size);
 extern void sh_walk (int *bsizes, void ***table, char ***keys, int size, void (*func)(void *, char *, void *), void *p);
-extern void sh_trash (int *bsizes, void ***table, char ***keys, int size);
 
 #define stringhash_init(SHASH) sh_init((int *)&((SH_BSIZES(SHASH))[0]), (void ***)&((SH_TABLE(SHASH))[0]), (char ***)&((SH_KEYS(SHASH))[0]), SH_SIZE(SHASH))
 #define stringhash_insert(SHASH,ITEM,KEY) sh_insert((int *)&((SH_BSIZES(SHASH))[0]), (void ***)&((SH_TABLE(SHASH))[0]), (char ***)&((SH_KEYS(SHASH))[0]), SH_BITSIZE(SHASH), (void *)(ITEM), (char *)(KEY))
@@ -164,14 +202,24 @@ extern void sh_trash (int *bsizes, void ***table, char ***keys, int size);
 		int PH_BITSIZE(NAME); \
 		TYPE (*PH_LOOKUP(NAME))(int *, void ***, void ***, int, void *);
 
+#ifdef TRACE_MEMORY
+	#define ph_insert(X,A,B,C,D,E) ss_ph_insert(__FILE__,__LINE__,X,A,B,C,D,E)
+	#define ph_remove(X,A,B,C,D,E) ss_ph_remove(__FILE__,__LINE__,X,A,B,C,D,E)
+	#define ph_trash(X,A,B,C) ss_ph_trash(__FILE__,__LINE__,X,A,B,C)
+
+	extern void ss_ph_insert (char *file, int line, int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key);
+	extern void ss_ph_remove (char *file, int line, int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key);
+	extern void ss_ph_trash (char *file, int line, int *bsizes, void ***table, void ***keys, int size);
+#else
+	extern void ph_insert (int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key);
+	extern void ph_remove (int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key);
+	extern void ph_trash (int *bsizes, void ***table, void ***keys, int size);
+#endif
 extern void ph_init (int *bsizes, void ***table, void ***keys, int *szptr, int *bszptr, void **fnptr, int bitsize);
-extern void ph_insert (int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key);
-extern void ph_remove (int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key);
 extern void *ph_lookup (int *bsizes, void ***table, void ***keys, int bitsize, void *match);
 extern void ph_dump (FILE *stream, int *bsizes, void ***table, void ***keys, int size);
 extern void ph_walk (int *bsizes, void ***table, void ***keys, int size, void (*func)(void *, void *, void *), void *p);
 extern void ph_lwalk (int *bsizes, void ***table, void ***keys, int bitsize, void *match, void (*func)(void *, void *, void *), void *p);
-extern void ph_trash (int *bsizes, void ***table, void ***keys, int size);
 
 #define pointerhash_init(PHASH,BITSIZE) ph_init((int *)&((PH_BSIZES(PHASH))[0]), (void ***)&((PH_TABLE(PHASH))[0]), (void ***)&((PH_KEYS(PHASH))[0]), &PH_SIZE(PHASH), &PH_BITSIZE(PHASH), (void *)&(PH_LOOKUP(PHASH)), (BITSIZE))
 #define pointerhash_insert(PHASH,ITEM,KEY) ph_insert((int *)&((PH_BSIZES(PHASH))[0]), (void ***)&((PH_TABLE(PHASH))[0]), (void ***)&((PH_KEYS(PHASH))[0]), PH_BITSIZE(PHASH), (void *)(ITEM), (void *)(KEY))
@@ -187,9 +235,19 @@ extern void ph_trash (int *bsizes, void ***table, void ***keys, int size);
 
 extern int decode_hex_byte (char b1, char b2, unsigned char *tptr);
 extern int parse_uint16hex (char *ch);
-extern char *mkhexbuf (unsigned char *buffer, int buflen);
-extern char **split_string (char *str, int copy);
-extern char *decode_hexstr (char *str, int *slen);
+#ifdef TRACE_MEMORY
+	#define mkhexbuf(X,A) ss_mkhexbuf(__FILE__,__LINE__,X,A)
+	#define split_string(X,A) ss_split_string(__FILE__,__LINE__,X,A)
+	#define decode_hexstr(X,A) ss_decode_hexstr(__FILE__,__LINE__,X,A)
+
+	extern char *ss_mkhexbuf (char *file, int line, unsigned char *buffer, int buflen);
+	extern char **ss_split_string (char *file, int line, char *str, int copy);
+	extern char *ss_decode_hexstr (char *file, int line, char *str, int *slen);
+#else
+	extern char *mkhexbuf (unsigned char *buffer, int buflen);
+	extern char **split_string (char *str, int copy);
+	extern char *decode_hexstr (char *str, int *slen);
+#endif
 #if 0
 extern int time_after (struct timeval *t1, struct timeval *t2);
 extern void time_minus (struct timeval *t1, struct timeval *t2, struct timeval *t3);
