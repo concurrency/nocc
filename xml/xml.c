@@ -250,6 +250,10 @@ static int xml_parse_buffer (xmlhandler_t *xh, const char *buffer, int buflen)
 		curhandler->init (curhandler);
 	}
 	pres = XML_Parse (xmls->parser, buffer, buflen, 1);
+	if (curhandler->final) {
+		/* call finaliser if present */
+		curhandler->final (curhandler);
+	}
 	curhandler = xmls->prevhandler;
 
 	if (pres == XML_STATUS_ERROR) {
