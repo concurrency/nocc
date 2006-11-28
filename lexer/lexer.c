@@ -347,7 +347,7 @@ void lexer_close (lexfile_t *lf)
 	lexpriv_t *lp = (lexpriv_t *)(lf->priv);
 	lexfile_t *lastopen;
 
-	if (!lf) {
+	if (!lp) {
 		nocc_internal ("lexer_close() on %s is not open", lf->filename);
 		return;
 	}

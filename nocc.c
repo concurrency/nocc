@@ -954,8 +954,8 @@ int main (int argc, char **argv)
 	if (!compopts.specsfile) {
 		static const char *builtinspecs[] = {
 #if defined(SYSCONFDIR)
-			SYSCONFDIR "nocc.specs.xml",
-			SYSCONFDIR "nocc/nocc.specs.xml",
+			SYSCONFDIR "/nocc.specs.xml",
+			SYSCONFDIR "/nocc/nocc.specs.xml",
 #endif
 			"/etc/nocc.specs.xml",
 			"/usr/local/etc/nocc.specs.xml",
@@ -1248,9 +1248,10 @@ int main (int argc, char **argv)
 			}
 			/*}}}*/
 			/*{{{  close lexers*/
-			for (i=0; i<DA_CUR (srclexers); i++) {
+			for (i=DA_CUR (srclexers) - 1; i >= 0; i--) {
 				lexer_close (DA_NTHITEM (srclexers, i));
 			}
+			dynarray_trash (srclexers);
 			/*}}}*/
 
 			goto main_out;
@@ -1501,6 +1502,9 @@ main_out:
 	}
 	/*}}}*/
 	/*{{{  shutdown/etc.*/
+	for (i=0; i<DA_CUR (srcfiles); i++) {
+		sfree (DA_NTHITEM (srcfiles, i));
+	}
 	dynarray_trash (srcfiles);
 
 	if (compopts.dmemdump) {
