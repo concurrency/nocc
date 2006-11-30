@@ -96,6 +96,7 @@ compopts_t compopts = {
 	dumpnodetypes: 0,
 	dumpextns: 0,
 	dumpfolded: 0,
+	dumptracemem: 0,
 	debugparser: 0,
 	stoppoint: 0,
 	tracetypecheck: 0,
@@ -1510,11 +1511,13 @@ main_out:
 	if (compopts.dmemdump) {
 		dmem_usagedump ();
 	}
+#ifdef TRACE_MEMORY
+	if (compopts.dumptracemem) {
+		ss_cleanup();
+	}
+#endif
 	dmem_shutdown ();
 
-#ifdef TRACE_MEMORY
-	ss_cleanup();
-#endif
 	/*}}}*/
 	return (errored ? EXIT_FAILURE : EXIT_SUCCESS);
 }
