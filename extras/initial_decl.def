@@ -1,0 +1,13 @@
+#
+# initial declarations for occam-pi
+# thinking about different ways to represent language transformations
+#
+
+PARSER:
+	# make sure the parser has this rule
+	REQUIRE(occampi:initialdecl)
+
+INPASS (prescope):
+	occampi:initialdecl (name, type, body) =
+		occampi:vardecl (name, type, occampi:seqnode (-, [body]))
+
