@@ -95,7 +95,9 @@ typedef enum {
 	XMLKEY_PRIVKEY,
 	XMLKEY_HASH,
 	XMLKEY_SIGNEDHASH,
-	XMLKEY_EXTN
+	XMLKEY_EXTN,
+	XMLKEY_GPERF,
+	XMLKEY_GPROLOG
 } xmlkeytype_t;
 
 typedef struct TAG_xmlkey {

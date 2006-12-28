@@ -118,7 +118,9 @@ compopts_t compopts = {
 	target_os: NULL,
 	target_vendor: NULL,
 	hashalgo: NULL,
-	privkey: NULL
+	privkey: NULL,
+	gperf_p: NULL,
+	gprolog_p: NULL
 };
 
 /*}}}*/
@@ -407,6 +409,19 @@ static void specfile_setprivkey (char *edata)
 	return;
 }
 /*}}}*/
+/*{{{  static void specfile_setstring (char **target, char *edata)*/
+/*
+ *	sets an arbitrary string in the config file (copies argument)
+ */
+static void specfile_setstring (char **target, char *edata)
+{
+	if (*target) {
+		sfree (*target);
+	}
+	*target = string_dup (edata);
+	return;
+}
+/*}}}*/
 
 /*{{{  static void specfile_init (xmlhandler_t *xh)*/
 /*
@@ -480,6 +495,14 @@ static void specfile_elem_end (xmlhandler_t *xh, void *data, xmlkey_t *key)
 			break;
 		case XMLKEY_PRIVKEY:				/* setting the location of the private key */
 			specfile_setprivkey (edata);
+			sfree (edata);
+			break;
+		case XMLKEY_GPERF:
+			specfile_setstring (&compopts.gperf_p, edata);
+			sfree (edata);
+			break;
+		case XMLKEY_GPROLOG:
+			specfile_setstring (&compopts.gprolog_p, edata);
 			sfree (edata);
 			break;
 		default:
@@ -618,6 +641,9 @@ int nocc_dooption (char *optstr)
 	cmd_option_t *opt = NULL;
 	int left = 1;
 
+#if 0
+	nocc_message ("nocc_dooption(): optstr = [%s]", optstr);
+#endif
 	lclopts[0] = optstr;
 	lclopts[1] = NULL;
 	opt = opts_getlongopt (optstr);
@@ -652,6 +678,7 @@ int nocc_dooption (char *optstr)
 int nocc_dooption_arg (char *optstr, void *arg)
 {
 	char **lclopts = (char **)smalloc (3 * sizeof (char *));
+	char **lcbase = lclopts;
 	cmd_option_t *opt = NULL;
 	int left = 2;
 
@@ -663,7 +690,7 @@ int nocc_dooption_arg (char *optstr, void *arg)
 	if (opt) {
 		if (opts_process (opt, &lclopts, &left) < 0) {
 			nocc_error ("failed while processing option \"%s\"", optstr);
-			sfree (lclopts);
+			sfree (lcbase);
 			return -1;
 		}
 	} else {
@@ -674,10 +701,10 @@ int nocc_dooption_arg (char *optstr, void *arg)
 		str[0] = '-';
 		str[1] = '-';
 		dynarray_add (be_def_opts, str);
-		sfree (lclopts);
+		sfree (lcbase);
 		return 1;
 	}
-	sfree (lclopts);
+	sfree (lcbase);
 	return 0;
 }
 /*}}}*/
@@ -911,14 +938,34 @@ int main (int argc, char **argv)
 		switch (**walk) {
 		case '-':
 			if ((*walk)[1] == '-') {
-				opt = opts_getlongopt (*walk + 2);
-				if (opt) {
-					if (opts_process (opt, &walk, &i) < 0) {
-						errored++;
+				char *ch;
+
+				for (ch=(*walk + 2); ((*ch >= 'a') && (*ch <= 'z')) || ((*ch >= 'A') && (*ch <= 'Z')) || (*ch == '-'); ch++);
+				if (*ch == '=') {
+					/* long option split with an equals sign */
+					char *realopt = string_ndup (*walk + 2, (int)(ch - *walk) - 2);
+
+					opt = opts_getlongopt (realopt);
+					if (opt) {
+						/* yes, have this option */
+						if (nocc_dooption_arg (realopt, ch + 1) < 0) {
+							errored++;
+						}
+					} else {
+						/* defer for front-end */
+						dynarray_add (fe_def_opts, string_dup (*walk));
 					}
+					sfree (realopt);
 				} else {
-					/* defer for front-end */
-					dynarray_add (fe_def_opts, string_dup (*walk));
+					opt = opts_getlongopt (*walk + 2);
+					if (opt) {
+						if (opts_process (opt, &walk, &i) < 0) {
+							errored++;
+						}
+					} else {
+						/* defer for front-end */
+						dynarray_add (fe_def_opts, string_dup (*walk));
+					}
 				}
 			} else {
 				char *ch;

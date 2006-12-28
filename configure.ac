@@ -7,6 +7,8 @@ AC_REVISION($Revision: 1.1 $)
 AC_INIT(nocc.c)
 AC_PREREQ(2.12)
 
+AC_GNU_SOURCE
+
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 AM_CONFIG_HEADER(config.h)
@@ -66,7 +68,8 @@ AC_SEARCH_LIBS(XML_Parse,expat,[have_libexpat=yes],[have_libexpat=no])
 AC_SEARCH_LIBS(dlsym,dl,[have_lib_dl=yes],[have_lib_dl=no])
 
 AC_CHECK_TOOL(LD,ld)
-
+AC_CHECK_TOOL(GPERF,gperf)
+AC_CHECK_TOOL(GPROLOG,gprolog)
 
 AC_DEFINE_UNQUOTED([HOST_CPU],"$host_cpu",[host CPU type])
 AC_DEFINE_UNQUOTED([HOST_OS],"$host_os",[host OS])

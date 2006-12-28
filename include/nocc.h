@@ -98,6 +98,10 @@ typedef struct TAG_compopts {
 	/* signing/hashing */
 	char *hashalgo;
 	char *privkey;
+
+	/* helper programs */
+	char *gperf_p;
+	char *gprolog_p;
 } compopts_t;
 
 

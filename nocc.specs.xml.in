@@ -30,5 +30,9 @@
 	<!-- signing/hashing -->
 	<hashalgo>sha256</hashalgo>
 	<privkey>/home/frmb/kroc_linux/ukcsource/nocc/keys/nocc.sec</privkey>
+
+	<!-- helper programs -->
+	<gperf>@GPERF@</gperf>
+	<gprolog>@GPROLOG@</gprolog>
 </nocc>
 

@@ -1,4 +1,4 @@
-/* ANSI-C code produced by gperf version 3.0.1 */
+/* ANSI-C code produced by gperf version 3.0.2 */
 /* Command-line: gperf  */
 /* Computed positions: -k'1,3,6' */
 
@@ -35,7 +35,7 @@
  */
 struct TAG_xmlkey;
 
-#define TOTAL_KEYWORDS 51
+#define TOTAL_KEYWORDS 53
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 12
 #define MIN_HASH_VALUE 3
@@ -64,7 +64,7 @@ hash (register const char *str, register unsigned int len)
       127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
       127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
       127, 127, 127, 127, 127, 127, 127,   0,   0,   0,
-       35,  25,  55, 127,  40,   5,  10,   0,   0,  15,
+       35,  25,  55,  25,  40,   5,  10,   0,   0,  15,
        10,  15,   5,  45,   0,  20,  20,   0,  20,  30,
         0,   0,  15, 127, 127, 127, 127, 127, 127, 127,
       127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
@@ -167,7 +167,7 @@ static const struct TAG_xmlkey wordlist[] =
     {"hash",			XMLKEY_HASH},
     {"srcinclude",		XMLKEY_SRCINCLUDE},
     {"target",			XMLKEY_TARGET},
-    {(char*)0,XMLKEY_INVALID},
+    {"gprolog",		XMLKEY_GPROLOG},
     {"hashalgo",		XMLKEY_HASHALGO},
     {"type",			XMLKEY_TYPE},
     {"descriptor",		XMLKEY_DESCRIPTOR},
@@ -179,7 +179,8 @@ static const struct TAG_xmlkey wordlist[] =
     {"tree",			XMLKEY_TREE},
     {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
     {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
-    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID},
+    {"gperf",			XMLKEY_GPERF},
     {"srcuse",			XMLKEY_SRCUSE},
     {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
     {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
