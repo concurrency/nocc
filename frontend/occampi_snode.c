@@ -297,6 +297,7 @@ static int occampi_codegen_altend (langops_t *lops, tnode_t *node, codegen_t *cg
 static int occampi_typecheck_snode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	if (node->tag == opi.tag_CASE) {
+		/*{{{  do type-check for CASE*/
 		tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
 		tnode_t *swtype = NULL;
 		tnode_t **items;
@@ -332,6 +333,39 @@ static int occampi_typecheck_snode (compops_t *cops, tnode_t *node, typecheck_t 
 		tnode_free (definttype);
 
 		return 0;
+		/*}}}*/
+	} else if (node->tag == opi.tag_IF) {
+		/*{{{  do type-check for IF*/
+		tnode_t *defbooltype = tnode_create (opi.tag_BOOL, NULL);
+		tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
+		tnode_t *swtype = NULL;
+		tnode_t **items;
+		int nitems, i;
+
+		items = parser_getlistitems (tnode_nthsubof (node, 1), &nitems);
+
+		for (i=0; i<nitems; i++) {
+			if (items[i] && (items[i]->tag != opi.tag_CONDITIONAL)) {
+				nocc_error ("occampi_typecheck_snode(): item not CONDITIONAL! (was [%s])", items[i]->tag->name);
+				return 0;
+			} else if (items[i]) {
+				tnode_t *ctype = NULL;
+
+				typecheck_subtree (tnode_nthsubof (items[i], 0), tc);		/* check condition */
+				typecheck_subtree (tnode_nthsubof (items[i], 1), tc);		/* check process */
+
+				ctype = typecheck_gettype (tnode_nthsubof (items[i], 0), definttype);
+				if (!ctype || (ctype->tag != opi.tag_BOOL)) {
+					typecheck_error (items[i], tc, "condition is not boolean");
+				}
+			}
+		}
+
+		tnode_free (definttype);
+		tnode_free (defbooltype);
+
+		return 0;
+		/*}}}*/
 	}
 	return 1;
 }

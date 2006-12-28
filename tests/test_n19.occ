@@ -10,6 +10,8 @@ PROC test.n19 (CHAN BYTE screen!)
         SKIP
       2 < 0
         SKIP
+      42 = 42
+        STOP
 :
 
 
