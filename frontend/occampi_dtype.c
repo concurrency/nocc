@@ -1189,8 +1189,9 @@ static dfattbl_t **occampi_dtype_init_dfatrans (int *ntrans)
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:arrayspec ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:arrayspec>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:arraytype ::= [ 0 @@[ 1 ] [ 1 @@] 3 ] [ 1 occampi:expr 2 ] [ 2 @@] 4 ] [ 3 {<opi:nullpush>} -* 4 ] " \
-				"[ 4 -@@[ 5 ] [ 4 occampi:primtype 6 ] [ 4 occampi:name 6 ] [ 4 @CHAN 7 ] [ 5 occampi:arraytype 6 ] [ 6 {<opi:arraytypereduce>} -* ] " \
-				"[ 7 occampi:protocol 8 ] [ 8 {<opi:chanpush>} -* 6 ]"));
+				"[ 4 -@@[ 5 ] [ 4 occampi:primtype 6 ] [ 4 occampi:name 6 ] [ 4 @CHAN 7 ]  [ 4 @PORT 9 ] [ 5 occampi:arraytype 6 ] [ 6 {<opi:arraytypereduce>} -* ] " \
+				"[ 7 occampi:protocol 8 ] [ 8 {<opi:chanpush>} -* 6 ] " \
+				"[ 9 occampi:protocol 10 ] [ 10 {<opi:portpush>} -* 6 ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:arraytypetype ::= [ 0 @@[ 1 ] [ 1 @@] 3 ] [ 1 occampi:expr 2 ] [ 2 @@] 4 ] [ 3 {<opi:nullpush>} -* 4 ] " \
 				"[ 4 -@@[ 5 ] [ 4 occampi:primtype 6 ] [ 4 occampi:name 6 ] [ 5 occampi:arraytypetype 6 ] [ 6 {<opi:arraytypereduce>} -* ]"));
 

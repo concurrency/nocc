@@ -59,6 +59,7 @@ typedef struct {
 	struct TAG_ntdef *tag_REAL64;
 	struct TAG_ntdef *tag_CHAR;
 	struct TAG_ntdef *tag_CHAN;
+	struct TAG_ntdef *tag_PORT;
 	struct TAG_ntdef *tag_NAME;
 	struct TAG_ntdef *tag_ASINPUT;
 	struct TAG_ntdef *tag_ASOUTPUT;
@@ -235,6 +236,7 @@ extern struct TAG_feunit occampi_initial_feunit;	/* occampi_initial.c */
 extern struct TAG_feunit occampi_asm_feunit;		/* occampi_asm.c */
 extern struct TAG_feunit occampi_traces_feunit;		/* occampi_traces.c */
 extern struct TAG_feunit occampi_mwsync_feunit;		/* occampi_mwsync.c */
+extern struct TAG_feunit occampi_port_feunit;		/* occampi_port.c */
 
 /* these are for language units to use in reductions */
 extern void *occampi_nametoken_to_hook (void *ntok);

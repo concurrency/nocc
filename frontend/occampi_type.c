@@ -182,26 +182,52 @@ static tnode_t *occampi_type_typeactual (langops_t *lops, tnode_t *formaltype, t
 #if 0
 fprintf (stderr, "occampi_type_typeactual(): formaltype=[%s], actualtype=[%s]\n", formaltype->tag->name, actualtype->tag->name);
 #endif
-	if ((formaltype->tag == opi.tag_CHAN) && ((node->tag == opi.tag_INPUT) || (node->tag == opi.tag_OUTPUT))) {
-		/* becomes a protocol-check in effect */
-		atype = tnode_nthsubof (formaltype, 0);
+	if (formaltype->tag == opi.tag_CHAN) {
+		/*{{{  actual type-check for channel*/
+		if ((node->tag == opi.tag_INPUT) || (node->tag == opi.tag_OUTPUT)) {
+			/* becomes a protocol-check in effect */
+			atype = tnode_nthsubof (formaltype, 0);
 
 #if 0
 fprintf (stderr, "occampi_type_typeactual(): channel: node->tag = [%s]\n", node->tag->name);
 #endif
-		atype = typecheck_typeactual (atype, actualtype, node, tc);
-	} else if (formaltype->tag == opi.tag_CHAN) {
-		/* must be two channels then */
-		if (actualtype->tag != opi.tag_CHAN) {
-			typecheck_error (node, tc, "expected channel, found [%s]", actualtype->tag->name);
-		}
-		atype = actualtype;
+			atype = typecheck_typeactual (atype, actualtype, node, tc);
+		} else {
+			/* must be two channels then */
+			if (actualtype->tag != opi.tag_CHAN) {
+				typecheck_error (node, tc, "expected channel, found [%s]", actualtype->tag->name);
+			}
+			atype = actualtype;
 
-		if (!typecheck_typeactual (tnode_nthsubof (formaltype, 0), tnode_nthsubof (actualtype, 0), node, tc)) {
-			return NULL;
+			if (!typecheck_typeactual (tnode_nthsubof (formaltype, 0), tnode_nthsubof (actualtype, 0), node, tc)) {
+				return NULL;
+			}
 		}
+		/*}}}*/
+	} else if (formaltype->tag == opi.tag_PORT) {
+		/*{{{  actual type-check for port*/
+		if ((node->tag == opi.tag_INPUT) || (node->tag == opi.tag_OUTPUT)) {
+			/* becomes a protocol-check in effect */
+			atype = tnode_nthsubof (formaltype, 0);
+
+#if 0
+fprintf (stderr, "occampi_type_typeactual(): port: node->tag = [%s]\n", node->tag->name);
+#endif
+			atype = typecheck_typeactual (atype, actualtype, node, tc);
+		} else {
+			/* must be two ports */
+			if (actualtype->tag != opi.tag_PORT) {
+				typecheck_error (node, tc, "expected port, found [%s]", actualtype->tag->name);
+			}
+			atype = actualtype;
+
+			if (!typecheck_typeactual (tnode_nthsubof (formaltype, 0), tnode_nthsubof (actualtype, 0), node, tc)) {
+				return NULL;
+			}
+		}
+		/*}}}*/
 	} else {
-		nocc_fatal ("occampi_type_typeactual(): don't know how to handle a non-channel here (yet)");
+		nocc_fatal ("occampi_type_typeactual(): don't know how to handle a non-channel here (yet), got [%s]", formaltype->tag->name);
 		atype = NULL;
 	}
 
@@ -215,6 +241,9 @@ fprintf (stderr, "occampi_type_typeactual(): channel: node->tag = [%s]\n", node-
 static int occampi_type_bytesfor (langops_t *lops, tnode_t *t, target_t *target)
 {
 	if (t->tag == opi.tag_CHAN) {
+		return target->chansize;
+	} else if (t->tag == opi.tag_PORT) {
+		/* FIXME! */
 		return target->chansize;
 	}
 	return -1;
@@ -497,9 +526,9 @@ static int occampi_type_init_nodes (void)
 	tnode_newlangop ("occampi_typeattrof", LOPS_INVALID, 2, (void *)&occampi_parser);
 
 	/*}}}*/
-	/*{{{  occampi:typenode -- CHAN, ASINPUT, ASOUTPUT*/
+	/*{{{  occampi:typenode -- CHAN, PORT, ASINPUT, ASOUTPUT*/
 	i = -1;
-	tnd = opi.node_TYPENODE = tnode_newnodetype ("occampi:typenode", &i, 1, 0, 0, TNF_NONE);
+	tnd = opi.node_TYPENODE = tnode_newnodetype ("occampi:typenode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = subtype */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_type_prescope));
 	tnd->ops = cops;
@@ -514,6 +543,8 @@ static int occampi_type_init_nodes (void)
 
 	i = -1;
 	opi.tag_CHAN = tnode_newnodetag ("CHAN", &i, tnd, NTF_SYNCTYPE);
+	i = -1;
+	opi.tag_PORT = tnode_newnodetag ("PORT", &i, tnd, NTF_NONE);				/* FIXME: NTF_SYNCTYPE ? */
 	i = -1;
 	opi.tag_ASINPUT = tnode_newnodetag ("ASINPUT", &i, tnd, NTF_NONE);
 	i = -1;
@@ -587,6 +618,7 @@ static int occampi_type_reg_reducers (void)
 {
 	parser_register_reduce ("Roccampi:primtype", occampi_reduce_primtype, NULL);
 	parser_register_grule ("opi:chanpush", parser_decode_grule ("N+Sn0C1N-", opi.tag_CHAN));
+	parser_register_grule ("opi:portpush", parser_decode_grule ("N+Sn0C1N-", opi.tag_PORT));
 
 	return 0;
 }

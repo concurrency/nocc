@@ -1,0 +1,9 @@
+
+-- test_n35.occ - PORT stuff
+
+PROC test.n35 ()
+  PORT BYTE p:
+  SEQ
+    SKIP
+:
+

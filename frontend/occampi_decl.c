@@ -1548,7 +1548,7 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:name ::= +Name {<opi:namereduce>}"));
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:namelist ::= { occampi:name @@, 1 }"));
 
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:vardecl ::= [ 0 occampi:primtype 3 ] [ 0 +@CHAN 9 ] " \
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:vardecl ::= [ 0 occampi:primtype 3 ] [ 0 +@CHAN 9 ] [ 0 +@PORT 13 ] " \
 				"[ 1 occampi:protocol 2 ] " \
 				"[ 2 {<opi:chanpush>} -* 3 ] " \
 				"[ 3 -@FUNCTION <occampi:fdeclstarttype> ] [ 3 occampi:namelist 4 ] " \
@@ -1560,7 +1560,10 @@ static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
 				"[ 9 +@TYPE 10 ] [ 9 -* 12 ] " \
 				"[ 10 {<parser:rewindtokens>} -* 11 ] " \
 				"[ 11 -* <occampi:chantypedecl> ] " \
-				"[ 12 {<parser:eattoken>} -* 1 ]"));
+				"[ 12 {<parser:eattoken>} -* 1 ] " \
+				"[ 13 {<parser:eattoken>} -* 14 ] " \
+				"[ 14 occampi:protocol 15 ] " \
+				"[ 15 {<opi:portpush>} -* 3 ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:vardecl:bracketstart ::= [ 0 occampi:arrayspec 1 ] [ 1 occampi:vardecl 2 ] [ 2 {Roccampi:arrayfold} -* ]"));
 
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:procdecl ::= [ 0 +@PROC 6 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:procdeclreduce>} -* ] " \
