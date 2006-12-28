@@ -83,6 +83,32 @@ tnode_dumptree (chantype, 1, stderr);
 	return;
 }
 /*}}}*/
+/*{{{  static void occampi_type_initportdecl (tnode_t *node, codegen_t *cgen, void *arg)*/
+/*
+ *	does initialiser code-gen for a PORT declaration
+ */
+static void occampi_type_initportdecl (tnode_t *node, codegen_t *cgen, void *arg)
+{
+	tnode_t *porttype = (tnode_t *)arg;
+	int ws_off, vs_off, ms_off, ms_shdw;
+
+	codegen_callops (cgen, debugline, node);
+
+	/* FIXME: assuming single port for now.. */
+	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off, &ms_shdw);
+
+#if 0
+fprintf (stderr, "occampi_initportdecl(): node=[%s], allocated at [%d,%d,%d], type is:\n", node->tag->name, ws_off, vs_off, ms_off);
+tnode_dumptree (porttype, 1, stderr);
+#endif
+	codegen_subcodegen (tnode_nthsubof (porttype, 1), cgen);
+	/* codegen_callops (cgen, loadconst, 0); */
+	codegen_callops (cgen, storelocal, ws_off);
+	codegen_callops (cgen, comment, "initportdecl");
+
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static void occampi_typeattr_dumpchook (tnode_t *node, void *hook, int indent, FILE *stream)*/
@@ -318,6 +344,10 @@ static int occampi_type_initialising_decl (langops_t *lops, tnode_t *t, tnode_t 
 	if (t->tag == opi.tag_CHAN) {
 		codegen_setinithook (benode, occampi_type_initchandecl, (void *)t);
 		return 1;
+	} else if ((t->tag == opi.tag_PORT) && tnode_nthsubof (t, 1)) {
+		/* PLACED port, need pointer initialisation */
+		codegen_setinithook (benode, occampi_type_initportdecl, (void *)t);
+		return 1;
 	}
 	return 0;
 }
@@ -364,12 +394,12 @@ static int occampi_type_codegen_typeaction (langops_t *lops, tnode_t *type, tnod
 			return -1;
 		} else if (anode->tag == opi.tag_INPUT) {
 			/* simple load and store */
-			codegen_callops (cgen, loadname, rhs, 0);
-			codegen_callops (cgen, storename, lhs, 0);
-		} else if (anode->tag == opi.tag_OUTPUT) {
-			/* simple load and store */
 			codegen_callops (cgen, loadname, lhs, 0);
 			codegen_callops (cgen, storename, rhs, 0);
+		} else if (anode->tag == opi.tag_OUTPUT) {
+			/* simple load and store */
+			codegen_callops (cgen, loadname, rhs, 0);
+			codegen_callops (cgen, storename, lhs, 0);
 		}
 
 		return 0;
@@ -610,7 +640,7 @@ static int occampi_type_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:typenode -- CHAN, PORT, ASINPUT, ASOUTPUT*/
 	i = -1;
-	tnd = opi.node_TYPENODE = tnode_newnodetype ("occampi:typenode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = subtype */
+	tnd = opi.node_TYPENODE = tnode_newnodetype ("occampi:typenode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = subtype, 1 = placement address if relevant */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_type_prescope));
 	tnd->ops = cops;
@@ -701,8 +731,9 @@ static int occampi_type_init_nodes (void)
 static int occampi_type_reg_reducers (void)
 {
 	parser_register_reduce ("Roccampi:primtype", occampi_reduce_primtype, NULL);
-	parser_register_grule ("opi:chanpush", parser_decode_grule ("N+Sn0C1N-", opi.tag_CHAN));
-	parser_register_grule ("opi:portpush", parser_decode_grule ("N+Sn0C1N-", opi.tag_PORT));
+	parser_register_grule ("opi:chanpush", parser_decode_grule ("N+Sn00C2N-", opi.tag_CHAN));
+	parser_register_grule ("opi:portpush", parser_decode_grule ("N+Sn00C2N-", opi.tag_PORT));
+	parser_register_grule ("opi:placedportreduce", parser_decode_grule ("SN2N+N+N+>N-C2SN0N+V0C3R-", opi.tag_PORT, opi.tag_VARDECL));
 
 	return 0;
 }
@@ -722,6 +753,8 @@ static dfattbl_t **occampi_type_init_dfatrans (int *ntrans)
 				"[ 3 {<opi:nullreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_transtotbl ("occampi:type ::= [ 0 occampi:primtype 1 ] [ 1 {<opi:nullreduce>} -* ]"));
 	dynarray_add (transtbl, dfa_bnftotbl ("occampi:typecommalist ::= { occampi:type @@, 1 }"));
+	dynarray_add (transtbl, dfa_transtotbl ("occampi:declorprocstart +:= [ 0 @PLACED 1 ] [ 1 @PORT 2 ] [ 2 occampi:protocol 3 ] [ 3 occampi:name 4 ] " \
+				"[ 4 @AT 5 ] [ 4 -* 5 ] [ 5 occampi:expr 6 ] [ 6 {<opi:placedportreduce>} @@: ]"));
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);

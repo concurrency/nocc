@@ -2,7 +2,7 @@
 -- test_n35.occ - PORT stuff
 
 PROC test.n35 ()
-  PORT BYTE p:
+  PLACED PORT BYTE p AT #FE00:
   BYTE b:
   SEQ
     p ? b
