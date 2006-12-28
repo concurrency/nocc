@@ -377,13 +377,19 @@ static int occampi_typecheck_snode (compops_t *cops, tnode_t *node, typecheck_t 
  */
 static int occampi_namemap_snode (compops_t *cops, tnode_t **nodep, map_t *map)
 {
-	tnode_t *glist = tnode_nthsubof (*nodep, 1);
-	int extraslots = 1;		/* FIXME: depends */
-
 	if ((*nodep)->tag == opi.tag_IF) {
-		/* FIXME: name-mapping for IF */
+		/*{{{  IF process -- nothing special here*/
+		return 1;
+		/*}}}*/
+	} else if ((*nodep)->tag == opi.tag_IF) {
+		/*{{{  CASE process -- nothing special here */
+		return 1;
+		/*}}}*/
 	} else if ((*nodep)->tag == opi.tag_ALT) {
 		/*{{{  ALTing process -- do guards and bodies one-by-one*/
+		tnode_t *glist = tnode_nthsubof (*nodep, 1);
+		int extraslots = 1;		/* FIXME: depends */
+
 		int nguards, i;
 		tnode_t **guards = parser_getlistitems (glist, &nguards);
 
