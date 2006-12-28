@@ -348,6 +348,7 @@ static int occampi_codegen_action (compops_t *cops, tnode_t *node, codegen_t *cg
 	tnode_t *rhs = tnode_nthsubof (node, 1);
 	tnode_t *type = tnode_nthsubof (node, 2);
 	int bytes = tnode_bytesfor (type, cgen->target);
+	tnode_t *lhstype = typecheck_gettype (lhs, NULL);
 
 	codegen_callops (cgen, debugline, node);
 	/* some special cases for assignment, input and output -- these have codegen_typeaction() set in language-ops */
@@ -355,6 +356,15 @@ static int occampi_codegen_action (compops_t *cops, tnode_t *node, codegen_t *cg
 		int i;
 
 		i = tnode_calllangop (type->tag->ndef->lops, "codegen_typeaction", 3, type, node, cgen);
+		if (i >= 0) {
+			/* did something */
+			return i;
+		}	/* else try a normal action handling on it */
+	} else if (lhstype && lhstype->tag->ndef->lops && tnode_haslangop (lhstype->tag->ndef->lops, "codegen_typeaction")) {
+		/* left-hand side has type-action, but the operation itself does not;  offer it up */
+		int i;
+
+		i = tnode_calllangop (lhstype->tag->ndef->lops, "codegen_typeaction", 3, lhstype, node, cgen);
 		if (i >= 0) {
 			/* did something */
 			return i;

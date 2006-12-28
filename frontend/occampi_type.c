@@ -250,6 +250,31 @@ static int occampi_type_bytesfor (langops_t *lops, tnode_t *t, target_t *target)
 	return -1;
 }
 /*}}}*/
+/*{{{  static int occampi_type_initsizes (langops_t *lops, tnode_t *t, tnode_t *declnode, int *wssize, int *vssize, int *mssize, int *indir, map_t *mdata)*/
+/*
+ *	called during mapping to determine memory requirements in a declaration
+ *	returns non-zero if settings were made, zero otherwise
+ */
+static int occampi_type_initsizes (langops_t *lops, tnode_t *t, tnode_t *declnode, int *wssize, int *vssize, int *mssize, int *indir, map_t *mdata)
+{
+	if (t->tag == opi.tag_CHAN) {
+		/* channel declaration, needs 1 word in workspace */
+		*wssize = mdata->target->chansize;
+		*vssize = 0;
+		*mssize = 0;
+		*indir = 0;
+		return 1;
+	} else if (t->tag == opi.tag_PORT) {
+		/* port declaration, actually indirected, so needs a pointer's worth of workspace */
+		*wssize = mdata->target->pointersize;
+		*vssize = 0;
+		*mssize = 0;
+		*indir = 1;
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_type_issigned (langops_t *lops, tnode_t *t, target_t *target)*/
 /*
  *	returns the signedness of a type (or -1 if not known)
@@ -297,7 +322,7 @@ static int occampi_type_initialising_decl (langops_t *lops, tnode_t *t, tnode_t 
 	return 0;
 }
 /*}}}*/
-/*{{{  */
+/*{{{  static int occampi_type_codegen_typeaction (langops_t *lops, tnode_t *type, tnode_t *anode, codegen_t *cgen)*/
 /*
  *	this handles code-generation for actions involving channels or ports
  *	returns 0 to stop the code-gen walk, 1 to continue, -1 to resort to normal action handling
@@ -338,19 +363,13 @@ static int occampi_type_codegen_typeaction (langops_t *lops, tnode_t *type, tnod
 			codegen_warning (cgen, "occampi_type_codegen_typaction(): attempt to assign port!");
 			return -1;
 		} else if (anode->tag == opi.tag_INPUT) {
-			int bytes = tnode_bytesfor (type, cgen->target);
-
-			codegen_callops (cgen, loadpointer, rhs, 0);
-			codegen_callops (cgen, loadpointer, lhs, 0);
-			codegen_callops (cgen, loadconst, bytes);
-			codegen_callops (cgen, tsecondary, I_IN);
+			/* simple load and store */
+			codegen_callops (cgen, loadname, rhs, 0);
+			codegen_callops (cgen, storename, lhs, 0);
 		} else if (anode->tag == opi.tag_OUTPUT) {
-			int bytes = tnode_bytesfor (type, cgen->target);
-
-			codegen_callops (cgen, loadpointer, rhs, 0);
-			codegen_callops (cgen, loadpointer, lhs, 0);
-			codegen_callops (cgen, loadconst, bytes);
-			codegen_callops (cgen, tsecondary, I_OUT);
+			/* simple load and store */
+			codegen_callops (cgen, loadname, lhs, 0);
+			codegen_callops (cgen, storename, rhs, 0);
 		}
 
 		return 0;
@@ -601,6 +620,7 @@ static int occampi_type_init_nodes (void)
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_type_typeactual));
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_type_bytesfor));
 	tnode_setlangop (lops, "issigned", 2, LANGOPTYPE (occampi_type_issigned));
+	tnode_setlangop (lops, "initsizes", 7, LANGOPTYPE (occampi_type_initsizes));
 	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_type_initialising_decl));
 	tnode_setlangop (lops, "codegen_typeaction", 3, LANGOPTYPE (occampi_type_codegen_typeaction));
 	tnd->lops = lops;
@@ -608,7 +628,7 @@ static int occampi_type_init_nodes (void)
 	i = -1;
 	opi.tag_CHAN = tnode_newnodetag ("CHAN", &i, tnd, NTF_SYNCTYPE);
 	i = -1;
-	opi.tag_PORT = tnode_newnodetag ("PORT", &i, tnd, NTF_NONE);				/* FIXME: NTF_SYNCTYPE ? */
+	opi.tag_PORT = tnode_newnodetag ("PORT", &i, tnd, NTF_NONE);						/* FIXME: NTF_SYNCTYPE ? */
 	i = -1;
 	opi.tag_ASINPUT = tnode_newnodetag ("ASINPUT", &i, tnd, NTF_NONE);
 	i = -1;

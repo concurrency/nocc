@@ -41,6 +41,7 @@
 #include "parser.h"
 #include "treeops.h"
 #include "names.h"
+#include "typecheck.h"
 #include "target.h"
 #include "map.h"
 #include "transputer.h"
@@ -1592,6 +1593,17 @@ static int krocetc_codegen_nameref (compops_t *cops, tnode_t *nameref, codegen_t
 	return 0;
 }
 /*}}}*/
+/*{{{  static tnode_t *krocetc_gettype_nameref (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	returns the type of a name reference
+ *	returns type on success, NULL on failure
+ */
+static tnode_t *krocetc_gettype_nameref (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
+{
+	/* transparent */
+	return typecheck_gettype (tnode_nthsubof (node, 0), defaulttype);
+}
+/*}}}*/
 
 /*{{{  static int krocetc_codegen_constref (compops_t *cops, tnode_t *constref, codegen_t *cgen)*/
 /*
@@ -1972,18 +1984,50 @@ static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)
 		krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (name, 0);
 		int i;
 
-		if (offset && !nh->indir) {
-			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset + offset);
-		} else {
+		switch (nh->indir) {
+		case 0:
+			switch (nh->typesize) {
+			default:
+				/* word or don't know, just do load-local (word) */
+				codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset + offset);
+				break;
+			case 1:
+				/* byte-size load */
+				codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
+				codegen_write_fmt (cgen, "\tlb\n");
+				break;
+			case 2:
+				/* half-word-size load */
+				codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
+				codegen_write_fmt (cgen, "\tlw\n");
+				break;
+			}
+			krocetc_cgstate_tsdelta (cgen, 1);
+			break;
+		default:
 			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
-		}
-		krocetc_cgstate_tsdelta (cgen, 1);
-		for (i=0; i<nh->indir; i++) {
-			if (offset && (i == (nh->indir - 1))) {
-				codegen_write_fmt (cgen, "\tldnl\t%d\n", offset);
-			} else {
+			for (i=0; i<(nh->indir - 1); i++) {
 				codegen_write_fmt (cgen, "\tldnl\t0\n");
 			}
+			if (offset) {
+				codegen_callops (cgen, addconst, offset);
+			}
+			switch (nh->typesize) {
+			default:
+				/* word or don't know, just do load non-local (word) */
+				codegen_write_fmt (cgen, "\tldnl\t0\n");
+				break;
+			case 1:
+				/* byte-size load */
+				codegen_write_fmt (cgen, "\tlb\n");
+				break;
+			case 2:
+				/* half-word-size load */
+				codegen_write_fmt (cgen, "\tlw\n");
+				break;
+			}
+			krocetc_cgstate_tsdelta (cgen, 1);
+			break;
 		}
 		/*}}}*/
 	} else if (name->tag == krocetc_target.tag_INDEXED) {
@@ -2220,7 +2264,22 @@ static void krocetc_coder_storename (codegen_t *cgen, tnode_t *name, int offset)
 
 		switch (nh->indir) {
 		case 0:
-			codegen_write_fmt (cgen, "\tstl\t%d\n", nh->ws_offset + offset);
+			switch (nh->typesize) {
+			default:
+				/* word size or don't know, just do store-local */
+				codegen_write_fmt (cgen, "\tstl\t%d\n", nh->ws_offset + offset);
+				break;
+			case 1:
+				/* byte-sized store */
+				codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
+				codegen_write_fmt (cgen, "\tsb\n");
+				break;
+			case 2:
+				/* half-word-sized store */
+				codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
+				codegen_write_fmt (cgen, "\tsw\n");
+				break;
+			}
 			krocetc_cgstate_tsdelta (cgen, -1);
 			break;
 		default:
@@ -2229,7 +2288,23 @@ static void krocetc_coder_storename (codegen_t *cgen, tnode_t *name, int offset)
 			for (i=0; i<(nh->indir - 1); i++) {
 				codegen_write_fmt (cgen, "\tldnl\t0\n");
 			}
-			codegen_write_fmt (cgen, "\tstnl\t%d\n", offset);
+			if (offset) {
+				codegen_callops (cgen, addconst, offset);
+			}
+			switch (nh->typesize) {
+			default:
+				/* word or don't know, just do store non-local (word) */
+				codegen_write_fmt (cgen, "\tstnl\t0\n");
+				break;
+			case 1:
+				/* byte-sized store */
+				codegen_write_fmt (cgen, "\tsb\n");
+				break;
+			case 2:
+				/* half-word-sized store */
+				codegen_write_fmt (cgen, "\tsw\n");
+				break;
+			}
 			krocetc_cgstate_tsdelta (cgen, -2);
 			break;
 		}
@@ -2681,6 +2756,17 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		/*{{{  LB: load byte*/
 	case I_LB:
 		codegen_write_fmt (cgen, "\tlb\n");
+		break;
+		/*}}}*/
+		/*{{{  SW: store word*/
+	case I_SW:
+		codegen_write_fmt (cgen, "\tsw\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  LW: load word*/
+	case I_LW:
+		codegen_write_fmt (cgen, "\tlw\n");
 		break;
 		/*}}}*/
 		/*{{{  NULL: load null value*/
@@ -3249,6 +3335,9 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_nameref));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (krocetc_gettype_nameref));
+	tnd->lops = lops;
 	i = -1;
 	target->tag_NAMEREF = tnode_newnodetag ("KROCETCNAMEREF", &i, tnd, 0);
 	/*}}}*/

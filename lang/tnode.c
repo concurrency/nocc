@@ -1652,6 +1652,42 @@ static int tnode_icallcompop (compops_t *cops, compop_t *op, va_list ap)
 			r = fcn (cops, arg0, arg1, arg2, arg3);
 		}
 		break;
+	case 5:
+		{
+			void *arg0 = va_arg (ap, void *);
+			void *arg1 = va_arg (ap, void *);
+			void *arg2 = va_arg (ap, void *);
+			void *arg3 = va_arg (ap, void *);
+			void *arg4 = va_arg (ap, void *);
+
+			r = fcn (cops, arg0, arg1, arg2, arg3, arg4);
+		}
+		break;
+	case 6:
+		{
+			void *arg0 = va_arg (ap, void *);
+			void *arg1 = va_arg (ap, void *);
+			void *arg2 = va_arg (ap, void *);
+			void *arg3 = va_arg (ap, void *);
+			void *arg4 = va_arg (ap, void *);
+			void *arg5 = va_arg (ap, void *);
+
+			r = fcn (cops, arg0, arg1, arg2, arg3, arg4, arg5);
+		}
+		break;
+	case 7:
+		{
+			void *arg0 = va_arg (ap, void *);
+			void *arg1 = va_arg (ap, void *);
+			void *arg2 = va_arg (ap, void *);
+			void *arg3 = va_arg (ap, void *);
+			void *arg4 = va_arg (ap, void *);
+			void *arg5 = va_arg (ap, void *);
+			void *arg6 = va_arg (ap, void *);
+
+			r = fcn (cops, arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+		}
+		break;
 	default:
 		nocc_error ("tnode_icallcompop(): asked for %d params, but not that many supported here!", op->nparams);
 		r = -1;
@@ -1987,6 +2023,42 @@ static int tnode_icalllangop (langops_t *lops, langop_t *op, va_list ap)
 			void *arg3 = va_arg (ap, void *);
 
 			r = fcn (lops, arg0, arg1, arg2, arg3);
+		}
+		break;
+	case 5:
+		{
+			void *arg0 = va_arg (ap, void *);
+			void *arg1 = va_arg (ap, void *);
+			void *arg2 = va_arg (ap, void *);
+			void *arg3 = va_arg (ap, void *);
+			void *arg4 = va_arg (ap, void *);
+
+			r = fcn (lops, arg0, arg1, arg2, arg3, arg4);
+		}
+		break;
+	case 6:
+		{
+			void *arg0 = va_arg (ap, void *);
+			void *arg1 = va_arg (ap, void *);
+			void *arg2 = va_arg (ap, void *);
+			void *arg3 = va_arg (ap, void *);
+			void *arg4 = va_arg (ap, void *);
+			void *arg5 = va_arg (ap, void *);
+
+			r = fcn (lops, arg0, arg1, arg2, arg3, arg4, arg5);
+		}
+		break;
+	case 7:
+		{
+			void *arg0 = va_arg (ap, void *);
+			void *arg1 = va_arg (ap, void *);
+			void *arg2 = va_arg (ap, void *);
+			void *arg3 = va_arg (ap, void *);
+			void *arg4 = va_arg (ap, void *);
+			void *arg5 = va_arg (ap, void *);
+			void *arg6 = va_arg (ap, void *);
+
+			r = fcn (lops, arg0, arg1, arg2, arg3, arg4, arg5, arg6);
 		}
 		break;
 	default:
