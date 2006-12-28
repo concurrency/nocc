@@ -51,6 +51,7 @@
 #include "langops.h"
 #include "target.h"
 #include "map.h"
+#include "transputer.h"
 #include "codegen.h"
 
 
@@ -296,6 +297,68 @@ static int occampi_type_initialising_decl (langops_t *lops, tnode_t *t, tnode_t 
 	return 0;
 }
 /*}}}*/
+/*{{{  */
+/*
+ *	this handles code-generation for actions involving channels or ports
+ *	returns 0 to stop the code-gen walk, 1 to continue, -1 to resort to normal action handling
+ */
+static int occampi_type_codegen_typeaction (langops_t *lops, tnode_t *type, tnode_t *anode, codegen_t *cgen)
+{
+	tnode_t *lhs = tnode_nthsubof (anode, 0);		/* some guarantee that action-nodes have these */
+	tnode_t *rhs = tnode_nthsubof (anode, 1);
+
+	if (type->tag == opi.tag_CHAN) {
+		/*{{{  deal with channel actions*/
+		if (anode->tag == opi.tag_ASSIGN) {
+			/* doesn't make sense to assign these */
+			codegen_warning (cgen, "occampi_type_codegen_typaction(): attempt to assign channel!");
+			return -1;
+		} else if (anode->tag == opi.tag_INPUT) {
+			int bytes = tnode_bytesfor (type, cgen->target);
+
+			codegen_callops (cgen, loadpointer, rhs, 0);
+			codegen_callops (cgen, loadpointer, lhs, 0);
+			codegen_callops (cgen, loadconst, bytes);
+			codegen_callops (cgen, tsecondary, I_IN);
+		} else if (anode->tag == opi.tag_OUTPUT) {
+			int bytes = tnode_bytesfor (type, cgen->target);
+
+			codegen_callops (cgen, loadpointer, rhs, 0);
+			codegen_callops (cgen, loadpointer, lhs, 0);
+			codegen_callops (cgen, loadconst, bytes);
+			codegen_callops (cgen, tsecondary, I_OUT);
+		}
+
+		return 0;
+		/*}}}*/
+	} else if (type->tag == opi.tag_PORT) {
+		/*{{{  deal with port actions*/
+		if (anode->tag == opi.tag_ASSIGN) {
+			/* doesn't make sense to assign these */
+			codegen_warning (cgen, "occampi_type_codegen_typaction(): attempt to assign port!");
+			return -1;
+		} else if (anode->tag == opi.tag_INPUT) {
+			int bytes = tnode_bytesfor (type, cgen->target);
+
+			codegen_callops (cgen, loadpointer, rhs, 0);
+			codegen_callops (cgen, loadpointer, lhs, 0);
+			codegen_callops (cgen, loadconst, bytes);
+			codegen_callops (cgen, tsecondary, I_IN);
+		} else if (anode->tag == opi.tag_OUTPUT) {
+			int bytes = tnode_bytesfor (type, cgen->target);
+
+			codegen_callops (cgen, loadpointer, rhs, 0);
+			codegen_callops (cgen, loadpointer, lhs, 0);
+			codegen_callops (cgen, loadconst, bytes);
+			codegen_callops (cgen, tsecondary, I_OUT);
+		}
+
+		return 0;
+		/*}}}*/
+	}
+	return -1;
+}
+/*}}}*/
 
 
 /*{{{  static tnode_t *occampi_typespec_gettype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
@@ -539,6 +602,7 @@ static int occampi_type_init_nodes (void)
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_type_bytesfor));
 	tnode_setlangop (lops, "issigned", 2, LANGOPTYPE (occampi_type_issigned));
 	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_type_initialising_decl));
+	tnode_setlangop (lops, "codegen_typeaction", 3, LANGOPTYPE (occampi_type_codegen_typeaction));
 	tnd->lops = lops;
 
 	i = -1;

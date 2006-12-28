@@ -3,7 +3,8 @@
 
 PROC test.n35 ()
   PORT BYTE p:
+  BYTE b:
   SEQ
-    SKIP
+    p ? b
 :
 

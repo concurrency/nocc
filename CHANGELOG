@@ -1,4 +1,6 @@
 
+28/12/2006	frmb	some work on PORTs and various other minor updates
+27/12/2006	frmb	updates to option handling
 02/08/2006	frmb	split some of the MCSP code into separate front-end files
 01/08/2006	frmb	fixed some bugs in the handling of channel direction specifiers and parallel usage checker
 28/08/2006	frmb	more work on occam-pi ALTs

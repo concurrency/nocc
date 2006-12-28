@@ -108,9 +108,11 @@ tnode_dumptree (rhs, 1, stderr);
 
 		lhstype = typecheck_gettype (lhs, NULL);
 
-		/* expecting a channel */
-		if (lhstype->tag != opi.tag_CHAN) {
-			typecheck_error (node, tc, "LHS is not a channel");
+		/* expecting something on which we can communicate -- e.g. channel or port
+		 * test is to see if it has a particular codegen_typeaction language-op
+		 */
+		if (!tnode_haslangop (lhstype->tag->ndef->lops, "codegen_typeaction")) {
+			typecheck_error (node, tc, "LHS is not-communicable, got [%s]", lhstype->tag->name);
 			return 0;
 		}
 
