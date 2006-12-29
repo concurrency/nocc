@@ -212,6 +212,24 @@ fprintf (stderr, "occampi_scopeout_vardecl: here! sname->me->name = \"%s\"\n", s
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_premap_vardecl (compops_t *cops, tnode_t **node, map_t *map)*/
+/*
+ *	does pre-mapping on a variable declaration node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_premap_vardecl (compops_t *cops, tnode_t **node, map_t *map)
+{
+	tnode_t *type = tnode_nthsubof (*node, 1);
+
+	if (type && type->tag->ndef->lops && tnode_haslangop (type->tag->ndef->lops, "premap_typeforvardecl")) {
+		int i;
+
+		i = tnode_calllangop (type->tag->ndef->lops, "premap_typeforvardecl", 3, type, *node, map);
+		return i;
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_vardecl (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	transforms the name declared into a back-end name
@@ -220,8 +238,9 @@ fprintf (stderr, "occampi_scopeout_vardecl: here! sname->me->name = \"%s\"\n", s
 static int occampi_namemap_vardecl (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t **namep = tnode_nthsubaddr (*node, 0);
-	tnode_t *type = tnode_nthsubof (*node, 1);
+	tnode_t **typep = tnode_nthsubaddr (*node, 1);
 	tnode_t **bodyp = tnode_nthsubaddr (*node, 2);
+	tnode_t *type = *typep;
 	tnode_t *bename;
 	int tsize;
 	int wssize, vssize, mssize, indir;
@@ -244,6 +263,14 @@ tnode_dumptree (type, 1, stderr);
 	}
 	bename = map->target->newname (*namep, *bodyp, map, (wssize < 0) ? 0 : wssize, (wssize < 0) ? -wssize : 0, vssize, mssize, tsize, indir);
 
+	if (type->tag->nt_flags & NTF_NAMEMAPTYPEINDECL) {
+		chook_t *pcevhook = tnode_lookupchookbyname ("precode:vars");
+
+		map_submapnames (typep, map);
+		/* pull any of these upwards */
+		precode_pullupprecodevars (*namep, *typep);
+	}
+
 	if (type->tag->ndef->lops && tnode_haslangop (type->tag->ndef->lops, "initialising_decl")) {
 		tnode_calllangop (type->tag->ndef->lops, "initialising_decl", 3, type, bename, map);
 	}
@@ -260,6 +287,19 @@ tnode_dumptree (bename, 1, stderr);
 	/* map the body */
 	map_submapnames (bodyp, map);
 	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_precode_vardecl (compops_t *cops, tnode_t **nodep, codegen_t *cgen)*/
+/*
+ *	does pre-coding for a variable declaration node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_precode_vardecl (compops_t *cops, tnode_t **nodep, codegen_t *cgen)
+{
+#if 1
+	nocc_message ("occampi_precode_vardecl(): here!");
+#endif
+	return 1;
 }
 /*}}}*/
 
@@ -1442,7 +1482,9 @@ static int occampi_decl_init_nodes (void)
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_vardecl));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_vardecl));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_vardecl));
+	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_vardecl));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_vardecl));
+	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_precode_vardecl));
 	tnd->ops = cops;
 	i = -1;
 	opi.tag_VARDECL = tnode_newnodetag ("VARDECL", &i, tnd, NTF_NONE);

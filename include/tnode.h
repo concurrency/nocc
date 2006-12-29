@@ -21,15 +21,18 @@
 #define __TNODE_H
 
 
-#define TNF_NONE	0x0000
-#define TNF_LONGPROC	0x0001		/* long process (e.g. SEQ/PAR, body into subnode 1) */
-#define TNF_LONGDECL	0x0002		/* long declaration (e.g. PROC, body into subnode 2, in-scope into subnode 3) */
-#define TNF_SHORTDECL	0x0004		/* short declaration (e.g. variable, in-scope body into subnode 2) */
-#define TNF_TRANSPARENT	0x0008		/* "transparent" node (e.g. library-info) */
-#define TNF_LANGMASK	0xfff0
+#define TNF_NONE		0x0000
+#define TNF_LONGPROC		0x0001		/* long process (e.g. SEQ/PAR, body into subnode 1) */
+#define TNF_LONGDECL		0x0002		/* long declaration (e.g. PROC, body into subnode 2, in-scope into subnode 3) */
+#define TNF_SHORTDECL		0x0004		/* short declaration (e.g. variable, in-scope body into subnode 2) */
+#define TNF_TRANSPARENT		0x0008		/* "transparent" node (e.g. library-info) */
+#define TNF_LANGMASK		0xfff0
 
-#define NTF_NONE	0x0000
-#define NTF_LANGMASK	0xfff0
+#define NTF_NONE		0x0000
+#define NTF_NAMEMAPTYPEINDECL	0x0001		/* indicates that when name-mapping a declaration with this type, map the type as well */
+#define NTF_PRECODETYPEINDECL	0x0002		/* indicates that when pre-coding a declaration with this type, pre-code the type as well */
+#define NTF_CODEGENTYPEINDECL	0x0004		/* indicates that when code-generating a declaration with this type, code-generate the type as well */
+#define NTF_LANGMASK		0xfff0
 
 
 struct TAG_tnode;
@@ -155,6 +158,7 @@ typedef enum ENUM_langops {
 	LOPS_CODEGEN_TYPEACTION = 15,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
 	LOPS_CODEGEN_ALTENABLE = 16,		/* 3: tnode_t *, int, codegen_t * -> int */
 	LOPS_CODEGEN_ALTDISABLE = 17,		/* 4: tnode_t *, int, int, codegen_t * -> int */
+	LOPS_PREMAP_TYPEFORVARDECL = 18,	/* 3: tnode_t *, tnode_t *, map_t * -> int */
 	LOPS_MAX = 256
 } langops_e;
 

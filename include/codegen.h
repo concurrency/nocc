@@ -97,6 +97,9 @@ typedef struct TAG_coderops {
 } coderops_t;
 
 
+extern int precode_addtoprecodevars (struct TAG_tnode *tptr, struct TAG_tnode *pcvar);
+extern int precode_pullupprecodevars (struct TAG_tnode *dest_tptr, struct TAG_tnode *src_tptr);
+
 extern int codegen_generate_code (struct TAG_tnode **tptr, struct TAG_lexfile *lf, struct TAG_target *target);
 extern int codegen_subcodegen (struct TAG_tnode *tree, codegen_t *cgen);
 extern int codegen_subprecode (struct TAG_tnode **tptr, codegen_t *cgen);

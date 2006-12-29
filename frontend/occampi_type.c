@@ -91,6 +91,8 @@ static void occampi_type_initportdecl (tnode_t *node, codegen_t *cgen, void *arg
 {
 	tnode_t *porttype = (tnode_t *)arg;
 	int ws_off, vs_off, ms_off, ms_shdw;
+	chook_t *pcevhook = tnode_lookupornewchook ("precode:vars");
+	tnode_t *pcvars = NULL;
 
 	codegen_callops (cgen, debugline, node);
 
@@ -100,8 +102,17 @@ static void occampi_type_initportdecl (tnode_t *node, codegen_t *cgen, void *arg
 #if 0
 fprintf (stderr, "occampi_initportdecl(): node=[%s], allocated at [%d,%d,%d], type is:\n", node->tag->name, ws_off, vs_off, ms_off);
 tnode_dumptree (porttype, 1, stderr);
+fprintf (stderr, "occampi_initportdecl(): tnode_nthsubof (node, 0) =\n");
+tnode_dumptree (tnode_nthsubof (node, 0), 1, stderr);
 #endif
-	codegen_subcodegen (tnode_nthsubof (porttype, 1), cgen);
+	pcvars = (tnode_t *)tnode_getchook (tnode_nthsubof (node, 0), pcevhook);
+	if (!pcvars) {
+		codegen_warning (cgen, "occampi_type_initportdecl(): did not find hooked precode:vars on node [%s], zeroing PORT placement", tnode_nthsubof (node, 0)->tag->name);
+		codegen_callops (cgen, loadconst, 0);
+	} else {
+		codegen_callops (cgen, loadname, pcvars, 0);
+	}
+	/* codegen_subcodegen (tnode_nthsubof (porttype, 1), cgen); */
 	/* codegen_callops (cgen, loadconst, 0); */
 	codegen_callops (cgen, storelocal, ws_off);
 	codegen_callops (cgen, comment, "initportdecl");
@@ -180,6 +191,38 @@ static int occampi_type_prescope (compops_t *cops, tnode_t **nodep, prescope_t *
 		tnode_free (losing);
 	}
 	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_type_namemap (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping on a type node -- should only be called for PORTs, to map out the placement address
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_type_namemap (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	if (((*nodep)->tag == opi.tag_PORT) && tnode_nthsubof (*nodep, 1)) {
+		map_submapnames (tnode_nthsubaddr (*nodep, 1), map);
+		precode_addtoprecodevars (*nodep, tnode_nthsubof (*nodep, 1));
+		return 0;
+	}
+	tnode_warning (*nodep, "occampi_type_namemap(): called for non-PORT, was [%s]", (*nodep)->tag->name);
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_type_precode (compops_t *cops, tnode_t **nodep, codegen_t *cgen)*/
+/*
+ *	does pre-coding on a type node -- should only be called for PORTs, to pre-code the placement address
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_type_precode (compops_t *cops, tnode_t **nodep, codegen_t *cgen)
+{
+	if (((*nodep)->tag == opi.tag_PORT) && tnode_nthsubof (*nodep, 1)) {
+		codegen_subprecode (tnode_nthsubaddr (*nodep, 1), cgen);
+		return 0;
+	}
+	tnode_warning (*nodep, "occampi_type_precode(): called for non-PORT, was [%s]", (*nodep)->tag->name);
+	return 1;
+	
 }
 /*}}}*/
 /*{{{  static tnode_t *occampi_type_gettype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
@@ -643,6 +686,8 @@ static int occampi_type_init_nodes (void)
 	tnd = opi.node_TYPENODE = tnode_newnodetype ("occampi:typenode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = subtype, 1 = placement address if relevant */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_type_prescope));
+	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_type_precode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_type_namemap));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_type_getdescriptor));
@@ -658,7 +703,7 @@ static int occampi_type_init_nodes (void)
 	i = -1;
 	opi.tag_CHAN = tnode_newnodetag ("CHAN", &i, tnd, NTF_SYNCTYPE);
 	i = -1;
-	opi.tag_PORT = tnode_newnodetag ("PORT", &i, tnd, NTF_NONE);						/* FIXME: NTF_SYNCTYPE ? */
+	opi.tag_PORT = tnode_newnodetag ("PORT", &i, tnd, NTF_NAMEMAPTYPEINDECL | NTF_PRECODETYPEINDECL);
 	i = -1;
 	opi.tag_ASINPUT = tnode_newnodetag ("ASINPUT", &i, tnd, NTF_NONE);
 	i = -1;

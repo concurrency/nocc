@@ -395,6 +395,7 @@ void tnode_init (void)
 	tnode_newlangop ("codegen_typeaction", LOPS_CODEGEN_TYPEACTION, 3, NULL);
 	tnode_newlangop ("codegen_altenable", LOPS_CODEGEN_ALTENABLE, 3, NULL);
 	tnode_newlangop ("codegen_altdisable", LOPS_CODEGEN_ALTDISABLE, 4, NULL);
+	tnode_newlangop ("premap_typeforvardecl", LOPS_PREMAP_TYPEFORVARDECL, 3, NULL);
 
 	/*}}}*/
 	/*{{{  setup the static node types*/

@@ -35,6 +35,7 @@
 #include "support.h"
 #include "version.h"
 #include "lexer.h"
+#include "parser.h"
 #include "tnode.h"
 #include "names.h"
 #include "target.h"
@@ -687,6 +688,50 @@ fprintf (stderr, "codegen_generate_code(): cgen->error = %d\n", cgen->error);
 	/*}}}*/
 
 	return i;
+}
+/*}}}*/
+/*{{{  int precode_addtoprecodevars (tnode_t *tptr, tnode_t *node)*/
+/*
+ *	called to add entries to a node's 'precode:vars' list (before pre-coding takes place)
+ *	returns 0 on success, non-zero on failure
+ */
+int precode_addtoprecodevars (tnode_t *tptr, tnode_t *node)
+{
+	chook_t *pchook = tnode_lookupornewchook ("precode:vars");
+	tnode_t *hvars = (tnode_t *)tnode_getchook (tptr, pchook);
+
+	if (hvars) {
+		if (parser_islistnode (hvars)) {
+			parser_addtolist (hvars, node);
+		} else {
+			tnode_t *tmp = parser_newlistnode (NULL);
+
+			parser_addtolist (tmp, hvars);
+			parser_addtolist (tmp, node);
+
+			tnode_setchook (tptr, pchook, tmp);
+		}
+	} else {
+		tnode_setchook (tptr, pchook, node);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  int precode_pullupprecodevars (tnode_t *dest_tptr, tnode_t *src_tptr)*/
+/*
+ *	called to pull-up 'precode:vars' from one node to another
+ *	returns 0 on success, non-zero on failure
+ */
+int precode_pullupprecodevars (tnode_t *dest_tptr, tnode_t *src_tptr)
+{
+	chook_t *pchook = tnode_lookupornewchook ("precode:vars");
+	tnode_t *hvars = (tnode_t *)tnode_getchook (src_tptr, pchook);
+
+	if (hvars) {
+		tnode_setchook (dest_tptr, pchook, hvars);
+		tnode_setchook (src_tptr, pchook, NULL);
+	}
+	return 0;
 }
 /*}}}*/
 
