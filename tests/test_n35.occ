@@ -6,5 +6,7 @@ PROC test.n35 ()
   BYTE b:
   SEQ
     p ? b
+    p ! 42
+    p ! b
 :
 

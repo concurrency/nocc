@@ -1,0 +1,10 @@
+
+-- test_n36.occ - EXTERNAL PRAGMAs (compatibility style)
+
+#PRAGMA EXTERNAL "PROC C.thing () = 16,4"
+
+PROC test.n36 ()
+  SEQ
+    C.thing ()
+:
+

@@ -2424,6 +2424,99 @@ static void lib_libchook_free (void *chook)
 	return;
 }
 /*}}}*/
+/*{{{  */
+/*
+ *	decodes a descriptor entry found in an EXTERNAL declaration, expecting something like this:
+ *		PROC name ({0,params}) = ws,offset[,vs[,ms]]
+ *	or similar for functions.
+ *	returns libfile_entry_t on success, NULL on failure
+ */
+static libfile_entry_t *lib_decodeexternaldecl (lexfile_t *orglf, libusenodehook_t *lunh, char *desc)
+{
+	libfile_entry_t *lfe = lib_newlibfile_entry ();
+	char *dbuf = NULL;
+	char *sizes = NULL;
+	int dlen;
+	char *ch;
+	lexfile_t *lexbuf = NULL;
+	tnode_t *decltree;
+
+	/*{{{  build descriptor string*/
+	for (ch=desc; (*ch != '=') && (*ch != '\0'); ch++);
+	if (*ch == '\0') {
+		lib_freelibfile_entry (lfe);
+		parser_error (orglf, "expected \'=\' in EXTERNAL declaration");
+		return NULL;
+	}
+	for (sizes = ch+1; (*sizes == ' ') || (*sizes == '\t'); sizes++);
+	for (; (ch[-1] == ' ') || (ch[-1] == '\t'); ch--);
+
+	dbuf = string_ndup (desc, (int)((ch - desc) + 1));
+	dbuf[(int)(ch-desc)] = '\n';				/* finish with a newline */
+
+	/*}}}*/
+#if 0
+nocc_message ("lib_decodeexternaldecl(): dbuf=[%s], sizes=[%s]", dbuf, sizes);
+#endif
+	/*{{{  decode sizes*/
+	{
+		int ncs = 0;
+		int *ptrs[4] = {&lfe->ws, &lfe->adjust, &lfe->vs, &lfe->ms};
+
+		for (ch=sizes; (*ch != '\0') && (ncs < 4); ) {
+			char *dh;
+
+			for (dh=ch; (*dh != ',') && (*dh != '\0'); dh++);
+			if (sscanf (ch, "%d", ptrs[ncs]) != 1) {
+				/* fail parsing number */
+				lib_freelibfile_entry (lfe);
+				parser_error (orglf, "failed to parse number [%s] in EXTERNAL declaration", ch);
+				return NULL;
+			}
+			ncs++;
+			ch = dh + ((*dh == ',') ? 1 : 0);
+		}
+		if (ncs < 2) {
+			/* need at least WS and offset */
+			lib_freelibfile_entry (lfe);
+			parser_error (orglf, "must provide at least 2 offsets for workspace and adjustment");
+			return NULL;
+		}
+	}
+	/*}}}*/
+	/*{{{  open buffer as a lexfile_t and parse it*/
+	lexbuf = lexer_openbuf (NULL, orglf->parser->langname, dbuf);
+	if (!lexbuf) {
+		parser_error (orglf, "lib_decodeexternaldecl(): failed to open buffer..");
+		lib_freelibfile_entry (lfe);
+		sfree (dbuf);
+		return NULL;
+	}
+
+	decltree = parser_descparse (lexbuf);
+	lexer_close (lexbuf);
+
+	if (!decltree) {
+		lib_freelibfile_entry (lfe);
+		sfree (dbuf);
+		return NULL;
+	}
+
+	/*}}}*/
+	/*{{{  attach declaration tree to the hook (flatten later on)*/
+	lunh->decltree = decltree;
+
+	/*}}}*/
+	/*{{{  decode sizes*/
+	/*}}}*/
+	/*{{{  attach libfile size data to declaration tree*/
+	tnode_setchook (lunh->decltree, uselinkchook, (void *)lfe);
+
+	/*}}}*/
+
+	return lfe;
+}
+/*}}}*/
 
 
 /*{{{  int library_init (void)*/
@@ -2757,6 +2850,39 @@ tnode_t *library_newusenode (lexfile_t *lf, char *libname)
 		lib_libusenodehook_free (lunh);
 		return NULL;
 	}
+
+	unode = tnode_create (tag_libusenode, lf, NULL, lunh);
+
+	return unode;
+}
+/*}}}*/
+/*{{{  tnode_t *library_externaldecl (lexfile_t *lf, char *extdef)*/
+/*
+ *	creates a new library-usage node from an EXTERNAL declaration
+ *	returns usage-node on success, NULL on failure
+ */
+tnode_t *library_externaldecl (lexfile_t *lf, char *extdef)
+{
+	tnode_t *unode;
+	libusenodehook_t *lunh = lib_newlibusenodehook (lf, "");
+	libfile_t *libf = lib_newlibfile ();
+	libfile_srcunit_t *libsu = lib_newlibfile_srcunit ();
+	libfile_entry_t *libe = NULL;
+
+	libf->fname = string_dup ("EXTERNAL");
+	dynarray_add (libf->srcs, libsu);
+
+	libsu->fname = string_dup ("EXTERNAL");
+
+	libe = lib_decodeexternaldecl (lf, lunh, extdef);
+	if (!libe) {
+		/* failed to parse declaration -- will have whinged */
+		lib_libusenodehook_free (lunh);
+		return NULL;
+	}
+
+	dynarray_add (libsu->entries, libe);
+	lunh->libdata = libf;
 
 	unode = tnode_create (tag_libusenode, lf, NULL, lunh);
 

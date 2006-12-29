@@ -1068,8 +1068,55 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				return tree;
 			}
 			/*}}}*/
-		}
+		} else if (nexttok && lexer_tokmatchlitstr (nexttok, "PRAGMA")) {
+			/*{{{  #PRAGMA*/
+			lexer_freetoken (tok);
+			lexer_freetoken (nexttok);
 
+			nexttok = lexer_nexttoken (lf);
+			if (nexttok && lexer_tokmatchlitstr (nexttok, "EXTERNAL")) {
+				/*{{{  #PRAGMA EXTERNAL*/
+				lexer_freetoken (nexttok);
+
+				nexttok = lexer_nexttoken (lf);
+				if (nexttok && lexer_tokmatch (opi.tok_STRING, nexttok)) {
+					char *extdef = string_ndup (nexttok->u.str.ptr, nexttok->u.str.len);
+
+					lexer_freetoken (nexttok);
+					/*
+					 *  NOTE: #PRAGMA EXTERNAL decls go through the library mechanism
+					 */
+					tree = library_externaldecl (lf, extdef);
+					if (!tree) {
+						parser_error (lf, "failed while processing #PRAGMA EXTERNAL directive");
+						sfree (extdef);
+						return tree;
+					}
+					sfree (extdef);
+					*gotall = 1;
+				} else {
+					parser_error (lf, "malformed #PRAGMA EXTERNAL directive, expected string found ");
+					lexer_dumptoken (stderr, nexttok);
+					lexer_freetoken (nexttok);
+					return tree;
+				}
+				/*}}}*/
+			} else {
+				parser_error (lf, "while processing #PRAGMA, expected string found ");
+				lexer_dumptoken (stderr, nexttok);
+				lexer_freetoken (nexttok);
+				return tree;
+			}
+			/*}}}*/
+		} else if (nexttok) {
+			parser_error (lf, "unrecognised compiler directive #%s", lexer_stokenstr (nexttok));
+			lexer_freetoken (tok);
+			lexer_freetoken (nexttok);
+		} else {
+			parser_error (lf, "malformed compiler directive");
+			lexer_freetoken (tok);
+			lexer_freetoken (nexttok);
+		}
 		if (!tree) {
 			/* didn't get anything here, go round */
 			goto restartpoint;

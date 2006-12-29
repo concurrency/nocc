@@ -1,4 +1,5 @@
 
+29/12/2006	frmb	more work on PORTs, initial #PRAGMA handling
 28/12/2006	frmb	some work on PORTs and various other minor updates
 27/12/2006	frmb	updates to option handling
 02/08/2006	frmb	split some of the MCSP code into separate front-end files
