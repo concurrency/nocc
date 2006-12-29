@@ -42,22 +42,24 @@
 #include "prescope.h"
 
 
-/*{{{  void prescope_init (void)*/
+/*{{{  int prescope_init (void)*/
 /*
  *	initialises pre-scope
+ *	returns 0 on success, non-zero on failure
  */
-void prescope_init (void)
+int prescope_init (void)
 {
-	return;
+	return 0;
 }
 /*}}}*/
-/*{{{  void prescope_shutdown (void)*/
+/*{{{  int prescope_shutdown (void)*/
 /*
  *	shuts-down pre-scope
+ *	returns 0 on success, non-zero on failure
  */
-void prescope_shutdown (void)
+int prescope_shutdown (void)
 {
-	return;
+	return 0;
 }
 /*}}}*/
 

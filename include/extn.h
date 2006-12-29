@@ -27,6 +27,8 @@ typedef struct TAG_extn {
 	char *name;
 	char *desc;
 	char *filename;
+	void *epriv;
+
 	char *cversionstr;		/* for compiler version */
 	char *version;			/* extension version */
 
@@ -37,7 +39,9 @@ typedef struct TAG_extn {
 	void *hook;
 } extn_t;
 
-extern void extn_init (void);
+extern int extn_init (void);
+extern int extn_shutdown (void);
+
 extern int extn_loadextn (const char *fname);
 extern void extn_dumpextns (void);
 

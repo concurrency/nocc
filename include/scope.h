@@ -34,8 +34,8 @@ typedef struct TAG_scope {
 	DYNARRAY (struct TAG_namespace *, usens);	/* in-use namespaces */
 } scope_t;
 
-extern void scope_init (void);
-extern void scope_shutdown (void);
+extern int scope_init (void);
+extern int scope_shutdown (void);
 
 
 extern int scope_pushdefns (scope_t *ss, struct TAG_namespace *ns);

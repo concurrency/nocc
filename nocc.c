@@ -42,6 +42,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "parsepriv.h"
+#include "langdef.h"
 #include "dfa.h"
 #include "prescope.h"
 #include "precheck.h"
@@ -153,6 +154,98 @@ STATICDYNARRAY (xmlnamespace_t *, xmlnamespaces);
 
 /*}}}*/
 
+
+/*{{{  static int nocc_shutdownrun (void)*/
+/*
+ *	called to call general shut-downs, on both success and error paths
+ *	returns 0 on success, non-zero on failure
+ */
+static int nocc_shutdownrun (void)
+{
+	int v = 0;
+
+	/* compiler framework shutdowns in reverse order from initialisations */
+	if (crypto_shutdown ()) {
+		v++;
+	}
+	if (target_shutdown ()) {
+		v++;
+	}
+	if (codegen_shutdown ()) {
+		v++;
+	}
+	if (allocate_shutdown ()) {
+		v++;
+	}
+	if (map_shutdown ()) {
+		v++;
+	}
+	if (betrans_shutdown ()) {
+		v++;
+	}
+	if (fetrans_shutdown ()) {
+		v++;
+	}
+	if (postcheck_shutdown ()) {
+		v++;
+	}
+	if (defcheck_shutdown ()) {
+		v++;
+	}
+	if (usagecheck_shutdown ()) {
+		v++;
+	}
+	if (aliascheck_shutdown ()) {
+		v++;
+	}
+	if (precheck_shutdown ()) {
+		v++;
+	}
+	if (constprop_shutdown ()) {
+		v++;
+	}
+	if (library_shutdown ()) {
+		v++;
+	}
+	if (treeops_shutdown ()) {
+		v++;
+	}
+	if (extn_shutdown ()) {
+		v++;
+	}
+	if (name_shutdown ()) {
+		v++;
+	}
+	if (scope_shutdown ()) {
+		v++;
+	}
+	if (prescope_shutdown ()) {
+		v++;
+	}
+	if (parser_shutdown ()) {
+		v++;
+	}
+	if (dfa_shutdown ()) {
+		v++;
+	}
+	if (langdef_shutdown ()) {
+		v++;
+	}
+	if (tnode_shutdown ()) {
+		v++;
+	}
+	if (lexer_shutdown ()) {
+		v++;
+	}
+	if (symbols_shutdown ()) {
+		v++;
+	}
+
+	return v;
+}
+/*}}}*/
+
+
 /*{{{  global report routines*/
 /*{{{  void nocc_xinternal (char *fmt, ...)*/
 /*
@@ -176,6 +269,7 @@ void nocc_xinternal (char *fmt, ...)
 	fprintf (stderr, "\n");
 	fflush (stderr);
 	va_end (ap);
+	nocc_shutdownrun ();
 	exit (EXIT_FAILURE);
 	return;
 }
@@ -203,6 +297,7 @@ void nocc_pinternal (char *fmt, const char *file, const int line, ...)
 	fprintf (stderr, "\n");
 	fflush (stderr);
 	va_end (ap);
+	nocc_shutdownrun ();
 	exit (EXIT_FAILURE);
 	return;
 }
@@ -221,6 +316,7 @@ void nocc_fatal (char *fmt, ...)
 	fprintf (stderr, "\n");
 	fflush (stderr);
 	va_end (ap);
+	nocc_shutdownrun ();
 	exit (EXIT_FAILURE);
 	return;
 }
@@ -1001,13 +1097,13 @@ int main (int argc, char **argv)
 	/*{{{  find and read a specs file*/
 	if (!compopts.specsfile) {
 		static const char *builtinspecs[] = {
+			"./nocc.specs.xml",
 #if defined(SYSCONFDIR)
 			SYSCONFDIR "/nocc.specs.xml",
 			SYSCONFDIR "/nocc/nocc.specs.xml",
 #endif
 			"/etc/nocc.specs.xml",
 			"/usr/local/etc/nocc.specs.xml",
-			"./nocc.specs.xml",
 			NULL
 		};
 		int i;
@@ -1096,6 +1192,7 @@ int main (int argc, char **argv)
 	symbols_init ();
 	lexer_init ();
 	tnode_init ();
+	langdef_init ();
 	dfa_init ();
 	parser_init ();
 	prescope_init ();
@@ -1554,6 +1651,9 @@ main_out:
 		sfree (DA_NTHITEM (srcfiles, i));
 	}
 	dynarray_trash (srcfiles);
+
+	/* shutdown compiler */
+	nocc_shutdownrun ();
 
 	if (compopts.dmemdump) {
 		dmem_usagedump ();

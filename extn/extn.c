@@ -42,21 +42,46 @@
 STATICDYNARRAY (extn_t *, extensions);
 
 
-/*{{{  void extn_init (void)*/
+/*{{{  int extn_init (void)*/
 /*
  *	initialises the extension handler
+ *	returns 0 on success, non-zero on failure
  */
-void extn_init (void)
+int extn_init (void)
 {
 	dynarray_init (extensions);
 
 	if (!dlsym ((void *)0, "nocc_error")) {
 		nocc_error ("extn_init(): could not find nocc_error symbol");
+		return -1;
 	}
 
-	return;
+	return 0;
 }
 /*}}}*/
+/*{{{  int extn_shutdown (void)*/
+/*
+ *	shuts-down the extension handler
+ *	returns 0 on success, non-zero on failure
+ */
+int extn_shutdown (void)
+{
+	int i;
+
+	for (i=0; i<DA_CUR (extensions); i++) {
+		extn_t *xtn = DA_NTHITEM (extensions, i);
+
+		if (xtn->epriv) {
+			dlclose (xtn->epriv);
+			xtn->epriv = NULL;
+		}
+	}
+	dynarray_trash (extensions);
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  int extn_loadextn (const char *fname)*/
 /*
  *	loads an extension into the compiler
@@ -132,6 +157,7 @@ int extn_loadextn (const char *fname)
 	/* should have registered as the last one, set filename */
 	theextn = DA_NTHITEM (extensions, DA_CUR (extensions) - 1);
 	theextn->filename = string_dup (fnbuf);
+	theextn->epriv = libhandle;
 
 	/* leave library open and forget about it */
 
@@ -245,13 +271,22 @@ int extn_postloadgrammar (langparser_t *lang)
 
 #else	/* !defined(LIBDL) */
 
-/*{{{  void extn_init (void)*/
+/*{{{  int extn_init (void)*/
 /*
  *	dummy initialisation routine
  */
-void extn_init (void)
+int extn_init (void)
 {
-	return;
+	return 0;
+}
+/*}}}*/
+/*{{{  int extn_shutdown (void)*/
+/*
+ *	dummy shut-down routine
+ */
+int extn_shutdown (void)
+{
+	return 0;
 }
 /*}}}*/
 /*{{{  int extn_loadextn (const char *fname)*/

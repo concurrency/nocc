@@ -74,25 +74,27 @@ static int dfa_idecode_totbl (char **bits, int first, int last, int istate, int 
 /*}}}*/
 
 
-/*{{{  void dfa_init (void)*/
+/*{{{  int dfa_init (void)*/
 /*
  *	initialises the DFA engine
+ *	returns 0 on success, non-zero on failure
  */
-void dfa_init (void)
+int dfa_init (void)
 {
 	stringhash_init (nameddfas);
 	dynarray_init (defmatches);
 	dynarray_init (deftargets);
-	return;
+	return 0;
 }
 /*}}}*/
-/*{{{  void dfa_shutdown (void)*/
+/*{{{  int dfa_shutdown (void)*/
 /*
  *	shutdown the DFA engine
+ *	returns 0 on success, non-zero on failure
  */
-void dfa_shutdown (void)
+int dfa_shutdown (void)
 {
-	return;
+	return 0;
 }
 /*}}}*/
 /*{{{  void dfa_dumpdfa (FILE *stream, dfanode_t *dfa)*/

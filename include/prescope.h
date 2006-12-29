@@ -31,8 +31,8 @@ typedef struct TAG_prescope {
 } prescope_t;
 
 
-extern void prescope_init (void);
-extern void prescope_shutdown (void);
+extern int prescope_init (void);
+extern int prescope_shutdown (void);
 
 
 extern int prescope_subtree (struct TAG_tnode **t, prescope_t *ps);

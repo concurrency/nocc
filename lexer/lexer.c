@@ -56,18 +56,41 @@ STATICDYNARRAY (lexfile_t *, openlexfiles);
 /*}}}*/
 
 
-/*{{{  void lexer_init (void)*/
+/*{{{  int lexer_init (void)*/
 /*
  *	initialises the lexer
+ *	returns 0 on success, non-zero on failure
  */
-void lexer_init (void)
+int lexer_init (void)
 {
 	dynarray_init (langlexers);
 	dynarray_init (lexfiles);
 	dynarray_init (openlexfiles);
-	return;
+	return 0;
 }
 /*}}}*/
+/*{{{  int lexer_shutdown (void)*/
+/*
+ *	shuts-down the lexer
+ *	returns 0 on success, non-zero on failure
+ */
+int lexer_shutdown (void)
+{
+	int i;
+
+	dynarray_trash (langlexers);
+	for (i=0; i<DA_CUR (openlexfiles); i++) {
+		lexfile_t *olf = DA_NTHITEM (openlexfiles, i);
+
+		/* FIXME! */
+	}
+	dynarray_trash (openlexfiles);
+	dynarray_trash (lexfiles);
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  lexfile_t *lexer_open (char *filename)*/
 /*
  *	opens a file for lexing

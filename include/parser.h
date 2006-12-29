@@ -25,8 +25,8 @@ struct TAG_tnode;
 struct TAG_token;
 struct TAG_parsepriv;
 
-extern void parser_init (void);
-extern void parser_shutdown (void);
+extern int parser_init (void);
+extern int parser_shutdown (void);
 
 extern struct TAG_parsepriv *parser_newparsepriv (void);
 extern void parser_freeparsepriv (struct TAG_parsepriv *pp);

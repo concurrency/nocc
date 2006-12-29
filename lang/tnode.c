@@ -336,11 +336,12 @@ static void tnode_list_hookmodprepostwalktree (tnode_t **node, void *hook, int (
 /*}}}*/
 /*}}}*/
 
-/*{{{  void tnode_init (void)*/
+/*{{{  int tnode_init (void)*/
 /*
  *	initialises node handler
+ *	returns 0 on success, non-zero on failure
  */
-void tnode_init (void)
+int tnode_init (void)
 {
 	tndef_t *tnd;
 	ntdef_t *ntd;
@@ -433,16 +434,17 @@ void tnode_init (void)
 
 	/*}}}*/
 
-	return;
+	return 0;
 }
 /*}}}*/
-/*{{{  void tnode_shutdown (void)*/
+/*{{{  int tnode_shutdown (void)*/
 /*
  *	shuts-down node handler
+ *	returns 0 on success, non-zero on failure
  */
-void tnode_shutdown (void)
+int tnode_shutdown (void)
 {
-	return;
+	return 0;
 }
 /*}}}*/
 

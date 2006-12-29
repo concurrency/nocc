@@ -42,22 +42,24 @@
 #include "scope.h"
 
 
-/*{{{  void scope_init (void)*/
+/*{{{  int scope_init (void)*/
 /*
  *	initialises the scoper
+ *	returns 0 on success, non-zero on failure
  */
-void scope_init (void)
+int scope_init (void)
 {
-	return;
+	return 0;
 }
 /*}}}*/
-/*{{{  void scope_shutdown (void)*/
+/*{{{  int scope_shutdown (void)*/
 /*
  *	shuts-down the scoper
+ *	returns 0 on success, non-zero on failure
  */
-void scope_shutdown (void)
+int scope_shutdown (void)
 {
-	return;
+	return 0;
 }
 /*}}}*/
 

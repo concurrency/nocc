@@ -51,26 +51,28 @@ static int tempnamecounter = 1;
 /*}}}*/
 
 
-/*{{{  void name_init (void)*/
+/*{{{  int name_init (void)*/
 /*
  *	initialises the name handling bits
+ *	returns 0 on success, non-zero on failure
  */
-void name_init (void)
+int name_init (void)
 {
 	stringhash_init (names);
 	dynarray_init (namestack);
 	stringhash_init (namespaces);
 
-	return;
+	return 0;
 }
 /*}}}*/
-/*{{{  void name_shutdown (void)*/
+/*{{{  int name_shutdown (void)*/
 /*
  *	shuts down name handling bits
+ *	returns 0 on success, non-zero on failure
  */
-void name_shutdown (void)
+int name_shutdown (void)
 {
-	return;
+	return 0;
 }
 /*}}}*/
 

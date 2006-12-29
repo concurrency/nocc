@@ -61,7 +61,9 @@ typedef struct TAG_lexfile {
 } lexfile_t;
 
 
-extern void lexer_init (void);
+extern int lexer_init (void);
+extern int lexer_shutdown (void);
+
 extern lexfile_t *lexer_open (char *filename);
 extern lexfile_t *lexer_openbuf (char *fname, char *langname, char *buf);
 extern void lexer_close (lexfile_t *lf);

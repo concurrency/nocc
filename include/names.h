@@ -45,8 +45,9 @@ typedef struct TAG_namelist {
 } namelist_t;
 
 
-extern void name_init (void);
-extern void name_shutdown (void);
+extern int name_init (void);
+extern int name_shutdown (void);
+
 extern name_t *name_lookup (char *str);
 extern name_t *name_lookupss (char *str, struct TAG_scope *ss);
 extern name_t *name_addscopename (char *str, struct TAG_tnode *decl, struct TAG_tnode *type, struct TAG_tnode *namenode);

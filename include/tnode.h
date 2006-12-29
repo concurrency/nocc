@@ -194,8 +194,8 @@ typedef struct TAG_chook {
 /*}}}*/
 
 
-extern void tnode_init (void);
-extern void tnode_shutdown (void);
+extern int tnode_init (void);
+extern int tnode_shutdown (void);
 
 extern tndef_t *tnode_newnodetype (char *name, int *idx, int nsub, int nname, int nhooks, int flags);
 extern ntdef_t *tnode_newnodetag (char *name, int *idx, tndef_t *type, int flags);

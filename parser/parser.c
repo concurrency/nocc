@@ -66,11 +66,12 @@ STATICDYNARRAY (ngrule_t *, angrules);
 
 
 
-/*{{{  void parser_init (void)*/
+/*{{{  int parser_init (void)*/
 /*
  *	initialises the parser
+ *	returns 0 on success, non-zero on failure
  */
-void parser_init (void)
+int parser_init (void)
 {
 	stringhash_init (reducers);
 	dynarray_init (areducers);
@@ -86,17 +87,19 @@ void parser_init (void)
 	parser_register_grule ("parser:listresult", parser_decode_grule ("R+N-"));
 	parser_register_grule ("parser:rewindtokens", parser_decode_grule ("T*"));
 	parser_register_grule ("parser:eattoken", parser_decode_grule ("T+@t"));
-	return;
+
+	return 0;
 }
 /*}}}*/
-/*{{{  void parser_shutdown (void)*/
+/*{{{  int parser_shutdown (void)*/
 /*
  *	shuts-down the parser
+ *	returns 0 on success, non-zero on failure
  */
-void parser_shutdown (void)
+int parser_shutdown (void)
 {
 	/* FIXME: should free up reducers, really .. */
-	return;
+	return 0;
 }
 /*}}}*/
 /*{{{  void parser_error (lexfile_t *lf, const char *fmt, ...)*/

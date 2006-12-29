@@ -87,8 +87,9 @@ typedef struct TAG_dfaerrorhandler {
 } dfaerrorhandler_t;
 
 
-extern void dfa_init (void);
-extern void dfa_shutdown (void);
+extern int dfa_init (void);
+extern int dfa_shutdown (void);
+
 extern void dfa_dumpdfa (FILE *stream, dfanode_t *dfa);
 extern void dfa_dumpnameddfa (FILE *stream, char *dfaname);
 extern void dfa_dumpdfas (FILE *stream);
