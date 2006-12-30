@@ -9,7 +9,43 @@
 
 
 # sections are used to help front-end units find their definitions
-.SECTION "occampi-type"
+
+.SECTION "occampi" # {{{: fairly general occam-pi reductions
+
+.GRULE	"opi:nullreduce" "N+R-"
+.GRULE	"opi:nullpush" "0N-"
+.GRULE	"opi:nullset" "0R-"
+.GRULE	"opi:subscriptreduce" "N+N+0C[SUBSCRIPT]3R-"
+.GRULE	"opi:xsubscriptreduce" "N+N+V0C[SUBSCRIPT]3R-"
+
+# }}}
+.SECTION "occampi-postprod" # {{{: top-level grammar, kind-of
+
+.TABLE	"occampi:exprnamestart ::= [ 0 +Name 1 ] [ 1 @@( 2 ] [ 1 @@[ 5 ] [ 2 {<opi:namepush>} ] [ 2 -* <occampi:infinstance> ]"
+	"[ 1 -* 4 ] [ 4 {<opi:namereduce>} -* ] [ 5 {<opi:namepush>} ] [ 5 occampi:expr 6 ] [ 6 @@] 7 ] [ 7 {<opi:xsubscriptreduce>} -* ]"
+.TABLE	"occampi:expr +:= [ 0 -Name 1 ] [ 0 +Integer 3 ] [ 0 +Real 4 ] [ 0 +String 12 ] [ 0 -@TRUE 10 ] [ 0 -@FALSE 10 ] [ 0 @@( 7 ]"
+	"[ 1 occampi:exprnamestart 2 ] [ 2 {<opi:nullreduce>} -* 5 ]"
+	"[ 3 {<opi:integerreduce>} -* 5 ] [ 4 {<opi:realreduce>} -* 5 ] [ 5 -* ] [ 5 %occampi:restofexpr 6 ] [ 6 {<opi:resultpush>} ] [ 6 -* <occampi:restofexpr> ]"
+	"[ 7 occampi:expr 8 ] [ 8 @@) 9 ] [ 9 {<opi:nullreduce>} -* ]"
+	"[ 10 occampi:litbool 11 ] [ 11 {<opi:nullreduce>} -* ]"
+	"[ 12 {<opi:stringreduce>} -* 5 ]"
+.TABLE	"occampi:operand +:= [ 0 +Name 1 ] [ 1 {<opi:namereduce>} -* ]"
+# .BNF	"occampi:expr ::= ( -Name occampi:exprnamestart {<opi:nullreduce>} | +Integer {<opi:integerreduce>} | +Real {<opi:realreduce>} )"
+.BNF	"occampi:exprsemilist ::= { occampi:expr @@; 1 }"
+.BNF	"occampi:exprcommalist ::= { occampi:expr @@, 1 }"
+.TABLE	"occampi:namestart ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} ] [ 1 -* <occampi:namestartname> ]"
+
+.TABLE	"occampi:bracketstart ::= [ 0 +@@[ 1 ] [ 1 +Integer 2 ] [ 2 +@@] 3 ] [ 3 {<parser:rewindtokens>} -* <occampi:vardecl:bracketstart> ]"
+
+.BNF	"occampi:declorprocstart +:= ( occampi:vardecl | occampi:abbrdecl | occampi:valof | occampi:procdecl | occampi:typedecl |"
+	"occampi:primproc | occampi:cproc | occampi:snode | occampi:namestart | occampi:mobiledecl |"
+	"occampi:builtinprocinstance | occampi:bracketstart | occampi:asmblock ) {<opi:nullreduce>}"
+.TABLE	"occampi:descriptorline ::= [ 0 -@PROC 1 ] [ 0 -* 2 ] [ 1 occampi:procdecl 3 ] [ 2 occampi:funcdecl 3 ] [ 3 {<opi:nullreduce>} -* ]"
+
+# }}}
+
+
+.SECTION "occampi-type" # {{{: primitive, channels and ports
 
 .GRULE	"opi:chanpush" "N+Sn00C[CHAN]2N-"
 .GRULE	"opi:portpush" "N+Sn00C[PORT]2N-"
@@ -23,4 +59,7 @@
 .BNF	"occampi:typecommalist ::= { occampi:type @@, 1 }"
 .TABLE	"occampi:declorprocstart +:= [ 0 @PLACED 1 ] [ 1 @PORT 2 ] [ 2 occampi:protocol 3 ] [ 3 occampi:name 4 ]"
 	"[ 4 @AT 5 ] [ 4 -* 5 ] [ 5 occampi:expr 6 ] [ 6 {<opi:placedportreduce>} @@: ]"
+
+# }}}
+
 

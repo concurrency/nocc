@@ -309,17 +309,30 @@ static int occampi_register_reducers (void)
 {
 	int i;
 	int rval = 0;
+	langdef_t *ldef = occampi_getlangdef ();
+
+	if (!ldef) {
+		nocc_error ("occampi_register_reducers(): no occam-pi language definition found!");
+		return -1;
+	}
 
 	parser_register_reduce ("Roccampi:inlist", occampi_inlistreduce, NULL);
 
 	/*{{{  setup generic reductions*/
-	parser_register_grule ("opi:nullreduce", parser_decode_grule ("N+R-"));
-	parser_register_grule ("opi:nullpush", parser_decode_grule ("0N-"));
-	parser_register_grule ("opi:nullset", parser_decode_grule ("0R-"));
-	parser_register_grule ("opi:subscriptreduce", parser_decode_grule ("N+N+0C3R-", opi.tag_SUBSCRIPT));
-	parser_register_grule ("opi:xsubscriptreduce", parser_decode_grule ("N+N+V0C3R-", opi.tag_SUBSCRIPT));
-	/*}}}*/
+	{
+		langdefsec_t *lsec = langdef_findsection (ldef, "occampi");
 
+		if (!lsec) {
+			nocc_error ("occampi_register_reducers(): no \"occampi\" section in occam-pi language definition!");
+			return -1;
+		}
+		if (langdef_reg_reducers (lsec)) {
+			rval = -1;
+		}
+	}
+
+	/*}}}*/
+	/*{{{  unit-specific reductions*/
 	for (i=0; feunit_set[i]; i++) {
 		feunit_t *thisunit = feunit_set[i];
 
@@ -327,7 +340,22 @@ static int occampi_register_reducers (void)
 			/* keep going */
 			rval = -1;
 		}
+
+		if (thisunit->ident && ldef && langdef_hassection (ldef, thisunit->ident)) {
+			/* load reductions from language definition */
+			langdefsec_t *lsec = langdef_findsection (ldef, thisunit->ident);
+
+			if (!lsec) {
+				nocc_error ("occampi_register_reducers(): no \"%s\" section in occam-pi language definition!", thisunit->ident);
+				return -1;
+			}
+			if (langdef_reg_reducers (lsec)) {
+				rval = -1;
+			}
+		}
 	}
+
+	/*}}}*/
 
 	return rval;
 }
@@ -390,7 +418,12 @@ static int occampi_dfas_init (void)
 {
 	int x, i;
 	DYNARRAY (dfattbl_t *, transtbls);
+	langdef_t *ldef = occampi_getlangdef ();
 
+	if (!ldef) {
+		nocc_error ("occampi_dfas_init(): no occam-pi language definition found!");
+		return -1;
+	}
 
 	/*{{{  create DFAs*/
 	dfa_clear_deferred ();
@@ -417,28 +450,55 @@ static int occampi_dfas_init (void)
 				sfree (t_table);
 			}
 		}
+
+		if (thisunit->ident && ldef && langdef_hassection (ldef, thisunit->ident)) {
+			/* load DFA grammars from language definition */
+			dfattbl_t **t_table;
+			int t_size = 0;
+			langdefsec_t *lsec = langdef_findsection (ldef , thisunit->ident);
+
+			if (!lsec) {
+				nocc_error ("occampi_dfas_init(): no \"%s\" section in occam-pi language definition!", thisunit->ident);
+				return -1;
+			}
+			t_table = langdef_init_dfatrans (lsec, &t_size);
+			if (t_size > 0) {
+				/* add them */
+				int j;
+
+				for (j=0; j<t_size; j++) {
+					dynarray_add (transtbls, t_table[j]);
+				}
+			}
+			if (t_table) {
+				sfree (t_table);
+			}
+		}
 	}
 
-	dynarray_add (transtbls, dfa_transtotbl ("occampi:exprnamestart ::= [ 0 +Name 1 ] [ 1 @@( 2 ] [ 1 @@[ 5 ] [ 2 {<opi:namepush>} ] [ 2 -* <occampi:infinstance> ] " \
-				"[ 1 -* 4 ] [ 4 {<opi:namereduce>} -* ] [ 5 {<opi:namepush>} ] [ 5 occampi:expr 6 ] [ 6 @@] 7 ] [ 7 {<opi:xsubscriptreduce>} -* ]"));
-	dynarray_add (transtbls, dfa_transtotbl ("occampi:expr +:= [ 0 -Name 1 ] [ 0 +Integer 3 ] [ 0 +Real 4 ] [ 0 +String 12 ] [ 0 -@TRUE 10 ] [ 0 -@FALSE 10 ] [ 0 @@( 7 ] " \
-				"[ 1 occampi:exprnamestart 2 ] [ 2 {<opi:nullreduce>} -* 5 ] " \
-				"[ 3 {<opi:integerreduce>} -* 5 ] [ 4 {<opi:realreduce>} -* 5 ] [ 5 -* ] [ 5 %occampi:restofexpr 6 ] [ 6 {<opi:resultpush>} ] [ 6 -* <occampi:restofexpr> ] " \
-				"[ 7 occampi:expr 8 ] [ 8 @@) 9 ] [ 9 {<opi:nullreduce>} -* ] " \
-				"[ 10 occampi:litbool 11 ] [ 11 {<opi:nullreduce>} -* ] " \
-				"[ 12 {<opi:stringreduce>} -* 5 ]"));
-	dynarray_add (transtbls, dfa_transtotbl ("occampi:operand +:= [ 0 +Name 1 ] [ 1 {<opi:namereduce>} -* ]"));
-	/* dynarray_add (transtbls, dfa_bnftotbl ("occampi:expr ::= ( -Name occampi:exprnamestart {<opi:nullreduce>} | +Integer {<opi:integerreduce>} | +Real {<opi:realreduce>} )")); */
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:exprsemilist ::= { occampi:expr @@; 1 }"));
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:exprcommalist ::= { occampi:expr @@, 1 }"));
-	dynarray_add (transtbls, dfa_transtotbl ("occampi:namestart ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} ] [ 1 -* <occampi:namestartname> ]"));
+	/* post-production DFAs */
+	{
+		langdefsec_t *lsec = langdef_findsection (ldef, "occampi-postprod");
+		dfattbl_t **t_table;
+		int t_size = 0;
 
-	dynarray_add (transtbls, dfa_transtotbl ("occampi:bracketstart ::= [ 0 +@@[ 1 ] [ 1 +Integer 2 ] [ 2 +@@] 3 ] [ 3 {<parser:rewindtokens>} -* <occampi:vardecl:bracketstart> ]"));
+		if (!lsec) {
+			nocc_error ("occampi_dfas_init(): no \"occampi-final\" section in occam-pi language definition!");
+			return -1;
+		}
+		t_table = langdef_init_dfatrans (lsec, &t_size);
+		if (t_size > 0) {
+			/* add them */
+			int j;
 
-	dynarray_add (transtbls, dfa_bnftotbl ("occampi:declorprocstart +:= ( occampi:vardecl | occampi:abbrdecl | occampi:valof | occampi:procdecl | occampi:typedecl | " \
-				"occampi:primproc | occampi:cproc | occampi:snode | occampi:namestart | occampi:mobiledecl | " \
-				"occampi:builtinprocinstance | occampi:bracketstart | occampi:asmblock ) {<opi:nullreduce>}"));
-	dynarray_add (transtbls, dfa_transtotbl ("occampi:descriptorline ::= [ 0 -@PROC 1 ] [ 0 -* 2 ] [ 1 occampi:procdecl 3 ] [ 2 occampi:funcdecl 3 ] [ 3 {<opi:nullreduce>} -* ]"));
+			for (j=0; j<t_size; j++) {
+				dynarray_add (transtbls, t_table[j]);
+			}
+		}
+		if (t_table) {
+			sfree (t_table);
+		}
+	}
 
 	/*{{{  load grammar items for extensions*/
 	if (extn_preloadgrammar (&occampi_parser, &DA_PTR(transtbls), &DA_CUR(transtbls), &DA_MAX(transtbls))) {

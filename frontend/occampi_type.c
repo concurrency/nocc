@@ -776,23 +776,7 @@ static int occampi_type_init_nodes (void)
  */
 static int occampi_type_reg_reducers (void)
 {
-	langdefsec_t *lsec = langdef_findsection (occampi_getlangdef (), "occampi-type");
-
-	if (!lsec) {
-		nocc_error ("occampi_type_reg_reducers(): failed to find occampi-type language definitions!");
-		return -1;
-	}
-
 	parser_register_reduce ("Roccampi:primtype", occampi_reduce_primtype, NULL);
-
-	langdef_reg_reducers (lsec);
-#if 0
-	parser_register_grule ("opi:chanpush", parser_decode_grule ("N+Sn00C[CHAN]2N-"));
-	parser_register_grule ("opi:portpush", parser_decode_grule ("N+Sn00C[PORT]2N-"));
-	parser_register_grule ("opi:placedportreduce", parser_decode_grule ("SN2N+N+N+>N-C[PORT]2SN0N+V0C[VARDECL]3R-"));
-#endif
-
-
 	return 0;
 }
 /*}}}*/
@@ -802,30 +786,8 @@ static int occampi_type_reg_reducers (void)
  */
 static dfattbl_t **occampi_type_init_dfatrans (int *ntrans)
 {
-	langdefsec_t *lsec = langdef_findsection (occampi_getlangdef (), "occampi-type");
-
-	if (!lsec) {
-		nocc_error ("occampi_type_init_dfatrans(): failed to find occampi-type language definitions!");
-		return NULL;
-	}
-
-	return langdef_init_dfatrans (lsec, ntrans);
-#if 0
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_bnftotbl ("occampi:primtype ::= ( +@INT | +@BYTE | +@BOOL | +@INT16 | +@INT32 | +@INT64 | +@REAL32 | +@REAL64 | +@CHAR ) {Roccampi:primtype}"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:protocol ::= [ 0 occampi:primtype 3 ] [ 0 +Name 1 ] [ 0 -@@[ 2 ] [ 1 {<opi:namepush>} -* 3 ] " \
-				"[ 2 occampi:arraytypetype 3 ] " \
-				"[ 3 {<opi:nullreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:type ::= [ 0 occampi:primtype 1 ] [ 1 {<opi:nullreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_bnftotbl ("occampi:typecommalist ::= { occampi:type @@, 1 }"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:declorprocstart +:= [ 0 @PLACED 1 ] [ 1 @PORT 2 ] [ 2 occampi:protocol 3 ] [ 3 occampi:name 4 ] " \
-				"[ 4 @AT 5 ] [ 4 -* 5 ] [ 5 occampi:expr 6 ] [ 6 {<opi:placedportreduce>} @@: ]"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
-#endif
+	*ntrans = 0;
+	return NULL;
 }
 /*}}}*/
 /*{{{  static int occampi_type_post_setup (void)*/
