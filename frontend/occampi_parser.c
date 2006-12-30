@@ -731,7 +731,6 @@ static int occampi_parser_init (lexfile_t *lf)
 	}
 	if (!occampi_priv) {
 		occampi_priv = occampi_newoccampiparse ();
-		occampi_priv->inode = NULL;
 
 		/* wipe out the "opi" structure */
 		memset ((void *)&opi, 0, sizeof (opi));

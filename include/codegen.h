@@ -74,7 +74,7 @@ typedef struct TAG_coderops {
 	void (*loadconst)(codegen_t *, int);
 	void (*addconst)(codegen_t *, int);
 	void (*wsadjust)(codegen_t *, int);
-	void (*comment)(codegen_t *, const char *fmt, ...);
+	void (*comment)(codegen_t *, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 	void (*setwssize)(codegen_t *, int, int);
 	void (*setvssize)(codegen_t *, int);
 	void (*setmssize)(codegen_t *, int);
@@ -109,13 +109,13 @@ extern void codegen_setfinalhook (struct TAG_tnode *node, void (*final)(struct T
 extern void codegen_setpostcall (codegen_t *cgen, void (*func)(codegen_t *, void *), void *arg);
 extern void codegen_clearpostcall (codegen_t *cgen, void (*func)(codegen_t *, void *), void *arg);
 
-extern void codegen_warning (codegen_t *cgen, const char *fmt, ...);
-extern void codegen_error (codegen_t *cgen, const char *fmt, ...);
-extern void codegen_fatal (codegen_t *cgen, const char *fmt, ...);
+extern void codegen_warning (codegen_t *cgen, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+extern void codegen_error (codegen_t *cgen, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+extern void codegen_fatal (codegen_t *cgen, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 extern int codegen_write_bytes (codegen_t *cgen, const char *ptr, int bytes);
 extern int codegen_write_string (codegen_t *cgen, const char *str);
-extern int codegen_write_fmt (codegen_t *cgen, const char *fmt, ...);
+extern int codegen_write_fmt (codegen_t *cgen, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 extern int codegen_new_label (codegen_t *cgen);
 

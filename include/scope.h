@@ -48,8 +48,8 @@ extern int scope_subtree (struct TAG_tnode **tptr, scope_t *sarg);
 extern int scope_modprewalktree (struct TAG_tnode **node, void *arg);
 extern int scope_modpostwalktree (struct TAG_tnode **node, void *arg);
 
-extern void scope_warning (struct TAG_tnode *node, scope_t *ss, const char *fmt, ...);
-extern void scope_error (struct TAG_tnode *node, scope_t *ss, const char *fmt, ...);
+extern void scope_warning (struct TAG_tnode *node, scope_t *ss, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+extern void scope_error (struct TAG_tnode *node, scope_t *ss, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
 
 #endif	/* !__SCOPE_H */

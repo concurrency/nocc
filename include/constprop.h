@@ -41,8 +41,8 @@ extern int constprop_sametype (struct TAG_tnode *tptr1, struct TAG_tnode *tptr2)
 extern int constprop_intvalof (struct TAG_tnode *tptr);
 extern int constprop_tree (struct TAG_tnode **tptr);
 
-extern void constprop_error (struct TAG_tnode *tptr, const char *fmt, ...);
-extern void constprop_warning (struct TAG_tnode *tptr, const char *fmt, ...);
+extern void constprop_error (struct TAG_tnode *tptr, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+extern void constprop_warning (struct TAG_tnode *tptr, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 
 #endif	/* !__CONSTPROP_H */

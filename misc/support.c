@@ -1701,7 +1701,7 @@ void ph_remove (int *bsizes, void ***table, void ***keys, int bitsize, void *ite
 			}
 		}
 	}
-	nocc_warning ("ph_remove(): item [0x%8.8x:%s] not in pointerhash", (unsigned int)item, key);
+	nocc_warning ("ph_remove(): item [0x%8.8x:0x%8.8x] not in pointerhash", (unsigned int)item, (unsigned int)key);
 	return;
 }
 /*}}}*/

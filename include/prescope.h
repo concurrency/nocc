@@ -39,8 +39,8 @@ extern int prescope_subtree (struct TAG_tnode **t, prescope_t *ps);
 extern int prescope_tree (struct TAG_tnode **t, struct TAG_langparser *lang);
 extern int prescope_modprewalktree (struct TAG_tnode **node, void *arg);
 
-extern void prescope_warning (struct TAG_tnode *node, prescope_t *ps, const char *fmt, ...);
-extern void prescope_error (struct TAG_tnode *node, prescope_t *ps, const char *fmt, ...);
+extern void prescope_warning (struct TAG_tnode *node, prescope_t *ps, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+extern void prescope_error (struct TAG_tnode *node, prescope_t *ps, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
 
 #endif	/* !__PRESCOPE_H */

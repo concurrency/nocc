@@ -39,6 +39,7 @@
 #include "lexpriv.h"
 #include "tnode.h"
 #include "parser.h"
+#include "langdef.h"
 #include "dfa.h"
 #include "parsepriv.h"
 #include "mcsp.h"
@@ -80,7 +81,7 @@ langparser_t mcsp_parser = {
 	typecheck:	mcsp_parser_typecheck,
 	postcheck:	NULL,
 	fetrans:	mcsp_parser_fetrans,
-	getlangdef:	NULL,
+	getlangdef:	mcsp_getlangdef,
 	maketemp:	NULL,
 	makeseqassign:	NULL,
 	tagstruct_hook:	(void *)&mcsp,
@@ -92,6 +93,7 @@ langparser_t mcsp_parser = {
 /*{{{  private types/vars*/
 typedef struct {
 	dfanode_t *inode;
+	langdef_t *langdefs;
 } mcsp_parse_t;
 
 static mcsp_parse_t *mcsp_priv = NULL;
@@ -109,6 +111,41 @@ static feunit_t *feunit_set[] = {
 
 /*}}}*/
 
+
+/*{{{  static mcsp_parse_t *mcsp_newmcspparse (void)*/
+/*
+ *	creates a new mcsp_parse_t structure
+ */
+static mcsp_parse_t *mcsp_newmcspparse (void)
+{
+	mcsp_parse_t *mpse = (mcsp_parse_t *)smalloc (sizeof (mcsp_parse_t));
+
+	mpse->inode = NULL;
+	mpse->langdefs = NULL;
+
+	return mpse;
+}
+/*}}}*/
+/*{{{  static void mcsp_freemcspparse (mcsp_parse_t *mpse)*/
+/*
+ *	frees an mcsp_parse_t structure
+ */
+static void mcsp_freemcspparse (mcsp_parse_t *mpse)
+{
+	if (!mpse) {
+		nocc_warning ("mcsp_freemcspparse(): NULL pointer!");
+		return;
+	}
+	if (mpse->langdefs) {
+		langdef_freelangdef (mpse->langdefs);
+		mpse->langdefs = NULL;
+	}
+	/* leave inode alone */
+	mpse->inode = NULL;
+	sfree (mpse);
+	return;
+}
+/*}}}*/
 
 /*{{{  static int mcsp_tokens_init (void)*/
 /*
@@ -303,6 +340,18 @@ void mcsp_isetindent (FILE *stream, int indent)
 		fprintf (stream, "    ");
 	}
 	return;
+}
+/*}}}*/
+/*{{{  langdef_t *mcsp_getlangdef (void)*/
+/*
+ *	returns the MCSP language definitions
+ */
+langdef_t *mcsp_getlangdef (void)
+{
+	if (!mcsp_priv) {
+		return NULL;
+	}
+	return mcsp_priv->langdefs;
 }
 /*}}}*/
 
@@ -565,13 +614,18 @@ static int mcsp_parser_init (lexfile_t *lf)
 		nocc_message ("initialising MCSP parser..");
 	}
 	if (!mcsp_priv) {
-		mcsp_priv = (mcsp_parse_t *)smalloc (sizeof (mcsp_parse_t));
-		mcsp_priv->inode = NULL;
+		mcsp_priv = mcsp_newmcspparse ();
 
 		memset ((void *)&mcsp, 0, sizeof (mcsp));
 
 		/* tell multiway syncs that synctrans should happen _after_ fetrans */
 		mwsync_settransafterfetrans (1);
+
+		mcsp_priv->langdefs = langdef_readdefs ("mcsp.ldef");
+		if (!mcsp_priv->langdefs) {
+			nocc_error ("mcsp_parser_init(): failed to load language definitions!");
+			return 1;
+		}
 
 		/* initialise! */
 		if (mcsp_tokens_init ()) {
@@ -619,6 +673,10 @@ static int mcsp_parser_init (lexfile_t *lf)
  */
 static void mcsp_parser_shutdown (lexfile_t *lf)
 {
+	if (mcsp_priv) {
+		mcsp_freemcspparse (mcsp_priv);
+		mcsp_priv = NULL;
+	}
 	return;
 }
 /*}}}*/

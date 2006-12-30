@@ -110,9 +110,11 @@ struct TAG_tnode;
 struct TAG_prescope;
 struct TAG_scope;
 struct TAG_feunit;
+struct TAG_langdef;
 
 
 extern void mcsp_isetindent (FILE *stream, int indent);
+extern struct TAG_langdef *mcsp_getlangdef (void);
 
 extern struct TAG_feunit mcsp_process_feunit;		/* mcsp_process.c */
 extern struct TAG_feunit mcsp_snode_feunit;		/* mcsp_snode.c */

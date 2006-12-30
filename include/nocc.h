@@ -20,13 +20,13 @@
 #ifndef __NOCC_H
 #define __NOCC_H
 
-extern void nocc_xinternal (char *fmt, ...);
-extern void nocc_pinternal (char *fmt, const char *file, const int line, ...);
-extern void nocc_fatal (char *fmt, ...);
-extern void nocc_serious (char *fmt, ...);
-extern void nocc_error (char *fmt, ...);
-extern void nocc_warning (char *fmt, ...);
-extern void nocc_message (char *fmt, ...);
+extern void nocc_xinternal (char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+extern void nocc_pinternal (char *fmt, const char *file, const int line, ...) __attribute__ ((format (printf, 1, 4)));
+extern void nocc_fatal (char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+extern void nocc_serious (char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+extern void nocc_error (char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+extern void nocc_warning (char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+extern void nocc_message (char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 extern void nocc_outerrmsg (char *string);
 extern void nocc_cleanexit (void);
 

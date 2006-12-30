@@ -47,8 +47,8 @@ typedef struct TAG_uchk_state {
 extern int usagecheck_init (void);
 extern int usagecheck_shutdown (void);
 
-extern void usagecheck_error (struct TAG_tnode *org, uchk_state_t *ucstate, const char *fmt, ...);
-extern void usagecheck_warning (struct TAG_tnode *org, uchk_state_t *ucstate, const char *fmt, ...);
+extern void usagecheck_error (struct TAG_tnode *org, uchk_state_t *ucstate, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+extern void usagecheck_warning (struct TAG_tnode *org, uchk_state_t *ucstate, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
 extern int usagecheck_addname (struct TAG_tnode *node, uchk_state_t *ucstate, uchk_mode_t mode);
 extern int usagecheck_mergeall (struct TAG_tnode *node, uchk_state_t *ucstate);
