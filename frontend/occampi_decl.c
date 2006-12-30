@@ -1662,7 +1662,8 @@ feunit_t occampi_decl_feunit = {
 	init_nodes: occampi_decl_init_nodes,
 	reg_reducers: occampi_decl_reg_reducers,
 	init_dfatrans: occampi_decl_init_dfatrans,
-	post_setup: occampi_decl_post_setup
+	post_setup: occampi_decl_post_setup,
+	ident: "occampi-decl"
 };
 
 

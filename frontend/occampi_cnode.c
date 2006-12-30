@@ -1016,7 +1016,8 @@ feunit_t occampi_cnode_feunit = {
 	init_nodes: occampi_cnode_init_nodes,
 	reg_reducers: occampi_cnode_reg_reducers,
 	init_dfatrans: occampi_cnode_init_dfatrans,
-	post_setup: NULL
+	post_setup: NULL,
+	ident: "occampi-cnode"
 };
 /*}}}*/
 

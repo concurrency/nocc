@@ -858,7 +858,8 @@ feunit_t occampi_oper_feunit = {
 	init_nodes: occampi_oper_init_nodes,
 	reg_reducers: occampi_oper_reg_reducers,
 	init_dfatrans: occampi_oper_init_dfatrans,
-	post_setup: occampi_oper_post_setup
+	post_setup: occampi_oper_post_setup,
+	ident: "occampi-oper"
 };
 /*}}}*/
 

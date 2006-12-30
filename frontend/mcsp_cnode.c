@@ -774,7 +774,8 @@ feunit_t mcsp_cnode_feunit = {
 	init_nodes: mcsp_cnode_init_nodes,
 	reg_reducers: mcsp_cnode_reg_reducers,
 	init_dfatrans: mcsp_cnode_init_dfatrans,
-	post_setup: NULL
+	post_setup: NULL,
+	ident: "mcsp-cnode"
 };
 /*}}}*/
 

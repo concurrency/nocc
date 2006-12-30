@@ -308,6 +308,7 @@ static void occampi_debug_gstack (void **items, int icnt)
 static int occampi_register_reducers (void)
 {
 	int i;
+	int rval = 0;
 
 	parser_register_reduce ("Roccampi:inlist", occampi_inlistreduce, NULL);
 
@@ -323,11 +324,12 @@ static int occampi_register_reducers (void)
 		feunit_t *thisunit = feunit_set[i];
 
 		if (thisunit->reg_reducers && thisunit->reg_reducers ()) {
-			return -1;
+			/* keep going */
+			rval = -1;
 		}
 	}
 
-	return 0;
+	return rval;
 }
 /*}}}*/
 /*}}}*/

@@ -646,7 +646,8 @@ feunit_t occampi_snode_feunit = {
 	init_nodes: occampi_snode_init_nodes,
 	reg_reducers: occampi_snode_reg_reducers,
 	init_dfatrans: occampi_snode_init_dfatrans,
-	post_setup: NULL
+	post_setup: NULL,
+	ident: "occampi-snode"
 };
 /*}}}*/
 

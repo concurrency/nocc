@@ -501,7 +501,8 @@ feunit_t occampi_lit_feunit = {
 	init_nodes: occampi_lit_init_nodes,
 	reg_reducers: occampi_lit_reg_reducers,
 	init_dfatrans: occampi_lit_init_dfatrans,
-	post_setup: NULL
+	post_setup: NULL,
+	ident: "occampi-lit"
 };
 /*}}}*/
 

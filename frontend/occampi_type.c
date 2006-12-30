@@ -849,7 +849,8 @@ feunit_t occampi_type_feunit = {
 	init_nodes: occampi_type_init_nodes,
 	reg_reducers: occampi_type_reg_reducers,
 	init_dfatrans: occampi_type_init_dfatrans,
-	post_setup: occampi_type_post_setup
+	post_setup: occampi_type_post_setup,
+	ident: "occampi-type"
 };
 /*}}}*/
 

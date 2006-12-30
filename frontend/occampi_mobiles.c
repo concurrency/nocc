@@ -594,7 +594,8 @@ feunit_t occampi_mobiles_feunit = {
 	init_nodes: occampi_mobiles_init_nodes,
 	reg_reducers: occampi_mobiles_reg_reducers,
 	init_dfatrans: occampi_mobiles_init_dfatrans,
-	post_setup: occampi_mobiles_post_setup
+	post_setup: occampi_mobiles_post_setup,
+	ident: "occampi-mobiles"
 };
 /*}}}*/
 

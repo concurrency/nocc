@@ -503,7 +503,8 @@ feunit_t occampi_action_feunit = {
 	init_nodes: occampi_action_init_nodes,
 	reg_reducers: occampi_action_reg_reducers,
 	init_dfatrans: occampi_action_init_dfatrans,
-	post_setup: NULL
+	post_setup: NULL,
+	ident: "occampi-action"
 };
 /*}}}*/
 

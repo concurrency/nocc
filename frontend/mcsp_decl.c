@@ -1045,7 +1045,8 @@ feunit_t mcsp_decl_feunit = {
 	init_nodes: mcsp_decl_init_nodes,
 	reg_reducers: mcsp_decl_reg_reducers,
 	init_dfatrans: mcsp_decl_init_dfatrans,
-	post_setup: NULL
+	post_setup: NULL,
+	ident: "mcsp-decl"
 };
 
 /*}}}*/

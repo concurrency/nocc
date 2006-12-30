@@ -169,7 +169,8 @@ feunit_t occampi_primproc_feunit = {
 	init_nodes: occampi_primproc_init_nodes,
 	reg_reducers: occampi_primproc_reg_reducers,
 	init_dfatrans: occampi_primproc_init_dfatrans,
-	post_setup: NULL
+	post_setup: NULL,
+	ident: "occampi-primproc"
 };
 /*}}}*/
 

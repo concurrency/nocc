@@ -1156,7 +1156,8 @@ feunit_t mcsp_process_feunit = {
 	init_nodes: mcsp_process_init_nodes,
 	reg_reducers: mcsp_process_reg_reducers,
 	init_dfatrans: mcsp_process_init_dfatrans,
-	post_setup: NULL
+	post_setup: NULL,
+	ident: "mcsp-process"
 };
 /*}}}*/
 

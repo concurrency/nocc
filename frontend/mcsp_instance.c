@@ -421,7 +421,8 @@ feunit_t mcsp_instance_feunit = {
 	init_nodes: mcsp_instance_init_nodes,
 	reg_reducers: mcsp_instance_reg_reducers,
 	init_dfatrans: mcsp_instance_init_dfatrans,
-	post_setup: NULL
+	post_setup: NULL,
+	ident: "mcsp-instance"
 };
 /*}}}*/
 

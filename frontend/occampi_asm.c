@@ -510,7 +510,8 @@ feunit_t occampi_asm_feunit = {
 	init_nodes: occampi_asm_init_nodes,
 	reg_reducers: occampi_asm_reg_reducers,
 	init_dfatrans: occampi_asm_init_dfatrans,
-	post_setup: occampi_asm_post_setup
+	post_setup: occampi_asm_post_setup,
+	ident: "occampi-asm"
 };
 /*}}}*/
 

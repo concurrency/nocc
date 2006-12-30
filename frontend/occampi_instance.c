@@ -728,7 +728,8 @@ feunit_t occampi_instance_feunit = {
 	init_nodes: occampi_instance_init_nodes,
 	reg_reducers: occampi_instance_reg_reducers,
 	init_dfatrans: occampi_instance_init_dfatrans,
-	post_setup: NULL
+	post_setup: NULL,
+	ident: "occampi-instance"
 };
 /*}}}*/
 

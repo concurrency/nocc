@@ -507,7 +507,8 @@ feunit_t mcsp_oper_feunit = {
 	init_nodes: mcsp_oper_init_nodes,
 	reg_reducers: mcsp_oper_reg_reducers,
 	init_dfatrans: mcsp_oper_init_dfatrans,
-	post_setup: NULL
+	post_setup: NULL,
+	ident: "mcsp-oper"
 };
 
 /*}}}*/

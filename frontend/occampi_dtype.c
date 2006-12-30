@@ -1224,7 +1224,8 @@ feunit_t occampi_dtype_feunit = {
 	init_nodes: occampi_dtype_init_nodes,
 	reg_reducers: occampi_dtype_reg_reducers,
 	init_dfatrans: occampi_dtype_init_dfatrans,
-	post_setup: occampi_dtype_post_setup
+	post_setup: occampi_dtype_post_setup,
+	ident: "occampi-dtype"
 };
 /*}}}*/
 

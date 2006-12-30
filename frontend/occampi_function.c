@@ -1443,7 +1443,8 @@ feunit_t occampi_function_feunit = {
 	init_nodes: occampi_function_init_nodes,
 	reg_reducers: occampi_function_reg_reducers,
 	init_dfatrans: occampi_function_init_dfatrans,
-	post_setup: occampi_function_post_setup
+	post_setup: occampi_function_post_setup,
+	ident: "occampi-function"
 };
 /*}}}*/
 

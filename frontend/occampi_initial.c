@@ -229,7 +229,8 @@ feunit_t occampi_initial_feunit = {
 	init_nodes: occampi_initial_init_nodes,
 	reg_reducers: occampi_initial_reg_reducers,
 	init_dfatrans: occampi_initial_init_dfatrans,
-	post_setup: NULL
+	post_setup: NULL,
+	ident: "occampi-initial"
 };
 /*}}}*/
 

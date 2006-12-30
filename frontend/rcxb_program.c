@@ -772,7 +772,8 @@ feunit_t rcxb_program_feunit = {
 	init_nodes: rcxb_program_init_nodes,
 	reg_reducers: rcxb_program_reg_reducers,
 	init_dfatrans: rcxb_program_init_dfatrans,
-	post_setup: NULL
+	post_setup: NULL,
+	ident: "rcxb-program"
 };
 /*}}}*/
 

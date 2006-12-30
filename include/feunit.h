@@ -27,6 +27,7 @@ typedef struct TAG_feunit {
 	int (*reg_reducers)(void);				/* register named reduction functions */
 	struct TAG_dfattbl **(*init_dfatrans)(int *);		/* setup DFA transition tables */
 	int (*post_setup)(void);				/* incase anything else is needed */
+	const char *ident;					/* ident of this unit (for loading language definitions) */
 } feunit_t;
 
 

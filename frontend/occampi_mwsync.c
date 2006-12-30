@@ -790,7 +790,8 @@ feunit_t occampi_mwsync_feunit = {
 	init_nodes: occampi_mwsync_init_nodes,
 	reg_reducers: occampi_mwsync_reg_reducers,
 	init_dfatrans: occampi_mwsync_init_dfatrans,
-	post_setup: occampi_mwsync_post_setup
+	post_setup: occampi_mwsync_post_setup,
+	ident: "occampi-mwsync"
 };
 /*}}}*/
 
