@@ -1312,6 +1312,10 @@ void *parser_decode_grule (const char *rule, ...)
 			/*{{{  C -- condense into new token*/
 		case 'C':
 			xrule++;
+			if (*xrule == '[') {
+				for (xrule++; (*xrule != ']') && (*xrule != '\0'); xrule++);
+				xrule++;
+			}
 			icode[i++] = ICDE_COMBINE;
 			icode[i++] = (int)(*xrule - '0');
 			icode[i] = (unsigned int)(userparams[uplen++]);

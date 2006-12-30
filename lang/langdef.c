@@ -305,16 +305,24 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 		/*{{{  .GRULE -- generic reduction name and rule*/
 		langdefsec_t *lsec = ldef->cursec;
 		langdefent_t *lfe = NULL;
+		char *dstr = NULL;
+		int dlen = 0;
 
-		if (nbits != 3) {
+		if (nbits < 3) {
 			goto out_malformed;
 		}
 
 		string_dequote (bits[1]);
-		string_dequote (bits[2]);
+		for (i=2, dlen=0; i<nbits; dlen += strlen (bits[i]), i++) {
+			string_dequote (bits[i]);
+		}
+		dstr = smalloc (dlen + 1);		/* descriptions not separated */
+		for (i=2, dlen=0; i<nbits; dlen += strlen (bits[i]), i++) {
+			strcpy (dstr + dlen, bits[i]);
+		}
 
 		if (!lsec) {
-			nocc_warning ("GRULE outside section at %s:%d, creating omnipotent section", rfname, lineno);
+			nocc_warning ("%s outside section at %s:%d, creating omnipotent section", bits[0], rfname, lineno);
 
 			lsec = ldef_newlangdefsec ();
 			lsec->ident = string_dup ("");
@@ -330,7 +338,53 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 
 		lfe->type = LDE_GRL;
 		lfe->u.redex.name = string_dup (bits[1]);
-		lfe->u.redex.desc = string_dup (bits[2]);
+		lfe->u.redex.desc = dstr;
+
+		dynarray_add (lsec->ents, lfe);
+
+		/*}}}*/
+	} else if (!strcmp (bits[0], ".BNF") || !strcmp (bits[0], ".TABLE")) {
+		/*{{{  .BNF, .TABLE -- DFA BNF-rule or transition-table*/
+		langdefsec_t *lsec = ldef->cursec;
+		langdefent_t *lfe = NULL;
+		char *dstr = NULL;
+		int dlen = 0;
+
+		if (nbits < 2) {
+			goto out_malformed;
+		}
+
+		for (i=1, dlen=0; i<nbits; dlen += strlen (bits[i]), i++) {
+			string_dequote (bits[i]);
+		}
+		dstr = smalloc (dlen + nbits);		/* descriptions separated by whitespace */
+		for (i=1, dlen=0; i<nbits;) {
+			strcpy (dstr + dlen, bits[i]);
+			dlen += strlen (bits[i]);
+			i++;
+			if (i < nbits) {
+				dstr[dlen] = ' ';
+				dlen++;
+			}
+		}
+
+		if (!lsec) {
+			nocc_warning ("%s outside section at %s:%d, creating omnipotent section", bits[0], rfname, lineno);
+
+			lsec = ldef_newlangdefsec ();
+			lsec->ident = string_dup ("");
+			lsec->ldef = ldef;
+
+			dynarray_add (ldef->sections, lsec);
+			ldef->cursec = lsec;
+		}
+
+		lfe = ldef_newlangdefent ();
+		lfe->ldef = ldef;
+		lfe->lineno = lineno;
+
+		lfe->type = (!strcmp (bits[0], ".BNF")) ? LDE_DFABNF : LDE_DFATRANS;
+		lfe->u.dfarule = dstr;
 
 		dynarray_add (lsec->ents, lfe);
 
@@ -486,7 +540,10 @@ reread_local:
 		rval = ldef_decodelangdefline (ldef, rfname, bufline, buf);
 		blen = 0;
 		if (rval) {
-			nocc_error ("ldef_readlangdefs(): at %s:%d, failed to decode line");
+			nocc_error ("ldef_readlangdefs(): at %s:%d, failed to decode line", rfname, bufline);
+			if (ldef->maintainer) {
+				nocc_message ("maintainer for [%s] is: %s", ldef->ident, ldef->maintainer);
+			}
 			goto out_local;
 		}
 	}
@@ -520,6 +577,25 @@ langdefsec_t *langdef_findsection (langdef_t *ldef, const char *ident)
 	return NULL;
 }
 /*}}}*/
+/*{{{  int langdef_hassection (langdef_t *ldef, const char *ident)*/
+/*
+ *	tests to see whether the given language definition has a particular section
+ *	returns non-zero if found, 0 otherwise
+ */
+int langdef_hassection (langdef_t *ldef, const char *ident)
+{
+	int i;
+
+	for (i=0; i<DA_CUR (ldef->sections); i++) {
+		langdefsec_t *lsec = DA_NTHITEM (ldef->sections, i);
+
+		if (!lsec->ident || !strcmp (lsec->ident, ident)) {
+			return 1;
+		}
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  int langdef_reg_reducers (langdefsec_t *lsec)*/
 /*
  *	registers generic reductions in a particular section
@@ -545,9 +621,17 @@ int langdef_reg_reducers (langdefsec_t *lsec)
 			{
 				void *rule = parser_decode_grule (lde->u.redex.desc);
 
+#if 0
+				nocc_message ("langdef_reg_reducers(): decoded rule: [%s]", lde->u.redex.desc);
+#endif
 				if (!rule) {
 					nocc_error ("invalid reduction rule in language definition for [%s (%s)], line %d", lsec->ldef->ident, lsec->ident, lde->lineno);
+					if (lsec->ldef->maintainer) {
+						nocc_message ("maintainer for [%s] is: %s", lsec->ldef->ident, lsec->ldef->maintainer);
+					}
 					rval = -1;
+				} else {
+					parser_register_grule (lde->u.redex.name, rule);
 				}
 			}
 			break;
@@ -582,6 +666,9 @@ dfattbl_t **langdef_init_dfatrans (langdefsec_t *lsec, int *ntrans)
 
 					if (!dfat) {
 						nocc_error ("invalid DFA transition table in language definition for [%s (%s)], line %d", lsec->ldef->ident, lsec->ident, lde->lineno);
+						if (lsec->ldef->maintainer) {
+							nocc_message ("maintainer for [%s] is: %s", lsec->ldef->ident, lsec->ldef->maintainer);
+						}
 					} else {
 						dynarray_add (transtbl, dfat);
 					}
@@ -593,6 +680,9 @@ dfattbl_t **langdef_init_dfatrans (langdefsec_t *lsec, int *ntrans)
 
 					if (!dfat) {
 						nocc_error ("invalid DFA BNF in language definition for [%s (%s)], line %d", lsec->ldef->ident, lsec->ident, lde->lineno);
+						if (lsec->ldef->maintainer) {
+							nocc_message ("maintainer for [%s] is: %s", lsec->ldef->ident, lsec->ldef->maintainer);
+						}
 					} else {
 						dynarray_add (transtbl, dfat);
 					}
@@ -644,6 +734,9 @@ langdef_t *langdef_readdefs (const char *fname)
 		ldef = NULL;
 	} else {
 		ldef->cursec = NULL;
+		if (compopts.verbose) {
+			nocc_message ("language definitions loaded, [%s]", ldef->desc ?: rfname);
+		}
 	}
 
 	sfree (rfname);

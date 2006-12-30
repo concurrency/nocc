@@ -79,6 +79,7 @@ langparser_t hopp_parser = {
 	typecheck:	hopp_parser_typecheck,
 	postcheck:	NULL,
 	fetrans:	NULL,
+	getlangdef:	NULL,
 	maketemp:	hopp_parser_maketemp,
 	makeseqassign:	hopp_parser_makeseqassign,
 	tagstruct_hook:	NULL,

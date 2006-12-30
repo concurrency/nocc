@@ -74,6 +74,7 @@ langparser_t rcxb_parser = {
 	typecheck:	NULL, // mcsp_parser_typecheck,
 	postcheck:	NULL,
 	fetrans:	NULL,
+	getlangdef:	NULL,
 	maketemp:	NULL,
 	makeseqassign:	NULL,
 	tagstruct_hook:	(void *)&rcxb,

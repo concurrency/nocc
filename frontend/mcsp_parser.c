@@ -80,6 +80,7 @@ langparser_t mcsp_parser = {
 	typecheck:	mcsp_parser_typecheck,
 	postcheck:	NULL,
 	fetrans:	mcsp_parser_fetrans,
+	getlangdef:	NULL,
 	maketemp:	NULL,
 	makeseqassign:	NULL,
 	tagstruct_hook:	(void *)&mcsp,

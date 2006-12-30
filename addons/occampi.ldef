@@ -1,16 +1,26 @@
 #
 # occampi.ldef - language definitions for occam-pi
+# identifiers must start at the left-margin, indentation is a line-continuation
 #
 
-.IDENT "occampi"
-.DESC "language definitions for occam-pi"
-.MAINTAINER "Fred Barnes <frmb@kent.ac.uk>"
+.IDENT		"occampi"
+.DESC		"occam-pi parallel programming langauge, http://www.occampi.org/"
+.MAINTAINER	"Fred Barnes <frmb@kent.ac.uk>"
 
+
+# sections are used to help front-end units find their definitions
 .SECTION "occampi-type"
 
-.GRULE "opi:chanpush" "N+Sn00C[CHAN]2N-"
-.GRULE "opi:portpush" "N+Sn00C[PORT]2N-"
-.GRULE "opi:placedportreduce" # stuff
-	"SN2N+N+N+>N-C[PORT]2SN0N+V0C[VARDECL]3R-"
+.GRULE	"opi:chanpush" "N+Sn00C[CHAN]2N-"
+.GRULE	"opi:portpush" "N+Sn00C[PORT]2N-"
+.GRULE	"opi:placedportreduce" "SN2N+N+N+>N-C[PORT]2SN0N+V0C[VARDECL]3R-"
 
+.BNF	"occampi:primtype ::= ( +@INT | +@BYTE | +@BOOL | +@INT16 | +@INT32 | +@INT64 | +@REAL32 | +@REAL64 | +@CHAR ) {Roccampi:primtype}"
+.TABLE	"occampi:protocol ::= [ 0 occampi:primtype 3 ] [ 0 +Name 1 ] [ 0 -@@[ 2 ] [ 1 {<opi:namepush>} -* 3 ]"
+	"[ 2 occampi:arraytypetype 3 ]"
+	"[ 3 {<opi:nullreduce>} -* ]"
+.TABLE	"occampi:type ::= [ 0 occampi:primtype 1 ] [ 1 {<opi:nullreduce>} -* ]"
+.BNF	"occampi:typecommalist ::= { occampi:type @@, 1 }"
+.TABLE	"occampi:declorprocstart +:= [ 0 @PLACED 1 ] [ 1 @PORT 2 ] [ 2 occampi:protocol 3 ] [ 3 occampi:name 4 ]"
+	"[ 4 @AT 5 ] [ 4 -* 5 ] [ 5 occampi:expr 6 ] [ 6 {<opi:placedportreduce>} @@: ]"
 

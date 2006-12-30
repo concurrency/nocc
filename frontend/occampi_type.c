@@ -785,11 +785,12 @@ static int occampi_type_reg_reducers (void)
 
 	parser_register_reduce ("Roccampi:primtype", occampi_reduce_primtype, NULL);
 
-	/* FIXME: deal with language definitions */
-
+	langdef_reg_reducers (lsec);
+#if 0
 	parser_register_grule ("opi:chanpush", parser_decode_grule ("N+Sn00C[CHAN]2N-"));
 	parser_register_grule ("opi:portpush", parser_decode_grule ("N+Sn00C[PORT]2N-"));
 	parser_register_grule ("opi:placedportreduce", parser_decode_grule ("SN2N+N+N+>N-C[PORT]2SN0N+V0C[VARDECL]3R-"));
+#endif
 
 
 	return 0;
@@ -801,6 +802,15 @@ static int occampi_type_reg_reducers (void)
  */
 static dfattbl_t **occampi_type_init_dfatrans (int *ntrans)
 {
+	langdefsec_t *lsec = langdef_findsection (occampi_getlangdef (), "occampi-type");
+
+	if (!lsec) {
+		nocc_error ("occampi_type_init_dfatrans(): failed to find occampi-type language definitions!");
+		return NULL;
+	}
+
+	return langdef_init_dfatrans (lsec, ntrans);
+#if 0
 	DYNARRAY (dfattbl_t *, transtbl);
 
 	dynarray_init (transtbl);
@@ -815,6 +825,7 @@ static dfattbl_t **occampi_type_init_dfatrans (int *ntrans)
 
 	*ntrans = DA_CUR (transtbl);
 	return DA_PTR (transtbl);
+#endif
 }
 /*}}}*/
 /*{{{  static int occampi_type_post_setup (void)*/

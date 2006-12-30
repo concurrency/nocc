@@ -68,6 +68,7 @@ extern langdef_t *langdef_readdefs (const char *fname);
 extern void langdef_freelangdef (langdef_t *ldef);
 
 extern langdefsec_t *langdef_findsection (langdef_t *ldef, const char *ident);
+extern int langdef_hassection (langdef_t *ldef, const char *ident);
 extern int langdef_reg_reducers (langdefsec_t *lsec);
 extern struct TAG_dfattbl **langdef_init_dfatrans (langdefsec_t *lsec, int *ntrans);
 
