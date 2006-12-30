@@ -217,6 +217,11 @@
 
 .GRULE	"opi:pinstancereduce" "SN1N+N+V0C[PINSTANCE]3R-"
 
+.BNF	"occampi:aparamlist ::= ( -@@) {<opi:nullset>} | { occampi:expr @@, 1 } )"
+.TABLE	"occampi:namestartname +:= [ 0 @@( 1 ] [ 1 occampi:aparamlist 2 ]"
+	"[ 2 @@) 3 ] [ 3 {<opi:pinstancereduce>} -* ]"
+.TABLE	"occampi:builtinprocinstancei ::= [ 0 @@( 1 ] [ 1 {Roccampi:builtinproc} ] [ 1 occampi:aparamlist 2 ] [ 2 @@) 3 ] [ 3 {<opi:pinstancereduce>} -* ]"
+
 
 # }}}
 .SECTION "occampi-" # {{{: 

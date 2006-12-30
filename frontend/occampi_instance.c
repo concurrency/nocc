@@ -696,11 +696,6 @@ static dfattbl_t **occampi_instance_init_dfatrans (int *ntrans)
 	char *tbuf;
 
 	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_bnftotbl ("occampi:aparamlist ::= ( -@@) {<opi:nullset>} | { occampi:expr @@, 1 } )"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@( 1 ] [ 1 occampi:aparamlist 2 ] " \
-				"[ 2 @@) 3 ] [ 3 {<opi:pinstancereduce>} -* ]"));
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:builtinprocinstancei ::= [ 0 @@( 1 ] [ 1 {Roccampi:builtinproc} ] [ 1 occampi:aparamlist 2 ] [ 2 @@) 3 ] [ 3 {<opi:pinstancereduce>} -* ]"));
 
 	/* run through built-in PROCs generating starting matches */
 	tbuf = (char *)smalloc (256);

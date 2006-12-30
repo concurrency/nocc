@@ -527,7 +527,8 @@ reread_local:
 				}
 			}
 			/* move thisline into buffer */
-			strcpy (buf, thisline);
+			sfree (buf);
+			buf = string_dup (thisline);
 			blen = tll;
 			bufline = curline;
 		}
