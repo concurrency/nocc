@@ -981,32 +981,7 @@ static int occampi_cnode_reg_reducers (void)
 	parser_register_reduce ("Roccampi:replcnode", occampi_reduce_replcnode, NULL);
 	parser_register_reduce ("Roccampi:ileave", occampi_reduce_ileave, NULL);
 
-	parser_register_grule ("opi:shortif", parser_decode_grule ("T+@tSN0N+0C2R-", opi.tag_SHORTIF));
-	parser_register_grule ("opi:while", parser_decode_grule ("SN0N+0C2R-", opi.tag_WHILE));
-	parser_register_grule ("opi:ifstart", parser_decode_grule ("ST0T+@t000C3R-", opi.tag_IF));
-
 	return 0;
-}
-/*}}}*/
-/*{{{  static dfattbl_t **occampi_cnode_init_dfatrans (int *ntrans)*/
-/*
- *	creates and returns DFA transition tables for constructor-process nodes
- */
-static dfattbl_t **occampi_cnode_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:interleaving ::= [ 0 occampi:name 1 ] [ 1 @@( 2 ] [ 2 occampi:expr 3 ] [ 3 @@) 4 ] [ 4 {Roccampi:ileave} -* 5 ] [ 5 @@, 0 ] [ 5 -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:replcproc ::= [ 0 occampi:name 1 ] [ 1 @@= 2 ] [ 2 occampi:expr 3 ] [ 3 @FOR 4 ] [ 4 occampi:expr 5 ] [ 5 {Roccampi:replcnode} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:cproc ::= [ 0 +@SEQ 1 ] [ 0 +@PAR 1 ] [ 1 -Newline 2 ] [ 1 -Name <occampi:replcproc> ] [ 1 -@INTERLEAVE 3 ] [ 2 {Roccampi:cnode} -* ] " \
-				"[ 3 {Roccampi:cnode} @INTERLEAVE <occampi:interleaving> ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:cproc +:= [ 0 +@IF 1 ] [ 1 -Newline 2 ] [ 1 %occampi:expr 3 ] [ 2 {<opi:ifstart>} -* ] " \
-				"[ 3 occampi:expr 4 ] [ 4 -Newline 5 ] [ 5 {<opi:shortif>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:cproc +:= [ 0 @WHILE 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:while>} -* ]"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
 }
 /*}}}*/
 
@@ -1015,7 +990,7 @@ static dfattbl_t **occampi_cnode_init_dfatrans (int *ntrans)
 feunit_t occampi_cnode_feunit = {
 	init_nodes: occampi_cnode_init_nodes,
 	reg_reducers: occampi_cnode_reg_reducers,
-	init_dfatrans: occampi_cnode_init_dfatrans,
+	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "occampi-cnode"
 };

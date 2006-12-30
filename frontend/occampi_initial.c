@@ -194,41 +194,14 @@ static int occampi_initial_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_initial_reg_reducers (void)*/
-/*
- *	registers reducers for INITIAL declarations
- */
-static int occampi_initial_reg_reducers (void)
-{
-	parser_register_grule ("opi:initialreduce", parser_decode_grule ("SN1N+N+N+<0VC4R-", tag_INITIAL));
-
-	return 0;
-}
-/*}}}*/
-/*{{{  static dfattbl_t **occampi_initial_init_dfatrans (int *ntrans)*/
-/*
- *	creates and returns DFA transition tables for INITIAL declarations
- */
-static dfattbl_t **occampi_initial_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:declorprocstart +:= [ 0 @INITIAL 1 ] [ 1 occampi:name 2 ] [ 1 occampi:type 2 ] [ 2 occampi:name 3 ] [ 3 @IS 4 ] " \
-				"[ 4 occampi:expr 5 ] [ 5 @@: 6 ] [ 6 {<opi:initialreduce>} Newline 7 ] [ 7 -* ]"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
-}
-/*}}}*/
 
 
 
 /*{{{  occampi_initial_feunit (feunit_t)*/
 feunit_t occampi_initial_feunit = {
 	init_nodes: occampi_initial_init_nodes,
-	reg_reducers: occampi_initial_reg_reducers,
-	init_dfatrans: occampi_initial_init_dfatrans,
+	reg_reducers: NULL,
+	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "occampi-initial"
 };

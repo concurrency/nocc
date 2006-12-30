@@ -1564,82 +1564,8 @@ static int occampi_decl_reg_reducers (void)
 	parser_register_grule ("opi:fparam1tsreduce", parser_decode_grule ("T+St0XC10C2R-", occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_FPARAM));
 	parser_register_grule ("opi:fparam1tsreducei", parser_decode_grule ("T+St0XC1C10C2R-", occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_ASINPUT, opi.tag_FPARAM));
 	parser_register_grule ("opi:fparam1tsreduceo", parser_decode_grule ("T+St0XC1C10C2R-", occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_ASOUTPUT, opi.tag_FPARAM));
-	parser_register_grule ("opi:declreduce", parser_decode_grule ("SN1N+N+0C3R-", opi.tag_VARDECL));
-	parser_register_grule ("opi:xdeclreduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_VARDECL));
-	parser_register_grule ("opi:procdeclreduce", parser_decode_grule ("SN1N+N+V00C4R-", opi.tag_PROCDECL));
-	parser_register_grule ("opi:abbrreduce", parser_decode_grule ("SN1N+N+N+<0VC4R-", opi.tag_ABBREV));
-	parser_register_grule ("opi:valabbrreduce", parser_decode_grule ("SN1N+N+N+<0VC4R-", opi.tag_VALABBREV));
-	parser_register_grule ("opi:notypeabbrreduce", parser_decode_grule ("SN1N+N+0<0VC4R-", opi.tag_ABBREV));
-	parser_register_grule ("opi:notypevalabbrreduce", parser_decode_grule ("SN1N+N+0<0VC4R-", opi.tag_VALABBREV));
-	parser_register_grule ("opi:directedchaninput", parser_decode_grule ("SN0N+C1N-", opi.tag_ASINPUT));
-	parser_register_grule ("opi:directedchanoutput", parser_decode_grule ("SN0N+C1N-", opi.tag_ASOUTPUT));
 
 	return 0;
-}
-/*}}}*/
-/*{{{  static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)*/
-/*
- *	initialises DFA transition tables for declaration nodes
- */
-static dfattbl_t **occampi_decl_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-
-	dynarray_add (transtbl, dfa_bnftotbl ("occampi:name ::= +Name {<opi:namereduce>}"));
-	dynarray_add (transtbl, dfa_bnftotbl ("occampi:namelist ::= { occampi:name @@, 1 }"));
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:vardecl ::= [ 0 occampi:primtype 3 ] [ 0 +@CHAN 9 ] [ 0 +@PORT 13 ] " \
-				"[ 1 occampi:protocol 2 ] " \
-				"[ 2 {<opi:chanpush>} -* 3 ] " \
-				"[ 3 -@FUNCTION <occampi:fdeclstarttype> ] [ 3 occampi:namelist 4 ] " \
-				"[ 4 @@: 5 ] [ 4 @IS 6 ] " \
-				"[ 5 {<opi:declreduce>} -* ] " \
-				"[ 6 occampi:operand 7 ] " \
-				"[ 7 @@: 8 ] " \
-				"[ 8 {<opi:abbrreduce>} -* ] " \
-				"[ 9 +@TYPE 10 ] [ 9 -* 12 ] " \
-				"[ 10 {<parser:rewindtokens>} -* 11 ] " \
-				"[ 11 -* <occampi:chantypedecl> ] " \
-				"[ 12 {<parser:eattoken>} -* 1 ] " \
-				"[ 13 {<parser:eattoken>} -* 14 ] " \
-				"[ 14 occampi:protocol 15 ] " \
-				"[ 15 {<opi:portpush>} -* 3 ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:vardecl:bracketstart ::= [ 0 occampi:arrayspec 1 ] [ 1 occampi:vardecl 2 ] [ 2 {Roccampi:arrayfold} -* ]"));
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:procdecl ::= [ 0 +@PROC 6 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:procdeclreduce>} -* ] " \
-				"[ 6 +@TYPE 7 ] [ 6 -* 8 ] [ 7 {<parser:rewindtokens>} -* <occampi:proctypedecl> ] [ 8 {<parser:eattoken>} -* 1 ]"));
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:valabbrdecl ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} -* 2 ] [ 2 @IS 3 ] [ 2 +Name 6 ] [ 3 occampi:expr 4 ] [ 4 @@: 5 ] " \
-				"[ 5 {<opi:notypevalabbrreduce>} -* ] [ 6 {<opi:namepush>} -* 7 ] [ 7 @IS 8 ] [ 8 occampi:expr 9 ] [ 9 {<opi:valabbrreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:valabbrdecl +:= [ 0 occampi:primtype 1 ] [ 1 occampi:name 2 ] [ 2 @IS 3 ] [ 3 occampi:expr 4 ] [ 4 @@: 5 ] [ 5 {<opi:valabbrreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:valabbrdecl +:= [ 0 -@@[ 1 ] [ 1 occampi:arraytype 2 ] [ 2 occampi:name 3 ] [ 3 @IS 4 ] [ 4 occampi:expr 5 ] [ 5 @@: 6 ] [ 6 {<opi:valabbrreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:abbrdecl ::= [ 0 @VAL <occampi:valabbrdecl> ]"));
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:fparam ::= [ 0 occampi:primtype 1 ] [ 0 @CHAN 3 ] [ 0 occampi:name 9 ] [ 0 @VAL 22 ] " \
-				"[ 1 occampi:name 2 ] [ 2 {<opi:fparam2nsreduce>} ] [ 2 -* ] " \
-				"[ 3 @OF 3 ] [ 3 occampi:protocol 4 ] [ 3 @@! 16 ] [ 3 @@? 19 ] [ 4 {<opi:chanpush>} ] [ 4 occampi:name 5 ] [ 5 @@! 6 ] [ 5 @@? 7 ] [ 5 -* 8 ] [ 6 {<opi:directedchanoutput>} ] [ 6 -* 8 ] " \
-				"[ 7 {<opi:directedchaninput>} ] [ 7 -* 8 ] [ 8 {<opi:fparam2nsreduce>} -* ] " \
-				"[ 9 -* 10 ] [ 10 @@! 11 ] [ 10 @@? 12 ] [ 10 -* 13 ] [ 11 {<opi:directedchanoutput>} ] [ 11 -* 13 ] [ 12 {<opi:directedchaninput>} ] [ 12 -* 13 ] " \
-				"[ 13 occampi:name 14 ] [ 13 -* 15 ] [ 14 {<opi:fparam2nsreduce>} -* ] [ 15 {<opi:fparam1nsreduce>} -* ] " \
-				"[ 16 occampi:protocol 17 ] [ 17 {<opi:chanpush>} -* 18 ] [ 18 {<opi:directedchanoutput>} occampi:name 5 ] " \
-				"[ 19 occampi:protocol 20 ] [ 20 {<opi:chanpush>} -* 21 ] [ 21 {<opi:directedchaninput>} occampi:name 5 ] " \
-				"[ 22 occampi:primtype 23 ] [ 22 occampi:name 25 ] " \
-				"[ 23 occampi:name 24 ] [ 24 {<opi:fparamv2nsreduce>} -* ] " \
-				"[ 25 occampi:name 26 ] [ 26 {<opi:fparamv2nsreduce>} -* ] "));
-	
-	dynarray_add (transtbl, dfa_bnftotbl ("occampi:fparamlist ::= ( -@@) {<opi:nullset>} | { occampi:fparam @@, 1 } )"));
-
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 +Name 1 ] [ 1 {<opi:namepush>} ] [ 1 @@: 2 ]  [ 2 {<opi:declreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @IS 1 ] [ 1 occampi:operand 7 ] [ 7 @@: 8 ] [ 8 {<opi:notypeabbrreduce>} -* ]"));
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:exprnamestart +:= [ 0 +Name 1 ] [ 1 @@! 2 ] [ 1 @@? 4 ] [ 2 {<opi:namepush>} -* 3 ] [ 3 {<opi:directedchanoutput>} -* 6 ] " \
-				"[ 4 {<opi:namepush>} -* 5 ] [ 5 {<opi:directedchaninput>} -* 6 ] [ 6 {<opi:nullreduce>} -* ]"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
 }
 /*}}}*/
 /*{{{  static int occampi_decl_post_setup (void)*/
@@ -1661,7 +1587,7 @@ static int occampi_decl_post_setup (void)
 feunit_t occampi_decl_feunit = {
 	init_nodes: occampi_decl_init_nodes,
 	reg_reducers: occampi_decl_reg_reducers,
-	init_dfatrans: occampi_decl_init_dfatrans,
+	init_dfatrans: NULL,
 	post_setup: occampi_decl_post_setup,
 	ident: "occampi-decl"
 };

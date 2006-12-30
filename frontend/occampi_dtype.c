@@ -1154,56 +1154,6 @@ static int occampi_dtype_reg_reducers (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static dfattbl_t **occampi_dtype_init_dfatrans (int *ntrans)*/
-/*
- *	initialises DFA transition tables for data type nodes
- */
-static dfattbl_t **occampi_dtype_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:subtspec ::= [ 0 occampi:primtype 1 ] [ 1 occampi:namelist 2 ] [ 2 @@: 3 ] [ 3 {<opi:fieldreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:subtspeclist ::= [ 0 occampi:subtspec 1 ] [ 1 {<parser:nullreduce>} ] [ 1 Newline 2 ] [ 1 -* 4 ] [ 2 {Rinlist} ] [ 2 occampi:subtspec 1 ] " \
-				"[ 2 -* 3 ] [ 3 {Roccampi:resetnewline} ] [ 3 -* 4 ] [ 4 -* ]"));
-
-	/* FIXME: will only handle single channels in this.. */
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:subctspec ::= [ 0 @CHAN 4 ] [ 0 occampi:primtype 1 ] [ 1 occampi:name 2 ] [ 2 @@! 7 ] [ 2 @@? 6 ] [ 2 @@: 3 ] [ 3 {<opi:fieldreduce>} -* ] " \
-				"[ 4 occampi:protocol 5 ] [ 5 {<opi:chanpush>} -* 1 ] " \
-				"[ 6 {<opi:ctmarkinput>} @@: 3 ] [ 7 {<opi:ctmarkoutput>} @@: 3 ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:subctspeclist ::= [ 0 occampi:subctspec 1 ] [ 1 {<parser:nullreduce>} ] [ 1 Newline 2 ] [ 1 -* 4 ] [ 2 {Rinlist} ] [ 2 occampi:subctspec 1 ] " \
-				"[ 2 -* 3 ] [ 3 {Roccampi:resetnewline} ] [ 3 -* 4 ] [ 4 -* ]"));
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:typedecl ::= [ 0 @DATA 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ] [ 3 @IS 4 ] [ 3 Newline 7 ] " \
-				"[ 4 occampi:type 5 ] [ 5 @@: 6 ] [ 6 {<opi:datatypedeclreduce>} -* ] " \
-				"[ 7 Indent 8 ] [ 8 @RECORD 9 ] [ 9 Newline 10 ] [ 10 Indent 11 ] [ 11 occampi:subtspeclist 12 ] [ 12 Newline 13 ] " \
-				"[ 13 Outdent 14 ] [ 14 Outdent 15 ] [ 15 @@: 16 ] [ 16 {<opi:datatypedeclreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:chantypedecl ::= [ 0 @CHAN 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ] [ 3 Newline 4 ] " \
-				"[ 4 Indent 5 ] [ 5 @MOBILE 14 ] [ 5 @RECORD 6 ] [ 6 Newline 7 ] [ 7 Indent 8 ] [ 8 occampi:subctspeclist 9 ] [ 9 Newline 10 ] " \
-				"[ 10 Outdent 11 ] [ 11 Outdent 12 ] [ 12 @@: 13 ] [ 13 {<opi:chantypedeclreduce>} -* ] " \
-				"[ 14 @RECORD 15 ] [ 15 Newline 16 ] [ 16 Indent 17 ] [ 17 occampi:subctspeclist 18 ] [ 18 Newline 19 ] " \
-				"[ 19 Outdent 20 ] [ 20 Outdent 21 ] [ 21 @@: 22 ] [ 22 {<opi:mobilise>} -* 23 ] [ 23 {<opi:chantypedeclreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:proctypedecl ::= [ 0 @PROC 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ] " \
-				"[ 3 @@( 4 ] [ 4 occampi:fparamlist 5 ] [ 5 @@) 6 ] [ 6 {<opi:proctypedeclreduce>} @@: 7 ] [ 7 -* ]"));
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:arrayspec ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:arrayspec>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:arraytype ::= [ 0 @@[ 1 ] [ 1 @@] 3 ] [ 1 occampi:expr 2 ] [ 2 @@] 4 ] [ 3 {<opi:nullpush>} -* 4 ] " \
-				"[ 4 -@@[ 5 ] [ 4 occampi:primtype 6 ] [ 4 occampi:name 6 ] [ 4 @CHAN 7 ]  [ 4 @PORT 9 ] [ 5 occampi:arraytype 6 ] [ 6 {<opi:arraytypereduce>} -* ] " \
-				"[ 7 occampi:protocol 8 ] [ 8 {<opi:chanpush>} -* 6 ] " \
-				"[ 9 occampi:protocol 10 ] [ 10 {<opi:portpush>} -* 6 ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:arraytypetype ::= [ 0 @@[ 1 ] [ 1 @@] 3 ] [ 1 occampi:expr 2 ] [ 2 @@] 4 ] [ 3 {<opi:nullpush>} -* 4 ] " \
-				"[ 4 -@@[ 5 ] [ 4 occampi:primtype 6 ] [ 4 occampi:name 6 ] [ 5 occampi:arraytypetype 6 ] [ 6 {<opi:arraytypereduce>} -* ]"));
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:xsubscriptreduce>} -* 4 ] [ 4 {<opi:resultpush>} -* 0 ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@_ 1 ] [ 1 occampi:name 2 ] [ 2 {<opi:xsubscriptreduce>} -* 3 ] [ 3 {<opi:resultpush>} -* 0 ]"));
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:expr +:= [ 0 @SIZE 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:sizeopreduce>} -* ]"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
-}
-/*}}}*/
 /*{{{  static int occampi_dtype_post_setup (void)*/
 /*
  *	does post-setup for initialisation
@@ -1223,7 +1173,7 @@ static int occampi_dtype_post_setup (void)
 feunit_t occampi_dtype_feunit = {
 	init_nodes: occampi_dtype_init_nodes,
 	reg_reducers: occampi_dtype_reg_reducers,
-	init_dfatrans: occampi_dtype_init_dfatrans,
+	init_dfatrans: NULL,
 	post_setup: occampi_dtype_post_setup,
 	ident: "occampi-dtype"
 };

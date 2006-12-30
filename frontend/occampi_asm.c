@@ -475,24 +475,6 @@ static int occampi_asm_reg_reducers (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static dfattbl_t **occampi_asm_init_dfatrans (int *ntrans)*/
-/*
- *	initialises and returns DFA transition tables for occam-pi inline assembler nodes
- */
-static dfattbl_t **occampi_asm_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:asmop ::= [ 0 +* 1 ] [ 1 occampi:exprcommalist 3 ] [ 1 -* 2 ] [ 2 {<opi:nullpush>} -* 3 ] [ 3 {Roccampi:asmop} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:asmoplist ::= [ 0 -Outdent 5 ] [ 0 Newline 4 ] [ 0 -* 1 ] [ 1 occampi:asmop 2 ] [ 2 {<opi:nullreduce>} -* 3 ] [ 3 {Rinlist} Newline 0 ] [ 4 -* 0 ] [ 5 -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:asmblock ::= [ 0 @ASM 1 ] [ 1 Newline 2 ] [ 2 Indent 3 ] [ 3 occampi:asmoplist 4 ] [ 4 Outdent 5 ] [ 5 {<opi:asmblock>} -* ]"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
-}
-/*}}}*/
 /*{{{  static int occampi_asm_post_setup (void)*/
 /*
  *	does post-setup for occam-pi inline assembly nodes
@@ -509,7 +491,7 @@ static int occampi_asm_post_setup (void)
 feunit_t occampi_asm_feunit = {
 	init_nodes: occampi_asm_init_nodes,
 	reg_reducers: occampi_asm_reg_reducers,
-	init_dfatrans: occampi_asm_init_dfatrans,
+	init_dfatrans: NULL,
 	post_setup: occampi_asm_post_setup,
 	ident: "occampi-asm"
 };

@@ -56,6 +56,8 @@ target_cpu="ETC/T800"
 target_os="unknown"
 target_vendor="unknown"
 
+build_dir="$(pwd)"
+
 dnl Check for gcrypt
 AM_PATH_LIBGCRYPT([1.1.0],[usegcrypt=yes],[usegcrypt=no])
 
@@ -106,6 +108,9 @@ fi
 if test $have_lib_dl = yes; then
  AC_DEFINE([LIBDL],1,[define to enable use of dynamic linker])
 fi
+
+# some substitutions for paths
+AC_SUBST(build_dir)
 
 AC_OUTPUT([Makefile include/Makefile misc/Makefile lexer/Makefile parser/Makefile extn/Makefile xml/Makefile frontend/Makefile backend/Makefile target/Makefile lang/Makefile tests/Makefile addons/Makefile nocc.specs.xml])
 

@@ -30,7 +30,7 @@
 	"[ 10 occampi:litbool 11 ] [ 11 {<opi:nullreduce>} -* ]"
 	"[ 12 {<opi:stringreduce>} -* 5 ]"
 .TABLE	"occampi:operand +:= [ 0 +Name 1 ] [ 1 {<opi:namereduce>} -* ]"
-# .BNF	"occampi:expr ::= ( -Name occampi:exprnamestart {<opi:nullreduce>} | +Integer {<opi:integerreduce>} | +Real {<opi:realreduce>} )"
+#.BNF	"occampi:expr ::= ( -Name occampi:exprnamestart {<opi:nullreduce>} | +Integer {<opi:integerreduce>} | +Real {<opi:realreduce>} )"
 .BNF	"occampi:exprsemilist ::= { occampi:expr @@; 1 }"
 .BNF	"occampi:exprcommalist ::= { occampi:expr @@, 1 }"
 .TABLE	"occampi:namestart ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} ] [ 1 -* <occampi:namestartname> ]"
@@ -44,7 +44,205 @@
 
 # }}}
 
+.SECTION "occampi-action" # {{{: actions (input, output, assign, etc)
 
+.GRULE	"opi:assignreduce" "SN1N+N+V0C[ASSIGN]3R-"
+.GRULE	"opi:outputreduce" "SN1N+N+V0C[OUTPUT]3R-"
+.GRULE	"opi:inputreduce" "SN1N+N+V0C[INPUT]3R-"
+
+.TABLE	"occampi:namestartname +:= [ 0 @@:= 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:assignreduce>} -* ]"
+.TABLE	"occampi:ctclidecl ::= [ 0 occampi:namelist 1 ] [ 1 @@: 2 ] [ 2 {<opi:declreduce>} -* ]"
+.TABLE	"occampi:ctsvrdecl ::= [ 0 occampi:namelist 1 ] [ 1 @@: 2 ] [ 2 {<opi:declreduce>} -* ]"
+.TABLE	"occampi:namestartname +:= [ 0 @@! 1 ] [ 1 +Name 2 ] [ 1 -* 4 ] [ 2 -* 4 ] [ 2 +@@, 3 ] [ 2 +@@: 3 ] [ 3 {<parser:rewindtokens>} -* <occampi:ctclidecl> ]"
+	"[ 4 {<parser:rewindtokens>} -* 5 ] [ 5 occampi:exprsemilist 6 ] [ 6 {<opi:outputreduce>} -* ]"
+.TABLE	"occampi:namestartname +:= [ 0 @@? 1 ] [ 1 +Name 2 ] [ 1 -* 4 ] [ 2 -* 4 ] [ 2 +@@, 3 ] [ 2 +@@: 3 ] [ 3 {<parser:rewindtokens>} -* <occampi:ctsvrdecl> ]"
+	"[ 4 {<parser:rewindtokens>} -* 5 ] [ 5 occampi:exprsemilist 6 ] [ 6 {<opi:inputreduce>} -* ]"
+#
+#.TABLE	"occampi:namestartname +:= [ 0 @@! 1 ] [ 1 occampi:exprsemilist 2 ] [ 2 @@: 3 ] [ 3 {<opi:declreduce>} -* ]"
+#	"[ 2 -* 4 ] [ 4 {<opi:outputreduce>} -* ]"
+#.TABLE	"occampi:namestartname +:= [ 0 @@? 1 ] [ 1 occampi:exprsemilist 2 ] [ 2 @@: 3 ] [ 3 {<opi:declreduce>} -* ]"
+#	"[ 2 -* 4 ] [ 4 {<opi:inputreduce>} -* ]"
+
+# }}}
+.SECTION "occampi-asm" # {{{: inline transputer assembly
+
+.TABLE	"occampi:asmop ::= [ 0 +* 1 ] [ 1 occampi:exprcommalist 3 ] [ 1 -* 2 ] [ 2 {<opi:nullpush>} -* 3 ] [ 3 {Roccampi:asmop} -* ]"
+.TABLE	"occampi:asmoplist ::= [ 0 -Outdent 5 ] [ 0 Newline 4 ] [ 0 -* 1 ] [ 1 occampi:asmop 2 ] [ 2 {<opi:nullreduce>} -* 3 ] [ 3 {Rinlist} Newline 0 ] [ 4 -* 0 ] [ 5 -* ]"
+.TABLE	"occampi:asmblock ::= [ 0 @ASM 1 ] [ 1 Newline 2 ] [ 2 Indent 3 ] [ 3 occampi:asmoplist 4 ] [ 4 Outdent 5 ] [ 5 {<opi:asmblock>} -* ]"
+
+# }}}
+.SECTION "occampi-cnode" # {{{: constructor processes
+
+.GRULE	"opi:shortif" "T+@tSN0N+0C[SHORTIF]2R-"
+.GRULE	"opi:while" "SN0N+0C[WHILE]2R-"
+.GRULE	"opi:ifstart" "ST0T+@t000C[IF]3R-"
+
+.TABLE	"occampi:interleaving ::= [ 0 occampi:name 1 ] [ 1 @@( 2 ] [ 2 occampi:expr 3 ] [ 3 @@) 4 ] [ 4 {Roccampi:ileave} -* 5 ] [ 5 @@, 0 ] [ 5 -* ]"
+.TABLE	"occampi:replcproc ::= [ 0 occampi:name 1 ] [ 1 @@= 2 ] [ 2 occampi:expr 3 ] [ 3 @FOR 4 ] [ 4 occampi:expr 5 ] [ 5 {Roccampi:replcnode} -* ]"
+.TABLE	"occampi:cproc ::= [ 0 +@SEQ 1 ] [ 0 +@PAR 1 ] [ 1 -Newline 2 ] [ 1 -Name <occampi:replcproc> ] [ 1 -@INTERLEAVE 3 ] [ 2 {Roccampi:cnode} -* ]"
+	"[ 3 {Roccampi:cnode} @INTERLEAVE <occampi:interleaving> ]"
+.TABLE	"occampi:cproc +:= [ 0 +@IF 1 ] [ 1 -Newline 2 ] [ 1 %occampi:expr 3 ] [ 2 {<opi:ifstart>} -* ]"
+	"[ 3 occampi:expr 4 ] [ 4 -Newline 5 ] [ 5 {<opi:shortif>} -* ]"
+.TABLE	"occampi:cproc +:= [ 0 @WHILE 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:while>} -* ]"
+
+# }}}
+.SECTION "occampi-decl" # {{{: declarations and abbreviations
+
+.GRULE	"opi:declreduce" "SN1N+N+0C[VARDECL]3R-"
+.GRULE	"opi:xdeclreduce" "SN1N+N+V0C[VARDECL]3R-"
+.GRULE	"opi:procdeclreduce" "SN1N+N+V00C[PROCDECL]4R-"
+.GRULE	"opi:abbrreduce" "SN1N+N+N+<0VC[ABBREV]4R-"
+.GRULE	"opi:valabbrreduce" "SN1N+N+N+<0VC[VALABBREV]4R-"
+.GRULE	"opi:notypeabbrreduce" "SN1N+N+0<0VC[ABBREV]4R-"
+.GRULE	"opi:notypevalabbrreduce" "SN1N+N+0<0VC[VALABBREV]4R-"
+.GRULE	"opi:directedchaninput" "SN0N+C[ASINPUT]1N-"
+.GRULE	"opi:directedchanoutput" "SN0N+C[ASOUTPUT]1N-"
+
+
+.BNF	"occampi:name ::= +Name {<opi:namereduce>}"
+.BNF	"occampi:namelist ::= { occampi:name @@, 1 }"
+
+.TABLE	"occampi:vardecl ::= [ 0 occampi:primtype 3 ] [ 0 +@CHAN 9 ] [ 0 +@PORT 13 ]"
+	"[ 1 occampi:protocol 2 ]"
+	"[ 2 {<opi:chanpush>} -* 3 ]"
+	"[ 3 -@FUNCTION <occampi:fdeclstarttype> ] [ 3 occampi:namelist 4 ]"
+	"[ 4 @@: 5 ] [ 4 @IS 6 ]"
+	"[ 5 {<opi:declreduce>} -* ]"
+	"[ 6 occampi:operand 7 ]"
+	"[ 7 @@: 8 ]"
+	"[ 8 {<opi:abbrreduce>} -* ]"
+	"[ 9 +@TYPE 10 ] [ 9 -* 12 ]"
+	"[ 10 {<parser:rewindtokens>} -* 11 ]"
+	"[ 11 -* <occampi:chantypedecl> ]"
+	"[ 12 {<parser:eattoken>} -* 1 ]"
+	"[ 13 {<parser:eattoken>} -* 14 ]"
+	"[ 14 occampi:protocol 15 ]"
+	"[ 15 {<opi:portpush>} -* 3 ]"
+.TABLE	"occampi:vardecl:bracketstart ::= [ 0 occampi:arrayspec 1 ] [ 1 occampi:vardecl 2 ] [ 2 {Roccampi:arrayfold} -* ]"
+
+.TABLE	"occampi:procdecl ::= [ 0 +@PROC 6 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:procdeclreduce>} -* ]"
+	"[ 6 +@TYPE 7 ] [ 6 -* 8 ] [ 7 {<parser:rewindtokens>} -* <occampi:proctypedecl> ] [ 8 {<parser:eattoken>} -* 1 ]"
+
+.TABLE	"occampi:valabbrdecl ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} -* 2 ] [ 2 @IS 3 ] [ 2 +Name 6 ] [ 3 occampi:expr 4 ] [ 4 @@: 5 ]"
+	"[ 5 {<opi:notypevalabbrreduce>} -* ] [ 6 {<opi:namepush>} -* 7 ] [ 7 @IS 8 ] [ 8 occampi:expr 9 ] [ 9 {<opi:valabbrreduce>} -* ]"
+.TABLE	"occampi:valabbrdecl +:= [ 0 occampi:primtype 1 ] [ 1 occampi:name 2 ] [ 2 @IS 3 ] [ 3 occampi:expr 4 ] [ 4 @@: 5 ] [ 5 {<opi:valabbrreduce>} -* ]"
+.TABLE	"occampi:valabbrdecl +:= [ 0 -@@[ 1 ] [ 1 occampi:arraytype 2 ] [ 2 occampi:name 3 ] [ 3 @IS 4 ] [ 4 occampi:expr 5 ] [ 5 @@: 6 ] [ 6 {<opi:valabbrreduce>} -* ]"
+.TABLE	"occampi:abbrdecl ::= [ 0 @VAL <occampi:valabbrdecl> ]"
+
+.TABLE	"occampi:fparam ::= [ 0 occampi:primtype 1 ] [ 0 @CHAN 3 ] [ 0 occampi:name 9 ] [ 0 @VAL 22 ]"
+	"[ 1 occampi:name 2 ] [ 2 {<opi:fparam2nsreduce>} ] [ 2 -* ]"
+	"[ 3 @OF 3 ] [ 3 occampi:protocol 4 ] [ 3 @@! 16 ] [ 3 @@? 19 ] [ 4 {<opi:chanpush>} ] [ 4 occampi:name 5 ] [ 5 @@! 6 ] [ 5 @@? 7 ] [ 5 -* 8 ] [ 6 {<opi:directedchanoutput>} ] [ 6 -* 8 ]"
+	"[ 7 {<opi:directedchaninput>} ] [ 7 -* 8 ] [ 8 {<opi:fparam2nsreduce>} -* ]"
+	"[ 9 -* 10 ] [ 10 @@! 11 ] [ 10 @@? 12 ] [ 10 -* 13 ] [ 11 {<opi:directedchanoutput>} ] [ 11 -* 13 ] [ 12 {<opi:directedchaninput>} ] [ 12 -* 13 ]"
+	"[ 13 occampi:name 14 ] [ 13 -* 15 ] [ 14 {<opi:fparam2nsreduce>} -* ] [ 15 {<opi:fparam1nsreduce>} -* ]"
+	"[ 16 occampi:protocol 17 ] [ 17 {<opi:chanpush>} -* 18 ] [ 18 {<opi:directedchanoutput>} occampi:name 5 ]"
+	"[ 19 occampi:protocol 20 ] [ 20 {<opi:chanpush>} -* 21 ] [ 21 {<opi:directedchaninput>} occampi:name 5 ]"
+	"[ 22 occampi:primtype 23 ] [ 22 occampi:name 25 ]"
+	"[ 23 occampi:name 24 ] [ 24 {<opi:fparamv2nsreduce>} -* ]"
+	"[ 25 occampi:name 26 ] [ 26 {<opi:fparamv2nsreduce>} -* ]"
+
+.BNF	"occampi:fparamlist ::= ( -@@) {<opi:nullset>} | { occampi:fparam @@, 1 } )"
+
+
+.TABLE	"occampi:namestartname +:= [ 0 +Name 1 ] [ 1 {<opi:namepush>} ] [ 1 @@: 2 ]  [ 2 {<opi:declreduce>} -* ]"
+.TABLE	"occampi:namestartname +:= [ 0 @IS 1 ] [ 1 occampi:operand 7 ] [ 7 @@: 8 ] [ 8 {<opi:notypeabbrreduce>} -* ]"
+
+.TABLE	"occampi:exprnamestart +:= [ 0 +Name 1 ] [ 1 @@! 2 ] [ 1 @@? 4 ] [ 2 {<opi:namepush>} -* 3 ] [ 3 {<opi:directedchanoutput>} -* 6 ]"
+	"[ 4 {<opi:namepush>} -* 5 ] [ 5 {<opi:directedchaninput>} -* 6 ] [ 6 {<opi:nullreduce>} -* ]"
+
+# }}}
+.SECTION "occampi-dtype" # {{{: structured data-types
+
+
+.TABLE	"occampi:subtspec ::= [ 0 occampi:primtype 1 ] [ 1 occampi:namelist 2 ] [ 2 @@: 3 ] [ 3 {<opi:fieldreduce>} -* ]"
+.TABLE	"occampi:subtspeclist ::= [ 0 occampi:subtspec 1 ] [ 1 {<parser:nullreduce>} ] [ 1 Newline 2 ] [ 1 -* 4 ] [ 2 {Rinlist} ] [ 2 occampi:subtspec 1 ]"
+	"[ 2 -* 3 ] [ 3 {Roccampi:resetnewline} ] [ 3 -* 4 ] [ 4 -* ]"
+
+# FIXME: will only handle single channels in this..
+.TABLE	"occampi:subctspec ::= [ 0 @CHAN 4 ] [ 0 occampi:primtype 1 ] [ 1 occampi:name 2 ] [ 2 @@! 7 ] [ 2 @@? 6 ] [ 2 @@: 3 ] [ 3 {<opi:fieldreduce>} -* ]"
+	"[ 4 occampi:protocol 5 ] [ 5 {<opi:chanpush>} -* 1 ]"
+	"[ 6 {<opi:ctmarkinput>} @@: 3 ] [ 7 {<opi:ctmarkoutput>} @@: 3 ]"
+.TABLE	"occampi:subctspeclist ::= [ 0 occampi:subctspec 1 ] [ 1 {<parser:nullreduce>} ] [ 1 Newline 2 ] [ 1 -* 4 ] [ 2 {Rinlist} ] [ 2 occampi:subctspec 1 ]"
+	"[ 2 -* 3 ] [ 3 {Roccampi:resetnewline} ] [ 3 -* 4 ] [ 4 -* ]"
+
+.TABLE	"occampi:typedecl ::= [ 0 @DATA 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ] [ 3 @IS 4 ] [ 3 Newline 7 ]"
+	"[ 4 occampi:type 5 ] [ 5 @@: 6 ] [ 6 {<opi:datatypedeclreduce>} -* ]"
+	"[ 7 Indent 8 ] [ 8 @RECORD 9 ] [ 9 Newline 10 ] [ 10 Indent 11 ] [ 11 occampi:subtspeclist 12 ] [ 12 Newline 13 ]"
+	"[ 13 Outdent 14 ] [ 14 Outdent 15 ] [ 15 @@: 16 ] [ 16 {<opi:datatypedeclreduce>} -* ]"
+.TABLE	"occampi:chantypedecl ::= [ 0 @CHAN 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ] [ 3 Newline 4 ]"
+	"[ 4 Indent 5 ] [ 5 @MOBILE 14 ] [ 5 @RECORD 6 ] [ 6 Newline 7 ] [ 7 Indent 8 ] [ 8 occampi:subctspeclist 9 ] [ 9 Newline 10 ]"
+	"[ 10 Outdent 11 ] [ 11 Outdent 12 ] [ 12 @@: 13 ] [ 13 {<opi:chantypedeclreduce>} -* ]"
+	"[ 14 @RECORD 15 ] [ 15 Newline 16 ] [ 16 Indent 17 ] [ 17 occampi:subctspeclist 18 ] [ 18 Newline 19 ]"
+	"[ 19 Outdent 20 ] [ 20 Outdent 21 ] [ 21 @@: 22 ] [ 22 {<opi:mobilise>} -* 23 ] [ 23 {<opi:chantypedeclreduce>} -* ]"
+.TABLE	"occampi:proctypedecl ::= [ 0 @PROC 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ]"
+	"[ 3 @@( 4 ] [ 4 occampi:fparamlist 5 ] [ 5 @@) 6 ] [ 6 {<opi:proctypedeclreduce>} @@: 7 ] [ 7 -* ]"
+
+.TABLE	"occampi:arrayspec ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:arrayspec>} -* ]"
+.TABLE	"occampi:arraytype ::= [ 0 @@[ 1 ] [ 1 @@] 3 ] [ 1 occampi:expr 2 ] [ 2 @@] 4 ] [ 3 {<opi:nullpush>} -* 4 ]"
+	"[ 4 -@@[ 5 ] [ 4 occampi:primtype 6 ] [ 4 occampi:name 6 ] [ 4 @CHAN 7 ]  [ 4 @PORT 9 ] [ 5 occampi:arraytype 6 ] [ 6 {<opi:arraytypereduce>} -* ]"
+	"[ 7 occampi:protocol 8 ] [ 8 {<opi:chanpush>} -* 6 ]"
+	"[ 9 occampi:protocol 10 ] [ 10 {<opi:portpush>} -* 6 ]"
+.TABLE	"occampi:arraytypetype ::= [ 0 @@[ 1 ] [ 1 @@] 3 ] [ 1 occampi:expr 2 ] [ 2 @@] 4 ] [ 3 {<opi:nullpush>} -* 4 ]"
+	"[ 4 -@@[ 5 ] [ 4 occampi:primtype 6 ] [ 4 occampi:name 6 ] [ 5 occampi:arraytypetype 6 ] [ 6 {<opi:arraytypereduce>} -* ]"
+
+.TABLE	"occampi:namestartname +:= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:xsubscriptreduce>} -* 4 ] [ 4 {<opi:resultpush>} -* 0 ]"
+.TABLE	"occampi:namestartname +:= [ 0 @@_ 1 ] [ 1 occampi:name 2 ] [ 2 {<opi:xsubscriptreduce>} -* 3 ] [ 3 {<opi:resultpush>} -* 0 ]"
+
+.TABLE	"occampi:expr +:= [ 0 @SIZE 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:sizeopreduce>} -* ]"
+
+# }}}
+.SECTION "occampi-function" # {{{: functions
+
+.GRULE	"opi:funcdefreduce" "SN1N+N+N+<C[FUNCTIONTYPE]200C[FUNCDECL]4R-"
+.GRULE	"opi:finstancereduce" "SN1N+N+VC[FINSTANCE]2R-"
+.GRULE	"opi:valofreduce" "ST0T+@t00C[VALOF]2R-"
+
+.TABLE	"occampi:fdeclstarttype ::= [ 0 @FUNCTION 1 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:funcdefreduce>} -* ]"
+.TABLE	"occampi:funcdecl ::= [ 0 occampi:typecommalist <occampi:fdeclstarttype> ]"
+.TABLE	"occampi:infinstance ::= [ 0 occampi:exprcommalist 2 ] [ 0 -@@) 1 ] [ 1 {<opi:nullpush>} -* 2 ] [ 2 @@) 3 ] [ 3 {<opi:finstancereduce>} -* ]"
+.TABLE	"occampi:valofresult ::= [ 0 @RESULT 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:nullreduce>} -* ]"
+.TABLE	"occampi:valof ::= [ 0 +@VALOF 1 ] [ 1 {<opi:valofreduce>} -* ]"
+.TABLE	"occampi:builtinfinstancei ::= [ 0 @@( 1 ] [ 1 {Roccampi:builtinfunction} ] [ 1 occampi:exprcommalist 3 ] [ 1 @@) 2 ] [ 2 {<opi:nullpush>} ] [ 2 -* 3 ] [ 3 {<opi:finstancereduce>} -* ]"
+
+# }}}
+.SECTION "occampi-initial" # {{{: INITIAL declaration handling
+
+.GRULE	"opi:initialreduce" "SN1N+N+N+<0VC[INITIAL]4R-"
+
+.TABLE	"occampi:declorprocstart +:= [ 0 @INITIAL 1 ] [ 1 occampi:name 2 ] [ 1 occampi:type 2 ] [ 2 occampi:name 3 ] [ 3 @IS 4 ]"
+	"[ 4 occampi:expr 5 ] [ 5 @@: 6 ] [ 6 {<opi:initialreduce>} Newline 7 ] [ 7 -* ]"
+
+# }}}
+.SECTION "occampi-instance" # {{{: instance (proc call) handling
+
+.GRULE	"opi:pinstancereduce" "SN1N+N+V0C[PINSTANCE]3R-"
+
+
+# }}}
+.SECTION "occampi-" # {{{: 
+
+
+# }}}
+.SECTION "occampi-" # {{{: 
+
+
+# }}}
+.SECTION "occampi-" # {{{: 
+
+
+# }}}
+.SECTION "occampi-" # {{{: 
+
+
+# }}}
+.SECTION "occampi-" # {{{: 
+
+
+# }}}
+.SECTION "occampi-" # {{{: 
+
+
+# }}}
 .SECTION "occampi-type" # {{{: primitive, channels and ports
 
 .GRULE	"opi:chanpush" "N+Sn00C[CHAN]2N-"

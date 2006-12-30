@@ -461,39 +461,7 @@ static int occampi_action_init_nodes (void)
  */
 static int occampi_action_reg_reducers (void)
 {
-	parser_register_grule ("opi:assignreduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_ASSIGN));
-	parser_register_grule ("opi:outputreduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_OUTPUT));
-	parser_register_grule ("opi:inputreduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_INPUT));
-
 	return 0;
-}
-/*}}}*/
-/*{{{  static dfattbl_t **occampi_action_init_dfatrans (int *ntrans)*/
-/*
- *	creates and returns DFA transition tables for action nodes
- */
-static dfattbl_t **occampi_action_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@:= 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:assignreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:ctclidecl ::= [ 0 occampi:namelist 1 ] [ 1 @@: 2 ] [ 2 {<opi:declreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:ctsvrdecl ::= [ 0 occampi:namelist 1 ] [ 1 @@: 2 ] [ 2 {<opi:declreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@! 1 ] [ 1 +Name 2 ] [ 1 -* 4 ] [ 2 -* 4 ] [ 2 +@@, 3 ] [ 2 +@@: 3 ] [ 3 {<parser:rewindtokens>} -* <occampi:ctclidecl> ] " \
-				"[ 4 {<parser:rewindtokens>} -* 5 ] [ 5 occampi:exprsemilist 6 ] [ 6 {<opi:outputreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@? 1 ] [ 1 +Name 2 ] [ 1 -* 4 ] [ 2 -* 4 ] [ 2 +@@, 3 ] [ 2 +@@: 3 ] [ 3 {<parser:rewindtokens>} -* <occampi:ctsvrdecl> ] " \
-				"[ 4 {<parser:rewindtokens>} -* 5 ] [ 5 occampi:exprsemilist 6 ] [ 6 {<opi:inputreduce>} -* ]"));
-
-	/*
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@! 1 ] [ 1 occampi:exprsemilist 2 ] [ 2 @@: 3 ] [ 3 {<opi:declreduce>} -* ] " \
-				"[ 2 -* 4 ] [ 4 {<opi:outputreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:namestartname +:= [ 0 @@? 1 ] [ 1 occampi:exprsemilist 2 ] [ 2 @@: 3 ] [ 3 {<opi:declreduce>} -* ] " \
-				"[ 2 -* 4 ] [ 4 {<opi:inputreduce>} -* ]"));
-	*/
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
 }
 /*}}}*/
 
@@ -502,7 +470,7 @@ static dfattbl_t **occampi_action_init_dfatrans (int *ntrans)
 feunit_t occampi_action_feunit = {
 	init_nodes: occampi_action_init_nodes,
 	reg_reducers: occampi_action_reg_reducers,
-	init_dfatrans: occampi_action_init_dfatrans,
+	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "occampi-action"
 };

@@ -680,8 +680,6 @@ static int occampi_instance_init_nodes (void)
  */
 static int occampi_instance_reg_reducers (void)
 {
-	parser_register_grule ("opi:pinstancereduce", parser_decode_grule ("SN1N+N+V0C3R-", opi.tag_PINSTANCE));
-
 	parser_register_reduce ("Roccampi:builtinproc", occampi_reduce_builtinproc, NULL);
 
 	return 0;

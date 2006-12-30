@@ -13,7 +13,7 @@
 	<target>etc-kroc-unknown</target>
 
 	<!-- epath's say where extensions/plugins are located (-E) -->
-	<epath>/home/frmb/kroc_linux/ukcsource/nocc/addons</epath>
+	<epath>@build_dir@/addons</epath>
 	<epath>/usr/local/nocc/addons</epath>
 	<epath>/usr/share/nocc/addons</epath>
 	<epath>/usr/lib/nocc/addons</epath>
