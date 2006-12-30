@@ -22,6 +22,7 @@
 
 struct TAG_langlexer;
 struct TAG_langparser;
+struct TAG_langdef;
 
 extern struct TAG_langlexer occampi_lexer;
 extern struct TAG_langparser occampi_parser;
@@ -218,8 +219,9 @@ typedef struct {
 
 
 extern void occampi_isetindent (FILE *stream, int indent);
+extern struct TAG_langdef *occampi_getlangdef (void);
 
-
+/* front-end units */
 extern struct TAG_feunit occampi_primproc_feunit;	/* occampi_primproc.c */
 extern struct TAG_feunit occampi_cnode_feunit;		/* occampi_cnode.c */
 extern struct TAG_feunit occampi_snode_feunit;		/* occampi_snode.c */

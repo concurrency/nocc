@@ -66,14 +66,14 @@ extern void dmem_usagedump (void);
 	#define string_dup(X) ss_string_dup(__FILE__,__LINE__,X)
 	#define mem_ndup(X,A) ss_mem_ndup(__FILE__,__LINE__,X,A)
 
-	extern void *ss_malloc (char *, int, size_t);
-	extern void *ss_realloc (char *, int, void *, size_t, size_t);
-	extern void ss_free (char *, int, void *);
+	extern void *ss_malloc (const char *, const int, size_t);
+	extern void *ss_realloc (const char *, const int, void *, size_t, size_t);
+	extern void ss_free (const char *, const int, void *);
 	extern void ss_cleanup (void);
 
-	extern char *ss_string_ndup (char *, int, const char *, int);
-	extern char *ss_string_dup (char *, int, const char *);
-	extern void *ss_mem_ndup (char *, int, const void *, int);
+	extern char *ss_string_ndup (const char *, const int, const char *, int);
+	extern char *ss_string_dup (const char *, const int, const char *);
+	extern void *ss_mem_ndup (const char *, const int, const void *, int);
 #else
 	extern void *smalloc (size_t);
 	extern void *srealloc (void *, size_t, size_t);
@@ -105,13 +105,13 @@ extern void dmem_usagedump (void);
 	#define da_setmax(X,A,B,C) ss_da_setmax(__FILE__,__LINE__,X,A,B,C)
 	#define da_copy(X,A,B,C,D,E) ss_da_copy(__FILE__,__LINE__,X,A,B,C,D,E)
 
-	extern void ss_da_additem (char *file, int line, int *cur, int *max, void ***array, void *item);
-	extern void ss_da_insertitem (char *file, int line, int *cur, int *max, void ***array, void *item, int idx);
-	extern int ss_da_maybeadditem (char *file, int line, int *cur, int *max, void ***array, void *item);
-	extern void ss_da_trash (char *file, int line, int *cur, int *max, void ***array);
-	extern void ss_da_setsize (char *file, int line, int *cur, int *max, void ***array, int size);
-	extern void ss_da_setmax (char *file, int line, int *cur, int *max, void ***array, int size);
-	extern void ss_da_copy (char *file, int line, int srccur, int srcmax, void **srcarray, int *dstcur, int *dstmax, void ***dstarray);
+	extern void ss_da_additem (const char *file, const int line, int *cur, int *max, void ***array, void *item);
+	extern void ss_da_insertitem (const char *file, const int line, int *cur, int *max, void ***array, void *item, int idx);
+	extern int ss_da_maybeadditem (const char *file, const int line, int *cur, int *max, void ***array, void *item);
+	extern void ss_da_trash (const char *file, const int line, int *cur, int *max, void ***array);
+	extern void ss_da_setsize (const char *file, const int line, int *cur, int *max, void ***array, int size);
+	extern void ss_da_setmax (const char *file, const int line, int *cur, int *max, void ***array, int size);
+	extern void ss_da_copy (const char *file, const int line, int srccur, int srcmax, void **srcarray, int *dstcur, int *dstmax, void ***dstarray);
 #else
 	extern void da_additem (int *cur, int *max, void ***array, void *item);
 	extern void da_insertitem (int *cur, int *max, void ***array, void *item, int idx);
@@ -159,9 +159,9 @@ extern void da_qsort (void **array, int first, int last, int (*)(void *, void *)
 	#define sh_remove(X,A,B,C,D,E) ss_sh_remove(__FILE__,__LINE__,X,A,B,C,D,E)
 	#define sh_trash(X,A,B,C) ss_sh_trash(__FILE__,__LINE__,X,A,B,C)
 
-	extern void ss_sh_insert (char *file, int line, int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key);
-	extern void ss_sh_remove (char *file, int line, int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key);
-	extern void ss_sh_trash (char *file, int line, int *bsizes, void ***table, char ***keys, int size);
+	extern void ss_sh_insert (const char *file, const int line, int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key);
+	extern void ss_sh_remove (const char *file, const int line, int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key);
+	extern void ss_sh_trash (const char *file, const int line, int *bsizes, void ***table, char ***keys, int size);
 #else
 	extern void sh_insert (int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key);
 	extern void sh_remove (int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key);
@@ -207,9 +207,9 @@ extern void sh_walk (int *bsizes, void ***table, char ***keys, int size, void (*
 	#define ph_remove(X,A,B,C,D,E) ss_ph_remove(__FILE__,__LINE__,X,A,B,C,D,E)
 	#define ph_trash(X,A,B,C) ss_ph_trash(__FILE__,__LINE__,X,A,B,C)
 
-	extern void ss_ph_insert (char *file, int line, int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key);
-	extern void ss_ph_remove (char *file, int line, int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key);
-	extern void ss_ph_trash (char *file, int line, int *bsizes, void ***table, void ***keys, int size);
+	extern void ss_ph_insert (const char *file, const int line, int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key);
+	extern void ss_ph_remove (const char *file, const int line, int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key);
+	extern void ss_ph_trash (const char *file, const int line, int *bsizes, void ***table, void ***keys, int size);
 #else
 	extern void ph_insert (int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key);
 	extern void ph_remove (int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key);
@@ -236,18 +236,23 @@ extern void ph_lwalk (int *bsizes, void ***table, void ***keys, int bitsize, voi
 extern int decode_hex_byte (char b1, char b2, unsigned char *tptr);
 extern int parse_uint16hex (char *ch);
 #ifdef TRACE_MEMORY
-	#define mkhexbuf(X,A) ss_mkhexbuf(__FILE__,__LINE__,X,A)
-	#define split_string(X,A) ss_split_string(__FILE__,__LINE__,X,A)
-	#define decode_hexstr(X,A) ss_decode_hexstr(__FILE__,__LINE__,X,A)
+	#define mkhexbuf(X,A) ss_mkhexbuf(__FILE__,__LINE__,(X),(A))
+	#define split_string(X,A) ss_split_string(__FILE__,__LINE__,(X),(A))
+	#define split_string2(X,A,B) ss_split_string2(__FILE__,__LINE__,(X),(A),(B))
+	#define decode_hexstr(X,A) ss_decode_hexstr(__FILE__,__LINE__,(X),(A))
 
-	extern char *ss_mkhexbuf (char *file, int line, unsigned char *buffer, int buflen);
-	extern char **ss_split_string (char *file, int line, char *str, int copy);
-	extern char *ss_decode_hexstr (char *file, int line, char *str, int *slen);
+	extern char *ss_mkhexbuf (const char *file, const int line, unsigned char *buffer, int buflen);
+	extern char **ss_split_string (const char *file, const int line, char *str, int copy);
+	extern char **ss_split_string2 (const char *file, const int line, char *str, char s1, char s2);
+	extern char *ss_decode_hexstr (const char *file, const int line, char *str, int *slen);
 #else
 	extern char *mkhexbuf (unsigned char *buffer, int buflen);
 	extern char **split_string (char *str, int copy);
+	extern char **split_string2 (char *str, char s1, char s2);
 	extern char *decode_hexstr (char *str, int *slen);
 #endif
+extern int string_dequote (char *str);
+
 #if 0
 extern int time_after (struct timeval *t1, struct timeval *t2);
 extern void time_minus (struct timeval *t1, struct timeval *t2, struct timeval *t3);

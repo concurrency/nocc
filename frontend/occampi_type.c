@@ -776,10 +776,10 @@ static int occampi_type_init_nodes (void)
  */
 static int occampi_type_reg_reducers (void)
 {
-	langdef_t *ldef = langdef_readdefs ("occampi_type_rdx.ldef");
+	langdefsec_t *lsec = langdef_findsection (occampi_getlangdef (), "occampi-type");
 
-	if (!ldef) {
-		nocc_error ("occampi_type_reg_reducers(): failed to load language definitions!");
+	if (!lsec) {
+		nocc_error ("occampi_type_reg_reducers(): failed to find occampi-type language definitions!");
 		return -1;
 	}
 
@@ -791,7 +791,6 @@ static int occampi_type_reg_reducers (void)
 	parser_register_grule ("opi:portpush", parser_decode_grule ("N+Sn00C[PORT]2N-"));
 	parser_register_grule ("opi:placedportreduce", parser_decode_grule ("SN2N+N+N+>N-C[PORT]2SN0N+V0C[VARDECL]3R-"));
 
-	langdef_freelangdef (ldef);
 
 	return 0;
 }

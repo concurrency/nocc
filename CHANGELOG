@@ -1,4 +1,6 @@
 
+30/12/2006	frmb	initial work on langauge definition files
+29/12/2006	frmb	small addition to generic reduction language
 29/12/2006	frmb	more work on PORTs, initial #PRAGMA handling
 28/12/2006	frmb	some work on PORTs and various other minor updates
 27/12/2006	frmb	updates to option handling

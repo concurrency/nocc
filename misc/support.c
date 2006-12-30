@@ -694,7 +694,7 @@ void ss_remove_blk (ss_memblock *blk)
  *	allocates some memory
  */
 #ifdef TRACE_MEMORY
-void *ss_malloc (char *file, int line, size_t length)
+void *ss_malloc (const char *file, const int line, size_t length)
 #else
 void *smalloc (size_t length)
 #endif
@@ -726,7 +726,7 @@ void *smalloc (size_t length)
  *	re-allocates a memory block, moving it entirely if necessary
  */
 #ifdef TRACE_MEMORY
-void *ss_realloc (char *file, int line, void *ptr, size_t old_size, size_t new_size)
+void *ss_realloc (const char *file, const int line, void *ptr, size_t old_size, size_t new_size)
 #else
 void *srealloc (void *ptr, size_t old_size, size_t new_size)
 #endif
@@ -841,7 +841,7 @@ void *srealloc (void *ptr, size_t old_size, size_t new_size)
  *	frees previously allocated memory
  */
 #ifdef TRACE_MEMORY
-void ss_free (char *file, int line, void *ptr)
+void ss_free (const char *file, const int line, void *ptr)
 #else
 void sfree (void *ptr)
 #endif
@@ -875,7 +875,7 @@ void sfree (void *ptr)
  *	duplicates a chunk of string
  */
 #ifdef TRACE_MEMORY
-char *ss_string_ndup (char *file, int line, const char *str, int length)
+char *ss_string_ndup (const char *file, const int line, const char *str, int length)
 #else
 char *string_ndup (const char *str, int length)
 #endif
@@ -897,7 +897,7 @@ char *string_ndup (const char *str, int length)
  *	duplicates a string
  */
 #ifdef TRACE_MEMORY
-char *ss_string_dup (char *file, int line, const char *str)
+char *ss_string_dup (const char *file, const int line, const char *str)
 #else
 char *string_dup (const char *str)
 #endif
@@ -914,7 +914,7 @@ char *string_dup (const char *str)
  *	duplicates a bit of memory
  */
 #ifdef TRACE_MEMORY
-void *ss_mem_ndup (char *file, int line, const void *ptr, int length)
+void *ss_mem_ndup (const char *file, const int line, const void *ptr, int length)
 #else
 void *mem_ndup (const void *ptr, int length)
 #endif
@@ -948,7 +948,7 @@ void da_init (int *cur, int *max, void ***array)
  *	adds an item to a dynamic array (at the end of it)
  */
 #ifdef TRACE_MEMORY
-void ss_da_additem (char *file, int line, int *cur, int *max, void ***array, void *item)
+void ss_da_additem (const char *file, const int line, int *cur, int *max, void ***array, void *item)
 #else
 void da_additem (int *cur, int *max, void ***array, void *item)
 #endif
@@ -978,7 +978,7 @@ void da_additem (int *cur, int *max, void ***array, void *item)
  *	inserts an item in a dynamic array (first position is 0)
  */
 #ifdef TRACE_MEMORY
-void ss_da_insertitem (char *file, int line, int *cur, int *max, void ***array, void *item, int idx)
+void ss_da_insertitem (const char *file, const int line, int *cur, int *max, void ***array, void *item, int idx)
 #else
 void da_insertitem (int *cur, int *max, void ***array, void *item, int idx)
 #endif
@@ -1016,7 +1016,7 @@ void da_insertitem (int *cur, int *max, void ***array, void *item, int idx)
  *	adds an item to a dynamic array, but only if it's not there already
  */
 #ifdef TRACE_MEMORY
-int ss_da_maybeadditem (char *file, int line, int *cur, int *max, void ***array, void *item)
+int ss_da_maybeadditem (const char *file, const int line, int *cur, int *max, void ***array, void *item)
 #else
 int da_maybeadditem (int *cur, int *max, void ***array, void *item)
 #endif
@@ -1083,7 +1083,7 @@ void da_rmitem (int *cur, int *max, void ***array, void *item)
  *	trashes a dynamic array and resets it to zero.  doesn't do anything with any contents
  */
 #ifdef TRACE_MEMORY
-void ss_da_trash (char *file, int line, int *cur, int *max, void ***array)
+void ss_da_trash (const char *file, const int line, int *cur, int *max, void ***array)
 #else
 void da_trash (int *cur, int *max, void ***array)
 #endif
@@ -1150,7 +1150,7 @@ fprintf (stderr, "da_qsort(): i=%d, j=%d, pivot=(0x%8.8x), array[i]=(0x%8.8x), a
  *	sets the size of a dynamic array
  */
 #ifdef TRACE_MEMORY
-void ss_da_setsize (char *file, int line, int *cur, int *max, void ***array, int size)
+void ss_da_setsize (const char *file, const int line, int *cur, int *max, void ***array, int size)
 #else
 void da_setsize (int *cur, int *max, void ***array, int size)
 #endif
@@ -1193,7 +1193,7 @@ void da_setsize (int *cur, int *max, void ***array, int size)
  *	sets the maximum size of a dynamic array
  */
 #ifdef TRACE_MEMORY
-void ss_da_setmax (char *file, int line, int *cur, int *max, void ***array, int size)
+void ss_da_setmax (const char *file, const int line, int *cur, int *max, void ***array, int size)
 #else
 void da_setmax (int *cur, int *max, void ***array, int size)
 #endif
@@ -1246,7 +1246,7 @@ void da_setmax (int *cur, int *max, void ***array, int size)
  *	copies a dynamic array (and its contents)
  */
 #ifdef TRACE_MEMORY
-void ss_da_copy (char *file, int line, int srccur, int srcmax, void **srcarray, int *dstcur, int *dstmax, void ***dstarray)
+void ss_da_copy (const char *file, const int line, int srccur, int srcmax, void **srcarray, int *dstcur, int *dstmax, void ***dstarray)
 #else
 void da_copy (int srccur, int srcmax, void **srcarray, int *dstcur, int *dstmax, void ***dstarray)
 #endif
@@ -1325,7 +1325,7 @@ static unsigned int sh_hashcode (char *str, int bitsize)
  *	inserts an item into a string-hash
  */
 #ifdef TRACE_MEMORY
-void ss_sh_insert (char *file, int line, int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key)
+void ss_sh_insert (const char *file, const int line, int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key)
 #else
 void sh_insert (int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key)
 #endif
@@ -1384,7 +1384,7 @@ fprintf (stderr, "sh_insert: adding item [%s] (0x%8.8x)\n", key, (unsigned int)i
  *	removes an item from a string-hash
  */
 #ifdef TRACE_MEMORY
-void ss_sh_remove (char *file, int line, int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key)
+void ss_sh_remove (const char *file, const int line, int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key)
 #else
 void sh_remove (int *bsizes, void ***table, char ***keys, int bitsize, void *item, char *key)
 #endif
@@ -1514,7 +1514,7 @@ void sh_walk (int *bsizes, void ***table, char ***keys, int size, void (*func)(v
  *	destroys a string-hash
  */
 #ifdef TRACE_MEMORY
-void ss_sh_trash (char *file, int line, int *bsizes, void ***table, char ***keys, int size)
+void ss_sh_trash (const char *file, const int line, int *bsizes, void ***table, char ***keys, int size)
 #else
 void sh_trash (int *bsizes, void ***table, char ***keys, int size)
 #endif
@@ -1590,7 +1590,7 @@ static unsigned int ph_hashcode (void *ptr, int bitsize)
  *	inserts an item into a pointer-hash
  */
 #ifdef TRACE_MEMORY
-void ss_ph_insert (char *file, int line, int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key)
+void ss_ph_insert (const char *file, const int line, int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key)
 #else
 void ph_insert (int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key)
 #endif
@@ -1646,7 +1646,7 @@ void ph_insert (int *bsizes, void ***table, void ***keys, int bitsize, void *ite
  *	removes an item from a pointer-hash
  */
 #ifdef TRACE_MEMORY
-void ss_ph_remove (char *file, int line, int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key)
+void ss_ph_remove (const char *file, const int line, int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key)
 #else
 void ph_remove (int *bsizes, void ***table, void ***keys, int bitsize, void *item, void *key)
 #endif
@@ -1660,7 +1660,7 @@ void ph_remove (int *bsizes, void ***table, void ***keys, int bitsize, void *ite
 		int i;
 
 		for (i=0; i<bsizes[bucket]; i++) {
-			if ((ph_hashcode (keys[bucket][i], bitsize) == hcode) && (item == table[bucket][i]) && (!strcmp (keys[bucket][i], key))) {
+			if ((ph_hashcode (keys[bucket][i], bitsize) == hcode) && (item == table[bucket][i]) && (keys[bucket][i] == key)) {
 				/* shuffle up others */
 				for (; i<(bsizes[bucket] - 1); i++) {
 					table[bucket][i] = table[bucket][i+1];
@@ -1720,7 +1720,7 @@ void *ph_lookup (int *bsizes, void ***table, void ***keys, int bitsize, void *ma
 		int i;
 
 		for (i=0; i<bsizes[bucket]; i++) {
-			if ((ph_hashcode (keys[bucket][i], bitsize) == hcode) && (!strcmp (keys[bucket][i], match))) {
+			if ((ph_hashcode (keys[bucket][i], bitsize) == hcode) && (keys[bucket][i] == match)) {
 #if 0 && defined(DEBUG)
 fprintf (stderr, "ph_lookup: match for [%s] found item 0x%8.8x\n", match, (unsigned int)(table[bucket][i]));
 #endif
@@ -1799,7 +1799,7 @@ void ph_lwalk (int *bsizes, void ***table, void ***keys, int bitsize, void *matc
  *	destroys a string-hash
  */
 #ifdef TRACE_MEMORY
-void ss_ph_trash (char *file, int line, int *bsizes, void ***table, void ***keys, int size)
+void ss_ph_trash (const char *file, const int line, int *bsizes, void ***table, void ***keys, int size)
 #else
 void ph_trash (int *bsizes, void ***table, void ***keys, int size)
 #endif
@@ -1882,7 +1882,7 @@ int parse_uint16hex (char *ch)
  *	turns a byte buffer into a nice hex string
  */
 #ifdef TRACE_MEMORY
-char *ss_mkhexbuf (char *file, int line, unsigned char *buffer, int buflen)
+char *ss_mkhexbuf (const char *file, const int line, unsigned char *buffer, int buflen)
 #else
 char *mkhexbuf (unsigned char *buffer, int buflen)
 #endif
@@ -1910,7 +1910,7 @@ char *mkhexbuf (unsigned char *buffer, int buflen)
  *	otherwise original string is munged and returned bits point into it.
  */
 #ifdef TRACE_MEMORY
-char **ss_split_string (char *file, int line, char *str, int copy)
+char **ss_split_string (const char *file, const int line, char *str, int copy)
 #else
 char **split_string (char *str, int copy)
 #endif
@@ -1964,13 +1964,124 @@ fprintf (stderr, "split_string: splitting [%s] into %d bits\n", str, nbits);
 	return bits;
 }
 /*}}}*/
+/*{{{  char **split_string2 (char *str, char s1, char s2)*/
+/*
+ *	splits a string up, returns an array of pointers into the original string
+ *	the "s1" and "s2" define seperators (use the same if only one)
+ */
+#ifdef TRACE_MEMORY
+char **ss_split_string2 (const char *file, const int line, char *str, char s1, char s2)
+#else
+char **split_string2 (char *str, char s1, char s2)
+#endif
+{
+	char **bits;
+	int nbits;
+	char *ch, *start;
+	int instring = 0;
+
+	/* skip any leading whitespace */
+	for (ch=str; (*ch == s1) || (*ch == s2); ch++);
+	for (nbits=0; *ch != '\0';) {
+		for (; (*ch != '\0') && (instring || ((*ch != s1) && (*ch != s2))); ch++) {
+			if ((*ch == '\"') && (!instring || (ch[-1] != '\\'))) {
+				instring = !instring;
+			}
+		}
+		nbits++;
+		for (; (*ch == s1) || (*ch == s2); ch++);
+	}
+#ifdef TRACE_MEMORY
+	bits = (char **)ss_malloc (file, line, (nbits + 1) * sizeof (char *));
+#else
+	bits = (char **)smalloc ((nbits + 1) * sizeof (char *));
+#endif
+	bits[nbits] = NULL;
+
+	/* skip any leading whitespace */
+	instring = 0;
+	for (ch=str; (*ch == s1) || (*ch == s2); ch++);
+	for (nbits=0; *ch != '\0';) {
+		start = ch;
+		for (; (*ch != '\0') && (instring || ((*ch != s1) && (*ch != s2))); ch++) {
+			if ((*ch == '\"') && (!instring || (ch[-1] != '\\'))) {
+				instring = !instring;
+			}
+		}
+#ifdef TRACE_MEMORY
+		bits[nbits] = ss_string_ndup (file, line, start, (int)(ch - start));
+#else
+		bits[nbits] = string_ndup (start, (int)(ch - start));
+#endif
+		if (*ch != '\0') {
+			/* *ch = '\0'; */
+			ch++;
+		}
+		nbits++;
+		for (; (*ch == s1) || (*ch == s2); ch++);
+	}
+
+	return bits;
+}
+/*}}}*/
+/*{{{  int string_dequote (char *str)*/
+/*
+ *	removes quotes from a string and puts right escaped characters (escaped with backslash)
+ *	modifies the string passed (only ever gets shorter);  if no quotes, will not de-escape characters
+ *	returns 0 on success, non-zero on failure
+ */
+int string_dequote (char *str)
+{
+	int slen;
+	char *ch, *dh;
+
+	if (!str) {
+		return -1;
+	}
+	if (*str != '\"') {
+		/* unquoted string -- leave it alone */
+		return 0;
+	}
+	slen = strlen (str);
+	if ((slen == 1) || (str[slen-1] != '\"')) {
+		/* mangled quotes -- leave it alone */
+		return 0;
+	}
+
+	/* copy back and handle escapes */
+	for (dh=str, ch=str+1, slen -= 2; slen && (*ch != '\0'); ch++, dh++, slen--) {
+		if (*ch == '\\') {
+			ch++;
+			switch (*ch) {
+			default:	/* (assume) simple escaped character */
+				*dh = *ch;
+				break;
+			case 'n':	/* newline character */
+				*dh = '\n';
+				break;
+			case 'r':	/* CR */
+				*dh = '\r';
+				break;
+			case 't':	/* tab */
+				*dh = '\t';
+				break;
+			}
+		} else {
+			*dh = *ch;
+		}
+	}
+	*dh = '\0';
+
+	return 0;
+}
+/*}}}*/
 /*{{{  char *decode_hexstr (char *str, int *slen)*/
 /*
  *	this turns a string of HEX values into a regular string (undoes "mkhexbuf")
  *	returns NULL on error.  stores the resulting string length in `*slen'
  */
 #ifdef TRACE_MEMORY
-char *ss_decode_hexstr (char *file, int line, char *str, int *slen)
+char *ss_decode_hexstr (const char *file, const int line, char *str, int *slen)
 #else
 char *decode_hexstr (char *str, int *slen)
 #endif

@@ -1,9 +1,12 @@
 #
-# occampi_type_rdx.ldef - occam-pi type reductions
+# occampi.ldef - language definitions for occam-pi
 #
 
-.IDENT "occampi_type_rdx"
+.IDENT "occampi"
+.DESC "language definitions for occam-pi"
 .MAINTAINER "Fred Barnes <frmb@kent.ac.uk>"
+
+.SECTION "occampi-type"
 
 .GRULE "opi:chanpush" "N+Sn00C[CHAN]2N-"
 .GRULE "opi:portpush" "N+Sn00C[PORT]2N-"

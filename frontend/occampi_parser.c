@@ -39,6 +39,7 @@
 #include "lexpriv.h"
 #include "tnode.h"
 #include "parser.h"
+#include "langdef.h"
 #include "dfa.h"
 #include "parsepriv.h"
 #include "occampi.h"
@@ -96,6 +97,7 @@ langparser_t occampi_parser = {
 /*{{{  private types/vars*/
 typedef struct {
 	dfanode_t *inode;
+	langdef_t *langdefs;
 } occampi_parse_t;
 
 
@@ -125,6 +127,41 @@ static feunit_t *feunit_set[] = {
 /*}}}*/
 
 
+/*{{{  static occampi_parse_t *occampi_newoccampiparse (void)*/
+/*
+ *	creates a new occampi_parse_t structure
+ */
+static occampi_parse_t *occampi_newoccampiparse (void)
+{
+	occampi_parse_t *opse = (occampi_parse_t *)smalloc (sizeof (occampi_parse_t));
+
+	opse->inode = NULL;
+	opse->langdefs = NULL;
+
+	return opse;
+}
+/*}}}*/
+/*{{{  static void occampi_freeoccampiparse (occampi_parse_t *opse)*/
+/*
+ *	frees an occampi_parse_t structure
+ */
+static void occampi_freeoccampiparse (occampi_parse_t *opse)
+{
+	if (!opse) {
+		nocc_warning ("occampi_freeoccampiparse(): NULL pointer!");
+		return;
+	}
+	if (opse->langdefs) {
+		langdef_freelangdef (opse->langdefs);
+		opse->langdefs = NULL;
+	}
+	/* leave inode alone */
+	opse->inode = NULL;
+	sfree (opse);
+
+	return;
+}
+/*}}}*/
 /*{{{  occampi reductions*/
 /*{{{  void *occampi_nametoken_to_hook (void *ntok)*/
 /*
@@ -556,6 +593,7 @@ static int occampi_post_setup (void)
 	return 0;
 }
 /*}}}*/
+
 /*{{{  void occampi_isetindent (FILE *stream, int indent)*/
 /*
  *	set-indent for debugging output
@@ -568,6 +606,18 @@ void occampi_isetindent (FILE *stream, int indent)
 		fprintf (stream, "    ");
 	}
 	return;
+}
+/*}}}*/
+/*{{{  langdef_t *occampi_getlangdef (void)*/
+/*
+ *	returns the language definition for occam-pi, or NULL if none
+ */
+langdef_t *occampi_getlangdef (void)
+{
+	if (!occampi_priv) {
+		return NULL;
+	}
+	return occampi_priv->langdefs;
 }
 /*}}}*/
 
@@ -617,11 +667,17 @@ static int occampi_parser_init (lexfile_t *lf)
 		nocc_message ("initialising occam-pi parser..");
 	}
 	if (!occampi_priv) {
-		occampi_priv = (occampi_parse_t *)smalloc (sizeof (occampi_parse_t));
+		occampi_priv = occampi_newoccampiparse ();
 		occampi_priv->inode = NULL;
 
 		/* wipe out the "opi" structure */
 		memset ((void *)&opi, 0, sizeof (opi));
+
+		occampi_priv->langdefs = langdef_readdefs ("occampi.ldef");
+		if (!occampi_priv->langdefs) {
+			nocc_error ("occampi_parser_init(): failed to load language definitions!");
+			return 1;
+		}
 
 		/* initialise! */
 		if (occampi_nodes_init ()) {
@@ -665,6 +721,11 @@ static int occampi_parser_init (lexfile_t *lf)
  */
 static void occampi_parser_shutdown (lexfile_t *lf)
 {
+	if (occampi_priv) {
+		occampi_freeoccampiparse (occampi_priv);
+		occampi_priv = NULL;
+	}
+
 	return;
 }
 /*}}}*/
