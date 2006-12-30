@@ -429,6 +429,12 @@ static int mcsp_oper_init_nodes (void)
 	int i;
 	compops_t *cops;
 
+	/*{{{  register reduction functions*/
+	fcnlib_addfcn ("mcsp_opreduce", (void *)mcsp_opreduce, 0, 3);
+	fcnlib_addfcn ("mcsp_folddopreduce", (void *)mcsp_folddopreduce, 0, 3);
+
+	/*}}}*/
+
 	/*{{{  mcsp:dopnode -- SUBEVENT, THEN, SEQ, PAR, ALPHAPAR, ILEAVE, ICHOICE, ECHOICE*/
 	i = -1;
 	tnd = mcsp.node_DOPNODE = tnode_newnodetype ("mcsp:dopnode", &i, 3, 0, 1, TNF_NONE);		/* subnodes: 0 = LHS, 1 = RHS, 2 = type;  hooks: 0 = mcsp_alpha_t */
@@ -469,25 +475,13 @@ static int mcsp_oper_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_oper_reg_reducers (void)*/
-/*
- *	registers reducers for MCSP operator nodes
- *	returns 0 on success, non-zero on failure
- */
-static int mcsp_oper_reg_reducers (void)
-{
-	parser_register_reduce ("Rmcsp:op", mcsp_opreduce, NULL);
-	parser_register_reduce ("Rmcsp:folddop", mcsp_folddopreduce, NULL);
-	return 0;
-}
-/*}}}*/
 
 
 
 /*{{{  mcsp_oper_feunit (feunit_t)*/
 feunit_t mcsp_oper_feunit = {
 	init_nodes: mcsp_oper_init_nodes,
-	reg_reducers: mcsp_oper_reg_reducers,
+	reg_reducers: NULL,
 	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "mcsp-oper"

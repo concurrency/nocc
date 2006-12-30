@@ -51,6 +51,8 @@ extern int extn_initialise (void);
 extern int extn_preloadgrammar (struct TAG_langparser *lang, struct TAG_dfattbl ***ttblptr, int *ttblcur, int *ttblmax);
 extern int extn_postloadgrammar (struct TAG_langparser *lang);
 
+extern void *extn_findsymbol (const char *name);
+
 
 #endif	/* !__EXTN_H */
 

@@ -38,6 +38,7 @@
 #include "lexpriv.h"
 #include "tnode.h"
 #include "parser.h"
+#include "fcnlib.h"
 #include "dfa.h"
 #include "parsepriv.h"
 #include "occampi.h"
@@ -894,6 +895,12 @@ static int occampi_cnode_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
+	/*{{{  register reduction functions*/
+	fcnlib_addfcn ("occampi_reduce_cnode", (void *)occampi_reduce_cnode, 0, 3);
+	fcnlib_addfcn ("occampi_reduce_replcnode", (void *)occampi_reduce_replcnode, 0, 3);
+	fcnlib_addfcn ("occampi_reduce_ileave", (void *)occampi_reduce_ileave, 0, 3);
+
+	/*}}}*/
 	/*{{{  ileaveinfo -- compiler hook*/
 	opi.chook_ileaveinfo = tnode_lookupornewchook ("ileaveinfo");
 	opi.chook_ileaveinfo->chook_dumptree = occampi_ileaveinfo_chook_dumptree;
@@ -970,26 +977,12 @@ static int occampi_cnode_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_cnode_reg_reducers (void)*/
-/*
- *	registers reducers for constructor-process nodes
- *	return 0 on success, non-zero on failure
- */
-static int occampi_cnode_reg_reducers (void)
-{
-	parser_register_reduce ("Roccampi:cnode", occampi_reduce_cnode, NULL);
-	parser_register_reduce ("Roccampi:replcnode", occampi_reduce_replcnode, NULL);
-	parser_register_reduce ("Roccampi:ileave", occampi_reduce_ileave, NULL);
-
-	return 0;
-}
-/*}}}*/
 
 
 /*{{{  occampi_cnode_feunit (feunit_t)*/
 feunit_t occampi_cnode_feunit = {
 	init_nodes: occampi_cnode_init_nodes,
-	reg_reducers: occampi_cnode_reg_reducers,
+	reg_reducers: NULL,
 	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "occampi-cnode"

@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fcnlib.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -982,6 +983,13 @@ static int mcsp_process_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
+	/*{{{  register named functions*/
+	fcnlib_addfcn ("mcsp_nametoken_to_hook", (void *)mcsp_nametoken_to_hook, 1, 1);
+	fcnlib_addfcn ("mcsp_pptoken_to_node", (void *)mcsp_pptoken_to_node, 1, 1);
+	fcnlib_addfcn ("mcsp_integertoken_to_hook", (void *)mcsp_integertoken_to_hook, 1, 1);
+	fcnlib_addfcn ("mcsp_stringtoken_to_hook", (void *)mcsp_stringtoken_to_hook, 1, 1);
+
+	/*}}}*/
 	/*{{{  mcsp:rawnamenode -- NAME*/
 	i = -1;
 	tnd = tnode_newnodetype ("mcsp:rawnamenode", &i, 0, 0, 1, TNF_NONE);				/* hooks: raw-name */
@@ -1103,28 +1111,12 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_process_reg_reducers (void)*/
-/*
- *	registers reducers for MCSP process nodes
- *	returns 0 on success, non-zero on failure
- */
-static int mcsp_process_reg_reducers (void)
-{
-	parser_register_grule ("mcsp:namereduce", parser_decode_grule ("T+St0XC1R-", mcsp_nametoken_to_hook, mcsp.tag_NAME));
-	parser_register_grule ("mcsp:namepush", parser_decode_grule ("T+St0XC1N-", mcsp_nametoken_to_hook, mcsp.tag_NAME));
-	parser_register_grule ("mcsp:ppreduce", parser_decode_grule ("ST0T+XR-", mcsp_pptoken_to_node));
-	parser_register_grule ("mcsp:integerreduce", parser_decode_grule ("ST0T+XC1R-", mcsp_integertoken_to_hook, mcsp.tag_INTEGER));
-	parser_register_grule ("mcsp:stringreduce", parser_decode_grule ("ST0T+XC1R-", mcsp_stringtoken_to_hook, mcsp.tag_STRING));
-
-	return 0;
-}
-/*}}}*/
 
 
 /*{{{  mcsp_process_feunit (feunit_t)*/
 feunit_t mcsp_process_feunit = {
 	init_nodes: mcsp_process_init_nodes,
-	reg_reducers: mcsp_process_reg_reducers,
+	reg_reducers: NULL,
 	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "mcsp-process"

@@ -40,6 +40,7 @@
 #include "tnode.h"
 #include "constprop.h"
 #include "parser.h"
+#include "fcnlib.h"
 #include "dfa.h"
 #include "parsepriv.h"
 #include "occampi.h"
@@ -420,6 +421,11 @@ static int occampi_lit_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
+	/*{{{  register reduction functions*/
+	fcnlib_addfcn ("occampi_booltrue_hook", occampi_booltrue_hook, 1, 1);
+	fcnlib_addfcn ("occampi_boolfalse_hook", occampi_boolfalse_hook, 1, 1);
+
+	/*}}}*/
 	/*{{{  occampi:litnode -- LITBOOL, LITBYTE, LITCHAR, LITINT, LITREAL, LITARRAY*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:litnode", &i, 1, 0, 1, TNF_NONE);
@@ -455,21 +461,6 @@ static int occampi_lit_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_lit_reg_reducers (void)*/
-/*
- *	registers reducers for literal nodes
- */
-static int occampi_lit_reg_reducers (void)
-{
-	parser_register_grule ("opi:integerreduce", parser_decode_grule ("T+St0X0VC2R-", occampi_integertoken_to_hook, opi.tag_LITINT));
-	parser_register_grule ("opi:realreduce", parser_decode_grule ("0T+St0XC2R-", occampi_realtoken_to_hook, opi.tag_LITREAL));
-	parser_register_grule ("opi:stringreduce", parser_decode_grule ("T+St0X0C0C2VC2R-", occampi_stringtoken_to_hook, opi.tag_BYTE, opi.tag_ARRAY, opi.tag_LITARRAY));
-	parser_register_grule ("opi:trueboolreduce", parser_decode_grule ("00XC2R-", occampi_booltrue_hook, opi.tag_LITBOOL));
-	parser_register_grule ("opi:falseboolreduce", parser_decode_grule ("00XC2R-", occampi_boolfalse_hook, opi.tag_LITBOOL));
-
-	return 0;
-}
-/*}}}*/
 
 
 /*{{{  tnode_t *occampi_makelitbool (lexfile_t *lf, const int istrue)*/
@@ -484,7 +475,7 @@ tnode_t *occampi_makelitbool (lexfile_t *lf, const int istrue)
 /*{{{  occampi_lit_feunit (feunit_t)*/
 feunit_t occampi_lit_feunit = {
 	init_nodes: occampi_lit_init_nodes,
-	reg_reducers: occampi_lit_reg_reducers,
+	reg_reducers: NULL,
 	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "occampi-lit"

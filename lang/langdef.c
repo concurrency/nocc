@@ -38,6 +38,8 @@
 #include "lexer.h"
 #include "tnode.h"
 #include "parser.h"
+#include "fcnlib.h"
+#include "extn.h"
 #include "dfa.h"
 #include "langdef.h"
 #include "parsepriv.h"
@@ -78,6 +80,7 @@ static void ldef_freelangdefent (langdefent_t *lde)
 	case LDE_INVALID:
 		break;
 	case LDE_GRL:
+	case LDE_RFUNC:
 		if (lde->u.redex.name) {
 			sfree (lde->u.redex.name);
 			lde->u.redex.name = NULL;
@@ -339,6 +342,40 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 		lfe->type = LDE_GRL;
 		lfe->u.redex.name = string_dup (bits[1]);
 		lfe->u.redex.desc = dstr;
+
+		dynarray_add (lsec->ents, lfe);
+
+		/*}}}*/
+	} else if (!strcmp (bits[0], ".RFUNC")) {
+		/*{{{  .RFUNC -- reduction function (must be registered!)*/
+		langdefsec_t *lsec = ldef->cursec;
+		langdefent_t *lfe = NULL;
+
+		if (nbits < 3) {
+			goto out_malformed;
+		}
+
+		string_dequote (bits[1]);
+		string_dequote (bits[2]);
+
+		if (!lsec) {
+			nocc_warning ("%s outside section at %s:%d, creating omnipotent section", bits[0], rfname, lineno);
+
+			lsec = ldef_newlangdefsec ();
+			lsec->ident = string_dup ("");
+			lsec->ldef = ldef;
+
+			dynarray_add (ldef->sections, lsec);
+			ldef->cursec = lsec;
+		}
+
+		lfe = ldef_newlangdefent ();
+		lfe->ldef = ldef;
+		lfe->lineno = lineno;
+
+		lfe->type = LDE_RFUNC;
+		lfe->u.redex.name = string_dup (bits[1]);
+		lfe->u.redex.desc = string_dup (bits[2]);
 
 		dynarray_add (lsec->ents, lfe);
 
@@ -633,6 +670,27 @@ int langdef_reg_reducers (langdefsec_t *lsec)
 					rval = -1;
 				} else {
 					parser_register_grule (lde->u.redex.name, rule);
+				}
+			}
+			break;
+		case LDE_RFUNC:
+			{
+				void *sym;
+
+				/* find the named symbol */
+				sym = fcnlib_findfunction (lde->u.redex.desc);
+				if (!sym) {
+					sym = extn_findsymbol (lde->u.redex.desc);
+					if (!sym) {
+						nocc_error ("invalid reduction function [%s] in language definition for [%s (%s)], line %d", lde->u.redex.desc, lsec->ldef->ident, lsec->ident, lde->lineno);
+						if (lsec->ldef->maintainer) {
+							nocc_message ("maintainer for [%s] is: %s", lsec->ldef->ident, lsec->ldef->maintainer);
+						}
+						rval = -1;
+					}
+				}
+				if (sym) {
+					parser_register_reduce (lde->u.redex.name, sym, NULL);		/* FIXME: extra argument? */
 				}
 			}
 			break;

@@ -57,6 +57,8 @@
 .SECTION "mcsp-oper" # {{{: operators
 
 .GRULE	"mcsp:nullechoicereduce" "ST0T+@t0000C[MCSPECHOICE]4R-"
+.RFUNC	"Rmcsp:op" "mcsp_opreduce"
+.RFUNC	"Rmcsp:folddop" "mcsp_folddopreduce"
 
 .TABLE	"mcsp:dop ::= [ 0 +@@-> 1 ] [ 0 +@@; 1 ] [ 0 +@@|| 1 ] [ 0 +@@||| 1 ] [ 0 +@@|~| 1 ] [ 0 +@@[ 3 ] [ 1 Newline 1 ] [ 1 -* 2 ] [ 2 {Rmcsp:op} -* ]"
 	"[ 3 @@] 4 ] [ 4 Newline 4 ] [ 4 -* 5 ] [ 5 {<mcsp:nullechoicereduce>} -* ]"
@@ -66,6 +68,11 @@
 .SECTION "mcsp-process" # {{{: MCSP process handling
 
 .GRULE	"mcsp:subevent" "SN0N+N+V00C[MCSPSUBEVENT]4R-"
+.GRULE	"mcsp:namereduce" "T+St0X[mcsp_nametoken_to_hook]C[MCSPNAME]1R-"
+.GRULE	"mcsp:namepush" "T+St0X[mcsp_nametoken_to_hook]C[MCSPNAME]1N-"
+.GRULE	"mcsp:ppreduce" "ST0T+X[mcsp_pptoken_to_node]R-"
+.GRULE	"mcsp:integerreduce" "ST0T+X[mcsp_integertoken_to_hook]C[MCSPINTEGER]1R-"
+.GRULE	"mcsp:stringreduce" "ST0T+X[mcsp_stringtoken_to_hook]C[MCSPSTRING]1R-"
 
 .TABLE	"mcsp:name ::= [ 0 +Name 1 ] [ 1 {<mcsp:namereduce>} -* ]"
 .TABLE	"mcsp:string ::= [ 0 +String 1 ] [ 1 {<mcsp:stringreduce>} -* ]"

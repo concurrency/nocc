@@ -269,6 +269,44 @@ int extn_postloadgrammar (langparser_t *lang)
 }
 /*}}}*/
 
+/*{{{  void *extn_findsymbol (const char *name)*/
+/*
+ *	used to locate a particular symbol within the compiler at run-time
+ *	returns address on success, NULL on failure
+ */
+void *extn_findsymbol (const char *name)
+{
+	int i;
+	void *sym;
+	char *err = dlerror ();
+
+	/* try the compiler whole first */
+	sym = dlsym (RTLD_DEFAULT, name);
+	err = dlerror ();
+	if (!err && sym) {
+		/* no error, and found the symbol */
+		return sym;
+	}
+
+	for (i=0; i<DA_CUR (extensions); i++) {
+		extn_t *exn = DA_NTHITEM (extensions, i);
+
+		if (exn) {
+			sym = dlsym (exn->epriv, name);
+			err = dlerror ();
+
+			if (!err && sym) {
+				/* found it */
+				return sym;
+			}
+		}
+	}
+
+	/* not found */
+	return NULL;
+}
+/*}}}*/
+
 #else	/* !defined(LIBDL) */
 
 /*{{{  int extn_init (void)*/
@@ -328,6 +366,16 @@ int extn_preloadgrammar (langparser_t *lang, dfattbl_t ***ttblptr, int *ttblcur,
 int extn_postloadgrammar (langparser_t *lang)
 {
 	return 0;
+}
+/*}}}*/
+/*{{{  void *extn_findsymbol (const char *name)*/
+/*
+ *	dummy findsymol
+ *	returns address on success, NULL on failure
+ */
+void *extn_findsymbol (const char *name)
+{
+	return NULL;
 }
 /*}}}*/
 

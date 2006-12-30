@@ -36,6 +36,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "opts.h"
+#include "fcnlib.h"
 #include "crypto.h"
 #include "keywords.h"
 #include "symbols.h"
@@ -1015,6 +1016,7 @@ int main (int argc, char **argv)
 	nocc_message ("DEBUG: compiler initialisation");
 #endif
 	opts_init ();
+	fcnlib_init ();
 	keywords_init ();
 	transinstr_init ();
 	xml_init ();

@@ -38,6 +38,7 @@
 #include "lexpriv.h"
 #include "tnode.h"
 #include "parser.h"
+#include "fcnlib.h"
 #include "dfa.h"
 #include "parsepriv.h"
 #include "occampi.h"
@@ -431,6 +432,10 @@ static int occampi_asm_init_nodes (void)
 	compops_t *cops;
 	int i;
 
+	/*{{{  register reduction functions*/
+	fcnlib_addfcn ("occampi_asmop_reduce", (void *)occampi_asmop_reduce, 0, 3);
+
+	/*}}}*/
 	/*{{{  occampi:asmnode -- ASM*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:asmnode", &i, 1, 0, 0, TNF_NONE);
@@ -462,19 +467,6 @@ static int occampi_asm_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_asm_reg_reducers (void)*/
-/*
- *	registers reductions for occam-pi inline assembler nodes
- *	returns 0 on success, non-zero on error
- */
-static int occampi_asm_reg_reducers (void)
-{
-	parser_register_reduce ("Roccampi:asmop", occampi_asmop_reduce, NULL);
-
-	parser_register_grule ("opi:asmblock", parser_decode_grule ("N+X*Sn0C1R-", parser_inlistfixup, opi.tag_ASM));
-	return 0;
-}
-/*}}}*/
 /*{{{  static int occampi_asm_post_setup (void)*/
 /*
  *	does post-setup for occam-pi inline assembly nodes
@@ -490,7 +482,7 @@ static int occampi_asm_post_setup (void)
 /*{{{  occampi_asm_feunit (feunit_t)*/
 feunit_t occampi_asm_feunit = {
 	init_nodes: occampi_asm_init_nodes,
-	reg_reducers: occampi_asm_reg_reducers,
+	reg_reducers: NULL,
 	init_dfatrans: NULL,
 	post_setup: occampi_asm_post_setup,
 	ident: "occampi-asm"

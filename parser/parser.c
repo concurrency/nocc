@@ -21,6 +21,7 @@
 #include "config.h"
 #endif
 
+/*{{{  includes*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,25 +40,30 @@
 #include "parser.h"
 #include "parsepriv.h"
 #include "dfa.h"
+#include "extn.h"
 #include "names.h"
+#include "fcnlib.h"
 
-
-/*{{{  private stuff*/
+/*}}}*/
+/*{{{  private types*/
 typedef struct TAG_reducer {
 	char *name;
 	void (*reduce)(dfastate_t *, parsepriv_t *, void *);
 	void *rarg;
 } reducer_t;
 
-STATICSTRINGHASH (reducer_t *, reducers, 6);
-STATICDYNARRAY (reducer_t *, areducers);
-
-static ntdef_t *tag_LIST;
-
 typedef struct TAG_ngrule {
 	char *name;
 	void *grule;
 } ngrule_t;
+
+/*}}}*/
+/*{{{  private data*/
+
+STATICSTRINGHASH (reducer_t *, reducers, 6);
+STATICDYNARRAY (reducer_t *, areducers);
+
+static ntdef_t *tag_LIST;
 
 STATICSTRINGHASH (ngrule_t *, ngrules, 6);
 STATICDYNARRAY (ngrule_t *, angrules);
@@ -78,7 +84,9 @@ int parser_init (void)
 
 	tag_LIST = tnode_lookupnodetag ("list");
 
+	fcnlib_addfcn ("parser_inlistreduce", (void *)parser_inlistreduce, 0, 3);
 	parser_register_reduce ("Rinlist", parser_inlistreduce, NULL);
+	fcnlib_addfcn ("parser_inlistfixup", (void *)parser_inlistfixup, 1, 1);
 
 	stringhash_init (ngrules);
 	dynarray_init (angrules);
@@ -1097,18 +1105,68 @@ void *parser_decode_grule (const char *rule, ...)
 			/*}}}*/
 			/*{{{  X -- user-supplied operations*/
 		case 'X':
-			if (xrule[1] == '*') {
-				xrule++;
-				userparams[uplen++] = (void *)va_arg (ap, void (*)(void **));
+			if (xrule[1] == '[') {
+				/* name of symbol provided */
+				char *tname;
+				void *sym;
+
+				xrule+=2;
+				for (tname = xrule; (*xrule != ']') && (*xrule != '\0'); xrule++);
+				tname = string_ndup (tname, (int)(xrule - tname));
+
+				sym = fcnlib_findfunction (tname);
+				if (!sym) {
+					sym = extn_findsymbol (tname);
+					if (!sym) {
+						nocc_error ("parser_decode_grule(): unknown function [%s]", tname);
+						sfree (tname);
+						return NULL;
+					}
+				}
+				sfree (tname);
+				if (xrule[1] == '*') {
+					xrule++;
+				}
+				userparams[uplen++] = sym;
 			} else {
-				userparams[uplen++] = (void *)va_arg (ap, void *(*)(void *));
+				if (xrule[1] == '*') {
+					xrule++;
+					userparams[uplen++] = (void *)va_arg (ap, void (*)(void **));
+				} else {
+					userparams[uplen++] = (void *)va_arg (ap, void *(*)(void *));
+				}
 			}
 			ilen += 2;
 			break;
 			/*}}}*/
 			/*{{{  Y -- user-supplied whole-stack operation*/
 		case 'Y':
-			userparams[uplen++] = (void *)va_arg (ap, void (*)(void **, int));
+			if (xrule[1] == '[') {
+				/* name of symbol provided */
+				char *tname;
+				void *sym;
+
+				xrule+=2;
+				for (tname = xrule; (*xrule != ']') && (*xrule != '\0'); xrule++);
+				tname = string_ndup (tname, (int)(xrule - tname));
+
+				sym = fcnlib_findfunction (tname);
+				if (!sym) {
+					sym = extn_findsymbol (tname);
+					if (!sym) {
+						nocc_error ("parser_decode_grule(): unknown function [%s]", tname);
+						sfree (tname);
+						return NULL;
+					}
+				}
+				sfree (tname);
+				if (xrule[1] == '*') {
+					xrule++;
+				}
+				userparams[uplen++] = sym;
+			} else {
+				userparams[uplen++] = (void *)va_arg (ap, void (*)(void **, int));
+			}
 			ilen += 2;
 			break;
 			/*}}}*/
@@ -1288,6 +1346,11 @@ void *parser_decode_grule (const char *rule, ...)
 			/*}}}*/
 			/*{{{  X -- user-supplied operations*/
 		case 'X':
+			if (xrule[1] == '[') {
+				/* name of a symbol provided */
+				for (xrule+=2; (*xrule != ']') && (*xrule != '\0'); xrule++);
+			}
+
 			if (xrule[1] == '*') {
 				xrule++;
 				icode[i++] = ICDE_MODPTR;

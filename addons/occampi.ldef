@@ -12,6 +12,7 @@
 
 .SECTION "occampi" # {{{: fairly general occam-pi reductions
 
+.RFUNC	"Roccampi:inlist" "occampi_inlistreduce"
 .GRULE	"opi:nullreduce" "N+R-"
 .GRULE	"opi:nullpush" "0N-"
 .GRULE	"opi:nullset" "0R-"
@@ -67,6 +68,9 @@
 # }}}
 .SECTION "occampi-asm" # {{{: inline transputer assembly
 
+.RFUNC	"Roccampi:asmop" "occampi_asmop_reduce"
+.GRULE	"opi:asmblock" "N+X[parser_inlistfixup]*Sn0C[ASM]1R-"
+
 .TABLE	"occampi:asmop ::= [ 0 +* 1 ] [ 1 occampi:exprcommalist 3 ] [ 1 -* 2 ] [ 2 {<opi:nullpush>} -* 3 ] [ 3 {Roccampi:asmop} -* ]"
 .TABLE	"occampi:asmoplist ::= [ 0 -Outdent 5 ] [ 0 Newline 4 ] [ 0 -* 1 ] [ 1 occampi:asmop 2 ] [ 2 {<opi:nullreduce>} -* 3 ] [ 3 {Rinlist} Newline 0 ] [ 4 -* 0 ] [ 5 -* ]"
 .TABLE	"occampi:asmblock ::= [ 0 @ASM 1 ] [ 1 Newline 2 ] [ 2 Indent 3 ] [ 3 occampi:asmoplist 4 ] [ 4 Outdent 5 ] [ 5 {<opi:asmblock>} -* ]"
@@ -74,6 +78,9 @@
 # }}}
 .SECTION "occampi-cnode" # {{{: constructor processes
 
+.RFUNC	"Roccampi:cnode" "occampi_reduce_cnode"
+.RFUNC	"Roccampi:replcnode" "occampi_reduce_replcnode"
+.RFUNC	"Roccampi:ileave" "occampi_reduce_ileave"
 .GRULE	"opi:shortif" "T+@tSN0N+0C[SHORTIF]2R-"
 .GRULE	"opi:while" "SN0N+0C[WHILE]2R-"
 .GRULE	"opi:ifstart" "ST0T+@t000C[IF]3R-"
@@ -226,6 +233,13 @@
 
 # }}}
 .SECTION "occampi-lit" # {{{: literals
+
+.GRULE	"opi:integerreduce" "T+St0X[occampi_integertoken_to_hook]0VC[LITINT]2R-"
+.GRULE	"opi:realreduce" "0T+St0X[occampi_realtoken_to_hook]C[LITREAL]2R-"
+.GRULE	"opi:stringreduce" "T+St0X[occampi_stringtoken_to_hook]0C[BYTE]0C[ARRAY]2VC[LITARRAY]2R-"
+.GRULE	"opi:trueboolreduce" "00X[occampi_booltrue_hook]C[LITBOOL]2R-"
+.GRULE	"opi:falseboolreduce" "00X[occampi_boolfalse_hook]C[LITBOOL]2R-"
+
 
 .TABLE	"occampi:litbool ::= [ 0 @TRUE 1 ] [ 0 @FALSE 2 ] [ 1 {<opi:trueboolreduce>} -* 3 ] [ 2 {<opi:falseboolreduce>} -* 3 ] [ 3 -* ]"
 

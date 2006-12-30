@@ -39,6 +39,7 @@
 #include "lexpriv.h"
 #include "tnode.h"
 #include "parser.h"
+#include "fcnlib.h"
 #include "langdef.h"
 #include "dfa.h"
 #include "parsepriv.h"
@@ -316,8 +317,6 @@ static int occampi_register_reducers (void)
 		return -1;
 	}
 
-	parser_register_reduce ("Roccampi:inlist", occampi_inlistreduce, NULL);
-
 	/*{{{  setup generic reductions*/
 	{
 		langdefsec_t *lsec = langdef_findsection (ldef, "occampi");
@@ -409,6 +408,26 @@ static void occampi_declorprocstart_dfaeh_stuck (dfanode_t *dfanode, token_t *to
 /*}}}*/
 
 
+/*{{{  static void occampi_nodes_init (void)*/
+/*
+ *	initialises the occam-pi node-types and node-tags
+ *	returns 0 on success, non-zero on error
+ */
+static int occampi_nodes_init (void)
+{
+	int i;
+
+	for (i=0; feunit_set[i]; i++) {
+		feunit_t *thisunit = feunit_set[i];
+
+		if (thisunit->init_nodes && thisunit->init_nodes ()) {
+			return -1;
+		}
+	}
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_dfas_init (void)*/
 /*
  *	initialises the occam-pi DFA structures
@@ -610,26 +629,6 @@ static int occampi_dfas_init (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static void occampi_nodes_init (void)*/
-/*
- *	initialises the occam-pi node-types and node-tags
- *	returns 0 on success, non-zero on error
- */
-static int occampi_nodes_init (void)
-{
-	int i;
-
-	for (i=0; feunit_set[i]; i++) {
-		feunit_t *thisunit = feunit_set[i];
-
-		if (thisunit->init_nodes && thisunit->init_nodes ()) {
-			return -1;
-		}
-	}
-
-	return 0;
-}
-/*}}}*/
 /*{{{  static int occampi_post_setup (void)*/
 /*
  *	calls any post-setup routines for the parser
@@ -740,6 +739,12 @@ static int occampi_parser_init (lexfile_t *lf)
 			nocc_error ("occampi_parser_init(): failed to load language definitions!");
 			return 1;
 		}
+
+		/* register some general reduction functions */
+		fcnlib_addfcn ("occampi_inlistreduce", (void *)occampi_inlistreduce, 0, 3);
+		fcnlib_addfcn ("occampi_integertoken_to_hook", (void *)occampi_integertoken_to_hook, 1, 1);
+		fcnlib_addfcn ("occampi_realtoken_to_hook", (void *)occampi_realtoken_to_hook, 1, 1);
+		fcnlib_addfcn ("occampi_stringtoken_to_hook", (void *)occampi_stringtoken_to_hook, 1, 1);
 
 		/* initialise! */
 		if (occampi_nodes_init ()) {

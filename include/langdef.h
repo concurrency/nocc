@@ -30,8 +30,9 @@ struct TAG_langdef;
 typedef enum ENUM_langdefent {
 	LDE_INVALID = 0,
 	LDE_GRL = 1,
-	LDE_DFATRANS = 2,
-	LDE_DFABNF = 3
+	LDE_RFUNC = 2,
+	LDE_DFATRANS = 3,
+	LDE_DFABNF = 4
 } langdefent_e;
 
 typedef struct TAG_langdefent {
@@ -42,7 +43,7 @@ typedef struct TAG_langdefent {
 	union {
 		struct {
 			char *name;		/* rule name */
-			char *desc;		/* reduction specification (GRL) */
+			char *desc;		/* reduction specification (GRL) or reduction name */
 		} redex;
 		char *dfarule;			/* for DFATRANS and DFABNF */
 	} u;
