@@ -470,21 +470,6 @@ static int occampi_lit_reg_reducers (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static dfattbl_t **occampi_lit_init_dfatrans (int *ntrans)*/
-/*
- *	creates and returns DFA transition tables for literal nodes
- */
-static dfattbl_t **occampi_lit_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:litbool ::= [ 0 @TRUE 1 ] [ 0 @FALSE 2 ] [ 1 {<opi:trueboolreduce>} -* 3 ] [ 2 {<opi:falseboolreduce>} -* 3 ] [ 3 -* ]"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
-}
-/*}}}*/
 
 
 /*{{{  tnode_t *occampi_makelitbool (lexfile_t *lf, const int istrue)*/
@@ -500,7 +485,7 @@ tnode_t *occampi_makelitbool (lexfile_t *lf, const int istrue)
 feunit_t occampi_lit_feunit = {
 	init_nodes: occampi_lit_init_nodes,
 	reg_reducers: occampi_lit_reg_reducers,
-	init_dfatrans: occampi_lit_init_dfatrans,
+	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "occampi-lit"
 };

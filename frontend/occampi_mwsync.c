@@ -740,38 +740,6 @@ static int occampi_mwsync_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_mwsync_reg_reducers (void)*/
-/*
- *	registers reductions for occam-pi multi-way synchronisation reductions
- *	returns 0 on success, non-zero on error
- */
-static int occampi_mwsync_reg_reducers (void)
-{
-	parser_register_grule ("opi:barrierreduce", parser_decode_grule ("ST0T+@tC0R-", opi.tag_BARRIER));
-	parser_register_grule ("opi:syncreduce", parser_decode_grule ("ST0T+@tN+00C3R-", opi.tag_SYNC));
-	parser_register_grule ("opi:syncguardreduce", parser_decode_grule ("ST0T+@tN+00C3R-", opi.tag_SYNCGUARD));
-
-	return 0;
-}
-/*}}}*/
-/*{{{  static dfattbl_t **occampi_mwsync_init_dfatrans (int *ntrans)*/
-/*
- *	initialises and returns DFA transition tables for occam-pi multi-way synchronisations
- */
-static dfattbl_t **occampi_mwsync_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:primtype +:= [ 0 +@BARRIER 1 ] [ 1 {<opi:barrierreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:declorprocstart +:= [ 0 +@SYNC 1 ] [ 1 occampi:operand 2 ] [ 2 {<opi:syncreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:altguard +:= [ 0 +@SYNC 1 ] [ 1 occampi:operand 2 ] [ 2 {<opi:syncguardreduce>} -* ]"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
-}
-/*}}}*/
 /*{{{  static int occampi_mwsync_post_setup (void)*/
 /*
  *	does post-setup for occam-pi multi-way synchronisation nodes
@@ -788,8 +756,8 @@ static int occampi_mwsync_post_setup (void)
 /*{{{  occampi_mwsync_feunit (feunit_t)*/
 feunit_t occampi_mwsync_feunit = {
 	init_nodes: occampi_mwsync_init_nodes,
-	reg_reducers: occampi_mwsync_reg_reducers,
-	init_dfatrans: occampi_mwsync_init_dfatrans,
+	reg_reducers: NULL,
+	init_dfatrans: NULL,
 	post_setup: occampi_mwsync_post_setup,
 	ident: "occampi-mwsync"
 };

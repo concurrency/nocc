@@ -533,50 +533,6 @@ static int occampi_mobiles_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_mobiles_reg_reducers (void)*/
-/*
- *	registers reductions for occam-pi mobile reductions
- *	returns 0 on success, non-zero on error
- */
-static int occampi_mobiles_reg_reducers (void)
-{
-	parser_register_grule ("opi:mobilise", parser_decode_grule ("SN0N+C1N-", opi.tag_MOBILE));
-	parser_register_grule ("opi:dynmobilearray", parser_decode_grule ("SN0N+C1N-", opi.tag_DYNMOBARRAY));
-	parser_register_grule ("opi:dynmobarrayallocreduce", parser_decode_grule ("SN0N+N+0C3R-", opi.tag_NEWDYNMOBARRAY));
-
-	return 0;
-}
-/*}}}*/
-/*{{{  static dfattbl_t **occampi_mobiles_init_dfatrans (int *ntrans)*/
-/*
- *	initialises and returns DFA transition tables for occam-pi mobiles
- */
-static dfattbl_t **occampi_mobiles_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobileprocdecl ::= [ 0 @MOBILE 1 ] [ 1 @PROC 2 ] [ 2 occampi:name 3 ] [ 3 {<opi:nullreduce>} -* ]"));			/* FIXME! */
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobiletype ::= [ 0 @MOBILE 1 ] [ 1 @@[ 4 ] [ 1 occampi:primtype 2 ] [ 1 occampi:name 2 ] [ 2 {<opi:mobilise>} -* 3 ] " \
-				"[ 3 {<opi:nullreduce>} -* ] " \
-				"[ 4 @@] 5 ] [ 5 occampi:type 6 ] [ 6 {<opi:dynmobilearray>} -* 3 ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobilevardecl ::= [ 0 occampi:mobiletype 1 ] " \
-				"[ 1 occampi:namelist 2 ] [ 2 @@: 3 ] [ 3 {<opi:declreduce>} -* ] "));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobiledecl ::= [ 0 +@MOBILE 1 ] [ 1 +@PROC 2 ] [ 1 -* 3 ] " \
-				"[ 2 {<parser:rewindtokens>} -* <occampi:mobileprocdecl> ] " \
-				"[ 3 {<parser:rewindtokens>} -* <occampi:mobilevardecl> ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:dynmobarrayallocexpr ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 -@@[ 5 ] [ 3 -* 4 ] [ 4 occampi:type 6 ] " \
-				"[ 5 occampi:dynmobarrayallocexpr 6 ] [ 6 {<opi:dynmobarrayallocreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:mobileallocexpr ::= [ 0 @MOBILE 1 ] [ 1 -@@[ <occampi:dynmobarrayallocexpr> ]"));
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:type +:= [ 0 -@MOBILE 1 ] [ 1 occampi:mobiletype 2 ] [ 2 {<opi:nullreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:expr +:= [ 0 -@MOBILE 1 ] [ 1 occampi:mobileallocexpr 2 ] [ 2 {<opi:nullreduce>} -* ]"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
-}
-/*}}}*/
 /*{{{  static int occampi_mobiles_post_setup (void)*/
 /*
  *	does post-setup for occam-pi mobile nodes
@@ -592,8 +548,8 @@ static int occampi_mobiles_post_setup (void)
 /*{{{  occampi_mobiles_feunit (feunit_t)*/
 feunit_t occampi_mobiles_feunit = {
 	init_nodes: occampi_mobiles_init_nodes,
-	reg_reducers: occampi_mobiles_reg_reducers,
-	init_dfatrans: occampi_mobiles_init_dfatrans,
+	reg_reducers: NULL,
+	init_dfatrans: NULL,
 	post_setup: occampi_mobiles_post_setup,
 	ident: "occampi-mobiles"
 };

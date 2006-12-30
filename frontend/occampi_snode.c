@@ -599,53 +599,13 @@ static int occampi_snode_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_snode_reg_reducers (void)*/
-/*
- *	registers reducers for structured process nodes
- */
-static int occampi_snode_reg_reducers (void)
-{
-	parser_register_grule ("opi:altsnode", parser_decode_grule ("ST0T+@t000C3R-", opi.tag_ALT));
-	parser_register_grule ("opi:casenode", parser_decode_grule ("ST0T+@t0N+V0C3R-", opi.tag_CASE));
-	parser_register_grule ("opi:ifcond", parser_decode_grule ("SN0N+0C2R-", opi.tag_CONDITIONAL));
-	parser_register_grule ("opi:skipguard", parser_decode_grule ("ST0T+@t00N+C3R-", opi.tag_SKIPGUARD));
-	parser_register_grule ("opi:inputguard", parser_decode_grule ("SN0N+0N+C3R-", opi.tag_INPUTGUARD));
-	parser_register_grule ("opi:timerguard", parser_decode_grule ("SN0N+0N+C3R-", opi.tag_TIMERGUARD));
-
-	return 0;
-}
-/*}}}*/
-/*{{{  static dfattbl_t **occampi_snode_init_dfatrans (int *ntrans)*/
-/*
- *	creates and returns DFA transition tables for structured process nodes
- */
-static dfattbl_t **occampi_snode_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:snode +:= [ 0 +@ALT 1 ] [ 0 +@CASE 3 ] [ 1 -Newline 2 ] [ 2 {<opi:altsnode>} -* ] [ 3 occampi:expr 4 ] [ 4 -Newline 5 ] [ 5 {<opi:casenode>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:ifcond ::= [ 0 occampi:expr 1 ] [ 1 -Newline 2 ] [ 2 {<opi:ifcond>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:subaltinputguard ::= [ 0 occampi:name 1 ] [ 1 -* <occampi:namestartname> ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:altinputguard ::= [ 0 occampi:subaltinputguard 1 ] [ 1 {<opi:inputguard>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:altguard ::= [ 0 +@SKIP 1 ] [ 0 +Name 12 ] [ 0 -* 3 ] [ 1 {<opi:nullpush>} -* 2 ] [ 2 {<opi:skipguard>} -* ] " \
-				"[ 3 +@@? 4 ] [ 3 @@& 5 ] [ 4 {<opi:nullpush>} -* 8 ] " \
-				"[ 5 +@SKIP 6 ] [ 5 occampi:expr 7 ] [ 6 {<opi:skipguard>} -* ] " \
-				"[ 7 +@@? 8 ] [ 8 @AFTER 9 ] [ 9 occampi:expr 10 ] [ 10 {<opi:timerguard>} -* ] " \
-				"[ 11 occampi:expr 3 ] [ 12 +@@? 13 ] [ 12 -* 16 ] [ 13 +Name 14 ] [ 13 -* 16 ] [ 14 +@@: 15 ] [ 14 +@@, 15 ] [ 14 -* 16 ] " \
-				"[ 15 {<parser:rewindtokens>} -* <occampi:vardecl> ] [ 16 {<parser:rewindtokens>} -* 17 ] [ 17 {<opi:nullpush>} -* <occampi:altinputguard> ]"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
-}
-/*}}}*/
 
 
 /*{{{  occampi_snode_feunit (feunit_t)*/
 feunit_t occampi_snode_feunit = {
 	init_nodes: occampi_snode_init_nodes,
-	reg_reducers: occampi_snode_reg_reducers,
-	init_dfatrans: occampi_snode_init_dfatrans,
+	reg_reducers: NULL,
+	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "occampi-snode"
 };

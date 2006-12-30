@@ -780,16 +780,6 @@ static int occampi_type_reg_reducers (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static dfattbl_t **occampi_type_init_dfatrans (int *ntrans)*/
-/*
- *	creates and returns DFA transition tables for occam-pi type nodes
- */
-static dfattbl_t **occampi_type_init_dfatrans (int *ntrans)
-{
-	*ntrans = 0;
-	return NULL;
-}
-/*}}}*/
 /*{{{  static int occampi_type_post_setup (void)*/
 /*
  *	does post-setup for type nodes
@@ -810,7 +800,7 @@ static int occampi_type_post_setup (void)
 feunit_t occampi_type_feunit = {
 	init_nodes: occampi_type_init_nodes,
 	reg_reducers: occampi_type_reg_reducers,
-	init_dfatrans: occampi_type_init_dfatrans,
+	init_dfatrans: NULL,
 	post_setup: occampi_type_post_setup,
 	ident: "occampi-type"
 };

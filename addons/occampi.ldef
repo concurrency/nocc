@@ -224,27 +224,82 @@
 
 
 # }}}
-.SECTION "occampi-" # {{{: 
+.SECTION "occampi-lit" # {{{: literals
+
+.TABLE	"occampi:litbool ::= [ 0 @TRUE 1 ] [ 0 @FALSE 2 ] [ 1 {<opi:trueboolreduce>} -* 3 ] [ 2 {<opi:falseboolreduce>} -* 3 ] [ 3 -* ]"
 
 
 # }}}
-.SECTION "occampi-" # {{{: 
+.SECTION "occampi-mobiles" # {{{: 
+
+.GRULE	"opi:mobilise" "SN0N+C[MOBILE]1N-"
+.GRULE	"opi:dynmobilearray" "SN0N+C[DYNMOBARRAY]1N-"
+.GRULE	"opi:dynmobarrayallocreduce" "SN0N+N+0C[NEWDYNMOBARRAY]3R-"
+
+.TABLE	"occampi:mobileprocdecl ::= [ 0 @MOBILE 1 ] [ 1 @PROC 2 ] [ 2 occampi:name 3 ] [ 3 {<opi:nullreduce>} -* ]"		# FIXME!
+.TABLE	"occampi:mobiletype ::= [ 0 @MOBILE 1 ] [ 1 @@[ 4 ] [ 1 occampi:primtype 2 ] [ 1 occampi:name 2 ] [ 2 {<opi:mobilise>} -* 3 ]"
+	"[ 3 {<opi:nullreduce>} -* ]"
+	"[ 4 @@] 5 ] [ 5 occampi:type 6 ] [ 6 {<opi:dynmobilearray>} -* 3 ]"
+.TABLE	"occampi:mobilevardecl ::= [ 0 occampi:mobiletype 1 ]"
+	"[ 1 occampi:namelist 2 ] [ 2 @@: 3 ] [ 3 {<opi:declreduce>} -* ]"
+.TABLE	"occampi:mobiledecl ::= [ 0 +@MOBILE 1 ] [ 1 +@PROC 2 ] [ 1 -* 3 ]"
+	"[ 2 {<parser:rewindtokens>} -* <occampi:mobileprocdecl> ]"
+	"[ 3 {<parser:rewindtokens>} -* <occampi:mobilevardecl> ]"
+.TABLE	"occampi:dynmobarrayallocexpr ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 -@@[ 5 ] [ 3 -* 4 ] [ 4 occampi:type 6 ] "
+	"[ 5 occampi:dynmobarrayallocexpr 6 ] [ 6 {<opi:dynmobarrayallocreduce>} -* ]"
+.TABLE	"occampi:mobileallocexpr ::= [ 0 @MOBILE 1 ] [ 1 -@@[ <occampi:dynmobarrayallocexpr> ]"
+
+.TABLE	"occampi:type +:= [ 0 -@MOBILE 1 ] [ 1 occampi:mobiletype 2 ] [ 2 {<opi:nullreduce>} -* ]"
+.TABLE	"occampi:expr +:= [ 0 -@MOBILE 1 ] [ 1 occampi:mobileallocexpr 2 ] [ 2 {<opi:nullreduce>} -* ]"
 
 
 # }}}
-.SECTION "occampi-" # {{{: 
+.SECTION "occampi-mwsync" # {{{: multi-way synchronisations (BARRIERs)
+
+.GRULE	"opi:barrierreduce" "ST0T+@tC[BARRIER]0R-"
+.GRULE	"opi:syncreduce" "ST0T+@tN+00C[SYNC]3R-"
+.GRULE	"opi:syncguardreduce" "ST0T+@tN+00C[SYNCGUARD]3R-"
+
+.TABLE	"occampi:primtype +:= [ 0 +@BARRIER 1 ] [ 1 {<opi:barrierreduce>} -* ]"
+.TABLE	"occampi:declorprocstart +:= [ 0 +@SYNC 1 ] [ 1 occampi:operand 2 ] [ 2 {<opi:syncreduce>} -* ]"
+.TABLE	"occampi:altguard +:= [ 0 +@SYNC 1 ] [ 1 occampi:operand 2 ] [ 2 {<opi:syncguardreduce>} -* ]"
 
 
 # }}}
-.SECTION "occampi-" # {{{: 
+.SECTION "occampi-oper" # {{{: operators
+
+.TABLE	"occampi:restofexpr +:= [ 0 +@@+ 1 ] [ 0 +@@- 1 ] [ 0 +@@* 1 ] [ 0 +@@/ 1 ] [ 0 +@@\\ 1 ] [ 0 +@PLUS 1 ] [ 0 +@MINUS 1 ] [ 0 +@TIMES 1 ]"
+	"[ 1 occampi:expr 2 ] [ 2 {Roccampi:dopreduce} -* ]"
+.TABLE	"occampi:restofexpr +:= [ 0 +@@= 1 ] [ 0 +@@< 1 ] [ 0 +@@> 1 ] [ 1 occampi:expr 2 ] [ 2 {Roccampi:relreduce} -* ]"
+.TABLE	"occampi:expr +:= [ 0 +@@- 1 ] [ 0 +@@~ 1 ] [ 1 occampi:expr 2 ] [ 2 {Roccampi:mopreduce} -* ]"
 
 
 # }}}
-.SECTION "occampi-" # {{{: 
+.SECTION "occampi-primproc" # {{{: primitive processes
+
+.BNF	"occampi:primproc ::= ( +@SKIP | +@STOP ) {Roccampi:primproc}"
 
 
 # }}}
-.SECTION "occampi-" # {{{: 
+.SECTION "occampi-snode" # {{{: structured process nodes
+
+.GRULE	"opi:altsnode" "ST0T+@t000C[ALT]3R-"
+.GRULE	"opi:casenode" "ST0T+@t0N+V0C[CASE]3R-"
+.GRULE	"opi:ifcond" "SN0N+0C[CONDITIONAL]2R-"
+.GRULE	"opi:skipguard" "ST0T+@t00N+C[SKIPGUARD]3R-"
+.GRULE	"opi:inputguard" "SN0N+0N+C[INPUTGUARD]3R-"
+.GRULE	"opi:timerguard" "SN0N+0N+C[TIMERGUARD]3R-"
+
+.TABLE	"occampi:snode +:= [ 0 +@ALT 1 ] [ 0 +@CASE 3 ] [ 1 -Newline 2 ] [ 2 {<opi:altsnode>} -* ] [ 3 occampi:expr 4 ] [ 4 -Newline 5 ] [ 5 {<opi:casenode>} -* ]"
+.TABLE	"occampi:ifcond ::= [ 0 occampi:expr 1 ] [ 1 -Newline 2 ] [ 2 {<opi:ifcond>} -* ]"
+.TABLE	"occampi:subaltinputguard ::= [ 0 occampi:name 1 ] [ 1 -* <occampi:namestartname> ]"
+.TABLE	"occampi:altinputguard ::= [ 0 occampi:subaltinputguard 1 ] [ 1 {<opi:inputguard>} -* ]"
+.TABLE	"occampi:altguard ::= [ 0 +@SKIP 1 ] [ 0 +Name 12 ] [ 0 -* 3 ] [ 1 {<opi:nullpush>} -* 2 ] [ 2 {<opi:skipguard>} -* ]"
+	"[ 3 +@@? 4 ] [ 3 @@& 5 ] [ 4 {<opi:nullpush>} -* 8 ]"
+	"[ 5 +@SKIP 6 ] [ 5 occampi:expr 7 ] [ 6 {<opi:skipguard>} -* ]"
+	"[ 7 +@@? 8 ] [ 8 @AFTER 9 ] [ 9 occampi:expr 10 ] [ 10 {<opi:timerguard>} -* ]"
+	"[ 11 occampi:expr 3 ] [ 12 +@@? 13 ] [ 12 -* 16 ] [ 13 +Name 14 ] [ 13 -* 16 ] [ 14 +@@: 15 ] [ 14 +@@, 15 ] [ 14 -* 16 ]"
+	"[ 15 {<parser:rewindtokens>} -* <occampi:vardecl> ] [ 16 {<parser:rewindtokens>} -* 17 ] [ 17 {<opi:nullpush>} -* <occampi:altinputguard> ]"
 
 
 # }}}

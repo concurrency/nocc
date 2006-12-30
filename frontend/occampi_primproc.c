@@ -147,28 +147,13 @@ static int occampi_primproc_reg_reducers (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static dfattbl_t **occampi_primproc_init_dfatrans (int *ntrans)*/
-/*
- *	creates and returns DFA transition tables for literal nodes
- */
-static dfattbl_t **occampi_primproc_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_bnftotbl ("occampi:primproc ::= ( +@SKIP | +@STOP ) {Roccampi:primproc}"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
-}
-/*}}}*/
 
 
 /*{{{  occampi_primproc_feunit (feunit_t)*/
 feunit_t occampi_primproc_feunit = {
 	init_nodes: occampi_primproc_init_nodes,
 	reg_reducers: occampi_primproc_reg_reducers,
-	init_dfatrans: occampi_primproc_init_dfatrans,
+	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "occampi-primproc"
 };

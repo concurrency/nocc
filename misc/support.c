@@ -2048,10 +2048,14 @@ int string_dequote (char *str)
 		return 0;
 	}
 
+#if 0
+fprintf (stderr, "string_dequote(): on [%s]\n", str);
+#endif
 	/* copy back and handle escapes */
 	for (dh=str, ch=str+1, slen -= 2; slen && (*ch != '\0'); ch++, dh++, slen--) {
 		if (*ch == '\\') {
 			ch++;
+			slen--;
 			switch (*ch) {
 			default:	/* (assume) simple escaped character */
 				*dh = *ch;
@@ -2071,6 +2075,9 @@ int string_dequote (char *str)
 		}
 	}
 	*dh = '\0';
+#if 0
+fprintf (stderr, "string_dequote(): output --> [%s]\n", str);
+#endif
 
 	return 0;
 }

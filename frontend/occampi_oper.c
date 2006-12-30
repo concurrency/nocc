@@ -822,25 +822,6 @@ static int occampi_oper_reg_reducers (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static dfattbl_t **occampi_oper_init_dfatrans (int *ntrans)*/
-/*
- *	initialises and returns DFA transition tables for occam-pi operators
- */
-static dfattbl_t **occampi_oper_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:restofexpr +:= [ 0 +@@+ 1 ] [ 0 +@@- 1 ] [ 0 +@@* 1 ] [ 0 +@@/ 1 ] [ 0 +@@\\ 1 ] [ 0 +@PLUS 1 ] [ 0 +@MINUS 1 ] [ 0 +@TIMES 1 ] " \
-				"[ 1 occampi:expr 2 ] [ 2 {Roccampi:dopreduce} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:restofexpr +:= [ 0 +@@= 1 ] [ 0 +@@< 1 ] [ 0 +@@> 1 ] [ 1 occampi:expr 2 ] [ 2 {Roccampi:relreduce} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("occampi:expr +:= [ 0 +@@- 1 ] [ 0 +@@~ 1 ] [ 1 occampi:expr 2 ] [ 2 {Roccampi:mopreduce} -* ]"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
-}
-/*}}}*/
 /*{{{  static int occampi_oper_post_setup (void)*/
 /*
  *	does post-setup for occam-pi operator nodes
@@ -857,7 +838,7 @@ static int occampi_oper_post_setup (void)
 feunit_t occampi_oper_feunit = {
 	init_nodes: occampi_oper_init_nodes,
 	reg_reducers: occampi_oper_reg_reducers,
-	init_dfatrans: occampi_oper_init_dfatrans,
+	init_dfatrans: NULL,
 	post_setup: occampi_oper_post_setup,
 	ident: "occampi-oper"
 };
