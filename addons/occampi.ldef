@@ -283,6 +283,10 @@
 # }}}
 .SECTION "occampi-oper" # {{{: operators
 
+.RFUNC	"Roccampi:dopreduce" "occampi_reduce_dop"
+.RFUNC	"Roccampi:relreduce" "occampi_reduce_rel"
+.RFUNC	"Roccampi:mopreduce" "occampi_reduce_mop"
+
 .TABLE	"occampi:restofexpr +:= [ 0 +@@+ 1 ] [ 0 +@@- 1 ] [ 0 +@@* 1 ] [ 0 +@@/ 1 ] [ 0 +@@\\ 1 ] [ 0 +@PLUS 1 ] [ 0 +@MINUS 1 ] [ 0 +@TIMES 1 ]"
 	"[ 1 occampi:expr 2 ] [ 2 {Roccampi:dopreduce} -* ]"
 .TABLE	"occampi:restofexpr +:= [ 0 +@@= 1 ] [ 0 +@@< 1 ] [ 0 +@@> 1 ] [ 1 occampi:expr 2 ] [ 2 {Roccampi:relreduce} -* ]"
@@ -291,6 +295,8 @@
 
 # }}}
 .SECTION "occampi-primproc" # {{{: primitive processes
+
+.RFUNC	"Roccampi:primproc" "occampi_reduce_primproc"
 
 .BNF	"occampi:primproc ::= ( +@SKIP | +@STOP ) {Roccampi:primproc}"
 

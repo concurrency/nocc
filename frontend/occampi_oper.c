@@ -38,6 +38,7 @@
 #include "lexpriv.h"
 #include "tnode.h"
 #include "parser.h"
+#include "fcnlib.h"
 #include "dfa.h"
 #include "parsepriv.h"
 #include "occampi.h"
@@ -716,6 +717,12 @@ static int occampi_oper_init_nodes (void)
 	langops_t *lops;
 	int i;
 
+	/*{{{  register reduction functions*/
+	fcnlib_addfcn ("occampi_reduce_dop", occampi_reduce_dop, 0, 3);
+	fcnlib_addfcn ("occampi_reduce_rel", occampi_reduce_rel, 0, 3);
+	fcnlib_addfcn ("occampi_reduce_mop", occampi_reduce_mop, 0, 3);
+
+	/*}}}*/
 	/*{{{  occampi:dopnode -- MUL, DIV, ADD, SUB, REM; PLUS, MINUS, TIMES*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:dopnode", &i, 3, 0, 0, TNF_NONE);
@@ -808,20 +815,6 @@ static int occampi_oper_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_oper_reg_reducers (void)*/
-/*
- *	registers reductions for occam-pi operators
- *	returns 0 on success, non-zero on error
- */
-static int occampi_oper_reg_reducers (void)
-{
-	parser_register_reduce ("Roccampi:dopreduce", occampi_reduce_dop, NULL);
-	parser_register_reduce ("Roccampi:relreduce", occampi_reduce_rel, NULL);
-	parser_register_reduce ("Roccampi:mopreduce", occampi_reduce_mop, NULL);
-
-	return 0;
-}
-/*}}}*/
 /*{{{  static int occampi_oper_post_setup (void)*/
 /*
  *	does post-setup for occam-pi operator nodes
@@ -837,7 +830,7 @@ static int occampi_oper_post_setup (void)
 /*{{{  occampi_oper_feunit (feunit_t)*/
 feunit_t occampi_oper_feunit = {
 	init_nodes: occampi_oper_init_nodes,
-	reg_reducers: occampi_oper_reg_reducers,
+	reg_reducers: NULL,
 	init_dfatrans: NULL,
 	post_setup: occampi_oper_post_setup,
 	ident: "occampi-oper"

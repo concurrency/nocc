@@ -39,6 +39,7 @@
 #include "lexpriv.h"
 #include "tnode.h"
 #include "parser.h"
+#include "fcnlib.h"
 #include "dfa.h"
 #include "parsepriv.h"
 #include "occampi.h"
@@ -118,6 +119,10 @@ static int occampi_primproc_init_nodes (void)
 	compops_t *cops;
 	int i;
 
+	/*{{{  register reduction functions*/
+	fcnlib_addfcn ("occampi_reduce_primproc", occampi_reduce_primproc, 0, 3);
+
+	/*}}}*/
 	/*{{{  occampi:leafnode -- SKIP, STOP*/
 	i = -1;
 	tnd = opi.node_LEAFNODE = tnode_newnodetype ("occampi:leafnode", &i, 0, 0, 0, TNF_NONE);
@@ -136,23 +141,12 @@ static int occampi_primproc_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_primproc_reg_reducers (void)*/
-/*
- *	registers reducers for literal nodes
- */
-static int occampi_primproc_reg_reducers (void)
-{
-	parser_register_reduce ("Roccampi:primproc", occampi_reduce_primproc, NULL);
-
-	return 0;
-}
-/*}}}*/
 
 
 /*{{{  occampi_primproc_feunit (feunit_t)*/
 feunit_t occampi_primproc_feunit = {
 	init_nodes: occampi_primproc_init_nodes,
-	reg_reducers: occampi_primproc_reg_reducers,
+	reg_reducers: NULL,
 	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "occampi-primproc"
