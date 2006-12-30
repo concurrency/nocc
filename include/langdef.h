@@ -26,9 +26,10 @@ struct TAG_lexfile;
 
 
 typedef enum ENUM_langdefent {
-	REDUCTION = 1,
-	DFATRANS = 2,
-	DFABNF = 3
+	LDE_INVALID = 0,
+	LDE_REDUCTION = 1,
+	LDE_DFATRANS = 2,
+	LDE_DFABNF = 3
 } langdefent_e;
 
 typedef struct TAG_langdefent {
@@ -45,6 +46,10 @@ typedef struct TAG_langdef {
 	char *ident;
 	DYNARRAY (langdefent_t *, ents);
 } langdef_t;
+
+
+extern langdef_t *langdef_readdefs (const char *fname);
+extern void langdef_freelangdef (langdef_t *ldef);
 
 
 extern int langdef_init (void);

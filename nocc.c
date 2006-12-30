@@ -1157,7 +1157,42 @@ int main (int argc, char **argv)
 		}
 	}
 
-	/* dump specs if wanted */
+
+	/*}}}*/
+	/*{{{  for each path listed in the config, check that we have at least execute permission on it*/
+	for (i=0; i<DA_CUR (compopts.epath); i++) {
+		char *epath = DA_NTHITEM (compopts.epath, i);
+
+		if (access (epath, X_OK)) {
+			nocc_warning ("ignoring invalid extension path [%s]", epath);
+			sfree (epath);
+			dynarray_delitem (compopts.epath, i);
+			i--;
+		}
+	}
+	for (i=0; i<DA_CUR (compopts.ipath); i++) {
+		char *ipath = DA_NTHITEM (compopts.ipath, i);
+
+		if (access (ipath, X_OK)) {
+			nocc_warning ("ignoring invalid include path [%s]", ipath);
+			sfree (ipath);
+			dynarray_delitem (compopts.ipath, i);
+			i--;
+		}
+	}
+	for (i=0; i<DA_CUR (compopts.lpath); i++) {
+		char *lpath = DA_NTHITEM (compopts.lpath, i);
+
+		if (access (lpath, X_OK)) {
+			nocc_warning ("ignoring invalid library path [%s]", lpath);
+			sfree (lpath);
+			dynarray_delitem (compopts.lpath, i);
+			i--;
+		}
+	}
+
+	/*}}}*/
+	/*{{{  dump specs file if requested (after processing paths)*/
 	if (compopts.dumpspecs) {
 		nocc_message ("detailed compiler settings:");
 
@@ -1186,6 +1221,7 @@ int main (int argc, char **argv)
 		nocc_message ("    not-main-module: %s", compopts.notmainmodule ? "yes" : "no");
 		nocc_message ("    verbose:         %s", compopts.verbose ? "yes" : "no");
 	}
+
 
 	/*}}}*/
 	/*{{{  initialise other parts of the compiler and the dynamic framework*/
@@ -1308,6 +1344,7 @@ int main (int argc, char **argv)
 			errored++;
 		}
 	}
+
 	/*}}}*/
 	/*{{{  dump extensions if requested*/
 	if (compopts.dumpextns) {

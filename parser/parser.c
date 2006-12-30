@@ -1132,20 +1132,49 @@ void *parser_decode_grule (const char *rule, ...)
 			/*{{{  C -- condense into new token*/
 		case 'C':
 			xrule++;
-			if ((*xrule < '0') || (*xrule > '9')) {
-				goto report_error_out;
-			} else {
-				/* adjustment is minus "n", plus 1 */
-				lsdepth -= (int)(*xrule - '0');
-				if (lsdepth < 0) {
-					/* pretty bad.. */
-					nocc_error ("parser_decode_grule(): local stack underflow at char %d in \"%s\"", (int)(xrule - rule), rule);
-					return NULL;
+			{
+				ntdef_t *namedtag = NULL;
+
+				if (*xrule == '[') {
+					/* named rule, not passed as an argument */
+					char *tname;
+
+					xrule++;
+					for (tname = xrule; (*xrule != ']') && (*xrule != '\0'); xrule++);
+					tname = string_ndup (tname, (int)(xrule - tname));
+
+					namedtag = tnode_lookupnodetag (tname);
+					if (!namedtag) {
+						nocc_error ("parser_decode_grule(): unknown tag name [%s]", tname);
+						sfree (tname);
+						return NULL;
+					}
+					sfree (tname);
+					if (*xrule == ']') {
+						xrule++;
+					}
 				}
-				lsdepth++;
+
+				if ((*xrule < '0') || (*xrule > '9')) {
+					goto report_error_out;
+				} else {
+					/* adjustment is minus "n", plus 1 */
+					lsdepth -= (int)(*xrule - '0');
+					if (lsdepth < 0) {
+						/* pretty bad.. */
+						nocc_error ("parser_decode_grule(): local stack underflow at char %d in \"%s\"", (int)(xrule - rule), rule);
+						return NULL;
+					}
+					lsdepth++;
+				}
+
+				if (namedtag) {
+					userparams[uplen++] = (void *)namedtag;
+				} else {
+					userparams[uplen++] = (void *)va_arg (ap, ntdef_t *);
+				}
+				ilen += 3;
 			}
-			userparams[uplen++] = (void *)va_arg (ap, ntdef_t *);
-			ilen += 3;
 			break;
 			/*}}}*/
 			/*{{{  S -- set origin for combine*/

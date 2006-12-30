@@ -39,6 +39,7 @@
 #include "lexpriv.h"
 #include "tnode.h"
 #include "parser.h"
+#include "langdef.h"
 #include "dfa.h"
 #include "parsepriv.h"
 #include "occampi.h"
@@ -775,10 +776,22 @@ static int occampi_type_init_nodes (void)
  */
 static int occampi_type_reg_reducers (void)
 {
+	langdef_t *ldef = langdef_readdefs ("occampi_type_rdx.ldef");
+
+	if (!ldef) {
+		nocc_error ("occampi_type_reg_reducers(): failed to load language definitions!");
+		return -1;
+	}
+
 	parser_register_reduce ("Roccampi:primtype", occampi_reduce_primtype, NULL);
-	parser_register_grule ("opi:chanpush", parser_decode_grule ("N+Sn00C2N-", opi.tag_CHAN));
-	parser_register_grule ("opi:portpush", parser_decode_grule ("N+Sn00C2N-", opi.tag_PORT));
-	parser_register_grule ("opi:placedportreduce", parser_decode_grule ("SN2N+N+N+>N-C2SN0N+V0C3R-", opi.tag_PORT, opi.tag_VARDECL));
+
+	/* FIXME: deal with language definitions */
+
+	parser_register_grule ("opi:chanpush", parser_decode_grule ("N+Sn00C[CHAN]2N-"));
+	parser_register_grule ("opi:portpush", parser_decode_grule ("N+Sn00C[PORT]2N-"));
+	parser_register_grule ("opi:placedportreduce", parser_decode_grule ("SN2N+N+N+>N-C[PORT]2SN0N+V0C[VARDECL]3R-"));
+
+	langdef_freelangdef (ldef);
 
 	return 0;
 }

@@ -1,0 +1,13 @@
+#
+# occampi_type_rdx.ldef - occam-pi type reductions
+#
+
+.IDENT "occampi_type_rdx"
+.MAINTAINER "Fred Barnes <frmb@kent.ac.uk>"
+
+.GRULE "opi:chanpush" "N+Sn00C[CHAN]2N-"
+.GRULE "opi:portpush" "N+Sn00C[PORT]2N-"
+.GRULE "opi:placedportreduce" # stuff
+	"SN2N+N+N+>N-C[PORT]2SN0N+V0C[VARDECL]3R-"
+
+
