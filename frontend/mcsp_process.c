@@ -1113,40 +1113,10 @@ static int mcsp_process_reg_reducers (void)
 	parser_register_grule ("mcsp:namereduce", parser_decode_grule ("T+St0XC1R-", mcsp_nametoken_to_hook, mcsp.tag_NAME));
 	parser_register_grule ("mcsp:namepush", parser_decode_grule ("T+St0XC1N-", mcsp_nametoken_to_hook, mcsp.tag_NAME));
 	parser_register_grule ("mcsp:ppreduce", parser_decode_grule ("ST0T+XR-", mcsp_pptoken_to_node));
-	parser_register_grule ("mcsp:subevent", parser_decode_grule ("SN0N+N+V00C4R-", mcsp.tag_SUBEVENT));
 	parser_register_grule ("mcsp:integerreduce", parser_decode_grule ("ST0T+XC1R-", mcsp_integertoken_to_hook, mcsp.tag_INTEGER));
 	parser_register_grule ("mcsp:stringreduce", parser_decode_grule ("ST0T+XC1R-", mcsp_stringtoken_to_hook, mcsp.tag_STRING));
 
 	return 0;
-}
-/*}}}*/
-/*{{{  static dfattbl_t **mcsp_process_init_dfatrans (int *ntrans)*/
-/*
- *	creates and returns DFA transition tables for MCSP process nodes
- */
-static dfattbl_t **mcsp_process_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:name ::= [ 0 +Name 1 ] [ 1 {<mcsp:namereduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:string ::= [ 0 +String 1 ] [ 1 {<mcsp:stringreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:integer ::= [ 0 +Integer 1 ] [ 1 {<mcsp:integerreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:expr ::= [ 0 mcsp:name 1 ] [ 0 mcsp:string 1 ] [ 0 mcsp:integer 1 ] [ 1 {<mcsp:nullreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:event ::= [ 0 mcsp:name 1 ] [ 1 @@. 3 ] [ 1 -* 2 ] [ 2 {<mcsp:nullreduce>} -* ] " \
-				"[ 3 mcsp:expr 4 ] [ 4 {<mcsp:subevent>} -* ]"));
-	dynarray_add (transtbl, dfa_bnftotbl ("mcsp:eventset ::= ( mcsp:event | @@{ { mcsp:event @@, 1 } @@} )"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:leafproc ::= [ 0 +@SKIP 1 ] [ 0 +@STOP 1 ] [ 0 +@DIV 1 ] [ 0 +@CHAOS 1 ] [ 1 {<mcsp:ppreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:restofprocess ::= [ 0 mcsp:dop 1 ] [ 1 mcsp:process 2 ] [ 2 {Rmcsp:folddop} -* ] " \
-				"[ 0 %mcsp:hide <mcsp:hide> ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:process ::= [ 0 +Name 7 ] [ 0 mcsp:leafproc 2 ] [ 0 mcsp:fixpoint 2 ] [ 0 @@( 3 ] [ 0 -@@; 12 ] " \
-				"[ 1 %mcsp:restofprocess <mcsp:restofprocess> ] [ 1 -* 2 ] [ 2 {<mcsp:nullreduce>} -* ] " \
-				"[ 3 mcsp:process 4 ] [ 4 @@) 5 ] [ 5 %mcsp:restofprocess <mcsp:restofprocess> ] [ 5 -* 6 ] [ 6 {<mcsp:nullreduce>} -* ] " \
-				"[ 7 -@@( 8 ] [ 7 -* 10 ] [ 8 {<parser:rewindtokens>} -* 9 ] [ 9 mcsp:instance 1 ] [ 10 {<parser:rewindtokens>} -* 11 ] [ 11 mcsp:event 1 ] " \
-				"[ 12 mcsp:replseq 13 ] [ 13 {<mcsp:nullreduce>} -* ]"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
 }
 /*}}}*/
 
@@ -1155,7 +1125,7 @@ static dfattbl_t **mcsp_process_init_dfatrans (int *ntrans)
 feunit_t mcsp_process_feunit = {
 	init_nodes: mcsp_process_init_nodes,
 	reg_reducers: mcsp_process_reg_reducers,
-	init_dfatrans: mcsp_process_init_dfatrans,
+	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "mcsp-process"
 };

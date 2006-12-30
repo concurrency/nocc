@@ -196,23 +196,53 @@ static int mcsp_nodes_init (void)
 static int mcsp_register_reducers (void)
 {
 	int i;
+	int rval = 0;
+	langdef_t *ldef = mcsp_getlangdef ();
+
+	if (!ldef) {
+		nocc_error ("mcsp_register_reducers(): no MCSP language definition found!");
+		return -1;
+	}
 
 	/*{{{  generic reductions*/
-	parser_register_grule ("mcsp:nullreduce", parser_decode_grule ("N+R-"));
-	parser_register_grule ("mcsp:nullpush", parser_decode_grule ("0N-"));
-	parser_register_grule ("mcsp:nullset", parser_decode_grule ("0R-"));
+	{
+		langdefsec_t *lsec = langdef_findsection (ldef, "mcsp");
+
+		if (!lsec) {
+			nocc_error ("mcsp_register_reducers(): no \"mcsp\" section in MCSP language definition!");
+			return -1;
+		}
+		if (langdef_reg_reducers (lsec)) {
+			rval = -1;
+		}
+	}
 
 	/*}}}*/
-
+	/*{{{  unit-specific reductions*/
 	for (i=0; feunit_set[i]; i++) {
 		feunit_t *thisunit = feunit_set[i];
 
 		if (thisunit->reg_reducers && thisunit->reg_reducers ()) {
-			return -1;
+			/* keep going */
+			rval = -1;
+		}
+
+		if (thisunit->ident && ldef && langdef_hassection (ldef, thisunit->ident)) {
+			langdefsec_t *lsec = langdef_findsection (ldef, thisunit->ident);
+
+			if (!lsec) {
+				nocc_error ("mcsp_register_reducers(): no \"%s\" section in MCSP language definition!", thisunit->ident);
+				return -1;
+			}
+			if (langdef_reg_reducers (lsec)) {
+				rval = -1;
+			}
 		}
 	}
 
-	return 0;
+	/*}}}*/
+
+	return rval;
 }
 /*}}}*/
 /*{{{  static int mcsp_dfas_init (void)*/
@@ -224,6 +254,12 @@ static int mcsp_dfas_init (void)
 {
 	DYNARRAY (dfattbl_t *, transtbls);
 	int i, x;
+	langdef_t *ldef = mcsp_getlangdef ();
+
+	if (!ldef) {
+		nocc_error ("mcsp_dfas_init(): no MCSP language definition found!");
+		return -1;
+	}
 
 	/*{{{  create DFAs*/
 	dfa_clear_deferred ();
@@ -247,6 +283,54 @@ static int mcsp_dfas_init (void)
 			if (t_table) {
 				sfree (t_table);
 			}
+		}
+
+		if (thisunit->ident && ldef && langdef_hassection (ldef, thisunit->ident)) {
+			/* load DFA grammars from language definition */
+			dfattbl_t **t_table;
+			int t_size = 0;
+			langdefsec_t *lsec = langdef_findsection (ldef , thisunit->ident);
+
+			if (!lsec) {
+				nocc_error ("mcsp_dfas_init(): no \"%s\" section in MCSP language definition!", thisunit->ident);
+				return -1;
+			}
+			t_table = langdef_init_dfatrans (lsec, &t_size);
+			if (t_size > 0) {
+				/* add them */
+				int j;
+
+				for (j=0; j<t_size; j++) {
+					dynarray_add (transtbls, t_table[j]);
+				}
+			}
+			if (t_table) {
+				sfree (t_table);
+			}
+		}
+	}
+
+	/* post-production DFAs */
+	{
+		langdefsec_t *lsec = langdef_findsection (ldef, "mcsp-postprod");
+		dfattbl_t **t_table;
+		int t_size = 0;
+
+		if (!lsec) {
+			nocc_error ("mcsp_dfas_init(): no \"mcsp-postprod\" section in MCSP language definition!");
+			return -1;
+		}
+		t_table = langdef_init_dfatrans (lsec, &t_size);
+		if (t_size > 0) {
+			/* add them */
+			int j;
+
+			for (j=0; j<t_size; j++) {
+				dynarray_add (transtbls, t_table[j]);
+			}
+		}
+		if (t_table) {
+			sfree (t_table);
 		}
 	}
 

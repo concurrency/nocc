@@ -656,7 +656,6 @@ static int mcsp_codegen_replnode (compops_t *cops, tnode_t *node, codegen_t *cge
 /*}}}*/
 
 
-
 /*{{{  static int mcsp_cnode_init_nodes (void)*/
 /*
  *	initialises MCSP constructor nodes
@@ -737,43 +736,13 @@ static int mcsp_cnode_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_cnode_reg_reducers (void)*/
-/*
- *	registers reducers for MCSP constructor nodes
- *	returns 0 on success, non-zero on failure
- */
-static int mcsp_cnode_reg_reducers (void)
-{
-	parser_register_grule ("mcsp:replseqreduce", parser_decode_grule ("N+N+N+VN+VN-VN+C4R-", mcsp.tag_REPLSEQ));
-	parser_register_grule ("mcsp:replseqlreduce", parser_decode_grule ("N+00N+C4R-", mcsp.tag_REPLSEQ));
-
-	return 0;
-}
-/*}}}*/
-/*{{{  static dfattbl_t **mcsp_cnode_init_dfatrans (int *ntrans)*/
-/*
- *	creates and returns DFA transition tables for MCSP constructor nodes
- */
-static dfattbl_t **mcsp_cnode_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:replseq ::= [ 0 @@; 1 ] [ 1 @@[ 2 ] [ 2 mcsp:expr 3 ] [ 3 @@= 4 ] [ 3 @@] 10 ] [ 4 mcsp:expr 5 ] [ 5 @@, 6 ] [ 6 mcsp:expr 7 ] " \
-				"[ 7 @@] 8 ] [ 8 mcsp:process 9 ] [ 9 {<mcsp:replseqreduce>} -* ] [ 10 mcsp:process 11 ] [ 11 {<mcsp:replseqlreduce>} -* ]"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
-}
-/*}}}*/
-
 
 
 /*{{{  mcsp_cnode_feunit (feunit_t)*/
 feunit_t mcsp_cnode_feunit = {
 	init_nodes: mcsp_cnode_init_nodes,
-	reg_reducers: mcsp_cnode_reg_reducers,
-	init_dfatrans: mcsp_cnode_init_dfatrans,
+	reg_reducers: NULL,
+	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "mcsp-cnode"
 };

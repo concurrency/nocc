@@ -386,41 +386,13 @@ static int mcsp_instance_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_instance_reg_reducers (void)*/
-/*
- *	registers reducers for MCSP instance nodes
- *	returns 0 on success, non-zero on failure
- */
-static int mcsp_instance_reg_reducers (void)
-{
-	parser_register_grule ("mcsp:instancereduce", parser_decode_grule ("SN0N+N+VC2R-", mcsp.tag_INSTANCE));
-
-	return 0;
-}
-/*}}}*/
-/*{{{  static dfattbl_t **mcsp_instance_init_dfatrans (int *ntrans)*/
-/*
- *	creates and returns DFA transition tables for MCSP instance nodes
- */
-static dfattbl_t **mcsp_instance_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_bnftotbl ("mcsp:aparams ::= { mcsp:name @@, 0 }"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:instance ::= [ 0 mcsp:name 1 ] [ 1 @@( 2 ] [ 2 mcsp:aparams 3 ] [ 3 @@) 4 ] [ 4 {<mcsp:instancereduce>} -* ]"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
-}
-/*}}}*/
 
 
 /*{{{  mcsp_instance_feunit (feunit_t)*/
 feunit_t mcsp_instance_feunit = {
 	init_nodes: mcsp_instance_init_nodes,
-	reg_reducers: mcsp_instance_reg_reducers,
-	init_dfatrans: mcsp_instance_init_dfatrans,
+	reg_reducers: NULL,
+	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "mcsp-instance"
 };

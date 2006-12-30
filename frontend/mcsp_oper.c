@@ -476,27 +476,9 @@ static int mcsp_oper_init_nodes (void)
  */
 static int mcsp_oper_reg_reducers (void)
 {
-	parser_register_grule ("mcsp:nullechoicereduce", parser_decode_grule ("ST0T+@t0000C4R-", mcsp.tag_ECHOICE));
-
 	parser_register_reduce ("Rmcsp:op", mcsp_opreduce, NULL);
 	parser_register_reduce ("Rmcsp:folddop", mcsp_folddopreduce, NULL);
 	return 0;
-}
-/*}}}*/
-/*{{{  static dfattbl_t **mcsp_oper_init_dfatrans (int *ntrans)*/
-/*
- *	creates and returns DFA transition tables for MCSP operator nodes
- */
-static dfattbl_t **mcsp_oper_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:dop ::= [ 0 +@@-> 1 ] [ 0 +@@; 1 ] [ 0 +@@|| 1 ] [ 0 +@@||| 1 ] [ 0 +@@|~| 1 ] [ 0 +@@[ 3 ] [ 1 Newline 1 ] [ 1 -* 2 ] [ 2 {Rmcsp:op} -* ] "\
-				"[ 3 @@] 4 ] [ 4 Newline 4 ] [ 4 -* 5 ] [ 5 {<mcsp:nullechoicereduce>} -* ]"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
 }
 /*}}}*/
 
@@ -506,7 +488,7 @@ static dfattbl_t **mcsp_oper_init_dfatrans (int *ntrans)
 feunit_t mcsp_oper_feunit = {
 	init_nodes: mcsp_oper_init_nodes,
 	reg_reducers: mcsp_oper_reg_reducers,
-	init_dfatrans: mcsp_oper_init_dfatrans,
+	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "mcsp-oper"
 };

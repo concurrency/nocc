@@ -1004,47 +1004,14 @@ static int mcsp_decl_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_decl_reg_reducers (void)*/
-/*
- *	registers reducers for MCSP declaration nodes
- *	returns 0 on success, non-zero on failure
- */
-static int mcsp_decl_reg_reducers (void)
-{
-	parser_register_grule ("mcsp:hidereduce", parser_decode_grule ("ST0T+@tN+N+0C3R-", mcsp.tag_HIDE));
-	parser_register_grule ("mcsp:procdeclreduce", parser_decode_grule ("SN2N+N+N+>V0C4R-", mcsp.tag_PROCDECL));
-	parser_register_grule ("mcsp:fixreduce", parser_decode_grule ("SN0N+N+VC2R-", mcsp.tag_FIXPOINT));
-
-	return 0;
-}
-/*}}}*/
-/*{{{  static dfattbl_t **mcsp_decl_init_dfatrans (int *ntrans)*/
-/*
- *	creates and returns DFA transition tables for MCSP declaration nodes
- */
-static dfattbl_t **mcsp_decl_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_bnftotbl ("mcsp:fparams ::= { mcsp:name @@, 0 }"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:fixpoint ::= [ 0 @@@ 1 ] [ 1 mcsp:name 2 ] [ 2 @@. 3 ] [ 3 mcsp:process 4 ] [ 4 {<mcsp:fixreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:hide ::= [ 0 +@@\\ 1 ] [ 1 mcsp:eventset 2 ] [ 2 {<mcsp:hidereduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("mcsp:procdecl ::= [ 0 +Name 1 ] [ 1 {<mcsp:namepush>} ] [ 1 @@::= 2 ] [ 1 @@( 4 ] [ 2 {<mcsp:nullpush>} ] [ 2 mcsp:process 3 ] [ 3 {<mcsp:procdeclreduce>} -* ] " \
-				"[ 4 mcsp:fparams 5 ] [ 5 @@) 6 ] [ 6 @@::= 7 ] [ 7 mcsp:process 3 ]"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
-}
-/*}}}*/
 
 
 
 /*{{{  mcsp_decl_feunit (feunit_t)*/
 feunit_t mcsp_decl_feunit = {
 	init_nodes: mcsp_decl_init_nodes,
-	reg_reducers: mcsp_decl_reg_reducers,
-	init_dfatrans: mcsp_decl_init_dfatrans,
+	reg_reducers: NULL,
+	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "mcsp-decl"
 };

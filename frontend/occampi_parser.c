@@ -483,7 +483,7 @@ static int occampi_dfas_init (void)
 		int t_size = 0;
 
 		if (!lsec) {
-			nocc_error ("occampi_dfas_init(): no \"occampi-final\" section in occam-pi language definition!");
+			nocc_error ("occampi_dfas_init(): no \"occampi-postprod\" section in occam-pi language definition!");
 			return -1;
 		}
 		t_table = langdef_init_dfatrans (lsec, &t_size);

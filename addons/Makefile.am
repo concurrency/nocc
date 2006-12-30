@@ -9,6 +9,6 @@
 
 AUTOMAKE_OPTIONS=foreign no-dependencies
 
-EXTRA_DIST = initial.nocx.xml occampi.ldef
+EXTRA_DIST = initial.nocx.xml occampi.ldef mcsp.ldef
 
 

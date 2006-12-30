@@ -1,0 +1,99 @@
+#
+# mcsp.ldef - language definitions for MCSP
+# identifiers must start at the left-margin, indentation is a line-continuation
+#
+
+.IDENT		"mcsp"
+.DESC		"machine-readable CSP"
+.MAINTAINER	"Fred Barnes <frmb@kent.ac.uk>"
+
+
+# sections are used to help front-end units find their definitions
+.SECTION "mcsp" # {{{: fairly general MCSP reductions
+
+.GRULE	"mcsp:nullreduce" "N+R-"
+.GRULE	"mcsp:nullpush" "0N-"
+.GRULE	"mcsp:nullset" "0R-"
+
+
+# }}}
+.SECTION "mcsp-postprod" # {{{: top-level grammar, kind-of
+
+# }}}
+
+
+.SECTION "mcsp-cnode" # {{{: constructor process nodes
+
+.GRULE	"mcsp:replseqreduce" "N+N+N+VN+VN-VN+C[MCSPREPLSEQ]4R-"
+.GRULE	"mcsp:replseqlreduce" "N+00N+C[MCSPREPLSEQ]4R-"
+
+.TABLE	"mcsp:replseq ::= [ 0 @@; 1 ] [ 1 @@[ 2 ] [ 2 mcsp:expr 3 ] [ 3 @@= 4 ] [ 3 @@] 10 ] [ 4 mcsp:expr 5 ] [ 5 @@, 6 ] [ 6 mcsp:expr 7 ]"
+	"[ 7 @@] 8 ] [ 8 mcsp:process 9 ] [ 9 {<mcsp:replseqreduce>} -* ] [ 10 mcsp:process 11 ] [ 11 {<mcsp:replseqlreduce>} -* ]"
+
+
+# }}}
+.SECTION "mcsp-decl" # {{{: declarations
+
+.GRULE	"mcsp:hidereduce" "ST0T+@tN+N+0C[MCSPHIDE]3R-"
+.GRULE	"mcsp:procdeclreduce" "SN2N+N+N+>V0C[MCSPPROCDECL]4R-"
+.GRULE	"mcsp:fixreduce" "SN0N+N+VC[MCSPFIXPOINT]2R-"
+
+.BNF	"mcsp:fparams ::= { mcsp:name @@, 0 }"
+.TABLE	"mcsp:fixpoint ::= [ 0 @@@ 1 ] [ 1 mcsp:name 2 ] [ 2 @@. 3 ] [ 3 mcsp:process 4 ] [ 4 {<mcsp:fixreduce>} -* ]"
+.TABLE	"mcsp:hide ::= [ 0 +@@\\ 1 ] [ 1 mcsp:eventset 2 ] [ 2 {<mcsp:hidereduce>} -* ]"
+.TABLE	"mcsp:procdecl ::= [ 0 +Name 1 ] [ 1 {<mcsp:namepush>} ] [ 1 @@::= 2 ] [ 1 @@( 4 ] [ 2 {<mcsp:nullpush>} ] [ 2 mcsp:process 3 ] [ 3 {<mcsp:procdeclreduce>} -* ]"
+	"[ 4 mcsp:fparams 5 ] [ 5 @@) 6 ] [ 6 @@::= 7 ] [ 7 mcsp:process 3 ]"
+
+
+# }}}
+.SECTION "mcsp-instance" # {{{: instance handling (effectively a procedure-call)
+
+.GRULE	"mcsp:instancereduce" "SN0N+N+VC[MCSPINSTANCE]2R-"
+
+.BNF	"mcsp:aparams ::= { mcsp:name @@, 0 }"
+.TABLE	"mcsp:instance ::= [ 0 mcsp:name 1 ] [ 1 @@( 2 ] [ 2 mcsp:aparams 3 ] [ 3 @@) 4 ] [ 4 {<mcsp:instancereduce>} -* ]"
+
+# }}}
+.SECTION "mcsp-oper" # {{{: operators
+
+.GRULE	"mcsp:nullechoicereduce" "ST0T+@t0000C[MCSPECHOICE]4R-"
+
+.TABLE	"mcsp:dop ::= [ 0 +@@-> 1 ] [ 0 +@@; 1 ] [ 0 +@@|| 1 ] [ 0 +@@||| 1 ] [ 0 +@@|~| 1 ] [ 0 +@@[ 3 ] [ 1 Newline 1 ] [ 1 -* 2 ] [ 2 {Rmcsp:op} -* ]"
+	"[ 3 @@] 4 ] [ 4 Newline 4 ] [ 4 -* 5 ] [ 5 {<mcsp:nullechoicereduce>} -* ]"
+
+
+# }}}
+.SECTION "mcsp-process" # {{{: MCSP process handling
+
+.GRULE	"mcsp:subevent" "SN0N+N+V00C[MCSPSUBEVENT]4R-"
+
+.TABLE	"mcsp:name ::= [ 0 +Name 1 ] [ 1 {<mcsp:namereduce>} -* ]"
+.TABLE	"mcsp:string ::= [ 0 +String 1 ] [ 1 {<mcsp:stringreduce>} -* ]"
+.TABLE	"mcsp:integer ::= [ 0 +Integer 1 ] [ 1 {<mcsp:integerreduce>} -* ]"
+.TABLE	"mcsp:expr ::= [ 0 mcsp:name 1 ] [ 0 mcsp:string 1 ] [ 0 mcsp:integer 1 ] [ 1 {<mcsp:nullreduce>} -* ]"
+
+.TABLE	"mcsp:event ::= [ 0 mcsp:name 1 ] [ 1 @@. 3 ] [ 1 -* 2 ] [ 2 {<mcsp:nullreduce>} -* ]"
+	"[ 3 mcsp:expr 4 ] [ 4 {<mcsp:subevent>} -* ]"
+.BNF	"mcsp:eventset ::= ( mcsp:event | @@{ { mcsp:event @@, 1 } @@} )"
+
+.TABLE	"mcsp:leafproc ::= [ 0 +@SKIP 1 ] [ 0 +@STOP 1 ] [ 0 +@DIV 1 ] [ 0 +@CHAOS 1 ] [ 1 {<mcsp:ppreduce>} -* ]"
+.TABLE	"mcsp:restofprocess ::= [ 0 mcsp:dop 1 ] [ 1 mcsp:process 2 ] [ 2 {Rmcsp:folddop} -* ]"
+	"[ 0 %mcsp:hide <mcsp:hide> ]"
+
+.TABLE	"mcsp:process ::= [ 0 +Name 7 ] [ 0 mcsp:leafproc 2 ] [ 0 mcsp:fixpoint 2 ] [ 0 @@( 3 ] [ 0 -@@; 12 ]"
+	"[ 1 %mcsp:restofprocess <mcsp:restofprocess> ] [ 1 -* 2 ] [ 2 {<mcsp:nullreduce>} -* ]"
+	"[ 3 mcsp:process 4 ] [ 4 @@) 5 ] [ 5 %mcsp:restofprocess <mcsp:restofprocess> ] [ 5 -* 6 ] [ 6 {<mcsp:nullreduce>} -* ]"
+	"[ 7 -@@( 8 ] [ 7 -* 10 ] [ 8 {<parser:rewindtokens>} -* 9 ] [ 9 mcsp:instance 1 ] [ 10 {<parser:rewindtokens>} -* 11 ] [ 11 mcsp:event 1 ]"
+	"[ 12 mcsp:replseq 13 ] [ 13 {<mcsp:nullreduce>} -* ]"
+
+
+
+# }}}
+.SECTION "mcsp-snode" # {{{: 
+
+#FIXME! incomplete..
+
+
+# }}}
+
+

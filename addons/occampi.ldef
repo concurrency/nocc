@@ -44,6 +44,7 @@
 
 # }}}
 
+
 .SECTION "occampi-action" # {{{: actions (input, output, assign, etc)
 
 .GRULE	"opi:assignreduce" "SN1N+N+V0C[ASSIGN]3R-"
