@@ -203,53 +203,6 @@ static int rcxb_tokens_init (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int rcxb_nodes_init (void)*/
-/*
- *	initialises the RCX-BASIC nodes
- *	returns 0 on success, non-zero on failure
- */
-static int rcxb_nodes_init (void)
-{
-	int i;
-
-	for (i=0; feunit_set[i]; i++) {
-		feunit_t *thisunit = feunit_set[i];
-
-		if (thisunit->init_nodes && thisunit->init_nodes ()) {
-			return -1;
-		}
-	}
-
-	return 0;
-}
-/*}}}*/
-/*{{{  static int rcxb_register_reducers (void)*/
-/*
- *	initialises RCX-BASIC reducers
- *	returns 0 on success, non-zero on failure
- */
-static int rcxb_register_reducers (void)
-{
-	int i;
-
-	/*{{{  generic reductions*/
-	parser_register_grule ("rcxb:nullreduce", parser_decode_grule ("N+R-"));
-	parser_register_grule ("rcxb:nullpush", parser_decode_grule ("0N-"));
-	parser_register_grule ("rcxb:nullset", parser_decode_grule ("0R-"));
-
-	/*}}}*/
-
-	for (i=0; feunit_set[i]; i++) {
-		feunit_t *thisunit = feunit_set[i];
-
-		if (thisunit->reg_reducers && thisunit->reg_reducers ()) {
-			return -1;
-		}
-	}
-
-	return 0;
-}
-/*}}}*/
 /*{{{  static int rcxb_dfas_init (void)*/
 /*
  *	initialises RCX-BASIC DFAs
@@ -393,7 +346,7 @@ static int rcxb_parser_init (lexfile_t *lf)
 			nocc_error ("rcxb_parser_init(): failed to initialise nodes");
 			return 1;
 		}
-		if (rcxb_register_reducers ()) {
+		if (feunit_do_reg_reducers (feunit_set, 0, rcxb_priv->ldef)) {
 			nocc_error ("rcxb_parser_init(): failed to register reducers");
 			return 1;
 		}

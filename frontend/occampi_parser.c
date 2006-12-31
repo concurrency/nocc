@@ -264,6 +264,7 @@ void *occampi_stringtoken_to_hook (void *itok)
 	return (void *)ldata;
 }
 /*}}}*/
+
 /*{{{  static void occampi_inlistreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
  *	this reduces into a list
@@ -302,64 +303,6 @@ static void occampi_debug_gstack (void **items, int icnt)
 /*}}}*/
 
 
-/*{{{  static void occampi_register_reducers (void)*/
-/*
- *	register reduction functions with the parser
- *	returns 0 on success, non-zero on error
- */
-static int occampi_register_reducers (void)
-{
-	int i;
-	int rval = 0;
-	langdef_t *ldef = occampi_getlangdef ();
-
-	if (!ldef) {
-		nocc_error ("occampi_register_reducers(): no occam-pi language definition found!");
-		return -1;
-	}
-
-	/*{{{  setup generic reductions*/
-	{
-		langdefsec_t *lsec = langdef_findsection (ldef, "occampi");
-
-		if (!lsec) {
-			nocc_error ("occampi_register_reducers(): no \"occampi\" section in occam-pi language definition!");
-			return -1;
-		}
-		if (langdef_reg_reducers (lsec)) {
-			rval = -1;
-		}
-	}
-
-	/*}}}*/
-	/*{{{  unit-specific reductions*/
-	for (i=0; feunit_set[i]; i++) {
-		feunit_t *thisunit = feunit_set[i];
-
-		if (thisunit->reg_reducers && thisunit->reg_reducers ()) {
-			/* keep going */
-			rval = -1;
-		}
-
-		if (thisunit->ident && ldef && langdef_hassection (ldef, thisunit->ident)) {
-			/* load reductions from language definition */
-			langdefsec_t *lsec = langdef_findsection (ldef, thisunit->ident);
-
-			if (!lsec) {
-				nocc_error ("occampi_register_reducers(): no \"%s\" section in occam-pi language definition!", thisunit->ident);
-				return -1;
-			}
-			if (langdef_reg_reducers (lsec)) {
-				rval = -1;
-			}
-		}
-	}
-
-	/*}}}*/
-
-	return rval;
-}
-/*}}}*/
 /*}}}*/
 /*{{{  error handling*/
 /*{{{  static void occampi_namestart_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)*/
@@ -733,7 +676,7 @@ static int occampi_parser_init (lexfile_t *lf)
 			nocc_error ("occampi_parser_init(): failed to initialise nodes");
 			return 1;
 		}
-		if (occampi_register_reducers ()) {
+		if (feunit_do_reg_reducers (feunit_set, 0, occampi_priv->langdefs)) {
 			nocc_error ("occampi_parser_init(): failed to register reducers");
 			return 1;
 		}

@@ -21,6 +21,7 @@
 #define __FEUNIT_H
 
 struct TAG_dfattbl;
+struct TAG_langdef;
 
 typedef struct TAG_feunit {
 	int (*init_nodes)(void);				/* setup node types/tags */
@@ -35,6 +36,7 @@ extern int feunit_init (void);
 extern int feunit_shutdown (void);
 
 extern int feunit_do_init_nodes (feunit_t **felist, int earlyfail);
+extern int feunit_do_reg_reducers (feunit_t **felist, int earlyfail, struct TAG_langdef *ldef);
 
 
 #endif	/* !__FEUNIT_H */

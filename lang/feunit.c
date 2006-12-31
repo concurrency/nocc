@@ -96,5 +96,58 @@ int feunit_do_init_nodes (feunit_t **felist, int earlyfail)
 	return rval;
 }
 /*}}}*/
+/*{{{  int feunit_do_reg_reducers (feunit_t **felist, int earlyfail, langdef_t *ldef)*/
+/*
+ *	calls reg_reducers on a set of feunits.  sets up reducers in feunit's language definitions if present.
+ *	returns 0 on success, non-zero on failure
+ */
+int feunit_do_reg_reducers (feunit_t **felist, int earlyfail, langdef_t *ldef)
+{
+	int i, rval = 0;
+
+
+	if (ldef && ldef->ident && langdef_hassection (ldef, ldef->ident)) {
+		/* pull in general reductions for the language */
+		langdefsec_t *lsec = langdef_findsection (ldef, ldef->ident);
+
+		if (!lsec) {
+			nocc_error ("feunit_do_reg_reducers(): no \"%s\" section in language definition!", ldef->ident);
+			return -1;
+		} else {
+			if (langdef_reg_reducers (lsec)) {
+				rval = -1;
+				if (earlyfail) {
+					return -1;
+				}
+			}
+		}
+	}
+	for (i=0; felist[i]; i++) {
+		if (felist[i]->reg_reducers && felist[i]->reg_reducers ()) {
+			rval = -1;
+			if (earlyfail) {
+				break;
+			}
+		}
+
+		if (felist[i]->ident && ldef && langdef_hassection (ldef, felist[i]->ident)) {
+			/* load reductions from language definition */
+			langdefsec_t *lsec = langdef_findsection (ldef, felist[i]->ident);
+
+			if (!lsec) {
+				nocc_error ("feunit_do_reg_reducers(): no \"%s\" section in %s language definition!", felist[i]->ident, ldef->ident);
+				return -1;
+			}
+			if (langdef_reg_reducers (lsec)) {
+				rval = -1;
+				if (earlyfail) {
+					break;
+				}
+			}
+		}
+	}
+	return rval;
+}
+/*}}}*/
 
 

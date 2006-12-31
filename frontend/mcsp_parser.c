@@ -168,63 +168,6 @@ static int mcsp_tokens_init (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_register_reducers (void)*/
-/*
- *	registers MCSP reducers
- *	returns 0 on success, non-zero on failure
- */
-static int mcsp_register_reducers (void)
-{
-	int i;
-	int rval = 0;
-	langdef_t *ldef = mcsp_getlangdef ();
-
-	if (!ldef) {
-		nocc_error ("mcsp_register_reducers(): no MCSP language definition found!");
-		return -1;
-	}
-
-	/*{{{  generic reductions*/
-	{
-		langdefsec_t *lsec = langdef_findsection (ldef, "mcsp");
-
-		if (!lsec) {
-			nocc_error ("mcsp_register_reducers(): no \"mcsp\" section in MCSP language definition!");
-			return -1;
-		}
-		if (langdef_reg_reducers (lsec)) {
-			rval = -1;
-		}
-	}
-
-	/*}}}*/
-	/*{{{  unit-specific reductions*/
-	for (i=0; feunit_set[i]; i++) {
-		feunit_t *thisunit = feunit_set[i];
-
-		if (thisunit->reg_reducers && thisunit->reg_reducers ()) {
-			/* keep going */
-			rval = -1;
-		}
-
-		if (thisunit->ident && ldef && langdef_hassection (ldef, thisunit->ident)) {
-			langdefsec_t *lsec = langdef_findsection (ldef, thisunit->ident);
-
-			if (!lsec) {
-				nocc_error ("mcsp_register_reducers(): no \"%s\" section in MCSP language definition!", thisunit->ident);
-				return -1;
-			}
-			if (langdef_reg_reducers (lsec)) {
-				rval = -1;
-			}
-		}
-	}
-
-	/*}}}*/
-
-	return rval;
-}
-/*}}}*/
 /*{{{  static int mcsp_dfas_init (void)*/
 /*
  *	initialises MCSP DFAs
@@ -700,7 +643,7 @@ static int mcsp_parser_init (lexfile_t *lf)
 			nocc_error ("mcsp_parser_init(): failed to initialise nodes");
 			return 1;
 		}
-		if (mcsp_register_reducers ()) {
+		if (feunit_do_reg_reducers (feunit_set, 0, mcsp_priv->langdefs)) {
 			nocc_error ("mcsp_parser_init(): failed to register reducers");
 			return 1;
 		}
