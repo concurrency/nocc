@@ -170,6 +170,7 @@ typedef struct {
 	struct TAG_ntdef *tag_SYNCGUARD;
 
 	struct TAG_ntdef *tag_MISCCOMMENT;
+	struct TAG_ntdef *tag_MISCTCOFF;
 
 	struct TAG_token *tok_COLON;
 	struct TAG_token *tok_INPUT;

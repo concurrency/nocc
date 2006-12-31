@@ -34,6 +34,8 @@ typedef struct TAG_feunit {
 extern int feunit_init (void);
 extern int feunit_shutdown (void);
 
+extern int feunit_do_init_nodes (feunit_t **felist, int earlyfail);
+
 
 #endif	/* !__FEUNIT_H */
 

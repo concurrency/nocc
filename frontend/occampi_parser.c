@@ -409,26 +409,6 @@ static void occampi_declorprocstart_dfaeh_stuck (dfanode_t *dfanode, token_t *to
 /*}}}*/
 
 
-/*{{{  static void occampi_nodes_init (void)*/
-/*
- *	initialises the occam-pi node-types and node-tags
- *	returns 0 on success, non-zero on error
- */
-static int occampi_nodes_init (void)
-{
-	int i;
-
-	for (i=0; feunit_set[i]; i++) {
-		feunit_t *thisunit = feunit_set[i];
-
-		if (thisunit->init_nodes && thisunit->init_nodes ()) {
-			return -1;
-		}
-	}
-
-	return 0;
-}
-/*}}}*/
 /*{{{  static int occampi_dfas_init (void)*/
 /*
  *	initialises the occam-pi DFA structures
@@ -749,7 +729,7 @@ static int occampi_parser_init (lexfile_t *lf)
 		fcnlib_addfcn ("occampi_stringtoken_to_hook", (void *)occampi_stringtoken_to_hook, 1, 1);
 
 		/* initialise! */
-		if (occampi_nodes_init ()) {
+		if (feunit_do_init_nodes (feunit_set, 1)) {
 			nocc_error ("occampi_parser_init(): failed to initialise nodes");
 			return 1;
 		}

@@ -129,6 +129,8 @@ static int occampi_misc_init_nodes (void)
 
 	i = -1;
 	opi.tag_MISCCOMMENT = tnode_newnodetag ("MISCCOMMENT", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_MISCTCOFF = tnode_newnodetag ("MISCTCOFF", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

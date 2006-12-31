@@ -2034,6 +2034,7 @@ int string_dequote (char *str)
 {
 	int slen;
 	char *ch, *dh;
+	int rval = 0;
 
 	if (!str) {
 		return -1;
@@ -2069,6 +2070,16 @@ fprintf (stderr, "string_dequote(): on [%s]\n", str);
 			case 't':	/* tab */
 				*dh = '\t';
 				break;
+			case 'x':	/* hexidecimal pair */
+				if (decode_hex_byte (ch[1], ch[2], (unsigned char *)dh)) {
+					/* busted hex format, but linger on (and keep the hex chars) */
+					rval = -1;
+					*dh = 'x';
+				} else {
+					ch += 2;
+					slen -= 2;
+				}
+				break;
 			}
 		} else {
 			*dh = *ch;
@@ -2079,7 +2090,7 @@ fprintf (stderr, "string_dequote(): on [%s]\n", str);
 fprintf (stderr, "string_dequote(): output --> [%s]\n", str);
 #endif
 
-	return 0;
+	return rval;
 }
 /*}}}*/
 /*{{{  char *decode_hexstr (char *str, int *slen)*/

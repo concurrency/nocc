@@ -168,26 +168,6 @@ static int mcsp_tokens_init (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int mcsp_nodes_init (void)*/
-/*
- *	initialises MCSP nodes
- *	returns 0 on success, non-zero on failure
- */
-static int mcsp_nodes_init (void)
-{
-	int i;
-
-	for (i=0; feunit_set[i]; i++) {
-		feunit_t *thisunit = feunit_set[i];
-
-		if (thisunit->init_nodes && thisunit->init_nodes ()) {
-			return -1;
-		}
-	}
-
-	return 0;
-}
-/*}}}*/
 /*{{{  static int mcsp_register_reducers (void)*/
 /*
  *	registers MCSP reducers
@@ -716,7 +696,7 @@ static int mcsp_parser_init (lexfile_t *lf)
 			nocc_error ("mcsp_parser_init(): failed to initialise tokens");
 			return 1;
 		}
-		if (mcsp_nodes_init ()) {
+		if (feunit_do_init_nodes (feunit_set, 1)) {
 			nocc_error ("mcsp_parser_init(): failed to initialise nodes");
 			return 1;
 		}

@@ -34,7 +34,7 @@
 # }}}
 .SECTION "mcsp-decl" # {{{: declarations
 
-.GRULE	"mcsp:hidereduce" "ST0T+@tN+N+0C[MCSPHIDE]3R-"
+.GRULE	"mcsp:hidereduce" "ST0T+@tN+N+C[MCSPHIDE]2R-"
 .GRULE	"mcsp:procdeclreduce" "SN2N+N+N+>V0C[MCSPPROCDECL]4R-"
 .GRULE	"mcsp:fixreduce" "SN0N+N+VC[MCSPFIXPOINT]2R-"
 

@@ -75,3 +75,26 @@ int feunit_shutdown (void)
 /*}}}*/
 
 
+/*{{{  int feunit_do_init_nodes (feunit_t **felist, int earlyfail)*/
+/*
+ *	calls init_nodes on a set of feunits
+ *	returns 0 on success, non-zero on failure
+ */
+int feunit_do_init_nodes (feunit_t **felist, int earlyfail)
+{
+	int i, rval = 0;
+
+	for (i=0; felist[i]; i++) {
+		if (felist[i]->init_nodes && felist[i]->init_nodes ()) {
+			/* failed */
+			rval = -1;
+			if (earlyfail) {
+				break;
+			}
+		}
+	}
+	return rval;
+}
+/*}}}*/
+
+
