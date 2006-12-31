@@ -1,0 +1,19 @@
+#
+# rcxb.ldef - language definitions for RCX basic
+# identifiers must start at the left-margin, indentation is a line-continuation
+#
+
+.IDENT		"rcxb"
+.DESC		"RCX BASIC"
+.MAINTAINER	"Fred Barnes <frmb@kent.ac.uk>"
+
+
+.SECTION "rcxb" # {{{: fairly general RCXB reductions
+
+.GRULE	"rcxb:nullreduce" "N+R-"
+.GRULE	"rcxb:nullpush" "0N-"
+.GRULE	"rcxb:nullset" "0R-"
+
+
+# }}}
+

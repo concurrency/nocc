@@ -39,6 +39,7 @@
 #include "lexpriv.h"
 #include "tnode.h"
 #include "parser.h"
+#include "fcnlib.h"
 #include "dfa.h"
 #include "parsepriv.h"
 #include "rcxb.h"
@@ -50,6 +51,7 @@
 #include "prescope.h"
 #include "typecheck.h"
 #include "extn.h"
+#include "langdef.h"
 
 /*}}}*/
 /*{{{  forward decls*/
@@ -74,7 +76,7 @@ langparser_t rcxb_parser = {
 	typecheck:	NULL, // mcsp_parser_typecheck,
 	postcheck:	NULL,
 	fetrans:	NULL,
-	getlangdef:	NULL,
+	getlangdef:	rcxb_getlangdef,
 	maketemp:	NULL,
 	makeseqassign:	NULL,
 	tagstruct_hook:	(void *)&rcxb,
@@ -86,6 +88,7 @@ langparser_t rcxb_parser = {
 /*{{{  private types/vars*/
 typedef struct {
 	dfanode_t *inode;
+	langdef_t *ldef;
 } rcxb_parse_t;
 
 static rcxb_parse_t *rcxb_priv = NULL;
@@ -95,6 +98,43 @@ static feunit_t *feunit_set[] = {
 	NULL
 };
 
+/*}}}*/
+
+
+/*{{{  static rcxb_parse_t *rcxb_newrcxbparse (void)*/
+/*
+ *	creates a new rcxb_parse_t structure
+ */
+static rcxb_parse_t *rcxb_newrcxbparse (void)
+{
+	rcxb_parse_t *rcxp = (rcxb_parse_t *)smalloc (sizeof (rcxb_parse_t));
+
+	rcxp->inode = NULL;
+	rcxp->ldef = NULL;
+
+	return rcxp;
+}
+/*}}}*/
+/*{{{  static void rcxb_freercxbparse (rcxb_parse_t *rcxp)*/
+/*
+ *	frees a rcxb_parse_t structure
+ */
+static void rcxb_freercxbparse (rcxb_parse_t *rcxp)
+{
+	if (!rcxp) {
+		nocc_warning ("rcxb_freercxbparse(): NULL pointer!");
+		return;
+	}
+	if (rcxp->ldef) {
+		langdef_freelangdef (rcxp->ldef);
+		rcxp->ldef = NULL;
+	}
+	/* leave inode */
+	rcxp->inode = NULL;
+	sfree (rcxp);
+
+	return;
+}
 /*}}}*/
 
 
@@ -110,6 +150,19 @@ void rcxb_isetindent (FILE *stream, int indent)
 		fprintf (stream, "    ");
 	}
 	return;
+}
+/*}}}*/
+/*{{{  langdef_t *rcxb_getlangdef (void)*/
+/*
+ *	returns the current language definitions
+ *	returns NULL on failure
+ */
+langdef_t *rcxb_getlangdef (void)
+{
+	if (!rcxb_priv) {
+		return NULL;
+	}
+	return rcxb_priv->ldef;
 }
 /*}}}*/
 
@@ -321,17 +374,22 @@ static int rcxb_parser_init (lexfile_t *lf)
 		nocc_message ("initialising RCX-BASIC parser..");
 	}
 	if (!rcxb_priv) {
-		rcxb_priv = (rcxb_parse_t *)smalloc (sizeof (rcxb_parse_t));
-		rcxb_priv->inode = NULL;
+		rcxb_priv = rcxb_newrcxbparse ();
 
 		memset ((void *)&rcxb, 0, sizeof (rcxb));
+
+		rcxb_priv->ldef = langdef_readdefs ("rcxb.ldef");
+		if (!rcxb_priv->ldef) {
+			nocc_error ("rcxb_parser_init(): failed to load language definitions!");
+			return 1;
+		}
 
 		/* initialise! */
 		if (rcxb_tokens_init ()) {
 			nocc_error ("rcxb_parser_init(): failed to initialise tokens");
 			return 1;
 		}
-		if (rcxb_nodes_init ()) {
+		if (feunit_do_init_nodes (feunit_set, 1)) {
 			nocc_error ("rcxb_parser_init(): failed to initialise nodes");
 			return 1;
 		}
@@ -369,6 +427,11 @@ static int rcxb_parser_init (lexfile_t *lf)
  */
 static void rcxb_parser_shutdown (lexfile_t *lf)
 {
+	if (rcxb_priv) {
+		rcxb_freercxbparse (rcxb_priv);
+		rcxb_priv = NULL;
+	}
+
 	return;
 }
 /*}}}*/

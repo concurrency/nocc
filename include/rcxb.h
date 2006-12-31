@@ -29,6 +29,7 @@ extern struct TAG_langparser rcxb_parser;
 struct TAG_tndef;
 struct TAG_ntdef;
 struct TAG_token;
+struct TAG_langdef;
 
 
 typedef struct {
@@ -96,8 +97,8 @@ typedef struct {
 
 extern rcxb_pset_t rcxb;
 
-
 extern void rcxb_isetindent (FILE *stream, int indent);
+extern struct TAG_langdef *rcxb_getlangdef (void);
 
 extern struct TAG_feunit rcxb_program_feunit;           /* rcxb_program.c */
 
