@@ -123,6 +123,7 @@ static feunit_t *feunit_set[] = {
 	&occampi_traces_feunit,
 	&mwsync_feunit,
 	&occampi_mwsync_feunit,
+	&occampi_misc_feunit,
 	NULL
 };
 
@@ -1394,6 +1395,10 @@ tnode_dumptree (tree, 1, stderr);
 			} else {
 				tnode_warning (tree, "occampi_declorproc(): unhandled LONGPROC [%s]", tree->tag->name);
 			}
+			/*}}}*/
+		} else if (tnflags & TNF_TRANSPARENT) {
+			/*{{{  transparent node (e.g. library usage)*/
+			/* FIXME: nothing to do here..? */
 			/*}}}*/
 		}
 	}

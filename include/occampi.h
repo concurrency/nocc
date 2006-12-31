@@ -49,6 +49,7 @@ typedef struct {
 	struct TAG_tndef *node_LEAFNODE;
 	struct TAG_tndef *node_TYPENODE;
 	struct TAG_tndef *node_ACTIONNODE;
+	struct TAG_tndef *node_MISCNODE;
 
 	struct TAG_ntdef *tag_BOOL;
 	struct TAG_ntdef *tag_BYTE;
@@ -168,6 +169,8 @@ typedef struct {
 	struct TAG_ntdef *tag_TIMERGUARD;
 	struct TAG_ntdef *tag_SYNCGUARD;
 
+	struct TAG_ntdef *tag_MISCCOMMENT;
+
 	struct TAG_token *tok_COLON;
 	struct TAG_token *tok_INPUT;
 	struct TAG_token *tok_OUTPUT;
@@ -238,6 +241,7 @@ extern struct TAG_feunit occampi_initial_feunit;	/* occampi_initial.c */
 extern struct TAG_feunit occampi_asm_feunit;		/* occampi_asm.c */
 extern struct TAG_feunit occampi_traces_feunit;		/* occampi_traces.c */
 extern struct TAG_feunit occampi_mwsync_feunit;		/* occampi_mwsync.c */
+extern struct TAG_feunit occampi_misc_feunit;		/* occampi_misc.c */
 
 /* these are for language units to use in reductions */
 extern void *occampi_nametoken_to_hook (void *ntok);
