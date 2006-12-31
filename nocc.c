@@ -53,6 +53,7 @@
 #include "tnode.h"
 #include "names.h"
 #include "treeops.h"
+#include "feunit.h"
 #include "aliascheck.h"
 #include "usagecheck.h"
 #include "defcheck.h"
@@ -221,6 +222,9 @@ static int nocc_shutdownrun (void)
 		v++;
 	}
 	if (prescope_shutdown ()) {
+		v++;
+	}
+	if (feunit_shutdown ()) {
 		v++;
 	}
 	if (parser_shutdown ()) {
@@ -1233,6 +1237,7 @@ int main (int argc, char **argv)
 	langdef_init ();
 	dfa_init ();
 	parser_init ();
+	feunit_init ();
 	prescope_init ();
 	scope_init ();
 	name_init ();

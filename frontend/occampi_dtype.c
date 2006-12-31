@@ -38,6 +38,7 @@
 #include "lexpriv.h"
 #include "tnode.h"
 #include "parser.h"
+#include "fcnlib.h"
 #include "dfa.h"
 #include "parsepriv.h"
 #include "occampi.h"
@@ -970,6 +971,59 @@ static void occampi_typedecl_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
 	return;
 }
 /*}}}*/
+/*{{{  static void occampi_reduce_resetnewline (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	creates a newline token and pushes it back into the lexer
+ */
+static void occampi_reduce_resetnewline (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	token_t *tok = lexer_newtoken (NEWLINE);
+
+#if 0
+fprintf (stderr, "occampi_reduce_resetnewline(): pp->lf = 0x%8.8x, DA_CUR (pp->tokstack) = %d, DA_CUR (dfast->nodestack) = %d\n", (unsigned int)pp->lf, DA_CUR (pp->tokstack), DA_CUR (dfast->nodestack));
+#endif
+
+	tok->origin = pp->lf;
+	lexer_pushback (pp->lf, tok);
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_reduce_arrayfold (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	takes a declaration of some kind and an ARRAY on the node-stack, and folds
+ *	the ARRAY into the declaration's type
+ */
+static void occampi_reduce_arrayfold (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	tnode_t *decl, *array;
+
+	decl = dfa_popnode (dfast);
+	array = dfa_popnode (dfast);
+
+#if 0
+fprintf (stderr, "occampi_reduce_arrayfold(): decl =\n");
+tnode_dumptree (decl, 4, stderr);
+fprintf (stderr, "occampi_reduce_arrayfold(): array =\n");
+tnode_dumptree (array, 4, stderr);
+#endif
+	if (!array) {
+		parser_error (pp->lf, "broken array specification");
+	} else {
+		tnode_t **typep = tnode_nthsubaddr (decl, 1);
+
+		if ((*typep)->tag == opi.tag_FUNCTIONTYPE) {
+			/* put array inside FUNCTIONTYPE results */
+			typep = tnode_nthsubaddr (*typep, 0);
+		}
+
+		tnode_setnthsub (array, 1, *typep);
+		*typep = array;
+	}
+	*(dfast->ptr) = decl;
+
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_dtype_init_nodes (void)*/
@@ -984,6 +1038,12 @@ static int occampi_dtype_init_nodes (void)
 	langops_t *lops;
 	int i;
 
+	/*{{{  register reduction functions*/
+	fcnlib_addfcn ("occampi_typedeclhook_blankhook", (void *)occampi_typedeclhook_blankhook, 1, 1);
+	fcnlib_addfcn ("occampi_reduce_resetnewline", (void *)occampi_reduce_resetnewline, 0, 3);
+	fcnlib_addfcn ("occampi_reduce_arrayfold", (void *)occampi_reduce_arrayfold, 0, 3);
+
+	/*}}}*/
 	/*{{{  occampi:typedecl -- DATATYPEDECL, CHANTYPEDECL, PROCTYPEDECL*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:typedecl", &i, 3, 0, 1, TNF_SHORTDECL);		/* subnodes: 0 = name; 1 = type; 2 = body */
@@ -1078,82 +1138,6 @@ static int occampi_dtype_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static void occampi_reduce_resetnewline (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
-/*
- *	creates a newline token and pushes it back into the lexer
- */
-static void occampi_reduce_resetnewline (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
-{
-	token_t *tok = lexer_newtoken (NEWLINE);
-
-#if 0
-fprintf (stderr, "occampi_reduce_resetnewline(): pp->lf = 0x%8.8x, DA_CUR (pp->tokstack) = %d, DA_CUR (dfast->nodestack) = %d\n", (unsigned int)pp->lf, DA_CUR (pp->tokstack), DA_CUR (dfast->nodestack));
-#endif
-
-	tok->origin = pp->lf;
-	lexer_pushback (pp->lf, tok);
-	return;
-}
-/*}}}*/
-/*{{{  static void occampi_reduce_arrayfold (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
-/*
- *	takes a declaration of some kind and an ARRAY on the node-stack, and folds
- *	the ARRAY into the declaration's type
- */
-static void occampi_reduce_arrayfold (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
-{
-	tnode_t *decl, *array;
-
-	decl = dfa_popnode (dfast);
-	array = dfa_popnode (dfast);
-
-#if 0
-fprintf (stderr, "occampi_reduce_arrayfold(): decl =\n");
-tnode_dumptree (decl, 4, stderr);
-fprintf (stderr, "occampi_reduce_arrayfold(): array =\n");
-tnode_dumptree (array, 4, stderr);
-#endif
-	if (!array) {
-		parser_error (pp->lf, "broken array specification");
-	} else {
-		tnode_t **typep = tnode_nthsubaddr (decl, 1);
-
-		if ((*typep)->tag == opi.tag_FUNCTIONTYPE) {
-			/* put array inside FUNCTIONTYPE results */
-			typep = tnode_nthsubaddr (*typep, 0);
-		}
-
-		tnode_setnthsub (array, 1, *typep);
-		*typep = array;
-	}
-	*(dfast->ptr) = decl;
-
-	return;
-}
-/*}}}*/
-/*{{{  static int occampi_dtype_reg_reducers (void)*/
-/*
- *	registers reductions for declaration nodes
- */
-static int occampi_dtype_reg_reducers (void)
-{
-	parser_register_grule ("opi:datatypedeclreduce", parser_decode_grule ("SN1N+N+V00XC4R-", occampi_typedeclhook_blankhook, opi.tag_DATATYPEDECL));
-	parser_register_grule ("opi:chantypedeclreduce", parser_decode_grule ("SN1N+N+V00XC4R-", occampi_typedeclhook_blankhook, opi.tag_CHANTYPEDECL));
-	parser_register_grule ("opi:proctypedeclreduce", parser_decode_grule ("SN1N+N+V00XC4R-", occampi_typedeclhook_blankhook, opi.tag_PROCTYPEDECL));
-	parser_register_grule ("opi:fieldreduce", parser_decode_grule ("SN1N+N+C2R-", opi.tag_FIELDDECL));
-	parser_register_grule ("opi:resultpush", parser_decode_grule ("R+N-"));
-	parser_register_grule ("opi:arrayspec", parser_decode_grule ("SN0N+0C2R-", opi.tag_ARRAY));
-	parser_register_grule ("opi:arraytypereduce", parser_decode_grule ("SN0N+N+VC2R-", opi.tag_ARRAY));
-	parser_register_grule ("opi:ctmarkinput", parser_decode_grule ("N+N+Sn1C1N-N-", opi.tag_ASINPUT));
-	parser_register_grule ("opi:ctmarkoutput", parser_decode_grule ("N+N+Sn1C1N-N-", opi.tag_ASOUTPUT));
-	parser_register_grule ("opi:sizeopreduce", parser_decode_grule ("SN0N+0C2R-", opi.tag_SIZE));
-
-	parser_register_reduce ("Roccampi:resetnewline", occampi_reduce_resetnewline, NULL);
-	parser_register_reduce ("Roccampi:arrayfold", occampi_reduce_arrayfold, NULL);
-
-	return 0;
-}
-/*}}}*/
 /*{{{  static int occampi_dtype_post_setup (void)*/
 /*
  *	does post-setup for initialisation
@@ -1172,7 +1156,7 @@ static int occampi_dtype_post_setup (void)
 /*{{{  occampi_dtype_feunit (feunit_t)*/
 feunit_t occampi_dtype_feunit = {
 	init_nodes: occampi_dtype_init_nodes,
-	reg_reducers: occampi_dtype_reg_reducers,
+	reg_reducers: NULL,
 	init_dfatrans: NULL,
 	post_setup: occampi_dtype_post_setup,
 	ident: "occampi-dtype"

@@ -113,8 +113,8 @@
 .GRULE	"opi:fparamv2nsreduce" "N+Sn0N+C[VALFPARAM]2R-"
 .GRULE	"opi:fparam2tsreduce" "T+St0X[occampi_nametoken_to_hook]C[NAME]1T+X[occampi_nametoken_to_hook]C[NAME]1C[FPARAM]2R-"
 .GRULE	"opi:fparam1tsreduce" "T+St0X[occampi_nametoken_to_hook]C[NAME]10C[FPARAM]2R-"
-.GRULE	"opi:fparam1tsreducei" "T+St0X[occampi_nametoken_to_hook]C[NAME]1C[ASINPUT]10C[FPARAM]2R-"
-.GRULE	"opi:fparam1tsreduceo" "T+St0X[occampi_nametoken_to_hook]C[NAME]1C[ASOUTPUT]10C[FPARAM]2R-"
+.GRULE	"opi:fparam1tsreducei" "T+St0X[occampi_nametoken_to_hook]C[NAME]10C[ASINPUT]20C[FPARAM]2R-"
+.GRULE	"opi:fparam1tsreduceo" "T+St0X[occampi_nametoken_to_hook]C[NAME]10C[ASOUTPUT]20C[FPARAM]2R-"
 
 
 .BNF	"occampi:name ::= +Name {<opi:namereduce>}"
@@ -170,6 +170,21 @@
 
 # }}}
 .SECTION "occampi-dtype" # {{{: structured data-types
+
+.GRULE	"opi:datatypedeclreduce" "SN1N+N+V00X[occampi_typedeclhook_blankhook]C[DATATYPEDECL]4R-"
+.GRULE	"opi:chantypedeclreduce" "SN1N+N+V00X[occampi_typedeclhook_blankhook]C[CHANTYPEDECL]4R-"
+.GRULE	"opi:proctypedeclreduce" "SN1N+N+V00X[occampi_typedeclhook_blankhook]C[PROCTYPEDECL]4R-"
+.GRULE	"opi:fieldreduce" "SN1N+N+C[FIELDDECL]2R-"
+.GRULE	"opi:resultpush" "R+N-"
+.GRULE	"opi:arrayspec" "SN0N+0C[ARRAY]2R-"
+.GRULE	"opi:arraytypereduce" "SN0N+N+VC[ARRAY]2R-"
+.GRULE	"opi:ctmarkinput" "N+N+Sn10C[ASINPUT]2N-N-"
+.GRULE	"opi:ctmarkoutput" "N+N+Sn10C[ASOUTPUT]2N-N-"
+.GRULE	"opi:sizeopreduce" "SN0N+0C[SIZE]2R-"
+
+.RFUNC	"Roccampi:resetnewline" "occampi_reduce_resetnewline"
+.RFUNC	"Roccampi:arrayfold" "occampi_reduce_arrayfold"
+
 
 
 .TABLE	"occampi:subtspec ::= [ 0 occampi:primtype 1 ] [ 1 occampi:namelist 2 ] [ 2 @@: 3 ] [ 3 {<opi:fieldreduce>} -* ]"
