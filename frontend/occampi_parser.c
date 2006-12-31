@@ -742,6 +742,7 @@ static int occampi_parser_init (lexfile_t *lf)
 
 		/* register some general reduction functions */
 		fcnlib_addfcn ("occampi_inlistreduce", (void *)occampi_inlistreduce, 0, 3);
+		fcnlib_addfcn ("occampi_nametoken_to_hook", (void *)occampi_nametoken_to_hook, 1, 1);
 		fcnlib_addfcn ("occampi_integertoken_to_hook", (void *)occampi_integertoken_to_hook, 1, 1);
 		fcnlib_addfcn ("occampi_realtoken_to_hook", (void *)occampi_realtoken_to_hook, 1, 1);
 		fcnlib_addfcn ("occampi_stringtoken_to_hook", (void *)occampi_stringtoken_to_hook, 1, 1);

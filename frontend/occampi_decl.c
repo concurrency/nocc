@@ -1548,26 +1548,6 @@ static int occampi_decl_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_decl_reg_reducers (void)*/
-/*
- *	registers reductions for declaration nodes
- */
-static int occampi_decl_reg_reducers (void)
-{
-	parser_register_grule ("opi:namereduce", parser_decode_grule ("T+St0XC1R-", occampi_nametoken_to_hook, opi.tag_NAME));
-	parser_register_grule ("opi:namepush", parser_decode_grule ("T+St0XC1N-", occampi_nametoken_to_hook, opi.tag_NAME));
-	parser_register_grule ("opi:2namepush", parser_decode_grule ("T+St0XC1N-T+St0XC1N-", occampi_nametoken_to_hook, opi.tag_NAME, occampi_nametoken_to_hook, opi.tag_NAME));
-	parser_register_grule ("opi:fparam1nsreduce", parser_decode_grule ("N+Sn00C2R-", opi.tag_FPARAM));
-	parser_register_grule ("opi:fparam2nsreduce", parser_decode_grule ("N+Sn0N+C2R-", opi.tag_FPARAM));
-	parser_register_grule ("opi:fparamv2nsreduce", parser_decode_grule ("N+Sn0N+C2R-", opi.tag_VALFPARAM));
-	parser_register_grule ("opi:fparam2tsreduce", parser_decode_grule ("T+St0XC1T+XC1C2R-", occampi_nametoken_to_hook, opi.tag_NAME, occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_FPARAM));
-	parser_register_grule ("opi:fparam1tsreduce", parser_decode_grule ("T+St0XC10C2R-", occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_FPARAM));
-	parser_register_grule ("opi:fparam1tsreducei", parser_decode_grule ("T+St0XC1C10C2R-", occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_ASINPUT, opi.tag_FPARAM));
-	parser_register_grule ("opi:fparam1tsreduceo", parser_decode_grule ("T+St0XC1C10C2R-", occampi_nametoken_to_hook, opi.tag_NAME, opi.tag_ASOUTPUT, opi.tag_FPARAM));
-
-	return 0;
-}
-/*}}}*/
 /*{{{  static int occampi_decl_post_setup (void)*/
 /*
  *	does post-setup for initialisation
@@ -1586,7 +1566,7 @@ static int occampi_decl_post_setup (void)
 /*{{{  occampi_decl_feunit (feunit_t)*/
 feunit_t occampi_decl_feunit = {
 	init_nodes: occampi_decl_init_nodes,
-	reg_reducers: occampi_decl_reg_reducers,
+	reg_reducers: NULL,
 	init_dfatrans: NULL,
 	post_setup: occampi_decl_post_setup,
 	ident: "occampi-decl"

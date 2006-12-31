@@ -39,6 +39,7 @@
 #include "lexpriv.h"
 #include "tnode.h"
 #include "parser.h"
+#include "fcnlib.h"
 #include "langdef.h"
 #include "dfa.h"
 #include "parsepriv.h"
@@ -671,6 +672,10 @@ static int occampi_type_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
+	/*{{{  register reduction functions*/
+	fcnlib_addfcn ("occampi_reduce_primtype", occampi_reduce_primtype, 0, 3);
+
+	/*}}}*/
 	/*{{{  attributes compiler hook*/
 	opi.chook_typeattr = tnode_newchook ("occampi:typeattr");
 	opi.chook_typeattr->chook_dumptree = occampi_typeattr_dumpchook;
@@ -769,17 +774,6 @@ static int occampi_type_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_type_reg_reducers (void)*/
-/*
- *	registers reducers for occam-pi types
- *	returns 0 on success, non-zero on error
- */
-static int occampi_type_reg_reducers (void)
-{
-	parser_register_reduce ("Roccampi:primtype", occampi_reduce_primtype, NULL);
-	return 0;
-}
-/*}}}*/
 /*{{{  static int occampi_type_post_setup (void)*/
 /*
  *	does post-setup for type nodes
@@ -799,7 +793,7 @@ static int occampi_type_post_setup (void)
 /*{{{  occampi_type_feunit (feunit_t struct)*/
 feunit_t occampi_type_feunit = {
 	init_nodes: occampi_type_init_nodes,
-	reg_reducers: occampi_type_reg_reducers,
+	reg_reducers: NULL,
 	init_dfatrans: NULL,
 	post_setup: occampi_type_post_setup,
 	ident: "occampi-type"

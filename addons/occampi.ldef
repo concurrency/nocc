@@ -103,8 +103,18 @@
 .GRULE	"opi:valabbrreduce" "SN1N+N+N+<0VC[VALABBREV]4R-"
 .GRULE	"opi:notypeabbrreduce" "SN1N+N+0<0VC[ABBREV]4R-"
 .GRULE	"opi:notypevalabbrreduce" "SN1N+N+0<0VC[VALABBREV]4R-"
-.GRULE	"opi:directedchaninput" "SN0N+C[ASINPUT]1N-"
-.GRULE	"opi:directedchanoutput" "SN0N+C[ASOUTPUT]1N-"
+.GRULE	"opi:directedchaninput" "SN0N+0C[ASINPUT]2N-"
+.GRULE	"opi:directedchanoutput" "SN0N+0C[ASOUTPUT]2N-"
+.GRULE	"opi:namereduce" "T+St0X[occampi_nametoken_to_hook]C[NAME]1R-"
+.GRULE	"opi:namepush" "T+St0X[occampi_nametoken_to_hook]C[NAME]1N-"
+.GRULE	"opi:2namepush" "T+St0X[occampi_nametoken_to_hook]C[NAME]1N-T+St0X[occampi_nametoken_to_hook]C[NAME]1N-"
+.GRULE	"opi:fparam1nsreduce" "N+Sn00C[FPARAM]2R-"
+.GRULE	"opi:fparam2nsreduce" "N+Sn0N+C[FPARAM]2R-"
+.GRULE	"opi:fparamv2nsreduce" "N+Sn0N+C[VALFPARAM]2R-"
+.GRULE	"opi:fparam2tsreduce" "T+St0X[occampi_nametoken_to_hook]C[NAME]1T+X[occampi_nametoken_to_hook]C[NAME]1C[FPARAM]2R-"
+.GRULE	"opi:fparam1tsreduce" "T+St0X[occampi_nametoken_to_hook]C[NAME]10C[FPARAM]2R-"
+.GRULE	"opi:fparam1tsreducei" "T+St0X[occampi_nametoken_to_hook]C[NAME]1C[ASINPUT]10C[FPARAM]2R-"
+.GRULE	"opi:fparam1tsreduceo" "T+St0X[occampi_nametoken_to_hook]C[NAME]1C[ASOUTPUT]10C[FPARAM]2R-"
 
 
 .BNF	"occampi:name ::= +Name {<opi:namereduce>}"
@@ -329,6 +339,7 @@
 .GRULE	"opi:chanpush" "N+Sn00C[CHAN]2N-"
 .GRULE	"opi:portpush" "N+Sn00C[PORT]2N-"
 .GRULE	"opi:placedportreduce" "SN2N+N+N+>N-C[PORT]2SN0N+V0C[VARDECL]3R-"
+.RFUNC	"Roccampi:primtype" "occampi_reduce_primtype"
 
 .BNF	"occampi:primtype ::= ( +@INT | +@BYTE | +@BOOL | +@INT16 | +@INT32 | +@INT64 | +@REAL32 | +@REAL64 | +@CHAR ) {Roccampi:primtype}"
 .TABLE	"occampi:protocol ::= [ 0 occampi:primtype 3 ] [ 0 +Name 1 ] [ 0 -@@[ 2 ] [ 1 {<opi:namepush>} -* 3 ]"

@@ -854,6 +854,12 @@ void parser_generic_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 				ntdef_t *tag = (ntdef_t *)arg[++ipos];
 				tnode_t *rnode;
 
+				/*{{{  check number of arguments in use w.r.t. the node we're building*/
+				if (ccnt != (tag->ndef->nsub + tag->ndef->nname + tag->ndef->nhooks)) {
+					nocc_serious ("parser_generic_reduce(): building node [%s] with %d arguments, but expected %d", tag->name, ccnt, tag->ndef->nsub + tag->ndef->nname + tag->ndef->nhooks);
+				}
+
+				/*}}}*/
 				/*{{{  arg-count cases -- bit ugly [sane way to do this without abusing var-args?] */
 				switch (ccnt) {
 				case 0:
@@ -900,6 +906,7 @@ void parser_generic_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 					rnode = NULL;
 					break;
 				}
+
 				/*}}}*/
 				if (org_file && org_line) {
 					rnode->org_file = org_file;
