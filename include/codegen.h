@@ -94,6 +94,7 @@ typedef struct TAG_coderops {
 	void (*branch)(codegen_t *, int, int);
 	void (*debugline)(codegen_t *, struct TAG_tnode *);
 	void (*trashistack)(codegen_t *);
+	void (*tcoff)(codegen_t *, int, const char *, const int);
 } coderops_t;
 
 

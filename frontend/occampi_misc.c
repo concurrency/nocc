@@ -58,6 +58,50 @@
 
 
 /*}}}*/
+/*{{{  private stuff*/
+
+static chook_t *miscstring_chook = NULL;
+
+
+/*}}}*/
+
+
+
+/*{{{  static void *miscstringhook_copy (void *hook)*/
+/*
+ *	duplicates a "misc:string" compiler hook
+ */
+static void *miscstringhook_copy (void *hook)
+{
+	if (hook) {
+		return (void *)string_dup ((char *)hook);
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  static void miscstringhook_free (void *hook)*/
+/*
+ *	frees a "misc:string" compiler hook
+ */
+static void miscstringhook_free (void *hook)
+{
+	if (hook) {
+		sfree (hook);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void miscstringhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a "misc:string" compiler hook (debugging)
+ */
+static void miscstringhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "<chook id=\"misc:string\" value=\"%s\" />\n", hook ? (char *)hook : "");
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_misc_prescope (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
@@ -97,6 +141,15 @@ static int occampi_misc_namemap (compops_t *cops, tnode_t **tptr, map_t *map)
  */
 static int occampi_misc_codegen (compops_t *cops, tnode_t *tptr, codegen_t *cgen)
 {
+	if (tptr->tag == opi.tag_MISCCOMMENT) {
+		/*{{{  MISCCOMMENT -- drop TCOFF object*/
+		char *comment = (char *)tnode_getchook (tptr, miscstring_chook);
+
+		if (comment) {
+			codegen_callops (cgen, tcoff, 20, comment, strlen (comment));
+		}
+		/*}}}*/
+	}
 	return 1;
 }
 /*}}}*/
@@ -115,6 +168,14 @@ static int occampi_misc_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
+	/*{{{  misc:string compiler-hook*/
+	miscstring_chook = tnode_lookupornewchook ("misc:string");
+
+	miscstring_chook->chook_copy = miscstringhook_copy;
+	miscstring_chook->chook_free = miscstringhook_free;
+	miscstring_chook->chook_dumptree = miscstringhook_dumptree;
+
+	/*}}}*/
 	/*{{{  occampi:miscnode -- MISCCOMMENT*/
 	i = -1;
 	tnd = opi.node_MISCNODE = tnode_newnodetype ("occampi:miscnode", &i, 1, 0, 0, TNF_TRANSPARENT);			/* subnodes: 0 = body */
@@ -129,8 +190,6 @@ static int occampi_misc_init_nodes (void)
 
 	i = -1;
 	opi.tag_MISCCOMMENT = tnode_newnodetag ("MISCCOMMENT", &i, tnd, NTF_NONE);
-	i = -1;
-	opi.tag_MISCTCOFF = tnode_newnodetag ("MISCTCOFF", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

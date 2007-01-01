@@ -1,0 +1,9 @@
+
+-- test_n37.occ - #COMMENT test
+
+#COMMENT "This is a comment!"
+
+PROC test.n37 ()
+  SKIP
+:
+

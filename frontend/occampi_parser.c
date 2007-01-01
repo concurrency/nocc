@@ -916,6 +916,28 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				return tree;
 			}
 			/*}}}*/
+		} else if (nexttok && lexer_tokmatchlitstr (nexttok, "COMMENT")) {
+			/*{{{  #COMMENT*/
+			lexer_freetoken (tok);
+			lexer_freetoken (nexttok);
+
+			nexttok = lexer_nexttoken (lf);
+			if (nexttok && lexer_tokmatch (opi.tok_STRING, nexttok)) {
+				chook_t *mchook = tnode_lookupornewchook ("misc:string");
+
+				tree = tnode_create (opi.tag_MISCCOMMENT, lf, NULL);
+				tnode_setchook (tree, mchook, string_ndup (nexttok->u.str.ptr, nexttok->u.str.len));
+
+				lexer_freetoken (nexttok);
+				*gotall = 1;
+			} else {
+				parser_error (lf, "malformed #COMMENT directive, expected string found ");
+				lexer_dumptoken (stderr, nexttok);
+				lexer_freetoken (nexttok);
+				return tree;
+			}
+
+			/*}}}*/
 		} else if (nexttok) {
 			parser_error (lf, "unrecognised compiler directive #%s", lexer_stokenstr (nexttok));
 			lexer_freetoken (tok);

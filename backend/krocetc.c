@@ -3160,6 +3160,16 @@ static void krocetc_coder_trashistack (codegen_t *cgen)
 	return;
 }
 /*}}}*/
+/*{{{  static void krocetc_coder_tcoff (codegen_t *cgen, int tcid, const char *tcdata, const int tclen)*/
+/*
+ *	generates a TCOFF record (only really meaningful for this target!)
+ */
+static void krocetc_coder_tcoff (codegen_t *cgen, int tcid, const char *tcdata, const int tclen)
+{
+	codegen_write_fmt (cgen, ".tcoff\t%d\t\"%s\"\n", tcid, tcdata);
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static int krocetc_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)*/
@@ -3237,6 +3247,7 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	cops->branch = krocetc_coder_branch;
 	cops->debugline = krocetc_coder_debugline;
 	cops->trashistack = krocetc_coder_trashistack;
+	cops->tcoff = krocetc_coder_tcoff;
 
 	cgen->cops = cops;
 
