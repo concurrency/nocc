@@ -1,6 +1,6 @@
 /*
  *	occampi_parser.c -- occam-pi parser for nocc
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -526,14 +526,6 @@ static int occampi_dfas_init (void)
 		return 1;
 	}
 	/*}}}*/
-	/*{{{  others (tokens)*/
-	opi.tok_COLON = lexer_newtoken (SYMBOL, ":");
-	opi.tok_HASH = lexer_newtoken (SYMBOL, "#");
-	opi.tok_STRING = lexer_newtoken (STRING, NULL);
-	opi.tok_PUBLIC = lexer_newtoken (KEYWORD, "PUBLIC");
-	opi.tok_TRACES = lexer_newtoken (KEYWORD, "TRACES");
-
-	/*}}}*/
 	/*{{{  COMMENT: very manual construction*/
 #if 0
 	decl = dfa_newnode ();
@@ -664,6 +656,13 @@ static int occampi_parser_init (lexfile_t *lf)
 			return 1;
 		}
 
+		/* register some particular tokens (for comparison later) */
+		opi.tok_COLON = lexer_newtoken (SYMBOL, ":");
+		opi.tok_HASH = lexer_newtoken (SYMBOL, "#");
+		opi.tok_STRING = lexer_newtoken (STRING, NULL);
+		opi.tok_PUBLIC = lexer_newtoken (KEYWORD, "PUBLIC");
+		opi.tok_TRACES = lexer_newtoken (KEYWORD, "TRACES");
+	
 		/* register some general reduction functions */
 		fcnlib_addfcn ("occampi_inlistreduce", (void *)occampi_inlistreduce, 0, 3);
 		fcnlib_addfcn ("occampi_nametoken_to_hook", (void *)occampi_nametoken_to_hook, 1, 1);
@@ -672,6 +671,10 @@ static int occampi_parser_init (lexfile_t *lf)
 		fcnlib_addfcn ("occampi_stringtoken_to_hook", (void *)occampi_stringtoken_to_hook, 1, 1);
 
 		/* initialise! */
+		if (feunit_do_init_tokens (0, occampi_priv->langdefs, (void *)&occampi_parser)) {
+			nocc_error ("occampi_parser_init(): failed to initialise tokens");
+			return 1;
+		}
 		if (feunit_do_init_nodes (feunit_set, 1)) {
 			nocc_error ("occampi_parser_init(): failed to initialise nodes");
 			return 1;

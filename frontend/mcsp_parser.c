@@ -147,27 +147,6 @@ static void mcsp_freemcspparse (mcsp_parse_t *mpse)
 }
 /*}}}*/
 
-/*{{{  static int mcsp_tokens_init (void)*/
-/*
- *	initialises extra tokens needed by MCSP (symbols and keywords)
- *	returns 0 on success, non-zero on failure
- */
-static int mcsp_tokens_init (void)
-{
-	symbols_add ("|||", 3, (void *)&mcsp_parser);
-	symbols_add ("|~|", 3, (void *)&mcsp_parser);
-	symbols_add ("::=", 3, (void *)&mcsp_parser);
-	/* symbols_add (",", 1, (void *)&mcsp_parser); */
-	symbols_add (".", 1, (void *)&mcsp_parser);
-	symbols_add ("|{", 2, (void *)&mcsp_parser);
-	symbols_add ("}|", 2, (void *)&mcsp_parser);
-
-	keywords_add ("DIV", -1, (void *)&mcsp_parser);
-	keywords_add ("CHAOS", -1, (void *)&mcsp_parser);
-
-	return 0;
-}
-/*}}}*/
 /*{{{  static int mcsp_dfas_init (void)*/
 /*
  *	initialises MCSP DFAs
@@ -635,7 +614,7 @@ static int mcsp_parser_init (lexfile_t *lf)
 		}
 
 		/* initialise! */
-		if (mcsp_tokens_init ()) {
+		if (feunit_do_init_tokens (0, mcsp_priv->langdefs, (void *)&mcsp_parser)) {
 			nocc_error ("mcsp_parser_init(): failed to initialise tokens");
 			return 1;
 		}

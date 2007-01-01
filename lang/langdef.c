@@ -99,6 +99,20 @@ static void ldef_freelangdefent (langdefent_t *lde)
 		}
 		lde->type = LDE_INVALID;
 		break;
+	case LDE_KEYWORD:
+		if (lde->u.keyword) {
+			sfree (lde->u.keyword);
+			lde->u.keyword = NULL;
+		}
+		lde->type = LDE_INVALID;
+		break;
+	case LDE_SYMBOL:
+		if (lde->u.symbol) {
+			sfree (lde->u.symbol);
+			lde->u.symbol = NULL;
+		}
+		lde->type = LDE_INVALID;
+		break;
 	}
 	sfree (lde);
 	return;
@@ -197,6 +211,29 @@ static void ldef_freelangdef (langdef_t *ldef)
 	dynarray_trash (ldef->sections);
 	sfree (ldef);
 	return;
+}
+/*}}}*/
+
+
+/*{{{  static langdefsec_t *ldef_ensuresection (langdef_t *ldef, const char *ident, const char *rfname, const int lineno)*/
+/*
+ *	make sure that a section exists, uses ldef->cursec if set
+ */
+static langdefsec_t *ldef_ensuresection (langdef_t *ldef, const char *ident, const char *rfname, const int lineno)
+{
+	langdefsec_t *lsec = ldef->cursec;
+
+	if (!lsec) {
+		nocc_warning ("%s outside section at %s:%d, creating omnipotent section", ident ?: "(unknown)", rfname, lineno);
+
+		lsec = ldef_newlangdefsec ();
+		lsec->ident = string_dup ("");
+		lsec->ldef = ldef;
+
+		dynarray_add (ldef->sections, lsec);
+		ldef->cursec = lsec;
+	}
+	return lsec;
 }
 /*}}}*/
 
@@ -306,7 +343,7 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 		/*}}}*/
 	} else if (!strcmp (bits[0], ".GRULE")) {
 		/*{{{  .GRULE -- generic reduction name and rule*/
-		langdefsec_t *lsec = ldef->cursec;
+		langdefsec_t *lsec = NULL;
 		langdefent_t *lfe = NULL;
 		char *dstr = NULL;
 		int dlen = 0;
@@ -324,16 +361,7 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 			strcpy (dstr + dlen, bits[i]);
 		}
 
-		if (!lsec) {
-			nocc_warning ("%s outside section at %s:%d, creating omnipotent section", bits[0], rfname, lineno);
-
-			lsec = ldef_newlangdefsec ();
-			lsec->ident = string_dup ("");
-			lsec->ldef = ldef;
-
-			dynarray_add (ldef->sections, lsec);
-			ldef->cursec = lsec;
-		}
+		lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
 
 		lfe = ldef_newlangdefent ();
 		lfe->ldef = ldef;
@@ -348,7 +376,7 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 		/*}}}*/
 	} else if (!strcmp (bits[0], ".RFUNC")) {
 		/*{{{  .RFUNC -- reduction function (must be registered!)*/
-		langdefsec_t *lsec = ldef->cursec;
+		langdefsec_t *lsec = NULL;
 		langdefent_t *lfe = NULL;
 
 		if (nbits < 3) {
@@ -358,16 +386,7 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 		string_dequote (bits[1]);
 		string_dequote (bits[2]);
 
-		if (!lsec) {
-			nocc_warning ("%s outside section at %s:%d, creating omnipotent section", bits[0], rfname, lineno);
-
-			lsec = ldef_newlangdefsec ();
-			lsec->ident = string_dup ("");
-			lsec->ldef = ldef;
-
-			dynarray_add (ldef->sections, lsec);
-			ldef->cursec = lsec;
-		}
+		lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
 
 		lfe = ldef_newlangdefent ();
 		lfe->ldef = ldef;
@@ -382,7 +401,7 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 		/*}}}*/
 	} else if (!strcmp (bits[0], ".BNF") || !strcmp (bits[0], ".TABLE")) {
 		/*{{{  .BNF, .TABLE -- DFA BNF-rule or transition-table*/
-		langdefsec_t *lsec = ldef->cursec;
+		langdefsec_t *lsec = NULL;
 		langdefent_t *lfe = NULL;
 		char *dstr = NULL;
 		int dlen = 0;
@@ -405,16 +424,7 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 			}
 		}
 
-		if (!lsec) {
-			nocc_warning ("%s outside section at %s:%d, creating omnipotent section", bits[0], rfname, lineno);
-
-			lsec = ldef_newlangdefsec ();
-			lsec->ident = string_dup ("");
-			lsec->ldef = ldef;
-
-			dynarray_add (ldef->sections, lsec);
-			ldef->cursec = lsec;
-		}
+		lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
 
 		lfe = ldef_newlangdefent ();
 		lfe->ldef = ldef;
@@ -422,6 +432,50 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 
 		lfe->type = (!strcmp (bits[0], ".BNF")) ? LDE_DFABNF : LDE_DFATRANS;
 		lfe->u.dfarule = dstr;
+
+		dynarray_add (lsec->ents, lfe);
+
+		/*}}}*/
+	} else if (!strcmp (bits[0], ".KEYWORD")) {
+		/*{{{  .KEYWORD -- language keyword*/
+		langdefsec_t *lsec = NULL;
+		langdefent_t *lfe = NULL;
+
+		if (nbits < 2) {
+			goto out_malformed;
+		}
+		string_dequote (bits[1]);
+
+		lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
+
+		lfe = ldef_newlangdefent ();
+		lfe->ldef = ldef;
+		lfe->lineno = lineno;
+
+		lfe->type = LDE_KEYWORD;
+		lfe->u.keyword = string_dup (bits[1]);
+
+		dynarray_add (lsec->ents, lfe);
+
+		/*}}}*/
+	} else if (!strcmp (bits[0], ".SYMBOL")) {
+		/*{{{  .SYMBOL -- language symbol*/
+		langdefsec_t *lsec = NULL;
+		langdefent_t *lfe = NULL;
+
+		if (nbits < 2) {
+			goto out_malformed;
+		}
+		string_dequote (bits[1]);
+
+		lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
+
+		lfe = ldef_newlangdefent ();
+		lfe->ldef = ldef;
+		lfe->lineno = lineno;
+
+		lfe->type = LDE_SYMBOL;
+		lfe->u.symbol = string_dup (bits[1]);
 
 		dynarray_add (lsec->ents, lfe);
 
@@ -634,6 +688,39 @@ int langdef_hassection (langdef_t *ldef, const char *ident)
 	return 0;
 }
 /*}}}*/
+
+/*{{{  int langdef_init_tokens (langdefsec_t *lsec, void *origin)*/
+/*
+ *	registers tokens defined in a particular section
+ *	returns 0 on success, non-zero on failure
+ */
+int langdef_init_tokens (langdefsec_t *lsec, void *origin)
+{
+	int rval = 0;
+	int i;
+
+	if (!lsec) {
+		/* means we probably failed elsewhere first */
+		return 0;
+	}
+
+	for (i=0; i<DA_CUR (lsec->ents); i++) {
+		langdefent_t *lde = DA_NTHITEM (lsec->ents, i);
+
+		switch (lde->type) {
+		default:
+			break;
+		case LDE_KEYWORD:
+			keywords_add (lde->u.keyword, -1, origin);
+			break;
+		case LDE_SYMBOL:
+			symbols_add (lde->u.symbol, strlen (lde->u.symbol), origin);
+			break;
+		}
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  int langdef_reg_reducers (langdefsec_t *lsec)*/
 /*
  *	registers generic reductions in a particular section
@@ -655,6 +742,7 @@ int langdef_reg_reducers (langdefsec_t *lsec)
 		switch (lde->type) {
 		default:
 			break;
+			/*{{{  LDE_GRL -- generic reduction rule*/
 		case LDE_GRL:
 			{
 				void *rule = parser_decode_grule (lde->u.redex.desc);
@@ -673,6 +761,8 @@ int langdef_reg_reducers (langdefsec_t *lsec)
 				}
 			}
 			break;
+			/*}}}*/
+			/*{{{  LDE_RFUNC -- named reduction function (must be registered with fcnlib or extn)*/
 		case LDE_RFUNC:
 			{
 				void *sym;
@@ -694,6 +784,7 @@ int langdef_reg_reducers (langdefsec_t *lsec)
 				}
 			}
 			break;
+			/*}}}*/
 		}
 	}
 

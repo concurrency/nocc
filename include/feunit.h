@@ -1,6 +1,6 @@
 /*
  *	feunit.h -- language front-end initialiser interface
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ typedef struct TAG_feunit {
 extern int feunit_init (void);
 extern int feunit_shutdown (void);
 
+extern int feunit_do_init_tokens (int earlyfail, struct TAG_langdef *ldef, void *origin);
 extern int feunit_do_init_nodes (feunit_t **felist, int earlyfail);
 extern int feunit_do_reg_reducers (feunit_t **felist, int earlyfail, struct TAG_langdef *ldef);
 

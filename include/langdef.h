@@ -24,6 +24,7 @@
 struct TAG_tnode;
 struct TAG_lexfile;
 struct TAG_dfattbl;
+struct TAG_langparser;
 
 struct TAG_langdef;
 
@@ -32,7 +33,9 @@ typedef enum ENUM_langdefent {
 	LDE_GRL = 1,
 	LDE_RFUNC = 2,
 	LDE_DFATRANS = 3,
-	LDE_DFABNF = 4
+	LDE_DFABNF = 4,
+	LDE_KEYWORD = 5,
+	LDE_SYMBOL = 6
 } langdefent_e;
 
 typedef struct TAG_langdefent {
@@ -46,6 +49,8 @@ typedef struct TAG_langdefent {
 			char *desc;		/* reduction specification (GRL) or reduction name */
 		} redex;
 		char *dfarule;			/* for DFATRANS and DFABNF */
+		char *keyword;			/* for KEYWORD */
+		char *symbol;			/* for SYMBOL */
 	} u;
 } langdefent_t;
 
@@ -70,6 +75,8 @@ extern void langdef_freelangdef (langdef_t *ldef);
 
 extern langdefsec_t *langdef_findsection (langdef_t *ldef, const char *ident);
 extern int langdef_hassection (langdef_t *ldef, const char *ident);
+
+extern int langdef_init_tokens (langdefsec_t *lsec, void *origin);
 extern int langdef_reg_reducers (langdefsec_t *lsec);
 extern struct TAG_dfattbl **langdef_init_dfatrans (langdefsec_t *lsec, int *ntrans);
 

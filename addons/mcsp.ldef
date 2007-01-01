@@ -9,7 +9,17 @@
 
 
 # sections are used to help front-end units find their definitions
-.SECTION "mcsp" # {{{: fairly general MCSP reductions
+.SECTION "mcsp" # {{{: MCSP tokens and general reductions
+
+.SYMBOL "|||"
+.SYMBOL "|~|"
+.SYMBOL "::="
+.SYMBOL "."
+.SYMBOL "|{"
+.SYMBOL "}|"
+
+.KEYWORD "DIV"
+.KEYWORD "CHAOS"
 
 .GRULE	"mcsp:nullreduce" "N+R-"
 .GRULE	"mcsp:nullpush" "0N-"

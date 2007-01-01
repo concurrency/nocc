@@ -75,6 +75,32 @@ int feunit_shutdown (void)
 /*}}}*/
 
 
+
+/*{{{  int feunit_do_init_tokens (int earlyfail, langdef_t *ldef, void *origin)*/
+/*
+ *	extracts and sets up tokens for a particular language definition (always top-level currently)
+ *	returns 0 on success, non-zero on failure
+ */
+int feunit_do_init_tokens (int earlyfail, langdef_t *ldef, void *origin)
+{
+	int rval = 0;
+
+	if (ldef && ldef->ident && langdef_hassection (ldef, ldef->ident)) {
+		langdefsec_t *lsec = langdef_findsection (ldef, ldef->ident);
+
+		if (!lsec) {
+			nocc_error ("feunit_do_reg_reducers(): no \"%s\" section in language definition!", ldef->ident);
+			return -1;
+		} else {
+			if (langdef_init_tokens (lsec, origin)) {
+				/* failed */
+				rval = -1;
+			}
+		}
+	}
+	return rval;
+}
+/*}}}*/
 /*{{{  int feunit_do_init_nodes (feunit_t **felist, int earlyfail)*/
 /*
  *	calls init_nodes on a set of feunits

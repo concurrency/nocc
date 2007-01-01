@@ -167,42 +167,6 @@ langdef_t *rcxb_getlangdef (void)
 /*}}}*/
 
 
-/*{{{  static int rcxb_tokens_init (void)*/
-/*
- *	initialises RCX-BASIC tokens (keywords + symbols)
- *	returns 0 on success, non-zero on failure
- */
-static int rcxb_tokens_init (void)
-{
-	keywords_add ("rem", -1, (void *)&rcxb_parser);
-
-	keywords_add ("set", -1, (void *)&rcxb_parser);
-	keywords_add ("motor", -1, (void *)&rcxb_parser);
-	keywords_add ("sensor", -1, (void *)&rcxb_parser);
-	keywords_add ("power", -1, (void *)&rcxb_parser);
-	keywords_add ("direction", -1, (void *)&rcxb_parser);
-	keywords_add ("forward", -1, (void *)&rcxb_parser);
-	keywords_add ("reverse", -1, (void *)&rcxb_parser);
-	keywords_add ("off", -1, (void *)&rcxb_parser);
-	keywords_add ("for", -1, (void *)&rcxb_parser);
-	keywords_add ("to", -1, (void *)&rcxb_parser);
-	keywords_add ("on", -1, (void *)&rcxb_parser);
-	keywords_add ("step", -1, (void *)&rcxb_parser);
-	keywords_add ("next", -1, (void *)&rcxb_parser);
-	keywords_add ("while", -1, (void *)&rcxb_parser);
-	keywords_add ("gosub", -1, (void *)&rcxb_parser);
-	keywords_add ("goto", -1, (void *)&rcxb_parser);
-	keywords_add ("if", -1, (void *)&rcxb_parser);
-	keywords_add ("then", -1, (void *)&rcxb_parser);
-	keywords_add ("else", -1, (void *)&rcxb_parser);
-	keywords_add ("elsif", -1, (void *)&rcxb_parser);
-	keywords_add ("endif", -1, (void *)&rcxb_parser);
-	keywords_add ("sleep", -1, (void *)&rcxb_parser);
-	keywords_add ("sound", -1, (void *)&rcxb_parser);
-
-	return 0;
-}
-/*}}}*/
 /*{{{  static int rcxb_dfas_init (void)*/
 /*
  *	initialises RCX-BASIC DFAs
@@ -338,7 +302,7 @@ static int rcxb_parser_init (lexfile_t *lf)
 		}
 
 		/* initialise! */
-		if (rcxb_tokens_init ()) {
+		if (feunit_do_init_tokens (0, rcxb_priv->ldef, (void *)&rcxb_parser)) {
 			nocc_error ("rcxb_parser_init(): failed to initialise tokens");
 			return 1;
 		}
