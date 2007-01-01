@@ -154,6 +154,25 @@ void parser_warning (lexfile_t *lf, const char *fmt, ...)
 	return;
 }
 /*}}}*/
+/*{{{  int parser_markerror (lexfile_t *lf)*/
+/*
+ *	'marks' the lexfile error-count (returns it)
+ */
+int parser_markerror (lexfile_t *lf)
+{
+	return lf->errcount;
+}
+/*}}}*/
+/*{{{  int parser_checkerror (lexfile_t *lf, const int mark)*/
+/*
+ *	compares error counts to see if something errored while parsing
+ *	returns 0 if no error, non-zero otherwise
+ */
+int parser_checkerror (lexfile_t *lf, const int mark)
+{
+	return (lf->errcount - mark);
+}
+/*}}}*/
 
 
 /*{{{  parsepriv_t *parser_newparsepriv (void)*/

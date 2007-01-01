@@ -478,6 +478,37 @@ static void occampi_parser_shutdown (lexfile_t *lf)
 /*}}}*/
 
 
+/*{{{  static int occampi_skiptoeol (lexfile_t *lf, int skipindent)*/
+/*
+ *	skips the lexer to the end of a line;  if 'skipindent' is non-zero, will ignore anything indented
+ *	to the end of the line.
+ *	returns 0 on success (skipped ok), non-zero otherwise
+ */
+static int occampi_skiptoeol (lexfile_t *lf, int skipindent)
+{
+	int icount = 0;
+	token_t *tok;
+
+	for (;;) {
+		tok = lexer_nexttoken (lf);
+		if (tok->type == END) {
+			/* unexpected */
+			lexer_pushback (lf, tok);
+			return -1;
+		} else if (skipindent && (tok->type == INDENT)) {
+			icount++;
+		} else if (skipindent && (tok->type == OUTDENT)) {
+			icount--;
+		} else if ((tok->type == NEWLINE) && (icount <= 0)) {
+			/* that's enough */
+			lexer_pushback (lf, tok);
+			break;
+		}
+		lexer_freetoken (tok);
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_tracesparse (lexfile_t *lf, tnode_t *tree)*/
 /*
  *	parses a traces specification and attaches to the given tree
@@ -909,6 +940,26 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 					return tree;
 				}
 				/*}}}*/
+			} else if (nexttok && lexer_tokmatchlitstr (nexttok, "COMMENT")) {
+				/*{{{  #PRAGMA COMMENT*/
+				lexer_freetoken (nexttok);
+
+				nexttok = lexer_nexttoken (lf);
+				if (nexttok && lexer_tokmatch (opi.tok_STRING, nexttok)) {
+					chook_t *mchook = tnode_lookupornewchook ("misc:string");
+
+					tree = tnode_create (opi.tag_MISCCOMMENT, lf, NULL);
+					tnode_setchook (tree, mchook, string_ndup (nexttok->u.str.ptr, nexttok->u.str.len));
+
+					lexer_freetoken (nexttok);
+					*gotall = 1;
+				} else {
+					parser_error (lf, "malformed #PRAGMA COMMENT directive, expected string found ");
+					lexer_dumptoken (stderr, nexttok);
+					lexer_freetoken (nexttok);
+					return tree;
+				}
+				/*}}}*/
 			} else {
 				parser_error (lf, "while processing #PRAGMA, expected string found ");
 				lexer_dumptoken (stderr, nexttok);
@@ -953,18 +1004,30 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 		}
 		/*}}}*/
 	} else if (lexer_tokmatch (opi.tok_PUBLIC, tok)) {
+		int emrk = parser_markerror (lf);
+
 		lexer_freetoken (tok);
 		tree = dfa_walk (thedfa ? thedfa : "occampi:declorprocstart", lf);
 
 		if (tree) {
 			library_markpublic (tree);
 		}
+
+		if (parser_checkerror (lf, emrk)) {
+			occampi_skiptoeol (lf, 1);
+		}
 	} else {
+		int emrk = parser_markerror (lf);
+
 		lexer_pushback (lf, tok);
 		tree = dfa_walk (thedfa ? thedfa : "occampi:declorprocstart", lf);
 
 		if (lf->toplevel && lf->sepcomp && tree && ((tree->tag == opi.tag_PROCDECL) || (tree->tag == opi.tag_FUNCDECL))) {
 			library_markpublic (tree);
+		}
+
+		if (parser_checkerror (lf, emrk)) {
+			occampi_skiptoeol (lf, 1);
 		}
 	}
 

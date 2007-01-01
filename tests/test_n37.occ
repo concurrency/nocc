@@ -2,6 +2,7 @@
 -- test_n37.occ - #COMMENT test
 
 #COMMENT "This is a comment!"
+#PRAGMA COMMENT "this is another comment!"
 
 PROC test.n37 ()
   SKIP
