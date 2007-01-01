@@ -906,7 +906,7 @@ dfattbl_t **langdef_init_dfatrans (langdefsec_t *lsec, int *ntrans)
 	return DA_PTR (transtbl);
 }
 /*}}}*/
-/*{{{  */
+/*{{{  int langdef_post_setup (langdefsec_t *lsec)*/
 /*
  *	registers any things needed in post-setup (such as DFA error-handler messages)
  *	returns 0 on success, non-zero on failure
@@ -927,7 +927,16 @@ int langdef_post_setup (langdefsec_t *lsec)
 		switch (lde->type) {
 		default:
 			break;
-			/*{{{  FIXME!*/
+			/*{{{  LDE_DFAERR -- DFA error handling specification*/
+		case LDE_DFAERR:
+			if (dfaerror_defaulthandler (lde->u.dfaerror.dfaname, lde->u.dfaerror.msg, (dfaerrorsource_e)lde->u.dfaerror.source, (dfaerrorreport_e)lde->u.dfaerror.rcode)) {
+				nocc_error ("unable to set DFA error handler in language definition for [%s (%s)], line %d", lsec->ldef->ident, lsec->ident, lde->lineno);
+				if (lsec->ldef->maintainer) {
+					nocc_message ("maintainer for [%s] is: %s", lsec->ldef->ident, lsec->ldef->maintainer);
+				}
+				rval = -1;
+			}
+			break;
 			/*}}}*/
 		}
 	}

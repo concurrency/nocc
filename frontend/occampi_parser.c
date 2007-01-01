@@ -323,19 +323,6 @@ static void occampi_debug_gstack (void **items, int icnt)
 #endif
 	/*}}}*/
 
-/*{{{  static int occampi_post_setup (void)*/
-/*
- *	calls any post-setup routines for the parser
- */
-static int occampi_post_setup (void)
-{
-	dfaerror_defaulthandler ("occampi:namestart", "in declaration or process", DFAERRSRC_STUCK, DFAERR_EXPECTED);
-	dfaerror_defaulthandler ("occampi:namestartname", "in declaration or process", DFAERRSRC_STUCK, DFAERR_EXPECTED);
-	dfaerror_defaulthandler ("occampi:declorprocstart", "in declaration or process start", DFAERRSRC_STUCK, DFAERR_EXPECTED);
-
-	return 0;
-}
-/*}}}*/
 
 /*{{{  void occampi_isetindent (FILE *stream, int indent)*/
 /*
@@ -453,10 +440,6 @@ static int occampi_parser_init (lexfile_t *lf)
 			return 1;
 		}
 		if (feunit_do_post_setup (feunit_set, 1, occampi_priv->langdefs)) {
-			nocc_error ("occampi_parser_init(): failed to post-setup");
-			return 1;
-		}
-		if (occampi_post_setup ()) {
 			nocc_error ("occampi_parser_init(): failed to post-setup");
 			return 1;
 		}

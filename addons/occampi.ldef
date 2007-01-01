@@ -43,7 +43,9 @@
 	"occampi:builtinprocinstance | occampi:bracketstart | occampi:asmblock ) {<opi:nullreduce>}"
 .TABLE	"occampi:descriptorline ::= [ 0 -@PROC 1 ] [ 0 -* 2 ] [ 1 occampi:procdecl 3 ] [ 2 occampi:funcdecl 3 ] [ 3 {<opi:nullreduce>} -* ]"
 
-.DFAERR	STUCK "occampi:declorprocstart" "in declaration or process start" EXPECTED
+.DFAERR	STUCK "occampi:namestart" "in declaration or process" EXPECTED
+.DFAERR	STUCK "occampi:namestartname" "in declaration or process" EXPECTED
+.DFAERR	STUCK "occampi:declorprocstart" "in declaration or process start" EXPECTED,CODE
 
 # .DFAERR	"occampi:declorprocstart" EXPECTED "in declaration or process start"
 
@@ -172,6 +174,9 @@
 .TABLE	"occampi:exprnamestart +:= [ 0 +Name 1 ] [ 1 @@! 2 ] [ 1 @@? 4 ] [ 2 {<opi:namepush>} -* 3 ] [ 3 {<opi:directedchanoutput>} -* 6 ]"
 	"[ 4 {<opi:namepush>} -* 5 ] [ 5 {<opi:directedchaninput>} -* 6 ] [ 6 {<opi:nullreduce>} -* ]"
 
+.DFAERR	STUCK "occampi:procdecl" "in PROC declaration" EXPECTED
+
+
 # }}}
 .SECTION "occampi-dtype" # {{{: structured data-types
 
@@ -226,6 +231,8 @@
 .TABLE	"occampi:namestartname +:= [ 0 @@_ 1 ] [ 1 occampi:name 2 ] [ 2 {<opi:xsubscriptreduce>} -* 3 ] [ 3 {<opi:resultpush>} -* 0 ]"
 
 .TABLE	"occampi:expr +:= [ 0 @SIZE 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:sizeopreduce>} -* ]"
+
+.DFAERR	STUCK "occampi:typedecl" "in DATA TYPE declaration" EXPECTED
 
 # }}}
 .SECTION "occampi-function" # {{{: functions
@@ -368,6 +375,8 @@
 .BNF	"occampi:typecommalist ::= { occampi:type @@, 1 }"
 .TABLE	"occampi:declorprocstart +:= [ 0 @PLACED 1 ] [ 1 @PORT 2 ] [ 2 occampi:protocol 3 ] [ 3 occampi:name 4 ]"
 	"[ 4 @AT 5 ] [ 4 -* 5 ] [ 5 occampi:expr 6 ] [ 6 {<opi:placedportreduce>} @@: ]"
+
+.DFAERR	STUCK "occampi:protocol" "in protocol specification" EXPECTED
 
 # }}}
 

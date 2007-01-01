@@ -759,17 +759,6 @@ static int occampi_type_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_type_post_setup (void)*/
-/*
- *	does post-setup for type nodes
- *	returns 0 on success, non-zero on failure
- */
-static int occampi_type_post_setup (void)
-{
-	dfaerror_defaulthandler ("occampi:protocol", "in protocol specification", DFAERRSRC_STUCK, DFAERR_EXPECTED);
-	return 0;
-}
-/*}}}*/
 
 
 /*{{{  occampi_type_feunit (feunit_t struct)*/
@@ -777,7 +766,7 @@ feunit_t occampi_type_feunit = {
 	init_nodes: occampi_type_init_nodes,
 	reg_reducers: NULL,
 	init_dfatrans: NULL,
-	post_setup: occampi_type_post_setup,
+	post_setup: NULL,
 	ident: "occampi-type"
 };
 /*}}}*/

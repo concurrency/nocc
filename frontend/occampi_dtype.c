@@ -1125,17 +1125,6 @@ static int occampi_dtype_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_dtype_post_setup (void)*/
-/*
- *	does post-setup for initialisation
- */
-static int occampi_dtype_post_setup (void)
-{
-	dfaerror_defaulthandler ("occampi:typedecl", "in DATA TYPE declaration", DFAERRSRC_STUCK, DFAERR_EXPECTED);
-
-	return 0;
-}
-/*}}}*/
 
 
 /*{{{  occampi_dtype_feunit (feunit_t)*/
@@ -1143,7 +1132,7 @@ feunit_t occampi_dtype_feunit = {
 	init_nodes: occampi_dtype_init_nodes,
 	reg_reducers: NULL,
 	init_dfatrans: NULL,
-	post_setup: occampi_dtype_post_setup,
+	post_setup: NULL,
 	ident: "occampi-dtype"
 };
 /*}}}*/

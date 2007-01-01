@@ -1521,16 +1521,6 @@ static int occampi_decl_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_decl_post_setup (void)*/
-/*
- *	does post-setup for initialisation
- */
-static int occampi_decl_post_setup (void)
-{
-	dfaerror_defaulthandler ("occampi:procdecl", "in PROC declaration", DFAERRSRC_STUCK, DFAERR_EXPECTED);
-	return 0;
-}
-/*}}}*/
 
 
 /*{{{  occampi_decl_feunit (feunit_t)*/
@@ -1538,7 +1528,7 @@ feunit_t occampi_decl_feunit = {
 	init_nodes: occampi_decl_init_nodes,
 	reg_reducers: NULL,
 	init_dfatrans: NULL,
-	post_setup: occampi_decl_post_setup,
+	post_setup: NULL,
 	ident: "occampi-decl"
 };
 
