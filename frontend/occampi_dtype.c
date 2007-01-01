@@ -40,6 +40,7 @@
 #include "parser.h"
 #include "fcnlib.h"
 #include "dfa.h"
+#include "dfaerror.h"
 #include "parsepriv.h"
 #include "occampi.h"
 #include "feunit.h"
@@ -957,20 +958,6 @@ if (tnode_nthsubof (*node, 2)) {
 /*}}}*/
 
 
-/*{{{  static void occampi_typedecl_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)*/
-/*
- *	called by parser when it gets stuck in an occampi:typedecl DFA node
- */
-static void occampi_typedecl_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
-{
-	char *msg;
-
-	msg = dfa_expectedmatchstr (dfanode, tok, "in DATA TYPE declaration");
-	parser_error (tok->origin, msg);
-
-	return;
-}
-/*}}}*/
 /*{{{  static void occampi_reduce_resetnewline (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
  *	creates a newline token and pushes it back into the lexer
@@ -1144,9 +1131,7 @@ static int occampi_dtype_init_nodes (void)
  */
 static int occampi_dtype_post_setup (void)
 {
-	static dfaerrorhandler_t typedecl_eh = { occampi_typedecl_dfaeh_stuck };
-
-	dfa_seterrorhandler ("occampi:typedecl", &typedecl_eh);
+	dfaerror_defaulthandler ("occampi:typedecl", "in DATA TYPE declaration", DFAERRSRC_STUCK, DFAERR_EXPECTED);
 
 	return 0;
 }

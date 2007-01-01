@@ -35,8 +35,11 @@ typedef enum ENUM_langdefent {
 	LDE_DFATRANS = 3,
 	LDE_DFABNF = 4,
 	LDE_KEYWORD = 5,
-	LDE_SYMBOL = 6
+	LDE_SYMBOL = 6,
+	LDE_DFAERR = 7
 } langdefent_e;
+
+enum ENUM_dfaerrorreport;
 
 typedef struct TAG_langdefent {
 	struct TAG_langdef *ldef;		/* language definition this is in */
@@ -51,6 +54,12 @@ typedef struct TAG_langdefent {
 		char *dfarule;			/* for DFATRANS and DFABNF */
 		char *keyword;			/* for KEYWORD */
 		char *symbol;			/* for SYMBOL */
+		struct {
+			char *dfaname;		/* name of the DFA rule */
+			int source;		/* integer for dfaerrorsource_e */
+			int rcode;		/* integer for dfaerrorreport_e */
+			char *msg;		/* associated error message */
+		} dfaerror;
 	} u;
 } langdefent_t;
 

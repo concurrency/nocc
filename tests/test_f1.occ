@@ -1,0 +1,9 @@
+
+-- test_f1.occ -- failure test
+
+PROC test.f1 ()
+  SEQ
+    + NEW
+:
+
+

@@ -39,6 +39,7 @@
 #include "tnode.h"
 #include "parser.h"
 #include "dfa.h"
+#include "dfaerror.h"
 #include "parsepriv.h"
 #include "occampi.h"
 #include "feunit.h"
@@ -1372,34 +1373,6 @@ static int occampi_getname_namenode (langops_t *lops, tnode_t *node, char **str)
 /*}}}*/
 
 
-/*{{{  static void occampi_procdecl_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)*/
-/*
- *	called by parser when it gets stuck in an occampi:procdecl DFA node
- */
-static void occampi_procdecl_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
-{
-	char msgbuf[1024];
-	int gone = 0;
-	int max = 1023;
-
-	gone += snprintf (msgbuf + gone, max - gone, "parse error at %s in PROC declaration", lexer_stokenstr (tok));
-	if (DA_CUR (dfanode->match)) {
-		int n;
-
-		gone += snprintf (msgbuf + gone, max - gone, ", expected ");
-		for (n=0; n<DA_CUR (dfanode->match); n++) {
-			token_t *match = DA_NTHITEM (dfanode->match, n);
-
-			gone += snprintf (msgbuf + gone, max - gone, "%s%s", !n ? "" : ((n == DA_CUR (dfanode->match) - 1) ? " or " : ", "), lexer_stokenstr (match));
-		}
-	}
-	parser_error (tok->origin, msgbuf);
-	return;
-}
-/*}}}*/
-
-
-
 /*{{{  static int occampi_decl_init_nodes (void)*/
 /*
  *	sets up declaration and name nodes for occam-pi
@@ -1554,10 +1527,7 @@ static int occampi_decl_init_nodes (void)
  */
 static int occampi_decl_post_setup (void)
 {
-	static dfaerrorhandler_t procdecl_eh = { occampi_procdecl_dfaeh_stuck };
-
-	dfa_seterrorhandler ("occampi:procdecl", &procdecl_eh);
-
+	dfaerror_defaulthandler ("occampi:procdecl", "in PROC declaration", DFAERRSRC_STUCK, DFAERR_EXPECTED);
 	return 0;
 }
 /*}}}*/

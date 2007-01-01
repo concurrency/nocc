@@ -41,6 +41,7 @@
 #include "fcnlib.h"
 #include "extn.h"
 #include "dfa.h"
+#include "dfaerror.h"
 #include "langdef.h"
 #include "parsepriv.h"
 #include "lexpriv.h"
@@ -89,7 +90,6 @@ static void ldef_freelangdefent (langdefent_t *lde)
 			sfree (lde->u.redex.desc);
 			lde->u.redex.desc = NULL;
 		}
-		lde->type = LDE_INVALID;
 		break;
 	case LDE_DFATRANS:
 	case LDE_DFABNF:
@@ -97,23 +97,31 @@ static void ldef_freelangdefent (langdefent_t *lde)
 			sfree (lde->u.dfarule);
 			lde->u.dfarule = NULL;
 		}
-		lde->type = LDE_INVALID;
 		break;
 	case LDE_KEYWORD:
 		if (lde->u.keyword) {
 			sfree (lde->u.keyword);
 			lde->u.keyword = NULL;
 		}
-		lde->type = LDE_INVALID;
 		break;
 	case LDE_SYMBOL:
 		if (lde->u.symbol) {
 			sfree (lde->u.symbol);
 			lde->u.symbol = NULL;
 		}
-		lde->type = LDE_INVALID;
+		break;
+	case LDE_DFAERR:
+		if (lde->u.dfaerror.dfaname) {
+			sfree (lde->u.dfaerror.dfaname);
+			lde->u.dfaerror.dfaname = NULL;
+		}
+		if (lde->u.dfaerror.msg) {
+			sfree (lde->u.dfaerror.msg);
+			lde->u.dfaerror.msg = NULL;
+		}
 		break;
 	}
+	lde->type = LDE_INVALID;
 	sfree (lde);
 	return;
 }
@@ -476,6 +484,54 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 
 		lfe->type = LDE_SYMBOL;
 		lfe->u.symbol = string_dup (bits[1]);
+
+		dynarray_add (lsec->ents, lfe);
+
+		/*}}}*/
+	} else if (!strcmp (bits[0], ".DFAERR")) {
+		/*{{{  .DFAERR -- DFA error handler message*/
+		langdefsec_t *lsec = NULL;
+		langdefent_t *lfe = NULL;
+		dfaerrorsource_e esrc = DFAERRSRC_INVALID;
+		dfaerrorreport_e erep = DFAERR_NONE;
+
+		if (nbits < 4) {
+			goto out_malformed;
+		}
+
+		string_dequote (bits[1]);		/* shouldn't be quoted, but we'll go with it if so */
+		string_dequote (bits[2]);
+		string_dequote (bits[3]);
+
+		esrc = dfaerror_decodesource (bits[1]);
+		if (esrc == DFAERRSRC_INVALID) {
+			nocc_error ("unknown DFA error type [%s] at %s:%d", bits[1], rfname, lineno);
+			rval = -1;
+			goto out_local;
+		}
+
+		for (i=4; bits[i]; i++) {
+			dfaerrorreport_e lerep = dfaerror_decodereport (bits[i]);
+
+			if (lerep == DFAERR_INVALID) {
+				nocc_error ("unknown DFA error report [%s] at %s:%d", bits[i], rfname, lineno);
+				rval = -1;
+				goto out_local;
+			}
+			erep |= lerep;
+		}
+
+		lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
+
+		lfe = ldef_newlangdefent ();
+		lfe->ldef = ldef;
+		lfe->lineno = lineno;
+
+		lfe->type = LDE_DFAERR;
+		lfe->u.dfaerror.source = (int)esrc;
+		lfe->u.dfaerror.rcode = (int)erep;
+		lfe->u.dfaerror.dfaname = string_dup (bits[2]);
+		lfe->u.dfaerror.msg = string_dup (bits[3]);
 
 		dynarray_add (lsec->ents, lfe);
 

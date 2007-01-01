@@ -24,6 +24,7 @@ struct TAG_token;
 struct TAG_dfastate;
 struct TAG_tnode;
 struct TAG_lexfile;
+struct TAG_dfaerrorhandler;
 
 #define DFAFLAG_NONE 0x0000
 #define DFAFLAG_NOCONSUME 0x0001	/* don't consume the token */
@@ -82,10 +83,6 @@ typedef struct TAG_dfattbl {
 	DYNARRAY (dfattblent_t *, entries);
 } dfattbl_t;
 
-typedef struct TAG_dfaerrorhandler {
-	void (*stuck)(dfanode_t *, struct TAG_token *);
-} dfaerrorhandler_t;
-
 
 extern int dfa_init (void);
 extern int dfa_shutdown (void);
@@ -103,7 +100,8 @@ extern void dfa_defaultto (dfanode_t *dfa, char *target);
 extern void dfa_defaultpush (dfanode_t *dfa, char *pushto, dfanode_t *target);
 extern void dfa_defaultreturn (dfanode_t *dfa);
 extern int dfa_setname (dfanode_t *dfa, char *name);
-extern void dfa_seterrorhandler (char *name, dfaerrorhandler_t *ehan);
+extern void dfa_seterrorhandler (char *name, struct TAG_dfaerrorhandler *ehan);
+extern struct TAG_dfaerrorhandler *dfa_geterrorhandler (char *name);
 extern dfanode_t *dfa_lookupbyname (char *name);
 extern int dfa_findmatch (dfanode_t *dfa, struct TAG_token *tok, dfanode_t **r_pushto, dfanode_t **r_target, int *r_flags);
 
@@ -132,8 +130,6 @@ extern struct TAG_tnode *dfa_walk (char *rname, struct TAG_lexfile *lf);
 extern dfastate_t *dfa_newstate (dfastate_t *prev);
 extern dfastate_t *dfa_newstate_init (dfastate_t *prev, char *iname);
 extern void dfa_freestate (dfastate_t *dfast);
-
-extern char *dfa_expectedmatchstr (dfanode_t *dfanode, struct TAG_token *tok, char *desc);
 
 
 #endif	/* !__DFA_H */

@@ -42,6 +42,7 @@
 #include "fcnlib.h"
 #include "langdef.h"
 #include "dfa.h"
+#include "dfaerror.h"
 #include "parsepriv.h"
 #include "occampi.h"
 #include "library.h"
@@ -304,52 +305,6 @@ static void occampi_debug_gstack (void **items, int icnt)
 
 
 /*}}}*/
-/*{{{  error handling*/
-/*{{{  static void occampi_namestart_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)*/
-/*
- *	called when the parser gets stuck inside an "occampi:namestart"
- */
-static void occampi_namestart_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
-{
-	char *msg;
-
-	msg = dfa_expectedmatchstr (dfanode, tok, "in declaration or process");
-	parser_error (tok->origin, msg);
-
-	return;
-}
-/*}}}*/
-/*{{{  static void occampi_namestartname_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)*/
-/*
- *	called when the parser gets stuck inside an "occampi:namestartname"
- */
-static void occampi_namestartname_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
-{
-	char *msg;
-
-	msg = dfa_expectedmatchstr (dfanode, tok, "in declaration or process");
-	parser_error (tok->origin, msg);
-
-	return;
-}
-/*}}}*/
-/*{{{  static void occampi_declorprocstart_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)*/
-/*
- *	called when the parser gets stuck inside an "occampi:declorprocstart"
- */
-static void occampi_declorprocstart_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
-{
-	char *msg;
-
-	msg = dfa_expectedmatchstr (dfanode, tok, "in declaration or process start");
-	parser_error (tok->origin, msg);
-
-	return;
-}
-/*}}}*/
-
-
-/*}}}*/
 
 	/*{{{  COMMENT: very manual DFA construction (example)*/
 #if 0
@@ -374,13 +329,9 @@ static void occampi_declorprocstart_dfaeh_stuck (dfanode_t *dfanode, token_t *to
  */
 static int occampi_post_setup (void)
 {
-	static dfaerrorhandler_t namestart_eh = { occampi_namestart_dfaeh_stuck };
-	static dfaerrorhandler_t namestartname_eh = { occampi_namestartname_dfaeh_stuck };
-	static dfaerrorhandler_t declorprocstart_eh = { occampi_declorprocstart_dfaeh_stuck };
-
-	dfa_seterrorhandler ("occampi:namestart", &namestart_eh);
-	dfa_seterrorhandler ("occampi:namestartname", &namestartname_eh);
-	dfa_seterrorhandler ("occampi:declorprocstart", &declorprocstart_eh);
+	dfaerror_defaulthandler ("occampi:namestart", "in declaration or process", DFAERRSRC_STUCK, DFAERR_EXPECTED);
+	dfaerror_defaulthandler ("occampi:namestartname", "in declaration or process", DFAERRSRC_STUCK, DFAERR_EXPECTED);
+	dfaerror_defaulthandler ("occampi:declorprocstart", "in declaration or process start", DFAERRSRC_STUCK, DFAERR_EXPECTED);
 
 	return 0;
 }

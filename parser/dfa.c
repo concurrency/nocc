@@ -41,6 +41,7 @@
 #include "parsepriv.h"
 #include "names.h"
 #include "dfa.h"
+#include "dfaerror.h"
 
 /*}}}*/
 /*{{{  private stuff*/
@@ -772,13 +773,32 @@ void dfa_seterrorhandler (char *name, dfaerrorhandler_t *ehan)
 	nameddfa_t *ndfa = stringhash_lookup (nameddfas, name);
 
 	if (ndfa) {
-		ndfa->ehan = ehan;
+		if (ndfa->ehan) {
+			nocc_warning ("dfa_seterrorhandler(): already got handler for [%s], not changing it", name);
+		} else {
+			ndfa->ehan = ehan;
+		}
 	} else {
 		nocc_warning ("dfa_seterrorhandler(): no such DFA [%s]", name);
 	}
 	return;
 }
+/*}}}*/
+/*{{{  dfaerrorhandler_t *dfa_geterrorhandler (char *name)*/
+/*
+ *	returns the error handler for a named DFA
+ *	returns handler on success, NULL on failure or none set
+ */
+dfaerrorhandler_t *dfa_geterrorhandler (char *name)
+{
+	nameddfa_t *ndfa = stringhash_lookup (nameddfas, name);
 
+	if (ndfa) {
+		return ndfa->ehan;
+	}
+	nocc_warning ("dfa_seterrorhandler(): no such DFA [%s]", name);
+	return NULL;
+}
 /*}}}*/
 /*{{{  int dfa_findmatch (dfanode_t *dfa, token_t *tok, dfanode_t **r_pushto, dfanode_t **r_target, int *r_flags)*/
 /*
@@ -3183,7 +3203,7 @@ int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)
 		nameddfa_t *ndfa = (cnode->dfainfo ? (nameddfa_t *)cnode->dfainfo : NULL);
 
 		if (ndfa && ndfa->ehan && ndfa->ehan->stuck) {
-			ndfa->ehan->stuck (cnode, tok);
+			ndfa->ehan->stuck (ndfa->ehan, cnode, tok);
 		} else {
 			/*{{{  default "stuck" report*/
 			parser_error (pp->lf, "dfa_advance(): stuck in [%s], expecting:", nodename);
@@ -3513,38 +3533,6 @@ void dfa_freestate (dfastate_t *dfast)
 
 	sfree (dfast);
 	return;
-}
-/*}}}*/
-
-/*{{{  char *dfa_expectedmatchstr (dfanode_t *dfanode, token_t *tok, char *desc)*/
-/*
- *	produces an "got X expected Y,Z" type message (parser error reporting)
- */
-char *dfa_expectedmatchstr (dfanode_t *dfanode, token_t *tok, char *desc)
-{
-	static char msgbuf[1024];
-	int gone = 0;
-	int max = 1023;
-
-	if (tok) {
-		gone += snprintf (msgbuf + gone, max - gone, "parser error at %s", lexer_stokenstr (tok));
-	}
-	if (desc) {
-		gone += snprintf (msgbuf + gone, max - gone, "%s%s", gone ? " " : "", desc);
-	}
-	if (DA_CUR (dfanode->match)) {
-		int n;
-
-		gone += snprintf (msgbuf + gone, max - gone, "%sexpected ", gone ? ", " : "");
-		for (n=0; n<DA_CUR (dfanode->match); n++) {
-			token_t *match = DA_NTHITEM (dfanode->match, n);
-
-			gone += snprintf (msgbuf + gone, max - gone, "%s%s", !n ? "" : ((n == DA_CUR (dfanode->match) - 1) ? " or " : ", "), lexer_stokenstr (match));
-		}
-	}
-	parser_error (tok->origin, msgbuf);
-
-	return (char *)msgbuf;
 }
 /*}}}*/
 

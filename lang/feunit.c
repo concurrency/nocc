@@ -184,7 +184,7 @@ int feunit_do_reg_reducers (feunit_t **felist, int earlyfail, langdef_t *ldef)
  */
 int feunit_do_init_dfatrans (feunit_t **felist, int earlyfail, langdef_t *ldef, langparser_t *lang, int doextn)
 {
-	int x, i;
+	int i, x = 0;
 	DYNARRAY (dfattbl_t *, transtbls);
 	int rval = 0;
 

@@ -42,6 +42,7 @@
 #include "fcnlib.h"
 #include "langdef.h"
 #include "dfa.h"
+#include "dfaerror.h"
 #include "parsepriv.h"
 #include "occampi.h"
 #include "feunit.h"
@@ -623,22 +624,6 @@ static void occampi_reduce_primtype (dfastate_t *dfast, parsepriv_t *pp, void *r
 /*}}}*/
 
 
-/*{{{  static void occampi_protocol_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)*/
-/*
- *	called by parser when it gets stuck in an occampi:protocol DFA node
- */
-static void occampi_protocol_dfaeh_stuck (dfanode_t *dfanode, token_t *tok)
-{
-	char *msg;
-
-	msg = dfa_expectedmatchstr (dfanode, tok, "in protocol specification");
-	parser_error (tok->origin, msg);
-
-	return;
-}
-/*}}}*/
-
-
 /*{{{  occampi_typeattr_t occampi_typeattrof (tnode_t *node)*/
 /*
  *	this can be called by other occam-pi parts to get the type-attributes of a node
@@ -781,10 +766,7 @@ static int occampi_type_init_nodes (void)
  */
 static int occampi_type_post_setup (void)
 {
-	static dfaerrorhandler_t protocol_eh = { occampi_protocol_dfaeh_stuck };
-
-	dfa_seterrorhandler ("occampi:protocol", &protocol_eh);
-
+	dfaerror_defaulthandler ("occampi:protocol", "in protocol specification", DFAERRSRC_STUCK, DFAERR_EXPECTED);
 	return 0;
 }
 /*}}}*/
