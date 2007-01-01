@@ -1004,30 +1004,18 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 		}
 		/*}}}*/
 	} else if (lexer_tokmatch (opi.tok_PUBLIC, tok)) {
-		int emrk = parser_markerror (lf);
-
 		lexer_freetoken (tok);
 		tree = dfa_walk (thedfa ? thedfa : "occampi:declorprocstart", lf);
 
 		if (tree) {
 			library_markpublic (tree);
 		}
-
-		if (parser_checkerror (lf, emrk)) {
-			occampi_skiptoeol (lf, 1);
-		}
 	} else {
-		int emrk = parser_markerror (lf);
-
 		lexer_pushback (lf, tok);
 		tree = dfa_walk (thedfa ? thedfa : "occampi:declorprocstart", lf);
 
 		if (lf->toplevel && lf->sepcomp && tree && ((tree->tag == opi.tag_PROCDECL) || (tree->tag == opi.tag_FUNCDECL))) {
 			library_markpublic (tree);
-		}
-
-		if (parser_checkerror (lf, emrk)) {
-			occampi_skiptoeol (lf, 1);
 		}
 	}
 
@@ -1074,12 +1062,19 @@ static tnode_t *occampi_declorproc (lexfile_t *lf, int *gotall, char *thedfa)
 {
 	tnode_t *tree = NULL;
 	int tnflags;
+	int emrk = parser_markerror (lf);
+
 
 	if (compopts.verbose) {
 		nocc_message ("occampi_declorproc(): %s:%d: parsing declaration or process start", lf->fnptr, lf->lineno);
 	}
 
 	tree = occampi_declorprocstart (lf, gotall, thedfa);
+
+	if (parser_checkerror (lf, emrk)) {
+		occampi_skiptoeol (lf, 1);
+	}
+
 	if (!tree) {
 		return NULL;
 	}
