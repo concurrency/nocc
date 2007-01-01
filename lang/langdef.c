@@ -1,6 +1,6 @@
 /*
  *	langdef.c -- language definition handling for NOCC
- *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -710,12 +710,16 @@ int langdef_init_tokens (langdefsec_t *lsec, void *origin)
 		switch (lde->type) {
 		default:
 			break;
+			/*{{{  LDE_KEYWORD -- new keyword*/
 		case LDE_KEYWORD:
 			keywords_add (lde->u.keyword, -1, origin);
 			break;
+			/*}}}*/
+			/*{{{  LDE_SYMBOL -- new symbol*/
 		case LDE_SYMBOL:
 			symbols_add (lde->u.symbol, strlen (lde->u.symbol), origin);
 			break;
+			/*}}}*/
 		}
 	}
 	return 0;
@@ -846,6 +850,37 @@ dfattbl_t **langdef_init_dfatrans (langdefsec_t *lsec, int *ntrans)
 	return DA_PTR (transtbl);
 }
 /*}}}*/
+/*{{{  */
+/*
+ *	registers any things needed in post-setup (such as DFA error-handler messages)
+ *	returns 0 on success, non-zero on failure
+ */
+int langdef_post_setup (langdefsec_t *lsec)
+{
+	int rval = 0;
+	int i;
+
+	if (!lsec) {
+		/* means we probably failed elsewhere first */
+		return 0;
+	}
+
+	for (i=0; i<DA_CUR (lsec->ents); i++) {
+		langdefent_t *lde = DA_NTHITEM (lsec->ents, i);
+
+		switch (lde->type) {
+		default:
+			break;
+			/*{{{  FIXME!*/
+			/*}}}*/
+		}
+	}
+
+	return rval;
+}
+/*}}}*/
+
+
 /*{{{  langdef_t *langdef_readdefs (const char *fname)*/
 /*
  *	reads a language definition file (epaths searched for these if not absolute or in the CWD)

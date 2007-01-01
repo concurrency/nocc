@@ -351,182 +351,7 @@ static void occampi_declorprocstart_dfaeh_stuck (dfanode_t *dfanode, token_t *to
 
 /*}}}*/
 
-
-/*{{{  static int occampi_dfas_init (void)*/
-/*
- *	initialises the occam-pi DFA structures
- *	returns 0 on success, non-zero on error
- */
-static int occampi_dfas_init (void)
-{
-	int x, i;
-	DYNARRAY (dfattbl_t *, transtbls);
-	langdef_t *ldef = occampi_getlangdef ();
-
-	if (!ldef) {
-		nocc_error ("occampi_dfas_init(): no occam-pi language definition found!");
-		return -1;
-	}
-
-	/*{{{  create DFAs*/
-	dfa_clear_deferred ();
-	dynarray_init (transtbls);
-
-	for (i=0; feunit_set[i]; i++) {
-		feunit_t *thisunit = feunit_set[i];
-
-		if (thisunit->init_dfatrans) {
-			dfattbl_t **t_table;
-			int t_size = 0;
-
-			/* can't fail in any meaningful way, but heyho */
-			t_table = thisunit->init_dfatrans (&t_size);
-			if (t_size > 0) {
-				/* add them */
-				int j;
-
-				for (j=0; j<t_size; j++) {
-					dynarray_add (transtbls, t_table[j]);
-				}
-			}
-			if (t_table) {
-				sfree (t_table);
-			}
-		}
-
-		if (thisunit->ident && ldef && langdef_hassection (ldef, thisunit->ident)) {
-			/* load DFA grammars from language definition */
-			dfattbl_t **t_table;
-			int t_size = 0;
-			langdefsec_t *lsec = langdef_findsection (ldef , thisunit->ident);
-
-			if (!lsec) {
-				nocc_error ("occampi_dfas_init(): no \"%s\" section in occam-pi language definition!", thisunit->ident);
-				return -1;
-			}
-			t_table = langdef_init_dfatrans (lsec, &t_size);
-			if (t_size > 0) {
-				/* add them */
-				int j;
-
-				for (j=0; j<t_size; j++) {
-					dynarray_add (transtbls, t_table[j]);
-				}
-			}
-			if (t_table) {
-				sfree (t_table);
-			}
-		}
-	}
-
-	/* post-production DFAs */
-	{
-		langdefsec_t *lsec = langdef_findsection (ldef, "occampi-postprod");
-		dfattbl_t **t_table;
-		int t_size = 0;
-
-		if (!lsec) {
-			nocc_error ("occampi_dfas_init(): no \"occampi-postprod\" section in occam-pi language definition!");
-			return -1;
-		}
-		t_table = langdef_init_dfatrans (lsec, &t_size);
-		if (t_size > 0) {
-			/* add them */
-			int j;
-
-			for (j=0; j<t_size; j++) {
-				dynarray_add (transtbls, t_table[j]);
-			}
-		}
-		if (t_table) {
-			sfree (t_table);
-		}
-	}
-
-	/*{{{  load grammar items for extensions*/
-	if (extn_preloadgrammar (&occampi_parser, &DA_PTR(transtbls), &DA_CUR(transtbls), &DA_MAX(transtbls))) {
-		return 1;
-	}
-
-	/*}}}*/
-
-	dfa_mergetables (DA_PTR (transtbls), DA_CUR (transtbls));
-
-	/*{{{  debug dump of grammars if requested*/
-	if (compopts.dumpgrammar) {
-		for (i=0; i<DA_CUR (transtbls); i++) {
-			dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
-
-			if (ttbl) {
-				dfa_dumpttbl (stderr, ttbl);
-			}
-		}
-	}
-
-	/*}}}*/
-	/*{{{  debugging dump for visualisation here :)*/
-	if (compopts.savenameddfa[0] && compopts.savenameddfa[1]) {
-		FILE *ostream = fopen (compopts.savenameddfa[1], "w");
-
-		if (!ostream) {
-			nocc_error ("failed to open %s for writing: %s", compopts.savenameddfa[1], strerror (errno));
-			return 1;
-		}
-		for (i=0; i<DA_CUR (transtbls); i++) {
-			dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
-
-			if (!ttbl->op && ttbl->name && !strcmp (compopts.savenameddfa[0], ttbl->name)) {
-				dfa_dumpttbl_gra (ostream, ttbl);
-			}
-		}
-		fclose (ostream);
-	}
-	/*}}}*/
-	/*{{{  convert into DFA nodes proper*/
-
-	x = 0;
-	for (i=0; i<DA_CUR (transtbls); i++) {
-		dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
-
-		/* only convert non-addition nodes */
-		if (ttbl && !ttbl->op) {
-			x += !dfa_tbltodfa (ttbl);
-		}
-	}
-
-	if (compopts.dumpgrammar) {
-		dfa_dumpdeferred (stderr);
-	}
-
-	if (dfa_match_deferred ()) {
-		/* failed here, get out */
-		return 1;
-	}
-
-	/*}}}*/
-	/*{{{  free up tables*/
-	for (i=0; i<DA_CUR (transtbls); i++) {
-		dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
-
-		if (ttbl) {
-			dfa_freettbl (ttbl);
-		}
-	}
-	dynarray_trash (transtbls);
-
-	/*}}}*/
-	/*{{{  load DFA items for extensions*/
-	if (extn_postloadgrammar (&occampi_parser)) {
-		return 1;
-	}
-
-	/*}}}*/
-
-	if (x) {
-		return 1;
-	}
-	/*}}}*/
-	/*{{{  COMMENT: very manual construction*/
+	/*{{{  COMMENT: very manual DFA construction (example)*/
 #if 0
 	decl = dfa_newnode ();
 	tmp = dfa_newnode ();
@@ -542,27 +367,16 @@ static int occampi_dfas_init (void)
 	dfa_dumpdfas (stderr);
 #endif
 	/*}}}*/
-	return 0;
-}
-/*}}}*/
+
 /*{{{  static int occampi_post_setup (void)*/
 /*
  *	calls any post-setup routines for the parser
  */
 static int occampi_post_setup (void)
 {
-	int i;
 	static dfaerrorhandler_t namestart_eh = { occampi_namestart_dfaeh_stuck };
 	static dfaerrorhandler_t namestartname_eh = { occampi_namestartname_dfaeh_stuck };
 	static dfaerrorhandler_t declorprocstart_eh = { occampi_declorprocstart_dfaeh_stuck };
-
-	for (i=0; feunit_set[i]; i++) {
-		feunit_t *thisunit = feunit_set[i];
-
-		if (thisunit->post_setup && thisunit->post_setup ()) {
-			return -1;
-		}
-	}
 
 	dfa_seterrorhandler ("occampi:namestart", &namestart_eh);
 	dfa_seterrorhandler ("occampi:namestartname", &namestartname_eh);
@@ -683,8 +497,12 @@ static int occampi_parser_init (lexfile_t *lf)
 			nocc_error ("occampi_parser_init(): failed to register reducers");
 			return 1;
 		}
-		if (occampi_dfas_init ()) {
+		if (feunit_do_init_dfatrans (feunit_set, 1, occampi_priv->langdefs, &occampi_parser, 1)) {
 			nocc_error ("occampi_parser_init(): failed to initialise DFAs");
+			return 1;
+		}
+		if (feunit_do_post_setup (feunit_set, 1, occampi_priv->langdefs)) {
+			nocc_error ("occampi_parser_init(): failed to post-setup");
 			return 1;
 		}
 		if (occampi_post_setup ()) {

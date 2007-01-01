@@ -1,6 +1,6 @@
 /*
  *	rcxb_parser.c -- RCX-BASIC parser for nocc
- *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -167,119 +167,6 @@ langdef_t *rcxb_getlangdef (void)
 /*}}}*/
 
 
-/*{{{  static int rcxb_dfas_init (void)*/
-/*
- *	initialises RCX-BASIC DFAs
- *	returns 0 on success, non-zero on failure
- */
-static int rcxb_dfas_init (void)
-{
-	DYNARRAY (dfattbl_t *, transtbls);
-	int i, x;
-
-	/*{{{  create DFAs*/
-	dfa_clear_deferred ();
-	dynarray_init (transtbls);
-
-	for (i=0; feunit_set[i]; i++) {
-		feunit_t *thisunit = feunit_set[i];
-
-		if (thisunit->init_dfatrans) {
-			dfattbl_t **t_table;
-			int t_size = 0;
-
-			t_table = thisunit->init_dfatrans (&t_size);
-			if (t_size > 0) {
-				int j;
-
-				for (j=0; j<t_size; j++) {
-					dynarray_add (transtbls, t_table[j]);
-				}
-			}
-			if (t_table) {
-				sfree (t_table);
-			}
-		}
-	}
-
-	dfa_mergetables (DA_PTR (transtbls), DA_CUR (transtbls));
-
-	/*{{{  debug dump of grammars if requested*/
-	if (compopts.dumpgrammar) {
-		for (i=0; i<DA_CUR (transtbls); i++) {
-			dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
-
-			if (ttbl) {
-				dfa_dumpttbl (stderr, ttbl);
-			}
-		}
-	}
-
-	/*}}}*/
-	/*{{{  convert into DFA nodes proper*/
-
-	x = 0;
-	for (i=0; i<DA_CUR (transtbls); i++) {
-		dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
-
-		/* only convert non-addition nodes */
-		if (ttbl && !ttbl->op) {
-			x += !dfa_tbltodfa (ttbl);
-		}
-	}
-
-	if (compopts.dumpgrammar) {
-		dfa_dumpdeferred (stderr);
-	}
-
-	if (dfa_match_deferred ()) {
-		/* failed here, get out */
-		return 1;
-	}
-
-	/*}}}*/
-	/*{{{  free up tables*/
-	for (i=0; i<DA_CUR (transtbls); i++) {
-		dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
-
-		if (ttbl) {
-			dfa_freettbl (ttbl);
-		}
-	}
-	dynarray_trash (transtbls);
-
-	/*}}}*/
-
-	if (x) {
-		return -1;
-	}
-
-	/*}}}*/
-	return 0;
-}
-/*}}}*/
-/*{{{  static int rcxb_post_setup (void)*/
-/*
- *	does post-setup for RCX-BASIC
- *	returns 0 on success, non-zero on failure
- */
-static int rcxb_post_setup (void)
-{
-	int i;
-
-	for (i=0; feunit_set[i]; i++) {
-		feunit_t *thisunit = feunit_set[i];
-
-		if (thisunit->post_setup && thisunit->post_setup ()) {
-			return -1;
-		}
-	}
-
-	return 0;
-}
-/*}}}*/
-
-
 /*{{{  static int rcxb_parser_init (lexfile_t *lf)*/
 /*
  *	initialises the RCX-BASIC parser
@@ -314,11 +201,11 @@ static int rcxb_parser_init (lexfile_t *lf)
 			nocc_error ("rcxb_parser_init(): failed to register reducers");
 			return 1;
 		}
-		if (rcxb_dfas_init ()) {
+		if (feunit_do_init_dfatrans (feunit_set, 1, rcxb_priv->ldef, &rcxb_parser, 1)) {
 			nocc_error ("rcxb_parser_init(): failed to initialise DFAs");
 			return 1;
 		}
-		if (rcxb_post_setup ()) {
+		if (feunit_do_post_setup (feunit_set, 1, rcxb_priv->ldef)) {
 			nocc_error ("rcxb_parser_init(): failed to post-setup");
 			return 1;
 		}

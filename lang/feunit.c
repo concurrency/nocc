@@ -1,6 +1,6 @@
 /*
  *	feunit.c -- front-end unit helper routines
- *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -124,7 +124,7 @@ int feunit_do_init_nodes (feunit_t **felist, int earlyfail)
 /*}}}*/
 /*{{{  int feunit_do_reg_reducers (feunit_t **felist, int earlyfail, langdef_t *ldef)*/
 /*
- *	calls reg_reducers on a set of feunits.  sets up reducers in feunit's language definitions if present.
+ *	calls reg_reducers on a set of feunits.  sets up reducers in language definition section if present.
  *	returns 0 on success, non-zero on failure
  */
 int feunit_do_reg_reducers (feunit_t **felist, int earlyfail, langdef_t *ldef)
@@ -168,6 +168,305 @@ int feunit_do_reg_reducers (feunit_t **felist, int earlyfail, langdef_t *ldef)
 				rval = -1;
 				if (earlyfail) {
 					break;
+				}
+			}
+		}
+	}
+	return rval;
+}
+/*}}}*/
+/*{{{  int feunit_do_init_dfatrans (feunit_t **felist, int earlyfail, langdef_t *ldef, langparser_t *lang, int doextn)*/
+/*
+ *	calls init_dfatrans on a set of feunits.  sets up DFA rules in feunit's langugage definitions if present.
+ *	also uses language name to read pre and post grammars ("lang" and "lang-postprod").
+ *	also resolves, etc. the DFAs
+ *	returns 0 on success, non-zero on failure
+ */
+int feunit_do_init_dfatrans (feunit_t **felist, int earlyfail, langdef_t *ldef, langparser_t *lang, int doextn)
+{
+	int x, i;
+	DYNARRAY (dfattbl_t *, transtbls);
+	int rval = 0;
+
+	/*{{{  initialise*/
+	dfa_clear_deferred ();
+	dynarray_init (transtbls);
+
+	/*}}}*/
+	/*{{{  pre-production DFAs (from <lang> section)*/
+	if (ldef && langdef_hassection (ldef, ldef->ident)) {
+		langdefsec_t *lsec = langdef_findsection (ldef, ldef->ident);
+
+		if (!lsec) {
+			nocc_error ("feunit_do_init_dfatrans(): no \"%s\" section in language definition!", ldef->ident);
+			rval = -1;
+			if (earlyfail) {
+				goto local_out;
+			}
+		} else {
+			dfattbl_t **t_table;
+			int t_size = 0;
+
+			t_table = langdef_init_dfatrans (lsec, &t_size);
+			if (t_size > 0) {
+				/* add them */
+				int j;
+
+				for (j=0; j<t_size; j++) {
+					dynarray_add (transtbls, t_table[j]);
+				}
+			}
+			if (t_table) {
+				sfree (t_table);
+			}
+		}
+	}
+
+	/*}}}*/
+	/*{{{  per front-end unit DFAs*/
+	for (i=0; felist[i]; i++) {
+		if (felist[i]->init_dfatrans) {
+			dfattbl_t **t_table;
+			int t_size = 0;
+
+			/* can't fail in any meaningful way, but heyho */
+			t_table = felist[i]->init_dfatrans (&t_size);
+			if (t_size > 0) {
+				/* add them */
+				int j;
+
+				for (j=0; j<t_size; j++) {
+					dynarray_add (transtbls, t_table[j]);
+				}
+			}
+			if (t_table) {
+				sfree (t_table);
+			}
+		}
+
+		if (ldef && felist[i]->ident && langdef_hassection (ldef, felist[i]->ident)) {
+			/* load DFA grammars from language definition */
+			langdefsec_t *lsec = langdef_findsection (ldef , felist[i]->ident);
+
+			if (!lsec) {
+				nocc_error ("feunit_do_init_dfatrans(): no \"%s\" section in %s language definition!", felist[i]->ident, ldef->ident);
+				rval = -1;
+				if (earlyfail) {
+					goto local_out;
+				}
+			} else {
+				dfattbl_t **t_table;
+				int t_size = 0;
+
+				t_table = langdef_init_dfatrans (lsec, &t_size);
+				if (t_size > 0) {
+					/* add them */
+					int j;
+
+					for (j=0; j<t_size; j++) {
+						dynarray_add (transtbls, t_table[j]);
+					}
+				}
+				if (t_table) {
+					sfree (t_table);
+				}
+			}
+		}
+	}
+	/*}}}*/
+	/*{{{  post-production DFAs (from <lang-postprod> section)*/
+	if (ldef) {
+		char *endsident = (char *)smalloc (strlen (ldef->ident) + 12);
+		
+		sprintf (endsident, "%s-postprod", ldef->ident);
+
+		if (langdef_hassection (ldef, endsident)) {
+			langdefsec_t *lsec = langdef_findsection (ldef, endsident);
+
+			if (!lsec) {
+				nocc_error ("feunit_do_init_dfatrans(): no \"%s\" section in %s language definition!", endsident, ldef->ident);
+				rval = -1;
+				if (earlyfail) {
+					goto local_out;
+				}
+			} else {
+				dfattbl_t **t_table;
+				int t_size = 0;
+
+				t_table = langdef_init_dfatrans (lsec, &t_size);
+				if (t_size > 0) {
+					/* add them */
+					int j;
+
+					for (j=0; j<t_size; j++) {
+						dynarray_add (transtbls, t_table[j]);
+					}
+				}
+				if (t_table) {
+					sfree (t_table);
+				}
+			}
+		}
+		sfree (endsident);
+	}
+
+	/*}}}*/
+
+	/*{{{  load grammar items for extensions -- if requested*/
+	if (doextn && lang) {
+		if (extn_preloadgrammar (lang, &DA_PTR(transtbls), &DA_CUR(transtbls), &DA_MAX(transtbls))) {
+			rval = -1;
+			if (earlyfail) {
+				goto local_out;
+			}
+		}
+	}
+	/*}}}*/
+	/*{{{  do DFA transition-table merges*/
+	dfa_mergetables (DA_PTR (transtbls), DA_CUR (transtbls));
+
+	/*}}}*/
+
+	/*{{{  debug dump of grammars if requested*/
+	if (compopts.dumpgrammar) {
+		for (i=0; i<DA_CUR (transtbls); i++) {
+			dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
+
+			if (ttbl) {
+				dfa_dumpttbl (stderr, ttbl);
+			}
+		}
+	}
+
+	/*}}}*/
+
+	/*{{{  debugging dump for visualisation here :)*/
+	if (compopts.savenameddfa[0] && compopts.savenameddfa[1]) {
+		FILE *ostream = fopen (compopts.savenameddfa[1], "w");
+
+		if (!ostream) {
+			nocc_error ("failed to open %s for writing: %s", compopts.savenameddfa[1], strerror (errno));
+			/* ignore this generally */
+		} else {
+			for (i=0; i<DA_CUR (transtbls); i++) {
+				dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
+
+				if (!ttbl->op && ttbl->name && !strcmp (compopts.savenameddfa[0], ttbl->name)) {
+					dfa_dumpttbl_gra (ostream, ttbl);
+				}
+			}
+			fclose (ostream);
+		}
+	}
+
+	/*}}}*/
+	/*{{{  convert into DFA nodes proper*/
+
+	x = 0;
+	for (i=0; i<DA_CUR (transtbls); i++) {
+		dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
+
+		/* only convert non-addition nodes */
+		if (ttbl && !ttbl->op) {
+			x += !dfa_tbltodfa (ttbl);
+		}
+	}
+
+	if (compopts.dumpgrammar) {
+		dfa_dumpdeferred (stderr);
+	}
+
+	if (dfa_match_deferred ()) {
+		/* failed */
+		rval = -1;
+		if (earlyfail) {
+			goto local_out;
+		}
+	}
+
+	/*}}}*/
+	/*{{{  load DFA items for extensions -- if requested*/
+	if (doextn && lang) {
+		if (extn_postloadgrammar (lang)) {
+			rval = -1;
+			if (earlyfail) {
+				goto local_out;
+			}
+		}
+	}
+
+	/*}}}*/
+
+local_out:
+	/*{{{  free up tables*/
+	for (i=0; i<DA_CUR (transtbls); i++) {
+		dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
+
+		if (ttbl) {
+			dfa_freettbl (ttbl);
+		}
+	}
+	dynarray_trash (transtbls);
+
+	/*}}}*/
+
+	if (x && !rval) {
+		rval = 1;
+	}
+	
+	return rval;
+}
+/*}}}*/
+/*{{{  int feunit_do_post_setup (feunit_t **felist, int earlyfail, langdef_t *ldef)*/
+/*
+ *	calls post_setup on a set of feunits.  sets up any post-setup in language definition section if present.
+ *	returns 0 on success, non-zero on failure
+ */
+int feunit_do_post_setup (feunit_t **felist, int earlyfail, langdef_t *ldef)
+{
+	int i, rval = 0;
+
+	for (i=0; felist[i]; i++) {
+		if (felist[i]->post_setup && felist[i]->post_setup ()) {
+			rval = -1;
+			if (earlyfail) {
+				break;
+			}
+		}
+		if (felist[i]->ident && ldef && langdef_hassection (ldef, felist[i]->ident)) {
+			/* load post-setup information from language definition */
+			langdefsec_t *lsec = langdef_findsection (ldef, felist[i]->ident);
+
+			if (!lsec) {
+				nocc_error ("feunit_do_post_setup(): no \"%s\" section in %s language definition!", felist[i]->ident, ldef->ident);
+				return -1;
+			}
+			if (langdef_post_setup (lsec)) {
+				rval = -1;
+				if (earlyfail) {
+					break;
+				}
+			}
+		}
+	}
+	if (ldef && ldef->ident) {
+		char *endsident = (char *)smalloc (strlen (ldef->ident) + 12);
+		
+		sprintf (endsident, "%s-postprod", ldef->ident);
+
+		if (langdef_hassection (ldef, endsident)) {
+			/* do top-level post-setup */
+			langdefsec_t *lsec = langdef_findsection (ldef, endsident);
+
+			if (!lsec) {
+				nocc_error ("feunit_do_post_setup(): no \"%s\" section in language definition!", ldef->ident);
+				return -1;
+			} else {
+				if (langdef_post_setup (lsec)) {
+					rval = -1;
+					if (earlyfail) {
+						return -1;
+					}
 				}
 			}
 		}

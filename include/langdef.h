@@ -1,6 +1,6 @@
 /*
  *	langdef.h -- language definitions for NOCC
- *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -79,6 +79,7 @@ extern int langdef_hassection (langdef_t *ldef, const char *ident);
 extern int langdef_init_tokens (langdefsec_t *lsec, void *origin);
 extern int langdef_reg_reducers (langdefsec_t *lsec);
 extern struct TAG_dfattbl **langdef_init_dfatrans (langdefsec_t *lsec, int *ntrans);
+extern int langdef_post_setup (langdefsec_t *lsec);
 
 extern int langdef_init (void);
 extern int langdef_shutdown (void);

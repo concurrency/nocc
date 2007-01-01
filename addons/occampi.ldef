@@ -43,6 +43,9 @@
 	"occampi:builtinprocinstance | occampi:bracketstart | occampi:asmblock ) {<opi:nullreduce>}"
 .TABLE	"occampi:descriptorline ::= [ 0 -@PROC 1 ] [ 0 -* 2 ] [ 1 occampi:procdecl 3 ] [ 2 occampi:funcdecl 3 ] [ 3 {<opi:nullreduce>} -* ]"
 
+
+# .DFAERR	"occampi:declorprocstart" EXPECTED "in declaration or process start"
+
 # }}}
 
 
