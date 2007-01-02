@@ -178,7 +178,9 @@ static int tchk_pretreewalk (tnode_t *node, void *arg)
 		return 1;
 	}
 
-	nocc_message ("tchk_pretreewalk(): want to check type [%s] node [%s] at 0x%8.8x in pass [%s].  prepost = %d", tnd->name, node->tag->name, (unsigned int)node, tw->passname, tw->prepost);
+	if (!tcdef->cvalid) {
+		tnode_warning (node, "** treecheck %s %s: node-type %s invalid here", tw->prepost ? "after" : "before", tw->passname, tnd->name);
+	}
 
 	/* FIXME! */
 	return 1;
