@@ -37,6 +37,7 @@
 #include "keywords.h"
 #include "lexer.h"
 #include "tnode.h"
+#include "treecheck.h"
 #include "parser.h"
 #include "fcnlib.h"
 #include "extn.h"
@@ -73,6 +74,8 @@ static langdefent_t *ldef_newlangdefent (void)
  */
 static void ldef_freelangdefent (langdefent_t *lde)
 {
+	int i;
+
 	if (!lde) {
 		nocc_warning ("ldef_freelangdefent(): NULL pointer!");
 		return;
@@ -118,6 +121,28 @@ static void ldef_freelangdefent (langdefent_t *lde)
 		if (lde->u.dfaerror.msg) {
 			sfree (lde->u.dfaerror.msg);
 			lde->u.dfaerror.msg = NULL;
+		}
+		break;
+	case LDE_TNODE:
+		if (lde->u.tnode.name) {
+			sfree (lde->u.tnode.name);
+			lde->u.tnode.name = NULL;
+		}
+		for (i=0; i<DA_CUR (lde->u.tnode.descs); i++) {
+			char *desc = DA_NTHITEM (lde->u.tnode.descs, i);
+
+			if (desc) {
+				sfree (desc);
+			}
+		}
+		dynarray_trash (lde->u.tnode.descs);
+		if (lde->u.tnode.invafter) {
+			sfree (lde->u.tnode.invafter);
+			lde->u.tnode.invafter = NULL;
+		}
+		if (lde->u.tnode.invbefore) {
+			sfree (lde->u.tnode.invbefore);
+			lde->u.tnode.invbefore = NULL;
 		}
 		break;
 	}
@@ -536,6 +561,111 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 		dynarray_add (lsec->ents, lfe);
 
 		/*}}}*/
+	} else if (!strcmp (bits[0], ".TNODE")) {
+		/*{{{  .TNODE -- treenode definition (for checking, not defining!)*/
+		langdefsec_t *lsec = NULL;
+		langdefent_t *lfe = NULL;
+		char *cdefs;
+		int nsub, nname, nhook;
+		int i, nextidx;
+
+		if (nbits < 3) {
+			goto out_malformed;
+		}
+
+		string_dequote (bits[1]);		/* node name */
+
+		/* should have (nsub,nnode,nhook) next */
+		if (sscanf (bits[2], "(%d,%d,%d)", &nsub, &nname, &nhook) != 3) {
+			nocc_error ("badly formatted node counts in .TNODE definition [%s] at %s:%d", bits[2], rfname, lineno);
+			rval = -1;
+			goto out_local;
+		} else if ((nsub < 0) || (nname < 0) || (nhook < 0)) {
+			nocc_error ("invalid sub-node, name or hook count [%s] at %s:%d", bits[2], rfname, lineno);
+			rval = -1;
+			goto out_local;
+		}
+
+		lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
+
+		lfe = ldef_newlangdefent ();
+		lfe->ldef = ldef;
+		lfe->lineno = lineno;
+
+		lfe->type = LDE_TNODE;
+		lfe->u.tnode.name = string_dup (bits[1]);
+		lfe->u.tnode.nsub = nsub;
+		lfe->u.tnode.nname = nname;
+		lfe->u.tnode.nhook = nhook;
+		dynarray_init (lfe->u.tnode.descs);
+
+		/* read in textual descriptions */
+		for (i=0, nextidx=3; (i < (nsub + nname + nhook)) && (nextidx < nbits); i++, nextidx++) {
+			string_dequote (bits[nextidx]);
+			dynarray_add (lfe->u.tnode.descs, string_dup (bits[nextidx]));
+		}
+
+		if (i != (nsub + nname + nhook)) {
+			ldef_freelangdefent (lfe);
+			nocc_error ("was expecting %d definitions in .TNODE definition for [%s] at %s:%d", (nsub + nname + nhook), bits[1], rfname, lineno);
+			rval = -1;
+			goto out_local;
+		}
+
+		/* scoop up extra things */
+		for (; nextidx < nbits; nextidx++) {
+			if (!strcmp (bits[nextidx], "INVALID")) {
+				/*{{{  INVALID -- specifies when the node is valid*/
+				if ((nextidx + 3) > nbits) {
+					ldef_freelangdefent (lfe);
+					nocc_error ("malformed INVALID setting in .TNODE definition for [%s] at %s:%d", bits[1], rfname, lineno);
+					rval = -1;
+					goto out_local;
+				}
+
+				string_dequote (bits[nextidx + 2]);
+
+				if (!strcmp (bits[nextidx + 1], "BEFORE")) {
+					/* node invalid before a particular pass */
+					if (lfe->u.tnode.invbefore) {
+						ldef_freelangdefent (lfe);
+						nocc_error ("already have INVALID BEFORE setting in .TNODE definition for [%s] at %s:%d", bits[1], rfname, lineno);
+						rval = -1;
+						goto out_local;
+					}
+					lfe->u.tnode.invbefore = string_dup (bits[nextidx + 2]);
+				} else if (!strcmp (bits[nextidx + 1], "AFTER")) {
+					/* node invalid after a particular pass */
+					if (lfe->u.tnode.invafter) {
+						ldef_freelangdefent (lfe);
+						nocc_error ("already have INVALID AFTER setting in .TNODE definition for [%s] at %s:%d", bits[1], rfname, lineno);
+						rval = -1;
+						goto out_local;
+					}
+					lfe->u.tnode.invafter = string_dup (bits[nextidx + 2]);
+				} else {
+					ldef_freelangdefent (lfe);
+					nocc_error ("unknown INVALID setting [%s] in .TNODE definition for [%s] at %s:%d", bits[nextidx + 1], bits[1], rfname, lineno);
+					rval = -1;
+					goto out_local;
+				}
+
+				nextidx += 2;
+				/*}}}*/
+			} else {
+				/*{{{  something else -- bad*/
+				ldef_freelangdefent (lfe);
+				nocc_error ("unknown setting [%s] in .TNODE definition for [%s] at %s:%d", bits[nextidx], bits[1], rfname, lineno);
+				rval = -1;
+				goto out_local;
+				/*}}}*/
+			}
+		}
+
+		/* finally, add to section entities */
+		dynarray_add (lsec->ents, lfe);
+
+		/*}}}*/
 	} else if ((bits[0][0] == '.') && (bits[0][1] >= 'A') && (bits[0][1] <= 'Z')) {
 		/*{{{  unknown directive!*/
 		nocc_error ("unknown directive %s at %s:%d", bits[0], rfname, lineno);
@@ -778,7 +908,34 @@ int langdef_init_tokens (langdefsec_t *lsec, void *origin)
 			/*}}}*/
 		}
 	}
-	return 0;
+	return rval;
+}
+/*}}}*/
+/*{{{  int langdef_init_nodes (langdefsec_t *lsec, void *origin)*/
+/*
+ *	creates new node types and tags defined in a particular section
+ *	returns 0 on success, non-zero on failure
+ */
+int langdef_init_nodes (langdefsec_t *lsec, void *origin)
+{
+	int rval = 0;
+	int i;
+
+	if (!lsec) {
+		/* probably failed somewhere earlier */
+		return 0;
+	}
+
+	for (i=0; i<DA_CUR (lsec->ents); i++) {
+		langdefent_t *lde = DA_NTHITEM (lsec->ents, i);
+
+		switch (lde->type) {
+		default:
+			break;
+		/* FIXME! */
+		}
+	}
+	return rval;
 }
 /*}}}*/
 /*{{{  int langdef_reg_reducers (langdefsec_t *lsec)*/
@@ -944,6 +1101,25 @@ int langdef_post_setup (langdefsec_t *lsec)
 	return rval;
 }
 /*}}}*/
+/*{{{  int langdef_treecheck_setup (langdef_t *ldef)*/
+/*
+ *	runs through all sections in a language definition (order unimportant) and
+ *	deals with tree-checking setup (treecheck.c)
+ *	returns 0 on success, non-zero on failure
+ */
+int langdef_treecheck_setup (langdef_t *ldef)
+{
+	if (!compopts.treecheck) {
+		/* not wanted */
+		return 0;
+	}
+
+	/* FIXME! */
+
+	return 0;
+}
+/*}}}*/
+
 
 
 /*{{{  langdef_t *langdef_readdefs (const char *fname)*/

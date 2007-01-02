@@ -38,6 +38,7 @@
 #include "keywords.h"
 #include "lexer.h"
 #include "tnode.h"
+#include "treecheck.h"
 #include "parser.h"
 #include "fcnlib.h"
 #include "feunit.h"
@@ -101,15 +102,35 @@ int feunit_do_init_tokens (int earlyfail, langdef_t *ldef, void *origin)
 	return rval;
 }
 /*}}}*/
-/*{{{  int feunit_do_init_nodes (feunit_t **felist, int earlyfail)*/
+/*{{{  int feunit_do_init_nodes (feunit_t **felist, int earlyfail, langdef_t *ldef, void *origin)*/
 /*
- *	calls init_nodes on a set of feunits
+ *	calls init_nodes on a set of feunits.  also sets up any nodes defined in the relevant language-definition section(s) if present.
  *	returns 0 on success, non-zero on failure
  */
-int feunit_do_init_nodes (feunit_t **felist, int earlyfail)
+int feunit_do_init_nodes (feunit_t **felist, int earlyfail, langdef_t *ldef, void *origin)
 {
 	int i, rval = 0;
 
+	/*{{{  if we have a matching language section, init nodes from language definition*/
+	if (ldef && ldef->ident && langdef_hassection (ldef, ldef->ident)) {
+		langdefsec_t *lsec = langdef_findsection (ldef, ldef->ident);
+
+		if (!lsec) {
+			nocc_error ("feunit_do_init_nodes(): no \"%s\" section in language definition!", ldef->ident);
+			return -1;
+		} else {
+			if (langdef_init_nodes (lsec, origin)) {
+				/* failed */
+				rval = -1;
+				if (earlyfail) {
+					return -1;
+				}
+			}
+		}
+	}
+
+	/*}}}*/
+	/*{{{  do init_nodes on front-end units*/
 	for (i=0; felist[i]; i++) {
 		if (felist[i]->init_nodes && felist[i]->init_nodes ()) {
 			/* failed */
@@ -118,7 +139,53 @@ int feunit_do_init_nodes (feunit_t **felist, int earlyfail)
 				break;
 			}
 		}
+
+		/* see if we have any in the language definition */
+		if (ldef && felist[i]->ident && langdef_hassection (ldef, felist[i]->ident)) {
+			/* init nodes in language definition section */
+			langdefsec_t *lsec = langdef_findsection (ldef, felist[i]->ident);
+
+			if (!lsec) {
+				nocc_error ("feunit_do_init_nodes(): no \"%s\" section in %s language definition!", felist[i]->ident, ldef->ident);
+				return -1;
+			}
+			if (langdef_init_nodes (lsec, origin)) {
+				/* failed */
+				rval = -1;
+				if (earlyfail) {
+					return -1;
+				}
+			}
+		}
 	}
+
+	/*}}}*/
+	/*{{{  if the language definition has a '<lang>-postprod' section, load nodes from this*/
+	if (ldef && ldef->ident) {
+		char *endsident = (char *)smalloc (strlen (ldef->ident) + 12);
+		
+		sprintf (endsident, "%s-postprod", ldef->ident);
+
+		if (langdef_hassection (ldef, endsident)) {
+			/* do top-level post-setup */
+			langdefsec_t *lsec = langdef_findsection (ldef, endsident);
+
+			if (!lsec) {
+				nocc_error ("feunit_do_post_setup(): no \"%s\" section in language definition!", ldef->ident);
+				return -1;
+			} else {
+				if (langdef_init_nodes (lsec, origin)) {
+					rval = -1;
+					if (earlyfail) {
+						return -1;
+					}
+				}
+			}
+		}
+	}
+
+	/*}}}*/
+
 	return rval;
 }
 /*}}}*/

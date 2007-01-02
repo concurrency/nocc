@@ -51,6 +51,7 @@
 #include "typecheck.h"
 #include "constprop.h"
 #include "tnode.h"
+#include "treecheck.h"
 #include "names.h"
 #include "treeops.h"
 #include "feunit.h"
@@ -104,6 +105,7 @@ compopts_t compopts = {
 	stoppoint: 0,
 	tracetypecheck: 0,
 	traceparser: 0,
+	treecheck: 0,
 	doaliascheck: 1,
 	dousagecheck: 1,
 	dodefcheck: 1,
@@ -234,6 +236,9 @@ static int nocc_shutdownrun (void)
 		v++;
 	}
 	if (langdef_shutdown ()) {
+		v++;
+	}
+	if (treecheck_shutdown ()) {
 		v++;
 	}
 	if (tnode_shutdown ()) {
@@ -1231,6 +1236,7 @@ int main (int argc, char **argv)
 
 		nocc_message ("    not-main-module: %s", compopts.notmainmodule ? "yes" : "no");
 		nocc_message ("    verbose:         %s", compopts.verbose ? "yes" : "no");
+		nocc_message ("    treecheck:       %s", compopts.treecheck ? "yes" : "no");
 	}
 
 
@@ -1239,6 +1245,7 @@ int main (int argc, char **argv)
 	symbols_init ();
 	lexer_init ();
 	tnode_init ();
+	treecheck_init ();
 	langdef_init ();
 	dfa_init ();
 	parser_init ();
@@ -1494,15 +1501,24 @@ int main (int argc, char **argv)
 		}
 		for (i=0; i<DA_CUR (cfepasses); i++) {
 			compilerpass_t *cpass = DA_NTHITEM (cfepasses, i);
-
-			if (!cpass->flagptr || (*(cpass->flagptr) == 1)) {
-				int j;
-
-				if (compopts.verbose) {
-					nocc_message ("   %s ...", cpass->name);
+			int passenabled = (!cpass->flagptr || (*(cpass->flagptr) == 1));
+			int j;
+			
+			for (j=0; j<DA_CUR (srctrees); j++) {
+				if (compopts.treecheck) {
+					/* do pre-pass checks */
+					if (treecheck_prepass (DA_NTHITEM (srctrees, j), cpass->name, passenabled)) {
+						nocc_error ("failed pre-pass check for %s in %s", cpass->name, DA_NTHITEM (srcfiles, j));
+						errored = 1;
+					}
 				}
-				for (j=0; j<DA_CUR (srctrees); j++) {
+
+				if (passenabled) {
 					int result;
+
+					if (compopts.verbose) {
+						nocc_message ("   %s ...", cpass->name);
+					}
 
 					/* switch on argument calling pattern */
 					switch (cpass->fargs) {
@@ -1552,7 +1568,16 @@ int main (int argc, char **argv)
 						errored = 1;
 					}
 				}
+
+				if (compopts.treecheck) {
+					/* do post-pass checks */
+					if (treecheck_postpass (DA_NTHITEM (srctrees, j), cpass->name, passenabled)) {
+						nocc_error ("failed post-pass check for %s in %s", cpass->name, DA_NTHITEM (srcfiles, j));
+						errored = 1;
+					}
+				}
 			}
+
 			/* can still stop even if pass not enabled */
 
 			if (compopts.stoppoint == cpass->stoppoint) {
@@ -1621,15 +1646,24 @@ int main (int argc, char **argv)
 		}
 		for (i=0; i<DA_CUR (cbepasses); i++) {
 			compilerpass_t *cpass = DA_NTHITEM (cbepasses, i);
+			int passenabled = (!cpass->flagptr || (*(cpass->flagptr) == 1));
+			int j;
 
-			if (!cpass->flagptr || (*(cpass->flagptr) == 1)) {
-				int j;
-
-				if (compopts.verbose) {
-					nocc_message ("   %s ...", cpass->name);
+			for (j=0; j<DA_CUR (srctrees); j++) {
+				if (compopts.treecheck) {
+					/* do pre-pass checks */
+					if (treecheck_prepass (DA_NTHITEM (srctrees, j), cpass->name, passenabled)) {
+						nocc_error ("failed pre-pass check for %s in %s", cpass->name, DA_NTHITEM (srcfiles, j));
+						errored = 1;
+					}
 				}
-				for (j=0; j<DA_CUR (srctrees); j++) {
+
+				if (passenabled) {
 					int result;
+
+					if (compopts.verbose) {
+						nocc_message ("   %s ...", cpass->name);
+					}
 
 					/* switch on argument calling pattern */
 					switch (cpass->fargs) {
@@ -1658,6 +1692,14 @@ int main (int argc, char **argv)
 					}
 					if (result) {
 						nocc_error ("failed to %s %s", cpass->name, DA_NTHITEM (srcfiles, j));
+						errored = 1;
+					}
+				}
+
+				if (compopts.treecheck) {
+					/* do post-pass checks */
+					if (treecheck_postpass (DA_NTHITEM (srctrees, j), cpass->name, passenabled)) {
+						nocc_error ("failed post-pass check for %s in %s", cpass->name, DA_NTHITEM (srcfiles, j));
 						errored = 1;
 					}
 				}

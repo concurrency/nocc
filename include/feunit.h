@@ -37,7 +37,7 @@ extern int feunit_init (void);
 extern int feunit_shutdown (void);
 
 extern int feunit_do_init_tokens (int earlyfail, struct TAG_langdef *ldef, void *origin);
-extern int feunit_do_init_nodes (feunit_t **felist, int earlyfail);
+extern int feunit_do_init_nodes (feunit_t **felist, int earlyfail, struct TAG_langdef *ldef, void *origin);
 extern int feunit_do_reg_reducers (feunit_t **felist, int earlyfail, struct TAG_langdef *ldef);
 extern int feunit_do_init_dfatrans (feunit_t **felist, int earlyfail, struct TAG_langdef *ldef, struct TAG_langparser *lang, int doextn);
 extern int feunit_do_post_setup (feunit_t **felist, int earlyfail, struct TAG_langdef *ldef);

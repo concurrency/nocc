@@ -35,12 +35,12 @@
  */
 struct TAG_cmd_option;
 
-#define TOTAL_KEYWORDS 53
+#define TOTAL_KEYWORDS 54
 #define MIN_WORD_LENGTH 4
 #define MAX_WORD_LENGTH 15
 #define MIN_HASH_VALUE 4
-#define MAX_HASH_VALUE 82
-/* maximum key range = 79, duplicates = 0 */
+#define MAX_HASH_VALUE 99
+/* maximum key range = 96, duplicates = 0 */
 
 #ifdef __GNUC__
 __inline
@@ -54,32 +54,32 @@ hash (register const char *str, register unsigned int len)
 {
   static const unsigned char asso_values[] =
     {
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 10,  5, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 30,  5, 30,
-      25,  0,  0, 10, 50, 25, 83, 10,  5,  5,
-      25,  6, 15, 10, 35, 10,  0,  0, 15, 83,
-      15, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83, 83, 83, 83,
-      83, 83, 83, 83, 83, 83, 83
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100, 10,  5,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100, 30,  5, 30,
+      25,  0,  0, 10, 50, 25,100, 10,  5,  5,
+      25,  6, 15, 10, 35, 10,  0,  0, 15,100,
+      15,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100,100,100,100,
+     100,100,100,100,100,100,100
     };
   register int hval = len;
 
@@ -111,20 +111,20 @@ static const struct TAG_cmd_option wordlist[] =
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"help",			'h',	opt_do_help_flag,	NULL,				"0display standard usage information",			0},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"output",			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					47},
+    {"output",			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					48},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"help-ful",		'\0',	opt_do_help_flag,	NULL,				"1display full usage information",			1},
     {"dump-tree",		'\0',	opt_setintflag,		&(compopts.dumptree),		"1print parse tree",					3},
     {"stop-token",		'\0',	opt_setstopflag,	(void *)1,			"1stop after tokenise (and print tokens)",		19},
     {"dump-folded",		'\0',	opt_setintflag,		&(compopts.dumpfolded),		"1include folds in parse tree dumps",			16},
     {"dump-tree-to",		'\0',	opt_setstr,		&(compopts.dumptreeto),		"1print parse tree to file",				4},
-    {"version",		'V',	opt_do_version,		NULL,				"0print version and exit",				43},
+    {"version",		'V',	opt_do_version,		NULL,				"0print version and exit",				44},
     {"stop-typecheck",		'\0',	opt_setstopflag,	(void *)5,			"1stop after type check",				23},
     {"stop-undefcheck",	'\0',	opt_setstopflag,	(void *)10,			"1stop after undefined-usage check",			28},
     {"dump-extns",		'\0',	opt_setintflag,		&(compopts.dumpextns),		"1print detailed information about loaded extensions",	15},
-    {"verbose",		'v',	opt_setintflag,		&(compopts.verbose),		"0verbose compilation",					41},
-    {"compile",		'c',	opt_setintflag,		&(compopts.notmainmodule),	"0compile for separate compilation",			44},
-    {"extn",			'e',	opt_addextn,		NULL,				"0compiler extension to load",				51},
+    {"verbose",		'v',	opt_setintflag,		&(compopts.verbose),		"0verbose compilation",					42},
+    {"compile",		'c',	opt_setintflag,		&(compopts.notmainmodule),	"0compile for separate compilation",			45},
+    {"extn",			'e',	opt_addextn,		NULL,				"0compiler extension to load",				52},
     {"dump-stree",		'\0',	opt_setintflag,		&(compopts.dumpstree),		"1print parse tree in s-record format",			5},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"stop-fetrans",		'\0',	opt_setstopflag,	(void *)12,			"1stop after front-end tree transform",			30},
@@ -137,15 +137,15 @@ static const struct TAG_cmd_option wordlist[] =
     {"stop-postcheck",		'\0',	opt_setstopflag,	(void *)11,			"1stop after post-check",				29},
     {"stop-scope",		'\0',	opt_setstopflag,	(void *)4,			"1stop after scope",					22},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"debug-parser",		'\0',	opt_setintflag,		&(compopts.debugparser),	"1debug parser",					42},
+    {"debug-parser",		'\0',	opt_setintflag,		&(compopts.debugparser),	"1debug parser",					43},
     {"stop-prealloc",		'\0',	opt_setstopflag,	(void *)15,			"1stop after pre-allocation",				33},
     {"dump-dfas",		'\0',	opt_setintflag,		&(compopts.dumpdfas),		"1print named DFAs after parser init",			9},
     {"dump-names",		'\0',	opt_setintflag,		&(compopts.dumpnames),		"1print names after scope",				10},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"stop-namemap",		'\0',	opt_setstopflag,	(void *)14,			"1stop after name-map",					32},
-    {"dump-tracemem",		'\0',	opt_setintflag,		&(compopts.dumptracemem),	"1display left-over memory blocks (if compiled)",	52},
+    {"dump-tracemem",		'\0',	opt_setintflag,		&(compopts.dumptracemem),	"1display left-over memory blocks (if compiled)",	53},
     {"dump-nodetypes",		'\0',	opt_setintflag,		&(compopts.dumpnodetypes),	"1print node types after initialisation",		13},
-    {"specs-file",		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				46},
+    {"specs-file",		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				47},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"stop-codegen",		'\0',	opt_setstopflag,	(void *)17,			"1stop after code-generation",				35},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
@@ -164,12 +164,12 @@ static const struct TAG_cmd_option wordlist[] =
     {"dump-chooks",		'\0',	opt_setintflag,		&(compopts.dumpchooks),		"1print compiler hooks",				14},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"dump-dmem",		'\0',	opt_setintflag,		&(compopts.dmemdump),		"1display dynamic memory pool information",		45},
+    {"dump-dmem",		'\0',	opt_setintflag,		&(compopts.dmemdump),		"1display dynamic memory pool information",		46},
     {"skip-aliascheck",	'\0',	opt_clearintflag,	&(compopts.doaliascheck),	"1skip alias checks",					36},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"dump-targets",		'\0',	opt_setintflag,		&(compopts.dumptargets),	"1print supported targets after initialisation",	11},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"extn-path",		'E',	opt_addextnpath,	NULL,				"1add paths for compiler extensions",			50},
+    {"extn-path",		'E',	opt_addextnpath,	NULL,				"1add paths for compiler extensions",			51},
     {"stop-usagecheck",	'\0',	opt_setstopflag,	(void *)9,			"1stop after parallel-usage check",			27},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"trace-parser",		'\0',	opt_setintflag,		&(compopts.traceparser),	"1trace parser (debugging)",				39},
@@ -177,7 +177,7 @@ static const struct TAG_cmd_option wordlist[] =
     {"save-named-dfa",		'\0',	opt_setsaveopt,		(void *)1,			"1save named DFA to file",				17},
     {"trace-typecheck",	'\0',	opt_setintflag,		&(compopts.tracetypecheck),	"1trace type-check (debugging)",			40},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"include-path",		'I',	opt_addincludepath,	NULL,				"0add paths for include files",				48},
+    {"include-path",		'I',	opt_addincludepath,	NULL,				"0add paths for include files",				49},
     {"skip-defcheck",		'\0',	opt_clearintflag,	&(compopts.dodefcheck),		"1skip undefinedness checks",				38},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"skip-usagecheck",	'\0',	opt_clearintflag,	&(compopts.dousagecheck),	"1skip parallel usage checks",				37},
@@ -187,7 +187,24 @@ static const struct TAG_cmd_option wordlist[] =
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"library-path",		'L',	opt_addlibrarypath,	NULL,				"0add paths for library files",				49}
+    {"library-path",		'L',	opt_addlibrarypath,	NULL,				"0add paths for library files",				50},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {"treecheck",		'\0',	opt_setintflag,		&(compopts.treecheck),		"1enable run-time parse tree checking",			41}
   };
 
 #ifdef __GNUC__

@@ -451,7 +451,7 @@ static int mcsp_parser_init (lexfile_t *lf)
 			nocc_error ("mcsp_parser_init(): failed to initialise tokens");
 			return 1;
 		}
-		if (feunit_do_init_nodes (feunit_set, 1)) {
+		if (feunit_do_init_nodes (feunit_set, 1, mcsp_priv->langdefs, (void *)&mcsp_parser)) {
 			nocc_error ("mcsp_parser_init(): failed to initialise nodes");
 			return 1;
 		}
@@ -466,6 +466,9 @@ static int mcsp_parser_init (lexfile_t *lf)
 		if (feunit_do_post_setup (feunit_set, 1, mcsp_priv->langdefs)) {
 			nocc_error ("mcsp_parser_init(): failed to post-setup");
 			return 1;
+		}
+		if (langdef_treecheck_setup (mcsp_priv->langdefs)) {
+			nocc_serious ("mcsp_parser_init(): failed to initialise tree-checking!");
 		}
 
 		mcsp_priv->inode = dfa_lookupbyname ("mcsp:procdecl");

@@ -193,7 +193,7 @@ static int rcxb_parser_init (lexfile_t *lf)
 			nocc_error ("rcxb_parser_init(): failed to initialise tokens");
 			return 1;
 		}
-		if (feunit_do_init_nodes (feunit_set, 1)) {
+		if (feunit_do_init_nodes (feunit_set, 1, rcxb_priv->ldef, (void *)&rcxb_parser)) {
 			nocc_error ("rcxb_parser_init(): failed to initialise nodes");
 			return 1;
 		}
@@ -208,6 +208,10 @@ static int rcxb_parser_init (lexfile_t *lf)
 		if (feunit_do_post_setup (feunit_set, 1, rcxb_priv->ldef)) {
 			nocc_error ("rcxb_parser_init(): failed to post-setup");
 			return 1;
+		}
+		if (langdef_treecheck_setup (rcxb_priv->ldef)) {
+			nocc_serious ("rcxb_parser(): failed to initialise tree-checking!");
+			/* linger on */
 		}
 
 		rcxb_priv->inode = dfa_lookupbyname ("rcxb:program");

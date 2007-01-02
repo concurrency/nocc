@@ -55,17 +55,18 @@ skip-usagecheck,	'\0',	opt_clearintflag,	&(compopts.dousagecheck),	"1skip parall
 skip-defcheck,		'\0',	opt_clearintflag,	&(compopts.dodefcheck),		"1skip undefinedness checks",				38
 trace-parser,		'\0',	opt_setintflag,		&(compopts.traceparser),	"1trace parser (debugging)",				39
 trace-typecheck,	'\0',	opt_setintflag,		&(compopts.tracetypecheck),	"1trace type-check (debugging)",			40
-verbose,		'v',	opt_setintflag,		&(compopts.verbose),		"0verbose compilation",					41
-debug-parser,		'\0',	opt_setintflag,		&(compopts.debugparser),	"1debug parser",					42
-version,		'V',	opt_do_version,		NULL,				"0print version and exit",				43
-compile,		'c',	opt_setintflag,		&(compopts.notmainmodule),	"0compile for separate compilation",			44
-dump-dmem,		'\0',	opt_setintflag,		&(compopts.dmemdump),		"1display dynamic memory pool information",		45
-specs-file,		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				46
-output,			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					47
-include-path,		'I',	opt_addincludepath,	NULL,				"0add paths for include files",				48
-library-path,		'L',	opt_addlibrarypath,	NULL,				"0add paths for library files",				49
-extn-path,		'E',	opt_addextnpath,	NULL,				"1add paths for compiler extensions",			50
-extn,			'e',	opt_addextn,		NULL,				"0compiler extension to load",				51
-dump-tracemem,		'\0',	opt_setintflag,		&(compopts.dumptracemem),	"1display left-over memory blocks (if compiled)",	52
+treecheck,		'\0',	opt_setintflag,		&(compopts.treecheck),		"1enable run-time parse tree checking",			41
+verbose,		'v',	opt_setintflag,		&(compopts.verbose),		"0verbose compilation",					42
+debug-parser,		'\0',	opt_setintflag,		&(compopts.debugparser),	"1debug parser",					43
+version,		'V',	opt_do_version,		NULL,				"0print version and exit",				44
+compile,		'c',	opt_setintflag,		&(compopts.notmainmodule),	"0compile for separate compilation",			45
+dump-dmem,		'\0',	opt_setintflag,		&(compopts.dmemdump),		"1display dynamic memory pool information",		46
+specs-file,		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				47
+output,			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					48
+include-path,		'I',	opt_addincludepath,	NULL,				"0add paths for include files",				49
+library-path,		'L',	opt_addlibrarypath,	NULL,				"0add paths for library files",				50
+extn-path,		'E',	opt_addextnpath,	NULL,				"1add paths for compiler extensions",			51
+extn,			'e',	opt_addextn,		NULL,				"0compiler extension to load",				52
+dump-tracemem,		'\0',	opt_setintflag,		&(compopts.dumptracemem),	"1display left-over memory blocks (if compiled)",	53
 %%
 

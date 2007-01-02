@@ -36,7 +36,8 @@ typedef enum ENUM_langdefent {
 	LDE_DFABNF = 4,
 	LDE_KEYWORD = 5,
 	LDE_SYMBOL = 6,
-	LDE_DFAERR = 7
+	LDE_DFAERR = 7,
+	LDE_TNODE = 8
 } langdefent_e;
 
 enum ENUM_dfaerrorreport;
@@ -60,6 +61,13 @@ typedef struct TAG_langdefent {
 			int rcode;		/* integer for dfaerrorreport_e */
 			char *msg;		/* associated error message */
 		} dfaerror;
+		struct {
+			char *name;			/* name of the node-type (not tags) */
+			int nsub, nname, nhook;		/* sub-node, name and hook counts */
+			DYNARRAY (char *, descs);	/* brief descriptions of the subnodes, names and hooks */
+			char *invafter;			/* invalid after this pass in the compiler */
+			char *invbefore;		/* invalid before this pass in the compiler */
+		} tnode;
 	} u;
 } langdefent_t;
 
@@ -86,9 +94,11 @@ extern langdefsec_t *langdef_findsection (langdef_t *ldef, const char *ident);
 extern int langdef_hassection (langdef_t *ldef, const char *ident);
 
 extern int langdef_init_tokens (langdefsec_t *lsec, void *origin);
+extern int langdef_init_nodes (langdefsec_t *lsec, void *origin);
 extern int langdef_reg_reducers (langdefsec_t *lsec);
 extern struct TAG_dfattbl **langdef_init_dfatrans (langdefsec_t *lsec, int *ntrans);
 extern int langdef_post_setup (langdefsec_t *lsec);
+extern int langdef_treecheck_setup (langdef_t *ldef);
 
 extern int langdef_init (void);
 extern int langdef_shutdown (void);

@@ -244,6 +244,7 @@ int occampi_lexer_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argl
 		ptrarg = (lexfile_t *)((*argwalk)[1]);
 
 		nocc_message ("using C style operators for %s", ptrarg ? ptrarg->fnptr : "(unknown)");
+
 		/*{{{  actually set inside lexer private data*/
 		{
 			lexpriv_t *lp = (lexpriv_t *)ptrarg->priv;

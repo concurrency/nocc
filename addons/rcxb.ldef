@@ -49,6 +49,9 @@
 
 .SECTION "rcxb-program" # {{{: general program structures for RCX BASIC
 
+.TNODE	"rcxb:rawnamenode" (0,0,1) "raw-name hook"
+	INVALID AFTER "scope"
+
 .GRULE	"rcxb:namereduce" "ST0T+X[rcxb_nametoken_to_hook]C[RCXBNAME]1R-"
 .GRULE	"rcxb:stringreduce" "ST0T+X[rcxb_stringtoken_to_node]R-"
 .GRULE	"rcxb:integerreduce" "ST0T+X[rcxb_integertoken_to_node]R-"

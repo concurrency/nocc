@@ -427,7 +427,7 @@ static int occampi_parser_init (lexfile_t *lf)
 			nocc_error ("occampi_parser_init(): failed to initialise tokens");
 			return 1;
 		}
-		if (feunit_do_init_nodes (feunit_set, 1)) {
+		if (feunit_do_init_nodes (feunit_set, 1, occampi_priv->langdefs, (void *)&occampi_parser)) {
 			nocc_error ("occampi_parser_init(): failed to initialise nodes");
 			return 1;
 		}
@@ -442,6 +442,9 @@ static int occampi_parser_init (lexfile_t *lf)
 		if (feunit_do_post_setup (feunit_set, 1, occampi_priv->langdefs)) {
 			nocc_error ("occampi_parser_init(): failed to post-setup");
 			return 1;
+		}
+		if (langdef_treecheck_setup (occampi_priv->langdefs)) {
+			nocc_serious ("occampi_parser_init(): failed to initialise tree-checking!");
 		}
 
 		occampi_priv->inode = dfa_lookupbyname ("occampi:declorprocstart");

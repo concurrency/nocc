@@ -6,7 +6,7 @@
 AUTOMAKE_OPTIONS=foreign
 
 noinst_HEADERS = version.h nocc.h support.h platform.h opts.h fcnlib.h keywords.h langdef.h \
-			pnode.h lexer.h tnode.h symbols.h xml.h names.h occampi.h mcsp.h \
+			pnode.h lexer.h tnode.h treecheck.h symbols.h xml.h names.h occampi.h mcsp.h \
 			library.h treeops.h langops.h lexpriv.h scope.h parser.h parsepriv.h \
 			dfa.h dfaerror.h prescope.h typecheck.h constprop.h precheck.h \
 			aliascheck.h usagecheck.h defcheck.h postcheck.h map.h allocate.h \
