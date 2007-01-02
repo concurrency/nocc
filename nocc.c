@@ -238,10 +238,11 @@ static int nocc_shutdownrun (void)
 	if (langdef_shutdown ()) {
 		v++;
 	}
-	if (treecheck_shutdown ()) {
+	if (tnode_shutdown ()) {
 		v++;
 	}
-	if (tnode_shutdown ()) {
+	if (treecheck_shutdown ()) {
+		/* NOTE: do this after tnode cleanup */
 		v++;
 	}
 	if (lexer_shutdown ()) {

@@ -500,6 +500,10 @@ tndef_t *tnode_newnodetype (char *name, int *idx, int nsub, int nname, int nhook
 
 		tnd->prefreetree = NULL;
 
+		tnd->ops = NULL;
+		tnd->lops = NULL;
+		tnd->tchkdef = NULL;
+
 		tnd->tn_flags = flags;
 
 		/* add to stringhash / array */

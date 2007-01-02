@@ -1109,14 +1109,38 @@ int langdef_post_setup (langdefsec_t *lsec)
  */
 int langdef_treecheck_setup (langdef_t *ldef)
 {
+	int rval = 0;
+	int i;
+
 	if (!compopts.treecheck) {
 		/* not wanted */
 		return 0;
 	}
 
-	/* FIXME! */
+	for (i=0; i<DA_CUR (ldef->sections); i++) {
+		langdefsec_t *lsec = DA_NTHITEM (ldef->sections, i);
+		int j;
 
-	return 0;
+		for (j=0; j<DA_CUR (lsec->ents); j++) {
+			langdefent_t *lde = DA_NTHITEM (lsec->ents, j);
+
+			switch (lde->type) {
+			default:
+				break;
+				/*{{{  LDE_TNODE -- node details*/
+			case LDE_TNODE:
+				if (treecheck_createcheck (lde->u.tnode.name, lde->u.tnode.nsub, lde->u.tnode.nname, lde->u.tnode.nhook,
+						DA_PTR (lde->u.tnode.descs), lde->u.tnode.invbefore, lde->u.tnode.invafter) == NULL) {
+					nocc_error ("failed to create tree-check for node type [%s] in language definition for [%s (%s)], line %d", lde->u.tnode.name, lsec->ldef->ident, lsec->ident, lde->lineno);
+					rval = -1;
+				}
+				break;
+				/*}}}*/
+			}
+		}
+	}
+
+	return rval;
 }
 /*}}}*/
 

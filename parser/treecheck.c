@@ -51,6 +51,139 @@
 
 
 /*}}}*/
+/*{{{  private types*/
+
+typedef struct {
+	char *passname;		/* compiler pass we're currently doing */
+	int passenabled;	/* zero if the pass is disabled */
+	int prepost;		/* zero if pre-pass, non-zero if post-pass */
+
+	int warncount;		/* warning-count */
+	int errcount;		/* error-count */
+} tchk_treewalk_t;
+
+
+/*}}}*/
+/*{{{  private data*/
+
+static int tchk_dumpsyntaxflag = 0;
+
+STATICDYNARRAY (treecheckdef_t *, treechecks);
+
+
+/*}}}*/
+
+
+/*{{{  static treecheckdef_t *tchk_newdef (void)*/
+/*
+ *	creates a new treecheckdef_t structure
+ */
+static treecheckdef_t *tchk_newdef (void)
+{
+	treecheckdef_t *tcdef = (treecheckdef_t *)smalloc (sizeof (treecheckdef_t));
+
+	dynarray_init (tcdef->descs);
+	tcdef->invbefore = NULL;
+	tcdef->invafter = NULL;
+	tcdef->cvalid = 1;			/* assume valid to start with */
+
+	tcdef->tndef = NULL;
+
+	return tcdef;
+}
+/*}}}*/
+/*{{{  static void tchk_freedef (treecheckdef_t *tcdef)*/
+/*
+ *	frees a treecheckdef_t structure
+ */
+static void tchk_freedef (treecheckdef_t *tcdef)
+{
+	int i;
+
+	if (!tcdef) {
+		nocc_warning ("tchk_freedef(): NULL pointer!");
+		return;
+	}
+	for (i=0; i<DA_CUR (tcdef->descs); i++) {
+		char *desc = DA_NTHITEM (tcdef->descs, i);
+
+		if (desc) {
+			sfree (desc);
+		}
+	}
+	dynarray_trash (tcdef->descs);
+
+	if (tcdef->invbefore) {
+		sfree (tcdef->invbefore);
+		tcdef->invbefore = NULL;
+	}
+	if (tcdef->invafter) {
+		sfree (tcdef->invafter);
+		tcdef->invafter = NULL;
+	}
+	tcdef->cvalid = 0;
+	tcdef->tndef = NULL;
+
+	sfree (tcdef);
+	return;
+}
+/*}}}*/
+/*{{{  static tchk_treewalk_t *tchk_newtreewalk (void)*/
+/*
+ *	creates a new tchk_treewalk_t structure
+ */
+static tchk_treewalk_t *tchk_newtreewalk (void)
+{
+	tchk_treewalk_t *tw = (tchk_treewalk_t *)smalloc (sizeof (tchk_treewalk_t));
+
+	tw->passname = NULL;
+	tw->passenabled = 0;
+	tw->prepost = 0;
+	tw->warncount = 0;
+	tw->errcount = 0;
+
+	return tw;
+}
+/*}}}*/
+/*{{{  static void tchk_freetreewalk (tchk_treewalk_t *tw)*/
+/*
+ *	frees a tchk_treewalk_t structure
+ */
+static void tchk_freetreewalk (tchk_treewalk_t *tw)
+{
+	if (!tw) {
+		nocc_error ("tchk_freetreewalk(): NULL pointer!");
+		return;
+	}
+	/* this doesn't hold any data of its own per-se */
+	sfree (tw);
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static int tchk_pretreewalk (tnode_t *node, void *arg)*/
+/*
+ *	called to do checking on an individual node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int tchk_pretreewalk (tnode_t *node, void *arg)
+{
+	tchk_treewalk_t *tw = (tchk_treewalk_t *)arg;
+	tndef_t *tnd = node->tag->ndef;
+	treecheckdef_t *tcdef = tnd->tchkdef;
+
+	if (!tcdef) {
+		/* no checks for this node, ignore */
+		return 1;
+	}
+
+	nocc_message ("tchk_pretreewalk(): want to check type [%s] node [%s] at 0x%8.8x in pass [%s].  prepost = %d", tnd->name, node->tag->name, (unsigned int)node, tw->passname, tw->prepost);
+
+	/* FIXME! */
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  int treecheck_init (void)*/
@@ -60,6 +193,7 @@
  */
 int treecheck_init (void)
 {
+	dynarray_init (treechecks);
 	return 0;
 }
 /*}}}*/
@@ -70,6 +204,110 @@ int treecheck_init (void)
  */
 int treecheck_shutdown (void)
 {
+	int i;
+
+	for (i=0; i<DA_CUR (treechecks); i++) {
+		treecheckdef_t *tcdef = DA_NTHITEM (treechecks, i);
+
+		if (!treecheck_destroycheck (tcdef)) {
+			i--;
+		}
+	}
+	dynarray_trash (treechecks);
+
+	return 0;
+}
+/*}}}*/
+
+
+/*{{{  treecheckdef_t *treecheck_createcheck (char *nodename, int nsub, int nname, int nhook, char **descs, char *invbefore, char *invafter)*/
+/*
+ *	creates a new treecheckdef_t structure, populated with the given data and linked to the relevant tndef_t node-type
+ *	returns check on success, NULL on failure
+ */
+treecheckdef_t *treecheck_createcheck (char *nodename, int nsub, int nname, int nhook, char **descs, char *invbefore, char *invafter)
+{
+	treecheckdef_t *tcdef = NULL;
+	tndef_t *tnd = tnode_lookupnodetype (nodename);
+	int i;
+
+	if (!tnd) {
+		nocc_error ("treecheck_createcheck(): node type [%s] not found", nodename);
+		return NULL;
+	}
+
+	if (tnd->tchkdef) {
+		nocc_error ("treecheck_createcheck(): node type [%s] already has check!", nodename);
+		return NULL;
+	}
+
+	/* first check is to see whether the counts match up with what we know! -- hard fail */
+	if (tnd->nsub != nsub) {
+		nocc_error ("treecheck_createcheck(): node type [%s] has %d subnodes, but checking for %d", nodename, tnd->nsub, nsub);
+		return NULL;
+	}
+	if (tnd->nname != nname) {
+		nocc_error ("treecheck_createcheck(): node type [%s] has %d name-nodes, but checking for %d", nodename, tnd->nname, nname);
+		return NULL;
+	}
+	if (tnd->nhooks != nhook) {
+		nocc_error ("treecheck_createcheck(): node type [%s] has %d name-nodes, but checking for %d", nodename, tnd->nhooks, nhook);
+		return NULL;
+	}
+
+	tcdef = tchk_newdef ();
+
+	for (i=0; i<(nsub + nname + nhook); i++) {
+		dynarray_add (tcdef->descs, string_dup (descs[i] ?: ""));
+	}
+	tcdef->invbefore = invbefore ? string_dup (invbefore) : NULL;
+	tcdef->invafter = invafter ? string_dup (invafter) : NULL;
+
+	if (tcdef->invbefore) {
+		tcdef->cvalid = 0;	/* invalid before a particular pass, so invalid initially */
+	} else {
+		tcdef->cvalid = 1;	/* otherwise must be initially valid */
+	}
+
+	/* link onto node-type definition */
+	tcdef->tndef = tnd;
+	tnd->tchkdef = tcdef;
+
+	dynarray_add (treechecks, tcdef);
+
+	return tcdef;
+}
+/*}}}*/
+/*{{{  int treecheck_destroycheck (treecheckdef_t *tcdef)*/
+/*
+ *	destroys a treedefcheck_t structure, first unlinking it from the associated node-type
+ *	returns 0 on success, non-zero on failure
+ */
+int treecheck_destroycheck (treecheckdef_t *tcdef)
+{
+	tndef_t *tnd;
+	
+	if (!tcdef) {
+		nocc_error ("treecheck_destroycheck(): NULL pointer!");
+		return -1;
+	}
+	tnd = tcdef->tndef;
+	if (!tnd) {
+		nocc_error ("treecheck_destroycheck(): check not linked to a node-type!");
+		return -1;
+	}
+	if (tnd->tchkdef != tcdef) {
+		nocc_error ("treecheck_destroycheck(): linkage confusion, check at 0x%8.8x, but 0x%8.8x linked to [%s]", (unsigned int)tcdef, (unsigned int)tnd->tchkdef, tnd->name);
+		return -1;
+	}
+
+	/* unlink and free */
+	tnd->tchkdef = NULL;
+	tcdef->tndef = NULL;
+
+	dynarray_rmitem (treechecks, tcdef);
+
+	tchk_freedef (tcdef);
 	return 0;
 }
 /*}}}*/
@@ -82,9 +320,31 @@ int treecheck_shutdown (void)
  */
 int treecheck_prepass (tnode_t *tree, const char *pname, const int penabled)
 {
-	/* FIXME! */
-	/* nocc_message ("treecheck_prepass() on [%s] enabled = %d", pname, penabled); */
-	return 0;
+	tchk_treewalk_t *tw = tchk_newtreewalk ();
+	int rval = 0;
+	int i;
+
+	tw->passname = (char *)pname;
+	tw->passenabled = penabled;
+	tw->prepost = 0;
+
+	tnode_prewalktree (tree, tchk_pretreewalk, (void *)tw);
+
+	if (tw->errcount) {
+		rval = -1;
+	}
+	tchk_freetreewalk (tw);
+
+	/* anything invalid before this pass is now valid */
+	for (i=0; i<DA_CUR (treechecks); i++) {
+		treecheckdef_t *tcdef = DA_NTHITEM (treechecks, i);
+
+		if (tcdef->invbefore && !strcmp (pname, tcdef->invbefore)) {
+			tcdef->cvalid = 1;
+		}
+	}
+
+	return rval;
 }
 /*}}}*/
 /*{{{  int treecheck_postpass (tnode_t *tree, const char *pname, const int penabled)*/
@@ -94,8 +354,31 @@ int treecheck_prepass (tnode_t *tree, const char *pname, const int penabled)
  */
 int treecheck_postpass (tnode_t *tree, const char *pname, const int penabled)
 {
-	/* FIXME! */
-	return 0;
+	tchk_treewalk_t *tw = tchk_newtreewalk ();
+	int rval = 0;
+	int i;
+
+	/* anything invalid after this pass is now invalid */
+	for (i=0; i<DA_CUR (treechecks); i++) {
+		treecheckdef_t *tcdef = DA_NTHITEM (treechecks, i);
+
+		if (tcdef->invafter && !strcmp (pname, tcdef->invafter)) {
+			tcdef->cvalid = 0;
+		}
+	}
+
+	tw->passname = (char *)pname;
+	tw->passenabled = penabled;
+	tw->prepost = 1;
+
+	tnode_prewalktree (tree, tchk_pretreewalk, (void *)tw);
+
+	if (tw->errcount) {
+		rval = -1;
+	}
+	tchk_freetreewalk (tw);
+
+	return rval;
 }
 /*}}}*/
 

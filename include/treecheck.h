@@ -21,10 +21,24 @@
 #define __TREECHECK_H
 
 struct TAG_tnode;
+struct TAG_tndef;
+
+typedef struct TAG_treecheckdef {
+	DYNARRAY (char *, descs);		/* human-readable descriptions for subnodes, names and hooks */
+	char *invbefore;			/* pass before which this node-type is invalid */
+	char *invafter;				/* pass after which this node-type is invalid */
+	int cvalid;				/* whether the node type is currently valid */
+
+	struct TAG_tndef *tndef;		/* node-type definition */
+} treecheckdef_t;
 
 
 extern int treecheck_init (void);
 extern int treecheck_shutdown (void);
+
+
+extern treecheckdef_t *treecheck_createcheck (char *nodename, int nsub, int nname, int nhook, char **descs, char *invbefore, char *invafter);
+extern int treecheck_destroycheck (treecheckdef_t *tcdef);
 
 extern int treecheck_prepass (struct TAG_tnode *tree, const char *pname, const int penabled);
 extern int treecheck_postpass (struct TAG_tnode *tree, const char *pname, const int penabled);

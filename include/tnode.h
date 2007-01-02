@@ -44,6 +44,7 @@ struct TAG_typecheck;
 struct TAG_target;
 struct TAG_fetrans;
 struct TAG_betrans;
+struct TAG_treecheckdef;
 
 /*{{{  tndef_t definition (type of node)*/
 typedef struct TAG_tndef {
@@ -64,8 +65,9 @@ typedef struct TAG_tndef {
 
 	void (*prefreetree)(struct TAG_tnode *);
 
-	struct TAG_compops *ops;	/* tree operations */
-	struct TAG_langops *lops;	/* language-oriented tree operations */
+	struct TAG_compops *ops;		/* tree operations */
+	struct TAG_langops *lops;		/* language-oriented tree operations */
+	struct TAG_treecheckdef *tchkdef;	/* tree-check definition linkage */
 
 	int tn_flags;
 } tndef_t;
