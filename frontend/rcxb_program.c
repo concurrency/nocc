@@ -38,6 +38,7 @@
 #include "lexpriv.h"
 #include "tnode.h"
 #include "parser.h"
+#include "fcnlib.h"
 #include "dfa.h"
 #include "parsepriv.h"
 #include "rcxb.h"
@@ -512,6 +513,18 @@ static int rcxb_program_init_nodes (void)
 	int i;
 	compops_t *cops;
 
+	/*{{{  register reduction functions*/
+	fcnlib_addfcn ("rcxb_nametoken_to_hook", (void *)rcxb_nametoken_to_hook, 1, 1);
+	fcnlib_addfcn ("rcxb_stringtoken_to_node", (void *)rcxb_stringtoken_to_node, 1, 1);
+	fcnlib_addfcn ("rcxb_integertoken_to_node", (void *)rcxb_integertoken_to_node, 1, 1);
+	fcnlib_addfcn ("rcxb_idtoken_to_node", (void *)rcxb_idtoken_to_node, 1, 1);
+	fcnlib_addfcn ("rcxb_dirtoken_to_node", (void *)rcxb_dirtoken_to_node, 1, 1);
+
+	fcnlib_addfcn ("rcxb_reduce_mop", (void *)rcxb_reduce_mop, 0, 3);
+	fcnlib_addfcn ("rcxb_reduce_dop", (void *)rcxb_reduce_dop, 0, 3);
+	fcnlib_addfcn ("rcxb_reduce_rel", (void *)rcxb_reduce_rel, 0, 3);
+
+	/*}}}*/
 	/*{{{  rcxb:rawnamenode -- NAME*/
 	i = -1;
 	tnd = tnode_newnodetype ("rcxb:rawnamenode", &i, 0, 0, 1, TNF_NONE);				/* hooks: 0 = raw-name */
@@ -695,83 +708,13 @@ static int rcxb_program_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int rcxb_program_reg_reducers (void)*/
-/*
- *	registers reducers for RCX-BASIC
- *	returns 0 on success, non-zero on failure
- */
-static int rcxb_program_reg_reducers (void)
-{
-	parser_register_grule ("rcxb:namereduce", parser_decode_grule ("ST0T+XC1R-", rcxb_nametoken_to_hook, rcxb.tag_NAME));
-	parser_register_grule ("rcxb:stringreduce", parser_decode_grule ("ST0T+XR-", rcxb_stringtoken_to_node));
-	parser_register_grule ("rcxb:integerreduce", parser_decode_grule ("ST0T+XR-", rcxb_integertoken_to_node));
-	parser_register_grule ("rcxb:stringpush", parser_decode_grule ("ST0T+XN-", rcxb_stringtoken_to_node));
-	parser_register_grule ("rcxb:integerpush", parser_decode_grule ("ST0T+XN-", rcxb_integertoken_to_node));
-	parser_register_grule ("rcxb:idreduce", parser_decode_grule ("ST0T+XR-", rcxb_idtoken_to_node));
-	parser_register_grule ("rcxb:setmotorreduce", parser_decode_grule ("SN0N+N+VC2R-", rcxb.tag_SETMOTOR));
-	parser_register_grule ("rcxb:setsensorreduce", parser_decode_grule ("SN0N+N+VC2R-", rcxb.tag_SETSENSOR));
-	parser_register_grule ("rcxb:setpowerreduce", parser_decode_grule ("SN0N+N+VC2R-", rcxb.tag_SETPOWER));
-	parser_register_grule ("rcxb:setdirectionreduce", parser_decode_grule ("SN0N+N+VC2R-", rcxb.tag_SETDIRECTION));
-	parser_register_grule ("rcxb:directionreduce", parser_decode_grule ("ST0T+XR-", rcxb_dirtoken_to_node));
-	parser_register_grule ("rcxb:forreduce", parser_decode_grule ("SN0N+N+N+0C4R-", rcxb.tag_FOR));
-	parser_register_grule ("rcxb:setlabelreduce", parser_decode_grule ("SN0N+C1R-", rcxb.tag_SETLABEL));
-	parser_register_grule ("rcxb:assignreduce", parser_decode_grule ("SN0N+N+C2R-", rcxb.tag_ASSIGN));
-	parser_register_grule ("rcxb:gotoreduce", parser_decode_grule ("SN0N+C1R-", rcxb.tag_GOTO));
-	parser_register_grule ("rcxb:sleepreduce", parser_decode_grule ("SN0N+C1R-", rcxb.tag_SLEEP));
-	parser_register_grule ("rcxb:nextreduce", parser_decode_grule ("SN0N+000C4R-", rcxb.tag_NEXT));
-	parser_register_grule ("rcxb:soundreduce", parser_decode_grule ("SN0N+C1R-", rcxb.tag_SOUND));
-	parser_register_grule ("rcxb:eventreduce", parser_decode_grule ("SN0N+N+N+C3R-", rcxb.tag_ONEVENT));
-
-	parser_register_reduce ("Rrcxb:mopreduce", rcxb_reduce_mop, NULL);
-	parser_register_reduce ("Rrcxb:dopreduce", rcxb_reduce_dop, NULL);
-	parser_register_reduce ("Rrcxb:relreduce", rcxb_reduce_rel, NULL);
-
-	return 0;
-}
-/*}}}*/
-/*{{{  dfattbl_t **rcxb_program_init_dfatrans (int *ntrans)*/
-/*
- *	initialises and returns DFA transition tables for RCX-BASIC
- */
-dfattbl_t **rcxb_program_init_dfatrans (int *ntrans)
-{
-	DYNARRAY (dfattbl_t *, transtbl);
-
-	dynarray_init (transtbl);
-	dynarray_add (transtbl, dfa_transtotbl ("rcxb:name ::= [ 0 +Name 1 ] [ 1 {<rcxb:namereduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("rcxb:expr ::= [ 0 +String 1 ] [ 0 +Integer 2 ] [ 1 {<rcxb:stringreduce>} -* ] [ 2 {<rcxb:integerreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("rcxb:expr +:= [ 0 +@@- 1 ] [ 1 rcxb:expr 2 ] [ 2 {Rrcxb:mopreduce} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("rcxb:id ::= [ 0 +Name 1 ] [ 0 +Integer 1 ] [ 1 {<rcxb:idreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("rcxb:direction ::= [ 0 +@forward 1 ] [ 0 +@reverse 1 ] [ 1 {<rcxb:directionreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("rcxb:namestart ::= [ 0 rcxb:name 1 ] [ 1 @@: 2 ] [ 1 @@= 3 ] " \
-				"[ 2 {<rcxb:setlabelreduce>} -* ] " \
-				"[ 3 rcxb:expr 4 ] [ 4 {<rcxb:assignreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("rcxb:statement ::= [ 0 @set 1 ] [ 0 Comment 8 ] [ 0 -Name <rcxb:namestart> ] [ 0 @goto 15 ] [ 0 @sleep 17 ] [ 0 @next 19 ] [ 0 @sound 21 ] [ 0 @on 25 ] " \
-				"[ 1 @motor 2 ] [ 1 @sensor 5 ] [ 1 @power 9 ] [ 1 @direction 12 ] " \
-				"[ 2 rcxb:id 3 ] [ 3 rcxb:expr 4 ] [ 4 {<rcxb:setmotorreduce>} -* ] " \
-				"[ 5 rcxb:id 6 ] [ 6 rcxb:expr 7 ] [ 7 {<rcxb:setsensorreduce>} -* ] " \
-				"[ 8 -* ] " \
-				"[ 9 rcxb:id 10 ] [ 10 rcxb:expr 11 ] [ 11 {<rcxb:setpowerreduce>} -* ] " \
-				"[ 12 rcxb:id 13 ] [ 13 rcxb:direction 14 ] [ 14 {<rcxb:setdirectionreduce>} -* ] " \
-				"[ 15 rcxb:name 16 ] [ 16 {<rcxb:gotoreduce>} -* ] " \
-				"[ 17 rcxb:expr 18 ] [ 18 {<rcxb:sleepreduce>} -* ] " \
-				"[ 19 rcxb:name 20 ] [ 20 {<rcxb:nextreduce>} -* ] " \
-				"[ 21 +String 22 ] [ 21 +Integer 23 ] [ 22 {<rcxb:stringpush>} -* 24 ] [ 23 {<rcxb:integerpush>} -* 24 ] [ 24 {<rcxb:soundreduce>} -* ] " \
-				"[ 25 @sensor 26 ] [ 26 rcxb:id 27 ] [ 27 rcxb:expr 28 ] [ 28 @goto 29 ] [ 29 rcxb:name 30 ] [ 30 {<rcxb:eventreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_transtotbl ("rcxb:statement +:= [ 0 @for 1 ] [ 1 rcxb:name 2 ] [ 2 @@= 3 ] [ 3 rcxb:expr 4 ] [ 4 @to 5 ] [ 5 rcxb:expr 6 ] [ 6 {<rcxb:forreduce>} -* ]"));
-	dynarray_add (transtbl, dfa_bnftotbl ("rcxb:program ::= { rcxb:statement Newline 1 }"));
-
-	*ntrans = DA_CUR (transtbl);
-	return DA_PTR (transtbl);
-}
-/*}}}*/
 
 
 /*{{{  rcxb_program_feunit (feunit_t)*/
 feunit_t rcxb_program_feunit = {
 	init_nodes: rcxb_program_init_nodes,
-	reg_reducers: rcxb_program_reg_reducers,
-	init_dfatrans: rcxb_program_init_dfatrans,
+	reg_reducers: NULL,
+	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "rcxb-program"
 };

@@ -229,11 +229,9 @@ tokenloop:
 		/*{{{  space, tab*/
 	case ' ':
 	case '\t':
-		/* shouldn't see this */
-		lexer_warning (lf, "unexpected whitespace");
+		/* skip over leading whitespace */
 		lp->offset++;
 		goto tokenloop;
-		break;
 		/*}}}*/
 		/*{{{  " (string)*/
 	case '\"':

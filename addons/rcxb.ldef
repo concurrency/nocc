@@ -41,4 +41,64 @@
 
 
 # }}}
+.SECTION "rcxb-postprod" # {{{: post-productions for RCXB (top-level grammar)
+
+
+# }}}
+
+
+.SECTION "rcxb-program" # {{{: general program structures for RCX BASIC
+
+.GRULE	"rcxb:namereduce" "ST0T+X[rcxb_nametoken_to_hook]C[RCXBNAME]1R-"
+.GRULE	"rcxb:stringreduce" "ST0T+X[rcxb_stringtoken_to_node]R-"
+.GRULE	"rcxb:integerreduce" "ST0T+X[rcxb_integertoken_to_node]R-"
+.GRULE	"rcxb:stringpush" "ST0T+X[rcxb_stringtoken_to_node]N-"
+.GRULE	"rcxb:integerpush" "ST0T+X[rcxb_integertoken_to_node]N-"
+.GRULE	"rcxb:idreduce" "ST0T+X[rcxb_idtoken_to_node]R-"
+.GRULE	"rcxb:setmotorreduce" "SN0N+N+VC[RCXBSETMOTOR]2R-"
+.GRULE	"rcxb:setsensorreduce" "SN0N+N+VC[RCXBSETSENSOR]2R-"
+.GRULE	"rcxb:setpowerreduce" "SN0N+N+VC[RCXBSETPOWER]2R-"
+.GRULE	"rcxb:setdirectionreduce" "SN0N+N+VC[RCXBSETDIRECTION]2R-"
+.GRULE	"rcxb:directionreduce" "ST0T+X[rcxb_dirtoken_to_node]R-"
+.GRULE	"rcxb:forreduce" "SN0N+N+N+0C[RCXBFOR]4R-"
+.GRULE	"rcxb:setlabelreduce" "SN0N+C[RCXBSETLABEL]1R-"
+.GRULE	"rcxb:assignreduce" "SN0N+N+C[RCXBASSIGN]2R-"
+.GRULE	"rcxb:gotoreduce" "SN0N+C[RCXBGOTO]1R-"
+.GRULE	"rcxb:sleepreduce" "SN0N+C[RCXBSLEEP]1R-"
+.GRULE	"rcxb:nextreduce" "SN0N+000C[RCXBNEXT]4R-"
+.GRULE	"rcxb:soundreduce" "SN0N+C[RCXBSOUND]1R-"
+.GRULE	"rcxb:eventreduce" "SN0N+N+N+C[RCXBONEVENT]3R-"
+
+.RFUNC	"Rrcxb:mopreduce" "rcxb_reduce_mop"
+.RFUNC	"Rrcxb:dopreduce" "rcxb_reduce_dop"
+.RFUNC	"Rrcxb:relreduce" "rcxb_reduce_rel"
+
+
+.TABLE	"rcxb:name ::= [ 0 +Name 1 ] [ 1 {<rcxb:namereduce>} -* ]"
+.TABLE	"rcxb:expr ::= [ 0 +String 1 ] [ 0 +Integer 2 ] [ 1 {<rcxb:stringreduce>} -* ] [ 2 {<rcxb:integerreduce>} -* ]"
+.TABLE	"rcxb:expr +:= [ 0 +@@- 1 ] [ 1 rcxb:expr 2 ] [ 2 {Rrcxb:mopreduce} -* ]"
+.TABLE	"rcxb:id ::= [ 0 +Name 1 ] [ 0 +Integer 1 ] [ 1 {<rcxb:idreduce>} -* ]"
+.TABLE	"rcxb:direction ::= [ 0 +@forward 1 ] [ 0 +@reverse 1 ] [ 1 {<rcxb:directionreduce>} -* ]"
+.TABLE	"rcxb:namestart ::= [ 0 rcxb:name 1 ] [ 1 @@: 2 ] [ 1 @@= 3 ]"
+	"[ 2 {<rcxb:setlabelreduce>} -* ]"
+	"[ 3 rcxb:expr 4 ] [ 4 {<rcxb:assignreduce>} -* ]"
+.TABLE	"rcxb:statement ::= [ 0 @set 1 ] [ 0 Comment 8 ] [ 0 -Name <rcxb:namestart> ] [ 0 @goto 15 ] [ 0 @sleep 17 ] [ 0 @next 19 ] [ 0 @sound 21 ] [ 0 @on 25 ]"
+	"[ 1 @motor 2 ] [ 1 @sensor 5 ] [ 1 @power 9 ] [ 1 @direction 12 ]"
+	"[ 2 rcxb:id 3 ] [ 3 rcxb:expr 4 ] [ 4 {<rcxb:setmotorreduce>} -* ]"
+	"[ 5 rcxb:id 6 ] [ 6 rcxb:expr 7 ] [ 7 {<rcxb:setsensorreduce>} -* ]"
+	"[ 8 -* ]"
+	"[ 9 rcxb:id 10 ] [ 10 rcxb:expr 11 ] [ 11 {<rcxb:setpowerreduce>} -* ]"
+	"[ 12 rcxb:id 13 ] [ 13 rcxb:direction 14 ] [ 14 {<rcxb:setdirectionreduce>} -* ]"
+	"[ 15 rcxb:name 16 ] [ 16 {<rcxb:gotoreduce>} -* ]"
+	"[ 17 rcxb:expr 18 ] [ 18 {<rcxb:sleepreduce>} -* ]"
+	"[ 19 rcxb:name 20 ] [ 20 {<rcxb:nextreduce>} -* ]"
+	"[ 21 +String 22 ] [ 21 +Integer 23 ] [ 22 {<rcxb:stringpush>} -* 24 ] [ 23 {<rcxb:integerpush>} -* 24 ] [ 24 {<rcxb:soundreduce>} -* ]"
+	"[ 25 @sensor 26 ] [ 26 rcxb:id 27 ] [ 27 rcxb:expr 28 ] [ 28 @goto 29 ] [ 29 rcxb:name 30 ] [ 30 {<rcxb:eventreduce>} -* ]"
+.TABLE	"rcxb:statement +:= [ 0 @for 1 ] [ 1 rcxb:name 2 ] [ 2 @@= 3 ] [ 3 rcxb:expr 4 ] [ 4 @to 5 ] [ 5 rcxb:expr 6 ] [ 6 {<rcxb:forreduce>} -* ]"
+
+.BNF	"rcxb:program ::= { rcxb:statement Newline 1 }"
+
+
+# }}}
+
 
