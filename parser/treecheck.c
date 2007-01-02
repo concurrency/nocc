@@ -180,9 +180,11 @@ static int tchk_pretreewalk (tnode_t *node, void *arg)
 
 	if (!tcdef->cvalid) {
 		tnode_warning (node, "** treecheck %s %s: node-type %s invalid here", tw->prepost ? "after" : "before", tw->passname, tnd->name);
+		tw->errcount++;
 	}
 
-	/* FIXME! */
+	/* other checks ? */
+
 	return 1;
 }
 /*}}}*/

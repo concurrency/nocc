@@ -177,6 +177,8 @@
 .DFAERR	STUCK "occampi:procdecl" "in PROC declaration" EXPECTED
 
 .TNODE	"occampi:vardecl" (3,0,0) "name" "type" "body"
+.TNODE	"occampi:rawnamenode" (0,0,1) "name-hook"
+	INVALID AFTER "scope"
 
 
 # }}}
