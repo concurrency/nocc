@@ -2424,7 +2424,7 @@ static void lib_libchook_free (void *chook)
 	return;
 }
 /*}}}*/
-/*{{{  */
+/*{{{  static libfile_entry_t *lib_decodeexternaldecl (lexfile_t *orglf, libusenodehook_t *lunh, char *desc)*/
 /*
  *	decodes a descriptor entry found in an EXTERNAL declaration, expecting something like this:
  *		PROC name ({0,params}) = ws,offset[,vs[,ms]]

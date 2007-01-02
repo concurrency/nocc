@@ -246,6 +246,11 @@ static int nocc_shutdownrun (void)
 		v++;
 	}
 
+	/* extra things which should be cleaned up properly, but initialised earlier in the compiler */
+	if (fcnlib_shutdown ()) {
+		v++;
+	}
+
 	return v;
 }
 /*}}}*/

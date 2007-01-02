@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "opts.h"
 
 /*}}}*/
 /*{{{  private types*/
@@ -50,6 +51,29 @@ typedef struct {
 STATICSTRINGHASH (fcnlib_t *, functions, 6);
 STATICDYNARRAY (fcnlib_t *, afunctions);
 
+static int fcnlib_dumpoptflag = 0;
+
+/*}}}*/
+
+
+/*{{{  static int fcn_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	option handler for fcnlib
+ *	returns 0 on success, non-zero on failure
+ */
+static int fcn_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	int optv = (int)opt->arg;
+
+	switch (optv) {
+		/*{{{  --dump-fcnlib*/
+	case 1:
+		fcnlib_dumpoptflag = 1;
+		break;
+		/*}}}*/
+	}
+	return 0;
+}
 /*}}}*/
 
 
@@ -93,8 +117,6 @@ static void fcn_freefcnlib (fcnlib_t *fcnl)
 /*}}}*/
 
 
-
-
 /*{{{  int fcnlib_init (void)*/
 /*
  *	initialises the function library
@@ -104,6 +126,9 @@ int fcnlib_init (void)
 {
 	stringhash_init (functions);
 	dynarray_init (afunctions);
+
+	opts_add ("dump-fcnlib", '\0', fcn_opthandler, (void *)1, "1dump registered functions on shutdown");
+
 	return 0;
 }
 /*}}}*/
@@ -115,6 +140,17 @@ int fcnlib_init (void)
 int fcnlib_shutdown (void)
 {
 	int i;
+
+	if (fcnlib_dumpoptflag) {
+		nocc_message ("fcnlib: dump of registered functions follows:");
+		for (i=0; i<DA_CUR (afunctions); i++) {
+			fcnlib_t *fcnl = DA_NTHITEM (afunctions, i);
+
+			if (fcnl) {
+				nocc_message ("0x%8.8x %d %d %s", (unsigned int)fcnl->fcnaddr, fcnl->ret, fcnl->nargs, fcnl->name);
+			}
+		}
+	}
 
 	for (i=0; i<DA_CUR (afunctions); i++) {
 		fcnlib_t *fcnl = DA_NTHITEM (afunctions, i);
