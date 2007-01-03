@@ -1728,6 +1728,7 @@ local_close_out:
 
 		/*{{{  maybe dump trees*/
 		maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+
 		/*}}}*/
 	}
 	/*}}}*/
@@ -1737,6 +1738,10 @@ main_out:
 	if (compopts.dumpchooks) {
 		tnode_dumpchooks (stderr);
 	}
+	/*}}}*/
+	/*{{{  call any specific finalisers*/
+	treecheck_finalise ();
+
 	/*}}}*/
 	/*{{{  shutdown/etc.*/
 	for (i=0; i<DA_CUR (srcfiles); i++) {

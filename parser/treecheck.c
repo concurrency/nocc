@@ -48,6 +48,7 @@
 #include "lexpriv.h"
 #include "names.h"
 #include "target.h"
+#include "opts.h"
 
 
 /*}}}*/
@@ -162,6 +163,35 @@ static void tchk_freetreewalk (tchk_treewalk_t *tw)
 /*}}}*/
 
 
+/*{{{  static int tchk_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	called to handle certain command-line arguments
+ *	returns 0 on success, non-zero on failure
+ */
+static int tchk_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	int optv = (int)opt->arg;
+
+	switch (optv) {
+		/*{{{  1 -- setting 'dump syntax' flag*/
+	case 1:
+		if (compopts.verbose) {
+			nocc_message ("will dump abstract syntax tree after compiler run");
+		}
+
+		tchk_dumpsyntaxflag = 1;
+
+		break;
+		/*}}}*/
+	default:
+		nocc_error ("tchk_opthandler(): unknown option [%s]", **argwalk);
+		break;
+	}
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int tchk_pretreewalk (tnode_t *node, void *arg)*/
 /*
  *	called to do checking on an individual node
@@ -198,6 +228,37 @@ static int tchk_pretreewalk (tnode_t *node, void *arg)
 int treecheck_init (void)
 {
 	dynarray_init (treechecks);
+
+	opts_add ("treecheck-astdump", '\0', tchk_opthandler, (void *)1, "1dump abstract syntax tree from tree-check");
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int treecheck_finalise (void)*/
+/*
+ *	finalises the tree-checking routines, dumps abstract syntax if requested
+ *	returns 0 on success, non-zero on failure
+ */
+int treecheck_finalise (void)
+{
+	if (tchk_dumpsyntaxflag) {
+		int i;
+
+		nocc_message ("abstract syntax tree as held by tree-check:");
+		for (i=0; i<DA_CUR (treechecks); i++) {
+			treecheckdef_t *tcdef = DA_NTHITEM (treechecks, i);
+			int j;
+
+			if (!tcdef->tndef) {
+				continue;
+			}
+			fprintf (stderr, "    %s (", tcdef->tndef->name);
+			for (j=0; j<tcdef->tndef->nsub; j++) {
+				fprintf (stderr, "%s%s", j ? "," : "", tcdef->descs[j]);
+			}
+			fprintf (stderr, ")\n");
+		}
+	}
 	return 0;
 }
 /*}}}*/

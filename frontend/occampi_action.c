@@ -455,21 +455,12 @@ static int occampi_action_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_action_reg_reducers (void)*/
-/*
- *	registers reductions for action nodes
- */
-static int occampi_action_reg_reducers (void)
-{
-	return 0;
-}
-/*}}}*/
 
 
 /*{{{  occampi_action_feunit (feunit_t)*/
 feunit_t occampi_action_feunit = {
 	init_nodes: occampi_action_init_nodes,
-	reg_reducers: occampi_action_reg_reducers,
+	reg_reducers: NULL,
 	init_dfatrans: NULL,
 	post_setup: NULL,
 	ident: "occampi-action"

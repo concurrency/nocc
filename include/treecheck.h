@@ -34,6 +34,7 @@ typedef struct TAG_treecheckdef {
 
 
 extern int treecheck_init (void);
+extern int treecheck_finalise (void);
 extern int treecheck_shutdown (void);
 
 

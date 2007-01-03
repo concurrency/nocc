@@ -10,7 +10,7 @@
 
 # sections are used to help front-end units find their definitions
 
-.SECTION "occampi" # {{{: fairly general occam-pi reductions
+.SECTION "occampi" # {{{: fairly general occam-pi reductions and other language things
 
 .RFUNC	"Roccampi:inlist" "occampi_inlistreduce"
 .GRULE	"opi:nullreduce" "N+R-"
@@ -18,6 +18,46 @@
 .GRULE	"opi:nullset" "0R-"
 .GRULE	"opi:subscriptreduce" "N+N+0C[SUBSCRIPT]3R-"
 .GRULE	"opi:xsubscriptreduce" "N+N+V0C[SUBSCRIPT]3R-"
+
+
+# .TNODE directives describe the parse-tree, kind-of
+
+# actions
+
+.TNODE	"occampi:actionnode" (3,0,0) "lhs" "rhs" "type"
+
+
+# in-line assembly
+
+.TNODE	"occampi:asmnode" (1,0,0) "body"
+.TNODE	"occampi:asmop" (0,0,1) "asmop-hook"
+
+# constructor nodes
+
+.TNODE	"occampi:cnode" (2,0,0) "operand" "body"
+.TNODE	"occampi:replcnode" (5,0,0) "operand" "body" "repl-name" "repl-start" "repl-length"
+.TNODE	"occampi:cexpnode" (2,0,0) "expression" "body"
+
+
+# declarations and related nodes
+
+.TNODE	"occampi:vardecl" (3,0,0) "name" "type" "body"
+.TNODE	"occampi:rawnamenode" (0,0,1) "name-hook"
+	INVALID AFTER "scope"
+.TNODE	"occampi:namenode" (0,1,0) "name"
+	INVALID BEFORE "scope"
+.TNODE	"occampi:hiddennode" (1,0,0) "param"
+.TNODE	"occampi:leafnode" (0,0,0)
+.TNODE	"occampi:fparam" (2,0,0) "name" "type"
+.TNODE	"occampi:abbrevnode" (4,0,0) "name" "type" "body" "expression"
+.TNODE	"occampi:procdecl" (4,0,0) "name" "fparams" "procbody" "body"
+
+# FIXME: incomplete!
+
+# miscellaneous
+
+.TNODE	"occampi:miscnode" (1,0,0) "body"
+
 
 # }}}
 .SECTION "occampi-postprod" # {{{: top-level grammar, kind-of
@@ -175,10 +215,6 @@
 	"[ 4 {<opi:namepush>} -* 5 ] [ 5 {<opi:directedchaninput>} -* 6 ] [ 6 {<opi:nullreduce>} -* ]"
 
 .DFAERR	STUCK "occampi:procdecl" "in PROC declaration" EXPECTED
-
-.TNODE	"occampi:vardecl" (3,0,0) "name" "type" "body"
-.TNODE	"occampi:rawnamenode" (0,0,1) "name-hook"
-	INVALID AFTER "scope"
 
 
 # }}}
