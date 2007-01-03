@@ -321,7 +321,7 @@
 
 
 # }}}
-.SECTION "occampi-mobiles" # {{{: 
+.SECTION "occampi-mobiles" # {{{: mobile things
 
 .GRULE	"opi:mobilise" "SN0N+C[MOBILE]1N-"
 .GRULE	"opi:dynmobilearray" "SN0N+C[DYNMOBARRAY]1N-"
