@@ -1,6 +1,6 @@
 /*
  *	occampi_action.c -- occam-pi action handling for NOCC
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -40,6 +40,8 @@
 #include "tnode.h"
 #include "parser.h"
 #include "dfa.h"
+#include "dfaerror.h"
+#include "fcnlib.h"
 #include "parsepriv.h"
 #include "occampi.h"
 #include "feunit.h"
@@ -56,15 +58,42 @@
 #include "target.h"
 #include "transputer.h"
 #include "codegen.h"
+#include "langdef.h"
 
 
 /*}}}*/
+/*{{{  private data*/
+
+static chook_t *opi_action_lhstypehook = NULL;
+
+
+/*}}}*/
+
 
 
 /*
  *	this file contains front-end routines for handling action-nodes,
  *	e.g. assignment, input and output
  */
+
+
+/*{{{  static void occampi_action_dumplhstypehook (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	used to dump the occampi:action:lhstype compiler hook (debugging)
+ */
+static void occampi_action_dumplhstypehook (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	tnode_t *lhstype = (tnode_t *)hook;
+
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "<chook id=\"occampi:action:lhstype\" addr=\"0x%8.8x\">\n", (unsigned int)hook);
+	tnode_dumptree (lhstype, indent + 1, stream);
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "</chook>\n");
+	return;
+}
+/*}}}*/
+
 
 /*{{{  static int occampi_typecheck_action (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
@@ -138,6 +167,8 @@ tnode_dumptree (rhstype, 1, stderr);
 	} else {
 		tnode_setnthsub (node, 2, acttype);
 	}
+
+	tnode_setchook (node, opi_action_lhstypehook, (void *)lhstype);
 
 	return 0;	/* don't walk sub-nodes */
 }
@@ -348,7 +379,11 @@ static int occampi_codegen_action (compops_t *cops, tnode_t *node, codegen_t *cg
 	tnode_t *rhs = tnode_nthsubof (node, 1);
 	tnode_t *type = tnode_nthsubof (node, 2);
 	int bytes = tnode_bytesfor (type, cgen->target);
-	tnode_t *lhstype = typecheck_gettype (lhs, NULL);
+	tnode_t *lhstype = (tnode_t *)tnode_getchook (node, opi_action_lhstypehook);
+
+	if (!lhstype) {
+		lhstype = typecheck_gettype (lhs, NULL);
+	}
 
 	codegen_callops (cgen, debugline, node);
 	/* some special cases for assignment, input and output -- these have codegen_typeaction() set in language-ops */
@@ -427,6 +462,11 @@ static int occampi_action_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
+	/*{{{  occampi:action:lhstype compiler hook*/
+	opi_action_lhstypehook = tnode_lookupornewchook ("occampi:action:lhstype");
+	opi_action_lhstypehook->chook_dumptree = occampi_action_dumplhstypehook;
+
+	/*}}}*/
 	/*{{{  occampi:actionnode -- ASSIGN, INPUT, OUTPUT*/
 	i = -1;
 	opi.node_ACTIONNODE = tnd = tnode_newnodetype ("occampi:actionnode", &i, 3, 0, 0, TNF_NONE);		/* subnodes: left, right, type */
