@@ -52,6 +52,15 @@
 .TNODE	"occampi:abbrevnode" (4,0,0) "name" "type" "body" "expression"
 .TNODE	"occampi:procdecl" (4,0,0) "name" "fparams" "procbody" "body"
 
+# structured data types
+
+.TNODE	"occampi:typedecl" (3,0,1) "name" "type" "body" "typedecl-hook"
+.TNODE	"occampi:arraynode" (2,0,0) "dimension" "subtype"
+.TNODE	"occampi:arraymopnode" (2,0,0) "operand" "type"
+.TNODE	"occampi:fielddecl" (2,0,0) "name" "type"
+.TNODE	"occampi:subscript" (3,0,0) "base" "index" "type"
+
+
 # FIXME: incomplete!
 
 # miscellaneous

@@ -1033,7 +1033,7 @@ static int occampi_dtype_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:typedecl -- DATATYPEDECL, CHANTYPEDECL, PROCTYPEDECL*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:typedecl", &i, 3, 0, 1, TNF_SHORTDECL);		/* subnodes: 0 = name; 1 = type; 2 = body */
+	tnd = tnode_newnodetype ("occampi:typedecl", &i, 3, 0, 1, TNF_SHORTDECL);		/* subnodes: 0 = name; 1 = type; 2 = body; hooks: 0 = typedeclhook_t */
 	tnd->hook_dumptree = occampi_typedecl_hook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_typedecl));
@@ -1086,7 +1086,7 @@ static int occampi_dtype_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:fielddecl -- FIELDDECL*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:fielddecl", &i, 2, 0, 0, TNF_NONE);
+	tnd = tnode_newnodetype ("occampi:fielddecl", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = name, 1 = type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_fielddecl));
 	tnd->ops = cops;
@@ -1099,7 +1099,7 @@ static int occampi_dtype_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:subscript -- SUBSCRIPT, RECORDSUB, ARRAYSUB*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:subscript", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = base; 1 = field/index; 2 = subscript-type */
+	tnd = tnode_newnodetype ("occampi:subscript", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = base, 1 = field/index, 2 = subscript-type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_subscript));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_subscript));

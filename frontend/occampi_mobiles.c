@@ -414,6 +414,45 @@ static int occampi_mobilealloc_codegen (compops_t *cops, tnode_t *node, codegen_
 /*}}}*/
 
 
+/*{{{  static int occampi_mobiletypedecl_typecheck (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a mobile type-declaration node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mobiletypedecl_typecheck (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	int defchk = 1;
+	int i = 1;
+
+	if (node->tag == opi.tag_CHANTYPEDECL) {
+		tnode_t *type = tnode_nthsubof (node, 1);
+
+		if (type->tag == opi.tag_MOBILE) {
+			/* mobile channel-type declaration */
+			defchk = 0;
+			nocc_message ("FIXME: occampi_mobiletypedecl_typecheck(): mobile channel-type declaration!");
+		}
+	} else if (node->tag == opi.tag_DATATYPEDECL) {
+		tnode_t *type = tnode_nthsubof (node, 1);
+
+		if (type->tag == opi.tag_MOBILE) {
+			/* mobile channel-type declaration */
+			defchk = 0;
+			nocc_message ("FIXME: occampi_mobiletypedecl_typecheck(): mobile data-type declaration!");
+		}
+	}
+
+	if (defchk) {
+		if (cops->next && tnode_hascompop_i (cops->next, (int)COPS_TYPECHECK)) {
+			i = tnode_callcompop_i (cops->next, (int)COPS_TYPECHECK, 2, node, tc);
+		}
+	}
+
+	return i;
+}
+/*}}}*/
+
+
 /*{{{  static void *occampi_copy_demobilechook (void *chook)*/
 /*
  *	copies a demobile-type compiler hook
@@ -528,6 +567,22 @@ static int occampi_mobiles_init_nodes (void)
 		chook_demobiletype->chook_free = occampi_free_demobilechook;
 		chook_demobiletype->chook_dumptree = occampi_dumptree_demobilechook;
 	}
+
+	/*}}}*/
+	/*{{{  change behaviour of (occampi:typedecl,CHANTYPEDECL)*/
+	tnd = tnode_lookupnodetype ("occampi:typedecl");
+	if (!tnd) {
+		nocc_error ("occampi_mobiles_init_node(): failed to find \"occampi:typedecl\" node type");
+		return -1;
+	}
+
+	cops = tnode_insertcompops (tnd->ops);
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_mobiletypedecl_typecheck));
+	tnd->ops = cops;
+
+	lops = tnode_insertlangops (tnd->lops);
+	tnd->lops = lops;
+
 	/*}}}*/
 
 	return 0;
