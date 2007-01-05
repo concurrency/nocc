@@ -4,6 +4,7 @@ PROC test.n20 (CHAN BYTE screen!)
   [4]BYTE array:
   SEQ
     array[0] := 'x'
+    array[2] := array[3]
     SKIP
 :
 
