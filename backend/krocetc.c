@@ -3137,6 +3137,9 @@ static void krocetc_coder_debugline (codegen_t *cgen, tnode_t *node)
 {
 	krocetc_priv_t *kpriv = (krocetc_priv_t *)cgen->target->priv;
 
+#if 0
+	nocc_message ("krocetc_coder_debugline(): [%s], line %d", node->tag->name, node->org_line);
+#endif
 	if (!node->org_file || !node->org_line) {
 		/* nothing to generate */
 		return;

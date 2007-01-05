@@ -16,8 +16,8 @@
 .GRULE	"opi:nullreduce" "N+R-"
 .GRULE	"opi:nullpush" "0N-"
 .GRULE	"opi:nullset" "0R-"
-.GRULE	"opi:subscriptreduce" "N+N+0C[SUBSCRIPT]3R-"
-.GRULE	"opi:xsubscriptreduce" "N+N+V0C[SUBSCRIPT]3R-"
+.GRULE	"opi:subscriptreduce" "SN0N+N+0C[SUBSCRIPT]3R-"
+.GRULE	"opi:xsubscriptreduce" "SN0N+N+V0C[SUBSCRIPT]3R-"
 
 
 # .TNODE directives describe the parse-tree, kind-of
