@@ -425,21 +425,58 @@ static int occampi_mobiletypedecl_typecheck (compops_t *cops, tnode_t *node, typ
 	int i = 1;
 
 	if (node->tag == opi.tag_CHANTYPEDECL) {
+		/*{{{  channel-type declaration*/
 		tnode_t *type = tnode_nthsubof (node, 1);
 
-		if (type->tag == opi.tag_MOBILE) {
+		if (type && (type->tag == opi.tag_MOBILE)) {
 			/* mobile channel-type declaration */
+			tnode_t **typep = tnode_nthsubaddr (type, 0);
+
 			defchk = 0;
-			nocc_message ("FIXME: occampi_mobiletypedecl_typecheck(): mobile channel-type declaration!");
+
+			if (*typep && !parser_islistnode (*typep)) {
+				/* turn it into a list-node */
+				*typep = parser_buildlistnode (NULL, *typep, NULL);
+			}
+			if (*typep) {
+				tnode_t **items;
+				int nitems, i;
+
+				items = parser_getlistitems (*typep, &nitems);
+				for (i=0; i<nitems; i++) {
+					tnode_t *itype;
+					
+					if (!items[i]) {
+						nocc_warning ("occampi_mobiletypedecl_typecheck(): NULL item in list!");
+						continue;
+					} else if (items[i]->tag != opi.tag_FIELDDECL) {
+						typecheck_error (items[i], tc, "field not FIELDDECL");
+						continue;
+					}
+
+					itype = tnode_nthsubof (items[i], 1);
+					typecheck_subtree (itype, tc);
+
+					if (itype->tag != opi.tag_CHAN) {
+						typecheck_error (items[i], tc, "channel-type field not a channel");
+					} else if (!tnode_getchook (itype, opi.chook_typeattr)) {
+						typecheck_error (items[i], tc, "channel must have direction specified");
+					}
+				}
+			}
+			// nocc_message ("FIXME: occampi_mobiletypedecl_typecheck(): mobile channel-type declaration!");
 		}
+		/*}}}*/
 	} else if (node->tag == opi.tag_DATATYPEDECL) {
+		/*{{{  data-type declaration*/
 		tnode_t *type = tnode_nthsubof (node, 1);
 
-		if (type->tag == opi.tag_MOBILE) {
-			/* mobile channel-type declaration */
+		if (type && (type->tag == opi.tag_MOBILE)) {
+			/* mobile data-type declaration */
 			defchk = 0;
 			nocc_message ("FIXME: occampi_mobiletypedecl_typecheck(): mobile data-type declaration!");
 		}
+		/*}}}*/
 	}
 
 	if (defchk) {
