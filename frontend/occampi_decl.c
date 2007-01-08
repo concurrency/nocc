@@ -1277,7 +1277,7 @@ tnode_dumptree (node, 4, stderr);
  */
 static int occampi_bytesfor_namenode (langops_t *lops, tnode_t *node, target_t *target)
 {
-	if (node->tag == opi.tag_NDATATYPEDECL) {
+	if ((node->tag == opi.tag_NDATATYPEDECL) || (node->tag == opi.tag_NCHANTYPEDECL)) {
 		name_t *name = tnode_nthnameof (node, 0);
 		tnode_t *type, *decl;
 

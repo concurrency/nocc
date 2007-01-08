@@ -148,6 +148,52 @@ static void *occampi_fielddecloffset_chook_create (int offset)
 /*}}}*/
 
 
+/*{{{  static void occampi_initchantype_typedecl (tnode_t *node, codegen_t *cgen, void *arg)*/
+/*
+ *	does initialiser code-gen for a channel-type declaration (non-MOBILE)
+ */
+static void occampi_initchantype_typedecl (tnode_t *node, codegen_t *cgen, void *arg)
+{
+	tnode_t *chantype = (tnode_t *)arg;
+	int ws_off, vs_off, ms_off, ms_shdw;
+
+	codegen_callops (cgen, debugline, node);
+
+	/* FIXME: assuming single channel for now.. */
+	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off, &ms_shdw);
+
+#if 1
+fprintf (stderr, "occampi_initchantype_typedecl(): node=[%s], allocated at [%d,%d,%d], type is:\n", node->tag->name, ws_off, vs_off, ms_off);
+tnode_dumptree (chantype, 1, stderr);
+#endif
+#if 0
+	codegen_callops (cgen, loadconst, 0);
+	codegen_callops (cgen, storelocal, ws_off);
+	codegen_callops (cgen, comment, "initchantypedecl");
+#endif
+
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static int occampi_prescope_typedecl (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
+/*
+ *	called to prescope a type declaration (DATA TYPE ...)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_prescope_typedecl (compops_t *cops, tnode_t **nodep, prescope_t *ps)
+{
+	tnode_t *type = tnode_nthsubof (*nodep, 1);
+
+	if (parser_islistnode (type)) {
+		/* remove any NULL items from the list */
+		parser_cleanuplist (type);
+	}
+
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_scopein_typedecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope a type declaration (DATA TYPE ...)
@@ -454,7 +500,20 @@ static int occampi_usagecheck_typedecl (langops_t *lops, tnode_t *node, uchk_sta
 	return 0;
 }
 /*}}}*/
-
+/*{{{  static int occampi_initialising_decl_typedecl (langops_t *lops, tnode_t *t, tnode_t *benode, map_t *mdata)*/
+/*
+ *	does initialising declarations for user-defined types (DATA TYPE, ...)
+ *	returns 0 if nothing needed, non-zero otherwise
+ */
+static int occampi_initialising_decl_typedecl (langops_t *lops, tnode_t *t, tnode_t *benode, map_t *mdata)
+{
+	if (t->tag == opi.tag_CHANTYPEDECL) {
+		codegen_setinithook (benode, occampi_initchantype_typedecl, (void *)t);
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static tnode_t *occampi_typeactual_arraynode (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
 /*
@@ -1036,6 +1095,7 @@ static int occampi_dtype_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:typedecl", &i, 3, 0, 1, TNF_SHORTDECL);		/* subnodes: 0 = name; 1 = type; 2 = body; hooks: 0 = typedeclhook_t */
 	tnd->hook_dumptree = occampi_typedecl_hook_dumptree;
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_typedecl));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_typedecl));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_typedecl));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_typedecl));
@@ -1043,6 +1103,7 @@ static int occampi_dtype_init_nodes (void)
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_typedecl));
 	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_usagecheck_typedecl));
+	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_initialising_decl_typedecl));
 	tnd->lops = lops;
 
 	i = -1;
