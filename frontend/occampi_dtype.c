@@ -507,6 +507,9 @@ static int occampi_usagecheck_typedecl (langops_t *lops, tnode_t *node, uchk_sta
  */
 static int occampi_initialising_decl_typedecl (langops_t *lops, tnode_t *t, tnode_t *benode, map_t *mdata)
 {
+#if 1
+	nocc_message ("occampi_initialising_decl_typedecl(): t = [%s]", t->tag->name);
+#endif
 	if (t->tag == opi.tag_CHANTYPEDECL) {
 		codegen_setinithook (benode, occampi_initchantype_typedecl, (void *)t);
 		return 1;

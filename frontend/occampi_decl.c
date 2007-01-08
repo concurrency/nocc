@@ -265,7 +265,7 @@ tnode_dumptree (type, 1, stderr);
 	bename = map->target->newname (*namep, *bodyp, map, (wssize < 0) ? 0 : wssize, (wssize < 0) ? -wssize : 0, vssize, mssize, tsize, indir);
 
 	if (type->tag->nt_flags & NTF_NAMEMAPTYPEINDECL) {
-		chook_t *pcevhook = tnode_lookupchookbyname ("precode:vars");
+		// chook_t *pcevhook = tnode_lookupchookbyname ("precode:vars");
 
 		map_submapnames (typep, map);
 		/* pull any of these upwards */
@@ -297,10 +297,16 @@ tnode_dumptree (bename, 1, stderr);
  */
 static int occampi_precode_vardecl (compops_t *cops, tnode_t **nodep, codegen_t *cgen)
 {
+	tnode_t *type = tnode_nthsubof (*nodep, 1);
+
 #if 1
 	nocc_message ("occampi_precode_vardecl(): here!");
 #endif
-	return 1;
+	if (type && (type->tag->nt_flags & NTF_PRECODETYPEINDECL)) {
+		codegen_subprecode (tnode_nthsubaddr (*nodep, 1), cgen);
+	}
+
+	return 0;
 }
 /*}}}*/
 
