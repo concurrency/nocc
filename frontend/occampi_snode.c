@@ -381,7 +381,7 @@ static int occampi_namemap_snode (compops_t *cops, tnode_t **nodep, map_t *map)
 		/*{{{  IF process -- nothing special here*/
 		return 1;
 		/*}}}*/
-	} else if ((*nodep)->tag == opi.tag_IF) {
+	} else if ((*nodep)->tag == opi.tag_CASE) {
 		/*{{{  CASE process -- nothing special here */
 		return 1;
 		/*}}}*/
