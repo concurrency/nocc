@@ -47,6 +47,7 @@
 static int hopp_openfile (lexfile_t *lf, lexpriv_t *lp);
 static int hopp_closefile (lexfile_t *lf, lexpriv_t *lp);
 static token_t *hopp_nexttoken (lexfile_t *lf, lexpriv_t *lp);
+static int hopp_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 
 /*}}}*/
 /*{{{  public lexer struct*/
@@ -57,6 +58,7 @@ langlexer_t hopp_lexer = {
 	openfile: hopp_openfile,
 	closefile: hopp_closefile,
 	nexttoken: hopp_nexttoken,
+	getcodeline: hopp_getcodeline,
 	parser: NULL
 };
 
@@ -521,5 +523,17 @@ out_error1:
 	return tok;
 }
 /*}}}*/
+/*{{{  static int hopp_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf)*/
+/*
+ *	gets the current code line from the input buffer (returns fresh string in '*rbuf')
+ *	returns 0 on success, non-zero on failure
+ */
+static int hopp_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf)
+{
+	*rbuf = NULL;
+	return -1;
+}
+/*}}}*/
+
 
 

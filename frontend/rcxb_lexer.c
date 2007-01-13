@@ -44,6 +44,7 @@
 static int rcxb_openfile (lexfile_t *lf, lexpriv_t *lp);
 static int rcxb_closefile (lexfile_t *lf, lexpriv_t *lp);
 static token_t *rcxb_nexttoken (lexfile_t *lf, lexpriv_t *lp);
+static int rcxb_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 
 
 /*}}}*/
@@ -54,6 +55,7 @@ langlexer_t rcxb_lexer = {
 	openfile: rcxb_openfile,
 	closefile: rcxb_closefile,
 	nexttoken: rcxb_nexttoken,
+	getcodeline: rcxb_getcodeline,
 	parser: NULL
 };
 
@@ -362,6 +364,17 @@ out_error1:
 	lp->offset += (int)(dh - ch);
 
 	return tok;
+}
+/*}}}*/
+/*{{{  static int rcxb_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf)*/
+/*
+ *	get the current code line from the input buffer (returns a fresh string in '*rbuf')
+ *	returns 0 on success, non-zero on failure
+ */
+static int rcxb_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf)
+{
+	*rbuf = NULL;
+	return -1;
 }
 /*}}}*/
 

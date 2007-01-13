@@ -443,6 +443,38 @@ void lexer_pushback (lexfile_t *lf, token_t *tok)
 	return;
 }
 /*}}}*/
+/*{{{  int lexer_getcodeline (lexfile_t *lf, char **rbuf)*/
+/*
+ *	gets the current input line in the lexer (returns fresh string in '*rbuf')
+ *	returns 0 on success, non-zero on failure
+ */
+int lexer_getcodeline (lexfile_t *lf, char **rbuf)
+{
+	lexpriv_t *lp = (lexpriv_t *)(lf->priv);
+	char *lrptr = NULL;
+	int i;
+
+	if (!lf || !lp || !lf->lexer) {
+		*rbuf = string_dup ("");
+		return 0;
+	}
+	if (!lf->lexer->getcodeline) {
+		*rbuf = string_dup ("");
+		return 0;
+	}
+	i = lf->lexer->getcodeline (lf, lp, &lrptr);
+	if (!lrptr || i) {
+		*rbuf = string_dup ("");
+		if (lrptr) {
+			sfree (lrptr);
+		}
+		return 0;
+	}
+
+	*rbuf = lrptr;
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  token_t *lexer_newtoken (tokentype_t type, ...)*/

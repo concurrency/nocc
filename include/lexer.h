@@ -89,6 +89,7 @@ typedef struct TAG_token {
 
 extern token_t *lexer_nexttoken (lexfile_t *lf);
 extern void lexer_pushback (lexfile_t *lf, token_t *tok);
+extern int lexer_getcodeline (lexfile_t *lf, char **rbuf);
 
 extern token_t *lexer_newtoken (tokentype_t type, ...);
 extern void lexer_dumptoken (FILE *stream, token_t *tok);

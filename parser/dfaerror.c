@@ -112,6 +112,16 @@ static void dfaerr_stuck (dfaerrorhandler_t *ehan, dfanode_t *dfanode, token_t *
 			gone += snprintf (msgbuf + gone, max - gone, ", expected nothing!");
 		}
 	}
+	if (ehan->report & DFAERR_CODE) {
+		char *lbuf = NULL;
+
+		if (lexer_getcodeline (tok->origin, &lbuf)) {
+			/* skip */
+		} else {
+			parser_error (tok->origin, lbuf);
+			sfree (lbuf);
+		}
+	}
 	parser_error (tok->origin, msgbuf);
 	return;
 }

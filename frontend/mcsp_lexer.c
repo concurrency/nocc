@@ -44,6 +44,7 @@
 static int mcsp_openfile (lexfile_t *lf, lexpriv_t *lp);
 static int mcsp_closefile (lexfile_t *lf, lexpriv_t *lp);
 static token_t *mcsp_nexttoken (lexfile_t *lf, lexpriv_t *lp);
+static int mcsp_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 
 
 /*}}}*/
@@ -54,6 +55,7 @@ langlexer_t mcsp_lexer = {
 	openfile: mcsp_openfile,
 	closefile: mcsp_closefile,
 	nexttoken: mcsp_nexttoken,
+	getcodeline: mcsp_getcodeline,
 	parser: NULL
 };
 
@@ -541,5 +543,15 @@ out_error1:
 	return tok;
 }
 /*}}}*/
-
+/*{{{  static int mcsp_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf)*/
+/*
+ *	gets the next line of code from the input buffer (returns fresh string in '*rbuf')
+ *	returns 0 on success, non-zero on failure
+ */
+static int mcsp_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf)
+{
+	*rbuf = NULL;
+	return -1;
+}
+/*}}}*/
 

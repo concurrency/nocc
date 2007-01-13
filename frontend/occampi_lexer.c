@@ -44,6 +44,7 @@
 static int occampi_openfile (lexfile_t *lf, lexpriv_t *lp);
 static int occampi_closefile (lexfile_t *lf, lexpriv_t *lp);
 static token_t *occampi_nexttoken (lexfile_t *lf, lexpriv_t *lp);
+static int occampi_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 
 
 /*}}}*/
@@ -54,6 +55,7 @@ langlexer_t occampi_lexer = {
 	openfile: occampi_openfile,
 	closefile: occampi_closefile,
 	nexttoken: occampi_nexttoken,
+	getcodeline: occampi_getcodeline,
 	parser: NULL
 };
 
@@ -748,6 +750,35 @@ out_error1:
 	return tok;
 }
 /*}}}*/
+/*{{{  static int occampi_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf)*/
+/*
+ *	gets the current line of code from the input file and puts it in a new buffer (pointer returned in '*rbuf')
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf)
+{
+	occampi_lex_t *lop;
+	char *chstart, *chend;
 
+	if (!lp || !lp->langpriv) {
+		return -1;
+	}
+	if (!lp->buffer) {
+		return -1;
+	}
+
+	lop = (occampi_lex_t *)(lp->langpriv);
+	if (lp->offset == lp->size) {
+		chend = lp->buffer + lp->offset;
+		for (chstart = chend; (chstart > lp->buffer) && (chstart[-1] != '\n') && (chstart[-1] != '\r'); chstart--);
+	} else {
+		for (chend = lp->buffer + lp->offset; (chend < (lp->buffer + lp->size)) && (*chend != '\n') && (*chend != '\r'); chend++);
+		for (chstart = lp->buffer + lp->offset; (chstart > lp->buffer) && (chstart[-1] != '\n') && (chstart[-1] != '\r'); chstart--);
+	}
+	*rbuf = string_ndup (chstart, (int)(chend - chstart));
+
+	return 0;
+}
+/*}}}*/
 
 

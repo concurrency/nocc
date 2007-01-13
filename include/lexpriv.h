@@ -39,6 +39,7 @@ typedef struct TAG_langlexer {
 	int (*openfile)(lexfile_t *, lexpriv_t *);
 	int (*closefile)(lexfile_t *, lexpriv_t *);
 	token_t *(*nexttoken)(lexfile_t *, lexpriv_t *);
+	int (*getcodeline)(lexfile_t *, lexpriv_t *, char **);		/* returned buffer */
 
 	struct TAG_langparser *parser;		/* associated parser */
 	char *fileexts[];	/* {".occ", ".inc", NULL} */
