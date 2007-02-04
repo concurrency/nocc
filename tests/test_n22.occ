@@ -3,6 +3,7 @@
 CHAN TYPE FOO
   RECORD
     CHAN INT x!:
+    CHAN INT y?:
 :
 
 

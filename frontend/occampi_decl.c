@@ -273,6 +273,9 @@ tnode_dumptree (type, 1, stderr);
 	}
 
 	if (type->tag->ndef->lops && tnode_haslangop (type->tag->ndef->lops, "initialising_decl")) {
+#if 0
+fprintf (stderr, "occampi_namemap_vardecl(): calling initialising_decl on the type (%s)\n", type->tag->name);
+#endif
 		tnode_calllangop (type->tag->ndef->lops, "initialising_decl", 3, type, bename, map);
 	}
 
@@ -1283,28 +1286,7 @@ tnode_dumptree (node, 4, stderr);
  */
 static int occampi_bytesfor_namenode (langops_t *lops, tnode_t *node, target_t *target)
 {
-	if ((node->tag == opi.tag_NDATATYPEDECL) || (node->tag == opi.tag_NCHANTYPEDECL)) {
-		name_t *name = tnode_nthnameof (node, 0);
-		tnode_t *type, *decl;
-
-		type = NameTypeOf (name);
-		decl = NameDeclOf (name);
-#if 0
-fprintf (stderr, "occampi_bytesfor_namenode(): type = ");
-tnode_dumptree (type, 1, stderr);
-#endif
-
-		return tnode_bytesfor (decl, target);
-	} else if (node->tag == opi.tag_NFIELD) {
-		name_t *name = tnode_nthnameof (node, 0);
-		tnode_t *type = NameTypeOf (name);
-
-#if 0
-fprintf (stderr, "occampi_bytesfor_namenode(): [N_FIELD], type =\n");
-tnode_dumptree (type, 1, stderr);
-#endif
-		return tnode_bytesfor (type, target);
-	} else if (node->tag == opi.tag_NREPL) {
+	if (node->tag == opi.tag_NREPL) {
 		name_t *name = tnode_nthnameof (node, 0);
 		tnode_t *type = NameTypeOf (name);
 
@@ -1404,7 +1386,7 @@ static int occampi_decl_init_nodes (void)
 	i = -1;
 	opi.tag_NAME = tnode_newnodetag ("NAME", &i, tnd, NTF_NONE);
 	/*}}}*/
-	/*{{{  occampi:namenode -- N_DECL, N_PARAM, N_VALPARAM, N_PROCDEF, N_DATATYPEDECL, N_FIELD, N_ABBR, N_VALABBR, N_FUNCDEF, N_CHANTYPEDECL, N_PROCTYPEDECL, N_REPL*/
+	/*{{{  occampi:namenode -- N_DECL, N_PARAM, N_VALPARAM, N_PROCDEF, N_ABBR, N_VALABBR, N_FUNCDEF, N_REPL*/
 	i = -1;
 	tnd = opi.node_NAMENODE = tnode_newnodetype ("occampi:namenode", &i, 0, 1, 0, TNF_NONE);	/* subnames: name */
 	cops = tnode_newcompops ();
@@ -1427,19 +1409,11 @@ static int occampi_decl_init_nodes (void)
 	i = -1;
 	opi.tag_NPROCDEF = tnode_newnodetag ("N_PROCDEF", &i, opi.node_NAMENODE, NTF_NONE);
 	i = -1;
-	opi.tag_NDATATYPEDECL = tnode_newnodetag ("N_DATATYPEDECL", &i, opi.node_NAMENODE, NTF_NONE);
-	i = -1;
-	opi.tag_NFIELD = tnode_newnodetag ("N_FIELD", &i, opi.node_NAMENODE, NTF_NONE);
-	i = -1;
 	opi.tag_NABBR = tnode_newnodetag ("N_ABBR", &i, opi.node_NAMENODE, NTF_NONE);
 	i = -1;
 	opi.tag_NVALABBR = tnode_newnodetag ("N_VALABBR", &i, opi.node_NAMENODE, NTF_NONE);
 	i = -1;
 	opi.tag_NFUNCDEF = tnode_newnodetag ("N_FUNCDEF", &i, opi.node_NAMENODE, NTF_NONE);
-	i = -1;
-	opi.tag_NCHANTYPEDECL = tnode_newnodetag ("N_CHANTYPEDECL", &i, opi.node_NAMENODE, NTF_SYNCTYPE);
-	i = -1;
-	opi.tag_NPROCTYPEDECL = tnode_newnodetag ("N_PROCTYPEDECL", &i, opi.node_NAMENODE, NTF_NONE);
 	i = -1;
 	opi.tag_NREPL = tnode_newnodetag ("N_REPL", &i, opi.node_NAMENODE, NTF_NONE);
 	/*}}}*/

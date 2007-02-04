@@ -1,6 +1,6 @@
 /*
- *	occampi_dtype.c -- occam-pi data type handling
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	occampi_dtype.c -- occam-pi data type handling (also named-type handling)
+ *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -150,27 +150,44 @@ static void *occampi_fielddecloffset_chook_create (int offset)
 
 /*{{{  static void occampi_initchantype_typedecl (tnode_t *node, codegen_t *cgen, void *arg)*/
 /*
- *	does initialiser code-gen for a channel-type declaration (non-MOBILE)
+ *	does initialiser code-gen for a channel-type (variable) declaration (non-MOBILE)
  */
 static void occampi_initchantype_typedecl (tnode_t *node, codegen_t *cgen, void *arg)
 {
 	tnode_t *chantype = (tnode_t *)arg;
+	tnode_t *subtypelist = NameTypeOf (tnode_nthnameof (chantype, 0));
 	int ws_off, vs_off, ms_off, ms_shdw;
+	int i, nfields;
+	tnode_t **fields;
 
 	codegen_callops (cgen, debugline, node);
 
-	/* FIXME: assuming single channel for now.. */
 	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off, &ms_shdw);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_initchantype_typedecl(): node=[%s], allocated at [%d,%d,%d], type is:\n", node->tag->name, ws_off, vs_off, ms_off);
 tnode_dumptree (chantype, 1, stderr);
+fprintf (stderr, "occampi_initchantype_typedecl(): subtypelist:\n");
+tnode_dumptree (subtypelist, 1, stderr);
 #endif
-#if 0
-	codegen_callops (cgen, loadconst, 0);
-	codegen_callops (cgen, storelocal, ws_off);
+	if (!subtypelist || !parser_islistnode (subtypelist)) {
+		tnode_error (node, "cannot generate chan-type initialiser for type [%s], no subtypelist\n", chantype->tag->name);
+		nocc_internal ("occampi_initchantype_typedecl(): failing");
+		return;
+	}
+	fields = parser_getlistitems (subtypelist, &nfields);
+	for (i=0; i<nfields; i++) {
+		if (fields[i] && (fields[i]->tag = opi.tag_FIELDDECL)) {
+			tnode_t *fname = tnode_nthsubof (fields[i], 0);
+			fielddecloffset_t *ofh = tnode_getchook (fname, fielddecloffset);
+
+			codegen_callops (cgen, loadconst, 0);
+			codegen_callops (cgen, storelocal, ws_off + ofh->offset);
+		} else if (fields[i]) {
+			tnode_warning (node, "occampi_initchantype_typedecl(): non FIELDDECL field [%s] in channel type [%s]", fields[i]->tag->name, chantype->tag->name);
+		}
+	}
 	codegen_callops (cgen, comment, "initchantypedecl");
-#endif
 
 	return;
 }
@@ -489,6 +506,17 @@ static int occampi_namemap_typedecl (compops_t *cops, tnode_t **node, map_t *mda
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_precode_typedecl (compops_t *cops, tnode_t **nodep, codegen_t *cgen)*/
+/*
+ *	does pre-coding for a type declaration (the type declaration itself)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_precode_typedecl (compops_t *cops, tnode_t **nodep, codegen_t *cgen)
+{
+	/* FIXME: might actually want to precode things burnt into type declarations at some point ..? [thinking type-descriptors] */
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_usagecheck_typedecl (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)*/
 /*
  *	does usage-checking for a type declaration (dummy, because we don't want to check inside..)
@@ -497,23 +525,6 @@ static int occampi_namemap_typedecl (compops_t *cops, tnode_t **node, map_t *mda
 static int occampi_usagecheck_typedecl (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)
 {
 	usagecheck_subtree (tnode_nthsubof (node, 2), ucstate);
-	return 0;
-}
-/*}}}*/
-/*{{{  static int occampi_initialising_decl_typedecl (langops_t *lops, tnode_t *t, tnode_t *benode, map_t *mdata)*/
-/*
- *	does initialising declarations for user-defined types (DATA TYPE, ...)
- *	returns 0 if nothing needed, non-zero otherwise
- */
-static int occampi_initialising_decl_typedecl (langops_t *lops, tnode_t *t, tnode_t *benode, map_t *mdata)
-{
-#if 1
-	nocc_message ("occampi_initialising_decl_typedecl(): t = [%s]", t->tag->name);
-#endif
-	if (t->tag == opi.tag_CHANTYPEDECL) {
-		codegen_setinithook (benode, occampi_initchantype_typedecl, (void *)t);
-		return 1;
-	}
 	return 0;
 }
 /*}}}*/
@@ -1020,6 +1031,131 @@ if (tnode_nthsubof (*node, 2)) {
 /*}}}*/
 
 
+/*{{{  static tnode_t *occampi_gettype_nametypenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	returns the type of a named type-node (trivial)
+ */
+static tnode_t *occampi_gettype_nametypenode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	name_t *name = tnode_nthnameof (node, 0);
+
+	if (!name) {
+		nocc_fatal ("occampi_gettype_nametypenode(): NULL name!");
+		return NULL;
+	}
+	if (name->type) {
+#if 0
+fprintf (stderr, "occmpi_gettype_nametypenode(): node = [%s], name:\n", node->tag->name);
+name_dumpname (name, 1, stderr);
+fprintf (stderr, "   \"   name->type:\n");
+tnode_dumptree (name->type, 1, stderr);
+#endif
+		return name->type;
+	}
+#if 1
+nocc_message ("occampi_gettype_nametypenode(): null type on name, node was:");
+tnode_dumptree (node, 4, stderr);
+#endif
+	nocc_fatal ("occampi_gettype_nametypenode(): name has NULL type (FIXME!)");
+	return NULL;
+}
+/*}}}*/
+/*{{{  static int occampi_bytesfor_nametypenode (langops_t *lops, tnode_t *node, target_t *target)*/
+/*
+ *	returns the number of bytes in a named-type-node, associated with its type only
+ */
+static int occampi_bytesfor_nametypenode (langops_t *lops, tnode_t *node, target_t *target)
+{
+	if ((node->tag == opi.tag_NDATATYPEDECL) || (node->tag == opi.tag_NCHANTYPEDECL)) {
+		name_t *name = tnode_nthnameof (node, 0);
+		tnode_t *type, *decl;
+
+		type = NameTypeOf (name);
+		decl = NameDeclOf (name);
+#if 0
+fprintf (stderr, "occampi_bytesfor_nametypenode(): type = ");
+tnode_dumptree (type, 1, stderr);
+#endif
+
+		return tnode_bytesfor (decl, target);
+	} else if (node->tag == opi.tag_NFIELD) {
+		name_t *name = tnode_nthnameof (node, 0);
+		tnode_t *type = NameTypeOf (name);
+
+#if 0
+fprintf (stderr, "occampi_bytesfor_nametypenode(): [N_FIELD], type =\n");
+tnode_dumptree (type, 1, stderr);
+#endif
+		return tnode_bytesfor (type, target);
+	}
+
+	nocc_error ("occampi_bytesfor_nametypenode(): no bytes for [%s]", node->tag->name);
+	return -1;
+}
+/*}}}*/
+/*{{{  static int occampi_namemap_nametypenode (compops_t *cops, tnode_t **node, map_t *map)*/
+/*
+ *	transforms given type-name into a back-end name
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_nametypenode (compops_t *cops, tnode_t **node, map_t *map)
+{
+	tnode_t *bename = tnode_getchook (*node, map->mapchook);
+	tnode_t *tname;
+
+#if 1
+fprintf (stderr, "occampi_namemap_nametypenode(): here 1! bename =\n");
+tnode_dumptree (bename, 1, stderr);
+#endif
+	if (bename) {
+		tname = map->target->newnameref (bename, map);
+		*node = tname;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_getname_nametypenode (langops_t *lops, tnode_t *node, char **str)*/
+/*
+ *	gets the name of a named-type-node (data-type name, etc.)
+ *	return 0 on success, -ve on failure
+ */
+static int occampi_getname_nametypenode (langops_t *lops, tnode_t *node, char **str)
+{
+	char *pname = NameNameOf (tnode_nthnameof (node, 0));
+
+	if (*str) {
+		sfree (*str);
+	}
+	*str = (char *)smalloc (strlen (pname) + 2);
+	strcpy (*str, pname);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_initialising_decl_nametypenode (langops_t *lops, tnode_t *t, tnode_t *benode, map_t *mdata)*/
+/*
+ *	does initialising declarations for user-defined types (DATA TYPE, CHAN TYPE, ...)
+ *	returns 0 if nothing needed, non-zero otherwise
+ */
+static int occampi_initialising_decl_nametypenode (langops_t *lops, tnode_t *t, tnode_t *benode, map_t *mdata)
+{
+#if 0
+name_t *name = tnode_nthnameof (t, 0);
+tnode_t *realtype = NameDeclOf (name);
+
+fprintf (stderr, "occampi_initialising_decl_nametypenode(): t = [%s], realtype = [%s], back-end-node is:\n", t->tag->name, realtype ? realtype->tag->name : "null");
+tnode_dumptree (benode, 4, stderr);
+#endif
+	if (t->tag == opi.tag_NCHANTYPEDECL) {
+		codegen_setinithook (benode, occampi_initchantype_typedecl, (void *)t);
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+
+
+
 /*{{{  static void occampi_reduce_resetnewline (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
  *	creates a newline token and pushes it back into the lexer
@@ -1102,11 +1238,11 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_typedecl));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_typedecl));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_typedecl));
+	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_precode_typedecl));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_typedecl));
 	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_usagecheck_typedecl));
-	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_initialising_decl_typedecl));
 	tnd->lops = lops;
 
 	i = -1;
@@ -1183,6 +1319,31 @@ static int occampi_dtype_init_nodes (void)
 	/*{{{  fielddecloffset compiler hook*/
 	fielddecloffset = tnode_lookupornewchook ("occampi:fielddecloffset");
 	fielddecloffset->chook_dumptree = occampi_fielddecloffset_chook_dumptree;
+
+	/*}}}*/
+
+	/*{{{  occampi:nametypenode -- N_DATATYPEDECL, N_FIELD, N_CHANTYPEDECL, N_PROCTYPEDECL*/
+	i = -1;
+	tnd = opi.node_NAMETYPENODE = tnode_newnodetype ("occampi:nametypenode", &i, 0, 1, 0, TNF_NONE);	/* subnames: name */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_nametypenode));
+	tnd->ops = cops;
+
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_nametypenode));
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_nametypenode));
+	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (occampi_getname_nametypenode));
+	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_initialising_decl_nametypenode));
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_NDATATYPEDECL = tnode_newnodetag ("N_DATATYPEDECL", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_NFIELD = tnode_newnodetag ("N_FIELD", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_NCHANTYPEDECL = tnode_newnodetag ("N_CHANTYPEDECL", &i, tnd, NTF_SYNCTYPE);
+	i = -1;
+	opi.tag_NPROCTYPEDECL = tnode_newnodetag ("N_PROCTYPEDECL", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

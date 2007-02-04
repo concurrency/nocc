@@ -46,6 +46,7 @@ struct TAG_chook;
 
 typedef struct {
 	struct TAG_tndef *node_NAMENODE;
+	struct TAG_tndef *node_NAMETYPENODE;
 	struct TAG_tndef *node_LEAFNODE;
 	struct TAG_tndef *node_TYPENODE;
 	struct TAG_tndef *node_ACTIONNODE;
@@ -150,13 +151,14 @@ typedef struct {
 	struct TAG_ntdef *tag_NVALPARAM;
 	struct TAG_ntdef *tag_NPROCDEF;
 	struct TAG_ntdef *tag_NFUNCDEF;
+	struct TAG_ntdef *tag_NABBR;
+	struct TAG_ntdef *tag_NVALABBR;
+	struct TAG_ntdef *tag_NREPL;
+
 	struct TAG_ntdef *tag_NDATATYPEDECL;
 	struct TAG_ntdef *tag_NCHANTYPEDECL;
 	struct TAG_ntdef *tag_NPROCTYPEDECL;
 	struct TAG_ntdef *tag_NFIELD;
-	struct TAG_ntdef *tag_NABBR;
-	struct TAG_ntdef *tag_NVALABBR;
-	struct TAG_ntdef *tag_NREPL;
 
 	struct TAG_ntdef *tag_PINSTANCE;
 	struct TAG_ntdef *tag_FINSTANCE;
