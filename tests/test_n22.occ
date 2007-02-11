@@ -6,6 +6,10 @@ CHAN TYPE FOO
     CHAN INT y?:
 :
 
+PROC thing (FOO? v)
+  SEQ
+    SKIP
+:
 
 PROC test.n22 ()
   FOO v:
