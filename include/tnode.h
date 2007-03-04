@@ -276,6 +276,7 @@ extern void tnode_dumpchooks (FILE *stream);
 extern int tnode_bytesfor (tnode_t *t, struct TAG_target *target);
 extern int tnode_issigned (tnode_t *t, struct TAG_target *target);
 
+extern void tnode_message (tnode_t *t, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 extern void tnode_warning (tnode_t *t, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 extern void tnode_error (tnode_t *t, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 

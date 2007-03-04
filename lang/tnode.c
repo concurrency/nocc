@@ -2393,6 +2393,26 @@ int tnode_issigned (tnode_t *t, target_t *target)
 /*}}}*/
 
 
+/*{{{  void tnode_message (tnode_t *t, const char *fmt, ...)*/
+/*
+ *	generates a generic message
+ */
+void tnode_message (tnode_t *t, const char *fmt, ...)
+{
+	va_list ap;
+	static char msgbuf[512];
+	int n;
+	lexfile_t *lf = t->org_file;
+
+	va_start (ap, fmt);
+	n = sprintf (msgbuf, "%s:%d ", lf ? lf->fnptr : "(unknown)", t->org_line);
+	vsnprintf (msgbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	nocc_outerrmsg (msgbuf);
+	return;
+}
+/*}}}*/
 /*{{{  void tnode_warning (tnode_t *t, const char *fmt, ...)*/
 /*
  *	generates a generic warning message

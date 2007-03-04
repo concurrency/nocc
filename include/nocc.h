@@ -77,6 +77,7 @@ typedef struct TAG_compopts {
 	int stoppoint;
 	int traceparser;
 	int tracetypecheck;
+	int traceprecode;
 	int treecheck;
 	char *savenameddfa[2];
 	char *savealldfas;

@@ -1928,14 +1928,18 @@ fprintf (stderr, "krocetc_coder_loadpointer(): [%s] local=%d, ref_lexlevel=%d, a
 		krocetc_indexedhook_t *ih = (krocetc_indexedhook_t *)tnode_nthhookof (name, 0);
 
 		krocetc_coder_loadpointer (cgen, tnode_nthsubof (name, 0), 0);
-		codegen_callops (cgen, loadname, tnode_nthsubof (name, 1), 0);
-		if (ih->isize > 1) {
-			codegen_callops (cgen, loadconst, ih->isize);
-			codegen_write_fmt (cgen, "\tprod\n");
-			krocetc_cgstate_tsdelta (cgen, -1);
+		if (tnode_nthsubof (name, 1)) {
+			codegen_callops (cgen, loadname, tnode_nthsubof (name, 1), 0);
+			if (ih->isize > 1) {
+				codegen_callops (cgen, loadconst, ih->isize);
+				codegen_callops (cgen, tsecondary, I_PROD);
+			}
+			codegen_callops (cgen, tsecondary, I_SUM);
 		}
-		codegen_write_fmt (cgen, "\tsum\n");
-		krocetc_cgstate_tsdelta (cgen, -1);
+		if (ih->offset) {
+			codegen_callops (cgen, loadconst, ih->offset);
+			codegen_callops (cgen, tsecondary, I_SUM);
+		}
 		/*}}}*/
 	} else if (name->tag == kpriv->tag_CONSTREF) {
 		/*{{{  loading pointer to a constant*/

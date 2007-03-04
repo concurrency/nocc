@@ -7,8 +7,10 @@ CHAN TYPE FOO
 :
 
 PROC thing (FOO? v)
+  INT k:
   SEQ
-    SKIP
+    v[x] ! 42
+    v[y] ? k
 :
 
 PROC test.n22 ()

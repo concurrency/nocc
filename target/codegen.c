@@ -534,6 +534,9 @@ fprintf (stderr, "codegen_modprewalk_precode(): pre-coding pc_chook vars.\n");
 
 	i = 1;
 	if ((*tptr)->tag->ndef->ops && tnode_hascompop_i ((*tptr)->tag->ndef->ops, (int)COPS_PRECODE)) {
+		if (compopts.traceprecode) {
+			tnode_message (*tptr, "calling precode on [%s:%s]", (*tptr)->tag->ndef->name, (*tptr)->tag->name);
+		}
 		i = tnode_callcompop_i ((*tptr)->tag->ndef->ops, (int)COPS_PRECODE, 2, tptr, cgen);
 	}
 	return i;

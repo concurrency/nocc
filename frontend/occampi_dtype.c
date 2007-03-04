@@ -514,6 +514,8 @@ static int occampi_namemap_typedecl (compops_t *cops, tnode_t **node, map_t *mda
 static int occampi_precode_typedecl (compops_t *cops, tnode_t **nodep, codegen_t *cgen)
 {
 	/* FIXME: might actually want to precode things burnt into type declarations at some point ..? [thinking type-descriptors] */
+
+	codegen_subprecode (tnode_nthsubaddr (*nodep, 2), cgen);		/* precode in-scope body */
 	return 0;
 }
 /*}}}*/
@@ -892,7 +894,16 @@ tnode_dumptree (*node, 1, stderr);
 		name_t *name = tnode_nthnameof (base, 0);
 		tnode_t *type = NameTypeOf (name);
 
-		if (type->tag == opi.tag_NDATATYPEDECL) {
+#if 1
+fprintf (stderr, "occampi_scopein_subscript(): got type from NAMENODE base =\n");
+tnode_dumptree (type, 1, stderr);
+#endif
+		if (type->tag == opi.tag_TYPESPEC) {
+			/* step over it */
+			type = tnode_nthsubof (type, 0);
+		}
+
+		if ((type->tag == opi.tag_NCHANTYPEDECL) || (type->tag == opi.tag_NDATATYPEDECL)) {
 			void *namemarker;
 
 			namemarker = name_markscope ();

@@ -502,7 +502,8 @@ static int occampi_typespec_betrans (compops_t *cops, tnode_t **tptr, betrans_t 
 	*tptr = tnode_nthsubof (thisnode, 0);
 	tnode_setnthsub (thisnode, 0, NULL);
 
-	tnode_free (thisnode);
+	/* FIXME: may be attached to a namenode's type */
+	/* tnode_free (thisnode); */
 	return 0;
 }
 /*}}}*/

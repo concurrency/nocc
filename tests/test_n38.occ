@@ -1,0 +1,7 @@
+-- test_n38.occ -- testing constant output
+
+PROC test.n38 (CHAN INT out!)
+  SEQ
+    out ! 42
+:
+
