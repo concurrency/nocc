@@ -147,12 +147,25 @@ tnode_dumptree (rhs, 1, stderr);
 
 		/* get the type of the channel (channel protocol) */
 		prot = typecheck_gettype (lhstype, NULL);
-
 		rhstype = typecheck_gettype (rhs, prot);
+
 		/*}}}*/
 	}
 
-#if 1
+	if ((node->tag == opi.tag_OUTPUT) || (node->tag == opi.tag_INPUT)) {
+		/*{{{  check for output channel*/
+		occampi_typeattr_t tattr = occampi_typeattrof (lhstype);
+		
+		if ((tattr & TYPEATTR_MARKED_IN) && (node->tag == opi.tag_OUTPUT)) {
+			typecheck_error (node, tc, "cannot output on channel marked as input");
+		} else if ((tattr & TYPEATTR_MARKED_OUT) && (node->tag == opi.tag_INPUT)) {
+			typecheck_error (node, tc, "cannot input from channel marked as output");
+		}
+
+		/*}}}*/
+	}
+
+#if 0
 fprintf (stderr, "occampi_typecheck_action(): lhstype = \n");
 tnode_dumptree (lhstype, 1, stderr);
 fprintf (stderr, "occampi_typecheck_action(): rhstype = \n");

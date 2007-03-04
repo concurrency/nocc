@@ -10,7 +10,7 @@ PROC thing (FOO! v)
   INT k:
   SEQ
     v[x] ? 42
-    v[y] ? k
+    v[y] ! 14
 :
 
 PROC test.n22 ()
