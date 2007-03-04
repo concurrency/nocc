@@ -894,7 +894,7 @@ tnode_dumptree (*node, 1, stderr);
 		name_t *name = tnode_nthnameof (base, 0);
 		tnode_t *type = NameTypeOf (name);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_scopein_subscript(): got type from NAMENODE base =\n");
 tnode_dumptree (type, 1, stderr);
 #endif
