@@ -152,7 +152,7 @@ tnode_dumptree (rhs, 1, stderr);
 		/*}}}*/
 	}
 
-#if 0
+#if 1
 fprintf (stderr, "occampi_typecheck_action(): lhstype = \n");
 tnode_dumptree (lhstype, 1, stderr);
 fprintf (stderr, "occampi_typecheck_action(): rhstype = \n");

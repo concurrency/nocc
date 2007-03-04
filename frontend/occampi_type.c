@@ -644,6 +644,18 @@ occampi_typeattr_t occampi_typeattrof (tnode_t *node)
 	return attr;
 }
 /*}}}*/
+/*{{{  void occampi_settypeattr (tnode_t *node, occampi_typeattr_t attr)*/
+/*
+ *	this sets the type-attributes of a node, does it via compiler-hook only
+ */
+void occampi_settypeattr (tnode_t *node, occampi_typeattr_t attr)
+{
+	int aval = (int)attr;
+
+	tnode_setchook (node, opi.chook_typeattr, (void *)aval);
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_type_init_nodes (void)*/

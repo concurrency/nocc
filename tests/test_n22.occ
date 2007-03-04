@@ -6,10 +6,10 @@ CHAN TYPE FOO
     CHAN INT y?:
 :
 
-PROC thing (FOO? v)
+PROC thing (FOO! v)
   INT k:
   SEQ
-    v[x] ! 42
+    v[x] ? 42
     v[y] ? k
 :
 

@@ -78,6 +78,8 @@ typedef struct TAG_fielddecloffset {
 /*}}}*/
 /*{{{  private data*/
 static chook_t *fielddecloffset = NULL;
+static chook_t *ct_clienttype = NULL;
+static chook_t *ct_servertype = NULL;
 
 /*}}}*/
 
@@ -144,6 +146,40 @@ static void *occampi_fielddecloffset_chook_create (int offset)
 	ofh->offset = offset;
 
 	return (void *)ofh;
+}
+/*}}}*/
+
+
+/*{{{  static void occampi_ctclienttype_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*
+ *	dumps a ct_clienttype chook (debugging)
+ */
+static void occampi_ctclienttype_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+{
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "<chook:ct_clienttype>\n");
+	if (chook) {
+		tnode_dumptree ((tnode_t *)chook, indent + 1, stream);
+	}
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "</chook:ct_clienttype>\n");
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_ctservertype_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*
+ *	dumps a ct_servertype chook (debugging)
+ */
+static void occampi_ctservertype_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+{
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "<chook:ct_servertype>\n");
+	if (chook) {
+		tnode_dumptree ((tnode_t *)chook, indent + 1, stream);
+	}
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "</chook:ct_servertype>\n");
+	return;
 }
 /*}}}*/
 
@@ -968,15 +1004,75 @@ static tnode_t *occampi_gettype_subscript (langops_t *lops, tnode_t *node, tnode
 {
 	if (node->tag == opi.tag_RECORDSUB) {
 		/* type is that of the field */
+		tnode_t *base = tnode_nthsubof (node, 0);
+		tnode_t *basetype;
 		tnode_t *field = tnode_nthsubof (node, 1);
 		name_t *fldname;
-		tnode_t *fldtype;
+		tnode_t *fldtype, *chantype = NULL;
+		chook_t *ct_chook = NULL;
 
+		basetype = typecheck_gettype (base, NULL);
+		if (basetype && (basetype->tag == opi.tag_TYPESPEC)) {
+			occampi_typeattr_t tattr = occampi_typeattrof (basetype);
+
+			chantype = tnode_nthsubof (basetype, 0);
+			if (chantype->tag == opi.tag_NCHANTYPEDECL) {
+				/* base is a named channel-type, might need to invert direction on fields */
+				if (tattr & TYPEATTR_MARKED_IN) {
+					ct_chook = ct_servertype;
+				} else if (tattr & TYPEATTR_MARKED_OUT) {
+					ct_chook = ct_clienttype;
+				}
+				chantype = NameDeclOf (tnode_nthnameof (chantype, 0));
+#if 0
+fprintf (stderr, "occampi_gettype_subscript(): of a channel-type type, chantype (decl) =\n");
+tnode_dumptree (chantype, 1, stderr);
+#endif
+			} else {
+				/* something else */
+				chantype = NULL;
+			}
+		}
+#if 0
+fprintf (stderr, "ocacmpi_gettype_subscript(): basetype =\n");
+tnode_dumptree (basetype, 1, stderr);
+#endif
 		if (field->tag != opi.tag_NFIELD) {
 			return NULL;
 		}
 		fldname = tnode_nthnameof (field, 0);
-		fldtype = NameTypeOf (fldname);
+
+		if (chantype && ct_chook) {
+			/* it's a channel-type field */
+			tnode_t *fdecl = NameDeclOf (fldname);
+
+			if (fdecl->tag != opi.tag_FIELDDECL) {
+				nocc_internal ("occampi_gettype_subscript(): expected FIELDDECL for NFIELD, got [%s]", fdecl->tag->name);
+			}
+			fldtype = (tnode_t *)tnode_getchook (fdecl, ct_chook);
+			if (!fldtype) {
+				/* no field type yet, create one */
+				fldtype = tnode_copytree (NameTypeOf (fldname));
+#if 0
+fprintf (stderr, "occampi_gettype_subscript(): chan-type field, fldtype (copy) =\n");
+tnode_dumptree (fldtype, 1, stderr);
+#endif
+				if (ct_chook == ct_clienttype) {
+					/* invert direction on the field's type */
+					occampi_typeattr_t tattr;
+
+					if (fldtype->tag != opi.tag_CHAN) {
+						nocc_internal ("occampi_gettype_subscript(): expected CHAN as type for NFIELD, got [%s]", fldtype->tag->name);
+					}
+					tattr = occampi_typeattrof (fldtype);
+					tattr ^= (TYPEATTR_MARKED_IN | TYPEATTR_MARKED_OUT);
+					occampi_settypeattr (fldtype, tattr);
+				}
+				tnode_setchook (fdecl, ct_chook, (void *)fldtype);
+			}
+		} else {
+			fldtype = NameTypeOf (fldname);
+		}
 
 #if 0
 fprintf (stderr, "occampi_gettype_subscript(): for [%s], returning:\n", node->tag->name);
@@ -1330,6 +1426,13 @@ static int occampi_dtype_init_nodes (void)
 	/*{{{  fielddecloffset compiler hook*/
 	fielddecloffset = tnode_lookupornewchook ("occampi:fielddecloffset");
 	fielddecloffset->chook_dumptree = occampi_fielddecloffset_chook_dumptree;
+
+	/*}}}*/
+	/*{{{  ct_clienttype, ct_servertype compiler hooks*/
+	ct_clienttype = tnode_lookupornewchook ("occampi:chantype:clienttype");
+	ct_clienttype->chook_dumptree = occampi_ctclienttype_chook_dumptree;
+	ct_servertype = tnode_lookupornewchook ("occampi:chantype:servertype");
+	ct_servertype->chook_dumptree = occampi_ctservertype_chook_dumptree;
 
 	/*}}}*/
 
