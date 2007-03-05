@@ -9,7 +9,7 @@ CHAN TYPE FOO
 PROC thing (FOO! v)
   INT k:
   SEQ
-    v[x] ? 42
+    v[x] ? k
     v[y] ! 14
 :
 

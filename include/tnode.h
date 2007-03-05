@@ -152,19 +152,20 @@ typedef enum ENUM_langops {
 	LOPS_BYTESFOR = 7,			/* 2: tnode_t *, target_t * -> int */
 	LOPS_ISSIGNED = 8,			/* 2: tnode_t *, target_t * -> int */
 	LOPS_ISCONST = 9,			/* 1: tnode_t * -> int */
-	LOPS_ISCOMPLEX = 10,			/* 2: tnode_t *, int -> int */
-	LOPS_CONSTVALOF = 11,			/* 2: tnode_t *, void * -> int */
-	LOPS_VALBYREF = 12,			/* 1: tnode_t * -> int */
-	LOPS_INITSIZES = 13,			/* 7: tnode_t *, tnode_t *, int *, int *, int *, int *, map_t * -> int */
-	LOPS_INITIALISING_DECL = 14,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
-	LOPS_CODEGEN_TYPEACTION = 15,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
-	LOPS_CODEGEN_ALTENABLE = 16,		/* 3: tnode_t *, int, codegen_t * -> int */
-	LOPS_CODEGEN_ALTDISABLE = 17,		/* 4: tnode_t *, int, int, codegen_t * -> int */
-	LOPS_PREMAP_TYPEFORVARDECL = 18,	/* 3: tnode_t *, tnode_t *, map_t * -> int */
+	LOPS_ISVAR = 10,			/* 1: tnode_t * -> int */
+	LOPS_ISCOMPLEX = 11,			/* 2: tnode_t *, int -> int */
+	LOPS_CONSTVALOF = 12,			/* 2: tnode_t *, void * -> int */
+	LOPS_VALBYREF = 13,			/* 1: tnode_t * -> int */
+	LOPS_INITSIZES = 14,			/* 7: tnode_t *, tnode_t *, int *, int *, int *, int *, map_t * -> int */
+	LOPS_INITIALISING_DECL = 15,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
+	LOPS_CODEGEN_TYPEACTION = 16,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
+	LOPS_CODEGEN_ALTENABLE = 17,		/* 3: tnode_t *, int, codegen_t * -> int */
+	LOPS_CODEGEN_ALTDISABLE = 18,		/* 4: tnode_t *, int, int, codegen_t * -> int */
+	LOPS_PREMAP_TYPEFORVARDECL = 19,	/* 3: tnode_t *, tnode_t *, map_t * -> int */
 	LOPS_MAX = 256
 } langops_e;
 
-#define LOPS_LAST LOPS_CODEGEN_ALTDISABLE
+#define LOPS_LAST LOPS_PREMAP_TYPEFORVARDECL
 
 /*}}}*/
 /*{{{  langop_t, langops_t (language operations)*/

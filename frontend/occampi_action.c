@@ -216,6 +216,30 @@ static int occampi_precheck_action (compops_t *cops, tnode_t *node)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_do_usagecheck_action (langops_t *lops, tnode_t *node, uchk_state_t *ucs)*/
+/*
+ *	called to do usage-checking on an action-node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_do_usagecheck_action (langops_t *lops, tnode_t *node, uchk_state_t *ucs)
+{
+#if 0
+	fprintf (stderr, "occampi_do_usagecheck_action(): here!\n");
+#endif
+	if (node->tag == opi.tag_INPUT) {
+		/* RHS must be an l-value */
+		if (!langops_isvar (tnode_nthsubof (node, 1))) {
+			usagecheck_error (node, ucs, "target for input must be a variable");
+		}
+	} else if (node->tag == opi.tag_ASSIGN) {
+		/* LHS must be an l-value */
+		if (!langops_isvar (tnode_nthsubof (node, 0))) {
+			usagecheck_error (node, ucs, "target for assignment must be a variable");
+		}
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_fetrans_action (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	called to do front-end transforms on action nodes
@@ -494,8 +518,8 @@ static int occampi_action_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_action));
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_do_usagecheck_action));
 	tnd->lops = lops;
-
 
 	i = -1;
 	opi.tag_ASSIGN = tnode_newnodetag ("ASSIGN", &i, tnd, NTF_NONE);

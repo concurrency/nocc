@@ -190,6 +190,20 @@ int langops_iscomplex (tnode_t *node, int deep)
 	return r;
 }
 /*}}}*/
+/*{{{  int langops_isvar (tnode_t *node)*/
+/*
+ *	returns non-zero if a node is a variable (l-value), used during usage checks
+ */
+int langops_isvar (tnode_t *node)
+{
+	int r = 0;
+
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_ISVAR)) {
+		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_ISVAR, 1, node);
+	}
+	return r;
+}
+/*}}}*/
 
 
 /*{{{  int langops_init (void)*/

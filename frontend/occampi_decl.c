@@ -1359,6 +1359,18 @@ static int occampi_getname_namenode (langops_t *lops, tnode_t *node, char **str)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_isvar_namenode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns non-zero if the specified name is a variable (l-value)
+ */
+static int occampi_isvar_namenode (langops_t *lops, tnode_t *node)
+{
+	if ((node->tag == opi.tag_NDECL) || (node->tag == opi.tag_NPARAM) || (node->tag == opi.tag_NABBR)) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_decl_init_nodes (void)*/
@@ -1398,6 +1410,7 @@ static int occampi_decl_init_nodes (void)
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_namenode));
 	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_usagecheck_namenode));
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (occampi_getname_namenode));
+	tnode_setlangop (lops, "isvar", 1, LANGOPTYPE (occampi_isvar_namenode));
 	tnd->lops = lops;
 
 	i = -1;

@@ -388,6 +388,7 @@ int tnode_init (void)
 	tnode_newlangop ("bytesfor", LOPS_BYTESFOR, 2, NULL);
 	tnode_newlangop ("issigned", LOPS_ISSIGNED, 2, NULL);
 	tnode_newlangop ("isconst", LOPS_ISCONST, 1, NULL);
+	tnode_newlangop ("isvar", LOPS_ISVAR, 1, NULL);
 	tnode_newlangop ("iscomplex", LOPS_ISCOMPLEX, 2, NULL);
 	tnode_newlangop ("constvalof", LOPS_CONSTVALOF, 2, NULL);
 	tnode_newlangop ("valbyref", LOPS_VALBYREF, 1, NULL);
