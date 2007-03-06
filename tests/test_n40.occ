@@ -1,0 +1,10 @@
+
+-- test_n40.occ - PORT stuff
+
+PROC test.n40 ()
+  PLACED [8]PORT BYTE p AT #3F8:
+  BYTE b:
+  SEQ
+    p[0] ? b
+:
+

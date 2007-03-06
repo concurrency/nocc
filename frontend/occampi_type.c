@@ -632,6 +632,37 @@ static void occampi_reduce_primtype (dfastate_t *dfast, parsepriv_t *pp, void *r
 	return;
 }
 /*}}}*/
+/*{{{  static void occampi_reduce_placedfold (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	called to fold an X placement address into a X specification (presumably within an array)
+ *	where X is probably PORT
+ */
+static void occampi_reduce_placedfold (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	tnode_t *expr = dfa_popnode (dfast);
+	tnode_t *name = dfa_popnode (dfast);
+	tnode_t *aspec = dfa_popnode (dfast);
+	tnode_t *walk;
+
+#if 0
+	fprintf (stderr, "occampi_reduce_placedfold(): expr =\n");
+	tnode_dumptree (expr, 1, stderr);
+	fprintf (stderr, "name =\n");
+	tnode_dumptree (name, 1, stderr);
+	fprintf (stderr, "aspec =\n");
+	tnode_dumptree (aspec, 1, stderr);
+#endif
+	for (walk=aspec; walk && (walk->tag == opi.tag_ARRAY); walk = tnode_nthsubof (walk, 1));
+	if (walk->tag == opi.tag_PORT) {
+		tnode_setnthsub (walk, 1, expr);
+	} else {
+		tnode_error (walk, "occampi_reduce_placedfold(): not a placeable thing [%s]", walk->tag->name);
+	}
+	*(dfast->ptr) = tnode_createfrom (opi.tag_VARDECL, name, name, aspec, NULL);
+	// dfa_pushnode (dfast, NULL);
+	return;
+}
+/*}}}*/
 
 
 /*{{{  occampi_typeattr_t occampi_typeattrof (tnode_t *node)*/
@@ -681,6 +712,7 @@ static int occampi_type_init_nodes (void)
 
 	/*{{{  register reduction functions*/
 	fcnlib_addfcn ("occampi_reduce_primtype", occampi_reduce_primtype, 0, 3);
+	fcnlib_addfcn ("occampi_reduce_placedfold", occampi_reduce_placedfold, 0, 3);
 
 	/*}}}*/
 	/*{{{  attributes compiler hook*/
