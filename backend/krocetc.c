@@ -3033,6 +3033,54 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		codegen_write_string (cgen, "\tmws_ppparof\n");
 		break;
 		/*}}}*/
+		/*{{{  IOR: I/O read*/
+	case I_IOR:
+		codegen_write_string (cgen, "\tior\n");
+		krocetc_cgstate_tsdelta (cgen, -3);
+		break;
+		/*}}}*/
+		/*{{{  IOW: I/O write*/
+	case I_IOW:
+		codegen_write_string (cgen, "\tiow\n");
+		krocetc_cgstate_tsdelta (cgen, -3);
+		break;
+		/*}}}*/
+		/*{{{  IOR8: 8-bit I/O read*/
+	case I_IOR8:
+		codegen_write_string (cgen, "\tior8\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  IOW8: 8-bit I/O write*/
+	case I_IOW8:
+		codegen_write_string (cgen, "\tiow8\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  IOR16: 16-bit I/O read*/
+	case I_IOR16:
+		codegen_write_string (cgen, "\tior16\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  IOW16: 16-bit I/O write*/
+	case I_IOW16:
+		codegen_write_string (cgen, "\tiow16\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  IOR32: 32-bit I/O read*/
+	case I_IOR32:
+		codegen_write_string (cgen, "\tior32\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  IOW32: 32-bit I/O write*/
+	case I_IOW32:
+		codegen_write_string (cgen, "\tiow32\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: tsecondary %d\n", ins);
 		break;

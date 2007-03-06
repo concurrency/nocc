@@ -106,6 +106,14 @@ typedef enum ENUM_transinstr {
 	I_MWS_PPBASEOF = 87,
 	I_MWS_PPPAROF = 88,
 	I_REV = 89,
+	I_IOR = 90,
+	I_IOW = 91,
+	I_IOR8 = 92,
+	I_IOW8 = 93,
+	I_IOR16 = 94,
+	I_IOW16 = 95,
+	I_IOR32 = 96,
+	I_IOW32 = 97
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {

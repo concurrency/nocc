@@ -434,18 +434,27 @@ static int occampi_type_codegen_typeaction (langops_t *lops, tnode_t *type, tnod
 		/*}}}*/
 	} else if (type->tag == opi.tag_PORT) {
 		/*{{{  deal with port actions*/
+		tnode_t *ptype = tnode_nthsubof (type, 0);
+		int pcsize = tnode_bytesfor (ptype, cgen->target);
+
+#if 0
+fprintf (stderr, "occampi_type_codegen_typeaction(): PORT: %d bytes, ptype =\n", pcsize);
+tnode_dumptree (ptype, 1, stderr);
+#endif
 		if (anode->tag == opi.tag_ASSIGN) {
 			/* doesn't make sense to assign these */
 			codegen_warning (cgen, "occampi_type_codegen_typaction(): attempt to assign port!");
 			return -1;
 		} else if (anode->tag == opi.tag_INPUT) {
-			/* simple load and store */
-			codegen_callops (cgen, loadname, lhs, 0);
-			codegen_callops (cgen, storename, rhs, 0);
+			codegen_callops (cgen, loadpointer, rhs, 0);
+			codegen_callops (cgen, loadpointer, lhs, 0);
+			codegen_callops (cgen, loadconst, pcsize);
+			codegen_callops (cgen, tsecondary, I_IOR);
 		} else if (anode->tag == opi.tag_OUTPUT) {
-			/* simple load and store */
-			codegen_callops (cgen, loadname, rhs, 0);
-			codegen_callops (cgen, storename, lhs, 0);
+			codegen_callops (cgen, loadpointer, rhs, 0);
+			codegen_callops (cgen, loadpointer, lhs, 0);
+			codegen_callops (cgen, loadconst, pcsize);
+			codegen_callops (cgen, tsecondary, I_IOW);
 		}
 
 		return 0;

@@ -16,6 +16,6 @@ PROC thing (FOO! v)
 PROC test.n22 ()
   FOO v:
   SEQ
-    SKIP
+    thing (v!)
 :
 
