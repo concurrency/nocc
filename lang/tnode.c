@@ -385,6 +385,7 @@ int tnode_init (void)
 	tnode_newlangop ("typeactual", LOPS_TYPEACTUAL, 4, NULL);
 	tnode_newlangop ("typereduce", LOPS_TYPEREDUCE, 1, NULL);
 	tnode_newlangop ("gettype", LOPS_GETTYPE, 2, NULL);
+	tnode_newlangop ("getsubtype", LOPS_GETSUBTYPE, 2, NULL);
 	tnode_newlangop ("bytesfor", LOPS_BYTESFOR, 2, NULL);
 	tnode_newlangop ("issigned", LOPS_ISSIGNED, 2, NULL);
 	tnode_newlangop ("isconst", LOPS_ISCONST, 1, NULL);

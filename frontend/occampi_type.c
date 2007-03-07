@@ -230,21 +230,26 @@ static int occampi_type_precode (compops_t *cops, tnode_t **nodep, codegen_t *cg
 /*}}}*/
 /*{{{  static tnode_t *occampi_type_gettype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
- *	returns the type of a type-node (typically the sub-type)
+ *	returns the type of a type-node (id function)
  */
 static tnode_t *occampi_type_gettype (langops_t *lops, tnode_t *node, tnode_t *default_type)
 {
+	return node;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_type_getsubtype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	returns the sub-type of a type-node
+ */
+static tnode_t *occampi_type_getsubtype (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
 	tnode_t *type;
 
-#if 1
-	type = node;
-#else
 	type = tnode_nthsubof (node, 0);
 	if (!type) {
-		nocc_internal ("occampi_type_gettype(): no subtype ?");
+		nocc_internal ("occampi_type_getsubtype(): no subtype ?");
 		return NULL;
 	}
-#endif
 	return type;
 }
 /*}}}*/
@@ -741,6 +746,7 @@ static int occampi_type_init_nodes (void)
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_type_getdescriptor));
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_type_gettype));
+	tnode_setlangop (lops, "getsubtype", 2, LANGOPTYPE (occampi_type_getsubtype));
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_type_typeactual));
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_type_bytesfor));
 	tnode_setlangop (lops, "issigned", 2, LANGOPTYPE (occampi_type_issigned));

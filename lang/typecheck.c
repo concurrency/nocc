@@ -159,6 +159,23 @@ tnode_t *typecheck_gettype (tnode_t *node, tnode_t *default_type)
 	return type;
 }
 /*}}}*/
+/*{{{  tnode_t *typecheck_getsubtype (tnode_t *node, tnode_t *default_type)*/
+/*
+ *	returns the sub-type of a type node
+ */
+tnode_t *typecheck_getsubtype (tnode_t *node, tnode_t *default_type)
+{
+	tnode_t *type;
+
+	if (!node->tag->ndef->lops || !tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GETSUBTYPE)) {
+		nocc_internal ("typecheck_gettype(): don't know how to get type of [%s]", node->tag->ndef->name);
+		return NULL;
+	}
+	type = (tnode_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GETSUBTYPE, 2, node, default_type);
+
+	return type;
+}
+/*}}}*/
 /*{{{  tnode_t *typecheck_typeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
 /*
  *	tests to see whether one type is compatible with another (in a formal/actual sense)

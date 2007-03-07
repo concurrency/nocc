@@ -136,7 +136,7 @@ tnode_dumptree (rhs, 1, stderr);
 		tnode_t *prot;
 
 		lhstype = typecheck_gettype (lhs, NULL);
-#if 1
+#if 0
 fprintf (stderr, "occampi_typecheck_action(): lhstype =\n");
 tnode_dumptree (lhstype, 1, stderr);
 #endif
