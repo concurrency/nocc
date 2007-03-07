@@ -1003,7 +1003,7 @@ static int occampi_typecheck_subscript (compops_t *cops, tnode_t *node, typechec
 static tnode_t *occampi_gettype_subscript (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
 	if (node->tag == opi.tag_RECORDSUB) {
-		/* type is that of the field */
+		/*{{{  type is that of the field*/
 		tnode_t *base = tnode_nthsubof (node, 0);
 		tnode_t *basetype;
 		tnode_t *field = tnode_nthsubof (node, 1);
@@ -1043,7 +1043,7 @@ tnode_dumptree (basetype, 1, stderr);
 		fldname = tnode_nthnameof (field, 0);
 
 		if (chantype && ct_chook) {
-			/* it's a channel-type field */
+			/*{{{  it's a channel-type field*/
 			tnode_t *fdecl = NameDeclOf (fldname);
 
 			if (fdecl->tag != opi.tag_FIELDDECL) {
@@ -1051,14 +1051,14 @@ tnode_dumptree (basetype, 1, stderr);
 			}
 			fldtype = (tnode_t *)tnode_getchook (fdecl, ct_chook);
 			if (!fldtype) {
-				/* no field type yet, create one */
+				/*{{{  no field type yet, create one*/
 				fldtype = tnode_copytree (NameTypeOf (fldname));
 #if 0
 fprintf (stderr, "occampi_gettype_subscript(): chan-type field, fldtype (copy) =\n");
 tnode_dumptree (fldtype, 1, stderr);
 #endif
 				if (ct_chook == ct_clienttype) {
-					/* invert direction on the field's type */
+					/*{{{  invert direction on the field's type*/
 					occampi_typeattr_t tattr;
 
 					if (fldtype->tag != opi.tag_CHAN) {
@@ -1067,9 +1067,12 @@ tnode_dumptree (fldtype, 1, stderr);
 					tattr = occampi_typeattrof (fldtype);
 					tattr ^= (TYPEATTR_MARKED_IN | TYPEATTR_MARKED_OUT);
 					occampi_settypeattr (fldtype, tattr);
+					/*}}}*/
 				}
 				tnode_setchook (fdecl, ct_chook, (void *)fldtype);
+				/*}}}*/
 			}
+			/*}}}*/
 		} else {
 			fldtype = NameTypeOf (fldname);
 		}
@@ -1079,8 +1082,9 @@ fprintf (stderr, "occampi_gettype_subscript(): for [%s], returning:\n", node->ta
 tnode_dumptree (fldtype, 1, stderr);
 #endif
 		return fldtype;
+		/*}}}*/
 	} else if (node->tag == opi.tag_ARRAYSUB) {
-		/* type is that of the base minus one ARRAY */
+		/*{{{  type is that of the base minus one ARRAY*/
 		tnode_t *base = tnode_nthsubof (node, 0);
 		tnode_t *atype = typecheck_gettype (base, NULL);
 		tnode_t *stype = defaulttype;
@@ -1093,6 +1097,7 @@ tnode_dumptree (fldtype, 1, stderr);
 			nocc_internal ("occampi_gettype_subscript(): ARRAYSUB on non-ARRAY not properly implemented yet!");
 		}
 		return stype;
+		/*}}}*/
 	}
 	/* else don't know.. */
 	return defaulttype;

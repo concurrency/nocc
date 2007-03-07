@@ -236,11 +236,15 @@ static tnode_t *occampi_type_gettype (langops_t *lops, tnode_t *node, tnode_t *d
 {
 	tnode_t *type;
 
+#if 1
+	type = node;
+#else
 	type = tnode_nthsubof (node, 0);
 	if (!type) {
 		nocc_internal ("occampi_type_gettype(): no subtype ?");
 		return NULL;
 	}
+#endif
 	return type;
 }
 /*}}}*/

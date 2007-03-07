@@ -136,6 +136,10 @@ tnode_dumptree (rhs, 1, stderr);
 		tnode_t *prot;
 
 		lhstype = typecheck_gettype (lhs, NULL);
+#if 1
+fprintf (stderr, "occampi_typecheck_action(): lhstype =\n");
+tnode_dumptree (lhstype, 1, stderr);
+#endif
 
 		/* expecting something on which we can communicate -- e.g. channel or port
 		 * test is to see if it has a particular codegen_typeaction language-op
