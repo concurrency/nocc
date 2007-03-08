@@ -567,6 +567,27 @@ static int occampi_usagecheck_typedecl (langops_t *lops, tnode_t *node, uchk_sta
 }
 /*}}}*/
 
+
+/*{{{  static int occampi_namemap_arraynode (compops_t *cops, tnode_t **nodep, map_t *mdata)*/
+/*
+ *	dummy name-map for arraynodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_arraynode (compops_t *cops, tnode_t **nodep, map_t *mdata)
+{
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_precode_arraynode (compops_t *cops, tnode_t **nodep, codegen_t *cgen)*/
+/*
+ *	dummy precode for arraynodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_precode_arraynode (compops_t *cops, tnode_t **nodep, codegen_t *cgen)
+{
+	return 0;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_typeactual_arraynode (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-compatibility checking for an ARRAY type
@@ -1368,6 +1389,8 @@ static int occampi_dtype_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:arraynode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = dim, 1 = sub-type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_arraynode));
+	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_precode_arraynode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_getdescriptor_arraynode));
@@ -1376,7 +1399,7 @@ static int occampi_dtype_init_nodes (void)
 	tnd->lops = lops;
 
 	i = -1;
-	opi.tag_ARRAY = tnode_newnodetag ("ARRAY", &i, tnd, NTF_NONE);
+	opi.tag_ARRAY = tnode_newnodetag ("ARRAY", &i, tnd, NTF_NAMEMAPTYPEINDECL | NTF_PRECODETYPEINDECL);
 
 	/*}}}*/
 	/*{{{  occampi:arraymopnode -- SIZE*/

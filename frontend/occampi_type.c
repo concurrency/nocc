@@ -118,7 +118,7 @@ tnode_dumptree (tnode_nthsubof (node, 0), 1, stderr);
 	/* codegen_subcodegen (tnode_nthsubof (porttype, 1), cgen); */
 	/* codegen_callops (cgen, loadconst, 0); */
 	codegen_callops (cgen, storelocal, ws_off);
-	codegen_callops (cgen, comment, "initportdecl");
+	codegen_callops (cgen, comment, "initportdecl (%s)", porttype->tag->name);
 
 	return;
 }
@@ -481,7 +481,7 @@ static int occampi_initialising_decl_type_arraynode (langops_t *lops, tnode_t *t
 {
 	tnode_t *subtype = tnode_nthsubof (t, 1);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_initialising_decl_type_arraynode(): t = [%s], subtype = [%s]\n", t->tag->name, subtype->tag->name);
 #endif
 	if (subtype->tag == opi.tag_PORT) {
@@ -657,6 +657,9 @@ static int occampi_type_namemap_arraynode (compops_t *cops, tnode_t **nodep, map
 	tnode_t *subtype = tnode_nthsubof (*nodep, 1);
 
 	if ((subtype->tag == opi.tag_PORT) && tnode_nthsubof (subtype, 1)) {
+#if 0
+fprintf (stderr, "occampi_type_namemap_arraynode(): intercepted name-mapping on ARRAY -> PORT\n");
+#endif
 		map_submapnames (tnode_nthsubaddr (subtype, 1), map);
 		precode_addtoprecodevars (*nodep, tnode_nthsubof (subtype, 1));
 	}
