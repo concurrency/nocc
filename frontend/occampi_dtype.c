@@ -1146,7 +1146,7 @@ static int occampi_namemap_subscript (compops_t *cops, tnode_t **node, map_t *md
 	} else if ((*node)->tag == opi.tag_ARRAYSUB) {
 		int subtypesize = tnode_bytesfor (tnode_nthsubof (*node, 2), mdata->target);
 
-#if 0
+#if 1
 fprintf (stderr, "occampi_namemap_subscript(): ARRAYSUB: subtypesize=%d, *node[2] = 0x%8.8x = \n", subtypesize, (unsigned int)tnode_nthsubof (*node, 2));
 if (tnode_nthsubof (*node, 2)) {
 	tnode_dumptree (tnode_nthsubof (*node, 2), 1, stderr);
