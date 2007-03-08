@@ -99,7 +99,7 @@ static void occampi_type_initportdecl (tnode_t *node, codegen_t *cgen, void *arg
 
 	codegen_callops (cgen, debugline, node);
 
-	/* FIXME: assuming single port for now.. */
+	/* also called for arrays of ports */
 	cgen->target->be_getoffsets (node, &ws_off, &vs_off, &ms_off, &ms_shdw);
 
 #if 0
@@ -472,6 +472,29 @@ tnode_dumptree (ptype, 1, stderr);
 	return -1;
 }
 /*}}}*/
+/*{{{  static int occampi_initialising_decl_type_arraynode (langops_t *lops, tnode_t *t, tnode_t *benode, map_t *mdata)*/
+/*
+ *	called for arraynode declarations to handle initialisation for PLACED PORT arrays
+ *	returns 0 if nothing needed, non-zero otherwise
+ */
+static int occampi_initialising_decl_type_arraynode (langops_t *lops, tnode_t *t, tnode_t *benode, map_t *mdata)
+{
+	tnode_t *subtype = tnode_nthsubof (t, 1);
+
+#if 1
+fprintf (stderr, "occampi_initialising_decl_type_arraynode(): t = [%s], subtype = [%s]\n", t->tag->name, subtype->tag->name);
+#endif
+	if (subtype->tag == opi.tag_PORT) {
+		/* PLACED port, need pointer initialisation */
+		codegen_setinithook (benode, occampi_type_initportdecl, (void *)t);
+		return 1;
+	}
+	if (tnode_haslangop (lops->next, "initialising_decl")) {
+		return tnode_calllangop (lops->next, "initialising_decl", 3, t, benode, mdata);
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static tnode_t *occampi_typespec_gettype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
@@ -620,6 +643,65 @@ static int occampi_leaftype_getdescriptor (langops_t *lops, tnode_t *node, char 
 	}
 
 	return 0;
+}
+/*}}}*/
+
+
+/*{{{  */
+/*
+ *	does name-mapping on an array node to catch PLACED PORTs
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_type_namemap_arraynode (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t *subtype = tnode_nthsubof (*nodep, 1);
+
+	if ((subtype->tag == opi.tag_PORT) && tnode_nthsubof (subtype, 1)) {
+		map_submapnames (tnode_nthsubaddr (subtype, 1), map);
+		precode_addtoprecodevars (*nodep, tnode_nthsubof (subtype, 1));
+	}
+	if (tnode_hascompop (cops->next, "namemap")) {
+		return tnode_callcompop (cops->next, "namemap", 2, nodep, map);
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  */
+/*
+ *	does pre-coding on an array node to catch PLACED PORTs
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_type_precode_arraynode (compops_t *cops, tnode_t **nodep, codegen_t *cgen)
+{
+	tnode_t *subtype = tnode_nthsubof (*nodep, 1);
+
+	if ((subtype->tag == opi.tag_PORT) && tnode_nthsubof (subtype, 1)) {
+		codegen_subprecode (tnode_nthsubaddr (subtype, 1), cgen);
+	}
+	if (tnode_hascompop (cops->next, "precode")) {
+		return tnode_callcompop (cops->next, "precode", 2, nodep, cgen);
+	}
+	return 1;
+	
+}
+/*}}}*/
+/*{{{  static int occampi_bytesfor_type_arraynode (langops_t *lops, tnode_t *node, target_t *target)*/
+/*
+ *	intercepts ARRAYs of PORTs (placed), since these do not require much real storage
+ *	or -1 if not known
+ */
+static int occampi_bytesfor_type_arraynode (langops_t *lops, tnode_t *node, target_t *target)
+{
+	tnode_t *subtype = tnode_nthsubof (node, 1);
+
+	if (subtype->tag == opi.tag_PORT) {
+		return target->pointersize;
+	}
+	if (tnode_haslangop (lops->next, "bytesfor")) {
+		return tnode_calllangop (lops->next, "bytesfor", 2, node, target);
+	}
+
+	return -1;
 }
 /*}}}*/
 
@@ -823,6 +905,36 @@ static int occampi_type_init_nodes (void)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_type_postsetup (void)*/
+/*
+ *	does post-setup for type-nodes
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_type_postsetup (void)
+{
+	langops_t *lops;
+	compops_t *cops;
+	tndef_t *tnd;
+
+	/*{{{  occampi:arraynode -- modifications*/
+	tnd = tnode_lookupnodetype ("occampi:arraynode");
+	if (!tnd) {
+		nocc_internal ("occampi_type_postsetup(): no occampi:arraynode node type!");
+	}
+	cops = tnode_insertcompops (tnd->ops);
+	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_type_precode_arraynode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_type_namemap_arraynode));
+	tnd->ops = cops;
+	lops = tnode_insertlangops (tnd->lops);
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_type_arraynode));
+	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_initialising_decl_type_arraynode));
+	tnd->lops = lops;
+
+	/*}}}*/
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  occampi_type_feunit (feunit_t struct)*/
@@ -830,7 +942,7 @@ feunit_t occampi_type_feunit = {
 	init_nodes: occampi_type_init_nodes,
 	reg_reducers: NULL,
 	init_dfatrans: NULL,
-	post_setup: NULL,
+	post_setup: occampi_type_postsetup,
 	ident: "occampi-type"
 };
 /*}}}*/

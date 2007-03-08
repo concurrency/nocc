@@ -55,6 +55,7 @@
 #include "codegen.h"
 #include "target.h"
 #include "transputer.h"
+#include "fcnlib.h"
 
 
 /*}}}*/

@@ -103,21 +103,21 @@ typedef struct TAG_tnode {
 /*{{{  enum compops_e*/
 typedef enum ENUM_compops {
 	COPS_INVALID = 0,
-	COPS_PRESCOPE = 1,
-	COPS_SCOPEIN = 2,
-	COPS_SCOPEOUT = 3,
-	COPS_TYPECHECK = 4,
-	COPS_CONSTPROP = 5,
-	COPS_PRECHECK = 6,
-	COPS_POSTCHECK = 7,
-	COPS_FETRANS = 8,
-	COPS_BETRANS = 9,
-	COPS_PREMAP = 10,
-	COPS_NAMEMAP = 11,
-	COPS_BEMAP = 12,
-	COPS_PREALLOCATE = 13,
-	COPS_PRECODE = 14,
-	COPS_CODEGEN = 15,
+	COPS_PRESCOPE = 1,			/* 2: tnode_t **, prescope_t * -> int */
+	COPS_SCOPEIN = 2,			/* 2: tnode_t **, scope_t * -> int */
+	COPS_SCOPEOUT = 3,			/* 2: tnode_t **, scope_t * -> int */
+	COPS_TYPECHECK = 4,			/* 2: tnode_t *, typecheck_t * -> int */
+	COPS_CONSTPROP = 5,			/* 1: tnode_t ** -> int */
+	COPS_PRECHECK = 6,			/* 1: tnode_t * -> int */
+	COPS_POSTCHECK = 7,			/* 2: tnode_t **, postcheck_t * -> int */
+	COPS_FETRANS = 8,			/* 2: tnode_t **, fetrans_t * -> int */
+	COPS_BETRANS = 9,			/* 2: tnode_t **, betrans_t * -> int */
+	COPS_PREMAP = 10,			/* 2: tnode_t **, map_t * -> int */
+	COPS_NAMEMAP = 11,			/* 2: tnode_t **, map_t * -> int */
+	COPS_BEMAP = 12,			/* 2: tnode_t **, map_t * -> int */
+	COPS_PREALLOCATE = 13,			/* 2: tnode_t *, target_t * -> int */
+	COPS_PRECODE = 14,			/* 2: tnode_t **, codegen_t * -> int */
+	COPS_CODEGEN = 15,			/* 2: tnode_t *, codegen_t * -> int */
 	COPS_MAX = 256
 } compops_e;
 

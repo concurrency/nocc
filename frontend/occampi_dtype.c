@@ -1377,6 +1377,7 @@ static int occampi_dtype_init_nodes (void)
 
 	i = -1;
 	opi.tag_ARRAY = tnode_newnodetag ("ARRAY", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  occampi:arraymopnode -- SIZE*/
 	i = -1;
