@@ -3,8 +3,9 @@
 
 PROC test.n40 ()
   PLACED [8]PORT BYTE p AT #3F8:
-  BYTE b:
+  BYTE b,c:
   SEQ
     p[0] ? b
+    p[3] ? c
 :
 

@@ -731,6 +731,27 @@ static int occampi_bytesfor_type_arraynode (langops_t *lops, tnode_t *node, targ
 	return -1;
 }
 /*}}}*/
+/*{{{  static int occampi_type_namemap_subscriptnode (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping on an ARRAYSUB node to catch PLACED PORTs
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_type_namemap_subscriptnode (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t *sstype = tnode_nthsubof (*nodep, 2);
+
+	if (((*nodep)->tag == opi.tag_ARRAYSUB) && sstype && (sstype->tag == opi.tag_PORT)) {
+		int subtypesize = tnode_bytesfor (tnode_nthsubof (sstype, 0), map->target);
+
+		*nodep = map->target->newindexed (tnode_nthsubof (*nodep, 0), tnode_nthsubof (*nodep, 1), subtypesize, 0);
+	} else {
+		if (tnode_hascompop (cops->next, "namemap")) {
+			return tnode_callcompop (cops->next, "namemap", 2, nodep, map);
+		}
+	}
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static void occampi_reduce_primtype (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
@@ -957,6 +978,16 @@ static int occampi_type_postsetup (void)
 	tnode_setlangop (lops, "initsizes", 7, LANGOPTYPE (occampi_initsizes_type_arraynode));
 	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_initialising_decl_type_arraynode));
 	tnd->lops = lops;
+
+	/*}}}*/
+	/*{{{  occampi:subscript -- modifications*/
+	tnd = tnode_lookupnodetype ("occampi:subscript");
+	if (!tnd) {
+		nocc_internal ("occampi_type_postsetup(): no occampi:subscript node type!");
+	}
+	cops = tnode_insertcompops (tnd->ops);
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_type_namemap_subscriptnode));
+	tnd->ops = cops;
 
 	/*}}}*/
 
