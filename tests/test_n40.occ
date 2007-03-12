@@ -2,10 +2,9 @@
 -- test_n40.occ - PORT stuff
 
 PROC test.n40 ()
-  PLACED [8]PORT BYTE p AT #3F8:
-  BYTE b,c:
+  PLACED [8]PORT INT16 p AT #3F8:
+  INT16 b:
   SEQ
     p[0] ? b
-    p[3] ? c
 :
 
