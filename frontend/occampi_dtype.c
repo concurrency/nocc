@@ -1124,6 +1124,24 @@ tnode_dumptree (fldtype, 1, stderr);
 	return defaulttype;
 }
 /*}}}*/
+/*{{{  static int occampi_iscomplex_subscript (langops_t *lops, tnode_t *node, int deep)*/
+/*
+ *	called to determine whether a subscript is "complex"
+ */
+static int occampi_iscomplex_subscript (langops_t *lops, tnode_t *node, int deep)
+{
+	if (!langops_isconst (tnode_nthsubof (node, 1))) {
+		/* non-constant index, complex */
+		return 1;
+	}
+	if (deep) {
+		/* complexity depends on the base */
+		return langops_iscomplex (tnode_nthsubof (node, 0), deep);
+	}
+	/* else trivial */
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_subscript (compops_t *cops, tnode_t **node, map_t *mdata)*/
 /*
  *	name-maps a subscript-node, turning it into a back-end INDEXED node
@@ -1443,6 +1461,7 @@ static int occampi_dtype_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_subscript));
+	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_iscomplex_subscript));
 	tnd->lops = lops;
 
 	i = -1;
