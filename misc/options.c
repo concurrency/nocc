@@ -368,7 +368,7 @@ int opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft)
 	int i;
 
 	fprintf (outstream, "nocc (%s) Version " VERSION " " HOST_CPU "-" HOST_VENDOR "-" HOST_OS " (targetting " TARGET_CPU "-" TARGET_VENDOR "-" TARGET_OS ")\n", progname);
-	fprintf (outstream, "Copyright (C) 2004-2006 Fred Barnes, University of Kent\n");
+	fprintf (outstream, "Copyright (C) 2004-2007 Fred Barnes, University of Kent\n");
 	fprintf (outstream, "Released under the terms and conditions of the GNU GPL v2\n\n");
 	fflush (outstream);
 	fprintf (outstream, "usage:  %s [options] <source filename>\n", progname);
@@ -392,7 +392,7 @@ int opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft)
 	return 0;
 }
 /*}}}*/
-/*{{{  */
+/*{{{  static int opts_compare_option (cmd_option_t *opt1, cmd_option_t *opt2)*/
 /*
  *	compares two options for ordering (used when sorting)
  *	returns logical difference
