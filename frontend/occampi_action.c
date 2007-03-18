@@ -284,6 +284,7 @@ static int occampi_betrans_action (compops_t *cops, tnode_t **node, betrans_t *b
 	tnode_t *t = *node;
 
 	if (t->tag == opi.tag_ASSIGN) {
+		/*{{{  sort out some complex FUNCTION calls*/
 		tnode_t *rhs = tnode_nthsubof (t, 1);
 		tnode_t **lhsp = tnode_nthsubaddr (t, 0);
 		int nlhs, single = 0;
@@ -370,6 +371,15 @@ if (x < nlhs) {
 			betrans_subtree (node, be);
 			return 0;
 		}
+		/*}}}*/
+	} else if ((t->tag == opi.tag_INPUT) || (t->tag == opi.tag_OUTPUT)) {
+		/*{{{  channel or port I/O, if the LHS is complex simplify into a temporary*/
+		tnode_t **lhsp = tnode_nthsubaddr (*node, 0);
+
+		if (langops_iscomplex (*lhsp, 1)) {
+			betrans_simplifypointer (lhsp, be);
+		}
+		/*}}}*/
 	}
 	return 1;
 }

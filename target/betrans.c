@@ -35,6 +35,7 @@
 #include "symbols.h"
 #include "keywords.h"
 #include "tnode.h"
+#include "map.h"
 #include "codegen.h"
 #include "target.h"
 #include "betrans.h"
@@ -44,6 +45,9 @@
 /*{{{  private things*/
 static chook_t *betranstaghook = NULL;
 static chook_t *betransnodehook = NULL;
+
+static ntdef_t *betranstag_SIMPLIFYPOINTER = NULL;
+static ntdef_t *betranstag_POINTERREF = NULL;
 
 /*}}}*/
 
@@ -159,6 +163,70 @@ static void betrans_nodehook_dumptree (tnode_t *node, void *hook, int indent, FI
 	return;
 }
 /*}}}*/
+/*}}}*/
+
+
+/*{{{  static void *betrans_ptrref_hook_copy (void *hook)*/
+/*
+ *	called to copy a betrans:ptrref node hook
+ *	returns copy
+ */
+static void *betrans_ptrref_hook_copy (void *hook)
+{
+	return hook;		/* alias */
+}
+/*}}}*/
+/*{{{  static void betrans_ptrref_hook_free (void *hook)*/
+/*
+ *	called to free a betrans:ptrref node hook
+ */
+static void betrans_ptrref_hook_free (void *hook)
+{
+	return;
+}
+/*}}}*/
+/*{{{  static void betrans_ptrref_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	called to dump a betrans:ptrref node hook (debugging)
+ */
+static void betrans_ptrref_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	betrans_isetindent (indent, stream);
+	fprintf (stream, "<betrans:ptrref refaddr=\"0x%8.8x\" />\n", (unsigned int)hook);
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static int betrans_namemap_simptr (compops_t *cops, tnode_t **nodep, map_t *mdata)*/
+/*
+ *	does name-mapping for a betrans:simptr node, expression in subnode 0, body in subnode 1
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int betrans_namemap_simptr (compops_t *cops, tnode_t **nodep, map_t *mdata)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int betrans_codegen_simptr (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates code for a betrans:simptr node, expression in subnode 0, body in subnode 1
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int betrans_codegen_simptr (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int betrans_namemap_ptrref (compops_t *cops, tnode_t **nodep, map_t *mdata)*/
+/*
+ *	does name-mapping for a betrans:ptrref node
+ *	return 0 to stop walk, 1 to continue
+ */
+static int betrans_namemap_ptrref (compops_t *cops, tnode_t **nodep, map_t *mdata)
+{
+	return 1;
+}
 /*}}}*/
 
 
@@ -304,10 +372,51 @@ int betrans_tree (tnode_t **tptr, target_t *target)
 	be->betransnodehook = tnode_lookupornewchook ("betrans:node");
 	be->priv = NULL;
 
+	if (!betranstag_SIMPLIFYPOINTER) {
+		tndef_t *tnd;
+		int i;
+		compops_t *cops;
+
+		i = -1;
+		tnd = tnode_newnodetype ("betrans:simptr", &i, 2, 0, 0, TNF_SHORTDECL);		/* subnodes: expression, body */
+		cops = tnode_newcompops ();
+		tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (betrans_namemap_simptr));
+		tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (betrans_codegen_simptr));
+		tnd->ops = cops;
+
+		i = -1;
+		betranstag_SIMPLIFYPOINTER = tnode_newnodetag ("SIMPLIFYPOINTER", &i, tnd, NTF_NONE);
+
+		i = -1;
+		tnd = tnode_newnodetype ("betrans:ptrref", &i, 0, 0, 1, TNF_NONE);		/* hook: reference to betrans:simptr node */
+		tnd->hook_copy = betrans_ptrref_hook_copy;
+		tnd->hook_free = betrans_ptrref_hook_free;
+		tnd->hook_dumptree = betrans_ptrref_hook_dumptree;
+		cops = tnode_newcompops ();
+		tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (betrans_namemap_ptrref));
+		tnd->ops = cops;
+
+		i = -1;
+		betranstag_POINTERREF = tnode_newnodetag ("POINTERREF", &i, tnd, NTF_NONE);
+	}
+
 	tnode_modprewalktree (tptr, betrans_modprewalk_tree, (void *)be);
 
 	sfree (be);
 
+	return 0;
+}
+/*}}}*/
+
+
+/*{{{  int betrans_simplifypointer (tnode_t **nodep, betrans_t *be)*/
+/*
+ *	called to simplify a pointer expression in the parse tree during back-end transforms
+ *	inserts a temporary at the back-end insertpoint
+ *	returns 0 on success, non-zero on failure
+ */
+int betrans_simplifypointer (tnode_t **nodep, betrans_t *be)
+{
 	return 0;
 }
 /*}}}*/

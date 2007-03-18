@@ -51,6 +51,8 @@ extern struct TAG_ntdef *betrans_gettag (struct TAG_tnode *t, int *valp, betrans
 extern int betrans_subtree (struct TAG_tnode **tptr, betrans_t *bt);
 extern int betrans_tree (struct TAG_tnode **tptr, struct TAG_target *target);
 
+extern int betrans_simplifypointer (struct TAG_tnode **nodeptr, betrans_t *be);
+
 
 #endif	/* !__BETRANS_H */
 
