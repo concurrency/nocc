@@ -1277,14 +1277,18 @@ fprintf (stderr, "krocetc_be_getblocksize(): called on BLOCKREF!\n");
 /*}}}*/
 /*{{{  static tnode_t **krocetc_be_blockbodyaddr (tnode_t *blk)*/
 /*
- *	returns the address of the body of a back-end block
+ *	returns the address of the body of a back-end block (also works for back-end NAMEs)
  */
 static tnode_t **krocetc_be_blockbodyaddr (tnode_t *blk)
 {
-	if (blk->tag != krocetc_target.tag_BLOCK) {
-		nocc_internal ("krocetc_be_blockbodyaddr(): block not back-end BLOCK, was [%s]", blk->tag->name);
+	if (blk->tag == krocetc_target.tag_BLOCK) {
+		return tnode_nthsubaddr (blk, 0);
+	} else if (blk->tag == krocetc_target.tag_NAME) {
+		return tnode_nthsubaddr (blk, 1);
+	} else {
+		nocc_internal ("krocetc_be_blockbodyaddr(): block not back-end BLOCK or NAME, was [%s]", blk->tag->name);
 	}
-	return tnode_nthsubaddr (blk, 0);
+	return NULL;
 }
 /*}}}*/
 /*{{{  static int krocetc_be_regsfor (tnode_t *benode)*/

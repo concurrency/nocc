@@ -205,7 +205,25 @@ static void betrans_ptrref_hook_dumptree (tnode_t *node, void *hook, int indent,
  */
 static int betrans_namemap_simptr (compops_t *cops, tnode_t **nodep, map_t *mdata)
 {
-	return 1;
+	tnode_t *body = tnode_nthsubof (*nodep, 1);
+	tnode_t *expr;
+	tnode_t *bename;
+
+	/* map expression */
+	map_submapnames (tnode_nthsubaddr (*nodep, 0), mdata);
+
+	expr = tnode_nthsubof (*nodep, 0);
+
+	tnode_setnthsub (*nodep, 1, NULL);					/* clear out body pointer */
+	bename = mdata->target->newname (*nodep, body, mdata, mdata->target->pointersize, 0, 0, 0, 0, 1);
+
+	tnode_setchook (*nodep, mdata->mapchook, (void *)bename);		/* any POINTERREFs point here */
+	*nodep = bename;
+
+	/* map original body */
+	map_submapnames (mdata->target->be_blockbodyaddr (bename), mdata);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int betrans_codegen_simptr (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
@@ -215,7 +233,15 @@ static int betrans_namemap_simptr (compops_t *cops, tnode_t **nodep, map_t *mdat
  */
 static int betrans_codegen_simptr (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
-	return 1;
+	tnode_t *bename = (tnode_t *)tnode_getchook (node, tnode_lookupchookbyname ("map:mapnames"));
+	int wsoffs;
+
+	/* this is pretty straight-forward, evaluate original pointer, store in local name */
+	codegen_callops (cgen, loadpointer, tnode_nthsubof (node, 0), 0);
+	cgen->target->be_getoffsets (bename, &wsoffs, NULL, NULL, NULL);
+	codegen_callops (cgen, storelocal, wsoffs);
+	codegen_callops (cgen, comment, "simplifypointer");
+	return 0;
 }
 /*}}}*/
 /*{{{  static int betrans_namemap_ptrref (compops_t *cops, tnode_t **nodep, map_t *mdata)*/
@@ -225,7 +251,15 @@ static int betrans_codegen_simptr (compops_t *cops, tnode_t *node, codegen_t *cg
  */
 static int betrans_namemap_ptrref (compops_t *cops, tnode_t **nodep, map_t *mdata)
 {
-	return 1;
+	tnode_t *simptr = (tnode_t *)tnode_nthhookof (*nodep, 0);
+	tnode_t *bename = (tnode_t *)tnode_getchook (simptr, mdata->mapchook);
+
+	if (!bename) {
+		nocc_internal ("betrans_namemap_ptrref(): simplified pointer has no back-end name!");
+	}
+	*nodep = mdata->target->newnameref (bename, mdata);
+
+	return 0;
 }
 /*}}}*/
 
@@ -417,6 +451,20 @@ int betrans_tree (tnode_t **tptr, target_t *target)
  */
 int betrans_simplifypointer (tnode_t **nodep, betrans_t *be)
 {
+	tnode_t *simptr, *ptrref;
+
+	if (!be->insertpoint) {
+		nocc_internal ("betrans_simplifypointer(): NULL betrans insertpoint!");
+	}
+	simptr = tnode_createfrom (betranstag_SIMPLIFYPOINTER, *nodep, *nodep, *(be->insertpoint));
+	ptrref = tnode_createfrom (betranstag_POINTERREF, *nodep, (void *)simptr);
+
+	*nodep = ptrref;
+	*(be->insertpoint) = simptr;
+
+	/* FIXME: maybe not? - does it matter? */
+	// be->insertpoint = tnode_nthsubaddr (simptr, 1);		/* update insertpoint to be in the body of this simplification */
+
 	return 0;
 }
 /*}}}*/

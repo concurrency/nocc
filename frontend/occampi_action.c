@@ -282,6 +282,9 @@ static int occampi_fetrans_action (compops_t *cops, tnode_t **node, fetrans_t *f
 static int occampi_betrans_action (compops_t *cops, tnode_t **node, betrans_t *be)
 {
 	tnode_t *t = *node;
+	tnode_t **saved_insertpoint = be->insertpoint;
+
+	be->insertpoint = node;		/* before node is a good place */
 
 	if (t->tag == opi.tag_ASSIGN) {
 		/*{{{  sort out some complex FUNCTION calls*/
@@ -374,14 +377,22 @@ if (x < nlhs) {
 		/*}}}*/
 	} else if ((t->tag == opi.tag_INPUT) || (t->tag == opi.tag_OUTPUT)) {
 		/*{{{  channel or port I/O, if the LHS is complex simplify into a temporary*/
-		tnode_t **lhsp = tnode_nthsubaddr (*node, 0);
+		tnode_t **lhsp = tnode_nthsubaddr (t, 0);
 
 		if (langops_iscomplex (*lhsp, 1)) {
+#if 0
+fprintf (stderr, "occampi_betrans_action(): I/O with complex LHS!\n");
+#endif
 			betrans_simplifypointer (lhsp, be);
 		}
 		/*}}}*/
 	}
-	return 1;
+
+	betrans_subtree (tnode_nthsubaddr (t, 0), be);		/* betrans LHS */
+	betrans_subtree (tnode_nthsubaddr (t, 1), be);		/* betrans RHS */
+
+	be->insertpoint = saved_insertpoint;
+	return 0;
 }
 /*}}}*/
 /*{{{  static int occampi_premap_action (compops_t *cops, tnode_t **node, map_t *map)*/

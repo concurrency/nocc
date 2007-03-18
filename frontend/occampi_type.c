@@ -752,6 +752,24 @@ static int occampi_type_namemap_subscriptnode (compops_t *cops, tnode_t **nodep,
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_type_iscomplex_subscriptnode (langops_t *lops, tnode_t *node, int deep)*/
+/*
+ *	checks a subscript node to see if it's complex, used to catch arrays of PLACED PORTs (which are complex)
+ *	returns non-zero if complex
+ */
+static int occampi_type_iscomplex_subscriptnode (langops_t *lops, tnode_t *node, int deep)
+{
+	tnode_t *sstype = tnode_nthsubof (node, 2);
+
+	if ((node->tag == opi.tag_ARRAYSUB) && sstype && (sstype->tag == opi.tag_PORT)) {
+		return 1;
+	}
+	if (tnode_haslangop (lops->next, "iscomplex")) {
+		return tnode_calllangop (lops->next, "iscomplex", 2, node, deep);
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static void occampi_reduce_primtype (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
@@ -988,6 +1006,9 @@ static int occampi_type_postsetup (void)
 	cops = tnode_insertcompops (tnd->ops);
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_type_namemap_subscriptnode));
 	tnd->ops = cops;
+	lops = tnode_insertlangops (tnd->lops);
+	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_type_iscomplex_subscriptnode));
+	tnd->lops = lops;
 
 	/*}}}*/
 
