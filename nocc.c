@@ -94,6 +94,7 @@ compopts_t compopts = {
 	dumpgrammar: 0,
 	dumpgrules: 0,
 	dumpdfas: 0,
+	dumpfcns: 0,
 	dumpnames: 0,
 	dumptargets: 0,
 	dumpvarmaps: 0,
@@ -1370,6 +1371,11 @@ int main (int argc, char **argv)
 	/*{{{  dump extensions if requested*/
 	if (compopts.dumpextns) {
 		extn_dumpextns ();
+	}
+	/*}}}*/
+	/*{{{  dump registered functions if requested*/
+	if (compopts.dumpfcns) {
+		fcnlib_dumpfcns (stderr);
 	}
 	/*}}}*/
 	/*{{{  check that we're actually compiling something*/

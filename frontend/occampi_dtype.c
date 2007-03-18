@@ -689,6 +689,17 @@ static int occampi_getdescriptor_arraynode (langops_t *lops, tnode_t *node, char
 	return 0;
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_getsubtype_arraynode (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	returns the sub-type for an array type
+ */
+static tnode_t *occampi_getsubtype_arraynode (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
+{
+	tnode_t *subtype = tnode_nthsubof (node, 1);
+
+	return subtype;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_typecheck_arraymop (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
@@ -1414,6 +1425,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_getdescriptor_arraynode));
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_typeactual_arraynode));
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_arraynode));
+	tnode_setlangop (lops, "getsubtype", 2, LANGOPTYPE (occampi_getsubtype_arraynode));
 	tnd->lops = lops;
 
 	i = -1;

@@ -31,6 +31,8 @@ extern void *fcnlib_findfunction (const char *name);
 extern void *fcnlib_findfunction2 (const char *name, const int ret, const int nargs);
 extern void *fcnlib_findfunction3 (const char *name, int *n_ret, int *n_nargs);
 
+extern void fcnlib_dumpfcns (FILE *stream);
+
 
 #endif	/* !__FCNLIB_H */
 

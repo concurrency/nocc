@@ -168,7 +168,7 @@ tnode_t *typecheck_getsubtype (tnode_t *node, tnode_t *default_type)
 	tnode_t *type;
 
 	if (!node->tag->ndef->lops || !tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GETSUBTYPE)) {
-		nocc_internal ("typecheck_gettype(): don't know how to get type of [%s]", node->tag->ndef->name);
+		nocc_internal ("typecheck_getsubtype(): don't know how to get sub-type of [%s]", node->tag->ndef->name);
 		return NULL;
 	}
 	type = (tnode_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GETSUBTYPE, 2, node, default_type);

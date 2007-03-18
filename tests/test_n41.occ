@@ -1,0 +1,9 @@
+
+-- test_n41.occ -- array constructor things
+
+PROC test.n41 ()
+  [4]INT v:
+  SEQ
+    v := [10,25,25,6]
+:
+

@@ -275,3 +275,22 @@ void *fcnlib_findfunction3 (const char *name, int *n_ret, int *n_nargs)
 }
 /*}}}*/
 
+
+/*{{{  void fcnlib_dumpfcns (FILE *stream)*/
+/*
+ *	dumps the various registered functions (debugging)
+ */
+void fcnlib_dumpfcns (FILE *stream)
+{
+	int i;
+
+	fprintf (stream, "beginning dump of registered functions:\n");
+	for (i=0; i<DA_CUR (afunctions); i++) {
+		fcnlib_t *fcn = DA_NTHITEM (afunctions, i);
+
+		fprintf (stream, "  %d (%d) @0x%8.8x: %s\n", fcn->ret, fcn->nargs, (unsigned int)fcn->fcnaddr, fcn->name);
+	}
+	return;
+}
+/*}}}*/
+

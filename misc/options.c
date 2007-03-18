@@ -392,6 +392,23 @@ int opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft)
 	return 0;
 }
 /*}}}*/
+/*{{{  */
+/*
+ *	compares two options for ordering (used when sorting)
+ *	returns logical difference
+ */
+static int opts_compare_option (cmd_option_t *opt1, cmd_option_t *opt2)
+{
+	if (opt1 == opt2) {
+		return 0;
+	} else if (!opt1) {
+		return -1;
+	} else if (!opt2) {
+		return 1;
+	}
+	return opt1->order - opt2->order;
+}
+/*}}}*/
 
 
 /*{{{  void opts_init (void)*/
@@ -401,7 +418,8 @@ int opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft)
 void opts_init (void)
 {
 	int i;
-	int optsize = (MAX_HASH_VALUE - MIN_HASH_VALUE);
+	int optsize = (MAX_HASH_VALUE - MIN_HASH_VALUE) + 1;
+	int ordcount;
 
 	dynarray_init (ordered_options);
 	dynarray_setsize (ordered_options, optsize);
@@ -411,7 +429,7 @@ void opts_init (void)
 	for (i=0; i<optsize; i++) {
 		ordered_options[i] = NULL;
 	}
-	for (i = MIN_HASH_VALUE; i <= MAX_HASH_VALUE; i++) {
+	for (i = MIN_HASH_VALUE, ordcount = 0; i <= MAX_HASH_VALUE; i++, ordcount++) {
 		if (wordlist[i].name && (wordlist[i].sopt != '\0')) {
 			if (DA_NTHITEM (icharopts, (int)(wordlist[i].sopt))) {
 				nocc_warning ("duplicate short option `%c\'", wordlist[i].sopt);
@@ -420,9 +438,11 @@ void opts_init (void)
 			}
 		}
 		if (wordlist[i].order > -1) {
-			ordered_options[wordlist[i].order] = (cmd_option_t *)&(wordlist[i]);
+			ordered_options[ordcount] = (cmd_option_t *)&(wordlist[i]);
 		}
 	}
+
+	dynarray_qsort (ordered_options, opts_compare_option);
 
 	stringhash_init (extraopts);
 	
