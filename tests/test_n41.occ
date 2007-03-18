@@ -5,6 +5,6 @@ PROC test.n41 ()
   [4]INT v:
   INT x:
   SEQ
-    v := [10,25,25,x]
+    v := [8,x+1,x+3,x]
 :
 
