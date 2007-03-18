@@ -430,5 +430,13 @@
 .DFAERR	STUCK "occampi:protocol" "in protocol specification" EXPECTED
 
 # }}}
+.SECTION "occampi-arrayconstructor" # {{{: array-constructors
+
+.GRULE	"opi:acreduce" "SN0N+0C[ARRAYCONSTRUCTOR]2R-"
+
+.TABLE	"occampi:arrayconstructor ::= [ 0 @@[ 1 ] [ 1 occampi:exprcommalist 2 ] [ 2 @@] 3 ] [ 3 {<opi:acreduce>} -* ]"
+.TABLE	"occampi:expr +:= [ 0 occampi:arrayconstructor 1 ] [ 1 {<opi:nullreduce>} -* ]"
+
+# }}}
 
 

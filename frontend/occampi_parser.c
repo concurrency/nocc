@@ -125,6 +125,7 @@ static feunit_t *feunit_set[] = {
 	&mwsync_feunit,
 	&occampi_mwsync_feunit,
 	&occampi_misc_feunit,
+	&occampi_arrayconstructor_feunit,
 	NULL
 };
 

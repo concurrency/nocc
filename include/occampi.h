@@ -174,6 +174,9 @@ typedef struct {
 	struct TAG_ntdef *tag_MISCCOMMENT;
 	struct TAG_ntdef *tag_MISCTCOFF;
 
+	struct TAG_ntdef *tag_CONSTCONSTRUCTOR;
+	struct TAG_ntdef *tag_ARRAYCONSTRUCTOR;
+
 	struct TAG_token *tok_COLON;
 	struct TAG_token *tok_INPUT;
 	struct TAG_token *tok_OUTPUT;
@@ -228,23 +231,24 @@ extern void occampi_isetindent (FILE *stream, int indent);
 extern struct TAG_langdef *occampi_getlangdef (void);
 
 /* front-end units */
-extern struct TAG_feunit occampi_primproc_feunit;	/* occampi_primproc.c */
-extern struct TAG_feunit occampi_cnode_feunit;		/* occampi_cnode.c */
-extern struct TAG_feunit occampi_snode_feunit;		/* occampi_snode.c */
-extern struct TAG_feunit occampi_decl_feunit;		/* occampi_decl.c */
-extern struct TAG_feunit occampi_action_feunit;		/* occampi_action.c */
-extern struct TAG_feunit occampi_lit_feunit;		/* occampi_lit.c */
-extern struct TAG_feunit occampi_type_feunit;		/* occampi_type.c */
-extern struct TAG_feunit occampi_instance_feunit;	/* occampi_instance.c */
-extern struct TAG_feunit occampi_dtype_feunit;		/* occampi_dtype.c */
-extern struct TAG_feunit occampi_oper_feunit;		/* occampi_oper.c */
-extern struct TAG_feunit occampi_function_feunit;	/* occampi_function.c */
-extern struct TAG_feunit occampi_mobiles_feunit;	/* occampi_mobiles.c */
-extern struct TAG_feunit occampi_initial_feunit;	/* occampi_initial.c */
-extern struct TAG_feunit occampi_asm_feunit;		/* occampi_asm.c */
-extern struct TAG_feunit occampi_traces_feunit;		/* occampi_traces.c */
-extern struct TAG_feunit occampi_mwsync_feunit;		/* occampi_mwsync.c */
-extern struct TAG_feunit occampi_misc_feunit;		/* occampi_misc.c */
+extern struct TAG_feunit occampi_primproc_feunit;		/* occampi_primproc.c */
+extern struct TAG_feunit occampi_cnode_feunit;			/* occampi_cnode.c */
+extern struct TAG_feunit occampi_snode_feunit;			/* occampi_snode.c */
+extern struct TAG_feunit occampi_decl_feunit;			/* occampi_decl.c */
+extern struct TAG_feunit occampi_action_feunit;			/* occampi_action.c */
+extern struct TAG_feunit occampi_lit_feunit;			/* occampi_lit.c */
+extern struct TAG_feunit occampi_type_feunit;			/* occampi_type.c */
+extern struct TAG_feunit occampi_instance_feunit;		/* occampi_instance.c */
+extern struct TAG_feunit occampi_dtype_feunit;			/* occampi_dtype.c */
+extern struct TAG_feunit occampi_oper_feunit;			/* occampi_oper.c */
+extern struct TAG_feunit occampi_function_feunit;		/* occampi_function.c */
+extern struct TAG_feunit occampi_mobiles_feunit;		/* occampi_mobiles.c */
+extern struct TAG_feunit occampi_initial_feunit;		/* occampi_initial.c */
+extern struct TAG_feunit occampi_asm_feunit;			/* occampi_asm.c */
+extern struct TAG_feunit occampi_traces_feunit;			/* occampi_traces.c */
+extern struct TAG_feunit occampi_mwsync_feunit;			/* occampi_mwsync.c */
+extern struct TAG_feunit occampi_misc_feunit;			/* occampi_misc.c */
+extern struct TAG_feunit occampi_arrayconstructor_feunit;	/* occampi_arrayconstructor.c */
 
 /* these are for language units to use in reductions */
 extern void *occampi_nametoken_to_hook (void *ntok);
