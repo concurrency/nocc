@@ -75,15 +75,38 @@ static int occampi_typecheck_ac (compops_t *cops, tnode_t *node, typecheck_t *tc
 	if (list) {
 		tnode_t **items;
 		int nitems, i;
+		int isvar = 1;		/* assume it is */
 
 		items = parser_getlistitems (list, &nitems);
 		for (i=0; i<nitems; i++) {
 			if (items[i]) {
+				int iisvar;
+
 				typecheck_subtree (items[i], tc);
+				iisvar = langops_isvar (items[i]);
+				if (!iisvar) {
+					isvar = 0;
+				}
 			}
 		}
+
+		if (!isvar) {
+			node->tag = opi.tag_CONSTCONSTRUCTOR;
+		}
+	} else {
+		node->tag = opi.tag_CONSTCONSTRUCTOR;
 	}
 	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_constprop_ac (compopts_t *, tnode_t **node)*/
+/*
+ *	does constant propagation on an array-constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_constprop_ac (compopts_t *cops, tnode_t **node)
+{
+	return 1;
 }
 /*}}}*/
 /*{{{  static tnode_t *occampi_gettype_ac (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
@@ -124,6 +147,19 @@ static tnode_t *occampi_gettype_ac (langops_t *lops, tnode_t *node, tnode_t *def
 	return *typep;
 }
 /*}}}*/
+/*{{{  static int occampi_isvar_ac (langops_t *lops, tnode_t *node)*/
+/*
+ *	determines whether or not an array-constructor node is a variable
+ *	returns 0 if value, non-zero if variable
+ */
+static int occampi_isvar_ac (langops_t *lops, tnode_t *node)
+{
+	if (node->tag == opi.tag_ARRAYCONSTRUCTOR) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_ac_init_nodes (void)*/
@@ -143,11 +179,13 @@ static int occampi_ac_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:ac", &i, 2, 0, 0, TNF_NONE);				/* subnodes: 0 = items, 1 = type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_ac));
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_ac));
 //	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_arraynode));
 //	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_precode_arraynode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_ac));
+	tnode_setlangop (lops, "isvar", 1, LANGOPTYPE (occampi_isvar_ac));
 //	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_getdescriptor_arraynode));
 //	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_typeactual_arraynode));
 //	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_arraynode));
