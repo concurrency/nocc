@@ -590,7 +590,7 @@ tnode_dumptree (tracenode, 1, stderr);
 
 	/* expecting outdent */
 	if (!tok || (tok->type != OUTDENT)) {
-		parser_error (lf, "expected indent");
+		parser_error (lf, "expected outdent");
 		goto out_error;
 	}
 	lexer_freetoken (tok);
@@ -618,6 +618,60 @@ out_error:
 		lexer_pushback (lf, tok);
 	}
 	return -1;
+}
+/*}}}*/
+/*{{{  static int check_outdented_comment (lexfile_t *lf)*/
+/*
+ *	checks for an outdented comment, that is "{outdent*} [COMMENT|NEWLINE]* {indent*}"
+ *	returns 1 if found and skipped, 0 otherwise
+ */
+static int check_outdented_comment (lexfile_t *lf)
+{
+	DYNARRAY (token_t *, ltokens);
+	token_t *tok;
+	int balance = 0;
+	int cleanup = 0;
+	int i;
+
+#if 1
+fprintf (stderr, "check_outdented_comment(): checking..\n");
+#endif
+	dynarray_init (ltokens);
+	for (;;) {
+		tok = lexer_nexttoken (lf);
+		dynarray_add (ltokens, tok);
+
+		if (tok->type == OUTDENT) {
+			balance--;
+		} else if (tok->type == INDENT) {
+			balance++;
+			if (!balance) {
+				/* back to where we were */
+				cleanup = 1;
+				break;		/* for() */
+			}
+		} else if ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
+			/* ignore */
+		} else {
+			/* something else */
+			break;		/* for() */
+		}
+	}
+
+	if (cleanup) {
+		/* trash all the tokens we found */
+		for (i=0; i<DA_CUR (ltokens); i++) {
+			lexer_freetoken (DA_NTHITEM (ltokens, i));
+		}
+	} else {
+		/* push all the tokens back into the lexer */
+		for (i=DA_CUR (ltokens) - 1; i>=0; i--) {
+			lexer_pushback (lf, DA_NTHITEM (ltokens, i));
+		}
+	}
+	dynarray_trash (ltokens);
+
+	return cleanup;
 }
 /*}}}*/
 /*{{{  static tnode_t *occampi_declorprocstart (lexfile_t *lf, int *gotall, char *thedfa)*/
@@ -658,6 +712,19 @@ restartpoint:
 			lexer_freetoken (tok);
 		}
 		return tree;
+	}
+	
+	/*
+	 * NOTE: need to handle the case of an outdented comment in
+	 * the flow of everything else -- not nice!
+	 * -- this is not strictly valid occam-pi, but we'll allow it for programmer convenience (with a warning)
+	 */
+	if (tok->type == OUTDENT) {
+		lexer_pushback (lf, tok);
+		if (check_outdented_comment (lf)) {
+			parser_warning (lf, "outdented comment");
+			return tree;
+		}
 	}
 
 	if (lexer_tokmatch (opi.tok_HASH, tok)) {

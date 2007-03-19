@@ -1,0 +1,13 @@
+
+-- test_n43.occ -- comment indentation
+
+PROC test.n43 ()
+  SEQ
+    SKIP
+    -- this is a comment
+    STOP
+-- this is another comment
+    SKIP
+:
+
+

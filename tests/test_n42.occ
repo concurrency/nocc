@@ -1,0 +1,9 @@
+
+-- test_n42.occ -- variable array constructor things
+
+PROC test.n42 ()
+  [4]INT v:
+  SEQ
+    v := [i = 0 FOR 4 | i+2]
+:
+
