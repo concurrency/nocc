@@ -434,9 +434,15 @@
 
 .GRULE	"opi:acreduce" "SN0N+0C[ARRAYCONSTRUCTOR]2R-"
 .GRULE	"opi:nullacreduce" "ST0T+@t00C[ARRAYCONSTRUCTOR]2R-"
+.GRULE	"opi:varacreduce" "SN0N+N+N+N+V*0C[VARCONSTCONSTRUCTOR]5R-"
 
-.TABLE	"occampi:arrayconstructor ::= [ 0 @@[ 1 ] [ 1 +@@] 4 ] [ 1 occampi:exprcommalist 2 ] [ 2 @@] 3 ] [ 3 {<opi:acreduce>} -* ]"
-	"[ 4 {<opi:nullacreduce>} -* ]"
+.TABLE	"occampi:varac ::= [ 0 occampi:name 1 ] [ 1 @@= 2 ] [ 2 occampi:expr 3 ] [ 3 @FOR 4 ] [ 4 occampi:expr 5 ] [ 5 @@| 6 ] [ 6 occampi:expr 7 ] [ 7 @@] 8 ] [ 8 {<opi:varacreduce>} -* ]"
+.TABLE	"occampi:arrayconstructor ::= [ 0 @@[ 1 ] [ 1 +@@] 2 ] [ 1 +Name 7 ] [ 1 -* 4 ]"
+	"[ 2 {<opi:nullacreduce>} -* ]"								# empty arrays: []
+	"[ 4 occampi:exprcommalist 5 ] [ 5 @@] 6 ] [ 6 {<opi:acreduce>} -* ]"			# expression-list: [42,x]
+	"[ 7 +@@= 8 ] [ 7 -* 9 ]"
+	"[ 8 {<parser:rewindtokens>} -* <occampi:varac> ]"					# variable array-constructor: [i=...]
+	"[ 9 {<parser:rewindtokens>} -* 4 ]"							# name-start expression-list: [x,42]
 .TABLE	"occampi:expr +:= [ 0 occampi:arrayconstructor 1 ] [ 1 {<opi:nullreduce>} -* ]"
 
 # }}}

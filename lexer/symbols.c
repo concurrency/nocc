@@ -84,6 +84,7 @@ static symbol_t symbols[] = {
 	{"<<", 2, NULL},
 	{">>", 2, NULL},
 	{"&", 1, NULL},
+	{"|", 1, NULL},
 	{"||", 2, NULL},
 	{"{", 1, NULL},
 	{"}", 1, NULL},

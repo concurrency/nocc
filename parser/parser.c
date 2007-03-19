@@ -787,6 +787,8 @@ void *parser_lookup_rarg (const char *name)
 #define ICDE_CONSUME_N 18	/* consume node at the top of the local stack */
 #define ICDE_CONSUME_T 19	/* consume token at the top of the local stack */
 #define ICDE_TSREWIND 20	/* rewind the token-stack by pushing all tokens back into the lexer */
+#define ICDE_TS1REWIND 21	/* push a single token from the token-stack back into the lexer */
+#define ICDE_ALLREV 22		/* reverse the order of the local stack */
 
 /*}}}*/
 
@@ -834,6 +836,31 @@ void parser_generic_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 				token_t *xtok = parser_gettok (pp);
 
 				lexer_pushback (xtok->origin, xtok);
+			}
+			break;
+			/*}}}*/
+			/*{{{  TS1REWIND*/
+		case ICDE_TS1REWIND:
+			if (!DA_CUR (pp->tokstack)) {
+				nocc_error ("parser_generic_reduce(): empty token stack for TS1REWIND!");
+			} else {
+				token_t *xtok = parser_gettok (pp);
+
+				lexer_pushback (xtok->origin, xtok);
+			}
+			break;
+			/*}}}*/
+			/*{{{  ALLREV*/
+		case ICDE_ALLREV:
+			{
+				int i;
+
+				for (i=0; i<(lncnt / 2); i++) {
+					void *tmp = lnstk[lncnt - (i+1)];
+
+					lnstk[lncnt - (i+1)] = lnstk[i];
+					lnstk[i] = tmp;
+				}
 			}
 			break;
 			/*}}}*/
@@ -1108,8 +1135,12 @@ void *parser_decode_grule (const char *rule, ...)
 			lsdepth++;
 			break;
 			/*}}}*/
-			/*{{{  V -- reverse/swap two items at top of stack*/
+			/*{{{  V -- reverse/swap stack items*/
 		case 'V':
+			if (xrule[1] == '*') {
+				/* reverse all items */
+				xrule++;
+			}	/* else reverse top two */
 			if (!lsdepth) {
 				nocc_warning ("parser_decode_grule(): strange swap nothing..");
 			}
@@ -1122,7 +1153,7 @@ void *parser_decode_grule (const char *rule, ...)
 			if (*xrule == '+') {
 				ilen++;
 				lsdepth++;
-			} else if (*xrule == '*') {
+			} else if ((*xrule == '*') || (*xrule == '1')) {
 				ilen++;
 			} else {
 				goto report_error_out;
@@ -1355,9 +1386,14 @@ void *parser_decode_grule (const char *rule, ...)
 			icode[i] = ICDE_NULL;
 			break;
 			/*}}}*/
-			/*{{{  V -- reverse/swap two items at top of stack*/
+			/*{{{  V -- reverse/swap stack entries*/
 		case 'V':
-			icode[i] = ICDE_REV;
+			if (xrule[1] == '*') {
+				xrule++;
+				icode[i] = ICDE_ALLREV;
+			} else {
+				icode[i] = ICDE_REV;
+			}
 			break;
 			/*}}}*/
 			/*{{{  T -- token-stack operation*/
@@ -1367,6 +1403,8 @@ void *parser_decode_grule (const char *rule, ...)
 				icode[i] = ICDE_TSPOP;
 			} else if (*xrule == '*') {
 				icode[i] = ICDE_TSREWIND;
+			} else if (*xrule == '1') {
+				icode[i] = ICDE_TS1REWIND;
 			}
 			break;
 			/*}}}*/

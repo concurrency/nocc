@@ -162,6 +162,112 @@ static int occampi_isvar_ac (langops_t *lops, tnode_t *node)
 /*}}}*/
 
 
+/*{{{  static int occampi_scopein_varac (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes in a variable const-constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_scopein_varac (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	tnode_t *replname = tnode_nthsubof (*node, 0);
+	tnode_t *type = tnode_create (opi.tag_INT, NULL);
+	char *rawname;
+	tnode_t *newname;
+	name_t *sname;
+
+	if (replname->tag != opi.tag_NAME) {
+		scope_error (replname, ss, "occampi_scopein_varac(): replicator name not raw-name!");
+		return 0;
+	}
+	rawname = (char *)tnode_nthhookof (replname, 0);
+
+	/* scope the start and length expressions */
+	if (scope_subtree (tnode_nthsubaddr (*node, 1), ss)) {
+		/* failed */
+		return 0;
+	}
+	if (scope_subtree (tnode_nthsubaddr (*node, 2), ss)) {
+		/* failed */
+		return 0;
+	}
+
+	sname = name_addscopename (rawname, *node, type, NULL);
+	newname = tnode_createfrom (opi.tag_NREPL, replname, sname);
+	SetNameNode (sname, newname);
+	tnode_setnthsub (*node, 0, newname);
+
+	/* free old name */
+	tnode_free (replname);
+	ss->scoped++;
+
+	/* scope expression */
+	if (!scope_subtree (tnode_nthsubaddr (*node, 3), ss)) {
+		/* failed */
+		return 0;
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_scopeout_varac (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes out a variable const-constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_scopeout_varac (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	tnode_t *replname = tnode_nthsubof (*node, 0);
+	name_t *sname;
+
+	if (replname->tag != opi.tag_NREPL) {
+		scope_error (replname, ss, "not NREPL!");
+		return 0;
+	}
+	sname = tnode_nthnameof (replname, 0);
+
+	name_descopename (sname);
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_typecheck_varac (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a variable const-constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_varac (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_constprop_varac (compops_t *cops, tnode_t **node)*/
+/*
+ *	does constant-propagation on a variable const-constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_constprop_varac (compops_t *cops, tnode_t **node)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_gettype_varac (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	gets the type of a variable array-constructor node
+ */
+static tnode_t *occampi_gettype_varac (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
+{
+	tnode_t **typep = tnode_nthsubaddr (node, 4);
+
+	if (*typep) {
+		return *typep;
+	}
+	/* FIXME! */
+
+	return defaulttype;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_ac_init_nodes (void)*/
 /*
  *	sets up array-constructor nodes for occampi
@@ -195,6 +301,23 @@ static int occampi_ac_init_nodes (void)
 	opi.tag_CONSTCONSTRUCTOR = tnode_newnodetag ("CONSTCONSTRUCTOR", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_ARRAYCONSTRUCTOR = tnode_newnodetag ("ARRAYCONSTRUCTOR", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:varac -- VARCONSTCONSTRUCTOR*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:varac", &i, 5, 0, 0, TNF_NONE);			/* subnodes: 0 = var-name, 1 = start, 2 = length, 3 = expr, 4 = type */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_varac));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_varac));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_varac));
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_varac));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_varac));
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_VARCONSTCONSTRUCTOR = tnode_newnodetag ("VARCONSTCONSTRUCTOR", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

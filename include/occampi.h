@@ -174,8 +174,10 @@ typedef struct {
 	struct TAG_ntdef *tag_MISCCOMMENT;
 	struct TAG_ntdef *tag_MISCTCOFF;
 
-	struct TAG_ntdef *tag_CONSTCONSTRUCTOR;
 	struct TAG_ntdef *tag_ARRAYCONSTRUCTOR;
+	struct TAG_ntdef *tag_CONSTCONSTRUCTOR;
+
+	struct TAG_ntdef *tag_VARCONSTCONSTRUCTOR;
 
 	struct TAG_token *tok_COLON;
 	struct TAG_token *tok_INPUT;
