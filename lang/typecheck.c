@@ -326,7 +326,9 @@ int typecheck_tree (tnode_t *t, langparser_t *lang)
 	tc->lang = lang;
 	i = lang->typecheck (t, tc);
 
-	nocc_message ("typecheck_tree(): type-checked.  %d error(s), %d warning(s)", tc->err, tc->warn);
+	if (compopts.verbose || tc->err || tc->warn) {
+		nocc_message ("typecheck_tree(): type-checked.  %d error(s), %d warning(s)", tc->err, tc->warn);
+	}
 
 	if (tc->err) {
 		i = tc->err;

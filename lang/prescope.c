@@ -180,7 +180,9 @@ int prescope_tree (tnode_t **t, langparser_t *lang)
 	ps->lang = lang;
 	i = lang->prescope (t, ps);
 
-	nocc_message ("prescope_tree(): pre-scoped.  %d error(s), %d warning(s)", ps->err, ps->warn);
+	if (compopts.verbose || ps->err || ps->warn) {
+		nocc_message ("prescope_tree(): pre-scoped.  %d error(s), %d warning(s)", ps->err, ps->warn);
+	}
 
 	if (ps->err) {
 		i = ps->err;

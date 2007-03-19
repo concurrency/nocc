@@ -154,6 +154,51 @@ void parser_warning (lexfile_t *lf, const char *fmt, ...)
 	return;
 }
 /*}}}*/
+/*{{{  void parser_error_line (lexfile_t *lf, const int lineno, const char *fmt, ...)*/
+/*
+ *	called by parser-bits when an error is encountered
+ *	(line-number handled explicitly)
+ */
+void parser_error_line (lexfile_t *lf, const int lineno, const char *fmt, ...)
+{
+	va_list ap;
+	int n;
+	char *warnbuf = (char *)smalloc (512);
+
+	va_start (ap, fmt);
+	n = sprintf (warnbuf, "%s:%d (error) ", lf->fnptr, lineno);
+	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	lf->errcount++;
+	nocc_message (warnbuf);
+	sfree (warnbuf);
+
+	return;
+}
+/*}}}*/
+/*{{{  void parser_warning_line (lexfile_t *lf, const int lineno, const char *fmt, ...)*/
+/*
+ *	called by parser-bits for warnings
+ */
+void parser_warning_line (lexfile_t *lf, const int lineno, const char *fmt, ...)
+{
+	va_list ap;
+	int n;
+	char *warnbuf = (char *)smalloc (512);
+
+	va_start (ap, fmt);
+	n = sprintf (warnbuf, "%s:%d (warning) ", lf->fnptr, lineno);
+	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	lf->warncount++;
+	nocc_message (warnbuf);
+	sfree (warnbuf);
+
+	return;
+}
+/*}}}*/
 /*{{{  int parser_markerror (lexfile_t *lf)*/
 /*
  *	'marks' the lexfile error-count (returns it)

@@ -1183,7 +1183,9 @@ int main (int argc, char **argv)
 		char *epath = DA_NTHITEM (compopts.epath, i);
 
 		if (access (epath, X_OK)) {
-			nocc_warning ("ignoring invalid extension path [%s]", epath);
+			if (compopts.verbose) {
+				nocc_warning ("ignoring invalid extension path [%s]", epath);
+			}
 			sfree (epath);
 			dynarray_delitem (compopts.epath, i);
 			i--;
@@ -1193,7 +1195,9 @@ int main (int argc, char **argv)
 		char *ipath = DA_NTHITEM (compopts.ipath, i);
 
 		if (access (ipath, X_OK)) {
-			nocc_warning ("ignoring invalid include path [%s]", ipath);
+			if (compopts.verbose) {
+				nocc_warning ("ignoring invalid include path [%s]", ipath);
+			}
 			sfree (ipath);
 			dynarray_delitem (compopts.ipath, i);
 			i--;
@@ -1203,7 +1207,9 @@ int main (int argc, char **argv)
 		char *lpath = DA_NTHITEM (compopts.lpath, i);
 
 		if (access (lpath, X_OK)) {
-			nocc_warning ("ignoring invalid library path [%s]", lpath);
+			if (compopts.verbose) {
+				nocc_warning ("ignoring invalid library path [%s]", lpath);
+			}
 			sfree (lpath);
 			dynarray_delitem (compopts.lpath, i);
 			i--;
@@ -1426,7 +1432,9 @@ int main (int argc, char **argv)
 			char *fname = DA_NTHITEM (srcfiles, i);
 			lexfile_t *tmp;
 
-			nocc_message ("lexing: %s", fname);
+			if (compopts.verbose) {
+				nocc_message ("lexing: %s", fname);
+			}
 			tmp = lexer_open (fname);
 			if (!tmp) {
 				nocc_error ("failed to open %s", fname);

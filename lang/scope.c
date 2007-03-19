@@ -264,7 +264,9 @@ int scope_tree (tnode_t *t, langparser_t *lang)
 
 	r = lang->scope (&t, ss);
 
-	nocc_message ("scope_tree(): completed! %d names scoped, %d error(s), %d warning(s)", ss->scoped, ss->err, ss->warn);
+	if (compopts.verbose || ss->err || ss->warn) {
+		nocc_message ("scope_tree(): completed! %d names scoped, %d error(s), %d warning(s)", ss->scoped, ss->err, ss->warn);
+	}
 
 	if (ss->err) {
 		r = ss->err;

@@ -633,9 +633,10 @@ static int check_outdented_comment (lexfile_t *lf)
 	int cleanup = 0;
 	int i;
 
-#if 1
-fprintf (stderr, "check_outdented_comment(): checking..\n");
-#endif
+	if (compopts.debugparser) {
+		nocc_message ("check_outdented_comment(): checking..");
+	}
+
 	dynarray_init (ltokens);
 	for (;;) {
 		tok = lexer_nexttoken (lf);
@@ -700,8 +701,14 @@ static tnode_t *occampi_declorprocstart (lexfile_t *lf, int *gotall, char *thedf
 
 	*gotall = 0;
 restartpoint:
+
 	/* skip newlines/comments */
 	tok = lexer_nexttoken (lf);
+
+	if (compopts.debugparser) {
+		nocc_message ("occampi_declorprocstart(): first token is [%s]", lexer_stokenstr (tok));
+	}
+
 	while (tok && ((tok->type == NEWLINE) || (tok->type == COMMENT))) {
 		lexer_freetoken (tok);
 		tok = lexer_nexttoken (lf);
@@ -720,9 +727,11 @@ restartpoint:
 	 * -- this is not strictly valid occam-pi, but we'll allow it for programmer convenience (with a warning)
 	 */
 	if (tok->type == OUTDENT) {
+		int lineno = tok->lineno;
+
 		lexer_pushback (lf, tok);
 		if (check_outdented_comment (lf)) {
-			parser_warning (lf, "outdented comment");
+			parser_warning_line (lf, lineno, "outdented comment");
 			return tree;
 		}
 	}
@@ -806,6 +815,19 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 					nexttok = lexer_nexttoken (lf);
 
 					for (; nexttok && (nexttok->type != OUTDENT);) {
+						if (nexttok->type == OUTDENT) {
+							int lineno = nexttok->lineno;
+
+							lexer_pushback (lf, nexttok);
+							nexttok = NULL;
+							if (check_outdented_comment (lf)) {
+								parser_warning_line (lf, lineno, "outdented comment");
+								nexttok = lexer_nexttoken (lf);
+							} else {
+								nexttok = lexer_nexttoken (lf);			/* hopefully the one we just pushed back! */
+								break;		/* for() */
+							}
+						}
 						if (lexer_tokmatchlitstr (nexttok, "INCLUDES")) {
 							/*{{{  auto-including something*/
 							char *iname;
@@ -1136,11 +1158,15 @@ static tnode_t *occampi_declorproc (lexfile_t *lf, int *gotall, char *thedfa)
 	int emrk = parser_markerror (lf);
 
 
-	if (compopts.verbose) {
+	if (compopts.debugparser) {
 		nocc_message ("occampi_declorproc(): %s:%d: parsing declaration or process start", lf->fnptr, lf->lineno);
 	}
 
 	tree = occampi_declorprocstart (lf, gotall, thedfa);
+
+	if (compopts.debugparser) {
+		nocc_message ("occampi_declorproc(): %s:%d: finished parsing declaration or process start, tree [0x%8.8x]", lf->fnptr, lf->lineno, (unsigned int)tree);
+	}
 
 	if (parser_checkerror (lf, emrk)) {
 		occampi_skiptoeol (lf, 1);
@@ -1307,8 +1333,8 @@ static tnode_t *occampi_indented_process_trailing (lexfile_t *lf, char *extradfa
 	}
 
 	tok = lexer_nexttoken (lf);
-	/* skip newlines */
-	for (; tok && (tok->type == NEWLINE); tok = lexer_nexttoken (lf)) {
+	/* skip newlines and comments */
+	for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
 		lexer_freetoken (tok);
 	}
 	/* expect outdent */
@@ -1470,13 +1496,23 @@ static tnode_t *occampi_indented_process_list (lexfile_t *lf, char *leaddfa)
 
 			/* peek at the next token -- if outdent, get out */
 			tok = lexer_nexttoken (lf);
-			for (; tok && (tok->type == NEWLINE); tok = lexer_nexttoken (lf)) {
+			for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
 				lexer_freetoken (tok);
 			}
 			if (tok && (tok->type == OUTDENT)) {
+				int lineno = tok->lineno;
+
 				lexer_pushback (lf, tok);
-				breakfor = 1;
-				break;		/* while() */
+				/*
+				 *	slightly ugly check for outdented comments
+				 *	(not strictly valid, but we'll allow with a warning)
+				 */
+				if (check_outdented_comment (lf)) {
+					parser_warning_line (lf, lineno, "outdented comment");
+				} else {
+					breakfor = 1;
+					break;		/* while() */
+				}
 			} else {
 				lexer_pushback (lf, tok);
 			}
