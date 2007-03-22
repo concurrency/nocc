@@ -675,6 +675,61 @@ static int check_outdented_comment (lexfile_t *lf)
 	return cleanup;
 }
 /*}}}*/
+/*{{{  static int check_indented_comment (lexfile_t *lf)*/
+/*
+ *	check for an indented comment, that is "{indent*} [COMMENT|NEWLINE]* {outdent*}"
+ *	returns 1 if found and skipped, 0 otherwise
+ */
+static int check_indented_comment (lexfile_t *lf)
+{
+	DYNARRAY (token_t *, ltokens);
+	token_t *tok;
+	int balance = 0;
+	int cleanup = 0;
+	int i;
+
+	if (compopts.debugparser) {
+		nocc_message ("check_indented_comment(): checking..");
+	}
+
+	dynarray_init (ltokens);
+	for (;;) {
+		tok = lexer_nexttoken (lf);
+		dynarray_add (ltokens, tok);
+
+		if (tok->type == INDENT) {
+			balance++;
+		} else if (tok->type == OUTDENT) {
+			balance--;
+			if (!balance) {
+				/* back to where we were */
+				cleanup = 1;
+				break;		/* for() */
+			}
+		} else if ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
+			/* ignore */
+		} else {
+			/* something else */
+			break;		/* for() */
+		}
+	}
+
+	if (cleanup) {
+		/* trash all the tokens we found */
+		for (i=0; i<DA_CUR (ltokens); i++) {
+			lexer_freetoken (DA_NTHITEM (ltokens, i));
+		}
+	} else {
+		/* push all the tokens back into the lexer */
+		for (i=DA_CUR (ltokens) - 1; i>=0; i--) {
+			lexer_pushback (lf, DA_NTHITEM (ltokens, i));
+		}
+	}
+	dynarray_trash (ltokens);
+
+	return cleanup;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_declorprocstart (lexfile_t *lf, int *gotall, char *thedfa)*/
 /*
  *	parses a declaration/process for single-liner's, or start of a declaration/process
@@ -726,13 +781,27 @@ restartpoint:
 	 * the flow of everything else -- not nice!
 	 * -- this is not strictly valid occam-pi, but we'll allow it for programmer convenience (with a warning)
 	 */
-	if (tok->type == OUTDENT) {
-		int lineno = tok->lineno;
+	while ((tok->type == OUTDENT) || (tok->type == INDENT)) {
+		if (tok->type == OUTDENT) {
+			int lineno = tok->lineno;
 
-		lexer_pushback (lf, tok);
-		if (check_outdented_comment (lf)) {
-			parser_warning_line (lf, lineno, "outdented comment");
-			return tree;
+			lexer_pushback (lf, tok);
+			if (check_outdented_comment (lf)) {
+				parser_warning_line (lf, lineno, "outdented comment");
+				return tree;
+			}
+			tok = lexer_nexttoken (lf);
+		}
+
+		/* and also for an indented comment */
+		if (tok->type == INDENT) {
+			int lineno = tok->lineno;
+
+			lexer_pushback (lf, tok);
+			if (check_indented_comment (lf)) {
+				/* if we swallowed it up, fine :) */
+			}
+			tok = lexer_nexttoken (lf);
 		}
 	}
 

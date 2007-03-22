@@ -6,7 +6,8 @@ PROC test.n43 ()
     SKIP
     -- this is a comment
     STOP
--- this is another comment
+      -- this is another comment
+  -- outdented comment
     SKIP
 :
 
