@@ -788,7 +788,6 @@ restartpoint:
 			lexer_pushback (lf, tok);
 			if (check_outdented_comment (lf)) {
 				parser_warning_line (lf, lineno, "outdented comment");
-				return tree;
 			}
 			tok = lexer_nexttoken (lf);
 		}

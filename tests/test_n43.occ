@@ -8,6 +8,8 @@ PROC test.n43 ()
     STOP
       -- this is another comment
   -- outdented comment
+-- another outdented comment
+          -- and this is quite indented!
     SKIP
 :
 
