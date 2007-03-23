@@ -74,26 +74,35 @@ static int occampi_typecheck_ac (compops_t *cops, tnode_t *node, typecheck_t *tc
 
 	if (list) {
 		tnode_t **items;
+		tnode_t *dtype;
 		int nitems, i;
-		int isvar = 1;		/* assume it is */
 
+		/* type-check the various items */
 		items = parser_getlistitems (list, &nitems);
-		for (i=0; i<nitems; i++) {
-			if (items[i]) {
-				int iisvar;
+		if (nitems > 0) {
+			int isvar = 1;		/* assume it is */
 
-				typecheck_subtree (items[i], tc);
-				iisvar = langops_isvar (items[i]);
-				if (!iisvar) {
-					isvar = 0;
+			for (i=0; i<nitems; i++) {
+				if (items[i]) {
+					int iisvar;
+
+					typecheck_subtree (items[i], tc);
+					iisvar = langops_isvar (items[i]);
+					if (!iisvar) {
+						isvar = 0;
+					}
 				}
 			}
-		}
 
-		if (!isvar) {
+			if (!isvar) {
+				node->tag = opi.tag_CONSTCONSTRUCTOR;
+			}
+		} else {
+			/* no list (empty) */
 			node->tag = opi.tag_CONSTCONSTRUCTOR;
 		}
 	} else {
+		/* no list (empty) */
 		node->tag = opi.tag_CONSTCONSTRUCTOR;
 	}
 	return 0;

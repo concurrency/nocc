@@ -4,7 +4,8 @@
 PROC test.n41 ()
   [4]INT v:
   INT x:
+  BYTE b:
   SEQ
-    v := [8,x+1,x+3,x]
+    v := [8,x+1,x+3,x,b]
 :
 
