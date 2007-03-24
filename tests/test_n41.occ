@@ -6,6 +6,6 @@ PROC test.n41 ()
   INT x:
   BYTE b:
   SEQ
-    v := [8,x+1,x+3,x,b]
+    v := [8,x+1,x+3,x]
 :
 

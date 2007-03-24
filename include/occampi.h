@@ -176,6 +176,7 @@ typedef struct {
 
 	struct TAG_ntdef *tag_ARRAYCONSTRUCTOR;
 	struct TAG_ntdef *tag_CONSTCONSTRUCTOR;
+	struct TAG_ntdef *tag_ALLCONSTCONSTRUCTOR;
 
 	struct TAG_ntdef *tag_VARCONSTCONSTRUCTOR;
 

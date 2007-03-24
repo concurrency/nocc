@@ -74,8 +74,8 @@ static int occampi_typecheck_ac (compops_t *cops, tnode_t *node, typecheck_t *tc
 
 	if (list) {
 		tnode_t **items;
-		tnode_t *dtype;
 		int nitems, i;
+		tnode_t *dtype = NULL;
 
 		/* type-check the various items */
 		items = parser_getlistitems (list, &nitems);
@@ -85,11 +85,22 @@ static int occampi_typecheck_ac (compops_t *cops, tnode_t *node, typecheck_t *tc
 			for (i=0; i<nitems; i++) {
 				if (items[i]) {
 					int iisvar;
+					tnode_t *thistype;
 
 					typecheck_subtree (items[i], tc);
 					iisvar = langops_isvar (items[i]);
 					if (!iisvar) {
 						isvar = 0;
+					}
+
+					thistype = typecheck_gettype (items[i], NULL);
+					if (!dtype && thistype) {
+						/* choose this as the default type */
+						dtype = thistype;
+					} else if (dtype && thistype) {
+						if (!typecheck_typeactual (dtype, thistype, node, tc)) {
+							typecheck_error (node, tc, "array elements are of different types");
+						}
 					}
 				}
 			}
@@ -115,7 +126,28 @@ static int occampi_typecheck_ac (compops_t *cops, tnode_t *node, typecheck_t *tc
  */
 static int occampi_constprop_ac (compopts_t *cops, tnode_t **node)
 {
-	return 1;
+	tnode_t *list = tnode_nthsubof (*node, 0);
+	int allconst = 1;
+
+	if (list) {
+		int i, nitems;
+		tnode_t **items;
+
+		items = parser_getlistitems (list, &nitems);
+		for (i=0; i<nitems; i++) {
+			constprop_tree (&(items[i]));
+
+			if (!constprop_isconst (items[i])) {
+				allconst = 0;
+			}
+		}
+	}
+
+	if (allconst) {
+		(*node)->tag = opi.tag_ALLCONSTCONSTRUCTOR;
+	}
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static tnode_t *occampi_gettype_ac (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
@@ -143,12 +175,16 @@ static tnode_t *occampi_gettype_ac (langops_t *lops, tnode_t *node, tnode_t *def
 	} else {
 		tnode_t **items;
 		int nitems, i;
-		tnode_t *asubtype = dsubtype;
+		tnode_t *asubtype = NULL;
 
 		items = parser_getlistitems (list, &nitems);
 		for (i=0; i<nitems; i++) {
-			/* FIXME: check type compatibility of individual items here? */
-			asubtype = typecheck_gettype (items[i], dsubtype);
+			tnode_t *thistype = typecheck_gettype (items[i], dsubtype);
+
+			if (!asubtype && thistype) {
+				/* pick the first actual type as the default */
+				asubtype = thistype;
+			}
 		}
 
 		*typep = tnode_createfrom (opi.tag_ARRAY, node, constprop_newconst (CONST_INT, NULL, NULL, nitems), asubtype);
@@ -310,6 +346,8 @@ static int occampi_ac_init_nodes (void)
 	opi.tag_CONSTCONSTRUCTOR = tnode_newnodetag ("CONSTCONSTRUCTOR", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_ARRAYCONSTRUCTOR = tnode_newnodetag ("ARRAYCONSTRUCTOR", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_ALLCONSTCONSTRUCTOR = tnode_newnodetag ("ALLCONSTCONSTRUCTOR", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  occampi:varac -- VARCONSTCONSTRUCTOR*/

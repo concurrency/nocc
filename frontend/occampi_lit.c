@@ -155,7 +155,8 @@ fprintf (stderr, "occampi_gettype_lit(): LITARRAY: mysize is %d, typesize of [%s
 			tnode_setnthsub (node, 0, tnode_create (opi.tag_BOOL, NULL));
 			type = tnode_nthsubof (node, 0);
 		} else {
-			nocc_fatal ("occampi_gettype_lit(): literal not typed, and no default_type!");
+			/* XXX: not an error? -- may run into this when going through arrays of numbers */
+			/* nocc_fatal ("occampi_gettype_lit(): literal not typed, and no default_type!"); */
 			return NULL;
 		}
 	} else if (!type) {
