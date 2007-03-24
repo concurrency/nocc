@@ -127,27 +127,15 @@ static mopmap_t mopmap[] = {
 /*}}}*/
 
 
-/*{{{  static tnode_t *occampi_gettype_dop (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
+/*{{{  static int occampi_typecheck_dop (compops_t *cops, tnode_t *tptr, typecheck_t *tc)*/
 /*
- *	returns the type associated with a DOPNODE, also sets the type in the node
+ *	does type-checking on a dyadic operator
+ *	returns 0 to stop walk, 1 to continue
  */
-static tnode_t *occampi_gettype_dop (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
+static int occampi_typecheck_dop (compops_t *cops, tnode_t *tptr, typecheck_t *tc)
 {
-	tnode_t *lefttype, *righttype;
-
-	lefttype = typecheck_gettype (tnode_nthsubof (node, 0), defaulttype);
-	righttype = typecheck_gettype (tnode_nthsubof (node, 1), defaulttype);
-
-	if (lefttype == defaulttype) {
-		tnode_setnthsub (node, 2, righttype);
-	} else if (righttype == defaulttype) {
-		tnode_setnthsub (node, 2, lefttype);
-	} else {
-		tnode_setnthsub (node, 2, tnode_copytree (defaulttype));
-	}
-	/* FIXME! -- needs more.. */
-
-	return tnode_nthsubof (node, 2);
+	/* FIXME! */
+	return 1;
 }
 /*}}}*/
 /*{{{  static int occampi_constprop_dop (compops_t *cops, tnode_t **tptr)*/
@@ -329,6 +317,30 @@ static int occampi_codegen_dop (compops_t *cops, tnode_t *node, codegen_t *cgen)
 	return 0;
 }
 /*}}}*/
+
+/*{{{  static tnode_t *occampi_gettype_dop (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	returns the type associated with a DOPNODE, also sets the type in the node
+ */
+static tnode_t *occampi_gettype_dop (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
+{
+	tnode_t *lefttype, *righttype;
+
+	lefttype = typecheck_gettype (tnode_nthsubof (node, 0), defaulttype);
+	righttype = typecheck_gettype (tnode_nthsubof (node, 1), defaulttype);
+
+	if (lefttype == defaulttype) {
+		tnode_setnthsub (node, 2, righttype);
+	} else if (righttype == defaulttype) {
+		tnode_setnthsub (node, 2, lefttype);
+	} else {
+		tnode_setnthsub (node, 2, tnode_copytree (defaulttype));
+	}
+	/* FIXME! -- needs more.. */
+
+	return tnode_nthsubof (node, 2);
+}
+/*}}}*/
 /*{{{  static int occampi_iscomplex_dop (langops_t *lops, tnode_t *node, int deep)*/
 /*
  *	returns non-zero if the dyadic operation is complex (i.e. warrants separate evaluation)
@@ -352,24 +364,15 @@ static int occampi_iscomplex_dop (langops_t *lops, tnode_t *node, int deep)
 /*}}}*/
 
 
-/*{{{  static tnode_t *occampi_gettype_rel (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
+/*{{{  static int occampi_typecheck_rel (compops_t *cops, tnode_t *tptr, typecheck_t *tc)*/
 /*
- *	returns the type associated with a DOPNODE, also sets the type in the node
+ *	does type-checking on a relational operator
+ *	returns 0 to stop walk, 1 to continue
  */
-static tnode_t *occampi_gettype_rel (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
+static int occampi_typecheck_rel (compops_t *cops, tnode_t *tptr, typecheck_t *tc)
 {
-	tnode_t *lefttype, *righttype;
-
-	lefttype = typecheck_gettype (tnode_nthsubof (node, 0), defaulttype);
-	righttype = typecheck_gettype (tnode_nthsubof (node, 1), defaulttype);
-
-	/* FIXME! -- needs more.. */
-	if (!tnode_nthsubof (node, 2)) {
-		/* not got a type yet -- always BOOL */
-		tnode_setnthsub (node, 2, tnode_create (opi.tag_BOOL, NULL));
-	}
-
-	return tnode_nthsubof (node, 2);
+	/* FIXME! */
+	return 1;
 }
 /*}}}*/
 /*{{{  static int occampi_premap_rel (compops_t *cops, tnode_t **node, map_t *map)*/
@@ -425,6 +428,27 @@ static int occampi_codegen_rel (compops_t *cops, tnode_t *node, codegen_t *cgen)
 	codegen_error (cgen, "occampi_codgen_rel(): don\'t know how to generate code for [%s] [%s]", node->tag->ndef->name, node->tag->name);
 
 	return 0;
+}
+/*}}}*/
+
+/*{{{  static tnode_t *occampi_gettype_rel (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	returns the type associated with a DOPNODE, also sets the type in the node
+ */
+static tnode_t *occampi_gettype_rel (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
+{
+	tnode_t *lefttype, *righttype;
+
+	lefttype = typecheck_gettype (tnode_nthsubof (node, 0), defaulttype);
+	righttype = typecheck_gettype (tnode_nthsubof (node, 1), defaulttype);
+
+	/* FIXME! -- needs more.. */
+	if (!tnode_nthsubof (node, 2)) {
+		/* not got a type yet -- always BOOL */
+		tnode_setnthsub (node, 2, tnode_create (opi.tag_BOOL, NULL));
+	}
+
+	return tnode_nthsubof (node, 2);
 }
 /*}}}*/
 /*{{{  static int occampi_iscomplex_rel (langops_t *lops, tnode_t *node, int deep)*/
@@ -500,19 +524,15 @@ static void occampi_oper_geninvrelop (codegen_t *cgen, int arg)
 /*}}}*/
 
 
-/*{{{  static tnode_t *occampi_gettype_mop (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
+/*{{{  static int occampi_typecheck_mop (compops_t *cops, tnode_t *tptr, typecheck_t *tc)*/
 /*
- *	gets type of a MOPNODE
+ *	does type-checking on a monadic operator
+ *	returns 0 to stop walk, 1 to continue
  */
-static tnode_t *occampi_gettype_mop (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
+static int occampi_typecheck_mop (compops_t *cops, tnode_t *tptr, typecheck_t *tc)
 {
-	tnode_t *optype;
-
-	optype = typecheck_gettype (tnode_nthsubof (node, 0), defaulttype);
-	tnode_setnthsub (node, 1, optype);
-	/* FIXME! -- needs more.. */
-
-	return optype;
+	/* FIXME! */
+	return 1;
 }
 /*}}}*/
 /*{{{  static int occampi_premap_mop (compops_t *cops, tnode_t **node, map_t *map)*/
@@ -567,6 +587,21 @@ static int occampi_codegen_mop (compops_t *cops, tnode_t *node, codegen_t *cgen)
 	return 0;
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_gettype_mop (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	gets type of a MOPNODE
+ */
+static tnode_t *occampi_gettype_mop (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
+{
+	tnode_t *optype;
+
+	optype = typecheck_gettype (tnode_nthsubof (node, 0), defaulttype);
+	tnode_setnthsub (node, 1, optype);
+	/* FIXME! -- needs more.. */
+
+	return optype;
+}
+/*}}}*/
 /*{{{  static int occampi_iscomplex_mop (langops_t *lops, tnode_t *node, int deep)*/
 /*
  *	returns non-zero if the monadic operator is complex
@@ -580,6 +615,19 @@ static int occampi_iscomplex_mop (langops_t *lops, tnode_t *node, int deep)
 	}
 
 	return i;
+}
+/*}}}*/
+
+
+/*{{{  static int occampi_typecheck_typecast (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a type-cast
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_typecast (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	/* FIXME! */
+	return 1;
 }
 /*}}}*/
 
@@ -703,6 +751,26 @@ static void occampi_reduce_mop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 	return;
 }
 /*}}}*/
+/*{{{  static void occampi_reduce_typecast (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	reduces a type-cast, expects operand and type on the node-stack
+ */
+static void occampi_reduce_typecast (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	tnode_t *operand, *rtype;
+	int i;
+
+	rtype = dfa_popnode (dfast);
+	operand = dfa_popnode (dfast);
+	if (!operand || !rtype) {
+		parser_error (pp->lf, "occampi_reduce_typecast(): operand=0x%8.8x rtype=0x%8.8x", (unsigned int)operand, (unsigned int)rtype);
+		return;
+	}
+	*(dfast->ptr) = tnode_create (opi.tag_TYPECAST, pp->lf, operand, rtype);
+
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_oper_init_nodes (void)*/
@@ -721,12 +789,14 @@ static int occampi_oper_init_nodes (void)
 	fcnlib_addfcn ("occampi_reduce_dop", occampi_reduce_dop, 0, 3);
 	fcnlib_addfcn ("occampi_reduce_rel", occampi_reduce_rel, 0, 3);
 	fcnlib_addfcn ("occampi_reduce_mop", occampi_reduce_mop, 0, 3);
+	fcnlib_addfcn ("occampi_reduce_typecast", occampi_reduce_typecast, 0, 3);
 
 	/*}}}*/
 	/*{{{  occampi:dopnode -- MUL, DIV, ADD, SUB, REM; PLUS, MINUS, TIMES*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:dopnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = left; 1 = right; 2 = type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_dop));
 	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_dop));
 	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_dop));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_dop));
@@ -758,6 +828,7 @@ static int occampi_oper_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:relnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = left; 1 = right; 2 = type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_rel));
 	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_rel));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_rel));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_rel));
@@ -784,6 +855,7 @@ static int occampi_oper_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:mopnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = operand; 1 = type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_mop));
 	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_mop));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_mop));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_mop));
@@ -797,6 +869,24 @@ static int occampi_oper_init_nodes (void)
 	opi.tag_UMINUS = tnode_newnodetag ("UMINUS", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_BITNOT = tnode_newnodetag ("BITNOT", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:typecastnode -- TYPECAST*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:typecastnode", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = operand; 1 = type */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_typecast));
+	// tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_typecast));
+	// tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_typecast));
+	// tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_typecast));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	// tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_mop));
+	// tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_iscomplex_mop));
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_TYPECAST = tnode_newnodetag ("TYPECAST", &i, tnd, NTF_NONE);
 	/*}}}*/
 
 	/*{{{  setup local tokens*/

@@ -371,10 +371,12 @@
 .RFUNC	"Roccampi:dopreduce" "occampi_reduce_dop"
 .RFUNC	"Roccampi:relreduce" "occampi_reduce_rel"
 .RFUNC	"Roccampi:mopreduce" "occampi_reduce_mop"
+.RFUNC	"Roccampi:typecastreduce" "occampi_reduce_typecast"
 
 .TABLE	"occampi:restofexpr +:= [ 0 +@@+ 1 ] [ 0 +@@- 1 ] [ 0 +@@* 1 ] [ 0 +@@/ 1 ] [ 0 +@@\\ 1 ] [ 0 +@PLUS 1 ] [ 0 +@MINUS 1 ] [ 0 +@TIMES 1 ]"
 	"[ 1 occampi:expr 2 ] [ 2 {Roccampi:dopreduce} -* ]"
 .TABLE	"occampi:restofexpr +:= [ 0 +@@= 1 ] [ 0 +@@< 1 ] [ 0 +@@> 1 ] [ 1 occampi:expr 2 ] [ 2 {Roccampi:relreduce} -* ]"
+.TABLE	"occampi:restofexpr +:= [ 0 @@( 1 ] [ 1 occampi:type 2 ] [ 2 @@) 3 ] [ 3 {Roccampi:typecastreduce} -* ]"
 .TABLE	"occampi:expr +:= [ 0 +@@- 1 ] [ 0 +@@~ 1 ] [ 1 occampi:expr 2 ] [ 2 {Roccampi:mopreduce} -* ]"
 
 

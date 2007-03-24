@@ -145,6 +145,7 @@ typedef struct {
 	struct TAG_ntdef *tag_RELGEQ;
 	struct TAG_ntdef *tag_SIZE;
 	struct TAG_ntdef *tag_BYTESIN;
+	struct TAG_ntdef *tag_TYPECAST;
 
 	struct TAG_ntdef *tag_NDECL;
 	struct TAG_ntdef *tag_NPARAM;
