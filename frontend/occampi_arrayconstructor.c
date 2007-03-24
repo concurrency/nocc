@@ -119,12 +119,12 @@ static int occampi_typecheck_ac (compops_t *cops, tnode_t *node, typecheck_t *tc
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_constprop_ac (compopts_t *, tnode_t **node)*/
+/*{{{  static int occampi_constprop_ac (compops_t *, tnode_t **node)*/
 /*
  *	does constant propagation on an array-constructor node
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_constprop_ac (compopts_t *cops, tnode_t **node)
+static int occampi_constprop_ac (compops_t *cops, tnode_t **node)
 {
 	tnode_t *list = tnode_nthsubof (*node, 0);
 	int allconst = 1;
@@ -148,6 +148,16 @@ static int occampi_constprop_ac (compopts_t *cops, tnode_t **node)
 	}
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_namemap_ac (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping on an array-constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_ac (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	return 1;
 }
 /*}}}*/
 /*{{{  static tnode_t *occampi_gettype_ac (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
@@ -331,7 +341,7 @@ static int occampi_ac_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_ac));
 	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_ac));
-//	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_arraynode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_ac));
 //	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_precode_arraynode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
