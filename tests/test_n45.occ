@@ -1,0 +1,11 @@
+
+-- test_n45.occ -- testing midrange comments
+
+PROC test.n45 ()
+  --{{{  this is a fold!
+  SEQ
+    SKIP
+  --}}}
+:
+
+

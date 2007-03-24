@@ -1485,7 +1485,7 @@ static tnode_t *occampi_indented_process (lexfile_t *lf)
 
 	tok = lexer_nexttoken (lf);
 	/* skip newlines */
-	for (; tok && (tok->type == NEWLINE); tok = lexer_nexttoken (lf)) {
+	for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
 		lexer_freetoken (tok);
 	}
 	/* expect outdent */
@@ -1592,7 +1592,7 @@ static tnode_t *occampi_indented_process_list (lexfile_t *lf, char *leaddfa)
 
 	tok = lexer_nexttoken (lf);
 	/* skip newlines */
-	for (; tok && (tok->type == NEWLINE); tok = lexer_nexttoken (lf)) {
+	for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
 		lexer_freetoken (tok);
 	}
 	/* expect outdent */
