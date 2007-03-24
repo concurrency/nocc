@@ -1,0 +1,9 @@
+
+-- test_n44.occ -- testing global data
+
+VAL INT v IS 42(INT):
+
+PROC test.n44 ()
+  SKIP
+:
+

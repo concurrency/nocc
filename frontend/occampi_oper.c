@@ -725,7 +725,7 @@ static int occampi_oper_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:dopnode -- MUL, DIV, ADD, SUB, REM; PLUS, MINUS, TIMES*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:dopnode", &i, 3, 0, 0, TNF_NONE);
+	tnd = tnode_newnodetype ("occampi:dopnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = left; 1 = right; 2 = type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_dop));
 	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_dop));
@@ -756,7 +756,7 @@ static int occampi_oper_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:relnode -- RELEQ, RELNEQ, RELLT, RELGT, RELLEQ, RELGEQ, RELAND, RELOR, RELXOR*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:relnode", &i, 3, 0, 0, TNF_NONE);
+	tnd = tnode_newnodetype ("occampi:relnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = left; 1 = right; 2 = type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_rel));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_rel));
@@ -782,7 +782,7 @@ static int occampi_oper_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:mopnode -- UMINUS, BITNOT*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:mopnode", &i, 2, 0, 0, TNF_NONE);
+	tnd = tnode_newnodetype ("occampi:mopnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = operand; 1 = type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_mop));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_mop));
