@@ -1378,11 +1378,13 @@ int main (int argc, char **argv)
 	if (compopts.dumpextns) {
 		extn_dumpextns ();
 	}
+
 	/*}}}*/
 	/*{{{  dump registered functions if requested*/
 	if (compopts.dumpfcns) {
 		fcnlib_dumpfcns (stderr);
 	}
+
 	/*}}}*/
 	/*{{{  check that we're actually compiling something*/
 	if (!DA_CUR (srcfiles) && !compopts.dohelp) {
@@ -1509,6 +1511,7 @@ int main (int argc, char **argv)
 			tnode_dumpnodetypes (stderr);
 			goto local_close_out;
 		}
+
 		/*}}}*/
 
 		/*{{{  front-end compiler passes*/

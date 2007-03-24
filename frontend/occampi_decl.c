@@ -543,7 +543,7 @@ tnode_dumptree (type, 1, stderr);
 
 	/*}}}*/
 
-	/* map the RHS and attach to it gets mapped */
+	/* map the RHS and attach so it gets mapped */
 	map_submapnames (rhsp, map);
 #if 0
 fprintf (stderr, "occampi_namemap_abbrev(): target is [%s].  mapped RHS, got:\n", map->target->name);
@@ -1452,6 +1452,7 @@ static int occampi_decl_init_nodes (void)
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_vardecl));
 	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_precode_vardecl));
 	tnd->ops = cops;
+
 	i = -1;
 	opi.tag_VARDECL = tnode_newnodetag ("VARDECL", &i, tnd, NTF_NONE);
 	/*}}}*/
@@ -1483,6 +1484,7 @@ static int occampi_decl_init_nodes (void)
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_abbrev));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_abbrev));
 	tnd->ops = cops;
+
 	i = -1;
 	opi.tag_ABBREV = tnode_newnodetag ("ABBREV", &i, tnd, NTF_NONE);
 	i = -1;

@@ -72,6 +72,7 @@ typedef struct TAG_compopts {
 	int dumpnodetypes;
 	int dumpchooks;
 	int dumpextns;
+	int dumpnodetags;
 	int dumpfolded;
 	int dumptracemem;
 	int debugparser;

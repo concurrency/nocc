@@ -336,6 +336,7 @@ static void tnode_list_hookmodprepostwalktree (tnode_t **node, void *hook, int (
 /*}}}*/
 /*}}}*/
 
+
 /*{{{  int tnode_init (void)*/
 /*
  *	initialises node handler
@@ -2465,6 +2466,5 @@ void tnode_error (tnode_t *t, const char *fmt, ...)
 	return;
 }
 /*}}}*/
-
 
 
