@@ -624,6 +624,7 @@ out_error:
 /*
  *	checks for an outdented comment, that is "{outdent*} [COMMENT|NEWLINE]* {indent*}"
  *	returns 1 if found and skipped, 0 otherwise
+ *	(transparently skips outdented whitespace)
  */
 static int check_outdented_comment (lexfile_t *lf)
 {
@@ -632,6 +633,7 @@ static int check_outdented_comment (lexfile_t *lf)
 	int balance = 0;
 	int cleanup = 0;
 	int i;
+	int hadcomment = 0;
 
 	if (compopts.debugparser) {
 		nocc_message ("check_outdented_comment(): checking..");
@@ -651,8 +653,11 @@ static int check_outdented_comment (lexfile_t *lf)
 				cleanup = 1;
 				break;		/* for() */
 			}
-		} else if ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
+		} else if (tok->type == NEWLINE) {
 			/* ignore */
+		} else if (tok->type == COMMENT) {
+			/* mostly ignore */
+			hadcomment = 1;
 		} else {
 			/* something else */
 			break;		/* for() */
@@ -672,13 +677,14 @@ static int check_outdented_comment (lexfile_t *lf)
 	}
 	dynarray_trash (ltokens);
 
-	return cleanup;
+	return cleanup && hadcomment;
 }
 /*}}}*/
 /*{{{  static int check_indented_comment (lexfile_t *lf)*/
 /*
  *	check for an indented comment, that is "{indent*} [COMMENT|NEWLINE]* {outdent*}"
  *	returns 1 if found and skipped, 0 otherwise
+ *	(transparently skips indented whitespace)
  */
 static int check_indented_comment (lexfile_t *lf)
 {
@@ -686,6 +692,7 @@ static int check_indented_comment (lexfile_t *lf)
 	token_t *tok;
 	int balance = 0;
 	int cleanup = 0;
+	int hadcomment = 0;
 	int i;
 
 	if (compopts.debugparser) {
@@ -706,8 +713,11 @@ static int check_indented_comment (lexfile_t *lf)
 				cleanup = 1;
 				break;		/* for() */
 			}
-		} else if ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
+		} else if (tok->type == NEWLINE) {
 			/* ignore */
+		} else if (tok->type == COMMENT) {
+			/* mostly ignore */
+			hadcomment = 1;
 		} else {
 			/* something else */
 			break;		/* for() */
@@ -727,7 +737,7 @@ static int check_indented_comment (lexfile_t *lf)
 	}
 	dynarray_trash (ltokens);
 
-	return cleanup;
+	return cleanup && hadcomment;
 }
 /*}}}*/
 /*{{{  static tnode_t *occampi_declorprocstart (lexfile_t *lf, int *gotall, char *thedfa)*/

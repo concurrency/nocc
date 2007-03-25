@@ -335,7 +335,7 @@ static int occampi_ac_init_nodes (void)
 	langops_t *lops;
 	int i;
 
-	/*{{{  occampi:ac -- ARRAYCONSTRUCTOR, CONSTCONSTRUCTOR*/
+	/*{{{  occampi:ac -- ARRAYCONSTRUCTOR, CONSTCONSTRUCTOR, ALLCONSTCONSTRUCTOR*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:ac", &i, 2, 0, 0, TNF_NONE);				/* subnodes: 0 = items, 1 = type */
 	cops = tnode_newcompops ();

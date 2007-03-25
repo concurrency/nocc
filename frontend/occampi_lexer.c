@@ -351,9 +351,15 @@ tokenloop:
 			}
 		}
 		lp->offset += (int)(dh - ch);
+		ch = dh;
 		lop->newlineflag = 0;
 		lop->oldnewline = 1;
-		ch = dh;
+		if (ch < chlim) {
+			if ((*ch == '\n') || (*ch == '\r')) {
+				/* empty line or just whitespace */
+				goto tokenloop;
+			}
+		}
 		lop->scanto_indent = thisindent;
 		/* then scoop this up next */
 		/*}}}*/

@@ -1,0 +1,10 @@
+
+-- test_n52.occ -- array slices
+
+PROC test.n52 ()
+  [4]INT x:
+  [2]INT v:
+  SEQ
+    v := [x FROM 1 FOR 2]
+:
+

@@ -801,7 +801,7 @@ static int occampi_oper_init_nodes (void)
 	fcnlib_addfcn ("occampi_reduce_typecast", occampi_reduce_typecast, 0, 3);
 
 	/*}}}*/
-	/*{{{  occampi:dopnode -- MUL, DIV, ADD, SUB, REM; PLUS, MINUS, TIMES*/
+	/*{{{  occampi:dopnode -- MUL, DIV, ADD, SUB, REM; PLUS, MINUS, TIMES, LSHIFT, RSHIFT, BITOR, BITAND, BITXOR*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:dopnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = left; 1 = right; 2 = type */
 	cops = tnode_newcompops ();

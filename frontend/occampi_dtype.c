@@ -1193,6 +1193,50 @@ if (tnode_nthsubof (*node, 2)) {
 /*}}}*/
 
 
+/*{{{  static int occampi_typecheck_slice (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking for an array slice
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_slice (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	/* FIXME! */
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_namemap_slice (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for an array slice
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_slice (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	/* FIXME! */
+	return 1;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_gettype_slice (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	gets the type of an array slice
+ */
+static tnode_t *occampi_gettype_slice (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
+{
+	/* FIXME! */
+	return defaulttype;
+}
+/*}}}*/
+/*{{{  static int occampi_iscomplex_slice (langops_t *lops, tnode_t *node, int deep)*/
+/*
+ *	returns non-zero if the array slice is complex
+ */
+static int occampi_iscomplex_slice (langops_t *lops, tnode_t *node, int deep)
+{
+	return 1;		/* assume these are complex */
+}
+/*}}}*/
+
+
+
 /*{{{  static tnode_t *occampi_gettype_nametypenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
  *	returns the type of a named type-node (trivial)
@@ -1513,6 +1557,23 @@ static int occampi_dtype_init_nodes (void)
 	opi.tag_RECORDSUB = tnode_newnodetag ("RECORDSUB", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_ARRAYSUB = tnode_newnodetag ("ARRAYSUB", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:slice -- ARRAYSLICE*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:slice", &i, 4, 0, 0, TNF_NONE);			/* subnodes: 0 = base, 1 = start, 2 = length, 3 = type */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_slice));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_slice));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_slice));
+	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_iscomplex_slice));
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_ARRAYSLICE = tnode_newnodetag ("ARRAYSLICE", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  fielddecloffset compiler hook*/
 	fielddecloffset = tnode_lookupornewchook ("occampi:fielddecloffset");

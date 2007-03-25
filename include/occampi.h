@@ -69,6 +69,7 @@ typedef struct {
 	struct TAG_ntdef *tag_SUBSCRIPT;
 	struct TAG_ntdef *tag_RECORDSUB;
 	struct TAG_ntdef *tag_ARRAYSUB;
+	struct TAG_ntdef *tag_ARRAYSLICE;
 	struct TAG_ntdef *tag_ARRAY;
 	struct TAG_ntdef *tag_MOBILE;
 	struct TAG_ntdef *tag_DYNMOBARRAY;
