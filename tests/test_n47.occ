@@ -1,0 +1,12 @@
+
+-- test_n47.occ -- RETYPES
+
+PROC test.n47 ()
+  INT x:
+  SEQ
+    x := 16
+    INT y RETYPES x:
+    SEQ
+      SKIP
+:
+

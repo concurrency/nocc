@@ -1,0 +1,13 @@
+
+-- test_n46.occ -- var abbreviations
+
+PROC test.n46 ()
+  INT x:
+  SEQ
+    x := 4
+
+    INT y IS x:
+    SEQ
+      y := 19
+:
+

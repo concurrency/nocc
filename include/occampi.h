@@ -87,6 +87,8 @@ typedef struct {
 	struct TAG_ntdef *tag_VARDECL;
 	struct TAG_ntdef *tag_ABBREV;
 	struct TAG_ntdef *tag_VALABBREV;
+	struct TAG_ntdef *tag_RETYPES;
+	struct TAG_ntdef *tag_VALRETYPES;
 	struct TAG_ntdef *tag_PROCDECL;
 	struct TAG_ntdef *tag_SHORTFUNCDECL;
 	struct TAG_ntdef *tag_FUNCDECL;

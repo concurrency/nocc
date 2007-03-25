@@ -1513,6 +1513,18 @@ int main (int argc, char **argv)
 		}
 
 		/*}}}*/
+		/*{{{  dump node-types (short form) if requested*/
+		if (compopts.dumpsnodetypes) {
+			tnode_dumpsnodetypes (stderr);
+		}
+
+		/*}}}*/
+		/*{{{  dump node-tags (short form) if requested*/
+		if (compopts.dumpsnodetags) {
+			tnode_dumpsnodetags (stderr);
+		}
+
+		/*}}}*/
 
 		/*{{{  front-end compiler passes*/
 		if (compopts.verbose) {

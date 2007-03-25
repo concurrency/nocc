@@ -2468,3 +2468,39 @@ void tnode_error (tnode_t *t, const char *fmt, ...)
 /*}}}*/
 
 
+/*{{{  void tnode_dumpsnodetypes (FILE *stream)*/
+/*
+ *	dumps a list of the registered node types (short form)
+ */
+void tnode_dumpsnodetypes (FILE *stream)
+{
+	int i;
+
+	fprintf (stream, "node types:\n");
+	for (i=0; i<DA_CUR (anodetypes); i++) {
+		tndef_t *tnd = DA_NTHITEM (anodetypes, i);
+
+		fprintf (stream, "    %-32s (%d,%d,%d)\n", tnd->name, tnd->nsub, tnd->nname, tnd->nhooks);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  void tnode_dumpsnodetags (FILE *stream)*/
+/*
+ *	dumps a list of the registered node tags (short form)
+ */
+void tnode_dumpsnodetags (FILE *stream)
+{
+	int i;
+
+	fprintf (stream, "node tags:\n");
+	for (i=0; i<DA_CUR (anodetags); i++) {
+		ntdef_t *ntd = DA_NTHITEM (anodetags, i);
+
+		fprintf (stream, "    %s\n", ntd->name);
+	}
+	return;
+}
+/*}}}*/
+
+

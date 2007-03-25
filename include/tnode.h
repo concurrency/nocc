@@ -282,6 +282,10 @@ extern void tnode_message (tnode_t *t, const char *fmt, ...) __attribute__ ((for
 extern void tnode_warning (tnode_t *t, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 extern void tnode_error (tnode_t *t, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
+extern void tnode_dumpsnodetypes (FILE *stream);
+extern void tnode_dumpsnodetags (FILE *stream);
+
+
 /* access routines */
 
 #ifdef TREE_ACCESS_CHECK

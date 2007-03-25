@@ -364,7 +364,7 @@ fprintf (stderr, "occampi_scopein_abbrev: here! rawname = \"%s\"\n", rawname);
 	}
 
 	sname = name_addscopename (rawname, *nodep, type, NULL);
-	if ((*nodep)->tag == opi.tag_VALABBREV) {
+	if (((*nodep)->tag == opi.tag_VALABBREV) || ((*nodep)->tag == opi.tag_VALRETYPES)) {
 		newname = tnode_createfrom (opi.tag_NVALABBR, name, sname);
 	} else {
 		newname = tnode_createfrom (opi.tag_NABBR, name, sname);
@@ -395,7 +395,7 @@ static int occampi_scopeout_abbrev (compops_t *cops, tnode_t **nodep, scope_t *s
 	tnode_t *name = tnode_nthsubof (*nodep, 0);
 	name_t *sname;
 
-	if (name->tag != (((*nodep)->tag == opi.tag_VALABBREV) ? opi.tag_NVALABBR : opi.tag_NABBR)) {
+	if (name->tag != ((((*nodep)->tag == opi.tag_VALABBREV) || ((*nodep)->tag == opi.tag_VALRETYPES)) ? opi.tag_NVALABBR : opi.tag_NABBR)) {
 		scope_error (name, ss, "not NABBR/NVALABBR!");
 		return 0;
 	}
@@ -527,7 +527,7 @@ static int occampi_namemap_abbrev (compops_t *cops, tnode_t **nodep, map_t *map)
 fprintf (stderr, "occampi_namemap_abbrev(): here!  target is [%s].  Type is:\n", map->target->name);
 tnode_dumptree (type, 1, stderr);
 #endif
-	if (((*nodep)->tag == opi.tag_ABBREV) || langops_valbyref (*rhsp)) {
+	if (((*nodep)->tag == opi.tag_ABBREV) || ((*nodep)->tag == opi.tag_RETYPES) || langops_valbyref (*rhsp)) {
 		initfunc = occampi_initptrabbrev;
 		vsize = map->target->pointersize;
 	} else {
@@ -1474,7 +1474,7 @@ static int occampi_decl_init_nodes (void)
 	i = -1;
 	opi.tag_VALFPARAM = tnode_newnodetag ("VALFPARAM", &i, tnd, NTF_NONE);
 	/*}}}*/
-	/*{{{  occampi:abbrevnode -- ABBREV, VALABBREV*/
+	/*{{{  occampi:abbrevnode -- ABBREV, VALABBREV, RETYPES, VALRETYPES*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:abbrevnode", &i, 4, 0, 0, TNF_SHORTDECL);		/* subnodes: name; type; in-scope-body; expr */
 	cops = tnode_newcompops ();
@@ -1489,6 +1489,10 @@ static int occampi_decl_init_nodes (void)
 	opi.tag_ABBREV = tnode_newnodetag ("ABBREV", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_VALABBREV = tnode_newnodetag ("VALABBREV", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_RETYPES = tnode_newnodetag ("RETYPES", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_VALRETYPES = tnode_newnodetag ("VALRETYPES", &i, tnd, NTF_NONE);
 	/*}}}*/
 	/*{{{  occampi:procdecl -- PROCDECL*/
 	i = -1;

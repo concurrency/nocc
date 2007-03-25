@@ -29,9 +29,11 @@ dump-names,		'\0',	opt_setintflag,		&(compopts.dumpnames),		"1print names after 
 dump-targets,		'\0',	opt_setintflag,		&(compopts.dumptargets),	"1print supported targets after initialisation",	12
 dump-varmaps,		'\0',	opt_setintflag,		&(compopts.dumpvarmaps),	"1print variable maps after block allocation",		13
 dump-nodetypes,		'\0',	opt_setintflag,		&(compopts.dumpnodetypes),	"1print node types after initialisation",		14
-dump-chooks,		'\0',	opt_setintflag,		&(compopts.dumpchooks),		"1print compiler hooks",				15
-dump-extns,		'\0',	opt_setintflag,		&(compopts.dumpextns),		"1print detailed information about loaded extensions",	16
-dump-folded,		'\0',	opt_setintflag,		&(compopts.dumpfolded),		"1include folds in parse tree dumps",			17
+dump-snodetypes,	'\0',	opt_setintflag,		&(compopts.dumpsnodetypes),	"1print node types after initialisation (short form)",	15
+dump-snodetags,		'\0',	opt_setintflag,		&(compopts.dumpsnodetags),	"1print node tags after initialisation (short form)",	16
+dump-chooks,		'\0',	opt_setintflag,		&(compopts.dumpchooks),		"1print compiler hooks",				17
+dump-extns,		'\0',	opt_setintflag,		&(compopts.dumpextns),		"1print detailed information about loaded extensions",	18
+dump-folded,		'\0',	opt_setintflag,		&(compopts.dumpfolded),		"1include folds in parse tree dumps",			19
 save-named-dfa,		'\0',	opt_setsaveopt,		(void *)1,			"1save named DFA to file",				50
 save-all-dfas,		'\0',	opt_setstr,		&(compopts.savealldfas),	"1save all DFAs to file",				51
 stop-token,		'\0',	opt_setstopflag,	(void *)1,			"1stop after tokenise (and print tokens)",		100

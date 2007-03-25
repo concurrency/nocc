@@ -22,29 +22,62 @@
 
 # .TNODE directives describe the parse-tree, kind-of
 
-# actions
+#{{{  actions
+
+# occampi:actionnode               (3,0,0)
 
 .TNODE	"occampi:actionnode" (3,0,0) "lhs" "rhs" "type"
 
+#}}}
+#{{{  in-line assembly
 
-# in-line assembly
+# occampi:asmnode                  (1,0,0)
+# occampi:asmop                    (0,0,1)
 
 .TNODE	"occampi:asmnode" (1,0,0) "body"
 .TNODE	"occampi:asmop" (0,0,1) "asmop-hook"
 
-# constructor nodes
+# }}}
+#{{{  constructor nodes
+
+# occampi:cnode                    (2,0,0)
+# occampi:replcnode                (5,0,0)
+# occampi:cexpnode                 (2,0,0)
 
 .TNODE	"occampi:cnode" (2,0,0) "operand" "body"
 .TNODE	"occampi:replcnode" (5,0,0) "operand" "body" "repl-name" "repl-start" "repl-length"
 .TNODE	"occampi:cexpnode" (2,0,0) "expression" "body"
 
+#}}}
+#{{{  structured nodes
 
-# declarations and related nodes
+# occampi:snode                    (3,0,0)
+# occampi:condnode                 (2,0,0)
+# occampi:guardnode                (3,0,0)
+
+.TNODE	"occampi:snode" (3,0,0) "expr" "body" "type"
+.TNODE	"occampi:condnode" (2,0,0) "expr" "body"
+.TNODE	"occampi:guardnode" (3,0,0) "guard-expr" "body" "pre-condition"
+
+#}}}
+#{{{  declarations and related nodes
+
+# occampi:rawnamenode              (0,0,1)
+# occampi:namenode                 (0,1,0)
+# occampi:nametypenode             (0,1,0)
+# occampi:hiddennode               (1,0,0)
+# occampi:leafnode                 (0,0,0)
+# occampi:vardecl                  (3,0,0)
+# occampi:fparam                   (2,0,0)
+# occampi:abbrevnode               (4,0,0)
+# occampi:procdecl                 (4,0,0)
 
 .TNODE	"occampi:vardecl" (3,0,0) "name" "type" "body"
 .TNODE	"occampi:rawnamenode" (0,0,1) "name-hook"
 	INVALID AFTER "scope"
 .TNODE	"occampi:namenode" (0,1,0) "name"
+	INVALID BEFORE "scope"
+.TNODE	"occampi:nametypenode" (0,1,0) "name"
 	INVALID BEFORE "scope"
 .TNODE	"occampi:hiddennode" (1,0,0) "param"
 .TNODE	"occampi:leafnode" (0,0,0)
@@ -52,20 +85,85 @@
 .TNODE	"occampi:abbrevnode" (4,0,0) "name" "type" "body" "expression"
 .TNODE	"occampi:procdecl" (4,0,0) "name" "fparams" "procbody" "body"
 
-# structured data types
+
+#}}}
+#{{{  types
+
+# occampi:typedecl                 (3,0,1)
+# occampi:arraynode                (2,0,0)
+# occampi:arraymopnode             (2,0,0)
+# occampi:fielddecl                (2,0,0)
+# occampi:subscript                (3,0,0)
+# occampi:typenode                 (2,0,0)
+# occampi:typespecnode             (1,0,0)
+# occampi:leaftype                 (0,0,0)
 
 .TNODE	"occampi:typedecl" (3,0,1) "name" "type" "body" "typedecl-hook"
 .TNODE	"occampi:arraynode" (2,0,0) "dimension" "subtype"
 .TNODE	"occampi:arraymopnode" (2,0,0) "operand" "type"
 .TNODE	"occampi:fielddecl" (2,0,0) "name" "type"
 .TNODE	"occampi:subscript" (3,0,0) "base" "index" "type"
+.TNODE	"occampi:typenode" (2,0,0) "subtype" "dimension"
+.TNODE	"occampi:typespecnode" (1,0,0) "body"
+.TNODE	"occampi:leaftype" (0,0,0)
 
+#}}}
+#{{{  miscellaneous
+
+# occampi:miscnode                 (1,0,0)
+
+.TNODE	"occampi:miscnode" (1,0,0) "body"
+
+#}}}
+#{{{  literals
+
+# occampi:litnode                  (1,0,1)
+
+.TNODE	"occampi:litnode" (1,0,1) "type" "literal-hook"
+
+#}}}
+#{{{  instances
+
+# occampi:instancenode             (2,0,1)
+# occampi:builtinproc              (0,0,1)
+# occampi:finstancenode            (2,0,0)
+
+.TNODE	"occampi:instancenode" (2,0,1) "name" "params" "instance-hook"
+.TNODE	"occampi:builtinproc" (0,0,1) "builtinproc-hook"
+.TNODE	"occampi:finstancenode" (2,0,0) "name" "params"
+
+#}}}
+#{{{  operators
+
+# occampi:dopnode                  (3,0,0)
+# occampi:relnode                  (3,0,0)
+# occampi:mopnode                  (2,0,0)
+# occampi:typecastnode             (2,0,0)
+
+.TNODE	"occampi:dopnode" (3,0,0) "lhs" "rhs" "type"
+.TNODE	"occampi:relnode" (3,0,0) "lhs" "rhs" "type"
+.TNODE	"occampi:mopnode" (2,0,0) "operand" "type"
+.TNODE	"occampi:typecastnode" (2,0,0) "operand" "type"
+
+#}}}
 
 # FIXME: incomplete!
 
-# miscellaneous
+# occampi:valofnode                (2,0,0)
+# occampi:functiontype             (2,0,0)
+# occampi:funcdecl                 (4,0,0)
+# occampi:shortfuncdecl            (4,0,0)
+# occampi:builtinfunction          (0,0,1)
+# occampi:mobiletypenode           (1,0,0)
+# occampi:mobilealloc              (3,0,0)
+# occampi:initialnode              (4,0,0)
+# occampi:formalspec               (1,0,0)
+# mwsync:leaftype                  (0,0,0)
+# mwsync:mwsyncvar                 (4,0,0)
+# occampi:ac                       (2,0,0)
+# occampi:varac                    (5,0,0)
 
-.TNODE	"occampi:miscnode" (1,0,0) "body"
+
 
 
 # }}}
@@ -155,7 +253,9 @@
 .GRULE	"opi:xdeclreduce" "SN1N+N+V0C[VARDECL]3R-"
 .GRULE	"opi:procdeclreduce" "SN1N+N+V00C[PROCDECL]4R-"
 .GRULE	"opi:abbrreduce" "SN1N+N+N+<0VC[ABBREV]4R-"
+.GRULE	"opi:retypesreduce" "SN1N+N+N+<0VC[RETYPES]4R-"
 .GRULE	"opi:valabbrreduce" "SN1N+N+N+<0VC[VALABBREV]4R-"
+.GRULE	"opi:valretypesreduce" "SN1N+N+N+<0VC[VALRETYPES]4R-"
 .GRULE	"opi:notypeabbrreduce" "SN1N+N+0<0VC[ABBREV]4R-"
 .GRULE	"opi:notypevalabbrreduce" "SN1N+N+0<0VC[VALABBREV]4R-"
 .GRULE	"opi:directedchaninput" "SN0N+0C[ASINPUT]2N-"
@@ -179,7 +279,7 @@
 	"[ 1 occampi:protocol 2 ]"
 	"[ 2 {<opi:chanpush>} -* 3 ]"
 	"[ 3 -@FUNCTION <occampi:fdeclstarttype> ] [ 3 occampi:namelist 4 ]"
-	"[ 4 @@: 5 ] [ 4 @IS 6 ]"
+	"[ 4 @@: 5 ] [ 4 @IS 6 ] [ 4 @RETYPES 16 ]"
 	"[ 5 {<opi:declreduce>} -* ]"
 	"[ 6 occampi:operand 7 ]"
 	"[ 7 @@: 8 ]"
@@ -191,6 +291,7 @@
 	"[ 13 {<parser:eattoken>} -* 14 ]"
 	"[ 14 occampi:protocol 15 ]"
 	"[ 15 {<opi:portpush>} -* 3 ]"
+	"[ 16 occampi:operand 17 ] [ 17 @@: 18 ] [ 18 {<opi:retypesreduce>} -* ]"
 .TABLE	"occampi:vardecl:bracketstart ::= [ 0 occampi:arrayspec 1 ] [ 1 occampi:vardecl 2 ] [ 2 {Roccampi:arrayfold} -* ]"
 
 .TABLE	"occampi:procdecl ::= [ 0 +@PROC 6 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:procdeclreduce>} -* ]"
