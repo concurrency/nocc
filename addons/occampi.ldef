@@ -298,9 +298,12 @@
 	"[ 6 +@TYPE 7 ] [ 6 -* 8 ] [ 7 {<parser:rewindtokens>} -* <occampi:proctypedecl> ] [ 8 {<parser:eattoken>} -* 1 ]"
 
 .TABLE	"occampi:valabbrdecl ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} -* 2 ] [ 2 @IS 3 ] [ 2 +Name 6 ] [ 3 occampi:expr 4 ] [ 4 @@: 5 ]"
-	"[ 5 {<opi:notypevalabbrreduce>} -* ] [ 6 {<opi:namepush>} -* 7 ] [ 7 @IS 8 ] [ 8 occampi:expr 9 ] [ 9 {<opi:valabbrreduce>} -* ]"
-.TABLE	"occampi:valabbrdecl +:= [ 0 occampi:primtype 1 ] [ 1 occampi:name 2 ] [ 2 @IS 3 ] [ 3 occampi:expr 4 ] [ 4 @@: 5 ] [ 5 {<opi:valabbrreduce>} -* ]"
-.TABLE	"occampi:valabbrdecl +:= [ 0 -@@[ 1 ] [ 1 occampi:arraytype 2 ] [ 2 occampi:name 3 ] [ 3 @IS 4 ] [ 4 occampi:expr 5 ] [ 5 @@: 6 ] [ 6 {<opi:valabbrreduce>} -* ]"
+	"[ 5 {<opi:notypevalabbrreduce>} -* ] [ 6 {<opi:namepush>} -* 7 ] [ 7 @IS 8 ] [ 7 @RETYPES 10 ] [ 8 occampi:expr 9 ] [ 9 {<opi:valabbrreduce>} -* ]"
+	"[ 10 occampi:expr 11 ] [ 11 @@: 12 ] [ 12 {<opi:valretypesreduce>} -* ]"
+.TABLE	"occampi:valabbrdecl +:= [ 0 occampi:primtype 1 ] [ 1 occampi:name 2 ] [ 2 @IS 3 ] [ 2 @RETYPES 6 ] [ 3 occampi:expr 4 ] [ 4 @@: 5 ] [ 5 {<opi:valabbrreduce>} -* ]"
+	"[ 6 occampi:expr 7 ] [ 7 @@: 8 ] [ 8 {<opi:valretypesreduce>} -* ]"
+.TABLE	"occampi:valabbrdecl +:= [ 0 -@@[ 1 ] [ 1 occampi:arraytype 2 ] [ 2 occampi:name 3 ] [ 3 @IS 4 ] [ 3 @RETYPES 7 ] [ 4 occampi:expr 5 ] [ 5 @@: 6 ] [ 6 {<opi:valabbrreduce>} -* ]"
+	"[ 7 occampi:expr 8 ] [ 8 @@: 9 ] [ 9 {<opi:valretypesreduce>} -* ]"
 .TABLE	"occampi:abbrdecl ::= [ 0 @VAL <occampi:valabbrdecl> ]"
 
 .TABLE	"occampi:fparam ::= [ 0 occampi:primtype 1 ] [ 0 @CHAN 3 ] [ 0 occampi:name 9 ] [ 0 @VAL 22 ]"
