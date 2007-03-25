@@ -99,7 +99,12 @@ static dopmap_t dopmap[] = {
 	{SYMBOL, "+", NULL, &(opi.tag_ADD), I_ADD},
 	{SYMBOL, "-", NULL, &(opi.tag_SUB), I_SUB},
 	{SYMBOL, "*", NULL, &(opi.tag_MUL), I_MUL},
+	{SYMBOL, "/\\", NULL, &(opi.tag_BITAND), I_AND},
+	{SYMBOL, "><", NULL, &(opi.tag_BITXOR), I_XOR},
 	{SYMBOL, "/", NULL, &(opi.tag_DIV), I_DIV},
+	{SYMBOL, "<<", NULL, &(opi.tag_LSHIFT), I_SHL},
+	{SYMBOL, ">>", NULL, &(opi.tag_RSHIFT), I_SHR},
+	{SYMBOL, "\\/", NULL, &(opi.tag_BITOR), I_OR},
 	{SYMBOL, "\\", NULL, &(opi.tag_REM), I_REM},
 	{KEYWORD, "PLUS", NULL, &(opi.tag_PLUS), I_SUM},
 	{KEYWORD, "MINUS", NULL, &(opi.tag_MINUS), I_DIFF},
@@ -661,6 +666,10 @@ static void occampi_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 		}
 	}
 	if (!tag) {
+#if 1
+fprintf (stderr, "occampi_reduce_dop: unhandled symbol:\n");
+lexer_dumptoken (stderr, tok);
+#endif
 		parser_error (pp->lf, "occampi_reduce_dop(): unhandled token [%s]", lexer_stokenstr (tok));
 		return;
 	}
@@ -823,6 +832,16 @@ static int occampi_oper_init_nodes (void)
 	opi.tag_MINUS = tnode_newnodetag ("MINUS", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_TIMES = tnode_newnodetag ("TIMES", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_LSHIFT = tnode_newnodetag ("LSHIFT", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_RSHIFT = tnode_newnodetag ("RSHIFT", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_BITOR = tnode_newnodetag ("BITOR", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_BITAND = tnode_newnodetag ("BITAND", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_BITXOR = tnode_newnodetag ("BITXOR", &i, tnd, NTF_NONE);
 	/*}}}*/
 	/*{{{  occampi:relnode -- RELEQ, RELNEQ, RELLT, RELGT, RELLEQ, RELGEQ, RELAND, RELOR, RELXOR*/
 	i = -1;

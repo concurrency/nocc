@@ -137,6 +137,11 @@ typedef struct {
 	struct TAG_ntdef *tag_PLUS;
 	struct TAG_ntdef *tag_MINUS;
 	struct TAG_ntdef *tag_TIMES;
+	struct TAG_ntdef *tag_RSHIFT;
+	struct TAG_ntdef *tag_LSHIFT;
+	struct TAG_ntdef *tag_BITOR;
+	struct TAG_ntdef *tag_BITAND;
+	struct TAG_ntdef *tag_BITXOR;
 	struct TAG_ntdef *tag_UMINUS;
 	struct TAG_ntdef *tag_BITNOT;
 	struct TAG_ntdef *tag_RELEQ;

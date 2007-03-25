@@ -171,13 +171,18 @@
 
 .TABLE	"occampi:exprnamestart ::= [ 0 +Name 1 ] [ 1 @@( 2 ] [ 1 @@[ 5 ] [ 2 {<opi:namepush>} ] [ 2 -* <occampi:infinstance> ]"
 	"[ 1 -* 4 ] [ 4 {<opi:namereduce>} -* ] [ 5 {<opi:namepush>} ] [ 5 occampi:expr 6 ] [ 6 @@] 7 ] [ 7 {<opi:xsubscriptreduce>} -* ]"
-.TABLE	"occampi:expr +:= [ 0 -Name 1 ] [ 0 +Integer 3 ] [ 0 +Real 4 ] [ 0 +String 12 ] [ 0 -@TRUE 10 ] [ 0 -@FALSE 10 ] [ 0 @@( 7 ]"
+.TABLE	"occampi:closedexpr ::= [ 0 -Name 1 ] [ 0 @@( 3 ] [ 0 -* 6 ]"
+	"[ 1 occampi:exprnamestart 2 ] [ 2 {<opi:nullreduce>} -* ]"
+	"[ 3 occampi:expr 4 ] [ 4 @@) 5 ] [ 5 {<opi:nullreduce>} -* ]"
+	"[ 6 occampi:litbool 7 ] [ 6 occampi:litint 7 ] [ 7 {<opi:nullreduce>} -* ]"
+.TABLE	"occampi:expr +:= [ 0 -Name 1 ] [ 0 +Integer 3 ] [ 0 +Real 4 ] [ 0 +String 12 ] [ 0 -@TRUE 10 ] [ 0 -@FALSE 10 ] [ 0 @@( 7 ] [ 0 occampi:primtype 14 ]"
 	"[ 1 occampi:exprnamestart 2 ] [ 2 {<opi:nullreduce>} -* 5 ]"
 	"[ 3 {<opi:integerreduce>} -* 5 ] [ 4 {<opi:realreduce>} -* 5 ] [ 5 -* ] [ 5 %occampi:restofexpr 6 ] [ 6 {<opi:resultpush>} ] [ 6 -* <occampi:restofexpr> ]"
 	"[ 7 occampi:expr 8 ] [ 8 @@) 9 ] [ 9 %occampi:restofexpr 13 ] [ 9 {<opi:nullreduce>} -* ]"
 	"[ 10 occampi:litbool 11 ] [ 11 {<opi:nullreduce>} -* ]"
 	"[ 12 {<opi:stringreduce>} -* 5 ]"
 	"[ 13 {<opi:resultpush>} ] [ 13 -* <occampi:restofexpr> ]"
+	"[ 14 occampi:closedexpr 15 ] [ 15 {<opi:typecast>} -* ]"
 .TABLE	"occampi:operand +:= [ 0 +Name 1 ] [ 1 {<opi:namereduce>} -* ]"
 #.BNF	"occampi:expr ::= ( -Name occampi:exprnamestart {<opi:nullreduce>} | +Integer {<opi:integerreduce>} | +Real {<opi:realreduce>} )"
 .BNF	"occampi:exprsemilist ::= { occampi:expr @@; 1 }"
@@ -437,6 +442,7 @@
 
 
 .TABLE	"occampi:litbool ::= [ 0 @TRUE 1 ] [ 0 @FALSE 2 ] [ 1 {<opi:trueboolreduce>} -* 3 ] [ 2 {<opi:falseboolreduce>} -* 3 ] [ 3 -* ]"
+.TABLE	"occampi:litint ::= [ 0 +Integer 1 ] [ 1 {<opi:integerreduce>} -* ]"
 
 
 # }}}
@@ -478,12 +484,15 @@
 # }}}
 .SECTION "occampi-oper" # {{{: operators
 
+.GRULE	"opi:typecast" "SN1N+N+C[TYPECAST]2R-"
+
 .RFUNC	"Roccampi:dopreduce" "occampi_reduce_dop"
 .RFUNC	"Roccampi:relreduce" "occampi_reduce_rel"
 .RFUNC	"Roccampi:mopreduce" "occampi_reduce_mop"
 .RFUNC	"Roccampi:typecastreduce" "occampi_reduce_typecast"
 
-.TABLE	"occampi:restofexpr +:= [ 0 +@@+ 1 ] [ 0 +@@- 1 ] [ 0 +@@* 1 ] [ 0 +@@/ 1 ] [ 0 +@@\\ 1 ] [ 0 +@PLUS 1 ] [ 0 +@MINUS 1 ] [ 0 +@TIMES 1 ]"
+
+.TABLE	"occampi:restofexpr +:= [ 0 +@@+ 1 ] [ 0 +@@- 1 ] [ 0 +@@* 1 ] [ 0 +@@/ 1 ] [ 0 +@@\\ 1 ] [ 0 +@PLUS 1 ] [ 0 +@MINUS 1 ] [ 0 +@TIMES 1 ] [ 0 +@@>> 1 ] [ 0 +@@<< 1 ] [ 0 +@@/\\ 1 ] [ 0 +@@\\/ 1 ] [ 0 +@@>< 1 ]"
 	"[ 1 occampi:expr 2 ] [ 2 {Roccampi:dopreduce} -* ]"
 .TABLE	"occampi:restofexpr +:= [ 0 +@@= 1 ] [ 0 +@@< 1 ] [ 0 +@@> 1 ] [ 1 occampi:expr 2 ] [ 2 {Roccampi:relreduce} -* ]"
 .TABLE	"occampi:restofexpr +:= [ 0 @@( 1 ] [ 1 occampi:type 2 ] [ 2 @@) 3 ] [ 3 {Roccampi:typecastreduce} -* ]"

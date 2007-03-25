@@ -2699,6 +2699,41 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 		/*}}}*/
+		/*{{{  SHL: shift left*/
+	case I_SHL:
+		codegen_write_string (cgen, "\tshl\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		krocetc_cgstate_tsdelta (cgen, 1);
+		break;
+		/*}}}*/
+		/*{{{  SHR: shift right*/
+	case I_SHR:
+		codegen_write_string (cgen, "\tshr\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		krocetc_cgstate_tsdelta (cgen, 1);
+		break;
+		/*}}}*/
+		/*{{{  AND: bitwise and*/
+	case I_AND:
+		codegen_write_string (cgen, "\tand\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		krocetc_cgstate_tsdelta (cgen, 1);
+		break;
+		/*}}}*/
+		/*{{{  OR: bitwise or*/
+	case I_OR:
+		codegen_write_string (cgen, "\tor\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		krocetc_cgstate_tsdelta (cgen, 1);
+		break;
+		/*}}}*/
+		/*{{{  XOR: bitwise exclusive or*/
+	case I_XOR:
+		codegen_write_string (cgen, "\txor\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		krocetc_cgstate_tsdelta (cgen, 1);
+		break;
+		/*}}}*/
 		/*{{{  NEG: invert checking for overflow*/
 	case I_NEG:
 		codegen_write_string (cgen, "\tneg\n");

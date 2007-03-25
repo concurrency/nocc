@@ -5,8 +5,8 @@ PROC test.n51 ()
   INT x:
   BYTE b:
   SEQ
-    x := 42
-    b := BYTE x
+    x := INT 'x'
+    b := BYTE (x + 2)
 :
 
 
