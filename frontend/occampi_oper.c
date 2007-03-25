@@ -635,6 +635,16 @@ static int occampi_typecheck_typecast (compops_t *cops, tnode_t *node, typecheck
 	return 1;
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_gettype_typecast (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	returns the type of a type-cast node
+ */
+static tnode_t *occampi_gettype_typecast (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
+{
+	/* FIXME! */
+	return defaulttype;
+}
+/*}}}*/
 
 
 /*{{{  static void occampi_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
@@ -666,7 +676,7 @@ static void occampi_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 		}
 	}
 	if (!tag) {
-#if 1
+#if 0
 fprintf (stderr, "occampi_reduce_dop: unhandled symbol:\n");
 lexer_dumptoken (stderr, tok);
 #endif
@@ -900,8 +910,8 @@ static int occampi_oper_init_nodes (void)
 	// tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_typecast));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	// tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_mop));
-	// tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_iscomplex_mop));
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_typecast));
+	// tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_iscomplex_typecast));
 	tnd->lops = lops;
 
 	i = -1;

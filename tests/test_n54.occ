@@ -1,0 +1,9 @@
+
+-- test_n54.occ -- untyped VALs
+
+PROC test.n54 ()
+  VAL hex.bits IS "0123456789ABCDEF":
+  SEQ
+    SKIP
+:
+

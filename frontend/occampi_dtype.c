@@ -969,8 +969,14 @@ fprintf (stderr, "type =\n");
 tnode_dumptree (type, 1, stderr);
 #endif
 		if (!type) {
-			/* ignore for now */
+			/* assume arraysub */
 			scope_subtree (tnode_nthsubaddr (*node, 1), ss);
+
+			*node = tnode_createfrom (opi.tag_ARRAYSUB, oldnode, tnode_nthsubof (oldnode, 0), tnode_nthsubof (oldnode, 1), tnode_nthsubof (oldnode, 2));
+			tnode_setnthsub (oldnode, 0, NULL);
+			tnode_setnthsub (oldnode, 1, NULL);
+			tnode_free (oldnode);
+
 			return 0;
 		}
 		if (type->tag == opi.tag_TYPESPEC) {

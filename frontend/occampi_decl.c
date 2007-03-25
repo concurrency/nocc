@@ -363,6 +363,13 @@ fprintf (stderr, "occampi_scopein_abbrev: here! rawname = \"%s\"\n", rawname);
 		return -1;
 	}
 
+	if (!type) {
+#if 0
+fprintf (stderr, "occampi_scopein_abbrev: here 2! no type, scoped RHS is:\n");
+tnode_dumptree (tnode_nthsubof (*nodep, 3), 1, stderr);
+#endif
+	}
+
 	sname = name_addscopename (rawname, *nodep, type, NULL);
 	if (((*nodep)->tag == opi.tag_VALABBREV) || ((*nodep)->tag == opi.tag_VALRETYPES)) {
 		newname = tnode_createfrom (opi.tag_NVALABBR, name, sname);
