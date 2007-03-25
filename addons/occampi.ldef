@@ -567,11 +567,14 @@
 
 .TABLE	"occampi:varac ::= [ 0 occampi:name 1 ] [ 1 @@= 2 ] [ 2 occampi:expr 3 ] [ 3 @FOR 4 ] [ 4 occampi:expr 5 ] [ 5 @@| 6 ] [ 6 occampi:expr 7 ] [ 7 @@] 8 ] [ 8 {<opi:varacreduce>} -* ]"
 .TABLE	"occampi:arrayconstructor ::= [ 0 @@[ 1 ] [ 1 +@@] 2 ] [ 1 +Name 7 ] [ 1 -* 4 ]"
-	"[ 2 {<opi:nullacreduce>} -* ]"								# empty arrays: []
-	"[ 4 occampi:exprcommalist 5 ] [ 5 @@] 6 ] [ 6 {<opi:acreduce>} -* ]"			# expression-list: [42,x]
+	"[ 2 {<opi:nullacreduce>} -* ]"										# empty arrays: []
+	"[ 4 occampi:exprcommalist 5 ] [ 5 -@FROM 10 ] [ 5 -@FOR 10 ] [ 5 @@] 6 ] [ 6 {<opi:acreduce>} -* ]"	# expression-list: [42,x]
 	"[ 7 +@@= 8 ] [ 7 -* 9 ]"
-	"[ 8 {<parser:rewindtokens>} -* <occampi:varac> ]"					# variable array-constructor: [i=...]
-	"[ 9 {<parser:rewindtokens>} -* 4 ]"							# name-start expression-list: [x,42]
+	"[ 8 {<parser:rewindtokens>} -* <occampi:varac> ]"							# variable array-constructor: [i=...]
+	"[ 9 {<parser:rewindtokens>} -* 4 ]"									# name-start expression-list: [x,42]
+	"[ 10 @FROM 12 ] [ 10 -* 11 ] [ 11 {<opi:nullpush>} -* 13 ] [ 12 occampi:expr 13 ]"
+	"[ 13 @FOR 15 ] [ 13 -* 14 ] [ 14 {<opi:nullpush>} -* 16 ] [ 15 occampi:expr 16 ]"
+	"[ 16 @@] 17 ] [ 17 {<opi:slicereduce>} -* ]"								# array slices: [x FROM s FOR l]
 .TABLE	"occampi:expr +:= [ 0 occampi:arrayconstructor 1 ] [ 1 {<opi:nullreduce>} -* ]"
 
 # }}}

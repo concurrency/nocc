@@ -963,9 +963,16 @@ tnode_dumptree (*node, 1, stderr);
 		tnode_t *type = NameTypeOf (name);
 
 #if 0
-fprintf (stderr, "occampi_scopein_subscript(): got type from NAMENODE base =\n");
+fprintf (stderr, "occampi_scopein_subscript(): got type from NAMENODE, base =\n");
+tnode_dumptree (base, 1, stderr);
+fprintf (stderr, "type =\n");
 tnode_dumptree (type, 1, stderr);
 #endif
+		if (!type) {
+			/* ignore for now */
+			scope_subtree (tnode_nthsubaddr (*node, 1), ss);
+			return 0;
+		}
 		if (type->tag == opi.tag_TYPESPEC) {
 			/* step over it */
 			type = tnode_nthsubof (type, 0);
