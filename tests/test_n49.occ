@@ -1,0 +1,12 @@
+
+-- test_n49.occ -- bracket starts
+
+VAL INT digits IS 4:
+
+PROC test.n49 ()
+  [digits]INT data:
+  SEQ
+    SKIP
+:
+
+

@@ -174,16 +174,17 @@
 .TABLE	"occampi:expr +:= [ 0 -Name 1 ] [ 0 +Integer 3 ] [ 0 +Real 4 ] [ 0 +String 12 ] [ 0 -@TRUE 10 ] [ 0 -@FALSE 10 ] [ 0 @@( 7 ]"
 	"[ 1 occampi:exprnamestart 2 ] [ 2 {<opi:nullreduce>} -* 5 ]"
 	"[ 3 {<opi:integerreduce>} -* 5 ] [ 4 {<opi:realreduce>} -* 5 ] [ 5 -* ] [ 5 %occampi:restofexpr 6 ] [ 6 {<opi:resultpush>} ] [ 6 -* <occampi:restofexpr> ]"
-	"[ 7 occampi:expr 8 ] [ 8 @@) 9 ] [ 9 {<opi:nullreduce>} -* ]"
+	"[ 7 occampi:expr 8 ] [ 8 @@) 9 ] [ 9 %occampi:restofexpr 13 ] [ 9 {<opi:nullreduce>} -* ]"
 	"[ 10 occampi:litbool 11 ] [ 11 {<opi:nullreduce>} -* ]"
 	"[ 12 {<opi:stringreduce>} -* 5 ]"
+	"[ 13 {<opi:resultpush>} ] [ 13 -* <occampi:restofexpr> ]"
 .TABLE	"occampi:operand +:= [ 0 +Name 1 ] [ 1 {<opi:namereduce>} -* ]"
 #.BNF	"occampi:expr ::= ( -Name occampi:exprnamestart {<opi:nullreduce>} | +Integer {<opi:integerreduce>} | +Real {<opi:realreduce>} )"
 .BNF	"occampi:exprsemilist ::= { occampi:expr @@; 1 }"
 .BNF	"occampi:exprcommalist ::= { occampi:expr @@, 1 }"
 .TABLE	"occampi:namestart ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} ] [ 1 -* <occampi:namestartname> ]"
 
-.TABLE	"occampi:bracketstart ::= [ 0 +@@[ 1 ] [ 1 +Integer 2 ] [ 2 +@@] 3 ] [ 3 {<parser:rewindtokens>} -* <occampi:vardecl:bracketstart> ]"
+.TABLE	"occampi:bracketstart ::= [ 0 +@@[ 1 ] [ 1 +Integer 1 ] [ 1 +Name 1 ] [ 1 +@@] 2 ] [ 2 {<parser:rewindtokens>} -* <occampi:vardecl:bracketstart> ]"
 
 .BNF	"occampi:declorprocstart +:= ( occampi:vardecl | occampi:abbrdecl | occampi:valof | occampi:procdecl | occampi:typedecl |"
 	"occampi:primproc | occampi:cproc | occampi:snode | occampi:namestart | occampi:mobiledecl |"
@@ -240,7 +241,7 @@
 
 .TABLE	"occampi:interleaving ::= [ 0 occampi:name 1 ] [ 1 @@( 2 ] [ 2 occampi:expr 3 ] [ 3 @@) 4 ] [ 4 {Roccampi:ileave} -* 5 ] [ 5 @@, 0 ] [ 5 -* ]"
 .TABLE	"occampi:replcproc ::= [ 0 occampi:name 1 ] [ 1 @@= 2 ] [ 2 occampi:expr 3 ] [ 3 @FOR 4 ] [ 4 occampi:expr 5 ] [ 5 {Roccampi:replcnode} -* ]"
-.TABLE	"occampi:cproc ::= [ 0 +@SEQ 1 ] [ 0 +@PAR 1 ] [ 1 -Newline 2 ] [ 1 -Name <occampi:replcproc> ] [ 1 -@INTERLEAVE 3 ] [ 2 {Roccampi:cnode} -* ]"
+.TABLE	"occampi:cproc ::= [ 0 +@SEQ 1 ] [ 0 +@PAR 1 ] [ 1 Comment 1 ] [ 1 -Newline 2 ] [ 1 -Name <occampi:replcproc> ] [ 1 -@INTERLEAVE 3 ] [ 2 {Roccampi:cnode} -* ]"
 	"[ 3 {Roccampi:cnode} @INTERLEAVE <occampi:interleaving> ]"
 .TABLE	"occampi:cproc +:= [ 0 +@IF 1 ] [ 1 -Newline 2 ] [ 1 %occampi:expr 3 ] [ 2 {<opi:ifstart>} -* ]"
 	"[ 3 occampi:expr 4 ] [ 4 -Newline 5 ] [ 5 {<opi:shortif>} -* ]"
@@ -507,7 +508,7 @@
 .GRULE	"opi:timerguard" "SN0N+0N+C[TIMERGUARD]3R-"
 
 .TABLE	"occampi:snode +:= [ 0 +@ALT 1 ] [ 0 +@CASE 3 ] [ 1 -Newline 2 ] [ 2 {<opi:altsnode>} -* ] [ 3 occampi:expr 4 ] [ 4 -Newline 5 ] [ 5 {<opi:casenode>} -* ]"
-.TABLE	"occampi:ifcond ::= [ 0 occampi:expr 1 ] [ 1 -Newline 2 ] [ 2 {<opi:ifcond>} -* ]"
+.TABLE	"occampi:ifcond ::= [ 0 occampi:expr 1 ] [ 1 Comment 1 ] [ 1 -Newline 2 ] [ 2 {<opi:ifcond>} -* ]"
 .TABLE	"occampi:subaltinputguard ::= [ 0 occampi:name 1 ] [ 1 -* <occampi:namestartname> ]"
 .TABLE	"occampi:altinputguard ::= [ 0 occampi:subaltinputguard 1 ] [ 1 {<opi:inputguard>} -* ]"
 .TABLE	"occampi:altguard ::= [ 0 +@SKIP 1 ] [ 0 +Name 12 ] [ 0 -* 3 ] [ 1 {<opi:nullpush>} -* 2 ] [ 2 {<opi:skipguard>} -* ]"

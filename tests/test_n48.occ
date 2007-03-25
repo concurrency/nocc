@@ -1,7 +1,9 @@
 
 -- test_n48.occ -- array formals
 
-PROC test.n48 (VAL []INT data)
+VAL INT digits IS 4:
+
+PROC test.n48 ([digits]INT data)
   SKIP
 :
 

@@ -1,0 +1,10 @@
+
+-- test_n50.occ -- expressions
+
+PROC test.n50 ()
+  INT x, y:
+  SEQ
+    x := 42
+    y := (x + 4) - 5
+:
+

@@ -1,0 +1,12 @@
+
+-- test_n51.occ -- type casts
+
+PROC test.n51 ()
+  INT x:
+  BYTE b:
+  SEQ
+    x := 42
+    b := BYTE x
+:
+
+
