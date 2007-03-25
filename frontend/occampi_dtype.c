@@ -1371,6 +1371,36 @@ tnode_dumptree (array, 4, stderr);
 	return;
 }
 /*}}}*/
+/*{{{  static void occampi_reduce_valarrayfold (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	takes a non-VAL declaration of some kind and an ARRAY on the node-stack, and folds
+ *	the ARRAY into the VALFPARAM's type
+ */
+static void occampi_reduce_valarrayfold (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	tnode_t *decl, *array;
+
+	decl = dfa_popnode (dfast);
+	array = dfa_popnode (dfast);
+
+	if (!array) {
+		parser_error (pp->lf, "broken array specification");
+	} else {
+		tnode_t **typep = tnode_nthsubaddr (decl, 1);
+
+		tnode_setnthsub (array, 1, *typep);
+		*typep = array;
+	}
+	*(dfast->ptr) = decl;
+
+	if (decl->tag == opi.tag_FPARAM) {
+		decl->tag = opi.tag_VALFPARAM;
+	} else if (decl->tag == opi.tag_ABBREV) {
+		decl->tag = opi.tag_VALABBREV;
+	}
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_dtype_init_nodes (void)*/
@@ -1389,6 +1419,7 @@ static int occampi_dtype_init_nodes (void)
 	fcnlib_addfcn ("occampi_typedeclhook_blankhook", (void *)occampi_typedeclhook_blankhook, 1, 1);
 	fcnlib_addfcn ("occampi_reduce_resetnewline", (void *)occampi_reduce_resetnewline, 0, 3);
 	fcnlib_addfcn ("occampi_reduce_arrayfold", (void *)occampi_reduce_arrayfold, 0, 3);
+	fcnlib_addfcn ("occampi_reduce_valarrayfold", (void *)occampi_reduce_valarrayfold, 0, 3);
 
 	/*}}}*/
 	/*{{{  occampi:typedecl -- DATATYPEDECL, CHANTYPEDECL, PROCTYPEDECL*/
