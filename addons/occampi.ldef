@@ -189,7 +189,8 @@
 .BNF	"occampi:exprcommalist ::= { occampi:expr @@, 1 }"
 .TABLE	"occampi:namestart ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} ] [ 1 -* <occampi:namestartname> ]"
 
-.TABLE	"occampi:bracketstart ::= [ 0 +@@[ 1 ] [ 1 +Integer 1 ] [ 1 +Name 1 ] [ 1 +@@] 2 ] [ 2 {<parser:rewindtokens>} -* <occampi:vardecl:bracketstart> ]"
+.TABLE	"occampi:bracketstart ::= [ 0 +@@[ 1 ] [ 1 +Integer 1 ] [ 1 +Name 1 ] [ 1 +@@] 2 ] [ 1 -* 3 ] [ 2 {<parser:rewindtokens>} -* <occampi:vardecl:bracketstart> ]"
+	"[ 3 {<parser:rewindtokens>} -* 4 ] [ 4 occampi:arrayslice 5 ] [ 5 -* <occampi:namestartname> ]"
 
 .BNF	"occampi:declorprocstart +:= ( occampi:vardecl | occampi:abbrdecl | occampi:valof | occampi:procdecl | occampi:typedecl |"
 	"occampi:primproc | occampi:cproc | occampi:snode | occampi:namestart | occampi:mobiledecl |"
@@ -352,6 +353,8 @@
 .GRULE	"opi:ctmarkinput" "N+N+Sn10C[ASINPUT]2N-N-"
 .GRULE	"opi:ctmarkoutput" "N+N+Sn10C[ASOUTPUT]2N-N-"
 .GRULE	"opi:sizeopreduce" "SN0N+0C[SIZE]2R-"
+.GRULE	"opi:slicereduce" "SN0N+N+N+V*0C[ARRAYSLICE]4R-"
+.GRULE	"opi:nullpush" "0N-"
 
 .RFUNC	"Roccampi:resetnewline" "occampi_reduce_resetnewline"
 .RFUNC	"Roccampi:arrayfold" "occampi_reduce_arrayfold"
@@ -395,6 +398,11 @@
 .TABLE	"occampi:namestartname +:= [ 0 @@_ 1 ] [ 1 occampi:name 2 ] [ 2 {<opi:xsubscriptreduce>} -* 3 ] [ 3 {<opi:resultpush>} -* 0 ]"
 
 .TABLE	"occampi:expr +:= [ 0 @SIZE 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:sizeopreduce>} -* ]"
+
+.TABLE	"occampi:arrayslice ::= [ 0 @@[ 1 ] [ 1 occampi:operand 2 ] [ 2 @FROM 4 ] [ 2 -* 3 ] [ 3 {<opi:nullpush>} -* 5 ] [ 4 occampi:expr 5 ]"
+	"[ 5 @FOR 7 ] [ 5 -* 6 ] [ 6 {<opi:nullpush>} -* 8 ] [ 7 occampi:expr 8 ]"
+	"[ 8 @@] 9 ] [ 9 {<opi:slicereduce>} -* ]"
+
 
 .DFAERR	STUCK "occampi:typedecl" "in DATA TYPE declaration" EXPECTED
 

@@ -1,0 +1,10 @@
+
+-- tests/test_n53.occ -- LHS array slices
+
+PROC test.n53 ()
+  [4]INT x:
+  [2]INT v:
+  SEQ
+    [x FOR 2] := v
+:
+
