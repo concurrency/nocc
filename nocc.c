@@ -27,11 +27,14 @@
 #include <string.h>
 #include <stdarg.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <errno.h>
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
+#include <signal.h>
+
 
 #include "nocc.h"
 #include "support.h"
@@ -115,6 +118,7 @@ compopts_t compopts = {
 	outfile: NULL,
 	savenameddfa: {NULL, NULL},
 	savealldfas: NULL,
+	fatalgdb: 0,
 	DA_CONSTINITIALISER(epath),
 	DA_CONSTINITIALISER(ipath),
 	DA_CONSTINITIALISER(lpath),
@@ -127,7 +131,8 @@ compopts_t compopts = {
 	hashalgo: NULL,
 	privkey: NULL,
 	gperf_p: NULL,
-	gprolog_p: NULL
+	gprolog_p: NULL,
+	gdb_p: NULL
 };
 
 /*}}}*/
@@ -262,19 +267,63 @@ static int nocc_shutdownrun (void)
 	return v;
 }
 /*}}}*/
+/*{{{  static void nocc_invoke_gdb (void)*/
+/*
+ *	invokes GDB on the currently running NOCC
+ */
+static void nocc_invoke_gdb (void)
+{
+	int status = 0;
+
+	if (!compopts.gdb_p) {
+		fprintf (stderr, "%s: do not know where GDB is!\n", progname);
+		nocc_shutdownrun ();
+		exit (EXIT_FAILURE);
+	}
+	signal (SIGCHLD, SIG_IGN);
+
+	switch (fork()) {
+	case -1:
+		/* failed */
+		fprintf (stderr, "%s: failed to fork() to invoke GDB!: %s\n", progname, strerror (errno));
+		nocc_shutdownrun ();
+		exit (EXIT_FAILURE);
+		break;
+	case 0:
+		/* child */
+		{
+			char pidbuf[16];
+
+			snprintf (pidbuf, 15, "%d", (int)getppid());
+			execl (compopts.gdb_p, compopts.gdb_p, progname, pidbuf, NULL);
+			_exit (EXIT_FAILURE);
+		}
+		break;
+	default:
+		/* parent */
+		wait (&status);
+		nocc_shutdownrun ();
+		exit (EXIT_FAILURE);
+		break;
+	}
+	return;
+}
+/*}}}*/
 
 
 /*{{{  global report routines*/
-/*{{{  void nocc_xinternal (char *fmt, ...)*/
+/*{{{  void nocc_pvinternal (char *fmt, const char *file, const int line, va_list ap)*/
 /*
  *	called to report a fatal internal error (compiler-wide)
+ *	includes location in source where generated
  */
-void nocc_xinternal (char *fmt, ...)
+void nocc_pvinternal (char *fmt, const char *file, const int line, va_list ap)
 {
-	va_list ap;
-
-	va_start (ap, fmt);
-	fprintf (stderr, "%s: internal error: ", progname);
+	if (file && line) {
+		fprintf (stderr, "%s: internal error at %s:%d : ", progname, file ? file : "<unknown>", file ? line : -1);
+	} else {
+		fprintf (stderr, "%s: internal error: ", progname);
+	}
 	vfprintf (stderr, fmt, ap);
 	fprintf (stderr, "\n");
 	/* do a banner for these */
@@ -286,8 +335,28 @@ void nocc_xinternal (char *fmt, ...)
 	fprintf (stderr, "*******************************************************\n");
 	fprintf (stderr, "\n");
 	fflush (stderr);
+
+	if (compopts.fatalgdb) {
+		nocc_invoke_gdb ();
+		/* things potentially go bad if we allow this to return */
+	} else {
+		nocc_shutdownrun ();
+		exit (EXIT_FAILURE);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  void nocc_xinternal (char *fmt, ...)*/
+/*
+ *	called to report a fatal internal error (compiler-wide)
+ */
+void nocc_xinternal (char *fmt, ...)
+{
+	va_list ap;
+
+	va_start (ap, fmt);
+	nocc_pvinternal (fmt, NULL, 0, ap);
 	va_end (ap);
-	nocc_shutdownrun ();
 	exit (EXIT_FAILURE);
 	return;
 }
@@ -302,20 +371,8 @@ void nocc_pinternal (char *fmt, const char *file, const int line, ...)
 	va_list ap;
 
 	va_start (ap, line);
-	fprintf (stderr, "%s: internal error at %s:%d : ", progname, file ? file : "<unknown>", file ? line : -1);
-	vfprintf (stderr, fmt, ap);
-	fprintf (stderr, "\n");
-	/* do a banner for these */
-	fprintf (stderr, "\n");
-	fprintf (stderr, "*******************************************************\n");
-	fprintf (stderr, "  this is probably a compiler-bug;  please report to:  \n");
-	fprintf (stderr, "      %s\n", compopts.maintainer);
-	fprintf (stderr, "  with a copy of the code that caused the error.       \n");
-	fprintf (stderr, "*******************************************************\n");
-	fprintf (stderr, "\n");
-	fflush (stderr);
+	nocc_pvinternal (fmt, file, line, ap);
 	va_end (ap);
-	nocc_shutdownrun ();
 	exit (EXIT_FAILURE);
 	return;
 }
@@ -334,8 +391,14 @@ void nocc_fatal (char *fmt, ...)
 	fprintf (stderr, "\n");
 	fflush (stderr);
 	va_end (ap);
-	nocc_shutdownrun ();
-	exit (EXIT_FAILURE);
+
+	if (compopts.fatalgdb) {
+		nocc_invoke_gdb ();
+		/* things potentially go bad if we allow this to return */
+	} else {
+		nocc_shutdownrun ();
+		exit (EXIT_FAILURE);
+	}
 	return;
 }
 /*}}}*/
@@ -617,6 +680,10 @@ static void specfile_elem_end (xmlhandler_t *xh, void *data, xmlkey_t *key)
 			break;
 		case XMLKEY_GPROLOG:
 			specfile_setstring (&compopts.gprolog_p, edata);
+			sfree (edata);
+			break;
+		case XMLKEY_GDB:
+			specfile_setstring (&compopts.gdb_p, edata);
 			sfree (edata);
 			break;
 		default:
@@ -1246,6 +1313,10 @@ int main (int argc, char **argv)
 		nocc_message ("    not-main-module: %s", compopts.notmainmodule ? "yes" : "no");
 		nocc_message ("    verbose:         %s", compopts.verbose ? "yes" : "no");
 		nocc_message ("    treecheck:       %s", compopts.treecheck ? "yes" : "no");
+
+		nocc_message ("    gperf:           %s", compopts.gperf_p ?: "(unset)");
+		nocc_message ("    gprolog:         %s", compopts.gprolog_p ?: "(unset)");
+		nocc_message ("    gdb:             %s", compopts.gdb_p ?: "(unset)");
 	}
 
 

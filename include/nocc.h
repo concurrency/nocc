@@ -85,6 +85,7 @@ typedef struct TAG_compopts {
 	int treecheck;
 	char *savenameddfa[2];
 	char *savealldfas;
+	int fatalgdb;
 
 	/* general paths */
 	char *specsfile;
@@ -108,6 +109,7 @@ typedef struct TAG_compopts {
 	/* helper programs */
 	char *gperf_p;
 	char *gprolog_p;
+	char *gdb_p;
 } compopts_t;
 
 

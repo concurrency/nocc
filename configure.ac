@@ -22,7 +22,7 @@ AM_PROG_CC_STDC
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 
-AC_CHECK_PROG(GPERF,gperf,gperf)
+dnl AC_CHECK_PROG(GPERF,gperf,gperf)
 
 dnl internationalisation
 AM_GNU_GETTEXT
@@ -69,9 +69,10 @@ AC_CHECK_HEADER(expat.h,[have_expat_h=yes],[have_expat_h=no])
 AC_SEARCH_LIBS(XML_Parse,expat,[have_libexpat=yes],[have_libexpat=no])
 AC_SEARCH_LIBS(dlsym,dl,[have_lib_dl=yes],[have_lib_dl=no])
 
-AC_CHECK_TOOL(LD,ld)
-AC_CHECK_TOOL(GPERF,gperf)
-AC_CHECK_TOOL(GPROLOG,gprolog)
+AC_PATH_TOOL(LD,ld)
+AC_PATH_TOOL(GPERF,gperf)
+AC_PATH_TOOL(GPROLOG,gprolog)
+AC_PATH_TOOL(GDB,gdb)
 
 AC_DEFINE_UNQUOTED([HOST_CPU],"$host_cpu",[host CPU type])
 AC_DEFINE_UNQUOTED([HOST_OS],"$host_os",[host OS])

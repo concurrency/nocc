@@ -67,6 +67,7 @@ typedef struct TAG_dopmap {
 	token_t *tok;
 	ntdef_t **tagp;
 	transinstr_e instr;
+	int rhs_is_int;
 } dopmap_t;
 
 typedef struct TAG_mopmap {
@@ -96,20 +97,20 @@ static void occampi_oper_geninvrelop (codegen_t *cgen, int arg);
 /*}}}*/
 /*{{{  private data*/
 static dopmap_t dopmap[] = {
-	{SYMBOL, "+", NULL, &(opi.tag_ADD), I_ADD},
-	{SYMBOL, "-", NULL, &(opi.tag_SUB), I_SUB},
-	{SYMBOL, "*", NULL, &(opi.tag_MUL), I_MUL},
-	{SYMBOL, "/\\", NULL, &(opi.tag_BITAND), I_AND},
-	{SYMBOL, "><", NULL, &(opi.tag_BITXOR), I_XOR},
-	{SYMBOL, "/", NULL, &(opi.tag_DIV), I_DIV},
-	{SYMBOL, "<<", NULL, &(opi.tag_LSHIFT), I_SHL},
-	{SYMBOL, ">>", NULL, &(opi.tag_RSHIFT), I_SHR},
-	{SYMBOL, "\\/", NULL, &(opi.tag_BITOR), I_OR},
-	{SYMBOL, "\\", NULL, &(opi.tag_REM), I_REM},
-	{KEYWORD, "PLUS", NULL, &(opi.tag_PLUS), I_SUM},
-	{KEYWORD, "MINUS", NULL, &(opi.tag_MINUS), I_DIFF},
-	{KEYWORD, "TIMES", NULL, &(opi.tag_TIMES), I_PROD},
-	{NOTOKEN, NULL, NULL, NULL, I_INVALID}
+	{SYMBOL, "+", NULL, &(opi.tag_ADD), I_ADD, 0},
+	{SYMBOL, "-", NULL, &(opi.tag_SUB), I_SUB, 0},
+	{SYMBOL, "*", NULL, &(opi.tag_MUL), I_MUL, 0},
+	{SYMBOL, "/\\", NULL, &(opi.tag_BITAND), I_AND, 0},
+	{SYMBOL, "><", NULL, &(opi.tag_BITXOR), I_XOR, 0},
+	{SYMBOL, "/", NULL, &(opi.tag_DIV), I_DIV, 0},
+	{SYMBOL, "<<", NULL, &(opi.tag_LSHIFT), I_SHL, 1},
+	{SYMBOL, ">>", NULL, &(opi.tag_RSHIFT), I_SHR, 1},
+	{SYMBOL, "\\/", NULL, &(opi.tag_BITOR), I_OR, 0},
+	{SYMBOL, "\\", NULL, &(opi.tag_REM), I_REM, 0},
+	{KEYWORD, "PLUS", NULL, &(opi.tag_PLUS), I_SUM, 0},
+	{KEYWORD, "MINUS", NULL, &(opi.tag_MINUS), I_DIFF, 0},
+	{KEYWORD, "TIMES", NULL, &(opi.tag_TIMES), I_PROD, 0},
+	{NOTOKEN, NULL, NULL, NULL, I_INVALID, 0}
 };
 
 static relmap_t relmap[] = {
@@ -132,15 +133,35 @@ static mopmap_t mopmap[] = {
 /*}}}*/
 
 
-/*{{{  static int occampi_typecheck_dop (compops_t *cops, tnode_t *tptr, typecheck_t *tc)*/
+/*{{{  static int occampi_typecheck_dop (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking on a dyadic operator
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_typecheck_dop (compops_t *cops, tnode_t *tptr, typecheck_t *tc)
+static int occampi_typecheck_dop (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
-	/* FIXME! */
-	return 1;
+	tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
+	int i;
+
+	typecheck_subtree (tnode_nthsubof (node, 0), tc);
+	typecheck_subtree (tnode_nthsubof (node, 1), tc);
+
+	for (i=0; dopmap[i].lookup && (*(dopmap[i].tagp) != node->tag); i++);
+	if (!dopmap[i].lookup) {
+		nocc_internal ("occampi_typecheck_dop(): failed to find dyadic operator [%s]", node->tag->name);
+	}
+
+	if (dopmap[i].rhs_is_int) {
+		tnode_t *rhstype = typecheck_gettype (tnode_nthsubof (node, 1), definttype);
+
+		if ((rhstype != definttype) || !typecheck_typeactual (definttype, rhstype, node, tc)) {
+			typecheck_error (node, tc, "right-hand-side of [%s] must be integer", node->tag->name);
+		}
+	}
+
+	tnode_free (definttype);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int occampi_constprop_dop (compops_t *cops, tnode_t **tptr)*/

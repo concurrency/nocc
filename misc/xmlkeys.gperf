@@ -67,5 +67,6 @@ signedhash,		XMLKEY_SIGNEDHASH
 extn,			XMLKEY_EXTN
 gperf,			XMLKEY_GPERF
 gprolog,		XMLKEY_GPROLOG
+gdb,			XMLKEY_GDB
 %%
 
