@@ -495,7 +495,17 @@ tnode_dumptree (rtype, 1, stderr);
 fprintf (stderr, "occampi_typecheck_abbrev(): *typep=0x%8.8x =\n", (unsigned int)(*typep));
 tnode_dumptree (*typep, 1, stderr);
 #endif
-			realtype = typecheck_typeactual (*typep, rtype, node, tc);
+			if ((node->tag == opi.tag_RETYPES) || (node->tag == opi.tag_VALRETYPES)) {
+				int rhsbytes = tnode_bytesfor (rtype, NULL);
+				int lhsbytes = tnode_bytesfor (*typep, NULL);
+
+#if 1
+fprintf (stderr, "occampi_typecheck_abbrev(): RETYPES: rhsbytes = %d, lhsbytes = %d\n", rhsbytes, lhsbytes);
+#endif
+				realtype = *typep;
+			} else {
+				realtype = typecheck_typeactual (*typep, rtype, node, tc);
+			}
 #if 0
 fprintf (stderr, "occampi_typecheck_abbrev(): realtype (0x%8.8x) =\n", (unsigned int)realtype);
 tnode_dumptree (realtype, 1, stderr);
