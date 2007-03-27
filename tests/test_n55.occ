@@ -1,0 +1,14 @@
+
+-- test_n55.occ -- array RETYPES
+
+PROC test.n55 ()
+  INT x:
+  SEQ
+    x := 16
+
+    [4]BYTE y RETYPES x:
+    SEQ
+      y[0] := 'a'
+      SKIP
+:
+
