@@ -1041,6 +1041,44 @@ static int occampi_typecheck_subscript (compops_t *cops, tnode_t *node, typechec
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_namemap_subscript (compops_t *cops, tnode_t **node, map_t *mdata)*/
+/*
+ *	name-maps a subscript-node, turning it into a back-end INDEXED node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_subscript (compops_t *cops, tnode_t **node, map_t *mdata)
+{
+	if ((*node)->tag == opi.tag_RECORDSUB) {
+		fielddecloffset_t *fdh;
+		tnode_t *index = tnode_nthsubof (*node, 1);
+
+		/* "index" should be an N_FIELD */
+		if (index->tag != opi.tag_NFIELD) {
+			return 0;
+		}
+		fdh = (fielddecloffset_t *)tnode_getchook (index, fielddecloffset);
+
+		*node = mdata->target->newindexed (tnode_nthsubof (*node, 0), NULL, 0, fdh->offset);
+
+	} else if ((*node)->tag == opi.tag_ARRAYSUB) {
+		int subtypesize = tnode_bytesfor (tnode_nthsubof (*node, 2), mdata->target);
+
+#if 0
+fprintf (stderr, "occampi_namemap_subscript(): ARRAYSUB: subtypesize=%d, *node[2] = 0x%8.8x = \n", subtypesize, (unsigned int)tnode_nthsubof (*node, 2));
+if (tnode_nthsubof (*node, 2)) {
+	tnode_dumptree (tnode_nthsubof (*node, 2), 1, stderr);
+} else {
+	fprintf (stderr, "    <nullnode />\n");
+}
+#endif
+		*node = mdata->target->newindexed (tnode_nthsubof (*node, 0), tnode_nthsubof (*node, 1), subtypesize, 0);
+	} else {
+		nocc_error ("occampi_namemap_subscript(): unsupported subscript type [%s]", (*node)->tag->name);
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_gettype_subscript (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
 /*
  *	called to get the type of a subscript
@@ -1166,42 +1204,14 @@ static int occampi_iscomplex_subscript (langops_t *lops, tnode_t *node, int deep
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_namemap_subscript (compops_t *cops, tnode_t **node, map_t *mdata)*/
+/*{{{  static int occampi_isvar_subscript (langops_t *lops, tnode_t *node)*/
 /*
- *	name-maps a subscript-node, turning it into a back-end INDEXED node
- *	returns 0 to stop walk, 1 to continue
+ *	returns non-zero if the given subscript is a variable (l-value)
  */
-static int occampi_namemap_subscript (compops_t *cops, tnode_t **node, map_t *mdata)
+static int occampi_isvar_subscript (langops_t *lops, tnode_t *node)
 {
-	if ((*node)->tag == opi.tag_RECORDSUB) {
-		fielddecloffset_t *fdh;
-		tnode_t *index = tnode_nthsubof (*node, 1);
-
-		/* "index" should be an N_FIELD */
-		if (index->tag != opi.tag_NFIELD) {
-			return 0;
-		}
-		fdh = (fielddecloffset_t *)tnode_getchook (index, fielddecloffset);
-
-		*node = mdata->target->newindexed (tnode_nthsubof (*node, 0), NULL, 0, fdh->offset);
-
-	} else if ((*node)->tag == opi.tag_ARRAYSUB) {
-		int subtypesize = tnode_bytesfor (tnode_nthsubof (*node, 2), mdata->target);
-
-#if 0
-fprintf (stderr, "occampi_namemap_subscript(): ARRAYSUB: subtypesize=%d, *node[2] = 0x%8.8x = \n", subtypesize, (unsigned int)tnode_nthsubof (*node, 2));
-if (tnode_nthsubof (*node, 2)) {
-	tnode_dumptree (tnode_nthsubof (*node, 2), 1, stderr);
-} else {
-	fprintf (stderr, "    <nullnode />\n");
-}
-#endif
-		*node = mdata->target->newindexed (tnode_nthsubof (*node, 0), tnode_nthsubof (*node, 1), subtypesize, 0);
-	} else {
-		nocc_error ("occampi_namemap_subscript(): unsupported subscript type [%s]", (*node)->tag->name);
-		return 0;
-	}
-	return 1;
+	/* variable if the base is */
+	return langops_isvar (tnode_nthsubof (node, 0));
 }
 /*}}}*/
 
@@ -1213,6 +1223,31 @@ if (tnode_nthsubof (*node, 2)) {
  */
 static int occampi_typecheck_slice (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
+	tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
+	tnode_t *itype, *atype;
+
+	/* type-check sub-trees */
+	typecheck_subtree (tnode_nthsubof (node, 0), tc);
+	typecheck_subtree (tnode_nthsubof (node, 1), tc);
+	typecheck_subtree (tnode_nthsubof (node, 2), tc);
+
+	atype = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
+#if 1
+fprintf (stderr, "occampi_typecheck_slice(): type-checked base, got:\n");
+tnode_dumptree (atype, 1, stderr);
+#endif
+
+	itype = typecheck_gettype (tnode_nthsubof (node, 1), definttype);
+	if (!typecheck_typeactual (definttype, itype, node, tc)) {
+		typecheck_error (node, tc, "start expression in slice must be integer");
+	}
+
+	itype = typecheck_gettype (tnode_nthsubof (node, 2), definttype);
+	if (!typecheck_typeactual (definttype, itype, node, tc)) {
+		typecheck_error (node, tc, "length expression in slice must be integer");
+	}
+
+	tnode_free (definttype);
 	/* FIXME! */
 	return 1;
 }
@@ -1562,6 +1597,7 @@ static int occampi_dtype_init_nodes (void)
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_subscript));
 	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_iscomplex_subscript));
+	tnode_setlangop (lops, "isvar", 1, LANGOPTYPE (occampi_isvar_subscript));
 	tnd->lops = lops;
 
 	i = -1;

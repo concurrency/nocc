@@ -71,6 +71,8 @@
 # occampi:fparam                   (2,0,0)
 # occampi:abbrevnode               (4,0,0)
 # occampi:procdecl                 (4,0,0)
+# occampi:funcdecl                 (4,0,0)
+# occampi:shortfuncdecl            (4,0,0)
 
 .TNODE	"occampi:vardecl" (3,0,0) "name" "type" "body"
 .TNODE	"occampi:rawnamenode" (0,0,1) "name-hook"
@@ -84,6 +86,8 @@
 .TNODE	"occampi:fparam" (2,0,0) "name" "type"
 .TNODE	"occampi:abbrevnode" (4,0,0) "name" "type" "body" "expression"
 .TNODE	"occampi:procdecl" (4,0,0) "name" "fparams" "procbody" "body"
+.TNODE	"occampi:funcdecl" (4,0,0) "name" "type" "funcbody" "body"
+.TNODE	"occampi:shortfuncdecl" (4,0,0) "name" "type" "body" "expr"
 
 
 #}}}
@@ -94,18 +98,24 @@
 # occampi:arraymopnode             (2,0,0)
 # occampi:fielddecl                (2,0,0)
 # occampi:subscript                (3,0,0)
+# occampi:slice                    (4,0,0)
 # occampi:typenode                 (2,0,0)
 # occampi:typespecnode             (1,0,0)
 # occampi:leaftype                 (0,0,0)
+# occampi:functiontype             (2,0,0)
+# occampi:builtinfunction          (0,0,1)
 
 .TNODE	"occampi:typedecl" (3,0,1) "name" "type" "body" "typedecl-hook"
 .TNODE	"occampi:arraynode" (2,0,0) "dimension" "subtype"
 .TNODE	"occampi:arraymopnode" (2,0,0) "operand" "type"
 .TNODE	"occampi:fielddecl" (2,0,0) "name" "type"
 .TNODE	"occampi:subscript" (3,0,0) "base" "index" "type"
+.TNODE	"occampi:slice" (4,0,0) "base" "start" "length" "type"
 .TNODE	"occampi:typenode" (2,0,0) "subtype" "dimension"
 .TNODE	"occampi:typespecnode" (1,0,0) "body"
 .TNODE	"occampi:leaftype" (0,0,0)
+.TNODE	"occampi:functiontype" (2,0,0) "return-type" "params"
+.TNODE	"occampi:builtinfunction" (0,0,1) "builtinfunction-hook"
 
 #}}}
 #{{{  miscellaneous
@@ -139,22 +149,25 @@
 # occampi:relnode                  (3,0,0)
 # occampi:mopnode                  (2,0,0)
 # occampi:typecastnode             (2,0,0)
+# occampi:valofnode                (2,0,0)
 
 .TNODE	"occampi:dopnode" (3,0,0) "lhs" "rhs" "type"
 .TNODE	"occampi:relnode" (3,0,0) "lhs" "rhs" "type"
 .TNODE	"occampi:mopnode" (2,0,0) "operand" "type"
 .TNODE	"occampi:typecastnode" (2,0,0) "operand" "type"
+.TNODE	"occampi:valofnode" (2,0,0) "result-exprs" "body"
+
+#}}}
+#{{{  mobiles
+
+# occampi:mobiletypenode           (1,0,0)
+
+.TNODE	"occampi:mobiletypenode" (1,0,0) "subtype"
 
 #}}}
 
 # FIXME: incomplete!
 
-# occampi:valofnode                (2,0,0)
-# occampi:functiontype             (2,0,0)
-# occampi:funcdecl                 (4,0,0)
-# occampi:shortfuncdecl            (4,0,0)
-# occampi:builtinfunction          (0,0,1)
-# occampi:mobiletypenode           (1,0,0)
 # occampi:mobilealloc              (3,0,0)
 # occampi:initialnode              (4,0,0)
 # occampi:formalspec               (1,0,0)
