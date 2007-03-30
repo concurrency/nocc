@@ -479,6 +479,8 @@ tnode_dumptree (*rhsp, 1, stderr);
 		if (xtypep && !*xtypep) {
 			*xtypep = *typep;
 		}
+
+		typecheck_warning (node, tc, "untyped abbreviation");
 	} else {
 		tnode_t *rtype;
 
@@ -502,6 +504,15 @@ tnode_dumptree (*typep, 1, stderr);
 #if 1
 fprintf (stderr, "occampi_typecheck_abbrev(): RETYPES: rhsbytes = %d, lhsbytes = %d\n", rhsbytes, lhsbytes);
 #endif
+				if (rhsbytes == -1) {
+					/* FIXME: unknown RHS size */
+					typecheck_error (node, tc, "right-hand side of retypes has unknown size");
+				} else if (lhsbytes == -1) {
+					/* FIXME: unknown LHS size */
+					typecheck_error (node, tc, "left-hand side of retypes has unknown size");
+				} else if (lhsbytes != rhsbytes) {
+					typecheck_error (node, tc, "incompatible types for RETYPES");
+				}
 				realtype = *typep;
 			} else {
 				realtype = typecheck_typeactual (*typep, rtype, node, tc);

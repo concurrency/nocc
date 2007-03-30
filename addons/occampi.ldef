@@ -161,20 +161,35 @@
 #{{{  mobiles
 
 # occampi:mobiletypenode           (1,0,0)
+# occampi:mobilealloc              (3,0,0)
 
 .TNODE	"occampi:mobiletypenode" (1,0,0) "subtype"
+.TNODE	"occampi:mobilealloc" (3,0,0) "subtype" "dimtree" "type"
+
+#}}}
+#{{{  initial declarations
+
+# occampi:initialnode              (4,0,0)
+# occampi:formalspec               (1,0,0)
+
+.TNODE	"occampi:initialnode" (4,0,0) "name" "type" "body" "expr"
+.TNODE	"occampi:formalspec" (1,0,0) "specification-tree"
+
+#}}}
+#{{{  array-constructors
+
+# occampi:ac                       (2,0,0)
+# occampi:varac                    (5,0,0)
+
+.TNODE	"occampi:ac" (2,0,0) "items" "type"
+.TNODE	"occampi:varac" (5,0,0) "repl-name" "start" "length" "expr" "type"
 
 #}}}
 
 # FIXME: incomplete!
 
-# occampi:mobilealloc              (3,0,0)
-# occampi:initialnode              (4,0,0)
-# occampi:formalspec               (1,0,0)
 # mwsync:leaftype                  (0,0,0)
 # mwsync:mwsyncvar                 (4,0,0)
-# occampi:ac                       (2,0,0)
-# occampi:varac                    (5,0,0)
 
 
 

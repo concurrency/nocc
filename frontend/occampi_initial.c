@@ -179,7 +179,7 @@ static int occampi_initial_init_nodes (void)
 
 	/*{{{  occampi:initialnode -- INITIAL*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:initialnode", &i, 4, 0, 0, TNF_SHORTDECL);
+	tnd = tnode_newnodetype ("occampi:initialnode", &i, 4, 0, 0, TNF_SHORTDECL);			/* subnodes: 0 = name, 1 = type, 2 = body, 3 = expr */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_initial));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_initial));
