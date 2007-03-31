@@ -73,6 +73,7 @@
 #include "target.h"
 #include "transputer.h"
 #include "codegen.h"
+#include "trlang.h"
 #include "occampi_fe.h"
 #include "mcsp_fe.h"
 #include "rcxb_fe.h"
@@ -177,6 +178,9 @@ static int nocc_shutdownrun (void)
 	int v = 0;
 
 	/* compiler framework shutdowns in reverse order from initialisations */
+	if (trlang_shutdown ()) {
+		v++;
+	}
 	if (crypto_shutdown ()) {
 		v++;
 	}
@@ -1354,6 +1358,7 @@ int main (int argc, char **argv)
 	codegen_init ();
 	target_init ();
 	crypto_init ();
+	trlang_init ();
 
 	/*}}}*/
 	/*{{{  initialise occam-pi language lexer and parser (just registers them)*/
