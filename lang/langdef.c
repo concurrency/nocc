@@ -645,7 +645,9 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 
 					/* scoop up extra things */
 					for (; nextidx < nbits; nextidx++) {
-						if (!strcmp (bits[nextidx], "INVALID")) {
+						langdeflookup_t *nldl = langdeflookup_lookup (bits[nextidx], strlen (bits[nextidx]));
+
+						if (nldl && (nldl->ldl == LDL_KINVALID)) {
 							/*{{{  INVALID -- specifies when the node is valid*/
 							if ((nextidx + 3) > nbits) {
 								ldef_freelangdefent (lfe);
@@ -656,7 +658,8 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 
 							string_dequote (bits[nextidx + 2]);
 
-							if (!strcmp (bits[nextidx + 1], "BEFORE")) {
+							nldl = langdeflookup_lookup (bits[nextidx + 1], strlen (bits[nextidx + 1]));
+							if (nldl && (nldl->ldl == LDL_BEFORE)) {
 								/* node invalid before a particular pass */
 								if (lfe->u.tnode.invbefore) {
 									ldef_freelangdefent (lfe);
@@ -665,7 +668,7 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 									goto out_local;
 								}
 								lfe->u.tnode.invbefore = string_dup (bits[nextidx + 2]);
-							} else if (!strcmp (bits[nextidx + 1], "AFTER")) {
+							} else if (nldl && (nldl->ldl == LDL_AFTER)) {
 								/* node invalid after a particular pass */
 								if (lfe->u.tnode.invafter) {
 									ldef_freelangdefent (lfe);
@@ -695,6 +698,29 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 
 					/* finally, add to section entities */
 					dynarray_add (lsec->ents, lfe);
+				}
+				break;
+				/*}}}*/
+				/*{{{  .IMPORT -- import definitions from another file*/
+			case LDL_IMPORT:
+				{
+					langdef_t *ildef;
+
+					if (nbits < 2) {
+						goto out_malformed;
+					}
+					string_dequote (bits[1]);
+
+					ildef = langdef_readdefs (bits[1]);
+					if (!ildef) {
+						nocc_error ("failed to import %s at %s:%d", bits[1], rfname, lineno);
+						rval = -1;
+						goto out_local;
+					}
+
+					/* FIXME: merge into current langdefs */
+
+					langdef_freelangdef (ildef);
 				}
 				break;
 				/*}}}*/

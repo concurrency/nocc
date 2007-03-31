@@ -47,6 +47,7 @@
 #include "parser.h"
 #include "parsepriv.h"
 #include "langdef.h"
+#include "langdeflookup.h"
 #include "dfa.h"
 #include "prescope.h"
 #include "precheck.h"
@@ -240,6 +241,9 @@ static int nocc_shutdownrun (void)
 		v++;
 	}
 	if (dfa_shutdown ()) {
+		v++;
+	}
+	if (langdeflookup_shutdown ()) {
 		v++;
 	}
 	if (langdef_shutdown ()) {
@@ -1327,6 +1331,7 @@ int main (int argc, char **argv)
 	tnode_init ();
 	treecheck_init ();
 	langdef_init ();
+	langdeflookup_init ();
 	dfa_init ();
 	parser_init ();
 	feunit_init ();

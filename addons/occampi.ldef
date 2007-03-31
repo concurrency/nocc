@@ -186,6 +186,7 @@
 
 #}}}
 
+.IMPORT	"mwsync.ldef"
 
 # }}}
 .SECTION "occampi-postprod" # {{{: top-level grammar, kind-of

@@ -8,7 +8,7 @@ AUTOMAKE_OPTIONS=foreign
 
 INCLUDES=-I@srcdir@/../include
 
-libparser_a_SOURCES=parser.c dfa.c dfaerror.c treecheck.c treeops.c
+libparser_a_SOURCES=parser.c dfa.c dfaerror.c treecheck.c treeops.c trlang.c
 
 CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@
 

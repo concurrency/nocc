@@ -34,7 +34,11 @@ typedef enum ENUM_langdeflookup {
 	LDL_SYMBOL = 9,
 	LDL_KEYWORD = 10,
 	LDL_DFAERR = 11,
-	LDL_TNODE = 12
+	LDL_TNODE = 12,
+	LDL_KINVALID = 13,
+	LDL_BEFORE = 14,
+	LDL_AFTER = 15,
+	LDL_IMPORT = 16
 } langdeflookup_e;
 
 typedef struct TAG_langdeflookup {
