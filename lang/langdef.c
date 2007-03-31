@@ -48,6 +48,7 @@
 #include "lexpriv.h"
 #include "names.h"
 #include "target.h"
+#include "langdeflookup.h"
 
 
 /*}}}*/
@@ -294,384 +295,415 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 		rval = -1;
 		goto out_local;
 	}
-	if (!strcmp (bits[0], ".IDENT")) {
-		/*{{{  .IDENT -- identifying the language definition file*/
-		if (nbits != 2) {
-			goto out_malformed;
-		}
-		string_dequote (bits[1]);
+	if (*(bits[0]) == '.') {
+		langdeflookup_t *ldl = langdeflookup_lookup (bits[0] + 1, strlen (bits[0] + 1));
+
+		if (!ldl) {
+			/*{{{  unknown directive!*/
+			nocc_error ("unknown directive %s at %s:%d", bits[0], rfname, lineno);
+			rval = -1;
+			goto out_local;
+			/*}}}*/
+		} else {
+			switch (ldl->ldl) {
+				/*{{{  .IDENT -- identifying the language definition file*/
+			case LDL_IDENT:
+				if (nbits != 2) {
+					goto out_malformed;
+				}
+				string_dequote (bits[1]);
 #if 0
-		nocc_message ("ldef_decodelangdefline(): dequoted IDENT is [%s]", bits[1]);
+				nocc_message ("ldef_decodelangdefline(): dequoted IDENT is [%s]", bits[1]);
 #endif
-		if (ldef->ident && strlen (ldef->ident)) {
-			nocc_warning ("already got ident at %s:%d, currently [%s]", rfname, lineno, ldef->ident);
-		} else {
-			if (ldef->ident) {
-				sfree (ldef->ident);
-			}
-			ldef->ident = string_dup (bits[1]);
-		}
-
-		/*}}}*/
-	} else if (!strcmp (bits[0], ".DESC")) {
-		/*{{{  .DESC -- general description for the language definition*/
-		if (nbits != 2) {
-			goto out_malformed;
-		}
-		string_dequote (bits[1]);
-		if (ldef->desc && strlen (ldef->desc)) {
-			nocc_warning ("already got description at %s:%d, currently [%s]", rfname, lineno, ldef->desc);
-		} else {
-			if (ldef->desc) {
-				sfree (ldef->desc);
-			}
-			ldef->desc = string_dup (bits[1]);
-		}
-
-		/*}}}*/
-	} else if (!strcmp (bits[0], ".MAINTAINER")) {
-		/*{{{  .MAINTAINER -- person(s) responsible for this language definition*/
-		if (nbits != 2) {
-			goto out_malformed;
-		}
-		string_dequote (bits[1]);
-		if (ldef->maintainer && strlen (ldef->maintainer)) {
-			nocc_warning ("already got maintainer at %s:%d, currently [%s]", rfname, lineno, ldef->maintainer);
-		} else {
-			if (ldef->maintainer) {
-				sfree (ldef->maintainer);
-			}
-			ldef->maintainer = string_dup (bits[1]);
-		}
-
-		/*}}}*/
-	} else if (!strcmp (bits[0], ".SECTION")) {
-		/*{{{  .SECTION -- starting a named section of definitions*/
-		langdefsec_t *lsec = NULL;
-
-		if (nbits != 2) {
-			goto out_malformed;
-		}
-		string_dequote (bits[1]);
-		for (i=0; i<DA_CUR (ldef->sections); i++) {
-			lsec = DA_NTHITEM (ldef->sections, i);
-
-			if (!strcmp (lsec->ident, bits[1])) {
-				/* already got this section */
-				nocc_warning ("already got a section called [%s] at %s:%d, adding to it", bits[1], rfname, lineno);
-				break;		/* for(i) */
-			}
-			lsec = NULL;
-		}
-		if (!lsec) {
-			/* create a new section */
-			lsec = ldef_newlangdefsec ();
-			lsec->ident = string_dup (bits[1]);
-			lsec->ldef = ldef;
-
-			dynarray_add (ldef->sections, lsec);
-		}
-		ldef->cursec = lsec;
-
-		/*}}}*/
-	} else if (!strcmp (bits[0], ".GRULE")) {
-		/*{{{  .GRULE -- generic reduction name and rule*/
-		langdefsec_t *lsec = NULL;
-		langdefent_t *lfe = NULL;
-		char *dstr = NULL;
-		int dlen = 0;
-
-		if (nbits < 3) {
-			goto out_malformed;
-		}
-
-		string_dequote (bits[1]);
-		for (i=2, dlen=0; i<nbits; dlen += strlen (bits[i]), i++) {
-			string_dequote (bits[i]);
-		}
-		dstr = smalloc (dlen + 1);		/* descriptions not separated */
-		for (i=2, dlen=0; i<nbits; dlen += strlen (bits[i]), i++) {
-			strcpy (dstr + dlen, bits[i]);
-		}
-
-		lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
-
-		lfe = ldef_newlangdefent ();
-		lfe->ldef = ldef;
-		lfe->lineno = lineno;
-
-		lfe->type = LDE_GRL;
-		lfe->u.redex.name = string_dup (bits[1]);
-		lfe->u.redex.desc = dstr;
-
-		dynarray_add (lsec->ents, lfe);
-
-		/*}}}*/
-	} else if (!strcmp (bits[0], ".RFUNC")) {
-		/*{{{  .RFUNC -- reduction function (must be registered!)*/
-		langdefsec_t *lsec = NULL;
-		langdefent_t *lfe = NULL;
-
-		if (nbits < 3) {
-			goto out_malformed;
-		}
-
-		string_dequote (bits[1]);
-		string_dequote (bits[2]);
-
-		lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
-
-		lfe = ldef_newlangdefent ();
-		lfe->ldef = ldef;
-		lfe->lineno = lineno;
-
-		lfe->type = LDE_RFUNC;
-		lfe->u.redex.name = string_dup (bits[1]);
-		lfe->u.redex.desc = string_dup (bits[2]);
-
-		dynarray_add (lsec->ents, lfe);
-
-		/*}}}*/
-	} else if (!strcmp (bits[0], ".BNF") || !strcmp (bits[0], ".TABLE")) {
-		/*{{{  .BNF, .TABLE -- DFA BNF-rule or transition-table*/
-		langdefsec_t *lsec = NULL;
-		langdefent_t *lfe = NULL;
-		char *dstr = NULL;
-		int dlen = 0;
-
-		if (nbits < 2) {
-			goto out_malformed;
-		}
-
-		for (i=1, dlen=0; i<nbits; dlen += strlen (bits[i]), i++) {
-			string_dequote (bits[i]);
-		}
-		dstr = smalloc (dlen + nbits);		/* descriptions separated by whitespace */
-		for (i=1, dlen=0; i<nbits;) {
-			strcpy (dstr + dlen, bits[i]);
-			dlen += strlen (bits[i]);
-			i++;
-			if (i < nbits) {
-				dstr[dlen] = ' ';
-				dlen++;
-			}
-		}
-
-		lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
-
-		lfe = ldef_newlangdefent ();
-		lfe->ldef = ldef;
-		lfe->lineno = lineno;
-
-		lfe->type = (!strcmp (bits[0], ".BNF")) ? LDE_DFABNF : LDE_DFATRANS;
-		lfe->u.dfarule = dstr;
-
-		dynarray_add (lsec->ents, lfe);
-
-		/*}}}*/
-	} else if (!strcmp (bits[0], ".KEYWORD")) {
-		/*{{{  .KEYWORD -- language keyword*/
-		langdefsec_t *lsec = NULL;
-		langdefent_t *lfe = NULL;
-
-		if (nbits < 2) {
-			goto out_malformed;
-		}
-		string_dequote (bits[1]);
-
-		lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
-
-		lfe = ldef_newlangdefent ();
-		lfe->ldef = ldef;
-		lfe->lineno = lineno;
-
-		lfe->type = LDE_KEYWORD;
-		lfe->u.keyword = string_dup (bits[1]);
-
-		dynarray_add (lsec->ents, lfe);
-
-		/*}}}*/
-	} else if (!strcmp (bits[0], ".SYMBOL")) {
-		/*{{{  .SYMBOL -- language symbol*/
-		langdefsec_t *lsec = NULL;
-		langdefent_t *lfe = NULL;
-
-		if (nbits < 2) {
-			goto out_malformed;
-		}
-		string_dequote (bits[1]);
-
-		lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
-
-		lfe = ldef_newlangdefent ();
-		lfe->ldef = ldef;
-		lfe->lineno = lineno;
-
-		lfe->type = LDE_SYMBOL;
-		lfe->u.symbol = string_dup (bits[1]);
-
-		dynarray_add (lsec->ents, lfe);
-
-		/*}}}*/
-	} else if (!strcmp (bits[0], ".DFAERR")) {
-		/*{{{  .DFAERR -- DFA error handler message*/
-		langdefsec_t *lsec = NULL;
-		langdefent_t *lfe = NULL;
-		dfaerrorsource_e esrc = DFAERRSRC_INVALID;
-		dfaerrorreport_e erep = DFAERR_NONE;
-
-		if (nbits < 4) {
-			goto out_malformed;
-		}
-
-		string_dequote (bits[1]);		/* shouldn't be quoted, but we'll go with it if so */
-		string_dequote (bits[2]);
-		string_dequote (bits[3]);
-
-		esrc = dfaerror_decodesource (bits[1]);
-		if (esrc == DFAERRSRC_INVALID) {
-			nocc_error ("unknown DFA error type [%s] at %s:%d", bits[1], rfname, lineno);
-			rval = -1;
-			goto out_local;
-		}
-
-		for (i=4; bits[i]; i++) {
-			dfaerrorreport_e lerep = dfaerror_decodereport (bits[i]);
-
-			if (lerep == DFAERR_INVALID) {
-				nocc_error ("unknown DFA error report [%s] at %s:%d", bits[i], rfname, lineno);
-				rval = -1;
-				goto out_local;
-			}
-			erep |= lerep;
-		}
-
-		lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
-
-		lfe = ldef_newlangdefent ();
-		lfe->ldef = ldef;
-		lfe->lineno = lineno;
-
-		lfe->type = LDE_DFAERR;
-		lfe->u.dfaerror.source = (int)esrc;
-		lfe->u.dfaerror.rcode = (int)erep;
-		lfe->u.dfaerror.dfaname = string_dup (bits[2]);
-		lfe->u.dfaerror.msg = string_dup (bits[3]);
-
-		dynarray_add (lsec->ents, lfe);
-
-		/*}}}*/
-	} else if (!strcmp (bits[0], ".TNODE")) {
-		/*{{{  .TNODE -- treenode definition (for checking, not defining!)*/
-		langdefsec_t *lsec = NULL;
-		langdefent_t *lfe = NULL;
-		char *cdefs;
-		int nsub, nname, nhook;
-		int i, nextidx;
-
-		if (nbits < 3) {
-			goto out_malformed;
-		}
-
-		string_dequote (bits[1]);		/* node name */
-
-		/* should have (nsub,nnode,nhook) next */
-		if (sscanf (bits[2], "(%d,%d,%d)", &nsub, &nname, &nhook) != 3) {
-			nocc_error ("badly formatted node counts in .TNODE definition [%s] at %s:%d", bits[2], rfname, lineno);
-			rval = -1;
-			goto out_local;
-		} else if ((nsub < 0) || (nname < 0) || (nhook < 0)) {
-			nocc_error ("invalid sub-node, name or hook count [%s] at %s:%d", bits[2], rfname, lineno);
-			rval = -1;
-			goto out_local;
-		}
-
-		lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
-
-		lfe = ldef_newlangdefent ();
-		lfe->ldef = ldef;
-		lfe->lineno = lineno;
-
-		lfe->type = LDE_TNODE;
-		lfe->u.tnode.name = string_dup (bits[1]);
-		lfe->u.tnode.nsub = nsub;
-		lfe->u.tnode.nname = nname;
-		lfe->u.tnode.nhook = nhook;
-		dynarray_init (lfe->u.tnode.descs);
-
-		/* read in textual descriptions */
-		for (i=0, nextidx=3; (i < (nsub + nname + nhook)) && (nextidx < nbits); i++, nextidx++) {
-			string_dequote (bits[nextidx]);
-			dynarray_add (lfe->u.tnode.descs, string_dup (bits[nextidx]));
-		}
-
-		if (i != (nsub + nname + nhook)) {
-			ldef_freelangdefent (lfe);
-			nocc_error ("was expecting %d definitions in .TNODE definition for [%s] at %s:%d", (nsub + nname + nhook), bits[1], rfname, lineno);
-			rval = -1;
-			goto out_local;
-		}
-
-		/* scoop up extra things */
-		for (; nextidx < nbits; nextidx++) {
-			if (!strcmp (bits[nextidx], "INVALID")) {
-				/*{{{  INVALID -- specifies when the node is valid*/
-				if ((nextidx + 3) > nbits) {
-					ldef_freelangdefent (lfe);
-					nocc_error ("malformed INVALID setting in .TNODE definition for [%s] at %s:%d", bits[1], rfname, lineno);
-					rval = -1;
-					goto out_local;
-				}
-
-				string_dequote (bits[nextidx + 2]);
-
-				if (!strcmp (bits[nextidx + 1], "BEFORE")) {
-					/* node invalid before a particular pass */
-					if (lfe->u.tnode.invbefore) {
-						ldef_freelangdefent (lfe);
-						nocc_error ("already have INVALID BEFORE setting in .TNODE definition for [%s] at %s:%d", bits[1], rfname, lineno);
-						rval = -1;
-						goto out_local;
-					}
-					lfe->u.tnode.invbefore = string_dup (bits[nextidx + 2]);
-				} else if (!strcmp (bits[nextidx + 1], "AFTER")) {
-					/* node invalid after a particular pass */
-					if (lfe->u.tnode.invafter) {
-						ldef_freelangdefent (lfe);
-						nocc_error ("already have INVALID AFTER setting in .TNODE definition for [%s] at %s:%d", bits[1], rfname, lineno);
-						rval = -1;
-						goto out_local;
-					}
-					lfe->u.tnode.invafter = string_dup (bits[nextidx + 2]);
+				if (ldef->ident && strlen (ldef->ident)) {
+					nocc_warning ("already got ident at %s:%d, currently [%s]", rfname, lineno, ldef->ident);
 				} else {
-					ldef_freelangdefent (lfe);
-					nocc_error ("unknown INVALID setting [%s] in .TNODE definition for [%s] at %s:%d", bits[nextidx + 1], bits[1], rfname, lineno);
-					rval = -1;
-					goto out_local;
+					if (ldef->ident) {
+						sfree (ldef->ident);
+					}
+					ldef->ident = string_dup (bits[1]);
 				}
 
-				nextidx += 2;
+				break;
 				/*}}}*/
-			} else {
-				/*{{{  something else -- bad*/
-				ldef_freelangdefent (lfe);
-				nocc_error ("unknown setting [%s] in .TNODE definition for [%s] at %s:%d", bits[nextidx], bits[1], rfname, lineno);
+				/*{{{  .DESC -- general description for the language definition*/
+			case LDL_DESC:
+				if (nbits != 2) {
+					goto out_malformed;
+				}
+				string_dequote (bits[1]);
+				if (ldef->desc && strlen (ldef->desc)) {
+					nocc_warning ("already got description at %s:%d, currently [%s]", rfname, lineno, ldef->desc);
+				} else {
+					if (ldef->desc) {
+						sfree (ldef->desc);
+					}
+					ldef->desc = string_dup (bits[1]);
+				}
+
+				break;
+				/*}}}*/
+				/*{{{  .MAINTAINER -- person(s) responsible for this language definition*/
+			case LDL_MAINTAINER:
+				if (nbits != 2) {
+					goto out_malformed;
+				}
+				string_dequote (bits[1]);
+				if (ldef->maintainer && strlen (ldef->maintainer)) {
+					nocc_warning ("already got maintainer at %s:%d, currently [%s]", rfname, lineno, ldef->maintainer);
+				} else {
+					if (ldef->maintainer) {
+						sfree (ldef->maintainer);
+					}
+					ldef->maintainer = string_dup (bits[1]);
+				}
+
+				break;
+				/*}}}*/
+				/*{{{  .SECTION -- starting a named section of definitions*/
+			case LDL_SECTION:
+				{
+					langdefsec_t *lsec = NULL;
+
+					if (nbits != 2) {
+						goto out_malformed;
+					}
+					string_dequote (bits[1]);
+					for (i=0; i<DA_CUR (ldef->sections); i++) {
+						lsec = DA_NTHITEM (ldef->sections, i);
+
+						if (!strcmp (lsec->ident, bits[1])) {
+							/* already got this section */
+							nocc_warning ("already got a section called [%s] at %s:%d, adding to it", bits[1], rfname, lineno);
+							break;		/* for(i) */
+						}
+						lsec = NULL;
+					}
+					if (!lsec) {
+						/* create a new section */
+						lsec = ldef_newlangdefsec ();
+						lsec->ident = string_dup (bits[1]);
+						lsec->ldef = ldef;
+
+						dynarray_add (ldef->sections, lsec);
+					}
+					ldef->cursec = lsec;
+				}
+				break;
+				/*}}}*/
+				/*{{{  .GRULE -- generic reduction name and rule*/
+			case LDL_GRULE:
+				{
+					langdefsec_t *lsec = NULL;
+					langdefent_t *lfe = NULL;
+					char *dstr = NULL;
+					int dlen = 0;
+
+					if (nbits < 3) {
+						goto out_malformed;
+					}
+
+					string_dequote (bits[1]);
+					for (i=2, dlen=0; i<nbits; dlen += strlen (bits[i]), i++) {
+						string_dequote (bits[i]);
+					}
+					dstr = smalloc (dlen + 1);		/* descriptions not separated */
+					for (i=2, dlen=0; i<nbits; dlen += strlen (bits[i]), i++) {
+						strcpy (dstr + dlen, bits[i]);
+					}
+
+					lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
+
+					lfe = ldef_newlangdefent ();
+					lfe->ldef = ldef;
+					lfe->lineno = lineno;
+
+					lfe->type = LDE_GRL;
+					lfe->u.redex.name = string_dup (bits[1]);
+					lfe->u.redex.desc = dstr;
+
+					dynarray_add (lsec->ents, lfe);
+				}
+				break;
+				/*}}}*/
+				/*{{{  .RFUNC -- reduction function (must be registered!)*/
+			case LDL_RFUNC:
+				{
+					langdefsec_t *lsec = NULL;
+					langdefent_t *lfe = NULL;
+
+					if (nbits < 3) {
+						goto out_malformed;
+					}
+
+					string_dequote (bits[1]);
+					string_dequote (bits[2]);
+
+					lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
+
+					lfe = ldef_newlangdefent ();
+					lfe->ldef = ldef;
+					lfe->lineno = lineno;
+
+					lfe->type = LDE_RFUNC;
+					lfe->u.redex.name = string_dup (bits[1]);
+					lfe->u.redex.desc = string_dup (bits[2]);
+
+					dynarray_add (lsec->ents, lfe);
+				}
+				break;
+				/*}}}*/
+				/*{{{  .BNF, .TABLE -- DFA BNF-rule or transition-table*/
+			case LDL_BNF:
+			case LDL_TABLE:
+				{
+					langdefsec_t *lsec = NULL;
+					langdefent_t *lfe = NULL;
+					char *dstr = NULL;
+					int dlen = 0;
+
+					if (nbits < 2) {
+						goto out_malformed;
+					}
+
+					for (i=1, dlen=0; i<nbits; dlen += strlen (bits[i]), i++) {
+						string_dequote (bits[i]);
+					}
+					dstr = smalloc (dlen + nbits);		/* descriptions separated by whitespace */
+					for (i=1, dlen=0; i<nbits;) {
+						strcpy (dstr + dlen, bits[i]);
+						dlen += strlen (bits[i]);
+						i++;
+						if (i < nbits) {
+							dstr[dlen] = ' ';
+							dlen++;
+						}
+					}
+
+					lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
+
+					lfe = ldef_newlangdefent ();
+					lfe->ldef = ldef;
+					lfe->lineno = lineno;
+
+					lfe->type = (ldl->ldl == LDL_BNF) ? LDE_DFABNF : LDE_DFATRANS;
+					lfe->u.dfarule = dstr;
+
+					dynarray_add (lsec->ents, lfe);
+				}
+				break;
+				/*}}}*/
+				/*{{{  .KEYWORD -- language keyword*/
+			case LDL_KEYWORD:
+				{
+					langdefsec_t *lsec = NULL;
+					langdefent_t *lfe = NULL;
+
+					if (nbits < 2) {
+						goto out_malformed;
+					}
+					string_dequote (bits[1]);
+
+					lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
+
+					lfe = ldef_newlangdefent ();
+					lfe->ldef = ldef;
+					lfe->lineno = lineno;
+
+					lfe->type = LDE_KEYWORD;
+					lfe->u.keyword = string_dup (bits[1]);
+
+					dynarray_add (lsec->ents, lfe);
+				}
+				break;
+				/*}}}*/
+				/*{{{  .SYMBOL -- language symbol*/
+			case LDL_SYMBOL:
+				{
+					langdefsec_t *lsec = NULL;
+					langdefent_t *lfe = NULL;
+
+					if (nbits < 2) {
+						goto out_malformed;
+					}
+					string_dequote (bits[1]);
+
+					lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
+
+					lfe = ldef_newlangdefent ();
+					lfe->ldef = ldef;
+					lfe->lineno = lineno;
+
+					lfe->type = LDE_SYMBOL;
+					lfe->u.symbol = string_dup (bits[1]);
+
+					dynarray_add (lsec->ents, lfe);
+				}
+				break;
+				/*}}}*/
+				/*{{{  .DFAERR -- DFA error handler message*/
+			case LDL_DFAERR:
+				{
+					langdefsec_t *lsec = NULL;
+					langdefent_t *lfe = NULL;
+					dfaerrorsource_e esrc = DFAERRSRC_INVALID;
+					dfaerrorreport_e erep = DFAERR_NONE;
+
+					if (nbits < 4) {
+						goto out_malformed;
+					}
+
+					string_dequote (bits[1]);		/* shouldn't be quoted, but we'll go with it if so */
+					string_dequote (bits[2]);
+					string_dequote (bits[3]);
+
+					esrc = dfaerror_decodesource (bits[1]);
+					if (esrc == DFAERRSRC_INVALID) {
+						nocc_error ("unknown DFA error type [%s] at %s:%d", bits[1], rfname, lineno);
+						rval = -1;
+						goto out_local;
+					}
+
+					for (i=4; bits[i]; i++) {
+						dfaerrorreport_e lerep = dfaerror_decodereport (bits[i]);
+
+						if (lerep == DFAERR_INVALID) {
+							nocc_error ("unknown DFA error report [%s] at %s:%d", bits[i], rfname, lineno);
+							rval = -1;
+							goto out_local;
+						}
+						erep |= lerep;
+					}
+
+					lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
+
+					lfe = ldef_newlangdefent ();
+					lfe->ldef = ldef;
+					lfe->lineno = lineno;
+
+					lfe->type = LDE_DFAERR;
+					lfe->u.dfaerror.source = (int)esrc;
+					lfe->u.dfaerror.rcode = (int)erep;
+					lfe->u.dfaerror.dfaname = string_dup (bits[2]);
+					lfe->u.dfaerror.msg = string_dup (bits[3]);
+
+					dynarray_add (lsec->ents, lfe);
+				}
+				break;
+				/*}}}*/
+				/*{{{  .TNODE -- treenode definition (for checking, not defining!)*/
+			case LDL_TNODE:
+				{
+					langdefsec_t *lsec = NULL;
+					langdefent_t *lfe = NULL;
+					char *cdefs;
+					int nsub, nname, nhook;
+					int i, nextidx;
+
+					if (nbits < 3) {
+						goto out_malformed;
+					}
+
+					string_dequote (bits[1]);		/* node name */
+
+					/* should have (nsub,nnode,nhook) next */
+					if (sscanf (bits[2], "(%d,%d,%d)", &nsub, &nname, &nhook) != 3) {
+						nocc_error ("badly formatted node counts in .TNODE definition [%s] at %s:%d", bits[2], rfname, lineno);
+						rval = -1;
+						goto out_local;
+					} else if ((nsub < 0) || (nname < 0) || (nhook < 0)) {
+						nocc_error ("invalid sub-node, name or hook count [%s] at %s:%d", bits[2], rfname, lineno);
+						rval = -1;
+						goto out_local;
+					}
+
+					lsec = ldef_ensuresection (ldef, bits[0], rfname, lineno);
+
+					lfe = ldef_newlangdefent ();
+					lfe->ldef = ldef;
+					lfe->lineno = lineno;
+
+					lfe->type = LDE_TNODE;
+					lfe->u.tnode.name = string_dup (bits[1]);
+					lfe->u.tnode.nsub = nsub;
+					lfe->u.tnode.nname = nname;
+					lfe->u.tnode.nhook = nhook;
+					dynarray_init (lfe->u.tnode.descs);
+
+					/* read in textual descriptions */
+					for (i=0, nextidx=3; (i < (nsub + nname + nhook)) && (nextidx < nbits); i++, nextidx++) {
+						string_dequote (bits[nextidx]);
+						dynarray_add (lfe->u.tnode.descs, string_dup (bits[nextidx]));
+					}
+
+					if (i != (nsub + nname + nhook)) {
+						ldef_freelangdefent (lfe);
+						nocc_error ("was expecting %d definitions in .TNODE definition for [%s] at %s:%d", (nsub + nname + nhook), bits[1], rfname, lineno);
+						rval = -1;
+						goto out_local;
+					}
+
+					/* scoop up extra things */
+					for (; nextidx < nbits; nextidx++) {
+						if (!strcmp (bits[nextidx], "INVALID")) {
+							/*{{{  INVALID -- specifies when the node is valid*/
+							if ((nextidx + 3) > nbits) {
+								ldef_freelangdefent (lfe);
+								nocc_error ("malformed INVALID setting in .TNODE definition for [%s] at %s:%d", bits[1], rfname, lineno);
+								rval = -1;
+								goto out_local;
+							}
+
+							string_dequote (bits[nextidx + 2]);
+
+							if (!strcmp (bits[nextidx + 1], "BEFORE")) {
+								/* node invalid before a particular pass */
+								if (lfe->u.tnode.invbefore) {
+									ldef_freelangdefent (lfe);
+									nocc_error ("already have INVALID BEFORE setting in .TNODE definition for [%s] at %s:%d", bits[1], rfname, lineno);
+									rval = -1;
+									goto out_local;
+								}
+								lfe->u.tnode.invbefore = string_dup (bits[nextidx + 2]);
+							} else if (!strcmp (bits[nextidx + 1], "AFTER")) {
+								/* node invalid after a particular pass */
+								if (lfe->u.tnode.invafter) {
+									ldef_freelangdefent (lfe);
+									nocc_error ("already have INVALID AFTER setting in .TNODE definition for [%s] at %s:%d", bits[1], rfname, lineno);
+									rval = -1;
+									goto out_local;
+								}
+								lfe->u.tnode.invafter = string_dup (bits[nextidx + 2]);
+							} else {
+								ldef_freelangdefent (lfe);
+								nocc_error ("unknown INVALID setting [%s] in .TNODE definition for [%s] at %s:%d", bits[nextidx + 1], bits[1], rfname, lineno);
+								rval = -1;
+								goto out_local;
+							}
+
+							nextidx += 2;
+							/*}}}*/
+						} else {
+							/*{{{  something else -- bad*/
+							ldef_freelangdefent (lfe);
+							nocc_error ("unknown setting [%s] in .TNODE definition for [%s] at %s:%d", bits[nextidx], bits[1], rfname, lineno);
+							rval = -1;
+							goto out_local;
+							/*}}}*/
+						}
+					}
+
+					/* finally, add to section entities */
+					dynarray_add (lsec->ents, lfe);
+				}
+				break;
+				/*}}}*/
+			default:
+				nocc_error ("unknown directive %s at %s:%d", bits[0], rfname, lineno);
 				rval = -1;
 				goto out_local;
-				/*}}}*/
 			}
 		}
-
-		/* finally, add to section entities */
-		dynarray_add (lsec->ents, lfe);
-
-		/*}}}*/
-	} else if ((bits[0][0] == '.') && (bits[0][1] >= 'A') && (bits[0][1] <= 'Z')) {
-		/*{{{  unknown directive!*/
-		nocc_error ("unknown directive %s at %s:%d", bits[0], rfname, lineno);
-		rval = -1;
-		goto out_local;
-		/*}}}*/
 	} else {
 		/*{{{  unexpected stuff*/
 		nocc_error ("unexpected data at %s:%d, starting [%s]", rfname, lineno, bits[0]);

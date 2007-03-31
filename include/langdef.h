@@ -28,6 +28,7 @@ struct TAG_langparser;
 
 struct TAG_langdef;
 
+
 typedef enum ENUM_langdefent {
 	LDE_INVALID = 0,
 	LDE_GRL = 1,

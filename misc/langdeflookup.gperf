@@ -1,0 +1,31 @@
+%{
+/*
+ *	langdeflookup.gperf -- language definition keywords for NOCC
+ *	Fred Barnes, 2007  <frmb@kent.ac.uk>
+ */
+%}
+%struct-type
+%language=ANSI-C
+%define initializer-suffix ,LDL_INVALID,NULL
+%define slot-name name
+%define lookup-function-name langdeflookup_lookup_byname
+%null-strings
+%global-table
+%readonly-tables
+
+struct TAG_langdeflookup;
+%%
+IDENT,		LDL_IDENT,	NULL
+DESC,		LDL_DESC,	NULL
+MAINTAINER,	LDL_MAINTAINER,	NULL
+SECTION,	LDL_SECTION,	NULL
+GRULE,		LDL_GRULE,	NULL
+RFUNC,		LDL_RFUNC,	NULL
+BNF,		LDL_BNF,	NULL
+TABLE,		LDL_TABLE,	NULL
+SYMBOL,		LDL_SYMBOL,	NULL
+KEYWORD,	LDL_KEYWORD,	NULL
+DFAERR,		LDL_DFAERR,	NULL
+TNODE,		LDL_TNODE,	NULL
+%%
+

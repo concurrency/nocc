@@ -4,7 +4,7 @@
 #
 
 .IDENT		"occampi"
-.DESC		"occam-pi parallel programming langauge, http://www.occampi.org/"
+.DESC		"occam-pi parallel programming langauge, http://occam-pi.org/"
 .MAINTAINER	"Fred Barnes <frmb@kent.ac.uk>"
 
 
@@ -185,13 +185,6 @@
 .TNODE	"occampi:varac" (5,0,0) "repl-name" "start" "length" "expr" "type"
 
 #}}}
-
-# FIXME: incomplete!
-
-# mwsync:leaftype                  (0,0,0)
-# mwsync:mwsyncvar                 (4,0,0)
-
-
 
 
 # }}}

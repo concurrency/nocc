@@ -9,9 +9,9 @@ noinst_LIBRARIES = libmisc.a
 
 INCLUDES=-I@srcdir@/../include
 
-libmisc_a_SOURCES=gperf_options.h gperf_keywords.h gperf_xmlkeys.h gperf_transinstr.h support.c options.c fcnlib.c keywords.c xmlkeys.c transinstr.c crypto.c
+libmisc_a_SOURCES=gperf_options.h gperf_keywords.h gperf_xmlkeys.h gperf_transinstr.h gperf_landeflookup.h support.c options.c fcnlib.c keywords.c xmlkeys.c transinstr.c langdeflookup.c crypto.c
 
-EXTRA_DIST=options.gperf keywords.gperf xmlkeys.gperf transinstr.gperf
+EXTRA_DIST=options.gperf keywords.gperf xmlkeys.gperf transinstr.gperf langdeflookup.gperf
 
 CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@
 
@@ -27,4 +27,7 @@ gperf_xmlkeys.h:	xmlkeys.gperf
 
 gperf_transinstr.h:	transinstr.gperf
 			$(GPERF) < transinstr.gperf > gperf_transinstr.h
+
+gperf_langdeflookup.h:	langdeflookup.gperf
+			$(GPERF) < langdeflookup.gperf > gperf_langdeflookup.h
 
