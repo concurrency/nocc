@@ -1,0 +1,19 @@
+#
+# mwsync.ldef - multiway synchronisation language definitions for NOCC
+# identifiers must start at the left-margin, indentation is a line-continuation
+#
+
+.IDENT		"mwsync"
+.DESC		"multiway synchronisations"
+.MAINTAINER	"Fred Barnes <frmb@kent.ac.uk>"
+
+.SECTION "mwsync"
+
+# mwsync:leaftype                  (0,0,0)
+# mwsync:mwsyncvar                 (4,0,0)
+
+.TNODE	"mwsync:leaftype" (0,0,0)
+.TNODE	"mwsync:mwsyncvar" (4,0,0) "name" "type" "body" "expr"
+
+
+

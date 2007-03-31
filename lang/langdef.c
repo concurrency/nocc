@@ -718,7 +718,28 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 						goto out_local;
 					}
 
-					/* FIXME: merge into current langdefs */
+					for (i=0; i<DA_CUR (ildef->sections); i++) {
+						langdefsec_t *ilsec = DA_NTHITEM (ildef->sections, i);
+						langdefsec_t *lsec = NULL;
+						int j;
+
+						if (!strcmp (ilsec->ident, ildef->ident)) {
+							/* this is the pre-init section, import into other definition pre-init */
+							lsec = ldef_ensuresection (ldef, ldef->ident, rfname, lineno);
+						} else {
+							/* anything else, import flat */
+							lsec = ldef_ensuresection (ldef, ilsec->ident, rfname, lineno);
+						}
+
+						for (j=0; j<DA_CUR (ilsec->ents); j++) {
+							langdefent_t **ildep = DA_NTHITEMADDR (ilsec->ents, j);
+
+							dynarray_add (lsec->ents, *ildep);
+							*ildep = NULL;
+						}
+						dynarray_trash (ilsec->ents);
+						dynarray_init (ilsec->ents);
+					}
 
 					langdef_freelangdef (ildef);
 				}
