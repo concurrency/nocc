@@ -1,0 +1,23 @@
+#
+# trlang.ldef - language definitions for tree-rewriting in NOCC
+# identifiers must start at the left-margin, indentation is a line-continuation
+#
+
+.IDENT		"trlang"
+.DESC		"NOCC tree rewriting language"
+.MAINTAINER	"Fred Barnes <frmb@kent.ac.uk>"
+
+
+.SECTION "trlang"
+
+.KEYWORD "if"
+.KEYWORD "else"
+
+
+.SECTION "trlang-postprod"
+
+.GRULE	"trl:functionreduce" "N+0N+C[FUNCTION]3R-"
+
+.TABLE	"trlang:function ::= [ 0 +Name 1 ] [ 1 @@( 2 ] [ 2 @@) 3 ] [ 3 @@= 4 ] [ 4 trlang:expr 5 ] [ 5 {<trl:functionreduce>} -* ]"
+
+
