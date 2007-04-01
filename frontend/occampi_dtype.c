@@ -1225,6 +1225,7 @@ static int occampi_typecheck_slice (compops_t *cops, tnode_t *node, typecheck_t 
 {
 	tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
 	tnode_t *itype, *atype;
+	tnode_t *mytype = NULL;
 
 	/* type-check sub-trees */
 	typecheck_subtree (tnode_nthsubof (node, 0), tc);
@@ -1236,6 +1237,11 @@ static int occampi_typecheck_slice (compops_t *cops, tnode_t *node, typecheck_t 
 fprintf (stderr, "occampi_typecheck_slice(): type-checked base, got:\n");
 tnode_dumptree (atype, 1, stderr);
 #endif
+	if (!atype || (atype->tag != opi.tag_ARRAY)) {
+		typecheck_error (node, tc, "base of slice must be an array");
+	} else {
+		mytype = tnode_create (opi.tag_ARRAY, NULL, NULL, tnode_copytree (tnode_nthsubof (atype, 1)));
+	}
 
 	itype = typecheck_gettype (tnode_nthsubof (node, 1), definttype);
 	if (!typecheck_typeactual (definttype, itype, node, tc)) {
@@ -1247,9 +1253,17 @@ tnode_dumptree (atype, 1, stderr);
 		typecheck_error (node, tc, "length expression in slice must be integer");
 	}
 
+	if (mytype && !tnode_nthsubof (node, 3)) {
+		tnode_setnthsub (node, 3, mytype);
+		tnode_setnthsub (mytype, 0, tnode_copytree (tnode_nthsubof (node, 2)));
+#if 1
+fprintf (stderr, "occampi_typecheck_slice(): setting slice type to:\n");
+tnode_dumptree (mytype, 1, stderr);
+#endif
+	}
+
 	tnode_free (definttype);
-	/* FIXME! */
-	return 1;
+	return 0;
 }
 /*}}}*/
 /*{{{  static int occampi_namemap_slice (compops_t *cops, tnode_t **nodep, map_t *map)*/
@@ -1259,8 +1273,15 @@ tnode_dumptree (atype, 1, stderr);
  */
 static int occampi_namemap_slice (compops_t *cops, tnode_t **nodep, map_t *map)
 {
-	/* FIXME! */
-	return 1;
+	tnode_t *slicetype = tnode_nthsubof (*nodep, 3);
+	int subtypesize = tnode_bytesfor (tnode_nthsubof (slicetype, 1), map->target);
+
+	map_submapnames (tnode_nthsubaddr (*nodep, 0), map);
+	map_submapnames (tnode_nthsubaddr (*nodep, 1), map);
+	map_submapnames (tnode_nthsubaddr (*nodep, 2), map);
+
+	*nodep = map->target->newindexed (tnode_nthsubof (*nodep, 0), tnode_nthsubof (*nodep, 1), subtypesize, 0);
+	return 0;
 }
 /*}}}*/
 /*{{{  static tnode_t *occampi_gettype_slice (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
@@ -1269,7 +1290,11 @@ static int occampi_namemap_slice (compops_t *cops, tnode_t **nodep, map_t *map)
  */
 static tnode_t *occampi_gettype_slice (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
-	/* FIXME! */
+	tnode_t *type = tnode_nthsubof (node, 3);
+
+	if (type) {
+		return type;
+	}
 	return defaulttype;
 }
 /*}}}*/
