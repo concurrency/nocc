@@ -1,6 +1,6 @@
 /*
- *	keywords.h -- keyword processing
- *	Copyright (C) 2004 Fred Barnes <frmb@kent.ac.uk>
+ *	origin.h -- compiler origins
+ *	Copyright (C) 2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -14,24 +14,30 @@
  *
  *	You should have received a copy of the GNU General Public License
  *	along with this program; if not, write to the Free Software
- *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#ifndef __KEYWORDS_H
-#define __KEYWORDS_H
+#ifndef	__ORIGIN_H
+#define	__ORIGIN_H
 
-struct TAG_origin;
+typedef enum ENUM_origin {
+	ORG_INVALID = 0,
+	ORG_INTERNAL = 1,
+	ORG_EXTN = 2
+} origin_e;
 
-typedef struct TAG_keyword {
-	char *name;
-	int tagval;
-	struct TAG_origin *origin;
-} keyword_t;
+typedef struct TAG_origin {
+	origin_e type;
+	union {
+		struct {
+			void (*fcn)(void);
+		} internal;
+	} u;
+} origin_t;
 
-extern void keywords_init (void);
-extern keyword_t *keywords_lookup (const char *str, const int len);
-extern keyword_t *keywords_add (const char *str, const int tagval, struct TAG_origin *origin);
+extern int origin_init (void);
+extern int origin_shutdown (void);
 
 
-#endif	/* !__KEYWORDS_H */
+#endif	/* !__ORIGIN_H */
 

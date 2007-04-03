@@ -38,6 +38,7 @@
 
 #include "nocc.h"
 #include "support.h"
+#include "origin.h"
 #include "opts.h"
 #include "fcnlib.h"
 #include "crypto.h"
@@ -264,6 +265,9 @@ static int nocc_shutdownrun (void)
 		v++;
 	}
 	if (symbols_shutdown ()) {
+		v++;
+	}
+	if (origin_shutdown ()) {
 		v++;
 	}
 
@@ -1107,6 +1111,7 @@ int main (int argc, char **argv)
 #ifdef DEBUG
 	nocc_message ("DEBUG: compiler initialisation");
 #endif
+	origin_init ();
 	opts_init ();
 	fcnlib_init ();
 	keywords_init ();

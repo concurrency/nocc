@@ -29,6 +29,7 @@
 
 #include "nocc.h"
 #include "support.h"
+#include "origin.h"
 #include "keywords.h"
 
 #include "gperf_keywords.h"
@@ -83,11 +84,11 @@ keyword_t *keywords_lookup (const char *str, const int len)
 	return kw;
 }
 /*}}}*/
-/*{{{  keyword_t *keywords_add (const char *str, const int tagval, void *origin)*/
+/*{{{  keyword_t *keywords_add (const char *str, const int tagval, origin_t *origin)*/
 /*
  *	adds a keyword to the compiler
  */
-keyword_t *keywords_add (const char *str, const int tagval, void *origin)
+keyword_t *keywords_add (const char *str, const int tagval, origin_t *origin)
 {
 	keyword_t *kw = (keyword_t *)smalloc (sizeof (keyword_t));
 
