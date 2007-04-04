@@ -24,6 +24,8 @@ struct TAG_dfattbl;
 struct TAG_langdef;
 struct TAG_langparser;
 
+struct TAG_origin;
+
 typedef struct TAG_feunit {
 	int (*init_nodes)(void);				/* setup node types/tags */
 	int (*reg_reducers)(void);				/* register named reduction functions */
@@ -36,8 +38,8 @@ typedef struct TAG_feunit {
 extern int feunit_init (void);
 extern int feunit_shutdown (void);
 
-extern int feunit_do_init_tokens (int earlyfail, struct TAG_langdef *ldef, void *origin);
-extern int feunit_do_init_nodes (feunit_t **felist, int earlyfail, struct TAG_langdef *ldef, void *origin);
+extern int feunit_do_init_tokens (int earlyfail, struct TAG_langdef *ldef, struct TAG_origin *origin);
+extern int feunit_do_init_nodes (feunit_t **felist, int earlyfail, struct TAG_langdef *ldef, struct TAG_origin *origin);
 extern int feunit_do_reg_reducers (feunit_t **felist, int earlyfail, struct TAG_langdef *ldef);
 extern int feunit_do_init_dfatrans (feunit_t **felist, int earlyfail, struct TAG_langdef *ldef, struct TAG_langparser *lang, int doextn);
 extern int feunit_do_post_setup (feunit_t **felist, int earlyfail, struct TAG_langdef *ldef);

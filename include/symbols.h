@@ -20,10 +20,12 @@
 #ifndef __SYMBOLS_H
 #define __SYMBOLS_H
 
+struct TAG_origin;
+
 typedef struct TAG_symbol {
 	char *match;
 	int mlen;
-	void *origin;
+	struct TAG_origin *origin;
 } symbol_t;
 
 extern int symbols_init (void);
@@ -32,7 +34,8 @@ extern int symbols_shutdown (void);
 extern symbol_t *symbols_lookup (const char *str, const int len);
 extern symbol_t *symbols_match (const char *str, const char *limit);
 
-extern symbol_t *symbols_add (const char *str, const int len, void *origin);
+extern symbol_t *symbols_add (const char *str, const int len, struct TAG_origin *origin);
+
 
 #endif	/* !__SYMBOLS_H */
 

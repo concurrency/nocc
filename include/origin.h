@@ -20,10 +20,15 @@
 #ifndef	__ORIGIN_H
 #define	__ORIGIN_H
 
+struct TAG_langparser;
+struct TAG_langlexer;
+
 typedef enum ENUM_origin {
 	ORG_INVALID = 0,
 	ORG_INTERNAL = 1,
-	ORG_EXTN = 2
+	ORG_EXTN = 2,
+	ORG_LANGPARSER = 3,
+	ORG_LANGLEXER = 4
 } origin_e;
 
 typedef struct TAG_origin {
@@ -33,6 +38,12 @@ typedef struct TAG_origin {
 			char *file;
 			int line;
 		} internal;
+		struct {
+			struct TAG_langparser *lp;
+		} langparser;
+		struct {
+			struct TAG_langlexer *ll;
+		} langlexer;
 	} u;
 } origin_t;
 
@@ -40,6 +51,8 @@ extern int origin_init (void);
 extern int origin_shutdown (void);
 
 extern origin_t *origin_internal (const char *filename, const int lineno);
+extern origin_t *origin_langparser (struct TAG_langparser *lp);
+extern origin_t *origin_langlexer (struct TAG_langlexer *ll);
 
 
 #define INTERNAL_ORIGIN origin_internal(__FILE__,__LINE__)

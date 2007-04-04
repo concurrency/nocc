@@ -29,6 +29,7 @@
 
 #include "nocc.h"
 #include "support.h"
+#include "origin.h"
 #include "version.h"
 #include "symbols.h"
 
@@ -229,12 +230,12 @@ symbol_t *symbols_match (const char *str, const char *limit)
 /*}}}*/
 
 
-/*{{{  symbol_t *symbols_add (const char *str, const int len, void *origin)*/
+/*{{{  symbol_t *symbols_add (const char *str, const int len, origin_t *origin)*/
 /*
  *	adds a new symbol to the compiler -- placed in sym_extras array
  *	returns new symbol on success, NULL on failure
  */
-symbol_t *symbols_add (const char *str, const int len, void *origin)
+symbol_t *symbols_add (const char *str, const int len, origin_t *origin)
 {
 	symbol_t *sym = symbols_lookup (str, len);
 	int fch;

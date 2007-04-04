@@ -33,6 +33,7 @@
 
 #include "nocc.h"
 #include "support.h"
+#include "origin.h"
 #include "version.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -77,12 +78,12 @@ int feunit_shutdown (void)
 
 
 
-/*{{{  int feunit_do_init_tokens (int earlyfail, langdef_t *ldef, void *origin)*/
+/*{{{  int feunit_do_init_tokens (int earlyfail, langdef_t *ldef, origin_t *origin)*/
 /*
  *	extracts and sets up tokens for a particular language definition (always top-level currently)
  *	returns 0 on success, non-zero on failure
  */
-int feunit_do_init_tokens (int earlyfail, langdef_t *ldef, void *origin)
+int feunit_do_init_tokens (int earlyfail, langdef_t *ldef, origin_t *origin)
 {
 	int rval = 0;
 
@@ -102,12 +103,12 @@ int feunit_do_init_tokens (int earlyfail, langdef_t *ldef, void *origin)
 	return rval;
 }
 /*}}}*/
-/*{{{  int feunit_do_init_nodes (feunit_t **felist, int earlyfail, langdef_t *ldef, void *origin)*/
+/*{{{  int feunit_do_init_nodes (feunit_t **felist, int earlyfail, langdef_t *ldef, origin_t *origin)*/
 /*
  *	calls init_nodes on a set of feunits.  also sets up any nodes defined in the relevant language-definition section(s) if present.
  *	returns 0 on success, non-zero on failure
  */
-int feunit_do_init_nodes (feunit_t **felist, int earlyfail, langdef_t *ldef, void *origin)
+int feunit_do_init_nodes (feunit_t **felist, int earlyfail, langdef_t *ldef, origin_t *origin)
 {
 	int i, rval = 0;
 

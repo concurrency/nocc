@@ -21,6 +21,9 @@
 #define __LANGDEFLOOKUP_H
 
 
+struct TAG_origin;
+
+
 typedef enum ENUM_langdeflookup {
 	LDL_INVALID = 0,
 	LDL_IDENT = 1,
@@ -44,7 +47,7 @@ typedef enum ENUM_langdeflookup {
 typedef struct TAG_langdeflookup {
 	char *name;
 	langdeflookup_e ldl;
-	void *origin;
+	struct TAG_origin *origin;
 } langdeflookup_t;
 
 
@@ -52,7 +55,8 @@ extern int langdeflookup_init (void);
 extern int langdeflookup_shutdown (void);
 
 extern langdeflookup_t *langdeflookup_lookup (const char *str, const int len);
-extern int langdeflookup_add (const char *str, void *origin);
+extern int langdeflookup_add (const char *str, struct TAG_origin *origin);
+
 
 #endif	/* !__LANGDEFLOOKUP_H */
 

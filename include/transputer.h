@@ -20,6 +20,8 @@
 #ifndef __TRANSPUTER_H
 #define __TRANSPUTER_H
 
+struct TAG_origin;
+
 /* note: these don't have to be in a particular order */
 
 typedef enum ENUM_transinstr {
@@ -132,13 +134,13 @@ typedef struct TAG_transinstr {
 	char *name;
 	instrlevel_e level;
 	transinstr_e ins;
-	void *origin;
+	struct TAG_origin *origin;
 } transinstr_t;
 
 
 extern void transinstr_init (void);
 extern transinstr_t *transinstr_lookup (const char *str, const int len);
-extern int transinstr_add (const char *str, instrlevel_e level, void *origin);
+extern int transinstr_add (const char *str, instrlevel_e level, struct TAG_origin *origin);
 
 
 #endif	/* !__TRANSPUTER_H */

@@ -29,6 +29,8 @@
 
 #include "nocc.h"
 #include "support.h"
+#include "origin.h"
+#include "version.h"
 #include "langdef.h"
 #include "langdeflookup.h"
 
@@ -97,11 +99,11 @@ langdeflookup_t *langdeflookup_lookup (const char *str, const int len)
 	return ti;
 }
 /*}}}*/
-/*{{{   int langdeflookup_add (const char *str, void *origin)*/
+/*{{{   int langdeflookup_add (const char *str, origin_t *origin)*/
 /*
  *	adds a language-definition keyword to the compiler.  returns the assigned value
  */
-int langdeflookup_add (const char *str, void *origin)
+int langdeflookup_add (const char *str, origin_t *origin)
 {
 	langdeflookup_t *ti = (langdeflookup_t *)smalloc (sizeof (langdeflookup_t));
 	int i = DA_CUR (ilangdeflookups);

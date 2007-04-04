@@ -43,6 +43,7 @@ extern int nocc_dooption_arg (char *optstr, void *arg);
 #include "support.h"
 
 struct TAG_cmd_option;
+struct TAG_origin;
 
 /* this holds global options for the compiler */
 typedef struct TAG_compopts {
@@ -143,7 +144,7 @@ extern char *progname;
 extern compopts_t compopts;
 
 /* this can be called by extensions (and other code) to add passes to the compiler */
-extern int nocc_addcompilerpass (const char *name, void *origin, const char *other, int before, int (*pfcn)(void *), comppassarg_t parg, int stopat, int *eflagptr);
+extern int nocc_addcompilerpass (const char *name, struct TAG_origin *origin, const char *other, int before, int (*pfcn)(void *), comppassarg_t parg, int stopat, int *eflagptr);
 
 /* this is used to add an XML namespace to the compiler -- for prefixing on dumped XML output -- only for top-level tree-dumps */
 extern int nocc_addxmlnamespace (const char *name, const char *uri);

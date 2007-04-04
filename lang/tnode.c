@@ -31,6 +31,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -1800,12 +1801,12 @@ int tnode_callcompop_i (compops_t *cops, int idx, int nparams, ...)
 	return r;
 }
 /*}}}*/
-/*{{{  int tnode_newcompop (char *name, compops_e opno, int nparams, void *origin)*/
+/*{{{  int tnode_newcompop (char *name, compops_e opno, int nparams, origin_t *origin)*/
 /*
  *	creates a new compiler operation with the given name;  if 'opno' is valid (!= COPS_INVALID), setting a preset one
  *	returns index on success, <0 on failure
  */
-int tnode_newcompop (char *name, compops_e opno, int nparams, void *origin)
+int tnode_newcompop (char *name, compops_e opno, int nparams, origin_t *origin)
 {
 	compop_t *cop = stringhash_lookup (compops, name);
 
@@ -2176,12 +2177,12 @@ int tnode_calllangop_i (langops_t *lops, int idx, int nparams, ...)
 	return r;
 }
 /*}}}*/
-/*{{{  int tnode_newlangop (char *name, langops_e opno, int nparams, void *origin)*/
+/*{{{  int tnode_newlangop (char *name, langops_e opno, int nparams, origin_t *origin)*/
 /*
  *	creates a new language operation with the given name;  if 'opno' is valid (!= LOPS_INVALID), setting a preset one
  *	returns index on success, <0 on failure
  */
-int tnode_newlangop (char *name, langops_e opno, int nparams, void *origin)
+int tnode_newlangop (char *name, langops_e opno, int nparams, origin_t *origin)
 {
 	langop_t *lop = stringhash_lookup (langops, name);
 

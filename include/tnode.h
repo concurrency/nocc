@@ -87,6 +87,7 @@ struct TAG_name;
 struct TAG_map;
 struct TAG_codegen;
 struct TAG_uchk_state;
+struct TAG_origin;
 
 /*{{{  tnode_t definition*/
 typedef struct TAG_tnode {
@@ -130,7 +131,7 @@ typedef struct TAG_compop {
 	char *name;
 	compops_e opno;
 	int nparams;
-	void *origin;
+	struct TAG_origin *origin;
 } compop_t;
 
 typedef struct TAG_compops {
@@ -174,7 +175,7 @@ typedef struct TAG_langop {
 	char *name;
 	langops_e opno;
 	int nparams;
-	void *origin;
+	struct TAG_origin *origin;
 } langop_t;
 
 typedef struct TAG_langops {
@@ -242,7 +243,7 @@ extern int tnode_hascompop (compops_t *cops, char *name);
 extern int tnode_callcompop (compops_t *cops, char *name, int nparams, ...);
 extern int tnode_hascompop_i (compops_t *cops, int idx);
 extern int tnode_callcompop_i (compops_t *cops, int idx, int nparams, ...);
-extern int tnode_newcompop (char *name, compops_e opno, int nparams, void *origin);
+extern int tnode_newcompop (char *name, compops_e opno, int nparams, struct TAG_origin *origin);
 extern compop_t *tnode_findcompop (char *name);
 
 #define COMPOPTYPE(X) ((int (*)(compops_t *, ...))(X))
@@ -252,7 +253,7 @@ extern int tnode_haslangop (langops_t *lops, char *name);
 extern int tnode_calllangop (langops_t *lops, char *name, int nparams, ...);
 extern int tnode_haslangop_i (langops_t *lops, int idx);
 extern int tnode_calllangop_i (langops_t *lops, int idx, int nparams, ...);
-extern int tnode_newlangop (char *name, langops_e opno, int nparams, void *origin);
+extern int tnode_newlangop (char *name, langops_e opno, int nparams, struct TAG_origin *origin);
 extern langop_t *tnode_findlangop (char *name);
 
 #define LANGOPTYPE(X) ((int (*)(langops_t *, ...))(X))

@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -424,11 +425,11 @@ static int occampi_parser_init (lexfile_t *lf)
 		fcnlib_addfcn ("occampi_stringtoken_to_hook", (void *)occampi_stringtoken_to_hook, 1, 1);
 
 		/* initialise! */
-		if (feunit_do_init_tokens (0, occampi_priv->langdefs, (void *)&occampi_parser)) {
+		if (feunit_do_init_tokens (0, occampi_priv->langdefs, origin_langparser (&occampi_parser))) {
 			nocc_error ("occampi_parser_init(): failed to initialise tokens");
 			return 1;
 		}
-		if (feunit_do_init_nodes (feunit_set, 1, occampi_priv->langdefs, (void *)&occampi_parser)) {
+		if (feunit_do_init_nodes (feunit_set, 1, occampi_priv->langdefs, origin_langparser (&occampi_parser))) {
 			nocc_error ("occampi_parser_init(): failed to initialise nodes");
 			return 1;
 		}

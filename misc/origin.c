@@ -31,29 +31,22 @@
 #include "nocc.h"
 #include "support.h"
 #include "origin.h"
+#include "version.h"
+#include "lexer.h"
+#include "lexpriv.h"
+#include "parser.h"
+#include "parsepriv.h"
 
 /*}}}*/
+/*{{{  private data*/
 
+#define ORIGIN_BITSIZE 3
 
-/*{{{  int origin_init (void)*/
-/*
- *	called to initialise origin handling
- *	returns 0 on success, non-zero on failure
- */
-int origin_init (void)
-{
-	return 0;
-}
-/*}}}*/
-/*{{{  int origin_shutdown (void)*/
-/*
- *	called to shut-down origin handling
- *	returns 0 on success, non-zero on failure
- */
-int origin_shutdown (void)
-{
-	return 0;
-}
+STATICPOINTERHASH (origin_t *, lporgs, ORIGIN_BITSIZE);		/* origins by langparser */
+STATICPOINTERHASH (origin_t *, llorgs, ORIGIN_BITSIZE);		/* origins by langlexer */
+
+STATICDYNARRAY (origin_t *, aorigins);
+
 /*}}}*/
 
 
@@ -96,6 +89,45 @@ static void org_freeorigin (origin_t *org)
 /*}}}*/
 
 
+/*{{{  int origin_init (void)*/
+/*
+ *	called to initialise origin handling
+ *	returns 0 on success, non-zero on failure
+ */
+int origin_init (void)
+{
+	pointerhash_sinit (lporgs);
+	pointerhash_sinit (llorgs);
+
+	dynarray_init (aorigins);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int origin_shutdown (void)*/
+/*
+ *	called to shut-down origin handling
+ *	returns 0 on success, non-zero on failure
+ */
+int origin_shutdown (void)
+{
+	int i;
+
+	pointerhash_trash (lporgs);
+	pointerhash_trash (llorgs);
+
+	for (i=0; i<DA_CUR (aorigins); i++) {
+		origin_t *org = DA_NTHITEM (aorigins, i);
+
+		org_freeorigin (org);
+	}
+	dynarray_trash (aorigins);
+
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  origin_t *origin_internal (const char *filename, const int lineno)*/
 /*
  *	creates a new internal origin (with filename and line-number)
@@ -108,9 +140,48 @@ origin_t *origin_internal (const char *filename, const int lineno)
 	org->u.internal.file = string_dup (filename);
 	org->u.internal.line = lineno;
 
+	dynarray_add (aorigins, org);
+
 	return org;
 }
 /*}}}*/
+/*{{{  origin_t *origin_langparser (langparser_t *lp)*/
+/*
+ *	creates or looks-up an origin by langparser_t
+ */
+origin_t *origin_langparser (langparser_t *lp)
+{
+	origin_t *org = pointerhash_lookup (lporgs, lp);
 
+	if (!org) {
+		org = org_neworigin ();
+		org->type = ORG_LANGPARSER;
+		org->u.langparser.lp = lp;
+
+		pointerhash_insert (lporgs, org, lp);
+		dynarray_add (aorigins, org);
+	}
+	return org;
+}
+/*}}}*/
+/*{{{  origin_t *origin_langlexer (langlexer_t *ll)*/
+/*
+ *	creates or looks-up an origin by langlexer_t
+ */
+origin_t *origin_langlexer (langlexer_t *ll)
+{
+	origin_t *org = pointerhash_lookup (llorgs, ll);
+
+	if (!org) {
+		org = org_neworigin ();
+		org->type = ORG_LANGLEXER;
+		org->u.langlexer.ll = ll;
+
+		pointerhash_insert (llorgs, org, ll);
+		dynarray_add (aorigins, org);
+	}
+	return org;
+}
+/*}}}*/
 
 

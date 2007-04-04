@@ -143,7 +143,7 @@ compopts_t compopts = {
 
 typedef struct TAG_compilerpass {
 	char *name;			/* of this pass */
-	void *origin;
+	origin_t *origin;		/* origin */
 	int (*fcn)(void *);		/* pointer to pass function (arguments fudged) */
 	comppassarg_t fargs;		/* bitfield describing the arguments required */
 	int stoppoint;
@@ -903,11 +903,11 @@ int nocc_dooption_arg (char *optstr, void *arg)
 /*}}}*/
 
 
-/*{{{  static compilerpass_t *nocc_new_compilerpass (const char *name, void *origin, int (*fcn)(void *), comppassarg_t fargs, int spoint, int *flagptr)*/
+/*{{{  static compilerpass_t *nocc_new_compilerpass (const char *name, origin_t *origin, int (*fcn)(void *), comppassarg_t fargs, int spoint, int *flagptr)*/
 /*
  *	creates a new compilerpass_t structure (initialised)
  */
-static compilerpass_t *nocc_new_compilerpass (const char *name, void *origin, int (*fcn)(void *), comppassarg_t fargs, int spoint, int *flagptr)
+static compilerpass_t *nocc_new_compilerpass (const char *name, origin_t *origin, int (*fcn)(void *), comppassarg_t fargs, int spoint, int *flagptr)
 {
 	compilerpass_t *cpass = (compilerpass_t *)smalloc (sizeof (compilerpass_t));
 
@@ -951,12 +951,12 @@ static int nocc_init_cpasses (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  int nocc_addcompilerpass (const char *name, void *origin, const char *other, int before, int (*pfcn)(void *), comppassarg_t parg, int stopat, int *eflagptr)*/
+/*{{{  int nocc_addcompilerpass (const char *name, origin_t *origin, const char *other, int before, int (*pfcn)(void *), comppassarg_t parg, int stopat, int *eflagptr)*/
 /*
  *	this can be called by extensions to add passes to the compiler at run-time
  *	returns 0 on success, non-zero on failure
  */
-int nocc_addcompilerpass (const char *name, void *origin, const char *other, int before, int (*pfcn)(void *), comppassarg_t parg, int stopat, int *eflagptr)
+int nocc_addcompilerpass (const char *name, origin_t *origin, const char *other, int before, int (*pfcn)(void *), comppassarg_t parg, int stopat, int *eflagptr)
 {
 	int i;
 	compilerpass_t *cpass, **cpasses = NULL;

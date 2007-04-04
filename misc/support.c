@@ -1563,6 +1563,22 @@ void ph_init (int *bsizes, void ***table, void ***keys, int *szptr, int *bszptr,
 	return;
 }
 /*}}}*/
+/*{{{  void ph_sinit (int *bsizes, void ***table, void ***keys, int size)*/
+/*
+ *	initialises a pointer-hash
+ */
+void ph_sinit (int *bsizes, void ***table, void ***keys, int size)
+{
+	int i;
+
+	for (i=0; i<size; i++) {
+		bsizes[i] = 0;
+		table[i] = NULL;
+		keys[i] = NULL;
+	}
+	return;
+}
+/*}}}*/
 /*{{{  static unsigned int ph_hashcode (void *ptr, int bitsize)*/
 /*
  *	returns a pointer-hash for some pointer

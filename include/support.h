@@ -194,7 +194,7 @@ extern void sh_walk (int *bsizes, void ***table, char ***keys, int size, void (*
 		static int PH_BSIZES(NAME)[1 << (BITSIZE)]; \
 		static const int PH_SIZE(NAME) = (1 << (BITSIZE)); \
 		static const int PH_BITSIZE(NAME) = (BITSIZE); \
-		static TYPE (*PH_LOOKUP(NAME))(int *, void ***, void ***, int, void *) = (void *(*)(int *, void ***, void ***, int, void *))ph_lookup
+		static TYPE (*PH_LOOKUP(NAME))(int *, void ***, void ***, int, void *) = (TYPE(*)(int *, void ***, void ***, int, void *))ph_lookup
 #define POINTERHASH(TYPE,NAME,BITSIZE) TYPE* PH_TABLE(NAME)[1 << (BITSIZE)]; \
 		void **PH_KEYS(NAME)[1 << (BITSIZE)]; \
 		int PH_BSIZES(NAME)[1 << (BITSIZE)]; \
@@ -216,12 +216,14 @@ extern void sh_walk (int *bsizes, void ***table, char ***keys, int size, void (*
 	extern void ph_trash (int *bsizes, void ***table, void ***keys, int size);
 #endif
 extern void ph_init (int *bsizes, void ***table, void ***keys, int *szptr, int *bszptr, void **fnptr, int bitsize);
+extern void ph_sinit (int *bsizes, void ***table, void ***keys, int size);
 extern void *ph_lookup (int *bsizes, void ***table, void ***keys, int bitsize, void *match);
 extern void ph_dump (FILE *stream, int *bsizes, void ***table, void ***keys, int size);
 extern void ph_walk (int *bsizes, void ***table, void ***keys, int size, void (*func)(void *, void *, void *), void *p);
 extern void ph_lwalk (int *bsizes, void ***table, void ***keys, int bitsize, void *match, void (*func)(void *, void *, void *), void *p);
 
 #define pointerhash_init(PHASH,BITSIZE) ph_init((int *)&((PH_BSIZES(PHASH))[0]), (void ***)&((PH_TABLE(PHASH))[0]), (void ***)&((PH_KEYS(PHASH))[0]), &PH_SIZE(PHASH), &PH_BITSIZE(PHASH), (void *)&(PH_LOOKUP(PHASH)), (BITSIZE))
+#define pointerhash_sinit(PHASH) ph_sinit((int *)&((PH_BSIZES(PHASH))[0]), (void ***)&((PH_TABLE(PHASH))[0]), (void ***)&((PH_KEYS(PHASH))[0]), PH_SIZE(PHASH))
 #define pointerhash_insert(PHASH,ITEM,KEY) ph_insert((int *)&((PH_BSIZES(PHASH))[0]), (void ***)&((PH_TABLE(PHASH))[0]), (void ***)&((PH_KEYS(PHASH))[0]), PH_BITSIZE(PHASH), (void *)(ITEM), (void *)(KEY))
 #define pointerhash_remove(PHASH,ITEM,KEY) ph_remove((int *)&((PH_BSIZES(PHASH))[0]), (void ***)&((PH_TABLE(PHASH))[0]), (void ***)&((PH_KEYS(PHASH))[0]), PH_BITSIZE(PHASH), (void *)(ITEM), (void *)(KEY))
 #define pointerhash_lookup(PHASH,KEY) PH_LOOKUP(PHASH) ((int *)&((PH_BSIZES(PHASH))[0]), (void ***)&((PH_TABLE(PHASH))[0]), (void ***)&((PH_KEYS(PHASH))[0]), PH_BITSIZE(PHASH), (void *)(KEY))

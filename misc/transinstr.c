@@ -29,6 +29,8 @@
 
 #include "nocc.h"
 #include "support.h"
+#include "origin.h"
+#include "version.h"
 #include "transputer.h"
 
 #include "gperf_transinstr.h"
@@ -83,11 +85,11 @@ transinstr_t *transinstr_lookup (const char *str, const int len)
 	return ti;
 }
 /*}}}*/
-/*{{{   int transinstr_add (const char *str, instrlevel_e level, void *origin)*/
+/*{{{   int transinstr_add (const char *str, instrlevel_e level, origin_t *origin)*/
 /*
  *	adds an instruction to the compiler.  returns the assigned value
  */
-int transinstr_add (const char *str, instrlevel_e level, void *origin)
+int transinstr_add (const char *str, instrlevel_e level, origin_t *origin)
 {
 	transinstr_t *ti = (transinstr_t *)smalloc (sizeof (transinstr_t));
 	int i = DA_CUR (itransinstrs);

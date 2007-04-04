@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -447,11 +448,11 @@ static int mcsp_parser_init (lexfile_t *lf)
 		}
 
 		/* initialise! */
-		if (feunit_do_init_tokens (0, mcsp_priv->langdefs, (void *)&mcsp_parser)) {
+		if (feunit_do_init_tokens (0, mcsp_priv->langdefs, origin_langparser (&mcsp_parser))) {
 			nocc_error ("mcsp_parser_init(): failed to initialise tokens");
 			return 1;
 		}
-		if (feunit_do_init_nodes (feunit_set, 1, mcsp_priv->langdefs, (void *)&mcsp_parser)) {
+		if (feunit_do_init_nodes (feunit_set, 1, mcsp_priv->langdefs, origin_langparser (&mcsp_parser))) {
 			nocc_error ("mcsp_parser_init(): failed to initialise nodes");
 			return 1;
 		}
