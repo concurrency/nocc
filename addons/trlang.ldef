@@ -8,16 +8,25 @@
 .MAINTAINER	"Fred Barnes <frmb@kent.ac.uk>"
 
 
-.SECTION "trlang"
+.SECTION "trlang" # {{{
 
 .KEYWORD "if"
 .KEYWORD "else"
 
+# trlang:rawnamenode               (0,0,1)
+# trlang:litnode                   (0,0,1)
+# trlang:functiondef               (3,0,0)
 
-.SECTION "trlang-postprod"
+.TNODE	"trlang:rawnamenode" (0,0,1) "rawname"
+.TNODE	"trlang:litnode" (0,0,1) "literal-hook"
+.TNODE	"trlang:functiondef" (3,0,0) "name" "params" "body"
 
 
-.SECTION "trlang-expr"
+# }}}
+.SECTION "trlang-postprod" # {{{
+
+# }}}
+.SECTION "trlang-expr" # {{{
 
 .GRULE	"trl:nullreduce" "N+R-"
 .GRULE	"trl:namereduce" "T+St0X[trlang_nametoken_to_hook]C[TRLANGNAME]1R-"
@@ -28,4 +37,6 @@
 .TABLE	"trlang:expr ::= [ 0 trlang:name 1 ] [ 1 {<trl:nullreduce>} -* ]"
 .TABLE	"trlang:functiondef ::= [ 0 trlang:name 1 ] [ 1 @@( 2 ] [ 2 @@) 3 ] [ 3 @@= 4 ] [ 4 trlang:expr 5 ] [ 5 {<trl:functiondefreduce>} -* ]"
 
+
+# }}}
 

@@ -75,6 +75,7 @@ langparser_t rcxb_parser = {
 	prescope:	rcxb_parser_prescope,
 	scope:		NULL, // mcsp_parser_scope,
 	typecheck:	NULL, // mcsp_parser_typecheck,
+	typeresolve:	NULL,
 	postcheck:	NULL,
 	fetrans:	NULL,
 	getlangdef:	rcxb_getlangdef,

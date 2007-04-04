@@ -80,6 +80,7 @@ langparser_t mcsp_parser = {
 	prescope:	mcsp_parser_prescope,
 	scope:		mcsp_parser_scope,
 	typecheck:	mcsp_parser_typecheck,
+	typeresolve:	NULL,
 	postcheck:	NULL,
 	fetrans:	mcsp_parser_fetrans,
 	getlangdef:	mcsp_getlangdef,

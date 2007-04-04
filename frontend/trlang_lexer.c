@@ -274,6 +274,13 @@ tokenloop:
 		}
 		/*}}}*/
 	} else switch (*ch) {
+		/*{{{  # (comment to end-of-line)*/
+	case '#':
+		tok->type = COMMENT;
+		for (dh = ch+1; (dh < chlim) && (*dh != '\r') && (*dh != '\n'); dh++);
+		lp->offset += (int)(dh - ch);
+		return tok;
+		/*}}}*/
 		/*{{{  \r, \n (newline) */
 	case '\r':
 		lp->offset++;
@@ -282,7 +289,6 @@ tokenloop:
 		lf->lineno++;
 		lp->offset++;
 		goto tokenloop;
-		break;
 		/*}}}*/
 		/*{{{  space, tab*/
 	case ' ':

@@ -62,6 +62,7 @@ static tnode_t *hopp_parser_descparse (lexfile_t *lf);
 static int hopp_parser_prescope (tnode_t **tptr, prescope_t *ps);
 static int hopp_parser_scope (tnode_t **tptr, scope_t *ss);
 static int hopp_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
+static int hopp_parser_typeresolve (tnode_t **tptr, typecheck_t *tc);
 static tnode_t *hopp_parser_maketemp (tnode_t ***insertpointp, tnode_t *type);
 static tnode_t *hopp_parser_makeseqassign (tnode_t ***insertpointp, tnode_t *lhs, tnode_t *rhs, tnode_t *type);
 
@@ -78,6 +79,7 @@ langparser_t hopp_parser = {
 	prescope:	hopp_parser_prescope,
 	scope:		hopp_parser_scope,
 	typecheck:	hopp_parser_typecheck,
+	typeresolve:	hopp_parser_typeresolve,
 	postcheck:	NULL,
 	fetrans:	NULL,
 	getlangdef:	NULL,
@@ -555,6 +557,21 @@ static int hopp_parser_typecheck (tnode_t *tptr, typecheck_t *tc)
 
 	if (occampi_parser.typecheck) {
 		r = occampi_parser.typecheck (tptr, tc);
+	}
+	return r;
+}
+/*}}}*/
+/*{{{  static int hopp_parser_typeresolve (tnode_t **tptr, typecheck_t *tc)*/
+/*
+ *	called to type-resolve a tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int hopp_parser_typeresolve (tnode_t **tptr, typecheck_t *tc)
+{
+	int r = 0;
+
+	if (occampi_parser.typeresolve) {
+		r = occampi_parser.typeresolve (tptr, tc);
 	}
 	return r;
 }

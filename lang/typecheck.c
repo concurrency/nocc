@@ -338,3 +338,76 @@ int typecheck_tree (tnode_t *t, langparser_t *lang)
 }
 /*}}}*/
 
+
+/*{{{  int typeresolve_modprewalktree (tnode_t **nodep, void *arg)*/
+/*
+ *	generic type-check
+ */
+int typeresolve_modprewalktree (tnode_t **nodep, void *arg)
+{
+	int i = 1;
+
+	if (*nodep && (*nodep)->tag->ndef->ops && tnode_hascompop_i ((*nodep)->tag->ndef->ops, (int)COPS_TYPERESOLVE)) {
+		i = tnode_callcompop_i ((*nodep)->tag->ndef->ops, (int)COPS_TYPERESOLVE, 2, nodep, (typecheck_t *)arg);
+	}
+	return i;
+}
+/*}}}*/
+/*{{{  int typeresolve_subtree (tnode_t **tptr, typecheck_t *tc)*/
+/*
+ *	performs a sub type-reduce
+ *	returns 0 on success, non-zero on failure
+ */
+int typeresolve_subtree (tnode_t **tptr, typecheck_t *tc)
+{
+	int saved_err = tc->err;
+	int saved_warn = tc->warn;
+	int i;
+
+	tc->err = 0;
+	tc->warn = 0;
+	i = tc->lang->typeresolve (tptr, tc);
+
+	if (tc->err) {
+		i = tc->err;
+	}
+
+	tc->err += saved_err;
+	tc->warn += saved_warn;
+
+	return i;
+}
+/*}}}*/
+/*{{{  int typeresolve_tree (tnode_t **tptr, langparser_t *lang)*/
+/*
+ *	performs the top-level type-resolve pass
+ *	returns 0 on success, non-zero on failure
+ */
+int typeresolve_tree (tnode_t **tptr, langparser_t *lang)
+{
+	typecheck_t *tc = (typecheck_t *)smalloc (sizeof (typecheck_t));
+	int i;
+
+	tc->err = 0;
+	tc->warn = 0;
+	if (!lang->typeresolve) {
+		/* only certain languages may need this (occam-pi) */
+		sfree (tc);
+		return 0;
+	}
+	tc->lang = lang;
+	i = lang->typeresolve (tptr, tc);
+
+	if (compopts.verbose || tc->err || tc->warn) {
+		nocc_message ("typeresolve_tree(): type-resolved.  %d error(s), %d warning(s)", tc->err, tc->warn);
+	}
+
+	if (tc->err) {
+		i = tc->err;
+	}
+	sfree (tc);
+	return i;
+}
+/*}}}*/
+
+

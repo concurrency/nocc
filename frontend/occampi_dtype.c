@@ -1227,13 +1227,15 @@ static int occampi_typecheck_slice (compops_t *cops, tnode_t *node, typecheck_t 
 	tnode_t *itype, *atype;
 	tnode_t *mytype = NULL;
 
+	/* FIXME: needs more I think? */
+
 	/* type-check sub-trees */
 	typecheck_subtree (tnode_nthsubof (node, 0), tc);
 	typecheck_subtree (tnode_nthsubof (node, 1), tc);
 	typecheck_subtree (tnode_nthsubof (node, 2), tc);
 
 	atype = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
-#if 1
+#if 0
 fprintf (stderr, "occampi_typecheck_slice(): type-checked base, got:\n");
 tnode_dumptree (atype, 1, stderr);
 #endif
@@ -1256,7 +1258,7 @@ tnode_dumptree (atype, 1, stderr);
 	if (mytype && !tnode_nthsubof (node, 3)) {
 		tnode_setnthsub (node, 3, mytype);
 		tnode_setnthsub (mytype, 0, tnode_copytree (tnode_nthsubof (node, 2)));
-#if 1
+#if 0
 fprintf (stderr, "occampi_typecheck_slice(): setting slice type to:\n");
 tnode_dumptree (mytype, 1, stderr);
 #endif

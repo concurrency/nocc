@@ -109,16 +109,17 @@ typedef enum ENUM_compops {
 	COPS_SCOPEOUT = 3,			/* 2: tnode_t **, scope_t * -> int */
 	COPS_TYPECHECK = 4,			/* 2: tnode_t *, typecheck_t * -> int */
 	COPS_CONSTPROP = 5,			/* 1: tnode_t ** -> int */
-	COPS_PRECHECK = 6,			/* 1: tnode_t * -> int */
-	COPS_POSTCHECK = 7,			/* 2: tnode_t **, postcheck_t * -> int */
-	COPS_FETRANS = 8,			/* 2: tnode_t **, fetrans_t * -> int */
-	COPS_BETRANS = 9,			/* 2: tnode_t **, betrans_t * -> int */
-	COPS_PREMAP = 10,			/* 2: tnode_t **, map_t * -> int */
-	COPS_NAMEMAP = 11,			/* 2: tnode_t **, map_t * -> int */
-	COPS_BEMAP = 12,			/* 2: tnode_t **, map_t * -> int */
-	COPS_PREALLOCATE = 13,			/* 2: tnode_t *, target_t * -> int */
-	COPS_PRECODE = 14,			/* 2: tnode_t **, codegen_t * -> int */
-	COPS_CODEGEN = 15,			/* 2: tnode_t *, codegen_t * -> int */
+	COPS_TYPERESOLVE = 6,			/* 2: tnode_t **, typecheck_t * -> int */
+	COPS_PRECHECK = 7,			/* 1: tnode_t * -> int */
+	COPS_POSTCHECK = 8,			/* 2: tnode_t **, postcheck_t * -> int */
+	COPS_FETRANS = 9,			/* 2: tnode_t **, fetrans_t * -> int */
+	COPS_BETRANS = 10,			/* 2: tnode_t **, betrans_t * -> int */
+	COPS_PREMAP = 11,			/* 2: tnode_t **, map_t * -> int */
+	COPS_NAMEMAP = 12,			/* 2: tnode_t **, map_t * -> int */
+	COPS_BEMAP = 13,			/* 2: tnode_t **, map_t * -> int */
+	COPS_PREALLOCATE = 14,			/* 2: tnode_t *, target_t * -> int */
+	COPS_PRECODE = 15,			/* 2: tnode_t **, codegen_t * -> int */
+	COPS_CODEGEN = 16,			/* 2: tnode_t *, codegen_t * -> int */
 	COPS_MAX = 256
 } compops_e;
 

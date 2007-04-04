@@ -96,7 +96,7 @@ int trlang_initialise (void)
 
 	tree = parser_parse (lf);
 	if (tree) {
-#if 1
+#if 0
 fprintf (stderr, "trlang_initialise(): got tree:\n");
 tnode_dumptree (tree, 1, stderr);
 #endif

@@ -43,6 +43,7 @@ typedef struct TAG_langparser {
 	int (*scope)(struct TAG_tnode **, struct TAG_scope *);
 	int (*prescope)(struct TAG_tnode **, struct TAG_prescope *);
 	int (*typecheck)(struct TAG_tnode *, struct TAG_typecheck *);
+	int (*typeresolve)(struct TAG_tnode **, struct TAG_typecheck *);
 	int (*postcheck)(struct TAG_tnode **, struct TAG_postcheck *);
 	int (*fetrans)(struct TAG_tnode **, struct TAG_fetrans *);
 	struct TAG_langdef *(*getlangdef)(void);

@@ -65,6 +65,7 @@ static tnode_t *occampi_parser_descparse (lexfile_t *lf);
 static int occampi_parser_prescope (tnode_t **tptr, prescope_t *ps);
 static int occampi_parser_scope (tnode_t **tptr, scope_t *ss);
 static int occampi_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
+static int occampi_parser_typeresolve (tnode_t **tptr, typecheck_t *tc);
 static tnode_t *occampi_parser_maketemp (tnode_t ***insertpointp, tnode_t *type);
 static tnode_t *occampi_parser_makeseqassign (tnode_t ***insertpointp, tnode_t *lhs, tnode_t *rhs, tnode_t *type);
 
@@ -87,6 +88,7 @@ langparser_t occampi_parser = {
 	prescope:	occampi_parser_prescope,
 	scope:		occampi_parser_scope,
 	typecheck:	occampi_parser_typecheck,
+	typeresolve:	occampi_parser_typeresolve,
 	postcheck:	NULL,
 	fetrans:	NULL,
 	getlangdef:	occampi_getlangdef,
@@ -1826,6 +1828,17 @@ static int occampi_parser_scope (tnode_t **tptr, scope_t *ss)
 static int occampi_parser_typecheck (tnode_t *tptr, typecheck_t *tc)
 {
 	tnode_prewalktree (tptr, typecheck_prewalktree, (void *)tc);
+	return tc->err;
+}
+/*}}}*/
+/*{{{  static int occampi_parser_typeresolve (tnode_t **tptr, typecheck_t *tc)*/
+/*
+ *	called to type-resolve a tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_parser_typeresolve (tnode_t **tptr, typecheck_t *tc)
+{
+	tnode_modprewalktree (tptr, typeresolve_modprewalktree, (void *)tc);
 	return tc->err;
 }
 /*}}}*/

@@ -299,6 +299,21 @@ static int trlang_expr_init_nodes (void)
 	trlang.tag_NAME = tnode_newnodetag ("TRLANGNAME", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  trlang:litnode -- TRLANGLITSTR, TRLANGLITINT*/
+	i = -1;
+	tnd = tnode_newnodetype ("trlang:litnode", &i, 0, 0, 1, TNF_NONE);				/* hooks: 0 = trlang_lithook_t */
+	tnd->hook_free = trlang_litnode_hook_free;
+	tnd->hook_copy = trlang_litnode_hook_copy;
+	tnd->hook_dumptree = trlang_litnode_hook_dumptree;
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	trlang.tag_LITSTR = tnode_newnodetag ("TRLANGLITSTR", &i, tnd, NTF_NONE);
+	i = -1;
+	trlang.tag_LITINT = tnode_newnodetag ("TRLANGLITINT", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 	/*{{{  trlang:functiondef -- TRLANGFUNCTIONDEF*/
 	i = -1;
 	tnd = tnode_newnodetype ("trlang:functiondef", &i, 3, 0, 0, TNF_NONE);				/* subnodes: 0 = name; 1 = params; 2 = body */
