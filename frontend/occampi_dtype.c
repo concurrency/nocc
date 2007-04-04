@@ -1041,6 +1041,16 @@ static int occampi_typecheck_subscript (compops_t *cops, tnode_t *node, typechec
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_constprop_subscript (compops_t *cops, tnode_t **nodep)*/
+/*
+ *	does constant-propagation on a subscript (for constant arrays)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_constprop_subscript (compops_t *cops, tnode_t **nodep)
+{
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_subscript (compops_t *cops, tnode_t **node, map_t *mdata)*/
 /*
  *	name-maps a subscript-node, turning it into a back-end INDEXED node
@@ -1619,6 +1629,7 @@ static int occampi_dtype_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_subscript));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_subscript));
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_subscript));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_subscript));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();

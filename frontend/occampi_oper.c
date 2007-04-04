@@ -181,9 +181,12 @@ static int occampi_constprop_dop (compops_t *cops, tnode_t **tptr)
 
 		/* turn this node into a constant */
 		switch (constprop_consttype (left)) {
+			/*{{{  CONST_INVALID -- error*/
 		case CONST_INVALID:
 			constprop_error (*tptr, "occampi_constprop_dop(): CONST_INVALID!");
 			break;
+			/*}}}*/
+			/*{{{  CONST_BYTE -- byte operations*/
 		case CONST_BYTE:
 			{
 				unsigned char b1, b2;
@@ -230,6 +233,8 @@ static int occampi_constprop_dop (compops_t *cops, tnode_t **tptr)
 				newconst = constprop_newconst (CONST_BYTE, *tptr, tnode_nthsubof (*tptr, 2), b1);
 			}
 			break;
+			/*}}}*/
+			/*{{{  CONST_INT -- int operations*/
 		case CONST_INT:
 			{
 				int i1, i2;
@@ -276,10 +281,13 @@ static int occampi_constprop_dop (compops_t *cops, tnode_t **tptr)
 				newconst = constprop_newconst (CONST_INT, *tptr, tnode_nthsubof (*tptr, 2), i1);
 			}
 			break;
+			/*}}}*/
+			/*{{{  CONST_DOUBLE, CONST_ULL -- unsupported*/
 		case CONST_DOUBLE:
 		case CONST_ULL:
 			constprop_warning (*tptr, "occampi_constprop_dop(): unsupported constant type.. (yet)");
 			break;
+			/*}}}*/
 		}
 
 		*tptr = newconst;
