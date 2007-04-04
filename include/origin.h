@@ -30,13 +30,19 @@ typedef struct TAG_origin {
 	origin_e type;
 	union {
 		struct {
-			void (*fcn)(void);
+			char *file;
+			int line;
 		} internal;
 	} u;
 } origin_t;
 
 extern int origin_init (void);
 extern int origin_shutdown (void);
+
+extern origin_t *origin_internal (const char *filename, const int lineno);
+
+
+#define INTERNAL_ORIGIN origin_internal(__FILE__,__LINE__)
 
 
 #endif	/* !__ORIGIN_H */

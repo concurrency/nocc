@@ -57,4 +57,60 @@ int origin_shutdown (void)
 /*}}}*/
 
 
+/*{{{  static origin_t *org_neworigin (void)*/
+/*
+ *	creates a blank origin_t structure
+ */
+static origin_t *org_neworigin (void)
+{
+	origin_t *org = (origin_t *)smalloc (sizeof (origin_t));
+
+	org->type = ORG_INVALID;
+
+	return org;
+}
+/*}}}*/
+/*{{{  static void org_freeorigin (origin_t *org)*/
+/*
+ *	destroys an origin_t structure
+ */
+static void org_freeorigin (origin_t *org)
+{
+	if (!org) {
+		nocc_warning ("org_freeorigin(): NULL origin!");
+		return;
+	}
+	switch (org->type) {
+	case ORG_INTERNAL:
+		if (org->u.internal.file) {
+			sfree (org->u.internal.file);
+			org->u.internal.file = NULL;
+		}
+		break;
+	default:
+		break;
+	}
+	sfree (org);
+	return;
+}
+/*}}}*/
+
+
+/*{{{  origin_t *origin_internal (const char *filename, const int lineno)*/
+/*
+ *	creates a new internal origin (with filename and line-number)
+ */
+origin_t *origin_internal (const char *filename, const int lineno)
+{
+	origin_t *org = org_neworigin ();
+
+	org->type = ORG_INTERNAL;
+	org->u.internal.file = string_dup (filename);
+	org->u.internal.line = lineno;
+
+	return org;
+}
+/*}}}*/
+
+
 

@@ -27,7 +27,7 @@ struct TAG_dfattbl;
 struct TAG_langparser;
 
 struct TAG_langdef;
-
+struct TAG_origin;
 
 typedef enum ENUM_langdefent {
 	LDE_INVALID = 0,
@@ -94,8 +94,8 @@ extern void langdef_freelangdef (langdef_t *ldef);
 extern langdefsec_t *langdef_findsection (langdef_t *ldef, const char *ident);
 extern int langdef_hassection (langdef_t *ldef, const char *ident);
 
-extern int langdef_init_tokens (langdefsec_t *lsec, void *origin);
-extern int langdef_init_nodes (langdefsec_t *lsec, void *origin);
+extern int langdef_init_tokens (langdefsec_t *lsec, struct TAG_origin *origin);
+extern int langdef_init_nodes (langdefsec_t *lsec, struct TAG_origin *origin);
 extern int langdef_reg_reducers (langdefsec_t *lsec);
 extern struct TAG_dfattbl **langdef_init_dfatrans (langdefsec_t *lsec, int *ntrans);
 extern int langdef_post_setup (langdefsec_t *lsec);

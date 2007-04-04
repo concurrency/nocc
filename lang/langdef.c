@@ -32,6 +32,7 @@
 
 #include "nocc.h"
 #include "support.h"
+#include "origin.h"
 #include "version.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -954,12 +955,12 @@ int langdef_hassection (langdef_t *ldef, const char *ident)
 }
 /*}}}*/
 
-/*{{{  int langdef_init_tokens (langdefsec_t *lsec, void *origin)*/
+/*{{{  int langdef_init_tokens (langdefsec_t *lsec, origin_t *origin)*/
 /*
  *	registers tokens defined in a particular section
  *	returns 0 on success, non-zero on failure
  */
-int langdef_init_tokens (langdefsec_t *lsec, void *origin)
+int langdef_init_tokens (langdefsec_t *lsec, origin_t *origin)
 {
 	int rval = 0;
 	int i;
@@ -990,12 +991,12 @@ int langdef_init_tokens (langdefsec_t *lsec, void *origin)
 	return rval;
 }
 /*}}}*/
-/*{{{  int langdef_init_nodes (langdefsec_t *lsec, void *origin)*/
+/*{{{  int langdef_init_nodes (langdefsec_t *lsec, origin_t *origin)*/
 /*
  *	creates new node types and tags defined in a particular section
  *	returns 0 on success, non-zero on failure
  */
-int langdef_init_nodes (langdefsec_t *lsec, void *origin)
+int langdef_init_nodes (langdefsec_t *lsec, origin_t *origin)
 {
 	int rval = 0;
 	int i;

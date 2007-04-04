@@ -32,6 +32,7 @@
 
 #include "nocc.h"
 #include "support.h"
+#include "origin.h"
 #include "version.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -446,7 +447,7 @@ static int hopp_parser_init (lexfile_t *lf)
 
 	/* keywords */
 	for (i=0; htagdata[i].name && (htagdata[i].id != HTAG_INVALID); i++) {
-		keyword_t *kw = keywords_add (htagdata[i].name, (int)htagdata[i].id, (void *)&hopp_parser);
+		keyword_t *kw = keywords_add (htagdata[i].name, (int)htagdata[i].id, INTERNAL_ORIGIN);
 
 		htagdata[i].kw = kw;
 	}
