@@ -78,3 +78,34 @@ int trlang_shutdown (void)
 /*}}}*/
 
 
+/*{{{  int trlang_initialise (void)*/
+/*
+ *	initialises tree-rewriting for actual use (triggers trlang parser initialisation)
+ *	returns 0 on success, non-zero on failure
+ */
+int trlang_initialise (void)
+{
+	lexfile_t *lf;
+	tnode_t *tree;
+
+	lf = lexer_openbuf ("trlang_initialise.trl", "trlang", "\n");
+	if (!lf) {
+		nocc_error ("trlang: failed to open buffer");
+		return -1;
+	}
+
+	tree = parser_parse (lf);
+	if (tree) {
+#if 1
+fprintf (stderr, "trlang_initialise(): got tree:\n");
+tnode_dumptree (tree, 1, stderr);
+#endif
+		tnode_free (tree);
+	}
+
+	lexer_close (lf);
+	return 0;
+}
+/*}}}*/
+
+

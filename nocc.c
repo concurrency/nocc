@@ -79,6 +79,7 @@
 #include "mcsp_fe.h"
 #include "rcxb_fe.h"
 #include "hopp_fe.h"
+#include "trlang_fe.h"
 #include "version.h"
 
 /*}}}*/
@@ -1367,6 +1368,13 @@ int main (int argc, char **argv)
 	trlang_init ();
 
 	/*}}}*/
+	/*{{{  initialise tree-transformation language lexer and parser (just registers them)*/
+	if (trlang_register_frontend ()) {
+		nocc_error ("failed to initialise built-in tree-rewriting language frontend");
+		exit (EXIT_FAILURE);
+	}
+
+	/*}}}*/
 	/*{{{  initialise occam-pi language lexer and parser (just registers them)*/
 	if (occampi_register_frontend ()) {
 		nocc_error ("failed to initialise built-in occam-pi language frontend");
@@ -1496,6 +1504,13 @@ int main (int argc, char **argv)
 	/*{{{  initialise extensions*/
 	extn_initialise ();
 
+	/*}}}*/
+	/*{{{  initialise tree-rewriting (after its front-end parser has been registered)*/
+	if (trlang_initialise ()) {
+		nocc_error ("failed to initialise tree-rewriting parser");
+		exit (EXIT_FAILURE);
+	}
+	
 	/*}}}*/
 
 	/*{{{  get hold of the desired target*/

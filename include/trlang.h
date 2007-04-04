@@ -20,9 +20,39 @@
 #ifndef __TRLANG_H
 #define __TRLANG_H
 
+struct TAG_langlexer;
+struct TAG_langparser;
+
+extern struct TAG_langlexer trlang_lexer;
+extern struct TAG_langparser trlang_parser;
+
 
 extern int trlang_init (void);
 extern int trlang_shutdown (void);
+
+extern int trlang_initialise (void);
+
+
+struct TAG_tndef;
+struct TAG_ntdef;
+struct TAG_token;
+
+typedef struct {
+	struct TAG_ntdef *tag_NAME;
+	struct TAG_ntdef *tag_LITINT;
+	struct TAG_ntdef *tag_LITSTR;
+	struct TAG_ntdef *tag_FUNCTIONDEF;
+	struct TAG_ntdef *tag_IF;
+	struct TAG_ntdef *tag_ELSE;
+} trlang_pset_t;
+
+extern trlang_pset_t trlang;
+
+extern void trlang_isetindent (FILE *stream, int indent);
+extern struct TAG_langdef *trlang_getlangdef (void);
+
+extern struct TAG_feunit trlang_expr_feunit;		/* trlang_expr.c */
+
 
 #endif	/* !__TRLANG_H */
 
