@@ -1,5 +1,5 @@
 /* ANSI-C code produced by gperf version 3.0.2 */
-/* Command-line: gperf  */
+/* Command-line: /usr/bin/gperf  */
 /* Computed positions: -k'2,6,9' */
 
 #if !((' ' == 32) && ('!' == 33) && ('"' == 34) && ('#' == 35) \
@@ -35,7 +35,7 @@
  */
 struct TAG_cmd_option;
 
-#define TOTAL_KEYWORDS 59
+#define TOTAL_KEYWORDS 60
 #define MIN_WORD_LENGTH 3
 #define MAX_WORD_LENGTH 15
 #define MIN_HASH_VALUE 4
@@ -124,7 +124,7 @@ static const struct TAG_cmd_option wordlist[] =
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"stop-betrans",		'\0',	opt_setstopflag,	(void *)13,			"1stop after back-end tree transform",			112},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"dump-fcns",		'\0',	opt_setintflag,		&(compopts.dumpfcns),		"1print registered functions",				10},
+    {"dump-fcns",		'\0',	opt_setintflag,		&(compopts.dumpfcns),		"1print registered functions",				11},
     {"dump-stree",		'\0',	opt_setintflag,		&(compopts.dumpstree),		"1print parse tree in s-record format",			5},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"stop-fetrans",		'\0',	opt_setstopflag,	(void *)12,			"1stop after front-end tree transform",			111},
@@ -132,16 +132,16 @@ static const struct TAG_cmd_option wordlist[] =
     {"help",			'h',	opt_do_help_flag,	NULL,				"0display standard usage information",			0},
     {"stop-parse",		'\0',	opt_setstopflag,	(void *)2,			"1stop after parse",					101},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"dump-grammar",		'\0',	opt_setintflag,		&(compopts.dumpgrammar),	"1print grammars during parser init",			7},
+    {"dump-grammar",		'\0',	opt_setintflag,		&(compopts.dumpgrammar),	"1print grammars during parser init",			8},
     {"stop-prescope",		'\0',	opt_setstopflag,	(void *)3,			"1stop after pre-scope",				102},
     {"extn-path",		'E',	opt_addextnpath,	NULL,				"1add paths for compiler extensions",			352},
     {"stop-alloc",		'\0',	opt_setstopflag,	(void *)16,			"1stop after variable allocation",			115},
-    {"dump-folded",		'\0',	opt_setintflag,		&(compopts.dumpfolded),		"1include folds in parse tree dumps",			19},
+    {"dump-folded",		'\0',	opt_setintflag,		&(compopts.dumpfolded),		"1include folds in parse tree dumps",			20},
     {"debug-parser",		'\0',	opt_setintflag,		&(compopts.debugparser),	"1debug parser",					252},
     {"dump-tracemem",		'\0',	opt_setintflag,		&(compopts.dumptracemem),	"1display left-over memory blocks (if compiled)",	450},
-    {"dump-snodetags",		'\0',	opt_setintflag,		&(compopts.dumpsnodetags),	"1print node tags after initialisation (short form)",	16},
-    {"dump-snodetypes",	'\0',	opt_setintflag,		&(compopts.dumpsnodetypes),	"1print node types after initialisation (short form)",	15},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {"dump-snodetags",		'\0',	opt_setintflag,		&(compopts.dumpsnodetags),	"1print node tags after initialisation (short form)",	17},
+    {"dump-snodetypes",	'\0',	opt_setintflag,		&(compopts.dumpsnodetypes),	"1print node types after initialisation (short form)",	16},
+    {"dump-lexers",		'\0',	opt_setintflag,		&(compopts.dumplexers),		"1print registered languages (lexers)",			7},
     {"verbose",		'v',	opt_setintflag,		&(compopts.verbose),		"0verbose compilation",					251},
     {"help-ful",		'\0',	opt_do_help_flag,	NULL,				"1display full usage information",			1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
@@ -150,19 +150,19 @@ static const struct TAG_cmd_option wordlist[] =
     {"version",		'V',	opt_do_version,		NULL,				"0print version and exit",				253},
     {"gdb",			'\0',	opt_setintflag,		&(compopts.fatalgdb),		"1launch GDB on fatal error",				302},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"dump-extns",		'\0',	opt_setintflag,		&(compopts.dumpextns),		"1print detailed information about loaded extensions",	18},
+    {"dump-extns",		'\0',	opt_setintflag,		&(compopts.dumpextns),		"1print detailed information about loaded extensions",	19},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"compile",		'c',	opt_setintflag,		&(compopts.notmainmodule),	"0compile for separate compilation",			300},
     {"stop-precheck",		'\0',	opt_setstopflag,	(void *)7,			"1stop after pre-check",				106},
-    {"dump-dfas",		'\0',	opt_setintflag,		&(compopts.dumpdfas),		"1print named DFAs after parser init",			9},
-    {"dump-names",		'\0',	opt_setintflag,		&(compopts.dumpnames),		"1print names after scope",				11},
-    {"dump-grules",		'\0',	opt_setintflag,		&(compopts.dumpgrules),		"1print generic reduction rules after parser init",	8},
+    {"dump-dfas",		'\0',	opt_setintflag,		&(compopts.dumpdfas),		"1print named DFAs after parser init",			10},
+    {"dump-names",		'\0',	opt_setintflag,		&(compopts.dumpnames),		"1print names after scope",				12},
+    {"dump-grules",		'\0',	opt_setintflag,		&(compopts.dumpgrules),		"1print generic reduction rules after parser init",	9},
     {"stop-namemap",		'\0',	opt_setstopflag,	(void *)14,			"1stop after name-map",					113},
     {"save-all-dfas",		'\0',	opt_setstr,		&(compopts.savealldfas),	"1save all DFAs to file",				51},
-    {"dump-nodetypes",		'\0',	opt_setintflag,		&(compopts.dumpnodetypes),	"1print node types after initialisation",		14},
+    {"dump-nodetypes",		'\0',	opt_setintflag,		&(compopts.dumpnodetypes),	"1print node types after initialisation",		15},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"dump-targets",		'\0',	opt_setintflag,		&(compopts.dumptargets),	"1print supported targets after initialisation",	12},
+    {"dump-targets",		'\0',	opt_setintflag,		&(compopts.dumptargets),	"1print supported targets after initialisation",	13},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"save-named-dfa",		'\0',	opt_setsaveopt,		(void *)1,			"1save named DFA to file",				50},
     {"stop-usagecheck",	'\0',	opt_setstopflag,	(void *)9,			"1stop after parallel-usage check",			108},
@@ -177,7 +177,7 @@ static const struct TAG_cmd_option wordlist[] =
     {"stop-constprop",		'\0',	opt_setstopflag,	(void *)6,			"1stop after constant propagation",			105},
     {"stop-scope",		'\0',	opt_setstopflag,	(void *)4,			"1stop after scope",					103},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"dump-varmaps",		'\0',	opt_setintflag,		&(compopts.dumpvarmaps),	"1print variable maps after block allocation",		13},
+    {"dump-varmaps",		'\0',	opt_setintflag,		&(compopts.dumpvarmaps),	"1print variable maps after block allocation",		14},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"stop-postcheck",		'\0',	opt_setstopflag,	(void *)11,			"1stop after post-check",				110},
     {"stop-aliascheck",	'\0',	opt_setstopflag,	(void *)8,			"1stop after alias check",				107},
@@ -186,7 +186,7 @@ static const struct TAG_cmd_option wordlist[] =
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"treecheck",		'\0',	opt_setintflag,		&(compopts.treecheck),		"1enable run-time parse tree checking",			250},
     {"skip-usagecheck",	'\0',	opt_clearintflag,	&(compopts.dousagecheck),	"1skip parallel usage checks",				151},
-    {"dump-chooks",		'\0',	opt_setintflag,		&(compopts.dumpchooks),		"1print compiler hooks",				17},
+    {"dump-chooks",		'\0',	opt_setintflag,		&(compopts.dumpchooks),		"1print compiler hooks",				18},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"stop-prealloc",		'\0',	opt_setstopflag,	(void *)15,			"1stop after pre-allocation",				114},
     {(char*)0,'\0',NULL,NULL,NULL,-1},

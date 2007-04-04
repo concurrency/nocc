@@ -978,12 +978,12 @@ int langdef_init_tokens (langdefsec_t *lsec, origin_t *origin)
 			break;
 			/*{{{  LDE_KEYWORD -- new keyword*/
 		case LDE_KEYWORD:
-			keywords_add (lde->u.keyword, -1, origin);
+			keywords_add (lde->u.keyword, -1, 0, origin);
 			break;
 			/*}}}*/
 			/*{{{  LDE_SYMBOL -- new symbol*/
 		case LDE_SYMBOL:
-			symbols_add (lde->u.symbol, strlen (lde->u.symbol), origin);
+			symbols_add (lde->u.symbol, strlen (lde->u.symbol), 0, origin);
 			break;
 			/*}}}*/
 		}

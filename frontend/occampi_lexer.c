@@ -51,6 +51,7 @@ static int occampi_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 /*{{{  public lexer struct*/
 langlexer_t occampi_lexer = {
 	langname: "occam-pi",
+	langtag: LANGTAG_OCCAMPI,
 	fileexts: {".occ", ".inc", NULL},
 	openfile: occampi_openfile,
 	closefile: occampi_closefile,
@@ -398,7 +399,7 @@ tokenloop:
 				((*dh >= '0') && (*dh <= '9'))); dh++);
 		
 		tmpstr = string_ndup (ch, (int)(dh - ch));
-		kw = keywords_lookup (tmpstr, (int)(dh - ch));
+		kw = keywords_lookup (tmpstr, (int)(dh - ch), LANGTAG_OCCAMPI);
 		sfree (tmpstr);
 
 		if (!kw) {
@@ -715,7 +716,7 @@ tokenloop:
 		/* try and match as a symbol */
 default_label:
 		{
-			symbol_t *sym = symbols_match (ch, chlim);
+			symbol_t *sym = symbols_match (ch, chlim, LANGTAG_OCCAMPI);
 
 			if (sym) {
 				/* found something */

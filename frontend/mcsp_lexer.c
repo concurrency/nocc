@@ -51,6 +51,7 @@ static int mcsp_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 /*{{{  public lexer struct*/
 langlexer_t mcsp_lexer = {
 	langname: "mcsp",
+	langtag: LANGTAG_MCSP,
 	fileexts: {".mcsp", ".csp", NULL},
 	openfile: mcsp_openfile,
 	closefile: mcsp_closefile,
@@ -281,7 +282,7 @@ tokenloop:
 				((*dh >= '0') && (*dh <= '9'))); dh++);
 		
 		tmpstr = string_ndup (ch, (int)(dh - ch));
-		kw = keywords_lookup (tmpstr, (int)(dh - ch));
+		kw = keywords_lookup (tmpstr, (int)(dh - ch), LANGTAG_MCSP);
 		sfree (tmpstr);
 
 		if (!kw) {
@@ -506,7 +507,7 @@ tokenloop:
 	default:
 		/* try and match as a symbol */
 		{
-			symbol_t *sym = symbols_match (ch, chlim);
+			symbol_t *sym = symbols_match (ch, chlim, LANGTAG_MCSP);
 
 			if (sym) {
 				/* found something */

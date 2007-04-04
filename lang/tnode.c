@@ -1,6 +1,6 @@
 /*
  *	tnode.c -- parser node functions
- *	Copyright (C) 2004-2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -36,10 +36,6 @@
 #include "keywords.h"
 #include "lexer.h"
 #include "tnode.h"
-#if 0
-#include "parser.h"
-#include "parsepriv.h"
-#endif
 #include "lexpriv.h"
 #include "names.h"
 #include "target.h"

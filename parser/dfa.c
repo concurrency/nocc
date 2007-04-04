@@ -1522,7 +1522,7 @@ static int dfa_idecode_checkmatch (const char *mbit, int lookuperr)
 			int bl = strlen (bit) - 1;
 
 			bit++;
-			sym = symbols_lookup (bit, bl);
+			sym = symbols_lookup (bit, bl, 0);
 			if (!sym && lookuperr) {
 				nocc_message ("dfa_idecode_checkmatch(): unknown symbol spec [%s]", xbit);
 				return 0;
@@ -1531,7 +1531,7 @@ static int dfa_idecode_checkmatch (const char *mbit, int lookuperr)
 		} else {
 			int bl = strlen (bit);
 
-			key = keywords_lookup (bit, bl);
+			key = keywords_lookup (bit, bl, 0);
 			if (!key && lookuperr) {
 				nocc_message ("dfa_idecode_checkmatch(): unknown keyword spec [%s]", xbit);
 				return 0;

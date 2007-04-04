@@ -25,16 +25,17 @@ struct TAG_origin;
 typedef struct TAG_symbol {
 	char *match;
 	int mlen;
+	unsigned int langtag;
 	struct TAG_origin *origin;
 } symbol_t;
 
 extern int symbols_init (void);
 extern int symbols_shutdown (void);
 
-extern symbol_t *symbols_lookup (const char *str, const int len);
-extern symbol_t *symbols_match (const char *str, const char *limit);
+extern symbol_t *symbols_lookup (const char *str, const int len, const unsigned int langtag);
+extern symbol_t *symbols_match (const char *str, const char *limit, const unsigned int langtag);
 
-extern symbol_t *symbols_add (const char *str, const int len, struct TAG_origin *origin);
+extern symbol_t *symbols_add (const char *str, const int len, const unsigned int langtag, struct TAG_origin *origin);
 
 
 #endif	/* !__SYMBOLS_H */

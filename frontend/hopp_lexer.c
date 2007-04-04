@@ -54,6 +54,7 @@ static int hopp_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 
 langlexer_t hopp_lexer = {
 	langname: "occam-pi",
+	langtag: LANGTAG_HOPP,
 	fileexts: {".hopp", NULL},
 	openfile: hopp_openfile,
 	closefile: hopp_closefile,
@@ -225,7 +226,7 @@ tokenloop:
 				((*dh >= '0') && (*dh <= '9'))); dh++);
 		
 		tmpstr = string_ndup (ch, (int)(dh - ch));
-		kw = keywords_lookup (tmpstr, (int)(dh - ch));
+		kw = keywords_lookup (tmpstr, (int)(dh - ch), LANGTAG_HOPP);
 		sfree (tmpstr);
 
 		if (!kw) {
@@ -486,7 +487,7 @@ tokenloop:
 		/* try and match as a symbol */
 default_label:
 		{
-			symbol_t *sym = symbols_match (ch, chlim);
+			symbol_t *sym = symbols_match (ch, chlim, LANGTAG_HOPP);
 
 			if (sym) {
 				/* found something */

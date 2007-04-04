@@ -31,6 +31,8 @@
 #include "support.h"
 #include "origin.h"
 #include "version.h"
+#include "lexer.h"
+#include "lexpriv.h"
 #include "symbols.h"
 
 /* things that are considered symbols lie in ASCII ranges:
@@ -43,53 +45,53 @@
 #define SYMSIZE 0x60
 
 static symbol_t symbols[] = {
-	{"!", 1, NULL},
-	{"?", 1, NULL},
-	{"::", 2, NULL},
-	{":", 1, NULL},
-	{";", 1, NULL},
-	{"+", 1, NULL},
-	{"*", 1, NULL},
-	{"-", 1, NULL},
-	{"/", 1, NULL},
-	{"\\", 1, NULL},
-	{"[", 1, NULL},
-	{"]", 1, NULL},
-	{"(", 1, NULL},
-	{")", 1, NULL},
-	{">", 1, NULL},
-	{"<", 1, NULL},
-	{":=", 2, NULL},
-	{"!=", 2, NULL},
-	{"=", 1, NULL},
-	{"<=", 2, NULL},
-	{"=>", 2, NULL},
-	{"<>", 2, NULL},
-	{"!=", 2, NULL},
-	{"><", 2, NULL},
-	{"^", 1, NULL},
-	{"??", 2, NULL},
-	{"[>", 2, NULL},
-	{"<]", 2, NULL},
-	{"==", 2, NULL},
-	{">=", 2, NULL},
-	{"=<", 2, NULL},
-	{",", 1, NULL},
-	{"_", 1, NULL},
-	{"~", 1, NULL},
-	{"#", 1, NULL},
-	{"@", 1, NULL},
-	{"->", 2, NULL},
-	{"/\\", 2, NULL},
-	{"\\/", 2, NULL},
-	{"<<", 2, NULL},
-	{">>", 2, NULL},
-	{"&", 1, NULL},
-	{"|", 1, NULL},
-	{"||", 2, NULL},
-	{"{", 1, NULL},
-	{"}", 1, NULL},
-	{NULL, 0, NULL}
+	{"!", 1, LANGTAG_OCCAMPI, NULL},
+	{"?", 1, LANGTAG_OCCAMPI, NULL},
+	{"::", 2, LANGTAG_OCCAMPI, NULL},
+	{":", 1, LANGTAG_OCCAMPI, NULL},
+	{";", 1, LANGTAG_OCCAMPI, NULL},
+	{"+", 1, LANGTAG_OCCAMPI, NULL},
+	{"*", 1, LANGTAG_OCCAMPI, NULL},
+	{"-", 1, LANGTAG_OCCAMPI, NULL},
+	{"/", 1, LANGTAG_OCCAMPI, NULL},
+	{"\\", 1, LANGTAG_OCCAMPI, NULL},
+	{"[", 1, LANGTAG_OCCAMPI, NULL},
+	{"]", 1, LANGTAG_OCCAMPI, NULL},
+	{"(", 1, LANGTAG_OCCAMPI, NULL},
+	{")", 1, LANGTAG_OCCAMPI, NULL},
+	{">", 1, LANGTAG_OCCAMPI, NULL},
+	{"<", 1, LANGTAG_OCCAMPI, NULL},
+	{":=", 2, LANGTAG_OCCAMPI, NULL},
+	{"!=", 2, LANGTAG_OCCAMPI, NULL},
+	{"=", 1, LANGTAG_OCCAMPI, NULL},
+	{"<=", 2, LANGTAG_OCCAMPI, NULL},
+	{"=>", 2, LANGTAG_OCCAMPI, NULL},
+	{"<>", 2, LANGTAG_OCCAMPI, NULL},
+	{"!=", 2, LANGTAG_OCCAMPI, NULL},
+	{"><", 2, LANGTAG_OCCAMPI, NULL},
+	{"^", 1, LANGTAG_OCCAMPI, NULL},
+	{"??", 2, LANGTAG_OCCAMPI, NULL},
+	{"[>", 2, LANGTAG_OCCAMPI, NULL},
+	{"<]", 2, LANGTAG_OCCAMPI, NULL},
+	{"==", 2, LANGTAG_OCCAMPI, NULL},
+	{">=", 2, LANGTAG_OCCAMPI, NULL},
+	{"=<", 2, LANGTAG_OCCAMPI, NULL},
+	{",", 1, LANGTAG_OCCAMPI, NULL},
+	{"_", 1, LANGTAG_OCCAMPI, NULL},
+	{"~", 1, LANGTAG_OCCAMPI, NULL},
+	{"#", 1, LANGTAG_OCCAMPI, NULL},
+	{"@", 1, LANGTAG_OCCAMPI, NULL},
+	{"->", 2, LANGTAG_OCCAMPI, NULL},
+	{"/\\", 2, LANGTAG_OCCAMPI, NULL},
+	{"\\/", 2, LANGTAG_OCCAMPI, NULL},
+	{"<<", 2, LANGTAG_OCCAMPI, NULL},
+	{">>", 2, LANGTAG_OCCAMPI, NULL},
+	{"&", 1, LANGTAG_OCCAMPI, NULL},
+	{"|", 1, LANGTAG_OCCAMPI, NULL},
+	{"||", 2, LANGTAG_OCCAMPI, NULL},
+	{"{", 1, LANGTAG_OCCAMPI, NULL},
+	{"}", 1, LANGTAG_OCCAMPI, NULL},
+	{NULL, 0, LANGTAG_OCCAMPI, NULL}
 };
 
 static symbol_t ***sym_lookup = NULL;
@@ -148,11 +150,11 @@ int symbols_shutdown (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  symbol_t *symbols_lookup (const char *str, const int len)*/
+/*{{{  symbol_t *symbols_lookup (const char *str, const int len, const unsigned int langtag)*/
 /*
  *	looks up a symbol
  */
-symbol_t *symbols_lookup (const char *str, const int len)
+symbol_t *symbols_lookup (const char *str, const int len, const unsigned int langtag)
 {
 	int fch = (int)(str[0]);
 	int sch = (int)(str[1]);
@@ -169,25 +171,39 @@ fprintf (stderr, "symbols_lookup(): for [%s], len = %d\n", str, len);
 		for (i=0; sym_extras[fch - SYMBASE][i]; i++) {
 			if ((sym_extras[fch - SYMBASE][i]->mlen == len) && !strncmp (sym_extras[fch - SYMBASE][i]->match, str, len)) {
 				/* this one */
-				return sym_extras[fch - SYMBASE][i];
+				symbol_t *sym = sym_extras[fch - SYMBASE][i];
+
+				if (!langtag || ((sym->langtag & langtag) == langtag)) {
+					return sym;
+				}
 			}
 		}
 	}
 
 	/* look at predefined symbols */
 	if (len == 1) {
-		return sym_lookup[fch - SYMBASE][0];
+		symbol_t *sym = sym_lookup[fch - SYMBASE][0];
+
+		if (sym && langtag && ((sym->langtag & langtag) != langtag)) {
+			return NULL;
+		}
+		return sym;
 	} else if ((len == 2) && (fch >= SYMBASE) && ((sch - SYMBASE) < SYMSIZE)) {
-		return sym_lookup[fch - SYMBASE][sch - SYMBASE];
+		symbol_t *sym = sym_lookup[fch - SYMBASE][sch - SYMBASE];
+
+		if (sym && langtag && ((sym->langtag & langtag) != langtag)) {
+			return NULL;
+		}
+		return sym;
 	}
 	return NULL;
 }
 /*}}}*/
-/*{{{  symbol_t *symbols_match (const char *str, const char *limit)*/
+/*{{{  symbol_t *symbols_match (const char *str, const char *limit, const unsigned int langtag)*/
 /*
  *	matches a symbol (limit says where we should definitely stop looking)
  */
-symbol_t *symbols_match (const char *str, const char *limit)
+symbol_t *symbols_match (const char *str, const char *limit, const unsigned int langtag)
 {
 	int fch = (int)(str[0]);
 	int sch;
@@ -202,7 +218,11 @@ symbol_t *symbols_match (const char *str, const char *limit)
 		for (i=0; sym_extras[fch - SYMBASE][i]; i++) {
 			if (((str + sym_extras[fch - SYMBASE][i]->mlen) <= limit) && !strncmp (sym_extras[fch - SYMBASE][i]->match, str, sym_extras[fch - SYMBASE][i]->mlen)) {
 				/* this one */
-				return sym_extras[fch - SYMBASE][i];
+				symbol_t *sym = sym_extras[fch - SYMBASE][i];
+
+				if (!langtag || ((sym->langtag & langtag) == langtag)) {
+					return sym;
+				}
 			}
 		}
 	}
@@ -210,34 +230,42 @@ symbol_t *symbols_match (const char *str, const char *limit)
 	/* look at predefined symbols */
 	if ((str + 1) == limit) {
 		/* match at end */
-		return sym_lookup[fch - SYMBASE][0];
+		symbol_t *sym = sym_lookup[fch - SYMBASE][0];
+
+		return sym;
 	} else {
+		symbol_t *sym = NULL;
+
 		sch = (int)(str[1]);
 
 		if ((sch < SYMBASE) || ((sch - SYMBASE) >= SYMSIZE)) {
 			/* match first char only */
-			return sym_lookup[fch - SYMBASE][0];
+			sym = sym_lookup[fch - SYMBASE][0];
 		} else if (sym_lookup[fch - SYMBASE][sch - SYMBASE]) {
 			/* matched two */
-			return sym_lookup[fch - SYMBASE][sch - SYMBASE];
+			sym = sym_lookup[fch - SYMBASE][sch - SYMBASE];
 		} else {
 			/* only match one */
-			return sym_lookup[fch - SYMBASE][0];
+			sym = sym_lookup[fch - SYMBASE][0];
 		}
+		if (sym && langtag && ((sym->langtag & langtag) != langtag)) {
+			return NULL;
+		}
+		return sym;
 	}
 	return NULL;
 }
 /*}}}*/
 
 
-/*{{{  symbol_t *symbols_add (const char *str, const int len, origin_t *origin)*/
+/*{{{  symbol_t *symbols_add (const char *str, const int len, const unsigned int langtag, origin_t *origin)*/
 /*
  *	adds a new symbol to the compiler -- placed in sym_extras array
  *	returns new symbol on success, NULL on failure
  */
-symbol_t *symbols_add (const char *str, const int len, origin_t *origin)
+symbol_t *symbols_add (const char *str, const int len, const unsigned int langtag, origin_t *origin)
 {
-	symbol_t *sym = symbols_lookup (str, len);
+	symbol_t *sym = symbols_lookup (str, len, langtag);
 	int fch;
 
 	if (sym) {
@@ -247,6 +275,7 @@ symbol_t *symbols_add (const char *str, const int len, origin_t *origin)
 	sym = (symbol_t *)smalloc (sizeof (symbol_t));
 	sym->match = string_ndup (str, len);
 	sym->mlen = len;
+	sym->langtag = langtag;
 	sym->origin = origin;
 
 	fch = (int)(str[0]);

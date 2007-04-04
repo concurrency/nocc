@@ -25,12 +25,13 @@ struct TAG_origin;
 typedef struct TAG_keyword {
 	char *name;
 	int tagval;
+	unsigned int langtag;
 	struct TAG_origin *origin;
 } keyword_t;
 
 extern void keywords_init (void);
-extern keyword_t *keywords_lookup (const char *str, const int len);
-extern keyword_t *keywords_add (const char *str, const int tagval, struct TAG_origin *origin);
+extern keyword_t *keywords_lookup (const char *str, const int len, const unsigned int langtag);
+extern keyword_t *keywords_add (const char *str, const int tagval, const unsigned int langtag, struct TAG_origin *origin);
 
 
 #endif	/* !__KEYWORDS_H */

@@ -447,19 +447,19 @@ static int hopp_parser_init (lexfile_t *lf)
 
 	/* keywords */
 	for (i=0; htagdata[i].name && (htagdata[i].id != HTAG_INVALID); i++) {
-		keyword_t *kw = keywords_add (htagdata[i].name, (int)htagdata[i].id, INTERNAL_ORIGIN);
+		keyword_t *kw = keywords_add (htagdata[i].name, (int)htagdata[i].id, LANGTAG_HOPP, INTERNAL_ORIGIN);
 
 		htagdata[i].kw = kw;
 	}
 
 	/* symbols */
-	sym_lbracket = symbols_lookup ("[", 1);
-	sym_rbracket = symbols_lookup ("]", 1);
-	sym_box = symbols_lookup ("[]", 2);
-	sym_lparen = symbols_lookup ("(", 1);
-	sym_rparen = symbols_lookup (")", 1);
-	sym_comma = symbols_lookup (",", 1);
-	sym_colon = symbols_lookup (":", 1);
+	sym_lbracket = symbols_lookup ("[", 1, LANGTAG_HOPP);
+	sym_rbracket = symbols_lookup ("]", 1, LANGTAG_HOPP);
+	sym_box = symbols_lookup ("[]", 2, LANGTAG_HOPP);
+	sym_lparen = symbols_lookup ("(", 1, LANGTAG_HOPP);
+	sym_rparen = symbols_lookup (")", 1, LANGTAG_HOPP);
+	sym_comma = symbols_lookup (",", 1, LANGTAG_HOPP);
+	sym_colon = symbols_lookup (":", 1, LANGTAG_HOPP);
 
 	return 0;
 }

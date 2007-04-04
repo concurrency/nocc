@@ -1,6 +1,6 @@
 /*
  *	lexpriv.h -- private definitions for lexer components
- *	Copyright (C) 2004-2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #define __LEXPRIV_H
 
 struct TAG_langparser;
+struct TAG_origin;
 
 /* this holds the data being lexed */
 typedef struct TAG_lexpriv {
@@ -31,10 +32,16 @@ typedef struct TAG_lexpriv {
 	void *langpriv;
 } lexpriv_t;
 
+#define LANGTAG_OCCAMPI 0x00000001
+#define LANGTAG_HOPP 0x00000002
+#define LANGTAG_MCSP 0x00000004
+#define LANGTAG_RCXB 0x00000008
+
 
 /* this defines support for a language */
 typedef struct TAG_langlexer {
-	char *langname;		/* "occam-pi" */
+	char *langname;			/* "occam-pi" */
+	unsigned int langtag;		/* bitfield */
 
 	int (*openfile)(lexfile_t *, lexpriv_t *);
 	int (*closefile)(lexfile_t *, lexpriv_t *);

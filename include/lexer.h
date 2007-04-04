@@ -1,6 +1,6 @@
 /*
  *	lexer.h -- interface to the lexer
- *	Copyright (C) 2004 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ struct TAG_keyword;
 struct TAG_symbol;
 struct TAG_langlexer;
 struct TAG_langparser;
+struct TAG_origin;
 
 
 typedef struct TAG_lexfile {
@@ -99,6 +100,8 @@ extern void lexer_freetoken (token_t *tok);
 
 extern int lexer_tokmatch (token_t *formal, token_t *actual);
 extern int lexer_tokmatchlitstr (token_t *actual, const char *str);
+
+extern void lexer_dumplexers (FILE *stream);
 
 
 #endif	/* !__LEXER_H */

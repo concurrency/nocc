@@ -1,6 +1,6 @@
 /*
  *	lexer.c -- nocc lexer
- *	Copyright (C) 2004 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -82,7 +83,7 @@ int lexer_shutdown (void)
 	for (i=0; i<DA_CUR (openlexfiles); i++) {
 		lexfile_t *olf = DA_NTHITEM (openlexfiles, i);
 
-		/* FIXME! */
+		lexer_close (olf);
 	}
 	dynarray_trash (openlexfiles);
 	dynarray_trash (lexfiles);
@@ -497,7 +498,7 @@ token_t *lexer_newtoken (tokentype_t type, ...)
 			char *name = va_arg (ap, char *);
 
 			if (name) {
-				tok->u.kw = keywords_lookup (name, strlen (name));
+				tok->u.kw = keywords_lookup (name, strlen (name), 0);
 			} else {
 				tok->u.kw = NULL;
 			}
@@ -539,7 +540,7 @@ token_t *lexer_newtoken (tokentype_t type, ...)
 			char *sym = va_arg (ap, char *);
 
 			if (sym) {
-				tok->u.sym = symbols_lookup (sym, strlen (sym));
+				tok->u.sym = symbols_lookup (sym, strlen (sym), 0);
 			} else {
 				tok->u.sym = NULL;
 			}
@@ -946,6 +947,29 @@ int lexer_unregisterlang (langlexer_t *ll)
 	}
 	nocc_warning ("lexer_unregisterlang(): lexer for [%s] is not registered", ll->langname);
 	return -1;
+}
+/*}}}*/
+
+
+/*{{{  void lexer_dumplexers (FILE *stream)*/
+/*
+ *	dumps registered lexers
+ */
+void lexer_dumplexers (FILE *stream)
+{
+	int i;
+
+	for (i=0; i<DA_CUR (langlexers); i++) {
+		langlexer_t *llex = DA_NTHITEM (langlexers, i);
+		int j;
+
+		fprintf (stream, "name = \"%s\", bits = 0x%8.8x, fexts = [", llex->langname, llex->langtag);
+		for (j=0; llex->fileexts[j]; j++) {
+			fprintf (stream, "%s%s", j ? "," : "", llex->fileexts[j]);
+		}
+		fprintf (stream, "]\n");
+	}
+	return;
 }
 /*}}}*/
 

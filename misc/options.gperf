@@ -21,19 +21,20 @@ dump-tree,		'\0',	opt_setintflag,		&(compopts.dumptree),		"1print parse tree",		
 dump-tree-to,		'\0',	opt_setstr,		&(compopts.dumptreeto),		"1print parse tree to file",				4
 dump-stree,		'\0',	opt_setintflag,		&(compopts.dumpstree),		"1print parse tree in s-record format",			5
 dump-stree-to,		'\0',	opt_setstr,		&(compopts.dumpstreeto),	"1print parse tree in s-record format to file",		6
-dump-grammar,		'\0',	opt_setintflag,		&(compopts.dumpgrammar),	"1print grammars during parser init",			7
-dump-grules,		'\0',	opt_setintflag,		&(compopts.dumpgrules),		"1print generic reduction rules after parser init",	8
-dump-dfas,		'\0',	opt_setintflag,		&(compopts.dumpdfas),		"1print named DFAs after parser init",			9
-dump-fcns,		'\0',	opt_setintflag,		&(compopts.dumpfcns),		"1print registered functions",				10
-dump-names,		'\0',	opt_setintflag,		&(compopts.dumpnames),		"1print names after scope",				11
-dump-targets,		'\0',	opt_setintflag,		&(compopts.dumptargets),	"1print supported targets after initialisation",	12
-dump-varmaps,		'\0',	opt_setintflag,		&(compopts.dumpvarmaps),	"1print variable maps after block allocation",		13
-dump-nodetypes,		'\0',	opt_setintflag,		&(compopts.dumpnodetypes),	"1print node types after initialisation",		14
-dump-snodetypes,	'\0',	opt_setintflag,		&(compopts.dumpsnodetypes),	"1print node types after initialisation (short form)",	15
-dump-snodetags,		'\0',	opt_setintflag,		&(compopts.dumpsnodetags),	"1print node tags after initialisation (short form)",	16
-dump-chooks,		'\0',	opt_setintflag,		&(compopts.dumpchooks),		"1print compiler hooks",				17
-dump-extns,		'\0',	opt_setintflag,		&(compopts.dumpextns),		"1print detailed information about loaded extensions",	18
-dump-folded,		'\0',	opt_setintflag,		&(compopts.dumpfolded),		"1include folds in parse tree dumps",			19
+dump-lexers,		'\0',	opt_setintflag,		&(compopts.dumplexers),		"1print registered languages (lexers)",			7
+dump-grammar,		'\0',	opt_setintflag,		&(compopts.dumpgrammar),	"1print grammars during parser init",			8
+dump-grules,		'\0',	opt_setintflag,		&(compopts.dumpgrules),		"1print generic reduction rules after parser init",	9
+dump-dfas,		'\0',	opt_setintflag,		&(compopts.dumpdfas),		"1print named DFAs after parser init",			10
+dump-fcns,		'\0',	opt_setintflag,		&(compopts.dumpfcns),		"1print registered functions",				11
+dump-names,		'\0',	opt_setintflag,		&(compopts.dumpnames),		"1print names after scope",				12
+dump-targets,		'\0',	opt_setintflag,		&(compopts.dumptargets),	"1print supported targets after initialisation",	13
+dump-varmaps,		'\0',	opt_setintflag,		&(compopts.dumpvarmaps),	"1print variable maps after block allocation",		14
+dump-nodetypes,		'\0',	opt_setintflag,		&(compopts.dumpnodetypes),	"1print node types after initialisation",		15
+dump-snodetypes,	'\0',	opt_setintflag,		&(compopts.dumpsnodetypes),	"1print node types after initialisation (short form)",	16
+dump-snodetags,		'\0',	opt_setintflag,		&(compopts.dumpsnodetags),	"1print node tags after initialisation (short form)",	17
+dump-chooks,		'\0',	opt_setintflag,		&(compopts.dumpchooks),		"1print compiler hooks",				18
+dump-extns,		'\0',	opt_setintflag,		&(compopts.dumpextns),		"1print detailed information about loaded extensions",	19
+dump-folded,		'\0',	opt_setintflag,		&(compopts.dumpfolded),		"1include folds in parse tree dumps",			20
 save-named-dfa,		'\0',	opt_setsaveopt,		(void *)1,			"1save named DFA to file",				50
 save-all-dfas,		'\0',	opt_setstr,		&(compopts.savealldfas),	"1save all DFAs to file",				51
 stop-token,		'\0',	opt_setstopflag,	(void *)1,			"1stop after tokenise (and print tokens)",		100

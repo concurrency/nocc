@@ -97,6 +97,7 @@ compopts_t compopts = {
 	dumptreeto: NULL,
 	dumpstree: 0,
 	dumpstreeto: NULL,
+	dumplexers: 0,
 	dumpgrammar: 0,
 	dumpgrules: 0,
 	dumpdfas: 0,
@@ -1439,10 +1440,17 @@ int main (int argc, char **argv)
 	}
 
 	/*}}}*/
+	/*{{{  dump language lexers if requested*/
+	if (compopts.dumplexers) {
+		lexer_dumplexers (stderr);
+	}
+
+	/*}}}*/
 	/*{{{  dump supported targets if requested*/
 	if (compopts.dumptargets) {
 		target_dumptargets (stderr);
 	}
+
 	/*}}}*/
 	/*{{{  maybe need to do a clean exit here*/
 	if (noccexitflag) {

@@ -51,6 +51,7 @@ static int rcxb_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 /*{{{  public lexer struct*/
 langlexer_t rcxb_lexer = {
 	langname: "rcxbasic",
+	langtag: LANGTAG_RCXB,
 	fileexts: {".bas", ".ncb", NULL},
 	openfile: rcxb_openfile,
 	closefile: rcxb_closefile,
@@ -118,7 +119,7 @@ static token_t *rcxb_nexttoken (lexfile_t *lf, lexpriv_t *lp)
 		return NULL;
 	}
 	if (!lrp->is_setup) {
-		lrp->kw_rem = keywords_lookup ("rem", 3);
+		lrp->kw_rem = keywords_lookup ("rem", 3, LANGTAG_RCXB);
 	}
 
 	tok = (token_t *)smalloc (sizeof (token_t));
@@ -148,7 +149,7 @@ tokenloop:
 				((*dh >= '0') && (*dh <= '9'))); dh++);
 		
 		tmpstr = string_ndup (ch, (int)(dh - ch));
-		kw = keywords_lookup (tmpstr, (int)(dh - ch));
+		kw = keywords_lookup (tmpstr, (int)(dh - ch), LANGTAG_RCXB);
 		sfree (tmpstr);
 
 		if (!kw) {
@@ -329,7 +330,7 @@ tokenloop:
 		/* try and match as a symbol */
 default_label:
 		{
-			symbol_t *sym = symbols_match (ch, chlim);
+			symbol_t *sym = symbols_match (ch, chlim, LANGTAG_RCXB);
 
 			if (sym) {
 				/* found something */

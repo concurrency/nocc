@@ -30,6 +30,8 @@
 #include "nocc.h"
 #include "support.h"
 #include "origin.h"
+#include "lexer.h"
+#include "lexpriv.h"
 #include "keywords.h"
 
 #include "gperf_keywords.h"
@@ -69,31 +71,39 @@ void keywords_init (void)
 	return;
 }
 /*}}}*/
-/*{{{  keyword_t *keywords_lookup (const char *str, const int len)*/
+/*{{{  keyword_t *keywords_lookup (const char *str, const int len, const unsigned int langtag)*/
 /*
  *	looks up a keyword
  */
-keyword_t *keywords_lookup (const char *str, const int len)
+keyword_t *keywords_lookup (const char *str, const int len, const unsigned int langtag)
 {
 	keyword_t *kw;
 
 	kw = (keyword_t *)keyword_lookup_byname (str, len);
+	if (kw && langtag && ((kw->langtag & langtag) != langtag)) {
+		kw = NULL;
+	}
+
 	if (!kw) {
 		kw = stringhash_lookup (extrakeywords, str);
+		if (kw && langtag && ((kw->langtag & langtag) != langtag)) {
+			kw = NULL;
+		}
 	}
 	return kw;
 }
 /*}}}*/
-/*{{{  keyword_t *keywords_add (const char *str, const int tagval, origin_t *origin)*/
+/*{{{  keyword_t *keywords_add (const char *str, const int tagval, const unsigned int langtag, origin_t *origin)*/
 /*
  *	adds a keyword to the compiler
  */
-keyword_t *keywords_add (const char *str, const int tagval, origin_t *origin)
+keyword_t *keywords_add (const char *str, const int tagval, const unsigned int langtag, origin_t *origin)
 {
 	keyword_t *kw = (keyword_t *)smalloc (sizeof (keyword_t));
 
 	kw->name = string_dup ((char *)str);
 	kw->tagval = tagval;
+	kw->langtag = langtag;
 	kw->origin = origin;
 
 	stringhash_insert (extrakeywords, kw, kw->name);
