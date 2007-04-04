@@ -436,6 +436,7 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 static int hopp_parser_init (lexfile_t *lf)
 {
 	int i;
+	origin_t *hopporg = origin_langparser (&hopp_parser);
 
 	if (compopts.verbose) {
 		nocc_message ("initialising haskell occam-pi parser parser..");
@@ -447,7 +448,7 @@ static int hopp_parser_init (lexfile_t *lf)
 
 	/* keywords */
 	for (i=0; htagdata[i].name && (htagdata[i].id != HTAG_INVALID); i++) {
-		keyword_t *kw = keywords_add (htagdata[i].name, (int)htagdata[i].id, LANGTAG_HOPP, INTERNAL_ORIGIN);
+		keyword_t *kw = keywords_add (htagdata[i].name, (int)htagdata[i].id, LANGTAG_HOPP, hopporg);
 
 		htagdata[i].kw = kw;
 	}

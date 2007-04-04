@@ -54,6 +54,8 @@ extern origin_t *origin_internal (const char *filename, const int lineno);
 extern origin_t *origin_langparser (struct TAG_langparser *lp);
 extern origin_t *origin_langlexer (struct TAG_langlexer *ll);
 
+extern unsigned int origin_to_langtag (origin_t *origin);
+
 
 #define INTERNAL_ORIGIN origin_internal(__FILE__,__LINE__)
 

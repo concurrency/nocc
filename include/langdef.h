@@ -94,7 +94,7 @@ extern void langdef_freelangdef (langdef_t *ldef);
 extern langdefsec_t *langdef_findsection (langdef_t *ldef, const char *ident);
 extern int langdef_hassection (langdef_t *ldef, const char *ident);
 
-extern int langdef_init_tokens (langdefsec_t *lsec, struct TAG_origin *origin);
+extern int langdef_init_tokens (langdefsec_t *lsec, const unsigned int langtag, struct TAG_origin *origin);
 extern int langdef_init_nodes (langdefsec_t *lsec, struct TAG_origin *origin);
 extern int langdef_reg_reducers (langdefsec_t *lsec);
 extern struct TAG_dfattbl **langdef_init_dfatrans (langdefsec_t *lsec, int *ntrans);

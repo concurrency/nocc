@@ -94,7 +94,7 @@ int feunit_do_init_tokens (int earlyfail, langdef_t *ldef, origin_t *origin)
 			nocc_error ("feunit_do_reg_reducers(): no \"%s\" section in language definition!", ldef->ident);
 			return -1;
 		} else {
-			if (langdef_init_tokens (lsec, origin)) {
+			if (langdef_init_tokens (lsec, origin_to_langtag (origin), origin)) {
 				/* failed */
 				rval = -1;
 			}

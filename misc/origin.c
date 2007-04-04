@@ -185,3 +185,31 @@ origin_t *origin_langlexer (langlexer_t *ll)
 /*}}}*/
 
 
+/*{{{  unsigned int origin_to_langtag (origin_t *origin)*/
+/*
+ *	attempts to find a language tag from an origin
+ */
+unsigned int origin_to_langtag (origin_t *origin)
+{
+	if (!origin) {
+		return 0;
+	}
+	switch (origin->type) {
+	case ORG_LANGPARSER:
+		if (origin->u.langparser.lp && origin->u.langparser.lp->lexer) {
+			return origin->u.langparser.lp->lexer->langtag;
+		}
+		break;
+	case ORG_LANGLEXER:
+		if (origin->u.langlexer.ll) {
+			return origin->u.langlexer.ll->langtag;
+		}
+		break;
+	default:
+		nocc_warning ("origin_to_langtag(): cannot get language tag from origin type %d", (int)origin->type);
+		break;
+	}
+	return 0;
+}
+/*}}}*/
+

@@ -955,12 +955,12 @@ int langdef_hassection (langdef_t *ldef, const char *ident)
 }
 /*}}}*/
 
-/*{{{  int langdef_init_tokens (langdefsec_t *lsec, origin_t *origin)*/
+/*{{{  int langdef_init_tokens (langdefsec_t *lsec, const unsigned int langtag, origin_t *origin)*/
 /*
  *	registers tokens defined in a particular section
  *	returns 0 on success, non-zero on failure
  */
-int langdef_init_tokens (langdefsec_t *lsec, origin_t *origin)
+int langdef_init_tokens (langdefsec_t *lsec, const unsigned int langtag, origin_t *origin)
 {
 	int rval = 0;
 	int i;
@@ -978,12 +978,12 @@ int langdef_init_tokens (langdefsec_t *lsec, origin_t *origin)
 			break;
 			/*{{{  LDE_KEYWORD -- new keyword*/
 		case LDE_KEYWORD:
-			keywords_add (lde->u.keyword, -1, 0, origin);
+			keywords_add (lde->u.keyword, -1, langtag, origin);
 			break;
 			/*}}}*/
 			/*{{{  LDE_SYMBOL -- new symbol*/
 		case LDE_SYMBOL:
-			symbols_add (lde->u.symbol, strlen (lde->u.symbol), 0, origin);
+			symbols_add (lde->u.symbol, strlen (lde->u.symbol), langtag, origin);
 			break;
 			/*}}}*/
 		}
