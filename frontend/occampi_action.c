@@ -443,6 +443,10 @@ static int occampi_codegen_action (compops_t *cops, tnode_t *node, codegen_t *cg
 	int bytes = tnode_bytesfor (type, cgen->target);
 	tnode_t *lhstype = (tnode_t *)tnode_getchook (node, opi_action_lhstypehook);
 
+#if 0
+fprintf (stderr, "occampi_codegen_action(): %s: bytes = %d, type =\n", node->tag->name, bytes);
+tnode_dumptree (type, 1, stderr);
+#endif
 	if (!lhstype) {
 		lhstype = typecheck_gettype (lhs, NULL);
 	}
@@ -452,6 +456,9 @@ static int occampi_codegen_action (compops_t *cops, tnode_t *node, codegen_t *cg
 	if (type && type->tag->ndef->lops && tnode_haslangop (type->tag->ndef->lops, "codegen_typeaction")) {
 		int i;
 
+#if 0
+fprintf (stderr, "occampi_codegen_action(): type has codegen_typeaction.\n");
+#endif
 		i = tnode_calllangop (type->tag->ndef->lops, "codegen_typeaction", 3, type, node, cgen);
 		if (i >= 0) {
 			/* did something */
@@ -461,6 +468,9 @@ static int occampi_codegen_action (compops_t *cops, tnode_t *node, codegen_t *cg
 		/* left-hand side has type-action, but the operation itself does not;  offer it up */
 		int i;
 
+#if 0
+fprintf (stderr, "occampi_codegen_action(): lhstype has codegen_typeaction.\n");
+#endif
 		i = tnode_calllangop (lhstype->tag->ndef->lops, "codegen_typeaction", 3, lhstype, node, cgen);
 		if (i >= 0) {
 			/* did something */

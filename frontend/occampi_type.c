@@ -416,6 +416,7 @@ static int occampi_type_codegen_typeaction (langops_t *lops, tnode_t *type, tnod
 {
 	tnode_t *lhs = tnode_nthsubof (anode, 0);		/* some guarantee that action-nodes have these */
 	tnode_t *rhs = tnode_nthsubof (anode, 1);
+	tnode_t *atype = tnode_nthsubof (anode, 2);
 
 	if (type->tag == opi.tag_CHAN) {
 		/*{{{  deal with channel actions*/
@@ -424,14 +425,14 @@ static int occampi_type_codegen_typeaction (langops_t *lops, tnode_t *type, tnod
 			codegen_warning (cgen, "occampi_type_codegen_typaction(): attempt to assign channel!");
 			return -1;
 		} else if (anode->tag == opi.tag_INPUT) {
-			int bytes = tnode_bytesfor (type, cgen->target);
+			int bytes = tnode_bytesfor (atype, cgen->target);
 
 			codegen_callops (cgen, loadpointer, rhs, 0);
 			codegen_callops (cgen, loadpointer, lhs, 0);
 			codegen_callops (cgen, loadconst, bytes);
 			codegen_callops (cgen, tsecondary, I_IN);
 		} else if (anode->tag == opi.tag_OUTPUT) {
-			int bytes = tnode_bytesfor (type, cgen->target);
+			int bytes = tnode_bytesfor (atype, cgen->target);
 
 			codegen_callops (cgen, loadpointer, rhs, 0);
 			codegen_callops (cgen, loadpointer, lhs, 0);
