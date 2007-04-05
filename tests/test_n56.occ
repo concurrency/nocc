@@ -1,0 +1,10 @@
+
+-- test_n56.occ -- testing BYTE constant output
+
+PROC test.n56 (CHAN BYTE out!)
+  SEQ
+    out ! 'x'
+    out ! '*n'
+:
+
+
