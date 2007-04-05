@@ -446,11 +446,22 @@ tnode_dumptree (*rhsp, 1, stderr);
 		/* typecheck RHS */
 		rtype = typecheck_gettype (*rhsp, *typep);
 		if (!rtype) {
-			typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
-			return 0;
-		} else {
-			typecheck_typeactual (*typep, rtype, node, tc);
+			/* try once more with a default integer type */
+			tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
+
+			rtype = typecheck_gettype (*rhsp, definttype);
+#if 0
+fprintf (stderr, "occampi_typecheck_abbrev(): no RHS type by default, tried INT got:\n");
+tnode_dumptree (rtype, 1, stderr);
+#endif
+			if (rtype != definttype) {
+				tnode_free (definttype);
+				rtype = NULL;
+				typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
+				return 0;
+			}
 		}
+		typecheck_typeactual (*typep, rtype, node, tc);
 	} else if (!*typep && xtypep && *xtypep) {
 		tnode_t *rtype;
 
@@ -458,11 +469,22 @@ tnode_dumptree (*rhsp, 1, stderr);
 		/* typecheck RHS */
 		rtype = typecheck_gettype (*rhsp, *typep);
 		if (!rtype) {
-			typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
-			return 0;
-		} else {
-			typecheck_typeactual (*typep, rtype, node, tc);
+			/* try once more with a default integer type */
+			tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
+
+			rtype = typecheck_gettype (*rhsp, definttype);
+#if 0
+fprintf (stderr, "occampi_typecheck_abbrev(): no RHS type by default, tried INT got:\n");
+tnode_dumptree (rtype, 1, stderr);
+#endif
+			if (rtype != definttype) {
+				tnode_free (definttype);
+				rtype = NULL;
+				typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
+				return 0;
+			}
 		}
+		typecheck_typeactual (*typep, rtype, node, tc);
 	} else if (!*typep && (!xtypep || !*xtypep)) {
 		tnode_t *rtype;
 
@@ -472,8 +494,20 @@ tnode_dumptree (*rhsp, 1, stderr);
 		}
 		rtype = typecheck_gettype (*rhsp, NULL);
 		if (!rtype) {
-			typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
-			return 0;
+			/* try once more with a default integer type */
+			tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
+
+			rtype = typecheck_gettype (*rhsp, definttype);
+#if 1
+fprintf (stderr, "occampi_typecheck_abbrev(): no RHS type by default, tried INT got:\n");
+tnode_dumptree (rtype, 1, stderr);
+#endif
+			if (rtype != definttype) {
+				tnode_free (definttype);
+				rtype = NULL;
+				typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
+				return 0;
+			}
 		}
 		*typep = tnode_copytree (rtype);
 		if (xtypep && !*xtypep) {
@@ -487,9 +521,22 @@ tnode_dumptree (*rhsp, 1, stderr);
 		/* typecheck RHS */
 		rtype = typecheck_gettype (*rhsp, *typep);
 		if (!rtype) {
-			typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
-			return 0;
-		} else {
+			/* try once more with a default integer type */
+			tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
+
+			rtype = typecheck_gettype (*rhsp, definttype);
+#if 1
+fprintf (stderr, "occampi_typecheck_abbrev(): no RHS type by default, tried INT got:\n");
+tnode_dumptree (rtype, 1, stderr);
+#endif
+			if (rtype != definttype) {
+				tnode_free (definttype);
+				rtype = NULL;
+				typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
+				return 0;
+			}
+		}
+		if (rtype) {
 			tnode_t *realtype;
 #if 0
 fprintf (stderr, "occampi_typecheck_abbrev(): both sides have types, *typep=0x%8.8x, rtype=0x%8.8x =\n", (unsigned int)(*typep), (unsigned int)(rtype));
