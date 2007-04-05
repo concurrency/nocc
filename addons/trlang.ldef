@@ -29,12 +29,15 @@
 .SECTION "trlang-expr" # {{{
 
 .GRULE	"trl:nullreduce" "N+R-"
+.GRULE	"trl:nullpush" "0N-"
 .GRULE	"trl:namereduce" "T+St0X[trlang_nametoken_to_hook]C[TRLANGNAME]1R-"
-.GRULE	"trl:functiondefreduce" "N+0N+C[TRLANGFUNCTIONDEF]3R-"
+.GRULE	"trl:functiondefreduce" "N+N+N+C[TRLANGFUNCTIONDEF]3R-"
 
 
 .TABLE	"trlang:name ::= [ 0 +Name 1 ] [ 1 {<trl:namereduce>} -* ]"
 .TABLE	"trlang:expr ::= [ 0 trlang:name 1 ] [ 1 {<trl:nullreduce>} -* ]"
+.BNF	"trlang:paramlist ::= { trlang:expr @@, 1 }"
+.TABLE	"trlang:params ::= [ 0 @@) 1 ] [ 0 -* 2 ] [ 1 {<trl:nullpush>} -* 3 ] [ 2 trlang:paramlist 3 ] [ 3 {<trl:nullreduce>} -* ]"
 .TABLE	"trlang:functiondef ::= [ 0 trlang:name 1 ] [ 1 @@( 2 ] [ 2 @@) 3 ] [ 3 @@= 4 ] [ 4 trlang:expr 5 ] [ 5 {<trl:functiondefreduce>} -* ]"
 
 

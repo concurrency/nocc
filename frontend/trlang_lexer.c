@@ -223,7 +223,7 @@ tokenloop:
 		/* scan something that matches a word */
 		for (dh=ch+1; (dh < chlim) && (((*dh >= 'a') && (*dh <= 'z')) ||
 				((*dh >= 'A') && (*dh <= 'Z')) ||
-				(*dh == '.') ||
+				(*dh == '.') || (*dh == ':') ||
 				((*dh >= '0') && (*dh <= '9'))); dh++);
 		
 		tmpstr = string_ndup (ch, (int)(dh - ch));
