@@ -323,10 +323,10 @@ fprintf (stderr, "occampi_type_typeactual(): port: node->tag = [%s]\n", node->ta
 static int occampi_type_bytesfor (langops_t *lops, tnode_t *t, target_t *target)
 {
 	if (t->tag == opi.tag_CHAN) {
-		return target->chansize;
+		return target ? target->chansize : 4;
 	} else if (t->tag == opi.tag_PORT) {
 		/* FIXME! */
-		return target->chansize;
+		return target ? target->chansize : 4;
 	}
 	return -1;
 }

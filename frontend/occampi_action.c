@@ -150,7 +150,7 @@ tnode_dumptree (lhstype, 1, stderr);
 		}
 
 		/* get the type of the channel (channel protocol) */
-		prot = typecheck_gettype (lhstype, NULL);
+		prot = typecheck_getsubtype (lhstype, NULL);
 		rhstype = typecheck_gettype (rhs, prot);
 
 		/*}}}*/

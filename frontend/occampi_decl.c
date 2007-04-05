@@ -501,7 +501,7 @@ tnode_dumptree (*typep, 1, stderr);
 				int rhsbytes = tnode_bytesfor (rtype, NULL);
 				int lhsbytes = tnode_bytesfor (*typep, NULL);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_typecheck_abbrev(): RETYPES: rhsbytes = %d, lhsbytes = %d\n", rhsbytes, lhsbytes);
 #endif
 				if (rhsbytes == -1) {
