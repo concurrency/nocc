@@ -1,0 +1,10 @@
+
+-- test_n57.occ -- untyped VAL constant (default to INT)
+
+PROC test.n57 ()
+  VAL max IS 16:
+  [max]BYTE foo:
+  SEQ
+    SKIP
+:
+

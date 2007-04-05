@@ -231,6 +231,16 @@ static int occampi_premap_vardecl (compops_t *cops, tnode_t **node, map_t *map)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_constprop_vardecl (compops_t *cops, tnode_t **nodep)*/
+/*
+ *	does constant propagation on a variable declaration node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_constprop_vardecl (compops_t *cops, tnode_t **nodep)
+{
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_vardecl (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	transforms the name declared into a back-end name
@@ -443,24 +453,14 @@ tnode_dumptree (*rhsp, 1, stderr);
 		tnode_t *rtype;
 
 		*xtypep = *typep;		/* set NAMENODE type to type in abbreviation */
+
 		/* typecheck RHS */
 		rtype = typecheck_gettype (*rhsp, *typep);
 		if (!rtype) {
-			/* try once more with a default integer type */
-			tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
-
-			rtype = typecheck_gettype (*rhsp, definttype);
-#if 0
-fprintf (stderr, "occampi_typecheck_abbrev(): no RHS type by default, tried INT got:\n");
-tnode_dumptree (rtype, 1, stderr);
-#endif
-			if (rtype != definttype) {
-				tnode_free (definttype);
-				rtype = NULL;
-				typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
-				return 0;
-			}
+			typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
+			return 0;
 		}
+
 		typecheck_typeactual (*typep, rtype, node, tc);
 	} else if (!*typep && xtypep && *xtypep) {
 		tnode_t *rtype;
@@ -469,21 +469,10 @@ tnode_dumptree (rtype, 1, stderr);
 		/* typecheck RHS */
 		rtype = typecheck_gettype (*rhsp, *typep);
 		if (!rtype) {
-			/* try once more with a default integer type */
-			tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
-
-			rtype = typecheck_gettype (*rhsp, definttype);
-#if 0
-fprintf (stderr, "occampi_typecheck_abbrev(): no RHS type by default, tried INT got:\n");
-tnode_dumptree (rtype, 1, stderr);
-#endif
-			if (rtype != definttype) {
-				tnode_free (definttype);
-				rtype = NULL;
-				typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
-				return 0;
-			}
+			typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
+			return 0;
 		}
+
 		typecheck_typeactual (*typep, rtype, node, tc);
 	} else if (!*typep && (!xtypep || !*xtypep)) {
 		tnode_t *rtype;
@@ -498,15 +487,15 @@ tnode_dumptree (rtype, 1, stderr);
 			tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
 
 			rtype = typecheck_gettype (*rhsp, definttype);
-#if 1
+#if 0
 fprintf (stderr, "occampi_typecheck_abbrev(): no RHS type by default, tried INT got:\n");
 tnode_dumptree (rtype, 1, stderr);
 #endif
-			if (rtype != definttype) {
-				tnode_free (definttype);
-				rtype = NULL;
+			if (!rtype) {
 				typecheck_error (node, tc, "failed to get type from RHS for abbreviation");
 				return 0;
+			} else if (rtype != definttype) {
+				tnode_free (definttype);
 			}
 		}
 		*typep = tnode_copytree (rtype);
@@ -514,7 +503,7 @@ tnode_dumptree (rtype, 1, stderr);
 			*xtypep = *typep;
 		}
 
-		typecheck_warning (node, tc, "untyped abbreviation");
+		typecheck_warning (node, tc, "untyped abbreviation, set to %s", (*typep)->tag->name);
 	} else {
 		tnode_t *rtype;
 
@@ -525,7 +514,7 @@ tnode_dumptree (rtype, 1, stderr);
 			tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
 
 			rtype = typecheck_gettype (*rhsp, definttype);
-#if 1
+#if 0
 fprintf (stderr, "occampi_typecheck_abbrev(): no RHS type by default, tried INT got:\n");
 tnode_dumptree (rtype, 1, stderr);
 #endif
@@ -580,6 +569,16 @@ tnode_dumptree (realtype, 1, stderr);
 	typecheck_subtree (tnode_nthsubof (node, 2), tc);
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_constprop_abbrev (compops_t *cops, tnode_t **nodep)*/
+/*
+ *	does constant propagation on an abbreviation node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_constprop_abbrev (compops_t *cops, tnode_t **nodep)
+{
+	return 1;
 }
 /*}}}*/
 /*{{{  static int occampi_namemap_abbrev (compops_t *cops, tnode_t **nodep, map_t *map)*/
@@ -1523,6 +1522,7 @@ static int occampi_decl_init_nodes (void)
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_vardecl));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_vardecl));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_vardecl));
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_vardecl));
 	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_vardecl));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_vardecl));
 	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_precode_vardecl));
@@ -1557,6 +1557,7 @@ static int occampi_decl_init_nodes (void)
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_abbrev));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_abbrev));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_abbrev));
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_abbrev));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_abbrev));
 	tnd->ops = cops;
 
@@ -1568,6 +1569,7 @@ static int occampi_decl_init_nodes (void)
 	opi.tag_RETYPES = tnode_newnodetag ("RETYPES", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_VALRETYPES = tnode_newnodetag ("VALRETYPES", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  occampi:procdecl -- PROCDECL*/
 	i = -1;
