@@ -451,19 +451,7 @@ tnode_t *constprop_newconst (consttype_e ctype, tnode_t *orig, tnode_t *type, ..
  */
 int constprop_isconst (tnode_t *node)
 {
-	int v = 0;
-
-	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_ISCONST)) {
-		v = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_ISCONST, 1, node);
-	} else {
-		v = (node && (node->tag == tag_CONST));
-	}
-
-	if (compopts.traceconstprop) {
-		nocc_message ("constprop: isconst? (%s,%s)", node->tag->ndef->name, node->tag->name);
-	}
-
-	return v;
+	return (node && (node->tag == tag_CONST));
 }
 /*}}}*/
 /*{{{  consttype_e constprop_consttype (tnode_t *tptr)*/

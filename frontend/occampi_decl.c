@@ -1389,13 +1389,13 @@ static int occampi_bytesfor_namenode (langops_t *lops, tnode_t *node, target_t *
  */
 static int occampi_constprop_namenode (compops_t *cops, tnode_t **nodep)
 {
-	if (constprop_isconst (*nodep)) {
+	if (langops_isconst (*nodep)) {
 		/* yes, we're constant, substitute */
 		name_t *name = tnode_nthnameof (*nodep, 0);
 		tnode_t *type = NameTypeOf (name);
-		consttype_e ctype = constprop_consttype (type);
+		int val = langops_constvalof (*nodep, NULL);
 
-		*nodep = constprop_newconst (ctype, *nodep, type, constprop_intvalof (*nodep));
+		*nodep = constprop_newconst (CONST_INT, *nodep, type, val);
 	}
 	return 1;
 }
@@ -1481,7 +1481,7 @@ static int occampi_isconst_namenode (langops_t *lops, tnode_t *node)
 		tnode_t *valdecl = NameDeclOf (name);
 
 		if ((valdecl->tag == opi.tag_VALABBREV) || (valdecl->tag == opi.tag_VALRETYPES)) {
-			return constprop_isconst (tnode_nthsubof (valdecl, 3));
+			return langops_isconst (tnode_nthsubof (valdecl, 3));
 		}
 	}
 	return 0;
@@ -1500,9 +1500,7 @@ static int occampi_constvalof_namenode (langops_t *lops, tnode_t *node, void *pt
 		if ((valdecl->tag == opi.tag_VALABBREV) || (valdecl->tag == opi.tag_VALRETYPES)) {
 			tnode_t *expr = tnode_nthsubof (valdecl, 3);
 
-			if (tnode_haslangop (expr->tag->ndef->lops, "constvalof")) {
-				return tnode_calllangop (expr->tag->ndef->lops, "constvalof", 2, node, ptr);
-			}
+			return langops_constvalof (expr, ptr);
 		}
 	}
 	tnode_error (node, "cannot get constant value of this name [%s]", node->tag->name);

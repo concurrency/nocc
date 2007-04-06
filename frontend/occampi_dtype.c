@@ -775,9 +775,9 @@ tnode_dumptree (rtype, 1, stderr);
 		constprop_error (*nodep, "operand is not an array! [%s]", type->tag->name);
 		return 0;
 	}
-	if (constprop_isconst (tnode_nthsubof (type, 0))) {
+	if (langops_isconst (tnode_nthsubof (type, 0))) {
 		/* constant dimension! */
-		int dim = constprop_intvalof (tnode_nthsubof (type, 0));
+		int dim = langops_constvalof (tnode_nthsubof (type, 0), NULL);
 
 #if 0
 fprintf (stderr, "occampi_constprop_arraymop(): constant dimension! = %d\n", dim);
