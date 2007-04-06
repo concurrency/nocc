@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -48,6 +49,7 @@
 #include "prescope.h"
 #include "library.h"
 #include "typecheck.h"
+#include "constprop.h"
 #include "precheck.h"
 #include "usagecheck.h"
 #include "map.h"
@@ -1445,6 +1447,23 @@ static int occampi_isvar_namenode (langops_t *lops, tnode_t *node)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_isconst_namenode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns non-zero if the given name is (compile-time) constant
+ */
+static int occampi_isconst_namenode (langops_t *lops, tnode_t *node)
+{
+	if (node->tag == opi.tag_NVALABBR) {
+		name_t *name = tnode_nthnameof (node, 0);
+		tnode_t *valdecl = NameDeclOf (name);
+
+		if ((valdecl->tag == opi.tag_VALABBREV) || (valdecl->tag == opi.tag_VALRETYPES)) {
+			return constprop_isconst (tnode_nthsubof (valdecl, 3));
+		}
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_decl_init_nodes (void)*/
@@ -1485,6 +1504,7 @@ static int occampi_decl_init_nodes (void)
 	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_usagecheck_namenode));
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (occampi_getname_namenode));
 	tnode_setlangop (lops, "isvar", 1, LANGOPTYPE (occampi_isvar_namenode));
+	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (occampi_isconst_namenode));
 	tnd->lops = lops;
 
 	i = -1;
