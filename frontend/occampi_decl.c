@@ -440,6 +440,7 @@ static int occampi_typecheck_abbrev (compops_t *cops, tnode_t *node, typecheck_t
 	tnode_t **typep = tnode_nthsubaddr (node, 1);
 	tnode_t **rhsp = tnode_nthsubaddr (node, 3);
 	tnode_t **xtypep = NULL;
+	tnode_t *rtype = NULL;
 
 	if ((*namep)->tag->ndef == opi.node_NAMENODE) {
 		name_t *name = tnode_nthnameof (*namep, 0);
@@ -447,13 +448,15 @@ static int occampi_typecheck_abbrev (compops_t *cops, tnode_t *node, typecheck_t
 		xtypep = NameTypeAddr (name);
 	}
 
+	/* type-check RHS first */
+	typecheck_subtree (*rhsp, tc);
+	rtype = typecheck_gettype (*rhsp, NULL);
+
 #if 0
-fprintf (stderr, "occampi_typecheck_abbrev(): *xtypep=0x%8.8x, *typep=0x%8.8x, *rhsp=\n", (unsigned int)(*xtypep), (unsigned int)(*typep));
-tnode_dumptree (*rhsp, 1, stderr);
+fprintf (stderr, "occampi_typecheck_abbrev(): *xtypep=0x%8.8x, *typep=0x%8.8x, rtype=\n", (unsigned int)(*xtypep), (unsigned int)(*typep));
+tnode_dumptree (rtype, 1, stderr);
 #endif
 	if (*typep && xtypep && !*xtypep) {
-		tnode_t *rtype;
-
 		*xtypep = *typep;		/* set NAMENODE type to type in abbreviation */
 
 		/* typecheck RHS */
@@ -465,8 +468,6 @@ tnode_dumptree (*rhsp, 1, stderr);
 
 		typecheck_typeactual (*typep, rtype, node, tc);
 	} else if (!*typep && xtypep && *xtypep) {
-		tnode_t *rtype;
-
 		*typep = *xtypep;		/* set ABBRNODE to type in name */
 		/* typecheck RHS */
 		rtype = typecheck_gettype (*rhsp, *typep);
@@ -477,8 +478,6 @@ tnode_dumptree (*rhsp, 1, stderr);
 
 		typecheck_typeactual (*typep, rtype, node, tc);
 	} else if (!*typep && (!xtypep || !*xtypep)) {
-		tnode_t *rtype;
-
 		/* no type, look at RHS */
 		if (typecheck_subtree (*rhsp, tc)) {
 			return 0;
@@ -507,8 +506,6 @@ tnode_dumptree (rtype, 1, stderr);
 
 		typecheck_warning (node, tc, "untyped abbreviation, set to %s", (*typep)->tag->name);
 	} else {
-		tnode_t *rtype;
-
 		/* typecheck RHS */
 		rtype = typecheck_gettype (*rhsp, *typep);
 		if (!rtype) {

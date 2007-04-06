@@ -273,12 +273,36 @@ tnode_t *typecheck_typereduce (tnode_t *type)
 	if (type->tag->ndef->lops && tnode_haslangop_i (type->tag->ndef->lops, (int)LOPS_TYPEREDUCE)) {
 		if (compopts.tracetypecheck) {
 			/*{{{  report attempted type reduction*/
-			nocc_message ("typecheck_typereduce(): reducing [%s (%s)]", type->tag->name, type->tag->ndef->name);
+			nocc_message ("typecheck_typereduce(): reducing (%s,%s)", type->tag->ndef->name, type->tag->name);
 			/*}}}*/
 		}
 		return (tnode_t *)tnode_calllangop_i (type->tag->ndef->lops, (int)LOPS_TYPEREDUCE, 1, type);
 	}
 	return NULL;
+}
+/*}}}*/
+/*{{{  int typecheck_cantypecast (tnode_t *node, tnode_t *srctype)*/
+/*
+ *	determines whether one type can be cast into another.  'node' should be the
+ *	target type, 'srctype' is the source type
+ *	returns 0 if not, 1 otherwise
+ */
+int typecheck_cantypecast (tnode_t *node, tnode_t *srctype)
+{
+	if (!node || !srctype) {
+		return NULL;
+	}
+	if (node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_CANTYPECAST)) {
+		if (compopts.tracetypecheck) {
+			/*{{{  report attempted type-cast*/
+			nocc_message ("typecheck_cantypecast(): checking whether (%s,%s) can be cast to (%s,%s)", node->tag->ndef->name, node->tag->name,
+					srctype->tag->ndef->name, srctype->tag->name);
+			/*}}}*/
+		}
+		return tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_CANTYPECAST, 2, node, srctype);
+	}
+	tnode_warning (node, "typecheck_cantypecast(): don\'t know how to check type-casts to (%s,%s)", node->tag->ndef->name, node->tag->name);
+	return 0;
 }
 /*}}}*/
 /*{{{  int typecheck_subtree (tnode_t *t, typecheck_t *tc)*/

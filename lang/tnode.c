@@ -359,45 +359,46 @@ int tnode_init (void)
 	dynarray_init (alangops);
 
 	/*{{{  default compiler operations*/
-	tnode_newcompop ("prescope", COPS_PRESCOPE, 2, NULL);
-	tnode_newcompop ("scopein", COPS_SCOPEIN, 2, NULL);
-	tnode_newcompop ("scopeout", COPS_SCOPEOUT, 2, NULL);
-	tnode_newcompop ("typecheck", COPS_TYPECHECK, 2, NULL);
-	tnode_newcompop ("constprop", COPS_CONSTPROP, 1, NULL);
-	tnode_newcompop ("typeresolve", COPS_TYPERESOLVE, 2, NULL);
-	tnode_newcompop ("precheck", COPS_PRECHECK, 1, NULL);
-	tnode_newcompop ("postcheck", COPS_POSTCHECK, 2, NULL);
-	tnode_newcompop ("fetrans", COPS_FETRANS, 2, NULL);
-	tnode_newcompop ("betrans", COPS_BETRANS, 2, NULL);
-	tnode_newcompop ("premap", COPS_PREMAP, 2, NULL);
-	tnode_newcompop ("namemap", COPS_NAMEMAP, 2, NULL);
-	tnode_newcompop ("bemap", COPS_BEMAP, 2, NULL);
-	tnode_newcompop ("preallocate", COPS_PREALLOCATE, 2, NULL);
-	tnode_newcompop ("precode", COPS_PRECODE, 2, NULL);
-	tnode_newcompop ("codegen", COPS_CODEGEN, 2, NULL);
+	tnode_newcompop ("prescope", COPS_PRESCOPE, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("scopein", COPS_SCOPEIN, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("scopeout", COPS_SCOPEOUT, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("typecheck", COPS_TYPECHECK, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("constprop", COPS_CONSTPROP, 1, INTERNAL_ORIGIN);
+	tnode_newcompop ("typeresolve", COPS_TYPERESOLVE, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("precheck", COPS_PRECHECK, 1, INTERNAL_ORIGIN);
+	tnode_newcompop ("postcheck", COPS_POSTCHECK, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("fetrans", COPS_FETRANS, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("betrans", COPS_BETRANS, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("premap", COPS_PREMAP, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("namemap", COPS_NAMEMAP, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("bemap", COPS_BEMAP, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("preallocate", COPS_PREALLOCATE, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("precode", COPS_PRECODE, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("codegen", COPS_CODEGEN, 2, INTERNAL_ORIGIN);
 
 	/*}}}*/
 	/*{{{  default language operations*/
-	tnode_newlangop ("getdescriptor", LOPS_GETDESCRIPTOR, 2, NULL);
-	tnode_newlangop ("getname", LOPS_GETNAME, 2, NULL);
-	tnode_newlangop ("do_usagecheck", LOPS_DO_USAGECHECK, 2, NULL);
-	tnode_newlangop ("typeactual", LOPS_TYPEACTUAL, 4, NULL);
-	tnode_newlangop ("typereduce", LOPS_TYPEREDUCE, 1, NULL);
-	tnode_newlangop ("gettype", LOPS_GETTYPE, 2, NULL);
-	tnode_newlangop ("getsubtype", LOPS_GETSUBTYPE, 2, NULL);
-	tnode_newlangop ("bytesfor", LOPS_BYTESFOR, 2, NULL);
-	tnode_newlangop ("issigned", LOPS_ISSIGNED, 2, NULL);
-	tnode_newlangop ("isconst", LOPS_ISCONST, 1, NULL);
-	tnode_newlangop ("isvar", LOPS_ISVAR, 1, NULL);
-	tnode_newlangop ("iscomplex", LOPS_ISCOMPLEX, 2, NULL);
-	tnode_newlangop ("constvalof", LOPS_CONSTVALOF, 2, NULL);
-	tnode_newlangop ("valbyref", LOPS_VALBYREF, 1, NULL);
-	tnode_newlangop ("initsizes", LOPS_INITSIZES, 7, NULL);
-	tnode_newlangop ("initialising_decl", LOPS_INITIALISING_DECL, 3, NULL);
-	tnode_newlangop ("codegen_typeaction", LOPS_CODEGEN_TYPEACTION, 3, NULL);
-	tnode_newlangop ("codegen_altenable", LOPS_CODEGEN_ALTENABLE, 3, NULL);
-	tnode_newlangop ("codegen_altdisable", LOPS_CODEGEN_ALTDISABLE, 4, NULL);
-	tnode_newlangop ("premap_typeforvardecl", LOPS_PREMAP_TYPEFORVARDECL, 3, NULL);
+	tnode_newlangop ("getdescriptor", LOPS_GETDESCRIPTOR, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("getname", LOPS_GETNAME, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("do_usagecheck", LOPS_DO_USAGECHECK, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("typeactual", LOPS_TYPEACTUAL, 4, INTERNAL_ORIGIN);
+	tnode_newlangop ("typereduce", LOPS_TYPEREDUCE, 1, INTERNAL_ORIGIN);
+	tnode_newlangop ("cantypecast", LOPS_CANTYPECAST, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("gettype", LOPS_GETTYPE, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("getsubtype", LOPS_GETSUBTYPE, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("bytesfor", LOPS_BYTESFOR, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("issigned", LOPS_ISSIGNED, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("isconst", LOPS_ISCONST, 1, INTERNAL_ORIGIN);
+	tnode_newlangop ("isvar", LOPS_ISVAR, 1, INTERNAL_ORIGIN);
+	tnode_newlangop ("iscomplex", LOPS_ISCOMPLEX, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("constvalof", LOPS_CONSTVALOF, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("valbyref", LOPS_VALBYREF, 1, INTERNAL_ORIGIN);
+	tnode_newlangop ("initsizes", LOPS_INITSIZES, 7, INTERNAL_ORIGIN);
+	tnode_newlangop ("initialising_decl", LOPS_INITIALISING_DECL, 3, INTERNAL_ORIGIN);
+	tnode_newlangop ("codegen_typeaction", LOPS_CODEGEN_TYPEACTION, 3, INTERNAL_ORIGIN);
+	tnode_newlangop ("codegen_altenable", LOPS_CODEGEN_ALTENABLE, 3, INTERNAL_ORIGIN);
+	tnode_newlangop ("codegen_altdisable", LOPS_CODEGEN_ALTDISABLE, 4, INTERNAL_ORIGIN);
+	tnode_newlangop ("premap_typeforvardecl", LOPS_PREMAP_TYPEFORVARDECL, 3, INTERNAL_ORIGIN);
 
 	/*}}}*/
 	/*{{{  setup the static node types*/

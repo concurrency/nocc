@@ -583,6 +583,17 @@ static tnode_t *occampi_leaftype_gettype (langops_t *lops, tnode_t *t, tnode_t *
 	return t;
 }
 /*}}}*/
+/*{{{  static int occampi_leaftype_cantypecast (langops_t *lops, tnode_t *node, tnode_t *srctype)*/
+/*
+ *	checks to see if one type can be cast into another
+ *	returns non-zero if valid cast, zero otherwise
+ */
+static int occampi_leaftype_cantypecast (langops_t *lops, tnode_t *node, tnode_t *srctype)
+{
+	/* we allow leaftypes to be arbitrarily cast into each other */
+	return (node->tag->ndef == srctype->tag->ndef);
+}
+/*}}}*/
 /*{{{  static int occampi_leaftype_bytesfor (langops_t *lops, tnode_t *t, target_t *target)*/
 /*
  *	returns the number of bytes required by a basic type
@@ -939,6 +950,7 @@ static int occampi_type_init_nodes (void)
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_leaftype_getdescriptor));
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_leaftype_gettype));
+	tnode_setlangop (lops, "cantypecast", 2, LANGOPTYPE (occampi_leaftype_cantypecast));
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_leaftype_bytesfor));
 	tnode_setlangop (lops, "issigned", 2, LANGOPTYPE (occampi_leaftype_issigned));
 	tnd->lops = lops;

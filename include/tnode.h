@@ -150,21 +150,22 @@ typedef enum ENUM_langops {
 	LOPS_DO_USAGECHECK = 3,			/* 2: tnode_t *, uchk_state_t * -> int */
 	LOPS_TYPEACTUAL = 4,			/* 4: tnode_t *, tnode_t *, tnode_t *, typecheck_t * -> tnode_t * */
 	LOPS_TYPEREDUCE = 5,			/* 1: tnode_t * -> tnode_t * */
-	LOPS_GETTYPE = 6,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
-	LOPS_GETSUBTYPE = 7,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
-	LOPS_BYTESFOR = 8,			/* 2: tnode_t *, target_t * -> int */
-	LOPS_ISSIGNED = 9,			/* 2: tnode_t *, target_t * -> int */
-	LOPS_ISCONST = 10,			/* 1: tnode_t * -> int */
-	LOPS_ISVAR = 11,			/* 1: tnode_t * -> int */
-	LOPS_ISCOMPLEX = 12,			/* 2: tnode_t *, int -> int */
-	LOPS_CONSTVALOF = 13,			/* 2: tnode_t *, void * -> int */
-	LOPS_VALBYREF = 14,			/* 1: tnode_t * -> int */
-	LOPS_INITSIZES = 15,			/* 7: tnode_t *, tnode_t *, int *, int *, int *, int *, map_t * -> int */
-	LOPS_INITIALISING_DECL = 16,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
-	LOPS_CODEGEN_TYPEACTION = 17,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
-	LOPS_CODEGEN_ALTENABLE = 18,		/* 3: tnode_t *, int, codegen_t * -> int */
-	LOPS_CODEGEN_ALTDISABLE = 19,		/* 4: tnode_t *, int, int, codegen_t * -> int */
-	LOPS_PREMAP_TYPEFORVARDECL = 20,	/* 3: tnode_t *, tnode_t *, map_t * -> int */
+	LOPS_CANTYPECAST = 6,			/* 2: tnode_t *, tnode_t * -> int */
+	LOPS_GETTYPE = 7,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
+	LOPS_GETSUBTYPE = 8,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
+	LOPS_BYTESFOR = 9,			/* 2: tnode_t *, target_t * -> int */
+	LOPS_ISSIGNED = 10,			/* 2: tnode_t *, target_t * -> int */
+	LOPS_ISCONST = 11,			/* 1: tnode_t * -> int */
+	LOPS_ISVAR = 12,			/* 1: tnode_t * -> int */
+	LOPS_ISCOMPLEX = 13,			/* 2: tnode_t *, int -> int */
+	LOPS_CONSTVALOF = 14,			/* 2: tnode_t *, void * -> int */
+	LOPS_VALBYREF = 15,			/* 1: tnode_t * -> int */
+	LOPS_INITSIZES = 16,			/* 7: tnode_t *, tnode_t *, int *, int *, int *, int *, map_t * -> int */
+	LOPS_INITIALISING_DECL = 17,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
+	LOPS_CODEGEN_TYPEACTION = 18,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
+	LOPS_CODEGEN_ALTENABLE = 19,		/* 3: tnode_t *, int, codegen_t * -> int */
+	LOPS_CODEGEN_ALTDISABLE = 20,		/* 4: tnode_t *, int, int, codegen_t * -> int */
+	LOPS_PREMAP_TYPEFORVARDECL = 21,	/* 3: tnode_t *, tnode_t *, map_t * -> int */
 	LOPS_MAX = 256
 } langops_e;
 

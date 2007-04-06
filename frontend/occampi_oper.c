@@ -664,8 +664,26 @@ static int occampi_iscomplex_mop (langops_t *lops, tnode_t *node, int deep)
  */
 static int occampi_typecheck_typecast (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
-	/* FIXME! */
-	return 1;
+	tnode_t *type;
+	tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
+
+	typecheck_subtree (tnode_nthsubof (node, 0), tc);
+	typecheck_subtree (tnode_nthsubof (node, 1), tc);
+
+	type = typecheck_gettype (tnode_nthsubof (node, 0), definttype);
+#if 0
+fprintf (stderr, "occampi_typecheck_typecast(): got back operand type =\n");
+tnode_dumptree (type, 1, stderr);
+#endif
+	if (!type) {
+		typecheck_error (node, tc, "failed to get type for type-cast operand");
+	} else if (!typecheck_cantypecast (tnode_nthsubof (node, 1), type)) {
+		typecheck_error (node, tc, "cannot cast %s to %s", type->tag->name, tnode_nthsubof (node, 1)->tag->name);
+	}
+
+	tnode_free (definttype);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int occampi_constprop_typecast (compops_t *cops, tnode_t **tptr)*/
@@ -688,8 +706,13 @@ static int occampi_constprop_typecast (compops_t *cops, tnode_t **tptr)
  */
 static tnode_t *occampi_gettype_typecast (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
-	/* FIXME! */
-	return defaulttype;
+#if 0
+fprintf (stderr, "occampi_gettype_typecast(): node =\n");
+tnode_dumptree (node, 1, stderr);
+fprintf (stderr, "occampi_gettype_typecast(): defaulttype =\n");
+tnode_dumptree (defaulttype, 1, stderr);
+#endif
+	return tnode_nthsubof (node, 1);
 }
 /*}}}*/
 
