@@ -605,6 +605,15 @@ static int occampi_namemap_abbrev (compops_t *cops, tnode_t **nodep, map_t *map)
 fprintf (stderr, "occampi_namemap_abbrev(): here!  target is [%s].  Type is:\n", map->target->name);
 tnode_dumptree (type, 1, stderr);
 #endif
+	if (map->lexlevel <= 0) {
+		/* top-level abbreviation -- must be a constant */
+		if (!constprop_isconst (*rhsp)) {
+			tnode_error (*nodep, "top-level abbreviation must be constant");
+		}
+		map_submapnames (bodyp, map);
+		return 0;
+	}
+
 	if (((*nodep)->tag == opi.tag_ABBREV) || ((*nodep)->tag == opi.tag_RETYPES) || langops_valbyref (*rhsp)) {
 		initfunc = occampi_initptrabbrev;
 		vsize = map->target->pointersize;
@@ -1392,7 +1401,18 @@ static int occampi_constprop_namenode (compops_t *cops, tnode_t **nodep)
 		tnode_t *type = NameTypeOf (name);
 		int val = langops_constvalof (*nodep, NULL);
 
-		*nodep = constprop_newconst (CONST_INT, *nodep, type, val);
+		if (type->tag == opi.tag_BYTE) {
+			*nodep = constprop_newconst (CONST_BYTE, *nodep, type, val);
+		} else if (type->tag == opi.tag_BOOL) {
+			*nodep = constprop_newconst (CONST_BOOL, *nodep, type, val);
+		} else if (type->tag == opi.tag_REAL64) {
+			double dval;
+
+			langops_constvalof (*nodep, &dval);
+			*nodep = constprop_newconst (CONST_DOUBLE, *nodep, type, val);
+		} else {
+			*nodep = constprop_newconst (CONST_INT, *nodep, type, val);
+		}
 	}
 	return 1;
 }
