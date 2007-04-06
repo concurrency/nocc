@@ -568,6 +568,16 @@ static int occampi_usagecheck_typedecl (langops_t *lops, tnode_t *node, uchk_sta
 /*}}}*/
 
 
+/*{{{  static int occampi_constprop_arraynode (compops_t *cops, tnode_t **nodep)*/
+/*
+ *	does constant propagation on an array-node (finding constant dimensions)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_constprop_arraynode (compops_t *cops, tnode_t **nodep)
+{
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_arraynode (compops_t *cops, tnode_t **nodep, map_t *mdata)*/
 /*
  *	dummy name-map for arraynodes
@@ -1578,6 +1588,7 @@ static int occampi_dtype_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:arraynode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = dim, 1 = sub-type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_arraynode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_arraynode));
 	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_precode_arraynode));
 	tnd->ops = cops;

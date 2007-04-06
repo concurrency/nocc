@@ -580,6 +580,11 @@ tnode_dumptree (realtype, 1, stderr);
  */
 static int occampi_constprop_abbrev (compops_t *cops, tnode_t **nodep)
 {
+#if 0
+fprintf (stderr, "occampi_constprop_abbrev(): *nodep =\n");
+tnode_dumptree (*nodep, 1, stderr);
+#endif
+	constprop_tree (tnode_nthsubaddr (*nodep, 2));		/* re-do constant propagation on body */
 	return 1;
 }
 /*}}}*/
@@ -1377,6 +1382,24 @@ static int occampi_bytesfor_namenode (langops_t *lops, tnode_t *node, target_t *
 	return -1;
 }
 /*}}}*/
+/*{{{  static int occampi_constprop_namenode (compops_t *cops, tnode_t **nodep)*/
+/*
+ *	does constant propagation on a name-node (reduces name to constant if applicable)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_constprop_namenode (compops_t *cops, tnode_t **nodep)
+{
+	if (constprop_isconst (*nodep)) {
+		/* yes, we're constant, substitute */
+		name_t *name = tnode_nthnameof (*nodep, 0);
+		tnode_t *type = NameTypeOf (name);
+		consttype_e ctype = constprop_consttype (type);
+
+		*nodep = constprop_newconst (ctype, *nodep, type, constprop_intvalof (*nodep));
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_namenode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	transforms given name into a back-end name
@@ -1464,6 +1487,29 @@ static int occampi_isconst_namenode (langops_t *lops, tnode_t *node)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_constvalof_namenode (langops_t *lops, tnode_t *node, void *ptr)*/
+/*
+ *	returns the constant value of a name
+ */
+static int occampi_constvalof_namenode (langops_t *lops, tnode_t *node, void *ptr)
+{
+	if (node->tag == opi.tag_NVALABBR) {
+		name_t *name = tnode_nthnameof (node, 0);
+		tnode_t *valdecl = NameDeclOf (name);
+
+		if ((valdecl->tag == opi.tag_VALABBREV) || (valdecl->tag == opi.tag_VALRETYPES)) {
+			tnode_t *expr = tnode_nthsubof (valdecl, 3);
+
+			if (tnode_haslangop (expr->tag->ndef->lops, "constvalof")) {
+				return tnode_calllangop (expr->tag->ndef->lops, "constvalof", 2, node, ptr);
+			}
+		}
+	}
+	tnode_error (node, "cannot get constant value of this name [%s]", node->tag->name);
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_decl_init_nodes (void)*/
@@ -1495,6 +1541,7 @@ static int occampi_decl_init_nodes (void)
 	i = -1;
 	tnd = opi.node_NAMENODE = tnode_newnodetype ("occampi:namenode", &i, 0, 1, 0, TNF_NONE);	/* subnames: name */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_namenode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_namenode));
 	tnd->ops = cops;
 
@@ -1505,6 +1552,7 @@ static int occampi_decl_init_nodes (void)
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (occampi_getname_namenode));
 	tnode_setlangop (lops, "isvar", 1, LANGOPTYPE (occampi_isvar_namenode));
 	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (occampi_isconst_namenode));
+	tnode_setlangop (lops, "constvalof", 2, LANGOPTYPE (occampi_constvalof_namenode));
 	tnd->lops = lops;
 
 	i = -1;
