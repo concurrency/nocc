@@ -158,7 +158,7 @@ static int occampi_typecheck_dop (compops_t *cops, tnode_t *node, typecheck_t *t
 fprintf (stderr, "occampi_typecheck_dop(): expecting integer RHS, got:\n");
 tnode_dumptree (rhstype, 1, stderr);
 #endif
-		if ((rhstype != definttype) && !typecheck_fixedtypeactual (definttype, rhstype, node, tc, 0)) {
+		if (!typecheck_fixedtypeactual (definttype, rhstype, node, tc, 0)) {
 			typecheck_error (node, tc, "right-hand-side of [%s] must be integer", node->tag->name);
 		}
 	}
@@ -668,6 +668,20 @@ static int occampi_typecheck_typecast (compops_t *cops, tnode_t *node, typecheck
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_constprop_typecast (compops_t *cops, tnode_t **tptr)*/
+/*
+ *	does constant propagation on a type-cast
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_constprop_typecast (compops_t *cops, tnode_t **tptr)
+{
+	if (constprop_isconst (*tptr)) {
+		/* got constant operand */
+	}
+	/* FIXME! */
+	return 1;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_gettype_typecast (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
 /*
  *	returns the type of a type-cast node
@@ -938,6 +952,7 @@ static int occampi_oper_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:typecastnode", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = operand; 1 = type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_typecast));
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_typecast));
 	// tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_typecast));
 	// tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_typecast));
 	// tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_typecast));

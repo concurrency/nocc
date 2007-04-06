@@ -1,0 +1,10 @@
+
+-- test_n59.occ -- VAL BYTE test
+
+VAL BYTE BELL IS 7(BYTE):
+
+PROC test.n59 (CHAN BYTE out!)
+  SEQ
+    out ! BELL
+:
+

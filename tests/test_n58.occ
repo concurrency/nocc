@@ -1,0 +1,10 @@
+
+-- test_n58.occ -- right-shift test
+
+PROC test.n58 ()
+  INT v, s:
+  SEQ
+    s := 3
+    v := (#1040 >> s)
+:
+
