@@ -693,10 +693,17 @@ tnode_dumptree (type, 1, stderr);
  */
 static int occampi_constprop_typecast (compops_t *cops, tnode_t **tptr)
 {
-	if (constprop_isconst (*tptr)) {
+	if (constprop_isconst (tnode_nthsubof (*tptr, 0))) {
 		/* got constant operand */
+		switch (constprop_consttype (tnode_nthsubof (*tptr, 0))) {
+		case CONST_INVALID:
+			/* ignore.. */
+			break;
+		default:
+			/* FIXME! */
+			break;
+		}
 	}
-	/* FIXME! */
 	return 1;
 }
 /*}}}*/
