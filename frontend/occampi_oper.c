@@ -725,7 +725,7 @@ static int occampi_constprop_typecast (compops_t *cops, tnode_t **tptr)
 		/* got constant operand */
 		tnode_t *newnode = langops_retypeconst (tnode_nthsubof (*tptr, 0), tnode_nthsubof (*tptr, 1));
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_constprop_typecast(): retyped constant, got back:\n");
 tnode_dumptree (newnode, 1, stderr);
 #endif
