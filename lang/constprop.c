@@ -350,6 +350,9 @@ static int cprop_modpostwalktree (tnode_t **tptr, void *arg)
 	int i = 0;
 
 	if (tptr && *tptr && (*tptr)->tag->ndef->ops && tnode_hascompop_i ((*tptr)->tag->ndef->ops, (int)COPS_CONSTPROP)) {
+		if (compopts.traceconstprop) {
+			nocc_message ("constprop: checking (%s,%s)", (*tptr)->tag->ndef->name, (*tptr)->tag->name);
+		}
 		i = tnode_callcompop_i ((*tptr)->tag->ndef->ops, (int)COPS_CONSTPROP, 1, tptr);
 	}
 	return i;
@@ -369,6 +372,7 @@ int constprop_init (void)
 	compops_t *cops;
 	langops_t *lops;
 
+	/*{{{  nocc:const -- CONST*/
 	i = -1;
 	tnd = tnode_newnodetype ("nocc:const", &i, 1, 0, 1, TNF_NONE);		/* subnodes: 0=type */
 	tnd->hook_copy = cprop_consthook_hook_copy;
@@ -387,6 +391,8 @@ int constprop_init (void)
 
 	i = -1;
 	tag_CONST = tnode_newnodetag ("CONST", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 
 	return 0;
 }
@@ -445,7 +451,19 @@ tnode_t *constprop_newconst (consttype_e ctype, tnode_t *orig, tnode_t *type, ..
  */
 int constprop_isconst (tnode_t *node)
 {
-	return (node && (node->tag == tag_CONST));
+	int v = 0;
+
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_ISCONST)) {
+		v = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_ISCONST, 1, node);
+	} else {
+		v = (node && (node->tag == tag_CONST));
+	}
+
+	if (compopts.traceconstprop) {
+		nocc_message ("constprop: isconst? (%s,%s)", node->tag->ndef->name, node->tag->name);
+	}
+
+	return v;
 }
 /*}}}*/
 /*{{{  consttype_e constprop_consttype (tnode_t *tptr)*/
