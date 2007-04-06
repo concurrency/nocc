@@ -119,6 +119,9 @@ int langops_isconst (tnode_t *node)
 	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_ISCONST)) {
 		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_ISCONST, 1, node);
 	}
+	if (compopts.traceconstprop) {
+		nocc_message ("langops: isconst? (%s,%s) = %d", node->tag->ndef->name, node->tag->name, r);
+	}
 	return r;
 }
 /*}}}*/

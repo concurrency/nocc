@@ -154,7 +154,11 @@ static int occampi_typecheck_dop (compops_t *cops, tnode_t *node, typecheck_t *t
 	if (dopmap[i].rhs_is_int) {
 		tnode_t *rhstype = typecheck_gettype (tnode_nthsubof (node, 1), definttype);
 
-		if ((rhstype != definttype) || !typecheck_typeactual (definttype, rhstype, node, tc)) {
+#if 0
+fprintf (stderr, "occampi_typecheck_dop(): expecting integer RHS, got:\n");
+tnode_dumptree (rhstype, 1, stderr);
+#endif
+		if ((rhstype != definttype) && !typecheck_fixedtypeactual (definttype, rhstype, node, tc, 0)) {
 			typecheck_error (node, tc, "right-hand-side of [%s] must be integer", node->tag->name);
 		}
 	}
