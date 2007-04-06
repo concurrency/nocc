@@ -1,6 +1,6 @@
 /*
  *	occampi_type.c -- occam-pi type handling for nocc
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -50,6 +51,7 @@
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
+#include "constprop.h"
 #include "betrans.h"
 #include "langops.h"
 #include "target.h"
@@ -594,6 +596,31 @@ static int occampi_leaftype_cantypecast (langops_t *lops, tnode_t *node, tnode_t
 	return (node->tag->ndef == srctype->tag->ndef);
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_leaftype_retypeconst (langops_t *lops, tnode_t *node, tnode_t *type)*/
+/*
+ *	retypes some constant into a leaf-type constant
+ *	returns new constant node on success, NULL on failure
+ */
+static tnode_t *occampi_leaftype_retypeconst (langops_t *lops, tnode_t *node, tnode_t *type)
+{
+	consttype_e ctype = constprop_consttype (node);
+	int val = constprop_intvalof (node);
+	tnode_t *cnode = NULL;
+
+	if (type->tag == opi.tag_BOOL) {
+		nocc_error ("occampi_leaftype_retypeconst(): FIXME: BOOL");
+	} else if (type->tag == opi.tag_BYTE) {
+		if (!constprop_checkintrange (node, 0, 8)) {
+			constprop_error (node, "constant out of range for BYTE!");
+		} else {
+			cnode = constprop_newconst (CONST_BYTE, node, type, (unsigned char)val);
+		}
+	}
+	/* FIXME! */
+
+	return cnode;
+}
+/*}}}*/
 /*{{{  static int occampi_leaftype_bytesfor (langops_t *lops, tnode_t *t, target_t *target)*/
 /*
  *	returns the number of bytes required by a basic type
@@ -953,6 +980,7 @@ static int occampi_type_init_nodes (void)
 	tnode_setlangop (lops, "cantypecast", 2, LANGOPTYPE (occampi_leaftype_cantypecast));
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_leaftype_bytesfor));
 	tnode_setlangop (lops, "issigned", 2, LANGOPTYPE (occampi_leaftype_issigned));
+	tnode_setlangop (lops, "retypeconst", 2, LANGOPTYPE (occampi_leaftype_retypeconst));
 	tnd->lops = lops;
 
 	i = -1;

@@ -1647,6 +1647,8 @@ int main (int argc, char **argv)
 			int j;
 			
 			for (j=0; j<DA_CUR (srctrees); j++) {
+				lexfile_t *lf = DA_NTHITEM (srclexers, j);
+
 				if (compopts.treecheck) {
 					/* do pre-pass checks */
 					if (treecheck_prepass (DA_NTHITEM (srctrees, j), cpass->name, passenabled)) {
@@ -1657,6 +1659,7 @@ int main (int argc, char **argv)
 
 				if (passenabled) {
 					int result;
+					int errcount = lf->errcount;
 
 					if (compopts.verbose) {
 						nocc_message ("   %s ...", cpass->name);
@@ -1706,6 +1709,12 @@ int main (int argc, char **argv)
 						break;
 					}
 					if (result) {
+						nocc_error ("failed to %s %s", cpass->name, DA_NTHITEM (srcfiles, j));
+						errored = 1;
+					}
+
+					/* if the lexfile collected any errors, fail as well */
+					if (lf->errcount > errcount) {
 						nocc_error ("failed to %s %s", cpass->name, DA_NTHITEM (srcfiles, j));
 						errored = 1;
 					}

@@ -157,6 +157,9 @@ static void cprop_consthook_hook_dumptree (tnode_t *node, void *hook, int indent
 		case CONST_INVALID:
 			fprintf (stream, "invalid\"");
 			break;
+		case CONST_BOOL:
+			fprintf (stream, "bool\" value=\"0x%x\"", ch->u.ival);
+			break;
 		case CONST_BYTE:
 			fprintf (stream, "byte\" value=\"0x%2.2x\"", ch->u.bval);
 			break;
@@ -218,6 +221,7 @@ static int cprop_namemap_const (compops_t *cops, tnode_t **nodep, map_t *map)
 		dptr = &(ch->u.bval);
 		dlen = 1;
 		break;
+	case CONST_BOOL:
 	case CONST_INT:
 		dptr = &(ch->u.ival);
 		dlen = map->target->intsize;
@@ -254,6 +258,7 @@ static int cprop_isconst_const (langops_t *lops, tnode_t *node)
 		return 0;
 	case CONST_BYTE:
 		return 1;
+	case CONST_BOOL:
 	case CONST_INT:
 		return 4;
 	case CONST_DOUBLE:
@@ -289,6 +294,7 @@ static int cprop_constvalof_const (langops_t *lops, tnode_t *node, void *ptr)
 		}
 		return (int)ch->u.bval;
 	case CONST_INT:
+	case CONST_BOOL:
 		if (ptr) {
 			*(int *)ptr = ch->u.ival;
 		}
@@ -428,6 +434,7 @@ tnode_t *constprop_newconst (consttype_e ctype, tnode_t *orig, tnode_t *type, ..
 	case CONST_BYTE:
 		ch->u.bval = (unsigned char)va_arg (ap, int);
 		break;
+	case CONST_BOOL:
 	case CONST_INT:
 		ch->u.ival = va_arg (ap, int);
 		break;
@@ -509,6 +516,7 @@ int constprop_intvalof (tnode_t *tptr)
 	case CONST_BYTE:
 		return (int)ch->u.bval;
 	case CONST_INT:
+	case CONST_BOOL:
 		return ch->u.ival;
 	case CONST_DOUBLE:
 		return 0;
@@ -527,6 +535,80 @@ int constprop_tree (tnode_t **tptr)
 {
 	tnode_modprepostwalktree (tptr, cprop_modprewalktree, cprop_modpostwalktree, NULL);
 	return 0;
+}
+/*}}}*/
+/*{{{  int constprop_checkintrange (tnode_t *node, const int issigned, const int bits)*/
+/*
+ *	checks to see if a constant is within a given range (by signed-ness and bit-width)
+ *	returns non-zero on success, zero on failure
+ */
+int constprop_checkintrange (tnode_t *node, const int issigned, const int bits)
+{
+	if (!node) {
+		nocc_warning ("constprop_checkintrange(): NULL node!");
+		return 0;
+	}
+	switch (constprop_consttype (node)) {
+	case CONST_BYTE:
+		{
+			unsigned long long max = (1ULL << (bits - (issigned ? 1 : 0))) - 1;
+			unsigned long long val = 0ULL;
+			unsigned char ch = 0;
+
+			cprop_constvalof_const (NULL, node, (void *)&ch);
+			val = (unsigned long long)ch;
+			if (val > max) {
+				return 0;
+			}
+		}
+		break;
+	case CONST_ULL:
+		{
+			unsigned long long max = (1ULL << (bits - (issigned ? 1 : 0))) - 1;
+			unsigned long long val = 0ULL;
+
+			cprop_constvalof_const (NULL, node, (void *)&val);
+			if (val > max) {
+				return 0;
+			}
+		}
+		break;
+	case CONST_INT:
+		{
+			long long min = issigned ? -(1LL << (bits - (issigned ? 1 : 0))) : 0LL;
+			long long max = (1LL << (bits - (issigned ? 1 : 0))) - 1;
+			long long val = 0ULL;
+			int ival;
+
+			cprop_constvalof_const (NULL, node, (void *)&ival);
+			val = (long long)ival;
+			if ((val < min) || (val > max)) {
+				return 0;
+			}
+		}
+		break;
+	case CONST_BOOL:
+		/* always fits */
+		break;
+	case CONST_DOUBLE:
+		{
+			long long min = issigned ? -(1LL << (bits - (issigned ? 1 : 0))) : 0LL;
+			long long max = (1LL << (bits - (issigned ? 1 : 0))) - 1;
+			long long val = 0ULL;
+			double dval;
+
+			cprop_constvalof_const (NULL, node, (void *)&dval);
+			val = (long long)dval;
+			if ((val < min) || (val > max)) {
+				return 0;
+			}
+		}
+		break;
+	default:
+		nocc_warning ("constprop_checkintrange(): unknown constant type %d!", (int)constprop_consttype (node));
+		return 0;
+	}
+	return 1;
 }
 /*}}}*/
 

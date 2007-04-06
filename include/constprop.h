@@ -25,10 +25,11 @@ struct TAG_tnode;
 
 typedef enum ENUM_consttype {
 	CONST_INVALID = 0,
-	CONST_BYTE = 1,
-	CONST_INT = 2,
-	CONST_DOUBLE = 3,
-	CONST_ULL = 4
+	CONST_BOOL = 1,
+	CONST_BYTE = 2,
+	CONST_INT = 3,
+	CONST_DOUBLE = 4,
+	CONST_ULL = 5
 } consttype_e;
 
 extern int constprop_init (void);
@@ -40,6 +41,7 @@ extern consttype_e constprop_consttype (struct TAG_tnode *tptr);
 extern int constprop_sametype (struct TAG_tnode *tptr1, struct TAG_tnode *tptr2);
 extern int constprop_intvalof (struct TAG_tnode *tptr);
 extern int constprop_tree (struct TAG_tnode **tptr);
+extern int constprop_checkintrange (struct TAG_tnode *node, const int issigned, const int bits);
 
 extern void constprop_error (struct TAG_tnode *tptr, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 extern void constprop_warning (struct TAG_tnode *tptr, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));

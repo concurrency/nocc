@@ -140,6 +140,10 @@ typedef struct {
 	struct TAG_ntdef *tag_TIMES;
 	struct TAG_ntdef *tag_RSHIFT;
 	struct TAG_ntdef *tag_LSHIFT;
+	struct TAG_ntdef *tag_AND;
+	struct TAG_ntdef *tag_OR;
+	struct TAG_ntdef *tag_XOR;
+	struct TAG_ntdef *tag_NOT;
 	struct TAG_ntdef *tag_BITOR;
 	struct TAG_ntdef *tag_BITAND;
 	struct TAG_ntdef *tag_BITXOR;

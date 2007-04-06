@@ -36,7 +36,7 @@
  */
 struct TAG_keyword;
 
-#define TOTAL_KEYWORDS 79
+#define TOTAL_KEYWORDS 80
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 11
 #define MIN_HASH_VALUE 2
@@ -63,7 +63,7 @@ hash (register const char *str, register unsigned int len)
        70, 213,  10, 213,   5, 213, 213, 213, 213, 213,
       213, 213, 213, 213, 213,  40,  30,  30,  60,  20,
        85,  10, 213,  10, 213,   0,  65,   5,  45,   0,
-        0,   0,   0,   5,   0,  55,   0,  15, 213,  20,
+        0,   5,   0,   5,   0,  55,   0,  15,   5,  20,
        10, 213, 213, 213, 213, 213, 213, 213, 213, 213,
       213, 213, 213, 213, 213, 213, 213, 213, 213, 213,
       213, 213, 213, 213, 213, 213, 213, 213, 213, 213,
@@ -105,7 +105,7 @@ static const struct TAG_keyword wordlist[] =
     {"PORT",		77,	LANGTAG_OCCAMPI,	NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {(char*)0,-1,0,NULL},
-    {"SEQ",		3,	LANGTAG_OCCAMPI,	NULL},
+    {"XOR",		79,	LANGTAG_OCCAMPI,	NULL},
     {"STOP",		1,	LANGTAG_OCCAMPI,	NULL},
     {"TIMER",		31,	LANGTAG_OCCAMPI,	NULL},
     {"RESULT",		37,	LANGTAG_OCCAMPI,	NULL},
@@ -115,7 +115,7 @@ static const struct TAG_keyword wordlist[] =
     {"TIMES",		56,	LANGTAG_OCCAMPI,	NULL},
     {(char*)0,-1,0,NULL},
     {"IS",		13,	LANGTAG_OCCAMPI,	NULL},
-    {(char*)0,-1,0,NULL},
+    {"SEQ",		3,	LANGTAG_OCCAMPI,	NULL},
     {"SKIP",		0,	LANGTAG_OCCAMPI,	NULL},
     {"INT16",		8,	LANGTAG_OCCAMPI,	NULL},
     {"SETPRI",		70,	LANGTAG_OCCAMPI,	NULL},

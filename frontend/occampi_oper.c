@@ -1,6 +1,6 @@
 /*
  *	occampi_oper.c -- occam-pi operators
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -110,6 +110,9 @@ static dopmap_t dopmap[] = {
 	{KEYWORD, "PLUS", NULL, &(opi.tag_PLUS), I_SUM, 0},
 	{KEYWORD, "MINUS", NULL, &(opi.tag_MINUS), I_DIFF, 0},
 	{KEYWORD, "TIMES", NULL, &(opi.tag_TIMES), I_PROD, 0},
+	{KEYWORD, "AND", NULL, &(opi.tag_AND), I_AND, 0},
+	{KEYWORD, "OR", NULL, &(opi.tag_OR), I_OR, 0},
+	{KEYWORD, "XOR", NULL, &(opi.tag_XOR), I_XOR, 0},
 	{NOTOKEN, NULL, NULL, NULL, I_INVALID, 0}
 };
 
@@ -126,6 +129,7 @@ static relmap_t relmap[] = {
 static mopmap_t mopmap[] = {
 	{SYMBOL, "-", NULL, &(opi.tag_UMINUS), I_NEG},
 	{SYMBOL, "~", NULL, &(opi.tag_BITNOT), I_NOT},
+	{KEYWORD, "NOT", NULL, &(opi.tag_NOT), I_NOT},
 	{NOTOKEN, NULL, NULL, NULL, I_INVALID}
 };
 
@@ -235,6 +239,30 @@ static int occampi_constprop_dop (compops_t *cops, tnode_t **tptr)
 				}
 				b1 = (unsigned char)bres;
 				newconst = constprop_newconst (CONST_BYTE, *tptr, tnode_nthsubof (*tptr, 2), b1);
+			}
+			break;
+			/*}}}*/
+			/*{{{  CONST_BOOL -- boolean operations*/
+		case CONST_BOOL:
+			{
+				int b1, b2;
+				int bres = 0;
+
+				langops_constvalof (left, &b1);
+				langops_constvalof (right, &b2);
+
+				if (((*tptr)->tag == opi.tag_MUL) || ((*tptr)->tag == opi.tag_DIV) || ((*tptr)->tag == opi.tag_ADD) || ((*tptr)->tag == opi.tag_SUB) ||
+						((*tptr)->tag == opi.tag_REM) || ((*tptr)->tag == opi.tag_PLUS) || ((*tptr)->tag == opi.tag_MINUS) || ((*tptr)->tag == opi.tag_TIMES)) {
+					constprop_error (*tptr, "cannot perform arithmetic operation [%s] on BOOL types", (*tptr)->tag->name);
+				} else if ((*tptr)->tag == opi.tag_AND) {
+					bres = (b1 && b2) ? 1 : 0;
+				} else if ((*tptr)->tag == opi.tag_OR) {
+					bres = (b1 || b2) ? 1 : 0;
+				} else if ((*tptr)->tag == opi.tag_XOR) {
+					bres = (b1 ^ b2) ? 1 : 0;
+				}
+
+				newconst = constprop_newconst (CONST_BOOL, *tptr, tnode_nthsubof (*tptr, 2), bres);
 			}
 			break;
 			/*}}}*/
@@ -695,13 +723,17 @@ static int occampi_constprop_typecast (compops_t *cops, tnode_t **tptr)
 {
 	if (constprop_isconst (tnode_nthsubof (*tptr, 0))) {
 		/* got constant operand */
-		switch (constprop_consttype (tnode_nthsubof (*tptr, 0))) {
-		case CONST_INVALID:
-			/* ignore.. */
-			break;
-		default:
-			/* FIXME! */
-			break;
+		tnode_t *newnode = langops_retypeconst (tnode_nthsubof (*tptr, 0), tnode_nthsubof (*tptr, 1));
+
+#if 1
+fprintf (stderr, "occampi_constprop_typecast(): retyped constant, got back:\n");
+tnode_dumptree (newnode, 1, stderr);
+#endif
+		if (!newnode) {
+			constprop_error (*tptr, "failed to retype constant");
+		} else {
+			/* tptr will have been buried inside the created constant */
+			*tptr = newnode;
 		}
 	}
 	return 1;

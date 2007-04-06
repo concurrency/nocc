@@ -1,6 +1,6 @@
 /*
  *	langops.c -- langage-level operations for nocc
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -207,6 +207,23 @@ int langops_isvar (tnode_t *node)
 	return r;
 }
 /*}}}*/
+/*{{{  tnode_t *langops_retypeconst (tnode_t *node, tnode_t *type)*/
+/*
+ *	re-types a constant (during constant-propagation)
+ *	returns new constant node on success, NULL on failure
+ */
+tnode_t *langops_retypeconst (tnode_t *node, tnode_t *type)
+{
+	tnode_t *nc = NULL;
+
+	/* does the operation on the type, rather than the operand */
+	if (type && type->tag->ndef->lops && tnode_haslangop_i (type->tag->ndef->lops, (int)LOPS_RETYPECONST)) {
+		nc = (tnode_t *)tnode_calllangop_i (type->tag->ndef->lops, (int)LOPS_RETYPECONST, 2, node, type);
+	}
+	return nc;
+}
+/*}}}*/
+
 
 
 /*{{{  int langops_init (void)*/

@@ -166,10 +166,11 @@ typedef enum ENUM_langops {
 	LOPS_CODEGEN_ALTENABLE = 19,		/* 3: tnode_t *, int, codegen_t * -> int */
 	LOPS_CODEGEN_ALTDISABLE = 20,		/* 4: tnode_t *, int, int, codegen_t * -> int */
 	LOPS_PREMAP_TYPEFORVARDECL = 21,	/* 3: tnode_t *, tnode_t *, map_t * -> int */
+	LOPS_RETYPECONST = 22,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
 	LOPS_MAX = 256
 } langops_e;
 
-#define LOPS_LAST LOPS_PREMAP_TYPEFORVARDECL
+#define LOPS_LAST LOPS_RETYPECONST
 
 /*}}}*/
 /*{{{  langop_t, langops_t (language operations)*/

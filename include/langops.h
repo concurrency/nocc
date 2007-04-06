@@ -32,6 +32,7 @@ extern int langops_constvalof (struct TAG_tnode *node, void *ptr);
 extern int langops_valbyref (struct TAG_tnode *node);
 extern int langops_isvar (struct TAG_tnode *node);
 extern int langops_iscomplex (struct TAG_tnode *node, int deep);
+extern struct TAG_tnode *langops_retypeconst (struct TAG_tnode *node, struct TAG_tnode *type);
 
 
 #endif	/* !__LANGOPS_H */
