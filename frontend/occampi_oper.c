@@ -777,7 +777,20 @@ static int occampi_namemap_typecast (compops_t *cops, tnode_t **node, map_t *map
  */
 static int occampi_codegen_typecast (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
+	tnode_t *ttype = tnode_nthsubof (node, 1);
+
+	if (ttype && ttype->tag->ndef->lops && tnode_haslangop (ttype->tag->ndef->lops, "codegen_typerangecheck")) {
+		int i;
+
+		i = tnode_calllangop (ttype->tag->ndef->lops, "codegen_typerangecheck", 2, ttype, cgen);
+		if (i >= 0) {
+			/* did something */
+			return 0;
+		}
+	}
+
 	/* FIXME: check type-in-range for target */
+	codegen_callops (cgen, comment, "FIXME: type-cast");
 	return 0;
 }
 /*}}}*/

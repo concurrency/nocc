@@ -4,6 +4,6 @@
 PROC test.n60 (CHAN BYTE out!)
   [6]INT v:
   SEQ
-    out ! BYTE (v[0])
+    out ! BYTE (v[3])
 :
 

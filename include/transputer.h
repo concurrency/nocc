@@ -120,7 +120,8 @@ typedef enum ENUM_transinstr {
 	I_SHR = 99,
 	I_OR = 100,
 	I_AND = 101,
-	I_XOR = 102
+	I_XOR = 102,
+	I_CSUB0 = 103
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {

@@ -396,6 +396,7 @@ int tnode_init (void)
 	tnode_newlangop ("initsizes", LOPS_INITSIZES, 7, INTERNAL_ORIGIN);
 	tnode_newlangop ("initialising_decl", LOPS_INITIALISING_DECL, 3, INTERNAL_ORIGIN);
 	tnode_newlangop ("codegen_typeaction", LOPS_CODEGEN_TYPEACTION, 3, INTERNAL_ORIGIN);
+	tnode_newlangop ("codegen_typerangecheck", LOPS_CODEGEN_TYPERANGECHECK, 2, INTERNAL_ORIGIN);
 	tnode_newlangop ("codegen_altenable", LOPS_CODEGEN_ALTENABLE, 3, INTERNAL_ORIGIN);
 	tnode_newlangop ("codegen_altdisable", LOPS_CODEGEN_ALTDISABLE, 4, INTERNAL_ORIGIN);
 	tnode_newlangop ("premap_typeforvardecl", LOPS_PREMAP_TYPEFORVARDECL, 3, INTERNAL_ORIGIN);

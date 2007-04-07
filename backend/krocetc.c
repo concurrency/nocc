@@ -1643,6 +1643,18 @@ static int krocetc_codegen_constref (compops_t *cops, tnode_t *constref, codegen
 }
 /*}}}*/
 
+/*{{{  static int krocetc_codegen_indexed (compops_t *cops, tnode_t *indexed, codegen_t *cgen)*/
+/*
+ *	generates code for an indexed node -- loads the value
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int krocetc_codegen_indexed (compops_t *cops, tnode_t *indexed, codegen_t *cgen)
+{
+	codegen_callops (cgen, loadname, indexed, 0);
+	return 0;
+}
+/*}}}*/
+
 /*{{{  static int krocetc_namemap_result (compops_t *cops, tnode_t **rnodep, map_t *mdata)*/
 /*
  *	name-map for a back-end result, sets hook in the map-data and sub-walks
@@ -1978,8 +1990,8 @@ fprintf (stderr, "krocetc_coder_loadpointer(): [%s] local=%d, ref_lexlevel=%d, a
 		/*}}}*/
 	} else if (name->tag == krocetc_target.tag_RESULT) {
 		/*{{{  loading a pointer to some evaluated result*/
-		/* FIXME! */
-		codegen_subcodegen (name, cgen);
+		codegen_callops (cgen, comment, "FIXME: pointer to RESULT");
+		nocc_warning ("krocetc_coder_loadpointer(): don\'t know how to load a pointer to a back-end RESULT -- should have been simplified to a variable");
 
 		/*}}}*/
 	} else {
@@ -2058,6 +2070,9 @@ static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)
 			codegen_write_fmt (cgen, "\tprod\n");
 			krocetc_cgstate_tsdelta (cgen, -1);
 		}
+#if 0
+fprintf (stderr, "krocetc_coder_loadname(): about to SUM base and offset..\n");
+#endif
 		codegen_write_fmt (cgen, "\tsum\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 
@@ -2113,6 +2128,9 @@ static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)
 		/*}}}*/
 	} else if (name->tag == krocetc_target.tag_RESULT) {
 		/*{{{  loading some evaluated result*/
+#if 0
+fprintf (stderr, "krocetc_coder_loadname(): loading RESULT\n");
+#endif
 		codegen_subcodegen (name, cgen);
 
 		/*}}}*/
@@ -3129,6 +3147,13 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		krocetc_cgstate_tsdelta (cgen, -2);
 		break;
 		/*}}}*/
+		/*{{{  CSUB0: range-check (0 <= [Breg] < Areg)*/
+	case I_CSUB0:
+		codegen_write_string (cgen, "\tcsub0\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		krocetc_cgstate_tsdelta (cgen, 1);
+		break;
+		/*}}}*/
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: tsecondary %d\n", ins);
 		break;
@@ -3452,6 +3477,7 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (krocetc_gettype_nameref));
 	tnd->lops = lops;
+
 	i = -1;
 	target->tag_NAMEREF = tnode_newnodetag ("KROCETCNAMEREF", &i, tnd, 0);
 	/*}}}*/
@@ -3511,6 +3537,10 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	i = -1;
 	tnd = tnode_newnodetype ("krocetc:indexed", &i, 2, 0, 1, 0);
 	tnd->hook_dumptree = krocetc_indexedhook_dumptree;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_indexed));
+	tnd->ops = cops;
+
 	i = -1;
 	target->tag_INDEXED = tnode_newnodetag ("KROCETCINDEXED", &i, tnd, 0);
 	/*}}}*/

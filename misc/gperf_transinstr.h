@@ -1,5 +1,5 @@
 /* ANSI-C code produced by gperf version 3.0.2 */
-/* Command-line: gperf  */
+/* Command-line: /usr/bin/gperf  */
 /* Computed positions: -k'1,3,8,$' */
 
 #if !((' ' == 32) && ('!' == 33) && ('"' == 34) && ('#' == 35) \
@@ -36,7 +36,7 @@
  */
 struct TAG_transinstr;
 
-#define TOTAL_KEYWORDS 90
+#define TOTAL_KEYWORDS 91
 #define MIN_WORD_LENGTH 1
 #define MAX_WORD_LENGTH 15
 #define MIN_HASH_VALUE 2
@@ -59,7 +59,7 @@ hash (register const char *str, register unsigned int len)
       229, 229, 229, 229, 229, 229, 229, 229, 229, 229,
       229, 229, 229, 229, 229, 229, 229, 229, 229, 229,
       229, 229, 229, 229, 229, 229, 229, 229, 229, 229,
-      229, 229, 229, 229, 229, 229, 229, 229, 229, 229,
+      229, 229, 229, 229, 229, 229, 229, 229,   5, 229,
         5, 229, 229, 229,   0, 229,   0, 229, 229, 229,
       229, 229, 229, 229, 229,  25,  45,  25,   0,   0,
        45,  65, 229,   5,  50,   5,  40,   0,  45,  40,
@@ -176,7 +176,7 @@ static const struct TAG_transinstr wordlist[] =
     {"MWS_PBRESIGN",	INS_SECONDARY,	I_MWS_PBRESIGN,	NULL},
     {"MWS_SYNC",	INS_SECONDARY,	I_MWS_SYNC,	NULL},
     {"MOVE",		INS_SECONDARY,	I_MOVE,		NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"CSUB0",		INS_SECONDARY,	I_CSUB0,	NULL},
     {"MALLOC",		INS_SECONDARY,	I_MALLOC,	NULL},
     {"GT",		INS_SECONDARY,	I_GT,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},

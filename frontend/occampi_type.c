@@ -707,6 +707,25 @@ static int occampi_leaftype_getdescriptor (langops_t *lops, tnode_t *node, char 
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_leaftype_codegen_typerangecheck (langops_t *lops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates code that performs a run-time range-check for the specified type;  value is already on the
+ *	relevant stack.
+ *	returns 0 to stop the code-gen walk, 1 to continue, -1 to resort to normal action handling
+ */
+static int occampi_leaftype_codegen_typerangecheck (langops_t *lops, tnode_t *node, codegen_t *cgen)
+{
+	if (node->tag == opi.tag_BOOL) {
+		codegen_callops (cgen, comment, "occampi_leaftype_codegen_typerangecheck(): FIXME: BOOL");
+	} else if (node->tag == opi.tag_BYTE) {
+		codegen_callops (cgen, loadconst, 256);
+		codegen_callops (cgen, tsecondary, I_CSUB0);
+	} else {
+		codegen_callops (cgen, comment, "occampi_leaftype_codegen_typerangecheck(): FIXME: [%s]", node->tag->name);
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_type_namemap_arraynode (compops_t *cops, tnode_t **nodep, map_t *map)*/
@@ -981,6 +1000,7 @@ static int occampi_type_init_nodes (void)
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_leaftype_bytesfor));
 	tnode_setlangop (lops, "issigned", 2, LANGOPTYPE (occampi_leaftype_issigned));
 	tnode_setlangop (lops, "retypeconst", 2, LANGOPTYPE (occampi_leaftype_retypeconst));
+	tnode_setlangop (lops, "codegen_typerangecheck", 2, LANGOPTYPE (occampi_leaftype_codegen_typerangecheck));
 	tnd->lops = lops;
 
 	i = -1;

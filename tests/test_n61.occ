@@ -1,0 +1,9 @@
+
+-- test_n61.occ -- array tests
+
+PROC test.n61 ()
+  [10]BYTE v:
+  SEQ
+    v[3] := 'x'
+:
+
