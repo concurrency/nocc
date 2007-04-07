@@ -253,16 +253,17 @@ static int occampi_fetrans_action (compops_t *cops, tnode_t **node, fetrans_t *f
 {
 	tnode_t *t = *node;
 	tnode_t **saved_insertpoint = fe->insertpoint;
+	tnode_t **rhsp = tnode_nthsubaddr (t, 1);
 
 	fe->insertpoint = node;				/* before process is a good place to insert temporaries */
 
 	if (t->tag == opi.tag_OUTPUT) {
-		/*{{{  if RHS looks complex, add temporary and assignment*/
-		if (langops_iscomplex (tnode_nthsubof (t, 1), 1)) {
+		/*{{{  if RHS looks complex, or is not a natural pointer, add temporary and assignment*/
+		if (langops_iscomplex (*rhsp, 1) || !langops_isvar (*rhsp)) {
 			tnode_t *temp = fetrans_maketemp (tnode_nthsubof (t, 2), fe);
 
 			/* now assignment.. */
-			fetrans_makeseqassign (temp, tnode_nthsubof (t, 1), tnode_nthsubof (t, 2), fe);
+			fetrans_makeseqassign (temp, *rhsp, tnode_nthsubof (t, 2), fe);
 
 			tnode_setnthsub (t, 1, temp);
 		}
@@ -385,6 +386,7 @@ fprintf (stderr, "occampi_betrans_action(): I/O with complex LHS!\n");
 #endif
 			betrans_simplifypointer (lhsp, be);
 		}
+
 		/*}}}*/
 	}
 
