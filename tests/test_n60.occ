@@ -1,0 +1,9 @@
+
+-- test_n60.occ -- type casts
+
+PROC test.n60 (CHAN BYTE out!)
+  [6]INT v:
+  SEQ
+    out ! BYTE (v[0])
+:
+

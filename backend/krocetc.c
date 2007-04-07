@@ -1318,6 +1318,9 @@ static int krocetc_be_regsfor (tnode_t *benode)
 	} else if (benode->tag == krocetc_target.tag_NAMEREF) {
 		/* name references are easy too */
 		return 1;
+	} else if (benode->tag == krocetc_target.tag_INDEXED) {
+		/* indexed nodes require both sides to be loaded -- probably 3 registers total */
+		return 3;
 	} else {
 #if 1
 fprintf (stderr, "krocetc_be_regsfor(): regsfor [%s] [%s] ?\n", benode->tag->ndef->name, benode->tag->name);
@@ -1973,6 +1976,12 @@ fprintf (stderr, "krocetc_coder_loadpointer(): [%s] local=%d, ref_lexlevel=%d, a
 			nocc_warning ("krocetc_coder_loadpointer(): don\'t know how to load a pointer to name of [%s]", name->tag->name);
 		}
 		/*}}}*/
+	} else if (name->tag == krocetc_target.tag_RESULT) {
+		/*{{{  loading a pointer to some evaluated result*/
+		/* FIXME! */
+		codegen_subcodegen (name, cgen);
+
+		/*}}}*/
 	} else {
 		nocc_warning ("krocetc_coder_loadpointer(): don\'t know how to load a pointer to [%s]", name->tag->name);
 	}
@@ -2079,7 +2088,7 @@ static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)
 
 		codegen_subcodegen (subref, cgen);
 		/*}}}*/
-	} else if (name->tag == cgen->target->tag_NAME) {
+	} else if (name->tag == krocetc_target.tag_NAME) {
 		/*{{{  loading a name with no scope (specials only!)*/
 		tnode_t *realname = tnode_nthsubof (name, 0);
 
@@ -2102,7 +2111,7 @@ static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)
 			nocc_warning ("krocetc_coder_loadname(): don\'t know how to load a name of [%s]", name->tag->name);
 		}
 		/*}}}*/
-	} else if (name->tag == cgen->target->tag_RESULT) {
+	} else if (name->tag == krocetc_target.tag_RESULT) {
 		/*{{{  loading some evaluated result*/
 		codegen_subcodegen (name, cgen);
 

@@ -739,6 +739,48 @@ tnode_dumptree (newnode, 1, stderr);
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_premap_typecast (compops_t *cops, tnode_t **node, map_t *map)*/
+/*
+ *	maps out a TYPECAST, turning into a back-end RESULT
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_premap_typecast (compops_t *cops, tnode_t **node, map_t *map)
+{
+	/* pre-map operand */
+	map_subpremap (tnode_nthsubaddr (*node, 0), map);
+
+	*node = map->target->newresult (*node, map);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_namemap_typecast (compops_t *cops, tnode_t **node, map_t *map)*/
+/*
+ *	name-maps a TYPECAST, adding child nodes to any enclosing result
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_typecast (compops_t *cops, tnode_t **node, map_t *map)
+{
+	/* name-map operand */
+	map_submapnames (tnode_nthsubaddr (*node, 0), map);
+
+	/* set in result */
+	map_addtoresult (tnode_nthsubaddr (*node, 0), map);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_codegen_typecast (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates code for a TYPECAST
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_codegen_typecast (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	/* FIXME: check type-in-range for target */
+	return 0;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_gettype_typecast (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
 /*
  *	returns the type of a type-cast node
@@ -754,6 +796,7 @@ tnode_dumptree (defaulttype, 1, stderr);
 	return tnode_nthsubof (node, 1);
 }
 /*}}}*/
+
 
 
 /*{{{  static void occampi_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
@@ -1015,9 +1058,9 @@ static int occampi_oper_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_typecast));
 	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_typecast));
-	// tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_typecast));
-	// tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_typecast));
-	// tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_typecast));
+	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_typecast));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_typecast));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_typecast));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_typecast));
