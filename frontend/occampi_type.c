@@ -608,15 +608,33 @@ static tnode_t *occampi_leaftype_retypeconst (langops_t *lops, tnode_t *node, tn
 	tnode_t *cnode = NULL;
 
 	if (type->tag == opi.tag_BOOL) {
-		nocc_error ("occampi_leaftype_retypeconst(): FIXME: BOOL");
+		if (!constprop_checkintrange (node, 0, 1)) {
+			constprop_error (node, "constant out of range for BOOL!");
+		} else {
+			cnode = constprop_newconst (CONST_BOOL, node, type, val);
+		}
 	} else if (type->tag == opi.tag_BYTE) {
 		if (!constprop_checkintrange (node, 0, 8)) {
 			constprop_error (node, "constant out of range for BYTE!");
 		} else {
 			cnode = constprop_newconst (CONST_BYTE, node, type, (unsigned char)val);
 		}
+	} else if ((type->tag == opi.tag_INT) || (type->tag == opi.tag_INT32)) {
+		if (!constprop_checkintrange (node, 1, 32)) {
+			constprop_error (node, "constant out of range for %s!", type->tag->name);
+		} else {
+			cnode = constprop_newconst (CONST_INT, node, type, val);
+		}
+	} else if (type->tag == opi.tag_INT16) {
+		if (!constprop_checkintrange (node, 1, 16)) {
+			constprop_error (node, "constant out of range for INT16!");
+		} else {
+			cnode = constprop_newconst (CONST_INT, node, type, val);
+		}
+	} else {
+		/* FIXME! */
+		tnode_warning (node, "occampi_leaftype_retypeconst(): FIXME: for type [%s]", type->tag->name);
 	}
-	/* FIXME! */
 
 	return cnode;
 }
