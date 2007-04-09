@@ -1,0 +1,8 @@
+
+-- test_n62.occ -- open array parameters
+
+PROC test.n62 ([]BYTE s)
+  SEQ
+    SKIP
+:
+

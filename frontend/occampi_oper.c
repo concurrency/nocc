@@ -145,6 +145,7 @@ static mopmap_t mopmap[] = {
 static int occampi_typecheck_dop (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
+	tnode_t *lefttype, *righttype;
 	int i;
 
 	typecheck_subtree (tnode_nthsubof (node, 0), tc);
@@ -156,17 +157,39 @@ static int occampi_typecheck_dop (compops_t *cops, tnode_t *node, typecheck_t *t
 	}
 
 	if (dopmap[i].rhs_is_int) {
-		tnode_t *rhstype = typecheck_gettype (tnode_nthsubof (node, 1), definttype);
+		righttype = typecheck_gettype (tnode_nthsubof (node, 1), definttype);
 
 #if 0
 fprintf (stderr, "occampi_typecheck_dop(): expecting integer RHS, got:\n");
-tnode_dumptree (rhstype, 1, stderr);
+tnode_dumptree (righttype, 1, stderr);
 #endif
-		if (!typecheck_fixedtypeactual (definttype, rhstype, node, tc, 0)) {
+		if (!typecheck_fixedtypeactual (definttype, righttype, node, tc, 0)) {
 			typecheck_error (node, tc, "right-hand-side of [%s] must be integer", node->tag->name);
 		}
-	}
+		lefttype = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
+		if (lefttype) {
+			/* use this type */
+			tnode_setnthsub (node, 2, lefttype);
+		}
+	} else {
+		lefttype = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
+		righttype = typecheck_gettype (tnode_nthsubof (node, 1), NULL);
 
+		if (lefttype && !righttype) {
+			righttype = typecheck_gettype (tnode_nthsubof (node, 1), lefttype);
+		} else if (!lefttype && righttype) {
+			lefttype = typecheck_gettype (tnode_nthsubof (node, 0), righttype);
+		}
+
+		if (lefttype && righttype) {
+			/* enough to do a proper typecheck */
+			tnode_t *type = typecheck_fixedtypeactual (lefttype, righttype, node, tc, 1);
+
+			if (type) {
+				tnode_setnthsub (node, 2, type);
+			}
+		}
+	}
 	tnode_free (definttype);
 
 	return 0;
@@ -391,20 +414,38 @@ static int occampi_codegen_dop (compops_t *cops, tnode_t *node, codegen_t *cgen)
 static tnode_t *occampi_gettype_dop (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
 	tnode_t *lefttype, *righttype;
+	tnode_t **typep = tnode_nthsubaddr (node, 2);
+	int i;
 
-	lefttype = typecheck_gettype (tnode_nthsubof (node, 0), defaulttype);
-	righttype = typecheck_gettype (tnode_nthsubof (node, 1), defaulttype);
-
-	if (lefttype == defaulttype) {
-		tnode_setnthsub (node, 2, righttype);
-	} else if (righttype == defaulttype) {
-		tnode_setnthsub (node, 2, lefttype);
-	} else {
-		tnode_setnthsub (node, 2, tnode_copytree (defaulttype));
+	if (*typep) {
+		return *typep;
 	}
-	/* FIXME! -- needs more.. */
 
-	return tnode_nthsubof (node, 2);
+	for (i=0; dopmap[i].lookup && (*(dopmap[i].tagp) != node->tag); i++);
+	if (!dopmap[i].lookup) {
+		nocc_internal ("occampi_gettype_dop(): failed to find dyadic operator [%s]", node->tag->name);
+	}
+
+	if (dopmap[i].rhs_is_int) {
+		/* already checked RHS */
+		lefttype = typecheck_gettype (tnode_nthsubof (node, 0), defaulttype);
+		if (!lefttype) {
+			tnode_error (node, "failed to get type for dyadic operator [%s]", node->tag->name);
+			return NULL;
+		}
+		*typep = lefttype;
+	} else {
+		lefttype = typecheck_gettype (tnode_nthsubof (node, 0), defaulttype);
+		righttype = typecheck_gettype (tnode_nthsubof (node, 1), defaulttype);
+
+		*typep = typecheck_fixedtypeactual (lefttype, righttype, node, NULL, 1);
+		if (!*typep) {
+			tnode_error (node, "failed to get type for dyadic operator [%s]", node->tag->name);
+			return NULL;
+		}
+	}
+
+	return *typep;
 }
 /*}}}*/
 /*{{{  static int occampi_iscomplex_dop (langops_t *lops, tnode_t *node, int deep)*/
