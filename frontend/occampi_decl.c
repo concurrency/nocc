@@ -1171,7 +1171,7 @@ static int occampi_namemap_fparam (compops_t *cops, tnode_t **node, map_t *map)
 	tnode_t *bename;
 	int tsize, indir;
 
-#if 0
+#if 1
 fprintf (stderr, "occampi_namemap_fparam(): here!  target is [%s].  Type is:\n", map->target->name);
 tnode_dumptree (type, 1, stderr);
 #endif
