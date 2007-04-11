@@ -111,6 +111,7 @@ typedef struct {
 	struct TAG_ntdef *tag_INPUT;
 	struct TAG_ntdef *tag_OUTPUT;
 	struct TAG_ntdef *tag_HIDDENPARAM;
+	struct TAG_ntdef *tag_HIDDENDIMEN;
 	struct TAG_ntdef *tag_RETURNADDRESS;
 	struct TAG_ntdef *tag_PARSPACE;
 	struct TAG_ntdef *tag_IF;
@@ -204,6 +205,7 @@ typedef struct {
 	struct TAG_chook *chook_typeattr;
 	struct TAG_chook *chook_traces;
 	struct TAG_chook *chook_ileaveinfo;
+	struct TAG_chook *chook_arraydiminfo;
 } occampi_pset_t;
 
 extern occampi_pset_t opi;

@@ -402,6 +402,8 @@ int tnode_init (void)
 	tnode_newlangop ("codegen_altdisable", LOPS_CODEGEN_ALTDISABLE, 4, INTERNAL_ORIGIN);
 	tnode_newlangop ("premap_typeforvardecl", LOPS_PREMAP_TYPEFORVARDECL, 3, INTERNAL_ORIGIN);
 	tnode_newlangop ("retypeconst", LOPS_RETYPECONST, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("dimtreeof", LOPS_DIMTREEOF, 1, INTERNAL_ORIGIN);
+	tnode_newlangop ("hiddenparamsof", LOPS_HIDDENPARAMSOF, 1, INTERNAL_ORIGIN);
 
 	/*}}}*/
 	/*{{{  setup the static node types*/

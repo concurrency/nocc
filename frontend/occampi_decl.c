@@ -1159,6 +1159,16 @@ fprintf (stderr, "occampi_scopein_fparam: here! rawname = \"%s\"\n", rawname);
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_fetrans_fparam (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
+/*
+ *	does front-end transforms on a formal parameter
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_fetrans_fparam (compops_t *cops, tnode_t **node, fetrans_t *fe)
+{
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_fparam (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	transforms a formal parameter into a back-end name
@@ -1527,6 +1537,46 @@ static int occampi_constvalof_namenode (langops_t *lops, tnode_t *node, void *pt
 /*}}}*/
 
 
+/*{{{  static void *occampi_arraydiminfo_chook_copy (void *chook)*/
+/*
+ *	copies an arraydiminfo compiler hook
+ */
+static void *occampi_arraydiminfo_chook_copy (void *chook)
+{
+	if (chook) {
+		return (void *)tnode_copytree ((tnode_t *)chook);
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  static void occampi_arraydiminfo_chook_free (void *chook)*/
+/*
+ *	frees an arraydiminfo compiler hook
+ */
+static void occampi_arraydiminfo_chook_free (void *chook)
+{
+	if (chook) {
+		tnode_free ((tnode_t *)chook);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_arraydiminfo_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*
+ *	dumps an arraydiminfo compiler hook (debugging)
+ */
+static void occampi_arraydiminfo_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+{
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "<chook:arraydiminfo>\n");
+	tnode_dumptree ((tnode_t *)chook, indent + 1, stream);
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "</chook:arraydiminfo>\n");
+	return;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_decl_init_nodes (void)*/
 /*
  *	sets up declaration and name nodes for occam-pi
@@ -1551,6 +1601,7 @@ static int occampi_decl_init_nodes (void)
 
 	i = -1;
 	opi.tag_NAME = tnode_newnodetag ("NAME", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  occampi:namenode -- N_DECL, N_PARAM, N_VALPARAM, N_PROCDEF, N_ABBR, N_VALABBR, N_FUNCDEF, N_REPL*/
 	i = -1;
@@ -1559,7 +1610,6 @@ static int occampi_decl_init_nodes (void)
 	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_namenode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_namenode));
 	tnd->ops = cops;
-
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_namenode));
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_namenode));
@@ -1586,17 +1636,24 @@ static int occampi_decl_init_nodes (void)
 	opi.tag_NFUNCDEF = tnode_newnodetag ("N_FUNCDEF", &i, opi.node_NAMENODE, NTF_NONE);
 	i = -1;
 	opi.tag_NREPL = tnode_newnodetag ("N_REPL", &i, opi.node_NAMENODE, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  occampi:hiddennode -- HIDDENPARAM*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:hiddennode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: hidden-param */
+
 	i = -1;
 	opi.tag_HIDDENPARAM = tnode_newnodetag ("HIDDENPARAM", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_HIDDENDIMEN = tnode_newnodetag ("HIDDENDIMEN", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  occampi:leafnode -- RETURNADDRESS*/
 	tnd = tnode_lookupnodetype ("occampi:leafnode");
+
 	i = -1;
 	opi.tag_RETURNADDRESS = tnode_newnodetag ("RETURNADDRESS", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  occampi:vardecl -- VARDECL*/
 	i = -1;
@@ -1613,6 +1670,7 @@ static int occampi_decl_init_nodes (void)
 
 	i = -1;
 	opi.tag_VARDECL = tnode_newnodetag ("VARDECL", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  occampi:fparam -- FPARAM, VALFPARAM*/
 	i = -1;
@@ -1620,6 +1678,7 @@ static int occampi_decl_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_fparam));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_fparam));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_fparam));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_fparam));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
@@ -1627,10 +1686,12 @@ static int occampi_decl_init_nodes (void)
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_fparam));
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (occampi_getname_fparam));
 	tnd->lops = lops;
+
 	i = -1;
 	opi.tag_FPARAM = tnode_newnodetag ("FPARAM", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_VALFPARAM = tnode_newnodetag ("VALFPARAM", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  occampi:abbrevnode -- ABBREV, VALABBREV, RETYPES, VALRETYPES*/
 	i = -1;
@@ -1673,8 +1734,17 @@ static int occampi_decl_init_nodes (void)
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_procdecl));
 	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_usagecheck_procdecl));
 	tnd->lops = lops;
+
 	i = -1;
 	opi.tag_PROCDECL = tnode_newnodetag ("PROCDECL", &i, tnd, NTF_INDENTED_PROC);
+
+	/*}}}*/
+	/*{{{  compiler hooks -- chook:arraydiminfo*/
+	opi.chook_arraydiminfo = tnode_lookupornewchook ("chook:arraydiminfo");
+	opi.chook_arraydiminfo->chook_copy = occampi_arraydiminfo_chook_copy;
+	opi.chook_arraydiminfo->chook_free = occampi_arraydiminfo_chook_free;
+	opi.chook_arraydiminfo->chook_dumptree = occampi_arraydiminfo_chook_dumptree;
+
 	/*}}}*/
 
 	return 0;

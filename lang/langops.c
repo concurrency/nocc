@@ -223,6 +223,36 @@ tnode_t *langops_retypeconst (tnode_t *node, tnode_t *type)
 	return nc;
 }
 /*}}}*/
+/*{{{  tnode_t *langops_dimtreeof (tnode_t *node)*/
+/*
+ *	returns a dimension-tree for array types (as a list of dimensions, NULL indicates unknown dimension)
+ *	returns NULL if not relevant (scalar types)
+ */
+tnode_t *langops_dimtreeof (tnode_t *node)
+{
+	tnode_t *dt = NULL;
+
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_DIMTREEOF)) {
+		dt = (tnode_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_DIMTREEOF, 1, node);
+	}
+	return dt;
+}
+/*}}}*/
+/*{{{  tnode_t *langops_hiddenparamsof (tnode_t *node)*/
+/*
+ *	returns the hidden parameters associated with a formal parameter (as a list)
+ *	returns NULL if not relevant
+ */
+tnode_t *langops_hiddenparamsof (tnode_t *node)
+{
+	tnode_t *hp = NULL;
+
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_HIDDENPARAMSOF)) {
+		hp = (tnode_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_HIDDENPARAMSOF, 1, node);
+	}
+	return hp;
+}
+/*}}}*/
 
 
 

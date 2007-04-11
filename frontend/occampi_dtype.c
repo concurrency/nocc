@@ -710,6 +710,15 @@ static tnode_t *occampi_getsubtype_arraynode (langops_t *lops, tnode_t *node, tn
 	return subtype;
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_dimtreeof_arraynode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the dimension tree (list) for an array type
+ */
+static tnode_t *occampi_dimtreeof_arraynode (langops_t *lops, tnode_t *node)
+{
+	return NULL;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_typecheck_arraymop (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
@@ -1597,6 +1606,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_typeactual_arraynode));
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_arraynode));
 	tnode_setlangop (lops, "getsubtype", 2, LANGOPTYPE (occampi_getsubtype_arraynode));
+	tnode_setlangop (lops, "dimtreeof", 1, LANGOPTYPE (occampi_dimtreeof_arraynode));
 	tnd->lops = lops;
 
 	i = -1;
