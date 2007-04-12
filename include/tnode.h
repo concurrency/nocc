@@ -171,10 +171,11 @@ typedef enum ENUM_langops {
 	LOPS_RETYPECONST = 24,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
 	LOPS_DIMTREEOF = 25,			/* 1: tnode_t * -> tnode_t * */
 	LOPS_HIDDENPARAMSOF = 26,		/* 1: tnode_t * -> tnode_t * */
+	LOPS_TYPEHASH = 27,			/* 3: tnode_t *, int, void * -> int */
 	LOPS_MAX = 256
 } langops_e;
 
-#define LOPS_LAST LOPS_HIDDENPARAMSOF
+#define LOPS_LAST LOPS_TYPEHASH
 
 /*}}}*/
 /*{{{  langop_t, langops_t (language operations)*/

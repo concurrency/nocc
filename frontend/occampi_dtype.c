@@ -716,7 +716,64 @@ static tnode_t *occampi_getsubtype_arraynode (langops_t *lops, tnode_t *node, tn
  */
 static tnode_t *occampi_dimtreeof_arraynode (langops_t *lops, tnode_t *node)
 {
-	return NULL;
+	tnode_t *dimlist = (tnode_t *)tnode_getchook (node, opi.chook_arraydiminfo);
+	tnode_t *orignode = node;
+	
+	if (!dimlist) {
+		dimlist = parser_newlistnode (node->org_file);
+
+		while (node->tag == opi.tag_ARRAY) {
+			tnode_t *thisdim = tnode_nthsubof (node, 0);
+
+			/* add this dimension and drop down to sub-type */
+			parser_addtolist (dimlist, thisdim);
+			node = tnode_nthsubof (node, 1);
+		}
+
+		tnode_setchook (orignode, opi.chook_arraydiminfo, dimlist);
+	}
+
+	return dimlist;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_hiddenparamsof_arraynode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the hidden parameters (list) for an array type
+ *	will generate a list of HIDDENDIMEN nodes as necessary
+ */
+static tnode_t *occampi_hiddenparamsof_arraynode (langops_t *lops, tnode_t *node)
+{
+	tnode_t *dimtree = langops_dimtreeof (node);
+	tnode_t *hparams = parser_newlistnode (node->org_file);
+	int i, nditems;
+	tnode_t **dlist;
+
+	if (!dimtree) {
+		nocc_internal ("occampi_hiddenparamsof_arraynode(): got NULL dimension tree for array!");
+		return NULL;
+	}
+#if 0
+fprintf (stderr, "occampi_hiddenparamsof_arraynode(): dimension tree is:\n");
+tnode_dumptree (dimtree, 1, stderr);
+#endif
+
+	dlist = parser_getlistitems (dimtree, &nditems);
+	for (i=0; i<nditems; i++) {
+		if (!dlist[i]) {
+			/* unknown dimension */
+			tnode_t *hparm = tnode_createfrom (opi.tag_HIDDENDIMEN, node,
+				tnode_create (opi.tag_DIMSIZE, NULL, NULL, constprop_newconst (CONST_INT, NULL, tnode_create (opi.tag_INT, NULL), i), tnode_create (opi.tag_INT, NULL)));
+
+			parser_addtolist (hparams, hparm);
+			dlist[i] = hparm;
+		}
+	}
+#if 0
+fprintf (stderr, "occampi_hiddenparamsof_arraynode(): dimension tree updated to:\n");
+tnode_dumptree (dimtree, 1, stderr);
+#endif
+
+	return hparams;
 }
 /*}}}*/
 
@@ -1607,6 +1664,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_arraynode));
 	tnode_setlangop (lops, "getsubtype", 2, LANGOPTYPE (occampi_getsubtype_arraynode));
 	tnode_setlangop (lops, "dimtreeof", 1, LANGOPTYPE (occampi_dimtreeof_arraynode));
+	tnode_setlangop (lops, "hiddenparamsof", 1, LANGOPTYPE (occampi_hiddenparamsof_arraynode));
 	tnd->lops = lops;
 
 	i = -1;
@@ -1630,6 +1688,19 @@ static int occampi_dtype_init_nodes (void)
 
 	i = -1;
 	opi.tag_SIZE = tnode_newnodetag ("SIZE", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:arraydopnode -- DIMSIZE*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:arraydopnode", &i, 3, 0, 0, TNF_NONE);		/* subnodes: 0 = lhs, 1 = rhs, 2 = type */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_DIMSIZE = tnode_newnodetag ("DIMSIZE", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  occampi:fielddecl -- FIELDDECL*/
 	i = -1;

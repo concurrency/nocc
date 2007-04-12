@@ -1126,6 +1126,7 @@ int main (int argc, char **argv)
 	nocc_init_cpasses ();
 
 	nocc_addxmlnamespace ("nocc", "http://www.cs.kent.ac.uk/projects/ofa/nocc/NAMESPACES/nocc");
+	nocc_addxmlnamespace ("chook", "http://www.cs.kent.ac.uk/projects/ofa/nocc/NAMESPACES/chook");
 
 	/*}}}*/
 	/*{{{  process command-line arguments*/

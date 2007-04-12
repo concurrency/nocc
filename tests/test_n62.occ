@@ -6,3 +6,10 @@ PROC test.n62 ([]BYTE s)
     SKIP
 :
 
+PROC real.test ()
+  [6]BYTE data:
+  SEQ
+    test.n62 (data)
+:
+
+

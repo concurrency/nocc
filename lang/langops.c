@@ -253,6 +253,21 @@ tnode_t *langops_hiddenparamsof (tnode_t *node)
 	return hp;
 }
 /*}}}*/
+/*{{{  int langops_typehash (tnode_t *node, const int hsize, void *ptr)*/
+/*
+ *	generates a type-hash for the specified node (width in bytes and a pointer to suitable buffer are given)
+ *	returns 0 on success, non-zero on failure
+ */
+int langops_typehash (tnode_t *node, const int hsize, void *ptr)
+{
+	tnode_t *hp = NULL;
+
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_TYPEHASH)) {
+		return tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_TYPEHASH, 3, node, hsize, ptr);
+	}
+	return 1;
+}
+/*}}}*/
 
 
 

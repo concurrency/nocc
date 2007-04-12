@@ -222,6 +222,7 @@ tnode_dumptree (aparamlist, 1, stderr);
 	}
 
 	for (paramno = 1, fp_ptr = 0, ap_ptr = 0; (fp_ptr < fp_nitems) && (ap_ptr < ap_nitems);) {
+		/*{{{  type-check/type-actual parameter*/
 		tnode_t *ftype, *atype;
 		occampi_typeattr_t fattr = TYPEATTR_NONE;
 		occampi_typeattr_t aattr = TYPEATTR_NONE;
@@ -263,6 +264,7 @@ tnode_dumptree (ap_items[ap_ptr], 1, stderr);
 		fp_ptr++;
 		ap_ptr++;
 		paramno++;
+		/*}}}*/
 	}
 
 	/* skip over any left-over hidden params */
@@ -360,6 +362,26 @@ tnode_dumptree (ap_items[ap_ptr], 1, stderr);
 	}
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_fetrans_instance (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
+/*
+ *	does front-end transforms on an instance-node -- includes dropping in array-dimensions
+ *	returns 1 to continue walk, 0 to stop
+ */
+static int occampi_fetrans_instance (compops_t *cops, tnode_t **node, fetrans_t *fe)
+{
+	tnode_t *fparamlist = typecheck_gettype (tnode_nthsubof (*node, 0), NULL);
+	tnode_t *aparamlist = tnode_nthsubof (*node, 1);
+
+#if 1
+fprintf (stderr, "occampi_fetrans_instance: fparamlist=\n");
+tnode_dumptree (fparamlist, 1, stderr);
+fprintf (stderr, "occampi_fetrans_instance: aparamlist=\n");
+tnode_dumptree (aparamlist, 1, stderr);
+#endif
+
+	return 1;
 }
 /*}}}*/
 /*{{{  static int occampi_namemap_instance (compops_t *cops, tnode_t **node, map_t *map)*/
@@ -632,6 +654,7 @@ static int occampi_instance_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:instancenode", &i, 2, 0, 1, TNF_NONE);		/* subnodes: names; params */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_instance));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_instance));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_instance));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_instance));
 	tnd->ops = cops;

@@ -1306,11 +1306,48 @@ static tnode_t *occampi_hiddenparamsof_fparam (langops_t *lops, tnode_t *node)
 {
 	tnode_t *name = tnode_nthsubof (node, 0);
 	tnode_t *type = tnode_nthsubof (node, 1);
+	tnode_t *hplist;
 
+	hplist = langops_hiddenparamsof (type);
+	if (hplist) {
+		int i, nhitems;
+		tnode_t **hitems = parser_getlistitems (hplist, &nhitems);
+
+		for (i=0; i<nhitems; i++) {
+			tnode_t *hparam = hitems[i];
+
+			if (hparam->tag == opi.tag_HIDDENDIMEN) {
+				if (tnode_nthsubof (hparam, 0)->tag == opi.tag_DIMSIZE) {
+					/* dimension size of us -- put in reference */
+					tnode_setnthsub (tnode_nthsubof (hparam, 0), 0, name);
+				}
+			}
+		}
+	}
 #if 1
-fprintf (stderr, "occampi_hiddenparamsof_fparam(): here!\n");
+fprintf (stderr, "occampi_hiddenparamsof_fparam(): here! hplist =\n");
+tnode_dumptree (hplist, 1, stderr);
 #endif
-	return NULL;
+
+	return hplist;
+}
+/*}}}*/
+
+
+/*{{{  static int occampi_namemap_hiddennode (compops_t *cops, tnode_t **node, map_t *map)*/
+/*
+ *	transforms a hidden formal parameter into a back-end name
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_hiddennode (compops_t *cops, tnode_t **node, map_t *map)
+{
+	tnode_t **hnodep = tnode_nthsubaddr (*node, 0);
+	tnode_t *bename;
+
+	bename = map->target->newname (*hnodep, NULL, map, map->target->intsize, 0, 0, 0, map->target->intsize, 0);
+
+	*node = bename;
+	return 0;
 }
 /*}}}*/
 
@@ -1684,9 +1721,12 @@ static int occampi_decl_init_nodes (void)
 	opi.tag_NREPL = tnode_newnodetag ("N_REPL", &i, opi.node_NAMENODE, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  occampi:hiddennode -- HIDDENPARAM*/
+	/*{{{  occampi:hiddennode -- HIDDENPARAM, HIDDENDIMEN*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:hiddennode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: hidden-param */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_hiddennode));
+	tnd->ops = cops;
 
 	i = -1;
 	opi.tag_HIDDENPARAM = tnode_newnodetag ("HIDDENPARAM", &i, tnd, NTF_NONE);
