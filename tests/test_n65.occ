@@ -1,0 +1,8 @@
+
+-- test_n65.occ -- out.string testing...
+
+PROC out.string (VAL []BYTE s, CHAN BYTE out!)
+  SEQ i = 0 FOR SIZE s
+    out ! s[i]
+:
+

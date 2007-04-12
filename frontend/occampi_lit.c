@@ -1,6 +1,6 @@
 /*
  *	occampi_lit.c -- occam-pi literal processing for nocc
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -49,9 +50,11 @@
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
+#include "fetrans.h"
 #include "map.h"
 #include "codegen.h"
 #include "target.h"
+#include "langops.h"
 
 
 /*}}}*/
@@ -355,14 +358,39 @@ static int occampi_constvalof_lit (langops_t *lops, tnode_t *node, void *ptr)
 /*}}}*/
 /*{{{  static int occampi_valbyref_lit (langops_t *lops, tnode_t *node)*/
 /*
- *	returns non-zero if VALs of this literal are handled as references (LITARRAY)
+ *	returns non-zero if VALs of this literal are handled as references (LITARRAY, plain types larger than a word)
  */
 static int occampi_valbyref_lit (langops_t *lops, tnode_t *node)
 {
 	if (node->tag == opi.tag_LITARRAY) {
 		return 1;
+	} else if ((node->tag == opi.tag_LITINT) || (node->tag == opi.tag_LITREAL)) {
+		occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof (node, 0);
+
+		/* FIXME: slot-size? */
+		if (tmplit->bytes > 4) {
+			return 1;
+		}
 	}
 	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_dimtreeof_lit (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the dimension tree associated with a literal (LITARRAY)
+ */
+static tnode_t *occampi_dimtreeof_lit (langops_t *lops, tnode_t *node)
+{
+	if (node->tag == opi.tag_LITARRAY) {
+		tnode_t *type = tnode_nthsubof (node, 0);
+
+#if 0
+fprintf (stderr, "occampi_dimtreeof_lit(): LITARRAY type is:\n");
+tnode_dumptree (type, 1, stderr);
+#endif
+		return langops_dimtreeof (type);
+	}
+	return NULL;
 }
 /*}}}*/
 
@@ -443,6 +471,7 @@ static int occampi_lit_init_nodes (void)
 	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (occampi_isconst_lit));
 	tnode_setlangop (lops, "constvalof", 2, LANGOPTYPE (occampi_constvalof_lit));
 	tnode_setlangop (lops, "valbyref", 1, LANGOPTYPE (occampi_valbyref_lit));
+	tnode_setlangop (lops, "dimtreeof", 1, LANGOPTYPE (occampi_dimtreeof_lit));
 	tnd->lops = lops;
 
 	i = -1;

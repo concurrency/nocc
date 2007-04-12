@@ -292,6 +292,11 @@ tnode_dumptree (atype, 1, stderr);
 fprintf (stderr, "occampi_typecheck_instance: ap_items[ap_ptr]=\n");
 tnode_dumptree (ap_items[ap_ptr], 1, stderr);
 #endif
+		if (fp_items[fp_ptr]->tag == opi.tag_FPARAM) {
+			if (!langops_isvar (ap_items[ap_ptr])) {
+				typecheck_error (node, tc, "parameter %d must be a variable", paramno);
+			}
+		}
 
 		if (!typecheck_typeactual (ftype, atype, node, tc)) {
 			typecheck_error (node, tc, "incompatible types for parameter %d", paramno);
