@@ -2247,6 +2247,7 @@ chook_t *tnode_newchook (const char *name)
 	ch = (chook_t *)smalloc (sizeof (chook_t));
 	ch->name = string_dup (name);
 	ch->id = DA_CUR (acomphooks);
+	ch->flags = CHOOK_NONE;
 	ch->chook_copy = NULL;
 	ch->chook_free = NULL;
 	ch->chook_dumptree = NULL;
@@ -2362,6 +2363,35 @@ void tnode_dumpchooks (FILE *stream)
 				(unsigned int)ch->chook_free, (unsigned int)ch->chook_dumptree, ch->name);
 	}
 	return;
+}
+/*}}}*/
+
+
+/*{{{  int tnode_promotechooks (tnode_t *tsource, tnode_t *tdest)*/
+/*
+ *	promotes compiler hooks from one node to another (moves them)
+ *	returns number of hooks moved
+ */
+int tnode_promotechooks (tnode_t *tsource, tnode_t *tdest)
+{
+	int i;
+	int moved = 0;
+
+	if (!tsource || !tdest) {
+		nocc_internal ("tnode_promotechooks(): null tree!");
+	}
+	for (i=0; i<DA_CUR (tsource->chooks); i++) {
+		chook_t *chdef = DA_NTHITEM (acomphooks, i);
+
+		if ((chdef->flags & CHOOK_AUTOPROMOTE) && DA_NTHITEM (tsource->chooks, i)) {
+			/* this one */
+			tnode_setchook (tdest, chdef, DA_NTHITEM (tsource->chooks, i));
+			DA_SETNTHITEM (tsource->chooks, i, NULL);
+			moved++;
+		}
+	}
+
+	return moved;
 }
 /*}}}*/
 

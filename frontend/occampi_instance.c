@@ -523,7 +523,20 @@ static int occampi_namemap_instance (compops_t *cops, tnode_t **node, map_t *map
 	name_t *name;
 
 	/* map parameters and called name */
-	map_submapnames (tnode_nthsubaddr (*node, 1), map);
+	if (!tnode_nthsubof (*node, 1)) {
+		/* no parameters! */
+	} else {
+		int i, nparams;
+		tnode_t **params = parser_getlistitems (tnode_nthsubof (*node, 1), &nparams);
+
+		for (i=0; i<nparams; i++) {
+			void *matchedformal = tnode_getchook (params[i], chook_matchedformal);
+			
+			tnode_setchook (params[i], chook_matchedformal, NULL);
+			map_submapnames (params + i, map);
+			tnode_setchook (params[i], chook_matchedformal, matchedformal);
+		}
+	}
 	map_submapnames (tnode_nthsubaddr (*node, 0), map);
 
 	namenode = tnode_nthsubof (*node, 0);
@@ -591,7 +604,12 @@ static int occampi_codegen_instance (compops_t *cops, tnode_t *node, codegen_t *
 		/* get size of this block */
 		cgen->target->be_getblocksize (ibody, &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, NULL);
 
+#if 0
+fprintf (stderr, "occampi_codegen_instance(): params are:\n");
+tnode_dumptree (params, 1, stderr);
+#endif
 		/* FIXME: load parameters in reverse order, into -4, -8, ... */
+
 		if (!params) {
 			/* no parameters! */
 		} else if (parser_islistnode (params)) {
@@ -599,7 +617,26 @@ static int occampi_codegen_instance (compops_t *cops, tnode_t *node, codegen_t *
 			tnode_t **items = parser_getlistitems (params, &nitems);
 
 			for (i=nitems - 1, wsoff = -(cgen->target->slotsize); i>=0; i--, wsoff -= (cgen->target->slotsize)) {
-				codegen_callops (cgen, loadparam, items[i], PARAM_REF);
+				tnode_t *formal = (tnode_t *)tnode_getchook (items[i], chook_matchedformal);
+				codegen_parammode_e pmode;
+
+				if (!formal) {
+					tnode_warning (node, "occampi_codegen_instance(): no matched formal in parameter [%s], assuming reference", items[i]->tag->name);
+					pmode = PARAM_REF;
+				} else {
+#if 0
+fprintf (stderr, "occampi_codegen_instance(): matched formal for this parameter is:\n");
+tnode_dumptree (formal, 1, stderr);
+#endif
+					if (formal->tag == opi.tag_VALFPARAM) {
+						pmode = PARAM_VAL;
+					} else if (formal->tag == opi.tag_HIDDENDIMEN) {
+						pmode = PARAM_VAL;
+					} else {
+						pmode = PARAM_REF;
+					}
+				}
+				codegen_callops (cgen, loadparam, items[i], pmode);
 				codegen_callops (cgen, storelocal, wsoff);
 			}
 		}
@@ -819,6 +856,7 @@ static int occampi_instance_init_nodes (void)
 	/*}}}*/
 	/*{{{  chook:matchedformal compiler hook*/
 	chook_matchedformal = tnode_lookupornewchook ("chook:matchedformal");
+	chook_matchedformal->flags |= CHOOK_AUTOPROMOTE;
 	chook_matchedformal->chook_copy = occampi_matchedformal_chook_copy;
 	chook_matchedformal->chook_free = occampi_matchedformal_chook_free;
 	chook_matchedformal->chook_dumptree = occampi_matchedformal_chook_dumptree;

@@ -290,7 +290,7 @@ tnode_t *typecheck_typereduce (tnode_t *type)
 int typecheck_cantypecast (tnode_t *node, tnode_t *srctype)
 {
 	if (!node || !srctype) {
-		return NULL;
+		return 0;
 	}
 	if (node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_CANTYPECAST)) {
 		if (compopts.tracetypecheck) {

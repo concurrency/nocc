@@ -1,6 +1,6 @@
 /*
  *	codegen.h -- interface for NOCC code-generation
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ typedef enum ENUM_codegen_parammode {
 	PARAM_INVALID = 0,
 	PARAM_REF = 1,
 	PARAM_VAL = 2
-} codegen_parammode_t;
+} codegen_parammode_e;
 
 struct TAG_codegen;
 
@@ -60,7 +60,7 @@ typedef struct TAG_codegen {
 typedef struct TAG_coderops {
 	void (*loadpointer)(codegen_t *, struct TAG_tnode *, int);
 	void (*loadname)(codegen_t *, struct TAG_tnode *, int);
-	void (*loadparam)(codegen_t *, struct TAG_tnode *, codegen_parammode_t);
+	void (*loadparam)(codegen_t *, struct TAG_tnode *, codegen_parammode_e);
 	void (*loadlocalpointer)(codegen_t *, int);
 	void (*loadlexlevel)(codegen_t *, int);
 	void (*loadvsp)(codegen_t *, int);

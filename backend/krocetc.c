@@ -1,6 +1,6 @@
 /*
  *	krocetc.c -- back-end routines for KRoC modified ETC target
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -1558,6 +1558,7 @@ static int krocetc_precode_const (compops_t *cops, tnode_t **cnst, codegen_t *cg
 {
 	krocetc_priv_t *kpriv = (krocetc_priv_t *)cgen->target->priv;
 	krocetc_consthook_t *ch = (krocetc_consthook_t *)tnode_nthhookof (*cnst, 0);
+	tnode_t *cref;
 
 	if (ch->label <= 0) {
 		ch->label = codegen_new_label (cgen);
@@ -1565,7 +1566,9 @@ static int krocetc_precode_const (compops_t *cops, tnode_t **cnst, codegen_t *cg
 
 	/* move this into pre-codes and leave a reference */
 	parser_addtolist (kpriv->precodelist, *cnst);
-	*cnst = tnode_create (kpriv->tag_CONSTREF, NULL, (void *)ch);
+	cref = tnode_create (kpriv->tag_CONSTREF, NULL, (void *)ch);
+	tnode_promotechooks (*cnst, cref);
+	*cnst = cref;
 	return 1;
 }
 /*}}}*/
@@ -2140,11 +2143,11 @@ fprintf (stderr, "krocetc_coder_loadname(): loading RESULT\n");
 	return;
 }
 /*}}}*/
-/*{{{  static void krocetc_coder_loadparam (codegen_t *cgen, tnode_t *node, codegen_parammode_t pmode)*/
+/*{{{  static void krocetc_coder_loadparam (codegen_t *cgen, tnode_t *node, codegen_parammode_e pmode)*/
 /*
  *	loads a back-end something as a parameter
  */
-static void krocetc_coder_loadparam (codegen_t *cgen, tnode_t *node, codegen_parammode_t pmode)
+static void krocetc_coder_loadparam (codegen_t *cgen, tnode_t *node, codegen_parammode_e pmode)
 {
 	switch (pmode) {
 	case PARAM_INVALID:
@@ -3525,17 +3528,18 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	/*}}}*/
 	/*{{{  krocetc:constref -- KROCETCCONSTREF*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:constref", &i, 0, 0, 1, 0);
+	tnd = tnode_newnodetype ("krocetc:constref", &i, 0, 0, 1, 0);		/* hooks: 0 = krocetc_consthook_t */
 	tnd->hook_dumptree = krocetc_consthook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_constref));
 	tnd->ops = cops;
+
 	i = -1;
 	kpriv->tag_CONSTREF = tnode_newnodetag ("KROCETCCONSTREF", &i, tnd, 0);
 	/*}}}*/
 	/*{{{  krocetc:indexed -- KROCETCINDEXED*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:indexed", &i, 2, 0, 1, 0);
+	tnd = tnode_newnodetype ("krocetc:indexed", &i, 2, 0, 1, 0);		/* subnodes: 0 = base, 1 = index;  hooks: 0 = krocetc_indexedhook_t */
 	tnd->hook_dumptree = krocetc_indexedhook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_indexed));

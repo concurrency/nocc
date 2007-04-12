@@ -192,10 +192,18 @@ typedef struct TAG_langops {
 } langops_t;
 
 /*}}}*/
+/*{{{  chookflags_e type (compiler-hook flags)*/
+typedef enum ENUM_chookflags {
+	CHOOK_NONE = 0x0000,
+	CHOOK_AUTOPROMOTE = 0x0001,
+} chookflags_e;
+
+/*}}}*/
 /*{{{  chook_t definition*/
 typedef struct TAG_chook {
 	int id;
 	char *name;
+	chookflags_e flags;
 
 	void *(*chook_copy)(void *);
 	void (*chook_free)(void *);
@@ -283,6 +291,8 @@ extern void *tnode_getchook (tnode_t *t, chook_t *ch);
 extern void tnode_setchook (tnode_t *t, chook_t *ch, void *hook);
 extern void tnode_clearchook (tnode_t *, chook_t *ch);
 extern void tnode_dumpchooks (FILE *stream);
+
+extern int tnode_promotechooks (tnode_t *tsource, tnode_t *tdest);
 
 extern int tnode_bytesfor (tnode_t *t, struct TAG_target *target);
 extern int tnode_issigned (tnode_t *t, struct TAG_target *target);

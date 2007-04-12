@@ -330,7 +330,7 @@ static int occampi_precode_vardecl (compops_t *cops, tnode_t **nodep, codegen_t 
 {
 	tnode_t *type = tnode_nthsubof (*nodep, 1);
 
-#if 1
+#if 0
 	nocc_message ("occampi_precode_vardecl(): here!");
 #endif
 	if (type && (type->tag->nt_flags & NTF_PRECODETYPEINDECL)) {
@@ -1340,7 +1340,7 @@ static tnode_t *occampi_hiddenparamsof_fparam (langops_t *lops, tnode_t *node)
 			}
 		}
 	}
-#if 1
+#if 0
 fprintf (stderr, "occampi_hiddenparamsof_fparam(): here! hplist =\n");
 tnode_dumptree (hplist, 1, stderr);
 #endif
@@ -1467,7 +1467,7 @@ tnode_dumptree (name->type, 1, stderr);
 #endif
 		return name->type;
 	}
-#if 1
+#if 0
 nocc_message ("occampi_gettype_namenode(): null type on name, node was:");
 tnode_dumptree (node, 4, stderr);
 #endif
