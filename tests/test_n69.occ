@@ -1,0 +1,8 @@
+
+-- test_n69.occ
+
+PROC test.n69 (VAL []BYTE s, CHAN BYTE out!)
+  SEQ
+    out ! s[0]
+:
+

@@ -958,6 +958,10 @@ static int occampi_namemap_procdecl (compops_t *cops, tnode_t **node, map_t *map
 	/* map formal params and body */
 	paramsptr = tnode_nthsubaddr (*node, 1);
 	map->inparamlist = 1;
+#if 0
+fprintf (stderr, "occampi_namemap_procdecl(): about to map parameters:\n");
+tnode_dumptree (*paramsptr, 1, stderr);
+#endif
 	map_submapnames (paramsptr, map);
 	map->inparamlist = 0;
 	map_submapnames (tnode_nthsubaddr (blk, 0), map);		/* do this under the back-end block */
@@ -1225,8 +1229,9 @@ static int occampi_fetrans_fparam (compops_t *cops, tnode_t **node, fetrans_t *f
  */
 static int occampi_namemap_fparam (compops_t *cops, tnode_t **node, map_t *map)
 {
-	tnode_t **namep = tnode_nthsubaddr (*node, 0);
-	tnode_t *type = tnode_nthsubof (*node, 1);
+	tnode_t *t = *node;
+	tnode_t **namep = tnode_nthsubaddr (t, 0);
+	tnode_t *type = tnode_nthsubof (t, 1);
 	tnode_t *bename;
 	int tsize, indir;
 
@@ -1234,19 +1239,31 @@ static int occampi_namemap_fparam (compops_t *cops, tnode_t **node, map_t *map)
 fprintf (stderr, "occampi_namemap_fparam(): here!  target is [%s].  Type is:\n", map->target->name);
 tnode_dumptree (type, 1, stderr);
 #endif
-	if (type->tag == opi.tag_CHAN) {
-		/* channels need 1 word */
-		tsize = map->target->chansize;
+
+	if ((t->tag == opi.tag_FPARAM) || (t->tag == opi.tag_VALFPARAM)) {
+		if (type->tag == opi.tag_CHAN) {
+			/* channels need 1 word */
+			tsize = map->target->chansize;
+		} else {
+			/* see how big this type is */
+			tsize = tnode_bytesfor (type, map->target);
+		}
+
+		if ((*node)->tag == opi.tag_VALFPARAM) {
+			tnode_t *ftype = tnode_nthsubof (*node, 1);
+
+			indir = langops_valbyref (ftype) ? 1 : 0;
+		} else {
+			indir = 1;
+		}
 	} else {
-		/* see how big this type is */
-		tsize = tnode_bytesfor (type, map->target);
+		nocc_internal ("occampi_namemap_fparam(): not FPARAM/VALFPARAM");
+		return 0;
 	}
 
-	if ((*namep)->tag == opi.tag_NPARAM) {
-		indir = 1;
-	} else {
-		indir = 0;
-	}
+#if 0
+fprintf (stderr, "occampi_namemap_fparam(): node is [%s], type is [%s], tsize = %d, indir = %d\n", t->tag->name, type->tag->name, tsize, indir);
+#endif
 	bename = map->target->newname (*namep, NULL, map, 4, 0, 0, 0, tsize, indir);		/* FIXME! */
 	tnode_setchook (*namep, map->mapchook, (void *)bename);
 

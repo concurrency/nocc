@@ -1,0 +1,13 @@
+
+-- test_n68.occ -- out.string test
+
+PROC out.string (VAL []BYTE s, CHAN BYTE out!)
+  SEQ i = 0 FOR SIZE s
+    out ! s[i]
+:
+
+PROC test.n68 (CHAN BYTE scr!)
+  SEQ
+    out.string ("Hello, NOCC world!*n", scr!)
+:
+
