@@ -576,6 +576,45 @@ tnode_t *parser_getfromlist (tnode_t *list, int idx)
 	return array[idx + 2];
 }
 /*}}}*/
+/*{{{  void parser_insertinlist (tnode_t *list, tnode_t *item, int idx)*/
+/*
+ *	inserts an item into a list at a particular index (rest are shuffled along)
+ */
+void parser_insertinlist (tnode_t *list, tnode_t *item, int idx)
+{
+	tnode_t **array;
+	int *cur, *max;
+	int i;
+
+	array = (tnode_t **)tnode_nthhookof (list, 0);
+	if (!array) {
+		nocc_internal ("parser_insertinlist(): null array in list!");
+		return;
+	}
+	cur = (int *)(array);
+	max = (int *)(array + 1);
+	if (*cur == *max) {
+		/* need to make the array a bit larger */
+		array = (tnode_t **)srealloc (array, (*max + 2) * sizeof (tnode_t *), (*max + 10) * sizeof (tnode_t *));
+
+		cur = (int *)(array);
+		max = (int *)(array + 1);
+
+		*max = *max + 8;
+		tnode_setnthhook (list, 0, array);
+	}
+	if (idx > *cur) {
+		nocc_internal ("parser_insertinlist(): cannot insert at position %d (%d/%d item list)", idx, *cur, *max);
+		return;
+	}
+	for (i=*cur + 1; i>=(idx + 2); i--) {
+		array[i+1] = array[i];
+	}
+	array[idx + 2] = item;
+	*cur = *cur + 1;
+	return;
+}
+/*}}}*/
 /*{{{  tnode_t *parser_rmfromlist (tnode_t *list, tnode_t *item)*/
 /*
  *	removes an item from a list-node by reference, returns it

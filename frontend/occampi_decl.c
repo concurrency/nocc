@@ -794,6 +794,8 @@ static int occampi_fetrans_procdecl (compops_t *cops, tnode_t **node, fetrans_t 
 {
 	chook_t *deschook = tnode_lookupchookbyname ("fetrans:descriptor");
 	char *dstr = NULL;
+	tnode_t *params, **plist;
+	int i, nparams;
 
 	if (!deschook) {
 		return 1;
@@ -803,7 +805,36 @@ static int occampi_fetrans_procdecl (compops_t *cops, tnode_t **node, fetrans_t 
 		tnode_setchook (*node, deschook, (void *)dstr);
 	}
 
-	return 1;
+	/* do fetrans on the name and parameters */
+	fetrans_subtree (tnode_nthsubaddr (*node, 0), fe);
+	fetrans_subtree (tnode_nthsubaddr (*node, 1), fe);
+
+	params = tnode_nthsubof (*node, 1);
+	/* run through parameters and generate/insert hidden parameters */
+	plist = parser_getlistitems (params, &nparams);
+
+	for (i=0; i<nparams; i++) {
+		tnode_t *param = plist[i];
+		tnode_t *hplist = langops_hiddenparamsof (param);
+
+		if (hplist) {
+			int j, nhparams;
+			tnode_t **hparams = parser_getlistitems (hplist, &nhparams);
+
+			for (j=0; j<nhparams; j++) {
+				i++;
+				parser_insertinlist (params, hparams[j], i);
+				hparams[j] = NULL;
+			}
+			plist = parser_getlistitems (params, &nparams);
+		}
+	}
+
+	/* do fetrans on the PROC body and in-scope process */
+	fetrans_subtree (tnode_nthsubaddr (*node, 2), fe);
+	fetrans_subtree (tnode_nthsubaddr (*node, 3), fe);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int occampi_precheck_procdecl (compops_t *cops, tnode_t *node)*/
@@ -1267,6 +1298,21 @@ static int occampi_getname_fparam (langops_t *lops, tnode_t *node, char **str)
 	return 0;
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_hiddenparamsof_fparam (langops_t *lops, tnode_t *node)*/
+/*
+ *	gets the hidden-parameters associated with a normal formal parameter -- e.g. open-arrays
+ */
+static tnode_t *occampi_hiddenparamsof_fparam (langops_t *lops, tnode_t *node)
+{
+	tnode_t *name = tnode_nthsubof (node, 0);
+	tnode_t *type = tnode_nthsubof (node, 1);
+
+#if 1
+fprintf (stderr, "occampi_hiddenparamsof_fparam(): here!\n");
+#endif
+	return NULL;
+}
+/*}}}*/
 
 
 /*{{{  static void occampi_rawnamenode_hook_free (void *hook)*/
@@ -1685,6 +1731,7 @@ static int occampi_decl_init_nodes (void)
 	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_getdescriptor_fparam));
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_fparam));
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (occampi_getname_fparam));
+	tnode_setlangop (lops, "hiddenparamsof", 1, LANGOPTYPE (occampi_hiddenparamsof_fparam));
 	tnd->lops = lops;
 
 	i = -1;
