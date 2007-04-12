@@ -243,6 +243,22 @@ static int occampi_constprop_vardecl (compops_t *cops, tnode_t **nodep)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_fetrans_vardecl (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
+/*
+ *	does front-end transformations on a variable declaration, for ARRAY types, this includes attaching a dimension list
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_fetrans_vardecl (compops_t *cops, tnode_t **node, fetrans_t *fe)
+{
+	tnode_t *type = tnode_nthsubof (*node, 1);
+	tnode_t *dtree = NULL;
+
+	/* see if the type has a dimension tree */
+	dtree = langops_dimtreeof (type);
+
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_vardecl (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	transforms the name declared into a back-end name
@@ -1212,7 +1228,7 @@ static int occampi_namemap_fparam (compops_t *cops, tnode_t **node, map_t *map)
 	tnode_t *bename;
 	int tsize, indir;
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_namemap_fparam(): here!  target is [%s].  Type is:\n", map->target->name);
 tnode_dumptree (type, 1, stderr);
 #endif
@@ -1341,10 +1357,9 @@ tnode_dumptree (hplist, 1, stderr);
  */
 static int occampi_namemap_hiddennode (compops_t *cops, tnode_t **node, map_t *map)
 {
-	tnode_t **hnodep = tnode_nthsubaddr (*node, 0);
 	tnode_t *bename;
 
-	bename = map->target->newname (*hnodep, NULL, map, map->target->intsize, 0, 0, 0, map->target->intsize, 0);
+	bename = map->target->newname (*node, NULL, map, map->target->intsize, 0, 0, 0, map->target->intsize, 0);
 
 	*node = bename;
 	return 0;
@@ -1618,6 +1633,21 @@ static int occampi_constvalof_namenode (langops_t *lops, tnode_t *node, void *pt
 	return 0;
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_dimtreeof_namenode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the dimension-tree associated with a namenode's type (only makes sense for arrays)
+ *	returns NULL if not relevant
+ */
+static tnode_t *occampi_dimtreeof_namenode (langops_t *lops, tnode_t *node)
+{
+	tnode_t *type = NameTypeOf (tnode_nthnameof (node, 0));
+
+	if (type) {
+		return langops_dimtreeof (type);
+	}
+	return NULL;
+}
+/*}}}*/
 
 
 /*{{{  static void *occampi_arraydiminfo_chook_copy (void *chook)*/
@@ -1701,6 +1731,7 @@ static int occampi_decl_init_nodes (void)
 	tnode_setlangop (lops, "isvar", 1, LANGOPTYPE (occampi_isvar_namenode));
 	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (occampi_isconst_namenode));
 	tnode_setlangop (lops, "constvalof", 2, LANGOPTYPE (occampi_constvalof_namenode));
+	tnode_setlangop (lops, "dimtreeof", 1, LANGOPTYPE (occampi_dimtreeof_namenode));
 	tnd->lops = lops;
 
 	i = -1;
@@ -1749,6 +1780,7 @@ static int occampi_decl_init_nodes (void)
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_vardecl));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_vardecl));
 	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_vardecl));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_vardecl));
 	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_vardecl));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_vardecl));
 	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_precode_vardecl));

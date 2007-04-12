@@ -1,6 +1,6 @@
 /*
  *	occampi_instance.c -- instance (PROC calls, etc.) handling for occampi
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -46,6 +47,7 @@
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
+#include "constprop.h"
 #include "usagecheck.h"
 #include "fetrans.h"
 #include "betrans.h"
@@ -53,6 +55,7 @@
 #include "target.h"
 #include "transputer.h"
 #include "codegen.h"
+#include "langops.h"
 
 /*}}}*/
 
@@ -94,6 +97,8 @@ static builtinproc_t builtins[] = {
 	{"RESCHEDULE", "RESCHEDULE", NULL, NULL, 0, BUILTIN_DS_MIN, builtin_codegen_reschedule, NULL, NULL},
 	{NULL, NULL, NULL, NULL, 0, 0, NULL, NULL, NULL}
 };
+
+static chook_t *chook_matchedformal = NULL;
 
 
 /*}}}*/
@@ -181,6 +186,38 @@ static void builtinproc_fixupmem (builtinproc_t *bpi, target_t *target)
 /*}}}*/
 
 
+/*{{{  static void *occampi_matchedformal_chook_copy (void *chook)*/
+/*
+ *	copies a matchedformal compiler hook
+ */
+static void *occampi_matchedformal_chook_copy (void *chook)
+{
+	return chook;		/* alias */
+}
+/*}}}*/
+/*{{{  static void occampi_matchedformal_chook_free (void *chook)*/
+/*
+ *	frees a matchedformal compiler hook
+ */
+static void occampi_matchedformal_chook_free (void *chook)
+{
+	/* alias, do do nothing */
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_matchedformal_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*
+ *	dumps a matchedformal compiler hook (debugging)
+ */
+static void occampi_matchedformal_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+{
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "<chook:matchedformal addr=\"0x%8.8x\" />\n", (unsigned int)chook);
+	return;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_typecheck_instance (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking for an instance-node
@@ -202,6 +239,7 @@ fprintf (stderr, "occampi_typecheck_instance: aparamlist=\n");
 tnode_dumptree (aparamlist, 1, stderr);
 #endif
 
+	/*{{{  get formal and actual parameter lists*/
 	if (!fparamlist) {
 		fp_items = NULL;
 		fp_nitems = 0;
@@ -217,9 +255,13 @@ tnode_dumptree (aparamlist, 1, stderr);
 	} else if (parser_islistnode (aparamlist)) {
 		ap_items = parser_getlistitems (aparamlist, &ap_nitems);
 	} else {
-		ap_items = &aparamlist;
-		ap_nitems = 1;
+		/* make it a list */
+		aparamlist = parser_buildlistnode (NULL, aparamlist, NULL);
+		tnode_setnthsub (node, 1, aparamlist);			/* change parameters */
+		ap_items = parser_getlistitems (aparamlist, &ap_nitems);
 	}
+
+	/*}}}*/
 
 	for (paramno = 1, fp_ptr = 0, ap_ptr = 0; (fp_ptr < fp_nitems) && (ap_ptr < ap_nitems);) {
 		/*{{{  type-check/type-actual parameter*/
@@ -373,13 +415,99 @@ static int occampi_fetrans_instance (compops_t *cops, tnode_t **node, fetrans_t 
 {
 	tnode_t *fparamlist = typecheck_gettype (tnode_nthsubof (*node, 0), NULL);
 	tnode_t *aparamlist = tnode_nthsubof (*node, 1);
+	tnode_t **fp_items, **ap_items;
+	int fp_nitems, ap_nitems;
+	int fp_ptr, ap_ptr;
+	int paramno;
+	tnode_t *lastaparam = NULL;
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_fetrans_instance: fparamlist=\n");
 tnode_dumptree (fparamlist, 1, stderr);
 fprintf (stderr, "occampi_fetrans_instance: aparamlist=\n");
 tnode_dumptree (aparamlist, 1, stderr);
 #endif
+
+	/*{{{  get formal and actual parameter lists*/
+	if (!fparamlist) {
+		fp_items = NULL;
+		fp_nitems = 0;
+	} else if (parser_islistnode (fparamlist)) {
+		fp_items = parser_getlistitems (fparamlist, &fp_nitems);
+	} else {
+		fp_items = &fparamlist;
+		fp_nitems = 1;
+	}
+	if (!aparamlist) {
+		ap_items = NULL;
+		ap_nitems = 0;
+	} else if (parser_islistnode (aparamlist)) {
+		ap_items = parser_getlistitems (aparamlist, &ap_nitems);
+	} else {
+		nocc_internal ("occampi_fetrans_instance(): actual parameters not a list [%s]", aparamlist->tag->name);
+		ap_items = NULL;
+	}
+	/*}}}*/
+
+	for (paramno = 1, fp_ptr = 0, ap_ptr = 0; fp_ptr < fp_nitems; fp_ptr++) {
+		tnode_t *fparam = fp_items[fp_ptr];
+
+		if ((fparam->tag == opi.tag_FPARAM) || (fparam->tag == opi.tag_VALFPARAM)) {
+			/* skip to next parameter */
+			lastaparam = ap_items[ap_ptr];
+			tnode_setchook (ap_items[ap_ptr], chook_matchedformal, fp_items[fp_ptr]);
+			ap_ptr++;
+			paramno++;
+		} else if (fparam->tag == opi.tag_HIDDENDIMEN) {
+			/* hidden dimension */
+			tnode_t *atype = typecheck_gettype (lastaparam, NULL);
+			tnode_t *adimtree = langops_dimtreeof (lastaparam);
+			tnode_t *fhparm = tnode_nthsubof (fparam, 0);
+
+			if (!adimtree) {
+				nocc_internal ("occampi_fetrans_instance(): hidden formal dimension, but last actual has no dimension tree");
+			}
+
+			if (fhparm->tag == opi.tag_DIMSIZE) {
+				int vdim;
+				tnode_t *dnode = tnode_nthsubof (fhparm, 1);		/* dimension number */
+				tnode_t *dimparam = NULL;
+
+				if (!constprop_isconst (dnode)) {
+					nocc_internal ("occampi_fetrans_instance(): hidden formal dimension with DIMSIZE, but bad dimension tag [%s]", dnode->tag->name);
+				}
+				vdim = constprop_intvalof (dnode);
+
+#if 0
+fprintf (stderr, "occampi_fetrans_instance: got hidden formal dimension with DIMSIZE for dimension %d, last actual was:\n", vdim);
+tnode_dumptree (lastaparam, 1, stderr);
+fprintf (stderr, "occampi_fetrans_instance: last actual dimension tree:\n");
+tnode_dumptree (adimtree, 1, stderr);
+#endif
+				dimparam = parser_getfromlist (adimtree, vdim);
+				if (!dimparam) {
+					tnode_error (*node, "occampi_fetrans_instance(): no dimension %d on actual-parameter [%s]", vdim, lastaparam->tag->name);
+				} else {
+					/* insert this into the list of actual parameters */
+					dimparam = tnode_copytree (dimparam);
+
+					if (!aparamlist) {
+						aparamlist = parser_buildlistnode (NULL, dimparam, NULL);
+						tnode_setnthsub (*node, 1, aparamlist);
+					} else {
+						parser_insertinlist (aparamlist, dimparam, ap_ptr);
+					}
+					tnode_setchook (dimparam, chook_matchedformal, fparam);
+
+					ap_items = parser_getlistitems (aparamlist, &ap_nitems);
+
+					ap_ptr++;
+				}
+			} else {
+				tnode_error (*node, "occampi_fetrans_instance(): unknown HIDDENDIMEN type [%s]", fhparm->tag->name);
+			}
+		}
+	}
 
 	return 1;
 }
@@ -470,14 +598,10 @@ static int occampi_codegen_instance (compops_t *cops, tnode_t *node, codegen_t *
 			int nitems, i, wsoff;
 			tnode_t **items = parser_getlistitems (params, &nitems);
 
-			for (i=nitems - 1, wsoff = -4; i>=0; i--, wsoff -= 4) {
+			for (i=nitems - 1, wsoff = -(cgen->target->slotsize); i>=0; i--, wsoff -= (cgen->target->slotsize)) {
 				codegen_callops (cgen, loadparam, items[i], PARAM_REF);
 				codegen_callops (cgen, storelocal, wsoff);
 			}
-		} else {
-			/* single parameter */
-			codegen_callops (cgen, loadparam, params, PARAM_REF);
-			codegen_callops (cgen, storelocal, -4);
 		}
 
 		codegen_callops (cgen, callnamelabel, name, adjust);
@@ -691,6 +815,13 @@ static int occampi_instance_init_nodes (void)
 			}
 		}
 	}
+
+	/*}}}*/
+	/*{{{  chook:matchedformal compiler hook*/
+	chook_matchedformal = tnode_lookupornewchook ("chook:matchedformal");
+	chook_matchedformal->chook_copy = occampi_matchedformal_chook_copy;
+	chook_matchedformal->chook_free = occampi_matchedformal_chook_free;
+	chook_matchedformal->chook_dumptree = occampi_matchedformal_chook_dumptree;
 
 	/*}}}*/
 
