@@ -1,14 +1,14 @@
 
 -- test_n66.occ -- open array parameters
 
-PROC test.n62 (VAL []BYTE s)
+PROC test.n66 (VAL []BYTE s)
   SEQ
     SKIP
 :
 
 PROC real.test ()
   SEQ
-    test.n62 ("foo")
+    test.n66 ("foo")
 :
 
 

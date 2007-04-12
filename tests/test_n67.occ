@@ -1,0 +1,14 @@
+
+-- test_n67.occ -- channel parameter passing
+
+PROC foo (CHAN BYTE out!)
+  SEQ
+    SKIP
+:
+
+PROC test.n67 (CHAN BYTE scr!)
+  SEQ
+    foo (scr!)
+:
+
+

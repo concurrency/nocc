@@ -574,6 +574,15 @@ static int occampi_typespec_betrans (compops_t *cops, tnode_t **tptr, betrans_t 
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_typespec_isvar (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns non-zero if this node is a variable, zero otherwise
+ */
+static int occampi_typespec_isvar (langops_t *lops, tnode_t *node)
+{
+	return langops_isvar (tnode_nthsubof (node, 0));
+}
+/*}}}*/
 
 
 /*{{{  static tnode_t *occampi_leaftype_gettype (langops_t *lops, tnode_t *t, tnode_t *defaulttype)*/
@@ -1000,6 +1009,7 @@ static int occampi_type_init_nodes (void)
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_typespec_gettype));
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_typespec_typeactual));
 	tnode_setlangop (lops, "occampi_typeattrof", 2, LANGOPTYPE (occampi_typespec_occampi_typeattrof));
+	tnode_setlangop (lops, "isvar", 1, LANGOPTYPE (occampi_typespec_isvar));
 	tnd->lops = lops;
 
 	i = -1;
