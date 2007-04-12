@@ -193,6 +193,7 @@ int map_mapnames (tnode_t **tptr, target_t *target)
 	mdata->mapchook->chook_dumptree = map_namemap_chook_dumptree;
 	mdata->allocevhook = tnode_lookupornewchook ("alloc:extravars");
 	mdata->precodehook = tnode_lookupornewchook ("precode:vars");
+	mdata->inparamlist = 0;
 
 	/* do pre-mapping then real mapping */
 	tnode_modprewalktree (tptr, map_modprewalk_premap, (void *)mdata);

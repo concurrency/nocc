@@ -37,9 +37,9 @@ typedef struct TAG_map {
 
 	DYNARRAY (struct TAG_tnode *, thisblock);		/* indexed by lex-level */
 	DYNARRAY (struct TAG_tnode **, thisprocparams);		/* indexed by lex-level */
-	/* struct TAG_tnode *thisblock;
-	struct TAG_tnode **thisprocparams; */
 	struct TAG_tnode *thisberesult;
+
+	int inparamlist;		/* non-zero if we're mapping parameters */
 } map_t;
 
 

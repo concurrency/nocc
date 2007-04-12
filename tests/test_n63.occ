@@ -1,0 +1,10 @@
+
+-- test_n63.occ -- testing SIZE
+
+PROC test.n63 ()
+  [6]BYTE array:
+  INT x:
+  SEQ
+    x := SIZE array
+:
+

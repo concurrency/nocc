@@ -608,7 +608,6 @@ static int occampi_codegen_instance (compops_t *cops, tnode_t *node, codegen_t *
 fprintf (stderr, "occampi_codegen_instance(): params are:\n");
 tnode_dumptree (params, 1, stderr);
 #endif
-		/* FIXME: load parameters in reverse order, into -4, -8, ... */
 
 		if (!params) {
 			/* no parameters! */
@@ -629,7 +628,9 @@ fprintf (stderr, "occampi_codegen_instance(): matched formal for this parameter 
 tnode_dumptree (formal, 1, stderr);
 #endif
 					if (formal->tag == opi.tag_VALFPARAM) {
-						pmode = PARAM_VAL;
+						tnode_t *ftype = tnode_nthsubof (formal, 1);
+
+						pmode = langops_valbyref (ftype) ? PARAM_REF : PARAM_VAL;
 					} else if (formal->tag == opi.tag_HIDDENDIMEN) {
 						pmode = PARAM_VAL;
 					} else {

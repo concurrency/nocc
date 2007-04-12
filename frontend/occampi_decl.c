@@ -957,7 +957,9 @@ static int occampi_namemap_procdecl (compops_t *cops, tnode_t **node, map_t *map
 
 	/* map formal params and body */
 	paramsptr = tnode_nthsubaddr (*node, 1);
+	map->inparamlist = 1;
 	map_submapnames (paramsptr, map);
+	map->inparamlist = 0;
 	map_submapnames (tnode_nthsubaddr (blk, 0), map);		/* do this under the back-end block */
 
 	map_poplexlevel (map);
@@ -1359,7 +1361,23 @@ static int occampi_namemap_hiddennode (compops_t *cops, tnode_t **node, map_t *m
 {
 	tnode_t *bename;
 
-	bename = map->target->newname (*node, NULL, map, map->target->intsize, 0, 0, 0, map->target->intsize, 0);
+	/*
+	 * if we're in a parameter list, create a real back-end name for this node, otherwise
+	 * generate a back-end name-reference for it
+	 */
+	if (map->inparamlist) {
+		bename = map->target->newname (*node, NULL, map, map->target->intsize, 0, 0, 0, map->target->intsize, 0);
+		tnode_setchook (*node, map->mapchook, (void *)bename);
+	} else {
+		tnode_t *rname = (tnode_t *)tnode_getchook (*node, map->mapchook);
+
+		if (!rname) {
+			nocc_internal ("occampi_namemap_hiddennode(): not in parameters, and no mapchook linkage");
+			return 0;
+		}
+
+		bename = map->target->newnameref (rname, map);
+	}
 
 	*node = bename;
 	return 0;

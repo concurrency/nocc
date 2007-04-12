@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -49,6 +50,7 @@
 #include "prescope.h"
 #include "typecheck.h"
 #include "constprop.h"
+#include "fetrans.h"
 #include "precheck.h"
 #include "usagecheck.h"
 #include "map.h"
@@ -710,6 +712,15 @@ static tnode_t *occampi_getsubtype_arraynode (langops_t *lops, tnode_t *node, tn
 	return subtype;
 }
 /*}}}*/
+/*{{{  static int occampi_valbyref_arraynode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns non-zero if VALs of this type should be handled by reference (true for arrays)
+ */
+static int occampi_valbyref_arraynode (langops_t *lops, tnode_t *node)
+{
+	return 1;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_dimtreeof_arraynode (langops_t *lops, tnode_t *node)*/
 /*
  *	returns the dimension tree (list) for an array type
@@ -850,6 +861,40 @@ fprintf (stderr, "occampi_constprop_arraymop(): constant dimension! = %d\n", dim
 #endif
 		*nodep = constprop_newconst (CONST_INT, *nodep, NULL, dim);
 	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_fetrans_arraymop (compops_t *cops, tnode_t **nodep, fetrans_t *fe)*/
+/*
+ *	does front-end transformations on an arraymopnode
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_fetrans_arraymop (compops_t *cops, tnode_t **nodep, fetrans_t *fe)
+{
+	tnode_t *optype = typecheck_gettype (tnode_nthsubof (*nodep, 0), NULL);
+	tnode_t *dimtree;
+
+	if (!optype) {
+		nocc_internal ("occampi_fetrans_arraymop(): NULL operand type!");
+		return 0;
+	}
+	dimtree = langops_dimtreeof (optype);
+	if (!dimtree) {
+		nocc_internal ("occampi_fetrans_arraymop(): NULL dimension tree for array operand!");
+		return 0;
+	}
+
+	if ((*nodep)->tag == opi.tag_SIZE) {
+#if 0
+fprintf (stderr, "occampi_fetrans_arraymop(): SIZE: dimension-tree of operand:\n");
+tnode_dumptree (dimtree, 1, stderr);
+#endif
+		/* always going to be the first dimension */
+		*nodep = parser_getfromlist (dimtree, 0);
+	} else {
+		nocc_internal ("occampi_fetrans_arraymop(): unexpected operator [%s]", (*nodep)->tag->name);
+	}
+
 	return 1;
 }
 /*}}}*/
@@ -1663,6 +1708,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_typeactual_arraynode));
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_arraynode));
 	tnode_setlangop (lops, "getsubtype", 2, LANGOPTYPE (occampi_getsubtype_arraynode));
+	tnode_setlangop (lops, "valbyref", 1, LANGOPTYPE (occampi_valbyref_arraynode));
 	tnode_setlangop (lops, "dimtreeof", 1, LANGOPTYPE (occampi_dimtreeof_arraynode));
 	tnode_setlangop (lops, "hiddenparamsof", 1, LANGOPTYPE (occampi_hiddenparamsof_arraynode));
 	tnd->lops = lops;
@@ -1677,6 +1723,7 @@ static int occampi_dtype_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_arraymop));
 	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_arraymop));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_arraymop));
 	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_arraymop));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_arraymop));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_arraymop));

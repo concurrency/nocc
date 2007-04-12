@@ -1,0 +1,9 @@
+
+-- test_n64.occ -- testing SIZE
+
+PROC test.n64 (VAL []BYTE s)
+  INT x:
+  SEQ
+    x := SIZE s
+:
+
