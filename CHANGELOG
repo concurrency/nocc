@@ -1,4 +1,6 @@
 
+13/04/2007	frmb	started work on constraint/assertion handling
+12/04/2007	frmb	various work on type-checks and array handling
 09/04/2007	frmb	various constant-propagation updates
 04/04/2007	frmb	more updates, added type-resolve pass to compiler
 25/03/2007	frmb	various updates for parsing occam2, and various other things

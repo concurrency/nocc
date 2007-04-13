@@ -50,12 +50,13 @@
 #include "langdef.h"
 #include "langdeflookup.h"
 #include "dfa.h"
+#include "tnode.h"
 #include "prescope.h"
 #include "precheck.h"
 #include "scope.h"
 #include "typecheck.h"
 #include "constprop.h"
-#include "tnode.h"
+#include "constraint.h"
 #include "treecheck.h"
 #include "names.h"
 #include "treeops.h"
@@ -219,6 +220,9 @@ static int nocc_shutdownrun (void)
 		v++;
 	}
 	if (precheck_shutdown ()) {
+		v++;
+	}
+	if (constraint_shutdown ()) {
 		v++;
 	}
 	if (constprop_shutdown ()) {
@@ -1356,6 +1360,7 @@ int main (int argc, char **argv)
 	treeops_init ();
 	library_init ();
 	constprop_init ();
+	constraint_init ();
 	precheck_init ();
 	aliascheck_init ();
 	usagecheck_init ();
