@@ -1440,7 +1440,24 @@ static int occampi_iscomplex_slice (langops_t *lops, tnode_t *node, int deep)
 	return 1;		/* assume these are complex */
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_dimtreeof_slice (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the dimension tree of an array-slice
+ */
+static tnode_t *occampi_dimtreeof_slice (langops_t *lops, tnode_t *node)
+{
+	tnode_t *type = tnode_nthsubof (node, 3);
 
+#if 0
+fprintf (stderr, "occampi_dimtreeof_slice(): node is:\n");
+tnode_dumptree (node, 1, stderr);
+#endif
+	if (type) {
+		return langops_dimtreeof (type);
+	}
+	return NULL;
+}
+/*}}}*/
 
 
 /*{{{  static tnode_t *occampi_gettype_nametypenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
@@ -1795,6 +1812,7 @@ static int occampi_dtype_init_nodes (void)
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_slice));
 	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_iscomplex_slice));
+	tnode_setlangop (lops, "dimtreeof", 1, LANGOPTYPE (occampi_dimtreeof_slice));
 	tnd->lops = lops;
 
 	i = -1;

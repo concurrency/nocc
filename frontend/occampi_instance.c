@@ -262,6 +262,10 @@ tnode_dumptree (aparamlist, 1, stderr);
 	}
 
 	/*}}}*/
+	/*{{{  type-check actual parameters*/
+	typecheck_subtree (aparamlist, tc);
+
+	/*}}}*/
 
 	for (paramno = 1, fp_ptr = 0, ap_ptr = 0; (fp_ptr < fp_nitems) && (ap_ptr < ap_nitems);) {
 		/*{{{  type-check/type-actual parameter*/
@@ -278,6 +282,7 @@ tnode_dumptree (aparamlist, 1, stderr);
 			ap_ptr++;
 			continue;
 		}
+
 		ftype = typecheck_gettype (fp_items[fp_ptr], NULL);
 		atype = typecheck_gettype (ap_items[ap_ptr], ftype);
 
@@ -470,7 +475,7 @@ tnode_dumptree (aparamlist, 1, stderr);
 			tnode_t *fhparm = tnode_nthsubof (fparam, 0);
 
 			if (!adimtree) {
-				nocc_internal ("occampi_fetrans_instance(): hidden formal dimension, but last actual has no dimension tree");
+				nocc_internal ("occampi_fetrans_instance(): hidden formal dimension, but last actual [%s] has no dimension tree", lastaparam->tag->name);
 			}
 
 			if (fhparm->tag == opi.tag_DIMSIZE) {
