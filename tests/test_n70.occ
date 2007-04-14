@@ -2,7 +2,7 @@
 -- test_n70.occ -- multiple array dimensions
 
 PROC test.n70 ()
-  [4][5]INT x:
+  [4][6]INT x:
   SEQ
     SKIP
 :

@@ -323,7 +323,8 @@
 	"[ 14 occampi:protocol 15 ]"
 	"[ 15 {<opi:portpush>} -* 3 ]"
 	"[ 16 occampi:operand 17 ] [ 17 @@: 18 ] [ 18 {<opi:retypesreduce>} -* ]"
-.TABLE	"occampi:vardecl:bracketstart ::= [ 0 occampi:arrayspec 1 ] [ 1 occampi:vardecl 2 ] [ 2 {Roccampi:arrayfold} -* ]"
+.TABLE	"occampi:vardecl:bracketstart ::= [ 0 occampi:arrayspec 1 ] [ 1 -@@[ 3 ] [ 1 occampi:vardecl 2 ] [ 2 {Roccampi:arrayfold} -* ]"
+	"[ 3 occampi:vardecl:bracketstart 4 ] [ 4 {Roccampi:arrayfold} -* ]"
 
 .TABLE	"occampi:procdecl ::= [ 0 +@PROC 6 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:procdeclreduce>} -* ]"
 	"[ 6 +@TYPE 7 ] [ 6 -* 8 ] [ 7 {<parser:rewindtokens>} -* <occampi:proctypedecl> ] [ 8 {<parser:eattoken>} -* 1 ]"
