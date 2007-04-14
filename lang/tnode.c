@@ -393,7 +393,6 @@ int tnode_init (void)
 	tnode_newlangop ("iscomplex", LOPS_ISCOMPLEX, 2, INTERNAL_ORIGIN);
 	tnode_newlangop ("constvalof", LOPS_CONSTVALOF, 2, INTERNAL_ORIGIN);
 	tnode_newlangop ("valbyref", LOPS_VALBYREF, 1, INTERNAL_ORIGIN);
-	tnode_newlangop ("parambyref", LOPS_PARAMBYREF, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("initsizes", LOPS_INITSIZES, 7, INTERNAL_ORIGIN);
 	tnode_newlangop ("initialising_decl", LOPS_INITIALISING_DECL, 3, INTERNAL_ORIGIN);
 	tnode_newlangop ("codegen_typeaction", LOPS_CODEGEN_TYPEACTION, 3, INTERNAL_ORIGIN);
@@ -404,6 +403,8 @@ int tnode_init (void)
 	tnode_newlangop ("retypeconst", LOPS_RETYPECONST, 2, INTERNAL_ORIGIN);
 	tnode_newlangop ("dimtreeof", LOPS_DIMTREEOF, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("hiddenparamsof", LOPS_HIDDENPARAMSOF, 1, INTERNAL_ORIGIN);
+	tnode_newlangop ("hiddenslotsof", LOPS_HIDDENSLOTSOF, 1, INTERNAL_ORIGIN);
+	tnode_newlangop ("typehash", LOPS_TYPEHASH, 3, INTERNAL_ORIGIN);
 
 	/*}}}*/
 	/*{{{  setup the static node types*/

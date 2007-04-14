@@ -655,17 +655,19 @@ static int occampi_bytesfor_arraynode (langops_t *lops, tnode_t *node, target_t 
 {
 	tnode_t *dim = tnode_nthsubof (node, 0);
 	tnode_t *subtype = tnode_nthsubof (node, 1);
-	int stbytes;
 
-	stbytes = tnode_bytesfor (subtype, target);
 	if (langops_isconst (dim)) {
-		stbytes *= langops_constvalof (dim, NULL);
-	} else {
-		tnode_warning (node, "occampi_bytesfor_arraynode(): non-constant dimension!");
-		stbytes = -1;
+		int subbytes = tnode_bytesfor (subtype, target);
+
+		if (subbytes >= 0) {
+			int stbytes = langops_constvalof (dim, NULL) * subbytes;
+
+			return stbytes;
+		}
 	}
 
-	return stbytes;
+	/* don't know -- run-time */
+	return -1;
 }
 /*}}}*/
 /*{{{  static int occampi_getdescriptor_arraynode (langops_t *lops, tnode_t *node, char **str)*/
@@ -785,6 +787,33 @@ tnode_dumptree (dimtree, 1, stderr);
 #endif
 
 	return hparams;
+}
+/*}}}*/
+/*{{{  static int occampi_hiddenslotsof_arraynode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the number of hidden slots required by abbreviations or declarations of array types
+ */
+static int occampi_hiddenslotsof_arraynode (langops_t *lops, tnode_t *node)
+{
+	tnode_t *dimtree = langops_dimtreeof (node);
+	int i, nditems;
+	tnode_t **dlist;
+	int c = 0;
+
+	if (!dimtree) {
+		nocc_internal ("occampi_hiddenslotsof_arraynode(): got NULL dimension tree for array!");
+		return 0;
+	}
+
+	dlist = parser_getlistitems (dimtree, &nditems);
+	for (i=0; i<nditems; i++) {
+		if (!dlist[i]) {
+			/* unknown dimension, needs extra slot */
+			c++;
+		}
+	}
+
+	return c;
 }
 /*}}}*/
 
@@ -1728,6 +1757,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setlangop (lops, "valbyref", 1, LANGOPTYPE (occampi_valbyref_arraynode));
 	tnode_setlangop (lops, "dimtreeof", 1, LANGOPTYPE (occampi_dimtreeof_arraynode));
 	tnode_setlangop (lops, "hiddenparamsof", 1, LANGOPTYPE (occampi_hiddenparamsof_arraynode));
+	tnode_setlangop (lops, "hiddenslotsof", 1, LANGOPTYPE (occampi_hiddenslotsof_arraynode));
 	tnd->lops = lops;
 
 	i = -1;

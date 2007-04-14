@@ -252,6 +252,21 @@ tnode_t *langops_hiddenparamsof (tnode_t *node)
 	return hp;
 }
 /*}}}*/
+/*{{{  int langops_hiddenslotsof (tnode_t *node)*/
+/*
+ *	returns the number of hidden slots required for abbreviations or declarations (called on the type)
+ *	returns 0 if not relevant
+ */
+int langops_hiddenslotsof (tnode_t *node)
+{
+	int n = 0;
+
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_HIDDENSLOTSOF)) {
+		n = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_HIDDENSLOTSOF, 1, node);
+	}
+	return n;
+}
+/*}}}*/
 /*{{{  int langops_typehash (tnode_t *node, const int hsize, void *ptr)*/
 /*
  *	generates a type-hash for the specified node (width in bytes and a pointer to suitable buffer are given)
@@ -259,8 +274,6 @@ tnode_t *langops_hiddenparamsof (tnode_t *node)
  */
 int langops_typehash (tnode_t *node, const int hsize, void *ptr)
 {
-	tnode_t *hp = NULL;
-
 	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_TYPEHASH)) {
 		return tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_TYPEHASH, 3, node, hsize, ptr);
 	}

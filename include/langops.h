@@ -35,6 +35,7 @@ extern int langops_iscomplex (struct TAG_tnode *node, int deep);
 extern struct TAG_tnode *langops_retypeconst (struct TAG_tnode *node, struct TAG_tnode *type);
 extern struct TAG_tnode *langops_dimtreeof (struct TAG_tnode *node);
 extern struct TAG_tnode *langops_hiddenparamsof (struct TAG_tnode *node);
+extern int langops_hiddenslotsof (struct TAG_tnode *node);
 extern int langops_typehash (struct TAG_tnode *node, const int hsize, void *ptr);
 
 
