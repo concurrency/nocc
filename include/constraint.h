@@ -20,6 +20,15 @@
 #ifndef __CONSTRAINT_H
 #define __CONSTRAINT_H
 
+struct TAG_tnode;
+struct TAG_tndef;
+struct TAG_ntdef;
+
+
+typedef struct TAG_cnstrlang {
+	struct TAG_ntdef *tag_CVAR;	
+} cnstrlang_t;
+
 
 extern int constraint_init (void);
 extern int constraint_shutdown (void);
