@@ -195,6 +195,8 @@ typedef struct {
 
 	struct TAG_ntdef *tag_VARCONSTCONSTRUCTOR;
 
+	struct TAG_ntdef *tag_PARAMTYPE;
+
 	struct TAG_token *tok_COLON;
 	struct TAG_token *tok_INPUT;
 	struct TAG_token *tok_OUTPUT;
@@ -259,6 +261,7 @@ extern struct TAG_feunit occampi_lit_feunit;			/* occampi_lit.c */
 extern struct TAG_feunit occampi_type_feunit;			/* occampi_type.c */
 extern struct TAG_feunit occampi_instance_feunit;		/* occampi_instance.c */
 extern struct TAG_feunit occampi_dtype_feunit;			/* occampi_dtype.c */
+extern struct TAG_feunit occampi_ptype_feunit;			/* occampi_ptype.c */
 extern struct TAG_feunit occampi_oper_feunit;			/* occampi_oper.c */
 extern struct TAG_feunit occampi_function_feunit;		/* occampi_function.c */
 extern struct TAG_feunit occampi_mobiles_feunit;		/* occampi_mobiles.c */

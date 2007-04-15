@@ -1,0 +1,14 @@
+
+-- test_n71.occ -- testing arrays in record types
+
+DATA TYPE FOO
+  RECORD
+    [4]INT vals:
+    BYTE ch:
+:
+
+PROC test.n71 ()
+  SEQ
+    SKIP
+:
+

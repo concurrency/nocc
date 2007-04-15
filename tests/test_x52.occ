@@ -1,0 +1,15 @@
+
+-- test_x52.occ -- parameterised types
+
+DATA TYPE FOO (VAL INT v)
+  RECORD
+    [v]INT data:
+:
+
+PROC test.x52 ()
+  FOO (3) x:
+  SEQ
+    SKIP
+:
+
+
