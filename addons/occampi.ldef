@@ -374,6 +374,7 @@
 .GRULE	"opi:fieldreduce" "SN1N+N+C[FIELDDECL]2R-"
 .GRULE	"opi:resultpush" "R+N-"
 .GRULE	"opi:arrayspec" "SN0N+0C[ARRAY]2R-"
+.GRULE	"opi:makearray" "SN0N+0C[ARRAY]2N-"
 .GRULE	"opi:emptyarrayspec" "ST0T+@t00C[ARRAY]2R-"
 .GRULE	"opi:arraytypereduce" "SN0N+N+VC[ARRAY]2R-"
 .GRULE	"opi:ctmarkinput" "N+N+Sn10C[ASINPUT]2N-N-"
@@ -389,10 +390,10 @@
 
 
 .TABLE	"occampi:subtspec ::= [ 0 -@@[ 4 ] [ 0 occampi:primtype 1 ] [ 1 occampi:namelist 2 ] [ 2 @@: 3 ] [ 3 {<opi:fieldreduce>} -* ]"
-	"[ 4 occampi:arraysubtspec 5 ] [ 5 occampi:namelist 6 ] [ 6 @@: 7 ] [ 7 {<opi:fieldreduce>} -* ]"
+	"[ 4 occampi:arraysubtspec 5 ] [ 5 {<opi:nullreduce>} -* ]"
 .TABLE	"occampi:subtspeclist ::= [ 0 occampi:subtspec 1 ] [ 1 {<parser:nullreduce>} ] [ 1 Newline 2 ] [ 1 -* 4 ] [ 2 {Rinlist} ] [ 2 occampi:subtspec 1 ]"
 	"[ 2 -* 3 ] [ 3 {Roccampi:resetnewline} ] [ 3 -* 4 ] [ 4 -* ]"
-.TABLE	"occampi:arraysubtspec ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 occampi:primtype 4 ] [ 4 {Roccampi:arrayfold} -* ]"
+.TABLE	"occampi:arraysubtspec ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:makearray>} @@] 3 ] [ 3 occampi:subtspec 4 ] [ 4 {Roccampi:arrayfold} -* ]"
 
 # FIXME: will only handle single channels in this..
 .TABLE	"occampi:subctspec ::= [ 0 @CHAN 4 ] [ 0 occampi:primtype 1 ] [ 1 occampi:name 2 ] [ 2 @@! 7 ] [ 2 @@? 6 ] [ 2 @@: 3 ] [ 3 {<opi:fieldreduce>} -* ]"

@@ -653,7 +653,7 @@ void tnode_setnthsub (tnode_t *t, int i, tnode_t *subnode)
 	}
 	tnd = t->tag->ndef;
 	if (i >= tnd->nsub) {
-		nocc_internal ("tnode_setnthsub(): attempt to set subnode %d of %d", i, tnd->nsub);
+		nocc_internal ("tnode_setnthsub(): attempt to set subnode %d of %d in [%s,%s]", i, tnd->nsub, t->tag->name, tnd->name);
 		return;
 	}
 
