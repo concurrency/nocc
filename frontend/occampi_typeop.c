@@ -69,6 +69,9 @@
  */
 static int occampi_typeop_typecheck (compops_t *cops, tnode_t *tptr, typecheck_t *tc)
 {
+	if (!typecheck_istype (tnode_nthsubof (tptr, 0))) {
+		typecheck_error (tptr, tc, "operand is not a type");
+	}
 	return 1;
 }
 /*}}}*/
@@ -100,7 +103,7 @@ static int occampi_typeop_namemap (compops_t *cops, tnode_t **tptr, map_t *map)
  */
 static tnode_t *occampi_typeop_gettype (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
-	return defaulttype;
+	return tnode_nthsubof (node, 1);
 }
 /*}}}*/
 

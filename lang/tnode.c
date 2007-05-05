@@ -390,6 +390,7 @@ int tnode_init (void)
 	tnode_newlangop ("issigned", LOPS_ISSIGNED, 2, INTERNAL_ORIGIN);
 	tnode_newlangop ("isconst", LOPS_ISCONST, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("isvar", LOPS_ISVAR, 1, INTERNAL_ORIGIN);
+	tnode_newlangop ("istype", LOPS_ISTYPE, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("iscomplex", LOPS_ISCOMPLEX, 2, INTERNAL_ORIGIN);
 	tnode_newlangop ("constvalof", LOPS_CONSTVALOF, 2, INTERNAL_ORIGIN);
 	tnode_newlangop ("valbyref", LOPS_VALBYREF, 1, INTERNAL_ORIGIN);

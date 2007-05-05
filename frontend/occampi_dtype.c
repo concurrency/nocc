@@ -816,6 +816,15 @@ static int occampi_hiddenslotsof_arraynode (langops_t *lops, tnode_t *node)
 	return c;
 }
 /*}}}*/
+/*{{{  static int occampi_istype_arraynode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns non-zero if the specified node is a type (always)
+ */
+static int occampi_istype_arraynode (langops_t *lops, tnode_t *node)
+{
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_typecheck_arraymop (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
@@ -1611,7 +1620,24 @@ tnode_dumptree (benode, 4, stderr);
 	return 0;
 }
 /*}}}*/
-
+/*{{{  static int occampi_istype_nametypenode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns non-zero if the specified node is a type
+ */
+static int occampi_istype_nametypenode (langops_t *lops, tnode_t *node)
+{
+	if (node->tag == opi.tag_NDATATYPEDECL) {
+		return 1;
+	} else if (node->tag == opi.tag_NFIELD) {
+		return 0;
+	} else if (node->tag == opi.tag_NCHANTYPEDECL) {
+		return 1;
+	} else if (node->tag == opi.tag_NPROCTYPEDECL) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static void occampi_reduce_resetnewline (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
@@ -1758,6 +1784,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setlangop (lops, "dimtreeof", 1, LANGOPTYPE (occampi_dimtreeof_arraynode));
 	tnode_setlangop (lops, "hiddenparamsof", 1, LANGOPTYPE (occampi_hiddenparamsof_arraynode));
 	tnode_setlangop (lops, "hiddenslotsof", 1, LANGOPTYPE (occampi_hiddenslotsof_arraynode));
+	tnode_setlangop (lops, "istype", 1, LANGOPTYPE (occampi_istype_arraynode));
 	tnd->lops = lops;
 
 	i = -1;
@@ -1874,6 +1901,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_nametypenode));
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (occampi_getname_nametypenode));
 	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_initialising_decl_nametypenode));
+	tnode_setlangop (lops, "istype", 1, LANGOPTYPE (occampi_istype_nametypenode));
 	tnd->lops = lops;
 
 	i = -1;

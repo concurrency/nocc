@@ -305,6 +305,26 @@ int typecheck_cantypecast (tnode_t *node, tnode_t *srctype)
 	return 0;
 }
 /*}}}*/
+/*{{{  int typecheck_istype (tnode_t *node)*/
+/*
+ *	returns non-zero if the specified node is a type
+ */
+int typecheck_istype (tnode_t *node)
+{
+	if (!node) {
+		return 0;
+	}
+	if (node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_ISTYPE)) {
+		if (compopts.tracetypecheck) {
+			/*{{{  report attempted is-type-check*/
+			nocc_message ("typecheck_istype(): checking whether (%s,%s) is a type", node->tag->ndef->name, node->tag->name);
+			/*}}}*/
+		}
+		return tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_ISTYPE, 1, node);
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  int typecheck_subtree (tnode_t *t, typecheck_t *tc)*/
 /*
  *	performs a sub type-check

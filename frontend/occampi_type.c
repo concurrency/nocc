@@ -691,6 +691,15 @@ static int occampi_leaftype_issigned (langops_t *lops, tnode_t *t, target_t *tar
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_leaftype_istype (langops_t *lops, tnode_t *t)*/
+/*
+ *	returns non-zero if this a type node (always)
+ */
+static int occampi_leaftype_istype (langops_t *lops, tnode_t *t)
+{
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_leaftype_getdescriptor (langops_t *lops, tnode_t *node, char **str)*/
 /*
  *	gets descriptor information for a leaf-type
@@ -1027,6 +1036,7 @@ static int occampi_type_init_nodes (void)
 	tnode_setlangop (lops, "cantypecast", 2, LANGOPTYPE (occampi_leaftype_cantypecast));
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_leaftype_bytesfor));
 	tnode_setlangop (lops, "issigned", 2, LANGOPTYPE (occampi_leaftype_issigned));
+	tnode_setlangop (lops, "istype", 1, LANGOPTYPE (occampi_leaftype_istype));
 	tnode_setlangop (lops, "retypeconst", 2, LANGOPTYPE (occampi_leaftype_retypeconst));
 	tnode_setlangop (lops, "codegen_typerangecheck", 2, LANGOPTYPE (occampi_leaftype_codegen_typerangecheck));
 	tnd->lops = lops;

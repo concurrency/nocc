@@ -44,6 +44,7 @@ extern struct TAG_tnode *typecheck_typeactual (struct TAG_tnode *formaltype, str
 extern struct TAG_tnode *typecheck_fixedtypeactual (struct TAG_tnode *formaltype, struct TAG_tnode *actualtype, struct TAG_tnode *node, typecheck_t *tc, const int deep);
 extern struct TAG_tnode *typecheck_typereduce (struct TAG_tnode *type);
 extern int typecheck_cantypecast (struct TAG_tnode *node, struct TAG_tnode *srctype);
+extern int typecheck_istype (struct TAG_tnode *node);
 
 extern int typeresolve_subtree (struct TAG_tnode **tptr, typecheck_t *tc);
 extern int typeresolve_tree (struct TAG_tnode **tptr, struct TAG_langparser *lang);

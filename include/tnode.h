@@ -157,21 +157,22 @@ typedef enum ENUM_langops {
 	LOPS_ISSIGNED = 10,			/* 2: tnode_t *, target_t * -> int */
 	LOPS_ISCONST = 11,			/* 1: tnode_t * -> int */
 	LOPS_ISVAR = 12,			/* 1: tnode_t * -> int */
-	LOPS_ISCOMPLEX = 13,			/* 2: tnode_t *, int -> int */
-	LOPS_CONSTVALOF = 14,			/* 2: tnode_t *, void * -> int */
-	LOPS_VALBYREF = 15,			/* 1: tnode_t * -> int */
-	LOPS_INITSIZES = 16,			/* 7: tnode_t *, tnode_t *, int *, int *, int *, int *, map_t * -> int */
-	LOPS_INITIALISING_DECL = 17,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
-	LOPS_CODEGEN_TYPEACTION = 18,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
-	LOPS_CODEGEN_TYPERANGECHECK = 19,	/* 2: tnode_t *, codegen_t * -> int */
-	LOPS_CODEGEN_ALTENABLE = 20,		/* 3: tnode_t *, int, codegen_t * -> int */
-	LOPS_CODEGEN_ALTDISABLE = 21,		/* 4: tnode_t *, int, int, codegen_t * -> int */
-	LOPS_PREMAP_TYPEFORVARDECL = 22,	/* 3: tnode_t *, tnode_t *, map_t * -> int */
-	LOPS_RETYPECONST = 23,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
-	LOPS_DIMTREEOF = 24,			/* 1: tnode_t * -> tnode_t * */
-	LOPS_HIDDENPARAMSOF = 25,		/* 1: tnode_t * -> tnode_t * */
-	LOPS_HIDDENSLOTSOF = 26,		/* 1: tnode_t * -> int */
-	LOPS_TYPEHASH = 27,			/* 3: tnode_t *, int, void * -> int */
+	LOPS_ISTYPE = 13,			/* 1: tnode_t * -> int */
+	LOPS_ISCOMPLEX = 14,			/* 2: tnode_t *, int -> int */
+	LOPS_CONSTVALOF = 15,			/* 2: tnode_t *, void * -> int */
+	LOPS_VALBYREF = 16,			/* 1: tnode_t * -> int */
+	LOPS_INITSIZES = 17,			/* 7: tnode_t *, tnode_t *, int *, int *, int *, int *, map_t * -> int */
+	LOPS_INITIALISING_DECL = 18,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
+	LOPS_CODEGEN_TYPEACTION = 19,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
+	LOPS_CODEGEN_TYPERANGECHECK = 20,	/* 2: tnode_t *, codegen_t * -> int */
+	LOPS_CODEGEN_ALTENABLE = 21,		/* 3: tnode_t *, int, codegen_t * -> int */
+	LOPS_CODEGEN_ALTDISABLE = 22,		/* 4: tnode_t *, int, int, codegen_t * -> int */
+	LOPS_PREMAP_TYPEFORVARDECL = 23,	/* 3: tnode_t *, tnode_t *, map_t * -> int */
+	LOPS_RETYPECONST = 24,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
+	LOPS_DIMTREEOF = 25,			/* 1: tnode_t * -> tnode_t * */
+	LOPS_HIDDENPARAMSOF = 26,		/* 1: tnode_t * -> tnode_t * */
+	LOPS_HIDDENSLOTSOF = 27,		/* 1: tnode_t * -> int */
+	LOPS_TYPEHASH = 28,			/* 3: tnode_t *, int, void * -> int */
 	LOPS_MAX = 256
 } langops_e;
 
