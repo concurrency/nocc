@@ -1,4 +1,5 @@
 
+05/05/2007	frmb	some work on MOSTNEG/MOSTPOS operators
 13/04/2007	frmb	started work on constraint/assertion handling
 12/04/2007	frmb	various work on type-checks and array handling
 09/04/2007	frmb	various constant-propagation updates

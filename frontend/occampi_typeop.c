@@ -72,6 +72,16 @@ static int occampi_typeop_typecheck (compops_t *cops, tnode_t *tptr, typecheck_t
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_typeop_constprop (compops_t *cops, tnode_t **tptr)*/
+/*
+ *	does constant-propagation on a type operator node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typeop_constprop (compops_t *cops, tnode_t **tptr)
+{
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_typeop_namemap (compops_t *cops, tnode_t **tptr, map_t *map)*/
 /*
  *	does name-mapping on a type operator node
@@ -112,6 +122,7 @@ static int occampi_typeop_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:typeopnode", &i, 2, 0, 0, TNF_NONE);					/* subnodes: 0 = operand, 1 = type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typeop_typecheck));
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_typeop_constprop));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_typeop_namemap));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
