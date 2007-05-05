@@ -118,6 +118,7 @@ static feunit_t *feunit_set[] = {
 	&occampi_action_feunit,
 	&occampi_lit_feunit,
 	&occampi_type_feunit,
+	&occampi_typeop_feunit,
 	&occampi_instance_feunit,
 	&occampi_oper_feunit,
 	&occampi_function_feunit,
@@ -796,6 +797,8 @@ restartpoint:
 	 * -- this is not strictly valid occam-pi, but we'll allow it for programmer convenience (with a warning)
 	 */
 	while ((tok->type == OUTDENT) || (tok->type == INDENT)) {
+		int dostopi = 0;
+
 		if (tok->type == OUTDENT) {
 			int lineno = tok->lineno;
 
@@ -813,8 +816,15 @@ restartpoint:
 			lexer_pushback (lf, tok);
 			if (check_indented_comment (lf)) {
 				/* if we swallowed it up, fine :) */
+			} else {
+				/* else don't check indent again */
+				dostopi = 1;
 			}
 			tok = lexer_nexttoken (lf);
+		}
+
+		if ((tok->type == INDENT) && dostopi) {
+			break;
 		}
 	}
 

@@ -1,0 +1,9 @@
+
+-- test_n72.occ -- out.int
+
+PROC out.int (VAL INT n, VAL INT field, CHAN BYTE out!)
+  IF
+    n = (MOSTNEG INT)
+      SKIP
+:
+

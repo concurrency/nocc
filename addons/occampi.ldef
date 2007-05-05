@@ -571,6 +571,15 @@
 
 
 # }}}
+.SECTION "occampi-typeop" # {{{
+
+.GRULE	"opi:mostposreduce" "ST0T+@tN+0C[MOSTPOS]2R-"
+.GRULE	"opi:mostnegreduce" "ST0T+@tN+0C[MOSTNEG]2R-"
+
+.TABLE	"occampi:expr +:= [ 0 +@MOSTPOS 1 ] [ 0 +@MOSTNEG 3 ] [ 1 occampi:namedtype 2 ] [ 2 {<opi:mostposreduce>} -* ]"
+	"[ 3 occampi:namedtype 4 ] [ 4 {<opi:mostnegreduce>} -* ]"
+
+# }}}
 .SECTION "occampi-type" # {{{: primitive, channels and ports
 
 .GRULE	"opi:chanpush" "N+Sn00C[CHAN]2N-"
@@ -584,6 +593,7 @@
 	"[ 2 occampi:arraytypetype 3 ]"
 	"[ 3 {<opi:nullreduce>} -* ]"
 .TABLE	"occampi:type ::= [ 0 occampi:primtype 1 ] [ 1 {<opi:nullreduce>} -* ]"
+.BNF	"occampi:namedtype ::= ( occampi:type | occampi:name ) {<opi:nullreduce>}"
 .BNF	"occampi:typecommalist ::= { occampi:type @@, 1 }"
 .TABLE	"occampi:declorprocstart +:= [ 0 @PLACED 1 ] [ 1 @PORT 2 ] [ 1 -@@[ 7 ]"
 	"[ 2 occampi:protocol 3 ] [ 3 occampi:name 4 ]"

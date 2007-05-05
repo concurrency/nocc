@@ -3,7 +3,7 @@
 
 DATA TYPE FOO
   RECORD
-    [4]INT vals:
+    [3][4]INT vals:
     BYTE ch:
 :
 
