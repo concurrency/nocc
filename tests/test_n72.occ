@@ -1,9 +1,47 @@
 
 -- test_n72.occ -- out.int
 
+
 PROC out.int (VAL INT n, VAL INT field, CHAN BYTE out!)
   IF
     n = (MOSTNEG INT)
       SKIP
+    n = 0
+      SEQ
+        IF
+          field > 1
+            SKIP
+          TRUE
+            SKIP
+        out ! '0'
+    TRUE
+      VAL INT max.digits IS 20:
+      [max.digits]INT D:
+      INT x, i:
+      SEQ
+        IF
+          n < 0
+            x := -n
+          TRUE
+            x := n
+
+        SEQ
+          i := 0
+          WHILE x > 0
+            SEQ
+              D[i] := x \ 10
+              x := x / 10
+              i := i + 1
+        IF
+          n > 0
+            SKIP
+          TRUE
+            SEQ
+              SKIP
+              out ! '-'
+        WHILE i > 0
+          SEQ
+            i := i - 1
+            out ! BYTE (D[i] + (INT '0'))
 :
 

@@ -337,6 +337,7 @@ typecat_e typecheck_typetype (tnode_t *node)
 	if (node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_TYPETYPE)) {
 		return (typecat_e)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_TYPETYPE, 1, node);
 	}
+	nocc_message ("typecheck_typetype(): called for non-supporting node! (%s,%s)", node->tag->ndef->name, node->tag->name);
 	return TYPE_NOTTYPE;
 
 }
