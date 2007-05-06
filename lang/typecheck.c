@@ -325,6 +325,22 @@ int typecheck_istype (tnode_t *node)
 	return 0;
 }
 /*}}}*/
+/*{{{  typecat_e typecheck_typetype (tnode_t *node)*/
+/*
+ *	returns the type-category for a type node
+ */
+typecat_e typecheck_typetype (tnode_t *node)
+{
+	if (!node) {
+		return TYPE_NOTTYPE;
+	}
+	if (node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_TYPETYPE)) {
+		return (typecat_e)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_TYPETYPE, 1, node);
+	}
+	return TYPE_NOTTYPE;
+
+}
+/*}}}*/
 /*{{{  int typecheck_subtree (tnode_t *t, typecheck_t *tc)*/
 /*
  *	performs a sub type-check

@@ -69,9 +69,31 @@
  */
 static int occampi_typeop_typecheck (compops_t *cops, tnode_t *tptr, typecheck_t *tc)
 {
+	typecat_e tcat;
+	tnode_t *type;
+
 	if (!typecheck_istype (tnode_nthsubof (tptr, 0))) {
 		typecheck_error (tptr, tc, "operand is not a type");
+		return 0;
 	}
+
+	type = tnode_nthsubof (tptr, 0);
+	/* FIXME: for named data-types, reduce the type */
+
+	tcat = typecheck_typetype (type);
+	if (tcat == TYPE_NOTTYPE) {
+		typecheck_error (tptr, tc, "operand is not a type");
+		return 0;
+	} else if (!(tcat & TYPE_INTEGER)) {
+		typecheck_error (tptr, tc, "operand is not an integer type");
+		return 0;
+	} else if (!(tcat & TYPE_WIDTHSET)) {
+		typecheck_error (tptr, tc, "size of type unknown");
+		return 0;
+	}
+
+	tnode_setnthsub (tptr, 1, tnode_copytree (type));
+
 	return 1;
 }
 /*}}}*/
@@ -82,7 +104,56 @@ static int occampi_typeop_typecheck (compops_t *cops, tnode_t *tptr, typecheck_t
  */
 static int occampi_typeop_constprop (compops_t *cops, tnode_t **tptr)
 {
-	return 1;
+	tnode_t *type = tnode_nthsubof (*tptr, 1);
+	typecat_e tcap = typecheck_typetype (type);
+	int bwidth, issigned;
+
+	bwidth = (tcap & TYPE_WIDTHMASK) >> 16;
+	issigned = (tcap & TYPE_SIGNED) ? 1 : 0;
+
+	if ((*tptr)->tag == opi.tag_MOSTPOS) {
+		/*{{{  most-positive value*/
+		switch (bwidth) {
+		case 1:
+			*tptr = constprop_newconst (CONST_BOOL, *tptr, type, 1);
+			break;
+		case 8:
+			*tptr = constprop_newconst (issigned ? CONST_INT : CONST_BYTE, *tptr, type, issigned ? 0x7f : 0xff);
+			break;
+		case 16:
+			*tptr = constprop_newconst (CONST_INT, *tptr, type, issigned ? 0x7fff : 0xffff);
+			break;
+		case 32:
+			*tptr = constprop_newconst (CONST_INT, *tptr, type, issigned ? 0x7fffffff : 0xffffffff);
+			break;
+		default:
+			constprop_error (*tptr, "occampi_typeop_constprop(): unhandled MOSTPOS bit-width %d", bwidth);
+			break;
+		}
+		/*}}}*/
+	} else if ((*tptr)->tag == opi.tag_MOSTNEG) {
+		/*{{{  most-negative value*/
+		switch (bwidth) {
+		case 1:
+			*tptr = constprop_newconst (CONST_BOOL, *tptr, type, 0);
+			break;
+		case 8:
+			*tptr = constprop_newconst (issigned ? CONST_INT : CONST_BYTE, *tptr, type, issigned ? -0x80 : 0);
+			break;
+		case 16:
+			*tptr = constprop_newconst (CONST_INT, *tptr, type, issigned ? -0x8000 : 0);
+			break;
+		case 32:
+			*tptr = constprop_newconst (CONST_INT, *tptr, type, issigned ? -0x80000000 : 0);
+			break;
+		default:
+			constprop_error (*tptr, "occampi_typeop_constprop(): unhandled MOSTNEG bit-width %d", bwidth);
+			break;
+		}
+		/*}}}*/
+	}
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int occampi_typeop_namemap (compops_t *cops, tnode_t **tptr, map_t *map)*/

@@ -762,6 +762,32 @@ static int occampi_leaftype_codegen_typerangecheck (langops_t *lops, tnode_t *no
 	return 0;
 }
 /*}}}*/
+/*{{{  static typecat_e occampi_leaftype_typetype (langops_t *lops, tnode_t *t)*/
+/*
+ *	returns the type category for a leaf-type
+ */
+static typecat_e occampi_leaftype_typetype (langops_t *lops, tnode_t *t)
+{
+	if (t->tag == opi.tag_BOOL) {
+		return (0x00010000 | TYPE_WIDTHSET | TYPE_INTEGER);
+	} else if (t->tag == opi.tag_BYTE) {
+		return (0x00080000 | TYPE_WIDTHSET | TYPE_INTEGER);
+	} else if ((t->tag == opi.tag_INT) || (t->tag == opi.tag_INT32)) {
+		return (0x00200000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_SIGNED);
+	} else if (t->tag == opi.tag_INT16) {
+		return (0x00100000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_SIGNED);
+	} else if (t->tag == opi.tag_INT64) {
+		return (0x00400000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_SIGNED);
+	} else if (t->tag == opi.tag_REAL32) {
+		return (0x00200000 | TYPE_WIDTHSET | TYPE_REAL | TYPE_SIGNED);
+	} else if (t->tag == opi.tag_REAL64) {
+		return (0x00400000 | TYPE_WIDTHSET | TYPE_REAL | TYPE_SIGNED);
+	} else if (t->tag == opi.tag_CHAR) {
+		return (0x00080000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_SIGNED);
+	}
+	return TYPE_NOTTYPE;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_type_namemap_arraynode (compops_t *cops, tnode_t **nodep, map_t *map)*/
@@ -1039,6 +1065,7 @@ static int occampi_type_init_nodes (void)
 	tnode_setlangop (lops, "istype", 1, LANGOPTYPE (occampi_leaftype_istype));
 	tnode_setlangop (lops, "retypeconst", 2, LANGOPTYPE (occampi_leaftype_retypeconst));
 	tnode_setlangop (lops, "codegen_typerangecheck", 2, LANGOPTYPE (occampi_leaftype_codegen_typerangecheck));
+	tnode_setlangop (lops, "typetype", 1, LANGOPTYPE (occampi_leaftype_typetype));
 	tnd->lops = lops;
 
 	i = -1;

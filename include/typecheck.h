@@ -30,6 +30,19 @@ typedef struct TAG_typecheck {
 	struct TAG_langparser *lang;	/* language */
 } typecheck_t;
 
+/* these are used to categorise types */
+typedef enum ENUM_typecat {
+	TYPE_NOTTYPE = 0,
+	TYPE_SIGNED = 0x0001,
+	TYPE_WIDTHSET = 0x0002,
+	TYPE_DYNAMIC = 0x0004,
+	TYPE_USERDEFINED = 0x0008,
+	TYPE_INTEGER = 0x0010,
+	TYPE_REAL = 0x0020,
+
+	TYPE_WIDTHMASK = 0xffff0000
+} typecat_e;
+
 
 extern void typecheck_init (void);
 extern void typecheck_shutdown (void);
@@ -45,6 +58,7 @@ extern struct TAG_tnode *typecheck_fixedtypeactual (struct TAG_tnode *formaltype
 extern struct TAG_tnode *typecheck_typereduce (struct TAG_tnode *type);
 extern int typecheck_cantypecast (struct TAG_tnode *node, struct TAG_tnode *srctype);
 extern int typecheck_istype (struct TAG_tnode *node);
+extern typecat_e typecheck_typetype (struct TAG_tnode *node);
 
 extern int typeresolve_subtree (struct TAG_tnode **tptr, typecheck_t *tc);
 extern int typeresolve_tree (struct TAG_tnode **tptr, struct TAG_langparser *lang);
