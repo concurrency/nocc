@@ -85,6 +85,8 @@ typedef struct TAG_compopts {
 	int tracetypecheck;
 	int traceconstprop;
 	int traceprecode;
+	char *tracecompops;
+	char *tracelangops;
 	int treecheck;
 	char *savenameddfa[2];
 	char *savealldfas;

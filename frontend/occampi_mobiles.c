@@ -61,6 +61,7 @@
 
 /*{{{  private vars*/
 static chook_t *chook_demobiletype = NULL;
+static chook_t *chook_actionlhstype = NULL;
 
 /*}}}*/
 /*{{{  static void occampi_condfreedynmobile (tnode_t *node, tnode_t *mtype, codegen_t *cgen, const int clear)*/
@@ -71,18 +72,18 @@ static void occampi_condfreedynmobile (tnode_t *node, tnode_t *mtype, codegen_t 
 {
 	if (mtype->tag == opi.tag_DYNMOBARRAY) {
 		/*{{{  conditional check-and-free for dynamic mobile array*/
-		int ws_off, skiplab;
+		int skiplab;
 
-		cgen->target->be_getoffsets (node, &ws_off, NULL, NULL, NULL);
+		// cgen->target->be_getoffsets (node, &ws_off, NULL, NULL, NULL);
 
 		skiplab = codegen_new_label (cgen);
-		codegen_callops (cgen, loadlocal, ws_off + cgen->target->pointersize);		/* load first dimension */
+		codegen_callops (cgen, loadatpointer, node, cgen->target->pointersize);		/* load first dimension */
 		codegen_callops (cgen, branch, I_CJ, skiplab);
-		codegen_callops (cgen, loadlocal, ws_off);					/* load pointer */
+		codegen_callops (cgen, loadatpointer, node, 0);					/* load pointer */
 		codegen_callops (cgen, tsecondary, I_MRELEASE);
 		if (clear) {
 			codegen_callops (cgen, loadconst, 0);
-			codegen_callops (cgen, storelocal, ws_off + cgen->target->pointersize);		/* zero first dimension */
+			codegen_callops (cgen, storeatpointer, node, cgen->target->pointersize);	/* zero first dimension */
 		}
 		codegen_callops (cgen, setlabel, skiplab);
 		/*}}}*/
@@ -147,6 +148,10 @@ static void occampi_mobiletypenode_initdynmobarray (tnode_t *node, codegen_t *cg
 	codegen_callops (cgen, debugline, mtype);
 	codegen_callops (cgen, tsecondary, I_NULL);
 	codegen_callops (cgen, storelocal, ws_off);
+#if 1
+fprintf (stderr, "occampi_mobiletypenode_initdynmobarray(): mtype =\n");
+tnode_dumptree (mtype, 1, stderr);
+#endif
 	/* FIXME: number of dimensions */
 	codegen_callops (cgen, loadconst, 0);
 	codegen_callops (cgen, storelocal, ws_off + cgen->target->pointersize);
@@ -162,6 +167,7 @@ static void occampi_mobiletypenode_initdynmobarray (tnode_t *node, codegen_t *cg
 static void occampi_mobiletypenode_finaldynmobarray (tnode_t *node, codegen_t *cgen, void *arg)
 {
 	tnode_t *mtype = (tnode_t *)arg;
+	int ws_off;
 
 	codegen_callops (cgen, debugline, mtype);
 	occampi_condfreedynmobile (node, mtype, cgen, 1);
@@ -281,6 +287,14 @@ static int occampi_mobiletypenode_typeaction (langops_t *lops, tnode_t *type, tn
 			tnode_t *lhs = tnode_nthsubof (anode, 0);
 			tnode_t *rhs = tnode_nthsubof (anode, 1);
 
+			tnode_t *lhstype = (tnode_t *)tnode_getchook (anode, chook_actionlhstype);
+
+#if 1
+fprintf (stderr, "occampi_mobiletypenode_action(): ASSIGN, lhstype (from hook %p) =\n", chook_actionlhstype);
+tnode_dumptree (lhstype, 1, stderr);
+fprintf (stderr, "occampi_mobiletypenode_action(): ASSIGN, lhs =\n");
+tnode_dumptree (lhs, 1, stderr);
+#endif
 			/* FIXME: we need to get hold of the LHS type before this, lhs is now a back-end node */
 			occampi_condfreedynmobile (lhs, type, cgen, 0);
 
@@ -391,7 +405,7 @@ static int occampi_mobilealloc_namemap (compops_t *cops, tnode_t **node, map_t *
 {
 	if ((*node)->tag == opi.tag_NEWDYNMOBARRAY) {
 		/* name-map dimension */
-		map_subpremap (tnode_nthsubaddr (*node, 1), map);
+		map_submapnames (tnode_nthsubaddr (*node, 1), map);
 
 		/* set in result */
 		map_addtoresult (tnode_nthsubaddr (*node, 1), map);
@@ -632,6 +646,7 @@ static int occampi_mobiles_init_nodes (void)
  */
 static int occampi_mobiles_post_setup (void)
 {
+	chook_actionlhstype = tnode_lookupchookbyname ("occampi:action:lhstype");
 	return 0;
 }
 /*}}}*/

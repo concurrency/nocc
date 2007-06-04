@@ -117,6 +117,8 @@ compopts_t compopts = {
 	traceparser: 0,
 	traceconstprop: 0,
 	traceprecode: 0,
+	tracecompops: NULL,
+	tracelangops: NULL,
 	treecheck: 0,
 	doaliascheck: 1,
 	dousagecheck: 1,

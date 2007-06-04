@@ -55,6 +55,9 @@ STATICDYNARRAY (compop_t *, acompops);
 STATICSTRINGHASH (langop_t *, langops, 4);
 STATICDYNARRAY (langop_t *, alangops);
 
+STATICSTRINGHASH (char *, tracingcompops, 3);
+STATICSTRINGHASH (char *, tracinglangops, 3);
+
 /* forwards */
 static void tnode_isetindent (FILE *stream, int indent);
 static void tnode_ssetindent (FILE *stream, int indent);
@@ -357,6 +360,34 @@ int tnode_init (void)
 	dynarray_init (acompops);
 	stringhash_init (langops);
 	dynarray_init (alangops);
+
+	stringhash_init (tracingcompops);
+	stringhash_init (tracinglangops);
+
+	if (compopts.tracecompops) {
+		char *copy = string_dup (compopts.tracecompops);
+		char **list;
+		
+		list = split_string2 (copy, ',', ' ');
+		for (i=0; list[i]; i++) {
+			stringhash_insert (tracingcompops, list[i], list[i]);
+			list[i] = NULL;
+		}
+		sfree (list);
+		sfree (copy);
+	}
+	if (compopts.tracelangops) {
+		char *copy = string_dup (compopts.tracelangops);
+		char **list;
+
+		list = split_string2 (copy, ',', ' ');
+		for (i=0; list[i]; i++) {
+			stringhash_insert (tracinglangops, list[i], list[i]);
+			list[i] = NULL;
+		}
+		sfree (list);
+		sfree (copy);
+	}
 
 	/*{{{  default compiler operations*/
 	tnode_newcompop ("prescope", COPS_PRESCOPE, 2, INTERNAL_ORIGIN);
@@ -1617,6 +1648,9 @@ static int tnode_icallcompop (compops_t *cops, compop_t *op, va_list ap)
 	int (*fcn)(compops_t *, ...);
 	int r;
 
+	if (op->dotrace) {
+		nocc_message ("compoptrace: [%s]", op->name);
+	}
 	fcn = (int (*)(compops_t *, ...))DA_NTHITEM (cops->opfuncs, (int)op->opno);
 	while (fcn == COMPOPTYPE (tnode_callthroughcompops)) {
 		if (!cops->next) {
@@ -1838,6 +1872,7 @@ int tnode_newcompop (char *name, compops_e opno, int nparams, origin_t *origin)
 		}
 	}
 	cop->nparams = nparams;
+	cop->dotrace = stringhash_lookup (tracingcompops, name) ? 1 : 0;
 	cop->origin = origin;
 
 	stringhash_insert (compops, cop, cop->name);
@@ -1989,6 +2024,10 @@ static int tnode_icalllangop (langops_t *lops, langop_t *op, va_list ap)
 {
 	int (*fcn)(langops_t *, ...);
 	int r;
+
+	if (op->dotrace) {
+		nocc_message ("langoptrace: [%s]", op->name);
+	}
 
 	fcn = (int (*)(langops_t *, ...))DA_NTHITEM (lops->opfuncs, (int)op->opno);
 	while (fcn == LANGOPTYPE (tnode_callthroughlangops)) {
@@ -2214,6 +2253,7 @@ int tnode_newlangop (char *name, langops_e opno, int nparams, origin_t *origin)
 		}
 	}
 	lop->nparams = nparams;
+	lop->dotrace = stringhash_lookup (tracinglangops, name) ? 1 : 0;
 	lop->origin = origin;
 
 	stringhash_insert (langops, lop, lop->name);

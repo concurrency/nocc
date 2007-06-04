@@ -1982,7 +1982,7 @@ fprintf (stderr, "split_string: splitting [%s] into %d bits\n", str, nbits);
 /*}}}*/
 /*{{{  char **split_string2 (char *str, char s1, char s2)*/
 /*
- *	splits a string up, returns an array of pointers into the original string
+ *	splits a string up, returns an array of newly allocated strings
  *	the "s1" and "s2" define seperators (use the same if only one)
  */
 #ifdef TRACE_MEMORY

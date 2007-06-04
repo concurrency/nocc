@@ -1710,7 +1710,7 @@ static int krocetc_bemap_result (compops_t *cops, tnode_t **rnodep, map_t *mdata
 		int rused = 0;
 		int max = 0;
 
-		rleft = 3;						/* FIXME! */
+		rleft = kpriv->maxtsdepth;
 		for (i=0; i<DA_CUR(rh->sublist); i++) {
 			regfors[i] = krocetc_be_regsfor (*(DA_NTHITEM (rh->sublist, i)));
 			if (regfors[i] > rleft) {
@@ -2003,6 +2003,25 @@ fprintf (stderr, "krocetc_coder_loadpointer(): [%s] local=%d, ref_lexlevel=%d, a
 	return;
 }
 /*}}}*/
+/*{{{  static void krocetc_coder_loadatpointer (codegen_t *cgen, tnode_t *name, int offset)*/
+/*
+ *	loads a word via a back-end pointer (at the given offset)
+ */
+static void krocetc_coder_loadatpointer (codegen_t *cgen, tnode_t *name, int offset)
+{
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)(krocetc_target.priv);
+
+	/* FIXME: this should probably look inside for locals */
+#if 1
+fprintf (stderr, "krocetc_coder_loadatpointer(): name=\n");
+tnode_dumptree (name, 1, stderr);
+#endif
+	codegen_callops (cgen, loadpointer, name, offset);
+	codegen_write_fmt (cgen, "\tldnl\t0\n");
+
+	return;
+}
+/*}}}*/
 /*{{{  static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)*/
 /*
  *	loads a back-end name
@@ -2286,6 +2305,21 @@ static void krocetc_coder_loadmsp (codegen_t *cgen, int offset)
 static void krocetc_coder_storepointer (codegen_t *cgen, tnode_t *name, int offset)
 {
 	nocc_warning ("krocetc_coder_storepointer(): don\'t know how to store a pointer to [%s]", name->tag->name);
+	return;
+}
+/*}}}*/
+/*{{{  krocetc_coder_storeatpointer (codegen_t *cgen, tnode_t *name, int offset)*/
+/*
+ *	stores a word via a back-end pointer (at the given offset)
+ */
+static void krocetc_coder_storeatpointer (codegen_t *cgen, tnode_t *name, int offset)
+{
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)(krocetc_target.priv);
+
+	/* FIXME: this should probably look inside for locals */
+	codegen_callops (cgen, loadpointer, name, offset);
+	codegen_write_fmt (cgen, "\tstnl\t0\n");
+
 	return;
 }
 /*}}}*/
@@ -3343,6 +3377,7 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 
 	cops = (coderops_t *)smalloc (sizeof (coderops_t));
 	cops->loadpointer = krocetc_coder_loadpointer;
+	cops->loadatpointer = krocetc_coder_loadatpointer;
 	cops->loadname = krocetc_coder_loadname;
 	cops->loadparam = krocetc_coder_loadparam;
 	cops->loadlocalpointer = krocetc_coder_loadlocalpointer;
@@ -3353,6 +3388,7 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	cops->loadnonlocal = krocetc_coder_loadnonlocal;
 	cops->storenonlocal = krocetc_coder_storenonlocal;
 	cops->storepointer = krocetc_coder_storepointer;
+	cops->storeatpointer = krocetc_coder_storeatpointer;
 	cops->storename = krocetc_coder_storename;
 	cops->storelocal = krocetc_coder_storelocal;
 	cops->loadconst = krocetc_coder_loadconst;

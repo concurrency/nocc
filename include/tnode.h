@@ -132,6 +132,7 @@ typedef struct TAG_compop {
 	char *name;
 	compops_e opno;
 	int nparams;
+	int dotrace;
 	struct TAG_origin *origin;
 } compop_t;
 
@@ -185,6 +186,7 @@ typedef struct TAG_langop {
 	char *name;
 	langops_e opno;
 	int nparams;
+	int dotrace;
 	struct TAG_origin *origin;
 } langop_t;
 
