@@ -1,0 +1,13 @@
+
+-- test_n74.occ -- timer tests
+
+PROC test.n74 ()
+  TIMER tim:
+  INT t:
+  SEQ
+    tim ? t
+    tim ? AFTER (t PLUS 1000000)
+    SKIP
+:
+
+

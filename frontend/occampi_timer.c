@@ -303,13 +303,15 @@ static int occampi_timertype_codegen_typeaction (langops_t *lops, tnode_t *type,
 static int occampi_typecheck_timeroper (compops_t *cops, tnode_t *t, typecheck_t *tc)
 {
 	tnode_t **typep = tnode_nthsubaddr (t, 1);
-	tnode_t *type;
+	tnode_t *type, *oper;
 
 	if (*typep) {
 		/* already got a type */
 		return 1;
 	}
-	type = typecheck_gettype (tnode_nthsubof (t, 0), NULL);
+	oper = tnode_nthsubof (t, 0);
+	typecheck_subtree (oper, tc);
+	type = typecheck_gettype (oper, NULL);
 	*typep = type;
 
 	return 1;
