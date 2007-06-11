@@ -635,8 +635,10 @@
 .SECTION "occampi-timer" # {{{
 
 .GRULE	"opi:timertype" "ST0T+@t0C[TIMER]1R-"
+.GRULE	"opi:mafterreduce" "ST0T+@tN+C[MAFTER]1R-"
 
 .TABLE	"occampi:primtype +:= [ 0 +@TIMER 1 ] [ 1 {<opi:timertype>} -* ]"
+.TABLE	"occampi:expr +:= [ 0 +@AFTER 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:mafterreduce>} -* ]"
 
 
 # }}}
