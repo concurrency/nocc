@@ -295,6 +295,39 @@ static int occampi_timertype_codegen_typeaction (langops_t *lops, tnode_t *type,
 /*}}}*/
 
 
+/*{{{  static int occampi_typecheck_timeroper (compops_t *cops, tnode_t *t, typecheck_t *tc)*/
+/*
+ *	does type-checking on a timer operator (monadic AFTER)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_timeroper (compops_t *cops, tnode_t *t, typecheck_t *tc)
+{
+	tnode_t **typep = tnode_nthsubaddr (t, 1);
+	tnode_t *type;
+
+	if (*typep) {
+		/* already got a type */
+		return 1;
+	}
+	type = typecheck_gettype (tnode_nthsubof (t, 0), NULL);
+	*typep = type;
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_timeroper_gettype (langops_t *lops, tnode_t *t, tnode_t *defaulttype)*/
+/*
+ *	gets the type of a timer operator (monadic AFTER)
+ */
+static tnode_t *occampi_timeroper_gettype (langops_t *lops, tnode_t *t, tnode_t *defaulttype)
+{
+	tnode_t **typep = tnode_nthsubaddr (t, 1);
+
+	return *typep;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_timer_vardecl_betrans (compops_t *cops, tnode_t **tptr, betrans_t *be)*/
 /*
  *	betrans on VARDECL nodes -- used to remove TIMER declarations
@@ -324,6 +357,35 @@ static int occampi_timer_vardecl_betrans (compops_t *cops, tnode_t **tptr, betra
 /*}}}*/
 
 
+/*{{{  static int occampi_timer_actionnode_precheck (compops_t *cops, tnode_t *t)*/
+/*
+ *	overridden pre-checking for ACTIONNODEs (TIMER)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_timer_actionnode_precheck (compops_t *cops, tnode_t *t)
+{
+	tnode_t *lhstype = (tnode_t *)tnode_getchook (t, actionlhstypechook);
+
+	if ((lhstype->tag == opi.tag_TIMER) && (t->tag == opi.tag_INPUT)) {
+		tnode_t *rhs = tnode_nthsubof (t, 1);
+
+		/* timer input */
+		usagecheck_marknode (tnode_nthsubof (t, 0), USAGE_INPUT, 0);
+
+		if (rhs->tag == opi.tag_MAFTER) {
+			usagecheck_marknode (tnode_nthsubof (rhs, 0), USAGE_READ, 0);
+		} else {
+			usagecheck_marknode (rhs, USAGE_WRITE, 0);
+		}
+		return 1;
+	}
+
+	if (tnode_hascompop (cops->next, "precheck")) {
+		return tnode_callcompop (cops->next, "precheck", 1, t);
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_timer_actionnode_fetrans (compops_t *cops, tnode_t **tptr, fetrans_t *fe)*/
 /*
  *	fetrans on action-nodes -- used to transform TIMER inputs
@@ -367,6 +429,36 @@ fprintf (stderr, "occampi_timer_actionnode_fetrans(): found TIMER action!\n");
 
 	if (tnode_hascompop (cops->next, "fetrans")) {
 		return tnode_callcompop (cops->next, "fetrans", 2, tptr, fe);
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_timer_do_usagecheck_actionnode (langops_t *lops, tnode_t *t, uchk_state_t *uc)*/
+/*
+ *	overridden usage-check for ACTIONNODEs (TIMER)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_timer_do_usagecheck_actionnode (langops_t *lops, tnode_t *t, uchk_state_t *uc)
+{
+	tnode_t *lhstype = (tnode_t *)tnode_getchook (t, actionlhstypechook);
+
+	if ((lhstype->tag == opi.tag_TIMER) && (t->tag == opi.tag_INPUT)) {
+		tnode_t *rhs = tnode_nthsubof (t, 1);
+
+		/* timer input */
+		if (rhs->tag == opi.tag_MAFTER) {
+			/* timeout -- r-value */
+		} else {
+			/* must be a variable */
+			if (!langops_isvar (rhs)) {
+				usagecheck_error (t, uc, "target for timer input must be a variable");
+			}
+		}
+		return 1;
+	}
+
+	if (tnode_haslangop (lops->next, "do_usagecheck")) {
+		return tnode_calllangop (lops->next, "do_usagecheck", 2, t, uc);
 	}
 	return 1;
 }
@@ -427,10 +519,12 @@ static int occampi_timer_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:timeroper -- MAFTER*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:timeroper", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 1 = operand */
+	tnd = tnode_newnodetype ("occampi:timeroper", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 1 = operand, 2 = type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_timeroper));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_timeroper_gettype));
 	tnd->lops = lops;
 
 	i = -1;
@@ -447,8 +541,12 @@ static int occampi_timer_init_nodes (void)
 	/*{{{  occampi:actionnode -- overrides for INPUT (TIMERs)*/
 	tnd = tnode_lookupnodetype ("occampi:actionnode");
 	cops = tnode_insertcompops (tnd->ops);
+	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (occampi_timer_actionnode_precheck));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_timer_actionnode_fetrans));
 	tnd->ops = cops;
+	lops = tnode_insertlangops (tnd->lops);
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_timer_do_usagecheck_actionnode));
+	tnd->lops = lops;
 
 	/*}}}*/
 

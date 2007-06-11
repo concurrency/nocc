@@ -191,9 +191,11 @@
 
 # occampi:timerinputnode           (2,0,0)
 # occampi:timertype                (1,0,0)
+# occampi:timeroper                (2,0,0)
 
 .TNODE	"occampi:timerinputnode" (2,0,0) "timer" "rhs"
 .TNODE	"occampi:timertype" (1,0,0) "subtype"
+.TNODE	"occampi:timeroper" (2,0,0) "operand" "type"
 
 #}}}
 
@@ -635,7 +637,7 @@
 .SECTION "occampi-timer" # {{{
 
 .GRULE	"opi:timertype" "ST0T+@t0C[TIMER]1R-"
-.GRULE	"opi:mafterreduce" "ST0T+@tN+C[MAFTER]1R-"
+.GRULE	"opi:mafterreduce" "ST0T+@tN+0C[MAFTER]2R-"
 
 .TABLE	"occampi:primtype +:= [ 0 +@TIMER 1 ] [ 1 {<opi:timertype>} -* ]"
 .TABLE	"occampi:expr +:= [ 0 +@AFTER 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:mafterreduce>} -* ]"
