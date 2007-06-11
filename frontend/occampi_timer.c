@@ -67,6 +67,69 @@ static chook_t *actionlhstypechook = NULL;
 /*}}}*/
 
 
+/*{{{  static int occampi_betrans_timerinputnode (compops_t *cops, tnode_t **tptr, betrans_t *be)*/
+/*
+ *	does back-end transformations on a timer input node (read timer or timeout)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_betrans_timerinputnode (compops_t *cops, tnode_t **tptr, betrans_t *be)
+{
+	tnode_t *t = *tptr;
+
+	/* essentially we just unplug the LHS -- redundant TIMER variable */
+	tnode_setnthsub (t, 0, NULL);
+	betrans_subtree (tnode_nthsubaddr (t, 1), be);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_namemap_timerinputnode (compops_t *cops, tnode_t **tptr, map_t *map)*/
+/*
+ *	does name-mapping on a timer input node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_timerinputnode (compops_t *cops, tnode_t **tptr, map_t *map)
+{
+	tnode_t *t = *tptr;
+
+	/* map out RHS */
+	map_submapnames (tnode_nthsubaddr (t, 1), map);
+
+	if (t->tag == opi.tag_TIMERINPUTAFTER) {
+		tnode_t *bename;
+
+		/* need some space for this */
+		bename = map->target->newname (t, NULL, map, 0, map->target->bws.ds_wait, 0, 0, 0, 0);
+		*tptr = bename;
+	} else if (t->tag == opi.tag_TIMERINPUT) {
+		/* nothing special */
+	} else {
+		nocc_internal ("occampi_namemap_timerinputnode(): not one of mine!, got [%s]", t->tag->name);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_codegen_timerinputnode (compops_t *cops, tnode_t *tptr, codegen_t *cgen)*/
+/*
+ *	does code-generation for a timer input node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_codegen_timerinputnode (compops_t *cops, tnode_t *tptr, codegen_t *cgen)
+{
+	codegen_callops (cgen, debugline, tptr);
+	if (tptr->tag == opi.tag_TIMERINPUT) {
+		codegen_callops (cgen, tsecondary, I_LDTIMER);
+		codegen_callops (cgen, storename, tnode_nthsubof (tptr, 1), 0);
+	} else if (tptr->tag == opi.tag_TIMERINPUTAFTER) {
+		codegen_callops (cgen, loadname, tnode_nthsubof (tptr, 1), 0);
+		codegen_callops (cgen, tsecondary, I_TIN);
+	}
+
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_typecheck_timertype (compops_t *cops, tnode_t *t, typecheck_t *tc)*/
 /*
  *	does type-checking on a TIMER type node (sets sub-type)
@@ -326,6 +389,9 @@ static int occampi_timer_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:timerinputnode", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = timer var, 1 = input-var or timeout expr */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_timerinputnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_timerinputnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_timerinputnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

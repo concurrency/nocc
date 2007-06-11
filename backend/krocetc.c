@@ -3191,6 +3191,18 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		krocetc_cgstate_tsdelta (cgen, 1);
 		break;
 		/*}}}*/
+		/*{{{  LDTIMER: load current time*/
+	case I_LDTIMER:
+		codegen_write_string (cgen, "\tldtimer\n");
+		krocetc_cgstate_tsdelta (cgen, 1);
+		break;
+		/*}}}*/
+		/*{{{  TIN: timeout (wait for time)*/
+	case I_TIN:
+		codegen_write_string (cgen, "\ttin\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: tsecondary %d\n", ins);
 		break;
