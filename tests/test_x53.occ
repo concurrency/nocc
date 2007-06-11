@@ -1,0 +1,9 @@
+
+-- test_x53.occ -- multi-dimensional dynamic mobile arrays
+
+PROC test.x53 ()
+  MOBILE [][]BYTE v:
+  SEQ
+    SKIP
+:
+

@@ -1,0 +1,12 @@
+
+-- test_n73.occ -- timer tests
+
+PROC test.n73 ()
+  TIMER tim:
+  INT t:
+  SEQ
+    tim ? t
+    SKIP
+:
+
+

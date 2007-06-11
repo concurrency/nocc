@@ -187,6 +187,15 @@
 .TNODE	"occampi:varac" (5,0,0) "repl-name" "start" "length" "expr" "type"
 
 #}}}
+#{{{  timers
+
+# occampi:timerinputnode           (2,0,0)
+# occampi:timertype                (1,0,0)
+
+.TNODE	"occampi:timerinputnode" (2,0,0) "timer" "rhs"
+.TNODE	"occampi:timertype" (1,0,0) "subtype"
+
+#}}}
 
 .IMPORT	"mwsync.ldef"
 
@@ -509,6 +518,7 @@
 .TABLE	"occampi:type +:= [ 0 -@MOBILE 1 ] [ 1 occampi:mobiletype 2 ] [ 2 {<opi:nullreduce>} -* ]"
 .TABLE	"occampi:expr +:= [ 0 -@MOBILE 1 ] [ 1 occampi:mobileallocexpr 2 ] [ 2 {<opi:nullreduce>} -* ]"
 
+.DFAERR	STUCK "occampi:mobiletype" "in MOBILE type definition" EXPECTED
 
 # }}}
 .SECTION "occampi-mwsync" # {{{: multi-way synchronisations (BARRIERs)
@@ -620,6 +630,14 @@
 	"[ 13 @FOR 15 ] [ 13 -* 14 ] [ 14 {<opi:nullpush>} -* 16 ] [ 15 occampi:expr 16 ]"
 	"[ 16 @@] 17 ] [ 17 {<opi:slicereduce>} -* ]"								# array slices: [x FROM s FOR l]
 .TABLE	"occampi:expr +:= [ 0 occampi:arrayconstructor 1 ] [ 1 {<opi:nullreduce>} -* ]"
+
+# }}}
+.SECTION "occampi-timer" # {{{
+
+.GRULE	"opi:timertype" "ST0T+@t0C[TIMER]1R-"
+
+.TABLE	"occampi:primtype +:= [ 0 +@TIMER 1 ] [ 1 {<opi:timertype>} -* ]"
+
 
 # }}}
 

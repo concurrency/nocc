@@ -2012,7 +2012,7 @@ static void krocetc_coder_loadatpointer (codegen_t *cgen, tnode_t *name, int off
 	krocetc_priv_t *kpriv = (krocetc_priv_t *)(krocetc_target.priv);
 
 	/* FIXME: this should probably look inside for locals */
-#if 1
+#if 0
 fprintf (stderr, "krocetc_coder_loadatpointer(): name=\n");
 tnode_dumptree (name, 1, stderr);
 #endif

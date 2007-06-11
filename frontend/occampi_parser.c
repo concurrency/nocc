@@ -131,6 +131,7 @@ static feunit_t *feunit_set[] = {
 	&occampi_misc_feunit,
 	&occampi_arrayconstructor_feunit,
 	&occampi_ptype_feunit,
+	&occampi_timer_feunit,
 	NULL
 };
 

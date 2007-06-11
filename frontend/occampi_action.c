@@ -528,6 +528,7 @@ tnode_dumptree (type, 1, stderr);
 /*{{{  static int occampi_action_init_nodes (void)*/
 /*
  *	initialises nodes for occam-pi actions
+ *	returns 0 on success, non-zero on failure
  */
 static int occampi_action_init_nodes (void)
 {

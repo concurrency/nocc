@@ -82,6 +82,7 @@ typedef struct {
 	struct TAG_ntdef *tag_TYPESPEC;
 	struct TAG_ntdef *tag_BARRIER;
 	struct TAG_ntdef *tag_SYNC;
+	struct TAG_ntdef *tag_TIMER;
 
 	struct TAG_ntdef *tag_NEWDYNMOBARRAY;
 
@@ -162,6 +163,8 @@ typedef struct {
 	struct TAG_ntdef *tag_TYPECAST;
 	struct TAG_ntdef *tag_MOSTNEG;
 	struct TAG_ntdef *tag_MOSTPOS;
+	struct TAG_ntdef *tag_AFTER;
+	struct TAG_ntdef *tag_MAFTER;
 
 	struct TAG_ntdef *tag_NDECL;
 	struct TAG_ntdef *tag_NPARAM;
@@ -182,6 +185,9 @@ typedef struct {
 	struct TAG_ntdef *tag_BUILTINPROC;
 	struct TAG_ntdef *tag_BUILTINFUNCTION;
 	struct TAG_ntdef *tag_TRACES;
+
+	struct TAG_ntdef *tag_TIMERINPUT;
+	struct TAG_ntdef *tag_TIMERINPUTAFTER;
 
 	struct TAG_ntdef *tag_SKIPGUARD;
 	struct TAG_ntdef *tag_INPUTGUARD;
@@ -274,6 +280,7 @@ extern struct TAG_feunit occampi_mwsync_feunit;			/* occampi_mwsync.c */
 extern struct TAG_feunit occampi_misc_feunit;			/* occampi_misc.c */
 extern struct TAG_feunit occampi_arrayconstructor_feunit;	/* occampi_arrayconstructor.c */
 extern struct TAG_feunit occampi_typeop_feunit;			/* occampi_typeop.c */
+extern struct TAG_feunit occampi_timer_feunit;			/* occampi_timer.c */
 
 /* these are for language units to use in reductions */
 extern void *occampi_nametoken_to_hook (void *ntok);

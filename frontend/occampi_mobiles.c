@@ -148,7 +148,7 @@ static void occampi_mobiletypenode_initdynmobarray (tnode_t *node, codegen_t *cg
 	codegen_callops (cgen, debugline, mtype);
 	codegen_callops (cgen, tsecondary, I_NULL);
 	codegen_callops (cgen, storelocal, ws_off);
-#if 1
+#if 0
 fprintf (stderr, "occampi_mobiletypenode_initdynmobarray(): mtype =\n");
 tnode_dumptree (mtype, 1, stderr);
 #endif
@@ -167,10 +167,20 @@ tnode_dumptree (mtype, 1, stderr);
 static void occampi_mobiletypenode_finaldynmobarray (tnode_t *node, codegen_t *cgen, void *arg)
 {
 	tnode_t *mtype = (tnode_t *)arg;
-	int ws_off;
+	int ws_off, skiplab;
+
+	cgen->target->be_getoffsets (node, &ws_off, NULL, NULL, NULL);
+
+	skiplab = codegen_new_label (cgen);
 
 	codegen_callops (cgen, debugline, mtype);
-	occampi_condfreedynmobile (node, mtype, cgen, 1);
+	codegen_callops (cgen, loadlocal, ws_off + cgen->target->pointersize);			/* load first dimension */
+	codegen_callops (cgen, branch, I_CJ, skiplab);
+	codegen_callops (cgen, loadlocal, ws_off);						/* load pointer */
+	codegen_callops (cgen, tsecondary, I_MRELEASE);
+	codegen_callops (cgen, tsecondary, I_NULL);
+	codegen_callops (cgen, storelocal, ws_off);					/* zero pointer */
+	codegen_callops (cgen, setlabel, skiplab);
 	codegen_callops (cgen, comment, "finaldynmobarray");
 
 	return;
