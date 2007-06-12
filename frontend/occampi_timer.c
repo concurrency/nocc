@@ -50,6 +50,7 @@
 #include "prescope.h"
 #include "typecheck.h"
 #include "langops.h"
+#include "constprop.h"
 #include "precheck.h"
 #include "usagecheck.h"
 #include "fetrans.h"
@@ -330,6 +331,192 @@ static tnode_t *occampi_timeroper_gettype (langops_t *lops, tnode_t *t, tnode_t 
 /*}}}*/
 
 
+/*{{{  static int occampi_typecheck_timerdoper (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a dyadic operator
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_timerdoper (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
+	tnode_t *lefttype, *righttype;
+	int i;
+
+	typecheck_subtree (tnode_nthsubof (node, 0), tc);
+	typecheck_subtree (tnode_nthsubof (node, 1), tc);
+
+	lefttype = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
+	righttype = typecheck_gettype (tnode_nthsubof (node, 1), NULL);
+
+	if (lefttype && !righttype) {
+		righttype = typecheck_gettype (tnode_nthsubof (node, 1), lefttype);
+	} else if (!lefttype && righttype) {
+		lefttype = typecheck_gettype (tnode_nthsubof (node, 0), righttype);
+	}
+
+	if (lefttype && righttype) {
+		/* enough to do a proper typecheck */
+		tnode_t *type = typecheck_fixedtypeactual (lefttype, righttype, node, tc, 1);
+
+		if (type) {
+			tnode_setnthsub (node, 2, type);
+		}
+	}
+
+	tnode_free (definttype);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_constprop_timerdoper (compops_t *cops, tnode_t **tptr)*/
+/*
+ *	does constant propagation for a DOPNODE
+ *	returns 0 to stop walk, 1 to continue (post-walk)
+ */
+static int occampi_constprop_timerdoper (compops_t *cops, tnode_t **tptr)
+{
+	tnode_t *left, *right;
+
+	left = tnode_nthsubof (*tptr, 0);
+	right = tnode_nthsubof (*tptr, 1);
+
+	if (constprop_isconst (left) && constprop_isconst (right) && constprop_sametype (left, right)) {
+		tnode_t *newconst = *tptr;
+
+		/* turn this node into a constant */
+		switch (constprop_consttype (left)) {
+			/*{{{  CONST_INVALID -- error*/
+		case CONST_INVALID:
+			constprop_error (*tptr, "occampi_constprop_timerdoper(): CONST_INVALID!");
+			break;
+			/*}}}*/
+			/*{{{  CONST_INT -- int operations*/
+		case CONST_INT:
+			{
+				int i1, i2, b;
+
+				langops_constvalof (left, &i1);
+				langops_constvalof (right, &i2);
+
+				if ((*tptr)->tag == opi.tag_AFTER) {
+					b = (i1 > i2) ? 1 : 0;
+				}
+
+				newconst = constprop_newconst (CONST_BOOL, *tptr, tnode_nthsubof (*tptr, 2), b);
+			}
+			break;
+			/*}}}*/
+			/*{{{  CONST_BOOL, CONST_BYTE, CONST_DOUBLE, CONST_ULL -- unsupported*/
+		case CONST_BOOL:
+		case CONST_BYTE:
+		case CONST_DOUBLE:
+		case CONST_ULL:
+			constprop_warning (*tptr, "occampi_constprop_timerdoper(): unsupported constant type.. (yet)");
+			break;
+			/*}}}*/
+		}
+
+		*tptr = newconst;
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_premap_timerdoper (compops_t *cops, tnode_t **node, map_t *map)*/
+/*
+ *	maps out a TIMERDOPER node, turning into a back-end RESULT
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_premap_timerdoper (compops_t *cops, tnode_t **node, map_t *map)
+{
+	/* pre-map left and right */
+	map_subpremap (tnode_nthsubaddr (*node, 0), map);
+	map_subpremap (tnode_nthsubaddr (*node, 1), map);
+
+	*node = map->target->newresult (*node, map);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_namemap_timerdoper (compops_t *cops, tnode_t **node, map_t *map)*/
+/*
+ *	name-maps a TIMERDOPER node, adding child nodes to any enclosing result
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_timerdoper (compops_t *cops, tnode_t **node, map_t *map)
+{
+	/* name-map left and right */
+	map_submapnames (tnode_nthsubaddr (*node, 0), map);
+	map_submapnames (tnode_nthsubaddr (*node, 1), map);
+
+	/* set in result */
+	map_addtoresult (tnode_nthsubaddr (*node, 0), map);
+	map_addtoresult (tnode_nthsubaddr (*node, 1), map);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_codegen_timerdoper (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	called to do code-generation for a TIMERDOPER node -- operands are already on the stack
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_codegen_timerdoper (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	int i;
+
+	/* FIXME! */
+	codegen_callops (cgen, tsecondary, I_GT);
+
+	return 0;
+}
+/*}}}*/
+
+/*{{{  static tnode_t *occampi_timerdoper_gettype (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
+/*
+ *	returns the type associated with a TIMERDOPER node, also sets the type in the node (if not set)
+ */
+static tnode_t *occampi_timerdoper_gettype (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
+{
+	tnode_t *lefttype, *righttype;
+	tnode_t **typep = tnode_nthsubaddr (node, 2);
+	int i;
+
+	if (*typep) {
+		return *typep;
+	}
+
+	lefttype = typecheck_gettype (tnode_nthsubof (node, 0), defaulttype);
+	righttype = typecheck_gettype (tnode_nthsubof (node, 1), defaulttype);
+
+	*typep = typecheck_fixedtypeactual (lefttype, righttype, node, NULL, 1);
+	if (!*typep) {
+		tnode_error (node, "failed to get type for dyadic timer operator [%s]", node->tag->name);
+		return NULL;
+	}
+
+	return *typep;
+}
+/*}}}*/
+/*{{{  static int occampi_timerdoper_iscomplex (langops_t *lops, tnode_t *node, int deep)*/
+/*
+ *	returns non-zero if the dyadic operation is complex (i.e. warrants separate evaluation)
+ */
+static int occampi_timerdoper_iscomplex (langops_t *lops, tnode_t *node, int deep)
+{
+	int i = 0;
+
+	if (deep) {
+		i = langops_iscomplex (tnode_nthsubof (node, 0), deep);
+		if (!i) {
+			i = langops_iscomplex (tnode_nthsubof (node, 1), deep);
+		}
+	}
+	return i;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_timer_vardecl_betrans (compops_t *cops, tnode_t **tptr, betrans_t *be)*/
 /*
  *	betrans on VARDECL nodes -- used to remove TIMER declarations
@@ -467,6 +654,34 @@ static int occampi_timer_do_usagecheck_actionnode (langops_t *lops, tnode_t *t, 
 /*}}}*/
 
 
+/*{{{  static void occampi_reduce_dafter (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	reduces a dyadic AFTER operator, expects 2 nodes on the node-stack,
+ *	and the relevant operator token on the token-stack
+ */
+static void occampi_reduce_dafter (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	token_t *tok = parser_gettok (pp);
+	tnode_t *lhs, *rhs;
+	int i;
+
+	if (!tok) {
+		parser_error (pp->lf, "occampi_reduce_dafter(): no token ?");
+		return;
+	}
+	rhs = dfa_popnode (dfast);
+	lhs = dfa_popnode (dfast);
+	if (!rhs || !lhs) {
+		parser_error (pp->lf, "occampi_reduce_dafter(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
+		return;
+	}
+	*(dfast->ptr) = tnode_create (opi.tag_AFTER, pp->lf, lhs, rhs, NULL);
+
+	return;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_timer_init_nodes (void)*/
 /*
  *	initialises nodes for occam-pi timers
@@ -479,6 +694,11 @@ static int occampi_timer_init_nodes (void)
 	langops_t *lops;
 	int i;
 
+
+	/*{{{  register reduction functions*/
+	fcnlib_addfcn ("occampi_reduce_dafter", occampi_reduce_dafter, 0, 3);
+
+	/*}}}*/
 	/*{{{  occampi:timerinputnode -- TIMERINPUT, TIMERINPUTAFTER*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:timerinputnode", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = timer var, 1 = input-var or timeout expr */
@@ -531,6 +751,25 @@ static int occampi_timer_init_nodes (void)
 
 	i = -1;
 	opi.tag_MAFTER = tnode_newnodetag ("MAFTER", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:timerdoper -- AFTER*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:timerdoper", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 1 = lhs, 2 = rhs, 3 = type */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_timerdoper));
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_timerdoper));
+	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_timerdoper));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_timerdoper));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_timerdoper));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_timerdoper_gettype));
+	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_timerdoper_iscomplex));
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_AFTER = tnode_newnodetag ("AFTER", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  occampi:vardecl -- overrides for VARDECL*/

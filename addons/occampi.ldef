@@ -196,6 +196,7 @@
 .TNODE	"occampi:timerinputnode" (2,0,0) "timer" "rhs"
 .TNODE	"occampi:timertype" (1,0,0) "subtype"
 .TNODE	"occampi:timeroper" (2,0,0) "operand" "type"
+.TNODE	"occampi:timerdoper" (3,0,0) "lhs" "rhs" "type"
 
 #}}}
 
@@ -639,8 +640,11 @@
 .GRULE	"opi:timertype" "ST0T+@t0C[TIMER]1R-"
 .GRULE	"opi:mafterreduce" "ST0T+@tN+0C[MAFTER]2R-"
 
+.RFUNC	"Roccampi:dafterreduce" "occampi_reduce_dafter"
+
 .TABLE	"occampi:primtype +:= [ 0 +@TIMER 1 ] [ 1 {<opi:timertype>} -* ]"
 .TABLE	"occampi:expr +:= [ 0 +@AFTER 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:mafterreduce>} -* ]"
+.TABLE	"occampi:restofexpr +:= [ 0 +@AFTER 1 ] [ 1 occampi:expr 2 ] [ 2 {Roccampi:dafterreduce} -* ]"
 
 
 # }}}
