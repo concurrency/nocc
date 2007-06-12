@@ -1,0 +1,10 @@
+
+-- test_n75.occ -- dyadic AFTER
+
+PROC test.n75 ()
+  BOOL b:
+  INT a, b:
+  SEQ
+    b := a AFTER b
+:
+
