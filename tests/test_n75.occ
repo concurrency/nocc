@@ -3,8 +3,8 @@
 
 PROC test.n75 ()
   BOOL b:
-  INT a, b:
+  INT x, y:
   SEQ
-    b := a AFTER b
+    b := x AFTER y
 :
 

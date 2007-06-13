@@ -338,7 +338,6 @@ static tnode_t *occampi_timeroper_gettype (langops_t *lops, tnode_t *t, tnode_t 
  */
 static int occampi_typecheck_timerdoper (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
-	tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
 	tnode_t *lefttype, *righttype;
 	int i;
 
@@ -359,11 +358,10 @@ static int occampi_typecheck_timerdoper (compops_t *cops, tnode_t *node, typeche
 		tnode_t *type = typecheck_fixedtypeactual (lefttype, righttype, node, tc, 1);
 
 		if (type) {
+			type = tnode_createfrom (opi.tag_BOOL, node);
 			tnode_setnthsub (node, 2, type);
 		}
 	}
-
-	tnode_free (definttype);
 
 	return 0;
 }
@@ -478,7 +476,6 @@ static int occampi_codegen_timerdoper (compops_t *cops, tnode_t *node, codegen_t
  */
 static tnode_t *occampi_timerdoper_gettype (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
-	tnode_t *lefttype, *righttype;
 	tnode_t **typep = tnode_nthsubaddr (node, 2);
 	int i;
 
@@ -486,16 +483,9 @@ static tnode_t *occampi_timerdoper_gettype (langops_t *lops, tnode_t *node, tnod
 		return *typep;
 	}
 
-	lefttype = typecheck_gettype (tnode_nthsubof (node, 0), defaulttype);
-	righttype = typecheck_gettype (tnode_nthsubof (node, 1), defaulttype);
+	tnode_error (node, "dyadic timer operator [%s] has no type!", node->tag->name);
 
-	*typep = typecheck_fixedtypeactual (lefttype, righttype, node, NULL, 1);
-	if (!*typep) {
-		tnode_error (node, "failed to get type for dyadic timer operator [%s]", node->tag->name);
-		return NULL;
-	}
-
-	return *typep;
+	return NULL;
 }
 /*}}}*/
 /*{{{  static int occampi_timerdoper_iscomplex (langops_t *lops, tnode_t *node, int deep)*/
