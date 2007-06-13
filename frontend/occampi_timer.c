@@ -339,7 +339,6 @@ static tnode_t *occampi_timeroper_gettype (langops_t *lops, tnode_t *t, tnode_t 
 static int occampi_typecheck_timerdoper (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *lefttype, *righttype;
-	int i;
 
 	typecheck_subtree (tnode_nthsubof (node, 0), tc);
 	typecheck_subtree (tnode_nthsubof (node, 1), tc);
@@ -391,13 +390,21 @@ static int occampi_constprop_timerdoper (compops_t *cops, tnode_t **tptr)
 			/*{{{  CONST_INT -- int operations*/
 		case CONST_INT:
 			{
-				int i1, i2, b;
+				unsigned int i1, i2, b = 0;
+				unsigned long long l1, l2;
 
 				langops_constvalof (left, &i1);
 				langops_constvalof (right, &i2);
 
+				l1 = (unsigned long long)i1;
+				l2 = (unsigned long long)i2;
+
 				if ((*tptr)->tag == opi.tag_AFTER) {
-					b = (i1 > i2) ? 1 : 0;
+					if ((i1 > i2) && ((i2 + 0x80000000) > i1)) {
+						b = 1;
+					} else {
+						b = 0;
+					}
 				}
 
 				newconst = constprop_newconst (CONST_BOOL, *tptr, tnode_nthsubof (*tptr, 2), b);
@@ -461,7 +468,6 @@ static int occampi_namemap_timerdoper (compops_t *cops, tnode_t **node, map_t *m
  */
 static int occampi_codegen_timerdoper (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
-	int i;
 
 	/* FIXME! */
 	codegen_callops (cgen, tsecondary, I_GT);
@@ -477,7 +483,6 @@ static int occampi_codegen_timerdoper (compops_t *cops, tnode_t *node, codegen_t
 static tnode_t *occampi_timerdoper_gettype (langops_t *lops, tnode_t *node, tnode_t *defaulttype)
 {
 	tnode_t **typep = tnode_nthsubaddr (node, 2);
-	int i;
 
 	if (*typep) {
 		return *typep;
@@ -515,7 +520,6 @@ static int occampi_timerdoper_iscomplex (langops_t *lops, tnode_t *node, int dee
 static int occampi_timer_vardecl_betrans (compops_t *cops, tnode_t **tptr, betrans_t *be)
 {
 	tnode_t *t = *tptr;
-	tnode_t *name = tnode_nthsubof (t, 0);
 	tnode_t *type = tnode_nthsubof (t, 1);
 	tnode_t **bodyp = tnode_nthsubaddr (t, 2);
 
@@ -653,7 +657,6 @@ static void occampi_reduce_dafter (dfastate_t *dfast, parsepriv_t *pp, void *rar
 {
 	token_t *tok = parser_gettok (pp);
 	tnode_t *lhs, *rhs;
-	int i;
 
 	if (!tok) {
 		parser_error (pp->lf, "occampi_reduce_dafter(): no token ?");
