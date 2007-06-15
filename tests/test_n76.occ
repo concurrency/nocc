@@ -1,0 +1,15 @@
+
+-- test_n76.occ -- more complex AFTER
+
+PROC test.n76 ()
+  INT x, y:
+  SEQ
+    x := 10
+    y := 100
+    IF
+      x AFTER y
+        STOP
+      TRUE
+        SKIP
+:
+

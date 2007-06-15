@@ -413,6 +413,8 @@ static int occampi_namemap_snode (compops_t *cops, tnode_t **nodep, map_t *map)
  */
 static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
+	codegen_callops (cgen, debugline, node);
+
 	if (node->tag == opi.tag_IF) {
 		/*{{{  structured IF -- list of condition-process*/
 		tnode_t *body = tnode_nthsubof (node, 1);

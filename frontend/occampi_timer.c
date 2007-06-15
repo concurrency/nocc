@@ -465,7 +465,6 @@ static int occampi_namemap_timerdoper (compops_t *cops, tnode_t **node, map_t *m
  */
 static int occampi_codegen_timerdoper (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
-	codegen_callops (cgen, tsecondary, I_REV);
 	codegen_callops (cgen, tsecondary, I_DIFF);
 	codegen_callops (cgen, loadconst, 0);
 	codegen_callops (cgen, tsecondary, I_GT);
