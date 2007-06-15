@@ -390,17 +390,14 @@ static int occampi_constprop_timerdoper (compops_t *cops, tnode_t **tptr)
 			/*{{{  CONST_INT -- int operations*/
 		case CONST_INT:
 			{
-				unsigned int i1, i2, b = 0;
-				unsigned long long l1, l2;
+				int i1, i2, b = 0;
 
 				langops_constvalof (left, &i1);
 				langops_constvalof (right, &i2);
 
-				l1 = (unsigned long long)i1;
-				l2 = (unsigned long long)i2;
 
 				if ((*tptr)->tag == opi.tag_AFTER) {
-					if ((i1 > i2) && ((i2 + 0x80000000) > i1)) {
+					if ((i2 - i1) > 0) {
 						b = 1;
 					} else {
 						b = 0;
@@ -468,8 +465,9 @@ static int occampi_namemap_timerdoper (compops_t *cops, tnode_t **node, map_t *m
  */
 static int occampi_codegen_timerdoper (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
-
-	/* FIXME! */
+	codegen_callops (cgen, tsecondary, I_REV);
+	codegen_callops (cgen, tsecondary, I_DIFF);
+	codegen_callops (cgen, loadconst, 0);
 	codegen_callops (cgen, tsecondary, I_GT);
 
 	return 0;
