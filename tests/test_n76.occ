@@ -3,9 +3,11 @@
 
 PROC test.n76 ()
   INT x, y:
+  TIMER tim:
   SEQ
-    x := 10
-    y := 100
+    tim ? x
+    tim ? AFTER (x PLUS 1000000)
+    tim ? y
     IF
       x AFTER y
         STOP

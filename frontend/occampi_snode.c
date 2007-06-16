@@ -157,6 +157,7 @@ static int occampi_codegen_altenable_guardnode (langops_t *lops, tnode_t *guard,
 {
 	tnode_t *guardexpr = (tnode_t *)tnode_getchook (guard, guardexphook);
 
+	codegen_callops (cgen, debugline, guard);
 	if (guard->tag == opi.tag_INPUTGUARD) {
 		if (!guardexpr) {
 			nocc_internal ("occampi_codegen_snode(): no guard expression on INPUTGUARD!");
@@ -186,6 +187,7 @@ static int occampi_codegen_altdisable_guardnode (langops_t *lops, tnode_t *guard
 {
 	tnode_t *guardexpr = (tnode_t *)tnode_getchook (guard, guardexphook);
 
+	codegen_callops (cgen, debugline, guard);
 	codegen_callops (cgen, setlabel, dlabel);
 	if (guard->tag == opi.tag_INPUTGUARD) {
 		if (!guardexpr) {
