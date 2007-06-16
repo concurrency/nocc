@@ -229,6 +229,7 @@ extern ntdef_t *tnode_lookupnodetag (char *name);
 extern tndef_t *tnode_lookupornewnodetype (char *name, int *idx, int nsub, int nname, int nhooks, int flags);
 extern ntdef_t *tnode_lookupornewnodetag (char *name, int *idx, tndef_t *type, int flags);
 
+extern void tnode_changetag (tnode_t *t, ntdef_t *newtag);
 extern void tnode_setnthsub (tnode_t *t, int i, tnode_t *subnode);
 extern void tnode_setnthname (tnode_t *t, int i, struct TAG_name *name);
 extern void tnode_setnthhook (tnode_t *t, int i, void *hook);
@@ -292,6 +293,7 @@ extern chook_t *tnode_newchook (const char *name);
 extern chook_t *tnode_lookupchookbyname (const char *name);
 extern chook_t *tnode_lookupornewchook (const char *name);
 extern void *tnode_getchook (tnode_t *t, chook_t *ch);
+extern int tnode_haschook (tnode_t *t, chook_t *ch);
 extern void tnode_setchook (tnode_t *t, chook_t *ch, void *hook);
 extern void tnode_clearchook (tnode_t *, chook_t *ch);
 extern void tnode_dumpchooks (FILE *stream);

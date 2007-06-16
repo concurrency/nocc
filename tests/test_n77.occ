@@ -1,0 +1,13 @@
+
+-- test_n77.occ -- timed ALTs
+
+PROC test.n77 ()
+  TIMER tim:
+  INT t:
+  SEQ
+    ALT
+      tim ? AFTER t
+        SKIP
+:
+
+

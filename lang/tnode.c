@@ -672,6 +672,19 @@ ntdef_t *tnode_lookupornewnodetag (char *name, int *idx, tndef_t *type, int flag
 }
 /*}}}*/
 
+/*{{{  void tnode_changetag (tnode_t *t, ntdef_t *newtag)*/
+/*
+ *	changes the tag of a node -- makes sure that they are the same type-of-node
+ */
+void tnode_changetag (tnode_t *t, ntdef_t *newtag)
+{
+	if (t->tag->ndef != newtag->ndef) {
+		nocc_internal ("tnode_changetag(): refusing to change [%s,%s] to [%s,%s]", t->tag->name, t->tag->ndef->name, newtag->name, newtag->ndef->name);
+	}
+	t->tag = newtag;
+	return;
+}
+/*}}}*/
 /*{{{  void tnode_setnthsub (tnode_t *t, int i, tnode_t *subnode)*/
 /*
  *	sets the nth subnode of a treenode
@@ -2327,6 +2340,23 @@ chook_t *tnode_lookupornewchook (const char *name)
 	}
 
 	return chook;
+}
+/*}}}*/
+/*{{{  int tnode_haschook (tnode_t *t, chook_t *ch)*/
+/*
+ *	returns non-zero if the specified compiler-hook is present
+ */
+int tnode_haschook (tnode_t *t, chook_t *ch)
+{
+	if (!ch || !t) {
+		nocc_internal ("tnode_haschook(): null chook or tree!");
+		return NULL;
+	}
+	if (ch->id >= DA_CUR (t->chooks)) {
+		/* no such hook */
+		return 0;
+	}
+	return 1;
 }
 /*}}}*/
 /*{{{  void *tnode_getchook (tnode_t *t, chook_t *ch)*/

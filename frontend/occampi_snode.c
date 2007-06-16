@@ -62,7 +62,7 @@
 
 /* this is a chook attached to guard-nodes that indicates what needs to be enabled */
 static chook_t *guardexphook = NULL;
-
+static chook_t *actionlhstypechook = NULL;
 
 /*}}}*/
 
@@ -103,6 +103,25 @@ static void *occampi_guardexphook_copy (void *chook)
 /*}}}*/
 
 
+/*{{{  static int occampi_typecheck_guardnode (compops_t *cops, tnode_t *tnode, typecheck_t *tc)*/
+/*
+ *	does type-checking on a guard-node -- will turn pending INPUTGUARDs into TIMERGUARDs if LHS is timer type
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_guardnode (compops_t *cops, tnode_t *tnode, typecheck_t *tc)
+{
+	tnode_t *acttype;
+
+	typecheck_subtree (tnode_nthsubof (tnode, 0), tc);
+	typecheck_subtree (tnode_nthsubof (tnode, 1), tc);
+
+	acttype = (tnode_t *)tnode_getchook (tnode_nthsubof (tnode, 0), actionlhstypechook);
+	if (acttype && (tnode->tag == opi.tag_INPUTGUARD) && (acttype->tag == opi.tag_TIMER)) {
+		tnode_changetag (tnode, opi.tag_TIMERGUARD);
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_betrans_guardnode (compops_t *cops, tnode_t **nodep, betrans_t *be)*/
 /*
  *	does back-end transformations for a guard node (pulls out guarded expression before mapping)
@@ -124,7 +143,15 @@ static int occampi_betrans_guardnode (compops_t *cops, tnode_t **nodep, betrans_
 		/*}}}*/
 	} else if ((*nodep)->tag == opi.tag_TIMERGUARD) {
 		/*{{{  pull out timeout expression*/
-		/* FIXME! */
+		tnode_t *timeout = treeops_findintree (tnode_nthsubof (*nodep, 0), opi.tag_TIMERINPUTAFTER);
+
+		if (!timeout) {
+			tnode_error (*nodep, "did not find TIMERINPUTAFTER in TIMERGUARD!");
+		} else {
+			tnode_t *lhs = tnode_nthsubof (timeout, 1);
+
+			tnode_setchook (*nodep, guardexphook, (void *)lhs);
+		}
 		/*}}}*/
 	}
 	return 1;
@@ -160,7 +187,7 @@ static int occampi_codegen_altenable_guardnode (langops_t *lops, tnode_t *guard,
 	codegen_callops (cgen, debugline, guard);
 	if (guard->tag == opi.tag_INPUTGUARD) {
 		if (!guardexpr) {
-			nocc_internal ("occampi_codegen_snode(): no guard expression on INPUTGUARD!");
+			nocc_internal ("occampi_codegen_altenable_guardnode(): no guard expression on INPUTGUARD!");
 		} else {
 			tnode_t *precond = tnode_nthsubof (guard, 2);
 
@@ -173,6 +200,14 @@ static int occampi_codegen_altenable_guardnode (langops_t *lops, tnode_t *guard,
 			codegen_callops (cgen, loadlabaddr, dlabel);
 			codegen_callops (cgen, tsecondary, I_ENBC);
 			codegen_callops (cgen, trashistack);
+		}
+	} else if (guard->tag == opi.tag_TIMERGUARD) {
+		if (!guardexpr) {
+			nocc_internal ("occampi_codegen_altenable_guardnode(): no guard expression on TIMERGUARD!");
+		} else {
+			tnode_t *precond = tnode_nthsubof (guard, 2);
+
+			/* FIXME: code for timeout enable */
 		}
 	}
 	return 0;
@@ -191,7 +226,7 @@ static int occampi_codegen_altdisable_guardnode (langops_t *lops, tnode_t *guard
 	codegen_callops (cgen, setlabel, dlabel);
 	if (guard->tag == opi.tag_INPUTGUARD) {
 		if (!guardexpr) {
-			nocc_internal ("occampi_codegen_snode(): guard expression on INPUTGUARD vanished!");
+			nocc_internal ("occampi_codegen_altdisable_guardnode(): guard expression on INPUTGUARD vanished!");
 		} else {
 			tnode_t *precond = tnode_nthsubof (guard, 2);
 
@@ -204,6 +239,14 @@ static int occampi_codegen_altdisable_guardnode (langops_t *lops, tnode_t *guard
 			codegen_callops (cgen, loadlabaddr, plabel);
 			codegen_callops (cgen, tsecondary, I_DISC);
 			codegen_callops (cgen, trashistack);
+		}
+	} else if (guard->tag == opi.tag_TIMERGUARD) {
+		if (!guardexpr) {
+			nocc_internal ("occampi_codegen_altdisable_guardnode(): no guard expression on TIMERGUARD!");
+		} else {
+			tnode_t *precond = tnode_nthsubof (guard, 2);
+
+			/* FIXME: code for timeout enable */
 		}
 	}
 	return 0;
@@ -583,6 +626,7 @@ static int occampi_snode_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:guardnode", &i, 3, 0, 0, TNF_LONGPROC);	/* subnodes: 0 = guard-expr, 1 = body, 2 = pre-condition */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_guardnode));
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_guardnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_guardnode));
 	tnd->ops = cops;
@@ -603,6 +647,21 @@ static int occampi_snode_init_nodes (void)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_snode_post_setup (void)*/
+/*
+ *	does post-setup for structured process nodes
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_snode_post_setup (void)
+{
+	actionlhstypechook = tnode_lookupchookbyname ("occampi:action:lhstype");
+	if (!actionlhstypechook) {
+		nocc_error ("occampi_snode_post_setup(): failed to find \"occampi:action:lhstype\" compiler-hook!");
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  occampi_snode_feunit (feunit_t)*/
@@ -610,7 +669,7 @@ feunit_t occampi_snode_feunit = {
 	init_nodes: occampi_snode_init_nodes,
 	reg_reducers: NULL,
 	init_dfatrans: NULL,
-	post_setup: NULL,
+	post_setup: occampi_snode_post_setup,
 	ident: "occampi-snode"
 };
 /*}}}*/
