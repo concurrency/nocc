@@ -2937,7 +2937,7 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		krocetc_cgstate_tsdelta (cgen, -2);
 		break;
 		/*}}}*/
-		/*{{{  ENBS: enable skip buard*/
+		/*{{{  ENBS: enable skip guard*/
 	case I_ENBS:
 		codegen_write_string (cgen, "\tenbs\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
@@ -2946,6 +2946,24 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		/*{{{  ENBT: enable timer guard*/
 	case I_ENBT:
 		codegen_write_string (cgen, "\tenbt\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  ENBC2: enable channel guard (2 params)*/
+	case I_ENBC2:
+		codegen_write_string (cgen, "\tenbc2\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		break;
+		/*}}}*/
+		/*{{{  ENBS2: enable skip guard (1 param)*/
+	case I_ENBS2:
+		codegen_write_string (cgen, "\tenbs2\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  ENBT2: enable timer guard (2 params)*/
+	case I_ENBT2:
+		codegen_write_string (cgen, "\tenbt2\n");
 		krocetc_cgstate_tsdelta (cgen, -2);
 		break;
 		/*}}}*/

@@ -429,6 +429,7 @@ int tnode_init (void)
 	tnode_newlangop ("initialising_decl", LOPS_INITIALISING_DECL, 3, INTERNAL_ORIGIN);
 	tnode_newlangop ("codegen_typeaction", LOPS_CODEGEN_TYPEACTION, 3, INTERNAL_ORIGIN);
 	tnode_newlangop ("codegen_typerangecheck", LOPS_CODEGEN_TYPERANGECHECK, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("codegen_altpreenable", LOPS_CODEGEN_ALTPREENABLE, 3, INTERNAL_ORIGIN);
 	tnode_newlangop ("codegen_altenable", LOPS_CODEGEN_ALTENABLE, 3, INTERNAL_ORIGIN);
 	tnode_newlangop ("codegen_altdisable", LOPS_CODEGEN_ALTDISABLE, 4, INTERNAL_ORIGIN);
 	tnode_newlangop ("premap_typeforvardecl", LOPS_PREMAP_TYPEFORVARDECL, 3, INTERNAL_ORIGIN);
@@ -2350,7 +2351,7 @@ int tnode_haschook (tnode_t *t, chook_t *ch)
 {
 	if (!ch || !t) {
 		nocc_internal ("tnode_haschook(): null chook or tree!");
-		return NULL;
+		return 0;
 	}
 	if (ch->id >= DA_CUR (t->chooks)) {
 		/* no such hook */

@@ -166,15 +166,16 @@ typedef enum ENUM_langops {
 	LOPS_INITIALISING_DECL = 18,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
 	LOPS_CODEGEN_TYPEACTION = 19,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
 	LOPS_CODEGEN_TYPERANGECHECK = 20,	/* 2: tnode_t *, codegen_t * -> int */
-	LOPS_CODEGEN_ALTENABLE = 21,		/* 3: tnode_t *, int, codegen_t * -> int */
-	LOPS_CODEGEN_ALTDISABLE = 22,		/* 4: tnode_t *, int, int, codegen_t * -> int */
-	LOPS_PREMAP_TYPEFORVARDECL = 23,	/* 3: tnode_t *, tnode_t *, map_t * -> int */
-	LOPS_RETYPECONST = 24,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
-	LOPS_DIMTREEOF = 25,			/* 1: tnode_t * -> tnode_t * */
-	LOPS_HIDDENPARAMSOF = 26,		/* 1: tnode_t * -> tnode_t * */
-	LOPS_HIDDENSLOTSOF = 27,		/* 1: tnode_t * -> int */
-	LOPS_TYPEHASH = 28,			/* 3: tnode_t *, int, void * -> int */
-	LOPS_TYPETYPE = 29,			/* 1: tnode_t * -> typecat_e */
+	LOPS_CODEGEN_ALTPREENABLE = 21,		/* 3: tnode_t *, int, codegen_t * -> int */
+	LOPS_CODEGEN_ALTENABLE = 22,		/* 3: tnode_t *, int, codegen_t * -> int */
+	LOPS_CODEGEN_ALTDISABLE = 23,		/* 4: tnode_t *, int, int, codegen_t * -> int */
+	LOPS_PREMAP_TYPEFORVARDECL = 24,	/* 3: tnode_t *, tnode_t *, map_t * -> int */
+	LOPS_RETYPECONST = 25,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
+	LOPS_DIMTREEOF = 26,			/* 1: tnode_t * -> tnode_t * */
+	LOPS_HIDDENPARAMSOF = 27,		/* 1: tnode_t * -> tnode_t * */
+	LOPS_HIDDENSLOTSOF = 28,		/* 1: tnode_t * -> int */
+	LOPS_TYPEHASH = 29,			/* 3: tnode_t *, int, void * -> int */
+	LOPS_TYPETYPE = 30,			/* 1: tnode_t * -> typecat_e */
 	LOPS_MAX = 256
 } langops_e;
 

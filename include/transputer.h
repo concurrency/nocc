@@ -123,7 +123,10 @@ typedef enum ENUM_transinstr {
 	I_XOR = 102,
 	I_CSUB0 = 103,
 	I_LDTIMER = 104,
-	I_TIN = 105
+	I_TIN = 105,
+	I_ENBC2 = 106,
+	I_ENBT2 = 107,
+	I_ENBS2 = 108
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {
