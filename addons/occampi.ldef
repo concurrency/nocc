@@ -567,13 +567,15 @@
 .SECTION "occampi-snode" # {{{: structured process nodes
 
 .GRULE	"opi:altsnode" "ST0T+@t000C[ALT]3R-"
+.GRULE	"opi:replaltsnode" "ST0T+@tN+N+N+00V*C[REPLALT]5R-"
 .GRULE	"opi:casenode" "ST0T+@t0N+V0C[CASE]3R-"
 .GRULE	"opi:ifcond" "SN0N+0C[CONDITIONAL]2R-"
 .GRULE	"opi:skipguard" "ST0T+@t00N+C[SKIPGUARD]3R-"
 .GRULE	"opi:inputguard" "SN0N+0N+C[INPUTGUARD]3R-"
 .GRULE	"opi:timerguard" "SN0N+0N+C[TIMERGUARD]3R-"
 
-.TABLE	"occampi:snode +:= [ 0 +@ALT 1 ] [ 0 +@CASE 3 ] [ 1 -Newline 2 ] [ 2 {<opi:altsnode>} -* ] [ 3 occampi:expr 4 ] [ 4 -Newline 5 ] [ 5 {<opi:casenode>} -* ]"
+.TABLE	"occampi:snode +:= [ 0 +@ALT 1 ] [ 0 +@CASE 3 ] [ 1 -Newline 2 ] [ 1 -Name 6 ] [ 2 {<opi:altsnode>} -* ] [ 3 occampi:expr 4 ] [ 4 -Newline 5 ] [ 5 {<opi:casenode>} -* ]"
+	"[ 6 occampi:name 7 ] [ 7 @@= 8 ] [ 8 occampi:expr 9 ] [ 9 @FOR 10 ] [ 10 occampi:expr 11 ] [ 11 {<opi:replaltsnode>} -* ]"
 .TABLE	"occampi:ifcond ::= [ 0 occampi:expr 1 ] [ 1 Comment 1 ] [ 1 -Newline 2 ] [ 2 {<opi:ifcond>} -* ]"
 .TABLE	"occampi:subaltinputguard ::= [ 0 occampi:name 1 ] [ 1 -* <occampi:namestartname> ]"
 .TABLE	"occampi:altinputguard ::= [ 0 occampi:subaltinputguard 1 ] [ 1 {<opi:inputguard>} -* ]"
