@@ -116,8 +116,10 @@ typedef struct {
 	struct TAG_ntdef *tag_RETURNADDRESS;
 	struct TAG_ntdef *tag_PARSPACE;
 	struct TAG_ntdef *tag_IF;
+	struct TAG_ntdef *tag_REPLIF;
 	struct TAG_ntdef *tag_SHORTIF;
 	struct TAG_ntdef *tag_ALT;
+	struct TAG_ntdef *tag_REPLALT;
 	struct TAG_ntdef *tag_CASE;
 	struct TAG_ntdef *tag_CONDITIONAL;
 	struct TAG_ntdef *tag_VALOF;

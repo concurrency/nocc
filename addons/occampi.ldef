@@ -52,10 +52,12 @@
 #{{{  structured nodes
 
 # occampi:snode                    (3,0,0)
+# occampi:replsnode                (5,0,0)
 # occampi:condnode                 (2,0,0)
 # occampi:guardnode                (3,0,0)
 
 .TNODE	"occampi:snode" (3,0,0) "expr" "body" "type"
+.TNODE	"occampi:replsnode" (5,0,0) "expr" "body" "repl-name" "repl-start" "repl-length"
 .TNODE	"occampi:condnode" (2,0,0) "expr" "body"
 .TNODE	"occampi:guardnode" (3,0,0) "guard-expr" "body" "pre-condition"
 
