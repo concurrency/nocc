@@ -235,6 +235,7 @@
 	"occampi:builtinprocinstance | occampi:bracketstart | occampi:asmblock ) {<opi:nullreduce>}"
 .TABLE	"occampi:descriptorline ::= [ 0 -@PROC 1 ] [ 0 -* 2 ] [ 1 occampi:procdecl 3 ] [ 2 occampi:funcdecl 3 ] [ 3 {<opi:nullreduce>} -* ]"
 
+
 .TABLE	"occampi:po_namestart ::= [ 0 Name <occampi:po_namestartname> ]"
 .BNF	"occampi:po_declstart ::= (occampi:po_vardecl | occampi:po_abbrdecl | occampi:po_procdecl | occampi:po_typedecl | occampi:po_mobiledecl | occampi:po_namestart)"
 
@@ -265,6 +266,8 @@
 #	"[ 2 -* 4 ] [ 4 {<opi:outputreduce>} -* ]"
 #.TABLE	"occampi:namestartname +:= [ 0 @@? 1 ] [ 1 occampi:exprsemilist 2 ] [ 2 @@: 3 ] [ 3 {<opi:declreduce>} -* ]"
 #	"[ 2 -* 4 ] [ 4 {<opi:inputreduce>} -* ]"
+
+#.BNF	"occampi:po_namestartname +:= [ 0 @@! 1 ] [ 1 Name 2 ] [ 2 @@, 3 ] [ 2 @@: 3 ]"
 
 # }}}
 .SECTION "occampi-asm" # {{{: inline transputer assembly
