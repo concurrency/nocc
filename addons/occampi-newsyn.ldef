@@ -10,6 +10,10 @@
 
 .SECTION "occampi-newsyn"
 
+.GRULE	"opi:nullreduce" "N+R-"
+.GRULE	"opi:nullpush" "0N-"
+.GRULE	"opi:nullset" "0R-"
+
 
 .SECTION "occampi-newsyn-postprod"
 
