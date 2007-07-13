@@ -236,8 +236,8 @@
 .TABLE	"occampi:descriptorline ::= [ 0 -@PROC 1 ] [ 0 -* 2 ] [ 1 occampi:procdecl 3 ] [ 2 occampi:funcdecl 3 ] [ 3 {<opi:nullreduce>} -* ]"
 
 
-.TABLE	"occampi:po_namestart ::= [ 0 Name <occampi:po_namestartname> ]"
-.BNF	"occampi:po_declstart ::= (occampi:po_vardecl | occampi:po_abbrdecl | occampi:po_procdecl | occampi:po_typedecl | occampi:po_mobiledecl | occampi:po_namestart)"
+#.TABLE	"occampi:po_namestart ::= [ 0 Name <occampi:po_namestartname> ]"
+#.BNF	"occampi:po_declstart ::= ( occampi:po_vardecl | occampi:po_abbrdecl | occampi:po_procdecl | occampi:po_typedecl | occampi:po_mobiledecl | occampi:po_namestart ) {<opi:nullrecuce>}"
 
 .DFAERR	STUCK "occampi:namestart" "in declaration or process" EXPECTED
 .DFAERR	STUCK "occampi:namestartname" "in declaration or process" EXPECTED
@@ -384,6 +384,11 @@
 .DFAERR	STUCK "occampi:procdecl" "in PROC declaration" EXPECTED
 
 
+# {{{  parse-only grammars
+#.TABLE	"occampi:po_vardecl ::= [ 0 occampi:po_primtype 1 ] [ 1 {<opi:nullreduce>} -* ]"
+
+
+# }}}
 # }}}
 .SECTION "occampi-dtype" # {{{: structured data-types
 
@@ -458,6 +463,7 @@
 
 
 .DFAERR	STUCK "occampi:typedecl" "in DATA TYPE declaration" EXPECTED
+
 
 # }}}
 .SECTION "occampi-function" # {{{: functions
@@ -625,6 +631,10 @@
 
 .DFAERR	STUCK "occampi:protocol" "in protocol specification" EXPECTED
 
+# {{{  parse-only grammars
+#.BNF	"occampi:po_primtype ::= ( @INT | @BYTE | @BOOL | @INT16 | @INT32 | @INT64 | @REAL32 | @REAL64 | @CHAR ) {<opi:nullreduce>}"
+
+# }}}
 # }}}
 .SECTION "occampi-arrayconstructor" # {{{: array-constructors
 
