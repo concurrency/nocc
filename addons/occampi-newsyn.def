@@ -1,0 +1,16 @@
+#
+# occampi-newsyn.ldef - language definitions for a new occam-pi syntax (experimenting)
+# identifiers must start at the left-margin, indentation is line-continuation
+#
+
+.IDENT		"occampi-newsyn"
+.DESC		"occam-pi parallel programming language, http://occam-pi.org/">
+.MAINTAINER	"Fred Barnes <frmb@kent.ac.uk>"
+
+
+.SECTION "occampi-newsyn"
+
+
+.SECTION "occampi-newsyn-postprod"
+
+
