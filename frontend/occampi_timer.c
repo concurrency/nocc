@@ -576,7 +576,7 @@ static int occampi_timer_actionnode_fetrans (compops_t *cops, tnode_t **tptr, fe
 	tnode_t *t = *tptr;
 	tnode_t *lhstype = (tnode_t *)tnode_getchook (t, actionlhstypechook);
 
-	if (lhstype->tag == opi.tag_TIMER) {
+	if (lhstype && (lhstype->tag == opi.tag_TIMER)) {
 		tnode_t *rhs = tnode_nthsubof (t, 1);
 		ntdef_t *newtag = NULL;
 
