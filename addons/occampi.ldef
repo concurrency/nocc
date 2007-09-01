@@ -600,7 +600,7 @@
 
 
 # }}}
-.SECTION "occampi-typeop" # {{{
+.SECTION "occampi-typeop" # {{{: type operators
 
 .GRULE	"opi:mostposreduce" "ST0T+@tN+0C[MOSTPOS]2R-"
 .GRULE	"opi:mostnegreduce" "ST0T+@tN+0C[MOSTNEG]2R-"
@@ -655,7 +655,7 @@
 .TABLE	"occampi:expr +:= [ 0 occampi:arrayconstructor 1 ] [ 1 {<opi:nullreduce>} -* ]"
 
 # }}}
-.SECTION "occampi-timer" # {{{
+.SECTION "occampi-timer" # {{{: timers
 
 .GRULE	"opi:timertype" "ST0T+@t0C[TIMER]1R-"
 .GRULE	"opi:mafterreduce" "ST0T+@tN+0C[MAFTER]2R-"

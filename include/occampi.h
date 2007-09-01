@@ -197,6 +197,7 @@ typedef struct {
 	struct TAG_ntdef *tag_SYNCGUARD;
 
 	struct TAG_ntdef *tag_MISCCOMMENT;
+	struct TAG_ntdef *tag_METADATA;
 	struct TAG_ntdef *tag_MISCTCOFF;
 
 	struct TAG_ntdef *tag_ARRAYCONSTRUCTOR;

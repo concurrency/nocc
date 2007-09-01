@@ -190,6 +190,8 @@ static int occampi_misc_init_nodes (void)
 
 	i = -1;
 	opi.tag_MISCCOMMENT = tnode_newnodetag ("MISCCOMMENT", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_METADATA = tnode_newnodetag ("METADATA", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

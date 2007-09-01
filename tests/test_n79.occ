@@ -2,6 +2,7 @@
 -- test_n79.occ -- testing addition of meta-data in XLO/XLB files
 
 PROC test.n79 (CHAN BYTE out!)
+  #PRAGMA META "mobility" "{<out!~>}"
   SEQ
     out ! 42
     SKIP

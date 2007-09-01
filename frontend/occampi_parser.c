@@ -746,6 +746,19 @@ static int check_indented_comment (lexfile_t *lf)
 	return cleanup && hadcomment;
 }
 /*}}}*/
+/*{{{  */
+/*
+ *	parses a "#META" / "#PRAGMA META" directive, from the next token
+ *	returns tree object on success, NULL on failure
+ */
+static tnode_t *occampi_parsemetadata (lexfile_t *lf)
+{
+	tnode_t *tree = NULL;
+
+
+	return tree;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_declorprocstart (lexfile_t *lf, int *gotall, char *thedfa)*/
 /*
  *	parses a declaration/process for single-liner's, or start of a declaration/process
@@ -791,7 +804,8 @@ restartpoint:
 		}
 		return tree;
 	}
-	
+
+	/*{{{  handle indented/outdented comments*/
 	/*
 	 * NOTE: need to handle the case of an outdented comment in
 	 * the flow of everything else -- not nice!
@@ -828,6 +842,7 @@ restartpoint:
 			break;
 		}
 	}
+	/*}}}*/
 
 	if (lexer_tokmatch (opi.tok_HASH, tok)) {
 		/*{{{  probably a pre-processor action of some kind*/
@@ -1093,6 +1108,19 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				return tree;
 			}
 			/*}}}*/
+		} else if (nexttok && lexer_tokmatchlitstr (nexttok, "META")) {
+			/*{{{  #META*/
+			lexer_freetoken (tok);
+			lexer_freetoken (nexttok);
+
+			tree = occampi_parsemetadata (lf);
+			if (!tree) {
+				parser_error (lf, "failed while processing #META directive");
+				return tree;
+			}
+			*gotall = 1;
+
+			/*}}}*/
 		} else if (nexttok && lexer_tokmatchlitstr (nexttok, "PRAGMA")) {
 			/*{{{  #PRAGMA*/
 			lexer_freetoken (tok);
@@ -1145,6 +1173,18 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 					lexer_freetoken (nexttok);
 					return tree;
 				}
+				/*}}}*/
+			} else if (nexttok && lexer_tokmatchlitstr (nexttok, "META")) {
+				/*{{{  #PRAGMA META*/
+				lexer_freetoken (nexttok);
+
+				tree = occampi_parsemetadata (lf);
+				if (!tree) {
+					parser_error (lf, "failed while processing #PRAGMA META directive");
+					return tree;
+				}
+				*gotall = 1;
+
 				/*}}}*/
 			} else {
 				parser_error (lf, "while processing #PRAGMA, expected string found ");
