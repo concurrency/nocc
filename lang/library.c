@@ -61,12 +61,20 @@
 
 
 /*{{{  library-file private types*/
+typedef struct TAG_libfile_metadata {
+	char *name;		/* meta name */
+	char *data;		/* meta data */
+	int dlen;		/* data length */
+} libfile_metadata_t;
+
 typedef struct TAG_libfile_entry {
 	char *name;		/* entry-name */
 	char *langname;
 	char *targetname;
 	char *descriptor;	/* what is actually re-parsed by the compiler */
 	int ws, vs, ms, adjust;	/* space required */
+
+	DYNARRAY (libfile_metadata_t *, mdata);
 } libfile_entry_t;
 
 typedef struct TAG_libfile_srcunit {
@@ -75,6 +83,7 @@ typedef struct TAG_libfile_srcunit {
 	char *hashalgo;
 	char *hashvalue;
 	int issigned;
+	DYNARRAY (libfile_metadata_t *, mdata);
 
 	/* below used when parsing, not general info! */
 	libfile_entry_t *curentry;
@@ -89,6 +98,7 @@ typedef struct TAG_libfile {
 	DYNARRAY (libfile_srcunit_t *, srcs);
 	DYNARRAY (char *, autoinclude);
 	DYNARRAY (char *, autouse);
+	DYNARRAY (libfile_metadata_t *, mdata);
 
 	/* below used when parsing, not general info! */
 	libfile_srcunit_t *curunit;
@@ -96,6 +106,7 @@ typedef struct TAG_libfile {
 /*}}}*/
 /*{{{  private types*/
 /*{{{  library definition*/
+
 struct TAG_libnodehook;
 
 typedef struct TAG_libtaghook {
@@ -126,6 +137,7 @@ typedef struct TAG_libnodehook {
 
 /*}}}*/
 /*{{{  library usage*/
+
 typedef struct TAG_libusenodehook {
 	lexfile_t *lf;
 	char *libname;
@@ -795,6 +807,39 @@ static void lib_libusenodehook_dumpstree (tnode_t *node, void *hook, int indent,
 /*}}}*/
 
 
+/*{{{  static libfile_metadata_t *lib_newlibfile_metadata (void)*/
+/*
+ *	createa a new, blank, libfile_metadata_t structure
+ */
+static libfile_metadata_t *lib_newlibfile_metadata (void)
+{
+	libfile_metadata_t *lmd = (libfile_metadata_t *)smalloc (sizeof (libfile_metadata_t));
+
+	lmd->name = NULL;
+	lmd->data = NULL;
+	lmd->dlen = 0;
+
+	return lmd;
+}
+/*}}}*/
+/*{{{  static void lib_freelibfile_metadata (libfile_metadata_t *lmd)*/
+/*
+ *	destroys a libfile_metadata_t structure
+ */
+static void lib_freelibfile_metadata (libfile_metadata_t *lmd)
+{
+	if (lmd->name) {
+		sfree (lmd->name);
+	}
+	if (lmd->data) {
+		sfree (lmd->data);
+	}
+	lmd->dlen = 0;
+
+	sfree (lmd);
+	return;
+}
+/*}}}*/
 /*{{{  static libfile_entry_t *lib_newlibfile_entry (void)*/
 /*
  *	creates a new, blank, libfile_entry_t structure
@@ -811,6 +856,7 @@ static libfile_entry_t *lib_newlibfile_entry (void)
 	lfe->vs = 0;
 	lfe->ms = 0;
 	lfe->adjust = 0;
+	dynarray_init (lfe->mdata);
 
 	return lfe;
 }
@@ -821,6 +867,8 @@ static libfile_entry_t *lib_newlibfile_entry (void)
  */
 static void lib_freelibfile_entry (libfile_entry_t *lfe)
 {
+	int i;
+
 	if (lfe->name) {
 		sfree (lfe->name);
 	}
@@ -833,6 +881,15 @@ static void lib_freelibfile_entry (libfile_entry_t *lfe)
 	if (lfe->descriptor) {
 		sfree (lfe->descriptor);
 	}
+
+	for (i=0; i<DA_CUR (lfe->mdata); i++) {
+		libfile_metadata_t *lmd = DA_NTHITEM (lfe->mdata, i);
+
+		if (lmd) {
+			lib_freelibfile_metadata (lmd);
+		}
+	}
+	dynarray_trash (lfe->mdata);
 
 	sfree (lfe);
 	return;
@@ -851,6 +908,7 @@ static libfile_srcunit_t *lib_newlibfile_srcunit (void)
 	lfsu->hashalgo = NULL;
 	lfsu->hashvalue = NULL;
 	lfsu->issigned = 0;
+	dynarray_init (lfsu->mdata);
 
 	lfsu->curentry = NULL;
 
@@ -874,6 +932,7 @@ static void lib_freelibfile_srcunit (libfile_srcunit_t *lfsu)
 	if (lfsu->hashvalue) {
 		sfree (lfsu->hashvalue);
 	}
+
 	for (i=0; i<DA_CUR (lfsu->entries); i++) {
 		libfile_entry_t *lfe = DA_NTHITEM (lfsu->entries, i);
 
@@ -882,6 +941,15 @@ static void lib_freelibfile_srcunit (libfile_srcunit_t *lfsu)
 		}
 	}
 	dynarray_trash (lfsu->entries);
+
+	for (i=0; i<DA_CUR (lfsu->mdata); i++) {
+		libfile_metadata_t *lmd = DA_NTHITEM (lfsu->mdata, i);
+
+		if (lmd) {
+			lib_freelibfile_metadata (lmd);
+		}
+	}
+	dynarray_trash (lfsu->mdata);
 
 	sfree (lfsu);
 	return;
@@ -901,6 +969,7 @@ static libfile_t *lib_newlibfile (void)
 	dynarray_init (lf->srcs);
 	dynarray_init (lf->autoinclude);
 	dynarray_init (lf->autouse);
+	dynarray_init (lf->mdata);
 
 	lf->curunit = NULL;
 
@@ -945,9 +1014,17 @@ static void lib_freelibfile (libfile_t *lf)
 			sfree (lfile);
 		}
 	}
+	for (i=0; i<DA_CUR (lf->mdata); i++) {
+		libfile_metadata_t *lmd = DA_NTHITEM (lf->mdata, i);
+
+		if (lmd) {
+			lib_freelibfile_metadata (lmd);
+		}
+	}
 	dynarray_trash (lf->srcs);
 	dynarray_trash (lf->autoinclude);
 	dynarray_trash (lf->autouse);
+	dynarray_trash (lf->mdata);
 
 	sfree (lf);
 	return;
@@ -1252,6 +1329,52 @@ static void lib_xmlhandler_elem_start (xmlhandler_t *xh, void *data, xmlkey_t *k
 		}
 		break;
 		/*}}}*/
+		/*{{{  XMLKEY_META*/
+	case XMLKEY_META:
+		/* valid anywhere pretty much */
+		{
+			libfile_metadata_t *lmd = lib_newlibfile_metadata ();
+
+			for (i=0; attrkeys[i]; i++) {
+				switch (attrkeys[i]->type) {
+				case XMLKEY_NAME:
+					if (lmd->name) {
+						nocc_error ("lib_xmlhandler_elem_start(): unexpected name in meta node");
+						return;
+					}
+					lmd->name = string_dup (attrvals[i]);
+					break;
+				case XMLKEY_DATA:
+					if (lmd->data) {
+						nocc_error ("lib_xmlhandler_elem_start(): unexpected data in meta node");
+						return;
+					}
+					lmd->data = decode_hexstr ((char *)attrvals[i], &lmd->dlen);
+					break;
+				default:
+					nocc_internal ("lib_xmlhandler_elem_start(): unknown attribute [%s] in meta node", attrkeys[i]->name);
+					return;
+				}
+			}
+
+			/* need at least name and data! */
+			if (!lmd->name && !lmd->data) {
+				nocc_error ("lib_xmlhandler_elem_start(): meta node missing some attributes");
+				lib_freelibfile_metadata (lmd);
+				return;
+			}
+
+			/* attach to right place */
+			if (!lf->curunit) {
+				dynarray_add (lf->mdata, lmd);
+			} else if (!lf->curunit->curentry) {
+				dynarray_add (lf->curunit->mdata, lmd);
+			} else {
+				dynarray_add (lf->curunit->curentry->mdata, lmd);
+			}
+		}
+		break;
+		/*}}}*/
 		/*{{{  default -- ignore*/
 	default:
 		break;
@@ -1459,6 +1582,27 @@ fprintf (stderr, "lib_readlibrary(): trying [%s]\n", fbuf);
 	return lf;
 }
 /*}}}*/
+/*{{{  static int lib_writelibrary_metadata (FILE *libstream, int indent, libfile_t *lf, libfile_metadata_t *lmd)*/
+/*
+ *	writes out a single meta-data entry into an existing library stream
+ *	returns 0 on success, non-zero on failure
+ */
+static int lib_writelibrary_metadata (FILE *libstream, int indent, libfile_t *lf, libfile_metadata_t *lmd)
+{
+	char *hbuf;
+
+	if (!lmd) {
+		return -1;
+	}
+	hbuf = mkhexbuf ((unsigned char *)lmd->data, lmd->dlen);
+
+	lib_isetindent (libstream, indent);
+	fprintf (libstream, "<meta name=\"%s\" data=\"%s\" />\n", lmd->name, hbuf);
+
+	sfree (hbuf);
+	return 0;
+}
+/*}}}*/
 /*{{{  static int lib_writelibrary (libfile_t *lf)*/
 /*
  *	writes out a library-file, will trash any existing file
@@ -1525,6 +1669,7 @@ static int lib_writelibrary (libfile_t *lf)
 
 		for (j=0; j<DA_CUR (lfsu->entries); j++) {
 			libfile_entry_t *lfe = DA_NTHITEM (lfsu->entries, j);
+			int k;
 
 			lib_isetindent (libstream, 3);
 			fprintf (libstream, "<proc name=\"%s\" language=\"%s\" target=\"%s\">\n", lfe->name, lfe->langname, lfe->targetname);
@@ -1534,11 +1679,29 @@ static int lib_writelibrary (libfile_t *lf)
 			lib_isetindent (libstream, 4);
 			fprintf (libstream, "<blockinfo allocws=\"%d\" allocvs=\"%d\" allocms=\"%d\" adjust=\"%d\" />\n", lfe->ws, lfe->vs, lfe->ms, lfe->adjust);
 
+			for (k=0; k<DA_CUR (lfe->mdata); k++) {
+				libfile_metadata_t *lmd = DA_NTHITEM (lfe->mdata, k);
+
+				lib_writelibrary_metadata (libstream, 4, lf, lmd);
+			}
+
 			lib_isetindent (libstream, 3);
 			fprintf (libstream, "</proc>\n");
 		}
+
+		for (j=0; j<DA_CUR (lfsu->mdata); j++) {
+			libfile_metadata_t *lmd = DA_NTHITEM (lfsu->mdata, j);
+
+			lib_writelibrary_metadata (libstream, 3, lf, lmd);
+		}
+
 		lib_isetindent (libstream, 2);
 		fprintf (libstream, "</libunit>\n");
+	}
+	for (i=0; i<DA_CUR (lf->mdata); i++) {
+		libfile_metadata_t *lmd = DA_NTHITEM (lf->mdata, i);
+
+		lib_writelibrary_metadata (libstream, 2, lf, lmd);
 	}
 
 	lib_isetindent (libstream, 1);
