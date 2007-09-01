@@ -746,7 +746,7 @@ static int check_indented_comment (lexfile_t *lf)
 	return cleanup && hadcomment;
 }
 /*}}}*/
-/*{{{  */
+/*{{{  static tnode_t *occampi_parsemetadata (lexfile_t *lf)*/
 /*
  *	parses a "#META" / "#PRAGMA META" directive, from the next token
  *	returns tree object on success, NULL on failure
@@ -754,7 +754,46 @@ static int check_indented_comment (lexfile_t *lf)
 static tnode_t *occampi_parsemetadata (lexfile_t *lf)
 {
 	tnode_t *tree = NULL;
+	token_t *tok;
+	char *m_name = NULL;
+	char *m_data = NULL;
+	chook_t *mdhook = tnode_lookupornewchook ("misc:metadata");
+	void *(*newmdhook)(char *, char *) = (void *(*)(char *, char *))fcnlib_findfunction2 ("new_miscmetadata", 1, 2);
 
+	if (!mdhook || !newmdhook) {
+		nocc_internal ("occampi_parsemetadata(): something missing..");
+		return NULL;
+	}
+
+
+	tok = lexer_nexttoken (lf);
+	if (tok && lexer_tokmatch (opi.tok_STRING, tok)) {
+		m_name = string_ndup (tok->u.str.ptr, tok->u.str.len);
+	} else {
+		if (tok) {
+			lexer_pushback (lf, tok);
+		}
+		return NULL;
+	}
+	lexer_freetoken (tok);
+
+	tok = lexer_nexttoken (lf);
+	if (tok && lexer_tokmatch (opi.tok_STRING, tok)) {
+		m_data = string_ndup (tok->u.str.ptr, tok->u.str.len);
+	} else {
+		if (tok) {
+			lexer_pushback (lf, tok);
+		}
+		sfree (m_name);
+		return NULL;
+	}
+	lexer_freetoken (tok);
+
+	tree = tnode_create (opi.tag_METADATA, lf, NULL);
+	tnode_setchook (tree, mdhook, newmdhook (m_name, m_data));
+
+	sfree (m_name);
+	sfree (m_data);
 
 	return tree;
 }
