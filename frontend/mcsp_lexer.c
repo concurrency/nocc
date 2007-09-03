@@ -144,7 +144,7 @@ static int mcsp_escape_char (lexfile_t *lf, mcsp_lex_t *lmp, char **ptr)
 			break;
 		case 'x':
 			if (check_hex (*ptr + 1, 2)) {
-				lexer_error (lf, "malformed hexidecimal escape in character constant");
+				lexer_error (lf, "malformed hexadecimal escape in character constant");
 				goto out_error1;
 			}
 			echr = decode_hex (*ptr + 1, 2);

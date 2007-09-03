@@ -795,6 +795,10 @@ static tnode_t *occampi_parsemetadata (lexfile_t *lf)
 	sfree (m_name);
 	sfree (m_data);
 
+#if 0
+nocc_message ("occampi_parsemetadata(): got metadata!");
+#endif
+
 	return tree;
 }
 /*}}}*/
@@ -887,6 +891,9 @@ restartpoint:
 		/*{{{  probably a pre-processor action of some kind*/
 		token_t *nexttok = lexer_nexttoken (lf);
 
+#if 0
+nocc_message ("occampi_declorprocstart(): got a hash token from the lexer.");
+#endif
 		if (nexttok && lexer_tokmatchlitstr (nexttok, "INCLUDE")) {
 			/*{{{  #INCLUDE*/
 			lexer_freetoken (tok);

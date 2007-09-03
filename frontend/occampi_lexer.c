@@ -169,7 +169,7 @@ static int occampi_escape_char (lexfile_t *lf, occampi_lex_t *lop, char **ptr)
 			break;
 		case '#':
 			if (check_hex (*ptr + 1, 2)) {
-				lexer_error (lf, "malformed hexidecimal escape in character constant");
+				lexer_error (lf, "malformed hexadecimal escape in character constant");
 				goto out_error1;
 			}
 			echr = decode_hex (*ptr + 1, 2);
@@ -689,19 +689,24 @@ tokenloop:
 			/* recently had a newline, probably a symbol (pre-processor) */
 			goto default_label;
 		} else {
-			/*{{{  hexidecimal number*/
+			/*{{{  hexadecimal number*/
 			char *dh;
 			char *npbuf = NULL;
 
 			tok->type = INTEGER;
 			for (dh=ch+1; (dh < chlim) && (((*dh >= '0') && (*dh <= '9')) || ((*dh >= 'A') && (*dh <= 'F'))); dh++);
+			if (dh == (ch + 1)) {
+				/* never parsed anything, try as symbol */
+				goto default_label;
+			}
+
 			lp->offset += (int)(dh - ch);
 			/* parse it */
 			npbuf = (char *)smalloc ((int)(dh - ch));
 			memcpy (npbuf, ch+1, (int)(dh - ch) - 1);
 			npbuf[(int)(dh - ch) - 1] = '\0';
 			if (sscanf (npbuf, "%x", &tok->u.ival) != 1) {
-				lexer_error (lf, "malformed hexidecimal constant: %s", npbuf);
+				lexer_error (lf, "malformed hexadecimal constant: %s", npbuf);
 				sfree (npbuf);
 				goto out_error1;
 			} else {
