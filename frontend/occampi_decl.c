@@ -809,6 +809,7 @@ static tnode_t *occampi_gettype_procdecl (langops_t *lops, tnode_t *node, tnode_
 static int occampi_fetrans_procdecl (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	chook_t *deschook = tnode_lookupchookbyname ("fetrans:descriptor");
+	chook_t *metahook = tnode_lookupchookbyname ("misc:metadata");
 	char *dstr = NULL;
 	tnode_t *params, **plist;
 	int i, nparams;

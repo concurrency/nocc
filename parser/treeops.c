@@ -193,6 +193,38 @@ fprintf (stderr, "searching [%s] for [%s], %d subnodes\n", tree->tag->name, tag-
 	return NULL;
 }
 /*}}}*/
+/*{{{  tnode_t **treeops_findintreeptr (tnode_t **tree, ntdef_t *tag)*/
+/*
+ *	finds a sub-tree within a tree with the given node tag
+ *	returns a pointer to where that node is, rather than the node itself
+ */
+tnode_t **treeops_findintreeptr (tnode_t **tree, ntdef_t *tag)
+{
+	int i, nnodes;
+	tnode_t **subnodes;
+
+	if (!tree || !*tree) {
+		return NULL;
+	}
+	if ((*tree)->tag == tag) {
+		return tree;
+	}
+	if (parser_islistnode (*tree)) {
+		subnodes = parser_getlistitems (*tree, &nnodes);
+	} else {
+		subnodes = tnode_subnodesof (*tree, &nnodes);
+	}
+
+	for (i=0; i<nnodes; i++) {
+		tnode_t **result = treeops_findintreeptr (subnodes + i, tag);
+
+		if (result) {
+			return result;
+		}
+	}
+	return NULL;
+}
+/*}}}*/
 /*{{{  static tnode_t *tops_findtwointree (tnode_t *parent, tnode_t *tree, ntdef_t *tag1, ntdef_t *tag2)*/
 /*
  *	local helper for finding parent/child trees with given tags
