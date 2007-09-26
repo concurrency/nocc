@@ -38,6 +38,7 @@
 #include "lexer.h"
 #include "lexpriv.h"
 #include "tnode.h"
+#include "origin.h"
 #include "parser.h"
 #include "fcnlib.h"
 #include "langdef.h"
@@ -58,19 +59,11 @@
 
 
 /*}}}*/
-/*{{{  private types*/
-
-typedef struct TAG_opi_metadata {
-	char *name;
-	char *data;
-} opi_metadata_t;
-
-
-/*}}}*/
 /*{{{  private stuff*/
 
 static chook_t *miscstring_chook = NULL;
 static chook_t *miscmetadata_chook = NULL;
+static chook_t *miscmetadatalist_chook = NULL;
 
 
 /*}}}*/
@@ -107,6 +100,41 @@ static void free_miscmetadata (opi_metadata_t *md)
 		sfree (md->data);
 	}
 	sfree (md);
+}
+/*}}}*/
+/*{{{  static opi_metadatalist_t *new_miscmetadatalist (void)*/
+/*
+ *	creates a blank metadatalist structure
+ */
+static opi_metadatalist_t *new_miscmetadatalist (void)
+{
+	opi_metadatalist_t *mdl = (opi_metadatalist_t *)smalloc (sizeof (opi_metadatalist_t));
+
+	dynarray_init (mdl->items);
+
+	return mdl;
+}
+/*}}}*/
+/*{{{  static void free_miscmetadatalist (opi_metadatalist_t *mdl)*/
+/*
+ *	destroys a metadatalist structure (deep)
+ */
+static void free_miscmetadatalist (opi_metadatalist_t *mdl)
+{
+	int i;
+
+	if (!mdl) {
+		nocc_internal ("free_miscmetadatalist(): NULL hook!");
+	}
+	for (i=0; i<DA_CUR (mdl->items); i++) {
+		opi_metadata_t *mdi = DA_NTHITEM (mdl->items, i);
+
+		if (mdi) {
+			free_miscmetadata (mdi);
+		}
+	}
+	dynarray_trash (mdl->items);
+	sfree (mdl);
 }
 /*}}}*/
 
@@ -192,6 +220,69 @@ static void miscmetadatahook_dumptree (tnode_t *node, void *hook, int indent, FI
 /*}}}*/
 
 
+/*{{{  static void *miscmetadatalisthook_copy (void *hook)*/
+/*
+ *	duplicates a "misc:metadatalist" compiler hook
+ */
+static void *miscmetadatalisthook_copy (void *hook)
+{
+	if (hook) {
+		int i;
+		opi_metadatalist_t *mdl = (opi_metadatalist_t *)hook;
+		opi_metadatalist_t *newl = new_miscmetadatalist ();
+
+		for (i=0; i<DA_CUR (mdl->items); i++) {
+			opi_metadata_t *mdi = DA_NTHITEM (mdl->items, i);
+
+			if (mdi) {
+				void *copy = miscmetadatahook_copy ((void *)mdi);
+
+				dynarray_add (newl->items, copy);
+			}
+		}
+
+		return (void *)newl;
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  static void miscmetadatalisthook_free (void *hook)*/
+/*
+ *	frees a "misc:metadatalist" compiler hook
+ */
+static void miscmetadatalisthook_free (void *hook)
+{
+	if (hook) {
+		free_miscmetadatalist ((opi_metadatalist_t *)hook);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void miscmetadatalisthook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a "misc:metadatalist" compiler hook (debugging)
+ */
+static void miscmetadatalisthook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	opi_metadatalist_t *mdl = (opi_metadatalist_t *)hook;
+
+	occampi_isetindent (stream, indent);
+	if (!hook) {
+		fprintf (stream, "<chook id=\"misc:metadatalist\" value=\"\" />\n");
+	} else {
+		int i;
+
+		fprintf (stream, "<chook id=\"misc:metadatalist\" size=\"%d\">\n", DA_CUR (mdl->items));
+		for (i=0; i<DA_CUR (mdl->items); i++) {
+			miscmetadatahook_dumptree (node, (void *)DA_NTHITEM (mdl->items, i), indent + 1, stream);
+		}
+		occampi_isetindent (stream, indent);
+		fprintf (stream, "</chook>\n");
+	}
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_misc_prescope (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
 /*
  *	does pre-scoping on a misc node
@@ -241,7 +332,120 @@ static int occampi_misc_codegen (compops_t *cops, tnode_t *tptr, codegen_t *cgen
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_misc_miscnodetrans (compops_t *cops, tnode_t **tptr, occampi_miscnodetrans_t *mnt)*/
+/*
+ *	called during the miscnodetrans pass (post-walk) to scoop up METADATA nodes (dropped on the PROCs)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_misc_miscnodetrans (compops_t *cops, tnode_t **tptr, occampi_miscnodetrans_t *mnt)
+{
+	if ((*tptr)->tag == opi.tag_METADATA) {
+		/* detatch */
+		tnode_t *node = *tptr;
+		tnode_t **bodyp = tnode_nthsubaddr (node, 0);
 
+		*tptr = *bodyp;		/* replace with body */
+		*bodyp = NULL;
+
+		if (!mnt->md_node) {
+			mnt->md_iptr = bodyp;
+		} else {
+			*bodyp = mnt->md_node;
+		}
+		mnt->md_node = node;
+	}
+	return 1;
+}
+/*}}}*/
+
+
+/*{{{  static occampi_miscnodetrans_t *miscnode_newmiscnodetrans (void)*/
+/*
+ *	creates a new occampi_miscnodetrans_t structure
+ */
+static occampi_miscnodetrans_t *miscnode_newmiscnodetrans (void)
+{
+	occampi_miscnodetrans_t *mnt = (occampi_miscnodetrans_t *)smalloc (sizeof (occampi_miscnodetrans_t));
+
+	mnt->md_node = NULL;
+	mnt->md_iptr = NULL;
+	mnt->error = 0;
+
+	return mnt;
+}
+/*}}}*/
+/*{{{  static void miscnode_freemiscnodetrans (occampi_miscnodetrans_t *mnt)*/
+/*
+ *	frees an occampi_miscnodetrans_t structure
+ */
+static void miscnode_freemiscnodetrans (occampi_miscnodetrans_t *mnt)
+{
+	if (!mnt) {
+		nocc_warning ("miscnode_freemiscnodetrans(): erm, NULL pointer here!");
+		return;
+	}
+	if (mnt->md_node) {
+		nocc_warning ("miscnode_freemiscnodetrans(): still got a node hooked in here.. (0x%8.8x)", (unsigned int)mnt->md_node);
+	}
+	sfree (mnt);
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static int miscnode_modprewalk (tnode_t **tptr, void *arg)*/
+/*
+ *	called during (pre) tree walk to handle certain types of data in MISC nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int miscnode_modprewalk (tnode_t **tptr, void *arg)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int miscnode_modprewalk (tnode_t **tptr, void *arg)*/
+/*
+ *	called during (post) tree walk to handle certain types of data in MISC nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int miscnode_modpostwalk (tnode_t **tptr, void *arg)
+{
+	int i = 1;
+
+	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop ((*tptr)->tag->ndef->ops, "miscnodetrans")) {
+		i = tnode_callcompop ((*tptr)->tag->ndef->ops, "miscnodetrans", 2, tptr, (occampi_miscnodetrans_t *)arg);
+	}
+	return i;
+}
+/*}}}*/
+/*{{{  int miscnode_transsubtree (tnode_t **tptr, occampi_miscnodetrans_t *mnt)*/
+/*
+ *	does misc-node transforms on a sub-tree
+ *	returns 0 on success, non-zero on failure
+ */
+int miscnode_transsubtree (tnode_t **tptr, occampi_miscnodetrans_t *mnt)
+{
+	tnode_modprepostwalktree (tptr, miscnode_modprewalk, miscnode_modpostwalk, (void *)mnt);
+	return mnt->error;
+}
+/*}}}*/
+/*{{{  static int miscnodetrans_cpass (tnode_t *tree)*/
+/*
+ *	called for a compiler pass that pulls misc-data upwards in the tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int miscnodetrans_cpass (tnode_t *tree)
+{
+	occampi_miscnodetrans_t *mnt = miscnode_newmiscnodetrans ();
+	int err = 0;
+
+	miscnode_transsubtree (&tree, mnt);
+	err = mnt->error;
+
+	miscnode_freemiscnodetrans (mnt);
+	return err;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_misc_init_nodes (void)*/
@@ -256,6 +460,15 @@ static int occampi_misc_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
+	/*{{{  miscnodetrans -- new compiler pass and compiler operation*/
+	if (nocc_addcompilerpass ("miscnodetrans", origin_langparser (&occampi_parser), "fetrans", 1, (int (*)(void *))miscnodetrans_cpass, CPASS_TREE, -1, NULL)) {
+		nocc_internal ("occampi_misc_init_nodes(): failed to add miscnodetrans compiler pass");
+		return -1;
+	}
+
+	tnode_newcompop ("miscnodetrans", COPS_INVALID, 2, NULL);
+
+	/*}}}*/
 	/*{{{  misc:string compiler-hook*/
 	miscstring_chook = tnode_lookupornewchook ("misc:string");
 
@@ -272,12 +485,21 @@ static int occampi_misc_init_nodes (void)
 	miscmetadata_chook->chook_dumptree = miscmetadatahook_dumptree;
 
 	/*}}}*/
+	/*{{{  misc:metadatalist compiler-hook*/
+	miscmetadatalist_chook = tnode_lookupornewchook ("misc:metadatalist");
+
+	miscmetadatalist_chook->chook_copy = miscmetadatalisthook_copy;
+	miscmetadatalist_chook->chook_free = miscmetadatalisthook_free;
+	miscmetadatalist_chook->chook_dumptree = miscmetadatalisthook_dumptree;
+
+	/*}}}*/
 	/*{{{  occampi:miscnode -- MISCCOMMENT*/
 	i = -1;
 	tnd = opi.node_MISCNODE = tnode_newnodetype ("occampi:miscnode", &i, 1, 0, 0, TNF_TRANSPARENT);			/* subnodes: 0 = body */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_misc_prescope));
 	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_misc_precode));
+	tnode_setcompop (cops, "miscnodetrans", 2, COMPOPTYPE (occampi_misc_miscnodetrans));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_misc_namemap));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_misc_codegen));
 	tnd->ops = cops;
@@ -302,6 +524,7 @@ static int occampi_misc_init_nodes (void)
 static int occampi_misc_post_setup (void)
 {
 	fcnlib_addfcn ("new_miscmetadata", (void *)new_miscmetadata, 1, 2);
+	fcnlib_addfcn ("new_miscmetadatalist", (void *)new_miscmetadatalist, 1, 0);
 	return 0;
 }
 /*}}}*/

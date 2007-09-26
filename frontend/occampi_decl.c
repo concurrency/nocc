@@ -44,6 +44,7 @@
 #include "parsepriv.h"
 #include "occampi.h"
 #include "feunit.h"
+#include "fcnlib.h"
 #include "names.h"
 #include "scope.h"
 #include "prescope.h"
@@ -809,7 +810,6 @@ static tnode_t *occampi_gettype_procdecl (langops_t *lops, tnode_t *node, tnode_
 static int occampi_fetrans_procdecl (compops_t *cops, tnode_t **node, fetrans_t *fe)
 {
 	chook_t *deschook = tnode_lookupchookbyname ("fetrans:descriptor");
-	chook_t *metahook = tnode_lookupchookbyname ("misc:metadata");
 	char *dstr = NULL;
 	tnode_t *params, **plist;
 	int i, nparams;
@@ -886,6 +886,46 @@ static int occampi_usagecheck_procdecl (langops_t *lops, tnode_t *node, uchk_sta
 	usagecheck_endbranch (ucstate);
 	usagecheck_end_branches (node, ucstate);
 	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_miscnodetrans_procdecl (compops_t *cops, tnode_t **tptr, occampi_miscnodetrans_t *mnt)*/
+/*
+ *	does miscnode transformations for a PROC declaration -- hoists metadata to the PROC
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_miscnodetrans_procdecl (compops_t *cops, tnode_t **tptr, occampi_miscnodetrans_t *mnt)
+{
+	chook_t *metahook = tnode_lookupchookbyname ("misc:metadata");
+	chook_t *metalisthook = tnode_lookupchookbyname ("misc:metadatalist");
+	opi_metadatalist_t *(*mdlfcn)(void) = (opi_metadatalist_t *(*)(void))fcnlib_findfunction2 ("new_miscmetadatalist", 1, 0);
+
+	if (mnt->md_node) {
+		opi_metadatalist_t *mdl = mdlfcn ();
+
+		while (mnt->md_node) {
+			tnode_t **nextp = tnode_nthsubaddr (mnt->md_node, 0);
+			tnode_t *tmp;
+
+			if (tnode_haschook (mnt->md_node, metahook)) {
+				opi_metadata_t *mdata = (opi_metadata_t *)tnode_getchook (mnt->md_node, metahook);
+
+				tnode_clearchook (mnt->md_node, metahook);
+				if (mdata) {
+					dynarray_add (mdl->items, mdata);
+				}
+			}
+
+			tmp = *nextp;
+			*nextp = NULL;
+			tnode_free (mnt->md_node);
+			mnt->md_node = tmp;
+		}
+
+		mnt->md_iptr = NULL;
+
+		tnode_setchook (*tptr, metalisthook, (void *)mdl);
+	}
+	return 1;
 }
 /*}}}*/
 /*{{{  static int occampi_betrans_procdecl (compops_t *cops, tnode_t **node, betrans_t *bt)*/
@@ -1905,6 +1945,20 @@ static int occampi_decl_init_nodes (void)
 	return 0;
 }
 /*}}}*/
+/*{{{  */
+/*
+ *	called to do any post-setup on declaration nodes
+ *	returns 0 on success, non-zero on error
+ */
+static int occampi_decl_post_setup (void)
+{
+	tndef_t *tnd = (opi.tag_PROCDECL)->ndef;
+
+	tnode_setcompop (tnd->ops, "miscnodetrans", 2, COMPOPTYPE (occampi_miscnodetrans_procdecl));
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  occampi_decl_feunit (feunit_t)*/
@@ -1912,7 +1966,7 @@ feunit_t occampi_decl_feunit = {
 	init_nodes: occampi_decl_init_nodes,
 	reg_reducers: NULL,
 	init_dfatrans: NULL,
-	post_setup: NULL,
+	post_setup: occampi_decl_post_setup,
 	ident: "occampi-decl"
 };
 
