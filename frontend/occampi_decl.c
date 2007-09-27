@@ -60,6 +60,7 @@
 #include "langops.h"
 #include "fetrans.h"
 #include "betrans.h"
+#include "metadata.h"
 
 
 /*}}}*/
@@ -895,19 +896,18 @@ static int occampi_usagecheck_procdecl (langops_t *lops, tnode_t *node, uchk_sta
  */
 static int occampi_miscnodetrans_procdecl (compops_t *cops, tnode_t **tptr, occampi_miscnodetrans_t *mnt)
 {
-	chook_t *metahook = tnode_lookupchookbyname ("misc:metadata");
-	chook_t *metalisthook = tnode_lookupchookbyname ("misc:metadatalist");
-	opi_metadatalist_t *(*mdlfcn)(void) = (opi_metadatalist_t *(*)(void))fcnlib_findfunction2 ("new_miscmetadatalist", 1, 0);
+	chook_t *metahook = tnode_lookupchookbyname ("metadata");
+	chook_t *metalisthook = tnode_lookupchookbyname ("metadatalist");
 
 	if (mnt->md_node) {
-		opi_metadatalist_t *mdl = mdlfcn ();
+		metadatalist_t *mdl = metadata_newmetadatalist ();
 
 		while (mnt->md_node) {
 			tnode_t **nextp = tnode_nthsubaddr (mnt->md_node, 0);
 			tnode_t *tmp;
 
 			if (tnode_haschook (mnt->md_node, metahook)) {
-				opi_metadata_t *mdata = (opi_metadata_t *)tnode_getchook (mnt->md_node, metahook);
+				metadata_t *mdata = (metadata_t *)tnode_getchook (mnt->md_node, metahook);
 
 				tnode_clearchook (mnt->md_node, metahook);
 				if (mdata) {

@@ -56,86 +56,15 @@
 #include "map.h"
 #include "transputer.h"
 #include "codegen.h"
+#include "metadata.h"
 
 
 /*}}}*/
 /*{{{  private stuff*/
 
 static chook_t *miscstring_chook = NULL;
-static chook_t *miscmetadata_chook = NULL;
-static chook_t *miscmetadatalist_chook = NULL;
 
 
-/*}}}*/
-
-
-/*{{{  static opi_metadata_t *new_miscmetadata (char *name, char *data)*/
-/*
- *	creates a popualted metadata structure
- */
-static opi_metadata_t *new_miscmetadata (char *name, char *data)
-{
-	opi_metadata_t *omd = (opi_metadata_t *)smalloc (sizeof (opi_metadata_t));
-
-	omd->name = string_dup (name);
-	omd->data = string_dup (data);
-
-	return omd;
-}
-/*}}}*/
-/*{{{  static void free_miscmetadata (opi_metadata_t *md)*/
-/*
- *	destroys a metadata structure
- */
-static void free_miscmetadata (opi_metadata_t *md)
-{
-	if (!md) {
-		nocc_internal ("free_miscmetadata(): NULL hook!");
-	}
-
-	if (md->name) {
-		sfree (md->name);
-	}
-	if (md->data) {
-		sfree (md->data);
-	}
-	sfree (md);
-}
-/*}}}*/
-/*{{{  static opi_metadatalist_t *new_miscmetadatalist (void)*/
-/*
- *	creates a blank metadatalist structure
- */
-static opi_metadatalist_t *new_miscmetadatalist (void)
-{
-	opi_metadatalist_t *mdl = (opi_metadatalist_t *)smalloc (sizeof (opi_metadatalist_t));
-
-	dynarray_init (mdl->items);
-
-	return mdl;
-}
-/*}}}*/
-/*{{{  static void free_miscmetadatalist (opi_metadatalist_t *mdl)*/
-/*
- *	destroys a metadatalist structure (deep)
- */
-static void free_miscmetadatalist (opi_metadatalist_t *mdl)
-{
-	int i;
-
-	if (!mdl) {
-		nocc_internal ("free_miscmetadatalist(): NULL hook!");
-	}
-	for (i=0; i<DA_CUR (mdl->items); i++) {
-		opi_metadata_t *mdi = DA_NTHITEM (mdl->items, i);
-
-		if (mdi) {
-			free_miscmetadata (mdi);
-		}
-	}
-	dynarray_trash (mdl->items);
-	sfree (mdl);
-}
 /*}}}*/
 
 
@@ -172,113 +101,6 @@ static void miscstringhook_dumptree (tnode_t *node, void *hook, int indent, FILE
 	occampi_isetindent (stream, indent);
 	fprintf (stream, "<chook id=\"misc:string\" value=\"%s\" />\n", hook ? (char *)hook : "");
 	return;
-}
-/*}}}*/
-
-
-/*{{{  static void *miscmetadatahook_copy (void *hook)*/
-/*
- *	duplicates a "misc:metadata" compiler hook
- */
-static void *miscmetadatahook_copy (void *hook)
-{
-	if (hook) {
-		opi_metadata_t *md = (opi_metadata_t *)hook;
-
-		return (void *)new_miscmetadata (md->name, md->data);
-	}
-	return NULL;
-}
-/*}}}*/
-/*{{{  static void miscmetadatahook_free (void *hook)*/
-/*
- *	frees a "misc:metadata" compiler hook
- */
-static void miscmetadatahook_free (void *hook)
-{
-	if (hook) {
-		free_miscmetadata ((opi_metadata_t *)hook);
-	}
-	return;
-}
-/*}}}*/
-/*{{{  static void miscmetadatahook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
-/*
- *	dumps a "misc:metadata" compiler hook (debugging)
- */
-static void miscmetadatahook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
-{
-	opi_metadata_t *omd = (opi_metadata_t *)hook;
-
-	occampi_isetindent (stream, indent);
-	if (!hook) {
-		fprintf (stream, "<chook id=\"misc:metadata\" value=\"\" />\n");
-	} else {
-		fprintf (stream, "<chook id=\"misc:metadata\" name=\"%s\" data=\"%s\" />\n", omd->name, omd->data);
-	}
-}
-/*}}}*/
-
-
-/*{{{  static void *miscmetadatalisthook_copy (void *hook)*/
-/*
- *	duplicates a "misc:metadatalist" compiler hook
- */
-static void *miscmetadatalisthook_copy (void *hook)
-{
-	if (hook) {
-		int i;
-		opi_metadatalist_t *mdl = (opi_metadatalist_t *)hook;
-		opi_metadatalist_t *newl = new_miscmetadatalist ();
-
-		for (i=0; i<DA_CUR (mdl->items); i++) {
-			opi_metadata_t *mdi = DA_NTHITEM (mdl->items, i);
-
-			if (mdi) {
-				void *copy = miscmetadatahook_copy ((void *)mdi);
-
-				dynarray_add (newl->items, copy);
-			}
-		}
-
-		return (void *)newl;
-	}
-	return NULL;
-}
-/*}}}*/
-/*{{{  static void miscmetadatalisthook_free (void *hook)*/
-/*
- *	frees a "misc:metadatalist" compiler hook
- */
-static void miscmetadatalisthook_free (void *hook)
-{
-	if (hook) {
-		free_miscmetadatalist ((opi_metadatalist_t *)hook);
-	}
-	return;
-}
-/*}}}*/
-/*{{{  static void miscmetadatalisthook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
-/*
- *	dumps a "misc:metadatalist" compiler hook (debugging)
- */
-static void miscmetadatalisthook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
-{
-	opi_metadatalist_t *mdl = (opi_metadatalist_t *)hook;
-
-	occampi_isetindent (stream, indent);
-	if (!hook) {
-		fprintf (stream, "<chook id=\"misc:metadatalist\" value=\"\" />\n");
-	} else {
-		int i;
-
-		fprintf (stream, "<chook id=\"misc:metadatalist\" size=\"%d\">\n", DA_CUR (mdl->items));
-		for (i=0; i<DA_CUR (mdl->items); i++) {
-			miscmetadatahook_dumptree (node, (void *)DA_NTHITEM (mdl->items, i), indent + 1, stream);
-		}
-		occampi_isetindent (stream, indent);
-		fprintf (stream, "</chook>\n");
-	}
 }
 /*}}}*/
 
@@ -477,23 +299,7 @@ static int occampi_misc_init_nodes (void)
 	miscstring_chook->chook_dumptree = miscstringhook_dumptree;
 
 	/*}}}*/
-	/*{{{  misc:metadata compiler-hook*/
-	miscmetadata_chook = tnode_lookupornewchook ("misc:metadata");
-
-	miscmetadata_chook->chook_copy = miscmetadatahook_copy;
-	miscmetadata_chook->chook_free = miscmetadatahook_free;
-	miscmetadata_chook->chook_dumptree = miscmetadatahook_dumptree;
-
-	/*}}}*/
-	/*{{{  misc:metadatalist compiler-hook*/
-	miscmetadatalist_chook = tnode_lookupornewchook ("misc:metadatalist");
-
-	miscmetadatalist_chook->chook_copy = miscmetadatalisthook_copy;
-	miscmetadatalist_chook->chook_free = miscmetadatalisthook_free;
-	miscmetadatalist_chook->chook_dumptree = miscmetadatalisthook_dumptree;
-
-	/*}}}*/
-	/*{{{  occampi:miscnode -- MISCCOMMENT*/
+	/*{{{  occampi:miscnode -- MISCCOMMENT, METADATA*/
 	i = -1;
 	tnd = opi.node_MISCNODE = tnode_newnodetype ("occampi:miscnode", &i, 1, 0, 0, TNF_TRANSPARENT);			/* subnodes: 0 = body */
 	cops = tnode_newcompops ();
@@ -523,8 +329,6 @@ static int occampi_misc_init_nodes (void)
  */
 static int occampi_misc_post_setup (void)
 {
-	fcnlib_addfcn ("new_miscmetadata", (void *)new_miscmetadata, 1, 2);
-	fcnlib_addfcn ("new_miscmetadatalist", (void *)new_miscmetadatalist, 1, 0);
 	return 0;
 }
 /*}}}*/

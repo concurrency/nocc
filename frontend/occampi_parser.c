@@ -54,6 +54,7 @@
 #include "typecheck.h"
 #include "extn.h"
 #include "mwsync.h"
+#include "metadata.h"
 
 /*}}}*/
 
@@ -757,8 +758,8 @@ static tnode_t *occampi_parsemetadata (lexfile_t *lf)
 	token_t *tok;
 	char *m_name = NULL;
 	char *m_data = NULL;
-	chook_t *mdhook = tnode_lookupornewchook ("misc:metadata");
-	void *(*newmdhook)(char *, char *) = (void *(*)(char *, char *))fcnlib_findfunction2 ("new_miscmetadata", 1, 2);
+	chook_t *mdhook = tnode_lookupornewchook ("metadata");
+	void *(*newmdhook)(char *, char *) = (void *(*)(char *, char *))metadata_createmetadata;
 
 	if (!mdhook || !newmdhook) {
 		nocc_internal ("occampi_parsemetadata(): something missing..");

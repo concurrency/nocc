@@ -266,17 +266,6 @@ typedef struct {
 	int error;
 } occampi_miscnodetrans_t;
 
-/* meta-data hooks */
-typedef struct TAG_opi_metadata {
-	char *name;
-	char *data;
-} opi_metadata_t;
-
-typedef struct TAG_opi_metadatalist {
-	DYNARRAY (opi_metadata_t *, items);
-} opi_metadatalist_t;
-
-
 
 extern void occampi_isetindent (FILE *stream, int indent);
 extern struct TAG_langdef *occampi_getlangdef (void);

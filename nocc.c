@@ -81,6 +81,7 @@
 #include "rcxb_fe.h"
 #include "hopp_fe.h"
 #include "trlang_fe.h"
+#include "metadata.h"
 #include "version.h"
 
 /*}}}*/
@@ -231,6 +232,9 @@ static int nocc_shutdownrun (void)
 		v++;
 	}
 	if (library_shutdown ()) {
+		v++;
+	}
+	if (metadata_shutdown ()) {
 		v++;
 	}
 	if (treeops_shutdown ()) {
@@ -1360,6 +1364,7 @@ int main (int argc, char **argv)
 	name_init ();
 	extn_init ();
 	treeops_init ();
+	metadata_init ();
 	library_init ();
 	constprop_init ();
 	constraint_init ();
