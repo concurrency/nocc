@@ -115,6 +115,7 @@ typedef struct TAG_libtaghook {
 	int ws, vs, ms, adjust;
 	char *descriptor;
 	tnode_t *bnode;		/* back-end BLOCK associated with this entry */
+	DYNARRAY (libfile_metadata_t *, mdata);
 } libtaghook_t;
 
 typedef struct TAG_libnodehook {
@@ -132,6 +133,7 @@ typedef struct TAG_libnodehook {
 	int issigned;
 
 	DYNARRAY (libtaghook_t *, entries);
+	DYNARRAY (libfile_metadata_t *, mdata);
 } libnodehook_t;
 
 
@@ -175,6 +177,8 @@ STATICDYNARRAY (libnodehook_t *, entrystack);
 
 /*}}}*/
 /*{{{  forward decls*/
+static libfile_metadata_t *lib_newlibfile_metadata (void);
+static void lib_freelibfile_metadata (libfile_metadata_t *lmd);
 static void lib_freelibfile (libfile_t *lf);
 
 /*}}}*/
@@ -290,6 +294,7 @@ static libtaghook_t *lib_newlibtaghook (libnodehook_t *lnh, char *ename)
 	lth->ms = 0;
 	lth->adjust = 0;
 	lth->bnode = NULL;
+	dynarray_init (lth->mdata);
 
 	return lth;
 }
@@ -301,6 +306,7 @@ static libtaghook_t *lib_newlibtaghook (libnodehook_t *lnh, char *ename)
 static void lib_libtaghook_free (void *hook)
 {
 	libtaghook_t *lth = (libtaghook_t *)hook;
+	int i;
 
 	if (lth) {
 		if (lth->name) {
@@ -308,6 +314,14 @@ static void lib_libtaghook_free (void *hook)
 		}
 		if (lth->descriptor) {
 			sfree (lth->descriptor);
+		}
+
+		for (i=0; i<DA_CUR (lth->mdata); i++) {
+			libfile_metadata_t *lmd = DA_NTHITEM (lth->mdata, i);
+
+			if (lmd) {
+				lib_freelibfile_metadata (lmd);
+			}
 		}
 
 		sfree (lth);
@@ -325,12 +339,27 @@ static void *lib_libtaghook_copy (void *hook)
 
 	if (lth) {
 		libtaghook_t *newlth = lib_newlibtaghook (lth->lnh, lth->name);
+		int i;
 
 		newlth->ws = lth->ws;
 		newlth->vs = lth->vs;
 		newlth->ms = lth->ms;
 		newlth->adjust = lth->adjust;
 		newlth->descriptor = lth->descriptor ? string_dup (lth->descriptor) : NULL;
+
+		for (i=0; i<DA_CUR (lth->mdata); i++) {
+			libfile_metadata_t *lmd = DA_NTHITEM (lth->mdata, i);
+
+			if (lmd) {
+				libfile_metadata_t *newlmd = lib_newlibfile_metadata ();
+
+				newlmd->name = string_dup (lmd->name);
+				newlmd->data = string_dup (lmd->data);
+				newlmd->dlen = lmd->dlen;
+
+				dynarray_add (newlth->mdata, newlmd);
+			}
+		}
 
 		return (void *)newlth;
 	}
@@ -345,10 +374,20 @@ static void *lib_libtaghook_copy (void *hook)
 static void lib_libtaghook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
 {
 	libtaghook_t *lth = (libtaghook_t *)hook;
+	int i;
 
 	lib_isetindent (stream, indent);
-	fprintf (stream, "<libtaghook addr=\"0x%8.8x\" name=\"%s\" ws=\"%d\" vs=\"%d\" ms=\"%d\" adjust=\"%d\" bnode=\"0x%8.8x\" descriptor=\"%s\" />\n",
+	fprintf (stream, "<libtaghook addr=\"0x%8.8x\" name=\"%s\" ws=\"%d\" vs=\"%d\" ms=\"%d\" adjust=\"%d\" bnode=\"0x%8.8x\" descriptor=\"%s\">\n",
 			(unsigned int)lth, lth->name ?: "(null)", lth->ws, lth->vs, lth->ms, lth->adjust, (unsigned int)lth->bnode, lth->descriptor ?: "(null)");
+	for (i=0; i<DA_CUR (lth->mdata); i++) {
+		libfile_metadata_t *lmd = DA_NTHITEM (lth->mdata, i);
+
+		lib_isetindent (stream, indent + 1);
+		fprintf (stream, "<libmetadata addr=\"0x%8.8x\" name=\"%s\" data=\"%s\" dlen=\"%d\" />\n",
+				(unsigned int)lmd, lmd->name ?: "(null)", lmd->data ?: "", lmd->dlen);
+	}
+	lib_isetindent (stream, indent);
+	fprintf (stream, "</libtaghook>\n");
 	return;
 }
 /*}}}*/
@@ -359,10 +398,20 @@ static void lib_libtaghook_dumptree (tnode_t *node, void *hook, int indent, FILE
 static void lib_libtaghook_dumpstree (tnode_t *node, void *hook, int indent, FILE *stream)
 {
 	libtaghook_t *lth = (libtaghook_t *)hook;
+	int i;
 
 	lib_ssetindent (stream, indent);
-	fprintf (stream, "(libtaghook (addr 0x%8.8x) (name \"%s\") (ws %d) (vs %d) (ms %d) (adjust %d) (bnode 0x%8.8x) (descriptor \"%s\"))\n",
+	fprintf (stream, "(libtaghook (addr 0x%8.8x) (name \"%s\") (ws %d) (vs %d) (ms %d) (adjust %d) (bnode 0x%8.8x) (descriptor \"%s\")\n",
 			(unsigned int)lth, lth->name ?: "(null)", lth->ws, lth->vs, lth->ms, lth->adjust, (unsigned int)lth->bnode, lth->descriptor ?: "(null)");
+	for (i=0; i<DA_CUR (lth->mdata); i++) {
+		libfile_metadata_t *lmd = DA_NTHITEM (lth->mdata, i);
+
+		lib_ssetindent (stream, indent + 1);
+		fprintf (stream, "(libmetadata (addr 0x%8.8x) (name \"%s\") (data \"%s\") (dlen %d))\n",
+				(unsigned int)lmd, lmd->name ?: "(null)", lmd->data ?: "", lmd->dlen);
+	}
+	lib_ssetindent (stream, indent);
+	fprintf (stream, ")\n");
 	return;
 }
 /*}}}*/
@@ -1877,6 +1926,7 @@ static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh, libfile_srcu
 	for (i=0; i<DA_CUR (lnh->entries); i++) {
 		libtaghook_t *lth = DA_NTHITEM (lnh->entries, i);
 		libfile_entry_t *lfe = lib_newlibfile_entry ();
+		int j;
 
 		lfe->name = string_dup (lth->name);
 		lfe->langname = string_dup (lnh->langname);
@@ -1886,6 +1936,16 @@ static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh, libfile_srcu
 		lfe->vs = lth->vs;
 		lfe->ms = lth->ms;
 		lfe->adjust = lth->adjust;
+		for (j=0; j<DA_CUR (lth->mdata); j++) {
+			libfile_metadata_t *lmd = DA_NTHITEM (lth->mdata, j);
+			libfile_metadata_t *newlmd = lib_newlibfile_metadata ();
+
+			newlmd->name = string_dup (lmd->name);
+			newlmd->data = string_dup (lmd->data);
+			newlmd->dlen = lmd->dlen;
+
+			dynarray_add (lfe->mdata, newlmd);
+		}
 
 		dynarray_add (lfsu->entries, lfe);
 	}
