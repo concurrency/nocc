@@ -2084,6 +2084,7 @@ static int lib_digestlibnode (libnodehook_t *lnh, crypto_t *cry)
 
 	for (i=0; i<DA_CUR (lnh->entries); i++) {
 		libtaghook_t *lth = DA_NTHITEM (lnh->entries, i);
+		int j;
 
 		slen = sprintf (str, "%s-%s-%s\n", lth->name, lnh->langname, lnh->targetname);
 		crypto_writedigest (cry, (unsigned char *)str, slen);
@@ -2091,6 +2092,13 @@ static int lib_digestlibnode (libnodehook_t *lnh, crypto_t *cry)
 		crypto_writedigest (cry, (unsigned char *)str, slen);
 		slen = sprintf (str, "%d-%d-%d-%d\n", lth->ws, lth->vs, lth->ms, lth->adjust);
 		crypto_writedigest (cry, (unsigned char *)str, slen);
+
+		for (j=0; j < DA_CUR (lth->mdata); j++) {
+			metadata_t *md = DA_NTHITEM (lth->mdata, j);
+
+			crypto_writedigest (cry, (unsigned char *)md->name, strlen (md->name));
+			crypto_writedigest (cry, (unsigned char *)md->data, strlen (md->data));
+		}
 	}
 
 	sfree (str);
@@ -2115,6 +2123,7 @@ static int lib_digestlibfilesrcunit (libfile_srcunit_t *lfsu, libfile_t *lf, cry
 
 	for (i=0; i<DA_CUR (lfsu->entries); i++) {
 		libfile_entry_t *lfe = DA_NTHITEM (lfsu->entries, i);
+		int j;
 
 		slen = sprintf (str, "%s-%s-%s\n", lfe->name, lfe->langname, lfe->targetname);
 		crypto_writedigest (cry, (unsigned char *)str, slen);
@@ -2122,6 +2131,13 @@ static int lib_digestlibfilesrcunit (libfile_srcunit_t *lfsu, libfile_t *lf, cry
 		crypto_writedigest (cry, (unsigned char *)str, slen);
 		slen = sprintf (str, "%d-%d-%d-%d\n", lfe->ws, lfe->vs, lfe->ms, lfe->adjust);
 		crypto_writedigest (cry, (unsigned char *)str, slen);
+
+		for (j=0; j < DA_CUR (lfe->mdata); j++) {
+			libfile_metadata_t *lmd = DA_NTHITEM (lfe->mdata, j);
+
+			crypto_writedigest (cry, (unsigned char *)lmd->name, strlen (lmd->name));
+			crypto_writedigest (cry, (unsigned char *)lmd->data, strlen (lmd->data));
+		}
 	}
 
 	sfree (str);
