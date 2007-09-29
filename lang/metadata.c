@@ -45,13 +45,128 @@
 
 /*}}}*/
 
+/*{{{  private types*/
 
+typedef struct TAG_md_reserved {
+	char *name;
+} md_reserved_t;
+
+/*}}}*/
 /*{{{  private data*/
 
 static chook_t *metadata_chook = NULL;
 static chook_t *metadatalist_chook = NULL;
 
+#define MDRES_HASHBITSIZE (3)
 
+STATICSTRINGHASH (md_reserved_t *, mdres, MDRES_HASHBITSIZE);
+
+/*}}}*/
+
+
+/*{{{  void metadata_isetindent (FILE *stream, int indent)*/
+/*
+ *	set-indent for debugging output
+ */
+void metadata_isetindent (FILE *stream, int indent)
+{
+	int i;
+
+	for (i=0; i<indent; i++) {
+		fprintf (stream, "    ");
+	}
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static md_reserved_t *metadata_newreserved (void)*/
+/*
+ *	creates a new md_reserved_t structure
+ */
+static md_reserved_t *metadata_newreserved (void)
+{
+	md_reserved_t *mdr = (md_reserved_t *)smalloc (sizeof (md_reserved_t));
+
+	mdr->name = NULL;
+
+	return mdr;
+}
+/*}}}*/
+/*{{{  static void metadata_freereserved (md_reserved_t *mdr)*/
+/*
+ *	frees a md_reserved_t structure
+ */
+static void metadata_freereserved (md_reserved_t *mdr)
+{
+	if (!mdr) {
+		nocc_internal ("metadata_freereserved(): null pointer!");
+		return;
+	}
+	if (mdr->name) {
+		sfree (mdr->name);
+		mdr->name = NULL;
+	}
+	sfree (mdr);
+	return;
+}
+/*}}}*/
+
+
+/*{{{  int metadata_addreservedname (const char *name)*/
+/*
+ *	adds a reserved metadata name
+ *	returns 0 on success, non-zero on failure
+ */
+int metadata_addreservedname (const char *name)
+{
+	md_reserved_t *mdr = stringhash_lookup (mdres, name);
+
+	if (mdr) {
+		nocc_warning ("metadata_addreservedname(): name \"%s\" already reserved", name);
+		return -1;
+	}
+	mdr = metadata_newreserved ();
+	mdr->name = string_dup (name);
+
+	stringhash_insert (mdres, mdr, mdr->name);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int metadata_isreservedname (const char *name)*/
+/*
+ *	tests to see if a given metadata name is reserved
+ *	returns truth value
+ */
+int metadata_isreservedname (const char *name)
+{
+	md_reserved_t *mdr = stringhash_lookup (mdres, name);
+
+	if (mdr) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  int metadata_fixreserved (metadata_t *md)*/
+/*
+ *	if the given metadata's name is reserved, fixes it up
+ *	returns 0 if nothing changed, 1 if it did
+ */
+int metadata_fixreserved (metadata_t *md)
+{
+	if (metadata_isreservedname (md->name)) {
+		char *newname = (char *)smalloc (strlen (md->name) + 4);
+
+		sprintf (newname, "u:%s", md->name);
+		sfree (md->name);
+		md->name = newname;
+
+		return 1;
+	}
+	return 0;
+}
 /*}}}*/
 
 
@@ -187,7 +302,7 @@ static void metadatahook_dumptree (tnode_t *node, void *hook, int indent, FILE *
 {
 	metadata_t *omd = (metadata_t *)hook;
 
-	occampi_isetindent (stream, indent);
+	metadata_isetindent (stream, indent);
 	if (!hook) {
 		fprintf (stream, "<chook id=\"metadata\" value=\"\" />\n");
 	} else {
@@ -243,7 +358,7 @@ static void metadatalisthook_dumptree (tnode_t *node, void *hook, int indent, FI
 {
 	metadatalist_t *mdl = (metadatalist_t *)hook;
 
-	occampi_isetindent (stream, indent);
+	metadata_isetindent (stream, indent);
 	if (!hook) {
 		fprintf (stream, "<chook id=\"metadatalist\" value=\"\" />\n");
 	} else {
@@ -253,7 +368,7 @@ static void metadatalisthook_dumptree (tnode_t *node, void *hook, int indent, FI
 		for (i=0; i<DA_CUR (mdl->items); i++) {
 			metadatahook_dumptree (node, (void *)DA_NTHITEM (mdl->items, i), indent + 1, stream);
 		}
-		occampi_isetindent (stream, indent);
+		metadata_isetindent (stream, indent);
 		fprintf (stream, "</chook>\n");
 	}
 }
@@ -267,7 +382,10 @@ static void metadatalisthook_dumptree (tnode_t *node, void *hook, int indent, FI
  */
 int metadata_init (void)
 {
+	/*{{{  local initialisation*/
+	stringhash_init (mdres);
 
+	/*}}}*/
 	/*{{{  metadata compiler-hook*/
 	metadata_chook = tnode_lookupornewchook ("metadata");
 

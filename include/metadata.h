@@ -34,12 +34,17 @@ typedef struct TAG_metadatalist {
 extern int metadata_init (void);
 extern int metadata_shutdown (void);
 
+extern int metadata_addreservedname (const char *name);
+extern int metadata_isreservedname (const char *name);
+extern int metadata_fixreserved (metadata_t *md);
+
 extern metadata_t *metadata_newmetadata (void);
 extern metadata_t *metadata_createmetadata (char *name, char *data);
 extern metadata_t *metadata_copymetadata (metadata_t *md);
 extern void metadata_freemetadata (metadata_t *md);
 extern metadatalist_t *metadata_newmetadatalist (void);
 extern void metadata_freemetadatalist (metadatalist_t *mdl);
+
 
 
 

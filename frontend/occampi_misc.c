@@ -161,6 +161,8 @@ static int occampi_misc_codegen (compops_t *cops, tnode_t *tptr, codegen_t *cgen
  */
 static int occampi_misc_miscnodetrans (compops_t *cops, tnode_t **tptr, occampi_miscnodetrans_t *mnt)
 {
+	chook_t *metahook = tnode_lookupchookbyname ("metadata");
+
 	if ((*tptr)->tag == opi.tag_METADATA) {
 		/* detatch */
 		tnode_t *node = *tptr;
@@ -175,6 +177,13 @@ static int occampi_misc_miscnodetrans (compops_t *cops, tnode_t **tptr, occampi_
 			*bodyp = mnt->md_node;
 		}
 		mnt->md_node = node;
+
+		/* because this started as an explicit METADATA, fix any potentially reserved names (prefixed by "u:") */
+		if (tnode_haschook (node, metahook)) {
+			metadata_t *mdata = (metadata_t *)tnode_getchook (node, metahook);
+
+			metadata_fixreserved (mdata);
+		}
 	}
 	return 1;
 }
