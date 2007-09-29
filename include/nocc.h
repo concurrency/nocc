@@ -55,6 +55,8 @@ typedef struct TAG_compopts {
 	int doaliascheck;
 	int dousagecheck;
 	int dodefcheck;
+	int dotracescheck;
+	int domobilitycheck;
 
 	/* debugging */
 	int dmemdump;
@@ -130,7 +132,9 @@ typedef enum ENUM_treewalk {
 	WALK_PREALLOCATE = 0x00000080,
 	WALK_ALLOCATE = 0x00000100,
 	WALK_PRECODE = 0x00000200,
-	WALK_CODEGEN = 0x00000400
+	WALK_CODEGEN = 0x00000400,
+	WALK_TRACESCHECK = 0x00000800,
+	WALK_MOBILITYCHECK = 0x00001000
 } treewalk_t;
 
 /* used to identify arguments passed to compiler-passes */

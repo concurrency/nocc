@@ -17,6 +17,8 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+
+/*{{{  includes*/
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -39,6 +41,7 @@
 #include "lexpriv.h"
 #include "names.h"
 #include "target.h"
+/*}}}*/
 
 /*{{{  private stuff*/
 STATICSTRINGHASH (tndef_t *, nodetypes, 5);
@@ -397,6 +400,8 @@ int tnode_init (void)
 	tnode_newcompop ("constprop", COPS_CONSTPROP, 1, INTERNAL_ORIGIN);
 	tnode_newcompop ("typeresolve", COPS_TYPERESOLVE, 2, INTERNAL_ORIGIN);
 	tnode_newcompop ("precheck", COPS_PRECHECK, 1, INTERNAL_ORIGIN);
+	tnode_newcompop ("tracescheck", COPS_TRACESCHECK, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("mobilitycheck", COPS_MOBILITYCHECK, 2, INTERNAL_ORIGIN);
 	tnode_newcompop ("postcheck", COPS_POSTCHECK, 2, INTERNAL_ORIGIN);
 	tnode_newcompop ("fetrans", COPS_FETRANS, 2, INTERNAL_ORIGIN);
 	tnode_newcompop ("betrans", COPS_BETRANS, 2, INTERNAL_ORIGIN);

@@ -48,13 +48,15 @@ stop-precheck,		'\0',	opt_setstopflag,	(void *)8,			"1stop after pre-check",				
 stop-aliascheck,	'\0',	opt_setstopflag,	(void *)9,			"1stop after alias check",				108
 stop-usagecheck,	'\0',	opt_setstopflag,	(void *)10,			"1stop after parallel-usage check",			109
 stop-undefcheck,	'\0',	opt_setstopflag,	(void *)11,			"1stop after undefined-usage check",			110
-stop-postcheck,		'\0',	opt_setstopflag,	(void *)12,			"1stop after post-check",				111
-stop-fetrans,		'\0',	opt_setstopflag,	(void *)13,			"1stop after front-end tree transform",			112
-stop-betrans,		'\0',	opt_setstopflag,	(void *)14,			"1stop after back-end tree transform",			113
-stop-namemap,		'\0',	opt_setstopflag,	(void *)15,			"1stop after name-map",					114
-stop-prealloc,		'\0',	opt_setstopflag,	(void *)16,			"1stop after pre-allocation",				115
-stop-alloc,		'\0',	opt_setstopflag,	(void *)17,			"1stop after variable allocation",			116
-stop-codegen,		'\0',	opt_setstopflag,	(void *)18,			"1stop after code-generation",				117
+stop-tracescheck,	'\0',	opt_setstopflag,	(void *)12,			"1stop after traces check",				111
+stop-mobilitycheck,	'\0',	opt_setstopflag,	(void *)13,			"1stop after mobility check",				112
+stop-postcheck,		'\0',	opt_setstopflag,	(void *)14,			"1stop after post-check",				113
+stop-fetrans,		'\0',	opt_setstopflag,	(void *)15,			"1stop after front-end tree transform",			114
+stop-betrans,		'\0',	opt_setstopflag,	(void *)16,			"1stop after back-end tree transform",			115
+stop-namemap,		'\0',	opt_setstopflag,	(void *)17,			"1stop after name-map",					116
+stop-prealloc,		'\0',	opt_setstopflag,	(void *)18,			"1stop after pre-allocation",				117
+stop-alloc,		'\0',	opt_setstopflag,	(void *)19,			"1stop after variable allocation",			118
+stop-codegen,		'\0',	opt_setstopflag,	(void *)20,			"1stop after code-generation",				119
 skip-aliascheck,	'\0',	opt_clearintflag,	&(compopts.doaliascheck),	"1skip alias checks",					150
 skip-usagecheck,	'\0',	opt_clearintflag,	&(compopts.dousagecheck),	"1skip parallel usage checks",				151
 skip-defcheck,		'\0',	opt_clearintflag,	&(compopts.dodefcheck),		"1skip undefinedness checks",				152
