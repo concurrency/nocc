@@ -80,14 +80,42 @@ int mobilitycheck_shutdown (void)
 /*}}}*/
 
 
-/*{{{  int mobilitycheck_subtree (tnode_t *tree, mchk_state_t *tcstate)*/
+/*{{{  static int mchk_prewalk_tree (tnode_t *node, void *data)*/
+/*
+ *	called to do mobility checks on a given node (prewalk order)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int mchk_prewalk_tree (tnode_t *node, void *data)
+{
+	mchk_state_t *mcstate = (mchk_state_t *)data;
+	int res = 1;
+
+	if (!node) {
+		nocc_internal ("mchk_prewalk_tree(): NULL node!");
+		return 0;
+	}
+	if (!mcstate) {
+		nocc_internal ("mchk_prewalk_tree(): NULL state!");
+		return 0;
+	}
+
+	if (node->tag->ndef->ops && tnode_hascompop_i (node->tag->ndef->ops, (int)COPS_MOBILITYCHECK)) {
+		res = tnode_callcompop_i (node->tag->ndef->ops, (int)COPS_TRACESCHECK, 2, node, mcstate);
+	}
+
+	return res;
+}
+/*}}}*/
+
+
+/*{{{  int mobilitycheck_subtree (tnode_t *tree, mchk_state_t *mcstate)*/
 /*
  *	does a mobility check on a sub-tree
  *	returns 0 on success, non-zero on failure
  */
-int mobilitycheck_subtree (tnode_t *tree, mchk_state_t *tcstate)
+int mobilitycheck_subtree (tnode_t *tree, mchk_state_t *mcstate)
 {
-	/* FIXME! */
+	tnode_prewalktree (tree, mchk_prewalk_tree, (void *)mcstate);
 	return 0;
 }
 /*}}}*/
@@ -98,17 +126,17 @@ int mobilitycheck_subtree (tnode_t *tree, mchk_state_t *tcstate)
  */
 int mobilitycheck_tree (tnode_t *tree, langparser_t *lang)
 {
-	mchk_state_t *tcstate = (mchk_state_t *)smalloc (sizeof (mchk_state_t));
+	mchk_state_t *mcstate = (mchk_state_t *)smalloc (sizeof (mchk_state_t));
 	int res = 0;
 
-	tcstate->err = 0;
-	tcstate->warn = 0;
+	mcstate->err = 0;
+	mcstate->warn = 0;
 
-	/* FIXME! */
+	tnode_prewalktree (tree, mchk_prewalk_tree, (void *)mcstate);
 
-	res = tcstate->err;
+	res = mcstate->err;
 
-	sfree (tcstate);
+	sfree (mcstate);
 
 	return res;
 }

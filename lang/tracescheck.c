@@ -80,6 +80,34 @@ int tracescheck_shutdown (void)
 /*}}}*/
 
 
+/*{{{  static int tchk_prewalk_tree (tnode_t *node, void *data)*/
+/*
+ *	called to do traces-checks on a given node (prewalk order)
+ *	return 0 to stop walk, 1 to continue
+ */
+static int tchk_prewalk_tree (tnode_t *node, void *data)
+{
+	tchk_state_t *tcstate = (tchk_state_t *)data;
+	int res = 1;
+
+	if (!node) {
+		nocc_internal ("tchk_prewalk_tree(): NULL tree!");
+		return 0;
+	}
+	if (!tcstate) {
+		nocc_internal ("tchk_prewalk_tree(): NULL state!");
+		return 0;
+	}
+
+	if (node->tag->ndef->ops && tnode_hascompop_i (node->tag->ndef->ops, (int)COPS_TRACESCHECK)) {
+		res = tnode_callcompop_i (node->tag->ndef->ops, (int)COPS_TRACESCHECK, 2, node, tcstate);
+	}
+
+	return res;
+}
+/*}}}*/
+
+
 /*{{{  int tracescheck_subtree (tnode_t *tree, tchk_state_t *tcstate)*/
 /*
  *	does a traces check on a sub-tree
@@ -87,7 +115,7 @@ int tracescheck_shutdown (void)
  */
 int tracescheck_subtree (tnode_t *tree, tchk_state_t *tcstate)
 {
-	/* FIXME! */
+	tnode_prewalktree (tree, tchk_prewalk_tree, (void *)tcstate);
 	return 0;
 }
 /*}}}*/
@@ -104,10 +132,9 @@ int tracescheck_tree (tnode_t *tree, langparser_t *lang)
 	tcstate->err = 0;
 	tcstate->warn = 0;
 
-	/* FIXME! */
+	tnode_prewalktree (tree, tchk_prewalk_tree, (void *)tcstate);
 
 	res = tcstate->err;
-
 	sfree (tcstate);
 
 	return res;
