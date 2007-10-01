@@ -61,6 +61,8 @@
 #include "fetrans.h"
 #include "betrans.h"
 #include "metadata.h"
+#include "tracescheck.h"
+#include "mobilitycheck.h"
 
 
 /*}}}*/
@@ -887,6 +889,16 @@ static int occampi_usagecheck_procdecl (langops_t *lops, tnode_t *node, uchk_sta
 	usagecheck_endbranch (ucstate);
 	usagecheck_end_branches (node, ucstate);
 	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_tracescheck_procdecl (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)*/
+/*
+ *	does traces checking in a procedure declaration
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_tracescheck_procdecl (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)
+{
+	return 1;
 }
 /*}}}*/
 /*{{{  static int occampi_miscnodetrans_procdecl (compops_t *cops, tnode_t **tptr, occampi_miscnodetrans_t *mnt)*/
@@ -1919,6 +1931,7 @@ static int occampi_decl_init_nodes (void)
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_procdecl));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_procdecl));
 	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (occampi_precheck_procdecl));
+	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_procdecl));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_procdecl));
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_procdecl));
 	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_precode_procdecl));
@@ -1945,7 +1958,7 @@ static int occampi_decl_init_nodes (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  */
+/*{{{  static int occampi_decl_post_setup (void)*/
 /*
  *	called to do any post-setup on declaration nodes
  *	returns 0 on success, non-zero on error
