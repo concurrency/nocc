@@ -898,7 +898,17 @@ static int occampi_usagecheck_procdecl (langops_t *lops, tnode_t *node, uchk_sta
  */
 static int occampi_tracescheck_procdecl (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)
 {
-	return 1;
+	tcstate->inparams = 1;
+	tracescheck_subtree (tnode_nthsubof (node, 1), tcstate);
+	tcstate->inparams = 0;
+
+	tracescheck_subtree (tnode_nthsubof (node, 2), tcstate);
+
+	/* FIXME: we are now done with this PROC */
+
+	tracescheck_subtree (tnode_nthsubof (node, 3), tcstate);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int occampi_miscnodetrans_procdecl (compops_t *cops, tnode_t **tptr, occampi_miscnodetrans_t *mnt)*/
@@ -1263,6 +1273,17 @@ fprintf (stderr, "occampi_scopein_fparam: here! rawname = \"%s\"\n", rawname);
 	ss->scoped++;
 
 	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_tracescheck_fparam (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)*/
+/*
+ *	does traces checking on a formal parameter -- adds to the list of known things to check
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_tracescheck_fparam (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)
+{
+	/* FIXME! */
+	return 0;
 }
 /*}}}*/
 /*{{{  static int occampi_fetrans_fparam (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
@@ -1884,6 +1905,7 @@ static int occampi_decl_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_fparam));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_fparam));
+	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_fparam));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_fparam));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_fparam));
 	tnd->ops = cops;

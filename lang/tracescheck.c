@@ -131,6 +131,7 @@ int tracescheck_tree (tnode_t *tree, langparser_t *lang)
 
 	tcstate->err = 0;
 	tcstate->warn = 0;
+	tcstate->inparams = 0;
 
 	tnode_prewalktree (tree, tchk_prewalk_tree, (void *)tcstate);
 

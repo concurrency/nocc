@@ -24,6 +24,8 @@ struct TAG_tnode;
 struct TAG_langparser;
 
 typedef struct TAG_tchk_state {
+	int inparams;
+
 	int err;
 	int warn;
 } tchk_state_t;
