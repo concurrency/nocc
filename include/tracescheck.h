@@ -23,6 +23,38 @@
 struct TAG_tnode;
 struct TAG_langparser;
 
+typedef enum ENUM_tchknodetype {
+	TCN_INVALID = 0,
+	TCN_SEQ = 1,
+	TCN_PAR = 2,
+	TCN_FIXPOINT = 3,
+	TCN_ATOM = 4,
+	TCN_INPUT = 5,
+	TCN_OUTPUT = 6,
+	TCN_DET = 7,
+	TCN_NDET = 8
+} tchknodetype_e;
+
+typedef struct TAG_tchknode {
+	tchknodetype_e type;
+	union {
+		struct {
+			DYNARRAY (struct TAG_chknode *, items);
+		} tcnlist;				/* for SEQ, PAR, DET and NDET */
+		struct {
+			struct TAG_chknode *id;		/* fixpoint process identifier */
+			struct TAG_chknode *proc;	/* RHS process */
+		} tcnfix;
+		struct {
+			char *id;
+		} tcnatom;
+		struct {
+			struct TAG_tnode *varptr;	/* tnode-level name-node */
+		} tcnio;				/* for INPUT and OUTPUT */
+	} u;
+} tchknode_t;
+
+
 typedef struct TAG_tchk_state {
 	int inparams;
 
