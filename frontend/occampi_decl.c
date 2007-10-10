@@ -898,13 +898,21 @@ static int occampi_usagecheck_procdecl (langops_t *lops, tnode_t *node, uchk_sta
  */
 static int occampi_tracescheck_procdecl (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)
 {
-	tcstate->inparams = 1;
-	tracescheck_subtree (tnode_nthsubof (node, 1), tcstate);
-	tcstate->inparams = 0;
+	tchk_state_t *thispstate = tracescheck_pushstate (tcstate);
 
-	tracescheck_subtree (tnode_nthsubof (node, 2), tcstate);
+	thispstate->inparams = 1;
+	tracescheck_subtree (tnode_nthsubof (node, 1), thispstate);
+	thispstate->inparams = 0;
+
+	tracescheck_subtree (tnode_nthsubof (node, 2), thispstate);
 
 	/* FIXME: we are now done with this PROC */
+
+#if 1
+fprintf (stderr, "occampi_tracescheck_procdecl(): done traces check, ended up with:\n");
+tracescheck_dumpstate (tcstate, 1, stderr);
+#endif
+	tracescheck_popstate (thispstate);
 
 	tracescheck_subtree (tnode_nthsubof (node, 3), tcstate);
 

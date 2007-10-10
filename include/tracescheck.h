@@ -32,31 +32,43 @@ typedef enum ENUM_tchknodetype {
 	TCN_INPUT = 5,
 	TCN_OUTPUT = 6,
 	TCN_DET = 7,
-	TCN_NDET = 8
+	TCN_NDET = 8,
+	TCN_ATOMREF = 9,
+	TCN_NODEREF = 10
 } tchknodetype_e;
 
 typedef struct TAG_tchknode {
 	tchknodetype_e type;
 	union {
 		struct {
-			DYNARRAY (struct TAG_chknode *, items);
+			DYNARRAY (struct TAG_tchknode *, items);
 		} tcnlist;				/* for SEQ, PAR, DET and NDET */
 		struct {
-			struct TAG_chknode *id;		/* fixpoint process identifier */
-			struct TAG_chknode *proc;	/* RHS process */
+			struct TAG_tchknode *id;	/* fixpoint process identifier */
+			struct TAG_tchknode *proc;	/* RHS process */
 		} tcnfix;
 		struct {
 			char *id;
 		} tcnatom;
 		struct {
-			struct TAG_tnode *varptr;	/* tnode-level name-node */
+			struct TAG_tchknode *varptr;
 		} tcnio;				/* for INPUT and OUTPUT */
+		struct {
+			struct TAG_tchknode *aref;
+		} tcnaref;				/* ATOMREF */
+		struct {
+			struct TAG_tnode *nref;		/* tnode-level pointer */
+		} tcnnref;
 	} u;
 } tchknode_t;
 
 
 typedef struct TAG_tchk_state {
-	int inparams;
+	struct TAG_tchk_state *prevstate;		/* previous state */
+	int inparams;					/* non-zero if we're examining a parameter list */
+
+	DYNARRAY (tchknode_t *, ivars);			/* interesting/interface variables */
+	DYNARRAY (tchknode_t *, traces);		/* collected traces */
 
 	int err;
 	int warn;
@@ -68,6 +80,16 @@ extern int tracescheck_shutdown (void);
 
 extern int tracescheck_subtree (struct TAG_tnode *tree, tchk_state_t *tcstate);
 extern int tracescheck_tree (struct TAG_tnode *tree, struct TAG_langparser *lang);
+
+extern void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, FILE *stream);
+extern void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream);
+
+extern tchk_state_t *tracescheck_pushstate (tchk_state_t *tcstate);
+extern tchk_state_t *tracescheck_popstate (tchk_state_t *tcstate);
+
+extern tchknode_t *tracescheck_createatom (void);
+extern tchknode_t *tracescheck_createnode (tchknodetype_e type, ...);
+extern int tracescheck_addivar (tchk_state_t *tcstate, tchknode_t *tcn);
 
 
 #endif	/* !__TRACESCHECK_H */

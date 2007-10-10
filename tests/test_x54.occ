@@ -1,0 +1,9 @@
+
+-- test_x54.occ -- testing traces analysis
+
+PROC test.n79 (CHAN BYTE out!)
+  SEQ
+    out ! 42
+    SKIP
+:
+

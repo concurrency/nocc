@@ -51,6 +51,12 @@
 
 
 /*}}}*/
+/*{{{  private data*/
+
+static int tchk_acounter;
+
+
+/*}}}*/
 
 
 /*{{{  int tracescheck_init (void)*/
@@ -65,6 +71,10 @@ int tracescheck_init (void)
 		return -1;
 	}
 
+	tchk_acounter = 1;
+
+	nocc_addxmlnamespace ("tracescheck", "http://www.cs.kent.ac.uk/projects/ofa/nocc/NAMESPACES/tracescheck");
+
 	return 0;
 }
 /*}}}*/
@@ -76,6 +86,161 @@ int tracescheck_init (void)
 int tracescheck_shutdown (void)
 {
 	return 0;
+}
+/*}}}*/
+
+
+/*{{{  static void tchk_isetindent (FILE *stream, int indent)*/
+/*
+ *	set-indent for debugging output
+ */
+static void tchk_isetindent (FILE *stream, int indent)
+{
+	int i;
+
+	for (i=0; i<indent; i++) {
+		fprintf (stream, "    ");
+	}
+	return;
+}
+/*}}}*/
+
+/*{{{  static tchknode_t *tchk_newtchknode (void)*/
+/*
+ *	creates a blank tchknode_t structure
+ */
+static tchknode_t *tchk_newtchknode (void)
+{
+	tchknode_t *tcn = (tchknode_t *)smalloc (sizeof (tchknode_t));
+
+	tcn->type = TCN_INVALID;
+
+	return tcn;
+}
+/*}}}*/
+/*{{{  static void tchk_freetchknode (tchknode_t *tcn)*/
+/*
+ *	frees a tchknode_t structure (deep)
+ */
+static void tchk_freetchknode (tchknode_t *tcn)
+{
+	if (!tcn) {
+		nocc_internal ("tchk_freetchknode(): NULL node!");
+		return;
+	}
+	switch (tcn->type) {
+	case TCN_INVALID:
+		break;
+	case TCN_ATOMREF:
+		tcn->u.tcnaref.aref = NULL;
+		break;
+	case TCN_NODEREF:
+		tcn->u.tcnnref.nref = NULL;
+		break;
+	case TCN_SEQ:
+	case TCN_PAR:
+	case TCN_DET:
+	case TCN_NDET:
+		{
+			int i;
+
+			for (i=0; i<DA_CUR (tcn->u.tcnlist.items); i++) {
+				tchknode_t *item = DA_NTHITEM (tcn->u.tcnlist.items, i);
+
+				if (item) {
+					tchk_freetchknode (item);
+				}
+			}
+			dynarray_trash (tcn->u.tcnlist.items);
+		}
+		break;
+	case TCN_ATOM:
+		if (tcn->u.tcnatom.id) {
+			sfree (tcn->u.tcnatom.id);
+			tcn->u.tcnatom.id = NULL;
+		}
+		break;
+	case TCN_INPUT:
+	case TCN_OUTPUT:
+		/* always a link into the tree */
+		tcn->u.tcnio.varptr = NULL;
+		break;
+	case TCN_FIXPOINT:
+		if (tcn->u.tcnfix.id) {
+			tchk_freetchknode (tcn->u.tcnfix.id);
+			tcn->u.tcnfix.id = NULL;
+		}
+		if (tcn->u.tcnfix.proc) {
+			tchk_freetchknode (tcn->u.tcnfix.proc);
+			tcn->u.tcnfix.proc = NULL;
+		}
+		break;
+	}
+
+	sfree (tcn);
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static tchk_state_t *tchk_newtchkstate (void)*/
+/*
+ *	creates a new tchk_state_t structure (blank)
+ */
+static tchk_state_t *tchk_newtchkstate (void)
+{
+	tchk_state_t *tcstate = (tchk_state_t *)smalloc (sizeof (tchk_state_t));
+
+	tcstate->prevstate = NULL;
+	tcstate->inparams = 0;
+
+	dynarray_init (tcstate->ivars);
+	dynarray_init (tcstate->traces);
+
+	tcstate->err = 0;
+	tcstate->warn = 0;
+
+	return tcstate;
+}
+/*}}}*/
+/*{{{  static void tchk_freetchkstate (tchk_state_t *tcstate)*/
+/*
+ *	frees a tchk_state_t structure (deep)
+ */
+static void tchk_freetchkstate (tchk_state_t *tcstate)
+{
+	int i;
+
+	if (!tcstate) {
+		nocc_internal ("tchk_freetchkstate(): NULL state!");
+		return;
+	}
+
+	if (tcstate->prevstate) {
+		nocc_internal ("tchk_freetchkstate(): non-NULL previous state!");
+		return;
+	}
+
+	for (i=0; i<DA_CUR (tcstate->ivars); i++) {
+		tchknode_t *tcn = DA_NTHITEM (tcstate->ivars, i);
+
+		if (tcn) {
+			tchk_freetchknode (tcn);
+		}
+	}
+	dynarray_trash (tcstate->ivars);
+
+	for (i=0; i<DA_CUR (tcstate->traces); i++) {
+		tchknode_t *tcn = DA_NTHITEM (tcstate->traces, i);
+
+		if (tcn) {
+			tchk_freetchknode (tcn);
+		}
+	}
+	dynarray_trash (tcstate->traces);
+
+	sfree (tcstate);
+	return;
 }
 /*}}}*/
 
@@ -126,19 +291,265 @@ int tracescheck_subtree (tnode_t *tree, tchk_state_t *tcstate)
  */
 int tracescheck_tree (tnode_t *tree, langparser_t *lang)
 {
-	tchk_state_t *tcstate = (tchk_state_t *)smalloc (sizeof (tchk_state_t));
+	tchk_state_t *tcstate = tchk_newtchkstate ();
 	int res = 0;
-
-	tcstate->err = 0;
-	tcstate->warn = 0;
-	tcstate->inparams = 0;
 
 	tnode_prewalktree (tree, tchk_prewalk_tree, (void *)tcstate);
 
 	res = tcstate->err;
-	sfree (tcstate);
+
+	tchk_freetchkstate (tcstate);
 
 	return res;
 }
 /*}}}*/
+
+/*{{{  void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, FILE *stream)*/
+/*
+ *	dumps a traces check state (debugging)
+ */
+void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, FILE *stream)
+{
+	int i;
+
+	tchk_isetindent (stream, indent);
+	fprintf (stream, "<tracescheck:state inparams=\"%d\" err=\"%d\" warn=\"%d\">\n", tcstate->inparams, tcstate->err, tcstate->warn);
+
+	tchk_isetindent (stream, indent + 1);
+	fprintf (stream, "<tracescheck:ivars>\n");
+	for (i=0; i<DA_CUR (tcstate->ivars); i++) {
+		tchknode_t *tcn = DA_NTHITEM (tcstate->ivars, i);
+
+		tracescheck_dumpnode (tcn, indent + 2, stream);
+	}
+	tchk_isetindent (stream, indent + 1);
+	fprintf (stream, "</tracescheck:ivars>\n");
+
+	tchk_isetindent (stream, indent + 1);
+	fprintf (stream, "<tracescheck:traces>\n");
+	for (i=0; i<DA_CUR (tcstate->traces); i++) {
+		tchknode_t *tcn = DA_NTHITEM (tcstate->traces, i);
+
+		tracescheck_dumpnode (tcn, indent + 2, stream);
+	}
+	tchk_isetindent (stream, indent + 1);
+	fprintf (stream, "</tracescheck:traces>\n");
+
+	tchk_isetindent (stream, indent);
+	fprintf (stream, "</tracescheck:state>\n");
+	return;
+}
+/*}}}*/
+/*{{{  void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)*/
+/*
+ *	dumps a traces check node (debugging)
+ */
+void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
+{
+	tchk_isetindent (stream, indent);
+	if (!tcn) {
+		fprintf (stream, "<nullnode />\n");
+	} else {
+		switch (tcn->type) {
+		case TCN_INVALID:
+			fprintf (stream, "<tracescheck:node type=\"invalid\" />\n");
+			break;
+		case TCN_SEQ:
+		case TCN_PAR:
+		case TCN_DET:
+		case TCN_NDET:
+			fprintf (stream, "<tracescheck:node type=\"");
+			switch (tcn->type) {
+			case TCN_SEQ:	fprintf (stream, "seq\">\n");	break;
+			case TCN_PAR:	fprintf (stream, "par\">\n");	break;
+			case TCN_DET:	fprintf (stream, "det\">\n");	break;
+			case TCN_NDET:	fprintf (stream, "ndet\">\n");	break;
+			default:	break;
+			}
+
+			tchk_isetindent (stream, indent);
+			fprintf (stream, "</tracescheck:node>\n");
+			break;
+		case TCN_INPUT:
+		case TCN_OUTPUT:
+			fprintf (stream, "<tracescheck:node type=\"%s\">\n", ((tcn->type == TCN_INPUT) ? "input" : "output"));
+			tracescheck_dumpnode (tcn->u.tcnio.varptr, indent + 1, stream);
+			tchk_isetindent (stream, indent);
+			fprintf (stream, "</tracescheck:node>\n");
+			break;
+		case TCN_FIXPOINT:
+			fprintf (stream, "<tracescheck:node type=\"fixpoint\">\n");
+			tracescheck_dumpnode (tcn->u.tcnfix.id, indent + 1, stream);
+			tracescheck_dumpnode (tcn->u.tcnfix.proc, indent + 1, stream);
+			tchk_isetindent (stream, indent);
+			fprintf (stream, "</tracescheck:node>\n");
+			break;
+		case TCN_ATOM:
+			fprintf (stream, "<tracescheck:node type=\"atom\" id=\"%s\" />\n", tcn->u.tcnatom.id);
+			break;
+		case TCN_ATOMREF:
+			{
+				tchknode_t *aref = tcn->u.tcnaref.aref;
+
+				if (aref && (aref->type == TCN_ATOM)) {
+					fprintf (stream, "<tracescheck:node type=\"atomref\" id=\"%s\" />\n", tcn->u.tcnaref.aref->u.tcnatom.id);
+				} else {
+					fprintf (stream, "<tracescheck:node type=\"atomref\">\n");
+					tracescheck_dumpnode (aref, indent + 1, stream);
+					tchk_isetindent (stream, indent);
+					fprintf (stream, "</tracescheck:node>\n");
+				}
+			}
+			break;
+		case TCN_NODEREF:
+			{
+				tnode_t *node = tcn->u.tcnnref.nref;
+
+				fprintf (stream, "<tracescheck:node type=\"noderef\" addr=\"0x%8.8x\" nodetag=\"%s\" nodetype=\"%s\" />\n",
+					(unsigned int)node, node->tag->name, node->tag->ndef->name);
+			}
+			break;
+		}
+	}
+	return;
+}
+/*}}}*/
+
+/*{{{  tchk_state_t *tracescheck_pushstate (tchk_state_t *tcstate)*/
+/*
+ *	pushes the traces-check state (needed for handling nested PROCs and similar)
+ *	returns a new state
+ */
+tchk_state_t *tracescheck_pushstate (tchk_state_t *tcstate)
+{
+	tchk_state_t *newstate;
+	
+	if (!tcstate) {
+		nocc_internal ("tracescheck_pushstate(): NULL state!");
+		return NULL;
+	}
+
+	newstate = tchk_newtchkstate ();
+	newstate->prevstate = tcstate;
+
+	return newstate;
+}
+/*}}}*/
+/*{{{  tchk_state_t *tracescheck_popstate (tchk_state_t *tcstate)*/
+/*
+ *	pops the traces-check state (needed for handling nested PROCs and similar)
+ *	returns the previous state
+ */
+tchk_state_t *tracescheck_popstate (tchk_state_t *tcstate)
+{
+	tchk_state_t *oldstate;
+
+	if (!tcstate) {
+		nocc_internal ("tracescheck_popstate(): NULL state!");
+		return NULL;
+	}
+
+	oldstate = tcstate->prevstate;
+	if (!oldstate) {
+		nocc_internal ("tracescheck_popstate(): NULL previous state!");
+		return NULL;
+	}
+
+	tcstate->prevstate = NULL;
+	tchk_freetchkstate (tcstate);
+
+	return oldstate;
+}
+/*}}}*/
+
+/*{{{  tchknode_t *tracescheck_createatom (void)*/
+/*
+ *	creates a new traces-check atom (with a unique identifier)
+ */
+tchknode_t *tracescheck_createatom (void)
+{
+	tchknode_t *tcn = tchk_newtchknode ();
+
+	tcn->type = TCN_ATOM;
+	tcn->u.tcnatom.id = (char *)smalloc (32);
+	sprintf (tcn->u.tcnatom.id, "A%4.4X", tchk_acounter);
+	tchk_acounter++;
+
+	return tcn;
+}
+/*}}}*/
+/*{{{  tchknode_t *tracescheck_createnode (tchknodetype_e type, ...)*/
+/*
+ *	creates a new tchknode_t, populated
+ *	returns node on success, NULL on failure
+ */
+tchknode_t *tracescheck_createnode (tchknodetype_e type, ...)
+{
+	tchknode_t *tcn = tchk_newtchknode ();
+	va_list ap;
+
+	va_start (ap, type);
+	switch (type) {
+	case TCN_INVALID:
+		break;
+	case TCN_SEQ:
+	case TCN_PAR:
+	case TCN_DET:
+	case TCN_NDET:
+		/* NULL-terminated list */
+		{
+			tchknode_t *arg = va_arg (ap, tchknode_t *);
+
+			while (arg) {
+				dynarray_add (tcn->u.tcnlist.items, arg);
+				arg = va_arg (ap, tchknode_t *);
+			}
+		}
+		break;
+	case TCN_INPUT:
+	case TCN_OUTPUT:
+		tcn->u.tcnio.varptr = va_arg (ap, tchknode_t *);
+		break;
+	case TCN_FIXPOINT:
+		tcn->u.tcnfix.id = va_arg (ap, tchknode_t *);
+		tcn->u.tcnfix.proc = va_arg (ap, tchknode_t *);
+		if (tcn->u.tcnfix.id && (tcn->u.tcnfix.id->type != TCN_ATOM)) {
+			nocc_warning ("tracescheck_createnode(): TCN_FIXPOINT id is not of type TCN_ATOM (got %d)", (int)tcn->u.tcnfix.id->type);
+		}
+		break;
+	case TCN_ATOM:
+		tcn->u.tcnatom.id = string_dup (va_arg (ap, char *));
+		break;
+	case TCN_ATOMREF:
+		tcn->u.tcnaref.aref = va_arg (ap, tchknode_t *);
+		if (tcn->u.tcnaref.aref && (tcn->u.tcnaref.aref->type != TCN_ATOM)) {
+			nocc_warning ("tracescheck_createnode(): TCN_ATOMREF reference is not of type TCN_ATOM (got %d)", (int)tcn->u.tcnaref.aref->type);
+		}
+		break;
+	case TCN_NODEREF:
+		tcn->u.tcnnref.nref = va_arg (ap, tnode_t *);
+		break;
+	}
+	tcn->type = type;
+	va_end (ap);
+
+	return tcn;
+}
+/*}}}*/
+/*{{{  int tracescheck_addivar (tchk_state_t *tcstate, tchknode_t *tcn)*/
+/*
+ *	adds a traces-check variable to the list of interesting/interface variables
+ *	return 0 on success, non-zero on failure
+ */
+int tracescheck_addivar (tchk_state_t *tcstate, tchknode_t *tcn)
+{
+	if (!tcstate || !tcn) {
+		nocc_internal ("tracescheck_addivar(): NULL state or node!");
+		return -1;
+	}
+	dynarray_add (tcstate->ivars, tcn);
+	return 0;
+}
+/*}}}*/
+
 

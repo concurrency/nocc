@@ -64,11 +64,11 @@ STATICSTRINGHASH (md_reserved_t *, mdres, MDRES_HASHBITSIZE);
 /*}}}*/
 
 
-/*{{{  void metadata_isetindent (FILE *stream, int indent)*/
+/*{{{  static void metadata_isetindent (FILE *stream, int indent)*/
 /*
  *	set-indent for debugging output
  */
-void metadata_isetindent (FILE *stream, int indent)
+static void metadata_isetindent (FILE *stream, int indent)
 {
 	int i;
 
