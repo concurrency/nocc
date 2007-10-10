@@ -22,6 +22,7 @@
 
 struct TAG_tnode;
 struct TAG_langparser;
+struct TAG_chook;
 
 typedef enum ENUM_tchknodetype {
 	TCN_INVALID = 0,
@@ -90,6 +91,8 @@ extern tchk_state_t *tracescheck_popstate (tchk_state_t *tcstate);
 extern tchknode_t *tracescheck_createatom (void);
 extern tchknode_t *tracescheck_createnode (tchknodetype_e type, ...);
 extern int tracescheck_addivar (tchk_state_t *tcstate, tchknode_t *tcn);
+
+extern struct TAG_chook *tracescheck_getnoderefchook (void);
 
 
 #endif	/* !__TRACESCHECK_H */

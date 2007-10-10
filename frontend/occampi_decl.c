@@ -910,8 +910,9 @@ static int occampi_tracescheck_procdecl (compops_t *cops, tnode_t *node, tchk_st
 
 #if 1
 fprintf (stderr, "occampi_tracescheck_procdecl(): done traces check, ended up with:\n");
-tracescheck_dumpstate (tcstate, 1, stderr);
+tracescheck_dumpstate (thispstate, 1, stderr);
 #endif
+	/* FIXME: parameters will have various TCN_ATOMREFs hanging on compiler-hooks */
 	tracescheck_popstate (thispstate);
 
 	tracescheck_subtree (tnode_nthsubof (node, 3), tcstate);
@@ -1290,7 +1291,53 @@ fprintf (stderr, "occampi_scopein_fparam: here! rawname = \"%s\"\n", rawname);
  */
 static int occampi_tracescheck_fparam (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)
 {
-	/* FIXME! */
+	if (tcstate->inparams) {
+		tnode_t *pname = tnode_nthsubof (node, 0);
+		tnode_t *ptype = tnode_nthsubof (node, 1);
+		int issync = 0;
+
+		while (ptype) {
+			if (tnode_ntflagsof (ptype) & NTF_SYNCTYPE) {
+				issync = 1;
+				ptype = NULL;
+			} else if (tnode_haslangop_i (ptype->tag->ndef->lops, (int)LOPS_GETSUBTYPE)) {
+				/* pick the sub-type */
+				tnode_t *nptype;
+
+				nptype = (tnode_t *)tnode_calllangop_i (ptype->tag->ndef->lops, (int)LOPS_GETSUBTYPE, 2, ptype, NULL);
+				if (nptype == ptype) {
+					ptype = NULL;
+				} else {
+					/* try the sub-type */
+					ptype = nptype;
+				}
+			} else if (tnode_haslangop_i (ptype->tag->ndef->lops, (int)LOPS_TYPEREDUCE)) {
+				/* pick the reduced type */
+				tnode_t *nptype;
+
+				nptype = (tnode_t *)tnode_calllangop_i (ptype->tag->ndef->lops, (int)LOPS_TYPEREDUCE, 1, ptype);
+				if (nptype == ptype) {
+					ptype = NULL;
+				} else {
+					/* try the sub-type */
+					ptype = nptype;
+				}
+			} else {
+				ptype = NULL;
+			}
+		}
+		if (issync) {
+			tchknode_t *tcn = tracescheck_createatom ();
+			tchknode_t *tcnref = tracescheck_createnode (TCN_ATOMREF, tcn);
+
+			tnode_setchook (pname, tracescheck_getnoderefchook (), tcnref);
+			tracescheck_addivar (tcstate, tcn);
+#if 1
+fprintf (stderr, "FPARAM looks like a sync-type:\n");
+tnode_dumptree (pname, 1, stderr);
+#endif
+		}
+	}
 	return 0;
 }
 /*}}}*/

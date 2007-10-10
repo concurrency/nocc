@@ -54,8 +54,64 @@
 /*{{{  private data*/
 
 static int tchk_acounter;
+static chook_t *tchk_noderefchook = NULL;
 
 
+/*}}}*/
+
+
+/*{{{  static void tchk_isetindent (FILE *stream, int indent)*/
+/*
+ *	set-indent for debugging output
+ */
+static void tchk_isetindent (FILE *stream, int indent)
+{
+	int i;
+
+	for (i=0; i<indent; i++) {
+		fprintf (stream, "    ");
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void *tchk_noderefchook_copy (void *hook)*/
+/*
+ *	duplicates a "metadata" compiler hook
+ */
+static void *tchk_noderefchook_copy (void *hook)
+{
+	return hook;
+}
+/*}}}*/
+/*{{{  static void tchk_noderefchook_free (void *hook)*/
+/*
+ *	frees a "metadata" compiler hook
+ */
+static void tchk_noderefchook_free (void *hook)
+{
+	/* nothing! */
+	return;
+}
+/*}}}*/
+/*{{{  static void tchk_noderefchook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a tchknode_t reference compiler hook (debugging)
+ */
+static void tchk_noderefchook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	tchknode_t *tcn = (tchknode_t *)hook;
+
+	tchk_isetindent (stream, indent);
+	if (!hook) {
+		fprintf (stream, "<chook id=\"traceschecknoderef\" value=\"\" />\n");
+	} else {
+		fprintf (stream, "<chook id=\"traceschecknoderef\">\n");
+		tracescheck_dumpnode (tcn, indent + 1, stream);
+		tchk_isetindent (stream, indent);
+		fprintf (stream, "</chook>\n");
+	}
+	return;
+}
 /*}}}*/
 
 
@@ -75,6 +131,14 @@ int tracescheck_init (void)
 
 	nocc_addxmlnamespace ("tracescheck", "http://www.cs.kent.ac.uk/projects/ofa/nocc/NAMESPACES/tracescheck");
 
+	/*{{{  traces compiler-hooks*/
+	tchk_noderefchook = tnode_lookupornewchook ("traceschecknoderef");
+	tchk_noderefchook->chook_copy = tchk_noderefchook_copy;
+	tchk_noderefchook->chook_free = tchk_noderefchook_free;
+	tchk_noderefchook->chook_dumptree = tchk_noderefchook_dumptree;
+
+	/*}}}*/
+
 	return 0;
 }
 /*}}}*/
@@ -89,21 +153,6 @@ int tracescheck_shutdown (void)
 }
 /*}}}*/
 
-
-/*{{{  static void tchk_isetindent (FILE *stream, int indent)*/
-/*
- *	set-indent for debugging output
- */
-static void tchk_isetindent (FILE *stream, int indent)
-{
-	int i;
-
-	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
-	}
-	return;
-}
-/*}}}*/
 
 /*{{{  static tchknode_t *tchk_newtchknode (void)*/
 /*
@@ -552,4 +601,13 @@ int tracescheck_addivar (tchk_state_t *tcstate, tchknode_t *tcn)
 }
 /*}}}*/
 
+/*{{{  chook_t *tracescheck_getnoderefchook (void)*/
+/*
+ *	returns the traceschecknoderef compiler hook
+ */
+chook_t *tracescheck_getnoderefchook (void)
+{
+	return tchk_noderefchook;
+}
+/*}}}*/
 

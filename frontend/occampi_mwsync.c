@@ -667,7 +667,7 @@ static int occampi_mwsync_init_nodes (void)
 	tnd->lops = lops;
 
 	i = -1;
-	opi.tag_BARRIER = tnode_newnodetag ("BARRIER", &i, tnd, NTF_NONE);
+	opi.tag_BARRIER = tnode_newnodetag ("BARRIER", &i, tnd, NTF_SYNCTYPE);
 
 	/*}}}*/
 	/*{{{  occampi:actionnode -- SYNC*/
