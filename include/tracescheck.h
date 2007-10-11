@@ -70,6 +70,7 @@ typedef struct TAG_tchk_state {
 
 	DYNARRAY (tchknode_t *, ivars);			/* interesting/interface variables */
 	DYNARRAY (tchknode_t *, traces);		/* collected traces */
+	DYNARRAY (tchknode_t *, bucket);		/* partial collections */
 
 	int err;
 	int warn;
@@ -88,9 +89,12 @@ extern void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream);
 extern tchk_state_t *tracescheck_pushstate (tchk_state_t *tcstate);
 extern tchk_state_t *tracescheck_popstate (tchk_state_t *tcstate);
 
+extern tchknode_t *tracescheck_dupref (tchknode_t *tcn);
 extern tchknode_t *tracescheck_createatom (void);
 extern tchknode_t *tracescheck_createnode (tchknodetype_e type, ...);
+
 extern int tracescheck_addivar (tchk_state_t *tcstate, tchknode_t *tcn);
+extern int tracescheck_addtobucket (tchk_state_t *tcstate, tchknode_t *tcn);
 
 extern struct TAG_chook *tracescheck_getnoderefchook (void);
 

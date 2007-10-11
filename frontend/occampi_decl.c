@@ -912,6 +912,7 @@ static int occampi_tracescheck_procdecl (compops_t *cops, tnode_t *node, tchk_st
 fprintf (stderr, "occampi_tracescheck_procdecl(): done traces check, ended up with:\n");
 tracescheck_dumpstate (thispstate, 1, stderr);
 #endif
+
 	/* FIXME: parameters will have various TCN_ATOMREFs hanging on compiler-hooks */
 	tracescheck_popstate (thispstate);
 

@@ -245,6 +245,7 @@ static tchk_state_t *tchk_newtchkstate (void)
 
 	dynarray_init (tcstate->ivars);
 	dynarray_init (tcstate->traces);
+	dynarray_init (tcstate->bucket);
 
 	tcstate->err = 0;
 	tcstate->warn = 0;
@@ -287,6 +288,15 @@ static void tchk_freetchkstate (tchk_state_t *tcstate)
 		}
 	}
 	dynarray_trash (tcstate->traces);
+
+	for (i=0; i<DA_CUR (tcstate->bucket); i++) {
+		tchknode_t *tcn = DA_NTHITEM (tcstate->bucket, i);
+
+		if (tcn) {
+			tchk_freetchknode (tcn);
+		}
+	}
+	dynarray_trash (tcstate->bucket);
 
 	sfree (tcstate);
 	return;
@@ -383,6 +393,16 @@ void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, FILE *stream)
 	}
 	tchk_isetindent (stream, indent + 1);
 	fprintf (stream, "</tracescheck:traces>\n");
+
+	tchk_isetindent (stream, indent + 1);
+	fprintf (stream, "<tracescheck:bucket>\n");
+	for (i=0; i<DA_CUR (tcstate->bucket); i++) {
+		tchknode_t *tcn = DA_NTHITEM (tcstate->bucket, i);
+
+		tracescheck_dumpnode (tcn, indent + 2, stream);
+	}
+	tchk_isetindent (stream, indent + 1);
+	fprintf (stream, "</tracescheck:bucket>\n");
 
 	tchk_isetindent (stream, indent);
 	fprintf (stream, "</tracescheck:state>\n");
@@ -511,6 +531,29 @@ tchk_state_t *tracescheck_popstate (tchk_state_t *tcstate)
 }
 /*}}}*/
 
+/*{{{  tchknode_t *tracescheck_dupref (tchknode_t *tcn)*/
+/*
+ *	duplicates a tchknode_t reference-type
+ *	returns new node on success, NULL on failure
+ */
+tchknode_t *tracescheck_dupref (tchknode_t *tcn)
+{
+	tchknode_t *newtcn = NULL;
+
+	switch (tcn->type) {
+	case TCN_ATOMREF:
+		newtcn = tracescheck_createnode (tcn->type, tcn->u.tcnaref.aref);
+		break;
+	case TCN_NODEREF:
+		newtcn = tracescheck_createnode (tcn->type, tcn->u.tcnnref.nref);
+		break;
+	default:
+		nocc_internal ("tracescheck_dupref(): cannot duplicate non-reference type %d", (int)tcn->type);
+		break;
+	}
+	return newtcn;
+}
+/*}}}*/
 /*{{{  tchknode_t *tracescheck_createatom (void)*/
 /*
  *	creates a new traces-check atom (with a unique identifier)
@@ -585,6 +628,7 @@ tchknode_t *tracescheck_createnode (tchknodetype_e type, ...)
 	return tcn;
 }
 /*}}}*/
+
 /*{{{  int tracescheck_addivar (tchk_state_t *tcstate, tchknode_t *tcn)*/
 /*
  *	adds a traces-check variable to the list of interesting/interface variables
@@ -597,6 +641,21 @@ int tracescheck_addivar (tchk_state_t *tcstate, tchknode_t *tcn)
 		return -1;
 	}
 	dynarray_add (tcstate->ivars, tcn);
+	return 0;
+}
+/*}}}*/
+/*{{{  int tracescheck_addtobucket (tchk_state_t *tcstate, tchknode_t *tcn)*/
+/*
+ *	adds a traces-check something to the bucket
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_addtobucket (tchk_state_t *tcstate, tchknode_t *tcn)
+{
+	if (!tcstate || !tcn) {
+		nocc_internal ("tracescheck_addtobucket(): NULL state or node!");
+		return -1;
+	}
+	dynarray_add (tcstate->bucket, tcn);
 	return 0;
 }
 /*}}}*/

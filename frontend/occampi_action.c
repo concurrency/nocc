@@ -52,6 +52,7 @@
 #include "langops.h"
 #include "precheck.h"
 #include "usagecheck.h"
+#include "tracescheck.h"
 #include "fetrans.h"
 #include "betrans.h"
 #include "map.h"
@@ -217,6 +218,29 @@ static int occampi_precheck_action (compops_t *cops, tnode_t *node)
 		usagecheck_marknode (tnode_nthsubof (node, 0), USAGE_WRITE, 0);
 		usagecheck_marknode (tnode_nthsubof (node, 1), USAGE_READ, 0);
 	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_tracescheck_action (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)*/
+/*
+ *	called to do traces checking on an action-node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_tracescheck_action (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)
+{
+	if ((node->tag == opi.tag_INPUT) || (node->tag == opi.tag_OUTPUT)) {
+		tnode_t *lhs = tnode_nthsubof (node, 0);
+		// tnode_t *lhstype = (tnode_t *)tnode_getchook (node, opi_action_lhstypehook);
+		chook_t *tchkhook = tracescheck_getnoderefchook ();
+		tchknode_t *lhstcn = (tchknode_t *)tnode_getchook (lhs, tchkhook);
+
+		if (lhstcn) {
+			tchknode_t *newtcn = tracescheck_dupref (lhstcn);
+
+			tracescheck_addtobucket (tcstate, newtcn);
+		}
+	}
+
 	return 1;
 }
 /*}}}*/
@@ -548,6 +572,7 @@ static int occampi_action_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_action));
 	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (occampi_precheck_action));
+	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_action));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_action));
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_action));
 	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_action));
