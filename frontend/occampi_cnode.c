@@ -48,6 +48,7 @@
 #include "prescope.h"
 #include "typecheck.h"
 #include "constprop.h"
+#include "tracescheck.h"
 #include "langops.h"
 #include "usagecheck.h"
 #include "fetrans.h"
@@ -366,6 +367,16 @@ static int occampi_constprop_cnode (compops_t *cops, tnode_t **tptr)
 			}
 		}
 	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_tracescheck_cnode (compops_t *cops, tnode_t *tptr, tchk_state_t *tcstate)*/
+/*
+ *	does traces checking on a SEQ or PAR node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_tracescheck_cnode (compops_t *cops, tnode_t *tptr, tchk_state_t *tcstate)
+{
 	return 1;
 }
 /*}}}*/
@@ -916,6 +927,7 @@ static int occampi_cnode_init_nodes (void)
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_cnode));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_cnode));
 	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_cnode));
+	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_cnode));
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_cnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_cnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_cnode));
