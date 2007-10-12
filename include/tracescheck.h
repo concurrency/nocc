@@ -95,6 +95,7 @@ extern tchknode_t *tracescheck_createnode (tchknodetype_e type, ...);
 
 extern int tracescheck_addivar (tchk_state_t *tcstate, tchknode_t *tcn);
 extern int tracescheck_addtobucket (tchk_state_t *tcstate, tchknode_t *tcn);
+extern int tracescheck_cleanrefchooks (tchk_state_t *tcstate, struct TAG_tnode *tptr);
 
 extern struct TAG_chook *tracescheck_getnoderefchook (void);
 

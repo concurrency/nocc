@@ -330,6 +330,26 @@ static int tchk_prewalk_tree (tnode_t *node, void *data)
 	return res;
 }
 /*}}}*/
+/*{{{  static int tchk_cleanrefchooks_prewalk (tnode_t *tptr, void *arg)*/
+/*
+ *	called in a pre-walk to clean up traceschecknoderef compiler hooks
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int tchk_cleanrefchooks_prewalk (tnode_t *tptr, void *arg)
+{
+	tchk_state_t *tcstate = (tchk_state_t *)arg;
+
+	if (tnode_haschook (tptr, tchk_noderefchook)) {
+		tchknode_t *tcn = (tchknode_t *)tnode_getchook (tptr, tchk_noderefchook);
+
+		if (tcn) {
+			tchk_freetchknode (tcn);
+			tnode_clearchook (tptr, tchk_noderefchook);
+		}
+	}
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  int tracescheck_subtree (tnode_t *tree, tchk_state_t *tcstate)*/
@@ -656,6 +676,17 @@ int tracescheck_addtobucket (tchk_state_t *tcstate, tchknode_t *tcn)
 		return -1;
 	}
 	dynarray_add (tcstate->bucket, tcn);
+	return 0;
+}
+/*}}}*/
+/*{{{  int tracescheck_cleanrefchooks (tchk_state_t *tcstate, tnode_t *tptr)*/
+/*
+ *	goes through a tree structure removing traceschecknoderef compiler hooks (typically used with parameter lists)
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_cleanrefchooks (tchk_state_t *tcstate, tnode_t *tptr)
+{
+	tnode_prewalktree (tptr, tchk_cleanrefchooks_prewalk, (void *)tcstate);
 	return 0;
 }
 /*}}}*/

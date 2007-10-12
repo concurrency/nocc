@@ -906,14 +906,16 @@ static int occampi_tracescheck_procdecl (compops_t *cops, tnode_t *node, tchk_st
 
 	tracescheck_subtree (tnode_nthsubof (node, 2), thispstate);
 
-	/* FIXME: we are now done with this PROC */
-
-#if 1
+#if 0
 fprintf (stderr, "occampi_tracescheck_procdecl(): done traces check, ended up with:\n");
 tracescheck_dumpstate (thispstate, 1, stderr);
 #endif
 
-	/* FIXME: parameters will have various TCN_ATOMREFs hanging on compiler-hooks */
+	/* anything left in the bucket in thispstate will be a trace for this procedure */
+	/* FIXME: we are now done with this PROC */
+
+	/* clean references from formal parameters */
+	tracescheck_cleanrefchooks (thispstate, tnode_nthsubof (node, 1));
 	tracescheck_popstate (thispstate);
 
 	tracescheck_subtree (tnode_nthsubof (node, 3), tcstate);
@@ -932,7 +934,16 @@ static int occampi_miscnodetrans_procdecl (compops_t *cops, tnode_t **tptr, occa
 	chook_t *metalisthook = tnode_lookupchookbyname ("metadatalist");
 
 	if (mnt->md_node) {
-		metadatalist_t *mdl = metadata_newmetadatalist ();
+		metadatalist_t *mdl = NULL;
+		
+		if (tnode_haschook (*tptr, metalisthook)) {
+			mdl = (metadatalist_t *)tnode_getchook (*tptr, metalisthook);
+		}
+		if (!mdl) {
+			/* need a fresh one */
+			mdl = metadata_newmetadatalist ();
+			tnode_setchook (*tptr, metalisthook, (void *)mdl);
+		}
 
 		while (mnt->md_node) {
 			tnode_t **nextp = tnode_nthsubaddr (mnt->md_node, 0);
@@ -954,8 +965,6 @@ static int occampi_miscnodetrans_procdecl (compops_t *cops, tnode_t **tptr, occa
 		}
 
 		mnt->md_iptr = NULL;
-
-		tnode_setchook (*tptr, metalisthook, (void *)mdl);
 	}
 	return 1;
 }
@@ -1333,7 +1342,7 @@ static int occampi_tracescheck_fparam (compops_t *cops, tnode_t *node, tchk_stat
 
 			tnode_setchook (pname, tracescheck_getnoderefchook (), tcnref);
 			tracescheck_addivar (tcstate, tcn);
-#if 1
+#if 0
 fprintf (stderr, "FPARAM looks like a sync-type:\n");
 tnode_dumptree (pname, 1, stderr);
 #endif
