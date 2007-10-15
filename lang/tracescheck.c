@@ -232,6 +232,51 @@ static void tchk_freetchknode (tchknode_t *tcn)
 /*}}}*/
 
 
+/*{{{  static tchk_bucket_t *tchk_newtchkbucket (void)*/
+/*
+ *	creates a new tchk_bucket_t structure (blank)
+ */
+static tchk_bucket_t *tchk_newtchkbucket (void)
+{
+	tchk_bucket_t *tcb = (tchk_bucket_t *)smalloc (sizeof (tchk_bucket_t));
+
+	tcb->prevbucket = NULL;
+	dynarray_init (tcb->items);
+
+	return tcb;
+}
+/*}}}*/
+/*{{{  static void tchk_freetchkbucket (tchk_bucket_t *tcb)*/
+/*
+ *	frees a tchk_bucket_t structure (deep)
+ */
+static void tchk_freetchkbucket (tchk_bucket_t *tcb)
+{
+	int i;
+
+	if (!tcb) {
+		nocc_internal ("tchk_freetchkbucket(): NULL bucket!");
+		return;
+	}
+	if (tcb->prevbucket) {
+		nocc_serious ("tchk_freetchkbucket(): have a previous bucket, freeing that too..");
+		tchk_freetchkbucket (tcb->prevbucket);
+		tcb->prevbucket = NULL;
+	}
+
+	for (i=0; i<DA_CUR (tcb->items); i++) {
+		tchknode_t *tcn = DA_NTHITEM (tcb->items, i);
+
+		if (tcn) {
+			tchk_freetchknode (tcn);
+		}
+	}
+	dynarray_trash (tcb->items);
+
+	sfree (tcb);
+	return;
+}
+/*}}}*/
 /*{{{  static tchk_state_t *tchk_newtchkstate (void)*/
 /*
  *	creates a new tchk_state_t structure (blank)
@@ -245,7 +290,7 @@ static tchk_state_t *tchk_newtchkstate (void)
 
 	dynarray_init (tcstate->ivars);
 	dynarray_init (tcstate->traces);
-	dynarray_init (tcstate->bucket);
+	tcstate->bucket = tchk_newtchkbucket ();
 
 	tcstate->err = 0;
 	tcstate->warn = 0;
@@ -289,14 +334,10 @@ static void tchk_freetchkstate (tchk_state_t *tcstate)
 	}
 	dynarray_trash (tcstate->traces);
 
-	for (i=0; i<DA_CUR (tcstate->bucket); i++) {
-		tchknode_t *tcn = DA_NTHITEM (tcstate->bucket, i);
-
-		if (tcn) {
-			tchk_freetchknode (tcn);
-		}
+	if (tcstate->bucket) {
+		tchk_freetchkbucket (tcstate->bucket);
+		tcstate->bucket = NULL;
 	}
-	dynarray_trash (tcstate->bucket);
 
 	sfree (tcstate);
 	return;
@@ -337,7 +378,7 @@ static int tchk_prewalk_tree (tnode_t *node, void *data)
  */
 static int tchk_cleanrefchooks_prewalk (tnode_t *tptr, void *arg)
 {
-	tchk_state_t *tcstate = (tchk_state_t *)arg;
+	// tchk_state_t *tcstate = (tchk_state_t *)arg;
 
 	if (tnode_haschook (tptr, tchk_noderefchook)) {
 		tchknode_t *tcn = (tchknode_t *)tnode_getchook (tptr, tchk_noderefchook);
@@ -383,6 +424,27 @@ int tracescheck_tree (tnode_t *tree, langparser_t *lang)
 }
 /*}}}*/
 
+
+/*{{{  void tracescheck_dumpbucket (tchk_bucket_t *tcb, int indent, FILE *stream)*/
+/*
+ *	dumps a traces check bucket (debugging)
+ */
+void tracescheck_dumpbucket (tchk_bucket_t *tcb, int indent, FILE *stream)
+{
+	int i;
+
+	tchk_isetindent (stream, indent);
+	fprintf (stream, "<tracescheck:bucket>\n");
+	for (i=0; i<DA_CUR (tcb->items); i++) {
+		tchknode_t *tcn = DA_NTHITEM (tcb->items, i);
+
+		tracescheck_dumpnode (tcn, indent + 1, stream);
+	}
+	tchk_isetindent (stream, indent);
+	fprintf (stream, "</tracescheck:bucket>\n");
+	return;
+}
+/*}}}*/
 /*{{{  void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, FILE *stream)*/
 /*
  *	dumps a traces check state (debugging)
@@ -414,15 +476,7 @@ void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, FILE *stream)
 	tchk_isetindent (stream, indent + 1);
 	fprintf (stream, "</tracescheck:traces>\n");
 
-	tchk_isetindent (stream, indent + 1);
-	fprintf (stream, "<tracescheck:bucket>\n");
-	for (i=0; i<DA_CUR (tcstate->bucket); i++) {
-		tchknode_t *tcn = DA_NTHITEM (tcstate->bucket, i);
-
-		tracescheck_dumpnode (tcn, indent + 2, stream);
-	}
-	tchk_isetindent (stream, indent + 1);
-	fprintf (stream, "</tracescheck:bucket>\n");
+	tracescheck_dumpbucket (tcstate->bucket, indent + 1, stream);
 
 	tchk_isetindent (stream, indent);
 	fprintf (stream, "</tracescheck:state>\n");
@@ -551,6 +605,84 @@ tchk_state_t *tracescheck_popstate (tchk_state_t *tcstate)
 }
 /*}}}*/
 
+/*{{{  int tracescheck_pushbucket (tchk_state_t *tcstate)*/
+/*
+ *	pushes a new bucket onto the traces-check bucket stack -- used when processing fine-grained detail
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_pushbucket (tchk_state_t *tcstate)
+{
+	tchk_bucket_t *nb;
+
+	if (!tcstate || !tcstate->bucket) {
+		nocc_internal ("tracescheck_pushbucket(): NULL state or bucket!");
+		return -1;
+	}
+	nb = tchk_newtchkbucket ();
+	nb->prevbucket = tcstate->bucket;
+	tcstate->bucket = nb;
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int tracescheck_popbucket (tchk_state_t *tcstate)*/
+/*
+ *	pops a bucket from the traces-check bucket stack and discards it
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_popbucket (tchk_state_t *tcstate)
+{
+	tchk_bucket_t *thisb;
+
+	if (!tcstate || !tcstate->bucket || !tcstate->bucket->prevbucket) {
+		nocc_internal ("tracescheck_popbucket(): NULL state, bucket or previous bucket!");
+		return -1;
+	}
+	thisb = tcstate->bucket;
+	tcstate->bucket = thisb->prevbucket;
+	thisb->prevbucket = NULL;
+
+	tchk_freetchkbucket (thisb);
+	return 0;
+}
+/*}}}*/
+/*{{{  tchk_bucket_t *tracescheck_pullbucket (tchk_state_t *tcstate)*/
+/*
+ *	pops a bucket from the traces-check bucket stack and return it
+ *	returns bucket on success, NULL on failure
+ */
+tchk_bucket_t *tracescheck_pullbucket (tchk_state_t *tcstate)
+{
+	tchk_bucket_t *thisb;
+
+	if (!tcstate || !tcstate->bucket || !tcstate->bucket->prevbucket) {
+		nocc_internal ("tracescheck_pullbucket(): NULL state, bucket or previous bucket!");
+		return NULL;
+	}
+	thisb = tcstate->bucket;
+	tcstate->bucket = thisb->prevbucket;
+	thisb->prevbucket = NULL;
+
+	return thisb;
+}
+/*}}}*/
+/*{{{  int tracescheck_freebucket (tchk_bucket_t *tcb)*/
+/*
+ *	called to free a previously pulled traces-check bucket
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_freebucket (tchk_bucket_t *tcb)
+{
+	if (!tcb) {
+		nocc_serious ("tracescheck_freebucket(): NULL bucket!");
+		return -1;
+	}
+
+	tchk_freetchkbucket (tcb);
+	return 0;
+}
+/*}}}*/
+
 /*{{{  tchknode_t *tracescheck_dupref (tchknode_t *tcn)*/
 /*
  *	duplicates a tchknode_t reference-type
@@ -675,7 +807,11 @@ int tracescheck_addtobucket (tchk_state_t *tcstate, tchknode_t *tcn)
 		nocc_internal ("tracescheck_addtobucket(): NULL state or node!");
 		return -1;
 	}
-	dynarray_add (tcstate->bucket, tcn);
+	if (!tcstate->bucket) {
+		nocc_internal ("tracescheck_addtobucket(): NULL bucket in state!");
+		return -1;
+	}
+	dynarray_add (tcstate->bucket->items, tcn);
 	return 0;
 }
 /*}}}*/

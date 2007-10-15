@@ -63,6 +63,10 @@ typedef struct TAG_tchknode {
 	} u;
 } tchknode_t;
 
+typedef struct TAG_tchk_bucket {
+	struct TAG_tchk_bucket *prevbucket;		/* previous bucket */
+	DYNARRAY (tchknode_t *, items);			/* partial collections */
+} tchk_bucket_t;
 
 typedef struct TAG_tchk_state {
 	struct TAG_tchk_state *prevstate;		/* previous state */
@@ -70,7 +74,7 @@ typedef struct TAG_tchk_state {
 
 	DYNARRAY (tchknode_t *, ivars);			/* interesting/interface variables */
 	DYNARRAY (tchknode_t *, traces);		/* collected traces */
-	DYNARRAY (tchknode_t *, bucket);		/* partial collections */
+	tchk_bucket_t *bucket;				/* partial collections */
 
 	int err;
 	int warn;
@@ -83,11 +87,17 @@ extern int tracescheck_shutdown (void);
 extern int tracescheck_subtree (struct TAG_tnode *tree, tchk_state_t *tcstate);
 extern int tracescheck_tree (struct TAG_tnode *tree, struct TAG_langparser *lang);
 
+extern void tracescheck_dumpbucket (tchk_bucket_t *tcb, int indent, FILE *stream);
 extern void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, FILE *stream);
 extern void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream);
 
 extern tchk_state_t *tracescheck_pushstate (tchk_state_t *tcstate);
 extern tchk_state_t *tracescheck_popstate (tchk_state_t *tcstate);
+
+extern int tracescheck_pushbucket (tchk_state_t *tcstate);
+extern int tracescheck_popbucket (tchk_state_t *tcstate);
+extern tchk_bucket_t *tracescheck_pullbucket (tchk_state_t *tcstate);
+extern int tracescheck_freebucket (tchk_bucket_t *tcb);
 
 extern tchknode_t *tracescheck_dupref (tchknode_t *tcn);
 extern tchknode_t *tracescheck_createatom (void);
