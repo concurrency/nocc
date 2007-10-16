@@ -158,6 +158,16 @@ static int occampi_traces_init_nodes (void)
 	i = -1;
 	opi.tag_TRACES = tnode_newnodetag ("TRACES", &i, tnd, NTF_NONE);
 	/*}}}*/
+	/*{{{  occampi:tracetypedecl -- TRACETYPEDECL*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:tracetypedecl", &i, 4, 0, 0, TNF_SHORTDECL);	/* subnodes: 0 = name, 1 = params, 2 = in-scope-body, 3 = traces */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	opi.tag_TRACETYPEDECL = tnode_newnodetag ("TRACETYPEDECL", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 
 	return 0;
 }

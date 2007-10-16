@@ -187,6 +187,7 @@ typedef struct {
 	struct TAG_ntdef *tag_BUILTINPROC;
 	struct TAG_ntdef *tag_BUILTINFUNCTION;
 	struct TAG_ntdef *tag_TRACES;
+	struct TAG_ntdef *tag_TRACETYPEDECL;
 
 	struct TAG_ntdef *tag_TIMERINPUT;
 	struct TAG_ntdef *tag_TIMERINPUTAFTER;

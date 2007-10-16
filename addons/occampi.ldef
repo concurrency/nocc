@@ -90,6 +90,7 @@
 .TNODE	"occampi:procdecl" (4,0,0) "name" "fparams" "procbody" "body"
 .TNODE	"occampi:funcdecl" (4,0,0) "name" "type" "funcbody" "body"
 .TNODE	"occampi:shortfuncdecl" (4,0,0) "name" "type" "body" "expr"
+.TNODE	"occampi:tracetypedecl" (4,0,0) "name" "type" "body" "expr"
 
 
 #}}}
@@ -232,7 +233,7 @@
 
 .BNF	"occampi:declorprocstart +:= ( occampi:vardecl | occampi:abbrdecl | occampi:valof | occampi:procdecl | occampi:typedecl |"
 	"occampi:primproc | occampi:cproc | occampi:snode | occampi:namestart | occampi:mobiledecl |"
-	"occampi:builtinprocinstance | occampi:bracketstart | occampi:asmblock ) {<opi:nullreduce>}"
+	"occampi:builtinprocinstance | occampi:bracketstart | occampi:asmblock | occampi:tracesdecl ) {<opi:nullreduce>}"
 .TABLE	"occampi:descriptorline ::= [ 0 -@PROC 1 ] [ 0 -* 2 ] [ 1 occampi:procdecl 3 ] [ 2 occampi:funcdecl 3 ] [ 3 {<opi:nullreduce>} -* ]"
 
 
@@ -665,6 +666,15 @@
 .TABLE	"occampi:primtype +:= [ 0 +@TIMER 1 ] [ 1 {<opi:timertype>} -* ]"
 .TABLE	"occampi:expr +:= [ 0 +@AFTER 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:mafterreduce>} -* ]"
 .TABLE	"occampi:restofexpr +:= [ 0 +@AFTER 1 ] [ 1 occampi:expr 2 ] [ 2 {Roccampi:dafterreduce} -* ]"
+
+
+# }}}
+.SECTION "occampi-traces" # {{{
+
+.GRULE	"opi:tracetypedeclreduce" "SN0N+0N+N+V*C[TRACETYPEDECL]4R-"
+
+.TABLE	"occampi:tracesdecl ::= [ 0 @TRACES 1 ] [ 1 @TYPE 2 ] [ 2 occampi:name 3 ] [ 3 @@( 4 ]"
+	"[ 4 occampi:namelist 5 ] [ 5 @@) 6 ] [ 6 occampi:expr 7 ] [ 7 @@: 8 ] [ 8 {<opi:tracetypedeclreduce>} -* ]"
 
 
 # }}}

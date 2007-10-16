@@ -1,6 +1,9 @@
 
 -- test_x54.occ -- testing traces analysis
 
+TRACES TYPE T.IO (in, out) "in -> out":
+TRACES TYPE T.TEST (out) "out":
+
 PROC test.n79 (CHAN BYTE out!)
   SEQ
     out ! 42
