@@ -1,0 +1,25 @@
+#
+# traceslang.ldef - language definitions for traces in NOCC
+# identifiers must start at the left-margin, indentation is a line-continuation
+#
+
+.IDENT		"traceslang"
+.DESC		"NOCC traces language"
+.MAINTAINER	"Fred Barnes <frmb@kent.ac.uk>"
+
+
+.SECTION "traceslang" # {{{
+
+# keyword, symbol and tnode definitions
+
+# }}}
+.SECTION "traceslang-postprod" # {{{
+
+# }}}
+.SECTION "traceslang-expr" # {{{
+
+# FIXME: dontent!
+
+# }}}
+
+

@@ -37,6 +37,7 @@ typedef struct TAG_lexpriv {
 #define LANGTAG_MCSP 0x00000004
 #define LANGTAG_RCXB 0x00000008
 #define LANGTAG_TRLANG 0x00000010
+#define LANGTAG_TRACESLANG 0x00000020
 
 
 /* this defines support for a language */

@@ -1,5 +1,5 @@
 /*
- *	trlang.h -- tree-rewriting language for NOCC
+ *	traceslang.h -- traces language for NOCC
  *	Copyright (C) 2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
@@ -17,44 +17,36 @@
  *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#ifndef __TRLANG_H
-#define __TRLANG_H
+#ifndef __TRACESLANG_H
+#define __TRACESLANG_H
 
 struct TAG_feunit;
 struct TAG_langdef;
 struct TAG_langlexer;
 struct TAG_langparser;
 
-extern struct TAG_langlexer trlang_lexer;
-extern struct TAG_langparser trlang_parser;
+extern struct TAG_langlexer traceslang_lexer;
+extern struct TAG_langparser traceslang_parser;
 
+extern int traceslang_init (void);
+extern int traceslang_shutdown (void);
 
-extern int trlang_init (void);
-extern int trlang_shutdown (void);
-
-extern int trlang_initialise (void);
+extern int traceslang_initialise (void);
 
 
 struct TAG_tndef;
 struct TAG_ntdef;
-struct TAG_token;
+struct TAG_tnode;
 
 typedef struct {
-	struct TAG_ntdef *tag_NAME;
-	struct TAG_ntdef *tag_LITINT;
-	struct TAG_ntdef *tag_LITSTR;
-	struct TAG_ntdef *tag_FUNCTIONDEF;
-	struct TAG_ntdef *tag_IF;
-	struct TAG_ntdef *tag_ELSE;
-} trlang_pset_t;
 
-extern trlang_pset_t trlang;
+} traceslang_pset_t;
 
-extern void trlang_isetindent (FILE *stream, int indent);
-extern struct TAG_langdef *trlang_getlangdef (void);
+extern traceslang_pset_t traceslang;
 
-extern struct TAG_feunit trlang_expr_feunit;		/* trlang_expr.c */
+extern void traceslang_isetindent (FILE *stream, int indent);
+extern struct TAG_langdef *traceslang_getlangdef (void);
 
 
-#endif	/* !__TRLANG_H */
+#endif	/* !__TRACESLANG_H */
 

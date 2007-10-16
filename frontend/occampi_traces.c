@@ -135,6 +135,29 @@ static int occampi_scopeout_traces (compops_t *cops, tnode_t **node, scope_t *ss
 }
 /*}}}*/
 
+/*{{{  static int occampi_scopein_tracetypedecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	called to scope-in a traces type declaration
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_scopein_tracetypedecl (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	/* FIXME! */
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_scopeout_tracetypedecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	called to scope-out a traces type declaration
+ *	returns 0 to stop walk, 1 to continue [irrelevant, postorder]
+ */
+static int occampi_scopeout_tracetypedecl (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	/* FIXME! */
+	return 1;
+}
+/*}}}*/
+
 
 /*{{{  static int occampi_traces_init_nodes (void)*/
 /*
@@ -162,6 +185,8 @@ static int occampi_traces_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:tracetypedecl", &i, 4, 0, 0, TNF_SHORTDECL);	/* subnodes: 0 = name, 1 = params, 2 = in-scope-body, 3 = traces */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_tracetypedecl));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_tracetypedecl));
 	tnd->ops = cops;
 
 	i = -1;

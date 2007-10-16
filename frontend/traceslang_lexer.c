@@ -1,5 +1,5 @@
 /*
- *	trlang_lexer.c -- lexer for tree-rewriting language
+ *	traceslang_lexer.c -- lexer for traces language
  *	Copyright (C) 2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
@@ -35,8 +35,8 @@
 #include "keywords.h"
 #include "lexer.h"
 #include "lexpriv.h"
-#include "trlang.h"
-#include "trlang_fe.h"
+#include "traceslang.h"
+#include "traceslang_fe.h"
 #include "opts.h"
 
 
@@ -45,22 +45,22 @@
 
 /*{{{  forward decls*/
 
-static int trlang_openfile (lexfile_t *lf, lexpriv_t *lp);
-static int trlang_closefile (lexfile_t *lf, lexpriv_t *lp);
-static token_t *trlang_nexttoken (lexfile_t *lf, lexpriv_t *lp);
-static int trlang_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
+static int traceslang_openfile (lexfile_t *lf, lexpriv_t *lp);
+static int traceslang_closefile (lexfile_t *lf, lexpriv_t *lp);
+static token_t *traceslang_nexttoken (lexfile_t *lf, lexpriv_t *lp);
+static int traceslang_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 
 /*}}}*/
 /*{{{  public lexer struct*/
 
-langlexer_t trlang_lexer = {
-	langname: "trlang",
-	langtag: LANGTAG_TRLANG,
-	fileexts: {".trl", NULL},
-	openfile: trlang_openfile,
-	closefile: trlang_closefile,
-	nexttoken: trlang_nexttoken,
-	getcodeline: trlang_getcodeline,
+langlexer_t traceslang_lexer = {
+	langname: "traceslang",
+	langtag: LANGTAG_TRACESLANG,
+	fileexts: {".ttl", NULL},
+	openfile: traceslang_openfile,
+	closefile: traceslang_closefile,
+	nexttoken: traceslang_nexttoken,
+	getcodeline: traceslang_getcodeline,
 	parser: NULL
 };
 
@@ -108,17 +108,17 @@ static int decode_hex (char *ptr, int len)
 	return val;
 }
 /*}}}*/
-/*{{{  static int trlang_escape_char (lexfile_t *lf, char **ptr)*/
+/*{{{  static int traceslang_escape_char (lexfile_t *lf, char **ptr)*/
 /*
  *	extracts an escape sequence from a string
  *	returns the character it represents, -255 on error
  */
-static int trlang_escape_char (lexfile_t *lf, char **ptr)
+static int traceslang_escape_char (lexfile_t *lf, char **ptr)
 {
 	int echr = 0;
 
 	if (**ptr != '\\') {
-		lexer_error (lf, "trlang_escape_char(): called incorrectly");
+		lexer_error (lf, "traceslang_escape_char(): called incorrectly");
 		(*ptr)++;
 		goto out_error1;
 	} else {
@@ -164,12 +164,12 @@ out_error1:
 /*}}}*/
 
 
-/*{{{  static int trlang_openfile (lexfile_t *lf, lexpriv_t *lp)*/
+/*{{{  static int traceslang_openfile (lexfile_t *lf, lexpriv_t *lp)*/
 /*
- *	called once a tree-rewriting file has been opened
+ *	called once a traces-language file has been opened
  *	returns 0 on success, non-zero on failure
  */
-static int trlang_openfile (lexfile_t *lf, lexpriv_t *lp)
+static int traceslang_openfile (lexfile_t *lf, lexpriv_t *lp)
 {
 	lp->langpriv = NULL;
 	lf->lineno = 1;
@@ -177,21 +177,21 @@ static int trlang_openfile (lexfile_t *lf, lexpriv_t *lp)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int trlang_closefile (lexfile_t *lf, lexpriv_t *lp)*/
+/*{{{  static int traceslang_closefile (lexfile_t *lf, lexpriv_t *lp)*/
 /*
- *	called before a tree-rewriting file is closed
+ *	called before a traces-langauge file is closed
  *	returns 0 on success, non-zero on failure
  */
-static int trlang_closefile (lexfile_t *lf, lexpriv_t *lp)
+static int traceslang_closefile (lexfile_t *lf, lexpriv_t *lp)
 {
 	return 0;
 }
 /*}}}*/
-/*{{{  static token_t *trlang_nexttoken (lexfile_t *lf, lexpriv_t *lp)*/
+/*{{{  static token_t *traceslang_nexttoken (lexfile_t *lf, lexpriv_t *lp)*/
 /*
  *	called to retrieve the next token
  */
-static token_t *trlang_nexttoken (lexfile_t *lf, lexpriv_t *lp)
+static token_t *traceslang_nexttoken (lexfile_t *lf, lexpriv_t *lp)
 {
 	token_t *tok;
 	char *ch, *chlim;
@@ -227,7 +227,7 @@ tokenloop:
 				((*dh >= '0') && (*dh <= '9'))); dh++);
 		
 		tmpstr = string_ndup (ch, (int)(dh - ch));
-		kw = keywords_lookup (tmpstr, (int)(dh - ch), LANGTAG_TRLANG);
+		kw = keywords_lookup (tmpstr, (int)(dh - ch), LANGTAG_TRACESLANG);
 		sfree (tmpstr);
 
 		if (!kw) {
@@ -310,7 +310,7 @@ tokenloop:
 			dh++;
 			if (*dh == '*') {
 				/* escape character */
-				eschar = trlang_escape_char (lf, &dh);
+				eschar = traceslang_escape_char (lf, &dh);
 				if (eschar == -255) {
 					goto out_error1;
 				}
@@ -494,7 +494,7 @@ tokenloop:
 		/* try and match as a symbol */
 default_label:
 		{
-			symbol_t *sym = symbols_match (ch, chlim, LANGTAG_TRLANG);
+			symbol_t *sym = symbols_match (ch, chlim, LANGTAG_TRACESLANG);
 
 			if (sym) {
 				/* found something */
@@ -531,12 +531,12 @@ out_error1:
 	return tok;
 }
 /*}}}*/
-/*{{{  static int trlang_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf)*/
+/*{{{  static int traceslang_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf)*/
 /*
  *	gets the current code line from the input buffer (returns fresh string in '*rbuf')
  *	returns 0 on success, non-zero on failure
  */
-static int trlang_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf)
+static int traceslang_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf)
 {
 	*rbuf = NULL;
 	return -1;

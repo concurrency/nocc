@@ -14,6 +14,7 @@ noinst_HEADERS = version.h nocc.h support.h origin.h platform.h opts.h fcnlib.h 
 			krocetc.h transputer.h extn.h fetrans.h betrans.h metadata.h \
 			feunit.h occampi_fe.h crypto.h mcsp_fe.h \
 			trlang.h trlang_fe.h \
+			traceslang.h traceslang_fe.h \
 			rcxb.h rcxb_fe.h \
 			mwsync.h \
 			hopp.h hopp_fe.h

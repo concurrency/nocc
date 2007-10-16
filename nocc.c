@@ -78,11 +78,13 @@
 #include "transputer.h"
 #include "codegen.h"
 #include "trlang.h"
+#include "traceslang.h"
 #include "occampi_fe.h"
 #include "mcsp_fe.h"
 #include "rcxb_fe.h"
 #include "hopp_fe.h"
 #include "trlang_fe.h"
+#include "traceslang_fe.h"
 #include "metadata.h"
 #include "version.h"
 
@@ -190,6 +192,9 @@ static int nocc_shutdownrun (void)
 	int v = 0;
 
 	/* compiler framework shutdowns in reverse order from initialisations */
+	if (traceslang_shutdown ()) {
+		v++;
+	}
 	if (trlang_shutdown ()) {
 		v++;
 	}
@@ -1395,11 +1400,19 @@ int main (int argc, char **argv)
 	target_init ();
 	crypto_init ();
 	trlang_init ();
+	traceslang_init ();
 
 	/*}}}*/
 	/*{{{  initialise tree-transformation language lexer and parser (just registers them)*/
 	if (trlang_register_frontend ()) {
 		nocc_error ("failed to initialise built-in tree-rewriting language frontend");
+		exit (EXIT_FAILURE);
+	}
+
+	/*}}}*/
+	/*{{{  initialise traces language lexer and parser (just registers them)*/
+	if (traceslang_register_frontend ()) {
+		nocc_error ("failed to initialise built-in traces language frontend");
 		exit (EXIT_FAILURE);
 	}
 
@@ -1540,6 +1553,13 @@ int main (int argc, char **argv)
 		exit (EXIT_FAILURE);
 	}
 	
+	/*}}}*/
+	/*{{{  initialise traces (after its front-end parser has been registered)*/
+	if (traceslang_initialise ()) {
+		nocc_error ("failed to initialise traces parser");
+		exit (EXIT_FAILURE);
+	}
+
 	/*}}}*/
 
 	/*{{{  get hold of the desired target*/
