@@ -606,6 +606,39 @@ static int tchk_substatomrefsinnode (tchknode_t *node, tchknode_t *aold, tchknod
 	return r;
 }
 /*}}}*/
+/*{{{  static int tchk_simplifynodeprewalk (tchknode_t **tcnptr, void *arg)*/
+/*
+ *	called to simplify a node (in a modprewalk)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int tchk_simplifynodeprewalk (tchknode_t **tcnptr, void *arg)
+{
+	tchknode_t *tcn;
+
+	if (!tcnptr || !*tcnptr) {
+		nocc_serious ("tchk_simplifynodeprewalk(): NULL pointer or node!");
+		return 0;
+	}
+	tcn = *tcnptr;
+	switch (tcn->type) {
+	default:
+		break;
+	case TCN_SEQ:
+	case TCN_PAR:
+	case TCN_DET:
+	case TCN_NDET:
+		if (DA_CUR (tcn->u.tcnlist.items) == 1) {
+			tchknode_t *item = DA_NTHITEM (tcn->u.tcnlist.items, 0);
+
+			*tcnptr = item;
+			dynarray_trash (tcn->u.tcnlist.items);
+			tchk_freetchknode (tcn);
+		}
+		break;
+	}
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  int tracescheck_subtree (tnode_t *tree, tchk_state_t *tcstate)*/
@@ -639,6 +672,68 @@ int tracescheck_tree (tnode_t *tree, langparser_t *lang)
 }
 /*}}}*/
 
+/*{{{  int tracescheck_modprewalk (tchknode_t **tcnptr, int (*func)(tchknode_t **, void *), void *arg)*/
+/*
+ *	does a walk over nodes in traces
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_modprewalk (tchknode_t **tcnptr, int (*func)(tchknode_t **, void *), void *arg)
+{
+	int i, r = 0;
+
+	if (!func) {
+		return -1;
+	}
+	if (!tcnptr || !*tcnptr) {
+		return 0;
+	}
+	i = func (tcnptr, arg);
+	if (i) {
+		switch ((*tcnptr)->type) {
+			/*{{{  INVALID*/
+		case TCN_INVALID:
+		case TCN_ATOM:
+		case TCN_ATOMREF:
+		case TCN_NODEREF:
+			break;
+			/*}}}*/
+			/*{{{  SEQ,PAR,DET,NDET*/
+		case TCN_SEQ:
+		case TCN_PAR:
+		case TCN_DET:
+		case TCN_NDET:
+			for (i=0; i<DA_CUR ((*tcnptr)->u.tcnlist.items); i++) {
+				tchknode_t **iptr = DA_NTHITEMADDR ((*tcnptr)->u.tcnlist.items, i);
+
+				if (tracescheck_modprewalk (iptr, func, arg)) {
+					r++;
+				}
+			}
+			break;
+			/*}}}*/
+			/*{{{  FIXPOINT*/
+		case TCN_FIXPOINT:
+			if (tracescheck_modprewalk (&((*tcnptr)->u.tcnfix.id), func, arg)) {
+				r++;
+			}
+			if (tracescheck_modprewalk (&((*tcnptr)->u.tcnfix.proc), func, arg)) {
+				r++;
+			}
+			break;
+			/*}}}*/
+			/*{{{  INPUT,OUTPUT*/
+		case TCN_INPUT:
+		case TCN_OUTPUT:
+			if (tracescheck_modprewalk (&((*tcnptr)->u.tcnio.varptr), func, arg)) {
+				r++;
+			}
+			break;
+			/*}}}*/
+		}
+	}
+	return r;
+}
+/*}}}*/
 
 /*{{{  void tracescheck_dumpbucket (tchk_bucket_t *tcb, int indent, FILE *stream)*/
 /*
@@ -1123,6 +1218,20 @@ tchknode_t *tracescheck_createnode (tchknodetype_e type, ...)
 	return tcn;
 }
 /*}}}*/
+/*{{{  int tracescheck_simplifynode (tchknode_t **tcnptr)*/
+/*
+ *	simplifies a single node -- that is, removing single-item SEQs/PARs, etc.
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_simplifynode (tchknode_t **tcnptr)
+{
+	int i;
+
+	i = tracescheck_modprewalk (tcnptr, tchk_simplifynodeprewalk, NULL);
+
+	return i;
+}
+/*}}}*/
 
 /*{{{  int tracescheck_addtolistnode (tchknode_t *tcn, tchknode_t *item)*/
 /*
@@ -1204,6 +1313,31 @@ int tracescheck_freetraces (tchk_traces_t *tct)
 		return -1;
 	}
 	tchk_freetchktraces (tct);
+	return 0;
+}
+/*}}}*/
+/*{{{  int tracescheck_simplifytraces (tchk_traces_t *tct)*/
+/*
+ *	simplifies traces -- that is, removing single-item SEQs/PARs, etc.
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_simplifytraces (tchk_traces_t *tct)
+{
+	int i, r = 0;
+
+	if (!tct) {
+		nocc_serious ("tracescheck_simplifytraces(): NULL traces!");
+		return -1;
+	}
+
+	for (i=0; i<DA_CUR (tct->items); i++) {
+		tchknode_t **tcnptr = DA_NTHITEMADDR (tct->items, i);
+
+		if (tracescheck_simplifynode (tcnptr)) {
+			r++;
+		}
+	}
+
 	return 0;
 }
 /*}}}*/

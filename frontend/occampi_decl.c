@@ -916,6 +916,7 @@ static int occampi_tracescheck_procdecl (compops_t *cops, tnode_t *node, tchk_st
 fprintf (stderr, "occampi_tracescheck_procdecl(): done traces check, ended up with:\n");
 tracescheck_dumptraces (trs, 1, stderr);
 #endif
+	tracescheck_simplifytraces (trs);
 	tnode_setchook (node, tchktrchook, (void *)trs);
 
 	/* clean references from formal parameters */
