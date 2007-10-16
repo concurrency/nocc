@@ -68,12 +68,16 @@ typedef struct TAG_tchk_bucket {
 	DYNARRAY (tchknode_t *, items);			/* partial collections */
 } tchk_bucket_t;
 
+typedef struct TAG_tchk_traces {
+	DYNARRAY (tchknode_t *, items);			/* set of traces */
+} tchk_traces_t;
+
 typedef struct TAG_tchk_state {
 	struct TAG_tchk_state *prevstate;		/* previous state */
 	int inparams;					/* non-zero if we're examining a parameter list */
 
 	DYNARRAY (tchknode_t *, ivars);			/* interesting/interface variables */
-	DYNARRAY (tchknode_t *, traces);		/* collected traces */
+	tchk_traces_t *traces;				/* collected traces */
 	tchk_bucket_t *bucket;				/* partial collections */
 
 	int err;
@@ -88,6 +92,7 @@ extern int tracescheck_subtree (struct TAG_tnode *tree, tchk_state_t *tcstate);
 extern int tracescheck_tree (struct TAG_tnode *tree, struct TAG_langparser *lang);
 
 extern void tracescheck_dumpbucket (tchk_bucket_t *tcb, int indent, FILE *stream);
+extern void tracescheck_dumptraces (tchk_traces_t *tct, int indent, FILE *stream);
 extern void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, FILE *stream);
 extern void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream);
 
@@ -100,14 +105,22 @@ extern tchk_bucket_t *tracescheck_pullbucket (tchk_state_t *tcstate);
 extern int tracescheck_freebucket (tchk_bucket_t *tcb);
 
 extern tchknode_t *tracescheck_dupref (tchknode_t *tcn);
+extern tchknode_t *tracescheck_copynode (tchknode_t *tcn);
 extern tchknode_t *tracescheck_createatom (void);
 extern tchknode_t *tracescheck_createnode (tchknodetype_e type, ...);
+
+extern int tracescheck_addtolistnode (tchknode_t *tcn, tchknode_t *item);
+extern int tracescheck_buckettotraces (tchk_state_t *tcstate);
+extern tchk_traces_t *tracescheck_pulltraces (tchk_state_t *tcstate);
+extern int tracescheck_freetraces (tchk_traces_t *tct);
 
 extern int tracescheck_addivar (tchk_state_t *tcstate, tchknode_t *tcn);
 extern int tracescheck_addtobucket (tchk_state_t *tcstate, tchknode_t *tcn);
 extern int tracescheck_cleanrefchooks (tchk_state_t *tcstate, struct TAG_tnode *tptr);
 
 extern struct TAG_chook *tracescheck_getnoderefchook (void);
+extern struct TAG_chook *tracescheck_gettracesrefchook (void);
+extern struct TAG_chook *tracescheck_gettraceschook (void);
 
 
 #endif	/* !__TRACESCHECK_H */

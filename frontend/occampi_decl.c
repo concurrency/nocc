@@ -899,6 +899,8 @@ static int occampi_usagecheck_procdecl (langops_t *lops, tnode_t *node, uchk_sta
 static int occampi_tracescheck_procdecl (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)
 {
 	tchk_state_t *thispstate = tracescheck_pushstate (tcstate);
+	chook_t *tchktrchook = tracescheck_gettraceschook ();
+	tchk_traces_t *trs = NULL;
 
 	thispstate->inparams = 1;
 	tracescheck_subtree (tnode_nthsubof (node, 1), thispstate);
@@ -906,13 +908,15 @@ static int occampi_tracescheck_procdecl (compops_t *cops, tnode_t *node, tchk_st
 
 	tracescheck_subtree (tnode_nthsubof (node, 2), thispstate);
 
+	/* anything left in the bucket in thispstate will be a trace for this procedure */
+	tracescheck_buckettotraces (thispstate);
+	trs = tracescheck_pulltraces (thispstate);
+
 #if 0
 fprintf (stderr, "occampi_tracescheck_procdecl(): done traces check, ended up with:\n");
-tracescheck_dumpstate (thispstate, 1, stderr);
+tracescheck_dumptraces (trs, 1, stderr);
 #endif
-
-	/* anything left in the bucket in thispstate will be a trace for this procedure */
-	/* FIXME: we are now done with this PROC */
+	tnode_setchook (node, tchktrchook, (void *)trs);
 
 	/* clean references from formal parameters */
 	tracescheck_cleanrefchooks (thispstate, tnode_nthsubof (node, 1));
@@ -1337,11 +1341,12 @@ static int occampi_tracescheck_fparam (compops_t *cops, tnode_t *node, tchk_stat
 			}
 		}
 		if (issync) {
-			tchknode_t *tcn = tracescheck_createatom ();
-			tchknode_t *tcnref = tracescheck_createnode (TCN_ATOMREF, tcn);
+			tchknode_t *tnref = tracescheck_createnode (TCN_NODEREF, pname);
+			//tchknode_t *tcn = tracescheck_createatom ();
+			//tchknode_t *tcnref = tracescheck_createnode (TCN_ATOMREF, tcn);
 
-			tnode_setchook (pname, tracescheck_getnoderefchook (), tcnref);
-			tracescheck_addivar (tcstate, tcn);
+			tnode_setchook (pname, tracescheck_getnoderefchook (), tnref);
+			tracescheck_addivar (tcstate, tracescheck_dupref (tnref));
 #if 0
 fprintf (stderr, "FPARAM looks like a sync-type:\n");
 tnode_dumptree (pname, 1, stderr);

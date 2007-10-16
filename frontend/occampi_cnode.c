@@ -377,7 +377,27 @@ static int occampi_constprop_cnode (compops_t *cops, tnode_t **tptr)
  */
 static int occampi_tracescheck_cnode (compops_t *cops, tnode_t *tptr, tchk_state_t *tcstate)
 {
-	return 1;
+	tchk_bucket_t *tcb;
+	tchknode_t *tcn;
+	int i;
+
+	/* collect up SEQ or PAR individual items */
+	tracescheck_pushbucket (tcstate);
+	tracescheck_subtree (tnode_nthsubof (tptr, 1), tcstate);
+	tcb = tracescheck_pullbucket (tcstate);
+
+	tcn = tracescheck_createnode ((tptr->tag == opi.tag_PAR) ? TCN_PAR : TCN_SEQ, NULL);
+	for (i=0; i<DA_CUR (tcb->items); i++) {
+		tchknode_t *item = DA_NTHITEM (tcb->items, i);
+
+		tracescheck_addtolistnode (tcn, item);
+	}
+	dynarray_trash (tcb->items);
+	tracescheck_freebucket (tcb);
+
+	tracescheck_addtobucket (tcstate, tcn);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int occampi_betrans_cnode (compops_t *cops, tnode_t **tptr, betrans_t *be)*/

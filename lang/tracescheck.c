@@ -55,7 +55,14 @@
 
 static int tchk_acounter;
 static chook_t *tchk_noderefchook = NULL;
+static chook_t *tchk_tracesrefchook = NULL;
+static chook_t *tchk_traceschook = NULL;
 
+
+/*}}}*/
+/*{{{  forward decls*/
+static tchk_traces_t *tchk_newtchktraces (void);
+static void tchk_freetchktraces (tchk_traces_t *tct);
 
 /*}}}*/
 
@@ -76,7 +83,7 @@ static void tchk_isetindent (FILE *stream, int indent)
 /*}}}*/
 /*{{{  static void *tchk_noderefchook_copy (void *hook)*/
 /*
- *	duplicates a "metadata" compiler hook
+ *	duplicates a tchknode-ref compiler hook
  */
 static void *tchk_noderefchook_copy (void *hook)
 {
@@ -85,7 +92,7 @@ static void *tchk_noderefchook_copy (void *hook)
 /*}}}*/
 /*{{{  static void tchk_noderefchook_free (void *hook)*/
 /*
- *	frees a "metadata" compiler hook
+ *	frees a tchknode-ref compiler hook
  */
 static void tchk_noderefchook_free (void *hook)
 {
@@ -107,6 +114,106 @@ static void tchk_noderefchook_dumptree (tnode_t *node, void *hook, int indent, F
 	} else {
 		fprintf (stream, "<chook id=\"traceschecknoderef\">\n");
 		tracescheck_dumpnode (tcn, indent + 1, stream);
+		tchk_isetindent (stream, indent);
+		fprintf (stream, "</chook>\n");
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void *tchk_tracesrefchook_copy (void *hook)*/
+/*
+ *	duplicates a traces-ref compiler hook
+ */
+static void *tchk_tracesrefchook_copy (void *hook)
+{
+	return hook;
+}
+/*}}}*/
+/*{{{  static void tchk_tracesrefchook_free (void *hook)*/
+/*
+ *	frees a traces-ref compiler hook
+ */
+static void tchk_tracesrefchook_free (void *hook)
+{
+	/* nothing! */
+	return;
+}
+/*}}}*/
+/*{{{  static void tchk_tracesrefchook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ * 	dumps a traces-ref compiler hook (debugging)
+ */
+static void tchk_tracesrefchook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	tchk_traces_t *tct = (tchk_traces_t *)hook;
+
+	tchk_isetindent (stream, indent);
+	if (!hook) {
+		fprintf (stream, "<chook id=\"traceschecktracesref\" value=\"\" />\n");
+	} else {
+		fprintf (stream, "<chook id=\"traceschecktracesref\">\n");
+		tracescheck_dumptraces (tct, indent + 1, stream);
+		tchk_isetindent (stream, indent);
+		fprintf (stream, "</chook>\n");
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void *tchk_traceschook_copy (void *hook)*/
+/*
+ *	duplicates a traces compiler hook
+ */
+static void *tchk_traceschook_copy (void *hook)
+{
+	tchk_traces_t *tct = (tchk_traces_t *)hook;
+
+	if (tct) {
+		tchk_traces_t *tcopy = tchk_newtchktraces ();
+		int i;
+
+		for (i=0; i<DA_CUR (tct->items); i++) {
+			tchknode_t *item = DA_NTHITEM (tct->items, i);
+
+			if (item) {
+				tchknode_t *icopy = tracescheck_copynode (item);
+
+				dynarray_add (tcopy->items, icopy);
+			}
+		}
+
+		return (void *)tcopy;
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  static void tchk_traceschook_free (void *hook)*/
+/*
+ *	frees a traces compiler hook
+ */
+static void tchk_traceschook_free (void *hook)
+{
+	tchk_traces_t *tct = (tchk_traces_t *)hook;
+
+	if (tct) {
+		tchk_freetchktraces (tct);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void tchk_traceschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a traces compiler hook (debugging)
+ */
+static void tchk_traceschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	tchk_traces_t *tct = (tchk_traces_t *)hook;
+
+	tchk_isetindent (stream, indent);
+	if (!hook) {
+		fprintf (stream, "<chook id=\"traceschecktraces\" value=\"\" />\n");
+	} else {
+		fprintf (stream, "<chook id=\"traceschecktraces\">\n");
+		tracescheck_dumptraces (tct, indent + 1, stream);
 		tchk_isetindent (stream, indent);
 		fprintf (stream, "</chook>\n");
 	}
@@ -136,6 +243,16 @@ int tracescheck_init (void)
 	tchk_noderefchook->chook_copy = tchk_noderefchook_copy;
 	tchk_noderefchook->chook_free = tchk_noderefchook_free;
 	tchk_noderefchook->chook_dumptree = tchk_noderefchook_dumptree;
+
+	tchk_tracesrefchook = tnode_lookupornewchook ("traceschecktracesref");
+	tchk_tracesrefchook->chook_copy = tchk_tracesrefchook_copy;
+	tchk_tracesrefchook->chook_free = tchk_tracesrefchook_free;
+	tchk_tracesrefchook->chook_dumptree = tchk_tracesrefchook_dumptree;
+
+	tchk_traceschook = tnode_lookupornewchook ("traceschecktraces");
+	tchk_traceschook->chook_copy = tchk_traceschook_copy;
+	tchk_traceschook->chook_free = tchk_traceschook_free;
+	tchk_traceschook->chook_dumptree = tchk_traceschook_dumptree;
 
 	/*}}}*/
 
@@ -277,6 +394,45 @@ static void tchk_freetchkbucket (tchk_bucket_t *tcb)
 	return;
 }
 /*}}}*/
+/*{{{  static tchk_traces_t *tchk_newtchktraces (void)*/
+/*
+ *	creates a new tchk_traces_t structure (blank)
+ */
+static tchk_traces_t *tchk_newtchktraces (void)
+{
+	tchk_traces_t *tct = (tchk_traces_t *)smalloc (sizeof (tchk_traces_t));
+
+	dynarray_init (tct->items);
+
+	return tct;
+}
+/*}}}*/
+/*{{{  static void tchk_freetchktraces (tchk_traces_t *tct)*/
+/*
+ *	frees a tchk_traces_t structure (deep)
+ */
+static void tchk_freetchktraces (tchk_traces_t *tct)
+{
+	int i;
+
+	if (!tct) {
+		nocc_internal ("tchk_freetchktraces(): NULL traces!");
+		return;
+	}
+
+	for (i=0; i<DA_CUR (tct->items); i++) {
+		tchknode_t *tcn = DA_NTHITEM (tct->items, i);
+
+		if (tcn) {
+			tchk_freetchknode (tcn);
+		}
+	}
+	dynarray_trash (tct->items);
+
+	sfree (tct);
+	return;
+}
+/*}}}*/
 /*{{{  static tchk_state_t *tchk_newtchkstate (void)*/
 /*
  *	creates a new tchk_state_t structure (blank)
@@ -289,7 +445,7 @@ static tchk_state_t *tchk_newtchkstate (void)
 	tcstate->inparams = 0;
 
 	dynarray_init (tcstate->ivars);
-	dynarray_init (tcstate->traces);
+	tcstate->traces = tchk_newtchktraces ();
 	tcstate->bucket = tchk_newtchkbucket ();
 
 	tcstate->err = 0;
@@ -325,15 +481,10 @@ static void tchk_freetchkstate (tchk_state_t *tcstate)
 	}
 	dynarray_trash (tcstate->ivars);
 
-	for (i=0; i<DA_CUR (tcstate->traces); i++) {
-		tchknode_t *tcn = DA_NTHITEM (tcstate->traces, i);
-
-		if (tcn) {
-			tchk_freetchknode (tcn);
-		}
+	if (tcstate->traces) {
+		tchk_freetchktraces (tcstate->traces);
+		tcstate->traces = NULL;
 	}
-	dynarray_trash (tcstate->traces);
-
 	if (tcstate->bucket) {
 		tchk_freetchkbucket (tcstate->bucket);
 		tcstate->bucket = NULL;
@@ -391,6 +542,70 @@ static int tchk_cleanrefchooks_prewalk (tnode_t *tptr, void *arg)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int tchk_substatomrefsinnode (tchknode_t *node, tchknode_t *aold, tchknode_t *anew)*/
+/*
+ *	substitutes references to one TCN_ATOM for another, needed after copying these
+ *	returns 0 on success, non-zero on failure
+ */
+static int tchk_substatomrefsinnode (tchknode_t *node, tchknode_t *aold, tchknode_t *anew)
+{
+	int r = 0;
+
+	if (!node || !aold || !anew) {
+		nocc_serious ("tchk_substatomrefsinnode(): NULL node or atoms");
+		return -1;
+	}
+
+	switch (node->type) {
+		/*{{{  INVALID, ATOM, NODEREF*/
+	case TCN_INVALID:
+	case TCN_ATOM:
+	case TCN_NODEREF:
+		break;
+		/*}}}*/
+		/*{{{  SEQ,PAR,DET,NDET*/
+	case TCN_SEQ:
+	case TCN_PAR:
+	case TCN_DET:
+	case TCN_NDET:
+		{
+			int i;
+
+			for (i=0; i<DA_CUR (node->u.tcnlist.items); i++) {
+				if (tchk_substatomrefsinnode (DA_NTHITEM (node->u.tcnlist.items, i), aold, anew)) {
+					r++;
+				}
+			}
+		}
+		break;
+		/*}}}*/
+		/*{{{  INPUT,OUTPUT*/
+	case TCN_INPUT:
+	case TCN_OUTPUT:
+		if (tchk_substatomrefsinnode (node->u.tcnio.varptr, aold, anew)) {
+			r++;
+		}
+		break;
+		/*}}}*/
+		/*{{{  FIXPOINT*/
+	case TCN_FIXPOINT:
+		if (tchk_substatomrefsinnode (node->u.tcnfix.proc, aold, anew)) {
+			r++;
+		}
+		break;
+		/*}}}*/
+		/*{{{  ATOMREF*/
+	case TCN_ATOMREF:
+		if (node->u.tcnaref.aref == aold) {
+			node->u.tcnaref.aref = anew;
+		}
+		break;
+		/*}}}*/
+	}
+
+	return r;
+}
+/*}}}*/
 
 
 /*{{{  int tracescheck_subtree (tnode_t *tree, tchk_state_t *tcstate)*/
@@ -445,6 +660,26 @@ void tracescheck_dumpbucket (tchk_bucket_t *tcb, int indent, FILE *stream)
 	return;
 }
 /*}}}*/
+/*{{{  void tracescheck_dumptraces (tchk_traces_t *tct, int indent, FILE *stream)*/
+/*
+ *	dumps a traces-check trace set (debugging)
+ */
+void tracescheck_dumptraces (tchk_traces_t *tct, int indent, FILE *stream)
+{
+	int i;
+
+	tchk_isetindent (stream, indent);
+	fprintf (stream, "<tracescheck:traces>\n");
+	for (i=0; i<DA_CUR (tct->items); i++) {
+		tchknode_t *tcn = DA_NTHITEM (tct->items, i);
+
+		tracescheck_dumpnode (tcn, indent + 1, stream);
+	}
+	tchk_isetindent (stream, indent);
+	fprintf (stream, "</tracescheck:traces>\n");
+	return;
+}
+/*}}}*/
 /*{{{  void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, FILE *stream)*/
 /*
  *	dumps a traces check state (debugging)
@@ -466,16 +701,7 @@ void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, FILE *stream)
 	tchk_isetindent (stream, indent + 1);
 	fprintf (stream, "</tracescheck:ivars>\n");
 
-	tchk_isetindent (stream, indent + 1);
-	fprintf (stream, "<tracescheck:traces>\n");
-	for (i=0; i<DA_CUR (tcstate->traces); i++) {
-		tchknode_t *tcn = DA_NTHITEM (tcstate->traces, i);
-
-		tracescheck_dumpnode (tcn, indent + 2, stream);
-	}
-	tchk_isetindent (stream, indent + 1);
-	fprintf (stream, "</tracescheck:traces>\n");
-
+	tracescheck_dumptraces (tcstate->traces, indent + 1, stream);
 	tracescheck_dumpbucket (tcstate->bucket, indent + 1, stream);
 
 	tchk_isetindent (stream, indent);
@@ -501,17 +727,27 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 		case TCN_PAR:
 		case TCN_DET:
 		case TCN_NDET:
-			fprintf (stream, "<tracescheck:node type=\"");
-			switch (tcn->type) {
-			case TCN_SEQ:	fprintf (stream, "seq\">\n");	break;
-			case TCN_PAR:	fprintf (stream, "par\">\n");	break;
-			case TCN_DET:	fprintf (stream, "det\">\n");	break;
-			case TCN_NDET:	fprintf (stream, "ndet\">\n");	break;
-			default:	break;
-			}
+			{
+				int i;
 
-			tchk_isetindent (stream, indent);
-			fprintf (stream, "</tracescheck:node>\n");
+				fprintf (stream, "<tracescheck:node type=\"");
+				switch (tcn->type) {
+				case TCN_SEQ:	fprintf (stream, "seq\">\n");	break;
+				case TCN_PAR:	fprintf (stream, "par\">\n");	break;
+				case TCN_DET:	fprintf (stream, "det\">\n");	break;
+				case TCN_NDET:	fprintf (stream, "ndet\">\n");	break;
+				default:	break;
+				}
+
+				for (i=0; i<DA_CUR (tcn->u.tcnlist.items); i++) {
+					tchknode_t *item = DA_NTHITEM (tcn->u.tcnlist.items, i);
+
+					tracescheck_dumpnode (item, indent + 1, stream);
+				}
+
+				tchk_isetindent (stream, indent);
+				fprintf (stream, "</tracescheck:node>\n");
+			}
 			break;
 		case TCN_INPUT:
 		case TCN_OUTPUT:
@@ -706,6 +942,98 @@ tchknode_t *tracescheck_dupref (tchknode_t *tcn)
 	return newtcn;
 }
 /*}}}*/
+/*{{{  tchknode_t *tracescheck_copynode (tchknode_t *tcn)*/
+/*
+ *	duplicates (deep) a traces-check node
+ *	returns new node on success, NULL on failure
+ */
+tchknode_t *tracescheck_copynode (tchknode_t *tcn)
+{
+	tchknode_t *tcc;
+
+	if (!tcn) {
+		nocc_serious ("tracescheck_copynode(): NULL node!");
+		return NULL;
+	}
+	
+	tcc = tchk_newtchknode ();
+
+	tcc->type = tcn->type;
+	switch (tcn->type) {
+		/*{{{  INVALID*/
+	case TCN_INVALID:
+		break;
+		/*}}}*/
+		/*{{{  SEQ,PAR,DET,NDET*/
+	case TCN_SEQ:
+	case TCN_PAR:
+	case TCN_DET:
+	case TCN_NDET:
+		{
+			int i;
+
+			dynarray_init (tcc->u.tcnlist.items);
+			for (i=0; i<DA_CUR (tcn->u.tcnlist.items); i++) {
+				tchknode_t *item = DA_NTHITEM (tcn->u.tcnlist.items, i);
+
+				if (item) {
+					tchknode_t *icopy = tracescheck_copynode (item);
+
+					dynarray_add (tcc->u.tcnlist.items, icopy);
+				}
+			}
+		}
+		break;
+		/*}}}*/
+		/*{{{  INPUT,OUTPUT*/
+	case TCN_INPUT:
+	case TCN_OUTPUT:
+		tcc->u.tcnio.varptr = tracescheck_copynode (tcn->u.tcnio.varptr);
+		break;
+		/*}}}*/
+		/*{{{  FIXPOINT*/
+	case TCN_FIXPOINT:
+		if (!tcn->u.tcnfix.id || (tcn->u.tcnfix.id->type != TCN_ATOM)) {
+			nocc_serious ("tracescheck_copynode(): TCN_FIXPOINT id is NULL or not of type TCN_ATOM");
+			tcc->type = TCN_INVALID;
+		} else {
+			tcc->u.tcnfix.id = tracescheck_copynode (tcn->u.tcnfix.id);
+			tcc->u.tcnfix.proc = NULL;
+
+			if (tcn->u.tcnfix.proc) {
+				tcc->u.tcnfix.proc = tracescheck_copynode (tcn->u.tcnfix.proc);
+
+				/* now go through and rename references */
+				tchk_substatomrefsinnode (tcc->u.tcnfix.proc, tcn->u.tcnfix.id, tcc->u.tcnfix.id);
+			}
+		}
+		break;
+		/*}}}*/
+		/*{{{  ATOM*/
+	case TCN_ATOM:
+		/* create a completely fresh atom */
+		tcc->type = TCN_INVALID;
+		tchk_freetchknode (tcc);
+		tcc = tracescheck_createatom ();
+		break;
+		/*}}}*/
+		/*{{{  ATOMREF*/
+	case TCN_ATOMREF:
+		/* preserve the original reference */
+		tcc->u.tcnaref.aref = tcn->u.tcnaref.aref;
+		break;
+		/*}}}*/
+		/*{{{  NODEREF*/
+	case TCN_NODEREF:
+		/* preserve the original reference */
+		tcc->u.tcnnref.nref = tcn->u.tcnnref.nref;
+		break;
+		/*}}}*/
+	}
+
+	return tcc;
+}
+/*}}}*/
 /*{{{  tchknode_t *tracescheck_createatom (void)*/
 /*
  *	creates a new traces-check atom (with a unique identifier)
@@ -734,8 +1062,11 @@ tchknode_t *tracescheck_createnode (tchknodetype_e type, ...)
 
 	va_start (ap, type);
 	switch (type) {
+		/*{{{  INVALID*/
 	case TCN_INVALID:
 		break;
+		/*}}}*/
+		/*{{{  SEQ,PAR,DET,NDET*/
 	case TCN_SEQ:
 	case TCN_PAR:
 	case TCN_DET:
@@ -744,16 +1075,21 @@ tchknode_t *tracescheck_createnode (tchknodetype_e type, ...)
 		{
 			tchknode_t *arg = va_arg (ap, tchknode_t *);
 
+			dynarray_init (tcn->u.tcnlist.items);
 			while (arg) {
 				dynarray_add (tcn->u.tcnlist.items, arg);
 				arg = va_arg (ap, tchknode_t *);
 			}
 		}
 		break;
+		/*}}}*/
+		/*{{{  INPUT,OUTPUT*/
 	case TCN_INPUT:
 	case TCN_OUTPUT:
 		tcn->u.tcnio.varptr = va_arg (ap, tchknode_t *);
 		break;
+		/*}}}*/
+		/*{{{  FIXPOINT*/
 	case TCN_FIXPOINT:
 		tcn->u.tcnfix.id = va_arg (ap, tchknode_t *);
 		tcn->u.tcnfix.proc = va_arg (ap, tchknode_t *);
@@ -761,23 +1097,114 @@ tchknode_t *tracescheck_createnode (tchknodetype_e type, ...)
 			nocc_warning ("tracescheck_createnode(): TCN_FIXPOINT id is not of type TCN_ATOM (got %d)", (int)tcn->u.tcnfix.id->type);
 		}
 		break;
+		/*}}}*/
+		/*{{{  ATOM*/
 	case TCN_ATOM:
 		tcn->u.tcnatom.id = string_dup (va_arg (ap, char *));
 		break;
+		/*}}}*/
+		/*{{{  ATOMREF*/
 	case TCN_ATOMREF:
 		tcn->u.tcnaref.aref = va_arg (ap, tchknode_t *);
 		if (tcn->u.tcnaref.aref && (tcn->u.tcnaref.aref->type != TCN_ATOM)) {
 			nocc_warning ("tracescheck_createnode(): TCN_ATOMREF reference is not of type TCN_ATOM (got %d)", (int)tcn->u.tcnaref.aref->type);
 		}
 		break;
+		/*}}}*/
+		/*{{{  NODEREF*/
 	case TCN_NODEREF:
 		tcn->u.tcnnref.nref = va_arg (ap, tnode_t *);
 		break;
+		/*}}}*/
 	}
 	tcn->type = type;
 	va_end (ap);
 
 	return tcn;
+}
+/*}}}*/
+
+/*{{{  int tracescheck_addtolistnode (tchknode_t *tcn, tchknode_t *item)*/
+/*
+ *	adds a traces-check node to a list (SEQ/PAR/DET/NDET)
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_addtolistnode (tchknode_t *tcn, tchknode_t *item)
+{
+	if (!tcn || !item) {
+		nocc_internal ("tracescheck_addtolistnode(): NULL node or item!");
+		return -1;
+	}
+	switch (tcn->type) {
+	case TCN_SEQ:
+	case TCN_PAR:
+	case TCN_DET:
+	case TCN_NDET:
+		dynarray_add (tcn->u.tcnlist.items, item);
+		break;
+	default:
+		nocc_serious ("tracescheck_addtolistnode(): not a list node! (type %d)", (int)tcn->type);
+		break;
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int tracescheck_buckettotraces (tchk_state_t *tcstate)*/
+/*
+ *	moves items from the traces-check bucket into real traces
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_buckettotraces (tchk_state_t *tcstate)
+{
+	int i;
+
+	if (!tcstate || !tcstate->bucket || !tcstate->traces) {
+		nocc_internal ("tracescheck_buckettotraces(): NULL state, bucket or traces!");
+		return -1;
+	}
+	for (i=0; i<DA_CUR (tcstate->bucket->items); i++) {
+		tchknode_t *tcn = DA_NTHITEM (tcstate->bucket->items, i);
+
+		dynarray_add (tcstate->traces->items, tcn);
+	}
+	dynarray_trash (tcstate->bucket->items);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  tchk_traces_t *tracescheck_pulltraces (tchk_state_t *tcstate)*/
+/*
+ *	removes a completed set of traces from a PROC
+ *	returns the traces on success, NULL on failure
+ */
+tchk_traces_t *tracescheck_pulltraces (tchk_state_t *tcstate)
+{
+	tchk_traces_t *tct;
+
+	if (!tcstate || !tcstate->traces) {
+		nocc_internal ("tracescheck_pulltraces(): NULL state or traces!");
+		return NULL;
+	}
+	tct = tcstate->traces;
+	tcstate->traces = NULL;
+
+	return tct;
+}
+/*}}}*/
+/*{{{  int tracescheck_freetraces (tchk_traces_t *tct)*/
+/*
+ *	used to release a set of traces (tchk_traces_t)
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_freetraces (tchk_traces_t *tct)
+{
+	if (!tct) {
+		nocc_internal ("tracescheck_freetraces(): NULL traces!");
+		return -1;
+	}
+	tchk_freetchktraces (tct);
+	return 0;
 }
 /*}}}*/
 
@@ -836,4 +1263,23 @@ chook_t *tracescheck_getnoderefchook (void)
 	return tchk_noderefchook;
 }
 /*}}}*/
+/*{{{  chook_t *tracescheck_gettracesrefchook (void)*/
+/*
+ *	returns the traceschecktracesref compiler hook
+ */
+chook_t *tracescheck_gettracesrefchook (void)
+{
+	return tchk_tracesrefchook;
+}
+/*}}}*/
+/*{{{  chook_t *tracescheck_gettraceschook (void)*/
+/*
+ *	returns the traceschecktraces compiler hook
+ */
+chook_t *tracescheck_gettraceschook (void)
+{
+	return tchk_traceschook;
+}
+/*}}}*/
+
 
