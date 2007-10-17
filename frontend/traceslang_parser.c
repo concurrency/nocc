@@ -96,7 +96,7 @@ typedef struct {
 static traceslang_parse_t *traceslang_priv = NULL;
 
 static feunit_t *feunit_set[] = {
-	// &traceslang_expr_feunit,
+	&traceslang_expr_feunit,
 	NULL
 };
 
@@ -216,9 +216,9 @@ static int traceslang_parser_init (lexfile_t *lf)
 			/* linger on */
 		}
 
-		traceslang_priv->inode = dfa_lookupbyname ("traceslang:functiondef");
+		traceslang_priv->inode = dfa_lookupbyname ("traceslang:expr");
 		if (!traceslang_priv->inode) {
-			nocc_error ("traceslang_parser_init(): could not find traceslang:functiondef");
+			nocc_error ("traceslang_parser_init(): could not find traceslang:expr");
 			return 1;
 		}
 		if (compopts.dumpdfas) {
@@ -279,7 +279,7 @@ static tnode_t *traceslang_parser_parse (lexfile_t *lf)
 		}
 		lexer_pushback (lf, tok);
 
-		thisone = dfa_walk ("traceslang:functiondef", lf);
+		thisone = dfa_walk ("traceslang:expr", lf);
 		if (!thisone) {
 			break;		/* for() */
 		}

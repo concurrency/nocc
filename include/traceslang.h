@@ -47,6 +47,8 @@ extern traceslang_pset_t traceslang;
 extern void traceslang_isetindent (FILE *stream, int indent);
 extern struct TAG_langdef *traceslang_getlangdef (void);
 
+extern struct TAG_feunit traceslang_expr_feunit;	/* traceslang_expr.c */
+
 
 #endif	/* !__TRACESLANG_H */
 
