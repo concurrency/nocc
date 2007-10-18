@@ -671,10 +671,16 @@
 # }}}
 .SECTION "occampi-traces" # {{{
 
+.GRULE	"opi:traceinputpush" "SN0N+0C[ASINPUT]2N-"
 .GRULE	"opi:tracetypedeclreduce" "SN0N+0N+N+V*C[TRACETYPEDECL]4R-"
 
+.TABLE	"occampi:tracesname ::= [ 0 occampi:name 1 ] [ 1 @@! 3 ] [ 1 @@? 4 ] [ 1 -* 2 ]"
+	"[ 2 {<opi:nullreduce>} -* ]"
+	"[ 3 {<opi:traceinputpush>} -* 2 ]"
+	"[ 4 {<opi:traceinputpush>} -* 2 ]"
+.BNF	"occampi:tracesnamelist ::= { occampi:tracesname @@, 1 }"
 .TABLE	"occampi:tracesdecl ::= [ 0 @TRACES 1 ] [ 1 @TYPE 2 ] [ 2 occampi:name 3 ] [ 3 @@( 4 ]"
-	"[ 4 occampi:namelist 5 ] [ 5 @@) 6 ] [ 6 occampi:expr 7 ] [ 7 @@: 8 ] [ 8 {<opi:tracetypedeclreduce>} -* ]"
+	"[ 4 occampi:tracesnamelist 5 ] [ 5 @@) 6 ] [ 6 occampi:expr 7 ] [ 7 @@: 8 ] [ 8 {<opi:tracetypedeclreduce>} -* ]"
 
 
 # }}}
