@@ -93,14 +93,27 @@ keyword_t *keywords_lookup (const char *str, const int len, const unsigned int l
 	return kw;
 }
 /*}}}*/
+
 /*{{{  keyword_t *keywords_add (const char *str, const int tagval, const unsigned int langtag, origin_t *origin)*/
 /*
  *	adds a keyword to the compiler
  */
 keyword_t *keywords_add (const char *str, const int tagval, const unsigned int langtag, origin_t *origin)
 {
-	keyword_t *kw = (keyword_t *)smalloc (sizeof (keyword_t));
+	keyword_t *kw = keywords_lookup (str, strlen (str), 0);
 
+	if (kw) {
+		/* already got one */
+		if (kw->langtag == langtag) {
+			nocc_warning ("already got keyword [%s]", str);
+			return kw;
+		}
+		/* merge in this one */
+		kw->langtag |= langtag;
+		return kw;
+	}
+
+	kw = (keyword_t *)smalloc (sizeof (keyword_t));
 	kw->name = string_dup ((char *)str);
 	kw->tagval = tagval;
 	kw->langtag = langtag;

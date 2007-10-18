@@ -57,7 +57,7 @@
 
 /*}}}*/
 
-/*{{{  private types/data*/
+/*{{{  private types*/
 typedef struct TAG_trlang_lithook {
 	char *data;
 	int len;

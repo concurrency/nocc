@@ -39,7 +39,15 @@ struct TAG_ntdef;
 struct TAG_tnode;
 
 typedef struct {
-
+	struct TAG_ntdef *tag_NAME;
+	struct TAG_ntdef *tag_LITINT;
+	struct TAG_ntdef *tag_LITSTR;
+	struct TAG_ntdef *tag_SEQ;
+	struct TAG_ntdef *tag_PAR;
+	struct TAG_ntdef *tag_DET;
+	struct TAG_ntdef *tag_NDET;
+	struct TAG_ntdef *tag_INPUT;
+	struct TAG_ntdef *tag_OUTPUT;
 } traceslang_pset_t;
 
 extern traceslang_pset_t traceslang;

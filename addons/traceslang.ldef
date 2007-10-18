@@ -12,13 +12,32 @@
 
 # keyword, symbol and tnode definitions
 
+.SYMBOL	"->"
+.SYMBOL "[]"
+.SYMBOL "|~|"
+.SYMBOL ";"
+.SYMBOL "("
+.SYMBOL ")"
+
+.TNODE	"traceslang:rawnamenode" (0,0,1) "rawname"
+.TNODE	"traceslang:litnode" (0,0,1) "literal-hook"
+.TNODE	"traceslang:setnode" (1,0,0) "list-of-items"
+.TNODE	"traceslang:ionode" (1,0,0) "item"
+
+
 # }}}
 .SECTION "traceslang-postprod" # {{{
 
 # }}}
 .SECTION "traceslang-expr" # {{{
 
-# FIXME: dontent!
+.GRULE	"trs:nullreduce" "N+R-"
+.GRULE	"trs:nullpush" "0N-"
+.GRULE	"trs:namereduce" "T+St0X[traceslang_nametoken_to_hook]C[TRACESLANGNAME]1R-"
+
+.TABLE	"traceslang:name ::= [ 0 +Name 1 ] [ 1 {<trs:namereduce>} -* ]"
+.TABLE	"traceslang:expr ::= [ 0 traceslang:name 1 ] [ 1 {<trs:nullreduce>} -* ]"
+
 
 # }}}
 

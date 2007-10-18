@@ -265,11 +265,17 @@ symbol_t *symbols_match (const char *str, const char *limit, const unsigned int 
  */
 symbol_t *symbols_add (const char *str, const int len, const unsigned int langtag, origin_t *origin)
 {
-	symbol_t *sym = symbols_lookup (str, len, langtag);
+	symbol_t *sym = symbols_lookup (str, len, 0);
 	int fch;
 
 	if (sym) {
-		nocc_warning ("symbols_add(): already got symbol [%s]", sym->match);
+		/* symbol in any language */
+		if (sym->langtag == langtag) {
+			nocc_warning ("symbols_add(): already got symbol [%s]", sym->match);
+			return sym;
+		}
+		/* merge in this one */
+		sym->langtag |= langtag;
 		return sym;
 	}
 	sym = (symbol_t *)smalloc (sizeof (symbol_t));

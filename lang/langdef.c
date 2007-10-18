@@ -983,6 +983,7 @@ int langdef_init_tokens (langdefsec_t *lsec, const unsigned int langtag, origin_
 			/*}}}*/
 			/*{{{  LDE_SYMBOL -- new symbol*/
 		case LDE_SYMBOL:
+			/* if the symbol is already in use, merge in language tag */
 			symbols_add (lde->u.symbol, strlen (lde->u.symbol), langtag, origin);
 			break;
 			/*}}}*/
