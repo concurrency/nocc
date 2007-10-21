@@ -302,6 +302,7 @@ extern void tnode_clearchook (tnode_t *, chook_t *ch);
 extern void tnode_dumpchooks (FILE *stream);
 
 extern int tnode_promotechooks (tnode_t *tsource, tnode_t *tdest);
+extern char *tnode_copytextlocationof (tnode_t *t);
 
 extern int tnode_bytesfor (tnode_t *t, struct TAG_target *target);
 extern int tnode_issigned (tnode_t *t, struct TAG_target *target);

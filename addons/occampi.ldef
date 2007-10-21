@@ -672,11 +672,12 @@
 .SECTION "occampi-traces" # {{{: trace specifications and use
 
 .GRULE	"opi:traceinputpush" "SN0N+0C[ASINPUT]2N-"
-.GRULE	"opi:tracetypedeclreduce" "SN0N+0N+N+V*C[TRACETYPEDECL]4R-"
+.GRULE	"opi:traceoutputpush" "SN0N+0C[ASOUTPUT]2N-"
+.GRULE	"opi:tracetypedeclreduce" "SN1N+0N+N+V*C[TRACETYPEDECL]4R-"
 
 .TABLE	"occampi:tracesname ::= [ 0 occampi:name 1 ] [ 1 @@! 3 ] [ 1 @@? 4 ] [ 1 -* 2 ]"
 	"[ 2 {<opi:nullreduce>} -* ]"
-	"[ 3 {<opi:traceinputpush>} -* 2 ]"
+	"[ 3 {<opi:traceoutputpush>} -* 2 ]"
 	"[ 4 {<opi:traceinputpush>} -* 2 ]"
 .BNF	"occampi:tracesnamelist ::= { occampi:tracesname @@, 1 }"
 .TABLE	"occampi:tracesdecl ::= [ 0 @TRACES 1 ] [ 1 @TYPE 2 ] [ 2 occampi:name 3 ] [ 3 @@( 4 ]"

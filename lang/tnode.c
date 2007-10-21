@@ -2473,6 +2473,29 @@ int tnode_promotechooks (tnode_t *tsource, tnode_t *tdest)
 	return moved;
 }
 /*}}}*/
+/*{{{  char *tnode_copytextlocationof (tnode_t *t)*/
+/*
+ *	generates a copy of the location of a node (in its source file)
+ *	returns new string on success, NULL on failure
+ */
+char *tnode_copytextlocationof (tnode_t *t)
+{
+	char *str;
+
+	if (!t) {
+		nocc_warning ("tnode_copytextlocationof(): NULL node!");
+		return NULL;
+	}
+	if (!t->org_file || !t->org_file->fnptr) {
+		str = (char *)smalloc (64);
+		sprintf (str, "(unknown file):%d", t->org_line);
+	} else {
+		str = (char *)smalloc (strlen (t->org_file->fnptr) + 16);
+		sprintf (str, "%s:%d", t->org_file->fnptr, t->org_line);
+	}
+	return str;
+}
+/*}}}*/
 
 
 /*{{{  int tnode_bytesfor (tnode_t *t, target_t *target)*/

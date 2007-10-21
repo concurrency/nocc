@@ -401,11 +401,12 @@ static tnode_t *occampi_includefile (char *fname, lexfile_t *curlf)
  */
 static int occampi_parser_init (lexfile_t *lf)
 {
-	if (compopts.verbose) {
-		nocc_message ("initialising occam-pi parser..");
-	}
 	if (!occampi_priv) {
 		occampi_priv = occampi_newoccampiparse ();
+
+		if (compopts.verbose) {
+			nocc_message ("initialising occam-pi parser..");
+		}
 
 		/* wipe out the "opi" structure */
 		memset ((void *)&opi, 0, sizeof (opi));

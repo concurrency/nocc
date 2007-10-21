@@ -176,11 +176,12 @@ langdef_t *traceslang_getlangdef (void)
  */
 static int traceslang_parser_init (lexfile_t *lf)
 {
-	if (compopts.verbose) {
-		nocc_message ("initialising traces parser..");
-	}
 	if (!traceslang_priv) {
 		traceslang_priv = traceslang_newtraceslangparse ();
+
+		if (compopts.verbose) {
+			nocc_message ("initialising traces parser..");
+		}
 
 		memset ((void *)&traceslang, 0, sizeof (traceslang));
 
@@ -237,10 +238,13 @@ static int traceslang_parser_init (lexfile_t *lf)
  */
 static void traceslang_parser_shutdown (lexfile_t *lf)
 {
+	/* make this a no-op */
+#if 0
 	if (traceslang_priv) {
 		traceslang_freetraceslangparse (traceslang_priv);
 		traceslang_priv = NULL;
 	}
+#endif
 
 	return;
 }

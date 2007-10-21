@@ -144,7 +144,7 @@ static int occampi_prescope_tracetypedecl (compops_t *cops, tnode_t **node, pres
 {
 	tnode_t **rhsptr = tnode_nthsubaddr (*node, 3);
 	lexfile_t *lf;
-	char *lstr;
+	char *lstr, *fname, *newfname;
 	tnode_t *newtree;
 
 	lstr = occampi_litstringcopy (*rhsptr);
@@ -153,10 +153,20 @@ static int occampi_prescope_tracetypedecl (compops_t *cops, tnode_t **node, pres
 		return 1;
 	}
 
-#if 1
-fprintf (stderr, "occampi_prescope_tracetypedecl(): rhs is literal string, \"%s\".\n", lstr);
-#endif
-	lf = lexer_openbuf (NULL, "traceslang", lstr);
+	/* get this filename and line-number */
+	fname = tnode_copytextlocationof (*node);
+	if (!fname) {
+		newfname = (char *)smalloc (64);
+	} else {
+		newfname = (char *)smalloc (strlen (fname) + 16);
+	}
+	sprintf (newfname, "%s$traceslang", fname ?: "(unknown file)");
+	if (fname) {
+		sfree (fname);
+	}
+
+	lf = lexer_openbuf (newfname, "traceslang", lstr);
+	sfree (newfname);
 	if (!lf) {
 		prescope_error (*node, ps, "occampi_prescope_tracetypedecl(): failed to open traces string for parsing");
 		sfree (lstr);
@@ -165,13 +175,23 @@ fprintf (stderr, "occampi_prescope_tracetypedecl(): rhs is literal string, \"%s\
 
 	newtree = parser_parse (lf);
 	lexer_close (lf);
+
+	if (!newtree) {
+		prescope_error (*node, ps, "failed to parse traces \"%s\"", lstr);
+		sfree (lstr);
+		return 1;
+	}
+
+	/* destroy the existing RHS and put in ours */
+	tnode_free (*rhsptr);
+	*rhsptr = newtree;
 	sfree (lstr);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_prescope_tracetypedecl(): parsed RHS is:\n");
 tnode_dumptree (newtree, 1, stderr);
 #endif
-
+	/* prescope subnodes */
 	return 1;
 }
 /*}}}*/
