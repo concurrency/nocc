@@ -135,6 +135,46 @@ static int occampi_scopeout_traces (compops_t *cops, tnode_t **node, scope_t *ss
 }
 /*}}}*/
 
+/*{{{  static int occampi_prescope_tracetypedecl (compops_t *cops, tnode_t **node, prescope_t *ps)*/
+/*
+ *	called to do pre-scoping on a TRACETYPEDECL node -- will parse actual specification
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_prescope_tracetypedecl (compops_t *cops, tnode_t **node, prescope_t *ps)
+{
+	tnode_t **rhsptr = tnode_nthsubaddr (*node, 3);
+	lexfile_t *lf;
+	char *lstr;
+	tnode_t *newtree;
+
+	lstr = occampi_litstringcopy (*rhsptr);
+	if (!lstr) {
+		prescope_error (*node, ps, "RHS of TRACE TYPE declaration must be a string literal");
+		return 1;
+	}
+
+#if 1
+fprintf (stderr, "occampi_prescope_tracetypedecl(): rhs is literal string, \"%s\".\n", lstr);
+#endif
+	lf = lexer_openbuf (NULL, "traceslang", lstr);
+	if (!lf) {
+		prescope_error (*node, ps, "occampi_prescope_tracetypedecl(): failed to open traces string for parsing");
+		sfree (lstr);
+		return 1;
+	}
+
+	newtree = parser_parse (lf);
+	lexer_close (lf);
+	sfree (lstr);
+
+#if 1
+fprintf (stderr, "occampi_prescope_tracetypedecl(): parsed RHS is:\n");
+tnode_dumptree (newtree, 1, stderr);
+#endif
+
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_scopein_tracetypedecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope-in a traces type declaration
@@ -185,6 +225,7 @@ static int occampi_traces_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:tracetypedecl", &i, 4, 0, 0, TNF_SHORTDECL);	/* subnodes: 0 = name, 1 = params, 2 = in-scope-body, 3 = traces */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_tracetypedecl));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_tracetypedecl));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_tracetypedecl));
 	tnd->ops = cops;

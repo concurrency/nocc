@@ -669,7 +669,7 @@
 
 
 # }}}
-.SECTION "occampi-traces" # {{{
+.SECTION "occampi-traces" # {{{: trace specifications and use
 
 .GRULE	"opi:traceinputpush" "SN0N+0C[ASINPUT]2N-"
 .GRULE	"opi:tracetypedeclreduce" "SN0N+0N+N+V*C[TRACETYPEDECL]4R-"

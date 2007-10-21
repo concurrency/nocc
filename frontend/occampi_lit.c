@@ -127,6 +127,7 @@ static tnode_t *occampi_gettype_lit (langops_t *lops, tnode_t *node, tnode_t *de
 	tnode_t *type = tnode_nthsubof (node, 0);
 
 	if (node->tag == opi.tag_LITARRAY) {
+		/*{{{  literal array handling*/
 		occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof (node, 0);
 		tnode_t **dimp;
 
@@ -152,7 +153,9 @@ fprintf (stderr, "occampi_gettype_lit(): LITARRAY: mysize is %d, typesize of [%s
 
 			*dimp = tnode_create (opi.tag_LITINT, NULL, tnode_create (opi.tag_INT, NULL), occampi_integertoken_to_hook (lexer_newtoken (INTEGER, dimcount)));
 		}
+		/*}}}*/
 	} else if (!type && !default_type) {
+		/*{{{  no type and no default type*/
 		if (node->tag == opi.tag_LITBOOL) {
 			/* easy :) */
 			tnode_setnthsub (node, 0, tnode_create (opi.tag_BOOL, NULL));
@@ -162,6 +165,7 @@ fprintf (stderr, "occampi_gettype_lit(): LITARRAY: mysize is %d, typesize of [%s
 			/* nocc_fatal ("occampi_gettype_lit(): literal not typed, and no default_type!"); */
 			return NULL;
 		}
+		/*}}}*/
 	} else if (!type) {
 		if (node->tag == opi.tag_LITBOOL) {
 			/* ignore default type */
@@ -502,6 +506,44 @@ tnode_t *occampi_makelitbool (lexfile_t *lf, const int istrue)
 	return tnode_create (opi.tag_LITBOOL, lf, NULL, occampi_bool_hook (istrue ? 1 : 0));
 }
 /*}}}*/
+/*{{{  int occampi_islitstring (struct TAG_tnode *node)*/
+/*
+ *	returns non-zero if the given node is a string literal (array of BYTEs)
+ */
+int occampi_islitstring (struct TAG_tnode *node)
+{
+	if (node->tag == opi.tag_LITARRAY) {
+		tnode_t *type = tnode_nthsubof (node, 0);
+
+		if (type && (type->tag == opi.tag_ARRAY)) {
+			/* some literal array, string? */
+			tnode_t *subtype = tnode_nthsubof (type, 1);
+
+			if (subtype && (subtype->tag == opi.tag_BYTE)) {
+				/* yes, literal byte array */
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  char *occampi_litstringcopy (struct TAG_tnode *node)*/
+/*
+ *	extracts the data from a literal string node (LITARRAY -> ARRAY -> BYTE)
+ *	returns a fresh string on success, NULL on failure
+ */
+char *occampi_litstringcopy (struct TAG_tnode *node)
+{
+	if (occampi_islitstring (node)) {
+		occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof (node, 0);
+
+		return string_ndup (tmplit->data, tmplit->bytes);
+	}
+	return NULL;
+}
+/*}}}*/
+
 /*{{{  occampi_lit_feunit (feunit_t)*/
 feunit_t occampi_lit_feunit = {
 	init_nodes: occampi_lit_init_nodes,
