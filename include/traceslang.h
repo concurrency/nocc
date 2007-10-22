@@ -49,6 +49,7 @@ typedef struct {
 	struct TAG_ntdef *tag_INPUT;
 	struct TAG_ntdef *tag_OUTPUT;
 	struct TAG_ntdef *tag_NPARAM;
+	struct TAG_ntdef *tag_EVENT;
 } traceslang_pset_t;
 
 extern traceslang_pset_t traceslang;
@@ -56,7 +57,11 @@ extern traceslang_pset_t traceslang;
 extern void traceslang_isetindent (FILE *stream, int indent);
 extern struct TAG_langdef *traceslang_getlangdef (void);
 
-extern struct TAG_feunit traceslang_expr_feunit;	/* traceslang_expr.c */
+/* traceslang_expr.c */
+extern struct TAG_tnode *traceslang_newevent (struct TAG_tnode *locn);
+extern struct TAG_tnode *traceslang_newnparam (struct TAG_tnode *locn);
+
+extern struct TAG_feunit traceslang_expr_feunit;
 
 
 #endif	/* !__TRACESLANG_H */

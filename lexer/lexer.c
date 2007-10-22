@@ -80,7 +80,7 @@ int lexer_shutdown (void)
 	int i;
 
 	dynarray_trash (langlexers);
-	for (i=0; i<DA_CUR (openlexfiles); i++) {
+	for (i=DA_CUR (openlexfiles) - 1; i >= 0; i--) {
 		lexfile_t *olf = DA_NTHITEM (openlexfiles, i);
 
 		lexer_close (olf);
@@ -880,6 +880,7 @@ void lexer_warning (lexfile_t *lf, char *fmt, ...)
 	n = sprintf (warnbuf, "%s:%d (warning) ", lf->fnptr, lf->lineno);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
+	lf->warncount++;
 
 	nocc_outerrmsg (warnbuf);
 	return;
@@ -899,6 +900,7 @@ void lexer_error (lexfile_t *lf, char *fmt, ...)
 	n = sprintf (warnbuf, "%s:%d (error) ", lf->fnptr, lf->lineno);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
+	lf->errcount++;
 
 	nocc_outerrmsg (warnbuf);
 	return;

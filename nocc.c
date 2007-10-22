@@ -173,6 +173,7 @@ typedef struct TAG_xmlnamespace {
 /*{{{  private data*/
 STATICDYNARRAY (char *, be_def_opts);
 static int noccexitflag = 0;
+static int noccabortexit = 0;
 
 STATICDYNARRAY (compilerpass_t *, cfepasses);
 STATICDYNARRAY (compilerpass_t *, cbepasses);
@@ -190,6 +191,12 @@ STATICDYNARRAY (xmlnamespace_t *, xmlnamespaces);
 static int nocc_shutdownrun (void)
 {
 	int v = 0;
+
+	if (noccabortexit) {
+		/* means we're already in the process of shutting down -- fatal! */
+		exit (EXIT_FAILURE);
+	}
+	noccabortexit = 1;
 
 	/* compiler framework shutdowns in reverse order from initialisations */
 	if (traceslang_shutdown ()) {

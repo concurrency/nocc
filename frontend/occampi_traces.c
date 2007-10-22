@@ -176,6 +176,11 @@ static int occampi_prescope_tracetypedecl (compops_t *cops, tnode_t **node, pres
 	}
 
 	newtree = parser_parse (lf);
+
+	/* accumulate errors and warnings */
+	ps->err += lf->errcount;
+	ps->warn += lf->warncount;
+
 	lexer_close (lf);
 
 	if (!newtree) {
@@ -218,9 +223,9 @@ static int occampi_scopein_tracetypedecl (compops_t *cops, tnode_t **node, scope
 	char *rawname;
 	tnode_t **litems;
 	int nlitems, i;
-	// void *nsmark;
+	void *nsmark;
 
-	// nsmark = name_markscope ();
+	nsmark = name_markscope ();
 
 	if (name->tag != opi.tag_NAME) {
 		scope_error (name, ss, "name not raw-name!");
@@ -234,7 +239,6 @@ static int occampi_scopein_tracetypedecl (compops_t *cops, tnode_t **node, scope
 fprintf (stderr, "occampi_scopein_tracetypedecl(): parameter list is:\n");
 tnode_dumptree (type, 1, stderr);
 #endif
-	/* FIXME! */
 	litems = parser_getlistitems (type, &nlitems);
 	for (i=0; i<nlitems; i++) {
 		tnode_t *tparam = litems[i];
@@ -245,10 +249,29 @@ tnode_dumptree (type, 1, stderr);
 		} else {
 			char *prawname = (char *)tnode_nthhookof (tparam, 0);
 			name_t *pname;
+			tnode_t *ptype = traceslang_newevent (tparam);
+			tnode_t *pnewname;
 
-			// pname = name_addscopename (prawname, );
+			pname = name_addscopename (prawname, *node, ptype, NULL);
+			pnewname = traceslang_newnparam (tparam);
+			tnode_setnthname (pnewname, 0, pname);
+			SetNameNode (pname, pnewname);
+
+			/* free old, plant new */
+			tnode_free (litems[i]);
+			litems[i] = pnewname;
+			ss->scoped++;
 		}
 	}
+
+	/* scope expression */
+	if (scope_subtree (tnode_nthsubaddr (*node, 3), ss)) {
+		/* failed in here somewhere */
+		return 0;
+	}
+
+	/* descope trace parameters */
+	name_markdescope (nsmark);
 
 	sname = name_addscopename (rawname, *node, type, NULL);
 	newname = tnode_createfrom (opi.tag_NTRACETYPEDECL, name, sname);

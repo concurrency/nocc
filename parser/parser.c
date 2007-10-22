@@ -873,6 +873,7 @@ void *parser_lookup_rarg (const char *name)
 #define ICDE_TSREWIND 20	/* rewind the token-stack by pushing all tokens back into the lexer */
 #define ICDE_TS1REWIND 21	/* push a single token from the token-stack back into the lexer */
 #define ICDE_ALLREV 22		/* reverse the order of the local stack */
+#define ICDE_MAKELIST 23	/* make a new list node using following count nodes taken from the local stack, result pushed back onto local stack */
 
 /*}}}*/
 
@@ -1173,6 +1174,28 @@ void parser_generic_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 			}
 			break;
 			/*}}}*/
+			/*{{{  ICDE_MAKELIST*/
+		case ICDE_MAKELIST:
+			{
+				int listcnt = (int)arg[++ipos];
+				tnode_t *list = parser_newlistnode (NULL);
+
+				for (; listcnt > 0; listcnt--) {
+					tnode_t *item = (tnode_t *)lnstk[--lncnt];
+
+					parser_addtolist (list, item);
+				}
+
+				if (org_file && org_line) {
+					list->org_file = org_file;
+					list->org_line = org_line;
+					org_file = NULL;
+					org_line = 0;
+				}
+				lnstk[lncnt++] = (void *)list;
+			}
+			break;
+			/*}}}*/
 		}
 	}
 	return;
@@ -1326,6 +1349,24 @@ void *parser_decode_grule (const char *rule, ...)
 			default:
 				goto report_error_out;
 			}
+			break;
+			/*}}}*/
+			/*{{{  L -- make list*/
+		case 'L':
+			xrule++;
+			if ((*xrule < '0') || (*xrule > '9')) {
+				goto report_error_out;
+			} else {
+				/* adjustment is minus "n", plus 1 */
+				lsdepth -= (int)(*xrule - '0');
+				if (lsdepth < 0) {
+					/* pretty bad */
+					nocc_error ("parser_decode_grule(): local stack underflow at char %d in \"%s\"", (int)(xrule - rule), rule);
+					return NULL;
+				}
+				lsdepth++;
+			}
+			ilen += 2;
 			break;
 			/*}}}*/
 			/*{{{  C -- condense into new token*/
@@ -1518,6 +1559,13 @@ void *parser_decode_grule (const char *rule, ...)
 		case 'R':
 			xrule++;
 			icode[i] = (*xrule == '+') ? ICDE_RGET : ICDE_RSET;
+			break;
+			/*}}}*/
+			/*{{{  L -- make list*/
+		case 'L':
+			xrule++;
+			icode[i++] = ICDE_MAKELIST;
+			icode[i] = (int)(*xrule - '0');
 			break;
 			/*}}}*/
 			/*{{{  C -- condense into new token*/

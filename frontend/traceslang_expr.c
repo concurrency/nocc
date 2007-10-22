@@ -236,6 +236,31 @@ static void traceslang_litnode_hook_dumptree (tnode_t *node, void *hook, int ind
 /*}}}*/
 
 
+/*{{{  tnode_t *traceslang_newevent (tnode_t *locn)*/
+/*
+ *	creates a new TRACESLANGEVENT (leaf) node
+ *	returns node on success, NULL on failure
+ */
+tnode_t *traceslang_newevent (tnode_t *locn)
+{
+	tnode_t *enode = tnode_createfrom (traceslang.tag_EVENT, locn);
+
+	return enode;
+}
+/*}}}*/
+/*{{{  tnode_t *traceslang_newnparam (tnode_t *locn)*/
+/*
+ *	creates a new TRACESLANGNPARAM (name) node
+ *	returns node on success, NULL on failure
+ */
+tnode_t *traceslang_newnparam (tnode_t *locn)
+{
+	tnode_t *nnode = tnode_createfrom (traceslang.tag_NPARAM, locn, NULL);
+
+	return nnode;
+}
+/*}}}*/
+
 
 /*{{{  static int traceslang_expr_init_nodes (void)*/
 /*
@@ -309,6 +334,16 @@ static int traceslang_expr_init_nodes (void)
 	traceslang.tag_INPUT = tnode_newnodetag ("TRACESLANGINPUT", &i, tnd, NTF_NONE);
 	i = -1;
 	traceslang.tag_OUTPUT = tnode_newnodetag ("TRACESLANGOUTPUT", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  traceslang:leafnode -- TRACESLANGEVENT*/
+	i = -1;
+	tnd = tnode_newnodetype ("traceslang:leafnode", &i, 0, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	traceslang.tag_EVENT = tnode_newnodetag ("TRACESLANGEVENT", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 
