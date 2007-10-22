@@ -1773,13 +1773,13 @@ static tnode_t *occampi_parser_parse (lexfile_t *lf)
 		}
 	}
 
-	if (compopts.verbose) {
+	if (compopts.verbose > 1) {
 		nocc_message ("leftover tokens:");
 	}
 
 	tok = lexer_nexttoken (lf);
 	while (tok) {
-		if (compopts.verbose) {
+		if (compopts.verbose > 1) {
 			lexer_dumptoken (stderr, tok);
 		}
 		if ((tok->type == END) || (tok->type == NOTOKEN)) {

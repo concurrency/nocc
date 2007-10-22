@@ -202,8 +202,38 @@ tnode_dumptree (newtree, 1, stderr);
  */
 static int occampi_scopein_tracetypedecl (compops_t *cops, tnode_t **node, scope_t *ss)
 {
+	tnode_t *name = tnode_nthsubof (*node, 0);
+	tnode_t *type = tnode_nthsubof (*node, 1);
+	name_t *sname = NULL;
+	tnode_t *newname = NULL;
+	char *rawname;
+
+	if (name->tag != opi.tag_NAME) {
+		scope_error (name, ss, "name not raw-name!");
+		return 0;
+	}
+
+	rawname = (char *)tnode_nthhookof (name, 0);
+
+	/* type will be a parameter list of some form, adjust to make it an obvious TRACETYPE */
 	/* FIXME! */
-	return 1;
+
+	sname = name_addscopename (rawname, *node, type, NULL);
+	newname = tnode_createfrom (opi.tag_NTRACETYPEDECL, name, sname);
+	SetNameNode (sname, newname);
+	tnode_setnthsub (*node, 0, newname);
+
+	/* free old name */
+	tnode_free (name);
+	ss->scoped++;
+
+	/* scope body */
+	if (scope_subtree (tnode_nthsubaddr (*node, 2), ss)) {
+		return 0;
+	}
+
+	name_descopename (sname);
+	return 0;
 }
 /*}}}*/
 /*{{{  static int occampi_scopeout_tracetypedecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
@@ -229,6 +259,7 @@ static int occampi_traces_init_nodes (void)
 	tndef_t *tnd;
 	int i;
 	compops_t *cops;
+	langops_t *lops;
 
 	/*{{{  occampi:formalspec -- TRACES*/
 	i = -1;
@@ -243,7 +274,7 @@ static int occampi_traces_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:tracetypedecl -- TRACETYPEDECL*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:tracetypedecl", &i, 4, 0, 0, TNF_SHORTDECL);	/* subnodes: 0 = name, 1 = params, 2 = in-scope-body, 3 = traces */
+	tnd = tnode_newnodetype ("occampi:tracetypedecl", &i, 4, 0, 0, TNF_SHORTDECL);	/* subnodes: 0 = name, 1 = type/params, 2 = in-scope-body, 3 = traces */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_tracetypedecl));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_tracetypedecl));
@@ -252,6 +283,19 @@ static int occampi_traces_init_nodes (void)
 
 	i = -1;
 	opi.tag_TRACETYPEDECL = tnode_newnodetag ("TRACETYPEDECL", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:tracenamenode -- N_TRACETYPEDECL*/
+	i = -1;
+	tnd = opi.node_TRACENAMENODE = tnode_newnodetype ("occampi:tracenamenode", &i, 0, 1, 0, TNF_NONE);		/* subnames: name */
+	cops = tnode_newcompops ();
+	//tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_tracenamenode));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_NTRACETYPEDECL = tnode_newnodetag ("N_TRACETYPEDECL", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

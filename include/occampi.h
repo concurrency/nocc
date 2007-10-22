@@ -51,6 +51,7 @@ typedef struct {
 	struct TAG_tndef *node_TYPENODE;
 	struct TAG_tndef *node_ACTIONNODE;
 	struct TAG_tndef *node_MISCNODE;
+	struct TAG_tndef *node_TRACENAMENODE;
 
 	struct TAG_ntdef *tag_BOOL;
 	struct TAG_ntdef *tag_BYTE;
@@ -188,6 +189,7 @@ typedef struct {
 	struct TAG_ntdef *tag_BUILTINFUNCTION;
 	struct TAG_ntdef *tag_TRACES;
 	struct TAG_ntdef *tag_TRACETYPEDECL;
+	struct TAG_ntdef *tag_NTRACETYPEDECL;
 
 	struct TAG_ntdef *tag_TIMERINPUT;
 	struct TAG_ntdef *tag_TIMERINPUTAFTER;
