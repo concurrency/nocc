@@ -312,6 +312,17 @@ static int traceslang_expr_init_nodes (void)
 
 	/*}}}*/
 
+	/*{{{  traceslang:namenode -- TRACESLANGNPARAM*/
+	i = -1;
+	tnd = tnode_newnodetype ("traceslang:namenode", &i, 0, 1, 0, TNF_NONE);			/* subnames: 0 = name */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	traceslang.tag_NPARAM = tnode_newnodetag ("TRACESLANGNPARAM", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+
 	return 0;
 }
 /*}}}*/

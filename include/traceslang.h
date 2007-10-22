@@ -48,6 +48,7 @@ typedef struct {
 	struct TAG_ntdef *tag_NDET;
 	struct TAG_ntdef *tag_INPUT;
 	struct TAG_ntdef *tag_OUTPUT;
+	struct TAG_ntdef *tag_NPARAM;
 } traceslang_pset_t;
 
 extern traceslang_pset_t traceslang;

@@ -56,6 +56,7 @@
 #include "codegen.h"
 #include "langops.h"
 #include "fetrans.h"
+#include "traceslang.h"
 
 
 /*}}}*/
@@ -146,6 +147,7 @@ static int occampi_prescope_tracetypedecl (compops_t *cops, tnode_t **node, pres
 	lexfile_t *lf;
 	char *lstr, *fname, *newfname;
 	tnode_t *newtree;
+	tnode_t *params;
 
 	lstr = occampi_litstringcopy (*rhsptr);
 	if (!lstr) {
@@ -187,6 +189,13 @@ static int occampi_prescope_tracetypedecl (compops_t *cops, tnode_t **node, pres
 	*rhsptr = newtree;
 	sfree (lstr);
 
+	/* if parameter set is not a list, make it one */
+	params = tnode_nthsubof (*node, 1);
+	if (!parser_islistnode (params)) {
+		params = parser_buildlistnode (OrgFileOf (*node), params, NULL);
+		tnode_setnthsub (*node, 1, params);
+	}
+
 #if 0
 fprintf (stderr, "occampi_prescope_tracetypedecl(): parsed RHS is:\n");
 tnode_dumptree (newtree, 1, stderr);
@@ -207,6 +216,11 @@ static int occampi_scopein_tracetypedecl (compops_t *cops, tnode_t **node, scope
 	name_t *sname = NULL;
 	tnode_t *newname = NULL;
 	char *rawname;
+	tnode_t **litems;
+	int nlitems, i;
+	// void *nsmark;
+
+	// nsmark = name_markscope ();
 
 	if (name->tag != opi.tag_NAME) {
 		scope_error (name, ss, "name not raw-name!");
@@ -215,8 +229,26 @@ static int occampi_scopein_tracetypedecl (compops_t *cops, tnode_t **node, scope
 
 	rawname = (char *)tnode_nthhookof (name, 0);
 
-	/* type will be a parameter list of some form, adjust to make it an obvious TRACETYPE */
+	/* type will be a parameter list of some form (tagged names) */
+#if 1
+fprintf (stderr, "occampi_scopein_tracetypedecl(): parameter list is:\n");
+tnode_dumptree (type, 1, stderr);
+#endif
 	/* FIXME! */
+	litems = parser_getlistitems (type, &nlitems);
+	for (i=0; i<nlitems; i++) {
+		tnode_t *tparam = litems[i];
+		occampi_typeattr_t tattr = (occampi_typeattr_t)tnode_getchook (tparam, opi.chook_typeattr);
+
+		if (tparam->tag != opi.tag_NAME) {
+			scope_error (tparam, ss, "name not raw-name!");
+		} else {
+			char *prawname = (char *)tnode_nthhookof (tparam, 0);
+			name_t *pname;
+
+			// pname = name_addscopename (prawname, );
+		}
+	}
 
 	sname = name_addscopename (rawname, *node, type, NULL);
 	newname = tnode_createfrom (opi.tag_NTRACETYPEDECL, name, sname);
