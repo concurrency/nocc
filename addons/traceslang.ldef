@@ -15,6 +15,7 @@
 .SYMBOL	"->"
 .SYMBOL "[]"
 .SYMBOL "|~|"
+.SYMBOL "||"
 .SYMBOL ";"
 .SYMBOL "("
 .SYMBOL ")"
@@ -42,13 +43,13 @@
 #.GRULE	"trs:seqreduce" "ST0T+@tN+N+L2C[TRACESLANGSEQ]1R-"
 .RFUNC	"Rtraceslang:dopreduce" "traceslang_reduce_dop"
 
-.TABLE	"traceslang:restofexpr ::= [ 0 +@@-> 1 ] [ 0 +@@[] 1 ] [ 0 +@@|~| 1 ]"
+.TABLE	"traceslang:restofexpr ::= [ 0 +@@-> 1 ] [ 0 +@@[] 1 ] [ 0 +@@|~| 1 ] [ 0 +@@|| 1 ]"
 	"[ 1 traceslang:expr 2 ] [ 2 {Rtraceslang:dopreduce} -* ]"
 
 .TABLE	"traceslang:name ::= [ 0 +Name 1 ] [ 1 {<trs:namereduce>} -* 2 ] [ 2 +@@! 3 ] [ 2 +@@? 4 ] [ 2 -* ]"
 	"[ 3 {<trs:makeroutput>} -* ] [ 4 {<trs:makerinput>} -* ]"
 .TABLE	"traceslang:expr ::= [ 0 traceslang:name 1 ] [ 0 @@( 3 ]"
-	"[ 1 %traceslang:restofexpr <traceslang:restofexpr> ] [ 1 -* 2 ] [ 2 {<trs:nullreduce>} -* ]"
+	"[ 1 %traceslang:restofexpr <traceslang:restofexpr> ] [ 1 -End 2 ] [ 1 -* 2 ] [ 2 {<trs:nullreduce>} -* ]"
 	"[ 3 traceslang:expr 4 ] [ 4 @@) 1 ]"
 
 

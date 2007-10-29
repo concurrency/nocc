@@ -77,6 +77,7 @@ static dopmap_t dopmap[] = {
 	{SYMBOL, "->", NULL, &(traceslang.tag_SEQ)},
 	{SYMBOL, "[]", NULL, &(traceslang.tag_DET)},
 	{SYMBOL, "|~|", NULL, &(traceslang.tag_NDET)},
+	{SYMBOL, "||", NULL, &(traceslang.tag_PAR)},
 	{NOTOKEN, NULL, NULL, NULL}
 };
 
@@ -288,6 +289,48 @@ fprintf (stderr, "traceslang_scopein_rawname(): found name, node tag: %s\n", rno
 }
 /*}}}*/
 
+/*{{{  static int traceslang_scopeout_setnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	does scope-out on a set node (used to flatten out nodes)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int traceslang_scopeout_setnode (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	tnode_t *nd = *node;
+	ntdef_t *tag = nd->tag;
+	tnode_t *list = tnode_nthsubof (nd, 0);
+	tnode_t **items;
+	int n, i;
+
+	items = parser_getlistitems (list, &n);
+	for (i=0; i<n; i++) {
+		int saved_i = i;
+		tnode_t *item = items[i];
+
+		if (item && (item->tag == tag)) {
+			/* this is the same, pull in items */
+			int m, j;
+			tnode_t **subitems = parser_getlistitems (tnode_nthsubof (item, 0), &m);
+
+			for (j=0; j<m; j++) {
+				if (subitems[j]) {
+					parser_insertinlist (list, subitems[j], i+1);
+					i++;
+					subitems[j] = NULL;
+				}
+			}
+
+			/* now trash it */
+			tnode_free (item);
+			parser_delfromlist (list, saved_i);
+			i--;
+		}
+	}
+
+	return 1;
+}
+/*}}}*/
+
 
 /*{{{  static void traceslang_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
@@ -407,6 +450,7 @@ static int traceslang_expr_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("traceslang:setnode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = list-of-items */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (traceslang_scopeout_setnode));
 	tnd->ops = cops;
 
 	i = -1;
