@@ -249,7 +249,7 @@ static int trlang_scopein_rawname (compops_t *cops, tnode_t **node, scope_t *ss)
 		scope_error (name, ss, "name not raw-name!");
 		return 0;
 	}
-	rawname = tnode_nthhookof (name, 0);
+	rawname = (char *)tnode_nthhookof (name, 0);
 
 #if 0
 fprintf (stderr, "trlang_scopein_rawname: here! rawname = \"%s\"\n", rawname);

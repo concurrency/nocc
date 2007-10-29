@@ -235,10 +235,6 @@ static int occampi_scopein_tracetypedecl (compops_t *cops, tnode_t **node, scope
 	rawname = (char *)tnode_nthhookof (name, 0);
 
 	/* type will be a parameter list of some form (tagged names) */
-#if 1
-fprintf (stderr, "occampi_scopein_tracetypedecl(): parameter list is:\n");
-tnode_dumptree (type, 1, stderr);
-#endif
 	litems = parser_getlistitems (type, &nlitems);
 	for (i=0; i<nlitems; i++) {
 		tnode_t *tparam = litems[i];
@@ -260,13 +256,19 @@ tnode_dumptree (type, 1, stderr);
 			/* free old, plant new */
 			tnode_free (litems[i]);
 			litems[i] = pnewname;
+			tnode_setchook (pnewname, opi.chook_typeattr, (void *)tattr);
 			ss->scoped++;
 		}
 	}
+#if 0
+fprintf (stderr, "occampi_scopein_tracetypedecl(): parameter list is now:\n");
+tnode_dumptree (type, 1, stderr);
+#endif
 
 	/* scope expression */
 	if (scope_subtree (tnode_nthsubaddr (*node, 3), ss)) {
-		/* failed in here somewhere */
+		/* failed in here somewhere, descope params first! */
+		name_markdescope (nsmark);
 		return 0;
 	}
 

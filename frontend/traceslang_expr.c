@@ -63,8 +63,22 @@ typedef struct TAG_traceslang_lithook {
 	int len;
 } traceslang_lithook_t;
 
+typedef struct TAG_dopmap {
+	tokentype_t ttype;
+	const char *lookup;
+	token_t *tok;
+	ntdef_t **tagp;
+} dopmap_t;
+
+
 /*}}}*/
 /*{{{  private data*/
+static dopmap_t dopmap[] = {
+	{SYMBOL, "->", NULL, &(traceslang.tag_SEQ)},
+	{SYMBOL, "[]", NULL, &(traceslang.tag_DET)},
+	{SYMBOL, "|~|", NULL, &(traceslang.tag_NDET)},
+	{NOTOKEN, NULL, NULL, NULL}
+};
 
 /*}}}*/
 
@@ -236,6 +250,85 @@ static void traceslang_litnode_hook_dumptree (tnode_t *node, void *hook, int ind
 /*}}}*/
 
 
+/*{{{  static int traceslang_scopein_rawname (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes in a traceslang name
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int traceslang_scopein_rawname (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	tnode_t *name = *node;
+	char *rawname;
+	name_t *sname = NULL;
+
+	if (name->tag != traceslang.tag_NAME) {
+		scope_error (name, ss, "name not raw-name!");
+		return 0;
+	}
+	rawname = (char *)tnode_nthhookof (name, 0);
+	sname = name_lookupss (rawname, ss);
+	if (sname) {
+		/* resolved */
+		tnode_t *rnode = NameNodeOf (sname);
+
+		if (rnode->tag != traceslang.tag_NPARAM) {
+			scope_error (name, ss, "name [%s] is not a trace parameter", rawname);
+			return 0;
+		}
+#if 0
+fprintf (stderr, "traceslang_scopein_rawname(): found name, node tag: %s\n", rnode->tag->name);
+#endif
+		*node = rnode;
+		tnode_free (name);
+	} else {
+		scope_error (name, ss, "unresolved name \"%s\"", rawname);
+	}
+
+	return 1;
+}
+/*}}}*/
+
+
+/*{{{  static void traceslang_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	reduces a dyadic operator (in the parser), expects 2 nodes on the node-stack,
+ *	and the relevant operator token on the token-stack
+ */
+static void traceslang_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	token_t *tok = parser_gettok (pp);
+	tnode_t *lhs, *rhs;
+	ntdef_t *tag = NULL;
+	int i;
+
+	if (!tok) {
+		parser_error (pp->lf, "traceslang_reduce_dop(): no token ?");
+		return;
+	}
+	rhs = dfa_popnode (dfast);
+	lhs = dfa_popnode (dfast);
+	if (!rhs || !lhs) {
+		parser_error (pp->lf, "traceslan_reduce_dop(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
+		return;
+	}
+
+	for (i=0; dopmap[i].lookup; i++) {
+		if (lexer_tokmatch (dopmap[i].tok, tok)) {
+			tag = *(dopmap[i].tagp);
+			break;
+		}
+	}
+	if (!tag) {
+		parser_error (pp->lf, "traceslang_reduce_dop(): unhandled token [%s]", lexer_stokenstr (tok));
+		return;
+	}
+
+	*(dfast->ptr) = tnode_create (tag, pp->lf, parser_buildlistnode (pp->lf, lhs, rhs, NULL));
+	return;
+}
+/*}}}*/
+
+
 /*{{{  tnode_t *traceslang_newevent (tnode_t *locn)*/
 /*
  *	creates a new TRACESLANGEVENT (leaf) node
@@ -278,6 +371,8 @@ static int traceslang_expr_init_nodes (void)
 	fcnlib_addfcn ("traceslang_stringtoken_to_node", (void *)traceslang_stringtoken_to_node, 1, 1);
 	fcnlib_addfcn ("traceslang_integertoken_to_node", (void *)traceslang_integertoken_to_node, 1, 1);
 
+	fcnlib_addfcn ("traceslang_reduce_dop", (void *)traceslang_reduce_dop, 0, 3);
+
 	/*}}}*/
 	/*{{{  traceslang:rawnamenode -- TRACESLANGNAME*/
 	i = -1;
@@ -286,7 +381,7 @@ static int traceslang_expr_init_nodes (void)
 	tnd->hook_copy = traceslang_rawnamenode_hook_copy;
 	tnd->hook_dumptree = traceslang_rawnamenode_hook_dumptree;
 	cops = tnode_newcompops ();
-	// tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (traceslang_scopein_rawname));
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (traceslang_scopein_rawname));
 	tnd->ops = cops;
 
 	i = -1;
@@ -346,7 +441,6 @@ static int traceslang_expr_init_nodes (void)
 	traceslang.tag_EVENT = tnode_newnodetag ("TRACESLANGEVENT", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-
 	/*{{{  traceslang:namenode -- TRACESLANGNPARAM*/
 	i = -1;
 	tnd = tnode_newnodetype ("traceslang:namenode", &i, 0, 1, 0, TNF_NONE);			/* subnames: 0 = name */
@@ -355,6 +449,13 @@ static int traceslang_expr_init_nodes (void)
 
 	i = -1;
 	traceslang.tag_NPARAM = tnode_newnodetag ("TRACESLANGNPARAM", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+
+	/*{{{  setup local tokens*/
+	for (i=0; dopmap[i].lookup; i++) {
+		dopmap[i].tok = lexer_newtoken (dopmap[i].ttype, dopmap[i].lookup);
+	}
 
 	/*}}}*/
 
