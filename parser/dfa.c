@@ -3227,7 +3227,9 @@ int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)
 		if (flags & DFAFLAG_PUSHSTACK) {
 			/*{{{  push the DFA stack*/
 			if (compopts.debugparser) {
-				nocc_message ("dfa_advance(): push from 0x%8.8x return to 0x%8.8x", (unsigned int)((*dfast)->cur), (unsigned int)target);
+				nocc_message ("dfa_advance(): push from 0x%8.8x [%s] return to 0x%8.8x [%s]", (unsigned int)((*dfast)->cur),
+						cnode->dfainfo ? ((nameddfa_t *)(cnode->dfainfo))->name : "??", (unsigned int)target,
+						target->dfainfo ? ((nameddfa_t *)(target->dfainfo))->name : "??");
 			}
 			(*dfast)->cur = target;		/* so we go back to the right place */
 			*dfast = dfa_newstate (*dfast);
@@ -3282,6 +3284,9 @@ int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)
 		}
 
 		/* reduction ? */
+		if (compopts.debugparser) {
+			nocc_message ("dfa_advance(): checking for target reduction at 0x%8.8x (0x%8.8x)", (unsigned int)target, target ? (unsigned int)(target->reduce) : 0);
+		}
 		if (target && target->reduce) {
 			if (compopts.debugparser) {
 				nocc_message ("dfa_advance(): reducing with 0x%8.8x (%s) to 0x%8.8x  TS=%d  NS=%d  RES=0x%8.8x  [%s]", (unsigned int)target->reduce,
@@ -3395,9 +3400,12 @@ tnode_t *dfa_walk (char *rname, lexfile_t *lf)
 	if (dfast->prev) {
 		/* chances are we have a return out without consuming any more tokens.. */
 		tok = lexer_nexttoken (lf);
-		while (tok && (tok->type == END) && dfast->prev && dfast->cur) {
+		while (tok && (tok->type == END) && dfast->cur) {
 			int i = dfa_advance (&dfast, pp, tok);
 
+			if (compopts.debugparser) {
+				nocc_message ("dfa_walk(): advance() returned %d", i);
+			}
 			if (i < 0) {
 				tok = NULL;
 				break;		/* while() */
@@ -3408,6 +3416,10 @@ tnode_t *dfa_walk (char *rname, lexfile_t *lf)
 				break;		/* while() */
 			}
 			tok = lexer_nexttoken (lf);
+#if 0
+fprintf (stderr, "dfa_walk() back from tidy-up advance, got token [%s], dfast->prev = 0x%8.8x, dfast->cur = 0x%8.8x\n", lexer_stokenstr (tok),
+		(unsigned int)(dfast->prev), (unsigned int)(dfast->cur));
+#endif
 		}
 		if (tok) {
 			lexer_pushback (tok->origin, tok);
