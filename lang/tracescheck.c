@@ -57,6 +57,7 @@ static int tchk_acounter;
 static chook_t *tchk_noderefchook = NULL;
 static chook_t *tchk_tracesrefchook = NULL;
 static chook_t *tchk_traceschook = NULL;
+static chook_t *tchk_tracesimplchook = NULL;
 
 
 /*}}}*/
@@ -220,6 +221,56 @@ static void tchk_traceschook_dumptree (tnode_t *node, void *hook, int indent, FI
 	return;
 }
 /*}}}*/
+/*{{{  static void *tchk_tracesimplchook_copy (void *hook)*/
+/*
+ *	duplicates a tracescheckimpl compiler hook
+ */
+static void *tchk_tracesimplchook_copy (void *hook)
+{
+	tnode_t *copy = NULL;
+	tnode_t *tr = (tnode_t *)hook;
+
+	if (tr) {
+		copy = tnode_copytree (tr);
+	}
+
+	return (void *)copy;
+}
+/*}}}*/
+/*{{{  static void tchk_tracesimplchook_free (void *hook)*/
+/*
+ *	frees a tracescheckimpl compiler hook
+ */
+static void tchk_tracesimplchook_free (void *hook)
+{
+	tnode_t *tr = (tnode_t *)hook;
+
+	if (tr) {
+		tnode_free (tr);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void tchk_tracesimplchook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a tracescheckimpl compiler hook (debugging)
+ */
+static void tchk_tracesimplchook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	tnode_t *tr = (tnode_t *)hook;
+
+	tchk_isetindent (stream, indent);
+	if (!hook) {
+		fprintf (stream, "<chook id=\"tracescheckimpl\" value=\"\" />\n");
+	} else {
+		fprintf (stream, "<chook id=\"tracescheckimpl\">\n");
+		tnode_dumptree (tr, indent + 1, stream);
+		tchk_isetindent (stream, indent);
+		fprintf (stream, "</chook>\n");
+	}
+	return;
+}
+/*}}}*/
 
 
 /*{{{  int tracescheck_init (void)*/
@@ -253,6 +304,11 @@ int tracescheck_init (void)
 	tchk_traceschook->chook_copy = tchk_traceschook_copy;
 	tchk_traceschook->chook_free = tchk_traceschook_free;
 	tchk_traceschook->chook_dumptree = tchk_traceschook_dumptree;
+
+	tchk_tracesimplchook = tnode_lookupornewchook ("tracescheckimpl");
+	tchk_tracesimplchook->chook_copy = tchk_tracesimplchook_copy;
+	tchk_tracesimplchook->chook_free = tchk_tracesimplchook_free;
+	tchk_tracesimplchook->chook_dumptree = tchk_tracesimplchook_dumptree;
 
 	/*}}}*/
 
@@ -1413,6 +1469,15 @@ chook_t *tracescheck_gettracesrefchook (void)
 chook_t *tracescheck_gettraceschook (void)
 {
 	return tchk_traceschook;
+}
+/*}}}*/
+/*{{{  chook_t *tracescheck_getimplchook (void)*/
+/*
+ *	returns the tracescheckimpl compiler hook
+ */
+chook_t *tracescheck_getimplchook (void)
+{
+	return tchk_tracesimplchook;
 }
 /*}}}*/
 

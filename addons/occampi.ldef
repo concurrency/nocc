@@ -323,6 +323,8 @@
 .GRULE	"opi:fparam1tsreducei" "T+St0X[occampi_nametoken_to_hook]C[NAME]10C[ASINPUT]20C[FPARAM]2R-"
 .GRULE	"opi:fparam1tsreduceo" "T+St0X[occampi_nametoken_to_hook]C[NAME]10C[ASOUTPUT]20C[FPARAM]2R-"
 
+.RFUNC	"Roccampi:tracesattachtraces" "occampi_traces_attachtraces"
+
 
 .BNF	"occampi:name ::= +Name {<opi:namereduce>}"
 .BNF	"occampi:namelist ::= { occampi:name @@, 1 }"
@@ -347,8 +349,10 @@
 .TABLE	"occampi:vardecl:bracketstart ::= [ 0 occampi:arrayspec 1 ] [ 1 -@@[ 3 ] [ 1 occampi:vardecl 2 ] [ 2 {Roccampi:arrayfold} -* ]"
 	"[ 3 occampi:vardecl:bracketstart 4 ] [ 4 {Roccampi:arrayfold} -* ]"
 
-.TABLE	"occampi:procdecl ::= [ 0 +@PROC 6 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<opi:procdeclreduce>} -* ]"
+.TABLE	"occampi:procdecl ::= [ 0 +@PROC 6 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 -@TRACES 10 ] [ 5 -* 9 ]"
 	"[ 6 +@TYPE 7 ] [ 6 -* 8 ] [ 7 {<parser:rewindtokens>} -* <occampi:proctypedecl> ] [ 8 {<parser:eattoken>} -* 1 ]"
+	"[ 9 {<opi:procdeclreduce>} -* ]"
+	"[ 10 {<opi:procdeclreduce>} @TRACES 11 ] [ 11 occampi:name 12 ] [ 12 {Roccampi:tracesattachtraces} -* ]"
 
 .TABLE	"occampi:valabbrdecl ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} -* 2 ] [ 2 @IS 3 ] [ 2 +Name 6 ] [ 3 occampi:expr 4 ] [ 4 @@: 5 ]"
 	"[ 5 {<opi:notypevalabbrreduce>} -* ] [ 6 {<opi:namepush>} -* 7 ] [ 7 @IS 8 ] [ 7 @RETYPES 10 ] [ 8 occampi:expr 9 ] [ 9 {<opi:valabbrreduce>} -* ]"

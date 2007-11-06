@@ -125,6 +125,7 @@ extern int tracescheck_cleanrefchooks (tchk_state_t *tcstate, struct TAG_tnode *
 extern struct TAG_chook *tracescheck_getnoderefchook (void);
 extern struct TAG_chook *tracescheck_gettracesrefchook (void);
 extern struct TAG_chook *tracescheck_gettraceschook (void);
+extern struct TAG_chook *tracescheck_getimplchook (void);
 
 
 #endif	/* !__TRACESCHECK_H */

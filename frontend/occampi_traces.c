@@ -44,12 +44,14 @@
 #include "occampi.h"
 #include "feunit.h"
 #include "names.h"
+#include "fcnlib.h"
 #include "scope.h"
 #include "prescope.h"
 #include "library.h"
 #include "typecheck.h"
 #include "precheck.h"
 #include "usagecheck.h"
+#include "tracescheck.h"
 #include "map.h"
 #include "target.h"
 #include "transputer.h"
@@ -306,6 +308,85 @@ static int occampi_scopeout_tracetypedecl (compops_t *cops, tnode_t **node, scop
 /*}}}*/
 
 
+/*{{{  static int occampi_prescope_procdecl_tracetypeimpl (compops_t *cops, tnode_t **node, prescope_t *ps)*/
+/*
+ *	does pre-scoping on a PROCDECL node to handle prescoping of traces
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_prescope_procdecl_tracetypeimpl (compops_t *cops, tnode_t **node, prescope_t *ps)
+{
+	chook_t *trimplchook = tracescheck_getimplchook ();
+	int v = 1;
+
+	if (tnode_hascompop (cops->next, "prescope")) {
+		v = tnode_callcompop (cops->next, "prescope", 2, node, ps);
+	}
+	if (trimplchook) {
+		tnode_t *trimpl = (tnode_t *)tnode_getchook (*node, trimplchook);
+
+		if (trimpl) {
+			/* got something here! */
+#if 1
+fprintf (stderr, "occampi_prescope_procdecl_tracetypeimpl(): got trace implementation on PROCDECL:\n");
+tnode_dumptree (trimpl, 1, stderr);
+#endif
+		}
+	}
+	return v;
+}
+/*}}}*/
+/*{{{  static int occampi_scopein_procdecl_tracetypeimpl (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	does scope-in on a PROCDECL node to handle scoping of traces
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_scopein_procdecl_tracetypeimpl (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	chook_t *trimplchook = tracescheck_getimplchook ();
+	int v = 1;
+
+	if (tnode_hascompop (cops->next, "scopein")) {
+		v = tnode_callcompop (cops->next, "scopein", 2, node, ss);
+	}
+
+	if (trimplchook) {
+		tnode_t *trimpl = (tnode_t *)tnode_getchook (*node, trimplchook);
+
+		if (trimpl) {
+			/* got something here! */
+			tnode_clearchook (*node, trimplchook);
+			scope_subtree (&trimpl, ss);
+			tnode_setchook (*node, trimplchook, trimpl);
+		}
+	}
+
+	return v;
+}
+/*}}}*/
+
+
+/*{{{  static void occampi_traces_attachtraces (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	called to attach traces to a PROC declaration, will find either a name or string on the RHS,
+ *	PROC declaration node is already in the result
+ */
+static void occampi_traces_attachtraces (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	tnode_t *rhs = dfa_popnode (dfast);
+	tnode_t *node = *(dfast->ptr);
+	chook_t *trimplchook = tracescheck_getimplchook ();
+
+	if (!trimplchook || !node || !rhs) {
+		parser_error (pp->lf, "occampi_traces_attachtraces(): NULL rhs, node or tracesimplchook..");
+		return;
+	}
+
+	tnode_setchook (node, trimplchook, (void *)rhs);
+	return;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_traces_init_nodes (void)*/
 /*
  *	initialises TRACES nodes
@@ -318,6 +399,10 @@ static int occampi_traces_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
+	/*{{{  register reduction functions*/
+	fcnlib_addfcn ("occampi_traces_attachtraces", occampi_traces_attachtraces, 0, 3);
+
+	/*}}}*/
 	/*{{{  occampi:formalspec -- TRACES*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:formalspec", &i, 1, 0, 0, TNF_NONE);		/* subnodes: 0 = specification */
@@ -366,10 +451,28 @@ static int occampi_traces_init_nodes (void)
  */
 static int occampi_traces_post_setup (void)
 {
+	langops_t *lops;
+	compops_t *cops;
+	tndef_t *tnd;
+
+	/*{{{  occampi:trace chook setup*/
 	opi.chook_traces = tnode_lookupornewchook ("occampi:trace");
 	opi.chook_traces->chook_copy = occampi_chook_traces_copy;
 	opi.chook_traces->chook_free = occampi_chook_traces_free;
 	opi.chook_traces->chook_dumptree = occampi_chook_traces_dumptree;
+
+	/*}}}*/
+	/*{{{  intefere with PROC declaration nodes to capture/handle TRACES*/
+	tnd = tnode_lookupnodetype ("occampi:procdecl");
+	cops = tnode_insertcompops (tnd->ops);
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_procdecl_tracetypeimpl));
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_procdecl_tracetypeimpl));
+	tnd->ops = cops;
+	lops = tnode_insertlangops (tnd->lops);
+	/* FIXME: langops */
+	tnd->lops = lops;
+
+	/*}}}*/
 
 	return 0;
 }
