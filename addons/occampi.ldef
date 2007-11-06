@@ -685,7 +685,7 @@
 	"[ 4 {<opi:traceinputpush>} -* 2 ]"
 .BNF	"occampi:tracesnamelist ::= { occampi:tracesname @@, 1 }"
 .TABLE	"occampi:tracesdecl ::= [ 0 @TRACES 1 ] [ 1 @TYPE 2 ] [ 2 occampi:name 3 ] [ 3 @@( 4 ]"
-	"[ 4 occampi:tracesnamelist 5 ] [ 5 @@) 6 ] [ 6 occampi:expr 7 ] [ 7 @@: 8 ] [ 8 {<opi:tracetypedeclreduce>} -* ]"
+	"[ 4 occampi:tracesnamelist 5 ] [ 5 @@) 6 ] [ 6 @IS 6 ] [ 6 occampi:expr 7 ] [ 7 @@: 8 ] [ 8 {<opi:tracetypedeclreduce>} -* ]"
 
 
 # }}}
