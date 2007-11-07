@@ -190,6 +190,7 @@ typedef struct {
 	struct TAG_ntdef *tag_TRACES;
 	struct TAG_ntdef *tag_TRACETYPEDECL;
 	struct TAG_ntdef *tag_NTRACETYPEDECL;
+	struct TAG_ntdef *tag_TRACEIMPLSPEC;
 
 	struct TAG_ntdef *tag_TIMERINPUT;
 	struct TAG_ntdef *tag_TIMERINPUTAFTER;

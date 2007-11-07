@@ -352,7 +352,7 @@
 .TABLE	"occampi:procdecl ::= [ 0 +@PROC 6 ] [ 1 occampi:name 2 ] [ 2 @@( 3 ] [ 3 occampi:fparamlist 4 ] [ 4 @@) 5 ] [ 5 -@TRACES 10 ] [ 5 -* 9 ]"
 	"[ 6 +@TYPE 7 ] [ 6 -* 8 ] [ 7 {<parser:rewindtokens>} -* <occampi:proctypedecl> ] [ 8 {<parser:eattoken>} -* 1 ]"
 	"[ 9 {<opi:procdeclreduce>} -* ]"
-	"[ 10 {<opi:procdeclreduce>} @TRACES 11 ] [ 11 occampi:name 12 ] [ 12 {Roccampi:tracesattachtraces} -* ]"
+	"[ 10 {<opi:procdeclreduce>} @TRACES 11 ] [ 11 occampi:tracesimplspec 12 ] [ 12 {Roccampi:tracesattachtraces} -* ]"
 
 .TABLE	"occampi:valabbrdecl ::= [ 0 +Name 1 ] [ 1 {<opi:namepush>} -* 2 ] [ 2 @IS 3 ] [ 2 +Name 6 ] [ 3 occampi:expr 4 ] [ 4 @@: 5 ]"
 	"[ 5 {<opi:notypevalabbrreduce>} -* ] [ 6 {<opi:namepush>} -* 7 ] [ 7 @IS 8 ] [ 7 @RETYPES 10 ] [ 8 occampi:expr 9 ] [ 9 {<opi:valabbrreduce>} -* ]"
@@ -515,6 +515,7 @@
 
 .TABLE	"occampi:litbool ::= [ 0 @TRUE 1 ] [ 0 @FALSE 2 ] [ 1 {<opi:trueboolreduce>} -* 3 ] [ 2 {<opi:falseboolreduce>} -* 3 ] [ 3 -* ]"
 .TABLE	"occampi:litint ::= [ 0 +Integer 1 ] [ 1 {<opi:integerreduce>} -* ]"
+.TABLE	"occampi:litstring ::= [ 0 +String 1 ] [ 1 {<opi:stringreduce>} -* ]"
 
 
 # }}}
@@ -678,6 +679,8 @@
 .GRULE	"opi:traceinputpush" "SN0N+0C[ASINPUT]2N-"
 .GRULE	"opi:traceoutputpush" "SN0N+0C[ASOUTPUT]2N-"
 .GRULE	"opi:tracetypedeclreduce" "SN1N+0N+N+V*C[TRACETYPEDECL]4R-"
+.GRULE	"opi:tracesimplspecreduce" "SN1N+N+VC[TRACEIMPLSPEC]2R-"
+.GRULE	"opi:tracesimplspeczeroreduce" "SN00N+VC[TRACEIMPLSPEC]2R-"
 
 .TABLE	"occampi:tracesname ::= [ 0 occampi:name 1 ] [ 1 @@! 3 ] [ 1 @@? 4 ] [ 1 -* 2 ]"
 	"[ 2 {<opi:nullreduce>} -* ]"
@@ -686,6 +689,15 @@
 .BNF	"occampi:tracesnamelist ::= { occampi:tracesname @@, 1 }"
 .TABLE	"occampi:tracesdecl ::= [ 0 @TRACES 1 ] [ 1 @TYPE 2 ] [ 2 occampi:name 3 ] [ 3 @@( 4 ]"
 	"[ 4 occampi:tracesnamelist 5 ] [ 5 @@) 6 ] [ 6 @IS 6 ] [ 6 occampi:expr 7 ] [ 7 @@: 8 ] [ 8 {<opi:tracetypedeclreduce>} -* ]"
+
+# this handles parsing of parameterised TRACES implementation specifications, e.g. inside:
+#   PROC id (CHAN INT in?, out!) TRACES SIMPLE.IO (in?, out!), OTHER.TRACE (out!)
+# returns a list of parameterised structures
+.TABLE	"occampi:tracesimplspecitem ::= [ 0 -String 6 ] [ 0 occampi:name 1 ] [ 1 @@( 2 ] [ 2 @@) 5 ] [ 2 occampi:tracesnamelist 3 ]"
+	"[ 3 @@) 4 ] [ 4 {<opi:tracesimplspecreduce>} -* ]"
+	"[ 5 {<opi:tracesimplspeczeroreduce>} -* ]"
+	"[ 6 occampi:litstring 7 ] [ 7 {<opi:nullreduce>} -* ]"
+.BNF	"occampi:tracesimplspec ::= { occampi:tracesimplspecitem @@, 1 }"
 
 
 # }}}

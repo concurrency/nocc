@@ -307,6 +307,17 @@ static int occampi_scopeout_tracetypedecl (compops_t *cops, tnode_t **node, scop
 }
 /*}}}*/
 
+/*{{{  static int occampi_prescope_traceimplspec (compops_t *cops, tnode_t **node, prescope_t *ps)*/
+/*
+ *	called to pre-scope a traces implementation specification (found on the RHS of PROC declarations)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_prescope_traceimplspec (compops_t *cops, tnode_t **node, prescope_t *ps)
+{
+	return 1;
+}
+/*}}}*/
+
 
 /*{{{  static int occampi_prescope_procdecl_tracetypeimpl (compops_t *cops, tnode_t **node, prescope_t *ps)*/
 /*
@@ -367,7 +378,7 @@ static int occampi_scopein_procdecl_tracetypeimpl (compops_t *cops, tnode_t **no
 
 /*{{{  static void occampi_traces_attachtraces (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
- *	called to attach traces to a PROC declaration, will find either a name or string on the RHS,
+ *	called to attach traces to a PROC declaration, will find a list of parameterised things or strings on the RHS,
  *	PROC declaration node is already in the result
  */
 static void occampi_traces_attachtraces (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
@@ -413,6 +424,18 @@ static int occampi_traces_init_nodes (void)
 
 	i = -1;
 	opi.tag_TRACES = tnode_newnodetag ("TRACES", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:traceimplspec -- TRACEIMPLSPEC*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:traceimplspec", &i, 2, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_traceimplspec));
+	tnd->ops = cops;
+
+	i = -1;
+	opi.tag_TRACEIMPLSPEC = tnode_newnodetag ("TRACEIMPLSPEC", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  occampi:tracetypedecl -- TRACETYPEDECL*/
 	i = -1;
