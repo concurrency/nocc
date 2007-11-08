@@ -339,6 +339,9 @@ static int occampi_prescope_procdecl_tracetypeimpl (compops_t *cops, tnode_t **n
 
 		if (trimpl) {
 			/* got something here! */
+			tnode_clearchook (*node, trimplchook);
+			prescope_subtree (&trimpl, ps);
+			tnode_setchook (*node, trimplchook, trimpl);
 #if 0
 fprintf (stderr, "occampi_prescope_procdecl_tracetypeimpl(): got trace implementation on PROCDECL:\n");
 tnode_dumptree (trimpl, 1, stderr);
@@ -374,6 +377,34 @@ fprintf (stderr, "occampi_inparams_scopein_procdecl_tracetypeimpl(): here!\n");
 			tnode_clearchook (*node, trimplchook);
 			scope_subtree (&trimpl, ss);
 			tnode_setchook (*node, trimplchook, trimpl);
+		}
+	}
+
+	return v;
+}
+/*}}}*/
+/*{{{  static int occampi_typecheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a PROCDECL node to handle trace specifications
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	chook_t *trimplchook = tracescheck_getimplchook ();
+	int v = 1;
+
+	if (tnode_hascompop (cops->next, "typecheck")) {
+		v = tnode_callcompop (cops->next, "typecheck", 2, node, tc);
+	}
+
+	if (trimplchook) {
+		tnode_t *trimpl = (tnode_t *)tnode_getchook (node, trimplchook);
+
+		if (trimpl) {
+#if 1
+fprintf (stderr, "occampi_typecheck_procdecl_tracetypeimpl(): got traces implementation here:\n");
+tnode_dumptree (trimpl, 1, stderr);
+#endif
 		}
 	}
 
@@ -501,6 +532,7 @@ static int occampi_traces_post_setup (void)
 	tnode_setcompop (tnd->ops, "inparams_scopein", 2, COMPOPTYPE (occampi_inparams_scopein_procdecl_tracetypeimpl));
 	cops = tnode_insertcompops (tnd->ops);
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_procdecl_tracetypeimpl));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_procdecl_tracetypeimpl));
 	tnd->ops = cops;
 	lops = tnode_insertlangops (tnd->lops);
 	/* FIXME: langops */
