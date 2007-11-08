@@ -17,6 +17,12 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+/*
+ *	this file contains the compiler front-end routines for occam-pi
+ *	declarations, parameters and names.
+ */
+
+
 /*{{{  includes*/
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -66,12 +72,13 @@
 
 
 /*}}}*/
+/*{{{  private data*/
 
-/*
- *	this file contains the compiler front-end routines for occam-pi
- *	declarations, parameters and names.
- */
+static compop_t *inparams_scopein_compop = NULL;
+static compop_t *inparams_scopeout_compop = NULL;
 
+
+/*}}}*/
 
 
 /*{{{  static void occampi_initvalabbrev (tnode_t *node, codegen_t *cgen, void *arg)*/
@@ -744,10 +751,17 @@ static int occampi_scopein_procdecl (compops_t *cops, tnode_t **node, scope_t *s
 
 	nsmark = name_markscope ();
 
-	/* walk parameters and body */
+	/*{{{  walk parameters and body*/
 	tnode_modprepostwalktree (paramsptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+
+	/* if we have anything attached which needs parameters to be in scope, do that here */
+	if (tnode_hascompop (cops, "inparams_scopein")) {
+		tnode_callcompop (cops, "inparams_scopein", 2, node, ss);
+	}
+
 	tnode_modprepostwalktree (bodyptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
 
+	/*}}}*/
 	/*{{{  if we have any attached TRACES, walk these too*/
 	traces = (tnode_t *)tnode_getchook (*node, opi.chook_traces);
 	if (traces) {
@@ -758,6 +772,11 @@ fprintf (stderr, "occampi_scopein_procdecl(): have traces!\n");
 		tnode_modprepostwalktree (&traces, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
 	}
 	/*}}}*/
+
+	/* if there is a corresponding scopeout, call that here (before parameters go out of scope!) */
+	if (tnode_hascompop (cops, "inparams_scopeout")) {
+		tnode_callcompop (cops, "inparams_scopeoutin", 2, node, ss);
+	}
 
 	name_markdescope (nsmark);
 
@@ -2046,6 +2065,25 @@ static int occampi_decl_init_nodes (void)
 	opi.chook_arraydiminfo->chook_copy = occampi_arraydiminfo_chook_copy;
 	opi.chook_arraydiminfo->chook_free = occampi_arraydiminfo_chook_free;
 	opi.chook_arraydiminfo->chook_dumptree = occampi_arraydiminfo_chook_dumptree;
+
+	/*}}}*/
+	/*{{{  compiler operations for handling scoping with parameters*/
+	if (tnode_newcompop ("inparams_scopein", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
+		nocc_error ("occampi_decl_init_nodes(): failed to create inparams_scopein compiler operation");
+		return -1;
+	}
+	inparams_scopein_compop = tnode_findcompop ("inparams_scopein");
+
+	if (tnode_newcompop ("inparams_scopeout", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
+		nocc_error ("occampi_decl_init_nodes(): failed to create inparams_scopeout compiler operation");
+		return -1;
+	}
+	inparams_scopeout_compop = tnode_findcompop ("inparams_scopeout");
+
+	if (!inparams_scopein_compop || !inparams_scopeout_compop) {
+		nocc_error ("occampi_decl_init_nodes(): failed to find inparams scoping compiler operations");
+		return -1;
+	}
 
 	/*}}}*/
 

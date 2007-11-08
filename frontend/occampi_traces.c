@@ -64,6 +64,8 @@
 /*}}}*/
 /*{{{  private data*/
 
+static compop_t *inparams_scopein_compop = NULL;
+static compop_t *inparams_scopeout_compop = NULL;
 
 /*}}}*/
 
@@ -337,7 +339,7 @@ static int occampi_prescope_procdecl_tracetypeimpl (compops_t *cops, tnode_t **n
 
 		if (trimpl) {
 			/* got something here! */
-#if 1
+#if 0
 fprintf (stderr, "occampi_prescope_procdecl_tracetypeimpl(): got trace implementation on PROCDECL:\n");
 tnode_dumptree (trimpl, 1, stderr);
 #endif
@@ -346,18 +348,22 @@ tnode_dumptree (trimpl, 1, stderr);
 	return v;
 }
 /*}}}*/
-/*{{{  static int occampi_scopein_procdecl_tracetypeimpl (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*{{{  static int occampi_inparams_scopein_procdecl_tracetypeimpl (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	does scope-in on a PROCDECL node to handle scoping of traces
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_scopein_procdecl_tracetypeimpl (compops_t *cops, tnode_t **node, scope_t *ss)
+static int occampi_inparams_scopein_procdecl_tracetypeimpl (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	chook_t *trimplchook = tracescheck_getimplchook ();
 	int v = 1;
 
-	if (tnode_hascompop (cops->next, "scopein")) {
-		v = tnode_callcompop (cops->next, "scopein", 2, node, ss);
+#if 0
+fprintf (stderr, "occampi_inparams_scopein_procdecl_tracetypeimpl(): here!\n");
+#endif
+	/* scope the proc declaration proper first -- any traces implementation hook would be ignored  */
+	if (tnode_hascompop (cops->next, "inparams_scopein")) {
+		v = tnode_callcompop (cops->next, "inparams_scopein", 2, node, ss);
 	}
 
 	if (trimplchook) {
@@ -485,11 +491,16 @@ static int occampi_traces_post_setup (void)
 	opi.chook_traces->chook_dumptree = occampi_chook_traces_dumptree;
 
 	/*}}}*/
+	/*{{{  find inparams scoping compiler operations*/
+	inparams_scopein_compop = tnode_findcompop ("inparams_scopein");
+	inparams_scopeout_compop = tnode_findcompop ("inparams_scopeout");
+
+	/*}}}*/
 	/*{{{  intefere with PROC declaration nodes to capture/handle TRACES*/
 	tnd = tnode_lookupnodetype ("occampi:procdecl");
+	tnode_setcompop (tnd->ops, "inparams_scopein", 2, COMPOPTYPE (occampi_inparams_scopein_procdecl_tracetypeimpl));
 	cops = tnode_insertcompops (tnd->ops);
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_procdecl_tracetypeimpl));
-	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_procdecl_tracetypeimpl));
 	tnd->ops = cops;
 	lops = tnode_insertlangops (tnd->lops);
 	/* FIXME: langops */
