@@ -316,6 +316,14 @@ static int occampi_scopeout_tracetypedecl (compops_t *cops, tnode_t **node, scop
  */
 static int occampi_prescope_traceimplspec (compops_t *cops, tnode_t **node, prescope_t *ps)
 {
+	tnode_t *rhs = tnode_nthsubof (*node, 1);
+
+	/* expecting the RHS to be a parameter list of some form */
+	if (!parser_islistnode (rhs)) {
+		rhs = parser_buildlistnode (NULL, rhs, NULL);
+		tnode_setnthsub (*node, 1, rhs);
+	}
+
 	return 1;
 }
 /*}}}*/
@@ -341,6 +349,11 @@ static int occampi_prescope_procdecl_tracetypeimpl (compops_t *cops, tnode_t **n
 			/* got something here! */
 			tnode_clearchook (*node, trimplchook);
 			prescope_subtree (&trimpl, ps);
+
+			/* if trimpl is not a list, make it into one */
+			if (!parser_islistnode (trimpl)) {
+				trimpl = parser_buildlistnode (NULL, trimpl, NULL);
+			}
 			tnode_setchook (*node, trimplchook, trimpl);
 #if 0
 fprintf (stderr, "occampi_prescope_procdecl_tracetypeimpl(): got trace implementation on PROCDECL:\n");
@@ -401,10 +414,23 @@ static int occampi_typecheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t *n
 		tnode_t *trimpl = (tnode_t *)tnode_getchook (node, trimplchook);
 
 		if (trimpl) {
+			int nitems, i;
+			tnode_t **items = parser_getlistitems (trimpl, &nitems);
 #if 1
 fprintf (stderr, "occampi_typecheck_procdecl_tracetypeimpl(): got traces implementation here:\n");
 tnode_dumptree (trimpl, 1, stderr);
 #endif
+
+			for (i=0; i<nitems; i++) {
+				tnode_t *trim = items[i];
+
+				if (trim->tag == opi.tag_TRACEIMPLSPEC) {
+					/*{{{  check that the LHS is a TRACETYPEDECL name, RHS is a parameter list*/
+					/*}}}*/
+				} else {
+					typecheck_error (node, tc, "unsupported trace implementation type [%s]", trim->tag->name);
+				}
+			}
 		}
 	}
 
