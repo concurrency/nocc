@@ -328,6 +328,25 @@ static int occampi_prescope_traceimplspec (compops_t *cops, tnode_t **node, pres
 }
 /*}}}*/
 
+/*{{{  static tnode_t *occampi_gettype_tracenamenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	returns the type of a traces name-node (trivial)
+ */
+static tnode_t *occampi_gettype_tracenamenode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	name_t *name = tnode_nthnameof (node, 0);
+
+	if (!name) {
+		nocc_fatal ("cocampi_gettype_tracenamenode(): NULL name!");
+		return NULL;
+	}
+	if (name->type) {
+		return name->type;
+	}
+	nocc_fatal ("occampi_gettype_tracenamenode(): name has NULL type (FIXME!)");
+	return NULL;
+}
+/*}}}*/
 
 /*{{{  static int occampi_prescope_procdecl_tracetypeimpl (compops_t *cops, tnode_t **node, prescope_t *ps)*/
 /*
@@ -425,7 +444,26 @@ tnode_dumptree (trimpl, 1, stderr);
 				tnode_t *trim = items[i];
 
 				if (trim->tag == opi.tag_TRACEIMPLSPEC) {
-					/*{{{  check that the LHS is a TRACETYPEDECL name, RHS is a parameter list*/
+					/*{{{  check that the LHS is a TRACETYPEDECL name, RHS is a parameter list of synchronisation types*/
+					tnode_t *lhs = tnode_nthsubof (trim, 0);
+					tnode_t *rhs = tnode_nthsubof (trim, 1);
+
+					if (!parser_islistnode (rhs)) {
+						char *name = NULL;
+
+						langops_getname (lhs, &name);
+						typecheck_error (node, tc, "missing parameter list for trace implementation [%s]", name ?: "(unknown)");
+						if (name) {
+							sfree (name);
+						}
+					} else {
+						tnode_t *lhstype = typecheck_gettype (lhs, NULL);
+
+#if 1
+fprintf (stderr, "occampi_typecheck_procdecl_tracetypeimpl(): LHS type is:\n");
+tnode_dumptree (lhstype, 1, stderr);
+#endif
+					}
 					/*}}}*/
 				} else {
 					typecheck_error (node, tc, "unsupported trace implementation type [%s]", trim->tag->name);
@@ -520,6 +558,7 @@ static int occampi_traces_init_nodes (void)
 	//tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_tracenamenode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_tracenamenode));
 	tnd->lops = lops;
 
 	i = -1;
