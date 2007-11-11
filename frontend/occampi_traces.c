@@ -457,12 +457,30 @@ tnode_dumptree (trimpl, 1, stderr);
 						typecheck_error (node, tc, "name [%s] is not a trace-type", name ?: "(unknown)");
 					} else {
 						int nparams, j;
+						int nfparams, k;
 						tnode_t **params = parser_getlistitems (rhs, &nparams);
+						tnode_t **fparams = NULL;
+						tnode_t *lhstype = typecheck_gettype (lhs, NULL);
+
+#if 0
+fprintf (stderr, "occampi_typecheck_procdecl_tracetypeimpl(): LHS type is:\n");
+tnode_dumptree (lhstype, 1, stderr);
+#endif
+						if (!parser_islistnode (lhstype)) {
+							typecheck_error (node, tc, "trace [%s] has a broken type", name ?: "(unknown)");
+							nfparams = 0;
+						} else {
+							fparams = parser_getlistitems (lhstype, &nfparams);
+						}
 
 						/* check each parameter given */
-						for (j=0; j<nparams; j++) {
+						for (j=k=0; (j<nparams) && (k<nfparams); j++, k++) {
 							tnode_t *ptype = typecheck_gettype (params[j], NULL);
 
+#if 0
+fprintf (stderr, "occampi_typecheck_procdecl_tracetypeimpl(): actual parameter type for %d is:\n", j);
+tnode_dumptree (ptype, 1, stderr);
+#endif
 							if (!(tnode_ntflagsof (ptype) & NTF_SYNCTYPE)) {
 								char *pname = NULL;
 
@@ -472,11 +490,25 @@ tnode_dumptree (trimpl, 1, stderr);
 								if (pname) {
 									sfree (pname);
 								}
+							} else {
+								occampi_typeattr_t pattr, tattr;
+
+								if (tnode_haslangop (params[j]->tag->ndef->lops, "occampi_typeattrof")) {
+									tnode_calllangop (params[j]->tag->ndef->lops, "occampi_typeattrof", 2, params[j], &pattr);
+								} else {
+									pattr = TYPEATTR_NONE;
+								}
+								/* formal attribute will be on a compiler hook (opi.chook_typeattr) */
+								if (tnode_haschook (fparams[k], opi.chook_typeattr)) {
+									tattr = (occampi_typeattr_t)tnode_getchook (fparams[k], opi.chook_typeattr);
+								} else {
+									tattr = TYPEATTR_NONE;
+								}
+
+								if ((pattr != TYPEATTR_NONE) && (tattr != TYPEATTR_NONE) && (pattr ^ tattr)) {
+									typecheck_error (node, tc, "type mismatch for parameter %d on trace type", j);
+								}
 							}
-#if 0
-fprintf (stderr, "occampi_typecheck_procdecl_tracetypeimpl(): parameter type for %d is:\n", j);
-tnode_dumptree (ptype, 1, stderr);
-#endif
 						}
 					}
 

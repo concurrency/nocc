@@ -331,6 +331,26 @@ static int traceslang_scopeout_setnode (compops_t *cops, tnode_t **node, scope_t
 }
 /*}}}*/
 
+/*{{{  static tnode_t *traceslang_gettype_namenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	returns the type of a traceslang name
+ */
+static tnode_t *traceslang_gettype_namenode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	name_t *name = tnode_nthnameof (node, 0);
+
+	if (!name) {
+		nocc_fatal ("traceslang_gettype_namenode(): NULL name!");
+		return NULL;
+	}
+	if (name->type) {
+		return name->type;
+	}
+	nocc_fatal ("traceslang_gettype_namenode(): name has NULL type!");
+	return NULL;
+}
+/*}}}*/
+
 
 /*{{{  static void traceslang_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
@@ -408,6 +428,7 @@ static int traceslang_expr_init_nodes (void)
 	tndef_t *tnd;
 	int i;
 	compops_t *cops;
+	langops_t *lops;
 
 	/*{{{  register reduction functions*/
 	fcnlib_addfcn ("traceslang_nametoken_to_hook", (void *)traceslang_nametoken_to_hook, 1, 1);
@@ -483,6 +504,14 @@ static int traceslang_expr_init_nodes (void)
 
 	i = -1;
 	traceslang.tag_EVENT = tnode_newnodetag ("TRACESLANGEVENT", &i, tnd, NTF_NONE);
+	i = -1;
+	traceslang.tag_SKIP = tnode_newnodetag ("TRACESLANGSKIP", &i, tnd, NTF_NONE);
+	i = -1;
+	traceslang.tag_STOP = tnode_newnodetag ("TRACESLANGSTOP", &i, tnd, NTF_NONE);
+	i = -1;
+	traceslang.tag_CHAOS = tnode_newnodetag ("TRACESLANGCHAOS", &i, tnd, NTF_NONE);
+	i = -1;
+	traceslang.tag_DIV = tnode_newnodetag ("TRACESLANGDIV", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  traceslang:namenode -- TRACESLANGNPARAM*/
@@ -490,6 +519,9 @@ static int traceslang_expr_init_nodes (void)
 	tnd = tnode_newnodetype ("traceslang:namenode", &i, 0, 1, 0, TNF_NONE);			/* subnames: 0 = name */
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (traceslang_gettype_namenode));
+	tnd->lops = lops;
 
 	i = -1;
 	traceslang.tag_NPARAM = tnode_newnodetag ("TRACESLANGNPARAM", &i, tnd, NTF_NONE);

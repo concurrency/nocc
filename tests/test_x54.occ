@@ -5,7 +5,7 @@ VAL INT v IS 2:
 
 -- TRACES TYPE T.IO (in?, out!) "in? -> out!":
 -- TRACES TYPE T.TEST (in?, out!) "(out! [] in?) -> in?":
-TRACES TYPE T.TEST (c!) IS "c!":
+TRACES TYPE T.TEST (c!) IS "c! -> Skip":
 
 PROC test.n79 (CHAN BYTE out!, VAL INT v) TRACES T.TEST (out!)
   SEQ

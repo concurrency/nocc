@@ -50,6 +50,10 @@ typedef struct {
 	struct TAG_ntdef *tag_OUTPUT;
 	struct TAG_ntdef *tag_NPARAM;
 	struct TAG_ntdef *tag_EVENT;
+	struct TAG_ntdef *tag_SKIP;
+	struct TAG_ntdef *tag_STOP;
+	struct TAG_ntdef *tag_CHAOS;
+	struct TAG_ntdef *tag_DIV;
 } traceslang_pset_t;
 
 extern traceslang_pset_t traceslang;
