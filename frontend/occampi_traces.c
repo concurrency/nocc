@@ -435,7 +435,7 @@ static int occampi_typecheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t *n
 		if (trimpl) {
 			int nitems, i;
 			tnode_t **items = parser_getlistitems (trimpl, &nitems);
-#if 1
+#if 0
 fprintf (stderr, "occampi_typecheck_procdecl_tracetypeimpl(): got traces implementation here:\n");
 tnode_dumptree (trimpl, 1, stderr);
 #endif
@@ -447,22 +447,41 @@ tnode_dumptree (trimpl, 1, stderr);
 					/*{{{  check that the LHS is a TRACETYPEDECL name, RHS is a parameter list of synchronisation types*/
 					tnode_t *lhs = tnode_nthsubof (trim, 0);
 					tnode_t *rhs = tnode_nthsubof (trim, 1);
+					char *name = NULL;
+
+					langops_getname (lhs, &name);
 
 					if (!parser_islistnode (rhs)) {
-						char *name = NULL;
-
-						langops_getname (lhs, &name);
 						typecheck_error (node, tc, "missing parameter list for trace implementation [%s]", name ?: "(unknown)");
-						if (name) {
-							sfree (name);
-						}
+					} else if (lhs->tag != opi.tag_NTRACETYPEDECL) {
+						typecheck_error (node, tc, "name [%s] is not a trace-type", name ?: "(unknown)");
 					} else {
-						tnode_t *lhstype = typecheck_gettype (lhs, NULL);
+						int nparams, j;
+						tnode_t **params = parser_getlistitems (rhs, &nparams);
 
-#if 1
-fprintf (stderr, "occampi_typecheck_procdecl_tracetypeimpl(): LHS type is:\n");
-tnode_dumptree (lhstype, 1, stderr);
+						/* check each parameter given */
+						for (j=0; j<nparams; j++) {
+							tnode_t *ptype = typecheck_gettype (params[j], NULL);
+
+							if (!(tnode_ntflagsof (ptype) & NTF_SYNCTYPE)) {
+								char *pname = NULL;
+
+								langops_getname (params[j], &pname);
+
+								typecheck_error (node, tc, "parameter [%s] is not a synchronisation type", pname ?: "(unknown)");
+								if (pname) {
+									sfree (pname);
+								}
+							}
+#if 0
+fprintf (stderr, "occampi_typecheck_procdecl_tracetypeimpl(): parameter type for %d is:\n", j);
+tnode_dumptree (ptype, 1, stderr);
 #endif
+						}
+					}
+
+					if (name) {
+						sfree (name);
 					}
 					/*}}}*/
 				} else {
