@@ -28,6 +28,7 @@ extern struct TAG_tnode **treeops_findintreeptr (struct TAG_tnode **tree, struct
 extern struct TAG_tnode *treeops_findtwointree (struct TAG_tnode *tree, struct TAG_ntdef *tag1, struct TAG_ntdef *tag2);
 extern struct TAG_tnode *treeops_findprocess (struct TAG_tnode *tree);
 
+extern struct TAG_tnode *treeops_substitute (struct TAG_tnode *tree, struct TAG_tnode **srcs, struct TAG_tnode **dests, const int nsubs);
 extern struct TAG_tnode *treeops_transform (struct TAG_tnode *tree, ...);
 
 extern int treeops_init (void);

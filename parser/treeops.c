@@ -64,6 +64,13 @@ typedef struct TAG_topsmatch {
 	struct TAG_topsmatch *neststruct;	/* nested structure match, "x > z" */
 } topsmatch_t;
 
+
+typedef struct TAG_treesubst {
+	tnode_t **srcs;
+	tnode_t **dests;
+	int count;
+} treesubst_t;
+
 /*}}}*/
 
 
@@ -310,6 +317,47 @@ tnode_t *treeops_findprocess (tnode_t *tree)
 /*}}}*/
 
 
+/*{{{  static int tops_substitutenodes (tnode_t **node, void *arg)*/
+/*
+ *	does substitutions on a tree (called in prewalk order)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int tops_substitutenodes (tnode_t **node, void *arg)
+{
+	treesubst_t *ts = (treesubst_t *)arg;
+
+	if (ts) {
+		int i;
+
+		for (i=0; i<ts->count; i++) {
+			if (*node == ts->srcs[i]) {
+				*node = ts->dests[i];
+				break;				/* for() */
+			}
+		}
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{  tnode_t *treeops_substitute (tnode_t *tree, tnode_t **srcs, tnode_t **dests, const int nsubs)*/
+/*
+ *	does substitutions on a tree
+ *	returns new tree
+ */
+tnode_t *treeops_substitute (tnode_t *tree, tnode_t **srcs, tnode_t **dests, const int nsubs)
+{
+	treesubst_t *ts = (treesubst_t *)smalloc (sizeof (treesubst_t));
+
+	ts->srcs = srcs;
+	ts->dests = dests;
+	ts->count = nsubs;
+
+	tnode_modprewalktree (&tree, tops_substitutenodes, (void *)ts);
+
+	return tree;
+}
+/*}}}*/
 /*{{{  tnode_t *treeops_transform (tnode_t *tree, ...)*/
 /*
  *	used for re-writing bits of tree

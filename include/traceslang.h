@@ -33,6 +33,8 @@ extern int traceslang_shutdown (void);
 
 extern int traceslang_initialise (void);
 
+#define NTF_TRACESLANGSTRUCTURAL 0x0010
+#define NTF_TRACESLANGCOPYALIAS 0x0020
 
 struct TAG_tndef;
 struct TAG_ntdef;

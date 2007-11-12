@@ -418,17 +418,19 @@ tnode_t *traceslang_newnparam (tnode_t *locn)
 /*}}}*/
 
 
-/*{{{  static int trlang_scopy (tnode_t *node, tnode_t **rptr)*/
+/*{{{  static copycontrol_e trlang_structurecopyfcn (tnode_t *node)*/
 /*
- *	does a structural copy on traceslang nodes (gets list nodes too)
- *	returns 0 on success, non-zero on failure
+ *	used when duplicating the structure of a traceslang tree
+ *	returns copy control status (for tnode_copyoraliastree)
  */
-static int trlang_scopy (tnode_t *node, tnode_t **rptr)
+static copycontrol_e trlang_structurecopyfcn (tnode_t *node)
 {
-	return -1;
+	if (tnode_ntflagsof (node) & NTF_TRACESLANGCOPYALIAS) {
+		return COPY_ALIAS;
+	}
+	return (COPY_SUBS | COPY_HOOKS | COPY_CHOOKS);
 }
 /*}}}*/
-
 /*{{{  tnode_t *traceslang_structurecopy (tnode_t *expr)*/
 /*
  *	does a structure copy on a traceslang tree -- duplicates structural nodes, but leaves others intact
@@ -436,12 +438,7 @@ static int trlang_scopy (tnode_t *node, tnode_t **rptr)
  */
 tnode_t *traceslang_structurecopy (tnode_t *expr)
 {
-	tnode_t *result = NULL;
-
-	if (trlang_scopy (expr, &result)) {
-		return NULL;
-	}
-	return result;
+	return tnode_copyoraliastree (expr, trlang_structurecopyfcn);
 }
 /*}}}*/
 
@@ -490,9 +487,9 @@ static int traceslang_expr_init_nodes (void)
 	tnd->ops = cops;
 
 	i = -1;
-	traceslang.tag_LITSTR = tnode_newnodetag ("TRACESLANGLITSTR", &i, tnd, NTF_NONE);
+	traceslang.tag_LITSTR = tnode_newnodetag ("TRACESLANGLITSTR", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 	i = -1;
-	traceslang.tag_LITINT = tnode_newnodetag ("TRACESLANGLITINT", &i, tnd, NTF_NONE);
+	traceslang.tag_LITINT = tnode_newnodetag ("TRACESLANGLITINT", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 
 	/*}}}*/
 	/*{{{  traceslang:setnode -- TRACESLANGSEQ, TRACESLANGPAR, TRACESLANGDET, TRACESLANGNDET*/
@@ -503,13 +500,13 @@ static int traceslang_expr_init_nodes (void)
 	tnd->ops = cops;
 
 	i = -1;
-	traceslang.tag_SEQ = tnode_newnodetag ("TRACESLANGSEQ", &i, tnd, NTF_NONE);
+	traceslang.tag_SEQ = tnode_newnodetag ("TRACESLANGSEQ", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 	i = -1;
-	traceslang.tag_PAR = tnode_newnodetag ("TRACESLANGPAR", &i, tnd, NTF_NONE);
+	traceslang.tag_PAR = tnode_newnodetag ("TRACESLANGPAR", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 	i = -1;
-	traceslang.tag_DET = tnode_newnodetag ("TRACESLANGDET", &i, tnd, NTF_NONE);
+	traceslang.tag_DET = tnode_newnodetag ("TRACESLANGDET", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 	i = -1;
-	traceslang.tag_NDET = tnode_newnodetag ("TRACESLANGNDET", &i, tnd, NTF_NONE);
+	traceslang.tag_NDET = tnode_newnodetag ("TRACESLANGNDET", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 
 	/*}}}*/
 	/*{{{  traceslang:ionode -- TRACESLANGINPUT, TRACESLANGOUTPUT*/
@@ -519,27 +516,27 @@ static int traceslang_expr_init_nodes (void)
 	tnd->ops = cops;
 
 	i = -1;
-	traceslang.tag_INPUT = tnode_newnodetag ("TRACESLANGINPUT", &i, tnd, NTF_NONE);
+	traceslang.tag_INPUT = tnode_newnodetag ("TRACESLANGINPUT", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 	i = -1;
-	traceslang.tag_OUTPUT = tnode_newnodetag ("TRACESLANGOUTPUT", &i, tnd, NTF_NONE);
+	traceslang.tag_OUTPUT = tnode_newnodetag ("TRACESLANGOUTPUT", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 
 	/*}}}*/
-	/*{{{  traceslang:leafnode -- TRACESLANGEVENT*/
+	/*{{{  traceslang:leafnode -- TRACESLANGEVENT, TRACESLANGSKIP, TRACESLANGSTOP, TRACESLANGCHAOS, TRACESLANGDIV*/
 	i = -1;
 	tnd = tnode_newnodetype ("traceslang:leafnode", &i, 0, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 
 	i = -1;
-	traceslang.tag_EVENT = tnode_newnodetag ("TRACESLANGEVENT", &i, tnd, NTF_NONE);
+	traceslang.tag_EVENT = tnode_newnodetag ("TRACESLANGEVENT", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 	i = -1;
-	traceslang.tag_SKIP = tnode_newnodetag ("TRACESLANGSKIP", &i, tnd, NTF_NONE);
+	traceslang.tag_SKIP = tnode_newnodetag ("TRACESLANGSKIP", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 	i = -1;
-	traceslang.tag_STOP = tnode_newnodetag ("TRACESLANGSTOP", &i, tnd, NTF_NONE);
+	traceslang.tag_STOP = tnode_newnodetag ("TRACESLANGSTOP", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 	i = -1;
-	traceslang.tag_CHAOS = tnode_newnodetag ("TRACESLANGCHAOS", &i, tnd, NTF_NONE);
+	traceslang.tag_CHAOS = tnode_newnodetag ("TRACESLANGCHAOS", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 	i = -1;
-	traceslang.tag_DIV = tnode_newnodetag ("TRACESLANGDIV", &i, tnd, NTF_NONE);
+	traceslang.tag_DIV = tnode_newnodetag ("TRACESLANGDIV", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 
 	/*}}}*/
 	/*{{{  traceslang:namenode -- TRACESLANGNPARAM*/
@@ -552,7 +549,7 @@ static int traceslang_expr_init_nodes (void)
 	tnd->lops = lops;
 
 	i = -1;
-	traceslang.tag_NPARAM = tnode_newnodetag ("TRACESLANGNPARAM", &i, tnd, NTF_NONE);
+	traceslang.tag_NPARAM = tnode_newnodetag ("TRACESLANGNPARAM", &i, tnd, NTF_TRACESLANGCOPYALIAS);
 
 	/*}}}*/
 

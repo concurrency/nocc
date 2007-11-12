@@ -39,6 +39,7 @@
 #include "lexpriv.h"
 #include "tnode.h"
 #include "parser.h"
+#include "treeops.h"
 #include "dfa.h"
 #include "parsepriv.h"
 #include "occampi.h"
@@ -588,7 +589,7 @@ static int occampi_precheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t *no
 		for (i=0; i<nitems; i++) {
 			tnode_t **itemp = items + i;
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_precheck_procdecl_tracetypeimpl(): got trace specification item:\n");
 tnode_dumptree (*itemp, 1, stderr);
 #endif
@@ -598,6 +599,8 @@ tnode_dumptree (*itemp, 1, stderr);
 				name_t *name;
 				tnode_t *ndecl, *trtype, *trparams;
 				tnode_t *trcopy;
+				tnode_t **fpset, **apset;
+				int nfp, nap, j;
 
 				/* lhs should be a NTRACETYPEDECL, rhs is a list of parameters */
 				if (lhs->tag != opi.tag_NTRACETYPEDECL) {
@@ -614,14 +617,30 @@ tnode_dumptree (*itemp, 1, stderr);
 				trparams = tnode_nthsubof (ndecl, 1);
 
 				trcopy = traceslang_structurecopy (trtype);
-#if 1
+
+				fpset = parser_getlistitems (trparams, &nfp);
+				apset = parser_getlistitems (rhs, &nap);
+
+				if (nfp != nap) {
+					nocc_internal ("occampi_precheck_procdecl_tracetypeimpl(): expected %d parameters on trace type specification, got %d",
+							nfp, nap);
+					return 0;
+				}
+
+				trcopy = treeops_substitute (trcopy, fpset, apset, nfp);
+#if 0
 fprintf (stderr, "occampi_precheck_procdecl_tracetypeimpl(): got trace type(s):\n");
 tnode_dumptree (trtype, 1, stderr);
 fprintf (stderr, "occampi_precheck_procdecl_tracetypeimpl(): got trace type(s) copy:\n");
 tnode_dumptree (trcopy, 1, stderr);
 fprintf (stderr, "occampi_precheck_procdecl_tracetypeimpl(): got formal parameters:\n");
 tnode_dumptree (trparams, 1, stderr);
+fprintf (stderr, "occampi_precheck_procdecl_tracetypeimpl(): got actual parameters:\n");
+tnode_dumptree (rhs, 1, stderr);
 #endif
+
+				/* right, put this in there! */
+				*itemp = trcopy;
 			}
 		}
 	}
@@ -650,7 +669,7 @@ static int occampi_tracescheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t 
 		int nitems, i;
 		tnode_t **items = parser_getlistitems (trimpl, &nitems);
 
-#if 0
+#if 1
 fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): got traces:\n");
 tracescheck_dumptraces (trs, 1, stderr);
 fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): got specification(s):\n");

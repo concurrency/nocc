@@ -46,6 +46,15 @@ struct TAG_fetrans;
 struct TAG_betrans;
 struct TAG_treecheckdef;
 
+/*{{{  enum copycontrol_e*/
+typedef enum ENUM_copycontrol {
+	COPY_ALIAS = 0x00,
+	COPY_SUBS = 0x01,
+	COPY_HOOKS = 0x02,
+	COPY_CHOOKS = 0x04
+} copycontrol_e;
+
+/*}}}*/
 /*{{{  tndef_t definition (type of node)*/
 typedef struct TAG_tndef {
 	char *name;
@@ -55,6 +64,7 @@ typedef struct TAG_tndef {
 	int nhooks;		/* number of hook-nodes */
 
 	void *(*hook_copy)(void *);
+	void *(*hook_copyoralias)(void *, copycontrol_e (*)(struct TAG_tnode *));
 	void (*hook_free)(void *);
 	void (*hook_dumptree)(struct TAG_tnode *, void *, int, FILE *);
 	void (*hook_dumpstree)(struct TAG_tnode *, void *, int, FILE *);
@@ -256,6 +266,7 @@ extern tnode_t *tnode_new (ntdef_t *tag, struct TAG_lexfile *lf);
 extern tnode_t *tnode_newfrom (ntdef_t *tag, tnode_t *src);
 extern tnode_t *tnode_create (ntdef_t *tag, struct TAG_lexfile *lf, ...);
 extern tnode_t *tnode_createfrom (ntdef_t *tag, tnode_t *src, ...);
+extern tnode_t *tnode_copyoraliastree (tnode_t *t, copycontrol_e (*cora_fcn)(tnode_t *));
 extern tnode_t *tnode_copytree (tnode_t *t);
 extern void tnode_free (tnode_t *t);
 extern void tnode_dumptree (tnode_t *t, int indent, FILE *stream);

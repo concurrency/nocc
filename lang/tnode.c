@@ -149,11 +149,11 @@ static void tnode_list_hookfree (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void *tnode_list_hookcopy (void *hook)*/
+/*{{{  static void *tnode_list_hookcopyoralias (void *hook, copycontrol_e (*cora_fcn)(tnode_t *))*/
 /*
  *	hook-copy function for list nodes
  */
-static void *tnode_list_hookcopy (void *hook)
+static void *tnode_list_hookcopyoralias (void *hook, copycontrol_e (*cora_fcn)(tnode_t *))
 {
 	tnode_t **array = (tnode_t **)hook;
 	tnode_t **narray;
@@ -178,13 +178,22 @@ static void *tnode_list_hookcopy (void *hook)
 	narray += 2;
 
 	for (i=0; i<*cur; i++) {
-		narray[i] = tnode_copytree (array[i]);
+		narray[i] = tnode_copyoraliastree (array[i], cora_fcn);
 	}
 	for (; i<*namax; i++) {
 		narray[i] = NULL;
 	}
 
 	return rhook;
+}
+/*}}}*/
+/*{{{  static void *tnode_list_hookcopy (void *hook)*/
+/*
+ *	hook-copy function for list nodes
+ */
+static void *tnode_list_hookcopy (void *hook)
+{
+	return tnode_list_hookcopyoralias (hook, NULL);
 }
 /*}}}*/
 /*{{{  static void tnode_list_hookdumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
@@ -470,6 +479,7 @@ int tnode_init (void)
 	tnd = tnode_newnodetype ("listnode", &i, 0, 0, 1, 0);
 	tnd->hook_free = tnode_list_hookfree;
 	tnd->hook_copy = tnode_list_hookcopy;
+	tnd->hook_copyoralias = tnode_list_hookcopyoralias;
 	tnd->hook_dumptree = tnode_list_hookdumptree;
 	tnd->hook_dumpstree = tnode_list_hookdumpstree;
 	tnd->hook_postwalktree = tnode_list_hookpostwalktree;
@@ -539,6 +549,7 @@ tndef_t *tnode_newnodetype (char *name, int *idx, int nsub, int nname, int nhook
 		tnd->nhooks = nhooks;
 
 		tnd->hook_copy = NULL;
+		tnd->hook_copyoralias = NULL;
 		tnd->hook_free = NULL;
 		tnd->hook_dumptree = NULL;
 		tnd->hook_dumpstree = NULL;
@@ -1288,19 +1299,32 @@ void tnode_free (tnode_t *t)
 	return;
 }
 /*}}}*/
-/*{{{  tnode_t *tnode_copytree (tnode_t *t)*/
+/*{{{  tnode_t *tnode_copyoraliastree (tnode_t *t, copycontrol_e (*cora_fcn)(tnode_t *))*/
 /*
- *	copies a tree
+ *	copies a tree (or aliases it, depending on the result of a function)
  */
-tnode_t *tnode_copytree (tnode_t *t)
+tnode_t *tnode_copyoraliastree (tnode_t *t, copycontrol_e (*cora_fcn)(tnode_t *))
 {
 	tnode_t *tmp = NULL;
 	tndef_t *tnd;
 	int i;
+	copycontrol_e cora;
 
 	if (!t) {
 		return NULL;
 	}
+	cora = cora_fcn ? cora_fcn (t) : (COPY_SUBS | COPY_HOOKS | COPY_CHOOKS);
+#if 0
+if (cora_fcn) {
+	fprintf (stderr, "tnode_copyoraliastree(): flags 0x%2.2x for node (%s,%s)\n", (unsigned int)cora,
+			t->tag->ndef->name, t->tag->name);
+}
+#endif
+
+	if (cora == COPY_ALIAS) {
+		return t;
+	}
+
 	tmp = tnode_new (t->tag, NULL);
 	tmp->org_file = t->org_file;
 	tmp->org_line = t->org_line;
@@ -1308,15 +1332,21 @@ tnode_t *tnode_copytree (tnode_t *t)
 	tnd = t->tag->ndef;
 	for (i=0; i<DA_CUR (t->items); i++) {
 		if (i < tnd->nsub) {
-			tnode_t *subcopy = tnode_copytree (DA_NTHITEM (t->items, i));
+			tnode_t *subcopy;
+			
+			subcopy = (cora & COPY_SUBS) ? tnode_copyoraliastree (DA_NTHITEM (t->items, i), cora_fcn) : DA_NTHITEM (t->items, i);
 
 			DA_SETNTHITEM (tmp->items, i, subcopy);
 		} else if (i >= (tnd->nsub + tnd->nname)) {
 			/* hook-node, duplicate... */
 			void *hook = DA_NTHITEM (t->items, i);
 
-			if (tnd->hook_copy) {
-				hook = tnd->hook_copy (hook);
+			if (cora & COPY_HOOKS) {
+				if (tnd->hook_copyoralias) {
+					hook = tnd->hook_copyoralias (hook, cora_fcn);
+				} else if (tnd->hook_copy) {
+					hook = tnd->hook_copy (hook);
+				}
 			}
 			DA_SETNTHITEM (tmp->items, i, hook);
 		} else {
@@ -1326,7 +1356,7 @@ tnode_t *tnode_copytree (tnode_t *t)
 
 	/* don't forget to do compiler hooks */
 #if 0
-fprintf (stderr, "tnode_copytree(): copying [%s], num chooks = %d\n", t->tag->name, DA_CUR (t->chooks));
+fprintf (stderr, "tnode_copyoraliastree(): copying [%s], num chooks = %d\n", t->tag->name, DA_CUR (t->chooks));
 #endif
 	if (DA_CUR (tmp->chooks) < DA_CUR (t->chooks)) {
 		dynarray_setsize (tmp->chooks, DA_CUR (acomphooks));
@@ -1335,7 +1365,7 @@ fprintf (stderr, "tnode_copytree(): copying [%s], num chooks = %d\n", t->tag->na
 		chook_t *ch = DA_NTHITEM (acomphooks, i);
 		void *chc = DA_NTHITEM (t->chooks, i);
 
-		if (ch && chc && ch->chook_copy) {
+		if (ch && chc && (cora & COPY_CHOOKS) && ch->chook_copy) {
 			chc = ch->chook_copy (chc);
 		}
 		DA_SETNTHITEM (tmp->chooks, i, chc);
@@ -1346,6 +1376,15 @@ fprintf (stderr, "tnode_copytree(): copying [%s], num chooks = %d\n", t->tag->na
 	}
 
 	return tmp;
+}
+/*}}}*/
+/*{{{  tnode_t *tnode_copytree (tnode_t *t)*/
+/*
+ *	copies a tree
+ */
+tnode_t *tnode_copytree (tnode_t *t)
+{
+	return tnode_copyoraliastree (t, NULL);
 }
 /*}}}*/
 /*{{{  static void tnode_isetindent (FILE *stream, int indent)*/
@@ -1501,7 +1540,8 @@ void tnode_dumpnodetypes (FILE *stream)
 		tndef_t *tnd = DA_NTHITEM (anodetypes, i);
 
 		fprintf (stream, "node type [%s].  %d subnode(s), %d name(s), %d hook(s)\n", tnd->name, tnd->nsub, tnd->nname, tnd->nhooks);
-		fprintf (stream, "     hook_copy=%p, hook_free=%p, hook_dumptree=%p, prefreetree=%p.\n", tnd->hook_copy, tnd->hook_free, tnd->hook_dumptree, tnd->prefreetree);
+		fprintf (stream, "     hook_copy=%p, hook_copyoralias=%p, hook_free=%p, hook_dumptree=%p, prefreetree=%p.\n", tnd->hook_copy,
+				tnd->hook_copyoralias, tnd->hook_free, tnd->hook_dumptree, tnd->prefreetree);
 	}
 	for (i=0; i<DA_CUR (anodetags); i++) {
 		ntdef_t *ntd = DA_NTHITEM (anodetags, i);
