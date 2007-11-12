@@ -65,6 +65,8 @@ extern struct TAG_langdef *traceslang_getlangdef (void);
 extern struct TAG_tnode *traceslang_newevent (struct TAG_tnode *locn);
 extern struct TAG_tnode *traceslang_newnparam (struct TAG_tnode *locn);
 
+extern struct TAG_tnode *traceslang_structurecopy (struct TAG_tnode *expr);
+
 extern struct TAG_feunit traceslang_expr_feunit;
 
 

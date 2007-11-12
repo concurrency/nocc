@@ -67,6 +67,9 @@
 static compop_t *inparams_scopein_compop = NULL;
 static compop_t *inparams_scopeout_compop = NULL;
 
+static chook_t *trimplchook = NULL;
+static chook_t *trtracechook = NULL;
+
 /*}}}*/
 
 
@@ -355,30 +358,29 @@ static tnode_t *occampi_gettype_tracenamenode (langops_t *lops, tnode_t *node, t
  */
 static int occampi_prescope_procdecl_tracetypeimpl (compops_t *cops, tnode_t **node, prescope_t *ps)
 {
-	chook_t *trimplchook = tracescheck_getimplchook ();
 	int v = 1;
+	tnode_t *trimpl;
 
 	if (tnode_hascompop (cops->next, "prescope")) {
 		v = tnode_callcompop (cops->next, "prescope", 2, node, ps);
 	}
-	if (trimplchook) {
-		tnode_t *trimpl = (tnode_t *)tnode_getchook (*node, trimplchook);
 
-		if (trimpl) {
-			/* got something here! */
-			tnode_clearchook (*node, trimplchook);
-			prescope_subtree (&trimpl, ps);
+	trimpl = (tnode_t *)tnode_getchook (*node, trimplchook);
 
-			/* if trimpl is not a list, make it into one */
-			if (!parser_islistnode (trimpl)) {
-				trimpl = parser_buildlistnode (NULL, trimpl, NULL);
-			}
-			tnode_setchook (*node, trimplchook, trimpl);
+	if (trimpl) {
+		/* got something here! */
+		tnode_clearchook (*node, trimplchook);
+		prescope_subtree (&trimpl, ps);
+
+		/* if trimpl is not a list, make it into one */
+		if (!parser_islistnode (trimpl)) {
+			trimpl = parser_buildlistnode (NULL, trimpl, NULL);
+		}
+		tnode_setchook (*node, trimplchook, trimpl);
 #if 0
 fprintf (stderr, "occampi_prescope_procdecl_tracetypeimpl(): got trace implementation on PROCDECL:\n");
 tnode_dumptree (trimpl, 1, stderr);
 #endif
-		}
 	}
 	return v;
 }
@@ -390,8 +392,8 @@ tnode_dumptree (trimpl, 1, stderr);
  */
 static int occampi_inparams_scopein_procdecl_tracetypeimpl (compops_t *cops, tnode_t **node, scope_t *ss)
 {
-	chook_t *trimplchook = tracescheck_getimplchook ();
 	int v = 1;
+	tnode_t *trimpl;
 
 #if 0
 fprintf (stderr, "occampi_inparams_scopein_procdecl_tracetypeimpl(): here!\n");
@@ -401,15 +403,13 @@ fprintf (stderr, "occampi_inparams_scopein_procdecl_tracetypeimpl(): here!\n");
 		v = tnode_callcompop (cops->next, "inparams_scopein", 2, node, ss);
 	}
 
-	if (trimplchook) {
-		tnode_t *trimpl = (tnode_t *)tnode_getchook (*node, trimplchook);
+	trimpl = (tnode_t *)tnode_getchook (*node, trimplchook);
 
-		if (trimpl) {
-			/* got something here! */
-			tnode_clearchook (*node, trimplchook);
-			scope_subtree (&trimpl, ss);
-			tnode_setchook (*node, trimplchook, trimpl);
-		}
+	if (trimpl) {
+		/* got something here! */
+		tnode_clearchook (*node, trimplchook);
+		scope_subtree (&trimpl, ss);
+		tnode_setchook (*node, trimplchook, trimpl);
 	}
 
 	return v;
@@ -422,103 +422,101 @@ fprintf (stderr, "occampi_inparams_scopein_procdecl_tracetypeimpl(): here!\n");
  */
 static int occampi_typecheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
-	chook_t *trimplchook = tracescheck_getimplchook ();
 	int v = 1;
+	tnode_t *trimpl;
 
 	if (tnode_hascompop (cops->next, "typecheck")) {
 		v = tnode_callcompop (cops->next, "typecheck", 2, node, tc);
 	}
 
-	if (trimplchook) {
-		tnode_t *trimpl = (tnode_t *)tnode_getchook (node, trimplchook);
+	trimpl = (tnode_t *)tnode_getchook (node, trimplchook);
 
-		if (trimpl) {
-			int nitems, i;
-			tnode_t **items = parser_getlistitems (trimpl, &nitems);
+	if (trimpl) {
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (trimpl, &nitems);
 #if 0
 fprintf (stderr, "occampi_typecheck_procdecl_tracetypeimpl(): got traces implementation here:\n");
 tnode_dumptree (trimpl, 1, stderr);
 #endif
 
-			for (i=0; i<nitems; i++) {
-				tnode_t *trim = items[i];
+		for (i=0; i<nitems; i++) {
+			tnode_t *trim = items[i];
 
-				if (trim->tag == opi.tag_TRACEIMPLSPEC) {
-					/*{{{  check that the LHS is a TRACETYPEDECL name, RHS is a parameter list of synchronisation types*/
-					tnode_t *lhs = tnode_nthsubof (trim, 0);
-					tnode_t *rhs = tnode_nthsubof (trim, 1);
-					char *name = NULL;
+			if (trim->tag == opi.tag_TRACEIMPLSPEC) {
+				/*{{{  check that the LHS is a TRACETYPEDECL name, RHS is a parameter list of synchronisation types*/
+				tnode_t *lhs = tnode_nthsubof (trim, 0);
+				tnode_t *rhs = tnode_nthsubof (trim, 1);
+				char *name = NULL;
 
-					langops_getname (lhs, &name);
+				langops_getname (lhs, &name);
 
-					if (!parser_islistnode (rhs)) {
-						typecheck_error (node, tc, "missing parameter list for trace implementation [%s]", name ?: "(unknown)");
-					} else if (lhs->tag != opi.tag_NTRACETYPEDECL) {
-						typecheck_error (node, tc, "name [%s] is not a trace-type", name ?: "(unknown)");
-					} else {
-						int nparams, j;
-						int nfparams, k;
-						tnode_t **params = parser_getlistitems (rhs, &nparams);
-						tnode_t **fparams = NULL;
-						tnode_t *lhstype = typecheck_gettype (lhs, NULL);
+				if (!parser_islistnode (rhs)) {
+					typecheck_error (node, tc, "missing parameter list for trace implementation [%s]", name ?: "(unknown)");
+				} else if (lhs->tag != opi.tag_NTRACETYPEDECL) {
+					typecheck_error (node, tc, "name [%s] is not a trace-type", name ?: "(unknown)");
+				} else {
+					int nparams, j;
+					int nfparams, k;
+					tnode_t **params = parser_getlistitems (rhs, &nparams);
+					tnode_t **fparams = NULL;
+					tnode_t *lhstype = typecheck_gettype (lhs, NULL);
 
 #if 0
 fprintf (stderr, "occampi_typecheck_procdecl_tracetypeimpl(): LHS type is:\n");
 tnode_dumptree (lhstype, 1, stderr);
 #endif
-						if (!parser_islistnode (lhstype)) {
-							typecheck_error (node, tc, "trace [%s] has a broken type", name ?: "(unknown)");
-							nfparams = 0;
-						} else {
-							fparams = parser_getlistitems (lhstype, &nfparams);
-						}
+					if (!parser_islistnode (lhstype)) {
+						typecheck_error (node, tc, "trace [%s] has a broken type", name ?: "(unknown)");
+						nfparams = 0;
+					} else {
+						fparams = parser_getlistitems (lhstype, &nfparams);
+					}
 
-						/* check each parameter given */
-						for (j=k=0; (j<nparams) && (k<nfparams); j++, k++) {
-							tnode_t *ptype = typecheck_gettype (params[j], NULL);
+					/* check each parameter given */
+					for (j=k=0; (j<nparams) && (k<nfparams); j++, k++) {
+						tnode_t *ptype = typecheck_gettype (params[j], NULL);
 
 #if 0
 fprintf (stderr, "occampi_typecheck_procdecl_tracetypeimpl(): actual parameter type for %d is:\n", j);
 tnode_dumptree (ptype, 1, stderr);
 #endif
-							if (!(tnode_ntflagsof (ptype) & NTF_SYNCTYPE)) {
-								char *pname = NULL;
+						if (!(tnode_ntflagsof (ptype) & NTF_SYNCTYPE)) {
+							char *pname = NULL;
 
-								langops_getname (params[j], &pname);
+							langops_getname (params[j], &pname);
 
-								typecheck_error (node, tc, "parameter [%s] is not a synchronisation type", pname ?: "(unknown)");
-								if (pname) {
-									sfree (pname);
-								}
+							typecheck_error (node, tc, "parameter [%s] is not a synchronisation type", pname ?: "(unknown)");
+							if (pname) {
+								sfree (pname);
+							}
+						} else {
+							occampi_typeattr_t pattr, tattr;
+
+							if (tnode_haslangop (params[j]->tag->ndef->lops, "occampi_typeattrof")) {
+								tnode_calllangop (params[j]->tag->ndef->lops, "occampi_typeattrof", 2, params[j], &pattr);
 							} else {
-								occampi_typeattr_t pattr, tattr;
+								pattr = TYPEATTR_NONE;
+							}
+							/* formal attribute will be on a compiler hook (opi.chook_typeattr) */
+							if (tnode_haschook (fparams[k], opi.chook_typeattr)) {
+								tattr = (occampi_typeattr_t)tnode_getchook (fparams[k], opi.chook_typeattr);
+							} else {
+								tattr = TYPEATTR_NONE;
+							}
 
-								if (tnode_haslangop (params[j]->tag->ndef->lops, "occampi_typeattrof")) {
-									tnode_calllangop (params[j]->tag->ndef->lops, "occampi_typeattrof", 2, params[j], &pattr);
-								} else {
-									pattr = TYPEATTR_NONE;
-								}
-								/* formal attribute will be on a compiler hook (opi.chook_typeattr) */
-								if (tnode_haschook (fparams[k], opi.chook_typeattr)) {
-									tattr = (occampi_typeattr_t)tnode_getchook (fparams[k], opi.chook_typeattr);
-								} else {
-									tattr = TYPEATTR_NONE;
-								}
-
-								if ((pattr != TYPEATTR_NONE) && (tattr != TYPEATTR_NONE) && (pattr ^ tattr)) {
-									typecheck_error (node, tc, "type mismatch for parameter %d on trace type", j);
-								}
+							if ((pattr != TYPEATTR_NONE) && (tattr != TYPEATTR_NONE) && (pattr ^ tattr)) {
+								typecheck_error (node, tc, "type mismatch for parameter %d on trace type", j);
 							}
 						}
 					}
-
-					if (name) {
-						sfree (name);
-					}
-					/*}}}*/
-				} else {
-					typecheck_error (node, tc, "unsupported trace implementation type [%s]", trim->tag->name);
 				}
+
+				if (name) {
+					sfree (name);
+				}
+				/*}}}*/
+			} else {
+				typecheck_error (node, tc, "unsupported trace implementation type [%s]", trim->tag->name);
 			}
 		}
 	}
@@ -526,7 +524,143 @@ tnode_dumptree (ptype, 1, stderr);
 	return v;
 }
 /*}}}*/
+/*{{{  static int occampi_typeresolve_procdecl_tracetypeimpl (compops_t *cops, tnode_t **nodep, typecheck_t *tc)*/
+/*
+ *	used to remove any TYPESPEC nodes that have accumulated in actual parameters prior to real checks for PROCDECL trace specifications
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typeresolve_procdecl_tracetypeimpl (compops_t *cops, tnode_t **nodep, typecheck_t *tc)
+{
+	int v = 1;
+	tnode_t *trimpl;
 
+	if (tnode_hascompop (cops->next, "typeresolve")) {
+		v = tnode_callcompop (cops->next, "typeresolve", 2, nodep, tc);
+	}
+
+	trimpl = (tnode_t *)tnode_getchook (*nodep, trimplchook);
+
+	if (trimpl) {
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (trimpl, &nitems);
+
+		for (i=0; i<nitems; i++) {
+			tnode_t *item = items[i];
+
+			if (item->tag == opi.tag_TRACEIMPLSPEC) {
+				tnode_t *rhs = tnode_nthsubof (item, 1);
+				int nsparams, j;
+				tnode_t **sparams = parser_getlistitems (rhs, &nsparams);
+
+				for (j=0; j<nsparams; j++) {
+					tnode_t **sitemp = sparams + j;
+
+					if ((*sitemp)->tag == opi.tag_TYPESPEC) {
+						*sitemp = tnode_nthsubof (*sitemp, 0);
+					}
+				}
+			}
+		}
+	}
+	return v;
+}
+/*}}}*/
+/*{{{  static int occampi_precheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t *node)*/
+/*
+ *	does pre-checks on a PROCDECL node, does parameter substitution on trace implementations for later checking
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_precheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t *node)
+{
+	int v = 1;
+	tnode_t *trimpl;
+
+	if (tnode_hascompop (cops->next, "precheck")) {
+		v = tnode_callcompop (cops->next, "precheck", 1, node);
+	}
+
+	trimpl = (tnode_t *)tnode_getchook (node, trimplchook);
+
+	if (trimpl) {
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (trimpl, &nitems);
+
+		for (i=0; i<nitems; i++) {
+			tnode_t **itemp = items + i;
+
+#if 1
+fprintf (stderr, "occampi_precheck_procdecl_tracetypeimpl(): got trace specification item:\n");
+tnode_dumptree (*itemp, 1, stderr);
+#endif
+			if ((*itemp)->tag == opi.tag_TRACEIMPLSPEC) {
+				tnode_t *lhs = tnode_nthsubof (*itemp, 0);
+				tnode_t *rhs = tnode_nthsubof (*itemp, 1);
+				name_t *name;
+				tnode_t *ndecl, *trtype, *trparams;
+				tnode_t *trcopy;
+
+				/* lhs should be a NTRACETYPEDECL, rhs is a list of parameters */
+				if (lhs->tag != opi.tag_NTRACETYPEDECL) {
+					nocc_internal ("occampi_precheck_procdecl_tracetypeimpl(): expected trace type, got [%s]", lhs->tag->name);
+					return 0;
+				}
+				name = tnode_nthnameof (lhs, 0);
+				ndecl = NameDeclOf (name);
+				if (ndecl->tag != opi.tag_TRACETYPEDECL) {
+					nocc_internal ("occampi_precheck_procdecl_tracetypeimpl(): expected trace type declaration, got [%s]", ndecl->tag->name);
+					return 0;
+				}
+				trtype = tnode_nthsubof (ndecl, 3);
+				trparams = tnode_nthsubof (ndecl, 1);
+
+				trcopy = traceslang_structurecopy (trtype);
+#if 1
+fprintf (stderr, "occampi_precheck_procdecl_tracetypeimpl(): got trace type(s):\n");
+tnode_dumptree (trtype, 1, stderr);
+fprintf (stderr, "occampi_precheck_procdecl_tracetypeimpl(): got trace type(s) copy:\n");
+tnode_dumptree (trcopy, 1, stderr);
+fprintf (stderr, "occampi_precheck_procdecl_tracetypeimpl(): got formal parameters:\n");
+tnode_dumptree (trparams, 1, stderr);
+#endif
+			}
+		}
+	}
+
+	return v;
+}
+/*}}}*/
+/*{{{  static int occampi_tracescheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)*/
+/*
+ *	does traces-checking on a PROCDECL node, checks against specification
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_tracescheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)
+{
+	int v = 0;
+	tnode_t *trimpl;
+
+	if (tnode_hascompop (cops->next, "tracescheck")) {
+		v = tnode_callcompop (cops->next, "tracescheck", 2, node, tcstate);
+	}
+
+	trimpl = (tnode_t *)tnode_getchook (node, trimplchook);
+
+	if (trimpl) {
+		tchk_traces_t *trs = (tchk_traces_t *)tnode_getchook (node, trtracechook);
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (trimpl, &nitems);
+
+#if 0
+fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): got traces:\n");
+tracescheck_dumptraces (trs, 1, stderr);
+fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): got specification(s):\n");
+tnode_dumptree (trimpl, 1, stderr);
+#endif
+	}
+
+	return v;
+}
+/*}}}*/
 
 /*{{{  static void occampi_traces_attachtraces (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
@@ -537,9 +671,8 @@ static void occampi_traces_attachtraces (dfastate_t *dfast, parsepriv_t *pp, voi
 {
 	tnode_t *rhs = dfa_popnode (dfast);
 	tnode_t *node = *(dfast->ptr);
-	chook_t *trimplchook = tracescheck_getimplchook ();
 
-	if (!trimplchook || !node || !rhs) {
+	if (!node || !rhs) {
 		parser_error (pp->lf, "occampi_traces_attachtraces(): NULL rhs, node or tracesimplchook..");
 		return;
 	}
@@ -643,12 +776,25 @@ static int occampi_traces_post_setup (void)
 	inparams_scopeout_compop = tnode_findcompop ("inparams_scopeout");
 
 	/*}}}*/
+	/*{{{  grab traces compiler hooks*/
+	trimplchook = tracescheck_getimplchook ();
+	trtracechook = tracescheck_gettraceschook ();
+
+	if (!trimplchook || !trtracechook) {
+		nocc_internal ("occampi_traces_post_setup(): failed to find traces compiler hooks");
+		return -1;
+	}
+
+	/*}}}*/
 	/*{{{  intefere with PROC declaration nodes to capture/handle TRACES*/
 	tnd = tnode_lookupnodetype ("occampi:procdecl");
 	tnode_setcompop (tnd->ops, "inparams_scopein", 2, COMPOPTYPE (occampi_inparams_scopein_procdecl_tracetypeimpl));
 	cops = tnode_insertcompops (tnd->ops);
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_procdecl_tracetypeimpl));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_procdecl_tracetypeimpl));
+	tnode_setcompop (cops, "typeresolve", 2, COMPOPTYPE (occampi_typeresolve_procdecl_tracetypeimpl));
+	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (occampi_precheck_procdecl_tracetypeimpl));
+	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_procdecl_tracetypeimpl));
 	tnd->ops = cops;
 	lops = tnode_insertlangops (tnd->lops);
 	/* FIXME: langops */

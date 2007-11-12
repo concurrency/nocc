@@ -418,6 +418,34 @@ tnode_t *traceslang_newnparam (tnode_t *locn)
 /*}}}*/
 
 
+/*{{{  static int trlang_scopy (tnode_t *node, tnode_t **rptr)*/
+/*
+ *	does a structural copy on traceslang nodes (gets list nodes too)
+ *	returns 0 on success, non-zero on failure
+ */
+static int trlang_scopy (tnode_t *node, tnode_t **rptr)
+{
+	return -1;
+}
+/*}}}*/
+
+/*{{{  tnode_t *traceslang_structurecopy (tnode_t *expr)*/
+/*
+ *	does a structure copy on a traceslang tree -- duplicates structural nodes, but leaves others intact
+ *	returns new tree on success, NULL on failure
+ */
+tnode_t *traceslang_structurecopy (tnode_t *expr)
+{
+	tnode_t *result = NULL;
+
+	if (trlang_scopy (expr, &result)) {
+		return NULL;
+	}
+	return result;
+}
+/*}}}*/
+
+
 /*{{{  static int traceslang_expr_init_nodes (void)*/
 /*
  *	initialises nodes for traces language
