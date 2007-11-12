@@ -666,15 +666,33 @@ static int occampi_tracescheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t 
 
 	if (trimpl) {
 		tchk_traces_t *trs = (tchk_traces_t *)tnode_getchook (node, trtracechook);
-		int nitems, i;
-		tnode_t **items = parser_getlistitems (trimpl, &nitems);
 
-#if 1
-fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): got traces:\n");
+		if (trs) {
+			int nitems, i;
+			tnode_t **items = parser_getlistitems (trimpl, &nitems);
+
+			/* each item comes from a list of disjoint possible traces */
+			for (i=0; i<nitems; i++) {
+				int ntrspecs, j;
+				tnode_t **trspecs = parser_getlistitems (items[i], &ntrspecs);
+				int okaycount = 0;
+			
+				for (j=0; j<ntrspecs; j++) {
+#if 0
+fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): want to check trace:\n");
 tracescheck_dumptraces (trs, 1, stderr);
-fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): got specification(s):\n");
-tnode_dumptree (trimpl, 1, stderr);
+fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): against specification:\n");
+tnode_dumptree (trspecs[j], 1, stderr);
 #endif
+					if (!tracescheck_docheckspec (trspecs[j], trs, tcstate)) {
+						okaycount++;
+					}
+				}
+				if (!okaycount) {
+					tracescheck_error (node, tcstate, "PROC failed to meet TRACES specification");
+				}
+			}
+		}
 	}
 
 	return v;

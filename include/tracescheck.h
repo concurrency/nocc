@@ -84,6 +84,17 @@ typedef struct TAG_tchk_state {
 	int warn;
 } tchk_state_t;
 
+typedef struct TAG_tchk_check {
+	tchk_state_t *state;
+	tchk_traces_t *traces;
+	struct TAG_tnode *spec;
+
+	tchk_traces_t *thistrace;
+	struct TAG_tnode *thisspec;
+
+	int err;
+	int warn;
+} tchk_check_t;
 
 extern int tracescheck_init (void);
 extern int tracescheck_shutdown (void);
@@ -126,6 +137,15 @@ extern struct TAG_chook *tracescheck_getnoderefchook (void);
 extern struct TAG_chook *tracescheck_gettracesrefchook (void);
 extern struct TAG_chook *tracescheck_gettraceschook (void);
 extern struct TAG_chook *tracescheck_getimplchook (void);
+
+extern int tracescheck_docheckspec (struct TAG_tnode *spec, tchk_traces_t *traces, tchk_state_t *tcstate);
+extern int tracescheck_dosubcheckspec (struct TAG_tnode *spec, tchk_traces_t *traces, tchk_check_t *tcc);
+
+extern void tracescheck_warning (struct TAG_tnode *node, tchk_state_t *tcstate, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+extern void tracescheck_error (struct TAG_tnode *node, tchk_state_t *tcstate, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+
+extern void tracescheck_checkwarning (struct TAG_tnode *node, tchk_check_t *tcc, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+extern void tracescheck_checkerror (struct TAG_tnode *node, tchk_check_t *tcc, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
 
 #endif	/* !__TRACESCHECK_H */

@@ -34,6 +34,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "opts.h"
@@ -41,6 +42,7 @@
 #include "crypto.h"
 #include "treeops.h"
 #include "xml.h"
+#include "lexer.h"
 #include "parser.h"
 #include "parsepriv.h"
 #include "dfa.h"
@@ -311,6 +313,11 @@ int tracescheck_init (void)
 	tchk_tracesimplchook->chook_dumptree = tchk_tracesimplchook_dumptree;
 
 	/*}}}*/
+	/*{{{  traces-check language operation*/
+
+	tnode_newlangop ("tracescheck_check", LOPS_INVALID, 2, INTERNAL_ORIGIN);
+
+	/*}}}*/
 
 	return 0;
 }
@@ -400,6 +407,136 @@ static void tchk_freetchknode (tchknode_t *tcn)
 	}
 
 	sfree (tcn);
+	return;
+}
+/*}}}*/
+
+/*{{{  void tracescheck_warning (tnode_t *node, tchk_state_t *tc, const char *fmt, ...)*/
+/*
+ *	called by pre-scoper bits for warnings
+ */
+void tracescheck_warning (tnode_t *node, tchk_state_t *tc, const char *fmt, ...)
+{
+	va_list ap;
+	int n;
+	char *warnbuf = (char *)smalloc (512);
+	lexfile_t *orgfile;
+
+	if (!node) {
+		orgfile = NULL;
+	} else {
+		orgfile = node->org_file;
+	}
+
+	va_start (ap, fmt);
+	n = sprintf (warnbuf, "%s:%d (warning) ", orgfile ? orgfile->fnptr : "(unknown)", node->org_line);
+	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	if (orgfile) {
+		orgfile->warncount++;
+	}
+	tc->warn++;
+	nocc_message (warnbuf);
+	sfree (warnbuf);
+
+	return;
+}
+/*}}}*/
+/*{{{  void tracescheck_error (tnode_t *node, tchk_state_t *tc, const char *fmt, ...)*/
+/*
+ *	called by the pre-scoper bits for errors
+ */
+void tracescheck_error (tnode_t *node, tchk_state_t *tc, const char *fmt, ...)
+{
+	va_list ap;
+	int n;
+	char *warnbuf = (char *)smalloc (512);
+	lexfile_t *orgfile;
+
+	if (!node) {
+		orgfile = NULL;
+	} else {
+		orgfile = node->org_file;
+	}
+
+	va_start (ap, fmt);
+	n = sprintf (warnbuf, "%s:%d (error) ", orgfile ? orgfile->fnptr : "(unknown)", node->org_line);
+	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	if (orgfile) {
+		orgfile->errcount++;
+	}
+	tc->err++;
+	nocc_message (warnbuf);
+	sfree (warnbuf);
+
+	return;
+}
+/*}}}*/
+
+/*{{{  void tracescheck_checkwarning (tnode_t *node, tchk_check_t *tcc, const char *fmt, ...)*/
+/*
+ *	called by pre-scoper bits for warnings
+ */
+void tracescheck_checkwarning (tnode_t *node, tchk_check_t *tcc, const char *fmt, ...)
+{
+	va_list ap;
+	int n;
+	char *warnbuf = (char *)smalloc (512);
+	lexfile_t *orgfile;
+
+	if (!node) {
+		orgfile = NULL;
+	} else {
+		orgfile = node->org_file;
+	}
+
+	va_start (ap, fmt);
+	n = sprintf (warnbuf, "%s:%d (warning) ", orgfile ? orgfile->fnptr : "(unknown)", node->org_line);
+	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	if (orgfile) {
+		orgfile->warncount++;
+	}
+	tcc->warn++;
+	nocc_message (warnbuf);
+	sfree (warnbuf);
+
+	return;
+}
+/*}}}*/
+/*{{{  void tracescheck_checkerror (tnode_t *node, tchk_check_t *tcc, const char *fmt, ...)*/
+/*
+ *	called by the pre-scoper bits for errors
+ */
+void tracescheck_checkerror (tnode_t *node, tchk_check_t *tcc, const char *fmt, ...)
+{
+	va_list ap;
+	int n;
+	char *warnbuf = (char *)smalloc (512);
+	lexfile_t *orgfile;
+
+	if (!node) {
+		orgfile = NULL;
+	} else {
+		orgfile = node->org_file;
+	}
+
+	va_start (ap, fmt);
+	n = sprintf (warnbuf, "%s:%d (error) ", orgfile ? orgfile->fnptr : "(unknown)", node->org_line);
+	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	if (orgfile) {
+		orgfile->errcount++;
+	}
+	tcc->err++;
+	nocc_message (warnbuf);
+	sfree (warnbuf);
+
 	return;
 }
 /*}}}*/
@@ -1478,6 +1615,70 @@ chook_t *tracescheck_gettraceschook (void)
 chook_t *tracescheck_getimplchook (void)
 {
 	return tchk_tracesimplchook;
+}
+/*}}}*/
+
+/*{{{  static int tracescheck_docheckspec_prewalk (tnode_t *node, void *arg)*/
+/*
+ *	called in tree prewalk order to do verification checks on a trace against a specification
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int tracescheck_docheckspec_prewalk (tnode_t *node, void *arg)
+{
+	tchk_check_t *tcc = (tchk_check_t *)arg;
+
+	if (tnode_haslangop (node->tag->ndef->lops, "tracescheck_check")) {
+		int r;
+
+		r = tnode_calllangop (node->tag->ndef->lops, "tracescheck_check", 2, node, tcc);
+		if (r) {
+			tcc->err++;
+		}
+
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  int tracescheck_dosubcheckspec (tnode_t *spec, tchk_traces_t *traces, tchk_check_t *tcc)*/
+/*
+ *	checks a trace against a trace specification (for nested calls)
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_dosubcheckspec (tnode_t *spec, tchk_traces_t *traces, tchk_check_t *tcc)
+{
+	tcc->thistrace = traces;
+	tcc->thisspec = spec;
+
+	tnode_prewalktree (spec, tracescheck_docheckspec_prewalk, (void *)tcc);
+	
+	return tcc->err;
+}
+/*}}}*/
+/*{{{  int tracescheck_docheckspec (tnode_t *spec, tchk_traces_t *traces, tchk_state_t *tcstate)*/
+/*
+ *	checks a trace against a trace specification
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_docheckspec (tnode_t *spec, tchk_traces_t *traces, tchk_state_t *tcstate)
+{
+	tchk_check_t *tcc = (tchk_check_t *)smalloc (sizeof (tchk_check_t));
+	int r = 0;
+
+	tcc->state = tcstate;
+	tcc->err = 0;
+	tcc->warn = 0;
+	tcc->traces = traces;
+	tcc->spec = spec;
+	tcc->thistrace = traces;
+	tcc->thisspec = spec;
+
+	tnode_prewalktree (spec, tracescheck_docheckspec_prewalk, (void *)tcc);
+
+	r = tcc->err;
+	sfree (tcc);
+
+	return r;
 }
 /*}}}*/
 

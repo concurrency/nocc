@@ -41,6 +41,7 @@
 #include "parser.h"
 #include "dfa.h"
 #include "parsepriv.h"
+#include "origin.h"
 #include "occampi.h"
 #include "feunit.h"
 #include "names.h"
@@ -761,9 +762,9 @@ static int occampi_snode_init_nodes (void)
 
 	/*}}}*/
 	/*{{{  ALT codegen language ops*/
-	tnode_newlangop ("codegen_altstart", LOPS_INVALID, 2, (void *)&occampi_parser);
-	tnode_newlangop ("codegen_altwait", LOPS_INVALID, 2, (void *)&occampi_parser);
-	tnode_newlangop ("codegen_altend", LOPS_INVALID, 2, (void *)&occampi_parser);
+	tnode_newlangop ("codegen_altstart", LOPS_INVALID, 2, origin_langparser (&occampi_parser));
+	tnode_newlangop ("codegen_altwait", LOPS_INVALID, 2, origin_langparser (&occampi_parser));
+	tnode_newlangop ("codegen_altend", LOPS_INVALID, 2, origin_langparser (&occampi_parser));
 
 	/*}}}*/
 	/*{{{  occampi:snode -- IF, ALT, CASE*/

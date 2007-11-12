@@ -1000,7 +1000,7 @@ static int occampi_type_init_nodes (void)
 
 	/*}}}*/
 	/*{{{  occampi_typeattrof -- language op.*/
-	tnode_newlangop ("occampi_typeattrof", LOPS_INVALID, 2, (void *)&occampi_parser);
+	tnode_newlangop ("occampi_typeattrof", LOPS_INVALID, 2, origin_langparser (&occampi_parser));
 
 	/*}}}*/
 	/*{{{  occampi:typenode -- CHAN, PORT, ASINPUT, ASOUTPUT*/

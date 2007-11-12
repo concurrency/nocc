@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -662,9 +663,9 @@ static int mcsp_snode_init_nodes (void)
 
 	/*}}}*/
 	/*{{{  ALT codegen language ops*/
-	tnode_newlangop ("codegen_altstart", LOPS_INVALID, 2, (void *)&mcsp_parser);
-	tnode_newlangop ("codegen_altwait", LOPS_INVALID, 2, (void *)&mcsp_parser);
-	tnode_newlangop ("codegen_altend", LOPS_INVALID, 2, (void *)&mcsp_parser);
+	tnode_newlangop ("codegen_altstart", LOPS_INVALID, 2, origin_langparser (&mcsp_parser));
+	tnode_newlangop ("codegen_altwait", LOPS_INVALID, 2, origin_langparser (&mcsp_parser));
+	tnode_newlangop ("codegen_altend", LOPS_INVALID, 2, origin_langparser (&mcsp_parser));
 
 	/*}}}*/
 	/*{{{  mcsp:snode -- ALT*/

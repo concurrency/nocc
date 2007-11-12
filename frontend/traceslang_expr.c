@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -53,6 +54,7 @@
 #include "codegen.h"
 #include "target.h"
 #include "transputer.h"
+#include "tracescheck.h"
 
 /*}}}*/
 
@@ -331,6 +333,42 @@ static int traceslang_scopeout_setnode (compops_t *cops, tnode_t **node, scope_t
 }
 /*}}}*/
 
+/*{{{  static int traceslang_tracescheck_litnode (langops_t *lops, tnode_t *node, tchk_check_t *tcc)*/
+/*
+ *	does traces checks on a traceslang literal node
+ *	returns 0 on success, non-zero on failure
+ */
+static int traceslang_tracescheck_litnode (langops_t *lops, tnode_t *node, tchk_check_t *tcc)
+{
+	tracescheck_checkwarning (node, tcc, "traceslang_tracescheck_litnode(): here!");
+	return 0;
+}
+/*}}}*/
+/*{{{  static int traceslang_tracescheck_setnode (langops_t *lops, tnode_t *node, tchk_check_t *tcc)*/
+/*
+ *	does traces checks on a traceslang set node
+ *	returns 0 on success, non-zero on failure
+ */
+static int traceslang_tracescheck_setnode (langops_t *lops, tnode_t *node, tchk_check_t *tcc)
+{
+	if (node->tag == traceslang.tag_SEQ) {
+		/*{{{  check a sequential trace specification, list of items*/
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (tnode_nthsubof (node, 0), &nitems);
+
+		for (i=0; i<nitems; i++) {
+		}
+		/*}}}*/
+	} else if (node->tag == traceslang.tag_PAR) {
+	} else if (node->tag == traceslang.tag_DET) {
+	} else if (node->tag == traceslang.tag_NDET) {
+		tracescheck_checkerror (node, tcc, "missing check for trace specification type [%s]", node->tag->name);
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+
 /*{{{  static tnode_t *traceslang_gettype_namenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
  *	returns the type of a traceslang name
@@ -485,6 +523,9 @@ static int traceslang_expr_init_nodes (void)
 	tnd->hook_dumptree = traceslang_litnode_hook_dumptree;
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "tracescheck_check", 2, LANGOPTYPE (traceslang_tracescheck_litnode));
+	tnd->lops = lops;
 
 	i = -1;
 	traceslang.tag_LITSTR = tnode_newnodetag ("TRACESLANGLITSTR", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
@@ -498,6 +539,9 @@ static int traceslang_expr_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (traceslang_scopeout_setnode));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "tracescheck_check", 2, LANGOPTYPE (traceslang_tracescheck_setnode));
+	tnd->lops = lops;
 
 	i = -1;
 	traceslang.tag_SEQ = tnode_newnodetag ("TRACESLANGSEQ", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
