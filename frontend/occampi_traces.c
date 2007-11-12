@@ -70,6 +70,7 @@ static compop_t *inparams_scopeout_compop = NULL;
 
 static chook_t *trimplchook = NULL;
 static chook_t *trtracechook = NULL;
+static chook_t *trbvarschook = NULL;
 
 /*}}}*/
 
@@ -598,7 +599,7 @@ tnode_dumptree (*itemp, 1, stderr);
 				tnode_t *rhs = tnode_nthsubof (*itemp, 1);
 				name_t *name;
 				tnode_t *ndecl, *trtype, *trparams;
-				tnode_t *trcopy;
+				tnode_t *trcopy, *bvlist;
 				tnode_t **fpset, **apset;
 				int nfp, nap, j;
 
@@ -641,6 +642,13 @@ tnode_dumptree (rhs, 1, stderr);
 
 				/* right, put this in there! */
 				*itemp = trcopy;
+
+				/* save a copy of the actual parameters, so we know what we is relevant */
+				bvlist = parser_newlistnode (NULL);
+				for (j=0; j<nap; j++) {
+					parser_addtolist (bvlist, apset[j]);
+				}
+				tnode_setchook (node, trbvarschook, bvlist);
 			}
 		}
 	}
@@ -816,8 +824,9 @@ static int occampi_traces_post_setup (void)
 	/*{{{  grab traces compiler hooks*/
 	trimplchook = tracescheck_getimplchook ();
 	trtracechook = tracescheck_gettraceschook ();
+	trbvarschook = tracescheck_getbvarschook ();
 
-	if (!trimplchook || !trtracechook) {
+	if (!trimplchook || !trtracechook || !trbvarschook) {
 		nocc_internal ("occampi_traces_post_setup(): failed to find traces compiler hooks");
 		return -1;
 	}

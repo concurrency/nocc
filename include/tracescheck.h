@@ -128,6 +128,7 @@ extern int tracescheck_buckettotraces (tchk_state_t *tcstate);
 extern tchk_traces_t *tracescheck_pulltraces (tchk_state_t *tcstate);
 extern int tracescheck_freetraces (tchk_traces_t *tct);
 extern int tracescheck_simplifytraces (tchk_traces_t *tct);
+extern tchk_traces_t *tracescheck_copytraces (tchk_traces_t *tr);
 
 extern int tracescheck_addivar (tchk_state_t *tcstate, tchknode_t *tcn);
 extern int tracescheck_addtobucket (tchk_state_t *tcstate, tchknode_t *tcn);
@@ -137,6 +138,7 @@ extern struct TAG_chook *tracescheck_getnoderefchook (void);
 extern struct TAG_chook *tracescheck_gettracesrefchook (void);
 extern struct TAG_chook *tracescheck_gettraceschook (void);
 extern struct TAG_chook *tracescheck_getimplchook (void);
+extern struct TAG_chook *tracescheck_getbvarschook (void);
 
 extern int tracescheck_docheckspec (struct TAG_tnode *spec, tchk_traces_t *traces, tchk_state_t *tcstate);
 extern int tracescheck_dosubcheckspec (struct TAG_tnode *spec, tchk_traces_t *traces, tchk_check_t *tcc);

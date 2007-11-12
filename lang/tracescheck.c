@@ -60,6 +60,7 @@ static chook_t *tchk_noderefchook = NULL;
 static chook_t *tchk_tracesrefchook = NULL;
 static chook_t *tchk_traceschook = NULL;
 static chook_t *tchk_tracesimplchook = NULL;
+static chook_t *tchk_tracesbvarschook = NULL;
 
 
 /*}}}*/
@@ -273,6 +274,67 @@ static void tchk_tracesimplchook_dumptree (tnode_t *node, void *hook, int indent
 	return;
 }
 /*}}}*/
+/*{{{  static void *tchk_tracesbvarschook_copy (void *hook)*/
+/*
+ *	duplicates a tracesbvars compiler hook
+ */
+static void *tchk_tracesbvarschook_copy (void *hook)
+{
+	tnode_t *list = (tnode_t *)hook;
+	tnode_t *newlist = parser_newlistnode (NULL);
+	int nitems, i;
+	tnode_t **items = parser_getlistitems (list, &nitems);
+
+	newlist->org_file = list->org_file;
+	newlist->org_line = list->org_line;
+
+	/* makes aliases */
+	for (i=0; i<nitems; i++) {
+		parser_addtolist (newlist, items[i]);
+	}
+
+	return (void *)newlist;
+}
+/*}}}*/
+/*{{{  static void tchk_tracesbvarschook_free (void *hook)*/
+/*
+ *	frees a tracesbvars compiler hook
+ */
+static void tchk_tracesbvarschook_free (void *hook)
+{
+	tnode_t *list = (tnode_t *)hook;
+	int nitems, i;
+	tnode_t **items = parser_getlistitems (list, &nitems);
+
+	for (i=0; i<nitems; i++) {
+		/* drop references */
+		items[i] = NULL;
+	}
+
+	tnode_free (list);
+	return;
+}
+/*}}}*/
+/*{{{  static void tchk_tracesbvarschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a tracesbvars compiler hook (debugging)
+ */
+static void tchk_tracesbvarschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	tnode_t *list = (tnode_t *)hook;
+
+	tchk_isetindent (stream, indent);
+	if (!list) {
+		fprintf (stream, "<chook id=\"tracesbvars\" value=\"\" />\n");
+	} else {
+		fprintf (stream, "<chook id=\"tracesbvars\">\n");
+		tnode_dumptree (list, indent + 1, stream);
+		tchk_isetindent (stream, indent);
+		fprintf (stream, "</chook>\n");
+	}
+	return;
+}
+/*}}}*/
 
 
 /*{{{  int tracescheck_init (void)*/
@@ -311,6 +373,11 @@ int tracescheck_init (void)
 	tchk_tracesimplchook->chook_copy = tchk_tracesimplchook_copy;
 	tchk_tracesimplchook->chook_free = tchk_tracesimplchook_free;
 	tchk_tracesimplchook->chook_dumptree = tchk_tracesimplchook_dumptree;
+
+	tchk_tracesbvarschook = tnode_lookupornewchook ("tracesbvars");
+	tchk_tracesbvarschook->chook_copy = tchk_tracesbvarschook_copy;
+	tchk_tracesbvarschook->chook_free = tchk_tracesbvarschook_free;
+	tchk_tracesbvarschook->chook_dumptree = tchk_tracesbvarschook_dumptree;
 
 	/*}}}*/
 	/*{{{  traces-check language operation*/
@@ -1534,6 +1601,25 @@ int tracescheck_simplifytraces (tchk_traces_t *tct)
 	return 0;
 }
 /*}}}*/
+/*{{{  tchk_traces_t *tracescheck_copytraces (tchk_traces_t *tct)*/
+/*
+ *	duplicates a set of traces
+ *	returns new set on success, NULL on failure
+ */
+tchk_traces_t *tracescheck_copytraces (tchk_traces_t *tct)
+{
+	tchk_traces_t *newtr = tchk_newtchktraces ();
+	int i;
+
+	for (i=0; i<DA_CUR (tct->items); i++) {
+		tchknode_t *tnode = DA_NTHITEM (tct->items, i);
+		tchknode_t *tcopy = tracescheck_copynode (tnode);
+
+		dynarray_add (newtr->items, tcopy);
+	}
+	return newtr;
+}
+/*}}}*/
 
 /*{{{  int tracescheck_addivar (tchk_state_t *tcstate, tchknode_t *tcn)*/
 /*
@@ -1615,6 +1701,15 @@ chook_t *tracescheck_gettraceschook (void)
 chook_t *tracescheck_getimplchook (void)
 {
 	return tchk_tracesimplchook;
+}
+/*}}}*/
+/*{{{  chook_t *tracescheck_getbvarschook (void)*/
+/*
+ *	returns the tracesbvars compiler hook (used to identify bound variables after a re-write)
+ */
+chook_t *tracescheck_getbvarschook (void)
+{
+	return tchk_tracesbvarschook;
 }
 /*}}}*/
 
