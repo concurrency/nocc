@@ -69,6 +69,19 @@ static tchk_traces_t *tchk_newtchktraces (void);
 static void tchk_freetchktraces (tchk_traces_t *tct);
 
 /*}}}*/
+/*{{{  private types*/
+
+typedef struct TAG_prunetraces {
+	tnode_t *vlist;
+	int changed;
+} prunetraces_t;
+
+typedef struct TAG_firstevent {
+	tchknode_t *item;
+} firstevent_t;
+
+
+/*}}}*/
 
 
 /*{{{  static void tchk_isetindent (FILE *stream, int indent)*/
@@ -899,6 +912,130 @@ static int tchk_simplifynodeprewalk (tchknode_t **tcnptr, void *arg)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int tchk_prunetracesmodprewalk (tchknode_t **nodep, void *arg)*/
+/*
+ *	does a mod pre-walk to prune traces, essentially the CSP rules for hiding
+ *	NOTE: this works in reverse -- i.e. we have a list of things we want to keep,
+ *	      rather than a list of those we want to throw away.
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int tchk_prunetracesmodprewalk (tchknode_t **nodep, void *arg)
+{
+	prunetraces_t *ptrace = (prunetraces_t *)arg;
+	tchknode_t *n = *nodep;
+	int i, changed;
+
+	switch (n->type) {
+		/*{{{  INVALID*/
+	case TCN_INVALID:
+		return 0;
+		/*}}}*/
+		/*{{{  SEQ, PAR -- simply walk down subnodes*/
+	case TCN_SEQ:
+	case TCN_PAR:
+		changed = 0;
+		for (i=0; i<DA_CUR (n->u.tcnlist.items); i++) {
+			tchknode_t **iptr = DA_NTHITEMADDR (n->u.tcnlist.items, i);
+			int saved_changed = ptrace->changed;
+
+			ptrace->changed = 0;
+			tracescheck_modprewalk (iptr, tchk_prunetracesmodprewalk, (void *)ptrace);
+
+			changed += ptrace->changed;
+			ptrace->changed = saved_changed;
+		}
+		if (changed) {
+			/* might have some NULL items in the list */
+			for (i=0; i<DA_CUR (n->u.tcnlist.items); i++) {
+				if (!DA_NTHITEM (n->u.tcnlist.items, i)) {
+					dynarray_delitem (n->u.tcnlist.items, i);
+					i--;
+				}
+			}
+			if (!DA_CUR (n->u.tcnlist.items)) {
+				/* we're dead too */
+				*nodep = NULL;
+				tchk_freetchknode (n);
+			} else if (DA_CUR (n->u.tcnlist.items) == 1) {
+				/* singleton, reduce */
+				tchknode_t *sub = DA_NTHITEM (n->u.tcnlist.items, 0);
+
+				DA_SETNTHITEM (n->u.tcnlist.items, 0, NULL);
+				*nodep = sub;
+				tchk_freetchknode (n);
+			}
+			ptrace->changed++;
+		}
+		return 0;
+		/*}}}*/
+		/*{{{  NODEREF -- maybe something we're looking for*/
+	case TCN_NODEREF:
+		{
+			int nvitems;
+			tnode_t **vitems = parser_getlistitems (ptrace->vlist, &nvitems);
+
+			for (i=0; (i<nvitems) && (n->u.tcnnref.nref != vitems[i]); i++);
+			if (i == nvitems) {
+				/* this noderef wasn't in the list -- remove it */
+				*nodep = NULL;
+				tchk_freetchknode (n);
+				ptrace->changed++;
+			}
+		}
+		return 0;
+		/*}}}*/
+		/*{{{  INPUT, OUTPUT -- simply walk down subitems*/
+	case TCN_INPUT:
+	case TCN_OUTPUT:
+		changed = 0;
+		{
+			tchknode_t **iptr = &(n->u.tcnio.varptr);
+			int saved_changed = ptrace->changed;
+
+			ptrace->changed = 0;
+			tracescheck_modprewalk (iptr, tchk_prunetracesmodprewalk, (void *)ptrace);
+
+			changed += ptrace->changed;
+			ptrace->changed = saved_changed;
+		}
+		if (changed) {
+			if (!n->u.tcnio.varptr) {
+				/* we're toast */
+				*nodep = NULL;
+				tchk_freetchknode (n);
+			}
+			ptrace->changed++;
+		}
+		return 0;
+		/*}}}*/
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int tchk_firsteventprewalk (tchknode_t *node, void *arg)*/
+/*
+ *	does a pre-walk to find the first event in a trace
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int tchk_firsteventprewalk (tchknode_t *node, void *arg)
+{
+	firstevent_t *fev = (firstevent_t *)arg;
+
+	if (fev->item) {
+		return 0;
+	}
+	switch (node->type) {
+		/*{{{  NODEREF -- event*/
+	case TCN_NODEREF:
+		fev->item = node;
+		return 0;
+		/*}}}*/
+	default:
+		break;
+	}
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  int tracescheck_subtree (tnode_t *tree, tchk_state_t *tcstate)*/
@@ -985,6 +1122,68 @@ int tracescheck_modprewalk (tchknode_t **tcnptr, int (*func)(tchknode_t **, void
 		case TCN_INPUT:
 		case TCN_OUTPUT:
 			if (tracescheck_modprewalk (&((*tcnptr)->u.tcnio.varptr), func, arg)) {
+				r++;
+			}
+			break;
+			/*}}}*/
+		}
+	}
+	return r;
+}
+/*}}}*/
+/*{{{  int tracescheck_prewalk (tchknode_t *tcn, int (*func)(tchknode_t *, void *), void *arg)*/
+/*
+ *	does a walk over nodes in traces
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_prewalk (tchknode_t *tcn, int (*func)(tchknode_t *, void *), void *arg)
+{
+	int i, r = 0;
+
+	if (!func) {
+		return -1;
+	}
+	if (!tcn || !tcn) {
+		return 0;
+	}
+	i = func (tcn, arg);
+	if (i) {
+		switch (tcn->type) {
+			/*{{{  INVALID*/
+		case TCN_INVALID:
+		case TCN_ATOM:
+		case TCN_ATOMREF:
+		case TCN_NODEREF:
+			break;
+			/*}}}*/
+			/*{{{  SEQ,PAR,DET,NDET*/
+		case TCN_SEQ:
+		case TCN_PAR:
+		case TCN_DET:
+		case TCN_NDET:
+			for (i=0; i<DA_CUR (tcn->u.tcnlist.items); i++) {
+				tchknode_t *item = DA_NTHITEM (tcn->u.tcnlist.items, i);
+
+				if (tracescheck_prewalk (item, func, arg)) {
+					r++;
+				}
+			}
+			break;
+			/*}}}*/
+			/*{{{  FIXPOINT*/
+		case TCN_FIXPOINT:
+			if (tracescheck_prewalk (tcn->u.tcnfix.id, func, arg)) {
+				r++;
+			}
+			if (tracescheck_prewalk (tcn->u.tcnfix.proc, func, arg)) {
+				r++;
+			}
+			break;
+			/*}}}*/
+			/*{{{  INPUT,OUTPUT*/
+		case TCN_INPUT:
+		case TCN_OUTPUT:
+			if (tracescheck_prewalk (tcn->u.tcnio.varptr, func, arg)) {
 				r++;
 			}
 			break;
@@ -1492,6 +1691,26 @@ int tracescheck_simplifynode (tchknode_t **tcnptr)
 	return i;
 }
 /*}}}*/
+/*{{{  tchknode_t *tracescheck_firstevent (tchknode_t *tcn)*/
+/*
+ *	returns the first event in a trace (noderef)
+ *	returns NULL if none
+ */
+tchknode_t *tracescheck_firstevent (tchknode_t *tcn)
+{
+	firstevent_t *fev = (firstevent_t *)smalloc (sizeof (firstevent_t));
+	tchknode_t *tci = NULL;
+
+	fev->item = NULL;
+
+	tracescheck_prewalk (tcn, tchk_firsteventprewalk, (void *)fev);
+
+	tci = fev->item;
+	sfree (fev);
+
+	return tci;
+}
+/*}}}*/
 
 /*{{{  int tracescheck_addtolistnode (tchknode_t *tcn, tchknode_t *item)*/
 /*
@@ -1618,6 +1837,29 @@ tchk_traces_t *tracescheck_copytraces (tchk_traces_t *tct)
 		dynarray_add (newtr->items, tcopy);
 	}
 	return newtr;
+}
+/*}}}*/
+/*{{{  int tracescheck_prunetraces (tchk_traces_t *tct, tnode_t *vlist)*/
+/*
+ *	prunes a set of traces -- restricts it to those involving the given nodes (in a list)
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_prunetraces (tchk_traces_t *tct, tnode_t *vlist)
+{
+	int i;
+
+	for (i=0; i<DA_CUR (tct->items); i++) {
+		prunetraces_t *ptrace = (prunetraces_t *)smalloc (sizeof (prunetraces_t));
+
+		ptrace->vlist = vlist;
+		ptrace->changed = 0;
+
+		tracescheck_modprewalk (DA_NTHITEMADDR (tct->items, i), tchk_prunetracesmodprewalk, (void *)ptrace);
+
+		sfree (ptrace);
+	}
+
+	return 0;
 }
 /*}}}*/
 

@@ -116,12 +116,14 @@ extern tchk_bucket_t *tracescheck_pullbucket (tchk_state_t *tcstate);
 extern int tracescheck_freebucket (tchk_bucket_t *tcb);
 
 extern int tracescheck_modprewalk (tchknode_t **tcnptr, int (*func)(tchknode_t **, void *), void *arg);
+extern int tracescheck_prewalk (tchknode_t *tcn, int (*func)(tchknode_t *, void *), void *arg);
 
 extern tchknode_t *tracescheck_dupref (tchknode_t *tcn);
 extern tchknode_t *tracescheck_copynode (tchknode_t *tcn);
 extern tchknode_t *tracescheck_createatom (void);
 extern tchknode_t *tracescheck_createnode (tchknodetype_e type, ...);
 extern int tracescheck_simplifynode (tchknode_t **tcnptr);
+extern tchknode_t *tracescheck_firstevent (tchknode_t *tcn);
 
 extern int tracescheck_addtolistnode (tchknode_t *tcn, tchknode_t *item);
 extern int tracescheck_buckettotraces (tchk_state_t *tcstate);
@@ -129,6 +131,7 @@ extern tchk_traces_t *tracescheck_pulltraces (tchk_state_t *tcstate);
 extern int tracescheck_freetraces (tchk_traces_t *tct);
 extern int tracescheck_simplifytraces (tchk_traces_t *tct);
 extern tchk_traces_t *tracescheck_copytraces (tchk_traces_t *tr);
+extern int tracescheck_prunetraces (tchk_traces_t *tct, struct TAG_tnode *vlist);
 
 extern int tracescheck_addivar (tchk_state_t *tcstate, tchknode_t *tcn);
 extern int tracescheck_addtobucket (tchk_state_t *tcstate, tchknode_t *tcn);

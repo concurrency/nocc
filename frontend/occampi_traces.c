@@ -648,7 +648,7 @@ tnode_dumptree (rhs, 1, stderr);
 				for (j=0; j<nap; j++) {
 					parser_addtolist (bvlist, apset[j]);
 				}
-				tnode_setchook (node, trbvarschook, bvlist);
+				tnode_setchook (trcopy, trbvarschook, bvlist);
 			}
 		}
 	}
@@ -683,18 +683,27 @@ static int occampi_tracescheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t 
 			for (i=0; i<nitems; i++) {
 				int ntrspecs, j;
 				tnode_t **trspecs = parser_getlistitems (items[i], &ntrspecs);
+				tnode_t *bvars = (tnode_t *)tnode_getchook (items[i], trbvarschook);
 				int okaycount = 0;
 			
 				for (j=0; j<ntrspecs; j++) {
-#if 0
+					tchk_traces_t *trscopy = tracescheck_copytraces (trs);
+
+					tracescheck_prunetraces (trscopy, bvars);
+#if 1
 fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): want to check trace:\n");
-tracescheck_dumptraces (trs, 1, stderr);
+tracescheck_dumptraces (trscopy, 1, stderr);
+fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): bound variables in trace are:\n");
+tnode_dumptree (bvars, 1, stderr);
 fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): against specification:\n");
 tnode_dumptree (trspecs[j], 1, stderr);
 #endif
-					if (!tracescheck_docheckspec (trspecs[j], trs, tcstate)) {
+
+					if (!tracescheck_docheckspec (trspecs[j], trscopy, tcstate)) {
 						okaycount++;
 					}
+
+					tracescheck_freetraces (trscopy);
 				}
 				if (!okaycount) {
 					tracescheck_error (node, tcstate, "PROC failed to meet TRACES specification");

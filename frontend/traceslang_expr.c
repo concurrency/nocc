@@ -356,6 +356,12 @@ static int traceslang_tracescheck_setnode (langops_t *lops, tnode_t *node, tchk_
 		int nitems, i;
 		tnode_t **items = parser_getlistitems (tnode_nthsubof (node, 0), &nitems);
 
+#if 1
+fprintf (stderr, "traceslang_tracescheck_setnode(): SEQ: checking specification node:\n");
+tnode_dumptree (node, 1, stderr);
+fprintf (stderr, "traceslang_tracescheck_setnode(): SEQ: against actual trace:\n");
+tracescheck_dumptraces (tcc->thistrace, 1, stderr);
+#endif
 		for (i=0; i<nitems; i++) {
 		}
 		/*}}}*/

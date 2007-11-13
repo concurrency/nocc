@@ -6,11 +6,12 @@ VAL INT v IS 2:
 -- TRACES TYPE T.IO (in?, out!) "in? -> out!":
 -- TRACES TYPE T.TEST (in?, out!) "(out! [] in?) -> in?":
 TRACES TYPE T.TEST (c!) IS "c! -> Skip":
+-- TRACES TYPE T.TEST2 (d!) IS "d!":
 
-PROC test.n79 (CHAN BYTE out!, VAL INT v) TRACES T.TEST (out!)
+PROC test.n79 (CHAN BYTE out!, zog!) TRACES T.TEST (out!)
   SEQ
     out ! 42
-    out ! 'x'
+    zog ! 'x'
     SKIP
 :
 
