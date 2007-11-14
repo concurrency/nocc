@@ -98,6 +98,7 @@ typedef struct TAG_tchk_check {
 	tchk_traces_t *traces;
 	struct TAG_tnode *spec;
 
+	tchk_tracewalk_t *thiswalk;
 	tchknode_t *thistrace;
 	struct TAG_tnode *thisspec;
 

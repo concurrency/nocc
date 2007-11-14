@@ -2054,6 +2054,7 @@ tchknode_t *tracescheck_stepwalk (tchk_tracewalk_t *ttw)
 	tchknode_t *result = NULL;
 	tchknode_t *thisnode;
 	int *thisdatap;
+	int atnext = 0;
 
 	if (ttw->end) {
 		return NULL;
@@ -2065,33 +2066,44 @@ tchknode_t *tracescheck_stepwalk (tchk_tracewalk_t *ttw)
 	result = thisnode;
 
 	/* setup for the next node */
-	switch (thisnode->type) {
-	case TCN_SEQ:
-	case TCN_PAR:
-	case TCN_DET:
-	case TCN_NDET:
-		(*thisdatap)++;
-		if (*thisdatap == DA_CUR (thisnode->u.tcnlist.items)) {
-			/* end of subwalk */
+
+	while (!atnext) {
+		thisnode = DA_NTHITEM (ttw->stack, ttw->depth - 1);
+		thisdatap = DA_NTHITEMADDR (ttw->data, ttw->depth - 1);
+
+		switch (thisnode->type) {
+		case TCN_SEQ:
+		case TCN_PAR:
+		case TCN_DET:
+		case TCN_NDET:
+			(*thisdatap)++;
+			if (*thisdatap == DA_CUR (thisnode->u.tcnlist.items)) {
+				/* end of subwalk */
+				tchk_walknextstep (ttw);
+			} else {
+				tchk_walkpushstack (ttw, DA_NTHITEM (thisnode->u.tcnlist.items, *thisdatap), -1);
+				atnext = 1;
+			}
+			break;
+		case TCN_INPUT:
+		case TCN_OUTPUT:
+			(*thisdatap)++;
+			if (*thisdatap) {
+				tchk_walknextstep (ttw);
+				/* end of subwalk */
+			} else {
+				tchk_walkpushstack (ttw, thisnode->u.tcnio.varptr, -1);
+				atnext = 1;
+			}
+			break;
+		case TCN_NODEREF:
+			/* singleton, end of subwalk */
 			tchk_walknextstep (ttw);
-		} else {
-			tchk_walkpushstack (ttw, DA_NTHITEM (thisnode->u.tcnlist.items, *thisdatap), -1);
+			break;
 		}
-		break;
-	case TCN_INPUT:
-	case TCN_OUTPUT:
-		(*thisdatap)++;
-		if (*thisdatap) {
-			tchk_walknextstep (ttw);
-			/* end of subwalk */
-		} else {
-			tchk_walkpushstack (ttw, thisnode->u.tcnio.varptr, -1);
+		if (!ttw->depth) {
+			atnext = 1;
 		}
-		break;
-	case TCN_NODEREF:
-		/* singleton, end of subwalk */
-		tchk_walknextstep (ttw);
-		break;
 	}
 
 	return result;
@@ -2110,7 +2122,7 @@ int tracescheck_endwalk (tchk_tracewalk_t *ttw)
 	return r;
 }
 /*}}}*/
-/*{{{  */
+/*{{{  void tracescheck_testwalk (tchknode_t *tcn)*/
 /*
  *	tests at trace walk (debugging)
  */
@@ -2231,10 +2243,17 @@ int tracescheck_docheckspec (tnode_t *spec, tchk_traces_t *traces, tchk_state_t 
 
 	/* if more than one trace in "traces", all must match */
 	for (i=0; i<DA_CUR (traces->items); i++) {
-		tcc->thistrace = DA_NTHITEM (traces->items, i);
 		tcc->thisspec = spec;
+		tcc->thiswalk = tracescheck_startwalk (DA_NTHITEM (traces->items, i));
+		tcc->thistrace = tracescheck_stepwalk (tcc->thiswalk);				/* get first item in the trace */
 
-		tnode_prewalktree (spec, tracescheck_docheckspec_prewalk, (void *)tcc);
+		if (tcc->thiswalk->end) {
+			/* end of walk */
+		} else {
+			tnode_prewalktree (spec, tracescheck_docheckspec_prewalk, (void *)tcc);
+		}
+		tracescheck_endwalk (tcc->thiswalk);
+		tcc->thiswalk = NULL;
 	}
 
 	r = tcc->err;

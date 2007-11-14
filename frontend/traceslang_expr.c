@@ -355,8 +355,9 @@ static int traceslang_tracescheck_setnode (langops_t *lops, tnode_t *node, tchk_
 		/*{{{  check a sequential trace specification, list of items*/
 		int nitems, i;
 		tnode_t **items = parser_getlistitems (tnode_nthsubof (node, 0), &nitems);
+		tchknode_t *trc = NULL;
 
-#if 1
+#if 0
 fprintf (stderr, "traceslang_tracescheck_setnode(): SEQ: checking specification node:\n");
 tnode_dumptree (node, 1, stderr);
 fprintf (stderr, "traceslang_tracescheck_setnode(): SEQ: against actual trace:\n");
@@ -365,8 +366,15 @@ fprintf (stderr, "traceslang_tracescheck_setnode(): SEQ: testing walk on trace..
 tracescheck_testwalk (tcc->thistrace);
 #endif
 
+		// trc = tracescheck_stepwalk (tcc->thiswalk);
+		trc = tcc->thistrace;
+#if 0
+fprintf (stderr, "traceslang_tracescheck_setnode(): SEQ: got node from actual trace:\n");
+tracescheck_dumpnode (trc, 1, stderr);
+#endif
 		for (i=0; i<nitems; i++) {
-			
+			tracescheck_dosubcheckspec (items[i], trc, tcc);
+			tracescheck_stepwalk (tcc->thiswalk);
 		}
 		/*}}}*/
 	} else if (node->tag == traceslang.tag_PAR) {
@@ -385,6 +393,13 @@ tracescheck_testwalk (tcc->thistrace);
  */
 static int traceslang_tracescheck_ionode (langops_t *lops, tnode_t *node, tchk_check_t *tcc)
 {
+#if 0
+fprintf (stderr, "traceslang_tracescheck_ionode(): checking specification node:\n");
+tnode_dumptree (node, 1, stderr);
+fprintf (stderr, "traceslang_tracescheck_ionode(): against actual trace:\n");
+tracescheck_dumpnode (tcc->thistrace, 1, stderr);
+#endif
+
 	tracescheck_checkwarning (node, tcc, "traceslang_tracescheck_ionode(): here!");
 	return 0;
 }
