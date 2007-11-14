@@ -40,6 +40,7 @@ typedef enum ENUM_tchknodetype {
 
 typedef struct TAG_tchknode {
 	tchknodetype_e type;
+	int mark;
 	union {
 		struct {
 			DYNARRAY (struct TAG_tchknode *, items);
@@ -84,12 +85,20 @@ typedef struct TAG_tchk_state {
 	int warn;
 } tchk_state_t;
 
+typedef struct TAG_tchk_tracewalk {
+	tchknode_t *thisnode;
+	DYNARRAY (tchknode_t *, stack);
+	DYNARRAY (int, data);
+	int depth;
+	int end;
+} tchk_tracewalk_t;
+
 typedef struct TAG_tchk_check {
 	tchk_state_t *state;
 	tchk_traces_t *traces;
 	struct TAG_tnode *spec;
 
-	tchk_traces_t *thistrace;
+	tchknode_t *thistrace;
 	struct TAG_tnode *thisspec;
 
 	int err;
@@ -137,6 +146,11 @@ extern int tracescheck_addivar (tchk_state_t *tcstate, tchknode_t *tcn);
 extern int tracescheck_addtobucket (tchk_state_t *tcstate, tchknode_t *tcn);
 extern int tracescheck_cleanrefchooks (tchk_state_t *tcstate, struct TAG_tnode *tptr);
 
+extern tchk_tracewalk_t *tracescheck_startwalk (tchknode_t *start);
+extern tchknode_t *tracescheck_stepwalk (tchk_tracewalk_t *ttw);
+extern int tracescheck_endwalk (tchk_tracewalk_t *ttw);
+extern void tracescheck_testwalk (tchknode_t *tcn);
+
 extern struct TAG_chook *tracescheck_getnoderefchook (void);
 extern struct TAG_chook *tracescheck_gettracesrefchook (void);
 extern struct TAG_chook *tracescheck_gettraceschook (void);
@@ -144,7 +158,7 @@ extern struct TAG_chook *tracescheck_getimplchook (void);
 extern struct TAG_chook *tracescheck_getbvarschook (void);
 
 extern int tracescheck_docheckspec (struct TAG_tnode *spec, tchk_traces_t *traces, tchk_state_t *tcstate);
-extern int tracescheck_dosubcheckspec (struct TAG_tnode *spec, tchk_traces_t *traces, tchk_check_t *tcc);
+extern int tracescheck_dosubcheckspec (struct TAG_tnode *spec, tchknode_t *trace, tchk_check_t *tcc);
 
 extern void tracescheck_warning (struct TAG_tnode *node, tchk_state_t *tcstate, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 extern void tracescheck_error (struct TAG_tnode *node, tchk_state_t *tcstate, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));

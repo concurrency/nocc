@@ -360,9 +360,13 @@ static int traceslang_tracescheck_setnode (langops_t *lops, tnode_t *node, tchk_
 fprintf (stderr, "traceslang_tracescheck_setnode(): SEQ: checking specification node:\n");
 tnode_dumptree (node, 1, stderr);
 fprintf (stderr, "traceslang_tracescheck_setnode(): SEQ: against actual trace:\n");
-tracescheck_dumptraces (tcc->thistrace, 1, stderr);
+tracescheck_dumpnode (tcc->thistrace, 1, stderr);
+fprintf (stderr, "traceslang_tracescheck_setnode(): SEQ: testing walk on trace..\n");
+tracescheck_testwalk (tcc->thistrace);
 #endif
+
 		for (i=0; i<nitems; i++) {
+			
 		}
 		/*}}}*/
 	} else if (node->tag == traceslang.tag_PAR) {
@@ -371,6 +375,17 @@ tracescheck_dumptraces (tcc->thistrace, 1, stderr);
 		tracescheck_checkerror (node, tcc, "missing check for trace specification type [%s]", node->tag->name);
 		return 1;
 	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int traceslang_tracescheck_ionode (langops_t *lops, tnode_t *node, tchk_check_t *tcc)*/
+/*
+ *	does traces checks on a traceslang I/O node
+ *	returns 0 on success, non-zero on failure
+ */
+static int traceslang_tracescheck_ionode (langops_t *lops, tnode_t *node, tchk_check_t *tcc)
+{
+	tracescheck_checkwarning (node, tcc, "traceslang_tracescheck_ionode(): here!");
 	return 0;
 }
 /*}}}*/
@@ -564,6 +579,9 @@ static int traceslang_expr_init_nodes (void)
 	tnd = tnode_newnodetype ("traceslang:ionode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = item */
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "tracescheck_check", 2, LANGOPTYPE (traceslang_tracescheck_ionode));
+	tnd->lops = lops;
 
 	i = -1;
 	traceslang.tag_INPUT = tnode_newnodetag ("TRACESLANGINPUT", &i, tnd, NTF_TRACESLANGSTRUCTURAL);

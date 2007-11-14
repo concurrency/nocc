@@ -690,7 +690,7 @@ static int occampi_tracescheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t 
 					tchk_traces_t *trscopy = tracescheck_copytraces (trs);
 
 					tracescheck_prunetraces (trscopy, bvars);
-#if 1
+#if 0
 fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): want to check trace:\n");
 tracescheck_dumptraces (trscopy, 1, stderr);
 fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): bound variables in trace are:\n");

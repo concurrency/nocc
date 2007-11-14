@@ -414,83 +414,6 @@ int tracescheck_shutdown (void)
 /*}}}*/
 
 
-/*{{{  static tchknode_t *tchk_newtchknode (void)*/
-/*
- *	creates a blank tchknode_t structure
- */
-static tchknode_t *tchk_newtchknode (void)
-{
-	tchknode_t *tcn = (tchknode_t *)smalloc (sizeof (tchknode_t));
-
-	tcn->type = TCN_INVALID;
-
-	return tcn;
-}
-/*}}}*/
-/*{{{  static void tchk_freetchknode (tchknode_t *tcn)*/
-/*
- *	frees a tchknode_t structure (deep)
- */
-static void tchk_freetchknode (tchknode_t *tcn)
-{
-	if (!tcn) {
-		nocc_internal ("tchk_freetchknode(): NULL node!");
-		return;
-	}
-	switch (tcn->type) {
-	case TCN_INVALID:
-		break;
-	case TCN_ATOMREF:
-		tcn->u.tcnaref.aref = NULL;
-		break;
-	case TCN_NODEREF:
-		tcn->u.tcnnref.nref = NULL;
-		break;
-	case TCN_SEQ:
-	case TCN_PAR:
-	case TCN_DET:
-	case TCN_NDET:
-		{
-			int i;
-
-			for (i=0; i<DA_CUR (tcn->u.tcnlist.items); i++) {
-				tchknode_t *item = DA_NTHITEM (tcn->u.tcnlist.items, i);
-
-				if (item) {
-					tchk_freetchknode (item);
-				}
-			}
-			dynarray_trash (tcn->u.tcnlist.items);
-		}
-		break;
-	case TCN_ATOM:
-		if (tcn->u.tcnatom.id) {
-			sfree (tcn->u.tcnatom.id);
-			tcn->u.tcnatom.id = NULL;
-		}
-		break;
-	case TCN_INPUT:
-	case TCN_OUTPUT:
-		/* always a link into the tree */
-		tcn->u.tcnio.varptr = NULL;
-		break;
-	case TCN_FIXPOINT:
-		if (tcn->u.tcnfix.id) {
-			tchk_freetchknode (tcn->u.tcnfix.id);
-			tcn->u.tcnfix.id = NULL;
-		}
-		if (tcn->u.tcnfix.proc) {
-			tchk_freetchknode (tcn->u.tcnfix.proc);
-			tcn->u.tcnfix.proc = NULL;
-		}
-		break;
-	}
-
-	sfree (tcn);
-	return;
-}
-/*}}}*/
-
 /*{{{  void tracescheck_warning (tnode_t *node, tchk_state_t *tc, const char *fmt, ...)*/
 /*
  *	called by pre-scoper bits for warnings
@@ -622,6 +545,83 @@ void tracescheck_checkerror (tnode_t *node, tchk_check_t *tcc, const char *fmt, 
 /*}}}*/
 
 
+/*{{{  static tchknode_t *tchk_newtchknode (void)*/
+/*
+ *	creates a blank tchknode_t structure
+ */
+static tchknode_t *tchk_newtchknode (void)
+{
+	tchknode_t *tcn = (tchknode_t *)smalloc (sizeof (tchknode_t));
+
+	tcn->type = TCN_INVALID;
+	tcn->mark = 0;
+
+	return tcn;
+}
+/*}}}*/
+/*{{{  static void tchk_freetchknode (tchknode_t *tcn)*/
+/*
+ *	frees a tchknode_t structure (deep)
+ */
+static void tchk_freetchknode (tchknode_t *tcn)
+{
+	if (!tcn) {
+		nocc_internal ("tchk_freetchknode(): NULL node!");
+		return;
+	}
+	switch (tcn->type) {
+	case TCN_INVALID:
+		break;
+	case TCN_ATOMREF:
+		tcn->u.tcnaref.aref = NULL;
+		break;
+	case TCN_NODEREF:
+		tcn->u.tcnnref.nref = NULL;
+		break;
+	case TCN_SEQ:
+	case TCN_PAR:
+	case TCN_DET:
+	case TCN_NDET:
+		{
+			int i;
+
+			for (i=0; i<DA_CUR (tcn->u.tcnlist.items); i++) {
+				tchknode_t *item = DA_NTHITEM (tcn->u.tcnlist.items, i);
+
+				if (item) {
+					tchk_freetchknode (item);
+				}
+			}
+			dynarray_trash (tcn->u.tcnlist.items);
+		}
+		break;
+	case TCN_ATOM:
+		if (tcn->u.tcnatom.id) {
+			sfree (tcn->u.tcnatom.id);
+			tcn->u.tcnatom.id = NULL;
+		}
+		break;
+	case TCN_INPUT:
+	case TCN_OUTPUT:
+		/* always a link into the tree */
+		tcn->u.tcnio.varptr = NULL;
+		break;
+	case TCN_FIXPOINT:
+		if (tcn->u.tcnfix.id) {
+			tchk_freetchknode (tcn->u.tcnfix.id);
+			tcn->u.tcnfix.id = NULL;
+		}
+		if (tcn->u.tcnfix.proc) {
+			tchk_freetchknode (tcn->u.tcnfix.proc);
+			tcn->u.tcnfix.proc = NULL;
+		}
+		break;
+	}
+
+	sfree (tcn);
+	return;
+}
+/*}}}*/
 /*{{{  static tchk_bucket_t *tchk_newtchkbucket (void)*/
 /*
  *	creates a new tchk_bucket_t structure (blank)
@@ -764,6 +764,43 @@ static void tchk_freetchkstate (tchk_state_t *tcstate)
 	}
 
 	sfree (tcstate);
+	return;
+}
+/*}}}*/
+/*{{{  static tchk_tracewalk_t *tchk_newtchktracewalk (void)*/
+/*
+ *	creates a new, blank, tchk_tracewalk_t structure
+ */
+static tchk_tracewalk_t *tchk_newtchktracewalk (void)
+{
+	tchk_tracewalk_t *ttw = (tchk_tracewalk_t *)smalloc (sizeof (tchk_tracewalk_t));
+
+	ttw->thisnode = NULL;
+	dynarray_init (ttw->stack);
+	dynarray_init (ttw->data);
+	ttw->depth = 0;
+	ttw->end = 0;
+
+	return ttw;
+}
+/*}}}*/
+/*{{{  static void tchk_freetchktracewalk (tchk_tracewalk_t *ttw)*/
+/*
+ *	frees a tchk_tracewalk_t structure
+ */
+static void tchk_freetchktracewalk (tchk_tracewalk_t *ttw)
+{
+	if (!ttw) {
+		nocc_internal ("tchk_freetchktracewalk(): NULL trace-walk!");
+		return;
+	}
+	dynarray_trash (ttw->stack);
+	dynarray_trash (ttw->data);
+	ttw->depth = 0;
+	ttw->thisnode = NULL;
+	ttw->end = 1;
+
+	sfree (ttw);
 	return;
 }
 /*}}}*/
@@ -1034,6 +1071,88 @@ static int tchk_firsteventprewalk (tchknode_t *node, void *arg)
 		break;
 	}
 	return 1;
+}
+/*}}}*/
+
+/*{{{  static int tchk_walkpopstack (tchk_tracewalk_t *ttw)*/
+/*
+ *	called to pop the tchk_traceswalk_t stack
+ *	returns 0 on success, non-zero on failure
+ */
+static int tchk_walkpopstack (tchk_tracewalk_t *ttw)
+{
+	if (!ttw->depth) {
+		nocc_serious ("tchk_walkpopstack(): ttw->depth is zero on stack pop attempt!");
+		return -1;
+	}
+	ttw->depth--;
+	dynarray_delitem (ttw->stack, ttw->depth);
+	dynarray_delitem (ttw->data, ttw->depth);
+	if (!ttw->depth) {
+		ttw->end = 1;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int tchk_walkpushstack (tchk_tracewalk_t *ttw, tchknode_t *tcn, int data)*/
+/*
+ *	called to push something onto the tchk_traceswalk_t stack
+ *	returns 0 on success, non-zero on failure
+ */
+static int tchk_walkpushstack (tchk_tracewalk_t *ttw, tchknode_t *tcn, int data)
+{
+	if (ttw->end) {
+		nocc_serious ("tchk_walkpushstack(): at end of walk!");
+		return -1;
+	}
+
+	dynarray_add (ttw->stack, tcn);
+	dynarray_add (ttw->data, data);
+	ttw->depth++;
+	ttw->thisnode = tcn;
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int tchk_walknextstep (tchk_tracewalk_t *ttw)*/
+/*
+ *	called to move the state in a traceswalk to the next item
+ *	returns 0 on success, non-zero on failure
+ */
+static int tchk_walknextstep (tchk_tracewalk_t *ttw)
+{
+	int atnext = 0;
+
+	while (!atnext) {
+		tchk_walkpopstack (ttw);
+		if (!ttw->end) {
+			tchknode_t *nextnode = DA_NTHITEM (ttw->stack, ttw->depth - 1);
+			int *nextdatap = DA_NTHITEMADDR (ttw->data, ttw->depth - 1);
+
+			switch (nextnode->type) {
+			case TCN_SEQ:
+			case TCN_PAR:
+			case TCN_DET:
+			case TCN_NDET:
+				if (*nextdatap < DA_CUR (nextnode->u.tcnlist.items)) {
+					/* got some left here */
+					atnext = 1;
+				}
+				break;
+			case TCN_INPUT:
+			case TCN_OUTPUT:
+				/* nothing left here */
+				break;
+			default:
+				nocc_serious ("tchk_walknextstep(): unexpected node type %d in walk back!", (int)nextnode->type);
+				atnext = 1;
+				break;
+			}
+		} else {
+			atnext = 1;
+		}
+	}
+	return 0;
 }
 /*}}}*/
 
@@ -1909,6 +2028,107 @@ int tracescheck_cleanrefchooks (tchk_state_t *tcstate, tnode_t *tptr)
 }
 /*}}}*/
 
+/*{{{  tchk_tracewalk_t *tracescheck_startwalk (tchknode_t *start)*/
+/*
+ *	starts a traces walk -- designed to walk through traces
+ *	returns a tracewalk stucture
+ */
+tchk_tracewalk_t *tracescheck_startwalk (tchknode_t *start)
+{
+	tchk_tracewalk_t *ttw = tchk_newtchktracewalk ();
+
+	ttw->end = 0;
+	ttw->depth = 0;
+	tchk_walkpushstack (ttw, start, -1);
+
+	return ttw;
+}
+/*}}}*/
+/*{{{  tchknode_t *tracescheck_stepwalk (tchk_tracewalk_t *ttw)*/
+/*
+ *	steps through a traces walk -- returns the node touched next
+ *	may legitimately return NULL as a node, use "->end" to check for end
+ */
+tchknode_t *tracescheck_stepwalk (tchk_tracewalk_t *ttw)
+{
+	tchknode_t *result = NULL;
+	tchknode_t *thisnode;
+	int *thisdatap;
+
+	if (ttw->end) {
+		return NULL;
+	}
+
+	thisnode = DA_NTHITEM (ttw->stack, ttw->depth - 1);
+	thisdatap = DA_NTHITEMADDR (ttw->data, ttw->depth - 1);
+
+	result = thisnode;
+
+	/* setup for the next node */
+	switch (thisnode->type) {
+	case TCN_SEQ:
+	case TCN_PAR:
+	case TCN_DET:
+	case TCN_NDET:
+		(*thisdatap)++;
+		if (*thisdatap == DA_CUR (thisnode->u.tcnlist.items)) {
+			/* end of subwalk */
+			tchk_walknextstep (ttw);
+		} else {
+			tchk_walkpushstack (ttw, DA_NTHITEM (thisnode->u.tcnlist.items, *thisdatap), -1);
+		}
+		break;
+	case TCN_INPUT:
+	case TCN_OUTPUT:
+		(*thisdatap)++;
+		if (*thisdatap) {
+			tchk_walknextstep (ttw);
+			/* end of subwalk */
+		} else {
+			tchk_walkpushstack (ttw, thisnode->u.tcnio.varptr, -1);
+		}
+		break;
+	case TCN_NODEREF:
+		/* singleton, end of subwalk */
+		tchk_walknextstep (ttw);
+		break;
+	}
+
+	return result;
+}
+/*}}}*/
+/*{{{  int tracescheck_endwalk (tchk_tracewalk_t *ttw)*/
+/*
+ *	called to end a walk inside a trace
+ *	returns 0 if the walk was complete, non-zero otherwise
+ */
+int tracescheck_endwalk (tchk_tracewalk_t *ttw)
+{
+	int r = ttw->end ? 0 : 1;
+
+	tchk_freetchktracewalk (ttw);
+	return r;
+}
+/*}}}*/
+/*{{{  */
+/*
+ *	tests at trace walk (debugging)
+ */
+void tracescheck_testwalk (tchknode_t *tcn)
+{
+	tchk_tracewalk_t *ttw = tracescheck_startwalk (tcn);
+
+	while (!ttw->end) {
+		tchknode_t *node = tracescheck_stepwalk (ttw);
+
+		fprintf (stderr, "tracescheck_testwalk(): visiting 0x%8.8x (type %d)\n", (unsigned int)node, node ? (int)node->type : -1);
+	}
+
+	tracescheck_endwalk (ttw);
+	return;
+}
+/*}}}*/
+
 /*{{{  chook_t *tracescheck_getnoderefchook (void)*/
 /*
  *	returns the traceschecknoderef compiler hook
@@ -1977,14 +2197,14 @@ static int tracescheck_docheckspec_prewalk (tnode_t *node, void *arg)
 	return 1;
 }
 /*}}}*/
-/*{{{  int tracescheck_dosubcheckspec (tnode_t *spec, tchk_traces_t *traces, tchk_check_t *tcc)*/
+/*{{{  int tracescheck_dosubcheckspec (tnode_t *spec, tchknode_t *trace, tchk_check_t *tcc)*/
 /*
  *	checks a trace against a trace specification (for nested calls)
  *	returns 0 on success, non-zero on failure
  */
-int tracescheck_dosubcheckspec (tnode_t *spec, tchk_traces_t *traces, tchk_check_t *tcc)
+int tracescheck_dosubcheckspec (tnode_t *spec, tchknode_t *trace, tchk_check_t *tcc)
 {
-	tcc->thistrace = traces;
+	tcc->thistrace = trace;
 	tcc->thisspec = spec;
 
 	tnode_prewalktree (spec, tracescheck_docheckspec_prewalk, (void *)tcc);
@@ -2001,16 +2221,21 @@ int tracescheck_docheckspec (tnode_t *spec, tchk_traces_t *traces, tchk_state_t 
 {
 	tchk_check_t *tcc = (tchk_check_t *)smalloc (sizeof (tchk_check_t));
 	int r = 0;
+	int i;
 
 	tcc->state = tcstate;
 	tcc->err = 0;
 	tcc->warn = 0;
 	tcc->traces = traces;
 	tcc->spec = spec;
-	tcc->thistrace = traces;
-	tcc->thisspec = spec;
 
-	tnode_prewalktree (spec, tracescheck_docheckspec_prewalk, (void *)tcc);
+	/* if more than one trace in "traces", all must match */
+	for (i=0; i<DA_CUR (traces->items); i++) {
+		tcc->thistrace = DA_NTHITEM (traces->items, i);
+		tcc->thisspec = spec;
+
+		tnode_prewalktree (spec, tracescheck_docheckspec_prewalk, (void *)tcc);
+	}
 
 	r = tcc->err;
 	sfree (tcc);
