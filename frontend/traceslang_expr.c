@@ -372,9 +372,13 @@ tracescheck_testwalk (tcc->thistrace);
 fprintf (stderr, "traceslang_tracescheck_setnode(): SEQ: got node from actual trace:\n");
 tracescheck_dumpnode (trc, 1, stderr);
 #endif
+		if (trc->type == TCN_SEQ) {
+			/* got a sequence of something in the trace, start walking it */
+			trc = tracescheck_stepwalk (tcc->thiswalk);
+		}
 		for (i=0; i<nitems; i++) {
 			tracescheck_dosubcheckspec (items[i], trc, tcc);
-			tracescheck_stepwalk (tcc->thiswalk);
+			// trc = tracescheck_stepwalk (tcc->thiswalk);
 		}
 		/*}}}*/
 	} else if (node->tag == traceslang.tag_PAR) {
@@ -400,10 +404,49 @@ fprintf (stderr, "traceslang_tracescheck_ionode(): against actual trace:\n");
 tracescheck_dumpnode (tcc->thistrace, 1, stderr);
 #endif
 
-	tracescheck_checkwarning (node, tcc, "traceslang_tracescheck_ionode(): here!");
+	if (node->tag == traceslang.tag_INPUT) {
+		if (tcc->thistrace->type != TCN_INPUT) {
+			tracescheck_checkerror (node, tcc, "input in specification not matched");
+			return 1;
+		}
+	} else if (node->tag == traceslang.tag_OUTPUT) {
+		if (tcc->thistrace->type != TCN_OUTPUT) {
+			tracescheck_checkerror (node, tcc, "output in specification not matched");
+			return 1;
+		}
+	}
+
+	// tracescheck_checkwarning (node, tcc, "traceslang_tracescheck_ionode(): here!");
 	return 0;
 }
 /*}}}*/
+/*{{{  static int traceslang_tracescheck_leafnode (langops_t *lops, tnode_t *node, tchk_check_t *tcc)*/
+/*
+ *	does traces checks on a traceslang leaf-node
+ *	returns 0 on success, non-zero on failure
+ */
+static int traceslang_tracescheck_leafnode (langops_t *lops, tnode_t *node, tchk_check_t *tcc)
+{
+#if 0
+fprintf (stderr, "traceslang_tracescheck_leafnode(): checking specification node:\n");
+tnode_dumptree (node, 1, stderr);
+fprintf (stderr, "traceslang_tracescheck_leafnode(): against actual trace:\n");
+tracescheck_dumpnode (tcc->thistrace, 1, stderr);
+#endif
+
+	if (node->tag == traceslang.tag_SKIP) {
+		/* must be termination of the traces */
+		if (tcc->thistrace) {
+			tracescheck_checkerror (node, tcc, "termination in specification not matched");
+			return 1;
+		}
+	}
+
+	// tracescheck_checkwarning (node, tcc, "traceslang_tracescheck_leafnode(): here!");
+	return 0;
+}
+/*}}}*/
+
 
 /*{{{  static tnode_t *traceslang_gettype_namenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
@@ -609,6 +652,9 @@ static int traceslang_expr_init_nodes (void)
 	tnd = tnode_newnodetype ("traceslang:leafnode", &i, 0, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "tracescheck_check", 2, LANGOPTYPE (traceslang_tracescheck_leafnode));
+	tnd->lops = lops;
 
 	i = -1;
 	traceslang.tag_EVENT = tnode_newnodetag ("TRACESLANGEVENT", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
