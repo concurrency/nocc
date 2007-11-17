@@ -313,6 +313,17 @@ static int occampi_scopeout_tracetypedecl (compops_t *cops, tnode_t **node, scop
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_precheck_tracetypedecl (compops_t *cops, tnode_t *node)*/
+/*
+ *	called to do pre-checking on a traces type declaration, tidies up anything type-resolution may have done
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_precheck_tracetypedecl (compops_t *cops, tnode_t *node)
+{
+	/* FIXME! */
+	return 1;
+}
+/*}}}*/
 
 /*{{{  static int occampi_prescope_traceimplspec (compops_t *cops, tnode_t **node, prescope_t *ps)*/
 /*
@@ -333,6 +344,26 @@ static int occampi_prescope_traceimplspec (compops_t *cops, tnode_t **node, pres
 }
 /*}}}*/
 
+/*{{{  static int occampi_getname_tracenamenode (langops_t *lops, tnode_t *node, char **str)*/
+/*
+ *	gets the name of a traces name-node (trivial)
+ *	returns 0 on success, -ve on failure
+ */
+static int occampi_getname_tracenamenode (langops_t *lops, tnode_t *node, char **str)
+{
+	name_t *name = tnode_nthnameof (node, 0);
+	char *pname;
+
+	if (!name) {
+		nocc_fatal ("cocampi_getname_tracenamenode(): NULL name!");
+		return -1;
+	}
+	pname = NameNameOf (name);
+	*str = string_dup (pname);
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_gettype_tracenamenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
  *	returns the type of a traces name-node (trivial)
@@ -352,6 +383,51 @@ static tnode_t *occampi_gettype_tracenamenode (langops_t *lops, tnode_t *node, t
 	return NULL;
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_traceslang_getparams_tracenamenode (langops_t *lops, tnode_t *node)*/
+/*
+ *	this is used to extract the parameters for a named trace type (by traceslang)
+ *	returns the parameter tree on success, NULL if none
+ */
+static tnode_t *occampi_traceslang_getparams_tracenamenode (langops_t *lops, tnode_t *node)
+{
+	name_t *name = tnode_nthnameof (node, 0);
+	tnode_t *decl;
+
+	if (!name) {
+		nocc_fatal ("occampi_traceslang_getparams_tracenamenode(): NULL name!");
+		return NULL;
+	}
+	decl = NameDeclOf (name);
+	if (decl->tag != opi.tag_TRACETYPEDECL) {
+		tnode_error (node, "named trace is not an occam-pi trace type!");
+		return NULL;
+	}
+	return tnode_nthsubof (decl, 1);
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_traceslang_getbody_tracenamenode (langops_t *lops, tnode_t *node)*/
+/*
+ *	this is used to extract the body for a named trace type (by traceslang)
+ *	returns the body on success, NULL on failure
+ */
+static tnode_t *occampi_traceslang_getbody_tracenamenode (langops_t *lops, tnode_t *node)
+{
+	name_t *name = tnode_nthnameof (node, 0);
+	tnode_t *decl;
+
+	if (!name) {
+		nocc_fatal ("occampi_traceslang_getbody_tracenamenode(): NULL name!");
+		return NULL;
+	}
+	decl = NameDeclOf (name);
+	if (decl->tag != opi.tag_TRACETYPEDECL) {
+		tnode_error (node, "named trace is not an occam-pi trace type!");
+		return NULL;
+	}
+	return tnode_nthsubof (decl, 3);
+}
+/*}}}*/
+
 
 /*{{{  static int occampi_prescope_procdecl_tracetypeimpl (compops_t *cops, tnode_t **node, prescope_t *ps)*/
 /*
@@ -784,6 +860,7 @@ static int occampi_traces_init_nodes (void)
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_tracetypedecl));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_tracetypedecl));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_tracetypedecl));
+	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (occampi_precheck_tracetypedecl));
 	tnd->ops = cops;
 
 	i = -1;
@@ -797,7 +874,10 @@ static int occampi_traces_init_nodes (void)
 	//tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_tracenamenode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (occampi_getname_tracenamenode));
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_tracenamenode));
+	tnode_setlangop (lops, "traceslang_getparams", 1, LANGOPTYPE (occampi_traceslang_getparams_tracenamenode));
+	tnode_setlangop (lops, "traceslang_getbody", 1, LANGOPTYPE (occampi_traceslang_getbody_tracenamenode));
 	tnd->lops = lops;
 
 	i = -1;
@@ -855,6 +935,10 @@ static int occampi_traces_post_setup (void)
 	lops = tnode_insertlangops (tnd->lops);
 	/* FIXME: langops */
 	tnd->lops = lops;
+
+	/*}}}*/
+	/*{{{  tell the traceslang part of the compiler that N_TRACETYPEDECLs can represent traces*/
+	traceslang_registertracetype (opi.tag_NTRACETYPEDECL);
 
 	/*}}}*/
 

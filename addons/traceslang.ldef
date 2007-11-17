@@ -21,6 +21,7 @@
 .SYMBOL ")"
 .SYMBOL "!"
 .SYMBOL "?"
+.SYMBOL ","
 
 .KEYWORD "Skip"
 .KEYWORD "Stop"
@@ -50,21 +51,27 @@
 .GRULE	"trs:chaospush" "ST0T+@tC[TRACESLANGCHAOS]0N-"
 .GRULE	"trs:divpush" "ST0T+@tC[TRACESLANGDIV]0N-"
 
+.GRULE	"trs:instancereduce" "SN0N+N+VC[TRACESLANGINSTANCE]2R-"
+.GRULE	"trs:makeinstance" "SN0N+N+VC[TRACESLANGINSTANCE]2N-"
+
 #.GRULE	"trs:seqreduce" "ST0T+@tN+N+L2C[TRACESLANGSEQ]1R-"
 .RFUNC	"Rtraceslang:dopreduce" "traceslang_reduce_dop"
 
-.TABLE	"traceslang:restofexpr ::= [ 0 +@@-> 1 ] [ 0 +@@[] 1 ] [ 0 +@@|~| 1 ] [ 0 +@@|| 1 ]"
+.TABLE	"traceslang:restofexpr ::= [ 0 +@@-> 1 ] [ 0 +@@; 1 ] [ 0 +@@[] 1 ] [ 0 +@@|~| 1 ] [ 0 +@@|| 1 ]"
 	"[ 1 traceslang:expr 2 ] [ 2 {Rtraceslang:dopreduce} -* ]"
+	"[ 3 traceslang:namelist 4 ] [ 4 @@) 5 ] [ 5 {<trs:instancereduce>} -* ]"
 
 .TABLE	"traceslang:name ::= [ 0 +Name 1 ] [ 1 {<trs:namereduce>} -* 2 ] [ 2 +@@! 3 ] [ 2 +@@? 4 ] [ 2 -* ]"
 	"[ 3 {<trs:makeroutput>} -* ] [ 4 {<trs:makerinput>} -* ]"
+.BNF	"traceslang:namelist ::= { traceslang:name @@, 0 }"
 .TABLE	"traceslang:expr ::= [ 0 traceslang:name 1 ] [ 0 @@( 3 ] [ 0 +@Skip 5 ] [ 0 +@Stop 6 ] [ 0 +@Chaos 7 ] [ 0 +@Div 8 ]"
-	"[ 1 %traceslang:restofexpr <traceslang:restofexpr> ] [ 1 -End 2 ] [ 1 -* 2 ] [ 2 {<trs:nullreduce>} -* ]"
+	"[ 1 %traceslang:restofexpr <traceslang:restofexpr> ] [ 1 @@( 9 ] [ 1 -End 2 ] [ 1 -* 2 ] [ 2 {<trs:nullreduce>} -* ]"
 	"[ 3 traceslang:expr 4 ] [ 4 @@) 1 ]"
 	"[ 5 {<trs:skippush>} -* 1 ]"
 	"[ 6 {<trs:stoppush>} -* 1 ]"
 	"[ 7 {<trs:chaospush>} -* 1 ]"
 	"[ 8 {<trs:divpush>} -* 1 ]"
+	"[ 9 traceslang:namelist 10 ] [ 10 @@) 11 ] [ 11 {<trs:makeinstance>} -* 1 ]"
 
 
 # }}}

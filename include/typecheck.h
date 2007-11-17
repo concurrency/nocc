@@ -68,6 +68,8 @@ extern int typeresolve_modprewalktree (struct TAG_tnode **tptr, void *arg);
 extern void typecheck_warning (struct TAG_tnode *node, typecheck_t *tc, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 extern void typecheck_error (struct TAG_tnode *node, typecheck_t *tc, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
+extern int typecheck_haserror (typecheck_t *tc);
+
 
 #endif	/* !__TYPECHECK_H */
 

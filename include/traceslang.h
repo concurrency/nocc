@@ -56,6 +56,7 @@ typedef struct {
 	struct TAG_ntdef *tag_STOP;
 	struct TAG_ntdef *tag_CHAOS;
 	struct TAG_ntdef *tag_DIV;
+	struct TAG_ntdef *tag_INSTANCE;
 } traceslang_pset_t;
 
 extern traceslang_pset_t traceslang;
@@ -68,6 +69,8 @@ extern struct TAG_tnode *traceslang_newevent (struct TAG_tnode *locn);
 extern struct TAG_tnode *traceslang_newnparam (struct TAG_tnode *locn);
 
 extern struct TAG_tnode *traceslang_structurecopy (struct TAG_tnode *expr);
+extern int traceslang_registertracetype (struct TAG_ntdef *tag);
+extern int traceslang_unregistertracetype (struct TAG_ntdef *tag);
 
 extern struct TAG_feunit traceslang_expr_feunit;
 

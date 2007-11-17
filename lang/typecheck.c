@@ -1,6 +1,6 @@
 /*
  *	typecheck.c -- nocc's type-checker
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -124,6 +124,17 @@ void typecheck_error (tnode_t *node, typecheck_t *tc, const char *fmt, ...)
 	sfree (warnbuf);
 
 	return;
+}
+/*}}}*/
+
+
+/*{{{  int typecheck_haserror (typecheck_t *tc)*/
+/*
+ *	returns the number of errors collected by the type-check so far
+ */
+int typecheck_haserror (typecheck_t *tc)
+{
+	return tc->err;
 }
 /*}}}*/
 

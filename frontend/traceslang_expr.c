@@ -40,6 +40,8 @@
 #include "tnode.h"
 #include "parser.h"
 #include "fcnlib.h"
+#include "langops.h"
+#include "treeops.h"
 #include "dfa.h"
 #include "parsepriv.h"
 #include "traceslang.h"
@@ -77,11 +79,14 @@ typedef struct TAG_dopmap {
 /*{{{  private data*/
 static dopmap_t dopmap[] = {
 	{SYMBOL, "->", NULL, &(traceslang.tag_SEQ)},
+	{SYMBOL, ";", NULL, &(traceslang.tag_SEQ)},
 	{SYMBOL, "[]", NULL, &(traceslang.tag_DET)},
 	{SYMBOL, "|~|", NULL, &(traceslang.tag_NDET)},
 	{SYMBOL, "||", NULL, &(traceslang.tag_PAR)},
 	{NOTOKEN, NULL, NULL, NULL}
 };
+
+STATICPOINTERHASH (ntdef_t *, validtracenametypes, 4);
 
 /*}}}*/
 
@@ -274,15 +279,19 @@ static int traceslang_scopein_rawname (compops_t *cops, tnode_t **node, scope_t 
 		/* resolved */
 		tnode_t *rnode = NameNodeOf (sname);
 
-		if (rnode->tag != traceslang.tag_NPARAM) {
-			scope_error (name, ss, "name [%s] is not a trace parameter", rawname);
-			return 0;
-		}
 #if 0
 fprintf (stderr, "traceslang_scopein_rawname(): found name, node tag: %s\n", rnode->tag->name);
 #endif
-		*node = rnode;
-		tnode_free (name);
+		if (rnode->tag == traceslang.tag_NPARAM) {
+			*node = rnode;
+			tnode_free (name);
+		} else if (pointerhash_lookup (validtracenametypes, rnode->tag)) {
+			*node = rnode;
+			tnode_free (name);
+		} else {
+			scope_error (name, ss, "name [%s] is not a trace parameter or name", rawname);
+			return 0;
+		}
 	} else {
 		scope_error (name, ss, "unresolved name \"%s\"", rawname);
 	}
@@ -330,6 +339,178 @@ static int traceslang_scopeout_setnode (compops_t *cops, tnode_t **node, scope_t
 	}
 
 	return 1;
+}
+/*}}}*/
+
+/*{{{  static int traceslang_typecheck_ionode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a traces io-node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int traceslang_typecheck_ionode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *arg = tnode_nthsubof (node, 0);
+	tnode_t *type;
+	char *name = NULL;
+
+	typecheck_subtree (arg, tc);
+	type = typecheck_gettype (arg, NULL);
+
+	if (!type) {
+		langops_getname (arg, &name);
+		typecheck_error (node, tc, "name [%s] has no type (used in input/output)", name ?: "(unknown)");
+	} else if (type->tag != traceslang.tag_EVENT) {
+		langops_getname (arg, &name);
+		typecheck_error (node, tc, "input or output on non-event [%s]", name ?: "(unknown)");
+	}
+#if 0
+fprintf (stderr, "traceslang_typecheck_ionode(): got type:\n");
+tnode_dumptree (type, 1, stderr);
+#endif
+
+	return 0;
+}
+/*}}}*/
+
+/*{{{  static int traceslang_prescope_instancenode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
+/*
+ *	does pre-scoping on a traces instance node, makes sure the parameters are a list
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int traceslang_prescope_instancenode (compops_t *cops, tnode_t **tptr, prescope_t *ps)
+{
+	tnode_t *params = tnode_nthsubof (*tptr, 1);
+
+	if (!parser_islistnode (params)) {
+		params = parser_buildlistnode (NULL, params, NULL);
+		tnode_setnthsub (*tptr, 1, params);
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int traceslang_typecheck_instancenode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a traces instance node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int traceslang_typecheck_instancenode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *iname = tnode_nthsubof (node, 0);
+
+#if 0
+fprintf (stderr, "traceslang_typecheck_instancenode(): type-checking instance, name is:\n");
+tnode_dumptree (iname, 1, stderr);
+#endif
+	/* the name (whatever it is) should support traceslang_getparams() and traceslang_getbody() */
+	if (!tnode_haslangop (iname->tag->ndef->lops, "traceslang_getparams") || !tnode_haslangop (iname->tag->ndef->lops, "traceslang_getbody")) {
+		char *name = NULL;
+
+		langops_getname (iname, &name);
+		typecheck_error (node, tc, "%s is not a valid trace name for instance", name ?: "(unknown)");
+		if (name) {
+			sfree (name);
+		}
+
+		return 0;
+	}
+
+	/* we'll do the substitution and check parameter types later */
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int traceslang_typeresolve_instancenode (compops_t *cops, tnode_t **tptr, typecheck_t *tc)*/
+/*
+ *	does type-resolution on a traces instance node -- effectively substitutes the trace, literally
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int traceslang_typeresolve_instancenode (compops_t *cops, tnode_t **tptr, typecheck_t *tc)
+{
+	tnode_t **inamep = tnode_nthsubaddr (*tptr, 0);
+	tnode_t **iargsp = tnode_nthsubaddr (*tptr, 1);
+	tnode_t *xparams, *xbody;
+	char *irname = NULL;
+
+	xparams = (tnode_t *)tnode_calllangop ((*inamep)->tag->ndef->lops, "traceslang_getparams", 1, *inamep);
+	xbody = (tnode_t *)tnode_calllangop ((*inamep)->tag->ndef->lops, "traceslang_getbody", 1, *inamep);
+
+	/* do type-resolution on the subtrees first */
+
+#if 0
+fprintf (stderr, "traceslang_typeresolve_instancenode(): got parameters of named trace-type:\n");
+tnode_dumptree (xparams, 1, stderr);
+fprintf (stderr, "traceslang_typeresolve_instancenode(): got body of named trace-type:\n");
+tnode_dumptree (xbody, 1, stderr);
+fprintf (stderr, "traceslang_typeresolve_instancenode(): local parameters are:\n");
+tnode_dumptree (*iargsp, 1, stderr);
+#endif
+
+	if (!xbody) {
+		langops_getname (*inamep, &irname);
+		typecheck_error (*tptr, tc, "trace-type [%s] is blank!", irname ?: "(unknown)");
+	} else if ((!xparams && *iargsp) || (xparams && !*iargsp)) {
+		/* parameter inbalance */
+		langops_getname (*inamep, &irname);
+		typecheck_error (*tptr, tc, "instance of trace-type [%s] has the wrong number parameters", irname ?: "(unknown)");
+	} else if (xparams && *iargsp) {
+		/* check parameters */
+		int nfparams, naparams, i;
+		tnode_t **fparams = parser_getlistitems (xparams, &nfparams);
+		tnode_t **aparams = parser_getlistitems (*iargsp, &naparams);
+
+		if (nfparams != naparams) {
+			langops_getname (*inamep, &irname);
+			typecheck_error (*tptr, tc, "expected %d parameters for instance of trace-type [%s], but found %d",
+					nfparams, irname ?: "(unknown)", naparams);
+		} else {
+			for (i=0; i<naparams; i++) {
+				tnode_t *aparam = aparams[i];
+				tnode_t *atype;
+
+				if ((aparam->tag == traceslang.tag_INPUT) || (aparam->tag == traceslang.tag_OUTPUT)) {
+					tnode_t *tmp = tnode_nthsubof (aparam, 0);
+
+					/* remove input or output, XXX: we should probably check this, but that information has gone to the host language.. */
+					tnode_setnthsub (aparam, 0, NULL);
+					tnode_free (aparam);
+					aparam = tmp;
+					aparams[i] = tmp;
+				}
+
+				atype = typecheck_gettype (aparam, NULL);
+				if (!atype || (atype->tag != traceslang.tag_EVENT)) {
+					langops_getname (*inamep, &irname);
+					typecheck_error (*tptr, tc, "parameter %d of trace-type instance [%s] is not an event", i+1, irname ?: "(unknown)");
+				}
+				/* else we'll assume it's good! */
+#if 0
+fprintf (stderr, "traceslang_typeresolve_instancenode(): formal parameter %d:\n", i);
+tnode_dumptree (fparams[i], 1, stderr);
+fprintf (stderr, "traceslang_typeresolve_instancenode(): actual parameter %d:\n", i);
+tnode_dumptree (aparam, 1, stderr);
+#endif
+			}
+		}
+
+		/* if we don't have a type-check error, copy and substitute the trace into the instance */
+		if (!typecheck_haserror (tc)) {
+			tnode_t *copy = traceslang_structurecopy (xbody);
+
+			copy = treeops_substitute (copy, fparams, aparams, nfparams);
+			*tptr = copy;
+#if 0
+fprintf (stderr, "traceslang_typeresolve_instancenode(): did substitution on instancenode, got:\n");
+tnode_dumptree (*tptr, 1, stderr);
+#endif
+		}
+	}
+
+	if (irname) {
+		sfree (irname);
+	}
+
+	/* don't walk resulting children -- will have already been done */
+	return 0;
 }
 /*}}}*/
 
@@ -407,13 +588,13 @@ tracescheck_dumpnode (tcc->thistrace, 1, stderr);
 #endif
 
 	if (node->tag == traceslang.tag_INPUT) {
-		if (tcc->thistrace->type != TCN_INPUT) {
-			tracescheck_checkerror (node, tcc, "input in specification not matched");
+		if (!tcc->thistrace || (tcc->thistrace->type != TCN_INPUT)) {
+			tracescheck_checkerror ((tcc->thistrace ? tcc->thistrace->orgnode : node), tcc, "input in specification not matched");
 			return 1;
 		}
 	} else if (node->tag == traceslang.tag_OUTPUT) {
-		if (tcc->thistrace->type != TCN_OUTPUT) {
-			tracescheck_checkerror (node, tcc, "output in specification not matched");
+		if (!tcc->thistrace || (tcc->thistrace->type != TCN_OUTPUT)) {
+			tracescheck_checkerror ((tcc->thistrace ? tcc->thistrace->orgnode : node), tcc, "output in specification not matched");
 			return 1;
 		}
 	}
@@ -569,6 +750,42 @@ tnode_t *traceslang_newnparam (tnode_t *locn)
 }
 /*}}}*/
 
+/*{{{  int traceslang_registertracetype (ntdef_t *tag)*/
+/*
+ *	registers a node-type from another language as a valid way of specifying traces
+ *	returns 0 on success, non-zero on failure
+ */
+int traceslang_registertracetype (ntdef_t *tag)
+{
+	if (pointerhash_lookup (validtracenametypes, tag)) {
+		nocc_warning ("traceslang_registertracetype(): tag (%s,%s) already registered!", tag->name, tag->ndef->name);
+		return -1;
+	}
+	pointerhash_insert (validtracenametypes, tag, tag);
+	return 0;
+}
+/*}}}*/
+/*{{{  int traceslang_unregistertracetype (ntdef_t *tag)*/
+/*
+ *	unregisters a node-type from another language as a valid way of specifying traces
+ *	returns 0 on success, non-zero on failure
+ */
+int traceslang_unregistertracetype (ntdef_t *tag)
+{
+	ntdef_t *xtag = pointerhash_lookup (validtracenametypes, tag);
+
+	if (!xtag) {
+		nocc_warning ("traceslang_unregistertracetype(): tag (%s,%s) is not reigstered!", tag->name, tag->ndef->name);
+		return -1;
+	} else if (xtag != tag) {
+		nocc_warning ("traceslang_unregistertracetype(): tag (%s,%s) does not match registered tag (%s,%s)!",
+				tag->name, tag->ndef->name, xtag->name, xtag->ndef->name);
+		return -1;
+	}
+	pointerhash_remove (validtracenametypes, tag, tag);
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static copycontrol_e trlang_structurecopyfcn (tnode_t *node)*/
 /*
@@ -613,6 +830,21 @@ static int traceslang_expr_init_nodes (void)
 	fcnlib_addfcn ("traceslang_integertoken_to_node", (void *)traceslang_integertoken_to_node, 1, 1);
 
 	fcnlib_addfcn ("traceslang_reduce_dop", (void *)traceslang_reduce_dop, 0, 3);
+
+	/*}}}*/
+	/*{{{  initialise other-language trace type stuff*/
+	pointerhash_sinit (validtracenametypes);
+
+	/*}}}*/
+	/*{{{  create some new language operations to extract params/body from language-specific trace types*/
+	if (tnode_newlangop ("traceslang_getparams", LOPS_INVALID, 1, INTERNAL_ORIGIN) < 0) {
+		nocc_internal ("traceslang_expr_init_nodes(): failed to create \"traceslang_getparams\" lang-op");
+		return -1;
+	}
+	if (tnode_newlangop ("traceslang_getbody", LOPS_INVALID, 1, INTERNAL_ORIGIN) < 0) {
+		nocc_internal ("traceslang_expr_init_nodes(): failed to create \"traceslang_getbody\" lang-op");
+		return -1;
+	}
 
 	/*}}}*/
 	/*{{{  traceslang:rawnamenode -- TRACESLANGNAME*/
@@ -671,6 +903,7 @@ static int traceslang_expr_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("traceslang:ionode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = item */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (traceslang_typecheck_ionode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "tracescheck_check", 2, LANGOPTYPE (traceslang_tracescheck_ionode));
@@ -701,6 +934,21 @@ static int traceslang_expr_init_nodes (void)
 	traceslang.tag_CHAOS = tnode_newnodetag ("TRACESLANGCHAOS", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 	i = -1;
 	traceslang.tag_DIV = tnode_newnodetag ("TRACESLANGDIV", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
+
+	/*}}}*/
+	/*{{{  traceslang:instancenode -- TRACESLANGINSTANCE*/
+	i = -1;
+	tnd = tnode_newnodetype ("traceslang:instancenode", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = name, 1 = params */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (traceslang_prescope_instancenode));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (traceslang_typecheck_instancenode));
+	tnode_setcompop (cops, "typeresolve", 2, COMPOPTYPE (traceslang_typeresolve_instancenode));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	traceslang.tag_INSTANCE = tnode_newnodetag ("TRACESLANGINSTANCE", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 
 	/*}}}*/
 	/*{{{  traceslang:namenode -- TRACESLANGNPARAM*/
