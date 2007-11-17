@@ -9,7 +9,7 @@ noinst_LIBRARIES = libmisc.a
 
 INCLUDES=-I@srcdir@/../include
 
-libmisc_a_SOURCES=gperf_options.h gperf_keywords.h gperf_xmlkeys.h gperf_transinstr.h gperf_landeflookup.h support.c origin.c options.c fcnlib.c keywords.c xmlkeys.c transinstr.c langdeflookup.c crypto.c
+libmisc_a_SOURCES=gperf_options.h gperf_keywords.h gperf_xmlkeys.h gperf_transinstr.h gperf_langdeflookup.h support.c origin.c options.c fcnlib.c keywords.c xmlkeys.c transinstr.c langdeflookup.c crypto.c
 
 EXTRA_DIST=options.gperf keywords.gperf xmlkeys.gperf transinstr.gperf langdeflookup.gperf
 

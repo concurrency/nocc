@@ -7,9 +7,9 @@ function printitem () {
 		return;
 	}
 
-	gsub (/\&/, "\&amp;", itemdesc);
-	gsub (/</, "\&lt;", itemdesc);
-	gsub (/>/, "\&gt;", itemdesc);
+	gsub (/&/, "&amp;", itemdesc);
+	gsub (/</, "&lt;", itemdesc);
+	gsub (/>/, "&gt;", itemdesc);
 
 	printf ("<item>\n");
 	printf ("<title>change by %s on %s</title>\n", itemauthor, itemdate);
@@ -44,7 +44,7 @@ BEGIN {
 	itemauthor = "";
 	itemdesc = "";
 
-	printrsshead ();
+	printrsshead();
 }
 
 {
@@ -64,7 +64,7 @@ BEGIN {
 			}
 		} else {
 			# a new item -- output the last
-			printitem ();
+			printitem();
 
 			itemdate = $1;
 			itemauthor = $2;
@@ -82,7 +82,7 @@ BEGIN {
 }
 
 END {
-	printitem ();
-	printrsstail ();
+	printitem();
+	printrsstail();
 }
 
