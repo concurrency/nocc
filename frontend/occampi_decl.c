@@ -1362,7 +1362,7 @@ static int occampi_tracescheck_fparam (compops_t *cops, tnode_t *node, tchk_stat
 			}
 		}
 		if (issync) {
-			tchknode_t *tnref = tracescheck_createnode (TCN_NODEREF, pname);
+			tchknode_t *tnref = tracescheck_createnode (TCN_NODEREF, node, pname);
 			//tchknode_t *tcn = tracescheck_createatom ();
 			//tchknode_t *tcnref = tracescheck_createnode (TCN_ATOMREF, tcn);
 

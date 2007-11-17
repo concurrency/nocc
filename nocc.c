@@ -1765,10 +1765,8 @@ int main (int argc, char **argv)
 					if (result) {
 						nocc_error ("failed to %s %s", cpass->name, DA_NTHITEM (srcfiles, j));
 						errored = 1;
-					}
-
-					/* if the lexfile collected any errors, fail as well */
-					if (lf->errcount > errcount) {
+					} else if (lf->errcount > errcount) {
+						/* if the lexfile collected any errors, fail as well */
 						nocc_error ("failed to %s %s", cpass->name, DA_NTHITEM (srcfiles, j));
 						errored = 1;
 					}

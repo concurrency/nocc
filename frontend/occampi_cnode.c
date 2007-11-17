@@ -386,7 +386,7 @@ static int occampi_tracescheck_cnode (compops_t *cops, tnode_t *tptr, tchk_state
 	tracescheck_subtree (tnode_nthsubof (tptr, 1), tcstate);
 	tcb = tracescheck_pullbucket (tcstate);
 
-	tcn = tracescheck_createnode ((tptr->tag == opi.tag_PAR) ? TCN_PAR : TCN_SEQ, NULL);
+	tcn = tracescheck_createnode ((tptr->tag == opi.tag_PAR) ? TCN_PAR : TCN_SEQ, tptr, NULL);
 	for (i=0; i<DA_CUR (tcb->items); i++) {
 		tchknode_t *item = DA_NTHITEM (tcb->items, i);
 

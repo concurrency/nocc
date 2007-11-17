@@ -237,7 +237,7 @@ static int occampi_tracescheck_action (compops_t *cops, tnode_t *node, tchk_stat
 		if (lhstcn) {
 			tchknode_t *newtcn = tracescheck_dupref (lhstcn);
 
-			newtcn = tracescheck_createnode ((node->tag == opi.tag_INPUT) ? TCN_INPUT : TCN_OUTPUT, newtcn);
+			newtcn = tracescheck_createnode ((node->tag == opi.tag_INPUT) ? TCN_INPUT : TCN_OUTPUT, node, newtcn);
 			tracescheck_addtobucket (tcstate, newtcn);
 		}
 	}

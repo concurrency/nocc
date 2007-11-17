@@ -40,6 +40,7 @@ typedef enum ENUM_tchknodetype {
 
 typedef struct TAG_tchknode {
 	tchknodetype_e type;
+	struct TAG_tnode *orgnode;			/* so we know where it came from */
 	int mark;
 	union {
 		struct {
@@ -131,7 +132,7 @@ extern int tracescheck_prewalk (tchknode_t *tcn, int (*func)(tchknode_t *, void 
 extern tchknode_t *tracescheck_dupref (tchknode_t *tcn);
 extern tchknode_t *tracescheck_copynode (tchknode_t *tcn);
 extern tchknode_t *tracescheck_createatom (void);
-extern tchknode_t *tracescheck_createnode (tchknodetype_e type, ...);
+extern tchknode_t *tracescheck_createnode (tchknodetype_e type, struct TAG_tnode *orgnode, ...);
 extern int tracescheck_simplifynode (tchknode_t **tcnptr);
 extern tchknode_t *tracescheck_firstevent (tchknode_t *tcn);
 

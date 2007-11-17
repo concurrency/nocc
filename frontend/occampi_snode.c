@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -49,6 +50,7 @@
 #include "prescope.h"
 #include "typecheck.h"
 #include "usagecheck.h"
+#include "tracescheck.h"
 #include "fetrans.h"
 #include "betrans.h"
 #include "map.h"
@@ -416,6 +418,41 @@ static int occampi_typecheck_snode (compops_t *cops, tnode_t *node, typecheck_t 
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_tracescheck_snode (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)*/
+/*
+ *	does traces checking on a structured node (IF/ALT/CASE)
+ *	return 0 to stop walk, 1 to continue
+ */
+static int occampi_tracescheck_snode (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)
+{
+	tchk_bucket_t *tcb;
+	tchknode_t *tcn;
+	int i;
+
+	/* collect up individual items */
+	tracescheck_pushbucket (tcstate);
+	tracescheck_subtree (tnode_nthsubof (node, 1), tcstate);
+	tcb = tracescheck_pullbucket (tcstate);
+
+	if (node->tag == opi.tag_ALT) {
+		tcn = tracescheck_createnode (TCN_DET, node, NULL);
+	} else {
+		tcn = tracescheck_createnode (TCN_NDET, node, NULL);
+	}
+
+	for (i=0; i<DA_CUR (tcb->items); i++) {
+		tchknode_t *item = DA_NTHITEM (tcb->items, i);
+
+		tracescheck_addtolistnode (tcn, item);
+	}
+	dynarray_trash (tcb->items);
+	tracescheck_freebucket (tcb);
+
+	tracescheck_addtobucket (tcstate, tcn);
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_snode (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for structured process nodes
@@ -772,6 +809,7 @@ static int occampi_snode_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:snode", &i, 3, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr, 1 = body, 2 = type-of-expression */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_snode));
+	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_snode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_snode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_snode));
 	tnd->ops = cops;

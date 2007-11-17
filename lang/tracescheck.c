@@ -545,15 +545,16 @@ void tracescheck_checkerror (tnode_t *node, tchk_check_t *tcc, const char *fmt, 
 /*}}}*/
 
 
-/*{{{  static tchknode_t *tchk_newtchknode (void)*/
+/*{{{  static tchknode_t *tchk_newtchknode (tnode_t *orgnode)*/
 /*
  *	creates a blank tchknode_t structure
  */
-static tchknode_t *tchk_newtchknode (void)
+static tchknode_t *tchk_newtchknode (tnode_t *orgnode)
 {
 	tchknode_t *tcn = (tchknode_t *)smalloc (sizeof (tchknode_t));
 
 	tcn->type = TCN_INVALID;
+	tcn->orgnode = orgnode;
 	tcn->mark = 0;
 
 	return tcn;
@@ -1394,7 +1395,7 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 	} else {
 		switch (tcn->type) {
 		case TCN_INVALID:
-			fprintf (stream, "<tracescheck:node type=\"invalid\" />\n");
+			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"invalid\" />\n", (unsigned int)tcn->orgnode);
 			break;
 		case TCN_SEQ:
 		case TCN_PAR:
@@ -1403,7 +1404,7 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 			{
 				int i;
 
-				fprintf (stream, "<tracescheck:node type=\"");
+				fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"", (unsigned int)tcn->orgnode);
 				switch (tcn->type) {
 				case TCN_SEQ:	fprintf (stream, "seq\">\n");	break;
 				case TCN_PAR:	fprintf (stream, "par\">\n");	break;
@@ -1424,29 +1425,34 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 			break;
 		case TCN_INPUT:
 		case TCN_OUTPUT:
-			fprintf (stream, "<tracescheck:node type=\"%s\">\n", ((tcn->type == TCN_INPUT) ? "input" : "output"));
+			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"%s\">\n",
+					(unsigned int)tcn->orgnode, ((tcn->type == TCN_INPUT) ? "input" : "output"));
 			tracescheck_dumpnode (tcn->u.tcnio.varptr, indent + 1, stream);
 			tchk_isetindent (stream, indent);
 			fprintf (stream, "</tracescheck:node>\n");
 			break;
 		case TCN_FIXPOINT:
-			fprintf (stream, "<tracescheck:node type=\"fixpoint\">\n");
+			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"fixpoint\">\n",
+					(unsigned int)tcn->orgnode);
 			tracescheck_dumpnode (tcn->u.tcnfix.id, indent + 1, stream);
 			tracescheck_dumpnode (tcn->u.tcnfix.proc, indent + 1, stream);
 			tchk_isetindent (stream, indent);
 			fprintf (stream, "</tracescheck:node>\n");
 			break;
 		case TCN_ATOM:
-			fprintf (stream, "<tracescheck:node type=\"atom\" id=\"%s\" />\n", tcn->u.tcnatom.id);
+			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"atom\" id=\"%s\" />\n",
+					(unsigned int)tcn->orgnode, tcn->u.tcnatom.id);
 			break;
 		case TCN_ATOMREF:
 			{
 				tchknode_t *aref = tcn->u.tcnaref.aref;
 
 				if (aref && (aref->type == TCN_ATOM)) {
-					fprintf (stream, "<tracescheck:node type=\"atomref\" id=\"%s\" />\n", tcn->u.tcnaref.aref->u.tcnatom.id);
+					fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"atomref\" id=\"%s\" />\n",
+							(unsigned int)tcn->orgnode, tcn->u.tcnaref.aref->u.tcnatom.id);
 				} else {
-					fprintf (stream, "<tracescheck:node type=\"atomref\">\n");
+					fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"atomref\">\n",
+							(unsigned int)tcn->orgnode);
 					tracescheck_dumpnode (aref, indent + 1, stream);
 					tchk_isetindent (stream, indent);
 					fprintf (stream, "</tracescheck:node>\n");
@@ -1457,8 +1463,8 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 			{
 				tnode_t *node = tcn->u.tcnnref.nref;
 
-				fprintf (stream, "<tracescheck:node type=\"noderef\" addr=\"0x%8.8x\" nodetag=\"%s\" nodetype=\"%s\" />\n",
-					(unsigned int)node, node->tag->name, node->tag->ndef->name);
+				fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"noderef\" addr=\"0x%8.8x\" nodetag=\"%s\" nodetype=\"%s\" />\n",
+						(unsigned int)tcn->orgnode, (unsigned int)node, node->tag->name, node->tag->ndef->name);
 			}
 			break;
 		}
@@ -1603,10 +1609,10 @@ tchknode_t *tracescheck_dupref (tchknode_t *tcn)
 
 	switch (tcn->type) {
 	case TCN_ATOMREF:
-		newtcn = tracescheck_createnode (tcn->type, tcn->u.tcnaref.aref);
+		newtcn = tracescheck_createnode (tcn->type, tcn->orgnode, tcn->u.tcnaref.aref);
 		break;
 	case TCN_NODEREF:
-		newtcn = tracescheck_createnode (tcn->type, tcn->u.tcnnref.nref);
+		newtcn = tracescheck_createnode (tcn->type, tcn->orgnode, tcn->u.tcnnref.nref);
 		break;
 	default:
 		nocc_internal ("tracescheck_dupref(): cannot duplicate non-reference type %d", (int)tcn->type);
@@ -1629,7 +1635,7 @@ tchknode_t *tracescheck_copynode (tchknode_t *tcn)
 		return NULL;
 	}
 	
-	tcc = tchk_newtchknode ();
+	tcc = tchk_newtchknode (tcn->orgnode);
 
 	tcc->type = tcn->type;
 	switch (tcn->type) {
@@ -1713,7 +1719,7 @@ tchknode_t *tracescheck_copynode (tchknode_t *tcn)
  */
 tchknode_t *tracescheck_createatom (void)
 {
-	tchknode_t *tcn = tchk_newtchknode ();
+	tchknode_t *tcn = tchk_newtchknode (NULL);
 
 	tcn->type = TCN_ATOM;
 	tcn->u.tcnatom.id = (char *)smalloc (32);
@@ -1723,17 +1729,17 @@ tchknode_t *tracescheck_createatom (void)
 	return tcn;
 }
 /*}}}*/
-/*{{{  tchknode_t *tracescheck_createnode (tchknodetype_e type, ...)*/
+/*{{{  tchknode_t *tracescheck_createnode (tchknodetype_e type, tnode_t *orgnode, ...)*/
 /*
  *	creates a new tchknode_t, populated
  *	returns node on success, NULL on failure
  */
-tchknode_t *tracescheck_createnode (tchknodetype_e type, ...)
+tchknode_t *tracescheck_createnode (tchknodetype_e type, tnode_t *orgnode, ...)
 {
-	tchknode_t *tcn = tchk_newtchknode ();
+	tchknode_t *tcn = tchk_newtchknode (orgnode);
 	va_list ap;
 
-	va_start (ap, type);
+	va_start (ap, orgnode);
 	switch (type) {
 		/*{{{  INVALID*/
 	case TCN_INVALID:
