@@ -86,8 +86,6 @@ static dopmap_t dopmap[] = {
 	{NOTOKEN, NULL, NULL, NULL}
 };
 
-STATICPOINTERHASH (ntdef_t *, validtracenametypes, 4);
-
 /*}}}*/
 
 
@@ -285,7 +283,7 @@ fprintf (stderr, "traceslang_scopein_rawname(): found name, node tag: %s\n", rno
 		if (rnode->tag == traceslang.tag_NPARAM) {
 			*node = rnode;
 			tnode_free (name);
-		} else if (pointerhash_lookup (validtracenametypes, rnode->tag)) {
+		} else if (traceslang_isregisteredtracetype (rnode->tag)) {
 			*node = rnode;
 			tnode_free (name);
 		} else {
@@ -495,8 +493,17 @@ tnode_dumptree (aparam, 1, stderr);
 		/* if we don't have a type-check error, copy and substitute the trace into the instance */
 		if (!typecheck_haserror (tc)) {
 			tnode_t *copy = traceslang_structurecopy (xbody);
+			traceslang_eset_t *first;
 
 			copy = treeops_substitute (copy, fparams, aparams, nfparams);
+
+			/* okay, if that ends in a Skip (successful termination), need to chop that off,
+			 * otherwise wrap in a fixpoint (repeat indefinitely)
+			 */
+			first = traceslang_lastevents (copy);
+			traceslang_dumpset (first, 1, stderr);
+			traceslang_freeset (first);
+
 			*tptr = copy;
 #if 0
 fprintf (stderr, "traceslang_typeresolve_instancenode(): did substitution on instancenode, got:\n");
@@ -725,93 +732,6 @@ static void traceslang_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rar
 /*}}}*/
 
 
-/*{{{  tnode_t *traceslang_newevent (tnode_t *locn)*/
-/*
- *	creates a new TRACESLANGEVENT (leaf) node
- *	returns node on success, NULL on failure
- */
-tnode_t *traceslang_newevent (tnode_t *locn)
-{
-	tnode_t *enode = tnode_createfrom (traceslang.tag_EVENT, locn);
-
-	return enode;
-}
-/*}}}*/
-/*{{{  tnode_t *traceslang_newnparam (tnode_t *locn)*/
-/*
- *	creates a new TRACESLANGNPARAM (name) node
- *	returns node on success, NULL on failure
- */
-tnode_t *traceslang_newnparam (tnode_t *locn)
-{
-	tnode_t *nnode = tnode_createfrom (traceslang.tag_NPARAM, locn, NULL);
-
-	return nnode;
-}
-/*}}}*/
-
-/*{{{  int traceslang_registertracetype (ntdef_t *tag)*/
-/*
- *	registers a node-type from another language as a valid way of specifying traces
- *	returns 0 on success, non-zero on failure
- */
-int traceslang_registertracetype (ntdef_t *tag)
-{
-	if (pointerhash_lookup (validtracenametypes, tag)) {
-		nocc_warning ("traceslang_registertracetype(): tag (%s,%s) already registered!", tag->name, tag->ndef->name);
-		return -1;
-	}
-	pointerhash_insert (validtracenametypes, tag, tag);
-	return 0;
-}
-/*}}}*/
-/*{{{  int traceslang_unregistertracetype (ntdef_t *tag)*/
-/*
- *	unregisters a node-type from another language as a valid way of specifying traces
- *	returns 0 on success, non-zero on failure
- */
-int traceslang_unregistertracetype (ntdef_t *tag)
-{
-	ntdef_t *xtag = pointerhash_lookup (validtracenametypes, tag);
-
-	if (!xtag) {
-		nocc_warning ("traceslang_unregistertracetype(): tag (%s,%s) is not reigstered!", tag->name, tag->ndef->name);
-		return -1;
-	} else if (xtag != tag) {
-		nocc_warning ("traceslang_unregistertracetype(): tag (%s,%s) does not match registered tag (%s,%s)!",
-				tag->name, tag->ndef->name, xtag->name, xtag->ndef->name);
-		return -1;
-	}
-	pointerhash_remove (validtracenametypes, tag, tag);
-	return 0;
-}
-/*}}}*/
-
-/*{{{  static copycontrol_e trlang_structurecopyfcn (tnode_t *node)*/
-/*
- *	used when duplicating the structure of a traceslang tree
- *	returns copy control status (for tnode_copyoraliastree)
- */
-static copycontrol_e trlang_structurecopyfcn (tnode_t *node)
-{
-	if (tnode_ntflagsof (node) & NTF_TRACESLANGCOPYALIAS) {
-		return COPY_ALIAS;
-	}
-	return (COPY_SUBS | COPY_HOOKS | COPY_CHOOKS);
-}
-/*}}}*/
-/*{{{  tnode_t *traceslang_structurecopy (tnode_t *expr)*/
-/*
- *	does a structure copy on a traceslang tree -- duplicates structural nodes, but leaves others intact
- *	returns new tree on success, NULL on failure
- */
-tnode_t *traceslang_structurecopy (tnode_t *expr)
-{
-	return tnode_copyoraliastree (expr, trlang_structurecopyfcn);
-}
-/*}}}*/
-
-
 /*{{{  static int traceslang_expr_init_nodes (void)*/
 /*
  *	initialises nodes for traces language
@@ -830,10 +750,6 @@ static int traceslang_expr_init_nodes (void)
 	fcnlib_addfcn ("traceslang_integertoken_to_node", (void *)traceslang_integertoken_to_node, 1, 1);
 
 	fcnlib_addfcn ("traceslang_reduce_dop", (void *)traceslang_reduce_dop, 0, 3);
-
-	/*}}}*/
-	/*{{{  initialise other-language trace type stuff*/
-	pointerhash_sinit (validtracenametypes);
 
 	/*}}}*/
 	/*{{{  create some new language operations to extract params/body from language-specific trace types*/

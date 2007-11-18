@@ -61,18 +61,35 @@ typedef struct {
 
 extern traceslang_pset_t traceslang;
 
+
+typedef struct TAG_traceslang_eset {
+	DYNARRAY (struct TAG_tnode *, events);
+} traceslang_eset_t;
+
 extern void traceslang_isetindent (FILE *stream, int indent);
 extern struct TAG_langdef *traceslang_getlangdef (void);
 
 /* traceslang_expr.c */
+extern struct TAG_feunit traceslang_expr_feunit;
+
+/* traceslang_fe.c */
 extern struct TAG_tnode *traceslang_newevent (struct TAG_tnode *locn);
 extern struct TAG_tnode *traceslang_newnparam (struct TAG_tnode *locn);
+
+extern int traceslang_isequal (struct TAG_tnode *n1, struct TAG_tnode *n2);
 
 extern struct TAG_tnode *traceslang_structurecopy (struct TAG_tnode *expr);
 extern int traceslang_registertracetype (struct TAG_ntdef *tag);
 extern int traceslang_unregistertracetype (struct TAG_ntdef *tag);
+extern int traceslang_isregisteredtracetype (struct TAG_ntdef *tag);
 
-extern struct TAG_feunit traceslang_expr_feunit;
+extern traceslang_eset_t *traceslang_newset (void);
+extern void traceslang_freeset (traceslang_eset_t *eset);
+extern void traceslang_dumpset (traceslang_eset_t *eset, int indent, FILE *stream);
+
+extern traceslang_eset_t *traceslang_firstevents (struct TAG_tnode *expr);
+extern traceslang_eset_t *traceslang_lastevents (struct TAG_tnode *expr);
+
 
 
 #endif	/* !__TRACESLANG_H */
