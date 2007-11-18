@@ -83,6 +83,10 @@ extern int traceslang_registertracetype (struct TAG_ntdef *tag);
 extern int traceslang_unregistertracetype (struct TAG_ntdef *tag);
 extern int traceslang_isregisteredtracetype (struct TAG_ntdef *tag);
 
+extern int traceslang_noskiporloop (struct TAG_tnode **exprp);
+extern struct TAG_tnode *traceslang_simplifyexpr (struct TAG_tnode *expr);
+extern struct TAG_tnode *traceslang_listtondet (struct TAG_tnode *expr);
+
 extern traceslang_eset_t *traceslang_newset (void);
 extern void traceslang_freeset (traceslang_eset_t *eset);
 extern void traceslang_dumpset (traceslang_eset_t *eset, int indent, FILE *stream);

@@ -320,6 +320,15 @@ static int occampi_scopeout_tracetypedecl (compops_t *cops, tnode_t **node, scop
  */
 static int occampi_precheck_tracetypedecl (compops_t *cops, tnode_t *node)
 {
+	tnode_t **traceptr = tnode_nthsubaddr (node, 3);
+
+	*traceptr = traceslang_simplifyexpr (*traceptr);
+#if 0
+fprintf (stderr, "occampi_precheck_tracetypedecl(): got trace name:\n");
+tnode_dumptree (tnode_nthsubof (node, 0), 1, stderr);
+fprintf (stderr, "occampi_precheck_tracetypedecl(): got traces:\n");
+tnode_dumptree (*traceptr, 1, stderr);
+#endif
 	/* FIXME! */
 	return 1;
 }

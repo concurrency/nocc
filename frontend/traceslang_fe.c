@@ -237,6 +237,114 @@ tnode_t *traceslang_structurecopy (tnode_t *expr)
 }
 /*}}}*/
 
+/*{{{  int traceslang_noskiporloop (tnode_t **exprp)*/
+/*
+ *	this goes through a trace and removes trailing "Skip"s, or turns trailing ends into fixpoint loops
+ *	returns 0 on success, non-zero on failure
+ */
+int traceslang_noskiporloop (tnode_t **exprp)
+{
+	return -1;
+}
+/*}}}*/
+/*{{{  static int traceslang_simplifyexpr_modpostwalk (tnode_t **nodep, void *arg)*/
+/*
+ *	called to simplify a traces-language expression (postwalk order)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int traceslang_simplifyexpr_modpostwalk (tnode_t **nodep, void *arg)
+{
+	tnode_t *n = *nodep;
+
+	if ((n->tag == traceslang.tag_SEQ) || (n->tag == traceslang.tag_PAR) || (n->tag == traceslang.tag_DET) || (n->tag == traceslang.tag_NDET)) {
+		/*{{{  SEQ,PAR,DET,NDET -- collapse singles, merge nested*/
+		int nitems, i;
+		tnode_t *ilist = tnode_nthsubof (n, 0);
+		tnode_t **items = parser_getlistitems (ilist, &nitems);
+
+		if (nitems == 1) {
+			/* single item! */
+			tnode_t *tmp = items[0];
+
+			items[0] = NULL;
+			tnode_free (n);
+			*nodep = tmp;
+		} else {
+			/* otherwise, see if we can merge nested trees */
+			for (i=0; i<nitems; i++) {
+				if (items[i]->tag == n->tag) {
+					/* collapse this one */
+					int nsubitems, j;
+					tnode_t *sublist = tnode_nthsubof (items[i], 0);
+					tnode_t **subitems = parser_getlistitems (sublist, &nsubitems);
+
+					/* replacing item 'i' to start with */
+					parser_delfromlist (ilist, i);
+
+					for (j=0; j<nsubitems; j++, i++) {
+						parser_insertinlist (ilist, subitems[j], i);
+						subitems[j] = NULL;
+					}
+					i--;
+
+					/* reset items incase it moved! */
+					items = parser_getlistitems (ilist, &nitems);
+				}
+			}
+		}
+		/*}}}*/
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  tnode_t *traceslang_simplifyexpr (tnode_t *expr)*/
+/*
+ *	simplifies a traces-language expression (collapses single SEQs, etc.)
+ *	returns new tree on success, NULL on failure
+ */
+tnode_t *traceslang_simplifyexpr (tnode_t *expr)
+{
+	tnode_t *result = expr;
+
+	tnode_modpostwalktree (&result, traceslang_simplifyexpr_modpostwalk, NULL);
+
+	return result;
+}
+/*}}}*/
+/*{{{  tnode_t *traceslang_listtondet (tnode_t *expr)*/
+/*
+ *	turns a simple list of traces into a non-deterministic choice of them
+ *	returns new tree on success, NULL on failure
+ */
+tnode_t *traceslang_listtondet (tnode_t *expr)
+{
+	int nitems, i;
+	tnode_t **items;
+
+	if (!expr) {
+		nocc_serious ("traceslang_listtondet(): NULL expression!");
+		return NULL;
+	}
+	if (!parser_islistnode (expr)) {
+		nocc_serious ("traceslang_listtondet(): expression is not a list! (%s,%s)", expr->tag->name, expr->tag->ndef->name);
+		return expr;
+	}
+	items = parser_getlistitems (expr, &nitems);
+	if (nitems == 1) {
+		/* collapse single item */
+		tnode_t *tmp = items[0];
+
+		items[0] = NULL;
+		tnode_free (expr);
+		return tmp;
+	} else if (nitems > 1) {
+		/* make a non-deterministic choice */
+		return tnode_createfrom (traceslang.tag_NDET, expr, expr);
+	}
+	return expr;
+}
+/*}}}*/
+
 /*{{{  traceslang_eset_t *traceslang_newset (void)*/
 /*
  *	creates a new (blank) event set

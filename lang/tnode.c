@@ -1058,6 +1058,41 @@ void tnode_modprewalktree (tnode_t **t, int (*fcn)(tnode_t **, void *), void *ar
 	return;
 }
 /*}}}*/
+/*{{{  void tnode_modpostwalktree (tnode_t **t, int (*fcn)(tnode_t **, void *), void *arg)*/
+/*
+ *	performs a tree-walk, calls the requested function on each node after the node is walked.
+ */
+void tnode_modpostwalktree (tnode_t **t, int (*fcn)(tnode_t **, void *), void *arg)
+{
+	int i;
+	tndef_t *tnd;
+
+	if (!t || !*t || !fcn) {
+		return;
+	}
+	tnd = (*t)->tag->ndef;
+
+	/* walk subnodes */
+	for (i=0; i<tnd->nsub; i++) {
+		tnode_t **sub = (tnode_t **)DA_NTHITEMADDR ((*t)->items, i);
+
+		if (*sub) {
+			tnode_modpostwalktree (sub, fcn, arg);
+		}
+	}
+
+	/* walk hooks if applicable */
+	if (tnd->hook_modprepostwalktree) {
+		for (i=(tnd->nsub + tnd->nname); i<DA_CUR ((*t)->items); i++) {
+			void *hook = DA_NTHITEM ((*t)->items, i);
+
+			tnd->hook_modprepostwalktree (t, hook, NULL, fcn, arg);
+		}
+	}
+	fcn (t, arg);
+	return;
+}
+/*}}}*/
 /*{{{  void tnode_modprepostwalktree (tnode_t **t, int (*prefcn)(tnode_t **, void *), int (*postfcn)(tnode_t **, void *), void *arg)*/
 /*
  *	performs a tree-walk.  calls the requested "prefcn" function on each node before
@@ -1068,10 +1103,10 @@ void tnode_modprepostwalktree (tnode_t **t, int (*prefcn)(tnode_t **, void *), i
 {
 	int i;
 
-	if (!t || !*t || !prefcn || !postfcn) {
+	if (!t || !*t || !postfcn) {
 		return;
 	}
-	i = prefcn (t, arg);
+	i = prefcn ? prefcn (t, arg) : 1;
 	if (i > 0) {
 		tndef_t *tnd = (*t)->tag->ndef;
 
@@ -1084,7 +1119,7 @@ void tnode_modprepostwalktree (tnode_t **t, int (*prefcn)(tnode_t **, void *), i
 			}
 		}
 		/* walk hooks if applicable */
-		if (tnd->hook_modprewalktree) {
+		if (tnd->hook_modprepostwalktree) {
 			for (i=(tnd->nsub + tnd->nname); i<DA_CUR ((*t)->items); i++) {
 				void *hook = DA_NTHITEM ((*t)->items, i);
 

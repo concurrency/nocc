@@ -504,6 +504,9 @@ tnode_dumptree (aparam, 1, stderr);
 			traceslang_dumpset (first, 1, stderr);
 			traceslang_freeset (first);
 
+			traceslang_noskiporloop (&copy);
+			copy = traceslang_listtondet (copy);
+
 			*tptr = copy;
 #if 0
 fprintf (stderr, "traceslang_typeresolve_instancenode(): did substitution on instancenode, got:\n");

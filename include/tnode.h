@@ -260,6 +260,7 @@ extern int tnode_ntflagsof (tnode_t *t);
 extern void tnode_postwalktree (tnode_t *t, void (*fcn)(tnode_t *, void *), void *arg);
 extern void tnode_prewalktree (tnode_t *t, int (*fcn)(tnode_t *, void *), void *arg);
 extern void tnode_modprewalktree (tnode_t **t, int (*fcn)(tnode_t **, void *), void *arg);
+extern void tnode_modpostwalktree (tnode_t **t, int (*fcn)(tnode_t **, void *), void *arg);
 extern void tnode_modprepostwalktree (tnode_t **t, int (*prefcn)(tnode_t **, void *), int (*postfcn)(tnode_t **, void *), void *arg);
 
 extern tnode_t *tnode_new (ntdef_t *tag, struct TAG_lexfile *lf);
