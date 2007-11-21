@@ -51,6 +51,7 @@ extern struct TAG_tnode **parser_getlistitems (struct TAG_tnode *list, int *nite
 extern int parser_cleanuplist (struct TAG_tnode *list);
 extern void parser_inlistfixup (void **tos);
 extern void parser_sortlist (struct TAG_tnode *list, int (*cmpfcn)(struct TAG_tnode *, struct TAG_tnode *));
+extern void parser_trashlist (struct TAG_tnode *list);
 
 extern void parser_warning (struct TAG_lexfile *lf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 extern void parser_warning_line (struct TAG_lexfile *lf, const int lineno, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));

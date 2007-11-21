@@ -500,8 +500,8 @@ tnode_dumptree (aparam, 1, stderr);
 			 * otherwise wrap in a fixpoint (repeat indefinitely)
 			 */
 
-			traceslang_noskiporloop (&copy);
 			copy = traceslang_listtondet (copy);
+			traceslang_noskiporloop (&copy);
 
 			*tptr = copy;
 #if 0

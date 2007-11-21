@@ -800,6 +800,31 @@ fprintf (stderr, "parser_sortlist(): array = 0x%8.8x, cur = 0x%8.8x (%d), max = 
 	return;
 }
 /*}}}*/
+/*{{{  void parser_trashlist (tnode_t *list)*/
+/*
+ *	trashes a listnode -- non-deep free effectively
+ */
+void parser_trashlist (tnode_t *list)
+{
+	tnode_t **array;
+	int *cur, *max;
+	int i;
+
+	array = (tnode_t **)tnode_nthhookof (list, 0);
+	if (!array) {
+		nocc_internal ("parser_insertinlist(): null array in list!");
+		return;
+	}
+	cur = (int *)(array);
+	max = (int *)(array + 1);
+
+	for (i=0; i<*cur; i++) {
+		array[i] = NULL;
+	}
+	tnode_free (list);
+	return;
+}
+/*}}}*/
 
 
 /*{{{  int parser_register_reduce (const char *name, void (*reduce)(dfastate_t *, parsepriv_t *, void *), void *rarg)*/

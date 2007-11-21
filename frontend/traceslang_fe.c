@@ -39,6 +39,7 @@
 #include "lexpriv.h"
 #include "parser.h"
 #include "parsepriv.h"
+#include "names.h"
 #include "treeops.h"
 #include "opts.h"
 #include "traceslang.h"
@@ -51,6 +52,7 @@
 
 STATICPOINTERHASH (ntdef_t *, validtracenametypes, 4);
 
+static int anonidcounter = 0;
 
 /*}}}*/
 
@@ -233,7 +235,41 @@ static copycontrol_e trlang_structurecopyfcn (tnode_t *node)
  */
 tnode_t *traceslang_structurecopy (tnode_t *expr)
 {
-	return tnode_copyoraliastree (expr, trlang_structurecopyfcn);
+	tnode_t *newtree;
+	traceslang_eset_t *fixset;
+
+	/* extract a list of fixpoint names from what we're about to duplicate */
+	fixset = traceslang_allfixpoints (expr);
+	newtree = tnode_copyoraliastree (expr, trlang_structurecopyfcn);
+
+	if (DA_CUR (fixset->events)) {
+		int i;
+		traceslang_eset_t *newset = traceslang_newset ();
+
+		/* got some fixpoint names here, duplicate them into a new set of NFIXs */
+		for (i=0; i<DA_CUR (fixset->events); i++) {
+			char *rfixname = (char *)smalloc (64);
+			name_t *sfixname;
+			tnode_t *fixname;
+
+			/* create fresh name */
+			fixname = tnode_create (traceslang.tag_NFIX, NULL, NULL);
+			sprintf (rfixname, "FP%d", anonidcounter++);
+			sfixname = name_addname (rfixname, NULL, tnode_create (traceslang.tag_FIXPOINTTYPE, NULL), fixname);
+			sfree (rfixname);
+			tnode_setnthname (fixname, 0, sfixname);
+
+			/* add to substitution lists */
+			dynarray_add (newset->events, fixname);
+		}
+		newtree = treeops_substitute (newtree, DA_PTR (fixset->events), DA_PTR (newset->events), DA_CUR (fixset->events));
+
+		traceslang_freeset (newset);
+	}
+
+	traceslang_freeset (fixset);
+
+	return newtree;
 }
 /*}}}*/
 
@@ -245,8 +281,14 @@ tnode_t *traceslang_structurecopy (tnode_t *expr)
 int traceslang_noskiporloop (tnode_t **exprp)
 {
 	traceslang_erefset_t *tailrefs = traceslang_lasteventsp (exprp);
-	int i;
+	tnode_t *fixname;
+	int i, fixcount = 0;
+	fixname = tnode_create (traceslang.tag_NFIX, NULL, NULL);
 
+#if 0
+fprintf (stderr, "traceslang_noskiporloop(): transforming:\n");
+tnode_dumptree (*exprp, 1, stderr);
+#endif
 	for (i=0; i<DA_CUR (tailrefs->events); i++) {
 		tnode_t **eventp = DA_NTHITEM (tailrefs->events, i);
 		tnode_t *ev = *eventp;
@@ -257,11 +299,33 @@ int traceslang_noskiporloop (tnode_t **exprp)
 			tnode_free (ev);
 		} else if (ev->tag == traceslang.tag_NPARAM) {
 			/* trailing event, sequential with fixpoint instance */
-			/* FIXME! */
+			tnode_t *ilist = parser_buildlistnode (NULL, ev, fixname, NULL);
+
+			*eventp = tnode_createfrom (traceslang.tag_SEQ, ev, ilist);
+			fixcount++;
 		}
 	}
 
+	if (fixcount) {
+		char *rfixname = (char *)smalloc (64);
+		name_t *sfixname;
+		tnode_t *fixnode;
+
+		sprintf (rfixname, "FP%d", anonidcounter++);
+		sfixname = name_addname (rfixname, NULL, tnode_create (traceslang.tag_FIXPOINTTYPE, NULL), fixname);
+		sfree (rfixname);
+		tnode_setnthname (fixname, 0, sfixname);
+
+		fixnode = tnode_createfrom (traceslang.tag_FIXPOINT, *exprp, fixname, *exprp);
+		SetNameDecl (sfixname, fixnode);
+		*exprp = fixnode;
+	}
+
 	traceslang_freerefset (tailrefs);
+#if 0
+fprintf (stderr, "traceslang_noskiporloop(): into:\n");
+tnode_dumptree (*exprp, 1, stderr);
+#endif
 	return 0;
 }
 /*}}}*/
@@ -348,7 +412,7 @@ tnode_t *traceslang_simplifyexpr (tnode_t *expr)
  */
 tnode_t *traceslang_listtondet (tnode_t *expr)
 {
-	int nitems, i;
+	int nitems;
 	tnode_t **items;
 
 	if (!expr) {
@@ -477,6 +541,53 @@ void traceslang_dumprefset (traceslang_erefset_t *eset, int indent, FILE *stream
 }
 /*}}}*/
 
+/*{{{  int traceslang_addtoset (traceslang_eset_t *eset, tnode_t *event)*/
+/*
+ *	adds an event to the given event set
+ *	returns 0 on success (added), 1 if already here, < 0 on error
+ */
+int traceslang_addtoset (traceslang_eset_t *eset, tnode_t *event)
+{
+	int i;
+
+	if (!eset || !event) {
+		nocc_internal ("traceslang_addtoset(): NULL set or event!");
+		return -1;
+	}
+	for (i=0; i<DA_CUR (eset->events); i++) {
+		tnode_t *ev = DA_NTHITEM (eset->events, i);
+
+		if (!traceslang_isequal (ev, event)) {
+			/* same event */
+			return 1;
+		}
+	}
+	dynarray_add (eset->events, event);
+	return 0;
+}
+/*}}}*/
+/*{{{  int traceslang_addtorefset (traceslang_erefset_t *erset, tnode_t **eventp)*/
+/*
+ *	adds an event-reference to the given set of event references
+ *	returns 0 on success (ref added), 1 if reference already here, < 0 on error
+ */
+int traceslang_addtorefset (traceslang_erefset_t *erset, tnode_t **eventp)
+{
+	int i;
+
+	for (i=0; i<DA_CUR (erset->events); i++) {
+		tnode_t **evp = DA_NTHITEM (erset->events, i);
+
+		if (eventp == evp) {
+			/* same reference */
+			return 1;
+		}
+	}
+	dynarray_add (erset->events, eventp);
+	return 0;
+}
+/*}}}*/
+
 /*{{{  static int traceslang_firstevents_prewalk (tnode_t *node, void *arg)*/
 /*
  *	called to extract the set of leading traces from a traces specification (prewalk order)
@@ -511,13 +622,17 @@ static int traceslang_firstevents_prewalk (tnode_t *node, void *arg)
 		/*{{{  INPUT,OUTPUT -- first event from subnode*/
 		return 1;
 		/*}}}*/
+	} else if (node->tag == traceslang.tag_NFIX) {
+		/*{{{  NFIX -- fixpoint instance (must be inside, do nothing)*/
+		return 0;
+		/*}}}*/
 	} else if (node->tag == traceslang.tag_NPARAM) {
 		/*{{{  NPARAM -- an event!*/
-		dynarray_add (eset->events, node);
+		traceslang_addtoset (eset, node);
 		/*}}}*/
 	} else if ((node->tag == traceslang.tag_SKIP) || (node->tag == traceslang.tag_STOP) || (node->tag == traceslang.tag_CHAOS) || (node->tag == traceslang.tag_DIV)) {
 		/*{{{  SKIP,STOP,CHAOS,DIV -- do count as events*/
-		dynarray_add (eset->events, node);
+		traceslang_addtoset (eset, node);
 		/*}}}*/
 	} else {
 		nocc_serious ("traceslang_firstevents_prewalk(): unexpected node (%s,%s)", node->tag->name, node->tag->ndef->name);
@@ -559,13 +674,17 @@ static int traceslang_lastevents_prewalk (tnode_t *node, void *arg)
 		/*{{{  INPUT,OUTPUT -- last event from subnode*/
 		return 1;
 		/*}}}*/
+	} else if (node->tag == traceslang.tag_NFIX) {
+		/*{{{  NFIX -- fixpoint instance (must be inside, do nothing)*/
+		return 0;
+		/*}}}*/
 	} else if (node->tag == traceslang.tag_NPARAM) {
 		/*{{{  NPARAM -- an event!*/
-		dynarray_add (eset->events, node);
+		traceslang_addtoset (eset, node);
 		/*}}}*/
 	} else if ((node->tag == traceslang.tag_SKIP) || (node->tag == traceslang.tag_STOP) || (node->tag == traceslang.tag_CHAOS) || (node->tag == traceslang.tag_DIV)) {
 		/*{{{  SKIP,STOP,CHAOS,DIV -- do count as events*/
-		dynarray_add (eset->events, node);
+		traceslang_addtoset (eset, node);
 		/*}}}*/
 	} else {
 		nocc_serious ("traceslang_lastevents_prewalk(): unexpected node (%s,%s)", node->tag->name, node->tag->ndef->name);
@@ -604,17 +723,25 @@ static int traceslang_firsteventsp_modprewalk (tnode_t **nodep, void *arg)
 		/*{{{  PAR,NDET,DET -- first event from all branches*/
 		return 1;
 		/*}}}*/
+	} else if (n->tag == traceslang.tag_FIXPOINT) {
+		/*{{{  FIXPOINT -- last things which happen in the body*/
+		tnode_modprewalktree (tnode_nthsubaddr (n, 1), traceslang_firsteventsp_modprewalk, (void *)eset);
+		/*}}}*/
 	} else if ((n->tag == traceslang.tag_INPUT) || (n->tag == traceslang.tag_OUTPUT)) {
 		/*{{{  INPUT,OUTPUT -- first event from subnode*/
 		return 1;
 		/*}}}*/
 	} else if (n->tag == traceslang.tag_NPARAM) {
 		/*{{{  NPARAM -- an event!*/
-		dynarray_add (eset->events, nodep);
+		traceslang_addtorefset (eset, nodep);
+		/*}}}*/
+	} else if (n->tag == traceslang.tag_NFIX) {
+		/*{{{  NFIX -- fixpoint instance (must be inside, do nothing)*/
+		return 0;
 		/*}}}*/
 	} else if ((n->tag == traceslang.tag_SKIP) || (n->tag == traceslang.tag_STOP) || (n->tag == traceslang.tag_CHAOS) || (n->tag == traceslang.tag_DIV)) {
 		/*{{{  SKIP,STOP,CHAOS,DIV -- do count as events*/
-		dynarray_add (eset->events, nodep);
+		traceslang_addtorefset (eset, nodep);
 		/*}}}*/
 	} else {
 		nocc_serious ("traceslang_firsteventsp_modprewalk(): unexpected node (%s,%s)", n->tag->name, n->tag->ndef->name);
@@ -629,7 +756,7 @@ static int traceslang_firsteventsp_modprewalk (tnode_t **nodep, void *arg)
  */
 static int traceslang_lasteventsp_modprewalk (tnode_t **nodep, void *arg)
 {
-	traceslang_eset_t *eset = (traceslang_eset_t *)arg;
+	traceslang_erefset_t *eset = (traceslang_erefset_t *)arg;
 	tnode_t *n = *nodep;
 	
 	if (parser_islistnode (n)) {
@@ -649,6 +776,10 @@ static int traceslang_lasteventsp_modprewalk (tnode_t **nodep, void *arg)
 		}
 
 		/*}}}*/
+	} else if (n->tag == traceslang.tag_FIXPOINT) {
+		/*{{{  FIXPOINT -- last things which happen in the body*/
+		tnode_modprewalktree (tnode_nthsubaddr (n, 1), traceslang_lasteventsp_modprewalk, (void *)eset);
+		/*}}}*/
 	} else if ((n->tag == traceslang.tag_PAR) || (n->tag == traceslang.tag_NDET) || (n->tag == traceslang.tag_DET)) {
 		/*{{{  PAR,NDET,DET -- last event from all branches*/
 		return 1;
@@ -659,16 +790,54 @@ static int traceslang_lasteventsp_modprewalk (tnode_t **nodep, void *arg)
 		/*}}}*/
 	} else if (n->tag == traceslang.tag_NPARAM) {
 		/*{{{  NPARAM -- an event!*/
-		dynarray_add (eset->events, nodep);
+		traceslang_addtorefset (eset, nodep);
+		/*}}}*/
+	} else if (n->tag == traceslang.tag_NFIX) {
+		/*{{{  NFIX -- fixpoint instance (must be inside, do nothing)*/
+		return 0;
 		/*}}}*/
 	} else if ((n->tag == traceslang.tag_SKIP) || (n->tag == traceslang.tag_STOP) || (n->tag == traceslang.tag_CHAOS) || (n->tag == traceslang.tag_DIV)) {
 		/*{{{  SKIP,STOP,CHAOS,DIV -- do count as events*/
-		dynarray_add (eset->events, nodep);
+		traceslang_addtorefset (eset, nodep);
 		/*}}}*/
 	} else {
 		nocc_serious ("traceslang_lasteventsp_modprewalk(): unexpected node (%s,%s)", n->tag->name, n->tag->ndef->name);
 	}
 	return 0;
+}
+/*}}}*/
+/*{{{  static int traceslang_alleventsp_modprewalk (tnode_t **nodep, void *arg)*/
+/*
+ *	called to extract the set of all events from a traces specification (modprewalk order)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int traceslang_alleventsp_modprewalk (tnode_t **nodep, void *arg)
+{
+	traceslang_erefset_t *erset = (traceslang_erefset_t *)arg;
+	tnode_t *n = *nodep;
+
+	if (n->tag == traceslang.tag_NPARAM) {
+		traceslang_addtorefset (erset, nodep);
+	} else if ((n->tag == traceslang.tag_SKIP) || (n->tag == traceslang.tag_STOP) ||
+			(n->tag == traceslang.tag_CHAOS) || (n->tag == traceslang.tag_DIV)) {
+		traceslang_addtorefset (erset, nodep);
+	}
+	return 1;	
+}
+/*}}}*/
+/*{{{  static int traceslang_allfixpoints_prewalk (tnode_t *node, void *arg)*/
+/*
+ *	called to extract the set of all fixpoints from a traces specification (prewalk order)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int traceslang_allfixpoints_prewalk (tnode_t *node, void *arg)
+{
+	traceslang_eset_t *eset = (traceslang_eset_t *)arg;
+
+	if (node->tag == traceslang.tag_NFIX) {
+		traceslang_addtoset (eset, node);
+	}
+	return 1;
 }
 /*}}}*/
 /*{{{  traceslang_eset_t *traceslang_firstevents (tnode_t *expr)*/
@@ -725,6 +894,34 @@ traceslang_erefset_t *traceslang_lasteventsp (tnode_t **exprp)
 	tnode_modprewalktree (exprp, traceslang_lasteventsp_modprewalk, (void *)erset);
 
 	return erset;
+}
+/*}}}*/
+/*{{{  traceslang_erefset_t *traceslang_alleventsp (tnode_t **exprp)*/
+/*
+ *	extracts a set of all events from the given trace
+ *	returns set on success, NULL on failure
+ */
+traceslang_erefset_t *traceslang_alleventsp (tnode_t **exprp)
+{
+	traceslang_erefset_t *erset = traceslang_newrefset ();
+
+	tnode_modprewalktree (exprp, traceslang_alleventsp_modprewalk, (void *)erset);
+
+	return erset;
+}
+/*}}}*/
+/*{{{  traceslang_eset_t *traceslang_allfixpoints (tnode_t *expr)*/
+/*
+ *	extracts a set of all fixpoint names from the given trace
+ *	returns set on success, NULL on failure
+ */
+traceslang_eset_t *traceslang_allfixpoints (tnode_t *expr)
+{
+	traceslang_eset_t *eset = traceslang_newset ();
+
+	tnode_prewalktree (expr, traceslang_allfixpoints_prewalk, (void *)eset);
+
+	return eset;
 }
 /*}}}*/
 

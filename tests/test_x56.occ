@@ -1,0 +1,9 @@
+-- test_x56.occ -- testing traces analysis
+
+TRACES TYPE T.TEST (c!,d!) IS "c! -> @X,(d! -> X)":
+TRACES TYPE T.FOO (x!, y!) IS "T.TEST (y!, x!)":
+
+PROC test.x56 (CHAN BYTE out!, zog!) TRACES T.TEST (out!, zog!)
+  SKIP
+:
+

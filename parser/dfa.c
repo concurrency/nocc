@@ -3170,7 +3170,7 @@ void dfa_dumpdeferred (FILE *stream)
 
 
 
-/*{{{  int dfa_advance (dfastate_t *dfast, parsepriv_t *pp, token_t *tok)*/
+/*{{{  int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)*/
 /*
  *	advances the DFA a single state from the given token
  *	returns number of actions (either shifts or reductions), or -1 on error
@@ -3345,6 +3345,25 @@ tnode_t *dfa_popnode (dfastate_t *dfast)
 }
 /*}}}*/
 
+/*{{{  static int dfa_canmatchend (dfastate_t *dfast, parsepriv_t *pp)*/
+/*
+ *	returns non-zero if the specified DFA state can match the END token (slightly special case)
+ */
+static int dfa_canmatchend (dfastate_t *dfast, parsepriv_t *pp)
+{
+	dfanode_t *cnode = dfast->cur;
+	int i;
+
+	for (i=0; i<DA_CUR (cnode->match); i++) {
+		token_t *thistok = DA_NTHITEM (cnode->match, i);
+
+		if (thistok->type == END) {
+			return 1;
+		}
+	}
+	return 0;
+}
+/*}}}*/
 
 /*{{{  tnode_t *dfa_walk (char *rname, lexfile_t *lf)*/
 /*
@@ -3374,8 +3393,12 @@ tnode_t *dfa_walk (char *rname, lexfile_t *lf)
 	dfast->cur = idfa;
 
 	tok = lexer_nexttoken (lf);
-	while (tok && (tok->type != END) && (dfast->cur)) {
+	while (tok && (dfast->cur)) {
 		int i;
+
+		if ((tok->type == END) && !dfa_canmatchend (dfast, pp)) {
+			break;
+		}
 
 		i = dfa_advance (&dfast, pp, tok);
 		if (i < 0) {
