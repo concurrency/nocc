@@ -57,6 +57,9 @@ typedef struct {
 	struct TAG_ntdef *tag_CHAOS;
 	struct TAG_ntdef *tag_DIV;
 	struct TAG_ntdef *tag_INSTANCE;
+	struct TAG_ntdef *tag_FIXPOINTTYPE;
+	struct TAG_ntdef *tag_FIXPOINT;
+	struct TAG_ntdef *tag_NFIX;
 } traceslang_pset_t;
 
 extern traceslang_pset_t traceslang;

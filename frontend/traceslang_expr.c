@@ -280,7 +280,7 @@ static int traceslang_scopein_rawname (compops_t *cops, tnode_t **node, scope_t 
 #if 0
 fprintf (stderr, "traceslang_scopein_rawname(): found name, node tag: %s\n", rnode->tag->name);
 #endif
-		if (rnode->tag == traceslang.tag_NPARAM) {
+		if ((rnode->tag == traceslang.tag_NPARAM) || (rnode->tag == traceslang.tag_NFIX)) {
 			*node = rnode;
 			tnode_free (name);
 		} else if (traceslang_isregisteredtracetype (rnode->tag)) {
@@ -516,6 +516,45 @@ tnode_dumptree (*tptr, 1, stderr);
 	}
 
 	/* don't walk resulting children -- will have already been done */
+	return 0;
+}
+/*}}}*/
+
+/*{{{  static int traceslang_scopein_fixpointnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes-in a traceslang fixpoint node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int traceslang_scopein_fixpointnode (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	tnode_t *name = tnode_nthsubof (*node, 0);
+	tnode_t *type, *newname;
+	char *rawname;
+	void *nsmark;
+	name_t *sname;
+
+	nsmark = name_markscope ();
+
+	if (name->tag != traceslang.tag_NAME) {
+		scope_error (name, ss, "name not raw-name!");
+		return 0;
+	}
+	rawname = (char *)tnode_nthhookof (name, 0);
+
+	type = tnode_createfrom (traceslang.tag_FIXPOINTTYPE, *node);
+	sname = name_addscopename (rawname, *node, type, NULL);
+	newname = tnode_createfrom (traceslang.tag_NFIX, name, sname);
+	SetNameNode (sname, newname);
+
+	/* replace old name */
+	tnode_free (name);
+	tnode_setnthsub (*node, 0, newname);
+	ss->scoped++;
+
+	/* scope in the body */
+	scope_subtree (tnode_nthsubaddr (*node, 1), ss);
+	name_markdescope (nsmark);
+
 	return 0;
 }
 /*}}}*/
@@ -830,7 +869,7 @@ static int traceslang_expr_init_nodes (void)
 	traceslang.tag_OUTPUT = tnode_newnodetag ("TRACESLANGOUTPUT", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 
 	/*}}}*/
-	/*{{{  traceslang:leafnode -- TRACESLANGEVENT, TRACESLANGSKIP, TRACESLANGSTOP, TRACESLANGCHAOS, TRACESLANGDIV*/
+	/*{{{  traceslang:leafnode -- TRACESLANGEVENT, TRACESLANGFIXPOINTTYPE, TRACESLANGSKIP, TRACESLANGSTOP, TRACESLANGCHAOS, TRACESLANGDIV*/
 	i = -1;
 	tnd = tnode_newnodetype ("traceslang:leafnode", &i, 0, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
@@ -841,6 +880,8 @@ static int traceslang_expr_init_nodes (void)
 
 	i = -1;
 	traceslang.tag_EVENT = tnode_newnodetag ("TRACESLANGEVENT", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
+	i = -1;
+	traceslang.tag_FIXPOINTTYPE = tnode_newnodetag ("TRACESLANGFIXPOINTTYPE", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 	i = -1;
 	traceslang.tag_SKIP = tnode_newnodetag ("TRACESLANGSKIP", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 	i = -1;
@@ -866,7 +907,7 @@ static int traceslang_expr_init_nodes (void)
 	traceslang.tag_INSTANCE = tnode_newnodetag ("TRACESLANGINSTANCE", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 
 	/*}}}*/
-	/*{{{  traceslang:namenode -- TRACESLANGNPARAM*/
+	/*{{{  traceslang:namenode -- TRACESLANGNPARAM, TRACESLANGNFIX*/
 	i = -1;
 	tnd = tnode_newnodetype ("traceslang:namenode", &i, 0, 1, 0, TNF_NONE);			/* subnames: 0 = name */
 	cops = tnode_newcompops ();
@@ -878,6 +919,21 @@ static int traceslang_expr_init_nodes (void)
 
 	i = -1;
 	traceslang.tag_NPARAM = tnode_newnodetag ("TRACESLANGNPARAM", &i, tnd, NTF_TRACESLANGCOPYALIAS);
+	i = -1;
+	traceslang.tag_NFIX = tnode_newnodetag ("TRACESLANGNFIX", &i, tnd, NTF_TRACESLANGCOPYALIAS);
+
+	/*}}}*/
+	/*{{{  traceslang:fixpointnode -- TRACESLANGFIXPOINT*/
+	i = -1;
+	tnd = tnode_newnodetype ("traceslang:fixpointnode", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = name, 1 = body */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (traceslang_scopein_fixpointnode));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	traceslang.tag_FIXPOINT = tnode_newnodetag ("TRACESLANGFIXPOINT", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 
 	/*}}}*/
 

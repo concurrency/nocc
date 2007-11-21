@@ -1,5 +1,5 @@
 
--- test_x54.occ -- testing traces analysis
+-- test_x55.occ -- testing traces analysis
 
 VAL INT v IS 2:
 
@@ -8,7 +8,7 @@ VAL INT v IS 2:
 TRACES TYPE T.TEST (c!) IS "c! -> Skip":
 TRACES TYPE T.TEST2 (d!) IS "T.TEST (d!); d!":
 
-PROC test.n79 (CHAN BYTE out!, zog!) TRACES T.TEST2 (out!)
+PROC test.x55 (CHAN BYTE out!, zog!) TRACES T.TEST2 (out!)
   SEQ
     out ! 42
     out ! 42

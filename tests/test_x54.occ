@@ -8,7 +8,7 @@ VAL INT v IS 2:
 TRACES TYPE T.TEST (c!) IS "c! -> Skip":
 -- TRACES TYPE T.TEST2 (d!) IS "d!":
 
-PROC test.n79 (CHAN BYTE out!, zog!) TRACES T.TEST (out!)
+PROC test.x54 (CHAN BYTE out!, zog!) TRACES T.TEST (out!)
   SEQ
     out ! 42
     zog ! 'x'

@@ -295,6 +295,7 @@ tnode_dumptree (type, 1, stderr);
 
 	/* scope body */
 	if (scope_subtree (tnode_nthsubaddr (*node, 2), ss)) {
+		name_descopename (sname);
 		return 0;
 	}
 
