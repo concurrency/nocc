@@ -66,6 +66,7 @@ trace-constprop,	'\0',	opt_setintflag,		&(compopts.traceconstprop),	"1trace cons
 trace-precode,		'\0',	opt_setintflag,		&(compopts.traceprecode),	"1trace pre-code (debugging)",				203
 trace-compops,		'\0',	opt_setstr,		&(compopts.tracecompops),	"1trace compiler operations (debugging)",		204
 trace-langops,		'\0',	opt_setstr,		&(compopts.tracelangops),	"1trace language operations (debugging)",		205
+trace-tracescheck,	'\0',	opt_setintflag,		&(compopts.tracetracescheck),	"1trace traces checking operations (debugging)",	206
 treecheck,		'\0',	opt_setintflag,		&(compopts.treecheck),		"1enable run-time parse tree checking",			250
 verbose,		'v',	opt_setintflag,		&(compopts.verbose),		"0verbose compilation",					251
 debug-parser,		'\0',	opt_setintflag,		&(compopts.debugparser),	"1debug parser",					252

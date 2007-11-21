@@ -50,6 +50,7 @@ typedef struct {
 	struct TAG_ntdef *tag_NDET;
 	struct TAG_ntdef *tag_INPUT;
 	struct TAG_ntdef *tag_OUTPUT;
+	struct TAG_ntdef *tag_SYNC;
 	struct TAG_ntdef *tag_NPARAM;
 	struct TAG_ntdef *tag_EVENT;
 	struct TAG_ntdef *tag_SKIP;
@@ -110,6 +111,7 @@ extern traceslang_eset_t *traceslang_firstevents (struct TAG_tnode *expr);
 extern traceslang_eset_t *traceslang_lastevents (struct TAG_tnode *expr);
 extern traceslang_erefset_t *traceslang_firsteventsp (struct TAG_tnode **exprp);
 extern traceslang_erefset_t *traceslang_lasteventsp (struct TAG_tnode **exprp);
+extern traceslang_erefset_t *traceslang_lastactionsp (struct TAG_tnode **exprp);
 extern traceslang_erefset_t *traceslang_alleventsp (struct TAG_tnode **exprp);
 extern traceslang_eset_t *traceslang_allfixpoints (struct TAG_tnode *expr);
 

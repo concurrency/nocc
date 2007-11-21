@@ -785,7 +785,7 @@ fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): against specific
 tnode_dumptree (trspecs[j], 1, stderr);
 #endif
 
-					if (!tracescheck_docheckspec (trspecs[j], trscopy, tcstate)) {
+					if (!tracescheck_docheckspec (trspecs[j], trscopy, tcstate, node)) {
 						okaycount++;
 					}
 

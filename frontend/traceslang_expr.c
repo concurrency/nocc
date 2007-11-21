@@ -690,6 +690,17 @@ tracescheck_dumpnode (tcc->thistrace, 1, stderr);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int traceslang_tracescheck_fixpointnode (langops_t *lops, tnode_t *node, tchk_check_t *tcc)*/
+/*
+ *	does traces checks on a traceslang fixpoint-node
+ *	returns 0 on success, non-zero on failure
+ */
+static int traceslang_tracescheck_fixpointnode (langops_t *lops, tnode_t *node, tchk_check_t *tcc)
+{
+	tracescheck_checkwarning (node, tcc, "traceslang_tracescheck_fixpointnode(): here!");
+	return 0;
+}
+/*}}}*/
 /*{{{  static int traceslang_tracescheck_namenode (langops_t *lops, tnode_t *node, tchk_check_t *tcc)*/
 /*
  *	does traces checks on a traceslang name-node
@@ -707,7 +718,6 @@ tracescheck_dumpnode (tcc->thistrace, 1, stderr);
 	return 1;
 }
 /*}}}*/
-
 
 /*{{{  static tnode_t *traceslang_gettype_namenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
@@ -728,7 +738,6 @@ static tnode_t *traceslang_gettype_namenode (langops_t *lops, tnode_t *node, tno
 	return NULL;
 }
 /*}}}*/
-
 
 /*{{{  static void traceslang_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
@@ -853,7 +862,7 @@ static int traceslang_expr_init_nodes (void)
 	traceslang.tag_NDET = tnode_newnodetag ("TRACESLANGNDET", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 
 	/*}}}*/
-	/*{{{  traceslang:ionode -- TRACESLANGINPUT, TRACESLANGOUTPUT*/
+	/*{{{  traceslang:ionode -- TRACESLANGINPUT, TRACESLANGOUTPUT, TRACESLANGSYNC*/
 	i = -1;
 	tnd = tnode_newnodetype ("traceslang:ionode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = item */
 	cops = tnode_newcompops ();
@@ -867,6 +876,8 @@ static int traceslang_expr_init_nodes (void)
 	traceslang.tag_INPUT = tnode_newnodetag ("TRACESLANGINPUT", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 	i = -1;
 	traceslang.tag_OUTPUT = tnode_newnodetag ("TRACESLANGOUTPUT", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
+	i = -1;
+	traceslang.tag_SYNC = tnode_newnodetag ("TRACESLANGSYNC", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 
 	/*}}}*/
 	/*{{{  traceslang:leafnode -- TRACESLANGEVENT, TRACESLANGFIXPOINTTYPE, TRACESLANGSKIP, TRACESLANGSTOP, TRACESLANGCHAOS, TRACESLANGDIV*/
@@ -930,6 +941,7 @@ static int traceslang_expr_init_nodes (void)
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (traceslang_scopein_fixpointnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "tracescheck_check", 2, LANGOPTYPE (traceslang_tracescheck_fixpointnode));
 	tnd->lops = lops;
 
 	i = -1;

@@ -2205,6 +2205,10 @@ static int tracescheck_docheckspec_prewalk (tnode_t *node, void *arg)
 	if (tnode_haslangop (node->tag->ndef->lops, "tracescheck_check")) {
 		int r;
 
+		if (compopts.tracetracescheck) {
+			fprintf (stderr, "tracescheck_docheckspec_prewalk(): calling \"tracescheck_check\" op on (%s,%s)\n",
+					node->tag->name, node->tag->ndef->name);
+		}
 		r = tnode_calllangop (node->tag->ndef->lops, "tracescheck_check", 2, node, tcc);
 		if (r) {
 			tcc->err++;
@@ -2230,12 +2234,12 @@ int tracescheck_dosubcheckspec (tnode_t *spec, tchknode_t *trace, tchk_check_t *
 	return tcc->err;
 }
 /*}}}*/
-/*{{{  int tracescheck_docheckspec (tnode_t *spec, tchk_traces_t *traces, tchk_state_t *tcstate)*/
+/*{{{  int tracescheck_docheckspec (tnode_t *spec, tchk_traces_t *traces, tchk_state_t *tcstate, tnode_t *locn)*/
 /*
  *	checks a trace against a trace specification
  *	returns 0 on success, non-zero on failure
  */
-int tracescheck_docheckspec (tnode_t *spec, tchk_traces_t *traces, tchk_state_t *tcstate)
+int tracescheck_docheckspec (tnode_t *spec, tchk_traces_t *traces, tchk_state_t *tcstate, tnode_t *locn)
 {
 	tchk_check_t *tcc = (tchk_check_t *)smalloc (sizeof (tchk_check_t));
 	int r = 0;
@@ -2246,6 +2250,22 @@ int tracescheck_docheckspec (tnode_t *spec, tchk_traces_t *traces, tchk_state_t 
 	tcc->warn = 0;
 	tcc->traces = traces;
 	tcc->spec = spec;
+
+	if (compopts.tracetracescheck) {
+		fprintf (stderr, "tracescheck_docheckspec(): checking specification against traces..\n");
+	}
+
+#if 0
+fprintf (stderr, "tracescheck_docheckspec(): specification is:\n");
+tnode_dumptree (spec, 1, stderr);
+fprintf (stderr, "tracescheck_docheckspec(): traces were:\n");
+tracescheck_dumptraces (traces, 1, stderr);
+#endif
+
+	if (!DA_CUR (traces->items)) {
+		/* means there were no traces! */
+		tracescheck_checkerror (locn, tcc, "no traces to match against specification!");
+	}
 
 	/* if more than one trace in "traces", all must match */
 	for (i=0; i<DA_CUR (traces->items); i++) {

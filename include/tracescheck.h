@@ -159,7 +159,7 @@ extern struct TAG_chook *tracescheck_gettraceschook (void);
 extern struct TAG_chook *tracescheck_getimplchook (void);
 extern struct TAG_chook *tracescheck_getbvarschook (void);
 
-extern int tracescheck_docheckspec (struct TAG_tnode *spec, tchk_traces_t *traces, tchk_state_t *tcstate);
+extern int tracescheck_docheckspec (struct TAG_tnode *spec, tchk_traces_t *traces, tchk_state_t *tcstate, struct TAG_tnode *locn);
 extern int tracescheck_dosubcheckspec (struct TAG_tnode *spec, tchknode_t *trace, tchk_check_t *tcc);
 
 extern void tracescheck_warning (struct TAG_tnode *node, tchk_state_t *tcstate, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));

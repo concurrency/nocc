@@ -280,7 +280,7 @@ tnode_t *traceslang_structurecopy (tnode_t *expr)
  */
 int traceslang_noskiporloop (tnode_t **exprp)
 {
-	traceslang_erefset_t *tailrefs = traceslang_lasteventsp (exprp);
+	traceslang_erefset_t *tailrefs = traceslang_lastactionsp (exprp);
 	tnode_t *fixname;
 	int i, fixcount = 0;
 	fixname = tnode_create (traceslang.tag_NFIX, NULL, NULL);
@@ -288,6 +288,8 @@ int traceslang_noskiporloop (tnode_t **exprp)
 #if 0
 fprintf (stderr, "traceslang_noskiporloop(): transforming:\n");
 tnode_dumptree (*exprp, 1, stderr);
+fprintf (stderr, "traceslang_noskiporloop(): with tail references:\n");
+traceslang_dumprefset (tailrefs, 1, stderr);
 #endif
 	for (i=0; i<DA_CUR (tailrefs->events); i++) {
 		tnode_t **eventp = DA_NTHITEM (tailrefs->events, i);
@@ -806,6 +808,60 @@ static int traceslang_lasteventsp_modprewalk (tnode_t **nodep, void *arg)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int traceslang_lastactionsp_modprewalk (tnode_t **nodep, void *arg)*/
+/*
+ *	called to extract the set of trailing actions from a traces specification (modprewalk order)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int traceslang_lastactionsp_modprewalk (tnode_t **nodep, void *arg)
+{
+	traceslang_erefset_t *eset = (traceslang_erefset_t *)arg;
+	tnode_t *n = *nodep;
+
+	if (parser_islistnode (n)) {
+		/*{{{  list node -- step through*/
+		return 1;
+		/*}}}*/
+	} else if (n->tag == traceslang.tag_SEQ) {
+		/*{{{  SEQ -- the last thing which happens*/
+		tnode_t *body = tnode_nthsubof (n, 0);
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (body, &nitems);
+		int count = DA_CUR (eset->events);
+
+		for (i=nitems-1; (i>=0) && (DA_CUR (eset->events) == count); i--) {
+			/* walk this item */
+			tnode_modprewalktree (&(items[i]), traceslang_lastactionsp_modprewalk, (void *)eset);
+			break;				/* XXX: only check the last thing in a SEQ? */
+		}
+
+		/*}}}*/
+	} else if (n->tag == traceslang.tag_FIXPOINT) {
+		/*{{{  FIXPOINT -- last things which happen in the body*/
+		tnode_modprewalktree (tnode_nthsubaddr (n, 1), traceslang_lastactionsp_modprewalk, (void *)eset);
+		/*}}}*/
+	} else if ((n->tag == traceslang.tag_PAR) || (n->tag == traceslang.tag_NDET) || (n->tag == traceslang.tag_DET)) {
+		/*{{{  PAR,NDET,DET -- last event from all branches*/
+		return 1;
+		/*}}}*/
+	} else if ((n->tag == traceslang.tag_INPUT) || (n->tag == traceslang.tag_OUTPUT) || (n->tag == traceslang.tag_SYNC)) {
+		/*{{{  INPUT,OUTPUT,SYNC -- these actions*/
+		traceslang_addtorefset (eset, nodep);
+		/*}}}*/
+	} else if ((n->tag == traceslang.tag_SKIP) || (n->tag == traceslang.tag_STOP) || (n->tag == traceslang.tag_CHAOS) || (n->tag == traceslang.tag_DIV)) {
+		/*{{{  SKIP,STOP,CHAOS,DIV -- do count as actions*/
+		traceslang_addtorefset (eset, nodep);
+		/*}}}*/
+	} else if (n->tag == traceslang.tag_NFIX) {
+		/*{{{  NFIX -- loop internally, not an action*/
+		return 0;
+		/*}}}*/
+	} else {
+		nocc_serious ("traceslang_lastactionsp_modprewalk(): unexpected node (%s,%s)", n->tag->name, n->tag->ndef->name);
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int traceslang_alleventsp_modprewalk (tnode_t **nodep, void *arg)*/
 /*
  *	called to extract the set of all events from a traces specification (modprewalk order)
@@ -892,6 +948,20 @@ traceslang_erefset_t *traceslang_lasteventsp (tnode_t **exprp)
 	traceslang_erefset_t *erset = traceslang_newrefset ();
 
 	tnode_modprewalktree (exprp, traceslang_lasteventsp_modprewalk, (void *)erset);
+
+	return erset;
+}
+/*}}}*/
+/*{{{  traceslang_erefset_t *traceslang_lastactionsp (tnode_t **exprp)*/
+/*
+ *	extracts the set of trailing actions from a traces specification (by reference)
+ *	returns a set structure on success, NULL on failure
+ */
+traceslang_erefset_t *traceslang_lastactionsp (tnode_t **exprp)
+{
+	traceslang_erefset_t *erset = traceslang_newrefset ();
+
+	tnode_modprewalktree (exprp, traceslang_lastactionsp_modprewalk, (void *)erset);
 
 	return erset;
 }
