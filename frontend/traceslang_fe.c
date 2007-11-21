@@ -244,7 +244,25 @@ tnode_t *traceslang_structurecopy (tnode_t *expr)
  */
 int traceslang_noskiporloop (tnode_t **exprp)
 {
-	return -1;
+	traceslang_erefset_t *tailrefs = traceslang_lasteventsp (exprp);
+	int i;
+
+	for (i=0; i<DA_CUR (tailrefs->events); i++) {
+		tnode_t **eventp = DA_NTHITEM (tailrefs->events, i);
+		tnode_t *ev = *eventp;
+
+		if (ev->tag == traceslang.tag_SKIP) {
+			/* remove from traces */
+			*eventp = NULL;
+			tnode_free (ev);
+		} else if (ev->tag == traceslang.tag_NPARAM) {
+			/* trailing event, sequential with fixpoint instance */
+			/* FIXME! */
+		}
+	}
+
+	traceslang_freerefset (tailrefs);
+	return 0;
 }
 /*}}}*/
 /*{{{  static int traceslang_simplifyexpr_modpostwalk (tnode_t **nodep, void *arg)*/
@@ -260,7 +278,10 @@ static int traceslang_simplifyexpr_modpostwalk (tnode_t **nodep, void *arg)
 		/*{{{  SEQ,PAR,DET,NDET -- collapse singles, merge nested*/
 		int nitems, i;
 		tnode_t *ilist = tnode_nthsubof (n, 0);
-		tnode_t **items = parser_getlistitems (ilist, &nitems);
+		tnode_t **items;
+		
+		parser_cleanuplist (ilist);
+		items = parser_getlistitems (ilist, &nitems);
 
 		if (nitems == 1) {
 			/* single item! */
@@ -291,6 +312,15 @@ static int traceslang_simplifyexpr_modpostwalk (tnode_t **nodep, void *arg)
 					items = parser_getlistitems (ilist, &nitems);
 				}
 			}
+		}
+		/*}}}*/
+	} else if ((n->tag == traceslang.tag_INPUT) || (n->tag == traceslang.tag_OUTPUT)) {
+		/*{{{  INPUT,OUTPUT -- remove if NULL body*/
+		tnode_t *item = tnode_nthsubof (n, 0);
+
+		if (!item) {
+			*nodep = NULL;
+			tnode_free (n);
 		}
 		/*}}}*/
 	}
@@ -396,6 +426,57 @@ void traceslang_dumpset (traceslang_eset_t *eset, int indent, FILE *stream)
 }
 /*}}}*/
 
+/*{{{  traceslang_erefset_t *traceslang_newrefset (void)*/
+/*
+ *	creates a new traceslang_erefset_t structure
+ */
+traceslang_erefset_t *traceslang_newrefset (void)
+{
+	traceslang_erefset_t *eset = (traceslang_erefset_t *)smalloc (sizeof (traceslang_erefset_t));
+
+	dynarray_init (eset->events);
+	return eset;
+}
+/*}}}*/
+/*{{{  void traceslang_freerefset (traceslang_erefset_t *eset)*/
+/*
+ *	frees a traceslang_erefset_t structure
+ */
+void traceslang_freerefset (traceslang_erefset_t *eset)
+{
+	if (!eset) {
+		nocc_internal ("traceslang_freerefset(): NULL set!");
+		return;
+	}
+	dynarray_trash (eset->events);
+	sfree (eset);
+	return;
+}
+/*}}}*/
+/*{{{  void traceslang_dumprefset (traceslang_erefset_t *eset, int indent, FILE *stream)*/
+/*
+ *	dumps a traceslang_erefset_t structure (debugging)
+ */
+void traceslang_dumprefset (traceslang_erefset_t *eset, int indent, FILE *stream)
+{
+	traceslang_isetindent (stream, indent);
+	if (!eset) {
+		fprintf (stream, "<traceslang:erefset items=\"0\" value=\"null\" />\n");
+	} else {
+		int i;
+
+		fprintf (stream, "<traceslang:erefset items=\"%d\">\n", DA_CUR (eset->events));
+		for (i=0; i<DA_CUR (eset->events); i++) {
+			tnode_t **eventp = DA_NTHITEM (eset->events, i);
+
+			tnode_dumptree (*eventp, indent + 1, stream);
+		}
+		traceslang_isetindent (stream, indent);
+		fprintf (stream, "</traceslang:erefset>\n");
+	}
+}
+/*}}}*/
+
 /*{{{  static int traceslang_firstevents_prewalk (tnode_t *node, void *arg)*/
 /*
  *	called to extract the set of leading traces from a traces specification (prewalk order)
@@ -492,8 +573,104 @@ static int traceslang_lastevents_prewalk (tnode_t *node, void *arg)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int traceslang_firsteventsp_modprewalk (tnode_t **nodep, void *arg)*/
+/*
+ *	called to extract the set of leading traces from a traces specification (modprewalk order)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int traceslang_firsteventsp_modprewalk (tnode_t **nodep, void *arg)
+{
+	traceslang_erefset_t *eset = (traceslang_erefset_t *)arg;
+	tnode_t *n = *nodep;
 
+	if (parser_islistnode (n)) {
+		/*{{{  list node -- step through*/
+		return 1;
+		/*}}}*/
+	} else if (n->tag == traceslang.tag_SEQ) {
+		/*{{{  SEQ -- only the first can happen*/
+		tnode_t *body = tnode_nthsubof (n, 0);
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (body, &nitems);
+		int count = DA_CUR (eset->events);
 
+		for (i=0; (i<nitems) && (DA_CUR (eset->events) == count); i++) {
+			/* walk this item */
+			tnode_modprewalktree (&(items[i]), traceslang_firsteventsp_modprewalk, (void *)eset);
+		}
+
+		/*}}}*/
+	} else if ((n->tag == traceslang.tag_PAR) || (n->tag == traceslang.tag_NDET) || (n->tag == traceslang.tag_DET)) {
+		/*{{{  PAR,NDET,DET -- first event from all branches*/
+		return 1;
+		/*}}}*/
+	} else if ((n->tag == traceslang.tag_INPUT) || (n->tag == traceslang.tag_OUTPUT)) {
+		/*{{{  INPUT,OUTPUT -- first event from subnode*/
+		return 1;
+		/*}}}*/
+	} else if (n->tag == traceslang.tag_NPARAM) {
+		/*{{{  NPARAM -- an event!*/
+		dynarray_add (eset->events, nodep);
+		/*}}}*/
+	} else if ((n->tag == traceslang.tag_SKIP) || (n->tag == traceslang.tag_STOP) || (n->tag == traceslang.tag_CHAOS) || (n->tag == traceslang.tag_DIV)) {
+		/*{{{  SKIP,STOP,CHAOS,DIV -- do count as events*/
+		dynarray_add (eset->events, nodep);
+		/*}}}*/
+	} else {
+		nocc_serious ("traceslang_firsteventsp_modprewalk(): unexpected node (%s,%s)", n->tag->name, n->tag->ndef->name);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int traceslang_lasteventsp_modprewalk (tnode_t **nodep, void *arg)*/
+/*
+ *	called to extract the set of trailing traces from a traces specification (modprewalk order)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int traceslang_lasteventsp_modprewalk (tnode_t **nodep, void *arg)
+{
+	traceslang_eset_t *eset = (traceslang_eset_t *)arg;
+	tnode_t *n = *nodep;
+	
+	if (parser_islistnode (n)) {
+		/*{{{  list node -- step through*/
+		return 1;
+		/*}}}*/
+	} else if (n->tag == traceslang.tag_SEQ) {
+		/*{{{  SEQ -- the last thing which happens*/
+		tnode_t *body = tnode_nthsubof (n, 0);
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (body, &nitems);
+		int count = DA_CUR (eset->events);
+
+		for (i=nitems-1; (i>=0) && (DA_CUR (eset->events) == count); i--) {
+			/* walk this item */
+			tnode_modprewalktree (&(items[i]), traceslang_lasteventsp_modprewalk, (void *)eset);
+		}
+
+		/*}}}*/
+	} else if ((n->tag == traceslang.tag_PAR) || (n->tag == traceslang.tag_NDET) || (n->tag == traceslang.tag_DET)) {
+		/*{{{  PAR,NDET,DET -- last event from all branches*/
+		return 1;
+		/*}}}*/
+	} else if ((n->tag == traceslang.tag_INPUT) || (n->tag == traceslang.tag_OUTPUT)) {
+		/*{{{  INPUT,OUTPUT -- last event from subnode*/
+		return 1;
+		/*}}}*/
+	} else if (n->tag == traceslang.tag_NPARAM) {
+		/*{{{  NPARAM -- an event!*/
+		dynarray_add (eset->events, nodep);
+		/*}}}*/
+	} else if ((n->tag == traceslang.tag_SKIP) || (n->tag == traceslang.tag_STOP) || (n->tag == traceslang.tag_CHAOS) || (n->tag == traceslang.tag_DIV)) {
+		/*{{{  SKIP,STOP,CHAOS,DIV -- do count as events*/
+		dynarray_add (eset->events, nodep);
+		/*}}}*/
+	} else {
+		nocc_serious ("traceslang_lasteventsp_modprewalk(): unexpected node (%s,%s)", n->tag->name, n->tag->ndef->name);
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  traceslang_eset_t *traceslang_firstevents (tnode_t *expr)*/
 /*
  *	extracts the set of leading events from a traces specification
@@ -520,6 +697,34 @@ traceslang_eset_t *traceslang_lastevents (tnode_t *expr)
 	tnode_prewalktree (expr, traceslang_lastevents_prewalk, (void *)eset);
 
 	return eset;
+}
+/*}}}*/
+/*{{{  traceslang_erefset_t *traceslang_firsteventsp (tnode_t **exprp)*/
+/*
+ *	extracts the set of leading events from a traces specification (by reference)
+ *	returns a set structure on success, NULL on failure
+ */
+traceslang_erefset_t *traceslang_firsteventsp (tnode_t **exprp)
+{
+	traceslang_erefset_t *erset = traceslang_newrefset ();
+
+	tnode_modprewalktree (exprp, traceslang_firsteventsp_modprewalk, (void *)erset);
+
+	return erset;
+}
+/*}}}*/
+/*{{{  traceslang_erefset_t *traceslang_lasteventsp (tnode_t **exprp)*/
+/*
+ *	extracts the set of trailing events from a traces specification (by reference)
+ *	returns a set structure on success, NULL on failure
+ */
+traceslang_erefset_t *traceslang_lasteventsp (tnode_t **exprp)
+{
+	traceslang_erefset_t *erset = traceslang_newrefset ();
+
+	tnode_modprewalktree (exprp, traceslang_lasteventsp_modprewalk, (void *)erset);
+
+	return erset;
 }
 /*}}}*/
 

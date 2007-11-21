@@ -493,16 +493,12 @@ tnode_dumptree (aparam, 1, stderr);
 		/* if we don't have a type-check error, copy and substitute the trace into the instance */
 		if (!typecheck_haserror (tc)) {
 			tnode_t *copy = traceslang_structurecopy (xbody);
-			traceslang_eset_t *first;
 
 			copy = treeops_substitute (copy, fparams, aparams, nfparams);
 
 			/* okay, if that ends in a Skip (successful termination), need to chop that off,
 			 * otherwise wrap in a fixpoint (repeat indefinitely)
 			 */
-			first = traceslang_lastevents (copy);
-			traceslang_dumpset (first, 1, stderr);
-			traceslang_freeset (first);
 
 			traceslang_noskiporloop (&copy);
 			copy = traceslang_listtondet (copy);

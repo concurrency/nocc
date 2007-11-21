@@ -66,6 +66,11 @@ typedef struct TAG_traceslang_eset {
 	DYNARRAY (struct TAG_tnode *, events);
 } traceslang_eset_t;
 
+typedef struct TAG_traceslang_erefset {
+	DYNARRAY (struct TAG_tnode **, events);
+} traceslang_erefset_t;
+
+
 extern void traceslang_isetindent (FILE *stream, int indent);
 extern struct TAG_langdef *traceslang_getlangdef (void);
 
@@ -91,8 +96,14 @@ extern traceslang_eset_t *traceslang_newset (void);
 extern void traceslang_freeset (traceslang_eset_t *eset);
 extern void traceslang_dumpset (traceslang_eset_t *eset, int indent, FILE *stream);
 
+extern traceslang_erefset_t *traceslang_newrefset (void);
+extern void traceslang_freerefset (traceslang_erefset_t *eset);
+extern void traceslang_dumprefset (traceslang_erefset_t *eset, int indent, FILE *stream);
+
 extern traceslang_eset_t *traceslang_firstevents (struct TAG_tnode *expr);
 extern traceslang_eset_t *traceslang_lastevents (struct TAG_tnode *expr);
+extern traceslang_erefset_t *traceslang_firsteventsp (struct TAG_tnode **exprp);
+extern traceslang_erefset_t *traceslang_lasteventsp (struct TAG_tnode **exprp);
 
 
 

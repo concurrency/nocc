@@ -329,7 +329,6 @@ tnode_dumptree (tnode_nthsubof (node, 0), 1, stderr);
 fprintf (stderr, "occampi_precheck_tracetypedecl(): got traces:\n");
 tnode_dumptree (*traceptr, 1, stderr);
 #endif
-	/* FIXME! */
 	return 1;
 }
 /*}}}*/
