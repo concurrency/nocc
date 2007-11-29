@@ -233,7 +233,7 @@
 
 .BNF	"occampi:declorprocstart +:= ( occampi:vardecl | occampi:abbrdecl | occampi:valof | occampi:procdecl | occampi:typedecl |"
 	"occampi:primproc | occampi:cproc | occampi:snode | occampi:namestart | occampi:mobiledecl |"
-	"occampi:builtinprocinstance | occampi:bracketstart | occampi:asmblock | occampi:tracesdecl ) {<opi:nullreduce>}"
+	"occampi:builtinprocinstance | occampi:bracketstart | occampi:asmblock | occampi:tracesdecl | occampi:exceptiontypedecl ) {<opi:nullreduce>}"
 .TABLE	"occampi:descriptorline ::= [ 0 -@PROC 1 ] [ 0 -* 2 ] [ 1 occampi:procdecl 3 ] [ 2 occampi:funcdecl 3 ] [ 3 {<opi:nullreduce>} -* ]"
 
 
@@ -699,6 +699,18 @@
 	"[ 6 occampi:litstring 7 ] [ 7 {<opi:nullreduce>} -* ]"
 .BNF	"occampi:tracesimplspec ::= { occampi:tracesimplspecitem @@, 1 }"
 
+
+# }}}
+.SECTION "occampi-exceptions" # {{{
+
+.GRULE	"opi:blankexceptiontypedeclreduce" "SN0N+00C[EXCEPTIONTYPEDECL]3R-"
+.GRULE	"opi:exceptiontypedeclreduce" "SN0N+N+V0C[EXCEPTIONTYPEDECL]3R-"
+
+.BNF	"occampi:exptype ::= ( occampi:type | occampi:name ) {<opi:nullreduce>}"
+.BNF	"occampi:exptypelist ::= { occampi:exptype @@, 1 }"
+.TABLE	"occampi:exceptiontypedecl ::= [ 0 @EXCEPTION 1 ] [ 1 @TYPE 2 ] [ 2 occampi:name 3 ] [ 3 @@: 4 ] [ 3 @IS 5 ]"
+	"[ 4 {<opi:blankexceptiontypedeclreduce>} -* ]"
+	"[ 5 occampi:exptypelist 6 ] [ 6 @@: 7 ] [ 7 {<opi:exceptiontypedeclreduce>} -* ]"
 
 # }}}
 

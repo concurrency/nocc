@@ -1,0 +1,10 @@
+
+-- test_x57.occ -- exception types
+
+EXCEPTION TYPE EX.FOO:
+EXCEPTION TYPE EX.BAR IS INT, INT:
+
+PROC test.57 ()
+  SKIP
+:
+

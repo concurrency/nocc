@@ -191,6 +191,9 @@ typedef struct {
 	struct TAG_ntdef *tag_TRACETYPEDECL;
 	struct TAG_ntdef *tag_NTRACETYPEDECL;
 	struct TAG_ntdef *tag_TRACEIMPLSPEC;
+	
+	struct TAG_ntdef *tag_EXCEPTIONTYPEDECL;
+	struct TAG_ntdef *tag_NEXCEPTIONTYPEDECL;
 
 	struct TAG_ntdef *tag_TIMERINPUT;
 	struct TAG_ntdef *tag_TIMERINPUTAFTER;
@@ -296,6 +299,7 @@ extern struct TAG_feunit occampi_misc_feunit;			/* occampi_misc.c */
 extern struct TAG_feunit occampi_arrayconstructor_feunit;	/* occampi_arrayconstructor.c */
 extern struct TAG_feunit occampi_typeop_feunit;			/* occampi_typeop.c */
 extern struct TAG_feunit occampi_timer_feunit;			/* occampi_timer.c */
+extern struct TAG_feunit occampi_exceptions_feunit;		/* occampi_exceptions.c */
 
 /* these are for language units to use in reductions */
 extern void *occampi_nametoken_to_hook (void *ntok);
