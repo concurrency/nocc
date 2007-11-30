@@ -329,8 +329,66 @@ static int occampi_prescope_exceptionactionnode (compops_t *cops, tnode_t **node
  */
 static int occampi_typecheck_exceptionactionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
-	/* FIXME! */
-	return 1;
+	tnode_t *name = tnode_nthsubof (node, 0);
+	char *cname = NULL;
+
+	/* subtypecheck name and expressions */
+	typecheck_subtree (tnode_nthsubof (node, 0), tc);
+	typecheck_subtree (tnode_nthsubof (node, 1), tc);
+
+	langops_getname (name, &cname);
+
+	if (name->tag != opi.tag_NEXCEPTIONTYPEDECL) {
+		typecheck_error (node, tc, "THROW exception [%s] is not an EXCEPTION type", cname ?: "(unknown)");
+	} else {
+		tnode_t *ftype = typecheck_gettype (name, NULL);
+		tnode_t *exprlist = tnode_nthsubof (node, 1);
+
+		if (!exprlist && ftype) {
+			int nfitems;
+
+			parser_getlistitems (ftype, &nfitems);
+			typecheck_error (node, tc, "THROW exception [%s] expected %d items, but found 0", cname ?: "(unknown)", nfitems);
+		} else if (exprlist && !ftype) {
+			int naitems;
+
+			parser_getlistitems (exprlist, &naitems);
+			typecheck_error (node, tc, "THROW exception [%s] expected 0 items, but found %d", cname ?: "(unknown)", naitems);
+		} else if (!exprlist && !ftype) {
+			/* good */
+		} else {
+			int naitems, nfitems, i;
+			tnode_t **alist = parser_getlistitems (exprlist, &naitems);
+			tnode_t **flist = parser_getlistitems (ftype, &nfitems);
+
+			if (naitems != nfitems) {
+				typecheck_error (node, tc, "THROW exception [%s] expected %d items, but found %d", cname ?: "(unknown)", nfitems, naitems);
+			} else {
+				for (i=0; i<nfitems; i++) {
+					/* check that the actual is a good type for the formal */
+					tnode_t *atype = typecheck_gettype (alist[i], flist[i]);
+
+#if 0
+fprintf (stderr, "occampi_typecheck_catchexprnode(): actual item is:\n");
+tnode_dumptree (alist[i], 1, stderr);
+fprintf (stderr, "occampi_typecheck_catchexprnode(): actual type is:\n");
+tnode_dumptree (atype, 1, stderr);
+#endif
+					if (!atype) {
+						typecheck_error (node, tc, "failed to get type of THROW exception [%s] expression %d", cname ?: "(unknown)", i+1);
+					} else if (!typecheck_fixedtypeactual (flist[i], atype, node, tc, 1)) {
+						typecheck_error (node, tc, "incompatible types for THROW exception [%s] expression %d", cname ?: "(unknown)", i+1);
+					}
+				}
+			}
+		}
+	}
+
+	if (cname) {
+		sfree (cname);
+	}
+
+	return 0;
 }
 /*}}}*/
 
