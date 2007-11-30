@@ -130,6 +130,44 @@ static int occampi_scopeout_exceptiontypedecl (compops_t *cops, tnode_t **nodep,
  */
 static int occampi_prescope_trynode (compops_t *cops, tnode_t **nodep, prescope_t *ps)
 {
+	tnode_t *catches = treeops_findprocess (tnode_nthsubof (*nodep, 2));
+	tnode_t *finally = treeops_findprocess (tnode_nthsubof (*nodep, 3));
+
+	if (catches && !finally && (catches->tag == opi.tag_FINALLY)) {
+		/* catches might be a finally  -- swap these */
+		tnode_setnthsub (*nodep, 3, tnode_nthsubof (*nodep, 2));
+		tnode_setnthsub (*nodep, 2, NULL);
+
+		catches = treeops_findprocess (tnode_nthsubof (*nodep, 2));
+		finally = treeops_findprocess (tnode_nthsubof (*nodep, 3));
+	}
+
+	if (catches) {
+		int nitems, i;
+		tnode_t **items;
+
+		if (!parser_islistnode (catches)) {
+			/* turn singleton into a list */
+			catches = parser_buildlistnode (NULL, catches, NULL);
+			tnode_setnthsub (*nodep, 2, catches);
+		}
+		items = parser_getlistitems (catches, &nitems);
+		for (i=0; i<nitems; i++) {
+			tnode_t *catch = treeops_findprocess (items[i]);
+
+			if (catch->tag != opi.tag_CATCHEXPR) {
+				prescope_error (catch, ps, "CATCH clause is not an exception");
+				return 0;
+			}
+		}
+	}
+
+	if (finally) {
+		if (finally->tag != opi.tag_FINALLY) {
+			prescope_error (finally, ps, "expected FINALLY block");
+			return 0;
+		}
+	}
 	return 1;
 }
 /*}}}*/
