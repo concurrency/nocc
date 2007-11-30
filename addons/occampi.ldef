@@ -708,7 +708,7 @@
 .GRULE	"opi:tryreduce" "ST0T+@t0000C[TRY]4R-"
 .GRULE	"opi:catchreduce" "ST0T+@t00C[CATCH]2R-"
 .GRULE	"opi:catchexprzeroreduce" "SN0N+00C[CATCHEXPR]3R-"
-.GRULE	"opi:catchexprreduce" "SN0N+0N+C[CATCHEXPR]3R-"
+.GRULE	"opi:catchexprreduce" "SN0N+N+V0VC[CATCHEXPR]3R-"
 .GRULE	"opi:finallyreduce" "ST0T+@t00C[FINALLY]2R-"
 
 .BNF	"occampi:exptype ::= ( occampi:type | occampi:name ) {<opi:nullreduce>}"

@@ -123,6 +123,22 @@ static int occampi_scopeout_exceptiontypedecl (compops_t *cops, tnode_t **nodep,
 }
 /*}}}*/
 
+/*{{{  static tnode_t *occampi_gettype_exceptiontypenamenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	returns the type of an exception type declaration node (trivial)
+ */
+static tnode_t *occampi_gettype_exceptiontypenamenode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	name_t *name = tnode_nthnameof (node, 0);
+
+	if (!name) {
+		nocc_fatal ("occampi_gettype_exceptiontypenamenode(): NULL name!");
+		return NULL;
+	}
+	return name->type;
+}
+/*}}}*/
+
 /*{{{  static int occampi_prescope_trynode (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
 /*
  *	does pre-scoping on a TRY node (checks/arranges CATCH and FINALLY blocks)
@@ -146,12 +162,19 @@ static int occampi_prescope_trynode (compops_t *cops, tnode_t **nodep, prescope_
 		int nitems, i;
 		tnode_t **items;
 
-		if (!parser_islistnode (catches)) {
-			/* turn singleton into a list */
-			catches = parser_buildlistnode (NULL, catches, NULL);
-			tnode_setnthsub (*nodep, 2, catches);
+		if (catches->tag != opi.tag_CATCH) {
+			prescope_error (catches, ps, "expected CATCH block");
+			return 0;
 		}
-		items = parser_getlistitems (catches, &nitems);
+
+		if (!parser_islistnode (tnode_nthsubof (catches, 0))) {
+			/* turn singleton into a list */
+			tnode_t *clist = parser_buildlistnode (NULL, tnode_nthsubof (catches, 0), NULL);
+
+			tnode_setnthsub (catches, 0, clist);
+		}
+		items = parser_getlistitems (tnode_nthsubof (catches, 0), &nitems);
+
 		for (i=0; i<nitems; i++) {
 			tnode_t *catch = treeops_findprocess (items[i]);
 
@@ -169,6 +192,77 @@ static int occampi_prescope_trynode (compops_t *cops, tnode_t **nodep, prescope_
 		}
 	}
 	return 1;
+}
+/*}}}*/
+
+/*{{{  static int occampi_typecheck_catchexprnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on an exception CATCH expression (expecting exception name, process and expression-list)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_catchexprnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *name = tnode_nthsubof (node, 0);
+	char *cname = NULL;
+
+	/* subtypecheck name and expressions */
+	typecheck_subtree (tnode_nthsubof (node, 0), tc);
+	typecheck_subtree (tnode_nthsubof (node, 2), tc);
+
+	langops_getname (name, &cname);
+
+	if (name->tag != opi.tag_NEXCEPTIONTYPEDECL) {
+		typecheck_error (node, tc, "CATCH exception [%s] is not an EXCEPTION type", cname ?: "(unknown)");
+	} else {
+		tnode_t *ftype = typecheck_gettype (name, NULL);
+		tnode_t *exprlist = tnode_nthsubof (node, 2);
+
+		if (!exprlist && ftype) {
+			int nfitems;
+
+			parser_getlistitems (ftype, &nfitems);
+			typecheck_error (node, tc, "CATCH exception [%s] expected %d items, but found 0", cname ?: "(unknown)", nfitems);
+		} else if (exprlist && !ftype) {
+			int naitems;
+
+			parser_getlistitems (exprlist, &naitems);
+			typecheck_error (node, tc, "CATCH exception [%s] expected 0 items, but found %d", cname ?: "(unknown)", naitems);
+		} else if (!exprlist && !ftype) {
+			/* good */
+		} else {
+			int naitems, nfitems, i;
+			tnode_t **alist = parser_getlistitems (exprlist, &naitems);
+			tnode_t **flist = parser_getlistitems (exprlist, &nfitems);
+
+			if (naitems != nfitems) {
+				typecheck_error (node, tc, "CATCH exception [%s] expected %d items, but found %d", cname ?: "(unknown)", nfitems, naitems);
+			} else {
+				for (i=0; i<nfitems; i++) {
+					/* check that the actual is a variable and a good type for the formal */
+					if (!langops_isvar (alist[i])) {
+						typecheck_error (node, tc, "CATCH exception [%s] expression %d is not a variable", cname ?: "(unknown)", i+1);
+					} else {
+						tnode_t *atype = typecheck_gettype (alist[i], flist[i]);
+						
+						if (!atype) {
+							typecheck_error (node, tc, "failed to get type of CATCH exception [%s] expression %d", cname ?: "(unknown)", i+1);
+						} else if (!typecheck_fixedtypeactual (flist[i], atype, node, tc, 1)) {
+							typecheck_error (node, tc, "incompatible types for CATCH exception [%s] expression %d", cname ?: "(unknown)", i+1);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (cname) {
+		sfree (cname);
+	}
+
+	/* type-check the body */
+	typecheck_subtree (tnode_nthsubof (node, 1), tc);
+
+	return 0;
 }
 /*}}}*/
 
@@ -203,6 +297,7 @@ static int occampi_exceptions_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_exceptiontypenamenode));
 	tnd->lops = lops;
 
 	i = -1;
@@ -250,6 +345,7 @@ static int occampi_exceptions_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:catchexprnode", &i, 3, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = exception, 1 = body, 2 = expressions */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_catchexprnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;
