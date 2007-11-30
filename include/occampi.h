@@ -198,6 +198,7 @@ typedef struct {
 	struct TAG_ntdef *tag_CATCH;
 	struct TAG_ntdef *tag_FINALLY;
 	struct TAG_ntdef *tag_CATCHEXPR;
+	struct TAG_ntdef *tag_THROW;
 
 	struct TAG_ntdef *tag_TIMERINPUT;
 	struct TAG_ntdef *tag_TIMERINPUTAFTER;

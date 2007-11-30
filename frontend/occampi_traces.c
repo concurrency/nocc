@@ -364,7 +364,7 @@ static int occampi_getname_tracenamenode (langops_t *lops, tnode_t *node, char *
 	char *pname;
 
 	if (!name) {
-		nocc_fatal ("cocampi_getname_tracenamenode(): NULL name!");
+		nocc_fatal ("occampi_getname_tracenamenode(): NULL name!");
 		return -1;
 	}
 	pname = NameNameOf (name);
