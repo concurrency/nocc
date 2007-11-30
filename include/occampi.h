@@ -31,8 +31,8 @@ extern struct TAG_langparser occampi_parser;
 #define NTF_BOOLOP		0x0010		/* boolean operator flag */
 #define NTF_SYNCTYPE		0x0020		/* synchronisation type */
 #define NTF_INDENTED_PROC_LIST	0x0040		/* for TNF_LONGPROCs, parse a list of indented processes into subnode 1 */
-#define NTF_INDENTED_PROC	0x0080		/* for TNF_LONGPROCs, parse an indented process into subnode 1,
-						 * for TNF_LONGDECLs, parse an indented process into subnode 2 */
+#define NTF_INDENTED_PROC	0x0080		/* for TNF_LONGPROCs, parse an indented process into subnode 1 */
+						/* for TNF_LONGDECLs, parse an indented process into subnode 2 */
 #define NTF_INDENTED_CONDPROC_LIST	0x0100	/* for TNF_LONGPROCs, parse a list of indented conditions and processes into subnode 1 */
 #define NTF_INDENTED_GUARDPROC_LIST	0x0200	/* for TNF_LONGPROCs, parse a list of indented ALT guards and processes into subnode 1 */
 #define NTF_ALLOW_TRACES		0x0400	/* allow TRACES at the end of a something */
@@ -194,6 +194,10 @@ typedef struct {
 	
 	struct TAG_ntdef *tag_EXCEPTIONTYPEDECL;
 	struct TAG_ntdef *tag_NEXCEPTIONTYPEDECL;
+	struct TAG_ntdef *tag_TRY;
+	struct TAG_ntdef *tag_CATCH;
+	struct TAG_ntdef *tag_FINALLY;
+	struct TAG_ntdef *tag_CATCHEXPR;
 
 	struct TAG_ntdef *tag_TIMERINPUT;
 	struct TAG_ntdef *tag_TIMERINPUTAFTER;

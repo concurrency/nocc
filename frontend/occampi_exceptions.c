@@ -123,6 +123,17 @@ static int occampi_scopeout_exceptiontypedecl (compops_t *cops, tnode_t **nodep,
 }
 /*}}}*/
 
+/*{{{  static int occampi_prescope_trynode (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
+/*
+ *	does pre-scoping on a TRY node (checks/arranges CATCH and FINALLY blocks)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_prescope_trynode (compops_t *cops, tnode_t **nodep, prescope_t *ps)
+{
+	return 1;
+}
+/*}}}*/
+
 
 /*{{{  static int occampi_exceptions_init_nodes (void)*/
 /*
@@ -158,6 +169,55 @@ static int occampi_exceptions_init_nodes (void)
 
 	i = -1;
 	opi.tag_NEXCEPTIONTYPEDECL = tnode_newnodetag ("N_EXCEPTIONTYPEDECL", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:trynode -- TRY*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:trynode", &i, 4, 0, 0, TNF_LONGPROC);			/* subnodes: 0 = (none), 1 = body, 2 = catches, 3 = finally */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_trynode));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_TRY = tnode_newnodetag ("TRY", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:catchnode -- CATCH*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:catchnode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = list-of-catchexprs, 1 = body (none) */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_CATCH = tnode_newnodetag ("CATCH", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:finallynode -- FINALLY*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:finallynode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = (none), 1 = body */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_FINALLY = tnode_newnodetag ("FINALLY", &i, tnd, NTF_INDENTED_PROC);
+
+	/*}}}*/
+	/*{{{  occampi:catchexprnode -- CATCHEXPR*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:catchexprnode", &i, 3, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = exception, 1 = body, 2 = expressions */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_CATCHEXPR = tnode_newnodetag ("CATCHEXPR", &i, tnd, NTF_INDENTED_PROC);
 
 	/*}}}*/
 

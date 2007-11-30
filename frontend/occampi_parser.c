@@ -73,6 +73,7 @@ static tnode_t *occampi_parser_makeseqassign (tnode_t ***insertpointp, tnode_t *
 static tnode_t *occampi_indented_process (lexfile_t *lf);
 static tnode_t *occampi_indented_process_trailing (lexfile_t *lf, char *extradfa, tnode_t **extrares);
 static tnode_t *occampi_indented_process_list (lexfile_t *lf, char *leaddfa);
+static tnode_t *occampi_process (lexfile_t *lf);
 
 
 /*}}}*/
@@ -1398,37 +1399,129 @@ tnode_dumptree (tree, 1, stderr);
 			int ntflags = tnode_ntflagsof (tree);
 
 			if (ntflags & NTF_INDENTED_PROC_LIST) {
-				/* parse a list of processes into subnode 1 */
+				/*{{{  parse a list of processes into subnode 1*/
 				tnode_t *body;
 
 				body = occampi_indented_process_list (lf, NULL);
 				tnode_setnthsub (tree, 1, body);
+				/*}}}*/
 			} else if (ntflags & NTF_INDENTED_CONDPROC_LIST) {
-				/* parse a list of indented conditions + processes into subnode 1 */
+				/*{{{  parse a list of indented conditions + processes into subnode 1*/
 				tnode_t *body;
 
 				body = occampi_indented_process_list (lf, "occampi:ifcond");
 				tnode_setnthsub (tree, 1, body);
+				/*}}}*/
 			} else if (ntflags & NTF_INDENTED_PROC) {
-				/* parse indented process into subnode 1 */
+				/*{{{  parse indented process into subnode 1*/
 				tnode_t *body;
 
 				body = occampi_indented_process (lf);
 				tnode_setnthsub (tree, 1, body);
+				/*}}}*/
 			} else if (ntflags & NTF_INDENTED_GUARDPROC_LIST) {
-				/* parses a list of indented guards + processes into subnode 1 */
+				/*{{{  parses a list of indented guards + processes into subnode 1*/
 				tnode_t *body;
 
 				body = occampi_indented_process_list (lf, "occampi:altguard");
 				tnode_setnthsub (tree, 1, body);
+				/*}}}*/
 			} else if (tree->tag == opi.tag_VALOF) {
-				/* parse indented process into subnode 1, extra into subnode 0 */
+				/*{{{  parse indented process into subnode 1, extra into subnode 0*/
 				tnode_t *body;
 				tnode_t *extra = NULL;
 
 				body = occampi_indented_process_trailing (lf, "occampi:valofresult", &extra);
 				tnode_setnthsub (tree, 1, body);
 				tnode_setnthsub (tree, 0, extra);
+				/*}}}*/
+			} else if (tree->tag == opi.tag_TRY) {
+				/*{{{  parse a fairly complex TRY block*/
+				tnode_t *body;
+				tnode_t *catches;
+				tnode_t *finally;
+				token_t *tok;
+
+				tok = lexer_nexttoken (lf);
+				/* skip newlines */
+				for (; tok && (tok->type == NEWLINE); tok = lexer_nexttoken (lf)) {
+					lexer_freetoken (tok);
+				}
+				/* expect indent */
+				if (tok->type != INDENT) {
+					parser_error (lf, "expected indent, found:");
+					lexer_dumptoken (stderr, tok);
+					lexer_pushback (lf, tok);
+					return tree;
+				}
+				lexer_freetoken (tok);
+
+				body = occampi_process (lf);
+				
+				/* skip newlines and comments */
+				tok = lexer_nexttoken (lf);
+				for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
+					lexer_freetoken (tok);
+				}
+
+				/* might have a CATCH */
+				if (tok && (tok->type == OUTDENT)) {
+					lexer_pushback (lf, tok);
+					catches = NULL;
+				} else {
+					if (tok) {
+						lexer_pushback (lf, tok);
+					}
+					catches = occampi_process (lf);
+				}
+
+				/* skip newlines and comments */
+				tok = lexer_nexttoken (lf);
+				for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
+					lexer_freetoken (tok);
+				}
+
+				/* might have a FINALLY */
+				if (tok && (tok->type == OUTDENT)) {
+					lexer_pushback (lf, tok);
+  					finally = NULL;
+				} else {
+					if (tok) {
+						lexer_pushback (lf, tok);
+					}
+					finally = occampi_process (lf);
+				}
+
+				tnode_setnthsub (tree, 1, body);
+				tnode_setnthsub (tree, 2, catches);
+				tnode_setnthsub (tree, 3, finally);
+
+				/* skip newlines */
+				tok = lexer_nexttoken (lf);
+				for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
+					lexer_freetoken (tok);
+				}
+				/* expect outdent */
+				if (tok->type != OUTDENT) {
+					parser_error (lf, "expected outdent, found:");
+					lexer_dumptoken (stderr, tok);
+					lexer_pushback (lf, tok);
+					if (tree) {
+						tnode_free (tree);
+					}
+					tree = NULL;
+					return NULL;
+				}
+				lexer_freetoken (tok);
+
+				/*}}}*/
+			} else if (tree->tag == opi.tag_CATCH) {
+				/*{{{  parse an indented list of CATCH expressions into subnode 0*/
+				tnode_t *body;
+
+				body = occampi_indented_process_list (lf, "occampi:catchexpr");
+				tnode_setnthsub (tree, 0, body);
+				/*}}}*/
 			} else {
 				tnode_warning (tree, "occampi_declorproc(): unhandled LONGPROC [%s]", tree->tag->name);
 			}
@@ -1543,6 +1636,7 @@ static tnode_t *occampi_indented_process_trailing (lexfile_t *lf, char *extradfa
 /*{{{  static tnode_t *occampi_indented_process (lexfile_t *lf)*/
 /*
  *	parses an indented process
+ *	returns the tree on success, NULL on failure
  */
 static tnode_t *occampi_indented_process (lexfile_t *lf)
 {
@@ -1721,6 +1815,67 @@ static tnode_t *occampi_indented_process_list (lexfile_t *lf, char *leaddfa)
 		return NULL;
 	}
 	lexer_freetoken (tok);
+
+	return tree;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_process (lexfile_t *lf)*/
+/*
+ *	parses a plain process, potentially surrounded by newlines and comments
+ *	returns the tree on success, NULL on failure
+ */
+static tnode_t *occampi_process (lexfile_t *lf)
+{
+	tnode_t *tree = NULL;
+	tnode_t **target = &tree;
+	token_t *tok;
+
+	tok = lexer_nexttoken (lf);
+	/* skip newlines and comments */
+	for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
+		lexer_freetoken (tok);
+	}
+	lexer_pushback (lf, tok);
+
+	/* okay, parse declarations and process */
+	for (;;) {
+		tnode_t *thisone;
+		int tnflags;
+		int breakfor = 0;
+		int gotall = 0;
+
+		thisone = occampi_declorproc (lf, &gotall, NULL);
+		if (!thisone) {
+			*target = NULL;
+			break;		/* for() */
+		}
+		*target = thisone;
+		while (*target) {
+			/* sink through anything included, etc. */
+			tnflags = tnode_tnflagsof (*target);
+			if (tnflags & TNF_LONGDECL) {
+				target = tnode_nthsubaddr (*target, 3);
+			} else if (tnflags & TNF_SHORTDECL) {
+				target = tnode_nthsubaddr (*target, 2);
+			} else if (tnflags & TNF_TRANSPARENT) {
+				target = tnode_nthsubaddr (*target, 0);
+			} else {
+				/* assume we're done! */
+				breakfor = 1;
+				break;		/* while() */
+			}
+		}
+		if (breakfor) {
+			break;		/* for() */
+		}
+	}
+
+	tok = lexer_nexttoken (lf);
+	/* skip newlines */
+	for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
+		lexer_freetoken (tok);
+	}
+	lexer_pushback (lf, tok);
 
 	return tree;
 }
