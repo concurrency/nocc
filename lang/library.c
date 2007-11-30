@@ -1664,6 +1664,7 @@ static int lib_writelibrary (libfile_t *lf)
 	int flen = 0;
 	FILE *libstream;
 	int i;
+	char *xmluri;
 
 	if (!strchr (lf->fname, '/') && libpath) {
 		/*{{{  using library-directory prefix*/
@@ -1677,6 +1678,12 @@ static int lib_writelibrary (libfile_t *lf)
 	}
 	flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s", lf->fname);
 
+	xmluri = nocc_lookupxmlnamespace ("nocc");
+	if (!xmluri) {
+		nocc_error ("lib_writelibrary(): failed to find \"nocc\" XML namespace!");
+		return -1;
+	}
+
 	libstream = fopen (fbuf, "w");
 	if (!libstream) {
 		nocc_error ("lib_writelibrary(): failed to open %s for writing: %s", fbuf, strerror (errno));
@@ -1684,6 +1691,7 @@ static int lib_writelibrary (libfile_t *lf)
 	}
 
 	fprintf (libstream, "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>\n");
+	fprintf (libstream, "<nocc:namespace xmlns:nocc=\"%s\">\n", xmluri);
 	fprintf (libstream, "<nocc:libinfo version=\"%s\">\n", VERSION);
 	lib_isetindent (libstream, 1);
 	fprintf (libstream, "<library name=\"%s\" namespace=\"%s\">\n", lf->libname, lf->namespace);
@@ -1757,6 +1765,7 @@ static int lib_writelibrary (libfile_t *lf)
 	lib_isetindent (libstream, 1);
 	fprintf (libstream, "</library>\n");
 	fprintf (libstream, "</nocc:libinfo>\n");
+	fprintf (libstream, "</nocc:namespace>\n");
 
 	fclose (libstream);
 	return 0;

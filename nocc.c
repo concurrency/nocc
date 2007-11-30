@@ -802,6 +802,9 @@ static void maybedumptrees (char **fnames, int nfnames, tnode_t **trees, int ntr
 		} else {
 			int j;
 
+			/* XML header */
+			fprintf (stream, "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>\n");
+
 			/* dump XML namespaces to start with */
 			for (j=0; j<DA_CUR (xmlnamespaces); j++) {
 				xmlnamespace_t *xmlns = DA_NTHITEM (xmlnamespaces, j);
@@ -1094,6 +1097,62 @@ int nocc_addxmlnamespace (const char *name, const char *uri)
 	xmlns->uri = string_dup (uri);
 	dynarray_add (xmlnamespaces, xmlns);
 
+	return 0;
+}
+/*}}}*/
+/*{{{  char *nocc_lookupxmlnamespace (const char *name)*/
+/*
+ *	used to find the URI for a particular namespace, used when generating XML output
+ *	returns URI on success, NULL on failure
+ */
+char *nocc_lookupxmlnamespace (const char *name)
+{
+	int i;
+
+	if (!name) {
+		return NULL;
+	}
+	for (i=0; i<DA_CUR (xmlnamespaces); i++) {
+		xmlnamespace_t *xmlns = DA_NTHITEM (xmlnamespaces, i);
+
+		if (!strcmp (xmlns->name, name)) {
+			return xmlns->uri;
+		}
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  int nocc_dumpxmlnamespaceheaders (FILE *stream)*/
+/*
+ *	used to dump all XML namespace headers to a stream
+ *	returns 0 on success, non-zero on failure
+ */
+int nocc_dumpxmlnamespaceheaders (FILE *stream)
+{
+	int i;
+
+	for (i=0; i<DA_CUR (xmlnamespaces); i++) {
+		xmlnamespace_t *xmlns = DA_NTHITEM (xmlnamespaces, i);
+
+		fprintf (stream, "<%s:namespace xmlns:%s=\"%s\">\n", xmlns->name, xmlns->name, xmlns->uri);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  int nocc_dumpxmlnamespacefooters (FILE *stream)*/
+/*
+ *	used to dump all XML namespace footers to a stream
+ *	returns 0 on success, non-zero on failure
+ */
+int nocc_dumpxmlnamespacefooters (FILE *stream)
+{
+	int i;
+
+	for (i=DA_CUR (xmlnamespaces)-1; i>=0; i++) {
+		xmlnamespace_t *xmlns = DA_NTHITEM (xmlnamespaces, i);
+
+		fprintf (stream, "</%s:namespace>\n", xmlns->name);
+	}
 	return 0;
 }
 /*}}}*/

@@ -155,8 +155,11 @@ extern compopts_t compopts;
 /* this can be called by extensions (and other code) to add passes to the compiler */
 extern int nocc_addcompilerpass (const char *name, struct TAG_origin *origin, const char *other, int before, int (*pfcn)(void *), comppassarg_t parg, int stopat, int *eflagptr);
 
-/* this is used to add an XML namespace to the compiler -- for prefixing on dumped XML output -- only for top-level tree-dumps */
+/* this is used to add an XML namespace to the compiler -- for prefixing on dumped XML output -- only for top-level tree-dumps (and some helper routines) */
 extern int nocc_addxmlnamespace (const char *name, const char *uri);
+extern char *nocc_lookupxmlnamespace (const char *name);
+extern int nocc_dumpxmlnamespaceheaders (FILE *stream);
+extern int nocc_dumpxmlnamespacefooters (FILE *stream);
 
 
 #endif	/* !__NOCC_H */
