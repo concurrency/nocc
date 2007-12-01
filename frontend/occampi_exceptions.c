@@ -47,6 +47,7 @@
 #include "feunit.h"
 #include "names.h"
 #include "fcnlib.h"
+#include "metadata.h"
 #include "scope.h"
 #include "prescope.h"
 #include "library.h"
@@ -390,6 +391,40 @@ static tnode_t *occampi_gettype_exceptiontypenamenode (langops_t *lops, tnode_t 
 		return NULL;
 	}
 	return name->type;
+}
+/*}}}*/
+/*{{{  static int occampi_typehash_exceptiontypenamenode (langops_t *lops, tnode_t *node, int hsize, void *ptr)*/
+/*
+ *	generates a type-hash for an exception type declaration name node
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_typehash_exceptiontypenamenode (langops_t *lops, tnode_t *node, int hsize, void *ptr)
+{
+	name_t *sname = tnode_nthnameof (node, 0);
+	tnode_t *stype = NameTypeOf (sname);
+	unsigned int basehash = 0x3402fc90;
+	char *pname = NameNameOf (sname);
+
+	langops_typehash_blend (hsize, ptr, sizeof (basehash), (void *)&basehash);
+	/* also blend in the name */
+	langops_typehash_blend (hsize, ptr, strlen (pname), (unsigned char *)pname);
+	if (stype) {
+		int nitems, i;
+		tnode_t **eitems = parser_getlistitems (stype, &nitems);
+
+		for (i=0; i<nitems; i++) {
+			unsigned int thishash = 0;
+
+			if (langops_typehash (eitems[i], sizeof (thishash), (void *)&thishash)) {
+				nocc_internal ("occampi_typehash_exceptiontypenamenode(): failed to get type-hash for (%s,%s)",
+						eitems[i]->tag->name, eitems[i]->tag->ndef->name);
+			} else {
+				langops_typehash_blend (hsize, ptr, sizeof (thishash), (void *)&thishash);
+			}
+		}
+	}
+
+	return 0;
 }
 /*}}}*/
 
@@ -820,6 +855,50 @@ static int occampi_exceptioncheck_procdecl (compops_t *cops, tnode_t **nodep, op
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_exceptioncheck_fetrans_procdecl (compops_t *cops, tnode_t **nodep, fetrans_t *fe)*/
+/*
+ *	inserted into front-end transformations on proc declaration nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_exceptioncheck_fetrans_procdecl (compops_t *cops, tnode_t **nodep, fetrans_t *fe)
+{
+	int v = 1;
+	
+	if (tnode_haschook (*nodep, exceptioncheck_throwschook)) {
+		opithrowshook_t *opith = (opithrowshook_t *)tnode_getchook (*nodep, exceptioncheck_throwschook);
+		int i;
+
+		/* PROC throws some exceptions, include in metadata */
+		for (i=0; i<DA_CUR (opith->elist); i++) {
+			tnode_t *ename = DA_NTHITEM (opith->elist, i);
+			unsigned int thash = 0;
+
+			if (langops_typehash (ename, sizeof (thash), &thash)) {
+				nocc_internal ("occampi_exceptioncheck_fetrans_procdecl(): failed to get type-hash for (%s,%s)",
+						ename->tag->name, ename->tag->ndef->name);
+			} else {
+				char *estr = NULL;
+				char *sdata;
+
+				langops_getname (ename, &estr);
+				sdata = string_fmt ("%s#%8.8x", estr ?: "(unknown)", thash);
+				if (estr) {
+					sfree (estr);
+				}
+
+				metadata_addtonodelist (*nodep, "throws", sdata);
+				sfree (sdata);
+			}
+		}
+	}
+
+	/* do existing fetrans */
+	if (cops->next && tnode_hascompop (cops->next, "fetrans")) {
+		v = tnode_callcompop (cops->next, "fetrans", 2, nodep, fe);
+	}
+	return v;
+}
+/*}}}*/
 /*{{{  static int occampi_exceptioncheck_instancenode (compops_t *cops, tnode_t **nodep, opiexception_t *oex)*/
 /*
  *	called to do exception-checking on a proc instance -- determines what is thrown by the instanced PROC
@@ -911,6 +990,7 @@ static int occampi_exceptions_init_nodes (void)
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (occampi_getname_exceptiontypenamenode));
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_exceptiontypenamenode));
+	tnode_setlangop (lops, "typehash", 3, LANGOPTYPE (occampi_typehash_exceptiontypenamenode));
 	tnd->lops = lops;
 
 	i = -1;
@@ -1015,6 +1095,7 @@ static int occampi_exceptions_init_nodes (void)
 static int occampi_exceptions_post_setup (void)
 {
 	tndef_t *tnd;
+	compops_t *cops;
 
 	/*{{{  intefere with PROC declaration and instance nodes for exception checking*/
 	tnd = tnode_lookupnodetype ("occampi:procdecl");
@@ -1022,22 +1103,19 @@ static int occampi_exceptions_post_setup (void)
 		nocc_serious ("occampi_exceptions_post_setup(): failed to find \"occampi:procdecl\" node type");
 		return -1;
 	}
-	if (!tnd->ops) {
-		nocc_serious ("occampi_exceptions_post_setup(): occampi:procdecl node type has no compiler operations..");
-		tnd->ops = tnode_newcompops ();
-	}
-	tnode_setcompop (tnd->ops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_procdecl));
+	cops = tnode_insertcompops (tnd->ops);
+	tnode_setcompop (cops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_procdecl));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_exceptioncheck_fetrans_procdecl));
+	tnd->ops = cops;
 
 	tnd = tnode_lookupnodetype ("occampi:instancenode");
 	if (!tnd) {
 		nocc_serious ("occampi_exceptions_post_setup(): failed to find \"occampi:instancenode\" node type");
 		return -1;
 	}
-	if (!tnd->ops) {
-		nocc_serious ("occampi_exceptions_post_setup(): occampi:instancenode node type has no compiler operations..");
-		tnd->ops = tnode_newcompops ();
-	}
-	tnode_setcompop (tnd->ops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_instancenode));
+	cops = tnode_insertcompops (tnd->ops);
+	tnode_setcompop (cops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_instancenode));
+	tnd->ops = cops;
 
 	/*}}}*/
 	return 0;

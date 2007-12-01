@@ -280,7 +280,33 @@ int langops_typehash (tnode_t *node, const int hsize, void *ptr)
 	return 1;
 }
 /*}}}*/
+/*{{{  int langops_typehash_blend (const int dsize, void *dptr, const int ssize, void *sptr)*/
+/*
+ *	blends together two type-hashes (widths in bytes and pointers to suitable buffers are given)
+ *	returns 0 on success, non-zero on failure
+ */
+int langops_typehash_blend (const int dsize, void *dptr, const int ssize, void *sptr)
+{
+	unsigned char *dbytes = (unsigned char *)dptr;
+	unsigned char *sbytes = (unsigned char *)sptr;
+	int i;
+	unsigned char tmpch;
 
+	/* shuffle destination round */
+	tmpch = dbytes[0];
+	for (i=1; i<dsize; i++) {
+		dbytes[i-1] = dbytes[i];
+	}
+	dbytes[dsize-1] = tmpch;
+
+	/* exclusive or add source */
+	for (i=0; i<ssize; i++) {
+		dbytes[i % dsize] ^= sbytes[i];
+	}
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  int langops_init (void)*/
