@@ -5,15 +5,16 @@ EXCEPTION TYPE EX.FOO:
 EXCEPTION TYPE EX.BAR IS INT, INT:
 
 PROC test.57 ()
-  INT x, y:
-  TRY
-    SEQ
-      SKIP
-      THROW EX.BAR 42, x
-    CATCH
-      EX.BAR x, y
+  NOEXCEPTIONS
+    INT x, y:
+    TRY
+      SEQ
         SKIP
-    FINALLY
-      SKIP
+        THROW EX.BAR 42, x
+      CATCH
+        EX.BAR x, y
+          SKIP
+      FINALLY
+        SKIP
 :
 

@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -61,6 +62,75 @@
 #include "fetrans.h"
 
 
+/*}}}*/
+/*{{{  private types*/
+
+typedef struct TAG_opiexception {
+	DYNARRAY (tnode_t *, elist);		/* list of exceptions collected so far */
+	int err;
+	int warn;
+} opiexception_t;
+
+
+/*}}}*/
+
+
+/*{{{  static opiexception_t *opi_newopiexception (void)*/
+/*
+ *	creates a new, blank, opiexception_t structure
+ */
+static opiexception_t *opi_newopiexception (void)
+{
+	opiexception_t *oex = (opiexception_t *)smalloc (sizeof (opiexception_t));
+
+	dynarray_init (oex->elist);
+	oex->err = 0;
+	oex->warn = 0;
+
+	return oex;
+}
+/*}}}*/
+/*{{{  static void opi_freeopiexception (opiexception_t *oex)*/
+/*
+ *	frees an opiexception_t structure
+ */
+static void opi_freeopiexception (opiexception_t *oex)
+{
+	if (!oex) {
+		nocc_serious ("opi_freeopiexception(): NULL exception!");
+		return;
+	}
+	dynarray_trash (oex->elist);
+	sfree (oex);
+	return;
+}
+/*}}}*/
+
+/*{{{  static int exceptioncheck_modprewalk (tnode_t **tptr, void *arg)*/
+/*
+ *	called in prewalk order to do exception checking
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int exceptioncheck_modprewalk (tnode_t **tptr, void *arg)
+{
+	int i = 1;
+
+	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop ((*tptr)->tag->ndef->ops, "exceptioncheck")) {
+		i = tnode_callcompop ((*tptr)->tag->ndef->ops, "exceptioncheck", 2, tptr, (opiexception_t *)arg);
+	}
+	return i;
+}
+/*}}}*/
+/*{{{  static int exceptioncheck_subtree (tnode_t **tptr, opiexception_t *oex)*/
+/*
+ *	does exception checking on a sub-tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int exceptioncheck_subtree (tnode_t **tptr, opiexception_t *oex)
+{
+	tnode_modprewalktree (tptr, exceptioncheck_modprewalk, (void *)oex);
+	return oex->err;
+}
 /*}}}*/
 
 
@@ -211,6 +281,17 @@ static int occampi_prescope_trynode (compops_t *cops, tnode_t **nodep, prescope_
 			return 0;
 		}
 	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_exceptioncheck_trynode (compops_t *cops, tnode_t **nodep, opiexception_t *oex)*/
+/*
+ *	called to exception-checking on a TRY block -- determines what isn't thrown back
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_exceptioncheck_trynode (compops_t *cops, tnode_t **nodep, opiexception_t *oex)
+{
+	/* FIXME! */
 	return 1;
 }
 /*}}}*/
@@ -392,6 +473,55 @@ tnode_dumptree (atype, 1, stderr);
 }
 /*}}}*/
 
+/*{{{  static int occampi_exceptioncheck_noexnode (compops_t *cops, tnode_t **nodep, opiexception_t *oex)*/
+/*
+ *	called to do exception-checking on a NOEXCEPTIONS block -- determines what is thrown back
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_exceptioncheck_noexnode (compops_t *cops, tnode_t **nodep, opiexception_t *oex)
+{
+	/* FIXME! */
+	return 1;
+}
+/*}}}*/
+
+
+/*{{{  static int occampi_exceptioncheck_procdecl (compops_t *cops, tnode_t **nodep, opiexception_t *oex)*/
+/*
+ *	called to do exception-checking on a proc declaration -- determines what the PROC throws
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_exceptioncheck_procdecl (compops_t *cops, tnode_t **nodep, opiexception_t *oex)
+{
+	/* FIXME! */
+	return 1;
+}
+/*}}}*/
+
+
+/*{{{  static int exceptioncheck_cpass (tnode_t **treeptr)*/
+/*
+ *	called to do the compiler-pass for exceptions checking -- modprewalk for "exceptioncheck"
+ *	returns 0 on success, non-zero on failure
+ */
+static int exceptioncheck_cpass (tnode_t **treeptr)
+{
+	opiexception_t *oex = opi_newopiexception ();
+	int err;
+
+	exceptioncheck_subtree (treeptr, oex);
+
+	if (compopts.verbose) {
+		nocc_message ("exceptioncheck_cpass(): exception-checked.  %d error(s), %d warning(s)", oex->err, oex->warn);
+	}
+
+	err = oex->err;
+	opi_freeopiexception (oex);
+
+	return err;
+}
+/*}}}*/
+
 
 /*{{{  static int occampi_exceptions_init_nodes (void)*/
 /*
@@ -405,6 +535,20 @@ static int occampi_exceptions_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
+	/*{{{  compiler pass and operation for exception checking*/
+	/* we'll need another pass (and compiler operation) which does an exceptions analysis,
+	 * i.e. detemining which PROCs generate which exceptions
+	 */
+	if (nocc_addcompilerpass ("exception-check", INTERNAL_ORIGIN, "fetrans", 1, (int (*)(void *))exceptioncheck_cpass, CPASS_TREEPTR, -1, NULL)) {
+		nocc_serious ("occampi_exceptions_post_setup(): failed to add \"exception-check\" pass!");
+		return -1;
+	}
+	if (tnode_newcompop ("exceptioncheck", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
+		nocc_serious ("occampi_exceptions_post_setup(): failed to add \"exceptioncheck\" compiler operation!");
+		return -1;
+	}
+
+	/*}}}*/
 	/*{{{  occampi:exceptiontypedecl -- EXCEPTIONTYPEDECL*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:exceptiontypedecl", &i, 3, 0, 0, TNF_SHORTDECL);	/* subnodes: 0 = name, 1 = type, 2 = in-scope-body */
@@ -436,12 +580,24 @@ static int occampi_exceptions_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:trynode", &i, 4, 0, 0, TNF_LONGPROC);			/* subnodes: 0 = (none), 1 = body, 2 = catches, 3 = finally */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_trynode));
+	tnode_setcompop (cops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_trynode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_TRY = tnode_newnodetag ("TRY", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:noexnode -- NOEXCEPTIONS*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:noexnode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = (none), 1 = body */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_noexnode));
+	tnd->ops = cops;
+
+	i = -1;
+	opi.tag_NOEXCEPTIONS = tnode_newnodetag ("NOEXCEPTIONS", &i, tnd, NTF_INDENTED_PROC);
 
 	/*}}}*/
 	/*{{{  occampi:catchnode -- CATCH*/
@@ -507,6 +663,21 @@ static int occampi_exceptions_init_nodes (void)
  */
 static int occampi_exceptions_post_setup (void)
 {
+	tndef_t *tnd;
+
+	/*{{{  intefere with PROC declaration nodes for exception checking*/
+	tnd = tnode_lookupnodetype ("occampi:procdecl");
+	if (!tnd) {
+		nocc_serious ("occampi_exceptions_post_setup(): failed to find \"occampi:procdecl\" node type");
+		return -1;
+	}
+	if (!tnd->ops) {
+		nocc_serious ("occampi_exceptions_post_setup(): occampi:procdecl node type has no compiler operations..");
+		tnd->ops = tnode_newcompops ();
+	}
+	tnode_setcompop (tnd->ops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_procdecl));
+
+	/*}}}*/
 	return 0;
 }
 /*}}}*/

@@ -712,6 +712,7 @@
 .GRULE	"opi:finallyreduce" "ST0T+@t00C[FINALLY]2R-"
 .GRULE	"opi:throwzeroreduce" "SN0N+0C[THROW]2R-"
 .GRULE	"opi:throwreduce" "SN0N+N+VC[THROW]2R-"
+.GRULE	"opi:noexreduce" "ST0T+@t00C[NOEXCEPTIONS]2R-"
 
 .BNF	"occampi:exptype ::= ( occampi:type | occampi:name ) {<opi:nullreduce>}"
 .BNF	"occampi:exptypelist ::= { occampi:exptype @@, 1 }"
@@ -725,6 +726,7 @@
 .TABLE	"occampi:declorprocstart +:= [ 0 @THROW 1 ] [ 1 occampi:name 2 ] [ 2 -Comment 3 ] [ 2 -Newline 3 ] [ 2 -* 4 ]"
 	"[ 3 {<opi:throwzeroreduce>} -* ]"
 	"[ 4 occampi:exprcommalist 5 ] [ 5 {<opi:throwreduce>} -* ]"
+.TABLE	"occampi:declorprocstart +:= [ 0 +@NOEXCEPTIONS 1 ] [ 1 Comment 1 ] [ 1 Newline 2 ] [ 2 {<opi:noexreduce>} -* ]"
 
 .TABLE	"occampi:catchexpr ::= [ 0 occampi:name 1 ] [ 1 Comment 1 ] [ 1 Newline 2 ] [ 1 -* 3 ]"
 	"[ 2 {<opi:catchexprzeroreduce>} -* ]"
