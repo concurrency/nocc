@@ -84,6 +84,9 @@ extern void dmem_usagedump (void);
 	extern void *mem_ndup (const void *, int);
 #endif
 
+extern char *string_fmt (const char *, ...) __attribute__ ((format (printf, 1, 2)));
+
+
 /* fresh dynamic array stuff: HACK */
 #define DA_CUR(NAME) NAME ## _cur
 #define DA_MAX(NAME) NAME ## _max
@@ -125,6 +128,7 @@ extern void da_init (int *cur, int *max, void ***array);
 extern void da_delitem (int *cur, int *max, void ***array, int idx);
 extern void da_rmitem (int *cur, int *max, void ***array, void *item);
 extern void da_qsort (void **array, int first, int last, int (*)(void *, void *));
+extern int da_hasitem (int *cur, int *max, void ***array, void *item);
 
 #define dynarray_init(ARRAY) da_init(&(DA_CUR(ARRAY)), &(DA_MAX(ARRAY)), (void ***)&(DA_PTR(ARRAY)))
 #define dynarray_add(ARRAY,ITEM) da_additem(&(DA_CUR(ARRAY)), &(DA_MAX(ARRAY)), (void ***)&(DA_PTR(ARRAY)), (void *)(ITEM))
@@ -137,6 +141,7 @@ extern void da_qsort (void **array, int first, int last, int (*)(void *, void *)
 #define dynarray_setsize(ARRAY,SIZE) da_setsize(&(DA_CUR(ARRAY)), &(DA_MAX(ARRAY)), (void ***)&(DA_PTR(ARRAY)), SIZE)
 #define dynarray_setmax(ARRAY,SIZE) da_setmax(&(DA_CUR(ARRAY)), &(DA_MAX(ARRAY)), (void ***)&(DA_PTR(ARRAY)), SIZE)
 #define dynarray_copy(DSTARRAY,SRCARRAY) da_copy(DA_CUR(SRCARRAY), DA_MAX(SRCARRAY), (void **)(DA_PTR(SRCARRAY)), &(DA_CUR(DSTARRAY)), &(DA_MAX(DSTARRAY)), (void ***)(&(DA_PTR(DSTARRAY))))
+#define dynarray_hasitem(ARRAY,ITEM) da_hasitem(&(DA_CUR(ARRAY)), &(DA_MAX(ARRAY)), (void ***)&(DA_PTR(ARRAY)), (void *)(ITEM))
 
 /* stuff for string-based hashes */
 

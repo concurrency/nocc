@@ -67,10 +67,20 @@
 
 typedef struct TAG_opiexception {
 	DYNARRAY (tnode_t *, elist);		/* list of exceptions collected so far */
+	int doprune;				/* non-zero if we are pruning things */
 	int err;
 	int warn;
 } opiexception_t;
 
+typedef struct TAG_opithrowshook {
+	DYNARRAY (tnode_t *, elist);		/* list of exceptions */
+} opithrowshook_t;
+
+
+/*}}}*/
+/*{{{  private data*/
+
+static chook_t *exceptioncheck_throwschook = NULL;
 
 /*}}}*/
 
@@ -84,6 +94,7 @@ static opiexception_t *opi_newopiexception (void)
 	opiexception_t *oex = (opiexception_t *)smalloc (sizeof (opiexception_t));
 
 	dynarray_init (oex->elist);
+	oex->doprune = 0;
 	oex->err = 0;
 	oex->warn = 0;
 
@@ -102,6 +113,95 @@ static void opi_freeopiexception (opiexception_t *oex)
 	}
 	dynarray_trash (oex->elist);
 	sfree (oex);
+	return;
+}
+/*}}}*/
+/*{{{  static opithrowshook_t *opi_newopithrowshook (void)*/
+/*
+ *	creates a new, blank, opithrowshook_t structure
+ */
+static opithrowshook_t *opi_newopithrowshook (void)
+{
+	opithrowshook_t *opith = (opithrowshook_t *)smalloc (sizeof (opithrowshook_t));
+
+	dynarray_init (opith->elist);
+	return opith;
+}
+/*}}}*/
+/*{{{  static void opi_freeopithrowshook (opithrowshook_t *opith)*/
+/*
+ *	frees an opithrowshook_t structure
+ */
+static void opi_freeopithrowshook (opithrowshook_t *opith)
+{
+	if (!opith) {
+		nocc_serious ("opi_freeopithrowshook(): NULL hook!");
+		return;
+	}
+	dynarray_trash (opith->elist);
+	sfree (opith);
+	return;
+}
+/*}}}*/
+
+/*{{{  static void *exceptioncheck_throwschook_copy (void *hook)*/
+/*
+ *	copies an occampi:throws compiler hook
+ */
+static void *exceptioncheck_throwschook_copy (void *hook)
+{
+	opithrowshook_t *opith = (opithrowshook_t *)hook;
+	opithrowshook_t *newth;
+	int i;
+
+	if (!opith) {
+		nocc_serious ("exceptioncheck_throwschook_copy(): NULL hook!");
+		return NULL;
+	}
+	newth = opi_newopithrowshook ();
+	for (i=0; i<DA_CUR (opith->elist); i++) {
+		dynarray_add (newth->elist, DA_NTHITEM (opith->elist, i));
+	}
+	return newth;
+}
+/*}}}*/
+/*{{{  static void exceptioncheck_throwschook_free (void *hook)*/
+/*
+ *	frees an occampi:throws compiler hook
+ */
+static void exceptioncheck_throwschook_free (void *hook)
+{
+	opithrowshook_t *opith = (opithrowshook_t *)hook;
+
+	if (!opith) {
+		nocc_serious ("exceptioncheck_throwschook_free(): NULL hook!");
+		return;
+	}
+	opi_freeopithrowshook (opith);
+	return;
+}
+/*}}}*/
+/*{{{  static void exceptioncheck_throwschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps an occampi:throws compiler hook (debugging)
+ */
+static void exceptioncheck_throwschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	opithrowshook_t *opith = (opithrowshook_t *)hook;
+
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "<chook:occampi:throws addr=\"0x%8.8x\">\n", (unsigned int)opith);
+	if (opith) {
+		int i;
+
+		for (i=0; i<DA_CUR (opith->elist); i++) {
+			tnode_t *ename = DA_NTHITEM (opith->elist, i);
+
+			tnode_dumptree (ename, indent + 1, stream);
+		}
+	}
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "</chook:occampi:throws>\n");
 	return;
 }
 /*}}}*/
@@ -133,6 +233,70 @@ static int exceptioncheck_subtree (tnode_t **tptr, opiexception_t *oex)
 }
 /*}}}*/
 
+/*{{{  static void exceptioncheck_warning (tnode_t *node, opiexception_t *tc, const char *fmt, ...)*/
+/*
+ *	called by exception-check routines to report a warning
+ */
+static void exceptioncheck_warning (tnode_t *node, opiexception_t *tc, const char *fmt, ...)
+{
+	va_list ap;
+	int n;
+	char *warnbuf = (char *)smalloc (512);
+	lexfile_t *orgfile;
+
+	if (!node) {
+		orgfile = NULL;
+	} else {
+		orgfile = node->org_file;
+	}
+
+	va_start (ap, fmt);
+	n = sprintf (warnbuf, "%s:%d (warning) ", orgfile ? orgfile->fnptr : "(unknown)", node->org_line);
+	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	if (orgfile) {
+		orgfile->warncount++;
+	}
+	tc->warn++;
+	nocc_message (warnbuf);
+	sfree (warnbuf);
+
+	return;
+}
+/*}}}*/
+/*{{{  static void exceptioncheck_error (tnode_t *node, opiexception_t *tc, const char *fmt, ...)*/
+/*
+ *	called by exception-checking bits to report an error
+ */
+static void exceptioncheck_error (tnode_t *node, opiexception_t *tc, const char *fmt, ...)
+{
+	va_list ap;
+	int n;
+	char *warnbuf = (char *)smalloc (512);
+	lexfile_t *orgfile;
+
+	if (!node) {
+		orgfile = NULL;
+	} else {
+		orgfile = node->org_file;
+	}
+
+	va_start (ap, fmt);
+	n = sprintf (warnbuf, "%s:%d (error) ", orgfile ? orgfile->fnptr : "(unknown)", node->org_line);
+	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	if (orgfile) {
+		orgfile->errcount++;
+	}
+	tc->err++;
+	nocc_message (warnbuf);
+	sfree (warnbuf);
+
+	return;
+}
+/*}}}*/
 
 /*{{{  static int occampi_scopein_exceptiontypedecl (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
 /*
@@ -291,8 +455,46 @@ static int occampi_prescope_trynode (compops_t *cops, tnode_t **nodep, prescope_
  */
 static int occampi_exceptioncheck_trynode (compops_t *cops, tnode_t **nodep, opiexception_t *oex)
 {
-	/* FIXME! */
-	return 1;
+	opiexception_t *tryex = opi_newopiexception ();
+	tnode_t *catches = treeops_findprocess (tnode_nthsubof (*nodep, 2));
+	int i;
+
+	/* see what exceptions are generated by the TRY */
+	if (exceptioncheck_subtree (tnode_nthsubaddr (*nodep, 1), tryex)) {
+		/* failed in here */
+		opi_freeopiexception (tryex);
+		oex->err++;
+		return 0;
+	}
+
+	/* now prune them according to the ones caught here */
+	tryex->doprune = 1;
+	if (exceptioncheck_subtree (tnode_nthsubaddr (*nodep, 2), tryex)) {
+		/* failed in here -- unlikely */
+		opi_freeopiexception (tryex);
+		oex->err++;
+		return 0;
+	}
+
+	/* anything left is propagated */
+	for (i=0; i<DA_CUR (tryex->elist); i++) {
+		tnode_t *ename = DA_NTHITEM (tryex->elist, i);
+
+		dynarray_maybeadd (oex->elist, ename);
+	}
+	oex->err += tryex->err;
+	oex->warn += tryex->warn;
+
+	opi_freeopiexception (tryex);
+
+	/* now go through the exception handlers and any FINALLY to see what other exceptions are generated */
+	if (exceptioncheck_subtree (tnode_nthsubaddr (*nodep, 2), oex) ||
+			exceptioncheck_subtree (tnode_nthsubaddr (*nodep, 3), oex)) {
+		/* failed in here */
+		return 0;
+	}
+
+	return 0;
 }
 /*}}}*/
 
@@ -387,6 +589,39 @@ tnode_dumptree (atype, 1, stderr);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_exceptioncheck_catchexprnode (compops_t *cops, tnode_t **nodep, opiexception_t *oex)*/
+/*
+ *	does exception-checking on a catch-expression node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_exceptioncheck_catchexprnode (compops_t *cops, tnode_t **nodep, opiexception_t *oex)
+{
+	tnode_t *ename = tnode_nthsubof (*nodep, 0);
+
+	if (oex->doprune) {
+		/* pruning pass -- remove exception (it is caught) */
+		if (!dynarray_hasitem (oex->elist, ename)) {
+			/* not here */
+			char *estr = NULL;
+
+			langops_getname (ename, &estr);
+			if (!estr) {
+				estr = string_dup ("(unknown)");
+			}
+
+			exceptioncheck_warning (*nodep, oex, "exception [%s] is caught but never thrown", estr);
+			sfree (estr);
+		} else {
+			dynarray_rmitem (oex->elist, ename);
+		}
+	} else {
+		/* else non-prune pass, check body */
+		exceptioncheck_subtree (tnode_nthsubaddr (*nodep, 1), oex);
+	}
+
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static int occampi_prescope_exceptionactionnode (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
 /*
@@ -395,10 +630,14 @@ tnode_dumptree (atype, 1, stderr);
  */
 static int occampi_prescope_exceptionactionnode (compops_t *cops, tnode_t **nodep, prescope_t *ps)
 {
-	tnode_t **eptr = tnode_nthsubaddr (*nodep, 1);
+	if ((*nodep)->tag == opi.tag_THROW) {
+		/*{{{  THROW*/
+		tnode_t **eptr = tnode_nthsubaddr (*nodep, 1);
 
-	if (*eptr && !parser_islistnode (*eptr)) {
-		*eptr = parser_buildlistnode (NULL, *eptr, NULL);
+		if (*eptr && !parser_islistnode (*eptr)) {
+			*eptr = parser_buildlistnode (NULL, *eptr, NULL);
+		}
+		/*}}}*/
 	}
 	return 1;
 }
@@ -410,66 +649,86 @@ static int occampi_prescope_exceptionactionnode (compops_t *cops, tnode_t **node
  */
 static int occampi_typecheck_exceptionactionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
-	tnode_t *name = tnode_nthsubof (node, 0);
-	char *cname = NULL;
+	if (node->tag == opi.tag_THROW) {
+		/*{{{  THROW*/
+		tnode_t *name = tnode_nthsubof (node, 0);
+		char *cname = NULL;
 
-	/* subtypecheck name and expressions */
-	typecheck_subtree (tnode_nthsubof (node, 0), tc);
-	typecheck_subtree (tnode_nthsubof (node, 1), tc);
+		/* subtypecheck name and expressions */
+		typecheck_subtree (tnode_nthsubof (node, 0), tc);
+		typecheck_subtree (tnode_nthsubof (node, 1), tc);
 
-	langops_getname (name, &cname);
+		langops_getname (name, &cname);
 
-	if (name->tag != opi.tag_NEXCEPTIONTYPEDECL) {
-		typecheck_error (node, tc, "THROW exception [%s] is not an EXCEPTION type", cname ?: "(unknown)");
-	} else {
-		tnode_t *ftype = typecheck_gettype (name, NULL);
-		tnode_t *exprlist = tnode_nthsubof (node, 1);
-
-		if (!exprlist && ftype) {
-			int nfitems;
-
-			parser_getlistitems (ftype, &nfitems);
-			typecheck_error (node, tc, "THROW exception [%s] expected %d items, but found 0", cname ?: "(unknown)", nfitems);
-		} else if (exprlist && !ftype) {
-			int naitems;
-
-			parser_getlistitems (exprlist, &naitems);
-			typecheck_error (node, tc, "THROW exception [%s] expected 0 items, but found %d", cname ?: "(unknown)", naitems);
-		} else if (!exprlist && !ftype) {
-			/* good */
+		if (name->tag != opi.tag_NEXCEPTIONTYPEDECL) {
+			typecheck_error (node, tc, "THROW exception [%s] is not an EXCEPTION type", cname ?: "(unknown)");
 		} else {
-			int naitems, nfitems, i;
-			tnode_t **alist = parser_getlistitems (exprlist, &naitems);
-			tnode_t **flist = parser_getlistitems (ftype, &nfitems);
+			tnode_t *ftype = typecheck_gettype (name, NULL);
+			tnode_t *exprlist = tnode_nthsubof (node, 1);
 
-			if (naitems != nfitems) {
-				typecheck_error (node, tc, "THROW exception [%s] expected %d items, but found %d", cname ?: "(unknown)", nfitems, naitems);
+			if (!exprlist && ftype) {
+				int nfitems;
+
+				parser_getlistitems (ftype, &nfitems);
+				typecheck_error (node, tc, "THROW exception [%s] expected %d items, but found 0", cname ?: "(unknown)", nfitems);
+			} else if (exprlist && !ftype) {
+				int naitems;
+
+				parser_getlistitems (exprlist, &naitems);
+				typecheck_error (node, tc, "THROW exception [%s] expected 0 items, but found %d", cname ?: "(unknown)", naitems);
+			} else if (!exprlist && !ftype) {
+				/* good */
 			} else {
-				for (i=0; i<nfitems; i++) {
-					/* check that the actual is a good type for the formal */
-					tnode_t *atype = typecheck_gettype (alist[i], flist[i]);
+				int naitems, nfitems, i;
+				tnode_t **alist = parser_getlistitems (exprlist, &naitems);
+				tnode_t **flist = parser_getlistitems (ftype, &nfitems);
 
-#if 0
-fprintf (stderr, "occampi_typecheck_catchexprnode(): actual item is:\n");
-tnode_dumptree (alist[i], 1, stderr);
-fprintf (stderr, "occampi_typecheck_catchexprnode(): actual type is:\n");
-tnode_dumptree (atype, 1, stderr);
-#endif
-					if (!atype) {
-						typecheck_error (node, tc, "failed to get type of THROW exception [%s] expression %d", cname ?: "(unknown)", i+1);
-					} else if (!typecheck_fixedtypeactual (flist[i], atype, node, tc, 1)) {
-						typecheck_error (node, tc, "incompatible types for THROW exception [%s] expression %d", cname ?: "(unknown)", i+1);
+				if (naitems != nfitems) {
+					typecheck_error (node, tc, "THROW exception [%s] expected %d items, but found %d", cname ?: "(unknown)", nfitems, naitems);
+				} else {
+					for (i=0; i<nfitems; i++) {
+						/* check that the actual is a good type for the formal */
+						tnode_t *atype = typecheck_gettype (alist[i], flist[i]);
+
+	#if 0
+	fprintf (stderr, "occampi_typecheck_catchexprnode(): actual item is:\n");
+	tnode_dumptree (alist[i], 1, stderr);
+	fprintf (stderr, "occampi_typecheck_catchexprnode(): actual type is:\n");
+	tnode_dumptree (atype, 1, stderr);
+	#endif
+						if (!atype) {
+							typecheck_error (node, tc, "failed to get type of THROW exception [%s] expression %d", cname ?: "(unknown)", i+1);
+						} else if (!typecheck_fixedtypeactual (flist[i], atype, node, tc, 1)) {
+							typecheck_error (node, tc, "incompatible types for THROW exception [%s] expression %d", cname ?: "(unknown)", i+1);
+						}
 					}
 				}
 			}
 		}
-	}
 
-	if (cname) {
-		sfree (cname);
+		if (cname) {
+			sfree (cname);
+		}
+		/*}}}*/
 	}
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_exceptioncheck_exceptionactionnode (compops_t *cops, tnode_t **nodep, opiexception_t *oex)*/
+/*
+ *	called to do exception-checking on a THROW node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_exceptioncheck_exceptionactionnode (compops_t *cops, tnode_t **nodep, opiexception_t *oex)
+{
+	if ((*nodep)->tag == opi.tag_THROW) {
+		/*{{{  THROW -- generates exception*/
+		dynarray_maybeadd (oex->elist, tnode_nthsubof (*nodep, 0));
+
+		/*}}}*/
+	}
+	return 1;
 }
 /*}}}*/
 
@@ -480,8 +739,47 @@ tnode_dumptree (atype, 1, stderr);
  */
 static int occampi_exceptioncheck_noexnode (compops_t *cops, tnode_t **nodep, opiexception_t *oex)
 {
-	/* FIXME! */
-	return 1;
+	opiexception_t *noex = opi_newopiexception ();
+
+	/* walk body */
+	if (exceptioncheck_subtree (tnode_nthsubaddr (*nodep, 1), noex)) {
+		opi_freeopiexception (noex);
+		oex->err++;
+		return 0;
+	}
+
+	if (DA_CUR (noex->elist)) {
+		/* some exceptions thrown past here */
+		char *elist = NULL;
+		int i;
+
+		for (i=0; i<DA_CUR (noex->elist); i++) {
+			tnode_t *ename = DA_NTHITEM (noex->elist, i);
+			char *estr = NULL;
+
+			langops_getname (ename, &estr);
+			if (estr) {
+				char *newlist = string_fmt ("%s%s%s", (elist ?: ""), (elist ? "," : ""), estr);
+
+				if (elist) {
+					sfree (elist);
+				}
+				elist = newlist;
+				sfree (estr);
+			}
+		}
+
+		exceptioncheck_error (*nodep, oex, "NOEXCEPTIONS block has the following exceptions: %s", elist ?: "(unknown)");
+		if (elist) {
+			sfree (elist);
+		}
+	}
+	oex->err += noex->err;
+	oex->warn += noex->warn;
+
+	opi_freeopiexception (noex);
+
+	return 0;
 }
 /*}}}*/
 
@@ -493,8 +791,52 @@ static int occampi_exceptioncheck_noexnode (compops_t *cops, tnode_t **nodep, op
  */
 static int occampi_exceptioncheck_procdecl (compops_t *cops, tnode_t **nodep, opiexception_t *oex)
 {
-	/* FIXME! */
-	return 1;
+	opiexception_t *procex = opi_newopiexception ();
+
+	/* check PROC body for exceptions generated */
+	if (exceptioncheck_subtree (tnode_nthsubaddr (*nodep, 2), procex)) {
+		/* failed */
+		opi_freeopiexception (procex);
+		oex->err++;
+		return 0;
+	}
+
+	/* if there are any exceptions, attach them to the PROC */
+	if (DA_CUR (procex->elist)) {
+		opithrowshook_t *opith = opi_newopithrowshook ();
+		int i;
+
+		for (i=0; i<DA_CUR (procex->elist); i++) {
+			dynarray_add (opith->elist, DA_NTHITEM (procex->elist, i));
+		}
+		tnode_setchook (*nodep, exceptioncheck_throwschook, (void *)opith);
+	}
+
+	opi_freeopiexception (procex);
+
+	/* check the in-scope body of the PROC */
+	exceptioncheck_subtree (tnode_nthsubaddr (*nodep, 3), oex);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_exceptioncheck_instancenode (compops_t *cops, tnode_t **nodep, opiexception_t *oex)*/
+/*
+ *	called to do exception-checking on a proc instance -- determines what is thrown by the instanced PROC
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_exceptioncheck_instancenode (compops_t *cops, tnode_t **nodep, opiexception_t *oex)
+{
+	if ((*nodep)->tag == opi.tag_PINSTANCE) {
+		/*{{{  PROC instance*/
+#if 1
+fprintf (stderr, "occampi_exceptioncheck_instancenode(): PROC instance of:\n");
+tnode_dumptree (tnode_nthsubof (*nodep, 0), 1, stderr);
+#endif
+
+		/*}}}*/
+	}
+	return 0;
 }
 /*}}}*/
 
@@ -630,6 +972,7 @@ static int occampi_exceptions_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_catchexprnode));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_catchexprnode));
+	tnode_setcompop (cops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_catchexprnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;
@@ -644,12 +987,20 @@ static int occampi_exceptions_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_exceptionactionnode));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_exceptionactionnode));
+	tnode_setcompop (cops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_exceptionactionnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;
 
 	i = -1;
 	opi.tag_THROW = tnode_newnodetag ("THROW", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:throws compiler hook*/
+	exceptioncheck_throwschook = tnode_lookupornewchook ("occampi:throws");
+	exceptioncheck_throwschook->chook_copy = exceptioncheck_throwschook_copy;
+	exceptioncheck_throwschook->chook_free = exceptioncheck_throwschook_free;
+	exceptioncheck_throwschook->chook_dumptree = exceptioncheck_throwschook_dumptree;
 
 	/*}}}*/
 
@@ -665,7 +1016,7 @@ static int occampi_exceptions_post_setup (void)
 {
 	tndef_t *tnd;
 
-	/*{{{  intefere with PROC declaration nodes for exception checking*/
+	/*{{{  intefere with PROC declaration and instance nodes for exception checking*/
 	tnd = tnode_lookupnodetype ("occampi:procdecl");
 	if (!tnd) {
 		nocc_serious ("occampi_exceptions_post_setup(): failed to find \"occampi:procdecl\" node type");
@@ -676,6 +1027,17 @@ static int occampi_exceptions_post_setup (void)
 		tnd->ops = tnode_newcompops ();
 	}
 	tnode_setcompop (tnd->ops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_procdecl));
+
+	tnd = tnode_lookupnodetype ("occampi:instancenode");
+	if (!tnd) {
+		nocc_serious ("occampi_exceptions_post_setup(): failed to find \"occampi:instancenode\" node type");
+		return -1;
+	}
+	if (!tnd->ops) {
+		nocc_serious ("occampi_exceptions_post_setup(): occampi:instancenode node type has no compiler operations..");
+		tnd->ops = tnode_newcompops ();
+	}
+	tnode_setcompop (tnd->ops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_instancenode));
 
 	/*}}}*/
 	return 0;

@@ -267,6 +267,41 @@ void metadata_freemetadatalist (metadatalist_t *mdl)
 }
 /*}}}*/
 
+/*{{{  int metadata_addmetatonodelist (tnode_t *node, metadata_t *md)*/
+/*
+ *	adds a metadata_t structure to a list attached to a node
+ *	returns 0 on success, non-zero on failure
+ */
+int metadata_addmetatonodelist (tnode_t *node, metadata_t *md)
+{
+	metadatalist_t *mdl = (metadatalist_t *)tnode_getchook (node, metadatalist_chook);
+
+	if (!mdl) {
+		mdl = metadata_newmetadatalist ();
+		tnode_setchook (node, metadatalist_chook, (void *)mdl);
+	}
+	dynarray_add (mdl->items, md);
+	return 0;
+}
+/*}}}*/
+/*{{{  int metadata_addtonodelist (tnode_t *node, char *name, char *data)*/
+/*
+ *	creates a new metadata_t structure and adds it to the list attached to a node
+ *	returns 0 on success, non-zero on failure
+ */
+int metadata_addtonodelist (tnode_t *node, char *name, char *data)
+{
+	metadata_t *md = metadata_createmetadata (name, data);
+	int v;
+
+	v = metadata_addmetatonodelist (node, md);
+	if (v) {
+		metadata_freemetadata (md);
+	}
+	return v;
+}
+/*}}}*/
+
 
 /*{{{  static void *metadatahook_copy (void *hook)*/
 /*

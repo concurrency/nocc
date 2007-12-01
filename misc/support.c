@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -909,6 +910,24 @@ char *string_dup (const char *str)
 #endif
 }
 /*}}}*/
+/*{{{  char *string_fmt (const char *fmt, ...)*/
+/*
+ *	formats a string into a new buffer
+ *	returns string on success, NULL on failure
+ */
+char *string_fmt (const char *fmt, ...)
+{
+	char *str;
+	va_list ap;
+
+	str = (char *)smalloc (1024);
+	va_start (ap, fmt);
+	vsnprintf (str, 1023, fmt, ap);
+	va_end (ap);
+
+	return str;
+}
+/*}}}*/
 /*{{{  void *mem_ndup (const void *ptr, int length)*/
 /*
  *	duplicates a bit of memory
@@ -1280,6 +1299,22 @@ void da_copy (int srccur, int srcmax, void **srcarray, int *dstcur, int *dstmax,
 	*dstcur = *dstcur + srccur;
 
 	return;
+}
+/*}}}*/
+/*{{{  int da_hasitem (int *cur, int *max, void ***array, void *item)*/
+/*
+ *	determines whether a particular item is in an array
+ */
+int da_hasitem (int *cur, int *max, void ***array, void *item)
+{
+	int idx;
+
+	for (idx=0; idx < *cur; idx++) {
+		if ((*array)[idx] == item) {
+			return 1;
+		}
+	}
+	return 0;
 }
 /*}}}*/
 

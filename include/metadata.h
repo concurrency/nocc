@@ -20,6 +20,8 @@
 #ifndef __METADATA_H
 #define __METADATA_H
 
+struct TAG_tnode;
+
 /* meta-data hooks */
 typedef struct TAG_metadata {
 	char *name;
@@ -45,7 +47,8 @@ extern void metadata_freemetadata (metadata_t *md);
 extern metadatalist_t *metadata_newmetadatalist (void);
 extern void metadata_freemetadatalist (metadatalist_t *mdl);
 
-
+extern int metadata_addmetatonodelist (struct TAG_tnode *node, metadata_t *md);
+extern int metadata_addtonodelist (struct TAG_tnode *node, char *name, char *data);
 
 
 #endif	/* !__METADATA_H */

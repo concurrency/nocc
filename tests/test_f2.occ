@@ -1,0 +1,20 @@
+
+-- test_f2.occ -- failure test
+
+EXCEPTION TYPE EX.FOO:
+EXCEPTION TYPE EX.BAR IS INT, INT:
+
+PROC test.57 ()
+  NOEXCEPTIONS
+    INT x, y:
+    TRY
+      SEQ
+        SKIP
+        THROW EX.FOO
+      CATCH
+        EX.BAR x, y
+          SKIP
+      FINALLY
+        SKIP
+:
+
