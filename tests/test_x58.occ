@@ -1,0 +1,14 @@
+
+-- test_x58.occ -- exception types
+
+EXCEPTION TYPE EX.FOO:
+
+PROC test.x58 (CHAN INT out!)
+  SEQ
+    out ! 42
+    WHILE TRUE
+      out ! 42
+    THROW EX.FOO
+:
+
+

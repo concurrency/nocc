@@ -118,6 +118,8 @@ extern void tracescheck_dumptraces (tchk_traces_t *tct, int indent, FILE *stream
 extern void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, FILE *stream);
 extern void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream);
 
+extern int tracescheck_formattraces (tchknode_t *tcn, char **sptr);
+
 extern tchk_state_t *tracescheck_pushstate (tchk_state_t *tcstate);
 extern tchk_state_t *tracescheck_popstate (tchk_state_t *tcstate);
 

@@ -1394,9 +1394,12 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 		fprintf (stream, "<nullnode />\n");
 	} else {
 		switch (tcn->type) {
+			/*{{{  INVALID*/
 		case TCN_INVALID:
 			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"invalid\" />\n", (unsigned int)tcn->orgnode);
 			break;
+			/*}}}*/
+			/*{{{  SEQ,PAR,DET,NDET*/
 		case TCN_SEQ:
 		case TCN_PAR:
 		case TCN_DET:
@@ -1423,6 +1426,8 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 				fprintf (stream, "</tracescheck:node>\n");
 			}
 			break;
+			/*}}}*/
+			/*{{{  INPUT,OUTPUT*/
 		case TCN_INPUT:
 		case TCN_OUTPUT:
 			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"%s\">\n",
@@ -1431,6 +1436,8 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 			tchk_isetindent (stream, indent);
 			fprintf (stream, "</tracescheck:node>\n");
 			break;
+			/*}}}*/
+			/*{{{  FIXPOINT*/
 		case TCN_FIXPOINT:
 			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"fixpoint\">\n",
 					(unsigned int)tcn->orgnode);
@@ -1439,10 +1446,14 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 			tchk_isetindent (stream, indent);
 			fprintf (stream, "</tracescheck:node>\n");
 			break;
+			/*}}}*/
+			/*{{{  ATOM*/
 		case TCN_ATOM:
 			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"atom\" id=\"%s\" />\n",
 					(unsigned int)tcn->orgnode, tcn->u.tcnatom.id);
 			break;
+			/*}}}*/
+			/*{{{  ATOMREF*/
 		case TCN_ATOMREF:
 			{
 				tchknode_t *aref = tcn->u.tcnaref.aref;
@@ -1459,6 +1470,8 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 				}
 			}
 			break;
+			/*}}}*/
+			/*{{{  NODEREF*/
 		case TCN_NODEREF:
 			{
 				tnode_t *node = tcn->u.tcnnref.nref;
@@ -1467,9 +1480,163 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 						(unsigned int)tcn->orgnode, (unsigned int)node, node->tag->name, node->tag->ndef->name);
 			}
 			break;
+			/*}}}*/
 		}
 	}
 	return;
+}
+/*}}}*/
+
+/*{{{  static int tracescheck_addtostring (char **sptr, int *cur, int *max, const char *str)*/
+/*
+ *	adds something to a string -- used when building traces-check structures
+ *	returns 0 on success, non-zero on failure
+ */
+static int tracescheck_addtostring (char **sptr, int *cur, int *max, const char *str)
+{
+	int slen = strlen (str);
+
+	if ((*cur + slen) >= *max) {
+		/* need more */
+		int nmax = (*max) + (((*cur + slen) - *max) > 1024) ?: 1024;
+
+		*sptr = (char *)srealloc (*sptr, *max, nmax);
+		*max = nmax;
+	}
+	strcpy ((*sptr) + *cur, str);
+	*cur = (*cur) + slen;
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int tracescheck_subformat (tchknode_t *tcn, char **sptr, int *cur, int *max)*/
+/*
+ *	called to format a set of traces (into a form that we can parse again)
+ *	returns 0 on success, non-zero on failure
+ */
+static int tracescheck_subformat (tchknode_t *tcn, char **sptr, int *cur, int *max)
+{
+	int v = 0;
+
+	if (!tcn) {
+		nocc_warning ("tracescheck_subformat(): NULL node!");
+		return 1;
+	}
+	switch (tcn->type) {
+		/*{{{  INVALID*/
+	case TCN_INVALID:
+		nocc_warning ("tracescheck_subformat(): invalid node!");
+		return 0;
+		/*}}}*/
+		/*{{{  SEQ,PAR,DET,NDET*/
+	case TCN_SEQ:
+	case TCN_PAR:
+	case TCN_DET:
+	case TCN_NDET:
+		{
+			int i;
+
+			tracescheck_addtostring (sptr, cur, max, "(");
+			for (i=0; i<DA_CUR (tcn->u.tcnlist.items); i++) {
+				tchknode_t *item = DA_NTHITEM (tcn->u.tcnlist.items, i);
+
+				if (i > 0) {
+					switch (tcn->type) {
+					case TCN_SEQ:	tracescheck_addtostring (sptr, cur, max, " -> "); break;
+					case TCN_PAR:	tracescheck_addtostring (sptr, cur, max, " || "); break;
+					case TCN_DET:	tracescheck_addtostring (sptr, cur, max, " [] "); break;
+					case TCN_NDET:	tracescheck_addtostring (sptr, cur, max, " |~| "); break;
+					default: break;
+					}
+				}
+				v += tracescheck_subformat (item, sptr, cur, max);
+			}
+			tracescheck_addtostring (sptr, cur, max, ")");
+		}
+		break;
+		/*}}}*/
+		/*{{{  INPUT,OUTPUT*/
+	case TCN_INPUT:
+	case TCN_OUTPUT:
+		v += tracescheck_subformat (tcn->u.tcnio.varptr, sptr, cur, max);
+		tracescheck_addtostring (sptr, cur, max, (tcn->type == TCN_INPUT) ? "?" : "!");
+		break;
+		/*}}}*/
+		/*{{{  FIXPOINT*/
+	case TCN_FIXPOINT:
+		tracescheck_addtostring (sptr, cur, max, "@");
+		v += tracescheck_subformat (tcn->u.tcnfix.id, sptr, cur, max);
+		tracescheck_addtostring (sptr, cur, max, ",");
+		v += tracescheck_subformat (tcn->u.tcnfix.proc, sptr, cur, max);
+		break;
+		/*}}}*/
+		/*{{{  ATOM*/
+	case TCN_ATOM:
+		{
+			/* include atom node address (keep unique) */
+			char *tstr = string_fmt ("%s.%8.8x", tcn->u.tcnatom.id, (unsigned int)tcn);
+
+			tracescheck_addtostring (sptr, cur, max, tstr);
+			sfree (tstr);
+		}
+		break;
+		/*}}}*/
+		/*{{{  ATOMREF*/
+	case TCN_ATOMREF:
+		{
+			/* include atom node address (keep unique) */
+			char *tstr = string_fmt ("%s.%8.8x", tcn->u.tcnaref.aref->u.tcnatom.id, (unsigned int)tcn->u.tcnaref.aref);
+
+			tracescheck_addtostring (sptr, cur, max, tstr);
+			sfree (tstr);
+		}
+		break;
+		/*}}}*/
+		/*{{{  NODEREF*/
+	case TCN_NODEREF:
+		{
+			char *xname = NULL;
+			tnode_t *node = tcn->u.tcnnref.nref;
+
+			langops_getname (node, &xname);
+			if (xname) {
+				tracescheck_addtostring (sptr, cur, max, xname);
+				sfree (xname);
+			}
+		}
+		break;
+		/*}}}*/
+	}
+	return v;
+}
+/*}}}*/
+/*{{{  int tracescheck_formattraces (tchknode_t *tcn, char **sptr)*/
+/*
+ *	called to format a set of traces (into a form that we can parse again)
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_formattraces (tchknode_t *tcn, char **sptr)
+{
+	int cur = 0;
+	int max = 4096;
+	int v;
+
+	if (*sptr) {
+		sfree (*sptr);
+		*sptr = NULL;
+	}
+	*sptr = (char *)smalloc (max);
+
+	v = tracescheck_subformat (tcn, sptr, &cur, &max);
+	if (v) {
+		/* trash anything we did have */
+		if (*sptr) {
+			sfree (*sptr);
+			*sptr = NULL;
+		}
+	}
+
+	return v;
 }
 /*}}}*/
 

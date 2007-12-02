@@ -801,6 +801,42 @@ tnode_dumptree (trspecs[j], 1, stderr);
 	return v;
 }
 /*}}}*/
+/*{{{  static int occampi_fetrans_procdecl_tracetypeimpl (compops_t *cops, tnode_t **nodep, fetrans_t *fe)*/
+/*
+ *	inserted fetrans to attach traces to PROCDECL metadata
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_fetrans_procdecl_tracetypeimpl (compops_t *cops, tnode_t **nodep, fetrans_t *fe)
+{
+	int v = 1;
+	
+	if (tnode_haschook (*nodep, trtracechook)) {
+		tchk_traces_t *tr = (tchk_traces_t *)tnode_getchook (*nodep, trtracechook);
+		int i;
+
+		for (i=0; i<DA_CUR (tr->items); i++) {
+			tchknode_t *tcn = DA_NTHITEM (tr->items, i);
+			char *str = NULL;
+
+			if (tracescheck_formattraces (tcn, &str)) {
+				tnode_error (*nodep, "occampi_fetrans_procdecl_tracetypeimpl(): failed to format traces..");
+			} else {
+				metadata_addtonodelist (*nodep, "traces", str);
+#if 0
+fprintf (stderr, "occampi_fetrans_procdecl_tracetypeimpl(): formatted traces: [%s]\n", str);
+#endif
+				sfree (str);
+			}
+		}
+	}
+
+	if (cops->next && tnode_hascompop (cops->next, "fetrans")) {
+		v = tnode_callcompop (cops->next, "fetrans", 2, nodep, fe);
+	}
+
+	return v;
+}
+/*}}}*/
 
 /*{{{  static void occampi_traces_attachtraces (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
@@ -940,6 +976,7 @@ static int occampi_traces_post_setup (void)
 	tnode_setcompop (cops, "typeresolve", 2, COMPOPTYPE (occampi_typeresolve_procdecl_tracetypeimpl));
 	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (occampi_precheck_procdecl_tracetypeimpl));
 	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_procdecl_tracetypeimpl));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_procdecl_tracetypeimpl));
 	tnd->ops = cops;
 	lops = tnode_insertlangops (tnd->lops);
 	/* FIXME: langops */
