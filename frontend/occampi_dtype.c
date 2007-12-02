@@ -1638,6 +1638,39 @@ static int occampi_istype_nametypenode (langops_t *lops, tnode_t *node)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_typehash_nametypenode (langops_t *lops, tnode_t *node, int hsize, void *ptr)*/
+/*
+ *	generates a type-hash for a named type
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_typehash_nametypenode (langops_t *lops, tnode_t *node, int hsize, void *ptr)
+{
+	char *pname = NameNameOf (tnode_nthnameof (node, 0));
+	unsigned int myhash = 0;
+	tnode_t *subtype = NameTypeOf (tnode_nthnameof (node, 0));
+
+	langops_typehash_blend (hsize, ptr, strlen (pname), (void *)pname);
+
+	if (node->tag == opi.tag_NDATATYPEDECL) {
+		myhash = 0x5363;
+	} else if (node->tag == opi.tag_NFIELD) {
+		myhash = 0x693;
+	} else if (node->tag == opi.tag_NCHANTYPEDECL) {
+		myhash = 0x42503;
+	} else if (node->tag == opi.tag_NPROCTYPEDECL) {
+		myhash = 0xa3608d;
+	} else {
+		nocc_serious ("occampi_typehash_nametypenode(): unknown node (%s,%s)", node->tag->name, node->tag->ndef->name);
+		return 1;
+	}
+#if 1
+fprintf (stderr, "occampi_typehash_nametypenode(): FIXME: subtype needs including, got:\n");
+tnode_dumptree (subtype, 1, stderr);
+#endif
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static void occampi_reduce_resetnewline (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
@@ -1902,6 +1935,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (occampi_getname_nametypenode));
 	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_initialising_decl_nametypenode));
 	tnode_setlangop (lops, "istype", 1, LANGOPTYPE (occampi_istype_nametypenode));
+	tnode_setlangop (lops, "typehash", 3, LANGOPTYPE (occampi_typehash_nametypenode));
 	tnd->lops = lops;
 
 	i = -1;

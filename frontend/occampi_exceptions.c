@@ -1118,6 +1118,10 @@ static int occampi_exceptions_post_setup (void)
 	tnd->ops = cops;
 
 	/*}}}*/
+	/*{{{  miscellaneous*/
+	metadata_addreservedname ("throws");
+
+	/*}}}*/
 	return 0;
 }
 /*}}}*/

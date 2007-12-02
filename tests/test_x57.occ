@@ -9,9 +9,9 @@ PROC test.57 ()
   TRY
     SEQ
       SKIP
-      THROW EX.FOO
+      THROW EX.BAR 42, x
     CATCH
-      EX.BAR x, y
+      EX.FOO
         SKIP
     FINALLY
       SKIP

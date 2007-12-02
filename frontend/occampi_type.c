@@ -788,6 +788,41 @@ static typecat_e occampi_leaftype_typetype (langops_t *lops, tnode_t *t)
 	return TYPE_NOTTYPE;
 }
 /*}}}*/
+/*{{{  static int occampi_leaftype_typehash (langops_t *lops, tnode_t *t, int hsize, void *ptr)*/
+/*
+ *	generates a type-hash for a leaf-type
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_leaftype_typehash (langops_t *lops, tnode_t *t, int hsize, void *ptr)
+{
+	unsigned int myhash = 0;
+
+	if (t->tag == opi.tag_BOOL) {
+		myhash = 0x36136930;
+	} else if (t->tag == opi.tag_BYTE) {
+		myhash = 0xa35962bc;
+	} else if (t->tag == opi.tag_INT) {
+		myhash = 0x126940de;
+	} else if (t->tag == opi.tag_INT32) {
+		myhash = 0x10693045;
+	} else if (t->tag == opi.tag_INT16) {
+		myhash = 0xf3523a04;
+	} else if (t->tag == opi.tag_INT64) {
+		myhash = 0x936203aa;
+	} else if (t->tag == opi.tag_REAL32) {
+		myhash = 0x0123beef;
+	} else if (t->tag == opi.tag_REAL64) {
+		myhash = 0x83620af0;
+	} else if (t->tag == opi.tag_CHAR) {
+		myhash = 0x2306feed;
+	} else {
+		nocc_serious ("occampi_leaftype_typehash(): unknown node (%s,%s)", t->tag->name, t->tag->ndef->name);
+		return 1;
+	}
+	langops_typehash_blend (hsize, ptr, sizeof (myhash), (void *)&myhash);
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_type_namemap_arraynode (compops_t *cops, tnode_t **nodep, map_t *map)*/
@@ -1066,6 +1101,7 @@ static int occampi_type_init_nodes (void)
 	tnode_setlangop (lops, "retypeconst", 2, LANGOPTYPE (occampi_leaftype_retypeconst));
 	tnode_setlangop (lops, "codegen_typerangecheck", 2, LANGOPTYPE (occampi_leaftype_codegen_typerangecheck));
 	tnode_setlangop (lops, "typetype", 1, LANGOPTYPE (occampi_leaftype_typetype));
+	tnode_setlangop (lops, "typehash", 3, LANGOPTYPE (occampi_leaftype_typehash));
 	tnd->lops = lops;
 
 	i = -1;
