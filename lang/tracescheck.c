@@ -982,8 +982,75 @@ static int tchk_prunetracesmodprewalk (tchknode_t **nodep, void *arg)
 	case TCN_CHAOS:
 		return 0;
 		/*}}}*/
-		/*{{{  FIXPOINT -- straight walk through*/
+		/*{{{  FIXPOINT -- walk down, but check for fixpoints..!*/
 	case TCN_FIXPOINT:
+		changed = 0;
+		{
+			tchknode_t **iptr = &(n->u.tcnfix.proc);
+			int saved_changed = ptrace->changed;
+
+			ptrace->changed = 0;
+			tracescheck_modprewalk (iptr, tchk_prunetracesmodprewalk, (void *)ptrace);
+
+			changed += ptrace->changed;
+			ptrace->changed = saved_changed;
+		}
+		if (changed) {
+			/* inspect what's left for obvious cases */
+			if (!n->u.tcnfix.proc) {
+				/* process reduced to absolutely nothing -- we're toast too then */
+				*nodep = NULL;
+				tchk_freetchknode (n);
+				ptrace->changed++;
+			} else {
+				tchknode_t *ptcn = n->u.tcnfix.proc;
+
+				switch (ptcn->type) {
+				default:
+					break;
+				case TCN_SEQ:
+					/* if we've got (Skip ; <fixpoint>), or just (<fixpoint>) reduce to divergence */
+					if (DA_CUR (ptcn->u.tcnlist.items) == 1) {
+						tchknode_t *item = DA_NTHITEM (ptcn->u.tcnlist.items, 0);
+
+						if ((item->type == TCN_ATOMREF) && (item->u.tcnaref.aref == n->u.tcnfix.id)) {
+							/* yes, this is us */
+							*nodep = tracescheck_createnode (TCN_DIV, n->orgnode);
+							tchk_freetchknode (n);
+							ptrace->changed++;
+						}
+					} else if (DA_CUR (ptcn->u.tcnlist.items) == 2) {
+						tchknode_t *item1 = DA_NTHITEM (ptcn->u.tcnlist.items, 0);
+						tchknode_t *item2 = DA_NTHITEM (ptcn->u.tcnlist.items, 1);
+
+						if ((item1->type == TCN_SKIP) && (item2->type == TCN_ATOMREF) && (item2->u.tcnaref.aref == n->u.tcnfix.id)) {
+							/* yes, this is us */
+							*nodep = tracescheck_createnode (TCN_DIV, n->orgnode);
+							tchk_freetchknode (n);
+							ptrace->changed++;
+						}
+					}
+					break;
+				case TCN_INVALID:
+				case TCN_SKIP:
+				case TCN_STOP:
+				case TCN_DIV:
+				case TCN_CHAOS:
+				case TCN_NODEREF:
+					/* singleton things, which cannot reference this fixpoint, reduce entirely */
+					n->u.tcnfix.proc = NULL;
+					*nodep = ptcn;
+					tchk_freetchknode (n);
+					ptrace->changed++;
+					break;
+				}
+			}
+		}
+		break;
+		/*}}}*/
+		/*{{{  DET -- maybe becomes nondeterministic*/
+	case TCN_DET:
+		/* FIXME! */
 		break;
 		/*}}}*/
 		/*{{{  SEQ, PAR -- simply walk down subnodes*/

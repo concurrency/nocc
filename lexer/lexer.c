@@ -92,6 +92,74 @@ int lexer_shutdown (void)
 /*}}}*/
 
 
+/*{{{  int lexer_relpathto (const char *filename, char *target, int tsize)*/
+/*
+ *	determines the current relative path to a particular file-name, base on something that we can read
+ *	puts the resulting path in 'target'
+ *	returns 0 on success, non-zero on failure
+ */
+int lexer_relpathto (const char *filename, char *target, int tsize)
+{
+	/* check for current directory first */
+	if (!access (filename, R_OK)) {
+		/* this one will do */
+		if (strlen (filename) >= tsize) {
+			/* too big! */
+			return -1;
+		}
+		strcpy (target, filename);
+		return 0;
+	}
+
+	if (!DA_CUR (openlexfiles)) {
+		/* nothing previous to search, assume this one */
+		if (strlen (filename) >= tsize) {
+			/* too big! */
+			return -1;
+		}
+		strcpy (target, filename);
+	} else {
+		char fnbuf[FILENAME_MAX];
+		int fnlen = 0;
+		lexfile_t *lastopen = DA_NTHITEM (openlexfiles, DA_CUR (openlexfiles) - 1);
+
+#if 0
+fprintf (stderr, "lexer_relpathto(): lastopen->filename=[%s] @0x%8.8x, lastopen->fnptr=[%s] @0x%8.8x\n", lastopen->filename, (unsigned int)lastopen->filename, lastopen->fnptr, (unsigned int)lastopen->fnptr);
+#endif
+		/* see if there's a path in it, if so, copy it */
+		if ((lastopen->fnptr > lastopen->filename) && (*filename != '/')) {
+			int plen = (int)(lastopen->fnptr - lastopen->filename);
+
+			if (plen > (FILENAME_MAX - 3)) {
+				nocc_error ("path too long..?!");
+				return -1;
+			}
+			strncpy (fnbuf, lastopen->filename, plen);
+			fnlen = plen;
+			fnbuf[fnlen] = '\0';
+		}
+
+		fnlen += snprintf (fnbuf + fnlen, FILENAME_MAX-(fnlen + 1), "%s", filename);
+
+		if (!access (fnbuf, R_OK)) {
+			/* can read this, use it */
+			if (fnlen >= tsize) {
+				/* too big! */
+				return -1;
+			}
+			strcpy (target, fnbuf);
+		} else {
+			/* default */
+			if (strlen (filename) >= tsize) {
+				/* too big! */
+				return -1;
+			}
+			strcpy (target, filename);
+		}
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  lexfile_t *lexer_open (char *filename)*/
 /*
  *	opens a file for lexing
@@ -112,29 +180,12 @@ fprintf (stderr, "lexer_open(): filename=[%s], DA_CUR(openlexfiles)=%d\n", filen
 #endif
 	/* if a path isn't specified, do a search based on extension (relative current directory first) */
 	fextn = NULL;
-	if (!DA_CUR (openlexfiles)) {
-		/* this is the first, nothing special */
+
+	if (lexer_relpathto (filename, fnbuf, FILENAME_MAX)) {
+		/* failed somewhere, default */
 	} else {
-		lexfile_t *lastopen = DA_NTHITEM (openlexfiles, DA_CUR (openlexfiles) - 1);
-
-#if 0
-fprintf (stderr, "lexer_open(): lastopen->filename=[%s] @0x%8.8x, lastopen->fnptr=[%s] @0x%8.8x\n", lastopen->filename, (unsigned int)lastopen->filename, lastopen->fnptr, (unsigned int)lastopen->fnptr);
-#endif
-		/* see if there's a path in it, if so, copy it */
-		if ((lastopen->fnptr > lastopen->filename) && (*filename != '/')) {
-			int plen = (int)(lastopen->fnptr - lastopen->filename);
-
-			if (plen > (FILENAME_MAX - 3)) {
-				nocc_error ("path too long..?!");
-				return NULL;
-			}
-			strncpy (fnbuf, lastopen->filename, plen);
-			fnlen = plen;
-			fnbuf[fnlen] = '\0';
-		}
+		fnlen = strlen (fnbuf);
 	}
-
-	fnlen += snprintf (fnbuf + fnlen, FILENAME_MAX-(fnlen + 1), "%s", filename);
 
 	if (access (fnbuf, R_OK)) {
 		/*{{{  search through include and library directories*/

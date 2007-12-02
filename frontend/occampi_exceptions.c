@@ -828,6 +828,9 @@ static int occampi_exceptioncheck_procdecl (compops_t *cops, tnode_t **nodep, op
 {
 	opiexception_t *procex = opi_newopiexception ();
 
+#if 0
+fprintf (stderr, "occampi_exceptioncheck_procdecl(): here!\n");
+#endif
 	/* check PROC body for exceptions generated */
 	if (exceptioncheck_subtree (tnode_nthsubaddr (*nodep, 2), procex)) {
 		/* failed */
@@ -844,6 +847,9 @@ static int occampi_exceptioncheck_procdecl (compops_t *cops, tnode_t **nodep, op
 		for (i=0; i<DA_CUR (procex->elist); i++) {
 			dynarray_add (opith->elist, DA_NTHITEM (procex->elist, i));
 		}
+#if 0
+fprintf (stderr, "occampi_exceptioncheck_procdecl(): setting throwschook to %p\n", opith);
+#endif
 		tnode_setchook (*nodep, exceptioncheck_throwschook, (void *)opith);
 	}
 
@@ -866,28 +872,34 @@ static int occampi_exceptioncheck_fetrans_procdecl (compops_t *cops, tnode_t **n
 	
 	if (tnode_haschook (*nodep, exceptioncheck_throwschook)) {
 		opithrowshook_t *opith = (opithrowshook_t *)tnode_getchook (*nodep, exceptioncheck_throwschook);
-		int i;
 
-		/* PROC throws some exceptions, include in metadata */
-		for (i=0; i<DA_CUR (opith->elist); i++) {
-			tnode_t *ename = DA_NTHITEM (opith->elist, i);
-			unsigned int thash = 0;
+		if (opith) {
+			int i;
 
-			if (langops_typehash (ename, sizeof (thash), &thash)) {
-				nocc_internal ("occampi_exceptioncheck_fetrans_procdecl(): failed to get type-hash for (%s,%s)",
-						ename->tag->name, ename->tag->ndef->name);
-			} else {
-				char *estr = NULL;
-				char *sdata;
+#if 0
+fprintf (stderr, "occampi_exceptioncheck_fetrans_procdecl(): opith = %p\n", opith);
+#endif
+			/* PROC throws some exceptions, include in metadata */
+			for (i=0; i<DA_CUR (opith->elist); i++) {
+				tnode_t *ename = DA_NTHITEM (opith->elist, i);
+				unsigned int thash = 0;
 
-				langops_getname (ename, &estr);
-				sdata = string_fmt ("%s#%8.8x", estr ?: "(unknown)", thash);
-				if (estr) {
-					sfree (estr);
+				if (langops_typehash (ename, sizeof (thash), &thash)) {
+					nocc_internal ("occampi_exceptioncheck_fetrans_procdecl(): failed to get type-hash for (%s,%s)",
+							ename->tag->name, ename->tag->ndef->name);
+				} else {
+					char *estr = NULL;
+					char *sdata;
+
+					langops_getname (ename, &estr);
+					sdata = string_fmt ("%s#%8.8x", estr ?: "(unknown)", thash);
+					if (estr) {
+						sfree (estr);
+					}
+
+					metadata_addtonodelist (*nodep, "throws", sdata);
+					sfree (sdata);
 				}
-
-				metadata_addtonodelist (*nodep, "throws", sdata);
-				sfree (sdata);
 			}
 		}
 	}

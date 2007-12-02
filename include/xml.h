@@ -100,7 +100,9 @@ typedef enum {
 	XMLKEY_GPROLOG,
 	XMLKEY_GDB,
 	XMLKEY_META,
-	XMLKEY_DATA
+	XMLKEY_DATA,
+	XMLKEY_NOCC_NAMESPACE,
+	XMLKEY_XMLNS_NOCC
 } xmlkeytype_t;
 
 typedef struct TAG_xmlkey {

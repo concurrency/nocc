@@ -1,0 +1,11 @@
+
+-- test_x60.occ -- testing metadata in separate compilation
+
+#INCLUDE "test_x59.inc"
+#USE "test_x59"
+
+PROC test.x60 (CHAN BYTE out!)
+  SEQ
+    SKIP
+:
+

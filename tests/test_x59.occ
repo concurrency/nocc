@@ -1,0 +1,11 @@
+
+-- test_x59.occ -- metadata in separate inclusion test
+
+#INCLUDE "test_x59.inc"
+
+PROC test.x59 (CHAN INT out!)
+  SEQ
+    out ! 42
+:
+
+

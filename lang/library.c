@@ -752,11 +752,37 @@ static void lib_libusenodehook_dumptree (tnode_t *node, void *hook, int indent, 
 				libfile_entry_t *lfent = DA_NTHITEM (lfsu->entries, j);
 
 				lib_isetindent (stream, indent + 2);
-				fprintf (stream, "<entry name=\"%s\" language=\"%s\" target=\"%s\" descriptor=\"%s\" ws=\"%d\" vs=\"%d\" ms=\"%d\" adjust=\"%d\" />\n",
-						lfent->name, lfent->langname ?: "", lfent->targetname ?: "", lfent->descriptor ?: "", lfent->ws, lfent->vs, lfent->ms, lfent->adjust);
+				fprintf (stream, "<entry name=\"%s\" language=\"%s\" target=\"%s\" descriptor=\"%s\" ws=\"%d\" vs=\"%d\" ms=\"%d\" adjust=\"%d\"%s>\n",
+						lfent->name, lfent->langname ?: "", lfent->targetname ?: "", lfent->descriptor ?: "",
+						lfent->ws, lfent->vs, lfent->ms, lfent->adjust, (DA_CUR (lfent->mdata) ? "" : " /"));
+				if (DA_CUR (lfent->mdata)) {
+					int k;
+
+					for (k=0; k<DA_CUR (lfent->mdata); k++) {
+						libfile_metadata_t *lfmd = DA_NTHITEM (lfent->mdata, k);
+
+						lib_isetindent (stream, indent + 3);
+						fprintf (stream, "<meta name=\"%s\" data=\"%s\" dlen=\"%d\" />\n", lfmd->name, lfmd->data, lfmd->dlen);
+					}
+					lib_isetindent (stream, indent + 2);
+					fprintf (stream, "</entry>\n");
+				}
+			}
+
+			for (j=0; j<DA_CUR (lfsu->mdata); j++) {
+				libfile_metadata_t *lfmd = DA_NTHITEM (lfsu->mdata, j);
+
+				lib_isetindent (stream, indent + 2);
+				fprintf (stream, "<meta name=\"%s\" data=\"%s\" dlen=\"%d\" />\n", lfmd->name, lfmd->data, lfmd->dlen);
 			}
 			lib_isetindent (stream, indent + 1);
 			fprintf (stream, "</srcunit>\n");
+		}
+		for (i=0; i<DA_CUR (lf->mdata); i++) {
+			libfile_metadata_t *lfmd = DA_NTHITEM (lf->mdata, i);
+
+			lib_isetindent (stream, indent + 1);
+			fprintf (stream, "<meta name=\"%s\" data=\"%s\" dlen=\"%d\" />\n", lfmd->name, lfmd->data, lfmd->dlen);
 		}
 	}
 	if (lunh->decltree) {
@@ -1379,7 +1405,7 @@ static void lib_xmlhandler_elem_start (xmlhandler_t *xh, void *data, xmlkey_t *k
 		}
 		break;
 		/*}}}*/
-		/*{{{  XMLKEY_META*/
+		/*{{{  XMLKEY_META -- include library metadata*/
 	case XMLKEY_META:
 		/* valid anywhere pretty much */
 		{
@@ -1536,12 +1562,20 @@ static libfile_t *lib_readlibrary (char *libname, int using)
 
 	if (using) {
 		/*{{{  must exist, or fail*/
+		char tname[FILENAME_MAX];
 
 		/* try current directory first */
 		if ((strlen (libname) > 4) && !strcmp (libname + (strlen (libname) - 4), ".xlb")) {
-			flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s", libname);
+			snprintf (tname, FILENAME_MAX - 1, "%s", libname);
 		} else {
-			flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s.xlb", libname);
+			snprintf (tname, FILENAME_MAX - 1, "%s.xlb", libname);
+		}
+
+		if (lexer_relpathto (tname, fbuf, FILENAME_MAX)) {
+			/* failed -- ignore */
+			flen = snprintf (fbuf, FILENAME_MAX - 1, "%s", tname);
+		} else {
+			flen = strlen (fbuf);
 		}
 
 		if (access (fbuf, R_OK)) {
@@ -1549,10 +1583,18 @@ static libfile_t *lib_readlibrary (char *libname, int using)
 
 			/* try .xlo version also */
 			if ((strlen (libname) > 4) && !strcmp (libname + (strlen (libname) - 4), ".xlo")) {
-				flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s", libname);
+				snprintf (tname, FILENAME_MAX - 1, "%s", libname);
 			} else {
-				flen += snprintf (fbuf + flen, FILENAME_MAX - (flen + 2), "%s.xlo", libname);
+				snprintf (tname, FILENAME_MAX - 1, "%s.xlo", libname);
 			}
+
+			if (lexer_relpathto (tname, fbuf, FILENAME_MAX)) {
+				/* failed -- ignore */
+				flen = snprintf (fbuf, FILENAME_MAX - 1, "%s", tname);
+			} else {
+				flen = strlen (fbuf);
+			}
+
 			if (access (fbuf, R_OK)) {
 				flen = 0;
 
@@ -2019,7 +2061,7 @@ static int lib_parsedescriptors (lexfile_t *orglf, libusenodehook_t *lunh)
 		}
 		/*}}}*/
 		/*{{{  open buffer as a lexfile_t and parse it*/
-		lexbuf = lexer_openbuf (NULL, orglf->parser->langname, dbuf);
+		lexbuf = lexer_openbuf (lunh->libname, orglf->parser->langname, dbuf);
 		if (!lexbuf) {
 			nocc_error ("lib_parsedescriptors(): failed to open buffer..");
 			sfree (dbuf);
@@ -2548,7 +2590,7 @@ fprintf (stderr, "lib_scopein_libusenode(): pushing defining namespace [%s]\n", 
 		} else if (tnflags & TNF_TRANSPARENT) {
 			nextp = tnode_nthsubaddr (decltree, 0);
 		} else {
-			scope_error (*nodep, ss, "lib_parsedescriptors(): unexpected node [%s]", decltree->tag->name);
+			scope_error (*nodep, ss, "lib_scopein_libusenode(): unexpected node [%s]", decltree->tag->name);
 			break;		/* while() */
 		}
 

@@ -482,10 +482,13 @@ static int occampi_parser_init (lexfile_t *lf)
  */
 static void occampi_parser_shutdown (lexfile_t *lf)
 {
+	/* actually, don't do this -- keep initialised */
+#if 0
 	if (occampi_priv) {
 		occampi_freeoccampiparse (occampi_priv);
 		occampi_priv = NULL;
 	}
+#endif
 
 	return;
 }
@@ -1015,7 +1018,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 							nexttok = lexer_nexttoken (lf);
 
 							if (!nexttok || (nexttok->type != STRING)) {
-								parser_error (lf, "failed while processing #LIBRARY INCLUDES directive");
+								parser_error (lf, "failed while processing #LIBRARY USES directive");
 								lexer_pushback (lf, nexttok);
 								return tree;
 							}

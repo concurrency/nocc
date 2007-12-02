@@ -70,5 +70,7 @@ gprolog,		XMLKEY_GPROLOG
 gdb,			XMLKEY_GDB
 meta,			XMLKEY_META
 data,			XMLKEY_DATA
+nocc:namespace,		XMLKEY_NOCC_NAMESPACE
+xmlns:nocc,		XMLKEY_XMLNS_NOCC
 %%
 
