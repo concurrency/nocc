@@ -36,6 +36,7 @@
 #include "symbols.h"
 #include "keywords.h"
 #include "opts.h"
+#include "origin.h"
 #include "lexer.h"
 #include "lexpriv.h"
 #include "tnode.h"
@@ -2093,8 +2094,16 @@ static int lib_parsedescriptors (lexfile_t *orglf, libusenodehook_t *lunh)
 
 				if (lfent && lfent->descriptor && lfent->langname && !strcmp (lfent->langname, orglf->parser->langname)) {
 					int tnflags = tnode_tnflagsof (thisnode);
+					int k;
 
 					tnode_setchook (thisnode, uselinkchook, (void *)lfent);
+					for (k=0; k<DA_CUR (lfent->mdata); k++) {
+						libfile_metadata_t *lfmd = DA_NTHITEM (lfent->mdata, k);
+
+						if (thisnode->tag->ndef->lops && tnode_haslangop (thisnode->tag->ndef->lops, "importmetadata")) {
+							tnode_calllangop (thisnode->tag->ndef->lops, "importmetadata", 3, thisnode, lfmd->name, lfmd->data);
+						}
+					}
 					if (tnflags & TNF_LONGDECL) {
 						thisnode = tnode_nthsubof (thisnode, 3);
 					} else if (tnflags & TNF_SHORTDECL) {
@@ -2900,6 +2909,10 @@ int library_init (void)
 	opts_add ("liboutpath", '\0', lib_opthandler, (void *)1, "0output directory for library info");
 	opts_add ("liballpublic", '\0', lib_opthandler, (void *)2, "1all top-level entries public in library");
 	opts_add ("scoutpath", '\0', lib_opthandler, (void *)3, "0output directory for .xlo files");
+
+	/*}}}*/
+	/*{{{  importmetadata language operation*/
+	tnode_newlangop ("importmetadata", LOPS_INVALID, 3, INTERNAL_ORIGIN);		/* (tnode_t *name, const char *name, const char *data) -> int */
 
 	/*}}}*/
 	/*{{{  others*/

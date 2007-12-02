@@ -839,6 +839,30 @@ fprintf (stderr, "occampi_fetrans_procdecl_tracetypeimpl(): formatted traces: [%
 }
 /*}}}*/
 
+/*{{{  static int occampi_importmetadata_procdecl_tracetypeimpl (langops_t *lops, tnode_t *node, const char *name, const char *data)*/
+/*
+ *	called to import metadata on PROC declaration
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_importmetadata_procdecl_tracetypeimpl (langops_t *lops, tnode_t *node, const char *name, const char *data)
+{
+	int r = 0;
+
+	if (!strcmp (name, "traces")) {
+		/* this one is for us! */
+#if 1
+fprintf (stderr, "occampi_importmetadata_procdecl_tracetypeimpl(): got some traces metadata [%s]\n", data);
+#endif
+	} else {
+		if (lops->next && tnode_haslangop (lops->next, "importmetadata")) {
+			r = tnode_calllangop (lops->next, "importmetadata", 3, node, name, data);
+		}
+	}
+	return r;
+}
+/*}}}*/
+
+
 /*{{{  static void occampi_traces_attachtraces (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
  *	called to attach traces to a PROC declaration, will find a list of parameterised things or strings on the RHS,
@@ -980,7 +1004,7 @@ static int occampi_traces_post_setup (void)
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_procdecl_tracetypeimpl));
 	tnd->ops = cops;
 	lops = tnode_insertlangops (tnd->lops);
-	/* FIXME: langops */
+	tnode_setlangop (lops, "importmetadata", 3, LANGOPTYPE (occampi_importmetadata_procdecl_tracetypeimpl));
 	tnd->lops = lops;
 
 	/*}}}*/
