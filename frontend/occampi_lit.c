@@ -266,6 +266,8 @@ static int occampi_constprop_lit (compops_t *cops, tnode_t **nodep)
 		*nodep = constprop_newconst (CONST_BYTE, *nodep, NULL, *(unsigned char *)(tmplit->data));
 	} else if ((*nodep)->tag == opi.tag_LITINT) {
 		*nodep = constprop_newconst (CONST_INT, *nodep, NULL, *(int *)(tmplit->data));
+	} else if ((*nodep)->tag == opi.tag_LITBOOL) {
+		*nodep = constprop_newconst (CONST_BOOL, *nodep, NULL, (int)*(unsigned char *)(tmplit->data));
 	}
 
 	return 0;

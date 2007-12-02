@@ -858,6 +858,141 @@ static int occampi_typecheck_cexpnode (compops_t *cops, tnode_t *node, typecheck
 	return 1;
 }
 /*}}}*/
+/*{{{  static int occampi_tracescheck_cexpnode (compops_t *cops, tnode_t *tptr, tchk_state_t *tcstate)*/
+/*
+ *	does traces checking on a WHILE or SHORTIF node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_tracescheck_cexpnode (compops_t *cops, tnode_t *tptr, tchk_state_t *tcstate)
+{
+	tnode_t *expr = tnode_nthsubof (tptr, 0);
+	tnode_t *body = tnode_nthsubof (tptr, 1);
+	tchk_bucket_t *tcb;
+	int isconst;
+	int val = 0;
+	tchknode_t *tcn = NULL;
+
+	/* determine traces of the body */
+	tracescheck_pushbucket (tcstate);
+	tracescheck_subtree (body, tcstate);
+	tcb = tracescheck_pullbucket (tcstate);
+
+	isconst = langops_isconst (expr);
+	if (isconst) {
+		if (!langops_constvalof (expr, &val)) {
+#if 0
+fprintf (stderr, "occampi_tracescheck_cexpnode(): WHILE: failed to get constant value of expr:\n");
+tnode_dumptree (expr, 1, stderr);
+#endif
+			isconst = 0;
+		}
+	}
+
+	if (tptr->tag == opi.tag_WHILE) {
+#if 0
+fprintf (stderr, "occampi_tracescheck_cexpnode(): WHILE: isconst=%d, val=%d\n", isconst, val);
+#endif
+		/*{{{  WHILE -- repeating actions*/
+		if (isconst && val) {
+			/* infinite loop */
+			if (!DA_CUR (tcb->items)) {
+				/* infinite loop with no items -- divergence */
+				tcn = tracescheck_createnode (TCN_DIV, tptr);
+			} else if (DA_CUR (tcb->items) == 1) {
+				/* infinite loop with a single item */
+				tchknode_t *atom = tracescheck_createatom ();
+
+				tcn = DA_NTHITEM (tcb->items, 0);
+				DA_SETNTHITEM (tcb->items, 0, NULL);
+				tcn = tracescheck_createnode (TCN_FIXPOINT, tptr, atom,
+						tracescheck_createnode (TCN_SEQ, tptr, tcn,
+							tracescheck_createnode (TCN_ATOMREF, tptr, atom),
+							NULL));
+			} else {
+				/* infinite loop with multiple items -- unexpected! */
+				tracescheck_error (tptr, tcstate, "occampi_tracescheck_cexpnode(): (infinite) %d traces in bucket",
+						DA_CUR (tcb->items));
+				tracescheck_freebucket (tcb);
+				return 0;
+			}
+		} else if (isconst && !val) {
+			/* zero-loop -- doesn't matter what the body does */
+		} else {
+			/* indeterminate loop */
+			if (!DA_CUR (tcb->items)) {
+				/* indeterminate loop with no items -- can behave like divergence */
+				tchknode_t *atom = tracescheck_createatom ();
+
+				tcn = tracescheck_createnode (TCN_FIXPOINT, tptr, atom,
+						tracescheck_createnode (TCN_NDET, tptr,
+							tracescheck_createnode (TCN_SKIP, tptr),
+							tracescheck_createnode (TCN_ATOMREF, tptr, atom),
+							NULL));
+			} else if (DA_CUR (tcb->items) == 1) {
+				/* indeterminate loop with a single item */
+				tchknode_t *atom = tracescheck_createatom ();
+
+				tcn = DA_NTHITEM (tcb->items, 0);
+				DA_SETNTHITEM (tcb->items, 0, NULL);
+				tcn = tracescheck_createnode (TCN_FIXPOINT, tptr, atom,
+						tracescheck_createnode (TCN_NDET, tptr,
+							tcn,
+							tracescheck_createnode (TCN_ATOMREF, tptr, atom),
+							NULL));
+			} else {
+				/* indeterminate loop with multiple items -- unexpected! */
+				tracescheck_error (tptr, tcstate, "occampi_tracescheck_cexpnode(): (indeterminate) %d traces in bucket",
+						DA_CUR (tcb->items));
+				tracescheck_freebucket (tcb);
+				return 0;
+			}
+		}
+		/*}}}*/
+	} else if (tptr->tag == opi.tag_SHORTIF) {
+		/*{{{  SHORTIF -- conditional*/
+		if (isconst && val) {
+			/* definite action */
+			if (!DA_CUR (tcb->items)) {
+				/* nothing! */
+			} else if (DA_CUR (tcb->items) == 1) {
+				tcn = DA_NTHITEM (tcb->items, 0);
+				DA_SETNTHITEM (tcb->items, 0, NULL);
+			} else {
+				tracescheck_error (tptr, tcstate, "occampi_tracescheck_cexpnode(): (definite) %d traces in bucket",
+						DA_CUR (tcb->items));
+				tracescheck_freebucket (tcb);
+				return 0;
+			}
+		} else if (isconst && !val) {
+			/* definite non-action */
+		} else {
+			/* indefinite action */
+			if (!DA_CUR (tcb->items)) {
+				/* nothing! */
+			} else if (DA_CUR (tcb->items) == 1) {
+				tcn = DA_NTHITEM (tcb->items, 0);
+				DA_SETNTHITEM (tcb->items, 0, NULL);
+
+				tcn = tracescheck_createnode (TCN_NDET, tptr,
+						tcn,
+						tracescheck_createnode (TCN_SKIP, tptr),
+						NULL);
+			} else {
+				tracescheck_error (tptr, tcstate, "occampi_tracescheck_cexpnode(): (indefinite) %d traces in bucket",
+						DA_CUR (tcb->items));
+				tracescheck_freebucket (tcb);
+				return 0;
+			}
+		}
+		/*}}}*/
+	}
+	tracescheck_freebucket (tcb);
+	if (tcn) {
+		tracescheck_addtobucket (tcstate, tcn);
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_cexpnode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a cexpnode
@@ -988,6 +1123,7 @@ static int occampi_cnode_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:cexpnode", &i, 2, 0, 0, TNF_LONGPROC);	/* subnodes: 0 = expr; 1 = body */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_cexpnode));
+	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_cexpnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_cexpnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_cexpnode));
 	tnd->ops = cops;

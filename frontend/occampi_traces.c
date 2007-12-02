@@ -46,6 +46,7 @@
 #include "feunit.h"
 #include "names.h"
 #include "fcnlib.h"
+#include "metadata.h"
 #include "scope.h"
 #include "prescope.h"
 #include "library.h"

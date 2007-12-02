@@ -572,6 +572,10 @@ static void tchk_freetchknode (tchknode_t *tcn)
 	}
 	switch (tcn->type) {
 	case TCN_INVALID:
+	case TCN_SKIP:
+	case TCN_STOP:
+	case TCN_DIV:
+	case TCN_CHAOS:
 		break;
 	case TCN_ATOMREF:
 		tcn->u.tcnaref.aref = NULL;
@@ -868,10 +872,14 @@ static int tchk_substatomrefsinnode (tchknode_t *node, tchknode_t *aold, tchknod
 	}
 
 	switch (node->type) {
-		/*{{{  INVALID, ATOM, NODEREF*/
+		/*{{{  INVALID,ATOM,NODEREF,SKIP,STOP,DIV,CHAOS*/
 	case TCN_INVALID:
 	case TCN_ATOM:
 	case TCN_NODEREF:
+	case TCN_SKIP:
+	case TCN_STOP:
+	case TCN_DIV:
+	case TCN_CHAOS:
 		break;
 		/*}}}*/
 		/*{{{  SEQ,PAR,DET,NDET*/
@@ -964,9 +972,19 @@ static int tchk_prunetracesmodprewalk (tchknode_t **nodep, void *arg)
 	int i, changed;
 
 	switch (n->type) {
-		/*{{{  INVALID*/
+		/*{{{  INVALID,ATOM,ATOMREF,SKIP,STOP,DIV,CHAOS*/
 	case TCN_INVALID:
+	case TCN_ATOM:
+	case TCN_ATOMREF:
+	case TCN_SKIP:
+	case TCN_STOP:
+	case TCN_DIV:
+	case TCN_CHAOS:
 		return 0;
+		/*}}}*/
+		/*{{{  FIXPOINT -- straight walk through*/
+	case TCN_FIXPOINT:
+		break;
 		/*}}}*/
 		/*{{{  SEQ, PAR -- simply walk down subnodes*/
 	case TCN_SEQ:
@@ -1207,11 +1225,15 @@ int tracescheck_modprewalk (tchknode_t **tcnptr, int (*func)(tchknode_t **, void
 	i = func (tcnptr, arg);
 	if (i) {
 		switch ((*tcnptr)->type) {
-			/*{{{  INVALID*/
+			/*{{{  INVALID,ATOM,ATOMREF,NODEREF,SKIP,STOP,DIV,CHAOS*/
 		case TCN_INVALID:
 		case TCN_ATOM:
 		case TCN_ATOMREF:
 		case TCN_NODEREF:
+		case TCN_SKIP:
+		case TCN_STOP:
+		case TCN_DIV:
+		case TCN_CHAOS:
 			break;
 			/*}}}*/
 			/*{{{  SEQ,PAR,DET,NDET*/
@@ -1269,11 +1291,15 @@ int tracescheck_prewalk (tchknode_t *tcn, int (*func)(tchknode_t *, void *), voi
 	i = func (tcn, arg);
 	if (i) {
 		switch (tcn->type) {
-			/*{{{  INVALID*/
+			/*{{{  INVALID,ATOM,ATOMREF,NODEREF,SKIP,STOP,DIV,CHAOS*/
 		case TCN_INVALID:
 		case TCN_ATOM:
 		case TCN_ATOMREF:
 		case TCN_NODEREF:
+		case TCN_SKIP:
+		case TCN_STOP:
+		case TCN_DIV:
+		case TCN_CHAOS:
 			break;
 			/*}}}*/
 			/*{{{  SEQ,PAR,DET,NDET*/
@@ -1481,6 +1507,26 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 			}
 			break;
 			/*}}}*/
+			/*{{{  SKIP*/
+		case TCN_SKIP:
+			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"skip\" />\n", (unsigned int)tcn->orgnode);
+			break;
+			/*}}}*/
+			/*{{{  STOP*/
+		case TCN_STOP:
+			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"stop\" />\n", (unsigned int)tcn->orgnode);
+			break;
+			/*}}}*/
+			/*{{{  DIV*/
+		case TCN_DIV:
+			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"div\" />\n", (unsigned int)tcn->orgnode);
+			break;
+			/*}}}*/
+			/*{{{  CHAOS*/
+		case TCN_CHAOS:
+			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"chaos\" />\n", (unsigned int)tcn->orgnode);
+			break;
+			/*}}}*/
 		}
 	}
 	return;
@@ -1604,6 +1650,26 @@ static int tracescheck_subformat (tchknode_t *tcn, char **sptr, int *cur, int *m
 				sfree (xname);
 			}
 		}
+		break;
+		/*}}}*/
+		/*{{{  SKIP*/
+	case TCN_SKIP:
+		tracescheck_addtostring (sptr, cur, max, "Skip");
+		break;
+		/*}}}*/
+		/*{{{  STOP*/
+	case TCN_STOP:
+		tracescheck_addtostring (sptr, cur, max, "Stop");
+		break;
+		/*}}}*/
+		/*{{{  DIV*/
+	case TCN_DIV:
+		tracescheck_addtostring (sptr, cur, max, "Div");
+		break;
+		/*}}}*/
+		/*{{{  CHAOS*/
+	case TCN_CHAOS:
+		tracescheck_addtostring (sptr, cur, max, "Chaos");
 		break;
 		/*}}}*/
 	}
@@ -1875,6 +1941,13 @@ tchknode_t *tracescheck_copynode (tchknode_t *tcn)
 		tcc->u.tcnnref.nref = tcn->u.tcnnref.nref;
 		break;
 		/*}}}*/
+		/*{{{  SKIP,STOP,DIV,CHAOS*/
+	case TCN_SKIP:
+	case TCN_STOP:
+	case TCN_DIV:
+	case TCN_CHAOS:
+		break;
+		/*}}}*/
 	}
 
 	return tcc;
@@ -1960,6 +2033,13 @@ tchknode_t *tracescheck_createnode (tchknodetype_e type, tnode_t *orgnode, ...)
 		/*{{{  NODEREF*/
 	case TCN_NODEREF:
 		tcn->u.tcnnref.nref = va_arg (ap, tnode_t *);
+		break;
+		/*}}}*/
+		/*{{{  SKIP,STOP,DIV,CHAOS*/
+	case TCN_SKIP:
+	case TCN_STOP:
+	case TCN_DIV:
+	case TCN_CHAOS:
 		break;
 		/*}}}*/
 	}
@@ -2269,7 +2349,24 @@ tchknode_t *tracescheck_stepwalk (tchk_tracewalk_t *ttw)
 				atnext = 1;
 			}
 			break;
+		case TCN_FIXPOINT:
+			(*thisdatap)++;
+			if (*thisdatap) {
+				tchk_walknextstep (ttw);
+				/* end of subwalk */
+			} else {
+				tchk_walkpushstack (ttw, thisnode->u.tcnfix.proc, -1);
+				atnext = 1;
+			}
+			break;
 		case TCN_NODEREF:
+		case TCN_ATOM:
+		case TCN_ATOMREF:
+		case TCN_SKIP:
+		case TCN_STOP:
+		case TCN_DIV:
+		case TCN_CHAOS:
+		case TCN_INVALID:
 			/* singleton, end of subwalk */
 			tchk_walknextstep (ttw);
 			break;

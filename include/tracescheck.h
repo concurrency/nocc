@@ -35,7 +35,11 @@ typedef enum ENUM_tchknodetype {
 	TCN_DET = 7,
 	TCN_NDET = 8,
 	TCN_ATOMREF = 9,
-	TCN_NODEREF = 10
+	TCN_NODEREF = 10,
+	TCN_SKIP = 11,
+	TCN_STOP = 12,
+	TCN_DIV = 13,
+	TCN_CHAOS = 14
 } tchknodetype_e;
 
 typedef struct TAG_tchknode {
