@@ -145,6 +145,7 @@ extern tchknode_t *tracescheck_firstevent (tchknode_t *tcn);
 
 extern int tracescheck_addtolistnode (tchknode_t *tcn, tchknode_t *item);
 extern int tracescheck_buckettotraces (tchk_state_t *tcstate);
+extern tchk_traces_t *tracescheck_newtraces (void);
 extern tchk_traces_t *tracescheck_pulltraces (tchk_state_t *tcstate);
 extern int tracescheck_freetraces (tchk_traces_t *tct);
 extern int tracescheck_simplifytraces (tchk_traces_t *tct);

@@ -47,6 +47,7 @@
 #include "prescope.h"
 #include "scope.h"
 #include "typecheck.h"
+#include "tracescheck.h"
 #include "fetrans.h"
 #include "betrans.h"
 #include "library.h"
@@ -2614,6 +2615,26 @@ fprintf (stderr, "lib_scopein_libusenode(): pushing defining namespace [%s]\n", 
 	return 0;		/* already done */
 }
 /*}}}*/
+/*{{{  static int lib_tracescheck_libusenode (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)*/
+/*
+ *	does traces-checking on a library-usage node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int lib_tracescheck_libusenode (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)
+{
+	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (node, 0);
+	int i;
+
+	for (i=0; i<DA_CUR (lunh->decls); i++) {
+		tnode_t *decl = DA_NTHITEM (lunh->decls, i);
+
+		if (decl) {
+			tracescheck_subtree (decl, tcstate);
+		}
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int lib_betrans_libusenode (compops_t *cops, tnode_t **nodep, betrans_t *be)*/
 /*
  *	does back-end transforms for a library-usage node
@@ -2868,6 +2889,7 @@ int library_init (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (lib_prescope_libusenode));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (lib_scopein_libusenode));
+	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (lib_tracescheck_libusenode));
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (lib_betrans_libusenode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (lib_namemap_libusenode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (lib_codegen_libusenode));

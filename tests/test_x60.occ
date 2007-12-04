@@ -4,8 +4,8 @@
 #INCLUDE "test_x59.inc"
 #USE "test_x59"
 
-PROC test.x60 (CHAN BYTE out!)
+PROC test.x60 (CHAN INT data!)
   SEQ
-    SKIP
+    test.x59 (data!)
 :
 

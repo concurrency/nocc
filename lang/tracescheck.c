@@ -2210,6 +2210,15 @@ int tracescheck_buckettotraces (tchk_state_t *tcstate)
 	return 0;
 }
 /*}}}*/
+/*{{{  tchk_traces_t *tracescheck_newtraces (void)*/
+/*
+ *	creates a new tchk_traces_t structure
+ */
+tchk_traces_t *tracescheck_newtraces (void)
+{
+	return tchk_newtchktraces ();
+}
+/*}}}*/
 /*{{{  tchk_traces_t *tracescheck_pulltraces (tchk_state_t *tcstate)*/
 /*
  *	removes a completed set of traces from a PROC

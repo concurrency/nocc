@@ -49,6 +49,7 @@
 #include "typecheck.h"
 #include "constprop.h"
 #include "usagecheck.h"
+#include "tracescheck.h"
 #include "fetrans.h"
 #include "betrans.h"
 #include "map.h"
@@ -58,7 +59,6 @@
 #include "langops.h"
 
 /*}}}*/
-
 /*{{{  private types*/
 typedef struct TAG_builtinproc {
 	const char *name;
@@ -99,6 +99,10 @@ static builtinproc_t builtins[] = {
 };
 
 static chook_t *chook_matchedformal = NULL;
+
+static chook_t *trimplchook = NULL;
+static chook_t *trtracechook = NULL;
+static chook_t *trbvarschook = NULL;
 
 
 /*}}}*/
@@ -329,6 +333,36 @@ tnode_dumptree (ap_items[ap_ptr], 1, stderr);
 	}
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_tracescheck_instance (langops_t *lops, tnode_t *node, tchk_state_t *tc)*/
+/*
+ *	does traces checking on an instance node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_tracescheck_instance (langops_t *lops, tnode_t *node, tchk_state_t *tc)
+{
+	name_t *iname = tnode_nthnameof (tnode_nthsubof (node, 0), 0);
+	tnode_t *decl = NameDeclOf (iname);
+
+	if (decl) {
+		tchk_traces_t *trc = (tchk_traces_t *)tnode_getchook (decl, trtracechook);
+
+		if (trc) {
+			/*
+			 * traces are in terms of PROC formal parameters, need to substitute in actual parameters
+			 */
+			tnode_t *fparamlist = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
+			tnode_t *aparamlist = tnode_nthsubof (node, 1);
+
+#if 1
+fprintf (stderr, "occampi_tracescheck_instance(): here!  traces of PROC [%s] are:\n", NameNameOf (iname));
+tracescheck_dumptraces (trc, 1, stderr);
+#endif
+		}
+	}
+
+	return 1;
 }
 /*}}}*/
 /*{{{  static int occampi_usagecheck_instance (langops_t *lops, tnode_t *node, uchk_state_t *uc)*/
@@ -826,6 +860,7 @@ static int occampi_instance_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:instancenode", &i, 2, 0, 1, TNF_NONE);		/* subnodes: names; params */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_instance));
+	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_instance));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_instance));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_instance));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_instance));
@@ -917,6 +952,25 @@ static dfattbl_t **occampi_instance_init_dfatrans (int *ntrans)
 	return DA_PTR (transtbl);
 }
 /*}}}*/
+/*{{{  static int occampi_instance_post_setup (void)*/
+/*
+ *	does post-setup for instance nodes
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_instance_post_setup (void)
+{
+	trimplchook = tracescheck_getimplchook ();
+	trtracechook = tracescheck_gettraceschook ();
+	trbvarschook = tracescheck_getbvarschook ();
+
+	if (!trimplchook || !trtracechook || !trbvarschook) {
+		nocc_internal ("occampi_instance_post_setup(): failed to find traces compiler hooks");
+		return -1;
+	}
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  occampi_instance_feunit (feunit_t)*/
@@ -924,7 +978,7 @@ feunit_t occampi_instance_feunit = {
 	init_nodes: occampi_instance_init_nodes,
 	reg_reducers: occampi_instance_reg_reducers,
 	init_dfatrans: occampi_instance_init_dfatrans,
-	post_setup: NULL,
+	post_setup: occampi_instance_post_setup,
 	ident: "occampi-instance"
 };
 /*}}}*/

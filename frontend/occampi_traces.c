@@ -942,13 +942,46 @@ static int occampi_tracescheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t 
 {
 	int v = 0;
 	tnode_t *trimpl;
+	importtrace_t *ipt;
 
 	if (tnode_hascompop (cops->next, "tracescheck")) {
 		v = tnode_callcompop (cops->next, "tracescheck", 2, node, tcstate);
 	}
 
-	trimpl = (tnode_t *)tnode_getchook (node, trimplchook);
+	ipt = (importtrace_t *)tnode_getchook (node, trimportchook);
+	if (ipt) {
+		/* transform imported trace trees (which will be a traceslang structure), into a traces-check structure */
+		tchk_traces_t *trs = tracescheck_newtraces ();
+		tchk_traces_t *etraces;
+		int i;
 
+#if 0
+fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): here with imported-traces!  name is:\n");
+tnode_dumptree (tnode_nthsubof (node, 0), 1, stderr);
+#endif
+		for (i=0; i<DA_CUR (ipt->trees); i++) {
+			tnode_t *tree = DA_NTHITEM (ipt->trees, i);
+			tchknode_t *tcn = tracescheck_totrace (tree);
+
+#if 0
+fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): tree transformed was:\n");
+tnode_dumptree (tree, 1, stderr);
+fprintf (stderr, "into:\n");
+tracescheck_dumpnode (tcn, 1, stderr);
+#endif
+			dynarray_add (trs->items, tcn);
+		}
+
+		etraces = (tchk_traces_t *)tnode_getchook (node, trtracechook);
+		if (etraces) {
+			/* destroy these, irrelevant/blank */
+			tnode_clearchook (node, trtracechook);
+			tracescheck_freetraces (etraces);
+		}
+		tnode_setchook (node, trtracechook, trs);
+	}
+
+	trimpl = (tnode_t *)tnode_getchook (node, trimplchook);
 	if (trimpl) {
 		tchk_traces_t *trs = (tchk_traces_t *)tnode_getchook (node, trtracechook);
 

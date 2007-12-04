@@ -747,6 +747,29 @@ static tnode_t *traceslang_gettype_namenode (langops_t *lops, tnode_t *node, tno
 int traceslang_totrace_setnode (langops_t *lops, tnode_t *node, tchk_bucket_t *bucket)
 {
 	/* FIXME! */
+#if 1
+fprintf (stderr, "traceslang_totrace_setnode(): here!\n");
+#endif
+	return 1;
+}
+/*}}}*/
+/*{{{  int traceslang_totrace_ionode (langops_t *lops, tnode_t *node, tchk_bucket_t *bucket)*/
+/*
+ *	converts a traceslang ionode into a traces-check node
+ *	returns 0 to stop walk, 1 to continue
+ */
+int traceslang_totrace_ionode (langops_t *lops, tnode_t *node, tchk_bucket_t *bucket)
+{
+	tnode_t *item = tnode_nthsubof (node, 0);
+	tchknode_t *tcn;
+
+	tcn = tracescheck_createnode ((node->tag == traceslang.tag_INPUT) ? TCN_INPUT : TCN_OUTPUT, node,
+			tracescheck_createnode (TCN_NODEREF, item, item));
+	dynarray_add (bucket->items, tcn);
+
+#if 0
+fprintf (stderr, "traceslang_totrace_ionode(): here!\n");
+#endif
 	return 1;
 }
 /*}}}*/
@@ -883,6 +906,7 @@ static int traceslang_expr_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "tracescheck_check", 2, LANGOPTYPE (traceslang_tracescheck_ionode));
+	tnode_setlangop (lops, "tracescheck_totrace", 2, LANGOPTYPE (traceslang_totrace_ionode));
 	tnd->lops = lops;
 
 	i = -1;
