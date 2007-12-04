@@ -64,6 +64,15 @@
 
 
 /*}}}*/
+/*{{{  private types*/
+
+typedef struct TAG_importtrace {
+	DYNARRAY (char *, traces);
+	DYNARRAY (tnode_t *, trees);		/* of parsed traces */
+} importtrace_t;
+
+
+/*}}}*/
 /*{{{  private data*/
 
 static compop_t *inparams_scopein_compop = NULL;
@@ -73,6 +82,46 @@ static chook_t *trimplchook = NULL;
 static chook_t *trtracechook = NULL;
 static chook_t *trbvarschook = NULL;
 
+static chook_t *trimportchook = NULL;
+
+/*}}}*/
+
+
+/*{{{  static importtrace_t *opi_newimporttrace (void)*/
+/*
+ *	creates a new importtrace_t structure
+ */
+static importtrace_t *opi_newimporttrace (void)
+{
+	importtrace_t *ipt = (importtrace_t *)smalloc (sizeof (importtrace_t));
+
+	dynarray_init (ipt->traces);
+	return ipt;
+}
+/*}}}*/
+/*{{{  static void opi_freeimporttrace (importtrace_t *ipt)*/
+/*
+ *	frees an importtrace_t structure
+ */
+static void opi_freeimporttrace (importtrace_t *ipt)
+{
+	int i;
+
+	if (!ipt) {
+		nocc_serious ("opi_freeimporttrace(): NULL traces!");
+		return;
+	}
+	for (i=0; i<DA_CUR (ipt->traces); i++) {
+		char *str = DA_NTHITEM (ipt->traces, i);
+
+		if (str) {
+			sfree (str);
+		}
+	}
+	dynarray_trash (ipt->traces);
+	sfree (ipt);
+	return;
+}
 /*}}}*/
 
 
@@ -124,6 +173,73 @@ static void occampi_chook_traces_dumptree (tnode_t *node, void *chook, int inden
 }
 /*}}}*/
 
+/*{{{  static void *occampi_chook_importtrace_copy (void *chook)*/
+/*
+ *	copies a trimportchook compiler hook (imported TRACEs)
+ */
+static void *occampi_chook_importtrace_copy (void *chook)
+{
+	importtrace_t *ipt = (importtrace_t *)chook;
+
+	if (ipt) {
+		importtrace_t *newipt = opi_newimporttrace ();
+		int i;
+
+		for (i=0; i<DA_CUR (ipt->traces); i++) {
+			char *str = DA_NTHITEM (ipt->traces, i);
+
+			dynarray_add (newipt->traces, str ? string_dup (str) : NULL);
+		}
+		return newipt;
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  static void occampi_chook_importtrace_free (void *chook)*/
+/*
+ *	frees a trimportchook compiler hook (imported TRACEs)
+ */
+static void occampi_chook_importtrace_free (void *chook)
+{
+	importtrace_t *ipt = (importtrace_t *)chook;
+
+	if (ipt) {
+		opi_freeimporttrace (ipt);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_chook_importtrace_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*
+ *	dumps an occampi:importtrace compiler hook (debugging)
+ */
+static void occampi_chook_importtrace_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+{
+	importtrace_t *ipt = (importtrace_t *)chook;
+
+	occampi_isetindent (stream, indent);
+	if (ipt) {
+		int i;
+
+		fprintf (stream, "<chook:occampi:importtrace addr=\"0x%8.8x\">\n", (unsigned int)ipt);
+		for (i=0; i<DA_CUR (ipt->traces); i++) {
+			char *str = DA_NTHITEM (ipt->traces, i);
+
+			occampi_isetindent (stream, indent+1);
+			fprintf (stream, "<trace value=\"%s\" />\n", str ?: "(null)");
+		}
+		for (i=0; i<DA_CUR (ipt->trees); i++) {
+			tnode_t *tree = DA_NTHITEM (ipt->trees, i);
+
+			tnode_dumptree (tree, indent+1, stream);
+		}
+		occampi_isetindent (stream, indent);
+		fprintf (stream, "</chook:occampi:importtrace>\n");
+	} else {
+		fprintf (stream, "<chook:occampi:importtrace />\n");
+	}
+}
+/*}}}*/
 
 /*{{{  static int occampi_scopein_traces (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
@@ -448,6 +564,50 @@ static int occampi_prescope_procdecl_tracetypeimpl (compops_t *cops, tnode_t **n
 {
 	int v = 1;
 	tnode_t *trimpl;
+	importtrace_t *ipt;
+
+#if 0
+fprintf (stderr, "occampi_prescope_procdecl_tracetypeimpl(): PROCDECL, name =\n");
+tnode_dumptree (tnode_nthsubof (*node, 0), 1, stderr);
+#endif
+	ipt = (importtrace_t *)tnode_getchook (*node, trimportchook);
+	if (ipt) {
+		/*{{{  got some imported traces here, need to parse*/
+		int i;
+
+		for (i=0; i<DA_CUR (ipt->traces); i++) {
+			char *str = DA_NTHITEM (ipt->traces, i);
+			char *fname, *newfname;
+			lexfile_t *lf;
+			tnode_t *tree = NULL;
+
+			fname = tnode_copytextlocationof (*node);
+			if (fname) {
+				newfname = string_fmt ("%s$traceslang", fname);
+				sfree (fname);
+			} else {
+				newfname = string_dup ("(unknown file)$traceslang");
+			}
+
+			lf = lexer_openbuf (newfname, "traceslang", str);
+			sfree (newfname);
+			if (!lf) {
+				prescope_error (*node, ps, "occampi_prescope_procdecl_tracetypeimpl(): failed to open traces string for parsing");
+			} else {
+
+				tree = parser_parse (lf);
+				ps->err += lf->errcount;
+				ps->warn += lf->warncount;
+
+				lexer_close (lf);
+				if (!tree) {
+					prescope_error (*node, ps, "failed to parse imported trace \"%s\"", str);
+				}
+				dynarray_add (ipt->trees, tree);
+			}
+		}
+		/*}}}*/
+	}
 
 	if (tnode_hascompop (cops->next, "prescope")) {
 		v = tnode_callcompop (cops->next, "prescope", 2, node, ps);
@@ -850,7 +1010,14 @@ static int occampi_importmetadata_procdecl_tracetypeimpl (langops_t *lops, tnode
 
 	if (!strcmp (name, "traces")) {
 		/* this one is for us! */
-#if 1
+		importtrace_t *ipt = (importtrace_t *)tnode_getchook (node, trimportchook);
+
+		if (!ipt) {
+			ipt = opi_newimporttrace ();
+			tnode_setchook (node, trimportchook, (void *)ipt);
+		}
+		dynarray_add (ipt->traces, string_dup (data));
+#if 0
 fprintf (stderr, "occampi_importmetadata_procdecl_tracetypeimpl(): got some traces metadata [%s]\n", data);
 #endif
 	} else {
@@ -974,6 +1141,13 @@ static int occampi_traces_post_setup (void)
 	opi.chook_traces->chook_copy = occampi_chook_traces_copy;
 	opi.chook_traces->chook_free = occampi_chook_traces_free;
 	opi.chook_traces->chook_dumptree = occampi_chook_traces_dumptree;
+
+	/*}}}*/
+	/*{{{  occampi:importtrace chook setup*/
+	trimportchook = tnode_lookupornewchook ("occampi:importtrace");
+	trimportchook->chook_copy = occampi_chook_importtrace_copy;
+	trimportchook->chook_free = occampi_chook_importtrace_free;
+	trimportchook->chook_dumptree = occampi_chook_importtrace_dumptree;
 
 	/*}}}*/
 	/*{{{  find inparams scoping compiler operations*/
