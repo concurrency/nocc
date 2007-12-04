@@ -739,6 +739,18 @@ static tnode_t *traceslang_gettype_namenode (langops_t *lops, tnode_t *node, tno
 }
 /*}}}*/
 
+/*{{{  int traceslang_totrace_setnode (langops_t *lops, tnode_t *node, tchk_bucket_t *bucket)*/
+/*
+ *	converts a traceslang setnode into a traces-check node
+ *	returns 0 to stop walk, 1 to continue
+ */
+int traceslang_totrace_setnode (langops_t *lops, tnode_t *node, tchk_bucket_t *bucket)
+{
+	/* FIXME! */
+	return 1;
+}
+/*}}}*/
+
 /*{{{  static void traceslang_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
  *	reduces a dyadic operator (in the parser), expects 2 nodes on the node-stack,
@@ -850,6 +862,7 @@ static int traceslang_expr_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "tracescheck_check", 2, LANGOPTYPE (traceslang_tracescheck_setnode));
+	tnode_setlangop (lops, "tracescheck_totrace", 2, LANGOPTYPE (traceslang_totrace_setnode));
 	tnd->lops = lops;
 
 	i = -1;

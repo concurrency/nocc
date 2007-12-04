@@ -127,6 +127,7 @@ extern int tracescheck_formattraces (tchknode_t *tcn, char **sptr);
 extern tchk_state_t *tracescheck_pushstate (tchk_state_t *tcstate);
 extern tchk_state_t *tracescheck_popstate (tchk_state_t *tcstate);
 
+extern tchk_bucket_t *tracescheck_newbucket (void);
 extern int tracescheck_pushbucket (tchk_state_t *tcstate);
 extern int tracescheck_popbucket (tchk_state_t *tcstate);
 extern tchk_bucket_t *tracescheck_pullbucket (tchk_state_t *tcstate);
@@ -158,6 +159,8 @@ extern tchk_tracewalk_t *tracescheck_startwalk (tchknode_t *start);
 extern tchknode_t *tracescheck_stepwalk (tchk_tracewalk_t *ttw);
 extern int tracescheck_endwalk (tchk_tracewalk_t *ttw);
 extern void tracescheck_testwalk (tchknode_t *tcn);
+
+extern tchknode_t *tracescheck_totrace (struct TAG_tnode *tptr);
 
 extern struct TAG_chook *tracescheck_getnoderefchook (void);
 extern struct TAG_chook *tracescheck_gettracesrefchook (void);

@@ -683,9 +683,12 @@ fprintf (stderr, "occampi_inparams_scopein_procdecl_tracetypeimpl(): here!\n");
 	if (ipt) {
 		int i;
 
+		/* allow occam-pi parameters to be used in these traces */
+		traceslang_registertracetype (opi.tag_NPARAM);
 		for (i=0; i<DA_CUR (ipt->trees); i++) {
 			scope_subtree (DA_NTHITEMADDR (ipt->trees, i), ss);
 		}
+		traceslang_unregistertracetype (opi.tag_NPARAM);
 	}
 
 	return v;

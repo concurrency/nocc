@@ -393,9 +393,10 @@ int tracescheck_init (void)
 	tchk_tracesbvarschook->chook_dumptree = tchk_tracesbvarschook_dumptree;
 
 	/*}}}*/
-	/*{{{  traces-check language operation*/
+	/*{{{  traces-check language operations*/
 
 	tnode_newlangop ("tracescheck_check", LOPS_INVALID, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("tracescheck_totrace", LOPS_INVALID, 2, INTERNAL_ORIGIN);
 
 	/*}}}*/
 
@@ -1820,6 +1821,15 @@ tchk_state_t *tracescheck_popstate (tchk_state_t *tcstate)
 }
 /*}}}*/
 
+/*{{{  tchk_bucket_t *tracescheck_newbucket (void)*/
+/*
+ *	creates a new traces-check bucket
+ */
+tchk_bucket_t *tracescheck_newbucket (void)
+{
+	return tchk_newtchkbucket ();
+}
+/*}}}*/
 /*{{{  int tracescheck_pushbucket (tchk_state_t *tcstate)*/
 /*
  *	pushes a new bucket onto the traces-check bucket stack -- used when processing fine-grained detail
@@ -2475,6 +2485,60 @@ void tracescheck_testwalk (tchknode_t *tcn)
 
 	tracescheck_endwalk (ttw);
 	return;
+}
+/*}}}*/
+
+/*{{{  static int tchk_totrace_prewalk (tnode_t *tptr, void *arg)*/
+/*
+ *	transforms a tnode_t tree-structu into a tracescheck tchknode_t structure (prewalk)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int tchk_totrace_prewalk (tnode_t *tptr, void *arg)
+{
+	tchk_bucket_t *tb = (tchk_bucket_t *)arg;
+	int v = 1;
+
+	if (!tb) {
+		nocc_error ("tchk_totrace_prewalk(): NULL bucket!");
+		return 0;
+	} else if (!tptr) {
+		nocc_error ("tchk_totrace_prewalk(): NULL tree!");
+		return 0;
+	}
+
+	if (tnode_haslangop (tptr->tag->ndef->lops, "tracescheck_totrace")) {
+		v = tnode_calllangop (tptr->tag->ndef->lops, "tracescheck_totrace", 2, tptr, tb);
+	}
+	return v;
+}
+/*}}}*/
+/*{{{  tchknode_t *tracescheck_totrace (tnode_t *tptr)*/
+/*
+ *	transforms a tnode_t tree-structure into a tracescheck tchknode_t structure
+ *	(used for importing previously generated traces from external sources)
+ *	returns trace structure on success, NULL on failure
+ */
+tchknode_t *tracescheck_totrace (tnode_t *tptr)
+{
+	tchk_bucket_t *tb = tracescheck_newbucket ();
+
+	tnode_prewalktree (tptr, tchk_totrace_prewalk, (void *)tb);
+
+	if (DA_CUR (tb->items) == 1) {
+		/* this one */
+		tchknode_t *tcn = DA_NTHITEM (tb->items, 0);
+
+		DA_SETNTHITEM (tb->items, 0, NULL);
+		tracescheck_freebucket (tb);
+
+		return tcn;
+	} else if (!DA_CUR (tb->items)) {
+		tnode_error (tptr, "failed to get traces from trace tree (%s,%s)", tptr->tag->name, tptr->tag->ndef->name);
+	} else {
+		tnode_error (tptr, "too many traces (%d) from trace tree (%s,%s)", DA_CUR (tb->items), tptr->tag->name, tptr->tag->ndef->name);
+	}
+	tracescheck_freebucket (tb);
+	return NULL;
 }
 /*}}}*/
 
