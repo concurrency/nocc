@@ -602,6 +602,25 @@ tnode_dumptree (tnode_nthsubof (*node, 0), 1, stderr);
 				lexer_close (lf);
 				if (!tree) {
 					prescope_error (*node, ps, "failed to parse imported trace \"%s\"", str);
+				} else {
+					/* expecting tree to be a list, but will have a single trace in it */
+					if (parser_islistnode (tree)) {
+						int nitems;
+						tnode_t **items = parser_getlistitems (tree, &nitems);
+
+						if (nitems == 1) {
+							tnode_t *newtree = items[0];
+
+							parser_delfromlist (tree, 0);
+							tnode_free (tree);
+							tree = newtree;
+						} else {
+							prescope_error (*node, ps, "expected 1 trace in imported trace, got %d", nitems);
+						}
+					} else {
+						prescope_warning (*node, ps, "expected list of imported traces, got (%s,%s)",
+								tree->tag->name, tree->tag->ndef->name);
+					}
 				}
 				dynarray_add (ipt->trees, tree);
 			}
@@ -642,6 +661,7 @@ static int occampi_inparams_scopein_procdecl_tracetypeimpl (compops_t *cops, tno
 {
 	int v = 1;
 	tnode_t *trimpl;
+	importtrace_t *ipt;
 
 #if 0
 fprintf (stderr, "occampi_inparams_scopein_procdecl_tracetypeimpl(): here!\n");
@@ -652,12 +672,20 @@ fprintf (stderr, "occampi_inparams_scopein_procdecl_tracetypeimpl(): here!\n");
 	}
 
 	trimpl = (tnode_t *)tnode_getchook (*node, trimplchook);
-
 	if (trimpl) {
 		/* got something here! */
 		tnode_clearchook (*node, trimplchook);
 		scope_subtree (&trimpl, ss);
 		tnode_setchook (*node, trimplchook, trimpl);
+	}
+
+	ipt = (importtrace_t *)tnode_getchook (*node, trimportchook);
+	if (ipt) {
+		int i;
+
+		for (i=0; i<DA_CUR (ipt->trees); i++) {
+			scope_subtree (DA_NTHITEMADDR (ipt->trees, i), ss);
+		}
 	}
 
 	return v;
