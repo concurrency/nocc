@@ -360,6 +360,9 @@ static int occampi_tracescheck_instance (langops_t *lops, tnode_t *node, tchk_st
 
 			rtraces = tracescheck_tracestondet (trc);
 			if (rtraces) {
+				tnode_t **fpsetcopy = NULL;
+				tnode_t **apsetcopy = NULL;
+
 				fpset = parser_getlistitems (fparamlist, &nfp);
 				apset = parser_getlistitems (aparamlist, &nap);
 
@@ -368,12 +371,44 @@ static int occampi_tracescheck_instance (langops_t *lops, tnode_t *node, tchk_st
 							nfp, nap);
 					return 0;
 				}
-#if 1
-fprintf (stderr, "occampi_tracescheck_instance(): here!  reduced non-determinstic traces of PROC [%s] are:\n", NameNameOf (iname));
+				if (nfp > 0) {
+					fpsetcopy = (tnode_t **)smalloc (nfp * sizeof (tnode_t *));
+
+					for (i=0; i<nfp; i++) {
+						if (fpset[i]->tag == opi.tag_FPARAM) {
+							/* formal parameter (expected) */
+							fpsetcopy[i] = tnode_nthsubof (fpset[i], 0);
+						} else {
+							fpsetcopy[i] = fpset[i];
+						}
+					}
+				}
+				if (nap > 0) {
+					apsetcopy = (tnode_t **)smalloc (nap * sizeof (tnode_t *));
+
+					for (i=0; i<nap; i++) {
+						apsetcopy[i] = apset[i];
+
+						/* skip through transparent nodes in actual parameters -- usually decorations */
+						while (apsetcopy[i] && (tnode_tnflagsof (apsetcopy[i]) & TNF_TRANSPARENT)) {
+							apsetcopy[i] = tnode_nthsubof (apsetcopy[i], 0);
+						}
+					}
+				}
+
+				tracescheck_substitutenodes (rtraces, fpsetcopy, apsetcopy, nfp);
+#if 0
+fprintf (stderr, "occampi_tracescheck_instance(): here!  reduced substituted %d non-determinstic traces of PROC [%s] are:\n", nfp, NameNameOf (iname));
 tracescheck_dumpnode (rtraces, 1, stderr);
 #endif
-				tracescheck_substitutenodes (rtraces, fpset, apset, nfp);
 				tracescheck_addtobucket (tc, rtraces);
+
+				if (fpsetcopy) {
+					sfree (fpsetcopy);
+				}
+				if (apsetcopy) {
+					sfree (apsetcopy);
+				}
 			}
 		}
 	}

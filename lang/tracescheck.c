@@ -80,6 +80,12 @@ typedef struct TAG_firstevent {
 	tchknode_t *item;
 } firstevent_t;
 
+typedef struct TAG_substnode {
+	tnode_t **flist;
+	tnode_t **alist;
+	int count;
+} substnode_t;
+
 
 /*}}}*/
 
@@ -810,6 +816,35 @@ static void tchk_freetchktracewalk (tchk_tracewalk_t *ttw)
 	return;
 }
 /*}}}*/
+/*{{{  static substnode_t *tchk_newsubstnode (void)*/
+/*
+ *	creates a new substnode_t structure
+ */
+static substnode_t *tchk_newsubstnode (void)
+{
+	substnode_t *sn = (substnode_t *)smalloc (sizeof (substnode_t));
+
+	sn->flist = NULL;
+	sn->alist = NULL;
+	sn->count = 0;
+
+	return sn;
+}
+/*}}}*/
+/*{{{  static void tchk_freesubstnode (substnode_t *sn)*/
+/*
+ *	frees a substnode_t structure
+ */
+static void tchk_freesubstnode (substnode_t *sn)
+{
+	if (!sn) {
+		nocc_serious ("tchk_freesubstnode(): NULL substnode!");
+		return;
+	}
+	sfree (sn);
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static int tchk_prewalk_tree (tnode_t *node, void *data)*/
@@ -1156,6 +1191,36 @@ static int tchk_firsteventprewalk (tchknode_t *node, void *arg)
 		/*}}}*/
 	default:
 		break;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int tchk_substitutenodes_prewalk (tchknode_t *tcn, void *arg)*/
+/*
+ *	substitutes node references in a traces node (prewalk)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int tchk_substitutenodes_prewalk (tchknode_t *tcn, void *arg)
+{
+	substnode_t *sn = (substnode_t *)arg;
+
+	if (!sn) {
+		nocc_serious ("tchk_substitutenodes_prewalk(): NULL substnode state!");
+		return 0;
+	}
+	if (!tcn) {
+		return 0;
+	}
+	if (tcn->type == TCN_NODEREF) {
+		int i;
+
+		for (i=0; i<sn->count; i++) {
+			if (tcn->u.tcnnref.nref == sn->flist[i]) {
+				tcn->u.tcnnref.nref = sn->alist[i];
+				break;
+			}
+		}
+		return 0;
 	}
 	return 1;
 }
@@ -2356,7 +2421,22 @@ int tracescheck_prunetraces (tchk_traces_t *tct, tnode_t *vlist)
  */
 int tracescheck_substitutenodes (tchknode_t *tcn, tnode_t **fpset, tnode_t **apset, int count)
 {
-	/* FIXME! */
+	substnode_t *sn = tchk_newsubstnode ();
+
+	sn->flist = fpset;
+	sn->alist = apset;
+	sn->count = count;
+
+#if 0
+fprintf (stderr, "tracescheck_substitutenodes(): list of %d substitutions:\n", count);
+{int i;
+for (i=0; i<count; i++) {
+fprintf (stderr, "    0x%8.8x (%s) -> 0x%8.8x (%s)\n", (unsigned int)sn->flist[i], sn->flist[i]->tag->name, (unsigned int)sn->alist[i], sn->alist[i]->tag->name);
+}}
+#endif
+	tracescheck_prewalk (tcn, tchk_substitutenodes_prewalk, (void *)sn);
+
+	tchk_freesubstnode (sn);
 	return 0;
 }
 /*}}}*/
