@@ -152,6 +152,7 @@ extern int tracescheck_freetraces (tchk_traces_t *tct);
 extern int tracescheck_simplifytraces (tchk_traces_t *tct);
 extern tchk_traces_t *tracescheck_copytraces (tchk_traces_t *tr);
 extern int tracescheck_prunetraces (tchk_traces_t *tct, struct TAG_tnode *vlist);
+extern int tracescheck_substitutenodes (tchknode_t *tcn, struct TAG_tnode **fpset, struct TAG_tnode **apset, int count);
 
 extern int tracescheck_addivar (tchk_state_t *tcstate, tchknode_t *tcn);
 extern int tracescheck_addtobucket (tchk_state_t *tcstate, tchknode_t *tcn);

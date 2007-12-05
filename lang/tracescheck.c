@@ -2349,6 +2349,17 @@ int tracescheck_prunetraces (tchk_traces_t *tct, tnode_t *vlist)
 	return 0;
 }
 /*}}}*/
+/*{{{  int tracescheck_substitutenodes (tchknode_t *tcn, tnode_t **fpset, tnode_t **apset, int count)*/
+/*
+ *	substitutes node references in a traces node
+ *	returns 0 on success, non-zero on failure
+ */
+int tracescheck_substitutenodes (tchknode_t *tcn, tnode_t **fpset, tnode_t **apset, int count)
+{
+	/* FIXME! */
+	return 0;
+}
+/*}}}*/
 
 /*{{{  int tracescheck_addivar (tchk_state_t *tcstate, tchknode_t *tcn)*/
 /*

@@ -355,18 +355,30 @@ static int occampi_tracescheck_instance (langops_t *lops, tnode_t *node, tchk_st
 			tnode_t *fparamlist = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
 			tnode_t *aparamlist = tnode_nthsubof (node, 1);
 			tchknode_t *rtraces;
+			tnode_t **apset, **fpset;
+			int nfp, nap, i;
 
 			rtraces = tracescheck_tracestondet (trc);
 			if (rtraces) {
+				fpset = parser_getlistitems (fparamlist, &nfp);
+				apset = parser_getlistitems (aparamlist, &nap);
+
+				if (nfp != nap) {
+					nocc_internal ("occampi_tracescheck_instance(): expected %d parameters on PROC, got %d",
+							nfp, nap);
+					return 0;
+				}
 #if 1
 fprintf (stderr, "occampi_tracescheck_instance(): here!  reduced non-determinstic traces of PROC [%s] are:\n", NameNameOf (iname));
 tracescheck_dumpnode (rtraces, 1, stderr);
 #endif
+				tracescheck_substitutenodes (rtraces, fpset, apset, nfp);
+				tracescheck_addtobucket (tc, rtraces);
 			}
 		}
 	}
 
-	return 1;
+	return 0;
 }
 /*}}}*/
 /*{{{  static int occampi_usagecheck_instance (langops_t *lops, tnode_t *node, uchk_state_t *uc)*/
