@@ -2850,6 +2850,17 @@ nocc_message ("lib_decodeexternaldecl(): dbuf=[%s], sizes=[%s]", dbuf, sizes);
 	return lfe;
 }
 /*}}}*/
+/*{{{  static int lib_validatesignatures (lexfile_t *orglf, libusenodehook_t *lunh)*/
+/*
+ *	validates cryptographic signatures in a library
+ *	returns 0 on success, non-zero on failure
+ */
+static int lib_validatesignatures (lexfile_t *orglf, libusenodehook_t *lunh)
+{
+	/* FIXME! */
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  int library_init (void)*/
@@ -3181,6 +3192,13 @@ tnode_t *library_newusenode (lexfile_t *lf, char *libname)
 			sfree (lunh->namespace);
 		}
 		lunh->namespace = string_dup (lunh->libdata->namespace);
+	}
+
+	/* validate any cryptographic stuff in the library */
+	if (lib_validatesignatures (lf, lunh)) {
+		nocc_error ("failed to validate signatures in library [%s]", libname);
+		lib_libusenodehook_free (lunh);
+		return NULL;
 	}
 
 	/* parse descriptors */

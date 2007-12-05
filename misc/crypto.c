@@ -1,6 +1,6 @@
 /*
  *	crypto.c -- cryptographic/security stuff for nocc
- *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -57,6 +57,8 @@ static int gcrypt_digestalgo = 0;
 
 #endif
 
+static int icrypto_initialised = 0;
+
 /*}}}*/
 
 
@@ -68,12 +70,12 @@ static int gcrypt_digestalgo = 0;
  */
 
 
-/*{{{  static int icrypto_loadkey (gcry_sexp_t *sexpp, char *keyfile, int secure)*/
+/*{{{  static int icrypto_loadkey (gcry_sexp_t *sexpp, const char *keyfile, int secure)*/
 /*
  *	reads a key from a file into a libgcrypt S-expression
  *	returns zero on success, non-zero on failure
  */
-static int icrypto_loadkey (gcry_sexp_t *sexpp, char *keyfile, int secure)
+static int icrypto_loadkey (gcry_sexp_t *sexpp, const char *keyfile, int secure)
 {
 	int fd, in;
 	char *sbuf;
@@ -773,6 +775,22 @@ fprintf (stderr, "gerr = %d, geoff = %d, hexstr = [%s]\n", gerr, (int)geoff, hex
 	return 0;
 }
 /*}}}*/
+/*{{{  static int icrypto_verifykeyfile (const char *fname, int secure)*/
+/*
+ *	verifies a key file
+ *	returns 0 on success, non-zero on failure
+ */
+static int icrypto_verifykeyfile (const char *fname, int secure)
+{
+	gcry_sexp_t key;
+
+	if (icrypto_loadkey (&key, fname, secure)) {
+		return -1;
+	}
+	gcry_sexp_release (key);
+	return 0;
+}
+/*}}}*/
 /*{{{  static int icrypto_init (void)*/
 /*
  *	initialises the gcrypt library
@@ -864,6 +882,15 @@ static int icrypto_signdigest (crypto_t *cry, char *privfile)
 	return -1;
 }
 /*}}}*/
+/*{{{  static int icrypto_verifykeyfile (const char *fname, int secure)*/
+/*
+ *	dummy verify key-file
+ */
+static int icrypto_verifykeyfile (const char *fname, int secure)
+{
+	return -1;
+}
+/*}}}*/
 /*{{{  static int icrypto_init (void)*/
 /*
  *	dummy initialisation function
@@ -950,6 +977,20 @@ int crypto_signdigest (crypto_t *cry, char *privfile)
 }
 /*}}}*/
 
+/*{{{  int crypto_verifykeyfile (const char *fname, int secure)*/
+/*
+ *	verifies a key file
+ *	returns 0 on success, non-zero on failure
+ */
+int crypto_verifykeyfile (const char *fname, int secure)
+{
+	if (!fname) {
+		return -1;
+	}
+	return icrypto_verifykeyfile (fname, secure);
+}
+/*}}}*/
+
 
 /*{{{  int crypto_init (void)*/
 /*
@@ -958,7 +999,15 @@ int crypto_signdigest (crypto_t *cry, char *privfile)
  */
 int crypto_init (void)
 {
-	return icrypto_init ();
+	if (!icrypto_initialised) {
+		int v = icrypto_init ();
+
+		if (!v) {
+			icrypto_initialised++;
+		}
+		return v;
+	}
+	return 0;
 }
 /*}}}*/
 /*{{{  int crypto_shutdown (void)*/

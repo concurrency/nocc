@@ -62,6 +62,7 @@ nocc:libinfo,		XMLKEY_NOCC_LIBINFO
 version,		XMLKEY_VERSION
 hashalgo,		XMLKEY_HASHALGO
 privkey,		XMLKEY_PRIVKEY
+trustedkey,		XMLKEY_TRUSTEDKEY
 hash,			XMLKEY_HASH
 signedhash,		XMLKEY_SIGNEDHASH
 extn,			XMLKEY_EXTN

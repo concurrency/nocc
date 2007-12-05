@@ -113,6 +113,7 @@ typedef struct TAG_compopts {
 	/* signing/hashing */
 	char *hashalgo;
 	char *privkey;
+	DYNARRAY (char *, trustedkeys);
 
 	/* helper programs */
 	char *gperf_p;

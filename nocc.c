@@ -147,6 +147,7 @@ compopts_t compopts = {
 	target_vendor: NULL,
 	hashalgo: NULL,
 	privkey: NULL,
+	DA_CONSTINITIALISER(trustedkeys),
 	gperf_p: NULL,
 	gprolog_p: NULL,
 	gdb_p: NULL
@@ -629,8 +630,19 @@ static void specfile_setprivkey (char *edata)
 {
 	if (compopts.privkey) {
 		sfree (compopts.privkey);
+		compopts.privkey = NULL;
 	}
 	compopts.privkey = string_dup (edata);
+	return;
+}
+/*}}}*/
+/*{{{  static void specfile_settrustedkey (char *edata)*/
+/*
+ *	sets a trusted public key used to verify signed files
+ */
+static void specfile_settrustedkey (char *edata)
+{
+	dynarray_add (compopts.trustedkeys, string_dup (edata));
 	return;
 }
 /*}}}*/
@@ -720,6 +732,10 @@ static void specfile_elem_end (xmlhandler_t *xh, void *data, xmlkey_t *key)
 			break;
 		case XMLKEY_PRIVKEY:				/* setting the location of the private key */
 			specfile_setprivkey (edata);
+			sfree (edata);
+			break;
+		case XMLKEY_TRUSTEDKEY:				/* setting the location of a trusted public key */
+			specfile_settrustedkey (edata);
 			sfree (edata);
 			break;
 		case XMLKEY_GPERF:
@@ -1426,6 +1442,13 @@ int main (int argc, char **argv)
 		nocc_message ("    verbose:         %s", compopts.verbose ? "yes" : "no");
 		nocc_message ("    treecheck:       %s", compopts.treecheck ? "yes" : "no");
 
+		nocc_message ("    hashalgo:        %s", compopts.hashalgo ?: "(unset)");
+		nocc_message ("    private-key:     %s", compopts.privkey ?: "(unset)");
+		nocc_message ("    trusted-keys:");
+		for (i=0; i<DA_CUR (compopts.trustedkeys); i++) {
+			nocc_message ("                     %s", DA_NTHITEM (compopts.trustedkeys, i));
+		}
+
 		nocc_message ("    gperf:           %s", compopts.gperf_p ?: "(unset)");
 		nocc_message ("    gprolog:         %s", compopts.gprolog_p ?: "(unset)");
 		nocc_message ("    gdb:             %s", compopts.gdb_p ?: "(unset)");
@@ -1468,6 +1491,29 @@ int main (int argc, char **argv)
 	crypto_init ();
 	trlang_init ();
 	traceslang_init ();
+
+	/*}}}*/
+	/*{{{  here we check validity of the various public/private keys*/
+	if (compopts.privkey) {
+		if (access (compopts.privkey, R_OK) || crypto_verifykeyfile (compopts.privkey, 1)) {
+			if (compopts.verbose) {
+				nocc_warning ("not using private key [%s]", compopts.privkey);
+			}
+			sfree (compopts.privkey);
+			compopts.privkey = NULL;
+		}
+	}
+	for (i=0; i<DA_CUR (compopts.trustedkeys); i++) {
+		char *keyfile = DA_NTHITEM (compopts.trustedkeys, i);
+
+		if (access (keyfile, R_OK) || crypto_verifykeyfile (keyfile, 0)) {
+			if (compopts.verbose) {
+				nocc_warning ("not using public key [%s]", keyfile);
+			}
+			dynarray_delitem (compopts.trustedkeys, i);
+			i--;
+		}
+	}
 
 	/*}}}*/
 	/*{{{  initialise tree-transformation language lexer and parser (just registers them)*/

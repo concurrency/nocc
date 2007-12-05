@@ -1,6 +1,6 @@
 /*
  *	crypto.h -- cryptographic/security aspects
- *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2007 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@ extern int crypto_writedigest (crypto_t *cry, unsigned char *data, int bytes);
 extern char *crypto_readdigest (crypto_t *cry, int *issignedp);
 extern int crypto_signdigest (crypto_t *cry, char *privfile);
 
+extern int crypto_verifykeyfile (const char *fname, int secure);
 
 extern int crypto_init (void);
 extern int crypto_shutdown (void);

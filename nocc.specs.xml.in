@@ -30,6 +30,9 @@
 	<!-- signing/hashing -->
 	<hashalgo>sha256</hashalgo>
 	<privkey>/home/frmb/kroc_linux/ukcsource/nocc/keys/nocc.sec</privkey>
+	<trustedkey>/home/frmb/kroc_linux/ukcsource/nocc/keys/nocc.pub</trustedkey>
+	<trustedkey>/home/frmb/kroc_linux/ukcsource/nocc/keys/mykey.pub</trustedkey>
+	<trustedkey>/home/frmb/kroc_linux/ukcsource/nocc/keys/unikent-kroc.pub</trustedkey>
 
 	<!-- helper programs -->
 	<gperf>@GPERF@</gperf>
