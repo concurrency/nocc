@@ -215,7 +215,7 @@ tnode_dumptree (subtypelist, 1, stderr);
 	}
 	fields = parser_getlistitems (subtypelist, &nfields);
 	for (i=0; i<nfields; i++) {
-		if (fields[i] && (fields[i]->tag = opi.tag_FIELDDECL)) {
+		if (fields[i] && (fields[i]->tag == opi.tag_FIELDDECL)) {
 			tnode_t *fname = tnode_nthsubof (fields[i], 0);
 			fielddecloffset_t *ofh = tnode_getchook (fname, fielddecloffset);
 

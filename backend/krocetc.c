@@ -2168,6 +2168,10 @@ fprintf (stderr, "krocetc_coder_loadname(): loading RESULT\n");
  */
 static void krocetc_coder_loadparam (codegen_t *cgen, tnode_t *node, codegen_parammode_e pmode)
 {
+#if 0
+fprintf (stderr, "krocetc_coder_loadparam(): loading with mode %d for parameter:\n", (int)pmode);
+tnode_dumptree (node, 1, stderr);
+#endif
 	switch (pmode) {
 	case PARAM_INVALID:
 		codegen_error (cgen, "krocetc_coder_loadparam(): invalid parameter mode");

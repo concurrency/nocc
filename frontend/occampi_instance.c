@@ -726,7 +726,7 @@ tnode_dumptree (formal, 1, stderr);
 						tnode_t *ftype = tnode_nthsubof (formal, 1);
 
 						pmode = langops_valbyref (ftype) ? PARAM_REF : PARAM_VAL;
-					} else if ((formal->tag == opi.tag_HIDDENDIMEN) || (formal->tag = opi.tag_HIDDENPARAM)) {
+					} else if ((formal->tag == opi.tag_HIDDENDIMEN) || (formal->tag == opi.tag_HIDDENPARAM)) {
 						pmode = PARAM_VAL;
 					} else {
 						pmode = PARAM_REF;
