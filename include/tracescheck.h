@@ -142,6 +142,7 @@ extern tchknode_t *tracescheck_createatom (void);
 extern tchknode_t *tracescheck_createnode (tchknodetype_e type, struct TAG_tnode *orgnode, ...);
 extern int tracescheck_simplifynode (tchknode_t **tcnptr);
 extern tchknode_t *tracescheck_firstevent (tchknode_t *tcn);
+extern tchknode_t *tracescheck_tracestondet (tchk_traces_t *tct);
 
 extern int tracescheck_addtolistnode (tchknode_t *tcn, tchknode_t *item);
 extern int tracescheck_buckettotraces (tchk_state_t *tcstate);

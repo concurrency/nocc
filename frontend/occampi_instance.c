@@ -354,11 +354,15 @@ static int occampi_tracescheck_instance (langops_t *lops, tnode_t *node, tchk_st
 			 */
 			tnode_t *fparamlist = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
 			tnode_t *aparamlist = tnode_nthsubof (node, 1);
+			tchknode_t *rtraces;
 
+			rtraces = tracescheck_tracestondet (trc);
+			if (rtraces) {
 #if 1
-fprintf (stderr, "occampi_tracescheck_instance(): here!  traces of PROC [%s] are:\n", NameNameOf (iname));
-tracescheck_dumptraces (trc, 1, stderr);
+fprintf (stderr, "occampi_tracescheck_instance(): here!  reduced non-determinstic traces of PROC [%s] are:\n", NameNameOf (iname));
+tracescheck_dumpnode (rtraces, 1, stderr);
 #endif
+			}
 		}
 	}
 

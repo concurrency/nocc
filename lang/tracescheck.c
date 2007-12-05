@@ -2160,6 +2160,35 @@ tchknode_t *tracescheck_firstevent (tchknode_t *tcn)
 	return tci;
 }
 /*}}}*/
+/*{{{  tchknode_t *tracescheck_tracestondet (tchk_traces_t *tct)*/
+/*
+ *	turns a traces set into a non-determinstic trace (copies)
+ *	returns new node on sucess, NULL on failure
+ */
+tchknode_t *tracescheck_tracestondet (tchk_traces_t *tct)
+{
+	tchknode_t *newnode;
+
+	if (!tct) {
+		return NULL;
+	} else if (!DA_CUR (tct->items)) {
+		/* nothing here */
+		newnode = tracescheck_createnode (TCN_SKIP, NULL);
+	} else if (DA_CUR (tct->items) == 1) {
+		newnode = tracescheck_copynode (DA_NTHITEM (tct->items, 0));
+	} else {
+		int i;
+
+		newnode = tracescheck_createnode (TCN_NDET, NULL, NULL);
+		for (i=0; i<DA_CUR (tct->items); i++) {
+			tchknode_t *tcn = DA_NTHITEM (tct->items, i);
+
+			dynarray_add (newnode->u.tcnlist.items, tracescheck_copynode (tcn));
+		}
+	}
+	return newnode;
+}
+/*}}}*/
 
 /*{{{  int tracescheck_addtolistnode (tchknode_t *tcn, tchknode_t *item)*/
 /*
