@@ -84,7 +84,8 @@ typedef struct TAG_libfile_srcunit {
 	char *fname;		/* short name of source file */
 	DYNARRAY (libfile_entry_t *, entries);
 	char *hashalgo;
-	char *hashvalue;
+	char *hashvalue;	/* hash of everything, including generated code */
+	char *dhashvalue;	/* hash of the descriptor information only */
 	int issigned;
 	DYNARRAY (libfile_metadata_t *, mdata);
 
@@ -133,6 +134,7 @@ typedef struct TAG_libnodehook {
 	DYNARRAY (char *, autouse);
 	char *hashalgo;		/* of generated-code */
 	char *hashvalue;
+	char *dhashvalue;	/* descriptor hash only */
 	int issigned;
 
 	DYNARRAY (libtaghook_t *, entries);
@@ -439,6 +441,7 @@ static libnodehook_t *lib_newlibnodehook (lexfile_t *lf, char *libname, char *na
 	dynarray_init (lnh->autouse);
 	lnh->hashalgo = NULL;
 	lnh->hashvalue = NULL;
+	lnh->dhashvalue = NULL;
 	lnh->issigned = 0;
 
 	dynarray_init (lnh->entries);
@@ -985,6 +988,7 @@ static libfile_srcunit_t *lib_newlibfile_srcunit (void)
 	dynarray_init (lfsu->entries);
 	lfsu->hashalgo = NULL;
 	lfsu->hashvalue = NULL;
+	lfsu->dhashvalue = NULL;
 	lfsu->issigned = 0;
 	dynarray_init (lfsu->mdata);
 
@@ -1009,6 +1013,9 @@ static void lib_freelibfile_srcunit (libfile_srcunit_t *lfsu)
 	}
 	if (lfsu->hashvalue) {
 		sfree (lfsu->hashvalue);
+	}
+	if (lfsu->dhashvalue) {
+		sfree (lfsu->dhashvalue);
 	}
 
 	for (i=0; i<DA_CUR (lfsu->entries); i++) {
@@ -1293,6 +1300,35 @@ static void lib_xmlhandler_elem_start (xmlhandler_t *xh, void *data, xmlkey_t *k
 		}
 		lf->curunit->issigned = (key->type == XMLKEY_SIGNEDHASH) ? 1 : 0;
 
+		break;
+		/*}}}*/
+		/*{{{  XMLKEY_DHASH, XMLKEY_SIGNEDDHASH -- hashing/digest info for descriptor compiler output*/
+	case XMLKEY_DHASH:
+	case XMLKEY_SIGNEDDHASH:
+		if (!lf->curunit) {
+			nocc_error ("lib_xmlhandler_elem_start(): descriptor hash node outside of libunit");
+			return;
+		}
+		for (i=0; attrkeys[i]; i++) {
+			switch (attrkeys[i]->type) {
+			case XMLKEY_HASHALGO:
+				/* ignore this */
+				break;
+			case XMLKEY_VALUE:
+				if (lf->curunit->dhashvalue) {
+					nocc_error ("lib_xmlhandler_elem_start(): descriptor hash value already set");
+					return;
+				}
+				lf->curunit->dhashvalue = string_dup (attrvals[i]);
+				break;
+			default:
+				nocc_internal ("lib_xmlhandler_elem_start(): unknown attribute [%s] in descriptor hash node", attrkeys[i]->name);
+				return;
+			}
+		}
+		lf->curunit->issigned = (key->type == XMLKEY_SIGNEDDHASH) ? 1 : 0;
+
+		break;
 		break;
 		/*}}}*/
 		/*{{{  XMLKEY_PROC -- process descriptor*/
@@ -1768,6 +1804,10 @@ static int lib_writelibrary (libfile_t *lf)
 			lib_isetindent (libstream, 3);
 			fprintf (libstream, "<%s hashalgo=\"%s\" value=\"%s\" />\n", lfsu->issigned ? "signedhash" : "hash", lfsu->hashalgo, lfsu->hashvalue);
 		}
+		if (lfsu->hashalgo && lfsu->dhashvalue) {
+			lib_isetindent (libstream, 3);
+			fprintf (libstream, "<%s hashalgo=\"%s\" value=\"%s\" />\n", lfsu->issigned ? "signeddhash" : "dhash", lfsu->hashalgo, lfsu->dhashvalue);
+		}
 
 		for (j=0; j<DA_CUR (lfsu->entries); j++) {
 			libfile_entry_t *lfe = DA_NTHITEM (lfsu->entries, j);
@@ -1960,6 +2000,10 @@ static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh, libfile_srcu
 			sfree (lfsu->hashvalue);
 			lfsu->hashvalue = NULL;
 		}
+		if (lfsu->dhashvalue) {
+			sfree (lfsu->dhashvalue);
+			lfsu->dhashvalue = NULL;
+		}
 		lfsu->issigned = 0;
 	}
 	if (lnh->hashalgo) {
@@ -1967,6 +2011,9 @@ static int lib_mergeintolibrary (libfile_t *lf, libnodehook_t *lnh, libfile_srcu
 	}
 	if (lnh->hashvalue) {
 		lfsu->hashvalue = string_dup (lnh->hashvalue);
+	}
+	if (lnh->dhashvalue) {
+		lfsu->dhashvalue = string_dup (lnh->dhashvalue);
 	}
 	lfsu->issigned = lnh->issigned;
 
@@ -2310,7 +2357,9 @@ static void lib_codegen_libnode_pcall (codegen_t *cgen, void *arg)
 	if (cgen->digest) {
 		int issigned = 0;
 		char *tmp;
-
+		crypto_t *descdigest = crypto_newdigest ();
+		int isdsigned = 0;
+		char *dtmp;
 
 		/*{{{  if we were creating a signed hash, do it now -- also add in data from the libnode!*/
 		if (compopts.hashalgo && compopts.privkey && cgen->digest) {
@@ -2324,9 +2373,19 @@ static void lib_codegen_libnode_pcall (codegen_t *cgen, void *arg)
 		}
 
 		/*}}}*/
+		/*{{{  if we're signing things, create a signed digest of the descriptor info only*/
+		if (compopts.hashalgo && compopts.privkey) {
+			lib_digestlibnode (lnh, descdigest);
+
+			if (crypto_signdigest (descdigest, compopts.privkey)) {
+				nocc_warning ("failed to sign descriptor digest with private key");
+			} else if (compopts.verbose) {
+				nocc_message ("signed descriptor digest of compiler output using private key");
+			}
+		}
+		/*}}}*/
 
 		tmp = crypto_readdigest (cgen->digest, &issigned);
-
 		if (tmp) {
 			if (lnh->hashalgo) {
 				sfree (lnh->hashalgo);
@@ -2337,9 +2396,23 @@ static void lib_codegen_libnode_pcall (codegen_t *cgen, void *arg)
 				sfree (lnh->hashvalue);
 			}
 			lnh->hashvalue = tmp;
-
 			lnh->issigned = issigned;
 		}
+
+		dtmp = crypto_readdigest (descdigest, &isdsigned);
+		if (dtmp) {
+			/* hashing algo already set */
+			if (lnh->dhashvalue) {
+				sfree (lnh->dhashvalue);
+			}
+			lnh->dhashvalue = dtmp;
+		}
+
+		if (issigned ^ isdsigned) {
+			nocc_warning ("signed digest error");
+		}
+
+		crypto_freedigest (descdigest);
 	}
 
 	/* merge in information from this library node */
@@ -2857,6 +2930,9 @@ nocc_message ("lib_decodeexternaldecl(): dbuf=[%s], sizes=[%s]", dbuf, sizes);
  */
 static int lib_validatesignatures (lexfile_t *orglf, libusenodehook_t *lunh)
 {
+#if 1
+fprintf (stderr, "lib_validatesignatures(): want to validate library [%s]\n", lunh->libname);
+#endif
 	/* FIXME! */
 	return 0;
 }
@@ -3266,13 +3342,13 @@ int library_setusenamespace (tnode_t *libusenode, char *nsname)
 }
 /*}}}*/
 
-/*{{{  int library_readlibanddigest (char *libname, crypto_t *cry, char *srcname, char **algop, char **shashp)*/
+/*{{{  int library_readlibanddigest (char *libname, crypto_t *cry, char *srcname, char **algop, char **shashp, char **sdhashp)*/
 /*
  *	reads in a library and "digests" the entry information.  if "srcname" is non-null,
  *	will use the <libunit name="..."> matching, otherwise expects a single <libunit>.
  *	returns 0 on success, non-zero on failure
  */
-int library_readlibanddigest (char *libname, crypto_t *cry, char *srcname, char **algop, char **shashp)
+int library_readlibanddigest (char *libname, crypto_t *cry, char *srcname, char **algop, char **shashp, char **sdhashp)
 {
 	libfile_t *lf;
 	libfile_srcunit_t *lfsu = NULL;
@@ -3307,7 +3383,7 @@ int library_readlibanddigest (char *libname, crypto_t *cry, char *srcname, char 
 	}
 
 	/* check source-unit for sanity */
-	if (!lfsu->hashalgo || !lfsu->hashvalue) {
+	if (!lfsu->hashalgo || !lfsu->hashvalue || !lfsu->dhashvalue) {
 		nocc_error ("library_readlibanddigest(): library [%s] is not hashed", libname);
 		lib_freelibfile (lf);
 		return -1;
@@ -3335,6 +3411,12 @@ int library_readlibanddigest (char *libname, crypto_t *cry, char *srcname, char 
 			sfree (*shashp);
 		}
 		*shashp = string_dup (lfsu->hashvalue);
+	}
+	if (sdhashp) {
+		if (*sdhashp) {
+			sfree (*sdhashp);
+		}
+		*sdhashp = string_dup (lfsu->dhashvalue);
 	}
 
 	lib_freelibfile (lf);

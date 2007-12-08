@@ -264,12 +264,12 @@ fprintf (stderr, "icrypto_genkeypair(): here 2!\n");
  */
 static int icrypto_verifysig (char *pubpath, char *libfile, char *codefile)
 {
-	gcry_sexp_t hash, signedhash, pubkey;
+	gcry_sexp_t hash, signedhash, signeddhash, pubkey;
 	gcry_error_t gerr;
-	crypto_t *cry;
+	crypto_t *cry, *dcry;
 	int fd;
 	char *sbuf, *ch;
-	char *hashalgo, *hashvalue;	/* from the library file */
+	char *hashalgo, *hashvalue, *dhashvalue;	/* from the library file */
 	int i;
 	size_t geoff;
 
@@ -278,12 +278,19 @@ static int icrypto_verifysig (char *pubpath, char *libfile, char *codefile)
 		nocc_error ("icrypto_verifysig(): failed to create digest!");
 		return -1;
 	}
+	dcry = crypto_newdigest ();
+	if (!dcry) {
+		nocc_error ("icrypto_verifysig(): failed to create descriptor digest!");
+		crypto_freedigest (cry);
+		return -1;
+	}
 
 	/*{{{  read "codefile" and add to the digest*/
 	fd = open (codefile, O_RDONLY);
 	if (fd < 0) {
 		nocc_error ("icrypto_verifysig(): failed to open %s: %s", codefile, strerror (errno));
 		crypto_freedigest (cry);
+		crypto_freedigest (dcry);
 		return -1;
 	}
 	sbuf = (char *)smalloc (4096);
@@ -297,6 +304,7 @@ static int icrypto_verifysig (char *pubpath, char *libfile, char *codefile)
 		} else if (in < 0) {
 			nocc_error ("icrypto_verifysig(): read error from %s: %s", codefile, strerror (errno));
 			crypto_freedigest (cry);
+			crypto_freedigest (dcry);
 			sfree (sbuf);
 			close (fd);
 			return -1;
@@ -309,13 +317,21 @@ static int icrypto_verifysig (char *pubpath, char *libfile, char *codefile)
 	close (fd);
 
 	/*}}}*/
-	/*{{{  read "libfile" and add to the digest*/
+	/*{{{  read "libfile" and add to the digests*/
 	hashalgo = NULL;
 	hashvalue = NULL;
+	dhashvalue = NULL;
 
-	if (library_readlibanddigest (libfile, cry, NULL, &hashalgo, &hashvalue)) {
+	if (library_readlibanddigest (libfile, cry, NULL, &hashalgo, &hashvalue, NULL)) {
 		nocc_error ("icrypto_verifysig(): failed to read and digest library");
 		crypto_freedigest (cry);
+		crypto_freedigest (dcry);
+		return -1;
+	}
+	if (library_readlibanddigest (libfile, dcry, NULL, &hashalgo, NULL, &dhashvalue)) {
+		nocc_error ("icrypto_verifysig(): failed to read and digest library");
+		crypto_freedigest (cry);
+		crypto_freedigest (dcry);
 		return -1;
 	}
 
@@ -324,8 +340,10 @@ static int icrypto_verifysig (char *pubpath, char *libfile, char *codefile)
 	if (icrypto_loadkey (&pubkey, pubpath, 0)) {
 		nocc_error ("icrypto_verifysig(): failed to load public key from %s", pubpath);
 		crypto_freedigest (cry);
+		crypto_freedigest (dcry);
 		sfree (hashalgo);
 		sfree (hashvalue);
+		sfree (dhashvalue);
 		return -1;
 	}
 
@@ -339,8 +357,10 @@ static int icrypto_verifysig (char *pubpath, char *libfile, char *codefile)
 			nocc_error ("icrypto_verifysig(): digest is signed -- it should not be!");
 		}
 		crypto_freedigest (cry);
+		crypto_freedigest (dcry);
 		sfree (hashalgo);
 		sfree (hashvalue);
+		sfree (dhashvalue);
 		gcry_sexp_release (pubkey);
 		return -1;
 	}
@@ -367,14 +387,65 @@ fprintf (stderr, "gerr = %d, geoff = %d, hexstr = [%s]\n", gerr, (int)geoff, hex
 	if (gerr) {
 		nocc_error ("icrypto_verifysig(): failed to build S-expression: %s", gpg_strerror (gerr));
 		crypto_freedigest (cry);
+		crypto_freedigest (dcry);
 		sfree (hashalgo);
 		sfree (hashvalue);
+		sfree (dhashvalue);
 		gcry_sexp_release (pubkey);
 		return -1;
 	}
 
 	/* done with the digest now */
 	crypto_freedigest (cry);
+
+	/*}}}*/
+	/*{{{  get the descriptor digest in hex*/
+	sbuf = crypto_readdigest (dcry, &i);
+	if (!sbuf || i) {
+		if (!sbuf) {
+			nocc_error ("icrypto_verifysig(): failed to read descriptor digest");
+		} else {
+			nocc_error ("icrypto_verifysig(): descriptor digest is signed -- it should not be!");
+		}
+		crypto_freedigest (dcry);
+		sfree (hashalgo);
+		sfree (hashvalue);
+		sfree (dhashvalue);
+		gcry_sexp_release (pubkey);
+		return -1;
+	}
+	/* convert to upper-case */
+	for (ch=sbuf; *ch != '\0'; ch++) {
+		if ((*ch >= 'a') && (*ch <= 'f')) {
+			*ch -= 'a';
+			*ch += 'A';
+		}
+	}
+
+	/*}}}*/
+	/*{{{  convert descriptor hash back into S-expression*/
+	ch = (char *)smalloc (2048);
+	i = sprintf (ch, "(data\n (flags pkcs1)\n (hash %s #%s#))\n", compopts.hashalgo, sbuf);
+	hash = NULL;
+	gerr = gcry_sexp_sscan (&hash, &geoff, ch, i);
+	sfree (ch);
+
+#if 0
+fprintf (stderr, "gerr = %d, geoff = %d, hexstr = [%s]\n", gerr, (int)geoff, hexstr);
+#endif
+	sfree (sbuf);
+	if (gerr) {
+		nocc_error ("icrypto_verifysig(): failed to build descriptor S-expression: %s", gpg_strerror (gerr));
+		crypto_freedigest (dcry);
+		sfree (hashalgo);
+		sfree (hashvalue);
+		sfree (dhashvalue);
+		gcry_sexp_release (pubkey);
+		return -1;
+	}
+
+	/* done with the digest now */
+	crypto_freedigest (dcry);
 
 	/*}}}*/
 	/*{{{  turn "hashvalue" back into an S-expression in "signedhash"*/
@@ -386,6 +457,7 @@ fprintf (stderr, "gerr = %d, geoff = %d, hexstr = [%s]\n", gerr, (int)geoff, hex
 			nocc_error ("icrypto_verifysig(): bad hash hex-string in library [%s]", libfile);
 			sfree (hashalgo);
 			sfree (hashvalue);
+			sfree (dhashvalue);
 			gcry_sexp_release (hash);
 			gcry_sexp_release (pubkey);
 			return -1;
@@ -399,6 +471,38 @@ fprintf (stderr, "gerr = %d, geoff = %d, hexstr = [%s]\n", gerr, (int)geoff, hex
 			nocc_error ("icrypto_verifysig(): bad hash in library [%s]: %s", libfile, gpg_strerror (gerr));
 			sfree (hashalgo);
 			sfree (hashvalue);
+			sfree (dhashvalue);
+			gcry_sexp_release (hash);
+			gcry_sexp_release (pubkey);
+			return -1;
+		}
+	}
+
+	/*}}}*/
+	/*{{{  turn "dhashvalue" back into an S-expression in "signeddhash"*/
+	{
+		int sslen;
+		char *ssexp = decode_hexstr (dhashvalue, &sslen);
+
+		if (!ssexp) {
+			nocc_error ("icrypto_verifysig(): bad descriptor hash hex-string in library [%s]", libfile);
+			sfree (hashalgo);
+			sfree (hashvalue);
+			sfree (dhashvalue);
+			gcry_sexp_release (hash);
+			gcry_sexp_release (pubkey);
+			return -1;
+		}
+
+		signeddhash = NULL;
+		gerr = gcry_sexp_new (&signeddhash, (unsigned char *)ssexp, sslen, 1);
+		sfree (ssexp);
+
+		if (gerr) {
+			nocc_error ("icrypto_verifysig(): bad descriptor hash in library [%s]: %s", libfile, gpg_strerror (gerr));
+			sfree (hashalgo);
+			sfree (hashvalue);
+			sfree (dhashvalue);
 			gcry_sexp_release (hash);
 			gcry_sexp_release (pubkey);
 			return -1;
@@ -409,15 +513,34 @@ fprintf (stderr, "gerr = %d, geoff = %d, hexstr = [%s]\n", gerr, (int)geoff, hex
 	/*{{{  do the actual check (finally!)*/
 	gerr = gcry_pk_verify (signedhash, hash, pubkey);
 
-	gcry_sexp_release (hash);
-	gcry_sexp_release (signedhash);
-	gcry_sexp_release (pubkey);
-
 	if (gerr) {
 		/* failed gracefully */
+		gcry_sexp_release (hash);
+		gcry_sexp_release (signedhash);
+		gcry_sexp_release (signeddhash);
+		gcry_sexp_release (pubkey);
+
 		nocc_error ("failed to verify signature: %s", gpg_strerror (gerr));
 		return -1;
 	}
+
+	gerr = gcry_pk_verify (signeddhash, hash, pubkey);
+
+	if (gerr) {
+		/* failed gracefully */
+		gcry_sexp_release (hash);
+		gcry_sexp_release (signedhash);
+		gcry_sexp_release (signeddhash);
+		gcry_sexp_release (pubkey);
+
+		nocc_error ("failed to verify descriptor signature: %s", gpg_strerror (gerr));
+		return -1;
+	}
+
+	gcry_sexp_release (hash);
+	gcry_sexp_release (signedhash);
+	gcry_sexp_release (signeddhash);
+	gcry_sexp_release (pubkey);
 
 	/*}}}*/
 

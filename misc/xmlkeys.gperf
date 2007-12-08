@@ -64,7 +64,9 @@ hashalgo,		XMLKEY_HASHALGO
 privkey,		XMLKEY_PRIVKEY
 trustedkey,		XMLKEY_TRUSTEDKEY
 hash,			XMLKEY_HASH
+dhash,			XMLKEY_DHASH
 signedhash,		XMLKEY_SIGNEDHASH
+signeddhash,		XMLKEY_SIGNEDDHASH
 extn,			XMLKEY_EXTN
 gperf,			XMLKEY_GPERF
 gprolog,		XMLKEY_GPROLOG
