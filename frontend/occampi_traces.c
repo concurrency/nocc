@@ -1046,10 +1046,13 @@ static int occampi_fetrans_procdecl_tracetypeimpl (compops_t *cops, tnode_t **no
 			if (tracescheck_formattraces (tcn, &str)) {
 				tnode_error (*nodep, "occampi_fetrans_procdecl_tracetypeimpl(): failed to format traces..");
 			} else {
-				metadata_addtonodelist (*nodep, "traces", str);
+				/* possible that there aren't any (pure computation!) */
+				if (strlen (str)) {
+					metadata_addtonodelist (*nodep, "traces", str);
 #if 0
 fprintf (stderr, "occampi_fetrans_procdecl_tracetypeimpl(): formatted traces: [%s]\n", str);
 #endif
+				}
 				sfree (str);
 			}
 		}

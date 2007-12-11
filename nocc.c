@@ -136,6 +136,7 @@ compopts_t compopts = {
 	savenameddfa: {NULL, NULL},
 	savealldfas: NULL,
 	fatalgdb: 0,
+	fatalsegv: 0,
 	DA_CONSTINITIALISER(epath),
 	DA_CONSTINITIALISER(ipath),
 	DA_CONSTINITIALISER(lpath),
@@ -388,6 +389,8 @@ void nocc_pvinternal (char *fmt, const char *file, const int line, va_list ap)
 	if (compopts.fatalgdb) {
 		nocc_invoke_gdb ();
 		/* things potentially go bad if we allow this to return */
+	} else if (compopts.fatalsegv) {
+		*((int *)0) = 42;
 	} else {
 		nocc_shutdownrun ();
 		exit (EXIT_FAILURE);

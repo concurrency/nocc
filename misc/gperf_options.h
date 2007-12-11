@@ -35,7 +35,7 @@
  */
 struct TAG_cmd_option;
 
-#define TOTAL_KEYWORDS 67
+#define TOTAL_KEYWORDS 68
 #define MIN_WORD_LENGTH 3
 #define MAX_WORD_LENGTH 18
 #define MIN_HASH_VALUE 4
@@ -111,14 +111,14 @@ static const struct TAG_cmd_option wordlist[] =
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"extn",			'e',	opt_addextn,		NULL,				"0compiler extension to load",				400},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"output",			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					304},
+    {"output",			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					305},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"help",			'h',	opt_do_help_flag,	NULL,				"0display standard usage information",			0},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"dump-targets",		'\0',	opt_setintflag,		&(compopts.dumptargets),	"1print supported targets after initialisation",	13},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {"segfault",		'\0',	opt_setintflag,		&(compopts.fatalsegv),		"1cause segfault on fatal error",			303},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"stop-usagecheck",	'\0',	opt_setstopflag,	(void *)10,			"1stop after parallel-usage check",			109},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
@@ -160,7 +160,7 @@ static const struct TAG_cmd_option wordlist[] =
     {"stop-codegen",		'\0',	opt_setstopflag,	(void *)20,			"1stop after code-generation",				119},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"save-named-dfa",		'\0',	opt_setsaveopt,		(void *)1,			"1save named DFA to file",				50},
-    {"specs-file",		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				303},
+    {"specs-file",		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				304},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"trace-langops",		'\0',	opt_setstr,		&(compopts.tracelangops),	"1trace language operations (debugging)",		205},

@@ -94,6 +94,7 @@ typedef struct TAG_compopts {
 	char *savenameddfa[2];
 	char *savealldfas;
 	int fatalgdb;
+	int fatalsegv;
 
 	/* general paths */
 	char *specsfile;

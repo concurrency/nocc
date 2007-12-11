@@ -348,7 +348,7 @@ static int occampi_tracescheck_instance (langops_t *lops, tnode_t *node, tchk_st
 	if (decl) {
 		tchk_traces_t *trc = (tchk_traces_t *)tnode_getchook (decl, trtracechook);
 
-		if (trc) {
+		if (trc && DA_CUR (trc->items)) {
 			/*
 			 * traces are in terms of PROC formal parameters, need to substitute in actual parameters
 			 */
@@ -358,6 +358,10 @@ static int occampi_tracescheck_instance (langops_t *lops, tnode_t *node, tchk_st
 			tnode_t **apset, **fpset;
 			int nfp, nap, i;
 
+#if 0
+fprintf (stderr, "occampi_tracescheck_instance(): here, got traces:\n");
+tracescheck_dumptraces (trc, 1, stderr);
+#endif
 			rtraces = tracescheck_tracestondet (trc);
 			if (rtraces) {
 				tnode_t **fpsetcopy = NULL;

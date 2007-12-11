@@ -1712,7 +1712,7 @@ static int tracescheck_subformat (tchknode_t *tcn, char **sptr, int *cur, int *m
 	case TCN_PAR:
 	case TCN_DET:
 	case TCN_NDET:
-		{
+		if (DA_CUR (tcn->u.tcnlist.items)) {
 			int i;
 
 			tracescheck_addtostring (sptr, cur, max, "(");
