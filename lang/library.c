@@ -2815,6 +2815,27 @@ static int lib_typeresolve_libusenode (compops_t *cops, tnode_t **nodep, typeche
 	return 1;
 }
 /*}}}*/
+/*{{{  static int lib_precheck_libusenode (compops_t *cops, tnode_t *node)*/
+/*
+ *	does pre-checks on a library-usage node (runs through the imported declarations)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int lib_precheck_libusenode (compops_t *cops, tnode_t *node)
+{
+	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (node, 0);
+	int i;
+
+	for (i=0; i<DA_CUR (lunh->decls); i++) {
+		tnode_t *decl = DA_NTHITEM (lunh->decls, i);
+
+		if (decl && decl->tag->ndef->ops && tnode_hascompop (decl->tag->ndef->ops, "importedprecheck")) {
+			tnode_callcompop (decl->tag->ndef->ops, "importedprecheck", 1, decl);
+		}
+	}
+
+	return 1;
+}
+/*}}}*/
 /*{{{  static int lib_tracescheck_libusenode (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)*/
 /*
  *	does traces-checking on a library-usage node
@@ -3113,6 +3134,7 @@ int library_init (void)
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (lib_scopein_libusenode));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (lib_typecheck_libusenode));
 	tnode_setcompop (cops, "typeresolve", 2, COMPOPTYPE (lib_typeresolve_libusenode));
+	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (lib_precheck_libusenode));
 	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (lib_tracescheck_libusenode));
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (lib_betrans_libusenode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (lib_namemap_libusenode));
@@ -3162,6 +3184,7 @@ int library_init (void)
 
 	/*}}}*/
 	/*{{{  importedtypecheck, importedtyperesolve compiler operations*/
+	tnode_newcompop ("importedprecheck", COPS_INVALID, 1, INTERNAL_ORIGIN);
 	tnode_newcompop ("importedtyperesolve", COPS_INVALID, 2, INTERNAL_ORIGIN);
 	tnode_newcompop ("importedtypecheck", COPS_INVALID, 2, INTERNAL_ORIGIN);
 

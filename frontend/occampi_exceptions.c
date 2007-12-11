@@ -1075,6 +1075,41 @@ fprintf (stderr, "occampi_exceptioncheck_importedtyperesolve_procdecl(): import 
 	return v;
 }
 /*}}}*/
+/*{{{  static int occampi_exceptioncheck_precheck_procdecl (compops_t *cops, tnode_t *node)*/
+/*
+ *	called specifically for imported PROC declarations, to move imported exceptions over to real ones
+ *	returns 0 to stop walk, 1 to continue (not relevant)
+ */
+static int occampi_exceptioncheck_precheck_procdecl (compops_t *cops, tnode_t *node)
+{
+	opiimportthrowshook_t *opiith = (opiimportthrowshook_t *)tnode_getchook (node, exceptioncheck_importthrowschook);
+	opithrowshook_t *opith = (opithrowshook_t *)tnode_getchook (node, exceptioncheck_throwschook);
+
+	if (opiith) {
+		int i;
+
+		for (i=0; i<DA_CUR (opiith->resolved); i++) {
+			tnode_t *exc = DA_NTHITEM (opiith->resolved, i);
+
+			if (exc) {
+				if (!opith) {
+					opith = opi_newopithrowshook ();
+					tnode_setchook (node, exceptioncheck_throwschook, (void *)opith);
+				}
+				dynarray_maybeadd (opith->elist, exc);
+			}
+		}
+
+		/* now get rid of it, all done! */
+		opi_freeopiimportthrowshook (opiith);
+		tnode_clearchook (node, exceptioncheck_importthrowschook);
+	}
+#if 0
+fprintf (stderr, "occampi_exceptioncheck_precheck_procdecl(): opiith=%p, opith=%p\n", opiith, opith);
+#endif
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_exceptioncheck_procdecl (compops_t *cops, tnode_t **nodep, opiexception_t *oex)*/
 /*
  *	called to do exception-checking on a proc declaration -- determines what the PROC throws
@@ -1216,11 +1251,23 @@ static int occampi_exceptioncheck_instancenode (compops_t *cops, tnode_t **nodep
 {
 	if ((*nodep)->tag == opi.tag_PINSTANCE) {
 		/*{{{  PROC instance*/
-#if 1
-fprintf (stderr, "occampi_exceptioncheck_instancenode(): PROC instance of:\n");
-tnode_dumptree (tnode_nthsubof (*nodep, 0), 1, stderr);
-#endif
+		tnode_t *name = tnode_nthsubof (*nodep, 0);
+		name_t *pname = tnode_nthnameof (name, 0);
+		tnode_t *pdecl = NameDeclOf (pname);
+		opithrowshook_t *opith = (opithrowshook_t *)tnode_getchook (pdecl, exceptioncheck_throwschook);
 
+#if 0
+fprintf (stderr, "occampi_exceptioncheck_instancenode(): PROC instance of:\n");
+tnode_dumptree (pdecl, 1, stderr);
+#endif
+		if (opith) {
+			/* local or foreign PROC throwing stuff */
+			int i;
+
+			for (i=0; i<DA_CUR (opith->elist); i++) {
+				dynarray_maybeadd (oex->elist, DA_NTHITEM (opith->elist, i));
+			}
+		}
 		/*}}}*/
 	}
 	return 0;
@@ -1423,6 +1470,7 @@ static int occampi_exceptions_post_setup (void)
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_exceptioncheck_scopeout_procdecl));
 	tnode_setcompop (cops, "importedtypecheck", 2, COMPOPTYPE (occampi_exceptioncheck_importedtypecheck_procdecl));
 	tnode_setcompop (cops, "importedtyperesolve", 2, COMPOPTYPE (occampi_exceptioncheck_importedtyperesolve_procdecl));
+	tnode_setcompop (cops, "importedprecheck", 1, COMPOPTYPE (occampi_exceptioncheck_precheck_procdecl));
 	tnode_setcompop (cops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_procdecl));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_exceptioncheck_fetrans_procdecl));
 	tnd->ops = cops;

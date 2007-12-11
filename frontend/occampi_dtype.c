@@ -775,7 +775,8 @@ tnode_dumptree (dimtree, 1, stderr);
 		if (!dlist[i]) {
 			/* unknown dimension */
 			tnode_t *hparm = tnode_createfrom (opi.tag_HIDDENDIMEN, node,
-				tnode_create (opi.tag_DIMSIZE, NULL, NULL, constprop_newconst (CONST_INT, NULL, tnode_create (opi.tag_INT, NULL), i), tnode_create (opi.tag_INT, NULL)));
+					tnode_create (opi.tag_DIMSIZE, NULL, NULL, constprop_newconst (CONST_INT, NULL,
+						tnode_create (opi.tag_INT, NULL), i), tnode_create (opi.tag_INT, NULL)));
 
 			parser_addtolist (hparams, hparm);
 			dlist[i] = hparm;
