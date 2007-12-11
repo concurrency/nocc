@@ -552,13 +552,14 @@ tnode_dumptree (aparamlist, 1, stderr);
 		tnode_t *fparam = fp_items[fp_ptr];
 
 		if ((fparam->tag == opi.tag_FPARAM) || (fparam->tag == opi.tag_VALFPARAM)) {
-			/* skip to next parameter */
+			/*{{{  skip to next parameter*/
 			lastaparam = ap_items[ap_ptr];
 			tnode_setchook (ap_items[ap_ptr], chook_matchedformal, fp_items[fp_ptr]);
 			ap_ptr++;
 			paramno++;
+			/*}}}*/
 		} else if (fparam->tag == opi.tag_HIDDENDIMEN) {
-			/* hidden dimension */
+			/*{{{  hidden dimension*/
 			tnode_t *atype = typecheck_gettype (lastaparam, NULL);
 			tnode_t *adimtree = langops_dimtreeof (lastaparam);
 			tnode_t *fhparm = tnode_nthsubof (fparam, 0);
@@ -605,6 +606,7 @@ tnode_dumptree (adimtree, 1, stderr);
 			} else {
 				tnode_error (*node, "occampi_fetrans_instance(): unknown HIDDENDIMEN type [%s]", fhparm->tag->name);
 			}
+			/*}}}*/
 		}
 	}
 

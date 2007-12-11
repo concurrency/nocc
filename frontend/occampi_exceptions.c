@@ -1202,6 +1202,25 @@ fprintf (stderr, "occampi_exceptioncheck_fetrans_procdecl(): opith = %p\n", opit
 	return v;
 }
 /*}}}*/
+/*{{{  static int occampi_exceptioncheck_namemap_procdecl (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	inserted name-map on a PROC declaration (will be called for local and foreign PROCs)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_exceptioncheck_namemap_procdecl (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	int v = 1;
+
+#if 1
+fprintf (stderr, "occampi_exceptioncheck_namemap_procdecl(): here, PROC being declared is:\n");
+tnode_dumptree (tnode_nthsubof (*nodep, 0), 1, stderr);
+#endif
+	if (cops->next && tnode_hascompop (cops->next, "namemap")) {
+		v = tnode_callcompop (cops->next, "namemap", 2, nodep, map);
+	}
+	return v;
+}
+/*}}}*/
 /*{{{  static int occampi_exceptioncheck_importmetadata_procdecl (langops_t *lops, tnode_t *node, const char *name, const char *data)*/
 /*
  *	called to import metadata on a PROC declaration
@@ -1242,6 +1261,7 @@ fprintf (stderr, "occampi_exceptioncheck_importmetadata_procdecl(): got some thr
 	return r;
 }
 /*}}}*/
+
 /*{{{  static int occampi_exceptioncheck_instancenode (compops_t *cops, tnode_t **nodep, opiexception_t *oex)*/
 /*
  *	called to do exception-checking on a proc instance -- determines what is thrown by the instanced PROC
@@ -1271,6 +1291,25 @@ tnode_dumptree (pdecl, 1, stderr);
 		/*}}}*/
 	}
 	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_exceptioncheck_namemap_instancenode (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	inserted name-map on a PROC instance
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_exceptioncheck_namemap_instancenode (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	int v = 1;
+
+#if 1
+fprintf (stderr, "occampi_exceptioncheck_namemap_instancenode(): here, PROC being instanced is:\n");
+tnode_dumptree (tnode_nthsubof (*nodep, 0), 1, stderr);
+#endif
+	if (cops->next && tnode_hascompop (cops->next, "namemap")) {
+		v = tnode_callcompop (cops->next, "namemap", 2, nodep, map);
+	}
+	return v;
 }
 /*}}}*/
 
@@ -1459,7 +1498,7 @@ static int occampi_exceptions_post_setup (void)
 	compops_t *cops;
 	langops_t *lops;
 
-	/*{{{  intefere with PROC declaration and instance nodes for exception checking*/
+	/*{{{  intefere with PROC declaration and instance nodes for exception checking (and run-time handling)*/
 	tnd = tnode_lookupnodetype ("occampi:procdecl");
 	if (!tnd) {
 		nocc_serious ("occampi_exceptions_post_setup(): failed to find \"occampi:procdecl\" node type");
@@ -1473,6 +1512,7 @@ static int occampi_exceptions_post_setup (void)
 	tnode_setcompop (cops, "importedprecheck", 1, COMPOPTYPE (occampi_exceptioncheck_precheck_procdecl));
 	tnode_setcompop (cops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_procdecl));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_exceptioncheck_fetrans_procdecl));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_exceptioncheck_namemap_procdecl));
 	tnd->ops = cops;
 	lops = tnode_insertlangops (tnd->lops);
 	tnode_setlangop (lops, "importmetadata", 3, LANGOPTYPE (occampi_exceptioncheck_importmetadata_procdecl));
@@ -1485,6 +1525,7 @@ static int occampi_exceptions_post_setup (void)
 	}
 	cops = tnode_insertcompops (tnd->ops);
 	tnode_setcompop (cops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_instancenode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_exceptioncheck_namemap_instancenode));
 	tnd->ops = cops;
 
 	/*}}}*/
