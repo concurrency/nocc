@@ -1,0 +1,11 @@
+
+-- test_x61 -- testing THROWS in separate compilation
+
+#INCLUDE "test_x61.inc"
+
+PROC test.x61 ()
+  SEQ
+    THROW EX.FOO
+:
+
+

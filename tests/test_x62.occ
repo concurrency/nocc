@@ -1,0 +1,11 @@
+
+-- test_x62.occ -- testing exceptions in separate compilation
+
+#INCLUDE "test_x61.inc"
+#USE "test_x61"
+
+PROC test.x62 ()
+  SEQ
+    test.x61 ()
+:
+

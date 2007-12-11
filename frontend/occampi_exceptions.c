@@ -77,11 +77,16 @@ typedef struct TAG_opithrowshook {
 	DYNARRAY (tnode_t *, elist);		/* list of exceptions */
 } opithrowshook_t;
 
+typedef struct TAG_opiimportthrowshook {
+	DYNARRAY (char *, descr);		/* list of exception names combined with a typehash */
+} opiimportthrowshook_t;
+
 
 /*}}}*/
 /*{{{  private data*/
 
 static chook_t *exceptioncheck_throwschook = NULL;
+static chook_t *exceptioncheck_importthrowschook = NULL;
 
 /*}}}*/
 
@@ -144,6 +149,42 @@ static void opi_freeopithrowshook (opithrowshook_t *opith)
 	return;
 }
 /*}}}*/
+/*{{{  static opiimportthrowshook_t *opi_newopiimportthrowshook (void)*/
+/*
+ *	creates a new, blank, opiimportthrowshook_t structure
+ */
+static opiimportthrowshook_t *opi_newopiimportthrowshook (void)
+{
+	opiimportthrowshook_t *opiith = (opiimportthrowshook_t *)smalloc (sizeof (opiimportthrowshook_t));
+
+	dynarray_init (opiith->descr);
+	return opiith;
+}
+/*}}}*/
+/*{{{  static void opi_freeopiimportthrowshook (opiimportthrowshook_t *opiith)*/
+/*
+ *	frees an opiimportthrowshook_t structure
+ */
+static void opi_freeopiimportthrowshook (opiimportthrowshook_t *opiith)
+{
+	int i;
+
+	if (!opiith) {
+		nocc_serious ("opi_freeopiimportthrowshook(): NULL hook!");
+		return;
+	}
+	for (i=0; i<DA_CUR (opiith->descr); i++) {
+		char *desc = DA_NTHITEM (opiith->descr, i);
+
+		if (desc) {
+			sfree (desc);
+		}
+	}
+	dynarray_trash (opiith->descr);
+	sfree (opiith);
+	return;
+}
+/*}}}*/
 
 /*{{{  static void *exceptioncheck_throwschook_copy (void *hook)*/
 /*
@@ -203,6 +244,71 @@ static void exceptioncheck_throwschook_dumptree (tnode_t *node, void *hook, int 
 	}
 	occampi_isetindent (stream, indent);
 	fprintf (stream, "</chook:occampi:throws>\n");
+	return;
+}
+/*}}}*/
+
+/*{{{  static void *exceptioncheck_importthrowschook_copy (void *hook)*/
+/*
+ *	copies an occampi:importthrows compiler hook
+ */
+static void *exceptioncheck_importthrowschook_copy (void *hook)
+{
+	opiimportthrowshook_t *opiith = (opiimportthrowshook_t *)hook;
+	opiimportthrowshook_t *newith;
+	int i;
+
+	if (!opiith) {
+		nocc_serious ("exceptioncheck_importthrowschook_copy(): NULL hook!");
+		return NULL;
+	}
+	newith = opi_newopiimportthrowshook ();
+	for (i=0; i<DA_CUR (opiith->descr); i++) {
+		char *desc = DA_NTHITEM (opiith->descr, i);
+
+		dynarray_add (newith->descr, desc ? string_dup (desc) : NULL);
+	}
+	return newith;
+}
+/*}}}*/
+/*{{{  static void exceptioncheck_importthrowschook_free (void *hook)*/
+/*
+ *	frees an occampi:importthrows compiler hook
+ */
+static void exceptioncheck_importthrowschook_free (void *hook)
+{
+	opiimportthrowshook_t *opiith = (opiimportthrowshook_t *)hook;
+
+	if (!opiith) {
+		nocc_serious ("exceptioncheck_importthrowschook_free(): NULL hook!");
+		return;
+	}
+	opi_freeopiimportthrowshook (opiith);
+	return;
+}
+/*}}}*/
+/*{{{  static void exceptioncheck_importthrowschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps an occampi:importthrows compiler hook (debugging)
+ */
+static void exceptioncheck_importthrowschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	opiimportthrowshook_t *opiith = (opiimportthrowshook_t *)hook;
+
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "<chook:occampi:importthrows addr=\"0x%8.8x\">\n", (unsigned int)opiith);
+	if (opiith) {
+		int i;
+
+		for (i=0; i<DA_CUR (opiith->descr); i++) {
+			char *desc = DA_NTHITEM (opiith->descr, i);
+
+			occampi_isetindent (stream, indent + 1);
+			fprintf (stream, "<throws value=\"%s\" />\n", desc ?: "(null)");
+		}
+	}
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "</chook:occampi:importthrows>\n");
 	return;
 }
 /*}}}*/
@@ -911,6 +1017,35 @@ fprintf (stderr, "occampi_exceptioncheck_fetrans_procdecl(): opith = %p\n", opit
 	return v;
 }
 /*}}}*/
+/*{{{  static int occampi_exceptioncheck_importmetadata_procdecl (langops_t *lops, tnode_t *node, const char *name, const char *data)*/
+/*
+ *	called to import metadata on a PROC declaration
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_exceptioncheck_importmetadata_procdecl (langops_t *lops, tnode_t *node, const char *name, const char *data)
+{
+	int r = 0;
+
+	if (!strcmp (name, "throws")) {
+		/* this one is for us! */
+		opiimportthrowshook_t *oph = (opiimportthrowshook_t *)tnode_getchook (node, exceptioncheck_importthrowschook);
+
+		if (!oph) {
+			oph = opi_newopiimportthrowshook ();
+			tnode_setchook (node, exceptioncheck_importthrowschook, (void *)oph);
+		}
+		dynarray_add (oph->descr, string_dup (data));
+#if 0
+fprintf (stderr, "occampi_exceptioncheck_importmetadata_procdecl(): got some throws metadata [%s]\n", data);
+#endif
+	} else {
+		if (lops->next && tnode_haslangop (lops->next, "importmetadata")) {
+			r = tnode_calllangop (lops->next, "importmetadata", 3, node, name, data);
+		}
+	}
+	return r;
+}
+/*}}}*/
 /*{{{  static int occampi_exceptioncheck_instancenode (compops_t *cops, tnode_t **nodep, opiexception_t *oex)*/
 /*
  *	called to do exception-checking on a proc instance -- determines what is thrown by the instanced PROC
@@ -930,7 +1065,6 @@ tnode_dumptree (tnode_nthsubof (*nodep, 0), 1, stderr);
 	return 0;
 }
 /*}}}*/
-
 
 /*{{{  static int exceptioncheck_cpass (tnode_t **treeptr)*/
 /*
@@ -1095,6 +1229,13 @@ static int occampi_exceptions_init_nodes (void)
 	exceptioncheck_throwschook->chook_dumptree = exceptioncheck_throwschook_dumptree;
 
 	/*}}}*/
+	/*{{{  occampi:importthrows compiler hook*/
+	exceptioncheck_importthrowschook = tnode_lookupornewchook ("occampi:importthrows");
+	exceptioncheck_importthrowschook->chook_copy = exceptioncheck_importthrowschook_copy;
+	exceptioncheck_importthrowschook->chook_free = exceptioncheck_importthrowschook_free;
+	exceptioncheck_importthrowschook->chook_dumptree = exceptioncheck_importthrowschook_dumptree;
+
+	/*}}}*/
 
 	return 0;
 }
@@ -1108,6 +1249,7 @@ static int occampi_exceptions_post_setup (void)
 {
 	tndef_t *tnd;
 	compops_t *cops;
+	langops_t *lops;
 
 	/*{{{  intefere with PROC declaration and instance nodes for exception checking*/
 	tnd = tnode_lookupnodetype ("occampi:procdecl");
@@ -1119,6 +1261,9 @@ static int occampi_exceptions_post_setup (void)
 	tnode_setcompop (cops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_procdecl));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_exceptioncheck_fetrans_procdecl));
 	tnd->ops = cops;
+	lops = tnode_insertlangops (tnd->lops);
+	tnode_setlangop (lops, "importmetadata", 3, LANGOPTYPE (occampi_exceptioncheck_importmetadata_procdecl));
+	tnd->lops = lops;
 
 	tnd = tnode_lookupnodetype ("occampi:instancenode");
 	if (!tnd) {
