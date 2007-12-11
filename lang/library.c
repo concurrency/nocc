@@ -2773,6 +2773,48 @@ fprintf (stderr, "lib_scopein_libusenode(): pushing defining namespace [%s]\n", 
 	return 0;		/* already done */
 }
 /*}}}*/
+/*{{{  static int lib_typecheck_libusenode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a library-usage node (runs through the imported declarations)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int lib_typecheck_libusenode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (node, 0);
+	int i;
+
+	for (i=0; i<DA_CUR (lunh->decls); i++) {
+		tnode_t *decl = DA_NTHITEM (lunh->decls, i);
+
+		if (decl && decl->tag->ndef->ops && tnode_hascompop (decl->tag->ndef->ops, "importedtypecheck")) {
+			tnode_callcompop (decl->tag->ndef->ops, "importedtypecheck", 2, decl, tc);
+		}
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int lib_typeresolve_libusenode (compops_t *cops, tnode_t **nodep, typecheck_t *tc)*/
+/*
+ *	does type-resolution on a library-usage node (runs through the imported declarations)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int lib_typeresolve_libusenode (compops_t *cops, tnode_t **nodep, typecheck_t *tc)
+{
+	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (*nodep, 0);
+	int i;
+
+	for (i=0; i<DA_CUR (lunh->decls); i++) {
+		tnode_t **declp = DA_NTHITEMADDR (lunh->decls, i);
+
+		if (*declp && (*declp)->tag->ndef->ops && tnode_hascompop ((*declp)->tag->ndef->ops, "importedtyperesolve")) {
+			tnode_callcompop ((*declp)->tag->ndef->ops, "importedtyperesolve", 2, declp, tc);
+		}
+	}
+
+	return 1;
+}
+/*}}}*/
 /*{{{  static int lib_tracescheck_libusenode (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)*/
 /*
  *	does traces-checking on a library-usage node
@@ -3069,6 +3111,8 @@ int library_init (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (lib_prescope_libusenode));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (lib_scopein_libusenode));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (lib_typecheck_libusenode));
+	tnode_setcompop (cops, "typeresolve", 2, COMPOPTYPE (lib_typeresolve_libusenode));
 	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (lib_tracescheck_libusenode));
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (lib_betrans_libusenode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (lib_namemap_libusenode));
@@ -3115,6 +3159,11 @@ int library_init (void)
 	/*}}}*/
 	/*{{{  importmetadata language operation*/
 	tnode_newlangop ("importmetadata", LOPS_INVALID, 3, INTERNAL_ORIGIN);		/* (tnode_t *name, const char *name, const char *data) -> int */
+
+	/*}}}*/
+	/*{{{  importedtypecheck, importedtyperesolve compiler operations*/
+	tnode_newcompop ("importedtyperesolve", COPS_INVALID, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("importedtypecheck", COPS_INVALID, 2, INTERNAL_ORIGIN);
 
 	/*}}}*/
 	/*{{{  others*/

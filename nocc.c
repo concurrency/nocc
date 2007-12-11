@@ -133,6 +133,7 @@ compopts_t compopts = {
 	domobilitycheck: 1,
 	specsfile: NULL,
 	outfile: NULL,
+	interactive: 0,
 	savenameddfa: {NULL, NULL},
 	savealldfas: NULL,
 	fatalgdb: 0,
@@ -171,6 +172,13 @@ typedef struct TAG_xmlnamespace {
 	char *uri;			/* associated URI (nice to have something valid on the end) */
 } xmlnamespace_t;
 
+typedef struct TAG_initfunc {
+	char *name;			/* identifier */
+	origin_t *origin;		/* where it came from */
+	int (*fcn)(void *);		/* initialisation function to call */
+	void *arg;			/* argument to pass */
+} initfunc_t;
+
 
 /*}}}*/
 /*{{{  private data*/
@@ -182,6 +190,8 @@ STATICDYNARRAY (compilerpass_t *, cfepasses);
 STATICDYNARRAY (compilerpass_t *, cbepasses);
 
 STATICDYNARRAY (xmlnamespace_t *, xmlnamespaces);
+
+STATICDYNARRAY (initfunc_t *, initfcns);
 
 /*}}}*/
 
@@ -1086,6 +1096,32 @@ int nocc_addcompilerpass (const char *name, origin_t *origin, const char *other,
 	return 0;
 }
 /*}}}*/
+/*{{{  int nocc_addcompilerinitfunc (const char *name, origin_t *origin, int (*fcn)(void *), void *arg)*/
+/*
+ *	this can be called by code elsewhere in the compiler (not extensions) to add initialisation
+ *	routines to the compiler at run-time
+ *	returns 0 on success, non-zero on failure
+ */
+int nocc_addcompilerinitfunc (const char *name, origin_t *origin, int (*fcn)(void *), void *arg)
+{
+	initfunc_t *ifcn;
+
+	if (!name || !origin || !fcn) {
+		nocc_internal ("nocc_addcompilerinitfunc(): bad parameters");
+		return -1;
+	}
+
+	ifcn = (initfunc_t *)smalloc (sizeof (initfunc_t));
+
+	ifcn->name = string_dup (name);
+	ifcn->origin = origin;
+	ifcn->fcn = fcn;
+	ifcn->arg = arg;
+	dynarray_add (initfcns, ifcn);
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  int nocc_addxmlnamespace (const char *name, const char *uri)*/
@@ -1222,6 +1258,7 @@ int main (int argc, char **argv)
 	dynarray_init (cbepasses);
 
 	dynarray_init (xmlnamespaces);
+	dynarray_init (initfcns);
 
 	/*}}}*/
 	/*{{{  general initialisation*/
@@ -1615,6 +1652,21 @@ int main (int argc, char **argv)
 	/*{{{  dump supported targets if requested*/
 	if (compopts.dumptargets) {
 		target_dumptargets (stderr);
+	}
+
+	/*}}}*/
+	/*{{{  run any dynamically added initialisation functions*/
+	for (i=0; i<DA_CUR (initfcns); i++) {
+		initfunc_t *ifcn = DA_NTHITEM (initfcns, i);
+
+		if (ifcn->fcn) {
+			int err = ifcn->fcn (ifcn->arg);
+
+			if (err) {
+				nocc_error ("failed while initialising %s", ifcn->name);
+				exit (EXIT_FAILURE);
+			}
+		}
 	}
 
 	/*}}}*/

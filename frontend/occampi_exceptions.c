@@ -78,7 +78,9 @@ typedef struct TAG_opithrowshook {
 } opithrowshook_t;
 
 typedef struct TAG_opiimportthrowshook {
-	DYNARRAY (char *, descr);		/* list of exception names combined with a typehash */
+	DYNARRAY (char *, names);		/* list of exception names */
+	DYNARRAY (char *, thashs);		/* list of exception type-hashes */
+	DYNARRAY (tnode_t *, resolved);		/* list of associated resolved names */
 } opiimportthrowshook_t;
 
 
@@ -157,7 +159,9 @@ static opiimportthrowshook_t *opi_newopiimportthrowshook (void)
 {
 	opiimportthrowshook_t *opiith = (opiimportthrowshook_t *)smalloc (sizeof (opiimportthrowshook_t));
 
-	dynarray_init (opiith->descr);
+	dynarray_init (opiith->names);
+	dynarray_init (opiith->thashs);
+	dynarray_init (opiith->resolved);
 	return opiith;
 }
 /*}}}*/
@@ -173,14 +177,20 @@ static void opi_freeopiimportthrowshook (opiimportthrowshook_t *opiith)
 		nocc_serious ("opi_freeopiimportthrowshook(): NULL hook!");
 		return;
 	}
-	for (i=0; i<DA_CUR (opiith->descr); i++) {
-		char *desc = DA_NTHITEM (opiith->descr, i);
+	for (i=0; i<DA_CUR (opiith->names); i++) {
+		char *desc = DA_NTHITEM (opiith->names, i);
+		char *thash = DA_NTHITEM (opiith->thashs, i);
 
 		if (desc) {
 			sfree (desc);
 		}
+		if (thash) {
+			sfree (thash);
+		}
 	}
-	dynarray_trash (opiith->descr);
+	dynarray_trash (opiith->names);
+	dynarray_trash (opiith->thashs);
+	dynarray_trash (opiith->resolved);
 	sfree (opiith);
 	return;
 }
@@ -263,10 +273,13 @@ static void *exceptioncheck_importthrowschook_copy (void *hook)
 		return NULL;
 	}
 	newith = opi_newopiimportthrowshook ();
-	for (i=0; i<DA_CUR (opiith->descr); i++) {
-		char *desc = DA_NTHITEM (opiith->descr, i);
+	for (i=0; i<DA_CUR (opiith->names); i++) {
+		char *desc = DA_NTHITEM (opiith->names, i);
+		char *thash = DA_NTHITEM (opiith->thashs, i);
 
-		dynarray_add (newith->descr, desc ? string_dup (desc) : NULL);
+		dynarray_add (newith->names, desc ? string_dup (desc) : NULL);
+		dynarray_add (newith->thashs, thash ? string_dup (thash) : NULL);
+		dynarray_add (newith->resolved, DA_NTHITEM (opiith->resolved, i));
 	}
 	return newith;
 }
@@ -300,11 +313,19 @@ static void exceptioncheck_importthrowschook_dumptree (tnode_t *node, void *hook
 	if (opiith) {
 		int i;
 
-		for (i=0; i<DA_CUR (opiith->descr); i++) {
-			char *desc = DA_NTHITEM (opiith->descr, i);
+		for (i=0; i<DA_CUR (opiith->names); i++) {
+			char *desc = DA_NTHITEM (opiith->names, i);
+			char *thash = DA_NTHITEM (opiith->thashs, i);
+			tnode_t *res = DA_NTHITEM (opiith->resolved, i);
 
 			occampi_isetindent (stream, indent + 1);
-			fprintf (stream, "<throws value=\"%s\" />\n", desc ?: "(null)");
+			fprintf (stream, "<throws name=\"%s\" typehash=\"0x%s\" resolved=\"%s\"%s>\n",
+					desc ?: "(null)", thash ?: "00000000", res ? "yes" : "no", res ? "" : " /");
+			if (res) {
+				tnode_dumptree (res, indent + 2, stream);
+				occampi_isetindent (stream, indent + 1);
+				fprintf (stream, "</throws>\n");
+			}
 		}
 	}
 	occampi_isetindent (stream, indent);
@@ -925,6 +946,135 @@ static int occampi_exceptioncheck_noexnode (compops_t *cops, tnode_t **nodep, op
 /*}}}*/
 
 
+/*{{{  static int occampi_exceptioncheck_scopein_procdecl (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
+/*
+ *	inserted into scope-in pass for PROC declarations to scope in imported THROWs
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_exceptioncheck_scopein_procdecl (compops_t *cops, tnode_t **nodep, scope_t *ss)
+{
+	int v = 1;
+	opiimportthrowshook_t *oph = (opiimportthrowshook_t *)tnode_getchook (*nodep, exceptioncheck_importthrowschook);
+
+	if (oph) {
+		int i;
+
+		for (i=0; i<DA_CUR (oph->names); i++) {
+			char *desc = DA_NTHITEM (oph->names, i);
+			tnode_t **resp = DA_NTHITEMADDR (oph->resolved, i);
+
+			if (*resp) {
+				scope_warning (*nodep, ss, "in imported THROWs, already scoped in [%s]", desc);
+			} else {
+				name_t *name = name_lookupss (desc, ss);
+
+				if (!name) {
+					scope_error (*nodep, ss, "in imported THROWs, unresolved exception [%s]", desc);
+				} else {
+					*resp = NameNodeOf (name);
+				}
+			}
+		}
+	}
+
+	if (cops->next && tnode_hascompop (cops->next, "scopein")) {
+		v = tnode_callcompop (cops->next, "scopein", 2, nodep, ss);
+	}
+	return v;
+}
+/*}}}*/
+/*{{{  static int occampi_exceptioncheck_scopeout_procdecl (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
+/*
+ *	inserted into scope-out pass for PROC declarations (dummy)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_exceptioncheck_scopeout_procdecl (compops_t *cops, tnode_t **nodep, scope_t *ss)
+{
+	int v = 1;
+
+	if (cops->next && tnode_hascompop (cops->next, "scopeout")) {
+		v = tnode_callcompop (cops->next, "scopeout", 2, nodep, ss);
+	}
+	return v;
+}
+/*}}}*/
+/*{{{  static int occampi_exceptioncheck_importedtypecheck_procdecl (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	called specifically for imported PROC declarations, to type-check thrown exceptions
+ *	returns 0 to stop walk, 1 to continue (not relevant)
+ */
+static int occampi_exceptioncheck_importedtypecheck_procdecl (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	int v = 1;
+	opiimportthrowshook_t *oph = (opiimportthrowshook_t *)tnode_getchook (node, exceptioncheck_importthrowschook);
+
+	if (oph) {
+		int i;
+		
+		for (i=0; i<DA_CUR (oph->resolved); i++) {
+			tnode_t *exc = DA_NTHITEM (oph->resolved, i);
+
+			if (exc->tag != opi.tag_NEXCEPTIONTYPEDECL) {
+				typecheck_error (node, tc, "in imported THROWs, name [%s] is not an EXCEPTION type", DA_NTHITEM (oph->names, i));
+			}
+#if 0
+fprintf (stderr, "occampi_exceptioncheck_importedtypecheck_procdecl(): here!\n");
+#endif
+		}
+	}
+
+	if (cops->next && tnode_hascompop (cops->next, "importedtypecheck")) {
+		v = tnode_callcompop (cops->next, "importedtypecheck", 2, node, tc);
+	}
+	return v;
+}
+/*}}}*/
+/*{{{  static int occampi_exceptioncheck_importedtyperesolve_procdecl (compops_t *cops, tnode_t **nodep, typecheck_t *tc)*/
+/*
+ *	called specifically for imported PROC declarations, to type-resolve thrown exceptions
+ *	returns 0 to stop walk, 1 to continue (not relevant)
+ */
+static int occampi_exceptioncheck_importedtyperesolve_procdecl (compops_t *cops, tnode_t **nodep, typecheck_t *tc)
+{
+	int v = 1;
+	opiimportthrowshook_t *oph = (opiimportthrowshook_t *)tnode_getchook (*nodep, exceptioncheck_importthrowschook);
+
+	if (oph) {
+		int i;
+
+		for (i=0; i<DA_CUR (oph->resolved); i++) {
+			char *echash = DA_NTHITEM (oph->thashs, i);
+			tnode_t *exc = DA_NTHITEM (oph->resolved, i);
+			unsigned int ethash = 0;
+
+			if (sscanf (echash, "%x", &ethash) != 1) {
+				typecheck_error (*nodep, tc, "bad type-hash [%s] on exception [%s] in imported THROWs",
+						echash ?: "(null)", DA_NTHITEM (oph->names, i));
+			} else {
+				unsigned int myhash = 0;
+
+				if (langops_typehash (exc, sizeof (myhash), &myhash)) {
+					nocc_internal ("occampi_exceptioncheck_importedtyperesolve_procdecl(): failed to get type-hash for (%s,%s)",
+							exc->tag->name, exc->tag->ndef->name);
+				} else {
+					if (myhash != ethash) {
+#if 0
+fprintf (stderr, "occampi_exceptioncheck_importedtyperesolve_procdecl(): import thash = 0x%8.8x, local thash = 0x%8.8x\n", ethash, myhash);
+#endif
+						typecheck_error (*nodep, tc, "imported type-hash for exception [%s] in imported THROWs differs from actual",
+								DA_NTHITEM (oph->names, i));
+					}
+				}
+			}
+		}
+	}
+
+	if (cops->next && tnode_hascompop (cops->next, "importedtyperesolve")) {
+		v = tnode_callcompop (cops->next, "importedtyperesolve", 2, nodep, tc);
+	}
+	return v;
+}
+/*}}}*/
 /*{{{  static int occampi_exceptioncheck_procdecl (compops_t *cops, tnode_t **nodep, opiexception_t *oex)*/
 /*
  *	called to do exception-checking on a proc declaration -- determines what the PROC throws
@@ -1029,12 +1179,23 @@ static int occampi_exceptioncheck_importmetadata_procdecl (langops_t *lops, tnod
 	if (!strcmp (name, "throws")) {
 		/* this one is for us! */
 		opiimportthrowshook_t *oph = (opiimportthrowshook_t *)tnode_getchook (node, exceptioncheck_importthrowschook);
+		const char *ch;
 
 		if (!oph) {
 			oph = opi_newopiimportthrowshook ();
 			tnode_setchook (node, exceptioncheck_importthrowschook, (void *)oph);
 		}
-		dynarray_add (oph->descr, string_dup (data));
+
+		/* find type-hash portion */
+		for (ch=data; (*ch != '\0') && (*ch != '#'); ch++);
+
+		dynarray_add (oph->names, string_ndup (data, (int)(ch - data)));
+		if (*ch == '#') {
+			dynarray_add (oph->thashs, string_dup (ch + 1));
+		} else {
+			dynarray_add (oph->thashs, NULL);
+		}
+		dynarray_add (oph->resolved, NULL);
 #if 0
 fprintf (stderr, "occampi_exceptioncheck_importmetadata_procdecl(): got some throws metadata [%s]\n", data);
 #endif
@@ -1258,6 +1419,10 @@ static int occampi_exceptions_post_setup (void)
 		return -1;
 	}
 	cops = tnode_insertcompops (tnd->ops);
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_exceptioncheck_scopein_procdecl));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_exceptioncheck_scopeout_procdecl));
+	tnode_setcompop (cops, "importedtypecheck", 2, COMPOPTYPE (occampi_exceptioncheck_importedtypecheck_procdecl));
+	tnode_setcompop (cops, "importedtyperesolve", 2, COMPOPTYPE (occampi_exceptioncheck_importedtyperesolve_procdecl));
 	tnode_setcompop (cops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_procdecl));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_exceptioncheck_fetrans_procdecl));
 	tnd->ops = cops;

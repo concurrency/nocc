@@ -77,6 +77,7 @@ gdb,			'\0',	opt_setintflag,		&(compopts.fatalgdb),		"1launch GDB on fatal error
 segfault,		'\0',	opt_setintflag,		&(compopts.fatalsegv),		"1cause segfault on fatal error",			303
 specs-file,		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				304
 output,			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					305
+interactive,		'i',	opt_setintflag,		&(compopts.interactive),	"1interactive compiler operation",			306
 include-path,		'I',	opt_addincludepath,	NULL,				"0add paths for include files",				350
 library-path,		'L',	opt_addlibrarypath,	NULL,				"0add paths for library files",				351
 extn-path,		'E',	opt_addextnpath,	NULL,				"1add paths for compiler extensions",			352

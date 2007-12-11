@@ -91,6 +91,7 @@ typedef struct TAG_compopts {
 	char *tracelangops;
 	int tracetracescheck;
 	int treecheck;
+	int interactive;
 	char *savenameddfa[2];
 	char *savealldfas;
 	int fatalgdb;
@@ -156,6 +157,9 @@ extern compopts_t compopts;
 
 /* this can be called by extensions (and other code) to add passes to the compiler */
 extern int nocc_addcompilerpass (const char *name, struct TAG_origin *origin, const char *other, int before, int (*pfcn)(void *), comppassarg_t parg, int stopat, int *eflagptr);
+
+/* this is used to add initialisation functions, called after other initialisations but before extensions are loaded */
+extern int nocc_addcompilerinitfunc (const char *name, struct TAG_origin *origin, int (*ifcn)(void *), void *arg);
 
 /* this is used to add an XML namespace to the compiler -- for prefixing on dumped XML output -- only for top-level tree-dumps (and some helper routines) */
 extern int nocc_addxmlnamespace (const char *name, const char *uri);
