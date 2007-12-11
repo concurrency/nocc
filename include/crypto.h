@@ -32,6 +32,7 @@ extern char *crypto_readdigest (crypto_t *cry, int *issignedp);
 extern int crypto_signdigest (crypto_t *cry, char *privfile);
 
 extern int crypto_verifykeyfile (const char *fname, int secure);
+extern int crypto_verifylibfile (const char *libfile, const char **pubkeys, int npubkeys);
 
 extern int crypto_init (void);
 extern int crypto_shutdown (void);

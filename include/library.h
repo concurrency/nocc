@@ -24,6 +24,20 @@ struct TAG_tnode;
 struct TAG_lexfile;
 struct TAG_crypto;
 
+typedef struct TAG_libdigestinfo {
+	char *srcunit;
+	struct TAG_crypto *cry;
+	char *hashalgo;
+	char *shash;
+	char *sdhash;
+
+	int checked;
+} libdigestinfo_t;
+
+typedef struct TAG_libdigestset {
+	DYNARRAY (libdigestinfo_t *, entries);
+} libdigestset_t;
+
 extern struct TAG_tnode *library_newlibnode (struct TAG_lexfile *lf, char *libname);
 extern int library_addincludes (struct TAG_tnode *libnode, char *iname);
 extern int library_adduses (struct TAG_tnode *libnode, char *lname);
@@ -39,7 +53,9 @@ extern struct TAG_tnode *library_newusenode (struct TAG_lexfile *lf, char *libna
 extern struct TAG_tnode *library_externaldecl (struct TAG_lexfile *lf, char *extdef);
 extern int library_setusenamespace (struct TAG_tnode *libusenode, char *nsname);
 
-extern int library_readlibanddigest (char *libname, struct TAG_crypto *cry, char *srcname, char **algop, char **shashp, char **sdhashp);
+extern int library_readlibanddigest (const char *libname, struct TAG_crypto *cry, char *srcname, char **algop, char **shashp, char **sdhashp);
+extern libdigestset_t *library_readlibanddigestset (const char *libname);
+extern void library_freelibdigestset (libdigestset_t *ldset);
 
 
 extern int library_init (void);

@@ -631,6 +631,91 @@ static void lib_libnodehook_dumpstree (tnode_t *node, void *hook, int indent, FI
 }
 /*}}}*/
 
+/*{{{  static libdigestinfo_t *lib_newlibdigestinfo (void)*/
+/*
+ *	creates a new libdigestinfo_t structure (initialised with crypto digest)
+ */
+static libdigestinfo_t *lib_newlibdigestinfo (void)
+{
+	libdigestinfo_t *ldi = (libdigestinfo_t *)smalloc (sizeof (libdigestinfo_t));
+
+	ldi->srcunit = NULL;
+	ldi->cry = crypto_newdigest ();
+	ldi->hashalgo = NULL;
+	ldi->shash = NULL;
+	ldi->sdhash = NULL;
+	ldi->checked = 0;
+
+	return ldi;
+}
+/*}}}*/
+/*{{{  static void lib_freelibdigestinfo (libdigestinfo_t *ldi)*/
+/*
+ *	frees a libdigestinfo_t structure
+ */
+static void lib_freelibdigestinfo (libdigestinfo_t *ldi)
+{
+	if (!ldi) {
+		nocc_internal ("lib_freelibdigestinfo(): NULL pointer!");
+		return;
+	}
+	if (ldi->srcunit) {
+		sfree (ldi->srcunit);
+	}
+	if (ldi->cry) {
+		crypto_freedigest (ldi->cry);
+	}
+	if (ldi->hashalgo) {
+		sfree (ldi->hashalgo);
+	}
+	if (ldi->shash) {
+		sfree (ldi->shash);
+	}
+	if (ldi->sdhash) {
+		sfree (ldi->sdhash);
+	}
+	sfree (ldi);
+	return;
+}
+/*}}}*/
+/*{{{  static libdigestset_t *lib_newlibdigestset (void)*/
+/*
+ *	creates a new libdigestset_t structure
+ */
+static libdigestset_t *lib_newlibdigestset (void)
+{
+	libdigestset_t *ldset = (libdigestset_t *)smalloc (sizeof (libdigestset_t));
+
+	dynarray_init (ldset->entries);
+
+	return ldset;
+}
+/*}}}*/
+/*{{{  static void lib_freelibdigestset (libdigestset_t *ldset)*/
+/*
+ *	frees a libdigestset_t
+ */
+static void lib_freelibdigestset (libdigestset_t *ldset)
+{
+	int i;
+
+	if (!ldset) {
+		nocc_internal ("lib_freelibdigestset(): NULL pointer!");
+		return;
+	}
+	for (i=0; i<DA_CUR (ldset->entries); i++) {
+		libdigestinfo_t *ldi = DA_NTHITEM (ldset->entries, i);
+
+		if (ldi) {
+			lib_freelibdigestinfo (ldi);
+		}
+	}
+	dynarray_trash (ldset->entries);
+	sfree (ldset);
+	return;
+}
+/*}}}*/
+
 
 /*{{{  static libusenodehook_t *lib_newlibusenodehook (lexfile_t *lf, char *libname)*/
 /*
@@ -1586,12 +1671,12 @@ static libfile_t *lib_newlibrary (char *libname)
 	return lf;
 }
 /*}}}*/
-/*{{{  static libfile_t *lib_readlibrary (char *libname, int using)*/
+/*{{{  static libfile_t *lib_readlibrary (const char *libname, int using)*/
 /*
  *	reads a library-file and returns it, returns NULL on failure.
  *	Will return a blank library if none exists, unless "using" is true (in which case compiler library paths are searched)
  */
-static libfile_t *lib_readlibrary (char *libname, int using)
+static libfile_t *lib_readlibrary (const char *libname, int using)
 {
 	libfile_t *lf = NULL;
 	char fbuf[FILENAME_MAX];
@@ -2930,10 +3015,18 @@ nocc_message ("lib_decodeexternaldecl(): dbuf=[%s], sizes=[%s]", dbuf, sizes);
  */
 static int lib_validatesignatures (lexfile_t *orglf, libusenodehook_t *lunh)
 {
-#if 1
-fprintf (stderr, "lib_validatesignatures(): want to validate library [%s]\n", lunh->libname);
+#if 0
+fprintf (stderr, "lib_validatesignatures(): want to validate library [%s] (in file [%s])\n", lunh->libname, lunh->libdata->fname);
 #endif
-	/* FIXME! */
+
+	if (crypto_verifylibfile (lunh->libdata->fname, (const char **)DA_PTR (compopts.trustedkeys), DA_CUR (compopts.trustedkeys))) {
+		nocc_error ("lib_validatesignatures(): failed to validate library!");
+		return -1;
+	}
+
+	if (compopts.verbose) {
+		nocc_message ("validated signatures in library [%s]", lunh->libname);
+	}
 	return 0;
 }
 /*}}}*/
@@ -3342,13 +3435,13 @@ int library_setusenamespace (tnode_t *libusenode, char *nsname)
 }
 /*}}}*/
 
-/*{{{  int library_readlibanddigest (char *libname, crypto_t *cry, char *srcname, char **algop, char **shashp, char **sdhashp)*/
+/*{{{  int library_readlibanddigest (const char *libname, crypto_t *cry, char *srcname, char **algop, char **shashp, char **sdhashp)*/
 /*
  *	reads in a library and "digests" the entry information.  if "srcname" is non-null,
  *	will use the <libunit name="..."> matching, otherwise expects a single <libunit>.
  *	returns 0 on success, non-zero on failure
  */
-int library_readlibanddigest (char *libname, crypto_t *cry, char *srcname, char **algop, char **shashp, char **sdhashp)
+int library_readlibanddigest (const char *libname, crypto_t *cry, char *srcname, char **algop, char **shashp, char **sdhashp)
 {
 	libfile_t *lf;
 	libfile_srcunit_t *lfsu = NULL;
@@ -3425,6 +3518,68 @@ int library_readlibanddigest (char *libname, crypto_t *cry, char *srcname, char 
 	return 0;
 }
 /*}}}*/
+/*{{{  libdigestset_t *library_readlibanddigestset (const char *libname)*/
+/*
+ *	reads a library file and digests the descriptor information
+ *	returns a set of entries on success, NULL on failure
+ */
+libdigestset_t *library_readlibanddigestset (const char *libname)
+{
+	libdigestset_t *ldset;
+	libfile_t *lf;
+	int i;
 
+	lf = lib_readlibrary (libname, 1);
+	if (!lf) {
+		nocc_error ("library_readlibanddigestset(): no such library [%s]", libname);
+		return NULL;
+	}
+
+	ldset = lib_newlibdigestset ();
+
+	for (i=0; i<DA_CUR (lf->srcs); i++) {
+		libfile_srcunit_t *lfsu = DA_NTHITEM (lf->srcs, i);
+		libdigestinfo_t *ldi = lib_newlibdigestinfo ();
+
+		if (lfsu->fname) {
+			ldi->srcunit = string_dup (lfsu->fname);
+		} else {
+			ldi->srcunit = string_dup ("(unknown source)");
+		}
+
+		ldi->checked = 0;
+
+		if (lfsu->hashalgo) {
+			ldi->hashalgo = string_dup (lfsu->hashalgo);
+		}
+		if (lfsu->hashvalue) {
+			ldi->shash = string_dup (lfsu->hashvalue);
+		}
+		if (lfsu->dhashvalue) {
+			ldi->sdhash = string_dup (lfsu->dhashvalue);
+		}
+		if (lib_digestlibfilesrcunit (lfsu, lf, ldi->cry)) {
+			nocc_warning ("library_readlibanddigestset(): error digesting src-unit [%s] in library [%s]", ldi->srcunit, libname);
+			lib_freelibdigestinfo (ldi);
+		} else {
+			dynarray_add (ldset->entries, ldi);
+		}
+	}
+
+	return ldset;
+}
+/*}}}*/
+/*{{{  void library_freelibdigestset (libdigestset_t *ldset)*/
+/*
+ *	frees a library digest set
+ */
+void library_freelibdigestset (libdigestset_t *ldset)
+{
+	if (ldset) {
+		lib_freelibdigestset (ldset);
+	}
+	return;
+}
+/*}}}*/
 
 
