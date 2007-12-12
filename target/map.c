@@ -56,6 +56,24 @@ void map_isetindent (FILE *stream, int indent)
 /*}}}*/
 
 
+/*{{{  static void map_mapstate_freewalk (mapstate_t *ms, char *key, void *arg)*/
+/*
+ *	walks through items in the "mstate" field of a map_t structure freeing them
+ */
+static void map_mapstate_freewalk (mapstate_t *ms, char *key, void *arg)
+{
+	if (!ms) {
+		return;
+	}
+	if (ms->id) {
+		sfree (ms->id);
+		ms->id = NULL;
+	}
+	sfree (ms);
+	return;
+}
+/*}}}*/
+
 /*{{{  static int map_modprewalk_mapnames (tnode_t **tptr, void *arg)*/
 /*
  *	private function that walks over nodes mapping names,
@@ -194,6 +212,7 @@ int map_mapnames (tnode_t **tptr, target_t *target)
 	mdata->allocevhook = tnode_lookupornewchook ("alloc:extravars");
 	mdata->precodehook = tnode_lookupornewchook ("precode:vars");
 	mdata->inparamlist = 0;
+	stringhash_init (mdata->mstate, MAP_MAPSTATE_BITSIZE);
 
 	/* do pre-mapping then real mapping */
 	tnode_modprewalktree (tptr, map_modprewalk_premap, (void *)mdata);
@@ -201,6 +220,9 @@ int map_mapnames (tnode_t **tptr, target_t *target)
 	tnode_modprewalktree (tptr, map_modprewalk_bemap, (void *)mdata);
 
 	i = mdata->err;
+
+	stringhash_walk (mdata->mstate, map_mapstate_freewalk, NULL);
+	stringhash_trash (mdata->mstate);
 	sfree (mdata);
 
 	return i;

@@ -444,7 +444,7 @@ void opts_init (void)
 
 	dynarray_qsort (ordered_options, opts_compare_option);
 
-	stringhash_init (extraopts);
+	stringhash_sinit (extraopts);
 	
 	return;
 }

@@ -24,6 +24,13 @@ struct TAG_tnode;
 struct TAG_target;
 struct TAG_chook;
 
+typedef struct TAG_mapstate {
+	char *id;
+	void *ptr;
+} mapstate_t;
+
+#define MAP_MAPSTATE_BITSIZE (3)
+
 typedef struct TAG_map {
 	int lexlevel;
 	struct TAG_target *target;
@@ -40,6 +47,7 @@ typedef struct TAG_map {
 	struct TAG_tnode *thisberesult;
 
 	int inparamlist;		/* non-zero if we're mapping parameters */
+	STRINGHASH (mapstate_t *, mstate, MAP_MAPSTATE_BITSIZE);
 } map_t;
 
 

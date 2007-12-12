@@ -360,21 +360,21 @@ int tnode_init (void)
 	ntdef_t *ntd;
 	int i;
 
-	stringhash_init (nodetypes);
+	stringhash_sinit (nodetypes);
 	dynarray_init (anodetypes);
-	stringhash_init (nodetags);
+	stringhash_sinit (nodetags);
 	dynarray_init (anodetags);
 
-	stringhash_init (comphooks);
+	stringhash_sinit (comphooks);
 	dynarray_init (acomphooks);
 
-	stringhash_init (compops);
+	stringhash_sinit (compops);
 	dynarray_init (acompops);
-	stringhash_init (langops);
+	stringhash_sinit (langops);
 	dynarray_init (alangops);
 
-	stringhash_init (tracingcompops);
-	stringhash_init (tracinglangops);
+	stringhash_sinit (tracingcompops);
+	stringhash_sinit (tracinglangops);
 
 	if (compopts.tracecompops) {
 		char *copy = string_dup (compopts.tracecompops);

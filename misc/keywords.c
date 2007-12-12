@@ -66,7 +66,7 @@ void keywords_init (void)
 		}
 	}
 
-	stringhash_init (extrakeywords);
+	stringhash_sinit (extrakeywords);
 
 	return;
 }

@@ -124,7 +124,7 @@ static void fcn_freefcnlib (fcnlib_t *fcnl)
  */
 int fcnlib_init (void)
 {
-	stringhash_init (functions);
+	stringhash_sinit (functions);
 	dynarray_init (afunctions);
 
 	opts_add ("dump-fcnlib", '\0', fcn_opthandler, (void *)1, "1dump registered functions on shutdown");

@@ -180,7 +180,7 @@ int target_initialise (target_t *target)
  */
 int target_init (void)
 {
-	stringhash_init (targets);
+	stringhash_sinit (targets);
 	dynarray_init (atargets);
 
 	/* initialise the built-in KRoC/ETC target */

@@ -76,6 +76,7 @@
 
 static compop_t *inparams_scopein_compop = NULL;
 static compop_t *inparams_scopeout_compop = NULL;
+static compop_t *inparams_namemap_compop = NULL;
 
 
 /*}}}*/
@@ -1065,6 +1066,10 @@ fprintf (stderr, "occampi_namemap_procdecl(): about to map parameters:\n");
 tnode_dumptree (*paramsptr, 1, stderr);
 #endif
 	map_submapnames (paramsptr, map);
+	if (tnode_hascompop ((*node)->tag->ndef->ops, "inparams_namemap")) {
+		tnode_callcompop ((*node)->tag->ndef->ops, "inparams_namemap", 2, node, map);
+	}
+
 	map->inparamlist = 0;
 	map_submapnames (tnode_nthsubaddr (blk, 0), map);		/* do this under the back-end block */
 
@@ -2059,7 +2064,7 @@ static int occampi_decl_init_nodes (void)
 	opi.chook_arraydiminfo->chook_dumptree = occampi_arraydiminfo_chook_dumptree;
 
 	/*}}}*/
-	/*{{{  compiler operations for handling scoping with parameters*/
+	/*{{{  compiler operations for handling scoping and other things associated with parameters*/
 	if (tnode_newcompop ("inparams_scopein", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 		nocc_error ("occampi_decl_init_nodes(): failed to create inparams_scopein compiler operation");
 		return -1;
@@ -2071,6 +2076,12 @@ static int occampi_decl_init_nodes (void)
 		return -1;
 	}
 	inparams_scopeout_compop = tnode_findcompop ("inparams_scopeout");
+
+	if (tnode_newcompop ("inparams_namemap", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
+		nocc_error ("occampi_decl_init_nodes(): failed to create inparams_namemap compiler operation");
+		return -1;
+	}
+	inparams_namemap_compop = tnode_findcompop ("inparams_namemap");
 
 	if (!inparams_scopein_compop || !inparams_scopeout_compop) {
 		nocc_error ("occampi_decl_init_nodes(): failed to find inparams scoping compiler operations");

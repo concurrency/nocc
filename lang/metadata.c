@@ -418,7 +418,7 @@ static void metadatalisthook_dumptree (tnode_t *node, void *hook, int indent, FI
 int metadata_init (void)
 {
 	/*{{{  local initialisation*/
-	stringhash_init (mdres);
+	stringhash_sinit (mdres);
 
 	/*}}}*/
 	/*{{{  metadata compiler-hook*/

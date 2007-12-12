@@ -65,7 +65,7 @@ void transinstr_init (void)
 		}
 	}
 
-	stringhash_init (extratransinstrs);
+	stringhash_sinit (extratransinstrs);
 
 	return;
 }

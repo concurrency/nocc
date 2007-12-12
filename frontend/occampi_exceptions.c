@@ -1202,21 +1202,32 @@ fprintf (stderr, "occampi_exceptioncheck_fetrans_procdecl(): opith = %p\n", opit
 	return v;
 }
 /*}}}*/
-/*{{{  static int occampi_exceptioncheck_namemap_procdecl (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*{{{  static int occampi_exceptioncheck_inparams_namemap_procdecl (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	inserted name-map on a PROC declaration (will be called for local and foreign PROCs)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_exceptioncheck_namemap_procdecl (compops_t *cops, tnode_t **nodep, map_t *map)
+static int occampi_exceptioncheck_inparams_namemap_procdecl (compops_t *cops, tnode_t **nodep, map_t *map)
 {
 	int v = 1;
+	opithrowshook_t *opith = (opithrowshook_t *)tnode_getchook (*nodep, exceptioncheck_throwschook);
 
-#if 1
-fprintf (stderr, "occampi_exceptioncheck_namemap_procdecl(): here, PROC being declared is:\n");
+	if (opith && DA_CUR (opith->elist)) {
+		tnode_t **paramsptr = tnode_nthsubaddr (*nodep, 1);
+		tnode_t *tmpname;
+
+		tmpname = map->target->newname (tnode_create (opi.tag_HIDDENPARAM, NULL, tnode_create (opi.tag_EXCEPTIONLINK, NULL)), NULL, map,
+				map->target->pointersize, 0, 0, 0, map->target->pointersize, 1);
+		parser_addtolist (*paramsptr, tmpname);
+#if 0
+fprintf (stderr, "occampi_exceptioncheck_inparams_namemap_procdecl(): here, PROC being declared is:\n");
 tnode_dumptree (tnode_nthsubof (*nodep, 0), 1, stderr);
+fprintf (stderr, "occampi_exceptioncheck_inparams_namemap_procdecl(): temporary to add to parameter-list is:\n");
+tnode_dumptree (tmpname, 1, stderr);
 #endif
-	if (cops->next && tnode_hascompop (cops->next, "namemap")) {
-		v = tnode_callcompop (cops->next, "namemap", 2, nodep, map);
+	}
+	if (cops->next && tnode_hascompop (cops->next, "inparams_namemap")) {
+		v = tnode_callcompop (cops->next, "inparams_namemap", 2, nodep, map);
 	}
 	return v;
 }
@@ -1302,10 +1313,22 @@ static int occampi_exceptioncheck_namemap_instancenode (compops_t *cops, tnode_t
 {
 	int v = 1;
 
+	if ((*nodep)->tag == opi.tag_PINSTANCE) {
+		/*{{{  PROC instance*/
+		tnode_t *name = tnode_nthsubof (*nodep, 0);
+		name_t *pname = tnode_nthnameof (name, 0);
+		tnode_t *pdecl = NameDeclOf (pname);
+		opithrowshook_t *opith = (opithrowshook_t *)tnode_getchook (pdecl, exceptioncheck_throwschook);
+
+		if (opith && DA_CUR (opith->elist)) {
 #if 1
 fprintf (stderr, "occampi_exceptioncheck_namemap_instancenode(): here, PROC being instanced is:\n");
 tnode_dumptree (tnode_nthsubof (*nodep, 0), 1, stderr);
 #endif
+		}
+		/*}}}*/
+	}
+
 	if (cops->next && tnode_hascompop (cops->next, "namemap")) {
 		v = tnode_callcompop (cops->next, "namemap", 2, nodep, map);
 	}
@@ -1361,6 +1384,13 @@ static int occampi_exceptions_init_nodes (void)
 		nocc_serious ("occampi_exceptions_post_setup(): failed to add \"exceptioncheck\" compiler operation!");
 		return -1;
 	}
+
+	/*}}}*/
+	/*{{{  occampi:leafnode*/
+	tnd = tnode_lookupnodetype ("occampi:leafnode");
+
+	i = -1;
+	opi.tag_EXCEPTIONLINK = tnode_newnodetag ("EXCEPTIONLINK", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  occampi:exceptiontypedecl -- EXCEPTIONTYPEDECL*/
@@ -1512,7 +1542,7 @@ static int occampi_exceptions_post_setup (void)
 	tnode_setcompop (cops, "importedprecheck", 1, COMPOPTYPE (occampi_exceptioncheck_precheck_procdecl));
 	tnode_setcompop (cops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_procdecl));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_exceptioncheck_fetrans_procdecl));
-	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_exceptioncheck_namemap_procdecl));
+	tnode_setcompop (cops, "inparams_namemap", 2, COMPOPTYPE (occampi_exceptioncheck_inparams_namemap_procdecl));
 	tnd->ops = cops;
 	lops = tnode_insertlangops (tnd->lops);
 	tnode_setlangop (lops, "importmetadata", 3, LANGOPTYPE (occampi_exceptioncheck_importmetadata_procdecl));

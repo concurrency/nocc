@@ -1319,11 +1319,31 @@ int da_hasitem (int *cur, int *max, void ***array, void *item)
 /*}}}*/
 
 
-/*{{{  void sh_init (int *bsizes, void ***table, char ***keys, int size)*/
+/*{{{  void sh_init (int *bsizes, void ***table, char ***keys, int *szptr, int *bszptr, void **fnptr, int bitsize)*/
 /*
  *	initialises a string-hash
  */
-void sh_init (int *bsizes, void ***table, char ***keys, int size)
+void sh_init (int *bsizes, void ***table, char ***keys, int *szptr, int *bszptr, void **fnptr, int bitsize)
+{
+	int i;
+	int size = (1 << bitsize);
+
+	*szptr = size;
+	*bszptr = bitsize;
+	*fnptr = (void *)sh_lookup;
+	for (i=0; i<size; i++) {
+		bsizes[i] = 0;
+		table[i] = NULL;
+		keys[i] = NULL;
+	}
+	return;
+}
+/*}}}*/
+/*{{{  void sh_sinit (int *bsizes, void ***table, char ***keys, int size)*/
+/*
+ *	initialises a static string-hash
+ */
+void sh_sinit (int *bsizes, void ***table, char ***keys, int size)
 {
 	int i;
 

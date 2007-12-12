@@ -58,9 +58,9 @@ static int tempnamecounter = 1;
  */
 int name_init (void)
 {
-	stringhash_init (names);
+	stringhash_sinit (names);
 	dynarray_init (namestack);
-	stringhash_init (namespaces);
+	stringhash_sinit (namespaces);
 
 	return 0;
 }

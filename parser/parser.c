@@ -79,7 +79,7 @@ STATICDYNARRAY (ngrule_t *, angrules);
  */
 int parser_init (void)
 {
-	stringhash_init (reducers);
+	stringhash_sinit (reducers);
 	dynarray_init (areducers);
 
 	tag_LIST = tnode_lookupnodetag ("list");
@@ -88,7 +88,7 @@ int parser_init (void)
 	parser_register_reduce ("Rinlist", parser_inlistreduce, NULL);
 	fcnlib_addfcn ("parser_inlistfixup", (void *)parser_inlistfixup, 1, 1);
 
-	stringhash_init (ngrules);
+	stringhash_sinit (ngrules);
 	dynarray_init (angrules);
 
 	parser_register_grule ("parser:nullreduce", parser_decode_grule ("N+R-"));

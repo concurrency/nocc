@@ -82,7 +82,7 @@ static int dfa_idecode_totbl (char **bits, int first, int last, int istate, int 
  */
 int dfa_init (void)
 {
-	stringhash_init (nameddfas);
+	stringhash_sinit (nameddfas);
 	dynarray_init (defmatches);
 	dynarray_init (deftargets);
 	return 0;

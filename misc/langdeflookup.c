@@ -67,7 +67,7 @@ int langdeflookup_init (void)
 		}
 	}
 
-	stringhash_init (extralangdeflookups);
+	stringhash_sinit (extralangdeflookups);
 
 	return 0;
 }

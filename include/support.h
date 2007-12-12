@@ -157,6 +157,12 @@ extern int da_hasitem (int *cur, int *max, void ***array, void *item);
 		static const int SH_SIZE(NAME) = (1 << (BITSIZE)); \
 		static const int SH_BITSIZE(NAME) = (BITSIZE); \
 		static TYPE (*SH_LOOKUP(NAME))(int *, void ***, char ***, int, char *) = (TYPE(*)(int *, void ***, char ***, int, char *))sh_lookup
+#define STRINGHASH(TYPE,NAME,BITSIZE) TYPE* SH_TABLE(NAME)[1 << (BITSIZE)]; \
+		char** SH_KEYS(NAME)[1 << (BITSIZE)]; \
+		int SH_BSIZES(NAME)[1 << (BITSIZE)]; \
+		int SH_SIZE(NAME); \
+		int SH_BITSIZE(NAME); \
+		TYPE (*SH_LOOKUP(NAME))(int *, void ***, char ***, int, char *)
 
 
 #ifdef TRACE_MEMORY
@@ -173,12 +179,14 @@ extern int da_hasitem (int *cur, int *max, void ***array, void *item);
 	extern void sh_trash (int *bsizes, void ***table, char ***keys, int size);
 #endif
 
-extern void sh_init (int *bsizes, void ***table, char ***keys, int size);
+extern void sh_init (int *bsizes, void ***table, char ***keys, int *szptr, int *bszptr, void **fnptr, int bitsize);
+extern void sh_sinit (int *bsizes, void ***table, char ***keys, int size);
 extern void *sh_lookup (int *bsizes, void ***table, char ***keys, int bitsize, char *match);
 extern void sh_dump (FILE *stream, int *bsizes, void ***table, char ***keys, int size);
 extern void sh_walk (int *bsizes, void ***table, char ***keys, int size, void (*func)(void *, char *, void *), void *p);
 
-#define stringhash_init(SHASH) sh_init((int *)&((SH_BSIZES(SHASH))[0]), (void ***)&((SH_TABLE(SHASH))[0]), (char ***)&((SH_KEYS(SHASH))[0]), SH_SIZE(SHASH))
+#define stringhash_init(SHASH,BITSIZE) sh_init((int *)&((SH_BSIZES(SHASH))[0]), (void ***)&((SH_TABLE(SHASH))[0]), (char ***)&((SH_KEYS(SHASH))[0]), &SH_SIZE(SHASH), &SH_BITSIZE(SHASH), (void *)&(SH_LOOKUP(SHASH)), (BITSIZE))
+#define stringhash_sinit(SHASH) sh_sinit((int *)&((SH_BSIZES(SHASH))[0]), (void ***)&((SH_TABLE(SHASH))[0]), (char ***)&((SH_KEYS(SHASH))[0]), SH_SIZE(SHASH))
 #define stringhash_insert(SHASH,ITEM,KEY) sh_insert((int *)&((SH_BSIZES(SHASH))[0]), (void ***)&((SH_TABLE(SHASH))[0]), (char ***)&((SH_KEYS(SHASH))[0]), SH_BITSIZE(SHASH), (void *)(ITEM), (char *)(KEY))
 #define stringhash_remove(SHASH,ITEM,KEY) sh_remove((int *)&((SH_BSIZES(SHASH))[0]), (void ***)&((SH_TABLE(SHASH))[0]), (char ***)&((SH_KEYS(SHASH))[0]), SH_BITSIZE(SHASH), (void *)(ITEM), (char *)(KEY))
 #define stringhash_lookup(SHASH,ITEM) SH_LOOKUP(SHASH) ((int *)&((SH_BSIZES(SHASH))[0]), (void ***)&((SH_TABLE(SHASH))[0]), (char ***)&((SH_KEYS(SHASH))[0]), SH_BITSIZE(SHASH), (char *)(ITEM))
@@ -205,7 +213,7 @@ extern void sh_walk (int *bsizes, void ***table, char ***keys, int size, void (*
 		int PH_BSIZES(NAME)[1 << (BITSIZE)]; \
 		int PH_SIZE(NAME); \
 		int PH_BITSIZE(NAME); \
-		TYPE (*PH_LOOKUP(NAME))(int *, void ***, void ***, int, void *);
+		TYPE (*PH_LOOKUP(NAME))(int *, void ***, void ***, int, void *)
 
 #ifdef TRACE_MEMORY
 	#define ph_insert(X,A,B,C,D,E) ss_ph_insert(__FILE__,__LINE__,X,A,B,C,D,E)
