@@ -345,6 +345,73 @@ tnode_t **map_thisprocparams_ll (map_t *mdata, int lexlevel)
 }
 /*}}}*/
 
+/*{{{  int map_hasstate (map_t *mdata, const char *id)*/
+/*
+ *	tests to see whether a mapping structure has some particular state in it
+ *	returns truth value
+ */
+int map_hasstate (map_t *mdata, const char *id)
+{
+	mapstate_t *ms = stringhash_lookup (mdata->mstate, id);
+
+	if (ms) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  void *map_getstate (map_t *mdata, const char *id)*/
+/*
+ *	retrieves some state attached to a mapping structure
+ *	returns value on success, NULL on failure (may be legitimate value)
+ */
+void *map_getstate (map_t *mdata, const char *id)
+{
+	mapstate_t *ms = stringhash_lookup (mdata->mstate, id);
+
+	if (!ms) {
+		return NULL;
+	}
+	return ms->ptr;
+}
+/*}}}*/
+/*{{{  int map_setstate (map_t *mdata, const char *id, void *data)*/
+/*
+ *	sets some state in a mapping structure
+ *	returns 1 if some existing state was replaced, 0 otherwise
+ */
+int map_setstate (map_t *mdata, const char *id, void *data)
+{
+	mapstate_t *ms = stringhash_lookup (mdata->mstate, id);
+	int r = 0;
+
+	if (!ms) {
+		r = 1;
+		ms = (mapstate_t *)smalloc (sizeof (mapstate_t));
+		ms->id = string_dup (id);
+		stringhash_insert (mdata->mstate, ms, ms->id);
+	}
+	ms->ptr = data;
+	return r;
+}
+/*}}}*/
+/*{{{  void map_clearstate (map_t *mdata, const char *id)*/
+/*
+ *	clears some state from a mapping structure
+ */
+void map_clearstate (map_t *mdata, const char *id)
+{
+	mapstate_t *ms = stringhash_lookup (mdata->mstate, id);
+
+	if (ms) {
+		stringhash_remove (mdata->mstate, ms, ms->id);
+		sfree (ms->id);
+		sfree (ms);
+	}
+	return;
+}
+/*}}}*/
+
 /*{{{  int map_init (void)*/
 /*
  *	initialises the mapper

@@ -64,6 +64,11 @@ extern struct TAG_tnode **map_thisprocparams_cll (map_t *mdata);
 extern struct TAG_tnode *map_thisblock_ll (map_t *mdata, int lexlevel);
 extern struct TAG_tnode **map_thisprocparams_ll (map_t *mdata, int lexlevel);
 
+extern int map_hasstate (map_t *mdata, const char *id);
+extern void *map_getstate (map_t *mdata, const char *id);
+extern int map_setstate (map_t *mdata, const char *id, void *data);
+extern void map_clearstate (map_t *mdata, const char *id);
+
 extern int map_init (void);
 extern int map_shutdown (void);
 
