@@ -710,7 +710,7 @@
 .GRULE	"opi:catchexprzeroreduce" "SN0N+00C[CATCHEXPR]3R-"
 .GRULE	"opi:catchexprreduce" "SN0N+N+V0VC[CATCHEXPR]3R-"
 .GRULE	"opi:finallyreduce" "ST0T+@t00C[FINALLY]2R-"
-.GRULE	"opi:throwzeroreduce" "SN0N+0C[THROW]2R-"
+.GRULE	"opi:throwzeroreduce" "SN0N+00C[THROW]3R-"
 .GRULE	"opi:throwreduce" "SN0N+N+VC[THROW]2R-"
 .GRULE	"opi:noexreduce" "ST0T+@t00C[NOEXCEPTIONS]2R-"
 

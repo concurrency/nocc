@@ -39,6 +39,8 @@ typedef enum ENUM_typecat {
 	TYPE_USERDEFINED = 0x0008,
 	TYPE_INTEGER = 0x0010,
 	TYPE_REAL = 0x0020,
+	TYPE_DATA = 0x0040,
+	TYPE_COMM = 0x0080,
 
 	TYPE_WIDTHMASK = 0xffff0000
 } typecat_e;

@@ -772,21 +772,21 @@ static int occampi_leaftype_codegen_typerangecheck (langops_t *lops, tnode_t *no
 static typecat_e occampi_leaftype_typetype (langops_t *lops, tnode_t *t)
 {
 	if (t->tag == opi.tag_BOOL) {
-		return (0x00010000 | TYPE_WIDTHSET | TYPE_INTEGER);
+		return (0x00010000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_DATA | TYPE_COMM);
 	} else if (t->tag == opi.tag_BYTE) {
-		return (0x00080000 | TYPE_WIDTHSET | TYPE_INTEGER);
+		return (0x00080000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_DATA | TYPE_COMM);
 	} else if ((t->tag == opi.tag_INT) || (t->tag == opi.tag_INT32)) {
-		return (0x00200000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_SIGNED);
+		return (0x00200000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_SIGNED | TYPE_DATA | TYPE_COMM);
 	} else if (t->tag == opi.tag_INT16) {
-		return (0x00100000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_SIGNED);
+		return (0x00100000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_SIGNED | TYPE_DATA | TYPE_COMM);
 	} else if (t->tag == opi.tag_INT64) {
-		return (0x00400000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_SIGNED);
+		return (0x00400000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_SIGNED | TYPE_DATA | TYPE_COMM);
 	} else if (t->tag == opi.tag_REAL32) {
-		return (0x00200000 | TYPE_WIDTHSET | TYPE_REAL | TYPE_SIGNED);
+		return (0x00200000 | TYPE_WIDTHSET | TYPE_REAL | TYPE_SIGNED | TYPE_DATA | TYPE_COMM);
 	} else if (t->tag == opi.tag_REAL64) {
-		return (0x00400000 | TYPE_WIDTHSET | TYPE_REAL | TYPE_SIGNED);
+		return (0x00400000 | TYPE_WIDTHSET | TYPE_REAL | TYPE_SIGNED | TYPE_DATA | TYPE_COMM);
 	} else if (t->tag == opi.tag_CHAR) {
-		return (0x00080000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_SIGNED);
+		return (0x00080000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_SIGNED | TYPE_DATA | TYPE_COMM);
 	}
 	return TYPE_NOTTYPE;
 }

@@ -452,6 +452,9 @@ static int occampi_scopein_exceptiontypedecl (compops_t *cops, tnode_t **nodep, 
 			/* failed to scope in sub-type */
 			return 0;
 		}
+		if (!parser_islistnode (*typep)) {
+			*typep = parser_buildlistnode (NULL, *typep, NULL);
+		}
 	}
 
 	sname = name_addscopename (rawname, *nodep, *typep, NULL);
@@ -481,6 +484,39 @@ static int occampi_scopein_exceptiontypedecl (compops_t *cops, tnode_t **nodep, 
  */
 static int occampi_scopeout_exceptiontypedecl (compops_t *cops, tnode_t **nodep, scope_t *ss)
 {
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_typecheck_exceptiontypedecl (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on an exception type declaration
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_exceptiontypedecl (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *type = tnode_nthsubof (node, 1);
+
+	if (type) {
+		int nitems, i;
+		tnode_t **items;
+		
+		typecheck_subtree (type, tc);
+		items = parser_getlistitems (type, &nitems);
+
+		for (i=0; i<nitems; i++) {
+			typecat_e tce = typecheck_typetype (items[i]);
+
+			/* type must be communicable */
+			if (!(tce & TYPE_COMM)) {
+				typecheck_error (node, tc, "type %d in exception list is non-communicable", i+1);
+			}
+		}
+#if 0
+fprintf (stderr, "occampi_typecheck_exceptiontypedecl(): type is:\n");
+tnode_dumptree (type, 1, stderr);
+#endif
+	}
+
 	return 1;
 }
 /*}}}*/
@@ -657,6 +693,22 @@ static int occampi_exceptioncheck_trynode (compops_t *cops, tnode_t **nodep, opi
 	}
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_namemap_trynode (compops_t *cops, tnode_t **nodep, map_t *mdata)*/
+/*
+ *	does name-mapping on a TRY block
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_trynode (compops_t *cops, tnode_t **nodep, map_t *mdata)
+{
+	tnode_t *celink = map_getstate (mdata, "opi:exception:link");
+
+#if 1
+fprintf (stderr, "occampi_namemap_trynode(): here!  link is:\n");
+tnode_dumptree (celink, 1, stderr);
+#endif
+	return 1;
 }
 /*}}}*/
 
@@ -888,6 +940,38 @@ static int occampi_exceptioncheck_exceptionactionnode (compops_t *cops, tnode_t 
 		/*{{{  THROW -- generates exception*/
 		dynarray_maybeadd (oex->elist, tnode_nthsubof (*nodep, 0));
 
+		/*}}}*/
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_namemap_exceptionactionnode (compops_t *cops, tnode_t **nodep, map_t *mdata)*/
+/*
+ *	does name-mapping on a THROW node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_namemap_exceptionactionnode (compops_t *cops, tnode_t **nodep, map_t *mdata)
+{
+	if ((*nodep)->tag == opi.tag_THROW) {
+		/*{{{  THROW -- map out passed parameters and insert actual exception link*/
+		tnode_t *celink = map_getstate (mdata, "opi:exception:link");
+		tnode_t *nref;
+
+		if (!celink) {
+			nocc_serious ("occampi_namemap_exceptionactionnode(): no exception link!");
+			return 0;
+		}
+		nref = mdata->target->newnameref (celink, mdata);
+		if (tnode_nthsubof (*nodep, 1)) {
+			/* got some arguments */
+			map_submapnames (tnode_nthsubaddr (*nodep, 1), mdata);
+		}
+		tnode_setnthsub (*nodep, 2, nref);
+#if 0
+fprintf (stderr, "occampi_namemap_exceptionactionnode(): here!\n");
+tnode_dumptree (celink, 1, stderr);
+#endif
+		return 0;
 		/*}}}*/
 	}
 	return 1;
@@ -1225,6 +1309,9 @@ tnode_dumptree (tnode_nthsubof (*nodep, 0), 1, stderr);
 fprintf (stderr, "occampi_exceptioncheck_inparams_namemap_procdecl(): temporary to add to parameter-list is:\n");
 tnode_dumptree (tmpname, 1, stderr);
 #endif
+
+		/* leave this new node hanging around in the map state for later use */
+		map_setstate (map, "opi:exception:link", (void *)tmpname);
 	}
 	if (cops->next && tnode_hascompop (cops->next, "inparams_namemap")) {
 		v = tnode_callcompop (cops->next, "inparams_namemap", 2, nodep, map);
@@ -1399,6 +1486,7 @@ static int occampi_exceptions_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_exceptiontypedecl));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_exceptiontypedecl));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_exceptiontypedecl));
 	tnd->ops = cops;
 
 	i = -1;
@@ -1426,6 +1514,7 @@ static int occampi_exceptions_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_trynode));
 	tnode_setcompop (cops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_trynode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_trynode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;
@@ -1486,11 +1575,12 @@ static int occampi_exceptions_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:exceptionactionnode -- THROW*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:exceptionactionnode", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = exception, 1 = expressions */
+	tnd = tnode_newnodetype ("occampi:exceptionactionnode", &i, 3, 0, 0, TNF_NONE);		/* subnodes: 0 = exception, 1 = expressions, 2 = elink */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_exceptionactionnode));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_exceptionactionnode));
 	tnode_setcompop (cops, "exceptioncheck", 2, COMPOPTYPE (occampi_exceptioncheck_exceptionactionnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_exceptionactionnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

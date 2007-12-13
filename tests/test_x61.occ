@@ -5,7 +5,12 @@
 
 PROC test.x61 ()
   SEQ
-    THROW EX.FOO
+    TRY
+      THROW EX.FOO
+      INT x:
+      CATCH
+        EX.BAR x
+          SKIP
 :
 
 
