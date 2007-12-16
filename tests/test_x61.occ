@@ -6,10 +6,9 @@
 PROC test.x61 ()
   SEQ
     TRY
-      THROW EX.FOO
-      INT x:
+      THROW EX.FOO ()
       CATCH
-        EX.BAR x
+        EX.BAR (INT x)
           SKIP
 :
 

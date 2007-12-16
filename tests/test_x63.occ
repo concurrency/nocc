@@ -1,0 +1,12 @@
+
+-- test_x63.occ -- more exception testing
+
+EXCEPTION TYPE EX.FOO IS ():
+
+PROC test.x63 ()
+  NOEXCEPTIONS
+    SEQ
+      THROW EX.FOO ()
+:
+
+
