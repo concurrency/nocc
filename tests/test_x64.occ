@@ -1,0 +1,10 @@
+
+-- test_x64.occ -- testing traces
+
+PROC test.x64 (CHAN INT out1, out2)
+  SEQ
+    out1 ! 42
+    out2 ! -99
+:
+
+

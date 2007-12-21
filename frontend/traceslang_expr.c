@@ -739,26 +739,45 @@ static tnode_t *traceslang_gettype_namenode (langops_t *lops, tnode_t *node, tno
 }
 /*}}}*/
 
-/*{{{  int traceslang_totrace_setnode (langops_t *lops, tnode_t *node, tchk_bucket_t *bucket)*/
+/*{{{  static int traceslang_totrace_setnode (langops_t *lops, tnode_t *node, tchk_bucket_t *bucket)*/
 /*
  *	converts a traceslang setnode into a traces-check node
  *	returns 0 to stop walk, 1 to continue
  */
-int traceslang_totrace_setnode (langops_t *lops, tnode_t *node, tchk_bucket_t *bucket)
+static int traceslang_totrace_setnode (langops_t *lops, tnode_t *node, tchk_bucket_t *bucket)
 {
-	/* FIXME! */
-#if 1
+	tnode_t *ilist = tnode_nthsubof (node, 0);
+	tchknode_t *tcn;
+
+#if 0
 fprintf (stderr, "traceslang_totrace_setnode(): here!\n");
 #endif
-	return 1;
+	if (!ilist || !parser_islistnode (ilist) || (parser_countlist (ilist) <= 0)) {
+		tcn = tracescheck_createnode (TCN_SKIP, node);
+	} else {
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (ilist, &nitems);
+
+		tcn = tracescheck_createnode (TCN_SEQ, node, NULL);
+		for (i=0; i<nitems; i++) {
+			tchknode_t *titem = tracescheck_totrace (items[i]);
+
+			if (titem) {
+				tracescheck_addtolistnode (tcn, titem);
+			}
+		}
+	}
+	dynarray_add (bucket->items, tcn);
+
+	return 0;
 }
 /*}}}*/
-/*{{{  int traceslang_totrace_ionode (langops_t *lops, tnode_t *node, tchk_bucket_t *bucket)*/
+/*{{{  static int traceslang_totrace_ionode (langops_t *lops, tnode_t *node, tchk_bucket_t *bucket)*/
 /*
  *	converts a traceslang ionode into a traces-check node
  *	returns 0 to stop walk, 1 to continue
  */
-int traceslang_totrace_ionode (langops_t *lops, tnode_t *node, tchk_bucket_t *bucket)
+static int traceslang_totrace_ionode (langops_t *lops, tnode_t *node, tchk_bucket_t *bucket)
 {
 	tnode_t *item = tnode_nthsubof (node, 0);
 	tchknode_t *tcn;
@@ -770,7 +789,7 @@ int traceslang_totrace_ionode (langops_t *lops, tnode_t *node, tchk_bucket_t *bu
 #if 0
 fprintf (stderr, "traceslang_totrace_ionode(): here!\n");
 #endif
-	return 1;
+	return 0;
 }
 /*}}}*/
 

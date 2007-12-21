@@ -812,7 +812,7 @@ void parser_trashlist (tnode_t *list)
 
 	array = (tnode_t **)tnode_nthhookof (list, 0);
 	if (!array) {
-		nocc_internal ("parser_insertinlist(): null array in list!");
+		nocc_internal ("parser_trashlist(): null array in list!");
 		return;
 	}
 	cur = (int *)(array);
@@ -823,6 +823,26 @@ void parser_trashlist (tnode_t *list)
 	}
 	tnode_free (list);
 	return;
+}
+/*}}}*/
+/*{{{  int parser_countlist (tnode_t *list)*/
+/*
+ *	counts the number of items in a listnode
+ */
+int parser_countlist (tnode_t *list)
+{
+	tnode_t **array;
+	int *cur, *max;
+	int i;
+
+	array = (tnode_t **)tnode_nthhookof (list, 0);
+	if (!array) {
+		nocc_internal ("parser_countlist(): null array in list!");
+		return -1;
+	}
+	cur = (int *)(array);
+
+	return *cur;
 }
 /*}}}*/
 
