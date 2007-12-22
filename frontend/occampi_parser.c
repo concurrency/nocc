@@ -809,6 +809,16 @@ nocc_message ("occampi_parsemetadata(): got metadata!");
 	return tree;
 }
 /*}}}*/
+/*{{{  static int occampi_creepfordecl (lexfile_t *lf)*/
+/*
+ *	"creeps" on the input to determine whether or not something is a declaration
+ *	returns non-zero if declaration, 0 otherwise
+ */
+static int occampi_creepfordecl (lexfile_t *lf)
+{
+	return 0;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_declorprocstart (lexfile_t *lf, int *gotall, char *thedfa)*/
 /*
  *	parses a declaration/process for single-liner's, or start of a declaration/process
@@ -893,6 +903,11 @@ restartpoint:
 		}
 	}
 	/*}}}*/
+
+	/* if we're parsing a particular ruleset, may need to parse intervening declarations first */
+	if (occampi_creepfordecl (lf)) {
+		/* FIXME! */
+	}
 
 	if (lexer_tokmatch (opi.tok_HASH, tok)) {
 		/*{{{  probably a pre-processor action of some kind*/
@@ -1284,14 +1299,14 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 		/*}}}*/
 	} else if (lexer_tokmatch (opi.tok_PUBLIC, tok)) {
 		lexer_freetoken (tok);
-		tree = dfa_walk (thedfa ? thedfa : "occampi:declorprocstart", lf);
+		tree = dfa_walk (thedfa ? thedfa : "occampi:declorprocstart", 0, lf);
 
 		if (tree) {
 			library_markpublic (tree);
 		}
 	} else {
 		lexer_pushback (lf, tok);
-		tree = dfa_walk (thedfa ? thedfa : "occampi:declorprocstart", lf);
+		tree = dfa_walk (thedfa ? thedfa : "occampi:declorprocstart", 0, lf);
 
 		if (lf->toplevel && lf->sepcomp && tree && ((tree->tag == opi.tag_PROCDECL) || (tree->tag == opi.tag_FUNCDECL))) {
 			library_markpublic (tree);
@@ -1997,7 +2012,7 @@ static tnode_t *occampi_parser_descparse (lexfile_t *lf)
 		lexer_pushback (lf, tok);
 
 		/* walk as a descriptor-line */
-		thisone = dfa_walk ("occampi:descriptorline", lf);
+		thisone = dfa_walk ("occampi:descriptorline", 0, lf);
 		if (!thisone) {
 			*target = NULL;
 			break;		/* for() */

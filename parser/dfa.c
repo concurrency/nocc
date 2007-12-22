@@ -3365,13 +3365,13 @@ static int dfa_canmatchend (dfastate_t *dfast, parsepriv_t *pp)
 }
 /*}}}*/
 
-/*{{{  tnode_t *dfa_walk (char *rname, lexfile_t *lf)*/
+/*{{{  tnode_t *dfa_walk (char *rname, int creep, lexfile_t *lf)*/
 /*
  *	walks the DFA with the specified name with tokens
  *	from the given source.
  *	returns the resulting tree, or NULL on error (reported)
  */
-tnode_t *dfa_walk (char *rname, lexfile_t *lf)
+tnode_t *dfa_walk (char *rname, int creep, lexfile_t *lf)
 {
 	token_t *tok;
 	dfastate_t *dfast;
@@ -3391,6 +3391,7 @@ tnode_t *dfa_walk (char *rname, lexfile_t *lf)
 
 	dfast = dfa_newstate (NULL);
 	dfast->cur = idfa;
+	dfast->creep = creep;
 
 	tok = lexer_nexttoken (lf);
 	while (tok && (dfast->cur)) {
@@ -3518,6 +3519,7 @@ dfastate_t *dfa_newstate (dfastate_t *prev)
 
 	dfast = (dfastate_t *)smalloc (sizeof (dfastate_t));
 	dfast->prev = prev;
+	dfast->creep = (prev ? prev->creep : 0);
 	dfast->cur = (prev ? prev->cur : NULL);
 	dfast->local = NULL;
 	dfast->ptr = &(dfast->local);

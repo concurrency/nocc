@@ -538,7 +538,7 @@ static tnode_t *mcsp_parser_parse (lexfile_t *lf)
 		}
 		lexer_pushback (lf, tok);
 
-		thisone = dfa_walk ("mcsp:procdecl", lf);
+		thisone = dfa_walk ("mcsp:procdecl", 0, lf);
 		if (!thisone) {
 			*target = NULL;
 			break;		/* for() */
@@ -621,7 +621,7 @@ static tnode_t *mcsp_parser_descparse (lexfile_t *lf)
 		lexer_pushback (lf, tok);
 
 		/* walk as a descriptor-line */
-		thisone = dfa_walk ("mcsp:process", lf);
+		thisone = dfa_walk ("mcsp:process", 0, lf);
 		if (!thisone) {
 			*target = NULL;
 			break;		/* for() */

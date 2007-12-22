@@ -280,7 +280,7 @@ static tnode_t *rcxb_parser_parse (lexfile_t *lf)
 		}
 		lexer_pushback (lf, tok);
 
-		thisone = dfa_walk ("rcxb:statement", lf);
+		thisone = dfa_walk ("rcxb:statement", 0, lf);
 		if (!thisone) {
 			break;		/* for() */
 		}

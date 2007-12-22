@@ -283,7 +283,7 @@ static tnode_t *traceslang_parser_parse (lexfile_t *lf)
 		}
 		lexer_pushback (lf, tok);
 
-		thisone = dfa_walk ("traceslang:expr", lf);
+		thisone = dfa_walk ("traceslang:expr", 0, lf);
 		if (!thisone) {
 			break;		/* for() */
 		}

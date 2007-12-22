@@ -1,0 +1,11 @@
+
+-- test_x65.occ -- more traces and separate compilation
+
+#USE "test_x64"
+
+PROC test.x65 (CHAN INT in?, out!)
+  CHAN INT c:
+  SEQ
+    test.x64 (out!, c!)
+:
+

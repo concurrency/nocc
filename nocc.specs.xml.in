@@ -22,10 +22,10 @@
 	<!-- extn's say what extensions to load (-e) -->
 
 	<!-- ipath's say where include files are (-I) -->
-	<ipath>/home/frmb/kroc_linux/ukcsource/lib</ipath>
+	<ipath>/home/frmb/kroc_linux/ukcsource/install/share/kroc/vtinclude</ipath>
 
 	<!-- lpath's say where library files are (-L) -->
-	<lpath>/home/frmb/kroc_linux/ukcsource/lib</lpath>
+	<lpath>/home/frmb/kroc_linux/ukcsource/install/share/kroc/vtlib</lpath>
 
 	<!-- signing/hashing -->
 	<hashalgo>sha256</hashalgo>

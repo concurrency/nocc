@@ -279,7 +279,7 @@ static tnode_t *trlang_parser_parse (lexfile_t *lf)
 		}
 		lexer_pushback (lf, tok);
 
-		thisone = dfa_walk ("trlang:functiondef", lf);
+		thisone = dfa_walk ("trlang:functiondef", 0, lf);
 		if (!thisone) {
 			break;		/* for() */
 		}

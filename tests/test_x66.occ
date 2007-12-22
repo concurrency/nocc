@@ -1,0 +1,10 @@
+
+-- test_x66.occ -- testing special-cases for declarations
+
+PROC test.x66 ()
+  ALT
+    INT x:
+    SKIP
+      SKIP
+:
+

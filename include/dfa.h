@@ -55,6 +55,7 @@ typedef struct TAG_dfanode {
  */
 typedef struct TAG_dfastate {
 	struct TAG_dfastate *prev;
+	int creep;
 	dfanode_t *cur;
 	struct TAG_tnode *local;
 	struct TAG_tnode **ptr;
@@ -125,7 +126,7 @@ extern int dfa_advance (dfastate_t **dfast, struct TAG_parsepriv *pp, struct TAG
 extern void dfa_pushnode (dfastate_t *dfast, struct TAG_tnode *node);
 extern struct TAG_tnode *dfa_popnode (dfastate_t *dfast);
 
-extern struct TAG_tnode *dfa_walk (char *rname, struct TAG_lexfile *lf);
+extern struct TAG_tnode *dfa_walk (char *rname, int creep, struct TAG_lexfile *lf);
 
 extern dfastate_t *dfa_newstate (dfastate_t *prev);
 extern dfastate_t *dfa_newstate_init (dfastate_t *prev, char *iname);
