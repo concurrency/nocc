@@ -397,6 +397,41 @@ fprintf (stderr, "dfa_deferred_target(): adding deferred target 0x%8.8x in node 
 /*}}}*/
 
 
+/*{{{  static dfacreep_t *dfa_newcreep (void)*/
+/*
+ *	creates a new dfacreep_t structure
+ */
+static dfacreep_t *dfa_newcreep (void)
+{
+	dfacreep_t *dfacr = (dfacreep_t *)smalloc (sizeof (dfacreep_t));
+
+	dynarray_init (dfacr->tokenstack);
+
+	return dfacr;
+}
+/*}}}*/
+/*{{{  static void dfa_freecreep (dfacreep_t *dfacr)*/
+/*
+ *	frees a dfacreep_t structure
+ */
+static void dfa_freecreep (dfacreep_t *dfacr)
+{
+	int i;
+
+	if (!dfacr) {
+		nocc_warning ("dfa_freecreep(): NULL pointer!");
+		return;
+	}
+	for (i=0; i<DA_CUR (dfacr->tokenstack); i++) {
+		lexer_freetoken (DA_NTHITEM (dfacr->tokenstack, i));
+	}
+	dynarray_trash (dfacr->tokenstack);
+	sfree (dfacr);
+	return;
+}
+/*}}}*/
+
+
 /*{{{  dfanode_t *dfa_newnode (void)*/
 /*
  *	creates a new DFA node
@@ -3393,6 +3428,11 @@ tnode_t *dfa_walk (char *rname, int creep, lexfile_t *lf)
 	dfast->cur = idfa;
 	dfast->creep = creep;
 
+	if (creep) {
+		/* setup a creep stack */
+		dfast->cstack = dfa_newcreep ();
+	}
+
 	tok = lexer_nexttoken (lf);
 	while (tok && (dfast->cur)) {
 		int i;
@@ -3520,6 +3560,7 @@ dfastate_t *dfa_newstate (dfastate_t *prev)
 	dfast = (dfastate_t *)smalloc (sizeof (dfastate_t));
 	dfast->prev = prev;
 	dfast->creep = (prev ? prev->creep : 0);
+	dfast->cstack = (prev ? prev->cstack : NULL);
 	dfast->cur = (prev ? prev->cur : NULL);
 	dfast->local = NULL;
 	dfast->ptr = &(dfast->local);

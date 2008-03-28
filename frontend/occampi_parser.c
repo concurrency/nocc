@@ -828,6 +828,7 @@ static tnode_t *occampi_declorprocstart (lexfile_t *lf, int *gotall, char *thedf
 {
 	token_t *tok;
 	tnode_t *tree = NULL;
+	tnode_t **ltarget = &tree;
 
 	/*
 	 * for starts of declarations/processes, parsing things like:
@@ -906,6 +907,7 @@ restartpoint:
 
 	/* if we're parsing a particular ruleset, may need to parse intervening declarations first */
 	if (occampi_creepfordecl (lf)) {
+		tree = occampi_process (lf);
 		/* FIXME! */
 	}
 

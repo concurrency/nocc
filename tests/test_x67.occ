@@ -1,0 +1,9 @@
+
+-- test_x67.occ -- TRACES in mobile channel types
+
+
+
+PROC test.x67 ()
+  SKIP
+:
+

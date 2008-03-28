@@ -53,9 +53,16 @@ typedef struct TAG_dfanode {
 /*
  *	state stack when walking a DFA
  */
+
+/* used when "creeping" */
+typedef struct TAG_dfacreep {
+	DYNARRAY (struct TAG_token *, tokenstack);
+} dfacreep_t;
+
 typedef struct TAG_dfastate {
 	struct TAG_dfastate *prev;
 	int creep;
+	dfacreep_t *cstack;
 	dfanode_t *cur;
 	struct TAG_tnode *local;
 	struct TAG_tnode **ptr;
