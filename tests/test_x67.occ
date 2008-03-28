@@ -1,7 +1,12 @@
 
 -- test_x67.occ -- TRACES in mobile channel types
 
-
+CHAN TYPE CT.FOO
+  MOBILE RECORD
+    CHAN INT c?:
+  TRACES
+    "c?"
+:
 
 PROC test.x67 ()
   SKIP
