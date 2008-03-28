@@ -3,9 +3,10 @@
 
 CHAN TYPE CT.FOO
   MOBILE RECORD
-    CHAN INT c?:
+    CHAN INT in?:
+    CHAN INT out!:
   TRACES
-    "c?"
+    "in? -> out!"
 :
 
 PROC test.x67 ()

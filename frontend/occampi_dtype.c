@@ -241,6 +241,10 @@ static int occampi_prescope_typedecl (compops_t *cops, tnode_t **nodep, prescope
 {
 	tnode_t *type = tnode_nthsubof (*nodep, 1);
 
+#if 0
+fprintf (stderr, "occampi_prescope_typedecl(): here!, type is:\n");
+tnode_dumptree (type, 1, stderr);
+#endif
 	if (parser_islistnode (type)) {
 		/* remove any NULL items from the list */
 		parser_cleanuplist (type);

@@ -83,6 +83,7 @@ static chook_t *trtracechook = NULL;
 static chook_t *trbvarschook = NULL;
 
 static chook_t *trimportchook = NULL;
+static chook_t *trctchook = NULL;
 
 /*}}}*/
 
@@ -238,6 +239,58 @@ static void occampi_chook_importtrace_dumptree (tnode_t *node, void *chook, int 
 	} else {
 		fprintf (stream, "<chook:occampi:importtrace />\n");
 	}
+	return;
+}
+/*}}}*/
+
+/*{{{  static void *occampi_chook_cttrace_copy (void *chook)*/
+/*
+ *	copies a trctchook compiler hook (TRACE attached to channel-type declaration)
+ */
+static void *occampi_chook_cttrace_copy (void *chook)
+{
+	tnode_t *tlist = (tnode_t *)chook;
+
+	if (tlist) {
+		tnode_t *copy = tnode_copytree (tlist);
+
+		return copy;
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  static void occampi_chook_cttrace_free (void *chook)*/
+/*
+ *	frees a trctchook compiler hook (TRACE attached to channel-type declaration)
+ */
+static void occampi_chook_cttrace_free (void *chook)
+{
+	tnode_t *tlist = (tnode_t *)chook;
+
+	if (tlist) {
+		tnode_free (tlist);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_chook_cttrace_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*
+ *	dumps an occampi:cttrace compiler hook (debugging)
+ */
+static void occampi_chook_cttrace_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+{
+	tnode_t *tlist = (tnode_t *)chook;
+
+	occampi_isetindent (stream, indent);
+	if (tlist) {
+		fprintf (stream, "<chook:occampi:cttrace addr=\"0x%8.8x\">\n", (unsigned int)tlist);
+		tnode_dumptree (tlist, indent+1, stream);
+		occampi_isetindent (stream, indent);
+		fprintf (stream, "</chook:occampi:cttrace>\n");
+	} else {
+		fprintf (stream, "<chook:occampi:cttrace />\n");
+	}
+	return;
 }
 /*}}}*/
 
@@ -551,6 +604,49 @@ static tnode_t *occampi_traceslang_getbody_tracenamenode (langops_t *lops, tnode
 		return NULL;
 	}
 	return tnode_nthsubof (decl, 3);
+}
+/*}}}*/
+
+/*{{{  static int occampi_prescope_typedecl_cttrace (compops_t *cops, tnode_t **node, prescope_t *ps)*/
+/*
+ *	called to do pre-scoping on a type declaration node;  intecepts and handles TRACES on a CHAN TYPE
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_prescope_typedecl_cttrace (compops_t *cops, tnode_t **node, prescope_t *ps)
+{
+	int v = 1;
+	tnode_t *traces;
+
+	/* call-through */
+	if (tnode_hascompop (cops->next, "prescope")) {
+		v = tnode_callcompop (cops->next, "prescope", 2, node, ps);
+	}
+
+	traces = (tnode_t *)tnode_getchook (*node, trctchook);
+	if (traces) {
+		int i, ntraces;
+		tnode_t **xtraces;
+
+		/* make traces into a list, if not already */
+		if (!parser_islistnode (traces)) {
+			traces = parser_buildlistnode (NULL, traces, NULL);
+		} else {
+			/* clean existing list */
+			parser_cleanuplist (traces);
+		}
+
+		/* go through each individually */
+		xtraces = parser_getlistitems (traces, &ntraces);
+#if 1
+fprintf (stderr, "occampi_prescope_typedecl_cttrace(): got %d traces!:\n", ntraces);
+tnode_dumptree (traces, 1, stderr);
+#endif
+		for (i=0; i<ntraces; i++) {
+			char *lstr;
+		}
+	}
+
+	return v;
 }
 /*}}}*/
 
@@ -1116,6 +1212,26 @@ static void occampi_traces_attachtraces (dfastate_t *dfast, parsepriv_t *pp, voi
 	return;
 }
 /*}}}*/
+/*{{{  static void occampi_traces_attachchantypetrace (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	called to attach traces to a CHAN TYPE declaration, will find a list of listeral strings
+ *	CHAN-TYPE declaration node is already in the result
+ */
+static void occampi_traces_attachchantypetrace (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	tnode_t *traces = dfa_popnode (dfast);
+	tnode_t *node = *(dfast->ptr);
+
+	if (!node || !traces) {
+		parser_error (pp->lf, "occampi_traces_attachchantypetrace(): NULL rhs or node");
+		return;
+	}
+
+	tnode_setchook (node, trctchook, (void *)traces);
+
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_traces_init_nodes (void)*/
@@ -1132,6 +1248,7 @@ static int occampi_traces_init_nodes (void)
 
 	/*{{{  register reduction functions*/
 	fcnlib_addfcn ("occampi_traces_attachtraces", occampi_traces_attachtraces, 0, 3);
+	fcnlib_addfcn ("occampi_traces_attachchantypetrace", occampi_traces_attachchantypetrace, 0, 3);
 
 	/*}}}*/
 	/*{{{  occampi:formalspec -- TRACES*/
@@ -1217,6 +1334,13 @@ static int occampi_traces_post_setup (void)
 	trimportchook->chook_dumptree = occampi_chook_importtrace_dumptree;
 
 	/*}}}*/
+	/*{{{  occampi:cttrace chook setup*/
+	trctchook = tnode_lookupornewchook ("occampi:cttrace");
+	trctchook->chook_copy = occampi_chook_cttrace_copy;
+	trctchook->chook_free = occampi_chook_cttrace_free;
+	trctchook->chook_dumptree = occampi_chook_cttrace_dumptree;
+
+	/*}}}*/
 	/*{{{  find inparams scoping compiler operations*/
 	inparams_scopein_compop = tnode_findcompop ("inparams_scopein");
 	inparams_scopeout_compop = tnode_findcompop ("inparams_scopeout");
@@ -1246,6 +1370,15 @@ static int occampi_traces_post_setup (void)
 	tnd->ops = cops;
 	lops = tnode_insertlangops (tnd->lops);
 	tnode_setlangop (lops, "importmetadata", 3, LANGOPTYPE (occampi_importmetadata_procdecl_tracetypeimpl));
+	tnd->lops = lops;
+
+	/*}}}*/
+	/*{{{  intefere with mobile CHAN TYPE declaration nodes to capture/handle TRACES*/
+	tnd = tnode_lookupnodetype ("occampi:typedecl");
+	cops = tnode_insertcompops (tnd->ops);
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_typedecl_cttrace));
+	tnd->ops = cops;
+	lops = tnode_insertlangops (tnd->lops);
 	tnd->lops = lops;
 
 	/*}}}*/

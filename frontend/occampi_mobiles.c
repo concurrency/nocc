@@ -94,6 +94,29 @@ static void occampi_condfreedynmobile (tnode_t *node, tnode_t *mtype, codegen_t 
 }
 /*}}}*/
 
+/*{{{  static int occampi_prescope_mobiletypenode (compops_t *cops, tnode_t **node, prescope_t *ps)*/
+/*
+ *	called to pre-scope a MOBILE type node -- used to clean up partial lists
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_prescope_mobiletypenode (compops_t *cops, tnode_t **node, prescope_t *ps)
+{
+	tnode_t *type = tnode_nthsubof (*node, 0);
+
+#if 0
+fprintf (stderr, "occampi_prescope_mobiletypenode(): here!, type is:\n");
+tnode_dumptree (type, 1, stderr);
+#endif
+
+	if (parser_islistnode (type)) {
+		/* remove any NULL items from the list */
+		parser_cleanuplist (type);
+	}
+
+	return 1;
+}
+/*}}}*/
+
 /*{{{  static void occampi_mobiletypenode_initmobile (tnode_t *node, codegen_t *cgen, void *arg)*/
 /*
  *	generates code to initialise a mobile
@@ -578,6 +601,7 @@ static int occampi_mobiles_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:mobiletypenode", &i, 1, 0, 0, TNF_NONE);		/* subnodes: subtype */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_mobiletypenode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_mobiletypenode_bytesfor));
