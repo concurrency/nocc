@@ -713,7 +713,7 @@ static int occampi_intypedecl_scopein_typedecl_cttrace (compops_t *cops, tnode_t
 	int v = 1;
 	tnode_t *traces;
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_intypedecl_scopein_typedecl_cttrace(): here!, in-scope names:\n");
 name_dumpnames (stderr);
 #endif
@@ -747,10 +747,20 @@ name_dumpnames (stderr);
 static int occampi_typecheck_typedecl_cttrace (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	int v = 1;
+	tnode_t *traces;
 
 	/* call-through */
 	if (tnode_hascompop (cops->next, "typecheck")) {
 		v = tnode_callcompop (cops->next, "typecheck", 2, node, tc);
+	}
+
+	traces = (tnode_t *)tnode_getchook (node, trctchook);
+	if (traces) {
+		if (node->tag != opi.tag_CHANTYPEDECL) {
+			typecheck_error (node, tc, "TRACES on non CHAN TYPE type declaration");
+		} else {
+			/* assume things are fine! */
+		}
 	}
 
 	return v;
