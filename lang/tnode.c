@@ -1708,6 +1708,67 @@ int tnode_setcompop (compops_t *cops, char *name, int nparams, int (*fcn)(compop
 	return 0;
 }
 /*}}}*/
+/*{{{  int tnode_setcompop_bottom (compops_t *cops, char *name, int nparams, int (*fcn)(compops_t *, ...))*/
+/*
+ *	sets a compiler operation on a compops_t structure by name
+ *	returns 0 on success, non-zero on failure
+ */
+int tnode_setcompop_bottom (compops_t *cops, char *name, int nparams, int (*fcn)(compops_t *, ...))
+{
+	compop_t *cop = stringhash_lookup (compops, name);
+	compops_t *cx;
+
+	if (!cop) {
+		nocc_internal ("tnode_setcompop_bottom(): no such compiler operation [%s]", name);
+		return -1;
+	} else if (cop->nparams != nparams) {
+		nocc_error ("tnode_setcompop_bottom(): nparams given as %d, expected %d", nparams, cop->nparams);
+		return -1;
+	}
+
+	/* sets the compiler operation at the "bottom" of a stack -- until we hit one which isn't the last or unset */
+	for (cx = cops; cx; cx = cx->next) {
+		int lastop = DA_CUR (cx->opfuncs);
+
+		if ((int)cop->opno >= lastop) {
+			int i;
+
+			/* not enough opfuncs here anyway, increase */
+			dynarray_setsize (cx->opfuncs, (int)cop->opno + 1);
+			for (i=lastop; i<DA_CUR (cx->opfuncs); i++) {
+				DA_SETNTHITEM (cx->opfuncs, i, NULL);
+			}
+		}
+	}
+	for (cx = cops; cx; cx = cx->next) {
+		void *xfcn = (void *)DA_NTHITEM (cx->opfuncs, (int)cop->opno);
+
+		if (!xfcn) {
+			if (!cx->next) {
+				/* last one */
+				break;		/* for() */
+			} else {
+				void *nextfcn = (void *)DA_NTHITEM (cx->next->opfuncs, (int)cop->opno);
+
+				if (nextfcn) {
+					/* means we go here */
+					break;		/* for() */
+				} else {
+					/* no next function, so there or lower, put copy-through here */
+					DA_SETNTHITEM (cx->opfuncs, (int)cop->opno, (void *)tnode_callthroughcompops);
+				}
+			}
+		} else {
+			/* we have a function here, just overwrite it */
+			break;		/* for() */
+		}
+	}
+
+	DA_SETNTHITEM (cx->opfuncs, (int)cop->opno, (void *)fcn);
+
+	return 0;
+}
+/*}}}*/
 /*{{{  int tnode_hascompop (compops_t *cops, char *name)*/
 /*
  *	returns non-zero if the specified compops_t structure has an entry for 'name'
@@ -1743,7 +1804,7 @@ static int tnode_icallcompop (compops_t *cops, compop_t *op, va_list ap)
 	int r;
 
 	if (op->dotrace) {
-		nocc_message ("compoptrace: [%s]", op->name);
+		nocc_message ("compoptrace: 0x%8.8x [%s]", (unsigned int)op, op->name);
 	}
 	fcn = (int (*)(compops_t *, ...))DA_NTHITEM (cops->opfuncs, (int)op->opno);
 	while (fcn == COMPOPTYPE (tnode_callthroughcompops)) {
@@ -1961,6 +2022,9 @@ int tnode_newcompop (char *name, compops_e opno, int nparams, origin_t *origin)
 		int i = DA_CUR (acompops);
 
 		dynarray_setsize (acompops, (int)cop->opno + 1);
+#if 0
+fprintf (stderr, "tnode_newcompop(): extra clear from %d to %d\n", (int)cop->opno, DA_CUR (acompops));
+#endif
 		for (; i<DA_CUR (acompops); i++) {
 			DA_SETNTHITEM (acompops, i, NULL);
 		}
@@ -1983,6 +2047,50 @@ int tnode_newcompop (char *name, compops_e opno, int nparams, origin_t *origin)
 compop_t *tnode_findcompop (char *name)
 {
 	return stringhash_lookup (compops, name);
+}
+/*}}}*/
+/*{{{  void tnode_dumpcompops (compops_t *cops, FILE *stream)*/
+/*
+ *	dumps contents of the specified compiler-operation (debugging)
+ */
+void tnode_dumpcompops (compops_t *cops, FILE *stream)
+{
+	int i;
+	compops_t *cx;
+
+	fprintf (stream, "%-25s      ", "compops at:");
+	for (cx = cops; cx; cx = cx->next) {
+		fprintf (stream, "0x%8.8x  ", (unsigned int)cx);
+	}
+	fprintf (stream, "\n");
+	fprintf (stream, "%-25s      ", "");
+	for (cx = cops; cx; cx = cx->next) {
+		fprintf (stream, "------------");
+	}
+	fprintf (stream, "\n");
+
+	for (i=0; i<DA_CUR (acompops); i++) {
+		compop_t *cop = DA_NTHITEM (acompops, i);
+
+		if (cop) {
+			fprintf (stream, "    %-25s  ", cop->name);
+
+			for (cx = cops; cx; cx = cx->next) {
+				if (cop->opno >= DA_CUR (cx->opfuncs)) {
+					fprintf (stream, "--          ");
+				} else {
+					void *fcn = DA_NTHITEM (cx->opfuncs, cop->opno);
+
+					if (fcn == (void *)tnode_callthroughcompops) {
+						fprintf (stream, "---->       ");
+					} else {
+						fprintf (stream, "0x%8.8x  ", (unsigned int)fcn);
+					}
+				}
+			}
+			fprintf (stream, "\n");
+		}
+	}
 }
 /*}}}*/
 

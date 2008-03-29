@@ -674,8 +674,10 @@ static void name_walkdumpname (namelist_t *nl, char *key, void *ptr)
 	fprintf (stream, "name [%s] curscope = %d\n", key, nl->curscope);
 	for (i=0; i<DA_CUR (nl->scopes); i++) {
 		name_t *name = DA_NTHITEM (nl->scopes, i);
+		tnode_t *declnode = name->decl;
 
-		fprintf (stream, "\t%d\trefc = %-3d  decl = 0x%8.8x:\n", i, name->refc, (unsigned int)(name->decl));
+		fprintf (stream, "\t%d\trefc = %-3d  decl = 0x%8.8x, (%s,%s):\n", i, name->refc, (unsigned int)declnode,
+			declnode->tag->ndef->name, declnode->tag->name);
 	}
 	return;
 }

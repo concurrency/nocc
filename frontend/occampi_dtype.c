@@ -83,6 +83,9 @@ static chook_t *fielddecloffset = NULL;
 static chook_t *ct_clienttype = NULL;
 static chook_t *ct_servertype = NULL;
 
+static compop_t *intypedecl_scopein_compop = NULL;
+static compop_t *intypedecl_scopeout_compop = NULL;
+
 /*}}}*/
 
 
@@ -265,6 +268,7 @@ static int occampi_scopein_typedecl (compops_t *cops, tnode_t **node, scope_t *s
 	char *rawname;
 	name_t *sname = NULL;
 	tnode_t *newname;
+	void *namemark;
 
 	if (name->tag != opi.tag_NAME) {
 		scope_error (name, ss, "name not raw-name!");
@@ -276,6 +280,9 @@ static int occampi_scopein_typedecl (compops_t *cops, tnode_t **node, scope_t *s
 fprintf (stderr, "occampi_scopein_typedecl: here! rawname = \"%s\".  unscoped type=\n", rawname);
 tnode_dumptree (tnode_nthsubof (*node, 1), 1, stderr);
 #endif
+	namemark = name_markscope ();
+
+	/* scope subtype */
 	if (scope_subtree (tnode_nthsubaddr (*node, 1), ss)) {
 		return 0;
 	}
@@ -284,6 +291,21 @@ tnode_dumptree (tnode_nthsubof (*node, 1), 1, stderr);
 fprintf (stderr, "occampi_scopein_typedecl: here! rawname = \"%s\".  scoped type=\n", rawname);
 tnode_dumptree (type, 1, stderr);
 #endif
+
+	/* if we have an intypedecl_scopein, do that here, followed by any scope-out */
+#if 0
+fprintf (stderr, "occampi_scopein_typedecl(): intypedecl_scopein cops = 0x%8.8x, compop? = %d\n", (unsigned int)cops,
+		tnode_hascompop (cops, "intypedecl_scopein"));
+#endif
+	if (tnode_hascompop (cops, "intypedecl_scopein")) {
+		tnode_callcompop (cops, "intypedecl_scopein", 2, node, ss);
+	}
+
+#if 0
+fprintf (stderr, "occampi_scopein_typedecl(): here 1, in-scope:\n");
+name_dumpnames (stderr);
+#endif
+	name_markdescope (namemark);
 
 	sname = name_addscopename (rawname, *node, type, NULL);
 	if ((*node)->tag == opi.tag_DATATYPEDECL) {
@@ -298,6 +320,10 @@ tnode_dumptree (type, 1, stderr);
 	}
 	SetNameNode (sname, newname);
 	tnode_setnthsub (*node, 0, newname);
+#if 0
+fprintf (stderr, "occampi_scopein_typedecl(): here 2, in-scope:\n");
+name_dumpnames (stderr);
+#endif
 
 	/* free the old name */
 	tnode_free (name);
@@ -1049,8 +1075,13 @@ tnode_dumptree (type, 1, stderr);
 	tnode_free (name);
 	ss->scoped++;
 
+	/*
+	 * Changed, frmb (29/03/2008): whatever encloses the field will mark scope and descope afterwards;
+	 * needed so that we can capture fieldnames in the whatever declaration for other processing
+	 * (e.g. TRACES scoping)
+	 */
 	/* and descope immediately */
-	name_descopename (sname);
+	/* name_descopename (sname); */
 
 	return 0;
 }
@@ -1782,6 +1813,25 @@ static int occampi_dtype_init_nodes (void)
 	fcnlib_addfcn ("occampi_reduce_valarrayfold", (void *)occampi_reduce_valarrayfold, 0, 3);
 
 	/*}}}*/
+	/*{{{  compiler operations for handling scoping inside type declarations*/
+	if (tnode_newcompop ("intypedecl_scopein", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
+		nocc_error ("occampi_dtype_init_nodes(): failed to create intypedecl_scopein compiler operation");
+		return -1;
+	}
+	intypedecl_scopein_compop = tnode_findcompop ("intypedecl_scopein");
+
+	if (tnode_newcompop ("intypedecl_scopeout", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
+		nocc_error ("occampi_dtype_init_nodes(): failed to create intypedecl_scopeout compiler operation");
+		return -1;
+	}
+	intypedecl_scopeout_compop = tnode_findcompop ("intypedecl_scopeout");
+
+	if (!intypedecl_scopein_compop || !intypedecl_scopeout_compop) {
+		nocc_error ("occampi_dtype_init_nodes(): failed to find intypedecl scoping compiler operations");
+		return -1;
+	}
+	/*}}}*/
+
 	/*{{{  occampi:typedecl -- DATATYPEDECL, CHANTYPEDECL, PROCTYPEDECL*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:typedecl", &i, 3, 0, 1, TNF_SHORTDECL);		/* subnodes: 0 = name; 1 = type; 2 = body; hooks: 0 = typedeclhook_t */

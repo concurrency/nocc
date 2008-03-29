@@ -607,22 +607,22 @@ static tnode_t *occampi_traceslang_getbody_tracenamenode (langops_t *lops, tnode
 }
 /*}}}*/
 
-/*{{{  static int occampi_prescope_typedecl_cttrace (compops_t *cops, tnode_t **node, prescope_t *ps)*/
+/*{{{  static int occampi_prescope_typedecl_cttrace (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
 /*
  *	called to do pre-scoping on a type declaration node;  intecepts and handles TRACES on a CHAN TYPE
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_prescope_typedecl_cttrace (compops_t *cops, tnode_t **node, prescope_t *ps)
+static int occampi_prescope_typedecl_cttrace (compops_t *cops, tnode_t **nodep, prescope_t *ps)
 {
 	int v = 1;
 	tnode_t *traces;
 
 	/* call-through */
 	if (tnode_hascompop (cops->next, "prescope")) {
-		v = tnode_callcompop (cops->next, "prescope", 2, node, ps);
+		v = tnode_callcompop (cops->next, "prescope", 2, nodep, ps);
 	}
 
-	traces = (tnode_t *)tnode_getchook (*node, trctchook);
+	traces = (tnode_t *)tnode_getchook (*nodep, trctchook);
 	if (traces) {
 		int i, ntraces;
 		tnode_t **xtraces;
@@ -635,30 +635,195 @@ static int occampi_prescope_typedecl_cttrace (compops_t *cops, tnode_t **node, p
 			parser_cleanuplist (traces);
 		}
 		/* attach this back in the hook */
-		tnode_clearchook (*node, trctchook);
-		tnode_setchook (*node, trctchook, traces);
+		tnode_clearchook (*nodep, trctchook);
+		tnode_setchook (*nodep, trctchook, traces);
 
 		/* go through each individually */
 		xtraces = parser_getlistitems (traces, &ntraces);
-#if 1
-fprintf (stderr, "occampi_prescope_typedecl_cttrace(): got %d traces!:\n", ntraces);
-tnode_dumptree (traces, 1, stderr);
-#endif
 		for (i=0; i<ntraces; i++) {
+			/*{{{  parse trace using traceslang and reinsert in tree*/
 			char *lstr;
+			lexfile_t *lf;
+			tnode_t *newtree;
+			char *fname, *newfname;
 
 			lstr = occampi_litstringcopy (xtraces[i]);
 			if (!lstr) {
-				prescope_error (*node, ps, "TRACE item must be a string literal (found %s)", xtraces[i]->tag->name);
+				prescope_error (*nodep, ps, "TRACE item must be a string literal (found %s)", xtraces[i]->tag->name);
 				return 1;
 			}
+
+			/* get filename and line-number */
+			fname = tnode_copytextlocationof (*nodep);
+			if (!fname) {
+				newfname = (char *)smalloc (64);
+			} else {
+				newfname = (char *)smalloc (strlen (fname) + 16);
+			}
+			sprintf (newfname, "%s$traceslang", fname ?: "(unknown file)");
+			if (fname) {
+				sfree (fname);
+			}
+
+			/* open buffer for lexing */
+			lf = lexer_openbuf (newfname, "traceslang", lstr);
+			sfree (newfname);
+			if (!lf) {
+				prescope_error (*nodep, ps, "occampi_prescope_typedecl_cttrace(): failed to open traces string for parsing");
+				sfree (lstr);
+				return 1;
+			}
+
+			newtree = parser_parse (lf);
+
+			/* accumulate errors and warnings */
+			ps->err += lf->errcount;
+			ps->warn += lf->warncount;
+
+			lexer_close (lf);
+
+			if (!newtree) {
+				prescope_error (*nodep, ps, "failed to parse traces \"%s\"", lstr);
+				sfree (lstr);
+				return 1;
+			}
+
+			/* destroy the existing trace and out in ours */
+			tnode_free (xtraces[i]);
+			xtraces[i] = newtree;
+			sfree (lstr);
+			/*}}}*/
 		}
+#if 0
+fprintf (stderr, "occampi_prescope_typedecl_cttrace(): got %d traces!:\n", ntraces);
+tnode_dumptree (traces, 1, stderr);
+#endif
 	}
 
 	return v;
 }
 /*}}}*/
+/*{{{  static int occampi_intypedecl_scopein_typedecl_cttrace (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
+/*
+ *	does scope-in on the traces attached to a CHAN TYPE
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_intypedecl_scopein_typedecl_cttrace (compops_t *cops, tnode_t **nodep, scope_t *ss)
+{
+	int v = 1;
+	tnode_t *traces;
 
+#if 1
+fprintf (stderr, "occampi_intypedecl_scopein_typedecl_cttrace(): here!, in-scope names:\n");
+name_dumpnames (stderr);
+#endif
+	/* call-through */
+	if (cops->next && tnode_hascompop (cops->next, "intypedecl_scopein")) {
+		v = tnode_callcompop (cops->next, "intypedecl_scopein", 2, nodep, ss);
+	}
+
+	traces = (tnode_t *)tnode_getchook (*nodep, trctchook);
+	if (traces) {
+		/* got some traces here -- neatly packaged in lists*/
+		tnode_t **xtraces;
+		int i, ntraces;
+
+		xtraces = parser_getlistitems (traces, &ntraces);
+		traceslang_registertracetype (opi.tag_NFIELD);
+		for (i=0; i<ntraces; i++) {
+			scope_subtree (xtraces + i, ss);
+		}
+		traceslang_unregistertracetype (opi.tag_NFIELD);
+	}
+
+	return v;
+}
+/*}}}*/
+/*{{{  static int occampi_typecheck_typedecl_cttrace (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on the traces attached to a CHAN TYPE
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_typedecl_cttrace (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	int v = 1;
+
+	/* call-through */
+	if (tnode_hascompop (cops->next, "typecheck")) {
+		v = tnode_callcompop (cops->next, "typecheck", 2, node, tc);
+	}
+
+	return v;
+}
+/*}}}*/
+/*{{{  static int occampi_typeresolve_typedecl_cttrace (compops_t *cops, tnode_t **nodep, typecheck_t *tc)*/
+/*
+ *	does type-resolution on the traces attached to a CHAN TYPE
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typeresolve_typedecl_cttrace (compops_t *cops, tnode_t **nodep, typecheck_t *tc)
+{
+	int v = 1;
+
+	/* call-through */
+	if (tnode_hascompop (cops->next, "typeresolve")) {
+		v = tnode_callcompop (cops->next, "typeresolve", 2, nodep, tc);
+	}
+
+	return v;
+}
+/*}}}*/
+/*{{{  static int occampi_precheck_typedecl_cttrace (compops_t *cops, tnode_t *node)*/
+/*
+ *	does pre-checking on the traces attached to a CHAN TYPE
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_precheck_typedecl_cttrace (compops_t *cops, tnode_t *node)
+{
+	int v = 1;
+
+	/* call through */
+	if (tnode_hascompop (cops->next, "precheck")) {
+		v = tnode_callcompop (cops->next, "precheck", 1, node);
+	}
+
+	return v;
+}
+/*}}}*/
+/*{{{  static int occampi_tracescheck_typedecl_cttrace (compops_t *cops, tnode_t *node, tchk_state_t *tc)*/
+/*
+ *	does traces-checking on the traces attached to a CHAN TYPE
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_tracescheck_typedecl_cttrace (compops_t *cops, tnode_t *node, tchk_state_t *tc)
+{
+	int v = 1;
+
+	/* call through */
+	if (tnode_hascompop (cops->next, "tracescheck")) {
+		v = tnode_callcompop (cops->next, "tracescheck", 2, node, tc);
+	}
+
+	return v;
+}
+/*}}}*/
+/*{{{  static int occampi_fetrans_typedecl_cttrace (compops_t *cops, tnode_t **nodep, fetrans_t *fe)*/
+/*
+ *	does front-end transformations on the traces attached to a CHAN TYPE
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_fetrans_typedecl_cttrace (compops_t *cops, tnode_t **nodep, fetrans_t *fe)
+{
+	int v = 1;
+
+	/* call through */
+	if (tnode_hascompop (cops->next, "fetrans")) {
+		v = tnode_callcompop (cops->next, "fetrans", 2, nodep, fe);
+	}
+
+	return v;
+}
+/*}}}*/
 
 /*{{{  static int occampi_prescope_procdecl_tracetypeimpl (compops_t *cops, tnode_t **node, prescope_t *ps)*/
 /*
@@ -1385,10 +1550,21 @@ static int occampi_traces_post_setup (void)
 	/*{{{  intefere with mobile CHAN TYPE declaration nodes to capture/handle TRACES*/
 	tnd = tnode_lookupnodetype ("occampi:typedecl");
 	cops = tnode_insertcompops (tnd->ops);
+	tnode_setcompop_bottom (cops, "intypedecl_scopein", 2, COMPOPTYPE (occampi_intypedecl_scopein_typedecl_cttrace));
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_typedecl_cttrace));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_typedecl_cttrace));
+	tnode_setcompop (cops, "typeresolve", 2, COMPOPTYPE (occampi_typeresolve_typedecl_cttrace));
+	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (occampi_precheck_typedecl_cttrace));
+	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_typedecl_cttrace));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_typedecl_cttrace));
 	tnd->ops = cops;
 	lops = tnode_insertlangops (tnd->lops);
 	tnd->lops = lops;
+
+#if 0
+fprintf (stderr, "occampi_traces_post_setup(): compiler operations for occampi:typedecl now:\n");
+tnode_dumpcompops (tnd->ops, stderr);
+#endif
 
 	/*}}}*/
 	/*{{{  tell the traceslang part of the compiler that N_TRACETYPEDECLs can represent traces*/
