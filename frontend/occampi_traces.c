@@ -634,6 +634,9 @@ static int occampi_prescope_typedecl_cttrace (compops_t *cops, tnode_t **node, p
 			/* clean existing list */
 			parser_cleanuplist (traces);
 		}
+		/* attach this back in the hook */
+		tnode_clearchook (*node, trctchook);
+		tnode_setchook (*node, trctchook, traces);
 
 		/* go through each individually */
 		xtraces = parser_getlistitems (traces, &ntraces);
@@ -643,6 +646,12 @@ tnode_dumptree (traces, 1, stderr);
 #endif
 		for (i=0; i<ntraces; i++) {
 			char *lstr;
+
+			lstr = occampi_litstringcopy (xtraces[i]);
+			if (!lstr) {
+				prescope_error (*node, ps, "TRACE item must be a string literal (found %s)", xtraces[i]->tag->name);
+				return 1;
+			}
 		}
 	}
 
