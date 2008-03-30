@@ -1293,6 +1293,7 @@ static int tchk_walknextstep (tchk_tracewalk_t *ttw)
 				break;
 			case TCN_INPUT:
 			case TCN_OUTPUT:
+			case TCN_FIELD:
 				/* nothing left here */
 				break;
 			default:
@@ -1660,6 +1661,17 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 			/*{{{  CHAOS*/
 		case TCN_CHAOS:
 			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"chaos\" />\n", (unsigned int)tcn->orgnode);
+			break;
+			/*}}}*/
+			/*{{{  FIELD*/
+		case TCN_FIELD:
+			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"field\">\n", (unsigned int)tcn->orgnode);
+			tracescheck_dumpnode (tcn->u.tcnfield.base, indent+1, stream);
+			tchk_isetindent (stream, indent+1);
+			fprintf (stream, "<tracescheck:tnode addr=\"0x%8.8x\" nodetag=\"%s\" nodetype=\"%s\" />\n",
+					(unsigned int)tcn->u.tcnfield.field, tcn->u.tcnfield.field->tag->name, tcn->u.tcnfield.field->tag->ndef->name);
+			tchk_isetindent (stream, indent);
+			fprintf (stream, "</tracescheck:node>\n");
 			break;
 			/*}}}*/
 		}
@@ -2092,6 +2104,12 @@ tchknode_t *tracescheck_copynode (tchknode_t *tcn)
 	case TCN_CHAOS:
 		break;
 		/*}}}*/
+		/*{{{  FIELD*/
+	case TCN_FIELD:
+		tcc->u.tcnfield.base = tracescheck_copynode (tcn->u.tcnfield.base);
+		tcc->u.tcnfield.field = tcn->u.tcnfield.field;
+		break;
+		/*}}}*/
 	}
 
 	return tcc;
@@ -2184,6 +2202,12 @@ tchknode_t *tracescheck_createnode (tchknodetype_e type, tnode_t *orgnode, ...)
 	case TCN_STOP:
 	case TCN_DIV:
 	case TCN_CHAOS:
+		break;
+		/*}}}*/
+		/*{{{  FIELD*/
+	case TCN_FIELD:
+		tcn->u.tcnfield.base = va_arg (ap, tchknode_t *);
+		tcn->u.tcnfield.field = va_arg (ap, tnode_t *);
 		break;
 		/*}}}*/
 	}
@@ -2577,6 +2601,16 @@ tchknode_t *tracescheck_stepwalk (tchk_tracewalk_t *ttw)
 		case TCN_INVALID:
 			/* singleton, end of subwalk */
 			tchk_walknextstep (ttw);
+			break;
+		case TCN_FIELD:
+			(*thisdatap)++;
+			if (*thisdatap) {
+				tchk_walknextstep (ttw);
+				/* end of subwalk */
+			} else {
+				tchk_walkpushstack (ttw, thisnode->u.tcnfield.base, -1);
+				atnext = 1;
+			}
 			break;
 		}
 		if (!ttw->depth) {

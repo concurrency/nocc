@@ -39,7 +39,8 @@ typedef enum ENUM_tchknodetype {
 	TCN_SKIP = 11,
 	TCN_STOP = 12,
 	TCN_DIV = 13,
-	TCN_CHAOS = 14
+	TCN_CHAOS = 14,
+	TCN_FIELD = 15
 } tchknodetype_e;
 
 typedef struct TAG_tchknode {
@@ -66,6 +67,10 @@ typedef struct TAG_tchknode {
 		struct {
 			struct TAG_tnode *nref;		/* tnode-level pointer */
 		} tcnnref;
+		struct {
+			struct TAG_tchknode *base;	/* base */
+			struct TAG_tnode *field;	/* real field(s) */
+		} tcnfield;
 	} u;
 } tchknode_t;
 
