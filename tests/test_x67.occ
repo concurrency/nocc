@@ -12,6 +12,5 @@ CHAN TYPE CT.FOO
 PROC test.x67 (CT.FOO! link, CHAN INT out!)
   SEQ
     link[in] ! 42
-    out ! 26
 :
 

@@ -231,20 +231,32 @@ static int occampi_tracescheck_action (compops_t *cops, tnode_t *node, tchk_stat
 	if ((node->tag == opi.tag_INPUT) || (node->tag == opi.tag_OUTPUT)) {
 		tnode_t *lhs = tnode_nthsubof (node, 0);
 		tnode_t *baselhs = langops_getbasename (lhs);
+		tnode_t *fieldlhs = langops_getfieldnamelist (lhs);
 		// tnode_t *lhstype = (tnode_t *)tnode_getchook (node, opi_action_lhstypehook);
 		chook_t *tchkhook = tracescheck_getnoderefchook ();
 		tchknode_t *lhstcn;
 
+#if 0
+fprintf (stderr, "occampi_tracescheck_action(): INPUT or OUTPUT, lhs is:\n");
+tnode_dumptree (lhs, 1, stderr);
+fprintf (stderr, "                          (): baselhs is:\n");
+tnode_dumptree (baselhs, 1, stderr);
+#endif
 		if (baselhs && (baselhs != lhs)) {
 			/* use the base-name */
 			lhs = baselhs;
 		}
 
+		/* grab the tchknode_t hook placed on the base (if any) */
 		lhstcn = (tchknode_t *)tnode_getchook (lhs, tchkhook);
 
 		if (lhstcn) {
 			tchknode_t *newtcn = tracescheck_dupref (lhstcn);
 
+#if 1
+fprintf (stderr, "occampi_tracescheck_action(): got hook for traces on LHS/base-of, field-list is:\n");
+tnode_dumptree (fieldlhs, 1, stderr);
+#endif
 			newtcn = tracescheck_createnode ((node->tag == opi.tag_INPUT) ? TCN_INPUT : TCN_OUTPUT, node, newtcn);
 			tracescheck_addtobucket (tcstate, newtcn);
 		}

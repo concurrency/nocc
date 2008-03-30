@@ -454,6 +454,7 @@ int tnode_init (void)
 	tnode_newlangop ("typehash", LOPS_TYPEHASH, 3, INTERNAL_ORIGIN);
 	tnode_newlangop ("typetype", LOPS_TYPETYPE, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("getbasename", LOPS_GETBASENAME, 1, INTERNAL_ORIGIN);
+	tnode_newlangop ("getfieldname", LOPS_GETFIELDNAME, 1, INTERNAL_ORIGIN);
 
 	/*}}}*/
 	/*{{{  setup the static node types*/

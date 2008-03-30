@@ -314,13 +314,56 @@ int langops_typehash_blend (const int dsize, void *dptr, const int ssize, void *
  */
 tnode_t *langops_getbasename (tnode_t *node)
 {
+	if (!node || !node->tag->ndef->lops || !tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GETBASENAME)) {
+		return NULL;
+	}
 	while (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GETBASENAME)) {
-		node = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GETBASENAME, 1, node);
+		node = (tnode_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GETBASENAME, 1, node);
 	}
 	return node;
 }
 /*}}}*/
+/*{{{  tnode_t *langops_getfieldname (tnode_t *node)*/
+/*
+ *	gets the field-name for a specified node (on a SUBSCRIPT)
+ *	returns field name on success, NULL on failure
+ */
+tnode_t *langops_getfieldname (tnode_t *node)
+{
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GETFIELDNAME)) {
+		return (tnode_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GETFIELDNAME, 1, node);
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  tnode_t *langops_getfieldnamelist (tnode_t *node)*/
+/*
+ *	gets a field-name list for a specified node (walks SUBSCRIPTS collecting up the indices)
+ *	returns list on success, NULL on failure
+ */
+tnode_t *langops_getfieldnamelist (tnode_t *node)
+{
+	tnode_t *xlist = parser_newlistnode (NULL);
 
+	while (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GETFIELDNAME)) {
+		tnode_t *field = (tnode_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GETFIELDNAME, 1, node);
+
+		if (field) {
+#if 0
+fprintf (stderr, "langops_getfieldnamelist(): got field at 0x%8.8x\n", (unsigned int)field);
+#endif
+			parser_addtolist (xlist, field);
+		}
+		node = langops_getbasename (node);
+	}
+
+	if (!parser_countlist (xlist)) {
+		parser_trashlist (xlist);
+		xlist = NULL;
+	}
+	return xlist;
+}
+/*}}}*/
 
 /*{{{  int langops_init (void)*/
 /*

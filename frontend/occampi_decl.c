@@ -1375,7 +1375,7 @@ tnode_dumptree (ptype, 1, stderr);
 
 			tnode_setchook (pname, tracescheck_getnoderefchook (), tnref);
 			tracescheck_addivar (tcstate, tracescheck_dupref (tnref));
-#if 1
+#if 0
 fprintf (stderr, "FPARAM looks like a sync-type:\n");
 tnode_dumptree (pname, 1, stderr);
 #endif
