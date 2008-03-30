@@ -314,6 +314,8 @@ name_dumpnames (stderr);
 		newname = tnode_createfrom (opi.tag_NCHANTYPEDECL, name, sname);
 	} else if ((*node)->tag == opi.tag_PROCTYPEDECL) {
 		newname = tnode_createfrom (opi.tag_NPROCTYPEDECL, name, sname);
+	} else if ((*node)->tag == opi.tag_PROTOCOLDECL) {
+		newname = tnode_createfrom (opi.tag_NPROTOCOLDECL, name, sname);
 	} else {
 		scope_error (name, ss, "unknown node type! [%s]", (*node)->tag->name);
 		return 0;
@@ -1128,6 +1130,39 @@ tnode_dumptree (type, 1, stderr);
 	return bytes;
 }
 /*}}}*/
+/*{{{  static int occampi_scopein_tagdecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	called to scope in a tag name (inside a PROTOCOL)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_scopein_tagdecl (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	tnode_t *name = tnode_nthsubof (*node, 0);
+	char *rawname;
+	tnode_t *type, *newname;
+	name_t *sname = NULL;
+
+	if (name->tag != opi.tag_NAME) {
+		scope_error (name, ss, "name not raw-name!");
+		return 0;
+	}
+	rawname = tnode_nthhookof (name, 0);
+
+	scope_subtree (tnode_nthsubaddr (*node, 1), ss);		/* scope type */
+	type = tnode_nthsubof (*node, 1);
+
+	sname = name_addscopename (rawname, *node, type, NULL);
+	newname = tnode_createfrom (opi.tag_NTAG, name, sname);
+	SetNameNode (sname, newname);
+	tnode_setnthsub (*node, 0, newname);
+
+	/* free old name */
+	tnode_free (name);
+	ss->scoped++;
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_scopein_subscript (compops_t *cops, tnode_t **node, scope_t *ss)*/
@@ -1850,7 +1885,7 @@ static int occampi_dtype_init_nodes (void)
 	}
 	/*}}}*/
 
-	/*{{{  occampi:typedecl -- DATATYPEDECL, CHANTYPEDECL, PROCTYPEDECL*/
+	/*{{{  occampi:typedecl -- DATATYPEDECL, CHANTYPEDECL, PROCTYPEDECL, PROTOCOLDECL*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:typedecl", &i, 3, 0, 1, TNF_SHORTDECL);		/* subnodes: 0 = name; 1 = type; 2 = body; hooks: 0 = typedeclhook_t */
 	tnd->hook_dumptree = occampi_typedecl_hook_dumptree;
@@ -1872,6 +1907,8 @@ static int occampi_dtype_init_nodes (void)
 	opi.tag_CHANTYPEDECL = tnode_newnodetag ("CHANTYPEDECL", &i, tnd, NTF_SYNCTYPE);
 	i = -1;
 	opi.tag_PROCTYPEDECL = tnode_newnodetag ("PROCTYPEDECL", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_PROTOCOLDECL = tnode_newnodetag ("PROTOCOLDECL", &i, tnd, NTF_NONE);
 	/*}}}*/
 	/*{{{  occampi:arraynode -- ARRAY*/
 	i = -1;
@@ -1941,6 +1978,20 @@ static int occampi_dtype_init_nodes (void)
 
 	i = -1;
 	opi.tag_FIELDDECL = tnode_newnodetag ("FIELDDECL", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:tagdecl -- TAGDECL*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:tagdecl", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = name, 1 = type, 2 = value-of */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_tagdecl));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_TAGDECL = tnode_newnodetag ("TAGDECL", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  occampi:subscript -- SUBSCRIPT, RECORDSUB, ARRAYSUB*/
 	i = -1;
@@ -1997,7 +2048,7 @@ static int occampi_dtype_init_nodes (void)
 
 	/*}}}*/
 
-	/*{{{  occampi:nametypenode -- N_DATATYPEDECL, N_FIELD, N_CHANTYPEDECL, N_PROCTYPEDECL*/
+	/*{{{  occampi:nametypenode -- N_DATATYPEDECL, N_FIELD, N_CHANTYPEDECL, N_PROCTYPEDECL, N_TAG*/
 	i = -1;
 	tnd = opi.node_NAMETYPENODE = tnode_newnodetype ("occampi:nametypenode", &i, 0, 1, 0, TNF_NONE);	/* subnames: name */
 	cops = tnode_newcompops ();
@@ -2016,11 +2067,15 @@ static int occampi_dtype_init_nodes (void)
 	i = -1;
 	opi.tag_NDATATYPEDECL = tnode_newnodetag ("N_DATATYPEDECL", &i, tnd, NTF_NONE);
 	i = -1;
-	opi.tag_NFIELD = tnode_newnodetag ("N_FIELD", &i, tnd, NTF_NONE);
-	i = -1;
 	opi.tag_NCHANTYPEDECL = tnode_newnodetag ("N_CHANTYPEDECL", &i, tnd, NTF_SYNCTYPE);
 	i = -1;
 	opi.tag_NPROCTYPEDECL = tnode_newnodetag ("N_PROCTYPEDECL", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_NPROTOCOLDECL = tnode_newnodetag ("N_PROTOCOLDECL", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_NFIELD = tnode_newnodetag ("N_FIELD", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_NTAG = tnode_newnodetag ("N_TAG", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 
