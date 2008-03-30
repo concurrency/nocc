@@ -188,6 +188,7 @@ typedef enum ENUM_langops {
 	LOPS_HIDDENSLOTSOF = 28,		/* 1: tnode_t * -> int */
 	LOPS_TYPEHASH = 29,			/* 3: tnode_t *, int, void * -> int */
 	LOPS_TYPETYPE = 30,			/* 1: tnode_t * -> typecat_e */
+	LOPS_GETBASENAME = 31,			/* 1: tnode_t * -> tnode_t * */
 	LOPS_MAX = 256
 } langops_e;
 

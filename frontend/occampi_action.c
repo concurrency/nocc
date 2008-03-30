@@ -230,9 +230,17 @@ static int occampi_tracescheck_action (compops_t *cops, tnode_t *node, tchk_stat
 {
 	if ((node->tag == opi.tag_INPUT) || (node->tag == opi.tag_OUTPUT)) {
 		tnode_t *lhs = tnode_nthsubof (node, 0);
+		tnode_t *baselhs = langops_getbasename (lhs);
 		// tnode_t *lhstype = (tnode_t *)tnode_getchook (node, opi_action_lhstypehook);
 		chook_t *tchkhook = tracescheck_getnoderefchook ();
-		tchknode_t *lhstcn = (tchknode_t *)tnode_getchook (lhs, tchkhook);
+		tchknode_t *lhstcn;
+
+		if (baselhs && (baselhs != lhs)) {
+			/* use the base-name */
+			lhs = baselhs;
+		}
+
+		lhstcn = (tchknode_t *)tnode_getchook (lhs, tchkhook);
 
 		if (lhstcn) {
 			tchknode_t *newtcn = tracescheck_dupref (lhstcn);

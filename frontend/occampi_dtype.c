@@ -1419,6 +1419,15 @@ static int occampi_isvar_subscript (langops_t *lops, tnode_t *node)
 	return langops_isvar (tnode_nthsubof (node, 0));
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_getbasename_subscript (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the "base" of a given subscript
+ */
+static tnode_t *occampi_getbasename_subscript (langops_t *lops, tnode_t *node)
+{
+	return tnode_nthsubof (node, 0);
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_typecheck_slice (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
@@ -1937,6 +1946,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_subscript));
 	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_iscomplex_subscript));
 	tnode_setlangop (lops, "isvar", 1, LANGOPTYPE (occampi_isvar_subscript));
+	tnode_setlangop (lops, "getbasename", 1, LANGOPTYPE (occampi_getbasename_subscript));
 	tnd->lops = lops;
 
 	i = -1;

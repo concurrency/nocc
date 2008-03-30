@@ -928,15 +928,19 @@ static int occampi_tracescheck_procdecl (compops_t *cops, tnode_t *node, tchk_st
 
 	tracescheck_subtree (tnode_nthsubof (node, 2), thispstate);
 
+#if 1
+fprintf (stderr, "occampi_tracescheck_procdecl(): after body check, thispstate =\n");
+tracescheck_dumpstate (thispstate, 1, stderr);
+#endif
 	/* anything left in the bucket in thispstate will be a trace for this procedure */
 	tracescheck_buckettotraces (thispstate);
 	trs = tracescheck_pulltraces (thispstate);
 
 	tracescheck_simplifytraces (trs);
 	tnode_setchook (node, tchktrchook, (void *)trs);
-#if 0
-fprintf (stderr, "occampi_tracescheck_procdecl(): done traces check, thispstate =\n");
-tracescheck_dumpstate (thispstate, 1, stderr);
+#if 1
+// fprintf (stderr, "occampi_tracescheck_procdecl(): done traces check, thispstate =\n");
+// tracescheck_dumpstate (thispstate, 1, stderr);
 fprintf (stderr, "occampi_tracescheck_procdecl(): done traces check, obtained traces=\n");
 // tnode_dumptree (node, 1, stderr);
 tracescheck_dumptraces (trs, 1, stderr);
@@ -1371,7 +1375,7 @@ tnode_dumptree (ptype, 1, stderr);
 
 			tnode_setchook (pname, tracescheck_getnoderefchook (), tnref);
 			tracescheck_addivar (tcstate, tracescheck_dupref (tnref));
-#if 0
+#if 1
 fprintf (stderr, "FPARAM looks like a sync-type:\n");
 tnode_dumptree (pname, 1, stderr);
 #endif

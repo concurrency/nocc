@@ -307,6 +307,19 @@ int langops_typehash_blend (const int dsize, void *dptr, const int ssize, void *
 	return 0;
 }
 /*}}}*/
+/*{{{  tnode_t *langops_getbasename (tnode_t *node)*/
+/*
+ *	gets the base-name for a specified node (walks through SUBSCRIPTs and the like)
+ *	returns base node on success, NULL on failure
+ */
+tnode_t *langops_getbasename (tnode_t *node)
+{
+	while (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GETBASENAME)) {
+		node = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GETBASENAME, 1, node);
+	}
+	return node;
+}
+/*}}}*/
 
 
 /*{{{  int langops_init (void)*/

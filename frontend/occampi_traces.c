@@ -1238,7 +1238,7 @@ static int occampi_tracescheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t 
 		v = tnode_callcompop (cops->next, "tracescheck", 2, node, tcstate);
 	}
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): done tracescheck on PROC, declaration, got state:\n");
 tracescheck_dumpstate (tcstate, 1, stderr);
 #endif
