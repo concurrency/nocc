@@ -1503,10 +1503,12 @@ void tracescheck_dumptraces (tchk_traces_t *tct, int indent, FILE *stream)
 
 	tchk_isetindent (stream, indent);
 	fprintf (stream, "<tracescheck:traces>\n");
-	for (i=0; i<DA_CUR (tct->items); i++) {
-		tchknode_t *tcn = DA_NTHITEM (tct->items, i);
+	if (tct) {
+		for (i=0; i<DA_CUR (tct->items); i++) {
+			tchknode_t *tcn = DA_NTHITEM (tct->items, i);
 
-		tracescheck_dumpnode (tcn, indent + 1, stream);
+			tracescheck_dumpnode (tcn, indent + 1, stream);
+		}
 	}
 	tchk_isetindent (stream, indent);
 	fprintf (stream, "</tracescheck:traces>\n");

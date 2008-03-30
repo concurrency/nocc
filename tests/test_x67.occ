@@ -9,7 +9,8 @@ CHAN TYPE CT.FOO
     "in? -> out!"
 :
 
-PROC test.x67 ()
-  SKIP
+PROC test.x67 (CT.FOO! link, CHAN INT out!)
+  SEQ
+    link[in] ! 42
 :
 

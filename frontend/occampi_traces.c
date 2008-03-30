@@ -808,10 +808,18 @@ static int occampi_precheck_typedecl_cttrace (compops_t *cops, tnode_t *node)
 static int occampi_tracescheck_typedecl_cttrace (compops_t *cops, tnode_t *node, tchk_state_t *tc)
 {
 	int v = 1;
+	tnode_t *traces;
 
 	/* call through */
 	if (tnode_hascompop (cops->next, "tracescheck")) {
 		v = tnode_callcompop (cops->next, "tracescheck", 2, node, tc);
+	}
+
+	traces = (tnode_t *)tnode_getchook (node, trctchook);
+	if (traces) {
+#if 1
+fprintf (stderr, "occampi_tracescheck_typedecl_cttrace(): here!\n");
+#endif
 	}
 
 	return v;
@@ -1223,18 +1231,27 @@ static int occampi_tracescheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t 
 	int v = 0;
 	tnode_t *trimpl;
 	importtrace_t *ipt;
+	tchk_traces_t *trs;
 
 	if (tnode_hascompop (cops->next, "tracescheck")) {
+		/* this will do trace analysis on the PROC proper */
 		v = tnode_callcompop (cops->next, "tracescheck", 2, node, tcstate);
 	}
 
+#if 1
+fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): done tracescheck on PROC, declaration, got state:\n");
+tracescheck_dumpstate (tcstate, 1, stderr);
+#endif
 	ipt = (importtrace_t *)tnode_getchook (node, trimportchook);
 	if (ipt) {
-		/* transform imported trace trees (which will be a traceslang structure), into a traces-check structure */
-		tchk_traces_t *trs = tracescheck_newtraces ();
+		/*{{{  transform imported trace trees (which will be a traceslang structure), into a traces-check structure*/
+		tchk_traces_t *ntrs = tracescheck_newtraces ();
 		tchk_traces_t *etraces;
 		int i;
 
+#if 1
+fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): got trimportchook, imported-traces at 0x%8.8x\n", (unsigned int)ipt);
+#endif
 #if 0
 fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): here with imported-traces!  name is:\n");
 tnode_dumptree (tnode_nthsubof (node, 0), 1, stderr);
@@ -1249,7 +1266,7 @@ tnode_dumptree (tree, 1, stderr);
 fprintf (stderr, "into:\n");
 tracescheck_dumpnode (tcn, 1, stderr);
 #endif
-			dynarray_add (trs->items, tcn);
+			dynarray_add (ntrs->items, tcn);
 		}
 
 		etraces = (tchk_traces_t *)tnode_getchook (node, trtracechook);
@@ -1258,13 +1275,22 @@ tracescheck_dumpnode (tcn, 1, stderr);
 			tnode_clearchook (node, trtracechook);
 			tracescheck_freetraces (etraces);
 		}
-		tnode_setchook (node, trtracechook, trs);
+		tnode_setchook (node, trtracechook, ntrs);
+		/*}}}*/
 	}
+
+	trs = (tchk_traces_t *)tnode_getchook (node, trtracechook);
+#if 1
+fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): got traces-chook at 0x%8.8x, traces are:\n", (unsigned int)trs);
+tracescheck_dumptraces (trs, 1, stderr);
+#endif
 
 	trimpl = (tnode_t *)tnode_getchook (node, trimplchook);
 	if (trimpl) {
-		tchk_traces_t *trs = (tchk_traces_t *)tnode_getchook (node, trtracechook);
-
+		/*{{{  if there is an implementation hook, means we have traces to check!*/
+#if 0
+fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): got trimplchook, traces at 0x%8.8x\n", (unsigned int)trtracechook);
+#endif
 		if (trs) {
 			int nitems, i;
 			tnode_t **items = parser_getlistitems (trimpl, &nitems);
@@ -1301,6 +1327,7 @@ tnode_dumptree (trspecs[j], 1, stderr);
 				}
 			}
 		}
+		/*}}}*/
 	}
 
 	return v;
@@ -1543,8 +1570,8 @@ static int occampi_traces_post_setup (void)
 	/*}}}*/
 	/*{{{  intefere with PROC declaration nodes to capture/handle TRACES*/
 	tnd = tnode_lookupnodetype ("occampi:procdecl");
-	tnode_setcompop (tnd->ops, "inparams_scopein", 2, COMPOPTYPE (occampi_inparams_scopein_procdecl_tracetypeimpl));
 	cops = tnode_insertcompops (tnd->ops);
+	tnode_setcompop_bottom (cops, "inparams_scopein", 2, COMPOPTYPE (occampi_inparams_scopein_procdecl_tracetypeimpl));
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_procdecl_tracetypeimpl));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_procdecl_tracetypeimpl));
 	tnode_setcompop (cops, "typeresolve", 2, COMPOPTYPE (occampi_typeresolve_procdecl_tracetypeimpl));
