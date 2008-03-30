@@ -934,11 +934,12 @@ static int occampi_tracescheck_procdecl (compops_t *cops, tnode_t *node, tchk_st
 
 	tracescheck_simplifytraces (trs);
 	tnode_setchook (node, tchktrchook, (void *)trs);
-#if 1
+#if 0
 fprintf (stderr, "occampi_tracescheck_procdecl(): done traces check, thispstate =\n");
 tracescheck_dumpstate (thispstate, 1, stderr);
+fprintf (stderr, "occampi_tracescheck_procdecl(): done traces check, obtained traces=\n");
 // tnode_dumptree (node, 1, stderr);
-// tracescheck_dumptraces (trs, 1, stderr);
+tracescheck_dumptraces (trs, 1, stderr);
 #endif
 
 	/* clean references from formal parameters */
@@ -1330,6 +1331,10 @@ static int occampi_tracescheck_fparam (compops_t *cops, tnode_t *node, tchk_stat
 		int issync = 0;
 
 		while (ptype) {
+#if 0
+fprintf (stderr, "occampi_tracescheck_fparam(): testing type for SYNCTYPE flag:\n");
+tnode_dumptree (ptype, 1, stderr);
+#endif
 			if (tnode_ntflagsof (ptype) & NTF_SYNCTYPE) {
 				issync = 1;
 				ptype = NULL;

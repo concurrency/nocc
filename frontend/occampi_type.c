@@ -532,6 +532,20 @@ static tnode_t *occampi_typespec_gettype (langops_t *lops, tnode_t *node, tnode_
 	return typecheck_gettype (tnode_nthsubof (node, 0), default_type);
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_typespec_getsubtype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the sub-type of a type-spec node, only works for certain types currently
+ */
+static tnode_t *occampi_typespec_getsubtype (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	tnode_t *arg = tnode_nthsubof (node, 0);
+
+	if (typecheck_istype (arg)) {
+		return arg;
+	}
+	return NULL;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_typespec_typeactual (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type compatability on a type-spec node,
@@ -1080,6 +1094,7 @@ static int occampi_type_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_typespec_gettype));
+	tnode_setlangop (lops, "getsubtype", 2, LANGOPTYPE (occampi_typespec_getsubtype));
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_typespec_typeactual));
 	tnode_setlangop (lops, "occampi_typeattrof", 2, LANGOPTYPE (occampi_typespec_occampi_typeattrof));
 	tnode_setlangop (lops, "isvar", 1, LANGOPTYPE (occampi_typespec_isvar));

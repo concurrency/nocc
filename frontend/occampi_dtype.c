@@ -1851,7 +1851,7 @@ static int occampi_dtype_init_nodes (void)
 	i = -1;
 	opi.tag_DATATYPEDECL = tnode_newnodetag ("DATATYPEDECL", &i, tnd, NTF_NONE);
 	i = -1;
-	opi.tag_CHANTYPEDECL = tnode_newnodetag ("CHANTYPEDECL", &i, tnd, NTF_NONE);
+	opi.tag_CHANTYPEDECL = tnode_newnodetag ("CHANTYPEDECL", &i, tnd, NTF_SYNCTYPE);
 	i = -1;
 	opi.tag_PROCTYPEDECL = tnode_newnodetag ("PROCTYPEDECL", &i, tnd, NTF_NONE);
 	/*}}}*/
