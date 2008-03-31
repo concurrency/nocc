@@ -413,6 +413,8 @@
 .GRULE	"opi:slicereduce" "SN0N+N+N+V*0C[ARRAYSLICE]4R-"
 .GRULE	"opi:nullpush" "0N-"
 .GRULE	"opi:protocoldeclreduce" "SN1N+N+V00X[occampi_typedeclhook_blankhook]C[PROTOCOLDECL]4R-"
+.GRULE	"opi:nullpcasereduce" "SN0N+00C[TAGDECL]3R-"
+.GRULE	"opi:pcasereduce" "SN1N+N+V0C[TAGDECL]3R-"
 
 .RFUNC	"Roccampi:resetnewline" "occampi_reduce_resetnewline"
 .RFUNC	"Roccampi:arrayfold" "occampi_reduce_arrayfold"
@@ -456,9 +458,16 @@
 .TABLE	"occampi:proctypedecl ::= [ 0 @PROC 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ]"
 	"[ 3 @@( 4 ] [ 4 occampi:fparamlist 5 ] [ 5 @@) 6 ] [ 6 {<opi:proctypedeclreduce>} @@: 7 ] [ 7 -* ]"
 
+.TABLE	"occampi:protocolcase ::= [ 0 occampi:name 1 ] [ 1 @@; 3 ] [ 1 -* 2 ]"
+	"[ 2 {<opi:nullpcasereduce>} -* ]"
+	"[ 3 occampi:protocollist 4 ] [ 4 {<opi:pcasereduce>} -* ]"
+.TABLE	"occampi:protocolcaselist ::= [ 0 occampi:protocolcase 1 ] [ 1 {<parser:nullreduce>} ] [ 1 Newline 2 ] [ 1 -* 4 ] [ 2 {Rinlist} ]"
+	"[ 2 occampi:protocolcase 1 ] [ 2 Newline 4 ] [ 2 -* 3 ] [ 2 {Roccampi:resetnewline} ] [ 3 -* 4 ] [ 4 -* ]"
+# .BNF	"occampi:protocolcaselist ::= { occampi:protocolcase Newline 0 }"
 .TABLE	"occampi:protocoldecl ::= [ 0 @PROTOCOL 1 ] [ 1 +Name 2 ] [ 2 {<opi:namepush>} ] [ 2 Newline 5 ] [ 2 @IS 3 ]"
 	"[ 3 occampi:protocollist 4 ] [ 4 {<opi:protocoldeclreduce>} -* ]"
-	"[ 5 Indent 6 ] [ 6 @CASE 7 ] [ 7 Newline 8 ] [ 8 Indent 9 ] [ 9 {<opi:nullpush>} -* 10 ] [ 10 Outdent 11 ] [ 11 {<opi:protocoldeclreduce>} -* ]"
+	"[ 5 Indent 6 ] [ 6 @CASE 7 ] [ 7 Newline 8 ] [ 8 Indent 9 ] [ 9 occampi:protocolcaselist 10 ] [ 10 Outdent 11 ]"
+	"[ 11 Outdent 12 ] [ 12 @@: 13 ] [ 13 {<opi:protocoldeclreduce>} -* ]"
 
 .TABLE	"occampi:arrayspec ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:arrayspec>} -* ]"
 .TABLE	"occampi:emptyorarrayspec ::= [ 0 @@[ 1 ] [ 1 +@@] 4 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:arrayspec>} -* ] [ 4 {<opi:emptyarrayspec>} -* ]"

@@ -1,0 +1,21 @@
+
+-- test_x68.occ -- TRACES in mobile channel types
+
+PROTOCOL P.IN
+  CASE
+    zero
+    one; INT
+:
+
+PROTOCOL P.OUT
+  CASE
+    out.zero
+    out.one; INT
+:
+
+
+
+PROC test.x68 ()
+  SKIP
+:
+
