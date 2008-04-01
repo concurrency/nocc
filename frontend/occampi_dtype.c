@@ -1791,7 +1791,7 @@ tnode_dumptree (node, 4, stderr);
  */
 static tnode_t *occampi_typeactual_nametypenode (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
 {
-#if 0
+#if 1
 fprintf (stderr, "occampi_typeactual_nametypenode(): formaltype =\n");
 tnode_dumptree (formaltype, 1, stderr);
 fprintf (stderr, "occampi_typeactual_nametypenode(): actualtype =\n");
@@ -1829,6 +1829,18 @@ fprintf (stderr, "Occampi_typeactual_nametypenode(): real actual type =\n");
 tnode_dumptree (atype, 1, stderr);
 #endif
 		return atype;
+		/*}}}*/
+	} else if (formaltype->tag == opi.tag_NVARPROTOCOLDECL) {
+		/*{{{  check actual usage on variant protocol (input/output)*/
+		name_t *name = tnode_nthnameof (formaltype, 0);
+
+		if (node->tag == opi.tag_OUTPUT) {
+			/*{{{  check output, first item should be a tag*/
+			int naitems, i;
+			tnode_t **aitems = parser_getlistitems (actualtype, &naitems);
+
+			/*}}}*/
+		}
 		/*}}}*/
 	}
 
@@ -2004,7 +2016,7 @@ static tnode_t *occampi_protocoltotype_nametypenode (langops_t *lops, tnode_t *p
 		name_t *name = tnode_nthnameof (prot, 0);
 		ntype = NameTypeOf (name);
 	} else if (prot->tag == opi.tag_NVARPROTOCOLDECL) {
-		/* FIXME! */
+		return prot;
 	}
 
 	return ntype;
@@ -2052,7 +2064,7 @@ fprintf (stderr, "occampi_fetrans_actionnode_forprotocol(): here!\n");
 
 			newseq = tnode_createfrom (opi.tag_SEQ, *nodep, NULL, violist);
 			for (i=0; i<nitems; i++) {
-				tnode_t *newio = tnode_createfrom ((*nodep)->tag, *nodep, tnode_copytree (lhs), items[i], types[i]);
+				tnode_t *newio = tnode_createfrom ((*nodep)->tag, *nodep, lhs, items[i], types[i]);
 
 				parser_addtolist (violist, newio);
 			}

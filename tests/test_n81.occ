@@ -1,0 +1,9 @@
+
+-- test_n81.occ -- testing parameter output
+
+PROC test.n81 (CHAN BYTE out!)
+  SEQ
+    out ! 'x'
+:
+
+
