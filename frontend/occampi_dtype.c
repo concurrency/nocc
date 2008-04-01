@@ -1784,6 +1784,23 @@ tnode_dumptree (node, 4, stderr);
 	return NULL;
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_typeactual_nametypenode (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does actual-use type-checking on a named type-node (channel I/O for PROTOCOLs)
+ *	returns actual type used, NULL on failure
+ */
+static tnode_t *occampi_typeactual_nametypenode (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
+{
+#if 1
+fprintf (stderr, "occampi_typeactual_nametypenode(): formaltype =\n");
+tnode_dumptree (formaltype, 1, stderr);
+fprintf (stderr, "occampi_typeactual_nametypenode(): actualtype =\n");
+tnode_dumptree (actualtype, 1, stderr);
+#endif
+
+	return NULL;
+}
+/*}}}*/
 /*{{{  static int occampi_bytesfor_nametypenode (langops_t *lops, tnode_t *node, target_t *target)*/
 /*
  *	returns the number of bytes in a named-type-node, associated with its type only
@@ -2241,6 +2258,7 @@ static int occampi_dtype_init_nodes (void)
 
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_nametypenode));
+	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_typeactual_nametypenode));
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_nametypenode));
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (occampi_getname_nametypenode));
 	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_initialising_decl_nametypenode));

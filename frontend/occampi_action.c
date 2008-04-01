@@ -109,6 +109,10 @@ static int occampi_actionscope_prewalk_scopefields (tnode_t *node, void *data)
 		tnode_t *tagname = tnode_nthsubof (node, 0);
 
 		if (tagname->tag == opi.tag_NTAG) {
+#if 0
+fprintf (stderr, "occampi_actionscope_prewalk_scopefields(): adding tagname to scope:\n");
+tnode_dumptree (tagname, 1, stderr);
+#endif
 			name_scopename (tnode_nthnameof (tagname, 0));
 		} else {
 			scope_warning (tagname, ss, "TAGDECL does not have NTAG name");
@@ -149,17 +153,20 @@ static int occampi_scopein_action (compops_t *cops, tnode_t **nodep, scope_t *ss
 			scope_error (*nodep, ss, "failed to get LHS type for channel input or output");
 			did_error = 1;
 		} else {
-#if 1
+#if 0
 fprintf (stderr, "occampi_scopein_action(): type of LHS is:\n");
 tnode_dumptree (ctype, 1, stderr);
 #endif
-			if (ctype->tag != opi.tag_CHAN) {
+			if (ctype->tag == opi.tag_CHAN) {
 				tnode_t *subtype = tnode_nthsubof (ctype, 0);
 
 				/* subtype will be the channel protocol, if a named variant protocol, scope-in fields */
 				if (subtype->tag == opi.tag_NVARPROTOCOLDECL) {
 					void *namemark = name_markscope ();
 
+#if 0
+fprintf (stderr, "occampi_scopein_action(): \n");
+#endif
 					tnode_prewalktree (NameTypeOf (tnode_nthnameof (subtype, 0)), occampi_actionscope_prewalk_scopefields, (void *)ss);
 
 					/* tag-names in scope, do scope of RHS */
@@ -230,7 +237,7 @@ tnode_dumptree (lhstype, 1, stderr);
 		 * test is to see if it has a particular codegen_typeaction language-op
 		 */
 		if (!tnode_haslangop (lhstype->tag->ndef->lops, "codegen_typeaction")) {
-			typecheck_error (node, tc, "LHS is not-communicable, got [%s]", lhstype->tag->name);
+			typecheck_error (node, tc, "channel in input/output cannot be used for communication, got [%s]", lhstype->tag->name);
 			return 0;
 		}
 
@@ -254,7 +261,7 @@ tnode_dumptree (lhstype, 1, stderr);
 		/*}}}*/
 	}
 
-#if 0
+#if 1
 fprintf (stderr, "occampi_typecheck_action(): lhstype = \n");
 tnode_dumptree (lhstype, 1, stderr);
 fprintf (stderr, "occampi_typecheck_action(): rhstype = \n");
