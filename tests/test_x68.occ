@@ -10,7 +10,7 @@ PROTOCOL P.IN
     val.one = 2; INT
 :
 
-PROC test.x68 ()
+PROC test.x68 (CHAN P.IN out!)
   SKIP
 :
 
