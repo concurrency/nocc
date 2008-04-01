@@ -547,6 +547,7 @@ static int occampi_typecheck_typedecl (compops_t *cops, tnode_t *node, typecheck
 				} else {
 					tnode_t *tagname = tnode_nthsubof (taglines[i], 0);
 					tnode_t *protocol = tnode_nthsubof (taglines[i], 1);
+					tnode_t **valp = tnode_nthsubaddr (taglines[i], 2);
 
 					if (tagname->tag != opi.tag_NTAG) {
 						typecheck_error (taglines[i], tc, "variant %d in PROTOCOL declaration does not begin with a tag", i);
@@ -565,6 +566,22 @@ static int occampi_typecheck_typedecl (compops_t *cops, tnode_t *node, typecheck
 								did_error = 1;
 							}
 						}
+					}
+
+					if (*valp) {
+						/* make sure value is an integer */
+						tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
+						tnode_t *itype = typecheck_gettype (*valp, definttype);
+						
+						if (!itype) {
+							typecheck_error (*valp, tc, "invalid type for enumeration on variant %d", i);
+							did_error = 1;
+						} else if (!typecheck_typeactual (definttype, itype, *valp, tc)) {
+							typecheck_error (*valp, tc, "non-integer value for enumeration on variant %d", i);
+							did_error = 1;
+						}
+
+						tnode_free (definttype);
 					}
 				}
 			}
@@ -591,7 +608,64 @@ static int occampi_typeresolve_typedecl (compops_t *cops, tnode_t **nodep, typec
 
 	if (n->tag == opi.tag_VARPROTOCOLDECL) {
 		/*{{{  assign tag values to variant protocol tags*/
-		/* FIXME! */
+		tnode_t **taglines;
+		int ntags;
+
+		taglines = parser_getlistitems (tnode_nthsubof (*nodep, 1), &ntags);
+		if (ntags > 0) {
+			int i, left;
+			POINTERHASH (tnode_t *, taghash, 4);
+			int hval = -1;
+
+			/* abuse a pointer-hash to do this -- really storing integer values */
+			pointerhash_init (taghash, 4);
+			left = 0;
+
+			/* put each enumerated value already set into the hash, count remainder */
+			for (i=0; i<ntags; i++) {
+				tnode_t **valp = tnode_nthsubaddr (taglines[i], 2);
+
+				if (!*valp) {
+					left++;
+				} else if (!constprop_isconst (*valp)) {
+					typecheck_error (*valp, tc, "enumeration for tag on variant %d is non-constant", i);
+				} else {
+					int val = constprop_intvalof (*valp);
+					tnode_t *other = pointerhash_lookup (taghash, val);
+
+					if (other) {
+						typecheck_error (*valp, tc, "duplicate enumeration value %d on variant %d", val, i);
+					} else {
+						pointerhash_insert (taghash, taglines[i], val);
+						if (val > hval) {
+							hval = val;		/* record highest seen tag value */
+						}
+					}
+				}
+			}
+			
+			/* if we have any left, fill in the blanks */
+			if (left) {
+				hval++;
+				for (i=0; i<ntags; i++) {
+					tnode_t **valp = tnode_nthsubaddr (taglines[i], 2);
+
+					if (!*valp) {
+						tnode_t *other;
+
+						do {
+							other = pointerhash_lookup (taghash, hval);
+							hval++;
+						} while (other);
+
+						*valp = constprop_newconst (CONST_INT, NULL, tnode_create (opi.tag_INT, NULL), hval);
+						pointerhash_insert (taghash, taglines[i], hval);
+					}
+				}
+			}
+
+			pointerhash_trash (taghash);
+		}
 		/*}}}*/
 	}
 	return 1;

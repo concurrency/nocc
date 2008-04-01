@@ -1642,7 +1642,7 @@ static unsigned int ph_hashcode (void *ptr, int bitsize)
 {
 	int i;
 	unsigned int hc = (0x56756789 << bitsize);
-	char *data = (char *)ptr;
+	char *data = (char *)&ptr;
 
 	for (i=0; i<sizeof(int); i++) {
 		unsigned int chunk = (unsigned int)data[i];
