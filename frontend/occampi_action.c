@@ -96,6 +96,27 @@ static void occampi_action_dumplhstypehook (tnode_t *node, void *hook, int inden
 /*}}}*/
 
 
+
+/*{{{  static int occampi_actionscope_prewalk_scopefields (tnode_t *node, void *data)*/
+/*
+ *	called to scope in tag-names in a variant protocol -- already NAMENODEs
+ */
+static int occampi_actionscope_prewalk_scopefields (tnode_t *node, void *data)
+{
+	scope_t *ss = (scope_t *)data;
+
+	if (node->tag == opi.tag_TAGDECL) {
+		tnode_t *tagname = tnode_nthsubof (node, 0);
+
+		if (tagname->tag == opi.tag_NTAG) {
+			name_scopename (tnode_nthnameof (tagname, 0));
+		} else {
+			scope_warning (tagname, ss, "TAGDECL does not have NTAG name");
+		}
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_scopein_action (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
 /*
  *	called to scope-in an action-node (needs to be aware of tag-names)
@@ -103,17 +124,60 @@ static void occampi_action_dumplhstypehook (tnode_t *node, void *hook, int inden
  */
 static int occampi_scopein_action (compops_t *cops, tnode_t **nodep, scope_t *ss)
 {
-	tnode_t **lhsp = tnode_nthsubaddr (*nodep, 0);
-	tnode_t **rhsp = tnode_nthsubaddr (*nodep, 1);
-	void *namemark;
+	if (((*nodep)->tag == opi.tag_INPUT) || ((*nodep)->tag == opi.tag_OUTPUT)) {
+		tnode_t **lhsp = tnode_nthsubaddr (*nodep, 0);
+		tnode_t **rhsp = tnode_nthsubaddr (*nodep, 1);
+		tnode_t *ctype;
+		int did_error = 0;
+		int did_rhsscope = 0;
 
-	/* scope LHS normally */
-	scope_subtree (lhsp, ss);
+		/* scope LHS normally */
+		scope_subtree (lhsp, ss);
 
-	/* FIXME! */
-	scope_subtree (rhsp, ss);
+		/* try and get LHS type by typecheck (which at scope-in is probably risky..) */
+		ctype = typecheck_gettype (*lhsp, NULL);
+		if (!ctype) {
+			/* no checkable type, see if it's a typed namenode */
+			if ((*lhsp)->tag->ndef == opi.node_NAMENODE) {
+				name_t *name = tnode_nthnameof (*lhsp, 0);
+				ctype = NameTypeOf (name);
+			}
+		}
 
-	return 0;
+		if (!ctype) {
+			/* give up here */
+			scope_error (*nodep, ss, "failed to get LHS type for channel input or output");
+			did_error = 1;
+		} else {
+#if 1
+fprintf (stderr, "occampi_scopein_action(): type of LHS is:\n");
+tnode_dumptree (ctype, 1, stderr);
+#endif
+			if (ctype->tag != opi.tag_CHAN) {
+				tnode_t *subtype = tnode_nthsubof (ctype, 0);
+
+				/* subtype will be the channel protocol, if a named variant protocol, scope-in fields */
+				if (subtype->tag == opi.tag_NVARPROTOCOLDECL) {
+					void *namemark = name_markscope ();
+
+					tnode_prewalktree (NameTypeOf (tnode_nthnameof (subtype, 0)), occampi_actionscope_prewalk_scopefields, (void *)ss);
+
+					/* tag-names in scope, do scope of RHS */
+					scope_subtree (rhsp, ss);
+					did_rhsscope = 1;
+
+					name_markdescope (namemark);
+				}
+			}
+		}
+
+		if (!did_rhsscope) {
+			scope_subtree (rhsp, ss);
+		}
+
+		return 0;
+	}
+	return 1;
 }
 /*}}}*/
 /*{{{  static int occampi_typecheck_action (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
