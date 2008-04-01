@@ -412,31 +412,38 @@
 .GRULE	"opi:sizeopreduce" "SN0N+0C[SIZE]2R-"
 .GRULE	"opi:slicereduce" "SN0N+N+N+V*0C[ARRAYSLICE]4R-"
 .GRULE	"opi:nullpush" "0N-"
-.GRULE	"opi:protocoldeclreduce" "SN1N+N+V00X[occampi_typedeclhook_blankhook]C[PROTOCOLDECL]4R-"
+.GRULE	"opi:protocoldeclreduce" "SN1N+N+V00X[occampi_typedeclhook_blankhook]C[VARPROTOCOLDECL]4R-"
+.GRULE	"opi:sprotocoldeclreduce" "SN1N+N+V00X[occampi_typedeclhook_blankhook]C[SEQPROTOCOLDECL]4R-"
 .GRULE	"opi:nullpcasereduce" "SN0N+00C[TAGDECL]3R-"
 .GRULE	"opi:pcasereduce" "SN1N+N+V0C[TAGDECL]3R-"
+.GRULE	"opi:nullvpcasereduce" "SN1N+0N+V*C[TAGDECL]3R-"
+.GRULE	"opi:vpcasereduce" "SN2N+N+VN+V*C[TAGDECL]3R-"
 
 .RFUNC	"Roccampi:resetnewline" "occampi_reduce_resetnewline"
 .RFUNC	"Roccampi:arrayfold" "occampi_reduce_arrayfold"
 .RFUNC	"Roccampi:valarrayfold" "occampi_reduce_valarrayfold"
 
-.RFUNC "Roccampi:attachchantypetrace" "occampi_traces_attachchantypetrace"
+.RFUNC	"Roccampi:attachchantypetrace" "occampi_traces_attachchantypetrace"
 
 
 .TABLE	"occampi:subtspec ::= [ 0 -@@[ 4 ] [ 0 occampi:primtype 1 ] [ 1 occampi:namelist 2 ] [ 2 @@: 3 ] [ 3 {<opi:fieldreduce>} -* ]"
 	"[ 4 occampi:arraysubtspec 5 ] [ 5 {<opi:nullreduce>} -* ]"
+
 .TABLE	"occampi:subtspeclist ::= [ 0 occampi:subtspec 1 ] [ 1 {<parser:nullreduce>} ] [ 1 Newline 2 ] [ 1 -* 4 ] [ 2 {Rinlist} ] [ 2 occampi:subtspec 1 ]"
 	"[ 2 -* 3 ] [ 3 {Roccampi:resetnewline} ] [ 3 -* 4 ] [ 4 -* ]"
+
 .TABLE	"occampi:arraysubtspec ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:makearray>} @@] 3 ] [ 3 occampi:subtspec 4 ] [ 4 {Roccampi:arrayfold} -* ]"
 
 # FIXME: will only handle single channels in this..
 .TABLE	"occampi:subctspec ::= [ 0 @CHAN 4 ] [ 0 occampi:primtype 1 ] [ 1 occampi:name 2 ] [ 2 @@! 7 ] [ 2 @@? 6 ] [ 2 @@: 3 ] [ 3 {<opi:fieldreduce>} -* ]"
 	"[ 4 occampi:protocol 5 ] [ 5 {<opi:chanpush>} -* 1 ]"
 	"[ 6 {<opi:ctmarkinput>} @@: 3 ] [ 7 {<opi:ctmarkoutput>} @@: 3 ]"
+
 .TABLE	"occampi:subctspeclist ::= [ 0 occampi:subctspec 1 ] [ 1 {<parser:nullreduce>} ] [ 1 Newline 2 ] [ 1 -* 4 ] [ 2 {Rinlist} ] [ 2 occampi:subctspec 1 ]"
 	"[ 2 -* 3 ] [ 3 {Roccampi:resetnewline} ] [ 3 -* 4 ] [ 4 -* ]"
 
 .TABLE "occampi:subcttrace ::= [ 0 -String 1 ] [ 1 occampi:litstring 2 ] [ 2 {<opi:nullreduce>} -* ]"
+
 .TABLE "occampi:subcttracelist ::= [ 0 occampi:subcttrace 1 ] [ 1 {<parser:nullreduce>} ] [ 1 Newline 2 ] [ 1 -* 4 ] [ 2 {Rinlist} ]"
 	"[ 2 occampi:subcttrace 1 ] [ 2 -* 3 ] [ 2 {Roccampi:resetnewline} ] [ 3 -* 4 ] [ 4 -* ]"
 
@@ -448,6 +455,7 @@
 	"[ 20 occampi:type 21 ] [ 21 @@: 22 ] [ 22 {<opi:datatypeparamdeclreduce>} -* ]"
 	"[ 23 Indent 24 ] [ 24 @RECORD 25 ] [ 25 Newline 26 ] [ 26 Indent 27 ] [ 27 occampi:subtspeclist 28 ] [ 28 Newline 29 ]"
 	"[ 29 Outdent 30 ] [ 30 Outdent 31 ] [ 31 @@: 32 ] [ 32 {<opi:datatypeparamdeclreduce>} -* ]"
+
 .TABLE	"occampi:chantypedecl ::= [ 0 @CHAN 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ] [ 3 Newline 4 ]"
 	"[ 4 Indent 5 ] [ 5 @MOBILE 14 ] [ 5 @RECORD 6 ] [ 6 Newline 7 ] [ 7 Indent 8 ] [ 8 occampi:subctspeclist 9 ] [ 9 Newline 10 ]"
 	"[ 10 Outdent 11 ] [ 11 Outdent 12 ] [ 12 @@: 13 ] [ 13 {<opi:chantypedeclreduce>} -* ]"
@@ -455,30 +463,40 @@
 	"[ 19 Outdent 20 ] [ 20 -@TRACES 24 ] [ 20 Outdent 21 ] [ 21 @@: 22 ] [ 22 {<opi:mobilise>} -* 23 ] [ 23 {<opi:chantypedeclreduce>} -* ]"
 	"[ 24 @TRACES 25 ] [ 25 Newline 26 ] [ 26 Indent 27 ] [ 27 {<opi:mobilise>} -* 28 ] [ 28 {<opi:chantypedeclreduce>} -* 29 ]"
 	"[ 29 occampi:subcttracelist 30 ] [ 30 Outdent 31 ] [ 31 {Roccampi:attachchantypetrace} ] [ 31 Outdent 32 ] [ 32 @@: 33 ] [ 33 -* ]"
+
 .TABLE	"occampi:proctypedecl ::= [ 0 @PROC 1 ] [ 1 @TYPE 2 ] [ 2 +Name 3 ] [ 3 {<opi:namepush>} ]"
 	"[ 3 @@( 4 ] [ 4 occampi:fparamlist 5 ] [ 5 @@) 6 ] [ 6 {<opi:proctypedeclreduce>} @@: 7 ] [ 7 -* ]"
 
-.TABLE	"occampi:protocolcase ::= [ 0 occampi:name 1 ] [ 1 @@; 3 ] [ 1 -* 2 ]"
+.TABLE	"occampi:protocolcase ::= [ 0 occampi:name 1 ] [ 1 @@= 5 ] [ 1 @@; 3 ] [ 1 -* 2 ]"
 	"[ 2 {<opi:nullpcasereduce>} -* ]"
 	"[ 3 occampi:protocollist 4 ] [ 4 {<opi:pcasereduce>} -* ]"
+	"[ 5 occampi:expr 6 ] [ 6 @@; 8 ] [ 6 -* 7 ]"
+	"[ 7 {<opi:nullvpcasereduce>} -* ]"
+	"[ 8 occampi:protocollist 9 ] [ 9 {<opi:vpcasereduce>} -* ]"
+
 .TABLE	"occampi:protocolcaselist ::= [ 0 occampi:protocolcase 1 ] [ 1 {<parser:nullreduce>} ] [ 1 Newline 2 ] [ 1 -* 4 ] [ 2 {Rinlist} ]"
 	"[ 2 occampi:protocolcase 1 ] [ 2 Newline 4 ] [ 2 -* 3 ] [ 2 {Roccampi:resetnewline} ] [ 3 -* 4 ] [ 4 -* ]"
+
 # .BNF	"occampi:protocolcaselist ::= { occampi:protocolcase Newline 0 }"
 .TABLE	"occampi:protocoldecl ::= [ 0 @PROTOCOL 1 ] [ 1 +Name 2 ] [ 2 {<opi:namepush>} ] [ 2 Newline 5 ] [ 2 @IS 3 ]"
-	"[ 3 occampi:protocollist 4 ] [ 4 {<opi:protocoldeclreduce>} -* ]"
+	"[ 3 occampi:protocollist 4 ] [ 4 {<opi:sprotocoldeclreduce>} -* ]"
 	"[ 5 Indent 6 ] [ 6 @CASE 7 ] [ 7 Newline 8 ] [ 8 Indent 9 ] [ 9 occampi:protocolcaselist 10 ] [ 10 Outdent 11 ]"
 	"[ 11 Outdent 12 ] [ 12 @@: 13 ] [ 13 {<opi:protocoldeclreduce>} -* ]"
 
 .TABLE	"occampi:arrayspec ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:arrayspec>} -* ]"
+
 .TABLE	"occampi:emptyorarrayspec ::= [ 0 @@[ 1 ] [ 1 +@@] 4 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:arrayspec>} -* ] [ 4 {<opi:emptyarrayspec>} -* ]"
+
 .TABLE	"occampi:arraytype ::= [ 0 @@[ 1 ] [ 1 @@] 3 ] [ 1 occampi:expr 2 ] [ 2 @@] 4 ] [ 3 {<opi:nullpush>} -* 4 ]"
 	"[ 4 -@@[ 5 ] [ 4 occampi:primtype 6 ] [ 4 occampi:name 6 ] [ 4 @CHAN 7 ]  [ 4 @PORT 9 ] [ 5 occampi:arraytype 6 ] [ 6 {<opi:arraytypereduce>} -* ]"
 	"[ 7 occampi:protocol 8 ] [ 8 {<opi:chanpush>} -* 6 ]"
 	"[ 9 occampi:protocol 10 ] [ 10 {<opi:portpush>} -* 6 ]"
+
 .TABLE	"occampi:arraytypetype ::= [ 0 @@[ 1 ] [ 1 @@] 3 ] [ 1 occampi:expr 2 ] [ 2 @@] 4 ] [ 3 {<opi:nullpush>} -* 4 ]"
 	"[ 4 -@@[ 5 ] [ 4 occampi:primtype 6 ] [ 4 occampi:name 6 ] [ 5 occampi:arraytypetype 6 ] [ 6 {<opi:arraytypereduce>} -* ]"
 
 .TABLE	"occampi:namestartname +:= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:xsubscriptreduce>} -* 4 ] [ 4 {<opi:resultpush>} -* 0 ]"
+
 .TABLE	"occampi:namestartname +:= [ 0 @@_ 1 ] [ 1 occampi:name 2 ] [ 2 {<opi:xsubscriptreduce>} -* 3 ] [ 3 {<opi:resultpush>} -* 0 ]"
 
 .TABLE	"occampi:expr +:= [ 0 @SIZE 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:sizeopreduce>} -* ]"

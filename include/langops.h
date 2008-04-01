@@ -41,6 +41,7 @@ extern int langops_typehash_blend (const int dsize, void *dptr, const int ssize,
 extern struct TAG_tnode *langops_getbasename (struct TAG_tnode *node);
 extern struct TAG_tnode *langops_getfieldname (struct TAG_tnode *node);
 extern struct TAG_tnode *langops_getfieldnamelist (struct TAG_tnode *node);
+extern int langops_iscommunicable (struct TAG_tnode *node);
 
 
 #endif	/* !__LANGOPS_H */

@@ -840,6 +840,15 @@ static int occampi_leaftype_typehash (langops_t *lops, tnode_t *t, int hsize, vo
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_leaftype_iscommunicable (langops_t *lops, tnode_t *t)*/
+/*
+ *	determines whether a primitive type is communicable (yes)
+ */
+static int occampi_leaftype_iscommunicable (langops_t *lops, tnode_t *t)
+{
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_type_namemap_arraynode (compops_t *cops, tnode_t **nodep, map_t *map)*/
@@ -1120,6 +1129,7 @@ static int occampi_type_init_nodes (void)
 	tnode_setlangop (lops, "codegen_typerangecheck", 2, LANGOPTYPE (occampi_leaftype_codegen_typerangecheck));
 	tnode_setlangop (lops, "typetype", 1, LANGOPTYPE (occampi_leaftype_typetype));
 	tnode_setlangop (lops, "typehash", 3, LANGOPTYPE (occampi_leaftype_typehash));
+	tnode_setlangop (lops, "iscommunicable", 1, LANGOPTYPE (occampi_leaftype_iscommunicable));
 	tnd->lops = lops;
 
 	i = -1;

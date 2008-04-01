@@ -364,6 +364,19 @@ fprintf (stderr, "langops_getfieldnamelist(): got field at 0x%8.8x\n", (unsigned
 	return xlist;
 }
 /*}}}*/
+/*{{{  int langops_iscommunicable (tnode_t *node)*/
+/*
+ *	determines whether or not something can be communicated down a channel (determined ultimately by type)
+ *	returns 1 if so, 0 if not
+ */
+int langops_iscommunicable (tnode_t *node)
+{
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_ISCOMMUNICABLE)) {
+		return tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_ISCOMMUNICABLE, 1, node);
+	}
+	return 0;
+}
+/*}}}*/
 
 /*{{{  int langops_init (void)*/
 /*

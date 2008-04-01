@@ -314,8 +314,10 @@ name_dumpnames (stderr);
 		newname = tnode_createfrom (opi.tag_NCHANTYPEDECL, name, sname);
 	} else if ((*node)->tag == opi.tag_PROCTYPEDECL) {
 		newname = tnode_createfrom (opi.tag_NPROCTYPEDECL, name, sname);
-	} else if ((*node)->tag == opi.tag_PROTOCOLDECL) {
-		newname = tnode_createfrom (opi.tag_NPROTOCOLDECL, name, sname);
+	} else if ((*node)->tag == opi.tag_VARPROTOCOLDECL) {
+		newname = tnode_createfrom (opi.tag_NVARPROTOCOLDECL, name, sname);
+	} else if ((*node)->tag == opi.tag_SEQPROTOCOLDECL) {
+		newname = tnode_createfrom (opi.tag_NSEQPROTOCOLDECL, name, sname);
 	} else {
 		scope_error (name, ss, "unknown node type! [%s]", (*node)->tag->name);
 		return 0;
@@ -521,6 +523,75 @@ static int occampi_typecheck_typedecl (compops_t *cops, tnode_t *node, typecheck
 				}
 			}
 		}
+		/*}}}*/
+	} else if (node->tag == opi.tag_VARPROTOCOLDECL) {
+		/*{{{  check variant PROTOCOL declaration*/
+		if (!parser_islistnode (*typep)) {
+			typecheck_error (node, tc, "expected list of protocols in variant protocol declaration");
+		} else {
+			tnode_t **taglines;
+			int ntags, i;
+			int did_error = 0;
+
+			taglines = parser_getlistitems (*typep, &ntags);
+			if (!ntags) {
+				typecheck_warning (node, tc, "variant protocol has no tags");
+			}
+			for (i=0; i<ntags; i++) {
+				if (!taglines[i]) {
+					typecheck_error (node, tc, "missing variant %d in PROTOCOL declaration", i);
+					did_error = 1;
+				} else if (taglines[i]->tag != opi.tag_TAGDECL) {
+					typecheck_error (node, tc, "variant %d in PROTOCOL declaration does not begin with a tag", i);
+					did_error = 1;
+				} else {
+					tnode_t *tagname = tnode_nthsubof (taglines[i], 0);
+					tnode_t *protocol = tnode_nthsubof (taglines[i], 1);
+
+					if (tagname->tag != opi.tag_NTAG) {
+						typecheck_error (taglines[i], tc, "variant %d in PROTOCOL declaration does not begin with a tag", i);
+						did_error = 1;
+					} else if (!parser_islistnode (protocol)) {
+						typecheck_error (taglines[i], tc, "variant %d in PROTOCOL has a broken sequential protocol", i);
+						did_error = 1;
+					} else {
+						tnode_t **pitems;
+						int npitems, j;
+
+						pitems = parser_getlistitems (protocol, &npitems);
+						for (j=0; j<npitems; j++) {
+							if (!langops_iscommunicable (pitems[j])) {
+								typecheck_error (pitems[j], tc, "item %d in variant %d is non-communicable", j, i);
+								did_error = 1;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		/*}}}*/
+	} else if (node->tag == opi.tag_SEQPROTOCOLDECL) {
+		/*{{{  check sequential PROTOCOL declaration*/
+		/* FIXME! */
+
+		/*}}}*/
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_typeresolve_typedecl (compops_t *cops, tnode_t **nodep, typecheck_t *tc)*/
+/*
+ *	does type-resolution for type declarations
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typeresolve_typedecl (compops_t *cops, tnode_t **nodep, typecheck_t *tc)
+{
+	tnode_t *n = *nodep;
+
+	if (n->tag == opi.tag_VARPROTOCOLDECL) {
+		/*{{{  assign tag values to variant protocol tags*/
+		/* FIXME! */
 		/*}}}*/
 	}
 	return 1;
@@ -1130,6 +1201,25 @@ tnode_dumptree (type, 1, stderr);
 	return bytes;
 }
 /*}}}*/
+/*{{{  static int occampi_prescope_tagdecl (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
+/*
+ *	called to pre-scope a TAGDECL
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_prescope_tagdecl (compops_t *cops, tnode_t **nodep, prescope_t *ps)
+{
+	tnode_t **tlistp = tnode_nthsubaddr (*nodep, 1);
+
+	if (!*tlistp) {
+		/* empty protocol, create empty list */
+		*tlistp = parser_newlistnode (NULL);
+	} else if (!parser_islistnode (*tlistp)) {
+		/* singular, make list */
+		*tlistp = parser_buildlistnode (NULL, *tlistp, NULL);
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_scopein_tagdecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	called to scope in a tag name (inside a PROTOCOL)
@@ -1719,9 +1809,15 @@ static int occampi_istype_nametypenode (langops_t *lops, tnode_t *node)
 		return 1;
 	} else if (node->tag == opi.tag_NFIELD) {
 		return 0;
+	} else if (node->tag == opi.tag_NTAG) {
+		return 0;
 	} else if (node->tag == opi.tag_NCHANTYPEDECL) {
 		return 1;
 	} else if (node->tag == opi.tag_NPROCTYPEDECL) {
+		return 1;
+	} else if (node->tag == opi.tag_NVARPROTOCOLDECL) {
+		return 1;
+	} else if (node->tag == opi.tag_NSEQPROTOCOLDECL) {
 		return 1;
 	}
 	return 0;
@@ -1744,10 +1840,16 @@ static int occampi_typehash_nametypenode (langops_t *lops, tnode_t *node, int hs
 		myhash = 0x5363;
 	} else if (node->tag == opi.tag_NFIELD) {
 		myhash = 0x693;
+	} else if (node->tag == opi.tag_NTAG) {
+		myhash = 0x7a5;
 	} else if (node->tag == opi.tag_NCHANTYPEDECL) {
 		myhash = 0x42503;
 	} else if (node->tag == opi.tag_NPROCTYPEDECL) {
 		myhash = 0xa3608d;
+	} else if (node->tag == opi.tag_NVARPROTOCOLDECL) {
+		myhash = 0xef39c;
+	} else if (node->tag == opi.tag_NSEQPROTOCOLDECL) {
+		myhash = 0x125cdf;
 	} else {
 		nocc_serious ("occampi_typehash_nametypenode(): unknown node (%s,%s)", node->tag->name, node->tag->ndef->name);
 		return 1;
@@ -1885,7 +1987,7 @@ static int occampi_dtype_init_nodes (void)
 	}
 	/*}}}*/
 
-	/*{{{  occampi:typedecl -- DATATYPEDECL, CHANTYPEDECL, PROCTYPEDECL, PROTOCOLDECL*/
+	/*{{{  occampi:typedecl -- DATATYPEDECL, CHANTYPEDECL, PROCTYPEDECL, VARPROTOCOLDECL, SEQPROTOCOLDECL*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:typedecl", &i, 3, 0, 1, TNF_SHORTDECL);		/* subnodes: 0 = name; 1 = type; 2 = body; hooks: 0 = typedeclhook_t */
 	tnd->hook_dumptree = occampi_typedecl_hook_dumptree;
@@ -1893,6 +1995,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_typedecl));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_typedecl));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_typedecl));
+	tnode_setcompop (cops, "typeresolve", 2, COMPOPTYPE (occampi_typeresolve_typedecl));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_typedecl));
 	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_precode_typedecl));
 	tnd->ops = cops;
@@ -1908,7 +2011,9 @@ static int occampi_dtype_init_nodes (void)
 	i = -1;
 	opi.tag_PROCTYPEDECL = tnode_newnodetag ("PROCTYPEDECL", &i, tnd, NTF_NONE);
 	i = -1;
-	opi.tag_PROTOCOLDECL = tnode_newnodetag ("PROTOCOLDECL", &i, tnd, NTF_NONE);
+	opi.tag_VARPROTOCOLDECL = tnode_newnodetag ("VARPROTOCOLDECL", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_SEQPROTOCOLDECL = tnode_newnodetag ("SEQPROTOCOLDECL", &i, tnd, NTF_NONE);
 	/*}}}*/
 	/*{{{  occampi:arraynode -- ARRAY*/
 	i = -1;
@@ -1984,6 +2089,7 @@ static int occampi_dtype_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:tagdecl", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = name, 1 = type, 2 = value-of */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_tagdecl));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_tagdecl));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
@@ -2071,7 +2177,9 @@ static int occampi_dtype_init_nodes (void)
 	i = -1;
 	opi.tag_NPROCTYPEDECL = tnode_newnodetag ("N_PROCTYPEDECL", &i, tnd, NTF_NONE);
 	i = -1;
-	opi.tag_NPROTOCOLDECL = tnode_newnodetag ("N_PROTOCOLDECL", &i, tnd, NTF_NONE);
+	opi.tag_NVARPROTOCOLDECL = tnode_newnodetag ("N_VARPROTOCOLDECL", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_NSEQPROTOCOLDECL = tnode_newnodetag ("N_SEQPROTOCOLDECL", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_NFIELD = tnode_newnodetag ("N_FIELD", &i, tnd, NTF_NONE);
 	i = -1;

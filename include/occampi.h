@@ -98,7 +98,8 @@ typedef struct {
 	struct TAG_ntdef *tag_DATATYPEDECL;
 	struct TAG_ntdef *tag_CHANTYPEDECL;
 	struct TAG_ntdef *tag_PROCTYPEDECL;
-	struct TAG_ntdef *tag_PROTOCOLDECL;
+	struct TAG_ntdef *tag_VARPROTOCOLDECL;
+	struct TAG_ntdef *tag_SEQPROTOCOLDECL;
 	struct TAG_ntdef *tag_FIELDDECL;
 	struct TAG_ntdef *tag_TAGDECL;
 
@@ -183,7 +184,8 @@ typedef struct {
 	struct TAG_ntdef *tag_NDATATYPEDECL;
 	struct TAG_ntdef *tag_NCHANTYPEDECL;
 	struct TAG_ntdef *tag_NPROCTYPEDECL;
-	struct TAG_ntdef *tag_NPROTOCOLDECL;
+	struct TAG_ntdef *tag_NVARPROTOCOLDECL;
+	struct TAG_ntdef *tag_NSEQPROTOCOLDECL;
 	struct TAG_ntdef *tag_NFIELD;
 	struct TAG_ntdef *tag_NTAG;
 
