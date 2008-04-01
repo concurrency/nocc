@@ -479,9 +479,10 @@
 
 # .BNF	"occampi:protocolcaselist ::= { occampi:protocolcase Newline 0 }"
 .TABLE	"occampi:protocoldecl ::= [ 0 @PROTOCOL 1 ] [ 1 +Name 2 ] [ 2 {<opi:namepush>} ] [ 2 Newline 5 ] [ 2 @IS 3 ]"
-	"[ 3 occampi:protocollist 4 ] [ 4 {<opi:sprotocoldeclreduce>} -* ]"
+	"[ 3 occampi:protocollist 4 ] [ 4 {<opi:sprotocoldeclreduce>} @@: 14 ]"
 	"[ 5 Indent 6 ] [ 6 @CASE 7 ] [ 7 Newline 8 ] [ 8 Indent 9 ] [ 9 occampi:protocolcaselist 10 ] [ 10 Outdent 11 ]"
 	"[ 11 Outdent 12 ] [ 12 @@: 13 ] [ 13 {<opi:protocoldeclreduce>} -* ]"
+	"[ 14 -* ]"
 
 .TABLE	"occampi:arrayspec ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:arrayspec>} -* ]"
 

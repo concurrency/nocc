@@ -191,6 +191,7 @@ typedef enum ENUM_langops {
 	LOPS_GETBASENAME = 31,			/* 1: tnode_t * -> tnode_t * */
 	LOPS_GETFIELDNAME = 32,			/* 1: tnode_t * -> tnode_t * */
 	LOPS_ISCOMMUNICABLE = 33,		/* 1: tnode_t * -> int */
+	LOPS_PROTOCOLTOTYPE = 34,		/* 1: tnode_t * -> tnode_t * */
 	LOPS_MAX = 256
 } langops_e;
 

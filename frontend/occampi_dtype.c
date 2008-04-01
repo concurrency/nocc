@@ -1767,14 +1767,14 @@ static tnode_t *occampi_gettype_nametypenode (langops_t *lops, tnode_t *node, tn
 		nocc_fatal ("occampi_gettype_nametypenode(): NULL name!");
 		return NULL;
 	}
-	if (name->type) {
+	if (NameTypeOf (name)) {
 #if 0
 fprintf (stderr, "occmpi_gettype_nametypenode(): node = [%s], name:\n", node->tag->name);
 name_dumpname (name, 1, stderr);
 fprintf (stderr, "   \"   name->type:\n");
 tnode_dumptree (name->type, 1, stderr);
 #endif
-		return name->type;
+		return NameTypeOf (name);
 	}
 #if 1
 nocc_message ("occampi_gettype_nametypenode(): null type on name, node was:");
@@ -1791,12 +1791,46 @@ tnode_dumptree (node, 4, stderr);
  */
 static tnode_t *occampi_typeactual_nametypenode (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
 {
-#if 1
+#if 0
 fprintf (stderr, "occampi_typeactual_nametypenode(): formaltype =\n");
 tnode_dumptree (formaltype, 1, stderr);
 fprintf (stderr, "occampi_typeactual_nametypenode(): actualtype =\n");
 tnode_dumptree (actualtype, 1, stderr);
 #endif
+
+	if (formaltype->tag == opi.tag_NSEQPROTOCOLDECL) {
+		/*{{{  check actual usage on sequential protocol (input/output)*/
+		name_t *name = tnode_nthnameof (formaltype, 0);
+		tnode_t *slist = NameTypeOf (name);
+		int nfitems, naitems, i;
+		tnode_t **fitems, **aitems;
+		tnode_t *atype;
+
+		fitems = parser_getlistitems (slist, &nfitems);
+		aitems = parser_getlistitems (actualtype, &naitems);
+
+		if (nfitems != naitems) {
+			typecheck_error (node, tc, "expected %d items in I/O list, found %d", nfitems, naitems);
+			return NULL;
+		}
+
+		atype = parser_newlistnode (NULL);
+		for (i=0; i<nfitems; i++) {
+			tnode_t *rtype = typecheck_typeactual (fitems[i], aitems[i], node, tc);
+
+			if (!rtype) {
+				typecheck_error (node, tc, "invalid type for item %d in I/O list", i);
+			}
+			parser_addtolist (atype, rtype);
+		}
+
+#if 0
+fprintf (stderr, "Occampi_typeactual_nametypenode(): real actual type =\n");
+tnode_dumptree (atype, 1, stderr);
+#endif
+		return atype;
+		/*}}}*/
+	}
 
 	return NULL;
 }
@@ -1955,6 +1989,92 @@ tnode_dumptree (subtype, 1, stderr);
 #endif
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_protocoltotype_nametypenode (langops_t *lops, tnode_t *prot)*/
+/*
+ *	gets the type associated with a named-type protocol
+ *	returns the type on success, NULL on failure
+ */
+static tnode_t *occampi_protocoltotype_nametypenode (langops_t *lops, tnode_t *prot)
+{
+	tnode_t *ntype = NULL;
+
+	if (prot->tag == opi.tag_NSEQPROTOCOLDECL) {
+		name_t *name = tnode_nthnameof (prot, 0);
+		ntype = NameTypeOf (name);
+	} else if (prot->tag == opi.tag_NVARPROTOCOLDECL) {
+		/* FIXME! */
+	}
+
+	return ntype;
+}
+/*}}}*/
+
+
+/*{{{  static int occampi_fetrans_actionnode_forprotocol (compops_t *cops, tnode_t **nodep, fetrans_t *fe)*/
+/*
+ *	does front-end transforms on an action-node for PROTOCOL types
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_fetrans_actionnode_forprotocol (compops_t *cops, tnode_t **nodep, fetrans_t *fe)
+{
+	int v = 1;
+	tnode_t *atype = tnode_nthsubof (*nodep, 2);
+
+	if ((((*nodep)->tag == opi.tag_INPUT) || ((*nodep)->tag == opi.tag_OUTPUT)) &&
+			atype && (parser_islistnode (atype))) {
+		/*{{{  flatten out I/O structure into a new SEQ node*/
+		tnode_t *lhs = tnode_nthsubof (*nodep, 0);
+		tnode_t *rhs = tnode_nthsubof (*nodep, 1);
+		int nitems, ntypes, i;
+		tnode_t **items = parser_getlistitems (rhs, &nitems);
+		tnode_t **types = parser_getlistitems (atype, &ntypes);
+
+#if 1
+fprintf (stderr, "occampi_fetrans_actionnode_forprotocol(): here!\n");
+#endif
+		if (nitems != ntypes) {
+			nocc_error ("occampi_fetrans_actionnode_forprotocol(): output list has %d items, type has %d", nitems, ntypes);
+			return 0;
+		}
+
+		if (nitems == 1) {
+			/* special case, just de-list */
+			tnode_setnthsub (*nodep, 1, items[0]);
+			tnode_setnthsub (*nodep, 2, types[0]);
+
+			parser_trashlist (rhs);
+			parser_trashlist (atype);
+		} else {
+			tnode_t *newseq = NULL;
+			tnode_t *violist = parser_newlistnode (NULL);
+
+			newseq = tnode_createfrom (opi.tag_SEQ, *nodep, NULL, violist);
+			for (i=0; i<nitems; i++) {
+				tnode_t *newio = tnode_createfrom ((*nodep)->tag, *nodep, tnode_copytree (lhs), items[i], types[i]);
+
+				parser_addtolist (violist, newio);
+			}
+			
+			/* replace existing node */
+			*nodep = newseq;
+
+			parser_trashlist (rhs);
+			parser_trashlist (atype);
+
+			/* do fetrans on subtree directly */
+			fetrans_subtree (nodep, fe);
+			return 0;
+		}
+		/*}}}*/
+	}
+
+	if (cops->next && tnode_hascompop (cops->next, "fetrans")) {
+		v = tnode_callcompop (cops->next, "fetrans", 2, nodep, fe);
+	}
+
+	return v;
 }
 /*}}}*/
 
@@ -2264,6 +2384,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_initialising_decl_nametypenode));
 	tnode_setlangop (lops, "istype", 1, LANGOPTYPE (occampi_istype_nametypenode));
 	tnode_setlangop (lops, "typehash", 3, LANGOPTYPE (occampi_typehash_nametypenode));
+	tnode_setlangop (lops, "protocoltotype", 1, LANGOPTYPE (occampi_protocoltotype_nametypenode));
 	tnd->lops = lops;
 
 	i = -1;
@@ -2286,6 +2407,33 @@ static int occampi_dtype_init_nodes (void)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_dtype_post_setup (void)*/
+/*
+ *	does post-setup for data type nodes in occampi
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_dtype_post_setup (void)
+{
+	tndef_t *tnd;
+	compops_t *cops;
+
+	/*{{{  intefere with action-nodes (occampi:actionnode) to flatten out protocol communications*/
+	tnd = tnode_lookupnodetype ("occampi:actionnode");
+	if (!tnd) {
+		nocc_error ("occampi_dtype_post_setup(): failed to find \"occampi:actionnode\" node type");
+		return -1;
+	}
+
+	cops = tnode_insertcompops (tnd->ops);
+
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_actionnode_forprotocol));
+	tnd->ops = cops;
+
+	/*}}}*/
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  occampi_dtype_feunit (feunit_t)*/
@@ -2293,7 +2441,7 @@ feunit_t occampi_dtype_feunit = {
 	init_nodes: occampi_dtype_init_nodes,
 	reg_reducers: NULL,
 	init_dfatrans: NULL,
-	post_setup: NULL,
+	post_setup: occampi_dtype_post_setup,
 	ident: "occampi-dtype"
 };
 /*}}}*/

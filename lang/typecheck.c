@@ -161,6 +161,48 @@ tnode_t *typecheck_gettype (tnode_t *node, tnode_t *default_type)
 {
 	tnode_t *type;
 
+	if (parser_islistnode (node)) {
+		/*{{{  special case: type of a list is the list of types of its elements*/
+		int nitems;
+		tnode_t **items = parser_getlistitems (node, &nitems);
+		tnode_t *typelist = parser_newlistnode (NULL);
+
+#if 0
+fprintf (stderr, "typecheck_gettype(): on list.  node =\n");
+tnode_dumptree (node, 1, stderr);
+fprintf (stderr, "typecheck_gettype(): on list.  default_type =\n");
+tnode_dumptree (default_type, 1, stderr);
+#endif
+		if (default_type && parser_islistnode (default_type)) {
+			/* default type is a list too, pull into elements */
+			int ndtypes, i;
+			tnode_t **deftypes = parser_getlistitems (default_type, &ndtypes);
+
+			if (nitems != ndtypes) {
+				/* wrongness */
+				parser_trashlist (typelist);
+				typelist = NULL;
+			} else {
+				for (i=0; i<nitems; i++) {
+					tnode_t *rtype = typecheck_gettype (items[i], deftypes[i]);
+
+					parser_addtolist (typelist, rtype);
+				}
+			}
+		} else {
+			int i;
+
+			for (i=0; i<nitems; i++) {
+				tnode_t *rtype = typecheck_gettype (items[i], NULL);
+
+				parser_addtolist (typelist, rtype);
+			}
+		}
+
+		return typelist;
+		/*}}}*/
+	}
+
 	if (!node->tag->ndef->lops || !tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GETTYPE)) {
 		nocc_internal ("typecheck_gettype(): don't know how to get type of [%s]", node->tag->ndef->name);
 		return NULL;

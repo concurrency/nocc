@@ -243,13 +243,26 @@ tnode_dumptree (lhstype, 1, stderr);
 
 		/* get the type of the channel (channel protocol) */
 		prot = typecheck_getsubtype (lhstype, NULL);
+
+		if (prot && prot->tag->ndef->lops && tnode_haslangop_i (prot->tag->ndef->lops, (int)LOPS_PROTOCOLTOTYPE)) {
+			/* special cases: the default type is the type of the protocol, not the protocol itself */
+			tnode_t *nprot = (tnode_t *)tnode_calllangop_i (prot->tag->ndef->lops, (int)LOPS_PROTOCOLTOTYPE, 1, prot);
+
+			if (nprot) {
+				prot = nprot;
+			}
+		}
+#if 1
+fprintf (stderr, "occampi_typecheck_action(): channel protocol (after any to-type) is:\n");
+tnode_dumptree (prot, 1, stderr);
+#endif
 		rhstype = typecheck_gettype (rhs, prot);
 
 		/*}}}*/
 	}
 
 	if ((node->tag == opi.tag_OUTPUT) || (node->tag == opi.tag_INPUT)) {
-		/*{{{  check for output channel*/
+		/*{{{  check for channel direction compatibility*/
 		occampi_typeattr_t tattr = occampi_typeattrof (lhstype);
 		
 		if ((tattr & TYPEATTR_MARKED_IN) && (node->tag == opi.tag_OUTPUT)) {
@@ -261,7 +274,7 @@ tnode_dumptree (lhstype, 1, stderr);
 		/*}}}*/
 	}
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_typecheck_action(): lhstype = \n");
 tnode_dumptree (lhstype, 1, stderr);
 fprintf (stderr, "occampi_typecheck_action(): rhstype = \n");

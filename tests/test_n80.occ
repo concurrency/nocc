@@ -1,0 +1,10 @@
+
+-- test_n80.occ -- PROTOCOLs
+
+PROTOCOL BLAH IS INT; INT:
+
+PROC test.n80 (CHAN BLAH out!)
+  SEQ
+    out ! 2; 4
+:
+
