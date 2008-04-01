@@ -96,6 +96,26 @@ static void occampi_action_dumplhstypehook (tnode_t *node, void *hook, int inden
 /*}}}*/
 
 
+/*{{{  static int occampi_scopein_action (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
+/*
+ *	called to scope-in an action-node (needs to be aware of tag-names)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_scopein_action (compops_t *cops, tnode_t **nodep, scope_t *ss)
+{
+	tnode_t **lhsp = tnode_nthsubaddr (*nodep, 0);
+	tnode_t **rhsp = tnode_nthsubaddr (*nodep, 1);
+	void *namemark;
+
+	/* scope LHS normally */
+	scope_subtree (lhsp, ss);
+
+	/* FIXME! */
+	scope_subtree (rhsp, ss);
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_typecheck_action (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	called to type-check an action-node
@@ -591,6 +611,7 @@ static int occampi_action_init_nodes (void)
 	i = -1;
 	opi.node_ACTIONNODE = tnd = tnode_newnodetype ("occampi:actionnode", &i, 3, 0, 0, TNF_NONE);		/* subnodes: left, right, type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_action));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_action));
 	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (occampi_precheck_action));
 	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_action));

@@ -1,6 +1,6 @@
 /*
  *	occampi_dtype.c -- occam-pi data type handling (also named-type handling)
- *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2008 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -712,6 +712,10 @@ static int occampi_namemap_typedecl (compops_t *cops, tnode_t **node, map_t *mda
 		}
 	} else if ((*node)->tag == opi.tag_PROCTYPEDECL) {
 		/* don't do anything, yet.. (probably want to add specials here) */
+	} else if ((*node)->tag == opi.tag_VARPROTOCOLDECL) {
+		/* nothing to do for this */
+	} else if ((*node)->tag == opi.tag_SEQPROTOCOLDECL) {
+		/* nothing to do for this */
 	} else {
 		nocc_error ("occampi_namemap_typedecl(): don\'t know how to handle [%s]", (*node)->tag->name);
 	}

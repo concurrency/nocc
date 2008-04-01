@@ -11,6 +11,6 @@ PROTOCOL P.IN
 :
 
 PROC test.x68 (CHAN P.IN out!)
-  SKIP
+  out ! zero
 :
 
