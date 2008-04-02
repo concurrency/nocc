@@ -173,6 +173,11 @@ fprintf (stderr, "occampi_scopein_action(): \n");
 					scope_subtree (rhsp, ss);
 					did_rhsscope = 1;
 
+					/* RHS must always be a list */
+					if (!parser_islistnode (*rhsp)) {
+						*rhsp = parser_buildlistnode (NULL, *rhsp, NULL);
+					}
+
 					name_markdescope (namemark);
 				}
 			}
@@ -245,8 +250,9 @@ tnode_dumptree (lhstype, 1, stderr);
 		prot = typecheck_getsubtype (lhstype, NULL);
 
 		if (prot && prot->tag->ndef->lops && tnode_haslangop_i (prot->tag->ndef->lops, (int)LOPS_PROTOCOLTOTYPE)) {
-			/* special cases: the default type is the type of the protocol, not the protocol itself */
-			tnode_t *nprot = (tnode_t *)tnode_calllangop_i (prot->tag->ndef->lops, (int)LOPS_PROTOCOLTOTYPE, 1, prot);
+			/* special cases: the default type is the type of the protocol, not the protocol itself
+			 */
+			tnode_t *nprot = (tnode_t *)tnode_calllangop_i (prot->tag->ndef->lops, (int)LOPS_PROTOCOLTOTYPE, 2, prot, rhs);
 
 			if (nprot) {
 				prot = nprot;

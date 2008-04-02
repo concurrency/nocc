@@ -167,7 +167,7 @@ tnode_t *typecheck_gettype (tnode_t *node, tnode_t *default_type)
 		tnode_t **items = parser_getlistitems (node, &nitems);
 		tnode_t *typelist = parser_newlistnode (NULL);
 
-#if 0
+#if 1
 fprintf (stderr, "typecheck_gettype(): on list.  node =\n");
 tnode_dumptree (node, 1, stderr);
 fprintf (stderr, "typecheck_gettype(): on list.  default_type =\n");

@@ -2003,12 +2003,12 @@ tnode_dumptree (subtype, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_protocoltotype_nametypenode (langops_t *lops, tnode_t *prot)*/
+/*{{{  static tnode_t *occampi_protocoltotype_nametypenode (langops_t *lops, tnode_t *prot, tnode_t *rhs)*/
 /*
- *	gets the type associated with a named-type protocol
+ *	gets the type associated with a named-type protocol, 'rhs' is used to aid resolution in variant protocols
  *	returns the type on success, NULL on failure
  */
-static tnode_t *occampi_protocoltotype_nametypenode (langops_t *lops, tnode_t *prot)
+static tnode_t *occampi_protocoltotype_nametypenode (langops_t *lops, tnode_t *prot, tnode_t *rhs)
 {
 	tnode_t *ntype = NULL;
 
@@ -2016,7 +2016,45 @@ static tnode_t *occampi_protocoltotype_nametypenode (langops_t *lops, tnode_t *p
 		name_t *name = tnode_nthnameof (prot, 0);
 		ntype = NameTypeOf (name);
 	} else if (prot->tag == opi.tag_NVARPROTOCOLDECL) {
-		return prot;
+#if 1
+fprintf (stderr, "occampi_protocoltotype_nametypenode(): NVARPROTOCOLDECL: rhs =\n");
+tnode_dumptree (rhs, 1, stderr);
+#endif
+		if (parser_islistnode (rhs)) {
+			int nitems;
+			tnode_t **items = parser_getlistitems (rhs, &nitems);
+
+			if ((nitems > 0) && (items[0]->tag == opi.tag_NTAG)) {
+				/* first item is the tag, find corresponding protocol */
+				name_t *name = tnode_nthnameof (prot, 0);
+				tnode_t *taglist = NameTypeOf (name);
+				int ntags, i;
+				tnode_t **tags = parser_getlistitems (taglist, &ntags);
+
+				for (i=0; !ntype && (i<ntags); i++) {
+					tnode_t *tagname = tnode_nthsubof (tags[i], 0);
+					tnode_t *tagsprot = tnode_nthsubof (tags[i], 1);
+
+					if (tagname == items[0]) {
+						/* this one */
+						ntype = tagsprot;
+					}
+				}
+				if (ntype) {
+					/* add a type for the tag at the start of the type-list */
+					tnode_t *tlist = parser_newlistnode (NULL);
+					int npitems;
+					tnode_t **pbits = parser_getlistitems (ntype, &npitems);
+
+					parser_addtolist (tlist, tnode_createfrom (opi.tag_INT, rhs));
+					for (i=0; i<npitems; i++) {
+						parser_addtolist (tlist, pbits[i]);
+					}
+
+					ntype = tlist;
+				}
+			}
+		}
 	}
 
 	return ntype;
@@ -2396,7 +2434,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_initialising_decl_nametypenode));
 	tnode_setlangop (lops, "istype", 1, LANGOPTYPE (occampi_istype_nametypenode));
 	tnode_setlangop (lops, "typehash", 3, LANGOPTYPE (occampi_typehash_nametypenode));
-	tnode_setlangop (lops, "protocoltotype", 1, LANGOPTYPE (occampi_protocoltotype_nametypenode));
+	tnode_setlangop (lops, "protocoltotype", 2, LANGOPTYPE (occampi_protocoltotype_nametypenode));
 	tnd->lops = lops;
 
 	i = -1;

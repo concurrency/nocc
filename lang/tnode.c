@@ -456,7 +456,7 @@ int tnode_init (void)
 	tnode_newlangop ("getbasename", LOPS_GETBASENAME, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("getfieldname", LOPS_GETFIELDNAME, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("iscommunicable", LOPS_ISCOMMUNICABLE, 1, INTERNAL_ORIGIN);
-	tnode_newlangop ("protocoltotype", LOPS_PROTOCOLTOTYPE, 1, INTERNAL_ORIGIN);
+	tnode_newlangop ("protocoltotype", LOPS_PROTOCOLTOTYPE, 2, INTERNAL_ORIGIN);
 
 	/*}}}*/
 	/*{{{  setup the static node types*/
