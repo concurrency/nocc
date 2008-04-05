@@ -617,6 +617,7 @@ static void tchk_freetchknode (tchknode_t *tcn)
 	case TCN_OUTPUT:
 		/* always a link into the tree */
 		tcn->u.tcnio.varptr = NULL;
+		tcn->u.tcnio.tagptr = NULL;
 		break;
 	case TCN_FIXPOINT:
 		if (tcn->u.tcnfix.id) {
@@ -627,6 +628,13 @@ static void tchk_freetchknode (tchknode_t *tcn)
 			tchk_freetchknode (tcn->u.tcnfix.proc);
 			tcn->u.tcnfix.proc = NULL;
 		}
+		break;
+	case TCN_FIELD:
+		if (tcn->u.tcnfield.base) {
+			tchk_freetchknode (tcn->u.tcnfield.base);
+			tcn->u.tcnfield.base = NULL;
+		}
+		tcn->u.tcnfield.field = NULL;
 		break;
 	}
 
@@ -940,6 +948,9 @@ static int tchk_substatomrefsinnode (tchknode_t *node, tchknode_t *aold, tchknod
 		if (tchk_substatomrefsinnode (node->u.tcnio.varptr, aold, anew)) {
 			r++;
 		}
+		if (node->u.tcnio.tagptr && tchk_substatomrefsinnode (node->u.tcnio.tagptr, aold, anew)) {
+			r++;
+		}
 		break;
 		/*}}}*/
 		/*{{{  FIXPOINT*/
@@ -954,6 +965,10 @@ static int tchk_substatomrefsinnode (tchknode_t *node, tchknode_t *aold, tchknod
 		if (node->u.tcnaref.aref == aold) {
 			node->u.tcnaref.aref = anew;
 		}
+		break;
+		/*}}}*/
+		/*{{{  FIELD*/
+	case TCN_FIELD:
 		break;
 		/*}}}*/
 	}
@@ -1089,6 +1104,11 @@ static int tchk_prunetracesmodprewalk (tchknode_t **nodep, void *arg)
 		/* FIXME! */
 		break;
 		/*}}}*/
+		/*{{{  NDET -- maybe reduces to nothing*/
+	case TCN_NDET:
+		/* FIXME! */
+		break;
+		/*}}}*/
 		/*{{{  SEQ, PAR -- simply walk down subnodes*/
 	case TCN_SEQ:
 	case TCN_PAR:
@@ -1156,9 +1176,43 @@ static int tchk_prunetracesmodprewalk (tchknode_t **nodep, void *arg)
 
 			changed += ptrace->changed;
 			ptrace->changed = saved_changed;
+
+			/* and the tag if we have one */
+			if (n->u.tcnio.tagptr) {
+				iptr = &(n->u.tcnio.tagptr);
+
+				ptrace->changed = 0;
+				tracescheck_modprewalk (iptr, tchk_prunetracesmodprewalk, (void *)ptrace);
+
+				changed += ptrace->changed;
+				ptrace->changed = saved_changed;
+			}
 		}
 		if (changed) {
 			if (!n->u.tcnio.varptr) {
+				/* we're toast */
+				*nodep = NULL;
+				tchk_freetchknode (n);
+			}
+			ptrace->changed++;
+		}
+		return 0;
+		/*}}}*/
+		/*{{{  FIELD*/
+	case TCN_FIELD:
+		changed = 0;
+		{
+			tchknode_t **iptr = &(n->u.tcnfield.base);
+			int saved_changed = ptrace->changed;
+
+			ptrace->changed = 0;
+			tracescheck_modprewalk (iptr, tchk_prunetracesmodprewalk, (void *)ptrace);
+
+			changed += ptrace->changed;
+			ptrace->changed = saved_changed;
+		}
+		if (changed) {
+			if (!n->u.tcnfield.base) {
 				/* we're toast */
 				*nodep = NULL;
 				tchk_freetchknode (n);
@@ -1400,6 +1454,16 @@ int tracescheck_modprewalk (tchknode_t **tcnptr, int (*func)(tchknode_t **, void
 			if (tracescheck_modprewalk (&((*tcnptr)->u.tcnio.varptr), func, arg)) {
 				r++;
 			}
+			if ((*tcnptr)->u.tcnio.tagptr && tracescheck_modprewalk (&((*tcnptr)->u.tcnio.tagptr), func, arg)) {
+				r++;
+			}
+			break;
+			/*}}}*/
+			/*{{{  FIELD*/
+		case TCN_FIELD:
+			if (tracescheck_modprewalk (&((*tcnptr)->u.tcnfield.base), func, arg)) {
+				r++;
+			}
 			break;
 			/*}}}*/
 		}
@@ -1464,6 +1528,16 @@ int tracescheck_prewalk (tchknode_t *tcn, int (*func)(tchknode_t *, void *), voi
 		case TCN_INPUT:
 		case TCN_OUTPUT:
 			if (tracescheck_prewalk (tcn->u.tcnio.varptr, func, arg)) {
+				r++;
+			}
+			if (tcn->u.tcnio.tagptr && tracescheck_prewalk (tcn->u.tcnio.tagptr, func, arg)) {
+				r++;
+			}
+			break;
+			/*}}}*/
+			/*{{{  FIELD*/
+		case TCN_FIELD:
+			if (tracescheck_prewalk (tcn->u.tcnfield.base, func, arg)) {
 				r++;
 			}
 			break;
@@ -1595,6 +1669,7 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"%s\">\n",
 					(unsigned int)tcn->orgnode, ((tcn->type == TCN_INPUT) ? "input" : "output"));
 			tracescheck_dumpnode (tcn->u.tcnio.varptr, indent + 1, stream);
+			tracescheck_dumpnode (tcn->u.tcnio.tagptr, indent + 1, stream);
 			tchk_isetindent (stream, indent);
 			fprintf (stream, "</tracescheck:node>\n");
 			break;
@@ -1753,6 +1828,27 @@ static int tracescheck_subformat (tchknode_t *tcn, char **sptr, int *cur, int *m
 	case TCN_OUTPUT:
 		v += tracescheck_subformat (tcn->u.tcnio.varptr, sptr, cur, max);
 		tracescheck_addtostring (sptr, cur, max, (tcn->type == TCN_INPUT) ? "?" : "!");
+		if (tcn->u.tcnio.tagptr) {
+			v += tracescheck_subformat (tcn->u.tcnio.varptr, sptr, cur, max);
+		}
+		break;
+		/*}}}*/
+		/*{{{  FIELD*/
+	case TCN_FIELD:
+		{
+			char *xname = NULL;
+
+			v += tracescheck_subformat (tcn->u.tcnfield.base, sptr, cur, max);
+			tracescheck_addtostring (sptr, cur, max, "[");
+			langops_getname (tcn->u.tcnfield.field, &xname);
+			if (xname) {
+				tracescheck_addtostring (sptr, cur, max, xname);
+				sfree (xname);
+			} else {
+				tracescheck_addtostring (sptr, cur, max, "..");
+			}
+			tracescheck_addtostring (sptr, cur, max, "]");
+		}
 		break;
 		/*}}}*/
 		/*{{{  FIXPOINT*/
@@ -2057,6 +2153,11 @@ tchknode_t *tracescheck_copynode (tchknode_t *tcn)
 	case TCN_INPUT:
 	case TCN_OUTPUT:
 		tcc->u.tcnio.varptr = tracescheck_copynode (tcn->u.tcnio.varptr);
+		if (tcn->u.tcnio.tagptr) {
+			tcc->u.tcnio.tagptr = tracescheck_copynode (tcn->u.tcnio.tagptr);
+		} else {
+			tcc->u.tcnio.tagptr = NULL;
+		}
 		break;
 		/*}}}*/
 		/*{{{  FIXPOINT*/
@@ -2168,6 +2269,7 @@ tchknode_t *tracescheck_createnode (tchknodetype_e type, tnode_t *orgnode, ...)
 	case TCN_INPUT:
 	case TCN_OUTPUT:
 		tcn->u.tcnio.varptr = va_arg (ap, tchknode_t *);
+		tcn->u.tcnio.tagptr = va_arg (ap, tchknode_t *);
 		break;
 		/*}}}*/
 		/*{{{  FIXPOINT*/

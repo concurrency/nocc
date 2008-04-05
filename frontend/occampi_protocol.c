@@ -49,6 +49,7 @@
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
+#include "tracescheck.h"
 #include "constprop.h"
 #include "fetrans.h"
 #include "precheck.h"
@@ -819,6 +820,91 @@ tnode_dumptree (atype, 1, stderr);
 	return v;
 }
 /*}}}*/
+/*{{{  static int occampi_tracescheck_actionnode_forprotocol (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)*/
+/*
+ *	does traces-checking on an action-node for PROTOCOL types
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_tracescheck_actionnode_forprotocol (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)
+{
+	chook_t *tchkhook = tracescheck_getnoderefchook ();
+	int did_traces = 0;
+	int v = 1;
+
+	if (node->tag == opi.tag_OUTPUT) {
+		tnode_t *lhs = tnode_nthsubof (node, 0);
+		tnode_t *lhstype = typecheck_gettype (lhs, NULL);
+
+		if (lhstype->tag != opi.tag_CHAN) {
+			nocc_error ("occampi_tracescheck_actionnode_forprotocol(): confused, LHS-type of OUTPUT not CHAN!, got [%s]",
+					lhstype->tag->name);
+		} else {
+			tnode_t *proto = typecheck_getsubtype (lhstype, NULL);
+
+#if 1
+fprintf (stderr, "occampi_tracescheck_actionnode_forprotocol(): got protocol:\n");
+tnode_dumptree (proto, 1, stderr);
+#endif
+			if (proto->tag == opi.tag_NVARPROTOCOLDECL) {
+				/* variant protocol, I/O list should begin with a tag */
+				tnode_t *rhs = tnode_nthsubof (node, 1);
+
+				if (!parser_islistnode (rhs)) {
+					nocc_internal ("occampi_tracescheck_actionnode_forprotocol(): confused, RHS of VARPROTOCOL OUTPUT should be a list, got [%s]",
+							rhs->tag->name);
+				} else {
+					int nitems;
+					tnode_t **rhslist = parser_getlistitems (rhs, &nitems);
+
+					if (nitems < 1) {
+						nocc_internal ("occampi_tracescheck_actionnode_forprotocol(): too few RHS items in VARPROTOCOL OUTPUT!");
+					} else {
+						tnode_t *tag = rhslist[0];
+
+						if (tag->tag != opi.tag_NTAG) {
+							nocc_internal ("occampi_tracescheck_actionnode_forprotocol(): first RHS item is not a TAG!, got [%s]",
+									tag->tag->name);
+						} else {
+							/* okay, build I/O list with this */
+							tnode_t *baselhs = langops_getbasename (lhs);
+							tnode_t *fieldlhs = langops_getfieldnamelist (lhs);
+							tchknode_t *lhstcn, *tagtcn;
+
+							if (baselhs && (baselhs != lhs)) {
+								/* use the base name for now */
+								/* FIXME: ... */
+								lhs = baselhs;
+							}
+
+							lhstcn = (tchknode_t *)tnode_getchook (lhs, tchkhook);
+							tagtcn = (tchknode_t *)tnode_getchook (tag, tchkhook);
+#if 1
+fprintf (stderr, "occampi_tracescheck_actionnode_forprotocol(): in here, tagtcn is:\n");
+tracescheck_dumpnode (tagtcn, 1, stderr);
+#endif
+
+							if (lhstcn) {
+								tchknode_t *newtcn = tracescheck_dupref (lhstcn);
+
+								newtcn = tracescheck_createnode (TCN_OUTPUT, node, newtcn, tagtcn);
+								tracescheck_addtobucket (tcstate, newtcn);
+								did_traces = 1;
+								v = 0;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (!did_traces && cops->next && tnode_hascompop (cops->next, "tracescheck")) {
+		v = tnode_callcompop (cops->next, "tracescheck", 2, node, tcstate);
+	}
+
+	return v;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_protocol_init_nodes (void)*/
@@ -919,6 +1005,7 @@ static int occampi_protocol_post_setup (void)
 	cops = tnode_insertcompops (tnd->ops);
 
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_actionnode_forprotocol));
+	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_actionnode_forprotocol));
 	tnd->ops = cops;
 
 	/*}}}*/

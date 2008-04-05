@@ -60,6 +60,7 @@ typedef struct TAG_tchknode {
 		} tcnatom;
 		struct {
 			struct TAG_tchknode *varptr;
+			struct TAG_tchknode *tagptr;	/* associated tag when dealing with variant PROTOCOLs */
 		} tcnio;				/* for INPUT and OUTPUT */
 		struct {
 			struct TAG_tchknode *aref;
