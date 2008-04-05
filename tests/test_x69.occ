@@ -1,0 +1,18 @@
+
+-- test_x69.occ -- experimental protocol inheritance test
+
+PROTOCOL FOO
+  CASE
+    zero
+:
+
+PROTOCOL BAR EXTENDS FOO
+  CASE
+    one; INT
+:
+
+PROC test.x69 ()
+  SKIP
+:
+
+

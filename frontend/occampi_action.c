@@ -258,7 +258,7 @@ tnode_dumptree (lhstype, 1, stderr);
 				prot = nprot;
 			}
 		}
-#if 0
+#if 1
 fprintf (stderr, "occampi_typecheck_action(): channel protocol (after any to-type) is:\n");
 tnode_dumptree (prot, 1, stderr);
 #endif

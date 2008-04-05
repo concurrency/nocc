@@ -1,6 +1,6 @@
 /*
  *	occampi.h -- occam-pi language interface for nocc
- *	Copyright (C) 2004-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2008 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -47,6 +47,7 @@ struct TAG_chook;
 typedef struct {
 	struct TAG_tndef *node_NAMENODE;
 	struct TAG_tndef *node_NAMETYPENODE;
+	struct TAG_tndef *node_NAMEPROTOCOLNODE;
 	struct TAG_tndef *node_LEAFNODE;
 	struct TAG_tndef *node_TYPENODE;
 	struct TAG_tndef *node_ACTIONNODE;
@@ -301,6 +302,7 @@ extern struct TAG_feunit occampi_type_feunit;			/* occampi_type.c */
 extern struct TAG_feunit occampi_instance_feunit;		/* occampi_instance.c */
 extern struct TAG_feunit occampi_dtype_feunit;			/* occampi_dtype.c */
 extern struct TAG_feunit occampi_ptype_feunit;			/* occampi_ptype.c */
+extern struct TAG_feunit occampi_protocol_feunit;		/* occampi_protocol.c */
 extern struct TAG_feunit occampi_oper_feunit;			/* occampi_oper.c */
 extern struct TAG_feunit occampi_function_feunit;		/* occampi_function.c */
 extern struct TAG_feunit occampi_mobiles_feunit;		/* occampi_mobiles.c */
