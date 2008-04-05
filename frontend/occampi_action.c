@@ -258,7 +258,7 @@ tnode_dumptree (lhstype, 1, stderr);
 				prot = nprot;
 			}
 		}
-#if 1
+#if 0
 fprintf (stderr, "occampi_typecheck_action(): channel protocol (after any to-type) is:\n");
 tnode_dumptree (prot, 1, stderr);
 #endif
@@ -286,6 +286,11 @@ tnode_dumptree (lhstype, 1, stderr);
 fprintf (stderr, "occampi_typecheck_action(): rhstype = \n");
 tnode_dumptree (rhstype, 1, stderr);
 #endif
+
+	if (!rhstype) {
+		typecheck_error (node, tc, "invalid type for action");
+		return 0;
+	}
 
 	/* got two valid types, check that the RHS type is good for the LHS */
 	acttype = typecheck_typeactual (lhstype, rhstype, node, tc);

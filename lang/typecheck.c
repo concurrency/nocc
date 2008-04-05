@@ -167,7 +167,7 @@ tnode_t *typecheck_gettype (tnode_t *node, tnode_t *default_type)
 		tnode_t **items = parser_getlistitems (node, &nitems);
 		tnode_t *typelist = parser_newlistnode (NULL);
 
-#if 1
+#if 0
 fprintf (stderr, "typecheck_gettype(): on list.  node =\n");
 tnode_dumptree (node, 1, stderr);
 fprintf (stderr, "typecheck_gettype(): on list.  default_type =\n");
@@ -199,6 +199,10 @@ tnode_dumptree (default_type, 1, stderr);
 			}
 		}
 
+#if 0
+fprintf (stderr, "typecheck_gettype(): on list.  resulting typelist =\n");
+tnode_dumptree (typelist, 1, stderr);
+#endif
 		return typelist;
 		/*}}}*/
 	}

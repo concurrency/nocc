@@ -1309,6 +1309,7 @@ static int occampi_scopein_tagdecl (compops_t *cops, tnode_t **node, scope_t *ss
 	char *rawname;
 	tnode_t *type, *newname;
 	name_t *sname = NULL;
+	tnode_t *inttype;
 
 	if (name->tag != opi.tag_NAME) {
 		scope_error (name, ss, "name not raw-name!");
@@ -1319,7 +1320,8 @@ static int occampi_scopein_tagdecl (compops_t *cops, tnode_t **node, scope_t *ss
 	scope_subtree (tnode_nthsubaddr (*node, 1), ss);		/* scope type */
 	type = tnode_nthsubof (*node, 1);
 
-	sname = name_addscopename (rawname, *node, type, NULL);
+	inttype = tnode_createfrom (opi.tag_INT, *node);
+	sname = name_addscopename (rawname, *node, inttype, NULL);
 	newname = tnode_createfrom (opi.tag_NTAG, name, sname);
 	SetNameNode (sname, newname);
 	tnode_setnthsub (*node, 0, newname);
@@ -1784,6 +1786,32 @@ tnode_dumptree (node, 4, stderr);
 	return NULL;
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_getsubtype_nametypenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	returns the sub-type of a named type-node (only for N_TAG)
+ */
+static tnode_t *occampi_getsubtype_nametypenode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	if (node->tag == opi.tag_NTAG) {
+		/* need to look in the declaration (inside a PROTOCOL definition) */
+		name_t *name = tnode_nthnameof (node, 0);
+		tnode_t *ndecl;
+
+		if (!name) {
+			nocc_fatal ("occampi_getsubtype_nametypenode(): NULL name!");
+			return NULL;
+		}
+		if (!NameDeclOf (name)) {
+			nocc_fatal ("occampi_getsubtype_nametypenode(): NULL declaration!");
+			return NULL;
+		}
+		ndecl = NameDeclOf (name);
+
+		return tnode_nthsubof (ndecl, 1);
+	}
+	return NULL;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_typeactual_nametypenode (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does actual-use type-checking on a named type-node (channel I/O for PROTOCOLs)
@@ -1791,7 +1819,7 @@ tnode_dumptree (node, 4, stderr);
  */
 static tnode_t *occampi_typeactual_nametypenode (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
 {
-#if 1
+#if 0
 fprintf (stderr, "occampi_typeactual_nametypenode(): formaltype =\n");
 tnode_dumptree (formaltype, 1, stderr);
 fprintf (stderr, "occampi_typeactual_nametypenode(): actualtype =\n");
@@ -1836,9 +1864,59 @@ tnode_dumptree (atype, 1, stderr);
 
 		if (node->tag == opi.tag_OUTPUT) {
 			/*{{{  check output, first item should be a tag*/
-			int naitems, i;
+			int naitems, nfitems, nalist, i;
 			tnode_t **aitems = parser_getlistitems (actualtype, &naitems);
+			tnode_t **alist = parser_getlistitems (tnode_nthsubof (node, 1), &nalist);
+			tnode_t *tag;
+			tnode_t *slist, **fitems;
+			tnode_t *atype;
 
+			if (!naitems) {
+				typecheck_error (node, tc, "no tag specified in variant protocol output");
+				return NULL;
+			}
+			if (!nalist) {
+				typecheck_error (node, tc, "no tag specified in variant protocol output");
+				return NULL;
+			}
+			tag = alist[0];
+			
+			if (tag->tag != opi.tag_NTAG) {
+				typecheck_error (node, tc, "first item in variant protocol output is not a tag!");
+				return NULL;
+			}
+
+			slist = typecheck_getsubtype (tag, NULL);
+			if (!slist) {
+				typecheck_error (node, tc, "variant protocol tag has no sub-type!");
+				return NULL;
+			}
+
+			if (!parser_islistnode (slist)) {
+				typecheck_error (node, tc, "variant protocol sub-type is not a list!");
+				return NULL;
+			}
+
+			fitems = parser_getlistitems (slist, &nfitems);
+			if ((naitems - 1) > nfitems) {
+				typecheck_error (node, tc, "too many items in I/O list");
+				return NULL;
+			} else if ((naitems - 1) < nfitems) {
+				typecheck_error (node, tc, "too few items in I/O list");
+				return NULL;
+			}
+
+			atype = parser_newlistnode (NULL);
+			for (i=0; i<nfitems; i++) {
+				tnode_t *rtype = typecheck_typeactual (fitems[i], aitems[i+1], node, tc);
+
+				if (!rtype) {
+					typecheck_error (node, tc, "invalid type for item %d in I/O list", i);
+				}
+				parser_addtolist (atype, rtype);
+			}
+
+			return atype;
 			/*}}}*/
 		}
 		/*}}}*/
@@ -2016,7 +2094,7 @@ static tnode_t *occampi_protocoltotype_nametypenode (langops_t *lops, tnode_t *p
 		name_t *name = tnode_nthnameof (prot, 0);
 		ntype = NameTypeOf (name);
 	} else if (prot->tag == opi.tag_NVARPROTOCOLDECL) {
-#if 1
+#if 0
 fprintf (stderr, "occampi_protocoltotype_nametypenode(): NVARPROTOCOLDECL: rhs =\n");
 tnode_dumptree (rhs, 1, stderr);
 #endif
@@ -2428,6 +2506,7 @@ static int occampi_dtype_init_nodes (void)
 
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_nametypenode));
+	tnode_setlangop (lops, "getsubtype", 2, LANGOPTYPE (occampi_getsubtype_nametypenode));
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_typeactual_nametypenode));
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_nametypenode));
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (occampi_getname_nametypenode));
