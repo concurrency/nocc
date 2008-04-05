@@ -750,6 +750,30 @@ static int occampi_scopein_tagdecl (compops_t *cops, tnode_t **node, scope_t *ss
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_tracescheck_tagdecl (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)*/
+/*
+ *	does traces-checking on a variant protocol tag declaration -- attaches traces-reference nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_tracescheck_tagdecl (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)
+{
+	if (node->tag == opi.tag_TAGDECL) {
+		chook_t *tchkhook = tracescheck_getnoderefchook ();
+		tnode_t *tag = tnode_nthsubof (node, 0);
+		tchknode_t *tagtcn = (tchknode_t *)tnode_getchook (node, tchkhook);
+
+		if (tagtcn) {
+			nocc_warning ("occampi_tracescheck_tagdecl(): already got traces hook on tag name!");
+		} else {
+			tagtcn = tracescheck_createnode (TCN_NODEREF, node, tag);
+
+			tnode_setchook (tag, tchkhook, tagtcn);
+		}
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_fetrans_actionnode_forprotocol (compops_t *cops, tnode_t **nodep, fetrans_t *fe)*/
@@ -946,6 +970,7 @@ static int occampi_protocol_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_tagdecl));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_tagdecl));
+	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_tagdecl));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

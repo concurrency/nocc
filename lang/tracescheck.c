@@ -1829,7 +1829,7 @@ static int tracescheck_subformat (tchknode_t *tcn, char **sptr, int *cur, int *m
 		v += tracescheck_subformat (tcn->u.tcnio.varptr, sptr, cur, max);
 		tracescheck_addtostring (sptr, cur, max, (tcn->type == TCN_INPUT) ? "?" : "!");
 		if (tcn->u.tcnio.tagptr) {
-			v += tracescheck_subformat (tcn->u.tcnio.varptr, sptr, cur, max);
+			v += tracescheck_subformat (tcn->u.tcnio.tagptr, sptr, cur, max);
 		}
 		break;
 		/*}}}*/
