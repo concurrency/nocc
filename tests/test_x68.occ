@@ -11,6 +11,8 @@ PROTOCOL P.IN
 :
 
 PROC test.x68 (CHAN P.IN out!)
-  out ! one; 2
+  SEQ
+    out ! one; 2
+    out ! zero
 :
 
