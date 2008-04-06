@@ -1,0 +1,18 @@
+
+-- test_x71.occ -- SEQ-in-VAR protocol inclusion
+
+PROTOCOL FOO IS INT; BYTE:
+
+PROTOCOL BAR
+  CASE
+    zero
+    one; INT
+    two; FOO
+    two.too; FOO; INT
+:
+
+PROC test.x71 ()
+  SKIP
+:
+
+

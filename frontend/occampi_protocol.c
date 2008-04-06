@@ -206,6 +206,26 @@ static int occampi_typecheck_protocoldecl (compops_t *cops, tnode_t *node, typec
 						int npitems, j;
 
 						pitems = parser_getlistitems (protocol, &npitems);
+
+						/* deal with protocol inclusion first */
+						for (j=0; j<npitems; j++) {
+							if (pitems[j]->tag == opi.tag_NSEQPROTOCOLDECL) {
+								/* must already have checked this, and possibly generated an error */
+								tnode_t *ltype = typecheck_gettype (pitems[j], NULL);
+
+								if (parser_islistnode (ltype)) {
+									tnode_t *lcopy = tnode_copytree (ltype);
+									int tadd = parser_countlist (lcopy);
+
+									parser_delfromlist (protocol, j);
+									parser_mergeinlist (protocol, lcopy, j);
+									j += (tadd - 1);
+									pitems = parser_getlistitems (protocol, &npitems);
+								}
+							}
+						}
+
+						/* then check */
 						for (j=0; j<npitems; j++) {
 							if (!langops_iscommunicable (pitems[j])) {
 								typecheck_error (pitems[j], tc, "item %d in variant %d is non-communicable", j, i);
@@ -236,7 +256,40 @@ static int occampi_typecheck_protocoldecl (compops_t *cops, tnode_t *node, typec
 		/*}}}*/
 	} else if (node->tag == opi.tag_SEQPROTOCOLDECL) {
 		/*{{{  check sequential PROTOCOL declaration*/
-		/* FIXME! */
+		if (!parser_islistnode (*typep)) {
+			typecheck_error (node, tc, "expected list of protocols in sequential protocol declaration");
+		} else {
+			int npitems, i;
+			tnode_t **pitems = parser_getlistitems (*typep, &npitems);
+
+#if 0
+fprintf (stderr, "occampi_typecheck_protocoldecl(): looking for NSEQPROTOCOLs..");
+#endif
+			/* deal with protocol inclusion first */
+			for (i=0; i<npitems; i++) {
+				if (pitems[i]->tag == opi.tag_NSEQPROTOCOLDECL) {
+					/* must already have checked this, and possibly generated an error */
+					tnode_t *ltype = typecheck_gettype (pitems[i], NULL);
+
+					if (parser_islistnode (ltype)) {
+						tnode_t *lcopy = tnode_copytree (ltype);
+						int tadd = parser_countlist (lcopy);
+
+						parser_delfromlist (*typep, i);
+						parser_mergeinlist (*typep, lcopy, i);
+						i += (tadd - 1);
+						pitems = parser_getlistitems (*typep, &npitems);
+					}
+				}
+			}
+
+			/* then check */
+			for (i=0; i<npitems; i++) {
+				if (!langops_iscommunicable (pitems[i])) {
+					typecheck_error (pitems[i], tc, "item %d in sequential protocol is non-communicable", i);
+				}
+			}
+		}
 
 		/*}}}*/
 	}

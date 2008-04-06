@@ -1,0 +1,11 @@
+
+-- test_x70.occ -- SEQ-in-SEQ protocol inclusion
+
+PROTOCOL FOO IS INT; INT:
+
+PROTOCOL BAR IS BYTE; FOO; BYTE:
+
+PROC test.x70 ()
+  SKIP
+:
+

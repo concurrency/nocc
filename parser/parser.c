@@ -615,6 +615,69 @@ void parser_insertinlist (tnode_t *list, tnode_t *item, int idx)
 	return;
 }
 /*}}}*/
+/*{{{  void parser_mergeinlist (tnode_t *list, tnode_t *sublist, int idx)*/
+/*
+ *	merges one list into another, trashes the sub-list
+ */
+void parser_mergeinlist (tnode_t *list, tnode_t *sublist, int idx)
+{
+	tnode_t **array;
+	int *cur, *max;
+	tnode_t **sarray;
+	int *scur, *smax;
+	int i;
+
+	if (!parser_islistnode (list) || !parser_islistnode (sublist)) {
+		nocc_internal ("parser_mergeinlist(): NULL list or sublist");
+		return;
+	}
+
+	array = (tnode_t **)tnode_nthhookof (list, 0);
+	if (!array) {
+		nocc_internal ("parser_mergeinlist(): NULL array in list!");
+		return;
+	}
+	cur = (int *)array;
+	max = (int *)(array + 1);
+
+	sarray = (tnode_t **)tnode_nthhookof (sublist, 0);
+	if (!sarray) {
+		nocc_internal ("parser_mergeinlist(): NULL array in sublist!");
+		return;
+	}
+	scur = (int *)sarray;
+	smax = (int *)(sarray + 1);
+
+	if ((*cur + *scur) >= *max) {
+		/* need to make the array a bit larger */
+		array = (tnode_t **)srealloc (array, (*max + 2) * sizeof (tnode_t *), (*max + *scur + 2) * sizeof (tnode_t *));
+
+		cur = (int *)array;
+		max = (int *)(array + 1);
+
+		*max = (*max + *scur);
+		tnode_setnthhook (list, 0, array);
+	}
+	if (idx > *cur) {
+		nocc_internal ("parser_mergeinlist(): cannot merge at position %d (%d/%d item list)", idx, *cur, *max);
+		return;
+	}
+
+	/* move everything from (idx -> *cur) along by (*scur) */
+	for (i = (*cur + 1); i >= (idx+2); i--) {
+		array[i + *scur] = array[i];
+	}
+
+	/* copy the contents of sarray over at index 'idx' */
+	for (i = 2; i < (*scur + 2); i++) {
+		array[i+idx] = sarray[i];
+	}
+	*cur += *scur;
+
+	parser_trashlist (sublist);
+	return;
+}
+/*}}}*/
 /*{{{  tnode_t *parser_rmfromlist (tnode_t *list, tnode_t *item)*/
 /*
  *	removes an item from a list-node by reference, returns it

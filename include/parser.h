@@ -45,6 +45,7 @@ extern struct TAG_tnode **parser_addtolist_front (struct TAG_tnode *list, struct
 extern struct TAG_tnode *parser_delfromlist (struct TAG_tnode *list, int idx);
 extern struct TAG_tnode *parser_getfromlist (struct TAG_tnode *list, int idx);
 extern void parser_insertinlist (struct TAG_tnode *list, struct TAG_tnode *item, int idx);
+extern void parser_mergeinlist (struct TAG_tnode *list, struct TAG_tnode *sublist, int idx);
 extern struct TAG_tnode *parser_rmfromlist (struct TAG_tnode *list, struct TAG_tnode *item);
 extern int parser_islistnode (struct TAG_tnode *node);
 extern struct TAG_tnode **parser_getlistitems (struct TAG_tnode *list, int *nitems);
