@@ -61,6 +61,84 @@
 #include "langops.h"
 
 /*}}}*/
+/*{{{  private types*/
+
+typedef struct TAG_pextstate {
+	int fixed;
+} pextstate_t;
+
+/*}}}*/
+/*{{{  private data*/
+
+static chook_t *pextstate = NULL;
+
+
+/*}}}*/
+
+
+/*{{{  static void occampi_pextstate_chook_free (void *pext)*/
+/*
+ *	frees a pextstate compiler hook
+ */
+static void occampi_pextstate_chook_free (void *pext)
+{
+	pextstate_t *pxs = (pextstate_t *)pext;
+
+	if (!pxs) {
+		nocc_internal ("occampi_pextstate_chook_free(): NULL pointer!");
+		return;
+	}
+	sfree (pxs);
+	return;
+}
+/*}}}*/
+/*{{{  static void *occampi_pextstate_chook_create (int fixed)*/
+/*
+ *	creates a new pextstate compiler hook
+ */
+static void *occampi_pextstate_chook_create (int fixed)
+{
+	pextstate_t *pxs = (pextstate_t *)smalloc (sizeof (pextstate_t));
+
+	pxs->fixed = fixed;
+
+	return (void *)pxs;
+}
+/*}}}*/
+/*{{{  static void *occampi_pextstate_chook_copy (void *chook)*/
+/*
+ *	copies a pextstate compiler hook
+ */
+static void *occampi_pextstate_chook_copy (void *chook)
+{
+	pextstate_t *pxs = (pextstate_t *)chook;
+	pextstate_t *npxs;
+
+	if (!pxs) {
+		npxs = NULL;
+	} else {
+		npxs = (pextstate_t *)occampi_pextstate_chook_create (pxs->fixed);
+	}
+	return npxs;
+}
+/*}}}*/
+/*{{{  static void occampi_pextstate_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*
+ *	dumps a pextstate compiler hook (debugging)
+ */
+static void occampi_pextstate_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+{
+	pextstate_t *pxs = (pextstate_t *)chook;
+
+	occampi_isetindent (stream, indent);
+	if (!pxs) {
+		fprintf (stream, "<chook:pextstate value=\"null\" />\n");
+	} else {
+		fprintf (stream, "<chook:pextstate fixed=\"%d\" />\n", pxs->fixed);
+	}
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_prescope_protocoldecl (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
@@ -71,9 +149,16 @@
 static int occampi_prescope_protocoldecl (compops_t *cops, tnode_t **nodep, prescope_t *ps)
 {
 	tnode_t *type = tnode_nthsubof (*nodep, 1);
+	tnode_t **extp = tnode_nthsubaddr (*nodep, 3);
 
 	if (parser_islistnode (type)) {
 		parser_cleanuplist (type);
+	}
+	if (*extp) {
+		if (!parser_islistnode (*extp)) {
+			*extp = parser_buildlistnode (NULL, *extp, NULL);
+		}
+		parser_cleanuplist (*extp);
 	}
 
 	return 1;
@@ -114,6 +199,11 @@ tnode_dumptree (tnode_nthsubof (*nodep, 1), 1, stderr);
 fprintf (stderr, "occampi_scopein_protocoldecl: here! rawname = \"%s\".  scoped type=\n", rawname);
 tnode_dumptree (type, 1, stderr);
 #endif
+
+	/* scope any extensions */
+	if (scope_subtree (tnode_nthsubaddr (*nodep, 3), ss)) {
+		return 0;
+	}
 
 	/* if we have an intypedecl_scopein, do that here, followed by any scope-out */
 #if 0
@@ -169,9 +259,10 @@ static int occampi_typecheck_protocoldecl (compops_t *cops, tnode_t *node, typec
 {
 	tnode_t **typep = tnode_nthsubaddr (node, 1);
 
-
 	if (node->tag == opi.tag_VARPROTOCOLDECL) {
 		/*{{{  check variant PROTOCOL declaration*/
+		tnode_t **extp = tnode_nthsubaddr (node, 3);
+
 		if (!parser_islistnode (*typep)) {
 			typecheck_error (node, tc, "expected list of protocols in variant protocol declaration");
 		} else {
@@ -284,6 +375,24 @@ static int occampi_typecheck_protocoldecl (compops_t *cops, tnode_t *node, typec
 			}
 		}
 
+		if (*extp) {
+			/*{{{  check that any inherited protocols are variants*/
+			if (!parser_islistnode (*extp)) {
+				typecheck_error (node, tc, "PROTOCOL extension list not a list, got [%s]", (*extp)->tag->name);
+			} else {
+				int nextp, i;
+				tnode_t **extplist = parser_getlistitems (*extp, &nextp);
+
+				for (i=0; i<nextp; i++) {
+					if (extplist[i]->tag != opi.tag_NVARPROTOCOLDECL) {
+						typecheck_error (node, tc, "PROTOCOL extension item %d is not a variant protocol, got [%s]",
+								i, extplist[i]->tag->name);
+					}
+				}
+			}
+			/*}}}*/
+		}
+
 		/*}}}*/
 	} else if (node->tag == opi.tag_SEQPROTOCOLDECL) {
 		/*{{{  check sequential PROTOCOL declaration*/
@@ -338,8 +447,42 @@ static int occampi_typeresolve_protocoldecl (compops_t *cops, tnode_t **nodep, t
 
 	if (n->tag == opi.tag_VARPROTOCOLDECL) {
 		/*{{{  assign tag values to variant protocol tags*/
-		tnode_t **taglines;
 		int ntags;
+		tnode_t **taglines;
+		tnode_t *extlist = tnode_nthsubof (n, 3);
+		tnode_t *vpname = tnode_nthsubof (n, 0);
+
+		if (extlist) {
+			/*{{{  go through extensions and check/add fixed status*/
+			int i, nexts;
+			tnode_t **exts = parser_getlistitems (extlist, &nexts);
+
+#if 1
+fprintf (stderr, "occampi_typeresolve_protocoldecl(): got %d extended protocols\n", nexts);
+#endif
+			for (i=0; i<nexts; i++) {
+				pextstate_t *epxs = NULL;
+
+				if (tnode_haschook (exts[i], pextstate)) {
+					epxs = (pextstate_t *)tnode_getchook (exts[i], pextstate);
+				} else {
+					epxs = occampi_pextstate_chook_create (0);
+					tnode_setchook (exts[i], pextstate, epxs);
+				}
+
+				if (OrgFileOf (n) != OrgFileOf (exts[i])) {
+					/* we're in a different file from the extended protocol, so extended one here is fixed */
+					if (epxs->fixed == 0) {
+						/* not touched yet, fix */
+						epxs->fixed = 2;
+					} else if (epxs->fixed == 1) {
+						/* means we started fiddling it, give up */
+						typecheck_error (*nodep, tc, "cannot extend protocol %d", i);
+					}
+				}
+			}
+			/*}}}*/
+		}
 
 		taglines = parser_getlistitems (tnode_nthsubof (*nodep, 1), &ntags);
 		if (ntags > 0) {
@@ -353,7 +496,7 @@ static int occampi_typeresolve_protocoldecl (compops_t *cops, tnode_t **nodep, t
 			stringhash_init (tagnamehash, 4);
 			left = 0;
 
-			/* put each enumerated value already set into the hash, count remainder;  also do name-checking here */
+			/*{{{  put each enumerated value already set into the hash, count remainder;  also do name-checking here*/
 			for (i=0; i<ntags; i++) {
 				tnode_t *tagname = tnode_nthsubof (taglines[i], 0);
 				tnode_t **valp = tnode_nthsubaddr (taglines[i], 2);
@@ -387,8 +530,8 @@ static int occampi_typeresolve_protocoldecl (compops_t *cops, tnode_t **nodep, t
 					}
 				}
 			}
-			
-			/* if we have any left, fill in the blanks */
+			/*}}}*/
+			/*{{{  if we have any left, fill in the blanks*/
 			if (left) {
 				hval++;
 				for (i=0; i<ntags; i++) {
@@ -407,6 +550,7 @@ static int occampi_typeresolve_protocoldecl (compops_t *cops, tnode_t **nodep, t
 					}
 				}
 			}
+			/*}}}*/
 
 			pointerhash_trash (taghash);
 			stringhash_trash (tagnamehash);
@@ -1044,7 +1188,7 @@ static int occampi_protocol_init_nodes (void)
 
 	/*{{{  occampi:protocoldecl -- SEQPROTOCOLDECL, VARPROTOCOLDECL*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:protocoldecl", &i, 3, 0, 0, TNF_SHORTDECL);		/* subnotes: 0 = name; 1 = type; 2 = body */
+	tnd = tnode_newnodetype ("occampi:protocoldecl", &i, 4, 0, 0, TNF_SHORTDECL);		/* subnotes: 0 = name; 1 = type; 2 = body, 3 = extends */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_protocoldecl));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_protocoldecl));
@@ -1117,6 +1261,13 @@ static int occampi_protocol_init_nodes (void)
 	opi.tag_NSEQPROTOCOLDECL = tnode_newnodetag ("N_SEQPROTOCOLDECL", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_NTAG = tnode_newnodetag ("N_TAG", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  pextstate compiler hook*/
+	pextstate = tnode_lookupornewchook ("occampi:pextstate");
+	pextstate->chook_dumptree = occampi_pextstate_chook_dumptree;
+	pextstate->chook_free = occampi_pextstate_chook_free;
+	pextstate->chook_copy = occampi_pextstate_chook_copy;
 
 	/*}}}*/
 

@@ -125,7 +125,7 @@
 #}}}
 #{{{  protocols
 
-.TNODE	"occampi:protocoldecl" (3,0,0) "name" "type" "body"
+.TNODE	"occampi:protocoldecl" (4,0,0) "name" "type" "body" "extends"
 .TNODE	"occampi:tagdecl" (3,0,0) "name" "type" "value"
 .TNODE	"occampi:nameprotocolnode" (0,1,0) "name"
 
@@ -497,13 +497,15 @@
 # }}}
 .SECTION "occampi-protocol" # {{{: protocol handling
 
-.GRULE	"opi:protocoldeclreduce" "SN1N+N+V0C[VARPROTOCOLDECL]3R-"
-.GRULE	"opi:sprotocoldeclreduce" "SN1N+N+V0C[SEQPROTOCOLDECL]3R-"
+.GRULE	"opi:protocoldeclreduce" "SN1N+N+V00C[VARPROTOCOLDECL]4R-"
+.GRULE	"opi:sprotocoldeclreduce" "SN1N+N+V00C[SEQPROTOCOLDECL]4R-"
 .GRULE	"opi:nullpcasereduce" "SN0N+00C[TAGDECL]3R-"
 .GRULE	"opi:pcasereduce" "SN1N+N+V0C[TAGDECL]3R-"
 .GRULE	"opi:nullvpcasereduce" "SN1N+0N+V*C[TAGDECL]3R-"
 .GRULE	"opi:vpcasereduce" "SN2N+N+VN+V*C[TAGDECL]3R-"
 .GRULE	"opi:fromcasereduce" "SN0N+C[CASEFROM]1R-"
+.GRULE	"opi:protocoldeclezreduce" "SN1N+N+VN-00N+C[VARPROTOCOLDECL]4R-"
+.GRULE	"opi:protocoldeclereduce" "SN2N+N+N+VN-V0N+C[VARPROTOCOLDECL]4R-"
 
 .TABLE	"occampi:protocolcase ::= [ 0 occampi:name 1 ] [ 0 @FROM 10 ] [ 1 @@= 5 ] [ 1 @@; 3 ] [ 1 -* 2 ]"
 	"[ 2 {<opi:nullpcasereduce>} -* ]"
@@ -517,11 +519,14 @@
 	"[ 2 occampi:protocolcase 1 ] [ 2 Newline 4 ] [ 2 -* 3 ] [ 2 {Roccampi:resetnewline} ] [ 3 -* 4 ] [ 4 -* ]"
 
 # .BNF	"occampi:protocolcaselist ::= { occampi:protocolcase Newline 0 }"
-.TABLE	"occampi:protocoldecl ::= [ 0 @PROTOCOL 1 ] [ 1 +Name 2 ] [ 2 {<opi:namepush>} ] [ 2 Newline 5 ] [ 2 @IS 3 ]"
+.TABLE	"occampi:protocoldecl ::= [ 0 @PROTOCOL 1 ] [ 1 +Name 2 ] [ 2 {<opi:namepush>} ] [ 2 Newline 5 ] [ 2 @IS 3 ] [ 2 @EXTENDS 15 ]"
 	"[ 3 occampi:protocollist 4 ] [ 4 {<opi:sprotocoldeclreduce>} @@: 14 ]"
 	"[ 5 Indent 6 ] [ 6 @CASE 7 ] [ 7 Newline 8 ] [ 8 Indent 9 ] [ 9 occampi:protocolcaselist 10 ] [ 10 Outdent 11 ]"
 	"[ 11 Outdent 12 ] [ 12 @@: 13 ] [ 13 {<opi:protocoldeclreduce>} -* ]"
 	"[ 14 -* ]"
+	"[ 15 occampi:namelist 16 ] [ 16 Newline 18 ] [ 16 @@: 17 ] [ 17 {<opi:protocoldeclezreduce>} -* ]"
+	"[ 18 Indent 19 ] [ 19 @CASE 20 ] [ 20 Newline 21 ] [ 21 Indent 22 ] [ 22 occampi:protocolcaselist 23 ] [ 23 Outdent 24 ]"
+	"[ 24 Outdent 25 ] [ 25 @@: 26 ] [ 26 {<opi:protocoldeclereduce>} -* ]"
 
 # }}}
 .SECTION "occampi-function" # {{{: functions
