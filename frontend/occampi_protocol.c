@@ -345,15 +345,29 @@ static int occampi_typeresolve_protocoldecl (compops_t *cops, tnode_t **nodep, t
 		if (ntags > 0) {
 			int i, left;
 			POINTERHASH (tnode_t *, taghash, 4);
+			STRINGHASH (tnode_t *, tagnamehash, 4);
 			int hval = -1;
 
 			/* abuse a pointer-hash to do this -- really storing integer values */
 			pointerhash_init (taghash, 4);
+			stringhash_init (tagnamehash, 4);
 			left = 0;
 
-			/* put each enumerated value already set into the hash, count remainder */
+			/* put each enumerated value already set into the hash, count remainder;  also do name-checking here */
 			for (i=0; i<ntags; i++) {
+				tnode_t *tagname = tnode_nthsubof (taglines[i], 0);
 				tnode_t **valp = tnode_nthsubaddr (taglines[i], 2);
+
+				if (tagname && (tagname->tag == opi.tag_NTAG)) {
+					char *realname = NameNameOf (tnode_nthnameof (tagname, 0));
+
+					if (stringhash_lookup (tagnamehash, realname)) {
+						typecheck_error (tagname, tc, "duplicate tag name for variant %d", i);
+					} else {
+						/* add */
+						stringhash_insert (tagnamehash, tagname, realname);
+					}
+				}
 
 				if (!*valp) {
 					left++;
@@ -395,6 +409,7 @@ static int occampi_typeresolve_protocoldecl (compops_t *cops, tnode_t **nodep, t
 			}
 
 			pointerhash_trash (taghash);
+			stringhash_trash (tagnamehash);
 		}
 		/*}}}*/
 	}
