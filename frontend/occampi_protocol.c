@@ -461,11 +461,9 @@ static int occampi_typeresolve_protocoldecl (compops_t *cops, tnode_t **nodep, t
 fprintf (stderr, "occampi_typeresolve_protocoldecl(): got %d extended protocols\n", nexts);
 #endif
 			for (i=0; i<nexts; i++) {
-				pextstate_t *epxs = NULL;
+				pextstate_t *epxs = tnode_getchook (exts[i], pextstate);
 
-				if (tnode_haschook (exts[i], pextstate)) {
-					epxs = (pextstate_t *)tnode_getchook (exts[i], pextstate);
-				} else {
+				if (!epxs) {
 					epxs = occampi_pextstate_chook_create (0);
 					tnode_setchook (exts[i], pextstate, epxs);
 				}
@@ -606,12 +604,26 @@ static int occampi_usagecheck_protocoldecl (langops_t *lops, tnode_t *node, uchk
  */
 static int occampi_namemap_nameprotocolnode (compops_t *cops, tnode_t **nodep, map_t *map)
 {
-	tnode_t *bename = tnode_getchook (*nodep, map->mapchook);
-	tnode_t *tname;
+	if ((*nodep)->tag == opi.tag_NTAG) {
+		/* tag name, ends up as a constant */
+		name_t *fename = tnode_nthnameof (*nodep, 0);
+		tnode_t *tagdecl = NameDeclOf (fename);
+		tnode_t *tagval = tnode_nthsubof (tagdecl, 2);
 
-	if (bename) {
-		tname = map->target->newnameref (bename, map);
-		*nodep = tname;
+#if 0
+fprintf (stderr, "occampi_namemap_nameprotocolnode(): NTAG: tagval =\n");
+tnode_dumptree (tagval, 1, stderr);
+#endif
+		*nodep = tnode_copytree (tagval);
+		map_submapnames (nodep, map);
+	} else {
+		tnode_t *bename = tnode_getchook (*nodep, map->mapchook);
+
+		if (bename) {
+			tnode_t *tname = map->target->newnameref (bename, map);
+
+			*nodep = tname;
+		}
 	}
 	return 0;
 }

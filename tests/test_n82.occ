@@ -1,0 +1,16 @@
+
+-- test_n82.occ -- variant protocol output
+
+PROTOCOL FOO
+  CASE
+    zero
+    one = 5; INT
+    two; INT; INT
+:
+
+PROC test.n82 (CHAN FOO out!)
+  SEQ
+    out ! zero
+    out ! two; 3; 6
+:
+
