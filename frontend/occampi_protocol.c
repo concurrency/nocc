@@ -187,10 +187,8 @@ static int occampi_typecheck_protocoldecl (compops_t *cops, tnode_t *node, typec
 				if (!taglines[i]) {
 					typecheck_error (node, tc, "missing variant %d in PROTOCOL declaration", i);
 					did_error = 1;
-				} else if (taglines[i]->tag != opi.tag_TAGDECL) {
-					typecheck_error (node, tc, "variant %d in PROTOCOL declaration does not begin with a tag", i);
-					did_error = 1;
-				} else {
+				} else if (taglines[i]->tag == opi.tag_TAGDECL) {
+					/*{{{  check tag declaration, type-list and value*/
 					tnode_t *tagname = tnode_nthsubof (taglines[i], 0);
 					tnode_t *protocol = tnode_nthsubof (taglines[i], 1);
 					tnode_t **valp = tnode_nthsubaddr (taglines[i], 2);
@@ -216,11 +214,14 @@ static int occampi_typecheck_protocoldecl (compops_t *cops, tnode_t *node, typec
 								if (parser_islistnode (ltype)) {
 									tnode_t *lcopy = tnode_copytree (ltype);
 									int tadd = parser_countlist (lcopy);
+									tnode_t *olditem = pitems[j];
 
 									parser_delfromlist (protocol, j);
 									parser_mergeinlist (protocol, lcopy, j);
 									j += (tadd - 1);
 									pitems = parser_getlistitems (protocol, &npitems);
+
+									tnode_free (olditem);
 								}
 							}
 						}
@@ -235,7 +236,7 @@ static int occampi_typecheck_protocoldecl (compops_t *cops, tnode_t *node, typec
 					}
 
 					if (*valp) {
-						/* make sure value is an integer */
+						/*{{{  make sure value is an integer*/
 						tnode_t *definttype = tnode_create (opi.tag_INT, NULL);
 						tnode_t *itype = typecheck_gettype (*valp, definttype);
 						
@@ -248,7 +249,37 @@ static int occampi_typecheck_protocoldecl (compops_t *cops, tnode_t *node, typec
 						}
 
 						tnode_free (definttype);
+						/*}}}*/
 					}
+					/*}}}*/
+				} else if (taglines[i]->tag == opi.tag_CASEFROM) {
+					/*{{{  deal with protocol inclusion from another variant protocol*/
+					tnode_t *othervp = tnode_nthsubof (taglines[i], 0);
+
+					if (othervp->tag != opi.tag_NVARPROTOCOLDECL) {
+						typecheck_error (taglines[i], tc, "name in protocol inclusion is not a variant-protocol");
+						did_error = 1;
+					} else {
+						tnode_t *vptype = typecheck_gettype (othervp, NULL);
+
+						if (!vptype || !parser_islistnode (vptype)) {
+							typecheck_error (taglines[i], tc, "included variant protocol is broken");
+							did_error = 1;
+						} else {
+							tnode_t *vptypecopy = tnode_copytree (vptype);
+							int tadd = parser_countlist (vptypecopy);
+							tnode_t *olditem = taglines[i];
+
+							parser_delfromlist (*typep, i);
+							parser_mergeinlist (*typep, vptypecopy, i);
+							i += (tadd - 1);
+							taglines = parser_getlistitems (*typep, &ntags);
+						}
+					}
+					/*}}}*/
+				} else {
+					typecheck_error (node, tc, "variant %d in PROTOCOL declaration does not begin with a tag", i);
+					did_error = 1;
 				}
 			}
 		}
@@ -1030,6 +1061,20 @@ static int occampi_protocol_init_nodes (void)
 
 	i = -1;
 	opi.tag_TAGDECL = tnode_newnodetag ("TAGDECL", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:protocolmiscnode -- CASEFROM, CASEEXTENDS*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:protocolmiscnode", &i, 1, 0, 0, TNF_NONE);		/* subnodes: 1 = operand */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_CASEFROM = tnode_newnodetag ("CASEFROM", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_CASEEXTENDS = tnode_newnodetag ("CASEEXTENDS", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  occampi:nameprotocolnode -- N_SEQPROTOCOLDECL, N_VARPROTOCOLDECL, N_TAG*/

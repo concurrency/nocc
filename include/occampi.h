@@ -99,10 +99,7 @@ typedef struct {
 	struct TAG_ntdef *tag_DATATYPEDECL;
 	struct TAG_ntdef *tag_CHANTYPEDECL;
 	struct TAG_ntdef *tag_PROCTYPEDECL;
-	struct TAG_ntdef *tag_VARPROTOCOLDECL;
-	struct TAG_ntdef *tag_SEQPROTOCOLDECL;
 	struct TAG_ntdef *tag_FIELDDECL;
-	struct TAG_ntdef *tag_TAGDECL;
 
 	struct TAG_ntdef *tag_FPARAM;
 	struct TAG_ntdef *tag_VALFPARAM;
@@ -185,10 +182,7 @@ typedef struct {
 	struct TAG_ntdef *tag_NDATATYPEDECL;
 	struct TAG_ntdef *tag_NCHANTYPEDECL;
 	struct TAG_ntdef *tag_NPROCTYPEDECL;
-	struct TAG_ntdef *tag_NVARPROTOCOLDECL;
-	struct TAG_ntdef *tag_NSEQPROTOCOLDECL;
 	struct TAG_ntdef *tag_NFIELD;
-	struct TAG_ntdef *tag_NTAG;
 
 	struct TAG_ntdef *tag_PINSTANCE;
 	struct TAG_ntdef *tag_FINSTANCE;
@@ -228,6 +222,15 @@ typedef struct {
 	struct TAG_ntdef *tag_VARCONSTCONSTRUCTOR;
 
 	struct TAG_ntdef *tag_PARAMTYPE;
+
+	struct TAG_ntdef *tag_VARPROTOCOLDECL;
+	struct TAG_ntdef *tag_SEQPROTOCOLDECL;
+	struct TAG_ntdef *tag_TAGDECL;
+	struct TAG_ntdef *tag_NVARPROTOCOLDECL;
+	struct TAG_ntdef *tag_NSEQPROTOCOLDECL;
+	struct TAG_ntdef *tag_NTAG;
+	struct TAG_ntdef *tag_CASEFROM;
+	struct TAG_ntdef *tag_CASEEXTENDS;
 
 	struct TAG_token *tok_COLON;
 	struct TAG_token *tok_INPUT;

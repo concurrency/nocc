@@ -503,13 +503,15 @@
 .GRULE	"opi:pcasereduce" "SN1N+N+V0C[TAGDECL]3R-"
 .GRULE	"opi:nullvpcasereduce" "SN1N+0N+V*C[TAGDECL]3R-"
 .GRULE	"opi:vpcasereduce" "SN2N+N+VN+V*C[TAGDECL]3R-"
+.GRULE	"opi:fromcasereduce" "SN0N+C[CASEFROM]1R-"
 
-.TABLE	"occampi:protocolcase ::= [ 0 occampi:name 1 ] [ 1 @@= 5 ] [ 1 @@; 3 ] [ 1 -* 2 ]"
+.TABLE	"occampi:protocolcase ::= [ 0 occampi:name 1 ] [ 0 @FROM 10 ] [ 1 @@= 5 ] [ 1 @@; 3 ] [ 1 -* 2 ]"
 	"[ 2 {<opi:nullpcasereduce>} -* ]"
 	"[ 3 occampi:protocollist 4 ] [ 4 {<opi:pcasereduce>} -* ]"
 	"[ 5 occampi:expr 6 ] [ 6 @@; 8 ] [ 6 -* 7 ]"
 	"[ 7 {<opi:nullvpcasereduce>} -* ]"
 	"[ 8 occampi:protocollist 9 ] [ 9 {<opi:vpcasereduce>} -* ]"
+	"[ 10 occampi:name 11 ] [ 11 {<opi:fromcasereduce>} -* ]"
 
 .TABLE	"occampi:protocolcaselist ::= [ 0 occampi:protocolcase 1 ] [ 1 {<parser:nullreduce>} ] [ 1 Newline 2 ] [ 1 -* 4 ] [ 2 {Rinlist} ]"
 	"[ 2 occampi:protocolcase 1 ] [ 2 Newline 4 ] [ 2 -* 3 ] [ 2 {Roccampi:resetnewline} ] [ 3 -* 4 ] [ 4 -* ]"

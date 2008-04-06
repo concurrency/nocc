@@ -1,0 +1,19 @@
+
+-- test_x72.occ -- testing PROTOCOL CASEs from
+
+PROTOCOL FOO
+  CASE
+    zero
+    one; INT
+:
+
+PROTOCOL BAR
+  CASE
+    FROM FOO
+    two; BYTE; INT
+:
+
+PROC test.x72 ()
+  SKIP
+:
+
