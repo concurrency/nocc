@@ -148,11 +148,14 @@ static void occampi_pextstate_chook_dumptree (tnode_t *node, void *chook, int in
  */
 static int occampi_prescope_protocoldecl (compops_t *cops, tnode_t **nodep, prescope_t *ps)
 {
-	tnode_t *type = tnode_nthsubof (*nodep, 1);
+	tnode_t **typep = tnode_nthsubaddr (*nodep, 1);
 	tnode_t **extp = tnode_nthsubaddr (*nodep, 3);
 
-	if (parser_islistnode (type)) {
-		parser_cleanuplist (type);
+	if (!*typep) {
+		/* create an empty list */
+		*typep = parser_newlistnode (NULL);
+	} else if (parser_islistnode (*typep)) {
+		parser_cleanuplist (*typep);
 	}
 	if (*extp) {
 		if (!parser_islistnode (*extp)) {
@@ -451,21 +454,30 @@ static int occampi_typeresolve_protocoldecl (compops_t *cops, tnode_t **nodep, t
 		tnode_t **taglines;
 		tnode_t *extlist = tnode_nthsubof (n, 3);
 		tnode_t *vpname = tnode_nthsubof (n, 0);
+		int hval = -1;
 
 		if (extlist) {
 			/*{{{  go through extensions and check/add fixed status*/
 			int i, nexts;
 			tnode_t **exts = parser_getlistitems (extlist, &nexts);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_typeresolve_protocoldecl(): got %d extended protocols\n", nexts);
 #endif
 			for (i=0; i<nexts; i++) {
 				pextstate_t *epxs = tnode_getchook (exts[i], pextstate);
+				tnode_t *xstype = typecheck_gettype (exts[i], NULL);
+				int nxstypes, j;
+				tnode_t **xstypes;
 
 				if (!epxs) {
 					epxs = occampi_pextstate_chook_create (0);
 					tnode_setchook (exts[i], pextstate, epxs);
+				}
+
+				if (!parser_islistnode (xstype)) {
+					nocc_internal ("occampi_typeresolve_protocoldecl(): type of extension not list! [%s]",
+							xstype->tag->name);
 				}
 
 				if (OrgFileOf (n) != OrgFileOf (exts[i])) {
@@ -478,82 +490,334 @@ fprintf (stderr, "occampi_typeresolve_protocoldecl(): got %d extended protocols\
 						typecheck_error (*nodep, tc, "cannot extend protocol %d", i);
 					}
 				}
+
+				/* make sure we set hval to the highest tag value seen in any inherited protocol */
+				xstypes = parser_getlistitems (xstype, &nxstypes);
+				for (j=0; j<nxstypes; j++) {
+					tnode_t *tagval = tnode_nthsubof (xstypes[j], 2);
+					int tagintval = constprop_intvalof (tagval);
+
+					if (tagintval > hval) {
+						hval = tagintval;
+					}
+				}
 			}
 			/*}}}*/
 		}
 
-		taglines = parser_getlistitems (tnode_nthsubof (*nodep, 1), &ntags);
-		if (ntags > 0) {
-			int i, left;
+		{
 			POINTERHASH (tnode_t *, taghash, 4);
 			STRINGHASH (tnode_t *, tagnamehash, 4);
-			int hval = -1;
+			int i;
+			tnode_t *thisvartype = tnode_nthsubof (*nodep, 1);
 
 			/* abuse a pointer-hash to do this -- really storing integer values */
 			pointerhash_init (taghash, 4);
 			stringhash_init (tagnamehash, 4);
-			left = 0;
 
-			/*{{{  put each enumerated value already set into the hash, count remainder;  also do name-checking here*/
-			for (i=0; i<ntags; i++) {
-				tnode_t *tagname = tnode_nthsubof (taglines[i], 0);
-				tnode_t **valp = tnode_nthsubaddr (taglines[i], 2);
+			taglines = parser_getlistitems (thisvartype, &ntags);
+			if (ntags > 0) {
+				int left = 0;
 
-				if (tagname && (tagname->tag == opi.tag_NTAG)) {
-					char *realname = NameNameOf (tnode_nthnameof (tagname, 0));
+				/*{{{  put each enumerated value already set into the hash, count remainder;  also do name-checking here*/
+				for (i=0; i<ntags; i++) {
+					tnode_t *tagname = tnode_nthsubof (taglines[i], 0);
+					tnode_t **valp = tnode_nthsubaddr (taglines[i], 2);
+					pextstate_t *tsx;
 
-					if (stringhash_lookup (tagnamehash, realname)) {
-						typecheck_error (tagname, tc, "duplicate tag name for variant %d", i);
-					} else {
-						/* add */
-						stringhash_insert (tagnamehash, tagname, realname);
+
+					if (tagname && (tagname->tag == opi.tag_NTAG)) {
+						char *realname = NameNameOf (tnode_nthnameof (tagname, 0));
+
+						if (stringhash_lookup (tagnamehash, realname)) {
+							typecheck_error (tagname, tc, "duplicate tag name for variant %d", i);
+						} else {
+							/* add */
+							stringhash_insert (tagnamehash, taglines[i], realname);
+						}
 					}
-				}
 
-				if (!*valp) {
-					left++;
-				} else if (!constprop_isconst (*valp)) {
-					typecheck_error (*valp, tc, "enumeration for tag on variant %d is non-constant", i);
-				} else {
-					int val = constprop_intvalof (*valp);
-					tnode_t *other = pointerhash_lookup (taghash, val);
+					/* put a pextstate hook on this tag, fixed if value already set */
+					tsx = tnode_getchook (taglines[i], pextstate);
+					if (!tsx) {
+						tsx = occampi_pextstate_chook_create (*valp ? 2 : 0);
+						tnode_setchook (taglines[i], pextstate, tsx);
+					}
 
-					if (other) {
-						typecheck_error (*valp, tc, "duplicate enumeration value %d on variant %d", val, i);
+					if (!*valp) {
+						left++;
+					} else if (!constprop_isconst (*valp)) {
+						typecheck_error (*valp, tc, "enumeration for tag on variant %d is non-constant", i);
 					} else {
-						pointerhash_insert (taghash, taglines[i], val);
-						if (val > hval) {
-							hval = val;		/* record highest seen tag value */
+						int val = constprop_intvalof (*valp);
+						tnode_t *other = pointerhash_lookup (taghash, val);
+
+						if (other) {
+							typecheck_error (*valp, tc, "duplicate enumeration value %d on variant %d", val, i);
+						} else {
+							pointerhash_insert (taghash, taglines[i], (void *)val);
+							if (val > hval) {
+								hval = val;		/* record highest seen tag value */
+							}
 						}
 					}
 				}
-			}
-			/*}}}*/
-			/*{{{  if we have any left, fill in the blanks*/
-			if (left) {
-				hval++;
-				for (i=0; i<ntags; i++) {
-					tnode_t **valp = tnode_nthsubaddr (taglines[i], 2);
+				/*}}}*/
+				/*{{{  if we have any left, fill in the blanks*/
+				if (left) {
+					hval++;
+					for (i=0; i<ntags; i++) {
+						tnode_t **valp = tnode_nthsubaddr (taglines[i], 2);
+						pextstate_t *tsx = (pextstate_t *)tnode_getchook (taglines[i], pextstate);
 
-					if (!*valp) {
-						tnode_t *other;
+						if (!*valp) {
+							tnode_t *other;
 
-						do {
-							other = pointerhash_lookup (taghash, hval);
-							hval++;
-						} while (other);
+							do {
+								other = pointerhash_lookup (taghash, hval);
+								hval++;
+							} while (other);
 
-						*valp = constprop_newconst (CONST_INT, NULL, tnode_create (opi.tag_INT, NULL), hval);
-						pointerhash_insert (taghash, taglines[i], hval);
+							*valp = constprop_newconst (CONST_INT, NULL, tnode_create (opi.tag_INT, NULL), hval);
+							pointerhash_insert (taghash, taglines[i], hval);
+							tsx->fixed = 1;			/* can fiddle it later if we want */
+						}
 					}
 				}
+				/*}}}*/
+
+			}
+			/*}}}*/
+			/*{{{  finally, merge in any extended protocols*/
+			if (extlist) {
+				int nexts;
+				tnode_t **exts = parser_getlistitems (extlist, &nexts);
+				POINTERHASH (tnode_t *, extphash, 4);
+
+				pointerhash_init (extphash, 4);
+
+				/* NOTE: exts is an array of variant protocol names */
+
+				for (i=0; i<nexts; i++) {
+					pextstate_t *epxs = (pextstate_t *)tnode_getchook (exts[i], pextstate);
+					tnode_t *xstype = typecheck_gettype (exts[i], NULL);
+					int nxstags, j;
+					tnode_t **xstags = parser_getlistitems (xstype, &nxstags);
+
+					for (j=0; j<nxstags; j++) {
+						/*{{{  for each tag in the inherited protocol ...*/
+						tnode_t *tagname = tnode_nthsubof (xstags[j], 0);
+						tnode_t *tagtype = tnode_nthsubof (xstags[j], 1);
+						tnode_t **tagvalp = tnode_nthsubaddr (xstags[j], 2);
+						int tagintval = constprop_intvalof (*tagvalp);
+						pextstate_t *xss = (pextstate_t *)tnode_getchook (xstags[j], pextstate);
+						int doaddtag = 0;
+						char *realname = NULL;
+						tnode_t *othertag = NULL;
+						tnode_t *othervtag = NULL;
+
+						if (!tagname || (tagname->tag != opi.tag_NTAG)) {
+							nocc_internal ("occampi_typeresolve_protocoldecl(): no other tag name or not NTAG!");
+							return 0;
+						}
+
+						realname = NameNameOf (tnode_nthnameof (tagname, 0));
+						othertag = stringhash_lookup (tagnamehash, realname);
+						othervtag = pointerhash_lookup (taghash, (void *)tagintval);
+
+						if (othertag) {
+							/* means we already have another tag with this name:
+							 *   okay if the sub-types are *exactly* the same, and,
+							 *   the values can be unified
+							 */
+							pextstate_t *otherxss = (pextstate_t *)tnode_getchook (othertag, pextstate);
+							tnode_t *othertagtype = tnode_nthsubof (othertag, 1);
+							tnode_t **othertagvalp = tnode_nthsubaddr (othertag, 2);
+							int othertagintval = constprop_intvalof (*othertagvalp);
+
+							if (!typecheck_fixedtypeactual (othertagtype, tagtype, *nodep, tc, 1)) {
+								typecheck_error (*nodep, tc, "cannot inherit tag \"%s\" from extended protocol %d, different types",
+										realname, i);
+							} else {
+								switch (otherxss->fixed) {
+								case 2:
+									/*{{{  already fixed, this one must unify*/
+									switch (xss->fixed) {
+									case 2:
+										/* other fixed, only okay if same value */
+										if (tagintval != othertagintval) {
+											typecheck_error (*nodep, tc, "cannot inherit tag \"%s\" from extended protocol %d, different tag values",
+													realname, i);
+										} /* else okay! */
+										break;
+									case 0:
+									case 1:
+										/* fix this to reflect other's value */
+										tnode_free (*tagvalp);
+										*tagvalp = constprop_newconst (CONST_INT, NULL,
+												tnode_create (opi.tag_INT, NULL), othertagintval);
+										tagintval = othertagintval;
+										xss->fixed = 2;
+										break;
+									}
+									break;
+									/*}}}*/
+								case 0:
+								case 1:
+									/*{{{  not already fixed, can unify one way or the other*/
+									switch (xss->fixed) {
+									case 2:
+										/* this fixed, change other */
+										tnode_free (*othertagvalp);
+										*othertagvalp = constprop_newconst (CONST_INT, NULL,
+												tnode_create (opi.tag_INT, NULL), tagintval);
+										othertagintval = tagintval;
+										otherxss->fixed = 2;
+										break;
+									case 0:
+									case 1:
+										/* assign and fix both to a new value */
+										hval++;
+
+										tnode_free (*tagvalp);
+										*tagvalp = constprop_newconst (CONST_INT, NULL,
+												tnode_create (opi.tag_INT, NULL), hval);
+										tagintval = hval;
+										xss->fixed = 2;
+
+										tnode_free (*othertagvalp);
+										*othertagvalp = constprop_newconst (CONST_INT, NULL,
+												tnode_create (opi.tag_INT, NULL), hval);
+										othertagintval = hval;
+										otherxss->fixed = 2;
+										break;
+									}
+									break;
+									/*}}}*/
+								}
+							}
+						} else if (othervtag) {
+							/* means we have another tag with the same value, one must change */
+							pextstate_t *otherxss = (pextstate_t *)tnode_getchook (othervtag, pextstate);
+							tnode_t **othertagvalp = tnode_nthsubaddr (othervtag, 2);
+							
+							switch (otherxss->fixed) {
+							case 2:
+								/*{{{  other already fixed, this one must change*/
+								switch (xss->fixed) {
+								case 2:
+									typecheck_error (*nodep, tc, "cannot inherit tag \"%s\" from extended protocol %d, tag values collide",
+											realname, i);
+									break;
+								case 0:
+								case 1:
+									/* this one can change */
+									hval++;
+									tnode_free (*tagvalp);
+									*tagvalp = constprop_newconst (CONST_INT, NULL,
+											tnode_create (opi.tag_INT, NULL), hval);
+									tagintval = hval;
+									xss->fixed = 2;
+									doaddtag = 1;
+									break;
+								}
+								break;
+								/*}}}*/
+							case 0:
+							case 1:
+								/*{{{  other unfixed, it can change*/
+								hval++;
+								tnode_free (*othertagvalp);
+								*othertagvalp = constprop_newconst (CONST_INT, NULL,
+										tnode_create (opi.tag_INT, NULL), hval);
+								otherxss->fixed = 2;
+								doaddtag = 1;
+								break;
+								/*}}}*/
+							}
+						} else {
+							/* this tag has a unique value within us, good, fix it, but in a slightly peculiar way */
+							switch (xss->fixed) {
+							case 2:
+								/* fixed already, can't change */
+								break;
+							case 0:
+							case 1:
+								/* unset or fiddlable, change and fix */
+								hval++;
+								tnode_free (*tagvalp);
+								*tagvalp = constprop_newconst (CONST_INT, NULL, tnode_create (opi.tag_INT, NULL), hval);
+								tagintval = hval;
+								xss->fixed = 2;
+								break;
+							}
+							doaddtag = 1;
+						}
+
+						if (doaddtag) {
+							/*{{{  copy and add the existing tag;  also put in local hashes*/
+							tnode_t *tagcopy = tnode_copytree (xstags[j]);
+							tnode_t *tagcopyname = tnode_nthsubof (tagcopy, 0);
+							pextstate_t *tagcopyxss = (pextstate_t *)tnode_getchook (tagcopy, pextstate);
+
+							realname = NameNameOf (tnode_nthnameof (tagcopyname, 0));
+
+#if 0
+fprintf (stderr, "occampi_typeresolve_protocoldecl(): here! tagcopyname is [%s], tagcopy is:\n", realname);
+tnode_dumptree (tagcopy, 1, stderr);
+#endif
+							if (!tagcopyxss) {
+								/* should not happen! */
+								nocc_internal ("occampi_typeresolve_protocoldecl(): expected pextstate hook on [%s], none found!", tagcopy->tag->name);
+							}
+
+							pointerhash_insert (taghash, tagcopy, (void *)tagintval);
+							stringhash_insert (tagnamehash, tagcopy, realname);
+							parser_addtolist (thisvartype, tagcopy);
+							/*}}}*/
+						}
+						/*}}}*/
+					}
+
+					/* this protocol is now fixed */
+					epxs->fixed = 2;
+				}
+
+				/* now, go through again and flatten inheritance tree */
+				for (i=0; i<nexts; i++) {
+					tnode_t *extdecl = NameDeclOf (tnode_nthnameof (exts[i], 0));
+
+					/* add this name to the hash */
+					pointerhash_insert (extphash, exts[i], exts[i]);		/* unique names */
+
+					if (extdecl) {
+						/*{{{  if this one extends any other protocols, add these to the local extension list (if not already present)*/
+						tnode_t *extextlist = tnode_nthsubof (extdecl, 3);
+
+						if (extextlist && parser_islistnode (extextlist)) {
+							int nedexts, j;
+							tnode_t **edexts = parser_getlistitems (extextlist, &nedexts);
+
+							for (j=0; j<nedexts; j++) {
+								if (!pointerhash_lookup (extphash, edexts[j])) {
+									pointerhash_insert (extphash, edexts[j], edexts[j]);
+
+									/* .. and add to our extensions list */
+									parser_addtolist (extlist, edexts[j]);
+								}
+							}
+						}
+						/*}}}*/
+					}
+				}
+
+				pointerhash_trash (extphash);
 			}
 			/*}}}*/
 
 			pointerhash_trash (taghash);
 			stringhash_trash (tagnamehash);
 		}
-		/*}}}*/
 	}
 	return 1;
 }

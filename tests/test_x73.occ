@@ -1,0 +1,24 @@
+
+-- test_x73.occ -- protocol inheritance type-check
+
+PROTOCOL P.ONE
+  CASE
+    zero
+    one; INT
+:
+
+PROTOCOL P.TWO EXTENDS P.ONE
+  CASE
+    two; INT; BYTE
+:
+
+PROC foobar (CHAN P.ONE out!)
+  SEQ
+    out ! zero
+:
+
+PROC test.x73 (CHAN P.TWO out!)
+  SEQ
+    foobar (out!)
+:
+

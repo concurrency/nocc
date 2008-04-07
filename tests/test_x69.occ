@@ -3,7 +3,7 @@
 
 PROTOCOL FOO
   CASE
-    zero
+    zero = 4
 :
 
 PROTOCOL BAR EXTENDS FOO

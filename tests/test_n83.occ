@@ -1,0 +1,34 @@
+
+-- test_n83.occ -- more extensive protocol inheritance check
+
+PROTOCOL P.ONE
+  CASE
+    zero
+    one = 1; INT
+    two = 4; BYTE; REAL64
+:
+
+PROTOCOL P.TWO EXTENDS P.ONE
+  CASE
+    zero
+    three; INT; INT; INT64
+:
+
+PROTOCOL P.THREE EXTENDS P.TWO
+  CASE
+    four; INT; INT; INT; INT
+    five = 12
+:
+
+PROTOCOL P.FOUR
+  CASE
+    six; INT; INT
+:
+
+PROTOCOL P.FIVE EXTENDS P.TWO, P.FOUR:
+
+
+PROC test.n83 ()
+  SKIP
+:
+
