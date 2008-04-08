@@ -1,0 +1,11 @@
+
+-- test_x74.occ -- testing protocol inputs
+
+PROTOCOL P.ONE IS INT; INT:
+
+PROC test.x74 (CHAN P.ONE in?)
+  INT x, y:
+  SEQ
+    in ? x; y
+:
+

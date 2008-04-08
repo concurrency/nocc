@@ -200,7 +200,20 @@ int langops_isvar (tnode_t *node)
 {
 	int r = 0;
 
-	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_ISVAR)) {
+	if (parser_islistnode (node)) {
+		/* special case: list is l-value if all items are l-values */
+		int i, nitems;
+		tnode_t **items = parser_getlistitems (node, &nitems);
+		int nvar = 0;
+
+		for (i=0; i<nitems; i++) {
+			if (langops_isvar (items[i])) {
+				nvar++;
+			}
+		}
+
+		r = (nvar == nitems);
+	} else if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_ISVAR)) {
 		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_ISVAR, 1, node);
 	}
 	return r;
