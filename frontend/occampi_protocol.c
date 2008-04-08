@@ -362,7 +362,7 @@ static int occampi_typecheck_protocoldecl (compops_t *cops, tnode_t *node, typec
 						} else {
 							tnode_t *vptypecopy = tnode_copytree (vptype);
 							int tadd = parser_countlist (vptypecopy);
-							tnode_t *olditem = taglines[i];
+							// tnode_t *olditem = taglines[i];
 
 							parser_delfromlist (*typep, i);
 							parser_mergeinlist (*typep, vptypecopy, i);
@@ -453,7 +453,7 @@ static int occampi_typeresolve_protocoldecl (compops_t *cops, tnode_t **nodep, t
 		int ntags;
 		tnode_t **taglines;
 		tnode_t *extlist = tnode_nthsubof (n, 3);
-		tnode_t *vpname = tnode_nthsubof (n, 0);
+		// tnode_t *vpname = tnode_nthsubof (n, 0);
 		int hval = -1;
 
 		if (extlist) {
@@ -1015,8 +1015,15 @@ tnode_dumptree (actualtype, 1, stderr);
 			return atype;
 			/*}}}*/
 		} else {
-			/* something else, instances, abbreviations, etc. */
-			/* FIXME! */
+			/*{{{  something else, instances, abbreviations, etc.*/
+			name_t *fname = tnode_nthnameof (formaltype, 0);
+			name_t *aname = tnode_nthnameof (actualtype, 0);
+
+			if (fname == aname) {
+				return actualtype;
+			}
+
+			/*}}}*/
 		}
 	} else if (formaltype->tag == opi.tag_NVARPROTOCOLDECL) {
 		/*{{{  check actual usage on variant protocol (input/output/params/abbrevs)*/
@@ -1291,7 +1298,7 @@ static int occampi_typehash_nameprotocolnode (langops_t *lops, tnode_t *node, in
 		nocc_serious ("occampi_typehash_nameprotocolnode(): unknown node (%s,%s)", node->tag->name, node->tag->ndef->name);
 		return 1;
 	}
-#if 0
+#if 1
 fprintf (stderr, "occampi_typehash_nameprotocolnode(): FIXME: subtype needs including, got:\n");
 tnode_dumptree (subtype, 1, stderr);
 #endif
