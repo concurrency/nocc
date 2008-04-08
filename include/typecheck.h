@@ -24,10 +24,14 @@ struct TAG_tnode;
 struct TAG_langparser;
 
 typedef struct TAG_typecheck {
-	int err;		/* error count */
-	int warn;		/* warning count */
-	void *hook;		/* hook for language-specific use */
+	int err;			/* error count */
+	int warn;			/* warning count */
+	void *hook;			/* hook for language-specific use */
 	struct TAG_langparser *lang;	/* language */
+
+	/* when doing type-actuals on parameters */
+	tnode_t *this_ftype;		/* formal-parameter type */
+	tnode_t *this_aparam;		/* actual-parameter */
 } typecheck_t;
 
 /* these are used to categorise types */

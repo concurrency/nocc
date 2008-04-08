@@ -307,9 +307,16 @@ tnode_dumptree (ap_items[ap_ptr], 1, stderr);
 			}
 		}
 
+		/* set parameter info in type-check, slightly special, but needed for some things */
+		tc->this_ftype = ftype;
+		tc->this_aparam = ap_items[ap_ptr];
+
 		if (!typecheck_typeactual (ftype, atype, node, tc)) {
 			typecheck_error (node, tc, "incompatible types for parameter %d", paramno);
 		}
+
+		tc->this_ftype = NULL;
+		tc->this_aparam = NULL;
 
 		if (fattr && aattr) {
 			if ((fattr ^ aattr) & (TYPEATTR_MARKED_IN | TYPEATTR_MARKED_OUT)) {

@@ -128,6 +128,41 @@ void typecheck_error (tnode_t *node, typecheck_t *tc, const char *fmt, ...)
 /*}}}*/
 
 
+/*{{{  static typecheck_t *typecheck_newtypecheck (void)*/
+/*
+ *	creates a new typecheck_t structure
+ */
+static typecheck_t *typecheck_newtypecheck (void)
+{
+	typecheck_t *tc = (typecheck_t *)smalloc (sizeof (typecheck_t));
+
+	tc->err = 0;
+	tc->warn = 0;
+	tc->hook = NULL;
+	tc->lang = NULL;
+
+	tc->this_ftype = NULL;
+	tc->this_aparam = NULL;
+
+	return tc;
+}
+/*}}}*/
+/*{{{  static void typecheck_freetypecheck (typecheck_t *tc)*/
+/*
+ *	frees a typecheck_t structure
+ */
+static void typecheck_freetypecheck (typecheck_t *tc)
+{
+	if (!tc) {
+		nocc_error ("typecheck_freetypecheck(): NULL pointer!");
+		return;
+	}
+	sfree (tc);
+	return;
+}
+/*}}}*/
+
+
 /*{{{  int typecheck_haserror (typecheck_t *tc)*/
 /*
  *	returns the number of errors collected by the type-check so far
@@ -431,14 +466,12 @@ int typecheck_subtree (tnode_t *t, typecheck_t *tc)
  */
 int typecheck_tree (tnode_t *t, langparser_t *lang)
 {
-	typecheck_t *tc = (typecheck_t *)smalloc (sizeof (typecheck_t));
+	typecheck_t *tc = typecheck_newtypecheck ();
 	int i;
 
-	tc->err = 0;
-	tc->warn = 0;
 	if (!lang->typecheck) {
 		nocc_error ("typecheck_tree(): don\'t know how to type-check this language!");
-		sfree (tc);
+		typecheck_freetypecheck (tc);
 		return 1;
 	}
 	tc->lang = lang;
@@ -451,7 +484,8 @@ int typecheck_tree (tnode_t *t, langparser_t *lang)
 	if (tc->err) {
 		i = tc->err;
 	}
-	sfree (tc);
+	typecheck_freetypecheck (tc);
+
 	return i;
 }
 /*}}}*/

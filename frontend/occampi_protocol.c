@@ -964,6 +964,16 @@ static tnode_t *occampi_getsubtype_nameprotocolnode (langops_t *lops, tnode_t *n
  */
 static tnode_t *occampi_typeactual_nameprotocolnode (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
 {
+	occampi_typeattr_t fattr = TYPEATTR_NONE;
+	occampi_typeattr_t aattr = TYPEATTR_NONE;
+
+	if (tc->this_ftype) {
+		fattr = occampi_typeattrof (tc->this_ftype);
+	}
+	if (tc->this_aparam) {
+		aattr = occampi_typeattrof (tc->this_aparam);
+	}
+
 #if 0
 fprintf (stderr, "occampi_typeactual_nameprotocolnode(): formaltype =\n");
 tnode_dumptree (formaltype, 1, stderr);
@@ -972,39 +982,44 @@ tnode_dumptree (actualtype, 1, stderr);
 #endif
 
 	if (formaltype->tag == opi.tag_NSEQPROTOCOLDECL) {
-		/*{{{  check actual usage on sequential protocol (input/output)*/
-		name_t *name = tnode_nthnameof (formaltype, 0);
-		tnode_t *slist = NameTypeOf (name);
-		int nfitems, naitems, i;
-		tnode_t **fitems, **aitems;
-		tnode_t *atype;
+		if ((node->tag == opi.tag_OUTPUT) || (node->tag == opi.tag_INPUT)) {
+			/*{{{  check actual usage on sequential protocol (input/output)*/
+			name_t *name = tnode_nthnameof (formaltype, 0);
+			tnode_t *slist = NameTypeOf (name);
+			int nfitems, naitems, i;
+			tnode_t **fitems, **aitems;
+			tnode_t *atype;
 
-		fitems = parser_getlistitems (slist, &nfitems);
-		aitems = parser_getlistitems (actualtype, &naitems);
+			fitems = parser_getlistitems (slist, &nfitems);
+			aitems = parser_getlistitems (actualtype, &naitems);
 
-		if (nfitems != naitems) {
-			typecheck_error (node, tc, "expected %d items in I/O list, found %d", nfitems, naitems);
-			return NULL;
-		}
-
-		atype = parser_newlistnode (NULL);
-		for (i=0; i<nfitems; i++) {
-			tnode_t *rtype = typecheck_typeactual (fitems[i], aitems[i], node, tc);
-
-			if (!rtype) {
-				typecheck_error (node, tc, "invalid type for item %d in I/O list", i);
+			if (nfitems != naitems) {
+				typecheck_error (node, tc, "expected %d items in I/O list, found %d", nfitems, naitems);
+				return NULL;
 			}
-			parser_addtolist (atype, rtype);
-		}
 
-#if 0
-fprintf (stderr, "Occampi_typeactual_nameprotocolnode(): real actual type =\n");
-tnode_dumptree (atype, 1, stderr);
-#endif
-		return atype;
-		/*}}}*/
+			atype = parser_newlistnode (NULL);
+			for (i=0; i<nfitems; i++) {
+				tnode_t *rtype = typecheck_typeactual (fitems[i], aitems[i], node, tc);
+
+				if (!rtype) {
+					typecheck_error (node, tc, "invalid type for item %d in I/O list", i);
+				}
+				parser_addtolist (atype, rtype);
+			}
+
+	#if 0
+	fprintf (stderr, "Occampi_typeactual_nameprotocolnode(): real actual type =\n");
+	tnode_dumptree (atype, 1, stderr);
+	#endif
+			return atype;
+			/*}}}*/
+		} else {
+			/* something else, instances, abbreviations, etc. */
+			/* FIXME! */
+		}
 	} else if (formaltype->tag == opi.tag_NVARPROTOCOLDECL) {
-		/*{{{  check actual usage on variant protocol (input/output)*/
+		/*{{{  check actual usage on variant protocol (input/output/params/abbrevs)*/
 		name_t *name = tnode_nthnameof (formaltype, 0);
 
 		if (node->tag == opi.tag_OUTPUT) {
@@ -1074,6 +1089,76 @@ tnode_dumptree (rtagtype, 1, stderr);
 			parser_addtolist_front (atype, rtagtype);
 
 			return atype;
+			/*}}}*/
+		} else {
+			/*{{{  basic compatibility check (instances, abbreviations, etc.)*/
+#if 0
+fprintf (stderr, "occampi_typeactual_nameprotocolnode(): in other! ftype (0x%8.8x) =\n", (unsigned int)fattr);
+tnode_dumptree (tc->this_ftype, 1, stderr);
+fprintf (stderr, "occampi_typeactual_nameprotocolnode(): in other! aparam (0x%8.8x) =\n", (unsigned int)aattr);
+tnode_dumptree (tc->this_aparam, 1, stderr);
+#endif
+
+			if (actualtype->tag == opi.tag_NVARPROTOCOLDECL) {
+				name_t *aname = tnode_nthnameof (actualtype, 0);
+
+				if (name == aname) {
+					/*{{{  trivial, same protocol*/
+					return actualtype;
+
+					/*}}}*/
+				} else {
+					tnode_t *atype = NULL;
+
+					/*{{{  non-trivial, check for inheritance relation*/
+					if ((aattr & TYPEATTR_MARKED_OUT) || (fattr & TYPEATTR_MARKED_OUT)) {
+						/*{{{  output end, formal must be an ancestor of actual*/
+						tnode_t *adecl = NameDeclOf (tnode_nthnameof (actualtype, 0));
+						tnode_t *aextlist = tnode_nthsubof (adecl, 3);
+
+						if (aextlist && parser_islistnode (aextlist)) {
+							int nexts, i;
+							tnode_t **extlist = parser_getlistitems (aextlist, &nexts);
+
+							for (i=0; i<nexts; i++) {
+								if (extlist[i] == formaltype) {
+									/* yes, formal is an ancestor */
+									atype = formaltype;
+									break;
+								}
+							}
+						}
+						/*}}}*/
+					} else if ((aattr & TYPEATTR_MARKED_IN) || (fattr & TYPEATTR_MARKED_IN)) {
+						/*{{{  input end, actual must be an ancestor of formal*/
+						tnode_t *fdecl = NameDeclOf (tnode_nthnameof (formaltype, 0));
+						tnode_t *fextlist = tnode_nthsubof (fdecl, 3);
+
+						if (fextlist && parser_islistnode (fextlist)) {
+							int nexts, i;
+							tnode_t **extlist = parser_getlistitems (fextlist, &nexts);
+
+							for (i=0; i<nexts; i++) {
+								if (extlist[i] == actualtype) {
+									/* yes, actual is ancestor */
+									atype = actualtype;
+									break;
+								}
+							}
+						}
+						/*}}}*/
+					}
+					/*}}}*/
+
+					if (!atype) {
+						typecheck_error (node, tc, "incompatible variant protocols");
+					}
+
+					return atype;
+				}
+			} else {
+				typecheck_error (node, tc, "type [%s] incompatible with variant protocol", actualtype->tag->name);
+			}
 			/*}}}*/
 		}
 		/*}}}*/
