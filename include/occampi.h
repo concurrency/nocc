@@ -338,6 +338,7 @@ extern int occampi_mwsync_opthandler_flag (struct TAG_cmd_option *opt, char ***a
 extern occampi_typeattr_t occampi_typeattrof (struct TAG_tnode *node);
 extern void occampi_settypeattr (struct TAG_tnode *node, occampi_typeattr_t attr);
 extern struct TAG_tnode *occampi_makelitbool (struct TAG_lexfile *lf, const int istrue);
+extern struct TAG_tnode *occampi_makeassertion (struct TAG_lexfile *lf, struct TAG_tnode *param);
 extern int occampi_islitstring (struct TAG_tnode *node);
 extern char *occampi_litstringcopy (struct TAG_tnode *node);
 

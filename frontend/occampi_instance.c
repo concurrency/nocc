@@ -1056,6 +1056,37 @@ fprintf (stderr, "occampi_reduce_builtinproc(): ..\n");
 }
 /*}}}*/
 
+/*{{{  tnode_t *occampi_makeassertion (lexfile_t *lf, tnode_t *param)*/
+/*
+ *	creates an assertion instance node, used by occam-pi front-end code elsewhere
+ *	returns ASSERT proc-instance on success, NULL on failure
+ */
+tnode_t *occampi_makeassertion (lexfile_t *lf, tnode_t *param)
+{
+	tnode_t *asnode = NULL;
+	builtinproc_t *biproc = NULL;
+	int i;
+
+	for (i=0; builtins[i].name; i++) {
+		if (builtins[i].val == BI_ASSERT) {
+			biproc = &(builtins[i]);
+		}
+	}
+
+	if (!biproc) {
+		nocc_internal ("occampi_makeassertion(): failed to find ASSERT built-in!");
+		return NULL;
+	}
+
+	asnode = tnode_create (opi.tag_PINSTANCE, lf,
+			tnode_create (opi.tag_BUILTINPROC, lf, builtinprochook_create (biproc)),
+			parser_buildlistnode (lf, param, NULL),
+			NULL);
+
+	return asnode;
+}
+/*}}}*/
+
 
 /*{{{  static int occampi_instance_init_nodes (void)*/
 /*

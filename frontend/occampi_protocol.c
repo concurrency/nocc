@@ -1417,6 +1417,10 @@ static int occampi_fetrans_actionnode_forprotocol (compops_t *cops, tnode_t **no
 {
 	int v = 1;
 	tnode_t *atype = tnode_nthsubof (*nodep, 2);
+	tnode_t **saved_insertpoint = fe->insertpoint;
+
+	/* before process is a good place to insert temporaries */
+	fe->insertpoint = nodep;
 
 	if ((((*nodep)->tag == opi.tag_INPUT) || ((*nodep)->tag == opi.tag_OUTPUT)) &&
 			atype && (parser_islistnode (atype))) {
@@ -1467,7 +1471,95 @@ tnode_dumptree (atype, 1, stderr);
 			return 0;
 		}
 		/*}}}*/
+	} else if (((*nodep)->tag == opi.tag_ONECASEINPUT) && atype && (parser_islistnode (atype))) {
+		/*{{{  flatten out input, add check for correct tag*/
+		tnode_t *lhs = tnode_nthsubof (*nodep, 0);
+		tnode_t *rhs = tnode_nthsubof (*nodep, 1);
+		int nitems, ntypes, i;
+		tnode_t **items = parser_getlistitems (rhs, &nitems);
+		tnode_t **types = parser_getlistitems (atype, &ntypes);
+		tnode_t *temp, *tagname, *tagdecl, *tagval;
+		tnode_t *violist = NULL;
+		tnode_t *newseq = NULL;
+
+#if 0
+fprintf (stderr, "occampi_fetrans_actionnode_forprotocol(): ONECASEINPUT, here! rhs = \n");
+tnode_dumptree (rhs, 1, stderr);
+fprintf (stderr, "occampi_fetrans_actionnode_forprotocol(): ONECASEINPUT, here! atype = \n");
+tnode_dumptree (atype, 1, stderr);
+#endif
+
+		if (nitems != ntypes) {
+			nocc_error ("occampi_fetrans_actionnode_forprotocol(): input list has %d items, type has %d", nitems, ntypes);
+			return 0;
+		} else if (nitems < 1) {
+			nocc_error ("occampi_fetrans_actionnode_forprotocol(): input list has no items");
+			return 0;
+		}
+
+		tagname = items[0];
+		if (tagname->tag != opi.tag_NTAG) {
+			nocc_error ("occampi_fetrans_actionnode_forprotocol(): first item in input list is not a tag! [%s]",
+					tagname->tag->name);
+			return 0;
+		}
+		tagdecl = NameDeclOf (tnode_nthnameof (tagname, 0));
+		tagval = tnode_nthsubof (tagdecl, 2);
+
+		/* will need a temporary, first node in list will be an NTAG */
+		temp = fetrans_maketemp (types[0], fe);
+		nodep = fe->insertpoint;			/* node pointer updated */
+
+		violist = parser_newlistnode (NULL);
+		newseq = tnode_createfrom (opi.tag_SEQ, *nodep, NULL, violist);
+
+		parser_addtolist (violist, tnode_createfrom (opi.tag_INPUT, *nodep, lhs, temp, types[0]));
+
+		if (!tagval) {
+			nocc_internal ("occampi_fetrans_actionnode_forprotocol(): tag [%s] has no value", NameNameOf (tnode_nthnameof (tagname, 0)));
+			return 0;
+		}
+#if 0
+fprintf (stderr, "occampi_fetrans_actionnode_forprotocol(): ONECASEINPUT, made temporary:\n");
+tnode_dumptree (temp, 1, stderr);
+fprintf (stderr, "occampi_fetrans_actionnode_forprotocol(): ONECASEINPUT, tagdecl:\n");
+tnode_dumptree (tagdecl, 1, stderr);
+#endif
+
+		/*{{{  create assertion about tag value*/
+		{
+			tnode_t *relnode = tnode_create (opi.tag_RELEQ, NULL, temp, tagval, tnode_create (opi.tag_BOOL, NULL));
+			tnode_t *asnode = occampi_makeassertion (NULL, relnode);
+
+#if 0
+fprintf (stderr, "occampi_fetrans_actionnode_forprotocol(): ONECASEINPUT, asnode =\n");
+tnode_dumptree (asnode, 1, stderr);
+#endif
+
+			parser_addtolist (violist, asnode);
+		}
+		/*}}}*/
+
+		/* add the rest of the items */
+		for (i=1; i<nitems; i++) {
+			tnode_t *newio = tnode_createfrom (opi.tag_INPUT, *nodep, lhs, items[i], types[i]);
+
+			parser_addtolist (violist, newio);
+		}
+
+		/* replace existing node */
+		*nodep = newseq;
+
+		parser_trashlist (rhs);
+		parser_trashlist (atype);
+
+		/* do fetrans on generated sub-tree directly */
+		fetrans_subtree (nodep, fe);
+		return 0;
+		/*}}}*/
 	}
+
+	fe->insertpoint = saved_insertpoint;
 
 	if (cops->next && tnode_hascompop (cops->next, "fetrans")) {
 		v = tnode_callcompop (cops->next, "fetrans", 2, nodep, fe);

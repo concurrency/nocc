@@ -1113,7 +1113,7 @@ static int occampi_type_init_nodes (void)
 	opi.tag_TYPESPEC = tnode_newnodetag ("TYPESPEC", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  occampi:leaftype -- INT, BYTE, INT16, INT32, INT64, REAL32, REAL64, CHAR*/
+	/*{{{  occampi:leaftype -- INT, BYTE, BOOL, INT16, INT32, INT64, REAL32, REAL64, CHAR*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:leaftype", &i, 0, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
