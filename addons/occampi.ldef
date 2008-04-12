@@ -261,14 +261,23 @@
 .GRULE	"opi:assignreduce" "SN1N+N+V0C[ASSIGN]3R-"
 .GRULE	"opi:outputreduce" "SN1N+N+V0C[OUTPUT]3R-"
 .GRULE	"opi:inputreduce" "SN1N+N+V0C[INPUT]3R-"
+.GRULE	"opi:onecaseinputreduce" "SN1N+N+V0C[ONECASEINPUT]3R-"
 
 .TABLE	"occampi:namestartname +:= [ 0 @@:= 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:assignreduce>} -* ]"
+
 .TABLE	"occampi:ctclidecl ::= [ 0 occampi:namelist 1 ] [ 1 @@: 2 ] [ 2 {<opi:declreduce>} -* ]"
+
 .TABLE	"occampi:ctsvrdecl ::= [ 0 occampi:namelist 1 ] [ 1 @@: 2 ] [ 2 {<opi:declreduce>} -* ]"
-.TABLE	"occampi:namestartname +:= [ 0 @@! 1 ] [ 1 +Name 2 ] [ 1 -* 4 ] [ 2 -* 4 ] [ 2 +@@, 3 ] [ 2 +@@: 3 ] [ 3 {<parser:rewindtokens>} -* <occampi:ctclidecl> ]"
+
+.TABLE	"occampi:namestartname +:= [ 0 @@! 1 ] [ 1 +Name 2 ] [ 1 -* 4 ] [ 2 -* 4 ]"
+	"[ 2 +@@, 3 ] [ 2 +@@: 3 ] [ 3 {<parser:rewindtokens>} -* <occampi:ctclidecl> ]"
 	"[ 4 {<parser:rewindtokens>} -* 5 ] [ 5 occampi:exprsemilist 6 ] [ 6 {<opi:outputreduce>} -* ]"
-.TABLE	"occampi:namestartname +:= [ 0 @@? 1 ] [ 1 +Name 2 ] [ 1 -* 4 ] [ 2 -* 4 ] [ 2 +@@, 3 ] [ 2 +@@: 3 ] [ 3 {<parser:rewindtokens>} -* <occampi:ctsvrdecl> ]"
+
+.TABLE	"occampi:namestartname +:= [ 0 @@? 1 ] [ 1 +Name 2 ] [ 1 +@CASE 7 ] [ 1 -* 4 ]"
+	"[ 2 -* 4 ] [ 2 +@@, 3 ] [ 2 +@@: 3 ]"
+	"[ 3 {<parser:rewindtokens>} -* <occampi:ctsvrdecl> ]"
 	"[ 4 {<parser:rewindtokens>} -* 5 ] [ 5 occampi:exprsemilist 6 ] [ 6 {<opi:inputreduce>} -* ]"
+	"[ 7 {<parser:rewindtokens>} -* <occampi:caseinput> ]"
 #
 #.TABLE	"occampi:namestartname +:= [ 0 @@! 1 ] [ 1 occampi:exprsemilist 2 ] [ 2 @@: 3 ] [ 3 {<opi:declreduce>} -* ]"
 #	"[ 2 -* 4 ] [ 4 {<opi:outputreduce>} -* ]"
@@ -276,6 +285,11 @@
 #	"[ 2 -* 4 ] [ 4 {<opi:inputreduce>} -* ]"
 
 #.BNF	"occampi:po_namestartname +:= [ 0 @@! 1 ] [ 1 Name 2 ] [ 2 @@, 3 ] [ 2 @@: 3 ]"
+#
+# parses a CASE input, already got channel-expression on local stack
+.TABLE	"occampi:caseinput ::= [ 0 @CASE 1 ] [ 1 Newline 4 ] [ 1 -* 2 ] [ 2 occampi:exprsemilist 3 ] [ 3 {<opi:onecaseinputreduce>} -* ]"
+	""
+
 
 # }}}
 .SECTION "occampi-asm" # {{{: inline transputer assembly

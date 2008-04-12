@@ -1,0 +1,14 @@
+
+-- test_x75.occ -- testing CASE input
+
+PROTOCOL FOO
+  CASE
+    zero
+    one; INT
+:
+
+PROC test.x75 (CHAN FOO in?)
+  SEQ
+    in ? CASE zero
+:
+

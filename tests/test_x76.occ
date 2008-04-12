@@ -1,0 +1,9 @@
+
+-- test_x76.occ -- testing ASSERT
+
+PROC test.x76 ()
+  INT i:
+  SEQ
+    ASSERT (i = 5)
+:
+

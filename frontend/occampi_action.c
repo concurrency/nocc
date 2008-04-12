@@ -128,7 +128,7 @@ tnode_dumptree (tagname, 1, stderr);
  */
 static int occampi_scopein_action (compops_t *cops, tnode_t **nodep, scope_t *ss)
 {
-	if (((*nodep)->tag == opi.tag_INPUT) || ((*nodep)->tag == opi.tag_OUTPUT)) {
+	if (((*nodep)->tag == opi.tag_INPUT) || ((*nodep)->tag == opi.tag_OUTPUT) || ((*nodep)->tag == opi.tag_ONECASEINPUT)) {
 		tnode_t **lhsp = tnode_nthsubaddr (*nodep, 0);
 		tnode_t **rhsp = tnode_nthsubaddr (*nodep, 1);
 		tnode_t *ctype;
@@ -163,22 +163,36 @@ tnode_dumptree (ctype, 1, stderr);
 				/* subtype will be the channel protocol, if a named variant protocol, scope-in fields */
 				if (subtype->tag == opi.tag_NVARPROTOCOLDECL) {
 					void *namemark = name_markscope ();
+					tnode_t **rhsitems;
+					int nrhsitems, i;
+					int scopedout = 0;
 
 #if 0
 fprintf (stderr, "occampi_scopein_action(): \n");
 #endif
 					tnode_prewalktree (NameTypeOf (tnode_nthnameof (subtype, 0)), occampi_actionscope_prewalk_scopefields, (void *)ss);
 
-					/* tag-names in scope, do scope of RHS */
-					scope_subtree (rhsp, ss);
-					did_rhsscope = 1;
-
 					/* RHS must always be a list */
 					if (!parser_islistnode (*rhsp)) {
 						*rhsp = parser_buildlistnode (NULL, *rhsp, NULL);
 					}
 
-					name_markdescope (namemark);
+					rhsitems = parser_getlistitems (*rhsp, &nrhsitems);
+					for (i=0; i<nrhsitems; i++) {
+						scope_subtree (rhsitems + i, ss);
+						if (!scopedout) {
+							/* make sure we scope out after the first item */
+							name_markdescope (namemark);
+							scopedout = 1;
+						}
+					}
+
+					did_rhsscope = 1;
+					if (!scopedout) {
+						name_markdescope (namemark);
+						scopedout = 1;
+					}
+
 				}
 			}
 		}
@@ -267,7 +281,7 @@ tnode_dumptree (prot, 1, stderr);
 		/*}}}*/
 	}
 
-	if ((node->tag == opi.tag_OUTPUT) || (node->tag == opi.tag_INPUT)) {
+	if ((node->tag == opi.tag_OUTPUT) || (node->tag == opi.tag_INPUT) || (node->tag == opi.tag_ONECASEINPUT)) {
 		/*{{{  check for channel direction compatibility*/
 		occampi_typeattr_t tattr = occampi_typeattrof (lhstype);
 		
@@ -343,7 +357,7 @@ static int occampi_precheck_action (compops_t *cops, tnode_t *node)
  */
 static int occampi_tracescheck_action (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)
 {
-	if ((node->tag == opi.tag_INPUT) || (node->tag == opi.tag_OUTPUT)) {
+	if ((node->tag == opi.tag_INPUT) || (node->tag == opi.tag_OUTPUT) || (node->tag == opi.tag_ONECASEINPUT)) {
 		tnode_t *lhs = tnode_nthsubof (node, 0);
 		tnode_t *baselhs = langops_getbasename (lhs);
 		tnode_t *fieldlhs = langops_getfieldnamelist (lhs);
@@ -391,15 +405,35 @@ static int occampi_do_usagecheck_action (langops_t *lops, tnode_t *node, uchk_st
 	fprintf (stderr, "occampi_do_usagecheck_action(): here!\n");
 #endif
 	if (node->tag == opi.tag_INPUT) {
-		/* RHS must be an l-value */
+		/*{{{  RHS must be an l-value*/
 		if (!langops_isvar (tnode_nthsubof (node, 1))) {
 			usagecheck_error (node, ucs, "target for input must be a variable");
 		}
+
+		/*}}}*/
+	} else if (node->tag == opi.tag_ONECASEINPUT) {
+		/*{{{  RHS should be a list, the first is a tag (ignored), rest should be variables*/
+		int nitems, i;
+		tnode_t **rhsl = parser_getlistitems (tnode_nthsubof (node, 1), &nitems);
+
+		for (i=1; i<nitems; i++) {
+			if (!langops_isvar (rhsl[i])) {
+				usagecheck_error (node, ucs, "I/O item %d must be a variable", i);
+			}
+		}
+
+		/*}}}*/
 	} else if (node->tag == opi.tag_ASSIGN) {
-		/* LHS must be an l-value */
+		/*{{{  LHS must be an l-value*/
 		if (!langops_isvar (tnode_nthsubof (node, 0))) {
 			usagecheck_error (node, ucs, "target for assignment must be a variable");
 		}
+
+		/*}}}*/
+	} else if (node->tag == opi.tag_OUTPUT) {
+		/* skip */
+	} else {
+		nocc_internal ("occampi_do_usagecheck_action(): unhandled tag %s", node->tag->name);
 	}
 	return 1;
 }
@@ -702,7 +736,7 @@ static int occampi_action_init_nodes (void)
 	opi_action_lhstypehook->chook_dumptree = occampi_action_dumplhstypehook;
 
 	/*}}}*/
-	/*{{{  occampi:actionnode -- ASSIGN, INPUT, OUTPUT*/
+	/*{{{  occampi:actionnode -- ASSIGN, INPUT, CASEINPUT, ONECASEINPUT, OUTPUT*/
 	i = -1;
 	opi.node_ACTIONNODE = tnd = tnode_newnodetype ("occampi:actionnode", &i, 3, 0, 0, TNF_NONE);		/* subnodes: left, right, type */
 	cops = tnode_newcompops ();
@@ -726,7 +760,12 @@ static int occampi_action_init_nodes (void)
 	i = -1;
 	opi.tag_INPUT = tnode_newnodetag ("INPUT", &i, tnd, NTF_NONE);
 	i = -1;
+	opi.tag_ONECASEINPUT = tnode_newnodetag ("ONECASEINPUT", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_CASEINPUT = tnode_newnodetag ("CASEINPUT", &i, tnd, NTF_NONE);
+	i = -1;
 	opi.tag_OUTPUT = tnode_newnodetag ("OUTPUT", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 
 	return 0;

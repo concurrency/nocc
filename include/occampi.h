@@ -112,6 +112,8 @@ typedef struct {
 	struct TAG_ntdef *tag_REPLPAR;
 	struct TAG_ntdef *tag_ASSIGN;
 	struct TAG_ntdef *tag_INPUT;
+	struct TAG_ntdef *tag_CASEINPUT;
+	struct TAG_ntdef *tag_ONECASEINPUT;
 	struct TAG_ntdef *tag_OUTPUT;
 	struct TAG_ntdef *tag_HIDDENPARAM;
 	struct TAG_ntdef *tag_HIDDENDIMEN;

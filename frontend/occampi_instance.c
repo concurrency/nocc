@@ -60,6 +60,14 @@
 
 /*}}}*/
 /*{{{  private types*/
+
+typedef enum ENUM_builtinprocname {
+	BI_INVALID,
+	BI_SETPRI,
+	BI_RESCHEDULE,
+	BI_ASSERT
+} builtinprocname_e;
+
 typedef struct TAG_builtinproc {
 	const char *name;
 	const char *keymatch;
@@ -70,6 +78,7 @@ typedef struct TAG_builtinproc {
 	void (*codegen)(tnode_t *, struct TAG_builtinproc *, codegen_t *);
 	const char *descriptor;			/* fed into parser_descparse() */
 	tnode_t *decltree;
+	builtinprocname_e val;
 } builtinproc_t;
 
 typedef struct TAG_builtinprochook {
@@ -81,6 +90,7 @@ typedef struct TAG_builtinprochook {
 /*{{{  forward decls*/
 static void builtin_codegen_reschedule (tnode_t *node, builtinproc_t *builtin, codegen_t *cgen);
 static void builtin_codegen_setpri (tnode_t *node, builtinproc_t *builtin, codegen_t *cgen);
+static void builtin_codegen_assert (tnode_t *node, builtinproc_t *builtin, codegen_t *cgen);
 
 
 /*}}}*/
@@ -93,9 +103,10 @@ static void builtin_codegen_setpri (tnode_t *node, builtinproc_t *builtin, codeg
 #define BUILTIN_DS_MAX (-5)
 
 static builtinproc_t builtins[] = {
-	{"SETPRI", "SETPRI", NULL, NULL, 4, BUILTIN_DS_MIN, builtin_codegen_setpri, "PROC xxSETPRI (VAL INT newpri)\n", NULL},
-	{"RESCHEDULE", "RESCHEDULE", NULL, NULL, 0, BUILTIN_DS_MIN, builtin_codegen_reschedule, NULL, NULL},
-	{NULL, NULL, NULL, NULL, 0, 0, NULL, NULL, NULL}
+	{"SETPRI", "SETPRI", NULL, NULL, 4, BUILTIN_DS_MIN, builtin_codegen_setpri, "PROC xxSETPRI (VAL INT newpri)\n", NULL, BI_SETPRI},
+	{"RESCHEDULE", "RESCHEDULE", NULL, NULL, 0, BUILTIN_DS_MIN, builtin_codegen_reschedule, NULL, NULL, BI_RESCHEDULE},
+	{"ASSERT", "ASSERT", NULL, NULL, 4, BUILTIN_DS_MIN, builtin_codegen_assert, "PROC xxASSERT (VAL BOOL val)\n", NULL, BI_ASSERT},
+	{NULL, NULL, NULL, NULL, 0, 0, NULL, NULL, NULL, BI_INVALID}
 };
 
 static chook_t *chook_matchedformal = NULL;
@@ -103,7 +114,6 @@ static chook_t *chook_matchedformal = NULL;
 static chook_t *trimplchook = NULL;
 static chook_t *trtracechook = NULL;
 static chook_t *trbvarschook = NULL;
-
 
 /*}}}*/
 
@@ -342,86 +352,193 @@ tnode_dumptree (ap_items[ap_ptr], 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_tracescheck_instance (langops_t *lops, tnode_t *node, tchk_state_t *tc)*/
+/*{{{  static int occampi_constprop_instance (compops_t *cops, tnode_t **nodep)*/
+/*
+ *	does constant propagation on an instance node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_constprop_instance (compops_t *cops, tnode_t **nodep)
+{
+	tnode_t *nname = tnode_nthsubof (*nodep, 0);
+
+	if (nname->tag == opi.tag_BUILTINPROC) {
+		/*{{{  do constant propagation for built-in procedure, parameters first (normal)*/
+		builtinprochook_t *bph = (builtinprochook_t *)tnode_nthhookof (nname, 0);
+		builtinproc_t *builtin = bph->biptr;
+
+		constprop_tree (tnode_nthsubaddr (*nodep, 1));
+
+		switch (builtin->val) {
+		case BI_INVALID:
+			nocc_internal ("occampi_constprop_instance(): invalid builtin");
+			break;
+		case BI_RESCHEDULE:
+		case BI_SETPRI:
+			/* nothing special */
+			break;
+		case BI_ASSERT:
+			/*{{{  constant asserts reducible to SKIP or STOP*/
+			{
+				int nparams, i;
+				tnode_t **params = parser_getlistitems (tnode_nthsubof (*nodep, 1), &nparams);
+
+				if (nparams != 1) {
+					constprop_error (*nodep, "ASSERT has %d parameters!", nparams);
+				} else {
+					tnode_t *param = params[0];
+
+					if (constprop_isconst (param)) {
+						tnode_t *newnode = NULL;
+						int v = constprop_intvalof (param);
+
+#if 0
+fprintf (stderr, "occampi_constprop_instance(): constant ASSERT parameter:\n");
+tnode_dumptree (param, 1, stderr);
+#endif
+						if (!v) {
+							/* constant FALSE, reduce to STOP */
+							newnode = tnode_createfrom (opi.tag_STOP, *nodep);
+						} else {
+							/* constant TRUE, reduce to SKIP */
+							newnode = tnode_createfrom (opi.tag_STOP, *nodep);
+						}
+
+						tnode_free (*nodep);
+						*nodep = newnode;
+					}
+				}
+			}
+			/*}}}*/
+			break;
+		}
+		/*}}}*/
+
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_tracescheck_instance (compops_t *cops, tnode_t *node, tchk_state_t *tc)*/
 /*
  *	does traces checking on an instance node
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_tracescheck_instance (langops_t *lops, tnode_t *node, tchk_state_t *tc)
+static int occampi_tracescheck_instance (compops_t *cops, tnode_t *node, tchk_state_t *tc)
 {
-	name_t *iname = tnode_nthnameof (tnode_nthsubof (node, 0), 0);
-	tnode_t *decl = NameDeclOf (iname);
+	tnode_t *nname;
 
-	if (decl) {
-		tchk_traces_t *trc = (tchk_traces_t *)tnode_getchook (decl, trtracechook);
+	nname = tnode_nthsubof (node, 0);
+#if 0
+fprintf (stderr, "occampi_tracescheck_instance(): here!, nname =\n");
+tnode_dumptree (nname, 1, stderr);
+#endif
 
-		if (trc && DA_CUR (trc->items)) {
-			/*
-			 * traces are in terms of PROC formal parameters, need to substitute in actual parameters
-			 */
-			tnode_t *fparamlist = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
-			tnode_t *aparamlist = tnode_nthsubof (node, 1);
-			tchknode_t *rtraces;
-			tnode_t **apset, **fpset;
-			int nfp, nap, i;
+	if (nname->tag == opi.tag_BUILTINPROC) {
+		/*{{{  handle traces for built-in procedures*/
+		builtinprochook_t *bph = (builtinprochook_t *)tnode_nthhookof (nname, 0);
+		builtinproc_t *builtin = bph->biptr;
 
 #if 0
-fprintf (stderr, "occampi_tracescheck_instance(): here, got traces:\n");
-tracescheck_dumptraces (trc, 1, stderr);
+fprintf (stderr, "occampi_tracescheck_instance(): BUILTINPROC, nname =\n");
+tnode_dumptree (nname, 1, stderr);
 #endif
-			rtraces = tracescheck_tracestondet (trc);
-			if (rtraces) {
-				tnode_t **fpsetcopy = NULL;
-				tnode_t **apsetcopy = NULL;
+		switch (builtin->val) {
+		case BI_INVALID:
+			nocc_internal ("occampi_tracescheck_instance(): invalid builtin");
+			break;
+		case BI_RESCHEDULE:
+		case BI_ASSERT:
+			/* no traces for these currently */
+			break;
+		case BI_SETPRI:
+			/*{{{  traces for setpri*/
+			/* FIXME: maybe want to capure this in traces (communication with the scheduler) */
+			/*}}}*/
+			break;
+		}
+		/*}}}*/
+	} else {
+		/*{{{  handle traces for regular procedure instance*/
+		name_t *iname;
+		tnode_t *decl;
 
-				fpset = parser_getlistitems (fparamlist, &nfp);
-				apset = parser_getlistitems (aparamlist, &nap);
+		iname = tnode_nthnameof (nname, 0);
+		decl = NameDeclOf (iname);
 
-				if (nfp != nap) {
-					nocc_internal ("occampi_tracescheck_instance(): expected %d parameters on PROC, got %d",
-							nfp, nap);
-					return 0;
-				}
-				if (nfp > 0) {
-					fpsetcopy = (tnode_t **)smalloc (nfp * sizeof (tnode_t *));
+		if (decl) {
+			/*{{{  do traces checks for instance (based on traces attached to declaration)*/
+			tchk_traces_t *trc = (tchk_traces_t *)tnode_getchook (decl, trtracechook);
 
-					for (i=0; i<nfp; i++) {
-						if (fpset[i]->tag == opi.tag_FPARAM) {
-							/* formal parameter (expected) */
-							fpsetcopy[i] = tnode_nthsubof (fpset[i], 0);
-						} else {
-							fpsetcopy[i] = fpset[i];
+			if (trc && DA_CUR (trc->items)) {
+				/*
+				 * traces are in terms of PROC formal parameters, need to substitute in actual parameters
+				 */
+				tnode_t *fparamlist = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
+				tnode_t *aparamlist = tnode_nthsubof (node, 1);
+				tchknode_t *rtraces;
+				tnode_t **apset, **fpset;
+				int nfp, nap, i;
+
+	#if 0
+	fprintf (stderr, "occampi_tracescheck_instance(): here, got traces:\n");
+	tracescheck_dumptraces (trc, 1, stderr);
+	#endif
+				rtraces = tracescheck_tracestondet (trc);
+				if (rtraces) {
+					tnode_t **fpsetcopy = NULL;
+					tnode_t **apsetcopy = NULL;
+
+					fpset = parser_getlistitems (fparamlist, &nfp);
+					apset = parser_getlistitems (aparamlist, &nap);
+
+					if (nfp != nap) {
+						nocc_internal ("occampi_tracescheck_instance(): expected %d parameters on PROC, got %d",
+								nfp, nap);
+						return 0;
+					}
+					if (nfp > 0) {
+						fpsetcopy = (tnode_t **)smalloc (nfp * sizeof (tnode_t *));
+
+						for (i=0; i<nfp; i++) {
+							if (fpset[i]->tag == opi.tag_FPARAM) {
+								/* formal parameter (expected) */
+								fpsetcopy[i] = tnode_nthsubof (fpset[i], 0);
+							} else {
+								fpsetcopy[i] = fpset[i];
+							}
 						}
 					}
-				}
-				if (nap > 0) {
-					apsetcopy = (tnode_t **)smalloc (nap * sizeof (tnode_t *));
+					if (nap > 0) {
+						apsetcopy = (tnode_t **)smalloc (nap * sizeof (tnode_t *));
 
-					for (i=0; i<nap; i++) {
-						apsetcopy[i] = apset[i];
+						for (i=0; i<nap; i++) {
+							apsetcopy[i] = apset[i];
 
-						/* skip through transparent nodes in actual parameters -- usually decorations */
-						while (apsetcopy[i] && (tnode_tnflagsof (apsetcopy[i]) & TNF_TRANSPARENT)) {
-							apsetcopy[i] = tnode_nthsubof (apsetcopy[i], 0);
+							/* skip through transparent nodes in actual parameters -- usually decorations */
+							while (apsetcopy[i] && (tnode_tnflagsof (apsetcopy[i]) & TNF_TRANSPARENT)) {
+								apsetcopy[i] = tnode_nthsubof (apsetcopy[i], 0);
+							}
 						}
 					}
-				}
 
-				tracescheck_substitutenodes (rtraces, fpsetcopy, apsetcopy, nfp);
-#if 0
-fprintf (stderr, "occampi_tracescheck_instance(): here!  reduced substituted %d non-determinstic traces of PROC [%s] are:\n", nfp, NameNameOf (iname));
-tracescheck_dumpnode (rtraces, 1, stderr);
-#endif
-				tracescheck_addtobucket (tc, rtraces);
+					tracescheck_substitutenodes (rtraces, fpsetcopy, apsetcopy, nfp);
+	#if 0
+	fprintf (stderr, "occampi_tracescheck_instance(): here!  reduced substituted %d non-determinstic traces of PROC [%s] are:\n", nfp, NameNameOf (iname));
+	tracescheck_dumpnode (rtraces, 1, stderr);
+	#endif
+					tracescheck_addtobucket (tc, rtraces);
 
-				if (fpsetcopy) {
-					sfree (fpsetcopy);
-				}
-				if (apsetcopy) {
-					sfree (apsetcopy);
+					if (fpsetcopy) {
+						sfree (fpsetcopy);
+					}
+					if (apsetcopy) {
+						sfree (apsetcopy);
+					}
 				}
 			}
+			/*}}}*/
 		}
+		/*}}}*/
 	}
 
 	return 0;
@@ -800,6 +917,38 @@ tnode_dumptree (param, 1, stderr);
 	return;
 }
 /*}}}*/
+/*{{{  static void builtin_codegen_assert (tnode_t *node, builtinproc_t *builtin, codegen_t *cgen)*/
+/*
+ *	generates code for an ASSERT(VAL BOOL)
+ */
+static void builtin_codegen_assert (tnode_t *node, builtinproc_t *builtin, codegen_t *cgen)
+{
+	tnode_t *param = tnode_nthsubof (node, 1);
+	int skiplab = codegen_new_label (cgen);
+
+#if 0
+fprintf (stderr, "builtin_codegen_assert(): param =\n");
+tnode_dumptree (param, 1, stderr);
+#endif
+	if (parser_islistnode (param)) {
+		int nparams;
+		tnode_t **items = parser_getlistitems (param, &nparams);
+
+		if (nparams != 1) {
+			nocc_internal ("builtin_codegen_assert(): %d parameters!", nparams);
+		}
+		param = items[0];
+	}
+
+	codegen_callops (cgen, loadname, param, 0);
+	codegen_callops (cgen, tsecondary, I_BOOLINVERT);
+	codegen_callops (cgen, branch, I_CJ, skiplab);
+	codegen_callops (cgen, tsecondary, I_SETERR);
+	codegen_callops (cgen, setlabel, skiplab);
+
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static tnode_t *occampi_gettype_builtinproc (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
@@ -924,6 +1073,7 @@ static int occampi_instance_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:instancenode", &i, 2, 0, 1, TNF_NONE);		/* subnodes: names; params */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_instance));
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_instance));
 	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_instance));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_instance));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_instance));

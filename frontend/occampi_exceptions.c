@@ -1370,20 +1370,28 @@ static int occampi_exceptioncheck_instancenode (compops_t *cops, tnode_t **nodep
 	if ((*nodep)->tag == opi.tag_PINSTANCE) {
 		/*{{{  PROC instance*/
 		tnode_t *name = tnode_nthsubof (*nodep, 0);
-		name_t *pname = tnode_nthnameof (name, 0);
-		tnode_t *pdecl = NameDeclOf (pname);
-		opithrowshook_t *opith = (opithrowshook_t *)tnode_getchook (pdecl, exceptioncheck_throwschook);
 
-#if 0
-fprintf (stderr, "occampi_exceptioncheck_instancenode(): PROC instance of:\n");
-tnode_dumptree (pdecl, 1, stderr);
-#endif
-		if (opith) {
-			/* local or foreign PROC throwing stuff */
-			int i;
+		if (name->tag == opi.tag_BUILTINPROC) {
+			/*{{{  handle builtins*/
+			/* FIXME: anything to do here? */
 
-			for (i=0; i<DA_CUR (opith->elist); i++) {
-				dynarray_maybeadd (oex->elist, DA_NTHITEM (opith->elist, i));
+			/*}}}*/
+		} else {
+			name_t *pname = tnode_nthnameof (name, 0);
+			tnode_t *pdecl = NameDeclOf (pname);
+			opithrowshook_t *opith = (opithrowshook_t *)tnode_getchook (pdecl, exceptioncheck_throwschook);
+
+	#if 0
+	fprintf (stderr, "occampi_exceptioncheck_instancenode(): PROC instance of:\n");
+	tnode_dumptree (pdecl, 1, stderr);
+	#endif
+			if (opith) {
+				/* local or foreign PROC throwing stuff */
+				int i;
+
+				for (i=0; i<DA_CUR (opith->elist); i++) {
+					dynarray_maybeadd (oex->elist, DA_NTHITEM (opith->elist, i));
+				}
 			}
 		}
 		/*}}}*/
@@ -1403,16 +1411,27 @@ static int occampi_exceptioncheck_namemap_instancenode (compops_t *cops, tnode_t
 	if ((*nodep)->tag == opi.tag_PINSTANCE) {
 		/*{{{  PROC instance*/
 		tnode_t *name = tnode_nthsubof (*nodep, 0);
-		name_t *pname = tnode_nthnameof (name, 0);
-		tnode_t *pdecl = NameDeclOf (pname);
-		opithrowshook_t *opith = (opithrowshook_t *)tnode_getchook (pdecl, exceptioncheck_throwschook);
 
-		if (opith && DA_CUR (opith->elist)) {
+		if (name->tag == opi.tag_BUILTINPROC) {
+			/*{{{  handle builtins*/
+			/* FIXME: anything to do here? */
+
+			/*}}}*/
+		} else {
+			/*{{{  handle regular PROC*/
+			name_t *pname = tnode_nthnameof (name, 0);
+			tnode_t *pdecl = NameDeclOf (pname);
+			opithrowshook_t *opith = (opithrowshook_t *)tnode_getchook (pdecl, exceptioncheck_throwschook);
+
+			if (opith && DA_CUR (opith->elist)) {
 #if 1
 fprintf (stderr, "occampi_exceptioncheck_namemap_instancenode(): here, PROC being instanced is:\n");
 tnode_dumptree (tnode_nthsubof (*nodep, 0), 1, stderr);
 #endif
+			}
+			/*}}}*/
 		}
+
 		/*}}}*/
 	}
 

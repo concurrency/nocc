@@ -268,7 +268,7 @@ fprintf (stderr, "occampi_type_typeactual(): formaltype=[%s], actualtype=[%s]\n"
 #endif
 	if (formaltype->tag == opi.tag_CHAN) {
 		/*{{{  actual type-check for channel*/
-		if ((node->tag == opi.tag_INPUT) || (node->tag == opi.tag_OUTPUT)) {
+		if ((node->tag == opi.tag_INPUT) || (node->tag == opi.tag_OUTPUT) || (node->tag == opi.tag_ONECASEINPUT)) {
 			/* becomes a protocol-check in effect */
 			atype = tnode_nthsubof (formaltype, 0);
 
