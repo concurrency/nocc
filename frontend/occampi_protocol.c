@@ -957,6 +957,27 @@ static tnode_t *occampi_getsubtype_nameprotocolnode (langops_t *lops, tnode_t *n
 	return NULL;
 }
 /*}}}*/
+/*{{{  static int occampi_getdescriptor_nameprotocolnode (langops_t *lops, tnode_t *node, char **str)*/
+/*
+ *	gets the name of a protocol for a descriptor
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_getdescriptor_nameprotocolnode (langops_t *lops, tnode_t *node, char **str)
+{
+	char *pname = NameNameOf (tnode_nthnameof (node, 0));
+	
+	if (!*str) {
+		*str = string_dup (pname);
+	} else {
+		char *newstr = (char *)smalloc (strlen (*str) + strlen (pname) + 4);
+
+		sprintf (newstr, "%s%s", *str, pname);
+		sfree (*str);
+		*str = newstr;
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_typeactual_nameprotocolnode (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does actual-use type-checking on a named type-node (channel I/O for PROTOCOLs)
@@ -1614,6 +1635,7 @@ static int occampi_protocol_init_nodes (void)
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_nameprotocolnode));
 	tnode_setlangop (lops, "getsubtype", 2, LANGOPTYPE (occampi_getsubtype_nameprotocolnode));
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_getdescriptor_nameprotocolnode));
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_typeactual_nameprotocolnode));
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_bytesfor_nameprotocolnode));
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (occampi_getname_nameprotocolnode));
