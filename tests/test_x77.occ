@@ -1,0 +1,16 @@
+
+-- test_x77.occ -- testing variant protocol CASE input
+
+PROTOCOL FOO
+  CASE
+    zero
+    one; INT
+:
+
+PROC test.x77 (CHAN FOO in?)
+  SEQ
+    in ? CASE
+      zero
+        SKIP
+:
+

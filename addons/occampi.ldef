@@ -262,6 +262,8 @@
 .GRULE	"opi:outputreduce" "SN1N+N+V0C[OUTPUT]3R-"
 .GRULE	"opi:inputreduce" "SN1N+N+V0C[INPUT]3R-"
 .GRULE	"opi:onecaseinputreduce" "SN1N+N+V0C[ONECASEINPUT]3R-"
+.GRULE	"opi:caseinputreduce" "SN0N+00C[CASEINPUT]3R-"
+.GRULE	"opi:caseinputitemreduce" "SN0N+0C[CASEINPUTITEM]2R-"
 
 .TABLE	"occampi:namestartname +:= [ 0 @@:= 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:assignreduce>} -* ]"
 
@@ -278,17 +280,19 @@
 	"[ 3 {<parser:rewindtokens>} -* <occampi:ctsvrdecl> ]"
 	"[ 4 {<parser:rewindtokens>} -* 5 ] [ 5 occampi:exprsemilist 6 ] [ 6 {<opi:inputreduce>} -* ]"
 	"[ 7 {<parser:rewindtokens>} -* <occampi:caseinput> ]"
-#
+
 #.TABLE	"occampi:namestartname +:= [ 0 @@! 1 ] [ 1 occampi:exprsemilist 2 ] [ 2 @@: 3 ] [ 3 {<opi:declreduce>} -* ]"
 #	"[ 2 -* 4 ] [ 4 {<opi:outputreduce>} -* ]"
 #.TABLE	"occampi:namestartname +:= [ 0 @@? 1 ] [ 1 occampi:exprsemilist 2 ] [ 2 @@: 3 ] [ 3 {<opi:declreduce>} -* ]"
 #	"[ 2 -* 4 ] [ 4 {<opi:inputreduce>} -* ]"
-
 #.BNF	"occampi:po_namestartname +:= [ 0 @@! 1 ] [ 1 Name 2 ] [ 2 @@, 3 ] [ 2 @@: 3 ]"
-#
+
+
 # parses a CASE input, already got channel-expression on local stack
 .TABLE	"occampi:caseinput ::= [ 0 @CASE 1 ] [ 1 Newline 4 ] [ 1 -* 2 ] [ 2 occampi:exprsemilist 3 ] [ 3 {<opi:onecaseinputreduce>} -* ]"
-	""
+	"[ 4 {<opi:caseinputreduce>} -* ]"
+
+.TABLE	"occampi:caseinputcase ::= [ 0 occampi:exprsemilist 1 ] [ 1 {<opi:caseinputitemreduce>} -* ]"
 
 
 # }}}

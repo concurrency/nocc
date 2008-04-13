@@ -36,6 +36,7 @@ extern struct TAG_langparser occampi_parser;
 #define NTF_INDENTED_CONDPROC_LIST	0x0100	/* for TNF_LONGPROCs, parse a list of indented conditions and processes into subnode 1 */
 #define NTF_INDENTED_GUARDPROC_LIST	0x0200	/* for TNF_LONGPROCs, parse a list of indented ALT guards and processes into subnode 1 */
 #define NTF_ALLOW_TRACES		0x0400	/* allow TRACES at the end of a something */
+#define NTF_INDENTED_CASEINPUT_LIST	0x0800	/* for TNF_LONGPROCs, parse a list of indented CASE inputs and processes into subnode 1 */
 
 
 struct TAG_tndef;
@@ -113,6 +114,7 @@ typedef struct {
 	struct TAG_ntdef *tag_ASSIGN;
 	struct TAG_ntdef *tag_INPUT;
 	struct TAG_ntdef *tag_CASEINPUT;
+	struct TAG_ntdef *tag_CASEINPUTITEM;
 	struct TAG_ntdef *tag_ONECASEINPUT;
 	struct TAG_ntdef *tag_OUTPUT;
 	struct TAG_ntdef *tag_HIDDENPARAM;

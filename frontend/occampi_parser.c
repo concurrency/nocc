@@ -1447,6 +1447,13 @@ tnode_dumptree (tree, 1, stderr);
 				body = occampi_indented_process_list (lf, "occampi:altguard");
 				tnode_setnthsub (tree, 1, body);
 				/*}}}*/
+			} else if (ntflags & NTF_INDENTED_CASEINPUT_LIST) {
+				/*{{{  parses a list of indented case-inputs + processes into subnode 1*/
+				tnode_t *body;
+
+				body = occampi_indented_process_list (lf, "occampi:caseinputcase");
+				tnode_setnthsub (tree, 1, body);
+				/*}}}*/
 			} else if (tree->tag == opi.tag_VALOF) {
 				/*{{{  parse indented process into subnode 1, extra into subnode 0*/
 				tnode_t *body;

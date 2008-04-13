@@ -762,9 +762,42 @@ static int occampi_action_init_nodes (void)
 	i = -1;
 	opi.tag_ONECASEINPUT = tnode_newnodetag ("ONECASEINPUT", &i, tnd, NTF_NONE);
 	i = -1;
-	opi.tag_CASEINPUT = tnode_newnodetag ("CASEINPUT", &i, tnd, NTF_NONE);
-	i = -1;
 	opi.tag_OUTPUT = tnode_newnodetag ("OUTPUT", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  occampi:caseinputnode -- CASEINPUT*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:caseinputnode", &i, 3, 0, 0, TNF_LONGPROC);				/* subnodes: channel-expr, case-list, type */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_action));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_action));
+	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (occampi_precheck_action));
+	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_action));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_action));
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_action));
+	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_action));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_action));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_action));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_action));
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_do_usagecheck_action));
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_CASEINPUT = tnode_newnodetag ("CASEINPUT", &i, tnd, NTF_INDENTED_CASEINPUT_LIST);
+
+	/*}}}*/
+	/*{{{  occampi:caseinputitemnode -- CASEINPUTITEM*/
+	i = -1;
+	tnd = tnode_newnodetype ("occampi:caseinputitemnode", &i, 2, 0, 0, TNF_LONGPROC);			/* subnodes: 0 = expr-list; 1 = body */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	opi.tag_CASEINPUTITEM = tnode_newnodetag ("CASEINPUTITEM", &i, tnd, NTF_INDENTED_PROC);
 
 	/*}}}*/
 
