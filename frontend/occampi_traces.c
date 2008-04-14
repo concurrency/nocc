@@ -1280,7 +1280,7 @@ tracescheck_dumpnode (tcn, 1, stderr);
 	}
 
 	trs = (tchk_traces_t *)tnode_getchook (node, trtracechook);
-#if 1
+#if 0
 fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): got traces-chook at 0x%8.8x, traces are:\n", (unsigned int)trs);
 tracescheck_dumptraces (trs, 1, stderr);
 #endif

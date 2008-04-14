@@ -144,6 +144,8 @@ static typecheck_t *typecheck_newtypecheck (void)
 	tc->this_ftype = NULL;
 	tc->this_aparam = NULL;
 
+	tc->this_protocol = NULL;
+
 	return tc;
 }
 /*}}}*/

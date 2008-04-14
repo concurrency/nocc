@@ -7,10 +7,13 @@ PROTOCOL FOO
     one; INT
 :
 
-PROC test.x77 (CHAN FOO in?)
+PROC test.x77 (CHAN FOO in?, CHAN INT out!)
+  INT i:
   SEQ
     in ? CASE
       zero
-        SKIP
+        out ! 42
+      one; i
+        STOP
 :
 

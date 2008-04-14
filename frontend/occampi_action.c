@@ -60,6 +60,7 @@
 #include "transputer.h"
 #include "codegen.h"
 #include "langdef.h"
+#include "treeops.h"
 
 
 /*}}}*/
@@ -129,6 +130,7 @@ tnode_dumptree (tagname, 1, stderr);
 static int occampi_scopein_action (compops_t *cops, tnode_t **nodep, scope_t *ss)
 {
 	if (((*nodep)->tag == opi.tag_INPUT) || ((*nodep)->tag == opi.tag_OUTPUT) || ((*nodep)->tag == opi.tag_ONECASEINPUT)) {
+		/*{{{  handle various forms of simple input/output*/
 		tnode_t **lhsp = tnode_nthsubaddr (*nodep, 0);
 		tnode_t **rhsp = tnode_nthsubaddr (*nodep, 1);
 		tnode_t *ctype;
@@ -159,9 +161,10 @@ tnode_dumptree (ctype, 1, stderr);
 #endif
 			if (ctype->tag == opi.tag_CHAN) {
 				tnode_t *subtype = tnode_nthsubof (ctype, 0);
-
+				
 				/* subtype will be the channel protocol, if a named variant protocol, scope-in fields */
 				if (subtype->tag == opi.tag_NVARPROTOCOLDECL) {
+					/*{{{  do stuff*/
 					void *namemark = name_markscope ();
 					tnode_t **rhsitems;
 					int nrhsitems, i;
@@ -192,7 +195,7 @@ fprintf (stderr, "occampi_scopein_action(): \n");
 						name_markdescope (namemark);
 						scopedout = 1;
 					}
-
+					/*}}}*/
 				}
 			}
 		}
@@ -202,6 +205,7 @@ fprintf (stderr, "occampi_scopein_action(): \n");
 		}
 
 		return 0;
+		/*}}}*/
 	}
 	return 1;
 }
@@ -213,7 +217,6 @@ fprintf (stderr, "occampi_scopein_action(): \n");
  */
 static int occampi_typecheck_action (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
-	/* FIXME: to handle multiple-assignment more transparently ? */
 	tnode_t *lhs = tnode_nthsubof (node, 0);
 	tnode_t *rhs = tnode_nthsubof (node, 1);
 	tnode_t *acttype = tnode_nthsubof (node, 2);
@@ -255,7 +258,10 @@ tnode_dumptree (lhstype, 1, stderr);
 		/* expecting something on which we can communicate -- e.g. channel or port
 		 * test is to see if it has a particular codegen_typeaction language-op
 		 */
-		if (!tnode_haslangop (lhstype->tag->ndef->lops, "codegen_typeaction")) {
+		if (!lhstype) {
+			typecheck_error (node, tc, "channel in input/output has indeterminate type");
+			return 0;
+		} else if (!tnode_haslangop (lhstype->tag->ndef->lops, "codegen_typeaction")) {
 			typecheck_error (node, tc, "channel in input/output cannot be used for communication, got [%s]", lhstype->tag->name);
 			return 0;
 		}
@@ -346,6 +352,8 @@ static int occampi_precheck_action (compops_t *cops, tnode_t *node)
 		/* deeper usage-checking may sort these out later on */
 		usagecheck_marknode (tnode_nthsubof (node, 0), USAGE_WRITE, 0);
 		usagecheck_marknode (tnode_nthsubof (node, 1), USAGE_READ, 0);
+	} else if (node->tag == opi.tag_ONECASEINPUT) {
+		/* FIXME: ... */
 	}
 	return 1;
 }
@@ -719,6 +727,343 @@ tnode_dumptree (type, 1, stderr);
 /*}}}*/
 
 
+/*{{{  static int occampi_scopein_caseinputnode (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
+/*
+ *	called to scope-in a variant protocol input action-node (needs to be aware of tag-names)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_scopein_caseinputnode (compops_t *cops, tnode_t **nodep, scope_t *ss)
+{
+	if ((*nodep)->tag == opi.tag_CASEINPUT) {
+		/*{{{  handle tagged input*/
+		tnode_t **lhsp = tnode_nthsubaddr (*nodep, 0);
+		tnode_t **rhsp = tnode_nthsubaddr (*nodep, 1);
+		tnode_t *ctype;
+		int did_error = 0;
+
+		/* scope LHS normally */
+		scope_subtree (lhsp, ss);
+
+		/* try and get LHS type by typecheck (which at scope-in is a bit risky..) */
+		ctype = typecheck_gettype (*lhsp, NULL);
+		if (!ctype) {
+			/* no checkable type, see if it's a typed namenode */
+			if ((*lhsp)->tag->ndef == opi.node_NAMENODE) {
+				name_t *name = tnode_nthnameof (*lhsp, 0);
+				ctype = NameTypeOf (name);
+			}
+		}
+
+		if (!ctype) {
+			/* give up here */
+			scope_error (*nodep, ss, "failed to get LHS type for case input");
+			did_error = 1;
+		} else {
+			if (ctype->tag == opi.tag_CHAN) {
+				tnode_t *subtype = tnode_nthsubof (ctype, 0);
+				
+				/* subtype will be the channel protocol, if a named variant protocol, scope-in fields */
+				if (subtype->tag == opi.tag_NVARPROTOCOLDECL) {
+					/*{{{  do stuff*/
+					void *namemark = name_markscope ();
+					tnode_t **inputlist;
+					int ninputs, i;
+
+					/* scope field-names from variant protocol */
+					tnode_prewalktree (NameTypeOf (tnode_nthnameof (subtype, 0)), occampi_actionscope_prewalk_scopefields, (void *)ss);
+
+					/* RHS must be a list of things */
+					if (!parser_islistnode (*rhsp)) {
+						*rhsp = parser_buildlistnode (NULL, *rhsp, NULL);
+					}
+
+					inputlist = parser_getlistitems (*rhsp, &ninputs);
+					for (i=0; i<ninputs; i++) {
+						/* potentially have declarations in the way */
+						tnode_t **xptr = treeops_findintreeptr (inputlist + i, opi.tag_CASEINPUTITEM);
+
+						if (xptr && *xptr) {
+							/* found it */
+							tnode_t **ilistp = tnode_nthsubaddr (*xptr, 0);
+							tnode_t **items = NULL;
+							int nitems;
+
+							/* input must be a list of things, starting with tag */
+							if (!parser_islistnode (*ilistp)) {
+								*ilistp = parser_buildlistnode (NULL, *ilistp, NULL);
+							}
+#if 0
+fprintf (stderr, "occampi_scopein_caseinputnode(): got CASEINPUTITEM:\n");
+tnode_dumptree (*xptr, 1, stderr);
+#endif
+							items = parser_getlistitems (*ilistp, &nitems);
+							if (nitems >= 1) {
+								scope_subtree (items + 0, ss);
+							}
+						}
+					}
+
+					/* scope out here, then check the rest of it */
+					name_markdescope (namemark);
+
+					for (i=0; i<ninputs; i++) {
+						scope_subtree (inputlist + i, ss);
+					}
+
+					/*}}}*/
+				}
+			} else {
+				scope_error (*nodep, ss, "type of LHS is not channel, got [%s]", ctype->tag->name);
+				did_error = 1;
+			}
+		}
+
+		return 0;
+		/*}}}*/
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_typecheck_caseinputnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking for a CASE input node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_caseinputnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *lhs = tnode_nthsubof (node, 0);
+	tnode_t *rhs = tnode_nthsubof (node, 1);
+	tnode_t *acttype = tnode_nthsubof (node, 2);
+	tnode_t *lhstype, *prot;
+	tnode_t *saved_thisprotocol = NULL;
+
+	if (acttype) {
+		nocc_warning ("occampi_typecheck_caseinputnode(): strange, already type-checked this node..");
+		return 0;
+	}
+
+	/* call type-check on LHS tree */
+	typecheck_subtree (lhs, tc);
+
+	lhstype = typecheck_gettype (lhs, NULL);
+
+	/* expecting something on which we can communicate -- e.g. channel or port;
+	 * test is to see if it has a particular codegen_typeaction language-op
+	 */
+	if (!lhstype) {
+		typecheck_error (node, tc, "channel in case input has indeterminate type");
+		return 0;
+	} else if (!tnode_haslangop (lhstype->tag->ndef->lops, "codegen_typeaction")) {
+		typecheck_error (node, tc, "channel in case input cannot be used for communication, got [%s]", lhstype->tag->name);
+		return 0;
+	}
+
+	/* get the type of the channel (channel protocol) */
+	prot = typecheck_getsubtype (lhstype, NULL);
+
+	if (!prot || (prot->tag != opi.tag_NVARPROTOCOLDECL)) {
+		typecheck_error (node, tc, "channel in case input does not carry a variant protocol, got [%s]", prot->tag->name);
+		return 0;
+	}
+	
+	/* check for channel-direction compatibility (must be input channel!) */
+	{
+		occampi_typeattr_t tattr = occampi_typeattrof (lhstype);
+
+		if (tattr & TYPEATTR_MARKED_OUT) {
+			typecheck_error (node, tc, "cannot input from channel marked as output");
+		}
+	}
+
+	if (!parser_islistnode (rhs)) {
+		typecheck_error (node, tc, "expected list for variant protocol input, got [%s]", rhs->tag->name);
+		return 0;
+	}
+
+	/* resulting type of a CASE input node is the variant protocol itself, don't attempt to dismantle any further than this */
+	acttype = prot;
+	tnode_setnthsub (node, 2, acttype);
+	tnode_setchook (node, opi_action_lhstypehook, (void *)lhstype);
+
+	/* now type-check the RHS, list of variant protocols */
+	saved_thisprotocol = tc->this_protocol;
+	tc->this_protocol = acttype;
+	typecheck_subtree (rhs, tc);
+	tc->this_protocol = saved_thisprotocol;
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_gettype_caseinputnode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a CASE input node
+ *	returns type on success, NULL on failure
+ */
+static tnode_t *occampi_gettype_caseinputnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	return tnode_nthsubof (node, 2);
+}
+/*}}}*/
+/*{{{  static int occampi_precheck_caseinputnode (compops_t *cops, tnode_t *node)*/
+/*
+ *	does pre-checks on a CASE input node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_precheck_caseinputnode (compops_t *cops, tnode_t *node)
+{
+	if (node->tag == opi.tag_CASEINPUT) {
+		usagecheck_marknode (tnode_nthsubof (node, 0), USAGE_INPUT, 0);
+		/* let the walk take care of the rest */
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_do_usagecheck_caseinputnode (langops_t *lops, tnode_t *node, uchk_state_t *ucs)*/
+/*
+ *	does usage-checking on a CASE input node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_do_usagecheck_caseinputnode (langops_t *lops, tnode_t *node, uchk_state_t *ucs)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_fetrans_caseinputnode (compops_t *cops, tnode_t **nodep, fetrans_t *fe)*/
+/*
+ *	does front-end transforms on a CASE input node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_fetrans_caseinputnode (compops_t *cops, tnode_t **nodep, fetrans_t *fe)
+{
+	return 1;
+}
+/*}}}*/
+
+
+/*{{{  static int occampi_typecheck_caseinputitemnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on an individual CASE input item
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_typecheck_caseinputitemnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *ilist = tnode_nthsubof (node, 0);		/* list of inputs */
+	tnode_t *body = tnode_nthsubof (node, 1);		/* main process body */
+	tnode_t *acttype = tnode_nthsubof (node, 2);		/* type (list) */
+	tnode_t *saved_protocol = tc->this_protocol;
+	tnode_t *prot, *itype;
+
+	if (acttype) {
+		nocc_warning ("occampi_typecheck_caseinputitemnode(): strange.  already type-checked this case input..");
+		return 0;		/* don't walk sub-nodes */
+	}
+
+	if (!parser_islistnode (ilist)) {
+		typecheck_error (node, tc, "case in variant protocol input does not have an I/O list");
+		return 0;
+	}
+	if (!saved_protocol) {
+		nocc_internal ("occampi_typecheck_caseinputitemnode(): no variant protocol stored in type-check!");
+		return 0;
+	} else if (saved_protocol->tag != opi.tag_NVARPROTOCOLDECL) {
+		nocc_internal ("occampi_typecheck_caseinputitemnode(): stored protocol in type-check not variant, got [%s]", saved_protocol->tag->name);
+		return 0;
+	}
+
+	/* use the input list to resolve a single variant */
+	prot = saved_protocol;
+	if (prot && prot->tag->ndef->lops && tnode_haslangop_i (prot->tag->ndef->lops, (int)LOPS_PROTOCOLTOTYPE)) {
+		tnode_t *nprot = (tnode_t *)tnode_calllangop_i (prot->tag->ndef->lops, (int)LOPS_PROTOCOLTOTYPE, 2, prot, ilist);
+
+		if (nprot) {
+			prot = nprot;
+		}
+	}
+
+	itype = typecheck_gettype (ilist, prot);
+	if (!itype) {
+		typecheck_error (node, tc, "invalid type for case input");
+		return 0;
+	}
+
+	tc->this_protocol = NULL;
+
+	/* got two valid types, check that the input-list type is good for the protocol-type */
+	acttype = typecheck_typeactual (saved_protocol, itype, node, tc);
+	if (!acttype) {
+		typecheck_error (node, tc, "incompatible types");
+		return 0;
+	} else {
+		tnode_setnthsub (node, 2, acttype);
+	}
+#if 0
+fprintf (stderr, "occampi_typecheck_caseinputitemnode(): got actual type for input list in variant protocol:\n");
+tnode_dumptree (acttype, 1, stderr);
+#endif
+
+	/* type-check the body */
+	typecheck_subtree (body, tc);
+	tc->this_protocol = saved_protocol;
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_gettype_caseinputitemnode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a CASE input-item node
+ *	returns type on success, NULL on failure
+ */
+static tnode_t *occampi_gettype_caseinputitemnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	return tnode_nthsubof (node, 2);
+}
+/*}}}*/
+/*{{{  static int occampi_precheck_caseinputitemnode (compops_t *cops, tnode_t *node)*/
+/*
+ *	does pre-checks on a CASE input item node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_precheck_caseinputitemnode (compops_t *cops, tnode_t *node)
+{
+	if (node->tag == opi.tag_CASEINPUTITEM) {
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (tnode_nthsubof (node, 0), &nitems);
+
+		/* first item is a tag, ignore it */
+		for (i=1; i<nitems; i++) {
+			usagecheck_marknode (items[i], USAGE_WRITE, 0);
+		}
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_do_usagecheck_caseinputitemnode (langops_t *lops, tnode_t *node, uchk_state_t *ucs)*/
+/*
+ *	does usage-checking on a CASE input item node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_do_usagecheck_caseinputitemnode (langops_t *lops, tnode_t *node, uchk_state_t *ucs)
+{
+	if (node->tag == opi.tag_CASEINPUTITEM) {
+		/*{{{  RHS should be a list, the first is a tag (ignored), rest should be variables*/
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (tnode_nthsubof (node, 0), &nitems);
+
+		for (i=1; i<nitems; i++) {
+			if (!langops_isvar (items[i])) {
+				usagecheck_error (node, ucs, "I/O item %d must be a variable", i);
+			}
+		}
+
+		/*}}}*/
+	} else {
+		nocc_internal ("occampi_do_usagecheck_caseinputitemnode(): unhandled tag %s", node->tag->name);
+	}
+	return 1;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_action_init_nodes (void)*/
 /*
  *	initialises nodes for occam-pi actions
@@ -769,19 +1114,14 @@ static int occampi_action_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:caseinputnode", &i, 3, 0, 0, TNF_LONGPROC);				/* subnodes: channel-expr, case-list, type */
 	cops = tnode_newcompops ();
-	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_action));
-	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_action));
-	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (occampi_precheck_action));
-	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_action));
-	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_action));
-	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_action));
-	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_action));
-	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_action));
-	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_action));
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_caseinputnode));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_caseinputnode));
+	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (occampi_precheck_caseinputnode));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_caseinputnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
-	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_action));
-	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_do_usagecheck_action));
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_caseinputnode));
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_do_usagecheck_caseinputnode));
 	tnd->lops = lops;
 
 	i = -1;
@@ -790,10 +1130,14 @@ static int occampi_action_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:caseinputitemnode -- CASEINPUTITEM*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:caseinputitemnode", &i, 2, 0, 0, TNF_LONGPROC);			/* subnodes: 0 = expr-list; 1 = body */
+	tnd = tnode_newnodetype ("occampi:caseinputitemnode", &i, 3, 0, 0, TNF_LONGPROC);			/* subnodes: 0 = expr-list; 1 = body, 2 = type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_caseinputitemnode));
+	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (occampi_precheck_caseinputitemnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_caseinputitemnode));
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (occampi_do_usagecheck_caseinputitemnode));
 	tnd->lops = lops;
 
 	i = -1;

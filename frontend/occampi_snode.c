@@ -860,6 +860,7 @@ static int occampi_snode_init_nodes (void)
 
 	i = -1;
 	opi.tag_CONDITIONAL = tnode_newnodetag ("CONDITIONAL", &i, tnd, NTF_INDENTED_PROC);
+
 	/*}}}*/
 	/*{{{  occampi:guardnode -- SKIPGUARD, INPUTGUARD, TIMERGUARD*/
 	i = -1;

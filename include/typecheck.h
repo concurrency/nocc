@@ -32,6 +32,9 @@ typedef struct TAG_typecheck {
 	/* when doing type-actuals on parameters */
 	tnode_t *this_ftype;		/* formal-parameter type */
 	tnode_t *this_aparam;		/* actual-parameter */
+
+	/* when doing cases for a variant protocol input */
+	tnode_t *this_protocol;
 } typecheck_t;
 
 /* these are used to categorise types */

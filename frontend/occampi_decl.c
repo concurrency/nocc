@@ -928,7 +928,7 @@ static int occampi_tracescheck_procdecl (compops_t *cops, tnode_t *node, tchk_st
 
 	tracescheck_subtree (tnode_nthsubof (node, 2), thispstate);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_tracescheck_procdecl(): after body check, thispstate =\n");
 tracescheck_dumpstate (thispstate, 1, stderr);
 #endif
@@ -938,7 +938,8 @@ tracescheck_dumpstate (thispstate, 1, stderr);
 
 	tracescheck_simplifytraces (trs);
 	tnode_setchook (node, tchktrchook, (void *)trs);
-#if 1
+
+#if 0
 // fprintf (stderr, "occampi_tracescheck_procdecl(): done traces check, thispstate =\n");
 // tracescheck_dumpstate (thispstate, 1, stderr);
 fprintf (stderr, "occampi_tracescheck_procdecl(): done traces check, obtained traces=\n");

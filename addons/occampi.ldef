@@ -263,7 +263,7 @@
 .GRULE	"opi:inputreduce" "SN1N+N+V0C[INPUT]3R-"
 .GRULE	"opi:onecaseinputreduce" "SN1N+N+V0C[ONECASEINPUT]3R-"
 .GRULE	"opi:caseinputreduce" "SN0N+00C[CASEINPUT]3R-"
-.GRULE	"opi:caseinputitemreduce" "SN0N+0C[CASEINPUTITEM]2R-"
+.GRULE	"opi:caseinputitemreduce" "SN0N+00C[CASEINPUTITEM]3R-"
 
 .TABLE	"occampi:namestartname +:= [ 0 @@:= 1 ] [ 1 occampi:expr 2 ] [ 2 {<opi:assignreduce>} -* ]"
 
