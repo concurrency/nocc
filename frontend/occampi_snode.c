@@ -65,6 +65,7 @@
 
 /* this is a chook attached to guard-nodes that indicates what needs to be enabled */
 static chook_t *guardexphook = NULL;
+static chook_t *branchlabelhook = NULL;
 static chook_t *actionlhstypechook = NULL;
 
 /*}}}*/
@@ -100,6 +101,38 @@ static void occampi_guardexphook_free (void *chook)
  *	copies a guardexphook
  */
 static void *occampi_guardexphook_copy (void *chook)
+{
+	return chook;
+}
+/*}}}*/
+
+/*{{{  static void occampi_branchlabelhook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*
+ *	display the contents of a branchlabelhook compiler hook (numeric label)
+ */
+static void occampi_branchlabelhook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+{
+	if (chook) {
+		occampi_isetindent (stream, indent);
+		fprintf (stream, "<occampi:branchlabelhook label=\"%d\" />\n", (unsigned int)chook);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_branchlabelhook_free (void *chook)*/
+/*
+ *	frees a branchlabelhook
+ */
+static void occampi_branchlabelhook_free (void *chook)
+{
+	return;
+}
+/*}}}*/
+/*{{{  static void *occampi_branchlabelhook_copy (void *chook)*/
+/*
+ *	copies a branchlabelhook
+ */
+static void *occampi_branchlabelhook_copy (void *chook)
 {
 	return chook;
 }
@@ -598,6 +631,43 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 		codegen_callops (cgen, setlabel, joinlab);
 
 		/*}}}*/
+	} else if (node->tag == opi.tag_CASE) {
+		/*{{{  CASE selection -- list of condition-process*/
+		tnode_t *body = tnode_nthsubof (node, 1);
+		tnode_t **bodies;
+		int nbodies, i;
+		int dfllab = codegen_new_label (cgen);
+		int joinlab = codegen_new_label (cgen);
+		int *blabs;
+
+		if (!parser_islistnode (body)) {
+			nocc_error ("occampi_codegen_snode(): body of CASE not list!");
+			return 0;
+		}
+		bodies = parser_getlistitems (body, &nbodies);
+
+		/* assign labels to bodies */
+		blabs = (int *)smalloc (nbodies * sizeof (int));
+		for (i=0; i<nbodies; i++) {
+			blabs[i] = codegen_new_label (cgen);
+			tnode_setchook (bodies[i], branchlabelhook, (void *)(blabs[i]));
+		}
+
+		/* FIXME: generate jump-table or other suitable mechanisms */
+
+		codegen_callops (cgen, setlabel, dfllab);
+		codegen_callops (cgen, tsecondary, I_SETERR);
+
+		/* generate code bodies */
+		for (i=0; i<nbodies; i++) {
+			codegen_callops (cgen, setlabel, blabs[i]);
+			codegen_subcodegen (tnode_nthsubof (bodies[i], 1), cgen);
+			codegen_callops (cgen, branch, I_J, joinlab);
+		}
+
+		codegen_callops (cgen, setlabel, joinlab);
+
+		/*}}}*/
 	}
 	return 0;
 }
@@ -796,6 +866,13 @@ static int occampi_snode_init_nodes (void)
 	guardexphook->chook_dumptree = occampi_guardexphook_dumptree;
 	guardexphook->chook_free = occampi_guardexphook_free;
 	guardexphook->chook_copy = occampi_guardexphook_copy;
+
+	/*}}}*/
+	/*{{{  branchlabelhook -- compiler hook*/
+	branchlabelhook = tnode_lookupornewchook ("occampi:branchlabelhook");
+	branchlabelhook->chook_dumptree = occampi_branchlabelhook_dumptree;
+	branchlabelhook->chook_free = occampi_branchlabelhook_free;
+	branchlabelhook->chook_copy = occampi_branchlabelhook_copy;
 
 	/*}}}*/
 	/*{{{  ALT codegen language ops*/

@@ -1,0 +1,13 @@
+
+-- test_n84.occ -- CASE structure
+
+PROC test.n84 ()
+  INT i:
+  SEQ
+    CASE i
+      0
+        SKIP
+      10
+        STOP
+:
+
