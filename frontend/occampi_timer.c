@@ -547,15 +547,15 @@ static int occampi_timer_actionnode_precheck (compops_t *cops, tnode_t *t)
 	tnode_t *lhstype = (tnode_t *)tnode_getchook (t, actionlhstypechook);
 
 	if ((lhstype->tag == opi.tag_TIMER) && (t->tag == opi.tag_INPUT)) {
-		tnode_t *rhs = tnode_nthsubof (t, 1);
+		tnode_t **rhsp = tnode_nthsubaddr (t, 1);
 
 		/* timer input */
-		usagecheck_marknode (tnode_nthsubof (t, 0), USAGE_INPUT, 0);
+		usagecheck_marknode (tnode_nthsubaddr (t, 0), USAGE_INPUT, 0);
 
-		if (rhs->tag == opi.tag_MAFTER) {
-			usagecheck_marknode (tnode_nthsubof (rhs, 0), USAGE_READ, 0);
+		if ((*rhsp)->tag == opi.tag_MAFTER) {
+			usagecheck_marknode (tnode_nthsubaddr (*rhsp, 0), USAGE_READ, 0);
 		} else {
-			usagecheck_marknode (rhs, USAGE_WRITE, 0);
+			usagecheck_marknode (rhsp, USAGE_WRITE, 0);
 		}
 		return 1;
 	}

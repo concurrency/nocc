@@ -256,7 +256,7 @@ static int occampi_cnode_dousagecheck (langops_t *lops, tnode_t *node, uchk_stat
 		usagecheck_begin_branches (node, ucstate);
 
 		bodies = parser_getlistitems (body, &nbodies);
-#if 0
+#if 1
 nocc_message ("occampi_cnode_dousagecheck(): there are %d PAR bodies", nbodies);
 #endif
 		for (i=0; i<nbodies; i++) {

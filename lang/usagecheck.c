@@ -69,6 +69,7 @@ typedef struct TAG_uchk_taghook {
 static chook_t *uchk_chook = NULL;
 static chook_t *uchk_taghook = NULL;
 
+static ntdef_t *uchk_tag_USAGE = NULL;
 
 /*}}}*/
 
@@ -393,6 +394,24 @@ static int uchk_prewalk_cleantree (tnode_t *node, void *data)
  */
 int usagecheck_init (void)
 {
+	tndef_t *tnd;
+	compops_t *cops;
+	langops_t *lops;
+	int i;
+
+	/*{{{  nocc:usagechecknode -- USAGE*/
+	i = -1;
+	tnd = tnode_newnodetype ("nocc:usagechecknode", &i, 1, 0, 0, TNF_TRANSPARENT);
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	uchk_tag_USAGE = tnode_newnodetag ("USAGE", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+
 	if (!uchk_chook) {
 		uchk_chook = tnode_newchook ("usagecheck");
 		uchk_chook->chook_dumptree = uchk_chook_dumptree;
@@ -841,21 +860,24 @@ int usagecheck_tree (tnode_t *tree, langparser_t *lang)
 /*}}}*/
 
 
-/*{{{  int usagecheck_marknode (tnode_t *node, uchk_mode_t mode, int do_nested)*/
+/*{{{  int usagecheck_marknode (tnode_t **nodep, uchk_mode_t mode, int do_nested)*/
 /*
  *	marks a node for usage-checking later on
  *	returns 0 on success, non-zero on failure
  */
-int usagecheck_marknode (tnode_t *node, uchk_mode_t mode, int do_nested)
+int usagecheck_marknode (tnode_t **nodep, uchk_mode_t mode, int do_nested)
 {
-	uchk_taghook_t *thook = (uchk_taghook_t *)tnode_getchook (node, uchk_taghook);
-
 #if 0
-	nocc_message ("usagecheck_marknode(): marking [%s,%s] with 0x%x", node->tag->name, node->tag->ndef->name, (int)mode);
+nocc_message ("usagecheck_marknode(): marking [%s,%s] with 0x%x", node->tag->name, node->tag->ndef->name, (int)mode);
 #endif
-	if (thook) {
-		if (thook->node != node) {
-			nocc_internal ("usagecheck_marknode(): node/taghook mislinkage, node=0x%8.8x [%s], thook->node=0x%8.8x [%s]", (unsigned int)node, node->tag->name, (unsigned int)thook->node, thook->node->tag->name);
+
+	if ((*nodep)->tag == uchk_tag_USAGE) {
+		uchk_taghook_t *thook = (uchk_taghook_t *)tnode_getchook (*nodep, uchk_taghook);
+		tnode_t *subnode = tnode_nthsubof (*nodep, 0);
+
+		if (thook->node != subnode) {
+			nocc_internal ("usagecheck_marknode(): node/taghook mislinkage, subnode=0x%8.8x [%s], thook->node=0x%8.8x [%s]",
+					(unsigned int)subnode, subnode->tag->name, (unsigned int)thook->node, thook->node->tag->name);
 			return -1;
 		}
 		if (thook->do_nested != do_nested) {
@@ -864,19 +886,24 @@ int usagecheck_marknode (tnode_t *node, uchk_mode_t mode, int do_nested)
 		}
 
 		if ((thook->mode & mode) != mode) {
-			nocc_warning ("usagecheck_marknode(): node [%s] already marked with 0x%8.8x(%d), merging in 0x%8.8x(%d)", node->tag->name, (unsigned int)thook->mode, thook->do_nested, (unsigned int)mode, do_nested);
+			nocc_warning ("usagecheck_marknode(): node [%s] already marked with 0x%8.8x(%d), merging in 0x%8.8x(%d)",
+					subnode->tag->name, (unsigned int)thook->mode, thook->do_nested, (unsigned int)mode, do_nested);
 		}
 
 		thook->mode |= mode;
 		thook->do_nested |= do_nested;
 	} else {
-		thook = uchk_newuchktaghook ();
+		/* insert new USAGE node */
+		tnode_t *newnode = tnode_createfrom (uchk_tag_USAGE, *nodep, *nodep);
+		uchk_taghook_t *thook = uchk_newuchktaghook ();
 
-		thook->node = node;
+		thook->node = *nodep;
 		thook->mode = mode;
 		thook->do_nested = do_nested;
 
-		tnode_setchook (node, uchk_taghook, (void *)thook);
+		tnode_setchook (newnode, uchk_taghook, (void *)thook);
+
+		*nodep = newnode;
 	}
 	return 0;
 }

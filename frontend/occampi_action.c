@@ -343,15 +343,15 @@ static tnode_t *occampi_gettype_action (langops_t *lops, tnode_t *node, tnode_t 
 static int occampi_precheck_action (compops_t *cops, tnode_t *node)
 {
 	if (node->tag == opi.tag_INPUT) {
-		usagecheck_marknode (tnode_nthsubof (node, 0), USAGE_INPUT, 0);
-		usagecheck_marknode (tnode_nthsubof (node, 1), USAGE_WRITE, 0);
+		usagecheck_marknode (tnode_nthsubaddr (node, 0), USAGE_INPUT, 0);
+		usagecheck_marknode (tnode_nthsubaddr (node, 1), USAGE_WRITE, 0);
 	} else if (node->tag == opi.tag_OUTPUT) {
-		usagecheck_marknode (tnode_nthsubof (node, 0), USAGE_OUTPUT, 0);
-		usagecheck_marknode (tnode_nthsubof (node, 1), USAGE_READ, 0);
+		usagecheck_marknode (tnode_nthsubaddr (node, 0), USAGE_OUTPUT, 0);
+		usagecheck_marknode (tnode_nthsubaddr (node, 1), USAGE_READ, 0);
 	} else if (node->tag == opi.tag_ASSIGN) {
 		/* deeper usage-checking may sort these out later on */
-		usagecheck_marknode (tnode_nthsubof (node, 0), USAGE_WRITE, 0);
-		usagecheck_marknode (tnode_nthsubof (node, 1), USAGE_READ, 0);
+		usagecheck_marknode (tnode_nthsubaddr (node, 0), USAGE_WRITE, 0);
+		usagecheck_marknode (tnode_nthsubaddr (node, 1), USAGE_READ, 0);
 	} else if (node->tag == opi.tag_ONECASEINPUT) {
 		/* FIXME: ... */
 	}
@@ -912,7 +912,7 @@ static tnode_t *occampi_gettype_caseinputnode (langops_t *lops, tnode_t *node, t
 static int occampi_precheck_caseinputnode (compops_t *cops, tnode_t *node)
 {
 	if (node->tag == opi.tag_CASEINPUT) {
-		usagecheck_marknode (tnode_nthsubof (node, 0), USAGE_INPUT, 0);
+		usagecheck_marknode (tnode_nthsubaddr (node, 0), USAGE_INPUT, 0);
 		/* let the walk take care of the rest */
 	}
 	return 1;
@@ -1031,7 +1031,7 @@ static int occampi_precheck_caseinputitemnode (compops_t *cops, tnode_t *node)
 
 		/* first item is a tag, ignore it */
 		for (i=1; i<nitems; i++) {
-			usagecheck_marknode (items[i], USAGE_WRITE, 0);
+			usagecheck_marknode (items+i, USAGE_WRITE, 0);
 		}
 	}
 	return 1;
