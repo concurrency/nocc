@@ -1,0 +1,16 @@
+
+-- test_n86.occ -- testing table-based CASE
+
+PROC test.n86 ()
+  INT i:
+  CASE i
+    0
+      SKIP
+    3
+      SKIP
+    1
+      SKIP
+    4
+      STOP
+:
+

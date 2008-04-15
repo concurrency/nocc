@@ -52,6 +52,10 @@
 #include "valueset.h"
 
 /*}}}*/
+/*{{{  private data*/
+
+
+/*}}}*/
 
 
 /*{{{  int valueset_init (void)*/
@@ -126,6 +130,55 @@ static void vset_isetindent (FILE *stream, int indent)
 	return;
 }
 /*}}}*/
+/*{{{  static void vset_dosort (valueset_t *vset, int first, int last)*/
+/*
+ *	does a quick-sort on a value-set
+ */
+static void vset_dosort (valueset_t *vset, int first, int last)
+{
+	int i, j;
+	int pivot;
+
+#if 0
+fprintf (stderr, "da_qsort(): array=0x%8.8x, first=%d, last=%d\n", (unsigned int)array, first, last);
+#endif
+	pivot = vset->values[(first + last) >> 1];
+	i = first;
+	j = last;
+	while (i <= j) {
+#if 0
+fprintf (stderr, "da_qsort(): i=%d, j=%d, pivot=(0x%8.8x), array[i]=(0x%8.8x), array[j]=(0x%8.8x)\n", i, j, (unsigned int)pivot, (unsigned int)array[i], (unsigned int)array[j]);
+#endif
+		while (vset->values[i] < pivot) {
+			i++;
+		}
+		while (vset->values[j] > pivot) {
+			j--;
+		}
+		if (i <= j) {
+			int tmp_val;
+			tnode_t *tmp_link;
+
+			tmp_val = vset->values[i];
+			tmp_link = vset->links[i];
+			vset->values[i] = vset->values[j];
+			vset->links[i] = vset->links[j];
+			vset->values[j] = tmp_val;
+			vset->links[j] = tmp_link;
+			i++;
+			j--;
+		}
+	}
+	if (j > first) {
+		vset_dosort (vset, first, j);
+	}
+	if (i < last) {
+		vset_dosort (vset, i, last);
+	}
+	return;
+}
+/*}}}*/
+
 
 
 /*{{{  valueset_t *valueset_create (void)*/
@@ -163,7 +216,7 @@ void valueset_dumptree (valueset_t *vset, int indent, FILE *stream)
 		int i;
 
 		fprintf (stream, "<valueset addr=\"0x%8.8x\" nvalues=\"%d\" nlinks=\"%d\" min=\"%d\" max=\"%d\" base=\"%d\" limit=\"%d\" strategy=\"",
-				vset->v_min, vset->v_max, (unsigned int)vset, DA_CUR (vset->values), DA_CUR (vset->links),
+				(unsigned int)vset, DA_CUR (vset->values), DA_CUR (vset->links), vset->v_min, vset->v_max,
 				vset->v_base, vset->v_limit);
 		switch (vset->strat) {
 		case STRAT_NONE:
@@ -257,6 +310,54 @@ int valueset_decide (valueset_t *vset)
 		/* FIXME: don't support this yet, do as TABLE */
 		vset->strat = STRAT_TABLE;
 		/*}}}*/
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int valueset_sort (valueset_t *vset)*/
+/*
+ *	sorts a data-set based on value
+ *	returns 0 on success, non-zero on failure
+ */
+int valueset_sort (valueset_t *vset)
+{
+	if (!vset) {
+		nocc_serious ("valueset_decide(): NULL vset!");
+		return -1;
+	}
+
+	if (DA_CUR (vset->values) < 2) {
+		return 0;
+	}
+
+	vset_dosort (vset, 0, DA_CUR (vset->values) - 1);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int valueset_insertblanks (valueset_t *vset, tnode_t *link)*/
+/*
+ *	inserts blanks into a value-set for jump-table handling
+ *	returns 0 on success, non-zero on failure
+ */
+int valueset_insertblanks (valueset_t *vset, tnode_t *link)
+{
+	int i, v;
+
+	if (!vset) {
+		nocc_serious ("valueset_insertblanks(): NULL vset!");
+		return -1;
+	}
+
+	for (i = 0, v = vset->v_min; v <= vset->v_max; v++, i++) {
+		int this_val = DA_NTHITEM (vset->values, i);
+
+		if (this_val > v) {
+			/* insert something for 'v' here */
+			dynarray_insert (vset->values, v, i);
+			dynarray_insert (vset->links, link, i);
+		}
 	}
 
 	return 0;

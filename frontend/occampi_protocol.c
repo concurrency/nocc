@@ -1537,7 +1537,7 @@ tnode_dumptree (proto, 1, stderr);
 
 							lhstcn = (tchknode_t *)tnode_getchook (lhs, tchkhook);
 							tagtcn = (tchknode_t *)tnode_getchook (tag, tchkhook);
-#if 1
+#if 0
 fprintf (stderr, "occampi_tracescheck_actionnode_forprotocol(): in here, tagtcn is:\n");
 tracescheck_dumpnode (tagtcn, 1, stderr);
 #endif

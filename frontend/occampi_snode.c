@@ -385,6 +385,7 @@ static int occampi_typecheck_snode (compops_t *cops, tnode_t *node, typecheck_t 
 		tnode_t *swtype = NULL;
 		tnode_t **items;
 		int nitems, i;
+		int nother = 0;
 
 		typecheck_subtree (tnode_nthsubof (node, 0), tc);		/* check expression */
 
@@ -404,6 +405,7 @@ static int occampi_typecheck_snode (compops_t *cops, tnode_t *node, typecheck_t 
 
 				if (cval->tag == opi.tag_ELSE) {
 					/* no value */
+					nother++;
 				} else {
 					tnode_t *ctype = NULL;
 
@@ -420,6 +422,10 @@ static int occampi_typecheck_snode (compops_t *cops, tnode_t *node, typecheck_t 
 
 		tnode_setnthsub (node, 2, swtype);
 		tnode_free (definttype);
+
+		if (nother > 1) {
+			typecheck_error (node, tc, "too many ELSE cases");
+		}
 
 		return 0;
 		/*}}}*/
@@ -517,7 +523,7 @@ static int occampi_snode_compare_conditionals (tnode_t *c1, tnode_t *c2)
 	tnode_t *v1, *v2;
 	int i1, i2;
 
-	if (!c1 && !c2) {
+	if (c1 == c2) {
 		return 0;
 	} else if (!c1) {
 		return 1;
@@ -536,6 +542,13 @@ static int occampi_snode_compare_conditionals (tnode_t *c1, tnode_t *c2)
 
 	v1 = tnode_nthsubof (c1, 0);
 	v2 = tnode_nthsubof (c2, 0);
+
+	/* ELSE case floats to the top */
+	if (v1->tag == opi.tag_ELSE) {
+		return -1;
+	} else if (v2->tag == opi.tag_ELSE) {
+		return 1;
+	}
 
 	/* non-constants float */
 	if (!constprop_isconst (v1)) {
@@ -733,6 +746,8 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 		int joinlab = codegen_new_label (cgen);
 		int *blabs;
 		valueset_t *vset = NULL;
+		tnode_t *dflbody = NULL;
+		int bodystart = 0;
 
 		if (!parser_islistnode (body)) {
 			nocc_error ("occampi_codegen_snode(): body of CASE not list!");
@@ -743,47 +758,58 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 		/* create + initialise value-set we'll use */
 		vset = valueset_create ();
 
+		/* if there is an ELSE as the first case, pull it out for now */
+		if (nbodies > 0) {
+			tnode_t *firstval = tnode_nthsubof (bodies[0], 0);
+
+			if (firstval->tag == opi.tag_ELSE) {
+				dflbody = tnode_nthsubof (bodies[0], 1);
+				bodystart = 1;
+			}
+		}
+
 		/* assign labels to bodies */
 		blabs = (int *)smalloc (nbodies * sizeof (int));
 		for (i=0; i<nbodies; i++) {
 			tnode_t *cond = bodies[i];
-			tnode_t *cval = tnode_nthsubof (cond, 0);
-			tnode_t *cnstval = NULL;
-			int cival;
 
-			if (cval) {
-				cnstval = cgen->target->be_getorgnode (cval);
+			if (i < bodystart) {
+				/* default for this one */
+				blabs[i] = dfllab;
+			} else {
+				tnode_t *cval = tnode_nthsubof (cond, 0);
+				tnode_t *cnstval = NULL;
+				int cival;
+
+				if (cval) {
+					cnstval = cgen->target->be_getorgnode (cval);
+				}
+				if (!cnstval) {
+					nocc_error ("occampi_codegen_snode(): bad back-end value in CASE [%s]", cval->tag->name);
+					return 0;
+				} else if (!constprop_isconst (cnstval)) {
+					nocc_error ("occampi_codegen_snode(): non-constant value in CASE [%s]", cnstval->tag->name);
+					return 0;
+				}
+
+				cival = constprop_intvalof (cnstval);
+	#if 0
+	fprintf (stderr, "occampi_codegen_snode(): CASE: cival = %d, cval =\n", cival);
+	tnode_dumptree (cval, 1, stderr);
+	#endif
+
+				valueset_insert (vset, cival, cond);
+
+				blabs[i] = codegen_new_label (cgen);
+				tnode_setchook (cond, branchlabelhook, (void *)(blabs[i]));
 			}
-			if (!cnstval) {
-				nocc_error ("occampi_codegen_snode(): bad back-end value in CASE [%s]", cval->tag->name);
-				return 0;
-			} else if (!constprop_isconst (cnstval)) {
-				nocc_error ("occampi_codegen_snode(): non-constant value in CASE [%s]", cnstval->tag->name);
-				return 0;
-			}
-
-			cival = constprop_intvalof (cnstval);
-#if 0
-fprintf (stderr, "occampi_codegen_snode(): CASE: cival = %d, cval =\n", cival);
-tnode_dumptree (cval, 1, stderr);
-#endif
-
-			valueset_insert (vset, cival, cond);
-
-			blabs[i] = codegen_new_label (cgen);
-			tnode_setchook (cond, branchlabelhook, (void *)(blabs[i]));
 		}
 
 		if (valueset_decide (vset)) {
 			nocc_error ("occampi_codegen_snode(): failed to decide how to handle value-set!");
 			return 0;
 		}
-#if 1
-fprintf (stderr, "occampi_codegen_snode(): CASE: built value-set, got:\n");
-valueset_dumptree (vset, 1, stderr);
-fprintf (stderr, "occampi_codegen_snode(): CASE: selector is:\n");
-tnode_dumptree (selector, 1, stderr);
-#endif
+
 		switch (vset->strat) {
 		case STRAT_NONE:
 			nocc_error ("occampi_codegen_snode(): no strategy for value-set!");
@@ -814,6 +840,16 @@ tnode_dumptree (selector, 1, stderr);
 			break;
 		case STRAT_TABLE:
 			/*{{{  generate a jump-table, with range-check*/
+
+			/* sort set first, then add blanks between v_min and v_max */
+			valueset_sort (vset);
+			valueset_insertblanks (vset, NULL);
+
+#if 0
+fprintf (stderr, "occampi_codegen_snode(): CASE: built value-set, got:\n");
+valueset_dumptree (vset, 1, stderr);
+#endif
+
 			codegen_callops (cgen, loadname, selector, 0);
 			if (vset->v_base != 0) {
 				codegen_callops (cgen, loadconst, vset->v_base);
@@ -831,8 +867,16 @@ tnode_dumptree (selector, 1, stderr);
 			codegen_callops (cgen, branch, I_JTABLE, tbllab);
 
 			codegen_callops (cgen, setlabel, tbllab);
-			for (i=0; i<nbodies; i++) {
-				codegen_callops (cgen, constlabaddr, blabs[i]);
+			for (i=0; i<DA_CUR (vset->values); i++) {
+				tnode_t *linknode = DA_NTHITEM (vset->links, i);
+
+				if (!linknode) {
+					codegen_callops (cgen, constlabaddr, dfllab);
+				} else {
+					int lbl = (int)(tnode_getchook (linknode, branchlabelhook));
+
+					codegen_callops (cgen, constlabaddr, lbl);
+				}
 			}
 
 			/*}}}*/
@@ -843,15 +887,21 @@ tnode_dumptree (selector, 1, stderr);
 		}
 
 		codegen_callops (cgen, setlabel, dfllab);
-		codegen_callops (cgen, tsecondary, I_SETERR);
+		if (dflbody) {
+			codegen_subcodegen (dflbody, cgen);
+			codegen_callops (cgen, branch, I_J, joinlab);
+		} else {
+			codegen_callops (cgen, tsecondary, I_SETERR);
+		}
 
 		/* generate code bodies */
-		for (i=0; i<nbodies; i++) {
+		for (i=bodystart; i<nbodies; i++) {
 			codegen_callops (cgen, setlabel, blabs[i]);
 			codegen_subcodegen (tnode_nthsubof (bodies[i], 1), cgen);
 			codegen_callops (cgen, branch, I_J, joinlab);
 		}
 
+		/* exit point */
 		codegen_callops (cgen, setlabel, joinlab);
 
 		valueset_free (vset);

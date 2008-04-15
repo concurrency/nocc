@@ -278,7 +278,7 @@ tnode_dumptree (lhstype, 1, stderr);
 				prot = nprot;
 			}
 		}
-#if 1
+#if 0
 fprintf (stderr, "occampi_typecheck_action(): channel protocol (after any to-type) is:\n");
 tnode_dumptree (prot, 1, stderr);
 #endif
@@ -390,7 +390,7 @@ tnode_dumptree (baselhs, 1, stderr);
 		if (lhstcn) {
 			tchknode_t *newtcn = tracescheck_dupref (lhstcn);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_tracescheck_action(): got hook for traces on LHS/base-of, field-list is:\n");
 tnode_dumptree (fieldlhs, 1, stderr);
 #endif

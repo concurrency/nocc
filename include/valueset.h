@@ -20,6 +20,8 @@
 #ifndef __VALUESET_H
 #define __VALUESET_H
 
+struct TAG_tnode;
+
 typedef enum ENUM_setstrategy {
 	STRAT_NONE,
 	STRAT_CHAIN,			/* simple IF type test-chain */
@@ -29,7 +31,7 @@ typedef enum ENUM_setstrategy {
 
 typedef struct TAG_valueset {
 	DYNARRAY (int, values);
-	DYNARRAY (tnode_t *, links);
+	DYNARRAY (struct TAG_tnode *, links);
 	int v_min, v_max;
 	int v_base, v_limit;
 	setstrategy_e strat;
@@ -43,8 +45,10 @@ extern valueset_t *valueset_create (void);
 extern void valueset_free (valueset_t *vset);
 extern void valueset_dumptree (valueset_t *vset, int indent, FILE *stream);
 
-extern int valueset_insert (valueset_t *vset, int val, tnode_t *link);
+extern int valueset_insert (valueset_t *vset, int val, struct TAG_tnode *link);
 extern int valueset_decide (valueset_t *vset);
+extern int valueset_sort (valueset_t *vset);
+extern int valueset_insertblanks (valueset_t *vset, struct TAG_tnode *link);
 
 
 
