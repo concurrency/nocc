@@ -1,4 +1,4 @@
-/* ANSI-C code produced by gperf version 3.0.2 */
+/* ANSI-C code produced by gperf version 3.0.3 */
 /* Command-line: /usr/bin/gperf  */
 /* Computed positions: -k'1,3-4,8,$' */
 
@@ -36,7 +36,7 @@
  */
 struct TAG_transinstr;
 
-#define TOTAL_KEYWORDS 96
+#define TOTAL_KEYWORDS 97
 #define MIN_WORD_LENGTH 1
 #define MAX_WORD_LENGTH 15
 #define MIN_HASH_VALUE 2
@@ -194,7 +194,7 @@ static const struct TAG_transinstr wordlist[] =
     {"OUT",		INS_SECONDARY,	I_OUT,		NULL},
     {"ENBC",		INS_SECONDARY,	I_ENBC,		NULL},
     {"MWDIS",		INS_SECONDARY,	I_MWDIS,	NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"JCSUB0",		INS_PRIMARY,	I_JCSUB0,	NULL},
     {"MWS_PBENROLL",	INS_SECONDARY,	I_MWS_PBENROLL,	NULL},
     {"MWS_PBADJSYNC",	INS_SECONDARY,	I_MWS_PBADJSYNC,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
@@ -286,6 +286,9 @@ static const struct TAG_transinstr wordlist[] =
 
 #ifdef __GNUC__
 __inline
+#ifdef __GNUC_STDC_INLINE__
+__attribute__ ((__gnu_inline__))
+#endif
 #endif
 const struct TAG_transinstr *
 transinstr_lookup_byname (register const char *str, register unsigned int len)

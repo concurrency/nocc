@@ -1,6 +1,6 @@
 /*
  *	occampi_snode.c -- occam-pi structured processes for NOCC (IF, ALT, etc.)
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2008 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -49,6 +49,7 @@
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
+#include "constprop.h"
 #include "usagecheck.h"
 #include "tracescheck.h"
 #include "fetrans.h"
@@ -58,6 +59,7 @@
 #include "target.h"
 #include "transputer.h"
 #include "mwsync.h"
+#include "valueset.h"
 
 
 /*}}}*/
@@ -486,6 +488,74 @@ static int occampi_tracescheck_snode (compops_t *cops, tnode_t *node, tchk_state
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_snode_compare_conditionals (tnode_t *c1, tnode_t *c2)*/
+/*
+ *	compares two CONDITIONAL nodes by constant value
+ */
+static int occampi_snode_compare_conditionals (tnode_t *c1, tnode_t *c2)
+{
+	tnode_t *v1, *v2;
+	int i1, i2;
+
+	if (!c1 && !c2) {
+		return 0;
+	} else if (!c1) {
+		return 1;
+	} else if (!c2) {
+		return -1;
+	}
+
+	/* non-conditionals float */
+	if (c1->tag != opi.tag_CONDITIONAL) {
+		nocc_warning ("occampi_snode_compare_conditionals(): c1 not CONDITIONAL, got [%s]", c1->tag->name);
+		return 0;
+	} else if (c2->tag != opi.tag_CONDITIONAL) {
+		nocc_warning ("occampi_snode_compare_conditionals(): c2 not CONDITIONAL, got [%s]", c2->tag->name);
+		return 0;
+	}
+
+	v1 = tnode_nthsubof (c1, 0);
+	v2 = tnode_nthsubof (c2, 0);
+
+	/* non-constants float */
+	if (!constprop_isconst (v1)) {
+		nocc_warning ("occampi_snode_compare_conditionals(): c1 value not constant, got [%s]", v1->tag->name);
+		return 0;
+	} else if (!constprop_isconst (v2)) {
+		nocc_warning ("occampi_snode_compare_conditionals(): c2 value not constant, got [%s]", v2->tag->name);
+		return 0;
+	}
+
+	i1 = constprop_intvalof (v1);
+	i2 = constprop_intvalof (v2);
+
+	return (i1 - i2);
+}
+/*}}}*/
+/*{{{  static int occampi_betrans_snode (compops_t *cops, tnode_t **nodep, betrans_t *be)*/
+/*
+ *	does back-end transformations for structured process nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_betrans_snode (compops_t *cops, tnode_t **nodep, betrans_t *be)
+{
+	tnode_t *n = *nodep;
+
+	if (n->tag == opi.tag_CASE) {
+		/*{{{  sort bodies into CASE value order*/
+		tnode_t *body = tnode_nthsubof (n, 1);
+
+		if (!parser_islistnode (body)) {
+			nocc_error ("occampi_betrans_snode(): body of CASE not list!");
+			return 0;
+		}
+
+		parser_sortlist (body, occampi_snode_compare_conditionals);
+		/*}}}*/
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_namemap_snode (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for structured process nodes
@@ -633,12 +703,16 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 		/*}}}*/
 	} else if (node->tag == opi.tag_CASE) {
 		/*{{{  CASE selection -- list of condition-process*/
+		tnode_t *selector = tnode_nthsubof (node, 0);
 		tnode_t *body = tnode_nthsubof (node, 1);
 		tnode_t **bodies;
+		tnode_t *ctype = tnode_nthsubof (node, 2);
 		int nbodies, i;
+		int tbllab = codegen_new_label (cgen);
 		int dfllab = codegen_new_label (cgen);
 		int joinlab = codegen_new_label (cgen);
 		int *blabs;
+		valueset_t *vset = NULL;
 
 		if (!parser_islistnode (body)) {
 			nocc_error ("occampi_codegen_snode(): body of CASE not list!");
@@ -646,14 +720,99 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 		}
 		bodies = parser_getlistitems (body, &nbodies);
 
+		/* create + initialise value-set we'll use */
+		vset = valueset_create ();
+
 		/* assign labels to bodies */
 		blabs = (int *)smalloc (nbodies * sizeof (int));
 		for (i=0; i<nbodies; i++) {
+			tnode_t *cond = bodies[i];
+			tnode_t *cval = tnode_nthsubof (cond, 0);
+			tnode_t *cnstval = NULL;
+			int cival;
+
+			if (cval) {
+				cnstval = cgen->target->be_getorgnode (cval);
+			}
+			if (!cnstval) {
+				nocc_error ("occampi_codegen_snode(): bad back-end value in CASE [%s]", cval->tag->name);
+				return 0;
+			} else if (!constprop_isconst (cnstval)) {
+				nocc_error ("occampi_codegen_snode(): non-constant value in CASE [%s]", cnstval->tag->name);
+				return 0;
+			}
+
+			cival = constprop_intvalof (cnstval);
+#if 0
+fprintf (stderr, "occampi_codegen_snode(): CASE: cival = %d, cval =\n", cival);
+tnode_dumptree (cval, 1, stderr);
+#endif
+
+			valueset_insert (vset, cival, cond);
+
 			blabs[i] = codegen_new_label (cgen);
-			tnode_setchook (bodies[i], branchlabelhook, (void *)(blabs[i]));
+			tnode_setchook (cond, branchlabelhook, (void *)(blabs[i]));
 		}
 
-		/* FIXME: generate jump-table or other suitable mechanisms */
+		if (valueset_decide (vset)) {
+			nocc_error ("occampi_codegen_snode(): failed to decide how to handle value-set!");
+			return 0;
+		}
+#if 1
+fprintf (stderr, "occampi_codegen_snode(): CASE: built value-set, got:\n");
+valueset_dumptree (vset, 1, stderr);
+fprintf (stderr, "occampi_codegen_snode(): CASE: selector is:\n");
+tnode_dumptree (selector, 1, stderr);
+#endif
+		switch (vset->strat) {
+		case STRAT_NONE:
+			nocc_error ("occampi_codegen_snode(): no strategy for value-set!");
+			return 0;
+		case STRAT_CHAIN:
+			/*{{{  use a series of tests*/
+			/* do range-check on the value first */
+			codegen_callops (cgen, loadname, selector, 0);
+			if (vset->v_base != 0) {
+				codegen_callops (cgen, loadconst, vset->v_base);
+				codegen_callops (cgen, tsecondary, I_DIFF);
+			}
+			codegen_callops (cgen, loadconst, vset->v_limit);
+			codegen_callops (cgen, branch, I_JCSUB0, dfllab);
+
+			for (i=0; i<DA_CUR (vset->values); i++) {
+				int lbl = (int)(tnode_getchook (DA_NTHITEM (vset->links, i), branchlabelhook));
+
+				codegen_callops (cgen, loadname, selector, 0);
+				codegen_callops (cgen, loadconst, DA_NTHITEM (vset->values, i));
+				codegen_callops (cgen, tsecondary, I_DIFF);
+				codegen_callops (cgen, branch, I_CJ, lbl);
+			}
+
+			/* then fall through default label */
+
+			/*}}}*/
+			break;
+		case STRAT_TABLE:
+			/*{{{  generate a jump-table, with range-check*/
+			codegen_callops (cgen, loadname, selector, 0);
+			if (vset->v_base != 0) {
+				codegen_callops (cgen, loadconst, vset->v_base);
+				codegen_callops (cgen, tsecondary, I_DIFF);
+			}
+			codegen_callops (cgen, loadconst, vset->v_limit);
+			codegen_callops (cgen, branch, I_JCSUB0, dfllab);
+
+			codegen_callops (cgen, setlabel, tbllab);
+			for (i=0; i<nbodies; i++) {
+				codegen_callops (cgen, constlabaddr, blabs[i]);
+			}
+
+			/*}}}*/
+			break;
+		case STRAT_HASH:
+			nocc_error ("occampi_codegen_snode(): don\'t handle hash strategy yet!");
+			return 0;
+		}
 
 		codegen_callops (cgen, setlabel, dfllab);
 		codegen_callops (cgen, tsecondary, I_SETERR);
@@ -666,6 +825,8 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 		}
 
 		codegen_callops (cgen, setlabel, joinlab);
+
+		valueset_free (vset);
 
 		/*}}}*/
 	}
@@ -887,6 +1048,7 @@ static int occampi_snode_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_snode));
 	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_snode));
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_snode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_snode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_snode));
 	tnd->ops = cops;

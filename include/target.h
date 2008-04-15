@@ -94,6 +94,8 @@ typedef struct TAG_target {
 	void (*inresult)(struct TAG_tnode **, struct TAG_map *);
 
 
+				/* extract the originating node associated with a back-end constant */
+	struct TAG_tnode *(*be_getorgnode)(struct TAG_tnode *);
 				/* return a pointer to the body within a back-end block */
 	struct TAG_tnode **(*be_blockbodyaddr)(struct TAG_tnode *);
 				/* back-end space requirements (node, wsh, wsl, vs, ms) */

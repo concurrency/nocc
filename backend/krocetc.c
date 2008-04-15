@@ -62,6 +62,7 @@ static tnode_t *krocetc_indexed_create (tnode_t *base, tnode_t *index, int isize
 static tnode_t *krocetc_blockref_create (tnode_t *block, tnode_t *body, map_t *mdata);
 static tnode_t *krocetc_result_create (tnode_t *expr, map_t *mdata);
 static void krocetc_inresult (tnode_t **nodep, map_t *mdata);
+static tnode_t *krocetc_be_getorgnode (tnode_t *node);
 static tnode_t **krocetc_be_blockbodyaddr (tnode_t *blk);
 static int krocetc_be_allocsize (tnode_t *node, int *pwsh, int *pwsl, int *pvs, int *pms);
 static int krocetc_be_typesize (tnode_t *node, int *typesize, int *indir);
@@ -131,6 +132,7 @@ target_t krocetc_target = {
 	newresult:	krocetc_result_create,
 	inresult:	krocetc_inresult,
 
+	be_getorgnode:		krocetc_be_getorgnode,
 	be_blockbodyaddr:	krocetc_be_blockbodyaddr,
 	be_allocsize:		krocetc_be_allocsize,
 	be_typesize:		krocetc_be_typesize,
@@ -187,6 +189,7 @@ typedef struct TAG_krocetc_consthook {
 	int size;
 	int label;
 	int labrefs;		/* number of references to the label */
+	tnode_t *orgnode;
 } krocetc_consthook_t;
 
 typedef struct TAG_krocetc_indexedhook {
@@ -427,8 +430,9 @@ static void krocetc_consthook_dumptree (tnode_t *node, void *hook, int indent, F
 	krocetc_consthook_t *ch = (krocetc_consthook_t *)hook;
 
 	krocetc_isetindent (stream, indent);
-	fprintf (stream, "<consthook addr=\"0x%8.8x\" data=\"0x%8.8x\" size=\"%d\" label=\"%d\" labrefs=\"%d\" />\n",
-			(unsigned int)ch, (unsigned int)ch->byteptr, ch->size, ch->label, ch->labrefs);
+	fprintf (stream, "<consthook addr=\"0x%8.8x\" data=\"0x%8.8x\" size=\"%d\" label=\"%d\" labrefs=\"%d\" orgnode=\"0x%8.8x\" orgnodetag=\"%s\" />\n",
+			(unsigned int)ch, (unsigned int)ch->byteptr, ch->size, ch->label, ch->labrefs,
+			(unsigned int)ch->orgnode, ch->orgnode ? ch->orgnode->tag->name : "");
 	return;
 }
 /*}}}*/
@@ -444,6 +448,7 @@ static krocetc_consthook_t *krocetc_consthook_create (void *ptr, int size)
 	ch->size = size;
 	ch->label = -1;
 	ch->labrefs = 0;
+	ch->orgnode = NULL;
 
 	return ch;
 }
@@ -812,6 +817,7 @@ static tnode_t *krocetc_const_create (tnode_t *val, map_t *mdata, void *data, in
 	tnode_t *cnst;
 
 	ch = krocetc_consthook_create (data, size);
+	ch->orgnode = val;
 	cnst = tnode_create (mdata->target->tag_CONST, NULL, val, (void *)ch);
 
 	return cnst;
@@ -1273,6 +1279,31 @@ fprintf (stderr, "krocetc_be_getblocksize(): called on BLOCKREF!\n");
 	}
 
 	return;
+}
+/*}}}*/
+/*{{{  static tnode_t *krocetc_be_getorgnode (tnode_t *node)*/
+/*
+ *	returns the originating node of a back-end constant (useful in specific code-gen)
+ *	returns NULL on failure or none
+ */
+static tnode_t *krocetc_be_getorgnode (tnode_t *node)
+{
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)krocetc_target.priv;
+
+	if (node->tag == krocetc_target.tag_CONST) {
+		krocetc_consthook_t *ch = (krocetc_consthook_t *)tnode_nthhookof (node, 0);
+
+		if (ch) {
+			return ch->orgnode;
+		}
+	} else if (node->tag == kpriv->tag_CONSTREF) {
+		krocetc_consthook_t *ch = (krocetc_consthook_t *)tnode_nthhookof (node, 0);
+
+		if (ch) {
+			return ch->orgnode;
+		}
+	}
+	return NULL;
 }
 /*}}}*/
 /*{{{  static tnode_t **krocetc_be_blockbodyaddr (tnode_t *blk)*/
@@ -3302,6 +3333,28 @@ static void krocetc_coder_loadlabaddr (codegen_t *cgen, int lbl)
 	return;
 }
 /*}}}*/
+/*{{{  static void krocetc_coder_constlabaddr (codegen_t *cgen, int lbl)*/
+/*
+ *	drops the constant address of a label
+ */
+static void krocetc_coder_constlabaddr (codegen_t *cgen, int lbl)
+{
+	codegen_write_fmt (cgen, ".labaddr\t%d\n", lbl);
+	krocetc_cgstate_tsdelta (cgen, 0);
+	return;
+}
+/*}}}*/
+/*{{{  static void krocetc_coder_constlabdiff (codegen_t *cgen, int lbl1, int lbl2)*/
+/*
+ *	drops the constant difference between two labels
+ */
+static void krocetc_coder_constlabdiff (codegen_t *cgen, int lbl1, int lbl2)
+{
+	codegen_write_fmt (cgen, ".labdiff\t%d %d\n", lbl1, lbl2);
+	krocetc_cgstate_tsdelta (cgen, 0);
+	return;
+}
+/*}}}*/
 /*{{{  static void krocetc_coder_branch (codegen_t *cgen, int ins, int lbl)*/
 /*
  *	generates a branch instruction
@@ -3317,6 +3370,10 @@ static void krocetc_coder_branch (codegen_t *cgen, int ins, int lbl)
 	case I_CJ:
 		codegen_write_fmt (cgen, "\tcj\t%d\n", lbl);
 		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+	case I_JCSUB0:
+		codegen_write_fmt (cgen, "\tjcsub0\t%d\n", lbl);
+		krocetc_cgstate_tsdelta (cgen, -2);
 		break;
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: branch %d\n", ins);
@@ -3445,6 +3502,8 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	cops->funcresults = krocetc_coder_funcresults;
 	cops->tsecondary = krocetc_coder_tsecondary;
 	cops->loadlabaddr = krocetc_coder_loadlabaddr;
+	cops->constlabaddr = krocetc_coder_constlabaddr;
+	cops->constlabdiff = krocetc_coder_constlabdiff;
 	cops->branch = krocetc_coder_branch;
 	cops->debugline = krocetc_coder_debugline;
 	cops->trashistack = krocetc_coder_trashistack;

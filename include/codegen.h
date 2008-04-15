@@ -93,6 +93,8 @@ typedef struct TAG_coderops {
 	void (*funcresults)(codegen_t *, int);
 	void (*tsecondary)(codegen_t *, int);
 	void (*loadlabaddr)(codegen_t *, int);
+	void (*constlabaddr)(codegen_t *, int);
+	void (*constlabdiff)(codegen_t *, int, int);
 	void (*branch)(codegen_t *, int, int);
 	void (*debugline)(codegen_t *, struct TAG_tnode *);
 	void (*trashistack)(codegen_t *);
