@@ -36,7 +36,7 @@
  */
 struct TAG_transinstr;
 
-#define TOTAL_KEYWORDS 97
+#define TOTAL_KEYWORDS 98
 #define MIN_WORD_LENGTH 1
 #define MAX_WORD_LENGTH 15
 #define MIN_HASH_VALUE 2
@@ -59,7 +59,7 @@ hash (register const char *str, register unsigned int len)
       174, 174, 174, 174, 174, 174, 174, 174, 174, 174,
       174, 174, 174, 174, 174, 174, 174, 174, 174, 174,
       174, 174, 174, 174, 174, 174, 174, 174, 174, 174,
-      174, 174, 174, 174, 174, 174, 174, 174,   0,  15,
+      174, 174, 174, 174, 174, 174, 174, 174,  45,  15,
         0,  10, 174, 174,  10, 174,  10, 174, 174, 174,
       174, 174, 174, 174, 174,  10,  25,  25,  10,   5,
        15,  35, 174,  60,  40,   5,   0,   5,  35,  80,
@@ -194,11 +194,11 @@ static const struct TAG_transinstr wordlist[] =
     {"OUT",		INS_SECONDARY,	I_OUT,		NULL},
     {"ENBC",		INS_SECONDARY,	I_ENBC,		NULL},
     {"MWDIS",		INS_SECONDARY,	I_MWDIS,	NULL},
-    {"JCSUB0",		INS_PRIMARY,	I_JCSUB0,	NULL},
+    {"JTABLE",		INS_PRIMARY,	I_JTABLE,	NULL},
     {"MWS_PBENROLL",	INS_SECONDARY,	I_MWS_PBENROLL,	NULL},
     {"MWS_PBADJSYNC",	INS_SECONDARY,	I_MWS_PBADJSYNC,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {"CSUB0",		INS_SECONDARY,	I_CSUB0,	NULL},
+    {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"MWS_PBRULNK",	INS_SECONDARY,	I_MWS_PBRULNK,	NULL},
     {"MWS_PBRESIGN",	INS_SECONDARY,	I_MWS_PBRESIGN,	NULL},
     {"MWS_ALTUNLOCK",	INS_SECONDARY,	I_MWS_ALTUNLOCK,NULL},
@@ -239,11 +239,11 @@ static const struct TAG_transinstr wordlist[] =
     {"REV",		INS_SECONDARY,	I_REV,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"IOW32",		INS_SECONDARY,	I_IOW32,	NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"JCSUB0",		INS_PRIMARY,	I_JCSUB0,	NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {"IOR",		INS_SECONDARY,	I_IOR,		NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
-    {(char*)0,INS_INVALID,I_INVALID,NULL},
+    {"CSUB0",		INS_SECONDARY,	I_CSUB0,	NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},
     {(char*)0,INS_INVALID,I_INVALID,NULL},

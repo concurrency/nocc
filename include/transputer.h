@@ -127,7 +127,8 @@ typedef enum ENUM_transinstr {
 	I_ENBC2 = 106,
 	I_ENBT2 = 107,
 	I_ENBS2 = 108,
-	I_JCSUB0 = 109
+	I_JCSUB0 = 109,
+	I_JTABLE = 110
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {

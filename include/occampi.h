@@ -128,6 +128,7 @@ typedef struct {
 	struct TAG_ntdef *tag_REPLALT;
 	struct TAG_ntdef *tag_CASE;
 	struct TAG_ntdef *tag_CONDITIONAL;
+	struct TAG_ntdef *tag_ELSE;
 	struct TAG_ntdef *tag_VALOF;
 	struct TAG_ntdef *tag_ASM;
 	struct TAG_ntdef *tag_ASMOP;

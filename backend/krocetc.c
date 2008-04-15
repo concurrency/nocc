@@ -3375,6 +3375,10 @@ static void krocetc_coder_branch (codegen_t *cgen, int ins, int lbl)
 		codegen_write_fmt (cgen, "\tjcsub0\t%d\n", lbl);
 		krocetc_cgstate_tsdelta (cgen, -2);
 		break;
+	case I_JTABLE:
+		codegen_write_fmt (cgen, "\tjtable\t%d\n", lbl);
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: branch %d\n", ins);
 		break;

@@ -400,14 +400,20 @@ static int occampi_typecheck_snode (compops_t *cops, tnode_t *node, typecheck_t 
 				nocc_error ("occampi_typecheck_snode(): item not CONDITIONAL! (was [%s])", items[i]->tag->name);
 				return 0;
 			} else if (items[i]) {
-				tnode_t *ctype = NULL;
+				tnode_t *cval = tnode_nthsubof (items[i], 0);
 
-				typecheck_subtree (tnode_nthsubof (items[i], 0), tc);		/* check constant case */
-				typecheck_subtree (tnode_nthsubof (items[i], 1), tc);		/* check process */
+				if (cval->tag == opi.tag_ELSE) {
+					/* no value */
+				} else {
+					tnode_t *ctype = NULL;
 
-				ctype = typecheck_gettype (tnode_nthsubof (items[i], 0), definttype);
-				if (!ctype || !typecheck_typeactual (definttype, ctype, items[i], tc)) {
-					typecheck_error (items[i], tc, "case constant is non-integer");
+					typecheck_subtree (cval, tc);					/* check constant case */
+					typecheck_subtree (tnode_nthsubof (items[i], 1), tc);		/* check process */
+
+					ctype = typecheck_gettype (tnode_nthsubof (items[i], 0), definttype);
+					if (!ctype || !typecheck_typeactual (definttype, ctype, items[i], tc)) {
+						typecheck_error (items[i], tc, "case constant is non-integer");
+					}
 				}
 			}
 		}
@@ -432,9 +438,23 @@ static int occampi_typecheck_snode (compops_t *cops, tnode_t *node, typecheck_t 
 				nocc_error ("occampi_typecheck_snode(): item not CONDITIONAL! (was [%s])", items[i]->tag->name);
 				return 0;
 			} else if (items[i]) {
+				tnode_t **cvalp = tnode_nthsubaddr (items[i], 0);
 				tnode_t *ctype = NULL;
 
-				typecheck_subtree (tnode_nthsubof (items[i], 0), tc);		/* check condition */
+				if ((*cvalp)->tag == opi.tag_ELSE) {
+					/* leaf-type ELSE, not an error, replace with TRUE */
+					tnode_t *newnode;
+
+					typecheck_warning (items[i], tc, "ELSE in IF statement should be expressed with TRUE");
+					newnode = occampi_makelitbool (NULL, 1);
+					newnode->org_file = (*cvalp)->org_file;
+					newnode->org_line = (*cvalp)->org_line;
+
+					tnode_free (*cvalp);
+					*cvalp = newnode;
+				}
+
+				typecheck_subtree (*cvalp, tc);					/* check condition */
 				typecheck_subtree (tnode_nthsubof (items[i], 1), tc);		/* check process */
 
 				ctype = typecheck_gettype (tnode_nthsubof (items[i], 0), definttype);
@@ -802,6 +822,14 @@ tnode_dumptree (selector, 1, stderr);
 			codegen_callops (cgen, loadconst, vset->v_limit);
 			codegen_callops (cgen, branch, I_JCSUB0, dfllab);
 
+			/* load and adjust selector */
+			codegen_callops (cgen, loadname, selector, 0);
+			if (vset->v_base != 0) {
+				codegen_callops (cgen, loadconst, vset->v_base);
+				codegen_callops (cgen, tsecondary, I_DIFF);
+			}
+			codegen_callops (cgen, branch, I_JTABLE, tbllab);
+
 			codegen_callops (cgen, setlabel, tbllab);
 			for (i=0; i<nbodies; i++) {
 				codegen_callops (cgen, constlabaddr, blabs[i]);
@@ -1120,6 +1148,18 @@ static int occampi_snode_init_nodes (void)
 	opi.tag_INPUTGUARD = tnode_newnodetag ("INPUTGUARD", &i, tnd, NTF_INDENTED_PROC);
 	i = -1;
 	opi.tag_TIMERGUARD = tnode_newnodetag ("TIMERGUARD", &i, tnd, NTF_INDENTED_PROC);
+
+	/*}}}*/
+
+	/*{{{  occampi:leafnode -- ELSE*/
+	tnd = tnode_lookupnodetype ("occampi:leafnode");
+	if (!tnd) {
+		nocc_error ("occampi_snode_init_nodes(): failed to find occampi:leafnode node-type");
+		return -1;
+	}
+
+	i = -1;
+	opi.tag_ELSE = tnode_newnodetag ("ELSE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

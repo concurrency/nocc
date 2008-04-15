@@ -1,0 +1,12 @@
+
+-- test_n85.occ -- testing ELSE in CASE structures
+
+PROC test.n85 ()
+  INT i:
+  CASE i
+    0
+      SKIP
+    ELSE
+      STOP
+:
+
