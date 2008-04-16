@@ -256,7 +256,7 @@ static int occampi_cnode_dousagecheck (langops_t *lops, tnode_t *node, uchk_stat
 		usagecheck_begin_branches (node, ucstate);
 
 		bodies = parser_getlistitems (body, &nbodies);
-#if 1
+#if 0
 nocc_message ("occampi_cnode_dousagecheck(): there are %d PAR bodies", nbodies);
 #endif
 		for (i=0; i<nbodies; i++) {
@@ -527,6 +527,7 @@ static int occampi_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cge
 
 		bodies = parser_getlistitems (body, &nbodies);
 		/*{{{  PAR setup*/
+		codegen_callops (cgen, debugline, node);
 		codegen_callops (cgen, comment, "BEGIN PAR SETUP");
 		for (i=0; i<nbodies; i++) {
 			int ws_size, vs_size, ms_size;
@@ -554,10 +555,10 @@ static int occampi_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cge
 			pp_wsoffs -= ws_size;
 		}
 		/*{{{  setup local PAR workspace*/
-		codegen_callops (cgen, loadconst, nbodies + 1);		/* par-count */
-		codegen_callops (cgen, storename, parspaceref, 4);
-		codegen_callops (cgen, loadconst, 0);			/* priority */
+		codegen_callops (cgen, tsecondary, I_GETPAS);		/* priority and affinity */
 		codegen_callops (cgen, storename, parspaceref, 8);
+		codegen_callops (cgen, loadconst, nbodies);		/* par-count */
+		codegen_callops (cgen, storename, parspaceref, 4);
 		codegen_callops (cgen, loadlabaddr, joinlab);		/* join-lab */
 		codegen_callops (cgen, storename, parspaceref, 0);
 		/*}}}*/
@@ -569,19 +570,28 @@ static int occampi_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cge
 			codegen_check_beblock (bodies[i], cgen, 1);
 			cgen->target->be_getblocksize (bodies[i], &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
 
-			/*{{{  start PAR process*/
-			codegen_callops (cgen, loadlabaddr, elab);
-			codegen_callops (cgen, loadlocalpointer, pp_wsoffs - adjust);
-			codegen_callops (cgen, tsecondary, I_STARTP);
-			/*}}}*/
+			/* don't start the first process, but keep track of where it is */
+			if (i > 0) {
+				/*{{{  start PAR process*/
+				codegen_callops (cgen, loadlabaddr, elab);
+				codegen_callops (cgen, loadlocalpointer, pp_wsoffs - adjust);		/* XXX: check this! */
+				codegen_callops (cgen, tsecondary, I_STARTP);
+				/*}}}*/
+			}
 
 			pp_wsoffs -= ws_size;
 		}
 		codegen_callops (cgen, comment, "END PAR SETUP");
 		/*}}}*/
-		/*{{{  end process doing PAR*/
-		codegen_callops (cgen, loadpointer, parspaceref, 0);
-		codegen_callops (cgen, tsecondary, I_ENDP);
+		/*{{{  process doing PAR becomes the first process*/
+		if (nbodies > 0) {
+			int ws_size, vs_size, ms_size;
+			int ws_offset, adjust, elab;
+
+			cgen->target->be_getblocksize (bodies[0], &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
+			codegen_callops (cgen, wsadjust, adjust);			/* XXX: check this! */
+			codegen_callops (cgen, branch, I_J, elab);
+		}
 		/*}}}*/
 		pp_wsoffs = 0;
 		for (i=0; i<nbodies; i++) {

@@ -2929,6 +2929,24 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		krocetc_cgstate_tsdelta (cgen, 1);
 		break;
 		/*}}}*/
+		/*{{{  GETAFF: get affinity*/
+	case I_GETAFF:
+		codegen_write_string (cgen, "\tgetaff\n");
+		krocetc_cgstate_tsdelta (cgen, 1);
+		break;
+		/*}}}*/
+		/*{{{  SETAFF: set affinity*/
+	case I_SETAFF:
+		codegen_write_string (cgen, "\tsetaff\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  GETPAS: get priority and affinity*/
+	case I_GETPAS:
+		codegen_write_string (cgen, "\tgetpas\n");
+		krocetc_cgstate_tsdelta (cgen, 1);
+		break;
+		/*}}}*/
 		/*{{{  POP: remove element from stack*/
 	case I_POP:
 		codegen_write_string (cgen, "\tpop\n");
