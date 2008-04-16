@@ -1,0 +1,13 @@
+
+-- test_n87.occ -- tests
+
+PROC test.n87 ()
+  CHAN INT c:
+  PAR
+    c ! 42
+    INT i:
+    SEQ
+      c ? i
+:
+
+

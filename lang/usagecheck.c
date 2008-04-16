@@ -376,11 +376,62 @@ fprintf (stderr, "uchk_prewalk_tree(): [%s]\n", node->tag->name);
  */
 static int uchk_prewalk_cleantree (tnode_t *node, void *data)
 {
-	uchk_taghook_t *thook = (uchk_taghook_t *)tnode_getchook (node, uchk_taghook);
+	/* NOTE: don't clean up USAGE nodes, this gets done in the post-usage-check pass */
+	if (node->tag != uchk_tag_USAGE) {
+		uchk_taghook_t *thook = (uchk_taghook_t *)tnode_getchook (node, uchk_taghook);
 
-	if (thook) {
-		sfree (thook);
-		tnode_clearchook (node, uchk_taghook);
+		if (thook) {
+			sfree (thook);
+			tnode_clearchook (node, uchk_taghook);
+		}
+	}
+	return 1;
+}
+/*}}}*/
+
+/*{{{  static int puchk_modprewalk_tree (tnode_t **tptr, void *data)*/
+/*
+ *	called to do post-usage-checks on tree ndoes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int puchk_modprewalk_tree (tnode_t **tptr, void *data)
+{
+	int result = 1;
+
+	if (!tptr) {
+		nocc_internal ("puchk_modprewalk_tree(): NULL pointer!");
+		return 0;
+	}
+	if (!*tptr) {
+		nocc_internal ("puchk_modprewalk_tree(): NULL tree!");
+		return 0;
+	}
+
+	if ((*tptr)->tag->ndef->ops && tnode_hascompop_i ((*tptr)->tag->ndef->ops, (int)COPS_POSTUSAGECHECK)) {
+		result = tnode_callcompop_i ((*tptr)->tag->ndef->ops, (int)COPS_POSTUSAGECHECK, 1, tptr);
+	}
+
+	return result;
+}
+/*}}}*/
+
+
+/*{{{  static int occampi_postusagecheck_usagechecknode (compops_t *cops, tnode_t **nodep)*/
+/*
+ *	does post-usage-checks on a usage-check node (removes these)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_postusagecheck_usagechecknode (compops_t *cops, tnode_t **nodep)
+{
+	if ((*nodep)->tag == uchk_tag_USAGE) {
+		tnode_t *next = tnode_nthsubof (*nodep, 0);
+
+		tnode_setnthsub (*nodep, 0, NULL);
+		tnode_free (*nodep);
+		*nodep = next;
+
+		postusagecheck_subtree (nodep);
+		return 0;
 	}
 	return 1;
 }
@@ -403,8 +454,9 @@ int usagecheck_init (void)
 	i = -1;
 	tnd = tnode_newnodetype ("nocc:usagechecknode", &i, 1, 0, 0, TNF_TRANSPARENT);
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "postusagecheck", 1, COMPOPTYPE (occampi_postusagecheck_usagechecknode));
 	tnd->ops = cops;
-	lops = tnode_newlangops ();
+	lops = tnode_newlangops_passthrough ();			/* skip through these nodes for language-operations */
 	tnd->lops = lops;
 
 	i = -1;
@@ -515,8 +567,12 @@ int usagecheck_addname (tnode_t *node, uchk_state_t *ucstate, uchk_mode_t mode)
 	uchk_chook_set_t *ucset;
 	int i;
 
-#if 0
-	nocc_message ("usagecheck_addname(): allocating [%s,%s] with mode 0x%x", node->tag->name, node->tag->ndef->name, (int)mode);
+	if (node->tag == uchk_tag_USAGE) {
+		node = tnode_nthsubof (node, 0);
+	}
+
+#if 1
+nocc_message ("usagecheck_addname(): allocating [%s,%s] with mode 0x%x", node->tag->name, node->tag->ndef->name, (int)mode);
 #endif
 	if ((ucstate->ucptr < 0) || (ucstate->ucptr >= DA_CUR (ucstate->ucstack)) || (ucstate->ucptr >= DA_CUR (ucstate->setptrs))) {
 		nocc_internal ("usagecheck_addname(): [%s]: ucstate->ucptr=%d, DA_CUR(ucstack)=%d, DA_CUR(setptrs)=%d", node->tag->name, ucstate->ucptr, DA_CUR (ucstate->ucstack), DA_CUR (ucstate->setptrs));
@@ -856,6 +912,29 @@ int usagecheck_tree (tnode_t *tree, langparser_t *lang)
 	tnode_prewalktree (tree, uchk_prewalk_cleantree, NULL);
 
 	return res;
+}
+/*}}}*/
+
+/*{{{  int postusagecheck_subtree (tnode_t **nodep)*/
+/*
+ *	does post-usage-checks on a sub-tree
+ *	returns 0 on success, non-zero on failure
+ */
+int postusagecheck_subtree (tnode_t **nodep)
+{
+	tnode_modprewalktree (nodep, puchk_modprewalk_tree, NULL);
+	return 0;
+}
+/*}}}*/
+/*{{{  int postusagecheck_tree (tnode_t **tptr)*/
+/*
+ *	does post-usage-checks on the given tree
+ *	returns 0 on success, non-zero on failure
+ */
+int postusagecheck_tree (tnode_t **tptr)
+{
+	tnode_modprewalktree (tptr, puchk_modprewalk_tree, NULL);
+	return 0;
 }
 /*}}}*/
 

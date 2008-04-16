@@ -115,6 +115,11 @@ int langops_isconst (tnode_t *node)
 {
 	int r = 0;
 
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through this node */
+		node = tnode_nthsubof (node, 0);
+	}
+
 	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_ISCONST)) {
 		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_ISCONST, 1, node);
 	}
@@ -134,6 +139,11 @@ int langops_constvalof (tnode_t *node, void *ptr)
 {
 	int r = 0;
 
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through this node */
+		node = tnode_nthsubof (node, 0);
+	}
+
 	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_CONSTVALOF)) {
 		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_CONSTVALOF, 2, node, ptr);
 	} else {
@@ -150,6 +160,11 @@ int langops_constvalof (tnode_t *node, void *ptr)
 int langops_valbyref (tnode_t *node)
 {
 	int r = 0;
+
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through this node */
+		node = tnode_nthsubof (node, 0);
+	}
 
 	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_VALBYREF)) {
 		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_VALBYREF, 1, node);
@@ -183,6 +198,11 @@ int langops_iscomplex (tnode_t *node, int deep)
 {
 	int r = -1;
 
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through this node */
+		node = tnode_nthsubof (node, 0);
+	}
+
 	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_ISCOMPLEX)) {
 		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_ISCOMPLEX, 2, node, deep);
 	} else if (node && deep) {
@@ -199,6 +219,11 @@ int langops_iscomplex (tnode_t *node, int deep)
 int langops_isvar (tnode_t *node)
 {
 	int r = 0;
+
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through this node */
+		node = tnode_nthsubof (node, 0);
+	}
 
 	if (parser_islistnode (node)) {
 		/* special case: list is l-value if all items are l-values */
@@ -243,6 +268,11 @@ tnode_t *langops_retypeconst (tnode_t *node, tnode_t *type)
 tnode_t *langops_dimtreeof (tnode_t *node)
 {
 	tnode_t *dt = NULL;
+
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through this node */
+		node = tnode_nthsubof (node, 0);
+	}
 
 	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_DIMTREEOF)) {
 		dt = (tnode_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_DIMTREEOF, 1, node);
@@ -327,6 +357,11 @@ int langops_typehash_blend (const int dsize, void *dptr, const int ssize, void *
  */
 tnode_t *langops_getbasename (tnode_t *node)
 {
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through this node */
+		node = tnode_nthsubof (node, 0);
+	}
+
 	if (!node || !node->tag->ndef->lops || !tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GETBASENAME)) {
 		return NULL;
 	}
@@ -343,6 +378,11 @@ tnode_t *langops_getbasename (tnode_t *node)
  */
 tnode_t *langops_getfieldname (tnode_t *node)
 {
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through this node */
+		node = tnode_nthsubof (node, 0);
+	}
+
 	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GETFIELDNAME)) {
 		return (tnode_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GETFIELDNAME, 1, node);
 	}
@@ -357,6 +397,11 @@ tnode_t *langops_getfieldname (tnode_t *node)
 tnode_t *langops_getfieldnamelist (tnode_t *node)
 {
 	tnode_t *xlist = parser_newlistnode (NULL);
+
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through this node */
+		node = tnode_nthsubof (node, 0);
+	}
 
 	while (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GETFIELDNAME)) {
 		tnode_t *field = (tnode_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GETFIELDNAME, 1, node);
@@ -384,6 +429,11 @@ fprintf (stderr, "langops_getfieldnamelist(): got field at 0x%8.8x\n", (unsigned
  */
 int langops_iscommunicable (tnode_t *node)
 {
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through this node */
+		node = tnode_nthsubof (node, 0);
+	}
+
 	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_ISCOMMUNICABLE)) {
 		return tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_ISCOMMUNICABLE, 1, node);
 	}

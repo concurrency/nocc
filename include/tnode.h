@@ -121,17 +121,18 @@ typedef enum ENUM_compops {
 	COPS_CONSTPROP = 5,			/* 1: tnode_t ** -> int */
 	COPS_TYPERESOLVE = 6,			/* 2: tnode_t **, typecheck_t * -> int */
 	COPS_PRECHECK = 7,			/* 1: tnode_t * -> int */
-	COPS_TRACESCHECK = 8,			/* 2: tnode_t *, tchk_state_t * -> int */
-	COPS_MOBILITYCHECK = 9,			/* 2: tnode_t *, mchk_state_t * -> int */
-	COPS_POSTCHECK = 10,			/* 2: tnode_t **, postcheck_t * -> int */
-	COPS_FETRANS = 11,			/* 2: tnode_t **, fetrans_t * -> int */
-	COPS_BETRANS = 12,			/* 2: tnode_t **, betrans_t * -> int */
-	COPS_PREMAP = 13,			/* 2: tnode_t **, map_t * -> int */
-	COPS_NAMEMAP = 14,			/* 2: tnode_t **, map_t * -> int */
-	COPS_BEMAP = 15,			/* 2: tnode_t **, map_t * -> int */
-	COPS_PREALLOCATE = 16,			/* 2: tnode_t *, target_t * -> int */
-	COPS_PRECODE = 17,			/* 2: tnode_t **, codegen_t * -> int */
-	COPS_CODEGEN = 18,			/* 2: tnode_t *, codegen_t * -> int */
+	COPS_POSTUSAGECHECK = 8,		/* 1: tnode_t ** -> int */
+	COPS_TRACESCHECK = 9,			/* 2: tnode_t *, tchk_state_t * -> int */
+	COPS_MOBILITYCHECK = 10,		/* 2: tnode_t *, mchk_state_t * -> int */
+	COPS_POSTCHECK = 11,			/* 2: tnode_t **, postcheck_t * -> int */
+	COPS_FETRANS = 12,			/* 2: tnode_t **, fetrans_t * -> int */
+	COPS_BETRANS = 13,			/* 2: tnode_t **, betrans_t * -> int */
+	COPS_PREMAP = 14,			/* 2: tnode_t **, map_t * -> int */
+	COPS_NAMEMAP = 15,			/* 2: tnode_t **, map_t * -> int */
+	COPS_BEMAP = 16,			/* 2: tnode_t **, map_t * -> int */
+	COPS_PREALLOCATE = 17,			/* 2: tnode_t *, target_t * -> int */
+	COPS_PRECODE = 18,			/* 2: tnode_t **, codegen_t * -> int */
+	COPS_CODEGEN = 19,			/* 2: tnode_t *, codegen_t * -> int */
 	COPS_MAX = 256
 } compops_e;
 
@@ -151,6 +152,7 @@ typedef struct TAG_compop {
 typedef struct TAG_compops {
 	struct TAG_compops *next;
 	DYNARRAY (void *, opfuncs);
+	int passthrough;
 } compops_t;
 
 
@@ -210,6 +212,7 @@ typedef struct TAG_langop {
 typedef struct TAG_langops {
 	struct TAG_langops *next;
 	DYNARRAY (void *, opfuncs);
+	int passthrough;
 } langops_t;
 
 /*}}}*/
@@ -301,11 +304,13 @@ extern langop_t *tnode_findlangop (char *name);
 #define LANGOPTYPE(X) ((int (*)(langops_t *, ...))(X))
 
 extern compops_t *tnode_newcompops (void);
+extern compops_t *tnode_newcompops_passthrough (void);
 extern void tnode_freecompops (compops_t *cops);
 extern compops_t *tnode_insertcompops (compops_t *nextcops);
 extern compops_t *tnode_removecompops (compops_t *cops);
 
 extern langops_t *tnode_newlangops (void);
+extern langops_t *tnode_newlangops_passthrough (void);
 extern void tnode_freelangops (langops_t *lops);
 extern langops_t *tnode_insertlangops (langops_t *nextlops);
 extern langops_t *tnode_removelangops (langops_t *lops);

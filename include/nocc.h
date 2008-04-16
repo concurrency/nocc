@@ -54,6 +54,7 @@ typedef struct TAG_compopts {
 	struct TAG_cmd_option *dohelp;
 	int doaliascheck;
 	int dousagecheck;
+	int dopostusagecheck;
 	int dodefcheck;
 	int dotracescheck;
 	int domobilitycheck;

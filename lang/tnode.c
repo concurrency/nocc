@@ -409,6 +409,7 @@ int tnode_init (void)
 	tnode_newcompop ("constprop", COPS_CONSTPROP, 1, INTERNAL_ORIGIN);
 	tnode_newcompop ("typeresolve", COPS_TYPERESOLVE, 2, INTERNAL_ORIGIN);
 	tnode_newcompop ("precheck", COPS_PRECHECK, 1, INTERNAL_ORIGIN);
+	tnode_newcompop ("postusagecheck", COPS_POSTUSAGECHECK, 1, INTERNAL_ORIGIN);
 	tnode_newcompop ("tracescheck", COPS_TRACESCHECK, 2, INTERNAL_ORIGIN);
 	tnode_newcompop ("mobilitycheck", COPS_MOBILITYCHECK, 2, INTERNAL_ORIGIN);
 	tnode_newcompop ("postcheck", COPS_POSTCHECK, 2, INTERNAL_ORIGIN);
@@ -1625,11 +1626,25 @@ compops_t *tnode_newcompops (void)
 	int i;
 
 	cops->next = NULL;
+	cops->passthrough = 0;
 	dynarray_init (cops->opfuncs);
 	dynarray_setsize (cops->opfuncs, DA_CUR (acompops) + 1);
 	for (i=0; i<DA_CUR (cops->opfuncs); i++) {
 		DA_SETNTHITEM (cops->opfuncs, i, NULL);
 	}
+
+	return cops;
+}
+/*}}}*/
+/*{{{  compops_t *tnode_newcompops_passthrough (void)*/
+/*
+ *	creates a new pass-through compops_t structure
+ */
+compops_t *tnode_newcompops_passthrough (void)
+{
+	compops_t *cops = tnode_newcompops ();
+
+	cops->passthrough = 1;
 
 	return cops;
 }
@@ -2109,11 +2124,25 @@ langops_t *tnode_newlangops (void)
 	int i;
 
 	lops->next = NULL;
+	lops->passthrough = 0;
 	dynarray_init (lops->opfuncs);
 	dynarray_setsize (lops->opfuncs, DA_CUR (alangops) + 1);
 	for (i=0; i<DA_CUR (lops->opfuncs); i++) {
 		DA_SETNTHITEM (lops->opfuncs, i, NULL);
 	}
+
+	return lops;
+}
+/*}}}*/
+/*{{{  langops_t *tnode_newlangops_passthrough (void)*/
+/*
+ *	creates a new pass-through langops_t structure
+ */
+langops_t *tnode_newlangops_passthrough (void)
+{
+	langops_t *lops = tnode_newlangops ();
+
+	lops->passthrough = 1;
 
 	return lops;
 }

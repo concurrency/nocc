@@ -63,6 +63,10 @@ extern void usagecheck_endbranch (uchk_state_t *ucstate);
 extern int usagecheck_subtree (struct TAG_tnode *node, uchk_state_t *ucstate);
 extern int usagecheck_tree (struct TAG_tnode *tree, struct TAG_langparser *lang);
 
+extern int postusagecheck_subtree (struct TAG_tnode **nodep);
+extern int postusagecheck_tree (struct TAG_tnode **tptr);
+
+
 extern int usagecheck_marknode (struct TAG_tnode **nodep, uchk_mode_t mode, int do_nested);
 
 

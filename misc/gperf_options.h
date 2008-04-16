@@ -1,4 +1,4 @@
-/* ANSI-C code produced by gperf version 3.0.2 */
+/* ANSI-C code produced by gperf version 3.0.3 */
 /* Command-line: /usr/bin/gperf  */
 /* Computed positions: -k'2,6,9' */
 
@@ -35,9 +35,9 @@
  */
 struct TAG_cmd_option;
 
-#define TOTAL_KEYWORDS 69
+#define TOTAL_KEYWORDS 70
 #define MIN_WORD_LENGTH 3
-#define MAX_WORD_LENGTH 18
+#define MAX_WORD_LENGTH 19
 #define MIN_HASH_VALUE 4
 #define MAX_HASH_VALUE 142
 /* maximum key range = 139, duplicates = 0 */
@@ -64,7 +64,7 @@ hash (register const char *str, register unsigned int len)
       143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
       143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
       143, 143, 143, 143, 143, 143, 143,   5,   0,  30,
-       20,   5,  30,  10,  30,  80,   5,  35,  35,   0,
+       20,   5,  30,  10,  35,  80,   5,  35,  35,   0,
        25,  65,  20,   0,  25,  55,   0,   0,  25, 143,
         0, 143, 143, 143, 143, 143, 143, 143, 143, 143,
       143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
@@ -117,20 +117,20 @@ static const struct TAG_cmd_option wordlist[] =
     {"help",			'h',	opt_do_help_flag,	NULL,				"0display standard usage information",			0},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"stop-betrans",		'\0',	opt_setstopflag,	(void *)16,			"1stop after back-end tree transform",			115},
+    {"stop-betrans",		'\0',	opt_setstopflag,	(void *)17,			"1stop after back-end tree transform",			116},
     {"segfault",		'\0',	opt_setintflag,		&(compopts.fatalsegv),		"1cause segfault on fatal error",			303},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"stop-alloc",		'\0',	opt_setstopflag,	(void *)19,			"1stop after variable allocation",			118},
+    {"stop-alloc",		'\0',	opt_setstopflag,	(void *)20,			"1stop after variable allocation",			119},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"debug-parser",		'\0',	opt_setintflag,		&(compopts.debugparser),	"1debug parser",					252},
     {"dump-tracemem",		'\0',	opt_setintflag,		&(compopts.dumptracemem),	"1display left-over memory blocks (if compiled)",	450},
     {"dump-tree",		'\0',	opt_setintflag,		&(compopts.dumptree),		"1print parse tree",					3},
     {"stop-token",		'\0',	opt_setstopflag,	(void *)1,			"1stop after tokenise (and print tokens)",		100},
-    {"stop-tracescheck",	'\0',	opt_setstopflag,	(void *)12,			"1stop after traces check",				111},
+    {"stop-tracescheck",	'\0',	opt_setstopflag,	(void *)13,			"1stop after traces check",				112},
     {"dump-tree-to",		'\0',	opt_setstr,		&(compopts.dumptreeto),		"1print parse tree to file",				4},
     {"gdb",			'\0',	opt_setintflag,		&(compopts.fatalgdb),		"1launch GDB on fatal error",				302},
     {"stop-typecheck",		'\0',	opt_setstopflag,	(void *)5,			"1stop after type check",				104},
-    {"stop-undefcheck",	'\0',	opt_setstopflag,	(void *)11,			"1stop after undefined-usage check",			110},
+    {"stop-undefcheck",	'\0',	opt_setstopflag,	(void *)12,			"1stop after undefined-usage check",			111},
     {"stop-typeresolve",	'\0',	opt_setstopflag,	(void *)7,			"1stop after type resolve",				106},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"save-all-dfas",		'\0',	opt_setstr,		&(compopts.savealldfas),	"1save all DFAs to file",				51},
@@ -147,34 +147,34 @@ static const struct TAG_cmd_option wordlist[] =
     {"dump-fcns",		'\0',	opt_setintflag,		&(compopts.dumpfcns),		"1print registered functions",				11},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"dump-chooks",		'\0',	opt_setintflag,		&(compopts.dumpchooks),		"1print compiler hooks",				18},
-    {"stop-fetrans",		'\0',	opt_setstopflag,	(void *)15,			"1stop after front-end tree transform",			114},
+    {"stop-fetrans",		'\0',	opt_setstopflag,	(void *)16,			"1stop after front-end tree transform",			115},
     {"help-ful",		'\0',	opt_do_help_flag,	NULL,				"1display full usage information",			1},
     {"stop-constprop",		'\0',	opt_setstopflag,	(void *)6,			"1stop after constant propagation",			105},
     {"dump-names",		'\0',	opt_setintflag,		&(compopts.dumpnames),		"1print names after scope",				12},
     {"dump-grules",		'\0',	opt_setintflag,		&(compopts.dumpgrules),		"1print generic reduction rules after parser init",	9},
-    {"stop-namemap",		'\0',	opt_setstopflag,	(void *)17,			"1stop after name-map",					116},
+    {"stop-namemap",		'\0',	opt_setstopflag,	(void *)18,			"1stop after name-map",					117},
     {"trace-precode",		'\0',	opt_setintflag,		&(compopts.traceprecode),	"1trace pre-code (debugging)",				203},
     {"dump-nodetypes",		'\0',	opt_setintflag,		&(compopts.dumpnodetypes),	"1print node types after initialisation",		15},
     {"stop-aliascheck",	'\0',	opt_setstopflag,	(void *)9,			"1stop after alias check",				108},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"stop-codegen",		'\0',	opt_setstopflag,	(void *)20,			"1stop after code-generation",				119},
-    {"stop-mobilitycheck",	'\0',	opt_setstopflag,	(void *)13,			"1stop after mobility check",				112},
+    {"stop-codegen",		'\0',	opt_setstopflag,	(void *)21,			"1stop after code-generation",				120},
+    {"stop-mobilitycheck",	'\0',	opt_setstopflag,	(void *)14,			"1stop after mobility check",				113},
     {"save-named-dfa",		'\0',	opt_setsaveopt,		(void *)1,			"1save named DFA to file",				50},
     {"specs-file",		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				304},
     {"dump-lexers",		'\0',	opt_setintflag,		&(compopts.dumplexers),		"1print registered languages (lexers)",			7},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"trace-langops",		'\0',	opt_setstr,		&(compopts.tracelangops),	"1trace language operations (debugging)",		205},
-    {"stop-postcheck",		'\0',	opt_setstopflag,	(void *)14,			"1stop after post-check",				113},
+    {"stop-postcheck",		'\0',	opt_setstopflag,	(void *)15,			"1stop after post-check",				114},
     {"trace-constprop",	'\0',	opt_setintflag,		&(compopts.traceconstprop),	"1trace constant-propagation (debugging)",		202},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"stop-prealloc",		'\0',	opt_setstopflag,	(void *)18,			"1stop after pre-allocation",				117},
-    {"treecheck",		'\0',	opt_setintflag,		&(compopts.treecheck),		"1enable run-time parse tree checking",			250},
+    {"stop-prealloc",		'\0',	opt_setstopflag,	(void *)19,			"1stop after pre-allocation",				118},
+    {"stop-postusagecheck",	'\0',	opt_setstopflag,	(void *)11,			"1stop after post-usage check",				110},
     {"trace-typecheck",	'\0',	opt_setintflag,		&(compopts.tracetypecheck),	"1trace type-check (debugging)",			201},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"verbose",		'v',	opt_setintflag,		&(compopts.verbose),		"0verbose compilation",					251},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {"treecheck",		'\0',	opt_setintflag,		&(compopts.treecheck),		"1enable run-time parse tree checking",			250},
     {"dump-specs",		'\0',	opt_setintflag,		&(compopts.dumpspecs),		"1print compiler specs",				2},
     {"dump-folded",		'\0',	opt_setintflag,		&(compopts.dumpfolded),		"1include folds in parse tree dumps",			20},
     {"trace-tracescheck",	'\0',	opt_setintflag,		&(compopts.tracetracescheck),	"1trace traces checking operations (debugging)",	206},
@@ -252,6 +252,9 @@ static const struct TAG_cmd_option wordlist[] =
 
 #ifdef __GNUC__
 __inline
+#ifdef __GNUC_STDC_INLINE__
+__attribute__ ((__gnu_inline__))
+#endif
 #endif
 const struct TAG_cmd_option *
 option_lookup_byname (register const char *str, register unsigned int len)
