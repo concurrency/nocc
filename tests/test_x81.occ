@@ -1,0 +1,14 @@
+
+-- test_x81.occ -- testing traces-check
+
+PROC test.x81 (CHAN INT out!)
+  BOOL b:
+  CHAN INT c:
+  SEQ
+    IF
+      b
+        out ! 42
+      TRUE
+        c ! 99
+:
+

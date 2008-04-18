@@ -160,6 +160,25 @@ static int occampi_typecheck_guardnode (compops_t *cops, tnode_t *tnode, typeche
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_tracescheck_guardnode (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)*/
+/*
+ *	does traces checking on a guard node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_tracescheck_guardnode (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)
+{
+	if (node->tag == opi.tag_INPUTGUARD) {
+		/*{{{  traces-check input*/
+		/*}}}*/
+	} else if (node->tag == opi.tag_TIMERGUARD) {
+		/*{{{  traces-check timer*/
+		/*}}}*/
+	} else if (node->tag == opi.tag_SKIPGUARD) {
+		/* assume nothing! */
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_betrans_guardnode (compops_t *cops, tnode_t **nodep, betrans_t *be)*/
 /*
  *	does back-end transformations for a guard node (pulls out guarded expression before mapping)
@@ -489,6 +508,15 @@ static int occampi_tracescheck_snode (compops_t *cops, tnode_t *node, tchk_state
 	tchk_bucket_t *tcb;
 	tchknode_t *tcn;
 	int i;
+	tnode_t *body = tnode_nthsubof (node, 1);
+	int nbodies;
+
+	/* body should be a list of things (CONDITIONALs, *GUARDs) */
+	if (!parser_islistnode (body)) {
+		nocc_internal ("occampi_tracescheck_snode(): body of [%s] not list, got [%s]!", node->tag->name, body->tag->name);
+		return 0;
+	}
+	parser_getlistitems (body, &nbodies);
 
 	/* collect up individual items */
 	tracescheck_pushbucket (tcstate);
@@ -501,13 +529,28 @@ static int occampi_tracescheck_snode (compops_t *cops, tnode_t *node, tchk_state
 		tcn = tracescheck_createnode (TCN_NDET, node, NULL);
 	}
 
+#if 0
+fprintf (stderr, "occampi_tracescheck_snode(): got %d items for %d bodies\n", DA_CUR (tcb->items), nbodies);
+#endif
 	for (i=0; i<DA_CUR (tcb->items); i++) {
 		tchknode_t *item = DA_NTHITEM (tcb->items, i);
 
 		tracescheck_addtolistnode (tcn, item);
 	}
+	/* if we have more bodies than trace-items, must be a non-determinstic choice between those and Skip */
+	if (nbodies > DA_CUR (tcb->items)) {
+		if (tcn->type == TCN_NDET) {
+			/* add new Skip node */
+			tracescheck_addtolistnode (tcn, tracescheck_createnode (TCN_SKIP, node));
+		} else {
+			/* non-determinstic choice between the DETs and Skip */
+			tcn = tracescheck_createnode (TCN_NDET, node, tcn, tracescheck_createnode (TCN_SKIP, node), NULL);
+		}
+	}
+
 	dynarray_trash (tcb->items);
 	tracescheck_freebucket (tcb);
+
 
 	tracescheck_addtobucket (tcstate, tcn);
 
@@ -1184,6 +1227,7 @@ static int occampi_snode_init_nodes (void)
 	tnd = tnode_newnodetype ("occampi:guardnode", &i, 3, 0, 0, TNF_LONGPROC);	/* subnodes: 0 = guard-expr, 1 = body, 2 = pre-condition */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_typecheck_guardnode));
+	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_guardnode));
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_guardnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_guardnode));
 	tnd->ops = cops;

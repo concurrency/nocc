@@ -1,0 +1,13 @@
+
+-- test_x82.occ -- testing traces-check
+
+PROC test.x82 (CHAN INT c!, d!)
+  BOOL b:
+  SEQ
+    IF
+      b
+        c ! 42
+      TRUE
+        d ! 99
+:
+

@@ -1,0 +1,13 @@
+
+-- test_x83.occ -- testing traces-checks
+
+PROC test.x83 (CHAN INT in0?, in1?, out!)
+  INT i:
+  SEQ
+    ALT
+      in0 ? i
+        out ! 42
+      in1 ? i
+        SKIP
+:
+

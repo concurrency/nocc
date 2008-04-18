@@ -1,0 +1,12 @@
+
+-- test_x80.occ - testing tracescheck
+
+PROC test.x80 (CHAN INT out!)
+  CHAN INT c:
+  PAR
+    SEQ
+      out ! 42
+      c ! -99
+    SKIP
+:
+
