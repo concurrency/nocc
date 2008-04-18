@@ -169,6 +169,71 @@ static int occampi_tracescheck_guardnode (compops_t *cops, tnode_t *node, tchk_s
 {
 	if (node->tag == opi.tag_INPUTGUARD) {
 		/*{{{  traces-check input*/
+		tnode_t *input = tnode_nthsubof (node, 0);
+		tnode_t *body = tnode_nthsubof (node, 1);
+		tchk_bucket_t *tcb;
+		tchknode_t *tcn, *itrace, *btrace;
+
+		/*{{{  collect input trace (in itrace)*/
+		tracescheck_pushbucket (tcstate);
+		tracescheck_subtree (input, tcstate);
+		tcb = tracescheck_pullbucket (tcstate);
+		
+		switch (DA_CUR (tcb->items)) {
+		case 0:
+			itrace = NULL;
+			break;
+		case 1:
+			itrace = DA_NTHITEM (tcb->items, 0);
+			dynarray_trash (tcb->items);
+			break;
+		default:
+			tracescheck_warning (node, tcstate, "more items than expected in input-bucket (%d)", DA_CUR (tcb->items));
+			itrace = NULL;
+			break;
+		}
+		tracescheck_freebucket (tcb);
+
+		/*}}}*/
+		/*{{{  collect body trace (in btrace)*/
+		tracescheck_pushbucket (tcstate);
+		tracescheck_subtree (body, tcstate);
+		tcb = tracescheck_pullbucket (tcstate);
+		
+		switch (DA_CUR (tcb->items)) {
+		case 0:
+			btrace = NULL;
+			break;
+		case 1:
+			btrace = DA_NTHITEM (tcb->items, 0);
+			dynarray_trash (tcb->items);
+			break;
+		default:
+			tracescheck_warning (node, tcstate, "more items than expected in body-bucket (%d)", DA_CUR (tcb->items));
+			btrace = NULL;
+			break;
+		}
+		tracescheck_freebucket (tcb);
+
+		/*}}}*/
+
+		if (!itrace && !btrace) {
+			/* no traces of anything collected, assume Skip (probably error) */
+			tcn = tracescheck_createnode (TCN_SKIP, node);
+		} else if (!itrace) {
+			/* only body traces, prefix with Skip */
+			tcn = tracescheck_createnode (TCN_SKIP, node);
+			tcn = tracescheck_createnode (TCN_SEQ, node, tcn, btrace, NULL);
+		} else if (!btrace) {
+			/* fine, leave as input trace */
+			tcn = itrace;
+		} else {
+			/* both traces, compose in SEQ */
+			tcn = tracescheck_createnode (TCN_SEQ, node, itrace, btrace, NULL);
+		}
+
+		tracescheck_addtobucket (tcstate, tcn);
+		return 0;
 		/*}}}*/
 	} else if (node->tag == opi.tag_TIMERGUARD) {
 		/*{{{  traces-check timer*/

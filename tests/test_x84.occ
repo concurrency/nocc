@@ -1,0 +1,17 @@
+
+-- test_x84.occ -- testing CASE input in ALT
+
+PROTOCOL FOO
+  CASE
+    zero
+    one; INT
+:
+
+PROC test.x84 (CHAN FOO in?)
+  INT i:
+  ALT
+    in ? CASE
+      zero
+        SKIP
+:
+

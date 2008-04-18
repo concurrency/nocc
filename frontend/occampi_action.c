@@ -353,7 +353,13 @@ static int occampi_precheck_action (compops_t *cops, tnode_t *node)
 		usagecheck_marknode (tnode_nthsubaddr (node, 0), USAGE_WRITE, 0);
 		usagecheck_marknode (tnode_nthsubaddr (node, 1), USAGE_READ, 0);
 	} else if (node->tag == opi.tag_ONECASEINPUT) {
-		/* FIXME: ... */
+		int nitems, i;
+		tnode_t **rhsl = parser_getlistitems (tnode_nthsubof (node, 1), &nitems);
+
+		usagecheck_marknode (tnode_nthsubaddr (node, 0), USAGE_INPUT, 0);
+		for (i=1; i<nitems; i++) {
+			usagecheck_marknode (rhsl + i, USAGE_WRITE, 0);
+		}
 	}
 	return 1;
 }
