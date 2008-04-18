@@ -489,6 +489,7 @@ static int occampi_namemap_cnode (compops_t *cops, tnode_t **node, map_t *map)
 				parser_addtolist (blist, bodies[i]);
 			}
 			bodyref = map->target->newblockref (blist, *node, map);
+
 			/* FIXME: maybe: don't want this to float away, but ok if we provided a link to the real successor */
 			bename = map->target->newname (fename, bodyref, map, map->target->aws.as_par, map->target->bws.ds_min, 0, 0, 0, 0);
 			tnode_setchook (fename, map->mapchook, (void *)bename);
@@ -574,7 +575,7 @@ static int occampi_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cge
 			if (i > 0) {
 				/*{{{  start PAR process*/
 				codegen_callops (cgen, loadlabaddr, elab);
-				codegen_callops (cgen, loadlocalpointer, pp_wsoffs - adjust);		/* XXX: check this! */
+				codegen_callops (cgen, loadlocalpointer, pp_wsoffs);
 				codegen_callops (cgen, tsecondary, I_STARTP);
 				/*}}}*/
 			}
@@ -589,7 +590,7 @@ static int occampi_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cge
 			int ws_offset, adjust, elab;
 
 			cgen->target->be_getblocksize (bodies[0], &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
-			codegen_callops (cgen, wsadjust, adjust);			/* XXX: check this! */
+			// codegen_callops (cgen, wsadjust, adjust);			/* XXX: check this! */
 			codegen_callops (cgen, branch, I_J, elab);
 		}
 		/*}}}*/
