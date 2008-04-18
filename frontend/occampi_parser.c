@@ -1781,6 +1781,10 @@ static tnode_t *occampi_indented_process_list (lexfile_t *lf, char *leaddfa)
 			*target = NULL;
 			break;		/* for() */
 		}
+#if 0
+fprintf (stderr, "occampi_indented_process_list(): parsing DFA [%s], got:\n", leaddfa ?: "--");
+tnode_dumptree (thisone, 1, stderr);
+#endif
 		*target = thisone;
 		while (*target) {
 			/* sink through trees */
@@ -1791,6 +1795,12 @@ static tnode_t *occampi_indented_process_list (lexfile_t *lf, char *leaddfa)
 				target = tnode_nthsubaddr (*target, 2);
 			} else if (tnflags & TNF_TRANSPARENT) {
 				target = tnode_nthsubaddr (*target, 0);
+#if 0
+			} else if (tnflags & TNF_LONGPROC) {
+#if 1
+fprintf (stderr, "occampi_indented_process_list(): got LONGPROC [%s]\n", (*target)->tag->name);
+#endif
+#endif
 			} else {
 				/* process with some leading declarations probably -- add to the list */
 				parser_addtolist (tree, stored);

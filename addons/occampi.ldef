@@ -247,8 +247,8 @@
 #.TABLE	"occampi:po_namestart ::= [ 0 Name <occampi:po_namestartname> ]"
 #.BNF	"occampi:po_declstart ::= ( occampi:po_vardecl | occampi:po_abbrdecl | occampi:po_procdecl | occampi:po_typedecl | occampi:po_mobiledecl | occampi:po_namestart ) {<opi:nullrecuce>}"
 
-.DFAERR	STUCK "occampi:namestart" "in declaration or process" EXPECTED
-.DFAERR	STUCK "occampi:namestartname" "in declaration or process" EXPECTED
+.DFAERR	STUCK "occampi:namestart" "in declaration or process (namestart)" EXPECTED
+.DFAERR	STUCK "occampi:namestartname" "in declaration or process (namestartname)" EXPECTED
 .DFAERR	STUCK "occampi:declorprocstart" "in declaration or process start" EXPECTED,CODE
 
 # .DFAERR	"occampi:declorprocstart" EXPECTED "in declaration or process start"
