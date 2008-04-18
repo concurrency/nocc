@@ -1,0 +1,9 @@
+
+-- test_x78.occ -- WS occupancy test
+
+PROC test.x78 (VAL INT a, b, c, d, e)
+  CHAN INT f, g, h:
+  SEQ
+    SKIP
+:
+

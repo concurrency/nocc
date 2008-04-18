@@ -1943,7 +1943,7 @@ static int occampi_fetrans_caseinputnode_forprotocol (compops_t *cops, tnode_t *
 		newseq = tnode_createfrom (opi.tag_SEQ, *nodep, NULL, violist);
 
 		parser_addtolist (violist, tnode_createfrom (opi.tag_INPUT, *nodep, lhs, temp, temptype));
-		parser_addtolist (violist, tnode_createfrom (opi.tag_CASE, *nodep, lhs, items, temptype));
+		parser_addtolist (violist, tnode_createfrom (opi.tag_CASE, *nodep, temp, items, temptype));
 
 		*nodep = newseq;
 

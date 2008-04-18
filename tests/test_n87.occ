@@ -1,10 +1,10 @@
 
 -- test_n87.occ -- tests
 
-PROC test.n87 ()
+PROC test.n87 (CHAN BYTE out!)
   CHAN INT c:
   PAR
-    c ! 42
+    SKIP
     INT i:
     SEQ
       c ? i

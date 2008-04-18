@@ -1,0 +1,19 @@
+
+-- itest1.occ
+
+PROTOCOL FOO
+  CASE
+    zero
+    one; BYTE
+:
+
+PROC itest1 (CHAN BYTE out!)
+  CHAN FOO c:
+  PAR
+    SEQ
+      c ! zero
+    c ? CASE
+      zero
+        out ! 'z'
+:
+

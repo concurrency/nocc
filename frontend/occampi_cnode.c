@@ -538,6 +538,68 @@ static int occampi_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cge
 			codegen_check_beblock (bodies[i], cgen, 1);
 			cgen->target->be_getblocksize (bodies[i], &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
 
+			if (!i) {
+				/* skip setup for first process, do last */
+			} else {
+				/*{{{  setup statics in workspace of PAR process*/
+				if (statics && parser_islistnode (statics)) {
+					int nitems, p, wsoff;
+					tnode_t **items = parser_getlistitems (statics, &nitems);
+
+					for (p=nitems - 1, wsoff = pp_wsoffs-4; p>=0; p--, wsoff -= 4) {
+						codegen_callops (cgen, loadparam, items[p], PARAM_REF);
+						codegen_callops (cgen, storelocal, wsoff);
+					}
+				} else if (statics) {
+					codegen_callops (cgen, loadparam, statics, PARAM_REF);
+					codegen_callops (cgen, storelocal, pp_wsoffs-4);
+				}
+				/*}}}*/
+			}
+
+			pp_wsoffs -= ws_size;
+		}
+		/*{{{  setup local PAR workspace*/
+		codegen_callops (cgen, tsecondary, I_GETPAS);		/* priority and affinity */
+		codegen_callops (cgen, storename, parspaceref, 8);
+		codegen_callops (cgen, loadconst, nbodies);		/* par-count */
+		codegen_callops (cgen, storename, parspaceref, 4);
+		codegen_callops (cgen, loadlabaddr, joinlab);		/* join-lab */
+		codegen_callops (cgen, storename, parspaceref, 0);
+
+		/*}}}*/
+		pp_wsoffs = 0;
+		for (i=0; i<nbodies; i++) {
+			int ws_size, vs_size, ms_size;
+			int ws_offset, adjust, elab;
+
+			codegen_check_beblock (bodies[i], cgen, 1);
+			cgen->target->be_getblocksize (bodies[i], &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
+
+#if 1
+fprintf (stderr, "occampi_codegen_cnode(): PAR: %d,%d,%d,%d,%d (for STARTP %d)\n", ws_size, ws_offset, vs_size, ms_size, adjust, i);
+#endif
+			if (!i) {
+				/* don't start the first process, but keep track of where it is */
+			} else {
+				/*{{{  start PAR process*/
+				codegen_callops (cgen, loadlabaddr, elab);
+				codegen_callops (cgen, loadlocalpointer, pp_wsoffs - adjust);
+				codegen_callops (cgen, tsecondary, I_STARTP);
+				/*}}}*/
+			}
+
+			pp_wsoffs -= ws_size;
+		}
+		codegen_callops (cgen, comment, "END PAR SETUP");
+		/*}}}*/
+		pp_wsoffs = 0;
+		/*{{{  process doing PAR becomes the first process*/
+		if (nbodies > 0) {
+			int ws_size, vs_size, ms_size;
+			int ws_offset, adjust, elab;
+			tnode_t *statics = tnode_nthsubof (bodies[0], 1);
+
 			/*{{{  setup statics in workspace of PAR process*/
 			if (statics && parser_islistnode (statics)) {
 				int nitems, p, wsoff;
@@ -552,45 +614,8 @@ static int occampi_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cge
 				codegen_callops (cgen, storelocal, pp_wsoffs-4);
 			}
 			/*}}}*/
-
-			pp_wsoffs -= ws_size;
-		}
-		/*{{{  setup local PAR workspace*/
-		codegen_callops (cgen, tsecondary, I_GETPAS);		/* priority and affinity */
-		codegen_callops (cgen, storename, parspaceref, 8);
-		codegen_callops (cgen, loadconst, nbodies);		/* par-count */
-		codegen_callops (cgen, storename, parspaceref, 4);
-		codegen_callops (cgen, loadlabaddr, joinlab);		/* join-lab */
-		codegen_callops (cgen, storename, parspaceref, 0);
-		/*}}}*/
-		pp_wsoffs = 0;
-		for (i=0; i<nbodies; i++) {
-			int ws_size, vs_size, ms_size;
-			int ws_offset, adjust, elab;
-
-			codegen_check_beblock (bodies[i], cgen, 1);
-			cgen->target->be_getblocksize (bodies[i], &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
-
-			/* don't start the first process, but keep track of where it is */
-			if (i > 0) {
-				/*{{{  start PAR process*/
-				codegen_callops (cgen, loadlabaddr, elab);
-				codegen_callops (cgen, loadlocalpointer, pp_wsoffs);
-				codegen_callops (cgen, tsecondary, I_STARTP);
-				/*}}}*/
-			}
-
-			pp_wsoffs -= ws_size;
-		}
-		codegen_callops (cgen, comment, "END PAR SETUP");
-		/*}}}*/
-		/*{{{  process doing PAR becomes the first process*/
-		if (nbodies > 0) {
-			int ws_size, vs_size, ms_size;
-			int ws_offset, adjust, elab;
-
 			cgen->target->be_getblocksize (bodies[0], &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
-			// codegen_callops (cgen, wsadjust, adjust);			/* XXX: check this! */
+			codegen_callops (cgen, wsadjust, -adjust);			/* XXX: check this! */
 			codegen_callops (cgen, branch, I_J, elab);
 		}
 		/*}}}*/
