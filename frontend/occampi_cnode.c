@@ -576,7 +576,7 @@ static int occampi_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cge
 			codegen_check_beblock (bodies[i], cgen, 1);
 			cgen->target->be_getblocksize (bodies[i], &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_codegen_cnode(): PAR: %d,%d,%d,%d,%d (for STARTP %d)\n", ws_size, ws_offset, vs_size, ms_size, adjust, i);
 #endif
 			if (!i) {
