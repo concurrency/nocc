@@ -1413,7 +1413,7 @@ fprintf (stderr, "occampi_namemap_fparam(): here!  target is [%s].  Type is:\n",
 tnode_dumptree (type, 1, stderr);
 #endif
 
-	if ((t->tag == opi.tag_FPARAM) || (t->tag == opi.tag_VALFPARAM)) {
+	if ((t->tag == opi.tag_FPARAM) || (t->tag == opi.tag_VALFPARAM) || (t->tag == opi.tag_RESFPARAM)) {
 		if (type->tag == opi.tag_CHAN) {
 			/* channels need 1 word */
 			tsize = map->target->chansize;
@@ -2035,6 +2035,8 @@ static int occampi_decl_init_nodes (void)
 	opi.tag_FPARAM = tnode_newnodetag ("FPARAM", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_VALFPARAM = tnode_newnodetag ("VALFPARAM", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_RESFPARAM = tnode_newnodetag ("RESFPARAM", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  occampi:abbrevnode -- ABBREV, VALABBREV, RETYPES, VALRETYPES*/

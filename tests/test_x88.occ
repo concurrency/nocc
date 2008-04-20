@@ -1,0 +1,7 @@
+
+-- test_x88.occ -- RESULT params
+
+PROC test.x88 (RESULT INT i)
+  SKIP
+:
+

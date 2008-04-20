@@ -105,6 +105,7 @@ typedef struct {
 
 	struct TAG_ntdef *tag_FPARAM;
 	struct TAG_ntdef *tag_VALFPARAM;
+	struct TAG_ntdef *tag_RESFPARAM;
 
 	struct TAG_ntdef *tag_SKIP;
 	struct TAG_ntdef *tag_STOP;
