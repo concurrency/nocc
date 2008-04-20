@@ -37,6 +37,7 @@ extern struct TAG_langparser occampi_parser;
 #define NTF_INDENTED_GUARDPROC_LIST	0x0200	/* for TNF_LONGPROCs, parse a list of indented ALT guards and processes into subnode 1 */
 #define NTF_ALLOW_TRACES		0x0400	/* allow TRACES at the end of a something */
 #define NTF_INDENTED_CASEINPUT_LIST	0x0800	/* for TNF_LONGPROCs, parse a list of indented CASE inputs and processes into subnode 1 */
+#define NTF_INDENTED_PLACEDON_LIST	0x1000	/* for TNF_LONGPROCs, parse a list of indented ON statements into subnode 1 */
 
 
 struct TAG_tndef;
@@ -133,6 +134,8 @@ typedef struct {
 	struct TAG_ntdef *tag_ASM;
 	struct TAG_ntdef *tag_ASMOP;
 	struct TAG_ntdef *tag_WHILE;
+	struct TAG_ntdef *tag_PLACEDPAR;
+	struct TAG_ntdef *tag_PLACEDON;
 
 	struct TAG_ntdef *tag_LITBOOL;
 	struct TAG_ntdef *tag_LITBYTE;
@@ -323,6 +326,7 @@ extern struct TAG_feunit occampi_arrayconstructor_feunit;	/* occampi_arrayconstr
 extern struct TAG_feunit occampi_typeop_feunit;			/* occampi_typeop.c */
 extern struct TAG_feunit occampi_timer_feunit;			/* occampi_timer.c */
 extern struct TAG_feunit occampi_exceptions_feunit;		/* occampi_exceptions.c */
+extern struct TAG_feunit occampi_placedpar_feunit;		/* occampi_placedpar.c */
 
 /* these are for language units to use in reductions */
 extern void *occampi_nametoken_to_hook (void *ntok);

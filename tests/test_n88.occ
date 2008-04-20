@@ -1,0 +1,10 @@
+
+-- test_n88.occ -- declarations before ALT guards
+
+PROC test.n88 (CHAN INT in?)
+  ALT
+    INT i:
+    in ? i
+      SKIP
+:
+

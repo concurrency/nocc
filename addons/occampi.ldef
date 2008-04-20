@@ -209,6 +209,12 @@
 .TNODE	"occampi:timerdoper" (3,0,0) "lhs" "rhs" "type"
 
 #}}}
+#{{{  placed-par
+
+.TNODE	"occampi:placedpar" (2,0,0) "operand" "body"
+.TNODE	"occampi:placedon" (2,0,0) "expr" "body"
+
+#}}}
 
 .IMPORT	"mwsync.ldef"
 
@@ -252,6 +258,12 @@
 .DFAERR	STUCK "occampi:declorprocstart" "in declaration or process start" EXPECTED,CODE
 
 # .DFAERR	"occampi:declorprocstart" EXPECTED "in declaration or process start"
+
+# 'occampi:testfordecl' tests for a declaration;  obvious cases and lines ending ':'
+.TABLE	"occampi:testfordecl ::= [ 0 +@PROC 1 ] [ 0 +@DATA 1 ] [ 0 +@VAL 1 ] [ 0 +@CHAN 1 ] [ 0 -* 3 ]"
+	"[ 1 {<parser:rewindtokens>} -* 2 ] [ 2 {<parser:testtrue>} -* ]"
+	"[ 3 -Newline 10 ] [ 3 +@@: 4 ] [ 3 +* 3 ] [ 4 -Newline 1 ] [ 4 -* 3 ]"
+	"[ 10 {<parser:rewindtokens>} -* 11 ] [ 11 {<parser:testfalse>} -* ]"
 
 # }}}
 
@@ -388,7 +400,7 @@
 	"[ 7 occampi:expr 8 ] [ 8 @@: 9 ] [ 9 {<opi:valretypesreduce>} -* ]"
 .TABLE	"occampi:abbrdecl ::= [ 0 @VAL <occampi:valabbrdecl> ]"
 
-.TABLE	"occampi:fparam ::= [ 0 occampi:primtype 1 ] [ 0 @CHAN 3 ] [ 0 occampi:name 9 ] [ 0 @VAL 22 ] [ 0 -@@[ 27 ]"
+.TABLE	"occampi:fparam ::= [ 0 occampi:primtype 1 ] [ 0 @CHAN 3 ] [ 0 occampi:name 9 ] [ 0 @VAL 22 ] [ 0 -@@[ 27 ] [ 0 -@@[] 27 ]"
 	"[ 1 occampi:name 2 ] [ 2 {<opi:fparam2nsreduce>} ] [ 2 -* ]"
 	"[ 3 @OF 3 ] [ 3 occampi:protocol 4 ] [ 3 @@! 16 ] [ 3 @@? 19 ] [ 4 {<opi:chanpush>} ] [ 4 occampi:name 5 ] [ 5 @@! 6 ] [ 5 @@? 7 ] [ 5 -* 8 ] [ 6 {<opi:directedchanoutput>} ] [ 6 -* 8 ]"
 	"[ 7 {<opi:directedchaninput>} ] [ 7 -* 8 ] [ 8 {<opi:fparam2nsreduce>} -* ]"
@@ -396,7 +408,7 @@
 	"[ 13 occampi:name 14 ] [ 13 -* 15 ] [ 14 {<opi:fparam2nsreduce>} -* ] [ 15 {<opi:fparam1nsreduce>} -* ]"
 	"[ 16 occampi:protocol 17 ] [ 17 {<opi:chanpush>} -* 18 ] [ 18 {<opi:directedchanoutput>} occampi:name 5 ]"
 	"[ 19 occampi:protocol 20 ] [ 20 {<opi:chanpush>} -* 21 ] [ 21 {<opi:directedchaninput>} occampi:name 5 ]"
-	"[ 22 occampi:primtype 23 ] [ 22 -@@[ 30 ] [ 22 occampi:name 25 ]"
+	"[ 22 occampi:primtype 23 ] [ 22 -@@[ 30 ] [ 22 -@@[] 30 ] [ 22 occampi:name 25 ]"
 	"[ 23 occampi:name 24 ] [ 24 {<opi:fparamv2nsreduce>} -* ]"
 	"[ 25 occampi:name 26 ] [ 26 {<opi:fparamv2nsreduce>} -* ]"
 	"[ 27 occampi:emptyorarrayspec 28 ] [ 28 occampi:fparam 29 ] [ 29 {Roccampi:arrayfold} -* ]"
@@ -488,7 +500,7 @@
 
 .TABLE	"occampi:arrayspec ::= [ 0 @@[ 1 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:arrayspec>} -* ]"
 
-.TABLE	"occampi:emptyorarrayspec ::= [ 0 @@[ 1 ] [ 1 +@@] 4 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:arrayspec>} -* ] [ 4 {<opi:emptyarrayspec>} -* ]"
+.TABLE	"occampi:emptyorarrayspec ::= [ 0 @@[ 1 ] [ 0 +@@[] 4 ] [ 1 +@@] 4 ] [ 1 occampi:expr 2 ] [ 2 @@] 3 ] [ 3 {<opi:arrayspec>} -* ] [ 4 {<opi:emptyarrayspec>} -* ]"
 
 .TABLE	"occampi:arraytype ::= [ 0 @@[ 1 ] [ 1 @@] 3 ] [ 1 occampi:expr 2 ] [ 2 @@] 4 ] [ 3 {<opi:nullpush>} -* 4 ]"
 	"[ 4 -@@[ 5 ] [ 4 occampi:primtype 6 ] [ 4 occampi:name 6 ] [ 4 @CHAN 7 ]  [ 4 @PORT 9 ] [ 5 occampi:arraytype 6 ] [ 6 {<opi:arraytypereduce>} -* ]"
@@ -714,7 +726,7 @@
 .TABLE	"occampi:type ::= [ 0 occampi:primtype 1 ] [ 1 {<opi:nullreduce>} -* ]"
 .BNF	"occampi:namedtype ::= ( occampi:type | occampi:name ) {<opi:nullreduce>}"
 .BNF	"occampi:typecommalist ::= { occampi:type @@, 1 }"
-.TABLE	"occampi:declorprocstart +:= [ 0 @PLACED 1 ] [ 1 @PORT 2 ] [ 1 -@@[ 7 ]"
+.TABLE	"occampi:declorprocstart +:= [ 0 @PLACED 1 ] [ 1 @PORT 2 ] [ 1 -@PAR <occampi:placedpar> ] [ 1 -@@[ 7 ]"
 	"[ 2 occampi:protocol 3 ] [ 3 occampi:name 4 ]"
 	"[ 4 @AT 5 ] [ 4 -* 5 ] [ 5 occampi:expr 6 ] [ 6 {<opi:placedportreduce>} @@: ]"
 	"[ 7 occampi:arraytype 8 ] [ 8 occampi:name 9 ] [ 9 @AT 10 ] [ 9 -* 10 ] [ 10 occampi:expr 11 ] [ 11 {Roccampi:placedfold} @@: ]"
@@ -725,6 +737,16 @@
 #.BNF	"occampi:po_primtype ::= ( @INT | @BYTE | @BOOL | @INT16 | @INT32 | @INT64 | @REAL32 | @REAL64 | @CHAR ) {<opi:nullreduce>}"
 
 # }}}
+# }}}
+.SECTION "occampi-placedpar" # {{{
+
+.GRULE	"opi:placedparreduce" "T+@t00C[PLACEDPAR]2R-"
+.GRULE	"opi:placedonreduce" "SN0N+0C[PLACEDON]2R-"
+
+.TABLE	"occampi:placedpar ::= [ 0 +@PAR 1 ] [ 1 {<opi:placedparreduce>} -* ]"
+
+.TABLE	"occampi:placedon ::= [ 0 @ON 1 ] [ 1 occampi:expr 2 ] [ 2 Comment 2 ] [ 2 Newline 3 ] [ 3 {<opi:placedonreduce>} -* ]"
+
 # }}}
 .SECTION "occampi-arrayconstructor" # {{{: array-constructors
 

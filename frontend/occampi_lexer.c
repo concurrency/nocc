@@ -351,6 +351,16 @@ tokenloop:
 				thisindent = ((thisindent >> 3) + 1) << 3;
 			}
 		}
+
+		/* XXX: special-case: if we have a comment, skip to next-line */
+		if ((dh < (chlim - 1)) && (dh[0] == '-') && (dh[1] == '-')) {
+			/* yes, skip to EOL and onto next line */
+			for (; (dh < chlim) && (*dh != '\n'); dh++);
+			lp->offset += (int)(dh - ch);
+
+			goto tokenloop;
+		}
+
 		lp->offset += (int)(dh - ch);
 		ch = dh;
 		lop->newlineflag = 0;

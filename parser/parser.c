@@ -64,12 +64,13 @@ STATICSTRINGHASH (reducer_t *, reducers, 6);
 STATICDYNARRAY (reducer_t *, areducers);
 
 static ntdef_t *tag_LIST;
+static ntdef_t *tag_TESTTRUE;
+static ntdef_t *tag_TESTFALSE;
 
 STATICSTRINGHASH (ngrule_t *, ngrules, 6);
 STATICDYNARRAY (ngrule_t *, angrules);
 
 /*}}}*/
-
 
 
 /*{{{  int parser_init (void)*/
@@ -79,6 +80,9 @@ STATICDYNARRAY (ngrule_t *, angrules);
  */
 int parser_init (void)
 {
+	tndef_t *tnd;
+	int i;
+
 	stringhash_sinit (reducers);
 	dynarray_init (areducers);
 
@@ -95,6 +99,18 @@ int parser_init (void)
 	parser_register_grule ("parser:listresult", parser_decode_grule ("R+N-"));
 	parser_register_grule ("parser:rewindtokens", parser_decode_grule ("T*"));
 	parser_register_grule ("parser:eattoken", parser_decode_grule ("T+@t"));
+
+	/* create TESTTRUE/TESTFALSE nodes */
+	i = -1;
+	tnd = tnode_newnodetype ("parser:testnode", &i, 0, 0, 0, TNF_NONE);
+
+	i = -1;
+	tag_TESTTRUE = tnode_newnodetag ("TESTTRUE", &i, tnd, NTF_NONE);
+	i = -1;
+	tag_TESTFALSE = tnode_newnodetag ("TESTFALSE", &i, tnd, NTF_NONE);
+
+	parser_register_grule ("parser:testtrue", parser_decode_grule ("C[TESTTRUE]0R-"));
+	parser_register_grule ("parser:testfalse", parser_decode_grule ("C[TESTFALSE]0R-"));
 
 	return 0;
 }
@@ -392,6 +408,23 @@ char *parser_langname (lexfile_t *lf)
 		return NULL;
 	}
 	return lf->parser->langname;
+}
+/*}}}*/
+
+/*{{{  int parser_gettesttags (ntdef_t **truep, ntdef_t **falsep)*/
+/*
+ *	gets hold of the two TRUE/FALSE test tags
+ *	returns 0 on success, non-zero on failure
+ */
+int parser_gettesttags (ntdef_t **truep, ntdef_t **falsep)
+{
+	if (truep) {
+		*truep = tag_TESTTRUE;
+	}
+	if (falsep) {
+		*falsep = tag_TESTFALSE;
+	}
+	return 0;
 }
 /*}}}*/
 

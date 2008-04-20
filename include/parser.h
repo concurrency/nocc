@@ -1,6 +1,6 @@
 /*
  *	parser.h -- parser interface
- *	Copyright (C) 2004-2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2008 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ struct TAG_lexfile;
 struct TAG_tnode;
 struct TAG_token;
 struct TAG_parsepriv;
+struct TAG_ntdef;
 
 extern int parser_init (void);
 extern int parser_shutdown (void);
@@ -37,6 +38,8 @@ extern void parser_pushtok (struct TAG_parsepriv *pp, struct TAG_token *tok);
 extern struct TAG_tnode *parser_parse (struct TAG_lexfile *lf);
 extern struct TAG_tnode *parser_descparse (struct TAG_lexfile *lf);
 extern char *parser_langname (struct TAG_lexfile *lf);
+
+extern int parser_gettesttags (struct TAG_ntdef **truep, struct TAG_ntdef **falsep);
 
 extern struct TAG_tnode *parser_newlistnode (struct TAG_lexfile *lf);
 extern struct TAG_tnode *parser_buildlistnode (struct TAG_lexfile *lf, ...);

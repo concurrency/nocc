@@ -1,0 +1,13 @@
+
+-- test_x87.occ -- testing PLACED PAR type things
+
+PROC test.x87 ()
+  PLACED PAR
+    ON "spe0"
+      SKIP
+    ON "spe1"
+      PAR
+        SKIP
+        STOP
+:
+

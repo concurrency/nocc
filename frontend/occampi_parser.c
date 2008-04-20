@@ -136,8 +136,12 @@ static feunit_t *feunit_set[] = {
 	&occampi_ptype_feunit,
 	&occampi_timer_feunit,
 	&occampi_exceptions_feunit,
+	&occampi_placedpar_feunit,
 	NULL
 };
+
+static ntdef_t *testtruetag, *testfalsetag;
+
 
 /*}}}*/
 
@@ -473,6 +477,8 @@ static int occampi_parser_init (lexfile_t *lf)
 
 		/* last, re-init multiway syncs with default end-of-par option */
 		mwsync_setresignafterpar (0);
+
+		parser_gettesttags (&testtruetag, &testfalsetag);
 	}
 	return 0;
 }
@@ -634,6 +640,7 @@ out_error:
 	return -1;
 }
 /*}}}*/
+#if 0
 /*{{{  static int check_outdented_comment (lexfile_t *lf)*/
 /*
  *	checks for an outdented comment, that is "{outdent*} [COMMENT|NEWLINE]* {indent*}"
@@ -754,6 +761,7 @@ static int check_indented_comment (lexfile_t *lf)
 	return cleanup && hadcomment;
 }
 /*}}}*/
+#endif
 /*{{{  static tnode_t *occampi_parsemetadata (lexfile_t *lf)*/
 /*
  *	parses a "#META" / "#PRAGMA META" directive, from the next token
@@ -867,6 +875,7 @@ restartpoint:
 		return tree;
 	}
 
+#if 0
 	/*{{{  handle indented/outdented comments*/
 	/*
 	 * NOTE: need to handle the case of an outdented comment in
@@ -905,12 +914,32 @@ restartpoint:
 		}
 	}
 	/*}}}*/
+#endif
 
 	/* if we're parsing a particular ruleset, may need to parse intervening declarations first */
-	if (occampi_creepfordecl (lf)) {
-		tree = occampi_process (lf);
-		/* FIXME! */
+	lexer_pushback (lf, tok);
+	if (thedfa) {
+		tnode_t *dtest = dfa_walk ("occampi:testfordecl", 0, lf);
+
+		if (dtest->tag == testtruetag) {
+#if 0
+fprintf (stderr, "occampi_declorprocstart(): specific dfa [%s] found declaration!\n", thedfa);
+#endif
+			/* right, return this: spot the declaration and handle in occampi_declorproc() */
+			return dtest;
+		} else if (dtest->tag == testfalsetag) {
+#if 0
+fprintf (stderr, "occampi_declorprocstart(): specific dfa [%s] found non declaration!\n", thedfa);
+#endif
+			/* free and continue */
+			tnode_free (dtest);
+		} else {
+			nocc_serious ("occampi_declorprocstart(): occampi:testfordecl DFA returned:");
+			tnode_dumptree (dtest, 1, stderr);
+			tnode_free (dtest);
+		}
 	}
+	tok = lexer_nexttoken (lf);
 
 	if (lexer_tokmatch (opi.tok_HASH, tok)) {
 		/*{{{  probably a pre-processor action of some kind*/
@@ -994,6 +1023,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 					nexttok = lexer_nexttoken (lf);
 
 					for (; nexttok && (nexttok->type != OUTDENT);) {
+#if 0
 						if (nexttok->type == OUTDENT) {
 							int lineno = nexttok->lineno;
 
@@ -1007,6 +1037,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 								break;		/* for() */
 							}
 						}
+#endif
 						if (lexer_tokmatchlitstr (nexttok, "INCLUDES")) {
 							/*{{{  auto-including something*/
 							char *iname;
@@ -1360,16 +1391,76 @@ static tnode_t *occampi_declorproc (lexfile_t *lf, int *gotall, char *thedfa)
 	tnode_t *tree = NULL;
 	int tnflags;
 	int emrk = parser_markerror (lf);
+	int earlyret = 0;
+	tnode_t **treetarget = &tree;
 
-
+restartpoint:
 	if (compopts.debugparser) {
 		nocc_message ("occampi_declorproc(): %s:%d: parsing declaration or process start", lf->fnptr, lf->lineno);
 	}
 
-	tree = occampi_declorprocstart (lf, gotall, thedfa);
+	*treetarget = occampi_declorprocstart (lf, gotall, thedfa);
 
 	if (compopts.debugparser) {
-		nocc_message ("occampi_declorproc(): %s:%d: finished parsing declaration or process start, tree [0x%8.8x]", lf->fnptr, lf->lineno, (unsigned int)tree);
+		nocc_message ("occampi_declorproc(): %s:%d: finished parsing declaration or process start, *treetarget [0x%8.8x]",
+				lf->fnptr, lf->lineno, (unsigned int)(*treetarget));
+		if (*treetarget) {
+			nocc_message ("occampi_declorproc(): %s:%d: that *treetarget is (%s,%s)", lf->fnptr, lf->lineno,
+					(*treetarget)->tag->ndef->name, (*treetarget)->tag->name);
+		}
+	}
+
+	if (thedfa && *treetarget && ((*treetarget)->tag == testtruetag)) {
+		/*{{{  okay, declaration for sure (unparsed)*/
+		int lgotall = 0;
+		tnode_t *decl;
+
+		decl = occampi_declorproc (lf, &lgotall, NULL);
+
+#if 0
+fprintf (stderr, "occampi_declorproc(): specific DFA [%s] found DECL, parsed it and got:\n", thedfa);
+tnode_dumptree (decl, 1, stderr);
+#endif
+		/* trash test-true flag and put in new declaration */
+		tnode_free (*treetarget);
+		*treetarget = decl;
+
+		/* sink through */
+		while (*treetarget) {
+			tnflags = tnode_tnflagsof (*treetarget);
+
+			if (tnflags & TNF_LONGDECL) {
+				treetarget = tnode_nthsubaddr (*treetarget, 3);
+			} else if (tnflags & TNF_SHORTDECL) {
+				treetarget = tnode_nthsubaddr (*treetarget, 2);
+			} else if (tnflags & TNF_TRANSPARENT) {
+				treetarget = tnode_nthsubaddr (*treetarget, 0);
+			} else {
+				/* shouldn't get this: means it probably wasn't a declaration.. */
+				parser_error (lf, "expected declaration, found [%s]", (*treetarget)->tag->name);
+				return tree;
+			}
+		}
+
+		/* and restart */
+		goto restartpoint;
+		/*}}}*/
+	}
+
+	if (*treetarget && ((*treetarget)->tag == opi.tag_INPUTGUARD)) {
+		tnode_t *gexpr = tnode_nthsubof (*treetarget, 0);
+
+		if (gexpr->tag == opi.tag_CASEINPUT) {
+			/* rightho, expecting indented list of CASEs at this point */
+			tnode_t *body = occampi_indented_process_list (lf, "occampi:caseinputcase");
+
+			tnode_setnthsub (gexpr, 1, body);
+#if 0
+fprintf (stderr, "occampi_declorproc(): declorprocstart gave back an INPUTGUARD / CASEINPUT:\n");
+tnode_dumptree (tree, 1, stderr);
+#endif
+			earlyret = 1;
+		}
 	}
 
 	if (parser_checkerror (lf, emrk)) {
@@ -1378,6 +1469,8 @@ static tnode_t *occampi_declorproc (lexfile_t *lf, int *gotall, char *thedfa)
 
 	if (!tree) {
 		return NULL;
+	} else if (earlyret) {
+		return tree;
 	}
 #if 0
 fprintf (stderr, "occampi_declorproc(): got this tree from declorprocstart:\n");
@@ -1386,10 +1479,10 @@ tnode_dumptree (tree, 1, stderr);
 
 	/* decide how to deal with it */
 	if (!*gotall) {
-		tnflags = tnode_tnflagsof (tree);
+		tnflags = tnode_tnflagsof (*treetarget);
 		if (tnflags & TNF_LONGDECL) {
 			/*{{{  long declaration (e.g. PROC, CHAN TYPE, etc.)*/
-			int ntflags = tnode_ntflagsof (tree);
+			int ntflags = tnode_ntflagsof (*treetarget);
 
 			if (ntflags & NTF_INDENTED_PROC) {
 				/* parse body into subnode 2 */
@@ -1397,7 +1490,7 @@ tnode_dumptree (tree, 1, stderr);
 				token_t *tok;
 
 				body = occampi_indented_process (lf);
-				tnode_setnthsub (tree, 2, body);
+				tnode_setnthsub (*treetarget, 2, body);
 
 				/* check trailing colon */
 				if (occampi_procend (lf) < 0) {
@@ -1408,7 +1501,7 @@ tnode_dumptree (tree, 1, stderr);
 				tok = lexer_nexttoken (lf);
 				if (lexer_tokmatch (opi.tok_TRACES, tok)) {
 					lexer_pushback (lf, tok);
-					occampi_tracesparse (lf, tree);
+					occampi_tracesparse (lf, *treetarget);
 				} else {
 					/* nope, pop it back */
 					lexer_pushback (lf, tok);
@@ -1417,53 +1510,60 @@ tnode_dumptree (tree, 1, stderr);
 			/*}}}*/
 		} else if (tnflags & TNF_LONGPROC) {
 			/*{{{  long process (e.g. SEQ, CLAIM, FORKING, etc.)*/
-			int ntflags = tnode_ntflagsof (tree);
+			int ntflags = tnode_ntflagsof (*treetarget);
 
 			if (ntflags & NTF_INDENTED_PROC_LIST) {
 				/*{{{  parse a list of processes into subnode 1*/
 				tnode_t *body;
 
 				body = occampi_indented_process_list (lf, NULL);
-				tnode_setnthsub (tree, 1, body);
+				tnode_setnthsub (*treetarget, 1, body);
 				/*}}}*/
 			} else if (ntflags & NTF_INDENTED_CONDPROC_LIST) {
 				/*{{{  parse a list of indented conditions + processes into subnode 1*/
 				tnode_t *body;
 
 				body = occampi_indented_process_list (lf, "occampi:ifcond");
-				tnode_setnthsub (tree, 1, body);
+				tnode_setnthsub (*treetarget, 1, body);
 				/*}}}*/
 			} else if (ntflags & NTF_INDENTED_PROC) {
 				/*{{{  parse indented process into subnode 1*/
 				tnode_t *body;
 
 				body = occampi_indented_process (lf);
-				tnode_setnthsub (tree, 1, body);
+				tnode_setnthsub (*treetarget, 1, body);
 				/*}}}*/
 			} else if (ntflags & NTF_INDENTED_GUARDPROC_LIST) {
 				/*{{{  parses a list of indented guards + processes into subnode 1*/
 				tnode_t *body;
 
 				body = occampi_indented_process_list (lf, "occampi:altguard");
-				tnode_setnthsub (tree, 1, body);
+				tnode_setnthsub (*treetarget, 1, body);
 				/*}}}*/
 			} else if (ntflags & NTF_INDENTED_CASEINPUT_LIST) {
 				/*{{{  parses a list of indented case-inputs + processes into subnode 1*/
 				tnode_t *body;
 
 				body = occampi_indented_process_list (lf, "occampi:caseinputcase");
-				tnode_setnthsub (tree, 1, body);
+				tnode_setnthsub (*treetarget, 1, body);
 				/*}}}*/
-			} else if (tree->tag == opi.tag_VALOF) {
+			} else if (ntflags & NTF_INDENTED_PLACEDON_LIST) {
+				/*{{{  parses a list of indented placed-on statements + processes into subnode 1*/
+				tnode_t *body;
+
+				body = occampi_indented_process_list (lf, "occampi:placedon");
+				tnode_setnthsub (*treetarget, 1, body);
+				/*}}}*/
+			} else if ((*treetarget)->tag == opi.tag_VALOF) {
 				/*{{{  parse indented process into subnode 1, extra into subnode 0*/
 				tnode_t *body;
 				tnode_t *extra = NULL;
 
 				body = occampi_indented_process_trailing (lf, "occampi:valofresult", &extra);
-				tnode_setnthsub (tree, 1, body);
-				tnode_setnthsub (tree, 0, extra);
+				tnode_setnthsub (*treetarget, 1, body);
+				tnode_setnthsub (*treetarget, 0, extra);
 				/*}}}*/
-			} else if (tree->tag == opi.tag_TRY) {
+			} else if ((*treetarget)->tag == opi.tag_TRY) {
 				/*{{{  parse a fairly complex TRY block*/
 				tnode_t *body;
 				tnode_t *catches;
@@ -1520,9 +1620,9 @@ tnode_dumptree (tree, 1, stderr);
 					finally = occampi_process (lf);
 				}
 
-				tnode_setnthsub (tree, 1, body);
-				tnode_setnthsub (tree, 2, catches);
-				tnode_setnthsub (tree, 3, finally);
+				tnode_setnthsub (*treetarget, 1, body);
+				tnode_setnthsub (*treetarget, 2, catches);
+				tnode_setnthsub (*treetarget, 3, finally);
 
 				/* skip newlines */
 				tok = lexer_nexttoken (lf);
@@ -1534,24 +1634,24 @@ tnode_dumptree (tree, 1, stderr);
 					parser_error (lf, "expected outdent, found:");
 					lexer_dumptoken (stderr, tok);
 					lexer_pushback (lf, tok);
-					if (tree) {
-						tnode_free (tree);
+					if (*treetarget) {
+						tnode_free (*treetarget);
 					}
-					tree = NULL;
-					return NULL;
+					*treetarget = NULL;
+					return tree;
 				}
 				lexer_freetoken (tok);
 
 				/*}}}*/
-			} else if (tree->tag == opi.tag_CATCH) {
+			} else if ((*treetarget)->tag == opi.tag_CATCH) {
 				/*{{{  parse an indented list of CATCH expressions into subnode 0*/
 				tnode_t *body;
 
 				body = occampi_indented_process_list (lf, "occampi:catchexpr");
-				tnode_setnthsub (tree, 0, body);
+				tnode_setnthsub (*treetarget, 0, body);
 				/*}}}*/
 			} else {
-				tnode_warning (tree, "occampi_declorproc(): unhandled LONGPROC [%s]", tree->tag->name);
+				tnode_warning (*treetarget, "occampi_declorproc(): unhandled LONGPROC [%s]", (*treetarget)->tag->name);
 			}
 			/*}}}*/
 		} else if (tnflags & TNF_TRANSPARENT) {
@@ -1748,18 +1848,24 @@ static tnode_t *occampi_indented_process (lexfile_t *lf)
 static tnode_t *occampi_indented_process_list (lexfile_t *lf, char *leaddfa)
 {
 	tnode_t *tree = NULL;
-	tnode_t *stored;
+	tnode_t *stored = NULL;
 	tnode_t **target = &stored;
 	token_t *tok;
+
+	if (compopts.debugparser) {
+		nocc_message ("occampi_indented_process_list(): %s:%d: parsing indented declaration (%s)", lf->fnptr, lf->lineno, leaddfa ?: "--");
+	}
 
 	tree = parser_newlistnode (lf);
 
 	tok = lexer_nexttoken (lf);
-	/* skip newlines */
+	/*{{{  skip newlines*/
 	for (; tok && (tok->type == NEWLINE); tok = lexer_nexttoken (lf)) {
 		lexer_freetoken (tok);
 	}
-	/* expect indent */
+
+	/*}}}*/
+	/*{{{  expect indent*/
 	if (tok->type != INDENT) {
 		parser_error (lf, "expected indent, found:");
 		lexer_dumptoken (stderr, tok);
@@ -1767,10 +1873,13 @@ static tnode_t *occampi_indented_process_list (lexfile_t *lf, char *leaddfa)
 		tnode_free (tree);
 		return NULL;
 	}
+
+	/*}}}*/
 	lexer_freetoken (tok);
 
 	/* okay, parse declarations and process */
 	for (;;) {
+		/*{{{  parse 'leaddfa'*/
 		tnode_t *thisone;
 		int tnflags;
 		int breakfor = 0;
@@ -1787,21 +1896,40 @@ tnode_dumptree (thisone, 1, stderr);
 #endif
 		*target = thisone;
 		while (*target) {
-			/* sink through trees */
+			/*{{{  sink through trees*/
 			tnflags = tnode_tnflagsof (*target);
+			if (!leaddfa) {
+				/* no lead DFA, if this was a declaration, retarget */
+				if (tnflags & TNF_LONGDECL) {
+					target = tnode_nthsubaddr (*target, 3);
+				} else if (tnflags & TNF_SHORTDECL) {
+					target = tnode_nthsubaddr (*target, 2);
+				} else if (tnflags & TNF_TRANSPARENT) {
+					target = tnode_nthsubaddr (*target, 0);
+				} else {
+					/* process with some leading declarations probably -- add to the list */
+					parser_addtolist (tree, stored);
+					stored = NULL;
+					target = &stored;
+				}
+			} else
+#if 0
 			if (tnflags & TNF_LONGDECL) {
 				target = tnode_nthsubaddr (*target, 3);
 			} else if (tnflags & TNF_SHORTDECL) {
 				target = tnode_nthsubaddr (*target, 2);
 			} else if (tnflags & TNF_TRANSPARENT) {
 				target = tnode_nthsubaddr (*target, 0);
+			} else
+#endif
 #if 0
-			} else if (tnflags & TNF_LONGPROC) {
-#if 1
+			if (tnflags & TNF_LONGPROC) {
+#if 0
 fprintf (stderr, "occampi_indented_process_list(): got LONGPROC [%s]\n", (*target)->tag->name);
 #endif
+			} else
 #endif
-			} else {
+			{
 				/* process with some leading declarations probably -- add to the list */
 				parser_addtolist (tree, stored);
 				stored = NULL;
@@ -1821,27 +1949,39 @@ fprintf (stderr, "occampi_indented_process_list(): got LONGPROC [%s]\n", (*targe
 				 *	slightly ugly check for outdented comments
 				 *	(not strictly valid, but we'll allow with a warning)
 				 */
+#if 0
 				if (check_outdented_comment (lf)) {
 					parser_warning_line (lf, lineno, "outdented comment");
-				} else {
+				} else
+#endif
+				{
 					breakfor = 1;
 					break;		/* while() */
 				}
 			} else {
 				lexer_pushback (lf, tok);
 			}
+			/*}}}*/
 		}
 		if (breakfor) {
 			break;		/* for() */
 		}
+		/*}}}*/
+	}
+
+	if (stored) {
+		parser_addtolist (tree, stored);
+		stored = NULL;
 	}
 
 	tok = lexer_nexttoken (lf);
-	/* skip newlines */
+	/*{{{  skip newlines*/
 	for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
 		lexer_freetoken (tok);
 	}
-	/* expect outdent */
+
+	/*}}}*/
+	/*{{{  expect outdent*/
 	if (tok->type != OUTDENT) {
 		parser_error (lf, "expected outdent, found:");
 		lexer_dumptoken (stderr, tok);
@@ -1852,8 +1992,19 @@ fprintf (stderr, "occampi_indented_process_list(): got LONGPROC [%s]\n", (*targe
 		tree = NULL;
 		return NULL;
 	}
+
+	/*}}}*/
 	lexer_freetoken (tok);
 
+	if (compopts.debugparser) {
+		nocc_message ("occampi_indented_process_list(): %s:%d: done parsing indented process list (tree at 0x%8.8x)",
+				lf->fnptr, lf->lineno, (unsigned int)tree);
+	}
+
+#if 0
+fprintf (stderr, "occampi_indented_process_list(): returning:\n");
+tnode_dumptree (tree, 1, stderr);
+#endif
 	return tree;
 }
 /*}}}*/
@@ -1869,14 +2020,17 @@ static tnode_t *occampi_process (lexfile_t *lf)
 	token_t *tok;
 
 	tok = lexer_nexttoken (lf);
-	/* skip newlines and comments */
+	/*{{{  skip newlines and comments*/
 	for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
 		lexer_freetoken (tok);
 	}
+
+	/*}}}*/
 	lexer_pushback (lf, tok);
 
 	/* okay, parse declarations and process */
 	for (;;) {
+		/*{{{  parse default*/
 		tnode_t *thisone;
 		int tnflags;
 		int breakfor = 0;
@@ -1906,13 +2060,16 @@ static tnode_t *occampi_process (lexfile_t *lf)
 		if (breakfor) {
 			break;		/* for() */
 		}
+		/*}}}*/
 	}
 
 	tok = lexer_nexttoken (lf);
-	/* skip newlines */
+	/*{{{  skip newlines*/
 	for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
 		lexer_freetoken (tok);
 	}
+
+	/*}}}*/
 	lexer_pushback (lf, tok);
 
 	return tree;

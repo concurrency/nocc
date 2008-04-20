@@ -1,0 +1,7 @@
+
+-- test_x85.occ -- testing open array parameters..
+
+PROC test.x85 (VAL []BYTE str)
+  SKIP
+:
+

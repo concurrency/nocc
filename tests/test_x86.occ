@@ -1,0 +1,11 @@
+
+-- test_x86.occ -- specifics
+
+PROC test.x86 (VAL BYTE ch, CHAN BYTE out!)
+  SEQ
+    VAL [1]BYTE thing RETYPES ch:
+    INT v:
+    out ! thing
+    out ! ch
+:
+

@@ -91,6 +91,7 @@ static symbol_t symbols[] = {
 	{"||", 2, LANGTAG_OCCAMPI, NULL},
 	{"{", 1, LANGTAG_OCCAMPI, NULL},
 	{"}", 1, LANGTAG_OCCAMPI, NULL},
+	{"[]", 2, LANGTAG_OCCAMPI, NULL},
 	{NULL, 0, LANGTAG_OCCAMPI, NULL}
 };
 
