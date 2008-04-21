@@ -402,7 +402,7 @@ fprintf (stderr, "allocate_ovarmap_delname(): i_ws = %d, i_vs = %d, i_ms = %d\n"
 fprintf (stderr, "allocate_ovarmap_delname(): bename was:\n");
 tnode_dumptree (bename, 1, stderr);
 #endif
-		nocc_internal ("allocate_ovarmap_delname(): name not found\n");
+		nocc_internal ("allocate_ovarmap_delname(): name (0x%8.8x) not found\n", (unsigned int)bename);
 		return;
 	}
 	/*}}}*/

@@ -1472,14 +1472,28 @@ static int occampi_getdescriptor_fparam (langops_t *lops, tnode_t *node, char **
 	}
 
 	if (*str) {
-		char *newstr = (char *)smalloc (strlen (*str) + strlen (typestr) + strlen (pname) + 8);
+		char *newstr = (char *)smalloc (strlen (*str) + strlen (typestr) + strlen (pname) + 16);
+		int nslen = 0;
 
-		sprintf (newstr, "%s%s%s %s", *str, (node->tag == opi.tag_VALFPARAM) ? "VAL " : "", typestr, pname);
+		nslen = sprintf (newstr, "%s", *str);
+		if (node->tag == opi.tag_VALFPARAM) {
+			nslen += sprintf (newstr + nslen, "VAL ");
+		} else if (node->tag == opi.tag_RESFPARAM) {
+			nslen += sprintf (newstr + nslen, "RESULT ");
+		}
+		nslen += sprintf (newstr + nslen, "%s %s", typestr, pname);
 		sfree (*str);
 		*str = newstr;
 	} else {
-		*str = (char *)smalloc (strlen (typestr) + strlen (pname) + 8);
-		sprintf (*str, "%s%s %s", (node->tag == opi.tag_VALFPARAM) ? "VAL " : "", typestr, pname);
+		int slen = 0;
+
+		*str = (char *)smalloc (strlen (typestr) + strlen (pname) + 16);
+		if (node->tag == opi.tag_VALFPARAM) {
+			slen += sprintf (*str + slen, "VAL ");
+		} else if (node->tag == opi.tag_RESFPARAM) {
+			slen += sprintf (*str + slen, "RESULT ");
+		}
+		slen += sprintf (*str + slen, "%s %s", typestr, pname);
 	}
 
 	sfree (typestr);
