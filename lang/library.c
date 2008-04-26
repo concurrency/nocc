@@ -2859,6 +2859,27 @@ static int lib_tracescheck_libusenode (compops_t *cops, tnode_t *node, tchk_stat
 	return 1;
 }
 /*}}}*/
+/*{{{  static int lib_fetrans_libusenode (compops_t *cops, tnode_t **nodep, fetrans_t *fe)*/
+/*
+ *	does front-end transforms on a library-usage node (captures fetrans in imported parameter lists, etc.)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int lib_fetrans_libusenode (compops_t *cops, tnode_t **nodep, fetrans_t *fe)
+{
+	libusenodehook_t *lunh = (libusenodehook_t *)tnode_nthhookof (*nodep, 0);
+	int i;
+
+	for (i=0; i<DA_CUR (lunh->decls); i++) {
+		tnode_t **declp = DA_NTHITEMADDR (lunh->decls, i);
+
+		if (*declp) {
+			fetrans_subtree (declp, fe);
+		}
+	}
+	return 1;
+
+}
+/*}}}*/
 /*{{{  static int lib_betrans_libusenode (compops_t *cops, tnode_t **nodep, betrans_t *be)*/
 /*
  *	does back-end transforms for a library-usage node
@@ -3162,6 +3183,7 @@ int library_init (void)
 	tnode_setcompop (cops, "typeresolve", 2, COMPOPTYPE (lib_typeresolve_libusenode));
 	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (lib_precheck_libusenode));
 	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (lib_tracescheck_libusenode));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (lib_fetrans_libusenode));
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (lib_betrans_libusenode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (lib_namemap_libusenode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (lib_codegen_libusenode));

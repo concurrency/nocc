@@ -1,15 +1,12 @@
 
--- test_n90 -- #PRAGMA EXTERNAL test
+-- test_n90 -- library test
 
--- #USE "compiler"
-
--- #LIBRARY "foo"
-
-#PRAGMA EXTERNAL "PROC C.write.error (VAL BYTE ch) = 4,0"
+#USE "compiler"
 
 PROC test.n90 ()
+  INT i:
   SEQ
+    GET.PROCESSOR.ID.FROMNAME ("", i)
     SKIP
-    C.write.error (42)
 :
 

@@ -1903,6 +1903,16 @@ static char *krocetc_make_namedlabel (const char *lbl)
 	/* cater for slightly special names */
 	if (!strncmp (lbl, "C.", 2)) {
 		strcpy (belbl, lbl);
+		offs = 2;
+	} else if (!strncmp (lbl, "CIF.", 4)) {
+		strcpy (belbl, lbl);
+		offs = 4;
+	} else if (!strncmp (lbl, "B.", 2)) {
+		strcpy (belbl, lbl);
+		offs = 2;
+	} else if (!strncmp (lbl, "BX.", 3)) {
+		strcpy (belbl, lbl);
+		offs = 3;
 	} else {
 		strcpy (belbl, "O_");
 		memcpy (belbl + 2, lbl, lbl_len + 1);

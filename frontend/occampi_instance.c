@@ -675,7 +675,7 @@ tnode_dumptree (aparamlist, 1, stderr);
 	for (paramno = 1, fp_ptr = 0, ap_ptr = 0; fp_ptr < fp_nitems; fp_ptr++) {
 		tnode_t *fparam = fp_items[fp_ptr];
 
-		if ((fparam->tag == opi.tag_FPARAM) || (fparam->tag == opi.tag_VALFPARAM)) {
+		if ((fparam->tag == opi.tag_FPARAM) || (fparam->tag == opi.tag_VALFPARAM) || (fparam->tag == opi.tag_RESFPARAM)) {
 			/*{{{  skip to next parameter*/
 			lastaparam = ap_items[ap_ptr];
 			tnode_setchook (ap_items[ap_ptr], chook_matchedformal, fp_items[fp_ptr]);

@@ -1,0 +1,7 @@
+
+-- test_x89.occ -- descriptor tests
+
+PROC test.x89 (VAL []BYTE str)
+  SKIP
+:
+

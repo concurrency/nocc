@@ -709,9 +709,12 @@ static int occampi_getdescriptor_arraynode (langops_t *lops, tnode_t *node, char
 {
 	char *subtypestr = NULL;
 	char *dimstr = NULL;
+	tnode_t *dim = tnode_nthsubof (node, 0);
 
 	langops_getdescriptor (tnode_nthsubof (node, 1), &subtypestr);
-	langops_getdescriptor (tnode_nthsubof (node, 0), &dimstr);
+	if (dim) {
+		langops_getdescriptor (dim, &dimstr);
+	}
 
 	if (*str) {
 		sfree (*str);
@@ -721,7 +724,8 @@ static int occampi_getdescriptor_arraynode (langops_t *lops, tnode_t *node, char
 		subtypestr = string_dup ("?");
 	}
 	if (!dimstr) {
-		dimstr = string_dup ("?");
+		/* could be an open dimension */
+		dimstr = string_dup ("");
 	}
 	*str = (char *)smalloc (5 + strlen (dimstr) + strlen (subtypestr));
 

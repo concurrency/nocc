@@ -1,0 +1,13 @@
+
+-- test_x90.occ -- testing hidden dimensions
+
+PROC foo (VAL []BYTE str)
+  SEQ
+    SKIP
+:
+
+PROC test.x90 ()
+  SEQ
+    foo ("")
+:
+

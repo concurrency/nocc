@@ -1078,7 +1078,7 @@ static int occampi_namemap_procdecl (compops_t *cops, tnode_t **node, map_t *map
 	/* map formal params and body */
 	paramsptr = tnode_nthsubaddr (*node, 1);
 	map->inparamlist = 1;
-#if 0
+#if 1
 fprintf (stderr, "occampi_namemap_procdecl(): about to map parameters:\n");
 tnode_dumptree (*paramsptr, 1, stderr);
 #endif
@@ -1088,6 +1088,10 @@ tnode_dumptree (*paramsptr, 1, stderr);
 	}
 
 	map->inparamlist = 0;
+#if 1
+fprintf (stderr, "occampi_namemap_procdecl(): done mapping parameters, got:\n");
+tnode_dumptree (*paramsptr, 1, stderr);
+#endif
 	map_submapnames (tnode_nthsubaddr (blk, 0), map);		/* do this under the back-end block */
 
 	map_poplexlevel (map);
@@ -1586,6 +1590,10 @@ static int occampi_namemap_hiddennode (compops_t *cops, tnode_t **node, map_t *m
 		tnode_t *rname = (tnode_t *)tnode_getchook (*node, map->mapchook);
 
 		if (!rname) {
+#if 1
+fprintf (stderr, "occampi_namemap_hiddennode(): failing here.  node was:\n");
+tnode_dumptree (*node, 1, stderr);
+#endif
 			nocc_internal ("occampi_namemap_hiddennode(): not in parameters, and no mapchook linkage");
 			return 0;
 		}
