@@ -1,0 +1,10 @@
+
+-- test_x91.occ -- testing hidden dimensions to EXTERNAL calls
+
+#PRAGMA EXTERNAL "PROC external.thing (VAL []BYTE str) = 16,0"
+
+PROC test.x91 ()
+  SEQ
+    external.thing ("")
+:
+
