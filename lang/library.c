@@ -177,6 +177,7 @@ static chook_t *libchook = NULL;
 static chook_t *uselinkchook = NULL;
 static chook_t *descriptorchook = NULL;
 static chook_t *metadatalistchook = NULL;
+static chook_t *nonamespacechook = NULL;
 
 
 STATICDYNARRAY (libnodehook_t *, entrystack);
@@ -2359,6 +2360,7 @@ static int lib_scopein_libnode (compops_t *cops, tnode_t **nodep, scope_t *ss)
 	}
 
 	scope_pushdefns (ss, ns);
+	scope_pushusens (ss, ns);
 	return 1;
 }
 /*}}}*/
@@ -2381,6 +2383,7 @@ static int lib_scopeout_libnode (compops_t *cops, tnode_t **nodep, scope_t *ss)
 		nocc_internal ("lib_scopeout_libnode(): did not find my namyspace! [%s]", lnh->namespace);
 	}
 
+	scope_popusens (ss, ns);
 	scope_popdefns (ss, ns);
 	return 1;
 }
@@ -2978,6 +2981,25 @@ static void lib_libchook_free (void *chook)
 	return;
 }
 /*}}}*/
+/*{{{  static void lib_externaldeclchook_free (void *chook)*/
+/*
+ *	frees a lib:externaldecl compiler hook (integer marker) -- attached to a PROCDECL
+ */
+static void lib_externaldeclchook_free (void *chook)
+{
+	return;
+}
+/*}}}*/
+/*{{{  static void *lib_externaldeclchook_copy (void *chook)*/
+/*
+ *	copies a lib:externaldecl compiler hook (integer marker)
+ */
+static void *lib_externaldeclchook_copy (void *chook)
+{
+	return chook;
+}
+/*}}}*/
+
 /*{{{  static libfile_entry_t *lib_decodeexternaldecl (lexfile_t *orglf, libusenodehook_t *lunh, char *desc)*/
 /*
  *	decodes a descriptor entry found in an EXTERNAL declaration, expecting something like this:
@@ -3055,6 +3077,10 @@ nocc_message ("lib_decodeexternaldecl(): dbuf=[%s], sizes=[%s]", dbuf, sizes);
 		sfree (dbuf);
 		return NULL;
 	}
+
+	/*}}}*/
+	/*{{{  record the fact that this is an external declaration*/
+	tnode_setchook (decltree, nonamespacechook, decltree);
 
 	/*}}}*/
 	/*{{{  attach declaration tree to the hook (flatten later on)*/
@@ -3189,11 +3215,16 @@ int library_init (void)
 	tnode_newcompop ("importedtypecheck", COPS_INVALID, 2, INTERNAL_ORIGIN);
 
 	/*}}}*/
-	/*{{{  others*/
+	/*{{{  others (chooks, etc.)*/
 	dynarray_init (entrystack);
 
 	libchook = tnode_lookupornewchook ("lib:mark");
 	libchook->chook_free = lib_libchook_free;
+
+	nonamespacechook = tnode_lookupornewchook ("lib:nonamespace");
+	nonamespacechook->chook_free = lib_externaldeclchook_free;
+	nonamespacechook->chook_copy = lib_externaldeclchook_copy;
+
 	uselinkchook = tnode_lookupornewchook ("lib:uselink");
 	descriptorchook = tnode_lookupornewchook ("fetrans:descriptor");
 	metadatalistchook = tnode_lookupornewchook ("metadatalist");
@@ -3653,5 +3684,16 @@ void library_freelibdigestset (libdigestset_t *ldset)
 	return;
 }
 /*}}}*/
+
+/*{{{  chook_t *library_getnonamespacechook (void)*/
+/*
+ *	returns the "lib:nonamespace" compiler hook
+ */
+chook_t *library_getnonamespacechook (void)
+{
+	return nonamespacechook;
+}
+/*}}}*/
+
 
 

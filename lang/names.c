@@ -109,7 +109,7 @@ fprintf (stderr, "name_lookup(): str=[%s], nl=0x%8.8x, nl->curscope = %d, DA_CUR
  */
 name_t *name_lookupss (char *str, scope_t *ss)
 {
-	namelist_t *nl;
+	namelist_t *nl = NULL;
 	name_t *name = NULL;
 	namespace_t *ns;
 
@@ -117,7 +117,7 @@ name_t *name_lookupss (char *str, scope_t *ss)
 fprintf (stderr, "name_lookupss(): str=[%s], nl=0x%8.8x, nl->curscope = %d, DA_CUR (nl->scopes) = %d, DA_CUR (ss->usens) = %d\n", str, (unsigned int)nl, (unsigned int)nl->curscope, DA_CUR (nl->scopes), DA_CUR (ss->usens));
 #endif
 #if 0
-fprintf (stderr, "name_lookupss(): blah! str=[%s] ss = 0x%8.8x, DA_CUR (usens) = %d\n", str, (unsigned int)ss, DA_CUR (ss->usens));
+fprintf (stderr, "name_lookupss(): here 1! str=[%s] ss = 0x%8.8x, DA_CUR (usens) = %d\n", str, (unsigned int)ss, DA_CUR (ss->usens));
 #endif
 	/* see if it's namespace-flavoured */
 	if ((ns = name_findnamespacepfx (str)) != NULL) {
@@ -148,7 +148,9 @@ fprintf (stderr, "name_lookupss(): blah! str=[%s] ss = 0x%8.8x, DA_CUR (usens) =
 				}
 			}
 		}
-	} else {
+	}
+
+	if (!name) {
 		/* plain, find the first one in scope that has no namespace (i.e. local), failing that, the latest in-use namespace */
 		nl = stringhash_lookup (names, str);
 		if (!nl) {
@@ -177,7 +179,8 @@ fprintf (stderr, "tname->me->name = [%s], tname->ns->nspace = [%s]\n", tname->me
 
 			if (!name) {
 #if 0
-fprintf (stderr, "name_lookupss(): found stack for [%s], looking for one in a visible namespace..\n", str);
+fprintf (stderr, "name_lookupss(): found stack for [%s], looking for one in a visible namespace.. (top = %d), DA_CUR (ss->usens) = %d\n",
+		str, top, DA_CUR (ss->usens));
 #endif
 				/* look for one in a visible namespace */
 				for (i=top; i >= 0; i--) {
@@ -187,7 +190,7 @@ fprintf (stderr, "name_lookupss(): found stack for [%s], looking for one in a vi
 					if (!tname || !tname->ns || !strlen (tname->ns->nspace)) {
 						continue;		/* for() */
 					}
-					for (j=(DA_CUR (ss->usens) - 1); (j>=0) && (tname->ns != DA_NTHITEM (ss->usens, j)); j--);
+					for (j = (DA_CUR (ss->usens) - 1); (j >= 0) && (tname->ns != DA_NTHITEM (ss->usens, j)); j--);
 					if (j >= 0) {
 						/* this one */
 						name = tname;
@@ -222,11 +225,15 @@ name_t *name_addname (char *str, tnode_t *decl, tnode_t *type, tnode_t *namenode
 	name_t *name;
 	namelist_t *nl;
 
+#if 0
+fprintf (stderr, "name_addname(): here! str=\"%s\"\n", str);
+#endif
 	name = (name_t *)smalloc (sizeof (name_t));
 	name->decl = decl;
 	name->type = type;
 	name->namenode = namenode;
 	name->refc = 1;				/* because it won't ever be looked up really */
+	name->ns = NULL;
 
 	nl = stringhash_lookup (names, str);
 	if (!nl) {
@@ -251,6 +258,9 @@ name_t *name_addscopenamess (char *str, tnode_t *decl, tnode_t *type, tnode_t *n
 	name_t *name;
 	namelist_t *nl;
 
+#if 0
+fprintf (stderr, "name_addscopenamess(): here! str=\"%s\", default-namespace: \"%s\"\n", str, (ss && DA_CUR (ss->defns)) ? (DA_NTHITEM (ss->defns, DA_CUR (ss->defns) - 1)->nspace) : "(none)");
+#endif
 	name = (name_t *)smalloc (sizeof (name_t));
 	name->decl = decl;
 	name->type = type;

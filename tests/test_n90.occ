@@ -1,13 +1,13 @@
 
--- test_n89.occ -- #PRAGMA EXTERNAL test
+-- test_n90 -- #PRAGMA EXTERNAL test
 
 -- #USE "compiler"
 
-#LIBRARY "foo"
+-- #LIBRARY "foo"
 
 #PRAGMA EXTERNAL "PROC C.write.error (VAL BYTE ch) = 4,0"
 
-PROC test.n89 ()
+PROC test.n90 ()
   SEQ
     SKIP
     C.write.error (42)

@@ -1,0 +1,14 @@
+
+-- test_n91.occ -- testing namespace in LIBRARY visibility
+
+#LIBRARY "foo"
+
+PROC bar ()
+  SKIP
+:
+
+PROC test.n91 ()
+  SEQ
+    bar ()
+:
+

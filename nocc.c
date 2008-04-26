@@ -120,6 +120,7 @@ compopts_t compopts = {
 	stoppoint: 0,
 	tracetypecheck: 0,
 	traceparser: 0,
+	tracenamespaces: 0,
 	traceconstprop: 0,
 	traceprecode: 0,
 	tracecompops: NULL,

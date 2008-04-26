@@ -1898,10 +1898,18 @@ static char *krocetc_make_namedlabel (const char *lbl)
 	int lbl_len = strlen (lbl);
 	char *belbl = (char *)smalloc (lbl_len + 5);
 	char *ch;
+	int offs = 0;
 
-	strcpy (belbl, "O_");
-	memcpy (belbl + 2, lbl, lbl_len + 1);
-	for (ch = belbl + 2; *ch != '\0'; ch++) {
+	/* cater for slightly special names */
+	if (!strncmp (lbl, "C.", 2)) {
+		strcpy (belbl, lbl);
+	} else {
+		strcpy (belbl, "O_");
+		memcpy (belbl + 2, lbl, lbl_len + 1);
+		offs = 2;
+	}
+
+	for (ch = belbl + offs; *ch != '\0'; ch++) {
 		switch (*ch) {
 		case '.':
 			*ch = '_';

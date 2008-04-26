@@ -142,6 +142,10 @@ int scope_pushdefns (scope_t *ss, namespace_t *ns)
 	}
 	dynarray_add (ss->defns, ns);
 
+	if (compopts.tracenamespaces) {
+		nocc_message ("namespaces: pushing defining namespace [%s]", ns->nspace);
+	}
+
 	return 0;
 }
 /*}}}*/
@@ -163,6 +167,9 @@ int scope_popdefns (scope_t *ss, namespace_t *ns)
 		nocc_warning ("scope_popdefns(): expected namespace [%s] found [%s]", ns->nspace, DA_NTHITEM (ss->defns, DA_CUR (ss->defns) - 1)->nspace);
 		return -1;
 	} else {
+		if (compopts.tracenamespaces) {
+			nocc_message ("namespaces: popping defining namespace [%s]", ns->nspace);
+		}
 		dynarray_delitem (ss->defns, DA_CUR (ss->defns) - 1);
 	}
 	return 0;
@@ -179,6 +186,10 @@ int scope_pushusens (scope_t *ss, namespace_t *ns)
 		return -1;
 	}
 	dynarray_add (ss->usens, ns);
+
+	if (compopts.tracenamespaces) {
+		nocc_message ("namespaces: pushing use-namespace [%s]", ns->nspace);
+	}
 
 	return 0;
 }
@@ -201,6 +212,9 @@ int scope_popusens (scope_t *ss, namespace_t *ns)
 		nocc_warning ("scope_popusens(): expected namespace [%s] found [%s]", ns->nspace, DA_NTHITEM (ss->usens, DA_CUR (ss->usens) - 1)->nspace);
 		return -1;
 	} else {
+		if (compopts.tracenamespaces) {
+			nocc_message ("namespaces: popping use-namespace [%s]", ns->nspace);
+		}
 		dynarray_delitem (ss->usens, DA_CUR (ss->usens) - 1);
 	}
 	return 0;

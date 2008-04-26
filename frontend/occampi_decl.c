@@ -745,10 +745,12 @@ static int occampi_scopein_procdecl (compops_t *cops, tnode_t **node, scope_t *s
 	tnode_t **paramsptr = tnode_nthsubaddr (*node, 1);
 	tnode_t **bodyptr = tnode_nthsubaddr (*node, 2);
 	tnode_t *traces = NULL;
+	chook_t *nnschook = library_getnonamespacechook ();
 	void *nsmark;
 	char *rawname;
 	name_t *procname;
 	tnode_t *newname;
+	tnode_t *nnsnode = NULL;
 
 	nsmark = name_markscope ();
 
@@ -781,9 +783,17 @@ fprintf (stderr, "occampi_scopein_procdecl(): have traces!\n");
 
 	name_markdescope (nsmark);
 
+	if (nnschook && tnode_haschook (*node, nnschook)) {
+		nnsnode = (tnode_t *)tnode_getchook (*node, nnschook);
+	}
+
 	/* declare and scope PROC name, then check process in the scope of it */
 	rawname = tnode_nthhookof (name, 0);
-	procname = name_addscopenamess (rawname, *node, *paramsptr, NULL, ss);
+#if 0
+fprintf (stderr, "occampi_scopein_procdecl(): scoping name \"%s\", nnsnode = %p\n", rawname, nnsnode);
+#endif
+	/* if we have a 'nonamespace' marker, make sure it doesn't end up in one */
+	procname = name_addscopenamess (rawname, *node, *paramsptr, NULL, nnsnode ? NULL : ss);
 	newname = tnode_createfrom (opi.tag_NPROCDEF, name, procname);
 	SetNameNode (procname, newname);
 	tnode_setnthsub (*node, 0, newname);

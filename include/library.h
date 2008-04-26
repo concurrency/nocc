@@ -57,6 +57,8 @@ extern int library_readlibanddigest (const char *libname, struct TAG_crypto *cry
 extern libdigestset_t *library_readlibanddigestset (const char *libname);
 extern void library_freelibdigestset (libdigestset_t *ldset);
 
+extern struct TAG_chook *library_getnonamespacechook (void);
+
 
 extern int library_init (void);
 extern int library_shutdown (void);
