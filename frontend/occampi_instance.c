@@ -713,7 +713,8 @@ tnode_dumptree (adimtree, 1, stderr);
 					tnode_error (*node, "occampi_fetrans_instance(): no dimension %d on actual-parameter [%s]", vdim, lastaparam->tag->name);
 				} else {
 					/* insert this into the list of actual parameters */
-					dimparam = tnode_copytree (dimparam);
+					// dimparam = tnode_copytree (dimparam);
+					/* XXX: don't copy dimension parameter -- will fail name-map if we do that */
 
 					if (!aparamlist) {
 						aparamlist = parser_buildlistnode (NULL, dimparam, NULL);
