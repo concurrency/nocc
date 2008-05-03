@@ -241,6 +241,8 @@ typedef struct {
 	struct TAG_ntdef *tag_CASEFROM;
 	struct TAG_ntdef *tag_CASEEXTENDS;
 
+	struct TAG_ntdef *tag_VECTOR;
+
 	struct TAG_token *tok_COLON;
 	struct TAG_token *tok_INPUT;
 	struct TAG_token *tok_OUTPUT;
@@ -328,6 +330,7 @@ extern struct TAG_feunit occampi_typeop_feunit;			/* occampi_typeop.c */
 extern struct TAG_feunit occampi_timer_feunit;			/* occampi_timer.c */
 extern struct TAG_feunit occampi_exceptions_feunit;		/* occampi_exceptions.c */
 extern struct TAG_feunit occampi_placedpar_feunit;		/* occampi_placedpar.c */
+extern struct TAG_feunit occampi_vector_feunit;			/* occampi_vector.c */
 
 /* these are for language units to use in reductions */
 extern void *occampi_nametoken_to_hook (void *ntok);

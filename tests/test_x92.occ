@@ -1,0 +1,9 @@
+
+-- test_x92.occ -- thinking about VECTOR types :)
+
+PROC test.x92 ()
+  VECTOR INT v:
+  SEQ
+    SKIP
+:
+

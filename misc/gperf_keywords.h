@@ -36,7 +36,7 @@
  */
 struct TAG_keyword;
 
-#define TOTAL_KEYWORDS 89
+#define TOTAL_KEYWORDS 90
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 12
 #define MIN_HASH_VALUE 3
@@ -221,7 +221,7 @@ static const struct TAG_keyword wordlist[] =
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {"ROUND",		40,	LANGTAG_OCCAMPI,	NULL},
-    {(char*)0,-1,0,NULL},
+    {"VECTOR",		89,	LANGTAG_OCCAMPI,	NULL},
     {"INITIAL",	44,	LANGTAG_OCCAMPI,	NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {"VALOF",		36,	LANGTAG_OCCAMPI,	NULL},

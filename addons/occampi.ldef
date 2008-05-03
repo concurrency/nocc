@@ -215,6 +215,11 @@
 .TNODE	"occampi:placedon" (2,0,0) "expr" "body"
 
 #}}}
+#{{{  vectors
+
+.TNODE	"occampi:vectortype" (1,0,0) "subtype"
+
+#}}}
 
 .IMPORT	"mwsync.ldef"
 
@@ -840,6 +845,14 @@
 .TABLE	"occampi:catchexpr ::= [ 0 occampi:name 1 ] [ 1 Comment 1 ] [ 1 Newline 2 ] [ 1 -* 3 ]"
 	"[ 2 {<opi:catchexprzeroreduce>} -* ]"
 	"[ 3 occampi:exprcommalist 4 ] [ 4 {<opi:catchexprreduce>} -* ]"
+
+# }}}
+.SECTION "occampi-vector" # {{{
+
+.GRULE	"opi:vectortypereduce" "SN0N+C[VECTOR]1R-"
+
+.TABLE	"occampi:primtype +:= [ 0 @VECTOR 1 ] [ 1 occampi:primtype 2 ] [ 2 {<opi:vectortypereduce>} -* ]"
+
 
 # }}}
 
