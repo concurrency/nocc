@@ -225,6 +225,7 @@ typedef struct TAG_krocetc_priv {
 typedef struct TAG_krocetc_resultsubhook {
 	int eval_regs;
 	int result_regs;
+	int result_fregs;
 	DYNARRAY (tnode_t **, sublist);
 } krocetc_resultsubhook_t;
 
@@ -507,7 +508,7 @@ static void krocetc_resultsubhook_dumptree (tnode_t *node, void *hook, int inden
 	int i;
 
 	krocetc_isetindent (stream, indent);
-	fprintf (stream, "<chook:resultsubhook eregs=\"%d\" rregs=\"%d\">\n", rh->eval_regs, rh->result_regs);
+	fprintf (stream, "<chook:resultsubhook eregs=\"%d\" rregs=\"%d\" rfregs=\"%d\">\n", rh->eval_regs, rh->result_regs, rh->result_fregs);
 	for (i=0; i<DA_CUR (rh->sublist); i++) {
 		tnode_t *ref = *(DA_NTHITEM (rh->sublist, i));
 
@@ -529,6 +530,7 @@ static krocetc_resultsubhook_t *krocetc_resultsubhook_create (void)
 
 	rh->eval_regs = -1;
 	rh->result_regs = -1;
+	rh->result_fregs = -1;
 	dynarray_init (rh->sublist);
 
 	return rh;

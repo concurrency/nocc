@@ -1,0 +1,10 @@
+
+-- test_n93.occ -- arithmetic
+
+PROC test.n93 ()
+  REAL32 x, y:
+  SEQ
+    x := 42.0
+    y := x + 4.2
+:
+

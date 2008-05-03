@@ -126,6 +126,13 @@ static tnode_t *occampi_gettype_lit (langops_t *lops, tnode_t *node, tnode_t *de
 {
 	tnode_t *type = tnode_nthsubof (node, 0);
 
+#if 0
+fprintf (stderr, "occampi_gettype_lit(): we are [%s], default type 0x%8.8x, seen type is 0x%8.8x\n",
+		node->tag->name, (unsigned int)default_type, (unsigned int)type);
+if (default_type) {
+	tnode_dumptree (default_type, 1, stderr);
+}
+#endif
 	if (node->tag == opi.tag_LITARRAY) {
 		/*{{{  literal array handling*/
 		occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof (node, 0);
@@ -173,8 +180,50 @@ fprintf (stderr, "occampi_gettype_lit(): LITARRAY: mysize is %d, typesize of [%s
 			type = tnode_nthsubof (node, 0);
 		} else if (node->tag == opi.tag_LITREAL) {
 			/* ignore default type */
-			tnode_setnthsub (node, 0, tnode_create (opi.tag_REAL64, NULL));
-			type = tnode_nthsubof (node, 0);
+			occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof (node, 0);
+			int typesize = tnode_bytesfor (default_type, NULL);
+
+			/* thing on the literal is either 4 (float) or 8 (double) bytes */
+			if ((tmplit->bytes == 4) && (typesize == 4)) {
+				/* definitely a REAL32 or equivalent */
+				type = tnode_copytree (default_type);
+				tnode_setnthsub (node, 0, type);
+			} else if ((tmplit->bytes == 8) && (typesize == 4)) {
+				/* REAL64 -> REAL32 fixed conversion */
+				double dval = *(double *)(tmplit->data);
+				float fval = (float)dval;
+
+				sfree (tmplit->data);
+				tmplit->bytes = 4;
+				tmplit->data = smalloc (tmplit->bytes);
+				*(float *)(tmplit->data) = fval;
+
+				type = tnode_copytree (default_type);
+				tnode_setnthsub (node, 0, type);
+			} else if ((tmplit->bytes == 4) && (typesize == 8)) {
+				/* REAL32 -> REAL64 fixed conversion */
+				float fval = *(float *)(tmplit->data);
+				double dval = (double)fval;
+
+				sfree (tmplit->data);
+				tmplit->bytes = 8;
+				tmplit->data = smalloc (tmplit->bytes);
+				*(double *)(tmplit->data) = dval;
+
+				type = tnode_copytree (default_type);
+				tnode_setnthsub (node, 0, type);
+			} else if ((tmplit->bytes == 8) && (typesize == 8)) {
+				/* definately a REAL64 or equivalent */
+				type = tnode_copytree (default_type);
+				tnode_setnthsub (node, 0, type);
+			} else {
+				nocc_internal ("occampi_gettype_lit(): LITREAL error, bytes=%d, typesize=%d", tmplit->bytes, typesize);
+			}
+
+#if 0
+fprintf (stderr, "occampi_gettype_lit(): LITREAL: typesize=%d, litbytes=%d, default_type=\n", typesize, tmplit->bytes);
+tnode_dumptree (default_type, 4, stderr);
+#endif
 		} else {
 			/* no type yet, use default_type */
 			occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof (node, 0);
