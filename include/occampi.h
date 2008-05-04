@@ -93,6 +93,7 @@ typedef struct {
 	struct TAG_ntdef *tag_VARDECL;
 	struct TAG_ntdef *tag_ABBREV;
 	struct TAG_ntdef *tag_VALABBREV;
+	struct TAG_ntdef *tag_RESABBREV;
 	struct TAG_ntdef *tag_RETYPES;
 	struct TAG_ntdef *tag_VALRETYPES;
 	struct TAG_ntdef *tag_PROCDECL;
@@ -182,10 +183,12 @@ typedef struct {
 	struct TAG_ntdef *tag_NDECL;
 	struct TAG_ntdef *tag_NPARAM;
 	struct TAG_ntdef *tag_NVALPARAM;
+	struct TAG_ntdef *tag_NRESPARAM;
 	struct TAG_ntdef *tag_NPROCDEF;
 	struct TAG_ntdef *tag_NFUNCDEF;
 	struct TAG_ntdef *tag_NABBR;
 	struct TAG_ntdef *tag_NVALABBR;
+	struct TAG_ntdef *tag_NRESABBR;
 	struct TAG_ntdef *tag_NREPL;
 
 	struct TAG_ntdef *tag_NDATATYPEDECL;
@@ -310,6 +313,7 @@ extern struct TAG_feunit occampi_primproc_feunit;		/* occampi_primproc.c */
 extern struct TAG_feunit occampi_cnode_feunit;			/* occampi_cnode.c */
 extern struct TAG_feunit occampi_snode_feunit;			/* occampi_snode.c */
 extern struct TAG_feunit occampi_decl_feunit;			/* occampi_decl.c */
+extern struct TAG_feunit occampi_procdecl_feunit;		/* occampi_procdecl.c */
 extern struct TAG_feunit occampi_action_feunit;			/* occampi_action.c */
 extern struct TAG_feunit occampi_lit_feunit;			/* occampi_lit.c */
 extern struct TAG_feunit occampi_type_feunit;			/* occampi_type.c */

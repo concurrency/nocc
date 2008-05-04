@@ -116,6 +116,7 @@ static feunit_t *feunit_set[] = {
 	&occampi_cnode_feunit,
 	&occampi_snode_feunit,
 	&occampi_decl_feunit,
+	&occampi_procdecl_feunit,
 	&occampi_dtype_feunit,
 	&occampi_vector_feunit,
 	&occampi_protocol_feunit,
