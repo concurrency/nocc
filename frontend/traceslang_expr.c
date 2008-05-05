@@ -842,7 +842,7 @@ static int traceslang_totrace_ionode (langops_t *lops, tnode_t *node, tchk_bucke
 	tchknode_t *tcn;
 
 	tcn = tracescheck_createnode ((node->tag == traceslang.tag_INPUT) ? TCN_INPUT : TCN_OUTPUT, node,
-			tracescheck_createnode (TCN_NODEREF, item, item));
+			tracescheck_createnode (TCN_NODEREF, item, item), NULL);
 	dynarray_add (bucket->items, tcn);
 
 #if 0

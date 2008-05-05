@@ -820,7 +820,8 @@ static int occampi_tracescheck_typedecl_cttrace (compops_t *cops, tnode_t *node,
 	traces = (tnode_t *)tnode_getchook (node, trctchook);
 	if (traces) {
 #if 1
-fprintf (stderr, "occampi_tracescheck_typedecl_cttrace(): here!\n");
+fprintf (stderr, "occampi_tracescheck_typedecl_cttrace(): here! got traces:\n");
+tnode_dumptree (traces, 1, stderr);
 #endif
 	}
 
@@ -1234,6 +1235,7 @@ static int occampi_tracescheck_procdecl_tracetypeimpl (compops_t *cops, tnode_t 
 	tnode_t *trimpl;
 	importtrace_t *ipt;
 	tchk_traces_t *trs;
+	tnode_t *params = NULL;
 
 	if (tnode_hascompop (cops->next, "tracescheck")) {
 		/* this will do trace analysis on the PROC proper */
@@ -1282,7 +1284,7 @@ tracescheck_dumpnode (tcn, 1, stderr);
 	}
 
 	trs = (tchk_traces_t *)tnode_getchook (node, trtracechook);
-#if 0
+#if 1
 fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): got traces-chook at 0x%8.8x, traces are:\n", (unsigned int)trs);
 tracescheck_dumptraces (trs, 1, stderr);
 #endif
@@ -1290,7 +1292,7 @@ tracescheck_dumptraces (trs, 1, stderr);
 	trimpl = (tnode_t *)tnode_getchook (node, trimplchook);
 	if (trimpl) {
 		/*{{{  if there is an implementation hook, means we have traces to check!*/
-#if 0
+#if 1
 fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): got trimplchook, traces at 0x%8.8x\n", (unsigned int)trtracechook);
 #endif
 		if (trs) {
@@ -1330,6 +1332,28 @@ tnode_dumptree (trspecs[j], 1, stderr);
 			}
 		}
 		/*}}}*/
+	}
+
+	/*
+	 *	next: go through the PROC's formals, if we have any CHAN TYPEs with TRACES,
+	 *	check these against the implementation
+	 */
+	params = tnode_nthsubof (node, 1);
+	if (params) {
+		int nparams, i;
+		tnode_t **plist = parser_getlistitems (params, &nparams);
+
+		for (i=0; i<nparams; i++) {
+			tnode_t *ptype = typecheck_gettype (plist[i], NULL); 
+			tnode_t *ptt = tracescheck_tracespecof (ptype);
+
+#if 1
+fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): parameter %d, type:\n", i);
+tnode_dumptree (ptype, 1, stderr);
+fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): trace-spec for param type:\n");
+tnode_dumptree (ptt, 1, stderr);
+#endif
+		}
 	}
 
 	return v;

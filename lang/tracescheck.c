@@ -2809,6 +2809,17 @@ tchknode_t *tracescheck_totrace (tnode_t *tptr)
 }
 /*}}}*/
 
+/*{{{  tnode_t *tracescheck_tracespecof (tnode_t *tptr)*/
+/*
+ *	gets the trace specification (tchk_traces_t) associated with a particular node, usually a language type or name
+ *	returns traces on success, NULL if none
+ */
+tnode_t *tracescheck_tracespecof (tnode_t *tptr)
+{
+	return langops_tracespecof (tptr);
+}
+/*}}}*/
+
 /*{{{  chook_t *tracescheck_getnoderefchook (void)*/
 /*
  *	returns the traceschecknoderef compiler hook

@@ -50,6 +50,7 @@
 #include "prescope.h"
 #include "typecheck.h"
 #include "constprop.h"
+#include "tracescheck.h"
 #include "fetrans.h"
 #include "precheck.h"
 #include "usagecheck.h"
@@ -82,6 +83,8 @@ typedef struct TAG_fielddecloffset {
 static chook_t *fielddecloffset = NULL;
 static chook_t *ct_clienttype = NULL;
 static chook_t *ct_servertype = NULL;
+
+static chook_t *cttrace_chook = NULL;
 
 static compop_t *intypedecl_scopein_compop = NULL;
 static compop_t *intypedecl_scopeout_compop = NULL;
@@ -1721,7 +1724,7 @@ static int occampi_typehash_nametypenode (langops_t *lops, tnode_t *node, int hs
 		nocc_serious ("occampi_typehash_nametypenode(): unknown node (%s,%s)", node->tag->name, node->tag->ndef->name);
 		return 1;
 	}
-#if 1
+#if 0
 fprintf (stderr, "occampi_typehash_nametypenode(): FIXME: subtype needs including, got:\n");
 tnode_dumptree (subtype, 1, stderr);
 #endif
@@ -1742,6 +1745,56 @@ static tnode_t *occampi_gettags_nametypenode (langops_t *lops, tnode_t *node)
 		return langops_gettags (type);
 	}
 	return NULL;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_tracespecof_nametypenode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the traces-specification associated with a named channel-type
+ *	returns NULL if none
+ */
+static tnode_t *occampi_tracespecof_nametypenode (langops_t *lops, tnode_t *node)
+{
+	name_t *name = tnode_nthnameof (node, 0);
+	tnode_t *decl = NameDeclOf (name);
+	tnode_t *trs = (tnode_t *)tnode_getchook (decl, cttrace_chook);
+
+#if 0
+fprintf (stderr, "occampi_tracespecof_nametypenode(): declaration of CHANTYPEDECL name is:\n");
+tnode_dumptree (decl, 1, stderr);
+#endif
+
+	return trs;
+}
+/*}}}*/
+
+
+/*{{{  static tnode_t *occampi_tracespecof_cttypespecnode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the traces associated with a type-spec node -- used to modify traces on a CHAN TYPE (client and server ends),
+ *	or NULL if none
+ */
+static tnode_t *occampi_tracespecof_cttypespecnode (langops_t *lops, tnode_t *node)
+{
+	occampi_typeattr_t tattr = occampi_typeattrof (node);
+	tnode_t *sub = tnode_nthsubof (node, 0);
+	tnode_t *trs = NULL;
+
+#if 0
+fprintf (stderr, "occampi_tracespecof_cttypespecnode(): here!, sub is [%s]\n", sub->tag->name);
+#endif
+	if (sub->tag == opi.tag_NCHANTYPEDECL) {
+		/*{{{  possibly have some traces attached to the CHAN TYPE declaration*/
+		trs = tracescheck_tracespecof (sub);
+
+		if (trs) {
+#if 1
+fprintf (stderr, "occampi_tracespecof_cttypespecnode(): got plain traces on CHAN TYPE decl:\n");
+tnode_dumptree (trs, 1, stderr);
+#endif
+		}
+		/*}}}*/
+	}
+	return trs;
 }
 /*}}}*/
 
@@ -2032,6 +2085,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setlangop (lops, "istype", 1, LANGOPTYPE (occampi_istype_nametypenode));
 	tnode_setlangop (lops, "typehash", 3, LANGOPTYPE (occampi_typehash_nametypenode));
 	tnode_setlangop (lops, "gettags", 1, LANGOPTYPE (occampi_gettags_nametypenode));
+	tnode_setlangop (lops, "tracespecof", 1, LANGOPTYPE (occampi_tracespecof_nametypenode));
 	tnd->lops = lops;
 
 	i = -1;
@@ -2055,6 +2109,27 @@ static int occampi_dtype_init_nodes (void)
  */
 static int occampi_dtype_post_setup (void)
 {
+	tndef_t *tnd;
+	compops_t *cops;
+	langops_t *lops;
+
+	/*{{{  intefere with occampi:typespecnode to handle channel-type ends*/
+	tnd = tnode_lookupnodetype ("occampi:typespecnode");
+	if (!tnd) {
+		nocc_internal ("occampi_dtype_post_setup(): failed to find \"occampi:typespecnode\" node-type!");
+		return -1;
+	}
+	cops = tnode_insertcompops (tnd->ops);
+	tnd->ops = cops;
+	lops = tnode_insertlangops (tnd->lops);
+	tnode_setlangop (lops, "tracespecof", 1, LANGOPTYPE (occampi_tracespecof_cttypespecnode));
+	tnd->lops = lops;
+
+	/*}}}*/
+	/*{{{  grab occampi:cttrace compiler-hook (attaches trace definitions to CHAN TYPE declarations)*/
+	cttrace_chook = tnode_lookupornewchook ("occampi:cttrace");
+
+	/*}}}*/
 	return 0;
 }
 /*}}}*/

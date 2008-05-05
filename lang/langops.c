@@ -1,6 +1,6 @@
 /*
  *	langops.c -- langage-level operations for nocc
- *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2008 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@
 #include "parser.h"
 #include "parsepriv.h"
 #include "names.h"
+#include "tracescheck.h"
 #include "langops.h"
 
 /*}}}*/
@@ -472,6 +473,24 @@ name_t *langops_nameof (tnode_t *node)
 
 	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_NAMEOF)) {
 		return (name_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_NAMEOF, 1, node);
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  tnode_t *langops_tracespecof (tnode_t *node)*/
+/*
+ *	returns the traces specification of a particular node (usually a type or name)
+ *	returns traces-specification on success, NULL if none
+ */
+tnode_t *langops_tracespecof (tnode_t *node)
+{
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through this node */
+		node = tnode_nthsubof (node, 0);
+	}
+
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_TRACESPECOF)) {
+		return (tnode_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_TRACESPECOF, 1, node);
 	}
 	return NULL;
 }

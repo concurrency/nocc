@@ -1,6 +1,6 @@
 /*
  *	langops.h -- interface to langage-level operations
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2008 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 
 struct TAG_tnode;
 struct TAG_name;
+struct TAG_tchk_traces;
 
 extern int langops_init (void);
 extern int langops_shutdown (void);
@@ -45,6 +46,7 @@ extern struct TAG_tnode *langops_getfieldnamelist (struct TAG_tnode *node);
 extern int langops_iscommunicable (struct TAG_tnode *node);
 extern struct TAG_tnode *langops_gettags (struct TAG_tnode *node);
 extern struct TAG_name *langops_nameof (struct TAG_tnode *node);
+extern struct TAG_tnode *langops_tracespecof (struct TAG_tnode *node);
 
 #endif	/* !__LANGOPS_H */
 

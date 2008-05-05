@@ -1,6 +1,6 @@
 /*
  *	tnode.c -- parser node functions
- *	Copyright (C) 2004-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2008 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -460,6 +460,7 @@ int tnode_init (void)
 	tnode_newlangop ("protocoltotype", LOPS_PROTOCOLTOTYPE, 2, INTERNAL_ORIGIN);
 	tnode_newlangop ("gettags", LOPS_GETTAGS, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("nameof", LOPS_NAMEOF, 1, INTERNAL_ORIGIN);
+	tnode_newlangop ("tracespecof", LOPS_TRACESPECOF, 1, INTERNAL_ORIGIN);
 
 	/*}}}*/
 	/*{{{  setup the static node types*/

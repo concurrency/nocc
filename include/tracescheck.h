@@ -1,6 +1,6 @@
 /*
  *	tracescheck.h -- interface to traces checker
- *	Copyright (C) 2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2008 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -170,6 +170,8 @@ extern int tracescheck_endwalk (tchk_tracewalk_t *ttw);
 extern void tracescheck_testwalk (tchknode_t *tcn);
 
 extern tchknode_t *tracescheck_totrace (struct TAG_tnode *tptr);
+
+extern tnode_t *tracescheck_tracespecof (struct TAG_tnode *tptr);
 
 extern struct TAG_chook *tracescheck_getnoderefchook (void);
 extern struct TAG_chook *tracescheck_gettracesrefchook (void);

@@ -1,6 +1,6 @@
 /*
  *	tnode.h -- parse tree structure for nocc
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2008 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -196,6 +196,7 @@ typedef enum ENUM_langops {
 	LOPS_PROTOCOLTOTYPE = 34,		/* 1: tnode_t * -> tnode_t * */
 	LOPS_GETTAGS = 35,			/* 1: tnode_t * -> tnode_t * */
 	LOPS_NAMEOF = 36,			/* 1: tnode_t * -> name_t * */
+	LOPS_TRACESPECOF = 37,			/* 1: tnode_t * -> tnode_t * */
 	LOPS_MAX = 256
 } langops_e;
 
