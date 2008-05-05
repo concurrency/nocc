@@ -972,6 +972,20 @@ static int occampi_iscommunicable_namenode (langops_t *lops, tnode_t *node)
 	return 0;
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_gettags_namenode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the tags associated with an occam-pi name (or NULL if none)
+ */
+static tnode_t *occampi_gettags_namenode (langops_t *lops, tnode_t *node)
+{
+	tnode_t *type = NameTypeOf (tnode_nthnameof (node, 0));
+
+	if (type) {
+		return langops_gettags (type);
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static void *occampi_arraydiminfo_chook_copy (void *chook)*/
@@ -1057,6 +1071,7 @@ static int occampi_decl_init_nodes (void)
 	tnode_setlangop (lops, "constvalof", 2, LANGOPTYPE (occampi_constvalof_namenode));
 	tnode_setlangop (lops, "dimtreeof", 1, LANGOPTYPE (occampi_dimtreeof_namenode));
 	tnode_setlangop (lops, "iscommunicable", 1, LANGOPTYPE (occampi_iscommunicable_namenode));
+	tnode_setlangop (lops, "gettags", 1, LANGOPTYPE (occampi_gettags_namenode));
 	tnd->lops = lops;
 
 	i = -1;

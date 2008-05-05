@@ -1015,6 +1015,8 @@ void *parser_lookup_rarg (const char *name)
 #define ICDE_TS1REWIND 21	/* push a single token from the token-stack back into the lexer */
 #define ICDE_ALLREV 22		/* reverse the order of the local stack */
 #define ICDE_MAKELIST 23	/* make a new list node using following count nodes taken from the local stack, result pushed back onto local stack */
+#define ICDE_FOLDINTO 24	/* fold the node at the top of the local stack (popped) into the following count'th subnode of the next node on the local stack */
+#define ICDE_EXTRACT 25		/* extract the following count'th subnode from the item at the top of the local stack and push onto the local stack */
 
 /*}}}*/
 
@@ -1128,7 +1130,8 @@ void parser_generic_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 
 				/*{{{  check number of arguments in use w.r.t. the node we're building*/
 				if (ccnt != (tag->ndef->nsub + tag->ndef->nname + tag->ndef->nhooks)) {
-					nocc_serious ("parser_generic_reduce(): building node [%s] with %d arguments, but expected %d", tag->name, ccnt, tag->ndef->nsub + tag->ndef->nname + tag->ndef->nhooks);
+					nocc_serious ("parser_generic_reduce(): building node [%s] with %d arguments, but expected %d",
+							tag->name, ccnt, tag->ndef->nsub + tag->ndef->nname + tag->ndef->nhooks);
 				}
 
 				/*}}}*/
@@ -1337,6 +1340,46 @@ void parser_generic_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 			}
 			break;
 			/*}}}*/
+			/*{{{  ICDE_EXTRACT*/
+		case ICDE_EXTRACT:
+			{
+				int sn = (int)arg[++ipos];
+				tnode_t *node = (tnode_t *)lnstk[lncnt - 1];	/* TOS */
+				tnode_t *item = NULL;
+
+				if (sn >= node->tag->ndef->nsub) {
+					nocc_serious ("parser_generic_reduce(): extracting subnode %d from [%s], but only got %d",
+							sn, node->tag->name, node->tag->ndef->nsub);
+				}
+				item = tnode_nthsubof (node, sn);
+				tnode_setnthsub (node, sn, NULL);
+
+				lnstk[lncnt++] = (tnode_t *)item;
+			}
+			break;
+			/*}}}*/
+			/*{{{  ICDE_FOLDINTO*/
+		case ICDE_FOLDINTO:
+			{
+				int sn = (int)arg[++ipos];
+				tnode_t *item = (tnode_t *)lnstk[--lncnt];
+				tnode_t *node = (tnode_t *)lnstk[lncnt - 1];	/* TOS */
+
+				if (sn >= node->tag->ndef->nsub) {
+					nocc_serious ("parser_generic_reduce(): folding [%s] into [%s] at subnode %d, but only got %d",
+							item->tag->name, node->tag->name, sn, node->tag->ndef->nsub);
+				}
+				if (tnode_nthsubof (node, sn)) {
+					tnode_t *xitem = tnode_nthsubof (node, sn);
+
+					nocc_warning ("parser_generic_reduce(): freeing existing subnode [%s] in [%s] subnode %d",
+							xitem->tag->name, node->tag->name, sn);
+					tnode_free (xitem);
+				}
+				tnode_setnthsub (node, sn, item);
+			}
+			break;
+			/*}}}*/
 		}
 	}
 	return;
@@ -1506,6 +1549,38 @@ void *parser_decode_grule (const char *rule, ...)
 					return NULL;
 				}
 				lsdepth++;
+			}
+			ilen += 2;
+			break;
+			/*}}}*/
+			/*{{{  E -- extract*/
+		case 'E':
+			xrule++;
+			if ((*xrule < '0') || (*xrule > '9')) {
+				goto report_error_out;
+			} else {
+				/* adjustment is plus 1, but must have at least one thing */
+				if (lsdepth < 1) {
+					nocc_error ("parser_decode_grule(): local stack underflow at char %d in \"%s\"", (int)(xrule - rule), rule);
+					return NULL;
+				}
+				lsdepth++;
+			}
+			ilen += 2;
+			break;
+			/*}}}*/
+			/*{{{  F -- fold into*/
+		case 'F':
+			xrule++;
+			if ((*xrule < '0') || (*xrule > '9')) {
+				goto report_error_out;
+			} else {
+				/* adjustment is minus 1, but must have at least one thing left */
+				lsdepth--;
+				if (lsdepth < 1) {
+					nocc_error ("parser_decode_grule(): local stack underflow at char %d in \"%s\"", (int)(xrule - rule), rule);
+					return NULL;
+				}
 			}
 			ilen += 2;
 			break;
@@ -1706,6 +1781,20 @@ void *parser_decode_grule (const char *rule, ...)
 		case 'L':
 			xrule++;
 			icode[i++] = ICDE_MAKELIST;
+			icode[i] = (int)(*xrule - '0');
+			break;
+			/*}}}*/
+			/*{{{  E -- extract from*/
+		case 'E':
+			xrule++;
+			icode[i++] = ICDE_EXTRACT;
+			icode[i] = (int)(*xrule - '0');
+			break;
+			/*}}}*/
+			/*{{{  F -- fold into*/
+		case 'F':
+			xrule++;
+			icode[i++] = ICDE_FOLDINTO;
 			icode[i] = (int)(*xrule - '0');
 			break;
 			/*}}}*/

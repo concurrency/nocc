@@ -110,11 +110,17 @@ static int occampi_actionscope_prewalk_scopefields (tnode_t *node, void *data)
 		tnode_t *tagname = tnode_nthsubof (node, 0);
 
 		if (tagname->tag == opi.tag_NTAG) {
+			name_t *ntagname = langops_nameof (tagname);
+
 #if 0
 fprintf (stderr, "occampi_actionscope_prewalk_scopefields(): adding tagname to scope:\n");
 tnode_dumptree (tagname, 1, stderr);
 #endif
-			name_scopename (tnode_nthnameof (tagname, 0));
+			if (!ntagname) {
+				scope_error (node, ss, "NTAG does not have underlying name");
+			} else {
+				name_scopename (ntagname);
+			}
 		} else {
 			scope_warning (tagname, ss, "TAGDECL does not have NTAG name");
 		}
@@ -164,7 +170,7 @@ tnode_dumptree (ctype, 1, stderr);
 				
 				/* subtype will be the channel protocol, if a named variant protocol, scope-in fields */
 				if (subtype->tag == opi.tag_NVARPROTOCOLDECL) {
-					/*{{{  do stuff*/
+					/*{{{  scope in fields of variant protocol*/
 					void *namemark = name_markscope ();
 					tnode_t **rhsitems;
 					int nrhsitems, i;

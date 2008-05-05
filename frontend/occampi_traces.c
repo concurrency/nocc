@@ -730,9 +730,11 @@ name_dumpnames (stderr);
 
 		xtraces = parser_getlistitems (traces, &ntraces);
 		traceslang_registertracetype (opi.tag_NFIELD);
+		traceslang_registertracetype (opi.tag_NTAG);
 		for (i=0; i<ntraces; i++) {
 			scope_subtree (xtraces + i, ss);
 		}
+		traceslang_unregistertracetype (opi.tag_NTAG);
 		traceslang_unregistertracetype (opi.tag_NFIELD);
 	}
 

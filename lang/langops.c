@@ -440,6 +440,43 @@ int langops_iscommunicable (tnode_t *node)
 	return 0;
 }
 /*}}}*/
+/*{{{  tnode_t *langops_gettags (tnode_t *node)*/
+/*
+ *	returns a list of tags associated with a particular node (determined ultimately by type)
+ *	returns list of tags or NULL
+ */
+tnode_t *langops_gettags (tnode_t *node)
+{
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through this node */
+		node = tnode_nthsubof (node, 0);
+	}
+
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GETTAGS)) {
+		return (tnode_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GETTAGS, 1, node);
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  name_t *langops_nameof (tnode_t *node)*/
+/*
+ *	returns the name_t associated with a particular node (usually the name of something)
+ *	returns name on success, NULL on failure
+ */
+name_t *langops_nameof (tnode_t *node)
+{
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through this node */
+		node = tnode_nthsubof (node, 0);
+	}
+
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_NAMEOF)) {
+		return (name_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_NAMEOF, 1, node);
+	}
+	return NULL;
+}
+/*}}}*/
+
 
 /*{{{  int langops_init (void)*/
 /*

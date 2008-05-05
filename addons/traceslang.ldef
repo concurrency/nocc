@@ -44,8 +44,9 @@
 .GRULE	"trs:nullreduce" "N+R-"
 .GRULE	"trs:nullpush" "0N-"
 .GRULE	"trs:namereduce" "T+St0X[traceslang_nametoken_to_hook]C[TRACESLANGNAME]1R-"
-.GRULE	"trs:makerinput" "ST0T+@tR+C[TRACESLANGINPUT]1R-"
-.GRULE	"trs:makeroutput" "ST0T+@tR+C[TRACESLANGOUTPUT]1R-"
+.GRULE	"trs:makerinput" "ST0T+@tR+0C[TRACESLANGINPUT]2R-"
+.GRULE	"trs:makeroutput" "ST0T+@tR+0C[TRACESLANGOUTPUT]2R-"
+.GRULE	"trs:foldiotag" "SN0R+N+F1R-"
 
 .GRULE	"trs:skippush" "ST0T+@tC[TRACESLANGSKIP]0N-"
 .GRULE	"trs:stoppush" "ST0T+@tC[TRACESLANGSTOP]0N-"
@@ -66,7 +67,9 @@
 
 .TABLE	"traceslang:fixedname ::= [ 0 +Name 1 ] [ 1 {<trs:namereduce>} -* ]"
 .TABLE	"traceslang:name ::= [ 0 +Name 1 ] [ 1 {<trs:namereduce>} -* 2 ] [ 2 +@@! 3 ] [ 2 +@@? 4 ] [ 2 -* ]"
-	"[ 3 {<trs:makeroutput>} -* ] [ 4 {<trs:makerinput>} -* ]"
+	"[ 3 {<trs:makeroutput>} -* 5 ] [ 4 {<trs:makerinput>} -* 5 ]"
+	"[ 5 traceslang:fixedname 6 ] [ 5 -* ]"
+	"[ 6 {<trs:foldiotag>} -* ]"
 .BNF	"traceslang:namelist ::= { traceslang:name @@, 0 }"
 .TABLE	"traceslang:shortexpr ::= [ 0 traceslang:name 1 ] [ 0 @@( 3 ] [ 0 +@Skip 5 ] [ 0 +@Stop 6 ] [ 0 +@Chaos 7 ] [ 0 +@Div 8 ] [ 0 +@@@ 12 ]"
 	"[ 1 @@( 9 ] [ 1 -End 2 ] [ 1 -* 2 ] [ 2 {<trs:nullreduce>} -* ]"

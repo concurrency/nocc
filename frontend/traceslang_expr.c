@@ -340,6 +340,65 @@ static int traceslang_scopeout_setnode (compops_t *cops, tnode_t **node, scope_t
 }
 /*}}}*/
 
+/*{{{  static int traceslang_scopein_ionode (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
+/*
+ *	scopes-in a traces-lang io-node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int traceslang_scopein_ionode (compops_t *cops, tnode_t **nodep, scope_t *ss)
+{
+	if (((*nodep)->tag == traceslang.tag_INPUT) || ((*nodep)->tag == traceslang.tag_OUTPUT)) {
+		/*{{{  input or output node*/
+		tnode_t **tagsp = tnode_nthsubaddr (*nodep, 1);
+
+		/* scope LHS (should be channel or somesuch) */
+		scope_subtree (tnode_nthsubaddr (*nodep, 0), ss);
+
+#if 0
+fprintf (stderr, "traceslang_scopein_ionode(): here! *tagsp = 0x%8.8x\n", (unsigned int)(*tagsp));
+#endif
+		if (*tagsp) {
+			/* got a tag-pointer, see if the LHS has tags */
+			tnode_t *lhs = tnode_nthsubof (*nodep, 0);
+			tnode_t *lhstags = langops_gettags (lhs);
+			void *namemark = name_markscope ();
+
+#if 0
+fprintf (stderr, "traceslang_scopein_ionode(): here2! lhs =\n");
+tnode_dumptree (lhs, 1, stderr);
+fprintf (stderr, "traceslang_scopein_ionode(): here2! lhstags =\n");
+tnode_dumptree (lhstags, 1, stderr);
+#endif
+
+			if (!lhstags) {
+				/* ignore for now, will fail in typecheck */
+			} else {
+				int nitems, i;
+				tnode_t **tagnamelist = parser_getlistitems (lhstags, &nitems);
+
+#if 0
+fprintf (stderr, "traceslang_scopein_ionode(): got tag pointer and LHS tags!\n");
+#endif
+				for (i=0; i<nitems; i++) {
+					name_t *tagname = langops_nameof (tagnamelist[i]);
+
+					if (tagname) {
+						name_scopename (tagname);
+					}
+				}
+			}
+
+			scope_subtree (tnode_nthsubaddr (*nodep, 1), ss);
+
+			name_markdescope (namemark);
+		}
+
+		return 0;
+		/*}}}*/
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int traceslang_typecheck_ionode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking on a traces io-node
@@ -919,8 +978,9 @@ static int traceslang_expr_init_nodes (void)
 	/*}}}*/
 	/*{{{  traceslang:ionode -- TRACESLANGINPUT, TRACESLANGOUTPUT, TRACESLANGSYNC*/
 	i = -1;
-	tnd = tnode_newnodetype ("traceslang:ionode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = item */
+	tnd = tnode_newnodetype ("traceslang:ionode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = item, 1 = tag (if any) */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (traceslang_scopein_ionode));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (traceslang_typecheck_ionode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
@@ -974,7 +1034,7 @@ static int traceslang_expr_init_nodes (void)
 	traceslang.tag_INSTANCE = tnode_newnodetag ("TRACESLANGINSTANCE", &i, tnd, NTF_TRACESLANGSTRUCTURAL);
 
 	/*}}}*/
-	/*{{{  traceslang:namenode -- TRACESLANGNPARAM, TRACESLANGNFIX*/
+	/*{{{  traceslang:namenode -- TRACESLANGNPARAM, TRACESLANGNFIX, TRACESLANGNTAG*/
 	i = -1;
 	tnd = tnode_newnodetype ("traceslang:namenode", &i, 0, 1, 0, TNF_NONE);			/* subnames: 0 = name */
 	cops = tnode_newcompops ();
@@ -988,6 +1048,8 @@ static int traceslang_expr_init_nodes (void)
 	traceslang.tag_NPARAM = tnode_newnodetag ("TRACESLANGNPARAM", &i, tnd, NTF_TRACESLANGCOPYALIAS);
 	i = -1;
 	traceslang.tag_NFIX = tnode_newnodetag ("TRACESLANGNFIX", &i, tnd, NTF_TRACESLANGCOPYALIAS);
+	i = -1;
+	traceslang.tag_NTAG = tnode_newnodetag ("TRACESLANGTAG", &i, tnd, NTF_TRACESLANGCOPYALIAS);
 
 	/*}}}*/
 	/*{{{  traceslang:fixpointnode -- TRACESLANGFIXPOINT*/

@@ -71,6 +71,7 @@ typedef struct TAG_pextstate {
 /*{{{  private data*/
 
 static chook_t *pextstate = NULL;
+static chook_t *gettagschook = NULL;
 
 /* oof, really want to move this into fetrans state */
 static tnode_t *caseinput_chan = NULL;
@@ -144,6 +145,68 @@ static void occampi_pextstate_chook_dumptree (tnode_t *node, void *chook, int in
 }
 /*}}}*/
 
+/*{{{  static void occampi_gettagschook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*
+ *	dumps a gettagschook compiler hook (debugging)
+ */
+static void occampi_gettagschook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+{
+	tnode_t *taglist = (tnode_t *)chook;
+
+	occampi_isetindent (stream, indent);
+	if (!taglist) {
+		fprintf (stream, "<chook:gettagschook value=\"null\" />\n");
+	} else {
+		fprintf (stream, "<chook:gettagschook>\n");
+		tnode_dumptree (taglist, indent+1, stream);
+		occampi_isetindent (stream, indent);
+		fprintf (stream, "</chook:gettagschook>\n");
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_gettagschook_free (void *chook)*/
+/*
+ *	frees a gettagschook compiler hook
+ */
+static void occampi_gettagschook_free (void *chook)
+{
+	tnode_t *taglist = (tnode_t *)chook;
+
+	if (taglist) {
+		if (!parser_islistnode (taglist)) {
+			nocc_internal ("occampi_gettagschook_free(): hook not list! got [%s]", taglist->tag->name);
+		} else {
+			parser_trashlist (taglist);
+		}
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void *occampi_gettagschook_copy (void *chook)*/
+/*
+ *	copies a gettagschook compiler hook
+ */
+static void *occampi_gettagschook_copy (void *chook)
+{
+	tnode_t *taglist = (tnode_t *)chook;
+
+	if (taglist) {
+		if (!parser_islistnode (taglist)) {
+			nocc_internal ("occampi_gettagschook_copy(): hook not list! got [%s]", taglist->tag->name);
+		} else {
+			int nitems, i;
+			tnode_t **items = parser_getlistitems (taglist, &nitems);
+			tnode_t *newlist = parser_newlistnode (NULL);
+
+			for (i=0; i<nitems; i++) {
+				parser_addtolist (newlist, items[i]);
+			}
+		}
+	}
+	return NULL;
+}
+/*}}}*/
 
 /*{{{  static int occampi_prescope_protocoldecl (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
 /*
@@ -1397,6 +1460,52 @@ tnode_dumptree (subtype, 1, stderr);
 	return 0;
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_gettags_nameprotocolnode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns a list of tags associated with a named-protocol, or NULL if none
+ */
+static tnode_t *occampi_gettags_nameprotocolnode (langops_t *lops, tnode_t *node)
+{
+	if (node->tag == opi.tag_NVARPROTOCOLDECL) {
+		name_t *name = tnode_nthnameof (node, 0);
+		tnode_t *tagdecllist = NameTypeOf (name);
+		tnode_t *taglist = (tnode_t *)tnode_getchook (node, gettagschook);
+
+		if (!taglist) {
+			/* make one */
+			taglist = parser_newlistnode (NULL);
+
+			if (!parser_islistnode (tagdecllist)) {
+				nocc_internal ("occampi_gettags_nameprotocolnode(): tag-decl-list not list!  got [%s]", tagdecllist->tag->name);
+			} else {
+				int ndecls, i;
+				tnode_t **tagdecls = parser_getlistitems (tagdecllist, &ndecls);
+
+				for (i=0; i<ndecls; i++) {
+					if (tagdecls[i]->tag != opi.tag_TAGDECL) {
+						nocc_internal ("occampi_gettags_nameprotocolnode(): tag-decl not tag-decl!  got [%s]",
+								tagdecls[i]->tag->name);
+					} else {
+						parser_addtolist (taglist, tnode_nthsubof (tagdecls[i], 0));
+					}
+				}
+			}
+			tnode_setchook (node, gettagschook, (void *)taglist);
+		}
+		return taglist;
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  static name_t *occampi_nameof_nameprotocolnode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the name associated with a named-protocol, or NULL on failure
+ */
+static name_t *occampi_nameof_nameprotocolnode (langops_t *lops, tnode_t *node)
+{
+	return tnode_nthnameof (node, 0);
+}
+/*}}}*/
 
 /*{{{  static int occampi_prescope_tagdecl (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
 /*
@@ -2204,6 +2313,8 @@ static int occampi_protocol_init_nodes (void)
 	tnode_setlangop (lops, "istype", 1, LANGOPTYPE (occampi_istype_nameprotocolnode));
 	tnode_setlangop (lops, "typehash", 3, LANGOPTYPE (occampi_typehash_nameprotocolnode));
 	tnode_setlangop (lops, "protocoltotype", 2, LANGOPTYPE (occampi_protocoltotype_nameprotocolnode));
+	tnode_setlangop (lops, "gettags", 1, LANGOPTYPE (occampi_gettags_nameprotocolnode));
+	tnode_setlangop (lops, "nameof", 1, LANGOPTYPE (occampi_nameof_nameprotocolnode));
 	tnd->lops = lops;
 
 	i = -1;
@@ -2219,6 +2330,13 @@ static int occampi_protocol_init_nodes (void)
 	pextstate->chook_dumptree = occampi_pextstate_chook_dumptree;
 	pextstate->chook_free = occampi_pextstate_chook_free;
 	pextstate->chook_copy = occampi_pextstate_chook_copy;
+
+	/*}}}*/
+	/*{{{  gettags compiler hook*/
+	gettagschook = tnode_lookupornewchook ("occampi:gettagschook");
+	gettagschook->chook_dumptree = occampi_gettagschook_dumptree;
+	gettagschook->chook_free = occampi_gettagschook_free;
+	gettagschook->chook_copy = occampi_gettagschook_copy;
 
 	/*}}}*/
 

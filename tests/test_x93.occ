@@ -1,0 +1,21 @@
+
+-- test_x93.occ -- more TRACES tests
+
+PROTOCOL P.IN
+  CASE
+    zero
+    one; INT
+:
+
+CHAN TYPE FOO
+  MOBILE RECORD
+    CHAN P.IN in?:
+    CHAN INT out!:
+  TRACES
+    "(in?zero -> out!) [] in?one"
+:
+
+PROC test.x93 (FOO? svr)
+  SKIP
+:
+

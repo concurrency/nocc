@@ -475,6 +475,20 @@ tnode_dumptree (ptype, 1, stderr);
 	return -1;
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_type_gettags (langops_t *lops, tnode_t *node)*/
+/*
+ *	gets the tags associated with a channel -- the protocol in this case
+ *	returns tag-list on success, NULL on failure
+ */
+static tnode_t *occampi_type_gettags (langops_t *lops, tnode_t *node)
+{
+	if (node->tag == opi.tag_CHAN) {
+		return langops_gettags (tnode_nthsubof (node, 0));
+	}
+	return NULL;
+}
+/*}}}*/
+
 /*{{{  static int occampi_initsizes_type_arraynode (langops_t *lops, tnode_t *t, tnode_t *declnode, int *wssize, int *vssize, int *mssize, int *indir, map_t *mdata)*/
 /*
  *	called for arraynode declarations to handle initialisation sizes for PLACED PORT arrays
@@ -1082,6 +1096,7 @@ static int occampi_type_init_nodes (void)
 	tnode_setlangop (lops, "initsizes", 7, LANGOPTYPE (occampi_type_initsizes));
 	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_type_initialising_decl));
 	tnode_setlangop (lops, "codegen_typeaction", 3, LANGOPTYPE (occampi_type_codegen_typeaction));
+	tnode_setlangop (lops, "gettags", 1, LANGOPTYPE (occampi_type_gettags));
 	tnd->lops = lops;
 
 	i = -1;

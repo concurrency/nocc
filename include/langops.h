@@ -21,6 +21,7 @@
 #define __LANGOPS_H
 
 struct TAG_tnode;
+struct TAG_name;
 
 extern int langops_init (void);
 extern int langops_shutdown (void);
@@ -42,7 +43,8 @@ extern struct TAG_tnode *langops_getbasename (struct TAG_tnode *node);
 extern struct TAG_tnode *langops_getfieldname (struct TAG_tnode *node);
 extern struct TAG_tnode *langops_getfieldnamelist (struct TAG_tnode *node);
 extern int langops_iscommunicable (struct TAG_tnode *node);
-
+extern struct TAG_tnode *langops_gettags (struct TAG_tnode *node);
+extern struct TAG_name *langops_nameof (struct TAG_tnode *node);
 
 #endif	/* !__LANGOPS_H */
 

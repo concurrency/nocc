@@ -1729,6 +1729,21 @@ tnode_dumptree (subtype, 1, stderr);
 	return 0;
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_gettags_nametypenode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the list of tags associated with a named-type node, or NULL if none
+ */
+static tnode_t *occampi_gettags_nametypenode (langops_t *lops, tnode_t *node)
+{
+	if (node->tag == opi.tag_NFIELD) {
+		name_t *name = tnode_nthnameof (node, 0);
+		tnode_t *type = NameTypeOf (name);
+
+		return langops_gettags (type);
+	}
+	return NULL;
+}
+/*}}}*/
 
 
 /*{{{  static void occampi_reduce_resetnewline (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
@@ -2016,6 +2031,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_initialising_decl_nametypenode));
 	tnode_setlangop (lops, "istype", 1, LANGOPTYPE (occampi_istype_nametypenode));
 	tnode_setlangop (lops, "typehash", 3, LANGOPTYPE (occampi_typehash_nametypenode));
+	tnode_setlangop (lops, "gettags", 1, LANGOPTYPE (occampi_gettags_nametypenode));
 	tnd->lops = lops;
 
 	i = -1;
