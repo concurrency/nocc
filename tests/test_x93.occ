@@ -16,6 +16,7 @@ CHAN TYPE FOO
 :
 
 PROC test.x93 (FOO? svr)
-  SKIP
+  SEQ
+    svr[out] ! 42
 :
 

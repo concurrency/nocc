@@ -406,6 +406,10 @@ tnode_dumptree (baselhs, 1, stderr);
 fprintf (stderr, "occampi_tracescheck_action(): got hook for traces on LHS/base-of, field-list is:\n");
 tnode_dumptree (fieldlhs, 1, stderr);
 #endif
+			if (fieldlhs) {
+				/* got field-list, make FIELD */
+				newtcn = tracescheck_createnode (TCN_FIELD, node, newtcn, fieldlhs);
+			}
 			newtcn = tracescheck_createnode ((node->tag == opi.tag_INPUT) ? TCN_INPUT : TCN_OUTPUT, node, newtcn, NULL);
 			tracescheck_addtobucket (tcstate, newtcn);
 		}
