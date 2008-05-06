@@ -32,7 +32,7 @@
 .TNODE	"traceslang:rawnamenode" (0,0,1) "rawname"
 .TNODE	"traceslang:litnode" (0,0,1) "literal-hook"
 .TNODE	"traceslang:setnode" (1,0,0) "list-of-items"
-.TNODE	"traceslang:ionode" (1,0,0) "item"
+.TNODE	"traceslang:ionode" (2,0,0) "item" "tag"
 
 
 # }}}

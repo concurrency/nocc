@@ -85,6 +85,9 @@ static chook_t *trbvarschook = NULL;
 static chook_t *trimportchook = NULL;
 static chook_t *trctchook = NULL;
 
+static chook_t *trctclientchook = NULL;		/* occampi:chantype:clienttrace */
+static chook_t *trctserverchook = NULL;		/* occampi:chantype:servertrace */
+
 /*}}}*/
 
 
@@ -819,9 +822,16 @@ static int occampi_tracescheck_typedecl_cttrace (compops_t *cops, tnode_t *node,
 
 	traces = (tnode_t *)tnode_getchook (node, trctchook);
 	if (traces) {
-#if 1
+		tnode_t *inv = traceslang_invert (traces);
+		tnode_t *name = tnode_nthsubof (node, 0);
+
+		tnode_setchook (name, trctserverchook, (void *)traces);
+		tnode_setchook (name, trctclientchook, (void *)inv);
+#if 0
 fprintf (stderr, "occampi_tracescheck_typedecl_cttrace(): here! got traces:\n");
 tnode_dumptree (traces, 1, stderr);
+fprintf (stderr, "occampi_tracescheck_typedecl_cttrace(): here! got inverted traces:\n");
+tnode_dumptree (inv, 1, stderr);
 #endif
 	}
 
@@ -1284,7 +1294,7 @@ tracescheck_dumpnode (tcn, 1, stderr);
 	}
 
 	trs = (tchk_traces_t *)tnode_getchook (node, trtracechook);
-#if 1
+#if 0
 fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): got traces-chook at 0x%8.8x, traces are:\n", (unsigned int)trs);
 tracescheck_dumptraces (trs, 1, stderr);
 #endif
@@ -1347,7 +1357,7 @@ tnode_dumptree (trspecs[j], 1, stderr);
 			tnode_t *ptype = typecheck_gettype (plist[i], NULL); 
 			tnode_t *ptt = tracescheck_tracespecof (ptype);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): parameter %d, type:\n", i);
 tnode_dumptree (ptype, 1, stderr);
 fprintf (stderr, "occampi_tracescheck_procdecl_tracetypeimpl(): trace-spec for param type:\n");
@@ -1592,6 +1602,9 @@ static int occampi_traces_post_setup (void)
 		nocc_internal ("occampi_traces_post_setup(): failed to find traces compiler hooks");
 		return -1;
 	}
+
+	trctclientchook = tnode_lookupornewchook ("occampi:chantype:clienttrace");
+	trctserverchook = tnode_lookupornewchook ("occampi:chantype:servertrace");
 
 	/*}}}*/
 	/*{{{  intefere with PROC declaration nodes to capture/handle TRACES*/

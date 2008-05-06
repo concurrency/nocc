@@ -839,6 +839,7 @@ fprintf (stderr, "traceslang_totrace_setnode(): here!\n");
 static int traceslang_totrace_ionode (langops_t *lops, tnode_t *node, tchk_bucket_t *bucket)
 {
 	tnode_t *item = tnode_nthsubof (node, 0);
+	tnode_t *tag = tnode_nthsubof (node, 1);
 	tchknode_t *tcn;
 
 	tcn = tracescheck_createnode ((node->tag == traceslang.tag_INPUT) ? TCN_INPUT : TCN_OUTPUT, node,

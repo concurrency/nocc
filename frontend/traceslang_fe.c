@@ -1,6 +1,6 @@
 /*
  *	traceslang_fe.c -- traces language front-end
- *	Copyright (C) 2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2008 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -896,6 +896,96 @@ static int traceslang_allfixpoints_prewalk (tnode_t *node, void *arg)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int traceslang_invert_prewalk (tnode_t *node, void *arg)*/
+/*
+ *	called to invert traces (in pre-walk order)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int traceslang_invert_prewalk (tnode_t *node, void *arg)
+{
+	tnode_t **resp = (tnode_t **)arg;
+
+#if 1
+fprintf (stderr, "traceslang_invert_prewalk(): here! node type is [%s]\n", node->tag->name);
+#endif
+	if (parser_islistnode (node)) {
+		/*{{{  list, build new list containing copies*/
+		tnode_t *newlist = parser_newlistnode (NULL);
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (node, &nitems);
+
+		for (i=0; i<nitems; i++) {
+			tnode_t *nitm = traceslang_invert (items[i]);
+
+			parser_addtolist (newlist, nitm);
+		}
+
+		*resp = newlist;
+		return 0;
+		/*}}}*/
+	} else if (node->tag == traceslang.tag_INPUT) {
+		/*{{{  input, turn into output*/
+		tnode_t *newnode;
+		tnode_t *lhs = tnode_nthsubof (node, 0);
+		tnode_t *tag = tnode_nthsubof (node, 1);
+
+		tnode_t *newlhs = lhs ? traceslang_invert (lhs) : NULL;
+		tnode_t *newtag = tag ? traceslang_invert (tag) : NULL;
+
+		newnode = tnode_create (traceslang.tag_OUTPUT, NULL, newlhs, newtag);
+
+		*resp = newnode;
+		return 0;
+		/*}}}*/
+	} else if (node->tag == traceslang.tag_OUTPUT) {
+		/*{{{  output, turn into input*/
+		tnode_t *newnode;
+		tnode_t *lhs = tnode_nthsubof (node, 0);
+		tnode_t *tag = tnode_nthsubof (node, 1);
+
+		tnode_t *newlhs = lhs ? traceslang_invert (lhs) : NULL;
+		tnode_t *newtag = tag ? traceslang_invert (tag) : NULL;
+
+		newnode = tnode_create (traceslang.tag_INPUT, NULL, newlhs, newtag);
+
+		*resp = newnode;
+		return 0;
+		/*}}}*/
+	} else if (node->tag == traceslang.tag_DET) {
+		/*{{{  det, turn into ndet*/
+		tnode_t *newnode;
+		tnode_t *ilist = tnode_nthsubof (node, 0);
+
+		tnode_t *newlist = ilist ? traceslang_invert (ilist) : NULL;
+
+		newnode = tnode_create (traceslang.tag_NDET, NULL, newlist);
+
+		*resp = newnode;
+		return 0;
+		/*}}}*/
+	} else if ((node->tag == traceslang.tag_NDET) || (node->tag == traceslang.tag_SEQ) || (node->tag == traceslang.tag_PAR)) {
+		/*{{{  ndet, seq or par (setnode), leave alone*/
+		tnode_t *newnode;
+		tnode_t *ilist = tnode_nthsubof (node, 0);
+
+		tnode_t *newlist = ilist ? traceslang_invert (ilist) : NULL;
+
+		newnode = tnode_create (node->tag, NULL, newlist);
+
+		*resp = newnode;
+		return 0;
+		/*}}}*/
+	} else {
+		/*{{{  default: return node exactly*/
+		*resp = node;
+		return 0;
+		/*}}}*/
+	}
+
+	return 1;
+}
+/*}}}*/
+
 /*{{{  traceslang_eset_t *traceslang_firstevents (tnode_t *expr)*/
 /*
  *	extracts the set of leading events from a traces specification
@@ -994,4 +1084,20 @@ traceslang_eset_t *traceslang_allfixpoints (tnode_t *expr)
 	return eset;
 }
 /*}}}*/
+
+/*{{{  tnode_t *traceslang_invert (tnode_t *expr)*/
+/*
+ *	inverts a trace -- used to get the 'client' side of channel-type traces (and maybe other things)
+ *	returns the new trace on success, NULL on failure
+ */
+tnode_t *traceslang_invert (tnode_t *expr)
+{
+	tnode_t *inv = NULL;
+
+	tnode_prewalktree (expr, traceslang_invert_prewalk, (void *)&inv);
+
+	return inv;
+}
+/*}}}*/
+
 

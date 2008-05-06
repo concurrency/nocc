@@ -83,6 +83,8 @@ typedef struct TAG_fielddecloffset {
 static chook_t *fielddecloffset = NULL;
 static chook_t *ct_clienttype = NULL;
 static chook_t *ct_servertype = NULL;
+static chook_t *ct_clienttrace = NULL;
+static chook_t *ct_servertrace = NULL;
 
 static chook_t *cttrace_chook = NULL;
 
@@ -187,6 +189,75 @@ static void occampi_ctservertype_chook_dumptree (tnode_t *node, void *chook, int
 	}
 	occampi_isetindent (stream, indent);
 	fprintf (stream, "</chook:ct_servertype>\n");
+	return;
+}
+/*}}}*/
+
+/*{{{  static void occampi_ctclienttrace_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*
+ *	dumps a ct_clienttrace chook (debugging)
+ */
+static void occampi_ctclienttrace_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+{
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "<chook:ct_clienttrace>\n");
+	if (chook) {
+		tnode_dumptree ((tnode_t *)chook, indent + 1, stream);
+	}
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "</chook:ct_clienttrace>\n");
+	return;
+}
+/*}}}*/
+/*{{{  static void *occampi_ctclienttrace_chook_copy (void *chook)*/
+/*
+ *	copies a ct_clienttrace chook
+ */
+static void *occampi_ctclienttrace_chook_copy (void *chook)
+{
+	return chook;
+}
+/*}}}*/
+/*{{{  static void occampi_ctclienttrace_chook_free (void *chook)*/
+/*
+ *	frees a ct_clienttrace chook
+ */
+static void occampi_ctclienttrace_chook_free (void *chook)
+{
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_ctservertrace_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*
+ *	dumps a ct_servertrace chook (debugging)
+ */
+static void occampi_ctservertrace_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+{
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "<chook:ct_servertrace>\n");
+	if (chook) {
+		tnode_dumptree ((tnode_t *)chook, indent + 1, stream);
+	}
+	occampi_isetindent (stream, indent);
+	fprintf (stream, "</chook:ct_servertrace>\n");
+	return;
+}
+/*}}}*/
+/*{{{  static void *occampi_ctservertrace_chook_copy (void *chook)*/
+/*
+ *	copies a ct_servertrace chook
+ */
+static void *occampi_ctservertrace_chook_copy (void *chook)
+{
+	return chook;
+}
+/*}}}*/
+/*{{{  static void occampi_ctservertrace_chook_free (void *chook)*/
+/*
+ *	frees a ct_servertrace chook
+ */
+static void occampi_ctservertrace_chook_free (void *chook)
+{
 	return;
 }
 /*}}}*/
@@ -1788,8 +1859,8 @@ fprintf (stderr, "occampi_tracespecof_cttypespecnode(): here!, sub is [%s]\n", s
 
 		if (trs) {
 #if 1
-fprintf (stderr, "occampi_tracespecof_cttypespecnode(): got plain traces on CHAN TYPE decl:\n");
-tnode_dumptree (trs, 1, stderr);
+fprintf (stderr, "occampi_tracespecof_cttypespecnode(): got plain traces on CHAN TYPE decl\n");
+// tnode_dumptree (trs, 1, stderr);
 #endif
 		}
 		/*}}}*/
@@ -2067,6 +2138,17 @@ static int occampi_dtype_init_nodes (void)
 	ct_clienttype->chook_dumptree = occampi_ctclienttype_chook_dumptree;
 	ct_servertype = tnode_lookupornewchook ("occampi:chantype:servertype");
 	ct_servertype->chook_dumptree = occampi_ctservertype_chook_dumptree;
+
+	/*}}}*/
+	/*{{{  ct_clienttrace, ct_servertrace compiler hooks*/
+	ct_clienttrace = tnode_lookupornewchook ("occampi:chantype:clienttrace");
+	ct_clienttrace->chook_dumptree = occampi_ctclienttrace_chook_dumptree;
+	ct_clienttrace->chook_copy = occampi_ctclienttrace_chook_copy;
+	ct_clienttrace->chook_free = occampi_ctclienttrace_chook_free;
+	ct_servertrace = tnode_lookupornewchook ("occampi:chantype:servertrace");
+	ct_servertrace->chook_dumptree = occampi_ctservertrace_chook_dumptree;
+	ct_servertrace->chook_copy = occampi_ctservertrace_chook_copy;
+	ct_servertrace->chook_free = occampi_ctservertrace_chook_free;
 
 	/*}}}*/
 

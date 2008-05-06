@@ -116,6 +116,8 @@ extern traceslang_erefset_t *traceslang_lastactionsp (struct TAG_tnode **exprp);
 extern traceslang_erefset_t *traceslang_alleventsp (struct TAG_tnode **exprp);
 extern traceslang_eset_t *traceslang_allfixpoints (struct TAG_tnode *expr);
 
+extern struct TAG_tnode *traceslang_invert (struct TAG_tnode *expr);
+
 
 #endif	/* !__TRACESLANG_H */
 
