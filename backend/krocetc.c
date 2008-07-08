@@ -694,6 +694,37 @@ fprintf (stderr, "krocetc_cgstate_tsdelta(): cgs->tsdepth = %d, delta = %d\n", c
 	return cgs->tsdepth;
 }
 /*}}}*/
+/*{{{  static int krocetc_cgstate_tsfpdelta (codegen_t *cgen, int delta)*/
+/*
+ *	adjusts the floating-point stack -- emits a warning if it overflows or underflows
+ *	returns the new stack depth
+ */
+static int krocetc_cgstate_tsfpdelta (codegen_t *cgen, int delta)
+{
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)cgen->target->priv;
+	krocetc_cgstate_t *cgs = krocetc_cgstate_cur (cgen);
+
+	if (!cgs) {
+		codegen_error (cgen, "krocetc_cgstate_tsfpdelta(): no stack to adjust!");
+		return 0;
+	}
+#if 0
+fprintf (stderr, "krocetc_cgstate_tsdelta(): cgs->tsdepth = %d, delta = %d\n", cgs->tsdepth, delta);
+#endif
+	cgs->fpdepth += delta;
+	if (cgs->tsdepth < 0) {
+		codegen_warning (cgen, "krocetc_cgstate_tsfpdelta(): stack underflow");
+		cgs->fpdepth = 0;
+		codegen_write_fmt (cgen, "\t.fpdepth %d\n", cgs->fpdepth);
+	} else if (cgs->tsdepth > kpriv->maxfpdepth) {
+		codegen_warning (cgen, "krocetc_cgstate_tsfpdepth(): stack overflow");
+		cgs->fpdepth = kpriv->maxfpdepth;
+		codegen_write_fmt (cgen, "\t.fpdepth %d\n", cgs->fpdepth);
+	}
+
+	return cgs->fpdepth;
+}
+/*}}}*/
 /*{{{  static int krocetc_cgstate_tszero (codegen_t *cgen)*/
 /*
  *	zeros the integer stack (needed for trashing the stack after a function return)

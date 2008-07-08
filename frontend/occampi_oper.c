@@ -396,10 +396,23 @@ static int occampi_namemap_dop (compops_t *cops, tnode_t **node, map_t *map)
 static int occampi_codegen_dop (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	int i;
+	tnode_t *type = tnode_nthsubof (node, 2);
+	typecat_e tc = typecheck_typetype (type);
 
+#if 0
+fprintf (stderr, "occampi_codegen_dop(): tc=0x%8.8x, type is:\n", (unsigned int)tc);
+tnode_dumptree (type, 1, stderr);
+#endif
 	for (i=0; dopmap[i].lookup; i++) {
 		if (node->tag == *(dopmap[i].tagp)) {
-			codegen_callops (cgen, tsecondary, dopmap[i].instr);
+			if (tc & TYPE_INTEGER) {
+				codegen_callops (cgen, tsecondary, dopmap[i].instr);
+			} else if (tc & TYPE_REAL) {
+				codegen_callops (cgen, tsecondary, dopmap[i].fpinstr);
+			} else {
+				codegen_error (cgen, "occampi_codegen_dop(): don\'t know how to generate code fro [%s] [%s] (typecat 0x%8.8x)",
+						node->tag->ndef->name, node->tag->name, (unsigned int)tc);
+			}
 			return 0;
 		}
 	}
