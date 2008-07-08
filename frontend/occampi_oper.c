@@ -67,6 +67,7 @@ typedef struct TAG_dopmap {
 	token_t *tok;
 	ntdef_t **tagp;
 	transinstr_e instr;
+	transinstr_e fpinstr;
 	int rhs_is_int;
 } dopmap_t;
 
@@ -76,6 +77,7 @@ typedef struct TAG_mopmap {
 	token_t *tok;
 	ntdef_t **tagp;
 	transinstr_e instr;
+	transinstr_e fpinstr;
 } mopmap_t;
 
 typedef struct TAG_relmap {
@@ -85,6 +87,7 @@ typedef struct TAG_relmap {
 	ntdef_t **tagp;
 	void (*cgfunc)(codegen_t *, int);
 	int cgarg;
+	int fpcgarg;
 } relmap_t;
 
 
@@ -97,40 +100,40 @@ static void occampi_oper_geninvrelop (codegen_t *cgen, int arg);
 /*}}}*/
 /*{{{  private data*/
 static dopmap_t dopmap[] = {
-	{SYMBOL, "+", NULL, &(opi.tag_ADD), I_ADD, 0},
-	{SYMBOL, "-", NULL, &(opi.tag_SUB), I_SUB, 0},
-	{SYMBOL, "*", NULL, &(opi.tag_MUL), I_MUL, 0},
-	{SYMBOL, "/\\", NULL, &(opi.tag_BITAND), I_AND, 0},
-	{SYMBOL, "><", NULL, &(opi.tag_BITXOR), I_XOR, 0},
-	{SYMBOL, "/", NULL, &(opi.tag_DIV), I_DIV, 0},
-	{SYMBOL, "<<", NULL, &(opi.tag_LSHIFT), I_SHL, 1},
-	{SYMBOL, ">>", NULL, &(opi.tag_RSHIFT), I_SHR, 1},
-	{SYMBOL, "\\/", NULL, &(opi.tag_BITOR), I_OR, 0},
-	{SYMBOL, "\\", NULL, &(opi.tag_REM), I_REM, 0},
-	{KEYWORD, "PLUS", NULL, &(opi.tag_PLUS), I_SUM, 0},
-	{KEYWORD, "MINUS", NULL, &(opi.tag_MINUS), I_DIFF, 0},
-	{KEYWORD, "TIMES", NULL, &(opi.tag_TIMES), I_PROD, 0},
-	{KEYWORD, "AND", NULL, &(opi.tag_AND), I_AND, 0},
-	{KEYWORD, "OR", NULL, &(opi.tag_OR), I_OR, 0},
-	{KEYWORD, "XOR", NULL, &(opi.tag_XOR), I_XOR, 0},
-	{NOTOKEN, NULL, NULL, NULL, I_INVALID, 0}
+	{SYMBOL, "+", NULL, &(opi.tag_ADD), I_ADD, I_INVALID, 0},
+	{SYMBOL, "-", NULL, &(opi.tag_SUB), I_SUB, I_INVALID, 0},
+	{SYMBOL, "*", NULL, &(opi.tag_MUL), I_MUL, I_INVALID, 0},
+	{SYMBOL, "/\\", NULL, &(opi.tag_BITAND), I_AND, I_INVALID, 0},
+	{SYMBOL, "><", NULL, &(opi.tag_BITXOR), I_XOR, I_INVALID, 0},
+	{SYMBOL, "/", NULL, &(opi.tag_DIV), I_DIV, I_INVALID, 0},
+	{SYMBOL, "<<", NULL, &(opi.tag_LSHIFT), I_SHL, I_INVALID, 1},
+	{SYMBOL, ">>", NULL, &(opi.tag_RSHIFT), I_SHR, I_INVALID, 1},
+	{SYMBOL, "\\/", NULL, &(opi.tag_BITOR), I_OR, I_INVALID, 0},
+	{SYMBOL, "\\", NULL, &(opi.tag_REM), I_REM, I_INVALID, 0},
+	{KEYWORD, "PLUS", NULL, &(opi.tag_PLUS), I_SUM, I_INVALID, 0},
+	{KEYWORD, "MINUS", NULL, &(opi.tag_MINUS), I_DIFF, I_INVALID, 0},
+	{KEYWORD, "TIMES", NULL, &(opi.tag_TIMES), I_PROD, I_INVALID, 0},
+	{KEYWORD, "AND", NULL, &(opi.tag_AND), I_AND, I_INVALID, 0},
+	{KEYWORD, "OR", NULL, &(opi.tag_OR), I_OR, I_INVALID, 0},
+	{KEYWORD, "XOR", NULL, &(opi.tag_XOR), I_XOR, I_INVALID, 0},
+	{NOTOKEN, NULL, NULL, NULL, I_INVALID, I_INVALID, 0}
 };
 
 static relmap_t relmap[] = {
-	{SYMBOL, "=", NULL, &(opi.tag_RELEQ), occampi_oper_genrelop, I_EQ},
-	{SYMBOL, "<>", NULL, &(opi.tag_RELNEQ), occampi_oper_geninvrelop, I_EQ},
-	{SYMBOL, "<", NULL, &(opi.tag_RELLT), occampi_oper_genrelop, I_LT},
-	{SYMBOL, ">=", NULL, &(opi.tag_RELGEQ), occampi_oper_geninvrelop, I_LT},
-	{SYMBOL, ">", NULL, &(opi.tag_RELGT), occampi_oper_genrelop, I_GT},
-	{SYMBOL, "<=", NULL, &(opi.tag_RELLEQ), occampi_oper_geninvrelop, I_GT},
-	{NOTOKEN, NULL, NULL, NULL, NULL, I_INVALID}
+	{SYMBOL, "=", NULL, &(opi.tag_RELEQ), occampi_oper_genrelop, I_EQ, I_INVALID},
+	{SYMBOL, "<>", NULL, &(opi.tag_RELNEQ), occampi_oper_geninvrelop, I_EQ, I_INVALID},
+	{SYMBOL, "<", NULL, &(opi.tag_RELLT), occampi_oper_genrelop, I_LT, I_INVALID},
+	{SYMBOL, ">=", NULL, &(opi.tag_RELGEQ), occampi_oper_geninvrelop, I_LT, I_INVALID},
+	{SYMBOL, ">", NULL, &(opi.tag_RELGT), occampi_oper_genrelop, I_GT, I_INVALID},
+	{SYMBOL, "<=", NULL, &(opi.tag_RELLEQ), occampi_oper_geninvrelop, I_GT, I_INVALID},
+	{NOTOKEN, NULL, NULL, NULL, NULL, I_INVALID, I_INVALID}
 };
 
 static mopmap_t mopmap[] = {
-	{SYMBOL, "-", NULL, &(opi.tag_UMINUS), I_NEG},
-	{SYMBOL, "~", NULL, &(opi.tag_BITNOT), I_NOT},
-	{KEYWORD, "NOT", NULL, &(opi.tag_NOT), I_NOT},
-	{NOTOKEN, NULL, NULL, NULL, I_INVALID}
+	{SYMBOL, "-", NULL, &(opi.tag_UMINUS), I_NEG, I_INVALID},
+	{SYMBOL, "~", NULL, &(opi.tag_BITNOT), I_NOT, I_INVALID},
+	{KEYWORD, "NOT", NULL, &(opi.tag_NOT), I_NOT, I_INVALID},
+	{NOTOKEN, NULL, NULL, NULL, I_INVALID, I_INVALID}
 };
 
 
