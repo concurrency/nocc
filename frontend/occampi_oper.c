@@ -100,7 +100,7 @@ static void occampi_oper_geninvrelop (codegen_t *cgen, int arg);
 /*}}}*/
 /*{{{  private data*/
 static dopmap_t dopmap[] = {
-	{SYMBOL, "+", NULL, &(opi.tag_ADD), I_ADD, I_INVALID, 0},
+	{SYMBOL, "+", NULL, &(opi.tag_ADD), I_ADD, I_FPADD, 0},
 	{SYMBOL, "-", NULL, &(opi.tag_SUB), I_SUB, I_INVALID, 0},
 	{SYMBOL, "*", NULL, &(opi.tag_MUL), I_MUL, I_INVALID, 0},
 	{SYMBOL, "/\\", NULL, &(opi.tag_BITAND), I_AND, I_INVALID, 0},

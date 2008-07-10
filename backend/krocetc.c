@@ -3325,6 +3325,13 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 		/*}}}*/
+		/*{{{  FPADD: floating point add*/
+	case I_FPADD:
+		codegen_write_string (cgen, "\tfpadd\n");
+		krocetc_cgstate_tsfpdelta (cgen, -2);
+		krocetc_cgstate_tsfpdelta (cgen, 1);
+		break;
+		/*}}}*/
 	default:
 		codegen_write_fmt (cgen, "\tFIXME: tsecondary %d\n", ins);
 		break;
