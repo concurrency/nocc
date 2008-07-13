@@ -1,0 +1,7 @@
+
+PROC test.n94 (VAL []BYTE string, CHAN BYTE out!)
+  SEQ i = 0 FOR SIZE string
+    out ! string[i]
+:
+
+

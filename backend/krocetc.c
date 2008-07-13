@@ -2234,6 +2234,7 @@ tnode_dumptree (name, 1, stderr);
 				default:
 					/* word or don't know, just do load-local (word) */
 					codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset + offset);
+					krocetc_cgstate_tsdelta (cgen, 1);
 					break;
 				case 1:
 					/* byte-size load */
@@ -2252,6 +2253,7 @@ tnode_dumptree (name, 1, stderr);
 			break;
 		default:
 			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
+			krocetc_cgstate_tsdelta (cgen, 1);			/* loaded pointer */
 			for (i=0; i<(nh->indir - 1); i++) {
 				codegen_write_fmt (cgen, "\tldnl\t0\n");
 			}
@@ -2260,7 +2262,6 @@ tnode_dumptree (name, 1, stderr);
 			}
 			if (nh->typecat & TYPE_REAL) {
 				/*{{{  floating-point type*/
-				krocetc_cgstate_tsdelta (cgen, 1);		/* loaded pointer */
 
 				switch (nh->typesize) {
 				default:
@@ -2274,7 +2275,6 @@ tnode_dumptree (name, 1, stderr);
 					break;
 				}
 
-				krocetc_cgstate_tsfpdelta (cgen, 1);
 				/*}}}*/
 			} else {
 				/*{{{  integer (or pointer) type*/
@@ -2293,7 +2293,6 @@ tnode_dumptree (name, 1, stderr);
 					break;
 				}
 
-				krocetc_cgstate_tsdelta (cgen, 1);
 				/*}}}*/
 			}
 			break;
