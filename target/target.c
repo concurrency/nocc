@@ -34,6 +34,7 @@
 #include "version.h"
 #include "tnode.h"
 #include "names.h"
+#include "typecheck.h"
 #include "target.h"
 #include "map.h"
 

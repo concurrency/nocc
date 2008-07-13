@@ -277,9 +277,15 @@ static int occampi_namemap_vardecl (compops_t *cops, tnode_t **node, map_t *map)
 	tnode_t *bename;
 	int tsize;
 	int wssize, vssize, mssize, indir;
+	typecat_e typecat;
 
+	if (type) {
+		typecat = typecheck_typetype (type);
+	} else {
+		typecat = TYPE_NOTTYPE;
+	}
 #if 0
-fprintf (stderr, "occampi_namemap_vardecl(): here!  target is [%s].  Type is:\n", map->target->name);
+fprintf (stderr, "occampi_namemap_vardecl(): here!  target is [%s].  typecat 0x%8.8x, type is:\n", map->target->name, (unsigned int)typecat);
 tnode_dumptree (type, 1, stderr);
 #endif
 
@@ -295,6 +301,10 @@ tnode_dumptree (type, 1, stderr);
 		indir = 0;
 	}
 	bename = map->target->newname (*namep, *bodyp, map, (wssize < 0) ? 0 : wssize, (wssize < 0) ? -wssize : 0, vssize, mssize, tsize, indir);
+
+	if (type) {
+		map->target->be_settypecat (bename, typecat);
+	}
 
 	if (type->tag->nt_flags & NTF_NAMEMAPTYPEINDECL) {
 		// chook_t *pcevhook = tnode_lookupchookbyname ("precode:vars");
@@ -842,11 +852,15 @@ static int occampi_constprop_namenode (compops_t *cops, tnode_t **nodep)
 static int occampi_namemap_namenode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t *bename = tnode_getchook (*node, map->mapchook);
+	name_t *name = tnode_nthnameof (*node, 0);
+	tnode_t *type = NameTypeOf (name);
 	tnode_t *tname;
 
 #if 0
 fprintf (stderr, "occampi_namemap_namenode(): here 1! bename =\n");
 tnode_dumptree (bename, 1, stderr);
+fprintf (stderr, "occampi_namemap_namenode(): type is:\n");
+tnode_dumptree (type, 1, stderr);
 #endif
 	if (bename) {
 		tname = map->target->newnameref (bename, map);

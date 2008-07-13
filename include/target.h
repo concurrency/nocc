@@ -102,6 +102,10 @@ typedef struct TAG_target {
 	int (*be_allocsize)(struct TAG_tnode *, int *, int *, int *, int*);
 				/* back-end type-size (stored in NAMEs and NAMEREFs), (typesize, indir) */
 	int (*be_typesize)(struct TAG_tnode *, int *, int *);
+				/* back-end type-category (node, typecat) */
+	void (*be_settypecat)(struct TAG_tnode *, typecat_e);
+				/* back-end type-category (node, typecat-ptr) */
+	void (*be_gettypecat)(struct TAG_tnode *, typecat_e *);
 				/* back-end offsets (node, ws-offset, vs-offset, ms-offset, ms-shadow) */
 	void (*be_setoffsets)(struct TAG_tnode *, int, int, int, int);
 				/* back-end offsets (node, ws-offset-ptr, vs-offset-ptr, ms-offset-ptr, ms-shadow-ptr) */

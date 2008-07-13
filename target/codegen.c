@@ -38,6 +38,7 @@
 #include "parser.h"
 #include "tnode.h"
 #include "names.h"
+#include "typecheck.h"
 #include "target.h"
 #include "codegen.h"
 #include "crypto.h"

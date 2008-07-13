@@ -66,6 +66,8 @@ static tnode_t *krocetc_be_getorgnode (tnode_t *node);
 static tnode_t **krocetc_be_blockbodyaddr (tnode_t *blk);
 static int krocetc_be_allocsize (tnode_t *node, int *pwsh, int *pwsl, int *pvs, int *pms);
 static int krocetc_be_typesize (tnode_t *node, int *typesize, int *indir);
+static void krocetc_be_settypecat (tnode_t *bename, typecat_e typecat);
+static void krocetc_be_gettypecat (tnode_t *bename, typecat_e *tcptr);
 static void krocetc_be_setoffsets (tnode_t *bename, int ws_offset, int vs_offset, int ms_offset, int ms_shadow);
 static void krocetc_be_getoffsets (tnode_t *bename, int *wsop, int *vsop, int *msop, int *mssp);
 static int krocetc_be_blocklexlevel (tnode_t *blk);
@@ -136,6 +138,8 @@ target_t krocetc_target = {
 	be_blockbodyaddr:	krocetc_be_blockbodyaddr,
 	be_allocsize:		krocetc_be_allocsize,
 	be_typesize:		krocetc_be_typesize,
+	be_settypecat:		krocetc_be_settypecat,
+	be_gettypecat:		krocetc_be_gettypecat,
 	be_setoffsets:		krocetc_be_setoffsets,
 	be_getoffsets:		krocetc_be_getoffsets,
 	be_blocklexlevel:	krocetc_be_blocklexlevel,
@@ -163,6 +167,7 @@ typedef struct TAG_krocetc_namehook {
 	int vs_offset;		/* vectorspace offset in current block */
 	int ms_offset;		/* mobilespace offset in current block */
 	int ms_shadow;		/* offset of the shadow in mobilespace */
+	typecat_e typecat;	/* type category */
 } krocetc_namehook_t;
 
 typedef struct TAG_krocetc_blockhook {
@@ -224,6 +229,7 @@ typedef struct TAG_krocetc_priv {
 
 typedef struct TAG_krocetc_resultsubhook {
 	int eval_regs;
+	int eval_fregs;
 	int result_regs;
 	int result_fregs;
 	DYNARRAY (tnode_t **, sublist);
@@ -307,8 +313,8 @@ static void krocetc_namehook_dumptree (tnode_t *node, void *hook, int indent, FI
 	krocetc_namehook_t *nh = (krocetc_namehook_t *)hook;
 
 	krocetc_isetindent (stream, indent);
-	fprintf (stream, "<namehook addr=\"0x%8.8x\" lexlevel=\"%d\" allocwsh=\"%d\" allocwsl=\"%d\" allocvs=\"%d\" allocms=\"%d\" typesize=\"%d\" indir=\"%d\" wsoffset=\"%d\" vsoffset=\"%d\" msoffset=\"%d\" msshadow=\"%d\" />\n",
-			(unsigned int)nh, nh->lexlevel, nh->alloc_wsh, nh->alloc_wsl, nh->alloc_vs, nh->alloc_ms, nh->typesize, nh->indir, nh->ws_offset, nh->vs_offset, nh->ms_offset, nh->ms_shadow);
+	fprintf (stream, "<namehook addr=\"0x%8.8x\" lexlevel=\"%d\" allocwsh=\"%d\" allocwsl=\"%d\" allocvs=\"%d\" allocms=\"%d\" typesize=\"%d\" indir=\"%d\" wsoffset=\"%d\" vsoffset=\"%d\" msoffset=\"%d\" msshadow=\"%d\" typecat=\"0x%8.8x\" />\n",
+			(unsigned int)nh, nh->lexlevel, nh->alloc_wsh, nh->alloc_wsl, nh->alloc_vs, nh->alloc_ms, nh->typesize, nh->indir, nh->ws_offset, nh->vs_offset, nh->ms_offset, nh->ms_shadow, (unsigned int)nh->typecat);
 	return;
 }
 /*}}}*/
@@ -331,6 +337,7 @@ static krocetc_namehook_t *krocetc_namehook_create (int ll, int asize_wsh, int a
 	nh->vs_offset = -1;
 	nh->ms_offset = -1;
 	nh->ms_shadow = -1;
+	nh->typecat = TYPE_NOTTYPE;
 
 	return nh;
 }
@@ -508,7 +515,8 @@ static void krocetc_resultsubhook_dumptree (tnode_t *node, void *hook, int inden
 	int i;
 
 	krocetc_isetindent (stream, indent);
-	fprintf (stream, "<chook:resultsubhook eregs=\"%d\" rregs=\"%d\" rfregs=\"%d\">\n", rh->eval_regs, rh->result_regs, rh->result_fregs);
+	fprintf (stream, "<chook:resultsubhook eregs=\"%d\" efregs=\"%d\" rregs=\"%d\" rfregs=\"%d\">\n", rh->eval_regs, rh->eval_fregs,
+			rh->result_regs, rh->result_fregs);
 	for (i=0; i<DA_CUR (rh->sublist); i++) {
 		tnode_t *ref = *(DA_NTHITEM (rh->sublist, i));
 
@@ -529,6 +537,7 @@ static krocetc_resultsubhook_t *krocetc_resultsubhook_create (void)
 	krocetc_resultsubhook_t *rh = (krocetc_resultsubhook_t *)smalloc (sizeof (krocetc_resultsubhook_t));
 
 	rh->eval_regs = -1;
+	rh->eval_fregs = -1;
 	rh->result_regs = -1;
 	rh->result_fregs = -1;
 	dynarray_init (rh->sublist);
@@ -818,6 +827,7 @@ fprintf (stderr, "krocetc_nameref_create (): referenced lexlevel=%d, map lexleve
 	}
 	/* nh = krocetc_namehook_create (be_nh->lexlevel, 0, 0, 0, 0, be_nh->typesize, be_nh->indir); */
 	nh = krocetc_namehook_create (mdata->lexlevel, 0, 0, 0, 0, be_nh->typesize, be_nh->indir);
+	nh->typecat = be_nh->typecat;				/* copy over type-category */
 
 	fename = tnode_nthsubof (bename, 0);
 	name = tnode_create (mdata->target->tag_NAMEREF, NULL, fename, (void *)nh);
@@ -1140,6 +1150,54 @@ static int krocetc_be_typesize (tnode_t *node, int *typesize, int *indir)
 		return -1;
 	}
 	return 0;
+}
+/*}}}*/
+/*{{{  static void krocetc_be_settypecat (tnode_t *bename, typecat_e typecat)*/
+/*
+ *	sets the type-category for a back-end name
+ */
+static void krocetc_be_settypecat (tnode_t *bename, typecat_e typecat)
+{
+	krocetc_namehook_t *nh;
+
+	if ((bename->tag != krocetc_target.tag_NAME) && (bename->tag != krocetc_target.tag_NAMEREF)) {
+		nocc_internal ("krocetc_be_settypecat(): not a NAME/NAMEREF!");
+		return;
+	}
+	nh = (krocetc_namehook_t *)tnode_nthhookof (bename, 0);
+	if (!nh) {
+		nocc_internal ("krocetc_be_settypecat(): NAME/NAMEREF has no hook");
+		return;
+	}
+
+	nh->typecat = typecat;
+
+	return;
+}
+/*}}}*/
+/*{{{  static void krocetc_be_gettypecat (tnode_t *bename, typecat_e *tcptr)*/
+/*
+ *	gets the type-category for a back-end name
+ */
+static void krocetc_be_gettypecat (tnode_t *bename, typecat_e *tcptr)
+{
+	krocetc_namehook_t *nh;
+
+	if ((bename->tag != krocetc_target.tag_NAME) && (bename->tag != krocetc_target.tag_NAMEREF)) {
+		nocc_internal ("krocetc_be_settypecat(): not a NAME/NAMEREF!");
+		return;
+	}
+	nh = (krocetc_namehook_t *)tnode_nthhookof (bename, 0);
+	if (!nh) {
+		nocc_internal ("krocetc_be_settypecat(): NAME/NAMEREF has no hook");
+		return;
+	}
+
+	if (tcptr) {
+		*tcptr = nh->typecat;
+	}
+
+	return;
 }
 /*}}}*/
 /*{{{  static void krocetc_be_setoffsets (tnode_t *bename, int ws_offset, int vs_offset, int ms_offset, int ms_shadow)*/
@@ -2117,25 +2175,55 @@ static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)
 		krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (name, 0);
 		int i;
 
+#if 1
+fprintf (stderr, "krocetc_coder_loadname(): NAMEREF, name =\n");
+tnode_dumptree (name, 1, stderr);
+// fprintf (stderr, "krocetc_coder_loadname(): hook typecat = 0x%8.8x\n", (unsigned int)nh->typecat);
+#endif
 		switch (nh->indir) {
 		case 0:
-			switch (nh->typesize) {
-			default:
-				/* word or don't know, just do load-local (word) */
-				codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset + offset);
-				break;
-			case 1:
-				/* byte-size load */
-				codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
-				codegen_write_fmt (cgen, "\tlb\n");
-				break;
-			case 2:
-				/* half-word-size load */
-				codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
-				codegen_write_fmt (cgen, "\tlw\n");
-				break;
+			if (nh->typecat & TYPE_REAL) {
+				/*{{{  floating-point type*/
+				switch (nh->typesize) {
+				default:
+					codegen_warning (cgen, "krocetc_coder_loadname(): unhandled REAL typesize %d", nh->typesize);
+					break;
+				case 4:
+					codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
+					krocetc_cgstate_tsdelta (cgen, 1);
+					codegen_callops (cgen, tsecondary, I_FPLDNLSN);
+					break;
+				case 8:
+					codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
+					krocetc_cgstate_tsdelta (cgen, 1);
+					codegen_callops (cgen, tsecondary, I_FPLDNLDB);
+					break;
+				}
+
+				krocetc_cgstate_tsfpdelta (cgen, 1);
+				/*}}}*/
+			} else {
+				/*{{{  integer (or pointer) type*/
+				switch (nh->typesize) {
+				default:
+					/* word or don't know, just do load-local (word) */
+					codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset + offset);
+					break;
+				case 1:
+					/* byte-size load */
+					codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
+					codegen_write_fmt (cgen, "\tlb\n");
+					break;
+				case 2:
+					/* half-word-size load */
+					codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
+					codegen_write_fmt (cgen, "\tlw\n");
+					break;
+				}
+
+				krocetc_cgstate_tsdelta (cgen, 1);
+				/*}}}*/
 			}
-			krocetc_cgstate_tsdelta (cgen, 1);
 			break;
 		default:
 			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
@@ -3322,6 +3410,20 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		/*{{{  TIN: timeout (wait for time)*/
 	case I_TIN:
 		codegen_write_string (cgen, "\ttin\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  FPLDNLSN: floating point load non-local single*/
+	case I_FPLDNLSN:
+		codegen_write_string (cgen, "\tfpldnlsn\n");
+		krocetc_cgstate_tsfpdelta (cgen, 1);
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  FPLDNLDB: floating point load non-local double*/
+	case I_FPLDNLDB:
+		codegen_write_string (cgen, "\tfpldnldb\n");
+		krocetc_cgstate_tsfpdelta (cgen, 1);
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 		/*}}}*/

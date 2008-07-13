@@ -39,6 +39,7 @@
 #include "lexpriv.h"
 #include "tnode.h"
 #include "parser.h"
+#include "typecheck.h"
 #include "parsepriv.h"
 #include "names.h"
 #include "constprop.h"

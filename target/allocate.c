@@ -35,6 +35,7 @@
 #include "tnode.h"
 #include "names.h"
 #include "allocate.h"
+#include "typecheck.h"
 #include "target.h"
 
 /*}}}*/

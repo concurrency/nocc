@@ -35,6 +35,7 @@
 #include "tnode.h"
 #include "names.h"
 #include "map.h"
+#include "typecheck.h"
 #include "target.h"
 
 /*}}}*/

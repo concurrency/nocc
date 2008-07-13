@@ -40,6 +40,7 @@
 #include "tnode.h"
 #include "treecheck.h"
 #include "parser.h"
+#include "typecheck.h"
 #include "fcnlib.h"
 #include "extn.h"
 #include "dfa.h"

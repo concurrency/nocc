@@ -40,6 +40,7 @@
 #include "tnode.h"
 #include "lexpriv.h"
 #include "names.h"
+#include "typecheck.h"
 #include "target.h"
 /*}}}*/
 

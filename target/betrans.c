@@ -37,6 +37,7 @@
 #include "tnode.h"
 #include "map.h"
 #include "codegen.h"
+#include "typecheck.h"
 #include "target.h"
 #include "betrans.h"
 
