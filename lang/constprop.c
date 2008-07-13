@@ -212,6 +212,7 @@ static int cprop_namemap_const (compops_t *cops, tnode_t **nodep, map_t *map)
 	consthook_t *ch = (consthook_t *)tnode_nthhookof ((*nodep), 0);
 	void *dptr = NULL;
 	int dlen = 0;
+	typecat_e typecat = TYPE_NOTTYPE;
 
 	switch (ch->type) {
 	case CONST_INVALID:
@@ -221,26 +222,30 @@ static int cprop_namemap_const (compops_t *cops, tnode_t **nodep, map_t *map)
 	case CONST_BYTE:
 		dptr = &(ch->u.bval);
 		dlen = 1;
+		typecat = TYPE_INTEGER | TYPE_WIDTHSET | (dlen << 16);
 		break;
 	case CONST_BOOL:
 	case CONST_INT:
 		dptr = &(ch->u.ival);
 		dlen = map->target->intsize;
+		typecat = TYPE_INTEGER | TYPE_WIDTHSET | (dlen << 16);
 		break;
 	case CONST_DOUBLE:
 		dptr = &(ch->u.dval);
 		dlen = sizeof (ch->u.dval);
+		typecat = TYPE_REAL | TYPE_WIDTHSET | (dlen << 16);
 		break;
 	case CONST_ULL:
 		dptr = &(ch->u.ullval);
 		dlen = sizeof (ch->u.ullval);
+		typecat = TYPE_REAL | TYPE_WIDTHSET | (dlen << 16);
 		break;
 	}
 
 	if (dptr) {
 		tnode_t *cnst;
 
-		cnst = map->target->newconst (*nodep, map, dptr, dlen);
+		cnst = map->target->newconst (*nodep, map, dptr, dlen, typecat);
 		*nodep = cnst;
 	}
 	return 0;

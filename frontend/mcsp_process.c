@@ -704,7 +704,7 @@ static int mcsp_namemap_actionnode (compops_t *cops, tnode_t **node, map_t *map)
 			localname = (char *)smalloc (strlen (thename) + 3);
 
 			sprintf (localname, "%s\n", thename);
-			*opp = map->target->newconst (*opp, map, (void *)localname, strlen (localname) + 1);		/* null terminator for free */
+			*opp = map->target->newconst (*opp, map, (void *)localname, strlen (localname) + 1, TYPE_NOTTYPE);	/* null terminator for free */
 			sfree (localname);
 			aslots = 1;											/* need a counter for output */
 		}
@@ -804,8 +804,9 @@ static int mcsp_constprop_const (compops_t *cops, tnode_t **node)
 static int mcsp_namemap_const (compops_t *cops, tnode_t **node, map_t *map)
 {
 	mcsp_consthook_t *ch = (mcsp_consthook_t *)tnode_nthhookof (*node, 0);
+	tnode_t *ltype = tnode_nthsubof (*node, 0);
 
-	*node = map->target->newconst (*node, map, ch->data, ch->length);
+	*node = map->target->newconst (*node, map, ch->data, ch->length, typecheck_typetype (ltype));
 	return 0;
 }
 /*}}}*/

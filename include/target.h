@@ -80,8 +80,8 @@ typedef struct TAG_target {
 	struct TAG_tnode *(*newnameref)(struct TAG_tnode *, struct TAG_map *);
 				/* creates a back-end block, populated (body, map-data, statics-list, lexlevel) */
 	struct TAG_tnode *(*newblock)(struct TAG_tnode *, struct TAG_map *, struct TAG_tnode *, int);
-				/* creates a back-end constant, populated (body, map-data, data, size) */
-	struct TAG_tnode *(*newconst)(struct TAG_tnode *, struct TAG_map *, void *, int);
+				/* creates a back-end constant, populated (body, map-data, data, size, typecat) */
+	struct TAG_tnode *(*newconst)(struct TAG_tnode *, struct TAG_map *, void *, int, typecat_e);
 				/* creates a back-end indexed node, populated (base, index, isize, offset) */
 	struct TAG_tnode *(*newindexed)(struct TAG_tnode *, struct TAG_tnode *, int, int);
 				/* creates a back-end block reference, populated (block, body, map-data) */

@@ -330,9 +330,14 @@ static int occampi_constprop_lit (compops_t *cops, tnode_t **nodep)
 static int occampi_namemap_lit (compops_t *cops, tnode_t **node, map_t *map)
 {
 	occampi_litdata_t *ldata = (occampi_litdata_t *)tnode_nthhookof (*node, 0);
+	tnode_t *ltype = tnode_nthsubof (*node, 0);
 	tnode_t *cnst;
 
-	cnst = map->target->newconst (*node, map, ldata->data, ldata->bytes);
+#if 0
+fprintf (stderr, "occampi_namemap_lit(): type is:\n");
+tnode_dumptree (ltype, 1, stderr);
+#endif
+	cnst = map->target->newconst (*node, map, ldata->data, ldata->bytes, typecheck_typetype (ltype));
 	*node = cnst;
 
 	return 0;

@@ -57,7 +57,7 @@ static char *krocetc_make_namedlabel (const char *lbl);
 static tnode_t *krocetc_name_create (tnode_t *fename, tnode_t *body, map_t *mdata, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind);
 static tnode_t *krocetc_nameref_create (tnode_t *bename, map_t *mdata);
 static tnode_t *krocetc_block_create (tnode_t *body, map_t *mdata, tnode_t *slist, int lexlevel);
-static tnode_t *krocetc_const_create (tnode_t *val, map_t *mdata, void *data, int size);
+static tnode_t *krocetc_const_create (tnode_t *val, map_t *mdata, void *data, int size, typecat_e typecat);
 static tnode_t *krocetc_indexed_create (tnode_t *base, tnode_t *index, int isize, int offset);
 static tnode_t *krocetc_blockref_create (tnode_t *block, tnode_t *body, map_t *mdata);
 static tnode_t *krocetc_result_create (tnode_t *expr, map_t *mdata);
@@ -191,10 +191,11 @@ typedef struct TAG_krocetc_blockrefhook {
 
 typedef struct TAG_krocetc_consthook {
 	void *byteptr;
-	int size;
+	int size;		/* constant size (bytes) */
 	int label;
 	int labrefs;		/* number of references to the label */
 	tnode_t *orgnode;
+	typecat_e typecat;	/* type category for constant */
 } krocetc_consthook_t;
 
 typedef struct TAG_krocetc_indexedhook {
@@ -438,9 +439,9 @@ static void krocetc_consthook_dumptree (tnode_t *node, void *hook, int indent, F
 	krocetc_consthook_t *ch = (krocetc_consthook_t *)hook;
 
 	krocetc_isetindent (stream, indent);
-	fprintf (stream, "<consthook addr=\"0x%8.8x\" data=\"0x%8.8x\" size=\"%d\" label=\"%d\" labrefs=\"%d\" orgnode=\"0x%8.8x\" orgnodetag=\"%s\" />\n",
+	fprintf (stream, "<consthook addr=\"0x%8.8x\" data=\"0x%8.8x\" size=\"%d\" label=\"%d\" labrefs=\"%d\" orgnode=\"0x%8.8x\" orgnodetag=\"%s\" typecat=\"0x%8.8x\" />\n",
 			(unsigned int)ch, (unsigned int)ch->byteptr, ch->size, ch->label, ch->labrefs,
-			(unsigned int)ch->orgnode, ch->orgnode ? ch->orgnode->tag->name : "");
+			(unsigned int)ch->orgnode, ch->orgnode ? ch->orgnode->tag->name : "", (unsigned int)ch->typecat);
 	return;
 }
 /*}}}*/
@@ -457,6 +458,7 @@ static krocetc_consthook_t *krocetc_consthook_create (void *ptr, int size)
 	ch->label = -1;
 	ch->labrefs = 0;
 	ch->orgnode = NULL;
+	ch->typecat = TYPE_NOTTYPE;
 
 	return ch;
 }
@@ -850,17 +852,18 @@ static tnode_t *krocetc_block_create (tnode_t *body, map_t *mdata, tnode_t *slis
 	return blk;
 }
 /*}}}*/
-/*{{{  static tnode_t *krocetc_const_create (tnode_t *val, map_t *mdata, void *data, int size)*/
+/*{{{  static tnode_t *krocetc_const_create (tnode_t *val, map_t *mdata, void *data, int size, typecat_e typecat)*/
 /*
  *	creates a new back-end constant
  */
-static tnode_t *krocetc_const_create (tnode_t *val, map_t *mdata, void *data, int size)
+static tnode_t *krocetc_const_create (tnode_t *val, map_t *mdata, void *data, int size, typecat_e typecat)
 {
 	krocetc_consthook_t *ch;
 	tnode_t *cnst;
 
 	ch = krocetc_consthook_create (data, size);
 	ch->orgnode = val;
+	ch->typecat = typecat;
 	cnst = tnode_create (mdata->target->tag_CONST, NULL, val, (void *)ch);
 
 	return cnst;
@@ -1747,23 +1750,49 @@ static int krocetc_codegen_constref (compops_t *cops, tnode_t *constref, codegen
 	krocetc_consthook_t *ch = (krocetc_consthook_t *)tnode_nthhookof (constref, 0);
 	int val;
 
-	switch (ch->size) {
-	case 1:
-		val = (int)(*(unsigned char *)(ch->byteptr));
-		break;
-	case 2:
-		val = (int)(*(unsigned short int *)(ch->byteptr));
-		break;
-	case 4:
-		val = (int)(*(unsigned int *)(ch->byteptr));
-		break;
-	default:
-		val = 0;
-		break;
-	}
-	codegen_write_fmt (cgen, "\tldc\t%d\n", val);
-	krocetc_cgstate_tsdelta (cgen, 1);
+#if 0
+fprintf (stderr, "krocetc_codegen_constref(): constref node is:\n");
+tnode_dumptree (constref, 1, stderr);
+#endif
+	if (ch->typecat & TYPE_REAL) {
+		/*{{{  loading floating-point constant -- must be done via non-local!*/
+		switch (ch->size) {
+		default:
+			codegen_warning (cgen, "krocetc_codegen_constref(): unhandled real width %d", ch->size);
+			break;
+		case 4:
+			krocetc_coder_loadlabaddr (cgen, ch->label);
+			ch->labrefs++;
+			codegen_callops (cgen, tsecondary, I_FPLDNLSN);
+			break;
+		case 8:
+			krocetc_coder_loadlabaddr (cgen, ch->label);
+			ch->labrefs++;
+			codegen_callops (cgen, tsecondary, I_FPLDNLDB);
+			break;
+		}
+		/*}}}*/
+	} else {
+		/*{{{  loading integer constant*/
+		switch (ch->size) {
+		case 1:
+			val = (int)(*(unsigned char *)(ch->byteptr));
+			break;
+		case 2:
+			val = (int)(*(unsigned short int *)(ch->byteptr));
+			break;
+		case 4:
+			val = (int)(*(unsigned int *)(ch->byteptr));
+			break;
+		default:
+			val = 0;
+			break;
+		}
 
+		codegen_write_fmt (cgen, "\tldc\t%d\n", val);
+		krocetc_cgstate_tsdelta (cgen, 1);
+		/*}}}*/
+	}
 	return 0;
 }
 /*}}}*/
@@ -2175,7 +2204,7 @@ static void krocetc_coder_loadname (codegen_t *cgen, tnode_t *name, int offset)
 		krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (name, 0);
 		int i;
 
-#if 1
+#if 0
 fprintf (stderr, "krocetc_coder_loadname(): NAMEREF, name =\n");
 tnode_dumptree (name, 1, stderr);
 // fprintf (stderr, "krocetc_coder_loadname(): hook typecat = 0x%8.8x\n", (unsigned int)nh->typecat);
@@ -2189,18 +2218,15 @@ tnode_dumptree (name, 1, stderr);
 					codegen_warning (cgen, "krocetc_coder_loadname(): unhandled REAL typesize %d", nh->typesize);
 					break;
 				case 4:
-					codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
-					krocetc_cgstate_tsdelta (cgen, 1);
+					codegen_callops (cgen, loadlocalpointer, nh->ws_offset + offset);
 					codegen_callops (cgen, tsecondary, I_FPLDNLSN);
 					break;
 				case 8:
-					codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
-					krocetc_cgstate_tsdelta (cgen, 1);
+					codegen_callops (cgen, loadlocalpointer, nh->ws_offset + offset);
 					codegen_callops (cgen, tsecondary, I_FPLDNLDB);
 					break;
 				}
 
-				krocetc_cgstate_tsfpdelta (cgen, 1);
 				/*}}}*/
 			} else {
 				/*{{{  integer (or pointer) type*/
@@ -2211,17 +2237,16 @@ tnode_dumptree (name, 1, stderr);
 					break;
 				case 1:
 					/* byte-size load */
-					codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
+					codegen_callops (cgen, loadlocalpointer, nh->ws_offset + offset);
 					codegen_write_fmt (cgen, "\tlb\n");
 					break;
 				case 2:
 					/* half-word-size load */
-					codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
+					codegen_callops (cgen, loadlocalpointer, nh->ws_offset + offset);
 					codegen_write_fmt (cgen, "\tlw\n");
 					break;
 				}
 
-				krocetc_cgstate_tsdelta (cgen, 1);
 				/*}}}*/
 			}
 			break;
@@ -2233,21 +2258,44 @@ tnode_dumptree (name, 1, stderr);
 			if (offset) {
 				codegen_callops (cgen, addconst, offset);
 			}
-			switch (nh->typesize) {
-			default:
-				/* word or don't know, just do load non-local (word) */
-				codegen_write_fmt (cgen, "\tldnl\t0\n");
-				break;
-			case 1:
-				/* byte-size load */
-				codegen_write_fmt (cgen, "\tlb\n");
-				break;
-			case 2:
-				/* half-word-size load */
-				codegen_write_fmt (cgen, "\tlw\n");
-				break;
+			if (nh->typecat & TYPE_REAL) {
+				/*{{{  floating-point type*/
+				krocetc_cgstate_tsdelta (cgen, 1);		/* loaded pointer */
+
+				switch (nh->typesize) {
+				default:
+					codegen_warning (cgen, "krocetc_coder_loadname(): unhandled REAL typesize %d", nh->typesize);
+					break;
+				case 4:
+					codegen_callops (cgen, tsecondary, I_FPLDNLSN);
+					break;
+				case 8:
+					codegen_callops (cgen, tsecondary, I_FPLDNLDB);
+					break;
+				}
+
+				krocetc_cgstate_tsfpdelta (cgen, 1);
+				/*}}}*/
+			} else {
+				/*{{{  integer (or pointer) type*/
+				switch (nh->typesize) {
+				default:
+					/* word or don't know, just do load non-local (word) */
+					codegen_write_fmt (cgen, "\tldnl\t0\n");
+					break;
+				case 1:
+					/* byte-size load */
+					codegen_write_fmt (cgen, "\tlb\n");
+					break;
+				case 2:
+					/* half-word-size load */
+					codegen_write_fmt (cgen, "\tlw\n");
+					break;
+				}
+
+				krocetc_cgstate_tsdelta (cgen, 1);
+				/*}}}*/
 			}
-			krocetc_cgstate_tsdelta (cgen, 1);
 			break;
 		}
 		/*}}}*/
@@ -2510,23 +2558,45 @@ static void krocetc_coder_storename (codegen_t *cgen, tnode_t *name, int offset)
 
 		switch (nh->indir) {
 		case 0:
-			switch (nh->typesize) {
-			default:
-				/* word size or don't know, just do store-local */
-				codegen_write_fmt (cgen, "\tstl\t%d\n", nh->ws_offset + offset);
-				break;
-			case 1:
-				/* byte-sized store */
-				codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
-				codegen_write_fmt (cgen, "\tsb\n");
-				break;
-			case 2:
-				/* half-word-sized store */
-				codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
-				codegen_write_fmt (cgen, "\tsw\n");
-				break;
+			if (nh->typecat & TYPE_REAL) {
+				/*{{{  store floating-point*/
+				switch (nh->typesize) {
+				default:
+					codegen_warning (cgen, "krocetc_coder_storename(): unhandled real width %d", nh->typesize);
+					break;
+				case 4:
+					codegen_callops (cgen, loadlocalpointer, nh->ws_offset + offset);
+					codegen_callops (cgen, tsecondary, I_FPSTNLSN);
+					break;
+				case 8:
+					codegen_callops (cgen, loadlocalpointer, nh->ws_offset + offset);
+					codegen_callops (cgen, tsecondary, I_FPSTNLDB);
+					break;
+				}
+				/*}}}*/
+			} else {
+				/*{{{  store integer*/
+				switch (nh->typesize) {
+				default:
+					/* word size or don't know, just do store-local */
+					codegen_write_fmt (cgen, "\tstl\t%d\n", nh->ws_offset + offset);
+					krocetc_cgstate_tsdelta (cgen, -1);
+					break;
+				case 1:
+					/* byte-sized store */
+					codegen_callops (cgen, loadlocalpointer, nh->ws_offset + offset);
+					codegen_write_fmt (cgen, "\tsb\n");
+					krocetc_cgstate_tsdelta (cgen, -2);
+					break;
+				case 2:
+					/* half-word-sized store */
+					codegen_callops (cgen, loadlocalpointer, nh->ws_offset + offset);
+					codegen_write_fmt (cgen, "\tsw\n");
+					krocetc_cgstate_tsdelta (cgen, -2);
+					break;
+				}
+				/*}}}*/
 			}
-			krocetc_cgstate_tsdelta (cgen, -1);
 			break;
 		default:
 			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
@@ -3424,6 +3494,20 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 	case I_FPLDNLDB:
 		codegen_write_string (cgen, "\tfpldnldb\n");
 		krocetc_cgstate_tsfpdelta (cgen, 1);
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  FPSTNLSN: floating point store non-local single*/
+	case I_FPSTNLSN:
+		codegen_write_string (cgen, "\tfpstnlsn\n");
+		krocetc_cgstate_tsfpdelta (cgen, -1);
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  FPSTNLDB: floating point store non-local double*/
+	case I_FPSTNLDB:
+		codegen_write_string (cgen, "\tfpstnldb\n");
+		krocetc_cgstate_tsfpdelta (cgen, -1);
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 		/*}}}*/
