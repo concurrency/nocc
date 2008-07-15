@@ -623,7 +623,7 @@
 .GRULE	"opi:dynmobarrayallocreduce" "SN0N+N+0C[NEWDYNMOBARRAY]3R-"
 
 .TABLE	"occampi:mobileprocdecl ::= [ 0 @MOBILE 1 ] [ 1 @PROC 2 ] [ 2 occampi:name 3 ] [ 3 {<opi:nullreduce>} -* ]"		# FIXME!
-.TABLE	"occampi:mobiletype ::= [ 0 @MOBILE 1 ] [ 1 @@[ 4 ] [ 1 occampi:primtype 2 ] [ 1 occampi:name 2 ] [ 2 {<opi:mobilise>} -* 3 ]"
+.TABLE	"occampi:mobiletype ::= [ 0 @MOBILE 1 ] [ 1 @@[ 4 ] [ 1 @@[] 5 ] [ 1 occampi:primtype 2 ] [ 1 occampi:name 2 ] [ 2 {<opi:mobilise>} -* 3 ]"
 	"[ 3 {<opi:nullreduce>} -* ]"
 	"[ 4 @@] 5 ] [ 5 occampi:type 6 ] [ 6 {<opi:dynmobilearray>} -* 3 ]"
 .TABLE	"occampi:mobilevardecl ::= [ 0 occampi:mobiletype 1 ]"
