@@ -1,0 +1,8 @@
+-- test_n95 -- testing mobiles again
+
+PROC test.n95 ()
+  MOBILE []BYTE str:
+  SEQ
+    SKIP
+:
+
