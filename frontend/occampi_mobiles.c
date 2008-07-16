@@ -1,6 +1,6 @@
 /*
  *	occampi_mobiles.c -- occam-pi MOBILE data, channels and processes
- *	Copyright (C) 2005-2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2008 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -54,6 +54,8 @@
 #include "transputer.h"
 #include "codegen.h"
 #include "langops.h"
+
+#include "mobile_types.h"
 
 
 /*}}}*/
