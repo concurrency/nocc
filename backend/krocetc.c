@@ -3270,22 +3270,24 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		krocetc_cgstate_tsdelta (cgen, -2);
 		break;
 		/*}}}*/
-		/*{{{  MTNEW: create complex mobile*/
-	case I_MTNEW:
-		codegen_write_string (cgen, "\tmtnew\n");
-		krocetc_cgstate_tsdelta (cgen, 0);
+		/*{{{  MTALLOC: create complex mobile*/
+	case I_MTALLOC:
+		codegen_write_string (cgen, "\tmtalloc\n");
+		krocetc_cgstate_tsdelta (cgen, -2);
+		krocetc_cgstate_tsdelta (cgen, 1);
 		break;
 		/*}}}*/
-		/*{{{  MTFREE: free complex mobile*/
-	case I_MTFREE:
-		codegen_write_string (cgen, "\tmtfree\n");
-		krocetc_cgstate_tsdelta (cgen, -2);
+		/*{{{  MTRELEASE: free complex mobile*/
+	case I_MTRELEASE:
+		codegen_write_string (cgen, "\tmtrelease\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 		/*}}}*/
 		/*{{{  MTCLONE: clone complex mobile*/
 	case I_MTCLONE:
 		codegen_write_string (cgen, "\tmtclone\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
+		krocetc_cgstate_tsdelta (cgen, 1);
 		break;
 		/*}}}*/
 		/*{{{  MWENB: enable multiway sync guard*/

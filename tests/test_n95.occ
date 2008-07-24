@@ -3,6 +3,6 @@
 PROC test.n95 ()
   MOBILE []BYTE str:
   SEQ
-    SKIP
+    str := MOBILE [14]BYTE
 :
 

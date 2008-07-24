@@ -43,6 +43,7 @@
 #include "parsepriv.h"
 #include "occampi.h"
 #include "feunit.h"
+#include "origin.h"
 #include "names.h"
 #include "scope.h"
 #include "prescope.h"
@@ -92,7 +93,7 @@ static void occampi_condfreedynmobile (tnode_t *node, tnode_t *mtype, codegen_t 
 		codegen_callops (cgen, loadatpointer, node, cgen->target->pointersize);		/* load first dimension */
 		codegen_callops (cgen, branch, I_CJ, skiplab);
 		codegen_callops (cgen, loadatpointer, node, 0);					/* load pointer */
-		codegen_callops (cgen, tsecondary, I_MRELEASE);
+		codegen_callops (cgen, tsecondary, I_MTRELEASE);
 		if (clear) {
 			codegen_callops (cgen, loadconst, 0);
 			codegen_callops (cgen, storeatpointer, node, cgen->target->pointersize);	/* zero first dimension */
@@ -105,6 +106,156 @@ static void occampi_condfreedynmobile (tnode_t *node, tnode_t *mtype, codegen_t 
 	return;
 }
 /*}}}*/
+
+/*{{{  static void *occampi_copy_demobilechook (void *chook)*/
+/*
+ *	copies a demobile-type compiler hook
+ */
+static void *occampi_copy_demobilechook (void *chook)
+{
+	tnode_t *type = (tnode_t *)chook;
+
+	if (type) {
+		type = tnode_copytree (type);
+	}
+	return (void *)type;
+}
+/*}}}*/
+/*{{{  static void occampi_free_demobilechook (void *chook)*/
+/*
+ *	frees a demobile-type compiler hook
+ */
+static void occampi_free_demobilechook (void *chook)
+{
+	tnode_t *type = (tnode_t *)chook;
+
+	if (type) {
+		tnode_free (type);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_dumptree_demobilechook (tnode_t *t, void *chook, int indent, FILE *stream)*/
+/*
+ *	dumps a demobile-type compiler hook (debugging)
+ */
+static void occampi_dumptree_demobilechook (tnode_t *t, void *chook, int indent, FILE *stream)
+{
+	tnode_t *type = (tnode_t *)chook;
+
+	if (type) {
+		occampi_isetindent (stream, indent);
+		fprintf (stream, "<chook:occampi:demobiletype>\n");
+		tnode_dumptree (type, indent + 1, stream);
+		occampi_isetindent (stream, indent);
+		fprintf (stream, "</chook:occampi:demobiletype>\n");
+	}
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static mobiletypehook_t *occampi_newmobiletypehook (void)*/
+/*
+ *	creates a new mobiletypehook_t structure
+ */
+static mobiletypehook_t *occampi_newmobiletypehook (void)
+{
+	mobiletypehook_t *mth = (mobiletypehook_t *)smalloc (sizeof (mobiletypehook_t));
+
+	mth->val = 0;
+	mth->data = NULL;
+	mth->dlen = 0;
+	mth->label = -1;
+
+	return mth;
+}
+/*}}}*/
+/*{{{  static void occampi_freemobiletypehook (mobiletypehook_t *mth)*/
+/*
+ *	frees a mobiletypehook_t structure
+ */
+static void occampi_freemobiletypehook (mobiletypehook_t *mth)
+{
+	if (!mth) {
+		nocc_internal ("occampi_freemobiletypehook(): NULL pointer!");
+		return;
+	}
+
+	if (mth->data) {
+		sfree (mth->data);
+		mth->data = NULL;
+		mth->dlen = 0;
+	}
+	sfree (mth);
+	return;
+}
+/*}}}*/
+/*{{{  static void *occampi_copy_mobiletypehook (void *chook)*/
+/*
+ *	copies a mobiletypehook compiler hook
+ */
+static void *occampi_copy_mobiletypehook (void *chook)
+{
+	mobiletypehook_t *mth = (mobiletypehook_t *)chook;
+	mobiletypehook_t *newmth = NULL;
+
+	if (mth) {
+		newmth = occampi_newmobiletypehook ();
+
+		newmth->val = mth->val;
+		if (mth->data && mth->dlen) {
+			newmth->data = mem_ndup (mth->data, mth->dlen);
+			newmth->dlen = mth->dlen;
+		}
+		newmth->label = mth->label;
+	}
+	
+	return newmth;
+}
+/*}}}*/
+/*{{{  static void occampi_free_mobiletypehook (void *chook)*/
+/*
+ *	frees a mobiletypehook compiler hook
+ */
+static void occampi_free_mobiletypehook (void *chook)
+{
+	mobiletypehook_t *mth = (mobiletypehook_t *)chook;
+
+	if (mth) {
+		occampi_freemobiletypehook (mth);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_dumptree_mobiletypehook (tnode_t *t, void *chook, int indent, FILE *stream)*/
+/*
+ *	dumps a mobile type hook compiler hook
+ */
+static void occampi_dumptree_mobiletypehook (tnode_t *t, void *chook, int indent, FILE *stream)
+{
+	mobiletypehook_t *mtd = (mobiletypehook_t *)chook;
+
+	if (mtd) {
+		occampi_isetindent (stream, indent);
+		fprintf (stream, "<chook:occampi:mobiletypehook label=\"%d\" value=\"0x%8.8x\" dlen=\"%d\" data=\"",
+				mtd->label, mtd->val, mtd->dlen);
+
+		if (mtd->data && mtd->dlen) {
+			char *str = mkhexbuf (mtd->data, mtd->dlen);
+
+			fprintf (stream, "%s", str);
+			sfree (str);
+		}
+		fprintf (stream, "\" />\n");
+	} else {
+		occampi_isetindent (stream, indent);
+		fprintf (stream, "<chook:occampi:mobiletypehook value=\"null\" />\n");
+	}
+	return;
+}
+/*}}}*/
+
 
 /*{{{  static int occampi_prescope_mobiletypenode (compops_t *cops, tnode_t **node, prescope_t *ps)*/
 /*
@@ -128,7 +279,7 @@ tnode_dumptree (type, 1, stderr);
 	return 1;
 }
 /*}}}*/
-/*{{{  */
+/*{{{  static int occampi_premap_mobiletypenode (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	called to do back-end mapping on a MOBILE type node -- used to figure out
  *	mobile type-descriptors for run-time allocation
@@ -136,14 +287,63 @@ tnode_dumptree (type, 1, stderr);
  */
 static int occampi_premap_mobiletypenode (compops_t *cops, tnode_t **nodep, map_t *map)
 {
+	mobiletypehook_t *mth = NULL;
+	tnode_t *t = *nodep;
+	
+	if (t->tag->ndef->lops && tnode_haslangop (t->tag->ndef->lops, "mobiletypedescof")) {
+		mth = (mobiletypehook_t *)tnode_calllangop (t->tag->ndef->lops, "mobiletypedescof", 1, t);
+	}
 
 #if 1
-fprintf (stderr, "occampi_premap_mobiletypenode(): here, tag = [%s]\n", (*nodep)->tag->name);
+fprintf (stderr, "occampi_premap_mobiletypenode(): here, tag = [%s].  mth = 0x%8.8x\n", (*nodep)->tag->name, (unsigned int)mth);
 tnode_dumptree (*nodep, 1, stderr);
 #endif
+
 	return 0;
 }
 /*}}}*/
+
+
+/*{{{  static mobiletypehook_t *occampi_leaftype_mobiletypedescof (langops_t *lops, tnode_t *t)*/
+/*
+ *	returns the mobile type descriptor for a leaf-type node -- returns a structure allocated in the node
+ */
+static mobiletypehook_t *occampi_leaftype_mobiletypedescof (langops_t *lops, tnode_t *t)
+{
+	mobiletypehook_t *mtd = (mobiletypehook_t *)tnode_getchook (t, chook_mobiletypehook);
+
+	if (!mtd) {
+		mtd = occampi_newmobiletypehook ();
+
+		tnode_setchook (t, chook_mobiletypehook, mtd);
+
+		if (t->tag == opi.tag_INT) {
+			mtd->val = MT_MAKE_NUM (MT_NUM_INT32);		/* FIXME: default to INT32 for now */
+		} else if (t->tag == opi.tag_BYTE) {
+			mtd->val = MT_MAKE_NUM (MT_NUM_BYTE);
+		} else if (t->tag == opi.tag_CHAR) {
+			mtd->val = MT_MAKE_NUM (MT_NUM_INT16);		/* FIXME: default to INT16 for now */
+		} else if (t->tag == opi.tag_BOOL) {
+			mtd->val = MT_MAKE_NUM (MT_NUM_INT32);
+		} else if (t->tag == opi.tag_INT16) {
+			mtd->val = MT_MAKE_NUM (MT_NUM_INT16);
+		} else if (t->tag == opi.tag_INT32) {
+			mtd->val = MT_MAKE_NUM (MT_NUM_INT32);
+		} else if (t->tag == opi.tag_INT64) {
+			mtd->val = MT_MAKE_NUM (MT_NUM_INT64);
+		} else if (t->tag == opi.tag_REAL32) {
+			mtd->val = MT_MAKE_NUM (MT_NUM_REAL32);
+		} else if (t->tag == opi.tag_REAL64) {
+			mtd->val = MT_MAKE_NUM (MT_NUM_REAL64);
+		} else {
+			nocc_serious ("occampi_leaftype_mobiletypedescof(): don't know how to get mobile type for [%s]", t->tag->name);
+		}
+	}
+
+	return mtd;
+}
+/*}}}*/
+
 
 /*{{{  static void occampi_mobiletypenode_initmobile (tnode_t *node, codegen_t *cgen, void *arg)*/
 /*
@@ -224,11 +424,15 @@ static void occampi_mobiletypenode_finaldynmobarray (tnode_t *node, codegen_t *c
 
 	skiplab = codegen_new_label (cgen);
 
+#if 1
+fprintf (stderr, "occampi_mobiletypenode_finaldynmobilearrray(): mtype =\n");
+tnode_dumptree (mtype, 1, stderr);
+#endif
 	codegen_callops (cgen, debugline, mtype);
 	codegen_callops (cgen, loadlocal, ws_off + cgen->target->pointersize);			/* load first dimension */
 	codegen_callops (cgen, branch, I_CJ, skiplab);
 	codegen_callops (cgen, loadlocal, ws_off);						/* load pointer */
-	codegen_callops (cgen, tsecondary, I_MRELEASE);
+	codegen_callops (cgen, tsecondary, I_MTRELEASE);
 	codegen_callops (cgen, tsecondary, I_NULL);
 	codegen_callops (cgen, storelocal, ws_off);					/* zero pointer */
 	codegen_callops (cgen, setlabel, skiplab);
@@ -355,6 +559,8 @@ fprintf (stderr, "occampi_mobiletypenode_action(): ASSIGN, lhstype (from hook %p
 tnode_dumptree (lhstype, 1, stderr);
 fprintf (stderr, "occampi_mobiletypenode_action(): ASSIGN, lhs =\n");
 tnode_dumptree (lhs, 1, stderr);
+fprintf (stderr, "occampi_mobiletypenode_action(): ASSIGN, rhs =\n");
+tnode_dumptree (rhs, 1, stderr);
 #endif
 			/* FIXME: we need to get hold of the LHS type before this, lhs is now a back-end node */
 			occampi_condfreedynmobile (lhs, type, cgen, 0);
@@ -393,6 +599,42 @@ tnode_dumptree (lhs, 1, stderr);
 		}
 	}
 	return 0;
+}
+/*}}}*/
+/*{{{  static mobiletypehook_t *occampi_mobiletypenode_mobiletypedescof (langops_t *lops, tnode_t *t)*/
+/*
+ *	gets the mobile type descriptor for a mobile type node, goes down recursively
+ *	returns type description on success, NULL on failure
+ */
+static mobiletypehook_t *occampi_mobiletypenode_mobiletypedescof (langops_t *lops, tnode_t *t)
+{
+	mobiletypehook_t *mth = (mobiletypehook_t *)tnode_getchook (t, chook_mobiletypehook);
+
+	if (!mth) {
+		if (t->tag == opi.tag_DYNMOBARRAY) {
+			tnode_t *itype = tnode_nthsubof (t, 0);
+			mobiletypehook_t *imth = NULL;
+
+			if (itype && itype->tag->ndef->lops && tnode_haslangop (itype->tag->ndef->lops, "mobiletypedescof")) {
+				imth = (mobiletypehook_t *)tnode_calllangop (itype->tag->ndef->lops, "mobiletypedescof", 1, itype);
+			}
+			if (imth) {
+				if (imth->data || imth->dlen) {
+					nocc_serious ("occampi_premap_mobiletypenode(): inner type of DYNMOBARRAY gave complex mobile type");
+				} else {
+					mth = occampi_newmobiletypehook ();
+					mth->val = MT_MAKE_ARRAY_TYPE (1, imth->val);
+					tnode_setchook (t, chook_mobiletypehook, mth);
+				}
+			} else {
+				nocc_serious ("occampi_premap_mobiletypenode(): inner type of DYNMOBARRAY has no mobile type");
+			}
+		} else {
+			nocc_internal ("occampi_mobiletypenode_mobiletypedescof(): unhandled mobile type [%s]", t->tag->name);
+		}
+	}
+
+	return mth;
 }
 /*}}}*/
 
@@ -565,156 +807,6 @@ static int occampi_mobiletypedecl_typecheck (compops_t *cops, tnode_t *node, typ
 /*}}}*/
 
 
-/*{{{  static void *occampi_copy_demobilechook (void *chook)*/
-/*
- *	copies a demobile-type compiler hook
- */
-static void *occampi_copy_demobilechook (void *chook)
-{
-	tnode_t *type = (tnode_t *)chook;
-
-	if (type) {
-		type = tnode_copytree (type);
-	}
-	return (void *)type;
-}
-/*}}}*/
-/*{{{  static void occampi_free_demobilechook (void *chook)*/
-/*
- *	frees a demobile-type compiler hook
- */
-static void occampi_free_demobilechook (void *chook)
-{
-	tnode_t *type = (tnode_t *)chook;
-
-	if (type) {
-		tnode_free (type);
-	}
-	return;
-}
-/*}}}*/
-/*{{{  static void occampi_dumptree_demobilechook (tnode_t *t, void *chook, int indent, FILE *stream)*/
-/*
- *	dumps a demobile-type compiler hook (debugging)
- */
-static void occampi_dumptree_demobilechook (tnode_t *t, void *chook, int indent, FILE *stream)
-{
-	tnode_t *type = (tnode_t *)chook;
-
-	if (type) {
-		occampi_isetindent (stream, indent);
-		fprintf (stream, "<chook:occampi:demobiletype>\n");
-		tnode_dumptree (type, indent + 1, stream);
-		occampi_isetindent (stream, indent);
-		fprintf (stream, "</chook:occampi:demobiletype>\n");
-	}
-	return;
-}
-/*}}}*/
-
-
-/*{{{  static mobiletypehook_t *occampi_newmobiletypehook (void)*/
-/*
- *	creates a new mobiletypehook_t structure
- */
-static mobiletypehook_t *occampi_newmobiletypehook (void)
-{
-	mobiletypehook_t *mth = (mobiletypehook_t *)smalloc (sizeof (mobiletypehook_t));
-
-	mth->val = 0;
-	mth->data = NULL;
-	mth->dlen = 0;
-	mth->label = -1;
-
-	return mth;
-}
-/*}}}*/
-/*{{{  static void occampi_freemobiletypehook (mobiletypehook_t *mth)*/
-/*
- *	frees a mobiletypehook_t structure
- */
-static void occampi_freemobiletypehook (mobiletypehook_t *mth)
-{
-	if (!mth) {
-		nocc_internal ("occampi_freemobiletypehook(): NULL pointer!");
-		return;
-	}
-
-	if (mth->data) {
-		sfree (mth->data);
-		mth->data = NULL;
-		mth->dlen = 0;
-	}
-	sfree (mth);
-	return;
-}
-/*}}}*/
-/*{{{  static void *occampi_copy_mobiletypehook (void *chook)*/
-/*
- *	copies a mobiletypehook compiler hook
- */
-static void *occampi_copy_mobiletypehook (void *chook)
-{
-	mobiletypehook_t *mth = (mobiletypehook_t *)chook;
-	mobiletypehook_t *newmth = NULL;
-
-	if (mth) {
-		newmth = occampi_newmobiletypehook ();
-
-		newmth->val = mth->val;
-		if (mth->data && mth->dlen) {
-			newmth->data = mem_ndup (mth->data, mth->dlen);
-			newmth->dlen = mth->dlen;
-		}
-		newmth->label = mth->label;
-	}
-	
-	return newmth;
-}
-/*}}}*/
-/*{{{  static void occampi_free_mobiletypehook (void *chook)*/
-/*
- *	frees a mobiletypehook compiler hook
- */
-static void occampi_free_mobiletypehook (void *chook)
-{
-	mobiletypehook_t *mth = (mobiletypehook_t *)chook;
-
-	if (mth) {
-		occampi_freemobiletypehook (mth);
-	}
-	return;
-}
-/*}}}*/
-/*{{{  static void occampi_dumptree_mobiletypehook (tnode_t *t, void *chook, int indent, FILE *stream)*/
-/*
- *	dumps a mobile type hook compiler hook
- */
-static void occampi_dumptree_mobiletypehook (tnode_t *t, void *chook, int indent, FILE *stream)
-{
-	mobiletypehook_t *mtd = (mobiletypehook_t *)chook;
-
-	if (mtd) {
-		occampi_isetindent (stream, indent);
-		fprintf (stream, "<chook:occampi:mobiletypehook label=\"%d\" value=\"0x%8.8x\" dlen=\"%d\" data=\"",
-				mtd->label, mtd->val, mtd->dlen);
-
-		if (mtd->data && mtd->dlen) {
-			char *str = mkhexbuf (mtd->data, mtd->dlen);
-
-			fprintf (stream, "%s", str);
-			sfree (str);
-		}
-		fprintf (stream, "\" />\n");
-	} else {
-		occampi_isetindent (stream, indent);
-		fprintf (stream, "<chook:occampi:mobiletypehook value=\"null\" />\n");
-	}
-	return;
-}
-/*}}}*/
-
-
 /*{{{  static int occampi_mobiles_init_nodes (void)*/
 /*
  *	sets up nodes for occam-pi mobiles
@@ -727,6 +819,13 @@ static int occampi_mobiles_init_nodes (void)
 	langops_t *lops;
 	int i;
 
+	/*{{{  mobiletypedescof language operation*/
+	if (tnode_newlangop ("mobiletypedescof", LOPS_INVALID, 1, origin_langparser (&occampi_parser)) < 0) {
+		nocc_internal ("occampi_mobiles_init_nodes(): failed to create \"mobiletypedescof\" lang-op");
+		return -1;
+	}
+
+	/*}}}*/
 	/*{{{  occampi:mobiletypenode -- MOBILE, DYNMOBARRAY, CTCLI, CTSVR, CTSHCLI, CTSHSVR*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:mobiletypenode", &i, 1, 0, 0, TNF_NONE);		/* subnodes: subtype */
@@ -741,6 +840,7 @@ static int occampi_mobiles_init_nodes (void)
 	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_mobiletypenode_initialising_decl));
 	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_mobiletypenode_iscomplex));
 	tnode_setlangop (lops, "codegen_typeaction", 3, LANGOPTYPE (occampi_mobiletypenode_typeaction));
+	tnode_setlangop (lops, "mobiletypedescof", 1, LANGOPTYPE (occampi_mobiletypenode_mobiletypedescof));
 	tnd->lops = lops;
 
 	i = -1;
@@ -818,7 +918,20 @@ static int occampi_mobiles_init_nodes (void)
  */
 static int occampi_mobiles_post_setup (void)
 {
+	tndef_t *tnd;
+
 	chook_actionlhstype = tnode_lookupchookbyname ("occampi:action:lhstype");
+
+	/*{{{  interfere with leaf-type nodes for mobile type descriptors (direct)*/
+	tnd = tnode_lookupnodetype ("occampi:leaftype");
+	if (!tnd) {
+		nocc_internal ("occampi_mobiles_post_setup(): no occampi:leaftype node type!");
+	}
+
+	tnode_setlangop (tnd->lops, "mobiletypedescof", 1, LANGOPTYPE (occampi_leaftype_mobiletypedescof));
+
+	/*}}}*/
+
 	return 0;
 }
 /*}}}*/
