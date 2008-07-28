@@ -90,9 +90,10 @@ static void occampi_condfreedynmobile (tnode_t *node, tnode_t *mtype, codegen_t 
 		// cgen->target->be_getoffsets (node, &ws_off, NULL, NULL, NULL);
 
 		skiplab = codegen_new_label (cgen);
+		// codegen_callops (cgen, comment, "condfreedynmobile()");
 		codegen_callops (cgen, loadatpointer, node, cgen->target->pointersize);		/* load first dimension */
 		codegen_callops (cgen, branch, I_CJ, skiplab);
-		codegen_callops (cgen, loadatpointer, node, 0);					/* load pointer */
+		codegen_callops (cgen, loadpointer, node, 0);					/* load pointer */
 		codegen_callops (cgen, tsecondary, I_MTRELEASE);
 		if (clear) {
 			codegen_callops (cgen, loadconst, 0);
@@ -562,10 +563,13 @@ tnode_dumptree (lhs, 1, stderr);
 fprintf (stderr, "occampi_mobiletypenode_action(): ASSIGN, rhs =\n");
 tnode_dumptree (rhs, 1, stderr);
 #endif
-			/* FIXME: we need to get hold of the LHS type before this, lhs is now a back-end node */
 			occampi_condfreedynmobile (lhs, type, cgen, 0);
 
-			codegen_callops (cgen, comment, "FIXME! (dynmobarray assign)");
+			/* FIXME: dimension count! */
+			codegen_subcodegen (rhs, cgen);
+			codegen_callops (cgen, storename, lhs, 0);
+
+			// codegen_callops (cgen, comment, "FIXME! (dynmobarray assign)");
 			/*}}}*/
 		} else {
 			codegen_warning (cgen, "occampi_mobiletypenode_typeaction(): don\'t know how to assign [%s]", type->tag->name);
@@ -620,14 +624,14 @@ static mobiletypehook_t *occampi_mobiletypenode_mobiletypedescof (langops_t *lop
 			}
 			if (imth) {
 				if (imth->data || imth->dlen) {
-					nocc_serious ("occampi_premap_mobiletypenode(): inner type of DYNMOBARRAY gave complex mobile type");
+					nocc_serious ("occampi_mobiletypenode_mobiletypedescof(): inner type of DYNMOBARRAY gave complex mobile type");
 				} else {
 					mth = occampi_newmobiletypehook ();
 					mth->val = MT_MAKE_ARRAY_TYPE (1, imth->val);
 					tnode_setchook (t, chook_mobiletypehook, mth);
 				}
 			} else {
-				nocc_serious ("occampi_premap_mobiletypenode(): inner type of DYNMOBARRAY has no mobile type");
+				nocc_serious ("occampi_mobiletypenode_mobiletypedescof(): inner type of DYNMOBARRAY has no mobile type");
 			}
 		} else {
 			nocc_internal ("occampi_mobiletypenode_mobiletypedescof(): unhandled mobile type [%s]", t->tag->name);
@@ -682,18 +686,27 @@ static tnode_t *occampi_mobilealloc_gettype (langops_t *lops, tnode_t *node, tno
 	return rtype;
 }
 /*}}}*/
-/*{{{  static int occampi_mobilealloc_premap (compops_t *cops, tnode_t **node, map_t *map)*/
+/*{{{  static int occampi_mobilealloc_premap (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does pre-mapping for a mobile allocation node -- inserts back-end result
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_mobilealloc_premap (compops_t *cops, tnode_t **node, map_t *map)
+static int occampi_mobilealloc_premap (compops_t *cops, tnode_t **nodep, map_t *map)
 {
-	if ((*node)->tag == opi.tag_NEWDYNMOBARRAY) {
-		/* pre-map dimension */
-		map_subpremap (tnode_nthsubaddr (*node, 1), map);
+	mobiletypehook_t *mth = NULL;
+	tnode_t *t = *nodep;
+	tnode_t *type = tnode_nthsubof (t, 2);
 
-		*node = map->target->newresult (*node, map);
+	/* do mobile-typing on type of this node -- descriptor we're going to allocate */
+	if (type->tag->ndef->lops && tnode_haslangop (type->tag->ndef->lops, "mobiletypedescof")) {
+		mth = (mobiletypehook_t *)tnode_calllangop (type->tag->ndef->lops, "mobiletypedescof", 1, type);
+	}
+
+	if (t->tag == opi.tag_NEWDYNMOBARRAY) {
+		/* pre-map dimension */
+		map_subpremap (tnode_nthsubaddr (t, 1), map);
+
+		*nodep = map->target->newresult (t, map);
 	}
 
 	return 0;
@@ -707,6 +720,10 @@ static int occampi_mobilealloc_premap (compops_t *cops, tnode_t **node, map_t *m
 static int occampi_mobilealloc_namemap (compops_t *cops, tnode_t **node, map_t *map)
 {
 	if ((*node)->tag == opi.tag_NEWDYNMOBARRAY) {
+#if 0
+fprintf (stderr, "occampi_mobilealloc_namemap(): name-map dynamic mobile array creation:\n");
+tnode_dumptree (*node, 1, stderr);
+#endif
 		/* name-map dimension */
 		map_submapnames (tnode_nthsubaddr (*node, 1), map);
 
@@ -724,8 +741,31 @@ static int occampi_mobilealloc_namemap (compops_t *cops, tnode_t **node, map_t *
  */
 static int occampi_mobilealloc_codegen (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
-	codegen_callops (cgen, comment, "FIXME: alloc mobile!");
-	codegen_callops (cgen, loadconst, 0);
+	if (node->tag == opi.tag_NEWDYNMOBARRAY) {
+		tnode_t *type = tnode_nthsubof (node, 2);
+		mobiletypehook_t *mth = NULL;
+
+		if (type->tag->ndef->lops && tnode_haslangop (type->tag->ndef->lops, "mobiletypedescof")) {
+			mth = (mobiletypehook_t *)tnode_calllangop (type->tag->ndef->lops, "mobiletypedescof", 1, type);
+		}
+#if 1
+fprintf (stderr, "occampi_mobilealloc_codegen(): here! type is:\n");
+tnode_dumptree (type, 1, stderr);
+#endif
+		if (!mth) {
+			nocc_internal ("occampi_mobilealloc_codegen(): missing mobile type hook!\n");
+		} else {
+			if (!mth->data && !mth->dlen) {
+				codegen_callops (cgen, loadconst, mth->val);
+			} else {
+				codegen_callops (cgen, loadlabaddr, mth->label);
+			}
+			codegen_callops (cgen, tsecondary, I_MTALLOC);
+		}
+	} else {
+		codegen_callops (cgen, comment, "FIXME: alloc mobile!");
+		codegen_callops (cgen, loadconst, 0);
+	}
 	return 0;
 }
 /*}}}*/

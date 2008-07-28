@@ -59,6 +59,7 @@ typedef struct TAG_codegen {
 
 typedef struct TAG_coderops {
 	void (*loadpointer)(codegen_t *, struct TAG_tnode *, int);
+	void (*loadnthpointer)(codegen_t *, struct TAG_tnode *, int, int);
 	void (*loadatpointer)(codegen_t *, struct TAG_tnode *, int);
 	void (*loadname)(codegen_t *, struct TAG_tnode *, int);
 	void (*loadparam)(codegen_t *, struct TAG_tnode *, codegen_parammode_e);
@@ -70,6 +71,7 @@ typedef struct TAG_coderops {
 	void (*loadnonlocal)(codegen_t *, int);
 	void (*storenonlocal)(codegen_t *, int);
 	void (*storepointer)(codegen_t *, struct TAG_tnode *, int);
+	void (*storenthpointer)(codegen_t *, struct TAG_tnode *, int, int);
 	void (*storeatpointer)(codegen_t *, struct TAG_tnode *, int);
 	void (*storename)(codegen_t *, struct TAG_tnode *, int);
 	void (*storelocal)(codegen_t *, int);
