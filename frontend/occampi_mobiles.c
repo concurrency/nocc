@@ -75,6 +75,7 @@ typedef struct TAG_mobiletypehook {
 static chook_t *chook_demobiletype = NULL;
 static chook_t *chook_actionlhstype = NULL;
 static chook_t *chook_mobiletypehook = NULL;
+static chook_t *chook_dimtreehook = NULL;
 
 /*}}}*/
 /*{{{  static void occampi_condfreedynmobile (tnode_t *node, tnode_t *mtype, codegen_t *cgen, const int clear)*/
@@ -87,13 +88,12 @@ static void occampi_condfreedynmobile (tnode_t *node, tnode_t *mtype, codegen_t 
 		/*{{{  conditional check-and-free for dynamic mobile array*/
 		int skiplab;
 
-		// cgen->target->be_getoffsets (node, &ws_off, NULL, NULL, NULL);
-
 		skiplab = codegen_new_label (cgen);
-		// codegen_callops (cgen, comment, "condfreedynmobile()");
-		codegen_callops (cgen, loadatpointer, node, cgen->target->pointersize);		/* load first dimension */
+		codegen_callops (cgen, loadnthpointer, node, 2, 0);
+		codegen_callops (cgen, loadnonlocal, cgen->target->pointersize);			/* load first dimension */
+		// codegen_callops (cgen, loadpointer, node, cgen->target->pointersize);
 		codegen_callops (cgen, branch, I_CJ, skiplab);
-		codegen_callops (cgen, loadpointer, node, 0);					/* load pointer */
+		codegen_callops (cgen, loadpointer, node, 0);						/* load pointer */
 		codegen_callops (cgen, tsecondary, I_MTRELEASE);
 		if (clear) {
 			codegen_callops (cgen, loadconst, 0);
@@ -150,6 +150,53 @@ static void occampi_dumptree_demobilechook (tnode_t *t, void *chook, int indent,
 		tnode_dumptree (type, indent + 1, stream);
 		occampi_isetindent (stream, indent);
 		fprintf (stream, "</chook:occampi:demobiletype>\n");
+	}
+	return;
+}
+/*}}}*/
+
+/*{{{  static void *occampi_copy_dimtreehook (void *chook)*/
+/*
+ *	copies a mobile dimension-tree compiler hook
+ */
+static void *occampi_copy_dimtreehook (void *chook)
+{
+	tnode_t *dtree = (tnode_t *)chook;
+
+	if (dtree) {
+		dtree = tnode_copytree (dtree);
+	}
+	return (void *)dtree;
+}
+/*}}}*/
+/*{{{  static void occampi_free_dimtreehook (void *chook)*/
+/*
+ *	frees a mobile dimension-tree compiler hook
+ */
+static void occampi_free_dimtreehook (void *chook)
+{
+	tnode_t *dtree = (tnode_t *)chook;
+
+	if (dtree) {
+		tnode_free (dtree);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void occampi_dumptree_dimtreehook (tnode_t *t, void *chook, int indent, FILE *stream)*/
+/*
+ *	dumps a mobile dimension-tree compiler hook (debugging)
+ */
+static void occampi_dumptree_dimtreehook (tnode_t *t, void *chook, int indent, FILE *stream)
+{
+	tnode_t *dtree = (tnode_t *)chook;
+
+	if (dtree) {
+		occampi_isetindent (stream, indent);
+		fprintf (stream, "<chook:occampi:dimtreehook>\n");
+		tnode_dumptree (dtree, indent + 1, stream);
+		occampi_isetindent (stream, indent);
+		fprintf (stream, "</chook:occampi:dimtreehook>\n");
 	}
 	return;
 }
@@ -399,6 +446,8 @@ static void occampi_mobiletypenode_initdynmobarray (tnode_t *node, codegen_t *cg
 
 	codegen_callops (cgen, debugline, mtype);
 	codegen_callops (cgen, tsecondary, I_NULL);
+	codegen_callops (cgen, storepointer, node, 0);
+
 	codegen_callops (cgen, storelocal, ws_off);
 #if 0
 fprintf (stderr, "occampi_mobiletypenode_initdynmobarray(): mtype =\n");
@@ -552,6 +601,7 @@ static int occampi_mobiletypenode_typeaction (langops_t *lops, tnode_t *type, tn
 			/*{{{  dynamic mobile array assignment*/
 			tnode_t *lhs = tnode_nthsubof (anode, 0);
 			tnode_t *rhs = tnode_nthsubof (anode, 1);
+			tnode_t *dsizes = NULL;
 
 			tnode_t *lhstype = (tnode_t *)tnode_getchook (anode, chook_actionlhstype);
 
@@ -565,9 +615,13 @@ tnode_dumptree (rhs, 1, stderr);
 #endif
 			occampi_condfreedynmobile (lhs, type, cgen, 0);
 
-			/* FIXME: dimension count! */
 			codegen_subcodegen (rhs, cgen);
-			codegen_callops (cgen, storename, lhs, 0);
+			codegen_callops (cgen, storepointer, lhs, 0);
+
+			if (!dsizes) {
+				nocc_internal ("occampi_mobiletypenode_typeaction(): ASSIGN/DYNMOBARRAY: no dimension(s)!");
+			} else {
+			}
 
 			// codegen_callops (cgen, comment, "FIXME! (dynmobarray assign)");
 			/*}}}*/
@@ -703,8 +757,10 @@ static int occampi_mobilealloc_premap (compops_t *cops, tnode_t **nodep, map_t *
 	}
 
 	if (t->tag == opi.tag_NEWDYNMOBARRAY) {
-		/* pre-map dimension */
-		map_subpremap (tnode_nthsubaddr (t, 1), map);
+		/* pre-map dimensions */
+		tnode_t **dimaddr = tnode_nthsubaddr (t, 1);
+
+		map_subpremap (dimaddr, map);
 
 		*nodep = map->target->newresult (t, map);
 	}
@@ -720,18 +776,30 @@ static int occampi_mobilealloc_premap (compops_t *cops, tnode_t **nodep, map_t *
 static int occampi_mobilealloc_namemap (compops_t *cops, tnode_t **node, map_t *map)
 {
 	if ((*node)->tag == opi.tag_NEWDYNMOBARRAY) {
+		tnode_t **dimaddr = tnode_nthsubaddr (*node, 1);
+
 #if 0
 fprintf (stderr, "occampi_mobilealloc_namemap(): name-map dynamic mobile array creation:\n");
 tnode_dumptree (*node, 1, stderr);
 #endif
 		/* name-map dimension */
-		map_submapnames (tnode_nthsubaddr (*node, 1), map);
+		map_submapnames (dimaddr, map);
 
 		/* set in result */
-		map_addtoresult (tnode_nthsubaddr (*node, 1), map);
+		map_addtoresult (dimaddr, map);
 	}
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_mobilealloc_precode (compops_t *cops, tnode_t **nodep, codegen_t *cgen)*/
+/*
+ *	does pre-coding for a mobile allocation node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mobilealloc_precode (compops_t *cops, tnode_t **nodep, codegen_t *cgen)
+{
+	return 1;
 }
 /*}}}*/
 /*{{{  static int occampi_mobilealloc_codegen (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
@@ -906,6 +974,7 @@ static int occampi_mobiles_init_nodes (void)
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_mobilealloc_typecheck));
 	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_mobilealloc_premap));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_mobilealloc_namemap));
+	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_mobilealloc_precode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_mobilealloc_codegen));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
@@ -929,6 +998,13 @@ static int occampi_mobiles_init_nodes (void)
 		chook_mobiletypehook->chook_copy = occampi_copy_mobiletypehook;
 		chook_mobiletypehook->chook_free = occampi_free_mobiletypehook;
 		chook_mobiletypehook->chook_dumptree = occampi_dumptree_mobiletypehook;
+	}
+
+	if (!chook_dimtreehook) {
+		chook_dimtreehook = tnode_lookupornewchook ("occampi:dimtreehook");
+		chook_dimtreehook->chook_copy = occampi_copy_dimtreehook;
+		chook_dimtreehook->chook_free = occampi_free_dimtreehook;
+		chook_dimtreehook->chook_dumptree = occampi_dumptree_dimtreehook;
 	}
 
 	/*}}}*/

@@ -2191,6 +2191,32 @@ static void krocetc_coder_loadnthpointer (codegen_t *cgen, tnode_t *name, int le
 	default:
 		if (name->tag == krocetc_target.tag_NAMEREF) {
 			/*{{{  loading pointer to a name*/
+			krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (name, 0);
+			tnode_t *fename = tnode_nthsubof (name, 0);
+			tnode_t *fenamehook = (tnode_t *)tnode_getchook (fename, kpriv->mapchook);
+			int local;
+
+			ref_lexlevel = nh->lexlevel;
+			act_lexlevel = cgen->target->be_blocklexlevel (fenamehook);
+			local = (ref_lexlevel == act_lexlevel);
+
+			if (!local) {
+				/*{{{  non-local load*/
+				nocc_warning ("krocetc_coder_loadnthpointer(): FIXME!");
+				/*}}}*/
+			} else {
+				/*{{{  local load*/
+				if (nh->indir == 0) {
+					nocc_warning ("krocetc_coder_loadnthpointer(): don\'t have a pointer at this level (indir 0)");
+				} else if ((nh->indir == 1) && (level == 2)) {
+					codegen_write_fmt (cgen, "\tldlp\t%d\n", nh->ws_offset + offset);
+					krocetc_cgstate_tsdelta (cgen, 1);
+				} else {
+					/* arbitrary */
+					nocc_warning ("krocetc_coder_loadnthpointer(): FIXME!");
+				}
+				/*}}}*/
+			}
 			/*}}}*/
 		} else if (name->tag == krocetc_target.tag_INDEXED) {
 		} else if (name->tag == kpriv->tag_CONSTREF) {
@@ -2557,7 +2583,41 @@ static void krocetc_coder_loadmsp (codegen_t *cgen, int offset)
  */
 static void krocetc_coder_storepointer (codegen_t *cgen, tnode_t *name, int offset)
 {
-	nocc_warning ("krocetc_coder_storepointer(): don\'t know how to store a pointer to [%s]", name->tag->name);
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)(krocetc_target.priv);
+	int ref_lexlevel, act_lexlevel;
+
+	if (name->tag == krocetc_target.tag_NAMEREF) {
+		/*{{{  storing pointer to a name*/
+		krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (name, 0);
+		tnode_t *fename = tnode_nthsubof (name, 0);
+		tnode_t *fenamehook = (tnode_t *)tnode_getchook (fename, kpriv->mapchook);
+		int local;
+
+		ref_lexlevel = nh->lexlevel;
+		act_lexlevel = cgen->target->be_blocklexlevel (fenamehook);
+		local = (ref_lexlevel == act_lexlevel);
+
+		if (!local) {
+			/*{{{  non-local store*/
+			nocc_warning ("krocetc_coder_storepointer(): FIXME!");
+			/*}}}*/
+		} else {
+			/*{{{  local store*/
+			if (nh->indir == 0) {
+				nocc_warning ("krocetc_coder_storepointer(): don\'t have a pointer at this level (indir 0)");
+			} else if (nh->indir == 1) {
+				codegen_write_fmt (cgen, "\tstl\t%d\n", nh->ws_offset + offset);
+				krocetc_cgstate_tsdelta (cgen, -1);
+			} else {
+				/* arbitrary */
+				nocc_warning ("krocetc_coder_storepointer(): FIXME!");
+			}
+			/*}}}*/
+		}
+		/*}}}*/
+	} else {
+		nocc_warning ("krocetc_coder_storepointer(): don\'t know how to store a pointer to [%s]", name->tag->name);
+	}
 	return;
 }
 /*}}}*/
@@ -2567,7 +2627,51 @@ static void krocetc_coder_storepointer (codegen_t *cgen, tnode_t *name, int offs
  */
 static void krocetc_coder_storenthpointer (codegen_t *cgen, tnode_t *name, int level, int offset)
 {
-	nocc_warning ("krocetc_coder_storenthpointer(): dont\'t know how to store %d pointer of [%s]", level, name->tag->name);
+	krocetc_priv_t *kpriv = (krocetc_priv_t *)(krocetc_target.priv);
+	int ref_lexlevel, act_lexlevel;
+
+	switch (level) {
+	case 0:
+		codegen_callops (cgen, loadname, name, offset);
+		break;
+	case 1:
+		codegen_callops (cgen, loadpointer, name, offset);
+		break;
+	default:
+		if (name->tag == krocetc_target.tag_NAMEREF) {
+			/*{{{  storing pointer to a name*/
+			krocetc_namehook_t *nh = (krocetc_namehook_t *)tnode_nthhookof (name, 0);
+			tnode_t *fename = tnode_nthsubof (name, 0);
+			tnode_t *fenamehook = (tnode_t *)tnode_getchook (fename, kpriv->mapchook);
+			int local;
+
+			ref_lexlevel = nh->lexlevel;
+			act_lexlevel = cgen->target->be_blocklexlevel (fenamehook);
+			local = (ref_lexlevel == act_lexlevel);
+
+			if (!local) {
+				/*{{{  non-local store*/
+				nocc_warning ("krocetc_coder_storenthpointer(): FIXME!");
+				/*}}}*/
+			} else {
+				/*{{{  local store*/
+				if (nh->indir == 0) {
+					nocc_warning ("krocetc_coder_storenthpointer(): don\'t have a pointer at this level (indir 0)");
+				} else if ((nh->indir == 1) && (level == 2)) {
+					codegen_write_fmt (cgen, "\tstl\t%d\n", nh->ws_offset + offset);
+					krocetc_cgstate_tsdelta (cgen, -1);
+				} else {
+					/* arbitrary */
+					nocc_warning ("krocetc_coder_storenthpointer(): FIXME!");
+				}
+				/*}}}*/
+			}
+			/*}}}*/
+		} else {
+			nocc_warning ("krocetc_coder_storenthpointer(): don\'t know how to load a pointer to [%s]", name->tag->name);
+		}
+		break;
+	}
 	return;
 }
 /*}}}*/
