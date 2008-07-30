@@ -176,7 +176,7 @@
 # occampi:mobilealloc              (3,0,0)
 
 .TNODE	"occampi:mobiletypenode" (1,0,0) "subtype"
-.TNODE	"occampi:mobilealloc" (3,0,0) "subtype" "dimtree" "type"
+.TNODE	"occampi:mobilealloc" (4,0,0) "subtype" "dimtree" "type" "bytes-expr"
 
 #}}}
 #{{{  initial declarations
@@ -620,7 +620,7 @@
 
 .GRULE	"opi:mobilise" "SN0N+C[MOBILE]1N-"
 .GRULE	"opi:dynmobilearray" "SN0N+C[DYNMOBARRAY]1N-"
-.GRULE	"opi:dynmobarrayallocreduce" "SN0N+N+0C[NEWDYNMOBARRAY]3R-"
+.GRULE	"opi:dynmobarrayallocreduce" "SN0N+N+00C[NEWDYNMOBARRAY]4R-"
 
 .TABLE	"occampi:mobileprocdecl ::= [ 0 @MOBILE 1 ] [ 1 @PROC 2 ] [ 2 occampi:name 3 ] [ 3 {<opi:nullreduce>} -* ]"		# FIXME!
 .TABLE	"occampi:mobiletype ::= [ 0 @MOBILE 1 ] [ 1 @@[ 4 ] [ 1 @@[] 5 ] [ 1 occampi:primtype 2 ] [ 1 occampi:name 2 ] [ 2 {<opi:mobilise>} -* 3 ]"

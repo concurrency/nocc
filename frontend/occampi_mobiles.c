@@ -47,9 +47,11 @@
 #include "names.h"
 #include "scope.h"
 #include "prescope.h"
+#include "constprop.h"
 #include "precheck.h"
 #include "typecheck.h"
 #include "usagecheck.h"
+#include "betrans.h"
 #include "map.h"
 #include "target.h"
 #include "transputer.h"
@@ -301,6 +303,18 @@ static void occampi_dumptree_mobiletypehook (tnode_t *t, void *chook, int indent
 		fprintf (stream, "<chook:occampi:mobiletypehook value=\"null\" />\n");
 	}
 	return;
+}
+/*}}}*/
+
+
+/*{{{  static tnode_t *occampi_dimensionlistof (tnode_t *node)*/
+/*
+ *	returns the dimension list associated with some dynamic mobile array expression
+ *	returns NULL on failure
+ */
+static tnode_t *occampi_dimensionlistof (tnode_t *node)
+{
+	return NULL;
 }
 /*}}}*/
 
@@ -601,7 +615,7 @@ static int occampi_mobiletypenode_typeaction (langops_t *lops, tnode_t *type, tn
 			/*{{{  dynamic mobile array assignment*/
 			tnode_t *lhs = tnode_nthsubof (anode, 0);
 			tnode_t *rhs = tnode_nthsubof (anode, 1);
-			tnode_t *dsizes = NULL;
+			tnode_t *dimlist = NULL;
 
 			tnode_t *lhstype = (tnode_t *)tnode_getchook (anode, chook_actionlhstype);
 
@@ -618,9 +632,21 @@ tnode_dumptree (rhs, 1, stderr);
 			codegen_subcodegen (rhs, cgen);
 			codegen_callops (cgen, storepointer, lhs, 0);
 
-			if (!dsizes) {
+			/* get dimension list from RHS */
+			dimlist = occampi_dimensionlistof (rhs);
+			if (!dimlist) {
 				nocc_internal ("occampi_mobiletypenode_typeaction(): ASSIGN/DYNMOBARRAY: no dimension(s)!");
+			} else if (!parser_islistnode (dimlist)) {
+				nocc_internal ("occampi_mobiletypenode_typeaction(): dimension list is not list! [%s]", dimlist->tag->name);
 			} else {
+				tnode_t **dimitems;
+				int ndimitems, i;
+
+				dimitems = parser_getlistitems (dimlist, &ndimitems);
+				for (i=0; i<ndimitems; i++) {
+					codegen_subcodegen (dimitems[i], cgen);
+					codegen_callops (cgen, storepointer, dimitems[i], i * cgen->target->pointersize);
+				}
 			}
 
 			// codegen_callops (cgen, comment, "FIXME! (dynmobarray assign)");
@@ -712,14 +738,111 @@ static int occampi_mobilealloc_typecheck (compops_t *cops, tnode_t *node, typech
 		/* already got this */
 		return 1;
 	}
-	if (node->tag == opi.tag_NEWDYNMOBARRAY) {
-		rtype = tnode_createfrom (opi.tag_DYNMOBARRAY, node, subtype);
 
-		tnode_setnthsub (node, 2, rtype);
-	}
+	if (node->tag == opi.tag_NEWDYNMOBARRAY) {
+		tnode_t **dimtreep;
+		tnode_t **dimitems = NULL;
+		int ndimitems, i;
+		tnode_t *inttype = tnode_create (opi.tag_INT, NULL);
+		tnode_t *sizetree = NULL;
+
+		/* dimension tree should be a list of integer types */
+		dimtreep = tnode_nthsubaddr (node, 1);
+		if (!parser_islistnode (*dimtreep)) {
+			*dimtreep = parser_buildlistnode (NULL, *dimtreep, NULL);
+		}
+
+		typecheck_subtree (*dimtreep, tc);
 #if 0
-fprintf (stderr, "occampi_mobilealloc_typecheck(): here!\n");
+fprintf (stderr, "occampi_mobilealloc_typecheck(): here!  typechecked dimension, node now:\n");
+tnode_dumptree (node, 1, stderr);
 #endif
+
+		rtype = tnode_createfrom (opi.tag_DYNMOBARRAY, node, subtype);
+		tnode_setnthsub (node, 2, rtype);
+
+		dimitems = parser_getlistitems (*dimtreep, &ndimitems);
+		for (i=0; i<ndimitems; i++) {
+			tnode_t *dimtype = typecheck_gettype (dimitems[i], inttype);
+
+			if (!typecheck_fixedtypeactual (inttype, dimtype, node, tc, 0)) {
+				typecheck_error (node, tc, "mobile dimension type not integer");
+			}
+
+			/* add to complete dimension size (multiplication of dimensions) */
+			if (!sizetree) {
+				sizetree = tnode_copytree (dimitems[i]);
+			} else {
+				sizetree = tnode_createfrom (opi.tag_TIMES, node, sizetree, dimitems[i], inttype);
+			}
+		}
+
+		tnode_setnthsub (node, 3, sizetree);
+
+		return 0;
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_mobilealloc_constprop (compops_t *cops, tnode_t **nodep)*/
+/*
+ *	does constant propagatin for mobile allocation node, figures
+ *	out the complete byte size required by certain allocators.  Called in post-order.
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mobilealloc_constprop (compops_t *cops, tnode_t **nodep)
+{
+	tnode_t *t = *nodep;
+
+	if (t->tag == opi.tag_NEWDYNMOBARRAY) {
+		tnode_t **dimitems;
+		int ndimitems, i;
+		tnode_t *sizeexpr = NULL;
+		
+		dimitems = parser_getlistitems (tnode_nthsubof (t, 1), &ndimitems);
+
+#if 0
+fprintf (stderr, "occampi_mobilealloc_constprop(): NEWDYNMOBILEARRAY: %d dimension tree:\n", ndimitems);
+for (i=0; i<ndimitems; i++) {
+tnode_dumptree (dimitems[i], 1, stderr);
+}
+#endif
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int occampi_mobilealloc_betrans (compops_t *cops, tnode_t **nodep, betrans_t *be)*/
+/*
+ *	does back-end transformations for a mobile allocation node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mobilealloc_betrans (compops_t *cops, tnode_t **nodep, betrans_t *be)
+{
+	tnode_t *t = *nodep;
+
+	if (t->tag == opi.tag_NEWDYNMOBARRAY) {
+		tnode_t **asizep = tnode_nthsubaddr (t, 3);
+		tnode_t *subtype = tnode_nthsubof (t, 0);
+		int abytes = tnode_bytesfor (subtype, be->target);
+
+#if 0
+fprintf (stderr, "occampi_mobilealloc_betrans(): allocation size expression, abytes = %d:\n", abytes);
+tnode_dumptree (*asizep, 1, stderr);
+#endif
+		if (abytes == 0) {
+			nocc_internal ("occampi_mobilealloc_betrans(): got 0 bytes in allocation-size for DYNMOBILEARRAY of [%s]\n", subtype->tag->name);
+		} else if (abytes == 1) {
+			/* easy! */
+		} else {
+			*asizep = tnode_createfrom (opi.tag_TIMES, t,
+					constprop_newconst (CONST_INT, NULL, tnode_create (opi.tag_INT, NULL), abytes),
+					*asizep, tnode_create (opi.tag_INT, NULL));
+			/* run const-prop over the result to collapse */
+			constprop_tree (asizep);
+		}
+	}
 
 	return 1;
 }
@@ -740,6 +863,20 @@ static tnode_t *occampi_mobilealloc_gettype (langops_t *lops, tnode_t *node, tno
 	return rtype;
 }
 /*}}}*/
+/*{{{  static tnode_t *occampi_mobilealloc_mdtreeof (langops_t *lops, tnode_t *node)*/
+/*
+ *	gets the dimension tree of a mobile allocation node
+ *	returns list on success, NULL on failure
+ */
+static tnode_t *occampi_mobilealloc_mdtreeof (langops_t *lops, tnode_t *node)
+{
+	if (node->tag == opi.tag_NEWDYNMOBARRAY) {
+		return tnode_nthsubof (node, 1);
+	}
+
+	return NULL;
+}
+/*}}}*/
 /*{{{  static int occampi_mobilealloc_premap (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does pre-mapping for a mobile allocation node -- inserts back-end result
@@ -757,12 +894,16 @@ static int occampi_mobilealloc_premap (compops_t *cops, tnode_t **nodep, map_t *
 	}
 
 	if (t->tag == opi.tag_NEWDYNMOBARRAY) {
-		/* pre-map dimensions */
+		/* pre-map dimensions and size expressions */
 		tnode_t **dimaddr = tnode_nthsubaddr (t, 1);
 
 		map_subpremap (dimaddr, map);
 
 		*nodep = map->target->newresult (t, map);
+#if 0
+fprintf (stderr, "occampi_mobilealloc_premap(): created new result node:\n");
+tnode_dumptree (*nodep, 1, stderr);
+#endif
 	}
 
 	return 0;
@@ -776,17 +917,17 @@ static int occampi_mobilealloc_premap (compops_t *cops, tnode_t **nodep, map_t *
 static int occampi_mobilealloc_namemap (compops_t *cops, tnode_t **node, map_t *map)
 {
 	if ((*node)->tag == opi.tag_NEWDYNMOBARRAY) {
-		tnode_t **dimaddr = tnode_nthsubaddr (*node, 1);
+		tnode_t **sizeaddr = tnode_nthsubaddr (*node, 3);
 
 #if 0
 fprintf (stderr, "occampi_mobilealloc_namemap(): name-map dynamic mobile array creation:\n");
 tnode_dumptree (*node, 1, stderr);
 #endif
 		/* name-map dimension */
-		map_submapnames (dimaddr, map);
+		map_submapnames (sizeaddr, map);
 
 		/* set in result */
-		map_addtoresult (dimaddr, map);
+		map_addtoresult (sizeaddr, map);
 	}
 
 	return 0;
@@ -934,6 +1075,13 @@ static int occampi_mobiles_init_nodes (void)
 	}
 
 	/*}}}*/
+	/*{{{  mdtreeof language operation*/
+	if (tnode_newlangop ("mdtreeof", LOPS_INVALID, 1, origin_langparser (&occampi_parser)) < 0) {
+		nocc_internal ("occampi_mobiles_init_nodes(): failed to create \"mobiledimensiontreeof\" lang-op");
+		return -1;
+	}
+
+	/*}}}*/
 	/*{{{  occampi:mobiletypenode -- MOBILE, DYNMOBARRAY, CTCLI, CTSVR, CTSHCLI, CTSHSVR*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:mobiletypenode", &i, 1, 0, 0, TNF_NONE);		/* subnodes: subtype */
@@ -969,9 +1117,11 @@ static int occampi_mobiles_init_nodes (void)
 	/*}}}*/
 	/*{{{  occampi:mobilealloc -- NEWDYNMOBARRAY*/
 	i = -1;
-	tnd = tnode_newnodetype ("occampi:mobilealloc", &i, 3, 0, 0, TNF_NONE);			/* subnodes: subtype, dimtree, type */
+	tnd = tnode_newnodetype ("occampi:mobilealloc", &i, 4, 0, 0, TNF_NONE);			/* subnodes: subtype, dimtree, type, bytes-for-array-expr */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (occampi_mobilealloc_typecheck));
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_mobilealloc_constprop));
+	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_mobilealloc_betrans));
 	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_mobilealloc_premap));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_mobilealloc_namemap));
 	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_mobilealloc_precode));
@@ -979,6 +1129,7 @@ static int occampi_mobiles_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_mobilealloc_gettype));
+	tnode_setlangop (lops, "mdtreeof", 1, LANGOPTYPE (occampi_mobilealloc_mdtreeof));
 	tnd->lops = lops;
 
 	i = -1;
