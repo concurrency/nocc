@@ -307,6 +307,26 @@ static void occampi_dumptree_mobiletypehook (tnode_t *t, void *chook, int indent
 /*}}}*/
 
 
+/*{{{  static int occampi_dimensionlistof_prewalktree (tnode_t *node, void *ptr)*/
+/*
+ *	called to do 'dmtreeof' lang-op on a node, called in prewalk order
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_dimensionlistof_prewalktree (tnode_t *node, void *ptr)
+{
+	int r = 1;
+	tnode_t **target = (tnode_t **)ptr;
+
+	if (node && node->tag->ndef->lops && tnode_haslangop (node->tag->ndef->lops, "mdtreeof")) {
+		*target = (tnode_t *)tnode_calllangop (node->tag->ndef->lops, "mdtreeof", 1, node);
+		if (*target) {
+			r = 0;
+		}
+	}
+
+	return r;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_dimensionlistof (tnode_t *node)*/
 /*
  *	returns the dimension list associated with some dynamic mobile array expression
@@ -314,7 +334,11 @@ static void occampi_dumptree_mobiletypehook (tnode_t *t, void *chook, int indent
  */
 static tnode_t *occampi_dimensionlistof (tnode_t *node)
 {
-	return NULL;
+	tnode_t *dlist = NULL;
+
+	tnode_prewalktree (node, occampi_dimensionlistof_prewalktree, &dlist);
+
+	return dlist;
 }
 /*}}}*/
 
@@ -644,8 +668,9 @@ tnode_dumptree (rhs, 1, stderr);
 
 				dimitems = parser_getlistitems (dimlist, &ndimitems);
 				for (i=0; i<ndimitems; i++) {
-					codegen_subcodegen (dimitems[i], cgen);
-					codegen_callops (cgen, storepointer, dimitems[i], i * cgen->target->pointersize);
+					codegen_callops (cgen, loadname, dimitems[i], 0);
+					// codegen_subcodegen (dimitems[i], cgen);
+					codegen_callops (cgen, storepointer, lhs, (i + 1) * cgen->target->pointersize);
 				}
 			}
 
@@ -896,8 +921,10 @@ static int occampi_mobilealloc_premap (compops_t *cops, tnode_t **nodep, map_t *
 	if (t->tag == opi.tag_NEWDYNMOBARRAY) {
 		/* pre-map dimensions and size expressions */
 		tnode_t **dimaddr = tnode_nthsubaddr (t, 1);
+		tnode_t **sizeaddr = tnode_nthsubaddr (t, 3);
 
 		map_subpremap (dimaddr, map);
+		map_subpremap (sizeaddr, map);
 
 		*nodep = map->target->newresult (t, map);
 #if 0
@@ -918,13 +945,15 @@ static int occampi_mobilealloc_namemap (compops_t *cops, tnode_t **node, map_t *
 {
 	if ((*node)->tag == opi.tag_NEWDYNMOBARRAY) {
 		tnode_t **sizeaddr = tnode_nthsubaddr (*node, 3);
+		tnode_t **dimaddr = tnode_nthsubaddr (*node, 1);
 
 #if 0
 fprintf (stderr, "occampi_mobilealloc_namemap(): name-map dynamic mobile array creation:\n");
 tnode_dumptree (*node, 1, stderr);
 #endif
-		/* name-map dimension */
+		/* name-map dimension and size */
 		map_submapnames (sizeaddr, map);
+		map_submapnames (dimaddr, map);
 
 		/* set in result */
 		map_addtoresult (sizeaddr, map);
