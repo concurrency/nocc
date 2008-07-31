@@ -1,0 +1,11 @@
+-- test_n96 -- testing mobiles again
+
+PROC test.n96 ()
+  MOBILE []BYTE str:
+  INT i:
+  SEQ
+    str := MOBILE [14]BYTE
+    str[6] := 'a'
+    i := SIZE str
+:
+

@@ -949,6 +949,16 @@ static int occampi_typecheck_arraymop (compops_t *cops, tnode_t *node, typecheck
 	typecheck_subtree (tnode_nthsubof (node, 0), tc);
 
 	optype = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
+
+	if (optype && (optype->tag != opi.tag_ARRAY)) {
+		/* see if we can reduce this to an array */
+		tnode_t *rdtype = typecheck_typereduce (optype);
+
+		if (rdtype && (rdtype->tag == opi.tag_ARRAY)) {
+			optype = rdtype;
+		}
+	}
+
 	if (!optype || (optype->tag != opi.tag_ARRAY)) {
 		typecheck_error (node, tc, "operand to %s is not an array!", node->tag->name);
 		return 0;
@@ -989,12 +999,26 @@ static int occampi_constprop_arraymop (compops_t *cops, tnode_t **nodep)
 	tnode_t *rtype = tnode_nthsubof (*nodep, 1);
 	tnode_t *type = typecheck_gettype (op, NULL);
 
+	if (!type) {
+		nocc_internal ("occampi_constprop_arraymop(): no type on arraymop!");
+		return 0;
+	}
 #if 0
 fprintf (stderr, "occampi_constprop_arraymop(): type is\n");
 tnode_dumptree (type, 1, stderr);
 fprintf (stderr, "occampi_constprop_arraymop(): rtype is\n");
 tnode_dumptree (rtype, 1, stderr);
 #endif
+
+	if (type->tag != opi.tag_ARRAY) {
+		/* see if we can reduce it (should be able to, got through typecheck) */
+		tnode_t *rdtype = typecheck_typereduce (type);
+
+		if (rdtype && (rdtype->tag == opi.tag_ARRAY)) {
+			type = rdtype;
+		}
+	}
+
 	if (type->tag != opi.tag_ARRAY) {
 		constprop_error (*nodep, "operand is not an array! [%s]", type->tag->name);
 		return 0;
@@ -1301,6 +1325,15 @@ static int occampi_typecheck_subscript (compops_t *cops, tnode_t *node, typechec
 		tnode_t *atype = typecheck_gettype (base, NULL);
 		tnode_t *stype;
 
+		if (atype->tag != opi.tag_ARRAY) {
+			/* see if what we've got can be reduced into an array */
+			tnode_t *rdtype = typecheck_typereduce (atype);
+
+			if (rdtype && (rdtype->tag == opi.tag_ARRAY)) {
+				atype = rdtype;
+			}
+		}
+
 		if (atype->tag == opi.tag_ARRAY) {
 			/* walk through and get-type again */
 			atype = tnode_nthsubof (atype, 1);
@@ -1454,6 +1487,15 @@ tnode_dumptree (fldtype, 1, stderr);
 		tnode_t *base = tnode_nthsubof (node, 0);
 		tnode_t *atype = typecheck_gettype (base, NULL);
 		tnode_t *stype = defaulttype;
+
+		if (atype->tag != opi.tag_ARRAY) {
+			/* see if what we've got can be reduced into an array */
+			tnode_t *rdtype = typecheck_typereduce (atype);
+
+			if (rdtype && (rdtype->tag == opi.tag_ARRAY)) {
+				atype = rdtype;
+			}
+		}
 
 		if (atype->tag == opi.tag_ARRAY) {
 			/* walk through and get-type again */
