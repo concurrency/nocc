@@ -1,0 +1,9 @@
+
+-- test_n97.occ -- testing array parameter sizing
+
+PROC test.n97 ([]BYTE data)
+  INT i:
+  SEQ
+    i := SIZE data
+:
+

@@ -307,42 +307,6 @@ static void occampi_dumptree_mobiletypehook (tnode_t *t, void *chook, int indent
 /*}}}*/
 
 
-/*{{{  static int occampi_dimensionlistof_prewalktree (tnode_t *node, void *ptr)*/
-/*
- *	called to do 'dmtreeof' lang-op on a node, called in prewalk order
- *	returns 0 to stop walk, 1 to continue
- */
-static int occampi_dimensionlistof_prewalktree (tnode_t *node, void *ptr)
-{
-	int r = 1;
-	tnode_t **target = (tnode_t **)ptr;
-
-	if (node && node->tag->ndef->lops && tnode_haslangop (node->tag->ndef->lops, "mdtreeof")) {
-		*target = (tnode_t *)tnode_calllangop (node->tag->ndef->lops, "mdtreeof", 1, node);
-		if (*target) {
-			r = 0;
-		}
-	}
-
-	return r;
-}
-/*}}}*/
-/*{{{  static tnode_t *occampi_dimensionlistof (tnode_t *node)*/
-/*
- *	returns the dimension list associated with some dynamic mobile array expression
- *	returns NULL on failure
- */
-static tnode_t *occampi_dimensionlistof (tnode_t *node)
-{
-	tnode_t *dlist = NULL;
-
-	tnode_prewalktree (node, occampi_dimensionlistof_prewalktree, &dlist);
-
-	return dlist;
-}
-/*}}}*/
-
-
 /*{{{  static int occampi_prescope_mobiletypenode (compops_t *cops, tnode_t **node, prescope_t *ps)*/
 /*
  *	called to pre-scope a MOBILE type node -- used to clean up partial lists
@@ -657,7 +621,7 @@ tnode_dumptree (rhs, 1, stderr);
 			codegen_callops (cgen, storepointer, lhs, 0);
 
 			/* get dimension list from RHS */
-			dimlist = occampi_dimensionlistof (rhs);
+			dimlist = langops_dimtreeof (rhs);
 			if (!dimlist) {
 				nocc_internal ("occampi_mobiletypenode_typeaction(): ASSIGN/DYNMOBARRAY: no dimension(s)!");
 			} else if (!parser_islistnode (dimlist)) {
@@ -888,12 +852,12 @@ static tnode_t *occampi_mobilealloc_gettype (langops_t *lops, tnode_t *node, tno
 	return rtype;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_mobilealloc_mdtreeof (langops_t *lops, tnode_t *node)*/
+/*{{{  static tnode_t *occampi_mobilealloc_dimtreeof (langops_t *lops, tnode_t *node)*/
 /*
  *	gets the dimension tree of a mobile allocation node
  *	returns list on success, NULL on failure
  */
-static tnode_t *occampi_mobilealloc_mdtreeof (langops_t *lops, tnode_t *node)
+static tnode_t *occampi_mobilealloc_dimtreeof (langops_t *lops, tnode_t *node)
 {
 	if (node->tag == opi.tag_NEWDYNMOBARRAY) {
 		return tnode_nthsubof (node, 1);
@@ -1104,13 +1068,6 @@ static int occampi_mobiles_init_nodes (void)
 	}
 
 	/*}}}*/
-	/*{{{  mdtreeof language operation*/
-	if (tnode_newlangop ("mdtreeof", LOPS_INVALID, 1, origin_langparser (&occampi_parser)) < 0) {
-		nocc_internal ("occampi_mobiles_init_nodes(): failed to create \"mobiledimensiontreeof\" lang-op");
-		return -1;
-	}
-
-	/*}}}*/
 	/*{{{  occampi:mobiletypenode -- MOBILE, DYNMOBARRAY, CTCLI, CTSVR, CTSHCLI, CTSHSVR*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:mobiletypenode", &i, 1, 0, 0, TNF_NONE);		/* subnodes: subtype */
@@ -1158,7 +1115,7 @@ static int occampi_mobiles_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_mobilealloc_gettype));
-	tnode_setlangop (lops, "mdtreeof", 1, LANGOPTYPE (occampi_mobilealloc_mdtreeof));
+	tnode_setlangop (lops, "dimtreeof", 1, LANGOPTYPE (occampi_mobilealloc_dimtreeof));
 	tnd->lops = lops;
 
 	i = -1;
