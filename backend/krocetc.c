@@ -3418,20 +3418,20 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		/*}}}*/
 		/*{{{  MTALLOC: create complex mobile*/
 	case I_MTALLOC:
-		codegen_write_string (cgen, "\tmtalloc\n");
+		codegen_write_string (cgen, "\tmt_alloc\n");
 		krocetc_cgstate_tsdelta (cgen, -2);
 		krocetc_cgstate_tsdelta (cgen, 1);
 		break;
 		/*}}}*/
 		/*{{{  MTRELEASE: free complex mobile*/
 	case I_MTRELEASE:
-		codegen_write_string (cgen, "\tmtrelease\n");
+		codegen_write_string (cgen, "\tmt_release\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 		/*}}}*/
 		/*{{{  MTCLONE: clone complex mobile*/
 	case I_MTCLONE:
-		codegen_write_string (cgen, "\tmtclone\n");
+		codegen_write_string (cgen, "\tmt_clone\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		krocetc_cgstate_tsdelta (cgen, 1);
 		break;
