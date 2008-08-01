@@ -711,16 +711,19 @@ static mobiletypehook_t *occampi_mobiletypenode_mobiletypedescof (langops_t *lop
 	return mth;
 }
 /*}}}*/
-/*{{{  static tnode_t *occampi_mobiletypenode_dimtreeof (langops_t *lops, tnode_t *t)*/
+/*{{{  static tnode_t *occampi_mobiletypenode_dimtreeof_node (langops_t *lops, tnode_t *t, tnode_t *varnode)*/
 /*
  *	returns the dimension-tree associated with a mobile, or NULL if none
  */
-static tnode_t *occampi_mobiletypenode_dimtreeof (langops_t *lops, tnode_t *t)
+static tnode_t *occampi_mobiletypenode_dimtreeof_node (langops_t *lops, tnode_t *t, tnode_t *varnode)
 {
 	if (t->tag == opi.tag_DYNMOBARRAY) {
 		/*{{{  return/create dimension tree fo dynamic mobile array type*/
 		tnode_t *dimlist = (tnode_t *)tnode_getchook (t, opi.chook_arraydiminfo);
 
+#if 1
+fprintf (stderr, "occampi_mobiletypenode_dimtreeof_node(): here!\n");
+#endif
 		if (!dimlist) {
 			/* FIXME: create dimension list for dynamic mobile array type */
 		}
@@ -1104,7 +1107,7 @@ static int occampi_mobiles_init_nodes (void)
 	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_mobiletypenode_iscomplex));
 	tnode_setlangop (lops, "codegen_typeaction", 3, LANGOPTYPE (occampi_mobiletypenode_typeaction));
 	tnode_setlangop (lops, "mobiletypedescof", 1, LANGOPTYPE (occampi_mobiletypenode_mobiletypedescof));
-	tnode_setlangop (lops, "dimtreeof", 1, LANGOPTYPE (occampi_mobiletypenode_dimtreeof));
+	tnode_setlangop (lops, "dimtreeof_node", 2, LANGOPTYPE (occampi_mobiletypenode_dimtreeof_node));
 	tnd->lops = lops;
 
 	i = -1;
@@ -1194,6 +1197,8 @@ static int occampi_mobiles_init_nodes (void)
 static int occampi_mobiles_post_setup (void)
 {
 	tndef_t *tnd;
+	compops_t *cops;
+	langops_t *lops;
 
 	chook_actionlhstype = tnode_lookupchookbyname ("occampi:action:lhstype");
 
@@ -1204,6 +1209,18 @@ static int occampi_mobiles_post_setup (void)
 	}
 
 	tnode_setlangop (tnd->lops, "mobiletypedescof", 1, LANGOPTYPE (occampi_leaftype_mobiletypedescof));
+
+	/*}}}*/
+	/*{{{  intefere with arraydopnode for DIMSIZE*/
+	tnd = tnode_lookupnodetype ("occampi:arraydopnode");
+	if (!tnd) {
+		nocc_internal ("occampi_mobiles_post_setup(): no occampi:arraydopnode node type!");
+	}
+
+	cops = tnode_insertcompops (tnd->ops);
+	tnd->ops = cops;
+	lops = tnode_insertlangops (tnd->lops);
+	tnd->lops = lops;
 
 	/*}}}*/
 

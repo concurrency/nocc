@@ -462,6 +462,7 @@ int tnode_init (void)
 	tnode_newlangop ("gettags", LOPS_GETTAGS, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("nameof", LOPS_NAMEOF, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("tracespecof", LOPS_TRACESPECOF, 1, INTERNAL_ORIGIN);
+	tnode_newlangop ("dimtreeof_node", LOPS_DIMTREEOF_NODE, 2, INTERNAL_ORIGIN);
 
 	/*}}}*/
 	/*{{{  setup the static node types*/

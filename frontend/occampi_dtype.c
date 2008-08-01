@@ -1053,7 +1053,7 @@ static int occampi_fetrans_arraymop (compops_t *cops, tnode_t **nodep, fetrans_t
 fprintf (stderr, "occampi_fetrans_arraymop(): operand type:\n");
 tnode_dumptree (optype, 1, stderr);
 #endif
-	dimtree = langops_dimtreeof (optype);
+	dimtree = langops_dimtreeof_node (optype, *nodep);
 	if (!dimtree) {
 		nocc_internal ("occampi_fetrans_arraymop(): NULL dimension tree for array operand!");
 		return 0;

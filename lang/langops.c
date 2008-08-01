@@ -281,6 +281,30 @@ tnode_t *langops_dimtreeof (tnode_t *node)
 	return dt;
 }
 /*}}}*/
+/*{{{  tnode_t *langops_dimtreeof_node (tnode_t *node, tnode_t *varnode)*/
+/*
+ *	returns a dimension-tree fo array types (as a list of dimensions, NULL indicates unknown dimension)
+ *	the source node is also provided for cases where the size is part of the name itself (e.g. mobile arrays)
+ *	returns NULL if not relevant (scalar types)
+ */
+tnode_t *langops_dimtreeof_node (tnode_t *node, tnode_t *varnode)
+{
+	tnode_t *dt = NULL;
+
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through this node */
+		node = tnode_nthsubof (node, 0);
+	}
+
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_DIMTREEOF_NODE)) {
+		dt = (tnode_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_DIMTREEOF_NODE, 2, node, varnode);
+	} else if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_DIMTREEOF)) {
+		dt = (tnode_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_DIMTREEOF, 1, node);
+	}
+
+	return dt;
+}
+/*}}}*/
 /*{{{  tnode_t *langops_hiddenparamsof (tnode_t *node)*/
 /*
  *	returns the hidden parameters associated with a formal parameter (as a list)
