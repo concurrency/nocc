@@ -622,6 +622,7 @@ tnode_dumptree (rhs, 1, stderr);
 
 			/* get dimension list from RHS */
 			dimlist = langops_dimtreeof (rhs);
+
 			if (!dimlist) {
 				nocc_internal ("occampi_mobiletypenode_typeaction(): ASSIGN/DYNMOBARRAY: no dimension(s)!");
 			} else if (!parser_islistnode (dimlist)) {
@@ -708,6 +709,26 @@ static mobiletypehook_t *occampi_mobiletypenode_mobiletypedescof (langops_t *lop
 	}
 
 	return mth;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_mobiletypenode_dimtreeof (langops_t *lops, tnode_t *t)*/
+/*
+ *	returns the dimension-tree associated with a mobile, or NULL if none
+ */
+static tnode_t *occampi_mobiletypenode_dimtreeof (langops_t *lops, tnode_t *t)
+{
+	if (t->tag == opi.tag_DYNMOBARRAY) {
+		/*{{{  return/create dimension tree fo dynamic mobile array type*/
+		tnode_t *dimlist = (tnode_t *)tnode_getchook (t, opi.chook_arraydiminfo);
+
+		if (!dimlist) {
+			/* FIXME: create dimension list for dynamic mobile array type */
+		}
+
+		return dimlist;
+		/*}}}*/
+	}
+	return NULL;
 }
 /*}}}*/
 
@@ -1083,6 +1104,7 @@ static int occampi_mobiles_init_nodes (void)
 	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_mobiletypenode_iscomplex));
 	tnode_setlangop (lops, "codegen_typeaction", 3, LANGOPTYPE (occampi_mobiletypenode_typeaction));
 	tnode_setlangop (lops, "mobiletypedescof", 1, LANGOPTYPE (occampi_mobiletypenode_mobiletypedescof));
+	tnode_setlangop (lops, "dimtreeof", 1, LANGOPTYPE (occampi_mobiletypenode_dimtreeof));
 	tnd->lops = lops;
 
 	i = -1;
