@@ -1237,6 +1237,7 @@ static int occampi_mobile_actionnode_fetrans (compops_t *cops, tnode_t **nodep, 
 	tnode_t **saved_insertpoint = fe->insertpoint;
 	tnode_t *t = *nodep;
 	tnode_t *acttype = tnode_nthsubof (t, 2);
+	int mangled = 0;
 
 	fe->insertpoint = nodep;					/* before action is a good place to insert temporaries */
 
@@ -1255,16 +1256,29 @@ fprintf (stderr, "occampi_mobile_actionnode_fetrans(): dynmobile action, rhstype
 tnode_dumptree (rhstype, 1, stderr);
 #endif
 		if (rhstype->tag != opi.tag_DYNMOBARRAY) {
-			/* not a mobile array on the RHS, break into separate allocation and assignment */
-			tnode_t *temp = fetrans_maketemp (acttype, fe);
-			tnode_t *seqlist;
+			tnode_t *nmobtype = typecheck_typereduce (acttype);
+
+			if (t->tag == opi.tag_ASSIGN) {
+				/*{{{  deal with assignment to mobile array*/
+				/* not a mobile array on the RHS, break into separate allocation and assignment */
+				tnode_t *seqlist;
 
 #if 1
-fprintf (stderr, "occampi_mobile_actionnode_fetrans(): here, and made temporary\n");
+fprintf (stderr, "occampi_mobile_actionnode_fetrans(): here, non-mobile type to use is:\n");
+tnode_dumptree (nmobtype, 1, stderr);
 #endif
-			seqlist = fetrans_makeseqany (fe);
+				seqlist = fetrans_makeseqassign (tnode_copytree (tnode_nthsubof (t, 0)),
+						tnode_create (opi.tag_NEWDYNMOBARRAY, NULL /* FIXME! */),
+						acttype, fe);
+				mangled = 1;
 
-			tnode_setnthsub (t, 1, temp);
+				/* change the type of the action to match the non-mobile type */
+				tnode_setnthsub (t, 2, nmobtype);
+				/*}}}*/
+			} else if (t->tag == opi.tag_OUTPUT) {
+				/*{{{  deal with output of mobile array (protocol is mobile)*/
+				/*}}}*/
+			}
 		}
 
 		/*}}}*/
@@ -1273,8 +1287,13 @@ fprintf (stderr, "occampi_mobile_actionnode_fetrans(): here, and made temporary\
 	fe->insertpoint = saved_insertpoint;				/* put back before call-through */
 
 	/* call-through */
-	if (tnode_hascompop (cops->next, "fetrans")) {
-		v = tnode_callcompop (cops->next, "fetrans", 2, nodep, fe);
+	if (mangled) {
+		fetrans_subtree (nodep, fe);
+		v = 0;
+	} else {
+		if (tnode_hascompop (cops->next, "fetrans")) {
+			v = tnode_callcompop (cops->next, "fetrans", 2, nodep, fe);
+		}
 	}
 
 	return v;
