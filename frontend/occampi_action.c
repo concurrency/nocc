@@ -1117,13 +1117,13 @@ static int occampi_action_init_nodes (void)
 	tnd->lops = lops;
 
 	i = -1;
-	opi.tag_ASSIGN = tnode_newnodetag ("ASSIGN", &i, tnd, NTF_NONE);
+	opi.tag_ASSIGN = tnode_newnodetag ("ASSIGN", &i, tnd, NTF_ACTION_DEMOBILISE);
 	i = -1;
 	opi.tag_INPUT = tnode_newnodetag ("INPUT", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_ONECASEINPUT = tnode_newnodetag ("ONECASEINPUT", &i, tnd, NTF_NONE);
 	i = -1;
-	opi.tag_OUTPUT = tnode_newnodetag ("OUTPUT", &i, tnd, NTF_NONE);
+	opi.tag_OUTPUT = tnode_newnodetag ("OUTPUT", &i, tnd, NTF_ACTION_DEMOBILISE);
 
 	/*}}}*/
 	/*{{{  occampi:caseinputnode -- CASEINPUT*/

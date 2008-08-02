@@ -38,6 +38,7 @@ extern struct TAG_langparser occampi_parser;
 #define NTF_ALLOW_TRACES		0x0400	/* allow TRACES at the end of a something */
 #define NTF_INDENTED_CASEINPUT_LIST	0x0800	/* for TNF_LONGPROCs, parse a list of indented CASE inputs and processes into subnode 1 */
 #define NTF_INDENTED_PLACEDON_LIST	0x1000	/* for TNF_LONGPROCs, parse a list of indented ON statements into subnode 1 */
+#define NTF_ACTION_DEMOBILISE		0x2000	/* for 'action' nodes, allow operations to occur on the non-mobile variant of the type */
 
 
 struct TAG_tndef;

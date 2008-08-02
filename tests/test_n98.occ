@@ -1,0 +1,9 @@
+
+-- test_n98.occ -- more mobile array tests
+
+PROC test.n98 ()
+  MOBILE []INT data:
+  SEQ
+    data := MOBILE [10]INT
+:
+

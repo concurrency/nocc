@@ -81,6 +81,7 @@ langparser_t traceslang_parser = {
 	getlangdef:	traceslang_getlangdef,
 	maketemp:	NULL,
 	makeseqassign:	NULL,
+	makeseqany:	NULL,
 	tagstruct_hook:	(void *)&traceslang,
 	lexer:		NULL
 };

@@ -2717,6 +2717,26 @@ char *tnode_copytextlocationof (tnode_t *t)
 	return str;
 }
 /*}}}*/
+/*{{{  char *tnode_statictextlocationof (tnode_t *t)*/
+/*
+ *	generates a static string containg the location of a node (in its source files)
+ *	returns string on success (must not get sfree'd!), NULL on failure
+ */
+char *tnode_statictextlocationof (tnode_t *t)
+{
+	static char cbuf[256];
+
+	if (!t) {
+		nocc_warning ("tnode_statictextlocationof(): NULL node!");
+		strcpy (cbuf, "<nofile:-1>");
+	} else if (!t->org_file || !t->org_file->fnptr) {
+		snprintf (cbuf, 255, "(unknown file):%d", t->org_line);
+	} else {
+		snprintf (cbuf, 255, "%s:%d", t->org_file->fnptr, t->org_line);
+	}
+	return (char *)cbuf;
+}
+/*}}}*/
 
 
 /*{{{  int tnode_bytesfor (tnode_t *t, target_t *target)*/

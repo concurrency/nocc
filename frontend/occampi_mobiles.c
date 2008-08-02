@@ -51,6 +51,7 @@
 #include "precheck.h"
 #include "typecheck.h"
 #include "usagecheck.h"
+#include "fetrans.h"
 #include "betrans.h"
 #include "map.h"
 #include "target.h"
@@ -344,7 +345,7 @@ static int occampi_premap_mobiletypenode (compops_t *cops, tnode_t **nodep, map_
 		mth = (mobiletypehook_t *)tnode_calllangop (t->tag->ndef->lops, "mobiletypedescof", 1, t);
 	}
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_premap_mobiletypenode(): here, tag = [%s].  mth = 0x%8.8x\n", (*nodep)->tag->name, (unsigned int)mth);
 tnode_dumptree (*nodep, 1, stderr);
 #endif
@@ -446,9 +447,13 @@ static void occampi_mobiletypenode_initdynmobarray (tnode_t *node, codegen_t *cg
 
 	cgen->target->be_getoffsets (node, &ws_off, NULL, NULL, NULL);
 
+#if 0
+fprintf (stderr, "occampi_mobiletypenode_initdynmobarray(): here!, node =\n");
+tnode_dumptree (node, 1, stderr);
+#endif
 	codegen_callops (cgen, debugline, mtype);
 	codegen_callops (cgen, tsecondary, I_NULL);
-	codegen_callops (cgen, storepointer, node, 0);
+	// codegen_callops (cgen, storepointer, node, 0);
 
 	codegen_callops (cgen, storelocal, ws_off);
 #if 0
@@ -476,7 +481,7 @@ static void occampi_mobiletypenode_finaldynmobarray (tnode_t *node, codegen_t *c
 
 	skiplab = codegen_new_label (cgen);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_mobiletypenode_finaldynmobilearrray(): mtype =\n");
 tnode_dumptree (mtype, 1, stderr);
 #endif
@@ -556,6 +561,53 @@ static tnode_t *occampi_mobiletypenode_typereduce (langops_t *lops, tnode_t *typ
 		return rtype;
 	}
 	return NULL;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_mobiletypenode_typeactual (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	used to test type compatibility for an operation on a mobile type
+ *	returns the actual type used for the operation
+ */
+static tnode_t *occampi_mobiletypenode_typeactual (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *atype = NULL;
+
+	if ((formaltype->tag == opi.tag_DYNMOBARRAY) || (formaltype->tag == opi.tag_MOBILE)) {
+		if (actualtype->tag == formaltype->tag) {
+			/* two dynamic mobile arrays, or general mobiles, sub-type */
+			atype = typecheck_fixedtypeactual (tnode_nthsubof (formaltype, 0), tnode_nthsubof (actualtype, 0), node, tc, 1);
+
+			if (formaltype->tag == opi.tag_DYNMOBARRAY) {
+				/* dimension counts must match too */
+				/* FIXME! */
+			}
+		} else {
+			/* operation dictates whether this can drop to the non-mobile type */
+			if (tnode_ntflagsof (node) & NTF_ACTION_DEMOBILISE) {
+				tnode_t *demob = typecheck_typereduce (formaltype);
+
+				if (!demob) {
+					typecheck_error (node, tc, "cannot apply [%s] to mobile type [%s] in [%s]",
+							actualtype->tag->name, formaltype->tag->name, node->tag->name);
+				} else {
+					atype = typecheck_typeactual (demob, actualtype, node, tc);
+					if (!atype) {
+						typecheck_error (node, tc, "incompatible types in [%s]", node->tag->name);
+					} else {
+						/* yes, can do this operation on the non-mobile type, but real type is still the mobile one */
+						atype = formaltype;
+					}
+				}
+			} else {
+				typecheck_error (node, tc, "cannot apply [%s] to dynamic mobile array in [%s]",
+						actualtype->tag->name, node->tag->name);
+			}
+		}
+	} else {
+		typecheck_error (node, tc, "occampi_mobiletypenode_typeactual(): unhandled type [%s]", formaltype->tag->name);
+	}
+
+	return atype;
 }
 /*}}}*/
 /*{{{  static int occampi_mobiletypenode_initialising_decl (langops_t *lops, tnode_t *t, tnode_t *benode, map_t *mdata)*/
@@ -726,6 +778,15 @@ fprintf (stderr, "occampi_mobiletypenode_dimtreeof_node(): here!\n");
 #endif
 		if (!dimlist) {
 			/* FIXME: create dimension list for dynamic mobile array type */
+			tnode_t *ditem;
+
+			dimlist = parser_newlistnode (NULL);
+			ditem = tnode_create (opi.tag_DIMSIZE, NULL, varnode, constprop_newconst (CONST_INT, NULL,
+					tnode_create (opi.tag_INT, NULL), 0), tnode_create (opi.tag_INT, NULL));
+
+			parser_addtolist (dimlist, ditem);
+
+			tnode_setchook (t, opi.chook_arraydiminfo, dimlist);
 		}
 
 		return dimlist;
@@ -1073,6 +1134,154 @@ static int occampi_mobiletypedecl_typecheck (compops_t *cops, tnode_t *node, typ
 /*}}}*/
 
 
+/*{{{  static int occampi_mobile_arraydopnode_premap (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does pre-mapping for an array DOP node for mobiles
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mobile_arraydopnode_premap (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t *t = *nodep;
+	int v = 1;
+
+	if (t->tag == opi.tag_DIMSIZE) {
+		/* pre-map left */
+		map_subpremap (tnode_nthsubaddr (t, 0), map);
+
+		*nodep = map->target->newresult (t, map);
+
+		return 0;
+	}
+
+	/* call-through */
+	if (tnode_hascompop (cops->next, "premap")) {
+		v = tnode_callcompop (cops->next, "premap", 2, nodep, map);
+	}
+
+	return v;
+}
+/*}}}*/
+/*{{{  static int occampi_mobile_arraydopnode_namemap (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for an array DOP node for mobiles
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mobile_arraydopnode_namemap (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t *t = *nodep;
+	int v = 1;
+
+	if (t->tag == opi.tag_DIMSIZE) {
+		/* name-map left */
+		map_submapnames (tnode_nthsubaddr (*nodep, 0), map);
+
+		return 0;
+	}
+
+	/* call-through */
+	if (tnode_hascompop (cops->next, "namemap")) {
+		v = tnode_callcompop (cops->next, "namemap", 2, nodep, map);
+	}
+	
+	return v;
+}
+/*}}}*/
+/*{{{  static int occampi_mobile_arraydopnode_codegen (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for an array DOP node (DIMSIZE) for mobiles
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mobile_arraydopnode_codegen (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	int v = 1;
+
+	if (node->tag == opi.tag_DIMSIZE) {
+		int dimno;
+		tnode_t *base = tnode_nthsubof (node, 0);
+		tnode_t *dimt = tnode_nthsubof (node, 1);
+
+		if (!constprop_isconst (dimt)) {
+			nocc_internal ("occampi_mobile_arraydopnode_codegen(): dimension number not constant!");
+			return 0;
+		}
+		dimno = constprop_intvalof (dimt);
+
+#if 1
+fprintf (stderr, "occampi_mobile_arraydopnode_codegen(): here!\n");
+tnode_dumptree (node, 1, stderr);
+#endif
+		codegen_callops (cgen, loadnthpointer, base, 2, 0);
+		codegen_callops (cgen, loadnonlocal, (dimno + 1) * cgen->target->pointersize);
+
+		return 0;
+	}
+
+	/* call-through */
+	if (tnode_hascompop (cops->next, "codegen")) {
+		v = tnode_callcompop (cops->next, "codegen", 2, node, cgen);
+	}
+
+	return v;
+}
+/*}}}*/
+
+
+/*{{{  static int occampi_mobile_actionnode_fetrans (compops_t *cops, tnode_t **nodep, fetrans_t *fe)*/
+/*
+ *	does front-end transformations for actions involving mobile types
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mobile_actionnode_fetrans (compops_t *cops, tnode_t **nodep, fetrans_t *fe)
+{
+	int v = 1;
+	tnode_t **saved_insertpoint = fe->insertpoint;
+	tnode_t *t = *nodep;
+	tnode_t *acttype = tnode_nthsubof (t, 2);
+
+	fe->insertpoint = nodep;					/* before action is a good place to insert temporaries */
+
+	if (acttype->tag == opi.tag_DYNMOBARRAY) {
+		/*{{{  action involving dynamic mobile array*/
+		tnode_t **rhsp = tnode_nthsubaddr (t, 1);
+		tnode_t *rhstype = typecheck_gettype (*rhsp, NULL);		/* get RHS type */
+
+		if (!rhstype) {
+			nocc_internal ("occampi_mobile_actionnode_fetrans(): RHS of [%s] has no type!", t->tag->name);
+			return 0;
+		}
+
+#if 1
+fprintf (stderr, "occampi_mobile_actionnode_fetrans(): dynmobile action, rhstype is:\n");
+tnode_dumptree (rhstype, 1, stderr);
+#endif
+		if (rhstype->tag != opi.tag_DYNMOBARRAY) {
+			/* not a mobile array on the RHS, break into separate allocation and assignment */
+			tnode_t *temp = fetrans_maketemp (acttype, fe);
+			tnode_t *seqlist;
+
+#if 1
+fprintf (stderr, "occampi_mobile_actionnode_fetrans(): here, and made temporary\n");
+#endif
+			seqlist = fetrans_makeseqany (fe);
+
+			tnode_setnthsub (t, 1, temp);
+		}
+
+		/*}}}*/
+	}
+
+	fe->insertpoint = saved_insertpoint;				/* put back before call-through */
+
+	/* call-through */
+	if (tnode_hascompop (cops->next, "fetrans")) {
+		v = tnode_callcompop (cops->next, "fetrans", 2, nodep, fe);
+	}
+
+	return v;
+}
+/*}}}*/
+
+
 /*{{{  static int occampi_mobiles_init_nodes (void)*/
 /*
  *	sets up nodes for occam-pi mobiles
@@ -1102,6 +1311,7 @@ static int occampi_mobiles_init_nodes (void)
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_mobiletypenode_bytesfor));
 	tnode_setlangop (lops, "typereduce", 1, LANGOPTYPE (occampi_mobiletypenode_typereduce));
+	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_mobiletypenode_typeactual));
 	tnode_setlangop (lops, "initsizes", 7, LANGOPTYPE (occampi_mobiletypenode_initsizes));
 	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_mobiletypenode_initialising_decl));
 	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (occampi_mobiletypenode_iscomplex));
@@ -1218,6 +1428,22 @@ static int occampi_mobiles_post_setup (void)
 	}
 
 	cops = tnode_insertcompops (tnd->ops);
+	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_mobile_arraydopnode_premap));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_mobile_arraydopnode_namemap));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_mobile_arraydopnode_codegen));
+	tnd->ops = cops;
+	lops = tnode_insertlangops (tnd->lops);
+	tnd->lops = lops;
+
+	/*}}}*/
+	/*{{{  interfere with action-nodes for mobile/non-mobile I/O*/
+	tnd = tnode_lookupnodetype ("occampi:actionnode");
+	if (!tnd) {
+		nocc_internal ("occampi_mobiles_post_setup(): no occampi:actionnode node type!");
+	}
+
+	cops = tnode_insertcompops (tnd->ops);
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_mobile_actionnode_fetrans));
 	tnd->ops = cops;
 	lops = tnode_insertlangops (tnd->lops);
 	tnd->lops = lops;

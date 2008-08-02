@@ -65,6 +65,7 @@ static int hopp_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
 static int hopp_parser_typeresolve (tnode_t **tptr, typecheck_t *tc);
 static tnode_t *hopp_parser_maketemp (tnode_t ***insertpointp, tnode_t *type);
 static tnode_t *hopp_parser_makeseqassign (tnode_t ***insertpointp, tnode_t *lhs, tnode_t *rhs, tnode_t *type);
+static tnode_t *hopp_parser_makeseqany (tnode_t ***insertpointp);
 
 
 /*}}}*/
@@ -85,6 +86,7 @@ langparser_t hopp_parser = {
 	getlangdef:	NULL,
 	maketemp:	hopp_parser_maketemp,
 	makeseqassign:	hopp_parser_makeseqassign,
+	makeseqany:	hopp_parser_makeseqany,
 	tagstruct_hook:	NULL,
 	lexer:		NULL
 };
@@ -602,6 +604,21 @@ static tnode_t *hopp_parser_makeseqassign (tnode_t ***insertpointp, tnode_t *lhs
 
 	if (occampi_parser.makeseqassign) {
 		t = occampi_parser.makeseqassign (insertpointp, lhs, rhs, type);
+	}
+	return t;
+}
+/*}}}*/
+/*{{{  static tnode_t *hopp_parser_makeseqany (tnode_t ***insertpointp)*/
+/*
+ *	called to create a sequential node
+ *	returns the list associated with the sequence on success, NULL on failure
+ */
+static tnode_t *hopp_parser_makeseqany (tnode_t ***insertpointp)
+{
+	tnode_t *t = NULL;
+
+	if (occampi_parser.makeseqany) {
+		t = occampi_parser.makeseqany (insertpointp);
 	}
 	return t;
 }

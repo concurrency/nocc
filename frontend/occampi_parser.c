@@ -69,6 +69,7 @@ static int occampi_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
 static int occampi_parser_typeresolve (tnode_t **tptr, typecheck_t *tc);
 static tnode_t *occampi_parser_maketemp (tnode_t ***insertpointp, tnode_t *type);
 static tnode_t *occampi_parser_makeseqassign (tnode_t ***insertpointp, tnode_t *lhs, tnode_t *rhs, tnode_t *type);
+static tnode_t *occampi_parser_makeseqany (tnode_t ***insertpointp);
 
 static tnode_t *occampi_indented_process (lexfile_t *lf);
 static tnode_t *occampi_indented_process_trailing (lexfile_t *lf, char *extradfa, tnode_t **extrares);
@@ -96,6 +97,7 @@ langparser_t occampi_parser = {
 	getlangdef:	occampi_getlangdef,
 	maketemp:	occampi_parser_maketemp,
 	makeseqassign:	occampi_parser_makeseqassign,
+	makeseqany:	occampi_parser_makeseqany,
 	tagstruct_hook:	(void *)&opi,
 	lexer:		NULL
 };
@@ -2330,6 +2332,23 @@ static tnode_t *occampi_parser_makeseqassign (tnode_t ***insertpointp, tnode_t *
 	*insertpointp = parser_addtolist (listnode, savedproc);
 
 	return assnode;
+}
+/*}}}*/
+/*{{{  static tnode_t *occampi_parser_makeseqany (tnode_t ***insertpointp)*/
+/*
+ *	called from elsewhere to insert a sequential node
+ *	returns the list associated with the sequence of actions
+ */
+static tnode_t *occampi_parser_makeseqany (tnode_t ***insertpointp)
+{
+	tnode_t *listnode = parser_buildlistnode ((**insertpointp)->org_file, NULL);
+	tnode_t *seqnode = tnode_createfrom (opi.tag_SEQ, **insertpointp, NULL, listnode);
+	tnode_t *savedproc = **insertpointp;
+
+	**insertpointp = seqnode;
+	*insertpointp = parser_addtolist (listnode, savedproc);
+
+	return listnode;
 }
 /*}}}*/
 

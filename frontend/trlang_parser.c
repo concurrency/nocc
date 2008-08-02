@@ -81,6 +81,7 @@ langparser_t trlang_parser = {
 	getlangdef:	trlang_getlangdef,
 	maketemp:	NULL,
 	makeseqassign:	NULL,
+	makeseqany:	NULL,
 	tagstruct_hook:	(void *)&trlang,
 	lexer:		NULL
 };

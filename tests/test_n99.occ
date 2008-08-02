@@ -1,0 +1,9 @@
+
+-- test_n99.occ -- testing different mobile array mechanisms
+
+PROC test.n99 ()
+  MOBILE []BYTE str:
+  SEQ
+    str := "hello, new world!"
+:
+

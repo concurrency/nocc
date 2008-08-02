@@ -81,6 +81,7 @@ langparser_t rcxb_parser = {
 	getlangdef:	rcxb_getlangdef,
 	maketemp:	NULL,
 	makeseqassign:	NULL,
+	makeseqany:	NULL,
 	tagstruct_hook:	(void *)&rcxb,
 	lexer:		NULL
 };

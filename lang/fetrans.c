@@ -177,6 +177,29 @@ tnode_t *fetrans_makeseqassign (tnode_t *lhs, tnode_t *rhs, tnode_t *type, fetra
 	return fe->lang->makeseqassign (&fe->insertpoint, lhs, rhs, type);
 }
 /*}}}*/
+/*{{{  tnode_t *fetrans_makeseqany (fetrans_t *fe)*/
+/*
+ *	this creates a new sequential node in the front-end transform pass, with the original node as its single content
+ *	returns a reference to the created sequential node list (not the sequential node itself necessarily)
+ */
+tnode_t *fetrans_makeseqany (fetrans_t *fe)
+{
+	if (!fe || !fe->lang) {
+		nocc_internal ("fetrans_makeseqany(): called with a bad something");
+		return NULL;
+	}
+	if (!fe->insertpoint) {
+		nocc_error ("fetrans_makeseqany(): nowhere to insert code here!");
+		return NULL;
+	}
+	if (!fe->lang->makeseqany) {
+		tnode_error (*(fe->insertpoint), "fetrans_makeseqany(): cannot make sequential node in language [%s]", fe->lang->langname);
+		return NULL;
+	}
+	return fe->lang->makeseqany (&fe->insertpoint);
+}
+/*}}}*/
+
 /*{{{  static int fetrans_modprewalk (tnode_t **tptr, void *arg)*/
 /*
  *	does the front-end tree transform walk

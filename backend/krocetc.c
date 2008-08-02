@@ -2616,7 +2616,7 @@ static void krocetc_coder_storepointer (codegen_t *cgen, tnode_t *name, int offs
 		}
 		/*}}}*/
 	} else {
-		nocc_warning ("krocetc_coder_storepointer(): don\'t know how to store a pointer to [%s]", name->tag->name);
+		nocc_warning ("krocetc_coder_storepointer(): don\'t know how to store a pointer to [%s] (%s)", name->tag->name, tnode_statictextlocationof (name));
 	}
 	return;
 }
@@ -4004,19 +4004,21 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	/* setup back-end nodes */
 	/*{{{  krocetc:name -- KROCETCNAME*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:name", &i, 2, 0, 1, 0);		/* subnodes: orginal name, in-scope body; hooks: krocetc_namehook_t */
+	tnd = tnode_newnodetype ("krocetc:name", &i, 2, 0, 1, TNF_NONE);		/* subnodes: orginal name, in-scope body; hooks: krocetc_namehook_t */
 	tnd->hook_dumptree = krocetc_namehook_dumptree;
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (krocetc_bytesfor_name));
 	tnd->lops = lops;
+
 	i = -1;
-	target->tag_NAME = tnode_newnodetag ("KROCETCNAME", &i, tnd, 0);
+	target->tag_NAME = tnode_newnodetag ("KROCETCNAME", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  krocetc:nameref -- KROCETCNAMEREF*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:nameref", &i, 1, 0, 1, 0);		/* subnodes: original name; hooks: krocetc_namehook_t */
+	tnd = tnode_newnodetype ("krocetc:nameref", &i, 1, 0, 1, TNF_NONE);		/* subnodes: original name; hooks: krocetc_namehook_t */
 	tnd->hook_dumptree = krocetc_namehook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_nameref));
@@ -4026,107 +4028,128 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	tnd->lops = lops;
 
 	i = -1;
-	target->tag_NAMEREF = tnode_newnodetag ("KROCETCNAMEREF", &i, tnd, 0);
+	target->tag_NAMEREF = tnode_newnodetag ("KROCETCNAMEREF", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  krocetc:block -- KROCETCBLOCK*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:block", &i, 2, 0, 1, 0);		/* subnodes: block body, statics; hooks: krocetc_blockhook_t */
+	tnd = tnode_newnodetype ("krocetc:block", &i, 2, 0, 1, TNF_NONE);		/* subnodes: block body, statics; hooks: krocetc_blockhook_t */
 	tnd->hook_dumptree = krocetc_blockhook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "preallocate", 2, COMPOPTYPE (krocetc_preallocate_block));
 	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (krocetc_precode_block));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_block));
 	tnd->ops = cops;
+
 	i = -1;
-	target->tag_BLOCK = tnode_newnodetag ("KROCETCBLOCK", &i, tnd, 0);
+	target->tag_BLOCK = tnode_newnodetag ("KROCETCBLOCK", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  krocetc:const -- KROCETCCONST*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:const", &i, 1, 0, 1, 0);
+	tnd = tnode_newnodetype ("krocetc:const", &i, 1, 0, 1, TNF_NONE);
 	tnd->hook_dumptree = krocetc_consthook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (krocetc_precode_const));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_const));
 	tnd->ops = cops;
+
 	i = -1;
-	target->tag_CONST = tnode_newnodetag ("KROCETCCONST", &i, tnd, 0);
+	target->tag_CONST = tnode_newnodetag ("KROCETCCONST", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  krocetc:precode -- KROCETCPRECODE*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:precode", &i, 2, 0, 0, 0);
+	tnd = tnode_newnodetype ("krocetc:precode", &i, 2, 0, 0, TNF_NONE);
+
 	i = -1;
-	kpriv->tag_PRECODE = tnode_newnodetag ("KROCETCPRECODE", &i, tnd, 0);
+	kpriv->tag_PRECODE = tnode_newnodetag ("KROCETCPRECODE", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  krocetc:special -- KROCETCJENTRY, KROCETCDESCRIPTOR*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:special", &i, 0, 0, 1, 0);
+	tnd = tnode_newnodetype ("krocetc:special", &i, 0, 0, 1, TNF_NONE);
 	tnd->hook_dumptree = krocetc_specialhook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (krocetc_precode_special));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_special));
 	tnd->ops = cops;
+
 	i = -1;
-	kpriv->tag_JENTRY = tnode_newnodetag ("KROCETCJENTRY", &i, tnd, 0);
+	kpriv->tag_JENTRY = tnode_newnodetag ("KROCETCJENTRY", &i, tnd, NTF_NONE);
 	i = -1;
-	kpriv->tag_DESCRIPTOR = tnode_newnodetag ("KROCETCDESCRIPTOR", &i, tnd, 0);
+	kpriv->tag_DESCRIPTOR = tnode_newnodetag ("KROCETCDESCRIPTOR", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  krocetc:constref -- KROCETCCONSTREF*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:constref", &i, 0, 0, 1, 0);		/* hooks: 0 = krocetc_consthook_t */
+	tnd = tnode_newnodetype ("krocetc:constref", &i, 0, 0, 1, TNF_NONE);		/* hooks: 0 = krocetc_consthook_t */
 	tnd->hook_dumptree = krocetc_consthook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_constref));
 	tnd->ops = cops;
 
 	i = -1;
-	kpriv->tag_CONSTREF = tnode_newnodetag ("KROCETCCONSTREF", &i, tnd, 0);
+	kpriv->tag_CONSTREF = tnode_newnodetag ("KROCETCCONSTREF", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  krocetc:indexed -- KROCETCINDEXED*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:indexed", &i, 2, 0, 1, 0);		/* subnodes: 0 = base, 1 = index;  hooks: 0 = krocetc_indexedhook_t */
+	tnd = tnode_newnodetype ("krocetc:indexed", &i, 2, 0, 1, TNF_NONE);		/* subnodes: 0 = base, 1 = index;  hooks: 0 = krocetc_indexedhook_t */
 	tnd->hook_dumptree = krocetc_indexedhook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_indexed));
 	tnd->ops = cops;
 
 	i = -1;
-	target->tag_INDEXED = tnode_newnodetag ("KROCETCINDEXED", &i, tnd, 0);
+	target->tag_INDEXED = tnode_newnodetag ("KROCETCINDEXED", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  krocetc:blockref -- KROCETCBLOCKREF*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:blockref", &i, 1, 0, 1, 0);		/* subnodes: body; hooks: krocetc_blockrefhook_t */
+	tnd = tnode_newnodetype ("krocetc:blockref", &i, 1, 0, 1, TNF_NONE);		/* subnodes: body; hooks: krocetc_blockrefhook_t */
 	tnd->hook_dumptree = krocetc_blockrefhook_dumptree;
+
 	i = -1;
-	target->tag_BLOCKREF = tnode_newnodetag ("KROCETCBLOCKREF", &i, tnd, 0);
+	target->tag_BLOCKREF = tnode_newnodetag ("KROCETCBLOCKREF", &i, tnd, NTF_NONE);
+
 	/*}}}*/
-	/*{{{  krocetc:staticlink -- KROCETCSTATICLINKk*/
+	/*{{{  krocetc:staticlink -- KROCETCSTATICLINK*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:staticlink", &i, 0, 0, 0, 0);
+	tnd = tnode_newnodetype ("krocetc:staticlink", &i, 0, 0, 0, TNF_NONE);
+
 	i = -1;
-	target->tag_STATICLINK = tnode_newnodetag ("KROCETCSTATICLINK", &i, tnd, 0);
+	target->tag_STATICLINK = tnode_newnodetag ("KROCETCSTATICLINK", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  krocetc:ptrparam -- KROCETCMSP, KROCETCVSP, KROCETCFBP, KROCETCMPP*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:hiddenparam", &i, 0, 0, 0, 0);
+	tnd = tnode_newnodetype ("krocetc:hiddenparam", &i, 0, 0, 0, TNF_NONE);
+
 	i = -1;
-	kpriv->tag_MSP = tnode_newnodetag ("KROCETCMSP", &i, tnd, 0);
+	kpriv->tag_MSP = tnode_newnodetag ("KROCETCMSP", &i, tnd, NTF_NONE);
 	i = -1;
-	kpriv->tag_VSP = tnode_newnodetag ("KROCETCVSP", &i, tnd, 0);
+	kpriv->tag_VSP = tnode_newnodetag ("KROCETCVSP", &i, tnd, NTF_NONE);
 	i = -1;
-	kpriv->tag_FBP = tnode_newnodetag ("KROCETCFBP", &i, tnd, 0);
+	kpriv->tag_FBP = tnode_newnodetag ("KROCETCFBP", &i, tnd, NTF_NONE);
 	i = -1;
-	kpriv->tag_MPP = tnode_newnodetag ("KROCETCMPP", &i, tnd, 0);
+	kpriv->tag_MPP = tnode_newnodetag ("KROCETCMPP", &i, tnd, NTF_NONE);
+
 	/*}}}*/
 	/*{{{  krocetc:result -- KROCETCRESULT*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:result", &i, 1, 0, 0, 0);
+	tnd = tnode_newnodetype ("krocetc:result", &i, 1, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (krocetc_namemap_result));
 	tnode_setcompop (cops, "bemap", 2, COMPOPTYPE (krocetc_bemap_result));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_result));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->passthrough = 1;
+	tnd->lops = lops;
+
 	i = -1;
-	target->tag_RESULT = tnode_newnodetag ("KROCETCRESULT", &i, tnd, 0);
+	target->tag_RESULT = tnode_newnodetag ("KROCETCRESULT", &i, tnd, NTF_NONE);
 	/*}}}*/
 
 	target->initialised = 1;
