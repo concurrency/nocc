@@ -1,6 +1,6 @@
 /*
  *	krocetc.c -- back-end routines for KRoC modified ETC target
- *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2008 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "treeops.h"
+#include "langops.h"
 #include "names.h"
 #include "typecheck.h"
 #include "target.h"
@@ -1794,6 +1795,21 @@ tnode_dumptree (constref, 1, stderr);
 		/*}}}*/
 	}
 	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *krocetc_dimtreeof_constref (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the dimension tree associated with a back-end constant reference.  If we're asking for
+ *	this, assumes that the underlying original node is some sort of array.
+ */
+static tnode_t *krocetc_dimtreeof_constref (langops_t *lops, tnode_t *node)
+{
+	krocetc_consthook_t *ch = (krocetc_consthook_t *)tnode_nthhookof (node, 0);
+
+	if (ch->orgnode) {
+		return langops_dimtreeof (ch->orgnode);
+	}
+	return NULL;
 }
 /*}}}*/
 
@@ -4047,7 +4063,7 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	/*}}}*/
 	/*{{{  krocetc:const -- KROCETCCONST*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocetc:const", &i, 1, 0, 1, TNF_NONE);
+	tnd = tnode_newnodetype ("krocetc:const", &i, 1, 0, 1, TNF_NONE);		/* subnodes: original; hooks: krocetc_consthook_t */
 	tnd->hook_dumptree = krocetc_consthook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (krocetc_precode_const));
@@ -4088,6 +4104,9 @@ fprintf (stderr, "krocetc_target_init(): kpriv->mapchook = %p\n", kpriv->mapchoo
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocetc_codegen_constref));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "dimtreeof", 1, LANGOPTYPE (krocetc_dimtreeof_constref));
+	tnd->lops = lops;
 
 	i = -1;
 	kpriv->tag_CONSTREF = tnode_newnodetag ("KROCETCCONSTREF", &i, tnd, NTF_NONE);

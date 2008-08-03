@@ -331,16 +331,52 @@ static int occampi_namemap_lit (compops_t *cops, tnode_t **node, map_t *map)
 {
 	occampi_litdata_t *ldata = (occampi_litdata_t *)tnode_nthhookof (*node, 0);
 	tnode_t *ltype = tnode_nthsubof (*node, 0);
+	typecat_e ltypecat = typecheck_typetype (ltype);
 	tnode_t *cnst;
 
-#if 0
-fprintf (stderr, "occampi_namemap_lit(): type is:\n");
+	cnst = map->target->newconst (*node, map, ldata->data, ldata->bytes, ltypecat);
+
+	if ((*node)->tag == opi.tag_LITARRAY) {
+		/* map type, may contain constants that we need later on */
+		tnode_t *type = ltype;
+
+		while (type->tag == opi.tag_ARRAY) {
+			/* map dimension size */
+			map_submapnames (tnode_nthsubaddr (type, 0), map);
+			type = tnode_nthsubof (type, 1);
+		}
+#if 1
+fprintf (stderr, "occampi_namemap_lit(): ltype is:\n");
 tnode_dumptree (ltype, 1, stderr);
 #endif
-	cnst = map->target->newconst (*node, map, ldata->data, ldata->bytes, typecheck_typetype (ltype));
+	}
+
 	*node = cnst;
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static int occampi_precode_lit (compops_t *cops, tnode_t **nodep, codegen_t *cgen)*/
+/*
+ *	pre-codes a literal
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_precode_lit (compops_t *cops, tnode_t **nodep, codegen_t *cgen)
+{
+	tnode_t *ltype = tnode_nthsubof (*nodep, 0);
+
+	if ((*nodep)->tag == opi.tag_LITARRAY) {
+		/* pre-code type, may contain constants that we need later on */
+		tnode_t *type = ltype;
+
+		while (type->tag == opi.tag_ARRAY) {
+			/* pre-code dimension size */
+			codegen_subprecode (tnode_nthsubaddr (type, 0), cgen);
+			type = tnode_nthsubof (type, 1);
+		}
+	}
+
+	return 1;
 }
 /*}}}*/
 /*{{{  static int occampi_isconst_lit (langops_t *lops, tnode_t *node)*/
@@ -524,6 +560,7 @@ static int occampi_lit_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (occampi_constprop_lit));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_lit));
+	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_precode_lit));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (occampi_gettype_lit));

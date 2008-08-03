@@ -675,6 +675,10 @@ tnode_dumptree (rhs, 1, stderr);
 			/* get dimension list from RHS */
 			dimlist = langops_dimtreeof (rhs);
 
+#if 1
+fprintf (stderr, "occampi_mobiletypenode_action(): ASSIGN, dimlist =\n");
+tnode_dumptree (dimlist, 1, stderr);
+#endif
 			if (!dimlist) {
 				nocc_internal ("occampi_mobiletypenode_typeaction(): ASSIGN/DYNMOBARRAY: no dimension(s)!");
 			} else if (!parser_islistnode (dimlist)) {
