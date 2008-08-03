@@ -1243,9 +1243,14 @@ static int occampi_mobile_actionnode_fetrans (compops_t *cops, tnode_t **nodep, 
 
 	if (acttype->tag == opi.tag_DYNMOBARRAY) {
 		/*{{{  action involving dynamic mobile array*/
-		tnode_t **rhsp = tnode_nthsubaddr (t, 1);
-		tnode_t *rhstype = typecheck_gettype (*rhsp, NULL);		/* get RHS type */
+		tnode_t *rhs = tnode_nthsubof (t, 1);
+		tnode_t *rhstype = typecheck_gettype (rhs, NULL);		/* get RHS type */
+		// tnode_t *rhstype = NULL;
 
+#if 1
+fprintf (stderr, "occampi_mobile_actionnode_fetrans(): dynmobile action, rhs is:\n");
+tnode_dumptree (rhs, 1, stderr);
+#endif
 		if (!rhstype) {
 			nocc_internal ("occampi_mobile_actionnode_fetrans(): RHS of [%s] has no type!", t->tag->name);
 			return 0;
@@ -1256,20 +1261,70 @@ fprintf (stderr, "occampi_mobile_actionnode_fetrans(): dynmobile action, rhstype
 tnode_dumptree (rhstype, 1, stderr);
 #endif
 		if (rhstype->tag != opi.tag_DYNMOBARRAY) {
-			tnode_t *nmobtype = typecheck_typereduce (acttype);
+			// tnode_t *nmobtype = typecheck_typereduce (acttype);
+			tnode_t *nmobtype = tnode_copytree (rhstype);
 
 			if (t->tag == opi.tag_ASSIGN) {
 				/*{{{  deal with assignment to mobile array*/
 				/* not a mobile array on the RHS, break into separate allocation and assignment */
 				tnode_t *seqlist;
+				tnode_t *adimlist, *atimesnode, *anode, *assnode;
+				int d;
+				tnode_t *rwalk;
 
+				adimlist = parser_newlistnode (NULL);
+				atimesnode = NULL;
+				for (d=0, rwalk=rhstype; rwalk && (rwalk->tag == opi.tag_ARRAY); d++, rwalk = tnode_nthsubof (rwalk, 1)) {
+					tnode_t *dimsize = tnode_nthsubof (rwalk, 0);
+
+					if (!dimsize) {
+						/* generate DIMSIZE expression */
+						dimsize = tnode_create (opi.tag_DIMSIZE, NULL, rhs,
+								constprop_newconst (CONST_INT, NULL,
+									tnode_create (opi.tag_INT, NULL), d),
+								tnode_create (opi.tag_INT, NULL));
+					}
+#if 0
+fprintf (stderr, "occampi_mobile_actionnode_fetrans(): dimension %d has size:\n", d);
+tnode_dumptree (dimsize, 1, stderr);
+#endif
+					if (!atimesnode) {
+						atimesnode = tnode_copytree (dimsize);
+					} else {
+						atimesnode = tnode_create (opi.tag_TIMES, NULL, atimesnode, tnode_copytree (dimsize),
+								tnode_create (opi.tag_INT, NULL));
+					}
+
+					parser_addtolist (adimlist, dimsize);
+				}
+#if 0
+fprintf (stderr, "occampi_mobile_actionnode_fetrans(): got dimension list:\n");
+tnode_dumptree (adimlist, 1, stderr);
+fprintf (stderr, "occampi_mobile_actionnode_fetrans(): got dimension multiplication:\n");
+tnode_dumptree (atimesnode, 1, stderr);
+#endif
+
+				anode = tnode_createfrom (opi.tag_NEWDYNMOBARRAY, t, tnode_copytree (tnode_nthsubof (acttype, 0)),
+						adimlist, tnode_copytree (acttype), atimesnode);
+				assnode = tnode_createfrom (opi.tag_ASSIGN, t, tnode_nthsubof (t, 0), anode, acttype);
+#if 1
+fprintf (stderr, "occampi_mobile_actionnode_fetrans(): allocation node:\n");
+tnode_dumptree (assnode, 1, stderr);
+#endif
 #if 1
 fprintf (stderr, "occampi_mobile_actionnode_fetrans(): here, non-mobile type to use is:\n");
 tnode_dumptree (nmobtype, 1, stderr);
 #endif
+				/*
 				seqlist = fetrans_makeseqassign (tnode_copytree (tnode_nthsubof (t, 0)),
-						tnode_create (opi.tag_NEWDYNMOBARRAY, NULL /* FIXME! */),
-						acttype, fe);
+						tnode_create (opi.tag_NEWDYNMOBARRAY, NULL, tnode_copytree (tnode_nthsubof (acttype, 0)),
+						parser_buildlistnode (NULL,
+							tnode_create (opi.tag_SIZE, NULL, tnode_copytree (rhs), tnode_create (opi.tag_INT, NULL)),
+							NULL), tnode_copytree (acttype), NULL),
+						tnode_copytree (acttype), fe);
+				*/
+				seqlist = fetrans_makeseqany (fe);
+				parser_insertinlist (seqlist, assnode, 0);
 				mangled = 1;
 
 				/* change the type of the action to match the non-mobile type */
