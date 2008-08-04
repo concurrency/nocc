@@ -934,6 +934,15 @@ static int occampi_istype_arraynode (langops_t *lops, tnode_t *node)
 	return 1;
 }
 /*}}}*/
+/*{{{  static typecat_e occampi_typetype_arraynode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the type-category for an array type
+ */
+static typecat_e occampi_typetype_arraynode (langops_t *lops, tnode_t *node)
+{
+	return (TYPE_DATA | TYPE_COMM | TYPE_ARRAY);
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_typecheck_arraymop (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
@@ -2080,6 +2089,7 @@ static int occampi_dtype_init_nodes (void)
 	tnode_setlangop (lops, "hiddenparamsof", 1, LANGOPTYPE (occampi_hiddenparamsof_arraynode));
 	tnode_setlangop (lops, "hiddenslotsof", 1, LANGOPTYPE (occampi_hiddenslotsof_arraynode));
 	tnode_setlangop (lops, "istype", 1, LANGOPTYPE (occampi_istype_arraynode));
+	tnode_setlangop (lops, "typetype", 1, LANGOPTYPE (occampi_typetype_arraynode));
 	tnd->lops = lops;
 
 	i = -1;

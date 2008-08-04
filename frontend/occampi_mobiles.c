@@ -804,6 +804,52 @@ fprintf (stderr, "occampi_mobiletypenode_dimtreeof_node(): here!\n");
 	return NULL;
 }
 /*}}}*/
+/*{{{  static typecat_e occampi_mobiletypenode_typetype (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the type-category for a mobile type
+ */
+static typecat_e occampi_mobiletypenode_typetype (langops_t *lops, tnode_t *node)
+{
+	typecat_e atype;
+
+	atype = (TYPE_DATA | TYPE_COMM | TYPE_DYNAMIC | TYPE_USERDEFINED);
+	if (node->tag == opi.tag_DYNMOBARRAY) {
+		atype |= TYPE_ARRAY;
+	}
+	return atype;
+}
+/*}}}*/
+/*{{{  static int occampi_mobiletypenode_typehash (langops_t *lops, tnode_t *t, int hsize, void *ptr)*/
+/*
+ *	generates a type-hash for a mobile type
+ *	returns 0 on success, non-zero on failure
+ */
+static int occampi_mobiletypenode_typehash (langops_t *lops, tnode_t *t, int hsize, void *ptr)
+{
+	unsigned int myhash = 0;
+
+	if (t->tag == opi.tag_MOBILE) {
+		myhash = 0x3fd8c0ab;
+	} else if (t->tag == opi.tag_DYNMOBARRAY) {
+		myhash = 0x1dcba035;
+	} else if (t->tag == opi.tag_DYNMOBCTCLI) {
+		myhash = 0x08ba3284;
+	} else if (t->tag == opi.tag_DYNMOBCTSVR) {
+		myhash = 0x305070bc;
+	} else if (t->tag == opi.tag_DYNMOBCTSHCLI) {
+		myhash = 0x360bacdf;
+	} else if (t->tag == opi.tag_DYNMOBCTSHSVR) {
+		myhash = 0x4590bac3;
+	} else if (t->tag == opi.tag_DYNMOBPROC) {
+		myhash = 0x8990ca4e;
+	} else {
+		nocc_serious ("occampi_mobiletypenode_typehash(): unknown node (%s,%s)", t->tag->name, t->tag->ndef->name);
+	}
+
+	langops_typehash_blend (hsize, ptr, sizeof (myhash), (void *)&myhash);
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int occampi_mobilealloc_typecheck (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
@@ -1394,6 +1440,8 @@ static int occampi_mobiles_init_nodes (void)
 	tnode_setlangop (lops, "codegen_typeaction", 3, LANGOPTYPE (occampi_mobiletypenode_typeaction));
 	tnode_setlangop (lops, "mobiletypedescof", 1, LANGOPTYPE (occampi_mobiletypenode_mobiletypedescof));
 	tnode_setlangop (lops, "dimtreeof_node", 2, LANGOPTYPE (occampi_mobiletypenode_dimtreeof_node));
+	tnode_setlangop (lops, "typetype", 1, LANGOPTYPE (occampi_mobiletypenode_typetype));
+	tnode_setlangop (lops, "typehash", 3, LANGOPTYPE (occampi_mobiletypenode_typehash));
 	tnd->lops = lops;
 
 	i = -1;

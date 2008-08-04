@@ -39,15 +39,16 @@ typedef struct TAG_typecheck {
 
 /* these are used to categorise types */
 typedef enum ENUM_typecat {
-	TYPE_NOTTYPE = 0,
-	TYPE_SIGNED = 0x0001,
-	TYPE_WIDTHSET = 0x0002,
-	TYPE_DYNAMIC = 0x0004,
-	TYPE_USERDEFINED = 0x0008,
-	TYPE_INTEGER = 0x0010,
-	TYPE_REAL = 0x0020,
-	TYPE_DATA = 0x0040,
-	TYPE_COMM = 0x0080,
+	TYPE_NOTTYPE = 0,		/* not a type */
+	TYPE_SIGNED = 0x0001,		/* signed type */
+	TYPE_WIDTHSET = 0x0002,		/* type has width in upper 16 bits */
+	TYPE_DYNAMIC = 0x0004,		/* type is dynamic */
+	TYPE_USERDEFINED = 0x0008,	/* type is user-defined */
+	TYPE_INTEGER = 0x0010,		/* type is integer (any integer) */
+	TYPE_REAL = 0x0020,		/* type is real (any real) */
+	TYPE_DATA = 0x0040,		/* type is something that can be stored in a variable */
+	TYPE_COMM = 0x0080,		/* type is something that can be used for channel I/O */
+	TYPE_ARRAY = 0x0100,		/* type is an array of something */
 
 	TYPE_WIDTHMASK = 0xffff0000
 } typecat_e;
