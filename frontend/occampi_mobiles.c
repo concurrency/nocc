@@ -655,11 +655,16 @@ static int occampi_mobiletypenode_typeaction (langops_t *lops, tnode_t *type, tn
 			/*{{{  dynamic mobile array assignment*/
 			tnode_t *lhs = tnode_nthsubof (anode, 0);
 			tnode_t *rhs = tnode_nthsubof (anode, 1);
+			tnode_t *acttype = tnode_nthsubof (anode, 2);
 			tnode_t *dimlist = NULL;
 
 			tnode_t *lhstype = (tnode_t *)tnode_getchook (anode, chook_actionlhstype);
 
-#if 1
+			if (acttype->tag != opi.tag_DYNMOBARRAY) {
+				/* action is not this type, so default to regular handling */
+				return -1;
+			}
+#if 0
 fprintf (stderr, "occampi_mobiletypenode_action(): ASSIGN, lhstype (from hook %p) =\n", chook_actionlhstype);
 tnode_dumptree (lhstype, 1, stderr);
 fprintf (stderr, "occampi_mobiletypenode_action(): ASSIGN, lhs =\n");
@@ -675,7 +680,7 @@ tnode_dumptree (rhs, 1, stderr);
 			/* get dimension list from RHS */
 			dimlist = langops_dimtreeof (rhs);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_mobiletypenode_action(): ASSIGN, dimlist =\n");
 tnode_dumptree (dimlist, 1, stderr);
 #endif
@@ -777,7 +782,7 @@ static tnode_t *occampi_mobiletypenode_dimtreeof_node (langops_t *lops, tnode_t 
 		/*{{{  return/create dimension tree fo dynamic mobile array type*/
 		tnode_t *dimlist = (tnode_t *)tnode_getchook (t, opi.chook_arraydiminfo);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_mobiletypenode_dimtreeof_node(): here!\n");
 #endif
 		if (!dimlist) {
@@ -1039,7 +1044,7 @@ static int occampi_mobilealloc_codegen (compops_t *cops, tnode_t *node, codegen_
 		if (type->tag->ndef->lops && tnode_haslangop (type->tag->ndef->lops, "mobiletypedescof")) {
 			mth = (mobiletypehook_t *)tnode_calllangop (type->tag->ndef->lops, "mobiletypedescof", 1, type);
 		}
-#if 1
+#if 0
 fprintf (stderr, "occampi_mobilealloc_codegen(): here! type is:\n");
 tnode_dumptree (type, 1, stderr);
 #endif
@@ -1210,7 +1215,7 @@ static int occampi_mobile_arraydopnode_codegen (compops_t *cops, tnode_t *node, 
 		}
 		dimno = constprop_intvalof (dimt);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_mobile_arraydopnode_codegen(): here!\n");
 tnode_dumptree (node, 1, stderr);
 #endif
@@ -1251,7 +1256,7 @@ static int occampi_mobile_actionnode_fetrans (compops_t *cops, tnode_t **nodep, 
 		tnode_t *rhstype = typecheck_gettype (rhs, NULL);		/* get RHS type */
 		// tnode_t *rhstype = NULL;
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_mobile_actionnode_fetrans(): dynmobile action, rhs is:\n");
 tnode_dumptree (rhs, 1, stderr);
 #endif
@@ -1260,7 +1265,7 @@ tnode_dumptree (rhs, 1, stderr);
 			return 0;
 		}
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_mobile_actionnode_fetrans(): dynmobile action, rhstype is:\n");
 tnode_dumptree (rhstype, 1, stderr);
 #endif
@@ -1311,22 +1316,15 @@ tnode_dumptree (atimesnode, 1, stderr);
 				anode = tnode_createfrom (opi.tag_NEWDYNMOBARRAY, t, tnode_copytree (tnode_nthsubof (acttype, 0)),
 						adimlist, tnode_copytree (acttype), atimesnode);
 				assnode = tnode_createfrom (opi.tag_ASSIGN, t, tnode_nthsubof (t, 0), anode, acttype);
-#if 1
+#if 0
 fprintf (stderr, "occampi_mobile_actionnode_fetrans(): allocation node:\n");
 tnode_dumptree (assnode, 1, stderr);
 #endif
-#if 1
+#if 0
 fprintf (stderr, "occampi_mobile_actionnode_fetrans(): here, non-mobile type to use is:\n");
 tnode_dumptree (nmobtype, 1, stderr);
 #endif
-				/*
-				seqlist = fetrans_makeseqassign (tnode_copytree (tnode_nthsubof (t, 0)),
-						tnode_create (opi.tag_NEWDYNMOBARRAY, NULL, tnode_copytree (tnode_nthsubof (acttype, 0)),
-						parser_buildlistnode (NULL,
-							tnode_create (opi.tag_SIZE, NULL, tnode_copytree (rhs), tnode_create (opi.tag_INT, NULL)),
-							NULL), tnode_copytree (acttype), NULL),
-						tnode_copytree (acttype), fe);
-				*/
+
 				seqlist = fetrans_makeseqany (fe);
 				parser_insertinlist (seqlist, assnode, 0);
 				mangled = 1;

@@ -336,6 +336,7 @@ static int occampi_namemap_lit (compops_t *cops, tnode_t **node, map_t *map)
 
 	cnst = map->target->newconst (*node, map, ldata->data, ldata->bytes, ltypecat);
 
+#if 0
 	if ((*node)->tag == opi.tag_LITARRAY) {
 		/* map type, may contain constants that we need later on */
 		tnode_t *type = ltype;
@@ -345,11 +346,12 @@ static int occampi_namemap_lit (compops_t *cops, tnode_t **node, map_t *map)
 			map_submapnames (tnode_nthsubaddr (type, 0), map);
 			type = tnode_nthsubof (type, 1);
 		}
-#if 1
+#if 0
 fprintf (stderr, "occampi_namemap_lit(): ltype is:\n");
 tnode_dumptree (ltype, 1, stderr);
 #endif
 	}
+#endif
 
 	*node = cnst;
 
@@ -365,6 +367,7 @@ static int occampi_precode_lit (compops_t *cops, tnode_t **nodep, codegen_t *cge
 {
 	tnode_t *ltype = tnode_nthsubof (*nodep, 0);
 
+#if 0
 	if ((*nodep)->tag == opi.tag_LITARRAY) {
 		/* pre-code type, may contain constants that we need later on */
 		tnode_t *type = ltype;
@@ -375,6 +378,7 @@ static int occampi_precode_lit (compops_t *cops, tnode_t **nodep, codegen_t *cge
 			type = tnode_nthsubof (type, 1);
 		}
 	}
+#endif
 
 	return 1;
 }
