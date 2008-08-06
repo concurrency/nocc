@@ -1058,7 +1058,7 @@ static int occampi_fetrans_arraymop (compops_t *cops, tnode_t **nodep, fetrans_t
 		nocc_internal ("occampi_fetrans_arraymop(): NULL operand type!");
 		return 0;
 	}
-#if 1
+#if 0
 fprintf (stderr, "occampi_fetrans_arraymop(): operand type:\n");
 tnode_dumptree (optype, 1, stderr);
 #endif

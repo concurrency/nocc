@@ -1,0 +1,15 @@
+
+-- test_n101.occ -- more mobile tests
+
+PROC foo (MOBILE []BYTE str)
+  INT i:
+  SEQ
+    i := SIZE str
+:
+
+PROC test.n101 ()
+  MOBILE []BYTE v:
+  SEQ
+    foo (v)
+:
+

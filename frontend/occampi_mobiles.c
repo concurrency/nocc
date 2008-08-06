@@ -516,6 +516,25 @@ static int occampi_mobiletypenode_bytesfor (langops_t *lops, tnode_t *t, target_
 	return -1;
 }
 /*}}}*/
+/*{{{  static int occampi_mobiletypenode_bytesforparam (langops_t *lops, tnode_t *t, target_t *target)*/
+/*
+ *	returns the number of bytes needed for a MOBILE parameter
+ */
+static int occampi_mobiletypenode_bytesforparam (langops_t *lops, tnode_t *t, target_t *target)
+{
+#if 0
+fprintf (stderr, "occampi_mobiletypenode_bytesforparam(): here!\n");
+#endif
+	if (t->tag == opi.tag_MOBILE) {
+		/* mostly needing just a single word */
+		return target->pointersize;
+	} else if (t->tag == opi.tag_DYNMOBARRAY) {
+		/* FIXME: assuming single dimensions for now */
+		return (2 * target->pointersize);
+	}
+	return -1;		/* don't know! */
+}
+/*}}}*/
 /*{{{  static int occampi_mobiletypenode_initsizes (langops_t *lops, tnode_t *t, tnode_t *declnode, int *wssize, int *vssize, int *mssize, int *indir, map_t *mdata)*/
 /*
  *	returns special allocation requirements for MOBILEs
@@ -1432,6 +1451,7 @@ static int occampi_mobiles_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_mobiletypenode_bytesfor));
+	tnode_setlangop (lops, "bytesforparam", 2, LANGOPTYPE (occampi_mobiletypenode_bytesforparam));
 	tnode_setlangop (lops, "typereduce", 1, LANGOPTYPE (occampi_mobiletypenode_typereduce));
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (occampi_mobiletypenode_typeactual));
 	tnode_setlangop (lops, "initsizes", 7, LANGOPTYPE (occampi_mobiletypenode_initsizes));

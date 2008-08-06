@@ -813,6 +813,7 @@ static int occampi_namemap_fparam (compops_t *cops, tnode_t **node, map_t *map)
 	tnode_t *type = tnode_nthsubof (t, 1);
 	tnode_t *bename;
 	int tsize, indir;
+	int psize;
 
 #if 0
 fprintf (stderr, "occampi_namemap_fparam(): here!  target is [%s].  Type is:\n", map->target->name);
@@ -835,6 +836,18 @@ tnode_dumptree (type, 1, stderr);
 		} else {
 			indir = 1;
 		}
+
+		if (type->tag->ndef->lops && tnode_haslangop (type->tag->ndef->lops, "bytesforparam")) {
+			psize = tnode_calllangop (type->tag->ndef->lops, "bytesforparam", 2, type, map->target);
+		} else {
+			psize = ((indir > 0) ? map->target->pointersize : tsize);
+		}
+
+		if (psize == -1) {
+			tnode_error (t, "occampi_namemap_fparam(): unknown parameter size for type (%s,%s), assuming %d!",
+					type->tag->name, type->tag->ndef->name, map->target->pointersize);
+			psize = map->target->pointersize;
+		}
 	} else {
 		nocc_internal ("occampi_namemap_fparam(): not FPARAM/VALFPARAM");
 		return 0;
@@ -843,7 +856,7 @@ tnode_dumptree (type, 1, stderr);
 #if 0
 fprintf (stderr, "occampi_namemap_fparam(): node is [%s], type is [%s], tsize = %d, indir = %d\n", t->tag->name, type->tag->name, tsize, indir);
 #endif
-	bename = map->target->newname (*namep, NULL, map, 4, 0, 0, 0, tsize, indir);		/* FIXME! */
+	bename = map->target->newname (*namep, NULL, map, psize, 0, 0, 0, tsize, indir);
 	tnode_setchook (*namep, map->mapchook, (void *)bename);
 
 	*node = bename;

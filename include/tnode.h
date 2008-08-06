@@ -198,6 +198,7 @@ typedef enum ENUM_langops {
 	LOPS_NAMEOF = 36,			/* 1: tnode_t * -> name_t * */
 	LOPS_TRACESPECOF = 37,			/* 1: tnode_t * -> tnode_t * */
 	LOPS_DIMTREEOF_NODE = 38,		/* 2: tnode_t *, tnode_t * -> tnode_t * */
+	LOPS_BYTESFORPARAM = 39,		/* 2: tnode_t *, target_t * -> int */
 	LOPS_MAX = 256
 } langops_e;
 

@@ -1,0 +1,9 @@
+
+-- test_n100.occ -- more mobile tests
+
+PROC test.n100 (MOBILE []BYTE str)
+  INT i:
+  SEQ
+    i := SIZE str
+:
+
