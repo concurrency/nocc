@@ -841,7 +841,8 @@ tnode_dumptree (params, 1, stderr);
 			int nitems, i, wsoff;
 			tnode_t **items = parser_getlistitems (params, &nitems);
 
-			for (i=nitems - 1, wsoff = -(cgen->target->slotsize); i>=0; i--, wsoff -= (cgen->target->slotsize)) {
+			wsoff = -(cgen->target->slotsize);
+			for (i=nitems - 1; i>=0; i--) {
 				tnode_t *formal = (tnode_t *)tnode_getchook (items[i], chook_matchedformal);
 				codegen_parammode_e pmode;
 
@@ -865,6 +866,8 @@ tnode_dumptree (formal, 1, stderr);
 				}
 				codegen_callops (cgen, loadparam, items[i], pmode);
 				codegen_callops (cgen, storelocal, wsoff);
+
+				wsoff -= (cgen->target->slotsize);
 			}
 		}
 
