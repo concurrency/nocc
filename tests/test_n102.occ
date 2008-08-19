@@ -1,0 +1,9 @@
+
+-- tests_n102.occ -- mobile tests
+
+PROC test.n102 (CHAN MOBILE []BYTE out!)
+  MOBILE []BYTE x:
+  SEQ
+    out ! x
+:
+

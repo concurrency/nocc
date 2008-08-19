@@ -314,6 +314,24 @@ static int occampi_usagecheck_procdecl (langops_t *lops, tnode_t *node, uchk_sta
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_mobilitycheck_procdecl (compops_t *cops, tnode_t *node, mchk_state_t *mcstate)*/
+/*
+ *	does mobility checking on a procedure declaration
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mobilitycheck_procdecl (compops_t *cops, tnode_t *node, mchk_state_t *mcstate)
+{
+	chook_t *tchktrchook = tracescheck_gettraceschook ();
+	tchk_traces_t *ptraces = NULL;
+
+	ptraces = (tchk_traces_t *)tnode_getchook (node, tchktrchook);
+#if 1
+fprintf (stderr, "occampi_mobilitycheck_procdecl(): here!, traces are:\n");
+tracescheck_dumptraces (ptraces, 1, stderr);
+#endif
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_tracescheck_procdecl (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)*/
 /*
  *	does traces checking in a procedure declaration
@@ -1120,6 +1138,7 @@ static int occampi_procdecl_init_nodes (void)
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (occampi_scopeout_procdecl));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_procdecl));
 	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (occampi_precheck_procdecl));
+	tnode_setcompop (cops, "mobilitycheck", 2, COMPOPTYPE (occampi_mobilitycheck_procdecl));
 	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_procdecl));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_procdecl));
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_procdecl));

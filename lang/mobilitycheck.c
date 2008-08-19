@@ -47,7 +47,14 @@
 #include "names.h"
 #include "langops.h"
 #include "metadata.h"
+#include "tracescheck.h"
 #include "mobilitycheck.h"
+
+
+/*}}}*/
+/*{{{  private data*/
+
+static chook_t *tchk_traceschook = NULL;
 
 
 /*}}}*/
@@ -64,6 +71,7 @@ int mobilitycheck_init (void)
 		nocc_error ("mobilitycheck_init(): failed to register reserved metadata name \"mobility\"");
 		return -1;
 	}
+	tchk_traceschook = tracescheck_gettraceschook ();
 
 	return 0;
 }
@@ -100,7 +108,7 @@ static int mchk_prewalk_tree (tnode_t *node, void *data)
 	}
 
 	if (node->tag->ndef->ops && tnode_hascompop_i (node->tag->ndef->ops, (int)COPS_MOBILITYCHECK)) {
-		res = tnode_callcompop_i (node->tag->ndef->ops, (int)COPS_TRACESCHECK, 2, node, mcstate);
+		res = tnode_callcompop_i (node->tag->ndef->ops, (int)COPS_MOBILITYCHECK, 2, node, mcstate);
 	}
 
 	return res;

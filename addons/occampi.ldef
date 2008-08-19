@@ -433,6 +433,7 @@
 	"[ 4 {<opi:namepush>} -* 5 ] [ 5 {<opi:directedchaninput>} -* 6 ] [ 6 {<opi:nullreduce>} -* ]"
 
 .DFAERR	STUCK "occampi:procdecl" "in PROC declaration" EXPECTED
+.DFAERR STUCK "occampi:fparam" "in formal parameter" EXPECTED
 
 
 # {{{  parse-only grammars
@@ -639,6 +640,8 @@
 .TABLE	"occampi:expr +:= [ 0 -@MOBILE 1 ] [ 1 occampi:mobileallocexpr 2 ] [ 2 {<opi:nullreduce>} -* ]"
 
 .TABLE	"occampi:fparam +:= [ 0 -@MOBILE 1 ] [ 1 occampi:mobiletype 2 ] [ 2 occampi:name 3 ] [ 3 {<opi:fparam2nsreduce>} -* ]"
+
+.TABLE	"occampi:protocol +:= [ 0 -@MOBILE 1 ] [ 1 occampi:mobiletype 2 ] [ 2 {<opi:nullreduce>} -* ]"
 
 .DFAERR	STUCK "occampi:mobiletype" "in MOBILE type definition" EXPECTED
 

@@ -500,6 +500,39 @@ tnode_dumptree (mtype, 1, stderr);
 /*}}}*/
 
 
+/*{{{  static int occampi_mobiletypenode_getdescriptor (langops_t *lops, tnode_t *node, char **str)*/
+/*
+ *	gets the descriptor associated with a MOBILE type node (usually producing the type)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mobiletypenode_getdescriptor (langops_t *lops, tnode_t *node, char **str)
+{
+	char *subtypestr = NULL;
+	char *newstr = NULL;
+
+	langops_getdescriptor (tnode_nthsubof (node, 0), &subtypestr);
+	if (!subtypestr) {
+		subtypestr = string_dup ("?");
+	}
+
+	newstr = (char *)smalloc (15 + strlen (subtypestr) + (*str ? strlen (*str) : 0));
+
+	if (node->tag == opi.tag_DYNMOBARRAY) {
+		sprintf (newstr, "%sMOBILE []%s", *str, subtypestr);
+	} else if (node->tag == opi.tag_MOBILE) {
+		sprintf (newstr, "%sMOBILE %s", *str, subtypestr);
+	} else {
+		sprintf (newstr, "%sMOBILE? %s", *str, subtypestr);
+	}
+
+	if (*str) {
+		sfree (*str);
+	}
+	*str = newstr;
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_mobiletypenode_bytesfor (langops_t *lops, tnode_t *t, target_t *target)*/
 /*
  *	determines the number of bytes needed for a MOBILE
@@ -1450,6 +1483,7 @@ static int occampi_mobiles_init_nodes (void)
 	tnode_setcompop (cops, "premap", 2, COMPOPTYPE (occampi_premap_mobiletypenode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_mobiletypenode_getdescriptor));
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (occampi_mobiletypenode_bytesfor));
 	tnode_setlangop (lops, "bytesforparam", 2, LANGOPTYPE (occampi_mobiletypenode_bytesforparam));
 	tnode_setlangop (lops, "typereduce", 1, LANGOPTYPE (occampi_mobiletypenode_typereduce));
