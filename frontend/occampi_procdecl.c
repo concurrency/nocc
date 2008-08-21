@@ -321,6 +321,16 @@ static int occampi_usagecheck_procdecl (langops_t *lops, tnode_t *node, uchk_sta
  */
 static int occampi_mobilitycheck_procdecl (compops_t *cops, tnode_t *node, mchk_state_t *mcstate)
 {
+	mchk_state_t *thispstate = mobilitycheck_pushstate (mcstate);
+	chook_t *mchktrchook = mobilitycheck_gettraceschook ();
+	mchk_traces_t *trs = NULL;
+
+	thispstate->inparams = 1;
+	mobilitycheck_subtree (tnode_nthsubof (node, 1), thispstate);
+	thispstate->inparams = 0;
+
+	mobilitycheck_subtree (tnode_nthsubof (node, 2), thispstate);
+
 #if 1
 fprintf (stderr, "occampi_mobilitycheck_procdecl(): here! state=\n");
 mobilitycheck_dumpstate (mcstate, 1, stderr);
@@ -805,6 +815,22 @@ tnode_dumptree (pname, 1, stderr);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_mobilitycheck_fparam (compops_t *cops, tnode_t *node, mchk_state_t *mcstate)*/
+/*
+ *	does mobility checking on a formal parameter -- if mobile-ish, adds to the list of known things
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_mobilitycheck_fparam (compops_t *cops, tnode_t *node, mchk_state_t *mcstate)
+{
+	if (mcstate->inparams) {
+		tnode_t *pname = tnode_nthsubof (node, 0);
+		tnode_t *ptype = tnode_nthsubof (node, 1);
+		int ismvar = 0;
+		int ismchan = 0;
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_fetrans_fparam (compops_t *cops, tnode_t **node, fetrans_t *fe)*/
 /*
  *	does front-end transforms on a formal parameter
@@ -1100,6 +1126,7 @@ static int occampi_procdecl_init_nodes (void)
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (occampi_prescope_fparam));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (occampi_scopein_fparam));
 	tnode_setcompop (cops, "tracescheck", 2, COMPOPTYPE (occampi_tracescheck_fparam));
+	tnode_setcompop (cops, "mobilitycheck", 2, COMPOPTYPE (occampi_mobilitycheck_fparam));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_fparam));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_fparam));
 	tnd->ops = cops;

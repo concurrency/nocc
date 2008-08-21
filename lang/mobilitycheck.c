@@ -1,6 +1,6 @@
 /*
  *	mobilitycheck.c -- mobility checker for NOCC
- *	Copyright (C) 2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2008 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@
 
 /*}}}*/
 /*{{{  private data*/
-
+static chook_t *mchk_traceschook = NULL;
 
 /*}}}*/
 
@@ -72,8 +72,6 @@ static void mchk_isetindent (FILE *stream, int indent)
 	return;
 }
 /*}}}*/
-
-
 /*{{{  static mchknode_t *mchk_newmchknode (void)*/
 /*
  *	creates a new (blank) mchknode_t structure
@@ -174,7 +172,53 @@ static void mchk_freemchknode (mchknode_t *mcn)
 	return;
 }
 /*}}}*/
+/*{{{  static mchk_traces_t *mchk_newmchktraces (void)*/
+/*
+ *	creates a new mchk_traces_t structure
+ */
+static mchk_traces_t *mchk_newmchktraces (void)
+{
+	mchk_traces_t *mct = (mchk_traces_t *)smalloc (sizeof (mchk_traces_t));
 
+	dynarray_init (mct->items);
+	dynarray_init (mct->params);
+	dynarray_init (mct->vars);
+
+	return mct;
+}
+/*}}}*/
+/*{{{  static void mchk_freemchktraces (mchk_traces_t *mct)*/
+/*
+ *	trashes a mchk_traces_t structure
+ */
+static void mchk_freemchktraces (mchk_traces_t *mct)
+{
+	int i;
+
+	if (!mct) {
+		nocc_internal ("mchk_freemchktraces(): NULL pointer!");
+		return;
+	}
+
+	for (i=0; i<DA_CUR (mct->items); i++) {
+		mchk_freemchknode (DA_NTHITEM (mct->items, i));
+	}
+	dynarray_trash (mct->items);
+
+	for (i=0; i<DA_CUR (mct->params); i++) {
+		mchk_freemchknode (DA_NTHITEM (mct->params, i));
+	}
+	dynarray_trash (mct->params);
+
+	for (i=0; i<DA_CUR (mct->vars); i++) {
+		mchk_freemchknode (DA_NTHITEM (mct->vars, i));
+	}
+	dynarray_trash (mct->vars);
+
+	sfree (mct);
+	return;
+}
+/*}}}*/
 /*{{{  static mchk_bucket_t *mchk_newmchkbucket (void)*/
 /*
  *	creates a new mchk_bucket_t structure
@@ -210,7 +254,6 @@ static void mchk_freemchkbucket (mchk_bucket_t *mcb)
 	return;
 }
 /*}}}*/
-
 /*{{{  static mchk_state_t *mchk_newmchkstate (void)*/
 /*
  *	creates a new mchk_state_t structure
@@ -265,6 +308,68 @@ static void mchk_freemchkstate (mchk_state_t *mcs)
 }
 /*}}}*/
 
+/*{{{  static void *mchk_traceschook_copy (void *hook)*/
+/*
+ *	duplicates a traces compiler hook
+ */
+static void *mchk_traceschook_copy (void *hook)
+{
+	mchk_traces_t *mct = (mchk_traces_t *)hook;
+
+	if (mct) {
+		mchk_traces_t *tcopy = mchk_newmchktraces ();
+		int i;
+
+		for (i=0; i<DA_CUR (mct->items); i++) {
+			mchknode_t *item = DA_NTHITEM (mct->items, i);
+
+			if (item) {
+				mchknode_t *icopy = mobilitycheck_copynode (item);
+
+				dynarray_add (tcopy->items, icopy);
+			}
+		}
+
+		return (void *)tcopy;
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  static void mchk_traceschook_free (void *hook)*/
+/*
+ *	frees a traces compiler hook
+ */
+static void mchk_traceschook_free (void *hook)
+{
+	mchk_traces_t *mct = (mchk_traces_t *)hook;
+
+	if (mct) {
+		mchk_freemchktraces (mct);
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void mchk_traceschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a traces compiler hook (debugging)
+ */
+static void mchk_traceschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	mchk_traces_t *mct = (mchk_traces_t *)hook;
+
+	mchk_isetindent (stream, indent);
+	if (!hook) {
+		fprintf (stream, "<chook id=\"mobilitychecktraces\" value=\"\" />\n");
+	} else {
+		fprintf (stream, "<chook id=\"mobilitychecktraces\">\n");
+		mobilitycheck_dumptraces (mct, indent + 1, stream);
+		mchk_isetindent (stream, indent);
+		fprintf (stream, "</chook>\n");
+	}
+	return;
+}
+/*}}}*/
+
 
 /*{{{  int mobilitycheck_init (void)*/
 /*
@@ -277,6 +382,11 @@ int mobilitycheck_init (void)
 		nocc_error ("mobilitycheck_init(): failed to register reserved metadata name \"mobility\"");
 		return -1;
 	}
+
+	mchk_traceschook = tnode_lookupornewchook ("mobilitychecktraces");
+	mchk_traceschook->chook_copy = mchk_traceschook_copy;
+	mchk_traceschook->chook_free = mchk_traceschook_free;
+	mchk_traceschook->chook_dumptree = mchk_traceschook_dumptree;
 
 	return 0;
 }
@@ -349,6 +459,55 @@ int mobilitycheck_tree (tnode_t *tree, langparser_t *lang)
 	mchk_freemchkstate (mcstate);
 
 	return res;
+}
+/*}}}*/
+
+
+/*{{{  mchknode_t *mobilitycheck_copynode (mchknode_t *mcn)*/
+/*
+ *	copies a mobility-check node
+ */
+mchknode_t *mobilitycheck_copynode (mchknode_t *mcn)
+{
+	mchknode_t *newmcn;
+	int i;
+
+	if (!mcn) {
+		nocc_serious ("mobilitycheck_copynode(): NULL node!");
+		return NULL;
+	}
+
+	newmcn = mchk_newmchknodet (mcn->type, mcn->orgnode);
+	switch (mcn->type) {
+	case MCN_INVALID:
+		break;
+	case MCN_INPUT:
+	case MCN_OUTPUT:
+		if (mcn->u.mcnio.chanptr) {
+			newmcn->u.mcnio.chanptr = mobilitycheck_copynode (mcn->u.mcnio.chanptr);
+		}
+		if (mcn->u.mcnio.varptr) {
+			newmcn->u.mcnio.varptr = mobilitycheck_copynode (mcn->u.mcnio.varptr);
+		}
+		break;
+	case MCN_PARAM:
+	case MCN_VAR:
+		if (mcn->u.mcnpv.id) {
+			newmcn->u.mcnpv.id = string_dup (mcn->u.mcnpv.id);
+		}
+		break;
+	case MCN_PARAMREF:
+	case MCN_VARREF:
+		newmcn->u.mcnref.ref = mcn->u.mcnref.ref;
+		break;
+	case MCN_SEQ:
+		for (i=0; i<DA_CUR (mcn->u.mcnlist.items); i++) {
+			dynarray_add (newmcn->u.mcnlist.items, mobilitycheck_copynode (DA_NTHITEM (mcn->u.mcnlist.items, i)));
+		}
+		break;
+	}
+
+	return newmcn;
 }
 /*}}}*/
 
@@ -470,6 +629,63 @@ void mobilitycheck_dumpnode (mchknode_t *mcn, int indent, FILE *stream)
 		}
 	}
 	return;
+}
+/*}}}*/
+
+
+/*{{{  mchk_state_t *mobilitycheck_pushstate (mchk_state_t *mcstate)*/
+/*
+ *	pushes mobility-check state stack, returns new state
+ */
+mchk_state_t *mobilitycheck_pushstate (mchk_state_t *mcstate)
+{
+	mchk_state_t *newstate;
+
+	if (!mcstate) {
+		nocc_internal ("mobilitycheck_pushstate(): NULL state!");
+		return NULL;
+	}
+
+	newstate = mchk_newmchkstate ();
+	newstate->prevstate = mcstate;
+
+	return newstate;
+}
+/*}}}*/
+/*{{{  mchk_state_t *mobilitycheck_popstate (mchk_state_t *mcstate)*/
+/*
+ *	pops mobility-check state stack, returns old state
+ */
+mchk_state_t *mobilitycheck_popstate (mchk_state_t *mcstate)
+{
+	mchk_state_t *oldstate;
+
+	if (!mcstate) {
+		nocc_internal ("mobilitycheck_popstate(): NULL state!");
+		return NULL;
+	}
+
+	oldstate = mcstate->prevstate;
+	if (!oldstate) {
+		nocc_internal ("mobilitycheck_popstate(): NULL previous state!");
+		return NULL;
+	}
+
+	mcstate->prevstate = NULL;
+	mchk_freemchkstate (mcstate);
+
+	return oldstate;
+}
+/*}}}*/
+
+
+/*{{{  chook_t *mobilitycheck_gettraceschook (void)*/
+/*
+ *	returns compiler hook for attaching mobility traces (usually to procedure definitions)
+ */
+chook_t *mobilitycheck_gettraceschook (void)
+{
+	return mchk_traceschook;
 }
 /*}}}*/
 

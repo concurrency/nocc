@@ -91,6 +91,13 @@ extern void mobilitycheck_dumptraces (mchk_traces_t *mct, int indent, FILE *stre
 extern void mobilitycheck_dumpstate (mchk_state_t *mcstate, int indent, FILE *stream);
 extern void mobilitycheck_dumpnode (mchknode_t *mcn, int indent, FILE *stream);
 
+extern mchknode_t *mobilitycheck_copynode (mchknode_t *mcn);
+
+extern mchk_state_t *mobilitycheck_pushstate (mchk_state_t *mcstate);
+extern mchk_state_t *mobilitycheck_popstate (mchk_state_t *mcstate);
+
+extern struct TAG_chook *mobilitycheck_gettraceschook (void);
+
 
 #endif	/* !__MOBILITYCHECK_H */
 
