@@ -321,13 +321,9 @@ static int occampi_usagecheck_procdecl (langops_t *lops, tnode_t *node, uchk_sta
  */
 static int occampi_mobilitycheck_procdecl (compops_t *cops, tnode_t *node, mchk_state_t *mcstate)
 {
-	chook_t *tchktrchook = tracescheck_gettraceschook ();
-	tchk_traces_t *ptraces = NULL;
-
-	ptraces = (tchk_traces_t *)tnode_getchook (node, tchktrchook);
 #if 1
-fprintf (stderr, "occampi_mobilitycheck_procdecl(): here!, traces are:\n");
-tracescheck_dumptraces (ptraces, 1, stderr);
+fprintf (stderr, "occampi_mobilitycheck_procdecl(): here! state=\n");
+mobilitycheck_dumpstate (mcstate, 1, stderr);
 #endif
 	return 1;
 }
