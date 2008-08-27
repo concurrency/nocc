@@ -49,6 +49,8 @@ typedef enum ENUM_typecat {
 	TYPE_DATA = 0x0040,		/* type is something that can be stored in a variable */
 	TYPE_COMM = 0x0080,		/* type is something that can be used for channel I/O */
 	TYPE_ARRAY = 0x0100,		/* type is an array of something */
+	TYPE_MOBILE = 0x0200,		/* type is mobile (i.e. has movement semantics) */
+	TYPE_SHARED = 0x0400,		/* type is something shared between many processes */
 
 	TYPE_WIDTHMASK = 0xffff0000
 } typecat_e;

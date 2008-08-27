@@ -827,6 +827,29 @@ static int occampi_mobilitycheck_fparam (compops_t *cops, tnode_t *node, mchk_st
 		tnode_t *ptype = tnode_nthsubof (node, 1);
 		int ismvar = 0;
 		int ismchan = 0;
+		typecat_e ptypecat;
+		int iter = 0;
+
+		ptypecat = typecheck_typetype (ptype);
+#if 1
+fprintf (stderr, "occampi_mobilitycheck_fparam(): ptypecat = 0x%8.8x\n", (unsigned int)ptypecat);
+#endif
+		while (ptype) {
+			ptypecat = typecheck_typetype (ptype);
+
+			if (!iter && (ptypecat & TYPE_MOBILE)) {
+				/* if outermost type is mobile, then mobile var */
+				ismvar = 1;
+			}
+			iter++;
+
+			if (ptype->tag == opi.tag_CHAN) {
+				/* could be a channel of mobiles */
+				tnode_t *protocol = typecheck_getsubtype (ptype, NULL);
+			}
+
+			ptype = NULL;
+		}
 	}
 	return 0;
 }

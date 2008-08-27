@@ -92,6 +92,7 @@ extern void mobilitycheck_dumpstate (mchk_state_t *mcstate, int indent, FILE *st
 extern void mobilitycheck_dumpnode (mchknode_t *mcn, int indent, FILE *stream);
 
 extern mchknode_t *mobilitycheck_copynode (mchknode_t *mcn);
+extern mchknode_t *mobilitycheck_createnode (mchknodetype_e type, struct TAG_tnode *orgnode, ...);
 
 extern mchk_state_t *mobilitycheck_pushstate (mchk_state_t *mcstate);
 extern mchk_state_t *mobilitycheck_popstate (mchk_state_t *mcstate);

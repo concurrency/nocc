@@ -510,6 +510,59 @@ mchknode_t *mobilitycheck_copynode (mchknode_t *mcn)
 	return newmcn;
 }
 /*}}}*/
+/*{{{  mchknode_t *mobilitycheck_createnode (mchknodetype_e type, tnode_t *orgnode, ...)*/
+/*
+ *	creates a new mchknode_t structure, populated
+ */
+mchknode_t *mobilitycheck_createnode (mchknodetype_e type, tnode_t *orgnode, ...)
+{
+	mchknode_t *mcn = mchk_newmchknodet (type, orgnode);
+	va_list ap;
+
+	va_start (ap, orgnode);
+	switch (type) {
+		/*{{{  INVALID*/
+	case MCN_INVALID:
+		break;
+		/*}}}*/
+		/*{{{  INPUT, OUTPUT*/
+	case MCN_INPUT:
+	case MCN_OUTPUT:
+		mcn->u.mcnio.chanptr = va_arg (ap, mchknode_t *);
+		mcn->u.mcnio.varptr = va_arg (ap, mchknode_t *);
+		break;
+		/*}}}*/
+		/*{{{  PARAM, VAR*/
+	case MCN_PARAM:
+	case MCN_VAR:
+		mcn->u.mcnpv.id = va_arg (ap, char *);
+		break;
+		/*}}}*/
+		/*{{{  PARAMREF, VARREF*/
+	case MCN_PARAMREF:
+	case MCN_VARREF:
+		mcn->u.mcnref.ref = va_arg (ap, mchknode_t *);
+		break;
+		/*}}}*/
+		/*{{{  SEQ*/
+	case MCN_SEQ:
+		/* null-terminated list */
+		{
+			mchknode_t *arg = va_arg (ap, mchknode_t *);
+
+			while (arg) {
+				dynarray_add (mcn->u.mcnlist.items, arg);
+				arg = va_arg (ap, mchknode_t *);
+			}
+		}
+		break;
+		/*}}}*/
+	}
+	va_end (ap);
+
+	return mcn;
+}
+/*}}}*/
 
 
 /*{{{  void mobilitycheck_dumpbucket (mchk_bucket_t *mcb, int indent, FILE *stream)*/

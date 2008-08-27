@@ -864,10 +864,17 @@ static typecat_e occampi_mobiletypenode_typetype (langops_t *lops, tnode_t *node
 {
 	typecat_e atype;
 
-	atype = (TYPE_DATA | TYPE_COMM | TYPE_DYNAMIC | TYPE_USERDEFINED);
+	/* default type category of all mobiles */
+	atype = (TYPE_DATA | TYPE_COMM | TYPE_DYNAMIC | TYPE_USERDEFINED | TYPE_MOBILE);
+
 	if (node->tag == opi.tag_DYNMOBARRAY) {
 		atype |= TYPE_ARRAY;
 	}
+
+	if ((node->tag == opi.tag_DYNMOBCTSHCLI) || (node->tag == opi.tag_DYNMOBCTSHSVR)) {
+		atype |= TYPE_SHARED;
+	}
+
 	return atype;
 }
 /*}}}*/
@@ -1475,7 +1482,7 @@ static int occampi_mobiles_init_nodes (void)
 	}
 
 	/*}}}*/
-	/*{{{  occampi:mobiletypenode -- MOBILE, DYNMOBARRAY, CTCLI, CTSVR, CTSHCLI, CTSHSVR*/
+	/*{{{  occampi:mobiletypenode -- MOBILE, DYNMOBARRAY, DYNMOBCTCLI, DYNMOBCTSVR, DYNMOBCTSHCLI, DYNMOBCTSHSVR*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:mobiletypenode", &i, 1, 0, 0, TNF_NONE);		/* subnodes: subtype */
 	cops = tnode_newcompops ();

@@ -488,6 +488,15 @@ static tnode_t *occampi_type_gettags (langops_t *lops, tnode_t *node)
 	return NULL;
 }
 /*}}}*/
+/*{{{  static typecat_e occampi_type_typetype (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the type-category for a type
+ */
+static typecat_e occampi_type_typetype (langops_t *lops, tnode_t *node)
+{
+	return TYPE_NOTTYPE;
+}
+/*}}}*/
 
 /*{{{  static int occampi_initsizes_type_arraynode (langops_t *lops, tnode_t *t, tnode_t *declnode, int *wssize, int *vssize, int *mssize, int *indir, map_t *mdata)*/
 /*
@@ -1097,6 +1106,7 @@ static int occampi_type_init_nodes (void)
 	tnode_setlangop (lops, "initialising_decl", 3, LANGOPTYPE (occampi_type_initialising_decl));
 	tnode_setlangop (lops, "codegen_typeaction", 3, LANGOPTYPE (occampi_type_codegen_typeaction));
 	tnode_setlangop (lops, "gettags", 1, LANGOPTYPE (occampi_type_gettags));
+	tnode_setlangop (lops, "typetype", 1, LANGOPTYPE (occampi_type_typetype));
 	tnd->lops = lops;
 
 	i = -1;
