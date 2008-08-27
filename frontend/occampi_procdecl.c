@@ -815,6 +815,66 @@ tnode_dumptree (pname, 1, stderr);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int opi_mchk_fparam_checkmobile (tnode_t *type, void *arg)*/
+/*
+ *	determines whether a type-tree contains mobiles -- called in prewalk order
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int opi_mchk_fparam_checkmobile (tnode_t *type, void *arg)
+{
+	int *rptr = (int *)arg;
+	typecat_e ptypecat = typecheck_typetype (type);
+
+	if (ptypecat & TYPE_MOBILE) {
+		*rptr = 1;
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int opi_mchk_fparam_checkchanofmobile (tnode_t *type, void *arg)*/
+/*
+ *	determines whether a type-tree contains channels carrying mobiles -- called in prewalk order
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int opi_mchk_fparam_checkchanofmobile (tnode_t *type, void *arg)
+{
+	int *rptr = (int *)arg;
+
+	if (type->tag == opi.tag_CHAN) {
+		tnode_t *protocol = typecheck_getsubtype (type, NULL);
+
+		tnode_prewalktree (protocol, opi_mchk_fparam_checkmobile, (void *)rptr);
+		return 0;
+	}
+	if (tnode_haslangop_i (type->tag->ndef->lops, (int)LOPS_GETSUBTYPE)) {
+		/* try the sub-type */
+		tnode_t *subtype = typecheck_getsubtype (type, NULL);
+
+		if (subtype == type) {
+			/* nope */
+		} else {
+			/* try this */
+			tnode_prewalktree (subtype, opi_mchk_fparam_checkchanofmobile, (void *)rptr);
+			return 0;
+		}
+	}
+	if (tnode_haslangop_i (type->tag->ndef->lops, (int)LOPS_TYPEREDUCE)) {
+		/* try the reduced type */
+		tnode_t *rtype;
+
+		rtype = (tnode_t *)tnode_calllangop_i (type->tag->ndef->lops, (int)LOPS_TYPEREDUCE, 1, type);
+		if (rtype == type) {
+			/* nope */
+		} else {
+			/* try this */
+			tnode_prewalktree (rtype, opi_mchk_fparam_checkchanofmobile, (void *)rptr);
+			return 0;
+		}
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int occampi_mobilitycheck_fparam (compops_t *cops, tnode_t *node, mchk_state_t *mcstate)*/
 /*
  *	does mobility checking on a formal parameter -- if mobile-ish, adds to the list of known things
@@ -830,26 +890,20 @@ static int occampi_mobilitycheck_fparam (compops_t *cops, tnode_t *node, mchk_st
 		typecat_e ptypecat;
 		int iter = 0;
 
+		/* only mobile if outermost type is -- language restriction enforces this currently */
 		ptypecat = typecheck_typetype (ptype);
-#if 1
-fprintf (stderr, "occampi_mobilitycheck_fparam(): ptypecat = 0x%8.8x\n", (unsigned int)ptypecat);
-#endif
-		while (ptype) {
-			ptypecat = typecheck_typetype (ptype);
-
-			if (!iter && (ptypecat & TYPE_MOBILE)) {
-				/* if outermost type is mobile, then mobile var */
-				ismvar = 1;
-			}
-			iter++;
-
-			if (ptype->tag == opi.tag_CHAN) {
-				/* could be a channel of mobiles */
-				tnode_t *protocol = typecheck_getsubtype (ptype, NULL);
-			}
-
-			ptype = NULL;
+		if (ptypecat & TYPE_MOBILE) {
+			ismvar = 1;
 		}
+
+		/* now look for channels inside the type carrying mobiles */
+		ismchan = 0;
+		tnode_prewalktree (ptype, opi_mchk_fparam_checkchanofmobile, &ismchan);
+
+#if 1
+fprintf (stderr, "occampi_mobilitycheck_fparam(): ismvar=%d, ismchan=%d, type=\n", ismvar, ismchan);
+tnode_dumptree (ptype, 1, stderr);
+#endif
 	}
 	return 0;
 }
