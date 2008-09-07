@@ -333,7 +333,7 @@ static int occampi_mobilitycheck_procdecl (compops_t *cops, tnode_t *node, mchk_
 
 #if 1
 fprintf (stderr, "occampi_mobilitycheck_procdecl(): here! state=\n");
-mobilitycheck_dumpstate (mcstate, 1, stderr);
+mobilitycheck_dumpstate (thispstate, 1, stderr);
 #endif
 	return 1;
 }
@@ -900,10 +900,33 @@ static int occampi_mobilitycheck_fparam (compops_t *cops, tnode_t *node, mchk_st
 		ismchan = 0;
 		tnode_prewalktree (ptype, opi_mchk_fparam_checkchanofmobile, &ismchan);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_mobilitycheck_fparam(): ismvar=%d, ismchan=%d, type=\n", ismvar, ismchan);
 tnode_dumptree (ptype, 1, stderr);
 #endif
+		if (ismvar) {
+			char *name = NULL;
+			mchknode_t *mcn;
+
+			langops_getname (pname, &name);
+			mcn = mobilitycheck_createnode (MCN_PARAM, node, name);
+
+			dynarray_add (mcstate->ivars, mcn);
+		}
+		if (ismchan) {
+			char *name = NULL;
+			mchknode_t *mcn;
+
+			langops_getname (pname, &name);
+			mcn = mobilitycheck_createnode (MCN_PARAM, node, name);
+
+#if 0
+fprintf (stderr, "occampi_mobilitycheck_fparam(): adding to interesting channels..:\n");
+mobilitycheck_dumpnode (mcn, 1, stderr);
+#endif
+			dynarray_add (mcstate->ichans, mcn);
+		}
+
 	}
 	return 0;
 }
