@@ -331,7 +331,7 @@ static int occampi_mobilitycheck_procdecl (compops_t *cops, tnode_t *node, mchk_
 
 	mobilitycheck_subtree (tnode_nthsubof (node, 2), thispstate);
 
-#if 1
+#if 0
 fprintf (stderr, "occampi_mobilitycheck_procdecl(): here! state=\n");
 mobilitycheck_dumpstate (thispstate, 1, stderr);
 #endif
@@ -646,6 +646,21 @@ static int occampi_getdescriptor_procdecl (langops_t *lops, tnode_t *node, char 
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_lcodegen_procdecl (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates CIF/CCSP code for a PROC definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_lcodegen_procdecl (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	tnode_t *name = tnode_nthsubof (node, 0);
+	name_t *pname = tnode_nthnameof (name, 0);
+
+	codegen_callops (cgen, comment, "PROC %s", pname->me->name);
+	return 0;
+}
+/*}}}*/
+
 
 /*{{{  static int occampi_prescope_fparam (compops_t *cops, tnode_t **node, prescope_t *ps)*/
 /*
@@ -825,6 +840,10 @@ static int opi_mchk_fparam_checkmobile (tnode_t *type, void *arg)
 	int *rptr = (int *)arg;
 	typecat_e ptypecat = typecheck_typetype (type);
 
+#if 0
+fprintf (stderr, "opi_mchk_fparam_checkmobile(): type =\n");
+tnode_dumptree (type, 1, stderr);
+#endif
 	if (ptypecat & TYPE_MOBILE) {
 		*rptr = 1;
 		return 0;
@@ -844,6 +863,13 @@ static int opi_mchk_fparam_checkchanofmobile (tnode_t *type, void *arg)
 	if (type->tag == opi.tag_CHAN) {
 		tnode_t *protocol = typecheck_getsubtype (type, NULL);
 
+		if (!protocol) {
+			nocc_internal ("opi_mchk_fparam_checkchanofmobile(): no protocol");
+		}
+#if 0
+fprintf (stderr, "opi_mchk_fparam_checkchanofmobile(): protocol =\n");
+tnode_dumptree (protocol, 1, stderr);
+#endif
 		tnode_prewalktree (protocol, opi_mchk_fparam_checkmobile, (void *)rptr);
 		return 0;
 	}
@@ -891,6 +917,13 @@ static int occampi_mobilitycheck_fparam (compops_t *cops, tnode_t *node, mchk_st
 		int iter = 0;
 
 		/* only mobile if outermost type is -- language restriction enforces this currently */
+		if (!tnode_haslangop (ptype->tag->ndef->lops, "typetype")) {
+#if 0
+fprintf (stderr, "occampi_mobilitycheck_fparam(): no typetype, fparam is:\n");
+tnode_dumptree (node, 1, stderr);
+#endif
+		}
+
 		ptypecat = typecheck_typetype (ptype);
 		if (ptypecat & TYPE_MOBILE) {
 			ismvar = 1;
@@ -998,6 +1031,7 @@ fprintf (stderr, "occampi_namemap_fparam(): node is [%s], type is [%s], tsize = 
 #endif
 	bename = map->target->newname (*namep, NULL, map, psize, 0, 0, 0, tsize, indir);
 	tnode_setchook (*namep, map->mapchook, (void *)bename);
+	// tnode_promotechooks (*namep, bename);
 
 	*node = bename;
 	return 0;
@@ -1267,6 +1301,7 @@ static int occampi_procdecl_init_nodes (void)
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_procdecl));
 	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_precode_procdecl));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_procdecl));
+	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (occampi_lcodegen_procdecl));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_getdescriptor_procdecl));

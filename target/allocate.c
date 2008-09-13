@@ -1139,7 +1139,11 @@ static int allocate_prewalktree_preallocate (tnode_t *tptr, void *data)
  */
 int preallocate_tree (tnode_t **tptr, target_t *target)
 {
-	tnode_prewalktree (*tptr, allocate_prewalktree_preallocate, (void *)target);
+	if (target->be_do_preallocate) {
+		target->be_do_preallocate (*tptr, target);
+	} else {
+		tnode_prewalktree (*tptr, allocate_prewalktree_preallocate, (void *)target);
+	}
 
 	return 0;
 }

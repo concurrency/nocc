@@ -758,6 +758,10 @@ static int occampi_namemap_instance (compops_t *cops, tnode_t **node, map_t *map
 		for (i=0; i<nparams; i++) {
 			void *matchedformal = tnode_getchook (params[i], chook_matchedformal);
 			
+#if 1
+fprintf (stderr, "occampi_namemap_instance(): setting parameter %d matchedformal to hook in:\n", i);
+tnode_dumptree (params[i], 1, stderr);
+#endif
 			tnode_setchook (params[i], chook_matchedformal, NULL);
 			map_submapnames (params + i, map);
 			tnode_setchook (params[i], chook_matchedformal, matchedformal);
@@ -766,7 +770,7 @@ static int occampi_namemap_instance (compops_t *cops, tnode_t **node, map_t *map
 	map_submapnames (tnode_nthsubaddr (*node, 0), map);
 
 	namenode = tnode_nthsubof (*node, 0);
-#if 0
+#if 1
 fprintf (stderr, "occampi_namemap_instance(): instance of:\n");
 tnode_dumptree (namenode, 1, stderr);
 #endif
@@ -847,7 +851,7 @@ tnode_dumptree (params, 1, stderr);
 				codegen_parammode_e pmode;
 
 				if (!formal) {
-					tnode_warning (node, "occampi_codegen_instance(): no matched formal in parameter [%s], assuming reference", items[i]->tag->name);
+					tnode_warning (node, "occampi_codegen_instance(): no matched formal in parameter [%s] %d, assuming reference", items[i]->tag->name, i);
 					pmode = PARAM_REF;
 				} else {
 #if 0

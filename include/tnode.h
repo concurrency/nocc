@@ -133,6 +133,13 @@ typedef enum ENUM_compops {
 	COPS_PREALLOCATE = 17,			/* 2: tnode_t *, target_t * -> int */
 	COPS_PRECODE = 18,			/* 2: tnode_t **, codegen_t * -> int */
 	COPS_CODEGEN = 19,			/* 2: tnode_t *, codegen_t * -> int */
+	COPS_LBETRANS = 20,			/* 2: tnode_t **, betrans_t * -> int */
+	COPS_LPREMAP = 21,			/* 2: tnode_t **, map_t * -> int */
+	COPS_LNAMEMAP = 22,			/* 2: tnode_t **, map_t * -> int */
+	COPS_LBEMAP = 23,			/* 2: tnode_t **, map_t * -> int */
+	COPS_LPREALLOCATE = 24,			/* 2: tnode_t *, target_t * -> int */
+	COPS_LPRECODE = 25,			/* 2: tnode_t **, codegen_t * -> int */
+	COPS_LCODEGEN = 26,			/* 2: tnode_t *, codegen_t * -> int */
 	COPS_MAX = 256
 } compops_e;
 

@@ -26,6 +26,7 @@ struct TAG_map;
 struct TAG_codegen;
 struct TAG_lexfile;
 struct TAG_name;
+struct TAG_betrans;
 
 
 typedef struct TAG_target {
@@ -123,6 +124,21 @@ typedef struct TAG_target {
 
 				/* pre-code visiting top-level processes */
 	void (*be_precode_seenproc)(struct TAG_codegen *, struct TAG_name *, struct TAG_tnode *);
+
+				/* compiler-wide hook for back-end transformation (BETRANS) pass */
+	void (*be_do_betrans)(struct TAG_tnode **, struct TAG_betrans *);
+				/* compiler-wide hook for pre-mapping (PREMAP) pass */
+	void (*be_do_premap)(struct TAG_tnode **, struct TAG_map *);
+				/* compiler-wide hook for name-mapping (NAMEMAP) pass */
+	void (*be_do_namemap)(struct TAG_tnode **, struct TAG_map *);
+				/* compiler-wide hook for back-end mapping (BEMAP) pass */
+	void (*be_do_bemap)(struct TAG_tnode **, struct TAG_map *);
+				/* compiler-wide hook for pre-allocation (PREALLOCATE) pass */
+	void (*be_do_preallocate)(struct TAG_tnode *, struct TAG_target *);
+				/* compiler-wide hook for pre-codegen (PRECODE) pass */
+	void (*be_do_precode)(struct TAG_tnode **, struct TAG_codegen *);
+				/* compiler-wide hook for codegen (CODEGEN) pass */
+	void (*be_do_codegen)(struct TAG_tnode *, struct TAG_codegen *);
 
 	void *priv;
 } target_t;

@@ -151,6 +151,14 @@ target_t krocetc_target = {
 	
 	be_precode_seenproc:	krocetc_be_precode_seenproc,
 
+	be_do_betrans:		NULL,
+	be_do_premap:		NULL,
+	be_do_namemap:		NULL,
+	be_do_bemap:		NULL,
+	be_do_preallocate:	NULL,
+	be_do_precode:		NULL,
+	be_do_codegen:		NULL,
+
 	priv:		NULL
 };
 

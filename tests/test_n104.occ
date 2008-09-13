@@ -1,0 +1,23 @@
+
+
+PROC out.ch (VAL BYTE ch,  VAL INT field,  CHAN OF BYTE out)
+  --{{{
+  SEQ
+    -- out.repeat (' ', field - 1, out)
+    out ! ch
+  --}}}
+:
+
+
+PROC out.bool (VAL BOOL b,  VAL INT field,  CHAN OF BYTE out)
+  --{{{
+  IF
+    (b = TRUE)
+      out.ch ('1', field, out)
+    (b = FALSE)
+      out.ch ('0', field, out)
+    (TRUE)
+      out.ch ('.', field, out)
+  --}}}
+:
+

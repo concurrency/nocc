@@ -422,6 +422,13 @@ int tnode_init (void)
 	tnode_newcompop ("preallocate", COPS_PREALLOCATE, 2, INTERNAL_ORIGIN);
 	tnode_newcompop ("precode", COPS_PRECODE, 2, INTERNAL_ORIGIN);
 	tnode_newcompop ("codegen", COPS_CODEGEN, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("lbetrans", COPS_LBETRANS, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("lpremap", COPS_LPREMAP, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("lnamemap", COPS_LNAMEMAP, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("lbemap", COPS_LBEMAP, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("lpreallocate", COPS_LPREALLOCATE, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("lprecode", COPS_LPRECODE, 2, INTERNAL_ORIGIN);
+	tnode_newcompop ("lcodegen", COPS_LCODEGEN, 2, INTERNAL_ORIGIN);
 
 	/*}}}*/
 	/*{{{  default language operations*/

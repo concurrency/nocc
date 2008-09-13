@@ -161,7 +161,11 @@ static void map_namemap_chook_dumptree (tnode_t *node, void *chook, int indent, 
  */
 int map_submapnames (tnode_t **tptr, map_t *mdata)
 {
-	tnode_modprewalktree (tptr, map_modprewalk_mapnames, (void *)mdata);
+	if (mdata->target && mdata->target->be_do_namemap) {
+		mdata->target->be_do_namemap (tptr, mdata);
+	} else {
+		tnode_modprewalktree (tptr, map_modprewalk_mapnames, (void *)mdata);
+	}
 
 	return 0;		/* this always succeeds.. */
 }
@@ -173,7 +177,11 @@ int map_submapnames (tnode_t **tptr, map_t *mdata)
  */
 int map_subpremap (tnode_t **tptr, map_t *mdata)
 {
-	tnode_modprewalktree (tptr, map_modprewalk_premap, (void *)mdata);
+	if (mdata->target && mdata->target->be_do_premap) {
+		mdata->target->be_do_premap (tptr, mdata);
+	} else {
+		tnode_modprewalktree (tptr, map_modprewalk_premap, (void *)mdata);
+	}
 
 	return 0;		/* this always succeeds.. */
 }
@@ -185,7 +193,11 @@ int map_subpremap (tnode_t **tptr, map_t *mdata)
  */
 int map_subbemap (tnode_t **tptr, map_t *mdata)
 {
-	tnode_modprewalktree (tptr, map_modprewalk_bemap, (void *)mdata);
+	if (mdata->target && mdata->target->be_do_bemap) {
+		mdata->target->be_do_bemap (tptr, mdata);
+	} else {
+		tnode_modprewalktree (tptr, map_modprewalk_bemap, (void *)mdata);
+	}
 
 	return 0;		/* this always succeeds.. */
 }
@@ -216,9 +228,23 @@ int map_mapnames (tnode_t **tptr, target_t *target)
 	stringhash_init (mdata->mstate, MAP_MAPSTATE_BITSIZE);
 
 	/* do pre-mapping then real mapping */
-	tnode_modprewalktree (tptr, map_modprewalk_premap, (void *)mdata);
-	tnode_modprewalktree (tptr, map_modprewalk_mapnames, (void *)mdata);
-	tnode_modprewalktree (tptr, map_modprewalk_bemap, (void *)mdata);
+	if (target->be_do_premap) {
+		target->be_do_premap (tptr, mdata);
+	} else {
+		tnode_modprewalktree (tptr, map_modprewalk_premap, (void *)mdata);
+	}
+
+	if (target->be_do_namemap) {
+		target->be_do_namemap (tptr, mdata);
+	} else {
+		tnode_modprewalktree (tptr, map_modprewalk_mapnames, (void *)mdata);
+	}
+
+	if (target->be_do_bemap) {
+		target->be_do_bemap (tptr, mdata);
+	} else {
+		tnode_modprewalktree (tptr, map_modprewalk_bemap, (void *)mdata);
+	}
 
 	i = mdata->err;
 

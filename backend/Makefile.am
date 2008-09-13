@@ -8,7 +8,7 @@ AUTOMAKE_OPTIONS=foreign
 
 INCLUDES=-I@srcdir@/../include
 
-libbackend_a_SOURCES=krocetc.c
+libbackend_a_SOURCES=krocetc.c kroccifccsp.c
 
 
 CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@

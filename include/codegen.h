@@ -57,6 +57,18 @@ typedef struct TAG_codegen {
 	DYNARRAY (codegen_pcall_t *, pcalls);	/* post-codegen calls */
 } codegen_t;
 
+typedef struct TAG_codegeninithook {
+	struct TAG_codegeninithook *next;
+	void (*init)(struct TAG_tnode *, codegen_t *, void *);
+	void *arg;
+} codegeninithook_t;
+
+typedef struct TAG_codegenfinalhook {
+	struct TAG_codegenfinalhook *next;
+	void (*final)(struct TAG_tnode *, codegen_t *, void *);
+	void *arg;
+} codegenfinalhook_t;
+
 typedef struct TAG_coderops {
 	void (*loadpointer)(codegen_t *, struct TAG_tnode *, int);
 	void (*loadnthpointer)(codegen_t *, struct TAG_tnode *, int, int);
@@ -110,6 +122,9 @@ extern int precode_pullupprecodevars (struct TAG_tnode *dest_tptr, struct TAG_tn
 extern int codegen_generate_code (struct TAG_tnode **tptr, struct TAG_lexfile *lf, struct TAG_target *target);
 extern int codegen_subcodegen (struct TAG_tnode *tree, codegen_t *cgen);
 extern int codegen_subprecode (struct TAG_tnode **tptr, codegen_t *cgen);
+
+extern struct TAG_chook *codegen_getcodegeninithook (void);
+extern struct TAG_chook *codegen_getcodegenfinalhook (void);
 
 extern void codegen_setinithook (struct TAG_tnode *node, void (*init)(struct TAG_tnode *, codegen_t *, void *), void *arg);
 extern void codegen_setfinalhook (struct TAG_tnode *node, void (*final)(struct TAG_tnode *, codegen_t *, void *), void *arg);

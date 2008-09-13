@@ -361,11 +361,14 @@ static int occampi_constprop_dop (compops_t *cops, tnode_t **tptr)
  */
 static int occampi_premap_dop (compops_t *cops, tnode_t **node, map_t *map)
 {
-	/* pre-map left and right */
-	map_subpremap (tnode_nthsubaddr (*node, 0), map);
-	map_subpremap (tnode_nthsubaddr (*node, 1), map);
+	tnode_t *n = *node;
 
-	*node = map->target->newresult (*node, map);
+	/* pre-map left and right */
+	map_subpremap (tnode_nthsubaddr (n, 0), map);
+	map_subpremap (tnode_nthsubaddr (n, 1), map);
+
+	*node = map->target->newresult (n, map);
+	tnode_promotechooks (n, *node);
 
 	return 0;
 }

@@ -649,7 +649,7 @@ tnode_dumptree (type, 1, stderr);
 		vsize = map->target->pointersize;
 	} else {
 		initfunc = occampi_initvalabbrev;
-		vsize = tnode_bytesfor (*rhsp, map->target);
+		vsize = tnode_bytesfor (type, map->target);
 	}
 	initarg = *nodep;	/* handle on the original abbreviation */
 
@@ -811,7 +811,7 @@ static int occampi_bytesfor_namenode (langops_t *lops, tnode_t *node, target_t *
 		return tnode_bytesfor (type, target);
 	}
 
-	nocc_error ("occampi_bytesfor_namenode(): no bytes for [%s]", node->tag->name);
+	tnode_error (node, "occampi_bytesfor_namenode(): no bytes for [%s]", node->tag->name);
 	return -1;
 }
 /*}}}*/

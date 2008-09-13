@@ -47,17 +47,6 @@
 /*}}}*/
 
 /*{{{  private types*/
-typedef struct TAG_codegeninithook {
-	struct TAG_codegeninithook *next;
-	void (*init)(tnode_t *, codegen_t *, void *);
-	void *arg;
-} codegeninithook_t;
-
-typedef struct TAG_codegenfinalhook {
-	struct TAG_codegenfinalhook *next;
-	void (*final)(tnode_t *, codegen_t *, void *);
-	void *arg;
-} codegenfinalhook_t;
 
 /*}}}*/
 /*{{{  private data*/
@@ -550,7 +539,11 @@ fprintf (stderr, "codegen_modprewalk_precode(): pre-coding pc_chook vars.\n");
  */
 int codegen_subcodegen (tnode_t *tree, codegen_t *cgen)
 {
-	tnode_prewalktree (tree, codegen_prewalktree_codegen, (void *)cgen);
+	if (cgen->target && cgen->target->be_do_codegen) {
+		cgen->target->be_do_codegen (tree, cgen);
+	} else {
+		tnode_prewalktree (tree, codegen_prewalktree_codegen, (void *)cgen);
+	}
 
 	return cgen->error;
 }
@@ -562,7 +555,11 @@ int codegen_subcodegen (tnode_t *tree, codegen_t *cgen)
  */
 int codegen_subprecode (tnode_t **tptr, codegen_t *cgen)
 {
-	tnode_modprewalktree (tptr, codegen_modprewalk_precode, (void *)cgen);
+	if (cgen->target && cgen->target->be_do_precode) {
+		cgen->target->be_do_precode (tptr, cgen);
+	} else {
+		tnode_modprewalktree (tptr, codegen_modprewalk_precode, (void *)cgen);
+	}
 
 	return cgen->error;
 }
@@ -642,13 +639,22 @@ int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)
 
 	/*}}}*/
 	/*{{{  do pre-codegen on the tree*/
-	tnode_modprewalktree (cgen->cinsertpoint, codegen_modprewalk_precode, (void *)cgen);
+	if (cgen->target && cgen->target->be_do_precode) {
+		cgen->target->be_do_precode (cgen->cinsertpoint, cgen);
+	} else {
+		tnode_modprewalktree (cgen->cinsertpoint, codegen_modprewalk_precode, (void *)cgen);
+	}
 
 	/*}}}*/
 	/*{{{  generate code*/
-	i = codegen_subcodegen (*(cgen->cinsertpoint), cgen);
-	if (i) {
-		nocc_error ("failed to generate code");
+	if (cgen->target && cgen->target->be_do_codegen) {
+		cgen->target->be_do_codegen (*(cgen->cinsertpoint), cgen);
+		i = 0;
+	} else {
+		i = codegen_subcodegen (*(cgen->cinsertpoint), cgen);
+		if (i) {
+			nocc_error ("failed to generate code");
+		}
 	}
 
 	/*}}}*/
@@ -750,6 +756,24 @@ int codegen_new_label (codegen_t *cgen)
 }
 /*}}}*/
 
+/*{{{  chook_t *codegen_getcodegeninithook (void)*/
+/*
+ *	returns code-gen init compiler-hook
+ */
+chook_t *codegen_getcodegeninithook (void)
+{
+	return codegeninithook;
+}
+/*}}}*/
+/*{{{  chook_t *codegen_getcodegenfinalhook (void)*/
+/*
+ *	returns code-gen final compiler-hook
+ */
+chook_t *codegen_getcodegenfinalhook (void)
+{
+	return codegenfinalhook;
+}
+/*}}}*/
 
 /*{{{  void codegen_nocoder (codegen_t *cgen, const char *op)*/
 /*

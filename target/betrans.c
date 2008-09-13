@@ -387,7 +387,12 @@ if (*tptr) {
  */
 int betrans_subtree (tnode_t **tptr, betrans_t *be)
 {
-	tnode_modprewalktree (tptr, betrans_modprewalk_tree, (void *)be);
+	if (be->target && be->target->be_do_betrans) {
+		/* target-specific back-end transform overrides */
+		be->target->be_do_betrans (tptr, be);
+	} else {
+		tnode_modprewalktree (tptr, betrans_modprewalk_tree, (void *)be);
+	}
 
 	return 0;
 }
@@ -435,7 +440,12 @@ int betrans_tree (tnode_t **tptr, target_t *target)
 		betranstag_POINTERREF = tnode_newnodetag ("POINTERREF", &i, tnd, NTF_NONE);
 	}
 
-	tnode_modprewalktree (tptr, betrans_modprewalk_tree, (void *)be);
+	if (be->target && be->target->be_do_betrans) {
+		/* target-specific back-end transform overrides */
+		be->target->be_do_betrans (tptr, be);
+	} else {
+		tnode_modprewalktree (tptr, betrans_modprewalk_tree, (void *)be);
+	}
 
 	sfree (be);
 

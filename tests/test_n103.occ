@@ -1,0 +1,19 @@
+
+-- test_n103.occ -- testing odd code-gen case
+
+PROC foo (VAL BYTE ch, VAL INT field, CHAN BYTE out)
+  VAL [1]BYTE thing RETYPES ch:
+  SKIP
+:
+
+PROC test.n103 (VAL INT field, CHAN BYTE out)
+  INT i:
+  SEQ
+    i := 0
+    IF
+      field > 0
+        foo (' ', field, out)
+      TRUE
+        foo ('.', field - i, out)
+:
+

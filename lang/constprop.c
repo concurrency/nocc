@@ -340,6 +340,16 @@ static int cprop_getdescriptor_const (langops_t *lops, tnode_t *node, char **str
 	return 0;
 }
 /*}}}*/
+/*{{{  static int cprop_typetype_const (langops_t *lops, tnode_t *type)*/
+/*
+ *	returns the type category for a const (not type!)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cprop_typetype_const (langops_t *lops, tnode_t *type)
+{
+	return TYPE_NOTTYPE;
+}
+/*}}}*/
 
 
 /*{{{  static int cprop_modprewalktree (tnode_t **tptr, void *arg)*/
@@ -399,6 +409,7 @@ int constprop_init (void)
 	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (cprop_iscomplex_const));
 	tnode_setlangop (lops, "constvalof", 2, LANGOPTYPE (cprop_constvalof_const));
 	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (cprop_getdescriptor_const));
+	tnode_setlangop (lops, "typetype", 1, LANGOPTYPE (cprop_typetype_const));
 	tnd->lops = lops;
 
 	i = -1;
