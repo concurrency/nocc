@@ -115,6 +115,7 @@ target_t krocetc_target = {
 	slotsize:	4,
 	structalign:	4,
 	maxfuncreturn:	3,
+	skipallocate:	0,
 
 	tag_NAME:	NULL,
 	tag_NAMEREF:	NULL,

@@ -72,6 +72,7 @@
 static compop_t *inparams_scopein_compop = NULL;
 static compop_t *inparams_scopeout_compop = NULL;
 static compop_t *inparams_namemap_compop = NULL;
+static compop_t *inparams_lnamemap_compop = NULL;
 
 
 /*}}}*/
@@ -646,6 +647,53 @@ static int occampi_getdescriptor_procdecl (langops_t *lops, tnode_t *node, char 
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_lnamemap_procdecl (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does CIF/CCSP name-mapping for a PROC definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_lnamemap_procdecl (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t *blk;
+	tnode_t **paramsptr;
+
+#if 1
+fprintf (stderr, "occampi_lnamemap_procdecl(): here!\n");
+#endif
+	blk = map->target->newblock (tnode_nthsubof (*nodep, 2), map, tnode_nthsubof (*nodep, 1), map->lexlevel + 1);
+	map_pushlexlevel (map, blk, tnode_nthsubaddr (*nodep, 1));
+
+	/* map formal params and body */
+	paramsptr = tnode_nthsubaddr (*nodep, 1);
+	map->inparamlist = 1;
+
+	map_submapnames (paramsptr, map);
+	if (tnode_hascompop ((*nodep)->tag->ndef->ops, "inparams_lnamemap")) {
+		tnode_callcompop ((*nodep)->tag->ndef->ops, "inparams_lnamemap", 2, nodep, map);
+	}
+
+	map->inparamlist = 0;
+
+	map_submapnames (tnode_nthsubaddr (blk, 0), map);
+	map_poplexlevel (map);
+
+	/* insert the BLOCK node before the body of the process */
+	tnode_setnthsub (*nodep, 2, blk);
+
+	/* map body */
+	map_submapnames (tnode_nthsubaddr (*nodep, 3), map);
+
+	/* make sure parameters are a list */
+	if (!parser_islistnode (*paramsptr)) {
+		tnode_t *flist = parser_newlistnode (NULL);
+
+		parser_addtolist (flist, *paramsptr);
+		*paramsptr = flist;
+	}
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int occampi_lcodegen_procdecl (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	generates CIF/CCSP code for a PROC definition
@@ -654,9 +702,62 @@ static int occampi_getdescriptor_procdecl (langops_t *lops, tnode_t *node, char 
 static int occampi_lcodegen_procdecl (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	tnode_t *name = tnode_nthsubof (node, 0);
-	name_t *pname = tnode_nthnameof (name, 0);
+	tnode_t *fparams = tnode_nthsubof (node, 1);
+	tnode_t *body = tnode_nthsubof (node, 2);
+	name_t *pname;
+	tnode_t **fpitems;
+	int nfpitems;
+
+	body = tnode_nthsubof (node, 2);
+	pname = tnode_nthnameof (name, 0);
 
 	codegen_callops (cgen, comment, "PROC %s", pname->me->name);
+	codegen_callops (cgen, debugline, node);
+
+#if 1
+fprintf (stderr, "occampi_lcodegen_procdecl(): here!\n");
+#endif
+
+	fpitems = parser_getlistitems (fparams, &nfpitems);
+	if (!nfpitems) {
+		/* no parameters */
+		codegen_write_fmt (cgen, "void %s (Process *me)\n", pname->me->name);
+	} else {
+		int i;
+
+		codegen_write_fmt (cgen, "void %s (Process *me,\n", pname->me->name);
+		for (i=0; i<nfpitems; i++) {
+			codegen_subcodegen (fpitems[i], cgen);
+			if (i == (nfpitems - 1)) {
+				codegen_write_fmt (cgen, ")\n");
+			} else {
+				codegen_write_fmt (cgen, ",\n");
+			}
+		}
+	}
+
+	/* then the body */
+	codegen_subcodegen (body, cgen);
+
+#if 0
+	tnode_t *name = tnode_nthsubof (node, 0);
+	tnode_t *fparams = tnode_nthsubof (node, 1);
+	name_t *pname = tnode_nthnameof (name, 0);
+	char *fpbuf;
+	int j, fpbuflen;
+
+	fpitems = parser_getlistitems (fparams, &nfpitems);
+	fpbuflen = 1024 + (nfpitems * 128);
+	fpbuf = (char *)smalloc (fpbuflen);
+
+	j = snprintf (fpbuf, fpbuflen, "void %s (Process *me", pname->me->name);
+	for (i=0; i<nfpitems; i++) {
+		j += snprintf (fpbuf + j, fpbuflen - j, ", ");
+	}
+
+	codegen_write_fmt (cgen, "void %s (Process *me\n");
+
+#endif
 	return 0;
 }
 /*}}}*/
@@ -1301,6 +1402,7 @@ static int occampi_procdecl_init_nodes (void)
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (occampi_betrans_procdecl));
 	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (occampi_precode_procdecl));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (occampi_codegen_procdecl));
+	tnode_setcompop (cops, "lnamemap", 2, COMPOPTYPE (occampi_lnamemap_procdecl));
 	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (occampi_lcodegen_procdecl));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
@@ -1332,6 +1434,12 @@ static int occampi_procdecl_init_nodes (void)
 		return -1;
 	}
 	inparams_namemap_compop = tnode_findcompop ("inparams_namemap");
+
+	if (tnode_newcompop ("inparams_lnamemap", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
+		nocc_error ("occampi_decl_init_nodes(): failed to create inparams_lnamemap compiler operation");
+		return -1;
+	}
+	inparams_lnamemap_compop = tnode_findcompop ("inparams_lnamemap");
 
 	if (!inparams_scopein_compop || !inparams_scopeout_compop) {
 		nocc_error ("occampi_decl_init_nodes(): failed to find inparams scoping compiler operations");

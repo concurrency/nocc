@@ -62,6 +62,7 @@ typedef struct TAG_target {
 	int slotsize;										/* byte alignment for workspace slots */
 	int structalign;									/* byte alignment for structured types */
 	int maxfuncreturn;									/* maximum function return size (in slots) */
+	int skipallocate;									/* whether allocation pass should be skipped */
 
 	struct TAG_ntdef *tag_NAME;
 	struct TAG_ntdef *tag_NAMEREF;

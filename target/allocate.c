@@ -1155,32 +1155,34 @@ int preallocate_tree (tnode_t **tptr, target_t *target)
  */
 int allocate_tree (tnode_t **tptr, target_t *target)
 {
-	allocate_t *adata = (allocate_t *)smalloc (sizeof (allocate_t));
-	alloc_assign_t *apriv;
+	if (!target->skipallocate) {
+		allocate_t *adata = (allocate_t *)smalloc (sizeof (allocate_t));
+		alloc_assign_t *apriv;
 
-	adata->target = target;
-	adata->allochook = NULL;
-	adata->varmap_chook = tnode_lookupornewchook ("alloc:varmap");
-	adata->ev_chook = tnode_lookupornewchook ("alloc:extravars");
-	adata->ev_chook->chook_dumptree = allocate_extravars_chook_dumptree;
-	tnode_prewalktree (*tptr, allocate_prewalktree_blocks, (void *)adata);
+		adata->target = target;
+		adata->allochook = NULL;
+		adata->varmap_chook = tnode_lookupornewchook ("alloc:varmap");
+		adata->ev_chook = tnode_lookupornewchook ("alloc:extravars");
+		adata->ev_chook->chook_dumptree = allocate_extravars_chook_dumptree;
+		tnode_prewalktree (*tptr, allocate_prewalktree_blocks, (void *)adata);
 
-	sfree (adata);
-	apriv = (alloc_assign_t *)smalloc (sizeof (alloc_assign_t));
-	apriv->parent = NULL;
-	apriv->block = NULL;
-	apriv->lexlevel = -1;
-	apriv->target = target;
-	apriv->mapchook = tnode_lookupchookbyname ("map:mapnames");
-	apriv->ev_chook = tnode_lookupornewchook ("alloc:extravars");
+		sfree (adata);
+		apriv = (alloc_assign_t *)smalloc (sizeof (alloc_assign_t));
+		apriv->parent = NULL;
+		apriv->block = NULL;
+		apriv->lexlevel = -1;
+		apriv->target = target;
+		apriv->mapchook = tnode_lookupchookbyname ("map:mapnames");
+		apriv->ev_chook = tnode_lookupornewchook ("alloc:extravars");
 
 #if 0
 fprintf (stderr, "allocate_tree(): about to assign blocks, apriv->ev_chook = 0x%8.8x\n", (unsigned int)apriv->ev_chook);
 #endif
 
-	tnode_prewalktree (*tptr, allocate_prewalktree_assign_blocks, (void *)apriv);
+		tnode_prewalktree (*tptr, allocate_prewalktree_assign_blocks, (void *)apriv);
 
-	sfree (apriv);
+		sfree (apriv);
+	}
 
 	return 0;
 }

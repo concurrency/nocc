@@ -65,6 +65,18 @@ static void kroccifccsp_do_codegen (tnode_t *tptr, codegen_t *cgen);
 static int kroccifccsp_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile);
 static int kroccifccsp_be_codegen_final (codegen_t *cgen, lexfile_t *srcfile);
 
+static tnode_t *kroccifccsp_name_create (tnode_t *fename, tnode_t *body, map_t *mdata, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind);
+static tnode_t *kroccifccsp_nameref_create (tnode_t *bename, map_t *mdata);
+static tnode_t *kroccifccsp_block_create (tnode_t *body, map_t *mdata, tnode_t *slist, int lexlevel);
+static tnode_t *kroccifccsp_blockref_create (tnode_t *bloc, tnode_t *body, map_t *mdata);
+
+
+/*}}}*/
+/*{{{  private types*/
+
+typedef struct TAG_kroccifccsp_priv {
+	lexfile_t *lastfile;
+} kroccifccsp_priv_t;
 
 /*}}}*/
 /*{{{  private data*/
@@ -107,6 +119,7 @@ target_t kroccifccsp_target = {
 	slotsize:	0,
 	structalign:	0,
 	maxfuncreturn:	0,
+	skipallocate:	1,
 
 	tag_NAME:	NULL,
 	tag_NAMEREF:	NULL,
@@ -118,12 +131,12 @@ target_t kroccifccsp_target = {
 	tag_RESULT:	NULL,
 
 	init:		kroccifccsp_target_init,
-	newname:	NULL,
-	newnameref:	NULL,
-	newblock:	NULL,
+	newname:	kroccifccsp_name_create,
+	newnameref:	kroccifccsp_nameref_create,
+	newblock:	kroccifccsp_block_create,
 	newconst:	NULL,
 	newindexed:	NULL,
-	newblockref:	NULL,
+	newblockref:	kroccifccsp_blockref_create,
 	newresult:	NULL,
 	inresult:	NULL,
 
@@ -154,6 +167,276 @@ target_t kroccifccsp_target = {
 	priv:		NULL
 };
 
+/*}}}*/
+/*{{{  private types*/
+typedef struct TAG_kroccifccsp_namehook {
+	char *cname;		/* low-level variable name */
+	int lexlevel;		/* lexical level */
+	int alloc_wsh;		/* allocation in high-workspace */
+	int alloc_wsl;		/* allocation in low-workspace */
+	int alloc_vs;		/* allocation in vectorspace */
+	int alloc_ms;		/* allocation in mobilespace */
+	int typesize;		/* size of the actual type (if known) */
+	int indir;		/* indirection count (0 = real-thing, 1 = pointer, 2 = pointer-pointer, etc.) */
+	typecat_e typecat;	/* type category */
+} kroccifccsp_namehook_t;
+
+typedef struct TAG_kroccifccs_namerefhook {
+	tnode_t *nnode;				/* underlying back-end name-nodE */
+	kroccifccsp_namehook_t *nhook;		/* underlying name-hook */
+} kroccifccsp_namerefhook_t;
+
+typedef struct TAG_kroccifccsp_blockhook {
+	int lexlevel;				/* lexical level of this block */
+} kroccifccsp_blockhook_t;
+
+typedef struct TAG_kroccifccsp_blockrefhook {
+	tnode_t *block;
+} kroccifccsp_blockrefhook_t;
+
+
+/*}}}*/
+
+
+/*{{{  void kroccifccsp_isetindent (FILE *stream, int indent)*/
+/*
+ *	set-indent for debugging output
+ */
+void kroccifccsp_isetindent (FILE *stream, int indent)
+{
+	int i;
+
+	for (i=0; i<indent; i++) {
+		fprintf (stream, "    ");
+	}
+	return;
+}
+/*}}}*/
+
+/*{{{  static int kroccifccsp_init_options (kroccifccsp_priv_t *kpriv)*/
+/*
+ *	initialises options for the KRoC-CIF/CCSP back-end
+ *	returns 0 on success, non-zero on failure
+ */
+static int kroccifccsp_init_options (kroccifccsp_priv_t *kpriv)
+{
+	// opts_add ("norangechecks", '\0', kroccifccsp_opthandler_flag, (void *)1, "1do not generate range-checks");
+	return 0;
+}
+/*}}}*/
+
+/*{{{  kroccifccsp_namehook_t routines*/
+/*{{{  static void kroccifccsp_namehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps hook data for debugging
+ */
+static void kroccifccsp_namehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	kroccifccsp_namehook_t *nh = (kroccifccsp_namehook_t *)hook;
+
+	kroccifccsp_isetindent (stream, indent);
+	fprintf (stream, "<namehook addr=\"0x%8.8x\" cname=\"%s\" lexlevel=\"%d\" allocwsh=\"%d\" allocwsl=\"%d\" allocvs=\"%d\" allocms=\"%d\" typesize=\"%d\" indir=\"%d\" typecat=\"0x%8.8x\" />\n",
+			(unsigned int)nh, nh->cname, nh->lexlevel, nh->alloc_wsh, nh->alloc_wsl, nh->alloc_vs, nh->alloc_ms,
+			nh->typesize, nh->indir, (unsigned int)nh->typecat);
+	return;
+}
+/*}}}*/
+/*{{{  static kroccifccsp_namehook_t *kroccifccsp_namehook_create (char *cname, int ll, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)*/
+/*
+ *	creates a name-hook
+ */
+static kroccifccsp_namehook_t *kroccifccsp_namehook_create (char *cname, int ll, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)
+{
+	kroccifccsp_namehook_t *nh = (kroccifccsp_namehook_t *)smalloc (sizeof (kroccifccsp_namehook_t));
+
+	nh->cname = cname;
+	nh->lexlevel = ll;
+	nh->alloc_wsh = asize_wsh;
+	nh->alloc_wsl = asize_wsl;
+	nh->alloc_vs = asize_vs;
+	nh->alloc_ms = asize_ms;
+	nh->typesize = tsize;
+	nh->indir = ind;
+	nh->typecat = TYPE_NOTTYPE;
+
+	return nh;
+}
+/*}}}*/
+/*}}}*/
+/*{{{  kroccifccsp_namerefhook_t routines*/
+/*{{{  static void kroccifccsp_namerefhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps hook data for debugging
+ */
+static void kroccifccsp_namerefhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	kroccifccsp_namerefhook_t *nh = (kroccifccsp_namerefhook_t *)hook;
+
+	kroccifccsp_isetindent (stream, indent);
+	fprintf (stream, "<namerefhook addr=\"0x%8.8x\" nnode=\"0x%8.8x\" nhook=\"0x%8.8x\" cname=\"%s\" />\n",
+			(unsigned int)nh, (unsigned int)nh->nnode, (unsigned int)nh->nhook, (nh->nhook ? nh->nhook->cname : ""));
+	return;
+}
+/*}}}*/
+/*{{{  static kroccifccsp_namerefhook_t *kroccifccsp_namerefhook_create (tnode_t *nnode, kroccifccsp_namehook_t *nhook)*/
+/*
+ *	creates a name-ref-hook
+ */
+static kroccifccsp_namerefhook_t *kroccifccsp_namerefhook_create (tnode_t *nnode, kroccifccsp_namehook_t *nhook)
+{
+	kroccifccsp_namerefhook_t *nh = (kroccifccsp_namerefhook_t *)smalloc (sizeof (kroccifccsp_namerefhook_t));
+
+	nh->nnode = nnode;
+	nh->nhook = nhook;
+
+	return nh;
+}
+/*}}}*/
+/*}}}*/
+/*{{{  kroccifccsp_blockhook_t routines*/
+/*{{{  static void kroccifccsp_blockhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps hook for debugging
+ */
+static void kroccifccsp_blockhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	kroccifccsp_blockhook_t *bh = (kroccifccsp_blockhook_t *)hook;
+
+	kroccifccsp_isetindent (stream, indent);
+	fprintf (stream, "<blockhook addr=\"0x%8.8x\" lexlevel=\"%d\" />\n",
+			(unsigned int)bh, bh->lexlevel);
+	return;
+}
+/*}}}*/
+/*{{{  static kroccifccsp_blockhook_t *kroccifccsp_blockhook_create (int ll)*/
+/*
+ *	creates a block-hook
+ */
+static kroccifccsp_blockhook_t *kroccifccsp_blockhook_create (int ll)
+{
+	kroccifccsp_blockhook_t *bh = (kroccifccsp_blockhook_t *)smalloc (sizeof (kroccifccsp_blockhook_t));
+
+	bh->lexlevel = ll;
+
+	return bh;
+}
+/*}}}*/
+/*}}}*/
+/*{{{  kroccifccsp_blockrefhook_t routines*/
+/*{{{  static void kroccifccsp_blockrefhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps hook (debugging)
+ */
+static void kroccifccsp_blockrefhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	kroccifccsp_blockrefhook_t *brh = (kroccifccsp_blockrefhook_t *)hook;
+	tnode_t *blk = brh->block;
+
+	if (blk && parser_islistnode (blk)) {
+		int nitems, i;
+		tnode_t **blks = parser_getlistitems (blk, &nitems);
+
+		kroccifccsp_isetindent (stream, indent);
+		fprintf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" nblocks=\"%d\" blocks=\"", (unsigned int)brh, (unsigned int)blk, nitems);
+		for (i=0; i<nitems; i++ ) {
+			if (i) {
+				fprintf (stream, ",");
+			}
+			fprintf (stream, "0x%8.8x", (unsigned int)blks[i]);
+		}
+		fprintf (stream, "\" />\n");
+	} else {
+		kroccifccsp_isetindent (stream, indent);
+		fprintf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" />\n", (unsigned int)brh, (unsigned int)blk);
+	}
+
+	return;
+}
+/*}}}*/
+/*{{{  static kroccifccsp_blockrefhook_t *kroccifccsp_blockrefhook_create (tnode_t *block)*/
+/*
+ *	creates a new hook (populated)
+ */
+static kroccifccsp_blockrefhook_t *kroccifccsp_blockrefhook_create (tnode_t *block)
+{
+	kroccifccsp_blockrefhook_t *brh = (kroccifccsp_blockrefhook_t *)smalloc (sizeof (kroccifccsp_blockrefhook_t));
+
+	brh->block = block;
+
+	return brh;
+}
+/*}}}*/
+/*}}}*/
+
+
+/*{{{  static tnode_t *kroccifccsp_name_create (tnode_t *fename, tnode_t *body, map_t *mdata, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)*/
+/*
+ *	creates a new back-end name-node
+ */
+static tnode_t *kroccifccsp_name_create (tnode_t *fename, tnode_t *body, map_t *mdata, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)
+{
+	target_t *xt = mdata->target;		/* must be us! */
+	tnode_t *name;
+	kroccifccsp_namehook_t *nh;
+	char *cname = NULL;
+
+	langops_getname (fename, &cname);
+	if (!cname) {
+		cname = string_dup ("unknown");
+	}
+	nh = kroccifccsp_namehook_create (cname, mdata->lexlevel, asize_wsh, asize_wsl, asize_vs, asize_ms, tsize, ind);
+	name = tnode_create (xt->tag_NAME, NULL, fename, body, (void *)nh);
+
+	return name;
+}
+/*}}}*/
+/*{{{  static tnode_t *kroccifccsp_nameref_create (tnode_t *bename, map_t *mdata)*/
+/*
+ *	creates a new back-end name-reference node
+ */
+static tnode_t *kroccifccsp_nameref_create (tnode_t *bename, map_t *mdata)
+{
+	kroccifccsp_namerefhook_t *nh;
+	kroccifccsp_namehook_t *be_nh;
+	tnode_t *name, *fename;
+
+	be_nh = (kroccifccsp_namehook_t *)tnode_nthhookof (bename, 0);
+	nh = kroccifccsp_namerefhook_create (bename, be_nh);
+
+	fename = tnode_nthsubof (bename, 0);
+	name = tnode_create (mdata->target->tag_NAMEREF, NULL, fename, (void *)nh);
+
+	return name;
+}
+/*}}}*/
+/*{{{  static tnode_t *kroccifccsp_block_create (tnode_t *body, map_t *mdata, tnode_t *slist, int lexlevel)*/
+/*
+ *	creates a new back-end block
+ */
+static tnode_t *kroccifccsp_block_create (tnode_t *body, map_t *mdata, tnode_t *slist, int lexlevel)
+{
+	kroccifccsp_blockhook_t *bh;
+	tnode_t *blk;
+
+	bh = kroccifccsp_blockhook_create (lexlevel);
+	blk = tnode_create (mdata->target->tag_BLOCK, NULL, body, slist, (void *)bh);
+
+	return blk;
+}
+/*}}}*/
+/*{{{  static tnode_t *kroccifccsp_blockref_create (tnode_t *block, tnode_t *body, map_t *mdata)*/
+/*
+ *	creates a new back-end block reference node (used for procedure instances and the like)
+ */
+static tnode_t *kroccifccsp_blockref_create (tnode_t *block, tnode_t *body, map_t *mdata)
+{
+	kroccifccsp_blockrefhook_t *brh = kroccifccsp_blockrefhook_create (block);
+	tnode_t *blockref;
+
+	blockref = tnode_create (kroccifccsp_target.tag_BLOCKREF, NULL, body, (void *)brh);
+
+	return blockref;
+}
 /*}}}*/
 
 
@@ -205,6 +488,23 @@ static int kroccifccsp_prewalktree_codegen (tnode_t *node, void *data)
 }
 
 /*}}}*/
+/*{{{  static int kroccifccsp_modprewalktree_namemap (tnode_t **nodep, void *data)*/
+/*
+ *	modprewalktree for name-mapping, calls comp-ops "lnamemap" routine where present
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int kroccifccsp_modprewalktree_namemap (tnode_t **nodep, void *data)
+{
+	map_t *map = (map_t *)data;
+	int i = 1;
+
+	if ((*nodep)->tag->ndef->ops && tnode_hascompop_i ((*nodep)->tag->ndef->ops, (int)COPS_LNAMEMAP)) {
+		i = tnode_callcompop_i ((*nodep)->tag->ndef->ops, (int)COPS_LNAMEMAP, 2, nodep, map);
+	}
+
+	return i;
+}
+/*}}}*/
 
 
 /*{{{  static void kroccifccsp_do_betrans (tnode_t **tptr, betrans_t *be)*/
@@ -233,7 +533,7 @@ static void kroccifccsp_do_premap (tnode_t **tptr, map_t *map)
  */
 static void kroccifccsp_do_namemap (tnode_t **tptr, map_t *map)
 {
-	nocc_message ("kroccifccsp_do_namemap(): here!");
+	tnode_modprewalktree (tptr, kroccifccsp_modprewalktree_namemap, (void *)map);
 	return;
 }
 /*}}}*/
@@ -304,6 +604,30 @@ static void kroccifccsp_coder_comment (codegen_t *cgen, const char *fmt, ...)
 	return;
 }
 /*}}}*/
+/*{{{  static void kroccifccsp_coder_debugline (codegen_t *cgen, tnode_t *node)*/
+/*
+ *	generates debugging information (e.g. before a process)
+ */
+static void kroccifccsp_coder_debugline (codegen_t *cgen, tnode_t *node)
+{
+	kroccifccsp_priv_t *kpriv = (kroccifccsp_priv_t *)cgen->target->priv;
+
+#if 0
+	nocc_message ("kroccifccsp_coder_debugline(): [%s], line %d", node->tag->name, node->org_line);
+#endif
+	if (!node->org_file || !node->org_line) {
+		/* nothing to generate */
+		return;
+	}
+	if (node->org_file != kpriv->lastfile) {
+		kpriv->lastfile = node->org_file;
+		codegen_write_fmt (cgen, "#FILE %s\n", node->org_file->filename ?: "(unknown)");
+	}
+	codegen_write_fmt (cgen, "#LINE %d\n", node->org_line);
+
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static int kroccifccsp_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)*/
@@ -343,6 +667,7 @@ static int kroccifccsp_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
 
 	cops = (coderops_t *)smalloc (sizeof (coderops_t));
 	cops->comment = kroccifccsp_coder_comment;
+	cops->debugline = kroccifccsp_coder_debugline;
 
 	cgen->cops = cops;
 
@@ -360,6 +685,24 @@ static int kroccifccsp_be_codegen_final (codegen_t *cgen, lexfile_t *srcfile)
 	cgen->cops = NULL;
 
 	codegen_write_fmt (cgen, "/*\n *\tend of code generation\n */\n\n");
+
+	return 0;
+}
+/*}}}*/
+
+
+/*{{{  static int kroccifccsp_lcodegen_block (compops_t *cops, tnode_t *blk, codegen_t *cgen)*/
+/*
+ *	does code-generation for a back-end block
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int kroccifccsp_lcodegen_block (compops_t *cops, tnode_t *blk, codegen_t *cgen)
+{
+	kroccifccsp_priv_t *kpriv = (kroccifccsp_priv_t *)cgen->target->priv;
+
+	codegen_write_fmt (cgen, "{");
+	codegen_subcodegen (tnode_nthsubof (blk, 0), cgen);
+	codegen_write_fmt (cgen, "}");
 
 	return 0;
 }
@@ -411,10 +754,71 @@ int kroccifccsp_shutdown (void)
  */
 static int kroccifccsp_target_init (target_t *target)
 {
+	tndef_t *tnd;
+	kroccifccsp_priv_t *kpriv;
+	compops_t *cops;
+	langops_t *lops;
+	int i;
+
 	if (target->initialised) {
 		nocc_internal ("kroccifccsp_target_init(): already initialised!");
 		return 1;
 	}
+
+	kpriv = (kroccifccsp_priv_t *)smalloc (sizeof (kroccifccsp_priv_t));
+	kpriv->lastfile = NULL;
+	target->priv = (void *)kpriv;
+
+	kroccifccsp_init_options (kpriv);
+
+	/* setup back-end nodes */
+	/*{{{  kroccifccsp:name -- KROCCIFCCSPNAME*/
+	i = -1;
+	tnd = tnode_newnodetype ("kroccifccsp:name", &i, 2, 0, 1, TNF_NONE);		/* subnodes: original name, in-scope body; hooks: kroccifccsp_namehook_t */
+	tnd->hook_dumptree = kroccifccsp_namehook_dumptree;
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	target->tag_NAME = tnode_newnodetag ("KROCCIFCCSPNAME", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  kroccifccsp:nameref -- KROCCIFCCSPNAMEREF*/
+	i = -1;
+	tnd = tnode_newnodetype ("kroccifccsp:nameref", &i, 1, 0, 1, TNF_NONE);		/* subnodes: original name; hooks: kroccifccsp_namerefhook_t */
+	tnd->hook_dumptree = kroccifccsp_namerefhook_dumptree;
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	target->tag_NAMEREF = tnode_newnodetag ("KROCCIFCCSPNAMEREF", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  kroccifccsp:block -- KROCCIFCCSPBLOCK*/
+	i = -1;
+	tnd = tnode_newnodetype ("kroccifccsp:block", &i, 2, 0, 1, TNF_NONE);		/* subnodes: block body, statics; hooks: kroccifccsp_blockhook_t */
+	tnd->hook_dumptree = kroccifccsp_blockhook_dumptree;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (kroccifccsp_lcodegen_block));
+	tnd->ops = cops;
+
+	i = -1;
+	target->tag_BLOCK = tnode_newnodetag ("KROCCIFCCSPBLOCK", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  kroccifccsp:blockref -- KROCCIFCCSPBLOCKREF*/
+	i = -1;
+	tnd = tnode_newnodetype ("kroccifccsp_blockref", &i, 1, 0, 1, TNF_NONE);	/* subnodes: body; hooks: kroccifccsp_blockrefhook_t */
+	tnd->hook_dumptree = kroccifccsp_blockrefhook_dumptree;
+
+	i = -1;
+	target->tag_BLOCKREF = tnode_newnodetag ("KROCCIFCCSPBLOCKREF", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 
 	target->initialised = 1;
 	return 0;
