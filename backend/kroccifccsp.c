@@ -72,20 +72,6 @@ static tnode_t *kroccifccsp_blockref_create (tnode_t *bloc, tnode_t *body, map_t
 
 
 /*}}}*/
-/*{{{  private types*/
-
-typedef struct TAG_kroccifccsp_priv {
-	lexfile_t *lastfile;
-} kroccifccsp_priv_t;
-
-/*}}}*/
-/*{{{  private data*/
-
-static chook_t *codegeninithook = NULL;
-static chook_t *codegenfinalhook = NULL;
-
-
-/*}}}*/
 
 /*{{{  target_t for this target*/
 target_t kroccifccsp_target = {
@@ -169,6 +155,10 @@ target_t kroccifccsp_target = {
 
 /*}}}*/
 /*{{{  private types*/
+typedef struct TAG_kroccifccsp_priv {
+	lexfile_t *lastfile;
+} kroccifccsp_priv_t;
+
 typedef struct TAG_kroccifccsp_namehook {
 	char *cname;		/* low-level variable name */
 	int lexlevel;		/* lexical level */
@@ -193,6 +183,15 @@ typedef struct TAG_kroccifccsp_blockhook {
 typedef struct TAG_kroccifccsp_blockrefhook {
 	tnode_t *block;
 } kroccifccsp_blockrefhook_t;
+
+
+/*}}}*/
+/*{{{  private data*/
+
+static chook_t *codegeninithook = NULL;
+static chook_t *codegenfinalhook = NULL;
+
+static chook_t *kroccifccsp_ctypestr = NULL;
 
 
 /*}}}*/
@@ -700,9 +699,9 @@ static int kroccifccsp_lcodegen_block (compops_t *cops, tnode_t *blk, codegen_t 
 {
 	kroccifccsp_priv_t *kpriv = (kroccifccsp_priv_t *)cgen->target->priv;
 
-	codegen_write_fmt (cgen, "{");
+	codegen_write_fmt (cgen, "{\n");
 	codegen_subcodegen (tnode_nthsubof (blk, 0), cgen);
-	codegen_write_fmt (cgen, "}");
+	codegen_write_fmt (cgen, "}\n");
 
 	return 0;
 }

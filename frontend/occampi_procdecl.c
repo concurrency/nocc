@@ -721,11 +721,11 @@ fprintf (stderr, "occampi_lcodegen_procdecl(): here!\n");
 	fpitems = parser_getlistitems (fparams, &nfpitems);
 	if (!nfpitems) {
 		/* no parameters */
-		codegen_write_fmt (cgen, "void %s (Process *me)\n", pname->me->name);
+		codegen_write_fmt (cgen, "void %s (Process *me_0)\n", pname->me->name);
 	} else {
 		int i;
 
-		codegen_write_fmt (cgen, "void %s (Process *me,\n", pname->me->name);
+		codegen_write_fmt (cgen, "void %s (Process *me_0,\n", pname->me->name);
 		for (i=0; i<nfpitems; i++) {
 			codegen_subcodegen (fpitems[i], cgen);
 			if (i == (nfpitems - 1)) {
@@ -739,25 +739,8 @@ fprintf (stderr, "occampi_lcodegen_procdecl(): here!\n");
 	/* then the body */
 	codegen_subcodegen (body, cgen);
 
-#if 0
-	tnode_t *name = tnode_nthsubof (node, 0);
-	tnode_t *fparams = tnode_nthsubof (node, 1);
-	name_t *pname = tnode_nthnameof (name, 0);
-	char *fpbuf;
-	int j, fpbuflen;
-
-	fpitems = parser_getlistitems (fparams, &nfpitems);
-	fpbuflen = 1024 + (nfpitems * 128);
-	fpbuf = (char *)smalloc (fpbuflen);
-
-	j = snprintf (fpbuf, fpbuflen, "void %s (Process *me", pname->me->name);
-	for (i=0; i<nfpitems; i++) {
-		j += snprintf (fpbuf + j, fpbuflen - j, ", ");
-	}
-
-	codegen_write_fmt (cgen, "void %s (Process *me\n");
-
-#endif
+	/* then whatever comes next */
+	codegen_subcodegen (tnode_nthsubof (node, 3), cgen);
 	return 0;
 }
 /*}}}*/
@@ -1138,6 +1121,24 @@ fprintf (stderr, "occampi_namemap_fparam(): node is [%s], type is [%s], tsize = 
 	return 0;
 }
 /*}}}*/
+/*{{{  static int occampi_lnamemap_fparam (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	transforms a formal parameter into a back-end name
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int occampi_lnamemap_fparam (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t **namep = tnode_nthsubaddr (*nodep, 0);
+	tnode_t *type = tnode_nthsubof (*nodep, 1);
+	tnode_t *bename;
+
+	bename = map->target->newname (*namep, NULL, map, 0, 0, 0, 0, 0, 0);
+	tnode_setchook (*namep, map->mapchook, (void *)bename);
+
+	*nodep = bename;
+	return 0;
+}
+/*}}}*/
 /*{{{  static tnode_t *occampi_gettype_fparam (langops_t *lops, tnode_t *node, tnode_t *defaulttype)*/
 /*
  *	returns the type of a formal parameter
@@ -1364,6 +1365,7 @@ static int occampi_procdecl_init_nodes (void)
 	tnode_setcompop (cops, "mobilitycheck", 2, COMPOPTYPE (occampi_mobilitycheck_fparam));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (occampi_fetrans_fparam));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (occampi_namemap_fparam));
+	tnode_setcompop (cops, "lnamemap", 2, COMPOPTYPE (occampi_lnamemap_fparam));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (occampi_getdescriptor_fparam));
