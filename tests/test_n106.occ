@@ -1,0 +1,7 @@
+
+-- test_n106.occ -- testing VAL param issue..
+
+PROC n106 (VAL INT a, b)
+  SKIP
+:
+
