@@ -57,6 +57,11 @@ typedef struct TAG_ngrule {
 	void *grule;
 } ngrule_t;
 
+typedef struct TAG_tagmarker {
+	char *name;
+	ntdef_t *tag;
+} tagmarker_t;
+
 /*}}}*/
 /*{{{  private data*/
 
@@ -69,6 +74,13 @@ static ntdef_t *tag_TESTFALSE;
 
 STATICSTRINGHASH (ngrule_t *, ngrules, 6);
 STATICDYNARRAY (ngrule_t *, angrules);
+
+STATICSTRINGHASH (tagmarker_t *, tagmarkers, 4);
+STATICDYNARRAY (tagmarker_t *, atagmarkers);
+
+/*}}}*/
+/*{{{  forward declarations*/
+static void parser_freetagmarker (tagmarker_t *tm);
 
 /*}}}*/
 
@@ -94,6 +106,9 @@ int parser_init (void)
 
 	stringhash_sinit (ngrules);
 	dynarray_init (angrules);
+
+	stringhash_sinit (tagmarkers);
+	dynarray_init (atagmarkers);
 
 	parser_register_grule ("parser:nullreduce", parser_decode_grule ("N+R-"));
 	parser_register_grule ("parser:listresult", parser_decode_grule ("R+N-"));
@@ -122,7 +137,18 @@ int parser_init (void)
  */
 int parser_shutdown (void)
 {
+	int i;
+
 	/* FIXME: should free up reducers, really .. */
+
+	/* free up tag-markers */
+	for (i=0; i<DA_CUR (atagmarkers); i++) {
+		parser_freetagmarker (DA_NTHITEM (atagmarkers, i));
+	}
+
+	dynarray_trash (atagmarkers);
+	stringhash_trash (tagmarkers);
+
 	return 0;
 }
 /*}}}*/
@@ -235,6 +261,61 @@ int parser_checkerror (lexfile_t *lf, const int mark)
 }
 /*}}}*/
 
+/*{{{  static tagmarker_t *parser_newtagmarker (void)*/
+/*
+ *	creates a new tagmarker_t structure.
+ */
+static tagmarker_t *parser_newtagmarker (void)
+{
+	tagmarker_t *tm = (tagmarker_t *)smalloc (sizeof (tagmarker_t));
+
+	tm->name = NULL;
+	tm->tag = NULL;
+
+	return tm;
+}
+/*}}}*/
+/*{{{  static void parser_freetagmarker (tagmarker_t *tm)*/
+/*
+ *	frees a tagmarker_t structure.
+ */
+static void parser_freetagmarker (tagmarker_t *tm)
+{
+	if (!tm) {
+		nocc_internal ("parser_freetagmarker(): NULL tag-marker");
+		return;
+	}
+	if (tm->name) {
+		sfree (tm->name);
+		tm->name = NULL;
+	}
+	sfree (tm);
+
+	return;
+}
+/*}}}*/
+/*{{{  static tagmarker_t *parser_findtagmarker (const char *name, const int create)*/
+/*
+ *	finds a particular tag-marker, either creates new or fails
+ */
+static tagmarker_t *parser_findtagmarker (const char *name, const int create)
+{
+	tagmarker_t *tm;
+
+	tm = stringhash_lookup (tagmarkers, name);
+	if (tm) {
+		return tm;
+	}
+	if (!create) {
+		return NULL;
+	}
+
+	tm = parser_newtagmarker ();
+	tm->name = string_dup (name);
+
+	return tm;
+}
+/*}}}*/
 
 /*{{{  parsepriv_t *parser_newparsepriv (void)*/
 /*
@@ -1017,6 +1098,8 @@ void *parser_lookup_rarg (const char *name)
 #define ICDE_MAKELIST 23	/* make a new list node using following count nodes taken from the local stack, result pushed back onto local stack */
 #define ICDE_FOLDINTO 24	/* fold the node at the top of the local stack (popped) into the following count'th subnode of the next node on the local stack */
 #define ICDE_EXTRACT 25		/* extract the following count'th subnode from the item at the top of the local stack and push onto the local stack */
+#define ICDE_SETTAGMARK 26	/* set tag marker, followed by pointer to tagmarker_t structure and nt_def_t structure */
+#define ICDE_COMBINETAG 27	/* make a new node using following count nodes taken from local stack, followed by tagmarker_t pointer */
 
 /*}}}*/
 

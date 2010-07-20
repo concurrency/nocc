@@ -368,11 +368,12 @@ int opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft)
 	int i;
 
 	fprintf (outstream, "nocc (%s) Version " VERSION " " HOST_CPU "-" HOST_VENDOR "-" HOST_OS " (targetting " TARGET_CPU "-" TARGET_VENDOR "-" TARGET_OS ")\n", progname);
-	fprintf (outstream, "Copyright (C) 2004-2007 Fred Barnes, University of Kent\n");
+	fprintf (outstream, "Copyright (C) 2004-2010 Fred Barnes, University of Kent\n");
 	fprintf (outstream, "Released under the terms and conditions of the GNU GPL v2\n\n");
 	fflush (outstream);
 	fprintf (outstream, "usage:  %s [options] <source filename>\n", progname);
 	fprintf (outstream, "options:\n");
+
 	for (i = 0; i < DA_CUR (ordered_options); i++) {
 		if (ordered_options[i] && ordered_options[i]->name && ordered_options[i]->help && (ordered_options[i]->help[0] <= opt->help[0])) {
 			char *htext = ordered_options[i]->help + 1;
