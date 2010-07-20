@@ -313,6 +313,9 @@ static tagmarker_t *parser_findtagmarker (const char *name, const int create)
 	tm = parser_newtagmarker ();
 	tm->name = string_dup (name);
 
+	stringhash_insert (tagmarkers, tm, tm->name);
+	dynarray_add (atagmarkers, tm);
+
 	return tm;
 }
 /*}}}*/
@@ -1204,13 +1207,37 @@ void parser_generic_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 			*(dfast->ptr) = NULL;
 			break;
 			/*}}}*/
-			/*{{{  COMBINE*/
-		case ICDE_COMBINE:
+			/*{{{  SETTAGMARK*/
+		case ICDE_SETTAGMARK:
 			{
+				tagmarker_t *tm = (tagmarker_t *)arg[++ipos];
+				ntdef_t *tag = (ntdef_t *)arg[++ipos];
+
+#if 1
+fprintf (stderr, "settagmark: tagmark [%s], tag [%s]\n", tm->name, tag->name);
+#endif
+				tm->tag = tag;
+			}
+			break;
+			/*}}}*/
+			/*{{{  COMBINE, COMBINETAG*/
+		case ICDE_COMBINE:
+		case ICDE_COMBINETAG:
+			{
+				int usetag = (arg[ipos] == ICDE_COMBINETAG);
 				int ccnt = (int)arg[++ipos];
 				ntdef_t *tag = (ntdef_t *)arg[++ipos];
 				tnode_t *rnode;
 
+				/* fixup tag if using marker */
+				if (usetag) {
+					tagmarker_t *tm = (tagmarker_t *)tag;
+
+					tag = tm->tag;
+#if 1
+fprintf (stderr, "combinetag: tag is [%s]\n", tag->name);
+#endif
+				}
 				/*{{{  check number of arguments in use w.r.t. the node we're building*/
 				if (ccnt != (tag->ndef->nsub + tag->ndef->nname + tag->ndef->nhooks)) {
 					nocc_serious ("parser_generic_reduce(): building node [%s] with %d arguments, but expected %d",
@@ -1668,11 +1695,68 @@ void *parser_decode_grule (const char *rule, ...)
 			ilen += 2;
 			break;
 			/*}}}*/
-			/*{{{  C -- condense into new token*/
+			/*{{{  M -- set tag mark*/
+		case 'M':
+			{
+				tagmarker_t *tm = NULL;
+				ntdef_t *namedtag = NULL;
+
+				xrule++;
+				if (*xrule == '[') {
+					char *tmname = NULL;
+					char *tnname = NULL;
+
+					xrule++;
+					for (tmname = xrule; (*xrule != ']') && (*xrule != '\0'); xrule++);
+					tmname = string_ndup (tmname, (int)(xrule - tmname));
+
+					tm = parser_findtagmarker (tmname, 1);
+					if (!tm) {
+						nocc_error ("parser_decode_grule(): failed to find/create tag-marker [%s]", tmname);
+						sfree (tmname);
+						return NULL;
+					}
+					sfree (tmname);
+					if (*xrule != ']') {
+						goto report_error_out;
+					}
+					xrule++;
+
+					if (*xrule != '[') {
+						goto report_error_out;
+					}
+					xrule++;
+					for (tnname = xrule; (*xrule != ']') && (*xrule != '\0'); xrule++);
+					tnname = string_ndup (tnname, (int)(xrule - tnname));
+
+					namedtag = tnode_lookupnodetag (tnname);
+					if (!namedtag) {
+						nocc_error ("parser_decode_grule(): unknown tag name [%s]", tnname);
+						sfree (tnname);
+						return NULL;
+					}
+					sfree (tnname);
+					if (*xrule != ']') {
+						goto report_error_out;
+					}
+
+				} else {
+					nocc_error ("parser_decode_grule(): malformed set tag-marker (M)");
+					return NULL;
+				}
+
+				userparams[uplen++] = (void *)tm;
+				userparams[uplen++] = (void *)namedtag;
+				ilen += 3;
+			}
+			break;
+			/*}}}*/
+			/*{{{  C -- condense into new token (combine)*/
 		case 'C':
 			xrule++;
 			{
 				ntdef_t *namedtag = NULL;
+				tagmarker_t *tm = NULL;
 
 				if (*xrule == '[') {
 					/* named rule, not passed as an argument */
@@ -1692,6 +1776,25 @@ void *parser_decode_grule (const char *rule, ...)
 					if (*xrule == ']') {
 						xrule++;
 					}
+				} else if (*xrule == '{') {
+					/* named tag-marker */
+					char *tname;
+
+					xrule++;
+					for (tname = xrule; (*xrule != '}') && (*xrule != '\0'); xrule++);
+					tname = string_ndup (tname, (int)(xrule - tname));
+
+					tm = parser_findtagmarker (tname, 1);
+
+					if (!tm) {
+						nocc_error ("parser_decode_grule(): unknown tag-marker [%s]", tname);
+						sfree (tname);
+						return NULL;
+					}
+					sfree (tname);
+					if (*xrule == '}') {
+						xrule++;
+					}
 				}
 
 				if ((*xrule < '0') || (*xrule > '9')) {
@@ -1707,7 +1810,9 @@ void *parser_decode_grule (const char *rule, ...)
 					lsdepth++;
 				}
 
-				if (namedtag) {
+				if (tm) {
+					userparams[uplen++] = (void *)tm;
+				} else if (namedtag) {
 					userparams[uplen++] = (void *)namedtag;
 				} else {
 					userparams[uplen++] = (void *)va_arg (ap, ntdef_t *);
@@ -1881,16 +1986,41 @@ void *parser_decode_grule (const char *rule, ...)
 			icode[i] = (int)(*xrule - '0');
 			break;
 			/*}}}*/
-			/*{{{  C -- condense into new token*/
-		case 'C':
+			/*{{{  M -- set tag marker*/
+		case 'M':
 			xrule++;
 			if (*xrule == '[') {
 				for (xrule++; (*xrule != ']') && (*xrule != '\0'); xrule++);
 				xrule++;
 			}
-			icode[i++] = ICDE_COMBINE;
-			icode[i++] = (int)(*xrule - '0');
+			if (*xrule == '[') {
+				for (xrule++; (*xrule != ']') && (*xrule != '\0'); xrule++);
+			}
+			icode[i++] = ICDE_SETTAGMARK;
+			icode[i++] = (unsigned int)(userparams[uplen++]);
 			icode[i] = (unsigned int)(userparams[uplen++]);
+			break;
+			/*}}}*/
+			/*{{{  C -- condense into new token*/
+		case 'C':
+			{
+				int code = ICDE_COMBINE;
+
+				xrule++;
+				if (*xrule == '[') {
+					for (xrule++; (*xrule != ']') && (*xrule != '\0'); xrule++);
+					xrule++;
+				} else if (*xrule == '{') {
+					for (xrule++; (*xrule != '}') && (*xrule != '\0'); xrule++);
+					xrule++;
+
+					code = ICDE_COMBINETAG;
+				}
+					
+				icode[i++] = code;
+				icode[i++] = (int)(*xrule - '0');
+				icode[i] = (unsigned int)(userparams[uplen++]);
+			}
 			break;
 			/*}}}*/
 			/*{{{  S -- set origin for combine*/
@@ -1943,7 +2073,7 @@ void *parser_decode_grule (const char *rule, ...)
 
 	return (void *)icode;
 report_error_out:
-	nocc_error ("parser_decode_grule(): error at char %d in \"%s\"", (int)(xrule - rule), rule);
+	nocc_error ("parser_decode_grule(): error at char %d (%c) in \"%s\"", (int)(xrule - rule), (*xrule == '\0') ? '#' : *xrule, rule);
 	return NULL;
 }
 /*}}}*/
