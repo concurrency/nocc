@@ -3159,6 +3159,36 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 		/*}}}*/
+		/*{{{  UADD: unsigned add checking for overflow*/
+	case I_UADD:
+		codegen_write_string (cgen, "\tuadd\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  USUB: unsigned subtract checking for overflow*/
+	case I_USUB:
+		codegen_write_string (cgen, "\tusub\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  UMUL: unsigned multiply checking for overflow*/
+	case I_UMUL:
+		codegen_write_string (cgen, "\tumul\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  UDIV: unsigned divide checking for overflow*/
+	case I_UDIV:
+		codegen_write_string (cgen, "\tudiv\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  UREM: unsigned remainder checking for overflow*/
+	case I_UREM:
+		codegen_write_string (cgen, "\turem\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
 		/*{{{  SUM: add without checking for overflow*/
 	case I_SUM:
 		codegen_write_string (cgen, "\tsum\n");
@@ -3174,6 +3204,12 @@ static void krocetc_coder_tsecondary (codegen_t *cgen, int ins)
 		/*{{{  PROD: multiply without checking for overflow*/
 	case I_PROD:
 		codegen_write_string (cgen, "\tprod\n");
+		krocetc_cgstate_tsdelta (cgen, -1);
+		break;
+		/*}}}*/
+		/*{{{  UPROD: unsigned multiply without checking for overflow*/
+	case I_UPROD:
+		codegen_write_string (cgen, "\tuprod\n");
 		krocetc_cgstate_tsdelta (cgen, -1);
 		break;
 		/*}}}*/

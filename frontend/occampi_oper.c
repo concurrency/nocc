@@ -67,6 +67,7 @@ typedef struct TAG_dopmap {
 	token_t *tok;
 	ntdef_t **tagp;
 	transinstr_e instr;
+	transinstr_e uinstr;
 	transinstr_e fpinstr;
 	int rhs_is_int;
 } dopmap_t;
@@ -87,6 +88,7 @@ typedef struct TAG_relmap {
 	ntdef_t **tagp;
 	void (*cgfunc)(codegen_t *, int);
 	int cgarg;
+	int ucgarg;
 	int fpcgarg;
 } relmap_t;
 
@@ -100,32 +102,32 @@ static void occampi_oper_geninvrelop (codegen_t *cgen, int arg);
 /*}}}*/
 /*{{{  private data*/
 static dopmap_t dopmap[] = {
-	{SYMBOL, "+", NULL, &(opi.tag_ADD), I_ADD, I_FPADD, 0},
-	{SYMBOL, "-", NULL, &(opi.tag_SUB), I_SUB, I_INVALID, 0},
-	{SYMBOL, "*", NULL, &(opi.tag_MUL), I_MUL, I_INVALID, 0},
-	{SYMBOL, "/\\", NULL, &(opi.tag_BITAND), I_AND, I_INVALID, 0},
-	{SYMBOL, "><", NULL, &(opi.tag_BITXOR), I_XOR, I_INVALID, 0},
-	{SYMBOL, "/", NULL, &(opi.tag_DIV), I_DIV, I_INVALID, 0},
-	{SYMBOL, "<<", NULL, &(opi.tag_LSHIFT), I_SHL, I_INVALID, 1},
-	{SYMBOL, ">>", NULL, &(opi.tag_RSHIFT), I_SHR, I_INVALID, 1},
-	{SYMBOL, "\\/", NULL, &(opi.tag_BITOR), I_OR, I_INVALID, 0},
-	{SYMBOL, "\\", NULL, &(opi.tag_REM), I_REM, I_INVALID, 0},
-	{KEYWORD, "PLUS", NULL, &(opi.tag_PLUS), I_SUM, I_INVALID, 0},
-	{KEYWORD, "MINUS", NULL, &(opi.tag_MINUS), I_DIFF, I_INVALID, 0},
-	{KEYWORD, "TIMES", NULL, &(opi.tag_TIMES), I_PROD, I_INVALID, 0},
-	{KEYWORD, "AND", NULL, &(opi.tag_AND), I_AND, I_INVALID, 0},
-	{KEYWORD, "OR", NULL, &(opi.tag_OR), I_OR, I_INVALID, 0},
-	{KEYWORD, "XOR", NULL, &(opi.tag_XOR), I_XOR, I_INVALID, 0},
-	{NOTOKEN, NULL, NULL, NULL, I_INVALID, I_INVALID, 0}
+	{SYMBOL, "+", NULL, &(opi.tag_ADD), I_ADD, I_UADD, I_FPADD, 0},
+	{SYMBOL, "-", NULL, &(opi.tag_SUB), I_SUB, I_USUB, I_INVALID, 0},
+	{SYMBOL, "*", NULL, &(opi.tag_MUL), I_MUL, I_UMUL, I_INVALID, 0},
+	{SYMBOL, "/\\", NULL, &(opi.tag_BITAND), I_AND, I_AND, I_INVALID, 0},
+	{SYMBOL, "><", NULL, &(opi.tag_BITXOR), I_XOR, I_XOR, I_INVALID, 0},
+	{SYMBOL, "/", NULL, &(opi.tag_DIV), I_DIV, I_UDIV, I_INVALID, 0},
+	{SYMBOL, "<<", NULL, &(opi.tag_LSHIFT), I_SHL, I_SHL, I_INVALID, 1},
+	{SYMBOL, ">>", NULL, &(opi.tag_RSHIFT), I_SHR, I_SHR, I_INVALID, 1},
+	{SYMBOL, "\\/", NULL, &(opi.tag_BITOR), I_OR, I_OR, I_INVALID, 0},
+	{SYMBOL, "\\", NULL, &(opi.tag_REM), I_REM, I_UREM, I_INVALID, 0},
+	{KEYWORD, "PLUS", NULL, &(opi.tag_PLUS), I_SUM, I_SUM, I_INVALID, 0},
+	{KEYWORD, "MINUS", NULL, &(opi.tag_MINUS), I_DIFF, I_DIFF, I_INVALID, 0},
+	{KEYWORD, "TIMES", NULL, &(opi.tag_TIMES), I_PROD, I_UPROD, I_INVALID, 0},
+	{KEYWORD, "AND", NULL, &(opi.tag_AND), I_AND, I_AND, I_INVALID, 0},
+	{KEYWORD, "OR", NULL, &(opi.tag_OR), I_OR, I_OR, I_INVALID, 0},
+	{KEYWORD, "XOR", NULL, &(opi.tag_XOR), I_XOR, I_XOR, I_INVALID, 0},
+	{NOTOKEN, NULL, NULL, NULL, I_INVALID, I_INVALID, I_INVALID, 0}
 };
 
 static relmap_t relmap[] = {
-	{SYMBOL, "=", NULL, &(opi.tag_RELEQ), occampi_oper_genrelop, I_EQ, I_INVALID},
-	{SYMBOL, "<>", NULL, &(opi.tag_RELNEQ), occampi_oper_geninvrelop, I_EQ, I_INVALID},
-	{SYMBOL, "<", NULL, &(opi.tag_RELLT), occampi_oper_genrelop, I_LT, I_INVALID},
-	{SYMBOL, ">=", NULL, &(opi.tag_RELGEQ), occampi_oper_geninvrelop, I_LT, I_INVALID},
-	{SYMBOL, ">", NULL, &(opi.tag_RELGT), occampi_oper_genrelop, I_GT, I_INVALID},
-	{SYMBOL, "<=", NULL, &(opi.tag_RELLEQ), occampi_oper_geninvrelop, I_GT, I_INVALID},
+	{SYMBOL, "=", NULL, &(opi.tag_RELEQ), occampi_oper_genrelop, I_EQ, I_EQ, I_INVALID},
+	{SYMBOL, "<>", NULL, &(opi.tag_RELNEQ), occampi_oper_geninvrelop, I_EQ, I_EQ, I_INVALID},
+	{SYMBOL, "<", NULL, &(opi.tag_RELLT), occampi_oper_genrelop, I_LT, I_SMALLER, I_INVALID},
+	{SYMBOL, ">=", NULL, &(opi.tag_RELGEQ), occampi_oper_geninvrelop, I_LT, I_SMALLER, I_INVALID},
+	{SYMBOL, ">", NULL, &(opi.tag_RELGT), occampi_oper_genrelop, I_GT, I_GREATER, I_INVALID},
+	{SYMBOL, "<=", NULL, &(opi.tag_RELLEQ), occampi_oper_geninvrelop, I_GT, I_GREATER, I_INVALID},
 	{NOTOKEN, NULL, NULL, NULL, NULL, I_INVALID, I_INVALID}
 };
 
@@ -409,7 +411,11 @@ tnode_dumptree (type, 1, stderr);
 	for (i=0; dopmap[i].lookup; i++) {
 		if (node->tag == *(dopmap[i].tagp)) {
 			if (tc & TYPE_INTEGER) {
-				codegen_callops (cgen, tsecondary, dopmap[i].instr);
+				if (tc & TYPE_SIGNED) {
+					codegen_callops (cgen, tsecondary, dopmap[i].instr);
+				} else {
+					codegen_callops (cgen, tsecondary, dopmap[i].uinstr);
+				}
 			} else if (tc & TYPE_REAL) {
 				codegen_callops (cgen, tsecondary, dopmap[i].fpinstr);
 			} else {

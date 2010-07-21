@@ -189,7 +189,15 @@ typedef enum ENUM_transinstr {
 	I_FPCHKI64 = 167,
 	I_FPPOP = 168,
 	I_FPSTALL = 169,
-	I_FPLDALL = 170
+	I_FPLDALL = 170,
+	I_SMALLER = 171,
+	I_GREATER = 172,
+	I_UADD = 173,
+	I_USUB = 174,
+	I_UMUL = 175,
+	I_UDIV = 176,
+	I_UREM = 177,
+	I_UPROD = 178
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {
