@@ -1,0 +1,9 @@
+
+-- test_n107.occ -- unsigned types
+
+PROC n107 (VAL UINT a, b)
+  UINT x:
+  SEQ
+    x := a + b
+:
+

@@ -1213,7 +1213,7 @@ void parser_generic_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 				tagmarker_t *tm = (tagmarker_t *)arg[++ipos];
 				ntdef_t *tag = (ntdef_t *)arg[++ipos];
 
-#if 1
+#if 0
 fprintf (stderr, "settagmark: tagmark [%s], tag [%s]\n", tm->name, tag->name);
 #endif
 				tm->tag = tag;
@@ -1234,7 +1234,7 @@ fprintf (stderr, "settagmark: tagmark [%s], tag [%s]\n", tm->name, tag->name);
 					tagmarker_t *tm = (tagmarker_t *)tag;
 
 					tag = tm->tag;
-#if 1
+#if 0
 fprintf (stderr, "combinetag: tag is [%s]\n", tag->name);
 #endif
 				}

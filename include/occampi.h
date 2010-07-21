@@ -63,6 +63,10 @@ typedef struct {
 	struct TAG_ntdef *tag_INT16;
 	struct TAG_ntdef *tag_INT32;
 	struct TAG_ntdef *tag_INT64;
+	struct TAG_ntdef *tag_UINT;
+	struct TAG_ntdef *tag_UINT16;
+	struct TAG_ntdef *tag_UINT32;
+	struct TAG_ntdef *tag_UINT64;
 	struct TAG_ntdef *tag_REAL32;
 	struct TAG_ntdef *tag_REAL64;
 	struct TAG_ntdef *tag_CHAR;

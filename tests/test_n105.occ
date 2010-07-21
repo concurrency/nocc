@@ -1,5 +1,5 @@
 
-PROC n105 (VAL INT a, VAL INT b)
+PROC n105 (VAL INT a, b)
   INT x:
   SEQ
     x := a + b

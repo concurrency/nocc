@@ -732,7 +732,7 @@
 .RFUNC	"Roccampi:primtype" "occampi_reduce_primtype"
 .RFUNC	"Roccampi:placedfold" "occampi_reduce_placedfold"
 
-.BNF	"occampi:primtype ::= ( +@INT | +@BYTE | +@BOOL | +@INT16 | +@INT32 | +@INT64 | +@REAL32 | +@REAL64 | +@CHAR ) {Roccampi:primtype}"
+.BNF	"occampi:primtype ::= ( +@INT | +@BYTE | +@BOOL | +@INT16 | +@INT32 | +@INT64 | +@REAL32 | +@REAL64 | +@CHAR | +@UINT | +@UINT16 | +@UINT32 | +@UINT64 ) {Roccampi:primtype}"
 .TABLE	"occampi:protocol ::= [ 0 occampi:primtype 3 ] [ 0 +Name 1 ] [ 0 -@@[ 2 ] [ 1 {<opi:namepush>} -* 3 ]"
 	"[ 2 occampi:arraytypetype 3 ]"
 	"[ 3 {<opi:nullreduce>} -* ]"
@@ -748,7 +748,7 @@
 .DFAERR	STUCK "occampi:protocol" "in protocol specification" EXPECTED
 
 # {{{  parse-only grammars
-#.BNF	"occampi:po_primtype ::= ( @INT | @BYTE | @BOOL | @INT16 | @INT32 | @INT64 | @REAL32 | @REAL64 | @CHAR ) {<opi:nullreduce>}"
+#.BNF	"occampi:po_primtype ::= ( @INT | @UINT | @BYTE | @BOOL | @INT16 | @INT32 | @INT64 | @UINT16 | @UINT32 | @UINT64 | @REAL32 | @REAL64 | @CHAR ) {<opi:nullreduce>}"
 
 # }}}
 # }}}

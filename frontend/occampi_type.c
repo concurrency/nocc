@@ -698,13 +698,13 @@ static int occampi_leaftype_bytesfor (langops_t *lops, tnode_t *t, target_t *tar
 		return target ? target->intsize : 4;
 	} else if (t->tag == opi.tag_BYTE) {
 		return 1;
-	} else if (t->tag == opi.tag_INT) {
+	} else if ((t->tag == opi.tag_INT) || (t->tag == opi.tag_UINT)) {
 		return target ? target->intsize : 4;
-	} else if (t->tag == opi.tag_INT16) {
+	} else if ((t->tag == opi.tag_INT16) || (t->tag == opi.tag_UINT16)) {
 		return 2;
-	} else if (t->tag == opi.tag_INT32) {
+	} else if ((t->tag == opi.tag_INT32) || (t->tag == opi.tag_UINT32)) {
 		return 4;
-	} else if (t->tag == opi.tag_INT64) {
+	} else if ((t->tag == opi.tag_INT64) || (t->tag == opi.tag_UINT64)) {
 		return 8;
 	} else if (t->tag == opi.tag_REAL32) {
 		return 4;
@@ -725,6 +725,8 @@ static int occampi_leaftype_issigned (langops_t *lops, tnode_t *t, target_t *tar
 	if (t->tag == opi.tag_BYTE) {
 		return 0;
 	} else if (t->tag == opi.tag_BOOL) {
+		return 0;
+	} else if ((t->tag == opi.tag_UINT) || (t->tag == opi.tag_UINT16) || (t->tag == opi.tag_UINT32) || (t->tag == opi.tag_UINT64)) {
 		return 0;
 	}
 	/* everything else is signed */
@@ -772,6 +774,14 @@ static int occampi_leaftype_getdescriptor (langops_t *lops, tnode_t *node, char 
 		sprintf (sptr, "INT32");
 	} else if (node->tag == opi.tag_INT64) {
 		sprintf (sptr, "INT64");
+	} else if (node->tag == opi.tag_UINT) {
+		sprintf (sptr, "UINT");
+	} else if (node->tag == opi.tag_UINT16) {
+		sprintf (sptr, "UINT16");
+	} else if (node->tag == opi.tag_UINT32) {
+		sprintf (sptr, "UINT32");
+	} else if (node->tag == opi.tag_UINT64) {
+		sprintf (sptr, "UINT64");
 	} else if (node->tag == opi.tag_REAL32) {
 		sprintf (sptr, "REAL32");
 	} else if (node->tag == opi.tag_REAL64) {
@@ -814,10 +824,16 @@ static typecat_e occampi_leaftype_typetype (langops_t *lops, tnode_t *t)
 		return (0x00080000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_DATA | TYPE_COMM);
 	} else if ((t->tag == opi.tag_INT) || (t->tag == opi.tag_INT32)) {
 		return (0x00200000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_SIGNED | TYPE_DATA | TYPE_COMM);
+	} else if ((t->tag == opi.tag_UINT) || (t->tag == opi.tag_UINT32)) {
+		return (0x00200000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_DATA | TYPE_COMM);
 	} else if (t->tag == opi.tag_INT16) {
 		return (0x00100000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_SIGNED | TYPE_DATA | TYPE_COMM);
 	} else if (t->tag == opi.tag_INT64) {
 		return (0x00400000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_SIGNED | TYPE_DATA | TYPE_COMM);
+	} else if (t->tag == opi.tag_UINT16) {
+		return (0x00100000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_DATA | TYPE_COMM);
+	} else if (t->tag == opi.tag_UINT64) {
+		return (0x00400000 | TYPE_WIDTHSET | TYPE_INTEGER | TYPE_DATA | TYPE_COMM);
 	} else if (t->tag == opi.tag_REAL32) {
 		return (0x00200000 | TYPE_WIDTHSET | TYPE_REAL | TYPE_SIGNED | TYPE_DATA | TYPE_COMM);
 	} else if (t->tag == opi.tag_REAL64) {
@@ -849,6 +865,14 @@ static int occampi_leaftype_typehash (langops_t *lops, tnode_t *t, int hsize, vo
 		myhash = 0xf3523a04;
 	} else if (t->tag == opi.tag_INT64) {
 		myhash = 0x936203aa;
+	} else if (t->tag == opi.tag_UINT) {
+		myhash = 0x1a59e0df;
+	} else if (t->tag == opi.tag_UINT32) {
+		myhash = 0xabf93c43;
+	} else if (t->tag == opi.tag_UINT16) {
+		myhash = 0x030e3c04;
+	} else if (t->tag == opi.tag_UINT64) {
+		myhash = 0x93bc034a;
 	} else if (t->tag == opi.tag_REAL32) {
 		myhash = 0x0123beef;
 	} else if (t->tag == opi.tag_REAL64) {
@@ -1138,7 +1162,7 @@ static int occampi_type_init_nodes (void)
 	opi.tag_TYPESPEC = tnode_newnodetag ("TYPESPEC", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  occampi:leaftype -- INT, BYTE, BOOL, INT16, INT32, INT64, REAL32, REAL64, CHAR*/
+	/*{{{  occampi:leaftype -- INT, UINT, BYTE, BOOL, INT16, INT32, INT64, UINT16, UINT32, UINT64, REAL32, REAL64, CHAR*/
 	i = -1;
 	tnd = tnode_newnodetype ("occampi:leaftype", &i, 0, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
@@ -1160,6 +1184,8 @@ static int occampi_type_init_nodes (void)
 	i = -1;
 	opi.tag_INT = tnode_newnodetag ("INT", &i, tnd, NTF_NONE);
 	i = -1;
+	opi.tag_UINT = tnode_newnodetag ("UINT", &i, tnd, NTF_NONE);
+	i = -1;
 	opi.tag_BYTE = tnode_newnodetag ("BYTE", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_BOOL = tnode_newnodetag ("BOOL", &i, tnd, NTF_NONE);
@@ -1169,6 +1195,12 @@ static int occampi_type_init_nodes (void)
 	opi.tag_INT32 = tnode_newnodetag ("INT32", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_INT64 = tnode_newnodetag ("INT64", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_UINT16 = tnode_newnodetag ("UINT16", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_UINT32 = tnode_newnodetag ("UINT32", &i, tnd, NTF_NONE);
+	i = -1;
+	opi.tag_UINT64 = tnode_newnodetag ("UINT64", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_REAL32 = tnode_newnodetag ("REAL32", &i, tnd, NTF_NONE);
 	i = -1;
