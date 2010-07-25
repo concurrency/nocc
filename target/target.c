@@ -39,6 +39,7 @@
 #include "map.h"
 
 #include "krocetc.h"
+#include "krocllvm.h"
 #include "kroccifccsp.h"
 
 /*}}}*/
@@ -194,6 +195,10 @@ int target_init (void)
 	if (kroccifccsp_init ()) {
 		return 1;
 	}
+	/* initialise the built-in KRoC/LLVM target */
+	if (krocllvm_init ()) {
+		return 1;
+	}
 	return 0;
 }
 /*}}}*/
@@ -204,6 +209,10 @@ int target_init (void)
  */
 int target_shutdown (void)
 {
+	/* shutdown the built-in KRoC/LLVM target */
+	if (krocllvm_shutdown ()) {
+		return 1;
+	}
 	/* shutdown the built-in KRoC/CIF/CCSP target */
 	if (kroccifccsp_shutdown ()) {
 		return 1;

@@ -44,6 +44,7 @@ static int opt_addincludepath (cmd_option_t *opt, char ***argwalk, int *argleft)
 static int opt_addlibrarypath (cmd_option_t *opt, char ***argwalk, int *argleft);
 static int opt_addextnpath (cmd_option_t *opt, char ***argwalk, int *argleft);
 static int opt_addextn (cmd_option_t *opt, char ***argwalk, int *argleft);
+static int opt_settarget (cmd_option_t *opt, char ***argwalk, int *argleft);
 
 
 /*}}}*/
@@ -354,6 +355,67 @@ static int opt_addextn (cmd_option_t *opt, char ***argwalk, int *argleft)
 	}
 
 	sfree (ch);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int opt_settarget (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	sets the compiler target
+ */
+static int opt_settarget (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	char *ch, *dh, *eh;
+
+	ch = strchr (**argwalk, '=');
+	if (ch) {
+		ch++;
+	} else {
+		(*argwalk)++;
+		(*argleft)--;
+		if (!**argwalk || !*argleft) {
+			nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+			return -1;
+		}
+		ch = **argwalk;
+	}
+	ch = string_dup (ch);
+
+	dh = strchr (ch, '-');
+	if (!dh) {
+		nocc_error ("malformed target [%s]", ch);
+		sfree (ch);
+		return -1;
+	}
+	eh = strchr (dh + 1, '-');
+	if (!eh) {
+		nocc_error ("malformed target [%s]", ch);
+		sfree (ch);
+		return -1;
+	}
+
+	if (compopts.target_cpu) {
+		sfree (compopts.target_cpu);
+		compopts.target_cpu = NULL;
+	}
+	compopts.target_cpu = string_ndup (ch, (int)(dh - ch));
+
+	if (compopts.target_vendor) {
+		sfree (compopts.target_vendor);
+		compopts.target_vendor = NULL;
+	}
+	compopts.target_vendor = string_ndup (dh + 1, (int)(eh - (dh + 1)));
+
+	if (compopts.target_os) {
+		sfree (compopts.target_os);
+		compopts.target_os = NULL;
+	}
+	compopts.target_os = string_dup (eh + 1);
+
+	if (compopts.target_str) {
+		sfree (compopts.target_str);
+		compopts.target_str = ch;
+	}
 
 	return 0;
 }

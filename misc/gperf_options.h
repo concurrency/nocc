@@ -35,7 +35,7 @@
  */
 struct TAG_cmd_option;
 
-#define TOTAL_KEYWORDS 71
+#define TOTAL_KEYWORDS 72
 #define MIN_WORD_LENGTH 3
 #define MAX_WORD_LENGTH 19
 #define MIN_HASH_VALUE 4
@@ -111,14 +111,14 @@ static const struct TAG_cmd_option wordlist[] =
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"extn",			'e',	opt_addextn,		NULL,				"0compiler extension to load",				400},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"output",			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					305},
+    {"output",			'o',	opt_setstr,		&(compopts.outfile),		"0output file-name",					306},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"help",			'h',	opt_do_help_flag,	NULL,				"0display standard usage information",			0},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {"target",			't',	opt_settarget,		NULL,				"1set compiler target",					301},
     {"stop-betrans",		'\0',	opt_setstopflag,	(void *)17,			"1stop after back-end tree transform",			116},
-    {"segfault",		'\0',	opt_setintflag,		&(compopts.fatalsegv),		"1cause segfault on fatal error",			303},
+    {"segfault",		'\0',	opt_setintflag,		&(compopts.fatalsegv),		"1cause segfault on fatal error",			304},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"stop-alloc",		'\0',	opt_setstopflag,	(void *)20,			"1stop after variable allocation",			119},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
@@ -148,7 +148,7 @@ static const struct TAG_cmd_option wordlist[] =
     {"stop-aliascheck",	'\0',	opt_setstopflag,	(void *)9,			"1stop after alias check",				108},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"stop-codegen",		'\0',	opt_setstopflag,	(void *)21,			"1stop after code-generation",				120},
-    {"gdb",			'\0',	opt_setintflag,		&(compopts.fatalgdb),		"1launch GDB on fatal error",				302},
+    {"gdb",			'\0',	opt_setintflag,		&(compopts.fatalgdb),		"1launch GDB on fatal error",				303},
     {"save-named-dfa",		'\0',	opt_setsaveopt,		(void *)1,			"1save named DFA to file",				50},
     {"trace-typecheck",	'\0',	opt_setintflag,		&(compopts.tracetypecheck),	"1trace type-check (debugging)",			202},
     {"dump-lexers",		'\0',	opt_setintflag,		&(compopts.dumplexers),		"1print registered languages (lexers)",			7},
@@ -170,7 +170,7 @@ static const struct TAG_cmd_option wordlist[] =
     {"dump-varmaps",		'\0',	opt_setintflag,		&(compopts.dumpvarmaps),	"1print variable maps after block allocation",		14},
     {"trace-compops",		'\0',	opt_setstr,		&(compopts.tracecompops),	"1trace compiler operations (debugging)",		205},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"specs-file",		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				304},
+    {"specs-file",		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				305},
     {"trace-namespaces",	'\0',	opt_setintflag,		&(compopts.tracenamespaces),	"1trace name-spaces (debugging)",			201},
     {"compile",		'c',	opt_setintflag,		&(compopts.notmainmodule),	"0compile for separate compilation",			300},
     {"trace-langops",		'\0',	opt_setstr,		&(compopts.tracelangops),	"1trace language operations (debugging)",		206},
@@ -186,10 +186,10 @@ static const struct TAG_cmd_option wordlist[] =
     {"stop-mobilitycheck",	'\0',	opt_setstopflag,	(void *)14,			"1stop after mobility check",				113},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"dump-stree",		'\0',	opt_setintflag,		&(compopts.dumpstree),		"1print parse tree in s-record format",			5},
-    {"interactive",		'i',	opt_setintflag,		&(compopts.interactive),	"1interactive compiler operation",			306},
+    {"interactive",		'i',	opt_setintflag,		&(compopts.interactive),	"1interactive compiler operation",			307},
     {"include-path",		'I',	opt_addincludepath,	NULL,				"0add paths for include files",				350},
     {"dump-stree-to",		'\0',	opt_setstr,		&(compopts.dumpstreeto),	"1print parse tree in s-record format to file",		6},
-    {"dump-dmem",		'\0',	opt_setintflag,		&(compopts.dmemdump),		"1display dynamic memory pool information",		301},
+    {"dump-dmem",		'\0',	opt_setintflag,		&(compopts.dmemdump),		"1display dynamic memory pool information",		302},
     {"stop-scope",		'\0',	opt_setstopflag,	(void *)4,			"1stop after scope",					103},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},

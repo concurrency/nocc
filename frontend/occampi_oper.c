@@ -419,7 +419,7 @@ tnode_dumptree (type, 1, stderr);
 			} else if (tc & TYPE_REAL) {
 				codegen_callops (cgen, tsecondary, dopmap[i].fpinstr);
 			} else {
-				codegen_error (cgen, "occampi_codegen_dop(): don\'t know how to generate code fro [%s] [%s] (typecat 0x%8.8x)",
+				codegen_error (cgen, "occampi_codegen_dop(): don\'t know how to generate code for [%s] [%s] (typecat 0x%8.8x)",
 						node->tag->ndef->name, node->tag->name, (unsigned int)tc);
 			}
 			return 0;

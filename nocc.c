@@ -195,6 +195,8 @@ STATICDYNARRAY (xmlnamespace_t *, xmlnamespaces);
 
 STATICDYNARRAY (initfunc_t *, initfcns);
 
+static char *compiler_stock_target = NULL;
+
 /*}}}*/
 
 
@@ -569,6 +571,10 @@ static void specfile_setcomptarget (char *target)
 	int i;
 	char **srefs[] = {&compopts.target_str, &compopts.target_cpu, &compopts.target_vendor, &compopts.target_os, NULL};
 
+	if (compiler_stock_target && compopts.target_str && strcmp (compiler_stock_target, compopts.target_str)) {
+		/* compiler target already changed by something else (command-line), so don't reset */
+		return;
+	}
 	for (i=0; srefs[i]; i++) {
 		if (*(srefs[i])) {
 			sfree (*(srefs[i]));
@@ -1252,6 +1258,9 @@ int main (int argc, char **argv)
 #endif
 	compopts.target_str = (char *)smalloc (strlen (compopts.target_cpu) + strlen (compopts.target_os) + strlen (compopts.target_vendor) + 4);
 	sprintf (compopts.target_str, "%s-%s-%s", compopts.target_cpu, compopts.target_os, compopts.target_vendor);
+
+	/* save the compiled-in target for comparison */
+	compiler_stock_target = string_dup (compopts.target_str);
 
 	dynarray_init (fe_def_opts);
 	dynarray_init (be_def_opts);
