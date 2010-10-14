@@ -141,11 +141,44 @@ target_t krocllvm_target = {
 
 /*}}}*/
 /*{{{  private types*/
+typedef struct TAG_krocllvm_namehook {
+	int lexlevel;				/* lexical level */
+	int alloc_wsh;				/* allocation in high-workspace */
+	int alloc_wsl;				/* allocation in low-workspace */
+	int typesize;				/* size of the actual type (if known) */
+	int indir;				/* indirection count (0 = real-thing, 1 = pointer, 2 = pointer-pointer, etc.) */
+	int ws_offset;				/* workspace offset in current block */
+	typecat_e typecat;			/* type category */
+} krocllvm_namehook_t;
+
+typedef struct TAG_krocllvm_blockhook {
+	int lexlevel;				/* lexical level */
+	int alloc_ws;				/* workspace requirements */
+	int static_adjust;			/* adjustment for statics (e.g. PROC params, etc.) */
+	int ws_offset;				/* workspace offset for the block (includes static-adjust) */
+	int entrylab;				/* entry-point label */
+	int addstaticlink;			/* whether it needs a staticlink */
+	int addfbp;				/* whether it needs a FORK barrier */
+} krocllvm_blockhook_t;
+
+typedef struct TAG_krocllvm_blockrefhook {
+	tnode_t *block;
+} krocllvm_blockrefhook_t;
+
+typedef struct TAG_krocllvm_consthook {
+	void *byteptr;
+	int size;				/* constant size (bytes) */
+	int label;
+	int labrefs;				/* number of references to the label */
+	tnode_t *orgnode;
+	typecat_e typecat;			/* type category for constant */
+} krocllvm_consthook_t;
+
 typedef struct TAG_krocllvm_priv {
 	ntdef_t *tag_PRECODE;
+	ntdef_t *tag_CONSTREF;
 	ntdef_t *tag_JENTRY;
 	ntdef_t *tag_DESCRIPTOR;
-	ntdef_t *tag_VSP;			/* vectorspace pointer */
 	ntdef_t *tag_FBP;			/* fork-barrier pointer */
 	tnode_t *precodelist;
 	name_t *toplevelname;
@@ -160,6 +193,34 @@ typedef struct TAG_krocllvm_priv {
 	} options;
 } krocllvm_priv_t;
 
+typedef struct TAG_krocllvm_resultsubhook {
+	int result_regs;
+	int result_fregs;
+	DYNARRAY (tnode_t **, sublist);
+} krocllvm_resultsubhook_t;
+
+typedef struct TAG_krocllvm_cgstate {
+	int depth;				/* register depth */
+	int *iregs;				/* integer registers */
+	int *fregs;				/* floating-point registers */
+} krocllvm_cgstate_t;
+
+/*}}}*/
+
+
+/*{{{  void krocllvm_isetindent (FILE *stream, int indent)*/
+/*
+ *	set indent for debuggint output
+ */
+void krocllvm_isetindent (FILE *stream, int indent)
+{
+	int i;
+
+	for (i=0; i<indent; i++) {
+		fprintf (stream, "    ");
+	}
+	return;
+}
 /*}}}*/
 
 
@@ -331,6 +392,7 @@ static int krocllvm_target_init (target_t *target)
 	compops_t *cops;
 	langops_t *lops;
 	krocllvm_priv_t *kpriv;
+	int i;
 
 	if (target->initialised) {
 		nocc_internal ("krocllvm_target_init(): already initialised!");
@@ -350,7 +412,153 @@ static int krocllvm_target_init (target_t *target)
 
 	krocllvm_init_options (kpriv);
 
-	/* FIXME: initialise private state */
+	/* setup back-end nodes */
+	/*{{{  krocllvm:name -- KROCLLVMNAME*/
+	i = -1;
+	tnd = tnode_newnodetype ("krocllvm:name", &i, 2, 0, 1, TNF_NONE);		/* subnodes: original name, in-scope body; hooks: krocllvm_namehook_t */
+	tnd->hook_dumptree = krocllvm_namehook_dumptree;
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (krocllvm_bytesfor_name));
+	tnd->lops = lops;
+
+	i = -1;
+	target->tag_NAME = tnode_newnodetag ("KROCLLVMNAME", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  krocllvm_nameref -- KROCLLVMNAMEREF*/
+	i = -1;
+	tnd = tnode_newnodetype ("krocllvm:nameref", &i, 1, 0, 1, TNF_NONE);
+	tnd->hook_dumptree = krocllvm_namehook_dumptree;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocllvm_codegen_nameref));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (krocllvm_gettype_nameref));
+	tnd->lops = lops;
+
+	i = -1;
+	target->tag_NAMEREF = tnode_newnodetag ("KROCLLVMNAMEREF", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  krocllvm:block -- KROCLLVMBLOCK*/
+	i = -1;
+	tnd = tnode_newnodetype ("krocllvm_block", &i, 2, 0, 1, TNF_NONE);		/* subnodes: block body, statics; hooks: krocllvm_blockhook_t */
+	tnd->hook_dumptree = krocllvm_blockhook_dumptree;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "preallocate", 2, COMPOPTYPE (krocllvm_preallocate_block));
+	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (krocllvm_precode_block));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocllvm_codegen_block));
+	tnd->ops = cops;
+
+	i = -1;
+	target->tag_BLOCK = tnode_newnodetag ("KROCLLVMBLOCK", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  krocllvm:const -- KROCLLVMCONST*/
+	i = -1;
+	tnd = tnode_newnodetype ("krocllvm:const", &i, 1, 0, 1, TNF_NONE);		/* subnodes: original; hooks: krocllvm_consthook_t */
+	tnd->hook_dumptree = krocllvm_consthook_dumptree;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (krocllvm_precode_const));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocllvm_codegen_const));
+	tnd->ops = cops;
+
+	i = -1;
+	target->tag_CONST = tnode_newnodetag ("KROCLLVMCONST", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  krocllvm:precode -- KROCLLVMPRECODE*/
+	i = -1;
+	tnd = tnode_newnodetype ("krocllvm:precode", &i, 2, 0, 0, TNF_NONE);
+
+	i = -1;
+	kpriv->tag_PRECODE = tnode_newnodetag ("KROCLLVMPRECODE", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  krocllvm:special -- KROCLLVMJENTRY, KROCLLVMDESCRIPTOR*/
+	i = -1;
+	tnd = tnode_newnodetype ("krocllvm:special", &i, 0, 0, 1, TNF_NONE);
+	tnd->hook_dumptree = krocllvm_specialhook_dumptree;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "precode", 2, COMPOPTYPE (krocllvm_precode_special));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocllvm_codegen_special));
+	tnd->ops = cops;
+
+	i = -1;
+	kpriv->tag_JENTRY = tnode_newnodetag ("KROCLLVMJENTRY", &i, tnd, NTF_NONE);
+	i = -1;
+	kpriv->tag_DESCRIPTOR = tnode_newnodetag ("KROCLLVMDESCRIPTOR", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  krocllvm:constref -- KROCLLVMCONSTREF*/
+	i = -1;
+	tnd = tnode_newnodetype ("krocllvm:constref", &i, 0, 0, 1, TNF_NONE);			/* hooks: 0 = krocllvm_consthook_t */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocllvm_codegen_constref));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "dimtreeof", 1, LANGOPTYPE (krocllvm_dimtreeof_constref));
+	tnd->lops = lops;
+
+	i = -1;
+	kpriv->tag_CONSTREF = tnode_newnodetag ("KROCLLVMCONSTREF", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  krocllvm:indexed -- KROCLLVMINDEXED*/
+	i = -1;
+	tnd = tnode_newnodetype ("krocllvm:indexed", &i, 2, 0, 1, TNF_NONE);			/* subnodes: 0 = base, 1 = index;  hooks: 0 = krocllvm_indexedhook_t */
+	tnd->hook_dumptree = krocllvm_indexedhook_dumptree;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocllvm_codegen_indexed));
+	tnd->ops = cops;
+
+	i = -1;
+	target->tag_INDEXED = tnode_newnodetag ("KROCLLVMINDEXED", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  krocllvm:blockref -- KROCLLVMBLOCKREF*/
+	i = -1;
+	tnd = tnode_newnodetype ("krocllvm:blockref", &i, 1, 0, 1, TNF_NONE);			/* subnodes: body; hooks: krocllvm_blockrefhook_t */
+	tnd->hook_dumptree = krocllvm_blockrefhook_dumptree;
+
+	i = -1;
+	target->tag_BLOCKREF = tnode_newnodetag ("KROCLLVMBLOCKREF", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  krocllvm:staticlink -- KROCLLVMSTATICLINK*/
+	i = -1;
+	tnd = tnode_newnodetype ("krocllvm:staticlink", &i, 0, 0, 0, TNF_NONE);
+
+	i = -1;
+	target->tag_STATICLINK = tnode_newnodetag ("KROCLLVMSTATICLINK", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  krocllvm:hiddenparam -- KROCLLVMFBP*/
+	i = -1;
+	tnd = tnode_newnodetype ("krocllvm:hiddenparam", &i, 0, 0, 0, TNF_NONE);
+
+	i = -1;
+	kpriv->tag_FBP = tnode_newnodetag ("KROCLLVMFBP", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  krocllvm:result -- KROCLLVMRESULT*/
+	i = -1;
+	tnd = tnode_newnodetype ("krocllvm:result", &i, 1, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (krocllvm_namemap_result));
+	tnode_setcompop (cops, "bemap", 2, COMPOPTYPE (krocllvm_bemap_result));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (krocllvm_codegen_result));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	lops->passthrough = 1;
+	tnd->lops = lops;
+
+	i = -1;
+	target->tag_RESULT = tnode_newnodetag ("KROCLLVMRESULT", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 
 	target->initialised = 1;
 	return 0;

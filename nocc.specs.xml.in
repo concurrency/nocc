@@ -10,7 +10,7 @@
 	<maintainer>kroc-bugs@kent.ac.uk</maintainer>
 
 	<!-- default compiler target -->
-	<target>etc-kroc-unknown</target>
+	<target>llvm-kroc-unknown</target>
 
 	<!-- epath's say where extensions/plugins are located (-E) -->
 	<epath>@build_dir@/addons</epath>
