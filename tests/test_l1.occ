@@ -1,0 +1,9 @@
+
+-- test_l1.occ -- LLVM code-gen test
+
+PROC test.l1 (CHAN BYTE scr!)
+  SEQ
+    scr ! 'x'
+    scr ! '*n'
+:
+
