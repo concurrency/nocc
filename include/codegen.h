@@ -69,7 +69,10 @@ typedef struct TAG_codegenfinalhook {
 	void *arg;
 } codegenfinalhook_t;
 
+typedef void *coderref_t;
+
 typedef struct TAG_coderops {
+	/* NOTE: slowly refactoring this into a register-based allocator.  Will keep both working for now */
 	void (*loadpointer)(codegen_t *, struct TAG_tnode *, int);
 	void (*loadnthpointer)(codegen_t *, struct TAG_tnode *, int, int);
 	void (*loadatpointer)(codegen_t *, struct TAG_tnode *, int);
@@ -89,6 +92,15 @@ typedef struct TAG_coderops {
 	void (*storelocal)(codegen_t *, int);
 	void (*loadconst)(codegen_t *, int);
 	void (*addconst)(codegen_t *, int);
+	void (*loadlabaddr)(codegen_t *, int);
+	void (*constlabaddr)(codegen_t *, int);
+	void (*constlabdiff)(codegen_t *, int, int);
+	void (*branch)(codegen_t *, int, int);
+	void (*trashistack)(codegen_t *);
+	void (*tcoff)(codegen_t *, int, const char *, const int);
+
+	coderref_t (*ldptr)(codegen_t *, struct TAG_tnode *, int);
+
 	void (*wsadjust)(codegen_t *, int);
 	void (*comment)(codegen_t *, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 	void (*setwssize)(codegen_t *, int, int);
@@ -106,13 +118,7 @@ typedef struct TAG_coderops {
 	void (*funcreturn)(codegen_t *, int);
 	void (*funcresults)(codegen_t *, int);
 	void (*tsecondary)(codegen_t *, int);
-	void (*loadlabaddr)(codegen_t *, int);
-	void (*constlabaddr)(codegen_t *, int);
-	void (*constlabdiff)(codegen_t *, int, int);
-	void (*branch)(codegen_t *, int, int);
 	void (*debugline)(codegen_t *, struct TAG_tnode *);
-	void (*trashistack)(codegen_t *);
-	void (*tcoff)(codegen_t *, int, const char *, const int);
 } coderops_t;
 
 

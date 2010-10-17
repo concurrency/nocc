@@ -154,6 +154,28 @@ int langops_constvalof (tnode_t *node, void *ptr)
 	return r;
 }
 /*}}}*/
+/*{{{  int langops_constsizeof (tnode_t *node)*/
+/*
+ *	determines the number of bytes required for a known constant
+ */
+int langops_constsizeof (tnode_t *node)
+{
+	int r = 0;
+
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through this node */
+		node = tnode_nthsubof (node, 0);
+	}
+
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_CONSTSIZEOF)) {
+		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_CONSTSIZEOF, 1, node);
+	}
+	if (compopts.traceconstprop) {
+		nocc_message ("langops: constsizeof? (%s,%s) = %d", node->tag->ndef->name, node->tag->name, r);
+	}
+	return r;
+}
+/*}}}*/
 /*{{{  int langops_valbyref (tnode_t *node)*/
 /*
  *	returns non-zero if VALs of this node (type/constant) are treated as references

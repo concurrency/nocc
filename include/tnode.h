@@ -182,34 +182,35 @@ typedef enum ENUM_langops {
 	LOPS_ISTYPE = 13,			/* 1: tnode_t * -> int */
 	LOPS_ISCOMPLEX = 14,			/* 2: tnode_t *, int -> int */
 	LOPS_CONSTVALOF = 15,			/* 2: tnode_t *, void * -> int */
-	LOPS_VALBYREF = 16,			/* 1: tnode_t * -> int */
-	LOPS_INITSIZES = 17,			/* 7: tnode_t *, tnode_t *, int *, int *, int *, int *, map_t * -> int */
-	LOPS_INITIALISING_DECL = 18,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
-	LOPS_CODEGEN_TYPEACTION = 19,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
-	LOPS_CODEGEN_TYPERANGECHECK = 20,	/* 2: tnode_t *, codegen_t * -> int */
-	LOPS_CODEGEN_ALTPREENABLE = 21,		/* 3: tnode_t *, int, codegen_t * -> int */
-	LOPS_CODEGEN_ALTENABLE = 22,		/* 3: tnode_t *, int, codegen_t * -> int */
-	LOPS_CODEGEN_ALTDISABLE = 23,		/* 4: tnode_t *, int, int, codegen_t * -> int */
-	LOPS_PREMAP_TYPEFORVARDECL = 24,	/* 3: tnode_t *, tnode_t *, map_t * -> int */
-	LOPS_RETYPECONST = 25,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
-	LOPS_DIMTREEOF = 26,			/* 1: tnode_t * -> tnode_t * */
-	LOPS_HIDDENPARAMSOF = 27,		/* 1: tnode_t * -> tnode_t * */
-	LOPS_HIDDENSLOTSOF = 28,		/* 1: tnode_t * -> int */
-	LOPS_TYPEHASH = 29,			/* 3: tnode_t *, int, void * -> int */
-	LOPS_TYPETYPE = 30,			/* 1: tnode_t * -> typecat_e */
-	LOPS_GETBASENAME = 31,			/* 1: tnode_t * -> tnode_t * */
-	LOPS_GETFIELDNAME = 32,			/* 1: tnode_t * -> tnode_t * */
-	LOPS_ISCOMMUNICABLE = 33,		/* 1: tnode_t * -> int */
-	LOPS_PROTOCOLTOTYPE = 34,		/* 1: tnode_t * -> tnode_t * */
-	LOPS_GETTAGS = 35,			/* 1: tnode_t * -> tnode_t * */
-	LOPS_NAMEOF = 36,			/* 1: tnode_t * -> name_t * */
-	LOPS_TRACESPECOF = 37,			/* 1: tnode_t * -> tnode_t * */
-	LOPS_DIMTREEOF_NODE = 38,		/* 2: tnode_t *, tnode_t * -> tnode_t * */
-	LOPS_BYTESFORPARAM = 39,		/* 2: tnode_t *, target_t * -> int */
+	LOPS_CONSTSIZEOF = 16,			/* 1: tnode_t * -> int */
+	LOPS_VALBYREF = 17,			/* 1: tnode_t * -> int */
+	LOPS_INITSIZES = 18,			/* 7: tnode_t *, tnode_t *, int *, int *, int *, int *, map_t * -> int */
+	LOPS_INITIALISING_DECL = 19,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
+	LOPS_CODEGEN_TYPEACTION = 20,		/* 3: tnode_t *, tnode_t *, codegen_t * -> int */
+	LOPS_CODEGEN_TYPERANGECHECK = 21,	/* 2: tnode_t *, codegen_t * -> int */
+	LOPS_CODEGEN_ALTPREENABLE = 22,		/* 3: tnode_t *, int, codegen_t * -> int */
+	LOPS_CODEGEN_ALTENABLE = 23,		/* 3: tnode_t *, int, codegen_t * -> int */
+	LOPS_CODEGEN_ALTDISABLE = 24,		/* 4: tnode_t *, int, int, codegen_t * -> int */
+	LOPS_PREMAP_TYPEFORVARDECL = 25,	/* 3: tnode_t *, tnode_t *, map_t * -> int */
+	LOPS_RETYPECONST = 26,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
+	LOPS_DIMTREEOF = 27,			/* 1: tnode_t * -> tnode_t * */
+	LOPS_HIDDENPARAMSOF = 28,		/* 1: tnode_t * -> tnode_t * */
+	LOPS_HIDDENSLOTSOF = 29,		/* 1: tnode_t * -> int */
+	LOPS_TYPEHASH = 30,			/* 3: tnode_t *, int, void * -> int */
+	LOPS_TYPETYPE = 31,			/* 1: tnode_t * -> typecat_e */
+	LOPS_GETBASENAME = 32,			/* 1: tnode_t * -> tnode_t * */
+	LOPS_GETFIELDNAME = 33,			/* 1: tnode_t * -> tnode_t * */
+	LOPS_ISCOMMUNICABLE = 34,		/* 1: tnode_t * -> int */
+	LOPS_PROTOCOLTOTYPE = 35,		/* 1: tnode_t * -> tnode_t * */
+	LOPS_GETTAGS = 36,			/* 1: tnode_t * -> tnode_t * */
+	LOPS_NAMEOF = 37,			/* 1: tnode_t * -> name_t * */
+	LOPS_TRACESPECOF = 38,			/* 1: tnode_t * -> tnode_t * */
+	LOPS_DIMTREEOF_NODE = 39,		/* 2: tnode_t *, tnode_t * -> tnode_t * */
+	LOPS_BYTESFORPARAM = 40,		/* 2: tnode_t *, target_t * -> int */
 	LOPS_MAX = 256
 } langops_e;
 
-#define LOPS_LAST LOPS_TYPEHASH
+#define LOPS_LAST LOPS_BYTESFORPARAM
 
 /*}}}*/
 /*{{{  langop_t, langops_t (language operations)*/

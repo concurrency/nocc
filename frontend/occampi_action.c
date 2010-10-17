@@ -476,8 +476,22 @@ static int occampi_fetrans_action (compops_t *cops, tnode_t **node, fetrans_t *f
 	fe->insertpoint = node;				/* before process is a good place to insert temporaries */
 
 	if (t->tag == opi.tag_OUTPUT) {
-		/*{{{  if RHS looks complex, or is not a natural pointer, add temporary and assignment*/
-		if (langops_iscomplex (*rhsp, 1) || !langops_isvar (*rhsp)) {
+		/*{{{  if RHS looks complex, or is not a natural pointer or a non 1/4-byte constant, add temporary and assignment*/
+		int dotmp = 0;
+
+		if (langops_iscomplex (*rhsp, 1)) {
+			dotmp = 1;
+		} else if (langops_isconst (*rhsp)) {
+			int size = langops_constsizeof (*rhsp);
+
+			if ((size != 1) && (size != 4)) {
+				dotmp = 1;
+			}
+		} else if (!langops_isvar (*rhsp)) {
+			dotmp = 1;
+		}
+
+		if (dotmp) {
 			tnode_t *temp = fetrans_maketemp (tnode_nthsubof (t, 2), fe);
 
 			/* now assignment.. */

@@ -2700,7 +2700,7 @@ static void krocetc_coder_storenthpointer (codegen_t *cgen, tnode_t *name, int l
 	return;
 }
 /*}}}*/
-/*{{{  krocetc_coder_storeatpointer (codegen_t *cgen, tnode_t *name, int offset)*/
+/*{{{  static void krocetc_coder_storeatpointer (codegen_t *cgen, tnode_t *name, int offset)*/
 /*
  *	stores a word via a back-end pointer (at the given offset)
  */
@@ -3941,6 +3941,8 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	codegen_write_string (cgen, ";\n\n");
 
 	cops = (coderops_t *)smalloc (sizeof (coderops_t));
+	memset ((void *)cops, 0, sizeof (coderops_t));
+
 	cops->loadpointer = krocetc_coder_loadpointer;
 	cops->loadnthpointer = krocetc_coder_loadnthpointer;
 	cops->loadatpointer = krocetc_coder_loadatpointer;

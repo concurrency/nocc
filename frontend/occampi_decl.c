@@ -302,6 +302,7 @@ tnode_dumptree (type, 1, stderr);
 	}
 	bename = map->target->newname (*namep, *bodyp, map, (wssize < 0) ? 0 : wssize, (wssize < 0) ? -wssize : 0, vssize, mssize, tsize, indir);
 
+
 	if (type) {
 		map->target->be_settypecat (bename, typecat);
 	}
@@ -313,6 +314,7 @@ tnode_dumptree (type, 1, stderr);
 		/* pull any of these upwards */
 		precode_pullupprecodevars (*namep, *typep);
 	}
+
 
 	if (type->tag->ndef->lops && tnode_haslangop (type->tag->ndef->lops, "initialising_decl")) {
 #if 0

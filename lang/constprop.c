@@ -319,6 +319,30 @@ static int cprop_constvalof_const (langops_t *lops, tnode_t *node, void *ptr)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int cprop_constsizeof_const (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns the constant size of a constant node
+ */
+static int cprop_constsizeof_const (langops_t *lops, tnode_t *node)
+{
+	consthook_t *ch = (consthook_t *)tnode_nthhookof (node, 0);
+
+	switch (ch->type) {
+	case CONST_INVALID:
+		return 0;
+	case CONST_BYTE:
+		return sizeof (unsigned char);
+	case CONST_INT:
+	case CONST_BOOL:
+		return sizeof (int);
+	case CONST_DOUBLE:
+		return sizeof (double);
+	case CONST_ULL:
+		return sizeof (unsigned long long);
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int cprop_getdescriptor_const (langops_t *lops, tnode_t *node, char **str)*/
 /*
  *	gets a descriptor string for a constant
@@ -408,6 +432,7 @@ int constprop_init (void)
 	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (cprop_isconst_const));
 	tnode_setlangop (lops, "iscomplex", 2, LANGOPTYPE (cprop_iscomplex_const));
 	tnode_setlangop (lops, "constvalof", 2, LANGOPTYPE (cprop_constvalof_const));
+	tnode_setlangop (lops, "constsizeof", 1, LANGOPTYPE (cprop_constsizeof_const));
 	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (cprop_getdescriptor_const));
 	tnode_setlangop (lops, "typetype", 1, LANGOPTYPE (cprop_typetype_const));
 	tnd->lops = lops;

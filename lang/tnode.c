@@ -447,6 +447,7 @@ int tnode_init (void)
 	tnode_newlangop ("istype", LOPS_ISTYPE, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("iscomplex", LOPS_ISCOMPLEX, 2, INTERNAL_ORIGIN);
 	tnode_newlangop ("constvalof", LOPS_CONSTVALOF, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("constsizeof", LOPS_CONSTSIZEOF, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("valbyref", LOPS_VALBYREF, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("initsizes", LOPS_INITSIZES, 7, INTERNAL_ORIGIN);
 	tnode_newlangop ("initialising_decl", LOPS_INITIALISING_DECL, 3, INTERNAL_ORIGIN);

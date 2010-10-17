@@ -70,7 +70,18 @@ static void krocllvm_inresult (tnode_t **nodep, map_t *mdata);
 
 static int krocllvm_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile);
 static int krocllvm_be_codegen_final (codegen_t *cgen, lexfile_t *srcfile);
+static int krocllvm_be_allocsize (tnode_t *node, int *pwsh, int *pwsl, int *pvs, int *pms);
+static int krocllvm_be_typesize (tnode_t *node, int *typesize, int *indir);
+static void krocllvm_be_settypecat (tnode_t *bename, typecat_e typecat);
+static void krocllvm_be_gettypecat (tnode_t *bename, typecat_e *tcptr);
+static void krocllvm_be_setoffsets (tnode_t *bename, int ws_offset, int vs_offset, int ms_offset, int ms_shadow);
+static void krocllvm_be_getoffsets (tnode_t *bename, int *wsop, int *vsop, int *msop, int *mssp);
+static int krocllvm_be_blocklexlevel (tnode_t *blk);
+static void krocllvm_be_setblocksize (tnode_t *blk, int ws, int ws_offs, int vs, int ms, int adjust);
 static void krocllvm_be_getblocksize (tnode_t *blk, int *wsp, int *wsoffsp, int *vsp, int *msp, int *adjp, int *elabp);
+static tnode_t *krocllvm_be_getorgnode (tnode_t *node);
+static tnode_t **krocllvm_be_blockbodyaddr (tnode_t *blk);
+static int krocllvm_be_regsfor (tnode_t *benode);
 
 /*}}}*/
 
@@ -127,17 +138,17 @@ target_t krocllvm_target = {
 	newresult:	krocllvm_result_create,
 	inresult:	krocllvm_inresult,
 
-	be_getorgnode:		NULL,
-	be_blockbodyaddr:	NULL,
-	be_allocsize:		NULL,
-	be_typesize:		NULL,
-	be_settypecat:		NULL,
-	be_gettypecat:		NULL,
-	be_setoffsets:		NULL,
-	be_getoffsets:		NULL,
-	be_blocklexlevel:	NULL,
-	be_setblocksize:	NULL,
-	be_getblocksize:	NULL,
+	be_getorgnode:		krocllvm_be_getorgnode,
+	be_blockbodyaddr:	krocllvm_be_blockbodyaddr,
+	be_allocsize:		krocllvm_be_allocsize,
+	be_typesize:		krocllvm_be_typesize,
+	be_settypecat:		krocllvm_be_settypecat,
+	be_gettypecat:		krocllvm_be_gettypecat,
+	be_setoffsets:		krocllvm_be_setoffsets,
+	be_getoffsets:		krocllvm_be_getoffsets,
+	be_blocklexlevel:	krocllvm_be_blocklexlevel,
+	be_setblocksize:	krocllvm_be_setblocksize,
+	be_getblocksize:	krocllvm_be_getblocksize,
 	be_codegen_init:	krocllvm_be_codegen_init,
 	be_codegen_final:	krocllvm_be_codegen_final,
 
@@ -220,11 +231,15 @@ typedef struct TAG_krocllvm_resultsubhook {
 } krocllvm_resultsubhook_t;
 
 typedef struct TAG_krocllvm_cgstate {
-	int idepth;				/* integer register depth */
-	int fdepth;				/* floating-point register depth */
-	int *iregs;				/* integer registers */
-	int *fregs;				/* floating-point registers */
+	int wsreg;				/* workspace register number */
 } krocllvm_cgstate_t;
+
+typedef struct TAG_krocllvm_coderref {
+	int iregs[KROCLLVM_MAX_DEPTH];
+	int niregs;
+	int fregs[KROCLLVM_MAX_DEPTH];
+	int nfregs;
+} krocllvm_coderref_t;
 
 /*}}}*/
 
@@ -281,6 +296,35 @@ static int krocllvm_init_options (krocllvm_priv_t *kpriv)
 	opts_add ("halterrormode", '\0', krocllvm_opthandler_flag, (void *)-1, "1use halt error-mode");
 
 	return 0;
+}
+/*}}}*/
+
+/*{{{  static krocllvm_coderref_t *krocllvm_newcoderref (void)*/
+/*
+ *	creates a new, blank, krocllvm_coderref_t structure.
+ */
+static krocllvm_coderref_t *krocllvm_newcoderref (void)
+{
+	krocllvm_coderref_t *cr;
+
+	cr = (krocllvm_coderref_t *)smalloc (sizeof (krocllvm_coderref_t));
+	cr->niregs = 0;
+	cr->nfregs = 0;
+
+	return cr;
+}
+/*}}}*/
+/*{{{  static void krocllvm_freecoderref (krocllvm_coderref_t *cr)*/
+/*
+ *	frees a krocllvm_coderref_t structure
+ */
+static void krocllvm_freecoderref (krocllvm_coderref_t *cr)
+{
+	if (!cr) {
+		nocc_internal ("krocllvm_freecoderref(): NULL pointer!");
+		return;
+	}
+	sfree (cr);
 }
 /*}}}*/
 
@@ -539,17 +583,8 @@ static void krocllvm_resultsubhook_free (void *hook)
 static krocllvm_cgstate_t *krocllvm_cgstate_create (void)
 {
 	krocllvm_cgstate_t *cgs = (krocllvm_cgstate_t *)smalloc (sizeof (krocllvm_cgstate_t));
-	int i;
 
-	cgs->idepth = 0;
-	cgs->fdepth = 0;
-	cgs->iregs = (int *)smalloc (sizeof (int) * KROCLLVM_MAX_DEPTH);
-	cgs->fregs = (int *)smalloc (sizeof (int) * KROCLLVM_MAX_DEPTH);
-
-	for (i=0; i<KROCLLVM_MAX_DEPTH; i++) {
-		cgs->iregs[i] = 0;
-		cgs->fregs[i] = 0;
-	}
+	cgs->wsreg = -1;
 
 	return cgs;
 }
@@ -563,14 +598,6 @@ static void krocllvm_cgstate_destroy (krocllvm_cgstate_t *cgs)
 	if (!cgs) {
 		nocc_internal ("krocllvm_cgstate_destroy(): null state!");
 		return;
-	}
-	if (cgs->iregs) {
-		sfree (cgs->iregs);
-		cgs->iregs = NULL;
-	}
-	if (cgs->fregs) {
-		sfree (cgs->fregs);
-		cgs->fregs = NULL;
 	}
 	sfree (cgs);
 
@@ -605,10 +632,7 @@ static krocllvm_cgstate_t *krocllvm_cgstate_copypush (codegen_t *cgen)
 	} else {
 		krocllvm_cgstate_t *lastcgs = (krocllvm_cgstate_t *)DA_NTHITEM (cgen->tcgstates, DA_CUR (cgen->tcgstates) - 1);
 
-		cgs->idepth = lastcgs->idepth;
-		cgs->fdepth = lastcgs->fdepth;
-		memcpy (cgs->iregs, lastcgs->iregs, KROCLLVM_MAX_DEPTH * sizeof (int));
-		memcpy (cgs->fregs, lastcgs->fregs, KROCLLVM_MAX_DEPTH * sizeof (int));
+		cgs->wsreg = lastcgs->wsreg;
 	}
 	dynarray_add (cgen->tcgstates, (void *)cgs);
 
@@ -628,12 +652,7 @@ static void krocllvm_cgstate_popfree (codegen_t *cgen)
 		return;
 	}
 	cgs = (krocllvm_cgstate_t *)DA_NTHITEM (cgen->tcgstates, DA_CUR (cgen->tcgstates) - 1);
-	if (cgs->idepth) {
-		codegen_warning (cgen, "krocllvm_cgstate_popfree(): integer stack at depth %d", cgs->idepth);
-	}
-	if (cgs->fdepth) {
-		codegen_warning (cgen, "krocllvm_cgstate_popfree(): floating-point stack at depth %d", cgs->fdepth);
-	}
+
 	DA_SETNTHITEM (cgen->tcgstates, DA_CUR (cgen->tcgstates) - 1, NULL);
 	dynarray_delitem (cgen->tcgstates, DA_CUR (cgen->tcgstates) - 1);
 
@@ -668,16 +687,10 @@ static int krocllvm_cgstate_tsdelta (codegen_t *cgen, int delta)
 		codegen_error (cgen, "krocllvm_cgstate_tsdelta(): no stack to adjust!");
 		return 0;
 	}
-#if 0
-fprintf (stderr, "krocllvm_cgstate_tsdelta(): cgs->idepth = %d, delta = %d\n", cgs->idepth, delta);
+#if 1
+fprintf (stderr, "krocllvm_cgstate_tsdelta(): should probably not call this!\n");
 #endif
-	cgs->idepth += delta;
-	if (cgs->idepth < 0) {
-		codegen_warning (cgen, "krocllvm_cgstate_tsdelta(): stack underflow");
-		cgs->idepth = 0;
-	}
-
-	return cgs->idepth;
+	return 0;
 }
 /*}}}*/
 /*{{{  static int krocllvm_cgstate_tsfpdelta (codegen_t *cgen, int delta)*/
@@ -694,16 +707,11 @@ static int krocllvm_cgstate_tsfpdelta (codegen_t *cgen, int delta)
 		codegen_error (cgen, "krocllvm_cgstate_tsfpdelta(): no stack to adjust!");
 		return 0;
 	}
-#if 0
-fprintf (stderr, "krocllvm_cgstate_tsfpdelta(): cgs->fdepth = %d, delta = %d\n", cgs->fdepth, delta);
+#if 1
+fprintf (stderr, "krocllvm_cgstate_tsfpdelta(): should probably not call this!\n");
 #endif
-	cgs->fdepth += delta;
-	if (cgs->fdepth < 0) {
-		codegen_warning (cgen, "krocllvm_cgstate_tsfpdelta(): stack underflow");
-		cgs->fdepth = 0;
-	}
 
-	return cgs->fdepth;
+	return 0;
 }
 /*}}}*/
 /*{{{  static int krocllvm_cgstate_tszero (codegen_t *cgen)*/
@@ -721,10 +729,11 @@ static int krocllvm_cgstate_tszero (codegen_t *cgen)
 		codegen_error (cgen, "krocllvm_cgstate_tszero(): no stack to adjust!");
 		return 0;
 	}
-	r = cgs->idepth;
-	cgs->idepth = 0;
+#if 1
+fprintf (stderr, "krocllvm_cgstate_tszero(): should probably not call this!\n");
+#endif
 
-	return r;
+	return 0;
 }
 /*}}}*/
 /*}}}*/
@@ -1639,7 +1648,7 @@ tnode_dumptree (constref, 1, stderr);
 		}
 
 		codegen_write_fmt (cgen, "\tldc\t%d\n", val);
-		krocllvm_cgstate_tsdelta (cgen, 1);
+		// krocllvm_cgstate_tsdelta (cgen, 1);
 		/*}}}*/
 	}
 	return 0;
@@ -1887,6 +1896,43 @@ fprintf (stderr, "krocllvm_be_precode_seenproc(): descriptor now [%s]\n", dstr);
 /*}}}*/
 
 
+/*{{{  static coderref_t *krocllvm_coder_ldptr (codegen_t *cgen, tnode_t *name)*/
+/*
+ *	loads a constant
+ */
+static coderref_t *krocllvm_coder_ldptr (codegen_t *cgen, tnode_t *name)
+{
+	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)(krocllvm_target.priv);
+	int ref_lexlevel, act_lexlevel;
+	krocllvm_coderref_t *cr = krocllvm_newcoderref ();
+
+	if (name->tag == krocllvm_target.tag_NAMEREF) {
+		/*{{{  FIXME: loading pointer to name*/
+
+		/*}}}*/
+	} else if (name->tag == krocllvm_target.tag_INDEXED) {
+		/*{{{  FIXME: indexed node*/
+
+		/*}}}*/
+	} else if (name->tag == kpriv->tag_CONSTREF) {
+		/*{{{  FIXME: loading pointer to a constant*/
+
+		/*}}}*/
+	} else if (name->tag == krocllvm_target.tag_NAME) {
+		/*{{{  FIXME: loading pointer to name with no scope (specials only!)*/
+
+		/*}}}*/
+	} else if (name->tag == krocllvm_target.tag_RESULT) {
+		/*{{{  FIXME: loading pointer to some evaluated result*/
+
+		/*}}}*/
+	} else {
+		nocc_warning ("krocllvm_coder_ldptr(): don\'t know how to load a pointer to [%s]", name->tag->name);
+	}
+
+	return cr;
+}
+/*}}}*/
 /*{{{  static void krocllvm_coder_comment (codegen_t *cgen, const char *fmt, ...)*/
 /*
  *	generates a comment
@@ -1952,7 +1998,11 @@ static int krocllvm_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
 
 
 	cops = (coderops_t *)smalloc (sizeof (coderops_t));
+	memset ((void *)cops, 0, sizeof (coderops_t));
+
 	/* FIXME: need coder operations! */
+	cops->ldptr = krocllvm_coder_ldptr;
+
 	cops->comment = krocllvm_coder_comment;
 
 	cgen->cops = cops;
@@ -2009,6 +2059,9 @@ static int krocllvm_target_init (target_t *target)
 		nocc_internal ("krocllvm_target_init(): already initialised!");
 		return 1;
 	}
+#if 1
+fprintf (stderr, "krocllvm_target_init(): initialising!\n");
+#endif
 
 	kpriv = (krocllvm_priv_t *)smalloc (sizeof (krocllvm_priv_t));
 	kpriv->precodelist = NULL;

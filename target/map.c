@@ -93,6 +93,9 @@ static int map_modprewalk_mapnames (tnode_t **tptr, void *arg)
 
 	i = 1;
 	if ((*tptr)->tag->ndef->ops && tnode_hascompop_i ((*tptr)->tag->ndef->ops, (int)COPS_NAMEMAP)) {
+#if 0
+fprintf (stderr, "map_modprewalk_mapnames(): calling on node [%s:%s]\n", (*tptr)->tag->ndef->name, (*tptr)->tag->name);
+#endif
 		i = tnode_callcompop_i ((*tptr)->tag->ndef->ops, (int)COPS_NAMEMAP, 2, tptr, mdata);
 	}
 	return i;

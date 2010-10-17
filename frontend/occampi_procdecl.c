@@ -506,7 +506,7 @@ tnode_dumptree (*paramsptr, 1, stderr);
 	}
 
 	map->inparamlist = 0;
-#if 0
+#if 1
 fprintf (stderr, "occampi_namemap_procdecl(): done mapping parameters, got:\n");
 tnode_dumptree (*paramsptr, 1, stderr);
 #endif
