@@ -222,6 +222,8 @@ typedef struct TAG_krocllvm_priv {
 	struct {
 		unsigned int stoperrormode : 1;
 	} options;
+
+	int regcount;
 } krocllvm_priv_t;
 
 typedef struct TAG_krocllvm_resultsubhook {
@@ -235,11 +237,18 @@ typedef struct TAG_krocllvm_cgstate {
 } krocllvm_cgstate_t;
 
 typedef struct TAG_krocllvm_coderref {
-	int iregs[KROCLLVM_MAX_DEPTH];
-	int niregs;
-	int fregs[KROCLLVM_MAX_DEPTH];
-	int nfregs;
+	int regs[KROCLLVM_MAX_DEPTH];		/* register numbers */
+	int types[KROCLLVM_MAX_DEPTH];		/* register types */
+	int nregs;
 } krocllvm_coderref_t;
+
+/*}}}*/
+/*{{{  register type definitions (for LLVM)*/
+
+#define LLVM_TYPE_VOID 0x00000000
+#define LLVM_TYPE_INT 0x00001000		/* integer type, low order 12 bits specifies number of bits */
+#define LLVM_TYPE_FP 0x00002000			/* floating-point type, low order 12 bits specifies size (32,64,128) */
+#define LLVM_TYPE_SIGNED 0x00004000		/* flag for signed integers */
 
 /*}}}*/
 
@@ -308,8 +317,7 @@ static krocllvm_coderref_t *krocllvm_newcoderref (void)
 	krocllvm_coderref_t *cr;
 
 	cr = (krocllvm_coderref_t *)smalloc (sizeof (krocllvm_coderref_t));
-	cr->niregs = 0;
-	cr->nfregs = 0;
+	cr->nregs = 0;
 
 	return cr;
 }
@@ -325,6 +333,40 @@ static void krocllvm_freecoderref (krocllvm_coderref_t *cr)
 		return;
 	}
 	sfree (cr);
+}
+/*}}}*/
+/*{{{  static char *krocllvm_typestr (const int type)*/
+/*
+ *	generates a type string for an LLVM type (e.g. "i32")
+ */
+static char *krocllvm_typestr (const int type)
+{
+	static char buf[16];
+	static int boffs = 0;
+	int thisoff;
+
+	if (type == LLVM_TYPE_VOID) {
+		sprintf (&buf[boffs], "void");
+	} else if (type & LLVM_TYPE_INT) {
+		sprintf (&buf[boffs], "i%d", type & 0xfff);
+	} else if (type & LLVM_TYPE_FP) {
+		if ((type & 0xfff) == 32) {
+			sprintf (&buf[boffs], "float");
+		} else if ((type & 0xfff) == 64) {
+			sprintf (&buf[boffs], "double");
+		} else if ((type & 0xfff) == 128) {
+			sprintf (&buf[boffs], "fp128");
+		} else {
+			nocc_internal ("krocllvm_typestr(): invalid FP type 0x%8.8x\n", (unsigned int)type);
+		}
+	} else {
+		nocc_internal ("krocllvm_typestr(): invalid type 0x%8.8x\n", (unsigned int)type);
+	}
+
+	thisoff = boffs;
+	boffs = 8 - boffs;
+
+	return &buf[thisoff];
 }
 /*}}}*/
 
@@ -1896,11 +1938,11 @@ fprintf (stderr, "krocllvm_be_precode_seenproc(): descriptor now [%s]\n", dstr);
 /*}}}*/
 
 
-/*{{{  static coderref_t *krocllvm_coder_ldptr (codegen_t *cgen, tnode_t *name)*/
+/*{{{  static coderref_t krocllvm_coder_ldptr (codegen_t *cgen, tnode_t *name, int offset)*/
 /*
  *	loads a constant
  */
-static coderref_t *krocllvm_coder_ldptr (codegen_t *cgen, tnode_t *name)
+static coderref_t krocllvm_coder_ldptr (codegen_t *cgen, tnode_t *name, int offset)
 {
 	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)(krocllvm_target.priv);
 	int ref_lexlevel, act_lexlevel;
@@ -1930,9 +1972,46 @@ static coderref_t *krocllvm_coder_ldptr (codegen_t *cgen, tnode_t *name)
 		nocc_warning ("krocllvm_coder_ldptr(): don\'t know how to load a pointer to [%s]", name->tag->name);
 	}
 
-	return cr;
+	return (coderref_t)cr;
 }
 /*}}}*/
+/*{{{  static coderref_t krocllvm_coder_ldconst (codegen_t *cgen, int val, int bits, int issigned)*/
+/*
+ *	loads an integer constant.
+ */
+static coderref_t krocllvm_coder_ldconst (codegen_t *cgen, int val, int bits, int issigned)
+{
+	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)(krocllvm_target.priv);
+	krocllvm_coderref_t *cr = krocllvm_newcoderref ();
+
+	cr->regs[0] = ++kpriv->regcount;
+	cr->types[0] = LLVM_TYPE_INT | (bits & 0xfff) | (issigned ? LLVM_TYPE_SIGNED : 0);
+	cr->nregs = 1;
+
+	codegen_write_fmt (cgen, "%%reg_%d = bitcast %s %d to %s\n", cr->regs[0], krocllvm_typestr (cr->types[0]), val, krocllvm_typestr (cr->types[0]));
+
+	return (coderref_t)cr;
+}
+/*}}}*/
+/*{{{  static void krocllvm_coder_wsadjust (codegen_t *cgen, int adjust)*/
+/*
+ *	generates workspace adjustment
+ */
+static void krocllvm_coder_wsadjust (codegen_t *cgen, int adjust)
+{
+	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)(krocllvm_target.priv);
+	krocllvm_cgstate_t *cgs = krocllvm_cgstate_cur (cgen);
+
+	if (!cgs) {
+		codegen_error (cgen, "krocllvm_coder_wsadjust(): no current generator state!\n");
+		return;
+	}
+	codegen_write_fmt (cgen, "; .wsadjust %d\n", adjust);
+	return;
+}
+/*}}}*/
+
+
 /*{{{  static void krocllvm_coder_comment (codegen_t *cgen, const char *fmt, ...)*/
 /*
  *	generates a comment
@@ -1955,6 +2034,111 @@ static void krocllvm_coder_comment (codegen_t *cgen, const char *fmt, ...)
 	}
 
 	sfree (buf);
+	return;
+}
+/*}}}*/
+/*{{{  static void krocllvm_coder_setwssize (codegen_t *cgen, int ws, int adjust)*/
+/*
+ *	generates workspace requirements
+ */
+static void krocllvm_coder_setwssize (codegen_t *cgen, int ws, int adjust)
+{
+	codegen_write_fmt (cgen, "; .SETWS %d, %d\n", ws, adjust);
+}
+/*}}}*/
+/*{{{  static void krocllvm_coder_setvssize (codegen_t *cgen, int vs)*/
+/*
+ *	generates vectorspace requirements
+ */
+static void krocllvm_coder_setvssize (codegen_t *cgen, int vs)
+{
+	codegen_write_fmt (cgen, "; .SETVS %d\n", vs);
+}
+/*}}}*/
+/*{{{  static void krocllvm_coder_setmssize (codegen_t *cgen, int ms)*/
+/*
+ *	generates mobilespace requirements
+ */
+static void krocllvm_coder_setmssize (codegen_t *cgen, int ms)
+{
+	codegen_write_fmt (cgen, "; .SETMS %d\n", ms);
+}
+/*}}}*/
+/*{{{  static void krocllvm_coder_setnamelabel (codegen_t *cgen, name_t *name)*/
+/*
+ *	sets a named label, but from a name_t (includes namespace)
+ */
+static void krocllvm_coder_setnamelabel (codegen_t *cgen, name_t *name)
+{
+	char *lbl = name_newwholename (name);
+
+	codegen_callops (cgen, setnamedlabel, lbl);
+	sfree (lbl);
+	return;
+}
+/*}}}*/
+/*{{{  static void krocllvm_coder_setnamedlabel (codegen_t *cgen, const char *lbl)*/
+/*
+ *	sets a named label
+ */
+static void krocllvm_coder_setnamedlabel (codegen_t *cgen, const char *lbl)
+{
+	codegen_write_fmt (cgen, "; .setnamedlabel \"%s\"\n", lbl);
+
+	return;
+}
+/*}}}*/
+/*{{{  static void krocllvm_coder_setlabel (codegen_t *cgen, int lbl)*/
+/*
+ *	sets a numeric label
+ */
+static void krocllvm_coder_setlabel (codegen_t *cgen, int lbl)
+{
+	codegen_write_fmt (cgen, "; .setlabel %d\n", lbl);
+
+	return;
+}
+/*}}}*/
+/*{{{  static void krocllvm_coder_procentry (codegen_t *cgen, const char *lbl)*/
+/*
+ *	generates a procedure entry stub
+ */
+static void krocllvm_coder_procentry (codegen_t *cgen, const char *lbl)
+{
+	codegen_write_fmt (cgen, "; .procentry \"%s\"\n", lbl);
+}
+/*}}}*/
+/*{{{  static void krocllvm_coder_procnameentry (codegen_t *cgen, name_t *name)*/
+/*
+ *	generates a procedure entry from a name_t (includes namespace)
+ */
+static void krocllvm_coder_procnameentry (codegen_t *cgen, name_t *name)
+{
+	char *lbl = name_newwholename (name);
+
+	codegen_callops (cgen, procentry, lbl);
+	sfree (lbl);
+	return;
+}
+/*}}}*/
+/*{{{  static void krocllvm_coder_debugline (codegen_t *cgen, tnode_t *node)*/
+/*
+ *	generates debugging information (e.g. before a process)
+ */
+static void krocllvm_coder_debugline (codegen_t *cgen, tnode_t *node)
+{
+	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)cgen->target->priv;
+
+	if (!node->org_file || !node->org_line) {
+		/* nothing to generate */
+		return;
+	}
+	if (node->org_file != kpriv->lastfile) {
+		kpriv->lastfile = node->org_file;
+		codegen_write_fmt (cgen, "; .sourcefile %s\n", node->org_file->filename ?: "(unknown)");
+	}
+	codegen_write_fmt (cgen, "; .sourceline %d\n", node->org_line);
+
 	return;
 }
 /*}}}*/
@@ -2002,8 +2186,19 @@ static int krocllvm_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
 
 	/* FIXME: need coder operations! */
 	cops->ldptr = krocllvm_coder_ldptr;
+	cops->ldconst = krocllvm_coder_ldconst;
+	cops->wsadjust = krocllvm_coder_wsadjust;
 
 	cops->comment = krocllvm_coder_comment;
+	cops->setwssize = krocllvm_coder_setwssize;
+	cops->setvssize = krocllvm_coder_setvssize;
+	cops->setmssize = krocllvm_coder_setmssize;
+	cops->setnamelabel = krocllvm_coder_setnamelabel;
+	cops->setnamedlabel = krocllvm_coder_setnamedlabel;
+	cops->setlabel = krocllvm_coder_setlabel;
+	cops->procentry = krocllvm_coder_procentry;
+	cops->procnameentry = krocllvm_coder_procnameentry;
+	cops->debugline = krocllvm_coder_debugline;
 
 	cgen->cops = cops;
 
@@ -2071,6 +2266,8 @@ fprintf (stderr, "krocllvm_target_init(): initialising!\n");
 
 	kpriv->lastfile = NULL;
 	kpriv->options.stoperrormode = 0;
+
+	kpriv->regcount = 0;
 
 	target->priv = (void *)kpriv;
 

@@ -100,6 +100,7 @@ typedef struct TAG_coderops {
 	void (*tcoff)(codegen_t *, int, const char *, const int);
 
 	coderref_t (*ldptr)(codegen_t *, struct TAG_tnode *, int);
+	coderref_t (*ldconst)(codegen_t *, int, int, int);
 
 	void (*wsadjust)(codegen_t *, int);
 	void (*comment)(codegen_t *, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
