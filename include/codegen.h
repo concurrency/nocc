@@ -100,7 +100,10 @@ typedef struct TAG_coderops {
 	void (*tcoff)(codegen_t *, int, const char *, const int);
 
 	coderref_t (*ldptr)(codegen_t *, struct TAG_tnode *, int);
+	coderref_t (*ldname)(codegen_t *, struct TAG_tnode *, int);
 	coderref_t (*ldconst)(codegen_t *, int, int, int);
+	void (*kicall2)(codegen_t *, coderref_t, coderref_t, int);
+	void (*freeref)(codegen_t *, coderref_t);
 
 	void (*wsadjust)(codegen_t *, int);
 	void (*comment)(codegen_t *, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
@@ -149,6 +152,7 @@ extern int codegen_write_fmt (codegen_t *cgen, const char *fmt, ...) __attribute
 extern int codegen_new_label (codegen_t *cgen);
 
 extern void codegen_nocoder (codegen_t *cgen, const char *op);
+extern coderref_t codegen_nocoder_r (codegen_t *cgen, const char *op);
 
 extern int codegen_check_beblock (struct TAG_tnode *node, codegen_t *cgen, int err);
 extern int codegen_check_beblockref (struct TAG_tnode *node, codegen_t *cgen, int err);
@@ -163,7 +167,8 @@ extern int codegen_init (void);
 extern int codegen_shutdown (void);
 
 
-#define codegen_callops(CG,OP,ARGS...)	((!(CG)->cops || !(CG)->cops->OP) ? codegen_nocoder ((CG), #OP) : (CG)->cops->OP (CG, ## ARGS))
+#define codegen_callops(CG,OP,ARGS...)		((!(CG)->cops || !(CG)->cops->OP) ? codegen_nocoder ((CG), #OP) : (CG)->cops->OP (CG, ## ARGS))
+#define codegen_callops_r(CG,OP,ARGS...)	((!(CG)->cops || !(CG)->cops->OP) ? codegen_nocoder_r ((CG), #OP) : (CG)->cops->OP (CG, ## ARGS))
 
 #endif	/* !__CODEGEN_H */
 

@@ -785,6 +785,16 @@ void codegen_nocoder (codegen_t *cgen, const char *op)
 	return;
 }
 /*}}}*/
+/*{{{  coderref_t codegen_nocoder_r (codegen_t *cgen, const char *op)*/
+/*
+ *	called when a coder-operation is used that doesn't actually exist
+ */
+coderref_t codegen_nocoder_r (codegen_t *cgen, const char *op)
+{
+	nocc_internal ("target %s does not support %s.", cgen->target->name, op);
+	return NULL;
+}
+/*}}}*/
 
 
 /*{{{  static int codegen_icheck_node (tnode_t *node, ntdef_t *expected, codegen_t *cgen, int err)*/

@@ -95,6 +95,18 @@ static void occampi_action_dumplhstypehook (tnode_t *node, void *hook, int inden
 	return;
 }
 /*}}}*/
+/*{{{  static int occampi_action_isoutput (ntdef_t *tag)*/
+/*
+ *	returns 1 if 'tag' is an output
+ */
+static int occampi_action_isoutput (ntdef_t *tag)
+{
+	if ((tag == opi.tag_OUTPUT) || (tag == opi.tag_OUTPUTBYTE) || (tag == opi.tag_OUTPUTWORD)) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
 
 
 
@@ -135,7 +147,7 @@ tnode_dumptree (tagname, 1, stderr);
  */
 static int occampi_scopein_action (compops_t *cops, tnode_t **nodep, scope_t *ss)
 {
-	if (((*nodep)->tag == opi.tag_INPUT) || ((*nodep)->tag == opi.tag_OUTPUT) || ((*nodep)->tag == opi.tag_ONECASEINPUT)) {
+	if (((*nodep)->tag == opi.tag_INPUT) || occampi_action_isoutput ((*nodep)->tag) || ((*nodep)->tag == opi.tag_ONECASEINPUT)) {
 		/*{{{  handle various forms of simple input/output*/
 		tnode_t **lhsp = tnode_nthsubaddr (*nodep, 0);
 		tnode_t **rhsp = tnode_nthsubaddr (*nodep, 1);
@@ -293,11 +305,11 @@ tnode_dumptree (prot, 1, stderr);
 		/*}}}*/
 	}
 
-	if ((node->tag == opi.tag_OUTPUT) || (node->tag == opi.tag_INPUT) || (node->tag == opi.tag_ONECASEINPUT)) {
+	if (occampi_action_isoutput (node->tag) || (node->tag == opi.tag_INPUT) || (node->tag == opi.tag_ONECASEINPUT)) {
 		/*{{{  check for channel direction compatibility*/
 		occampi_typeattr_t tattr = occampi_typeattrof (lhstype);
 		
-		if ((tattr & TYPEATTR_MARKED_IN) && (node->tag == opi.tag_OUTPUT)) {
+		if ((tattr & TYPEATTR_MARKED_IN) && occampi_action_isoutput (node->tag)) {
 			typecheck_error (node, tc, "cannot output on channel marked as input");
 		} else if ((tattr & TYPEATTR_MARKED_OUT) && (node->tag == opi.tag_INPUT)) {
 			typecheck_error (node, tc, "cannot input from channel marked as output");
@@ -351,7 +363,7 @@ static int occampi_precheck_action (compops_t *cops, tnode_t *node)
 	if (node->tag == opi.tag_INPUT) {
 		usagecheck_marknode (tnode_nthsubaddr (node, 0), USAGE_INPUT, 0);
 		usagecheck_marknode (tnode_nthsubaddr (node, 1), USAGE_WRITE, 0);
-	} else if (node->tag == opi.tag_OUTPUT) {
+	} else if (occampi_action_isoutput (node->tag)) {
 		usagecheck_marknode (tnode_nthsubaddr (node, 0), USAGE_OUTPUT, 0);
 		usagecheck_marknode (tnode_nthsubaddr (node, 1), USAGE_READ, 0);
 	} else if (node->tag == opi.tag_ASSIGN) {
@@ -377,7 +389,7 @@ static int occampi_precheck_action (compops_t *cops, tnode_t *node)
  */
 static int occampi_tracescheck_action (compops_t *cops, tnode_t *node, tchk_state_t *tcstate)
 {
-	if ((node->tag == opi.tag_INPUT) || (node->tag == opi.tag_OUTPUT) || (node->tag == opi.tag_ONECASEINPUT)) {
+	if ((node->tag == opi.tag_INPUT) || occampi_action_isoutput (node->tag) || (node->tag == opi.tag_ONECASEINPUT)) {
 		tnode_t *lhs = tnode_nthsubof (node, 0);
 		tnode_t *baselhs = langops_getbasename (lhs);
 		tnode_t *fieldlhs = langops_getfieldnamelist (lhs);
@@ -454,7 +466,7 @@ static int occampi_do_usagecheck_action (langops_t *lops, tnode_t *node, uchk_st
 		}
 
 		/*}}}*/
-	} else if (node->tag == opi.tag_OUTPUT) {
+	} else if (occampi_action_isoutput (node->tag)) {
 		/* skip */
 	} else {
 		nocc_internal ("occampi_do_usagecheck_action(): unhandled tag %s", node->tag->name);
@@ -475,7 +487,7 @@ static int occampi_fetrans_action (compops_t *cops, tnode_t **node, fetrans_t *f
 
 	fe->insertpoint = node;				/* before process is a good place to insert temporaries */
 
-	if (t->tag == opi.tag_OUTPUT) {
+	if (occampi_action_isoutput (t->tag)) {
 		/*{{{  if RHS looks complex, or is not a natural pointer or a non 1/4-byte constant, add temporary and assignment*/
 		int dotmp = 0;
 
@@ -608,7 +620,7 @@ if (x < nlhs) {
 			return 0;
 		}
 		/*}}}*/
-	} else if ((t->tag == opi.tag_INPUT) || (t->tag == opi.tag_OUTPUT)) {
+	} else if ((t->tag == opi.tag_INPUT) || occampi_action_isoutput (t->tag)) {
 		/*{{{  channel or port I/O, if the LHS is complex simplify into a temporary*/
 		tnode_t **lhsp = tnode_nthsubaddr (t, 0);
 
@@ -619,6 +631,23 @@ fprintf (stderr, "occampi_betrans_action(): I/O with complex LHS!\n");
 			betrans_simplifypointer (lhsp, be);
 		}
 
+		/*}}}*/
+	}
+
+	if (t->tag == opi.tag_OUTPUT) {
+		/*{{{  if constant output of 1 or 4 bytes, turn into outbyte/outword*/
+		tnode_t *rhs = tnode_nthsubof (t, 1);
+
+		if (langops_isconst (rhs)) {
+#if 0
+fprintf (stderr, "occampi_betrans_action(OUTPUT/const): constsizeof (rhs) = %d\n", langops_constsizeof (rhs));
+#endif
+			if (langops_constsizeof (rhs) == 1) {
+				t->tag = opi.tag_OUTPUTBYTE;
+			} else if (langops_constsizeof (rhs) == 4) {
+				t->tag = opi.tag_OUTPUTWORD;
+			}
+		}
 		/*}}}*/
 	}
 
@@ -654,7 +683,7 @@ static int occampi_namemap_action (compops_t *cops, tnode_t **node, map_t *map)
 	map_submapnames (tnode_nthsubaddr (*node, 0), map);
 	map_submapnames (tnode_nthsubaddr (*node, 1), map);
 
-	if (((*node)->tag == opi.tag_OUTPUT) || ((*node)->tag == opi.tag_INPUT)) {
+	if (occampi_action_isoutput ((*node)->tag) || ((*node)->tag == opi.tag_INPUT)) {
 		tnode_t *bename;
 
 		bename = map->target->newname (*node, NULL, map, 0, map->target->bws.ds_io, 0, 0, 0, 0);
@@ -677,7 +706,7 @@ static int occampi_codegen_action (compops_t *cops, tnode_t *node, codegen_t *cg
 	int bytes = tnode_bytesfor (type, cgen->target);
 	tnode_t *lhstype = (tnode_t *)tnode_getchook (node, opi_action_lhstypehook);
 
-#if 0
+#if 1
 fprintf (stderr, "occampi_codegen_action(): %s: bytes = %d, type =\n", node->tag->name, bytes);
 tnode_dumptree (type, 1, stderr);
 #endif
@@ -742,6 +771,19 @@ tnode_dumptree (type, 1, stderr);
 		codegen_callops (cgen, loadpointer, lhs, 0);
 		codegen_callops (cgen, loadconst, bytes);
 		codegen_callops (cgen, tsecondary, I_OUT);
+	} else if (node->tag == opi.tag_OUTPUTBYTE) {
+		/* load a BYTE value, channel and output */
+		coderref_t val, chan;
+
+#if 1
+fprintf (stderr, "occampi_codegen_action(): here for output byte!\n");
+#endif
+		val = codegen_callops_r (cgen, ldname, rhs, 0);
+		chan = codegen_callops_r (cgen, ldptr, lhs, 0);
+		codegen_callops (cgen, kicall2, chan, val, I_OUTBYTE);
+
+		codegen_callops (cgen, freeref, val);
+		codegen_callops (cgen, freeref, chan);
 	} else if (node->tag == opi.tag_INPUT) {
 		/* same as output really.. */
 		codegen_callops (cgen, loadpointer, rhs, 0);
@@ -1111,7 +1153,7 @@ static int occampi_action_init_nodes (void)
 	opi_action_lhstypehook->chook_dumptree = occampi_action_dumplhstypehook;
 
 	/*}}}*/
-	/*{{{  occampi:actionnode -- ASSIGN, INPUT, CASEINPUT, ONECASEINPUT, OUTPUT*/
+	/*{{{  occampi:actionnode -- ASSIGN, INPUT, CASEINPUT, ONECASEINPUT, OUTPUT, OUTPUTBYTE, OUTPUTWORD*/
 	i = -1;
 	opi.node_ACTIONNODE = tnd = tnode_newnodetype ("occampi:actionnode", &i, 3, 0, 0, TNF_NONE);		/* subnodes: left, right, type */
 	cops = tnode_newcompops ();
@@ -1138,6 +1180,10 @@ static int occampi_action_init_nodes (void)
 	opi.tag_ONECASEINPUT = tnode_newnodetag ("ONECASEINPUT", &i, tnd, NTF_NONE);
 	i = -1;
 	opi.tag_OUTPUT = tnode_newnodetag ("OUTPUT", &i, tnd, NTF_ACTION_DEMOBILISE);
+	i = -1;
+	opi.tag_OUTPUTBYTE = tnode_newnodetag ("OUTPUTBYTE", &i, tnd, NTF_ACTION_DEMOBILISE);
+	i = -1;
+	opi.tag_OUTPUTWORD = tnode_newnodetag ("OUTPUTWORD", &i, tnd, NTF_ACTION_DEMOBILISE);
 
 	/*}}}*/
 	/*{{{  occampi:caseinputnode -- CASEINPUT*/

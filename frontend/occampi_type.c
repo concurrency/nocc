@@ -440,6 +440,24 @@ static int occampi_type_codegen_typeaction (langops_t *lops, tnode_t *type, tnod
 			codegen_callops (cgen, loadpointer, lhs, 0);
 			codegen_callops (cgen, loadconst, bytes);
 			codegen_callops (cgen, tsecondary, I_OUT);
+		} else if (anode->tag == opi.tag_OUTPUTBYTE) {
+			coderref_t val, chan;
+
+			val = codegen_callops_r (cgen, ldname, rhs, 0);
+			chan = codegen_callops_r (cgen, ldptr, lhs, 0);
+			codegen_callops (cgen, kicall2, chan, val, I_OUTBYTE);
+
+			codegen_callops (cgen, freeref, val);
+			codegen_callops (cgen, freeref, chan);
+		} else if (anode->tag == opi.tag_OUTPUTWORD) {
+			coderref_t val, chan;
+
+			val = codegen_callops_r (cgen, ldname, rhs, 0);
+			chan = codegen_callops_r (cgen, ldptr, lhs, 0);
+			codegen_callops (cgen, kicall2, chan, val, I_OUTWORD);
+
+			codegen_callops (cgen, freeref, val);
+			codegen_callops (cgen, freeref, chan);
 		}
 
 		return 0;

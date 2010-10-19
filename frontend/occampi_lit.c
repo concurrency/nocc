@@ -175,9 +175,11 @@ fprintf (stderr, "occampi_gettype_lit(): LITARRAY: mysize is %d, typesize of [%s
 		/*}}}*/
 	} else if (!type) {
 		if (node->tag == opi.tag_LITBOOL) {
+			/*{{{  bools*/
 			/* ignore default type */
 			tnode_setnthsub (node, 0, tnode_create (opi.tag_BOOL, NULL));
 			type = tnode_nthsubof (node, 0);
+			/*}}}*/
 		} else if (node->tag == opi.tag_LITREAL) {
 			/* ignore default type */
 			occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof (node, 0);
@@ -311,7 +313,10 @@ static int occampi_constprop_lit (compops_t *cops, tnode_t **nodep)
 {
 	occampi_litdata_t *tmplit = (occampi_litdata_t *)tnode_nthhookof ((*nodep), 0);
 
-	if ((*nodep)->tag == opi.tag_LITBYTE) {
+	if (((*nodep)->tag == opi.tag_LITINT) && (tmplit->bytes == 1)) {
+		/* BYTE constant expressed as INT */
+		*nodep = constprop_newconst (CONST_BYTE, *nodep, NULL, *(unsigned char *)(tmplit->data));
+	} else if ((*nodep)->tag == opi.tag_LITBYTE) {
 		*nodep = constprop_newconst (CONST_BYTE, *nodep, NULL, *(unsigned char *)(tmplit->data));
 	} else if ((*nodep)->tag == opi.tag_LITINT) {
 		*nodep = constprop_newconst (CONST_INT, *nodep, NULL, *(int *)(tmplit->data));

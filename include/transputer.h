@@ -197,7 +197,9 @@ typedef enum ENUM_transinstr {
 	I_UMUL = 175,
 	I_UDIV = 176,
 	I_UREM = 177,
-	I_UPROD = 178
+	I_UPROD = 178,
+	I_OUTBYTE = 179,
+	I_OUTWORD = 180
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {

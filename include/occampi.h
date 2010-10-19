@@ -125,6 +125,8 @@ typedef struct {
 	struct TAG_ntdef *tag_CASEINPUTITEM;
 	struct TAG_ntdef *tag_ONECASEINPUT;
 	struct TAG_ntdef *tag_OUTPUT;
+	struct TAG_ntdef *tag_OUTPUTWORD;
+	struct TAG_ntdef *tag_OUTPUTBYTE;
 	struct TAG_ntdef *tag_HIDDENPARAM;
 	struct TAG_ntdef *tag_HIDDENDIMEN;
 	struct TAG_ntdef *tag_RETURNADDRESS;
