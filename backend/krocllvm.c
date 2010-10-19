@@ -351,6 +351,32 @@ static krocllvm_coderref_t *krocllvm_newcoderref_init (codegen_t *cgen, const in
 	return cr;
 }
 /*}}}*/
+/*{{{  static void krocllvm_addcoderref (codegen_t *cgen, krocllvm_coderref_t *cr, const int lltype)*/
+/*
+ *	creates a new virtual register for LLVM code-gen (in existing reg-set)
+ */
+static void krocllvm_addcoderref (codegen_t *cgen, krocllvm_coderref_t *cr, const int lltype)
+{
+	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)krocllvm_target.priv;
+
+	cr->regs[cr->nregs] = ++kpriv->regcount;
+	cr->types[cr->nregs] = lltype;
+	cr->nregs++;
+
+	return;
+}
+/*}}}*/
+/*{{{  static int krocllvm_newreg (codegen_t *cgen)*/
+/*
+ *	creates a new virtual register for LLVM code-gen (untyped)
+ */
+static int krocllvm_newreg (codegen_t *cgen)
+{
+	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)krocllvm_target.priv;
+
+	return ++kpriv->regcount;
+}
+/*}}}*/
 /*{{{  static char *krocllvm_typestr (const int type)*/
 /*
  *	generates a type string for an LLVM type (e.g. "i32")
@@ -1550,8 +1576,6 @@ static int krocllvm_codegen_block (compops_t *cops, tnode_t *blk, codegen_t *cge
 	dynarray_setsize (cgen->be_blks, lexlevel + 1);
 	DA_SETNTHITEM (cgen->be_blks, lexlevel, blk);
 
-	krocllvm_cgstate_newpush (cgen);
-
 	if (elab) {
 		codegen_callops (cgen, setlabel, elab);
 	}
@@ -1562,8 +1586,6 @@ static int krocllvm_codegen_block (compops_t *cops, tnode_t *blk, codegen_t *cge
 
 	DA_SETNTHITEM (cgen->be_blks, lexlevel, NULL);
 	dynarray_setsize (cgen->be_blks, lexlevel);
-
-	krocllvm_cgstate_popfree (cgen);
 
 	return 0;
 }
@@ -1963,10 +1985,39 @@ static coderref_t krocllvm_coder_ldptr (codegen_t *cgen, tnode_t *name, int offs
 	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)(krocllvm_target.priv);
 	int ref_lexlevel, act_lexlevel;
 	krocllvm_coderref_t *cr = krocllvm_newcoderref ();
+	krocllvm_cgstate_t *cgs = krocllvm_cgstate_cur (cgen);
 
 	if (name->tag == krocllvm_target.tag_NAMEREF) {
 		/*{{{  FIXME: loading pointer to name*/
+		krocllvm_namehook_t *nh = (krocllvm_namehook_t *)tnode_nthhookof (name, 0);
+		tnode_t *fename = tnode_nthsubof (name, 0);
+		tnode_t *fenamehook = (tnode_t *)tnode_getchook (fename, kpriv->mapchook);
+		int local;
 
+		ref_lexlevel = nh->lexlevel;
+		act_lexlevel = cgen->target->be_blocklexlevel (fenamehook);
+		local = (ref_lexlevel == act_lexlevel);
+
+		if (!local) {
+			/*{{{  non-local load*/
+			/*}}}*/
+		} else {
+			/*{{{  local load*/
+			krocllvm_addcoderref (cgen, cr, LLVM_TYPE_INT | 32);
+
+			if (nh->indir == 0) {
+				codegen_write_fmt (cgen, "\t%%reg_%d = getelementptr i32* %%wptr_%d, i32 %d\n", cr->regs[0], cgs->wsreg, nh->ws_offset + offset);
+			} else {
+				int i, tr;
+
+				tr = krocllvm_newreg (cgen);
+				codegen_write_fmt (cgen, "\t%%reg_%d = getelementptr i32* %%wptr_%d, i32 %d\n", tr, cgs->wsreg, nh->ws_offset);
+				codegen_write_fmt (cgen, "\t%%reg_%d = load i32* %%reg_%d\n", cr->regs[0], tr);
+
+				/* FIXME: nonlocal */
+			}
+			/*}}}*/
+		}
 		/*}}}*/
 	} else if (name->tag == krocllvm_target.tag_INDEXED) {
 		/*{{{  FIXME: indexed node*/
@@ -2131,7 +2182,52 @@ fprintf (stderr, "krocetc_coder_loadname(): about to SUM base and offset..\n");
 		/*}}}*/
 	} else if (name->tag == kpriv->tag_CONSTREF) {
 		/*{{{  load constant via reference*/
-		codegen_subcodegen (name, cgen);
+		krocllvm_consthook_t *ch = (krocllvm_consthook_t *)tnode_nthhookof (name, 0);
+		int val;
+
+	#if 0
+	fprintf (stderr, "krocllvm_codegen_constref(): constref node is:\n");
+	tnode_dumptree (constref, 1, stderr);
+	#endif
+		if (ch->typecat & TYPE_REAL) {
+			/*{{{  loading floating-point constant -- must be done via non-local!*/
+			switch (ch->size) {
+			default:
+				codegen_warning (cgen, "krocllvm_codegen_constref(): unhandled real width %d", ch->size);
+				break;
+			case 4:
+				// krocllvm_coder_loadlabaddr (cgen, ch->label);
+				// ch->labrefs++;
+				// codegen_callops (cgen, tsecondary, I_FPLDNLSN);
+				break;
+			case 8:
+				// krocllvm_coder_loadlabaddr (cgen, ch->label);
+				// ch->labrefs++;
+				// codegen_callops (cgen, tsecondary, I_FPLDNLDB);
+				break;
+			}
+			/*}}}*/
+		} else {
+			/*{{{  loading integer constant*/
+			switch (ch->size) {
+			case 1:
+				val = (int)(*(unsigned char *)(ch->byteptr));
+				break;
+			case 2:
+				val = (int)(*(unsigned short int *)(ch->byteptr));
+				break;
+			case 4:
+				val = (int)(*(unsigned int *)(ch->byteptr));
+				break;
+			default:
+				val = 0;
+				break;
+			}
+			krocllvm_addcoderref (cgen, cr, LLVM_TYPE_INT | (ch->size * 8));
+
+			codegen_write_fmt (cgen, "\t%%reg_%d = bitcast i32 %d to i32\n", cr->regs[0], val);
+			/*}}}*/
+		}
 
 		/*}}}*/
 	} else if (name->tag == krocllvm_target.tag_CONST) {
@@ -2197,7 +2293,7 @@ static void krocllvm_coder_kicall2 (codegen_t *cgen, coderref_t chan, coderref_t
 	krocllvm_coderref_t *r_chan = (krocllvm_coderref_t *)chan;
 	krocllvm_coderref_t *r_val = (krocllvm_coderref_t *)val;
 
-	codegen_write_fmt (cgen, "; KICALL2: %d with %s, %s\n", call, krocllvm_typestr (r_chan->regs[0]), krocllvm_typestr (r_val->regs[0]));
+	codegen_write_fmt (cgen, "; KICALL2: %d with %s, %s\n", call, krocllvm_typestr (r_chan->types[0]), krocllvm_typestr (r_val->types[0]));
 
 	return;
 }
@@ -2232,6 +2328,7 @@ static void krocllvm_coder_wsadjust (codegen_t *cgen, int adjust)
 		codegen_error (cgen, "krocllvm_coder_wsadjust(): no current generator state!\n");
 		return;
 	}
+	codegen_write_fmt (cgen, "\t; wsadjust %d\n", adjust);
 	codegen_write_fmt (cgen, "\t%%wptr_%d = getelementptr i32* %%wptr_%d, i32 %d\n", newws, cgs->wsreg, adjust);
 	cgs->wsreg = newws;
 	return;
@@ -2332,7 +2429,20 @@ static void krocllvm_coder_setlabel (codegen_t *cgen, int lbl)
  */
 static void krocllvm_coder_procentry (codegen_t *cgen, const char *lbl)
 {
+	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)(krocllvm_target.priv);
+	krocllvm_cgstate_t *cgs;
+	char *belbl = krocllvm_make_namedlabel (lbl);
+
 	codegen_write_fmt (cgen, "; .procentry \"%s\"\n", lbl);
+
+	cgs = krocllvm_cgstate_newpush (cgen);
+	cgs->wsreg = ++kpriv->regcount;
+
+	codegen_write_fmt (cgen, "define fastcc void @%s (i8* %%sched, i32* %%wptr_%d) {\n", belbl, cgs->wsreg);
+	codegen_write_fmt (cgen, "entry:\n");
+
+	sfree (belbl);
+
 }
 /*}}}*/
 /*{{{  static void krocllvm_coder_procnameentry (codegen_t *cgen, name_t *name)*/
@@ -2354,7 +2464,11 @@ static void krocllvm_coder_procnameentry (codegen_t *cgen, name_t *name)
  */
 static void krocllvm_coder_procreturn (codegen_t *cgen, int adjust)
 {
-	codegen_write_fmt (cgen, "; .procreturn %d\n", adjust);
+	codegen_write_fmt (cgen, "\t; .procreturn %d\n", adjust);
+
+	codegen_write_fmt (cgen, "}\n\n");
+
+	krocllvm_cgstate_popfree (cgen);
 }
 /*}}}*/
 /*{{{  static void krocllvm_coder_debugline (codegen_t *cgen, tnode_t *node)*/
