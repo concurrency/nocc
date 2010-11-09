@@ -102,8 +102,9 @@ typedef struct TAG_coderops {
 	coderref_t (*ldptr)(codegen_t *, struct TAG_tnode *, int);
 	coderref_t (*ldname)(codegen_t *, struct TAG_tnode *, int);
 	coderref_t (*ldconst)(codegen_t *, int, int, int);
-	void (*kicall2)(codegen_t *, coderref_t, coderref_t, int);
+	void (*kicall)(codegen_t *, int, ...);
 	void (*freeref)(codegen_t *, coderref_t);
+	void (*setmemsize)(codegen_t *, int, int, int, int);
 
 	void (*wsadjust)(codegen_t *, int);
 	void (*comment)(codegen_t *, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
@@ -148,6 +149,7 @@ extern void codegen_fatal (codegen_t *cgen, const char *fmt, ...) __attribute__ 
 extern int codegen_write_bytes (codegen_t *cgen, const char *ptr, int bytes);
 extern int codegen_write_string (codegen_t *cgen, const char *str);
 extern int codegen_write_fmt (codegen_t *cgen, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+extern int codegen_write_file (codegen_t *cgen, const char *fpath);
 
 extern int codegen_new_label (codegen_t *cgen);
 

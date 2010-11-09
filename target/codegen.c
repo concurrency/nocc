@@ -382,6 +382,71 @@ int codegen_write_fmt (codegen_t *cgen, const char *fmt, ...)
 	return r;
 }
 /*}}}*/
+/*{{{  int codegen_write_file (codegen_t *cgen, const char *fpath)*/
+/*
+ *	writes contents of a file to the output file
+ *	returns 0 on success, non-zero on error
+ */
+int codegen_write_file (codegen_t *cgen, const char *fpath)
+{
+	int fd;
+	char *fbuf;
+	int fbsize = 512;
+	int rval = 0;
+
+	if (*fpath == '/') {
+		/* absolute path, try and open */
+		fd = open (fpath, O_RDONLY);
+		if (fd < 0) {
+			codegen_warning (cgen, "failed to open %s: %s", fpath, strerror (errno));
+			return -1;
+		}
+	} else {
+		/* search compiler epaths */
+		int i;
+
+		fd = -1;
+		for (i=0; i<DA_CUR (compopts.epath); i++) {
+			char fname[FILENAME_MAX];
+			char *epath = DA_NTHITEM (compopts.epath, i);
+			int elen = strlen (epath);
+
+			snprintf (fname, FILENAME_MAX - 1, "%s%s%s", epath, (epath[elen - 1] == '/') ? "" : "/", fpath);
+			fd = open (fname, O_RDONLY);
+			if (fd >= 0) {
+				break;		/* for() */
+			}
+		}
+
+		if (fd < 0) {
+			codegen_warning (cgen, "failed to find %s in compiler extension path", fpath);
+			return -1;
+		}
+	}
+
+	fbuf = (char *)smalloc (fbsize);
+	for (;;) {
+		int r = read (fd, fbuf, fbsize);
+
+		if (r < 0) {
+			codegen_warning (cgen, "failed to read from %s: %s", fpath, strerror (r));
+			rval = -1;
+			break;			/* for() */
+		} else if (!r) {
+			/* EOF */
+			break;
+		}
+		if (codegen_write_bytes (cgen, fbuf, r) < 0) {
+			codegen_warning (cgen, "failed to write %s to output", fpath);
+			rval = -1;
+			break;			/* for() */
+		}
+	}
+	sfree (fbuf);
+
+	return rval;
+}
+/*}}}*/
 
 
 /*{{{  void codegen_warning (codegen_t *cgen, const char *fmt, ...)*/

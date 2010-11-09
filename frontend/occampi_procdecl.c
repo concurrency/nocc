@@ -574,9 +574,10 @@ static int occampi_codegen_procdecl (compops_t *cops, tnode_t *node, codegen_t *
 
 	pname = tnode_nthnameof (name, 0);
 	codegen_callops (cgen, comment, "PROC %s = %d,%d,%d,%d,%d", pname->me->name, ws_size, ws_offset, vs_size, ms_size, adjust);
-	codegen_callops (cgen, setwssize, ws_size, adjust);
-	codegen_callops (cgen, setvssize, vs_size);
-	codegen_callops (cgen, setmssize, ms_size);
+	codegen_callops (cgen, setmemsize, ws_size, adjust, vs_size, ms_size);
+	// codegen_callops (cgen, setwssize, ws_size, adjust);
+	// codegen_callops (cgen, setvssize, vs_size);
+	// codegen_callops (cgen, setmssize, ms_size);
 	codegen_callops (cgen, setnamelabel, pname);
 	codegen_callops (cgen, procnameentry, pname);
 	codegen_callops (cgen, debugline, node);

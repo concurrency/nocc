@@ -83,6 +83,8 @@ static tnode_t *krocllvm_be_getorgnode (tnode_t *node);
 static tnode_t **krocllvm_be_blockbodyaddr (tnode_t *blk);
 static int krocllvm_be_regsfor (tnode_t *benode);
 
+static void krocllvm_be_precode_seenproc (codegen_t *cgen, name_t *name, tnode_t *node);
+
 /*}}}*/
 
 /*{{{  target_t for this target*/
@@ -152,7 +154,7 @@ target_t krocllvm_target = {
 	be_codegen_init:	krocllvm_be_codegen_init,
 	be_codegen_final:	krocllvm_be_codegen_final,
 
-	be_precode_seenproc:	NULL,
+	be_precode_seenproc:	krocllvm_be_precode_seenproc,
 
 	be_do_betrans:		NULL,
 	be_do_premap:		NULL,
@@ -205,6 +207,13 @@ typedef struct TAG_krocllvm_indexedhook {
 	int offset;				/* offset */
 } krocllvm_indexedhook_t;
 
+typedef struct TAG_krocllvm_memspacehook {
+	int ws;					/* bytes of workspace */
+	int adjust;				/* workspace adjustment (PROC entry/exit) */
+	int vs;					/* bytes of vectorspace (not used anymore) */
+	int ms;					/* bytes of mobilespace (not used anymore) */
+} krocllvm_memspacehook_t;
+
 typedef struct TAG_krocllvm_priv {
 	ntdef_t *tag_PRECODE;
 	ntdef_t *tag_CONSTREF;
@@ -212,6 +221,7 @@ typedef struct TAG_krocllvm_priv {
 	ntdef_t *tag_DESCRIPTOR;
 	ntdef_t *tag_FBP;			/* fork-barrier pointer */
 	tnode_t *precodelist;
+	tnode_t *postcodelist;
 	name_t *toplevelname;
 
 	chook_t *mapchook;
@@ -223,7 +233,13 @@ typedef struct TAG_krocllvm_priv {
 		unsigned int stoperrormode : 1;
 	} options;
 
-	int regcount;
+	int regcount;				/* general register numbering */
+	int labcount;				/* sub-label numbering */
+	int tmpcount;				/* temporary register numbering */
+	char *lastfunc;				/* last function name */
+	char *lastdesc;				/* last descriptor text */
+
+	krocllvm_memspacehook_t *tl_mem;	/* top-level memory requirements (last PROC seen) */
 } krocllvm_priv_t;
 
 typedef struct TAG_krocllvm_resultsubhook {
@@ -249,6 +265,34 @@ typedef struct TAG_krocllvm_coderref {
 #define LLVM_TYPE_INT 0x00001000		/* integer type, low order 12 bits specifies number of bits */
 #define LLVM_TYPE_FP 0x00002000			/* floating-point type, low order 12 bits specifies size (32,64,128) */
 #define LLVM_TYPE_SIGNED 0x00004000		/* flag for signed integers */
+#define LLVM_TYPE_PTR 0x00008000		/* flag for pointer type */
+#define LLVM_TYPE_PPTR 0x00010000		/* flag for pointer-pointer type */
+
+#define LLVM_TYPE_I8PTR ((LLVM_TYPE_INT | 8) | LLVM_TYPE_PTR)
+#define LLVM_TYPE_I32PTR ((LLVM_TYPE_INT | 32) | LLVM_TYPE_PTR)
+#define LLVM_TYPE_I32 (LLVM_TYPE_INT | 32)
+
+#define LLVM_SIZE_I32 (4)
+#define LLVM_SIZE_SHIFT (2)
+
+/*}}}*/
+/*{{{  kernel entry-points*/
+
+#define KIFACE_MAX_PARAMS (5)
+
+typedef struct TAG_krocllvm_kientry {
+	int call;				/* I_OUTBYTE, etc. */
+	int iregs;				/* number of input registers */
+	int oregs;				/* number of output registers */
+	int itypes[KIFACE_MAX_PARAMS];		/* input parameter types */
+	int otypes[KIFACE_MAX_PARAMS];		/* output parameter types */
+	char *ename;				/* entry-point name */
+} krocllvm_kientry_t;
+
+static krocllvm_kientry_t kitable[] = {
+	{I_OUTBYTE, 2, 0, {LLVM_TYPE_I32, LLVM_TYPE_I32, LLVM_TYPE_VOID}, {LLVM_TYPE_VOID, }, "kernel_Y_outbyte"},
+	{I_INVALID, 0, 0, {LLVM_TYPE_VOID, }, {LLVM_TYPE_VOID, }, NULL}
+};
 
 /*}}}*/
 
@@ -603,6 +647,48 @@ static void krocllvm_specialhook_dumptree (tnode_t *node, void *hook, int indent
 }
 /*}}}*/
 /*}}}*/
+/*{{{  krocllvm_memspacehook_t routines*/
+/*{{{  static void krocllvm_memspacehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dumps a krocllvm_memspacehook_t structure (debugging)
+ */
+static void krocllvm_memspacehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	return;
+}
+/*}}}*/
+/*{{{  static krocllvm_memspacehook_t *krocllvm_memspacehook_create (void)*/
+/*
+ *	creates a new krocllvm_memspacehook_t
+ */
+static krocllvm_memspacehook_t *krocllvm_memspacehook_create (void)
+{
+	krocllvm_memspacehook_t *msh = (krocllvm_memspacehook_t *)smalloc (sizeof (krocllvm_memspacehook_t));
+
+	msh->ws = 0;
+	msh->adjust = 0;
+	msh->vs = 0;
+	msh->ms = 0;
+
+	return msh;
+}
+/*}}}*/
+/*{{{  static void krocllvm_memspacehook_free (void *hook)*/
+/*
+ *	frees a krocllvm_memspacehook_t
+ */
+static void krocllvm_memspacehook_free (void *hook)
+{
+	krocllvm_memspacehook_t *msh = (krocllvm_memspacehook_t *)hook;
+
+	if (!msh) {
+		return;
+	}
+	sfree (msh);
+	return;
+}
+/*}}}*/
+/*}}}*/
 /*{{{  krocllvm_resultsubhook_t routines*/
 /*{{{  static void krocllvm_resultsubhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
 /*
@@ -820,6 +906,30 @@ fprintf (stderr, "krocllvm_cgstate_tszero(): should probably not call this!\n");
 	return 0;
 }
 /*}}}*/
+/*}}}*/
+
+
+/*{{{  static void krocllvm_setlastlabel (codegen_t *cgen, const char *name)*/
+/*
+ *	records the last named label dropped in the output stream
+ */
+static void krocllvm_setlastlabel (codegen_t *cgen, const char *name)
+{
+	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)(cgen->target->priv);
+
+	if (!kpriv) {
+		codegen_error (cgen, "krocllvm_setlastlabel(): NULL private state!");
+		return;
+	}
+	if (kpriv->lastfunc) {
+		sfree (kpriv->lastfunc);
+		kpriv->lastfunc = NULL;
+	}
+	
+	kpriv->lastfunc = string_dup (name);
+
+	return;
+}
 /*}}}*/
 
 
@@ -1884,6 +1994,83 @@ static char *krocllvm_make_namedlabel (const char *lbl)
 	return belbl;
 }
 /*}}}*/
+/*{{{  */
+/*
+ *	decodes top-level process header
+ *	returns number of top-level channels/other
+ */
+static int krocllvm_decode_tlp (codegen_t *cgen, const char *desc, int *got_kyb, int *got_scr, int *got_err)
+{
+	const char *ch;
+	int acount = 0;
+
+	if (strncmp (desc, "PROC ", 5)) {
+		codegen_error (cgen, "invalid top-level process signature [%s]", desc);
+		return 0;
+	}
+	for (ch = desc + 5; (*ch != '(') && (*ch != '\0'); ch++);
+	if (*ch == '\0') {
+		codegen_error (cgen, "invalid top-level process signature [%s]", desc);
+		return 0;
+	}
+	ch++;		/* should be in arguments, or end */
+
+	while ((*ch != '\0') && (*ch != ')')) {
+		const char *dh;
+		char *dstr;
+
+		for (dh=ch; (*dh != '\0') && (*dh != ')') && (*dh != ','); dh++);
+
+		/* try and figure out what the parameter 'dstr' represents */
+		dstr = string_ndup (ch, (int)(dh - ch));
+#if 0
+fprintf (stderr, "TLP: probably [%s]\n", dstr);
+#endif
+		if (!strncmp (dstr, "CHAN! BYTE ", 11)) {
+			/* output channel of bytes: screen or error */
+			switch (dstr[11]) {
+			case 's':
+			case 'o':
+			default:
+				/* assume screen */
+				if (!*got_scr) {
+					*got_scr = ++acount;
+				} else if (!*got_err) {
+					/* else, assume error (vaguely) */
+					*got_err = ++acount;
+				} else {
+					codegen_warning (cgen, "confused about top-level process parameter [%s]", dstr);
+				}
+				break;
+			case 'e':
+				/* assume error */
+				if (!*got_err) {
+					*got_err = ++acount;
+				} else {
+					codegen_warning (cgen, "confused about top-level process parameter [%s]", dstr);
+				}
+				break;
+			}
+		} else if (!strncmp (dstr, "CHAN? BYTE ", 11)) {
+			/* input channel of bytes: keyboard */
+			if (!*got_kyb) {
+				*got_kyb = ++acount;
+			} else {
+				codegen_warning (cgen, "confused about top-level process parameter [%s]", dstr);
+			}
+		}
+		sfree (dstr);
+
+		if (*dh != '\0') {
+			ch = dh + 1;
+		} else {
+			ch = dh;
+		}
+	}
+
+	return acount;
+}
+/*}}}*/
 
 
 /*{{{  static int krocllvm_precode_special (compops_t *cops, tnode_t **spec, codegen_t *cgen)*/
@@ -1908,15 +2095,76 @@ static int krocllvm_codegen_special (compops_t *cops, tnode_t *spec, codegen_t *
 	if (spec->tag == kpriv->tag_JENTRY) {
 		if (kpriv->toplevelname) {
 			char *belbl = krocllvm_make_namedlabel (NameNameOf (kpriv->toplevelname));
+			int got_kyb = 0, got_scr = 0, got_err = 0;
+			int ntl = 0;
+			krocllvm_memspacehook_t *msh = kpriv->tl_mem;
 
-			codegen_write_fmt (cgen, ".jentry\t%s\n", belbl);
+			if (kpriv->lastdesc) {
+#if 1
+fprintf (stderr, "krocllvm_codegen_special: JENTRY: lastdesc = [%s]\n", kpriv->lastdesc);
+#endif
+				ntl = krocllvm_decode_tlp (cgen, kpriv->lastdesc, &got_kyb, &got_scr, &got_err);
+			}
+
+			codegen_write_fmt (cgen, "; .jentry\t%s\n\n", belbl);
+			codegen_write_fmt (cgen, "declare i32 @occam_start (i32, i8**, i8*, i8*, i8**, i8*, i32, i32, i32)\n\n");
+
+			if (got_kyb) {
+				codegen_write_fmt (cgen, "@tlp_%d = internal constant [ 10 x i8 ] c\"keyboard?\\00\"\n", got_kyb);
+			}
+			if (got_scr) {
+				codegen_write_fmt (cgen, "@tlp_%d = internal constant [ 8 x i8 ] c\"screen!\\00\"\n", got_scr);
+			}
+			if (got_err) {
+				codegen_write_fmt (cgen, "@tlp_%d = internal constant [ 7 x i8 ] c\"error!\\00\"\n", got_err);
+			}
+
+			codegen_write_fmt (cgen, "@tlp_desc = internal constant [ %d x i8* ] [", ntl + 1);
+			if (got_kyb) {
+				codegen_write_fmt (cgen, " i8* getelementptr ([ 10 x i8 ]* @tlp_%d, i32 0, i32 0),", got_kyb);
+			}
+			if (got_scr) {
+				codegen_write_fmt (cgen, " i8* getelementptr ([ 8 x i8 ]* @tlp_%d, i32 0, i32 0),", got_scr);
+			}
+			if (got_err) {
+				codegen_write_fmt (cgen, " i8* getelementptr ([ 7 x i8 ]* @tlp_%d, i32 0, i32 0),", got_err);
+			}
+			codegen_write_fmt (cgen, " i8* null]\n\n");
+
+			codegen_write_fmt (cgen, "define private fastcc void @code_exit (i8* %%sched, i32* %%wptr) {\n");
+			codegen_write_fmt (cgen, "\tret void\n}\n\n");
+
+			codegen_write_fmt (cgen, "define void @code_entry (i8* %%sched, i32* %%wptr) {\n");
+			codegen_write_fmt (cgen, "\t%%iptr_ptr = getelementptr i32* %%wptr, i32 -1\n");
+			codegen_write_fmt (cgen, "\t%%iptr_val = load i32* %%iptr_ptr\n");
+			codegen_write_fmt (cgen, "\t%%iptr = inttoptr i32 %%iptr_val to void (i8*, i32*)*\n");
+			codegen_write_fmt (cgen, "\ttail call fastcc void %%iptr (i8* %%sched, i32* %%wptr) noreturn\n");
+			codegen_write_fmt (cgen, "\tret void\n}\n\n");
+
+			codegen_write_fmt (cgen, "define i32 @main (i32 %%argc, i8** %%argv) {\n");
+			codegen_write_fmt (cgen, "entry:\n");
+			codegen_write_fmt (cgen, "\t%%code_entry = bitcast void (i8*, i32*)* @code_entry to i8*\n");
+			codegen_write_fmt (cgen, "\t%%code_exit = bitcast void (i8*, i32*)* @code_exit to i8*\n");
+			codegen_write_fmt (cgen, "\t%%start_proc = bitcast void (i8*, i32*)* @%s to i8*\n", belbl);
+			codegen_write_fmt (cgen, "\t%%ret = call i32 @occam_start (i32 %%argc, i8** %%argv,");
+			codegen_write_fmt (cgen, " i8* %%code_entry, i8* %%code_exit,");
+			codegen_write_fmt (cgen, " i8** getelementptr ([%d x i8*]* @tlp_desc, i32 0, i32 0),", ntl + 1);
+			codegen_write_fmt (cgen, " i8* %%start_proc,");
+			if (msh) {
+				codegen_write_fmt (cgen, " i32 %d, i32 %d, i32 %d)\n", msh->ws >> LLVM_SIZE_SHIFT, msh->vs >> LLVM_SIZE_SHIFT, msh->ms >> LLVM_SIZE_SHIFT);
+			} else {
+				codegen_write_fmt (cgen, " i32 512, i32 0, i32 0)\n");
+			}
+			codegen_write_fmt (cgen, "\tret i32 %%ret\n");
+			codegen_write_fmt (cgen, "}\n\n");
+			// codegen_write_fmt (cgen, ".jentry\t%s\n", belbl);
 			sfree (belbl);
 		}
 	} else if (spec->tag == kpriv->tag_DESCRIPTOR) {
 		char **str = (char **)tnode_nthhookaddr (spec, 0);
 
 		/* *str should be a descriptor line */
-		codegen_write_fmt (cgen, ".descriptor\t\"%s\"\n", *str);
+		codegen_write_fmt (cgen, "; .descriptor\t\"%s\"\n", *str);
 	}
 	return 1;
 }
@@ -1967,6 +2215,7 @@ fprintf (stderr, "krocllvm_be_precode_seenproc(): seen descriptor [%s], doing ba
 fprintf (stderr, "krocllvm_be_precode_seenproc(): descriptor now [%s]\n", dstr);
 #endif
 			tnode_t *dspec = tnode_create (kpriv->tag_DESCRIPTOR, NULL, (void *)string_dup (dstr));
+			kpriv->lastdesc = dstr;
 
 			parser_addtolist (kpriv->precodelist, dspec);
 		}
@@ -2005,13 +2254,15 @@ static coderref_t krocllvm_coder_ldptr (codegen_t *cgen, tnode_t *name, int offs
 			/*{{{  local load*/
 			krocllvm_addcoderref (cgen, cr, LLVM_TYPE_INT | 32);
 
+			codegen_write_fmt (cgen, "\t; loadnameptr %d, %d+%d\n", nh->indir, nh->ws_offset, offset);
+
 			if (nh->indir == 0) {
-				codegen_write_fmt (cgen, "\t%%reg_%d = getelementptr i32* %%wptr_%d, i32 %d\n", cr->regs[0], cgs->wsreg, nh->ws_offset + offset);
+				codegen_write_fmt (cgen, "\t%%reg_%d = getelementptr i32* %%wptr_%d, i32 %d\n", cr->regs[0], cgs->wsreg, (nh->ws_offset + offset) >> LLVM_SIZE_SHIFT);
 			} else {
 				int i, tr;
 
 				tr = krocllvm_newreg (cgen);
-				codegen_write_fmt (cgen, "\t%%reg_%d = getelementptr i32* %%wptr_%d, i32 %d\n", tr, cgs->wsreg, nh->ws_offset);
+				codegen_write_fmt (cgen, "\t%%reg_%d = getelementptr i32* %%wptr_%d, i32 %d\n", tr, cgs->wsreg, (nh->ws_offset >> LLVM_SIZE_SHIFT));
 				codegen_write_fmt (cgen, "\t%%reg_%d = load i32* %%reg_%d\n", cr->regs[0], tr);
 
 				/* FIXME: nonlocal */
@@ -2085,16 +2336,16 @@ tnode_dumptree (name, 1, stderr);
 				switch (nh->typesize) {
 				default:
 					/* word or don't know, just do load-local (word) */
-					codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset + offset);
+					codegen_write_fmt (cgen, "\tldl\t%d\n", (nh->ws_offset + offset) >> LLVM_SIZE_SHIFT);
 					break;
 				case 1:
 					/* byte-size load */
-					codegen_callops (cgen, loadlocalpointer, nh->ws_offset + offset);
+					codegen_callops (cgen, loadlocalpointer, (nh->ws_offset + offset) >> LLVM_SIZE_SHIFT);
 					codegen_write_fmt (cgen, "\tlb\n");
 					break;
 				case 2:
 					/* half-word-size load */
-					codegen_callops (cgen, loadlocalpointer, nh->ws_offset + offset);
+					codegen_callops (cgen, loadlocalpointer, (nh->ws_offset + offset) >> LLVM_SIZE_SHIFT);
 					codegen_write_fmt (cgen, "\tlw\n");
 					break;
 				}
@@ -2103,7 +2354,7 @@ tnode_dumptree (name, 1, stderr);
 			}
 			break;
 		default:
-			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset);
+			codegen_write_fmt (cgen, "\tldl\t%d\n", nh->ws_offset >> LLVM_SIZE_SHIFT);
 
 			for (i=0; i<(nh->indir - 1); i++) {
 				codegen_write_fmt (cgen, "\tldnl\t0\n");
@@ -2225,6 +2476,7 @@ fprintf (stderr, "krocetc_coder_loadname(): about to SUM base and offset..\n");
 			}
 			krocllvm_addcoderref (cgen, cr, LLVM_TYPE_INT | (ch->size * 8));
 
+			codegen_write_fmt (cgen, "\t; loadconstant %d\n", val);
 			codegen_write_fmt (cgen, "\t%%reg_%d = bitcast i32 %d to i32\n", cr->regs[0], val);
 			/*}}}*/
 		}
@@ -2284,16 +2536,92 @@ static coderref_t krocllvm_coder_ldconst (codegen_t *cgen, int val, int bits, in
 	return (coderref_t)cr;
 }
 /*}}}*/
-/*{{{  static void krocllvm_coder_kicall2 (codegen_t *cgen, coderref_t chan, coderref_t val, int call)*/
+/*{{{  static void krocllvm_coder_kicall (codegen_t *cgen, int call, ...)*/
 /*
- *	do run-time kernel call with two arguments
+ *	do run-time kernel call
  */
-static void krocllvm_coder_kicall2 (codegen_t *cgen, coderref_t chan, coderref_t val, int call)
+static void krocllvm_coder_kicall (codegen_t *cgen, int call, ...)
 {
-	krocllvm_coderref_t *r_chan = (krocllvm_coderref_t *)chan;
-	krocllvm_coderref_t *r_val = (krocllvm_coderref_t *)val;
+	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)cgen->target->priv;
+	krocllvm_cgstate_t *cgs = krocllvm_cgstate_cur (cgen);
+	int idx;
 
-	codegen_write_fmt (cgen, "; KICALL2: %d with %s, %s\n", call, krocllvm_typestr (r_chan->types[0]), krocllvm_typestr (r_val->types[0]));
+	for (idx=0; (kitable[idx].call != call) && (kitable[idx].call != I_INVALID); idx++);
+	if (kitable[idx].call == I_INVALID) {
+		codegen_warning (cgen, "unsupported kernel call %d", call);
+		codegen_write_fmt (cgen, "; INVALID KICALL %d\n", call);
+	} else {
+		int iregs, oregs, i;
+		va_list ap;
+		int nargs;
+
+		iregs = kitable[idx].iregs;
+		oregs = kitable[idx].oregs;
+
+		nargs = iregs + oregs;
+
+		codegen_write_fmt (cgen, "\t; KICALL %d (%d,%d)\n", call, iregs, oregs);
+		/* call point */
+		codegen_write_fmt (cgen, "\ttail call fastcc void @%s_%d (i8* %%sched, i32* %%wptr_%d", kpriv->lastfunc, kpriv->labcount, cgs->wsreg);
+		va_start (ap, call);
+		for (i=0; i<nargs; i++) {
+			krocllvm_coderref_t *r_arg = va_arg (ap, krocllvm_coderref_t *);
+
+			codegen_write_fmt (cgen, ", i32 %%reg_%d", r_arg->regs[0]);
+		}
+		va_end (ap);
+		codegen_write_fmt (cgen, ") noreturn\n");
+		codegen_write_fmt (cgen, "\tret void\n");
+		codegen_write_fmt (cgen, "}\n\n");
+		cgs->wsreg++;
+		codegen_write_fmt (cgen, "define private fastcc void @%s_%d (i8* %%sched, i32* %%wptr_%d", kpriv->lastfunc, kpriv->labcount, cgs->wsreg);
+		va_start (ap, call);
+		for (i=0; i<nargs; i++) {
+			krocllvm_coderref_t *r_arg = va_arg (ap, krocllvm_coderref_t *);
+
+			codegen_write_fmt (cgen, ", i32 %%reg_%d", r_arg->regs[0]);
+		}
+		va_end (ap);
+		codegen_write_fmt (cgen, ") {\n");
+		kpriv->labcount++;
+
+		/* firstly, drop return address in Wptr[-1] */
+		codegen_write_fmt (cgen, "\t%%tmp_%d = getelementptr i32* %%wptr_%d, i32 -1\n", kpriv->tmpcount, cgs->wsreg);
+		codegen_write_fmt (cgen, "\t%%tmp_%d = bitcast void (i8*, i32*)* @%s_%d to i8*\n", kpriv->tmpcount + 1, kpriv->lastfunc, kpriv->labcount);
+		codegen_write_fmt (cgen, "\t%%tmp_%d = ptrtoint i8* %%tmp_%d to i32\n", kpriv->tmpcount + 2, kpriv->tmpcount + 1);
+		codegen_write_fmt (cgen, "\tstore i32 %%tmp_%d, i32* %%tmp_%d\n", kpriv->tmpcount + 2, kpriv->tmpcount);
+		kpriv->tmpcount += 3;
+
+		/* make call */
+		codegen_write_fmt (cgen, "\t%%tmp_%d = call i32* @%s (i8* %%sched, i32* %%wptr_%d", kpriv->tmpcount, kitable[idx].ename, cgs->wsreg);
+		va_start (ap, call);
+		for (i=0; i<nargs; i++) {
+			krocllvm_coderref_t *r_arg = va_arg (ap, krocllvm_coderref_t *);
+
+			codegen_write_fmt (cgen, ", i32 %%reg_%d", r_arg->regs[0]);
+		}
+		va_end (ap);
+		codegen_write_fmt (cgen, ")\n");
+		codegen_write_fmt (cgen, "\t%%tmp_%d = getelementptr i32* %%tmp_%d, i32 -1\n", kpriv->tmpcount + 1, kpriv->tmpcount);
+		codegen_write_fmt (cgen, "\t%%tmp_%d = load i32* %%tmp_%d\n", kpriv->tmpcount + 2, kpriv->tmpcount + 1);
+		codegen_write_fmt (cgen, "\t%%tmp_%d = inttoptr i32 %%tmp_%d to void (i8*, i32*)*\n", kpriv->tmpcount + 3, kpriv->tmpcount + 2);
+		codegen_write_fmt (cgen, "\ttail call fastcc void %%tmp_%d (i8* %%sched, i32* %%tmp_%d) noreturn\n", kpriv->tmpcount + 3, kpriv->tmpcount + 1);
+		codegen_write_fmt (cgen, "\tret void\n");
+		kpriv->tmpcount += 3;
+
+		/* return point, with new Wptr */
+		cgs->wsreg++;
+		codegen_write_fmt (cgen, "}\n\n");
+		codegen_write_fmt (cgen, "define private fastcc void @%s_%d (i8* %%sched, i32* %%wptr_%d) {\n", kpriv->lastfunc, kpriv->labcount, cgs->wsreg);
+
+		kpriv->labcount++;
+	}
+	//codegen_write_fmt (cgen, "define fastcc void @%s (i8* %%sched, i32* %%wptr_%d) {\n", belbl, cgs->wsreg);
+
+	// krocllvm_coderref_t *r_chan = (krocllvm_coderref_t *)chan;
+	// krocllvm_coderref_t *r_val = (krocllvm_coderref_t *)val;
+
+	// codegen_write_fmt (cgen, "; KICALL2: %d with %s, %s\n", call, krocllvm_typestr (r_chan->types[0]), krocllvm_typestr (r_val->types[0]));
 
 	return;
 }
@@ -2329,7 +2657,7 @@ static void krocllvm_coder_wsadjust (codegen_t *cgen, int adjust)
 		return;
 	}
 	codegen_write_fmt (cgen, "\t; wsadjust %d\n", adjust);
-	codegen_write_fmt (cgen, "\t%%wptr_%d = getelementptr i32* %%wptr_%d, i32 %d\n", newws, cgs->wsreg, adjust);
+	codegen_write_fmt (cgen, "\t%%wptr_%d = getelementptr i32* %%wptr_%d, i32 %d\n", newws, cgs->wsreg, adjust >> LLVM_SIZE_SHIFT);
 	cgs->wsreg = newws;
 	return;
 }
@@ -2361,31 +2689,27 @@ static void krocllvm_coder_comment (codegen_t *cgen, const char *fmt, ...)
 	return;
 }
 /*}}}*/
-/*{{{  static void krocllvm_coder_setwssize (codegen_t *cgen, int ws, int adjust)*/
+/*{{{  static void krocllvm_coder_setmemsize (codegen_t *cgen, int ws, int adjust, int vs, int ms)*/
 /*
- *	generates workspace requirements
+ *	generates memory requirements
  */
-static void krocllvm_coder_setwssize (codegen_t *cgen, int ws, int adjust)
+static void krocllvm_coder_setmemsize (codegen_t *cgen, int ws, int adjust, int vs, int ms)
 {
-	codegen_write_fmt (cgen, "; .SETWS %d, %d\n", ws, adjust);
-}
-/*}}}*/
-/*{{{  static void krocllvm_coder_setvssize (codegen_t *cgen, int vs)*/
-/*
- *	generates vectorspace requirements
- */
-static void krocllvm_coder_setvssize (codegen_t *cgen, int vs)
-{
-	codegen_write_fmt (cgen, "; .SETVS %d\n", vs);
-}
-/*}}}*/
-/*{{{  static void krocllvm_coder_setmssize (codegen_t *cgen, int ms)*/
-/*
- *	generates mobilespace requirements
- */
-static void krocllvm_coder_setmssize (codegen_t *cgen, int ms)
-{
-	codegen_write_fmt (cgen, "; .SETMS %d\n", ms);
+	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)(krocllvm_target.priv);
+
+	if (kpriv->tl_mem && !compopts.notmainmodule) {
+		krocllvm_memspacehook_free (kpriv->tl_mem);
+		kpriv->tl_mem = NULL;
+	}
+	if (!compopts.notmainmodule) {
+		kpriv->tl_mem = krocllvm_memspacehook_create ();
+		kpriv->tl_mem->ws = ws;
+		kpriv->tl_mem->adjust = adjust;
+		kpriv->tl_mem->vs = vs;
+		kpriv->tl_mem->ms = ms;
+	}
+
+	codegen_write_fmt (cgen, "; .SETMEMSIZE %d, %d, %d, %d\n", ws, adjust, vs, ms);
 }
 /*}}}*/
 /*{{{  static void krocllvm_coder_setnamelabel (codegen_t *cgen, name_t *name)*/
@@ -2441,6 +2765,8 @@ static void krocllvm_coder_procentry (codegen_t *cgen, const char *lbl)
 	codegen_write_fmt (cgen, "define fastcc void @%s (i8* %%sched, i32* %%wptr_%d) {\n", belbl, cgs->wsreg);
 	codegen_write_fmt (cgen, "entry:\n");
 
+	krocllvm_setlastlabel (cgen, belbl);
+
 	sfree (belbl);
 
 }
@@ -2464,7 +2790,16 @@ static void krocllvm_coder_procnameentry (codegen_t *cgen, name_t *name)
  */
 static void krocllvm_coder_procreturn (codegen_t *cgen, int adjust)
 {
+	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)(krocllvm_target.priv);
+	krocllvm_cgstate_t *cgs = krocllvm_cgstate_cur (cgen);
+
 	codegen_write_fmt (cgen, "\t; .procreturn %d\n", adjust);
+	codegen_write_fmt (cgen, "\t%%tmp_%d = load i32* %%wptr_%d\n", kpriv->tmpcount, cgs->wsreg);
+	codegen_write_fmt (cgen, "\t%%tmp_%d = inttoptr i32 %%tmp_%d to void (i8*, i32*)*\n", kpriv->tmpcount + 1, kpriv->tmpcount);
+	codegen_write_fmt (cgen, "\t%%tmp_%d = getelementptr i32* %%wptr_%d, i32 %d\n", kpriv->tmpcount + 2, cgs->wsreg, adjust >> LLVM_SIZE_SHIFT);
+	codegen_write_fmt (cgen, "\ttail call fastcc void %%tmp_%d (i8* %%sched, i32* %%tmp_%d) noreturn\n", kpriv->tmpcount + 1, kpriv->tmpcount + 2);
+	codegen_write_fmt (cgen, "\tret void\n");
+	kpriv->tmpcount += 3;
 
 	codegen_write_fmt (cgen, "}\n\n");
 
@@ -2504,6 +2839,7 @@ static int krocllvm_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
 	coderops_t *cops;
 	char hostnamebuf[128];
 	char timebuf[128];
+	int i;
 
 	/* write header */
 	codegen_write_fmt (cgen, ";\n;\t%s\n", cgen->fname);
@@ -2538,14 +2874,12 @@ static int krocllvm_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
 	cops->ldptr = krocllvm_coder_ldptr;
 	cops->ldname = krocllvm_coder_ldname;
 	cops->ldconst = krocllvm_coder_ldconst;
-	cops->kicall2 = krocllvm_coder_kicall2;
+	cops->kicall = krocllvm_coder_kicall;
 	cops->freeref = krocllvm_coder_freeref;
 	cops->wsadjust = krocllvm_coder_wsadjust;
 
 	cops->comment = krocllvm_coder_comment;
-	cops->setwssize = krocllvm_coder_setwssize;
-	cops->setvssize = krocllvm_coder_setvssize;
-	cops->setmssize = krocllvm_coder_setmssize;
+	cops->setmemsize = krocllvm_coder_setmemsize;
 	cops->setnamelabel = krocllvm_coder_setnamelabel;
 	cops->setnamedlabel = krocllvm_coder_setnamedlabel;
 	cops->setlabel = krocllvm_coder_setlabel;
@@ -2560,18 +2894,32 @@ static int krocllvm_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
 	 *	create pre-code node if not already here -- constants go at the start
 	 */
 	if (!kpriv->precodelist) {
-		tnode_t *precode = tnode_create (kpriv->tag_PRECODE, NULL, parser_newlistnode (srcfile), *(cgen->cinsertpoint));
+		tnode_t *precode = tnode_create (kpriv->tag_PRECODE, NULL, parser_newlistnode (srcfile), *(cgen->cinsertpoint), parser_newlistnode (srcfile));
 
 		*(cgen->cinsertpoint) = precode;
 		kpriv->precodelist = tnode_nthsubof (precode, 0);
+		kpriv->postcodelist = tnode_nthsubof (precode, 2);
 	}
 
 	if (!compopts.notmainmodule) {
-		/* insert JENTRY marker first */
+		/* insert JENTRY marker at end-of-tree */
 		tnode_t *jentry = tnode_create (kpriv->tag_JENTRY, NULL, NULL);
 
-		parser_addtolist (kpriv->precodelist, jentry);
+		parser_addtolist (kpriv->postcodelist, jentry);
 	}
+
+	/* emit kernel-entry-call points */
+	for (i=0; kitable[i].call != I_INVALID; i++) {
+		int nargs = kitable[i].iregs + kitable[i].oregs;
+		int j;
+
+		codegen_write_fmt (cgen, "declare i32* @%s (i8*, i32*", kitable[i].ename);
+		for (j=0; j<nargs; j++) {
+			codegen_write_fmt (cgen, ", i32");
+		}
+		codegen_write_fmt (cgen, ")\n");
+	}
+	codegen_write_fmt (cgen, "\n\n");
 
 	return 0;
 }
@@ -2582,6 +2930,23 @@ static int krocllvm_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
  */
 static int krocllvm_be_codegen_final (codegen_t *cgen, lexfile_t *srcfile)
 {
+	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)cgen->target->priv;
+
+	if (kpriv) {
+		/*{{{  clean-up local state*/
+		if (kpriv->lastfunc) {
+			sfree (kpriv->lastfunc);
+			kpriv->lastfunc = NULL;
+		}
+		if (kpriv->tl_mem) {
+			krocllvm_memspacehook_free (kpriv->tl_mem);
+			kpriv->tl_mem = NULL;
+		}
+		kpriv->lastdesc = NULL;
+
+		/*}}}*/
+	}
+
 	sfree (cgen->cops);
 	cgen->cops = NULL;
 
@@ -2614,6 +2979,7 @@ fprintf (stderr, "krocllvm_target_init(): initialising!\n");
 
 	kpriv = (krocllvm_priv_t *)smalloc (sizeof (krocllvm_priv_t));
 	kpriv->precodelist = NULL;
+	kpriv->postcodelist = NULL;
 	kpriv->toplevelname = NULL;
 	kpriv->mapchook = tnode_lookupornewchook ("map:mapnames");
 	kpriv->resultsubhook = tnode_lookupornewchook ("krocllvm:resultsubhook");
@@ -2622,6 +2988,12 @@ fprintf (stderr, "krocllvm_target_init(): initialising!\n");
 	kpriv->options.stoperrormode = 0;
 
 	kpriv->regcount = 0;
+	kpriv->labcount = 0;
+	kpriv->tmpcount = 0;
+	kpriv->lastfunc = NULL;
+	kpriv->lastdesc = NULL;
+
+	kpriv->tl_mem = NULL;
 
 	target->priv = (void *)kpriv;
 
@@ -2686,7 +3058,7 @@ fprintf (stderr, "krocllvm_target_init(): initialising!\n");
 	/*}}}*/
 	/*{{{  krocllvm:precode -- KROCLLVMPRECODE*/
 	i = -1;
-	tnd = tnode_newnodetype ("krocllvm:precode", &i, 2, 0, 0, TNF_NONE);
+	tnd = tnode_newnodetype ("krocllvm:precode", &i, 3, 0, 0, TNF_NONE);			/* nodes: precode-list, body, postcode-list */
 
 	i = -1;
 	kpriv->tag_PRECODE = tnode_newnodetag ("KROCLLVMPRECODE", &i, tnd, NTF_NONE);

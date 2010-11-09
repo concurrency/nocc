@@ -780,7 +780,7 @@ fprintf (stderr, "occampi_codegen_action(): here for output byte!\n");
 #endif
 		val = codegen_callops_r (cgen, ldname, rhs, 0);
 		chan = codegen_callops_r (cgen, ldptr, lhs, 0);
-		codegen_callops (cgen, kicall2, chan, val, I_OUTBYTE);
+		codegen_callops (cgen, kicall, I_OUTBYTE, chan, val);
 
 		codegen_callops (cgen, freeref, val);
 		codegen_callops (cgen, freeref, chan);
