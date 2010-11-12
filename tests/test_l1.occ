@@ -1,8 +1,10 @@
 
 -- test_l1.occ -- LLVM code-gen test
 
-PROC test.l1 (CHAN BYTE scr!)
+PROC test.l1 (CHAN BYTE kyb?, scr!, err!)
+  INT i:
   SEQ
+    i := 42
     scr ! 'x'
     scr ! '*n'
 :

@@ -290,7 +290,8 @@ typedef struct TAG_krocllvm_kientry {
 } krocllvm_kientry_t;
 
 static krocllvm_kientry_t kitable[] = {
-	{I_OUTBYTE, 2, 0, {LLVM_TYPE_I32, LLVM_TYPE_I32, LLVM_TYPE_VOID}, {LLVM_TYPE_VOID, }, "kernel_Y_outbyte"},
+	{I_OUTBYTE, 2, 0, {LLVM_TYPE_I32, LLVM_TYPE_I32, LLVM_TYPE_VOID,}, {LLVM_TYPE_VOID, }, "kernel_Y_outbyte"},
+	{I_OUT, 3, 0, {LLVM_TYPE_I32, LLVM_TYPE_I32, LLVM_TYPE_I32, LLVM_TYPE_VOID,}, {LLVM_TYPE_VOID, }, "kernel_Y_out"},
 	{I_INVALID, 0, 0, {LLVM_TYPE_VOID, }, {LLVM_TYPE_VOID, }, NULL}
 };
 
@@ -1994,7 +1995,7 @@ static char *krocllvm_make_namedlabel (const char *lbl)
 	return belbl;
 }
 /*}}}*/
-/*{{{  */
+/*{{{  static int krocllvm_decode_tlp (codegen_t *cgen, const char *desc, int *got_kyb, int *got_scr, int *got_err)*/
 /*
  *	decodes top-level process header
  *	returns number of top-level channels/other
@@ -2019,6 +2020,8 @@ static int krocllvm_decode_tlp (codegen_t *cgen, const char *desc, int *got_kyb,
 		const char *dh;
 		char *dstr;
 
+		/* skip any leading whitespace */
+		for (; (*ch == ' ') || (*ch == '\t'); ch++);
 		for (dh=ch; (*dh != '\0') && (*dh != ')') && (*dh != ','); dh++);
 
 		/* try and figure out what the parameter 'dstr' represents */
@@ -2131,13 +2134,14 @@ fprintf (stderr, "krocllvm_codegen_special: JENTRY: lastdesc = [%s]\n", kpriv->l
 			}
 			codegen_write_fmt (cgen, " i8* null]\n\n");
 
-			codegen_write_fmt (cgen, "define private fastcc void @code_exit (i8* %%sched, i32* %%wptr) {\n");
+			codegen_write_fmt (cgen, "define fastcc void @code_exit (i8* %%sched, i32* %%wptr) {\n");
 			codegen_write_fmt (cgen, "\tret void\n}\n\n");
 
 			codegen_write_fmt (cgen, "define void @code_entry (i8* %%sched, i32* %%wptr) {\n");
 			codegen_write_fmt (cgen, "\t%%iptr_ptr = getelementptr i32* %%wptr, i32 -1\n");
 			codegen_write_fmt (cgen, "\t%%iptr_val = load i32* %%iptr_ptr\n");
 			codegen_write_fmt (cgen, "\t%%iptr = inttoptr i32 %%iptr_val to void (i8*, i32*)*\n");
+			// codegen_write_fmt (cgen, "\t%%wptr2 = getelementptr i32* %%wptr, i32 -%d\n", msh ? (msh->adjust >> LLVM_SIZE_SHIFT): 0);
 			codegen_write_fmt (cgen, "\ttail call fastcc void %%iptr (i8* %%sched, i32* %%wptr) noreturn\n");
 			codegen_write_fmt (cgen, "\tret void\n}\n\n");
 
@@ -2527,13 +2531,60 @@ static coderref_t krocllvm_coder_ldconst (codegen_t *cgen, int val, int bits, in
 	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)(krocllvm_target.priv);
 	krocllvm_coderref_t *cr = krocllvm_newcoderref ();
 
-	cr->regs[0] = ++kpriv->regcount;
-	cr->types[0] = LLVM_TYPE_INT | (bits & 0xfff) | (issigned ? LLVM_TYPE_SIGNED : 0);
-	cr->nregs = 1;
+	krocllvm_addcoderref (cgen, cr, LLVM_TYPE_INT | bits | (issigned ? LLVM_TYPE_SIGNED : 0));
 
-	codegen_write_fmt (cgen, "%%reg_%d = bitcast %s %d to %s\n", cr->regs[0], krocllvm_typestr (cr->types[0]), val, krocllvm_typestr (cr->types[0]));
+	codegen_write_fmt (cgen, "\t%%reg_%d = bitcast %s %d to %s\n", cr->regs[0], krocllvm_typestr (cr->types[0]), val, krocllvm_typestr (cr->types[0]));
 
 	return (coderref_t)cr;
+}
+/*}}}*/
+/*{{{  static void krocllvm_coder_stname (codegen_t *cgen, tnode_t *name, int offset, coderref_t val)*/
+/*
+ *	stores something in a back-end name
+ */
+static void krocllvm_coder_stname (codegen_t *cgen, tnode_t *name, int offset, coderref_t val)
+{
+	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)(cgen->target->priv);
+	krocllvm_cgstate_t *cgs = krocllvm_cgstate_cur (cgen);
+	krocllvm_coderref_t *c_val = (krocllvm_coderref_t *)val;
+
+	if (name->tag == krocllvm_target.tag_NAMEREF) {
+		/*{{{  store into a name reference*/
+		krocllvm_namehook_t *nh = (krocllvm_namehook_t *)tnode_nthhookof (name, 0);
+		int i;
+
+		switch (nh->indir) {
+		case 0:
+			if (nh->typecat & TYPE_REAL) {
+				/*{{{  store floating-point*/
+				codegen_write_fmt (cgen, "; FIXME: write real\n");
+				/*}}}*/
+			} else {
+				/*{{{  store integer*/
+				switch (nh->typesize) {
+				default:
+					/* word size or don't know, just do store-local */
+					codegen_write_fmt (cgen, "\t%%tmp_%d = getelementptr\ti32* %%wptr_%d, i32 %d\n", kpriv->tmpcount, cgs->wsreg, (nh->ws_offset + offset) >> LLVM_SIZE_SHIFT);
+					codegen_write_fmt (cgen, "\tstore i32 %%reg_%d, i32* %%tmp_%d\n", c_val->regs[0], kpriv->tmpcount);
+					kpriv->tmpcount++;
+					break;
+				}
+				/*}}}*/
+			}
+			break;
+		}
+		/* FIXME! */
+
+		/*}}}*/
+	} else if (name->tag == krocllvm_target.tag_INDEXED) {
+		/*{{{  store into an indexed node*/
+		/* FIXME! */
+
+		/*}}}*/
+	} else {
+		nocc_warning ("krocllvm_coder_storename(): don\'t know how to store into a [%s]", name->tag->name);
+	}
+	return;
 }
 /*}}}*/
 /*{{{  static void krocllvm_coder_kicall (codegen_t *cgen, int call, ...)*/
@@ -2605,7 +2656,7 @@ static void krocllvm_coder_kicall (codegen_t *cgen, int call, ...)
 		codegen_write_fmt (cgen, "\t%%tmp_%d = getelementptr i32* %%tmp_%d, i32 -1\n", kpriv->tmpcount + 1, kpriv->tmpcount);
 		codegen_write_fmt (cgen, "\t%%tmp_%d = load i32* %%tmp_%d\n", kpriv->tmpcount + 2, kpriv->tmpcount + 1);
 		codegen_write_fmt (cgen, "\t%%tmp_%d = inttoptr i32 %%tmp_%d to void (i8*, i32*)*\n", kpriv->tmpcount + 3, kpriv->tmpcount + 2);
-		codegen_write_fmt (cgen, "\ttail call fastcc void %%tmp_%d (i8* %%sched, i32* %%tmp_%d) noreturn\n", kpriv->tmpcount + 3, kpriv->tmpcount + 1);
+		codegen_write_fmt (cgen, "\ttail call fastcc void %%tmp_%d (i8* %%sched, i32* %%tmp_%d) noreturn\n", kpriv->tmpcount + 3, kpriv->tmpcount);
 		codegen_write_fmt (cgen, "\tret void\n");
 		kpriv->tmpcount += 3;
 
@@ -2874,6 +2925,7 @@ static int krocllvm_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
 	cops->ldptr = krocllvm_coder_ldptr;
 	cops->ldname = krocllvm_coder_ldname;
 	cops->ldconst = krocllvm_coder_ldconst;
+	cops->stname = krocllvm_coder_stname;
 	cops->kicall = krocllvm_coder_kicall;
 	cops->freeref = krocllvm_coder_freeref;
 	cops->wsadjust = krocllvm_coder_wsadjust;

@@ -102,6 +102,7 @@ typedef struct TAG_coderops {
 	coderref_t (*ldptr)(codegen_t *, struct TAG_tnode *, int);
 	coderref_t (*ldname)(codegen_t *, struct TAG_tnode *, int);
 	coderref_t (*ldconst)(codegen_t *, int, int, int);
+	void (*stname)(codegen_t *, struct TAG_tnode *, int, coderref_t);
 	void (*kicall)(codegen_t *, int, ...);
 	void (*freeref)(codegen_t *, coderref_t);
 	void (*setmemsize)(codegen_t *, int, int, int, int);

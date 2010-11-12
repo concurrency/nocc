@@ -445,7 +445,7 @@ static int occampi_type_codegen_typeaction (langops_t *lops, tnode_t *type, tnod
 
 			val = codegen_callops_r (cgen, ldname, rhs, 0);
 			chan = codegen_callops_r (cgen, ldptr, lhs, 0);
-			codegen_callops (cgen, kicall, I_OUTBYTE, chan, val);
+			codegen_callops (cgen, kicall, I_OUTBYTE, val, chan);
 
 			codegen_callops (cgen, freeref, val);
 			codegen_callops (cgen, freeref, chan);
@@ -454,7 +454,7 @@ static int occampi_type_codegen_typeaction (langops_t *lops, tnode_t *type, tnod
 
 			val = codegen_callops_r (cgen, ldname, rhs, 0);
 			chan = codegen_callops_r (cgen, ldptr, lhs, 0);
-			codegen_callops (cgen, kicall, I_OUTWORD, chan, val);
+			codegen_callops (cgen, kicall, I_OUTWORD, val, chan);
 
 			codegen_callops (cgen, freeref, val);
 			codegen_callops (cgen, freeref, chan);

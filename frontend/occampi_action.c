@@ -686,7 +686,7 @@ static int occampi_namemap_action (compops_t *cops, tnode_t **node, map_t *map)
 	if (occampi_action_isoutput ((*node)->tag) || ((*node)->tag == opi.tag_INPUT)) {
 		tnode_t *bename;
 
-		bename = map->target->newname (*node, NULL, map, 0, map->target->bws.ds_io, 0, 0, 0, 0);
+		bename = map->target->newname (*node, NULL, map, 4, map->target->bws.ds_io, 0, 0, 0, 0);
 		*node = bename;
 	}
 
@@ -756,8 +756,13 @@ tnode_dumptree (type, 1, stderr);
 			codegen_error (cgen, "occampi_codegen_action(): unknown size for node [%s]", type->tag->name);
 		} else if (bytes <= cgen->target->intsize) {
 			/* simple load and store */
-			codegen_callops (cgen, loadname, rhs, 0);
-			codegen_callops (cgen, storename, lhs, 0);
+			coderref_t val;
+
+			val = codegen_callops_r (cgen, ldname, rhs, 0);
+			codegen_callops (cgen, stname, lhs, 0, val);
+			codegen_callops (cgen, freeref, val);
+			// codegen_callops (cgen, loadname, rhs, 0);
+			// codegen_callops (cgen, storename, lhs, 0);
 		} else {
 			/* load pointers, block move */
 			codegen_callops (cgen, loadpointer, rhs, 0);
