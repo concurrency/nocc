@@ -70,6 +70,8 @@ typedef struct TAG_dopmap {
 	transinstr_e uinstr;
 	transinstr_e fpinstr;
 	int rhs_is_int;
+
+	void (*opfcn)(codegen_t *, typecat_e);
 } dopmap_t;
 
 typedef struct TAG_mopmap {
@@ -79,6 +81,8 @@ typedef struct TAG_mopmap {
 	ntdef_t **tagp;
 	transinstr_e instr;
 	transinstr_e fpinstr;
+
+	void (*opfcn)(codegen_t *, typecat_e);
 } mopmap_t;
 
 typedef struct TAG_relmap {
@@ -90,6 +94,8 @@ typedef struct TAG_relmap {
 	int cgarg;
 	int ucgarg;
 	int fpcgarg;
+
+	void (*opfcn)(codegen_t *, typecat_e);
 } relmap_t;
 
 
@@ -98,47 +104,71 @@ typedef struct TAG_relmap {
 static void occampi_oper_genrelop (codegen_t *cgen, int arg);
 static void occampi_oper_geninvrelop (codegen_t *cgen, int arg);
 
+static void occampi_dop_add (codegen_t *cgen, typecat_e tc);
+
+
 
 /*}}}*/
 /*{{{  private data*/
 static dopmap_t dopmap[] = {
-	{SYMBOL, "+", NULL, &(opi.tag_ADD), I_ADD, I_UADD, I_FPADD, 0},
-	{SYMBOL, "-", NULL, &(opi.tag_SUB), I_SUB, I_USUB, I_INVALID, 0},
-	{SYMBOL, "*", NULL, &(opi.tag_MUL), I_MUL, I_UMUL, I_INVALID, 0},
-	{SYMBOL, "/\\", NULL, &(opi.tag_BITAND), I_AND, I_AND, I_INVALID, 0},
-	{SYMBOL, "><", NULL, &(opi.tag_BITXOR), I_XOR, I_XOR, I_INVALID, 0},
-	{SYMBOL, "/", NULL, &(opi.tag_DIV), I_DIV, I_UDIV, I_INVALID, 0},
-	{SYMBOL, "<<", NULL, &(opi.tag_LSHIFT), I_SHL, I_SHL, I_INVALID, 1},
-	{SYMBOL, ">>", NULL, &(opi.tag_RSHIFT), I_SHR, I_SHR, I_INVALID, 1},
-	{SYMBOL, "\\/", NULL, &(opi.tag_BITOR), I_OR, I_OR, I_INVALID, 0},
-	{SYMBOL, "\\", NULL, &(opi.tag_REM), I_REM, I_UREM, I_INVALID, 0},
-	{KEYWORD, "PLUS", NULL, &(opi.tag_PLUS), I_SUM, I_SUM, I_INVALID, 0},
-	{KEYWORD, "MINUS", NULL, &(opi.tag_MINUS), I_DIFF, I_DIFF, I_INVALID, 0},
-	{KEYWORD, "TIMES", NULL, &(opi.tag_TIMES), I_PROD, I_UPROD, I_INVALID, 0},
-	{KEYWORD, "AND", NULL, &(opi.tag_AND), I_AND, I_AND, I_INVALID, 0},
-	{KEYWORD, "OR", NULL, &(opi.tag_OR), I_OR, I_OR, I_INVALID, 0},
-	{KEYWORD, "XOR", NULL, &(opi.tag_XOR), I_XOR, I_XOR, I_INVALID, 0},
-	{NOTOKEN, NULL, NULL, NULL, I_INVALID, I_INVALID, I_INVALID, 0}
+	{SYMBOL, "+", NULL, &(opi.tag_ADD), I_ADD, I_UADD, I_FPADD, 0, occampi_dop_add},
+	{SYMBOL, "-", NULL, &(opi.tag_SUB), I_SUB, I_USUB, I_INVALID, 0, NULL},
+	{SYMBOL, "*", NULL, &(opi.tag_MUL), I_MUL, I_UMUL, I_INVALID, 0, NULL},
+	{SYMBOL, "/\\", NULL, &(opi.tag_BITAND), I_AND, I_AND, I_INVALID, 0, NULL},
+	{SYMBOL, "><", NULL, &(opi.tag_BITXOR), I_XOR, I_XOR, I_INVALID, 0, NULL},
+	{SYMBOL, "/", NULL, &(opi.tag_DIV), I_DIV, I_UDIV, I_INVALID, 0, NULL},
+	{SYMBOL, "<<", NULL, &(opi.tag_LSHIFT), I_SHL, I_SHL, I_INVALID, 1, NULL},
+	{SYMBOL, ">>", NULL, &(opi.tag_RSHIFT), I_SHR, I_SHR, I_INVALID, 1, NULL},
+	{SYMBOL, "\\/", NULL, &(opi.tag_BITOR), I_OR, I_OR, I_INVALID, 0, NULL},
+	{SYMBOL, "\\", NULL, &(opi.tag_REM), I_REM, I_UREM, I_INVALID, 0, NULL},
+	{KEYWORD, "PLUS", NULL, &(opi.tag_PLUS), I_SUM, I_SUM, I_INVALID, 0, NULL},
+	{KEYWORD, "MINUS", NULL, &(opi.tag_MINUS), I_DIFF, I_DIFF, I_INVALID, 0, NULL},
+	{KEYWORD, "TIMES", NULL, &(opi.tag_TIMES), I_PROD, I_UPROD, I_INVALID, 0, NULL},
+	{KEYWORD, "AND", NULL, &(opi.tag_AND), I_AND, I_AND, I_INVALID, 0, NULL},
+	{KEYWORD, "OR", NULL, &(opi.tag_OR), I_OR, I_OR, I_INVALID, 0, NULL},
+	{KEYWORD, "XOR", NULL, &(opi.tag_XOR), I_XOR, I_XOR, I_INVALID, 0, NULL},
+	{NOTOKEN, NULL, NULL, NULL, I_INVALID, I_INVALID, I_INVALID, 0, NULL}
 };
 
 static relmap_t relmap[] = {
-	{SYMBOL, "=", NULL, &(opi.tag_RELEQ), occampi_oper_genrelop, I_EQ, I_EQ, I_INVALID},
-	{SYMBOL, "<>", NULL, &(opi.tag_RELNEQ), occampi_oper_geninvrelop, I_EQ, I_EQ, I_INVALID},
-	{SYMBOL, "<", NULL, &(opi.tag_RELLT), occampi_oper_genrelop, I_LT, I_SMALLER, I_INVALID},
-	{SYMBOL, ">=", NULL, &(opi.tag_RELGEQ), occampi_oper_geninvrelop, I_LT, I_SMALLER, I_INVALID},
-	{SYMBOL, ">", NULL, &(opi.tag_RELGT), occampi_oper_genrelop, I_GT, I_GREATER, I_INVALID},
-	{SYMBOL, "<=", NULL, &(opi.tag_RELLEQ), occampi_oper_geninvrelop, I_GT, I_GREATER, I_INVALID},
-	{NOTOKEN, NULL, NULL, NULL, NULL, I_INVALID, I_INVALID}
+	{SYMBOL, "=", NULL, &(opi.tag_RELEQ), occampi_oper_genrelop, I_EQ, I_EQ, I_INVALID, NULL},
+	{SYMBOL, "<>", NULL, &(opi.tag_RELNEQ), occampi_oper_geninvrelop, I_EQ, I_EQ, I_INVALID, NULL},
+	{SYMBOL, "<", NULL, &(opi.tag_RELLT), occampi_oper_genrelop, I_LT, I_SMALLER, I_INVALID, NULL},
+	{SYMBOL, ">=", NULL, &(opi.tag_RELGEQ), occampi_oper_geninvrelop, I_LT, I_SMALLER, I_INVALID, NULL},
+	{SYMBOL, ">", NULL, &(opi.tag_RELGT), occampi_oper_genrelop, I_GT, I_GREATER, I_INVALID, NULL},
+	{SYMBOL, "<=", NULL, &(opi.tag_RELLEQ), occampi_oper_geninvrelop, I_GT, I_GREATER, I_INVALID, NULL},
+	{NOTOKEN, NULL, NULL, NULL, NULL, I_INVALID, I_INVALID, NULL}
 };
 
 static mopmap_t mopmap[] = {
-	{SYMBOL, "-", NULL, &(opi.tag_UMINUS), I_NEG, I_INVALID},
-	{SYMBOL, "~", NULL, &(opi.tag_BITNOT), I_NOT, I_INVALID},
-	{KEYWORD, "NOT", NULL, &(opi.tag_NOT), I_NOT, I_INVALID},
-	{NOTOKEN, NULL, NULL, NULL, I_INVALID, I_INVALID}
+	{SYMBOL, "-", NULL, &(opi.tag_UMINUS), I_NEG, I_INVALID, NULL},
+	{SYMBOL, "~", NULL, &(opi.tag_BITNOT), I_NOT, I_INVALID, NULL},
+	{KEYWORD, "NOT", NULL, &(opi.tag_NOT), I_NOT, I_INVALID, NULL},
+	{NOTOKEN, NULL, NULL, NULL, I_INVALID, I_INVALID, NULL}
 };
 
 
+/*}}}*/
+
+
+/*{{{  static void occampi_dop_add (codegen_t *cgen, typecat_e tc)*/
+/*
+ *	does ADD operation
+ */
+static void occampi_dop_add (codegen_t *cgen, typecat_e tc)
+{
+	coderref_t right = codegen_callops_r (cgen, getref);
+	coderref_t left = codegen_callops_r (cgen, getref);
+	coderref_t cr;
+
+#if 1
+fprintf (stderr, "occampi_dop_add(): here!\n");
+#endif
+
+	codegen_callops (cgen, freeref, left);
+	codegen_callops (cgen, freeref, right);
+	return;
+}
 /*}}}*/
 
 
@@ -410,7 +440,9 @@ tnode_dumptree (type, 1, stderr);
 #endif
 	for (i=0; dopmap[i].lookup; i++) {
 		if (node->tag == *(dopmap[i].tagp)) {
-			if (tc & TYPE_INTEGER) {
+			if (dopmap[i].opfcn) {
+				dopmap[i].opfcn (cgen, tc);
+			} else if (tc & TYPE_INTEGER) {
 				if (tc & TYPE_SIGNED) {
 					codegen_callops (cgen, tsecondary, dopmap[i].instr);
 				} else {

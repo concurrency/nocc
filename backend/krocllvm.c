@@ -248,15 +248,16 @@ typedef struct TAG_krocllvm_resultsubhook {
 	DYNARRAY (tnode_t **, sublist);
 } krocllvm_resultsubhook_t;
 
-typedef struct TAG_krocllvm_cgstate {
-	int wsreg;				/* workspace register number */
-} krocllvm_cgstate_t;
-
 typedef struct TAG_krocllvm_coderref {
 	int regs[KROCLLVM_MAX_DEPTH];		/* register numbers */
 	int types[KROCLLVM_MAX_DEPTH];		/* register types */
 	int nregs;
 } krocllvm_coderref_t;
+
+typedef struct TAG_krocllvm_cgstate {
+	int wsreg;					/* workspace register number */
+	DYNARRAY (krocllvm_coderref_t *, cdrefs);	/* list of coder references (built up for some code-gen sequences) */
+} krocllvm_cgstate_t;
 
 /*}}}*/
 /*{{{  register type definitions (for LLVM)*/
@@ -756,6 +757,7 @@ static krocllvm_cgstate_t *krocllvm_cgstate_create (void)
 	krocllvm_cgstate_t *cgs = (krocllvm_cgstate_t *)smalloc (sizeof (krocllvm_cgstate_t));
 
 	cgs->wsreg = -1;
+	dynarray_init (cgs->cdrefs);
 
 	return cgs;
 }
@@ -766,10 +768,17 @@ static krocllvm_cgstate_t *krocllvm_cgstate_create (void)
  */
 static void krocllvm_cgstate_destroy (krocllvm_cgstate_t *cgs)
 {
+	int i;
+
 	if (!cgs) {
 		nocc_internal ("krocllvm_cgstate_destroy(): null state!");
 		return;
 	}
+	for (i=0; i<DA_CUR (cgs->cdrefs); i++) {
+		krocllvm_freecoderref (DA_NTHITEM (cgs->cdrefs, i));
+	}
+	dynarray_trash (cgs->cdrefs);
+
 	sfree (cgs);
 
 	return;
@@ -1773,7 +1782,13 @@ fprintf (stderr, "krocllvm_codegen_const(): ch->label = %d, ch->labrefs = %d\n",
  */
 static int krocllvm_codegen_nameref (compops_t *cops, tnode_t *nameref, codegen_t *cgen)
 {
-	codegen_callops (cgen, loadname, nameref, 0);
+	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)cgen->target->priv;
+	krocllvm_cgstate_t *cgs = krocllvm_cgstate_cur (cgen);
+	krocllvm_coderref_t *cr;
+
+	cr = codegen_callops_r (cgen, ldname, nameref, 0);
+	dynarray_add (cgs->cdrefs, cr);
+
 	return 0;
 }
 /*}}}*/
@@ -1823,6 +1838,12 @@ tnode_dumptree (constref, 1, stderr);
 		/*}}}*/
 	} else {
 		/*{{{  loading integer constant*/
+		krocllvm_priv_t *kpriv = (krocllvm_priv_t *)cgen->target->priv;
+		krocllvm_coderref_t *cr = krocllvm_newcoderref ();
+		krocllvm_cgstate_t *cgs = krocllvm_cgstate_cur (cgen);
+
+		krocllvm_addcoderref (cgen, cr, LLVM_TYPE_INT | (ch->size * 8) | ((ch->typecat & TYPE_SIGNED) ? LLVM_TYPE_SIGNED : 0));
+		
 		switch (ch->size) {
 		case 1:
 			val = (int)(*(unsigned char *)(ch->byteptr));
@@ -1837,8 +1858,9 @@ tnode_dumptree (constref, 1, stderr);
 			val = 0;
 			break;
 		}
+		codegen_write_fmt (cgen, "\t%%reg_%d = bitcast %s %d to %s\n", cr->regs[0], krocllvm_typestr (cr->types[0]), val, krocllvm_typestr (cr->types[0]));
+		dynarray_add (cgs->cdrefs, cr);
 
-		codegen_write_fmt (cgen, "\tldc\t%d\n", val);
 		// krocllvm_cgstate_tsdelta (cgen, 1);
 		/*}}}*/
 	}
@@ -1934,16 +1956,24 @@ static int krocllvm_codegen_result (compops_t *cops, tnode_t *rnode, codegen_t *
 {
 	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)krocllvm_target.priv;
 	krocllvm_resultsubhook_t *rh = (krocllvm_resultsubhook_t *)tnode_getchook (rnode, kpriv->resultsubhook);
+	krocllvm_cgstate_t *cgs = krocllvm_cgstate_cur (cgen);
 	tnode_t *expr;
 	int i;
 
-#if 0
+#if 1
 fprintf (stderr, "krocllvm_codegen_result(): loading %d bits..\n", DA_CUR (rh->sublist));
 #endif
 	for (i=0; i<DA_CUR (rh->sublist); i++) {
 		/* load this */
+#if 1
+fprintf (stderr, "krocllvm_codegen_result(): result %d is:\n", i);
+tnode_dumptree (*(DA_NTHITEM (rh->sublist, i)), 1, stderr);
+#endif
 		codegen_subcodegen (*(DA_NTHITEM (rh->sublist, i)), cgen);
 	}
+#if 1
+fprintf (stderr, "krocllvm_codegen_result(): cgstate has %d entries in cdrefs\n", DA_CUR (cgs->cdrefs));
+#endif
 	/* then call code-gen on the argument, if it exists */
 	expr = tnode_nthsubof (rnode, 0);
 	if (expr) {
@@ -2538,6 +2568,37 @@ static coderref_t krocllvm_coder_ldconst (codegen_t *cgen, int val, int bits, in
 	return (coderref_t)cr;
 }
 /*}}}*/
+/*{{{  static coderref_t krocllvm_coder_iop (codegen_t *cgen, int instr, ...)*/
+/*
+ *	performs some integer operation on registers.
+ */
+static coderref_t krocllvm_coder_iop (codegen_t *cgen, int instr, ...)
+{
+	va_list ap;
+	int i;
+	krocllvm_coderref_t *cr;
+
+	va_start (ap, instr);
+	switch (instr) {
+	case I_ADD:
+		{
+			krocllvm_coderref_t *op0 = va_arg (ap, krocllvm_coderref_t *);
+			krocllvm_coderref_t *op1 = va_arg (ap, krocllvm_coderref_t *);
+
+			cr = krocllvm_newcoderref_init (cgen, op0->types[0]);
+			codegen_write_fmt (cgen, "\t%%reg_%d = %%reg_%d\n", cr->regs[0], op0->regs[0]);
+		}
+		break;
+	default:
+		codegen_error (cgen, "LLVM does not support integer operation %d", instr);
+		cr = krocllvm_newcoderref ();
+		break;
+	}
+	va_end (ap);
+
+	return (coderref_t)cr;
+}
+/*}}}*/
 /*{{{  static void krocllvm_coder_stname (codegen_t *cgen, tnode_t *name, int offset, coderref_t val)*/
 /*
  *	stores something in a back-end name
@@ -2710,6 +2771,39 @@ static void krocllvm_coder_wsadjust (codegen_t *cgen, int adjust)
 	codegen_write_fmt (cgen, "\t; wsadjust %d\n", adjust);
 	codegen_write_fmt (cgen, "\t%%wptr_%d = getelementptr i32* %%wptr_%d, i32 %d\n", newws, cgs->wsreg, adjust >> LLVM_SIZE_SHIFT);
 	cgs->wsreg = newws;
+	return;
+}
+/*}}}*/
+/*{{{  static coderref_t krocllvm_coder_getref (codegen_t *cgen)*/
+/*
+ *	called to get reference from the private stack
+ */
+static coderref_t krocllvm_coder_getref (codegen_t *cgen)
+{
+	krocllvm_cgstate_t *cgs = krocllvm_cgstate_cur (cgen);
+	coderref_t cr;
+
+	if (!DA_CUR (cgs->cdrefs)) {
+		nocc_internal ("krocllvm_coder_getref(): nothing to return!");
+		return NULL;
+	}
+	cr = (coderref_t)DA_NTHITEM (cgs->cdrefs, DA_CUR (cgs->cdrefs) - 1);
+	dynarray_delitem (cgs->cdrefs, DA_CUR (cgs->cdrefs) - 1);
+
+	return cr;
+}
+/*}}}*/
+/*{{{  static void krocllvm_coder_addref (codegen_t *cgen, coderref_t cr)*/
+/*
+ *	called to add reference to the private stack
+ */
+static void krocllvm_coder_addref (codegen_t *cgen, coderref_t cr)
+{
+	krocllvm_cgstate_t *cgs = krocllvm_cgstate_cur (cgen);
+	krocllvm_coderref_t *ccr = (krocllvm_coderref_t *)cr;
+
+	dynarray_add (cgs->cdrefs, ccr);
+
 	return;
 }
 /*}}}*/
@@ -2925,10 +3019,12 @@ static int krocllvm_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
 	cops->ldptr = krocllvm_coder_ldptr;
 	cops->ldname = krocllvm_coder_ldname;
 	cops->ldconst = krocllvm_coder_ldconst;
+	cops->iop = krocllvm_coder_iop;
 	cops->stname = krocllvm_coder_stname;
 	cops->kicall = krocllvm_coder_kicall;
 	cops->freeref = krocllvm_coder_freeref;
 	cops->wsadjust = krocllvm_coder_wsadjust;
+	cops->getref = krocllvm_coder_getref;
 
 	cops->comment = krocllvm_coder_comment;
 	cops->setmemsize = krocllvm_coder_setmemsize;
@@ -2959,6 +3055,9 @@ static int krocllvm_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
 
 		parser_addtolist (kpriv->postcodelist, jentry);
 	}
+
+	/* additional routines */
+	codegen_write_file (cgen, "krocllvm-preamble.ll");
 
 	/* emit kernel-entry-call points */
 	for (i=0; kitable[i].call != I_INVALID; i++) {
