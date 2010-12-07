@@ -105,6 +105,7 @@ static guppy_parse_t *guppy_priv = NULL;
 static feunit_t *feunit_set[] = {
 	&guppy_primproc_feunit,
 	&guppy_fcndef_feunit,
+	&guppy_decls_feunit,
 	NULL
 };
 
@@ -149,9 +150,29 @@ static void guppy_freeguppyparse (guppy_parse_t *gpse)
 	return;
 }
 /*}}}*/
+/*{{{  guppy reductions*/
+/*{{{  void *guppy_nametoken_to_hook (void *ntok)*/
+/*
+ *	turns a name token into a hooknode for a tag_NAME
+ */
+void *guppy_nametoken_to_hook (void *ntok)
+{
+	token_t *tok = (token_t *)ntok;
+	char *rawname;
+
+	rawname = tok->u.name;
+	tok->u.name = NULL;
+
+	lexer_freetoken (tok);
+
+	return (void *)rawname;
+}
+/*}}}*/
+
+/*}}}*/
 
 
-/*{{{  */
+/*{{{  void guppy_isetindent (FILE *stream, int indent)*/
 /*
  *	set-indent for debugging output
  */
@@ -238,6 +259,7 @@ static int guppy_parser_init (lexfile_t *lf)
 		/* register some particular tokens (for later comparison) */
 
 		/* register some general reduction functions */
+		fcnlib_addfcn ("guppy_nametoken_to_hook", (void *)guppy_nametoken_to_hook, 1, 1);
 
 		/* initialise! */
 		if (feunit_do_init_tokens (0, guppy_priv->langdefs, origin_langparser (&guppy_parser))) {

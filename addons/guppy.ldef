@@ -57,6 +57,9 @@
 
 .SECTION "guppy-decls" # {{{: variables and other named things
 
+.GRULE	"gup:namereduce" "T+St0X[guppy_nametoken_to_hook]C[NAME]1R-"
+.GRULE	"gup:namepush" "T+St0X[guppy_nametoken_to_hook]C[NAME]1N-"
+
 .BNF	"guppy:name ::= +Name {<gup:namereduce>}"
 .BNF	"guppy:namelist ::= { guppy:name @@, 1 }"
 
