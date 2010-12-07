@@ -1,0 +1,26 @@
+
+# test_g2.gpp -- guppy playing
+
+define enum Colour
+  Red
+  Green
+  Blue
+
+define protocol Link
+  subprotocol State1
+    case
+      ! start; INT
+        State2
+  subprotocol State2
+    case
+      ? failed; INT
+        State1
+      ? starting
+        State3
+  subprotocol State3
+    case
+      ! finish
+        State1
+      ! data; string; Colour
+        State3
+

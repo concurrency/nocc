@@ -1,0 +1,48 @@
+
+# test_g3.gpp -- guppy playing
+
+define fork (chan() left?, right?)
+  while true
+    alt
+      left?
+        left?
+      right?
+        right?
+
+define philosopher (chan() up!, down!, fork_left!, fork_right!)
+  while true
+    # think
+    down!
+    fork_left! || fork_right!
+    # eat
+    fork_left! || fork_right!
+    up!
+
+define security (chan() downs[]?, ups[]?)
+  initial int sat = 0
+  val int limit = 4
+
+  while true
+    alt
+      alt i=0 for size(downs)
+        (sat < limit) & downs[i]?
+          sat++
+      alt i=0 for size(ups)
+        ups[i]?
+          sat--
+
+define secure_college ()
+  chan(int) left[5], right[5]
+  chan(int) up[5], down[5]
+
+  par
+    par i=0 for 5
+      philosopher (up[i]!, down[i]!, left[i]!, right[i]!)
+    par i=0 for 5
+      fork (left[i]?, right[(i+1)\5]?)
+    security (down?, up?)
+
+define main (chan(char) screen!)
+  par
+    # display stuff here
+    secure_college ()

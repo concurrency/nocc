@@ -1,0 +1,86 @@
+
+# test_g1.gpp -- guppy playing
+
+define main ()
+
+  define zip (chan(chan?(int)) in?)
+    chan?(int) x			# equiv syntax to "chan(int) x?"
+    int v
+
+    in ? x
+    x ? v
+	
+  define zog (chan(chan!(int)) in?)
+    chan!(int) y
+
+    in ? y
+    y ! 42
+  
+  bind chan(int) a?, b!
+  chan(chan?(int)) l1
+  chan(chan!(int)) l2
+  par
+    zip (l1?)
+    zog (l2?)
+    l1 ! a? ; l2 ! b!
+
+define type MyParamType (T1)
+  int count
+  T1 data
+
+define foo ()
+  MyParamType(int) data
+
+  data.count = 42
+  data.data = 8
+
+  data = [42,8]
+
+define wop (MyParamType(X) lnk)
+  lnk.count = 0
+  while true
+    protocolof(X) n
+
+    lnk.data ? n
+    lnk.count = lnk.count + 1
+
+define wop2 (chan?(X) v)
+  X n
+
+  v ? n
+
+define bar ()
+  MyParamType(chan?(int)) store
+  chan!(int) d
+
+  store.count = 0
+  bind (d!,store.data?)
+  par
+    wop (store)
+    seq
+      d ! 19
+      d ! 0
+
+define type Coord
+  int x, y
+
+  ."+" (val a, val b) = [a.x + b.x, a.y + b.y]
+  ."-" (val a, val b) = [a.x - b.x, a.y - b.y]
+  ."*" (val a, val b) = [a.x * b.x, a.y * b.y]
+  ."/" (val a, val b) = [a.x / b.x, a.y / b.y]
+  ."<<" (val a, val int s) = [a.x << s, a.y << s]
+  .">>" (val a, val int s) = [a.x >> s, a.y >> s]
+  ."&" (val a, val b) = [a.x & b.x, a.y & b.y]
+
+
+define ttest1 (initial Coord x, y)
+  Coord z
+
+  z = x + y
+  x = z * y
+  y = z - x
+  
+  z = [3,4]
+  z >>= 4
+
+
