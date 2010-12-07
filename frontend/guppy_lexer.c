@@ -65,6 +65,9 @@ langlexer_t guppy_lexer = {
 /*{{{  private lexer struct*/
 typedef struct TAG_guppy_lex {
 	DYNARRAY (int, indent_offsets);		/* history of where indentations occur */
+	int curindent;				/* where we are, index into the above */
+	int scanto_indent;			/* where we are currently scanning to */
+
 	int newlineflag;
 	int oldnewline;
 
@@ -184,6 +187,9 @@ static int guppy_openfile (lexfile_t *lf, lexpriv_t *lp)
 
 	lop = (guppy_lex_t *)smalloc (sizeof (guppy_lex_t));
 	dynarray_init (lop->indent_offsets);
+	dynarray_add (lop->indent_offsets, 0);		/* first indent (zero'th) is left-margin */
+	lop->curindent = 0;
+	lop->scanto_indent = 0;
 	lop->newlineflag = 1;
 	lop->oldnewline = 0;
 
@@ -210,7 +216,7 @@ static int guppy_closefile (lexfile_t *lf, lexpriv_t *lp)
 	return 0;
 }
 /*}}}*/
-/*{{{  */
+/*{{{  static token_t *guppy_nexttoken (lexfile_t *lf, lexpriv_t *lp)*/
 /*
  *	called to retrieve the next token.
  */
@@ -229,7 +235,240 @@ static token_t *guppy_nexttoken (lexfile_t *lf, lexpriv_t *lp)
 	tok->origin = (void *)lf;
 	tok->lineno = lf->lineno;
 
-	/* FIXME: missing stuff */
+tokenloop:
+	if (lp->offset == lp->size) {
+		/* reached EOF, check indentation leftovers */
+		if (lop->curindent > 0) {
+			lop->curindent--;
+			tok->type = OUTDENT;
+			dynarray_delitem (lop->indent_offsets, DA_CUR (lop->indent_offsets) - 1);
+			goto out_tok;
+		}
+		tok->type = END;
+		goto out_tok;
+	}
+
+	/* make some sort of guess on what we're dealing with */
+	ch = lp->buffer + lp->offset;
+	chlim = lp->buffer + lp->size;
+
+	if (lop->newlineflag) {
+		/*{{{  had a newline recently, check for indent/outdent*/
+		int thisindent = 0;
+		int xind;
+
+		/* measure indentation */
+		for (dh=ch; (dh < chlim) && ((*dh == ' ') || (*dh == '\t')); dh++) {
+			if (*dh == ' ') {
+				thisindent++;
+			} else {
+				/* tabs are 8 spaces, aligned at next tab-stop */
+				thisindent = ((thisindent >> 3) + 1) << 3;
+			}
+		}
+
+		/* special-case: if we have a comment, skip to next-line */
+		if ((dh < chlim) && (*dh == '#')) {
+			/* yes, skip to EOL and onto next line */
+			for (; (dh < chlim) && (*dh != '\n'); dh++);
+			lp->offset += (int)(dh - ch);
+
+			goto tokenloop;
+		}
+
+		/* move buffer along */
+		lp->offset += (int)(dh - ch);
+		ch = dh;
+		lop->newlineflag = 0;
+		lop->oldnewline = 1;
+		if (ch < chlim) {
+			if ((*ch == '\n') || (*ch == '\r')) {
+				/* empty line or just whitespace */
+				goto tokenloop;
+			}
+		}
+
+		/* find out where we are in relation to indent history */
+		for (xind=0; (xind < DA_CUR (lop->indent_offsets)) && (thisindent > DA_NTHITEM (lop->indent_offsets, xind)); xind++);
+#if 0
+nocc_message ("guppy_nexttoken(): newlineflag, thisindent = %d, xind = %d, DA_CUR (offs) = %d, curindent = %d, scanto = %d", thisindent, xind, DA_CUR (lop->indent_offsets), lop->curindent, lop->scanto_indent);
+#endif
+
+		if (xind == DA_CUR (lop->indent_offsets)) {
+			/* add this one */
+			dynarray_add (lop->indent_offsets, thisindent);
+			lop->scanto_indent = xind;
+#if 0
+nocc_message ("greater: setting scanto = %d, DA_CUR (offs) = %d", lop->scanto_indent, DA_CUR (lop->indent_offsets));
+#endif
+		} else if (thisindent == DA_NTHITEM (lop->indent_offsets, xind)) {
+			/* exactly this one, scan to it */
+			lop->scanto_indent = xind;
+#if 0
+nocc_message ("same-as: setting scanto = %d, DA_CUR (offs) = %d", lop->scanto_indent, DA_CUR (lop->indent_offsets));
+#endif
+		} else if (thisindent < DA_NTHITEM (lop->indent_offsets, xind)) {
+#if 0
+nocc_message ("off-width: setting scanto = %d, DA_CUR (offs) = %d", lop->scanto_indent, DA_CUR (lop->indent_offsets));
+#endif
+			/* not exactly this one, but less than the next, generate outdent and then indent */
+			lop->scanto_indent = xind;
+			lop->curindent = xind - 1;
+			DA_SETNTHITEM (lop->indent_offsets, xind, thisindent);
+
+			tok->type = OUTDENT;
+			goto out_tok;
+		}
+
+		/*}}}*/
+	} else {
+		lop->oldnewline = 0;
+	}
+
+#if 0
+nocc_message ("here: scanto = %d, curindent = %d", lop->scanto_indent, lop->curindent);
+#endif
+
+	/* might still be scanning to a specific indent point */
+	if (lop->scanto_indent < lop->curindent) {
+		if (lop->curindent > 0) {
+			/* remove knowledge of this one */
+			dynarray_delitem (lop->indent_offsets, lop->curindent);
+		}
+		lop->curindent--;
+		tok->type = OUTDENT;
+#if 0
+nocc_message ("OUTDENT: reducing curindent to %d, scanto = %d", lop->curindent, lop->scanto_indent);
+#endif
+		goto out_tok;
+	} else if (lop->scanto_indent > lop->curindent) {
+		lop->curindent++;
+		tok->type = INDENT;
+#if 0
+nocc_message ("INDENT: advancing curindent to %d, scanto = %d", lop->curindent, lop->scanto_indent);
+#endif
+		goto out_tok;
+	}
+
+	/* next thing for a token! */
+	if (((*ch >= 'a') && (*ch <= 'z')) || ((*ch >= 'A') && (*ch <= 'Z'))) {
+		/*{{{  probably a keyword or name*/
+		keyword_t *kw;
+		char *tmpstr;
+
+		/* scan something that matches a word */
+		for (dh=ch+1; (dh < chlim) && (((*dh >= 'a') && (*dh <= 'z')) ||
+				((*dh >= 'A') && (*dh <= 'Z')) ||
+				(*dh == '_') ||
+				((*dh >= '0') && (*dh <= '9'))); dh++);
+
+		tmpstr = string_ndup (ch, (int)(dh - ch));
+		kw = keywords_lookup (tmpstr, (int)(dh - ch), LANGTAG_GUPPY);
+		sfree (tmpstr);
+
+		if (!kw) {
+			/* assume name */
+			tok->type = NAME;
+			tok->u.name = string_ndup (ch, (int)(dh - ch));
+		} else {
+			/* keyword found */
+			tok->type = KEYWORD;
+			tok->u.kw = kw;
+		}
+		lp->offset += (int)(dh - ch);
+		/*}}}*/
+	} else if ((*ch >= '0') && (*ch <= '9')) {
+		/*{{{  number of sorts*/
+		char *npbuf = NULL;
+
+		tok->type = INTEGER;
+		for (dh=ch+1; (dh < chlim) && (((*dh >= '0') && (*dh <= '9')) || (*dh == '.')); dh++) {
+			if (*dh == '.') {
+				if (tok->type == REAL) {
+					lexer_error (lf, "malformed real number");
+					goto out_error1;
+				}
+				tok->type = REAL;
+			}
+		}
+		lp->offset += (int)(dh - ch);
+
+		/* parse it */
+		npbuf = string_ndup (ch, (int)(dh - ch));
+		if ((tok->type == REAL) && (sscanf (npbuf, "%lf", &tok->u.dval) != 1)) {
+			lexer_error (lf, "malformed floating-point constant: %s", npbuf);
+			sfree (npbuf);
+			goto out_error1;
+		} else if ((tok->type == INTEGER) && (sscanf (npbuf, "%d", &tok->u.ival) != 1)) {
+			lexer_error (lf, "malformed integer constant: %s", npbuf);
+			sfree (npbuf);
+			goto out_error1;
+		} else {
+			sfree (npbuf);
+		}
+
+		/*}}}*/
+	} else switch (*ch) {
+		/*{{{  \r, \n (newline)*/
+	case '\r':
+		lp->offset++;
+		goto tokenloop;
+	case '\n':
+		lf->lineno++;
+		lp->offset++;
+		tok->type = NEWLINE;
+
+		/* and skip multiple blank lines */
+		for (dh = ++ch; (dh < chlim) && ((*dh == '\n') || (*dh == '\r')); dh++) {
+			if (*dh == '\n') {
+				lf->lineno++;
+			}
+		}
+		lp->offset += (int)(dh - ch);
+		lop->newlineflag = 1;
+		/* return here, don't touch whitespace */
+		goto out_tok;
+		/*}}}*/
+		/*{{{  default (symbol)*/
+	default:
+		/* try and match a symbol */
+default_label:
+		{
+			symbol_t *sym = symbols_match (ch, chlim, LANGTAG_GUPPY);
+
+			if (sym) {
+				/* found something */
+				tok->type = SYMBOL;
+				tok->u.sym = sym;
+				lp->offset += sym->mlen;
+
+			} else {
+				/* unknown.. */
+				char *tmpstr = string_ndup (ch, ((int)(chlim - ch) < 2) ? 1 : 2);
+
+				lexer_error (lf, "tokeniser error at [%s]", tmpstr);
+				sfree (tmpstr);
+				goto out_error1;
+			}
+		}
+		break;
+		/*}}}*/
+	}
+
+	/* skip any remaining whitespace */
+	ch = lp->buffer + lp->offset;
+	for (dh = ch; (dh < chlim) && ((*dh == ' ') || (*dh == '\t')); dh++);
+	lp->offset += (int)(dh - ch);
+out_tok:
+	return tok;
+
+out_error1:
+	/* skip to end of line or file */
+	tok->type = NOTOKEN;
+	ch = lp->buffer + lp->offset;
+	for (dh = ch; (dh < chlim) && (*dh != '\n'); dh++);
+	lp->offset += (int)(dh - ch);
+
 	return tok;
 }
 /*}}}*/

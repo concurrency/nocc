@@ -12,18 +12,6 @@
 
 .SECTION "guppy" # {{{: fairly general guppy reductions and other language things
 
-.KEYWORD "skip"
-.KEYWORD "stop"
-.KEYWORD "define"
-.KEYWORD "chan"
-.KEYWORD "val"
-.KEYWORD "int"
-.KEYWORD "real"
-.KEYWORD "byte"
-.KEYWORD "bool"
-.KEYWORD "char"
-.KEYWORD "string"
-
 .SYMBOL "."
 
 .GRULE	"gup:nullreduce" "N+R-"

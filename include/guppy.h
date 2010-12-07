@@ -60,6 +60,9 @@ typedef struct {
 	struct TAG_ntdef *tag_SKIP;
 	struct TAG_ntdef *tag_STOP;
 
+	struct TAG_token *tok_ATSIGN;
+	struct TAG_token *tok_STRING;
+
 } guppy_pset_t;
 
 extern guppy_pset_t gup;
