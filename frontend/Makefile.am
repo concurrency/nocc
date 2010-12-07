@@ -21,7 +21,9 @@ libfrontend_a_SOURCES=occampi_fe.c occampi_lexer.c occampi_parser.c occampi_prim
 		mcsp_instance.c mcsp_cnode.c \
 		rcxb_fe.c rcxb_lexer.c rcxb_parser.c rcxb_program.c \
 		mwsync.c \
-		hopp_fe.c hopp_lexer.c hopp_parser.c
+		hopp_fe.c hopp_lexer.c hopp_parser.c \
+		guppy_fe.c guppy_lexer.c guppy_parser.c \
+		guppy_primproc.c guppy_fcndef.c guppy_decls.c
 
 
 CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@

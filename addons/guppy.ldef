@@ -1,0 +1,77 @@
+#
+# guppy.ldef - language definitions for Guppy
+# identifiers must start at the left-margin, indentation is a line-continuation
+#
+
+.IDENT		"guppy"
+.DESC		"Guppy parallel programming language"
+.MAINTAINER	"Fred Barnes <frmb@kent.ac.uk>"
+
+
+# sections are used to help front-end units find their definitions
+
+.SECTION "guppy" # {{{: fairly general guppy reductions and other language things
+
+.KEYWORD "skip"
+.KEYWORD "stop"
+.KEYWORD "define"
+.KEYWORD "chan"
+.KEYWORD "val"
+.KEYWORD "int"
+.KEYWORD "real"
+.KEYWORD "byte"
+.KEYWORD "bool"
+.KEYWORD "char"
+.KEYWORD "string"
+
+.SYMBOL "."
+
+.GRULE	"gup:nullreduce" "N+R-"
+.GRULE	"gup:nullpush" "0N-"
+.GRULE	"gup:nullset" "0R-"
+
+
+# .TNODE directives describe the parse-tree, kind-of
+
+#{{{  declarations and related nodes
+
+# guppy:rawnamenode		(0,0,1)
+
+.TNODE	"guppy:rawnamenode" (0,0,1) "name-hook"
+	INVALID AFTER "scope"
+.TNODE	"guppy:namenode" (0,1,0) "name"
+	INVALID BEFORE "scope"
+
+
+#}}}
+
+# }}}
+
+.SECTION "guppy-postprod" # {{{: top-level grammar, kind-of
+
+.BNF	"guppy:declorprocstart +:= ( guppy:fcndef | guppy:primproc ) {<gup:nullreduce>}"
+.BNF	"guppy:decl +:= ( guppy:fcndef ) {<gup:nullreduce>}"
+
+# }}}
+
+
+.SECTION "guppy-decls" # {{{: variables and other named things
+
+.BNF	"guppy:name ::= +Name {<gup:namereduce>}"
+.BNF	"guppy:namelist ::= { guppy:name @@, 1 }"
+
+# }}}
+.SECTION "guppy-fcndef" # {{{: function/procedure definitions
+
+.TABLE	"guppy:fcndef ::= [ 0 +@define 1 ] [ 1 guppy:name 2 ]"
+
+# }}}
+.SECTION "guppy-primproc" # {{{: primitive processes
+
+.RFUNC	"Rguppy:primproc" "guppy_reduce_primproc"
+
+.BNF	"guppy:primproc ::= ( +@skip | +@stop ) {Rguppy:primproc}"
+
+# }}}
+
+
