@@ -355,21 +355,54 @@ nocc_message ("INDENT: advancing curindent to %d, scanto = %d", lop->curindent, 
 		/*{{{  probably a keyword or name*/
 		keyword_t *kw;
 		char *tmpstr;
+		char *nstart;
 
 		/* scan something that matches a word */
 		for (dh=ch+1; (dh < chlim) && (((*dh >= 'a') && (*dh <= 'z')) ||
 				((*dh >= 'A') && (*dh <= 'Z')) ||
 				(*dh == '_') ||
 				((*dh >= '0') && (*dh <= '9'))); dh++);
+		/* see if it ends in a number, e.g. "int8" */
+		for (nstart=dh; (nstart > ch) && (*nstart >= '0') && (*nstart <= '9'); nstart--);
+		if (nstart < dh) {
+			nstart++;		/* first number character */
+		}
 
 		tmpstr = string_ndup (ch, (int)(dh - ch));
 		kw = keywords_lookup (tmpstr, (int)(dh - ch), LANGTAG_GUPPY);
 		sfree (tmpstr);
 
 		if (!kw) {
-			/* assume name */
-			tok->type = NAME;
-			tok->u.name = string_ndup (ch, (int)(dh - ch));
+			if (nstart < dh) {
+				/* check to see if it's a special type (int8, etc.) */
+				tmpstr = string_ndup (ch, (int)(nstart - ch));
+				kw = keywords_lookup (tmpstr, (int)(nstart - ch), LANGTAG_GUPPY);
+				sfree (tmpstr);
+
+				if (kw && (kw->langtag & LANGTAG_STYPE)) {
+					/* yes, and the end is all number */
+					int size;
+
+					tmpstr = string_ndup (nstart, (int)(dh - nstart));
+					if (sscanf (tmpstr, "%d", &size) != 1) {
+						lexer_error (lf, "invalid number in sized keyword [%s]", kw->name);
+						sfree (tmpstr);
+						goto out_error1;
+					}
+
+					tok->type = KEYWORD;
+					tok->u.kw = kw;
+					tok->iptr = (void *)size;
+				} else {
+					/* assume name */
+					tok->type = NAME;
+					tok->u.name = string_ndup (ch, (int)(dh - ch));
+				}
+			} else {
+				/* assume name */
+				tok->type = NAME;
+				tok->u.name = string_ndup (ch, (int)(dh - ch));
+			}
 		} else {
 			/* keyword found */
 			tok->type = KEYWORD;

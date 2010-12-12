@@ -80,13 +80,13 @@ keyword_t *keywords_lookup (const char *str, const int len, const unsigned int l
 	keyword_t *kw;
 
 	kw = (keyword_t *)keyword_lookup_byname (str, len);
-	if (kw && langtag && ((kw->langtag & langtag) != langtag)) {
+	if (kw && langtag && ((kw->langtag & LANGTAG_LANGMASK & langtag) != langtag)) {
 		kw = NULL;
 	}
 
 	if (!kw) {
 		kw = stringhash_lookup (extrakeywords, str);
-		if (kw && langtag && ((kw->langtag & langtag) != langtag)) {
+		if (kw && langtag && ((kw->langtag & LANGTAG_LANGMASK & langtag) != langtag)) {
 			kw = NULL;
 		}
 	}
@@ -104,11 +104,14 @@ keyword_t *keywords_add (const char *str, const int tagval, const unsigned int l
 
 	if (kw) {
 		/* already got one */
-		if (kw->langtag == langtag) {
+		if ((kw->langtag & LANGTAG_LANGMASK) == (langtag & LANGTAG_LANGMASK)) {
 			nocc_warning ("already got keyword [%s]", str);
 			return kw;
 		}
 		/* merge in this one */
+		if ((kw->langtag & LANGTAG_IMASK) & (langtag & LANGTAG_IMASK)) {
+			nocc_serious ("clobbering implementation-specific flags in keyword [%s]", str);
+		}
 		kw->langtag |= langtag;
 		return kw;
 	}

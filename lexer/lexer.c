@@ -619,6 +619,9 @@ void lexer_dumptoken (FILE *stream, token_t *tok)
 	if (tok->origin) {
 		fprintf (stream, "origin=\"%s:%d\" ", tok->origin->fnptr, tok->lineno);
 	}
+	if (tok->iptr) {
+		fprintf (stream, "iptr=\"0x%8.8x\" ", (unsigned int)tok->iptr);
+	}
 
 	fprintf (stream, "type=\"");
 	switch (tok->type) {

@@ -34,6 +34,9 @@ extern struct TAG_langparser guppy_parser;
 #define NTF_INDENTED_PROC		0x0080		/* for TNF_LONGPROCs, parse an indented process into subnode 1 */
 							/* for TNF_LONGDECLs, parse an indented process into subnode 2 */
 
+/* implementation-specific language-tag bits */
+#define LANGTAG_STYPE			0x00010000	/* sized type (e.g. int8) */
+
 
 struct TAG_tndef;
 struct TAG_ntdef;
@@ -52,10 +55,14 @@ typedef struct {
 	struct TAG_ntdef *tag_INT;			/* caters for all integer types (sizes and signedness) */
 	struct TAG_ntdef *tag_REAL;			/* caters for all real types (sizes) */
 	struct TAG_ntdef *tag_CHAR;
+	struct TAG_ntdef *tag_STRING;
+
 	struct TAG_ntdef *tag_CHAN;
 	struct TAG_ntdef *tag_NAME;
 
 	struct TAG_ntdef *tag_FCNDEF;
+	struct TAG_ntdef *tag_VARDECL;
+	struct TAG_ntdef *tag_FPARAM;
 
 	struct TAG_ntdef *tag_SKIP;
 	struct TAG_ntdef *tag_STOP;
@@ -90,6 +97,7 @@ extern struct TAG_langdef *guppy_getlangdef (void);
 extern struct TAG_feunit guppy_primproc_feunit;		/* guppy_primproc.c */
 extern struct TAG_feunit guppy_fcndef_feunit;		/* guppy_fcndef.c */
 extern struct TAG_feunit guppy_decls_feunit;		/* guppy_decls.c */
+extern struct TAG_feunit guppy_types_feunit;		/* guppy_types.c */
 
 /* these are for language units to use in reductions */
 extern void *guppy_nametoken_to_hook (void *ntok);

@@ -174,7 +174,7 @@ fprintf (stderr, "symbols_lookup(): for [%s], len = %d\n", str, len);
 				/* this one */
 				symbol_t *sym = sym_extras[fch - SYMBASE][i];
 
-				if (!langtag || ((sym->langtag & langtag) == langtag)) {
+				if (!langtag || ((sym->langtag & LANGTAG_LANGMASK & langtag) == langtag)) {
 					return sym;
 				}
 			}
@@ -185,14 +185,14 @@ fprintf (stderr, "symbols_lookup(): for [%s], len = %d\n", str, len);
 	if (len == 1) {
 		symbol_t *sym = sym_lookup[fch - SYMBASE][0];
 
-		if (sym && langtag && ((sym->langtag & langtag) != langtag)) {
+		if (sym && langtag && ((sym->langtag & LANGTAG_LANGMASK & langtag) != langtag)) {
 			return NULL;
 		}
 		return sym;
 	} else if ((len == 2) && (fch >= SYMBASE) && ((sch - SYMBASE) < SYMSIZE)) {
 		symbol_t *sym = sym_lookup[fch - SYMBASE][sch - SYMBASE];
 
-		if (sym && langtag && ((sym->langtag & langtag) != langtag)) {
+		if (sym && langtag && ((sym->langtag & LANGTAG_LANGMASK & langtag) != langtag)) {
 			return NULL;
 		}
 		return sym;
@@ -221,7 +221,7 @@ symbol_t *symbols_match (const char *str, const char *limit, const unsigned int 
 				/* this one */
 				symbol_t *sym = sym_extras[fch - SYMBASE][i];
 
-				if (!langtag || ((sym->langtag & langtag) == langtag)) {
+				if (!langtag || ((sym->langtag & LANGTAG_LANGMASK & langtag) == langtag)) {
 					return sym;
 				}
 			}
@@ -249,7 +249,7 @@ symbol_t *symbols_match (const char *str, const char *limit, const unsigned int 
 			/* only match one */
 			sym = sym_lookup[fch - SYMBASE][0];
 		}
-		if (sym && langtag && ((sym->langtag & langtag) != langtag)) {
+		if (sym && langtag && ((sym->langtag & LANGTAG_LANGMASK & langtag) != langtag)) {
 			return NULL;
 		}
 		return sym;
@@ -271,10 +271,14 @@ symbol_t *symbols_add (const char *str, const int len, const unsigned int langta
 
 	if (sym) {
 		/* symbol in any language */
-		if (sym->langtag == langtag) {
+		if ((sym->langtag & LANGTAG_LANGMASK) == (langtag & LANGTAG_LANGMASK)) {
 			nocc_warning ("symbols_add(): already got symbol [%s]", sym->match);
 			return sym;
 		}
+		if ((sym->langtag & LANGTAG_IMASK) & (langtag & LANGTAG_IMASK)) {
+			nocc_serious ("clobbering implementation-specific bits in symbol [%s]", sym->match);
+		}
+
 		/* merge in this one */
 		sym->langtag |= langtag;
 		return sym;

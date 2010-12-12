@@ -39,6 +39,7 @@
 
 .BNF	"guppy:declorprocstart +:= ( guppy:fcndef | guppy:primproc ) {<gup:nullreduce>}"
 .BNF	"guppy:decl +:= ( guppy:fcndef ) {<gup:nullreduce>}"
+.BNF	"guppy:declstart +:= ( guppy:fcndef ) {<gup:nullreduce>}"
 
 # }}}
 
@@ -48,13 +49,31 @@
 .GRULE	"gup:namereduce" "T+St0X[guppy_nametoken_to_hook]C[NAME]1R-"
 .GRULE	"gup:namepush" "T+St0X[guppy_nametoken_to_hook]C[NAME]1N-"
 
+.GRULE	"gup:fparam2nsreduce" "N+Sn0N+C[FPARAM]2M[fparam][FPARAM]R-"
+
 .BNF	"guppy:name ::= +Name {<gup:namereduce>}"
 .BNF	"guppy:namelist ::= { guppy:name @@, 1 }"
+
+.TABLE	"guppy:fparam ::= [ 0 guppy:primtype 1 ] [ 1 guppy:name 2 ] [ 2 {<gup:fparam2nsreduce>} -* ]"
+
+.BNF	"guppy:fparamlist ::= ( -@@) {<gup:nullset>} | { guppy:fparam @@, 1 } )"
+
+
+# }}}
+.SECTION "guppy-types" # {{{: types
+
+.RFUNC	"Rguppy:primtype" "guppy_reduce_primtype"
+
+.BNF	"guppy:primtype ::= ( @int | @real | @bool | @byte | @char | @string ) {Rguppy:primtype}"
 
 # }}}
 .SECTION "guppy-fcndef" # {{{: function/procedure definitions
 
-.TABLE	"guppy:fcndef ::= [ 0 +@define 1 ] [ 1 guppy:name 2 ]"
+.GRULE	"gup:fcndefreduce" "SN1N+N+V00C[FCNDEF]4R-"
+.GRULE	"gup:fcndefreduce1" "SN0N+000C[FCNDEF]4R-"
+
+.TABLE	"guppy:fcndef ::= [ 0 @define 1 ] [ 1 guppy:name 2 ] [ 2 @@( 4 ] [ 2 -* 3 ] [ 3 {<gup:fcndefreduce1>} -* ]"
+	"[ 4 guppy:fparamlist 5 ] [ 5 @@) 6 ] [ 6 {<gup:fcndefreduce>} -* ]"
 
 # }}}
 .SECTION "guppy-primproc" # {{{: primitive processes

@@ -67,6 +67,89 @@
 
 
 /*}}}*/
+/*{{{  private types*/
+#define FPARAM_IS_NONE 0
+#define FPARAM_IS_VAL 1
+#define FPARAM_IS_RES 2
+#define FPARAM_IS_INIT 3
+typedef struct TAG_fparaminfo {
+	int flags;
+} fparaminfo_t;
+
+/*}}}*/
+
+
+/*{{{  static fparaminfo_t *guppy_newfparaminfo (int flags)*/
+/*
+ *	creates a new fparaminfo_t structure
+ */
+static fparaminfo_t *guppy_newfparaminfo (int flags)
+{
+	fparaminfo_t *fpi = (fparaminfo_t *)smalloc (sizeof (fparaminfo_t));
+
+	fpi->flags = flags;
+
+	return fpi;
+}
+/*}}}*/
+/*{{{  static void guppy_freefparaminfo (fparaminfo_t *fpi)*/
+/*
+ *	frees a fparaminfo_t structure
+ */
+static void guppy_freefparaminfo (fparaminfo_t *fpi)
+{
+	if (!fpi) {
+		nocc_internal ("guppy_freefparaminfo(): NULL argument!");
+		return;
+	}
+	sfree (fpi);
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static void guppy_fparaminfo_hook_free (void *hook)*/
+/*
+ *	frees a fparaminfo_t hook
+ */
+static void guppy_fparaminfo_hook_free (void *hook)
+{
+	guppy_freefparaminfo ((fparaminfo_t *)hook);
+}
+/*}}}*/
+/*{{{  static void *guppy_fparaminfo_hook_copy (void *hook)*/
+/*
+ *	copies a fparaminfo_t hook
+ */
+static void *guppy_fparaminfo_hook_copy (void *hook)
+{
+	fparaminfo_t *fpi = (fparaminfo_t *)hook;
+	fparaminfo_t *nxt;
+
+	if (!fpi) {
+		return NULL;
+	}
+	nxt = guppy_newfparaminfo (fpi->flags);
+
+	return (void *)nxt;
+}
+/*}}}*/
+/*{{{  static void guppy_fparaminfo_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dump-tree for a fparaminfo hook
+ */
+static void guppy_fparaminfo_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	guppy_isetindent (stream, indent);
+	if (!hook) {
+		fprintf (stream, "<fparaminfo value=\"(null)\" />\n");
+	} else {
+		fparaminfo_t *fpi = (fparaminfo_t *)hook;
+
+		fprintf (stream, "<fparaminfo flags=\"%d\" />\n",fpi->flags);
+	}
+}
+/*}}}*/
 
 
 /*{{{  static void guppy_rawnamenode_hook_free (void *hook)*/
@@ -135,6 +218,31 @@ static int guppy_decls_init_nodes (void)
 	gup.tag_NAME = tnode_newnodetag ("NAME", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  guppy:fparam -- FPARAM*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:fparam", &i, 2, 0, 0, TNF_NONE);				/* subnodes: name; type, hooks: fparaminfo */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_FPARAM = tnode_newnodetag ("FPARAM", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:vardecl -- VARDECL*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:vardecl", &i, 3, 0, 0, TNF_SHORTDECL);				/* subnodes: name; type; in-scope body */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_VARDECL = tnode_newnodetag ("VARDECL", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+
 
 	return 0;
 }

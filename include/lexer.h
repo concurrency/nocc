@@ -87,6 +87,7 @@ typedef struct TAG_token {
 		char *name;
 		struct TAG_symbol *sym;
 	} u;
+	void *iptr;							/* implementation specific use (may not be pointer) */
 } token_t;
 
 extern token_t *lexer_nexttoken (lexfile_t *lf);

@@ -40,6 +40,9 @@ typedef struct TAG_lexpriv {
 #define LANGTAG_TRACESLANG 0x00000020
 #define LANGTAG_GUPPY 0x00000040
 
+#define LANGTAG_LANGMASK 0x0000ffff
+#define LANGTAG_IMASK 0xffff0000
+
 
 /* this defines support for a language */
 typedef struct TAG_langlexer {

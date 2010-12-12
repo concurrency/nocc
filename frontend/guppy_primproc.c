@@ -67,7 +67,14 @@ static void guppy_reduce_primproc (dfastate_t *dfast, parsepriv_t *pp, void *rar
 	ntdef_t *tag;
 
 	tok = parser_gettok (pp);
-	tag = tnode_lookupnodetag (tok->u.kw->name);
+	if (lexer_tokmatchlitstr (tok, "skip")) {
+		tag = gup.tag_SKIP;
+	} else if (lexer_tokmatchlitstr (tok, "stop")) {
+		tag = gup.tag_STOP;
+	} else {
+		parser_error (pp->lf, "unknown primitive process in guppy_reduce_primproc()");
+		return;
+	}
 	*(dfast->ptr) = tnode_create (tag, tok->origin);
 	lexer_freetoken (tok);
 
