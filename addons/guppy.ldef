@@ -13,6 +13,7 @@
 .SECTION "guppy" # {{{: fairly general guppy reductions and other language things
 
 .SYMBOL "."
+.SYMBOL ","
 
 .GRULE	"gup:nullreduce" "N+R-"
 .GRULE	"gup:nullpush" "0N-"
@@ -37,9 +38,9 @@
 
 .SECTION "guppy-postprod" # {{{: top-level grammar, kind-of
 
-.BNF	"guppy:declorprocstart +:= ( guppy:fcndef | guppy:primproc ) {<gup:nullreduce>}"
-.BNF	"guppy:decl +:= ( guppy:fcndef ) {<gup:nullreduce>}"
-.BNF	"guppy:declstart +:= ( guppy:fcndef ) {<gup:nullreduce>}"
+.BNF	"guppy:declorprocstart +:= ( guppy:fcndef | guppy:primproc | guppy:cnode | guppy:vardecl ) {<gup:nullreduce>}"
+.BNF	"guppy:decl +:= ( guppy:fcndef | guppy:vardecl ) {<gup:nullreduce>}"
+.BNF	"guppy:declstart +:= ( guppy:fcndef | guppy:vardecl ) {<gup:nullreduce>}"
 
 # }}}
 
@@ -50,13 +51,19 @@
 .GRULE	"gup:namepush" "T+St0X[guppy_nametoken_to_hook]C[NAME]1N-"
 
 .GRULE	"gup:fparam2nsreduce" "N+Sn0N+C[FPARAM]2M[fparam][FPARAM]R-"
+.GRULE	"gup:vardeclreduce" "N+N+0C[VARDECL]3R-"
 
 .BNF	"guppy:name ::= +Name {<gup:namereduce>}"
 .BNF	"guppy:namelist ::= { guppy:name @@, 1 }"
 
+.BNF	"guppy:expr +:= ( guppy:name ) {<gup:nullreduce>}"
+
 .TABLE	"guppy:fparam ::= [ 0 guppy:primtype 1 ] [ 1 guppy:name 2 ] [ 2 {<gup:fparam2nsreduce>} -* ]"
 
 .BNF	"guppy:fparamlist ::= ( -@@) {<gup:nullset>} | { guppy:fparam @@, 1 } )"
+
+.TABLE	"guppy:vardecl ::= [ 0 guppy:type 1 ] [ 1 guppy:namelist 2 ] [ 2 {<gup:vardeclreduce>} -* ]"
+
 
 
 # }}}
@@ -64,7 +71,9 @@
 
 .RFUNC	"Rguppy:primtype" "guppy_reduce_primtype"
 
-.BNF	"guppy:primtype ::= ( @int | @real | @bool | @byte | @char | @string ) {Rguppy:primtype}"
+.BNF	"guppy:primtype ::= ( +@int | +@real | +@bool | +@byte | +@char | +@string ) {Rguppy:primtype}"
+
+.BNF	"guppy:type ::= ( guppy:primtype {<gup:nullreduce>} )"
 
 # }}}
 .SECTION "guppy-fcndef" # {{{: function/procedure definitions
@@ -81,6 +90,22 @@
 .RFUNC	"Rguppy:primproc" "guppy_reduce_primproc"
 
 .BNF	"guppy:primproc ::= ( +@skip | +@stop ) {Rguppy:primproc}"
+
+# }}}
+.SECTION "guppy-cnode" # {{{: constructor processes
+
+.GRULE	"gup:seqreduce" "T+St0@t00C[SEQ]2R-"
+.GRULE	"gup:parreduce" "T+St0@t00C[PAR]2R-"
+
+.TABLE	"guppy:cnode ::= [ 0 +@seq 1 ] [ 1 -Newline 2 ] [ 2 {<gup:seqreduce>} -* ]"
+	"[ 0 +@par 3 ] [ 3 -Newline 4 ] [ 4 {<gup:parreduce>} -* ]"
+
+# }}}
+.SECTION "guppy-cflow" # {{{: control-flow processes
+
+.GRULE	"gup:ifreduce" "T+St0@tN+0C[IF]2R-"
+
+.TABLE	"guppy:cflow ::= [ 0 +@if 1 ] [ 1 guppy:expr 2 ] [ 2 -Newline 3 ] [ 3 {<gup:ifreduce>} -* ]"
 
 # }}}
 

@@ -64,6 +64,10 @@ static int guppy_parser_init (lexfile_t *lf);
 static void guppy_parser_shutdown (lexfile_t *lf);
 static tnode_t *guppy_parser_parse (lexfile_t *lf);
 static tnode_t *guppy_parser_descparse (lexfile_t *lf);
+static int guppy_parser_prescope (tnode_t **tptr, prescope_t *ps);
+static int guppy_parser_scope (tnode_t **tptr, scope_t *ss);
+static int guppy_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
+static int guppy_parser_typeresolve (tnode_t **tptr, typecheck_t *tc);
 
 static tnode_t *guppy_process (lexfile_t *lf);
 static tnode_t *guppy_indented_process (lexfile_t *lf);
@@ -80,10 +84,10 @@ langparser_t guppy_parser = {
 	shutdown:	guppy_parser_shutdown,
 	parse:		guppy_parser_parse,
 	descparse:	guppy_parser_descparse,
-	prescope:	NULL,
-	scope:		NULL,
-	typecheck:	NULL,
-	typeresolve:	NULL,
+	prescope:	guppy_parser_prescope,
+	scope:		guppy_parser_scope,
+	typecheck:	guppy_parser_typecheck,
+	typeresolve:	guppy_parser_typeresolve,
 	postcheck:	NULL,
 	fetrans:	NULL,
 	getlangdef:	guppy_getlangdef,
@@ -109,6 +113,8 @@ static feunit_t *feunit_set[] = {
 	&guppy_fcndef_feunit,
 	&guppy_decls_feunit,
 	&guppy_types_feunit,
+	&guppy_cnode_feunit,
+	&guppy_cflow_feunit,
 	NULL
 };
 
@@ -173,6 +179,22 @@ void *guppy_nametoken_to_hook (void *ntok)
 /*}}}*/
 
 /*}}}*/
+/*{{{  static int autoseq_modprewalk (tnode_t **tptr, void *arg)*/
+/*
+ *	called for each node walked during the 'auto-sequence' pass
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int autoseq_modprewalk (tnode_t **tptr, void *arg)
+{
+	guppy_autoseq_t *gas = (guppy_autoseq_t *)arg;
+	int i = 1;
+
+	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop ((*tptr)->tag->ndef->ops, "autoseq")) {
+		i = tnode_callcompop ((*tptr)->tag->ndef->ops, "autoseq", 2, tptr, gas);
+	}
+	return i;
+}
+/*}}}*/
 
 
 /*{{{  void guppy_isetindent (FILE *stream, int indent)*/
@@ -201,6 +223,87 @@ langdef_t *guppy_getlangdef (void)
 	return guppy_priv->langdefs;
 }
 /*}}}*/
+/*{{{  int guppy_autoseq_listtoseqlist (tnode_t **listptr, guppy_autoseq_t *gas)*/
+/*
+ *	used during auto-sequencing to fixup variable declarations in-list
+ *	returns 0 on success, non-zero on failure
+ */
+int guppy_autoseq_listtoseqlist (tnode_t **listptr, guppy_autoseq_t *gas)
+{
+	tnode_t *lst = *listptr;
+	int nitems = 0;
+	tnode_t **items = parser_getlistitems (lst, &nitems);
+	int i;
+
+	*listptr = tnode_createfrom (gup.tag_SEQ, lst, NULL, lst);
+	for (i=0; i<nitems; i++) {
+		if ((items[i]->tag == gup.tag_VARDECL) && (tnode_nthsubof (items[i], 2) == NULL)) {
+			break;		/* for() */
+		}
+	}
+	if (i < nitems) {
+		/* peel off everything in the list after the declaration and make in body of vardecl, then post-process those */
+		tnode_t *newlst = parser_newlistnode (NULL);
+		int j;
+
+		for (j=i+1; j<nitems; j++) {
+			parser_addtolist (newlst, items[j]);
+			items[j] = NULL;
+		}
+
+		parser_cleanuplist (lst);
+		guppy_autoseq_listtoseqlist (&newlst, gas);
+		tnode_setnthsub (items[i], 2, newlst);
+
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int guppy_autoseq_subtree (tnode_t **tptr, guppy_autoseq_t *gas)*/
+/*
+ *	does auto-sequencing on a parse-tree (unscoped)
+ *	returns 0 on success, non-zero on failure
+ */
+int guppy_autoseq_subtree (tnode_t **tptr, guppy_autoseq_t *gas)
+{
+	if (!tptr) {
+		nocc_serious ("guppy_autoseq_subtree(): NULL tree-pointer");
+		return 1;
+	} else if (!gas) {
+		nocc_serious ("guppy_autoseq_subtree(): NULL autoseq structure");
+		return 1;
+	} else if (!*tptr) {
+		return 0;
+	} else {
+		tnode_modprewalktree (tptr, autoseq_modprewalk, gas);
+	}
+
+	return gas->errcount;
+}
+/*}}}*/
+
+
+/*{{{  static int autoseq_cpass (tnode_t **treeptr)*/
+/*
+ *	called to do the compiler-pass for auto-sequencing code, applies to particular nodes only
+ *	returns 0 on success, non-zero on failure
+ */
+static int autoseq_cpass (tnode_t **treeptr)
+{
+	guppy_autoseq_t *gas = (guppy_autoseq_t *)smalloc (sizeof (guppy_autoseq_t));
+	int err = 0;
+
+	gas->errcount = 0;
+	guppy_autoseq_subtree (treeptr, gas);
+	err = gas->errcount;
+	sfree (gas);
+
+	return err;
+}
+/*}}}*/
+
+
 
 
 /*{{{  static tnode_t *guppy_includefile (char *fname, lexfile_t *curlf)*/
@@ -285,6 +388,16 @@ static int guppy_parser_init (lexfile_t *lf)
 
 		/* register some general reduction functions */
 		fcnlib_addfcn ("guppy_nametoken_to_hook", (void *)guppy_nametoken_to_hook, 1, 1);
+
+		/* add compiler pass and compiler operation that will be used to pick apart declaration scope and do auto-seq */
+		if (nocc_addcompilerpass ("auto-sequence", INTERNAL_ORIGIN, "pre-scope", 1, (int (*)(void *))autoseq_cpass, CPASS_TREEPTR, -1, NULL)) {
+			nocc_serious ("guppy_parser_init(): failed to add \"auto-sequence\" compiler pass");
+			return 1;
+		}
+		if (tnode_newcompop ("autoseq", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
+			nocc_serious ("guppy_parser_init(): failed to add \"autoseq\" compiler operation");
+			return 1;
+		}
 
 		/* initialise! */
 		if (feunit_do_init_tokens (0, guppy_priv->langdefs, origin_langparser (&guppy_parser))) {
@@ -540,6 +653,13 @@ tnode_dumptree (tree, 1, stderr);
 
 				body = guppy_indented_process (lf);
 				tnode_setnthsub (*treetarget, 2, body);
+			} else if (ntflags & NTF_INDENTED_PROC_LIST) {
+				/* parse body into subnode 2 */
+				tnode_t *body;
+				token_t *tok;
+
+				body = guppy_indented_process_list (lf, NULL);
+				tnode_setnthsub (*treetarget, 2, body);
 			}
 			/*}}}*/
 		} else if (tnflags & TNF_LONGPROC) {
@@ -760,6 +880,13 @@ restartpoint:
 				token_t *tok;
 
 				body = guppy_indented_process (lf);
+				tnode_setnthsub (*treetarget, 2, body);
+			} else if (ntflags & NTF_INDENTED_PROC_LIST) {
+				/* parse body into subnode 2 */
+				tnode_t *body;
+				token_t *tok;
+
+				body = guppy_indented_process_list (lf, NULL);
 				tnode_setnthsub (*treetarget, 2, body);
 			}
 			/*}}}*/
@@ -1125,5 +1252,68 @@ static tnode_t *guppy_parser_descparse (lexfile_t *lf)
 	return tree;
 }
 /*}}}*/
+
+
+/*{{{  static int guppy_parser_prescope (tnode_t **tptr, prescope_t *ps)*/
+/*
+ *	called to pre-scope the parse tree (or a chunk of it)
+ *	returns 0 on success, non-zero on failure
+ */
+static int guppy_parser_prescope (tnode_t **tptr, prescope_t *ps)
+{
+	if (!ps->hook) {
+		guppy_prescope_t *gps = (guppy_prescope_t *)smalloc (sizeof (guppy_prescope_t));
+
+		gps->last_type = NULL;
+		gps->procdepth = 0;
+		ps->hook = (void *)gps;
+		tnode_modprewalktree (tptr, prescope_modprewalktree, (void *)ps);
+
+		ps->hook = NULL;
+		if (gps->last_type) {
+			tnode_free (gps->last_type);
+			gps->last_type = NULL;
+		}
+		sfree (gps);
+	} else {
+		tnode_modprewalktree (tptr, prescope_modprewalktree, (void *)ps);
+	}
+	return ps->err;
+}
+/*}}}*/
+/*{{{  static int guppy_parser_scope (tnode_t **tptr, scope_t *ss)*/
+/*
+ *	called to scope declaractions in the parse tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int guppy_parser_scope (tnode_t **tptr, scope_t *ss)
+{
+	tnode_modprepostwalktree (tptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+	return ss->err;
+}
+/*}}}*/
+/*{{{  static int guppy_parser_typecheck (tnode_t *tptr, typecheck_t *tc)*/
+/*
+ *	called to type-check a tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int guppy_parser_typecheck (tnode_t *tptr, typecheck_t *tc)
+{
+	tnode_prewalktree (tptr, typecheck_prewalktree, (void *)tc);
+	return tc->err;
+}
+/*}}}*/
+/*{{{  static int guppy_parser_typeresolve (tnode_t **tptr, typecheck_t *tc)*/
+/*
+ *	called to type-resolve a tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int guppy_parser_typeresolve (tnode_t **tptr, typecheck_t *tc)
+{
+	tnode_modprewalktree (tptr, typeresolve_modprewalktree, (void *)tc);
+	return tc->err;
+}
+/*}}}*/
+
 
 

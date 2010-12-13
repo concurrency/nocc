@@ -928,6 +928,48 @@ char *string_fmt (const char *fmt, ...)
 	return str;
 }
 /*}}}*/
+/*{{{  char *string_upper (const char *str)*/
+/*
+ *	converts a string to upper-case characters
+ */
+char *string_upper (const char *str)
+{
+	char *nstr = (char *)smalloc (strlen (str) + 1);
+	char *ch, *dh;
+
+	for (dh=nstr, ch=str; *ch != '\0'; ch++, dh++) {
+		if ((*ch >= 'a') && (*ch <= 'z')) {
+			*dh = (*ch - 'a') + 'A';
+		} else {
+			*dh = *ch;
+		}
+	}
+	*dh = '\0';
+
+	return nstr;
+}
+/*}}}*/
+/*{{{  char *string_lower (const char *str)*/
+/*
+ *	converts a string to lower-case characters
+ */
+char *string_lower (const char *str)
+{
+	char *nstr = (char *)smalloc (strlen (str) + 1);
+	char *ch, *dh;
+
+	for (dh=nstr, ch=str; *ch != '\0'; ch++, dh++) {
+		if ((*ch >= 'A') && (*ch <= 'Z')) {
+			*dh = (*ch - 'A') + 'a';
+		} else {
+			*dh = *ch;
+		}
+	}
+	*dh = '\0';
+
+	return nstr;
+}
+/*}}}*/
 /*{{{  void *mem_ndup (const void *ptr, int length)*/
 /*
  *	duplicates a bit of memory

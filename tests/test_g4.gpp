@@ -2,5 +2,12 @@
 # test_g4.occ -- initial lexer/parser tests
 
 define test_g4
+  int i, j
+  int k
   skip
+  skip
+
+  int l
+  seq
+    skip
 

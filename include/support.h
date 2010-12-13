@@ -85,6 +85,8 @@ extern void dmem_usagedump (void);
 #endif
 
 extern char *string_fmt (const char *, ...) __attribute__ ((format (printf, 1, 2)));
+extern char *string_upper (const char *);
+extern char *string_lower (const char *);
 
 
 /* fresh dynamic array stuff: HACK */

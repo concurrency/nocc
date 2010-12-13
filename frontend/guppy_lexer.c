@@ -462,6 +462,179 @@ nocc_message ("INDENT: advancing curindent to %d, scanto = %d", lop->curindent, 
 		/* return here, don't touch whitespace */
 		goto out_tok;
 		/*}}}*/
+		/*{{{  space, tab (unexpected)*/
+	case ' ':
+	case '\t':
+		/* shouldn't see this */
+		lexer_warning (lf, "unexpected whitespace");
+		lp->offset++;
+		goto tokenloop;
+		break;
+		/*}}}*/
+		/*{{{  ' (character)*/
+	case '\'':
+		/* return this as an integer */
+		{
+			char *dh = ch;
+			int eschar;
+
+			tok->type = INTEGER;
+			dh++;
+			if (*dh == '\\') {
+				/* escape character */
+				eschar = guppy_escape_char (lf, lop, &dh);
+				if (eschar == -255) {
+					goto out_error1;
+				}
+				tok->u.ival = eschar;
+			} else {
+				/* regular character */
+				tok->u.ival = (int)(*dh);
+				dh++;
+			}
+			/* expect closing quote */
+			if (*dh != '\'') {
+				lexer_error (lf, "malformed character constant");
+				goto out_error1;
+			}
+			dh++;
+
+			lp->offset += (int)(dh - ch);
+		}
+		break;
+		/*}}}*/
+		/*{{{  " (string)*/
+	case '\"':
+		tok->type = STRING;
+
+		/* scan string */
+		{
+			int slen = 0;
+			char *xch;
+
+			/*{{{  scan string to end*/
+			for (dh = ch + 1; (dh < chlim) && (*dh != '\"'); dh++, slen++) {
+				switch (*dh) {
+				case '\\':
+					/* escape character */
+					dh++;
+					if (dh == chlim) {
+						lexer_error (lf, "expected end of file");
+						goto out_error1;
+					}
+					switch (*dh) {
+					case ' ':
+					case '\t':
+					case '\r':
+					case '\n':
+						/* string continuation (onto next line) */
+						/* FIXME! */
+						break;
+					case 'n':
+					case 'r':
+					case 't':
+					case '\'':
+					case '\"':
+						break;
+					case 'x':
+						/* eat up 2 hex chars */
+						if ((dh + 2) >= chlim) {
+							lexer_error (lf, "bad hex constant");
+							goto out_error1;
+						}
+						if (check_hex (dh + 1, 2)) {
+							lexer_error (lf, "bad hex value");
+							goto out_error1;
+						}
+						dh += 2;
+						break;
+					default:
+						lexer_error (lf, "unhandled escape: \\%c", *dh);
+						goto out_error1;
+					}
+					break;
+				}
+			}
+			/*}}}*/
+			if (dh == chlim) {
+				lexer_error (lf, "unexpected end of file");
+				goto out_error1;
+			}
+
+			tok->u.str.ptr = (char *)smalloc (slen + 1);
+			tok->u.str.len = 0;			/* fixup in a bit */
+			xch = tok->u.str.ptr;
+			slen = 0;
+
+			/*{{{  now actually process*/
+			for (dh = (ch + 1); (dh < chlim) && (*dh != '\"'); dh++) {
+				switch (*dh) {
+				case '\\':
+					/*{{{  escape char*/
+					dh++;
+					switch (*dh) {
+					case ' ':
+					case '\t':
+					case '\n':
+					case '\r':
+						/* string continuation (onto next line) */
+						/* FIXME! */
+						break;
+					case 'n':
+						*(xch++) = '\n';
+						slen++;
+						break;
+					case 'r':
+						*(xch++) = '\r';
+						slen++;
+						break;
+					case '\'':
+						*(xch++) = '\'';
+						slen++;
+						break;
+					case '\"':
+						*(xch++) = '\"';
+						slen++;
+						break;
+					case 't':
+						*(xch++) = '\t';
+						slen++;
+						break;
+					case '\\':
+						*(xch++) = '\\';
+						slen++;
+						break;
+					case 'x':
+						*(xch++) = (char)decode_hex (dh + 1, 2);
+						slen++;
+						dh += 2;
+						break;
+					}
+					/*}}}*/
+					break;
+				default:
+					*(xch++) = *dh;
+					slen++;
+					break;
+				}
+			}
+			/*}}}*/
+
+			dh++;
+			*xch = '\0';
+			tok->u.str.len = slen;
+			lp->offset += (int)(dh - ch);
+		}
+		break;
+		/*}}}*/
+		/*{{{  # (comment)*/
+	case '#':
+		tok->type = COMMENT;
+		/* scan to end-of-line */
+		for (dh=ch+1; (dh < chlim) && (*dh != '\n') && (*dh != '\r'); dh++);
+		lp->offset += (int)(dh - ch);
+		break;
+		/*}}}*/
 		/*{{{  default (symbol)*/
 	default:
 		/* try and match a symbol */

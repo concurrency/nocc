@@ -64,8 +64,28 @@ typedef struct {
 	struct TAG_ntdef *tag_VARDECL;
 	struct TAG_ntdef *tag_FPARAM;
 
+	struct TAG_ntdef *tag_SEQ;
+	struct TAG_ntdef *tag_PAR;
+
+	struct TAG_ntdef *tag_NDECL;
+	struct TAG_ntdef *tag_NABBR;
+	struct TAG_ntdef *tag_NVALABBR;
+	struct TAG_ntdef *tag_NRESABBR;
+	struct TAG_ntdef *tag_NPARAM;
+	struct TAG_ntdef *tag_NVALPARAM;
+	struct TAG_ntdef *tag_NRESPARAM;
+	struct TAG_ntdef *tag_NINITPARAM;
+	struct TAG_ntdef *tag_NREPL;
+
+	struct TAG_ntdef *tag_NTYPEDECL;
+	struct TAG_ntdef *tag_NFIELD;
+	struct TAG_ntdef *tag_NFCNDEF;
+
 	struct TAG_ntdef *tag_SKIP;
 	struct TAG_ntdef *tag_STOP;
+
+	struct TAG_ntdef *tag_IF;
+	struct TAG_ntdef *tag_WHILE;
 
 	struct TAG_token *tok_ATSIGN;
 	struct TAG_token *tok_STRING;
@@ -80,6 +100,10 @@ typedef struct {
 } guppy_prescope_t;
 
 typedef struct {
+	int errcount;					/* number of errors accumulated */
+} guppy_autoseq_t;
+
+typedef struct {
 	int procdepth;					/* procedure/function nesting depth */
 	struct TAG_tnode **insertpoint;			/* where nested procedures get unwound to */
 } guppy_betrans_t;
@@ -92,11 +116,15 @@ typedef struct {
 
 extern void guppy_isetindent (FILE *stream, int indent);
 extern struct TAG_langdef *guppy_getlangdef (void);
+extern int guppy_autoseq_listtoseqlist (struct TAG_tnode **, guppy_autoseq_t *);
+extern int guppy_autoseq_subtree (struct TAG_tnode **, guppy_autoseq_t *);
 
 /* front-end units */
-extern struct TAG_feunit guppy_primproc_feunit;		/* guppy_primproc.c */
-extern struct TAG_feunit guppy_fcndef_feunit;		/* guppy_fcndef.c */
+extern struct TAG_feunit guppy_cflow_feunit;		/* guppy_cflow.c */
+extern struct TAG_feunit guppy_cnode_feunit;		/* guppy_cnode.c */
 extern struct TAG_feunit guppy_decls_feunit;		/* guppy_decls.c */
+extern struct TAG_feunit guppy_fcndef_feunit;		/* guppy_fcndef.c */
+extern struct TAG_feunit guppy_primproc_feunit;		/* guppy_primproc.c */
 extern struct TAG_feunit guppy_types_feunit;		/* guppy_types.c */
 
 /* these are for language units to use in reductions */

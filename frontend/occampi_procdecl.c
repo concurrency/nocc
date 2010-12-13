@@ -172,7 +172,7 @@ fprintf (stderr, "occampi_scopein_procdecl(): have traces!\n");
 
 	/* if there is a corresponding scopeout, call that here (before parameters go out of scope!) */
 	if (tnode_hascompop (cops, "inparams_scopeout")) {
-		tnode_callcompop (cops, "inparams_scopeoutin", 2, node, ss);
+		tnode_callcompop (cops, "inparams_scopeout", 2, node, ss);
 	}
 
 	name_markdescope (nsmark);

@@ -113,7 +113,30 @@ static void guppy_reduce_primtype (dfastate_t *dfast, parsepriv_t *pp, void *rar
 	ntdef_t *tag;
 
 	tok = parser_gettok (pp);
-	tag = tnode_lookupnodetag (tok->u.kw->name);
+	if (tok->type == KEYWORD) {
+		char *ustr = string_upper (tok->u.kw->name);
+
+		tag = tnode_lookupnodetag (ustr);
+		sfree (ustr);
+		if (!tag) {
+			parser_error (pp->lf, "unknown primitive type [%s] in guppy_reduce_primtype()", tok->u.kw->name);
+			goto out_error;
+		}
+	} else {
+		parser_error (pp->lf, "unknown primitive type in guppy_reduce_primtype()");
+		goto out_error;
+	}
+
+	*(dfast->ptr) = tnode_create (tag, tok->origin);
+	
+	/* may have a size for a primitive type hook */
+	if ((tag == gup.tag_INT) || (tag == gup.tag_REAL)) {
+		primtypehook_t *pth = guppy_newprimtypehook ();
+
+		pth->size = (int)tok->iptr;
+		tnode_setnthhook (*(dfast->ptr), 0, pth);
+	}
+out_error:
 	lexer_freetoken (tok);
 
 	return;

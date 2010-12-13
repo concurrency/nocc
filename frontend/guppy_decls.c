@@ -191,6 +191,75 @@ static void guppy_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int inde
 /*}}}*/
 
 
+/*{{{  static tnode_t *guppy_gettype_namenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	returns the type of a name-node (trivial)
+ */
+static tnode_t *guppy_gettype_namenode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	name_t *name = tnode_nthnameof (node, 0);
+
+	if (!name) {
+		nocc_fatal ("guppy_gettype_namenode(): NULL name!");
+		return NULL;
+	}
+	if (name->type) {
+		return name->type;
+	}
+	nocc_fatal ("guppy_gettype_namenode(): name has NULL type (FIXME!)");
+	return NULL;
+}
+/*}}}*/
+/*{{{  static int guppy_getname_namenode (langops_t *lops, tnode_t *node, char **str)*/
+/*
+ *	gets the name of a namenode (var/etc. name)
+ *	returns 0 on success, -ve on failure
+ */
+static int guppy_getname_namenode (langops_t *lops, tnode_t *node, char **str)
+{
+	char *pname = NameNameOf (tnode_nthnameof (node, 0));
+
+	if (*str) {
+		sfree (*str);
+	}
+	*str = string_dup (pname);
+	return 0;
+}
+/*}}}*/
+
+
+/*{{{  static int guppy_prescope_vardecl (compops_t *cops, tnode_t **node, prescope_t *ps)*/
+/*
+ *	pre-scopes a variable declaration
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_prescope_vardecl (compops_t *cops, tnode_t **node, prescope_t *ps)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_scopein_vardecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes-in a variable declaration
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_scopein_vardecl (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_scopeout_vardecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes-out a variable declaration
+ *	return value fairly meaningless (postwalk)
+ */
+static int guppy_scopeout_vardecl (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	return 1;
+}
+/*}}}*/
+
+
 
 /*{{{  static int guppy_decls_init_nodes (void)*/
 /*
@@ -216,6 +285,55 @@ static int guppy_decls_init_nodes (void)
 
 	i = -1;
 	gup.tag_NAME = tnode_newnodetag ("NAME", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:namenode -- N_DECL, N_ABBR, N_VALABBR, N_RESABBR, N_PARAM, N_VALPARAM, N_RESPARAM, N_INITPARAM, N_REPL, N_TYPEDECL, N_FIELD, N_FCNDEF*/
+	i = -1;
+	tnd = gup.node_NAMENODE = tnode_newnodetype ("guppy:namenode", &i, 0, 1, 0, TNF_NONE);		/* subnames: name */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_namenode));
+	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (guppy_getname_namenode));
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_NDECL = tnode_newnodetag ("N_DECL", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_NABBR = tnode_newnodetag ("N_ABBR", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_NVALABBR = tnode_newnodetag ("N_VALABBR", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_NRESABBR = tnode_newnodetag ("N_RESABBR", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_NPARAM = tnode_newnodetag ("N_PARAM", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_NVALPARAM = tnode_newnodetag ("N_VALPARAM", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_NRESPARAM = tnode_newnodetag ("N_RESPARAM", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_NINITPARAM = tnode_newnodetag ("N_INITPARAM", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_NREPL = tnode_newnodetag ("N_REPL", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_NTYPEDECL = tnode_newnodetag ("N_TYPEDECL", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_NFIELD = tnode_newnodetag ("N_FIELD", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_NFCNDEF = tnode_newnodetag ("N_FCNDEF", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:vardecl -- VARDECL*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:vardecl", &i, 3, 0, 0, TNF_NONE);				/* subnodes: name; type; in-scope-body */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_vardecl));
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_vardecl));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (guppy_scopeout_vardecl));
+	tnd->ops = cops;
+
+	i = -1;
+	gup.tag_VARDECL = tnode_newnodetag ("VARDECL", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:fparam -- FPARAM*/
