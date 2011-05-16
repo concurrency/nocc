@@ -108,5 +108,13 @@
 .TABLE	"guppy:cflow ::= [ 0 +@if 1 ] [ 1 guppy:expr 2 ] [ 2 -Newline 3 ] [ 3 {<gup:ifreduce>} -* ]"
 
 # }}}
+.SECTION "guppy-assign" # {{{: assignment
+
+
+# }}}
+.SECTION "guppy-io" # {{{: input/output
+
+
+# }}}
 
 

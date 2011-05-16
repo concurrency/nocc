@@ -87,6 +87,11 @@ typedef struct {
 	struct TAG_ntdef *tag_IF;
 	struct TAG_ntdef *tag_WHILE;
 
+	struct TAG_ntdef *tag_ASSIGN;
+
+	struct TAG_ntdef *tag_INPUT;
+	struct TAG_ntdef *tag_OUTPUT;
+
 	struct TAG_token *tok_ATSIGN;
 	struct TAG_token *tok_STRING;
 
@@ -120,10 +125,12 @@ extern int guppy_autoseq_listtoseqlist (struct TAG_tnode **, guppy_autoseq_t *);
 extern int guppy_autoseq_subtree (struct TAG_tnode **, guppy_autoseq_t *);
 
 /* front-end units */
+extern struct TAG_feunit guppy_assign_feunit;		/* guppy_assign.c */
 extern struct TAG_feunit guppy_cflow_feunit;		/* guppy_cflow.c */
 extern struct TAG_feunit guppy_cnode_feunit;		/* guppy_cnode.c */
 extern struct TAG_feunit guppy_decls_feunit;		/* guppy_decls.c */
 extern struct TAG_feunit guppy_fcndef_feunit;		/* guppy_fcndef.c */
+extern struct TAG_feunit guppy_io_feunit;		/* guppy_io.c */
 extern struct TAG_feunit guppy_primproc_feunit;		/* guppy_primproc.c */
 extern struct TAG_feunit guppy_types_feunit;		/* guppy_types.c */
 

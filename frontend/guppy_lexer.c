@@ -363,10 +363,8 @@ nocc_message ("INDENT: advancing curindent to %d, scanto = %d", lop->curindent, 
 				(*dh == '_') ||
 				((*dh >= '0') && (*dh <= '9'))); dh++);
 		/* see if it ends in a number, e.g. "int8" */
-		for (nstart=dh; (nstart > ch) && (*nstart >= '0') && (*nstart <= '9'); nstart--);
-		if (nstart < dh) {
-			nstart++;		/* first number character */
-		}
+		for (nstart=dh-1; (nstart > ch) && (*nstart >= '0') && (*nstart <= '9'); nstart--);
+		nstart++;
 
 		tmpstr = string_ndup (ch, (int)(dh - ch));
 		kw = keywords_lookup (tmpstr, (int)(dh - ch), LANGTAG_GUPPY);
@@ -379,6 +377,9 @@ nocc_message ("INDENT: advancing curindent to %d, scanto = %d", lop->curindent, 
 				kw = keywords_lookup (tmpstr, (int)(nstart - ch), LANGTAG_GUPPY);
 				sfree (tmpstr);
 
+#if 1
+fprintf (stderr, "guppy-lexer: number-ending keyword 0x%8.8x\n", (unsigned int)kw);
+#endif
 				if (kw && (kw->langtag & LANGTAG_STYPE)) {
 					/* yes, and the end is all number */
 					int size;
