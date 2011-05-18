@@ -1,0 +1,14 @@
+# test_ea1.eac
+# testing escape-analysis stuff for NOCC
+
+@interactive
+
+# define mobile escape for 'MID' process
+MID (in,out) = {
+	<in?x, out!x>
+	}
+
+# make a 'MID.TWO' out of two 'MID's
+TWO.MID (in,out) = MID (in, tmp) || MID (tmp, out) \ {tmp}
+
+

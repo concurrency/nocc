@@ -337,6 +337,9 @@
 /* define to use libgcrypt */
 #undef USE_LIBGCRYPT
 
+/* define to use GNU readline for interactive operation */
+#undef USE_LIBREADLINE
+
 /* Define if the POSIX multithreading library can be used. */
 #undef USE_POSIX_THREADS
 

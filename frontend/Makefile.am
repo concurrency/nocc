@@ -24,7 +24,9 @@ libfrontend_a_SOURCES=occampi_fe.c occampi_lexer.c occampi_parser.c occampi_prim
 		hopp_fe.c hopp_lexer.c hopp_parser.c \
 		guppy_fe.c guppy_lexer.c guppy_parser.c \
 		guppy_primproc.c guppy_fcndef.c guppy_decls.c guppy_types.c guppy_cnode.c \
-		guppy_cflow.c guppy_assign.c guppy_io.c
+		guppy_cflow.c guppy_assign.c guppy_io.c \
+		eac_fe.c eac_lexer.c eac_parser.c \
+		eac_decls.c
 
 
 CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@

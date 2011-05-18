@@ -1,0 +1,34 @@
+#
+# eac.ldef - language definitions for EAC (escape-analysis code) for NOCC
+# identifiers must start at the left-margin, indentation is a line-continuation
+#
+
+.IDENT		"eac"
+.DESC		"escape analysis code"
+.MAINTAINER	"Fred Barnes <frmb@kent.ac.uk>"
+
+# sections are used to help front-end units find the definitions
+.SECTION "eac" # {{{: EAC tokens and general reductions
+
+.SYMBOL	"||"
+.SYMBOL	"{"
+.SYMBOL "}"
+
+.GRULE	"eac:nullreduce" "N+R-"
+.GRULE	"eac:nullpush" "0N-"
+.GRULE	"eac:nullset" "0R-"
+
+#}}}
+.SECTION "eac-postprod" #{{{: top-level grammar (post-productions)
+
+#}}}
+
+
+.SECTION "eac-decl" #{{{: declarations
+
+.BNF	"eac:fparams ::= { eac:name @@, 0 }"
+
+#}}}
+
+
+

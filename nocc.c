@@ -86,6 +86,7 @@
 #include "guppy_fe.h"
 #include "trlang_fe.h"
 #include "traceslang_fe.h"
+#include "eac_fe.h"
 #include "metadata.h"
 #include "version.h"
 
@@ -1610,6 +1611,13 @@ int main (int argc, char **argv)
 	}
 	if (rcxb_register_frontend ()) {
 		nocc_warning ("failed to initialise built-in RCX-BASIC language frontend");
+		exit (EXIT_FAILURE);
+	}
+
+	/*}}}*/
+	/*{{{  initialise EAC language lexer and parser (just registers)*/
+	if (eac_register_frontend ()) {
+		nocc_error ("failed to initialise built-in EAC language frontend");
 		exit (EXIT_FAILURE);
 	}
 

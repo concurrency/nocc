@@ -36,6 +36,18 @@ dnl AC_PATH_XTRA
 AC_HEADER_STDC
 AC_CHECK_HEADERS(unistd.h stdlib.h string.h stdarg.h sys/types.h fcntl.h malloc.h pwd.h sys/mman.h time.h)
 
+dnl check for terminal library, borrowed from octave's config
+unset tcap
+for termlib in ncurses curses termcap terminfo termlib; do
+ AC_CHECK_LIB(${termlib}, tputs, [tcap="-l$termlib"])
+ test -n "$tcap" && break
+done
+
+dnl check for readline/history libraries for interactive stuff
+AC_CHECK_HEADER(readline/readline.h,[have_readline_h=yes],[have_readline_h=no])
+AC_CHECK_HEADER(readline/history.h,[have_history_h=yes],[have_history_h=no])
+AC_CHECK_LIB(readline,readline,[have_libreadline=yes],[have_libreadline=no])
+
 dnl Checks for typedefs, structures, and compiler characteristics.
 
 dnl Checks for library functions.
@@ -48,7 +60,6 @@ AC_ARG_ENABLE(debug,[  --enable-debug          enable compiler debugging (defaul
 
 dnl Compilation flags
 EXTRA_CFLAGS="-Wall -ggdb -fno-strict-aliasing"
-AC_SUBST(EXTRA_CFLAGS)
 
 
 dnl The default target is a virtual transputer
@@ -109,6 +120,18 @@ fi
 if test $have_lib_dl = yes; then
  AC_DEFINE([LIBDL],1,[define to enable use of dynamic linker])
 fi
+
+if test $have_libreadline = yes; then
+ if test $have_readline_h = yes; then
+  if test $have_history_h = yes; then
+   AC_DEFINE([USE_LIBREADLINE],1,[define to use GNU readline for interactive operation])
+   EXTRA_CFLAGS="$EXTRA_CFLAGS -lreadline $tcap"
+  fi
+ fi
+fi
+
+# additional compilation flag substitutions
+AC_SUBST(EXTRA_CFLAGS)
 
 # some substitutions for paths
 AC_SUBST(build_dir)
