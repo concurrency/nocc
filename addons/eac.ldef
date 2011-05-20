@@ -24,9 +24,25 @@
 #}}}
 
 
-.SECTION "eac-decl" #{{{: declarations
+.SECTION "eac-code" #{{{: whole language
+
+.GRULE	"eac:namereduce" "T+St0X[eac_nametoken_to_hook]C[EACNAME]1R-"
+.GRULE	"eac:pdecl" ""
+
+.TABLE	"eac:name ::= [ 0 +Name 1 ] [ 1 {<eac:namereduce>} -* ]"
 
 .BNF	"eac:fparams ::= { eac:name @@, 0 }"
+.TABLE	"eac:fparamlist ::= [ 0 @@( 1 ] [ 1 eac:fparams 2 ] [ 2 @@) 3 ] [ 3 {<eac:nullreduce>} -* ]"
+
+.TABLE	"eac:event ::= [ 0 +Name 1 ] [ 1 {<eac:namereduce>} -* ]"
+.BNF	"eac:eventlist ::= { eac:event @@, 0 }"
+
+.BNF	"eac:eseq ::= @@< eac:eventlist @@>"
+
+.BNF	"eac:eset ::= @@{ { eac:eseq @@, 0 } @@}"
+.BNF	"eac:expr ::= eac:eset"
+
+.TABLE	"eac:process ::= [ 0 eac:name 1 ] [ 1 eac:fparamlist 2 ] [ 2 @@= 3 ] [ 3 eac:expr 4 ] [ 4 {<eac:pdecl>} -* ]"
 
 #}}}
 

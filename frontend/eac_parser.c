@@ -107,7 +107,7 @@ typedef struct {
 static eac_parse_t *eac_priv = NULL;
 
 static feunit_t *feunit_set[] = {
-	&eac_decls_feunit,
+	&eac_code_feunit,
 	NULL
 };
 
@@ -276,9 +276,9 @@ static int eac_parser_init (lexfile_t *lf)
 			nocc_serious ("eac_parser_init(): failed to initialise tree-checking!");
 		}
 
-		eac_priv->inode = dfa_lookupbyname ("eac:decl");
+		eac_priv->inode = dfa_lookupbyname ("eac:process");
 		if (!eac_priv->inode) {
-			nocc_error ("eac_parser_init(): could not find eac:decl!");
+			nocc_error ("eac_parser_init(): could not find eac:process!");
 			return 1;
 		}
 		if (compopts.dumpdfas) {
@@ -337,7 +337,7 @@ static tnode_t *eac_parser_parse (lexfile_t *lf)
 		}
 		lexer_pushback (lf, tok);
 
-		thisone = dfa_walk ("eac:decl", 0, lf);
+		thisone = dfa_walk ("eac:process", 0, lf);
 		if (!thisone) {
 			*target = NULL;
 			break;			/* for() */

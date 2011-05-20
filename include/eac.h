@@ -48,12 +48,14 @@ typedef struct {
 	struct TAG_token *tok_ATSIGN;
 } eac_pset_t;
 
+extern eac_pset_t eac;
+
 
 extern void eac_isetindent (FILE *stream, int indent);
 extern struct TAG_langdef *eac_getlangdef (void);
 
 /* front-end units */
-extern struct TAG_feunit eac_decls_feunit;		/* eac_decls.c */
+extern struct TAG_feunit eac_code_feunit;		/* eac_code.c */
 
 /* for language units to use in reductions */
 extern void *eac_nametoken_to_hook (void *ntok);
