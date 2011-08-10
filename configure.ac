@@ -97,6 +97,7 @@ AC_DEFINE_UNQUOTED([BUILD_PREFIX],"$prefix",[build prefix])
 
 if test $usegcrypt = yes; then
  AC_DEFINE([USE_LIBGCRYPT],1,[define to use libgcrypt])
+ AC_SEARCH_LIBS(gpg_strerror,gpg-error,,)
 fi
 
 dnl if test $have_sha_h = yes; then

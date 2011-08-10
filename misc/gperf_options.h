@@ -186,7 +186,7 @@ static const struct TAG_cmd_option wordlist[] =
     {"stop-mobilitycheck",	'\0',	opt_setstopflag,	(void *)14,			"1stop after mobility check",				113},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"dump-stree",		'\0',	opt_setintflag,		&(compopts.dumpstree),		"1print parse tree in s-record format",			5},
-    {"interactive",		'i',	opt_setintflag,		&(compopts.interactive),	"1interactive compiler operation",			307},
+    {"interactive",		'i',	opt_setintflag,		&(compopts.interactive),	"0interactive compiler operation",			307},
     {"include-path",		'I',	opt_addincludepath,	NULL,				"0add paths for include files",				350},
     {"dump-stree-to",		'\0',	opt_setstr,		&(compopts.dumpstreeto),	"1print parse tree in s-record format to file",		6},
     {"dump-dmem",		'\0',	opt_setintflag,		&(compopts.dmemdump),		"1display dynamic memory pool information",		302},
