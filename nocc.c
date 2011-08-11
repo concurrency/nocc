@@ -90,6 +90,12 @@
 #include "metadata.h"
 #include "version.h"
 
+#ifdef USE_LIBREADLINE
+#include <readline/history.h>
+#include <readline/readline.h>
+#endif
+
+
 /*}}}*/
 
 
@@ -406,7 +412,7 @@ void nocc_pvinternal (char *fmt, const char *file, const int line, va_list ap)
 		nocc_invoke_gdb ();
 		/* things potentially go bad if we allow this to return */
 	} else if (compopts.fatalsegv) {
-		*((int *)0) = 42;
+		__builtin_trap ();
 	} else {
 		nocc_shutdownrun ();
 		exit (EXIT_FAILURE);
