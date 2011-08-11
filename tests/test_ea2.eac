@@ -20,15 +20,15 @@ DELTA (in, out0, out1) = {
 # channel-factory
 
 C.FACT (out.c, out.s) = {
-	< out.c ! x, out.s ! ^x >
+	< out.c ! ^x, out.s ! ~x >
 	}
 
 END.C (in) = {
-	< in ? c, c ! z >
+	< in ? ^c, ^c ! z >
 	}
 
 END.S (in) = {
-	< in ? ^s, ^s ? v >
+	< in ? ~s, ~s ? v >
 	}
 
 # channel-factory system
