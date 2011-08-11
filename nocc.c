@@ -1230,6 +1230,688 @@ int nocc_dumpxmlnamespacefooters (FILE *stream)
 /*}}}*/
 
 
+/*{{{  compcxt_t: compiler context structure*/
+typedef struct TAG_compcxt {
+	DYNARRAY (char *, srcfiles);
+	DYNARRAY (char *, fe_def_opts);
+	target_t *target;
+	int errored;
+
+	DYNARRAY (lexfile_t *, srclexers);
+	DYNARRAY (tnode_t *, srctrees);
+} compcxt_t;
+
+/*}}}*/
+/*{{{  static compcxt_t *nocc_newcompcxt (void)*/
+/*
+ *	creates a new compcxt_t structure (initialised)
+ */
+static compcxt_t *nocc_newcompcxt (void)
+{
+	compcxt_t *ccx = (compcxt_t *)smalloc (sizeof (compcxt_t));
+
+	dynarray_init (ccx->srcfiles);
+	dynarray_init (ccx->fe_def_opts);
+	ccx->target = NULL;
+	ccx->errored = 0;
+	dynarray_init (ccx->srclexers);
+	dynarray_init (ccx->srctrees);
+
+	return ccx;
+}
+/*}}}*/
+/*{{{  static void nocc_freecompcxt (compcxt_t *ccx)*/
+/*
+ *	frees a compcxt_t structure (and contents)
+ */
+static void nocc_freecompcxt (compcxt_t *ccx)
+{
+	int i;
+
+	if (!ccx) {
+		nocc_internal ("nocc_freecompcxt(): NULL pointer!");
+		return;
+	}
+
+	for (i=0; i<DA_CUR (ccx->srcfiles); i++) {
+		if (DA_NTHITEM (ccx->srcfiles, i)) {
+			sfree (DA_NTHITEM (ccx->srcfiles, i));
+		}
+	}
+	dynarray_trash (ccx->srcfiles);
+
+	for (i=0; i<DA_CUR (ccx->fe_def_opts); i++) {
+		if (DA_NTHITEM (ccx->fe_def_opts, i)) {
+			sfree (DA_NTHITEM (ccx->fe_def_opts, i));
+		}
+	}
+	dynarray_trash (ccx->fe_def_opts);
+
+	for (i=0; i<DA_CUR (ccx->srclexers); i++) {
+		if (DA_NTHITEM (ccx->srclexers, i)) {
+			lexer_close (DA_NTHITEM (ccx->srclexers, i));
+		}
+	}
+	dynarray_trash (ccx->srclexers);
+
+	/* NOTE: deliberately don't kill srctrees inside the structure -- might be referenced elsewhere in the compiler */
+
+	sfree (ccx);
+	return;
+}
+/*}}}*/
+
+
+/*{{{  forward declarations of compiler stages*/
+static int cstage_load_extensions (compcxt_t *ccx);
+static int cstage_dump_extensions (compcxt_t *ccx);
+static int cstage_dump_regfcns (compcxt_t *ccx);
+static int cstage_check_compile (compcxt_t *ccx);
+static int cstage_extn_init (compcxt_t *ccx);
+static int cstage_trlang_init (compcxt_t *ccx);
+static int cstage_traces_init (compcxt_t *ccx);
+static int cstage_findtarget (compcxt_t *ccx);
+static int cstage_dohelp_target (compcxt_t *ccx);
+static int cstage_openlexers (compcxt_t *ccx);
+static int cstage_maybestop1 (compcxt_t *ccx);
+static int cstage_doparse (compcxt_t *ccx);
+static int cstage_maybestop2 (compcxt_t *ccx);
+static int cstage_parseerror (compcxt_t *ccx);
+static int cstage_maybedumpntypes (compcxt_t *ccx);
+static int cstage_maybedumpsntypes (compcxt_t *ccx);
+static int cstage_maybedumpsntags (compcxt_t *ccx);
+static int cstage_fepasses (compcxt_t *ccx);
+static int cstage_targetinit (compcxt_t *ccx);
+static int cstage_beargs (compcxt_t *ccx);
+static int cstage_bepasses (compcxt_t *ccx);
+
+/*}}}*/
+/*{{{  cstage_t: compiler stage structure*/
+typedef struct TAG_cstage {
+	int (*stagefcn)(compcxt_t *);		/* stage function, returns 0 on success, non-zero on failure */
+	const char *sname;			/* stage name */
+	int noint;				/* do not run in interactive mode */
+	int noauto;				/* do not run in automatic mode */
+	int skipout;				/* if -ve return code, exit compiler; if +ve, close lexers and possibly dump trees first */
+	int errout;				/* if errors in compcxt_t.errored, exit compiler */
+} cstage_t;
+
+/*}}}*/
+/*{{{  cstagetable: compiler stage table*/
+static cstage_t stagetable[] = {
+/*	stagefcn			sname				noint	noauto	skipout	errout	*/
+	{cstage_load_extensions,	"load extensions",		0,	0,	0,	0},
+	{cstage_dump_extensions,	"dump extensions",		0,	0,	0,	0},
+	{cstage_dump_regfcns,		"dump registered functions",	0,	0,	0,	0},
+	{cstage_check_compile,		"check for compile",		0,	0,	0,	0},
+	{cstage_extn_init,		"initialise extensions",	0,	0,	0,	0},
+	{cstage_trlang_init,		"initialise tree-rewriting",	0,	0,	0,	0},
+	{cstage_traces_init,		"initialise traces",		0,	0,	0,	0},
+	{cstage_findtarget,		"find target",			0,	0,	0,	0},
+	{cstage_dohelp_target,		"help with target",		0,	0,	0,	0},
+
+	{cstage_openlexers,		"open lexers",			0,	0,	0,	0},
+	{cstage_maybestop1,		"stop after tokenise",		1,	0,	1,	0},
+	{cstage_doparse,		"parse",			0,	0,	0,	0},
+	{cstage_maybestop2,		"stop after parse",		1,	0,	1,	0},
+	{cstage_parseerror,		"check parse error",		0,	0,	0,	1},
+	{cstage_maybedumpntypes,	"dump node types",		0,	0,	0,	0},
+	{cstage_maybedumpsntypes,	"dump node types (short)",	0, 	0,	0,	0},
+	{cstage_maybedumpsntags,	"dump node tags (short)",	0,	0,	0,	0},
+
+	{cstage_fepasses,		"front-end compiler passes",	0,	0,	1,	0},
+	{cstage_targetinit,		"initialise target",		0,	0,	0,	0},
+	{cstage_beargs,			"process left-over options",	0,	0,	0,	0},
+	{cstage_bepasses,		"back-end compiler passes",	0,	0,	1,	0},
+
+	{NULL,				NULL,				0,	0,	0,	0}
+};
+/*}}}*/
+/*{{{  static int cstage_load_extensions (compcxt_t *ccx)*/
+/*
+ *	load extensions
+ */
+static int cstage_load_extensions (compcxt_t *ccx)
+{
+	int r = 0;
+	int i;
+
+	for (i=0; i<DA_CUR (compopts.eload); i++) {
+		if (extn_loadextn (DA_NTHITEM (compopts.eload, i))) {
+			ccx->errored++;
+			r++;
+		}
+	}
+	return r;
+}
+/*}}}*/
+/*{{{  static int cstage_dump_extensions (compcxt_t *ccx)*/
+/*
+ *	dump extensions if requested
+ */
+static int cstage_dump_extensions (compcxt_t *ccx)
+{
+	if (compopts.dumpextns) {
+		extn_dumpextns ();
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_dump_regfcns (compcxt_t *ccx)*/
+/*
+ *	dumps registered functions if requested
+ */
+static int cstage_dump_regfcns (compcxt_t *ccx)
+{
+	if (compopts.dumpfcns) {
+		fcnlib_dumpfcns (stderr);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_check_compile (compcxt_t *ccx)*/
+/*
+ *	check that we have something to compile (or in interactive mode)
+ */
+static int cstage_check_compile (compcxt_t *ccx)
+{
+	if (!DA_CUR (ccx->srcfiles) && !compopts.dohelp && !compopts.interactive) {
+		nocc_fatal ("no input files!");
+		exit (EXIT_FAILURE);
+	} else {
+		if (compopts.verbose) {
+			int i;
+
+			nocc_message ("source files are:");
+			for (i=0; i<DA_CUR (ccx->srcfiles); i++) {
+				nocc_message ("\t%s", DA_NTHITEM (ccx->srcfiles, i));
+			}
+		}
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_extn_init (compcxt_t *ccx)*/
+/*
+ *	initialise extensions
+ */
+static int cstage_extn_init (compcxt_t *ccx)
+{
+	extn_initialise ();
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_trlang_init (compcxt_t *ccx)*/
+/*
+ *	initialise tree-rewriting (after front-end parser has been registered)
+ */
+static int cstage_trlang_init (compcxt_t *ccx)
+{
+	if (trlang_initialise ()) {
+		nocc_error ("failed to initialise tree-rewriting parser");
+		exit (EXIT_FAILURE);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_traces_init (compcxt_t *ccx)*/
+/*
+ *	initialise traces (after front-end parser has been registered)
+ */
+static int cstage_traces_init (compcxt_t *ccx)
+{
+	if (traceslang_initialise ()) {
+		nocc_error ("failed to initialise traces parser");
+		exit (EXIT_FAILURE);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_findtarget (compcxt_t *ccx)*/
+/*
+ *	finds the desired target
+ */
+static int cstage_findtarget (compcxt_t *ccx)
+{
+	ccx->target = target_lookupbyspec (compopts.target_cpu, compopts.target_vendor, compopts.target_os);
+	if (!ccx->target) {
+		nocc_error ("no back-end for [%s] target, need to load ?", compopts.target_str ?: "(unspecified)");
+		exit (EXIT_FAILURE);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_dohelp_target (compcxt_t *ccx)*/
+/*
+ *	if help was requested, initialise target (try) and give help options
+ */
+static int cstage_dohelp_target (compcxt_t *ccx)
+{
+	if (compopts.dohelp) {
+		target_initialise (ccx->target);
+
+		opt_do_help (compopts.dohelp, NULL, NULL);
+		exit (EXIT_SUCCESS);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_openlexers (compcxt_t *ccx)*/
+/*
+ *	open lexers for files given on the command-line
+ */
+static int cstage_openlexers (compcxt_t *ccx)
+{
+	int i;
+
+	for (i=0; i<DA_CUR (ccx->srcfiles); i++) {
+		char *fname = DA_NTHITEM (ccx->srcfiles, i);
+		lexfile_t *tmp;
+
+		if (compopts.verbose) {
+			nocc_message ("lexing: %s", fname);
+		}
+		tmp = lexer_open (fname);
+		if (!tmp) {
+			nocc_error ("failed to open %s", fname);
+			exit (EXIT_FAILURE);
+		}
+		dynarray_add (ccx->srclexers, tmp);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_maybestop1 (compcxt_t *ccx)*/
+/*
+ *	in auto mode, maybe just dump tokens
+ */
+static int cstage_maybestop1 (compcxt_t *ccx)
+{
+	token_t *tok;
+	int i;
+
+	if (compopts.stoppoint == 1) {
+		for (i=0; (i<DA_CUR (ccx->srclexers)) && (i<DA_CUR (ccx->srcfiles)); i++) {
+			char *fname = DA_NTHITEM (ccx->srcfiles, i);
+			lexfile_t *tmp = DA_NTHITEM (ccx->srclexers, i);
+
+			nocc_message ("tokenising %s..", fname);
+			for (tok = lexer_nexttoken (tmp); tok && (tok->type != END); tok = lexer_nexttoken (tmp)) {
+				lexer_dumptoken (stderr, tok);
+				lexer_freetoken (tok);
+				tok = NULL;
+			}
+			if (tok) {
+				lexer_dumptoken (stderr, tok);
+				lexer_freetoken (tok);
+				tok = NULL;
+			}
+		}
+
+		/* close lexers */
+
+		for (i=DA_CUR (ccx->srclexers) - 1; i >= 0; i--) {
+			lexer_close (DA_NTHITEM (ccx->srclexers, i));
+		}
+		dynarray_trash (ccx->srclexers);
+		
+		return -1;				/* force out */
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_doparse (compcxt_t *ccx)*/
+/*
+ *	does parsing of source files into source trees
+ */
+static int cstage_doparse (compcxt_t *ccx)
+{
+	int i;
+
+	for (i=0; i<DA_CUR (ccx->srclexers); i++) {
+		lexfile_t *lf = DA_NTHITEM (ccx->srclexers, i);
+		tnode_t *tree;
+
+		/* initialise lexfile flags */
+		lf->toplevel = 1;
+		if (compopts.notmainmodule) {
+			lf->sepcomp = 1;
+		}
+
+		if (compopts.verbose) {
+			nocc_message ("parsing ...");
+		}
+		tree = parser_parse (lf);
+		if (!tree) {
+			nocc_error ("failed to parse %s", DA_NTHITEM (ccx->srcfiles, i));
+			ccx->errored = 1;
+		}
+		dynarray_add (ccx->srctrees, tree);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_maybestop2 (compcxt_t *ccx)*/
+/*
+ *	stop after parse if so configured (and dump trees if requested)
+ */
+static int cstage_maybestop2 (compcxt_t *ccx)
+{
+	if (compopts.stoppoint == 2) {
+		/*  stop after parse*/
+		maybedumptrees (DA_PTR (ccx->srcfiles), DA_CUR (ccx->srcfiles), DA_PTR (ccx->srctrees), DA_CUR (ccx->srctrees));
+		return -1;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_parseerror (compcxt_t *ccx)*/
+/*
+ *	numb check for parser error (fails from setting in cstage table)
+ */
+static int cstage_parseerror (compcxt_t *ccx)
+{
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_maybedumpntypes (compcxt_t *ccx)*/
+/*
+ *	dump node-types if requested
+ */
+static int cstage_maybedumpntypes (compcxt_t *ccx)
+{
+	if (compopts.dumpnodetypes) {
+		tnode_dumpnodetypes (stderr);
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_maybedumpsntypes (compcxt_t *ccx)*/
+/*
+ *	dump node-types (short form) if requested
+ */
+static int cstage_maybedumpsntypes (compcxt_t *ccx)
+{
+	if (compopts.dumpsnodetypes) {
+		tnode_dumpsnodetypes (stderr);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_maybedumpsntags (compcxt_t *ccx)*/
+/*
+ *	dump node-tags (short form) if requested
+ */
+static int cstage_maybedumpsntags (compcxt_t *ccx)
+{
+	if (compopts.dumpsnodetags) {
+		tnode_dumpsnodetags (stderr);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_fepasses (compcxt_t *ccx)*/
+/*
+ *	does compiler front-end passes
+ */
+static int cstage_fepasses (compcxt_t *ccx)
+{
+	int i;
+
+	if (compopts.verbose) {
+		nocc_message ("front-end passes:");
+	}
+	for (i=0; i<DA_CUR (cfepasses); i++) {
+		compilerpass_t *cpass = DA_NTHITEM (cfepasses, i);
+		int passenabled = (!cpass->flagptr || (*(cpass->flagptr) == 1));
+		int j;
+		
+		for (j=0; j<DA_CUR (ccx->srctrees); j++) {
+			lexfile_t *lf = DA_NTHITEM (ccx->srclexers, j);
+
+			if (compopts.treecheck) {
+				/* do pre-pass checks */
+				if (treecheck_prepass (DA_NTHITEM (ccx->srctrees, j), cpass->name, passenabled)) {
+					nocc_error ("failed pre-pass check for %s in %s", cpass->name, DA_NTHITEM (ccx->srcfiles, j));
+					ccx->errored = 1;
+				}
+			}
+
+			if (passenabled) {
+				int result;
+				int errcount = lf->errcount;
+
+				if (compopts.verbose) {
+					nocc_message ("   %s ...", cpass->name);
+				}
+
+				/* switch on argument calling pattern */
+				switch (cpass->fargs) {
+					/*{{{  (tnode_t **, langparser_t *)*/
+				case (CPASS_TREEPTR | CPASS_LANGPARSER):
+					{
+						int (*fcnptr)(tnode_t **, langparser_t *) = (int (*)(tnode_t **, langparser_t *))cpass->fcn;
+
+						result = fcnptr (DA_NTHITEMADDR (ccx->srctrees, j), (DA_NTHITEM (ccx->srclexers, j))->parser);
+					}
+					break;
+					/*}}}*/
+					/*{{{  (tnode_t *, langparser_t *)*/
+				case (CPASS_TREE | CPASS_LANGPARSER):
+					{
+						int (*fcnptr)(tnode_t *, langparser_t *) = (int (*)(tnode_t *, langparser_t *))cpass->fcn;
+
+						result = fcnptr (DA_NTHITEM (ccx->srctrees, j), (DA_NTHITEM (ccx->srclexers, j))->parser);
+					}
+					break;
+					/*}}}*/
+					/*{{{  (tnode_t **)*/
+				case CPASS_TREEPTR:
+					{
+						int (*fcnptr)(tnode_t **) = (int (*)(tnode_t **))cpass->fcn;
+
+						result = fcnptr (DA_NTHITEMADDR (ccx->srctrees, j));
+					}
+					break;
+					/*}}}*/
+					/*{{{  (tnode_t *)*/
+				case CPASS_TREE:
+					{
+						int (*fcnptr)(tnode_t *) = (int (*)(tnode_t *))cpass->fcn;
+
+						result = fcnptr (DA_NTHITEM (ccx->srctrees, j));
+					}
+					break;
+					/*}}}*/
+				default:
+					nocc_fatal ("unhandled compiler-pass argument combination 0x%8.8x for pass [%s]", (unsigned int)cpass->fargs, cpass->name);
+					result = -1;
+					break;
+				}
+				if (result) {
+					nocc_error ("failed to %s %s", cpass->name, DA_NTHITEM (ccx->srcfiles, j));
+					ccx->errored = 1;
+				} else if (lf->errcount > errcount) {
+					/* if the lexfile collected any errors, fail as well */
+					nocc_error ("failed to %s %s", cpass->name, DA_NTHITEM (ccx->srcfiles, j));
+					ccx->errored = 1;
+				}
+			}
+
+			if (compopts.treecheck) {
+				/* do post-pass checks */
+				if (treecheck_postpass (DA_NTHITEM (ccx->srctrees, j), cpass->name, passenabled)) {
+					nocc_error ("failed post-pass check for %s in %s", cpass->name, DA_NTHITEM (ccx->srcfiles, j));
+					ccx->errored = 1;
+				}
+			}
+		}
+
+		/* can still stop even if pass not enabled */
+
+		if (compopts.stoppoint == cpass->stoppoint) {
+			/* stopping here */
+			maybedumptrees (DA_PTR (ccx->srcfiles), DA_CUR (ccx->srcfiles), DA_PTR (ccx->srctrees), DA_CUR (ccx->srctrees));
+			return -1;
+		}
+		if (ccx->errored) {
+			return -1;
+		}
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_targetinit (compcxt_t *ccx)*/
+/*
+ *	initialises the target
+ */
+static int cstage_targetinit (compcxt_t *ccx)
+{
+	target_initialise (ccx->target);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_beargs (compcxt_t *ccx)*/
+/*
+ *	processes left-over arguments for back-end (short options have been singularised by this point)
+ */
+static int cstage_beargs (compcxt_t *ccx)
+{
+	char **walk;
+	int i;
+
+	for (walk = DA_PTR (be_def_opts), i = DA_CUR (be_def_opts); walk && *walk && i; walk++, i--) {
+		cmd_option_t *opt = NULL;
+
+		switch (**walk) {
+		case '-':
+			if ((*walk)[1] == '-') {
+				opt = opts_getlongopt (*walk + 2);
+				if (opt) {
+					if (opts_process (opt, &walk, &i) < 0) {
+						ccx->errored++;
+					}
+					sfree (*walk);
+					*walk = NULL;
+				} else {
+					nocc_error ("unsupported option: %s", *walk);
+					ccx->errored++;
+				}
+			} else {
+				char *ch = *walk + 1;
+
+				opt = opts_getshortopt (*ch);
+				if (opt) {
+					if (opts_process (opt, &walk, &i) < 0) {
+						ccx->errored++;
+					}
+					sfree (*walk);
+					*walk = NULL;
+				} else {
+					nocc_error ("unsupported option: %s", *walk);
+					ccx->errored++;
+				}
+			}
+			break;
+		}
+	}
+	dynarray_trash (be_def_opts);
+
+	if (ccx->errored) {
+		nocc_fatal ("error processing options for back-end (%d error%s)", ccx->errored, (ccx->errored == 1) ? "" : "s");
+		exit (EXIT_FAILURE);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cstage_bepasses (compcxt_t *ccx)*/
+/*
+ *	back-end compiler passes
+ */
+static int cstage_bepasses (compcxt_t *ccx)
+{
+	int i;
+
+	if (compopts.verbose) {
+		nocc_message ("back-end passes:");
+	}
+	for (i=0; i<DA_CUR (cbepasses); i++) {
+		compilerpass_t *cpass = DA_NTHITEM (cbepasses, i);
+		int passenabled = (!cpass->flagptr || (*(cpass->flagptr) == 1));
+		int j;
+
+		for (j=0; j<DA_CUR (ccx->srctrees); j++) {
+			if (compopts.treecheck) {
+				/* do pre-pass checks */
+				if (treecheck_prepass (DA_NTHITEM (ccx->srctrees, j), cpass->name, passenabled)) {
+					nocc_error ("failed pre-pass check for %s in %s", cpass->name, DA_NTHITEM (ccx->srcfiles, j));
+					ccx->errored = 1;
+				}
+			}
+
+			if (passenabled) {
+				int result;
+
+				if (compopts.verbose) {
+					nocc_message ("   %s ...", cpass->name);
+				}
+
+				/* switch on argument calling pattern */
+				switch (cpass->fargs) {
+					/*{{{  (tnode_t **, target_t *)*/
+				case (CPASS_TREEPTR | CPASS_TARGET):
+					{
+						int (*fcnptr)(tnode_t **, target_t *) = (int (*)(tnode_t **, target_t *))cpass->fcn;
+
+						result = fcnptr (DA_NTHITEMADDR (ccx->srctrees, j), ccx->target);
+					}
+					break;
+					/*}}}*/
+					/*{{{  (tnode_t **, lexfile_t *, target_t *)*/
+				case (CPASS_TREEPTR | CPASS_LEXFILE | CPASS_TARGET):
+					{
+						int (*fcnptr)(tnode_t **, lexfile_t *, target_t *) = (int (*)(tnode_t **, lexfile_t *, target_t *))cpass->fcn;
+
+						result = fcnptr (DA_NTHITEMADDR (ccx->srctrees, j), DA_NTHITEM (ccx->srclexers, j), ccx->target);
+					}
+					break;
+					/*}}}*/
+				default:
+					nocc_fatal ("unhandled compiler-pass argument combination 0x%8.8x for pass [%s]", (unsigned int)cpass->fargs, cpass->name);
+					result = -1;
+					break;
+				}
+				if (result) {
+					nocc_error ("failed to %s %s", cpass->name, DA_NTHITEM (ccx->srcfiles, j));
+					ccx->errored = 1;
+				}
+			}
+
+			if (compopts.treecheck) {
+				/* do post-pass checks */
+				if (treecheck_postpass (DA_NTHITEM (ccx->srctrees, j), cpass->name, passenabled)) {
+					nocc_error ("failed post-pass check for %s in %s", cpass->name, DA_NTHITEM (ccx->srcfiles, j));
+					ccx->errored = 1;
+				}
+			}
+		}
+		/* can still stop even if pass not enabled */
+
+		if (compopts.stoppoint == cpass->stoppoint) {
+			/* stopping here */
+			maybedumptrees (DA_PTR (ccx->srcfiles), DA_CUR (ccx->srcfiles), DA_PTR (ccx->srctrees), DA_CUR (ccx->srctrees));
+			return -1;
+		}
+		if (ccx->errored) {
+			return -1;
+		}
+	}
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  int main (int argc, char **argv)*/
 /*
  *	start here
@@ -1238,10 +1920,8 @@ int main (int argc, char **argv)
 {
 	char **walk;
 	int i;
-	int errored;
-	DYNARRAY (char *, fe_def_opts);
-	DYNARRAY (char *, srcfiles);
-	target_t *target;
+	compcxt_t *ccx;
+	int xerrored;
 	
 	/*{{{  basic initialisation*/
 	for (progname=*argv + (strlen (*argv) - 1); (progname > *argv) && (progname[-1] != '/'); progname--);
@@ -1270,9 +1950,8 @@ int main (int argc, char **argv)
 	/* save the compiled-in target for comparison */
 	compiler_stock_target = string_dup (compopts.target_str);
 
-	dynarray_init (fe_def_opts);
+	ccx = nocc_newcompcxt ();
 	dynarray_init (be_def_opts);
-	dynarray_init (srcfiles);
 
 	dynarray_init (cfepasses);
 	dynarray_init (cbepasses);
@@ -1300,7 +1979,7 @@ int main (int argc, char **argv)
 
 	/*}}}*/
 	/*{{{  process command-line arguments*/
-	errored = 0;
+	ccx->errored = 0;
 
 	for (walk = argv + 1, i = argc - 1; *walk && i; walk++, i--) {
 		cmd_option_t *opt = NULL;
@@ -1319,22 +1998,22 @@ int main (int argc, char **argv)
 					if (opt) {
 						/* yes, have this option */
 						if (nocc_dooption_arg (realopt, ch + 1) < 0) {
-							errored++;
+							ccx->errored++;
 						}
 					} else {
 						/* defer for front-end */
-						dynarray_add (fe_def_opts, string_dup (*walk));
+						dynarray_add (ccx->fe_def_opts, string_dup (*walk));
 					}
 					sfree (realopt);
 				} else {
 					opt = opts_getlongopt (*walk + 2);
 					if (opt) {
 						if (opts_process (opt, &walk, &i) < 0) {
-							errored++;
+							ccx->errored++;
 						}
 					} else {
 						/* defer for front-end */
-						dynarray_add (fe_def_opts, string_dup (*walk));
+						dynarray_add (ccx->fe_def_opts, string_dup (*walk));
 					}
 				}
 			} else {
@@ -1344,25 +2023,25 @@ int main (int argc, char **argv)
 					opt = opts_getshortopt (*ch);
 					if (opt) {
 						if (opts_process (opt, &walk, &i) < 0) {
-							errored++;
+							ccx->errored++;
 						}
 					} else {
 						/* defer for front-end */
 						char *stropt = string_dup ("-X");
 
 						stropt[1] = *ch;
-						dynarray_add (fe_def_opts, stropt);
+						dynarray_add (ccx->fe_def_opts, stropt);
 					}
 				}
 			}
 			break;
 		default:
 			/* it's a source filename */
-			dynarray_add (srcfiles, string_dup (*walk));
+			dynarray_add (ccx->srcfiles, string_dup (*walk));
 			break;
 		}
 	}
-	if (errored) {
+	if (ccx->errored) {
 		nocc_fatal ("error processing command-line options");
 		exit (EXIT_FAILURE);
 	}
@@ -1501,6 +2180,7 @@ int main (int argc, char **argv)
 		nocc_message ("    not-main-module: %s", compopts.notmainmodule ? "yes" : "no");
 		nocc_message ("    verbose:         %s", compopts.verbose ? "yes" : "no");
 		nocc_message ("    treecheck:       %s", compopts.treecheck ? "yes" : "no");
+		nocc_message ("    interactive:     %s", compopts.interactive ? "yes" : "no");
 
 		nocc_message ("    hashalgo:        %s", compopts.hashalgo ?: "(unset)");
 		nocc_message ("    private-key:     %s", compopts.privkey ?: "(unset)");
@@ -1629,7 +2309,7 @@ int main (int argc, char **argv)
 
 	/*}}}*/
 	/*{{{  process left-over arguments for front-end (short options have been singularised by this point)*/
-	for (walk = DA_PTR (fe_def_opts), i = DA_CUR (fe_def_opts); walk && *walk && i; walk++, i--) {
+	for (walk = DA_PTR (ccx->fe_def_opts), i = DA_CUR (ccx->fe_def_opts); walk && *walk && i; walk++, i--) {
 		cmd_option_t *opt = NULL;
 
 		switch (**walk) {
@@ -1638,7 +2318,7 @@ int main (int argc, char **argv)
 				opt = opts_getlongopt (*walk + 2);
 				if (opt) {
 					if (opts_process (opt, &walk, &i) < 0) {
-						errored++;
+						ccx->errored++;
 					}
 					sfree (*walk);
 					*walk = NULL;
@@ -1653,7 +2333,7 @@ int main (int argc, char **argv)
 				opt = opts_getshortopt (*ch);
 				if (opt) {
 					if (opts_process (opt, &walk, &i) < 0) {
-						errored++;
+						ccx->errored++;
 					}
 					sfree (*walk);
 					*walk = NULL;
@@ -1666,10 +2346,9 @@ int main (int argc, char **argv)
 			break;
 		}
 	}
-	dynarray_trash (fe_def_opts);
 
-	if (errored) {
-		nocc_fatal ("error processing command-line options (%d error%s)", errored, (errored == 1) ? "" : "s");
+	if (ccx->errored) {
+		nocc_fatal ("error processing command-line options (%d error%s)", ccx->errored, (ccx->errored == 1) ? "" : "s");
 		exit (EXIT_FAILURE);
 	}
 	if (DA_CUR (be_def_opts) && compopts.verbose) {
@@ -1712,422 +2391,36 @@ int main (int argc, char **argv)
 		goto main_out;
 	}
 	/*}}}*/
-	/*{{{  load extensions*/
-	for (i=0; i<DA_CUR (compopts.eload); i++) {
-		if (extn_loadextn (DA_NTHITEM (compopts.eload, i))) {
-			errored++;
-		}
-	}
 
-	/*}}}*/
-	/*{{{  dump extensions if requested*/
-	if (compopts.dumpextns) {
-		extn_dumpextns ();
-	}
 
-	/*}}}*/
-	/*{{{  dump registered functions if requested*/
-	if (compopts.dumpfcns) {
-		fcnlib_dumpfcns (stderr);
-	}
+	/* do compiler stages (auto-run) */
+	for (i=0; stagetable[i].stagefcn; i++) {
+		int r;
 
-	/*}}}*/
-	/*{{{  check that we're actually compiling something*/
-	if (!DA_CUR (srcfiles) && !compopts.dohelp) {
-		nocc_fatal ("no input files!");
-		exit (EXIT_FAILURE);
-	} else {
-		if (compopts.verbose) {
-			nocc_message ("source files are:");
-			for (i=0; i<DA_CUR (srcfiles); i++) {
-				nocc_message ("\t%s", DA_NTHITEM (srcfiles, i));
-			}
-		}
-	}
-	/*}}}*/
-	/*{{{  initialise extensions*/
-	extn_initialise ();
+		if (!stagetable[i].noauto) {
+			r = stagetable[i].stagefcn (ccx);
 
-	/*}}}*/
-	/*{{{  initialise tree-rewriting (after its front-end parser has been registered)*/
-	if (trlang_initialise ()) {
-		nocc_error ("failed to initialise tree-rewriting parser");
-		exit (EXIT_FAILURE);
-	}
-	
-	/*}}}*/
-	/*{{{  initialise traces (after its front-end parser has been registered)*/
-	if (traceslang_initialise ()) {
-		nocc_error ("failed to initialise traces parser");
-		exit (EXIT_FAILURE);
-	}
-
-	/*}}}*/
-
-	/*{{{  get hold of the desired target*/
-	target = target_lookupbyspec (compopts.target_cpu, compopts.target_vendor, compopts.target_os);
-	if (!target) {
-		nocc_error ("no back-end for [%s] target, need to load ?", compopts.target_str ?: "(unspecified)");
-		exit (EXIT_FAILURE);
-	}
-
-	/*}}}*/
-	/*{{{  if help was requested, initialise target (try!) and do it here*/
-	if (compopts.dohelp) {
-		target_initialise (target);
-
-		opt_do_help (compopts.dohelp, NULL, NULL);
-		exit (EXIT_SUCCESS);
-	}
-	/*}}}*/
-
-	/*{{{  compiler run*/
-	{
-		DYNARRAY (lexfile_t *, srclexers);
-		DYNARRAY (tnode_t *, srctrees);
-
-		dynarray_init (srclexers);
-		dynarray_init (srctrees);
-
-		/*{{{  open lexers for files given on the command-line*/
-		for (i=0; i<DA_CUR (srcfiles); i++) {
-			char *fname = DA_NTHITEM (srcfiles, i);
-			lexfile_t *tmp;
-
-			if (compopts.verbose) {
-				nocc_message ("lexing: %s", fname);
-			}
-			tmp = lexer_open (fname);
-			if (!tmp) {
-				nocc_error ("failed to open %s", fname);
-				exit (EXIT_FAILURE);
-			}
-			dynarray_add (srclexers, tmp);
-		}
-		/*}}}*/
-		if (compopts.stoppoint == 1) {
-			/*{{{  stop after tokenise -- just show the tokens*/
-			token_t *tok;
-
-			for (i=0; (i<DA_CUR (srclexers)) && (i<DA_CUR (srcfiles)); i++) {
-				char *fname = DA_NTHITEM (srcfiles, i);
-				lexfile_t *tmp = DA_NTHITEM (srclexers, i);
-
-				nocc_message ("tokenising %s..", fname);
-				for (tok = lexer_nexttoken (tmp); tok && (tok->type != END); tok = lexer_nexttoken (tmp)) {
-					lexer_dumptoken (stderr, tok);
-					lexer_freetoken (tok);
-					tok = NULL;
-				}
-				if (tok) {
-					lexer_dumptoken (stderr, tok);
-					lexer_freetoken (tok);
-					tok = NULL;
-				}
-			}
-			/*}}}*/
-			/*{{{  close lexers*/
-			for (i=DA_CUR (srclexers) - 1; i >= 0; i--) {
-				lexer_close (DA_NTHITEM (srclexers, i));
-			}
-			dynarray_trash (srclexers);
-			/*}}}*/
-
-			goto main_out;
-		}
-		/*{{{  parse source files into trees*/
-		for (i=0; i<DA_CUR (srclexers); i++) {
-			lexfile_t *lf = DA_NTHITEM (srclexers, i);
-			tnode_t *tree;
-
-			/* initialise lexfile flags */
-			lf->toplevel = 1;
-			if (compopts.notmainmodule) {
-				lf->sepcomp = 1;
-			}
-
-			if (compopts.verbose) {
-				nocc_message ("parsing ...");
-			}
-			tree = parser_parse (lf);
-			if (!tree) {
-				nocc_error ("failed to parse %s", DA_NTHITEM (srcfiles, i));
-				errored = 1;
-			}
-			dynarray_add (srctrees, tree);
-		}
-		if (compopts.stoppoint == 2) {
-			/*{{{  stop after parse*/
-			maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-			goto main_out;
-			/*}}}*/
-		}
-		if (errored) {
-			goto main_out;
-		}
-		/*}}}*/
-		/*{{{  dump node-types if requested*/
-		if (compopts.dumpnodetypes) {
-			tnode_dumpnodetypes (stderr);
-			goto local_close_out;
-		}
-
-		/*}}}*/
-		/*{{{  dump node-types (short form) if requested*/
-		if (compopts.dumpsnodetypes) {
-			tnode_dumpsnodetypes (stderr);
-		}
-
-		/*}}}*/
-		/*{{{  dump node-tags (short form) if requested*/
-		if (compopts.dumpsnodetags) {
-			tnode_dumpsnodetags (stderr);
-		}
-
-		/*}}}*/
-
-		/*{{{  front-end compiler passes*/
-		if (compopts.verbose) {
-			nocc_message ("front-end passes:");
-		}
-		for (i=0; i<DA_CUR (cfepasses); i++) {
-			compilerpass_t *cpass = DA_NTHITEM (cfepasses, i);
-			int passenabled = (!cpass->flagptr || (*(cpass->flagptr) == 1));
-			int j;
-			
-			for (j=0; j<DA_CUR (srctrees); j++) {
-				lexfile_t *lf = DA_NTHITEM (srclexers, j);
-
-				if (compopts.treecheck) {
-					/* do pre-pass checks */
-					if (treecheck_prepass (DA_NTHITEM (srctrees, j), cpass->name, passenabled)) {
-						nocc_error ("failed pre-pass check for %s in %s", cpass->name, DA_NTHITEM (srcfiles, j));
-						errored = 1;
-					}
-				}
-
-				if (passenabled) {
-					int result;
-					int errcount = lf->errcount;
-
-					if (compopts.verbose) {
-						nocc_message ("   %s ...", cpass->name);
-					}
-
-					/* switch on argument calling pattern */
-					switch (cpass->fargs) {
-						/*{{{  (tnode_t **, langparser_t *)*/
-					case (CPASS_TREEPTR | CPASS_LANGPARSER):
-						{
-							int (*fcnptr)(tnode_t **, langparser_t *) = (int (*)(tnode_t **, langparser_t *))cpass->fcn;
-
-							result = fcnptr (DA_NTHITEMADDR (srctrees, j), (DA_NTHITEM (srclexers, j))->parser);
-						}
-						break;
-						/*}}}*/
-						/*{{{  (tnode_t *, langparser_t *)*/
-					case (CPASS_TREE | CPASS_LANGPARSER):
-						{
-							int (*fcnptr)(tnode_t *, langparser_t *) = (int (*)(tnode_t *, langparser_t *))cpass->fcn;
-
-							result = fcnptr (DA_NTHITEM (srctrees, j), (DA_NTHITEM (srclexers, j))->parser);
-						}
-						break;
-						/*}}}*/
-						/*{{{  (tnode_t **)*/
-					case CPASS_TREEPTR:
-						{
-							int (*fcnptr)(tnode_t **) = (int (*)(tnode_t **))cpass->fcn;
-
-							result = fcnptr (DA_NTHITEMADDR (srctrees, j));
-						}
-						break;
-						/*}}}*/
-						/*{{{  (tnode_t *)*/
-					case CPASS_TREE:
-						{
-							int (*fcnptr)(tnode_t *) = (int (*)(tnode_t *))cpass->fcn;
-
-							result = fcnptr (DA_NTHITEM (srctrees, j));
-						}
-						break;
-						/*}}}*/
-					default:
-						nocc_fatal ("unhandled compiler-pass argument combination 0x%8.8x for pass [%s]", (unsigned int)cpass->fargs, cpass->name);
-						result = -1;
-						break;
-					}
-					if (result) {
-						nocc_error ("failed to %s %s", cpass->name, DA_NTHITEM (srcfiles, j));
-						errored = 1;
-					} else if (lf->errcount > errcount) {
-						/* if the lexfile collected any errors, fail as well */
-						nocc_error ("failed to %s %s", cpass->name, DA_NTHITEM (srcfiles, j));
-						errored = 1;
-					}
-				}
-
-				if (compopts.treecheck) {
-					/* do post-pass checks */
-					if (treecheck_postpass (DA_NTHITEM (srctrees, j), cpass->name, passenabled)) {
-						nocc_error ("failed post-pass check for %s in %s", cpass->name, DA_NTHITEM (srcfiles, j));
-						errored = 1;
-					}
-				}
-			}
-
-			/* can still stop even if pass not enabled */
-
-			if (compopts.stoppoint == cpass->stoppoint) {
-				/* stopping here */
-				maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
+			if (stagetable[i].skipout && (r < 0)) {
 				goto main_out;
-			}
-			if (errored) {
+			} else if (stagetable[i].skipout && (r > 0)) {
+				goto local_close_out;
+			} else if (stagetable[i].errout && ccx->errored) {
 				goto main_out;
 			}
 		}
-		/*}}}*/
-
-		/*{{{  initialise back-end*/
-		target_initialise (target);
-
-		/*}}}*/
-		/*{{{  process left-over arguments for back-end (short options have been singularised by this point)*/
-		for (walk = DA_PTR (be_def_opts), i = DA_CUR (be_def_opts); walk && *walk && i; walk++, i--) {
-			cmd_option_t *opt = NULL;
-
-			switch (**walk) {
-			case '-':
-				if ((*walk)[1] == '-') {
-					opt = opts_getlongopt (*walk + 2);
-					if (opt) {
-						if (opts_process (opt, &walk, &i) < 0) {
-							errored++;
-						}
-						sfree (*walk);
-						*walk = NULL;
-					} else {
-						nocc_error ("unsupported option: %s", *walk);
-						errored++;
-					}
-				} else {
-					char *ch = *walk + 1;
-
-					opt = opts_getshortopt (*ch);
-					if (opt) {
-						if (opts_process (opt, &walk, &i) < 0) {
-							errored++;
-						}
-						sfree (*walk);
-						*walk = NULL;
-					} else {
-						nocc_error ("unsupported option: %s", *walk);
-						errored++;
-					}
-				}
-				break;
-			}
-		}
-		dynarray_trash (be_def_opts);
-
-		if (errored) {
-			nocc_fatal ("error processing options for back-end (%d error%s)", errored, (errored == 1) ? "" : "s");
-			exit (EXIT_FAILURE);
-		}
-
-		/*}}}*/
-
-		/*{{{  back-end compiler passes*/
-		if (compopts.verbose) {
-			nocc_message ("back-end passes:");
-		}
-		for (i=0; i<DA_CUR (cbepasses); i++) {
-			compilerpass_t *cpass = DA_NTHITEM (cbepasses, i);
-			int passenabled = (!cpass->flagptr || (*(cpass->flagptr) == 1));
-			int j;
-
-			for (j=0; j<DA_CUR (srctrees); j++) {
-				if (compopts.treecheck) {
-					/* do pre-pass checks */
-					if (treecheck_prepass (DA_NTHITEM (srctrees, j), cpass->name, passenabled)) {
-						nocc_error ("failed pre-pass check for %s in %s", cpass->name, DA_NTHITEM (srcfiles, j));
-						errored = 1;
-					}
-				}
-
-				if (passenabled) {
-					int result;
-
-					if (compopts.verbose) {
-						nocc_message ("   %s ...", cpass->name);
-					}
-
-					/* switch on argument calling pattern */
-					switch (cpass->fargs) {
-						/*{{{  (tnode_t **, target_t *)*/
-					case (CPASS_TREEPTR | CPASS_TARGET):
-						{
-							int (*fcnptr)(tnode_t **, target_t *) = (int (*)(tnode_t **, target_t *))cpass->fcn;
-
-							result = fcnptr (DA_NTHITEMADDR (srctrees, j), target);
-						}
-						break;
-						/*}}}*/
-						/*{{{  (tnode_t **, lexfile_t *, target_t *)*/
-					case (CPASS_TREEPTR | CPASS_LEXFILE | CPASS_TARGET):
-						{
-							int (*fcnptr)(tnode_t **, lexfile_t *, target_t *) = (int (*)(tnode_t **, lexfile_t *, target_t *))cpass->fcn;
-
-							result = fcnptr (DA_NTHITEMADDR (srctrees, j), DA_NTHITEM (srclexers, j), target);
-						}
-						break;
-						/*}}}*/
-					default:
-						nocc_fatal ("unhandled compiler-pass argument combination 0x%8.8x for pass [%s]", (unsigned int)cpass->fargs, cpass->name);
-						result = -1;
-						break;
-					}
-					if (result) {
-						nocc_error ("failed to %s %s", cpass->name, DA_NTHITEM (srcfiles, j));
-						errored = 1;
-					}
-				}
-
-				if (compopts.treecheck) {
-					/* do post-pass checks */
-					if (treecheck_postpass (DA_NTHITEM (srctrees, j), cpass->name, passenabled)) {
-						nocc_error ("failed post-pass check for %s in %s", cpass->name, DA_NTHITEM (srcfiles, j));
-						errored = 1;
-					}
-				}
-			}
-			/* can still stop even if pass not enabled */
-
-			if (compopts.stoppoint == cpass->stoppoint) {
-				/* stopping here */
-				maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-				goto main_out;
-			}
-			if (errored) {
-				goto main_out;
-			}
-		}
-		/*}}}*/
+	}
 
 local_close_out:
-		/*{{{  close lexers*/
-		for (i=DA_CUR (srclexers) - 1; i >= 0; i--) {
-			lexer_close (DA_NTHITEM (srclexers, i));
-		}
-		dynarray_trash (srclexers);
-		/*}}}*/
-
-		/*{{{  maybe dump trees*/
-		maybedumptrees (DA_PTR (srcfiles), DA_CUR (srcfiles), DA_PTR (srctrees), DA_CUR (srctrees));
-
-		/*}}}*/
+	/*{{{  close lexers*/
+	for (i=DA_CUR (ccx->srclexers) - 1; i >= 0; i--) {
+		lexer_close (DA_NTHITEM (ccx->srclexers, i));
 	}
+	dynarray_trash (ccx->srclexers);
+
+	/*}}}*/
+	/*{{{  maybe dump trees*/
+	maybedumptrees (DA_PTR (ccx->srcfiles), DA_CUR (ccx->srcfiles), DA_PTR (ccx->srctrees), DA_CUR (ccx->srctrees));
+
 	/*}}}*/
 
 main_out:
@@ -2141,10 +2434,8 @@ main_out:
 
 	/*}}}*/
 	/*{{{  shutdown/etc.*/
-	for (i=0; i<DA_CUR (srcfiles); i++) {
-		sfree (DA_NTHITEM (srcfiles, i));
-	}
-	dynarray_trash (srcfiles);
+	xerrored = ccx->errored;
+	nocc_freecompcxt (ccx);
 
 	/* shutdown compiler */
 	nocc_shutdownrun ();
@@ -2160,7 +2451,7 @@ main_out:
 	dmem_shutdown ();
 
 	/*}}}*/
-	return (errored ? EXIT_FAILURE : EXIT_SUCCESS);
+	return (xerrored ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 /*}}}*/
 
