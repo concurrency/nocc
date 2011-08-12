@@ -89,6 +89,7 @@
 #include "eac_fe.h"
 #include "metadata.h"
 #include "version.h"
+#include "interact.h"
 
 #ifdef USE_LIBREADLINE
 #include <readline/history.h>
@@ -204,6 +205,8 @@ STATICDYNARRAY (xmlnamespace_t *, xmlnamespaces);
 STATICDYNARRAY (initfunc_t *, initfcns);
 
 static char *compiler_stock_target = NULL;
+
+STATICDYNARRAY (ihandler_t *, ihandlers);
 
 /*}}}*/
 
@@ -1229,6 +1232,104 @@ int nocc_dumpxmlnamespacefooters (FILE *stream)
 }
 /*}}}*/
 
+/*{{{  ihandler_t *nocc_newihandler (void)*/
+/*
+ *	creates a new ihandler_t structure
+ */
+ihandler_t *nocc_newihandler (void)
+{
+	ihandler_t *ihdlr = (ihandler_t *)smalloc (sizeof (ihandler_t));
+
+	ihdlr->id = NULL;
+	ihdlr->prompt = NULL;
+	ihdlr->flags = IHF_NONE;
+	ihdlr->line_callback = NULL;
+	ihdlr->bits_callback = NULL;
+
+	return ihdlr;
+}
+/*}}}*/
+/*{{{  void nocc_freeihandler (ihandler_t *ihdlr)*/
+/*
+ *	frees an ihandler_t structure
+ */
+void nocc_freeihandler (ihandler_t *ihdlr)
+{
+	if (!ihdlr) {
+		nocc_warning ("nocc_freeihandler(): NULL pointer!");
+		return;
+	}
+
+	if (ihdlr->id) {
+		sfree (ihdlr->id);
+		ihdlr->id = NULL;
+	}
+	if (ihdlr->prompt) {
+		sfree (ihdlr->prompt);
+		ihdlr->prompt = NULL;
+	}
+
+	sfree (ihdlr);
+	return;
+}
+/*}}}*/
+/*{{{  int nocc_register_ihandler (ihandler_t *ihdlr)*/
+/*
+ *	registers an interactive handler
+ *	returns 0 on success, non-zero on failure
+ */
+int nocc_register_ihandler (ihandler_t *ihdlr)
+{
+	int i;
+
+	for (i=0; i<DA_CUR (ihandlers); i++) {
+		ihandler_t *thisone = DA_NTHITEM (ihandlers, i);
+
+		if (!strcmp (thisone->id, ihdlr->id)) {
+			nocc_warning ("nocc_register_ihandler(): handler for [%s] already registered!", ihdlr->id);
+			return 0;
+		}
+	}
+
+	dynarray_add (ihandlers, ihdlr);
+	return 0;
+}
+/*}}}*/
+/*{{{  int nocc_unregister_ihandler (ihandler_t *ihdlr)*/
+/*
+ *	unregisters an interactive handler
+ *	returns 0 on success, non-zero on failure
+ */
+int nocc_unregister_ihandler (ihandler_t *ihdlr)
+{
+	int i;
+
+	for (i=0; i<DA_CUR (ihandlers); i++) {
+		ihandler_t *thisone = DA_NTHITEM (ihandlers, i);
+
+		if (!strcmp (thisone->id, ihdlr->id)) {
+			dynarray_delitem (ihandlers, i);
+			return 0;
+		}
+	}
+	return -1;
+}
+/*}}}*/
+
+/*{{{  static int local_ihandler (char *line)*/
+/*
+ *	local handler for compiler-level things
+ */
+static int local_ihandler (char *line)
+{
+	if (!strcmp (line, "help")) {
+		printf ("foo!\n");
+	}
+
+	return 0;
+}
+/*}}}*/
+
 
 /*{{{  compcxt_t: compiler context structure*/
 typedef struct TAG_compcxt {
@@ -1328,61 +1429,66 @@ static int cstage_bepasses (compcxt_t *ccx);
 /*}}}*/
 /*{{{  cstage_t: compiler stage structure*/
 typedef struct TAG_cstage {
-	int (*stagefcn)(compcxt_t *);		/* stage function, returns 0 on success, non-zero on failure */
+	int (*stagefcn)(compcxt_t *);		/* stage function, returns CSTR_... */
 	const char *sname;			/* stage name */
-	int noint;				/* do not run in interactive mode */
-	int noauto;				/* do not run in automatic mode */
-	int skipout;				/* if -ve return code, exit compiler; if +ve, close lexers and possibly dump trees first */
-	int errout;				/* if errors in compcxt_t.errored, exit compiler */
+	int flags;				/* see below (CST_...) */
 } cstage_t;
+
+#define CST_NONE	0x0000
+#define CST_NOINT	0x0001			/* do not run in interactive mode */
+#define CST_NOAUTO	0x0002			/* do not run in automatic mode */
+
+#define CSTR_OK		0
+#define CSTR_EXITCOMP	1			/* exit compiler */
+#define CSTR_ERREXIT	2			/* if errors in compcxt_t.errored, exit compiler */
+#define CSTR_CLEANEXIT	3			/* close lexers, maybe dump trees and exit */
 
 /*}}}*/
 /*{{{  cstagetable: compiler stage table*/
 static cstage_t stagetable[] = {
-/*	stagefcn			sname				noint	noauto	skipout	errout	*/
-	{cstage_load_extensions,	"load extensions",		0,	0,	0,	0},
-	{cstage_dump_extensions,	"dump extensions",		0,	0,	0,	0},
-	{cstage_dump_regfcns,		"dump registered functions",	0,	0,	0,	0},
-	{cstage_check_compile,		"check for compile",		0,	0,	0,	0},
-	{cstage_extn_init,		"initialise extensions",	0,	0,	0,	0},
-	{cstage_trlang_init,		"initialise tree-rewriting",	0,	0,	0,	0},
-	{cstage_traces_init,		"initialise traces",		0,	0,	0,	0},
-	{cstage_findtarget,		"find target",			0,	0,	0,	0},
-	{cstage_dohelp_target,		"help with target",		0,	0,	0,	0},
+/*	stagefcn			sname				flags			*/
+	{cstage_load_extensions,	"load extensions",		CST_NONE},
+	{cstage_dump_extensions,	"dump extensions",		CST_NONE},
+	{cstage_dump_regfcns,		"dump registered functions",	CST_NONE},
+	{cstage_check_compile,		"check for compile",		CST_NONE},
+	{cstage_extn_init,		"initialise extensions",	CST_NONE},
+	{cstage_trlang_init,		"initialise tree-rewriting",	CST_NONE},
+	{cstage_traces_init,		"initialise traces",		CST_NONE},
+	{cstage_findtarget,		"find target",			CST_NONE},
+	{cstage_dohelp_target,		"help with target",		CST_NONE},
 
-	{cstage_openlexers,		"open lexers",			0,	0,	0,	0},
-	{cstage_maybestop1,		"stop after tokenise",		1,	0,	1,	0},
-	{cstage_doparse,		"parse",			0,	0,	0,	0},
-	{cstage_maybestop2,		"stop after parse",		1,	0,	1,	0},
-	{cstage_parseerror,		"check parse error",		0,	0,	0,	1},
-	{cstage_maybedumpntypes,	"dump node types",		0,	0,	0,	0},
-	{cstage_maybedumpsntypes,	"dump node types (short)",	0, 	0,	0,	0},
-	{cstage_maybedumpsntags,	"dump node tags (short)",	0,	0,	0,	0},
+	{cstage_openlexers,		"open lexers",			CST_NONE},
+	{cstage_maybestop1,		"stop after tokenise",		CST_NOINT},
+	{cstage_doparse,		"parse",			CST_NONE},
+	{cstage_maybestop2,		"stop after parse",		CST_NOINT},
+	{cstage_parseerror,		"check parse error",		CST_NONE},
+	{cstage_maybedumpntypes,	"dump node types",		CST_NONE},
+	{cstage_maybedumpsntypes,	"dump node types (short)",	CST_NONE},
+	{cstage_maybedumpsntags,	"dump node tags (short)",	CST_NONE},
 
-	{cstage_fepasses,		"front-end compiler passes",	0,	0,	1,	0},
-	{cstage_targetinit,		"initialise target",		0,	0,	0,	0},
-	{cstage_beargs,			"process left-over options",	0,	0,	0,	0},
-	{cstage_bepasses,		"back-end compiler passes",	0,	0,	1,	0},
+	{cstage_fepasses,		"front-end compiler passes",	CST_NONE},
+	{cstage_targetinit,		"initialise target",		CST_NONE},
+	{cstage_beargs,			"process left-over options",	CST_NONE},
+	{cstage_bepasses,		"back-end compiler passes",	CST_NONE},
 
-	{NULL,				NULL,				0,	0,	0,	0}
+	{NULL,				NULL,				CST_NONE}
 };
 /*}}}*/
+
 /*{{{  static int cstage_load_extensions (compcxt_t *ccx)*/
 /*
  *	load extensions
  */
 static int cstage_load_extensions (compcxt_t *ccx)
 {
-	int r = 0;
 	int i;
 
 	for (i=0; i<DA_CUR (compopts.eload); i++) {
 		if (extn_loadextn (DA_NTHITEM (compopts.eload, i))) {
 			ccx->errored++;
-			r++;
 		}
 	}
-	return r;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_dump_extensions (compcxt_t *ccx)*/
@@ -1394,7 +1500,7 @@ static int cstage_dump_extensions (compcxt_t *ccx)
 	if (compopts.dumpextns) {
 		extn_dumpextns ();
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_dump_regfcns (compcxt_t *ccx)*/
@@ -1406,7 +1512,7 @@ static int cstage_dump_regfcns (compcxt_t *ccx)
 	if (compopts.dumpfcns) {
 		fcnlib_dumpfcns (stderr);
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_check_compile (compcxt_t *ccx)*/
@@ -1417,7 +1523,7 @@ static int cstage_check_compile (compcxt_t *ccx)
 {
 	if (!DA_CUR (ccx->srcfiles) && !compopts.dohelp && !compopts.interactive) {
 		nocc_fatal ("no input files!");
-		exit (EXIT_FAILURE);
+		return CSTR_EXITCOMP;
 	} else {
 		if (compopts.verbose) {
 			int i;
@@ -1428,7 +1534,7 @@ static int cstage_check_compile (compcxt_t *ccx)
 			}
 		}
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_extn_init (compcxt_t *ccx)*/
@@ -1438,7 +1544,7 @@ static int cstage_check_compile (compcxt_t *ccx)
 static int cstage_extn_init (compcxt_t *ccx)
 {
 	extn_initialise ();
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_trlang_init (compcxt_t *ccx)*/
@@ -1449,9 +1555,9 @@ static int cstage_trlang_init (compcxt_t *ccx)
 {
 	if (trlang_initialise ()) {
 		nocc_error ("failed to initialise tree-rewriting parser");
-		exit (EXIT_FAILURE);
+		return CSTR_EXITCOMP;
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_traces_init (compcxt_t *ccx)*/
@@ -1462,9 +1568,9 @@ static int cstage_traces_init (compcxt_t *ccx)
 {
 	if (traceslang_initialise ()) {
 		nocc_error ("failed to initialise traces parser");
-		exit (EXIT_FAILURE);
+		return CSTR_EXITCOMP;
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_findtarget (compcxt_t *ccx)*/
@@ -1476,9 +1582,9 @@ static int cstage_findtarget (compcxt_t *ccx)
 	ccx->target = target_lookupbyspec (compopts.target_cpu, compopts.target_vendor, compopts.target_os);
 	if (!ccx->target) {
 		nocc_error ("no back-end for [%s] target, need to load ?", compopts.target_str ?: "(unspecified)");
-		exit (EXIT_FAILURE);
+		return CSTR_EXITCOMP;
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_dohelp_target (compcxt_t *ccx)*/
@@ -1491,9 +1597,9 @@ static int cstage_dohelp_target (compcxt_t *ccx)
 		target_initialise (ccx->target);
 
 		opt_do_help (compopts.dohelp, NULL, NULL);
-		exit (EXIT_SUCCESS);
+		return CSTR_EXITCOMP;
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_openlexers (compcxt_t *ccx)*/
@@ -1514,11 +1620,11 @@ static int cstage_openlexers (compcxt_t *ccx)
 		tmp = lexer_open (fname);
 		if (!tmp) {
 			nocc_error ("failed to open %s", fname);
-			exit (EXIT_FAILURE);
+			return CSTR_EXITCOMP;
 		}
 		dynarray_add (ccx->srclexers, tmp);
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_maybestop1 (compcxt_t *ccx)*/
@@ -1555,9 +1661,9 @@ static int cstage_maybestop1 (compcxt_t *ccx)
 		}
 		dynarray_trash (ccx->srclexers);
 		
-		return -1;				/* force out */
+		return CSTR_CLEANEXIT;				/* force out */
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_doparse (compcxt_t *ccx)*/
@@ -1588,7 +1694,7 @@ static int cstage_doparse (compcxt_t *ccx)
 		}
 		dynarray_add (ccx->srctrees, tree);
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_maybestop2 (compcxt_t *ccx)*/
@@ -1600,9 +1706,9 @@ static int cstage_maybestop2 (compcxt_t *ccx)
 	if (compopts.stoppoint == 2) {
 		/*  stop after parse*/
 		maybedumptrees (DA_PTR (ccx->srcfiles), DA_CUR (ccx->srcfiles), DA_PTR (ccx->srctrees), DA_CUR (ccx->srctrees));
-		return -1;
+		return CSTR_CLEANEXIT;
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_parseerror (compcxt_t *ccx)*/
@@ -1611,7 +1717,7 @@ static int cstage_maybestop2 (compcxt_t *ccx)
  */
 static int cstage_parseerror (compcxt_t *ccx)
 {
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_maybedumpntypes (compcxt_t *ccx)*/
@@ -1622,9 +1728,9 @@ static int cstage_maybedumpntypes (compcxt_t *ccx)
 {
 	if (compopts.dumpnodetypes) {
 		tnode_dumpnodetypes (stderr);
-		return 1;
+		return CSTR_EXITCOMP;
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_maybedumpsntypes (compcxt_t *ccx)*/
@@ -1636,7 +1742,7 @@ static int cstage_maybedumpsntypes (compcxt_t *ccx)
 	if (compopts.dumpsnodetypes) {
 		tnode_dumpsnodetypes (stderr);
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_maybedumpsntags (compcxt_t *ccx)*/
@@ -1648,7 +1754,7 @@ static int cstage_maybedumpsntags (compcxt_t *ccx)
 	if (compopts.dumpsnodetags) {
 		tnode_dumpsnodetags (stderr);
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_fepasses (compcxt_t *ccx)*/
@@ -1753,13 +1859,13 @@ static int cstage_fepasses (compcxt_t *ccx)
 		if (compopts.stoppoint == cpass->stoppoint) {
 			/* stopping here */
 			maybedumptrees (DA_PTR (ccx->srcfiles), DA_CUR (ccx->srcfiles), DA_PTR (ccx->srctrees), DA_CUR (ccx->srctrees));
-			return -1;
+			return CSTR_CLEANEXIT;
 		}
 		if (ccx->errored) {
-			return -1;
+			return CSTR_ERREXIT;
 		}
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_targetinit (compcxt_t *ccx)*/
@@ -1769,7 +1875,7 @@ static int cstage_fepasses (compcxt_t *ccx)
 static int cstage_targetinit (compcxt_t *ccx)
 {
 	target_initialise (ccx->target);
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_beargs (compcxt_t *ccx)*/
@@ -1820,9 +1926,9 @@ static int cstage_beargs (compcxt_t *ccx)
 
 	if (ccx->errored) {
 		nocc_fatal ("error processing options for back-end (%d error%s)", ccx->errored, (ccx->errored == 1) ? "" : "s");
-		exit (EXIT_FAILURE);
+		return CSTR_EXITCOMP;
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 /*{{{  static int cstage_bepasses (compcxt_t *ccx)*/
@@ -1901,13 +2007,13 @@ static int cstage_bepasses (compcxt_t *ccx)
 		if (compopts.stoppoint == cpass->stoppoint) {
 			/* stopping here */
 			maybedumptrees (DA_PTR (ccx->srcfiles), DA_CUR (ccx->srcfiles), DA_PTR (ccx->srctrees), DA_CUR (ccx->srctrees));
-			return -1;
+			return CSTR_CLEANEXIT;
 		}
 		if (ccx->errored) {
-			return -1;
+			return CSTR_ERREXIT;
 		}
 	}
-	return 0;
+	return CSTR_OK;
 }
 /*}}}*/
 
@@ -1958,6 +2064,8 @@ int main (int argc, char **argv)
 
 	dynarray_init (xmlnamespaces);
 	dynarray_init (initfcns);
+
+	dynarray_init (ihandlers);
 
 	/*}}}*/
 	/*{{{  general initialisation*/
@@ -2392,22 +2500,52 @@ int main (int argc, char **argv)
 	}
 	/*}}}*/
 
+	if (compopts.interactive) {
+		/*{{{  interactive mode*/
+		int atstage = 0;
+		char *prompt = string_fmt ("nocc-%d$ ", atstage);
 
-	/* do compiler stages (auto-run) */
-	for (i=0; stagetable[i].stagefcn; i++) {
-		int r;
+		for (;;) {
+			char *lbuf = readline (prompt);
 
-		if (!stagetable[i].noauto) {
-			r = stagetable[i].stagefcn (ccx);
-
-			if (stagetable[i].skipout && (r < 0)) {
-				goto main_out;
-			} else if (stagetable[i].skipout && (r > 0)) {
-				goto local_close_out;
-			} else if (stagetable[i].errout && ccx->errored) {
-				goto main_out;
+			if (!lbuf) {
+				/*{{{  EOF*/
+				if (!stagetable[atstage].stagefcn) {
+					/* all done */
+					goto local_close_out;
+				}
+				/*}}}*/
+			} else {
+				printf ("lbuf = [%s]\n", lbuf);
 			}
 		}
+		/*}}}*/
+	} else {
+		/*{{{  auto-run compiler stages*/
+		for (i=0; stagetable[i].stagefcn; i++) {
+			int r;
+
+			if (!(stagetable[i].flags & CST_NOAUTO)) {
+				r = stagetable[i].stagefcn (ccx);
+
+				switch (r) {
+				case CSTR_OK:
+					break;
+				case CSTR_EXITCOMP:
+					exit (EXIT_FAILURE);
+					break;
+				case CSTR_ERREXIT:
+					if (ccx->errored) {
+						goto main_out;
+					}
+					break;
+				case CSTR_CLEANEXIT:
+					goto local_close_out;
+					break;
+				}
+			}
+		}
+		/*}}}*/
 	}
 
 local_close_out:
