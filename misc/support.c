@@ -2206,6 +2206,27 @@ fprintf (stderr, "string_dequote(): output --> [%s]\n", str);
 	return rval;
 }
 /*}}}*/
+/*{{{  void string_freebits (char **bits)*/
+/*
+ *	frees an array of string-bits created from split_string with non-zero copy flag
+ */
+void string_freebits (char **bits)
+{
+	int i;
+
+	if (!bits) {
+		return;
+	}
+	for (i=0; bits[i]; i++) {
+		if (bits[i]) {
+			sfree (bits[i]);
+			bits[i] = NULL;
+		}
+	}
+	sfree (bits);
+	return;
+}
+/*}}}*/
 /*{{{  char *decode_hexstr (char *str, int *slen)*/
 /*
  *	this turns a string of HEX values into a regular string (undoes "mkhexbuf")

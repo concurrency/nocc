@@ -55,6 +55,7 @@
 #include "typecheck.h"
 #include "extn.h"
 #include "metadata.h"
+#include "interact.h"
 
 
 /*}}}*/
@@ -112,6 +113,8 @@ static feunit_t *feunit_set[] = {
 };
 
 static ntdef_t *testtruetag, *testfalsetag;
+
+static ihandler_t *eac_ihandler = NULL;
 
 
 /*}}}*/
@@ -202,15 +205,15 @@ langdef_t *eac_getlangdef (void)
 /*}}}*/
 
 
-/*{{{  static int eacinteract_cpass (tnode_t **treeptr)*/
+/*{{{  static int eac_callback_line (char *line)*/
 /*
- *	called to do the compiler pass for interactive operation
- *	returns 0 on success, non-zero on failure
+ *	callback in interactive mode for handling lines of text
+ *	returns IHR_ constant
  */
-static int eacinteract_cpass (tnode_t **treeptr)
+static int eac_callback_line (char *line)
 {
-	nocc_message ("eacinteract_cpass(): want to do interactive things!");
-	return 0;
+	nocc_message ("eac: callback line [%s]", line);
+	return IHR_UNHANDLED;
 }
 /*}}}*/
 
@@ -244,12 +247,6 @@ static int eac_parser_init (lexfile_t *lf)
 
 		/* register some general reduction functions */
 		fcnlib_addfcn ("eac_nametoken_to_hook", (void *)eac_nametoken_to_hook, 1, 1);
-
-		/* add compiler pass that'll kick-start the interactive side of things */
-		if (nocc_addcompilerpass ("eac-interact", INTERNAL_ORIGIN, "pre-scope", 1, (int (*)(void *))eacinteract_cpass, CPASS_TREEPTR, -1, NULL)) {
-			nocc_serious ("eac_parser_init(): failed to add \"eac-interact\" compiler pass");
-			return 1;
-		}
 
 		/* initialise! */
 		if (feunit_do_init_tokens (0, eac_priv->langdefs, origin_langparser (&eac_parser))) {
@@ -288,6 +285,15 @@ static int eac_parser_init (lexfile_t *lf)
 			parser_dumpgrules (stderr);
 		}
 
+		eac_ihandler = nocc_newihandler ();
+		eac_ihandler->id = string_dup ("eac");
+		eac_ihandler->prompt = string_dup ("eac");
+		eac_ihandler->flags = IHF_LINE;
+		eac_ihandler->enabled = 1;
+		eac_ihandler->line_callback = eac_callback_line;
+
+		nocc_register_ihandler (eac_ihandler);
+
 		parser_gettesttags (&testtruetag, &testfalsetag);
 	}
 	return 0;
@@ -299,6 +305,14 @@ static int eac_parser_init (lexfile_t *lf)
  */
 static void eac_parser_shutdown (lexfile_t *lf)
 {
+	if (eac_ihandler) {
+		nocc_unregister_ihandler (eac_ihandler);
+		nocc_freeihandler (eac_ihandler);
+		eac_ihandler = NULL;
+	}
+	if (compopts.verbose) {
+		nocc_message ("eac parser shutting down");
+	}
 	return;
 }
 /*}}}*/

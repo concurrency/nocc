@@ -1243,6 +1243,7 @@ ihandler_t *nocc_newihandler (void)
 	ihdlr->id = NULL;
 	ihdlr->prompt = NULL;
 	ihdlr->flags = IHF_NONE;
+	ihdlr->enabled = 0;
 	ihdlr->line_callback = NULL;
 	ihdlr->bits_callback = NULL;
 
@@ -1292,6 +1293,10 @@ int nocc_register_ihandler (ihandler_t *ihdlr)
 	}
 
 	dynarray_add (ihandlers, ihdlr);
+
+	if (compopts.verbose) {
+		nocc_message ("registering interaction handler for [%s]", ihdlr->id);
+	}
 	return 0;
 }
 /*}}}*/
@@ -1323,10 +1328,43 @@ int nocc_unregister_ihandler (ihandler_t *ihdlr)
 static int local_ihandler (char *line)
 {
 	if (!strcmp (line, "help")) {
-		printf ("foo!\n");
+		printf ("step            step through compiler stages\n");
+		printf ("run             run compiler to completion/error\n");
+		printf ("exit            exit compiler\n");
+		printf ("help [cmd]      help (specify command for specific help)\n");
+
+		return IHR_PHANDLED;
+	}
+	if (!strcmp (line, "version")) {
+		printf ("%s\n", version_string ());
+		return IHR_HANDLED;
+	}
+	if (!strcmp (line, "versions")) {
+		printf ("%s\n", version_string ());
+		return IHR_PHANDLED;			/* allow other things to say what version they are */
 	}
 
-	return 0;
+	return IHR_UNHANDLED;
+}
+/*}}}*/
+/*{{{  static int local_ibitshandler (char **bits, int nbits)*/
+/*
+ *	local handler for compiler-level things
+ */
+static int local_ibitshandler (char **bits, int nbits)
+{
+	if (nbits < 1) {
+		return IHR_UNHANDLED;
+	}
+	if (!strcmp (bits[0], "help")) {
+		if (nbits != 2) {
+			return IHR_UNHANDLED;
+		}
+		printf ("someone needs to implement this, but probably not embedded in the compiler sources!\n");
+		return IHR_PHANDLED;
+	}
+
+	return IHR_UNHANDLED;
 }
 /*}}}*/
 
@@ -1337,6 +1375,7 @@ typedef struct TAG_compcxt {
 	DYNARRAY (char *, fe_def_opts);
 	target_t *target;
 	int errored;
+	int atstage;
 
 	DYNARRAY (lexfile_t *, srclexers);
 	DYNARRAY (tnode_t *, srctrees);
@@ -1355,6 +1394,7 @@ static compcxt_t *nocc_newcompcxt (void)
 	dynarray_init (ccx->fe_def_opts);
 	ccx->target = NULL;
 	ccx->errored = 0;
+	ccx->atstage = 0;
 	dynarray_init (ccx->srclexers);
 	dynarray_init (ccx->srctrees);
 
@@ -1430,6 +1470,7 @@ static int cstage_bepasses (compcxt_t *ccx);
 /*{{{  cstage_t: compiler stage structure*/
 typedef struct TAG_cstage {
 	int (*stagefcn)(compcxt_t *);		/* stage function, returns CSTR_... */
+	const char *id;				/* short ID (internal identification) */
 	const char *sname;			/* stage name */
 	int flags;				/* see below (CST_...) */
 } cstage_t;
@@ -1443,35 +1484,38 @@ typedef struct TAG_cstage {
 #define CSTR_ERREXIT	2			/* if errors in compcxt_t.errored, exit compiler */
 #define CSTR_CLEANEXIT	3			/* close lexers, maybe dump trees and exit */
 
+#define CSTR_ATEND	4			/* at end of compilation sequence */
+#define CSTR_DOEXIT	5			/* do hard exit (something failed) */
+
 /*}}}*/
 /*{{{  cstagetable: compiler stage table*/
 static cstage_t stagetable[] = {
-/*	stagefcn			sname				flags			*/
-	{cstage_load_extensions,	"load extensions",		CST_NONE},
-	{cstage_dump_extensions,	"dump extensions",		CST_NONE},
-	{cstage_dump_regfcns,		"dump registered functions",	CST_NONE},
-	{cstage_check_compile,		"check for compile",		CST_NONE},
-	{cstage_extn_init,		"initialise extensions",	CST_NONE},
-	{cstage_trlang_init,		"initialise tree-rewriting",	CST_NONE},
-	{cstage_traces_init,		"initialise traces",		CST_NONE},
-	{cstage_findtarget,		"find target",			CST_NONE},
-	{cstage_dohelp_target,		"help with target",		CST_NONE},
+/*	stagefcn			id		sname				flags			*/
+	{cstage_load_extensions,	"lext",		"load extensions",		CST_NONE},
+	{cstage_dump_extensions,	"dext",		"dump extensions",		CST_NONE},
+	{cstage_dump_regfcns,		"drfcn",	"dump registered functions",	CST_NONE},
+	{cstage_check_compile,		"cchk",		"check for compile",		CST_NONE},
+	{cstage_extn_init,		"iext",		"initialise extensions",	CST_NONE},
+	{cstage_trlang_init,		"itrw",		"initialise tree-rewriting",	CST_NONE},
+	{cstage_traces_init,		"itrace",	"initialise traces",		CST_NONE},
+	{cstage_findtarget,		"ftarg",	"find target",			CST_NONE},
+	{cstage_dohelp_target,		"htarg",	"help with target",		CST_NONE},
 
-	{cstage_openlexers,		"open lexers",			CST_NONE},
-	{cstage_maybestop1,		"stop after tokenise",		CST_NOINT},
-	{cstage_doparse,		"parse",			CST_NONE},
-	{cstage_maybestop2,		"stop after parse",		CST_NOINT},
-	{cstage_parseerror,		"check parse error",		CST_NONE},
-	{cstage_maybedumpntypes,	"dump node types",		CST_NONE},
-	{cstage_maybedumpsntypes,	"dump node types (short)",	CST_NONE},
-	{cstage_maybedumpsntags,	"dump node tags (short)",	CST_NONE},
+	{cstage_openlexers,		"olex",		"open lexers",			CST_NONE},
+	{cstage_maybestop1,		"slex",		"stop after tokenise",		CST_NOINT},
+	{cstage_doparse,		"parse",	"parse",			CST_NONE},
+	{cstage_maybestop2,		"sparse",	"stop after parse",		CST_NOINT},
+	{cstage_parseerror,		"cparse",	"check parse error",		CST_NONE},
+	{cstage_maybedumpntypes,	"dnt",		"dump node types",		CST_NONE},
+	{cstage_maybedumpsntypes,	"dsnt",		"dump node types (short)",	CST_NONE},
+	{cstage_maybedumpsntags,	"dsntag",	"dump node tags (short)",	CST_NONE},
 
-	{cstage_fepasses,		"front-end compiler passes",	CST_NONE},
-	{cstage_targetinit,		"initialise target",		CST_NONE},
-	{cstage_beargs,			"process left-over options",	CST_NONE},
-	{cstage_bepasses,		"back-end compiler passes",	CST_NONE},
+	{cstage_fepasses,		"feps",		"front-end compiler passes",	CST_NONE},
+	{cstage_targetinit,		"itarg",	"initialise target",		CST_NONE},
+	{cstage_beargs,			"beopt",	"process left-over options",	CST_NONE},
+	{cstage_bepasses,		"beps",		"back-end compiler passes",	CST_NONE},
 
-	{NULL,				NULL,				CST_NONE}
+	{NULL,				NULL,		NULL,				CST_NONE}
 };
 /*}}}*/
 
@@ -2017,6 +2061,46 @@ static int cstage_bepasses (compcxt_t *ccx)
 }
 /*}}}*/
 
+/*{{{  static int cstage_run (int stage, compcxt_t *ccx)*/
+/*
+ *	try and run specified compiler stage, returns CSTR_(OK|ATEND|CLEANEXIT|DOEXIT) constant
+ */
+static int cstage_run (int stage, int iact, int iauto, compcxt_t *ccx)
+{
+	if (!stagetable[stage].stagefcn) {
+		return CSTR_ATEND;
+	} else if (iact && (stagetable[stage].flags & CST_NOINT)) {
+		return CSTR_OK;
+	} else if (iauto && (stagetable[stage].flags & CST_NOAUTO)) {
+		return CSTR_OK;
+	} else {
+		int r;
+		
+		ccx->atstage = stage;
+		r = stagetable[stage].stagefcn (ccx);
+
+		switch (r) {
+		case CSTR_OK:
+			return CSTR_OK;
+		case CSTR_EXITCOMP:
+			return CSTR_DOEXIT;
+		case CSTR_CLEANEXIT:
+			return CSTR_CLEANEXIT;
+		case CSTR_ERREXIT:
+			if (ccx->errored) {
+				return CSTR_DOEXIT;
+			}
+			return CSTR_OK;
+		default:
+			nocc_warning ("cstage_run(): unhandled return code %d from stage \"%s\"", r, stagetable[stage].sname);
+			return CSTR_DOEXIT;
+		}
+	}
+
+	return CSTR_DOEXIT;		/* won't actually get here */
+}
+/*}}}*/
+
 
 /*{{{  int main (int argc, char **argv)*/
 /*
@@ -2499,24 +2583,156 @@ int main (int argc, char **argv)
 		goto main_out;
 	}
 	/*}}}*/
+	/*{{{  hook in local interactive handlers*/
+	{
+		ihandler_t *lhan = nocc_newihandler ();
+		ihandler_t *lbitshan = nocc_newihandler ();
+
+		lhan->id = string_dup ("main1");
+		lhan->prompt = ("");
+		lhan->flags = IHF_LINE;
+		lhan->enabled = 1;
+		lhan->line_callback = local_ihandler;
+
+		lbitshan->id = string_dup ("main2");
+		lbitshan->prompt = ("");
+		lbitshan->flags = IHF_BITS;
+		lbitshan->enabled = 1;
+		lbitshan->bits_callback = local_ibitshandler;
+
+		nocc_register_ihandler (lhan);
+		nocc_register_ihandler (lbitshan);
+	}
+	/*}}}*/
 
 	if (compopts.interactive) {
 		/*{{{  interactive mode*/
-		int atstage = 0;
-		char *prompt = string_fmt ("nocc-%d$ ", atstage);
+		ccx->atstage = 0;
+
+		using_history ();
 
 		for (;;) {
+			char *prompt = string_fmt ("nocc-%d$ ", ccx->atstage);
 			char *lbuf = readline (prompt);
 
+			sfree (prompt);
 			if (!lbuf) {
 				/*{{{  EOF*/
-				if (!stagetable[atstage].stagefcn) {
+				printf ("\n");
+				if (!stagetable[ccx->atstage].stagefcn) {
 					/* all done */
 					goto local_close_out;
+				} else {
+					printf ("compilation incomplete, use \'run\' to complete\n");
 				}
 				/*}}}*/
+			} else if (!strlen (lbuf)) {
+				/* empty string, ignore */
+				free (lbuf);
 			} else {
-				printf ("lbuf = [%s]\n", lbuf);
+				char *xbuf = string_dup (lbuf);
+
+				free (lbuf);
+				add_history (xbuf);
+				if (!strcmp (xbuf, "step") || !strcmp (xbuf, "s")) {
+					/*{{{  step to next stage*/
+					int r;
+
+					r = cstage_run (ccx->atstage, 1, 0, ccx);
+					switch (r) {
+					case CSTR_ATEND:
+						/* at end */
+						printf ("at end of compilation run\n");
+						break;
+					case CSTR_OK:
+						/* success! */
+						ccx->atstage++;
+						break;
+					case CSTR_CLEANEXIT:
+						printf ("stage \"%s\" failed clean (exit)\n", stagetable[ccx->atstage].sname);
+						break;
+					case CSTR_DOEXIT:
+						printf ("stage \"%s\" failed (exit)\n", stagetable[ccx->atstage].sname);
+						break;
+					}
+					/*}}}*/
+				} else if (!strcmp (xbuf, "run") || !strcmp (xbuf, "r")) {
+					/*{{{  run to completion (or as far as we can)*/
+					int i, dostop;
+
+					for (i = ccx->atstage, dostop = 0; stagetable[i].stagefcn && !dostop; i++) {
+						int r;
+
+						r = cstage_run (i, 1, 0, ccx);
+						switch (r) {
+						case CSTR_OK:
+						default:
+							break;
+						case CSTR_ATEND:
+							printf ("at end of compilation run\n");
+							break;
+						case CSTR_CLEANEXIT:
+							printf ("stage \"%s\" failed clean (exit)\n", stagetable[ccx->atstage].sname);
+							dostop = 1;
+							break;
+						case CSTR_DOEXIT:
+							printf ("stage \"%s\" failed (exit)\n", stagetable[ccx->atstage].sname);
+							dostop = 1;
+							break;
+						}
+					}
+					ccx->atstage = i;
+					/*}}}*/
+				} else if (!strcmp (xbuf, "exit")) {
+					/*{{{  exit compiler*/
+					goto local_close_out;
+					/*}}}*/
+				} else {
+					/*{{{  try various interactive handlers*/
+					int i, handled = 0;
+					char **bitset = split_string (xbuf, 1);
+
+					for (i=0; i<DA_CUR (ihandlers); i++) {
+						ihandler_t *ihdlr = DA_NTHITEM (ihandlers, i);
+
+						if (!ihdlr->enabled) {
+							continue;
+						}
+						if (ihdlr->flags & IHF_LINE) {
+							/* try line callback */
+							int r = ihdlr->line_callback (xbuf);
+
+							if (r == IHR_HANDLED) {
+								handled++;
+								break;			/* for() */
+							} else if (r == IHR_PHANDLED) {
+								handled++;
+							}
+						} else if (ihdlr->flags & IHF_BITS) {
+							/* try bits callback */
+							int nbits, r;
+
+							for (nbits = 0; bitset[nbits]; nbits++);
+							r = ihdlr->bits_callback (bitset, nbits);
+							if (r == IHR_HANDLED) {
+								handled++;
+								break;			/* for() */
+							} else if (r == IHR_PHANDLED) {
+								handled++;
+							}
+						}
+					}
+
+					if (!handled) {
+						printf ("unknown command \"%s\"\n", bitset[0] ? bitset[0] : "");
+					}
+
+					string_freebits (bitset);
+
+					/*}}}*/
+				}
+
+				sfree (xbuf);
 			}
 		}
 		/*}}}*/
@@ -2525,24 +2741,16 @@ int main (int argc, char **argv)
 		for (i=0; stagetable[i].stagefcn; i++) {
 			int r;
 
-			if (!(stagetable[i].flags & CST_NOAUTO)) {
-				r = stagetable[i].stagefcn (ccx);
-
-				switch (r) {
-				case CSTR_OK:
-					break;
-				case CSTR_EXITCOMP:
-					exit (EXIT_FAILURE);
-					break;
-				case CSTR_ERREXIT:
-					if (ccx->errored) {
-						goto main_out;
-					}
-					break;
-				case CSTR_CLEANEXIT:
-					goto local_close_out;
-					break;
-				}
+			r = cstage_run (i, 0, 1, ccx);
+			switch (r) {
+			case CSTR_OK:
+			case CSTR_ATEND:
+			default:
+				break;
+			case CSTR_DOEXIT:
+				goto main_out;
+			case CSTR_CLEANEXIT:
+				goto local_close_out;
 			}
 		}
 		/*}}}*/

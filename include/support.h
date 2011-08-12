@@ -1,6 +1,6 @@
 /*
  *	support.h - support routine interface
- *	Copyright (C) 2000-2004 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2000-2011 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -268,6 +268,7 @@ extern int parse_uint16hex (char *ch);
 	extern char **split_string2 (char *str, char s1, char s2);
 	extern char *decode_hexstr (char *str, int *slen);
 #endif
+extern void string_freebits (char **bits);
 extern int string_dequote (char *str);
 
 #if 0
