@@ -50,6 +50,8 @@ typedef struct {
 
 extern eac_pset_t eac;
 
+/* handler for interactive mode */
+extern int eac_callback_line (char *line);
 
 extern void eac_isetindent (FILE *stream, int indent);
 extern struct TAG_langdef *eac_getlangdef (void);

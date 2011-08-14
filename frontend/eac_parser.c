@@ -114,9 +114,6 @@ static feunit_t *feunit_set[] = {
 
 static ntdef_t *testtruetag, *testfalsetag;
 
-static ihandler_t *eac_ihandler = NULL;
-
-
 /*}}}*/
 
 
@@ -205,12 +202,12 @@ langdef_t *eac_getlangdef (void)
 /*}}}*/
 
 
-/*{{{  static int eac_callback_line (char *line)*/
+/*{{{  int eac_callback_line (char *line)*/
 /*
  *	callback in interactive mode for handling lines of text
  *	returns IHR_ constant
  */
-static int eac_callback_line (char *line)
+int eac_callback_line (char *line)
 {
 	nocc_message ("eac: callback line [%s]", line);
 	return IHR_UNHANDLED;
@@ -285,15 +282,6 @@ static int eac_parser_init (lexfile_t *lf)
 			parser_dumpgrules (stderr);
 		}
 
-		eac_ihandler = nocc_newihandler ();
-		eac_ihandler->id = string_dup ("eac");
-		eac_ihandler->prompt = string_dup ("eac");
-		eac_ihandler->flags = IHF_LINE;
-		eac_ihandler->enabled = 1;
-		eac_ihandler->line_callback = eac_callback_line;
-
-		nocc_register_ihandler (eac_ihandler);
-
 		parser_gettesttags (&testtruetag, &testfalsetag);
 	}
 	return 0;
@@ -305,11 +293,6 @@ static int eac_parser_init (lexfile_t *lf)
  */
 static void eac_parser_shutdown (lexfile_t *lf)
 {
-	if (eac_ihandler) {
-		nocc_unregister_ihandler (eac_ihandler);
-		nocc_freeihandler (eac_ihandler);
-		eac_ihandler = NULL;
-	}
 	if (compopts.verbose) {
 		nocc_message ("eac parser shutting down");
 	}

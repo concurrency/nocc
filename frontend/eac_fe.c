@@ -37,6 +37,13 @@
 #include "eac.h"
 #include "opts.h"
 #include "eac_fe.h"
+#include "interact.h"
+
+/*}}}*/
+/*{{{  private vars*/
+
+static ihandler_t *eac_ihandler = NULL;
+
 
 /*}}}*/
 
@@ -57,6 +64,15 @@ int eac_register_frontend (void)
 	
 	nocc_addxmlnamespace ("eac", "http://www.cs.kent.ac.uk/projects/ofa/nocc/NAMESPACES/eac");
 
+	eac_ihandler = nocc_newihandler ();
+	eac_ihandler->id = string_dup ("eac");
+	eac_ihandler->prompt = string_dup ("eac");
+	eac_ihandler->flags = IHF_LINE;
+	eac_ihandler->enabled = 1;
+	eac_ihandler->line_callback = eac_callback_line;
+
+	nocc_register_ihandler (eac_ihandler);
+
 	return 0;
 }
 /*}}}*/
@@ -67,9 +83,16 @@ int eac_register_frontend (void)
  */
 int eac_unregister_frontend (void)
 {
+	if (eac_ihandler) {
+		nocc_unregister_ihandler (eac_ihandler);
+		nocc_freeihandler (eac_ihandler);
+		eac_ihandler = NULL;
+	}
+
 	if (lexer_unregisterlang (&eac_lexer)) {
 		return -1;
 	}
+
 	return 0;
 }
 /*}}}*/
