@@ -13,6 +13,17 @@
 .SYMBOL	"||"
 .SYMBOL	"{"
 .SYMBOL "}"
+.SYMBOL "("
+.SYMBOL ")"
+.SYMBOL "?"
+.SYMBOL "!"
+.SYMBOL "^"
+.SYMBOL "~"
+.SYMBOL ","
+.SYMBOL "="
+.SYMBOL "<-"
+.SYMBOL "<"
+.SYMBOL ">"
 
 .GRULE	"eac:nullreduce" "N+R-"
 .GRULE	"eac:nullpush" "0N-"
@@ -39,7 +50,10 @@
 
 .BNF	"eac:eseq ::= @@< eac:eventlist @@>"
 
-.BNF	"eac:eset ::= @@{ { eac:eseq @@, 0 } @@}"
+.BNF	"eac:eseqlist ::= { eac:eseq @@, 0 }"
+
+.TABLE	"eac:eset ::= [ 0 @@{ 1 ] [ 1 eac:eseqlist 2 ] [ 2 {<eac:nullreduce>} -* 3 ] [ 3 Newline 3 ] [ 3 -* ]"
+# .BNF	"eac:eset ::= @@{ { eac:eseq @@, 0 } @@}"
 .BNF	"eac:expr ::= eac:eset"
 
 .TABLE	"eac:process ::= [ 0 eac:name 1 ] [ 1 eac:fparamlist 2 ] [ 2 @@= 3 ] [ 3 eac:expr 4 ] [ 4 {<eac:pdecl>} -* ]"

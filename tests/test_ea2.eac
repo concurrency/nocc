@@ -1,7 +1,7 @@
 # test_ea2.eac
 # testing escape-analysis stuff for NOCC
 
-@interactive
+#@interactive
 
 # define escape for some standard processes
 
