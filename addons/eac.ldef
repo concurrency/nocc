@@ -10,21 +10,6 @@
 # sections are used to help front-end units find the definitions
 .SECTION "eac" # {{{: EAC tokens and general reductions
 
-.SYMBOL	"||"
-.SYMBOL	"{"
-.SYMBOL "}"
-.SYMBOL "("
-.SYMBOL ")"
-.SYMBOL "?"
-.SYMBOL "!"
-.SYMBOL "^"
-.SYMBOL "~"
-.SYMBOL ","
-.SYMBOL "="
-.SYMBOL "<-"
-.SYMBOL "<"
-.SYMBOL ">"
-
 .GRULE	"eac:nullreduce" "N+R-"
 .GRULE	"eac:nullpush" "0N-"
 .GRULE	"eac:nullset" "0R-"

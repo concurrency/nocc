@@ -481,7 +481,7 @@ default_label:
 		{
 			symbol_t *sym = symbols_match (ch, chlim, LANGTAG_EAC);
 
-#if 1
+#if 0
 nocc_message ("in eac_nexttoken/default: ch = \'%c\', sym = %p", *ch, sym);
 #endif
 			if (sym) {
