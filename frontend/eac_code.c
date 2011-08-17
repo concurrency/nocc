@@ -266,6 +266,38 @@ static int eac_code_init_nodes (void)
 	eac.tag_ESET = tnode_newnodetag ("EACESET", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  eac:chanmark -- EACSVREND, EACCLIEND*/
+	i = -1;
+	tnd = tnode_newnodetype ("eac:chanmark", &i, 1, 0, 0, TNF_NONE);			/* subnodes: channel */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	eac.tag_SVREND = tnode_newnodetag ("EACSVREND", &i, tnd, NTF_NONE);
+	i = -1;
+	eac.tag_CLIEND = tnode_newnodetag ("EACCLIEND", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  eac:pcompnode -- EACPAR*/
+	i = -1;
+	tnd = tnode_newnodetype ("eac:pcompnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: left, right */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	eac.tag_PAR = tnode_newnodetag ("EACPAR", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  eac:instancenode -- EACINSTANCE*/
+	i = -1;
+	tnd = tnode_newnodetype ("eac:instancenode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: name, params */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	eac.tag_INSTANCE = tnode_newnodetag ("EACINSTANCE", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 
 	return 0;
 }

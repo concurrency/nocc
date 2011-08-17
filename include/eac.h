@@ -45,10 +45,16 @@ typedef struct {
 	struct TAG_ntdef *tag_ESET;
 	struct TAG_ntdef *tag_ESEQ;
 
+	struct TAG_ntdef *tag_SVREND;
+	struct TAG_ntdef *tag_CLIEND;
+
 	struct TAG_ntdef *tag_INPUT;
 	struct TAG_ntdef *tag_OUTPUT;
 
 	struct TAG_ntdef *tag_VARCOMP;
+
+	struct TAG_ntdef *tag_PAR;
+	struct TAG_ntdef *tag_INSTANCE;
 
 	struct TAG_token *tok_ATSIGN;
 } eac_pset_t;
