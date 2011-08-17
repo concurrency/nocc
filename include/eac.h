@@ -54,6 +54,7 @@ typedef struct {
 	struct TAG_ntdef *tag_VARCOMP;
 
 	struct TAG_ntdef *tag_PAR;
+	struct TAG_ntdef *tag_HIDE;
 	struct TAG_ntdef *tag_INSTANCE;
 
 	struct TAG_token *tok_ATSIGN;

@@ -54,7 +54,7 @@ static symbol_t symbols[] = {
 	{"*", 1, LANGTAG_OCCAMPI, NULL},
 	{"-", 1, LANGTAG_OCCAMPI, NULL},
 	{"/", 1, LANGTAG_OCCAMPI, NULL},
-	{"\\", 1, LANGTAG_OCCAMPI, NULL},
+	{"\\", 1, LANGTAG_OCCAMPI | LANGTAG_EAC, NULL},
 	{"[", 1, LANGTAG_OCCAMPI, NULL},
 	{"]", 1, LANGTAG_OCCAMPI, NULL},
 	{"(", 1, LANGTAG_OCCAMPI | LANGTAG_EAC, NULL},

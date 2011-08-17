@@ -278,7 +278,7 @@ static int eac_code_init_nodes (void)
 	eac.tag_CLIEND = tnode_newnodetag ("EACCLIEND", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  eac:pcompnode -- EACPAR*/
+	/*{{{  eac:pcompnode -- EACPAR, EACHIDE*/
 	i = -1;
 	tnd = tnode_newnodetype ("eac:pcompnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: left, right */
 	cops = tnode_newcompops ();
@@ -286,6 +286,8 @@ static int eac_code_init_nodes (void)
 
 	i = -1;
 	eac.tag_PAR = tnode_newnodetag ("EACPAR", &i, tnd, NTF_NONE);
+	i = -1;
+	eac.tag_HIDE = tnode_newnodetag ("EACHIDE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  eac:instancenode -- EACINSTANCE*/

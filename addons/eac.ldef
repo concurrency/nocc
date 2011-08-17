@@ -39,8 +39,8 @@
 
 .GRULE	"eac:instancereduce" "SN0N+N+C[EACINSTANCE]2R-"
 
-.GRULE	"eac:parreduce" "T+St0@tN+N+C[EACPAR]2R-"
-
+.GRULE	"eac:parreduce" "T+St0@tN+N+VC[EACPAR]2R-"
+.GRULE	"eac:hidereduce" "T+St0@tN+N+VC[EACHIDE]2R-"
 
 
 .TABLE	"eac:name ::= [ 0 +Name 1 ] [ 1 {<eac:namereduce>} -* ]"
@@ -66,7 +66,8 @@
 
 .BNF	"eac:eseqlist ::= { eac:eseq @@, 0 }"
 
-.TABLE	"eac:prestofexpr ::= [ 0 @@|| 1 ] [ 1 {<eac:resultpop>} -* 2 ] [ 2 eac:pexpr 3 ] [ 3 {<eac:parreduce>} -* ]"
+.TABLE	"eac:prestofexpr ::= [ 0 +@@|| 1 ] [ 1 {<eac:resultpop>} -* 2 ] [ 2 eac:pexpr 3 ] [ 3 {<eac:parreduce>} -* ]"
+	"[ 0 +@@\\ 4 ] [ 4 {<eac:resultpop>} -* 5 ] [ 5 @@{ 6 ] [ 6 eac:maybemarkednamelist 7 ] [ 7 @@} 8 ] [ 8 {<eac:hidereduce>} -* ]"
 	"[ 0 -* ]"
 
 .BNF	"eac:aparamlist ::= eac:maybemarkednamelist {<eac:nullreduce>}"
@@ -76,9 +77,10 @@
 
 .TABLE	"eac:eset ::= [ 0 @@{ 1 ] [ 1 Newline 1 ] [ 1 -* 2 ] [ 2 eac:eseqlist 3 ] [ 3 {<eac:esetreduce>} -* 4 ] [ 4 Newline 4 ] [ 4 @@} 5 ] [ 5 -* ]"
 .TABLE	"eac:pexpr ::= [ 0 -@@{ 1 ] [ 1 eac:eset 2 ] [ 2 {<eac:nullreduce>} -* ]"
-	"[ 0 -Name 3 ] [ 3 eac:pexprnamestart 4 ] [ 4 {<eac:nullreduce>} -* ]"
+	"[ 0 -Name 3 ] [ 3 eac:pexprnamestart 4 ] [ 4 {<eac:nullreduce>} -* <eac:prestofexpr> ]"
+	"[ 0 @@( 5 ] [ 5 eac:pexpr 6 ] [ 6 @@) 7 ] [ 7 {<eac:nullreduce>} -* <eac:prestofexpr> ]"
 
-.TABLE	"eac:process ::= [ 0 eac:name 1 ] [ 1 eac:fparamlist 2 ] [ 2 @@= 3 ] [ 3 eac:pexpr 4 ] [ 4 {<eac:pdecl>} -* ]"
+.TABLE	"eac:process ::= [ 0 eac:name 1 ] [ 1 eac:fparamlist 2 ] [ 2 @@= 3 ] [ 3 Newline 3 ] [ 3 eac:pexpr 4 ] [ 4 {<eac:pdecl>} -* ]"
 
 #}}}
 
