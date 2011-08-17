@@ -200,7 +200,7 @@ static int eac_code_init_nodes (void)
 	fcnlib_addfcn ("eac_nametoken_to_hook", (void *)eac_nametoken_to_hook, 1, 1);
 
 	/*}}}*/
-	/*{{{  mcsp:rawnamenode -- NAME*/
+	/*{{{  eac:rawnamenode -- EACNAME*/
 	i = -1;
 	tnd = tnode_newnodetype ("eac:rawnamenode", &i, 0, 0, 1, TNF_NONE);			/* hooks: raw-name */
 	tnd->hook_free = eac_rawnamenode_hook_free;
@@ -214,7 +214,28 @@ static int eac_code_init_nodes (void)
 	eac.tag_NAME = tnode_newnodetag ("EACNAME", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  eac:actionnode -- EACINPUT, EACOUTPUT*/
+	i = -1;
+	tnd = tnode_newnodetype ("eac:actionnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: left, right */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
 
+	i = -1;
+	eac.tag_INPUT = tnode_newnodetag ("EACINPUT", &i, tnd, NTF_NONE);
+	i = -1;
+	eac.tag_OUTPUT = tnode_newnodetag ("EACOUTPUT", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  eac:varcomp -- EACVARCOMP*/
+	i = -1;
+	tnd = tnode_newnodetype ("eac:varcomp", &i, 2, 0, 0, TNF_NONE);				/* subnodes: left, right */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	eac.tag_VARCOMP = tnode_newnodetag ("EACVARCOMP", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 
 	return 0;
 }

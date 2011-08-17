@@ -25,12 +25,22 @@
 .GRULE	"eac:namereduce" "T+St0X[eac_nametoken_to_hook]C[EACNAME]1R-"
 .GRULE	"eac:pdecl" ""
 
+.GRULE	"eac:inputreduce" "SN0N+N+C[EACINPUT]2R-"
+.GRULE	"eac:outputreduce" "SN0N+N+C[EACOUTPUT]2R-"
+
+.GRULE	"eac:varcompreduce" "SN0N+N+C[EACVARCOMP]2R-"
+
 .TABLE	"eac:name ::= [ 0 +Name 1 ] [ 1 {<eac:namereduce>} -* ]"
+.BNF	"eac:namelist ::= { eac:name @@, 0 }"
 
 .BNF	"eac:fparams ::= { eac:name @@, 0 }"
 .TABLE	"eac:fparamlist ::= [ 0 @@( 1 ] [ 1 eac:fparams 2 ] [ 2 @@) 3 ] [ 3 {<eac:nullreduce>} -* ]"
 
-.TABLE	"eac:event ::= [ 0 +Name 1 ] [ 1 {<eac:namereduce>} -* ]"
+.TABLE	"eac:eventrhs ::= [ 0 eac:name 1 ] [ 1 @@<- 3 ] [ 1 -* 2 ] [ 2 {<eac:nullreduce>} -* ]"
+	"[ 3 -Name 4 ] [ 4 eac:name 7 ] [ 3 @@{ 5 ] [ 5 eac:namelist 6 ] [ 6 @@} 7 ] [ 7 {<eac:varcompreduce>} -* ]"
+
+.TABLE	"eac:event ::= [ 0 eac:name 1 ] [ 1 @@? 2 ] [ 2 eac:eventrhs 3 ] [ 3 {<eac:inputreduce>} -* ]"
+	"[ 1 @@! 4 ] [ 4 eac:eventrhs 5 ] [ 5 {<eac:outputreduce>} -* ]"
 .BNF	"eac:eventlist ::= { eac:event @@, 0 }"
 
 .BNF	"eac:eseq ::= @@< eac:eventlist @@>"

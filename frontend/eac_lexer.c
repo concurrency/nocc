@@ -299,6 +299,10 @@ tokenloop:
 				lf->lineno++;
 			}
 		}
+
+		/* and because whitespace isn't interesting, eat that up too */
+		for (; (dh < chlim) && ((*dh == ' ') || (*dh == '\t')); dh++);
+
 		lp->offset += (int)(dh - ch);
 		goto out_tok;
 		/*}}}*/
