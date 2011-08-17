@@ -99,7 +99,7 @@ extern char *string_lower (const char *);
 #define DYNARRAY(TYPE,NAME) int DA_CUR(NAME), DA_MAX(NAME); TYPE* DA_PTR(NAME)
 #define DYNSARRAY(TYPE,NAME) int DA_CUR(NAME), DA_MAX(NAME); struct TYPE* DA_PTR(NAME)
 #define STATICDYNARRAY(TYPE,NAME) static int DA_CUR(NAME), DA_MAX(NAME); static TYPE* DA_PTR(NAME)
-#define DA_CONSTINITIALISER(NAME) DA_PTR(NAME): NULL, DA_CUR(NAME): 0, DA_MAX(NAME): 0
+#define DA_CONSTINITIALISER(NAME) .DA_PTR(NAME)= NULL, .DA_CUR(NAME)= 0, .DA_MAX(NAME)= 0
 
 #ifdef TRACE_MEMORY
 	#define da_additem(X,A,B,C) ss_da_additem(__FILE__,__LINE__,X,A,B,C)
