@@ -88,7 +88,7 @@ void typecheck_warning (tnode_t *node, typecheck_t *tc, const char *fmt, ...)
 		orgfile->warncount++;
 	}
 	tc->warn++;
-	nocc_message (warnbuf);
+	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;
@@ -120,7 +120,7 @@ void typecheck_error (tnode_t *node, typecheck_t *tc, const char *fmt, ...)
 		orgfile->errcount++;
 	}
 	tc->err++;
-	nocc_message (warnbuf);
+	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;
@@ -316,7 +316,7 @@ tnode_t *typecheck_typeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t
  */
 tnode_t *typecheck_fixedtypeactual (tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc, const int deep)
 {
-	tnode_t *usedtype = NULL;
+	/* tnode_t *usedtype = NULL;*/
 	tnode_t **f_subnodes;
 	tnode_t **a_subnodes;
 	int f_nodes, a_nodes;

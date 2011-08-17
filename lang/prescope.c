@@ -90,7 +90,7 @@ void prescope_warning (tnode_t *node, prescope_t *ps, const char *fmt, ...)
 		orgfile->warncount++;
 	}
 	ps->warn++;
-	nocc_message (warnbuf);
+	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;
@@ -122,7 +122,7 @@ void prescope_error (tnode_t *node, prescope_t *ps, const char *fmt, ...)
 		orgfile->errcount++;
 	}
 	ps->err++;
-	nocc_message (warnbuf);
+	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;

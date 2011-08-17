@@ -90,7 +90,7 @@ void scope_warning (tnode_t *node, scope_t *ss, const char *fmt, ...)
 		orgfile->warncount++;
 	}
 	ss->warn++;
-	nocc_message (warnbuf);
+	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;
@@ -122,7 +122,7 @@ void scope_error (tnode_t *node, scope_t *ss, const char *fmt, ...)
 		orgfile->errcount++;
 	}
 	ss->err++;
-	nocc_message (warnbuf);
+	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;

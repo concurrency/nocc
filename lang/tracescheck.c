@@ -447,7 +447,7 @@ void tracescheck_warning (tnode_t *node, tchk_state_t *tc, const char *fmt, ...)
 		orgfile->warncount++;
 	}
 	tc->warn++;
-	nocc_message (warnbuf);
+	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;
@@ -479,7 +479,7 @@ void tracescheck_error (tnode_t *node, tchk_state_t *tc, const char *fmt, ...)
 		orgfile->errcount++;
 	}
 	tc->err++;
-	nocc_message (warnbuf);
+	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;
@@ -512,7 +512,7 @@ void tracescheck_checkwarning (tnode_t *node, tchk_check_t *tcc, const char *fmt
 		orgfile->warncount++;
 	}
 	tcc->warn++;
-	nocc_message (warnbuf);
+	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;
@@ -544,7 +544,7 @@ void tracescheck_checkerror (tnode_t *node, tchk_check_t *tcc, const char *fmt, 
 		orgfile->errcount++;
 	}
 	tcc->err++;
-	nocc_message (warnbuf);
+	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;

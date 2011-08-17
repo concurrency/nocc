@@ -515,7 +515,7 @@ void usagecheck_error (tnode_t *org, uchk_state_t *ucstate, const char *fmt, ...
 	}
 	ucstate->err++;
 
-	nocc_message (warnbuf);
+	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;
@@ -548,7 +548,7 @@ void usagecheck_warning (tnode_t *org, uchk_state_t *ucstate, const char *fmt, .
 	}
 	ucstate->warn++;
 
-	nocc_message (warnbuf);
+	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;
