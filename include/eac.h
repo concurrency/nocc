@@ -57,6 +57,10 @@ typedef struct {
 	struct TAG_ntdef *tag_HIDE;
 	struct TAG_ntdef *tag_INSTANCE;
 
+	struct TAG_ntdef *tag_NPROCDEF;
+	struct TAG_ntdef *tag_NCHANVAR;
+	struct TAG_ntdef *tag_NVAR;
+
 	struct TAG_token *tok_ATSIGN;
 } eac_pset_t;
 

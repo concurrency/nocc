@@ -102,6 +102,33 @@ static void eac_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent
 /*}}}*/
 
 
+/*{{{  static int eac_scopein_declnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes in a process definition
+ */
+static int eac_scopein_declnode (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	tnode_t *name = tnode_nthsubof (*node, 0);
+	void *nsmark;
+	char *rawname;
+	name_t *procname;
+	tnode_t *newname;
+
+	nsmark = name_markscope ();
+
+	rawname = tnode_nthhookof (name, 0);
+	procname = name_addscopenamess (rawname, *node, NULL, NULL, ss);
+	newname = tnode_createfrom (eac.tag_NPROCDEF, name, procname);
+	SetNameNode (procname, newname);
+	tnode_setnthsub (*node, 0, newname);
+
+	/* free old name */
+	tnode_free (name);
+	ss->scoped++;
+
+	return 1;
+}
+/*}}}*/
 /*{{{  static int eac_scopein_rawname (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes in a free-floating name
@@ -214,6 +241,20 @@ static int eac_code_init_nodes (void)
 	eac.tag_NAME = tnode_newnodetag ("EACNAME", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  eac:namenode -- EACNPROCDEF, EACNCHANVAR, EACNVAR*/
+	i = -1;
+	tnd = tnode_newnodetype ("eac:namenode", &i, 0, 1, 0, TNF_NONE);			/* names: name */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	eac.tag_NPROCDEF = tnode_newnodetag ("EACNPROCDEF", &i, tnd, NTF_NONE);
+	i = -1;
+	eac.tag_NCHANVAR = tnode_newnodetag ("EACNCHANVAR", &i, tnd, NTF_NONE);
+	i = -1;
+	eac.tag_NVAR = tnode_newnodetag ("EACNVAR", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 	/*{{{  eac:actionnode -- EACINPUT, EACOUTPUT*/
 	i = -1;
 	tnd = tnode_newnodetype ("eac:actionnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: left, right */
@@ -240,6 +281,7 @@ static int eac_code_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("eac:declnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: name, params, body */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (eac_scopein_declnode));
 	tnd->ops = cops;
 
 	i = -1;
