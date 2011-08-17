@@ -236,6 +236,36 @@ static int eac_code_init_nodes (void)
 	eac.tag_VARCOMP = tnode_newnodetag ("EACVARCOMP", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  eac:declnode -- EACDECL*/
+	i = -1;
+	tnd = tnode_newnodetype ("eac:declnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: name, params, body */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	eac.tag_DECL = tnode_newnodetag ("EACDECL", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  eac:eseqnode -- EACESEQ*/
+	i = -1;
+	tnd = tnode_newnodetype ("eac:eseqnode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: escape-sequence-list */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	eac.tag_ESEQ = tnode_newnodetag ("EACESEQ", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  eac:esetnode -- EACESET*/
+	i = -1;
+	tnd = tnode_newnodetype ("eac:esetnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: free-var-decls, escape-sequences */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	eac.tag_ESET = tnode_newnodetag ("EACESET", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 
 	return 0;
 }

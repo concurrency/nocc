@@ -301,27 +301,27 @@ static void eac_parser_shutdown (lexfile_t *lf)
 /*}}}*/
 
 
-/*{{{  static tnode_t *eac_parser_parse (lexfile_t *lf)*/
+/*{{{  static tnode_t *eac_parser_parseprocessdef (lexfile_t *lf)*/
 /*
- *	called to parse a file
+ *	parses a single EAC process definition, as typically read from a file
  *	returns a tree on success, NULL on failure
  */
-static tnode_t *eac_parser_parse (lexfile_t *lf)
+static tnode_t *eac_parser_parseprocdef (lexfile_t *lf)
 {
 	token_t *tok;
 	tnode_t *tree = NULL;
 	tnode_t **target = &tree;
 
-	if (compopts.verbose) {
-		nocc_message ("eac_parser_parse(): starting parse..");
+	if (compopts.verbose > 1) {
+		nocc_message ("eac_parser_parseprocdef(): starting parse for single process definition..");
 	}
 
 	for (;;) {
 		tnode_t *thisone;
 		int tnflags;
-		int gotall = 0;
 		int breakfor = 0;
 
+		/* eat up newlines, stop if we get to the end */
 		tok = lexer_nexttoken (lf);
 		while ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
 			lexer_freetoken (tok);
@@ -334,6 +334,7 @@ static tnode_t *eac_parser_parse (lexfile_t *lf)
 		}
 		lexer_pushback (lf, tok);
 
+		/* get the process */
 		thisone = dfa_walk ("eac:process", 0, lf);
 		if (!thisone) {
 			*target = NULL;
@@ -359,6 +360,76 @@ static tnode_t *eac_parser_parse (lexfile_t *lf)
 			break;
 		}
 	}
+
+	if (compopts.verbose > 1) {
+		nocc_message ("eac_parser_parseprocdef(): done parsing single process definition (%p).", tree);
+	}
+
+	return tree;
+}
+/*}}}*/
+/*{{{  static int eac_parser_parseprocdeflist (lexfile_t *lf, tnode_t **target)*/
+/*
+ *	called to parse EAC process definitions into a list
+ *	returns 0 on success, non-zero on failure
+ */
+static int eac_parser_parseprocdeflist (lexfile_t *lf, tnode_t **target)
+{
+	if (compopts.verbose > 1) {
+		nocc_message ("eac_parser_parseprocdeflist(): starting parse of process list from [%s]", lf->fnptr);
+	}
+
+	for (;;) {
+		tnode_t *thisone;
+		int tnflags;
+		int gotall = 0;
+		token_t *tok;
+
+		tok = lexer_nexttoken (lf);
+		while ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
+			lexer_freetoken (tok);
+			tok = lexer_nexttoken (lf);
+		}
+		if ((tok->type == END) || (tok->type == NOTOKEN)) {
+			/* done */
+			lexer_freetoken (tok);
+			break;			/* for() */
+		}
+		lexer_pushback (lf, tok);
+
+		thisone = eac_parser_parseprocdef (lf);
+		if (!thisone) {
+			/* nothing left probably */
+			break;			/* for() */
+		}
+		if (!*target) {
+			/* make it a list node */
+			*target = parser_newlistnode (lf);
+		} else if (!parser_islistnode (*target)) {
+			nocc_internal ("eac_parser_parseprocdeflist(): target is not a list! (%s,%s)", (*target)->tag->name, (*target)->tag->ndef->name);
+			return -1;
+		}
+		parser_addtolist (*target, thisone);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *eac_parser_parse (lexfile_t *lf)*/
+/*
+ *	called to parse a file
+ *	returns a tree on success, NULL on failure
+ */
+static tnode_t *eac_parser_parse (lexfile_t *lf)
+{
+	int i;
+	tnode_t *tree = NULL;
+	token_t *tok;
+
+	if (compopts.verbose) {
+		nocc_message ("eac_parser_parse(): starting parse..");
+	}
+
+	i = eac_parser_parseprocdeflist (lf, &tree);
 
 	if (compopts.verbose > 1) {
 		nocc_message ("leftover tokens:");

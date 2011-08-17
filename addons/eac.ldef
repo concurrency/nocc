@@ -23,12 +23,15 @@
 .SECTION "eac-code" #{{{: whole language
 
 .GRULE	"eac:namereduce" "T+St0X[eac_nametoken_to_hook]C[EACNAME]1R-"
-.GRULE	"eac:pdecl" ""
+.GRULE	"eac:pdecl" "SN0N+N+N+V*C[EACDECL]3R-"
 
 .GRULE	"eac:inputreduce" "SN0N+N+VC[EACINPUT]2R-"
 .GRULE	"eac:outputreduce" "SN0N+N+VC[EACOUTPUT]2R-"
 
 .GRULE	"eac:varcompreduce" "SN0N+N+VC[EACVARCOMP]2R-"
+
+.GRULE	"eac:eseqreduce" "SN0N+C[EACESEQ]1R-"
+.GRULE	"eac:esetreduce" "SN0N+0C[EACESET]2R-"
 
 .TABLE	"eac:name ::= [ 0 +Name 1 ] [ 1 {<eac:namereduce>} -* ]"
 .BNF	"eac:namelist ::= { eac:name @@, 0 }"
@@ -43,16 +46,16 @@
 	"[ 1 @@! 4 ] [ 4 eac:eventrhs 5 ] [ 5 {<eac:outputreduce>} -* ]"
 .BNF	"eac:eventlist ::= { eac:event @@, 0 }"
 
-.TABLE	"eac:eseq ::= [ 0 @@< 1 ] [ 1 eac:eventlist 2 ] [ 2 @@> 3 ] [ 3 {<eac:nullreduce>} -* ]"
+.TABLE	"eac:eseq ::= [ 0 @@< 1 ] [ 1 eac:eventlist 2 ] [ 2 @@> 3 ] [ 3 {<eac:eseqreduce>} -* ]"
 # .BNF	"eac:eseq ::= @@< eac:eventlist @@>"
 
 .BNF	"eac:eseqlist ::= { eac:eseq @@, 0 }"
 
-.TABLE	"eac:eset ::= [ 0 @@{ 1 ] [ 1 Newline 1 ] [ 1 -* 2 ] [ 2 eac:eseqlist 3 ] [ 3 {<eac:nullreduce>} -* 4 ] [ 4 Newline 4 ] [ 4 -* ]"
+.TABLE	"eac:eset ::= [ 0 @@{ 1 ] [ 1 Newline 1 ] [ 1 -* 2 ] [ 2 eac:eseqlist 3 ] [ 3 {<eac:esetreduce>} -* 4 ] [ 4 Newline 4 ] [ 4 @@} 5 ] [ 5 -* ]"
 # .BNF	"eac:eset ::= @@{ { eac:eseq @@, 0 } @@}"
-.BNF	"eac:expr ::= eac:eset {<eac:nullreduce>}"
+.BNF	"eac:pexpr ::= eac:eset {<eac:nullreduce>}"
 
-.TABLE	"eac:process ::= [ 0 eac:name 1 ] [ 1 eac:fparamlist 2 ] [ 2 @@= 3 ] [ 3 eac:expr 4 ] [ 4 {<eac:pdecl>} -* ]"
+.TABLE	"eac:process ::= [ 0 eac:name 1 ] [ 1 eac:fparamlist 2 ] [ 2 @@= 3 ] [ 3 eac:pexpr 4 ] [ 4 {<eac:pdecl>} -* ]"
 
 #}}}
 

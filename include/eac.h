@@ -39,7 +39,7 @@ typedef struct {
 
 	struct TAG_ntdef *tag_NAME;
 
-	struct TAG_ntdef *tag_EACDEF;
+	struct TAG_ntdef *tag_DECL;
 	struct TAG_ntdef *tag_FPARAM;
 
 	struct TAG_ntdef *tag_ESET;
