@@ -100,11 +100,11 @@ static int guppy_cflow_init_nodes (void)
 
 /*{{{  guppy_cflow_feunit (feunit_t)*/
 feunit_t guppy_cflow_feunit = {
-	init_nodes: guppy_cflow_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "guppy-cflow"
+	.init_nodes = guppy_cflow_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "guppy-cflow"
 };
 /*}}}*/
 

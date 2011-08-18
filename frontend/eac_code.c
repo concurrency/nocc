@@ -350,11 +350,11 @@ static int eac_code_init_nodes (void)
 
 /*{{{  eac_code_feunit (feunit_t)*/
 feunit_t eac_code_feunit = {
-	init_nodes: eac_code_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "eac-code"
+	.init_nodes = eac_code_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "eac-code"
 };
 /*}}}*/
 

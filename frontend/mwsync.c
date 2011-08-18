@@ -1439,11 +1439,11 @@ static int mwsync_post_setup (void)
 
 /*{{{  mwsync_feunit (feunit_t)*/
 feunit_t mwsync_feunit = {
-	init_nodes: mwsync_init_nodes,
-	reg_reducers: mwsync_reg_reducers,
-	init_dfatrans: mwsync_init_dfatrans,
-	post_setup: mwsync_post_setup,
-	ident: "mwsync"
+	.init_nodes = mwsync_init_nodes,
+	.reg_reducers = mwsync_reg_reducers,
+	.init_dfatrans = mwsync_init_dfatrans,
+	.post_setup = mwsync_post_setup,
+	.ident = "mwsync"
 };
 
 /*}}}*/

@@ -53,14 +53,14 @@ static int hopp_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 /*{{{  public lexer struct*/
 
 langlexer_t hopp_lexer = {
-	langname: "occam-pi",
-	langtag: LANGTAG_HOPP,
-	fileexts: {".hopp", NULL},
-	openfile: hopp_openfile,
-	closefile: hopp_closefile,
-	nexttoken: hopp_nexttoken,
-	getcodeline: hopp_getcodeline,
-	parser: NULL
+	.langname = "occam-pi",
+	.langtag = LANGTAG_HOPP,
+	.fileexts = {".hopp", NULL},
+	.openfile = hopp_openfile,
+	.closefile = hopp_closefile,
+	.nexttoken = hopp_nexttoken,
+	.getcodeline = hopp_getcodeline,
+	.parser = NULL
 };
 
 

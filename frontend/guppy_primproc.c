@@ -159,11 +159,11 @@ static int guppy_primproc_init_nodes (void)
 
 /*{{{  guppy_primproc_feunit (feunit_t)*/
 feunit_t guppy_primproc_feunit = {
-	init_nodes: guppy_primproc_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "guppy-primproc"
+	.init_nodes = guppy_primproc_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "guppy-primproc"
 };
 /*}}}*/
 

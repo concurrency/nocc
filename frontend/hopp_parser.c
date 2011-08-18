@@ -72,23 +72,23 @@ static tnode_t *hopp_parser_makeseqany (tnode_t ***insertpointp);
 /*{{{  global vars*/
 
 langparser_t hopp_parser = {
-	langname:	"occam-pi",
-	init:		hopp_parser_init,
-	shutdown:	hopp_parser_shutdown,
-	parse:		hopp_parser_parse,
-	descparse:	hopp_parser_descparse,
-	prescope:	hopp_parser_prescope,
-	scope:		hopp_parser_scope,
-	typecheck:	hopp_parser_typecheck,
-	typeresolve:	hopp_parser_typeresolve,
-	postcheck:	NULL,
-	fetrans:	NULL,
-	getlangdef:	NULL,
-	maketemp:	hopp_parser_maketemp,
-	makeseqassign:	hopp_parser_makeseqassign,
-	makeseqany:	hopp_parser_makeseqany,
-	tagstruct_hook:	NULL,
-	lexer:		NULL
+	.langname =		"occam-pi",
+	.init =			hopp_parser_init,
+	.shutdown =		hopp_parser_shutdown,
+	.parse =		hopp_parser_parse,
+	.descparse =		hopp_parser_descparse,
+	.prescope =		hopp_parser_prescope,
+	.scope =		hopp_parser_scope,
+	.typecheck =		hopp_parser_typecheck,
+	.typeresolve =		hopp_parser_typeresolve,
+	.postcheck =		NULL,
+	.fetrans =		NULL,
+	.getlangdef =		NULL,
+	.maketemp =		hopp_parser_maketemp,
+	.makeseqassign =	hopp_parser_makeseqassign,
+	.makeseqany =		hopp_parser_makeseqany,
+	.tagstruct_hook =	NULL,
+	.lexer =		NULL
 };
 
 

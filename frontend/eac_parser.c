@@ -79,23 +79,23 @@ static tnode_t *eac_process (lexfile_t *lf);
 eac_pset_t eac;			/* attach tags, etc. here */
 
 langparser_t eac_parser = {
-	langname:	"eac",
-	init:		eac_parser_init,
-	shutdown:	eac_parser_shutdown,
-	parse:		eac_parser_parse,
-	descparse:	eac_parser_descparse,
-	prescope:	eac_parser_prescope,
-	scope:		eac_parser_scope,
-	typecheck:	eac_parser_typecheck,
-	typeresolve:	eac_parser_typeresolve,
-	postcheck:	NULL,
-	fetrans:	NULL,
-	getlangdef:	eac_getlangdef,
-	maketemp:	NULL,
-	makeseqassign:	NULL,
-	makeseqany:	NULL,
-	tagstruct_hook:	(void *)&eac,
-	lexer:		NULL
+	.langname =		"eac",
+	.init =			eac_parser_init,
+	.shutdown =		eac_parser_shutdown,
+	.parse =		eac_parser_parse,
+	.descparse =		eac_parser_descparse,
+	.prescope =		eac_parser_prescope,
+	.scope =		eac_parser_scope,
+	.typecheck =		eac_parser_typecheck,
+	.typeresolve =		eac_parser_typeresolve,
+	.postcheck =		NULL,
+	.fetrans =		NULL,
+	.getlangdef =		eac_getlangdef,
+	.maketemp =		NULL,
+	.makeseqassign =	NULL,
+	.makeseqany =		NULL,
+	.tagstruct_hook =	(void *)&eac,
+	.lexer =		NULL
 };
 
 /*}}}*/

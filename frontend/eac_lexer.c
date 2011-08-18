@@ -51,14 +51,14 @@ static int eac_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 /*}}}*/
 /*{{{  public lexer struct (eac_lexer)*/
 langlexer_t eac_lexer = {
-	langname: "eac",
-	langtag: LANGTAG_EAC,
-	fileexts: {".eac", NULL},
-	openfile: eac_openfile,
-	closefile: eac_closefile,
-	nexttoken: eac_nexttoken,
-	getcodeline: eac_getcodeline,
-	parser: NULL
+	.langname = "eac",
+	.langtag = LANGTAG_EAC,
+	.fileexts = {".eac", NULL},
+	.openfile = eac_openfile,
+	.closefile = eac_closefile,
+	.nexttoken = eac_nexttoken,
+	.getcodeline = eac_getcodeline,
+	.parser = NULL
 };
 
 /*}}}*/

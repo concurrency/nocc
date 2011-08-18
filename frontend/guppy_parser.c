@@ -79,23 +79,23 @@ static tnode_t *guppy_indented_process_list (lexfile_t *lf, char *leaddfa);
 guppy_pset_t gup;		/* attach tags, etc. here */
 
 langparser_t guppy_parser = {
-	langname:	"guppy",
-	init:		guppy_parser_init,
-	shutdown:	guppy_parser_shutdown,
-	parse:		guppy_parser_parse,
-	descparse:	guppy_parser_descparse,
-	prescope:	guppy_parser_prescope,
-	scope:		guppy_parser_scope,
-	typecheck:	guppy_parser_typecheck,
-	typeresolve:	guppy_parser_typeresolve,
-	postcheck:	NULL,
-	fetrans:	NULL,
-	getlangdef:	guppy_getlangdef,
-	maketemp:	NULL,
-	makeseqassign:	NULL,
-	makeseqany:	NULL,
-	tagstruct_hook:	(void *)&gup,
-	lexer:		NULL
+	.langname =		"guppy",
+	.init =			guppy_parser_init,
+	.shutdown =		guppy_parser_shutdown,
+	.parse =		guppy_parser_parse,
+	.descparse =		guppy_parser_descparse,
+	.prescope =		guppy_parser_prescope,
+	.scope =		guppy_parser_scope,
+	.typecheck =		guppy_parser_typecheck,
+	.typeresolve =		guppy_parser_typeresolve,
+	.postcheck =		NULL,
+	.fetrans =		NULL,
+	.getlangdef =		guppy_getlangdef,
+	.maketemp =		NULL,
+	.makeseqassign =	NULL,
+	.makeseqany =		NULL,
+	.tagstruct_hook =	(void *)&gup,
+	.lexer =		NULL
 };
 
 /*}}}*/

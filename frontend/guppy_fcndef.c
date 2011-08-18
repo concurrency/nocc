@@ -307,11 +307,11 @@ static int guppy_fcndef_post_setup (void)
 
 /*{{{  guppy_fcndef_feunit (feunit_t)*/
 feunit_t guppy_fcndef_feunit = {
-	init_nodes: guppy_fcndef_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: guppy_fcndef_post_setup,
-	ident: "guppy-fcndef"
+	.init_nodes = guppy_fcndef_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = guppy_fcndef_post_setup,
+	.ident = "guppy-fcndef"
 };
 
 /*}}}*/

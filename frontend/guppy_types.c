@@ -252,11 +252,11 @@ static int guppy_types_post_setup (void)
 
 /*{{{  guppy_types_feunit (feunit_t)*/
 feunit_t guppy_types_feunit = {
-	init_nodes: guppy_types_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: guppy_types_post_setup,
-	ident: "guppy-types"
+	.init_nodes = guppy_types_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = guppy_types_post_setup,
+	.ident = "guppy-types"
 };
 /*}}}*/
 

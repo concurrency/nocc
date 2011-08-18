@@ -138,11 +138,11 @@ static int guppy_cnode_init_nodes (void)
 
 /*{{{  guppy_cnode_feunit (feunit_t)*/
 feunit_t guppy_cnode_feunit = {
-	init_nodes: guppy_cnode_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "guppy-cnode"
+	.init_nodes = guppy_cnode_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "guppy-cnode"
 };
 /*}}}*/
 

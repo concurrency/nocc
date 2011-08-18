@@ -379,11 +379,11 @@ static int guppy_decls_post_setup (void)
 
 /*{{{  guppy_decls_feunit (feunit_t)*/
 feunit_t guppy_decls_feunit = {
-	init_nodes: guppy_decls_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: guppy_decls_post_setup,
-	ident: "guppy-decls"
+	.init_nodes = guppy_decls_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = guppy_decls_post_setup,
+	.ident = "guppy-decls"
 };
 
 /*}}}*/

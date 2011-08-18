@@ -100,11 +100,11 @@ static int guppy_io_init_nodes (void)
 
 /*{{{  guppy_io_feunit (feunit_t)*/
 feunit_t guppy_io_feunit = {
-	init_nodes: guppy_io_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "guppy-io"
+	.init_nodes = guppy_io_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "guppy-io"
 };
 /*}}}*/
 

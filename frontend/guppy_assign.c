@@ -94,11 +94,11 @@ static int guppy_assign_init_nodes (void)
 
 /*{{{  guppy_assign_feunit (feunit_t)*/
 feunit_t guppy_assign_feunit = {
-	init_nodes: guppy_assign_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "guppy-assign"
+	.init_nodes = guppy_assign_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "guppy-assign"
 };
 /*}}}*/
 
