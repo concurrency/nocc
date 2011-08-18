@@ -97,11 +97,11 @@ static int occampi_ptype_init_nodes (void)
 
 /*{{{  occampi_ptype_feunit (feunit_t)*/
 feunit_t occampi_ptype_feunit = {
-	init_nodes: occampi_ptype_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "occampi-ptype"
+	.init_nodes = occampi_ptype_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "occampi-ptype"
 };
 /*}}}*/
 

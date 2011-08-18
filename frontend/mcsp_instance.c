@@ -390,11 +390,11 @@ static int mcsp_instance_init_nodes (void)
 
 /*{{{  mcsp_instance_feunit (feunit_t)*/
 feunit_t mcsp_instance_feunit = {
-	init_nodes: mcsp_instance_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "mcsp-instance"
+	.init_nodes = mcsp_instance_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "mcsp-instance"
 };
 /*}}}*/
 

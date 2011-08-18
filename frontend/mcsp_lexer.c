@@ -50,14 +50,14 @@ static int mcsp_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 /*}}}*/
 /*{{{  public lexer struct*/
 langlexer_t mcsp_lexer = {
-	langname: "mcsp",
-	langtag: LANGTAG_MCSP,
-	fileexts: {".mcsp", ".csp", NULL},
-	openfile: mcsp_openfile,
-	closefile: mcsp_closefile,
-	nexttoken: mcsp_nexttoken,
-	getcodeline: mcsp_getcodeline,
-	parser: NULL
+	.langname = "mcsp",
+	.langtag = LANGTAG_MCSP,
+	.fileexts = {".mcsp", ".csp", NULL},
+	.openfile = mcsp_openfile,
+	.closefile = mcsp_closefile,
+	.nexttoken = mcsp_nexttoken,
+	.getcodeline = mcsp_getcodeline,
+	.parser = NULL
 };
 
 /*}}}*/

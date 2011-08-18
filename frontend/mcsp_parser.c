@@ -72,23 +72,23 @@ static int mcsp_parser_fetrans (tnode_t **tptr, fetrans_t *fe);
 mcsp_pset_t mcsp;
 
 langparser_t mcsp_parser = {
-	langname:	"mcsp",
-	init:		mcsp_parser_init,
-	shutdown:	mcsp_parser_shutdown,
-	parse:		mcsp_parser_parse,
-	descparse:	mcsp_parser_descparse,
-	prescope:	mcsp_parser_prescope,
-	scope:		mcsp_parser_scope,
-	typecheck:	mcsp_parser_typecheck,
-	typeresolve:	NULL,
-	postcheck:	NULL,
-	fetrans:	mcsp_parser_fetrans,
-	getlangdef:	mcsp_getlangdef,
-	maketemp:	NULL,
-	makeseqassign:	NULL,
-	makeseqany:	NULL,
-	tagstruct_hook:	(void *)&mcsp,
-	lexer:		NULL
+	.langname =	"	mcsp",
+	.init =			mcsp_parser_init,
+	.shutdown =		mcsp_parser_shutdown,
+	.parse =		mcsp_parser_parse,
+	.descparse =		mcsp_parser_descparse,
+	.prescope =		mcsp_parser_prescope,
+	.scope =		mcsp_parser_scope,
+	.typecheck =		mcsp_parser_typecheck,
+	.typeresolve =		NULL,
+	.postcheck =		NULL,
+	.fetrans =		mcsp_parser_fetrans,
+	.getlangdef =		mcsp_getlangdef,
+	.maketemp =		NULL,
+	.makeseqassign =	NULL,
+	.makeseqany =		NULL,
+	.tagstruct_hook =	(void *)&mcsp,
+	.lexer =		NULL
 };
 
 

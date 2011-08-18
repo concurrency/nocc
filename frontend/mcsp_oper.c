@@ -481,11 +481,11 @@ static int mcsp_oper_init_nodes (void)
 
 /*{{{  mcsp_oper_feunit (feunit_t)*/
 feunit_t mcsp_oper_feunit = {
-	init_nodes: mcsp_oper_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "mcsp-oper"
+	.init_nodes = mcsp_oper_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "mcsp-oper"
 };
 
 /*}}}*/

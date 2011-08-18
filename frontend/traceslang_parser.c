@@ -67,23 +67,23 @@ static int traceslang_parser_prescope (tnode_t **tptr, prescope_t *ps);
 traceslang_pset_t traceslang;
 
 langparser_t traceslang_parser = {
-	langname:	"traceslang",
-	init:		traceslang_parser_init,
-	shutdown:	traceslang_parser_shutdown,
-	parse:		traceslang_parser_parse,
-	descparse:	NULL,
-	prescope:	traceslang_parser_prescope,
-	scope:		NULL,
-	typecheck:	NULL,
-	typeresolve:	NULL,
-	postcheck:	NULL,
-	fetrans:	NULL,
-	getlangdef:	traceslang_getlangdef,
-	maketemp:	NULL,
-	makeseqassign:	NULL,
-	makeseqany:	NULL,
-	tagstruct_hook:	(void *)&traceslang,
-	lexer:		NULL
+	.langname =		"traceslang",
+	.init =			traceslang_parser_init,
+	.shutdown =		traceslang_parser_shutdown,
+	.parse =		traceslang_parser_parse,
+	.descparse =		NULL,
+	.prescope =		traceslang_parser_prescope,
+	.scope =		NULL,
+	.typecheck =		NULL,
+	.typeresolve =		NULL,
+	.postcheck =		NULL,
+	.fetrans =		NULL,
+	.getlangdef =		traceslang_getlangdef,
+	.maketemp =		NULL,
+	.makeseqassign =	NULL,
+	.makeseqany =		NULL,
+	.tagstruct_hook =	(void *)&traceslang,
+	.lexer =		NULL
 };
 
 
@@ -324,6 +324,7 @@ static tnode_t *traceslang_parser_parse (lexfile_t *lf)
  */
 static int traceslang_parser_prescope (tnode_t **tptr, prescope_t *ps)
 {
+	nocc_message("scoping %p",*tptr );
 	ps->hook = NULL;
 	tnode_modprewalktree (tptr, prescope_modprewalktree, (void *)ps);
 

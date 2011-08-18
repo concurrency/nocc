@@ -67,23 +67,23 @@ static int trlang_parser_prescope (tnode_t **tptr, prescope_t *ps);
 trlang_pset_t trlang;
 
 langparser_t trlang_parser = {
-	langname:	"trlang",
-	init:		trlang_parser_init,
-	shutdown:	trlang_parser_shutdown,
-	parse:		trlang_parser_parse,
-	descparse:	NULL,
-	prescope:	trlang_parser_prescope,
-	scope:		NULL,
-	typecheck:	NULL,
-	typeresolve:	NULL,
-	postcheck:	NULL,
-	fetrans:	NULL,
-	getlangdef:	trlang_getlangdef,
-	maketemp:	NULL,
-	makeseqassign:	NULL,
-	makeseqany:	NULL,
-	tagstruct_hook:	(void *)&trlang,
-	lexer:		NULL
+	.langname =		"trlang",
+	.init =			trlang_parser_init,
+	.shutdown =		trlang_parser_shutdown,
+	.parse =		trlang_parser_parse,
+	.descparse =		NULL,
+	.prescope =		trlang_parser_prescope,
+	.scope =		NULL,
+	.typecheck =		NULL,
+	.typeresolve =		NULL,
+	.postcheck =		NULL,
+	.fetrans =		NULL,
+	.getlangdef =		trlang_getlangdef,
+	.maketemp =		NULL,
+	.makeseqassign =	NULL,
+	.makeseqany =		NULL,
+	.tagstruct_hook =	(void *)&trlang,
+	.lexer =		NULL
 };
 
 

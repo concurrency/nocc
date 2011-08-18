@@ -563,11 +563,11 @@ static int occampi_placedpar_post_setup (void)
 
 /*{{{  occampi_placedpar_feunit (feunit_t)*/
 feunit_t occampi_placedpar_feunit = {
-	init_nodes: occampi_placedpar_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: occampi_placedpar_post_setup,
-	ident: "occampi-placedpar"
+	.init_nodes = occampi_placedpar_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = occampi_placedpar_post_setup,
+	.ident = "occampi-placedpar"
 };
 /*}}}*/
 

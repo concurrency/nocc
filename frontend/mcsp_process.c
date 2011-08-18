@@ -1116,11 +1116,11 @@ fprintf (stderr, "mcsp_process_init_nodes(): tnd->name = [%s], mcsp.tag_NAME->na
 
 /*{{{  mcsp_process_feunit (feunit_t)*/
 feunit_t mcsp_process_feunit = {
-	init_nodes: mcsp_process_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "mcsp-process"
+	.init_nodes = mcsp_process_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "mcsp-process"
 };
 /*}}}*/
 

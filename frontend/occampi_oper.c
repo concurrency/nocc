@@ -1212,11 +1212,11 @@ static int occampi_oper_post_setup (void)
 
 /*{{{  occampi_oper_feunit (feunit_t)*/
 feunit_t occampi_oper_feunit = {
-	init_nodes: occampi_oper_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: occampi_oper_post_setup,
-	ident: "occampi-oper"
+	.init_nodes = occampi_oper_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = occampi_oper_post_setup,
+	.ident = "occampi-oper"
 };
 /*}}}*/
 

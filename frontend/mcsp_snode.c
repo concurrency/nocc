@@ -742,11 +742,11 @@ static dfattbl_t **mcsp_snode_init_dfatrans (int *ntrans)
 
 /*{{{  mcsp_snode_feunit (feunit_t)*/
 feunit_t mcsp_snode_feunit = {
-	init_nodes: mcsp_snode_init_nodes,
-	reg_reducers: mcsp_snode_reg_reducers,
-	init_dfatrans: mcsp_snode_init_dfatrans,
-	post_setup: NULL,
-	ident: "mcsp-snode"
+	.init_nodes = mcsp_snode_init_nodes,
+	.reg_reducers = mcsp_snode_reg_reducers,
+	.init_dfatrans = mcsp_snode_init_dfatrans,
+	.post_setup = NULL,
+	.ident = "mcsp-snode"
 };
 /*}}}*/
 

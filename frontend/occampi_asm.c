@@ -481,11 +481,11 @@ static int occampi_asm_post_setup (void)
 
 /*{{{  occampi_asm_feunit (feunit_t)*/
 feunit_t occampi_asm_feunit = {
-	init_nodes: occampi_asm_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: occampi_asm_post_setup,
-	ident: "occampi-asm"
+	.init_nodes = occampi_asm_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = occampi_asm_post_setup,
+	.ident = "occampi-asm"
 };
 /*}}}*/
 

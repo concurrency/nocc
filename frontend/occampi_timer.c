@@ -803,11 +803,11 @@ static int occampi_timer_post_setup (void)
 
 /*{{{  occampi_timer_feunit (feunit_t)*/
 feunit_t occampi_timer_feunit = {
-	init_nodes: occampi_timer_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: occampi_timer_post_setup,
-	ident: "occampi-timer"
+	.init_nodes = occampi_timer_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = occampi_timer_post_setup,
+	.ident = "occampi-timer"
 };
 
 /*}}}*/

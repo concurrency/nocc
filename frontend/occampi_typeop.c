@@ -217,11 +217,11 @@ static int occampi_typeop_init_nodes (void)
 
 /*{{{  occampi_typeop_feunit (feunit_t struct)*/
 feunit_t occampi_typeop_feunit = {
-	init_nodes: occampi_typeop_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "occampi-typeop"
+	.init_nodes = occampi_typeop_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "occampi-typeop"
 };
 /*}}}*/
 

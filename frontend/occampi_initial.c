@@ -199,11 +199,11 @@ static int occampi_initial_init_nodes (void)
 
 /*{{{  occampi_initial_feunit (feunit_t)*/
 feunit_t occampi_initial_feunit = {
-	init_nodes: occampi_initial_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "occampi-initial"
+	.init_nodes = occampi_initial_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "occampi-initial"
 };
 /*}}}*/
 

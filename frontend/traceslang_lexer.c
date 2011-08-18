@@ -54,14 +54,14 @@ static int traceslang_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 /*{{{  public lexer struct*/
 
 langlexer_t traceslang_lexer = {
-	langname: "traceslang",
-	langtag: LANGTAG_TRACESLANG,
-	fileexts: {".ttl", NULL},
-	openfile: traceslang_openfile,
-	closefile: traceslang_closefile,
-	nexttoken: traceslang_nexttoken,
-	getcodeline: traceslang_getcodeline,
-	parser: NULL
+	.langname = "traceslang",
+	.langtag = LANGTAG_TRACESLANG,
+	.fileexts = {".ttl", NULL},
+	.openfile = traceslang_openfile,
+	.closefile = traceslang_closefile,
+	.nexttoken = traceslang_nexttoken,
+	.getcodeline = traceslang_getcodeline,
+	.parser = NULL
 };
 
 

@@ -648,11 +648,11 @@ char *occampi_litstringcopy (struct TAG_tnode *node)
 
 /*{{{  occampi_lit_feunit (feunit_t)*/
 feunit_t occampi_lit_feunit = {
-	init_nodes: occampi_lit_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "occampi-lit"
+	.init_nodes = occampi_lit_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "occampi-lit"
 };
 /*}}}*/
 

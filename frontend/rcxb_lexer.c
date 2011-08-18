@@ -50,14 +50,14 @@ static int rcxb_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 /*}}}*/
 /*{{{  public lexer struct*/
 langlexer_t rcxb_lexer = {
-	langname: "rcxbasic",
-	langtag: LANGTAG_RCXB,
-	fileexts: {".bas", ".ncb", NULL},
-	openfile: rcxb_openfile,
-	closefile: rcxb_closefile,
-	nexttoken: rcxb_nexttoken,
-	getcodeline: rcxb_getcodeline,
-	parser: NULL
+	.langname = "rcxbasic",
+	.langtag = LANGTAG_RCXB,
+	.fileexts = {".bas", ".ncb", NULL},
+	.openfile = rcxb_openfile,
+	.closefile = rcxb_closefile,
+	.nexttoken = rcxb_nexttoken,
+	.getcodeline = rcxb_getcodeline,
+	.parser = NULL
 };
 
 /*}}}*/

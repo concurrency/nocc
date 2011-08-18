@@ -345,11 +345,11 @@ static int occampi_misc_post_setup (void)
 
 /*{{{  occampi_misc_feunit (feunit_t struct)*/
 feunit_t occampi_misc_feunit = {
-	init_nodes: occampi_misc_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: occampi_misc_post_setup,
-	ident: "occampi-misc"
+	.init_nodes = occampi_misc_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = occampi_misc_post_setup,
+	.ident = "occampi-misc"
 };
 /*}}}*/
 

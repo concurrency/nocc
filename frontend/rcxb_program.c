@@ -712,11 +712,11 @@ static int rcxb_program_init_nodes (void)
 
 /*{{{  rcxb_program_feunit (feunit_t)*/
 feunit_t rcxb_program_feunit = {
-	init_nodes: rcxb_program_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "rcxb-program"
+	.init_nodes = rcxb_program_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "rcxb-program"
 };
 /*}}}*/
 

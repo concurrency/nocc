@@ -1228,11 +1228,11 @@ static int occampi_instance_post_setup (void)
 
 /*{{{  occampi_instance_feunit (feunit_t)*/
 feunit_t occampi_instance_feunit = {
-	init_nodes: occampi_instance_init_nodes,
-	reg_reducers: occampi_instance_reg_reducers,
-	init_dfatrans: occampi_instance_init_dfatrans,
-	post_setup: occampi_instance_post_setup,
-	ident: "occampi-instance"
+	.init_nodes = occampi_instance_init_nodes,
+	.reg_reducers = occampi_instance_reg_reducers,
+	.init_dfatrans = occampi_instance_init_dfatrans,
+	.post_setup = occampi_instance_post_setup,
+	.ident = "occampi-instance"
 };
 /*}}}*/
 

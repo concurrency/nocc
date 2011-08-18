@@ -1082,11 +1082,11 @@ static int traceslang_expr_init_nodes (void)
 
 /*{{{  traceslang_expr_feinit (feunit_t)*/
 feunit_t traceslang_expr_feunit = {
-	init_nodes: traceslang_expr_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "traceslang-expr"
+	.init_nodes = traceslang_expr_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "traceslang-expr"
 };
 
 /*}}}*/

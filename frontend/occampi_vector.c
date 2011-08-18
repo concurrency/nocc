@@ -91,11 +91,11 @@ static int occampi_vector_init_nodes (void)
 
 /*{{{  occampi_vector_feunit (feunit_t)*/
 feunit_t occampi_vector_feunit = {
-	init_nodes: occampi_vector_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "occampi-vector"
+	.init_nodes = occampi_vector_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "occampi-vector"
 };
 /*}}}*/
 

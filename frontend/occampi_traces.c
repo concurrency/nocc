@@ -1656,11 +1656,11 @@ tnode_dumpcompops (tnd->ops, stderr);
 
 /*{{{  occampi_traces_feunit (feunit_t)*/
 feunit_t occampi_traces_feunit = {
-	init_nodes: occampi_traces_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: occampi_traces_post_setup,
-	ident: "occampi-traces"
+	.init_nodes = occampi_traces_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = occampi_traces_post_setup,
+	.ident = "occampi-traces"
 };
 /*}}}*/
 

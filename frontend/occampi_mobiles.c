@@ -1642,11 +1642,11 @@ static int occampi_mobiles_post_setup (void)
 
 /*{{{  occampi_mobiles_feunit (feunit_t)*/
 feunit_t occampi_mobiles_feunit = {
-	init_nodes: occampi_mobiles_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: occampi_mobiles_post_setup,
-	ident: "occampi-mobiles"
+	.init_nodes = occampi_mobiles_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = occampi_mobiles_post_setup,
+	.ident = "occampi-mobiles"
 };
 /*}}}*/
 

@@ -1428,11 +1428,11 @@ static int occampi_function_post_setup (void)
 
 /*{{{  occampi_function_feunit (feunit_t)*/
 feunit_t occampi_function_feunit = {
-	init_nodes: occampi_function_init_nodes,
-	reg_reducers: occampi_function_reg_reducers,
-	init_dfatrans: occampi_function_init_dfatrans,
-	post_setup: occampi_function_post_setup,
-	ident: "occampi-function"
+	.init_nodes = occampi_function_init_nodes,
+	.reg_reducers = occampi_function_reg_reducers,
+	.init_dfatrans = occampi_function_init_dfatrans,
+	.post_setup = occampi_function_post_setup,
+	.ident = "occampi-function"
 };
 /*}}}*/
 

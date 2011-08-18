@@ -2275,11 +2275,11 @@ static int occampi_dtype_post_setup (void)
 
 /*{{{  occampi_dtype_feunit (feunit_t)*/
 feunit_t occampi_dtype_feunit = {
-	init_nodes: occampi_dtype_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: occampi_dtype_post_setup,
-	ident: "occampi-dtype"
+	.init_nodes = occampi_dtype_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = occampi_dtype_post_setup,
+	.ident = "occampi-dtype"
 };
 /*}}}*/
 

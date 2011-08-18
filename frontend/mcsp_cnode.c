@@ -740,11 +740,11 @@ static int mcsp_cnode_init_nodes (void)
 
 /*{{{  mcsp_cnode_feunit (feunit_t)*/
 feunit_t mcsp_cnode_feunit = {
-	init_nodes: mcsp_cnode_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "mcsp-cnode"
+	.init_nodes = mcsp_cnode_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "mcsp-cnode"
 };
 /*}}}*/
 

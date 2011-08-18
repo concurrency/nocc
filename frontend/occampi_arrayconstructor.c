@@ -385,11 +385,11 @@ static int occampi_ac_init_nodes (void)
 
 /*{{{  occampi_arrayconstructor_feunit (feunit_t)*/
 feunit_t occampi_arrayconstructor_feunit = {
-	init_nodes: occampi_ac_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "occampi-arrayconstructor"
+	.init_nodes = occampi_ac_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "occampi-arrayconstructor"
 };
 
 /*}}}*/

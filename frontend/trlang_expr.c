@@ -332,11 +332,11 @@ static int trlang_expr_init_nodes (void)
 
 /*{{{  trlang_expr_feunit (feunit_t)*/
 feunit_t trlang_expr_feunit = {
-	init_nodes: trlang_expr_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "trlang-expr"
+	.init_nodes = trlang_expr_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "trlang-expr"
 };
 
 

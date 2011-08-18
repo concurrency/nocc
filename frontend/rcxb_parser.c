@@ -67,23 +67,23 @@ static int rcxb_parser_prescope (tnode_t **tptr, prescope_t *ps);
 rcxb_pset_t rcxb;
 
 langparser_t rcxb_parser = {
-	langname:	"rcxbasic",
-	init:		rcxb_parser_init,
-	shutdown:	rcxb_parser_shutdown,
-	parse:		rcxb_parser_parse,
-	descparse:	NULL, // mcsp_parser_descparse,
-	prescope:	rcxb_parser_prescope,
-	scope:		NULL, // mcsp_parser_scope,
-	typecheck:	NULL, // mcsp_parser_typecheck,
-	typeresolve:	NULL,
-	postcheck:	NULL,
-	fetrans:	NULL,
-	getlangdef:	rcxb_getlangdef,
-	maketemp:	NULL,
-	makeseqassign:	NULL,
-	makeseqany:	NULL,
-	tagstruct_hook:	(void *)&rcxb,
-	lexer:		NULL
+	.langname =		"rcxbasic",
+	.init =			rcxb_parser_init,
+	.shutdown =		rcxb_parser_shutdown,
+	.parse =		rcxb_parser_parse,
+	.descparse =		NULL, // mcsp_parser_descparse,
+	.prescope =		rcxb_parser_prescope,
+	.scope =		NULL, // mcsp_parser_scope,
+	.typecheck =		NULL, // mcsp_parser_typecheck,
+	.typeresolve =		NULL,
+	.postcheck =		NULL,
+	.fetrans =		NULL,
+	.getlangdef =		rcxb_getlangdef,
+	.maketemp =		NULL,
+	.makeseqassign =	NULL,
+	.makeseqany =		NULL,
+	.tagstruct_hook =	(void *)&rcxb,
+	.lexer =		NULL
 };
 
 
