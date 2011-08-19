@@ -40,7 +40,7 @@ typedef struct {
 	struct TAG_ntdef *tag_NAME;
 
 	struct TAG_ntdef *tag_DECL;
-	struct TAG_ntdef *tag_FPARAM;
+	struct TAG_ntdef *tag_VARDECL;
 
 	struct TAG_ntdef *tag_ESET;
 	struct TAG_ntdef *tag_ESEQ;
@@ -60,6 +60,10 @@ typedef struct {
 	struct TAG_ntdef *tag_NPROCDEF;
 	struct TAG_ntdef *tag_NCHANVAR;
 	struct TAG_ntdef *tag_NVAR;
+
+	struct TAG_ntdef *tag_PROC;
+	struct TAG_ntdef *tag_CHANVAR;
+	struct TAG_ntdef *tag_VAR;
 
 	struct TAG_token *tok_ATSIGN;
 } eac_pset_t;

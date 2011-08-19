@@ -24,7 +24,7 @@
 .SECTION "eac-code" #{{{: whole language
 
 .GRULE	"eac:namereduce" "T+St0X[eac_nametoken_to_hook]C[EACNAME]1R-"
-.GRULE	"eac:pdecl" "SN0N+N+N+V*C[EACDECL]3R-"
+.GRULE	"eac:pdecl" "SN00N+N+N+V*C[EACDECL]4R-"
 
 .GRULE	"eac:inputreduce" "SN0N+N+VC[EACINPUT]2R-"
 .GRULE	"eac:outputreduce" "SN0N+N+VC[EACOUTPUT]2R-"

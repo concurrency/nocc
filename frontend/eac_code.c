@@ -61,6 +61,12 @@
 
 
 /*}}}*/
+/*{{{  private data*/
+
+static int eac_ignore_unresolved = 0;
+
+
+/*}}}*/
 
 
 /*{{{  static void eac_rawnamenode_hook_free (void *hook)*/
@@ -102,9 +108,131 @@ static void eac_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent
 /*}}}*/
 
 
+/*{{{  static int eac_scopein_paramlist (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes in parameters for a procedure definition;
+ *	called directly as no specific fparam type exists.
+ *	returns 0 on success, non-zero on failure.
+ */
+static int eac_scopein_paramlist (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	tnode_t **items;
+	int nitems, i;
+
+	if (!*node) {
+		return 0;
+	}
+	if (!parser_islistnode (*node)) {
+		/* not a list, probably singleton */
+		*node = parser_buildlistnode (OrgFileOf (*node), *node, NULL);
+	}
+
+	items = parser_getlistitems (*node, &nitems);
+	for (i=0; i<nitems; i++) {
+		char *rawname;
+		name_t *varname;
+		tnode_t *namenode, *olditem = items[i];
+
+		if (items[i]->tag != eac.tag_NAME) {
+			scope_error (items[i], ss, "parameter not a name!");
+			return 1;
+		}
+
+		rawname = tnode_nthhookof (items[i], 0);
+		varname = name_addscopenamess (rawname, items[i], NULL, NULL, ss);
+		namenode = tnode_createfrom (eac.tag_NCHANVAR, items[i], varname);
+		SetNameNode (varname, namenode);
+		items[i] = tnode_createfrom (eac.tag_VARDECL, olditem, namenode);
+
+		/* free old param */
+		tnode_free (olditem);
+		ss->scoped++;
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int eac_scopein_freevars (compops_t *cops, tnode_t *fvlist, scope_t *ss)*/
+/*
+ *	scopes in free-variables for a procedure definition -- these are free in escape sets or process compositions.
+ *	returns 0 on success, non-zero on failure.
+ */
+static int eac_scopein_freevars (compops_t *cops, tnode_t *fvlist, scope_t *ss)
+{
+	tnode_t **items;
+	int nitems, i;
+
+	if (!fvlist) {
+		return 0;
+	}
+	if (!parser_islistnode (fvlist)) {
+		nocc_internal ("eac_scopein_freevars(): fvlist not list! (%s,%s)", fvlist->tag->name, fvlist->tag->ndef->name);
+		return -1;
+	}
+
+	items = parser_getlistitems (fvlist, &nitems);
+	for (i=0; i<nitems; i++) {
+		char *rawname;
+		name_t *varname;
+		tnode_t *namenode, *olditem = items[i];
+
+		if (items[i]->tag != eac.tag_NAME) {
+			scope_error (items[i], ss, "parameter not a name!");
+			return 1;
+		}
+
+		rawname = tnode_nthhookof (items[i], 0);
+		varname = name_addscopenamess (rawname, items[i], NULL, NULL, ss);
+		namenode = tnode_createfrom (eac.tag_NVAR, items[i], varname);
+		SetNameNode (varname, namenode);
+		items[i] = tnode_createfrom (eac.tag_VARDECL, olditem, namenode);
+
+		/* free old name -- copy anyway */
+		tnode_free (olditem);
+		ss->scoped++;
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int eac_scope_scanfreevars (tnode_t *node, void *arg)*/
+/*
+ *	looks for free name references inside processes, adds them to a list.
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int eac_scope_scanfreevars (tnode_t *node, void *arg)
+{
+	tnode_t *fvlist = (tnode_t *)arg;
+
+#if 0
+nocc_message ("eac_scope_scanfreevars(): looking at (%s)", node->tag->name);
+#endif
+	if (node->tag == eac.tag_NAME) {
+		char *rawname = tnode_nthhookof (node, 0);
+		tnode_t **xitems;
+		int nxitems, i;
+
+		xitems = parser_getlistitems (fvlist, &nxitems);
+		for (i=0; i<nxitems; i++) {
+			/* assert: fvlist is a list of eac_NAMEs */
+			char *thisname = tnode_nthhookof (xitems[i], 0);
+
+			if (!strcmp (thisname, rawname)) {
+				/* got this name already */
+				break;		/* for() */
+			}
+		}
+		if (i == nxitems) {
+			parser_addtolist (fvlist, tnode_copytree (node));
+		}
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int eac_scopein_declnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes in a process definition
+ *	returns 0 to stop walk, 1 to continue
  */
 static int eac_scopein_declnode (compops_t *cops, tnode_t **node, scope_t *ss)
 {
@@ -113,9 +241,13 @@ static int eac_scopein_declnode (compops_t *cops, tnode_t **node, scope_t *ss)
 	char *rawname;
 	name_t *procname;
 	tnode_t *newname;
+	tnode_t *fvlist;
+	int eac_lastunresolved = eac_ignore_unresolved;
 
-	nsmark = name_markscope ();
-
+	if (name->tag != eac.tag_NAME) {
+		scope_error (name, ss, "eac_scopein_declnode(): declaration name not name! (%s,%s)", name->tag->name, name->tag->ndef->name);
+		return 0;
+	}
 	rawname = tnode_nthhookof (name, 0);
 	procname = name_addscopenamess (rawname, *node, NULL, NULL, ss);
 	newname = tnode_createfrom (eac.tag_NPROCDEF, name, procname);
@@ -126,7 +258,30 @@ static int eac_scopein_declnode (compops_t *cops, tnode_t **node, scope_t *ss)
 	tnode_free (name);
 	ss->scoped++;
 
-	return 1;
+	nsmark = name_markscope ();
+	/* scope parameters */
+	eac_scopein_paramlist (cops, tnode_nthsubaddr (*node, 1), ss);
+
+	/* scope body, primarily to pick out parameters */
+	eac_ignore_unresolved = 1;
+	scope_subtree (tnode_nthsubaddr (*node, 2), ss);
+	eac_ignore_unresolved = eac_lastunresolved;
+
+	/* scan body looking for leftover free variables */
+	fvlist = parser_newlistnode (OrgFileOf (*node));
+	tnode_prewalktree (tnode_nthsubof (*node, 2), eac_scope_scanfreevars, fvlist);
+
+	/* scope in free variables and attach to tree */
+	eac_scopein_freevars (cops, fvlist, ss);
+	tnode_setnthsub (*node, 3, fvlist);
+
+	/* scope body again */
+	scope_subtree (tnode_nthsubaddr (*node, 2), ss);
+
+	/* remove params and free-vars from visible scope */
+	name_markdescope (nsmark);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int eac_scopein_rawname (compops_t *cops, tnode_t **node, scope_t *ss)*/
@@ -138,18 +293,6 @@ static int eac_scopein_rawname (compops_t *cops, tnode_t **node, scope_t *ss)
 	tnode_t *name = *node;
 	char *rawname;
 	name_t *sname = NULL;
-#if 0
-	eac_lex_t *lmp;
-	eac_scope_t *mss = (eac_scope_t *)ss->langpriv;
-
-	if ((*node)->org_file && (*node)->org_file->priv) {
-		lexpriv_t *lp = (lexpriv_t *)(*node)->org_file->priv;
-		
-		lmp = (eac_lex_t *)lp->langpriv;
-	} else {
-		lmp = NULL;
-	}
-#endif
 
 	if (name->tag != eac.tag_NAME) {
 		scope_error (name, ss, "name not raw-name!");
@@ -165,45 +308,12 @@ fprintf (stderr, "eac_scopein_rawname: here! rawname = \"%s\"\n", rawname);
 		/* resolved */
 		*node = NameNodeOf (sname);
 
-#if 0
-		/* if it looks like a PROCDEF, turn into an INSTANCE -- if we're not already in an instance!*/
-		if (!mss->inamescope && ((*node)->tag == eac.tag_PROCDEF)) {
-			*node = tnode_createfrom (eac.tag_INSTANCE, name, *node, parser_newlistnode (NULL));
-		}
-#endif
-
 		tnode_free (name);
 	} else {
-#if 0
-fprintf (stderr, "eac_scopein_rawname(): unresolved name \"%s\", unbound-events = %d, mss->uvinsertlist = 0x%8.8x\n", rawname, lmp ? lmp->unboundvars : -1, (unsigned int)mss->uvinsertlist);
-#endif
-#if 0
-		if (lmp && lmp->unboundvars) {
-			if (mss && mss->uvinsertlist) {
-				/*{{{  add the name manually*/
-				tnode_t *decl = tnode_create (eac.tag_UPARAM, NULL, NULL, tnode_create (eac.tag_EVENTTYPE, NULL));
-				tnode_t *newname;
-
-				sname = name_addsubscopenamess (rawname, mss->uvscopemark, decl, NULL, name, ss);
-				parser_addtolist (mss->uvinsertlist, decl);
-				newname = tnode_createfrom (eac.tag_EVENT, decl, sname);
-				SetNameNode (sname, newname);
-				tnode_setnthsub (decl, 0, newname);
-
-				/* and replace local node! */
-				*node = newname;
-				tnode_free (name);
-
-				ss->scoped++;
-				/*}}}*/
-			} else {
-				scope_error (name, ss, "unresolved name \"%s\" cannot be captured", rawname);
-			}
-		} else {
+		if (!eac_ignore_unresolved) {
 			scope_error (name, ss, "unresolved name \"%s\"", rawname);
 		}
-#endif
-		scope_error (name, ss, "unresolved name \"%s\"", rawname);
+		/* else we ignore this fact */
 	}
 
 	return 1;
@@ -279,7 +389,7 @@ static int eac_code_init_nodes (void)
 	/*}}}*/
 	/*{{{  eac:declnode -- EACDECL*/
 	i = -1;
-	tnd = tnode_newnodetype ("eac:declnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: name, params, body */
+	tnd = tnode_newnodetype ("eac:declnode", &i, 4, 0, 0, TNF_NONE);			/* subnodes: name, params, body, freevars */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (eac_scopein_declnode));
 	tnd->ops = cops;
@@ -340,6 +450,30 @@ static int eac_code_init_nodes (void)
 
 	i = -1;
 	eac.tag_INSTANCE = tnode_newnodetag ("EACINSTANCE", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  eac:typenode -- EACPROC, EACCHANVAR, EACVAR*/
+	i = -1;
+	tnd = tnode_newnodetype ("eac:typenode", &i, 0, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	eac.tag_PROC = tnode_newnodetag ("EACPROC", &i, tnd, NTF_NONE);
+	i = -1;
+	eac.tag_CHANVAR = tnode_newnodetag ("EACCHANVAR", &i, tnd, NTF_NONE);
+	i = -1;
+	eac.tag_VAR = tnode_newnodetag ("EACVAR", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  eac:vardeclnode -- EACVARDECL*/
+	i = -1;
+	tnd = tnode_newnodetype ("eac:vardeclnode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: name */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	eac.tag_VARDECL = tnode_newnodetag ("EACVARDECL", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 
