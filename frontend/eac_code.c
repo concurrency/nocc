@@ -108,6 +108,45 @@ static void eac_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent
 /*}}}*/
 
 
+/*{{{  static int eac_format_inexpr (tnode_t *expr, char *ptr, int sleft)*/
+/*
+ *	formats an escape analysis expression into a string.
+ *	returns number of bytes added.
+ */
+static int eac_format_inexpr (tnode_t *expr, char *str, int *sleft)
+{
+	int this = 0;
+
+	if (expr->tag == eac.tag_DECL) {
+		this = eac_format_inexpr (tnode_nthsubof (expr, 0), str, sleft);
+		this += snprintf (str, *sleft, " (");
+		this += snprintf (str, *sleft, ") =\n");
+	} else if (expr->tag == eac.tag_NPROCDEF) {
+		this = snprintf (str, *sleft, "%s", NameNameOf (tnode_nthnameof (expr, 0)));
+	}
+
+	*sleft = *sleft - this;
+	return this;
+}
+/*}}}*/
+/*{{{  static char *eac_format_expr (tnode_t *expr)*/
+/*
+ *	formats an escape analysis expression for human-readable display.
+ */
+static char *eac_format_expr (tnode_t *expr)
+{
+	int slen = 1024;
+	int sleft = slen - 1;
+	char *str = (char *)smalloc (slen * sizeof (char));
+
+	*str = '\0';
+	eac_format_inexpr (expr, str, &sleft);
+
+	return str;
+}
+/*}}}*/
+
+
 /*{{{  static int eac_scopein_paramlist (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes in parameters for a procedure definition;
