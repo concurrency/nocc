@@ -71,7 +71,7 @@ typedef struct {
 extern eac_pset_t eac;
 
 /* handler for interactive mode */
-extern int eac_callback_line (char *line);
+extern int eac_callback_line (char *line, compcxt_t *ccx);
 
 extern void eac_isetindent (FILE *stream, int indent);
 extern struct TAG_langdef *eac_getlangdef (void);
@@ -86,6 +86,9 @@ extern void *eac_stringtoken_to_namehook (void *ntok);
 /* option handlers inside front-end */
 struct TAG_cmd_option;
 extern int eac_lexer_opthandler_flag (struct TAG_cmd_option *opt, char ***argwalk, int *argleft);
+
+/* extras */
+char *eac_format_expr (struct TAG_tnode *expr);
 
 
 #endif	/* !__EAC_H */

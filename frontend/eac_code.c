@@ -129,11 +129,11 @@ static int eac_format_inexpr (tnode_t *expr, char *str, int *sleft)
 	return this;
 }
 /*}}}*/
-/*{{{  static char *eac_format_expr (tnode_t *expr)*/
+/*{{{  char *eac_format_expr (tnode_t *expr)*/
 /*
  *	formats an escape analysis expression for human-readable display.
  */
-static char *eac_format_expr (tnode_t *expr)
+char *eac_format_expr (tnode_t *expr)
 {
 	int slen = 1024;
 	int sleft = slen - 1;

@@ -34,6 +34,7 @@ typedef struct TAG_xmlhandler {
 	void (*comment)(struct TAG_xmlhandler *, void *, const char *);
 	void (*data)(struct TAG_xmlhandler *, void *, const char *, int len);
 	void *uhook;
+	int ws_data;
 } xmlhandler_t;
 
 extern void xml_init (void);
@@ -105,7 +106,11 @@ typedef enum {
 	XMLKEY_META,
 	XMLKEY_DATA,
 	XMLKEY_NOCC_NAMESPACE,
-	XMLKEY_XMLNS_NOCC
+	XMLKEY_XMLNS_NOCC,
+	XMLKEY_NOCCHELP,
+	XMLKEY_HELPSET,
+	XMLKEY_HELP,
+	XMLKEY_COMMAND
 } xmlkeytype_t;
 
 typedef struct TAG_xmlkey {

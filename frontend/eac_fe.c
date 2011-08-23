@@ -34,6 +34,7 @@
 #include "lexer.h"
 #include "lexpriv.h"
 #include "parsepriv.h"
+#include "tnode.h"
 #include "eac.h"
 #include "opts.h"
 #include "eac_fe.h"

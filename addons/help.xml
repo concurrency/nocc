@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!--
+	help.xml
+	compiler help file (interactive modes)
+	Fred Barnes, 2011
+-->
+
+<nocchelp>
+	<helpset language="en" tag=""><!--{{{-->
+		<help command="help"><![CDATA[
+step		step through compiler stages
+run		run compiler to completion/error
+runto <n>	run compiler to stage <n>
+exit		exit compiler
+help [cmd]	help on a particular command
+]]>
+		</help>
+	</helpset><!--}}}-->
+</nocchelp>

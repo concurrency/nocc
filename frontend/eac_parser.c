@@ -202,12 +202,12 @@ langdef_t *eac_getlangdef (void)
 /*}}}*/
 
 
-/*{{{  int eac_callback_line (char *line)*/
+/*{{{  int eac_callback_line (char *line, compcxt_t *ccx)*/
 /*
  *	callback in interactive mode for handling lines of text
  *	returns IHR_ constant
  */
-int eac_callback_line (char *line)
+int eac_callback_line (char *line, compcxt_t *ccx)
 {
 	nocc_message ("eac: callback line [%s]", line);
 	return IHR_UNHANDLED;

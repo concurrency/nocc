@@ -25,24 +25,24 @@
  */
 
 typedef enum ENUM_ihandlerflags {
-	IHF_NONE = 0x0000,			/* nothing */
-	IHF_LINE = 0x0001,			/* use line_callback */
-	IHF_BITS = 0x0002			/* use bits_callback */
+	IHF_NONE = 0x0000,						/* nothing */
+	IHF_LINE = 0x0001,						/* use line_callback */
+	IHF_BITS = 0x0002						/* use bits_callback */
 } ihandlerflags_t;
 
 typedef struct TAG_ihandler {
-	char *id;				/* identifier */
-	char *prompt;				/* prompt addition in mode */
-	ihandlerflags_t flags;			/* handling flags */
-	int enabled;				/* dynamic switch for on/off */
-	int (*line_callback)(char *);		/* callback for line handling */
-	int (*bits_callback)(char **, int);	/* callback for line handling (already in bits) */
+	char *id;							/* identifier */
+	char *prompt;							/* prompt addition in mode */
+	ihandlerflags_t flags;						/* handling flags */
+	int enabled;							/* dynamic switch for on/off */
+	int (*line_callback)(char *, struct TAG_compcxt *);		/* callback for line handling */
+	int (*bits_callback)(char **, int, struct TAG_compcxt *);	/* callback for line handling (already in bits) */
 } ihandler_t;
 
 /* return values for callback handlers */
-#define IHR_HANDLED	0			/* all handled, next line please */
-#define IHR_PHANDLED	1			/* partially handled, try some more */
-#define IHR_UNHANDLED	2			/* unhandled, pass on */
+#define IHR_HANDLED	0						/* all handled, next line please */
+#define IHR_PHANDLED	1						/* partially handled, try some more */
+#define IHR_UNHANDLED	2						/* unhandled, pass on */
 
 extern ihandler_t *nocc_newihandler (void);
 extern void nocc_freeihandler (ihandler_t *);

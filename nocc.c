@@ -90,6 +90,7 @@
 #include "metadata.h"
 #include "version.h"
 #include "interact.h"
+#include "ihelp.h"
 
 #ifdef USE_LIBREADLINE
 #include <readline/history.h>
@@ -1321,54 +1322,6 @@ int nocc_unregister_ihandler (ihandler_t *ihdlr)
 }
 /*}}}*/
 
-/*{{{  static int local_ihandler (char *line)*/
-/*
- *	local handler for compiler-level things
- */
-static int local_ihandler (char *line)
-{
-	if (!strcmp (line, "help")) {
-		printf ("step            step through compiler stages\n");
-		printf ("run             run compiler to completion/error\n");
-		printf ("exit            exit compiler\n");
-		printf ("help [cmd]      help (specify command for specific help)\n");
-
-		return IHR_PHANDLED;
-	}
-	if (!strcmp (line, "version")) {
-		printf ("%s\n", version_string ());
-		return IHR_HANDLED;
-	}
-	if (!strcmp (line, "versions")) {
-		printf ("%s\n", version_string ());
-		return IHR_PHANDLED;			/* allow other things to say what version they are */
-	}
-
-	return IHR_UNHANDLED;
-}
-/*}}}*/
-/*{{{  static int local_ibitshandler (char **bits, int nbits)*/
-/*
- *	local handler for compiler-level things
- */
-static int local_ibitshandler (char **bits, int nbits)
-{
-	if (nbits < 1) {
-		return IHR_UNHANDLED;
-	}
-	if (!strcmp (bits[0], "help")) {
-		if (nbits != 2) {
-			return IHR_UNHANDLED;
-		}
-		printf ("someone needs to implement this, but probably not embedded in the compiler sources!\n");
-		return IHR_PHANDLED;
-	}
-
-	return IHR_UNHANDLED;
-}
-/*}}}*/
-
-
 /*{{{  compcxt_t: compiler context structure*/
 typedef struct TAG_compcxt {
 	DYNARRAY (char *, srcfiles);
@@ -2101,6 +2054,151 @@ static int cstage_run (int stage, int iact, int iauto, compcxt_t *ccx)
 }
 /*}}}*/
 
+/*{{{  static int local_ihandler (char *line, compcxt_t *ccx)*/
+/*
+ *	local handler for compiler-level things
+ */
+static int local_ihandler (char *line, compcxt_t *ccx)
+{
+	if (!strcmp (line, "help")) {
+		char *help = ihelp_getentry ("en", "", "help");
+
+		if (help) {
+			printf ("%s\n", help);
+		} else {
+			printf ("no help available, sorry..\n");
+		}
+
+		return IHR_PHANDLED;
+	}
+	if (!strcmp (line, "version")) {
+		printf ("%s\n", version_string ());
+		return IHR_HANDLED;
+	}
+	if (!strcmp (line, "versions")) {
+		printf ("%s\n", version_string ());
+		return IHR_PHANDLED;			/* allow other things to say what version they are */
+	}
+	if (!strcmp (line, "step") || !strcmp (line, "s")) {
+		/*{{{  step to next stage*/
+		int r;
+
+		r = cstage_run (ccx->atstage, 1, 0, ccx);
+		switch (r) {
+		case CSTR_ATEND:
+			/* at end */
+			printf ("at end of compilation run\n");
+			break;
+		case CSTR_OK:
+			/* success! */
+			ccx->atstage++;
+			break;
+		case CSTR_CLEANEXIT:
+			printf ("stage \"%s\" failed clean (exit)\n", stagetable[ccx->atstage].sname);
+			break;
+		case CSTR_DOEXIT:
+			printf ("stage \"%s\" failed (exit)\n", stagetable[ccx->atstage].sname);
+			break;
+		}
+
+		return IHR_HANDLED;
+		/*}}}*/
+	}
+	if (!strcmp (line, "run") || !strcmp (line, "r")) {
+		/*{{{  run to completion (or as far as we can)*/
+		int i, dostop;
+
+		for (i = ccx->atstage, dostop = 0; stagetable[i].stagefcn && !dostop; i++) {
+			int r;
+
+			r = cstage_run (i, 1, 0, ccx);
+			switch (r) {
+			case CSTR_OK:
+			default:
+				break;
+			case CSTR_ATEND:
+				printf ("at end of compilation run\n");
+				break;
+			case CSTR_CLEANEXIT:
+				printf ("stage \"%s\" failed clean (exit)\n", stagetable[ccx->atstage].sname);
+				dostop = 1;
+				break;
+			case CSTR_DOEXIT:
+				printf ("stage \"%s\" failed (exit)\n", stagetable[ccx->atstage].sname);
+				dostop = 1;
+				break;
+			}
+		}
+		ccx->atstage = i;
+
+		return IHR_HANDLED;
+		/*}}}*/
+	}
+
+	return IHR_UNHANDLED;
+}
+/*}}}*/
+/*{{{  static int local_ibitshandler (char **bits, int nbits, compcxt_t *ccx)*/
+/*
+ *	local handler for compiler-level things
+ */
+static int local_ibitshandler (char **bits, int nbits, compcxt_t *ccx)
+{
+	if (nbits < 1) {
+		return IHR_UNHANDLED;
+	}
+	if (!strcmp (bits[0], "help")) {
+		if (nbits != 2) {
+			return IHR_UNHANDLED;
+		}
+		printf ("someone needs to implement this, but probably not embedded in the compiler sources!\n");
+		return IHR_PHANDLED;
+	}
+	if (!strcmp (bits[0], "runto")) {
+		/*{{{  run to a specific compiler stage*/
+		int stopat;
+		int i, dostop;
+
+		if (nbits != 2) {
+			printf ("error, \'runto\' command requires argument\n");
+			return IHR_HANDLED;
+		}
+		if (sscanf (bits[1], "%d", &stopat) != 1) {
+			printf ("bad argument (%s) for \'runto\'\n", bits[1]);
+			return IHR_HANDLED;
+		}
+		for (i = ccx->atstage, dostop = 0; stagetable[i].stagefcn && !dostop && (i <= stopat); i++) {
+			int r;
+
+			r = cstage_run (i, 1, 0, ccx);
+			switch (r) {
+			case CSTR_OK:
+			default:
+				break;
+			case CSTR_ATEND:
+				printf ("at end of compilation run\n");
+				break;
+			case CSTR_CLEANEXIT:
+				printf ("stage \"%s\" failed clean (exit)\n", stagetable[ccx->atstage].sname);
+				dostop = 1;
+				break;
+			case CSTR_DOEXIT:
+				printf ("stage \"%s\" failed (exit)\n", stagetable[ccx->atstage].sname);
+				dostop = 1;
+				break;
+			}
+		}
+		ccx->atstage = i;
+
+		return IHR_HANDLED;
+		/*}}}*/
+	}
+
+	return IHR_UNHANDLED;
+}
+/*}}}*/
+
+
 
 /*{{{  int main (int argc, char **argv)*/
 /*
@@ -2423,6 +2521,9 @@ int main (int argc, char **argv)
 	crypto_init ();
 	trlang_init ();
 	traceslang_init ();
+	if (compopts.interactive) {
+		ihelp_init ();
+	}
 
 	/*}}}*/
 	/*{{{  here we check validity of the various public/private keys*/
@@ -2603,6 +2704,7 @@ int main (int argc, char **argv)
 		nocc_register_ihandler (lhan);
 		nocc_register_ihandler (lbitshan);
 	}
+
 	/*}}}*/
 
 	if (compopts.interactive) {
@@ -2634,56 +2736,7 @@ int main (int argc, char **argv)
 
 				free (lbuf);
 				add_history (xbuf);
-				if (!strcmp (xbuf, "step") || !strcmp (xbuf, "s")) {
-					/*{{{  step to next stage*/
-					int r;
-
-					r = cstage_run (ccx->atstage, 1, 0, ccx);
-					switch (r) {
-					case CSTR_ATEND:
-						/* at end */
-						printf ("at end of compilation run\n");
-						break;
-					case CSTR_OK:
-						/* success! */
-						ccx->atstage++;
-						break;
-					case CSTR_CLEANEXIT:
-						printf ("stage \"%s\" failed clean (exit)\n", stagetable[ccx->atstage].sname);
-						break;
-					case CSTR_DOEXIT:
-						printf ("stage \"%s\" failed (exit)\n", stagetable[ccx->atstage].sname);
-						break;
-					}
-					/*}}}*/
-				} else if (!strcmp (xbuf, "run") || !strcmp (xbuf, "r")) {
-					/*{{{  run to completion (or as far as we can)*/
-					int i, dostop;
-
-					for (i = ccx->atstage, dostop = 0; stagetable[i].stagefcn && !dostop; i++) {
-						int r;
-
-						r = cstage_run (i, 1, 0, ccx);
-						switch (r) {
-						case CSTR_OK:
-						default:
-							break;
-						case CSTR_ATEND:
-							printf ("at end of compilation run\n");
-							break;
-						case CSTR_CLEANEXIT:
-							printf ("stage \"%s\" failed clean (exit)\n", stagetable[ccx->atstage].sname);
-							dostop = 1;
-							break;
-						case CSTR_DOEXIT:
-							printf ("stage \"%s\" failed (exit)\n", stagetable[ccx->atstage].sname);
-							dostop = 1;
-							break;
-						}
-					}
-					ccx->atstage = i;
-					/*}}}*/
-				} else if (!strcmp (xbuf, "exit")) {
+				if (!strcmp (xbuf, "exit")) {
 					/*{{{  exit compiler*/
 					goto local_close_out;
 					/*}}}*/
@@ -2700,7 +2753,7 @@ int main (int argc, char **argv)
 						}
 						if (ihdlr->flags & IHF_LINE) {
 							/* try line callback */
-							int r = ihdlr->line_callback (xbuf);
+							int r = ihdlr->line_callback (xbuf, ccx);
 
 							if (r == IHR_HANDLED) {
 								handled++;
@@ -2713,7 +2766,7 @@ int main (int argc, char **argv)
 							int nbits, r;
 
 							for (nbits = 0; bitset[nbits]; nbits++);
-							r = ihdlr->bits_callback (bitset, nbits);
+							r = ihdlr->bits_callback (bitset, nbits, ccx);
 							if (r == IHR_HANDLED) {
 								handled++;
 								break;			/* for() */

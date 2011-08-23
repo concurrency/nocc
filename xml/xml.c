@@ -70,6 +70,7 @@ xmlhandler_t *xml_new_handler (void)
 	xh->comment = NULL;
 	xh->data = NULL;
 	xh->uhook = NULL;
+	xh->ws_data = 0;
 
 	return xh;
 }
@@ -201,13 +202,13 @@ static void xml_comment (void *data, const XML_Char *comment)
  */
 static void xml_data (void *data, const XML_Char *text, int len)
 {
-	int left;
+	int left, origlen = len;
 	char *ch;
 
 	/* see if it's all whitespace first */
 	for (left = len, ch = (char *)text; len && ((*ch == '\n') || (*ch == '\r') || (*ch == '\t') || (*ch == ' ')); ch++, len--);
-	if (len && curhandler->data) {
-		curhandler->data (curhandler, data, text, len);
+	if ((curhandler->ws_data || len) && curhandler->data) {
+		curhandler->data (curhandler, data, (char *)text, origlen);
 	}
 	return;
 }
@@ -335,7 +336,7 @@ out_error:
 /*}}}*/
 
 #else	/* !USE_LIBEXPAT */
-#warning stand-along XML support unsupported!
+#warning stand-alone XML support unsupported!
 /*FIXME! */
 
 #endif	/* !USE_LIBEXPAT */
