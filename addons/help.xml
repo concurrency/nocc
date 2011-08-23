@@ -8,11 +8,41 @@
 <nocchelp>
 	<helpset language="en" tag=""><!--{{{-->
 		<help command="help"><![CDATA[
-step		step through compiler stages
+exit		exit compiler
+help		general help
+help [cmd]	help on a particular command
+list [item]	list a particular compiler item
 run		run compiler to completion/error
 runto <n>	run compiler to stage <n>
-exit		exit compiler
-help [cmd]	help on a particular command
+step		step through compiler stages
+version		show compiler version
+versions	show versions of all compiler components
+]]>
+		</help>
+		<help command="step"><![CDATA[
+Steps execution to the next compiler stage.
+]]>
+		</help>
+		<help command="run"><![CDATA[
+Run the compiler until it completes or encounters an error.
+]]>
+		</help>
+		<help command="runto"><![CDATA[
+Run to a specific compiler stage.
+]]>
+		</help>
+		<help command="list"><![CDATA[
+List particular compiler item:
+  stages  - compiler stages
+  files   - files for compilation
+]]>
+		</help>
+		<help command="version"><![CDATA[
+Show compiler version information.
+]]>
+		</help>
+		<help command="versions"><![CDATA[
+Show version information for all compiler components.
 ]]>
 		</help>
 	</helpset><!--}}}-->

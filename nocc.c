@@ -1441,7 +1441,7 @@ typedef struct TAG_cstage {
 #define CSTR_DOEXIT	5			/* do hard exit (something failed) */
 
 /*}}}*/
-/*{{{  cstagetable: compiler stage table*/
+/*{{{  stagetable: compiler stage table*/
 static cstage_t stagetable[] = {
 /*	stagefcn			id		sname				flags			*/
 	{cstage_load_extensions,	"lext",		"load extensions",		CST_NONE},
@@ -2148,11 +2148,17 @@ static int local_ibitshandler (char **bits, int nbits, compcxt_t *ccx)
 		return IHR_UNHANDLED;
 	}
 	if (!strcmp (bits[0], "help")) {
-		if (nbits != 2) {
-			return IHR_UNHANDLED;
+		/*{{{  help for a particular command*/
+		if (nbits == 2) {
+			char *help = ihelp_getentry ("en", "", bits[1]);
+
+			if (help) {
+				printf ("%s\n", help);
+				return IHR_PHANDLED;
+			}
 		}
-		printf ("someone needs to implement this, but probably not embedded in the compiler sources!\n");
-		return IHR_PHANDLED;
+		return IHR_UNHANDLED;
+		/*}}}*/
 	}
 	if (!strcmp (bits[0], "runto")) {
 		/*{{{  run to a specific compiler stage*/
@@ -2160,7 +2166,7 @@ static int local_ibitshandler (char **bits, int nbits, compcxt_t *ccx)
 		int i, dostop;
 
 		if (nbits != 2) {
-			printf ("error, \'runto\' command requires argument\n");
+			printf ("error, \'runto\' command requires single argument\n");
 			return IHR_HANDLED;
 		}
 		if (sscanf (bits[1], "%d", &stopat) != 1) {
@@ -2191,6 +2197,31 @@ static int local_ibitshandler (char **bits, int nbits, compcxt_t *ccx)
 		ccx->atstage = i;
 
 		return IHR_HANDLED;
+		/*}}}*/
+	}
+	if (!strcmp (bits[0], "list")) {
+		/*{{{  list some aspect of the compiler*/
+		if ((nbits == 2) && !strcmp (bits[1], "stages")) {
+			/*{{{  list compiler stages*/
+			int i;
+
+			for (i=0; stagetable[i].stagefcn; i++) {
+				printf ("%-3d\t%-10s\t%s\n", i, stagetable[i].id, stagetable[i].sname);
+			}
+
+			return IHR_HANDLED;
+			/*}}}*/
+		} else if ((nbits == 2) && !strcmp (bits[1], "files")) {
+			/*{{{  list compiler files*/
+			int i;
+
+			for (i=0; i<DA_CUR (ccx->srcfiles); i++) {
+				printf ("%s\n", DA_NTHITEM (ccx->srcfiles, i));
+			}
+
+			return IHR_HANDLED;
+			/*}}}*/
+		}
 		/*}}}*/
 	}
 

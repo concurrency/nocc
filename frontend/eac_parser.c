@@ -209,7 +209,6 @@ langdef_t *eac_getlangdef (void)
  */
 int eac_callback_line (char *line, compcxt_t *ccx)
 {
-	nocc_message ("eac: callback line [%s]", line);
 	return IHR_UNHANDLED;
 }
 /*}}}*/
