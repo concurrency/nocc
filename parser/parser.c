@@ -168,7 +168,7 @@ void parser_error (lexfile_t *lf, const char *fmt, ...)
 	va_end (ap);
 
 	lf->errcount++;
-	nocc_message (warnbuf);
+	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;
@@ -190,7 +190,7 @@ void parser_warning (lexfile_t *lf, const char *fmt, ...)
 	va_end (ap);
 
 	lf->warncount++;
-	nocc_message (warnbuf);
+	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;
@@ -439,7 +439,7 @@ tnode_t *parser_parse (lexfile_t *lf)
 
 #if 0 && defined(DEBUG)
 fprintf (stderr, "parser_parse(): parse finished!.  Got tree:\n");
-tnode_dumptree (tree, stderr);
+tnode_dumptree (tree,0, stderr);
 #endif
 	if (lf->errcount) {
 		if (tree) {
