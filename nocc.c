@@ -91,6 +91,7 @@
 #include "version.h"
 #include "interact.h"
 #include "ihelp.h"
+#include "lexpriv.h"
 
 #ifdef USE_LIBREADLINE
 #include <readline/history.h>
@@ -2221,6 +2222,55 @@ static int local_ibitshandler (char **bits, int nbits, compcxt_t *ccx)
 
 			return IHR_HANDLED;
 			/*}}}*/
+		} else if ((nbits == 2) && !strcmp (bits[1], "trees")) {
+			/*{{{  list compiler source trees*/
+			int i;
+
+			for (i=0; i<DA_CUR (ccx->srctrees); i++) {
+				tnode_t *tree = DA_NTHITEM (ccx->srctrees, i);
+
+				if (tree) {
+					printf ("%-3d\ttree at %p (%s,%s)\n", i, tree, tree->tag->name, tree->tag->ndef->name);
+				}
+			}
+
+			return IHR_HANDLED;
+			/*}}}*/
+		} else if ((nbits == 2) && (!strcmp (bits[1], "langs") || !strcmp (bits[1], "languages"))) {
+			/*{{{  list compiler languages*/
+			langlexer_t **langs;
+			int i, nlangs = 0;
+
+			langs = lexer_getlanguages (&nlangs);
+			for (i=0; i<nlangs; i++) {
+				int j;
+
+				printf ("%-3d\t%-20s\t0x%8.8x\t", i, langs[i]->langname, langs[i]->langtag);
+				for (j=0; langs[i]->fileexts[j]; j++) {
+					printf ("%s\"%s\"", j ? ", " : "", langs[i]->fileexts[j]);
+				}
+				printf ("\n");
+			}
+
+			return IHR_HANDLED;
+			/*}}}*/
+		}
+		/*}}}*/
+	}
+	if (!strcmp (bits[0], "show")) {
+		/*{{{  show a particular parse tree*/
+		if (nbits == 2) {
+			int t;
+
+			if (sscanf (bits[1], "%d", &t) != 1) {
+				printf ("bad integer \"%s\"\n", bits[1]);
+			} else if ((t < 0) || (t >= DA_CUR (ccx->srctrees))) {
+				printf ("source tree %d out of range 0 - %d\n", t, DA_CUR (ccx->srctrees) - 1);
+			} else {
+				tnode_dumptree (DA_NTHITEM (ccx->srctrees, t), 0, stdout);
+			}
+
+			return IHR_HANDLED;
 		}
 		/*}}}*/
 	}

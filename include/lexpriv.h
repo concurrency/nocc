@@ -64,6 +64,8 @@ typedef struct TAG_langlexer {
 extern int lexer_registerlang (langlexer_t *ll);
 extern int lexer_unregisterlang (langlexer_t *ll);
 
+extern langlexer_t **lexer_getlanguages (int *nlangs);
+
 
 #endif	/* !__LEXPRIV_H */
 

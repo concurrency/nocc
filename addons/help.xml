@@ -15,6 +15,8 @@ list [item]	list a particular compiler item
 run		run compiler to completion/error
 runto <n>	run compiler to stage <n>
 step		step through compiler stages
+show <n>	show a particular parse tree (XML style)
+sshow <n>	show a particular parse tree (S-exp style)
 version		show compiler version
 versions	show versions of all compiler components
 ]]>
@@ -35,6 +37,8 @@ Run to a specific compiler stage.
 List particular compiler item:
   stages  - compiler stages
   files   - files for compilation
+  trees   - top-level parse trees (brief)
+  langs   - compiler supported languages
 ]]>
 		</help>
 		<help command="version"><![CDATA[
@@ -43,6 +47,12 @@ Show compiler version information.
 		</help>
 		<help command="versions"><![CDATA[
 Show version information for all compiler components.
+]]>
+		</help>
+	</helpset><!--}}}-->
+	<helpset language="en" tag="eac"><!--{{{-->
+		<help command="help"><![CDATA[
+print <name>	print a particular name
 ]]>
 		</help>
 	</helpset><!--}}}-->

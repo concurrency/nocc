@@ -43,6 +43,7 @@ STATICDYNARRAY (ihelpset_t *, helpsets);
 static ihelpset_t *parser_helpset = NULL;
 static ihelpentry_t *parser_helpentry = NULL;
 
+
 /*}}}*/
 
 
@@ -361,13 +362,24 @@ int ihelp_init (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  */
+/*{{{  int ihelp_shutdown (void)*/
 /*
  *	shuts-down interactive help
  *	returns 0 on success, non-zero on failure
  */
 int ihelp_shutdown (void)
 {
+	int i;
+
+	for (i=0; i<DA_CUR (helpsets); i++) {
+		ihelpset_t *hs = DA_NTHITEM (helpsets, i);
+
+		if (hs) {
+			ihelp_freehelpset (hs);
+		}
+	}
+	dynarray_trash (helpsets);
+
 	return 0;
 }
 /*}}}*/

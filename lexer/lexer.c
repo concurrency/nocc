@@ -46,11 +46,10 @@
 /*}}}*/
 
 
-/*{{{  private types*/
+/*{{{  private data*/
+
 STATICDYNARRAY (langlexer_t *, langlexers);
 
-/*}}}*/
-/*{{{  private data*/
 STATICDYNARRAY (lexfile_t *, lexfiles);
 STATICDYNARRAY (lexfile_t *, openlexfiles);
 
@@ -1026,6 +1025,16 @@ void lexer_dumplexers (FILE *stream)
 		fprintf (stream, "]\n");
 	}
 	return;
+}
+/*}}}*/
+/*{{{  langlexer_t **lexer_getlanguages (int *nlangs)*/
+/*
+ *	gets the array of registered language lexers
+ */
+langlexer_t **lexer_getlanguages (int *nlangs)
+{
+	*nlangs = DA_CUR (langlexers);
+	return DA_PTR (langlexers);
 }
 /*}}}*/
 
