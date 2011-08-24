@@ -1344,11 +1344,11 @@ static int occampi_snode_post_setup (void)
 
 /*{{{  occampi_snode_feunit (feunit_t)*/
 feunit_t occampi_snode_feunit = {
-	init_nodes: occampi_snode_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: occampi_snode_post_setup,
-	ident: "occampi-snode"
+	.init_nodes = occampi_snode_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = occampi_snode_post_setup,
+	.ident = "occampi-snode"
 };
 /*}}}*/
 

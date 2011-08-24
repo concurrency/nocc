@@ -2403,11 +2403,11 @@ static int occampi_protocol_post_setup (void)
 
 /*{{{  occampi_protocol_feunit (feunit_t)*/
 feunit_t occampi_protocol_feunit = {
-	init_nodes: occampi_protocol_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: occampi_protocol_post_setup,
-	ident: "occampi-protocol"
+	.init_nodes = occampi_protocol_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = occampi_protocol_post_setup,
+	.ident = "occampi-protocol"
 };
 /*}}}*/
 

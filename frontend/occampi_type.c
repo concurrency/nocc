@@ -1284,11 +1284,11 @@ static int occampi_type_postsetup (void)
 
 /*{{{  occampi_type_feunit (feunit_t struct)*/
 feunit_t occampi_type_feunit = {
-	init_nodes: occampi_type_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: occampi_type_postsetup,
-	ident: "occampi-type"
+	.init_nodes = occampi_type_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = occampi_type_postsetup,
+	.ident = "occampi-type"
 };
 /*}}}*/
 

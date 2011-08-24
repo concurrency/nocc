@@ -157,7 +157,7 @@ static int eac_scopein_paramlist (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	tnode_t **items;
 	int nitems, i;
-
+	
 	if (!*node) {
 		return 0;
 	}

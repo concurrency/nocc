@@ -83,23 +83,23 @@ static tnode_t *occampi_process (lexfile_t *lf);
 occampi_pset_t opi;		/* attach tags, etc. here */
 
 langparser_t occampi_parser = {
-	langname:	"occam-pi",
-	init:		occampi_parser_init,
-	shutdown:	occampi_parser_shutdown,
-	parse:		occampi_parser_parse,
-	descparse:	occampi_parser_descparse,
-	prescope:	occampi_parser_prescope,
-	scope:		occampi_parser_scope,
-	typecheck:	occampi_parser_typecheck,
-	typeresolve:	occampi_parser_typeresolve,
-	postcheck:	NULL,
-	fetrans:	NULL,
-	getlangdef:	occampi_getlangdef,
-	maketemp:	occampi_parser_maketemp,
-	makeseqassign:	occampi_parser_makeseqassign,
-	makeseqany:	occampi_parser_makeseqany,
-	tagstruct_hook:	(void *)&opi,
-	lexer:		NULL
+	.langname =		"occam-pi",
+	.init =			occampi_parser_init,
+	.shutdown =		occampi_parser_shutdown,
+	.parse =		occampi_parser_parse,
+	.descparse =		occampi_parser_descparse,
+	.prescope =		occampi_parser_prescope,
+	.scope =		occampi_parser_scope,
+	.typecheck =		occampi_parser_typecheck,
+	.typeresolve =		occampi_parser_typeresolve,
+	.postcheck =		NULL,
+	.fetrans =		NULL,
+	.getlangdef =		occampi_getlangdef,
+	.maketemp =		occampi_parser_maketemp,
+	.makeseqassign =	occampi_parser_makeseqassign,
+	.makeseqany =		occampi_parser_makeseqany,
+	.tagstruct_hook =	(void *)&opi,
+	.lexer =		NULL
 };
 
 

@@ -145,11 +145,11 @@ static int occampi_primproc_init_nodes (void)
 
 /*{{{  occampi_primproc_feunit (feunit_t)*/
 feunit_t occampi_primproc_feunit = {
-	init_nodes: occampi_primproc_init_nodes,
-	reg_reducers: NULL,
-	init_dfatrans: NULL,
-	post_setup: NULL,
-	ident: "occampi-primproc"
+	.init_nodes = occampi_primproc_init_nodes,
+	.reg_reducers = NULL,
+	.init_dfatrans = NULL,
+	.post_setup = NULL,
+	.ident = "occampi-primproc"
 };
 /*}}}*/
 

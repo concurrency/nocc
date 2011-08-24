@@ -387,7 +387,7 @@ static void exceptioncheck_warning (tnode_t *node, opiexception_t *tc, const cha
 		orgfile->warncount++;
 	}
 	tc->warn++;
-	nocc_message (warnbuf);
+	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;
@@ -419,7 +419,7 @@ static void exceptioncheck_error (tnode_t *node, opiexception_t *tc, const char 
 		orgfile->errcount++;
 	}
 	tc->err++;
-	nocc_message (warnbuf);
+	"%s", nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;

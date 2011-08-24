@@ -50,14 +50,14 @@ static int occampi_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 /*}}}*/
 /*{{{  public lexer struct*/
 langlexer_t occampi_lexer = {
-	langname: "occam-pi",
-	langtag: LANGTAG_OCCAMPI,
-	fileexts: {".occ", ".inc", NULL},
-	openfile: occampi_openfile,
-	closefile: occampi_closefile,
-	nexttoken: occampi_nexttoken,
-	getcodeline: occampi_getcodeline,
-	parser: NULL
+	.langname = "occam-pi",
+	.langtag = LANGTAG_OCCAMPI,
+	.fileexts = {".occ", ".inc", NULL},
+	.openfile = occampi_openfile,
+	.closefile = occampi_closefile,
+	.nexttoken = occampi_nexttoken,
+	.getcodeline = occampi_getcodeline,
+	.parser = NULL
 };
 
 
