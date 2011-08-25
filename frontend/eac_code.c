@@ -58,6 +58,7 @@
 #include "codegen.h"
 #include "target.h"
 #include "transputer.h"
+#include "eacpriv.h"
 
 
 /*}}}*/
@@ -108,6 +109,27 @@ static void eac_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent
 /*}}}*/
 
 
+/*{{{  static int eac_format_instr (char *str, int *sleft, const char *fmt, ...)*/
+/*
+ *	formats into a string.
+ *	returns number of bytes written.
+ */
+static int eac_format_instr (char *str, int *sleft, const char *fmt, ...)
+{
+	int w;
+	va_list ap;
+
+	va_start (ap, fmt);
+	w = vsnprintf (str, *sleft, fmt, ap);
+	va_end (ap);
+
+	if (w > 0) {
+		*sleft -= w;
+		return w;
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int eac_format_inexpr (tnode_t *expr, char *ptr, int sleft)*/
 /*
  *	formats an escape analysis expression into a string.
@@ -116,16 +138,16 @@ static void eac_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent
 static int eac_format_inexpr (tnode_t *expr, char *str, int *sleft)
 {
 	int this = 0;
+	int tleft = *sleft;
 
 	if (expr->tag == eac.tag_DECL) {
 		this = eac_format_inexpr (tnode_nthsubof (expr, 0), str, sleft);
-		this += snprintf (str, *sleft, " (");
-		this += snprintf (str, *sleft, ") =\n");
+		this += eac_format_instr (str + this, sleft, " (");
+		this += eac_format_instr (str + this, sleft, ") = \n");
 	} else if (expr->tag == eac.tag_NPROCDEF) {
-		this = snprintf (str, *sleft, "%s", NameNameOf (tnode_nthnameof (expr, 0)));
+		this = eac_format_instr (str, sleft, "%s", NameNameOf (tnode_nthnameof (expr, 0))); 
 	}
 
-	*sleft = *sleft - this;
 	return this;
 }
 /*}}}*/
@@ -360,6 +382,31 @@ fprintf (stderr, "eac_scopein_rawname: here! rawname = \"%s\"\n", rawname);
 /*}}}*/
 
 
+/*{{{  static int eac_fetrans_declnode (compops_t *cops, tnode_t **tptr, fetrans_t *fe)*/
+/*
+ *	front-end transformations for procedure declarations
+ *	returns 0 to stop walk, non-zero to continue
+ */
+static int eac_fetrans_declnode (compops_t *cops, tnode_t **tptr, fetrans_t *fe)
+{
+	tnode_t *name = tnode_nthsubof (*tptr, 0);
+	name_t *nname = tnode_nthnameof (name, 0);
+	eac_istate_t *istate = eac_getistate ();
+	int i;
+
+	for (i=0; i<DA_CUR (istate->procs); i++) {
+		if (DA_NTHITEM (istate->procs, i) == nname) {
+			/* already got this one */
+			return 1;
+		}
+	}
+	dynarray_add (istate->procs, nname);
+
+	return 1;
+}
+/*}}}*/
+
+
 /*{{{  static int eac_code_init_nodes (void)*/
 /*
  *	initialises EAC declaration nodes
@@ -431,6 +478,7 @@ static int eac_code_init_nodes (void)
 	tnd = tnode_newnodetype ("eac:declnode", &i, 4, 0, 0, TNF_NONE);			/* subnodes: name, params, body, freevars */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (eac_scopein_declnode));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (eac_fetrans_declnode));
 	tnd->ops = cops;
 
 	i = -1;

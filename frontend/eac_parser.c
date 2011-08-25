@@ -56,6 +56,7 @@
 #include "extn.h"
 #include "metadata.h"
 #include "interact.h"
+#include "eacpriv.h"
 
 
 /*}}}*/
@@ -113,6 +114,8 @@ static feunit_t *feunit_set[] = {
 };
 
 static ntdef_t *testtruetag, *testfalsetag;
+
+static eac_istate_t *eac_istate = NULL;
 
 /*}}}*/
 
@@ -202,6 +205,52 @@ langdef_t *eac_getlangdef (void)
 /*}}}*/
 
 
+/*{{{  void eac_init_istate (void)*/
+/*
+ *	initialises interactive state
+ */
+void eac_init_istate (void)
+{
+	eac_istate = (eac_istate_t *)smalloc (sizeof (eac_istate));
+
+	dynarray_init (eac_istate->procs);
+
+	return;
+}
+/*}}}*/
+/*{{{  void eac_shutdown_istate (void)*/
+/*
+ *	cleans-up interactive state
+ */
+void eac_shutdown_istate (void)
+{
+	if (eac_istate) {
+		/* FIXME: any cleanup here! */
+		sfree (eac_istate);
+		eac_istate = NULL;
+	}
+
+	return;
+}
+/*}}}*/
+/*{{{  void eac_mode_in (compcxt_t *ccx)*/
+/*
+ *	EAC interactive mode switch in
+ */
+void eac_mode_in (compcxt_t *ccx)
+{
+	return;
+}
+/*}}}*/
+/*{{{  void eac_mode_out (compcxt_t *ccx)*/
+/*
+ *	EAC interactive mode switch out
+ */
+void eac_mode_out (compcxt_t *ccx)
+{
+	return;
+}
+/*}}}*/
 /*{{{  int eac_callback_line (char *line, compcxt_t *ccx)*/
 /*
  *	callback in interactive mode for handling lines of text
@@ -209,7 +258,37 @@ langdef_t *eac_getlangdef (void)
  */
 int eac_callback_line (char *line, compcxt_t *ccx)
 {
+	char **bitset = split_string (line, 1);
+	int nbits;
+
+	for (nbits=0; bitset[nbits]; nbits++);
+	if (nbits >= 1) {
+		if (!strcmp (bitset[0], "names")) {
+			/*{{{  list names we know about*/
+			int i;
+
+			for (i=0; i<DA_CUR (eac_istate->procs); i++) {
+				name_t *thisone = DA_NTHITEM (eac_istate->procs, i);
+
+				printf ("%s\n", NameNameOf (thisone));
+			}
+
+			return IHR_HANDLED;
+			/*}}}*/
+		}
+	}
+	string_freebits (bitset);
+
 	return IHR_UNHANDLED;
+}
+/*}}}*/
+/*{{{  eac_istate_t *eac_getistate (void)*/
+/*
+ *	gets the interactive state pointer
+ */
+eac_istate_t *eac_getistate (void)
+{
+	return eac_istate;
 }
 /*}}}*/
 

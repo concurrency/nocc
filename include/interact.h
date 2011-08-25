@@ -27,7 +27,8 @@
 typedef enum ENUM_ihandlerflags {
 	IHF_NONE = 0x0000,						/* nothing */
 	IHF_LINE = 0x0001,						/* use line_callback */
-	IHF_BITS = 0x0002						/* use bits_callback */
+	IHF_BITS = 0x0002,						/* use bits_callback */
+	IHF_ANYMODE = 0x1000						/* callback in any mode */
 } ihandlerflags_t;
 
 typedef struct TAG_ihandler {
@@ -35,8 +36,11 @@ typedef struct TAG_ihandler {
 	char *prompt;							/* prompt addition in mode */
 	ihandlerflags_t flags;						/* handling flags */
 	int enabled;							/* dynamic switch for on/off */
+
 	int (*line_callback)(char *, struct TAG_compcxt *);		/* callback for line handling */
 	int (*bits_callback)(char **, int, struct TAG_compcxt *);	/* callback for line handling (already in bits) */
+	void (*mode_in)(struct TAG_compcxt *);				/* callback as mode switches in */
+	void (*mode_out)(struct TAG_compcxt *);				/* callback as mode switches out */
 } ihandler_t;
 
 /* return values for callback handlers */
@@ -49,6 +53,8 @@ extern void nocc_freeihandler (ihandler_t *);
 
 extern int nocc_register_ihandler (ihandler_t *);
 extern int nocc_unregister_ihandler (ihandler_t *);
+extern void *nocc_getimodehook (struct TAG_compcxt *);
+extern void *nocc_setimodehook (struct TAG_compcxt *, void *);
 
 
 #endif	/* !__INTERACT_H */

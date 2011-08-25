@@ -1248,6 +1248,8 @@ ihandler_t *nocc_newihandler (void)
 	ihdlr->enabled = 0;
 	ihdlr->line_callback = NULL;
 	ihdlr->bits_callback = NULL;
+	ihdlr->mode_in = NULL;
+	ihdlr->mode_out = NULL;
 
 	return ihdlr;
 }
@@ -1333,6 +1335,10 @@ typedef struct TAG_compcxt {
 
 	DYNARRAY (lexfile_t *, srclexers);
 	DYNARRAY (tnode_t *, srctrees);
+
+	/* below for interactive stuff only */
+	int imode;				/* index into ihandlers array for currently active "mode" */
+	void *mhook;				/* mode-specific hook */
 } compcxt_t;
 
 /*}}}*/
@@ -1351,6 +1357,8 @@ static compcxt_t *nocc_newcompcxt (void)
 	ccx->atstage = 0;
 	dynarray_init (ccx->srclexers);
 	dynarray_init (ccx->srctrees);
+	ccx->imode = -1;
+	ccx->mhook = NULL;
 
 	return ccx;
 }
@@ -2062,15 +2070,39 @@ static int cstage_run (int stage, int iact, int iauto, compcxt_t *ccx)
 static int local_ihandler (char *line, compcxt_t *ccx)
 {
 	if (!strcmp (line, "help")) {
+		/*{{{  get help*/
 		char *help = ihelp_getentry ("en", "", "help");
+		int r = IHR_UNHANDLED;
 
 		if (help) {
 			printf ("%s\n", help);
-		} else {
+			r = IHR_PHANDLED;
+		}
+		if (ccx->imode >= 0) {
+			/* see if there's mode-specific help */
+			help = ihelp_getentry ("en", DA_NTHITEM (ihandlers, ccx->imode)->id, "help");
+			if (help) {
+				printf ("%s\n", help);
+				r = IHR_PHANDLED;
+			}
+		}
+
+		if (r == IHR_UNHANDLED) {
 			printf ("no help available, sorry..\n");
 		}
 
-		return IHR_PHANDLED;
+		return r;
+		/*}}}*/
+	}
+	if (!strcmp (line, "mode")) {
+		if (ccx->imode < 0) {
+			printf ("not in any specific mode\n");
+		} else {
+			ihandler_t *ihr = DA_NTHITEM (ihandlers, ccx->imode);
+
+			printf ("in mode [%s]\n", ihr->id);
+		}
+		return IHR_HANDLED;
 	}
 	if (!strcmp (line, "version")) {
 		printf ("%s\n", version_string ());
@@ -2150,15 +2182,86 @@ static int local_ibitshandler (char **bits, int nbits, compcxt_t *ccx)
 	}
 	if (!strcmp (bits[0], "help")) {
 		/*{{{  help for a particular command*/
+		int r = IHR_UNHANDLED;
+
 		if (nbits == 2) {
 			char *help = ihelp_getentry ("en", "", bits[1]);
 
 			if (help) {
 				printf ("%s\n", help);
-				return IHR_PHANDLED;
+				r = IHR_PHANDLED;
+			}
+			if (ccx->imode >= 0) {
+				/* see if there's mode-specific help */
+				help = ihelp_getentry ("en", DA_NTHITEM (ihandlers, ccx->imode)->id, bits[1]);
+				if (help) {
+					printf ("%s\n", help);
+					r = IHR_PHANDLED;
+				}
 			}
 		}
-		return IHR_UNHANDLED;
+		return r;
+		/*}}}*/
+	}
+	if (!strcmp (bits[0], "mode")) {
+		/*{{{  compiler interactive mode switch*/
+		int nmode;
+
+		if (nbits != 2) {
+			printf ("mode command expects single argument\n");
+			return IHR_HANDLED;
+		}
+		if (!strcmp (bits[1], "none")) {
+			/* turn off mode-specific things */
+
+			if (ccx->imode >= 0) {
+				/* leave mode */
+				ihandler_t *ihs = DA_NTHITEM (ihandlers, ccx->imode);
+
+				if (ihs->mode_out) {
+					ihs->mode_out (ccx);
+				}
+				ccx->imode = -1;
+			}
+			return IHR_HANDLED;
+		}
+
+		for (nmode = 0; nmode < DA_CUR (ihandlers); nmode++) {
+			ihandler_t *ihr = DA_NTHITEM (ihandlers, nmode);
+
+			if (!strcmp (bits[1], ihr->id)) {
+				break;		/* for() */
+			}
+		}
+		if (nmode == DA_CUR (ihandlers)) {
+			printf ("no such mode \"%s\"\n", bits[1]);
+			return IHR_HANDLED;
+		}
+		if (nmode == ccx->imode) {
+			/* already in this mode */
+			return IHR_HANDLED;
+		}
+
+		if (ccx->imode >= 0) {
+			/* leave mode */
+			ihandler_t *ihs = DA_NTHITEM (ihandlers, ccx->imode);
+
+			if (ihs->mode_out) {
+				ihs->mode_out (ccx);
+			}
+			ccx->imode = -1;
+		}
+		if (nmode >= 0) {
+			/* enter mode */
+			ihandler_t *ihs = DA_NTHITEM (ihandlers, nmode);
+
+			if (ihs->mode_in) {
+				ihs->mode_in (ccx);
+			}
+			ccx->imode = nmode;
+		}
+
+		return IHR_HANDLED;
 		/*}}}*/
 	}
 	if (!strcmp (bits[0], "runto")) {
@@ -2254,6 +2357,8 @@ static int local_ibitshandler (char **bits, int nbits, compcxt_t *ccx)
 
 			return IHR_HANDLED;
 			/*}}}*/
+		} else {
+			return IHR_UNHANDLED;
 		}
 		/*}}}*/
 	}
@@ -2279,6 +2384,27 @@ static int local_ibitshandler (char **bits, int nbits, compcxt_t *ccx)
 }
 /*}}}*/
 
+
+/*{{{  void *nocc_getimodehook (compcxt_t *ccx)*/
+/*
+ *	called to get compiler-context mode hook
+ */
+void *nocc_getimodehook (compcxt_t *ccx)
+{
+	return ccx->mhook;
+}
+/*}}}*/
+/*{{{  void *nocc_setimodehook (compcxt_t *ccx, void *mhook)*/
+/*
+ *	called to set compiler-context mode hook
+ *	returns new mode hook
+ */
+void *nocc_setimodehook (compcxt_t *ccx, void *mhook)
+{
+	ccx->mhook = mhook;
+	return mhook;
+}
+/*}}}*/
 
 
 /*{{{  int main (int argc, char **argv)*/
@@ -2772,13 +2898,13 @@ int main (int argc, char **argv)
 
 		lhan->id = string_dup ("main1");
 		lhan->prompt = ("");
-		lhan->flags = IHF_LINE;
+		lhan->flags = IHF_LINE | IHF_ANYMODE;
 		lhan->enabled = 1;
 		lhan->line_callback = local_ihandler;
 
 		lbitshan->id = string_dup ("main2");
 		lbitshan->prompt = ("");
-		lbitshan->flags = IHF_BITS;
+		lbitshan->flags = IHF_BITS | IHF_ANYMODE;
 		lbitshan->enabled = 1;
 		lbitshan->bits_callback = local_ibitshandler;
 
@@ -2795,8 +2921,14 @@ int main (int argc, char **argv)
 		using_history ();
 
 		for (;;) {
-			char *prompt = string_fmt ("nocc-%d$ ", ccx->atstage);
-			char *lbuf = readline (prompt);
+			char *prompt, *lbuf;
+			
+			if (ccx->imode >= 0) {
+				prompt = string_fmt ("nocc/%s-%d$ ", DA_NTHITEM (ihandlers, ccx->imode)->prompt, ccx->atstage);
+			} else {
+				prompt = string_fmt ("nocc-%d$ ", ccx->atstage);
+			}
+			lbuf = readline (prompt);
 
 			sfree (prompt);
 			if (!lbuf) {
@@ -2832,7 +2964,7 @@ int main (int argc, char **argv)
 						if (!ihdlr->enabled) {
 							continue;
 						}
-						if (ihdlr->flags & IHF_LINE) {
+						if ((ihdlr->flags & IHF_LINE) && ((ihdlr->flags & IHF_ANYMODE) || (ccx->imode == i))) {
 							/* try line callback */
 							int r = ihdlr->line_callback (xbuf, ccx);
 
@@ -2842,7 +2974,7 @@ int main (int argc, char **argv)
 							} else if (r == IHR_PHANDLED) {
 								handled++;
 							}
-						} else if (ihdlr->flags & IHF_BITS) {
+						} else if ((ihdlr->flags & IHF_BITS) && ((ihdlr->flags & IHF_ANYMODE) || (ccx->imode == i))) {
 							/* try bits callback */
 							int nbits, r;
 

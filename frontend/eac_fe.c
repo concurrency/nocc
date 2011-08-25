@@ -39,6 +39,7 @@
 #include "opts.h"
 #include "eac_fe.h"
 #include "interact.h"
+#include "eacpriv.h"
 
 /*}}}*/
 /*{{{  private vars*/
@@ -71,8 +72,13 @@ int eac_register_frontend (void)
 	eac_ihandler->flags = IHF_LINE;
 	eac_ihandler->enabled = 1;
 	eac_ihandler->line_callback = eac_callback_line;
+	eac_ihandler->mode_in = eac_mode_in;
+	eac_ihandler->mode_out = eac_mode_out;
 
 	nocc_register_ihandler (eac_ihandler);
+
+	/* initialise private interactive state */
+	eac_init_istate ();
 
 	return 0;
 }
@@ -89,6 +95,8 @@ int eac_unregister_frontend (void)
 		nocc_freeihandler (eac_ihandler);
 		eac_ihandler = NULL;
 	}
+
+	eac_shutdown_istate ();
 
 	if (lexer_unregisterlang (&eac_lexer)) {
 		return -1;
