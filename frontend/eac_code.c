@@ -130,22 +130,75 @@ static int eac_format_instr (char *str, int *sleft, const char *fmt, ...)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int eac_format_inexpr (tnode_t *expr, char *ptr, int sleft)*/
+/*{{{  static int eac_format_inexpr (char *ptr, int sleft, tnode_t *expr)*/
 /*
  *	formats an escape analysis expression into a string.
  *	returns number of bytes added.
  */
-static int eac_format_inexpr (tnode_t *expr, char *str, int *sleft)
+static int eac_format_inexpr (char *str, int *sleft, tnode_t *expr)
 {
 	int this = 0;
 	int tleft = *sleft;
 
-	if (expr->tag == eac.tag_DECL) {
-		this = eac_format_inexpr (tnode_nthsubof (expr, 0), str, sleft);
+	if (!expr) {
+		return 0;
+	}
+
+	if (parser_islistnode (expr)) {
+		tnode_t **items;
+		int nitems, i;
+
+		items = parser_getlistitems (expr, &nitems);
+
+		for (i=0; i<nitems; i++) {
+			if (i) {
+				this += eac_format_instr (str + this, sleft, ", ");
+			}
+			this += eac_format_inexpr (str + this, sleft, items[i]);
+		}
+	} else if (expr->tag == eac.tag_DECL) {
+		this = eac_format_inexpr (str, sleft, tnode_nthsubof (expr, 0));
 		this += eac_format_instr (str + this, sleft, " (");
+		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 1));
 		this += eac_format_instr (str + this, sleft, ") = \n");
-	} else if (expr->tag == eac.tag_NPROCDEF) {
+		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 2));
+	} else if (expr->tag->ndef == eac.node_NAMENODE) {
 		this = eac_format_instr (str, sleft, "%s", NameNameOf (tnode_nthnameof (expr, 0))); 
+	} else if (expr->tag == eac.tag_VARDECL) {
+		/* free-var or parameter */
+		this = eac_format_inexpr (str, sleft, tnode_nthsubof (expr, 0));
+	} else if (expr->tag == eac.tag_ESET) {
+		this = eac_format_instr (str, sleft, "\t{");
+		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 0));
+		this += eac_format_instr (str + this, sleft, "}");
+	} else if (expr->tag == eac.tag_ESEQ) {
+		this = eac_format_instr (str, sleft, "<");
+		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 0));
+		this += eac_format_instr (str + this, sleft, ">");
+	} else if (expr->tag == eac.tag_INPUT) {
+		this = eac_format_inexpr (str, sleft, tnode_nthsubof (expr, 0));
+		this += eac_format_instr (str + this, sleft, "?");
+		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 1));
+	} else if (expr->tag == eac.tag_OUTPUT) {
+		this = eac_format_inexpr (str, sleft, tnode_nthsubof (expr, 0));
+		this += eac_format_instr (str + this, sleft, "!");
+		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 1));
+	} else if (expr->tag == eac.tag_VARCOMP) {
+		this = eac_format_inexpr (str, sleft, tnode_nthsubof (expr, 0));
+		this += eac_format_instr (str + this, sleft, "<-");
+		if (parser_islistnode (tnode_nthsubof (expr, 1))) {
+			this += eac_format_instr (str + this, sleft, "{");
+			this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 1));
+			this += eac_format_instr (str + this, sleft, "}");
+		} else {
+			this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 1));
+		}
+	} else if (expr->tag == eac.tag_SVREND) {
+		this = eac_format_instr (str, sleft, "~");
+		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 0));
+	} else if (expr->tag == eac.tag_CLIEND) {
+		this = eac_format_instr (str, sleft, "^");
+		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 0));
 	}
 
 	return this;
@@ -162,7 +215,7 @@ char *eac_format_expr (tnode_t *expr)
 	char *str = (char *)smalloc (slen * sizeof (char));
 
 	*str = '\0';
-	eac_format_inexpr (expr, str, &sleft);
+	eac_format_inexpr (str, &sleft, expr);
 
 	return str;
 }
@@ -442,6 +495,7 @@ static int eac_code_init_nodes (void)
 	tnd = tnode_newnodetype ("eac:namenode", &i, 0, 1, 0, TNF_NONE);			/* names: name */
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
+	eac.node_NAMENODE = tnd;
 
 	i = -1;
 	eac.tag_NPROCDEF = tnode_newnodetag ("EACNPROCDEF", &i, tnd, NTF_NONE);

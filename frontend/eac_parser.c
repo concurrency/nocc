@@ -205,6 +205,27 @@ langdef_t *eac_getlangdef (void)
 /*}}}*/
 
 
+/*{{{  static name_t *eac_find_name (const char *name)*/
+/*
+ *	finds a particular name in the private state
+ *	returns NULL if not found
+ */
+static name_t *eac_find_name (const char *name)
+{
+	int i;
+
+	for (i=0; i<DA_CUR (eac_istate->procs); i++) {
+		name_t *thisone = DA_NTHITEM (eac_istate->procs, i);
+
+		if (!strcmp (NameNameOf (thisone), name)) {
+			return thisone;
+		}
+	}
+	return NULL;
+}
+/*}}}*/
+
+
 /*{{{  void eac_init_istate (void)*/
 /*
  *	initialises interactive state
@@ -271,6 +292,21 @@ int eac_callback_line (char *line, compcxt_t *ccx)
 				name_t *thisone = DA_NTHITEM (eac_istate->procs, i);
 
 				printf ("%s\n", NameNameOf (thisone));
+			}
+
+			return IHR_HANDLED;
+			/*}}}*/
+		} else if ((nbits > 1) && !strcmp (bitset[0], "print")) {
+			/*{{{  print a particular name (human readable)*/
+			name_t *name = eac_find_name (bitset[1]);
+
+			if (!name) {
+				printf ("no such name \"%s\"\n", bitset[1]);
+			} else {
+				char *str = eac_format_expr (NameDeclOf (name));
+
+				printf ("%s\n", str);
+				sfree (str);
 			}
 
 			return IHR_HANDLED;
