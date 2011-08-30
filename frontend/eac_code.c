@@ -160,7 +160,7 @@ static int eac_format_inexpr (char *str, int *sleft, tnode_t *expr)
 		this = eac_format_inexpr (str, sleft, tnode_nthsubof (expr, 0));
 		this += eac_format_instr (str + this, sleft, " (");
 		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 1));
-		this += eac_format_instr (str + this, sleft, ") = \n");
+		this += eac_format_instr (str + this, sleft, ") = \n\t");
 		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 2));
 	} else if (expr->tag->ndef == eac.node_NAMENODE) {
 		this = eac_format_instr (str, sleft, "%s", NameNameOf (tnode_nthnameof (expr, 0))); 
@@ -168,7 +168,7 @@ static int eac_format_inexpr (char *str, int *sleft, tnode_t *expr)
 		/* free-var or parameter */
 		this = eac_format_inexpr (str, sleft, tnode_nthsubof (expr, 0));
 	} else if (expr->tag == eac.tag_ESET) {
-		this = eac_format_instr (str, sleft, "\t{");
+		this = eac_format_instr (str, sleft, "{");
 		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 0));
 		this += eac_format_instr (str + this, sleft, "}");
 	} else if (expr->tag == eac.tag_ESEQ) {
@@ -199,6 +199,20 @@ static int eac_format_inexpr (char *str, int *sleft, tnode_t *expr)
 	} else if (expr->tag == eac.tag_CLIEND) {
 		this = eac_format_instr (str, sleft, "^");
 		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 0));
+	} else if (expr->tag == eac.tag_PAR) {
+		this = eac_format_inexpr (str, sleft, tnode_nthsubof (expr, 0));
+		this += eac_format_instr (str + this, sleft, " || ");
+		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 1));
+	} else if (expr->tag == eac.tag_HIDE) {
+		this = eac_format_inexpr (str, sleft, tnode_nthsubof (expr, 0));
+		this += eac_format_instr (str + this, sleft, " \\ {");
+		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 1));
+		this += eac_format_instr (str + this, sleft, "}");
+	} else if (expr->tag == eac.tag_INSTANCE) {
+		this = eac_format_inexpr (str, sleft, tnode_nthsubof (expr, 0));
+		this += eac_format_instr (str + this, sleft, " (");
+		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 1));
+		this += eac_format_instr (str + this, sleft, ")");
 	}
 
 	return this;

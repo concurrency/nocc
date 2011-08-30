@@ -37,7 +37,7 @@
 .GRULE	"eac:markedsvrreduce" "SN0N+C[EACSVREND]1R-"
 .GRULE	"eac:markedclireduce" "SN0N+C[EACCLIEND]1R-"
 
-.GRULE	"eac:instancereduce" "SN0N+N+C[EACINSTANCE]2R-"
+.GRULE	"eac:instancereduce" "SN0N+N+VC[EACINSTANCE]2R-"
 
 .GRULE	"eac:parreduce" "T+St0@tN+N+VC[EACPAR]2R-"
 .GRULE	"eac:hidereduce" "T+St0@tN+N+VC[EACHIDE]2R-"
