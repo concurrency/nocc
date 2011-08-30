@@ -236,6 +236,43 @@ char *eac_format_expr (tnode_t *expr)
 /*}}}*/
 
 
+/*{{{  int eac_evaluate (const char *str)*/
+/*
+ *	evaluates a string (probably EAC expression or process)
+ *	returns 0 on success, non-zero on failure
+ */
+int eac_evaluate (const char *str)
+{
+	char *lstr = string_dup (str);
+	lexfile_t *lf = lexer_openbuf ("interactive", "eac", lstr);
+	int rcde = 0;
+	tnode_t *tree = NULL;
+
+	if (!lf) {
+		printf ("failed to open lexer for expression\n");
+		rcde = 1;
+		goto out_cleanup;
+	}
+
+	tree = parser_parse (lf);
+	lexer_close (lf);
+
+	if (!tree) {
+		printf ("failed to parse expression\n");
+		rcde = 2;
+		goto out_cleanup;
+	}
+
+	tnode_dumptree (tree, 1, stdout);
+	tnode_free (tree);
+
+out_cleanup:
+	sfree (lstr);
+	return rcde;
+}
+/*}}}*/
+
+
 /*{{{  static int eac_scopein_paramlist (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes in parameters for a procedure definition;

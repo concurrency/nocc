@@ -90,7 +90,8 @@ struct TAG_cmd_option;
 extern int eac_lexer_opthandler_flag (struct TAG_cmd_option *opt, char ***argwalk, int *argleft);
 
 /* extras */
-char *eac_format_expr (struct TAG_tnode *expr);
+extern char *eac_format_expr (struct TAG_tnode *expr);
+extern int eac_evaluate (const char *str);
 
 
 #endif	/* !__EAC_H */

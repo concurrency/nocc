@@ -311,6 +311,21 @@ int eac_callback_line (char *line, compcxt_t *ccx)
 
 			return IHR_HANDLED;
 			/*}}}*/
+		} else if ((nbits > 1) && !strcmp (bitset[0], "eval")) {
+			/*{{{  evaulate something*/
+			char *ch;
+
+			for (ch = line; (*ch != '\0') && ((*ch == ' ') || (*ch == '\t')); ch++);		/* skip leading whitespace */
+			for (; (*ch != '\0') && (*ch != ' ') && (*ch != '\t'); ch++);				/* skip first word ("eval") */
+			for (; (*ch != '\0') && ((*ch == ' ') || (*ch == '\t')); ch++);				/* skip next whitespace */
+			if (*ch == '\0') {
+				printf ("nothing to evaluate!\n");
+			} else {
+				eac_evaluate (ch);
+			}
+
+			return IHR_HANDLED;
+			/*}}}*/
 		}
 	}
 	string_freebits (bitset);

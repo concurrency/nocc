@@ -11,7 +11,8 @@
 exit		exit compiler
 help		general help
 help [cmd]	help on a particular command
-list [item]	list a particular compiler item
+list <item>	list a particular compiler item
+mode <name>	switch to a particular interactive mode
 run		run compiler to completion/error
 runto <n>	run compiler to stage <n>
 step		step through compiler stages
@@ -52,7 +53,16 @@ Show version information for all compiler components.
 	</helpset><!--}}}-->
 	<helpset language="en" tag="eac"><!--{{{-->
 		<help command="help"><![CDATA[
+names		list known names
 print <name>	print a particular name
+]]>
+		</help>
+		<help command="names"><![CDATA[
+Displays a list of known names (typically escape analysis definitions).
+]]>
+		</help>
+		<help command="print"><![CDATA[
+Pretty-prints a particular name in its original form.
 ]]>
 		</help>
 	</helpset><!--}}}-->
