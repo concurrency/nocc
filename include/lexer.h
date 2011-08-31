@@ -71,6 +71,7 @@ extern lexfile_t *lexer_openbuf (char *fname, char *langname, char *buf);
 extern void lexer_close (lexfile_t *lf);
 extern void lexer_warning (lexfile_t *lf, char *fmt, ...);
 extern void lexer_error (lexfile_t *lf, char *fmt, ...);
+extern char *lexer_filenameof (lexfile_t *lf);
 
 typedef struct TAG_token {
 	tokentype_t type;

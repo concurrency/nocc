@@ -254,30 +254,30 @@ void eac_shutdown_istate (void)
 	return;
 }
 /*}}}*/
-/*{{{  void eac_mode_in (compcxt_t *ccx)*/
+/*{{{  void eac_mode_in (struct TAG_compcxt *ccx)*/
 /*
  *	EAC interactive mode switch in
  */
-void eac_mode_in (compcxt_t *ccx)
+void eac_mode_in (struct TAG_compcxt *ccx)
 {
 	return;
 }
 /*}}}*/
-/*{{{  void eac_mode_out (compcxt_t *ccx)*/
+/*{{{  void eac_mode_out (struct TAG_compcxt *ccx)*/
 /*
  *	EAC interactive mode switch out
  */
-void eac_mode_out (compcxt_t *ccx)
+void eac_mode_out (struct TAG_compcxt *ccx)
 {
 	return;
 }
 /*}}}*/
-/*{{{  int eac_callback_line (char *line, compcxt_t *ccx)*/
+/*{{{  int eac_callback_line (char *line, struct TAG_compcxt *ccx)*/
 /*
  *	callback in interactive mode for handling lines of text
  *	returns IHR_ constant
  */
-int eac_callback_line (char *line, compcxt_t *ccx)
+int eac_callback_line (char *line, struct TAG_compcxt *ccx)
 {
 	char **bitset = split_string (line, 1);
 	int nbits;
@@ -430,6 +430,16 @@ static void eac_parser_shutdown (lexfile_t *lf)
 /*}}}*/
 
 
+/*{{{  static tnode_t *eac_parser_parseprocexpr (lexfile_t *lf)*/
+/*
+ *	parses a single EAC process *expression*, as used in interactive mode
+ *	returns tree on success, NULL on failure
+ */
+static tnode_t *eac_parser_parseprocexpr (lexfile_t *lf)
+{
+	return NULL;
+}
+/*}}}*/
 /*{{{  static tnode_t *eac_parser_parseprocessdef (lexfile_t *lf)*/
 /*
  *	parses a single EAC process definition, as typically read from a file

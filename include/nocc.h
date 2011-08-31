@@ -171,7 +171,11 @@ extern int nocc_dumpxmlnamespacefooters (FILE *stream);
 
 /* used to driving the compiler from a lower-level (e.g. interaction handlers) */
 struct TAG_compcxt;			/* compiler context */
-typedef struct TAG_compcxt compcxt_t;
+struct TAG_lexfile;
+struct TAG_tnode;
+
+extern int nocc_runfepasses (struct TAG_lexfile **lexers, struct TAG_tnode **trees, int count, int *exitmode);
+
 
 #endif	/* !__NOCC_H */
 

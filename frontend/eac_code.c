@@ -263,6 +263,8 @@ int eac_evaluate (const char *str)
 		goto out_cleanup;
 	}
 
+	/* okay, got a parse tree! */
+
 	tnode_dumptree (tree, 1, stdout);
 	tnode_free (tree);
 

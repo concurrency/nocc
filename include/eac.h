@@ -70,10 +70,12 @@ typedef struct {
 
 extern eac_pset_t eac;
 
+struct TAG_compcxt;
+
 /* handler for interactive mode */
-extern int eac_callback_line (char *line, compcxt_t *ccx);
-extern void eac_mode_in (compcxt_t *ccx);
-extern void eac_mode_out (compcxt_t *ccx);
+extern int eac_callback_line (char *line, struct TAG_compcxt *ccx);
+extern void eac_mode_in (struct TAG_compcxt *ccx);
+extern void eac_mode_out (struct TAG_compcxt *ccx);
 
 extern void eac_isetindent (FILE *stream, int indent);
 extern struct TAG_langdef *eac_getlangdef (void);

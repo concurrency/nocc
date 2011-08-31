@@ -526,6 +526,18 @@ int lexer_getcodeline (lexfile_t *lf, char **rbuf)
 	return 0;
 }
 /*}}}*/
+/*{{{  char *lexer_filenameof (lexfile_t *lf)*/
+/*
+ *	returns the filename associated with a lexer
+ */
+char *lexer_filenameof (lexfile_t *lf)
+{
+	if (!lf) {
+		return "(none)";
+	}
+	return lf->fnptr;
+}
+/*}}}*/
 
 
 /*{{{  token_t *lexer_newtoken (tokentype_t type, ...)*/

@@ -827,18 +827,18 @@ static void specfile_data (xmlhandler_t *xh, void *data, const char *text, int l
 
 /*}}}*/
 /*{{{  extras*/
-/*{{{  static void maybedumptrees (char **fnames, int nfnames, tnode_t **trees, int ntrees)*/
+/*{{{  static void maybedumptrees (lexfile_t **lexers, int nlexers, tnode_t **trees, int ntrees)*/
 /*
  *	maybe dumps the parse tree to a file
  */
-static void maybedumptrees (char **fnames, int nfnames, tnode_t **trees, int ntrees)
+static void maybedumptrees (lexfile_t **lexers, int nlexers, tnode_t **trees, int ntrees)
 {
 	int i;
 
 	if (compopts.dumptree) {
 		fprintf (stderr, "<nocc:treedump version=\"%s\">\n", version_string ());
 		for (i=0; i<ntrees; i++) {
-			fprintf (stderr, "    <nocc:parsetree src=\"%s\">\n", fnames[i]);
+			fprintf (stderr, "    <nocc:parsetree src=\"%s\">\n", lexer_filenameof (lexers[i]));
 			tnode_dumptree (trees[i], 2, stderr);
 			fprintf (stderr, "    </nocc:parsetree>\n");
 		}
@@ -864,7 +864,7 @@ static void maybedumptrees (char **fnames, int nfnames, tnode_t **trees, int ntr
 
 			fprintf (stream, "<nocc:treedump version=\"%s\">\n", version_string ());
 			for (i=0; i<ntrees; i++) {
-				fprintf (stream, "    <nocc:parsetree src=\"%s\">\n", fnames[i]);
+				fprintf (stream, "    <nocc:parsetree src=\"%s\">\n", lexer_filenameof (lexers[i]));
 				tnode_dumptree (trees[i], 2, stream);
 				fprintf (stream, "    </nocc:parsetree>\n");
 			}
@@ -882,7 +882,7 @@ static void maybedumptrees (char **fnames, int nfnames, tnode_t **trees, int ntr
 	} else if (compopts.dumpstree) {
 		fprintf (stderr, "(nocc:treedump (version \"%s\")\n", version_string ());
 		for (i=0; i<ntrees; i++) {
-			fprintf (stderr, "  (nocc:parsetree (src \"%s\")\n", fnames[i]);
+			fprintf (stderr, "  (nocc:parsetree (src \"%s\")\n", lexer_filenameof (lexers[i]));
 			tnode_dumpstree (trees[i], 2, stderr);
 			fprintf (stderr, "  )\n");
 		}
@@ -896,7 +896,7 @@ static void maybedumptrees (char **fnames, int nfnames, tnode_t **trees, int ntr
 		} else {
 			fprintf (stderr, "(nocc:treedump (version \"%s\")\n", version_string ());
 			for (i=0; i<ntrees; i++) {
-				fprintf (stderr, "  (nocc:parsetree (src \"%s\")\n", fnames[i]);
+				fprintf (stderr, "  (nocc:parsetree (src \"%s\")\n", lexer_filenameof (lexers[i]));
 				tnode_dumpstree (trees[i], 2, stderr);
 				fprintf (stderr, "  )\n");
 			}
@@ -1481,6 +1481,133 @@ static cstage_t stagetable[] = {
 };
 /*}}}*/
 
+/*{{{  int nocc_runfepasses (lexfile_t **lexers, tnode_t **trees, int count, int *exitmode)*/
+/*
+ *	runs the compiler front-end over a number of (parsed) source trees.  'exitmode' is set
+ *	to one of the CSTR constants for normal compiler operation (e.g. stop-after-XYZ).
+ *	returns 0 on success, non-zero on failure
+ */
+int nocc_runfepasses (lexfile_t **lexers, tnode_t **trees, int count, int *exitmode)
+{
+	int i;
+	int rcde = 0;
+
+	if (compopts.verbose) {
+		nocc_message ("front-end passes:");
+	}
+
+	if (exitmode) {
+		*exitmode = CSTR_OK;
+	}
+
+	for (i=0; i<DA_CUR (cfepasses); i++) {
+		compilerpass_t *cpass = DA_NTHITEM (cfepasses, i);
+		int passenabled = (!cpass->flagptr || (*(cpass->flagptr) == 1));
+		int j;
+		
+		for (j=0; j<count; j++) {
+			lexfile_t *lf = lexers[j];
+
+			if (compopts.treecheck) {
+				/* do pre-pass checks */
+				if (treecheck_prepass (trees[j], cpass->name, passenabled)) {
+					nocc_error ("failed pre-pass check for %s in %s", cpass->name, lexer_filenameof (lf));
+					rcde = 1;
+				}
+			}
+
+			if (passenabled) {
+				int result;
+				int errcount = lf->errcount;
+
+				if (compopts.verbose) {
+					nocc_message ("   %s ...", cpass->name);
+				}
+
+				/* switch on argument calling pattern */
+				switch (cpass->fargs) {
+					/*{{{  (tnode_t **, langparser_t *)*/
+				case (CPASS_TREEPTR | CPASS_LANGPARSER):
+					{
+						int (*fcnptr)(tnode_t **, langparser_t *) = (int (*)(tnode_t **, langparser_t *))cpass->fcn;
+
+						result = fcnptr (trees + j, lf->parser);
+					}
+					break;
+					/*}}}*/
+					/*{{{  (tnode_t *, langparser_t *)*/
+				case (CPASS_TREE | CPASS_LANGPARSER):
+					{
+						int (*fcnptr)(tnode_t *, langparser_t *) = (int (*)(tnode_t *, langparser_t *))cpass->fcn;
+
+						result = fcnptr (trees[j], lf->parser);
+					}
+					break;
+					/*}}}*/
+					/*{{{  (tnode_t **)*/
+				case CPASS_TREEPTR:
+					{
+						int (*fcnptr)(tnode_t **) = (int (*)(tnode_t **))cpass->fcn;
+
+						result = fcnptr (trees + j);
+					}
+					break;
+					/*}}}*/
+					/*{{{  (tnode_t *)*/
+				case CPASS_TREE:
+					{
+						int (*fcnptr)(tnode_t *) = (int (*)(tnode_t *))cpass->fcn;
+
+						result = fcnptr (trees[j]);
+					}
+					break;
+					/*}}}*/
+				default:
+					nocc_fatal ("unhandled compiler-pass argument combination 0x%8.8x for pass [%s]", (unsigned int)cpass->fargs, cpass->name);
+					result = -1;
+					break;
+				}
+				if (result) {
+					nocc_error ("failed to %s %s", cpass->name, lexer_filenameof (lf));
+					rcde = 1;
+				} else if (lf->errcount > errcount) {
+					/* if the lexfile collected any errors, fail as well */
+					nocc_error ("failed to %s %s", cpass->name, lexer_filenameof (lf));
+					rcde = 1;
+				}
+			}
+
+			if (compopts.treecheck) {
+				/* do post-pass checks */
+				if (treecheck_postpass (trees[j], cpass->name, passenabled)) {
+					nocc_error ("failed post-pass check for %s in %s", cpass->name, lexer_filenameof (lf));
+					rcde = 1;
+				}
+			}
+		}
+
+		/* can still stop even if pass not enabled */
+
+		if (compopts.stoppoint == cpass->stoppoint) {
+			/* stopping here */
+			maybedumptrees (lexers, count, trees, count);
+			if (exitmode) {
+				*exitmode = CSTR_CLEANEXIT;
+			}
+			return rcde;
+		}
+		if (rcde) {
+			if (exitmode) {
+				*exitmode = CSTR_ERREXIT;
+			}
+			return rcde;
+		}
+	}
+
+	return rcde;
+}
+/*}}}*/
+
 /*{{{  static int cstage_load_extensions (compcxt_t *ccx)*/
 /*
  *	load extensions
@@ -1711,7 +1838,7 @@ static int cstage_maybestop2 (compcxt_t *ccx)
 {
 	if (compopts.stoppoint == 2) {
 		/*  stop after parse*/
-		maybedumptrees (DA_PTR (ccx->srcfiles), DA_CUR (ccx->srcfiles), DA_PTR (ccx->srctrees), DA_CUR (ccx->srctrees));
+		maybedumptrees (DA_PTR (ccx->srclexers), DA_CUR (ccx->srclexers), DA_PTR (ccx->srctrees), DA_CUR (ccx->srctrees));
 		return CSTR_CLEANEXIT;
 	}
 	return CSTR_OK;
@@ -1770,108 +1897,21 @@ static int cstage_maybedumpsntags (compcxt_t *ccx)
 static int cstage_fepasses (compcxt_t *ccx)
 {
 	int i;
+	int ecode = CSTR_OK;
 
-	if (compopts.verbose) {
-		nocc_message ("front-end passes:");
+	if (DA_CUR (ccx->srctrees) != DA_CUR (ccx->srclexers)) {
+		nocc_internal ("cstage_fepasses(): number of source trees (%d) does not match number of source lexers (%d)",
+				DA_CUR (ccx->srctrees), DA_CUR (ccx->srclexers));
+		ccx->errored = 1;
+		return CSTR_OK;
 	}
-	for (i=0; i<DA_CUR (cfepasses); i++) {
-		compilerpass_t *cpass = DA_NTHITEM (cfepasses, i);
-		int passenabled = (!cpass->flagptr || (*(cpass->flagptr) == 1));
-		int j;
-		
-		for (j=0; j<DA_CUR (ccx->srctrees); j++) {
-			lexfile_t *lf = DA_NTHITEM (ccx->srclexers, j);
 
-			if (compopts.treecheck) {
-				/* do pre-pass checks */
-				if (treecheck_prepass (DA_NTHITEM (ccx->srctrees, j), cpass->name, passenabled)) {
-					nocc_error ("failed pre-pass check for %s in %s", cpass->name, DA_NTHITEM (ccx->srcfiles, j));
-					ccx->errored = 1;
-				}
-			}
-
-			if (passenabled) {
-				int result;
-				int errcount = lf->errcount;
-
-				if (compopts.verbose) {
-					nocc_message ("   %s ...", cpass->name);
-				}
-
-				/* switch on argument calling pattern */
-				switch (cpass->fargs) {
-					/*{{{  (tnode_t **, langparser_t *)*/
-				case (CPASS_TREEPTR | CPASS_LANGPARSER):
-					{
-						int (*fcnptr)(tnode_t **, langparser_t *) = (int (*)(tnode_t **, langparser_t *))cpass->fcn;
-
-						result = fcnptr (DA_NTHITEMADDR (ccx->srctrees, j), (DA_NTHITEM (ccx->srclexers, j))->parser);
-					}
-					break;
-					/*}}}*/
-					/*{{{  (tnode_t *, langparser_t *)*/
-				case (CPASS_TREE | CPASS_LANGPARSER):
-					{
-						int (*fcnptr)(tnode_t *, langparser_t *) = (int (*)(tnode_t *, langparser_t *))cpass->fcn;
-
-						result = fcnptr (DA_NTHITEM (ccx->srctrees, j), (DA_NTHITEM (ccx->srclexers, j))->parser);
-					}
-					break;
-					/*}}}*/
-					/*{{{  (tnode_t **)*/
-				case CPASS_TREEPTR:
-					{
-						int (*fcnptr)(tnode_t **) = (int (*)(tnode_t **))cpass->fcn;
-
-						result = fcnptr (DA_NTHITEMADDR (ccx->srctrees, j));
-					}
-					break;
-					/*}}}*/
-					/*{{{  (tnode_t *)*/
-				case CPASS_TREE:
-					{
-						int (*fcnptr)(tnode_t *) = (int (*)(tnode_t *))cpass->fcn;
-
-						result = fcnptr (DA_NTHITEM (ccx->srctrees, j));
-					}
-					break;
-					/*}}}*/
-				default:
-					nocc_fatal ("unhandled compiler-pass argument combination 0x%8.8x for pass [%s]", (unsigned int)cpass->fargs, cpass->name);
-					result = -1;
-					break;
-				}
-				if (result) {
-					nocc_error ("failed to %s %s", cpass->name, DA_NTHITEM (ccx->srcfiles, j));
-					ccx->errored = 1;
-				} else if (lf->errcount > errcount) {
-					/* if the lexfile collected any errors, fail as well */
-					nocc_error ("failed to %s %s", cpass->name, DA_NTHITEM (ccx->srcfiles, j));
-					ccx->errored = 1;
-				}
-			}
-
-			if (compopts.treecheck) {
-				/* do post-pass checks */
-				if (treecheck_postpass (DA_NTHITEM (ccx->srctrees, j), cpass->name, passenabled)) {
-					nocc_error ("failed post-pass check for %s in %s", cpass->name, DA_NTHITEM (ccx->srcfiles, j));
-					ccx->errored = 1;
-				}
-			}
-		}
-
-		/* can still stop even if pass not enabled */
-
-		if (compopts.stoppoint == cpass->stoppoint) {
-			/* stopping here */
-			maybedumptrees (DA_PTR (ccx->srcfiles), DA_CUR (ccx->srcfiles), DA_PTR (ccx->srctrees), DA_CUR (ccx->srctrees));
-			return CSTR_CLEANEXIT;
-		}
-		if (ccx->errored) {
-			return CSTR_ERREXIT;
-		}
+	i = nocc_runfepasses (DA_PTR (ccx->srclexers), DA_PTR (ccx->srctrees), DA_CUR (ccx->srclexers), &ecode);
+	if (i) {
+		ccx->errored = 1;
 	}
-	return CSTR_OK;
+
+	return ecode;
 }
 /*}}}*/
 /*{{{  static int cstage_targetinit (compcxt_t *ccx)*/
@@ -2012,7 +2052,7 @@ static int cstage_bepasses (compcxt_t *ccx)
 
 		if (compopts.stoppoint == cpass->stoppoint) {
 			/* stopping here */
-			maybedumptrees (DA_PTR (ccx->srcfiles), DA_CUR (ccx->srcfiles), DA_PTR (ccx->srctrees), DA_CUR (ccx->srctrees));
+			maybedumptrees (DA_PTR (ccx->srclexers), DA_CUR (ccx->srclexers), DA_PTR (ccx->srctrees), DA_CUR (ccx->srctrees));
 			return CSTR_CLEANEXIT;
 		}
 		if (ccx->errored) {
@@ -3031,7 +3071,7 @@ local_close_out:
 
 	/*}}}*/
 	/*{{{  maybe dump trees*/
-	maybedumptrees (DA_PTR (ccx->srcfiles), DA_CUR (ccx->srcfiles), DA_PTR (ccx->srctrees), DA_CUR (ccx->srctrees));
+	maybedumptrees (DA_PTR (ccx->srclexers), DA_CUR (ccx->srclexers), DA_PTR (ccx->srctrees), DA_CUR (ccx->srctrees));
 
 	/*}}}*/
 
