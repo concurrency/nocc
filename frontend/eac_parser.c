@@ -437,7 +437,64 @@ static void eac_parser_shutdown (lexfile_t *lf)
  */
 static tnode_t *eac_parser_parseprocexpr (lexfile_t *lf)
 {
-	return NULL;
+	token_t *tok;
+	tnode_t *tree = NULL;
+	tnode_t **target = &tree;
+
+	if (compopts.verbose > 1) {
+		nocc_message ("eac_parser_parseprocexpr(): starting parse for single process expression..");
+	}
+
+	for (;;) {
+		tnode_t *thisone;
+		int tnflags;
+		int breakfor = 0;
+
+		/* eat up newlines, stop if we get to the end */
+		tok = lexer_nexttoken (lf);
+		while ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
+			lexer_freetoken (tok);
+			tok = lexer_nexttoken (lf);
+		}
+		if ((tok->type == END) || (tok->type == NOTOKEN)) {
+			/* done */
+			lexer_freetoken (tok);
+			break;			/* for() */
+		}
+		lexer_pushback (lf, tok);
+
+		/* get the process */
+		thisone = dfa_walk ("eac:pexpr", 0, lf);
+		if (!thisone) {
+			*target = NULL;
+			break;			/* for() */
+		}
+		*target = thisone;
+		while (*target) {
+			/* sink through (see sometimes when @include'ing, etc. */
+			tnflags = tnode_tnflagsof (*target);
+			if (tnflags & TNF_LONGDECL) {
+				target = tnode_nthsubaddr (*target, 3);
+			} else if (tnflags & TNF_SHORTDECL) {
+				target = tnode_nthsubaddr (*target, 2);
+			} else if (tnflags & TNF_TRANSPARENT) {
+				target = tnode_nthsubaddr (*target, 0);
+			} else {
+				/* assume we're done! */
+				breakfor = 1;
+				break;			/* while() */
+			}
+		}
+		if (breakfor) {
+			break;
+		}
+	}
+
+	if (compopts.verbose > 1) {
+		nocc_message ("eac_parser_parseprocexpr(): done parsing single process expression (%p).", tree);
+	}
+
+	return tree;
 }
 /*}}}*/
 /*{{{  static tnode_t *eac_parser_parseprocessdef (lexfile_t *lf)*/
@@ -568,7 +625,12 @@ static tnode_t *eac_parser_parse (lexfile_t *lf)
 		nocc_message ("eac_parser_parse(): starting parse..");
 	}
 
-	i = eac_parser_parseprocdeflist (lf, &tree);
+	if (eac_isinteractive ()) {
+		tree = eac_parser_parseprocexpr (lf);
+		i = 0;
+	} else {
+		i = eac_parser_parseprocdeflist (lf, &tree);
+	}
 
 	if (compopts.verbose > 1) {
 		nocc_message ("leftover tokens:");

@@ -65,7 +65,7 @@
 /*{{{  private data*/
 
 static int eac_ignore_unresolved = 0;
-
+static int eac_interactive_mode = 0;		/* affects what the parser and other compiler passes might do */
 
 /*}}}*/
 
@@ -105,6 +105,17 @@ static void eac_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent
 	eac_isetindent (stream, indent);
 	fprintf (stream, "<eacrawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
 	return;
+}
+/*}}}*/
+
+
+/*{{{  int eac_isinteractive (void)*/
+/*
+ *	returns non-zero if parsing/etc. in the context of interactive mode
+ */
+int eac_isinteractive (void)
+{
+	return eac_interactive_mode;
 }
 /*}}}*/
 
@@ -247,6 +258,7 @@ int eac_evaluate (const char *str)
 	lexfile_t *lf = lexer_openbuf ("interactive", "eac", lstr);
 	int rcde = 0;
 	tnode_t *tree = NULL;
+	int oldintr = eac_interactive_mode;
 
 	if (!lf) {
 		printf ("failed to open lexer for expression\n");
@@ -254,6 +266,7 @@ int eac_evaluate (const char *str)
 		goto out_cleanup;
 	}
 
+	eac_interactive_mode = 1;
 	tree = parser_parse (lf);
 	lexer_close (lf);
 
@@ -270,6 +283,7 @@ int eac_evaluate (const char *str)
 
 out_cleanup:
 	sfree (lstr);
+	eac_interactive_mode = oldintr;
 	return rcde;
 }
 /*}}}*/
