@@ -102,6 +102,7 @@
 /*}}}*/
 
 
+
 /*{{{  global variables*/
 char *progname = NULL;
 compopts_t compopts = {
@@ -2413,6 +2414,23 @@ static int local_ibitshandler (char **bits, int nbits, compcxt_t *ccx)
 				printf ("source tree %d out of range 0 - %d\n", t, DA_CUR (ccx->srctrees) - 1);
 			} else {
 				tnode_dumptree (DA_NTHITEM (ccx->srctrees, t), 0, stdout);
+			}
+
+			return IHR_HANDLED;
+		}
+		/*}}}*/
+	}
+	if (!strcmp (bits[0], "sshow")) {
+		/*{{{  show a particular parse tree*/
+		if (nbits == 2) {
+			int t;
+
+			if (sscanf (bits[1], "%d", &t) != 1) {
+				printf ("bad integer \"%s\"\n", bits[1]);
+			} else if ((t < 0) || (t >= DA_CUR (ccx->srctrees))) {
+				printf ("source tree %d out of range 0 - %d\n", t, DA_CUR (ccx->srctrees) - 1);
+			} else {
+				tnode_dumpstree (DA_NTHITEM (ccx->srctrees, t), 0, stdout);
 			}
 
 			return IHR_HANDLED;
