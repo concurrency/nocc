@@ -464,7 +464,7 @@ static tnode_t *eac_parser_parseprocexpr (lexfile_t *lf)
 		lexer_pushback (lf, tok);
 
 		/* get the process */
-		thisone = dfa_walk ("eac:pexpr", 0, lf);
+		thisone = dfa_walk ("eac:fvpexpr", 0, lf);
 		if (!thisone) {
 			*target = NULL;
 			break;			/* for() */

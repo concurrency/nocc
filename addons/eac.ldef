@@ -24,7 +24,7 @@
 .SECTION "eac-code" #{{{: whole language
 
 .GRULE	"eac:namereduce" "T+St0X[eac_nametoken_to_hook]C[EACNAME]1R-"
-.GRULE	"eac:pdecl" "SN00N+N+N+V*C[EACDECL]4R-"
+.GRULE	"eac:pdeclreduce" "SN00N+N+N+V*C[EACDECL]4R-"
 
 .GRULE	"eac:inputreduce" "SN0N+N+VC[EACINPUT]2R-"
 .GRULE	"eac:outputreduce" "SN0N+N+VC[EACOUTPUT]2R-"
@@ -42,6 +42,7 @@
 .GRULE	"eac:parreduce" "T+St0@tN+N+VC[EACPAR]2R-"
 .GRULE	"eac:hidereduce" "T+St0@tN+N+VC[EACHIDE]2R-"
 
+.GRULE	"eac:fvpexprreduce" "SN0N+0C[EACFVPEXPR]2R-"
 
 .TABLE	"eac:name ::= [ 0 +Name 1 ] [ 1 {<eac:namereduce>} -* ]"
 .BNF	"eac:namelist ::= { eac:name @@, 0 }"
@@ -80,7 +81,9 @@
 	"[ 0 -Name 3 ] [ 3 eac:pexprnamestart 4 ] [ 4 {<eac:nullreduce>} -* <eac:prestofexpr> ]"
 	"[ 0 @@( 5 ] [ 5 eac:pexpr 6 ] [ 6 @@) 7 ] [ 7 {<eac:nullreduce>} -* <eac:prestofexpr> ]"
 
-.TABLE	"eac:process ::= [ 0 eac:name 1 ] [ 1 eac:fparamlist 2 ] [ 2 @@= 3 ] [ 3 Newline 3 ] [ 3 eac:pexpr 4 ] [ 4 {<eac:pdecl>} -* ]"
+.TABLE	"eac:fvpexpr ::= [ 0 eac:pexpr 1 ] [ 1 {<eac:fvpexprreduce>} -* ]"
+
+.TABLE	"eac:process ::= [ 0 eac:name 1 ] [ 1 eac:fparamlist 2 ] [ 2 @@= 3 ] [ 3 Newline 3 ] [ 3 eac:fvpexpr 4 ] [ 4 {<eac:pdeclreduce>} -* ]"
 
 #}}}
 

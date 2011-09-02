@@ -65,6 +65,8 @@ typedef struct {
 	struct TAG_ntdef *tag_CHANVAR;
 	struct TAG_ntdef *tag_VAR;
 
+	struct TAG_ntdef *tag_FVPEXPR;
+
 	struct TAG_token *tok_ATSIGN;
 } eac_pset_t;
 

@@ -277,6 +277,12 @@ int eac_evaluate (const char *str)
 	}
 
 	/* okay, got a parse tree! */
+	rcde = nocc_runfepasses (&lf, &tree, 1, NULL);
+	if (rcde) {
+		printf ("failed to run front-end on expression\n");
+		rcde = 3;
+		goto out_cleanup;
+	}
 
 	tnode_dumptree (tree, 1, stdout);
 	tnode_free (tree);
@@ -422,8 +428,6 @@ static int eac_scopein_declnode (compops_t *cops, tnode_t **node, scope_t *ss)
 	char *rawname;
 	name_t *procname;
 	tnode_t *newname;
-	tnode_t *fvlist;
-	int eac_lastunresolved = eac_ignore_unresolved;
 
 	if (name->tag != eac.tag_NAME) {
 		scope_error (name, ss, "eac_scopein_declnode(): declaration name not name! (%s,%s)", name->tag->name, name->tag->ndef->name);
@@ -444,22 +448,43 @@ static int eac_scopein_declnode (compops_t *cops, tnode_t **node, scope_t *ss)
 	eac_scopein_paramlist (cops, tnode_nthsubaddr (*node, 1), ss);
 
 	/* scope body, primarily to pick out parameters */
-	eac_ignore_unresolved = 1;
 	scope_subtree (tnode_nthsubaddr (*node, 2), ss);
+
+	/* remove params from visible scope */
+	name_markdescope (nsmark);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int eac_scopein_fvpenode (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes in a process expression (associates free-vars with processes)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int eac_scopein_fvpenode (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	tnode_t *fvlist;
+	void *nsmark;
+	int eac_lastunresolved = eac_ignore_unresolved;
+
+	/* scope expression, ignoring free-vars */
+	eac_ignore_unresolved = 1;
+	scope_subtree (tnode_nthsubaddr (*node, 0), ss);
 	eac_ignore_unresolved = eac_lastunresolved;
 
 	/* scan body looking for leftover free variables */
 	fvlist = parser_newlistnode (OrgFileOf (*node));
-	tnode_prewalktree (tnode_nthsubof (*node, 2), eac_scope_scanfreevars, fvlist);
+	tnode_prewalktree (tnode_nthsubof (*node, 0), eac_scope_scanfreevars, fvlist);
+
+	nsmark = name_markscope ();
 
 	/* scope in free variables and attach to tree */
 	eac_scopein_freevars (cops, fvlist, ss);
-	tnode_setnthsub (*node, 3, fvlist);
+	tnode_setnthsub (*node, 1, fvlist);
 
 	/* scope body again */
-	scope_subtree (tnode_nthsubaddr (*node, 2), ss);
+	scope_subtree (tnode_nthsubaddr (*node, 0), ss);
 
-	/* remove params and free-vars from visible scope */
 	name_markdescope (nsmark);
 
 	return 0;
@@ -487,7 +512,7 @@ fprintf (stderr, "eac_scopein_rawname: here! rawname = \"%s\"\n", rawname);
 	sname = name_lookupss (rawname, ss);
 	if (sname) {
 		/* resolved */
-		*node = NameNodeOf (sname);
+		*node = tnode_copytree (NameNodeOf (sname));
 
 		tnode_free (name);
 	} else {
@@ -604,6 +629,17 @@ static int eac_code_init_nodes (void)
 
 	i = -1;
 	eac.tag_DECL = tnode_newnodetag ("EACDECL", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  eac:fvpenode -- EACFVPEXPR*/
+	i = -1;
+	tnd = tnode_newnodetype ("eac:fvpenode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: expression, freevars */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (eac_scopein_fvpenode));
+	tnd->ops = cops;
+
+	i = -1;
+	eac.tag_FVPEXPR = tnode_newnodetag ("EACFVPEXPR", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  eac:eseqnode -- EACESEQ*/
