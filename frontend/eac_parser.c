@@ -326,6 +326,21 @@ int eac_callback_line (char *line, struct TAG_compcxt *ccx)
 
 			return IHR_HANDLED;
 			/*}}}*/
+		} else if ((nbits > 1) && !strcmp (bitset[0], "pexp")) {
+			/*{{{  print an expression (human readable)*/
+			char *ch;
+
+			for (ch = line; (*ch != '\0') && ((*ch == ' ') || (*ch == '\t')); ch++);		/* skip leading whitespace */
+			for (; (*ch != '\0') && (*ch != ' ') && (*ch != '\t'); ch++);				/* skip first word ("pexp") */
+			for (; (*ch != '\0') && ((*ch == ' ') || (*ch == '\t')); ch++);				/* skip next whitespace */
+			if (*ch == '\0') {
+				printf ("nothing to show!\n");
+			} else {
+				eac_parseprintexp (ch);
+			}
+
+			return IHR_HANDLED;
+			/*}}}*/
 		}
 	}
 	string_freebits (bitset);

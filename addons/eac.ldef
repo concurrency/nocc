@@ -69,10 +69,10 @@
 .BNF	"eac:eseqlist ::= { eac:eseq @@, 0 }"
 
 # Note: for restofexpr, some existing tree in node result
-.TABLE	"eac:prestofexpr ::= [ 0 +@@|| 1 ] [ 1 {<eac:resultpop>} -* 2 ] [ 2 eac:pexpr 3 ] [ 3 {<eac:parreduce>} -* ]"
-	"[ 0 +@@\\ 4 ] [ 4 {<eac:resultpop>} -* 5 ] [ 5 @@{ 6 ] [ 6 eac:maybemarkednamelist 7 ] [ 7 @@} 8 ] [ 8 {<eac:hidereduce>} -* ]"
+.TABLE	"eac:prestofexpr ::= [ 0 +@@|| 1 ] [ 1 {<eac:resultpop>} -* 2 ] [ 2 eac:pexpr 3 ] [ 3 {<eac:parreduce>} -* <eac:prestofexpr> ]"
+	"[ 0 +@@\\ 4 ] [ 4 {<eac:resultpop>} -* 5 ] [ 5 @@{ 6 ] [ 6 eac:maybemarkednamelist 7 ] [ 7 @@} 8 ] [ 8 {<eac:hidereduce>} -* <eac:prestofexpr> ]"
 	"[ 0 +@@[ 9 ] [ 9 {<eac:resultpop>} -* 10 ] [ 10 eac:maybemarkednamelist 11 ] [ 11 @@/ 12 ] [ 12 eac:maybemarkednamelist 13 ]"
-		"[ 13 @@] 14 ] [ 14 {<eac:substreduce>} -* ]"
+		"[ 13 @@] 14 ] [ 14 {<eac:substreduce>} -* <eac:prestofexpr> ]"
 	"[ 0 -* ]"
 
 .BNF	"eac:aparamlist ::= eac:maybemarkednamelist {<eac:nullreduce>}"

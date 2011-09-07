@@ -55,6 +55,8 @@ Show version information for all compiler components.
 		<help command="help"><![CDATA[
 names		list known names
 print <name>	print a particular name
+eval <exp>	evaluates an expression (reduces to some sort of normal form)
+pexp <exp>	prints an expression without evaluating it
 ]]>
 		</help>
 		<help command="names"><![CDATA[

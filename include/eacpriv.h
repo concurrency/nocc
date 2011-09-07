@@ -35,6 +35,7 @@ struct TAG_tnode;
 
 extern char *eac_format_expr (struct TAG_tnode *expr);
 extern int eac_evaluate (const char *str);
+extern int eac_parseprintexp (const char *str);
 extern int eac_isinteractive (void);
 
 

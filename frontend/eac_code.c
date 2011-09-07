@@ -67,6 +67,8 @@
 static int eac_ignore_unresolved = 0;
 static int eac_interactive_mode = 0;		/* affects what the parser and other compiler passes might do */
 
+static name_t *eac_nameinstancesintree_search = NULL;
+
 /*}}}*/
 
 
@@ -116,6 +118,38 @@ static void eac_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent
 int eac_isinteractive (void)
 {
 	return eac_interactive_mode;
+}
+/*}}}*/
+/*{{{  static eac_subst_t *eac_newsubst (void)*/
+/*
+ *	creates a new eac_subst_t structure
+ */
+static eac_subst_t *eac_newsubst (void)
+{
+	eac_subst_t *subst = (eac_subst_t *)smalloc (sizeof (eac_subst_t));
+
+	subst->count = 0;
+	subst->newtree = NULL;
+	subst->oldname = NULL;
+
+	return subst;
+}
+/*}}}*/
+/*{{{  static void eac_freesubst (eac_subst_t *subst)*/
+/*
+ *	frees an eac_subst_t structure
+ */
+static void eac_freesubst (eac_subst_t *subst)
+{
+	if (!subst) {
+		nocc_internal ("eac_freesubst(): NULL pointer!");
+		return;
+	}
+
+	subst->newtree = NULL;
+	subst->oldname = NULL;
+	sfree (subst);
+	return;
 }
 /*}}}*/
 
@@ -293,6 +327,44 @@ int eac_substituteintree (tnode_t **tptr, eac_subst_t *subst)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int eac_nameinstancesintree_walk (tnode_t *tree, void *arg)*/
+/*
+ *	does a tree-walk looking for a particular name; uses 'eac_nameinstancesintree_search'
+ *	for the name to find.
+ *	returns 0 to stop walk, 1 to continue.
+ */
+static int eac_nameinstancesintree_walk (tnode_t *tree, void *arg)
+{
+	int *countp = (int *)arg;
+
+	if (tree->tag->ndef == eac.node_NAMENODE) {
+		/* NOTE: this uses actual name, not lexical, comparison */
+		if (tnode_nthnameof (tree, 0) == eac_nameinstancesintree_search) {
+			*countp = *countp + 1;
+		}
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int eac_nameinstancesintree (tnode_t *tree, name_t *name)*/
+/*
+ *	counts the number of instances of a particular name in a tree
+ */
+static int eac_nameinstancesintree (tnode_t *tree, name_t *name)
+{
+	int count = 0;
+	name_t *oldi = eac_nameinstancesintree_search;
+
+	if (!tree) {
+		return 0;
+	}
+	eac_nameinstancesintree_search = name;
+	tnode_prewalktree (tree, eac_nameinstancesintree_walk, (void *)&count);
+	eac_nameinstancesintree_search = oldi;
+
+	return count;
+}
+/*}}}*/
 /*{{{  static int eac_simplifytree_walk (tnode_t **tptr, void *arg)*/
 /*
  *	does simplifications on a parse-tree (walk)
@@ -304,7 +376,7 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 	int *errp = (int *)arg;
 
 	if (!node) {
-		return 1;
+		return 0;
 	}
 
 	if (node->tag == eac.tag_SUBST) {
@@ -312,11 +384,10 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 		int i, ncount, ecount;
 		tnode_t **newlist, **extlist;
 		int scount = 0;
-		eac_subst_t *ss;
 
 		if (!parser_islistnode (tnode_nthsubof (node, 1)) || !parser_islistnode (tnode_nthsubof (node, 2))) {
 			tnode_error (node, "substitution items not a list!");
-			*errp++;
+			*errp = *errp + 1;
 			return 0;
 		}
 
@@ -324,31 +395,137 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 		extlist = parser_getlistitems (tnode_nthsubof (node, 2), &ecount);
 		if (ncount != ecount) {
 			tnode_error (node, "unbalanced substitution! [%d/%d]", ncount, ecount);
-			*errp++;
+			*errp = *errp + 1;
 			return 0;
 		}
 		
-		ss = (eac_subst_t *)smalloc (sizeof (eac_subst_t));
 		for (i=0; i<ncount; i++) {
+			eac_subst_t *ss;
+
 			if (extlist[i]->tag->ndef != eac.node_NAMENODE) {
 				tnode_error (node, "item %d in substitution list is not a name", i);
-				sfree (ss);
-				*errp++;
+				*errp = *errp + 1;
 				return 0;
 			}
-			ss->count = 0;
+
+			ss = eac_newsubst ();
 			ss->oldname = tnode_nthnameof (extlist[i], 0);
 			ss->newtree = newlist[i];
 
 			eac_substituteintree (tnode_nthsubaddr (node, 0), ss);
 
 			scount += ss->count;
+			eac_freesubst (ss);
 		}
-		sfree (ss);
 
 		/* okay, lose the substitution and replace with its modified contents */
 		*tptr = tnode_nthsubof (node, 0);
 		tnode_setnthsub (node, 0, NULL);		/* just left with subst lists */
+
+		tnode_free (node);
+
+		/* walk the new node, then we're done */
+		tnode_modprewalktree (tptr, eac_simplifytree_walk, (void *)errp);
+
+		return 0;
+		/*}}}*/
+	} else if (node->tag == eac.tag_INSTANCE) {
+		/*{{{  substitute contents of instance for its placement*/
+		/* FIXME: assume type-checking for parameters has been done! */
+		tnode_t *inst = tnode_nthsubof (node, 0);
+		name_t *pname;
+		tnode_t *pdecl, *pcopy;
+		tnode_t **pexplist, **iexplist;
+		int npitems, niitems, i;
+
+		if (inst->tag != eac.tag_NPROCDEF) {
+			tnode_error (node, "instance not of a procedure!");
+			*errp = *errp + 1;
+			return 0;
+		}
+
+		pname = tnode_nthnameof (inst, 0);
+		pdecl = NameDeclOf (pname);
+		
+		if (!pdecl) {
+			tnode_error (node, "no such procedure");
+			*errp = *errp + 1;
+			return 0;
+		}
+
+		if (pdecl->tag != eac.tag_DECL) {
+			tnode_error (node, "declaration not of expected DECL type (%s,%s)",
+					pdecl->tag->name, pdecl->tag->ndef->name);
+			*errp = *errp + 1;
+			return 0;
+		}
+
+		pcopy = tnode_copytree (tnode_nthsubof (pdecl, 2));
+		/* this *should* be a FVPEXPR node, original name references preserved */
+
+		if (pcopy->tag != eac.tag_FVPEXPR) {
+			tnode_error (node, "copied procedure body is not a free-var expression (%s,%s)",
+					pcopy->tag->name, pcopy->tag->ndef->name);
+			*errp = *errp + 1;
+			tnode_free (pcopy);
+			return 0;
+		}
+
+		/* sanity check */
+		if (!parser_islistnode (tnode_nthsubof (pdecl, 1))) {
+			tnode_error (node, "procedure parameter list not list");
+			*errp = *errp + 1;
+			tnode_free (pcopy);
+			return 0;
+		}
+		if (!parser_islistnode (tnode_nthsubof (node, 1))) {
+			tnode_error (node, "instance parameter list not list");
+			*errp = *errp + 1;
+			tnode_free (pcopy);
+			return 0;
+		}
+
+		/* first, replace parameters in expression copy */
+		pexplist = parser_getlistitems (tnode_nthsubof (pdecl, 1), &npitems);
+		iexplist = parser_getlistitems (tnode_nthsubof (node, 1), &niitems);
+
+		if (npitems != niitems) {
+			tnode_error (node, "parameter count mismatch! (actual %d, formal %d)", niitems, npitems);
+			*errp = *errp + 1;
+			tnode_free (pcopy);
+			return 0;
+		}
+
+		for (i=0; i<npitems; i++) {
+			eac_subst_t *ss = eac_newsubst ();
+			tnode_t *pfname = NULL;
+
+			if (pexplist[i]->tag != eac.tag_VARDECL) {
+				tnode_error (pexplist[i], "formal parameter %d is not a variable declaration!", i);
+				*errp = *errp + 1;
+				eac_freesubst (ss);
+				tnode_free (pcopy);
+				return 0;
+			}
+			pfname = tnode_nthsubof (pexplist[i], 0);
+
+			if (pfname->tag->ndef != eac.node_NAMENODE) {
+				tnode_error (pexplist[i], "formal parameter %d is not a name!", i);
+				*errp = *errp + 1;
+				eac_freesubst (ss);
+				tnode_free (pcopy);
+				return 0;
+			}
+			ss->oldname = tnode_nthnameof (pfname, 0);
+			ss->newtree = iexplist[i];
+
+			eac_substituteintree (&pcopy, ss);
+			eac_freesubst (ss);
+		}
+
+		/* FIXME: pull up and rename (where necessary) bound free-vars in copied instance */
+		*tptr = pcopy;
+		tnode_free (node);
 
 		/*}}}*/
 	}
@@ -371,6 +548,88 @@ static int eac_simplifytree (tnode_t **tptr)
 		return 0;
 	}
 	tnode_modprewalktree (tptr, eac_simplifytree_walk, (void *)&err);
+
+	return err;
+}
+/*}}}*/
+/*{{{  static int eac_cleanuptree_walk (tnode_t **tptr, void *arg)*/
+/*
+ *	does tree clean-up, pre-walk
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int eac_cleanuptree_walk (tnode_t **tptr, void *arg)
+{
+	tnode_t *node = *tptr;
+	int *errp = (int *)arg;
+
+	if (!node) {
+		return 0;
+	}
+
+	if (node->tag == eac.tag_FVPEXPR) {
+		tnode_t *fvplist = tnode_nthsubof (node, 1);
+		tnode_t **items;
+		int nitems, i;
+
+		if (!parser_islistnode (fvplist)) {
+			tnode_error (node, "free-vars not a list!");
+			*errp = *errp + 1;
+			return 0;
+		}
+
+		items = parser_getlistitems (fvplist, &nitems);
+		for (i=0; i<nitems; i++) {
+			name_t *name;
+			tnode_t *ndecl;
+
+			if (items[i]->tag != eac.tag_VARDECL) {
+				tnode_error (node, "item %d in freevars list is not a variable declaration (%s,%s)",
+						i, items[i]->tag->name, items[i]->tag->ndef->name);
+				*errp = *errp + 1;
+				return 0;
+			}
+
+			ndecl = tnode_nthsubof (items[i], 0);
+
+			if (ndecl->tag->ndef != eac.node_NAMENODE) {
+				tnode_error (node, "declared item %d in freevars list is not a name (%s,%s)",
+						i, ndecl->tag->name, ndecl->tag->ndef->name);
+				*errp = *errp + 1;
+				return 0;
+			}
+
+			name = tnode_nthnameof (ndecl, 0);
+
+			/* see if it occurs in the tree at all */
+			if (!eac_nameinstancesintree (tnode_nthsubof (node, 0), name)) {
+				/* nope, it doesn't, remove it from the list */
+				tnode_t *item = parser_delfromlist (fvplist, i);
+				
+				i--, nitems--;
+				tnode_free (item);			/* and free */
+			}
+		}
+
+		/* leave empty free-var lists just incase we need to fill them up again later on! */
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int eac_cleanuptree (tnode_t **tptr)*/
+/*
+ *	attempts to clean-up a tree after simplifications and things,
+ *	removes bound variable names that have no occurences
+ *	returns 0 on success, non-zero on failure
+ */
+static int eac_cleanuptree (tnode_t **tptr)
+{
+	int err = 0;
+
+	if (!*tptr) {
+		return 0;
+	}
+	tnode_modprewalktree (tptr, eac_cleanuptree_walk, (void *)&err);
 
 	return err;
 }
@@ -423,11 +682,79 @@ int eac_evaluate (const char *str)
 		goto out_cleanup;
 	}
 
+	rcde = eac_cleanuptree (&tree);
+	if (rcde) {
+		printf ("failed to clean-up after expression simplifications\n");
+		rcde = 5;
+		goto out_cleanup;
+	}
+
 	/* okay, pretty-print */
 	resstr = eac_format_expr (tree);
 	printf ("%s\n", resstr);
 
-	// tnode_dumptree (tree, 1, stdout);
+	if (compopts.verbose) {
+		tnode_dumptree (tree, 1, stdout);
+	}
+	tnode_free (tree);
+
+out_cleanup:
+	if (resstr) {
+		sfree (resstr);
+		resstr = NULL;
+	}
+	sfree (lstr);
+	lstr = NULL;
+
+	eac_interactive_mode = oldintr;
+	return rcde;
+}
+/*}}}*/
+/*{{{  int eac_parseprintexp (const char *str)*/
+/*
+ *	parses and prints an expression (doesn't evaluate)
+ *	returns 0 on success, non-zero on failure
+ */
+int eac_parseprintexp (const char *str)
+{
+	char *lstr = string_dup (str);
+	lexfile_t *lf = lexer_openbuf ("interactive", "eac", lstr);
+	int rcde = 0;
+	tnode_t *tree = NULL;
+	int oldintr = eac_interactive_mode;
+	char *resstr = NULL;
+
+	if (!lf) {
+		printf ("failed to open lexer for expression\n");
+		rcde = 1;
+		goto out_cleanup;
+	}
+
+	eac_interactive_mode = 1;
+	tree = parser_parse (lf);
+	lexer_close (lf);
+
+	if (!tree) {
+		printf ("failed to parse expression\n");
+		rcde = 2;
+		goto out_cleanup;
+	}
+
+	/* okay, got a parse tree! */
+	rcde = nocc_runfepasses (&lf, &tree, 1, NULL);
+	if (rcde) {
+		printf ("failed to run front-end on expression\n");
+		rcde = 3;
+		goto out_cleanup;
+	}
+
+	/* okay, pretty-print */
+	resstr = eac_format_expr (tree);
+	printf ("%s\n", resstr);
+
+	if (compopts.verbose) {
+		tnode_dumptree (tree, 1, stdout);
+	}
 	tnode_free (tree);
 
 out_cleanup:
