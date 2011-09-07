@@ -656,6 +656,45 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 			return 0;
 		}
 		/*}}}*/
+	} else if (node->tag == eac.tag_PAR) {
+		/*{{{  parallel composition -- simple, do subnodes then coalesce escape sets*/
+		tnode_t **lhsp = tnode_nthsubaddr (node, 0);
+		tnode_t **rhsp = tnode_nthsubaddr (node, 1);
+
+		tnode_modprewalktree (lhsp, eac_simplifytree_walk, arg);
+		tnode_modprewalktree (rhsp, eac_simplifytree_walk, arg);
+
+		if (((*lhsp)->tag == eac.tag_ESET) && ((*rhsp)->tag == eac.tag_ESET)) {
+			/* join together */
+			tnode_t *lhsseq = tnode_nthsubof (*lhsp, 0);
+			tnode_t *rhsseq = tnode_nthsubof (*rhsp, 0);
+
+			while (parser_countlist (rhsseq) > 0) {
+				tnode_t *item = parser_delfromlist (rhsseq, 0);
+
+				parser_addtolist (lhsseq, item);
+			}
+
+			*tptr = *lhsp;
+			tnode_setnthsub (node, 0, NULL);
+			tnode_free (node);
+		}
+
+		return 0;
+		/*}}}*/
+	} else if (node->tag == eac.tag_HIDE) {
+		/*{{{  hiding operator -- does something moderately complex*/
+		tnode_t **lhsp = tnode_nthsubaddr (node, 0);
+
+		tnode_modprewalktree (lhsp, eac_simplifytree_walk, arg);
+
+		if ((*lhsp)->tag == eac.tag_ESET) {
+			/* can do hiding (hopefully!) */
+			/* FIXME: needs implementing.. */
+		}
+
+		return 0;
+		/*}}}*/
 	}
 
 	return 1;
@@ -1233,6 +1272,32 @@ static int eac_prescope_instancenode (compops_t *cops, tnode_t **tptr, prescope_
 /*}}}*/
 
 
+/*{{{  static int eac_prescope_esetnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
+/*
+ *	pre-scope for escape set node -- make sure any contents are a list
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int eac_prescope_esetnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)
+{
+	tnode_t *node = *tptr;
+
+	if (node->tag == eac.tag_ESET) {
+		tnode_t **cptr = tnode_nthsubaddr (node, 0);
+
+		if (!*cptr) {
+			/* make empty list */
+			*cptr = parser_newlistnode (OrgFileOf (node));
+		} else if (!parser_islistnode (*cptr)) {
+			*cptr = parser_makelistnode (*cptr);
+		}
+		return 0;
+	}
+
+	return 1;
+}
+/*}}}*/
+
+
 /*{{{  static int eac_code_init_nodes (void)*/
 /*
  *	initialises EAC declaration nodes
@@ -1336,8 +1401,9 @@ static int eac_code_init_nodes (void)
 	/*}}}*/
 	/*{{{  eac:esetnode -- EACESET*/
 	i = -1;
-	tnd = tnode_newnodetype ("eac:esetnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: free-var-decls, escape-sequences */
+	tnd = tnode_newnodetype ("eac:esetnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: escape-sequences, freevars */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (eac_prescope_esetnode));
 	tnd->ops = cops;
 
 	i = -1;

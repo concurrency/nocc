@@ -31,6 +31,10 @@ END.S (in) = {
 	< in ? ~s, ~s ? v >
 	}
 
+# multiple sequences per set
+
+FOO (in, out) = { <in?a, out!a>, <in?b>, <out!c> }
+
 # channel-factory system
 CF.SYS =
 	(C.FACT (a, b) || END.C (a) || END.S (b)) \ {a,b}
