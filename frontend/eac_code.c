@@ -291,6 +291,61 @@ char *eac_format_expr (tnode_t *expr)
 /*}}}*/
 
 
+/*{{{  static char *eac_unusednamein (const char *basename, tnode_t *namelist)*/
+/*
+ *	attempts to find an unused name by adding primes to things
+ *	returns new name string (allocated)
+ */
+static char *eac_unusednamein (const char *basename, tnode_t *namelist)
+{
+	int i, ncount;
+	tnode_t **items;
+	char *tmpnewname = (char *)smalloc (strlen (basename) + 128);
+	int nnlen, maxlen;
+	int first = 1;
+
+	/* prime temporary new name */
+	strcpy (tmpnewname, basename);
+	nnlen = strlen (basename);
+	maxlen = nnlen + 127;
+	tmpnewname[nnlen] = '\0';
+
+tryagain:
+	if (!first) {
+		/* add a prime.. */
+		tmpnewname[nnlen] = '\'';
+		nnlen++;
+		tmpnewname[nnlen] = '\0';
+		if (nnlen == maxlen) {
+			nocc_internal ("eac_unusednamein(): added 128 or so primes, but no fresh name found -- giving up!");
+			sfree (tmpnewname);
+			return string_dup ("gopher$$$");
+		}
+	} else {
+		first = 0;
+	}
+
+	items = parser_getlistitems (namelist, &ncount);
+	for (i=0; i<ncount; i++) {
+		tnode_t *thisone = items[i];
+
+		if (thisone->tag == eac.tag_VARDECL) {
+			thisone = tnode_nthsubof (thisone, 0);
+		}
+		if (thisone->tag->ndef == eac.node_NAMENODE) {
+			name_t *name = tnode_nthnameof (thisone, 0);
+
+			if (!strcmp (NameNameOf (name), tmpnewname)) {
+				/* already got one, try again */
+				goto tryagain;
+			}
+		}
+	}
+
+	/* not used! */
+	return tmpnewname;
+}
+/*}}}*/
 /*{{{  static int eac_substituteintree_walk (tnode_t **tptr, void *arg)*/
 /*
  *	substitutes within a tree
@@ -542,8 +597,11 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 			lbitems = parser_getlistitems (tnode_nthsubof (pcopy, 1), &lbcount);
 			for (i=0; i<lbcount; i++) {
 				name_t *lbname;
-				tnode_t **tlitems;
-				int tlcount, j;
+				tnode_t *tlvlist = tnode_nthsubof (eac_tlfvpexpr, 1);
+				tnode_t *newnamenode, *newdecl;
+				name_t *newname;
+				char *newsname;
+				eac_subst_t *ss;
 
 				if (lbitems[i]->tag != eac.tag_VARDECL) {
 					tnode_error (node, "local free-var item not var-decl! (%s,%s)",
@@ -554,64 +612,26 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 				}
 				lbname = tnode_nthnameof (tnode_nthsubof (lbitems[i], 0), 0);
 
-				/* see if it occurs in top-level free-var list */
-				tlitems = parser_getlistitems (tnode_nthsubof (eac_tlfvpexpr, 1), &tlcount);
-				for (j=0; j<tlcount; j++) {
-					name_t *tlname;
+				/* find an unused name (maybe the same!) */
+				newsname = eac_unusednamein (NameNameOf (lbname), tlvlist);
+				newnamenode = tnode_createfrom (tnode_nthsubof (lbitems[i], 0)->tag, node, NULL);
+				newdecl = tnode_createfrom (lbitems[i]->tag, node, newnamenode);
+				newname = name_addname (newsname, newdecl, NULL, newnamenode);
+				sfree (newsname);
 
-					if (tlitems[j]->tag != eac.tag_VARDECL) {
-						tnode_error (node, "top-level free var not var-decl! (%s,%s)",
-								tlitems[j]->tag->name, tlitems[j]->tag->ndef->name);
-						*errp = *errp + 1;
-						tnode_free (pcopy);
-						return 0;
-					}
+				ss = eac_newsubst ();
+				tnode_setnthname (newnamenode, 0, newname);
 
-					tlname = tnode_nthnameof (tnode_nthsubof (tlitems[j], 0), 0);
-					if (!strcmp (NameNameOf (lbname), NameNameOf (tlname))) {
-						/* yes, name conflict */
-						break;			/* for() */
-					}
-				}
+				/* add declaration to top-level list */
+				parser_addtolist (tlvlist, newdecl);
 
-				if (j == tlcount) {
-					/* name (lbname) doesn't occur at top-level, move it over unmodified, but create a new name for it */
-					tnode_t *newnamenode = tnode_createfrom (tnode_nthsubof (lbitems[i], 0)->tag, node, NULL);
-					tnode_t *newdecl = tnode_createfrom (lbitems[i]->tag, node, newnamenode);
-					name_t *newname = name_addname (NameNameOf (lbname), newdecl, NULL, newnamenode);
-					eac_subst_t *ss = eac_newsubst ();
+				/* substitute inside copied body */
+				ss->oldname = lbname;
+				ss->newtree = newnamenode;
 
-					tnode_setnthname (newnamenode, 0, newname);
+				eac_substituteintree (tnode_nthsubaddr (pcopy, 0), ss);
+				eac_freesubst (ss);
 
-					/* add declaration to the top-level list */
-					parser_addtolist (tnode_nthsubof (eac_tlfvpexpr, 1), newdecl);
-
-					/* substitute inside copy body */
-					ss->oldname = lbname;
-					ss->newtree = newnamenode;
-
-					eac_substituteintree (tnode_nthsubaddr (pcopy, 0), ss);
-					eac_freesubst (ss);
-				} else {
-					/* name (lbname) *does* occur at top-level, rename it and move over */
-					tnode_t *newnamenode = tnode_createfrom (tnode_nthsubof (lbitems[i], 0)->tag, node, NULL);
-					tnode_t *newdecl = tnode_createfrom (lbitems[i]->tag, node, newnamenode);
-					char *newsname = string_fmt ("%s'", NameNameOf (lbname));
-					name_t *newname = name_addname (newsname, newdecl, NULL, newnamenode);
-					eac_subst_t *ss = eac_newsubst ();
-
-					tnode_setnthname (newnamenode, 0, newname);
-
-					/* add declaration to the top-level list */
-					parser_addtolist (tnode_nthsubof (eac_tlfvpexpr, 1), newdecl);
-
-					/* substitute inside copy body */
-					ss->oldname = lbname;
-					ss->newtree = newnamenode;
-
-					eac_substituteintree (tnode_nthsubaddr (pcopy, 0), ss);
-					eac_freesubst (ss);
-				}
 			}
 
 			/* free-var list in pcopy now redundant */
