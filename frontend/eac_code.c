@@ -68,6 +68,7 @@ static int eac_ignore_unresolved = 0;
 static int eac_interactive_mode = 0;		/* affects what the parser and other compiler passes might do */
 
 static name_t *eac_nameinstancesintree_search = NULL;
+static tnode_t *eac_tlfvpexpr = NULL;
 
 /*}}}*/
 
@@ -447,6 +448,7 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 		pname = tnode_nthnameof (inst, 0);
 		pdecl = NameDeclOf (pname);
 		
+		/*{{{  sanity checks*/
 		if (!pdecl) {
 			tnode_error (node, "no such procedure");
 			*errp = *errp + 1;
@@ -459,9 +461,11 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 			*errp = *errp + 1;
 			return 0;
 		}
+		/*}}}*/
 
 		pcopy = tnode_copytree (tnode_nthsubof (pdecl, 2));
-		/* this *should* be a FVPEXPR node, original name references preserved */
+
+		/*{{{  this *should* be a FVPEXPR node, original name references preserved */
 
 		if (pcopy->tag != eac.tag_FVPEXPR) {
 			tnode_error (node, "copied procedure body is not a free-var expression (%s,%s)",
@@ -470,8 +474,8 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 			tnode_free (pcopy);
 			return 0;
 		}
-
-		/* sanity check */
+		/*}}}*/
+		/*{{{  sanity check*/
 		if (!parser_islistnode (tnode_nthsubof (pdecl, 1))) {
 			tnode_error (node, "procedure parameter list not list");
 			*errp = *errp + 1;
@@ -484,8 +488,8 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 			tnode_free (pcopy);
 			return 0;
 		}
-
-		/* first, replace parameters in expression copy */
+		/*}}}*/
+		/*{{{  first, replace parameters in expression copy*/
 		pexplist = parser_getlistitems (tnode_nthsubof (pdecl, 1), &npitems);
 		iexplist = parser_getlistitems (tnode_nthsubof (node, 1), &niitems);
 
@@ -523,10 +527,114 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 			eac_freesubst (ss);
 		}
 
-		/* FIXME: pull up and rename (where necessary) bound free-vars in copied instance */
+		/*}}}*/
+		/*{{{  pull up and rename (where necessary) bound free-vars in copied instance 'pcopy'*/
+		if (!eac_tlfvpexpr) {
+			tnode_error (node, "replacing instance, but no top-level free-var list set!");
+			*errp = *errp + 1;
+			tnode_free (pcopy);
+			return 0;
+		} else {
+			tnode_t **lbitems;
+			int lbcount;
+			tnode_t *tmpnode;
+
+			lbitems = parser_getlistitems (tnode_nthsubof (pcopy, 1), &lbcount);
+			for (i=0; i<lbcount; i++) {
+				name_t *lbname;
+				tnode_t **tlitems;
+				int tlcount, j;
+
+				if (lbitems[i]->tag != eac.tag_VARDECL) {
+					tnode_error (node, "local free-var item not var-decl! (%s,%s)",
+							lbitems[i]->tag->name, lbitems[i]->tag->ndef->name);
+					*errp = *errp + 1;
+					tnode_free (pcopy);
+					return 0;
+				}
+				lbname = tnode_nthnameof (tnode_nthsubof (lbitems[i], 0), 0);
+
+				/* see if it occurs in top-level free-var list */
+				tlitems = parser_getlistitems (tnode_nthsubof (eac_tlfvpexpr, 1), &tlcount);
+				for (j=0; j<tlcount; j++) {
+					name_t *tlname;
+
+					if (tlitems[j]->tag != eac.tag_VARDECL) {
+						tnode_error (node, "top-level free var not var-decl! (%s,%s)",
+								tlitems[j]->tag->name, tlitems[j]->tag->ndef->name);
+						*errp = *errp + 1;
+						tnode_free (pcopy);
+						return 0;
+					}
+
+					tlname = tnode_nthnameof (tnode_nthsubof (tlitems[j], 0), 0);
+					if (!strcmp (NameNameOf (lbname), NameNameOf (tlname))) {
+						/* yes, name conflict */
+						break;			/* for() */
+					}
+				}
+
+				if (j == tlcount) {
+					/* name (lbname) doesn't occur at top-level, move it over unmodified, but create a new name for it */
+					tnode_t *newnamenode = tnode_createfrom (tnode_nthsubof (lbitems[i], 0)->tag, node, NULL);
+					tnode_t *newdecl = tnode_createfrom (lbitems[i]->tag, node, newnamenode);
+					name_t *newname = name_addname (NameNameOf (lbname), newdecl, NULL, newnamenode);
+					eac_subst_t *ss = eac_newsubst ();
+
+					tnode_setnthname (newnamenode, 0, newname);
+
+					/* add declaration to the top-level list */
+					parser_addtolist (tnode_nthsubof (eac_tlfvpexpr, 1), newdecl);
+
+					/* substitute inside copy body */
+					ss->oldname = lbname;
+					ss->newtree = newnamenode;
+
+					eac_substituteintree (tnode_nthsubaddr (pcopy, 0), ss);
+					eac_freesubst (ss);
+				} else {
+					/* name (lbname) *does* occur at top-level, rename it and move over */
+					tnode_t *newnamenode = tnode_createfrom (tnode_nthsubof (lbitems[i], 0)->tag, node, NULL);
+					tnode_t *newdecl = tnode_createfrom (lbitems[i]->tag, node, newnamenode);
+					char *newsname = string_fmt ("%s'", NameNameOf (lbname));
+					name_t *newname = name_addname (newsname, newdecl, NULL, newnamenode);
+					eac_subst_t *ss = eac_newsubst ();
+
+					tnode_setnthname (newnamenode, 0, newname);
+
+					/* add declaration to the top-level list */
+					parser_addtolist (tnode_nthsubof (eac_tlfvpexpr, 1), newdecl);
+
+					/* substitute inside copy body */
+					ss->oldname = lbname;
+					ss->newtree = newnamenode;
+
+					eac_substituteintree (tnode_nthsubaddr (pcopy, 0), ss);
+					eac_freesubst (ss);
+				}
+			}
+
+			/* free-var list in pcopy now redundant */
+			tmpnode = tnode_nthsubof (pcopy, 0);
+			tnode_setnthsub (pcopy, 0, NULL);
+			tnode_free (pcopy);
+			pcopy = tmpnode;
+		}
+		/*}}}*/
+
+		/* replace instance node with adjusted procedure copy and free */
 		*tptr = pcopy;
 		tnode_free (node);
 
+		/*}}}*/
+	} else if (node->tag == eac.tag_FVPEXPR) {
+		/*{{{  free-var list, if top-level, make a note and descend*/
+		if (!eac_tlfvpexpr) {
+			eac_tlfvpexpr = node;
+			tnode_modprewalktree (tnode_nthsubaddr (node, 0), eac_simplifytree_walk, arg);
+			eac_tlfvpexpr = NULL;
+			return 0;
+		}
 		/*}}}*/
 	}
 
@@ -892,6 +1000,32 @@ nocc_message ("eac_scope_scanfreevars(): looking at (%s)", node->tag->name);
 	return 1;
 }
 /*}}}*/
+
+
+/*{{{  static int eac_prescope_declnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
+/*
+ *	pre-scopes a process definition -- makes sure parameter list is a list
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int eac_prescope_declnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)
+{
+	tnode_t *node = *tptr;
+
+	if (node->tag == eac.tag_DECL) {
+		tnode_t **paramsptr = tnode_nthsubaddr (node, 1);
+
+		if (!*paramsptr) {
+			/* no parameters, leave empty list */
+			*paramsptr = parser_newlistnode (OrgFileOf (node));
+		} else if (!parser_islistnode (*paramsptr)) {
+			/* singleton */
+			*paramsptr = parser_makelistnode (*paramsptr);
+		}
+	}
+
+	return 1;
+}
+/*}}}*/
 /*{{{  static int eac_scopein_declnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes in a process definition
@@ -1054,6 +1188,31 @@ static int eac_prescope_psubstnode (compops_t *cops, tnode_t **tptr, prescope_t 
 /*}}}*/
 
 
+/*{{{  static int eac_prescope_instancenode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
+/*
+ *	pre-scope for instance node -- names sure parameter list is a list
+ *	return 0 to stop walk, 1 to continue
+ */
+static int eac_prescope_instancenode (compops_t *cops, tnode_t **tptr, prescope_t *ps)
+{
+	tnode_t *node = *tptr;
+
+	if (node->tag == eac.tag_INSTANCE) {
+		tnode_t **paramsptr = tnode_nthsubaddr (node, 1);
+
+		if (!*paramsptr) {
+			/* make empty list */
+			*paramsptr = parser_newlistnode (OrgFileOf (node));
+		} else if (!parser_islistnode (*paramsptr)) {
+			*paramsptr = parser_makelistnode (*paramsptr);
+		}
+	}
+
+	return 1;
+}
+/*}}}*/
+
+
 /*{{{  static int eac_code_init_nodes (void)*/
 /*
  *	initialises EAC declaration nodes
@@ -1125,6 +1284,7 @@ static int eac_code_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("eac:declnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: name, params, body */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (eac_prescope_declnode));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (eac_scopein_declnode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (eac_fetrans_declnode));
 	tnd->ops = cops;
@@ -1203,6 +1363,7 @@ static int eac_code_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("eac:instancenode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: name, params */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (eac_prescope_instancenode));
 	tnd->ops = cops;
 
 	i = -1;
