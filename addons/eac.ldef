@@ -24,7 +24,7 @@
 .SECTION "eac-code" #{{{: whole language
 
 .GRULE	"eac:namereduce" "T+St0X[eac_nametoken_to_hook]C[EACNAME]1R-"
-.GRULE	"eac:pdeclreduce" "SN00N+N+N+V*C[EACDECL]4R-"
+.GRULE	"eac:pdeclreduce" "SN0N+N+N+V*C[EACDECL]3R-"
 
 .GRULE	"eac:inputreduce" "SN0N+N+VC[EACINPUT]2R-"
 .GRULE	"eac:outputreduce" "SN0N+N+VC[EACOUTPUT]2R-"
@@ -41,6 +41,7 @@
 
 .GRULE	"eac:parreduce" "T+St0@tN+N+VC[EACPAR]2R-"
 .GRULE	"eac:hidereduce" "T+St0@tN+N+VC[EACHIDE]2R-"
+.GRULE	"eac:substreduce" "T+St0@tN+N+N+V*C[EACSUBST]3R-"
 
 .GRULE	"eac:fvpexprreduce" "SN0N+0C[EACFVPEXPR]2R-"
 
@@ -67,8 +68,11 @@
 
 .BNF	"eac:eseqlist ::= { eac:eseq @@, 0 }"
 
+# Note: for restofexpr, some existing tree in node result
 .TABLE	"eac:prestofexpr ::= [ 0 +@@|| 1 ] [ 1 {<eac:resultpop>} -* 2 ] [ 2 eac:pexpr 3 ] [ 3 {<eac:parreduce>} -* ]"
 	"[ 0 +@@\\ 4 ] [ 4 {<eac:resultpop>} -* 5 ] [ 5 @@{ 6 ] [ 6 eac:maybemarkednamelist 7 ] [ 7 @@} 8 ] [ 8 {<eac:hidereduce>} -* ]"
+	"[ 0 +@@[ 9 ] [ 9 {<eac:resultpop>} -* 10 ] [ 10 eac:maybemarkednamelist 11 ] [ 11 @@/ 12 ] [ 12 eac:maybemarkednamelist 13 ]"
+		"[ 13 @@] 14 ] [ 14 {<eac:substreduce>} -* ]"
 	"[ 0 -* ]"
 
 .BNF	"eac:aparamlist ::= eac:maybemarkednamelist {<eac:nullreduce>}"
@@ -77,7 +81,7 @@
 .TABLE	"eac:pexprnamestart ::= [ 0 eac:name 1 ] [ 1 -@@( <eac:prestofinstance> ]"
 
 .TABLE	"eac:eset ::= [ 0 @@{ 1 ] [ 1 Newline 1 ] [ 1 -* 2 ] [ 2 eac:eseqlist 3 ] [ 3 {<eac:esetreduce>} -* 4 ] [ 4 Newline 4 ] [ 4 @@} 5 ] [ 5 -* ]"
-.TABLE	"eac:pexpr ::= [ 0 -@@{ 1 ] [ 1 eac:eset 2 ] [ 2 {<eac:nullreduce>} -* ]"
+.TABLE	"eac:pexpr ::= [ 0 -@@{ 1 ] [ 1 eac:eset 2 ] [ 2 {<eac:nullreduce>} -* <eac:prestofexpr> ]"
 	"[ 0 -Name 3 ] [ 3 eac:pexprnamestart 4 ] [ 4 {<eac:nullreduce>} -* <eac:prestofexpr> ]"
 	"[ 0 @@( 5 ] [ 5 eac:pexpr 6 ] [ 6 @@) 7 ] [ 7 {<eac:nullreduce>} -* <eac:prestofexpr> ]"
 

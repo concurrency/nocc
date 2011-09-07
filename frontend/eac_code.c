@@ -224,6 +224,15 @@ static int eac_format_inexpr (char *str, int *sleft, tnode_t *expr)
 		this += eac_format_instr (str + this, sleft, " (");
 		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 1));
 		this += eac_format_instr (str + this, sleft, ")");
+	} else if (expr->tag == eac.tag_SUBST) {
+		this = eac_format_inexpr (str, sleft, tnode_nthsubof (expr, 0));
+		this += eac_format_instr (str + this, sleft, " [");
+		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 1));
+		this += eac_format_instr (str + this, sleft, " / ");
+		this += eac_format_inexpr (str + this, sleft, tnode_nthsubof (expr, 2));
+		this += eac_format_instr (str + this, sleft, "]");
+	} else if (expr->tag == eac.tag_FVPEXPR) {
+		this = eac_format_inexpr (str, sleft, tnode_nthsubof (expr, 0));
 	}
 
 	return this;
@@ -247,6 +256,127 @@ char *eac_format_expr (tnode_t *expr)
 /*}}}*/
 
 
+/*{{{  static int eac_substituteintree_walk (tnode_t **tptr, void *arg)*/
+/*
+ *	substitutes within a tree
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int eac_substituteintree_walk (tnode_t **tptr, void *arg)
+{
+	eac_subst_t *subst = (eac_subst_t *)arg;
+	tnode_t *node = *tptr;
+
+	if (node->tag->ndef == eac.node_NAMENODE) {
+		name_t *name = tnode_nthnameof (node, 0);
+
+		if (name == subst->oldname) {
+			/* this one */
+			subst->count++;
+			*tptr = tnode_copytree (subst->newtree);
+
+			tnode_free (node);
+		}
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  int eac_substituteintree (tnode_t **tptr, eac_subst_t *subst)*/
+/*
+ *	substitutes some tree for a name in a given parse-tree.  Makes copies
+ *	of the source tree to be used (usually just a name reference).
+ *
+ *	return 0 on success, non-zero on error.
+ */
+int eac_substituteintree (tnode_t **tptr, eac_subst_t *subst)
+{
+	tnode_modprewalktree (tptr, eac_substituteintree_walk, (void *)subst);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int eac_simplifytree_walk (tnode_t **tptr, void *arg)*/
+/*
+ *	does simplifications on a parse-tree (walk)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
+{
+	tnode_t *node = *tptr;
+	int *errp = (int *)arg;
+
+	if (!node) {
+		return 1;
+	}
+
+	if (node->tag == eac.tag_SUBST) {
+		/*{{{  do substitution of some tree for a name*/
+		int i, ncount, ecount;
+		tnode_t **newlist, **extlist;
+		int scount = 0;
+		eac_subst_t *ss;
+
+		if (!parser_islistnode (tnode_nthsubof (node, 1)) || !parser_islistnode (tnode_nthsubof (node, 2))) {
+			tnode_error (node, "substitution items not a list!");
+			*errp++;
+			return 0;
+		}
+
+		newlist = parser_getlistitems (tnode_nthsubof (node, 1), &ncount);
+		extlist = parser_getlistitems (tnode_nthsubof (node, 2), &ecount);
+		if (ncount != ecount) {
+			tnode_error (node, "unbalanced substitution! [%d/%d]", ncount, ecount);
+			*errp++;
+			return 0;
+		}
+		
+		ss = (eac_subst_t *)smalloc (sizeof (eac_subst_t));
+		for (i=0; i<ncount; i++) {
+			if (extlist[i]->tag->ndef != eac.node_NAMENODE) {
+				tnode_error (node, "item %d in substitution list is not a name", i);
+				sfree (ss);
+				*errp++;
+				return 0;
+			}
+			ss->count = 0;
+			ss->oldname = tnode_nthnameof (extlist[i], 0);
+			ss->newtree = newlist[i];
+
+			eac_substituteintree (tnode_nthsubaddr (node, 0), ss);
+
+			scount += ss->count;
+		}
+		sfree (ss);
+
+		/* okay, lose the substitution and replace with its modified contents */
+		*tptr = tnode_nthsubof (node, 0);
+		tnode_setnthsub (node, 0, NULL);		/* just left with subst lists */
+
+		/*}}}*/
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int eac_simplifytree (tnode_t **tptr)*/
+/*
+ *	attempts to do simplifications on a parse-tree:
+ *	 - perform substitutions
+ *	 - expand named instances
+ *	returns 0 on success, non-zero on failure
+ */
+static int eac_simplifytree (tnode_t **tptr)
+{
+	int err = 0;
+
+	if (!*tptr) {
+		return 0;
+	}
+	tnode_modprewalktree (tptr, eac_simplifytree_walk, (void *)&err);
+
+	return err;
+}
+/*}}}*/
+
+
 /*{{{  int eac_evaluate (const char *str)*/
 /*
  *	evaluates a string (probably EAC expression or process)
@@ -259,6 +389,7 @@ int eac_evaluate (const char *str)
 	int rcde = 0;
 	tnode_t *tree = NULL;
 	int oldintr = eac_interactive_mode;
+	char *resstr = NULL;
 
 	if (!lf) {
 		printf ("failed to open lexer for expression\n");
@@ -284,11 +415,29 @@ int eac_evaluate (const char *str)
 		goto out_cleanup;
 	}
 
-	tnode_dumptree (tree, 1, stdout);
+	/* got something that went through the front-end okay -- do simplifications & reductions */
+	rcde = eac_simplifytree (&tree);
+	if (rcde) {
+		printf ("failed to simplify expression\n");
+		rcde = 4;
+		goto out_cleanup;
+	}
+
+	/* okay, pretty-print */
+	resstr = eac_format_expr (tree);
+	printf ("%s\n", resstr);
+
+	// tnode_dumptree (tree, 1, stdout);
 	tnode_free (tree);
 
 out_cleanup:
+	if (resstr) {
+		sfree (resstr);
+		resstr = NULL;
+	}
 	sfree (lstr);
+	lstr = NULL;
+
 	eac_interactive_mode = oldintr;
 	return rcde;
 }
@@ -552,6 +701,32 @@ static int eac_fetrans_declnode (compops_t *cops, tnode_t **tptr, fetrans_t *fe)
 /*}}}*/
 
 
+/*{{{  static int eac_prescope_psubstnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
+/*
+ *	pre-scope for a substitution node -- make sure substitution items are lists
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int eac_prescope_psubstnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)
+{
+	tnode_t *node = *tptr;
+
+	if (node->tag == eac.tag_SUBST) {
+		tnode_t **newlp = tnode_nthsubaddr (node, 1);
+		tnode_t **extlp = tnode_nthsubaddr (node, 2);
+
+		if (!parser_islistnode (*newlp)) {
+			*newlp = parser_makelistnode (*newlp);
+		}
+		if (!parser_islistnode (*extlp)) {
+			*extlp = parser_makelistnode (*extlp);
+		}
+	}
+
+	return 1;
+}
+/*}}}*/
+
+
 /*{{{  static int eac_code_init_nodes (void)*/
 /*
  *	initialises EAC declaration nodes
@@ -621,7 +796,7 @@ static int eac_code_init_nodes (void)
 	/*}}}*/
 	/*{{{  eac:declnode -- EACDECL*/
 	i = -1;
-	tnd = tnode_newnodetype ("eac:declnode", &i, 4, 0, 0, TNF_NONE);			/* subnodes: name, params, body, freevars */
+	tnd = tnode_newnodetype ("eac:declnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: name, params, body */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (eac_scopein_declnode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (eac_fetrans_declnode));
@@ -685,6 +860,17 @@ static int eac_code_init_nodes (void)
 	i = -1;
 	eac.tag_HIDE = tnode_newnodetag ("EACHIDE", &i, tnd, NTF_NONE);
 
+	/*}}}*/
+	/*{{{  eac:psubstnode -- EACSUBST*/
+	i = -1;
+	tnd = tnode_newnodetype ("eac:psubstnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: expression, new-name, in-expr-name */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (eac_prescope_psubstnode));
+	tnd->ops = cops;
+
+	i = -1;
+	eac.tag_SUBST = tnode_newnodetag ("EACSUBST", &i, tnd, NTF_NONE);
+	
 	/*}}}*/
 	/*{{{  eac:instancenode -- EACINSTANCE*/
 	i = -1;

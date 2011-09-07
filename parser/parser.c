@@ -553,6 +553,21 @@ tnode_t *parser_buildlistnode (lexfile_t *lf, ...)
 	return node;
 }
 /*}}}*/
+/*{{{  tnode_t *parser_makelistnode (tnode_t *node)*/
+/*
+ *	makes a list node from a single item
+ */
+tnode_t *parser_makelistnode (tnode_t *node)
+{
+	tnode_t *list = parser_newlistnode (OrgFileOf (node));
+
+	SetOrgFile (list, OrgFileOf (node));
+	SetOrgLine (list, OrgLineOf (node));
+	parser_addtolist (list, node);
+
+	return list;
+}
+/*}}}*/
 /*{{{  tnode_t **parser_addtolist (tnode_t *list, tnode_t *item)*/
 /*
  *	adds an item to a list-node, returns a pointer to it in the list

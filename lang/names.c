@@ -648,8 +648,9 @@ void name_dumpname (name_t *name, int indent, FILE *stream)
 		fprintf (stream, "    ");
 	}
 	type = NameTypeOf (name);
-	fprintf (stream, "<name name=\"%s\" type=\"%s\" decladdr=\"0x%8.8x\" namespace=\"%s\" />\n", name->me->name,
-			type ? type->tag->name : "(null)", (unsigned int)(NameDeclOf (name)), name->ns ? name->ns->nspace : "");
+	fprintf (stream, "<name name=\"%s\" type=\"%s\" decladdr=\"0x%8.8x\" namespace=\"%s\" addr=\"0x%8.8x\" />\n", name->me->name,
+			type ? type->tag->name : "(null)", (unsigned int)(NameDeclOf (name)), name->ns ? name->ns->nspace : "",
+			(unsigned int)name);
 
 	return;
 }
@@ -667,7 +668,8 @@ void name_dumpsname (name_t *name, int indent, FILE *stream)
 		fprintf (stream, "  ");
 	}
 	type = NameTypeOf (name);
-	fprintf (stream, "(name (name \"%s\") (type \"%s\") (namespace \"%s\"))\n", name->me->name, type ? type->tag->name : "(null)", name->ns ? name->ns->nspace : "");
+	fprintf (stream, "(name (name \"%s\") (type \"%s\") (namespace \"%s\") (addr \"0x%8.8x\"))\n", name->me->name,
+			type ? type->tag->name : "(null)", name->ns ? name->ns->nspace : "", (unsigned int)name);
 
 	return;
 }

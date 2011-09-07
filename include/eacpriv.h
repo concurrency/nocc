@@ -38,6 +38,13 @@ extern int eac_evaluate (const char *str);
 extern int eac_isinteractive (void);
 
 
+typedef struct TAG_eac_subst {
+	int count;
+	struct TAG_tnode *newtree;
+	struct TAG_name *oldname;
+} eac_subst_t;
+
+extern int eac_substituteintree (struct TAG_tnode **tptr, eac_subst_t *subst);
 
 #endif	/* !__EACPRIV_H */
 

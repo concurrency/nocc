@@ -56,6 +56,7 @@ typedef struct {
 	struct TAG_ntdef *tag_PAR;
 	struct TAG_ntdef *tag_HIDE;
 	struct TAG_ntdef *tag_INSTANCE;
+	struct TAG_ntdef *tag_SUBST;
 
 	struct TAG_ntdef *tag_NPROCDEF;
 	struct TAG_ntdef *tag_NCHANVAR;

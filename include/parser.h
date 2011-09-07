@@ -43,6 +43,7 @@ extern int parser_gettesttags (struct TAG_ntdef **truep, struct TAG_ntdef **fals
 
 extern struct TAG_tnode *parser_newlistnode (struct TAG_lexfile *lf);
 extern struct TAG_tnode *parser_buildlistnode (struct TAG_lexfile *lf, ...);
+extern struct TAG_tnode *parser_makelistnode (struct TAG_tnode *node);
 extern struct TAG_tnode **parser_addtolist (struct TAG_tnode *list, struct TAG_tnode *item);
 extern struct TAG_tnode **parser_addtolist_front (struct TAG_tnode *list, struct TAG_tnode *item);
 extern struct TAG_tnode *parser_delfromlist (struct TAG_tnode *list, int idx);
