@@ -1302,9 +1302,39 @@ static int eac_prescope_instancenode (compops_t *cops, tnode_t **tptr, prescope_
 static int eac_typecheck_instancenode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *inst = tnode_nthsubof (node, 0);
+	name_t *pname;
+	tnode_t *aparams = tnode_nthsubof (node, 1);
+	tnode_t *fparams;
+	tnode_t **aplist, **fplist;
+	int naparams, nfparams, i;
 
+#if 0
+fprintf (stderr, "eac_typecheck_instancenode(): instance of:\n");
+tnode_dumptree (inst, 1, stderr);
+#endif
 	/* FIXME: check 'inst' is a process definition, and that parameter counts match */
 	/* also check that parameters are variables, not process names */
+
+	if (inst->tag != eac.tag_NPROCDEF) {
+		typecheck_error (node, tc, "named instance is not a process definition");
+		return 1;
+	}
+
+	pname = tnode_nthnameof (inst, 0);
+	fparams = tnode_nthsubof (NameDeclOf (pname), 1);
+
+	aplist = parser_getlistitems (aparams, &naparams);
+	fplist = parser_getlistitems (fparams, &nfparams);
+
+	if (naparams != nfparams) {
+		typecheck_error (node, tc, "number of actual parameters (%d) does not match formal (%d) in call of \"%s\"",
+				naparams, nfparams, NameNameOf (pname));
+		return 1;
+	}
+
+	for (i=0; i<naparams; i++) {
+		/* FIXME: check actual parameter aplist[i] is sensible, and perhaps, matches formal */
+	}
 
 	return 1;
 }
