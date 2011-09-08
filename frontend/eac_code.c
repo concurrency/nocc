@@ -421,6 +421,17 @@ static int eac_nameinstancesintree (tnode_t *tree, name_t *name)
 	return count;
 }
 /*}}}*/
+/*{{{  static int eac_hideinset (tnode_t *eset, tnode_t *varref)*/
+/*
+ *	hides a name in a set of sequences, modifying as needed
+ *	returns 0 on success, non-zero on failure
+ */
+static int eac_hideinset (tnode_t *eset, tnode_t *varref)
+{
+	/* FIXME: incomplete! */
+	return 0;
+}
+/*}}}*/
 /*{{{  static int eac_simplifytree_walk (tnode_t **tptr, void *arg)*/
 /*
  *	does simplifications on a parse-tree (walk)
@@ -653,7 +664,6 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 			eac_tlfvpexpr = node;
 			tnode_modprewalktree (tnode_nthsubaddr (node, 0), eac_simplifytree_walk, arg);
 			eac_tlfvpexpr = NULL;
-			return 0;
 		}
 		/*}}}*/
 	} else if (node->tag == eac.tag_PAR) {
@@ -680,7 +690,6 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 			tnode_free (node);
 		}
 
-		return 0;
 		/*}}}*/
 	} else if (node->tag == eac.tag_HIDE) {
 		/*{{{  hiding operator -- does something moderately complex*/
@@ -690,10 +699,25 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 
 		if ((*lhsp)->tag == eac.tag_ESET) {
 			/* can do hiding (hopefully!) */
-			/* FIXME: needs implementing.. */
+			tnode_t **hitems;
+			int i, hcount;
+
+			hitems = parser_getlistitems (tnode_nthsubof (node, 1), &hcount);
+			for (i=0; i<hcount; i++) {
+				/* hide this one.. */
+				eac_hideinset (*lhsp, hitems[i]);
+#if 0
+fprintf (stderr, "eac_simplifytree_walk(): want to hide:\n");
+tnode_dumptree (hitems[i], 4, stderr);
+#endif
+			}
+
+			/* unhook hiding node and replace with modified LHS */
+			*tptr = *lhsp;
+			tnode_setnthsub (node, 0, NULL);
+			tnode_free (node);
 		}
 
-		return 0;
 		/*}}}*/
 	}
 
@@ -1270,6 +1294,21 @@ static int eac_prescope_instancenode (compops_t *cops, tnode_t **tptr, prescope_
 	return 1;
 }
 /*}}}*/
+/*{{{  static int eac_typecheck_instancenode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	type-checking for instance node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int eac_typecheck_instancenode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *inst = tnode_nthsubof (node, 0);
+
+	/* FIXME: check 'inst' is a process definition, and that parameter counts match */
+	/* also check that parameters are variables, not process names */
+
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static int eac_prescope_esetnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
@@ -1293,6 +1332,30 @@ static int eac_prescope_esetnode (compops_t *cops, tnode_t **tptr, prescope_t *p
 		return 0;
 	}
 
+	return 1;
+}
+/*}}}*/
+
+
+/*{{{  static int eac_prescope_pcompnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
+/*
+ *	pre-scope for a process composition node (PAR/HIDE)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int eac_prescope_pcompnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)
+{
+	tnode_t *node = *tptr;
+
+	if (node->tag == eac.tag_HIDE) {
+		tnode_t **hptr = tnode_nthsubaddr (node, 1);
+
+		if (!*hptr) {
+			/* make empty list */
+			*hptr = parser_newlistnode (OrgFileOf (node));
+		} else if (!parser_islistnode (*hptr)) {
+			*hptr = parser_makelistnode (*hptr);
+		}
+	}
 	return 1;
 }
 /*}}}*/
@@ -1426,6 +1489,7 @@ static int eac_code_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("eac:pcompnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: left, right */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (eac_prescope_pcompnode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -1450,6 +1514,7 @@ static int eac_code_init_nodes (void)
 	tnd = tnode_newnodetype ("eac:instancenode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: name, params */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (eac_prescope_instancenode));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (eac_typecheck_instancenode));
 	tnd->ops = cops;
 
 	i = -1;
