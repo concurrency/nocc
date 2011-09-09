@@ -1,0 +1,23 @@
+# test_ea2.eac
+# testing type checker for eac
+
+#@interactive
+
+# define escape for some standard processes
+
+ID (in, out) = {
+	< in ? a , out ! b <- a >
+	}
+
+ADD (in0, in1, out) = {
+	< in0 ? a, in1 ? b, out ! z <- {a,b} >
+	}
+
+# channel-factory system
+OK =
+	(ID (a, b) || ID (c, d)) \ {a,b}
+
+FAIL =
+	(ID (ADD, b) || ID (c, di)) \ {a,b}
+
+

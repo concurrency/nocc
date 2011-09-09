@@ -1302,7 +1302,7 @@ static int eac_prescope_instancenode (compops_t *cops, tnode_t **tptr, prescope_
 static int eac_typecheck_instancenode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *inst = tnode_nthsubof (node, 0);
-	name_t *pname;
+	name_t *pname, *apname;
 	tnode_t *aparams = tnode_nthsubof (node, 1);
 	tnode_t *fparams;
 	tnode_t **aplist, **fplist;
@@ -1327,13 +1327,28 @@ tnode_dumptree (inst, 1, stderr);
 	fplist = parser_getlistitems (fparams, &nfparams);
 
 	if (naparams != nfparams) {
-		typecheck_error (node, tc, "number of actual parameters (%d) does not match formal (%d) in call of \"%s\"",
-				naparams, nfparams, NameNameOf (pname));
+		typecheck_error (node, tc, "number of actual parameters (%d) "
+		    "does not match formal (%d) in call of \"%s\"",
+		    naparams, nfparams, NameNameOf (pname));
 		return 1;
 	}
 
 	for (i=0; i<naparams; i++) {
-		/* FIXME: check actual parameter aplist[i] is sensible, and perhaps, matches formal */
+		/* Check actual parameter aplist[i] is sensible,and perhaps,
+		 * matches formal. */
+#if 0
+		fprintf(stderr, "aparam [%d of %d] :", i, naparams);
+		tnode_dumptree(aplist[i],1,stderr);
+		fprintf(stderr, "fparam [%d of %d] :", i, naparams);
+		tnode_dumptree(fplist[i], 1,stderr);
+#endif
+		if (aplist[i]->tag != eac.tag_NVAR) {
+			apname = tnode_nthnameof(aplist[i], 0);
+			typecheck_error(node, tc,
+			    "paramiter %s is not a variable in call of \"%s\"",
+			    NameNameOf(apname), NameNameOf(pname));
+			return 1;
+		}
 	}
 
 	return 1;
