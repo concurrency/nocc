@@ -1394,9 +1394,9 @@ eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 
 		lhs_name = tnode_nthnameof (lhs, 0);
 		typecheck_error(node, tc, "\"%s\" on LHS of %s should be a "
-		    "channel but found a ...", /* TODO: */
+		    "channel but found a %s",
 		    NameNameOf(lhs_name), (node->tag == eac.tag_INPUT ?
-		    "INPUT" : "OUTPUT"));
+		    "INPUT" : "OUTPUT"), node->tag->name);
 		return 1;
 	}
 
@@ -1413,9 +1413,9 @@ eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 		}
 		rhs_name = tnode_nthnameof (rhs, 0);
 		typecheck_error(node, tc, "\"%s\" on RHS of %s should be a "
-		    "variable but found a ...", /* TODO: */
+		    "variable but found a %s",
 		    NameNameOf(rhs_name), (node->tag == eac.tag_INPUT ?
-		    "INPUT" : "OUTPUT"));
+		    "INPUT" : "OUTPUT"), node->tag->name);
 		return 1;
 	}
 
