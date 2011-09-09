@@ -1343,10 +1343,14 @@ tnode_dumptree (inst, 1, stderr);
 		tnode_dumptree(fplist[i], 1,stderr);
 #endif
 		if (aplist[i]->tag != eac.tag_NVAR) {
+			if (aplist[i]->tag->ndef != eac.node_NAMENODE) {
+				typecheck_error (node, tc, "parameter %d is not a name (in call of \"%s\")",
+						i, NameNameOf (pname));
+				return 1;
+			}
 			apname = tnode_nthnameof(aplist[i], 0);
-			typecheck_error(node, tc,
-			    "paramiter %s is not a variable in call of \"%s\"",
-			    NameNameOf(apname), NameNameOf(pname));
+			typecheck_error(node, tc, "parameter %s is not a variable in call of \"%s\"",
+					NameNameOf(apname), NameNameOf(pname));
 			return 1;
 		}
 	}
@@ -1569,6 +1573,9 @@ static int eac_code_init_nodes (void)
 	tnd = tnode_newnodetype ("eac:chanmark", &i, 1, 0, 0, TNF_NONE);			/* subnodes: channel */
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	/* TODO: add LOPS_ISCOMMUNICABLE : call through to langops_iscommunicable() on subnode */
+	tnd->lops = lops;
 
 	i = -1;
 	eac.tag_SVREND = tnode_newnodetag ("EACSVREND", &i, tnd, NTF_NONE);
