@@ -1,0 +1,19 @@
+# test_ea2.eac
+# testing type checker for eac
+
+#@interactive
+
+# define escape for some standard processes
+
+ID (in, out) = {
+	< in ? a , out ! b <- a >
+	}
+
+ADD (in0, in1, out) = {
+	< a ? a, in1 ? b, out ! z <- {a,b} >
+	}
+
+PLUS (in0, in1, out) = {
+	< in0 ? in0, in1 ? b, out ! z <- {a,b} >
+	}
+
