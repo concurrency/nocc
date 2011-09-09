@@ -1355,8 +1355,9 @@ tnode_dumptree (inst, 1, stderr);
 }
 /*}}}*/
 
-/*{{{*/
-static int eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+/*{{{ static int eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+static int
+eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *lhs = tnode_nthsubof (node, 0);
 	tnode_t *rhs = tnode_nthsubof (node, 1);
@@ -1385,7 +1386,7 @@ static int eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t
 		return 1;
 	}
 
-	/* Check RHS is a channel */
+	/* Check RHS is a VAR or a VARCOMP */
 	if (!(rhs->tag == eac.tag_NVAR || rhs->tag == eac.tag_VARCOMP)) {
 		rhs_name = tnode_nthnameof (rhs, 0);
 		typecheck_error(node, tc, "\"%s\" on RHS of %s should be a "
