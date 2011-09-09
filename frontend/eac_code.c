@@ -1381,7 +1381,17 @@ eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 #endif
 
 	/* Check LHS is a channel */
-	if (lhs->tag != eac.tag_NCHANVAR) {
+	if (!(lhs->tag == eac.tag_NCHANVAR || lhs->tag == eac.tag_SVREND || lhs->tag == eac.tag_CLIEND)) {
+		if (lhs != eac.node_NAMENODE) {
+			typecheck_error (node, tc, "Item on LHS of %s is not a name.",
+					(node->tag == eac.tag_INPUT ? "INPUT" : "OUTPUT"));
+#if 0
+			tnode_dumptree(lhs, 1, stderr);
+			fprintf(stderr, "\n\n");
+#endif
+			return 1;
+		}
+
 		lhs_name = tnode_nthnameof (lhs, 0);
 		typecheck_error(node, tc, "\"%s\" on LHS of %s should be a "
 		    "channel but found a ...", /* TODO: */
@@ -1391,7 +1401,16 @@ eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 	}
 
 	/* Check RHS is a VAR or a VARCOMP */
-	if (!(rhs->tag == eac.tag_NVAR || rhs->tag == eac.tag_VARCOMP)) {
+	if (!(rhs->tag == eac.tag_NVAR || rhs->tag == eac.tag_VARCOMP ||
+			rhs->tag == eac.tag_CLIEND || rhs->tag == eac.tag_SVREND)) {
+		if (rhs != eac.node_NAMENODE) {
+			typecheck_error (node, tc, "Item on RHS of %s is not a name.",
+					(node->tag == eac.tag_INPUT ? "INPUT" : "OUTPUT"));
+#if 0
+			tnode_dumptree(rhs, 1, stderr);
+#endif
+			return 1;
+		}
 		rhs_name = tnode_nthnameof (rhs, 0);
 		typecheck_error(node, tc, "\"%s\" on RHS of %s should be a "
 		    "variable but found a ...", /* TODO: */
