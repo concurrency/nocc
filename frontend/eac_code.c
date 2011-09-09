@@ -1355,6 +1355,50 @@ tnode_dumptree (inst, 1, stderr);
 }
 /*}}}*/
 
+/*{{{*/
+static int eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *lhs = tnode_nthsubof (node, 0);
+	tnode_t *rhs = tnode_nthsubof (node, 1);
+	name_t *lhs_name, *rhs_name;
+
+#if 0
+	fprintf (stderr, "eac_typecheck_actionnode(): action of:\n");
+	tnode_dumpstree (node, 1, stderr);
+	fprintf(stderr, "\n");
+
+	fprintf(stderr, "LHS:");
+	tnode_dumpstree (lhs, 1, stderr);
+	fprintf(stderr, "RHS:");
+	tnode_dumpstree (rhs, 2, stderr);
+
+	fprintf(stderr, "----\n\n");
+#endif
+
+	/* Check LHS is a channel */
+	if (lhs->tag != eac.tag_NCHANVAR) {
+		lhs_name = tnode_nthnameof (lhs, 0);
+		typecheck_error(node, tc, "\"%s\" on LHS of %s should be a "
+		    "channel but found a ...", /* TODO: */
+		    NameNameOf(lhs_name), (node->tag == eac.tag_INPUT ?
+		    "INPUT" : "OUTPUT"));
+		return 1;
+	}
+
+	/* Check RHS is a channel */
+	if (!(rhs->tag == eac.tag_NVAR || rhs->tag == eac.tag_VARCOMP)) {
+		rhs_name = tnode_nthnameof (rhs, 0);
+		typecheck_error(node, tc, "\"%s\" on RHS of %s should be a "
+		    "variable but found a ...", /* TODO: */
+		    NameNameOf(rhs_name), (node->tag == eac.tag_INPUT ?
+		    "INPUT" : "OUTPUT"));
+		return 1;
+	}
+
+	return 1;
+
+}
+/*}}}*/
 
 /*{{{  static int eac_prescope_esetnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
 /*
@@ -1455,6 +1499,7 @@ static int eac_code_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("eac:actionnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: left, right */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (eac_typecheck_actionnode));
 	tnd->ops = cops;
 
 	i = -1;
