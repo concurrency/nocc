@@ -1359,6 +1359,86 @@ tnode_dumptree (inst, 1, stderr);
 }
 /*}}}*/
 
+
+
+/*{{{  static int eac_prescope_varcompnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
+/*
+ *	pre-scope for instance node -- names sure parameter list is a list
+ *	return 0 to stop walk, 1 to continue
+ */
+static int eac_prescope_varcompnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)
+{
+	tnode_t *node = *tptr;
+
+#if 1
+	fprintf(stderr, "*** presocping\n");
+	tnode_dumpstree(node, 1, stderr);
+	fprintf(stderr, "***\n");
+#endif
+	if (node->tag == eac.tag_VARCOMP) {
+		tnode_t **rhs = tnode_nthsubaddr (node, 1);
+
+		if (!*rhs) {
+			/* make empty list */
+			*rhs = parser_newlistnode (OrgFileOf (node));
+		} else if (!parser_islistnode (*rhs)) {
+			*rhs = parser_makelistnode (*rhs);
+		}
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{ static int eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+static int
+eac_typecheck_varcompnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *lhs = tnode_nthsubof (node, 0);
+	tnode_t *rhs = tnode_nthsubof (node, 1);
+	tnode_t **varlist;
+	int nvar, i;
+
+#if 0
+	fprintf (stderr, "eac_typecheck_varcompnode(): action of:\n");
+	tnode_dumpstree (node, 1, stderr);
+	fprintf(stderr, "\n");
+
+	fprintf(stderr, "LHS:");
+	tnode_dumpstree (lhs, 1, stderr);
+	fprintf(stderr, "RHS:");
+	tnode_dumpstree (rhs, 2, stderr);
+
+	fprintf(stderr, "----\n\n");
+#endif
+
+
+		if  (!(lhs->tag == eac.tag_NVAR) || lhs->tag == eac.tag_VARCOMP) {
+			typecheck_error(node, tc, "\"%s\" on LHS of " /*TODO*/ "should be a data type but found a %s",
+			    (lhs->tag->ndef == eac.node_NAMENODE) ? NameNameOf(tnode_nthnameof (lhs, 0)) : "unknown",
+			    lhs->tag->name);
+			return 1;
+		}
+#if 0
+		varlist = parser_getlistitems (rhs, &nvar);
+
+		for (i = nvar; i > 0; --i) {
+#if 1
+			fprintf(stderr, "eac_typecheck_varcompnode: checking RHS[%d]\n", i);
+#endif
+			if (!(varlist[i]->tag == eac.tag_NVAR || varlist[i]->tag == eac.tag_VARCOMP)) {
+				typecheck_error(node, tc, "\"%s\" on LHS of " /*TODO*/ "should be a data type but found a %s",
+				    (varlist[i]->tag->ndef == eac.node_NAMENODE) ? NameNameOf(tnode_nthnameof (varlist[i], 0)) : "unknown",
+				    varlist[i]->tag->name);
+				return 1;
+
+			}
+		}
+#endif
+	return 1;
+
+}
+/*}}}*/
+
 /*{{{ static int eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 static int
 eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
@@ -1382,7 +1462,7 @@ eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 
 	/* Check LHS is a channel */
 	if (!(lhs->tag == eac.tag_NCHANVAR || lhs->tag == eac.tag_SVREND || lhs->tag == eac.tag_CLIEND)) {
-		if (lhs != eac.node_NAMENODE) {
+		if (lhs->tag->ndef != eac.node_NAMENODE) {
 			typecheck_error (node, tc, "Item on LHS of %s is not a name.",
 					(node->tag == eac.tag_INPUT ? "INPUT" : "OUTPUT"));
 #if 0
@@ -1403,7 +1483,7 @@ eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 	/* Check RHS is a VAR or a VARCOMP */
 	if (!(rhs->tag == eac.tag_NVAR || rhs->tag == eac.tag_VARCOMP ||
 			rhs->tag == eac.tag_CLIEND || rhs->tag == eac.tag_SVREND)) {
-		if (rhs != eac.node_NAMENODE) {
+		if (rhs->tag->ndef != eac.node_NAMENODE) {
 			typecheck_error (node, tc, "Item on RHS of %s is not a name.",
 					(node->tag == eac.tag_INPUT ? "INPUT" : "OUTPUT"));
 #if 0
@@ -1540,6 +1620,10 @@ static int eac_code_init_nodes (void)
 
 	i = -1;
 	eac.tag_VARCOMP = tnode_newnodetag ("EACVARCOMP", &i, tnd, NTF_NONE);
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (eac_prescope_varcompnode));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (eac_typecheck_varcompnode));
+	tnd->ops = cops;
 
 	/*}}}*/
 	/*{{{  eac:declnode -- EACDECL*/
@@ -1593,11 +1677,14 @@ static int eac_code_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	
 	/* TODO: add LOPS_ISCOMMUNICABLE : call through to langops_iscommunicable() on subnode */
 	tnd->lops = lops;
 
 	i = -1;
 	eac.tag_SVREND = tnode_newnodetag ("EACSVREND", &i, tnd, NTF_NONE);
+	/* lops = tnode_newlangops();*/
+
 	i = -1;
 	eac.tag_CLIEND = tnode_newnodetag ("EACCLIEND", &i, tnd, NTF_NONE);
 
@@ -1624,7 +1711,7 @@ static int eac_code_init_nodes (void)
 
 	i = -1;
 	eac.tag_SUBST = tnode_newnodetag ("EACSUBST", &i, tnd, NTF_NONE);
-	
+
 	/*}}}*/
 	/*{{{  eac:instancenode -- EACINSTANCE*/
 	i = -1;
