@@ -1,0 +1,27 @@
+# test_ea2.eac
+# testing escape-analysis stuff for NOCC
+
+#@interactive
+
+# define escape for some standard processes
+
+OK (in, out) = {
+	< in ? a , out ! b <- a >
+	}
+
+FAIL.LHS (in, out) = {
+	< in ? a, out ! in <- a >
+}
+
+FAIL.RHS (in, out) = {
+	<in ? a, out ! b <- in>
+}
+
+FAIL.RHS.2 (in, out) = {
+	<in ? a, out ! b <- {in, out} >
+}
+
+FAIL.RHS.2 (in, out) = {
+	<in ? ^a, out ! b <- {^a} >
+}
+

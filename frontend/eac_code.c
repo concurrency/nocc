@@ -1370,11 +1370,6 @@ static int eac_prescope_varcompnode (compops_t *cops, tnode_t **tptr, prescope_t
 {
 	tnode_t *node = *tptr;
 
-#if 1
-	fprintf(stderr, "*** presocping\n");
-	tnode_dumpstree(node, 1, stderr);
-	fprintf(stderr, "***\n");
-#endif
 	if (node->tag == eac.tag_VARCOMP) {
 		tnode_t **rhs = tnode_nthsubaddr (node, 1);
 
@@ -1398,42 +1393,25 @@ eac_typecheck_varcompnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 	tnode_t **varlist;
 	int nvar, i;
 
-#if 0
-	fprintf (stderr, "eac_typecheck_varcompnode(): action of:\n");
-	tnode_dumpstree (node, 1, stderr);
-	fprintf(stderr, "\n");
-
-	fprintf(stderr, "LHS:");
-	tnode_dumpstree (lhs, 1, stderr);
-	fprintf(stderr, "RHS:");
-	tnode_dumpstree (rhs, 2, stderr);
-
-	fprintf(stderr, "----\n\n");
-#endif
-
-
 		if  (!(lhs->tag == eac.tag_NVAR) || lhs->tag == eac.tag_VARCOMP) {
-			typecheck_error(node, tc, "\"%s\" on LHS of " /*TODO*/ "should be a data type but found a %s",
+			typecheck_error(node, tc, "\"%s\" on LHS of VARCOMP should be a data type but found a %s",
 			    (lhs->tag->ndef == eac.node_NAMENODE) ? NameNameOf(tnode_nthnameof (lhs, 0)) : "unknown",
 			    lhs->tag->name);
 			return 1;
 		}
-#if 0
+
 		varlist = parser_getlistitems (rhs, &nvar);
 
-		for (i = nvar; i > 0; --i) {
-#if 1
-			fprintf(stderr, "eac_typecheck_varcompnode: checking RHS[%d]\n", i);
-#endif
+		for (i = 0 ; i < nvar; ++i) {
 			if (!(varlist[i]->tag == eac.tag_NVAR || varlist[i]->tag == eac.tag_VARCOMP)) {
-				typecheck_error(node, tc, "\"%s\" on LHS of " /*TODO*/ "should be a data type but found a %s",
+				typecheck_error(node, tc, "\"%s\" on RHS of VARCOMP should be a data type but found a %s",
 				    (varlist[i]->tag->ndef == eac.node_NAMENODE) ? NameNameOf(tnode_nthnameof (varlist[i], 0)) : "unknown",
 				    varlist[i]->tag->name);
 				return 1;
 
 			}
 		}
-#endif
+
 	return 1;
 
 }
