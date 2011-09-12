@@ -1522,7 +1522,6 @@ static int eac_prescope_esetnode (compops_t *cops, tnode_t **tptr, prescope_t *p
 		} else if (!parser_islistnode (*cptr)) {
 			*cptr = parser_makelistnode (*cptr);
 		}
-		return 0;
 	}
 
 	return 1;
@@ -1616,14 +1615,12 @@ static int eac_code_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("eac:varcomp", &i, 2, 0, 0, TNF_NONE);				/* subnodes: left, right */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (eac_prescope_varcompnode));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (eac_typecheck_varcompnode));
 	tnd->ops = cops;
 
 	i = -1;
 	eac.tag_VARCOMP = tnode_newnodetag ("EACVARCOMP", &i, tnd, NTF_NONE);
-	cops = tnode_newcompops ();
-	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (eac_prescope_varcompnode));
-	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (eac_typecheck_varcompnode));
-	tnd->ops = cops;
 
 	/*}}}*/
 	/*{{{  eac:declnode -- EACDECL*/
