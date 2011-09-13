@@ -13,6 +13,10 @@ FAIL.LHS (in, out) = {
 	< in ? a, out ! in <- a >
 }
 
+FAIL.LHS.2 (in, out) = {
+	< in ? a, out ! ^a <- a >
+}
+
 FAIL.RHS (in, out) = {
 	<in ? a, out ! b <- in>
 }

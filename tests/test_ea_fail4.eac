@@ -1,0 +1,49 @@
+# test_ea2.eac
+# testing escape-analysis stuff for NOCC
+
+#@interactive
+
+# define escape for some standard processes
+
+ID (in, out) = {
+	< in ? a , out ! b <- a >
+	}
+
+ADD (in0, in1, out) = {
+	< in0 ? a, in1 ? b, out ! z <- {a,b} >
+	}
+
+DELTA (in, out0, out1) = {
+	< in ? x, out0 ! y <- x, out1 ! z <- x >
+	}
+
+# channel-factory
+
+C.FACT (out.c, out.s) = {
+	< out.c ! ^x, out.s ! ~x >
+	}
+
+END.C (in) = {
+	< in ? ^c, ^c ! z >
+	}
+
+END.S (in) = {
+	< in ? ~s, ~s ? v >
+	}
+
+# multiple sequences per set
+
+FOO (in, out) = { <in?a, out!a>, <in?b>, <out!c> }
+
+# channel-factory system
+CF.SYS =
+	(C.FACT (a, b) || END.C (a) || END.S (b)) \ {a,b}
+
+CF.SYS.2 =
+	(C.FACT (a, b) || END.C (a) || END.S (b)) \ {a}
+
+CF.SYS.FAIL1 =
+	(C.FACT (a, b) || END.C (a) || END.S (b)) \ {a,C.FACT}
+
+CF.SYS =
+	(C.FACT (a, b) || END.C (a) || END.S (b)) \ {a,z}

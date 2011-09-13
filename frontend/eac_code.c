@@ -1384,7 +1384,51 @@ static int eac_prescope_varcompnode (compops_t *cops, tnode_t **tptr, prescope_t
 	return 1;
 }
 /*}}}*/
-/*{{{ static int eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+
+/*{{{ static int eac_typecheck_hidenode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+static int
+eac_typecheck_hidenode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *lhs = NULL;
+	tnode_t *rhs = NULL;
+	tnode_t **varlist;
+	int nvar, i;
+
+	if (node->tag == eac.tag_HIDE) {
+#if 0
+		fprintf(stderr, "____eac_typecheck_hidenode___\n");
+		tnode_dumpstree (node, 1, stderr);
+		fprintf(stderr, "________\n");
+#endif
+		lhs = tnode_nthsubof (node, 0);
+		rhs = tnode_nthsubof (node, 1);
+
+		/* TODO: handle LHS if needed */
+
+		/* RHS: should be .... TODO */
+		varlist = parser_getlistitems (rhs, &nvar);
+		for (i = 0; i < nvar; ++i) {
+			/* check each param is a var */
+#if 0
+			fprintf(stderr, "____eac_typecheck_hidenode: [RHS:%d]___\n",i);
+			tnode_dumpstree (varlist[i], 1, stderr);
+			fprintf(stderr, "________\n");
+#endif
+			if (!(varlist[i]->tag == eac.tag_NVAR)) {
+				typecheck_error(node, tc, "\"%s\" in hidding list should be a NVAR but found a %s",
+				    (varlist[i]->tag->ndef == eac.node_NAMENODE) 
+				    ? NameNameOf(tnode_nthnameof (varlist[i], 0)) : "unknown",
+				    varlist[i]->tag->name);
+				return 1;
+			}
+		}
+	}
+
+	return 1;
+}
+/*}}}*/
+
+/*{{{ static int eac_typecheck_varcompnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 static int
 eac_typecheck_varcompnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
@@ -1669,13 +1713,13 @@ static int eac_code_init_nodes (void)
 	tnd = tnode_newnodetype ("eac:pcompnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: left, right */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (eac_prescope_pcompnode));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (eac_typecheck_hidenode));
 	tnd->ops = cops;
 
 	i = -1;
 	eac.tag_PAR = tnode_newnodetag ("EACPAR", &i, tnd, NTF_NONE);
 	i = -1;
 	eac.tag_HIDE = tnode_newnodetag ("EACHIDE", &i, tnd, NTF_NONE);
-
 	/*}}}*/
 	/*{{{  eac:psubstnode -- EACSUBST*/
 	i = -1;
