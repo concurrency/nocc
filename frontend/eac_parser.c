@@ -232,7 +232,7 @@ static name_t *eac_find_name (const char *name)
  */
 void eac_init_istate (void)
 {
-	eac_istate = (eac_istate_t *)smalloc (sizeof (eac_istate));
+	eac_istate = (eac_istate_t *)smalloc (sizeof (eac_istate_t));
 
 	dynarray_init (eac_istate->procs);
 
