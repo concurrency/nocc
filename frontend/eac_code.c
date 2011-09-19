@@ -1149,6 +1149,48 @@ static int eac_scopein_declnode (compops_t *cops, tnode_t **node, scope_t *ss)
 	return 0;
 }
 /*}}}*/
+
+
+/*{{{  static int eac_scope_fixchanvars (tnode_t *node, void *arg)*/
+/*
+ *	looks for free name references inside processes, adds them to a list.
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int eac_scope_fixchanvars (tnode_t *node, void *arg)
+{
+	tnode_t		 *lhs;
+	name_t		 *namenode;
+	tnode_t		 *fvlist = (tnode_t *)arg;
+	tnode_t		**xitems;
+	int		  nxitems, found = 0, i;
+	char		 *name, *rhsname;
+
+
+#if 0
+nocc_message ("eac_scope_fixchanvars(): looking at (%s)", node->tag->name);
+#endif
+	if (node->tag == eac.tag_INPUT || node->tag == eac.tag_OUTPUT) {
+		lhs = tnode_nthsubof(node, 0);
+		if (lhs->tag == eac.tag_NVAR) {
+			lhs->tag = eac.tag_NCHANVAR;
+			parser_addtolist (fvlist, tnode_copytree (lhs));
+
+		}
+
+	}
+	else if (node->tag == eac.tag_NVAR) {
+		rhsname = NameNameOf(tnode_nthnameof(node, 0));
+		xitems = parser_getlistitems (fvlist, &nxitems);
+		for (i=0; i<nxitems; i++) {
+			name = NameNameOf(tnode_nthnameof(xitems[i], 0));
+			if (strcmp(rhsname, name) == 0) {
+				node->tag = eac.tag_NCHANVAR;
+			}
+		}
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int eac_scopein_fvpenode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes in a process expression (associates free-vars with processes)
@@ -1156,7 +1198,7 @@ static int eac_scopein_declnode (compops_t *cops, tnode_t **node, scope_t *ss)
  */
 static int eac_scopein_fvpenode (compops_t *cops, tnode_t **node, scope_t *ss)
 {
-	tnode_t *fvlist;
+	tnode_t *fvlist, *tfvlist;
 	void *nsmark;
 	int eac_lastunresolved = eac_ignore_unresolved;
 
@@ -1178,11 +1220,17 @@ static int eac_scopein_fvpenode (compops_t *cops, tnode_t **node, scope_t *ss)
 	/* scope body again */
 	scope_subtree (tnode_nthsubaddr (*node, 0), ss);
 
+	tfvlist =  parser_newlistnode (OrgFileOf (*node));
+	tnode_prewalktree (tnode_nthsubof (*node, 0), eac_scope_fixchanvars, tfvlist);
+	tnode_prewalktree (tnode_nthsubof (*node, 0), eac_scope_fixchanvars, tfvlist);
 	name_markdescope (nsmark);
 
 	return 0;
 }
 /*}}}*/
+
+
+
 /*{{{  static int eac_scopein_rawname (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes in a free-floating name

@@ -13,6 +13,10 @@ ADD (in0, in1, out) = {
 	< a ? a, in1 ? b, out ! z <- {a,b} >
 	}
 
+ADD (in0, in1, out) = {
+	< a ? b, in1 ? a, out ! z <- {a,b} >
+	}
+
 PLUS (in0, in1, out) = {
 	< in0 ? in0, in1 ? b, out ! z <- {a,b} >
 	}
