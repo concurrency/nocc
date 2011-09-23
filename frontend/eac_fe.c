@@ -64,7 +64,7 @@ int eac_register_frontend (void)
 	if (lexer_registerlang (&eac_lexer)) {
 		return -1;
 	}
-	
+
 	nocc_addxmlnamespace ("eac", "http://www.cs.kent.ac.uk/projects/ofa/nocc/NAMESPACES/eac");
 
 	eac_ihandler = nocc_newihandler ();

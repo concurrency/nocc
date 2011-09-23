@@ -3005,6 +3005,8 @@ int main (int argc, char **argv)
 	/*}}}*/
 	/*{{{  hook in local interactive handlers*/
 	{
+		char *lhan_commands[]		= { "help", "mode", "version", "versions", "step", "run" };
+		char *lbitshan_commands[]	= { "help", "mode", "runto", "list", "show", "sshow" };
 		ihandler_t *lhan = nocc_newihandler ();
 		ihandler_t *lbitshan = nocc_newihandler ();
 
@@ -3013,12 +3015,14 @@ int main (int argc, char **argv)
 		lhan->flags = IHF_LINE | IHF_ANYMODE;
 		lhan->enabled = 1;
 		lhan->line_callback = local_ihandler;
+		lhan->commands = lhan_commands;
 
 		lbitshan->id = string_dup ("main2");
 		lbitshan->prompt = ("");
 		lbitshan->flags = IHF_BITS | IHF_ANYMODE;
 		lbitshan->enabled = 1;
 		lbitshan->bits_callback = local_ibitshandler;
+		lbitshan->commands = lbitshan_commands;
 
 		nocc_register_ihandler (lhan);
 		nocc_register_ihandler (lbitshan);

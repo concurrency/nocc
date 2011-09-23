@@ -513,7 +513,7 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 
 		pname = tnode_nthnameof (inst, 0);
 		pdecl = NameDeclOf (pname);
-		
+
 		/*{{{  sanity checks*/
 		if (!pdecl) {
 			tnode_error (node, "no such procedure");
