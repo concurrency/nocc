@@ -177,7 +177,7 @@ static const struct TAG_cmd_option wordlist[] =
     {"stop-postcheck",		'\0',	opt_setstopflag,	(void *)15,			"1stop after post-check",				114},
     {"trace-constprop",	'\0',	opt_setintflag,		&(compopts.traceconstprop),	"1trace constant-propagation (debugging)",		203},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"verbose",		'v',	opt_setintflag,		&(compopts.verbose),		"0verbose compilation",					251},
+    {"verbose",		'v',	opt_setintflagup,	&(compopts.verbose),		"0verbose compilation",					251},
     {"stop-prealloc",		'\0',	opt_setstopflag,	(void *)19,			"1stop after pre-allocation",				118},
     {"stop-postusagecheck",	'\0',	opt_setstopflag,	(void *)11,			"1stop after post-usage check",				110},
     {"dump-specs",		'\0',	opt_setintflag,		&(compopts.dumpspecs),		"1print compiler specs",				2},

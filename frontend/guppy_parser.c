@@ -69,9 +69,10 @@ static int guppy_parser_scope (tnode_t **tptr, scope_t *ss);
 static int guppy_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
 static int guppy_parser_typeresolve (tnode_t **tptr, typecheck_t *tc);
 
-static tnode_t *guppy_process (lexfile_t *lf);
-static tnode_t *guppy_indented_process (lexfile_t *lf);
-static tnode_t *guppy_indented_process_list (lexfile_t *lf, char *leaddfa);
+static tnode_t *guppy_parser_parseproc (lexfile_t *lf);
+static tnode_t *guppy_parser_parsedef (lexfile_t *lf);
+static tnode_t *guppy_declorproc (lexfile_t *lf);
+static tnode_t *guppy_indented_declorproc_list (lexfile_t *lf);
 
 /*}}}*/
 /*{{{  global vars*/
@@ -428,7 +429,7 @@ static int guppy_parser_init (lexfile_t *lf)
 
 		guppy_priv->inode = dfa_lookupbyname ("guppy:decl");
 		if (!guppy_priv->inode) {
-			nocc_error ("guppy_parser_init(): could not find guppy:declorprocstart!");
+			nocc_error ("guppy_parser_init(): could not find guppy:decl!");
 			return 1;
 		}
 		if (compopts.dumpdfas) {
@@ -489,433 +490,112 @@ static int guppy_skiptoeol (lexfile_t *lf, int skipindent)
 	return 0;
 }
 /*}}}*/
-/*{{{  static tnode_t *guppy_declorprocstart (lexfile_t *lf, int *gotall, char *thedfa)*/
+
+
+/*{{{  static tnode_t *guppy_parser_parseproc (lexfile_t *lf)*/
 /*
- *	parses a declaration/process for single-liner's, or start of a declaration/process
- *	for multi-liners.  Sets "gotall" non-zero if the tree returned is largely whole.
+ *	parses a single process (in its entirety)
  */
-static tnode_t *guppy_declorprocstart (lexfile_t *lf, int *gotall, char *thedfa)
+static tnode_t *guppy_parser_parseproc (lexfile_t *lf)
 {
-	token_t *tok;
 	tnode_t *tree = NULL;
-	tnode_t **ltarget = &tree;
+	token_t *tok = NULL;
+	int emrk = parser_markerror (lf);
+	int tnflags;
 
-	/*
-	 * for starts of declarations, parsing things like:
-	 *     define name (paramlist)
-	 */
-	
-	*gotall = 0;
-restartpoint:
-
-	/* skip newlines/comments */
-	tok = lexer_nexttoken (lf);
-
-	if (compopts.debugparser) {
-		nocc_message ("guppy_declorprocstart(): first token is [%s]", lexer_stokenstr (tok));
+	tree = dfa_walk ("guppy:procstart", 0, lf);
+	if (!tree) {
+		/* failed to parse something */
+		if (parser_checkerror (lf, emrk)) {
+			guppy_skiptoeol (lf, 1);
+		}
+		return NULL;
 	}
 
+	tnflags = tnode_tnflagsof (tree);
+	if (tnflags & TNF_LONGPROC) {
+		/*{{{  long process (e.g. 'seq', 'par', etc.*/
+		int ntflags = tnode_ntflagsof (tree);
+
+		if (ntflags & NTF_INDENTED_PROC_LIST) {
+			/*{{{  long process, parse list of indented processes into subnode 1*/
+			tnode_t *body = guppy_indented_declorproc_list (lf);
+
+			tnode_setnthsub (tree, 1, body);
+			/*}}}*/
+		} else {
+			tnode_warning (tree, "guppy_parser_parseproc(): unhandled LONGPROC [%s]", tree->tag->name);
+		}
+		/*}}}*/
+	}
+
+	return tree;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_declorproc (lexfile_t *lf)*/
+/*
+ *	parses a single declaration or process
+ */
+static tnode_t *guppy_declorproc (lexfile_t *lf)
+{
+	tnode_t *tree = NULL;
+	token_t *tok = NULL;
+
+	if (compopts.verbose > 1) {
+		nocc_message ("guppy_declorproc(): parsing declaration or process by test at %s:%d", lf->fnptr, lf->lineno);
+	}
+
+	/*{{{  skip newlines and comments*/
+	tok = lexer_nexttoken (lf);
 	while (tok && ((tok->type == NEWLINE) || (tok->type == COMMENT))) {
 		lexer_freetoken (tok);
 		tok = lexer_nexttoken (lf);
 	}
-
-	if (!tok || (tok->type == END)) {
-		if (tok) {
-			lexer_freetoken (tok);
-		}
-		return tree;
-	}
-
-	/* if we're parsing a particular ruleset, may need to parse intervening declarations first */
-	lexer_pushback (lf, tok);
-	if (thedfa) {
-		tnode_t *dtest = dfa_walk ("guppy:testfordecl", 0, lf);
-
-		if (dtest->tag == testtruetag) {
-			/* right, return this: spot the declaration and handle in guppy_decl() */
-			return dtest;
-		} else if (dtest->tag == testfalsetag) {
-			/* free and continue */
-			tnode_free (dtest);
-		} else {
-			nocc_serious ("guppy_declorprocstart(): guppy:testfordecl DFA returned:");
-			tnode_dumptree (dtest, 1, stderr);
-			tnode_free (dtest);
-		}
-	}
-	tok = lexer_nexttoken (lf);
-
-	if (lexer_tokmatch (gup.tok_ATSIGN, tok)) {
-		/*{{{  probably a pre-processor action of some kind*/
-		/*}}}*/
-	} else {
+	if (tok) {
 		lexer_pushback (lf, tok);
-		tree = dfa_walk (thedfa ? thedfa : "guppy:declorprocstart", 0, lf);
-
-		if (lf->toplevel && lf->sepcomp && tree && (tree->tag == gup.tag_FCNDEF)) {
-			library_markpublic (tree);
-		}
+		tok = NULL;
 	}
 
-	return tree;
-}
-/*}}}*/
-/*{{{  static tnode_t *guppy_declorproc (lexfile_t *lf, int *gotall, char *thedfa)*/
-/*
- *	parses a whole declaration or process, then returns it
- */
-static tnode_t *guppy_declorproc (lexfile_t *lf, int *gotall, char *thedfa)
-{
-	tnode_t *tree = NULL;
-	int tnflags;
-	int emrk = parser_markerror (lf);
-	int earlyret = 0;
-	tnode_t **treetarget = &tree;
+	/*}}}*/
 
-restartpoint:
-	if (compopts.debugparser) {
-		nocc_message ("guppy_declorproc(): %s:%d: parsing declaration or process start", lf->fnptr, lf->lineno);
-	}
-
-	*treetarget = guppy_declorprocstart (lf, gotall, thedfa);
-
-
-	if (compopts.debugparser) {
-		nocc_message ("guppy_declorproc(): %s:%d: finished parsing declaration or process start, *treetarget [0x%8.8x]",
-				lf->fnptr, lf->lineno, (unsigned int)(*treetarget));
-		if (*treetarget) {
-			nocc_message ("guppy_declorproc(): %s:%d: that *treetarget is (%s,%s)", lf->fnptr, lf->lineno,
-					(*treetarget)->tag->ndef->name, (*treetarget)->tag->name);
-		}
-	}
-
-	if (thedfa && *treetarget && ((*treetarget)->tag == testtruetag)) {
-		/*{{{  okay, declaration for sure (unparsed)*/
-		int lgotall = 0;
-		tnode_t *decl;
-
-		decl = guppy_declorproc (lf, &lgotall, NULL);
-
-#if 0
-fprintf (stderr, "guppy_declorproc(): specific DFA [%s] found DECL, parsed it and got:\n", thedfa);
-tnode_dumptree (decl, 1, stderr);
-#endif
-		/* trash test-true flag and put in new declaration */
-		tnode_free (*treetarget);
-		*treetarget = decl;
-
-		/* sink through */
-		while (*treetarget) {
-			tnflags = tnode_tnflagsof (*treetarget);
-
-			if (tnflags & TNF_LONGDECL) {
-				treetarget = tnode_nthsubaddr (*treetarget, 3);
-			} else if (tnflags & TNF_SHORTDECL) {
-				treetarget = tnode_nthsubaddr (*treetarget, 2);
-			} else if (tnflags & TNF_TRANSPARENT) {
-				treetarget = tnode_nthsubaddr (*treetarget, 0);
-			} else {
-				/* shouldn't get this: means it probably wasn't a declaration.. */
-				parser_error (lf, "expected declaration, found [%s]", (*treetarget)->tag->name);
-				return tree;
-			}
-		}
-
-		/* and restart */
-		goto restartpoint;
-		/*}}}*/
-	}
-
-	if (parser_checkerror (lf, emrk)) {
-		guppy_skiptoeol (lf, 1);
-	}
-
+	/* test for a declaration first of all */
+	tree = dfa_walk ("guppy:testfordecl", 0, lf);
 	if (!tree) {
-		return NULL;
-	} else if (earlyret) {
-		return tree;
-	}
-#if 0
-fprintf (stderr, "guppy_declorproc(): got this tree from declorprocstart:\n");
-tnode_dumptree (tree, 1, stderr);
-#endif
-
-	/* decide how to deal with it */
-	if (!*gotall) {
-		tnflags = tnode_tnflagsof (*treetarget);
-		if (tnflags & TNF_LONGDECL) {
-			/*{{{  long declaration (e.g. PROC, CHAN TYPE, etc.)*/
-			int ntflags = tnode_ntflagsof (*treetarget);
-
-			if (ntflags & NTF_INDENTED_PROC) {
-				/* parse body into subnode 2 */
-				tnode_t *body;
-				token_t *tok;
-
-				body = guppy_indented_process (lf);
-				tnode_setnthsub (*treetarget, 2, body);
-			} else if (ntflags & NTF_INDENTED_PROC_LIST) {
-				/* parse body into subnode 2 */
-				tnode_t *body;
-				token_t *tok;
-
-				body = guppy_indented_process_list (lf, NULL);
-				tnode_setnthsub (*treetarget, 2, body);
-			}
-			/*}}}*/
-		} else if (tnflags & TNF_LONGPROC) {
-			/*{{{  long process (e.g. SEQ, CLAIM, FORKING, etc.)*/
-			int ntflags = tnode_ntflagsof (*treetarget);
-
-			if (ntflags & NTF_INDENTED_PROC_LIST) {
-				/*{{{  parse a list of processes into subnode 1*/
-				tnode_t *body;
-
-				body = guppy_indented_process_list (lf, NULL);
-				tnode_setnthsub (*treetarget, 1, body);
-				/*}}}*/
-#if 0
-			} else if (ntflags & NTF_INDENTED_CONDPROC_LIST) {
-				/*{{{  parse a list of indented conditions + processes into subnode 1*/
-				tnode_t *body;
-
-				body = guppy_indented_process_list (lf, "guppy:ifcond");
-				tnode_setnthsub (*treetarget, 1, body);
-				/*}}}*/
-			} else if (ntflags & NTF_INDENTED_PROC) {
-				/*{{{  parse indented process into subnode 1*/
-				tnode_t *body;
-
-				body = guppy_indented_process (lf);
-				tnode_setnthsub (*treetarget, 1, body);
-				/*}}}*/
-			} else if (ntflags & NTF_INDENTED_GUARDPROC_LIST) {
-				/*{{{  parses a list of indented guards + processes into subnode 1*/
-				tnode_t *body;
-
-				body = guppy_indented_process_list (lf, "guppy:altguard");
-				tnode_setnthsub (*treetarget, 1, body);
-				/*}}}*/
-			} else if (ntflags & NTF_INDENTED_CASEINPUT_LIST) {
-				/*{{{  parses a list of indented case-inputs + processes into subnode 1*/
-				tnode_t *body;
-
-				body = guppy_indented_process_list (lf, "guppy:caseinputcase");
-				tnode_setnthsub (*treetarget, 1, body);
-				/*}}}*/
-			} else if (ntflags & NTF_INDENTED_PLACEDON_LIST) {
-				/*{{{  parses a list of indented placed-on statements + processes into subnode 1*/
-				tnode_t *body;
-
-				body = guppy_indented_process_list (lf, "guppy:placedon");
-				tnode_setnthsub (*treetarget, 1, body);
-				/*}}}*/
-#endif
-			} else {
-				tnode_warning (*treetarget, "guppy_declorproc(): unhandled LONGPROC [%s]", (*treetarget)->tag->name);
-			}
-			/*}}}*/
-		} else if (tnflags & TNF_TRANSPARENT) {
-			/*{{{  transparent node (e.g. library usage)*/
-			/* FIXME: nothing to do here..? */
-			/*}}}*/
-		}
-	}
-
-	return tree;
-}
-/*}}}*/
-/*{{{  static tnode_t *guppy_declstart (lexfile_t *lf, int *gotall, char *thedfa)*/
-/*
- *	parses a declaration for single-liner's, or start of a declaration for multi-line.
- *	Sets "gotall" non-zero if the tree returned is largely whole
- */
-static tnode_t *guppy_declstart (lexfile_t *lf, int *gotall, char *thedfa)
-{
-	token_t *tok;
-	tnode_t *tree = NULL;
-	tnode_t **ltarget = &tree;
-
-	/*
-	 * for starts of declarations, parsing things like:
-	 *     define name (paramlist)
-	 */
-	
-	*gotall = 0;
-restartpoint:
-
-	/* skip newlines/comments */
-	tok = lexer_nexttoken (lf);
-
-	if (compopts.debugparser) {
-		nocc_message ("duppy_declstart(): first token is [%s]", lexer_stokenstr (tok));
-	}
-
-	while (tok && ((tok->type == NEWLINE) || (tok->type == COMMENT))) {
-		lexer_freetoken (tok);
-		tok = lexer_nexttoken (lf);
-	}
-
-	if (!tok || (tok->type == END)) {
-		if (tok) {
-			lexer_freetoken (tok);
-		}
-		return tree;
-	}
-
-	/* if we're parsing a particular ruleset, may need to parse intervening declarations first */
-	lexer_pushback (lf, tok);
-	if (thedfa) {
-		tnode_t *dtest = dfa_walk ("guppy:testfordecl", 0, lf);
-
-		if (dtest->tag == testtruetag) {
-			/* right, return this: spot the declaration and handle in guppy_decl() */
-			return dtest;
-		} else if (dtest->tag == testfalsetag) {
-			/* free and continue */
-			tnode_free (dtest);
-		} else {
-			nocc_serious ("guppy_declstart(): guppy:testfordecl DFA returned:");
-			tnode_dumptree (dtest, 1, stderr);
-			tnode_free (dtest);
-		}
-	}
-	tok = lexer_nexttoken (lf);
-
-	if (lexer_tokmatch (gup.tok_ATSIGN, tok)) {
-		/*{{{  probably a pre-processor action of some kind*/
-		/*}}}*/
+		parser_error (lf, "expected to find declaration or process, but didn\'t");
+	} else if (tree->tag == testtruetag) {
+		/* definitely a declaration */
+		tnode_free (tree);
+		tree = guppy_parser_parsedef (lf);
+	} else if (tree->tag == testfalsetag) {
+		/* definitely a process */
+		tnode_free (tree);
+		tree = guppy_parser_parseproc (lf);
 	} else {
-		lexer_pushback (lf, tok);
-		tree = dfa_walk (thedfa ? thedfa : "guppy:declstart", 0, lf);
+		nocc_serious ("guppy_declorproc(): guppy_testfordecl DFA returned:");
+		tnode_dumptree (tree, 1, stderr);
+		tnode_free (tree);
+		tree = NULL;
+	}
 
-		if (lf->toplevel && lf->sepcomp && tree && (tree->tag == gup.tag_FCNDEF)) {
-			library_markpublic (tree);
-		}
+	if (compopts.verbose > 1) {
+		nocc_message ("guppy_declorproc(): done parsing declaration or process, got (%s:%s)", tree ? tree->tag->name : "(nil)",
+				tree ? tree->tag->ndef->name : "(nil)");
 	}
 
 	return tree;
 }
 /*}}}*/
-/*{{{  static tnode_t *guppy_decl (lexfile_t *lf, int *gotall, char *thedfa)*/
+/*{{{  static tnode_t *guppy_indented_declorproc_list (lexfile_t *lf)*/
 /*
- *	this parses a guppy declaration and returns it
+ *	parses a list of indented processes or definitions.
  */
-static tnode_t *guppy_decl (lexfile_t *lf, int *gotall, char *thedfa)
+static tnode_t *guppy_indented_declorproc_list (lexfile_t *lf)
 {
 	tnode_t *tree = NULL;
-	int tnflags;
-	int emrk = parser_markerror (lf);
-	int earlyret = 0;
-	tnode_t **treetarget = &tree;
-
-restartpoint:
-	if (compopts.debugparser) {
-		nocc_message ("guppy_decl(): %s:%d: parsing declaration", lf->fnptr, lf->lineno);
-	}
-
-	*treetarget = guppy_declstart (lf, gotall, thedfa);
-
-	if (compopts.debugparser) {
-		nocc_message ("guppy_decl(): %s:%d: finished parsing declaration start, *treetarget [0x%8.8x]",
-				lf->fnptr, lf->lineno, (unsigned int)(*treetarget));
-		if (*treetarget) {
-			nocc_message ("guppy_decl(): %s:%d: that *treetarget is (%s,%s)", lf->fnptr, lf->lineno,
-					(*treetarget)->tag->ndef->name, (*treetarget)->tag->name);
-		}
-	}
-
-	if (thedfa && *treetarget && ((*treetarget)->tag == testtruetag)) {
-		/*{{{  okay, declaration for sure (unparsed)*/
-		int lgotall = 0;
-		tnode_t *decl;
-
-		decl = guppy_decl (lf, &lgotall, NULL);
-
-		tnode_free (*treetarget);
-		*treetarget = decl;
-
-		/* sink through */
-		while (*treetarget) {
-			tnflags = tnode_tnflagsof (*treetarget);
-
-			if (tnflags & TNF_LONGDECL) {
-				treetarget = tnode_nthsubaddr (*treetarget, 3);
-			} else if (tnflags & TNF_SHORTDECL) {
-				treetarget = tnode_nthsubaddr (*treetarget, 2);
-			} else if (tnflags & TNF_TRANSPARENT) {
-				treetarget = tnode_nthsubaddr (*treetarget, 0);
-			} else {
-				/* shouldn't get this: means probably wasn't a declaration */
-				parser_error (lf, "expected declaration, found [%s]", (*treetarget)->tag->name);
-				return tree;
-			}
-		}
-
-		/* and restart */
-		goto restartpoint;
-		/*}}}*/
-	}
-
-	if (parser_checkerror (lf, emrk)) {
-		guppy_skiptoeol (lf, 1);
-	}
-
-	if (!tree) {
-		return NULL;
-	} else if (earlyret) {
-		return tree;
-	}
-
-	/* decide how to deal with it */
-	if (!*gotall) {
-		tnflags = tnode_tnflagsof (*treetarget);
-
-		if (tnflags & TNF_LONGDECL) {
-			/*{{{  long declaration*/
-			int ntflags = tnode_ntflagsof (*treetarget);
-
-			if (ntflags & NTF_INDENTED_PROC) {
-				/* parse body into subnode 2 */
-				tnode_t *body;
-				token_t *tok;
-
-				body = guppy_indented_process (lf);
-				tnode_setnthsub (*treetarget, 2, body);
-			} else if (ntflags & NTF_INDENTED_PROC_LIST) {
-				/* parse body into subnode 2 */
-				tnode_t *body;
-				token_t *tok;
-
-				body = guppy_indented_process_list (lf, NULL);
-				tnode_setnthsub (*treetarget, 2, body);
-			}
-			/*}}}*/
-		} else if (tnflags & TNF_TRANSPARENT) {
-			/*{{{  transparent node (e.g. library usage)*/
-			/* FIXME: nothing to do here..? */
-			/*}}}*/
-		}
-	}
-
-	return tree;
-}
-/*}}}*/
-/*{{{  static tnode_t *guppy_indented_process_list (lexfile_t *lf, char *leaddfa)*/
-/*
- *	parses a list of indented processes.  if "leaddfa" is non-null, parses that
- *	indented before the process (that may have leading declarations too)
- */
-static tnode_t *guppy_indented_process_list (lexfile_t *lf, char *leaddfa)
-{
-	tnode_t *tree = NULL;
-	tnode_t *stored = NULL;
-	tnode_t **target = &stored;
 	token_t *tok;
 
-	if (compopts.debugparser) {
-		nocc_message ("guppy_indented_process_list(): %s:%d: parsing indented declaration (%s)", lf->fnptr, lf->lineno, leaddfa ?: "--");
+	if (compopts.verbose > 1) {
+		nocc_message ("guppy_indented_declorproc_list(): %s:%d: parsing indented declaration or process list", lf->fnptr, lf->lineno);
 	}
 
 	tree = parser_newlistnode (lf);
@@ -939,252 +619,110 @@ static tnode_t *guppy_indented_process_list (lexfile_t *lf, char *leaddfa)
 	/*}}}*/
 	lexer_freetoken (tok);
 
-	/* okay, parse declarations and process */
+	/* okay, parse declarations and processes */
 	for (;;) {
-		/*{{{  parse 'leaddfa'*/
+		/*{{{  parse*/
 		tnode_t *thisone;
-		int tnflags;
-		int breakfor = 0;
-		int gotall = 0;
 
-		thisone = guppy_declorproc (lf, &gotall, leaddfa);
-		if (!thisone) {
-			*target = NULL;
+		/* check token for end of indentation */
+		tok = lexer_nexttoken (lf);
+		/*{{{  skip newlines*/
+		for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
+			lexer_freetoken (tok);
+		}
+
+		/*}}}*/
+		if (tok->type == OUTDENT) {
+			/* got outdent, end-of-list! */
+			lexer_freetoken (tok);
 			break;		/* for() */
+		} else {
+			lexer_pushback (lf, tok);
 		}
-#if 0
-fprintf (stderr, "guppy_indented_process_list(): parsing DFA [%s], got:\n", leaddfa ?: "--");
-tnode_dumptree (thisone, 1, stderr);
-#endif
-		*target = thisone;
-		while (*target) {
-			/*{{{  sink through trees*/
-			tnflags = tnode_tnflagsof (*target);
-			if (!leaddfa) {
-				/* no lead DFA, if this was a declaration, retarget */
-				if (tnflags & TNF_LONGDECL) {
-					target = tnode_nthsubaddr (*target, 3);
-				} else if (tnflags & TNF_SHORTDECL) {
-					target = tnode_nthsubaddr (*target, 2);
-				} else if (tnflags & TNF_TRANSPARENT) {
-					target = tnode_nthsubaddr (*target, 0);
-				} else {
-					/* process with some leading declarations probably -- add to the list */
-					parser_addtolist (tree, stored);
-					stored = NULL;
-					target = &stored;
-				}
-			} else
-#if 0
-			if (tnflags & TNF_LONGDECL) {
-				target = tnode_nthsubaddr (*target, 3);
-			} else if (tnflags & TNF_SHORTDECL) {
-				target = tnode_nthsubaddr (*target, 2);
-			} else if (tnflags & TNF_TRANSPARENT) {
-				target = tnode_nthsubaddr (*target, 0);
-			} else
-#endif
-#if 0
-			if (tnflags & TNF_LONGPROC) {
-#if 0
-fprintf (stderr, "guppy_indented_process_list(): got LONGPROC [%s]\n", (*target)->tag->name);
-#endif
-			} else
-#endif
-			{
-				/* process with some leading declarations probably -- add to the list */
-				parser_addtolist (tree, stored);
-				stored = NULL;
-				target = &stored;
-			}
 
-			/* peek at the next token -- if outdent, get out */
-			tok = lexer_nexttoken (lf);
-			for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
-				lexer_freetoken (tok);
-			}
-			if (tok && (tok->type == OUTDENT)) {
-				int lineno = tok->lineno;
+		thisone = guppy_declorproc (lf);
 
-				lexer_pushback (lf, tok);
-				/*
-				 *	slightly ugly check for outdented comments
-				 *	(not strictly valid, but we'll allow with a warning)
-				 */
-#if 0
-				if (check_outdented_comment (lf)) {
-					parser_warning_line (lf, lineno, "outdented comment");
-				} else
-#endif
-				{
-					breakfor = 1;
-					break;		/* while() */
-				}
-			} else {
-				lexer_pushback (lf, tok);
-			}
-			/*}}}*/
-		}
-		if (breakfor) {
+		if (thisone) {
+			parser_addtolist (tree, thisone);
+		} else {
+			/* failed to parse */
 			break;		/* for() */
 		}
 		/*}}}*/
 	}
 
-	if (stored) {
-		parser_addtolist (tree, stored);
-		stored = NULL;
-	}
-
-	tok = lexer_nexttoken (lf);
-	/*{{{  skip newlines*/
-	for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
-		lexer_freetoken (tok);
-	}
-
-	/*}}}*/
-	/*{{{  expect outdent*/
-	if (tok->type != OUTDENT) {
-		parser_error (lf, "expected outdent, found:");
-		lexer_dumptoken (stderr, tok);
-		lexer_pushback (lf, tok);
-		if (tree) {
-			tnode_free (tree);
-		}
-		tree = NULL;
-		return NULL;
-	}
-
-	/*}}}*/
-	lexer_freetoken (tok);
-
-	if (compopts.debugparser) {
-		nocc_message ("guppy_indented_process_list(): %s:%d: done parsing indented process list (tree at 0x%8.8x)",
+	if (compopts.verbose > 1) {
+		nocc_message ("guppy_indented_declorproc_list(): %s:%d: done parsing indented process list (tree at 0x%8.8x)",
 				lf->fnptr, lf->lineno, (unsigned int)tree);
 	}
 
 #if 0
-fprintf (stderr, "guppy_indented_process_list(): returning:\n");
+fprintf (stderr, "guppy_indented_declorproc_list(): returning:\n");
 tnode_dumptree (tree, 1, stderr);
 #endif
 	return tree;
 }
 /*}}}*/
-/*{{{  static tnode_t *guppy_indented_process (lexfile_t *lf)*/
+/*{{{  static tnode_t *guppy_parser_parsedef (lexfile_t *lf)*/
 /*
- *	parses an indented process
- *	returns the tree on success, NULL on failure
+ *	parses a single Guppy definition (e.g. process, type, ...)
+ *	returns tree on success, NULL on failure
  */
-static tnode_t *guppy_indented_process (lexfile_t *lf)
-{
-	tnode_t *tree = NULL;
-	tnode_t **target = &tree;
-	token_t *tok;
-
-	tok = lexer_nexttoken (lf);
-	/* skip newlines */
-	for (; tok && (tok->type == NEWLINE); tok = lexer_nexttoken (lf)) {
-		lexer_freetoken (tok);
-	}
-	/* expect indent */
-	if (tok->type != INDENT) {
-		parser_error (lf, "expected indent, found:");
-		lexer_dumptoken (stderr, tok);
-		lexer_pushback (lf, tok);
-		return NULL;
-	}
-	lexer_freetoken (tok);
-
-	/* okay, parse declarations and process */
-	for (;;) {
-		tnode_t *thisone;
-		int tnflags;
-		int breakfor = 0;
-		int gotall = 0;
-
-		thisone = guppy_declorproc (lf, &gotall, NULL);
-		if (!thisone) {
-			*target = NULL;
-			break;			/* for() */
-		}
-		*target = thisone;
-		while (*target) {
-			/* sink through anything included, etc. */
-			tnflags = tnode_tnflagsof (*target);
-
-			if (tnflags & TNF_LONGDECL) {
-				target = tnode_nthsubaddr (*target, 3);
-			} else if (tnflags & TNF_SHORTDECL) {
-				target = tnode_nthsubaddr (*target, 2);
-			} else if (tnflags & TNF_TRANSPARENT) {
-				target = tnode_nthsubaddr (*target, 0);
-			} else {
-				/* assume we're done! */
-				breakfor = 1;
-				break;		/* while() */
-			}
-		}
-		if (breakfor) {
-			break;			/* for() */
-		}
-	}
-
-	tok = lexer_nexttoken (lf);
-
-	/* skip newlines */
-	for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
-		lexer_freetoken (tok);
-	}
-
-	/* expect outdent */
-	if (tok->type != OUTDENT) {
-		parser_error (lf, "expected outdent, found:");
-		lexer_dumptoken (stderr, tok);
-		lexer_pushback (lf, tok);
-		if (tree) {
-			tnode_free (tree);
-		}
-		tree = NULL;
-		return NULL;
-	}
-
-	lexer_freetoken (tok);
-
-	return tree;
-}
-/*}}}*/
-
-
-/*{{{  static tnode_t *guppy_parser_parse (lexfile_t *lf)*/
-/*
- *	called to parse a file.
- *	returns a tree on success, NULL on failure
- */
-static tnode_t *guppy_parser_parse (lexfile_t *lf)
+static tnode_t *guppy_parser_parsedef (lexfile_t *lf)
 {
 	token_t *tok;
 	tnode_t *tree = NULL;
 	tnode_t **target = &tree;
 
-	if (compopts.verbose) {
-		nocc_message ("guppy_parser_parse(): starting parse..");
+	if (compopts.verbose > 1) {
+		nocc_message ("guppy_parser_parsedef(): starting parse for single definition..");
 	}
 
 	for (;;) {
 		tnode_t *thisone;
-		int tnflags;
-		int gotall = 0;
+		int tnflags, ntflags;
 		int breakfor = 0;
 
-		thisone = guppy_decl (lf, &gotall, NULL);
+		/* eat up comments and newlines */
+		tok = lexer_nexttoken (lf);
+		while ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
+			lexer_freetoken (tok);
+			tok = lexer_nexttoken (lf);
+		}
+		if ((tok->type == END) || (tok->type == NOTOKEN)) {
+			/* done */
+			lexer_freetoken (tok);
+			break;			/* for () */
+		}
+		lexer_pushback (lf, tok);
+
+		/* get the definition */
+		thisone = dfa_walk ("guppy:decl", 0, lf);
 		if (!thisone) {
 			*target = NULL;
 			break;			/* for() */
 		}
 		*target = thisone;
-		while (*target) {
-			/* sink through stuff (see this sometimes when @include'ing, etc. */
+		if (*target) {
 			tnflags = tnode_tnflagsof (*target);
+			ntflags = tnode_ntflagsof (*target);
+		} else {
+			tnflags = 0;
+			ntflags = 0;
+		}
+		/* check ntflags for specific structures (e.g. intented process/decl list) */
+		if (ntflags & NTF_INDENTED_PROC_LIST) {
+			/* parse list of intended processes into subnode 2 */
+			thisone = guppy_indented_declorproc_list (lf);
+			tnode_setnthsub (*target, 2, thisone);
+			break;		/* for() */
+		}
+		#if 0
+		while (*target) {
+			/* sink through */
+			tnflags = tnode_tnflagsof (*target);
+			ntflags = tnode_ntflagsof (*target);
+
 			if (tnflags & TNF_LONGDECL) {
 				target = tnode_nthsubaddr (*target, 3);
 			} else if (tnflags & TNF_SHORTDECL) {
@@ -1198,9 +736,80 @@ static tnode_t *guppy_parser_parse (lexfile_t *lf)
 			}
 		}
 		if (breakfor) {
-			break;
+			break;			/* for() */
 		}
+		#endif
 	}
+
+	if (compopts.verbose > 1) {
+		nocc_message ("guppy_parser_parsedef(): done parsing single definition (%p).", tree);
+	}
+
+	return tree;
+}
+/*}}}*/
+/*{{{  static int guppy_parser_parseprocdeflist (lexfile_t *lf, tnode_t **target)*/
+/*
+ *	parses a list of definitions, all indented at the same level
+ *	returns 0 on success, non-zero on failure
+ */
+static int guppy_parser_parsedeflist (lexfile_t *lf, tnode_t **target)
+{
+	if (compopts.verbose > 1) {
+		nocc_message ("guppy_parser_parsedeflist(): starting parse of process list from [%s]", lf->fnptr);
+	}
+
+	for (;;) {
+		tnode_t *thisone;
+		int gotall = 0;
+		int breakfor = 0;
+		token_t *tok;
+
+		tok = lexer_nexttoken (lf);
+		while ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
+			lexer_freetoken (tok);
+			tok = lexer_nexttoken (lf);
+		}
+		if ((tok->type == END) || (tok->type == NOTOKEN)) {
+			/* done */
+			lexer_freetoken (tok);
+			break;				/* for() */
+		}
+		lexer_pushback (lf, tok);
+
+		thisone = guppy_parser_parsedef (lf);
+		if (!thisone) {
+			/* nothing left probably */
+			break;				/* for() */
+		}
+		if (!*target) {
+			/* make it a list */
+			*target = parser_newlistnode (lf);
+		} else if (!parser_islistnode (*target)) {
+			nocc_internal ("guppy_parser_parsedeflist(): target is not a list! (%s,%s)", (*target)->tag->name, (*target)->tag->ndef->name);
+			return -1;
+		}
+		parser_addtolist (*target, thisone);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_parser_parse (lexfile_t *lf)*/
+/*
+ *	called to parse a file.
+ *	returns a tree on success, NULL on failure
+ */
+static tnode_t *guppy_parser_parse (lexfile_t *lf)
+{
+	token_t *tok;
+	tnode_t *tree = NULL;
+	int i;
+
+	if (compopts.verbose) {
+		nocc_message ("guppy_parser_parse(): starting parse..");
+	}
+
+	i = guppy_parser_parsedeflist (lf, &tree);
 
 	if (compopts.verbose > 1) {
 		nocc_message ("leftover tokens:");

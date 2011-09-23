@@ -12,12 +12,12 @@
 
 .SECTION "guppy" # {{{: fairly general guppy reductions and other language things
 
-.SYMBOL "."
-.SYMBOL ","
-
 .GRULE	"gup:nullreduce" "N+R-"
 .GRULE	"gup:nullpush" "0N-"
 .GRULE	"gup:nullset" "0R-"
+
+.GRULE	"gup:testtrue" "T*C[TESTTRUE]0R-"
+.GRULE	"gup:testfalse" "T*C[TESTFALSE]0R-"
 
 
 # .TNODE directives describe the parse-tree, kind-of
@@ -38,9 +38,11 @@
 
 .SECTION "guppy-postprod" # {{{: top-level grammar, kind-of
 
-.BNF	"guppy:declorprocstart +:= ( guppy:fcndef | guppy:primproc | guppy:cnode | guppy:vardecl ) {<gup:nullreduce>}"
+.BNF	"guppy:procstart +:= ( guppy:primproc | guppy:cnode ) {<gup:nullreduce>}"
 .BNF	"guppy:decl +:= ( guppy:fcndef | guppy:vardecl ) {<gup:nullreduce>}"
-.BNF	"guppy:declstart +:= ( guppy:fcndef | guppy:vardecl ) {<gup:nullreduce>}"
+
+.TABLE	"guppy:testfordecl +:= [ 0 +@define 1 ] [ 1 {<gup:testtrue>} -* ]"
+	"[ 0 -* 2 ] [ 2 {<gup:testfalse>} -* ]"
 
 # }}}
 
@@ -51,7 +53,7 @@
 .GRULE	"gup:namepush" "T+St0X[guppy_nametoken_to_hook]C[NAME]1N-"
 
 .GRULE	"gup:fparam2nsreduce" "N+Sn0N+C[FPARAM]2M[fparam][FPARAM]R-"
-.GRULE	"gup:vardeclreduce" "N+N+0C[VARDECL]3R-"
+.GRULE	"gup:vardeclreduce" "N+N+C[VARDECL]2R-"
 
 .BNF	"guppy:name ::= +Name {<gup:namereduce>}"
 .BNF	"guppy:namelist ::= { guppy:name @@, 1 }"
@@ -63,8 +65,8 @@
 .BNF	"guppy:fparamlist ::= ( -@@) {<gup:nullset>} | { guppy:fparam @@, 1 } )"
 
 .TABLE	"guppy:vardecl ::= [ 0 guppy:type 1 ] [ 1 guppy:namelist 2 ] [ 2 {<gup:vardeclreduce>} -* ]"
-
-
+.TABLE	"guppy:testfordecl +:= [ 0 +@int 1 ] [ 0 +@real 1 ] [ 0 +@bool 1 ] [ 0 +@byte 1 ] [ 0 +@char 1 ] [ 0 +@string 1 ]"
+	"[ 1 {<gup:testtrue>} -* ]"
 
 # }}}
 .SECTION "guppy-types" # {{{: types
@@ -78,8 +80,8 @@
 # }}}
 .SECTION "guppy-fcndef" # {{{: function/procedure definitions
 
-.GRULE	"gup:fcndefreduce" "SN1N+N+V00C[FCNDEF]4R-"
-.GRULE	"gup:fcndefreduce1" "SN0N+000C[FCNDEF]4R-"
+.GRULE	"gup:fcndefreduce" "SN1N+N+V0C[FCNDEF]3R-"
+.GRULE	"gup:fcndefreduce1" "SN0N+00C[FCNDEF]3R-"
 
 .TABLE	"guppy:fcndef ::= [ 0 @define 1 ] [ 1 guppy:name 2 ] [ 2 @@( 4 ] [ 2 -* 3 ] [ 3 {<gup:fcndefreduce1>} -* ]"
 	"[ 4 guppy:fparamlist 5 ] [ 5 @@) 6 ] [ 6 {<gup:fcndefreduce>} -* ]"

@@ -325,7 +325,7 @@ static int guppy_decls_init_nodes (void)
 	/*}}}*/
 	/*{{{  guppy:vardecl -- VARDECL*/
 	i = -1;
-	tnd = tnode_newnodetype ("guppy:vardecl", &i, 3, 0, 0, TNF_NONE);				/* subnodes: name; type; in-scope-body */
+	tnd = tnode_newnodetype ("guppy:vardecl", &i, 2, 0, 0, TNF_NONE);				/* subnodes: name; type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_vardecl));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_vardecl));

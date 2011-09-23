@@ -3139,15 +3139,15 @@ int main (int argc, char **argv)
 	}
 
 local_close_out:
+	/*{{{  maybe dump trees*/
+	maybedumptrees (DA_PTR (ccx->srclexers), DA_CUR (ccx->srclexers), DA_PTR (ccx->srctrees), DA_CUR (ccx->srctrees));
+
+	/*}}}*/
 	/*{{{  close lexers*/
 	for (i=DA_CUR (ccx->srclexers) - 1; i >= 0; i--) {
 		lexer_close (DA_NTHITEM (ccx->srclexers, i));
 	}
 	dynarray_trash (ccx->srclexers);
-
-	/*}}}*/
-	/*{{{  maybe dump trees*/
-	maybedumptrees (DA_PTR (ccx->srclexers), DA_CUR (ccx->srclexers), DA_PTR (ccx->srctrees), DA_CUR (ccx->srctrees));
 
 	/*}}}*/
 

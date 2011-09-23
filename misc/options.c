@@ -36,6 +36,7 @@
 static int opt_do_help_flag (cmd_option_t *opt, char ***argwalk, int *argleft);
 static int opt_do_version (cmd_option_t *opt, char ***argwalk, int *argleft);
 static int opt_setintflag (cmd_option_t *opt, char ***argwalk, int *argleft);
+static int opt_setintflagup (cmd_option_t *opt, char ***argwalk, int *argleft);
 static int opt_clearintflag (cmd_option_t *opt, char ***argwalk, int *argleft);
 static int opt_setstopflag (cmd_option_t *opt, char ***argwalk, int *argleft);
 static int opt_setstr (cmd_option_t *opt, char ***argwalk, int *argleft);
@@ -102,6 +103,21 @@ static int opt_setintflag (cmd_option_t *opt, char ***argwalk, int *argleft)
 		return -1;
 	}
 	*flag = 1;
+	return 0;
+}
+/*}}}*/
+/*{{{  static int opt_setintflagup (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	sets or increments an integer flag
+ */
+static int opt_setintflagup (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	int *flag = (int *)(opt->arg);
+
+	if (!flag) {
+		return -1;
+	}
+	*flag = *flag + 1;
 	return 0;
 }
 /*}}}*/

@@ -94,9 +94,6 @@ fprintf (stderr, "guppy_autoseq_fcndef(): here!\n");
 
 	}
 
-	/* do in-scope body */
-	guppy_autoseq_subtree (tnode_nthsubaddr (*node, 3), gas);
-
 	return 0;
 }
 /*}}}*/
@@ -141,9 +138,6 @@ static int guppy_prescope_fcndef (compops_t *cops, tnode_t **node, prescope_t *p
 	gps->procdepth++;
 	prescope_subtree (tnode_nthsubaddr (*node, 2), ps);
 	gps->procdepth--;
-
-	/* prescope in-scope process */
-	prescope_subtree (tnode_nthsubaddr (*node, 3), ps);
 
 	return 0;					/* done all */
 }
@@ -200,7 +194,6 @@ static int guppy_scopein_fcndef (compops_t *cops, tnode_t **node, scope_t *ss)
 
 	/* free old name, scope process */
 	tnode_free (name);
-	tnode_modprepostwalktree (tnode_nthsubaddr (*node, 3), scope_modprewalktree, scope_modpostwalktree, (void *)ss);
 	ss->scoped++;
 
 	return 0;				/* already walked children */
@@ -243,7 +236,7 @@ static int guppy_fcndef_init_nodes (void)
 
 	/*{{{  guppy:fcndef -- FCNDEF*/
 	i = -1;
-	tnd = tnode_newnodetype ("guppy:fcndef", &i, 4, 0, 0, TNF_LONGDECL);			/* subnodes: name; fparams; body; in-scope-body */
+	tnd = tnode_newnodetype ("guppy:fcndef", &i, 3, 0, 0, TNF_LONGDECL);			/* subnodes: name; fparams; body */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "autoseq", 2, COMPOPTYPE (guppy_autoseq_fcndef));
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_fcndef));
