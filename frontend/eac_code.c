@@ -1385,12 +1385,12 @@ tnode_dumptree (inst, 1, stderr);
 		/* Check actual parameter aplist[i] is sensible,and perhaps,
 		 * matches formal. */
 #if 0
-		fprintf(stderr, "aparam [%d of %d] :", i, naparams);
+		fprintf(stderr, "aparam [%d of %d] :", (i+1), naparams);
 		tnode_dumptree(aplist[i],1,stderr);
-		fprintf(stderr, "fparam [%d of %d] :", i, naparams);
+		fprintf(stderr, "fparam [%d of %d] :", (i+1), naparams);
 		tnode_dumptree(fplist[i], 1,stderr);
 #endif
-		if (aplist[i]->tag != eac.tag_NVAR) {
+		if (!(aplist[i]->tag == eac.tag_NVAR || aplist[i]->tag == eac.tag_NCHANVAR)) {
 			if (aplist[i]->tag->ndef != eac.node_NAMENODE) {
 				typecheck_error (node, tc, "parameter %d is not a name (in call of \"%s\")",
 						i, NameNameOf (pname));
@@ -1400,6 +1400,15 @@ tnode_dumptree (inst, 1, stderr);
 			typecheck_error(node, tc, "parameter %s is not a variable in call of \"%s\"",
 					NameNameOf(apname), NameNameOf(pname));
 			return 1;
+
+			if (fplist[i]->tag == eac.tag_VARDECL) {
+				tnode_t *inner = tnode_nthsubof(fplist[i], 0);
+				if (inner->tag != aplist[i]->tag) {
+					typecheck_error(aplist[i], tc, "actual param does not match actaul params"); /* XXX: nicer messages please */
+				}
+			} else {
+				typecheck_error(fplist[i], tc, "formal param is not a VARDECL");
+			}
 		}
 	}
 
