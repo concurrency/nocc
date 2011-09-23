@@ -57,7 +57,7 @@ static ihandler_t *eac_ihandler = NULL;
  */
 int eac_register_frontend (void)
 {
-	char		*commands[] = {"names", "print", "eval", "pexp" ,NULL};
+	char		*commands[] = {"names", "print", "eval", "pexp", "eac_show", "eac_sshow", NULL};
 	eac_lexer.parser = &eac_parser;
 	eac_parser.lexer = &eac_lexer;
 

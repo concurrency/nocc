@@ -311,6 +311,32 @@ int eac_callback_line (char *line, struct TAG_compcxt *ccx)
 
 			return IHR_HANDLED;
 			/*}}}*/
+		} else if (nbits > 1 && !strcmp (bitset[0], "eac_show")) {
+			/*{{{ show part of the tree */
+			name_t *name = eac_find_name (bitset[1]);
+
+			if (!name) {
+				printf ("no such name \"%s\"\n", bitset[1]);
+			} else {
+				//char *str = eac_format_expr (NameDeclOf (name));
+				tnode_dumptree(NameDeclOf (name), 0, stdout);
+			}
+
+			return IHR_HANDLED;
+			/* }}} */
+		} else if (nbits > 1 && !strcmp (bitset[0], "eac_sshow")) {
+			/*{{{ sshow part of the tree */
+			name_t *name = eac_find_name (bitset[1]);
+
+			if (!name) {
+				printf ("no such name \"%s\"\n", bitset[1]);
+			} else {
+				//char *str = eac_format_expr (NameDeclOf (name));
+				tnode_dumpstree(NameDeclOf (name), 0, stdout);
+			}
+
+			return IHR_HANDLED;
+			/* }}} */
 		} else if ((nbits > 1) && !strcmp (bitset[0], "eval")) {
 			/*{{{  evaulate something*/
 			char *ch;
