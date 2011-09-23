@@ -211,6 +211,7 @@ static char *compiler_stock_target = NULL;
 
 STATICDYNARRAY (ihandler_t *, ihandlers);
 
+STATICDYNARRAY (char*, str_commands);
 /*}}}*/
 
 
@@ -1251,6 +1252,7 @@ ihandler_t *nocc_newihandler (void)
 	ihdlr->bits_callback = NULL;
 	ihdlr->mode_in = NULL;
 	ihdlr->mode_out = NULL;
+	ihdlr->commands = NULL;
 
 	return ihdlr;
 }
@@ -1298,6 +1300,16 @@ int nocc_register_ihandler (ihandler_t *ihdlr)
 	}
 
 	dynarray_add (ihandlers, ihdlr);
+
+	char **commands = ihdlr->commands;
+	if (commands != NULL) {
+		while (*commands != NULL) {
+			dynarray_add(str_commands, *commands);
+			commands++;
+		}
+	}
+
+#warning DO THIS
 
 	if (compopts.verbose) {
 		nocc_message ("registering interaction handler for [%s]", ihdlr->id);
@@ -2465,6 +2477,42 @@ void *nocc_setimodehook (compcxt_t *ccx, void *mhook)
 /*}}}*/
 
 
+static char **nocc_completion (const char *, int, int);
+static char *command_generator (const char *, int);
+
+static char ** nocc_completion (const char *text, int start, int end)
+{
+	char **matches;
+	matches = (char **)NULL;
+
+	if (start == 0)
+		matches = rl_completion_matches (text, command_generator);
+
+	return (matches);
+}
+
+static char * command_generator (const char *text, int state)
+{
+	static int list_index, len;
+	char *name;
+
+	if (!state)
+	{
+		list_index = 0;
+		len = strlen (text);
+	}
+
+	while (((DA_MAX(str_commands)) > list_index) && (name = DA_NTHITEM(str_commands, list_index)))
+	{
+		list_index++;
+
+		if (strncmp (name, text, len) == 0)
+			return (strdup(name));
+	}
+
+	return ((char *)NULL);
+}
+
 /*{{{  int main (int argc, char **argv)*/
 /*
  *	start here
@@ -2475,7 +2523,13 @@ int main (int argc, char **argv)
 	int i;
 	compcxt_t *ccx;
 	int xerrored;
-	
+
+	/*{{{  readline initialisation */
+	dynarray_init(str_commands);
+	rl_readline_name = "FileMan";
+	rl_attempted_completion_function = nocc_completion;
+	/*}}}*/
+
 	/*{{{  basic initialisation*/
 	for (progname=*argv + (strlen (*argv) - 1); (progname > *argv) && (progname[-1] != '/'); progname--);
 	compopts.progpath = *argv;
@@ -2980,7 +3034,7 @@ int main (int argc, char **argv)
 
 		for (;;) {
 			char *prompt, *lbuf;
-			
+
 			if (ccx->imode >= 0) {
 				prompt = string_fmt ("nocc/%s-%d$ ", DA_NTHITEM (ihandlers, ccx->imode)->prompt, ccx->atstage);
 			} else {

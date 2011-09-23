@@ -41,6 +41,7 @@ typedef struct TAG_ihandler {
 	int (*bits_callback)(char **, int, struct TAG_compcxt *);	/* callback for line handling (already in bits) */
 	void (*mode_in)(struct TAG_compcxt *);				/* callback as mode switches in */
 	void (*mode_out)(struct TAG_compcxt *);				/* callback as mode switches out */
+	char **commands;
 } ihandler_t;
 
 /* return values for callback handlers */

@@ -57,6 +57,7 @@ static ihandler_t *eac_ihandler = NULL;
  */
 int eac_register_frontend (void)
 {
+	char		*commands[] = {"names", "print", "eval", "pexp" ,NULL};
 	eac_lexer.parser = &eac_parser;
 	eac_parser.lexer = &eac_lexer;
 
@@ -74,6 +75,7 @@ int eac_register_frontend (void)
 	eac_ihandler->line_callback = eac_callback_line;
 	eac_ihandler->mode_in = eac_mode_in;
 	eac_ihandler->mode_out = eac_mode_out;
+	eac_ihandler->commands = commands;
 
 	nocc_register_ihandler (eac_ihandler);
 
