@@ -63,6 +63,7 @@ typedef struct {
 	struct TAG_ntdef *tag_FCNDEF;
 	struct TAG_ntdef *tag_VARDECL;
 	struct TAG_ntdef *tag_FPARAM;
+	struct TAG_ntdef *tag_DECLBLOCK;
 
 	struct TAG_ntdef *tag_SEQ;
 	struct TAG_ntdef *tag_PAR;
@@ -106,6 +107,10 @@ typedef struct {
 
 typedef struct {
 	int errcount;					/* number of errors accumulated */
+} guppy_declify_t;
+
+typedef struct {
+	int errcount;					/* number of errors accumulated */
 } guppy_autoseq_t;
 
 typedef struct {
@@ -123,6 +128,7 @@ extern void guppy_isetindent (FILE *stream, int indent);
 extern struct TAG_langdef *guppy_getlangdef (void);
 extern int guppy_autoseq_listtoseqlist (struct TAG_tnode **, guppy_autoseq_t *);
 extern int guppy_autoseq_subtree (struct TAG_tnode **, guppy_autoseq_t *);
+extern int guppy_declify_subtree (struct TAG_tnode **, guppy_declify_t *);
 
 /* front-end units */
 extern struct TAG_feunit guppy_assign_feunit;		/* guppy_assign.c */

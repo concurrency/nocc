@@ -260,6 +260,18 @@ static int guppy_scopeout_vardecl (compops_t *cops, tnode_t **node, scope_t *ss)
 /*}}}*/
 
 
+/*{{{  static int guppy_scopein_declblock (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scope-in a declaration block
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_scopein_declblock (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	return 1;
+}
+/*}}}*/
+
+
 
 /*{{{  static int guppy_decls_init_nodes (void)*/
 /*
@@ -348,19 +360,17 @@ static int guppy_decls_init_nodes (void)
 	gup.tag_FPARAM = tnode_newnodetag ("FPARAM", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  guppy:vardecl -- VARDECL*/
+	/*{{{  guppy:declblock -- DECLBLOCK*/
 	i = -1;
-	tnd = tnode_newnodetype ("guppy:vardecl", &i, 3, 0, 0, TNF_SHORTDECL);				/* subnodes: name; type; in-scope body */
+	tnd = tnode_newnodetype ("guppy:declblock", &i, 2, 0, 0, TNF_NONE);				/* subnodes: decls; process */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_declblock));
 	tnd->ops = cops;
-	lops = tnode_newlangops ();
-	tnd->lops = lops;
 
 	i = -1;
-	gup.tag_VARDECL = tnode_newnodetag ("VARDECL", &i, tnd, NTF_NONE);
+	gup.tag_DECLBLOCK = tnode_newnodetag ("DECLBLOCK", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-
 
 	return 0;
 }

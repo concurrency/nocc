@@ -91,7 +91,6 @@ fprintf (stderr, "guppy_autoseq_fcndef(): here!\n");
 #endif
 	if (parser_islistnode (*bodyptr)) {
 		guppy_autoseq_listtoseqlist (bodyptr, gas);
-
 	}
 
 	return 0;
@@ -120,16 +119,7 @@ static int guppy_prescope_fcndef (compops_t *cops, tnode_t **node, prescope_t *p
 	}
 
 	gps->last_type = NULL;
-	if (!tnode_nthsubof (*node, 1)) {
-		/* no parameters, create empty list */
-		tnode_setnthsub (*node, 1, parser_newlistnode (NULL));
-	} else if (tnode_nthsubof (*node, 1) && !parser_islistnode (tnode_nthsubof (*node, 1))) {
-		/* turn single parameter into a list */
-		tnode_t *list = parser_newlistnode (NULL);
-
-		parser_addtolist (list, tnode_nthsubof (*node, 1));
-		tnode_setnthsub (*node, 1, list);
-	}
+	parser_ensurelist (tnode_nthsubaddr (*node, 1), *node);
 
 	/* prescope params */
 	prescope_subtree (tnode_nthsubaddr (*node, 1), ps);

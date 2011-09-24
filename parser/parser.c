@@ -1040,6 +1040,36 @@ int parser_countlist (tnode_t *list)
 	return *cur;
 }
 /*}}}*/
+/*{{{  tnode_t *parser_ensurelist (tnode_t **nodeptr, tnode_t *orgref)*/
+/*
+ *	ensures a node is a list:
+ *	- lists are left alone
+ *	- null things are turned into an empty list
+ *	- singletons are turned into a singleton list
+ *	'orgref' is used as an origin reference if non-NULL.
+ *	returns the list on success, NULL on failure.
+ */
+tnode_t *parser_ensurelist (tnode_t **nodeptr, tnode_t *orgref)
+{
+	if (!*nodeptr) {
+		*nodeptr = parser_newlistnode (NULL);
+
+		if (orgref) {
+			SetOrgFile (*nodeptr, OrgFileOf (orgref));
+			SetOrgLine (*nodeptr, OrgLineOf (orgref));
+		}
+	} else if (!parser_islistnode (*nodeptr)) {
+		*nodeptr = parser_buildlistnode (NULL, *nodeptr, NULL);
+
+		if (orgref) {
+			SetOrgFile (*nodeptr, OrgFileOf (orgref));
+			SetOrgLine (*nodeptr, OrgLineOf (orgref));
+		}
+	}
+	/* assert: must be a list */
+	return *nodeptr;
+}
+/*}}}*/
 
 
 /*{{{  int parser_register_reduce (const char *name, void (*reduce)(dfastate_t *, parsepriv_t *, void *), void *rarg)*/
