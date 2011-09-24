@@ -77,25 +77,6 @@ static compop_t *inparams_lnamemap_compop = NULL;
 /*}}}*/
 
 
-/*{{{  static int guppy_autoseq_fcndef (compops_t *cops, tnode_t **node, guppy_autoseq_t *gas)*/
-/*
- *	does auto-sequencing for a procedure definition
- *	returns 0 to stop walk, 1 to continue
- */
-static int guppy_autoseq_fcndef (compops_t *cops, tnode_t **node, guppy_autoseq_t *gas)
-{
-	tnode_t **bodyptr = tnode_nthsubaddr (*node, 2);
-
-#if 0
-fprintf (stderr, "guppy_autoseq_fcndef(): here!\n");
-#endif
-	if (parser_islistnode (*bodyptr)) {
-		guppy_autoseq_listtoseqlist (bodyptr, gas);
-	}
-
-	return 0;
-}
-/*}}}*/
 /*{{{  static int guppy_prescope_fcndef (compops_t *cops, tnode_t **node, prescope_t *ps)*/
 /*
  *	called to pre-scope a procedure definition
@@ -130,6 +111,41 @@ static int guppy_prescope_fcndef (compops_t *cops, tnode_t **node, prescope_t *p
 	gps->procdepth--;
 
 	return 0;					/* done all */
+}
+/*}}}*/
+/*{{{  static int guppy_declify_fcndef (compops_t *cops, tnode_t **node, guppy_declify_t *gdl)*/
+/*
+ *	called to declify a procedure definition (body of)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_declify_fcndef (compops_t *cops, tnode_t **node, guppy_declify_t *gdl)
+{
+	tnode_t **bodyptr = tnode_nthsubaddr (*node, 2);
+
+	if (parser_islistnode (*bodyptr)) {
+		guppy_declify_listtodecllist (bodyptr, gdl);
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_autoseq_fcndef (compops_t *cops, tnode_t **node, guppy_autoseq_t *gas)*/
+/*
+ *	does auto-sequencing for a procedure definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_autoseq_fcndef (compops_t *cops, tnode_t **node, guppy_autoseq_t *gas)
+{
+	tnode_t **bodyptr = tnode_nthsubaddr (*node, 2);
+
+#if 0
+fprintf (stderr, "guppy_autoseq_fcndef(): here!\n");
+#endif
+	if (parser_islistnode (*bodyptr)) {
+		guppy_autoseq_listtoseqlist (bodyptr, gas);
+	}
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int guppy_scopein_fcndef (compops_t *cops, tnode_t **node, scope_t *ss)*/
@@ -228,8 +244,9 @@ static int guppy_fcndef_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:fcndef", &i, 3, 0, 0, TNF_LONGDECL);			/* subnodes: name; fparams; body */
 	cops = tnode_newcompops ();
-	tnode_setcompop (cops, "autoseq", 2, COMPOPTYPE (guppy_autoseq_fcndef));
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_fcndef));
+	tnode_setcompop (cops, "declify", 2, COMPOPTYPE (guppy_declify_fcndef));
+	tnode_setcompop (cops, "autoseq", 2, COMPOPTYPE (guppy_autoseq_fcndef));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_fcndef));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (guppy_scopeout_fcndef));
 	tnd->ops = cops;

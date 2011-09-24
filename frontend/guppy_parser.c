@@ -244,6 +244,33 @@ langdef_t *guppy_getlangdef (void)
 	return guppy_priv->langdefs;
 }
 /*}}}*/
+
+
+/*{{{  int guppy_declify_listtodecllist (tnode_t **listptr, guppy_declify_t *gdl)*/
+/*
+ *	used during declify to turn lists of declarations and instructions into nested DECLBLOCK nodes
+ *	returns 0 on success, non-zero on failure
+ */
+int guppy_declify_listtodecllist (tnode_t **listptr, guppy_declify_t *gdl)
+{
+	tnode_t *list = *listptr;
+	int nitems = 0;
+	tnode_t **items = parser_getlistitems (list, &nitems);
+	int i, j;
+
+	for (i=0; (i<nitems) && (items[i]->tag == gup.tag_VARDECL); i++);
+	for (j=i; (j<nitems) && (items[i]->tag != gup.tag_VARDECL); j++);
+
+	if (i > 0) {
+		/* at least some declarations */
+		tnode_t *decllist = parser_newlistnode (OrgFileOf (list));
+		tnode_t *instlist = parser_newlistnode (OrgFileOf (list));
+		tnode_t *vdblock = tnode_createfrom (gup.tag_DECLBLOCK, list, decllist, instlist);
+
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  int guppy_autoseq_listtoseqlist (tnode_t **listptr, guppy_autoseq_t *gas)*/
 /*
  *	used during auto-sequencing to turn lists of instructions into 'seq' nodes

@@ -127,6 +127,7 @@ typedef struct {
 extern void guppy_isetindent (FILE *stream, int indent);
 extern struct TAG_langdef *guppy_getlangdef (void);
 extern int guppy_autoseq_listtoseqlist (struct TAG_tnode **, guppy_autoseq_t *);
+extern int guppy_declify_listtodecllist (struct TAG_tnode **, guppy_declify_t *);
 extern int guppy_autoseq_subtree (struct TAG_tnode **, guppy_autoseq_t *);
 extern int guppy_declify_subtree (struct TAG_tnode **, guppy_declify_t *);
 
