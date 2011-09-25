@@ -126,7 +126,7 @@ static int guppy_declify_fcndef (compops_t *cops, tnode_t **node, guppy_declify_
 		guppy_declify_listtodecllist (bodyptr, gdl);
 	}
 
-	return 0;
+	return 1;
 }
 /*}}}*/
 /*{{{  static int guppy_autoseq_fcndef (compops_t *cops, tnode_t **node, guppy_autoseq_t *gas)*/
@@ -138,14 +138,11 @@ static int guppy_autoseq_fcndef (compops_t *cops, tnode_t **node, guppy_autoseq_
 {
 	tnode_t **bodyptr = tnode_nthsubaddr (*node, 2);
 
-#if 0
-fprintf (stderr, "guppy_autoseq_fcndef(): here!\n");
-#endif
 	if (parser_islistnode (*bodyptr)) {
 		guppy_autoseq_listtoseqlist (bodyptr, gas);
 	}
 
-	return 0;
+	return 1;
 }
 /*}}}*/
 /*{{{  static int guppy_scopein_fcndef (compops_t *cops, tnode_t **node, scope_t *ss)*/

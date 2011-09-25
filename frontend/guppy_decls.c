@@ -260,6 +260,24 @@ static int guppy_scopeout_vardecl (compops_t *cops, tnode_t **node, scope_t *ss)
 /*}}}*/
 
 
+/*{{{  static int guppy_autoseq_declblock (compops_t *cops, tnode_t **node, guppy_autoseq_t *gas)*/
+/*
+ *	auto-sequence on a declaration block
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_autoseq_declblock (compops_t *cops, tnode_t **node, guppy_autoseq_t *gas)
+{
+	tnode_t **ilistptr = tnode_nthsubaddr (*node, 1);
+
+#if 0
+fprintf (stderr, "guppy_autoseq_declblock(): here!\n");
+#endif
+	if (parser_islistnode (*ilistptr)) {
+		guppy_autoseq_listtoseqlist (ilistptr, gas);
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_scopein_declblock (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scope-in a declaration block
@@ -333,6 +351,8 @@ static int guppy_decls_init_nodes (void)
 	gup.tag_NFIELD = tnode_newnodetag ("N_FIELD", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_NFCNDEF = tnode_newnodetag ("N_FCNDEF", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_NENUM = tnode_newnodetag ("N_ENUM", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:vardecl -- VARDECL*/
@@ -364,11 +384,22 @@ static int guppy_decls_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:declblock", &i, 2, 0, 0, TNF_NONE);				/* subnodes: decls; process */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "autoseq", 2, COMPOPTYPE (guppy_autoseq_declblock));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_declblock));
 	tnd->ops = cops;
 
 	i = -1;
 	gup.tag_DECLBLOCK = tnode_newnodetag ("DECLBLOCK", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:enumdef -- ENUMDEF*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:enumdef", &i, 2, 0, 0, TNF_LONGDECL);				/* subnodes: name; items */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	gup.tag_ENUMDEF = tnode_newnodetag ("ENUMDEF", &i, tnd, NTF_INDENTED_NAME_LIST);
 
 	/*}}}*/
 

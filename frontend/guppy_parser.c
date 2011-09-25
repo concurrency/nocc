@@ -216,6 +216,21 @@ static int autoseq_modprewalk (tnode_t **tptr, void *arg)
 	return i;
 }
 /*}}}*/
+/*{{{  static int flattenseq_modprewalk (tnode_t **tptr, void *arg)*/
+/*
+ *	called for each node walked during the 'flattenseq' pass
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int flattenseq_modprewalk (tnode_t **tptr, void *arg)
+{
+	int i = 1;
+
+	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop ((*tptr)->tag->ndef->ops, "flattenseq")) {
+		i = tnode_callcompop ((*tptr)->tag->ndef->ops, "flattenseq", 1, tptr);
+	}
+	return i;
+}
+/*}}}*/
 
 
 /*{{{  void guppy_isetindent (FILE *stream, int indent)*/
@@ -257,17 +272,65 @@ int guppy_declify_listtodecllist (tnode_t **listptr, guppy_declify_t *gdl)
 	int nitems = 0;
 	tnode_t **items = parser_getlistitems (list, &nitems);
 	int i, j;
+	tnode_t **nextptr = NULL;
 
 	for (i=0; (i<nitems) && (items[i]->tag == gup.tag_VARDECL); i++);
-	for (j=i; (j<nitems) && (items[i]->tag != gup.tag_VARDECL); j++);
+	for (j=i; (j<nitems) && (items[j]->tag != gup.tag_VARDECL); j++);
 
+	/* note: i is index of first non-decl item, j index of next decl-item or EOL */
+
+#if 0
+fprintf (stderr, "guppy_declify_listtodecllist(): i=%d, j=%d, nitems=%d\n", i, j, nitems);
+#endif
 	if (i > 0) {
-		/* at least some declarations */
+		/* at least some declarations -- will trash the whole original list */
+		tnode_t *decllist = parser_newlistnode (OrgFileOf (list));
+		tnode_t *instlist = parser_newlistnode (OrgFileOf (list));
+		tnode_t *vdblock = tnode_createfrom (gup.tag_DECLBLOCK, list, decllist, instlist);
+		int k;
+
+		for (k=0; k<i; k++) {
+			/* move this one into declaration list */
+			parser_addtolist (decllist, items[k]);
+		}
+		for (; k<nitems; k++) {
+			/* move this one into process list below */
+			parser_addtolist (instlist, items[k]);
+		}
+
+		parser_trashlist (list);
+		*listptr = vdblock;
+		nextptr = tnode_nthsubaddr (vdblock, 1);
+	} else if ((j > 0) && (j < (nitems - 1))) {
+		/* item at index j is a declaration, keep original list and fiddle at that point */
 		tnode_t *decllist = parser_newlistnode (OrgFileOf (list));
 		tnode_t *instlist = parser_newlistnode (OrgFileOf (list));
 		tnode_t *vdblock = tnode_createfrom (gup.tag_DECLBLOCK, list, decllist, instlist);
 
+		while ((j < nitems) && (items[j]->tag == gup.tag_VARDECL)) {
+			tnode_t *itm = parser_delfromlist (list, j);
+
+			parser_addtolist (decllist, itm);
+			nitems--;
+		}
+		while (j < nitems) {
+			/* and if there are any left, put in instlist */
+			tnode_t *itm = parser_delfromlist (list, j);
+
+			parser_addtolist (instlist, itm);
+			nitems--;
+		}
+
+		/* put decl-block in at end */
+		parser_addtolist (list, vdblock);
+		nextptr = tnode_nthsubaddr (vdblock, 1);
 	}
+
+	if (nextptr) {
+		/* recurse down into remains of list and do there */
+		guppy_declify_listtodecllist (nextptr, gdl);
+	}
+
 	return 0;
 }
 /*}}}*/
@@ -281,31 +344,10 @@ int guppy_autoseq_listtoseqlist (tnode_t **listptr, guppy_autoseq_t *gas)
 	tnode_t *lst = *listptr;
 	int nitems = 0;
 	tnode_t **items = parser_getlistitems (lst, &nitems);
-	int i;
 
-	*listptr = tnode_createfrom (gup.tag_SEQ, lst, NULL, lst);
-#if 0
-	for (i=0; i<nitems; i++) {
-		if ((items[i]->tag == gup.tag_VARDECL) && (tnode_nthsubof (items[i], 2) == NULL)) {
-			break;		/* for() */
-		}
+	if (nitems > 0) {
+		*listptr = tnode_createfrom (gup.tag_SEQ, lst, NULL, lst);
 	}
-	if (i < nitems) {
-		/* peel off everything in the list after the declaration and make in body of vardecl, then post-process those */
-		tnode_t *newlst = parser_newlistnode (NULL);
-		int j;
-
-		for (j=i+1; j<nitems; j++) {
-			parser_addtolist (newlst, items[j]);
-			items[j] = NULL;
-		}
-
-		parser_cleanuplist (lst);
-		guppy_autoseq_listtoseqlist (&newlst, gas);
-		tnode_setnthsub (items[i], 2, newlst);
-
-	}
-#endif
 
 	return 0;
 }
@@ -356,6 +398,25 @@ int guppy_autoseq_subtree (tnode_t **tptr, guppy_autoseq_t *gas)
 	return gas->errcount;
 }
 /*}}}*/
+/*{{{  int guppy_flattenseq_subtree (tnode_t **tptr)*/
+/*
+ *	does sequence-node flattening on a subtree (unscoped)
+ *	returns 0 on success, non-zero on failure
+ */
+int guppy_flattenseq_subtree (tnode_t **tptr)
+{
+	if (!tptr) {
+		nocc_serious ("guppy_flattenseq_subtree(): NULL tree-pointer");
+		return 1;
+	} else if (!*tptr) {
+		return 0;
+	} else {
+		tnode_modprewalktree (tptr, flattenseq_modprewalk, NULL);
+	}
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int declify_cpass (tnode_t **treeptr)*/
@@ -394,7 +455,17 @@ static int autoseq_cpass (tnode_t **treeptr)
 	return err;
 }
 /*}}}*/
-
+/*{{{  static int flattenseq_cpass (tnode_t **treeptr)*/
+/*
+ *	called to do the compiler-pass for flattening sequence nodes
+ *	returns 0 on success, non-zero on failure
+ */
+static int flattenseq_cpass (tnode_t **treeptr)
+{
+	guppy_flattenseq_subtree (treeptr);
+	return 0;
+}
+/*}}}*/
 
 
 
@@ -468,8 +539,12 @@ static int guppy_parser_init (lexfile_t *lf)
 			nocc_serious ("guppy_parser_init(): failed to add \"declify\" compiler pass");
 			return 1;
 		}
-		if (nocc_addcompilerpass ("auto-sequence", INTERNAL_ORIGIN, "pre-scope", 0, (int (*)(void *))autoseq_cpass, CPASS_TREEPTR, -1, NULL)) {
+		if (nocc_addcompilerpass ("auto-sequence", INTERNAL_ORIGIN, "declify", 0, (int (*)(void *))autoseq_cpass, CPASS_TREEPTR, -1, NULL)) {
 			nocc_serious ("guppy_parser_init(): failed to add \"auto-sequence\" compiler pass");
+			return 1;
+		}
+		if (nocc_addcompilerpass ("flattenseq", INTERNAL_ORIGIN, "auto-sequence", 0, (int (*)(void *))flattenseq_cpass, CPASS_TREEPTR, -1, NULL)) {
+			nocc_serious ("guppy_parser_init(): failed to add \"flattenseq\" compiler pass");
 			return 1;
 		}
 		if (tnode_newcompop ("declify", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
@@ -478,6 +553,10 @@ static int guppy_parser_init (lexfile_t *lf)
 		}
 		if (tnode_newcompop ("autoseq", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 			nocc_serious ("guppy_parser_init(): failed to add \"autoseq\" compiler operation");
+			return 1;
+		}
+		if (tnode_newcompop ("flattenseq", COPS_INVALID, 1, INTERNAL_ORIGIN) < 0) {
+			nocc_serious ("guppy_parser_init(): failed to add \"flattenseq\" compiler operation");
 			return 1;
 		}
 
@@ -680,8 +759,8 @@ static tnode_t *guppy_indented_declorproc_list (lexfile_t *lf)
 	tree = parser_newlistnode (lf);
 
 	tok = lexer_nexttoken (lf);
-	/*{{{  skip newlines*/
-	for (; tok && (tok->type == NEWLINE); tok = lexer_nexttoken (lf)) {
+	/*{{{  skip newlines and comments*/
+	for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
 		lexer_freetoken (tok);
 	}
 
@@ -742,6 +821,75 @@ tnode_dumptree (tree, 1, stderr);
 	return tree;
 }
 /*}}}*/
+/*{{{  static tnode_t *guppy_indented_name_list (lexfile_t *lf)*/
+/*
+ *	parses an indented list of names (and possible assignment-looking things)
+ */
+static tnode_t *guppy_indented_name_list (lexfile_t *lf)
+{
+	tnode_t *tree = NULL;
+	token_t *tok;
+
+	if (compopts.debugparser) {
+		nocc_message ("guppy_indented_name_list(): %s:%d: parsing indented name list", lf->fnptr, lf->lineno);
+	}
+
+	tree = parser_newlistnode (lf);
+
+	tok = lexer_nexttoken (lf);
+	/*{{{  skip newlines and comments*/
+	for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
+		lexer_freetoken (tok);
+	}
+
+	/*}}}*/
+	/*{{{  expect indent*/
+	if (tok->type != INDENT) {
+		parser_error (lf, "expected indent, found:");
+		lexer_dumptoken (stderr, tok);
+		lexer_pushback (lf, tok);
+		tnode_free (tree);
+		return NULL;
+	}
+
+	/*}}}*/
+	lexer_freetoken (tok);
+
+	/* okay, parse names (and possible assignments) */
+	for (;;) {
+		/*{{{  parse*/
+		tnode_t *thisone;
+
+		/* check token for end of indentation */
+		tok = lexer_nexttoken (lf);
+		/*{{{  skip newlines and comments*/
+		for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
+			lexer_freetoken (tok);
+		}
+
+		/*}}}*/
+		if (tok->type == OUTDENT) {
+			/* got outdent, end-of-list! */
+			lexer_freetoken (tok);
+			break;		/* for() */
+		} else {
+			lexer_pushback (lf, tok);
+		}
+
+		thisone = dfa_walk ("guppy:nameandassign", 0, lf);
+
+		if (thisone) {
+			parser_addtolist (tree, thisone);
+		} else {
+			/* failed to parse */
+			break;		/* for() */
+		}
+		/*}}}*/
+	}
+
+	return tree;
+}
+/*}}}*/
 /*{{{  static tnode_t *guppy_parser_parsedef (lexfile_t *lf)*/
 /*
  *	parses a single Guppy definition (e.g. process, type, ...)
@@ -756,7 +904,7 @@ static tnode_t *guppy_parser_parsedef (lexfile_t *lf)
 	int tnflags, ntflags;
 
 
-	if (compopts.verbose > 1) {
+	if (compopts.debugparser) {
 		nocc_message ("guppy_parser_parsedef(): starting parse for single definition..");
 	}
 
@@ -774,11 +922,11 @@ static tnode_t *guppy_parser_parsedef (lexfile_t *lf)
 	lexer_pushback (lf, tok);
 
 	/* get the definition */
-#if 1
+#if 0
 fprintf (stderr, "guppy_parser_parsedef(): about to walk for guppy:decl\n");
 #endif
 	thisone = dfa_walk ("guppy:decl", 0, lf);
-#if 1
+#if 0
 fprintf (stderr, "guppy_parser_parsedef(): done walking for guppy:decl, got 0x%8.8x, (%s,%s)\n", (unsigned int)thisone,
 	thisone ? thisone->tag->name : "(nil)", thisone ? thisone->tag->ndef->name : "(nil)");
 #endif
@@ -797,14 +945,18 @@ fprintf (stderr, "guppy_parser_parsedef(): done walking for guppy:decl, got 0x%8
 
 	/* check ntflags for specific structures (e.g. intented process/decl list) */
 	if (ntflags & NTF_INDENTED_PROC_LIST) {
-		/* parse list of intended processes into subnode 2 */
+		/* parse list of indented processes into subnode 2 */
 		thisone = guppy_indented_declorproc_list (lf);
 		tnode_setnthsub (*target, 2, thisone);
+	} else if (ntflags & NTF_INDENTED_NAME_LIST) {
+		/* parse list of indented names into subnode 1 */
+		thisone = guppy_indented_name_list (lf);
+		tnode_setnthsub (*target, 1, thisone);
 	}
 
 skipout:
 
-	if (compopts.verbose > 1) {
+	if (compopts.debugparser) {
 		nocc_message ("guppy_parser_parsedef(): done parsing single definition (%p).", tree);
 	}
 
@@ -818,7 +970,7 @@ skipout:
  */
 static int guppy_parser_parsedeflist (lexfile_t *lf, tnode_t **target)
 {
-	if (compopts.verbose > 1) {
+	if (compopts.debugparser) {
 		nocc_message ("guppy_parser_parsedeflist(): starting parse of process list from [%s]", lf->fnptr);
 	}
 
@@ -877,7 +1029,7 @@ static tnode_t *guppy_parser_parse (lexfile_t *lf)
 
 	i = guppy_parser_parsedeflist (lf, &tree);
 
-	if (compopts.verbose > 1) {
+	if (compopts.debugparser) {
 		nocc_message ("leftover tokens:");
 	}
 

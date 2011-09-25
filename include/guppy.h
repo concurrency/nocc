@@ -33,6 +33,7 @@ extern struct TAG_langparser guppy_parser;
 #define NTF_INDENTED_PROC_LIST		0x0040		/* for TNF_LONGPROCs, parse a list of indented processes into subnode 1 */
 #define NTF_INDENTED_PROC		0x0080		/* for TNF_LONGPROCs, parse an indented process into subnode 1 */
 							/* for TNF_LONGDECLs, parse an indented process into subnode 2 */
+#define NTF_INDENTED_NAME_LIST		0x0100		/* for TNF_LONGDECLs, parse an indented list of names into subnode 1 */
 
 /* implementation-specific language-tag bits */
 #define LANGTAG_STYPE			0x00010000	/* sized type (e.g. int8) */
@@ -64,6 +65,7 @@ typedef struct {
 	struct TAG_ntdef *tag_VARDECL;
 	struct TAG_ntdef *tag_FPARAM;
 	struct TAG_ntdef *tag_DECLBLOCK;
+	struct TAG_ntdef *tag_ENUMDEF;
 
 	struct TAG_ntdef *tag_SEQ;
 	struct TAG_ntdef *tag_PAR;
@@ -77,6 +79,7 @@ typedef struct {
 	struct TAG_ntdef *tag_NRESPARAM;
 	struct TAG_ntdef *tag_NINITPARAM;
 	struct TAG_ntdef *tag_NREPL;
+	struct TAG_ntdef *tag_NENUM;
 
 	struct TAG_ntdef *tag_NTYPEDECL;
 	struct TAG_ntdef *tag_NFIELD;
@@ -126,10 +129,13 @@ typedef struct {
 
 extern void guppy_isetindent (FILE *stream, int indent);
 extern struct TAG_langdef *guppy_getlangdef (void);
+
 extern int guppy_autoseq_listtoseqlist (struct TAG_tnode **, guppy_autoseq_t *);
 extern int guppy_declify_listtodecllist (struct TAG_tnode **, guppy_declify_t *);
+
 extern int guppy_autoseq_subtree (struct TAG_tnode **, guppy_autoseq_t *);
 extern int guppy_declify_subtree (struct TAG_tnode **, guppy_declify_t *);
+extern int guppy_flattenseq_subtree (struct TAG_tnode **);
 
 /* front-end units */
 extern struct TAG_feunit guppy_assign_feunit;		/* guppy_assign.c */

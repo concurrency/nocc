@@ -63,16 +63,6 @@
 /*}}}*/
 
 
-/*{{{  static int guppy_autoseq_cnode (compops_t *cops, tnode_t **node, guppy_autoseq_t *gas)*/
-/*
- *	does auto-sequencing processing on constructor nodes (no-op)
- *	returns 0 to stop walk, 1 to continue
- */
-static int guppy_autoseq_cnode (compops_t *cops, tnode_t **node, guppy_autoseq_t *gas)
-{
-	return 1;
-}
-/*}}}*/
 /*{{{  static int guppy_prescope_cnode (compops_t *cops, tnode_t **node, guppy_prescope_t *ps)*/
 /*
  *	does pre-scoping on a constructor node
@@ -83,6 +73,8 @@ static int guppy_prescope_cnode (compops_t *cops, tnode_t **node, guppy_prescope
 	tnode_t *cnode = *node;
 	tnode_t **listptr = tnode_nthsubaddr (cnode, 1);
 
+/* FIXME: incomplete */
+	return 1;
 	if (parser_countlist (*listptr) == 1) {
 		/* single item SEQ or PAR, remove it */
 		int nitems = 0;
@@ -98,6 +90,60 @@ static int guppy_prescope_cnode (compops_t *cops, tnode_t **node, guppy_prescope
 		return 0;
 	}
 	return 1;		/* do items */
+}
+/*}}}*/
+/*{{{  static int guppy_declify_cnode (compops_t *cops, tnode_t **nodeptr, guppy_declify_t *gdl)*/
+/*
+ *	does declify on constructor nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_declify_cnode (compops_t *cops, tnode_t **nodeptr, guppy_declify_t *gdl)
+{
+	tnode_t **bptr = tnode_nthsubaddr (*nodeptr, 1);
+
+	if (parser_islistnode (*bptr)) {
+		guppy_declify_listtodecllist (bptr, gdl);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_autoseq_cnode (compops_t *cops, tnode_t **node, guppy_autoseq_t *gas)*/
+/*
+ *	does auto-sequencing processing on constructor nodes (no-op)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_autoseq_cnode (compops_t *cops, tnode_t **node, guppy_autoseq_t *gas)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_flattenseq_cnode (compops_t *cops, tnode_t **nodeptr)*/
+/*
+ *	does flattening on a constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_flattenseq_cnode (compops_t *cops, tnode_t **nodeptr)
+{
+	tnode_t *node = *nodeptr;
+	tnode_t **listptr = tnode_nthsubaddr (node, 1);
+
+	if (!parser_islistnode (*listptr)) {
+		nocc_serious ("guppy_flattenseq_cnode(): node body is not a list..");
+		return 0;
+	} else if (parser_countlist (*listptr) == 1) {
+		/* single item, remove it and replace */
+		tnode_t *item = parser_delfromlist (*listptr, 0);
+
+		tnode_free (node);
+		*nodeptr = item;
+	} else if (parser_countlist (*listptr) == 0) {
+		/* no items, replace with 'skip' */
+		tnode_t *item = tnode_createfrom (gup.tag_SKIP, node);
+
+		tnode_free (node);
+		*nodeptr = item;
+	}
+	return 1;
 }
 /*}}}*/
 
@@ -118,8 +164,10 @@ static int guppy_cnode_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:cnode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr/operand/parspaceref; 1 = body */
 	cops = tnode_newcompops ();
-	tnode_setcompop (cops, "autoseq", 2, COMPOPTYPE (guppy_autoseq_cnode));
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_cnode));
+	tnode_setcompop (cops, "declify", 2, COMPOPTYPE (guppy_declify_cnode));
+	tnode_setcompop (cops, "autoseq", 2, COMPOPTYPE (guppy_autoseq_cnode));
+	tnode_setcompop (cops, "flattenseq", 1, COMPOPTYPE (guppy_flattenseq_cnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;
