@@ -72,6 +72,7 @@
 #define FPARAM_IS_VAL 1
 #define FPARAM_IS_RES 2
 #define FPARAM_IS_INIT 3
+
 typedef struct TAG_fparaminfo {
 	int flags;
 } fparaminfo_t;
@@ -260,6 +261,79 @@ static int guppy_scopeout_vardecl (compops_t *cops, tnode_t **node, scope_t *ss)
 /*}}}*/
 
 
+/*{{{  static int guppy_scopein_enumdef (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes in an enumerated type definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_scopein_enumdef (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	tnode_t *name = tnode_nthsubof (*node, 0);
+	tnode_t *elist = tnode_nthsubof (*node, 1);
+	char *rawname;
+	name_t *ename;
+	tnode_t *newname, **items;
+	int nitems, i;
+
+	/* declare and scope enum name, check processes in scope */
+	rawname = tnode_nthhookof (name, 0);
+
+	ename = name_addscopename (rawname, *node, NULL, NULL);
+	newname = tnode_createfrom (gup.tag_NENUM, name, ename);
+	SetNameNode (ename, newname);
+	tnode_setnthsub (*node, 0, newname);
+
+	tnode_free (name);
+	ss->scoped++;
+
+	/* then declare and scope individual enumerated entries */
+	items = parser_getlistitems (elist, &nitems);
+	for (i=0; i<nitems; i++) {
+		name_t *einame;
+		tnode_t *eitype;
+		tnode_t *enewname;
+
+		if (items[i]->tag == gup.tag_NAME) {
+			/* auto-assign value later */
+			rawname = tnode_nthhookof (items[i], 0);
+			einame = name_addscopename (rawname, *node, NULL, NULL);
+			enewname = tnode_createfrom (gup.tag_NENUMVAL, items[i], einame);
+			SetNameNode (einame, enewname);
+
+			tnode_free (items[i]);
+			items[i] = enewname;
+			ss->scoped++;
+		} else if (items[i]->tag == gup.tag_ASSIGN) {
+			/* assign value now */
+			rawname = tnode_nthhookof (tnode_nthsubof (items[i], 0), 0);
+			eitype = NULL;		/* FIXME! */
+			einame = name_addscopename (rawname, *node, eitype, NULL);
+			enewname = tnode_createfrom (gup.tag_NENUMVAL, items[i], einame);
+			SetNameNode (einame, enewname);
+
+			tnode_free (items[i]);
+			items[i] = enewname;
+			ss->scoped++;
+		} else {
+			scope_error (items[i], ss, "unsupported structure type in enumerated list");
+		}
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_scopeout_enumdef (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes-out an enumerated type definition
+ *	return value meaningless (postwalk)
+ */
+static int guppy_scopeout_enumdef (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	return 1;
+}
+/*}}}*/
+
+
 /*{{{  static int guppy_autoseq_declblock (compops_t *cops, tnode_t **node, guppy_autoseq_t *gas)*/
 /*
  *	auto-sequence on a declaration block
@@ -290,7 +364,6 @@ static int guppy_scopein_declblock (compops_t *cops, tnode_t **node, scope_t *ss
 /*}}}*/
 
 
-
 /*{{{  static int guppy_decls_init_nodes (void)*/
 /*
  *	sets up declaration and name nodes for Guppy
@@ -317,7 +390,7 @@ static int guppy_decls_init_nodes (void)
 	gup.tag_NAME = tnode_newnodetag ("NAME", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  guppy:namenode -- N_DECL, N_ABBR, N_VALABBR, N_RESABBR, N_PARAM, N_VALPARAM, N_RESPARAM, N_INITPARAM, N_REPL, N_TYPEDECL, N_FIELD, N_FCNDEF*/
+	/*{{{  guppy:namenode -- N_DECL, N_ABBR, N_VALABBR, N_RESABBR, N_PARAM, N_VALPARAM, N_RESPARAM, N_INITPARAM, N_REPL, N_TYPEDECL, N_FIELD, N_FCNDEF, N_ENUM, N_ENUMVAL*/
 	i = -1;
 	tnd = gup.node_NAMENODE = tnode_newnodetype ("guppy:namenode", &i, 0, 1, 0, TNF_NONE);		/* subnames: name */
 	cops = tnode_newcompops ();
@@ -353,6 +426,8 @@ static int guppy_decls_init_nodes (void)
 	gup.tag_NFCNDEF = tnode_newnodetag ("N_FCNDEF", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_NENUM = tnode_newnodetag ("N_ENUM", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_NENUMVAL = tnode_newnodetag ("N_ENUMVAL", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:vardecl -- VARDECL*/
@@ -396,6 +471,8 @@ static int guppy_decls_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:enumdef", &i, 2, 0, 0, TNF_LONGDECL);				/* subnodes: name; items */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_enumdef));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (guppy_scopeout_enumdef));
 	tnd->ops = cops;
 
 	i = -1;

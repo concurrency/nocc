@@ -1,0 +1,13 @@
+# more guppy tests
+
+define main ()
+  int c
+  seq
+    skip
+    int d
+    skip
+  int e
+  skip
+  seq
+    skip
+

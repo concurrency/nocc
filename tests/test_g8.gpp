@@ -1,0 +1,19 @@
+
+define main ()
+  int c
+  skip
+  skip
+  int d
+  skip
+  seq
+    skip
+    int e
+    skip
+
+define zog ()
+  int z
+  stop
+
+  define inner_zog ()
+    skip
+

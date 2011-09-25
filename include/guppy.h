@@ -61,6 +61,12 @@ typedef struct {
 	struct TAG_ntdef *tag_CHAN;
 	struct TAG_ntdef *tag_NAME;
 
+	struct TAG_ntdef *tag_LITINT;
+	struct TAG_ntdef *tag_LITREAL;
+	struct TAG_ntdef *tag_LITCHAR;
+	struct TAG_ntdef *tag_LITSTRING;
+	struct TAG_ntdef *tag_LITBOOL;
+
 	struct TAG_ntdef *tag_FCNDEF;
 	struct TAG_ntdef *tag_VARDECL;
 	struct TAG_ntdef *tag_FPARAM;
@@ -80,6 +86,7 @@ typedef struct {
 	struct TAG_ntdef *tag_NINITPARAM;
 	struct TAG_ntdef *tag_NREPL;
 	struct TAG_ntdef *tag_NENUM;
+	struct TAG_ntdef *tag_NENUMVAL;
 
 	struct TAG_ntdef *tag_NTYPEDECL;
 	struct TAG_ntdef *tag_NFIELD;
@@ -124,6 +131,7 @@ typedef struct {
 typedef struct {
 	void *data;
 	int bytes;
+	int littype;					/* INTEGER, REAL, STRING */
 } guppy_litdata_t;
 
 
@@ -146,6 +154,7 @@ extern struct TAG_feunit guppy_fcndef_feunit;		/* guppy_fcndef.c */
 extern struct TAG_feunit guppy_io_feunit;		/* guppy_io.c */
 extern struct TAG_feunit guppy_primproc_feunit;		/* guppy_primproc.c */
 extern struct TAG_feunit guppy_types_feunit;		/* guppy_types.c */
+extern struct TAG_feunit guppy_lit_feunit;		/* guppy_lit.c */
 
 /* these are for language units to use in reductions */
 extern void *guppy_nametoken_to_hook (void *ntok);

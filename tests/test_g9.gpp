@@ -1,0 +1,9 @@
+
+define enum Colours
+  Red
+  Green
+  Blue = 14
+
+define main ()
+  skip
+
