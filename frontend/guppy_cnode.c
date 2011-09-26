@@ -70,26 +70,7 @@
  */
 static int guppy_prescope_cnode (compops_t *cops, tnode_t **node, guppy_prescope_t *ps)
 {
-	tnode_t *cnode = *node;
-	tnode_t **listptr = tnode_nthsubaddr (cnode, 1);
-
-/* FIXME: incomplete */
 	return 1;
-	if (parser_countlist (*listptr) == 1) {
-		/* single item SEQ or PAR, remove it */
-		int nitems = 0;
-		tnode_t **items = parser_getlistitems (*listptr, &nitems);
-
-		*node = items[0];
-		items[0] = NULL;
-
-		tnode_free (cnode);
-
-		/* do pre-scope on the result */
-		prescope_subtree (node, ps);
-		return 0;
-	}
-	return 1;		/* do items */
 }
 /*}}}*/
 /*{{{  static int guppy_declify_cnode (compops_t *cops, tnode_t **nodeptr, guppy_declify_t *gdl)*/

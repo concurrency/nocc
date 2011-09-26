@@ -193,6 +193,27 @@ static void guppy_primtype_hook_dumptree (tnode_t *node, void *hook, int indent,
 /*}}}*/
 
 
+/*{{{  tnode_t *guppy_newprimtype (ntdef_t *tag, tnode_t *org, const int size)*/
+/*
+ *	creates a new primitive type node (used internally to type things)
+ */
+tnode_t *guppy_newprimtype (ntdef_t *tag, tnode_t *org, const int size)
+{
+	tnode_t *ptype;
+	primtypehook_t *pth = guppy_newprimtypehook ();
+
+	pth->size = size;
+	if (org) {
+		ptype = tnode_createfrom (tag, org, pth);
+	} else {
+		ptype = tnode_createfrom (tag, NULL, pth);
+	}
+
+	return ptype;
+}
+/*}}}*/
+
+
 /*{{{  static int guppy_types_init_nodes (void)*/
 /*
  *	sets up type nodes for guppy

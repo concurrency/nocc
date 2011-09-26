@@ -36,7 +36,7 @@
  */
 struct TAG_keyword;
 
-#define TOTAL_KEYWORDS 111
+#define TOTAL_KEYWORDS 112
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 12
 #define MIN_HASH_VALUE 3
@@ -64,9 +64,9 @@ hash (register const char *str, register unsigned int len)
       162, 162, 162, 162, 162,  40,  15,   5,  50,   0,
        45,  25,  20,   0,  65,  85,  15,   5,  20,  75,
         5,  47,  25,  15,   0,  35,  60,  10,  55,   0,
-       20, 125, 162, 162, 162, 162, 162,  20,  50,  80,
+       20,  52, 162, 162, 162, 162, 162,  20,  50,  85,
        20,  70, 162,   0, 162,   5, 110, 162,  50,   0,
-        5, 162,   5,   0,   0,   0,  20,   0,   0, 162,
+        5, 110,   5,   0,   0,   0,  20,   0,   0, 162,
       162, 162, 162, 162, 162, 162, 162, 162, 162, 162,
       162, 162, 162, 162, 162, 162, 162, 162, 162, 162,
       162, 162, 162, 162, 162, 162, 162, 162, 162, 162,
@@ -168,7 +168,8 @@ static const struct TAG_keyword wordlist[] =
     {"ASM",		72,	LANGTAG_OCCAMPI,	NULL},
     {"STEP",		45,	LANGTAG_OCCAMPI,	NULL},
     {"TRUNC",		39,	LANGTAG_OCCAMPI,	NULL},
-    {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
+    {"SIZE",		33,	LANGTAG_OCCAMPI,	NULL},
+    {(char*)0,-1,0,NULL},
     {"PRI",		48,	LANGTAG_OCCAMPI,	NULL},
     {"enum",		110,	LANGTAG_GUPPY,		NULL},
     {"INT64",		10,	LANGTAG_OCCAMPI,	NULL},
@@ -224,15 +225,15 @@ static const struct TAG_keyword wordlist[] =
     {"RECORD",		46,	LANGTAG_OCCAMPI,	NULL},
     {"DEFINED",	66,	LANGTAG_OCCAMPI,	NULL},
     {(char*)0,-1,0,NULL},
-    {"char",		103,	LANGTAG_GUPPY,		NULL},
+    {"uint",		111,	LANGTAG_GUPPY | 0x00010000,		NULL},
     {(char*)0,-1,0,NULL},
     {"UINT16",		91,	LANGTAG_OCCAMPI,	NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
-    {"chan",		97,	LANGTAG_GUPPY,		NULL},
+    {"char",		103,	LANGTAG_GUPPY,		NULL},
     {"ROUND",		40,	LANGTAG_OCCAMPI,	NULL},
     {"VECTOR",		89,	LANGTAG_OCCAMPI,	NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
-    {"SIZE",		33,	LANGTAG_OCCAMPI,	NULL},
+    {"chan",		97,	LANGTAG_GUPPY,		NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {(char*)0,-1,0,NULL},
     {"FUNCTION",	15,	LANGTAG_OCCAMPI,	NULL},

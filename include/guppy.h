@@ -145,6 +145,11 @@ extern int guppy_autoseq_subtree (struct TAG_tnode **, guppy_autoseq_t *);
 extern int guppy_declify_subtree (struct TAG_tnode **, guppy_declify_t *);
 extern int guppy_flattenseq_subtree (struct TAG_tnode **);
 
+extern struct TAG_tnode *guppy_newprimtype (struct TAG_ntdef *tag, struct TAG_tnode *org, const int size);
+
+extern struct TAG_tnode *guppy_makeintlit (struct TAG_tnode *type, struct TAG_tnode *org, const int value);
+extern struct TAG_tnode *guppy_makereallit (struct TAG_tnode *type, struct TAG_tnode *org, const double value);
+
 /* front-end units */
 extern struct TAG_feunit guppy_assign_feunit;		/* guppy_assign.c */
 extern struct TAG_feunit guppy_cflow_feunit;		/* guppy_cflow.c */

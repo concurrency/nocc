@@ -19,6 +19,7 @@
 .GRULE	"gup:testtrue" "T*C[TESTTRUE]0R-"
 .GRULE	"gup:testfalse" "T*C[TESTFALSE]0R-"
 
+.GRULE	"gup:rewindlexer" "T*"
 
 # .TNODE directives describe the parse-tree, kind-of
 
@@ -38,7 +39,11 @@
 
 .SECTION "guppy-postprod" # {{{: top-level grammar, kind-of
 
-.BNF	"guppy:procstart +:= ( guppy:primproc | guppy:cnode ) {<gup:nullreduce>}"
+.TABLE	"guppy:procstart +:= [ 0 guppy:primproc 1 ] [ 0 guppy:cnode 1 ] [ 1 {<gup:nullreduce>} -* ]"
+	"[ 0 +Name 2 ] [ 2 +Name 3 ] [ 3 {<gup:rewindlexer>} -* <guppy:namenamestartproc> ]"
+	"[ 2 -* 4 ] [ 4 {<gup:rewindlexer>} -* <guppy:namestartproc> ]"
+
+#.BNF	"guppy:procstart +:= ( guppy:primproc | guppy:cnode ) {<gup:nullreduce>}"
 
 # definitions that start with 'define' use "guppy:definedecl" ('define' already eaten),
 # others use "guppy:otherdecl".
@@ -47,6 +52,8 @@
 
 .TABLE	"guppy:testfordecl +:= [ 0 +@define 1 ] [ 1 {<gup:testtrue>} -* ]"
 	"[ 0 -* 2 ] [ 2 {<gup:testfalse>} -* ]"
+
+.TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@= 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:oneassign> ]"
 
 # }}}
 
@@ -80,6 +87,12 @@
 .TABLE	"guppy:nameandassign ::= [ 0 guppy:name 1 ] [ 1 @@= 3 ] [ 1 -* 2 ] [ 2 {<gup:nullreduce>} -* ]"
 	"[ 3 guppy:expr 4 ] [ 4 {<gup:assignreduce>} -* ]"
 
+.BNF	"guppy:nameandassignlist ::= { guppy:nameandassign @@, 1 }"
+
+# when we come in here, lexer is rewound (two names waiting)
+.TABLE	"guppy:namenamestartproc +:= [ 0 guppy:name 1 ] [ 1 guppy:nameandassignlist 2 ] [ 2 {<gup:vardeclreduce>} -* ]"
+
+
 # }}}
 .SECTION "guppy-lit" # {{{: literals
 
@@ -94,7 +107,7 @@
 
 .RFUNC	"Rguppy:primtype" "guppy_reduce_primtype"
 
-.BNF	"guppy:primtype ::= ( +@int | +@real | +@bool | +@byte | +@char | +@string ) {Rguppy:primtype}"
+.BNF	"guppy:primtype ::= ( +@int | +@uint | +@real | +@bool | +@byte | +@char | +@string ) {Rguppy:primtype}"
 
 .BNF	"guppy:type ::= ( guppy:primtype {<gup:nullreduce>} )"
 
@@ -134,6 +147,8 @@
 .SECTION "guppy-assign" # {{{: assignment
 
 .GRULE	"gup:assignreduce" "SN0N+N+V0C[ASSIGN]3R-"
+
+.TABLE	"guppy:oneassign ::= [ 0 guppy:name 1 ] [ 1 @@= 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:assignreduce>} -* ]"
 
 # }}}
 .SECTION "guppy-io" # {{{: input/output

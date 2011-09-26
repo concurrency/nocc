@@ -377,7 +377,7 @@ nocc_message ("INDENT: advancing curindent to %d, scanto = %d", lop->curindent, 
 				kw = keywords_lookup (tmpstr, (int)(nstart - ch), LANGTAG_GUPPY);
 				sfree (tmpstr);
 
-#if 1
+#if 0
 fprintf (stderr, "guppy-lexer: number-ending keyword 0x%8.8x\n", (unsigned int)kw);
 #endif
 				if (kw && (kw->langtag & LANGTAG_STYPE)) {

@@ -1,0 +1,7 @@
+
+define main ()
+  int x, y
+  x = 42
+  skip
+  y = x
+

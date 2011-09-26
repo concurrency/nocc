@@ -190,6 +190,35 @@ static void guppy_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int inde
 	return;
 }
 /*}}}*/
+/*{{{  static int guppy_scopein_rawnamenode (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes in a raw namenode (resolving free names)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_scopein_rawnamenode (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	tnode_t *name = *node;
+	char *rawname;
+	name_t *sname = NULL;
+
+	if (name->tag != gup.tag_NAME) {
+		scope_error (name, ss, "name not raw-name!");
+		return 0;
+	}
+	rawname = tnode_nthhookof (name, 0);
+
+	sname = name_lookupss (rawname, ss);
+	if (sname) {
+		/* resolved */
+		*node = NameNodeOf (sname);
+		tnode_free (name);
+	} else {
+		scope_error (name, ss, "unresolved name \"%s\"", rawname);
+	}
+
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static tnode_t *guppy_gettype_namenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
@@ -246,7 +275,22 @@ static int guppy_prescope_vardecl (compops_t *cops, tnode_t **node, prescope_t *
  */
 static int guppy_scopein_vardecl (compops_t *cops, tnode_t **node, scope_t *ss)
 {
-	return 1;
+	tnode_t *name = tnode_nthsubof (*node, 0);
+	tnode_t *type = tnode_nthsubof (*node, 1);
+	name_t *varname;
+	tnode_t *newname;
+	char *rawname;
+
+	rawname = (char *)tnode_nthhookof (name, 0);
+	varname = name_addscopename (rawname, *node, type, NULL);
+	newname = tnode_createfrom (gup.tag_NDECL, name, varname);
+	SetNameNode (varname, newname);
+	tnode_setnthsub (*node, 0, newname);
+
+	tnode_free (name);
+	ss->scoped++;
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int guppy_scopeout_vardecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
@@ -305,8 +349,20 @@ static int guppy_scopein_enumdef (compops_t *cops, tnode_t **node, scope_t *ss)
 			ss->scoped++;
 		} else if (items[i]->tag == gup.tag_ASSIGN) {
 			/* assign value now */
+			tnode_t **rhsp = tnode_nthsubaddr (items[i], 1);
+
 			rawname = tnode_nthhookof (tnode_nthsubof (items[i], 0), 0);
-			eitype = NULL;		/* FIXME! */
+			if ((*rhsp)->tag != gup.tag_LITINT) {
+				scope_error (items[i], ss, "enumerated value is not an integer literal");
+				eitype = NULL;
+			} else {
+				/* fix type of enumerated value */
+				eitype = guppy_newprimtype (gup.tag_INT, items[i], 32);
+				tnode_setnthsub (*rhsp, 0, eitype);
+				eitype = *rhsp;
+				*rhsp = NULL;
+			}
+
 			einame = name_addscopename (rawname, *node, eitype, NULL);
 			enewname = tnode_createfrom (gup.tag_NENUMVAL, items[i], einame);
 			SetNameNode (einame, enewname);
@@ -352,6 +408,58 @@ fprintf (stderr, "guppy_autoseq_declblock(): here!\n");
 	return 1;
 }
 /*}}}*/
+/*{{{  static int guppy_flattenseq_declblock (compops_t *cops, tnode_t **node)*/
+/*
+ *	flatten sequences for a declaration block
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_flattenseq_declblock (compops_t *cops, tnode_t **node)
+{
+	tnode_t *dlist = tnode_nthsubof (*node, 0);
+	tnode_t **items;
+	int nitems, i;
+
+	items = parser_getlistitems (dlist, &nitems);
+	for (i=0; i<nitems; i++) {
+		if (items[i]->tag == gup.tag_VARDECL) {
+			/* check for multiple declarations */
+			tnode_t *vdname = tnode_nthsubof (items[i], 0);
+			tnode_t *vdtype = tnode_nthsubof (items[i], 1);
+
+			if (parser_islistnode (vdname)) {
+				tnode_t **vitems;
+				int nvitems, j;
+
+				vitems = parser_getlistitems (vdname, &nvitems);
+				if (nvitems == 1) {
+					/* singleton, remove list */
+					tnode_t *thisvd = parser_delfromlist (vdname, 0);
+
+					parser_trashlist (vdname);
+					tnode_setnthsub (items[i], 0, thisvd);
+				} else {
+					tnode_t *firstname;
+
+					for (j=1; j<nvitems; j++) {
+						tnode_t *newdecl = tnode_createfrom (gup.tag_VARDECL, items[i], vitems[j], tnode_copytree (vdtype));
+
+						parser_delfromlist (vdname, j);
+						j--, nvitems--;
+						parser_insertinlist (dlist, newdecl, i+1);
+						nitems++;
+					}
+
+					/* fixup first item */
+					firstname = parser_delfromlist (vdname, 0);
+					parser_trashlist (vdname);
+					tnode_setnthsub (items[i], 0, firstname);
+				}
+			}
+		}
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_scopein_declblock (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scope-in a declaration block
@@ -359,7 +467,32 @@ fprintf (stderr, "guppy_autoseq_declblock(): here!\n");
  */
 static int guppy_scopein_declblock (compops_t *cops, tnode_t **node, scope_t *ss)
 {
-	return 1;
+	void *nsmark;
+	tnode_t *decllist = tnode_nthsubof (*node, 0);
+	tnode_t **procptr = tnode_nthsubaddr (*node, 1);
+	tnode_t **items;
+	int nitems, i;
+
+#if 0
+fprintf (stderr, "guppy_scopein_declblock(): here!\n");
+#endif
+	nsmark = name_markscope ();
+	items = parser_getlistitems (decllist, &nitems);
+	for (i=0; i<nitems; i++) {
+		/* scope-in the declaration, save scope-out */
+		tnode_modprewalktree (items + i, scope_modprewalktree, (void *)ss);
+	}
+
+	/* scope body */
+	scope_subtree (procptr, ss);
+
+	for (i=nitems - 1; i>=0; i--) {
+		/* scope-out the delcaration */
+		tnode_modpostwalktree (items + i, scope_modpostwalktree, (void *)ss);
+	}
+
+	name_markdescope (nsmark);
+	return 0;
 }
 /*}}}*/
 
@@ -383,7 +516,7 @@ static int guppy_decls_init_nodes (void)
 	tnd->hook_copy = guppy_rawnamenode_hook_copy;
 	tnd->hook_dumptree = guppy_rawnamenode_hook_dumptree;
 	cops = tnode_newcompops ();
-	/* FIXME: scope-in */
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_rawnamenode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -460,6 +593,7 @@ static int guppy_decls_init_nodes (void)
 	tnd = tnode_newnodetype ("guppy:declblock", &i, 2, 0, 0, TNF_NONE);				/* subnodes: decls; process */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "autoseq", 2, COMPOPTYPE (guppy_autoseq_declblock));
+	tnode_setcompop (cops, "flattenseq", 1, COMPOPTYPE (guppy_flattenseq_declblock));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_declblock));
 	tnd->ops = cops;
 

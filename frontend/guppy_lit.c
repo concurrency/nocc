@@ -69,6 +69,42 @@
 /*}}}*/
 
 
+/*{{{  static guppy_litdata_t *guppy_newlitdata (void)*/
+/*
+ *	creates a new guppy_litdata_t structure
+ */
+static guppy_litdata_t *guppy_newlitdata (void)
+{
+	guppy_litdata_t *ldat = (guppy_litdata_t *)smalloc (sizeof (guppy_litdata_t));
+
+	ldat->data = NULL;
+	ldat->bytes = 0;
+	ldat->littype = NOTOKEN;
+
+	return ldat;
+}
+/*}}}*/
+/*{{{  static void guppy_freelitdata (guppy_litdata_t *ldat)*/
+/*
+ *	frees a guppy_litdata_t structure
+ */
+static void guppy_freelitdata (guppy_litdata_t *ldat)
+{
+	if (!ldat) {
+		nocc_internal ("guppy_freelitdata(): NULL pointer!");
+		return;
+	}
+	if (ldat->data) {
+		sfree (ldat->data);
+		ldat->data = NULL;
+		ldat->bytes = 0;
+	}
+	sfree (ldat);
+	return;
+}
+/*}}}*/
+
+
 /*{{{  void *guppy_token_to_lithook (void *ntok)*/
 /*
  *	used to turn a token into a literal hook (int/real/char/string)
@@ -76,7 +112,7 @@
 void *guppy_token_to_lithook (void *ntok)
 {
 	token_t *tok = (token_t *)ntok;
-	guppy_litdata_t *ldat = (guppy_litdata_t *)smalloc (sizeof (guppy_litdata_t));
+	guppy_litdata_t *ldat = guppy_newlitdata ();
 
 	if (tok->type == INTEGER) {
 		ldat->data = smalloc (sizeof (int));
@@ -99,11 +135,59 @@ void *guppy_token_to_lithook (void *ntok)
 		((char *)ldat->data)[ldat->bytes] = '\0';
 	} else {
 		nocc_serious ("guppy_token_to_lithook(): unsupported token type! %d", (int)tok->type);
-		sfree (ldat);
+		guppy_freelitdata (ldat);
 		ldat = NULL;
 	}
 
 	return (void *)ldat;
+}
+/*}}}*/
+
+
+/*{{{  tnode_t *guppy_makeintlit (tnode_t *type, tnode_t *org, const int value)*/
+/*
+ *	creates a new integer literal (as a node)
+ */
+tnode_t *guppy_makeintlit (tnode_t *type, tnode_t *org, const int value)
+{
+	guppy_litdata_t *ldat = guppy_newlitdata ();
+	tnode_t *lnode;
+
+	ldat->data = smalloc (sizeof (int));
+	ldat->bytes = sizeof (int);
+	memcpy (ldat->data, &value, sizeof (int));
+	ldat->littype = INTEGER;
+
+	if (!org) {
+		lnode = tnode_create (gup.tag_LITINT, NULL, type, ldat);
+	} else {
+		lnode = tnode_createfrom (gup.tag_LITINT, org, type, ldat);
+	}
+
+	return lnode;
+}
+/*}}}*/
+/*{{{  tnode_t *guppy_makereallit (tnode_t *type, tnode_t *org, const double value)*/
+/*
+ *	creates a new real literal (as a node)
+ */
+tnode_t *guppy_makereallit (tnode_t *type, tnode_t *org, const double value)
+{
+	guppy_litdata_t *ldat = guppy_newlitdata ();
+	tnode_t *lnode;
+
+	ldat->data = smalloc (sizeof (double));
+	ldat->bytes = sizeof (double);
+	memcpy (ldat->data, &value, sizeof (double));
+	ldat->littype = REAL;
+
+	if (!org) {
+		lnode = tnode_create (gup.tag_LITINT, NULL, type, ldat);
+	} else {
+		lnode = tnode_createfrom (gup.tag_LITINT, org, type, ldat);
+	}
+
+	return lnode;
 }
 /*}}}*/
 
@@ -119,11 +203,7 @@ static void guppy_litnode_hook_free (void *hook)
 	if (!ldat) {
 		return;
 	}
-	if (ldat->data) {
-		sfree (ldat->data);
-		ldat->data = NULL;
-	}
-	sfree (ldat);
+	guppy_freelitdata (ldat);
 	return;
 }
 /*}}}*/
@@ -174,10 +254,28 @@ static void *guppy_litnode_hook_copy (void *hook)
 static void guppy_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
 {
 	guppy_litdata_t *ldat = (guppy_litdata_t *)hook;
+	char *hdat;
 
 	guppy_isetindent (stream, indent);
 	fprintf (stream, "<litnodehook type=\"");
-	fprintf (stream, "\" />\n");
+	switch (ldat->littype) {
+	case INTEGER:
+		fprintf (stream, "integer");
+		break;
+	case REAL:
+		fprintf (stream, "real");
+		break;
+	case STRING:
+		fprintf (stream, "string");
+		break;
+	default:
+		fprintf (stream, "<unknown %d>", ldat->littype);
+		break;
+	}
+	fprintf (stream, "\" bytes=\"%d\" data=\"", ldat->bytes);
+	hdat = mkhexbuf ((unsigned char *)ldat->data, ldat->bytes);
+	fprintf (stream, "%s\" />\n", hdat);
+	sfree (hdat);
 
 	return;
 }
