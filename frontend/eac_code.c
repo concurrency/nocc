@@ -465,7 +465,7 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 			*errp = *errp + 1;
 			return 0;
 		}
-		
+
 		for (i=0; i<ncount; i++) {
 			eac_subst_t *ss;
 
@@ -1390,26 +1390,33 @@ tnode_dumptree (inst, 1, stderr);
 		fprintf(stderr, "fparam [%d of %d] :", (i+1), naparams);
 		tnode_dumptree(fplist[i], 1,stderr);
 #endif
-		if (!(aplist[i]->tag == eac.tag_NVAR || aplist[i]->tag == eac.tag_NCHANVAR)) {
+		/* check AP is somthing we are expecting */
+		if (!(aplist[i]->tag == eac.tag_NVAR || aplist[i]->tag == eac.tag_NCHANVAR) ||
+				aplist[i]->tag == eac.tag_SVREND || aplist[i]->tag == eac.tag_CLIEND) {
+
 			if (aplist[i]->tag->ndef != eac.node_NAMENODE) {
-				typecheck_error (node, tc, "parameter %d is not a name (in call of \"%s\")",
-						i, NameNameOf (pname));
+				typecheck_error (node, tc, "actual param does not match formal params...\n\tparameter %d is not a name (in call of \"%s\")",
+						(i + 1), NameNameOf (pname));
 				return 1;
 			}
 			apname = tnode_nthnameof(aplist[i], 0);
-			typecheck_error(node, tc, "parameter %s is not a variable in call of \"%s\"",
+			typecheck_error(node, tc, "actual param does not match formal params...\n\tparameter %s is not a variable in call of \"%s\"",
 					NameNameOf(apname), NameNameOf(pname));
 			return 1;
-
-			if (fplist[i]->tag == eac.tag_VARDECL) {
-				tnode_t *inner = tnode_nthsubof(fplist[i], 0);
-				if (inner->tag != aplist[i]->tag) {
-					typecheck_error(aplist[i], tc, "actual param does not match actaul params"); /* XXX: nicer messages please */
-				}
-			} else {
-				typecheck_error(fplist[i], tc, "formal param is not a VARDECL");
-			}
 		}
+
+		if (fplist[i]->tag == eac.tag_VARDECL) {
+			tnode_t *inner = tnode_nthsubof(fplist[i], 0);
+			if (inner->tag != aplist[i]->tag) {
+				typecheck_error(aplist[i], tc, "actual param[%d] does not match formal params in call of %s. Found %s expected %s)",
+						(i+1), NameNameOf(pname), aplist[i]->tag->name, inner->tag->name); /* XXX: nicer messages please */
+				return 1;
+			}
+		} else {
+			typecheck_error(fplist[i], tc, "formal param[%d] expecting VARDECL found %s", (i+1), fplist[i]->tag->name);
+			return 1;
+		}
+
 	}
 
 	return 1;
