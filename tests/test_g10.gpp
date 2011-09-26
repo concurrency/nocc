@@ -4,4 +4,6 @@ define main ()
   x = 42
   skip
   y = x
+  int z = 16
+  skip
 
