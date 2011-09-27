@@ -972,7 +972,7 @@ static int eac_scopein_paramlist (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	tnode_t **items;
 	int nitems, i;
-	
+
 	if (!*node) {
 		return 0;
 	}
@@ -1171,7 +1171,7 @@ static int eac_scopein_declnode (compops_t *cops, tnode_t **node, scope_t *ss)
  */
 static int eac_scope_fixchanvars (tnode_t *node, void *arg)
 {
-	tnode_t		 *lhs;
+	tnode_t		 *lhs, *rhs;
 	name_t		 *namenode;
 	tnode_t		 *fvlist = (tnode_t *)arg;
 	tnode_t		**xitems;
@@ -1190,7 +1190,17 @@ nocc_message ("eac_scope_fixchanvars(): looking at (%s)", node->tag->name);
 
 		}
 
+	} else if (node->tag == eac.tag_INSTANCE) {
+		rhs = tnode_nthsubof(node, 1);
+		xitems = parser_getlistitems(rhs, &nxitems);
+		for (i=0; i<nxitems; i++) {
+			if (xitems[i]->tag == eac.tag_NVAR) {
+				xitems[i]->tag = eac.tag_NCHANVAR;
+				parser_addtolist(fvlist, tnode_copytree(xitems[i]));
+			}
+		}
 	}
+
 	else if (node->tag == eac.tag_NVAR) {
 		rhsname = NameNameOf(tnode_nthnameof(node, 0));
 		xitems = parser_getlistitems (fvlist, &nxitems);
@@ -1500,8 +1510,8 @@ eac_typecheck_hidenode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 			tnode_dumpstree (varlist[i], 1, stderr);
 			fprintf(stderr, "________\n");
 #endif
-			if (!(varlist[i]->tag == eac.tag_NVAR)) {
-				typecheck_error(node, tc, "\"%s\" in hidding list should be a NVAR but found a %s",
+			if (!(varlist[i]->tag == eac.tag_NCHANVAR)) {
+				typecheck_error(node, tc, "\"%s\" in hidding list should be a NCHANVAR but found a %s",
 				    (varlist[i]->tag->ndef == eac.node_NAMENODE) 
 				    ? NameNameOf(tnode_nthnameof (varlist[i], 0)) : "unknown",
 				    varlist[i]->tag->name);

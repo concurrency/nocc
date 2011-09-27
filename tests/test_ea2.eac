@@ -35,6 +35,10 @@ END.S (in) = {
 
 FOO (in, out) = { <in?a, out!a>, <in?b>, <out!c> }
 
+# channel-factory system no hiding
+CF.SYS.NO.HIDE =
+	(C.FACT (a, b) || END.C (a) || END.S (b))
+
 # channel-factory system
 CF.SYS =
 	(C.FACT (a, b) || END.C (a) || END.S (b)) \ {a,b}
