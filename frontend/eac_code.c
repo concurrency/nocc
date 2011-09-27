@@ -1384,7 +1384,7 @@ tnode_dumptree (inst, 1, stderr);
 	for (i=0; i<naparams; i++) {
 		/* Check actual parameter aplist[i] is sensible,and perhaps,
 		 * matches formal. */
-#if 0
+#if 1
 		fprintf(stderr, "aparam [%d of %d] :", (i+1), naparams);
 		tnode_dumptree(aplist[i],1,stderr);
 		fprintf(stderr, "fparam [%d of %d] :", (i+1), naparams);
@@ -1395,25 +1395,41 @@ tnode_dumptree (inst, 1, stderr);
 				aplist[i]->tag == eac.tag_SVREND || aplist[i]->tag == eac.tag_CLIEND) {
 
 			if (aplist[i]->tag->ndef != eac.node_NAMENODE) {
-				typecheck_error (node, tc, "actual param does not match formal params...\n\tparameter %d is not a name (in call of \"%s\")",
+				typecheck_error (node, tc, "actual param does not match formal params...\n"
+						"\tparameter %d is not a name (in call of \"%s\")",
 						(i + 1), NameNameOf (pname));
 				return 1;
 			}
 			apname = tnode_nthnameof(aplist[i], 0);
-			typecheck_error(node, tc, "actual param does not match formal params...\n\tparameter %s is not a variable in call of \"%s\"",
+			typecheck_error(node, tc, "actual param does not match formal params...\n"
+					"\tparameter %s is not a variable in call of \"%s\"",
 					NameNameOf(apname), NameNameOf(pname));
 			return 1;
 		}
 
 		if (fplist[i]->tag == eac.tag_VARDECL) {
 			tnode_t *inner = tnode_nthsubof(fplist[i], 0);
-			if (inner->tag != aplist[i]->tag) {
-				typecheck_error(aplist[i], tc, "actual param[%d] does not match formal params in call of %s. Found %s expected %s)",
-						(i+1), NameNameOf(pname), aplist[i]->tag->name, inner->tag->name); /* XXX: nicer messages please */
+			if ( (inner->tag == eac.tag_NVAR) && (aplist[i]->tag != eac.tag_NVAR) ) {
+				typecheck_error(aplist[i], tc,
+						"actual param[%d] does not match formal params in call of %s."
+						" Found %s expected %s)",
+						(i+1), NameNameOf(pname), aplist[i]->tag->name, inner->tag->name);
 				return 1;
+			} else if (inner->tag == eac.tag_CHANVAR) {
+				if ( !(aplist[i]->tag == eac.tag_CHANVAR ||
+						aplist[i]->tag == eac.tag_CLIEND ||
+						aplist[i]->tag == eac.tag_SVREND)) {
+					typecheck_error(aplist[i], tc,
+						"actual param[%d] does not match formal params in call of %s."
+						" Found %s expected %s)",
+						(i+1), NameNameOf(pname), aplist[i]->tag->name, inner->tag->name);
+				return 1;
+
+				}
 			}
 		} else {
-			typecheck_error(fplist[i], tc, "formal param[%d] expecting VARDECL found %s", (i+1), fplist[i]->tag->name);
+			typecheck_error(fplist[i], tc, "formal param[%d] expecting VARDECL found %s",
+					(i+1), fplist[i]->tag->name);
 			return 1;
 		}
 
