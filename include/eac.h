@@ -60,6 +60,8 @@ typedef struct {
 
 	struct TAG_ntdef *tag_NPROCDEF;
 	struct TAG_ntdef *tag_NCHANVAR;
+	struct TAG_ntdef *tag_NSVRCHANVAR;
+	struct TAG_ntdef *tag_NCLICHANVAR;
 	struct TAG_ntdef *tag_NVAR;
 
 	struct TAG_ntdef *tag_PROC;

@@ -986,15 +986,28 @@ static int eac_scopein_paramlist (compops_t *cops, tnode_t **node, scope_t *ss)
 		char *rawname;
 		name_t *varname;
 		tnode_t *namenode, *olditem = items[i];
+		ntdef_t *typetag = NULL;
+		tnode_t *realname = NULL;
 
-		if (items[i]->tag != eac.tag_NAME) {
+		if (items[i]->tag == eac.tag_SVREND) {
+			realname = tnode_nthsubof (items[i], 0);
+			typetag = eac.tag_NSVRCHANVAR;
+		} else if (items[i]->tag == eac.tag_CLIEND) {
+			realname = tnode_nthsubof (items[i], 0);
+			typetag = eac.tag_NCLICHANVAR;
+		} else {
+			realname = items[i];
+			typetag = eac.tag_NCHANVAR;
+		}
+
+		if (realname->tag != eac.tag_NAME) {
 			scope_error (items[i], ss, "parameter not a name!");
 			return 1;
 		}
 
-		rawname = tnode_nthhookof (items[i], 0);
-		varname = name_addscopenamess (rawname, items[i], NULL, NULL, ss);
-		namenode = tnode_createfrom (eac.tag_NCHANVAR, items[i], varname);
+		rawname = tnode_nthhookof (realname, 0);
+		varname = name_addscopenamess (rawname, realname, NULL, NULL, ss);
+		namenode = tnode_createfrom (typetag, realname, varname);
 		SetNameNode (varname, namenode);
 		items[i] = tnode_createfrom (eac.tag_VARDECL, olditem, namenode);
 
@@ -1689,6 +1702,10 @@ static int eac_code_init_nodes (void)
 	eac.tag_NPROCDEF = tnode_newnodetag ("EACNPROCDEF", &i, tnd, NTF_NONE);
 	i = -1;
 	eac.tag_NCHANVAR = tnode_newnodetag ("EACNCHANVAR", &i, tnd, NTF_NONE);
+	i = -1;
+	eac.tag_NSVRCHANVAR = tnode_newnodetag ("EACNSVRCHANVAR", &i, tnd, NTF_NONE);
+	i = -1;
+	eac.tag_NCLICHANVAR = tnode_newnodetag ("EACNCLICHANVAR", &i, tnd, NTF_NONE);
 	i = -1;
 	eac.tag_NVAR = tnode_newnodetag ("EACNVAR", &i, tnd, NTF_NONE);
 

@@ -54,7 +54,7 @@
 .BNF	"eac:maybemarkedname ::= ( eac:markedname | eac:name ) {<eac:nullreduce>}"
 .BNF	"eac:maybemarkednamelist ::= { eac:maybemarkedname @@, 0 }"
 
-.BNF	"eac:fparams ::= { eac:name @@, 0 }"
+.BNF	"eac:fparams ::= { eac:maybemarkedname @@, 0 }"
 .TABLE	"eac:fparamlist ::= [ 0 @@( 1 ] [ 0 -* 4 ] [ 1 eac:fparams 2 ] [ 2 @@) 3 ] [ 3 {<eac:nullreduce>} -* ] [ 4 {<eac:nullset>} -* ]"
 
 .TABLE	"eac:eventrhs ::= [ 0 eac:maybemarkedname 1 ] [ 1 @@<- 3 ] [ 1 -* 2 ] [ 2 {<eac:nullreduce>} -* ]"
