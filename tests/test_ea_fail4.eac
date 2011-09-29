@@ -1,10 +1,9 @@
 # test_ea2.eac
 # testing escape-analysis stuff for NOCC
 
-#@interactive
+# testing typecheck in hiding
 
-# define escape for some standard processes
-
+#{{{ procs used bellow
 ID (in, out) = {
 	< in ? a , out ! b <- a >
 	}
@@ -30,6 +29,7 @@ END.C (in) = {
 END.S (in) = {
 	< in ? ~s, ~s ? v >
 	}
+#}}}
 
 # multiple sequences per set
 
@@ -42,8 +42,11 @@ CF.SYS =
 CF.SYS.2 =
 	(C.FACT (a, b) || END.C (a) || END.S (b)) \ {a}
 
+# This shoulf fail because we are tying to hide a PROC name 
 CF.SYS.FAIL1 =
 	(C.FACT (a, b) || END.C (a) || END.S (b)) \ {a,C.FACT}
 
+# This fails because we are tying to hide a NAME that is not a channel...
+# Not sure if this is an error....
 CF.SYS =
 	(C.FACT (a, b) || END.C (a) || END.S (b)) \ {a,z}
