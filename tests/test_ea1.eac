@@ -1,7 +1,7 @@
 # test_ea1.eac
 # testing escape-analysis stuff for NOCC
 
-@interactive
+#@interactive
 
 # define mobile escape for 'MID' process
 MID (in,out) = {
