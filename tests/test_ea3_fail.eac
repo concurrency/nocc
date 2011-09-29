@@ -1,0 +1,7 @@
+
+# hello
+
+MC.RECV (~in.c, out) = { < ^in.c ? x, out ! x > }
+
+# WHATEVER(out, x) = {< out!x >}
+
