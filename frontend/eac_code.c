@@ -1557,7 +1557,32 @@ eac_typecheck_varcompnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 }
 /*}}}*/
 
-/*{{{ static int eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*{{{ static int eac_typecheck_chanmark (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+static int
+eac_typecheck_chanmark (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *inner;
+
+#if 0
+	fprintf(stderr, "____eac_typecheck_chanmark___\n");
+	tnode_dumpstree (node, 1, stderr);
+	fprintf(stderr, "________\n");
+#endif
+
+	if (node->tag == eac.tag_CLIEND || node->tag == eac.tag_SVREND) {
+		inner = tnode_nthsubof(node, 0);
+		if (node->tag == eac.tag_CLIEND && inner->tag != eac.tag_NCLICHANVAR ||
+				node->tag == eac.tag_SVREND && inner->tag != eac.tag_NSVRCHANVAR ) {
+			typecheck_error(node, tc, "Found a %s when expecting a %s", inner->tag->name,
+					(node->tag == eac.tag_CLIEND ?  eac.tag_NCLICHANVAR->name : eac.tag_NSVRCHANVAR->name ));
+		}
+	}
+	return 1;
+
+}
+/*}}}*/
+
+/*{{{ static int eac_typecheck_mark (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 static int
 eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
@@ -1621,7 +1646,6 @@ eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 
 }
 /*}}}*/
-
 /*{{{  static int eac_prescope_esetnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
 /*
  *	pre-scope for escape set node -- make sure any contents are a list
@@ -1794,6 +1818,7 @@ static int eac_code_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("eac:chanmark", &i, 1, 0, 0, TNF_NONE);			/* subnodes: channel */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (eac_typecheck_chanmark));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	
