@@ -1,0 +1,10 @@
+
+# more guppy tests
+
+define main ()
+  int a, b
+  a = 19
+  b = a + 12
+  int x = 19, z
+  z = x + b
+

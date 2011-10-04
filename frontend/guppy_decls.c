@@ -416,6 +416,7 @@ fprintf (stderr, "guppy_autoseq_declblock(): here!\n");
 static int guppy_flattenseq_declblock (compops_t *cops, tnode_t **node)
 {
 	tnode_t *dlist = tnode_nthsubof (*node, 0);
+	tnode_t **iptr = tnode_nthsubaddr (*node, 1);
 	tnode_t **items;
 	int nitems, i;
 
@@ -457,6 +458,29 @@ static int guppy_flattenseq_declblock (compops_t *cops, tnode_t **node)
 			}
 		}
 	}
+
+	/* pull apart initialising declarations into multiple chunks */
+	/* 'iptr' is either SEQ or singleton */
+	items = parser_getlistitems (dlist, &nitems);
+	for (i=0; i<nitems; i++) {
+		if (items[i]->tag == gup.tag_VARDECL) {
+			tnode_t *vname = tnode_nthsubof (items[i], 0);
+
+			if (vname->tag == gup.tag_ASSIGN) {
+				/* this one, pull apart */
+				tnode_t *namecopy = tnode_copytree (tnode_nthsubof (vname, 0));		/* LHS copy */
+				tnode_t *seqblock, *instlist;
+
+				tnode_setnthsub (items[i], 0, namecopy);
+				instlist = parser_newlistnode (OrgFileOf (items[i]));
+				seqblock = tnode_createfrom (gup.tag_SEQ, items[i], NULL, instlist);
+
+				parser_addtolist (instlist, vname);					/* assignment */
+				parser_addtolist (instlist, *iptr);
+				*iptr = seqblock;
+			}
+		}
+	}
 	return 1;
 }
 /*}}}*/
@@ -474,7 +498,8 @@ static int guppy_scopein_declblock (compops_t *cops, tnode_t **node, scope_t *ss
 	int nitems, i;
 
 #if 0
-fprintf (stderr, "guppy_scopein_declblock(): here!\n");
+fprintf (stderr, "guppy_scopein_declblock(): here!  complete block is:\n");
+tnode_dumptree (*node, 1, stderr);
 #endif
 	nsmark = name_markscope ();
 	items = parser_getlistitems (decllist, &nitems);
