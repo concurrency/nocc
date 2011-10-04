@@ -119,6 +119,7 @@ static feunit_t *feunit_set[] = {
 	&guppy_assign_feunit,
 	&guppy_io_feunit,
 	&guppy_lit_feunit,
+	&guppy_oper_feunit,
 	NULL
 };
 

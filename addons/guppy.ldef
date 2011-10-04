@@ -71,7 +71,7 @@
 .BNF	"guppy:name ::= +Name {<gup:namereduce>}"
 .BNF	"guppy:namelist ::= { guppy:name @@, 1 }"
 
-.TABLE	"guppy:expr +:= [ 0 guppy:name 1 ] [ 1 {<gup:nullreduce>} -* ]"
+.TABLE	"guppy:expr +:= [ 0 guppy:name 1 ] [ 1 {<gup:nullreduce>} -* 2 ] [ 2 -* <guppy:restofexpr> ]"
 
 .TABLE	"guppy:fparam ::= [ 0 guppy:primtype 1 ] [ 1 guppy:name 2 ] [ 2 {<gup:fparam2nsreduce>} -* ]"
 
@@ -100,7 +100,7 @@
 
 .TABLE	"guppy:literal ::= [ 0 +Integer 1 ] [ 1 {<gup:litintreduce>} -* ]"
 
-.TABLE	"guppy:expr +:= [ 0 guppy:literal 1 ] [ 1 {<gup:nullreduce>} -* ]"
+.TABLE	"guppy:expr +:= [ 0 guppy:literal 1 ] [ 1 {<gup:nullreduce>} -* 2 ] [ 2 -* <guppy:restofexpr> ]"
 
 # }}}
 .SECTION "guppy-types" # {{{: types
@@ -153,6 +153,17 @@
 # }}}
 .SECTION "guppy-io" # {{{: input/output
 
+
+# }}}
+.SECTION "guppy-oper" # {{{: operators
+
+.GRULE	"gup:foldaddreduce" "R+N+Sn00C[ADD]3R-"
+.GRULE	"gup:foldsubreduce" "R+N+Sn00C[SUB]3R-"
+
+# for "guppy:restofexpr" existing expression is result already
+.TABLE	"guppy:restofexpr +:= [ 0 @@+ 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:foldaddreduce>} -* ]"
+	"[ 0 @@- 3 ] [ 3 guppy:expr 4 ] [ 4 {<gup:foldsubreduce>} -* ]"
+	"[ 0 -* ]"
 
 # }}}
 

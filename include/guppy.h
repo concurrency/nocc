@@ -103,6 +103,9 @@ typedef struct {
 	struct TAG_ntdef *tag_INPUT;
 	struct TAG_ntdef *tag_OUTPUT;
 
+	struct TAG_ntdef *tag_ADD;
+	struct TAG_ntdef *tag_SUB;
+
 	struct TAG_token *tok_ATSIGN;
 	struct TAG_token *tok_STRING;
 
@@ -160,6 +163,7 @@ extern struct TAG_feunit guppy_io_feunit;		/* guppy_io.c */
 extern struct TAG_feunit guppy_primproc_feunit;		/* guppy_primproc.c */
 extern struct TAG_feunit guppy_types_feunit;		/* guppy_types.c */
 extern struct TAG_feunit guppy_lit_feunit;		/* guppy_lit.c */
+extern struct TAG_feunit guppy_oper_feunit;		/* guppy_oper.c */
 
 /* these are for language units to use in reductions */
 extern void *guppy_nametoken_to_hook (void *ntok);
