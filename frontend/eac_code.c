@@ -832,7 +832,7 @@ static int eac_cleanuptree (tnode_t **tptr)
  *	evaluates a string (probably EAC expression or process)
  *	returns 0 on success, non-zero on failure
  */
-int eac_evaluate (const char *str)
+int eac_evaluate (const char *str, const int interactive_mode)
 {
 	char *lstr = string_dup (str);
 	lexfile_t *lf = lexer_openbuf ("interactive", "eac", lstr);
@@ -847,7 +847,7 @@ int eac_evaluate (const char *str)
 		goto out_cleanup;
 	}
 
-	eac_interactive_mode = 1;
+	eac_interactive_mode = interactive_mode;
 	tree = parser_parse (lf);
 	lexer_close (lf);
 
@@ -885,9 +885,25 @@ int eac_evaluate (const char *str)
 	printf ("%s\n", resstr);
 
 	if (compopts.verbose) {
-		tnode_dumptree (tree, 1, stdout);
+		tnode_dumptree (tree, 1, stderr);
 	}
-	tnode_free (tree);
+	if (interactive_mode == EAC_DEF) {
+		eac_istate_t	 *state;
+		tnode_t		**items;
+		name_t		 *proc_name;
+		int		  nitems, i;
+
+		state = eac_getistate();
+
+		items = parser_getlistitems (tree, &nitems);
+		for (i=0; i<nitems; i++) {
+			/*fprintf(stderr, "adding item %d", i);*/
+			proc_name = tnode_nthnameof (tnode_nthsubof (items[i], 0), 0);
+			dynarray_add(state->procs, proc_name);
+		}
+	} else {
+		tnode_free (tree);
+	}
 
 out_cleanup:
 	if (resstr) {
@@ -1571,7 +1587,9 @@ eac_typecheck_chanmark (compops_t *cops, tnode_t *node, typecheck_t *tc)
 
 	if (node->tag == eac.tag_CLIEND || node->tag == eac.tag_SVREND) {
 		inner = tnode_nthsubof(node, 0);
-		if (node->tag == eac.tag_CLIEND && inner->tag != eac.tag_NCLICHANVAR ||
+		if (inner->tag == eac.tag_NVAR) {
+			//TODO
+		} else if (node->tag == eac.tag_CLIEND && inner->tag != eac.tag_NCLICHANVAR ||
 				node->tag == eac.tag_SVREND && inner->tag != eac.tag_NSVRCHANVAR ) {
 			typecheck_error(node, tc, "Found a %s when expecting a %s", inner->tag->name,
 					(node->tag == eac.tag_CLIEND ?  eac.tag_NCLICHANVAR->name : eac.tag_NSVRCHANVAR->name ));

@@ -20,6 +20,9 @@
 #ifndef __EAC_H
 #define __EAC_H
 
+#define EAC_INTERACTIVE (1)
+#define EAC_DEF	(2)
+
 struct TAG_langlexer;
 struct TAG_langparser;
 struct TAG_langdef;

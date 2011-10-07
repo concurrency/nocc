@@ -337,7 +337,7 @@ int eac_callback_line (char *line, struct TAG_compcxt *ccx)
 
 			return IHR_HANDLED;
 			/* }}} */
-		} else if ((nbits > 1) && !strcmp (bitset[0], "eval")) {
+		} else if ((nbits > 1) && (!strcmp (bitset[0], "eval") || !strcmp (bitset[0], "def"))) {
 			/*{{{  evaulate something*/
 			char *ch;
 
@@ -347,7 +347,10 @@ int eac_callback_line (char *line, struct TAG_compcxt *ccx)
 			if (*ch == '\0') {
 				printf ("nothing to evaluate!\n");
 			} else {
-				eac_evaluate (ch);
+				if (!strcmp (bitset[0], "eval"))
+					eac_evaluate (ch, EAC_INTERACTIVE);
+				else
+					eac_evaluate (ch, EAC_DEF);
 			}
 
 			return IHR_HANDLED;
@@ -666,9 +669,13 @@ static tnode_t *eac_parser_parse (lexfile_t *lf)
 		nocc_message ("eac_parser_parse(): starting parse..");
 	}
 
-	if (eac_isinteractive ()) {
+	if (eac_isinteractive () == EAC_INTERACTIVE) {
+		if (compopts.verbose) nocc_message("Doing eval parse");
 		tree = eac_parser_parseprocexpr (lf);
 		i = 0;
+	} else if (eac_isinteractive() == EAC_DEF) {
+		if (compopts.verbose) nocc_message("Doing def parse");
+		i = eac_parser_parseprocdeflist (lf, &tree);
 	} else {
 		i = eac_parser_parseprocdeflist (lf, &tree);
 	}
