@@ -1257,7 +1257,6 @@ static int eac_scopein_fvpenode (compops_t *cops, tnode_t **node, scope_t *ss)
 /*}}}*/
 
 
-
 /*{{{  static int eac_scopein_rawname (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes in a free-floating name
@@ -1460,7 +1459,6 @@ tnode_dumptree (inst, 1, stderr);
 /*}}}*/
 
 
-
 /*{{{  static int eac_prescope_varcompnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
 /*
  *	pre-scope for instance node -- names sure parameter list is a list
@@ -1485,9 +1483,36 @@ static int eac_prescope_varcompnode (compops_t *cops, tnode_t **tptr, prescope_t
 }
 /*}}}*/
 
-/*{{{ static int eac_typecheck_hidenode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+
+/*{{{  static int eac_prescope_pcompnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
+/*
+ *	pre-scope for a process composition node (PAR/HIDE)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int eac_prescope_pcompnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)
+{
+	tnode_t *node = *tptr;
+
+	if (node->tag == eac.tag_HIDE) {
+		tnode_t **hptr = tnode_nthsubaddr (node, 1);
+
+		if (!*hptr) {
+			/* make empty list */
+			*hptr = parser_newlistnode (OrgFileOf (node));
+		} else if (!parser_islistnode (*hptr)) {
+			*hptr = parser_makelistnode (*hptr);
+		}
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{ static int eac_typecheck_pcompnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	type-checks a process comprehension node (HIDE/PAR)
+ *	returns 0 to stop walk, 1 to continue
+ */
 static int
-eac_typecheck_hidenode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+eac_typecheck_pcompnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *lhs = NULL;
 	tnode_t *rhs = NULL;
@@ -1528,7 +1553,12 @@ eac_typecheck_hidenode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 }
 /*}}}*/
 
+
 /*{{{ static int eac_typecheck_varcompnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	type-checks a variable comprehension node (VARCOMP)
+ *	returns 0 to stop walk, 1 to continue
+ */
 static int
 eac_typecheck_varcompnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
@@ -1561,7 +1591,12 @@ eac_typecheck_varcompnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 }
 /*}}}*/
 
+
 /*{{{ static int eac_typecheck_chanmark (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	type-checks a channel-mark (SVREND/CLIEND) node
+ *	returns 0 to stop walk, 1 to continue
+ */
 static int
 eac_typecheck_chanmark (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
@@ -1577,8 +1612,8 @@ eac_typecheck_chanmark (compops_t *cops, tnode_t *node, typecheck_t *tc)
 		inner = tnode_nthsubof(node, 0);
 		if (inner->tag == eac.tag_NVAR) {
 			//TODO
-		} else if (node->tag == eac.tag_CLIEND && inner->tag != eac.tag_NCLICHANVAR ||
-				node->tag == eac.tag_SVREND && inner->tag != eac.tag_NSVRCHANVAR ) {
+		} else if (((node->tag == eac.tag_CLIEND) && (inner->tag != eac.tag_NCLICHANVAR)) ||
+				((node->tag == eac.tag_SVREND) && (inner->tag != eac.tag_NSVRCHANVAR))) {
 			typecheck_error(node, tc, "Found a %s when expecting a %s", inner->tag->name,
 					(node->tag == eac.tag_CLIEND ?  eac.tag_NCLICHANVAR->name : eac.tag_NSVRCHANVAR->name ));
 		}
@@ -1588,7 +1623,12 @@ eac_typecheck_chanmark (compops_t *cops, tnode_t *node, typecheck_t *tc)
 }
 /*}}}*/
 
-/*{{{ static int eac_typecheck_mark (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+
+/*{{{ static int eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	type-checks an action-node (INPUT/OUTPUT)
+ *	returns 0 to stop walk, 1 to continue
+ */
 static int
 eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
@@ -1652,6 +1692,8 @@ eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 
 }
 /*}}}*/
+
+
 /*{{{  static int eac_prescope_esetnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
 /*
  *	pre-scope for escape set node -- make sure any contents are a list
@@ -1677,28 +1719,6 @@ static int eac_prescope_esetnode (compops_t *cops, tnode_t **tptr, prescope_t *p
 /*}}}*/
 
 
-/*{{{  static int eac_prescope_pcompnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
-/*
- *	pre-scope for a process composition node (PAR/HIDE)
- *	returns 0 to stop walk, 1 to continue
- */
-static int eac_prescope_pcompnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)
-{
-	tnode_t *node = *tptr;
-
-	if (node->tag == eac.tag_HIDE) {
-		tnode_t **hptr = tnode_nthsubaddr (node, 1);
-
-		if (!*hptr) {
-			/* make empty list */
-			*hptr = parser_newlistnode (OrgFileOf (node));
-		} else if (!parser_islistnode (*hptr)) {
-			*hptr = parser_makelistnode (*hptr);
-		}
-	}
-	return 1;
-}
-/*}}}*/
 
 
 /*{{{  static int eac_code_init_nodes (void)*/
@@ -1844,7 +1864,7 @@ static int eac_code_init_nodes (void)
 	tnd = tnode_newnodetype ("eac:pcompnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: left, right */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (eac_prescope_pcompnode));
-	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (eac_typecheck_hidenode));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (eac_typecheck_pcompnode));
 	tnd->ops = cops;
 
 	i = -1;
