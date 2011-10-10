@@ -888,19 +888,7 @@ int eac_evaluate (const char *str, const int interactive_mode)
 		tnode_dumptree (tree, 1, stderr);
 	}
 	if (interactive_mode == EAC_DEF) {
-		eac_istate_t	 *state;
-		tnode_t		**items;
-		name_t		 *proc_name;
-		int		  nitems, i;
-
-		state = eac_getistate();
-
-		items = parser_getlistitems (tree, &nitems);
-		for (i=0; i<nitems; i++) {
-			/*fprintf(stderr, "adding item %d", i);*/
-			proc_name = tnode_nthnameof (tnode_nthsubof (items[i], 0), 0);
-			dynarray_add(state->procs, proc_name);
-		}
+		/* tree added to names in parser */
 	} else {
 		tnode_free (tree);
 	}
