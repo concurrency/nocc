@@ -62,6 +62,16 @@
 
 
 /*}}}*/
+/*{{{  private types*/
+
+typedef struct TAG_eac_treesearch {
+	tnode_t *find;				/* thing we're looking for */
+	int isinput;				/* LHS of an input */
+	int isoutput;				/* LHS of an output */
+	int found;				/* non-zero if found anywhere */
+} eac_treesearch_t;
+
+/*}}}*/
 /*{{{  private data*/
 
 static int eac_ignore_unresolved = 0;
@@ -107,6 +117,38 @@ static void eac_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent
 {
 	eac_isetindent (stream, indent);
 	fprintf (stream, "<eacrawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static eac_treesearch_t *eac_newtreesearch (void)*/
+/*
+ *	creates a new eac_treesearch_t structure
+ */
+static eac_treesearch_t *eac_newtreesearch (void)
+{
+	eac_treesearch_t *ts = (eac_treesearch_t *)smalloc (sizeof (eac_treesearch_t));
+
+	ts->find = NULL;
+	ts->isinput = 0;
+	ts->isoutput = 0;
+	ts->found = 0;
+
+	return ts;
+}
+/*}}}*/
+/*{{{  static void eac_freetreesearch (eac_treesearch_t *ts)*/
+/*
+ *	frees an eac_treesearch_t structure
+ */
+static void eac_freetreesearch (eac_treesearch_t *ts)
+{
+	if (!ts) {
+		nocc_internal ("eac_freetreesearch(): NULL pointer!");
+		return;
+	}
+	sfree (ts);
 	return;
 }
 /*}}}*/
@@ -291,6 +333,71 @@ char *eac_format_expr (tnode_t *expr)
 /*}}}*/
 
 
+/*{{{  static int eac_varmatch (tnode_t *var, tnode_t *findin)*/
+/*
+ *	determines if two var references are the same-name
+ *	returns truth value
+ */
+static int eac_varmatch (tnode_t *var, tnode_t *findin)
+{
+	if (var->tag == eac.tag_SVREND) {
+		var = tnode_nthsubof (var, 0);
+	} else if (var->tag == eac.tag_CLIEND) {
+		var = tnode_nthsubof (var, 0);
+	}
+
+	if (findin->tag == eac.tag_SVREND) {
+		findin = tnode_nthsubof (findin, 0);
+	} else if (findin->tag == eac.tag_CLIEND) {
+		findin = tnode_nthsubof (findin, 0);
+	}
+
+	if (var->tag->ndef != eac.node_NAMENODE) {
+		return 0;
+	}
+	if (findin->tag->ndef != eac.node_NAMENODE) {
+		return 0;
+	}
+
+	if (tnode_nthnameof (var, 0) == tnode_nthnameof (findin, 0)) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int eac_findintree (tnode_t *tree, void *arg)*/
+/*
+ *	called for each node looking for something
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int eac_findintree (tnode_t *tree, void *arg)
+{
+	eac_treesearch_t *ts = (eac_treesearch_t *)arg;
+
+	if (tree->tag == eac.tag_INPUT) {
+		tnode_t *lhs = tnode_nthsubof (tree, 0);
+
+		if (eac_varmatch (ts->find, lhs)) {
+			ts->isinput++;
+			ts->found++;
+		}
+	} else if (tree->tag == eac.tag_OUTPUT) {
+		tnode_t *lhs = tnode_nthsubof (tree, 0);
+
+		if (eac_varmatch (ts->find, lhs)) {
+			ts->isoutput++;
+			ts->found++;
+		}
+	} else {
+		if (eac_varmatch (ts->find, tree)) {
+			ts->found++;
+		}
+	}
+	return 1;
+}
+/*}}}*/
+
+
 /*{{{  static char *eac_unusednamein (const char *basename, tnode_t *namelist)*/
 /*
  *	attempts to find an unused name by adding primes to things
@@ -421,14 +528,38 @@ static int eac_nameinstancesintree (tnode_t *tree, name_t *name)
 	return count;
 }
 /*}}}*/
-/*{{{  static int eac_hideinset (tnode_t *eset, tnode_t *varref)*/
+/*{{{  static int eac_hideinset (tnode_t **esetp, tnode_t *varref)*/
 /*
  *	hides a name in a set of sequences, modifying as needed
  *	returns 0 on success, non-zero on failure
  */
-static int eac_hideinset (tnode_t *eset, tnode_t *varref)
+static int eac_hideinset (tnode_t **esetp, tnode_t *varref)
 {
 	/* FIXME: incomplete! */
+#if 1
+fprintf (stderr, "want to hide:\n");
+tnode_dumptree (varref, 1, stderr);
+fprintf (stderr, "in event-set:\n");
+tnode_dumptree (*esetp, 1, stderr);
+#endif
+	if ((*esetp)->tag == eac.tag_ESET) {
+		tnode_t **seqs;
+		int nseqs, i;
+
+		seqs = parser_getlistitems (tnode_nthsubof (*esetp, 0), &nseqs);
+
+		for (i=0; i<nseqs; i++) {
+			eac_treesearch_t *ts = eac_newtreesearch ();
+
+			ts->find = varref;
+			tnode_prewalktree (seqs[i], eac_findintree, (void *)ts);
+#if 1
+fprintf (stderr, "searched in sequence (isinput=%d, isoutput=%d, found=%d):\n", ts->isinput, ts->isoutput, ts->found);
+tnode_dumptree (seqs[i], 1, stderr);
+#endif
+			eac_freetreesearch (ts);
+		}
+	}
 	return 0;
 }
 /*}}}*/
@@ -705,7 +836,7 @@ static int eac_simplifytree_walk (tnode_t **tptr, void *arg)
 			hitems = parser_getlistitems (tnode_nthsubof (node, 1), &hcount);
 			for (i=0; i<hcount; i++) {
 				/* hide this one.. */
-				eac_hideinset (*lhsp, hitems[i]);
+				eac_hideinset (lhsp, hitems[i]);
 #if 0
 fprintf (stderr, "eac_simplifytree_walk(): want to hide:\n");
 tnode_dumptree (hitems[i], 4, stderr);
