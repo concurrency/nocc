@@ -545,6 +545,8 @@ tnode_dumptree (*esetp, 1, stderr);
 	if ((*esetp)->tag == eac.tag_ESET) {
 		tnode_t **seqs;
 		int nseqs, i;
+		tnode_t *newsetlist = parser_newlistnode (OrgFileOf (*esetp));
+		tnode_t *newset = tnode_createfrom (eac.tag_ESET, *esetp, newsetlist, NULL);
 
 		seqs = parser_getlistitems (tnode_nthsubof (*esetp, 0), &nseqs);
 
@@ -557,8 +559,16 @@ tnode_dumptree (*esetp, 1, stderr);
 fprintf (stderr, "searched in sequence (isinput=%d, isoutput=%d, found=%d):\n", ts->isinput, ts->isoutput, ts->found);
 tnode_dumptree (seqs[i], 1, stderr);
 #endif
+			if (!ts->found) {
+				/* this sequence doesn't involve the specified thing, so pass through unchanged */
+				parser_addtolist (newsetlist, seqs[i]);
+				seqs[i] = NULL;
+			}
 			eac_freetreesearch (ts);
 		}
+
+		tnode_free (*esetp);
+		*esetp = newset;
 	}
 	return 0;
 }
