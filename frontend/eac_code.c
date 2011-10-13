@@ -536,7 +536,7 @@ static int eac_nameinstancesintree (tnode_t *tree, name_t *name)
 static int eac_hideinset (tnode_t **esetp, tnode_t *varref)
 {
 	/* FIXME: incomplete! */
-#if 1
+#if 0
 fprintf (stderr, "want to hide:\n");
 tnode_dumptree (varref, 1, stderr);
 fprintf (stderr, "in event-set:\n");
@@ -547,6 +547,8 @@ tnode_dumptree (*esetp, 1, stderr);
 		int nseqs, i;
 		tnode_t *newsetlist = parser_newlistnode (OrgFileOf (*esetp));
 		tnode_t *newset = tnode_createfrom (eac.tag_ESET, *esetp, newsetlist, NULL);
+		tnode_t *outvars = parser_newlistnode (NULL);
+		tnode_t *inseqs = parser_newlistnode (NULL);
 
 		seqs = parser_getlistitems (tnode_nthsubof (*esetp, 0), &nseqs);
 
@@ -555,17 +557,58 @@ tnode_dumptree (*esetp, 1, stderr);
 
 			ts->find = varref;
 			tnode_prewalktree (seqs[i], eac_findintree, (void *)ts);
-#if 1
+#if 0
 fprintf (stderr, "searched in sequence (isinput=%d, isoutput=%d, found=%d):\n", ts->isinput, ts->isoutput, ts->found);
 tnode_dumptree (seqs[i], 1, stderr);
 #endif
 			if (!ts->found) {
-				/* this sequence doesn't involve the specified thing, so pass through unchanged */
+				/*{{{  this sequence doesn't involve the specified thing, so pass through unchanged*/
 				parser_addtolist (newsetlist, seqs[i]);
 				seqs[i] = NULL;
+
+				/*}}}*/
+			} else if (ts->isoutput) {
+				/*{{{  this sequence outputs on the given channel, grab stuff output and attach to 'outvars'*/
+				tnode_t **sitems;
+				int nsitems, j;
+				tnode_t *seqlist = tnode_nthsubof (seqs[i], 0);
+
+				sitems = parser_getlistitems (seqlist, &nsitems);
+				for (j=0; j<nsitems; j++) {
+    					if ((sitems[j]->tag == eac.tag_OUTPUT) && eac_varmatch (varref, tnode_nthsubof (sitems[j], 0))) {
+						/* output on hidden channel, scoop up RHS */
+						tnode_t **rhsp = tnode_nthsubaddr (sitems[j], 1);
+
+						parser_addtolist (outvars, *rhsp);
+						*rhsp = NULL;
+						/* now remove this from the sequence */
+						parser_delfromlist (seqlist, j);
+						j--, nsitems--;
+					}
+				}
+
+				/* if there's anything left in this sequence, put back */
+				if (nsitems) {
+					parser_addtolist (newsetlist, seqs[i]);
+					seqs[i] = NULL;
+				}
+
+				/*}}}*/
+			} else if (ts->isinput) {
+				/*{{{  this sequence inputs on the given channel, save whole thing to 'inseqs'*/
+				parser_addtolist (inseqs, seqs[i]);
+				seqs[i] = NULL;
+
+				/*}}}*/
 			}
 			eac_freetreesearch (ts);
 		}
+#if 1
+fprintf (stderr, "first pass over set done, got outvars =\n");
+tnode_dumptree (outvars, 1, stderr);
+fprintf (stderr, ".. and inseqs =\n");
+tnode_dumptree (inseqs, 1, stderr);
+#endif
 
 		tnode_free (*esetp);
 		*esetp = newset;
