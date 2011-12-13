@@ -1,6 +1,6 @@
 /*
  *	target.c -- general back-end target handling routines for nocc
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2011 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@
 #include "krocetc.h"
 #include "krocllvm.h"
 #include "kroccifccsp.h"
+#include "cccsp.h"
 
 /*}}}*/
 
@@ -199,6 +200,10 @@ int target_init (void)
 	if (krocllvm_init ()) {
 		return 1;
 	}
+	/* initialise the built-in CCSP C target */
+	if (cccsp_init ()) {
+		return 1;
+	}
 	return 0;
 }
 /*}}}*/
@@ -209,6 +214,10 @@ int target_init (void)
  */
 int target_shutdown (void)
 {
+	/* shutdown the built-in CCSP C target */
+	if (cccsp_shutdown ()) {
+		return 1;
+	}
 	/* shutdown the built-in KRoC/LLVM target */
 	if (krocllvm_shutdown ()) {
 		return 1;

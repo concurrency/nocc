@@ -108,6 +108,7 @@ typedef struct {
 
 	struct TAG_token *tok_ATSIGN;
 	struct TAG_token *tok_STRING;
+	struct TAG_token *tok_PUBLIC;
 
 } guppy_pset_t;
 

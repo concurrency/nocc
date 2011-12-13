@@ -72,7 +72,7 @@ typedef struct TAG_codegenfinalhook {
 typedef void *coderref_t;
 
 typedef struct TAG_coderops {
-	/* NOTE: slowly refactoring this into a register-based allocator.  Will keep both working for now */
+	/* NOTE: this is somewhat overloaded, depending on the target */
 	void (*loadpointer)(codegen_t *, struct TAG_tnode *, int);
 	void (*loadnthpointer)(codegen_t *, struct TAG_tnode *, int, int);
 	void (*loadatpointer)(codegen_t *, struct TAG_tnode *, int);
@@ -128,6 +128,9 @@ typedef struct TAG_coderops {
 	void (*funcresults)(codegen_t *, int);
 	void (*tsecondary)(codegen_t *, int);
 	void (*debugline)(codegen_t *, struct TAG_tnode *);
+
+	/* for the C back-end */
+	void (*c_procentry)(codegen_t *, struct TAG_name *, struct TAG_tnode *);
 } coderops_t;
 
 

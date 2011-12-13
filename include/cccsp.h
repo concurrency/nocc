@@ -1,5 +1,5 @@
 /*
- *	kroccifccsp.h -- top-level interface to the KRoC CIF/CCSP back-end routines
+ *	cccsp.h -- top-level interface to the CCSP C backend.
  *	Copyright (C) 2008-2011 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
@@ -17,11 +17,11 @@
  *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#ifndef __KROCCIFCCSP_H
-#define __KROCCIFCCSP_H
+#ifndef __CCCSP_H
+#define __CCCSP_H
 
 
-extern int kroccifccsp_init (void);
-extern int kroccifccsp_shutdown (void);
+extern int cccsp_init (void);
+extern int cccsp_shutdown (void);
 
-#endif	/* !__KROCCIFCCSP_H */
+#endif	/* !__CCCSP_H */

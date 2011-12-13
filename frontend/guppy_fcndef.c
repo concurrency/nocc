@@ -223,6 +223,103 @@ static int guppy_scopeout_fcndef (compops_t *cops, tnode_t **node, scope_t *ss)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int guppy_namemap_fcndef (compops_t *cops, tnode_t **node, map_t *map)*/
+/*
+ *	called to name-map a function/procedure definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_fcndef (compops_t *cops, tnode_t **node, map_t *map)
+{
+	tnode_t *blk;
+	tnode_t **paramsptr;
+	tnode_t *tmpname;
+
+#if 1
+fprintf (stderr, "guppy_namemap_fcndef(): here!\n");
+#endif
+	blk = map->target->newblock (tnode_nthsubof (*node, 2), map, tnode_nthsubof (*node, 1), map->lexlevel + 1);
+	map_pushlexlevel (map, blk, tnode_nthsubaddr (*node, 1));
+
+	map_submapnames (tnode_nthsubaddr (blk, 0), map);					/* do under back-end block */
+
+	map_poplexlevel (map);
+	tnode_setnthsub (*node, 2, blk);			/* insert BLOCK before process body */
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_fcndef (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates code for a function/procedure definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_fcndef (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	tnode_t *body = tnode_nthsubof (node, 2);
+	tnode_t *name = tnode_nthsubof (node, 0);
+	name_t *pname;
+
+#if 1
+fprintf (stderr, "guppy_codegen_fcndef(): here!\n");
+#endif
+	pname = tnode_nthnameof (name, 0);
+	codegen_callops (cgen, comment, "define %s", pname->me->name);
+	codegen_callops (cgen, c_procentry, pname, tnode_nthsubof (node, 1));
+
+	return 0;
+}
+/*}}}*/
+
+
+/*{{{  static int guppy_getdescriptor_fcndef (langops_t *lops, tnode_t *node, char **str)*/
+/*
+ *	generates a descriptor line for a procedure/function definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_getdescriptor_fcndef (langops_t *lops, tnode_t *node, char **str)
+{
+	tnode_t *name = tnode_nthsubof (node, 0);
+	char *realname;
+	tnode_t *params = tnode_nthsubof (node, 1);
+
+	if (*str) {
+		nocc_warning ("guppy_getdescriptor_fcndef(): already had descriptor [%s]", *str);
+		sfree (*str);
+	}
+	realname = NameNameOf (tnode_nthnameof (name, 0));
+	*str = (char *)smalloc (strlen (realname) + 16);
+
+	sprintf (*str, "define %s (", realname);
+	if (parser_islistnode (params)) {
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (params, &nitems);
+
+		for (i=0; i<nitems; i++) {
+			tnode_t *param = items[i];
+
+			langops_getdescriptor (param, str);
+			if (i < (nitems - 1)) {
+				char *newstr = (char *)smalloc (strlen (*str) + 5);
+
+				sprintf (newstr, "%s, ", *str);
+				sfree (*str);
+				*str = newstr;
+			}
+		}
+	} else {
+		langops_getdescriptor (params, str);
+	}
+
+	{
+		char *newstr = (char *)smalloc (strlen (*str) + 5);
+
+		sprintf (newstr, "%s)", *str);
+		sfree (*str);
+		*str = newstr;
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int guppy_fcndef_init_nodes (void)*/
@@ -246,8 +343,11 @@ static int guppy_fcndef_init_nodes (void)
 	tnode_setcompop (cops, "autoseq", 2, COMPOPTYPE (guppy_autoseq_fcndef));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_fcndef));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (guppy_scopeout_fcndef));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_fcndef));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_fcndef));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (guppy_getdescriptor_fcndef));
 	tnd->lops = lops;
 
 	i = -1;

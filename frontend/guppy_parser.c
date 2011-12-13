@@ -904,7 +904,7 @@ static tnode_t *guppy_parser_parsedef (lexfile_t *lf)
 	tnode_t **target = &tree;
 	tnode_t *thisone;
 	int tnflags, ntflags;
-
+	int publictag = 0;
 
 	if (compopts.debugparser) {
 		nocc_message ("guppy_parser_parsedef(): starting parse for single definition..");
@@ -921,7 +921,13 @@ static tnode_t *guppy_parser_parsedef (lexfile_t *lf)
 		lexer_freetoken (tok);
 		goto skipout;
 	}
-	lexer_pushback (lf, tok);
+
+	if (lexer_tokmatch (gup.tok_PUBLIC, tok)) {
+		lexer_freetoken (tok);
+		publictag = 1;
+	} else {
+		lexer_pushback (lf, tok);
+	}
 
 	/* get the definition */
 #if 0
@@ -954,6 +960,14 @@ fprintf (stderr, "guppy_parser_parsedef(): done walking for guppy:decl, got 0x%8
 		/* parse list of indented names into subnode 1 */
 		thisone = guppy_indented_name_list (lf);
 		tnode_setnthsub (*target, 1, thisone);
+	}
+
+	if (publictag) {
+		if (tree && (tree->tag == gup.tag_FCNDEF)) {
+			library_markpublic (tree);
+		}
+	} else if (lf->toplevel && lf->sepcomp && tree && (tree->tag == gup.tag_FCNDEF)) {
+		library_markpublic (tree);
 	}
 
 skipout:
