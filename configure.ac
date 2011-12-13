@@ -59,7 +59,7 @@ AC_ARG_ENABLE(debug,[  --enable-debug          enable compiler debugging (defaul
 
 
 dnl Compilation flags
-EXTRA_CFLAGS="-Wall -ggdb -fno-strict-aliasing"
+EXTRA_CFLAGS="-Wall -ggdb -O0 -fno-strict-aliasing"
 
 
 dnl The default target is a virtual transputer

@@ -65,6 +65,30 @@ STATICDYNARRAY (cmd_option_t *, ordered_options);
 /*}}}*/
 
 /*{{{  built-in option processors*/
+/*{{{  static void opt_missingarg_error (const char *arg, cmd_option_t *opt)*/
+/*
+ *	prints a generic "missing argument for option" error message.
+ */
+static void opt_missingarg_error (const char *arg, cmd_option_t *opt)
+{
+	char *estr;
+
+	if (opt && opt->name) {
+		if (opt->sopt != '\0') {
+			estr = string_fmt (" (--%s,-%c)", opt->name, opt->sopt);
+		} else {
+			estr = string_fmt (" (--%s)", opt->name);
+		}
+	} else {
+		estr = string_dup ("");
+	}
+
+	nocc_error ("missing argument for option %s%s", arg, estr);
+	sfree (estr);
+
+	return;
+}
+/*}}}*/
 /*{{{  static int opt_do_help_flag (cmd_option_t *opt, char ***argwalk, int *argleft)*/
 /*
  *	sets the "dohelp" flag in compopts, allowing other bits of the compiler to add
@@ -162,7 +186,9 @@ static int opt_setstr (cmd_option_t *opt, char ***argwalk, int *argleft)
 		(*argwalk)++;
 		(*argleft)--;
 		if (!**argwalk || !*argleft) {
-			nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+			opt_missingarg_error ((*argwalk)[-1], opt);
+			/* fix argument walk back to what it was before */
+			(*argwalk)--, (*argleft)++;
 			return -1;
 		}
 		ch = **argwalk;
@@ -190,7 +216,9 @@ static int opt_setsaveopt (cmd_option_t *opt, char ***argwalk, int *argleft)
 		(*argwalk)++;
 		(*argleft)--;
 		if (!**argwalk || !*argleft) {
-			nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+			opt_missingarg_error ((*argwalk)[-1], opt);
+			/* fix argument walk back to what it was before */
+			(*argwalk)--, (*argleft)++;
 			return -1;
 		}
 		dfaname = **argwalk;
@@ -198,7 +226,10 @@ static int opt_setsaveopt (cmd_option_t *opt, char ***argwalk, int *argleft)
 		(*argwalk)++;
 		(*argleft)--;
 		if (!**argwalk || !*argleft) {
-			nocc_error ("missing argument for option %s", (*argwalk)[-2]);
+			opt_missingarg_error ((*argwalk)[-2], opt);
+			/* fix argument walk back to what it was before */
+			(*argwalk)--, (*argleft)++;
+			(*argwalk)--, (*argleft)++;
 			return -1;
 		}
 		fname = **argwalk;
@@ -235,7 +266,9 @@ static int opt_addincludepath (cmd_option_t *opt, char ***argwalk, int *argleft)
 		(*argwalk)++;
 		(*argleft)--;
 		if (!**argwalk || !*argleft) {
-			nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+			opt_missingarg_error ((*argwalk)[-1], opt);
+			/* fix argument walk back to what it was before */
+			(*argwalk)--, (*argleft)++;
 			return -1;
 		}
 		ch = **argwalk;
@@ -274,7 +307,9 @@ static int opt_addlibrarypath (cmd_option_t *opt, char ***argwalk, int *argleft)
 		(*argwalk)++;
 		(*argleft)--;
 		if (!**argwalk || !*argleft) {
-			nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+			opt_missingarg_error ((*argwalk)[-1], opt);
+			/* fix argument walk back to what it was before */
+			(*argwalk)--, (*argleft)++;
 			return -1;
 		}
 		ch = **argwalk;
@@ -313,7 +348,9 @@ static int opt_addextnpath (cmd_option_t *opt, char ***argwalk, int *argleft)
 		(*argwalk)++;
 		(*argleft)--;
 		if (!**argwalk || !*argleft) {
-			nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+			opt_missingarg_error ((*argwalk)[-1], opt);
+			/* fix argument walk back to what it was before */
+			(*argwalk)--, (*argleft)++;
 			return -1;
 		}
 		ch = **argwalk;
@@ -352,7 +389,9 @@ static int opt_addextn (cmd_option_t *opt, char ***argwalk, int *argleft)
 		(*argwalk)++;
 		(*argleft)--;
 		if (!**argwalk || !*argleft) {
-			nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+			opt_missingarg_error ((*argwalk)[-1], opt);
+			/* fix argument walk back to what it was before */
+			(*argwalk)--, (*argleft)++;
 			return -1;
 		}
 		ch = **argwalk;
@@ -390,7 +429,9 @@ static int opt_settarget (cmd_option_t *opt, char ***argwalk, int *argleft)
 		(*argwalk)++;
 		(*argleft)--;
 		if (!**argwalk || !*argleft) {
-			nocc_error ("missing argument for option %s", (*argwalk)[-1]);
+			opt_missingarg_error ((*argwalk)[-1], opt);
+			/* fix argument walk back to what it was before */
+			(*argwalk)--, (*argleft)++;
 			return -1;
 		}
 		ch = **argwalk;
