@@ -220,7 +220,22 @@ static int guppy_scopein_rawnamenode (compops_t *cops, tnode_t **node, scope_t *
 }
 /*}}}*/
 
+/*{{{  static int guppy_namemap_namenode (compops_t *cops, tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a lone name-reference.
+ *	returns 0 to stop walk, 1 to continue.
+ */
+static int guppy_namemap_namenode (compops_t *cops, tnode_t **node, map_t *map)
+{
+	tnode_t *bename = tnode_getchook (*node, map->mapchook);
 
+	if (bename) {
+		tnode_t *tname = map->target->newnameref (bename, map);
+		*node = tname;
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static tnode_t *guppy_gettype_namenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
  *	returns the type of a name-node (trivial)
@@ -301,6 +316,29 @@ static int guppy_scopein_vardecl (compops_t *cops, tnode_t **node, scope_t *ss)
 static int guppy_scopeout_vardecl (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_namemap_vardecl (compops_t *cops, tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a variable declaration of some kind -- generates suitable back-end name.
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_vardecl (compops_t *cops, tnode_t **node, map_t *map)
+{
+	tnode_t **namep = tnode_nthsubaddr (*node, 0);
+	tnode_t **typep = tnode_nthsubaddr (*node, 1);
+	tnode_t *bename;
+	int tsize;
+
+	/* NOTE: bytesfor returns the number of workspace words required for a variable of some type */
+	/* this will be target->wordsize in most cases */
+	tsize = tnode_bytesfor (*typep, map->target);
+	bename = map->target->newname (*namep, NULL, map, tsize, 0, 0, 0, tsize, 0);
+
+	tnode_setchook (*namep, map->mapchook, (void *)bename);
+	*node = bename;
+
+	return 0;
 }
 /*}}}*/
 
@@ -520,6 +558,36 @@ tnode_dumptree (*node, 1, stderr);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_namemap_declblock (compops_t *cops, tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a declaration block -- currently not a lot.
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_declblock (compops_t *cops, tnode_t **node, map_t *map)
+{
+	tnode_t *blk;
+	tnode_t **bodyp;
+
+	blk = map->target->newblock (*node, map, NULL, map->lexlevel);
+
+	map_submapnames (tnode_nthsubaddr (*node, 0), map);
+	map_submapnames (tnode_nthsubaddr (*node, 1), map);	/* do under back-end block */
+
+	*node = blk;						/* insert back-end BLOCK before DECLBLOCK */
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_declblock (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a declaration block -- currently not a lot.
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_declblock (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	// codegen_write_fmt
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static int guppy_decls_init_nodes (void)*/
@@ -552,6 +620,7 @@ static int guppy_decls_init_nodes (void)
 	i = -1;
 	tnd = gup.node_NAMENODE = tnode_newnodetype ("guppy:namenode", &i, 0, 1, 0, TNF_NONE);		/* subnames: name */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_namenode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_namenode));
@@ -595,6 +664,7 @@ static int guppy_decls_init_nodes (void)
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_vardecl));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_vardecl));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (guppy_scopeout_vardecl));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_vardecl));
 	tnd->ops = cops;
 
 	i = -1;
@@ -620,6 +690,8 @@ static int guppy_decls_init_nodes (void)
 	tnode_setcompop (cops, "autoseq", 2, COMPOPTYPE (guppy_autoseq_declblock));
 	tnode_setcompop (cops, "flattenseq", 1, COMPOPTYPE (guppy_flattenseq_declblock));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_declblock));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_declblock));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_declblock));
 	tnd->ops = cops;
 
 	i = -1;

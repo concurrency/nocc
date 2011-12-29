@@ -71,6 +71,7 @@
 
 typedef struct TAG_primtypehook {
 	int size;						/* bit-size for some primitive types */
+	int sign;						/* whether or not this is a signed type */
 } primtypehook_t;
 
 /*}}}*/
@@ -85,6 +86,7 @@ static primtypehook_t *guppy_newprimtypehook (void)
 	primtypehook_t *pth = (primtypehook_t *)smalloc (sizeof (primtypehook_t));
 
 	pth->size = 0;
+	pth->sign = 1;
 	return pth;
 }
 /*}}}*/
@@ -212,6 +214,74 @@ tnode_t *guppy_newprimtype (ntdef_t *tag, tnode_t *org, const int size)
 	return ptype;
 }
 /*}}}*/
+/*{{{  static int guppy_bytesfor_primtype (langops_t *lops, tnode_t *t, target_t *target)*/
+/*
+ *	returns the number of bytes required to hold a particular type (primitive or pointer).
+ */
+static int guppy_bytesfor_primtype (langops_t *lops, tnode_t *t, target_t *target)
+{
+	primtypehook_t *pth = (primtypehook_t *)tnode_nthhookof (t, 0);
+
+	if (t->tag == gup.tag_BOOL) {
+		return target ? target->intsize : 4;
+	} else if (t->tag == gup.tag_INT) {
+		if (pth->size) {
+			/* number of bits rounded up into bytes */
+			return (pth->size >> 3) + ((pth->size & 0x07) ? 1 : 0);
+		} else {
+			return target ? target->intsize : 4;
+		}
+	} else if (t->tag == gup.tag_REAL) {
+		if (pth->size) {
+			/* number of bits rounded up into bytes */
+			return (pth->size >> 3) + ((pth->size & 0x07) ? 1 : 0);
+		} else {
+			return target ? target->intsize : 4;
+		}
+	} else if (t->tag == gup.tag_BYTE) {
+		/* byte will always be 1 byte :) */
+		return 1;
+	} else if (t->tag == gup.tag_CHAR) {
+		return target ? target->charsize : 4;			/* allow enough for unicode */
+	} else if (t->tag == gup.tag_STRING) {
+		return target ? target->pointersize : 4;		/* strings always pointers */
+	}
+	return -1;
+}
+/*}}}*/
+/*{{{  static int guppy_getctypeof_primtype (langops_t *lops, tnode_t *t, char **str)*/
+/*
+ *	generates a C string for a particular type.
+ */
+static int guppy_getctypeof_primtype (langops_t *lops, tnode_t *t, char **str)
+{
+	primtypehook_t *pth = (primtypehook_t *)tnode_nthhookof (t, 0);
+	char *lstr = NULL;
+
+	if (t->tag == gup.tag_BOOL) {
+		lstr = string_dup ("int");
+	} else if (t->tag == gup.tag_INT) {
+		lstr = string_dup ("int");
+	} else if (t->tag == gup.tag_REAL) {
+		lstr = string_dup ("float");
+	} else if (t->tag == gup.tag_BYTE) {
+		lstr = string_dup ("unsigned char");
+	} else if (t->tag == gup.tag_CHAR) {
+		lstr = string_dup ("int");
+	} else if (t->tag == gup.tag_STRING) {
+		lstr = string_dup ("char *");
+	} else {
+		lstr = NULL;
+	}
+
+	if (*str) {
+		sfree (*str);
+	}
+	*str = lstr;
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int guppy_types_init_nodes (void)*/
@@ -239,6 +309,8 @@ static int guppy_types_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (guppy_bytesfor_primtype));
+	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (guppy_getctypeof_primtype));
 	tnd->lops = lops;
 
 	i = -1;

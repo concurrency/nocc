@@ -541,6 +541,37 @@ tnode_t *langops_tracespecof (tnode_t *node)
 	return NULL;
 }
 /*}}}*/
+/*{{{  static int langops_getctypeof_walk (tnode_t *node, void *ptr)*/
+/*
+ *	tree-walk routine for getting C type strings (used by C-CCSP back-end)
+ * 	return 0 to stop walk, 1 to continue.
+ */
+static int langops_getctypeof_walk (tnode_t *node, void *ptr)
+{
+	int r = 1;
+
+	if (!node) {
+		return 0;
+	}
+	if (node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GETCTYPEOF)) {
+		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GETCTYPEOF, 2, node, (char **)ptr);
+		if (r < 0) {
+			r = 1;		/* try again down the tree */
+		}
+	}
+
+	return r;
+}
+/*}}}*/
+/*{{{  void langops_getctypeof (tnode_t *node, char **str)*/
+/*
+ *	walks a section of a type-tree to extract the C type name.
+ */
+void langops_getctypeof (tnode_t *node, char **str)
+{
+	tnode_prewalktree (node, langops_getctypeof_walk, (void *)str);
+}
+/*}}}*/
 
 
 /*{{{  int langops_init (void)*/

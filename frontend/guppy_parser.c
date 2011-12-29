@@ -532,6 +532,7 @@ static int guppy_parser_init (lexfile_t *lf)
 		/* register some particular tokens (for later comparison) */
 		gup.tok_ATSIGN = lexer_newtoken (SYMBOL, "@");
 		gup.tok_STRING = lexer_newtoken (STRING, NULL);
+		gup.tok_PUBLIC = lexer_newtoken (KEYWORD, "public");
 
 		/* register some general reduction functions */
 		fcnlib_addfcn ("guppy_nametoken_to_hook", (void *)guppy_nametoken_to_hook, 1, 1);

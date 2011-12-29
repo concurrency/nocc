@@ -62,6 +62,35 @@
 /*}}}*/
 
 
+/*{{{  static int guppy_namemap_assign (compops_t *cops, tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for an assignment
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_assign (compops_t *cops, tnode_t **node, map_t *map)
+{
+	map_submapnames (tnode_nthsubaddr (*node, 0), map);
+	map_submapnames (tnode_nthsubaddr (*node, 1), map);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_assign (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for an assignment
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_assign (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+	codegen_write_fmt (cgen, " = ");
+	codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+	codegen_write_fmt (cgen, ";\n");
+
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int guppy_assign_init_nodes (void)*/
 /*
  *	called to initialise parse-tree nodes for assignment
@@ -78,6 +107,8 @@ static int guppy_assign_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:assign", &i, 3, 0, 0, TNF_NONE);		/* subnodes: 0 = LHS, 1 = RHS, 2 = type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_assign));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_assign));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

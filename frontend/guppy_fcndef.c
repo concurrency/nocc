@@ -230,21 +230,26 @@ static int guppy_scopeout_fcndef (compops_t *cops, tnode_t **node, scope_t *ss)
  */
 static int guppy_namemap_fcndef (compops_t *cops, tnode_t **node, map_t *map)
 {
-	tnode_t *blk;
-	tnode_t **paramsptr;
-	tnode_t *tmpname;
+	tnode_t *body = tnode_nthsubof (*node, 2);
 
 #if 1
 fprintf (stderr, "guppy_namemap_fcndef(): here!\n");
 #endif
-	blk = map->target->newblock (tnode_nthsubof (*node, 2), map, tnode_nthsubof (*node, 1), map->lexlevel + 1);
-	map_pushlexlevel (map, blk, tnode_nthsubaddr (*node, 1));
+	if (body->tag == gup.tag_DECLBLOCK) {
+		/* generates a block of its own ultimately */
+		map_submapnames (tnode_nthsubaddr (*node, 2), map);
+	} else {
+		tnode_t *blk;
+		tnode_t **paramsptr = tnode_nthsubaddr (*node, 1);
 
-	map_submapnames (tnode_nthsubaddr (blk, 0), map);					/* do under back-end block */
+		blk = map->target->newblock (body, map, *paramsptr, map->lexlevel + 1);
+		map_pushlexlevel (map, blk, paramsptr);
 
-	map_poplexlevel (map);
-	tnode_setnthsub (*node, 2, blk);			/* insert BLOCK before process body */
+		map_submapnames (tnode_nthsubaddr (blk, 0), map);					/* do under back-end block */
 
+		map_poplexlevel (map);
+		tnode_setnthsub (*node, 2, blk);			/* insert BLOCK before process body */
+	}
 	return 0;
 }
 /*}}}*/
@@ -265,6 +270,9 @@ fprintf (stderr, "guppy_codegen_fcndef(): here!\n");
 	pname = tnode_nthnameof (name, 0);
 	codegen_callops (cgen, comment, "define %s", pname->me->name);
 	codegen_callops (cgen, c_procentry, pname, tnode_nthsubof (node, 1));
+
+	/* then code the body */
+	codegen_subcodegen (body, cgen);
 
 	return 0;
 }

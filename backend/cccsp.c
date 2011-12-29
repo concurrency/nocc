@@ -98,11 +98,11 @@ target_t cccsp_target = {
 		.as_par = 12,
 	},
 
-	.chansize =		0,
-	.charsize =		0,
-	.intsize =		0,
-	.pointersize =		0,
-	.slotsize =		0,
+	.chansize =		4,
+	.charsize =		4,
+	.intsize =		4,
+	.pointersize =		4,
+	.slotsize =		4,
 	.structalign =		0,
 	.maxfuncreturn =	0,
 	.skipallocate =		1,
@@ -161,18 +161,15 @@ typedef struct TAG_cccsp_priv {
 
 typedef struct TAG_cccsp_namehook {
 	char *cname;		/* low-level variable name */
+	char *ctype;		/* low-level type */
 	int lexlevel;		/* lexical level */
-	int alloc_wsh;		/* allocation in high-workspace */
-	int alloc_wsl;		/* allocation in low-workspace */
-	int alloc_vs;		/* allocation in vectorspace */
-	int alloc_ms;		/* allocation in mobilespace */
 	int typesize;		/* size of the actual type (if known) */
 	int indir;		/* indirection count (0 = real-thing, 1 = pointer, 2 = pointer-pointer, etc.) */
 	typecat_e typecat;	/* type category */
 } cccsp_namehook_t;
 
-typedef struct TAG_kroccifccs_namerefhook {
-	tnode_t *nnode;				/* underlying back-end name-nodE */
+typedef struct TAG_kroccifccsp_namerefhook {
+	tnode_t *nnode;				/* underlying back-end name-node */
 	cccsp_namehook_t *nhook;		/* underlying name-hook */
 } cccsp_namerefhook_t;
 
@@ -223,6 +220,31 @@ static int cccsp_init_options (cccsp_priv_t *kpriv)
 	return 0;
 }
 /*}}}*/
+/*{{{  static char *cccsp_make_entryname (const char *name)*/
+/*
+ *	turns a front-end name into a C-CCSP name for a function-entry point.
+ *	returns newly allocated name.
+ */
+static char *cccsp_make_entryname (const char *name)
+{
+	char *rname = (char *)smalloc (strlen (name) + 8);
+	char *ch;
+
+	sprintf (rname, "ufe_%s", name);
+	for (ch = rname + 4; *ch; ch++) {
+		switch (*ch) {
+		case '.':
+			*ch = '_';
+			break;
+		default:
+			break;
+		}
+	}
+
+	return rname;
+}
+/*}}}*/
+
 
 /*{{{  cccsp_namehook_t routines*/
 /*{{{  static void cccsp_namehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
@@ -234,26 +256,22 @@ static void cccsp_namehook_dumptree (tnode_t *node, void *hook, int indent, FILE
 	cccsp_namehook_t *nh = (cccsp_namehook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fprintf (stream, "<namehook addr=\"0x%8.8x\" cname=\"%s\" lexlevel=\"%d\" allocwsh=\"%d\" allocwsl=\"%d\" allocvs=\"%d\" allocms=\"%d\" typesize=\"%d\" indir=\"%d\" typecat=\"0x%8.8x\" />\n",
-			(unsigned int)nh, nh->cname, nh->lexlevel, nh->alloc_wsh, nh->alloc_wsl, nh->alloc_vs, nh->alloc_ms,
-			nh->typesize, nh->indir, (unsigned int)nh->typecat);
+	fprintf (stream, "<namehook addr=\"0x%8.8x\" cname=\"%s\" ctype=\"%s\" lexlevel=\"%d\" typesize=\"%d\" indir=\"%d\" typecat=\"0x%8.8x\" />\n",
+			(unsigned int)nh, nh->cname, nh->ctype, nh->lexlevel, nh->typesize, nh->indir, (unsigned int)nh->typecat);
 	return;
 }
 /*}}}*/
-/*{{{  static cccsp_namehook_t *cccsp_namehook_create (char *cname, int ll, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)*/
+/*{{{  static cccsp_namehook_t *cccsp_namehook_create (char *cname, char *ctype, int ll, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)*/
 /*
  *	creates a name-hook
  */
-static cccsp_namehook_t *cccsp_namehook_create (char *cname, int ll, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)
+static cccsp_namehook_t *cccsp_namehook_create (char *cname, char *ctype, int ll, int tsize, int ind)
 {
 	cccsp_namehook_t *nh = (cccsp_namehook_t *)smalloc (sizeof (cccsp_namehook_t));
 
 	nh->cname = cname;
+	nh->ctype = ctype;
 	nh->lexlevel = ll;
-	nh->alloc_wsh = asize_wsh;
-	nh->alloc_wsl = asize_wsl;
-	nh->alloc_vs = asize_vs;
-	nh->alloc_ms = asize_ms;
 	nh->typesize = tsize;
 	nh->indir = ind;
 	nh->typecat = TYPE_NOTTYPE;
@@ -375,15 +393,22 @@ static cccsp_blockrefhook_t *cccsp_blockrefhook_create (tnode_t *block)
 static tnode_t *cccsp_name_create (tnode_t *fename, tnode_t *body, map_t *mdata, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)
 {
 	target_t *xt = mdata->target;		/* must be us! */
-	tnode_t *name;
+	tnode_t *name, *type;
 	cccsp_namehook_t *nh;
 	char *cname = NULL;
+	char *ctype = NULL;
 
 	langops_getname (fename, &cname);
 	if (!cname) {
 		cname = string_dup ("unknown");
 	}
-	nh = cccsp_namehook_create (cname, mdata->lexlevel, asize_wsh, asize_wsl, asize_vs, asize_ms, tsize, ind);
+	type = typecheck_gettype (fename, NULL);
+	if (type) {
+		langops_getctypeof (type, &ctype);
+	} else {
+		ctype = string_dup ("void");
+	}
+	nh = cccsp_namehook_create (cname, ctype, mdata->lexlevel, tsize, ind);
 	name = tnode_create (xt->tag_NAME, NULL, fename, body, (void *)nh);
 
 	return name;
@@ -652,7 +677,10 @@ static void cccsp_coder_debugline (codegen_t *cgen, tnode_t *node)
  */
 static void cccsp_coder_c_procentry (codegen_t *cgen, name_t *name, tnode_t *params)
 {
-	codegen_write_fmt (cgen, "void %s (", name->me->name);
+	char *entryname = cccsp_make_entryname (name->me->name);
+
+	codegen_write_fmt (cgen, "void %s (", entryname);
+	sfree (entryname);
 	if (!parser_islistnode (params) || !parser_countlist (params)) {
 		codegen_write_fmt (cgen, "void");
 	} else {
@@ -729,6 +757,38 @@ static int cccsp_be_codegen_final (codegen_t *cgen, lexfile_t *srcfile)
 	cgen->cops = NULL;
 
 	codegen_write_fmt (cgen, "/*\n *\tend of code generation\n */\n\n");
+
+	return 0;
+}
+/*}}}*/
+
+
+/*{{{  static int cccsp_lcodegen_name (compops_t *cops, tnode_t *name, codegen_t *cgen)*/
+/*
+ *	does code-generation for a back-end name: produces the C declaration.
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_lcodegen_name (compops_t *cops, tnode_t *name, codegen_t *cgen)
+{
+	cccsp_namehook_t *nh = (cccsp_namehook_t *)tnode_nthhookof (name, 0);
+
+	codegen_write_fmt (cgen, "%s %s;\n", nh->ctype, nh->cname);
+	return 0;
+}
+/*}}}*/
+
+
+/*{{{  static int cccsp_lcodegen_nameref (compops_t *cops, tnode_t *nameref, codegen_t *cgen)*/
+/*
+ *	does code-generation for a name-reference: produces the C name.
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_lcodegen_nameref (compops_t *cops, tnode_t *nameref, codegen_t *cgen)
+{
+	cccsp_namerefhook_t *nrf = (cccsp_namerefhook_t *)tnode_nthhookof (nameref, 0);
+	cccsp_namehook_t *nh = nrf->nhook;
+
+	codegen_write_fmt (cgen, "%s", nh->cname);
 
 	return 0;
 }
@@ -821,6 +881,7 @@ static int cccsp_target_init (target_t *target)
 	tnd = tnode_newnodetype ("cccsp:name", &i, 2, 0, 1, TNF_NONE);		/* subnodes: original name, in-scope body; hooks: cccsp_namehook_t */
 	tnd->hook_dumptree = cccsp_namehook_dumptree;
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (cccsp_lcodegen_name));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;
@@ -834,6 +895,7 @@ static int cccsp_target_init (target_t *target)
 	tnd = tnode_newnodetype ("cccsp:nameref", &i, 1, 0, 1, TNF_NONE);		/* subnodes: original name; hooks: cccsp_namerefhook_t */
 	tnd->hook_dumptree = cccsp_namerefhook_dumptree;
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (cccsp_lcodegen_nameref));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;
