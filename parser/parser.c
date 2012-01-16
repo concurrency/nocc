@@ -377,6 +377,22 @@ token_t *parser_peektok (parsepriv_t *pp)
 	return DA_NTHITEM (pp->tokstack, DA_CUR (pp->tokstack) - 1);
 }
 /*}}}*/
+/*{{{  token_t *parser_peekemptytok (parsepriv_t *pp)*/
+/*
+ *	peeks at a token without removing it, else returns NULL without error
+ */
+token_t *parser_peekemptytok (parsepriv_t *pp)
+{
+	if (!pp) {
+		nocc_internal ("parser_peekemptytok(): NULL state");
+		return NULL;
+	}
+	if (!DA_CUR (pp->tokstack)) {
+		return NULL;
+	}
+	return DA_NTHITEM (pp->tokstack, DA_CUR (pp->tokstack) - 1);
+}
+/*}}}*/
 /*{{{  token_t *parser_gettok (parsepriv_t *pp)*/
 /*
  *	removes a token from the token-stack

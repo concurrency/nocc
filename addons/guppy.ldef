@@ -54,6 +54,8 @@
 	"[ 0 -* 2 ] [ 2 {<gup:testfalse>} -* ]"
 
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@= 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:oneassign> ]"
+.TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@? 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:input> ]"
+.TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@! 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:output> ]"
 
 # }}}
 
@@ -79,7 +81,7 @@
 
 .TABLE	"guppy:otherdecl +:= [ 0 guppy:type 1 ] [ 1 guppy:nameandassignlist 2 ] [ 2 {<gup:vardeclreduce>} -* ]"
 
-.TABLE	"guppy:testfordecl +:= [ 0 +@int 1 ] [ 0 +@real 1 ] [ 0 +@bool 1 ] [ 0 +@byte 1 ] [ 0 +@char 1 ] [ 0 +@string 1 ]"
+.TABLE	"guppy:testfordecl +:= [ 0 +@int 1 ] [ 0 +@real 1 ] [ 0 +@bool 1 ] [ 0 +@byte 1 ] [ 0 +@char 1 ] [ 0 +@string 1 ] [ 0 +@chan 1 ]"
 	"[ 1 {<gup:testtrue>} -* ]"
 
 .TABLE	"guppy:definedecl +:= [ 0 @enum 1 ] [ 1 guppy:name 2 ] [ 2 {<gup:enumreduce>} -* ]"
@@ -106,10 +108,14 @@
 .SECTION "guppy-types" # {{{: types
 
 .RFUNC	"Rguppy:primtype" "guppy_reduce_primtype"
+.RFUNC	"Rguppy:chantype" "guppy_reduce_chantype"
 
 .BNF	"guppy:primtype ::= ( +@int | +@uint | +@real | +@bool | +@byte | +@char | +@string ) {Rguppy:primtype}"
 
-.BNF	"guppy:type ::= ( guppy:primtype {<gup:nullreduce>} )"
+.TABLE	"guppy:chantype ::= [ 0 +@chan 1 ] [ 1 +@@? 2 ] [ 1 +@@! 2 ] [ 1 -* 2 ]"
+	"[ 2 @@( 3 ] [ 3 guppy:type 4 ] [ 4 @@) 5 ] [ 5 {Rguppy:chantype} -* ]"
+
+.BNF	"guppy:type ::= ( guppy:primtype {<gup:nullreduce>} | guppy:chantype {<gup:nullreduce>} )"
 
 # }}}
 .SECTION "guppy-fcndef" # {{{: function/procedure definitions
@@ -152,6 +158,13 @@
 
 # }}}
 .SECTION "guppy-io" # {{{: input/output
+
+.GRULE "gup:inputreduce" "SN0N+N+V0C[INPUT]3R-"
+.GRULE "gup:outputreduce" "SN0N+N+V0C[OUTPUT]3R-"
+
+.TABLE "guppy:input ::= [ 0 guppy:name 1 ] [ 1 @@? 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:inputreduce>} -* ]"
+
+.TABLE "guppy:output ::= [ 0 guppy:name 1 ] [ 1 @@! 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:outputreduce>} -* ]"
 
 
 # }}}

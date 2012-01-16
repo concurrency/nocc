@@ -74,6 +74,10 @@ typedef struct TAG_primtypehook {
 	int sign;						/* whether or not this is a signed type */
 } primtypehook_t;
 
+typedef struct TAG_chantypehook {
+	int marked_svr, marked_cli;				/* whether marked as client or server (or neither) */
+} chantypehook_t;
+
 /*}}}*/
 
 
@@ -101,6 +105,32 @@ static void guppy_freeprimtypehook (primtypehook_t *pth)
 		return;
 	}
 	sfree (pth);
+}
+/*}}}*/
+/*{{{  static chantypehook_t *guppy_newchantypehook (void)*/
+/*
+ *	creates a new chantypehook_t
+ */
+static chantypehook_t *guppy_newchantypehook (void)
+{
+	chantypehook_t *cth = (chantypehook_t *)smalloc (sizeof (chantypehook_t));
+
+	cth->marked_svr = 0;
+	cth->marked_cli = 1;
+	return cth;
+}
+/*}}}*/
+/*{{{  static void guppy_freechantypehook (chantypehook_t *cth)*/
+/*
+ *	frees a chantypehook_t structure
+ */
+static void guppy_freechantypehook (chantypehook_t *cth)
+{
+	if (!cth) {
+		nocc_serious ("guppy_freechantypehook(): NULL argument!");
+		return;
+	}
+	sfree (cth);
 }
 /*}}}*/
 
@@ -144,6 +174,39 @@ out_error:
 	return;
 }
 /*}}}*/
+/*{{{  static void guppy_reduce_chantype (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	reduces a channel type.  Note: expects to be called with the local stack containing the sub-protocol and a token or NULL
+ */
+static void guppy_reduce_chantype (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	tnode_t *proto = dfa_popnode (dfast);
+	token_t *tok = parser_gettok (pp);
+	token_t *cttok = NULL;
+	chantypehook_t *cth = guppy_newchantypehook ();
+
+	if (lexer_tokmatchlitstr (tok, "?")) {
+		cth->marked_svr = 1;
+		cttok = tok;
+		tok = parser_gettok (pp);
+	} else if (lexer_tokmatchlitstr (tok, "!")) {
+		cth->marked_cli = 1;
+		cttok = tok;
+		tok = parser_gettok (pp);
+	} else {
+		cttok = NULL;
+	}
+
+	*(dfast->ptr) = tnode_create (gup.tag_CHAN, tok->origin, proto, cth);
+
+	if (cttok) {
+		lexer_freetoken (cttok);
+		cttok = NULL;
+	}
+	lexer_freetoken (tok);
+	return;
+}
+/*}}}*/
 
 
 /*{{{  static void guppy_primtype_hook_free (void *hook)*/
@@ -172,7 +235,7 @@ static void *guppy_primtype_hook_copy (void *hook)
 	}
 	opth = (primtypehook_t *)hook;
 	pth = guppy_newprimtypehook ();
-	pth->size = opth->size;
+	memcpy (pth, opth, sizeof (primtypehook_t));
 
 	return (void *)pth;
 }
@@ -189,7 +252,55 @@ static void guppy_primtype_hook_dumptree (tnode_t *node, void *hook, int indent,
 		return;
 	}
 	guppy_isetindent (stream, indent);
-	fprintf (stream, "<primtypehook size=\"%d\" />\n", pth->size);
+	fprintf (stream, "<primtypehook size=\"%d\" sign=\"%d\" />\n", pth->size, pth->sign);
+	return;
+}
+/*}}}*/
+
+/*{{{  static void guppy_chantype_hook_free (void *hook)*/
+/*
+ *	frees a channel type hook
+ */
+static void guppy_chantype_hook_free (void *hook)
+{
+	if (!hook) {
+		return;
+	}
+	guppy_freechantypehook ((chantypehook_t *)hook);
+	return;
+}
+/*}}}*/
+/*{{{  static void *guppy_chantype_hook_copy (void *hook)*/
+/*
+ *	copies a channel type hook
+ */
+static void *guppy_chantype_hook_copy (void *hook)
+{
+	chantypehook_t *cth, *octh;
+
+	if (!hook) {
+		return hook;
+	}
+	octh = (chantypehook_t *)hook;
+	cth = guppy_newchantypehook ();
+	memcpy (cth, octh, sizeof (chantypehook_t));
+
+	return (void *)cth;
+}
+/*}}}*/
+/*{{{  static void guppy_chantype_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dump-tree for channel type hook
+ */
+static void guppy_chantype_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	chantypehook_t *cth = (chantypehook_t *)hook;
+
+	if (!cth) {
+		return;
+	}
+	guppy_isetindent (stream, indent);
+	fprintf (stream, "<chantypehook marked_svr=\"%d\" marked_cli=\"%d\" />\n", cth->marked_svr, cth->marked_cli);
 	return;
 }
 /*}}}*/
@@ -261,9 +372,55 @@ static int guppy_getctypeof_primtype (langops_t *lops, tnode_t *t, char **str)
 	if (t->tag == gup.tag_BOOL) {
 		lstr = string_dup ("int");
 	} else if (t->tag == gup.tag_INT) {
-		lstr = string_dup ("int");
+		int bytes = (pth->size >> 3) + ((pth->size & 0x07) ? 1 : 0);
+
+		switch (pth->size) {
+		case 8:
+			if (pth->sign) {
+				lstr = string_dup ("int8_t");
+			} else {
+				lstr = string_dup ("uint8_t");
+			}
+			break;
+		case 16:
+			if (pth->sign) {
+				lstr = string_dup ("int16_t");
+			} else {
+				lstr = string_dup ("uint16_t");
+			}
+			break;
+		case 32:
+			if (pth->sign) {
+				lstr = string_dup ("int32_t");
+			} else {
+				lstr = string_dup ("uint32_t");
+			}
+			break;
+		case 64:
+			if (pth->sign) {
+				lstr = string_dup ("int64_t");
+			} else {
+				lstr = string_dup ("uint64_t");
+			}
+			break;
+		default:
+			/* FIXME: breaks for non-standard stuff.. */
+			lstr = string_dup ("void");
+			break;
+		}
 	} else if (t->tag == gup.tag_REAL) {
-		lstr = string_dup ("float");
+		switch (pth->size) {
+		case 32:
+			lstr = string_dup ("float");
+			break;
+		case 64:
+			lstr = string_dup ("double");
+			break;
+		default:
+			/* FIXME: breaks for non-standard stuff.. */
+			lstr = string_dup ("void");
+			break;
+		}
 	} else if (t->tag == gup.tag_BYTE) {
 		lstr = string_dup ("unsigned char");
 	} else if (t->tag == gup.tag_CHAR) {
@@ -274,6 +431,24 @@ static int guppy_getctypeof_primtype (langops_t *lops, tnode_t *t, char **str)
 		lstr = NULL;
 	}
 
+	if (*str) {
+		sfree (*str);
+	}
+	*str = lstr;
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_getctypeof_chantype (langops_t *lops, tnode_t *t, char **str)*/
+/*
+ *	generates a C string for a particular channel-type.
+ */
+static int guppy_getctypeof_chantype (langops_t *lops, tnode_t *t, char **str)
+{
+	chantypehook_t *cth = (chantypehook_t *)tnode_nthhookof (t, 0);
+	char *lstr = NULL;
+
+	lstr = string_dup ("Channel *");
 	if (*str) {
 		sfree (*str);
 	}
@@ -298,6 +473,7 @@ static int guppy_types_init_nodes (void)
 
 	/*{{{  register reduction functions*/
 	fcnlib_addfcn ("guppy_reduce_primtype", guppy_reduce_primtype, 0, 3);
+	fcnlib_addfcn ("guppy_reduce_chantype", guppy_reduce_chantype, 0, 3);
 
 	/*}}}*/
 	/*{{{  guppy:primtype -- INT, REAL, BOOL, BYTE, CHAR, STRING*/
@@ -325,6 +501,22 @@ static int guppy_types_init_nodes (void)
 	gup.tag_CHAR = tnode_newnodetag ("CHAR", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_STRING = tnode_newnodetag ("STRING", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:chantype -- CHAN*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:chantype", &i, 1, 0, 1, TNF_NONE);		/* subnotes: 0 = type; hooks: 0 = chantypehook_t */
+	tnd->hook_free = guppy_chantype_hook_free;
+	tnd->hook_copy = guppy_chantype_hook_copy;
+	tnd->hook_dumptree = guppy_chantype_hook_dumptree;
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (guppy_getctypeof_chantype));
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_CHAN = tnode_newnodetag ("CHAN", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

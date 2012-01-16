@@ -32,6 +32,7 @@ extern int parser_shutdown (void);
 extern struct TAG_parsepriv *parser_newparsepriv (void);
 extern void parser_freeparsepriv (struct TAG_parsepriv *pp);
 extern struct TAG_token *parser_peektok (struct TAG_parsepriv *pp);
+extern struct TAG_token *parser_peekemptytok (struct TAG_parsepriv *pp);
 extern struct TAG_token *parser_gettok (struct TAG_parsepriv *pp);
 extern void parser_pushtok (struct TAG_parsepriv *pp, struct TAG_token *tok);
 

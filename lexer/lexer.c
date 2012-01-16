@@ -896,7 +896,7 @@ int lexer_tokmatch (token_t *formal, token_t *actual)
 /*}}}*/
 /*{{{  int lexer_tokmatchlitstr (token_t *actual, const char *str)*/
 /*
- *	returns non-zero if "actual" is some string/name and matches "str"
+ *	returns non-zero if "actual" is some string/name/symbol and matches "str"
  */
 int lexer_tokmatchlitstr (token_t *actual, const char *str)
 {
@@ -908,13 +908,17 @@ int lexer_tokmatchlitstr (token_t *actual, const char *str)
 	case NOTOKEN:
 	case INTEGER:
 	case REAL:
-	case SYMBOL:
 	case COMMENT:
 	case NEWLINE:
 	case INDENT:
 	case OUTDENT:
 	case END:
 		return 0;
+	case SYMBOL:
+		if (actual->u.sym->mlen != strlen (str)) {
+			return 0;
+		}
+		return !memcmp (str, actual->u.sym->match, actual->u.sym->mlen);
 	case KEYWORD:
 		return !strcmp (str, actual->u.kw->name);
 	case NAME:

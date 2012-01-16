@@ -69,6 +69,41 @@
 /*}}}*/
 
 
+/*{{{  static int guppy_namemap_dopnode (compops_t *cops, tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a dyadic operator node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_dopnode (compops_t *cops, tnode_t **node, map_t *map)
+{
+	map_submapnames (tnode_nthsubaddr (*node, 0), map);
+	map_submapnames (tnode_nthsubaddr (*node, 1), map);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_dopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a dyadic operator node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_dopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	codegen_write_fmt (cgen, "(");
+	codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+	if (node->tag == gup.tag_ADD) {
+		codegen_write_fmt (cgen, "+");
+	} else if (node->tag == gup.tag_SUB) {
+		codegen_write_fmt (cgen, "-");
+	} else {
+		nocc_internal ("guppy_codegen_dopnode(): unhandled operator!");
+	}
+	codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+	codegen_write_fmt (cgen, ")");
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int guppy_oper_init_nodes (void)*/
 /*
  *	called to initialise nodes/etc. for guppy operators
@@ -85,6 +120,8 @@ static int guppy_oper_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:dopnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: left, right, type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_dopnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_dopnode));
 	tnd->ops = cops;
 
 	i = -1;

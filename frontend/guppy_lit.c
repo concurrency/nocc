@@ -282,6 +282,51 @@ static void guppy_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, 
 /*}}}*/
 
 
+/*{{{  static int guppy_codegen_litnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a literal node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_litnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	guppy_litdata_t *ldat = (guppy_litdata_t *)tnode_nthhookof (node, 0);
+
+	switch (ldat->littype) {
+	case INTEGER:
+		switch (ldat->bytes) {
+		case 4:
+			codegen_write_fmt (cgen, "%d", *(int *)(ldat->data));
+			break;
+		case 2:
+			codegen_write_fmt (cgen, "%d", *(short int *)(ldat->data));
+			break;
+		default:
+			nocc_internal ("guppy_codegen_litnode(): unhandled INTEGER size %d!", ldat->bytes);
+			break;
+		}
+		break;
+	case REAL:
+		switch (ldat->bytes) {
+		case 4:
+			codegen_write_fmt (cgen, "%f", *(float *)(ldat->data));
+			break;
+		case 8:
+			codegen_write_fmt (cgen, "%lf", *(double *)(ldat->data));
+			break;
+		default:
+			nocc_internal ("guppy_codegen_litnode(): unhandled REAL size %d!", ldat->bytes);
+			break;
+		}
+		break;
+	case STRING:
+		codegen_write_fmt (cgen, "\"%*s\"", ldat->bytes, ldat->data);
+		break;
+	}
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int guppy_lit_init_nodes (void)*/
 /*
  *	sets up literal nodes for Guppy
@@ -303,6 +348,7 @@ static int guppy_lit_init_nodes (void)
 	tnd->hook_copy = guppy_litnode_hook_copy;
 	tnd->hook_dumptree = guppy_litnode_hook_dumptree;
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_litnode));
 	tnd->ops = cops;
 
 	i = -1;

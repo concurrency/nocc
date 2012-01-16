@@ -80,10 +80,16 @@ static int guppy_prescope_cnode (compops_t *cops, tnode_t **node, guppy_prescope
  */
 static int guppy_declify_cnode (compops_t *cops, tnode_t **nodeptr, guppy_declify_t *gdl)
 {
-	tnode_t **bptr = tnode_nthsubaddr (*nodeptr, 1);
+	tnode_t *node = *nodeptr;
+	tnode_t **bptr = tnode_nthsubaddr (node, 1);
 
 	if (parser_islistnode (*bptr)) {
-		guppy_declify_listtodecllist (bptr, gdl);
+		if (node->tag == gup.tag_PAR) {
+			/* need to be slightly careful: so declarations and processes don't get auto-seq'd */
+			guppy_declify_listtodecllist_single (bptr, gdl);
+		} else {
+			guppy_declify_listtodecllist (bptr, gdl);
+		}
 	}
 	return 0;
 }

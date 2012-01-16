@@ -2,9 +2,9 @@
 # more guppy tests
 
 define main ()
-  int a, b
+  int32 a, b
   a = 19
   b = a + 12
-  int x = 19, z
+  int16 x = 19, z
   z = x + b
 

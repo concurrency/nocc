@@ -336,6 +336,54 @@ fprintf (stderr, "guppy_declify_listtodecllist(): i=%d, j=%d, nitems=%d\n", i, j
 	return 0;
 }
 /*}}}*/
+/*{{{  int guppy_declify_listtodecllist_single (tnode_t **listptr, guppy_declify_t *gdl)*/
+/*
+ *	used during declify to turn lists of declarations and instructions into flat DECLBLOCK nodes (e.g. in a PAR)
+ *	returns 0 on success, non-zero on failure
+ */
+int guppy_declify_listtodecllist_single (tnode_t **listptr, guppy_declify_t *gdl)
+{
+	tnode_t *list = *listptr;
+	int nitems = 0;
+	tnode_t **items = parser_getlistitems (list, &nitems);
+	int i, j;
+	tnode_t *newlist = parser_newlistnode (OrgFileOf (list));
+
+#if 1
+fprintf (stderr, "guppy_declify_listtodecllist_single(): nitems=%d\n", nitems);
+#endif
+	/* call declify on the subnodes as we go through */
+	for (i=0; i<nitems; i=j+1) {
+		for (j=i; (j<nitems) && (items[j]->tag == gup.tag_VARDECL); j++);
+
+		/* note: i is index of first decl item; j is index of following process (if any) */
+		if (j == i) {
+			/* singleton, pop it on the target list alone */
+			parser_addtolist (newlist, items[i]);
+			items[i] = NULL;
+		} else {
+			/* at least one declaration, make into declblock */
+			tnode_t *decllist = parser_newlistnode (OrgFileOf (list));
+			tnode_t *instlist = parser_newlistnode (OrgFileOf (list));
+			tnode_t *vdblock = tnode_createfrom (gup.tag_DECLBLOCK, list, decllist, instlist);
+
+			for (; i<j; i++) {
+				parser_addtolist (decllist, items[i]);
+				items[i] = NULL;
+			}
+			parser_addtolist (instlist, items[j]);
+			parser_addtolist (newlist, vdblock);
+			items[j] = NULL;
+		}
+	}
+	tnode_free (list);
+	*listptr = newlist;
+
+	guppy_declify_subtree (listptr, gdl);
+
+	return 0;
+}
+/*}}}*/
 /*{{{  int guppy_autoseq_listtoseqlist (tnode_t **listptr, guppy_autoseq_t *gas)*/
 /*
  *	used during auto-sequencing to turn lists of instructions into 'seq' nodes
