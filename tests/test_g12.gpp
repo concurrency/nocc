@@ -1,0 +1,16 @@
+
+# guppy tests, channels..
+
+define main ()
+  chan(int) c
+  par
+    int x
+    c ? x
+
+    seq
+      int y
+
+      c ! 42
+      y = 19
+      c ! y
+
