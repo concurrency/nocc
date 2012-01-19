@@ -325,6 +325,8 @@ tnode_t *guppy_newprimtype (ntdef_t *tag, tnode_t *org, const int size)
 	return ptype;
 }
 /*}}}*/
+
+
 /*{{{  static int guppy_bytesfor_primtype (langops_t *lops, tnode_t *t, target_t *target)*/
 /*
  *	returns the number of bytes required to hold a particular type (primitive or pointer).
@@ -439,6 +441,17 @@ static int guppy_getctypeof_primtype (langops_t *lops, tnode_t *t, char **str)
 	return 0;
 }
 /*}}}*/
+/*{{{  static tnode_t *guppy_gettype_primtype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	returns the type of a primitive type (id function).
+ */
+static tnode_t *guppy_gettype_primtype (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	return node;
+}
+/*}}}*/
+
+
 /*{{{  static int guppy_getctypeof_chantype (langops_t *lops, tnode_t *t, char **str)*/
 /*
  *	generates a C string for a particular channel-type.
@@ -455,6 +468,30 @@ static int guppy_getctypeof_chantype (langops_t *lops, tnode_t *t, char **str)
 	*str = lstr;
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_gettype_chantype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	returns the type of a channel (id function)
+ */
+static tnode_t *guppy_gettype_chantype (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	return node;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_getsubtype_chantype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	returns the sub-type of a channel (channel protocol)
+ */
+static tnode_t *guppy_getsubtype_chantype (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	tnode_t *type = tnode_nthsubof (node, 0);
+
+	if (!type) {
+		nocc_internal ("guppy_getsubtype_chantype(): no subtype?");
+		return NULL;
+	}
+	return type;
 }
 /*}}}*/
 
@@ -487,6 +524,7 @@ static int guppy_types_init_nodes (void)
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (guppy_bytesfor_primtype));
 	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (guppy_getctypeof_primtype));
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_primtype));
 	tnd->lops = lops;
 
 	i = -1;
@@ -513,6 +551,8 @@ static int guppy_types_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (guppy_getctypeof_chantype));
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_chantype));
+	tnode_setlangop (lops, "getsubtype", 2, LANGOPTYPE (guppy_getsubtype_chantype));
 	tnd->lops = lops;
 
 	i = -1;
