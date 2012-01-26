@@ -1,0 +1,35 @@
+
+@use "course"
+
+define foo (chan?(i_to_i) fcn, chan(int) in?, out!)
+  i_to_i f
+  while true
+    alt
+      int x
+      (f != null) & in ? x
+        out ! f (x)
+
+      fcn ? f
+        skip
+
+define succ (val int n) -> int = n + 1
+
+define type i_to_i is (val int) -> int
+
+define main (chan!(char) screen)
+  chan(i_to_i) c
+  chan(int) d, e
+
+  par
+    foo (c?, d?, e!)
+    seq
+      c ! (i_to_i)succ
+    seq i = 0 for 10
+      d ! i
+    seq for 10
+      int v
+
+      d ? v
+      out_int (v, screen!)
+      out_string ("\n", screen!)
+

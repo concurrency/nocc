@@ -1,0 +1,8 @@
+
+# a bit of guppy that tests language extension type ideas
+
+@compiler
+  "builtin"
+
+# ... and we could use a good example; a "semaphore" type possibly..?
+

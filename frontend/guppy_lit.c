@@ -282,6 +282,51 @@ static void guppy_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, 
 /*}}}*/
 
 
+/*{{{  static tnode_t *guppy_gettype_litnode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a literal node
+ *	if the type is not set, default_type is used to guess it.
+ */
+static tnode_t *guppy_gettype_litnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	tnode_t *type = tnode_nthsubof (node, 0);
+
+	if (!type && !default_type) {
+		/* no type, so return NULL for now */
+		return NULL;
+	} else if (!type) {
+		if (node->tag == gup.tag_LITBOOL) {
+			/* ignore default type */
+			tnode_setnthsub (node, 0, tnode_create (gup.tag_BOOL, NULL));
+			type = tnode_nthsubof (node, 0);
+		} else {
+			/* no type yet, use default_type */
+			guppy_litdata_t *ldat = (guppy_litdata_t *)tnode_nthhookof (node, 0);
+			int typesize = tnode_bytesfor (default_type, NULL);
+
+			if ((node->tag == gup.tag_LITINT) && (typesize < ldat->bytes)) {
+			}
+
+			type = tnode_copytree (default_type);
+			tnode_setnthsub (node, 0, type);
+		}
+	}
+	return type;
+}
+/*}}}*/
+/*{{{  static int guppy_isconst_litnode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns non-zero if the node is constant (returns width)
+ */
+static int guppy_isconst_litnode (langops_t *lops, tnode_t *node)
+{
+	guppy_litdata_t *ldat = (guppy_litdata_t *)tnode_nthhookof (node, 0);
+
+	return ldat->bytes;
+}
+/*}}}*/
+
+
 /*{{{  static int guppy_codegen_litnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a literal node
@@ -350,9 +395,21 @@ static int guppy_lit_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_litnode));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_litnode));
+	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (guppy_isconst_litnode));
+	tnd->lops = lops;
 
 	i = -1;
 	gup.tag_LITINT = tnode_newnodetag ("LITINT", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_LITBOOL = tnode_newnodetag ("LITBOOL", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_LITREAL = tnode_newnodetag ("LITREAL", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_LITCHAR = tnode_newnodetag ("LITCHAR", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_LITSTRING = tnode_newnodetag ("LITSTRING", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

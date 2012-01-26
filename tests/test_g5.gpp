@@ -1,0 +1,46 @@
+
+# test_g5.gpp -- testing syntax for type system
+
+@use "course"
+
+define type Tree
+define type EmptyTree is default Tree
+define type Leaf is Tree
+  int value
+define type SubTree is Tree
+  Tree left, right
+
+
+define sumtree (val Tree t) -> int
+  case t
+    EmptyTree
+      return 0
+    SubTree
+      return sumtree (t.left) + sumtree (t.right)
+    Leaf
+      return t.value
+
+define Tree.sumtree (val t) -> int
+  return sumtree (t)
+
+define Tree.collapse (val t) -> Tree
+  case t
+    EmptyTree, Leaf
+      return t
+    SubTree
+      Tree l = t.left.collapse
+      Tree r = t.right.collapse
+
+      if
+        l == EmptyTree
+          return r
+        r == EmptyTree
+          return l
+        else
+          return t
+
+define test_g5 (chan!(char) screen)
+  Tree t = SubTree [Leaf [42], SubTree [Leaf [24], EmptyTree]]
+
+  t = t.collapse
+

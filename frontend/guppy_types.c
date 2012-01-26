@@ -450,6 +450,26 @@ static tnode_t *guppy_gettype_primtype (langops_t *lops, tnode_t *node, tnode_t 
 	return node;
 }
 /*}}}*/
+/*{{{  static tnode_t *guppy_typeactual_primtype (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-compatibility check on a primitive type, returns actual type used
+ */
+static tnode_t *guppy_typeactual_primtype (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *atype = NULL;
+
+#if 1
+fprintf (stderr, "guppy_typeactual_primtype(): formaltype=[%s], actualtype=[%s]\n", formaltype->tag->name, actualtype->tag->name);
+#endif
+	if (formaltype->tag == actualtype->tag) {
+		atype = actualtype;
+	} else {
+		typecheck_error (node, tc, "incompatible types in operation [%s,%s]", formaltype->tag->name, actualtype->tag->name);
+	}
+
+	return atype;
+}
+/*}}}*/
 
 
 /*{{{  static int guppy_getctypeof_chantype (langops_t *lops, tnode_t *t, char **str)*/
@@ -494,6 +514,43 @@ static tnode_t *guppy_getsubtype_chantype (langops_t *lops, tnode_t *node, tnode
 	return type;
 }
 /*}}}*/
+/*{{{  static tnode_t *guppy_typeactual_chantype (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type compatibility on a channel, returns actual type used
+ */
+static tnode_t *guppy_typeactual_chantype (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *atype = NULL;
+
+#if 1
+fprintf (stderr, "guppy_typeactual_chantype(): formaltype=[%s], actualtype=[%s]\n", formaltype->tag->name, actualtype->tag->name);
+#endif
+
+	if (formaltype->tag == gup.tag_CHAN) {
+		/*{{{  actual type-check for channel*/
+		if ((node->tag == gup.tag_INPUT) || (node->tag == gup.tag_OUTPUT)) {
+			/* becomes a protocol-check */
+			atype = tnode_nthsubof (formaltype, 0);
+
+			atype = typecheck_typeactual (atype, actualtype, node, tc);
+		} else {
+			/* must be two channels then */
+			if (actualtype->tag != gup.tag_CHAN) {
+				typecheck_error (node, tc, "expected channel, found [%s]", actualtype->tag->name);
+			}
+			atype = actualtype;
+
+			if (!typecheck_typeactual (tnode_nthsubof (formaltype, 0), tnode_nthsubof (actualtype, 0), node, tc)) {
+				return NULL;
+			}
+		}
+		/*}}}*/
+	} else {
+		nocc_fatal ("guppy_typeactual_chantype(): don\'t know how to handle a non-channel here (yet), got [%s]", formaltype->tag->name);
+	}
+	return atype;
+}
+/*}}}*/
 
 
 /*{{{  static int guppy_types_init_nodes (void)*/
@@ -525,6 +582,7 @@ static int guppy_types_init_nodes (void)
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (guppy_bytesfor_primtype));
 	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (guppy_getctypeof_primtype));
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_primtype));
+	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (guppy_typeactual_primtype));
 	tnd->lops = lops;
 
 	i = -1;
@@ -553,6 +611,7 @@ static int guppy_types_init_nodes (void)
 	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (guppy_getctypeof_chantype));
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_chantype));
 	tnode_setlangop (lops, "getsubtype", 2, LANGOPTYPE (guppy_getsubtype_chantype));
+	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (guppy_typeactual_chantype));
 	tnd->lops = lops;
 
 	i = -1;
