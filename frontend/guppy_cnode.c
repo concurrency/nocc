@@ -115,8 +115,9 @@ static int guppy_flattenseq_cnode (compops_t *cops, tnode_t **nodeptr)
 	tnode_t **listptr = tnode_nthsubaddr (node, 1);
 
 	if (!parser_islistnode (*listptr)) {
-		nocc_serious ("guppy_flattenseq_cnode(): node body is not a list..");
-		return 0;
+		/* not a problem in practice, just means we were probably here before! */
+		// nocc_serious ("guppy_flattenseq_cnode(): node body is not a list..");
+		// return 0;
 	} else if (parser_countlist (*listptr) == 1) {
 		/* single item, remove it and replace */
 		tnode_t *item = parser_delfromlist (*listptr, 0);

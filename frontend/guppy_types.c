@@ -447,6 +447,11 @@ static int guppy_getctypeof_primtype (langops_t *lops, tnode_t *t, char **str)
  */
 static tnode_t *guppy_gettype_primtype (langops_t *lops, tnode_t *node, tnode_t *default_type)
 {
+	primtypehook_t *pth = (primtypehook_t *)tnode_nthhookof (node, 0);
+
+#if 1
+fprintf (stderr, "guppy_gettype_primtype(): default_type is 0x%8.8x\n", (int)default_type);
+#endif
 	return node;
 }
 /*}}}*/

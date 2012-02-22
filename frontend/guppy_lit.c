@@ -303,7 +303,11 @@ static tnode_t *guppy_gettype_litnode (langops_t *lops, tnode_t *node, tnode_t *
 			/* no type yet, use default_type */
 			guppy_litdata_t *ldat = (guppy_litdata_t *)tnode_nthhookof (node, 0);
 			int typesize = tnode_bytesfor (default_type, NULL);
+			int issigned = tnode_issigned (default_type, NULL);
 
+#if 0
+fprintf (stderr, "guppy_gettype_litnode(): ldat->bytes=%d, issigned=%d, typesize=%d\n", ldat->bytes, issigned, typesize);
+#endif
 			if ((node->tag == gup.tag_LITINT) && (typesize < ldat->bytes)) {
 			}
 
