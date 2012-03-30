@@ -1,0 +1,49 @@
+
+# some include stuff
+
+# note, protocol descriptions like this have implicit session types; compiler will check for this.
+
+define protocol FileHandle (ST)
+  subprotocol Request
+    case
+      ! readline
+        ReadResponse
+      ! read; int
+        ReadResponse
+      ! write; ST
+        WriteResponse
+      ! close
+        Closed
+  subprotocol ReadResponse
+    case
+      ? error; int
+        Request
+      ? data; ST
+        Request
+  subprotocol WriteResponse
+    case
+      ? error; int
+        Request
+      ? ok
+        Request
+  subprotocol Closed
+
+  Request
+
+
+define protocol FileService
+  subprotocol Request
+    case
+      ! open_text; string; int; int
+        OpenResponse (string)
+      ! open_binary; string
+        OpenResponse ([]byte)
+  subprotocol OpenResponse (ST)
+    case
+      ? ok; chan!(FileHandle(ST))
+        Request
+      ? error; int
+        Request
+
+  Request
+

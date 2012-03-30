@@ -1,0 +1,46 @@
+
+# guppy services?
+
+@module "file"
+ @include "test_g14.gpi"
+
+@external "C" "C_open (val string path, val int mode, perm, result int fd)"
+@external "C" "C_close (val int fd, result int res)"
+
+define textfilehandler (val int fd, chan?(FileHandle(string)) link)
+  bool run = true
+  while run
+    link ? case
+      close
+        run = false
+end
+
+
+define file_service (chan?(FileService) in)
+  while true
+    in ? case
+      open_text; []byte name; int mode; int perms
+        seq
+          int fd
+
+          C_open (name, mode, perms, fd)
+          if fd < 0
+            in ! error; fd
+            else
+              seq
+                bind chan(FileHandle(string)) fc!, fs?
+
+                in ! ok; fc
+                spawn filehandler (fd, fs?)
+end
+
+define file_service_start ()
+  bind chan(FileService) fs?, fserv!
+  spawn file_service (fs?)
+end
+
+@service "FileService"
+ @global shared chan!(FileService) fserv
+ @run file_service_start ()
+
+
