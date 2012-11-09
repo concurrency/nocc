@@ -1,0 +1,37 @@
+#
+# avrasm.ldef - language definitions for AVR assembler
+# identifiers must start at the left-margin, indentation is a line-continuation
+#
+
+.IDENT		"avrasm"
+.DESC		"AVR assembler"
+.MAINTAINER	"Fred Barnes <frmb@kent.ac.uk>"
+
+.SECTION "avrasm" #{{{: specific keywords, etc.
+
+.KEYWORD "add"
+.KEYWORD "ldi"
+
+.GRULE	"avrasm:nullreduce" "N+R-"
+.GRULE	"avrasm:nullpush" "0N-"
+.GRULE	"avrasm:nullset" "0R-"
+
+
+#}}}
+.SECTION "avrasm-postprod" #{{{: post-productions for AVR assembler (top-level grammar)
+
+
+#}}}
+
+
+.SECTION "avrasm-program" #{{{: general program structure for AVR assembler
+
+.TNODE	"avrasm:rawnamenode" (0,0,1) "raw-name hook"
+	INVALID AFTER "scope"
+
+.GRULE	"avrasm:namereduce" "ST0T+X[avrasm_nametoken_to_hook]C[AVRASMNAME]1R-"
+
+.TABLE	"avrasm:name ::= [ 0 +Name 1 ] [ 1 {<avrasm:namereduce>} -* ]"
+
+#}}}
+
