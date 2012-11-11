@@ -37,8 +37,31 @@ typedef struct {
 
 	struct TAG_ntdef *tag_NAME;
 
+	struct TAG_ntdef *tag_LITSTR;
+	struct TAG_ntdef *tag_LITINT;
+	struct TAG_ntdef *tag_LITREG;
+
+	struct TAG_ntdef *tag_ORG;
+
+	struct TAG_ntdef *tag_UMINUS;
+	struct TAG_ntdef *tag_ADD;
+	struct TAG_ntdef *tag_SUB;
+	struct TAG_ntdef *tag_MUL;
+	struct TAG_ntdef *tag_DIV;
+	struct TAG_ntdef *tag_REM;
+	struct TAG_ntdef *tag_BITAND;
+	struct TAG_ntdef *tag_BITOR;
+	struct TAG_ntdef *tag_BITXOR;
+	struct TAG_ntdef *tag_BITNOT;
+
+	struct TAG_ntdef *tag_GLABELDEF;
+	struct TAG_ntdef *tag_LLABELDEF;
+
 	struct TAG_ntdef *tag_GLABEL;
 	struct TAG_ntdef *tag_LLABEL;
+
+	/* instruction encoding */
+	struct TAG_ntdef *tag_RJMP;
 
 	struct TAG_ntdef *tag_INSTR;
 } avrasm_pset_t;

@@ -1,6 +1,6 @@
 /*
  *	nocc.c -- new occam-pi compiler (harness)
- *	Copyright (C) 2004-2011 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2012 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -87,6 +87,7 @@
 #include "trlang_fe.h"
 #include "traceslang_fe.h"
 #include "eac_fe.h"
+#include "avrasm_fe.h"
 #include "metadata.h"
 #include "version.h"
 #include "interact.h"
@@ -2916,6 +2917,13 @@ int main (int argc, char **argv)
 	/*{{{  initialise EAC language lexer and parser (just registers)*/
 	if (eac_register_frontend ()) {
 		nocc_error ("failed to initialise built-in EAC language frontend");
+		exit (EXIT_FAILURE);
+	}
+
+	/*}}}*/
+	/*{{{  initialise AVR assembler lexer and parser (just registers)*/
+	if (avrasm_register_frontend ()) {
+		nocc_error ("failure to initialise built-in AVR assembler frontend");
 		exit (EXIT_FAILURE);
 	}
 

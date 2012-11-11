@@ -9,8 +9,52 @@
 
 .SECTION "avrasm" #{{{: specific keywords, etc.
 
+.SYMBOL "."
+.SYMBOL ":"
+
+.KEYWORD "r0"
+.KEYWORD "r1"
+.KEYWORD "r2"
+.KEYWORD "r3"
+.KEYWORD "r4"
+.KEYWORD "r5"
+.KEYWORD "r6"
+.KEYWORD "r7"
+.KEYWORD "r8"
+.KEYWORD "r9"
+.KEYWORD "r10"
+.KEYWORD "r11"
+.KEYWORD "r12"
+.KEYWORD "r13"
+.KEYWORD "r14"
+.KEYWORD "r15"
+.KEYWORD "r16"
+.KEYWORD "r17"
+.KEYWORD "r18"
+.KEYWORD "r19"
+.KEYWORD "r20"
+.KEYWORD "r21"
+.KEYWORD "r22"
+.KEYWORD "r23"
+.KEYWORD "r24"
+.KEYWORD "r25"
+.KEYWORD "r26"
+.KEYWORD "r27"
+.KEYWORD "r28"
+.KEYWORD "r29"
+.KEYWORD "r30"
+.KEYWORD "r31"
+
 .KEYWORD "add"
 .KEYWORD "ldi"
+.KEYWORD "rjmp"
+
+.KEYWORD "org"
+.KEYWORD "equ"
+.KEYWORD "def"
+.KEYWORD "include"
+.KEYWORD "HI"
+.KEYWORD "LO"
 
 .GRULE	"avrasm:nullreduce" "N+R-"
 .GRULE	"avrasm:nullpush" "0N-"
@@ -30,8 +74,27 @@
 	INVALID AFTER "scope"
 
 .GRULE	"avrasm:namereduce" "ST0T+X[avrasm_nametoken_to_hook]C[AVRASMNAME]1R-"
+.GRULE	"avrasm:stringreduce" "ST0T+X[avrasm_stringtoken_to_node]R-"
+.GRULE	"avrasm:integerreduce" "ST0T+X[avrasm_integertoken_to_node]R-"
+
+.GRULE	"avrasm:orgreduce" "SN0N+C[AVRASMORG]1R-"
+.GRULE	"avrasm:glabeldefreduce" "SN0N+C[AVRASMGLABELDEF]1R-"
+
+.GRULE	"avrasm:insrjmpreduce" "SN0N+C[AVRASMRJMP]1R-"
 
 .TABLE	"avrasm:name ::= [ 0 +Name 1 ] [ 1 {<avrasm:namereduce>} -* ]"
+
+.TABLE	"avrasm:expr ::= [ 0 +String 1 ] [ 0 +Integer 2 ] [ 1 {<avrasm:stringreduce>} -* ] [ 2 {<avrasm:integerreduce>} -* ]"
+.TABLE	"avrasm:expr +:= [ 0 -Name 1 ] [ 1 avrasm:name 2 ] [ 2 {<avrasm:nullreduce>} -* ]"
+# .TABLE	"avrasm:expr +:= [ 0 +@@- 1 ] [ 1 avrasm:expr 2 ] [ 2 {Ravrasm:mopreduce} -* ]"
+
+.TABLE	"avrasm:namestart ::= [ 0 avrasm:name 1 ] [ 1 @@: 2 ] [ 2 {<avrasm:glabeldefreduce>} -* ]"
+
+.TABLE	"avrasm:codeline ::= [ 0 @@. 1 ] [ 1 @org 2 ] [ 2 avrasm:expr 3 ] [ 3 {<avrasm:orgreduce>} -* ]"
+.TABLE	"avrasm:codeline +:= [ 0 -Name 1 ] [ 1 -* <avrasm:namestart> ]"
+.TABLE	"avrasm:codeline +:= [ 0 @rjmp 1 ] [ 1 avrasm:expr 2 ] [ 2 {<avrasm:insrjmpreduce>} -* ]"
+
+.BNF	"avrasm:program ::= { avrasm:codeline Newline 1 }"
 
 #}}}
 

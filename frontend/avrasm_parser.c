@@ -59,9 +59,10 @@
 /*}}}*/
 /*{{{  forward decls*/
 static int avrasm_parser_init (lexfile_t *lf);
-static int avrasm_parser_shutdown (lexfile_t *lf);
+static void avrasm_parser_shutdown (lexfile_t *lf);
 static tnode_t *avrasm_parser_parse (lexfile_t *lf);
 static int avrasm_parser_prescope (tnode_t **tptr, prescope_t *ps);
+static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss);
 
 /*}}}*/
 /*{{{  global vars*/
@@ -75,7 +76,7 @@ langparser_t avrasm_parser = {
 	.parse =		avrasm_parser_parse,
 	.descparse =		NULL, // avrasm_parser_descparse,
 	.prescope =		avrasm_parser_prescope,
-	.scope =		NULL, // avrasm_parser_scope,
+	.scope =		avrasm_parser_scope,
 	.typecheck =		NULL, // avrasm_parser_typecheck,
 	.typeresolve =		NULL,
 	.postcheck =		NULL,
@@ -95,6 +96,13 @@ typedef struct {
 	dfanode_t *inode;
 	langdef_t *ldef;
 } avrasm_parse_t;
+
+static avrasm_parse_t *avrasm_priv = NULL;
+
+static feunit_t *feunit_set[] = {
+	&avrasm_program_feunit,
+	NULL
+};
 
 /*}}}*/
 
@@ -179,7 +187,7 @@ static int avrasm_parser_init (lexfile_t *lf)
 
 		memset ((void *)&avrasm, 0, sizeof (avrasm));
 
-		avrasm_priv->ldef = langdefs_readdefs ("avrasm.ldef");
+		avrasm_priv->ldef = langdef_readdefs ("avrasm.ldef");
 		if (!avrasm_priv->ldef) {
 			nocc_error ("avrasm_parser_init(): failed to load language definitions!");
 			return 1;
@@ -266,9 +274,90 @@ static tnode_t *avrasm_parser_parse (lexfile_t *lf)
 			lexer_freetoken (tok);
 			tok = lexer_nexttoken (lf);
 		}
+		if ((tok->type == END) || (tok->type == NOTOKEN)) {
+			/* done */
+			lexer_freetoken (tok);
+			break;		/* for() */
+		}
+		lexer_pushback (lf, tok);
+
+		thisone = dfa_walk ("avrasm:codeline", 0, lf);
+		if (!thisone) {
+			break;		/* for() */
+		}
+
+		/* add to program */
+		parser_addtolist (tree, thisone);
+	}
+
+	if (compopts.verbose) {
+		nocc_message ("leftover tokens:");
+	}
+
+	tok = lexer_nexttoken (lf);
+	while (tok) {
+		if (compopts.verbose) {
+			lexer_dumptoken (stderr, tok);
+		}
+		if ((tok->type == END) || (tok->type == NOTOKEN)) {
+			lexer_freetoken (tok);
+			break;
+		}
+		if ((tok->type != NEWLINE) && (tok->type != COMMENT)) {
+			lf->errcount++;				/* got errors.. */
+		}
+
+		lexer_freetoken (tok);
+		tok = lexer_nexttoken (lf);
 	}
 
 	return tree;
 }
 /*}}}*/
+/*{{{  static int avrasm_parser_prescope (tnode_t **tptr, prescope_t *ps)*/
+/*
+ *	called to pre-scope the parse tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int avrasm_parser_prescope (tnode_t **tptr, prescope_t *ps)
+{
+	ps->hook = NULL;
+	tnode_modprewalktree (tptr, prescope_modprewalktree, (void *)ps);
+
+	return ps->err;
+}
+/*}}}*/
+/*{{{  static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)*/
+/*
+ *	called to scope the parse tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)
+{
+	tnode_t *tree = *tptr;
+	tnode_t **items;
+	int nitems, i;
+
+	if (!parser_islistnode (tree)) {
+		nocc_internal ("avrasm_parser_scope(): top-level tree is not a list! (serious).  Got [%s:%s]\n",
+				tree->tag->ndef->name, tree->tag->name);
+		return -1;
+	}
+	items = parser_getlistitems (tree, &nitems);
+
+	for (i=0; i<nitems; i++) {
+		tnode_t *node = items[i];
+
+		if (node->tag == avrasm.tag_GLABELDEF) {
+			tnode_t *lname_node = tnode_nthsubof (node, 0);
+
+
+			name_t *labname;
+		}
+	}
+
+	return 0;
+}
+/*}}}*/
+
 

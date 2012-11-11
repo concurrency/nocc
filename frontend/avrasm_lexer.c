@@ -43,7 +43,7 @@
 static int avrasm_openfile (lexfile_t *lf, lexpriv_t *lp);
 static int avrasm_closefile (lexfile_t *lf, lexpriv_t *lp);
 static token_t *avrasm_nexttoken (lexfile_t *lf, lexpriv_t *lp);
-static int avrasm_getcodeline (lexfile *lf, lexpriv_t *lp, char **rbuf);
+static int avrasm_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 
 
 /*}}}*/
@@ -150,10 +150,6 @@ tokenloop:
 			/* assume name */
 			tok->type = NAME;
 			tok->u.name = string_ndup (ch, (int)(dh - ch));
-		} else if (kw == lrp->kw_rem) {
-			/* rem ... -- comment to end-of-line */
-			for (dh=ch+1; (dh < chlim) && (*dh != '\n') && (*dh != '\r'); dh++);
-			tok->type = COMMENT;
 		} else {
 			/* keyword found */
 			tok->type = KEYWORD;
@@ -214,8 +210,8 @@ tokenloop:
 		return tok;
 		break;
 		/*}}}*/
-		/*{{{  # (comment)*/
-	case '#':
+		/*{{{  ; (comment)*/
+	case ';':
 		tok->type = COMMENT;
 		/* scan to end-of-line */
 		for (dh=ch+1; (dh < chlim) && (*dh != '\n') && (*dh != '\r'); dh++);
@@ -319,10 +315,57 @@ tokenloop:
 		}
 		break;
 		/*}}}*/
+		/*{{{  ' (character)*/
+	case '\'':
+		tok->type = INTEGER;
+		ch++;
+		if ((ch + 1) >= chlim) {
+			lexer_error (lf, "unexpected end of file");
+			goto out_error1;
+		}
+		if (*ch == '\\') {
+			/*{{{  escape character*/
+			ch++;
+			switch (*ch) {
+			case 'n':
+				tok->u.ival = (int)'\n';
+				break;
+			case 'r':
+				tok->u.ival = (int)'\r';
+				break;
+			case '\'':
+				tok->u.ival = (int)'\'';
+				break;
+			case '\"':
+				tok->u.ival = (int)'\"';
+				break;
+			case 't':
+				tok->u.ival = (int)'\t';
+				break;
+			case '\\':
+				tok->u.ival = (int)'\\';
+				break;
+			default:
+				lexer_error (lf, "unknown escape character \'\\%c\'", *ch);
+				break;
+			}
+			ch++;
+			/*}}}*/
+		} else {
+			/* regular character */
+			tok->u.ival = (int)(*ch);
+			ch++;
+		}
+		/* expect closing quote */
+		if (*ch != '\'') {
+			lexer_error (lf, "malformed character constant");
+			goto out_error1;
+		}
+		break;
+		/*}}}*/
 		/*{{{  default (symbol)*/
 	default:
 		/* try and match as a symbol */
-default_label:
 		{
 			symbol_t *sym = symbols_match (ch, chlim, LANGTAG_AVRASM);
 
