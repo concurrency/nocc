@@ -402,11 +402,11 @@ token_t *parser_gettok (parsepriv_t *pp)
 	token_t *tok;
 
 	if (!pp) {
-		nocc_internal ("parser_peektok(): NULL state");
+		nocc_internal ("parser_gettok(): NULL state");
 		return NULL;
 	}
 	if (!DA_CUR (pp->tokstack)) {
-		nocc_error ("parser_peektok(): token-stack empty");
+		nocc_error ("parser_gettok(): token-stack empty");
 		return NULL;
 	}
 	tok = DA_NTHITEM (pp->tokstack, DA_CUR (pp->tokstack) - 1);

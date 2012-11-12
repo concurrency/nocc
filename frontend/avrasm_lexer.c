@@ -161,15 +161,29 @@ tokenloop:
 		/*{{{  number of sorts*/
 		char *dh;
 		char *npbuf = NULL;
+		int ishex = 0;
 
 		tok->type = INTEGER;
-		for (dh=ch+1; (dh < chlim) && (((*dh >= '0') && (*dh <= '9')) || (*dh == '.')); dh++) {
-			if (*dh == '.') {
-				if (tok->type == REAL) {
-					lexer_error (lf, "malformed real constant");
+		dh = ch + 1;
+		if ((dh < chlim) && (*dh == 'x')) {
+			/* probably a hexadecimal constant */
+			dh++;
+			ishex = 1;
+			for (; (dh < chlim) && (((*dh >= '0') && (*dh <= '9')) || ((*dh >= 'a') && (*dh <= 'f')) || (*dh == '.')); dh++) {
+				if (*dh == '.') {
+					lexer_error (lf, "malformed hexadecimal constant");
 					goto out_error1;
 				}
-				tok->type = REAL;
+			}
+		} else {
+			for (; (dh < chlim) && (((*dh >= '0') && (*dh <= '9')) || (*dh == '.')); dh++) {
+				if (*dh == '.') {
+					if (tok->type == REAL) {
+						lexer_error (lf, "malformed real constant");
+						goto out_error1;
+					}
+					tok->type = REAL;
+				}
 			}
 		}
 		lp->offset += (int)(dh - ch);
@@ -177,11 +191,15 @@ tokenloop:
 		npbuf = (char *)smalloc ((int)(dh - ch) + 1);
 		memcpy (npbuf, ch, (int)(dh - ch));
 		npbuf[(int)(dh - ch)] = '\0';
-		if ((tok->type == REAL) && (sscanf (npbuf, "%lf", &tok->u.dval) != 1)) {
+		if ((tok->type == INTEGER) && ishex && (sscanf (npbuf, "%x", &tok->u.ival) != 1)) {
+			lexer_error (lf, "malformed hexadecimal constant: %s", npbuf);
+			sfree (npbuf);
+			goto out_error1;
+		} else if ((tok->type == REAL) && (sscanf (npbuf, "%lf", &tok->u.dval) != 1)) {
 			lexer_error (lf, "malformed floating-point constant: %s", npbuf);
 			sfree (npbuf);
 			goto out_error1;
-		} else if ((tok->type == INTEGER) && (sscanf (npbuf, "%d", &tok->u.ival) != 1)) {
+		} else if ((tok->type == INTEGER) && !ishex && (sscanf (npbuf, "%d", &tok->u.ival) != 1)) {
 			lexer_error (lf, "malformed integer constant: %s", npbuf);
 			sfree (npbuf);
 			goto out_error1;

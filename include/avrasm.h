@@ -40,6 +40,7 @@ typedef struct {
 	struct TAG_ntdef *tag_LITSTR;
 	struct TAG_ntdef *tag_LITINT;
 	struct TAG_ntdef *tag_LITREG;
+	struct TAG_ntdef *tag_LITINS;
 
 	struct TAG_ntdef *tag_ORG;
 
@@ -59,9 +60,6 @@ typedef struct {
 
 	struct TAG_ntdef *tag_GLABEL;
 	struct TAG_ntdef *tag_LLABEL;
-
-	/* instruction encoding */
-	struct TAG_ntdef *tag_RJMP;
 
 	struct TAG_ntdef *tag_INSTR;
 } avrasm_pset_t;

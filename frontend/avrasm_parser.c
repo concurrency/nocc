@@ -322,6 +322,10 @@ static tnode_t *avrasm_parser_parse (lexfile_t *lf)
 static int avrasm_parser_prescope (tnode_t **tptr, prescope_t *ps)
 {
 	ps->hook = NULL;
+
+	if (!*tptr) {
+		return -1;
+	}
 	tnode_modprewalktree (tptr, prescope_modprewalktree, (void *)ps);
 
 	return ps->err;
@@ -337,6 +341,7 @@ static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)
 	tnode_t *tree = *tptr;
 	tnode_t **items;
 	int nitems, i;
+	void *nsmark;
 
 	if (!parser_islistnode (tree)) {
 		nocc_internal ("avrasm_parser_scope(): top-level tree is not a list! (serious).  Got [%s:%s]\n",
@@ -345,16 +350,35 @@ static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)
 	}
 	items = parser_getlistitems (tree, &nitems);
 
+	nsmark = name_markscope ();
 	for (i=0; i<nitems; i++) {
 		tnode_t *node = items[i];
 
 		if (node->tag == avrasm.tag_GLABELDEF) {
 			tnode_t *lname_node = tnode_nthsubof (node, 0);
 
+			if (lname_node->tag != avrasm.tag_NAME) {
+				scope_error (lname_node, ss, "label name not raw-name");
+			} else {
+				char *rawname = tnode_nthhookof (lname_node, 0);
+				name_t *labname;
+				tnode_t *namenode;
 
-			name_t *labname;
+				labname = name_addscopenamess (rawname, lname_node, NULL, NULL, ss);
+				namenode = tnode_createfrom (avrasm.tag_GLABEL, lname_node, labname);
+				SetNameNode (labname, namenode);
+
+				tnode_free (lname_node);
+				tnode_setnthsub (node, 0, namenode);
+
+				ss->scoped++;
+			}
 		}
 	}
+
+	tnode_modprepostwalktree (tptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+
+	name_markdescope (nsmark);
 
 	return 0;
 }

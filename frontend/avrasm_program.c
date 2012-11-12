@@ -51,7 +51,7 @@
 #include "map.h"
 #include "codegen.h"
 #include "target.h"
-#include "transputer.h"
+#include "avrinstr.h"
 
 /*}}}*/
 /*{{{  private types/data*/
@@ -60,7 +60,39 @@ typedef struct TAG_avrasm_lithook {
 	int len;
 } avrasm_lithook_t;
 
+static avrinstr_tbl_t avrasm_itable[] = {
+	{INS_ADD, "add", IMODE_REG, IMODE_REG},
+	{INS_ADC, "adc", IMODE_REG, IMODE_REG},
+	{INS_ADIW, "adiw", IMODE_REG, IMODE_CONST},
+	{INS_SUB, "sub", IMODE_REG, IMODE_REG},
+	{INS_SUBI, "subi", IMODE_REG, IMODE_CONST},
+	{INS_SBC, "sbc", IMODE_REG, IMODE_REG},
+	{INS_SBCI, "sbci", IMODE_REG, IMODE_CONST},
+	{INS_SBIW, "sbiw", IMODE_REG, IMODE_CONST},
+	{INS_AND, "and", IMODE_REG, IMODE_REG},
+	{INS_ANDI, "andi", IMODE_REG, IMODE_CONST},
+	{INS_OR, "or", IMODE_REG, IMODE_REG},
+	{INS_ORI, "ori", IMODE_REG, IMODE_CONST},
+	{INS_EOR, "eor", IMODE_REG, IMODE_REG},
+	{INS_COM, "com", IMODE_REG, IMODE_NONE},
+	{INS_NEG, "neg", IMODE_REG, IMODE_NONE},
+	{INS_SBR, "sbr", IMODE_REG, IMODE_CONST},
+	{INS_CBR, "cbr", IMODE_REG, IMODE_CONST},
+	{INS_INC, "inc", IMODE_REG, IMODE_NONE},
+	{INS_DEC, "dec", IMODE_REG, IMODE_NONE},
+
+	{INS_RJMP, "rjmp", IMODE_CONST, IMODE_NONE},
+	{INS_BRNE, "brne", IMODE_CONST, IMODE_NONE},
+
+	{INS_LDI, "ldi", IMODE_REG, IMODE_CONST},
+
+	{INS_NOP, "nop", IMODE_NONE, IMODE_NONE},
+
+	{INS_INVALID, NULL, IMODE_NONE, IMODE_NONE}
+};
+
 /*}}}*/
+
 
 
 /*{{{  static avrasm_lithook_t *new_avrasmlithook (void)*/
@@ -123,13 +155,18 @@ static void *avrasm_regtoken_to_node (void *ntok)
 {
 	token_t *tok = (token_t *)ntok;
 	int r = -1;
+	int i;
 	tnode_t *node = NULL;
+	char xbuf[16];
 
-	if (lexer_tokmatchlitstr (tok, "r0")) {
-		r = 0;
-	} else if (lexer_tokmatchlitstr (tok, "r1")) {
-		r = 1;
-	} else {
+	for (i=0; i<32; i++) {
+		sprintf (xbuf, "r%d", i);
+		if (lexer_tokmatchlitstr (tok, xbuf)) {
+			r = i;
+			break;		/* for() */
+		}
+	}
+	if (r < 0) {
 		lexer_error (tok->origin, "expected register identifier, found [%s]", lexer_stokenstr (tok));
 	}
 	if (r >= 0) {
@@ -139,6 +176,38 @@ static void *avrasm_regtoken_to_node (void *ntok)
 		lh->data = mem_ndup (&r, lh->len);
 
 		node = tnode_create (avrasm.tag_LITREG, tok->origin, lh);
+	}
+
+	lexer_freetoken (tok);
+
+	return (void *)node;
+}
+/*}}}*/
+/*{{{  static void *avrasm_instoken_to_node (void *ntok)*/
+/*
+ *	turns a token representing an instruction into an instruction literal (LITINS)
+ */
+static void *avrasm_instoken_to_node (void *ntok)
+{
+	token_t *tok = (token_t *)ntok;
+	tnode_t *node = NULL;
+	int iidx;
+
+	for (iidx=0; avrasm_itable[iidx].str; iidx++) {
+		if (lexer_tokmatchlitstr (tok, avrasm_itable[iidx].str)) {
+			break;		/* for() */
+		}
+	}
+	if (!avrasm_itable[iidx].str) {
+		lexer_error (tok->origin, "unhandled instruction \"%s\"", lexer_stokenstr (tok));
+	} else {
+		avrasm_lithook_t *lh = new_avrasmlithook ();
+		int inum = avrasm_itable[iidx].ins;
+
+		lh->len = sizeof (inum);
+		lh->data = mem_ndup (&inum, lh->len);
+
+		node = tnode_create (avrasm.tag_LITINS, tok->origin, lh);
 	}
 
 	lexer_freetoken (tok);
@@ -279,7 +348,24 @@ static void avrasm_litnode_hook_dumptree (tnode_t *node, void *hook, int indent,
 	avrasm_lithook_t *lit = (avrasm_lithook_t *)hook;
 
 	avrasm_isetindent (stream, indent);
-	if (node->tag == avrasm.tag_LITSTR) {
+	if (node->tag == avrasm.tag_LITINS) {
+		char *sdata = mkhexbuf ((unsigned char *)lit->data, lit->len);
+		int iidx;
+		int ins = *(int *)lit->data;
+
+		for (iidx=0; avrasm_itable[iidx].str; iidx++) {
+			if (avrasm_itable[iidx].ins == ins) {
+				break;			/* for() */
+			}
+		}
+		if (avrasm_itable[iidx].str) {
+			fprintf (stream, "<avrasmlitnode instr=\"%s\" />\n", avrasm_itable[iidx].str);
+		} else {
+			fprintf (stream, "<avrasmlitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, sdata);
+		}
+
+		sfree (sdata);
+	} else if (node->tag == avrasm.tag_LITSTR) {
 		fprintf (stream, "<avrasmlitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, (lit && lit->data) ? lit->data : "(null)");
 	} else if (node->tag == avrasm.tag_LITREG) {
 		fprintf (stderr, "<avrasmlitnode size=\"%d\" value=\"r%d\" />\n", lit ? lit->len : 0, (lit && lit->data) ? *(int *)(lit->data) : -1);
@@ -341,6 +427,7 @@ static int avrasm_program_init_nodes (void)
 	fcnlib_addfcn ("avrasm_stringtoken_to_node", (void *)avrasm_stringtoken_to_node, 1, 1);
 	fcnlib_addfcn ("avrasm_integertoken_to_node", (void *)avrasm_integertoken_to_node, 1, 1);
 	fcnlib_addfcn ("avrasm_regtoken_to_node", (void *)avrasm_regtoken_to_node, 1, 1);
+	fcnlib_addfcn ("avrasm_instoken_to_node", (void *)avrasm_instoken_to_node, 1, 1);
 
 	/*}}}*/
 	/*{{{  avrasm:rawnamenode -- NAME*/
@@ -357,7 +444,7 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_NAME = tnode_newnodetag ("AVRASMNAME", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  avrasm:litnode -- LITSTR, LITINT, LITREG*/
+	/*{{{  avrasm:litnode -- LITSTR, LITINT, LITREG, LITINS*/
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:litnode", &i, 0, 0, 1, TNF_NONE);			/* hooks: 0 = avrasm_lithook_t */
 	tnd->hook_free = avrasm_litnode_hook_free;
@@ -372,6 +459,8 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_LITINT = tnode_newnodetag ("AVRASMLITINT", &i, tnd, NTF_NONE);
 	i = -1;
 	avrasm.tag_LITREG = tnode_newnodetag ("AVRASMLITREG", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_LITINS = tnode_newnodetag ("AVRASMLITINS", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  avrasm:orgnode -- ORG*/
@@ -396,10 +485,9 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_LLABELDEF = tnode_newnodetag ("AVRASMLLABELDEF", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  avrasm:leafnode -- GLABEL, LLABEL*/
-	/* Note: used as types */
+	/*{{{  avrasm:namenode -- GLABEL, LLABEL*/
 	i = -1;
-	tnd = tnode_newnodetype ("avrasm:glabel", &i, 0, 0, 0, TNF_NONE);
+	tnd = tnode_newnodetype ("avrasm:glabel", &i, 0, 1, 0, TNF_NONE);			/* namenodes: 0 = name */
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 
@@ -409,14 +497,14 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_LLABEL = tnode_newnodetag ("AVRASMLLABEL", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  avrasm:insnode -- [lots of things]*/
+	/*{{{  avrasm:insnode -- INSTR*/
 	i = -1;
-	tnd = tnode_newnodetype ("avrasm:insnode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = arguments */
+	tnd = tnode_newnodetype ("avrasm:insnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = const-instr, 1 = arg0, 2 = arg1 */
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 
 	i = -1;
-	avrasm.tag_RJMP = tnode_newnodetag ("AVRASMRJMP", &i, tnd, NTF_NONE);
+	avrasm.tag_INSTR = tnode_newnodetag ("AVRASMINSTR", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 
