@@ -354,6 +354,7 @@ static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)
 	for (i=0; i<nitems; i++) {
 		tnode_t *node = items[i];
 
+		/* first, scope in label names */
 		if (node->tag == avrasm.tag_GLABELDEF) {
 			tnode_t *lname_node = tnode_nthsubof (node, 0);
 

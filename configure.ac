@@ -14,7 +14,7 @@ AC_CANONICAL_TARGET
 AM_CONFIG_HEADER(config.h)
 AM_CONFIG_HEADER(include/noccconfig.h)
 
-AM_INIT_AUTOMAKE([nocc], [0.1.5])
+AM_INIT_AUTOMAKE([nocc], [0.1.6])
 
 dnl Checks for programs.
 AC_PROG_CC

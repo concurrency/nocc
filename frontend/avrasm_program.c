@@ -63,33 +63,127 @@ typedef struct TAG_avrasm_lithook {
 static avrinstr_tbl_t avrasm_itable[] = {
 	{INS_ADD, "add", IMODE_REG, IMODE_REG},
 	{INS_ADC, "adc", IMODE_REG, IMODE_REG},
-	{INS_ADIW, "adiw", IMODE_REG, IMODE_CONST},
+	{INS_ADIW, "adiw", IMODE_REG, IMODE_CONST8},
 	{INS_SUB, "sub", IMODE_REG, IMODE_REG},
-	{INS_SUBI, "subi", IMODE_REG, IMODE_CONST},
+	{INS_SUBI, "subi", IMODE_REG, IMODE_CONST8},
 	{INS_SBC, "sbc", IMODE_REG, IMODE_REG},
-	{INS_SBCI, "sbci", IMODE_REG, IMODE_CONST},
-	{INS_SBIW, "sbiw", IMODE_REG, IMODE_CONST},
+	{INS_SBCI, "sbci", IMODE_REG, IMODE_CONST8},
+	{INS_SBIW, "sbiw", IMODE_REG, IMODE_CONST8},
 	{INS_AND, "and", IMODE_REG, IMODE_REG},
-	{INS_ANDI, "andi", IMODE_REG, IMODE_CONST},
+	{INS_ANDI, "andi", IMODE_REG, IMODE_CONST8},
 	{INS_OR, "or", IMODE_REG, IMODE_REG},
-	{INS_ORI, "ori", IMODE_REG, IMODE_CONST},
+	{INS_ORI, "ori", IMODE_REG, IMODE_CONST8},
 	{INS_EOR, "eor", IMODE_REG, IMODE_REG},
 	{INS_COM, "com", IMODE_REG, IMODE_NONE},
 	{INS_NEG, "neg", IMODE_REG, IMODE_NONE},
-	{INS_SBR, "sbr", IMODE_REG, IMODE_CONST},
-	{INS_CBR, "cbr", IMODE_REG, IMODE_CONST},
+	{INS_SBR, "sbr", IMODE_REG, IMODE_CONST8},
+	{INS_CBR, "cbr", IMODE_REG, IMODE_CONST8},
 	{INS_INC, "inc", IMODE_REG, IMODE_NONE},
 	{INS_DEC, "dec", IMODE_REG, IMODE_NONE},
+	{INS_TST, "tst", IMODE_REG, IMODE_NONE},
+	{INS_CLR, "clr", IMODE_REG, IMODE_NONE},
+	{INS_SER, "ser", IMODE_REG, IMODE_NONE},
+	{INS_MUL, "mul", IMODE_REG, IMODE_REG},
+	{INS_MULS, "muls", IMODE_REG, IMODE_REG},
+	{INS_MULSU, "mulsu", IMODE_REG, IMODE_REG},
+	{INS_FMUL, "fmul", IMODE_REG, IMODE_REG},
+	{INS_FMULS, "fmuls", IMODE_REG, IMODE_REG},
+	{INS_FMULSU, "fmulsu", IMODE_REG, IMODE_REG},
 
-	{INS_RJMP, "rjmp", IMODE_CONST, IMODE_NONE},
-	{INS_BRNE, "brne", IMODE_CONST, IMODE_NONE},
+	{INS_RJMP, "rjmp", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_IJMP, "ijmp", IMODE_NONE, IMODE_NONE},
+	{INS_EIJMP, "eijmp", IMODE_NONE, IMODE_NONE},
+	{INS_JMP, "jmp", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_RCALL, "rcall", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_ICALL, "icall", IMODE_NONE, IMODE_NONE},
+	{INS_EICALL, "eicall", IMODE_NONE, IMODE_NONE},
+	{INS_CALL, "call", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_RET, "ret", IMODE_NONE, IMODE_NONE},
+	{INS_RETI, "reti", IMODE_NONE, IMODE_NONE},
+	{INS_CPSE, "cpse", IMODE_REG, IMODE_REG},
+	{INS_CP, "cp", IMODE_REG, IMODE_REG},
+	{INS_CPC, "cpc", IMODE_REG, IMODE_REG},
+	{INS_CPI, "cpi", IMODE_REG, IMODE_CONST8},
+	{INS_SBRC, "sbrc", IMODE_REG, IMODE_CONST3},
+	{INS_SBRS, "sbrs", IMODE_REG, IMODE_CONST3},
+	{INS_SBIC, "sbic", IMODE_CONSTIO, IMODE_CONST3},
+	{INS_SBIS, "sbis", IMODE_CONSTIO, IMODE_CONST3},
+	{INS_BRBS, "brbs", IMODE_CONST3, IMODE_CONSTCODE},
+	{INS_BRBC, "brbc", IMODE_CONST3, IMODE_CONSTCODE},
+	{INS_BREQ, "breq", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRNE, "brne", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRCS, "brcs", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRCC, "brcc", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRSH, "brsh", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRLO, "brlo", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRMI, "brmi", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRPL, "brpl", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRGE, "brge", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRLT, "brlt", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRHS, "brhs", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRHC, "brhc", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRTS, "brts", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRTC, "brtc", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRVS, "brvs", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRVC, "brvc", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRIE, "brie", IMODE_CONSTCODE, IMODE_NONE},
+	{INS_BRID, "brid", IMODE_CONSTCODE, IMODE_NONE},
 
-	{INS_LDI, "ldi", IMODE_REG, IMODE_CONST},
+	{INS_MOV, "mov", IMODE_REG, IMODE_REG},
+	{INS_MOVW, "movw", IMODE_REG, IMODE_REG},
+	{INS_LDI, "ldi", IMODE_REG, IMODE_CONST8},
+	{INS_LDS, "lds", IMODE_REG, IMODE_CONSTMEM},
+	{INS_LD, "ld", IMODE_REG, IMODE_XYZ | IMODE_INCDEC},
+	{INS_LDD, "ldd", IMODE_REG, IMODE_XYZ | IMODE_CONST8},
+	{INS_STS, "sts", IMODE_CONSTMEM, IMODE_REG},
+	{INS_ST, "st", IMODE_XYZ | IMODE_INCDEC, IMODE_REG},
+	{INS_STD, "std", IMODE_XYZ | IMODE_CONST8, IMODE_REG},
+	{INS_LPM, "lpm", IMODE_REG, IMODE_XYZ | IMODE_INCDEC},
+	{INS_ELPM, "elpm", IMODE_REG, IMODE_XYZ | IMODE_INCDEC},
+	{INS_SPM, "spm", IMODE_NONE, IMODE_NONE},
+	{INS_IN, "in", IMODE_REG, IMODE_CONSTIO},
+	{INS_OUT, "out", IMODE_CONSTIO, IMODE_REG},
+	{INS_PUSH, "push", IMODE_REG, IMODE_NONE},
+	{INS_POP, "pop", IMODE_REG, IMODE_NONE},
 
+	{INS_LSL, "lsl", IMODE_REG, IMODE_NONE},
+	{INS_LSR, "lsr", IMODE_REG, IMODE_NONE},
+	{INS_ROL, "rol", IMODE_REG, IMODE_NONE},
+	{INS_ROR, "ror", IMODE_REG, IMODE_NONE},
+	{INS_ASR, "asr", IMODE_REG, IMODE_NONE},
+	{INS_SWAP, "swap", IMODE_REG, IMODE_NONE},
+	{INS_BSET, "bset", IMODE_CONST3, IMODE_NONE},
+	{INS_BCLR, "bclr", IMODE_CONST3, IMODE_NONE},
+	{INS_SBI, "sbi", IMODE_CONSTIO, IMODE_CONST3},
+	{INS_CBI, "cbi", IMODE_CONSTIO, IMODE_CONST3},
+	{INS_BST, "bst", IMODE_REG, IMODE_CONST3},
+	{INS_BLD, "bld", IMODE_REG, IMODE_CONST3},
+	{INS_SEC, "sec", IMODE_NONE, IMODE_NONE},
+	{INS_CLC, "clc", IMODE_NONE, IMODE_NONE},
+	{INS_SEN, "sen", IMODE_NONE, IMODE_NONE},
+	{INS_CLN, "cln", IMODE_NONE, IMODE_NONE},
+	{INS_SEZ, "sez", IMODE_NONE, IMODE_NONE},
+	{INS_CLZ, "clz", IMODE_NONE, IMODE_NONE},
+	{INS_SEI, "sei", IMODE_NONE, IMODE_NONE},
+	{INS_CLI, "cli", IMODE_NONE, IMODE_NONE},
+	{INS_SES, "ses", IMODE_NONE, IMODE_NONE},
+	{INS_CLS, "cls", IMODE_NONE, IMODE_NONE},
+	{INS_SEV, "sev", IMODE_NONE, IMODE_NONE},
+	{INS_CLV, "clv", IMODE_NONE, IMODE_NONE},
+	{INS_SET, "set", IMODE_NONE, IMODE_NONE},
+	{INS_CLT, "clt", IMODE_NONE, IMODE_NONE},
+	{INS_SEH, "seh", IMODE_NONE, IMODE_NONE},
+	{INS_CLH, "clh", IMODE_NONE, IMODE_NONE},
+
+	{INS_BREAK, "break", IMODE_NONE, IMODE_NONE},
 	{INS_NOP, "nop", IMODE_NONE, IMODE_NONE},
+	{INS_SLEEP, "sleep", IMODE_NONE, IMODE_NONE},
+	{INS_WDR, "wdr", IMODE_NONE, IMODE_NONE},
 
 	{INS_INVALID, NULL, IMODE_NONE, IMODE_NONE}
 };
+
+STATICSTRINGHASH(avrinstr_tbl_t *, avrasm_nitable, 5);
 
 /*}}}*/
 
@@ -191,18 +285,20 @@ static void *avrasm_instoken_to_node (void *ntok)
 {
 	token_t *tok = (token_t *)ntok;
 	tnode_t *node = NULL;
-	int iidx;
+	avrinstr_tbl_t *tent;
 
-	for (iidx=0; avrasm_itable[iidx].str; iidx++) {
-		if (lexer_tokmatchlitstr (tok, avrasm_itable[iidx].str)) {
-			break;		/* for() */
-		}
+	if (tok->type != KEYWORD) {
+		lexer_error (tok->origin, "instruction \"%s\" is not a keyword token", lexer_stokenstr (tok));
+		lexer_freetoken (tok);
+		return NULL;
 	}
-	if (!avrasm_itable[iidx].str) {
+	tent = stringhash_lookup (avrasm_nitable, tok->u.kw->name);
+
+	if (!tent) {
 		lexer_error (tok->origin, "unhandled instruction \"%s\"", lexer_stokenstr (tok));
 	} else {
 		avrasm_lithook_t *lh = new_avrasmlithook ();
-		int inum = avrasm_itable[iidx].ins;
+		int inum = tent->ins;
 
 		lh->len = sizeof (inum);
 		lh->data = mem_ndup (&inum, lh->len);
@@ -409,6 +505,34 @@ static int avrasm_scopein_rawname (compops_t *cops, tnode_t **node, scope_t *ss)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int avrasm_scopein_equnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes in an EQU or DEF definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_scopein_equnode (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	tnode_t **namep = tnode_nthsubaddr (*node, 0);
+	
+	if ((*namep)->tag != avrasm.tag_NAME) {
+		scope_error (*node, ss, "equ/def name is not a name");
+	} else {
+		char *rawname = (char *)tnode_nthhookof (*namep, 0);
+		name_t *ename;
+		tnode_t *namenode;
+
+		ename = name_addscopenamess (rawname, *namep, NULL, NULL, ss);
+		namenode = tnode_createfrom (avrasm.tag_EQUNAME, *node, ename);
+		SetNameNode (ename, namenode);
+
+		tnode_free (*namep);
+		*namep = namenode;
+
+		ss->scoped++;
+	}
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static int avrasm_program_init_nodes (void)*/
@@ -473,6 +597,19 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_ORG = tnode_newnodetag ("AVRASMORG", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  avrasm:equnode -- EQU, DEF*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:equnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = name, 1 = expr */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (avrasm_scopein_equnode));
+	tnd->ops = cops;
+
+	i = -1;
+	avrasm.tag_EQU = tnode_newnodetag ("AVRASMEQU", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_DEF = tnode_newnodetag ("AVRASMDEF", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 	/*{{{  avrasm:labdefnode -- GLABELDEF, LLABELDEF*/
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:labdefnode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = label-name */
@@ -485,7 +622,7 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_LLABELDEF = tnode_newnodetag ("AVRASMLLABELDEF", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  avrasm:namenode -- GLABEL, LLABEL*/
+	/*{{{  avrasm:namenode -- GLABEL, LLABEL, EQUNAME*/
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:glabel", &i, 0, 1, 0, TNF_NONE);			/* namenodes: 0 = name */
 	cops = tnode_newcompops ();
@@ -495,6 +632,8 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_GLABEL = tnode_newnodetag ("AVRASMGLABEL", &i, tnd, NTF_NONE);
 	i = -1;
 	avrasm.tag_LLABEL = tnode_newnodetag ("AVRASMLLABEL", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_EQUNAME = tnode_newnodetag ("AVRASMEQUNAME", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  avrasm:insnode -- INSTR*/
@@ -511,13 +650,30 @@ static int avrasm_program_init_nodes (void)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int avrasm_program_post_setup (void)*/
+/*
+ *	does any final setup for the AVR assembler
+ *	returns 0 on success, non-zero on failure
+ */
+static int avrasm_program_post_setup (void)
+{
+	int i;
+
+	stringhash_sinit (avrasm_nitable);
+	for (i=0; avrasm_itable[i].str; i++) {
+		stringhash_insert (avrasm_nitable, &(avrasm_itable[i]), avrasm_itable[i].str);
+	}
+
+	return 0;
+}
+/*}}}*/
 
 /*{{{  avrasm_program_feunit (feunit_t)*/
 feunit_t avrasm_program_feunit = {
 	.init_nodes = avrasm_program_init_nodes,
 	.reg_reducers = NULL,
 	.init_dfatrans = NULL,
-	.post_setup = NULL,
+	.post_setup = avrasm_program_post_setup,
 	.ident = "avrasm-program"
 };
 

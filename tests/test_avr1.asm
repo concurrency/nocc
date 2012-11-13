@@ -35,7 +35,7 @@ reset:
 	; initialise stack pointer.. :)
 	ldi	r16,0x00
 	out	SPH,r16
-	ldi	r16,0xF0
+	ldi	r16,0xf0
 	out	SPL,r16
 
 	ldi	r16,0x01

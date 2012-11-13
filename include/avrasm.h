@@ -43,6 +43,8 @@ typedef struct {
 	struct TAG_ntdef *tag_LITINS;
 
 	struct TAG_ntdef *tag_ORG;
+	struct TAG_ntdef *tag_EQU;
+	struct TAG_ntdef *tag_DEF;
 
 	struct TAG_ntdef *tag_UMINUS;
 	struct TAG_ntdef *tag_ADD;
@@ -60,6 +62,7 @@ typedef struct {
 
 	struct TAG_ntdef *tag_GLABEL;
 	struct TAG_ntdef *tag_LLABEL;
+	struct TAG_ntdef *tag_EQUNAME;
 
 	struct TAG_ntdef *tag_INSTR;
 } avrasm_pset_t;

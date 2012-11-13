@@ -18,6 +18,7 @@ noinst_HEADERS = version.h nocc.h support.h origin.h platform.h opts.h fcnlib.h 
 			traceslang.h traceslang_fe.h \
 			rcxb.h rcxb_fe.h \
 			avrasm.h avrasm_fe.h \
+			atmelavr.h \
 			mwsync.h \
 			hopp.h hopp_fe.h
 

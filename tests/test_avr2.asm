@@ -2,6 +2,8 @@
 ;	test_avr2.asm -- AVR assembler test
 ;
 
+.equ	PORTD	=2
+
 .org 0
 	rjmp	foo
 	nop
@@ -13,5 +15,7 @@ foo:
 loop:
 	dec	r16
 	brne	loop
+
+	sbi	PORTD, 7
 
 

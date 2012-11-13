@@ -42,6 +42,7 @@
 #include "krocllvm.h"
 #include "kroccifccsp.h"
 #include "cccsp.h"
+#include "atmelavr.h"
 
 /*}}}*/
 
@@ -204,6 +205,10 @@ int target_init (void)
 	if (cccsp_init ()) {
 		return 1;
 	}
+	/* initialise the built-in AVR target */
+	if (atmelavr_init ()) {
+		return 1;
+	}
 	return 0;
 }
 /*}}}*/
@@ -214,6 +219,10 @@ int target_init (void)
  */
 int target_shutdown (void)
 {
+	/* shutdown the built-in AVR target */
+	if (atmelavr_shutdown ()) {
+		return 1;
+	}
 	/* shutdown the built-in CCSP C target */
 	if (cccsp_shutdown ()) {
 		return 1;
