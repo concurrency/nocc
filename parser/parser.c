@@ -766,6 +766,7 @@ void parser_insertinlist (tnode_t *list, tnode_t *item, int idx)
 /*{{{  void parser_mergeinlist (tnode_t *list, tnode_t *sublist, int idx)*/
 /*
  *	merges one list into another, trashes the sub-list
+ *	if 'idx' is -1, adds to the end of the first list
  */
 void parser_mergeinlist (tnode_t *list, tnode_t *sublist, int idx)
 {
@@ -787,6 +788,10 @@ void parser_mergeinlist (tnode_t *list, tnode_t *sublist, int idx)
 	}
 	cur = (int *)array;
 	max = (int *)(array + 1);
+
+	if (idx == -1) {
+		idx = *cur;
+	}
 
 	sarray = (tnode_t **)tnode_nthhookof (sublist, 0);
 	if (!sarray) {

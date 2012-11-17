@@ -26,6 +26,7 @@ struct TAG_langparser;
 extern struct TAG_langlexer avrasm_lexer;
 extern struct TAG_langparser avrasm_parser;
 
+struct TAG_tnode;
 struct TAG_tndef;
 struct TAG_ntdef;
 struct TAG_token;
@@ -35,12 +36,26 @@ typedef struct {
 	struct TAG_tndef *node_INSNODE;
 	struct TAG_tndef *node_LABELNODE;
 
+	struct TAG_token *tok_STRING;
+	struct TAG_token *tok_DOT;
+
 	struct TAG_ntdef *tag_NAME;
 
 	struct TAG_ntdef *tag_LITSTR;
 	struct TAG_ntdef *tag_LITINT;
 	struct TAG_ntdef *tag_LITREG;
 	struct TAG_ntdef *tag_LITINS;
+
+	struct TAG_ntdef *tag_SEGMENTMARK;
+
+	struct TAG_ntdef *tag_MACRODEF;
+
+	struct TAG_ntdef *tag_CONST;
+	struct TAG_ntdef *tag_CONST16;
+
+	struct TAG_ntdef *tag_TEXTSEG;
+	struct TAG_ntdef *tag_DATASEG;
+	struct TAG_ntdef *tag_EEPROMSEG;
 
 	struct TAG_ntdef *tag_ORG;
 	struct TAG_ntdef *tag_EQU;
@@ -63,14 +78,17 @@ typedef struct {
 	struct TAG_ntdef *tag_GLABEL;
 	struct TAG_ntdef *tag_LLABEL;
 	struct TAG_ntdef *tag_EQUNAME;
+	struct TAG_ntdef *tag_MACRONAME;
 
 	struct TAG_ntdef *tag_INSTR;
 } avrasm_pset_t;
 
 extern avrasm_pset_t avrasm;
 
-extern void avrasm_isetindent (FILE *stream, int indent);
+extern void avrasm_isetindent (FILE *stream, int indent);	/* avrasm_parser.c */
 extern struct TAG_langdef *avrasm_getlangdef (void);
+
+extern int avrasm_subequ_subtree (struct TAG_tnode **tptr);
 
 extern struct TAG_feunit avrasm_program_feunit;			/* avrasm_program.c */
 

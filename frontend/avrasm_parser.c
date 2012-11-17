@@ -63,6 +63,7 @@ static void avrasm_parser_shutdown (lexfile_t *lf);
 static tnode_t *avrasm_parser_parse (lexfile_t *lf);
 static int avrasm_parser_prescope (tnode_t **tptr, prescope_t *ps);
 static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss);
+static int avrasm_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
 
 /*}}}*/
 /*{{{  global vars*/
@@ -77,7 +78,7 @@ langparser_t avrasm_parser = {
 	.descparse =		NULL, // avrasm_parser_descparse,
 	.prescope =		avrasm_parser_prescope,
 	.scope =		avrasm_parser_scope,
-	.typecheck =		NULL, // avrasm_parser_typecheck,
+	.typecheck =		avrasm_parser_typecheck,
 	.typeresolve =		NULL,
 	.postcheck =		NULL,
 	.fetrans =		NULL,
@@ -172,6 +173,86 @@ langdef_t *avrasm_getlangdef (void)
 /*}}}*/
 
 
+/*{{{  static int subequ_modprewalk (tnode_t **tptr, void *arg)*/
+/*
+ *	called for each node walked during the 'subequ' pass
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int subequ_modprewalk (tnode_t **tptr, void *arg)
+{
+	int i = 1;
+
+	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop ((*tptr)->tag->ndef->ops, "subequ")) {
+		i = tnode_callcompop ((*tptr)->tag->ndef->ops, "subequ", 2, tptr, NULL);
+	}
+	return i;
+}
+/*}}}*/
+/*{{{  int avrasm_subequ_subtree (tnode_t **tptr)*/
+/*
+ *	does .equ and .def substitution on a parse-tree (already scoped)
+ *	returns 0 on success, non-zero on failure
+ */
+int avrasm_subequ_subtree (tnode_t **tptr)
+{
+	if (!tptr) {
+		nocc_serious ("avrasm_subequ_subtree(): NULL tree-pointer");
+		return 1;
+	} else if (!*tptr) {
+		return 0;
+	} else {
+		tnode_modprewalktree (tptr, subequ_modprewalk, NULL);
+	}
+	return 0;
+}
+/*}}}*/
+
+
+/*{{{  static int subequ_cpass (tnode_t **treeptr)*/
+/*
+ *	called to do the compiler-pass for substituting .equ and .def directives
+ *	returns 0 on success, non-zero on failure
+ */
+static int subequ_cpass (tnode_t **treeptr)
+{
+	avrasm_subequ_subtree (treeptr);
+	return 0;
+}
+/*}}}*/
+
+
+/*{{{  static tnode_t *avrasm_includefile (char *fname, lexfile_t *curlf)*/
+/*
+ *	includes a file
+ *	returns a tree or NULL
+ */
+static tnode_t *avrasm_includefile (char *fname, lexfile_t *curlf)
+{
+	tnode_t *tree;
+	lexfile_t *lf;
+
+	lf = lexer_open (fname);
+	if (!lf) {
+		parser_error (curlf, "failed to open .include'd file %s", fname);
+		return NULL;
+	}
+
+	lf->toplevel = 0;
+	lf->islibrary = curlf->islibrary;
+	lf->sepcomp = curlf->sepcomp;
+
+	if (compopts.verbose) {
+		nocc_message ("sub-parsing ...");
+	}
+	tree = parser_parse (lf);
+	if (!tree) {
+		parser_error (curlf, "failed to parse .include'd file %s", fname);
+	}
+
+	lexer_close (lf);
+	return tree;
+}
+/*}}}*/
 /*{{{  static int avrasm_parser_init (lexfile_t *lf)*/
 /*
  *	initialises the AVR assembler parser
@@ -193,11 +274,26 @@ static int avrasm_parser_init (lexfile_t *lf)
 			return 1;
 		}
 
+		/* add compiler pass that will substitute in .equ and .def directives */
+		if (nocc_addcompilerpass ("subequ", INTERNAL_ORIGIN, "scope", 0, (int (*)(void *))subequ_cpass, CPASS_TREEPTR, -1, NULL)) {
+			nocc_serious ("avrasm_parser_init(): failed to add \"subequ\" compiler pass");
+			return 1;
+		}
+		if (tnode_newcompop ("subequ", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
+			nocc_serious ("avrasm_parser_init(): failed to add \"subequ\" compiler operation");
+			return 1;
+		}
+
 		/* initialise */
 		if (feunit_do_init_tokens (0, avrasm_priv->ldef, origin_langparser (&avrasm_parser))) {
 			nocc_error ("avrasm_parser_init(): failed to initialise tokens");
 			return 1;
 		}
+
+		/* register some particular tokens for later comparison */
+		avrasm.tok_DOT = lexer_newtoken (SYMBOL, ".");
+		avrasm.tok_STRING = lexer_newtoken (STRING, NULL);
+
 		if (feunit_do_init_nodes (feunit_set, 1, avrasm_priv->ldef, origin_langparser (&avrasm_parser))) {
 			nocc_error ("avrasm_parser_init(): failed to initialise nodes");
 			return 1;
@@ -249,6 +345,59 @@ static void avrasm_parser_shutdown (lexfile_t *lf)
 /*}}}*/
 
 
+/*{{{  static tnode_t *avrasm_parser_parsemacrodef (lexfile_t *lf)*/
+/*
+ *	called to parse a macro definition's contents, until .endmacro
+ *	returns tree on success, NULL on failure
+ */
+static tnode_t *avrasm_parser_parsemacrodef (lexfile_t *lf)
+{
+	token_t *tok;
+	tnode_t *tree = parser_newlistnode (lf);
+
+	if (compopts.verbose) {
+		nocc_message ("avrasm_parser_parsemacrodef(): starting parse..");
+	}
+
+	for (;;) {
+		tnode_t *thisone;
+
+		tok = lexer_nexttoken (lf);
+		while ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
+			lexer_freetoken (tok);
+			tok = lexer_nexttoken (lf);
+		}
+		if ((tok->type == END) || (tok->type == NOTOKEN)) {
+			parser_error (lf, "unexpected end-of-file when reading macro definition");
+			tnode_free (tree);
+			return NULL;
+		}
+		if (lexer_tokmatch (avrasm.tok_DOT, tok)) {
+			token_t *nexttok = lexer_nexttoken (lf);
+
+			if (nexttok && lexer_tokmatchlitstr (nexttok, "endmacro")) {
+				/* end-of-macro */
+				lexer_freetoken (tok);
+				lexer_freetoken (nexttok);
+
+				break;			/* for() */
+			} else {
+				lexer_pushback (lf, nexttok);
+			}
+		}
+		lexer_pushback (lf, tok);
+
+		thisone = dfa_walk ("avrasm:codeline", 0, lf);
+		if (!thisone) {
+			break;			/* for() */
+		}
+
+		parser_addtolist (tree, thisone);
+	}
+
+	return tree;
+}
+/*}}}*/
 /*{{{  static tnode_t *avrasm_parser_parse (lexfile_t *lf)*/
 /*
  *	called to parse a file (containing AVR assembler)
@@ -267,7 +416,6 @@ static tnode_t *avrasm_parser_parse (lexfile_t *lf)
 
 	for (;;) {
 		tnode_t *thisone;
-		int tnflags;
 
 		tok = lexer_nexttoken (lf);
 		while ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
@@ -279,11 +427,57 @@ static tnode_t *avrasm_parser_parse (lexfile_t *lf)
 			lexer_freetoken (tok);
 			break;		/* for() */
 		}
+		if (lexer_tokmatch (avrasm.tok_DOT, tok)) {
+			token_t *nexttok = lexer_nexttoken (lf);
+
+			if (nexttok && lexer_tokmatchlitstr (nexttok, "include")) {
+				/*{{{  process include'd file, continue*/
+				lexer_freetoken (tok);
+				lexer_freetoken (nexttok);
+
+				nexttok = lexer_nexttoken (lf);
+				if (nexttok && lexer_tokmatch (avrasm.tok_STRING, nexttok)) {
+					tnode_t *itree;
+					
+					itree = avrasm_includefile (nexttok->u.str.ptr, lf);
+					lexer_freetoken (nexttok);
+					
+					if (itree) {
+						/* should be another list of stuff, add it to the current program */
+						parser_mergeinlist (tree, itree, -1);
+					}
+				} else {
+					parser_error (lf, "while processing .include, expected string but found ");
+					lexer_dumptoken (stderr, nexttok);
+					lexer_freetoken (nexttok);
+				}
+				continue;		/* for() */
+				/*}}}*/
+			} else {
+				lexer_pushback (lf, nexttok);
+			}
+		}
 		lexer_pushback (lf, tok);
 
 		thisone = dfa_walk ("avrasm:codeline", 0, lf);
 		if (!thisone) {
 			break;		/* for() */
+		}
+		if (thisone->tag == avrasm.tag_MACRODEF) {
+			/*{{{  slightly special case, parse input until .endmacro*/
+			tnode_t *contents;
+
+#if 0
+fprintf (stderr, "avrasm_parser_parse(): sub-parse for macrodef, got:\n");
+tnode_dumptree (thisone, 1, stderr);
+#endif
+			contents = avrasm_parser_parsemacrodef (lf);
+			if (!contents) {
+				parser_error (lf, "bad or empty macro definition");
+			}
+			tnode_setnthsub (thisone, 2, contents);
+
+			/*}}}*/
 		}
 
 		/* add to program */
@@ -365,7 +559,7 @@ static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)
 				name_t *labname;
 				tnode_t *namenode;
 
-				labname = name_addscopenamess (rawname, lname_node, NULL, NULL, ss);
+				labname = name_addscopenamess (rawname, node, NULL, NULL, ss);
 				namenode = tnode_createfrom (avrasm.tag_GLABEL, lname_node, labname);
 				SetNameNode (labname, namenode);
 
@@ -384,5 +578,15 @@ static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)
 	return 0;
 }
 /*}}}*/
-
+/*{{{  static int avrasm_parser_typecheck (tnode_t *tptr, typecheck_t *tc)*/
+/*
+ *	called to type-check the parse tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int avrasm_parser_typecheck (tnode_t *tptr, typecheck_t *tc)
+{
+	tnode_prewalktree (tptr, typecheck_prewalktree, (void *)tc);
+	return tc->err;
+}
+/*}}}*/
 

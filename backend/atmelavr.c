@@ -147,6 +147,9 @@ typedef struct TAG_atmelavr_priv {
 } atmelavr_priv_t;
 
 /*}}}*/
+/*{{{  private data*/
+
+/*}}}*/
 
 
 /*{{{  static int atmelavr_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)*/

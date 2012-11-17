@@ -185,6 +185,12 @@ static avrinstr_tbl_t avrasm_itable[] = {
 
 STATICSTRINGHASH(avrinstr_tbl_t *, avrasm_nitable, 5);
 
+static avrtarget_t avrasm_ttable[] = {
+	{AVR_AT90S1200, "AT90S1200", 4, 2, 1024, 0, 0, 0x40, 64},
+	{AVR_ATMEGA1280, "ATMEGA1280", 57, 4, 131072, 0x200, 8192, 0x200, 4096},
+	{AVR_INVALID, NULL, 0, 0, 0, 0, 0, 0, 0}
+};
+
 /*}}}*/
 
 
@@ -464,7 +470,7 @@ static void avrasm_litnode_hook_dumptree (tnode_t *node, void *hook, int indent,
 	} else if (node->tag == avrasm.tag_LITSTR) {
 		fprintf (stream, "<avrasmlitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, (lit && lit->data) ? lit->data : "(null)");
 	} else if (node->tag == avrasm.tag_LITREG) {
-		fprintf (stderr, "<avrasmlitnode size=\"%d\" value=\"r%d\" />\n", lit ? lit->len : 0, (lit && lit->data) ? *(int *)(lit->data) : -1);
+		fprintf (stream, "<avrasmlitnode size=\"%d\" value=\"r%d\" />\n", lit ? lit->len : 0, (lit && lit->data) ? *(int *)(lit->data) : -1);
 	} else {
 		char *sdata = mkhexbuf ((unsigned char *)lit->data, lit->len);
 
@@ -473,6 +479,43 @@ static void avrasm_litnode_hook_dumptree (tnode_t *node, void *hook, int indent,
 	}
 
 	return;
+}
+/*}}}*/
+
+
+/*{{{  static int avrasm_scopein_macrodef (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes in a macro definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_scopein_macrodef (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	tnode_t **namep = tnode_nthsubaddr (*node, 0);
+
+	if ((*namep)->tag != avrasm.tag_NAME) {
+		scope_error (*node, ss, "macro name is not a name");
+	} else {
+		char *rawname = (char *)tnode_nthhookof (*namep, 0);
+		name_t *mname;
+		tnode_t *namenode;
+		void *nsmark = name_markscope ();
+
+		/* scope parameters and body */
+		tnode_modprepostwalktree (tnode_nthsubaddr (*node, 1), scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+		tnode_modprepostwalktree (tnode_nthsubaddr (*node, 2), scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+
+		name_markdescope (nsmark);
+
+		mname = name_addscopenamess (rawname, *node, NULL, NULL, ss);
+		namenode = tnode_createfrom (avrasm.tag_MACRONAME, *node, mname);
+		SetNameNode (mname, namenode);
+
+		tnode_free (*namep);
+		*namep = namenode;
+
+		ss->scoped++;
+	}
+	return 0;
 }
 /*}}}*/
 
@@ -521,7 +564,7 @@ static int avrasm_scopein_equnode (compops_t *cops, tnode_t **node, scope_t *ss)
 		name_t *ename;
 		tnode_t *namenode;
 
-		ename = name_addscopenamess (rawname, *namep, NULL, NULL, ss);
+		ename = name_addscopenamess (rawname, *node, NULL, NULL, ss);
 		namenode = tnode_createfrom (avrasm.tag_EQUNAME, *node, ename);
 		SetNameNode (ename, namenode);
 
@@ -529,6 +572,54 @@ static int avrasm_scopein_equnode (compops_t *cops, tnode_t **node, scope_t *ss)
 		*namep = namenode;
 
 		ss->scoped++;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int avrasm_subequ_equnode (compops_t *cops, tnode_t **tptr, void *spare)*/
+/*
+ *	does EQU and DEF substitutions on a EQU/DEF definition (RHS adjust)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_subequ_equnode (compops_t *cops, tnode_t **tptr, void *spare)
+{
+	tnode_t **exprp = tnode_nthsubaddr (*tptr, 1);
+
+#if 0
+fprintf (stderr, "avrasm_subequ_equnode(): here, node is:\n");
+tnode_dumptree (*tptr, 1, stderr);
+#endif
+	avrasm_subequ_subtree (exprp);
+	return 0;
+}
+/*}}}*/
+
+
+/*{{{  static int avrasm_subequ_namenode (compops_t *cops, tnode_t **tptr, void *spare)*/
+/*
+ *	does EQU and DEF substitutions on a namenode (EQU)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_subequ_namenode (compops_t *cops, tnode_t **tptr, void *spare)
+{
+	if ((*tptr)->tag == avrasm.tag_EQUNAME) {
+		name_t *name = tnode_nthnameof (*tptr, 0);
+		tnode_t *decl = NameDeclOf (name);
+
+		if (!decl) {
+			nocc_serious ("avrasm_subequ_namenode(): no declaration for EQUNAME!");
+		} else if ((decl->tag == avrasm.tag_EQU) || (decl->tag == avrasm.tag_DEF)) {
+			tnode_t *rhs = tnode_nthsubof (decl, 1);
+
+#if 0
+fprintf (stderr, "avrasm_subequ_namenode(): here, rhs of decl is:\n");
+tnode_dumptree (rhs, 1, stderr);
+#endif
+			// tnode_free (*tptr);
+			*tptr = tnode_copytree (rhs);
+		} else {
+			nocc_serious ("avrasm_subequ_namenode(): bad declaration for EQUNAME!");
+		}
 	}
 	return 1;
 }
@@ -587,6 +678,20 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_LITINS = tnode_newnodetag ("AVRASMLITINS", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  avrasm:leafnode -- TEXTSEG, DATASEG, EEPROMSEG*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:leafnode", &i, 0, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	avrasm.tag_TEXTSEG = tnode_newnodetag ("AVRASMTEXTSEG", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_DATASEG = tnode_newnodetag ("AVRASMDATASEG", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_EEPROMSEG = tnode_newnodetag ("AVRASMEEPROMSEG", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 	/*{{{  avrasm:orgnode -- ORG*/
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:dirnode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = origin-expression */
@@ -597,11 +702,45 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_ORG = tnode_newnodetag ("AVRASMORG", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  avrasm:segmentnode -- SEGMENTMARK*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:segmentnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = segment-const, 1 = content-list */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	avrasm.tag_SEGMENTMARK = tnode_newnodetag ("AVRASMSEGMENTMARK", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  avrasm:constnode -- CONST, CONST16*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:constnode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = data */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	avrasm.tag_CONST = tnode_newnodetag ("AVRASMCONST", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_CONST16 = tnode_newnodetag ("AVRASMCONST16", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  avrasm:macrodef -- MACRODEF*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:macrodef", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = name, 1 = params, 2 = body */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (avrasm_scopein_macrodef));
+	tnd->ops = cops;
+
+	i = -1;
+	avrasm.tag_MACRODEF = tnode_newnodetag ("AVRASMMACRODEF", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 	/*{{{  avrasm:equnode -- EQU, DEF*/
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:equnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = name, 1 = expr */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (avrasm_scopein_equnode));
+	tnode_setcompop (cops, "subequ", 2, COMPOPTYPE (avrasm_subequ_equnode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -622,10 +761,11 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_LLABELDEF = tnode_newnodetag ("AVRASMLLABELDEF", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  avrasm:namenode -- GLABEL, LLABEL, EQUNAME*/
+	/*{{{  avrasm:namenode -- GLABEL, LLABEL, EQUNAME, MACRONAME*/
 	i = -1;
-	tnd = tnode_newnodetype ("avrasm:glabel", &i, 0, 1, 0, TNF_NONE);			/* namenodes: 0 = name */
+	tnd = tnode_newnodetype ("avrasm:namenode", &i, 0, 1, 0, TNF_NONE);			/* namenodes: 0 = name */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "subequ", 2, COMPOPTYPE (avrasm_subequ_namenode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -634,6 +774,8 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_LLABEL = tnode_newnodetag ("AVRASMLLABEL", &i, tnd, NTF_NONE);
 	i = -1;
 	avrasm.tag_EQUNAME = tnode_newnodetag ("AVRASMEQUNAME", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_MACRONAME = tnode_newnodetag ("AVRASMMACRONAME", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  avrasm:insnode -- INSTR*/
