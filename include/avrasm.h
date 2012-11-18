@@ -79,16 +79,30 @@ typedef struct {
 	struct TAG_ntdef *tag_LLABEL;
 	struct TAG_ntdef *tag_EQUNAME;
 	struct TAG_ntdef *tag_MACRONAME;
+	struct TAG_ntdef *tag_PARAMNAME;
+
+	struct TAG_ntdef *tag_FPARAM;
+	struct TAG_ntdef *tag_INSTANCE;
 
 	struct TAG_ntdef *tag_INSTR;
 } avrasm_pset_t;
 
 extern avrasm_pset_t avrasm;
 
+typedef struct TAG_subequ {
+	int errcount;
+} subequ_t;
+
+typedef struct TAG_submacro {
+	int errcount;
+} submacro_t;
+
+
 extern void avrasm_isetindent (FILE *stream, int indent);	/* avrasm_parser.c */
 extern struct TAG_langdef *avrasm_getlangdef (void);
 
-extern int avrasm_subequ_subtree (struct TAG_tnode **tptr);
+extern int avrasm_subequ_subtree (struct TAG_tnode **tptr, struct TAG_subequ *se);
+extern int avrasm_submacro_subtree (struct TAG_tnode **tptr, struct TAG_submacro *sm);
 
 extern struct TAG_feunit avrasm_program_feunit;			/* avrasm_program.c */
 

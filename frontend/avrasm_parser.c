@@ -180,20 +180,39 @@ langdef_t *avrasm_getlangdef (void)
  */
 static int subequ_modprewalk (tnode_t **tptr, void *arg)
 {
+	subequ_t *se = (subequ_t *)arg;
 	int i = 1;
 
 	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop ((*tptr)->tag->ndef->ops, "subequ")) {
-		i = tnode_callcompop ((*tptr)->tag->ndef->ops, "subequ", 2, tptr, NULL);
+		i = tnode_callcompop ((*tptr)->tag->ndef->ops, "subequ", 2, tptr, se);
 	}
 	return i;
 }
 /*}}}*/
-/*{{{  int avrasm_subequ_subtree (tnode_t **tptr)*/
+/*{{{  static int submacro_modprewalk (tnode_t **tptr, void *arg)*/
+/*
+ *	called to each node walked during the 'submacro' pass
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int submacro_modprewalk (tnode_t **tptr, void *arg)
+{
+	submacro_t *sm = (submacro_t *)arg;
+	int i = 1;
+
+	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop ((*tptr)->tag->ndef->ops, "submacro")) {
+		i = tnode_callcompop ((*tptr)->tag->ndef->ops, "submacro", 2, tptr, sm);
+	}
+	return i;
+}
+/*}}}*/
+
+
+/*{{{  int avrasm_subequ_subtree (tnode_t **tptr, subequ_t *se)*/
 /*
  *	does .equ and .def substitution on a parse-tree (already scoped)
  *	returns 0 on success, non-zero on failure
  */
-int avrasm_subequ_subtree (tnode_t **tptr)
+int avrasm_subequ_subtree (tnode_t **tptr, subequ_t *se)
 {
 	if (!tptr) {
 		nocc_serious ("avrasm_subequ_subtree(): NULL tree-pointer");
@@ -201,9 +220,27 @@ int avrasm_subequ_subtree (tnode_t **tptr)
 	} else if (!*tptr) {
 		return 0;
 	} else {
-		tnode_modprewalktree (tptr, subequ_modprewalk, NULL);
+		tnode_modprewalktree (tptr, subequ_modprewalk, (void *)se);
 	}
-	return 0;
+	return se->errcount;
+}
+/*}}}*/
+/*{{{  int avrasm_submacro_subtree (tnode_t **tptr, submacro_t *sm)*/
+/*
+ *	does macro substitution on a parse-tree (already scoped)
+ *	returns 0 on success, non-zero on failure
+ */
+int avrasm_submacro_subtree (tnode_t **tptr, submacro_t *sm)
+{
+	if (!tptr) {
+		nocc_serious ("avrasm_submacro_subtree(): NULL tree-pointer");
+		return 1;
+	} else if (!*tptr) {
+		return 0;
+	} else {
+		tnode_modprewalktree (tptr, submacro_modprewalk, (void *)sm);
+	}
+	return sm->errcount;
 }
 /*}}}*/
 
@@ -215,8 +252,33 @@ int avrasm_subequ_subtree (tnode_t **tptr)
  */
 static int subequ_cpass (tnode_t **treeptr)
 {
-	avrasm_subequ_subtree (treeptr);
-	return 0;
+	subequ_t *se = (subequ_t *)smalloc (sizeof (subequ_t));
+	int r;
+
+	se->errcount = 0;
+	avrasm_subequ_subtree (treeptr, se);
+	r = se->errcount;
+	sfree (se);
+
+	return r;
+}
+/*}}}*/
+/*{{{  static int submacro_cpass (tnode_t **treeptr)*/
+/*
+ *	called to do the compiler-pass for substituting macro definitions
+ *	returns 0 on successs, non-zero on failure
+ */
+static int submacro_cpass (tnode_t **treeptr)
+{
+	submacro_t *sm = (submacro_t *)smalloc (sizeof (submacro_t));
+	int r;
+
+	sm->errcount = 0;
+	avrasm_submacro_subtree (treeptr, sm);
+	r = sm->errcount;
+	sfree (sm);
+
+	return r;
 }
 /*}}}*/
 
@@ -279,8 +341,16 @@ static int avrasm_parser_init (lexfile_t *lf)
 			nocc_serious ("avrasm_parser_init(): failed to add \"subequ\" compiler pass");
 			return 1;
 		}
+		if (nocc_addcompilerpass ("submacro", INTERNAL_ORIGIN, "subequ", 0, (int (*)(void *))submacro_cpass, CPASS_TREEPTR, -1, NULL)) {
+			nocc_serious ("avrasm_parser_init(): failed to add \"submacro\" compiler pass");
+			return 1;
+		}
 		if (tnode_newcompop ("subequ", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"subequ\" compiler operation");
+			return 1;
+		}
+		if (tnode_newcompop ("submacro", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
+			nocc_serious ("avrasm_parser_init(): failed to add \"submacro\" compiler operation");
 			return 1;
 		}
 

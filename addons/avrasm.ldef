@@ -228,6 +228,8 @@
 .GRULE	"avrasm:constreduce" "SN0N+C[AVRASMCONST]1R-"
 .GRULE	"avrasm:macroreduce" "SN1N+N+V0C[AVRASMMACRODEF]3R-"
 
+.GRULE	"avrasm:instancereduce" "SN1N+N+VC[AVRASMINSTANCE]2R-"
+
 .TABLE	"avrasm:name ::= [ 0 +Name 1 ] [ 1 {<avrasm:namereduce>} -* ]"
 
 .TABLE	"avrasm:restofexpr ::= [ 0 -* ]"
@@ -245,8 +247,11 @@
 # .TABLE	"avrasm:expr +:= [ 0 +@@- 1 ] [ 1 avrasm:expr 2 ] [ 2 {Ravrasm:mopreduce} -* ]"
 
 .TABLE	"avrasm:namestart ::= [ 0 avrasm:name 1 ] [ 1 @@: 2 ] [ 2 {<avrasm:glabeldefreduce>} -* <avrasm:endcodeline> ]"
+				"[ 1 @@( 3 ] [ 3 avrasm:exprlist 4 ] [ 4 @@) 5 ] [ 5 {<avrasm:instancereduce>} -* <avrasm:endcodeline> ]"
+				"[ 1 -* 6 ] [ 6 {<avrasm:nullpush>} -* 5 ]"
 
 .BNF	"avrasm:constlist ::= { avrasm:expr @@, 1 }"
+.BNF	"avrasm:exprlist ::= { avrasm:expr @@, 0 }"
 .BNF	"avrasm:namelist ::= { avrasm:name @@, 0 }"
 
 .TABLE	"avrasm:macrodef ::= [ 0 avrasm:name 1 ] [ 1 @@( 2 ] [ 2 avrasm:namelist 3 ] [ 3 @@) 4 ]"

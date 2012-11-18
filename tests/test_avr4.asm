@@ -13,4 +13,5 @@
 
 reset:
 	nop
+	BAR
 

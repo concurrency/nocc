@@ -483,6 +483,32 @@ static void avrasm_litnode_hook_dumptree (tnode_t *node, void *hook, int indent,
 /*}}}*/
 
 
+/*{{{  static int avrasm_prescope_macrodef (compops_t *cops, tnode_t **node, prescope_t *ps)*/
+/*
+ *	pre-scopes a macro definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_prescope_macrodef (compops_t *cops, tnode_t **node, prescope_t *ps)
+{
+	tnode_t **paramptr = tnode_nthsubaddr (*node, 1);
+
+	if (!*paramptr) {
+		/* no parameters, but create empty list for it */
+		*paramptr = parser_newlistnode ((*node)->org_file);
+	} else {
+		tnode_t **plist;
+		int nitems, i;
+
+		plist = parser_getlistitems (*paramptr, &nitems);
+		for (i=0; i<nitems; i++) {
+			tnode_t *tmpparam = tnode_createfrom (avrasm.tag_FPARAM, plist[i], plist[i]);
+
+			plist[i] = tmpparam;
+		}
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int avrasm_scopein_macrodef (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes in a macro definition
@@ -519,6 +545,113 @@ static int avrasm_scopein_macrodef (compops_t *cops, tnode_t **node, scope_t *ss
 }
 /*}}}*/
 
+/*{{{  static int avrasm_scopein_fparamnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes in a formal parameter (macros)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_scopein_fparamnode (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	tnode_t **namep = tnode_nthsubaddr (*node, 0);
+
+	if ((*namep)->tag != avrasm.tag_NAME) {
+		scope_error (*node, ss, "parameter name is not a name");
+	} else {
+		char *rawname = (char *)tnode_nthhookof (*namep, 0);
+		name_t *fpname;
+		tnode_t *namenode;
+
+		fpname = name_addscopenamess (rawname, *node, NULL, NULL, ss);
+		namenode = tnode_createfrom (avrasm.tag_PARAMNAME, *node, fpname);
+		SetNameNode (fpname, namenode);
+
+		tnode_free (*namep);
+		*namep = namenode;
+
+		ss->scoped++;
+	}
+	return 1;
+}
+/*}}}*/
+
+/*{{{  static int avrasm_prescope_instancenode (compops_t *cops, tnode_t **node, prescope_t *ps)*/
+/*
+ *	pre-scopes an instance node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_prescope_instancenode (compops_t *cops, tnode_t **node, prescope_t *ps)
+{
+	tnode_t **apptr = tnode_nthsubaddr (*node, 1);
+
+	if (!*apptr) {
+		*apptr = parser_newlistnode (OrgFileOf (*node));
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int avrasm_submacro_instancenode (compops_t *cops, tnode_t **node, submacro_t *sm)*/
+/*
+ *	does macro substitution on an instance node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_submacro_instancenode (compops_t *cops, tnode_t **node, submacro_t *sm)
+{
+	tnode_t *macnnode = tnode_nthsubof (*node, 0);
+	name_t *macname;
+	tnode_t *macdecl, *macbody;
+	tnode_t *fparamlist, *aparamlist;
+	int nfparams, naparams;
+	tnode_t **fparams, **aparams;
+	tnode_t *bodycopy;
+
+	if (macnnode->tag != avrasm.tag_MACRONAME) {
+		tnode_error (*node, "instance of macro is not a macro name [%s]", macnnode->tag->name);
+		sm->errcount++;
+		return 0;
+	}
+
+	macname = tnode_nthnameof (macnnode, 0);
+	macdecl = NameDeclOf (macname);
+	macbody = tnode_nthsubof (macdecl, 2);
+	fparamlist = tnode_nthsubof (macdecl, 1);
+	aparamlist = tnode_nthsubof (*node, 1);
+
+	if (!parser_islistnode (fparamlist)) {
+		tnode_error (*node, "macro [%s] has no formal parameter list..", NameNameOf (macname));
+		sm->errcount++;
+		return 0;
+	} else if (!parser_islistnode (aparamlist)) {
+		tnode_error (*node, "instance of macro [%s] has no actual parameters..", NameNameOf (macname));
+		sm->errcount++;
+		return 0;
+	}
+
+	fparams = parser_getlistitems (fparamlist, &nfparams);
+	aparams = parser_getlistitems (aparamlist, &naparams);
+
+	if (naparams > nfparams) {
+		tnode_error (*node, "too many parameters in instance of macro [%s]", NameNameOf (macname));
+		sm->errcount++;
+		return 0;
+	} else if (naparams < nfparams) {
+		tnode_error (*node, "too few parameters in instance of macro [%s]", NameNameOf (macname));
+		sm->errcount++;
+		return 0;
+	}
+
+	bodycopy = tnode_copytree (macbody);
+#if 1
+fprintf (stderr, "avrasm_submacro_instancenode(): original body=\n");
+tnode_dumptree (macbody, 1, stderr);
+fprintf (stderr, "copy=\n");
+tnode_dumptree (bodycopy, 1, stderr);
+fprintf (stderr, "fparams=\n");
+tnode_dumptree (fparamlist, 1, stderr);
+#endif
+
+	return 1;
+}
+/*}}}*/
 
 /*{{{  static int avrasm_scopein_rawname (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
@@ -576,12 +709,12 @@ static int avrasm_scopein_equnode (compops_t *cops, tnode_t **node, scope_t *ss)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int avrasm_subequ_equnode (compops_t *cops, tnode_t **tptr, void *spare)*/
+/*{{{  static int avrasm_subequ_equnode (compops_t *cops, tnode_t **tptr, subequ_t *se)*/
 /*
  *	does EQU and DEF substitutions on a EQU/DEF definition (RHS adjust)
  *	returns 0 to stop walk, 1 to continue
  */
-static int avrasm_subequ_equnode (compops_t *cops, tnode_t **tptr, void *spare)
+static int avrasm_subequ_equnode (compops_t *cops, tnode_t **tptr, subequ_t *se)
 {
 	tnode_t **exprp = tnode_nthsubaddr (*tptr, 1);
 
@@ -589,18 +722,18 @@ static int avrasm_subequ_equnode (compops_t *cops, tnode_t **tptr, void *spare)
 fprintf (stderr, "avrasm_subequ_equnode(): here, node is:\n");
 tnode_dumptree (*tptr, 1, stderr);
 #endif
-	avrasm_subequ_subtree (exprp);
+	avrasm_subequ_subtree (exprp, se);
 	return 0;
 }
 /*}}}*/
 
 
-/*{{{  static int avrasm_subequ_namenode (compops_t *cops, tnode_t **tptr, void *spare)*/
+/*{{{  static int avrasm_subequ_namenode (compops_t *cops, tnode_t **tptr, subequ_t *se)*/
 /*
  *	does EQU and DEF substitutions on a namenode (EQU)
  *	returns 0 to stop walk, 1 to continue
  */
-static int avrasm_subequ_namenode (compops_t *cops, tnode_t **tptr, void *spare)
+static int avrasm_subequ_namenode (compops_t *cops, tnode_t **tptr, subequ_t *se)
 {
 	if ((*tptr)->tag == avrasm.tag_EQUNAME) {
 		name_t *name = tnode_nthnameof (*tptr, 0);
@@ -608,6 +741,7 @@ static int avrasm_subequ_namenode (compops_t *cops, tnode_t **tptr, void *spare)
 
 		if (!decl) {
 			nocc_serious ("avrasm_subequ_namenode(): no declaration for EQUNAME!");
+			se->errcount++;
 		} else if ((decl->tag == avrasm.tag_EQU) || (decl->tag == avrasm.tag_DEF)) {
 			tnode_t *rhs = tnode_nthsubof (decl, 1);
 
@@ -619,6 +753,7 @@ tnode_dumptree (rhs, 1, stderr);
 			*tptr = tnode_copytree (rhs);
 		} else {
 			nocc_serious ("avrasm_subequ_namenode(): bad declaration for EQUNAME!");
+			se->errcount++;
 		}
 	}
 	return 1;
@@ -728,6 +863,7 @@ static int avrasm_program_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:macrodef", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = name, 1 = params, 2 = body */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (avrasm_prescope_macrodef));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (avrasm_scopein_macrodef));
 	tnd->ops = cops;
 
@@ -747,6 +883,29 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_EQU = tnode_newnodetag ("AVRASMEQU", &i, tnd, NTF_NONE);
 	i = -1;
 	avrasm.tag_DEF = tnode_newnodetag ("AVRASMDEF", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  avrasm:fparamnode -- FPARAM*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:fparamnode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = parameter-name */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (avrasm_scopein_fparamnode));
+	tnd->ops = cops;
+
+	i = -1;
+	avrasm.tag_FPARAM = tnode_newnodetag ("AVRASMFPARAM", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  avrasm:instancenode -- INSTANCE*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:instancenode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = name, 1 = params */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (avrasm_prescope_instancenode));
+	tnode_setcompop (cops, "submacro", 2, COMPOPTYPE (avrasm_submacro_instancenode));
+	tnd->ops = cops;
+
+	i = -1;
+	avrasm.tag_INSTANCE = tnode_newnodetag ("AVRASMINSTANCE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  avrasm:labdefnode -- GLABELDEF, LLABELDEF*/
@@ -776,6 +935,8 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_EQUNAME = tnode_newnodetag ("AVRASMEQUNAME", &i, tnd, NTF_NONE);
 	i = -1;
 	avrasm.tag_MACRONAME = tnode_newnodetag ("AVRASMMACRONAME", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_PARAMNAME = tnode_newnodetag ("AVRASMPARAMNAME", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  avrasm:insnode -- INSTR*/
