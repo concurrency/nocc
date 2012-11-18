@@ -185,11 +185,19 @@ static avrinstr_tbl_t avrasm_itable[] = {
 
 STATICSTRINGHASH(avrinstr_tbl_t *, avrasm_nitable, 5);
 
+typedef struct TAG_submacrosub {
+	name_t *findname;
+	tnode_t *aparam;
+} submacrosub_t;
+
+
 static avrtarget_t avrasm_ttable[] = {
 	{AVR_AT90S1200, "AT90S1200", 4, 2, 1024, 0, 0, 0x40, 64},
 	{AVR_ATMEGA1280, "ATMEGA1280", 57, 4, 131072, 0x200, 8192, 0x200, 4096},
 	{AVR_INVALID, NULL, 0, 0, 0, 0, 0, 0, 0}
 };
+
+
 
 /*}}}*/
 
@@ -589,6 +597,24 @@ static int avrasm_prescope_instancenode (compops_t *cops, tnode_t **node, presco
 	return 1;
 }
 /*}}}*/
+/*{{{  static int avrasm_submacro_instancenode_subbody (tnode_t **node, submacrosub_t *sms)*/
+/*
+ *	does substitutions inside a tree for macro parameters
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_submacro_instancenode_subbody (tnode_t **node, submacrosub_t *sms)
+{
+	if ((*node)->tag == avrasm.tag_PARAMNAME) {
+		name_t *thisname = tnode_nthnameof (*node, 0);
+
+		if (thisname == sms->findname) {
+			// tnode_free (*node);
+			*node = tnode_copytree (sms->aparam);
+		}
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int avrasm_submacro_instancenode (compops_t *cops, tnode_t **node, submacro_t *sm)*/
 /*
  *	does macro substitution on an instance node
@@ -640,14 +666,32 @@ static int avrasm_submacro_instancenode (compops_t *cops, tnode_t **node, submac
 	}
 
 	bodycopy = tnode_copytree (macbody);
-#if 1
+#if 0
 fprintf (stderr, "avrasm_submacro_instancenode(): original body=\n");
 tnode_dumptree (macbody, 1, stderr);
 fprintf (stderr, "copy=\n");
 tnode_dumptree (bodycopy, 1, stderr);
 fprintf (stderr, "fparams=\n");
 tnode_dumptree (fparamlist, 1, stderr);
+fprintf (stderr, "aparams=\n");
+tnode_dumptree (aparamlist, 1, stderr);
 #endif
+
+	if (nfparams > 0) {
+		submacrosub_t *sms = NULL;
+		int i;
+
+		sms = (submacrosub_t *)smalloc (sizeof (submacrosub_t));
+		for (i=0; i<nfparams; i++) {
+			sms->findname = tnode_nthnameof (tnode_nthsubof (fparams[i], 0), 0);
+			sms->aparam = aparams[i];
+			tnode_modprewalktree (&bodycopy, (int (*)(tnode_t **, void *))avrasm_submacro_instancenode_subbody, sms);
+		}
+		sfree (sms);
+	}
+
+	// tnode_free (*node);
+	*node = bodycopy;
 
 	return 1;
 }
