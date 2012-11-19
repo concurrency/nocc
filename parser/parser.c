@@ -1091,6 +1091,34 @@ tnode_t *parser_ensurelist (tnode_t **nodeptr, tnode_t *orgref)
 	return *nodeptr;
 }
 /*}}}*/
+/*{{{  int parser_collapselist (tnode_t *list)*/
+/*
+ *	collapses nested lists into a single list.
+ *	returns the number of lists collapsed.
+ */
+int parser_collapselist (tnode_t *list)
+{
+	int i;
+	int r = 0;
+
+	if (!parser_islistnode (list)) {
+		return 0;
+	}
+
+	for (i=0; i<parser_countlist (list); i++) {
+		tnode_t *item = parser_getfromlist (list, i);
+
+		if (parser_islistnode (item)) {
+			/* blend in here */
+			parser_delfromlist (list, i);
+			parser_mergeinlist (list, item, i);
+			i--;			/* redo this one (will be first merged) */
+			r++;
+		}
+	}
+	return r;
+}
+/*}}}*/
 
 
 /*{{{  int parser_register_reduce (const char *name, void (*reduce)(dfastate_t *, parsepriv_t *, void *), void *rarg)*/

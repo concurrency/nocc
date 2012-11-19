@@ -278,6 +278,8 @@ static int submacro_cpass (tnode_t **treeptr)
 	r = sm->errcount;
 	sfree (sm);
 
+	parser_collapselist (*treeptr);
+
 	return r;
 }
 /*}}}*/

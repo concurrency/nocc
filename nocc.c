@@ -162,6 +162,7 @@ compopts_t compopts = {
 	.target_cpu = NULL,
 	.target_os = NULL,
 	.target_vendor = NULL,
+	.default_target = 1,
 	.hashalgo = NULL,
 	.privkey = NULL,
 	DA_CONSTINITIALISER(trustedkeys),
@@ -213,6 +214,7 @@ static char *compiler_stock_target = NULL;
 STATICDYNARRAY (ihandler_t *, ihandlers);
 
 STATICDYNARRAY (char*, str_commands);
+
 /*}}}*/
 
 
@@ -629,6 +631,7 @@ fprintf (stderr, "specfile_setcomptarget(): setting compiler target to [%s]\n", 
 #if 0
 fprintf (stderr, "specfile_setcomptarget(): full target is [%s] [%s] [%s]\n", compopts.target_cpu, compopts.target_vendor, compopts.target_os);
 #endif
+	compopts.default_target = 1;
 
 	return;
 }
@@ -1310,7 +1313,7 @@ int nocc_register_ihandler (ihandler_t *ihdlr)
 		}
 	}
 
-#warning DO THIS
+// #warning DO THIS
 
 	if (compopts.verbose) {
 		nocc_message ("registering interaction handler for [%s]", ihdlr->id);
@@ -1354,6 +1357,11 @@ typedef struct TAG_compcxt {
 	int imode;				/* index into ihandlers array for currently active "mode" */
 	void *mhook;				/* mode-specific hook */
 } compcxt_t;
+
+
+/* unpleasant global, but sensible in context */
+static compcxt_t *global_ccx = NULL;
+
 
 /*}}}*/
 /*{{{  static compcxt_t *nocc_newcompcxt (void)*/
@@ -2077,7 +2085,7 @@ static int cstage_bepasses (compcxt_t *ccx)
 }
 /*}}}*/
 
-/*{{{  static int cstage_run (int stage, compcxt_t *ccx)*/
+/*{{{  static int cstage_run (int stage, int iact, int iauto, compcxt_t *ccx)*/
 /*
  *	try and run specified compiler stage, returns CSTR_(OK|ATEND|CLEANEXIT|DOEXIT) constant
  */
@@ -2114,6 +2122,71 @@ static int cstage_run (int stage, int iact, int iauto, compcxt_t *ccx)
 	}
 
 	return CSTR_DOEXIT;		/* won't actually get here */
+}
+/*}}}*/
+
+/*{{{  int nocc_setdefaulttarget (const char *tcpu, const char *tvendor, const char *tos)*/
+/*
+ *	can be called to set the target, if still set to the default.
+ *	returns 0 if target unchanged, non-zero otherwise.
+ */
+int nocc_setdefaulttarget (const char *tcpu, const char *tvendor, const char *tos)
+{
+	if (!global_ccx) {
+		nocc_serious ("nocc_setdefaulttarget(): called when no global compiler context!");
+		return 0;
+	}
+	if (compopts.default_target) {
+		int i;
+
+		/*{{{  change target in compiler options*/
+		if (compopts.target_cpu) {
+			sfree (compopts.target_cpu);
+		}
+		if (tcpu) {
+			compopts.target_cpu = string_dup (tcpu);
+		} else {
+			compopts.target_cpu = string_dup ("");
+		}
+
+		if (compopts.target_vendor) {
+			sfree (compopts.target_vendor);
+		}
+		if (tvendor) {
+			compopts.target_vendor = string_dup (tvendor);
+		} else {
+			compopts.target_vendor = string_dup ("");
+		}
+
+		if (compopts.target_os) {
+			sfree (compopts.target_os);
+		}
+		if (tos) {
+			compopts.target_os = string_dup (tos);
+		} else {
+			compopts.target_os = string_dup ("");
+		}
+
+		if (compopts.target_str) {
+			sfree (compopts.target_str);
+		}
+		compopts.target_str = (char *)smalloc (strlen (compopts.target_cpu) + strlen (compopts.target_os) + strlen (compopts.target_vendor) + 4);
+		sprintf (compopts.target_str, "%s-%s-%s", compopts.target_cpu, compopts.target_os, compopts.target_vendor);
+
+		compopts.default_target = 0;
+		/*}}}*/
+		/*{{{  right, may need to refresh the target stages if already past..*/
+		for (i=0; i<global_ccx->atstage; i++) {
+			if (!strcmp (stagetable[i].id, "ftarg") || !strcmp (stagetable[i].id, "htarg")) {
+				/* manual prod */
+				stagetable[i].stagefcn (global_ccx);
+			}
+		}
+
+		/*}}}*/
+		return 1;
+	}
+	return 0;
 }
 /*}}}*/
 
@@ -2477,11 +2550,11 @@ void *nocc_setimodehook (compcxt_t *ccx, void *mhook)
 }
 /*}}}*/
 
-
+/*{{{  nocc_completion / command_generator: interactive handling*/
 static char **nocc_completion (const char *, int, int);
 static char *command_generator (const char *, int);
 
-static char ** nocc_completion (const char *text, int start, int end)
+static char **nocc_completion (const char *text, int start, int end)
 {
 	char **matches;
 	matches = (char **)NULL;
@@ -2492,7 +2565,7 @@ static char ** nocc_completion (const char *text, int start, int end)
 	return (matches);
 }
 
-static char * command_generator (const char *text, int state)
+static char *command_generator (const char *text, int state)
 {
 	static int list_index, len;
 	char *name;
@@ -2513,6 +2586,8 @@ static char * command_generator (const char *text, int state)
 
 	return ((char *)NULL);
 }
+/*}}}*/
+
 
 /*{{{  int main (int argc, char **argv)*/
 /*
@@ -2552,6 +2627,7 @@ int main (int argc, char **argv)
 #else
 	compopts.target_vendor = string_dup ("unknown");
 #endif
+	compopts.default_target = 1;
 	compopts.target_str = (char *)smalloc (strlen (compopts.target_cpu) + strlen (compopts.target_os) + strlen (compopts.target_vendor) + 4);
 	sprintf (compopts.target_str, "%s-%s-%s", compopts.target_cpu, compopts.target_os, compopts.target_vendor);
 
@@ -3036,6 +3112,9 @@ int main (int argc, char **argv)
 		nocc_register_ihandler (lbitshan);
 	}
 
+	/*}}}*/
+	/*{{{  make the compiler context globally available for compiler stages*/
+	global_ccx = ccx;
 	/*}}}*/
 
 	if (compopts.interactive) {

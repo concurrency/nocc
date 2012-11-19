@@ -771,7 +771,6 @@ tnode_dumptree (*tptr, 1, stderr);
 }
 /*}}}*/
 
-
 /*{{{  static int avrasm_subequ_namenode (compops_t *cops, tnode_t **tptr, subequ_t *se)*/
 /*
  *	does EQU and DEF substitutions on a namenode (EQU)
@@ -800,6 +799,65 @@ tnode_dumptree (rhs, 1, stderr);
 			se->errcount++;
 		}
 	}
+	return 1;
+}
+/*}}}*/
+
+/*{{{  static int avrasm_prescope_targetnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
+/*
+ *	does pre-scope for a target node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_prescope_targetnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)
+{
+	tnode_t *expr = tnode_nthsubof (*tptr, 0);
+	avrasm_lithook_t *lh;
+	char *rawstr;
+	char *tcpu = NULL, *tvendor = NULL, *tos = NULL;
+	char *ch;
+
+	if (expr->tag != avrasm.tag_LITSTR) {
+		prescope_error (*tptr, ps, ".target expression is not a string");
+		return 0;
+	}
+	lh = (avrasm_lithook_t *)tnode_nthhookof (expr, 0);
+	rawstr = string_ndup (lh->data, lh->len);
+
+	for (ch=rawstr; (*ch != '\0') && (*ch != '-'); ch++);
+	tcpu = string_ndup (rawstr, (int)(ch - rawstr));
+	if (*ch == '-') {
+		char *dh;
+
+		for (dh = ++ch; (*ch != '\0') && (*ch != '-'); ch++);
+		tvendor = string_ndup (dh, (int)(ch - dh));
+		if (*ch == '-') {
+			ch++;
+			tos = string_dup (ch);
+		}
+	}
+	sfree (rawstr);
+
+	nocc_setdefaulttarget (tcpu, tvendor, tos);
+
+	sfree (tcpu);
+	if (tvendor) {
+		sfree (tvendor);
+	}
+	if (tos) {
+		sfree (tos);
+	}
+
+	return 1;
+}
+/*}}}*/
+
+/*{{{  static int avrasm_typecheck_insnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	typecheck for instruction nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_typecheck_insnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
 	return 1;
 }
 /*}}}*/
@@ -879,6 +937,17 @@ static int avrasm_program_init_nodes (void)
 
 	i = -1;
 	avrasm.tag_ORG = tnode_newnodetag ("AVRASMORG", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  avrasm:targetnode -- TARGETMARK*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:targetnode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = target-string */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (avrasm_prescope_targetnode));
+	tnd->ops = cops;
+
+	i = -1;
+	avrasm.tag_TARGETMARK = tnode_newnodetag ("AVRASMTARGETMARK", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  avrasm:segmentnode -- SEGMENTMARK*/
@@ -987,6 +1056,7 @@ static int avrasm_program_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:insnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = const-instr, 1 = arg0, 2 = arg1 */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (avrasm_typecheck_insnode));
 	tnd->ops = cops;
 
 	i = -1;

@@ -2,6 +2,8 @@
 ;	test_avr5.asm -- AVR assembler tests
 ;
 
+.target	"avr-atmel"
+
 .equ	PORTD	=2
 
 .macro	BIT_ON (Port,Bit)

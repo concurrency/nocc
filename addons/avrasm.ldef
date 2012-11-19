@@ -187,6 +187,7 @@
 .KEYWORD "const16"
 .KEYWORD "macro"
 .KEYWORD "endmacro"
+.KEYWORD "target"
 .KEYWORD "HI"
 .KEYWORD "LO"
 
@@ -230,6 +231,8 @@
 
 .GRULE	"avrasm:instancereduce" "SN1N+N+VC[AVRASMINSTANCE]2R-"
 
+.GRULE	"avrasm:targetreduce" "SN0N+C[AVRASMTARGETMARK]1R-"
+
 .TABLE	"avrasm:name ::= [ 0 +Name 1 ] [ 1 {<avrasm:namereduce>} -* ]"
 
 .TABLE	"avrasm:restofexpr ::= [ 0 -* ]"
@@ -266,6 +269,7 @@
 				"[ 1 +@eeprom 14 ] [ 14 {<avrasm:eepromsegreduce>} -* ]"
 				"[ 1 @const 15 ] [ 15 avrasm:constlist 16 ] [ 16 {<avrasm:constreduce>} -* <avrasm:endcodeline> ]"
 				"[ 1 @macro <avrasm:macrodef> ]"
+				"[ 1 @target 17 ] [ 17 avrasm:expr 18 ] [ 18 {<avrasm:targetreduce>} -* <avrasm:endcodeline> ]"
 .TABLE	"avrasm:codeline +:= [ 0 -Name 1 ] [ 1 -* <avrasm:namestart> ]"
 
 

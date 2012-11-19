@@ -113,6 +113,7 @@ typedef struct TAG_compopts {
 	char *target_cpu;
 	char *target_os;
 	char *target_vendor;
+	int default_target;
 
 	/* signing/hashing */
 	char *hashalgo;
@@ -168,6 +169,9 @@ extern int nocc_addxmlnamespace (const char *name, const char *uri);
 extern char *nocc_lookupxmlnamespace (const char *name);
 extern int nocc_dumpxmlnamespaceheaders (FILE *stream);
 extern int nocc_dumpxmlnamespacefooters (FILE *stream);
+
+/* this can be used to change the default target */
+extern int nocc_setdefaulttarget (const char *tcpu, const char *tvendor, const char *tos);
 
 /* used to driving the compiler from a lower-level (e.g. interaction handlers) */
 struct TAG_compcxt;			/* compiler context */
