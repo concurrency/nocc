@@ -54,6 +54,9 @@ int avrasm_register_frontend (void)
 	if (lexer_registerlang (&avrasm_lexer)) {
 		return -1;
 	}
+
+	nocc_addxmlnamespace ("avrasm", "http://www.cs.kent.ac.uk/projects/ofa/nocc/NAMESPACES/avrasm");
+
 	return 0;
 }
 /*}}}*/

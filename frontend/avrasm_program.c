@@ -552,6 +552,17 @@ static int avrasm_scopein_macrodef (compops_t *cops, tnode_t **node, scope_t *ss
 	return 0;
 }
 /*}}}*/
+/*{{{  static int avrasm_typecheck_macrodef (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking for a macro definition -- no-op
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_typecheck_macrodef (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	return 0;
+}
+/*}}}*/
+
 
 /*{{{  static int avrasm_scopein_fparamnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
@@ -666,6 +677,22 @@ static int avrasm_submacro_instancenode (compops_t *cops, tnode_t **node, submac
 	}
 
 	bodycopy = tnode_copytree (macbody);
+	/* ASSERT: bodybody is a list of things */
+	if (!parser_islistnode (bodycopy)) {
+		nocc_serious ("copied macro body, but not a list..");
+		return 0;
+	} else {
+		tnode_t **bitems;
+		int nbitems, j;
+
+		bitems = parser_getlistitems (bodycopy, &nbitems);
+
+		for (j=0; j<nbitems; j++) {
+			/* move origin to instance */
+			bitems[j]->org_file = (*node)->org_file;
+			bitems[j]->org_line = (*node)->org_line;
+		}
+	}
 #if 0
 fprintf (stderr, "avrasm_submacro_instancenode(): original body=\n");
 tnode_dumptree (macbody, 1, stderr);
@@ -837,6 +864,7 @@ static int avrasm_prescope_targetnode (compops_t *cops, tnode_t **tptr, prescope
 	}
 	sfree (rawstr);
 
+	/* attempt to set default compiler target */
 	nocc_setdefaulttarget (tcpu, tvendor, tos);
 
 	sfree (tcpu);
@@ -851,6 +879,72 @@ static int avrasm_prescope_targetnode (compops_t *cops, tnode_t **tptr, prescope
 }
 /*}}}*/
 
+
+/*{{{  static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e mode, tnode_t *node, tnode_t *arg, typecheck_t *tc)*/
+/*
+ *	checks that an instruction's arguments match the usage context.
+ *	returns 0 on success, non-zero on failure (also reports error via typechecker)
+ */
+static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e mode, tnode_t *node, tnode_t *arg, typecheck_t *tc)
+{
+	int good;
+
+	if ((mode == IMODE_NONE) && arg) {
+		typecheck_error (node, tc, "unexpected argument %d for \"%s\" instruction", argnum, ins->str);
+		return 1;
+	} else if (mode == IMODE_NONE) {
+		return 0;
+	}
+	if (!arg) {
+		typecheck_error (node, tc, "missing argument %d for \"%s\" instruction", argnum, ins->str);
+		return 1;
+	}
+
+	/* assume bad to start with */
+	good = 0;
+
+	if (mode & IMODE_REG) {
+		/* expecting register */
+		if (arg->tag == avrasm.tag_LITREG) {
+			good = 1;
+		}
+	}
+	if (mode & IMODE_CONST8) {
+		/* expecting 8-bit constant */
+		if (arg->tag == avrasm.tag_LITINT) {
+			good = 1;
+		}
+	}
+	if (mode & IMODE_CONST3) {
+		/* expecting 3-bit constant */
+		if (arg->tag == avrasm.tag_LITINT) {
+			good = 1;
+		}
+	}
+	if (mode & IMODE_CONSTCODE) {
+		/* expecting label address, or relative position */
+		if (arg->tag == avrasm.tag_GLABEL) {
+			good = 1;
+		}
+	}
+	if (mode & IMODE_CONSTMEM) {
+		/* expecting memory address constant, unsupported at the moment */
+	}
+	if (mode & IMODE_CONSTIO) {
+		/* expecting I/O address constant */
+		if (arg->tag == avrasm.tag_LITINT) {
+			good = 1;
+		}
+	}
+
+	if (!good) {
+		typecheck_error (node, tc, "incompatible argument %d for \"%s\" instruction", argnum, ins->str);
+		return 1;
+	}
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int avrasm_typecheck_insnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	typecheck for instruction nodes
@@ -858,6 +952,29 @@ static int avrasm_prescope_targetnode (compops_t *cops, tnode_t **tptr, prescope
  */
 static int avrasm_typecheck_insnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
+	tnode_t *ins_n = tnode_nthsubof (node, 0);
+	avrasm_lithook_t *lit;
+	int iidx, ins;
+
+	if (ins_n->tag != avrasm.tag_LITINS) {
+		nocc_serious ("avrasm_typecheck_insnode(): not an instruction constant [%s]", ins_n->tag->name);
+		return 0;
+	}
+	lit = (avrasm_lithook_t *)tnode_nthhookof (ins_n, 0);
+	ins = *(int *)lit->data;
+
+	for (iidx=0; avrasm_itable[iidx].str; iidx++) {
+		if (avrasm_itable[iidx].ins == ins) {
+			break;			/* for() */
+		}
+	}
+	if (!avrasm_itable[iidx].str) {
+		nocc_serious ("avrasm_typecheck_insnode(): impossible instruction %d", ins);
+		return 0;
+	}
+
+	avrasm_check_insarg (&(avrasm_itable[iidx]), 1, avrasm_itable[iidx].arg0, node, tnode_nthsubof (node, 1), tc);
+	avrasm_check_insarg (&(avrasm_itable[iidx]), 2, avrasm_itable[iidx].arg1, node, tnode_nthsubof (node, 2), tc);
 	return 1;
 }
 /*}}}*/
@@ -978,6 +1095,7 @@ static int avrasm_program_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (avrasm_prescope_macrodef));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (avrasm_scopein_macrodef));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (avrasm_typecheck_macrodef));
 	tnd->ops = cops;
 
 	i = -1;

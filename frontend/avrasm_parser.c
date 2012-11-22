@@ -283,6 +283,33 @@ static int submacro_cpass (tnode_t **treeptr)
 	return r;
 }
 /*}}}*/
+/*{{{  static int flatcode_cpass (tnode_t **treeptr)*/
+/*
+ *	called to do code-flattening for the assembler source
+ *	returns 0 on success, non-zero on failure
+ */
+static int flatcode_cpass (tnode_t **treeptr)
+{
+	/* all-in-one go over the tree.  Expect the top-level to be a list of things */
+	tnode_t *tree = *treeptr;
+	tnode_t *curseg = NULL;
+	int i;
+
+	if (!parser_islistnode (tree)) {
+		nocc_serious ("flatcode_cpass(): passed tree not list! was [%s]", tree->tag->name);
+		return 1;
+	}
+
+	for (i=0; i<parser_countlist (tree); i++) {
+		tnode_t *item = parser_getfromlist (tree, i);
+
+		if (item->tag == avrasm.tag_SEGMENTMARK) {
+		}
+	}
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static tnode_t *avrasm_includefile (char *fname, lexfile_t *curlf)*/
@@ -345,6 +372,10 @@ static int avrasm_parser_init (lexfile_t *lf)
 		}
 		if (nocc_addcompilerpass ("submacro", INTERNAL_ORIGIN, "subequ", 0, (int (*)(void *))submacro_cpass, CPASS_TREEPTR, -1, NULL)) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"submacro\" compiler pass");
+			return 1;
+		}
+		if (nocc_addcompilerpass ("flatcode", INTERNAL_ORIGIN, "type-check", 0, (int (*)(void *))flatcode_cpass, CPASS_TREEPTR, -1, NULL)) {
+			nocc_serious ("avrasm_parser_init(): failed to add \"flatcode\" compiler pass");
 			return 1;
 		}
 		if (tnode_newcompop ("subequ", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {

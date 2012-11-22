@@ -215,6 +215,9 @@ int atmelavr_shutdown (void)
  */
 static int atmelavr_target_init (target_t *target)
 {
+#if 1
+fprintf (stderr, "atmelavr_target_init(): here!\n");
+#endif
 	return 0;
 }
 /*}}}*/
