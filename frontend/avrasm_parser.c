@@ -171,6 +171,19 @@ langdef_t *avrasm_getlangdef (void)
 	return avrasm_priv->ldef;
 }
 /*}}}*/
+/*{{{  int avrasm_langop_inseg (tnode_t *node)*/
+/*
+ *	decides whether a particular node should be inside a segment in the assembler (instructions, org, constant data, vars, etc.)
+ *	returns truth value
+ */
+int avrasm_langop_inseg (tnode_t *node)
+{
+	if (!node->tag->ndef->lops || !tnode_haslangop (node->tag->ndef->lops, "avrasm_inseg")) {
+		return 0;
+	}
+	return (int)tnode_calllangop (node->tag->ndef->lops, "avrasm_inseg", 1, node);
+}
+/*}}}*/
 
 
 /*{{{  static int subequ_modprewalk (tnode_t **tptr, void *arg)*/
@@ -304,6 +317,25 @@ static int flatcode_cpass (tnode_t **treeptr)
 		tnode_t *item = parser_getfromlist (tree, i);
 
 		if (item->tag == avrasm.tag_SEGMENTMARK) {
+			curseg = item;
+			if (!tnode_nthsubof (curseg, 1)) {
+				tnode_t *seglist = parser_newlistnode (NULL);
+
+				tnode_setnthsub (curseg, 1, seglist);
+			}
+		} else if (avrasm_langop_inseg (item)) {
+			/* needs to be in a segment, do we have one? */
+			if (!curseg) {
+				/* make one, put in the list just before this one */
+				curseg = tnode_createfrom (avrasm.tag_SEGMENTMARK, item, 
+							tnode_createfrom (avrasm.tag_TEXTSEG, item),
+							parser_newlistnode (NULL));
+				parser_insertinlist (tree, curseg, i);
+				i++;			/* we moved down */
+			}
+
+			parser_addtolist (tnode_nthsubof (curseg, 1), parser_delfromlist (tree, i));
+			i--;			/* we got removed */
 		}
 	}
 
@@ -365,7 +397,7 @@ static int avrasm_parser_init (lexfile_t *lf)
 			return 1;
 		}
 
-		/* add compiler pass that will substitute in .equ and .def directives */
+		/* add various compiler passes, compiler-operations and language-operations */
 		if (nocc_addcompilerpass ("subequ", INTERNAL_ORIGIN, "scope", 0, (int (*)(void *))subequ_cpass, CPASS_TREEPTR, -1, NULL)) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"subequ\" compiler pass");
 			return 1;
@@ -384,6 +416,10 @@ static int avrasm_parser_init (lexfile_t *lf)
 		}
 		if (tnode_newcompop ("submacro", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"submacro\" compiler operation");
+			return 1;
+		}
+		if (tnode_newlangop ("avrasm_inseg", LOPS_INVALID, 1, INTERNAL_ORIGIN) < 0) {
+			nocc_serious ("avrasm_parser_init(): failed to add \"avrasm_inseg\" language operation");
 			return 1;
 		}
 

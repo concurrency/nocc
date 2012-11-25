@@ -879,6 +879,15 @@ static int avrasm_prescope_targetnode (compops_t *cops, tnode_t **tptr, prescope
 }
 /*}}}*/
 
+/*{{{  static int avrasm_inseg_true (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns true for nodes that should be inside a segment (e.g. instruction, label, .org, etc.)
+ */
+static int avrasm_inseg_true (langops_t *lops, tnode_t *node)
+{
+	return 1;
+}
+/*}}}*/
 
 /*{{{  static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e mode, tnode_t *node, tnode_t *arg, typecheck_t *tc)*/
 /*
@@ -990,6 +999,7 @@ static int avrasm_program_init_nodes (void)
 	tndef_t *tnd;
 	int i;
 	compops_t *cops;
+	langops_t *lops;
 
 	/*{{{  register reduction functions*/
 	fcnlib_addfcn ("avrasm_nametoken_to_hook", (void *)avrasm_nametoken_to_hook, 1, 1);
@@ -1051,6 +1061,9 @@ static int avrasm_program_init_nodes (void)
 	tnd = tnode_newnodetype ("avrasm:dirnode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = origin-expression */
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "avrasm_inseg", 1, LANGOPTYPE (avrasm_inseg_true));
+	tnd->lops = lops;
 
 	i = -1;
 	avrasm.tag_ORG = tnode_newnodetag ("AVRASMORG", &i, tnd, NTF_NONE);
@@ -1082,6 +1095,9 @@ static int avrasm_program_init_nodes (void)
 	tnd = tnode_newnodetype ("avrasm:constnode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = data */
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "avrasm_inseg", 1, LANGOPTYPE (avrasm_inseg_true));
+	tnd->lops = lops;
 
 	i = -1;
 	avrasm.tag_CONST = tnode_newnodetag ("AVRASMCONST", &i, tnd, NTF_NONE);
@@ -1144,6 +1160,9 @@ static int avrasm_program_init_nodes (void)
 	tnd = tnode_newnodetype ("avrasm:labdefnode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = label-name */
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "avrasm_inseg", 1, LANGOPTYPE (avrasm_inseg_true));
+	tnd->lops = lops;
 
 	i = -1;
 	avrasm.tag_GLABELDEF = tnode_newnodetag ("AVRASMGLABELDEF", &i, tnd, NTF_NONE);
@@ -1176,6 +1195,9 @@ static int avrasm_program_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (avrasm_typecheck_insnode));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "avrasm_inseg", 1, LANGOPTYPE (avrasm_inseg_true));
+	tnd->lops = lops;
 
 	i = -1;
 	avrasm.tag_INSTR = tnode_newnodetag ("AVRASMINSTR", &i, tnd, NTF_NONE);

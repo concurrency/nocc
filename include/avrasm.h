@@ -102,6 +102,8 @@ typedef struct TAG_submacro {
 extern void avrasm_isetindent (FILE *stream, int indent);	/* avrasm_parser.c */
 extern struct TAG_langdef *avrasm_getlangdef (void);
 
+extern int avrasm_langop_inseg (struct TAG_tnode *node);
+
 extern int avrasm_subequ_subtree (struct TAG_tnode **tptr, struct TAG_subequ *se);
 extern int avrasm_submacro_subtree (struct TAG_tnode **tptr, struct TAG_submacro *sm);
 
