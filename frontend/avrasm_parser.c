@@ -64,6 +64,7 @@ static tnode_t *avrasm_parser_parse (lexfile_t *lf);
 static int avrasm_parser_prescope (tnode_t **tptr, prescope_t *ps);
 static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss);
 static int avrasm_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
+static int avrasm_parser_typeresolve (tnode_t **tptr, typecheck_t *tc);
 
 /*}}}*/
 /*{{{  global vars*/
@@ -79,7 +80,7 @@ langparser_t avrasm_parser = {
 	.prescope =		avrasm_parser_prescope,
 	.scope =		avrasm_parser_scope,
 	.typecheck =		avrasm_parser_typecheck,
-	.typeresolve =		NULL,
+	.typeresolve =		avrasm_parser_typeresolve,
 	.postcheck =		NULL,
 	.fetrans =		NULL,
 	.getlangdef =		avrasm_getlangdef,
@@ -104,6 +105,8 @@ static feunit_t *feunit_set[] = {
 	&avrasm_program_feunit,
 	NULL
 };
+
+static chook_t *label_chook = NULL;
 
 /*}}}*/
 
@@ -182,6 +185,36 @@ int avrasm_langop_inseg (tnode_t *node)
 		return 0;
 	}
 	return (int)tnode_calllangop (node->tag->ndef->lops, "avrasm_inseg", 1, node);
+}
+/*}}}*/
+
+
+/*{{{  label_chook_t *avrasm_newlabelchook (void)*/
+/*
+ *	creates a new label_chook_t structure
+ */
+label_chook_t *avrasm_newlabelchook (void)
+{
+	label_chook_t *lch = (label_chook_t *)smalloc (sizeof (label_chook_t));
+
+	lch->zone = NULL;
+	lch->addr = 0;
+
+	return lch;
+}
+/*}}}*/
+/*{{{  void avrasm_freelabelchook (label_chook_t *lch)*/
+/*
+ *	frees a label_chook_t structure
+ */
+void avrasm_freelabelchook (label_chook_t *lch)
+{
+	if (!lch) {
+		nocc_serious ("avrasm_freelabelchook(): NULL pointer!");
+		return;
+	}
+	sfree (lch);
+	return;
 }
 /*}}}*/
 
@@ -334,6 +367,17 @@ static int flatcode_cpass (tnode_t **treeptr)
 				i++;			/* we moved down */
 			}
 
+			/* ASSERT: curset is valid */
+			if (item->tag == avrasm.tag_GLABELDEF) {
+				/* tag with right segment */
+				label_chook_t *lch = avrasm_newlabelchook ();
+
+				lch->zone = tnode_copytree (tnode_nthsubof (curseg, 0));
+				lch->addr = 0;
+
+				tnode_setchook (item, label_chook, (void *)lch);
+			}
+
 			parser_addtolist (tnode_nthsubof (curseg, 1), parser_delfromlist (tree, i));
 			i--;			/* we got removed */
 		}
@@ -432,6 +476,9 @@ static int avrasm_parser_init (lexfile_t *lf)
 		/* register some particular tokens for later comparison */
 		avrasm.tok_DOT = lexer_newtoken (SYMBOL, ".");
 		avrasm.tok_STRING = lexer_newtoken (STRING, NULL);
+
+		/* and some compiler hooks */
+		label_chook = tnode_lookupornewchook ("avrasm:labelinfo");
 
 		if (feunit_do_init_nodes (feunit_set, 1, avrasm_priv->ldef, origin_langparser (&avrasm_parser))) {
 			nocc_error ("avrasm_parser_init(): failed to initialise nodes");
@@ -659,6 +706,10 @@ static int avrasm_parser_prescope (tnode_t **tptr, prescope_t *ps)
 	if (!*tptr) {
 		return -1;
 	}
+
+	/* first, attempt to set the default compiler target */
+	nocc_setdefaulttarget ("avr", "atmel", NULL);
+
 	tnode_modprewalktree (tptr, prescope_modprewalktree, (void *)ps);
 
 	return ps->err;
@@ -725,6 +776,17 @@ static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)
 static int avrasm_parser_typecheck (tnode_t *tptr, typecheck_t *tc)
 {
 	tnode_prewalktree (tptr, typecheck_prewalktree, (void *)tc);
+	return tc->err;
+}
+/*}}}*/
+/*{{{  static int avrasm_parser_typeresolve (tnode_t **tptr, typecheck_t *tc)*/
+/*
+ *	called to type-resolve the parse tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int avrasm_parser_typeresolve (tnode_t **tptr, typecheck_t *tc)
+{
+	tnode_modprewalktree (tptr, typeresolve_modprewalktree, (void *)tc);
 	return tc->err;
 }
 /*}}}*/

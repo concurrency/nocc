@@ -198,6 +198,8 @@ static avrtarget_t avrasm_ttable[] = {
 };
 
 
+static chook_t *label_chook = NULL;
+
 
 /*}}}*/
 
@@ -889,12 +891,12 @@ static int avrasm_inseg_true (langops_t *lops, tnode_t *node)
 }
 /*}}}*/
 
-/*{{{  static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e mode, tnode_t *node, tnode_t *arg, typecheck_t *tc)*/
+/*{{{  static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e mode, tnode_t *node, tnode_t *arg, typecheck_t *tc, int trpass)*/
 /*
  *	checks that an instruction's arguments match the usage context.
  *	returns 0 on success, non-zero on failure (also reports error via typechecker)
  */
-static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e mode, tnode_t *node, tnode_t *arg, typecheck_t *tc)
+static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e mode, tnode_t *node, tnode_t *arg, typecheck_t *tc, int trpass)
 {
 	int good;
 
@@ -922,22 +924,85 @@ static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e
 		/* expecting 8-bit constant */
 		if (arg->tag == avrasm.tag_LITINT) {
 			good = 1;
+		} else if (arg->tag->ndef == avrasm.node_DOPNODE) {
+			/* check LHS & RHS */
+			if (!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (arg, 0), tc, trpass) &&
+					!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (arg, 1), tc, trpass)) {
+				good = 1;
+			}
 		}
 	}
 	if (mode & IMODE_CONST3) {
 		/* expecting 3-bit constant */
 		if (arg->tag == avrasm.tag_LITINT) {
 			good = 1;
+		} else if (arg->tag->ndef == avrasm.node_DOPNODE) {
+			/* check LHS & RHS */
+			if (!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (node, 0), tc, trpass) &&
+					!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (node, 1), tc, trpass)) {
+				good = 1;
+			}
 		}
 	}
 	if (mode & IMODE_CONSTCODE) {
 		/* expecting label address, or relative position */
 		if (arg->tag == avrasm.tag_GLABEL) {
+			if (!trpass) {
+				/* first-step typecheck, allow any label */
+				good = 1;
+			} else {
+				name_t *lname = tnode_nthnameof (arg, 0);
+				tnode_t *ndecl = NameDeclOf (lname);
+
+				if (ndecl && label_chook && tnode_haschook (ndecl, label_chook)) {
+					label_chook_t *lch = (label_chook_t *)tnode_getchook (ndecl, label_chook);
+
+					if (lch->zone->tag == avrasm.tag_TEXTSEG) {
+						good = 1;
+					} else {
+						typecheck_warning (node, tc, "label \"%s\" is not in the code/text segment", NameNameOf (lname));
+					}
+				}
+			}
+		} else if (arg->tag == avrasm.tag_LITINT) {
 			good = 1;
+		} else if (arg->tag->ndef == avrasm.node_DOPNODE) {
+			/* check LHS & RHS */
+			if (!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (node, 0), tc, trpass) &&
+					!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (node, 1), tc, trpass)) {
+				good = 1;
+			}
 		}
 	}
 	if (mode & IMODE_CONSTMEM) {
-		/* expecting memory address constant, unsupported at the moment */
+		/* expecting constant address, label address or relative position */
+		if (arg->tag == avrasm.tag_GLABEL) {
+			if (!trpass) {
+				/* first-step typecheck, allow any label */
+				good = 1;
+			} else {
+				name_t *lname = tnode_nthnameof (arg, 0);
+				tnode_t *ndecl = NameDeclOf (lname);
+
+				if (ndecl && label_chook && tnode_haschook (ndecl, label_chook)) {
+					label_chook_t *lch = (label_chook_t *)tnode_getchook (ndecl, label_chook);
+
+					if (lch->zone->tag == avrasm.tag_DATASEG) {
+						good = 1;
+					} else {
+						typecheck_warning (node, tc, "label \"%s\" is not in the data segment", NameNameOf (lname));
+					}
+				}
+			}
+		} else if (arg->tag == avrasm.tag_LITINT) {
+			good = 1;
+		} else if (arg->tag->ndef == avrasm.node_DOPNODE) {
+			/* check LHS & RHS */
+			if (!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (node, 0), tc, trpass) &&
+					!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (node, 1), tc, trpass)) {
+				good = 1;
+			}
+		}
 	}
 	if (mode & IMODE_CONSTIO) {
 		/* expecting I/O address constant */
@@ -982,8 +1047,42 @@ static int avrasm_typecheck_insnode (compops_t *cops, tnode_t *node, typecheck_t
 		return 0;
 	}
 
-	avrasm_check_insarg (&(avrasm_itable[iidx]), 1, avrasm_itable[iidx].arg0, node, tnode_nthsubof (node, 1), tc);
-	avrasm_check_insarg (&(avrasm_itable[iidx]), 2, avrasm_itable[iidx].arg1, node, tnode_nthsubof (node, 2), tc);
+	avrasm_check_insarg (&(avrasm_itable[iidx]), 1, avrasm_itable[iidx].arg0, node, tnode_nthsubof (node, 1), tc, 0);
+	avrasm_check_insarg (&(avrasm_itable[iidx]), 2, avrasm_itable[iidx].arg1, node, tnode_nthsubof (node, 2), tc, 0);
+	return 1;
+}
+/*}}}*/
+/*{{{  static int avrasm_typeresolve_insnode (compops_t *cops, tnode_t **nodep, typecheck_t *tc)*/
+/*
+ *	type-resolve for instruction nodes -- does slightly more detailed checking than 'typecheck' alone (and able to change tree)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_typeresolve_insnode (compops_t *cops, tnode_t **nodep, typecheck_t *tc)
+{
+	tnode_t *node = *nodep;
+	tnode_t *ins_n = tnode_nthsubof (node, 0);
+	avrasm_lithook_t *lit;
+	int iidx, ins;
+
+	if (ins_n->tag != avrasm.tag_LITINS) {
+		nocc_serious ("avrasm_typeresolve_insnode(): not an instruction constant [%s]", ins_n->tag->name);
+		return 0;
+	}
+	lit = (avrasm_lithook_t *)tnode_nthhookof (ins_n, 0);
+	ins = *(int *)lit->data;
+
+	for (iidx = 0; avrasm_itable[iidx].str; iidx++) {
+		if (avrasm_itable[iidx].ins == ins) {
+			break;			/* for() */
+		}
+	}
+	if (!avrasm_itable[iidx].str) {
+		nocc_serious ("avrasm_typeresolve_insnode(): impossible instruction %d", ins);
+		return 0;
+	}
+
+	avrasm_check_insarg (&(avrasm_itable[iidx]), 1, avrasm_itable[iidx].arg0, node, tnode_nthsubof (node, 1), tc, 1);
+	avrasm_check_insarg (&(avrasm_itable[iidx]), 2, avrasm_itable[iidx].arg1, node, tnode_nthsubof (node, 2), tc, 1);
 	return 1;
 }
 /*}}}*/
@@ -1170,7 +1269,7 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_LLABELDEF = tnode_newnodetag ("AVRASMLLABELDEF", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  avrasm:namenode -- GLABEL, LLABEL, EQUNAME, MACRONAME*/
+	/*{{{  avrasm:namenode -- GLABEL, LLABEL, EQUNAME, MACRONAME, PARAMNAME*/
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:namenode", &i, 0, 1, 0, TNF_NONE);			/* namenodes: 0 = name */
 	cops = tnode_newcompops ();
@@ -1194,6 +1293,7 @@ static int avrasm_program_init_nodes (void)
 	tnd = tnode_newnodetype ("avrasm:insnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = const-instr, 1 = arg0, 2 = arg1 */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (avrasm_typecheck_insnode));
+	tnode_setcompop (cops, "typeresolve", 2, COMPOPTYPE (avrasm_typeresolve_insnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "avrasm_inseg", 1, LANGOPTYPE (avrasm_inseg_true));
@@ -1201,6 +1301,31 @@ static int avrasm_program_init_nodes (void)
 
 	i = -1;
 	avrasm.tag_INSTR = tnode_newnodetag ("AVRASMINSTR", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  avrasm:dopnode -- ADD, SUB, MUL, DIV, REM, BITADD, BITOR, BITXOR*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:dopnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = left, 1 = right */
+	avrasm.node_DOPNODE = tnd;
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	avrasm.tag_ADD = tnode_newnodetag ("AVRASMADD", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_SUB = tnode_newnodetag ("AVRASMSUB", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_MUL = tnode_newnodetag ("AVRASMMUL", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_DIV = tnode_newnodetag ("AVRASMDIV", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_REM = tnode_newnodetag ("AVRASMREM", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_BITAND = tnode_newnodetag ("AVRASMBITAND", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_BITOR = tnode_newnodetag ("AVRASMBITOR", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_BITXOR = tnode_newnodetag ("AVRASMBITXOR", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 
@@ -1220,6 +1345,8 @@ static int avrasm_program_post_setup (void)
 	for (i=0; avrasm_itable[i].str; i++) {
 		stringhash_insert (avrasm_nitable, &(avrasm_itable[i]), avrasm_itable[i].str);
 	}
+
+	label_chook = tnode_lookupornewchook ("avrasm:labelinfo");
 
 	return 0;
 }

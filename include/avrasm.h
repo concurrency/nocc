@@ -35,6 +35,8 @@ struct TAG_langdef;
 typedef struct {
 	struct TAG_tndef *node_INSNODE;
 	struct TAG_tndef *node_LABELNODE;
+	struct TAG_tndef *node_DOPNODE;
+	struct TAG_tndef *node_MOPNODE;
 
 	struct TAG_token *tok_STRING;
 	struct TAG_token *tok_DOT;
@@ -62,7 +64,6 @@ typedef struct {
 	struct TAG_ntdef *tag_EQU;
 	struct TAG_ntdef *tag_DEF;
 
-	struct TAG_ntdef *tag_UMINUS;
 	struct TAG_ntdef *tag_ADD;
 	struct TAG_ntdef *tag_SUB;
 	struct TAG_ntdef *tag_MUL;
@@ -71,6 +72,8 @@ typedef struct {
 	struct TAG_ntdef *tag_BITAND;
 	struct TAG_ntdef *tag_BITOR;
 	struct TAG_ntdef *tag_BITXOR;
+
+	struct TAG_ntdef *tag_UMINUS;
 	struct TAG_ntdef *tag_BITNOT;
 
 	struct TAG_ntdef *tag_GLABELDEF;
@@ -99,6 +102,12 @@ typedef struct TAG_submacro {
 } submacro_t;
 
 
+/* used to tag labels (compiler hook) */
+typedef struct {
+	struct TAG_tnode *zone;	/* one of the segment leaves */
+	int addr;		/* actual address (byte offset) */
+} label_chook_t;
+
 extern void avrasm_isetindent (FILE *stream, int indent);	/* avrasm_parser.c */
 extern struct TAG_langdef *avrasm_getlangdef (void);
 
@@ -106,6 +115,11 @@ extern int avrasm_langop_inseg (struct TAG_tnode *node);
 
 extern int avrasm_subequ_subtree (struct TAG_tnode **tptr, struct TAG_subequ *se);
 extern int avrasm_submacro_subtree (struct TAG_tnode **tptr, struct TAG_submacro *sm);
+
+
+extern label_chook_t *avrasm_newlabelchook (void);
+extern void avrasm_freelabelchook (label_chook_t *lch);
+
 
 extern struct TAG_feunit avrasm_program_feunit;			/* avrasm_program.c */
 

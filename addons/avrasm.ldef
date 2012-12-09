@@ -233,9 +233,11 @@
 
 .GRULE	"avrasm:targetreduce" "SN0N+C[AVRASMTARGETMARK]1R-"
 
+.GRULE	"avrasm:foldplus" "ST0T+@tR+N+C[AVRASMADD]2R-"
+
 .TABLE	"avrasm:name ::= [ 0 +Name 1 ] [ 1 {<avrasm:namereduce>} -* ]"
 
-.TABLE	"avrasm:restofexpr ::= [ 0 -* ]"
+.TABLE	"avrasm:restofexpr ::= [ 0 -* ] [ 0 +@@+ 1 ] [ 1 avrasm:expr 2 ] [ 2 {<avrasm:foldplus>} -* ]"
 
 .TABLE	"avrasm:expr ::= [ 0 +String 1 ] [ 0 +Integer 2 ] [ 1 {<avrasm:stringreduce>} -* <avrasm:restofexpr> ] [ 2 {<avrasm:integerreduce>} -* <avrasm:restofexpr> ]"
 .TABLE	"avrasm:expr +:= [ 0 -Name 1 ] [ 1 avrasm:name 2 ] [ 2 {<avrasm:nullreduce>} -* <avrasm:restofexpr> ]"
