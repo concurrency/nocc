@@ -188,6 +188,7 @@
 .KEYWORD "macro"
 .KEYWORD "endmacro"
 .KEYWORD "target"
+.KEYWORD "mcu"
 .KEYWORD "HI"
 .KEYWORD "LO"
 
@@ -218,9 +219,9 @@
 .GRULE	"avrasm:defreduce" "SN0N+N+VC[AVRASMDEF]2R-"
 .GRULE	"avrasm:glabeldefreduce" "SN0N+C[AVRASMGLABELDEF]1R-"
 
-.GRULE	"avrasm:ins0reduce" "ST0T+X[avrasm_instoken_to_node]00C[AVRASMINSTR]3R-"
-.GRULE	"avrasm:ins1reduce" "ST0T+X[avrasm_instoken_to_node]N+0C[AVRASMINSTR]3R-"
-.GRULE	"avrasm:ins2reduce" "ST0T+X[avrasm_instoken_to_node]N+N+VC[AVRASMINSTR]3R-"
+.GRULE	"avrasm:ins0reduce" "ST0T+X[avrasm_instoken_to_node]000C[AVRASMINSTR]4R-"
+.GRULE	"avrasm:ins1reduce" "ST0T+X[avrasm_instoken_to_node]N+00C[AVRASMINSTR]4R-"
+.GRULE	"avrasm:ins2reduce" "ST0T+X[avrasm_instoken_to_node]N+N+V0C[AVRASMINSTR]4R-"
 
 .GRULE	"avrasm:textsegreduce" "ST0T+@tC[AVRASMTEXTSEG]00C[AVRASMSEGMENTMARK]2R-"
 .GRULE	"avrasm:datasegreduce" "ST0T+@tC[AVRASMDATASEG]00C[AVRASMSEGMENTMARK]2R-"
@@ -232,6 +233,7 @@
 .GRULE	"avrasm:instancereduce" "SN1N+N+VC[AVRASMINSTANCE]2R-"
 
 .GRULE	"avrasm:targetreduce" "SN0N+C[AVRASMTARGETMARK]1R-"
+.GRULE	"avrasm:mcureduce" "SN0N+C[AVRASMMCUMARK]1R-"
 
 .GRULE	"avrasm:foldplus" "ST0T+@tR+N+C[AVRASMADD]2R-"
 
@@ -263,7 +265,7 @@
 				"[ 4 Comment 4 ] [ 4 -Newline 5 ] [ 5 {<avrasm:macroreduce>} -* ]"
 				"[ 1 -* 6 ] [ 6 {<avrasm:nullpush>} -* 4 ]"
 
-.TABLE	"avrasm:codeline ::= [ 0 @@. 1 ] [ 1 @org 2 ] [ 2 avrasm:expr 3 ] [ 3 {<avrasm:orgreduce>} -* ]"
+.TABLE	"avrasm:directive ::= [ 0 @@. 1 ] [ 1 @org 2 ] [ 2 avrasm:expr 3 ] [ 3 {<avrasm:orgreduce>} -* ]"
 				"[ 1 @equ 4 ] [ 4 avrasm:name 5 ] [ 5 @@= 6 ] [ 6 avrasm:expr 7 ] [ 7 {<avrasm:equreduce>} -* ]"
 				"[ 1 @def 8 ] [ 8 avrasm:name 9 ] [ 9 @@= 10 ] [ 10 avrasm:expr 11 ] [ 11 {<avrasm:defreduce>} -* ]"
 				"[ 1 +@text 12 ] [ 12 {<avrasm:textsegreduce>} -* ]"
@@ -272,8 +274,11 @@
 				"[ 1 @const 15 ] [ 15 avrasm:constlist 16 ] [ 16 {<avrasm:constreduce>} -* <avrasm:endcodeline> ]"
 				"[ 1 @macro <avrasm:macrodef> ]"
 				"[ 1 @target 17 ] [ 17 avrasm:expr 18 ] [ 18 {<avrasm:targetreduce>} -* <avrasm:endcodeline> ]"
+				"[ 1 @mcu 19 ] [ 19 avrasm:expr 20 ] [ 20 {<avrasm:mcureduce>} -* <avrasm:endcodeline> ]"
+.TABLE	"avrasm:codeline ::= [ 0 -@@. 1 ] [ 1 -* <avrasm:directive> ]"
 .TABLE	"avrasm:codeline +:= [ 0 -Name 1 ] [ 1 -* <avrasm:namestart> ]"
 
+.DFAERR STUCK "avrasm:directive" "in assembler directive"
 
 # individual instruction encodings (lots of these!).
 .TABLE	"avrasm:codeline +:= [ 0 +@add 1 ] [ 1 avrasm:expr 2 ] [ 2 @@, 3 ] [ 3 avrasm:expr 4 ] [ 4 {<avrasm:ins2reduce>} -* <avrasm:endcodeline> ]"

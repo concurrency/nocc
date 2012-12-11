@@ -2,6 +2,8 @@
 ;	test_avr7.asm -- more assembler tests (expressions)
 ;
 
+.mcu	"ATMEGA1280"
+
 .equ	VAL	=0x42
 
 .data

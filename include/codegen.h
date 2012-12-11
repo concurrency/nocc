@@ -153,6 +153,10 @@ extern void codegen_warning (codegen_t *cgen, const char *fmt, ...) __attribute_
 extern void codegen_error (codegen_t *cgen, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 extern void codegen_fatal (codegen_t *cgen, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
+extern void codegen_node_warning (codegen_t *cgen, struct TAG_tnode *tptr, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+extern void codegen_node_error (codegen_t *cgen, struct TAG_tnode *tptr, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+extern void codegen_node_fatal (codegen_t *cgen, struct TAG_tnode *tptr, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+
 extern int codegen_write_bytes (codegen_t *cgen, const char *ptr, int bytes);
 extern int codegen_write_string (codegen_t *cgen, const char *str);
 extern int codegen_write_fmt (codegen_t *cgen, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));

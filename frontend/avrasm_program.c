@@ -47,6 +47,7 @@
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
+#include "constprop.h"
 #include "usagecheck.h"
 #include "map.h"
 #include "codegen.h"
@@ -203,6 +204,41 @@ static chook_t *label_chook = NULL;
 
 /*}}}*/
 
+
+/*{{{  avrtarget_t *avrasm_findtargetbyname (const char *name)*/
+/*
+ *	finds a specific MCU target by name.
+ *	returns the avrtarget_t structure on success, NULL if not found
+ */
+avrtarget_t *avrasm_findtargetbyname (const char *name)
+{
+	int i;
+
+	for (i=0; avrasm_ttable[i].name; i++) {
+		if (!strcasecmp (name, avrasm_ttable[i].name)) {
+			return &(avrasm_ttable[i]);
+		}
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  avrtarget_t *avrasm_findtargetbymark (tnode_t *mark)*/
+/*
+ *	finds a specific MCU target by some string constant.
+ *	returns the avrtarget_t structure on success, NULL if not found
+ */
+avrtarget_t *avrasm_findtargetbymark (tnode_t *mark)
+{
+	avrasm_lithook_t *lit;
+
+	if (mark->tag != avrasm.tag_LITSTR) {
+		return NULL;
+	}
+	lit = (avrasm_lithook_t *)tnode_nthhookof (mark, 0);
+
+	return avrasm_findtargetbyname (lit->data);
+}
+/*}}}*/
 
 
 /*{{{  static avrasm_lithook_t *new_avrasmlithook (void)*/
@@ -492,7 +528,6 @@ static void avrasm_litnode_hook_dumptree (tnode_t *node, void *hook, int indent,
 }
 /*}}}*/
 
-
 /*{{{  static int avrasm_prescope_macrodef (compops_t *cops, tnode_t **node, prescope_t *ps)*/
 /*
  *	pre-scopes a macro definition
@@ -565,6 +600,30 @@ static int avrasm_typecheck_macrodef (compops_t *cops, tnode_t *node, typecheck_
 }
 /*}}}*/
 
+/*{{{  static int avrasm_constprop_litnode (compops_t *cops, tnode_t **tptr)*/
+/*
+ *	does constant propagation on literal nodes (integers only)
+ *	returns 0 to stop walk, 1 to continue (meaningless in post-walk)
+ */
+static int avrasm_constprop_litnode (compops_t *cops, tnode_t **tptr)
+{
+#if 0
+fprintf (stderr, "avrasm_constprop_litnode(): here!\n");
+#endif
+	if ((*tptr)->tag == avrasm.tag_LITINT) {
+		avrasm_lithook_t *lit = (avrasm_lithook_t *)tnode_nthhookof (*tptr, 0);
+		int val = *(int *)(lit->data);
+
+		*tptr = constprop_newconst (CONST_INT, *tptr, NULL, val);
+	} else if ((*tptr)->tag == avrasm.tag_LITREG) {
+		avrasm_lithook_t *lit = (avrasm_lithook_t *)tnode_nthhookof (*tptr, 0);
+		int val = *(int *)(lit->data);
+
+		*tptr = constprop_newconst (CONST_INT, *tptr, NULL, val);
+	}	
+	return 1;
+}
+/*}}}*/
 
 /*{{{  static int avrasm_scopein_fparamnode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
@@ -834,47 +893,58 @@ tnode_dumptree (rhs, 1, stderr);
 
 /*{{{  static int avrasm_prescope_targetnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
 /*
- *	does pre-scope for a target node
+ *	does pre-scope for a target node (.target or .mcu)
  *	returns 0 to stop walk, 1 to continue
  */
 static int avrasm_prescope_targetnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)
 {
-	tnode_t *expr = tnode_nthsubof (*tptr, 0);
-	avrasm_lithook_t *lh;
-	char *rawstr;
-	char *tcpu = NULL, *tvendor = NULL, *tos = NULL;
-	char *ch;
+	if ((*tptr)->tag == avrasm.tag_TARGETMARK) {
+		tnode_t *expr = tnode_nthsubof (*tptr, 0);
+		avrasm_lithook_t *lh;
+		char *rawstr;
+		char *tcpu = NULL, *tvendor = NULL, *tos = NULL;
+		char *ch;
 
-	if (expr->tag != avrasm.tag_LITSTR) {
-		prescope_error (*tptr, ps, ".target expression is not a string");
-		return 0;
-	}
-	lh = (avrasm_lithook_t *)tnode_nthhookof (expr, 0);
-	rawstr = string_ndup (lh->data, lh->len);
-
-	for (ch=rawstr; (*ch != '\0') && (*ch != '-'); ch++);
-	tcpu = string_ndup (rawstr, (int)(ch - rawstr));
-	if (*ch == '-') {
-		char *dh;
-
-		for (dh = ++ch; (*ch != '\0') && (*ch != '-'); ch++);
-		tvendor = string_ndup (dh, (int)(ch - dh));
-		if (*ch == '-') {
-			ch++;
-			tos = string_dup (ch);
+		if (expr->tag != avrasm.tag_LITSTR) {
+			prescope_error (*tptr, ps, ".target expression is not a string");
+			return 0;
 		}
-	}
-	sfree (rawstr);
+		lh = (avrasm_lithook_t *)tnode_nthhookof (expr, 0);
+		rawstr = string_ndup (lh->data, lh->len);
 
-	/* attempt to set default compiler target */
-	nocc_setdefaulttarget (tcpu, tvendor, tos);
+		for (ch=rawstr; (*ch != '\0') && (*ch != '-'); ch++);
+		tcpu = string_ndup (rawstr, (int)(ch - rawstr));
+		if (*ch == '-') {
+			char *dh;
 
-	sfree (tcpu);
-	if (tvendor) {
-		sfree (tvendor);
-	}
-	if (tos) {
-		sfree (tos);
+			for (dh = ++ch; (*ch != '\0') && (*ch != '-'); ch++);
+			tvendor = string_ndup (dh, (int)(ch - dh));
+			if (*ch == '-') {
+				ch++;
+				tos = string_dup (ch);
+			}
+		}
+		sfree (rawstr);
+
+		/* attempt to set default compiler target */
+		nocc_setdefaulttarget (tcpu, tvendor, tos);
+
+		sfree (tcpu);
+		if (tvendor) {
+			sfree (tvendor);
+		}
+		if (tos) {
+			sfree (tos);
+		}
+	} else if ((*tptr)->tag == avrasm.tag_MCUMARK) {
+		tnode_t *expr = tnode_nthsubof (*tptr, 0);
+
+		if (expr->tag != avrasm.tag_LITSTR) {
+			prescope_error (*tptr, ps, ".mcu expression is not a string");
+			return 0;
+		}
+
+		/* this gets left in the tree, dealt with later on */
 	}
 
 	return 1;
@@ -918,11 +988,16 @@ static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e
 		/* expecting register */
 		if (arg->tag == avrasm.tag_LITREG) {
 			good = 1;
+		} else if (trpass && constprop_isconst (arg)) {
+			/* allow constant after constprop pass (before typeresolve) */
+			good = 1;
 		}
 	}
 	if (mode & IMODE_CONST8) {
 		/* expecting 8-bit constant */
 		if (arg->tag == avrasm.tag_LITINT) {
+			good = 1;
+		} else if (constprop_isconst (arg)) {
 			good = 1;
 		} else if (arg->tag->ndef == avrasm.node_DOPNODE) {
 			/* check LHS & RHS */
@@ -935,6 +1010,8 @@ static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e
 	if (mode & IMODE_CONST3) {
 		/* expecting 3-bit constant */
 		if (arg->tag == avrasm.tag_LITINT) {
+			good = 1;
+		} else if (constprop_isconst (arg)) {
 			good = 1;
 		} else if (arg->tag->ndef == avrasm.node_DOPNODE) {
 			/* check LHS & RHS */
@@ -966,6 +1043,8 @@ static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e
 			}
 		} else if (arg->tag == avrasm.tag_LITINT) {
 			good = 1;
+		} else if (constprop_isconst (arg)) {
+			good = 1;
 		} else if (arg->tag->ndef == avrasm.node_DOPNODE) {
 			/* check LHS & RHS */
 			if (!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (node, 0), tc, trpass) &&
@@ -996,6 +1075,8 @@ static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e
 			}
 		} else if (arg->tag == avrasm.tag_LITINT) {
 			good = 1;
+		} else if (constprop_isconst (arg)) {
+			good = 1;
 		} else if (arg->tag->ndef == avrasm.node_DOPNODE) {
 			/* check LHS & RHS */
 			if (!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (node, 0), tc, trpass) &&
@@ -1007,6 +1088,8 @@ static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e
 	if (mode & IMODE_CONSTIO) {
 		/* expecting I/O address constant */
 		if (arg->tag == avrasm.tag_LITINT) {
+			good = 1;
+		} else if (constprop_isconst (arg)) {
 			good = 1;
 		}
 	}
@@ -1049,6 +1132,8 @@ static int avrasm_typecheck_insnode (compops_t *cops, tnode_t *node, typecheck_t
 
 	avrasm_check_insarg (&(avrasm_itable[iidx]), 1, avrasm_itable[iidx].arg0, node, tnode_nthsubof (node, 1), tc, 0);
 	avrasm_check_insarg (&(avrasm_itable[iidx]), 2, avrasm_itable[iidx].arg1, node, tnode_nthsubof (node, 2), tc, 0);
+
+	tnode_setnthhook (node, 0, (void *)&(avrasm_itable[iidx]));
 	return 1;
 }
 /*}}}*/
@@ -1087,6 +1172,70 @@ static int avrasm_typeresolve_insnode (compops_t *cops, tnode_t **nodep, typeche
 }
 /*}}}*/
 
+/*{{{  static void avrasm_insnode_hook_free (void *hook)*/
+/*
+ *	frees an instruction-node hook (instruction details)
+ */
+static void avrasm_insnode_hook_free (void *hook)
+{
+	avrinstr_tbl_t *inst = (avrinstr_tbl_t *)hook;
+
+	/* nothing! */
+	return;
+}
+/*}}}*/
+/*{{{  static void *avrasm_insnode_hook_copy (void *hook)*/
+/*
+ *	copies an instruction-node hook (instruction details)
+ */
+static void *avrasm_insnode_hook_copy (void *hook)
+{
+	avrinstr_tbl_t *inst = (avrinstr_tbl_t *)hook;
+
+	return (void *)hook;
+}
+/*}}}*/
+/*{{{  static void avrasm_insnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dump-tree for an instruction-node hook
+ */
+static void avrasm_insnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	avrinstr_tbl_t *inst = (avrinstr_tbl_t *)hook;
+
+	if (inst) {
+		avrasm_isetindent (stream, indent);
+		fprintf (stream, "<avrinstr id=\"%d\" str=\"%s\" addr=\"%p\" />\n", (int)inst->ins, inst->str, inst);
+	}
+	return;
+}
+/*}}}*/
+
+/*{{{  static int avrasm_constprop_dopnode (compops_t *cops, tnode_t **tptr)*/
+/*
+ *	does constant propagation for dop-node
+ */
+static int avrasm_constprop_dopnode (compops_t *cops, tnode_t **tptr)
+{
+	tnode_t *lhs = tnode_nthsubof (*tptr, 0);
+	tnode_t *rhs = tnode_nthsubof (*tptr, 1);
+
+	if (constprop_isconst (lhs) && constprop_isconst (rhs)) {
+		/* can probably reduce this! */
+		int lhval = constprop_intvalof (lhs);
+		int rhval = constprop_intvalof (rhs);
+
+		if ((*tptr)->tag == avrasm.tag_ADD) {
+			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, lhval + rhval);
+		} else if ((*tptr)->tag == avrasm.tag_SUB) {
+			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, lhval - rhval);
+		} else if ((*tptr)->tag == avrasm.tag_MUL) {
+			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, lhval * rhval);
+		}
+	}
+	return 1;
+}
+/*}}}*/
 
 /*{{{  static int avrasm_program_init_nodes (void)*/
 /*
@@ -1129,6 +1278,7 @@ static int avrasm_program_init_nodes (void)
 	tnd->hook_copy = avrasm_litnode_hook_copy;
 	tnd->hook_dumptree = avrasm_litnode_hook_dumptree;
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (avrasm_constprop_litnode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -1168,7 +1318,7 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_ORG = tnode_newnodetag ("AVRASMORG", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  avrasm:targetnode -- TARGETMARK*/
+	/*{{{  avrasm:targetnode -- TARGETMARK, MCUMARK*/
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:targetnode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = target-string */
 	cops = tnode_newcompops ();
@@ -1177,6 +1327,8 @@ static int avrasm_program_init_nodes (void)
 
 	i = -1;
 	avrasm.tag_TARGETMARK = tnode_newnodetag ("AVRASMTARGETMARK", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_MCUMARK = tnode_newnodetag ("AVRASMMCUMARK", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  avrasm:segmentnode -- SEGMENTMARK*/
@@ -1290,7 +1442,10 @@ static int avrasm_program_init_nodes (void)
 	/*}}}*/
 	/*{{{  avrasm:insnode -- INSTR*/
 	i = -1;
-	tnd = tnode_newnodetype ("avrasm:insnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = const-instr, 1 = arg0, 2 = arg1 */
+	tnd = tnode_newnodetype ("avrasm:insnode", &i, 3, 0, 1, TNF_NONE);			/* subnodes: 0 = const-instr, 1 = arg0, 2 = arg1; hooks: 0 = avrinstr_tbl_t* */
+	tnd->hook_free = avrasm_insnode_hook_free;
+	tnd->hook_copy = avrasm_insnode_hook_copy;
+	tnd->hook_dumptree = avrasm_insnode_hook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (avrasm_typecheck_insnode));
 	tnode_setcompop (cops, "typeresolve", 2, COMPOPTYPE (avrasm_typeresolve_insnode));
@@ -1308,6 +1463,7 @@ static int avrasm_program_init_nodes (void)
 	tnd = tnode_newnodetype ("avrasm:dopnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = left, 1 = right */
 	avrasm.node_DOPNODE = tnd;
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (avrasm_constprop_dopnode));
 	tnd->ops = cops;
 
 	i = -1;

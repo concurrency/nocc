@@ -157,7 +157,7 @@ void avrasm_isetindent (FILE *stream, int indent)
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "\t");
+		fprintf (stream, "    ");
 	}
 	return;
 }

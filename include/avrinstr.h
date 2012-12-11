@@ -183,6 +183,10 @@ typedef struct TAG_avrtarget {
 	int eeprom_size;		/* EEPROM size (in bytes) */
 } avrtarget_t;
 
+/* in avrasm_program.h */
+extern avrtarget_t *avrasm_findtargetbyname (const char *name);
+extern avrtarget_t *avrasm_findtargetbymark (struct TAG_tnode *mark);
+
 
 #endif	/* !__AVRINSTR_H */
 

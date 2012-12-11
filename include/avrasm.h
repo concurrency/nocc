@@ -50,6 +50,7 @@ typedef struct {
 
 	struct TAG_ntdef *tag_SEGMENTMARK;
 	struct TAG_ntdef *tag_TARGETMARK;
+	struct TAG_ntdef *tag_MCUMARK;
 
 	struct TAG_ntdef *tag_MACRODEF;
 

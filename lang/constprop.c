@@ -245,8 +245,10 @@ static int cprop_namemap_const (compops_t *cops, tnode_t **nodep, map_t *map)
 	if (dptr) {
 		tnode_t *cnst;
 
-		cnst = map->target->newconst (*nodep, map, dptr, dlen, typecat);
-		*nodep = cnst;
+		if (map->target->newconst) {
+			cnst = map->target->newconst (*nodep, map, dptr, dlen, typecat);
+			*nodep = cnst;
+		}	/* else leave alone */
 	}
 	return 0;
 }
