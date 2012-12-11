@@ -1005,6 +1005,11 @@ static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e
 					!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (arg, 1), tc, trpass)) {
 				good = 1;
 			}
+		} else if (arg->tag->ndef == avrasm.node_MOPNODE) {
+			/* check OP */
+			if (!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (arg, 0), tc, trpass)) {
+				good = 1;
+			}
 		}
 	}
 	if (mode & IMODE_CONST3) {
@@ -1017,6 +1022,11 @@ static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e
 			/* check LHS & RHS */
 			if (!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (node, 0), tc, trpass) &&
 					!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (node, 1), tc, trpass)) {
+				good = 1;
+			}
+		} else if (arg->tag->ndef == avrasm.node_MOPNODE) {
+			/* check OP */
+			if (!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (arg, 0), tc, trpass)) {
 				good = 1;
 			}
 		}
@@ -1051,6 +1061,11 @@ static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e
 					!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (node, 1), tc, trpass)) {
 				good = 1;
 			}
+		} else if (arg->tag->ndef == avrasm.node_MOPNODE) {
+			/* check OP */
+			if (!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (arg, 0), tc, trpass)) {
+				good = 1;
+			}
 		}
 	}
 	if (mode & IMODE_CONSTMEM) {
@@ -1081,6 +1096,11 @@ static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e
 			/* check LHS & RHS */
 			if (!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (node, 0), tc, trpass) &&
 					!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (node, 1), tc, trpass)) {
+				good = 1;
+			}
+		} else if (arg->tag->ndef == avrasm.node_MOPNODE) {
+			/* check OP */
+			if (!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (arg, 0), tc, trpass)) {
 				good = 1;
 			}
 		}
@@ -1231,6 +1251,41 @@ static int avrasm_constprop_dopnode (compops_t *cops, tnode_t **tptr)
 			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, lhval - rhval);
 		} else if ((*tptr)->tag == avrasm.tag_MUL) {
 			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, lhval * rhval);
+		} else if ((*tptr)->tag == avrasm.tag_DIV) {
+			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, lhval / rhval);
+		} else if ((*tptr)->tag == avrasm.tag_REM) {
+			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, lhval % rhval);
+		} else if ((*tptr)->tag == avrasm.tag_BITAND) {
+			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, lhval & rhval);
+		} else if ((*tptr)->tag == avrasm.tag_BITOR) {
+			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, lhval | rhval);
+		} else if ((*tptr)->tag == avrasm.tag_BITXOR) {
+			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, lhval ^ rhval);
+		}
+	}
+	return 1;
+}
+/*}}}*/
+
+/*{{{  static int avrasm_constprop_mopnode (compops_t *cops, tnode_t **tptr)*/
+/*
+ *	does constant propagation for mop-node
+ */
+static int avrasm_constprop_mopnode (compops_t *cops, tnode_t **tptr)
+{
+	tnode_t *op = tnode_nthsubof (*tptr, 0);
+
+	if (constprop_isconst (op)) {
+		int val = constprop_intvalof (op);
+
+		if ((*tptr)->tag == avrasm.tag_UMINUS) {
+			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, -val);
+		} else if ((*tptr)->tag == avrasm.tag_BITNOT) {
+			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, ~val);
+		} else if ((*tptr)->tag == avrasm.tag_HI) {
+			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, (val >> 8) & 0xff);
+		} else if ((*tptr)->tag == avrasm.tag_LO) {
+			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, val & 0xff);
 		}
 	}
 	return 1;
@@ -1482,6 +1537,24 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_BITOR = tnode_newnodetag ("AVRASMBITOR", &i, tnd, NTF_NONE);
 	i = -1;
 	avrasm.tag_BITXOR = tnode_newnodetag ("AVRASMBITXOR", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  avrasm:mopnode -- UMINUS, BITNOT, HI, LO*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:mopnode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = operand */
+	avrasm.node_MOPNODE = tnd;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (avrasm_constprop_mopnode));
+	tnd->ops = cops;
+
+	i = -1;
+	avrasm.tag_UMINUS = tnode_newnodetag ("AVRASMUMINUS", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_BITNOT = tnode_newnodetag ("AVRASMBITNOT", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_HI = tnode_newnodetag ("AVRASMHI", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_LO = tnode_newnodetag ("AVRASMLO", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

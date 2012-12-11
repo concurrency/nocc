@@ -31,6 +31,7 @@
 #ifdef HAVE_TIME_H
 #include <time.h>
 #endif
+#include <errno.h>
 
 #include "nocc.h"
 #include "support.h"
@@ -43,6 +44,7 @@
 #include "langops.h"
 #include "names.h"
 #include "typecheck.h"
+#include "constprop.h"
 #include "target.h"
 #include "betrans.h"
 #include "map.h"
@@ -204,6 +206,27 @@ void atmelavr_isetindent (FILE *stream, int indent)
 	return;
 }
 /*}}}*/
+/*{{{  static int atmelavr_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	option handler for this target's options
+ *	returns 0 on success, non-zero on failure
+ */
+static int atmelavr_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	return 0;
+}
+/*}}}*/
+/*{{{  static int atmelavr_init_options (atmelavr_priv_t *apriv)*/
+/*
+ *	initialises options for atmel-avr back-end
+ *	returns 0 on success, non-zero on failure
+ */
+static int atmelavr_init_options (atmelavr_priv_t *apriv)
+{
+	return 0;
+}
+/*}}}*/
+
 
 
 /*{{{  static imgrange_t *atmelavr_newimgrange (void)*/
@@ -477,11 +500,11 @@ static int insarg_to_constval (tnode_t *arg, const int min, const int max, codeg
 	return val;
 }
 /*}}}*/
-/*{{{  static int insarg_to_constaddrdiff (tnode_t *arg, tnode_t *instr, const int myoffs, const int min, const int max, codegen_t *cgen)*/
+/*{{{  static int insarg_to_constaddrdiff (tnode_t *arg, tnode_t *instr, const int myoffs, const int ibytes, const int min, const int max, codegen_t *cgen)*/
 /*
  *	extracts a label address difference (in words)
  */
-static int insarg_to_constaddrdiff (tnode_t *arg, tnode_t *instr, const int myoffs, const int min, const int max, codegen_t *cgen)
+static int insarg_to_constaddrdiff (tnode_t *arg, tnode_t *instr, const int myoffs, const int ibytes, const int min, const int max, codegen_t *cgen)
 {
 #if 0
 fprintf (stderr, "insarg_to_constaddrdiff(): arg=[%s], myoffs=%d\n", arg->tag->name, myoffs);
@@ -500,7 +523,7 @@ fprintf (stderr, "insarg_to_constaddrdiff(): arg=[%s], myoffs=%d\n", arg->tag->n
 		}
 		if (aali->baddr >= 0) {
 			/* got address for this label already */
-			int wdiff = (myoffs - aali->baddr) >> 1;
+			int wdiff = ((myoffs + ibytes) - aali->baddr) >> 1;
 
 			if ((wdiff < min) || (wdiff > max)) {
 				codegen_node_error (cgen, instr, "address difference too far (%d), range is [%d - %d]", wdiff, min, max);
@@ -524,6 +547,46 @@ fprintf (stderr, "insarg_to_constaddrdiff(): arg=[%s], myoffs=%d, wdiff=%d\n", a
 	return 0;
 }
 /*}}}*/
+/*{{{  static int insarg_to_constaddr (tnode_t *arg, tnode_t *instr, const int myoffs, const int min, const int max, codegen_t *cgen)*/
+/*
+ *	extracts a label address (in words)
+ */
+static int insarg_to_constaddr (tnode_t *arg, tnode_t *instr, const int myoffs, const int min, const int max, codegen_t *cgen)
+{
+	if (arg->tag == avrasm.tag_GLABEL) {
+		name_t *labname = tnode_nthnameof (arg, 0);
+		tnode_t *ndecl = NameDeclOf (labname);
+		aavr_labelinfo_t *aali;
+
+		if (tnode_haschook (ndecl, labelinfo_chook)) {
+			aali = (aavr_labelinfo_t *)tnode_getchook (ndecl, labelinfo_chook);
+		} else {
+			/* create new label info */
+			aali = atmelavr_newaavrlabelinfo ();
+			tnode_setchook (ndecl, labelinfo_chook, aali);
+		}
+		if (aali->baddr >= 0) {
+			/* got address for this label already */
+			int addr = aali->baddr >> 1;
+
+			if ((addr < min) || (addr > max)) {
+				codegen_node_error (cgen, instr, "address (%d) out of range [%d - %d]", addr, min, max);
+				return 0;
+			}
+			return addr;
+		} else {
+			/* add fixup */
+			aavr_labelfixup_t *aalf = atmelavr_newaavrlabelfixup ();
+
+			aalf->instr = instr;
+			aalf->offset = myoffs;
+			dynarray_add (aali->fixups, aalf);
+			return 0;
+		}
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t *instr, avrinstr_tbl_t *inst, codegen_t *cgen)*/
 /*
  *	called to assemble a single instruction at a specific place in the image
@@ -534,13 +597,59 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 	int width = 0;
 	int offs = *offset;
 	int rd, rr, rs;
-	int val;
+	int val, val2;
 
 	switch (inst->ins) {
 	case INS_ADD: /*{{{*/
 		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);	
 		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
 		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRNE: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, 2, offs, -64, 63, cgen);
+		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8) | 0x01;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_CALL: /*{{{*/
+		val = insarg_to_constaddr (tnode_nthsubof (instr, 1), instr, offs, 0, (1 << 22) - 1, cgen);
+		img->image[offs++] = 94 | ((val >> 21) & 0x01);
+		img->image[offs++] = ((val >> 13) & 0xf0) | 0x0e | ((val >> 16) & 0x01);
+		img->image[offs++] = (val >> 8) & 0xff;
+		img->image[offs++] = val & 0xff;
+		width = 4;
+		break;
+		/*}}}*/
+	case INS_CBI: /*{{{*/
+		val = insarg_to_constval (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		val2 = insarg_to_constval (tnode_nthsubof (instr, 2), 0, 7, cgen);
+		img->image[offs++] = 0x98;
+		img->image[offs++] = ((val & 0x1f) << 3) | (val2 & 0x07);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_CLI: /*{{{*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0xf8;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_DEC: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		img->image[offs++] = 0x94 | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd & 0x0f) << 4) | 0x0a;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_JMP: /*{{{*/
+		val = insarg_to_constaddr (tnode_nthsubof (instr, 1), instr, offs, 0, (1 << 22) - 1, cgen);
+		img->image[offs++] = 0x94 | ((val >> 21) & 0x01);
+		img->image[offs++] = ((val >> 13) & 0xf0) | 0x0c | ((val >> 16) & 0x01);
+		img->image[offs++] = (val >> 8) & 0xff;
+		img->image[offs++] = val & 0xff;
+		width = 4;
 		break;
 		/*}}}*/
 	case INS_LDI: /*{{{*/
@@ -557,10 +666,52 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
+	case INS_OUT: /*{{{*/
+		val = insarg_to_constval (tnode_nthsubof (instr, 1), 0, 63, cgen);
+		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
+		img->image[offs++] = 0xb8 | ((val >> 3) & 0x06) | ((rr >> 4) & 0x01);
+		img->image[offs++] = ((rr & 0x0f) << 4) | (val & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_POP: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		img->image[offs++] = 0x90 | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd & 0x0f) << 4) | 0x0f;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_PUSH: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		img->image[offs++] = 0x92 | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd & 0x0f) << 4) | 0x0f;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_RET: /*{{{*/
+		img->image[offs++] = 0x95;
+		img->image[offs++] = 0x08;
+		width = 2;
+		break;
+		/*}}}*/
 	case INS_RJMP: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, -2048, 2047, cgen);
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, 2, offs, -2048, 2047, cgen);
 		img->image[offs++] = 0xc0 | ((val >> 8) & 0x0f);
 		img->image[offs++] = val & 0xff;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_SBI: /*{{{*/
+		val = insarg_to_constval (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		val2 = insarg_to_constval (tnode_nthsubof (instr, 2), 0, 7, cgen);
+		img->image[offs++] = 0x9a;
+		img->image[offs++] = ((val & 0x1f) << 3) | (val2 & 0x07);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_SEI: /*{{{*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0x78;
 		width = 2;
 		break;
 		/*}}}*/
@@ -579,6 +730,170 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 	return width;
 }
 /*}}}*/
+
+/*{{{  static int sub_compare_ranges (imgrange_t *r1, imgrange_t *r2)*/
+/*
+ *	comparison function for ranges
+ */
+static int sub_compare_ranges (imgrange_t *r1, imgrange_t *r2)
+{
+	if (r1->start == r2->start) {
+		/* bigger issues than this! */
+		return r1->size - r2->size;
+	}
+	return r1->start - r2->start;
+}
+/*}}}*/
+/*{{{  static int img_sort_ranges (atmelavr_image_t *img)*/
+/*
+ *	sorts ranges in a single image into start order
+ *	returns 0 on success, non-zero on failure
+ */
+static int img_sort_ranges (atmelavr_image_t *img)
+{
+	dynarray_qsort (img->ranges, sub_compare_ranges);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int img_check_ranges (atmelavr_image_t *img, codegen_t *cgen)*/
+/*
+ *	checks for overlaps in ranges (malformed .org directives probably)
+ *	returns 0 on success, non-zero on failure (error emitted)
+ */
+static int img_check_ranges (atmelavr_image_t *img, codegen_t *cgen)
+{
+	int i;
+	imgrange_t *last = NULL;
+
+	for (i=0; i<DA_CUR (img->ranges); i++) {
+		if (!last) {
+			last = DA_NTHITEM (img->ranges, i);
+		} else {
+			imgrange_t *cur = DA_NTHITEM (img->ranges, i);
+
+			if ((last->start + last->size) > cur->start) {
+				codegen_error (cgen, "overlapping regions in image for [%s], ranges [%d - %d], [%d - %d]",
+						img->zone->tag->name, last->start, (last->start + last->size), cur->start, (cur->start + cur->size));
+				return -1;
+			}
+		}
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int img_combine_ranges (atmelavr_image_t *img)*/
+/*
+ *	combines multiple small ranges into a single (big) one
+ *	returns 0 on success, non-zero on failure
+ */
+static int img_combine_ranges (atmelavr_image_t *img)
+{
+	int i;
+	imgrange_t *imr, *final;
+
+	if (DA_CUR (img->ranges) <= 1) {
+		return 0;			/* nothing to do */
+	}
+	imr = DA_NTHITEM (img->ranges, 0);
+	final = DA_NTHITEM (img->ranges, DA_CUR (img->ranges) - 1);
+
+	imr->size = (final->start + final->size) - imr->start;
+
+	/* kill off the rest, including 'final' */
+	while (DA_CUR (img->ranges) > 1) {
+		int lidx = DA_CUR (img->ranges) - 1;
+		imgrange_t *last = DA_NTHITEM (img->ranges, lidx);
+
+		atmelavr_freeimgrange (last);
+		dynarray_delitem (img->ranges, lidx);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen)*/
+/*
+ *	writes out an image to a .hex (Intel style) file
+ *	returns 0 on success, non-zero on failure (errors emitted)
+ */
+static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen)
+{
+	imgrange_t *imr;
+	int addr, end;
+
+	if (!DA_CUR (img->ranges)) {
+		codegen_warning (cgen, "nothing to write in image for [%s]!", img->zone->tag->name);
+		return 0;
+	}
+	imr = DA_NTHITEM (img->ranges, 0);
+	addr = imr->start;
+	end = imr->start + imr->size;
+
+	/* if not 16-byte aligned at the start, emit a partial row */
+	if (addr & 0x0f) {
+		int left = 16 - (addr & 0x0f);
+		unsigned char csum = 0x00;
+		int k;
+		
+		if (left > imr->size) {
+			left = imr->size;	/* tiny */
+		}
+		fprintf (fp, ":%2.2X:%4.4X00", left, addr);
+		csum = (unsigned char)left;
+		csum += (unsigned char)((addr >> 8) & 0xff);
+		csum += (unsigned char)(addr & 0xff);
+		csum += 0x00;
+
+		for (k=0; k<left; k++) {
+			int idx = (addr + k) ^ 0x01;				/* byte-swap in words */
+
+			fprintf (fp, "%2.2X", img->image[idx]);
+			csum += img->image[idx];
+		}
+
+		/* checksum */
+		csum = (~csum) + 1;
+		fprintf (fp, "%2.2X\n", csum);
+
+		addr += left;
+	}
+
+	/* and the rest */
+	while (addr < end) {
+		int cs, k;
+		unsigned char csum = 0x00;
+
+		cs = end - addr;
+		if (cs > 16) {
+			cs = 16;		/* at a time */
+		}
+
+		fprintf (fp, ":%2.2X%4.4X00", cs, addr);
+		csum = (unsigned char)cs;
+		csum += (unsigned char)((addr >> 8) & 0xff);
+		csum += (unsigned char)(addr & 0xff);
+		csum += 0x00;
+
+		for (k=0; k<cs; k++) {
+			int idx = (addr + k) ^ 0x01;				/* byte-swap in words */
+
+			fprintf (fp, "%2.2X", img->image[idx]);
+			csum += img->image[idx];
+		}
+
+		/* checksum */
+		csum = (~csum) + 1;
+		fprintf (fp, "%2.2X\n", csum);
+
+		addr += cs;
+	}
+
+	/* finally, emit end-of-file record */
+	fprintf (fp, ":00000001FF\n");
+
+	return 0;
+}
+/*}}}*/
+
 
 /*{{{  static int atmelavr_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)*/
 /*
@@ -697,7 +1012,7 @@ static int atmelavr_do_assemble (codegen_t *cgen, atmelavr_image_t *img, tnode_t
 
 	items = parser_getlistitems (contents, &nitems);
 	for (i=0; i<nitems; i++) {
-#if 1
+#if 0
 fprintf (stderr, "atmelavr_do_assemble(): want to assemble [%s] into image (%d/%d bytes)\n", items[i]->tag->name, genoffset, img->isize);
 #endif
 		/* things we don't expect to see */
@@ -765,8 +1080,7 @@ fprintf (stderr, "atmelavr_do_assemble(): want to assemble [%s] into image (%d/%
 			aali->baddr = genoffset;
 			aali->labins = items[i];
 
-			/* FIXME: do fixups */
-#if 1
+#if 0
 fprintf (stderr, "atmelavr_do_assemble(): planted label definition at address %d, got %d fixups..\n", aali->baddr, DA_CUR (aali->fixups));
 #endif
 
@@ -816,7 +1130,7 @@ fprintf (stderr, "atmelavr_do_assemble(): FIXME! constant..\n");
 			avrinstr_tbl_t *inst = (avrinstr_tbl_t *)tnode_nthhookof (items[i], 0);
 			int bytesin;
 
-#if 1
+#if 0
 fprintf (stderr, "atmelavr_do_assemble(): at %d, instruction [%s]\n", genoffset, inst->str);
 #endif
 			bytesin = atmelavr_assemble_instr (img, &genoffset, items[i], inst, cgen);
@@ -845,7 +1159,7 @@ static void atmelavr_be_do_codegen (tnode_t *tptr, codegen_t *cgen)
 	int i, nitems;
 	tnode_t **items;
 
-#if 1
+#if 0
 fprintf (stderr, "atmelavr_be_do_codegen(): here!\n");
 #endif
 	if (!parser_islistnode (tptr)) {
@@ -915,7 +1229,44 @@ fprintf (stderr, "atmelavr_be_do_codegen(): here!\n");
 	for (i=0; i<DA_CUR (apriv->images); i++) {
 		atmelavr_image_t *img = DA_NTHITEM (apriv->images, i);
 
-#if 1
+		img_sort_ranges (img);
+		if (img->canwrite) {
+			/* this is one we can write out */
+			int is_flash = (img->zone->tag == avrasm.tag_TEXTSEG);
+			int is_eeprom = (img->zone->tag == avrasm.tag_EEPROMSEG);
+			int fnlen = strlen (cgen->fname) - strlen (cgen->target->extn);
+			char *outfname = (char *)smalloc (fnlen + 20);
+
+			strncpy (outfname, cgen->fname, fnlen);
+			if (is_flash) {
+				sprintf (outfname + fnlen, "flash.hex");
+			} else if (is_eeprom) {
+				sprintf (outfname + fnlen, "eeprom.hex");
+			} else {
+				sprintf (outfname + fnlen, "hex");
+			}
+
+			img_check_ranges (img, cgen);
+			img_combine_ranges (img);
+#if 0
+fprintf (stderr, "atmelavr_be_do_codegen(): want to write to [%s]\n", outfname);
+#endif
+			/* FIXME: really need a proper file I/O abstraction in the compiler.. */
+			{
+				FILE *fp;
+
+				fp = fopen (outfname, "wt");
+				if (!fp) {
+					codegen_error (cgen, "failed to open [%s] for writing: %s", outfname, strerror (errno));
+				} else {
+					img_write_hexfile (img, fp, cgen);
+					fclose (fp);
+				}
+			}
+		}
+
+
+#if 0
 fprintf (stderr, "atmelavr_be_do_codegen(): image zone=[%s], isize=%d, canwrite=%d, %d range(s):\n", img->zone->tag->name,
 		img->isize, img->canwrite, DA_CUR (img->ranges));
 { int z; for (z=0; z<DA_CUR (img->ranges); z++) {
@@ -982,6 +1333,8 @@ fprintf (stderr, "atmelavr_target_init(): here!\n");
 	labelinfo_chook = tnode_lookupornewchook ("aavr:labelinfo");
 	labelinfo_chook->chook_dumptree = atmelavr_labelinfohook_dumptree;
 	labelinfo_chook->chook_free = atmelavr_labelinfohook_free;
+
+	atmelavr_init_options (apriv);
 
 	target->initialised = 1;
 	return 0;

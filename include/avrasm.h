@@ -76,6 +76,8 @@ typedef struct {
 
 	struct TAG_ntdef *tag_UMINUS;
 	struct TAG_ntdef *tag_BITNOT;
+	struct TAG_ntdef *tag_HI;
+	struct TAG_ntdef *tag_LO;
 
 	struct TAG_ntdef *tag_GLABELDEF;
 	struct TAG_ntdef *tag_LLABELDEF;
