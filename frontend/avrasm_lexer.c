@@ -51,7 +51,7 @@ static int avrasm_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 langlexer_t avrasm_lexer = {
 	.langname = "avrasm",
 	.langtag = LANGTAG_AVRASM,
-	.fileexts = {".asm", NULL},
+	.fileexts = {".asm", ".inc", NULL},
 	.openfile = avrasm_openfile,
 	.closefile = avrasm_closefile,
 	.nexttoken = avrasm_nexttoken,

@@ -191,7 +191,7 @@ fprintf (stderr, "lexer_open(): filename=[%s], DA_CUR(openlexfiles)=%d\n", filen
 		for (i=0; i<DA_CUR (compopts.ipath); i++) {
 			char *ipath = DA_NTHITEM (compopts.ipath, i);
 
-			fnlen = snprintf (fnbuf, FILENAME_MAX - 1, "%s", ipath);
+			fnlen = snprintf (fnbuf, FILENAME_MAX - 1, "%s/", ipath);
 			fnlen += snprintf (fnbuf + fnlen, FILENAME_MAX - (fnlen + 1), "%s", filename);
 
 			if (!access (fnbuf, R_OK)) {
@@ -205,7 +205,7 @@ fprintf (stderr, "lexer_open(): filename=[%s], DA_CUR(openlexfiles)=%d\n", filen
 			for (i=0; i<DA_CUR (compopts.lpath); i++) {
 				char *lpath = DA_NTHITEM (compopts.lpath, i);
 
-				fnlen = snprintf (fnbuf, FILENAME_MAX - 1, "%s", lpath);
+				fnlen = snprintf (fnbuf, FILENAME_MAX - 1, "%s/", lpath);
 				fnlen += snprintf (fnbuf + fnlen, FILENAME_MAX - (fnlen + 1), "%s", filename);
 
 				if (!access (fnbuf, R_OK)) {
@@ -222,7 +222,33 @@ fprintf (stderr, "lexer_open(): filename=[%s], DA_CUR(openlexfiles)=%d\n", filen
 
 	/*{{{  extract extension from filename and set "langlexidx"*/
 	for (fextn = (char *)fnbuf + (fnlen - 1); (fextn > (char *)fnbuf) && (*fextn != '.'); fextn--);
-	for (i=0; i<DA_CUR (langlexers); i++) {
+	/* first, check to see if any of the already-open lexers support this one */
+	for (i=0; i<DA_CUR (openlexfiles); i++) {
+		int j;
+		langlexer_t *ollex = (DA_NTHITEM (openlexfiles, i))->lexer;
+
+		for (j=0; ollex->fileexts[j]; j++) {
+			if (!strcmp (ollex->fileexts[j], fextn)) {
+				/* this one */
+				int k;
+
+#if 0
+fprintf (stderr, "lexer_open(): openlexfile[%d] has supported extension \"%s\"\n", i, fextn);
+#endif
+				for (k=0; k<DA_CUR (langlexers); k++) {
+					if (DA_NTHITEM (langlexers, k) == ollex) {
+						langlexidx = k;
+						break;		/* for(k) */
+					}
+				}
+				break;		/* for(j) */
+			}
+		}
+		if (langlexidx >= 0) {
+			break;		/* for(i) */
+		}
+	}
+	for (i=0; (langlexidx < 0) && (i<DA_CUR (langlexers)); i++) {
 		int j;
 		langlexer_t *llex = DA_NTHITEM (langlexers, i);
 

@@ -100,6 +100,7 @@ typedef struct {
 } avrasm_parse_t;
 
 static avrasm_parse_t *avrasm_priv = NULL;
+static int avrasm_priv_refcount = 0;
 
 static feunit_t *feunit_set[] = {
 	&avrasm_program_feunit,
@@ -427,6 +428,12 @@ static tnode_t *avrasm_includefile (char *fname, lexfile_t *curlf)
  */
 static int avrasm_parser_init (lexfile_t *lf)
 {
+	avrasm_priv_refcount++;
+	if (avrasm_priv_refcount > 1) {
+		/* must already be initialised */
+		return 0;
+	}
+
 	if (compopts.verbose) {
 		nocc_message ("initialising AVR assembler parser..");
 	}
@@ -522,7 +529,9 @@ static int avrasm_parser_init (lexfile_t *lf)
  */
 static void avrasm_parser_shutdown (lexfile_t *lf)
 {
-	if (avrasm_priv) {
+	avrasm_priv_refcount--;
+
+	if (!avrasm_priv_refcount && avrasm_priv) {
 		avrasm_freeavrasmparse (avrasm_priv);
 		avrasm_priv = NULL;
 	}

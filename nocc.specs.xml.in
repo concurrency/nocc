@@ -23,6 +23,7 @@
 
 	<!-- ipath's say where include files are (-I) -->
 	<ipath>/home/frmb/kroc_linux/ukcsource/install/share/kroc/vtinclude</ipath>
+	<ipath>@build_dir@/addons/headers</ipath>
 
 	<!-- lpath's say where library files are (-L) -->
 	<lpath>/home/frmb/kroc_linux/ukcsource/install/share/kroc/vtlib</lpath>

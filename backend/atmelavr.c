@@ -523,7 +523,7 @@ fprintf (stderr, "insarg_to_constaddrdiff(): arg=[%s], myoffs=%d\n", arg->tag->n
 		}
 		if (aali->baddr >= 0) {
 			/* got address for this label already */
-			int wdiff = ((myoffs + ibytes) - aali->baddr) >> 1;
+			int wdiff = (aali->baddr - (myoffs + ibytes)) >> 1;
 
 			if ((wdiff < min) || (wdiff > max)) {
 				codegen_node_error (cgen, instr, "address difference too far (%d), range is [%d - %d]", wdiff, min, max);
@@ -531,7 +531,7 @@ fprintf (stderr, "insarg_to_constaddrdiff(): arg=[%s], myoffs=%d\n", arg->tag->n
 			}
 
 #if 0
-fprintf (stderr, "insarg_to_constaddrdiff(): arg=[%s], myoffs=%d, wdiff=%d\n", arg->tag->name, myoffs, wdiff);
+fprintf (stderr, "insarg_to_constaddrdiff(): arg=[%s], myoffs=%d, aali->baddr=%d, wdiff=%d\n", arg->tag->name, myoffs, aali->baddr, wdiff);
 #endif
 			return wdiff;
 		} else {
@@ -603,11 +603,16 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 	case INS_ADD: /*{{{*/
 		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);	
 		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
+		img->image[offs++] = 0x0c | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd & 0x0f) << 4) | (rr & 0x0f);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRNE: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, 2, offs, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+#if 0
+fprintf (stderr, "atmelavr_assemble_instr(): INS_BRNE: offset is %d\n", val);
+#endif
 		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8) | 0x01;
 		width = 2;
@@ -615,7 +620,7 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		/*}}}*/
 	case INS_CALL: /*{{{*/
 		val = insarg_to_constaddr (tnode_nthsubof (instr, 1), instr, offs, 0, (1 << 22) - 1, cgen);
-		img->image[offs++] = 94 | ((val >> 21) & 0x01);
+		img->image[offs++] = 0x94 | ((val >> 21) & 0x01);
 		img->image[offs++] = ((val >> 13) & 0xf0) | 0x0e | ((val >> 16) & 0x01);
 		img->image[offs++] = (val >> 8) & 0xff;
 		img->image[offs++] = val & 0xff;
@@ -694,8 +699,14 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
+	case INS_RETI: /*{{{*/
+		img->image[offs++] = 0x95;
+		img->image[offs++] = 0x18;
+		width = 2;
+		break;
+		/*}}}*/
 	case INS_RJMP: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, 2, offs, -2048, 2047, cgen);
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -2048, 2047, cgen);
 		img->image[offs++] = 0xc0 | ((val >> 8) & 0x0f);
 		img->image[offs++] = val & 0xff;
 		width = 2;

@@ -4,23 +4,10 @@
 
 .mcu	"ATMEGA1280"
 
-.equ	PORTB	=0x05
-.equ	DDRB	=0x04
-.equ	PINB	=0x03
-
-.equ	SREG	=0x3f
-.equ	SPH	=0x3e
-.equ	SPL	=0x3d
-
-.equ	RAMEND	=0x1fff
-
-; 64 interrupts in this device
+.include "atmega1280.inc"
 
 .text
-.org	0
-	jmp	reset
-
-.org	64*4
+.include "atmega1280-imap.inc"
 
 
 delayloop:
