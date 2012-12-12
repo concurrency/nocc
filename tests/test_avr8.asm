@@ -4,6 +4,8 @@
 
 .mcu	"ATMEGA1280"
 
+
+; include files part of the compiler infrastructure
 .include "atmega1280.inc"
 
 .text
@@ -15,7 +17,7 @@ delayloop:
 	push	r17
 	push	r16
 
-	ldi	r16, 0x10
+	ldi	r16, 0x7
 dloop_0:
 	ldi	r17, 0xff
 dloop_1:

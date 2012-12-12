@@ -600,6 +600,14 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 	int val, val2;
 
 	switch (inst->ins) {
+	case INS_ADC: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);	
+		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
+		img->image[offs++] = 0x1c | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd & 0x0f) << 4) | (rr & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
 	case INS_ADD: /*{{{*/
 		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);	
 		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
@@ -608,13 +616,218 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
+	case INS_ADIW: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 24, 30, cgen);
+		val = insarg_to_constval (tnode_nthsubof (instr, 2), 0, 63, cgen);
+		if (rd & 0x01) {
+			/* cannot have odd-numbered register here, must be r25:r24, ..., r31:r30 */
+			codegen_node_error (cgen, instr, "invalid register %d for \"adiw\" (24,26,28,30)", rd);
+			rd = 0;
+		}
+		rd = (rd - 24) / 2;		/* -> [0..3] */
+		img->image[offs++] = 0x96;
+		img->image[offs++] = ((val & 0x30) << 2) | (rd << 4) | (val & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_AND: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);	
+		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
+		img->image[offs++] = 0x20 | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd & 0x0f) << 4) | (rr & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_ANDI: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 16, 31, cgen);	
+		val = insarg_to_constval (tnode_nthsubof (instr, 2), 0, 255, cgen);
+		img->image[offs++] = 0x70 | ((val >> 4) & 0x0f);
+		img->image[offs++] = ((rd & 0x0f) << 4) | (val & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_ASR: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);	
+		img->image[offs++] = 0x94 | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd & 0x0f) << 4) | 0x05;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BCLR: /*{{{*/
+		val = insarg_to_constval (tnode_nthsubof (instr, 1), 0, 7, cgen);
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0x88 | (val << 4);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BLD: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		val = insarg_to_constval (tnode_nthsubof (instr, 2), 0, 7, cgen);
+		img->image[offs++] = 0xf8 | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd & 0x0f) << 4) | (val & 0x07);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRBC: /*{{{*/
+		val = insarg_to_constval (tnode_nthsubof (instr, 1), 0, 7, cgen);
+		val2 = insarg_to_constaddrdiff (tnode_nthsubof (instr, 2), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf4 | ((val2 >> 5) & 0x03);
+		img->image[offs++] = ((val2 << 3) & 0xf8) | (val & 0x07);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRBS: /*{{{*/
+		val = insarg_to_constval (tnode_nthsubof (instr, 1), 0, 7, cgen);
+		val2 = insarg_to_constaddrdiff (tnode_nthsubof (instr, 2), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf0 | ((val2 >> 5) & 0x03);
+		img->image[offs++] = ((val2 << 3) & 0xf8) | (val & 0x07);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRCC: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRCS: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BREAK: /*{{{*/
+		img->image[offs++] = 0x95;
+		img->image[offs++] = 0x98;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BREQ: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8) | 0x01;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRGE: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8) | 0x04;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRHC: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8) | 0x05;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRHS: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8) | 0x05;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRID: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8) | 0x07;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRIE: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8) | 0x07;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRLO: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRLT: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8) | 0x04;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRMI: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8) | 0x02;
+		width = 2;
+		break;
+		/*}}}*/
 	case INS_BRNE: /*{{{*/
 		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
-#if 0
-fprintf (stderr, "atmelavr_assemble_instr(): INS_BRNE: offset is %d\n", val);
-#endif
 		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8) | 0x01;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRPL: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8) | 0x02;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRSH: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRTC: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8) | 0x06;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRTS: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8) | 0x06;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRVC: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8) | 0x03;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BRVS: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
+		img->image[offs++] = ((val << 3) & 0xf8) | 0x03;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BSET: /*{{{*/
+		val = insarg_to_constval (tnode_nthsubof (instr, 1), 0, 7, cgen);
+		img->image[offs++] = 0x94;
+		img->image[offs++] = ((val << 4) & 0x70) | 0x08;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_BST: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		val = insarg_to_constval (tnode_nthsubof (instr, 2), 0, 7, cgen);
+		img->image[offs++] = 0xfa | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd << 4) & 0xf0) | (val & 0x07);
 		width = 2;
 		break;
 		/*}}}*/
@@ -635,9 +848,105 @@ fprintf (stderr, "atmelavr_assemble_instr(): INS_BRNE: offset is %d\n", val);
 		width = 2;
 		break;
 		/*}}}*/
+	case INS_CBR: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 16, 31, cgen);
+		val = insarg_to_constval (tnode_nthsubof (instr, 2), 0, 255, cgen);
+		img->image[offs++] = 0x70 | ((~val >> 4) & 0x0f);
+		img->image[offs++] = ((rd << 4) & 0xf0) | (~val & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_CLC: /*{{{*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0x88;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_CLH: /*{{{*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0xd8;
+		width = 2;
+		break;
+		/*}}}*/
 	case INS_CLI: /*{{{*/
 		img->image[offs++] = 0x94;
 		img->image[offs++] = 0xf8;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_CLN: /*{{{*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0xa8;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_CLR: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		img->image[offs++] = 0x24 | ((rd >> 3) & 0x02) | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd & 0x0f) << 4) | (rd & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_CLS: /*{{{*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0xc8;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_CLT: /*{{{*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0xe8;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_CLV: /*{{{*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0xb8;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_CLZ: /*{{{*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0x98;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_COM: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		img->image[offs++] = 0x94 | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd << 4) & 0xf0);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_CP: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
+		img->image[offs++] = 0x14 | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd << 4) & 0xf0) | (rr & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_CPC: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
+		img->image[offs++] = 0x04 | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd << 4) & 0xf0) | (rr & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_CPI: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 16, 31, cgen);
+		val = insarg_to_constval (tnode_nthsubof (instr, 2), 0, 255, cgen);
+		img->image[offs++] = 0x30 | ((val >> 4) & 0x0f);
+		img->image[offs++] = ((rd << 4) & 0xf0) | (val & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_CPSE: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
+		img->image[offs++] = 0x10 | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd << 4) & 0xf0) | (rr & 0x0f);
 		width = 2;
 		break;
 		/*}}}*/
@@ -645,6 +954,90 @@ fprintf (stderr, "atmelavr_assemble_instr(): INS_BRNE: offset is %d\n", val);
 		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
 		img->image[offs++] = 0x94 | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd & 0x0f) << 4) | 0x0a;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_EICALL: /*{{{*/
+		img->image[offs++] = 0x95;
+		img->image[offs++] = 0x19;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_EIJMP: /*{{{*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0x19;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_ELPM: /*{{{*/
+		/* FIXME: incomplete */
+		codegen_node_error (cgen, instr, "atmelavr_assemble_instr(): unhandled instruction \"%s\"", inst->str);
+		break;
+		/*}}}*/
+	case INS_EOR: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);	
+		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);	
+		img->image[offs++] = 0x24 | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd << 4) & 0xf0) | (rr & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+#if 0
+	case INS_ESPM: /*{{{*/
+		img->image[offs++] = 0x95;
+		img->image[offs++] = 0xf8;
+		width = 2;
+		break;
+		/*}}}*/
+#endif
+	case INS_FMUL: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 16, 23, cgen);	
+		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 16, 23, cgen);	
+		img->image[offs++] = 0x03;
+		img->image[offs++] = 0x08 | ((rd << 4) & 0x70) | (rr & 0x07);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_FMULS: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 16, 23, cgen);	
+		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 16, 23, cgen);	
+		img->image[offs++] = 0x03;
+		img->image[offs++] = 0x80 | ((rd << 4) & 0x70) | (rr & 0x07);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_FMULSU: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 16, 23, cgen);	
+		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 16, 23, cgen);	
+		img->image[offs++] = 0x03;
+		img->image[offs++] = 0x88 | ((rd << 4) & 0x70) | (rr & 0x07);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_ICALL: /*{{{*/
+		img->image[offs++] = 0x95;
+		img->image[offs++] = 0x09;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_IJMP: /*{{{*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0x09;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_IN: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		val = insarg_to_constval (tnode_nthsubof (instr, 2), 0, 63, cgen);
+		img->image[offs++] = 0xb0 | ((val >> 3) & 0x06) | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd << 4) & 0xf0) | (val & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_INC: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		img->image[offs++] = 0x94 | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd << 4) & 0xf0) | 0x03;
 		width = 2;
 		break;
 		/*}}}*/
@@ -662,6 +1055,21 @@ fprintf (stderr, "atmelavr_assemble_instr(): INS_BRNE: offset is %d\n", val);
 		val = insarg_to_constval (tnode_nthsubof (instr, 2), 0, 255, cgen);
 		img->image[offs++] = 0xe0 | ((val >> 4) & 0x0f);
 		img->image[offs++] = ((rd & 0x0f) << 4) | (val & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_MOV: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);	
+		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);	
+		img->image[offs++] = 0x2c | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd << 4) & 0xf0) | (rr & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_NEG: /*{{{*/
+		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);	
+		img->image[offs++] = 0x94 | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd << 4) & 0xf0) | 0x01;
 		width = 2;
 		break;
 		/*}}}*/
@@ -690,6 +1098,13 @@ fprintf (stderr, "atmelavr_assemble_instr(): INS_BRNE: offset is %d\n", val);
 		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
 		img->image[offs++] = 0x92 | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd & 0x0f) << 4) | 0x0f;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_RCALL: /*{{{*/
+		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -2048, 2047, cgen);
+		img->image[offs++] = 0xd0 | ((val >> 8) & 0x0f);
+		img->image[offs++] = (val & 0xff);
 		width = 2;
 		break;
 		/*}}}*/
@@ -729,6 +1144,12 @@ fprintf (stderr, "atmelavr_assemble_instr(): INS_BRNE: offset is %d\n", val);
 	case INS_SLEEP: /*{{{*/
 		img->image[offs++] = 0x95;
 		img->image[offs++] = 0x88;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_WDR: /*{{{*/
+		img->image[offs++] = 0x95;
+		img->image[offs++] = 0xa8;
 		width = 2;
 		break;
 		/*}}}*/
