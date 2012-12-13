@@ -999,6 +999,9 @@ static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e
 			good = 1;
 		} else if (constprop_isconst (arg)) {
 			good = 1;
+		} else if (arg->tag == avrasm.tag_GLABEL) {
+			/* allow labels, will hurl error later if too wide */
+			good = 1;
 		} else if (arg->tag->ndef == avrasm.node_DOPNODE) {
 			/* check LHS & RHS */
 			if (!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (arg, 0), tc, trpass) &&
@@ -1231,6 +1234,24 @@ static void avrasm_insnode_hook_dumptree (tnode_t *node, void *hook, int indent,
 }
 /*}}}*/
 
+/*{{{  static int avrasm_typeresolve_spacenode (compops_t *cops, tnode_t **nodep, typecheck_t *tc)*/
+/*
+ *	type-resolve for a space-node, checks constant spacing
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_typeresolve_spacenode (compops_t *cops, tnode_t **nodep, typecheck_t *tc)
+{
+	tnode_t *node = *nodep;
+	tnode_t *arg = tnode_nthsubof (node, 0);
+
+	if (!constprop_isconst (arg)) {
+		typecheck_error (node, tc, "reserved space quantity not a constant (got [%s])", arg->tag->name);
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+
 /*{{{  static int avrasm_constprop_dopnode (compops_t *cops, tnode_t **tptr)*/
 /*
  *	does constant propagation for dop-node
@@ -1409,6 +1430,22 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_CONST = tnode_newnodetag ("AVRASMCONST", &i, tnd, NTF_NONE);
 	i = -1;
 	avrasm.tag_CONST16 = tnode_newnodetag ("AVRASMCONST16", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  avrasm:spacenode -- SPACE, SPACE16*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:spacenode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 1 = byte-size-expr */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typeresolve", 2, COMPOPTYPE (avrasm_typeresolve_spacenode));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "avrasm_inseg", 1, LANGOPTYPE (avrasm_inseg_true));
+	tnd->lops = lops;
+
+	i = -1;
+	avrasm.tag_SPACE = tnode_newnodetag ("AVRASMSPACE", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_SPACE16 = tnode_newnodetag ("AVRASMSPACE16", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  avrasm:macrodef -- MACRODEF*/

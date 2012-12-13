@@ -57,6 +57,9 @@ typedef struct {
 	struct TAG_ntdef *tag_CONST;
 	struct TAG_ntdef *tag_CONST16;
 
+	struct TAG_ntdef *tag_SPACE;
+	struct TAG_ntdef *tag_SPACE16;
+
 	struct TAG_ntdef *tag_TEXTSEG;
 	struct TAG_ntdef *tag_DATASEG;
 	struct TAG_ntdef *tag_EEPROMSEG;

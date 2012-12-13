@@ -189,6 +189,8 @@
 .KEYWORD "endmacro"
 .KEYWORD "target"
 .KEYWORD "mcu"
+.KEYWORD "space"
+.KEYWORD "space16"
 .KEYWORD "hi"
 .KEYWORD "lo"
 
@@ -228,12 +230,16 @@
 .GRULE	"avrasm:eepromsegreduce" "ST0T+@tC[AVRASMEEPROMSEG]00C[AVRASMSEGMENTMARK]2R-"
 
 .GRULE	"avrasm:constreduce" "SN0N+C[AVRASMCONST]1R-"
+.GRULE	"avrasm:const16reduce" "SN0N+C[AVRASMCONST16]1R-"
 .GRULE	"avrasm:macroreduce" "SN1N+N+V0C[AVRASMMACRODEF]3R-"
 
 .GRULE	"avrasm:instancereduce" "SN1N+N+VC[AVRASMINSTANCE]2R-"
 
 .GRULE	"avrasm:targetreduce" "SN0N+C[AVRASMTARGETMARK]1R-"
 .GRULE	"avrasm:mcureduce" "SN0N+C[AVRASMMCUMARK]1R-"
+
+.GRULE	"avrasm:spacereduce" "SN0N+C[AVRASMSPACE]1R-"
+.GRULE	"avrasm:space16reduce" "SN0N+C[AVRASMSPACE16]1R-"
 
 .GRULE	"avrasm:foldplus" "ST0T+@tR+N+C[AVRASMADD]2R-"
 .GRULE	"avrasm:foldsub" "ST0T+@tR+N+C[AVRASMSUB]2R-"
@@ -284,6 +290,9 @@
 				"[ 1 @macro <avrasm:macrodef> ]"
 				"[ 1 @target 17 ] [ 17 avrasm:expr 18 ] [ 18 {<avrasm:targetreduce>} -* <avrasm:endcodeline> ]"
 				"[ 1 @mcu 19 ] [ 19 avrasm:expr 20 ] [ 20 {<avrasm:mcureduce>} -* <avrasm:endcodeline> ]"
+				"[ 1 @space 21 ] [ 21 avrasm:expr 22 ] [ 22 {<avrasm:spacereduce>} -* <avrasm:endcodeline> ]"
+				"[ 1 @space16 23 ] [ 23 avrasm:expr 24 ] [ 24 {<avrasm:space16reduce>} -* <avrasm:endcodeline> ]"
+				"[ 1 @const16 25 ] [ 25 avrasm:constlist 26 ] [ 26 {<avrasm:const16reduce>} -* <avrasm:endcodeline> ]"
 .TABLE	"avrasm:codeline ::= [ 0 -@@. 1 ] [ 1 -* <avrasm:directive> ]"
 .TABLE	"avrasm:codeline +:= [ 0 -Name 1 ] [ 1 -* <avrasm:namestart> ]"
 
@@ -411,7 +420,7 @@
 .TABLE	"avrasm:codeline +:= [ 0 +@sleep 1 ] [ 1 {<avrasm:ins0reduce>} -* <avrasm:endcodeline> ]"
 .TABLE	"avrasm:codeline +:= [ 0 +@wdr 1 ] [ 1 {<avrasm:ins0reduce>} -* <avrasm:endcodeline> ]"
 
-.TABLE	"avrasm:endcodeline ::= [ 0 Comment 1 ] [ 0 -Newline 2 ] [ 1 -Newline 2 ] [ 2 -* ]"
+.TABLE	"avrasm:endcodeline ::= [ 0 Comment 1 ] [ 0 -* 2 ] [ 1 -Newline 2 ] [ 2 -* ]"
 
 .BNF	"avrasm:program ::= { avrasm:codeline Newline 1 }"
 
