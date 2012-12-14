@@ -173,6 +173,7 @@ typedef struct TAG_atmelavr_priv {
 
 /* used for labels definitions, includes fixup */
 typedef struct TAG_aavr_labelfixup {
+	atmelavr_image_t *img;				/* image where the assemblage goes */
 	tnode_t *instr;					/* instruction node (presumably involving the label) */
 	int offset;					/* byte offset in image where this should be assembled */
 } aavr_labelfixup_t;
@@ -187,6 +188,7 @@ typedef struct TAG_aavr_labelinfo {
 
 /* used during late constant propagation to get label addresses */
 typedef struct TAG_aavr_constpropstate {
+	atmelavr_image_t *img;
 	tnode_t *instr;
 	int offset;
 	int didfix;
@@ -355,17 +357,18 @@ static void atmelavr_freeatmelavrpriv (atmelavr_priv_t *aap)
 	return;
 }
 /*}}}*/
-/*{{{  static void atmelavr_setconstpropstate (tnode_t *instr, int offset)*/
+/*{{{  static void atmelavr_setconstpropstate (atmelavr_image_t *img, tnode_t *instr, int offset)*/
 /*
  *	creates and initialises the 'constpropstate'
  */
-static void atmelavr_setconstpropstate (tnode_t *instr, int offset)
+static void atmelavr_setconstpropstate (atmelavr_image_t *img, tnode_t *instr, int offset)
 {
 	if (atmelavr_constpropstate) {
 		nocc_internal ("atmelavr_setconstpropstate(): already here..");
 		return;
 	}
 	atmelavr_constpropstate = (aavr_constpropstate_t *)smalloc (sizeof (aavr_constpropstate_t));
+	atmelavr_constpropstate->img = img;
 	atmelavr_constpropstate->instr = instr;
 	atmelavr_constpropstate->offset = offset;
 	atmelavr_constpropstate->didfix = 0;
@@ -385,6 +388,7 @@ static int atmelavr_clearconstpropstate (void)
 		return 0;
 	}
 
+	atmelavr_constpropstate->img = NULL;
 	atmelavr_constpropstate->instr = NULL;
 	atmelavr_constpropstate->offset = -1;
 	r = atmelavr_constpropstate->didfix;
@@ -405,6 +409,7 @@ static aavr_labelfixup_t *atmelavr_newaavrlabelfixup (void)
 {
 	aavr_labelfixup_t *aalf = (aavr_labelfixup_t *)smalloc (sizeof (aavr_labelfixup_t));
 
+	aalf->img = NULL;
 	aalf->instr = NULL;
 	aalf->offset = -1;
 
@@ -421,6 +426,7 @@ static void atmelavr_freeaavrlabelfixup (aavr_labelfixup_t *aalf)
 		nocc_serious ("atmelavr_freeaavrlabelfixup(): NULL pointer!");
 		return;
 	}
+	aalf->img = NULL;
 	aalf->instr = NULL;
 	sfree (aalf);
 	return;
@@ -508,11 +514,11 @@ static void atmelavr_labelinfohook_free (void *hook)
 }
 /*}}}*/
 
-/*{{{  static int insarg_to_constreg (tnode_t *arg, const int min, const int max, codegen_t *cgen)*/
+/*{{{  static int insarg_to_constreg (atmelavr_image_t *img, tnode_t *arg, const int min, const int max, codegen_t *cgen)*/
 /*
  *	extracts a constant register number (within limits) from an instruction operand
  */
-static int insarg_to_constreg (tnode_t *arg, const int min, const int max, codegen_t *cgen)
+static int insarg_to_constreg (atmelavr_image_t *img, tnode_t *arg, const int min, const int max, codegen_t *cgen)
 {
 	int reg;
 
@@ -529,11 +535,11 @@ static int insarg_to_constreg (tnode_t *arg, const int min, const int max, codeg
 	return reg;
 }
 /*}}}*/
-/*{{{  static int insarg_to_constval (tnode_t *arg, tnode_t *instr, const int myoffs, const int min, const int max, codegen_t *cgen)*/
+/*{{{  static int insarg_to_constval (atmelavr_image_t *img, tnode_t *arg, tnode_t *instr, const int myoffs, const int min, const int max, codegen_t *cgen)*/
 /*
  *	extracts a constant (immediate) value (within limits) from an instruction operand
  */
-static int insarg_to_constval (tnode_t **argp, tnode_t *instr, const int myoffs, const int min, const int max, codegen_t *cgen)
+static int insarg_to_constval (atmelavr_image_t *img, tnode_t **argp, tnode_t *instr, const int myoffs, const int min, const int max, codegen_t *cgen)
 {
 	int val;
 	tnode_t *arg = *argp;
@@ -542,22 +548,21 @@ static int insarg_to_constval (tnode_t **argp, tnode_t *instr, const int myoffs,
 	if (!constprop_isconst (arg)) {
 		int fixed;
 
-		atmelavr_setconstpropstate (instr, myoffs);
+		atmelavr_setconstpropstate (img, instr, myoffs);
 		constprop_tree (argp);
 		fixed = atmelavr_clearconstpropstate ();
 		arg = *argp;
 
 		/* if still not constant, and no fixups added, abandon */
-		if (!constprop_isconst (arg) && !fixed) {
-			codegen_node_error (cgen, arg, "expected constant value, found [%s]", arg->tag->name);
+		if (!constprop_isconst (arg)) {
+			if (!fixed) {
+				codegen_node_error (cgen, arg, "expected constant value, found [%s]", arg->tag->name);
+			}
+			/* else, okay, because we'll fixup later */
 			return min;
 		}
 	}
 
-	if (!constprop_isconst (arg)) {
-		codegen_node_error (cgen, arg, "expected constant value, found [%s]", arg->tag->name);
-		return min;
-	}
 	val = constprop_intvalof (arg);
 
 	if ((val < min) || (val > max)) {
@@ -567,11 +572,11 @@ static int insarg_to_constval (tnode_t **argp, tnode_t *instr, const int myoffs,
 	return val;
 }
 /*}}}*/
-/*{{{  static int insarg_to_constaddrdiff (tnode_t *arg, tnode_t *instr, const int myoffs, const int ibytes, const int min, const int max, codegen_t *cgen)*/
+/*{{{  static int insarg_to_constaddrdiff (atmelavr_image_t *img, tnode_t *arg, tnode_t *instr, const int myoffs, const int ibytes, const int min, const int max, codegen_t *cgen)*/
 /*
  *	extracts a label address difference (in words)
  */
-static int insarg_to_constaddrdiff (tnode_t *arg, tnode_t *instr, const int myoffs, const int ibytes, const int min, const int max, codegen_t *cgen)
+static int insarg_to_constaddrdiff (atmelavr_image_t *img, tnode_t *arg, tnode_t *instr, const int myoffs, const int ibytes, const int min, const int max, codegen_t *cgen)
 {
 #if 0
 fprintf (stderr, "insarg_to_constaddrdiff(): arg=[%s], myoffs=%d\n", arg->tag->name, myoffs);
@@ -605,6 +610,7 @@ fprintf (stderr, "insarg_to_constaddrdiff(): arg=[%s], myoffs=%d, aali->baddr=%d
 			/* add fixup */
 			aavr_labelfixup_t *aalf = atmelavr_newaavrlabelfixup ();
 
+			aalf->img = img;
 			aalf->instr = instr;
 			aalf->offset = myoffs;
 			dynarray_add (aali->fixups, aalf);
@@ -614,11 +620,11 @@ fprintf (stderr, "insarg_to_constaddrdiff(): arg=[%s], myoffs=%d, aali->baddr=%d
 	return 0;
 }
 /*}}}*/
-/*{{{  static int insarg_to_constaddr (tnode_t *arg, tnode_t *instr, const int myoffs, const int min, const int max, codegen_t *cgen)*/
+/*{{{  static int insarg_to_constaddr (atmelavr_image_t *img, tnode_t *arg, tnode_t *instr, const int myoffs, const int min, const int max, codegen_t *cgen)*/
 /*
  *	extracts a label address (in words)
  */
-static int insarg_to_constaddr (tnode_t *arg, tnode_t *instr, const int myoffs, const int min, const int max, codegen_t *cgen)
+static int insarg_to_constaddr (atmelavr_image_t *img, tnode_t *arg, tnode_t *instr, const int myoffs, const int min, const int max, codegen_t *cgen)
 {
 	if (arg->tag == avrasm.tag_GLABEL) {
 		name_t *labname = tnode_nthnameof (arg, 0);
@@ -645,6 +651,7 @@ static int insarg_to_constaddr (tnode_t *arg, tnode_t *instr, const int myoffs, 
 			/* add fixup */
 			aavr_labelfixup_t *aalf = atmelavr_newaavrlabelfixup ();
 
+			aalf->img = img;
 			aalf->instr = instr;
 			aalf->offset = myoffs;
 			dynarray_add (aali->fixups, aalf);
@@ -652,6 +659,86 @@ static int insarg_to_constaddr (tnode_t *arg, tnode_t *instr, const int myoffs, 
 		}
 	}
 	return 0;
+}
+/*}}}*/
+/*{{{  static int atmelavr_assemble_const (atmelavr_image_t *img, int *offset, tnode_t *cinstr, codegen_t *cgen)*/
+/*
+ *	called to assemble a block of constant stuff at a specific place in the image
+ *	returns number of bytes assembled, or that should be assembled
+ */
+static int atmelavr_assemble_const (atmelavr_image_t *img, int *offset, tnode_t *cinstr, codegen_t *cgen)
+{
+	int width = 0;
+	int iw = 0;
+	int offs = *offset;
+	int i, nitems;
+	tnode_t **items;
+
+	if (cinstr->tag == avrasm.tag_CONST) {
+		iw = 1;
+	} else if (cinstr->tag == avrasm.tag_CONST16) {
+		iw = 2;
+	} else {
+		nocc_internal ("atmelavr_assemble_const(): unknown constant type [%s]", cinstr->tag->name);
+		return 0;
+	}
+
+	items = parser_getlistitems (tnode_nthsubof (cinstr, 0), &nitems);
+	for (i=0; i<nitems; i++) {
+		int val;
+
+		/* everything must be constant by the time we get here, but labels may need fixups */
+		if (!constprop_isconst (items[i])) {
+			int fixed;
+
+			atmelavr_setconstpropstate (img, cinstr, offs);
+			constprop_tree (&(items[i]));
+			fixed = atmelavr_clearconstpropstate ();
+
+			/* if still not constant, and no fixups added, abandon */
+			if (!constprop_isconst (items[i])) {
+				if (!fixed) {
+					codegen_node_error (cgen, items[i], "expected constant value, found [%s]", items[i]->tag->name);
+					return 0;
+				}
+				val = 0;
+			} else {
+				val = constprop_intvalof (items[i]);
+			}
+		} else {
+			val = constprop_intvalof (items[i]);
+		}
+
+		/* check value-in-range */
+		if ((iw == 1) && ((val < -128) || (val > 256))) {
+			codegen_node_error (cgen, items[i], "8-bit constant (%d) out of range", val);
+			return 0;
+		} else if ((iw == 2) && ((val < -32768) || (val > 65536))) {
+			codegen_node_error (cgen, items[i], "16-bit constant (%d) out of range", val);
+			return 0;
+		}
+
+		/* good here, assemble! */
+		if (iw == 1) {
+			img->image[offs++] = (unsigned char)(val & 0xff);
+		} else if (iw == 2) {
+			img->image[offs++] = (unsigned char)((val >> 8) & 0xff);
+			img->image[offs++] = (unsigned char)(val & 0xff);
+		}
+		width += iw;
+	}
+
+	/* extra check: if assembling into .text, must pad out to 16-bits */
+	if (img->zone->tag == avrasm.tag_TEXTSEG) {
+		if (width & 0x01) {
+			codegen_node_warning (cgen, cinstr, "8-bit data in text segment being zero-padded to 16-bits");
+			img->image[offs++] = 0x00;
+			width++;
+		}
+	}
+
+	*offset = offs;
+	return width;
 }
 /*}}}*/
 /*{{{  static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t *instr, avrinstr_tbl_t *inst, codegen_t *cgen)*/
@@ -664,28 +751,40 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 	int width = 0;
 	int offs = *offset;
 	int rd, rr, rs;
-	int val, val2;
+	int val, val2, prepost;
 
 	switch (inst->ins) {
 	case INS_ADC: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);	
-		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
 		img->image[offs++] = 0x1c | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd & 0x0f) << 4) | (rr & 0x0f);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_ADD: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);	
-		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);	
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
 		img->image[offs++] = 0x0c | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd & 0x0f) << 4) | (rr & 0x0f);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_ADIW: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 24, 30, cgen);
-		val = insarg_to_constval (tnode_nthsubaddr (instr, 2), instr, offs, 0, 63, cgen);
+		if (tnode_nthsubof (instr, 1)->tag == avrasm.tag_XYZREG) {
+			/* directly specified X,Y,Z (==r26,r28,r30) */
+			avrasm_getxyzreginfo (tnode_nthsubof (instr, 1), &rd, &prepost, &val2);
+
+			if (val2 || prepost) {
+				codegen_node_error (cgen, instr, "invalid modifier for X,Y,Z registers for \"adiw\"");
+				rd = 0;
+			} else {
+				rd = 26 + (rd * 2);	/* X,Y,Z -> 26,28,30 */
+			}
+		} else {
+			rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 24, 30, cgen);
+		}
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 63, cgen);
 		if (rd & 0x01) {
 			/* cannot have odd-numbered register here, must be r25:r24, ..., r31:r30 */
 			codegen_node_error (cgen, instr, "invalid register %d for \"adiw\" (24,26,28,30)", rd);
@@ -698,68 +797,68 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		break;
 		/*}}}*/
 	case INS_AND: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);	
-		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);	
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
 		img->image[offs++] = 0x20 | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd & 0x0f) << 4) | (rr & 0x0f);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_ANDI: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 16, 31, cgen);	
-		val = insarg_to_constval (tnode_nthsubaddr (instr, 2), instr, offs, 0, 255, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 31, cgen);	
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 255, cgen);
 		img->image[offs++] = 0x70 | ((val >> 4) & 0x0f);
 		img->image[offs++] = ((rd & 0x0f) << 4) | (val & 0x0f);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_ASR: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);	
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);	
 		img->image[offs++] = 0x94 | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd & 0x0f) << 4) | 0x05;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BCLR: /*{{{*/
-		val = insarg_to_constval (tnode_nthsubaddr (instr, 1), instr, offs, 0, 7, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 1), instr, offs, 0, 7, cgen);
 		img->image[offs++] = 0x94;
 		img->image[offs++] = 0x88 | (val << 4);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BLD: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
-		val = insarg_to_constval (tnode_nthsubaddr (instr, 2), instr, offs, 0, 7, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 7, cgen);
 		img->image[offs++] = 0xf8 | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd & 0x0f) << 4) | (val & 0x07);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRBC: /*{{{*/
-		val = insarg_to_constval (tnode_nthsubaddr (instr, 1), instr, offs, 0, 7, cgen);
-		val2 = insarg_to_constaddrdiff (tnode_nthsubof (instr, 2), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 1), instr, offs, 0, 7, cgen);
+		val2 = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 2), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf4 | ((val2 >> 5) & 0x03);
 		img->image[offs++] = ((val2 << 3) & 0xf8) | (val & 0x07);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRBS: /*{{{*/
-		val = insarg_to_constval (tnode_nthsubaddr (instr, 1), instr, offs, 0, 7, cgen);
-		val2 = insarg_to_constaddrdiff (tnode_nthsubof (instr, 2), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 1), instr, offs, 0, 7, cgen);
+		val2 = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 2), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf0 | ((val2 >> 5) & 0x03);
 		img->image[offs++] = ((val2 << 3) & 0xf8) | (val & 0x07);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRCC: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRCS: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8);
 		width = 2;
@@ -772,134 +871,134 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		break;
 		/*}}}*/
 	case INS_BREQ: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8) | 0x01;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRGE: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8) | 0x04;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRHC: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8) | 0x05;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRHS: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8) | 0x05;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRID: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8) | 0x07;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRIE: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8) | 0x07;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRLO: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRLT: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8) | 0x04;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRMI: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8) | 0x02;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRNE: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8) | 0x01;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRPL: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8) | 0x02;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRSH: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRTC: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8) | 0x06;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRTS: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8) | 0x06;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRVC: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf4 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8) | 0x03;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BRVS: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -64, 63, cgen);
 		img->image[offs++] = 0xf0 | ((val >> 5) & 0x03);
 		img->image[offs++] = ((val << 3) & 0xf8) | 0x03;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BSET: /*{{{*/
-		val = insarg_to_constval (tnode_nthsubaddr (instr, 1), instr, offs, 0, 7, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 1), instr, offs, 0, 7, cgen);
 		img->image[offs++] = 0x94;
 		img->image[offs++] = ((val << 4) & 0x70) | 0x08;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_BST: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
-		val = insarg_to_constval (tnode_nthsubaddr (instr, 2), instr, offs, 0, 7, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 7, cgen);
 		img->image[offs++] = 0xfa | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd << 4) & 0xf0) | (val & 0x07);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_CALL: /*{{{*/
-		val = insarg_to_constaddr (tnode_nthsubof (instr, 1), instr, offs, 0, (1 << 22) - 1, cgen);
+		val = insarg_to_constaddr (img, tnode_nthsubof (instr, 1), instr, offs, 0, (1 << 22) - 1, cgen);
 		img->image[offs++] = 0x94 | ((val >> 21) & 0x01);
 		img->image[offs++] = ((val >> 13) & 0xf0) | 0x0e | ((val >> 16) & 0x01);
 		img->image[offs++] = (val >> 8) & 0xff;
@@ -908,16 +1007,16 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		break;
 		/*}}}*/
 	case INS_CBI: /*{{{*/
-		val = insarg_to_constval (tnode_nthsubaddr (instr, 1), instr, offs, 0, 31, cgen);
-		val2 = insarg_to_constval (tnode_nthsubaddr (instr, 2), instr, offs, 0, 7, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 1), instr, offs, 0, 31, cgen);
+		val2 = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 7, cgen);
 		img->image[offs++] = 0x98;
 		img->image[offs++] = ((val & 0x1f) << 3) | (val2 & 0x07);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_CBR: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 16, 31, cgen);
-		val = insarg_to_constval (tnode_nthsubaddr (instr, 2), instr, offs, 0, 255, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 31, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 255, cgen);
 		img->image[offs++] = 0x70 | ((~val >> 4) & 0x0f);
 		img->image[offs++] = ((rd << 4) & 0xf0) | (~val & 0x0f);
 		width = 2;
@@ -948,7 +1047,7 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		break;
 		/*}}}*/
 	case INS_CLR: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
 		img->image[offs++] = 0x24 | ((rd >> 3) & 0x02) | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd & 0x0f) << 4) | (rd & 0x0f);
 		width = 2;
@@ -979,46 +1078,46 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		break;
 		/*}}}*/
 	case INS_COM: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
 		img->image[offs++] = 0x94 | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd << 4) & 0xf0);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_CP: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
-		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
 		img->image[offs++] = 0x14 | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd << 4) & 0xf0) | (rr & 0x0f);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_CPC: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
-		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
 		img->image[offs++] = 0x04 | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd << 4) & 0xf0) | (rr & 0x0f);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_CPI: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 16, 31, cgen);
-		val = insarg_to_constval (tnode_nthsubaddr (instr, 2), instr, offs, 0, 255, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 31, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 255, cgen);
 		img->image[offs++] = 0x30 | ((val >> 4) & 0x0f);
 		img->image[offs++] = ((rd << 4) & 0xf0) | (val & 0x0f);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_CPSE: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
-		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
 		img->image[offs++] = 0x10 | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd << 4) & 0xf0) | (rr & 0x0f);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_DEC: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
 		img->image[offs++] = 0x94 | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd & 0x0f) << 4) | 0x0a;
 		width = 2;
@@ -1042,8 +1141,8 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		break;
 		/*}}}*/
 	case INS_EOR: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);	
-		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);	
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);	
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);	
 		img->image[offs++] = 0x24 | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd << 4) & 0xf0) | (rr & 0x0f);
 		width = 2;
@@ -1058,24 +1157,24 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		/*}}}*/
 #endif
 	case INS_FMUL: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 16, 23, cgen);	
-		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 16, 23, cgen);	
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 23, cgen);	
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 16, 23, cgen);	
 		img->image[offs++] = 0x03;
 		img->image[offs++] = 0x08 | ((rd << 4) & 0x70) | (rr & 0x07);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_FMULS: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 16, 23, cgen);	
-		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 16, 23, cgen);	
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 23, cgen);	
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 16, 23, cgen);	
 		img->image[offs++] = 0x03;
 		img->image[offs++] = 0x80 | ((rd << 4) & 0x70) | (rr & 0x07);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_FMULSU: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 16, 23, cgen);	
-		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 16, 23, cgen);	
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 23, cgen);	
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 16, 23, cgen);	
 		img->image[offs++] = 0x03;
 		img->image[offs++] = 0x88 | ((rd << 4) & 0x70) | (rr & 0x07);
 		width = 2;
@@ -1094,22 +1193,22 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		break;
 		/*}}}*/
 	case INS_IN: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
-		val = insarg_to_constval (tnode_nthsubaddr (instr, 2), instr, offs, 0, 63, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 63, cgen);
 		img->image[offs++] = 0xb0 | ((val >> 3) & 0x06) | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd << 4) & 0xf0) | (val & 0x0f);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_INC: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
 		img->image[offs++] = 0x94 | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd << 4) & 0xf0) | 0x03;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_JMP: /*{{{*/
-		val = insarg_to_constaddr (tnode_nthsubof (instr, 1), instr, offs, 0, (1 << 22) - 1, cgen);
+		val = insarg_to_constaddr (img, tnode_nthsubof (instr, 1), instr, offs, 0, (1 << 22) - 1, cgen);
 		img->image[offs++] = 0x94 | ((val >> 21) & 0x01);
 		img->image[offs++] = ((val >> 13) & 0xf0) | 0x0c | ((val >> 16) & 0x01);
 		img->image[offs++] = (val >> 8) & 0xff;
@@ -1117,17 +1216,74 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 4;
 		break;
 		/*}}}*/
+	case INS_LD: /*{{{*/
+	case INS_LDD:
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		avrasm_getxyzreginfo (tnode_nthsubof (instr, 2), &rr, &prepost, &val);
+
+		/* various encodings for this */
+		switch (rr) {
+		case 0:		/* X */
+			if (val) {
+				codegen_node_error (cgen, instr, "cannot use offset with X register");
+				return 0;
+			}
+			if (prepost > 0) {
+				img->image[offs++] = 0x90 | ((rd >> 4) & 0x01);
+				img->image[offs++] = ((rd << 4) & 0xf0) | 0x0d;
+			} else if (prepost < 0) {
+				img->image[offs++] = 0x90 | ((rd >> 4) & 0x01);
+				img->image[offs++] = ((rd << 4) & 0xf0) | 0x0e;
+			} else {
+				img->image[offs++] = 0x90 | ((rd >> 4) & 0x01);
+				img->image[offs++] = ((rd << 4) & 0xf0) | 0x0c;
+			}
+			break;
+		case 1:		/* Y */
+			if (val) {
+				img->image[offs++] = 0x80 | (val & 0x20) | ((val >> 1) & 0x0c) | ((rd >> 4) & 0x01);
+				img->image[offs++] = ((rd << 4) & 0xf0) | 0x08 | (val & 0x07);
+			} else if (prepost > 0) {
+				img->image[offs++] = 0x90 | ((rd >> 4) & 0x01);
+				img->image[offs++] = ((rd << 4) & 0xf0) | 0x09;
+			} else if (prepost < 0) {
+				img->image[offs++] = 0x90 | ((rd >> 4) & 0x01);
+				img->image[offs++] = ((rd << 4) & 0xf0) | 0x0a;
+			} else {
+				img->image[offs++] = 0x80 | ((rd >> 4) & 0x01);
+				img->image[offs++] = ((rd << 4) & 0xf0) | 0x08;
+			}
+			break;
+		case 2:		/* Z */
+			if (val) {
+				img->image[offs++] = 0x80 | (val & 0x20) | ((val >> 1) & 0x0c) | ((rd >> 4) & 0x01);
+				img->image[offs++] = ((rd << 4) & 0xf0) | (val & 0x07);
+			} else if (prepost > 0) {
+				img->image[offs++] = 0x90 | ((rd >> 4) & 0x01);
+				img->image[offs++] = ((rd << 4) & 0xf0) | 0x01;
+			} else if (prepost < 0) {
+				img->image[offs++] = 0x90 | ((rd >> 4) & 0x01);
+				img->image[offs++] = ((rd << 4) & 0xf0) | 0x02;
+			} else {
+				img->image[offs++] = 0x80 | ((rd >> 4) & 0x01);
+				img->image[offs++] = ((rd << 4) & 0xf0);
+			}
+			break;
+		}
+		width = 2;
+		break;
+		/*}}}*/
 	case INS_LDI: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 16, 31, cgen);	
-		val = insarg_to_constval (tnode_nthsubaddr (instr, 2), instr, offs, 0, 255, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 31, cgen);	
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 255, cgen);
 		img->image[offs++] = 0xe0 | ((val >> 4) & 0x0f);
 		img->image[offs++] = ((rd & 0x0f) << 4) | (val & 0x0f);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_LDS: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
-		val = insarg_to_constaddr (tnode_nthsubof (instr, 2), instr, offs, 0, (1 << 16) - 1, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		val = insarg_to_constaddr (img, tnode_nthsubof (instr, 2), instr, offs, 0, (1 << 16) - 1, cgen);
 		img->image[offs++] = 0x90 | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd << 4) & 0xf0);
 		img->image[offs++] = (val >> 8) & 0xff;
@@ -1136,15 +1292,15 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		break;
 		/*}}}*/
 	case INS_MOV: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);	
-		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);	
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);	
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);	
 		img->image[offs++] = 0x2c | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd << 4) & 0xf0) | (rr & 0x0f);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_NEG: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);	
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);	
 		img->image[offs++] = 0x94 | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd << 4) & 0xf0) | 0x01;
 		width = 2;
@@ -1156,30 +1312,46 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
+	case INS_OR: /*{{{*/
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);	
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
+		img->image[offs++] = 0x28 | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd & 0x0f) << 4) | (rr & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_ORI: /*{{{*/
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 31, cgen);	
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 255, cgen);
+		img->image[offs++] = 0x60 | ((val >> 4) & 0x0f);
+		img->image[offs++] = ((rd & 0x0f) << 4) | (val & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
 	case INS_OUT: /*{{{*/
-		val = insarg_to_constval (tnode_nthsubaddr (instr, 1), instr, offs, 0, 63, cgen);
-		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 1), instr, offs, 0, 63, cgen);
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
 		img->image[offs++] = 0xb8 | ((val >> 3) & 0x06) | ((rr >> 4) & 0x01);
 		img->image[offs++] = ((rr & 0x0f) << 4) | (val & 0x0f);
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_POP: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
 		img->image[offs++] = 0x90 | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd & 0x0f) << 4) | 0x0f;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_PUSH: /*{{{*/
-		rd = insarg_to_constreg (tnode_nthsubof (instr, 1), 0, 31, cgen);
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
 		img->image[offs++] = 0x92 | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd & 0x0f) << 4) | 0x0f;
 		width = 2;
 		break;
 		/*}}}*/
 	case INS_RCALL: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -2048, 2047, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -2048, 2047, cgen);
 		img->image[offs++] = 0xd0 | ((val >> 8) & 0x0f);
 		img->image[offs++] = (val & 0xff);
 		width = 2;
@@ -1198,17 +1370,89 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		break;
 		/*}}}*/
 	case INS_RJMP: /*{{{*/
-		val = insarg_to_constaddrdiff (tnode_nthsubof (instr, 1), instr, offs, 2, -2048, 2047, cgen);
+		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -2048, 2047, cgen);
 		img->image[offs++] = 0xc0 | ((val >> 8) & 0x0f);
 		img->image[offs++] = val & 0xff;
 		width = 2;
 		break;
 		/*}}}*/
+	case INS_ROL: /*{{{*/
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		img->image[offs++] = 0x1c | ((rd >> 3) & 0x02) | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd & 0x0f) << 4) | (rd & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_ROR: /*{{{*/
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		img->image[offs++] = 0x94 | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd & 0x0f) << 4) | 0x07;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_SBC: /*{{{*/
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
+		img->image[offs++] = 0x08 | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd & 0x0f) << 4) | (rr & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_SBCI: /*{{{*/
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 31, cgen);
+		val = insarg_to_constval (img, tnode_nthsubof (instr, 2), instr, offs, 0, 255, cgen);
+		img->image[offs++] = 0x40 | ((val >> 4) & 0x0f);
+		img->image[offs++] = ((rd & 0x0f) << 4) | (val & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
 	case INS_SBI: /*{{{*/
-		val = insarg_to_constval (tnode_nthsubaddr (instr, 1), instr, offs, 0, 31, cgen);
-		val2 = insarg_to_constval (tnode_nthsubaddr (instr, 2), instr, offs, 0, 7, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 1), instr, offs, 0, 31, cgen);
+		val2 = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 7, cgen);
 		img->image[offs++] = 0x9a;
 		img->image[offs++] = ((val & 0x1f) << 3) | (val2 & 0x07);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_SBIC: /*{{{*/
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 1), instr, offs, 0, 31, cgen);
+		val2 = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 7, cgen);
+		img->image[offs++] = 0x99;
+		img->image[offs++] = ((val & 0x1f) << 3) | (val2 & 0x07);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_SBIS: /*{{{*/
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 1), instr, offs, 0, 31, cgen);
+		val2 = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 7, cgen);
+		img->image[offs++] = 0x9b;
+		img->image[offs++] = ((val & 0x1f) << 3) | (val2 & 0x07);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_SBIW: /*{{{*/
+		if (tnode_nthsubof (instr, 1)->tag == avrasm.tag_XYZREG) {
+			/* directly specified X,Y,Z (==r26,r28,r30) */
+			avrasm_getxyzreginfo (tnode_nthsubof (instr, 1), &rd, &prepost, &val2);
+
+			if (val2 || prepost) {
+				codegen_node_error (cgen, instr, "invalid modifier for X,Y,Z registers for \"sbiw\"");
+				rd = 0;
+			} else {
+				rd = 26 + (rd * 2);	/* X<Y<Z -> 26,28,30 */
+			}
+		} else {
+			rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 24, 30, cgen);
+		}
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 63, cgen);
+		if (rd & 0x01) {
+			/* cannot have odd-numbered register here, must be r25:r24, ..., r31:r30 */
+			codegen_node_error (cgen, instr, "invalid register %d for \"sbiw\" (24,26,28,30)", rd);
+			rd = 0;
+		}
+		rd = (rd - 24) / 2;		/* -> [0..3] */
+		img->image[offs++] = 0x97;
+		img->image[offs++] = ((val & 0x30) << 2) | (rd << 4) | (val & 0x0f);
 		width = 2;
 		break;
 		/*}}}*/
@@ -1224,9 +1468,66 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
+	case INS_ST: /*{{{*/
+	case INS_STD:
+		avrasm_getxyzreginfo (tnode_nthsubof (instr, 1), &rd, &prepost, &val);
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
+
+		/* various encodings for this */
+		switch (rd) {
+		case 0:		/* X */
+			if (val) {
+				codegen_node_error (cgen, instr, "cannot use offset with X register");
+				return 0;
+			}
+			if (prepost > 0) {
+				img->image[offs++] = 0x92 | ((rr >> 4) & 0x01);
+				img->image[offs++] = ((rr << 4) & 0xf0) | 0x0d;
+			} else if (prepost < 0) {
+				img->image[offs++] = 0x92 | ((rr >> 4) & 0x01);
+				img->image[offs++] = ((rr << 4) & 0xf0) | 0x0e;
+			} else {
+				img->image[offs++] = 0x92 | ((rr >> 4) & 0x01);
+				img->image[offs++] = ((rr << 4) & 0xf0) | 0x0c;
+			}
+			break;
+		case 1:		/* Y */
+			if (val) {
+				img->image[offs++] = 0x82 | (val & 0x20) | ((val >> 1) & 0x0c) | ((rr >> 4) & 0x01);
+				img->image[offs++] = ((rr << 4) & 0xf0) | 0x08 | (val & 0x07);
+			} else if (prepost > 0) {
+				img->image[offs++] = 0x92 | ((rr >> 4) & 0x01);
+				img->image[offs++] = ((rr << 4) & 0xf0) | 0x09;
+			} else if (prepost < 0) {
+				img->image[offs++] = 0x92 | ((rr >> 4) & 0x01);
+				img->image[offs++] = ((rr << 4) & 0xf0) | 0x0a;
+			} else {
+				img->image[offs++] = 0x82 | ((rr >> 4) & 0x01);
+				img->image[offs++] = ((rr << 4) & 0xf0) | 0x08;
+			}
+			break;
+		case 2:		/* Z */
+			if (val) {
+				img->image[offs++] = 0x82 | (val & 0x20) | ((val >> 1) & 0x0c) | ((rr >> 4) & 0x01);
+				img->image[offs++] = ((rr << 4) & 0xf0) | (val & 0x07);
+			} else if (prepost > 0) {
+				img->image[offs++] = 0x92 | ((rr >> 4) & 0x01);
+				img->image[offs++] = ((rr << 4) & 0xf0) | 0x01;
+			} else if (prepost < 0) {
+				img->image[offs++] = 0x92 | ((rr >> 4) & 0x01);
+				img->image[offs++] = ((rr << 4) & 0xf0) | 0x02;
+			} else {
+				img->image[offs++] = 0x82 | ((rr >> 4) & 0x01);
+				img->image[offs++] = ((rr << 4) & 0xf0);
+			}
+			break;
+		}
+		width = 2;
+		break;
+		/*}}}*/
 	case INS_STS: /*{{{*/
-		val = insarg_to_constaddr (tnode_nthsubof (instr, 1), instr, offs, 0, (1 << 16) - 1, cgen);
-		rr = insarg_to_constreg (tnode_nthsubof (instr, 2), 0, 31, cgen);
+		val = insarg_to_constaddr (img, tnode_nthsubof (instr, 1), instr, offs, 0, (1 << 16) - 1, cgen);
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
 		img->image[offs++] = 0x92 | ((rr >> 4) & 0x01);
 		img->image[offs++] = ((rr << 4) & 0xf0);
 		img->image[offs++] = (val >> 8) & 0xff;
@@ -1329,12 +1630,12 @@ static int img_combine_ranges (atmelavr_image_t *img)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen)*/
+/*{{{  static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen, int bswap)*/
 /*
  *	writes out an image to a .hex (Intel style) file
  *	returns 0 on success, non-zero on failure (errors emitted)
  */
-static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen)
+static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen, int bswap)
 {
 	imgrange_t *imr;
 	int addr, end;
@@ -1363,7 +1664,7 @@ static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen)
 		csum += 0x00;
 
 		for (k=0; k<left; k++) {
-			int idx = (addr + k) ^ 0x01;				/* byte-swap in words */
+			int idx = bswap ? ((addr + k) ^ 0x01) : (addr + k);	/* byte-swap in words */
 
 			fprintf (fp, "%2.2X", img->image[idx]);
 			csum += img->image[idx];
@@ -1393,7 +1694,7 @@ static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen)
 		csum += 0x00;
 
 		for (k=0; k<cs; k++) {
-			int idx = (addr + k) ^ 0x01;				/* byte-swap in words */
+			int idx = bswap ? ((addr + k) ^ 0x01) : (addr + k);	/* byte-swap in words */
 
 			fprintf (fp, "%2.2X", img->image[idx]);
 			csum += img->image[idx];
@@ -1610,9 +1911,13 @@ fprintf (stderr, "atmelavr_do_assemble(): planted label definition at address %d
 					avrinstr_tbl_t *inst = (avrinstr_tbl_t *)tnode_nthhookof (aalf->instr, 0);
 					int bytesin, offset = aalf->offset;
 
-					bytesin = atmelavr_assemble_instr (img, &offset, aalf->instr, inst, cgen);
+					bytesin = atmelavr_assemble_instr (aalf->img, &offset, aalf->instr, inst, cgen);
+				} else if ((aalf->instr->tag == avrasm.tag_CONST) || (aalf->instr->tag == avrasm.tag_CONST16)) {
+					int bytesin, offset = aalf->offset;
+
+					bytesin = atmelavr_assemble_const (aalf->img, &offset, aalf->instr, cgen);
 				} else {
-					codegen_node_error (cgen, aalf->instr, "cannot fixup for label, unknown node type [%s]", aalf->instr->tag->name);
+					codegen_node_error (cgen, aalf->instr, "cannot fixup thing, unknown node type [%s]", aalf->instr->tag->name);
 				}
 
 				atmelavr_freeaavrlabelfixup (aalf);
@@ -1648,10 +1953,13 @@ fprintf (stderr, "atmelavr_do_assemble(): planted label definition at address %d
 			return 0;
 		}
 
-		if (items[i]->tag == avrasm.tag_CONST) {
+		if ((items[i]->tag == avrasm.tag_CONST) || (items[i]->tag == avrasm.tag_CONST16)) {
 			/*{{{  constant data, into eeprom or text (must be writable)*/
+			int bytesin;
+			
+			bytesin = atmelavr_assemble_const (img, &genoffset, items[i], cgen);
 
-#if 1
+#if 0
 fprintf (stderr, "atmelavr_do_assemble(): FIXME! constant..\n");
 #endif
 			/*}}}*/
@@ -1712,6 +2020,7 @@ static int atmelavr_constprop_glabel (compops_t *cops, tnode_t **tptr)
 				nocc_internal ("atmelavr_constprop_glabel(): atmelavr_constpropstate is NULL!");
 				return 1;
 			}
+			aalf->img = atmelavr_constpropstate->img;
 			aalf->instr = atmelavr_constpropstate->instr;
 			aalf->offset = atmelavr_constpropstate->offset;
 			atmelavr_constpropstate->didfix++;
@@ -1823,10 +2132,12 @@ fprintf (stderr, "atmelavr_be_do_codegen(): here!\n");
 			int is_eeprom = (img->zone->tag == avrasm.tag_EEPROMSEG);
 			int fnlen = strlen (cgen->fname) - strlen (cgen->target->extn);
 			char *outfname = (char *)smalloc (fnlen + 20);
+			int bswap = 0;
 
 			strncpy (outfname, cgen->fname, fnlen);
 			if (is_flash) {
 				sprintf (outfname + fnlen, "flash.hex");
+				bswap = 1;					/* flash is LE 16-bit */
 			} else if (is_eeprom) {
 				sprintf (outfname + fnlen, "eeprom.hex");
 			} else {
@@ -1846,7 +2157,7 @@ fprintf (stderr, "atmelavr_be_do_codegen(): want to write to [%s]\n", outfname);
 				if (!fp) {
 					codegen_error (cgen, "failed to open [%s] for writing: %s", outfname, strerror (errno));
 				} else {
-					img_write_hexfile (img, fp, cgen);
+					img_write_hexfile (img, fp, cgen, bswap);
 					fclose (fp);
 				}
 			}

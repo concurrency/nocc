@@ -40,6 +40,11 @@ typedef struct {
 
 	struct TAG_token *tok_STRING;
 	struct TAG_token *tok_DOT;
+	struct TAG_token *tok_PLUS;
+	struct TAG_token *tok_MINUS;
+	struct TAG_token *tok_REGX;
+	struct TAG_token *tok_REGY;
+	struct TAG_token *tok_REGZ;
 
 	struct TAG_ntdef *tag_NAME;
 
@@ -47,6 +52,8 @@ typedef struct {
 	struct TAG_ntdef *tag_LITINT;
 	struct TAG_ntdef *tag_LITREG;
 	struct TAG_ntdef *tag_LITINS;
+
+	struct TAG_ntdef *tag_XYZREG;
 
 	struct TAG_ntdef *tag_SEGMENTMARK;
 	struct TAG_ntdef *tag_TARGETMARK;
@@ -126,6 +133,7 @@ extern int avrasm_submacro_subtree (struct TAG_tnode **tptr, struct TAG_submacro
 extern label_chook_t *avrasm_newlabelchook (void);
 extern void avrasm_freelabelchook (label_chook_t *lch);
 
+extern int avrasm_getxyzreginfo (struct TAG_tnode *node, int *reg, int *prepost, int *offs);
 
 extern struct TAG_feunit avrasm_program_feunit;			/* avrasm_program.c */
 

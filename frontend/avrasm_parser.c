@@ -483,6 +483,11 @@ static int avrasm_parser_init (lexfile_t *lf)
 		/* register some particular tokens for later comparison */
 		avrasm.tok_DOT = lexer_newtoken (SYMBOL, ".");
 		avrasm.tok_STRING = lexer_newtoken (STRING, NULL);
+		avrasm.tok_PLUS = lexer_newtoken (SYMBOL, "+");
+		avrasm.tok_MINUS = lexer_newtoken (SYMBOL, "-");
+		avrasm.tok_REGX = lexer_newtoken (KEYWORD, "X");
+		avrasm.tok_REGY = lexer_newtoken (KEYWORD, "Y");
+		avrasm.tok_REGZ = lexer_newtoken (KEYWORD, "Z");
 
 		/* and some compiler hooks */
 		label_chook = tnode_lookupornewchook ("avrasm:labelinfo");

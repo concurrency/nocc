@@ -45,8 +45,29 @@ reset:
 	ldi	r27, hi(V_arry)
 	ldi	r26, lo(V_arry)
 
+	ldi	r29, hi(V_tmp)
+	ldi	r30, lo(V_tmp)
+
+	st	Y+, r17
+	st	Y+0, r17
+	clr	r18
+	st	Y+1, r18
+	st	X, r19
+	adiw	Y, 4
+
+	ld	r20, Y
+
 loop:
 	sbi	PORTB, 7			; LED on
 
 	rjmp	loop
+
+.eeprom
+.org	0
+.const	"Fred", 0, 12
+.const16	RAMSTART, V_tmp + 2
+
+.data
+.org	RAMSTART + 0x100
+V_tmp:	.space 2
 
