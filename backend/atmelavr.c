@@ -666,7 +666,7 @@ static int insarg_to_constaddr (atmelavr_image_t *img, tnode_t *arg, tnode_t *in
  *	called to assemble a block of constant stuff at a specific place in the image
  *	returns number of bytes assembled, or that should be assembled
  */
-static int atmelavr_assemble_const (atmelavr_image_t *img, int *offset, tnode_t *cinstr, codegen_t *cgen)
+static int atmelavr_assemble_const (atmelavr_image_t *img, int *offset, tnode_t *cinstr, codegen_t *cgen, avrtarget_t *target)
 {
 	int width = 0;
 	int iw = 0;
@@ -722,8 +722,14 @@ static int atmelavr_assemble_const (atmelavr_image_t *img, int *offset, tnode_t 
 		if (iw == 1) {
 			img->image[offs++] = (unsigned char)(val & 0xff);
 		} else if (iw == 2) {
-			img->image[offs++] = (unsigned char)((val >> 8) & 0xff);
-			img->image[offs++] = (unsigned char)(val & 0xff);
+			if (target->bswap_code && (img->zone->tag == avrasm.tag_TEXTSEG)) {
+				/* byte-swap these */
+				img->image[offs++] = (unsigned char)(val & 0xff);
+				img->image[offs++] = (unsigned char)((val >> 8) & 0xff);
+			} else {
+				img->image[offs++] = (unsigned char)((val >> 8) & 0xff);
+				img->image[offs++] = (unsigned char)(val & 0xff);
+			}
 		}
 		width += iw;
 	}
@@ -731,7 +737,7 @@ static int atmelavr_assemble_const (atmelavr_image_t *img, int *offset, tnode_t 
 	/* extra check: if assembling into .text, must pad out to 16-bits */
 	if (img->zone->tag == avrasm.tag_TEXTSEG) {
 		if (width & 0x01) {
-			codegen_node_warning (cgen, cinstr, "8-bit data in text segment being zero-padded to 16-bits");
+			codegen_node_warning (cgen, cinstr, "8-bit data in text segment being zero-appended to 16-bits");
 			img->image[offs++] = 0x00;
 			width++;
 		}
@@ -746,7 +752,7 @@ static int atmelavr_assemble_const (atmelavr_image_t *img, int *offset, tnode_t 
  *	called to assemble a single instruction at a specific place in the image
  *	returns number of bytes assembled, or that should be assembled
  */
-static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t *instr, avrinstr_tbl_t *inst, codegen_t *cgen)
+static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t *instr, avrinstr_tbl_t *inst, codegen_t *cgen, avrtarget_t *target)
 {
 	int width = 0;
 	int offs = *offset;
@@ -1135,9 +1141,26 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_ELPM: /*{{{  extended load program memory [FIXME: incomplete]*/
-		/* FIXME: incomplete */
-		codegen_node_error (cgen, instr, "atmelavr_assemble_instr(): unhandled instruction \"%s\"", inst->str);
+	case INS_ELPM: /*{{{  extended load program memory*/
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		avrasm_getxyzreginfo (tnode_nthsubof (instr, 2), &rr, &prepost, &val);
+
+		/* only two encodings for this */
+		if (rr != 2) {
+			codegen_node_error (cgen, instr, "can only use Z with ELPM");
+			return 0;
+		}
+		if (prepost < 0) {
+			codegen_node_error (cgen, instr, "cannot use predecrement with ELPM");
+			return 0;
+		}
+		if (val) {
+			codegen_node_error (cgen, instr, "cannot use displacement with ELPM");
+			return 0;
+		}
+		img->image[offs++] = 0x90 | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd << 4) & 0xf0) | (prepost ? 0x07 : 0x06);
+		width = 2;
 		break;
 		/*}}}*/
 	case INS_EOR: /*{{{  exclusive-or*/
@@ -1309,7 +1332,7 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 			return 0;
 		}
 		img->image[offs++] = 0x90 | ((rd >> 4) & 0x01);
-		img->image[offs++] = ((rd << 4) & 0xf0) | (!prepost ? 0x04 : 0x05);
+		img->image[offs++] = ((rd << 4) & 0xf0) | (prepost ? 0x05 : 0x04);
 		width = 2;
 		break;
 		/*}}}*/
@@ -1362,6 +1385,14 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 16, 31, cgen);
 		img->image[offs++] = 0x02;
 		img->image[offs++] = ((rd << 4) & 0xf0) | (rr & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_MULSU: /*{{{  multiply (signed [rd] with unsigned [rr]) -- result dumped in r1:r0*/
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 23, cgen);
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 16, 23, cgen);
+		img->image[offs++] = 0x03;
+		img->image[offs++] = ((rd << 4) & 0x07) | (rr & 0x07);
 		width = 2;
 		break;
 		/*}}}*/
@@ -1538,9 +1569,23 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
+	case INS_SBRS: /*{{{  skip if bit in register set*/
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 7, cgen);
+		img->image[offs++] = 0xfe | ((rr >> 4) & 0x01);
+		img->image[offs++] = ((rr << 4) & 0xf0) | (val & 0x07);
+		width = 2;
+		break;
+		/*}}}*/
 	case INS_SEC: /*{{{  set carry flag*/
 		img->image[offs++] = 0x94;
 		img->image[offs++] = 0x08;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_SEH: /*{{{  set half-carry flag*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0x58;
 		width = 2;
 		break;
 		/*}}}*/
@@ -1550,15 +1595,52 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
+	case INS_SEN: /*{{{  set negative flag*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0x28;
+		width = 2;
+		break;
+		/*}}}*/
 	case INS_SER: /*{{{  set bits in register*/
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 31, cgen);
 		img->image[offs++] = 0xef;
 		img->image[offs++] = ((rd << 4) & 0xf0) | 0x0f;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_SES: /*{{{  set signed flag*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0x48;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_SET: /*{{{  set T flag*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0x68;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_SEV: /*{{{  set overflow flag*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0x38;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_SEZ: /*{{{  set zero flag*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0x18;
+		width = 2;
 		break;
 		/*}}}*/
 	case INS_SLEEP: /*{{{  sleep*/
 		img->image[offs++] = 0x95;
 		img->image[offs++] = 0x88;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_SPM: /*{{{  store program memory (implied operands)*/
+		img->image[offs++] = 0x95;
+		img->image[offs++] = 0xe8;
 		width = 2;
 		break;
 		/*}}}*/
@@ -1645,6 +1727,20 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
+	case INS_SWAP: /*{{{  swap nibbles in byte*/
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		img->image[offs++] = 0x94 | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd << 4) & 0xf0) | 0x02;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_TST: /*{{{  test for zero or minus*/
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		img->image[offs++] = 0x20 | ((rd << 3) & 0x02) | ((rd << 4) & 0x01);
+		img->image[offs++] = ((rd << 4) & 0xf0) | (rd & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
 	case INS_WDR: /*{{{  watchdog reset*/
 		img->image[offs++] = 0x95;
 		img->image[offs++] = 0xa8;
@@ -1654,6 +1750,18 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 	default:
 		codegen_node_error (cgen, instr, "atmelavr_assemble_instr(): unhandled instruction \"%s\"", inst->str);
 		return 0;
+	}
+
+	if (target->bswap_code && (img->zone->tag == avrasm.tag_TEXTSEG)) {
+		/* better byte-swap what we just generated */
+		unsigned char tmp;
+		int i;
+
+		for (i=(offs - width); i<offs; i+=2) {
+			tmp = img->image[i];
+			img->image[i] = img->image[i+1];
+			img->image[i+1] = tmp;
+		}
 	}
 
 	*offset = offs;
@@ -1740,12 +1848,12 @@ static int img_combine_ranges (atmelavr_image_t *img)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen, int bswap)*/
+/*{{{  static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen)*/
 /*
  *	writes out an image to a .hex (Intel style) file
  *	returns 0 on success, non-zero on failure (errors emitted)
  */
-static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen, int bswap)
+static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen)
 {
 	imgrange_t *imr;
 	int addr, end;
@@ -1774,7 +1882,7 @@ static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen, 
 		csum += 0x00;
 
 		for (k=0; k<left; k++) {
-			int idx = bswap ? ((addr + k) ^ 0x01) : (addr + k);	/* byte-swap in words */
+			int idx = (addr + k);
 
 			fprintf (fp, "%2.2X", img->image[idx]);
 			csum += img->image[idx];
@@ -1804,7 +1912,7 @@ static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen, 
 		csum += 0x00;
 
 		for (k=0; k<cs; k++) {
-			int idx = bswap ? ((addr + k) ^ 0x01) : (addr + k);	/* byte-swap in words */
+			int idx = (addr + k);
 
 			fprintf (fp, "%2.2X", img->image[idx]);
 			csum += img->image[idx];
@@ -1923,12 +2031,12 @@ fprintf (stderr, "atmelavr_be_do_precode(): here!\n");
 	return;
 }
 /*}}}*/
-/*{{{  static int atmelavr_do_assemble (codegen_t *cgen, atmelavr_image_t *img, tnode_t *contents)*/
+/*{{{  static int atmelavr_do_assemble (codegen_t *cgen, atmelavr_priv_t *apriv, atmelavr_image_t *img, tnode_t *contents)*/
 /*
  *	called to assemble stuff into a memory image;  codegen to listing file
  *	returns 0 on success, non-zero on failure (will emit errors/warnings)
  */
-static int atmelavr_do_assemble (codegen_t *cgen, atmelavr_image_t *img, tnode_t *contents)
+static int atmelavr_do_assemble (codegen_t *cgen, atmelavr_priv_t *apriv, atmelavr_image_t *img, tnode_t *contents)
 {
 	int i, nitems;
 	tnode_t **items;
@@ -2021,11 +2129,11 @@ fprintf (stderr, "atmelavr_do_assemble(): planted label definition at address %d
 					avrinstr_tbl_t *inst = (avrinstr_tbl_t *)tnode_nthhookof (aalf->instr, 0);
 					int bytesin, offset = aalf->offset;
 
-					bytesin = atmelavr_assemble_instr (aalf->img, &offset, aalf->instr, inst, cgen);
+					bytesin = atmelavr_assemble_instr (aalf->img, &offset, aalf->instr, inst, cgen, apriv->mcu);
 				} else if ((aalf->instr->tag == avrasm.tag_CONST) || (aalf->instr->tag == avrasm.tag_CONST16)) {
 					int bytesin, offset = aalf->offset;
 
-					bytesin = atmelavr_assemble_const (aalf->img, &offset, aalf->instr, cgen);
+					bytesin = atmelavr_assemble_const (aalf->img, &offset, aalf->instr, cgen, apriv->mcu);
 				} else {
 					codegen_node_error (cgen, aalf->instr, "cannot fixup thing, unknown node type [%s]", aalf->instr->tag->name);
 				}
@@ -2067,7 +2175,7 @@ fprintf (stderr, "atmelavr_do_assemble(): planted label definition at address %d
 			/*{{{  constant data, into eeprom or text (must be writable)*/
 			int bytesin;
 			
-			bytesin = atmelavr_assemble_const (img, &genoffset, items[i], cgen);
+			bytesin = atmelavr_assemble_const (img, &genoffset, items[i], cgen, apriv->mcu);
 
 #if 0
 fprintf (stderr, "atmelavr_do_assemble(): FIXME! constant..\n");
@@ -2083,7 +2191,7 @@ fprintf (stderr, "atmelavr_do_assemble(): FIXME! constant..\n");
 #if 0
 fprintf (stderr, "atmelavr_do_assemble(): at %d, instruction [%s]\n", genoffset, inst->str);
 #endif
-			bytesin = atmelavr_assemble_instr (img, &genoffset, items[i], inst, cgen);
+			bytesin = atmelavr_assemble_instr (img, &genoffset, items[i], inst, cgen, apriv->mcu);
 			/*}}}*/
 			continue;
 		}
@@ -2224,7 +2332,7 @@ fprintf (stderr, "atmelavr_be_do_codegen(): here!\n");
 			}
 
 			/* and then assemble the contents! */
-			res = atmelavr_do_assemble (cgen, img, tnode_nthsubof (thisnode, 1));
+			res = atmelavr_do_assemble (cgen, apriv, img, tnode_nthsubof (thisnode, 1));
 			if (res) {
 				codegen_error (cgen, "failed to assemble, giving up");
 				goto outlab;
@@ -2243,12 +2351,10 @@ fprintf (stderr, "atmelavr_be_do_codegen(): here!\n");
 			int is_eeprom = (img->zone->tag == avrasm.tag_EEPROMSEG);
 			int fnlen = strlen (cgen->fname) - strlen (cgen->target->extn);
 			char *outfname = (char *)smalloc (fnlen + 20);
-			int bswap = 0;
 
 			strncpy (outfname, cgen->fname, fnlen);
 			if (is_flash) {
 				sprintf (outfname + fnlen, "flash.hex");
-				bswap = 1;					/* flash is LE 16-bit */
 			} else if (is_eeprom) {
 				sprintf (outfname + fnlen, "eeprom.hex");
 			} else {
@@ -2268,7 +2374,7 @@ fprintf (stderr, "atmelavr_be_do_codegen(): want to write to [%s]\n", outfname);
 				if (!fp) {
 					codegen_error (cgen, "failed to open [%s] for writing: %s", outfname, strerror (errno));
 				} else {
-					img_write_hexfile (img, fp, cgen, bswap);
+					img_write_hexfile (img, fp, cgen);
 					fclose (fp);
 				}
 			}

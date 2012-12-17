@@ -181,6 +181,7 @@ typedef struct TAG_avrtarget {
 	int ram_size;			/* size of SRAM (in bytes) */
 	int io_size;			/* I/O space size (in addresses) */
 	int eeprom_size;		/* EEPROM size (in bytes) */
+	int bswap_code;			/* whether instructions should be byte-swapped in memory */
 } avrtarget_t;
 
 /* in avrasm_program.h */

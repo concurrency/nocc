@@ -537,21 +537,13 @@ tm12864_fb_setbytes_pm:			;{{{  SUB: write r18 bytes from Z (in program memory) 
 	push	r17
 	push	r18
 	push	r19
-	push	r20
 	push	ZH
 	push	ZL
 
 	mov	r19, r18		; we need r18
-	ldi	r20, 0x01		; for word swapping
 .L0:
-	eor	ZL, r20
-	lpm	r18, Z			; load byte from Z++
-	eor	ZL, r20
+	lpm	r18, Z+			; load byte from Z++
 	rcall	tm12864_fb_setbyte
-
-	inc	ZL
-	clr	r18
-	adc	ZH, r18			; increment Z 
 
 	inc	r16			; X++
 	dec	r19			; count--
@@ -559,7 +551,6 @@ tm12864_fb_setbytes_pm:			;{{{  SUB: write r18 bytes from Z (in program memory) 
 
 	pop	ZL
 	pop	ZH
-	pop	r20
 	pop	r19
 	pop	r18
 	pop	r17
@@ -610,27 +601,18 @@ tm12864_fb_writestring_pm:		;{{{  SUB: writes the ASCII string pointed to by Z (
 	push	r16
 	push	r18
 	push	r19
-	push	r20
 	push	ZH
 	push	ZL
 
 	mov	r19, r18		; put character count in r19
-	ldi	r20, 0x01		; EOR
 .L0:
-	eor	ZL, r20
-	lpm	r18, Z			; load ASCII character
-	eor	ZL, r20
-	; ld	r18, Z+
+	lpm	r18, Z+			; load ASCII character
 	rcall	tm12864_fb_writechar
-	clr	r18
-	inc	ZL
-	adc	ZH, r18
 	dec	r19
 	brne	0b
 
 	pop	ZL
 	pop	ZH
-	pop	r20
 	pop	r19
 	pop	r18
 	pop	r16
