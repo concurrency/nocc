@@ -88,6 +88,8 @@ typedef struct {
 	struct TAG_ntdef *tag_BITAND;
 	struct TAG_ntdef *tag_BITOR;
 	struct TAG_ntdef *tag_BITXOR;
+	struct TAG_ntdef *tag_SHL;
+	struct TAG_ntdef *tag_SHR;
 
 	struct TAG_ntdef *tag_UMINUS;
 	struct TAG_ntdef *tag_BITNOT;

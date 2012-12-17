@@ -1779,6 +1779,10 @@ static int avrasm_constprop_dopnode (compops_t *cops, tnode_t **tptr)
 			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, lhval | rhval);
 		} else if ((*tptr)->tag == avrasm.tag_BITXOR) {
 			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, lhval ^ rhval);
+		} else if ((*tptr)->tag == avrasm.tag_SHL) {
+			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, lhval << rhval);
+		} else if ((*tptr)->tag == avrasm.tag_SHR) {
+			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, lhval >> rhval);
 		}
 	}
 	return 1;
@@ -2081,7 +2085,7 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_INSTR = tnode_newnodetag ("AVRASMINSTR", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  avrasm:dopnode -- ADD, SUB, MUL, DIV, REM, BITADD, BITOR, BITXOR*/
+	/*{{{  avrasm:dopnode -- ADD, SUB, MUL, DIV, REM, BITADD, BITOR, BITXOR, SHL, SHR*/
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:dopnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = left, 1 = right */
 	avrasm.node_DOPNODE = tnd;
@@ -2105,6 +2109,10 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_BITOR = tnode_newnodetag ("AVRASMBITOR", &i, tnd, NTF_NONE);
 	i = -1;
 	avrasm.tag_BITXOR = tnode_newnodetag ("AVRASMBITXOR", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_SHL = tnode_newnodetag ("AVRASMSHL", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_SHR = tnode_newnodetag ("AVRASMSHR", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  avrasm:mopnode -- UMINUS, BITNOT, HI, LO*/

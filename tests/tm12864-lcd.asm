@@ -21,6 +21,8 @@
 .equ	TM_CS1_BIT	=3		; PC3
 .equ	TM_CS2_BIT	=4		; PC4
 
+.include "tm12864-font5x7.inc"		; defines 'font_table_5x7'
+
 tm12864_init:				;{{{  SUB: initialise LCD module ports
 	push	r16
 
@@ -499,6 +501,138 @@ tm12864_fb_clrpixel:			;{{{  SUB: clears pixel in framebuffer at X, at coords in
 	pop	YH
 	pop	r18
 	pop	r17
+	pop	r16
+	ret
+;}}}
+
+tm12864_fb_setbyte:			;{{{  SUB: write the 8-bits in r18 to the framebuffer at X, at position (r16, r17*8)
+	push	r16
+	push	r17
+	push	YH
+	push	YL
+
+	movw	YL, XL			; Y = X
+	clc
+	ror	r17			; Y /= 2 for high offset, LSB kept in carry
+	brcc	0f
+	ori	r16, 0x80		; if Y & 1, X |= 0x80
+.L0:
+	add	YH, r17
+	clr	r17
+	add	YL, r16			; set low-offset += X
+	adc	YH, r17			; add in carry
+
+	; Y now has the byte address we're interested in
+	st	Y, r18
+
+	pop	YL
+	pop	YH
+	pop	r17
+	pop	r16
+	ret
+
+;}}}
+tm12864_fb_setbytes_pm:			;{{{  SUB: write r18 bytes from Z (in program memory) to the framebuffer at X, starting at (r16, r17*8)
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+	push	r20
+	push	ZH
+	push	ZL
+
+	mov	r19, r18		; we need r18
+	ldi	r20, 0x01		; for word swapping
+.L0:
+	eor	ZL, r20
+	lpm	r18, Z			; load byte from Z++
+	eor	ZL, r20
+	rcall	tm12864_fb_setbyte
+
+	inc	ZL
+	clr	r18
+	adc	ZH, r18			; increment Z 
+
+	inc	r16			; X++
+	dec	r19			; count--
+	brne	0b
+
+	pop	ZL
+	pop	ZH
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+
+;}}}
+tm12864_fb_writechar:			;{{{  SUB: writes the ASCII char in r18 to the framebuffer at X, starting at (r16,r17*8), using 5x7 font; updates r16
+	push	ZH
+	push	ZL
+	push	r17
+	push	r18
+	push	r19
+
+	; Note: we know we only have chars 32 -> 127 inclusive.
+	cpi	r18, 32
+	brlo	2f
+	cpi	r18, 128
+	brsh	2f
+
+	subi	r18, 32			; adjust for index
+
+	ldi	ZH, hi(font_table_5x7)	; byte offset of table start
+	ldi	ZL, lo(font_table_5x7)
+
+	; multiply r18 by 5 to get actual character-data offset
+	ldi	r19, 5
+	mul	r18, r19		; result in r1:r0
+
+	add	ZL, r0			; add to Z
+	adc	ZH, r1
+
+	ldi	r18, 5			; 5 bytes wide
+	rcall	tm12864_fb_setbytes_pm
+	ldi	r18, 6
+	add	r16, r18		; update X position for next chatacter
+
+.L2:
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	ZL
+	pop	ZH
+	ret
+
+;}}}
+tm12864_fb_writestring_pm:		;{{{  SUB: writes the ASCII string pointed to by Z (progmem) for r18 chars into the framebuffer at X, starting at (r16,r17*8)
+	push	r16
+	push	r18
+	push	r19
+	push	r20
+	push	ZH
+	push	ZL
+
+	mov	r19, r18		; put character count in r19
+	ldi	r20, 0x01		; EOR
+.L0:
+	eor	ZL, r20
+	lpm	r18, Z			; load ASCII character
+	eor	ZL, r20
+	; ld	r18, Z+
+	rcall	tm12864_fb_writechar
+	clr	r18
+	inc	ZL
+	adc	ZH, r18
+	dec	r19
+	brne	0b
+
+	pop	ZL
+	pop	ZH
+	pop	r20
+	pop	r19
+	pop	r18
 	pop	r16
 	ret
 ;}}}

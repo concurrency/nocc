@@ -385,6 +385,7 @@ tokenloop:
 	case '\'':
 		tok->type = INTEGER;
 		ch++;
+		lp->offset++;
 		if ((ch + 1) >= chlim) {
 			lexer_error (lf, "unexpected end of file");
 			goto out_error1;
@@ -392,6 +393,7 @@ tokenloop:
 		if (*ch == '\\') {
 			/*{{{  escape character*/
 			ch++;
+			lp->offset++;
 			switch (*ch) {
 			case 'n':
 				tok->u.ival = (int)'\n';
@@ -421,12 +423,14 @@ tokenloop:
 			/* regular character */
 			tok->u.ival = (int)(*ch);
 			ch++;
+			lp->offset++;
 		}
 		/* expect closing quote */
 		if (*ch != '\'') {
 			lexer_error (lf, "malformed character constant");
 			goto out_error1;
 		}
+		lp->offset++;
 		break;
 		/*}}}*/
 		/*{{{  default (symbol)*/

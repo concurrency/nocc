@@ -25,6 +25,8 @@
 .SYMBOL ")"
 .SYMBOL "["
 .SYMBOL "]"
+.SYMBOL "<<"
+.SYMBOL ">>"
 
 .KEYWORD "r0"
 .KEYWORD "r1"
@@ -251,6 +253,13 @@
 .GRULE	"avrasm:foldplus" "ST0T+@tR+N+C[AVRASMADD]2R-"
 .GRULE	"avrasm:foldsub" "ST0T+@tR+N+C[AVRASMSUB]2R-"
 .GRULE	"avrasm:foldmul" "ST0T+@tR+N+C[AVRASMMUL]2R-"
+.GRULE	"avrasm:folddiv" "ST0T+@tR+N+C[AVRASMDIV]2R-"
+.GRULE	"avrasm:foldrem" "ST0T+@tR+N+C[AVRASMREM]2R-"
+.GRULE	"avrasm:foldbitand" "ST0T+@tR+N+C[AVRASMBITAND]2R-"
+.GRULE	"avrasm:foldbitor" "ST0T+@tR+N+C[AVRASMBITOR]2R-"
+.GRULE	"avrasm:foldbitxor" "ST0T+@tR+N+C[AVRASMBITXOR]2R-"
+.GRULE	"avrasm:foldshl" "ST0T+@tR+N+C[AVRASMSHL]2R-"
+.GRULE	"avrasm:foldshr" "ST0T+@tR+N+C[AVRASMSHR]2R-"
 
 .GRULE	"avrasm:hireduce" "SN0N+C[AVRASMHI]1R-"
 .GRULE	"avrasm:loreduce" "SN0N+C[AVRASMLO]1R-"
@@ -260,6 +269,13 @@
 .TABLE	"avrasm:restofexpr ::= [ 0 -* ] [ 0 +@@+ 1 ] [ 1 avrasm:expr 2 ] [ 2 {<avrasm:foldplus>} -* ]"
 				"[ 0 +@@- 3 ] [ 3 avrasm:expr 4 ] [ 4 {<avrasm:foldsub>} -* ]"
 				"[ 0 +@@* 5 ] [ 5 avrasm:expr 6 ] [ 6 {<avrasm:foldmul>} -* ]"
+				"[ 0 +@@/ 7 ] [ 7 avrasm:expr 8 ] [ 8 {<avrasm:folddiv>} -* ]"
+				"[ 0 +@@% 9 ] [ 9 avrasm:expr 10 ] [ 10 {<avrasm:foldrem>} -* ]"
+				"[ 0 +@@& 11 ] [ 11 avrasm:expr 12 ] [ 12 {<avrasm:foldbitand>} -* ]"
+				"[ 0 +@@| 13 ] [ 13 avrasm:expr 14 ] [ 14 {<avrasm:foldbitor>} -* ]"
+				"[ 0 +@@^ 15 ] [ 15 avrasm:expr 16 ] [ 16 {<avrasm:foldbitxor>} -* ]"
+				"[ 0 +@@<< 17 ] [ 17 avrasm:expr 18 ] [ 18 {<avrasm:foldshl>} -* ]"
+				"[ 0 +@@>> 19 ] [ 19 avrasm:expr 20 ] [ 20 {<avrasm:foldshr>} -* ]"
 
 .TABLE	"avrasm:expr ::= [ 0 +String 1 ] [ 0 +Integer 2 ] [ 1 {<avrasm:stringreduce>} -* <avrasm:restofexpr> ] [ 2 {<avrasm:integerreduce>} -* <avrasm:restofexpr> ]"
 .TABLE	"avrasm:expr +:= [ 0 -Name 1 ] [ 1 avrasm:name 2 ] [ 2 {<avrasm:nullreduce>} -* <avrasm:restofexpr> ]"
@@ -278,11 +294,14 @@
 # .TABLE	"avrasm:expr +:= [ 0 @@- 1 ] 
 .TABLE	"avrasm:expr +:= [ 0 +Special 1 ] [ 1 {Ruslabreduce} -* ]"
 
+# this consumes comments and newlines immediately before an expression (allows line-continuations in constant lists)
+.TABLE	"avrasm:leadingexpr ::= [ 0 Comment 0 ] [ 0 Newline 0 ] [ 0 -* <avrasm:expr> ]"
+
 .TABLE	"avrasm:namestart ::= [ 0 avrasm:name 1 ] [ 1 @@: 2 ] [ 2 {<avrasm:glabeldefreduce>} -* <avrasm:endcodeline> ]"
 				"[ 1 @@( 3 ] [ 3 avrasm:exprlist 4 ] [ 4 @@) 5 ] [ 5 {<avrasm:instancereduce>} -* <avrasm:endcodeline> ]"
 				"[ 1 -* 6 ] [ 6 {<avrasm:nullpush>} -* 5 ]"
 
-.BNF	"avrasm:constlist ::= { avrasm:expr @@, 1 }"
+.BNF	"avrasm:constlist ::= { avrasm:leadingexpr @@, 1 }"
 .BNF	"avrasm:exprlist ::= { avrasm:expr @@, 0 }"
 .BNF	"avrasm:namelist ::= { avrasm:name @@, 0 }"
 
