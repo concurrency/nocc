@@ -58,6 +58,7 @@ langlexer_t guppy_lexer = {
 	.closefile = guppy_closefile,
 	.nexttoken = guppy_nexttoken,
 	.getcodeline = guppy_getcodeline,
+	.freelspecial = NULL,
 	.parser = NULL
 };
 

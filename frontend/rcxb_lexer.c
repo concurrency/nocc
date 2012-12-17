@@ -57,6 +57,7 @@ langlexer_t rcxb_lexer = {
 	.closefile = rcxb_closefile,
 	.nexttoken = rcxb_nexttoken,
 	.getcodeline = rcxb_getcodeline,
+	.freelspecial = NULL,
 	.parser = NULL
 };
 

@@ -57,6 +57,7 @@ langlexer_t occampi_lexer = {
 	.closefile = occampi_closefile,
 	.nexttoken = occampi_nexttoken,
 	.getcodeline = occampi_getcodeline,
+	.freelspecial = NULL,
 	.parser = NULL
 };
 

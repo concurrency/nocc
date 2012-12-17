@@ -44,6 +44,7 @@ static int avrasm_openfile (lexfile_t *lf, lexpriv_t *lp);
 static int avrasm_closefile (lexfile_t *lf, lexpriv_t *lp);
 static token_t *avrasm_nexttoken (lexfile_t *lf, lexpriv_t *lp);
 static int avrasm_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
+static void avrasm_freelspecial (lexfile_t *lf, void *lspec);
 
 
 /*}}}*/
@@ -56,6 +57,7 @@ langlexer_t avrasm_lexer = {
 	.closefile = avrasm_closefile,
 	.nexttoken = avrasm_nexttoken,
 	.getcodeline = avrasm_getcodeline,
+	.freelspecial = avrasm_freelspecial,
 	.parser = NULL
 };
 
@@ -65,6 +67,38 @@ typedef struct TAG_avrasm_lex {
 	int dummy;
 } avrasm_lex_t;
 
+/*}}}*/
+
+
+/*{{{  static avrasm_lspecial_t *avrasm_newavrasmlspecial (void)*/
+/*
+ *	creates a new avrasm_lspecial_t structure
+ */
+static avrasm_lspecial_t *avrasm_newavrasmlspecial (void)
+{
+	avrasm_lspecial_t *als = (avrasm_lspecial_t *)smalloc (sizeof (avrasm_lspecial_t));
+
+	als->str = NULL;
+	return als;
+}
+/*}}}*/
+/*{{{  static void avrasm_freeavrasmlspecial (avrasm_lspecial_t *als)*/
+/*
+ *	frees an avrasm_lspecial_t structure
+ */
+static void avrasm_freeavrasmlspecial (avrasm_lspecial_t *als)
+{
+	if (!als) {
+		nocc_serious ("avrasm_freelspecial(): NULL pointer!");
+		return;
+	}
+	if (als->str) {
+		sfree (als->str);
+		als->str = NULL;
+	}
+	sfree (als);
+	return;
+}
 /*}}}*/
 
 
@@ -186,25 +220,39 @@ tokenloop:
 				}
 			}
 		}
-		lp->offset += (int)(dh - ch);
-		/* parse it */
-		npbuf = (char *)smalloc ((int)(dh - ch) + 1);
-		memcpy (npbuf, ch, (int)(dh - ch));
-		npbuf[(int)(dh - ch)] = '\0';
-		if ((tok->type == INTEGER) && ishex && (sscanf (npbuf, "%x", &tok->u.ival) != 1)) {
-			lexer_error (lf, "malformed hexadecimal constant: %s", npbuf);
-			sfree (npbuf);
-			goto out_error1;
-		} else if ((tok->type == REAL) && (sscanf (npbuf, "%lf", &tok->u.dval) != 1)) {
-			lexer_error (lf, "malformed floating-point constant: %s", npbuf);
-			sfree (npbuf);
-			goto out_error1;
-		} else if ((tok->type == INTEGER) && !ishex && (sscanf (npbuf, "%d", &tok->u.ival) != 1)) {
-			lexer_error (lf, "malformed integer constant: %s", npbuf);
-			sfree (npbuf);
-			goto out_error1;
+		/* check to see if it's a forward/backward label reference */
+		if ((tok->type == INTEGER) && ((*dh == 'f') || (*dh == 'b'))) {
+			avrasm_lspecial_t *als = avrasm_newavrasmlspecial ();
+
+			dh++;
+			tok->type = LSPECIAL;
+			lp->offset += (int)(dh - ch);
+
+			tok->u.lspec = (void *)als;
+			als->str = (char *)smalloc ((int)(dh - ch) + 1);
+			memcpy (als->str, ch, (int)(dh - ch));
+			als->str[(int)(dh - ch)] = '\0';
 		} else {
-			sfree (npbuf);
+			lp->offset += (int)(dh - ch);
+			/* parse it */
+			npbuf = (char *)smalloc ((int)(dh - ch) + 1);
+			memcpy (npbuf, ch, (int)(dh - ch));
+			npbuf[(int)(dh - ch)] = '\0';
+			if ((tok->type == INTEGER) && ishex && (sscanf (npbuf, "%x", &tok->u.ival) != 1)) {
+				lexer_error (lf, "malformed hexadecimal constant: %s", npbuf);
+				sfree (npbuf);
+				goto out_error1;
+			} else if ((tok->type == REAL) && (sscanf (npbuf, "%lf", &tok->u.dval) != 1)) {
+				lexer_error (lf, "malformed floating-point constant: %s", npbuf);
+				sfree (npbuf);
+				goto out_error1;
+			} else if ((tok->type == INTEGER) && !ishex && (sscanf (npbuf, "%d", &tok->u.ival) != 1)) {
+				lexer_error (lf, "malformed integer constant: %s", npbuf);
+				sfree (npbuf);
+				goto out_error1;
+			} else {
+				sfree (npbuf);
+			}
 		}
 		/*}}}*/
 	} else switch (*ch) {
@@ -431,6 +479,21 @@ static int avrasm_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf)
 {
 	*rbuf = NULL;
 	return -1;
+}
+/*}}}*/
+/*{{{  static void avrasm_freelspecial (lexfile_t *lf, void *lspec)*/
+/*
+ *	frees an avrasm_lspecial_t structure
+ */
+static void avrasm_freelspecial (lexfile_t *lf, void *lspec)
+{
+	avrasm_lspecial_t *als = (avrasm_lspecial_t *)lspec;
+
+	if (!als) {
+		return;
+	}
+	avrasm_freeavrasmlspecial (als);
+	return;
 }
 /*}}}*/
 

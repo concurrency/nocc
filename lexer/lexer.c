@@ -623,6 +623,13 @@ token_t *lexer_newtoken (tokentype_t type, ...)
 			}
 		}
 		break;
+	case LSPECIAL:
+		{
+			void *ptr = va_arg (ap, void *);
+
+			tok->u.lspec = ptr;
+		}
+		break;
 	case SYMBOL:
 		{
 			char *sym = va_arg (ap, char *);
@@ -682,6 +689,9 @@ void lexer_dumptoken (FILE *stream, token_t *tok)
 	case INAME:
 		fprintf (stream, "iname\" value=\"%s\" />\n", tok->u.str.ptr);
 		break;
+	case LSPECIAL:
+		fprintf (stream, "lspecial\" value=\"%p\" />\n", tok->u.lspec);
+		break;
 	case NAME:
 		fprintf (stream, "name\" value=\"%s\" />\n", tok->u.name);
 		break;
@@ -737,6 +747,9 @@ void lexer_dumptoken_short (FILE *stream, token_t *tok)
 		break;
 	case INAME:
 		fprintf (stream, "iname\">");
+		break;
+	case LSPECIAL:
+		fprintf (stream, "lspecial\">");
 		break;
 	case NAME:
 		fprintf (stream, "name\">");
@@ -804,6 +817,9 @@ char *lexer_stokenstr (token_t *tok)
 	case NAME:
 		strcpy (strbuf, "name");
 		break;
+	case LSPECIAL:
+		strcpy (strbuf, "language special");
+		break;
 	case SYMBOL:
 		if (tok->u.sym->mlen >= (strbuflen - 2)) {
 			strbuflen = tok->u.sym->mlen + 128;
@@ -861,6 +877,11 @@ void lexer_freetoken (token_t *tok)
 			sfree (tok->u.str.ptr);
 		}
 		break;
+	case LSPECIAL:
+		if (tok->origin && tok->origin->lexer && tok->origin->lexer->freelspecial) {
+			tok->origin->lexer->freelspecial (tok->origin, tok->u.lspec);
+		}
+		break;
 	default:
 		break;
 	}
@@ -895,6 +916,7 @@ int lexer_tokmatch (token_t *formal, token_t *actual)
 	case REAL:
 	case STRING:
 	case NAME:
+	case LSPECIAL:
 		/* all these are instant matches */
 		return 1;
 	case INAME:
@@ -939,6 +961,7 @@ int lexer_tokmatchlitstr (token_t *actual, const char *str)
 	case INDENT:
 	case OUTDENT:
 	case END:
+	case LSPECIAL:
 		return 0;
 	case SYMBOL:
 		if (actual->u.sym->mlen != strlen (str)) {

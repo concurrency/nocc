@@ -67,6 +67,10 @@ typedef struct TAG_avrasm_xyzhook {
 	int offs;			/* constant offset (where supported) */
 } avrasm_xyzhook_t;
 
+typedef struct TAG_avrasm_uslabhook {
+	int id;				/* label identifier */
+	int dir;			/* direction: <0 = back, 0 = unset, >0 = forward */
+} avrasm_uslabhook_t;
 
 static avrinstr_tbl_t avrasm_itable[] = {
 	{INS_ADD, "add", IMODE_REG, IMODE_REG},
@@ -275,6 +279,26 @@ int avrasm_getxyzreginfo (tnode_t *node, int *reg, int *prepost, int *offs)
 	return 0;
 }
 /*}}}*/
+/*{{{  int avrasm_getlitintval (tnode_t *node)*/
+/*
+ *	extracts value from a literal integer
+ *	abandons compilation if not literal integer
+ */
+int avrasm_getlitintval (tnode_t *node)
+{
+	avrasm_lithook_t *lh;
+
+	if (constprop_isconst (node)) {
+		return constprop_intvalof (node);
+	}
+	if (node->tag != avrasm.tag_LITINT) {
+		nocc_internal ("avrasm_getlitintval(): not LITINT, got [%s]", node->tag->name);
+		return 0;
+	}
+	lh = (avrasm_lithook_t *)tnode_nthhookof (node, 0);
+	return *(int *)(lh->data);
+}
+/*}}}*/
 
 
 /*{{{  static avrasm_lithook_t *new_avrasmlithook (void)*/
@@ -336,6 +360,34 @@ static void free_avrasmxyzhook (avrasm_xyzhook_t *xyzh)
 		return;
 	}
 	sfree (xyzh);
+	return;
+}
+/*}}}*/
+/*{{{  static avrasm_uslabhook_t *new_avrasmuslabhook (void)*/
+/*
+ *	creates a new avrasm_uslabhook_t structure
+ */
+static avrasm_uslabhook_t *new_avrasmuslabhook (void)
+{
+	avrasm_uslabhook_t *usdata = (avrasm_uslabhook_t *)smalloc (sizeof (avrasm_uslabhook_t));
+
+	usdata->id = 0;
+	usdata->dir = 0;
+
+	return usdata;
+}
+/*}}}*/
+/*{{{  static void free_avrasmublabhook (avrasm_uslabhook_t *ush)*/
+/*
+ *	frees an avrasm_uslabhook_t structure
+ */
+static void free_avrasmuslabhook (avrasm_uslabhook_t *ush)
+{
+	if (!ush) {
+		nocc_warning ("free_avrasmuslabhook(): NULL pointer!");
+		return;
+	}
+	sfree (ush);
 	return;
 }
 /*}}}*/
@@ -534,6 +586,101 @@ lexer_dumptoken (stderr, tok);
 	return;
 }
 /*}}}*/
+/*{{{  static void avrasm_uslabdefreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	scoops up a token used to define a "local label".
+ *	done specially because the lexer sees "L0" as a single name;  we just want the integer bit here.
+ */
+static void avrasm_uslabdefreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	token_t *tok = parser_gettok (pp);
+	int id;
+	tnode_t *node = NULL;
+	avrasm_lithook_t *litdata;
+	
+	if (tok->type != NAME) {
+		parser_error_line (pp->lf, tok->lineno, "invalid token in avrasm_uslabdefreduce(): got [%s]", lexer_stokenstr (tok));
+		lexer_freetoken (tok);
+		return;
+	}
+	if (strlen (tok->u.name) < 2) {
+		goto out_badname;
+	}
+	if ((tok->u.name[0] != 'L') && (tok->u.name[0] != 'l')) {
+		goto out_badname;
+	}
+	if (sscanf (tok->u.name + 1, "%d", &id) != 1) {
+		goto out_badname;
+	}
+	if (id < 0) {
+		goto out_badname;
+	}
+
+	litdata = new_avrasmlithook ();
+	litdata->len = sizeof (int);
+	litdata->data = mem_ndup (&id, litdata->len);
+
+	node = tnode_create (avrasm.tag_LITINT, tok->origin, (void *)litdata);
+	node = tnode_create (avrasm.tag_LLABELDEF, tok->origin, node);
+	*(dfast->ptr) = node;
+	lexer_freetoken (tok);
+	return;
+out_badname:
+	parser_error_line (pp->lf, tok->lineno, "invalid local label name [%s]", tok->u.name);
+	lexer_freetoken (tok);
+	return;
+}
+/*}}}*/
+/*{{{  static void avrasm_uslabreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	scoops up one or more tokens referencing a "local label".
+ */
+static void avrasm_uslabreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	token_t *tok = parser_gettok (pp);
+	tnode_t *node = NULL;
+	avrasm_uslabhook_t *ush = NULL;
+	avrasm_lspecial_t *lspec = NULL;
+	int slen;
+
+	if (tok->type != LSPECIAL) {
+		parser_error_line (pp->lf, tok->lineno, "invalid token in avrasm_uslabreduce(): got [%s]", lexer_stokenstr (tok));
+		lexer_freetoken (tok);
+		return;
+	}
+
+	/* expecting a string like "0f" or "2b" to reference a local label */
+	lspec = (avrasm_lspecial_t *)tok->u.lspec;
+	ush = new_avrasmuslabhook ();
+	slen = strlen (lspec->str);
+	if (slen < 2) {
+		goto out_badname;
+	}
+	if (lspec->str[slen - 1] == 'f') {
+		ush->dir = 1;
+	} else if (lspec->str[slen - 1] == 'b') {
+		ush->dir = -1;
+	} else {
+		goto out_badname;
+	}
+	lspec->str[slen - 1] = '\0';
+	if (sscanf (lspec->str, "%d", &ush->id) != 1) {
+		/* patch it back together.. */
+		lspec->str[slen - 1] = (ush->dir > 0) ? 'f' : 'b';
+		goto out_badname;
+	}
+
+	node = tnode_create (avrasm.tag_USLAB, tok->origin, (void *)ush);
+	*(dfast->ptr) = node;
+
+	lexer_freetoken (tok);
+	return;
+out_badname:
+	parser_error_line (pp->lf, tok->lineno, "invalid local label reference [%s]", lspec->str);
+	lexer_freetoken (tok);
+	return;
+}
+/*}}}*/
 
 /*{{{  static void avrasm_rawnamenode_hook_free (void *hook)*/
 /*
@@ -693,6 +840,55 @@ static void avrasm_xyznode_hook_dumptree (tnode_t *node, void *hook, int indent,
 
 	avrasm_isetindent (stream, indent);
 	fprintf (stream, "<avrasmxyznode reg=\"%d\" prepost=\"%d\" offs=\"%d\" />\n", xyzh->reg, xyzh->prepost, xyzh->offs);
+
+	return;
+}
+/*}}}*/
+
+/*{{{  static void avrasm_uslabnode_hook_free (void *hook)*/
+/*
+ *	frees an uslabnode hook
+ */
+static void avrasm_uslabnode_hook_free (void *hook)
+{
+	avrasm_uslabhook_t *ush = (avrasm_uslabhook_t *)hook;
+
+	if (ush) {
+		free_avrasmuslabhook (ush);
+	}
+
+	return;
+}
+/*}}}*/
+/*{{{  static void *avrasm_uslabnode_hook_copy (void *hook)*/
+/*
+ *	copies an uslabnode hook
+ */
+static void *avrasm_uslabnode_hook_copy (void *hook)
+{
+	avrasm_uslabhook_t *ush = (avrasm_uslabhook_t *)hook;
+
+	if (ush) {
+		avrasm_uslabhook_t *newush = new_avrasmuslabhook ();
+
+		newush->id = ush->id;
+		newush->dir = ush->dir;
+
+		return (void *)newush;
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  static void avrasm_uslabnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*
+ *	dump-tree for uslabnode hook (specials)
+ */
+static void avrasm_uslabnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+{
+	avrasm_uslabhook_t *ush = (avrasm_uslabhook_t *)hook;
+
+	avrasm_isetindent (stream, indent);
+	fprintf (stream, "<avrasmuslabnode id=\"%d\" dir=\"%d\" />\n", ush->id, ush->dir);
 
 	return;
 }
@@ -1029,6 +1225,23 @@ tnode_dumptree (*tptr, 1, stderr);
 }
 /*}}}*/
 
+/*{{{  static int avrasm_llscope_uslabnode (compops_t *cops, tnode_ **tptr, void *lls)*/
+/*
+ *	does local-label scoping on a USLAB node (unscoped label)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_llscope_uslabnode (compops_t *cops, tnode_t **tptr, void *lls)
+{
+	avrasm_uslabhook_t *uslh = (avrasm_uslabhook_t *)tnode_nthhookof (*tptr, 0);
+
+#if 0
+fprintf (stderr, "avrasm_llscope_uslabnode(): here!, id=%d, dir=%d\n", uslh->id, uslh->dir);
+#endif
+	avrasm_llscope_fixref (tptr, uslh->id, uslh->dir, lls);
+	return 1;
+}
+/*}}}*/
+
 /*{{{  static int avrasm_subequ_namenode (compops_t *cops, tnode_t **tptr, subequ_t *se)*/
 /*
  *	does EQU and DEF substitutions on a namenode (EQU)
@@ -1196,7 +1409,7 @@ static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e
 			good = 1;
 		} else if (constprop_isconst (arg)) {
 			good = 1;
-		} else if (arg->tag == avrasm.tag_GLABEL) {
+		} else if ((arg->tag == avrasm.tag_GLABEL) || (arg->tag == avrasm.tag_LLABEL)) {
 			/* allow labels, will hurl error later if too wide */
 			good = 1;
 		} else if (arg->tag->ndef == avrasm.node_DOPNODE) {
@@ -1235,7 +1448,7 @@ static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e
 	}
 	if (mode & IMODE_CONSTCODE) {
 		/*{{{  expecting label address, or relative position*/
-		if (arg->tag == avrasm.tag_GLABEL) {
+		if ((arg->tag == avrasm.tag_GLABEL) || (arg->tag == avrasm.tag_LLABEL)) {
 			if (!trpass) {
 				/* first-step typecheck, allow any label */
 				good = 1;
@@ -1273,7 +1486,7 @@ static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e
 	}
 	if (mode & IMODE_CONSTMEM) {
 		/*{{{  expecting constant address, label address or relative position*/
-		if (arg->tag == avrasm.tag_GLABEL) {
+		if ((arg->tag == avrasm.tag_GLABEL) || (arg->tag == avrasm.tag_LLABEL)) {
 			if (!trpass) {
 				/* first-step typecheck, allow any label */
 				good = 1;
@@ -1449,6 +1662,8 @@ static int avrasm_checkconstdata (tnode_t *tptr, tnode_t *cinstr, typecheck_t *t
 		return 0;
 	} else if (tptr->tag == avrasm.tag_GLABEL) {
 		return 0;
+	} else if (tptr->tag == avrasm.tag_LLABEL) {
+		return 0;
 	} else if (tptr->tag->ndef == avrasm.node_DOPNODE) {
 		/* check LHS & RHS */
 		return (avrasm_checkconstdata (tnode_nthsubof (tptr, 0), cinstr, tc) ||
@@ -1615,6 +1830,8 @@ static int avrasm_program_init_nodes (void)
 	fcnlib_addfcn ("avrasm_instoken_to_node", (void *)avrasm_instoken_to_node, 1, 1);
 
 	fcnlib_addfcn ("avrasm_xyzreduce", (void *)avrasm_xyzreduce, 0, 3);
+	fcnlib_addfcn ("avrasm_uslabreduce", (void *)avrasm_uslabreduce, 0, 3);
+	fcnlib_addfcn ("avrasm_uslabdefreduce", (void *)avrasm_uslabdefreduce, 0, 3);
 
 	/*}}}*/
 	/*{{{  avrasm:rawnamenode -- NAME*/
@@ -1811,6 +2028,20 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_GLABELDEF = tnode_newnodetag ("AVRASMGLABELDEF", &i, tnd, NTF_NONE);
 	i = -1;
 	avrasm.tag_LLABELDEF = tnode_newnodetag ("AVRASMLLABELDEF", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  avrasm:uslabnode -- USLAB*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:uslabnode", &i, 0, 0, 1, TNF_NONE);			/* hooks: 0 = avrasm_uslabhook_t */
+	tnd->hook_free = avrasm_uslabnode_hook_free;
+	tnd->hook_copy = avrasm_uslabnode_hook_copy;
+	tnd->hook_dumptree = avrasm_uslabnode_hook_dumptree;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "llscope", 2, COMPOPTYPE (avrasm_llscope_uslabnode));
+	tnd->ops = cops;
+
+	i = -1;
+	avrasm.tag_USLAB = tnode_newnodetag ("AVRASMUSLAB", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  avrasm:namenode -- GLABEL, LLABEL, EQUNAME, MACRONAME, PARAMNAME*/

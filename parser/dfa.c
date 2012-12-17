@@ -1020,6 +1020,13 @@ static int dfa_idecode_single (const char *mbit, dfanode_t *idfa, dfanode_t *edf
 			mtok = lexer_newtoken (INDENT);
 		} else if (!strcmp (bit, "Integer")) {
 			mtok = lexer_newtoken (INTEGER, 0);
+		} else if (!strcmp (bit, "Iname")) {
+			mtok = lexer_newtoken (INAME, NULL);
+		}
+		break;
+	case 'L':
+		if (!strcmp (bit, "Lspecial")) {
+			mtok = lexer_newtoken (LSPECIAL, NULL);
 		}
 		break;
 	case 'N':
@@ -1042,6 +1049,8 @@ static int dfa_idecode_single (const char *mbit, dfanode_t *idfa, dfanode_t *edf
 	case 'S':
 		if (!strcmp (bit, "String")) {
 			mtok = lexer_newtoken (STRING, NULL);
+		} else if (!strcmp (bit, "Special")) {
+			mtok = lexer_newtoken (LSPECIAL, NULL);
 		}
 		break;
 		/*}}}*/
@@ -1585,6 +1594,15 @@ static int dfa_idecode_checkmatch (const char *mbit, int lookuperr)
 			} else if (!strcmp (bit, "Integer")) {
 				gottok = 1;
 				bit += 7;
+			} else if (!strcmp (bit, "Iname")) {
+				gottok = 1;
+				bit += 5;
+			}
+			break;
+		case 'L':
+			if (!strcmp (bit, "Lspecial")) {
+				gottok = 1;
+				bit += 8;
 			}
 			break;
 		case 'N':
@@ -1612,6 +1630,9 @@ static int dfa_idecode_checkmatch (const char *mbit, int lookuperr)
 			if (!strcmp (bit, "String")) {
 				gottok = 1;
 				bit += 6;
+			} else if (!strcmp (bit, "Special")) {
+				gottok = 1;
+				bit += 7;
 			}
 			break;
 		case 'C':

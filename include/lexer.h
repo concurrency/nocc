@@ -33,7 +33,8 @@ typedef enum {
 	INDENT = 9,
 	OUTDENT = 10,
 	INAME = 11,
-	END = 12
+	LSPECIAL = 12,
+	END = 13
 } tokentype_t;
 
 struct TAG_keyword;
@@ -87,6 +88,7 @@ typedef struct TAG_token {
 		} str;
 		char *name;
 		struct TAG_symbol *sym;
+		void *lspec;						/* implementation specific use */
 	} u;
 	void *iptr;							/* implementation specific use (may not be pointer) */
 } token_t;

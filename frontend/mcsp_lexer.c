@@ -57,6 +57,7 @@ langlexer_t mcsp_lexer = {
 	.closefile = mcsp_closefile,
 	.nexttoken = mcsp_nexttoken,
 	.getcodeline = mcsp_getcodeline,
+	.freelspecial = NULL,
 	.parser = NULL
 };
 

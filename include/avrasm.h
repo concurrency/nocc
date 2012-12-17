@@ -33,6 +33,11 @@ struct TAG_token;
 struct TAG_langdef;
 
 typedef struct {
+	char *str;
+} avrasm_lspecial_t;
+
+
+typedef struct {
 	struct TAG_tndef *node_INSNODE;
 	struct TAG_tndef *node_LABELNODE;
 	struct TAG_tndef *node_DOPNODE;
@@ -92,6 +97,8 @@ typedef struct {
 	struct TAG_ntdef *tag_GLABELDEF;
 	struct TAG_ntdef *tag_LLABELDEF;
 
+	struct TAG_ntdef *tag_USLAB;
+
 	struct TAG_ntdef *tag_GLABEL;
 	struct TAG_ntdef *tag_LLABEL;
 	struct TAG_ntdef *tag_EQUNAME;
@@ -114,7 +121,6 @@ typedef struct TAG_submacro {
 	int errcount;
 } submacro_t;
 
-
 /* used to tag labels (compiler hook) */
 typedef struct {
 	struct TAG_tnode *zone;	/* one of the segment leaves */
@@ -133,6 +139,10 @@ extern int avrasm_submacro_subtree (struct TAG_tnode **tptr, struct TAG_submacro
 extern label_chook_t *avrasm_newlabelchook (void);
 extern void avrasm_freelabelchook (label_chook_t *lch);
 
+extern struct TAG_tnode *avrasm_llscope_fixref (struct TAG_tnode **tptr, int labid, int labdir, void *llsptr);
+
+/* in avrasm_program.c, where specific structures reside */
+extern int avrasm_getlitintval (struct TAG_tnode *node);
 extern int avrasm_getxyzreginfo (struct TAG_tnode *node, int *reg, int *prepost, int *offs);
 
 extern struct TAG_feunit avrasm_program_feunit;			/* avrasm_program.c */

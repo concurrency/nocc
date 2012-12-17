@@ -61,6 +61,7 @@ langlexer_t traceslang_lexer = {
 	.closefile = traceslang_closefile,
 	.nexttoken = traceslang_nexttoken,
 	.getcodeline = traceslang_getcodeline,
+	.freelspecial = NULL,
 	.parser = NULL
 };
 

@@ -581,7 +581,7 @@ static int insarg_to_constaddrdiff (atmelavr_image_t *img, tnode_t *arg, tnode_t
 #if 0
 fprintf (stderr, "insarg_to_constaddrdiff(): arg=[%s], myoffs=%d\n", arg->tag->name, myoffs);
 #endif
-	if (arg->tag == avrasm.tag_GLABEL) {
+	if ((arg->tag == avrasm.tag_GLABEL) || (arg->tag == avrasm.tag_LLABEL))  {
 		name_t *labname = tnode_nthnameof (arg, 0);
 		tnode_t *ndecl = NameDeclOf (labname);
 		aavr_labelinfo_t *aali;
@@ -626,7 +626,7 @@ fprintf (stderr, "insarg_to_constaddrdiff(): arg=[%s], myoffs=%d, aali->baddr=%d
  */
 static int insarg_to_constaddr (atmelavr_image_t *img, tnode_t *arg, tnode_t *instr, const int myoffs, const int min, const int max, codegen_t *cgen)
 {
-	if (arg->tag == avrasm.tag_GLABEL) {
+	if ((arg->tag == avrasm.tag_GLABEL) || (arg->tag == avrasm.tag_LLABEL)) {
 		name_t *labname = tnode_nthnameof (arg, 0);
 		tnode_t *ndecl = NameDeclOf (labname);
 		aavr_labelinfo_t *aali;
@@ -1400,7 +1400,7 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		/*}}}*/
 	case INS_SBCI: /*{{{*/
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 31, cgen);
-		val = insarg_to_constval (img, tnode_nthsubof (instr, 2), instr, offs, 0, 255, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 255, cgen);
 		img->image[offs++] = 0x40 | ((val >> 4) & 0x0f);
 		img->image[offs++] = ((rd & 0x0f) << 4) | (val & 0x0f);
 		width = 2;
@@ -1460,6 +1460,12 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		img->image[offs++] = 0x94;
 		img->image[offs++] = 0x78;
 		width = 2;
+		break;
+		/*}}}*/
+	case INS_SER: /*{{{*/
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 31, cgen);
+		img->image[offs++] = 0xef;
+		img->image[offs++] = ((rd << 4) & 0xf0) | 0x0f;
 		break;
 		/*}}}*/
 	case INS_SLEEP: /*{{{*/
@@ -1883,7 +1889,7 @@ fprintf (stderr, "atmelavr_do_assemble(): want to assemble [%s] into image (%d/%
 			genoffset = 0;
 		}
 
-		if (items[i]->tag == avrasm.tag_GLABELDEF) {
+		if ((items[i]->tag == avrasm.tag_GLABELDEF) || (items[i]->tag == avrasm.tag_LLABELDEF)) {
 			/*{{{  planting label definition*/
 			aavr_labelinfo_t *aali;
 			int j;
@@ -1997,7 +2003,7 @@ static int atmelavr_constprop_glabel (compops_t *cops, tnode_t **tptr)
 {
 	int i = 1;
 
-	if ((*tptr)->tag == avrasm.tag_GLABEL) {
+	if (((*tptr)->tag == avrasm.tag_GLABEL) || ((*tptr)->tag == avrasm.tag_LLABEL)) {
 		name_t *labname = tnode_nthnameof (*tptr, 0);
 		tnode_t *ndecl = NameDeclOf (labname);
 		aavr_labelinfo_t *aali;
@@ -2060,6 +2066,7 @@ fprintf (stderr, "atmelavr_be_do_codegen(): here!\n");
 
 		tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (atmelavr_constprop_glabel));
 		avrasm.tag_GLABEL->ndef->ops = cops;
+		/* Note: also gets tag_LLABEL doing this! */
 	}
 
 	items = parser_getlistitems (tptr, &nitems);
@@ -2190,6 +2197,7 @@ outlab:
 		compops_t *cops = tnode_removecompops (avrasm.tag_GLABEL->ndef->ops);
 
 		avrasm.tag_GLABEL->ndef->ops = cops;
+		/* Note: also removed from LLABEL */
 	}
 
 

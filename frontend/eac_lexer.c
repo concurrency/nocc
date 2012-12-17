@@ -58,6 +58,7 @@ langlexer_t eac_lexer = {
 	.closefile = eac_closefile,
 	.nexttoken = eac_nexttoken,
 	.getcodeline = eac_getcodeline,
+	.freelspecial = NULL,
 	.parser = NULL
 };
 

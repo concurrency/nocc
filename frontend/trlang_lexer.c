@@ -61,6 +61,7 @@ langlexer_t trlang_lexer = {
 	.closefile = trlang_closefile,
 	.nexttoken = trlang_nexttoken,
 	.getcodeline = trlang_getcodeline,
+	.freelspecial = NULL,
 	.parser = NULL
 };
 

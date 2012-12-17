@@ -60,6 +60,7 @@ langlexer_t hopp_lexer = {
 	.closefile = hopp_closefile,
 	.nexttoken = hopp_nexttoken,
 	.getcodeline = hopp_getcodeline,
+	.freelspecial = NULL,
 	.parser = NULL
 };
 

@@ -17,9 +17,11 @@ add_and_light:
 	add	r3, r2
 	brcc	aal_1
 	sbi	PORTB, 7
+	sbi	PORTB, 6
 	rjmp	aal_2
 aal_1:
 	cbi	PORTB, 7
+	cbi	PORTB, 6
 aal_2:
 	ret
 
@@ -65,10 +67,11 @@ reset:
 	out	SPL, r16
 	sei
 
-	ldi	r16, 0x80
+	ldi	r16, 0xc0
 	out	DDRB, r16
 
 	cbi	PORTB, 7
+	cbi	PORTB, 6
 	clr	r3
 	clr	r2
 

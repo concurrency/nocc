@@ -66,6 +66,10 @@ static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss);
 static int avrasm_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
 static int avrasm_parser_typeresolve (tnode_t **tptr, typecheck_t *tc);
 
+struct TAG_llscope;
+
+static int avrasm_do_llscope (tnode_t **tptr, struct TAG_llscope *lls);
+
 /*}}}*/
 /*{{{  global vars*/
 
@@ -98,6 +102,17 @@ typedef struct {
 	dfanode_t *inode;
 	langdef_t *ldef;
 } avrasm_parse_t;
+
+typedef struct {
+	name_t *name;				/* associated name-node (LLABELDEF linked if set) */
+	DYNARRAY (tnode_t **, frefs);		/* forward references (when references "0f" are seen before the label) */
+} llscope_entry_t;
+
+typedef struct TAG_llscope {
+	DYNARRAY (llscope_entry_t *, flabels);
+	DYNARRAY (llscope_entry_t *, blabels);
+	int error;
+} llscope_t;
 
 static avrasm_parse_t *avrasm_priv = NULL;
 static int avrasm_priv_refcount = 0;
@@ -148,7 +163,6 @@ static void avrasm_freeavrasmparse (avrasm_parse_t *avrp)
 }
 /*}}}*/
 
-
 /*{{{  void avrasm_isetindent (FILE *stream, int indent)*/
 /*
  *	set-indent for debugging output
@@ -189,7 +203,6 @@ int avrasm_langop_inseg (tnode_t *node)
 }
 /*}}}*/
 
-
 /*{{{  label_chook_t *avrasm_newlabelchook (void)*/
 /*
  *	creates a new label_chook_t structure
@@ -215,6 +228,171 @@ void avrasm_freelabelchook (label_chook_t *lch)
 		return;
 	}
 	sfree (lch);
+	return;
+}
+/*}}}*/
+
+/*{{{  static llscope_entry_t *new_llscopeentry (void)*/
+/*
+ *	creates a new llscope_entry_t structure
+ */
+static llscope_entry_t *new_llscopeentry (void)
+{
+	llscope_entry_t *llse = (llscope_entry_t *)smalloc (sizeof (llscope_entry_t));
+
+	llse->name = NULL;
+	dynarray_init (llse->frefs);
+
+	return llse;
+}
+/*}}}*/
+/*{{{  static void free_llscopeentry (llscope_entry_t *llse)*/
+/*
+ *	frees an llscope_entry_t structure
+ */
+static void free_llscopeentry (llscope_entry_t *llse)
+{
+	if (!llse) {
+		nocc_serious ("free_llscopeentry(): NULL pointer!");
+		return;
+	}
+	dynarray_trash (llse->frefs);
+	llse->name = NULL;
+	sfree (llse);
+
+	return;
+}
+/*}}}*/
+/*{{{  static llscope_t *new_llscope (void)*/
+/*
+ *	creates a new llscope_t structure
+ */
+static llscope_t *new_llscope (void)
+{
+	llscope_t *lls = (llscope_t *)smalloc (sizeof (llscope_t));
+
+	dynarray_init (lls->flabels);
+	dynarray_init (lls->blabels);
+	lls->error = 0;
+
+	return lls;
+}
+/*}}}*/
+/*{{{  static void free_llscope (llscope_t *lls)*/
+/*
+ *	frees an llscope_t structure
+ */
+static void free_llscope (llscope_t *lls)
+{
+	int i;
+
+	if (!lls) {
+		nocc_serious ("free_llscope(): NULL pointer!");
+		return;
+	}
+	for (i=0; i<DA_CUR (lls->flabels); i++) {
+		llscope_entry_t *llse = DA_NTHITEM (lls->flabels, i);
+
+		if (llse) {
+			free_llscopeentry (llse);
+		}
+	}
+	for (i=0; i<DA_CUR (lls->blabels); i++) {
+		llscope_entry_t *llse = DA_NTHITEM (lls->blabels, i);
+
+		if (llse) {
+			free_llscopeentry (llse);
+		}
+	}
+	dynarray_trash (lls->flabels);
+	dynarray_trash (lls->blabels);
+	sfree (lls);
+	return;
+}
+/*}}}*/
+/*{{{  static llscope_entry_t *llscope_lookup_fordef (llscope_t *lls, int labid)*/
+/*
+ *	returns pointer to specified local label if it exists in "forward" labels, creates it there otherwise
+ */
+static llscope_entry_t *llscope_lookup_fordef (llscope_t *lls, int labid)
+{
+	if (labid >= DA_CUR (lls->flabels)) {
+		int s = DA_CUR (lls->flabels);
+		int i;
+
+		dynarray_setsize (lls->flabels, labid + 1);
+		for (i=s; i<labid; i++) {
+			DA_SETNTHITEM (lls->flabels, i, NULL);
+		}
+	}
+	if (!DA_NTHITEM (lls->flabels, labid)) {
+		llscope_entry_t *llse = new_llscopeentry ();
+
+		DA_SETNTHITEM (lls->flabels, labid, llse);
+	}
+	return DA_NTHITEM (lls->flabels, labid);
+}
+/*}}}*/
+/*{{{  static llscope_entry_t *llscope_lookup_forref (llscope_t *lls, int labid)*/
+/*
+ *	returns pointer to a specified local label if it exists in "forward" labels, creates it there otherwise
+ */
+static llscope_entry_t *llscope_lookup_forref (llscope_t *lls, int labid)
+{
+	if (labid >= DA_CUR (lls->flabels)) {
+		int s = DA_CUR (lls->flabels);
+		int i;
+
+		dynarray_setsize (lls->flabels, labid + 1);
+		for (i=s; i<labid; i++) {
+			DA_SETNTHITEM (lls->flabels, i, NULL);
+		}
+	}
+	if (!DA_NTHITEM (lls->flabels, labid)) {
+		llscope_entry_t *llse = new_llscopeentry ();
+
+		DA_SETNTHITEM (lls->flabels, labid, llse);
+	}
+	return DA_NTHITEM (lls->flabels, labid);
+}
+/*}}}*/
+/*{{{  static llscope_entry_t *llscope_lookup_backref (llscope_t *lls, int labid)*/
+/*
+ *	returns a pointer to a specified local label if it exists in "backwards" labels, NULL otherwise
+ */
+static llscope_entry_t *llscope_lookup_backref (llscope_t *lls, int labid)
+{
+	if (labid >= DA_CUR (lls->blabels)) {
+		return NULL;
+	}
+	return DA_NTHITEM (lls->blabels, labid);
+}
+/*}}}*/
+/*{{{  static void llscope_promote (llscope_t *lls, int labid)*/
+/*
+ *	promotes a local label from "forward" to "backward", after its definition is seen
+ */
+static void llscope_promote (llscope_t *lls, int labid)
+{
+	if (labid >= DA_CUR (lls->blabels)) {
+		int s = DA_CUR (lls->blabels);
+		int i;
+
+		dynarray_setsize (lls->blabels, labid + 1);
+		for (i=s; i<labid; i++) {
+			DA_SETNTHITEM (lls->blabels, i, NULL);
+		}
+	}
+	if ((labid >= DA_CUR (lls->flabels)) || (!DA_NTHITEM (lls->flabels, labid))) {
+		nocc_internal ("llscope_promote(): local label id %d not in flabels (max %d)!", labid, DA_CUR (lls->flabels));
+		return;
+	}
+	if (DA_NTHITEM (lls->blabels, labid)) {
+		free_llscopeentry (DA_NTHITEM (lls->blabels, labid));
+	}
+	DA_SETNTHITEM (lls->blabels, labid, DA_NTHITEM (lls->flabels, labid));
+	DA_SETNTHITEM (lls->flabels, labid, NULL);
+
 	return;
 }
 /*}}}*/
@@ -252,8 +430,6 @@ static int submacro_modprewalk (tnode_t **tptr, void *arg)
 	return i;
 }
 /*}}}*/
-
-
 /*{{{  int avrasm_subequ_subtree (tnode_t **tptr, subequ_t *se)*/
 /*
  *	does .equ and .def substitution on a parse-tree (already scoped)
@@ -288,6 +464,76 @@ int avrasm_submacro_subtree (tnode_t **tptr, submacro_t *sm)
 		tnode_modprewalktree (tptr, submacro_modprewalk, (void *)sm);
 	}
 	return sm->errcount;
+}
+/*}}}*/
+/*{{{  static int llscope_modprewalk (tnode_t **tptr, void *arg)*/
+/*
+ *	called to each node walked during the 'llscope' pass
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int llscope_modprewalk (tnode_t **tptr, void *arg)
+{
+	int i = 1;
+
+	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop ((*tptr)->tag->ndef->ops, "llscope")) {
+		i = tnode_callcompop ((*tptr)->tag->ndef->ops, "llscope", 2, tptr, arg);
+	}
+	return i;
+}
+/*}}}*/
+/*{{{  static int avrasm_llscope_subtree (tnode_t **tptr, llscope_t *lls)*/
+/*
+ *	does local-label scoping on a parse-tree (small bits of)
+ *	returns 0 on success, non-zero on failure
+ */
+static int avrasm_llscope_subtree (tnode_t **tptr, llscope_t *lls)
+{
+	if (!tptr) {
+		nocc_serious ("avrasm_llscope_subtree(): NULL tree-pointer");
+		return 1;
+	} else if (!*tptr) {
+		return 0;
+	} else {
+		tnode_modprewalktree (tptr, llscope_modprewalk, (void *)lls);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  tnode_t *avrasm_llscope_fixref (tnode_t **tptr, int labid, int labdir, void *llsptr)*/
+/*
+ *	called to fixup a local-label reference when encountered.
+ *	returns new (or same) node.
+ */
+tnode_t *avrasm_llscope_fixref (tnode_t **tptr, int labid, int labdir, void *llsptr)
+{
+	llscope_t *lls = (llscope_t *)llsptr;
+	llscope_entry_t *llse;
+
+	if (labdir > 0) {
+		/* forward reference */
+		llse = llscope_lookup_forref (lls, labid);
+		if (llse->name) {
+			tnode_error (*tptr, "impossible forward local-label reference, already declared!");
+			lls->error++;
+			return NULL;
+		}
+		dynarray_add (llse->frefs, tptr);
+	} else {
+		/* backward reference */
+		llse = llscope_lookup_backref (lls, labid);
+		if (!llse) {
+			tnode_error (*tptr, "backward reference to undefined local-label %d", labid);
+			lls->error++;
+			return NULL;
+		}
+		if (!llse->name) {
+			nocc_internal ("impossible backward local-label reference, no name defined for it!");
+			lls->error++;
+			return NULL;
+		}
+		*tptr = tnode_createfrom (avrasm.tag_LLABEL, *tptr, llse->name);
+	}
+	return *tptr;
 }
 /*}}}*/
 
@@ -330,6 +576,22 @@ static int submacro_cpass (tnode_t **treeptr)
 	return r;
 }
 /*}}}*/
+/*{{{  static int llscope_cpass (tnode_t **treeptr)*/
+/*
+ *	called to do local-label scoping (compiler-pass)
+ *	returns 0 on success, non-zero on failure
+ */
+static int llscope_cpass (tnode_t **treeptr)
+{
+	llscope_t *lls = new_llscope ();
+	int r;
+
+	r = avrasm_do_llscope (treeptr, lls);
+
+	free_llscope (lls);
+	return r;
+}
+/*}}}*/
 /*{{{  static int flatcode_cpass (tnode_t **treeptr)*/
 /*
  *	called to do code-flattening for the assembler source
@@ -369,7 +631,7 @@ static int flatcode_cpass (tnode_t **treeptr)
 			}
 
 			/* ASSERT: curset is valid */
-			if (item->tag == avrasm.tag_GLABELDEF) {
+			if ((item->tag == avrasm.tag_GLABELDEF) || (item->tag == avrasm.tag_LLABELDEF)) {
 				/* tag with right segment */
 				label_chook_t *lch = avrasm_newlabelchook ();
 
@@ -457,6 +719,10 @@ static int avrasm_parser_init (lexfile_t *lf)
 			nocc_serious ("avrasm_parser_init(): failed to add \"submacro\" compiler pass");
 			return 1;
 		}
+		if (nocc_addcompilerpass ("llscope", INTERNAL_ORIGIN, "submacro", 0, (int (*)(void *))llscope_cpass, CPASS_TREEPTR, -1, NULL)) {
+			nocc_serious ("avrasm_parser_init(): failed to add \"llscope\" compiler pass");
+			return 1;
+		}
 		if (nocc_addcompilerpass ("flatcode", INTERNAL_ORIGIN, "type-check", 0, (int (*)(void *))flatcode_cpass, CPASS_TREEPTR, -1, NULL)) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"flatcode\" compiler pass");
 			return 1;
@@ -467,6 +733,10 @@ static int avrasm_parser_init (lexfile_t *lf)
 		}
 		if (tnode_newcompop ("submacro", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"submacro\" compiler operation");
+			return 1;
+		}
+		if (tnode_newcompop ("llscope", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
+			nocc_serious ("avrasm_parser_init(): failed to add \"llscope\" compiler operation");
 			return 1;
 		}
 		if (tnode_newlangop ("avrasm_inseg", LOPS_INVALID, 1, INTERNAL_ORIGIN) < 0) {
@@ -760,17 +1030,23 @@ static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)
 				scope_error (lname_node, ss, "label name not raw-name");
 			} else {
 				char *rawname = tnode_nthhookof (lname_node, 0);
-				name_t *labname;
-				tnode_t *namenode;
 
-				labname = name_addscopenamess (rawname, node, NULL, NULL, ss);
-				namenode = tnode_createfrom (avrasm.tag_GLABEL, lname_node, labname);
-				SetNameNode (labname, namenode);
+				if (name_lookupss (rawname, ss)) {
+					/* not allowed multiply defined labels in assembler.. */
+					scope_error (lname_node, ss, "multiply defined label [%s]", rawname);
+				} else {
+					name_t *labname;
+					tnode_t *namenode;
 
-				tnode_free (lname_node);
-				tnode_setnthsub (node, 0, namenode);
+					labname = name_addscopenamess (rawname, node, NULL, NULL, ss);
+					namenode = tnode_createfrom (avrasm.tag_GLABEL, lname_node, labname);
+					SetNameNode (labname, namenode);
 
-				ss->scoped++;
+					tnode_free (lname_node);
+					tnode_setnthsub (node, 0, namenode);
+
+					ss->scoped++;
+				}
 			}
 		}
 	}
@@ -780,6 +1056,92 @@ static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)
 	name_markdescope (nsmark);
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static int avrasm_do_llscope (tnode_t **tptr, llscope_t *lls)*/
+/*
+ *	called to do local-label scoping on the parse tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int avrasm_do_llscope (tnode_t **tptr, llscope_t *lls)
+{
+	tnode_t *tree = *tptr;
+	tnode_t **items;
+	int nitems, i;
+
+	if (!parser_islistnode (tree)) {
+		nocc_internal ("avrasm_do_llscope(): passed thing is not a list! (serious).  Got [%s:%s]\n",
+				tree->tag->ndef->name, tree->tag->name);
+		return -1;
+	}
+	items = parser_getlistitems (tree, &nitems);
+
+	/* Note: at this point the assembler source is completely flat (and not embedded in segments), so
+	 * all local label definitions and instances occur in the order written in the file (but after
+	 * macro substitution, so we don't confuse these).  Deliberately ignored on the first scope pass.
+	 */
+	for (i=0; i<nitems; i++) {
+		tnode_t *node = items[i];
+
+		if (node->tag == avrasm.tag_LLABELDEF) {
+			tnode_t *lab_id = tnode_nthsubof (node, 0);
+			int id, j;
+			llscope_entry_t *thisdef;
+			name_t *labname;
+			char *rawlabname;
+			tnode_t *labnamenode;
+
+			if (lab_id->tag != avrasm.tag_LITINT) {
+				tnode_error (node, "local label not integer! got [%s]", lab_id->tag->name);
+				lls->error++;
+				break;		/* for() */
+			}
+			id = avrasm_getlitintval (lab_id);
+			thisdef = llscope_lookup_fordef (lls, id);
+
+			/* create a name for it */
+			rawlabname = string_fmt ("L%d", id);
+			labnamenode = tnode_createfrom (avrasm.tag_LLABEL, node, NULL);
+			labname = name_addname (rawlabname, node, NULL, labnamenode);
+			tnode_setnthname (labnamenode, 0, labname);
+
+			thisdef->name = labname;
+			llscope_promote (lls, id);
+
+			for (j=0; j<DA_CUR (thisdef->frefs); j++) {
+				/* apply fixups, now backward references */
+				avrasm_llscope_fixref (DA_NTHITEM (thisdef->frefs, j), id, -1, (void *)lls);
+			}
+			dynarray_trash (thisdef->frefs);
+
+			/* now all fixups have been applied, reset LLABELDEF to include new name-node */
+			tnode_free (lab_id);
+			tnode_setnthsub (node, 0, labnamenode);
+#if 0
+fprintf (stderr, "avrasm_do_llscope(): here1, id = %d\n", id);
+#endif
+		} else {
+			/* call llscope pass on the node to pick up stray references */
+			avrasm_llscope_subtree (items + i, lls);
+		}
+	}
+
+	/* before returning, check forward references -- should not have any! */
+	for (i=0; i<DA_CUR (lls->flabels); i++) {
+		llscope_entry_t *llse = DA_NTHITEM (lls->flabels, i);
+
+		if (llse) {
+			int j;
+
+			nocc_error ("%d undefined reference(s) to local-label %d:", DA_CUR (llse->frefs), i);
+			for (j=0; j<DA_CUR (llse->frefs); j++) {
+				tnode_error (*(DA_NTHITEM (llse->frefs, j)), "");
+			}
+			lls->error++;
+		}
+	}
+
+	return lls->error;
 }
 /*}}}*/
 /*{{{  static int avrasm_parser_typecheck (tnode_t *tptr, typecheck_t *tc)*/
@@ -804,4 +1166,5 @@ static int avrasm_parser_typeresolve (tnode_t **tptr, typecheck_t *tc)
 	return tc->err;
 }
 /*}}}*/
+
 
