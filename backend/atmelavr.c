@@ -1281,7 +1281,7 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_LDS: /*{{{*/
+	case INS_LDS: /*{{{  load direct (from immediate address)*/
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
 		val = insarg_to_constaddr (img, tnode_nthsubof (instr, 2), instr, offs, 0, (1 << 16) - 1, cgen);
 		img->image[offs++] = 0x90 | ((rd >> 4) & 0x01);
@@ -1291,7 +1291,21 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 4;
 		break;
 		/*}}}*/
-	case INS_MOV: /*{{{*/
+	case INS_LSL: /*{{{  logical shift left*/
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		img->image[offs++] = 0x0c | ((rd >> 3) & 0x02) | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd << 4) & 0xf0) | (rd & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_LSR: /*{{{  logical shift right*/
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		img->image[offs++] = 0x94 | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd << 4) & 0xf0) | 0x06;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_MOV: /*{{{  move*/
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);	
 		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);	
 		img->image[offs++] = 0x2c | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
@@ -1299,20 +1313,20 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_NEG: /*{{{*/
+	case INS_NEG: /*{{{  two's compliment*/
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);	
 		img->image[offs++] = 0x94 | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd << 4) & 0xf0) | 0x01;
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_NOP: /*{{{*/
+	case INS_NOP: /*{{{  no-operation*/
 		img->image[offs++] = 0x00;
 		img->image[offs++] = 0x00;
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_OR: /*{{{*/
+	case INS_OR: /*{{{  logical-or*/
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);	
 		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
 		img->image[offs++] = 0x28 | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
@@ -1320,7 +1334,7 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_ORI: /*{{{*/
+	case INS_ORI: /*{{{  logical-or with immediate*/
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 31, cgen);	
 		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 255, cgen);
 		img->image[offs++] = 0x60 | ((val >> 4) & 0x0f);
@@ -1328,7 +1342,7 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_OUT: /*{{{*/
+	case INS_OUT: /*{{{  output to I/O port*/
 		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 1), instr, offs, 0, 63, cgen);
 		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
 		img->image[offs++] = 0xb8 | ((val >> 3) & 0x06) | ((rr >> 4) & 0x01);
@@ -1336,61 +1350,61 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_POP: /*{{{*/
+	case INS_POP: /*{{{  pop from stack*/
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
 		img->image[offs++] = 0x90 | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd & 0x0f) << 4) | 0x0f;
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_PUSH: /*{{{*/
+	case INS_PUSH: /*{{{  push onto stack*/
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
 		img->image[offs++] = 0x92 | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd & 0x0f) << 4) | 0x0f;
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_RCALL: /*{{{*/
+	case INS_RCALL: /*{{{  relative call*/
 		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -2048, 2047, cgen);
 		img->image[offs++] = 0xd0 | ((val >> 8) & 0x0f);
 		img->image[offs++] = (val & 0xff);
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_RET: /*{{{*/
+	case INS_RET: /*{{{  return from subroutine*/
 		img->image[offs++] = 0x95;
 		img->image[offs++] = 0x08;
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_RETI: /*{{{*/
+	case INS_RETI: /*{{{  return from interrupt*/
 		img->image[offs++] = 0x95;
 		img->image[offs++] = 0x18;
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_RJMP: /*{{{*/
+	case INS_RJMP: /*{{{  relative jump*/
 		val = insarg_to_constaddrdiff (img, tnode_nthsubof (instr, 1), instr, offs, 2, -2048, 2047, cgen);
 		img->image[offs++] = 0xc0 | ((val >> 8) & 0x0f);
 		img->image[offs++] = val & 0xff;
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_ROL: /*{{{*/
+	case INS_ROL: /*{{{  rotate left through carry*/
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
 		img->image[offs++] = 0x1c | ((rd >> 3) & 0x02) | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd & 0x0f) << 4) | (rd & 0x0f);
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_ROR: /*{{{*/
+	case INS_ROR: /*{{{  rotate right through carry*/
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
 		img->image[offs++] = 0x94 | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd & 0x0f) << 4) | 0x07;
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_SBC: /*{{{*/
+	case INS_SBC: /*{{{  subtract with carry*/
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
 		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
 		img->image[offs++] = 0x08 | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
@@ -1398,7 +1412,7 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_SBCI: /*{{{*/
+	case INS_SBCI: /*{{{  subtract immediate with carry*/
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 31, cgen);
 		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 255, cgen);
 		img->image[offs++] = 0x40 | ((val >> 4) & 0x0f);
@@ -1406,7 +1420,7 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_SBI: /*{{{*/
+	case INS_SBI: /*{{{  set bit in I/O register*/
 		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 1), instr, offs, 0, 31, cgen);
 		val2 = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 7, cgen);
 		img->image[offs++] = 0x9a;
@@ -1414,7 +1428,7 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_SBIC: /*{{{*/
+	case INS_SBIC: /*{{{  skip if bit in I/O register clear*/
 		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 1), instr, offs, 0, 31, cgen);
 		val2 = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 7, cgen);
 		img->image[offs++] = 0x99;
@@ -1422,7 +1436,7 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_SBIS: /*{{{*/
+	case INS_SBIS: /*{{{  skip if bit in I/O register set*/
 		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 1), instr, offs, 0, 31, cgen);
 		val2 = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 7, cgen);
 		img->image[offs++] = 0x9b;
@@ -1430,7 +1444,7 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_SBIW: /*{{{*/
+	case INS_SBIW: /*{{{  subtract immediate from word*/
 		if (tnode_nthsubof (instr, 1)->tag == avrasm.tag_XYZREG) {
 			/* directly specified X,Y,Z (==r26,r28,r30) */
 			avrasm_getxyzreginfo (tnode_nthsubof (instr, 1), &rd, &prepost, &val2);
@@ -1456,25 +1470,47 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_SEI: /*{{{*/
+	case INS_SBR: /*{{{  set bits in register*/
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 31, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 255, cgen);
+		img->image[offs++] = 0x60 | ((val >> 4) & 0x0f);
+		img->image[offs++] = ((rd << 4) & 0xf0) | (val & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_SBRC: /*{{{  skip if bit in register clear*/
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, 7, cgen);
+		img->image[offs++] = 0xfc | ((rr >> 4) & 0x01);
+		img->image[offs++] = ((rr << 4) & 0xf0) | (val & 0x07);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_SEC: /*{{{  set carry flag*/
+		img->image[offs++] = 0x94;
+		img->image[offs++] = 0x08;
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_SEI: /*{{{  set interrupt flag (interrupt enable)*/
 		img->image[offs++] = 0x94;
 		img->image[offs++] = 0x78;
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_SER: /*{{{*/
+	case INS_SER: /*{{{  set bits in register*/
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 31, cgen);
 		img->image[offs++] = 0xef;
 		img->image[offs++] = ((rd << 4) & 0xf0) | 0x0f;
 		break;
 		/*}}}*/
-	case INS_SLEEP: /*{{{*/
+	case INS_SLEEP: /*{{{  sleep*/
 		img->image[offs++] = 0x95;
 		img->image[offs++] = 0x88;
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_ST: /*{{{*/
+	case INS_ST: /*{{{  store / store with displacement*/
 	case INS_STD:
 		avrasm_getxyzreginfo (tnode_nthsubof (instr, 1), &rd, &prepost, &val);
 		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
@@ -1531,7 +1567,7 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 2;
 		break;
 		/*}}}*/
-	case INS_STS: /*{{{*/
+	case INS_STS: /*{{{  store direct (to immediate address)*/
 		val = insarg_to_constaddr (img, tnode_nthsubof (instr, 1), instr, offs, 0, (1 << 16) - 1, cgen);
 		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
 		img->image[offs++] = 0x92 | ((rr >> 4) & 0x01);
@@ -1541,7 +1577,15 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		width = 4;
 		break;
 		/*}}}*/
-	case INS_WDR: /*{{{*/
+	case INS_SUB: /*{{{  subtract without carry*/
+		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);	
+		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
+		img->image[offs++] = 0x18 | ((rr >> 3) & 0x02) | ((rd >> 4) & 0x01);
+		img->image[offs++] = ((rd & 0x0f) << 4) | (rr & 0x0f);
+		width = 2;
+		break;
+		/*}}}*/
+	case INS_WDR: /*{{{  watchdog reset*/
 		img->image[offs++] = 0x95;
 		img->image[offs++] = 0xa8;
 		width = 2;

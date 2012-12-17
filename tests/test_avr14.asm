@@ -74,18 +74,18 @@ init_framebuffer:
 
 	ldi	r16, 0x00
 	ldi	r17, 0x00
-init_fb_1:
+.L0:
 	ldi	r18, 0x00
-init_fb_2:
+.L1:
 	st	X+, r16
 	inc	r16
 
 	inc	r18
 	cpi	r18, 0x10		; column 16?
-	brne	init_fb_2
+	brne	1b
 	inc	r17
 	cpi	r17, 0x40		; row 64?
-	brne	init_fb_1
+	brne	0b
 
 	; else all done
 
@@ -126,23 +126,23 @@ reset:
 	clr	r2
 
 	clr	r16
-loop:
+.L0:
 	call	delayloop		; will do lights as appropriate
 	inc	r2
-	brne	loop			; until r2 overflows to zero, loop
+	brne	0b			; until r2 overflows to zero, loop
 	dec	r2
 
 	inc	r16
 	andi	r16, 0x3f
 	call	tm12864_set_start
 
-loop2:
+.L1:
 	call	delayloop
 	dec	r2
-	breq	loop_end
-	rjmp	loop2
+	breq	2f
+	rjmp	1b
 
-loop_end:
+.L2:
 
 	inc	r16
 	andi	r16, 0x3f
@@ -153,4 +153,4 @@ loop_end:
 	;ldi	XH, hi(V_framebuffer)
 	;ldi	XL, lo(V_framebuffer)
 	;call	tm12864_dump_buffer
-	rjmp	loop
+	rjmp	0b

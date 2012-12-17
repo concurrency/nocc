@@ -12,7 +12,7 @@
 .equ	TM_DDRA		=0xff		; all output
 .equ	TM_PORTA	=0x00		; all zero to start with
 
-.equ	TM_DDRC		=0x9f		; PC0-4+7
+.equ	TM_DDRC		=0x1f		; PC0-4
 .equ	TM_PORTC	=0x00		; all zero to start with
 
 .equ	TM_E_BIT	=0		; PC0
@@ -20,8 +20,6 @@
 .equ	TM_RW_BIT	=2		; PC2
 .equ	TM_CS1_BIT	=3		; PC3
 .equ	TM_CS2_BIT	=4		; PC4
-
-.equ	TM_DEBUG_BIT	=7		; PC7
 
 tm12864_init:				;{{{  SUB: initialise LCD module ports
 	push	r16
@@ -43,24 +41,19 @@ tm12864_init:				;{{{  SUB: initialise LCD module ports
 
 tm12864_set_chip:			;{{{ SUB: enables/disables chip select, r16={0=none,1=left,2=right}
 	cpi	r16, 0x01
-	breq	tm12864_sc_1
+	breq	0f
 	cpi	r16, 0x02
-	breq	tm12864_sc_2
+	breq	1f
 	cbi	PORTC, TM_CS1_BIT
 	cbi	PORTC, TM_CS2_BIT
-	rjmp	tm12864_sc_3
-tm12864_sc_1:
+	ret
+.L0:
 	cbi	PORTC, TM_CS1_BIT
 	sbi	PORTC, TM_CS2_BIT
-	rjmp	tm12864_sc_3
-tm12864_sc_2:
+	ret
+.L1:
 	sbi	PORTC, TM_CS1_BIT
 	cbi	PORTC, TM_CS2_BIT
-tm12864_sc_3:
-	nop
-	nop
-	nop
-	nop
 	ret
 
 ;}}}
@@ -128,10 +121,10 @@ tm12864_wait_ready:			;{{{ SUB: wait for ready state on active chip
 	nop
 	sbi	PORTC, TM_RW_BIT
 	cbi	PORTC, TM_DI_BIT
-tm12864_wr_1:
+.L0:
 	rcall	tm12864_rpulse_enable	; do read pulse
 	andi	r16, 0x80
-	brne	tm12864_wr_1
+	brne	0b
 
 	; chip ready to accept more data :)
 	ldi	r16, 0xff
@@ -330,7 +323,6 @@ tm12864_cycle_write:			;{{{ SUB: write data cycle (r16 = data)
 	ret
 ;}}}
 
-
 tm12864_dump_buffer:			;{{{ SUB: dumps memory image (at X=r27:r26) to device
 	push	r16
 	push	r17
@@ -340,7 +332,7 @@ tm12864_dump_buffer:			;{{{ SUB: dumps memory image (at X=r27:r26) to device
 
 	ldi	r18, 0x00
 	ldi	r16, 0x01
-tm12864_db_1:
+.L0:
 	rcall	tm12864_set_chip		; chip 1 (left) or 2 (right)
 	; adjust X to start of memory for this chunk
 	pop	XH
@@ -348,10 +340,10 @@ tm12864_db_1:
 	push	XL
 	push	XH
 	cpi	r16, 0x01
-	breq	tm12864_db_2			; first page, no adjustment needed
+	breq	1f				; first page, no adjustment needed
 	adiw	X, 32				; starts at offset 64
 	adiw	X, 32
-tm12864_db_2:
+.L1:
 	rcall	tm12864_wait_ready
 	mov	r16, r18
 	andi	r16, 0x07
@@ -361,13 +353,13 @@ tm12864_db_2:
 	rcall	tm12864_set_addr_half		; set Y to 0
 
 	ldi	r17, 0x40
-tm12864_db_3:
+.L2:
 	rcall	tm12864_wait_ready
 	ld	r16, X+				; load byte
 	rcall	tm12864_cycle_write		; write out to device
 
 	dec	r17
-	brne	tm12864_db_3			; loop until whole column done
+	brne	2b				; loop until whole column done
 
 	; here means one row done, onto next page
 	adiw	X, 32				; skip next 64 bytes (other half of screen)
@@ -375,22 +367,136 @@ tm12864_db_3:
 
 	inc	r18
 	cpi	r18, 8
-	breq	tm12864_db_4			; switching to chip 2 (right)
+	breq	3f				; switching to chip 2 (right)
 	cpi	r18, 16
-	brne	tm12864_db_2			; next page and process
+	brne	1b				; next page and process
 
 	; here means we're done!
-	rjmp	tm12864_db_5
-tm12864_db_4:
+	rjmp	4f
+.L3:
 	ldi	r16, 0x02			; chip 2 (right)
-	rjmp	tm12864_db_1
+	rjmp	0b
 
-tm12864_db_5:
+.L4:
 	clr	r16
 	rcall	tm12864_set_chip
 
 	pop	XH
 	pop	XL
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+;}}}
+
+tm12864_fb_init:			;{{{  SUB: initialises framebuffer at X (blanks it)
+	push	r16
+	push	r17
+	push	XH
+	push	XL
+
+	; 1024 bytes, so (256 * 4)
+	ldi	r16, 0x00
+	ldi	r17, 0x00
+.L0:
+	st	X+, r16
+	st	X+, r16
+	st	X+, r16
+	st	X+, r16
+	inc	r17
+	brne	0b
+
+	pop	XL
+	pop	XH
+	pop	r17
+	pop	r16
+	ret
+;}}}
+tm12864_fb_setpixel:			;{{{  SUB: sets pixel in framebuffer at X, at coords in r16,r17
+	push	r16
+	push	r17
+	push	r18
+	push	YH
+	push	YL
+
+	mov	YH, XH			; Y = X
+	mov	YL, XL
+
+	mov	r18, r17
+	lsr	r18
+	lsr	r18
+	lsr	r18
+	lsr	r18
+	andi	r18, 0x03
+	add	YH, r18			; adjust high-offset by ((Y >> 4) & 0x03)
+
+	sbrc	r17, 3			; skip if bit 3 in Y is clear
+	ori	r16, 0x80		; else set high-bit in X
+	clr	r18
+	add	YL, r16			; adjust low-offset by (X + ((Y << 4) & 0x80))
+	adc	YH, r18			; carry into high-offset
+
+	; Y register now contains byte of interest
+	ld	r18, Y
+	andi	r17, 0x07		; low 3 bits specify bit-position in screen-byte
+	inc	r17
+	clr	r16
+	sec
+.L0:
+	rol	r16
+	dec	r17
+	brne	0b
+
+	or	r18, r16		; or in the particular bit
+	st	Y, r18			; write back
+
+	pop	YL
+	pop	YH
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+;}}}
+tm12864_fb_clrpixel:			;{{{  SUB: clears pixel in framebuffer at X, at coords in r16,r17
+	push	r16
+	push	r17
+	push	r18
+	push	YH
+	push	YL
+
+	mov	YH, XH			; Y = X
+	mov	YL, XL
+
+	mov	r18, r17
+	lsr	r18
+	lsr	r18
+	lsr	r18
+	lsr	r18
+	andi	r18, 0x03
+	add	YH, r18			; adjust high-offset by ((Y >> 4) & 0x03)
+
+	sbrc	r17, 3			; skip if bit 3 in Y is clear
+	ori	r16, 0x80		; else set high-bit in X
+	clr	r18
+	add	YL, r16			; adjust low-offset by (X + ((Y << 4) & 0x80))
+	adc	YH, r18			; carry into high-offset
+
+	; Y register now contains byte of interest
+	ld	r18, Y
+	andi	r17, 0x07		; low 3 bits specify bit-position in screen-byte
+	inc	r17
+	ser	r16
+	clc
+.L0:
+	rol	r16
+	dec	r17
+	brne	0b
+
+	and	r18, r16		; and out the particular bit
+	st	Y, r18			; write back
+
+	pop	YL
+	pop	YH
 	pop	r18
 	pop	r17
 	pop	r16
