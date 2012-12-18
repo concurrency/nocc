@@ -504,6 +504,34 @@ tm12864_fb_clrpixel:			;{{{  SUB: clears pixel in framebuffer at X, at coords in
 	pop	r16
 	ret
 ;}}}
+tm12864_fb_hline:			;{{{  SUB: draw horizontal line from (r16,r17) for r18
+	push	r16
+	push	r18
+
+.L0:
+	rcall	tm12864_fb_setpixel
+	inc	r16
+	dec	r18
+	brne	0b
+
+	pop	r18
+	pop	r16
+	ret
+;}}}
+tm12864_fb_vline:			;{{{  SUB: draw vertical line from (r16,r17) for r18
+	push	r17
+	push	r18
+
+.L0:
+	rcall	tm12864_fb_setpixel
+	inc	r17
+	dec	r18
+	brne	0b
+
+	pop	r18
+	pop	r17
+	ret
+;}}}
 
 tm12864_fb_setbyte:			;{{{  SUB: write the 8-bits in r18 to the framebuffer at X, at position (r16, r17*8)
 	push	r16
@@ -597,6 +625,52 @@ tm12864_fb_writechar:			;{{{  SUB: writes the ASCII char in r18 to the framebuff
 	ret
 
 ;}}}
+tm12864_fb_writenibble:			;{{{  SUB: writes the (4-bit) hex-val in r18 to the framebuffer at X, starting at (r16,r17*8), using 5x7 font; updates r16
+	push	ZH
+	push	ZL
+	push	r17
+	push	r18
+	push	r19
+
+	cpi	r18, 10
+	brsh	0f
+	; between 0-9
+	ldi	r19, 0x10
+	add	r18, r19
+	rjmp	1f
+.L0:
+	cpi	r18, 16
+	brsh	2f
+	; between 10-15
+	ldi	r19, 23
+	add	r18, r19
+.L1:
+	; r18 is valid character index
+
+	ldi	ZH, hi(font_table_5x7)	; byte offset of table start
+	ldi	ZL, lo(font_table_5x7)
+
+	; multiply r18 by 5 to get actual character-data offset
+	ldi	r19, 5
+	mul	r18, r19		; result in r1:r0
+
+	add	ZL, r0			; add to Z
+	adc	ZH, r1
+
+	ldi	r18, 5			; 5 bytes wide
+	rcall	tm12864_fb_setbytes_pm
+	ldi	r18, 6
+	add	r16, r18		; update X position for next chatacter
+
+.L2:
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	ZL
+	pop	ZH
+	ret
+
+;}}}
 tm12864_fb_writestring_pm:		;{{{  SUB: writes the ASCII string pointed to by Z (progmem) for r18 chars into the framebuffer at X, starting at (r16,r17*8)
 	push	r16
 	push	r18
@@ -617,6 +691,26 @@ tm12864_fb_writestring_pm:		;{{{  SUB: writes the ASCII string pointed to by Z (
 	pop	r18
 	pop	r16
 	ret
-;}}}
 
+;}}}
+tm12864_fb_clearrow:			;{{{  SUB: clears a particular row in the framebuffer at X, row r16 (0-7)
+	push	r16
+	push	r17
+	push	r18
+
+	mov	r17, r16		; row in r17
+	clr	r16			; start at zero
+	clr	r18
+.L0:
+	rcall	tm12864_fb_setbyte
+	inc	r16
+	cpi	r16, 0x80
+	brne	0b
+
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+
+;}}}
 

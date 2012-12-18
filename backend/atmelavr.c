@@ -1306,7 +1306,8 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		/*}}}*/
 	case INS_LDS: /*{{{  load direct (from immediate address)*/
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
-		val = insarg_to_constaddr (img, tnode_nthsubof (instr, 2), instr, offs, 0, (1 << 16) - 1, cgen);
+		// val = insarg_to_constaddr (img, tnode_nthsubof (instr, 2), instr, offs, 0, (1 << 16) - 1, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 2), instr, offs, 0, (1 << 16) - 1, cgen);
 		img->image[offs++] = 0x90 | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd << 4) & 0xf0);
 		img->image[offs++] = (val >> 8) & 0xff;
@@ -1702,7 +1703,8 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		break;
 		/*}}}*/
 	case INS_STS: /*{{{  store direct (to immediate address)*/
-		val = insarg_to_constaddr (img, tnode_nthsubof (instr, 1), instr, offs, 0, (1 << 16) - 1, cgen);
+		val = insarg_to_constval (img, tnode_nthsubaddr (instr, 1), instr, offs, 0, (1 << 16) - 1, cgen);
+		// val = insarg_to_constaddr (img, tnode_nthsubof (instr, 1), instr, offs, 0, (1 << 16) - 1, cgen);
 		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 0, 31, cgen);
 		img->image[offs++] = 0x92 | ((rr >> 4) & 0x01);
 		img->image[offs++] = ((rr << 4) & 0xf0);

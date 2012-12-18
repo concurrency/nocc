@@ -204,8 +204,10 @@ typedef struct TAG_submacrosub {
 
 
 static avrtarget_t avrasm_ttable[] = {
-	{AVR_AT90S1200, "AT90S1200", 4, 2, 1024, 0, 0, 0x40, 64, 0},
-	{AVR_ATMEGA1280, "ATMEGA1280", 57, 4, 131072, 0x200, 8192, 0x200, 4096, 1},
+	/* MCU-ID,	Name,		i-cnt,	i-sze,	flash,	sram-s,	sram-l,	io-l,	eep-s,	bswap	*/
+	{AVR_AT90S1200,	"AT90S1200",	4,	2,	1024,	0,	0,	0x40,	64,	0},
+	{AVR_ATMEGA328, "ATMEGA328",	26,	2,	32768,	0x100,	2048,	0x100,	1024,	1},
+	{AVR_ATMEGA1280, "ATMEGA1280",	57,	4,	131072,	0x200,	8192,	0x200,	4096,	1},
 	{AVR_INVALID, NULL, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 
