@@ -40,6 +40,7 @@ typedef struct {
 typedef struct {
 	struct TAG_tndef *node_INSNODE;
 	struct TAG_tndef *node_LABELNODE;
+	struct TAG_tndef *node_TERNODE;
 	struct TAG_tndef *node_DOPNODE;
 	struct TAG_tndef *node_MOPNODE;
 
@@ -96,6 +97,8 @@ typedef struct {
 	struct TAG_ntdef *tag_HI;
 	struct TAG_ntdef *tag_LO;
 
+	struct TAG_ntdef *tag_COND;
+
 	struct TAG_ntdef *tag_GLABELDEF;
 	struct TAG_ntdef *tag_LLABELDEF;
 
@@ -107,10 +110,26 @@ typedef struct {
 	struct TAG_ntdef *tag_MACRONAME;
 	struct TAG_ntdef *tag_PARAMNAME;
 
+	/* these are for macros */
 	struct TAG_ntdef *tag_FPARAM;
 	struct TAG_ntdef *tag_INSTANCE;
 
 	struct TAG_ntdef *tag_INSTR;
+
+	/* higher-level stuff */
+	struct TAG_ntdef *tag_REGPAIR;
+
+	struct TAG_ntdef *tag_FCNDEF;
+	struct TAG_ntdef *tag_LETDEF;
+
+	struct TAG_ntdef *tag_FCNPARAM;
+
+	struct TAG_ntdef *tag_FCNNAME;
+	struct TAG_ntdef *tag_FCNPARAMNAME;
+	struct TAG_ntdef *tag_LETNAME;
+
+	struct TAG_ntdef *tag_DSTORE;
+	struct TAG_ntdef *tag_DLOAD;
 } avrasm_pset_t;
 
 extern avrasm_pset_t avrasm;
@@ -148,6 +167,7 @@ extern int avrasm_getlitintval (struct TAG_tnode *node);
 extern int avrasm_getxyzreginfo (struct TAG_tnode *node, int *reg, int *prepost, int *offs);
 
 extern struct TAG_feunit avrasm_program_feunit;			/* avrasm_program.c */
+extern struct TAG_feunit avrasm_hll_feunit;			/* avrasm_hll.c */
 
 
 #endif	/* !__AVRASM_H */

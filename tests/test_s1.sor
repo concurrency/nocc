@@ -1,0 +1,13 @@
+#
+#  test_s1.sor -- testing simple occam for AVRs (SOAR)
+#
+
+@option "mcu" "atmega1280"
+
+
+define proc main ()
+	define local chan(signal) c
+
+end
+
+

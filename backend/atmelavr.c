@@ -1738,7 +1738,7 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		/*}}}*/
 	case INS_TST: /*{{{  test for zero or minus*/
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 0, 31, cgen);
-		img->image[offs++] = 0x20 | ((rd << 3) & 0x02) | ((rd << 4) & 0x01);
+		img->image[offs++] = 0x20 | ((rd >> 3) & 0x02) | ((rd >> 4) & 0x01);
 		img->image[offs++] = ((rd << 4) & 0xf0) | (rd & 0x0f);
 		width = 2;
 		break;

@@ -119,6 +119,7 @@ static int avrasm_priv_refcount = 0;
 
 static feunit_t *feunit_set[] = {
 	&avrasm_program_feunit,
+	&avrasm_hll_feunit,
 	NULL
 };
 
@@ -868,6 +869,59 @@ static tnode_t *avrasm_parser_parsemacrodef (lexfile_t *lf)
 	return tree;
 }
 /*}}}*/
+/*{{{  static tnode_t *avrasm_parser_parsefunctiondef (lexfile_t *lf)*/
+/*
+ *	called to parse a function definition's contents, until .endfunction
+ *	returns tree on success, NULL on failure
+ */
+static tnode_t *avrasm_parser_parsefunctiondef (lexfile_t *lf)
+{
+	token_t *tok;
+	tnode_t *tree = parser_newlistnode (lf);
+
+	if (compopts.verbose) {
+		nocc_message ("avrasm_parser_parsefunctiondef(): starting parse..");
+	}
+
+	for (;;) {
+		tnode_t *thisone;
+
+		tok = lexer_nexttoken (lf);
+		while ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
+			lexer_freetoken (tok);
+			tok = lexer_nexttoken (lf);
+		}
+		if ((tok->type == END) || (tok->type == NOTOKEN)) {
+			parser_error (lf, "unexpected end-of-file when reading function definition");
+			tnode_free (tree);
+			return NULL;
+		}
+		if (lexer_tokmatch (avrasm.tok_DOT, tok)) {
+			token_t *nexttok = lexer_nexttoken (lf);
+
+			if (nexttok && lexer_tokmatchlitstr (nexttok, "endfunction")) {
+				/* end-of-macro */
+				lexer_freetoken (tok);
+				lexer_freetoken (nexttok);
+
+				break;			/* for() */
+			} else {
+				lexer_pushback (lf, nexttok);
+			}
+		}
+		lexer_pushback (lf, tok);
+
+		thisone = dfa_walk ("avrasm:codeline", 0, lf);
+		if (!thisone) {
+			break;			/* for() */
+		}
+
+		parser_addtolist (tree, thisone);
+	}
+
+	return tree;
+}
+/*}}}*/
 /*{{{  static tnode_t *avrasm_parser_parse (lexfile_t *lf)*/
 /*
  *	called to parse a file (containing AVR assembler)
@@ -945,6 +999,14 @@ tnode_dumptree (thisone, 1, stderr);
 			if (!contents) {
 				parser_error (lf, "bad or empty macro definition");
 			}
+			tnode_setnthsub (thisone, 2, contents);
+
+			/*}}}*/
+		} else if (thisone->tag == avrasm.tag_FCNDEF) {
+			/*{{{  another slightly special case, parse input until .endfunction*/
+			tnode_t *contents;
+
+			contents = avrasm_parser_parsefunctiondef (lf);
 			tnode_setnthsub (thisone, 2, contents);
 
 			/*}}}*/

@@ -17,8 +17,9 @@ reset:
 	rjmp	reset
 	rjmp	0b
 .L1:	wdr
-	ldi	r17, hi(ctable << 1)
-	ldi	r16, lo(ctable << 1)
+	; Note: don't need to shift these, automatically gets byte address
+	ldi	r17, hi(ctable)
+	ldi	r16, lo(ctable)
 
 ctable:
 .const	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07

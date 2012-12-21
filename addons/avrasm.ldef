@@ -27,6 +27,8 @@
 .SYMBOL "]"
 .SYMBOL "<<"
 .SYMBOL ">>"
+.SYMBOL "?"
+.SYMBOL ":"
 
 .KEYWORD "r0"
 .KEYWORD "r1"
@@ -198,6 +200,14 @@
 .KEYWORD "X"
 .KEYWORD "Y"
 .KEYWORD "Z"
+.KEYWORD "hi2"
+.KEYWORD "hi3"
+
+.KEYWORD "function"
+.KEYWORD "endfunction"
+.KEYWORD "let"
+.KEYWORD "dload"
+.KEYWORD "dstore"
 
 .GRULE	"avrasm:nullreduce" "N+R-"
 .GRULE	"avrasm:nullpush" "0N-"
@@ -260,6 +270,7 @@
 .GRULE	"avrasm:foldbitxor" "ST0T+@tR+N+C[AVRASMBITXOR]2R-"
 .GRULE	"avrasm:foldshl" "ST0T+@tR+N+C[AVRASMSHL]2R-"
 .GRULE	"avrasm:foldshr" "ST0T+@tR+N+C[AVRASMSHR]2R-"
+.GRULE	"avrasm:foldcond" "R+Sn0N+N+VC[AVRASMCOND]3R-"
 
 .GRULE	"avrasm:hireduce" "SN0N+C[AVRASMHI]1R-"
 .GRULE	"avrasm:loreduce" "SN0N+C[AVRASMLO]1R-"
@@ -276,6 +287,8 @@
 				"[ 0 +@@^ 15 ] [ 15 avrasm:expr 16 ] [ 16 {<avrasm:foldbitxor>} -* ]"
 				"[ 0 +@@<< 17 ] [ 17 avrasm:expr 18 ] [ 18 {<avrasm:foldshl>} -* ]"
 				"[ 0 +@@>> 19 ] [ 19 avrasm:expr 20 ] [ 20 {<avrasm:foldshr>} -* ]"
+.TABLE	"avrasm:restofexpr +:= [ 0 @@? 1 ] [ 1 -@@: 2 ] [ 1 avrasm:expr 3 ] [ 2 {<avrasm:nullpush>} -* 3 ]"
+				"[ 3 @@: 4 ] [ 4 avrasm:expr 5 ] [ 5 {<avrasm:foldcond>} -* ]"
 
 .TABLE	"avrasm:expr ::= [ 0 +String 1 ] [ 0 +Integer 2 ] [ 1 {<avrasm:stringreduce>} -* <avrasm:restofexpr> ] [ 2 {<avrasm:integerreduce>} -* <avrasm:restofexpr> ]"
 .TABLE	"avrasm:expr +:= [ 0 -Name 1 ] [ 1 avrasm:name 2 ] [ 2 {<avrasm:nullreduce>} -* <avrasm:restofexpr> ]"
@@ -456,4 +469,47 @@
 .BNF	"avrasm:program ::= { avrasm:codeline Newline 1 }"
 
 #}}}
+.SECTION "avrasm-hll" #{{{: high-level constructs for AVR assembler
+
+.GRULE	"avrasm:functionreduce" "SN1N+N+V0C[AVRASMFCNDEF]3R-"
+.GRULE	"avrasm:fcnparamreduce" "SN0N+N+V0VC[AVRASMFCNPARAM]3R-"
+
+.GRULE	"avrasm:regpairreduce" "SN0N+N+VC[AVRASMREGPAIR]2R-"
+
+.GRULE	"avrasm:letreduce" "ST0T+@tN+N+V0VC[AVRASMLETDEF]3R-"
+
+.GRULE	"avrasm:dloadreduce" "SN0N+N+VC[AVRASMDLOAD]2R-"
+.GRULE	"avrasm:dstorereduce" "SN0N+N+VC[AVRASMDSTORE]2R-"
+
+.TABLE	"avrasm:regorname ::= [ 0 -Name 1 ] [ 1 avrasm:name 2 ] [ 2 {<avrasm:nullreduce>} -* ]"
+.TABLE	"avrasm:regorname +:= [ 0 +@r0 1 ] [ 0 +@r1 1 ] [ 0 +@r2 1 ] [ 0 +@r3 1 ] [ 1 {<avrasm:regreduce>} -* ]"
+.TABLE	"avrasm:regorname +:= [ 0 +@r4 1 ] [ 0 +@r5 1 ] [ 0 +@r6 1 ] [ 0 +@r7 1 ] [ 1 {<avrasm:regreduce>} -* ]"
+.TABLE	"avrasm:regorname +:= [ 0 +@r8 1 ] [ 0 +@r9 1 ] [ 0 +@r10 1 ] [ 0 +@r11 1 ] [ 1 {<avrasm:regreduce>} -* ]"
+.TABLE	"avrasm:regorname +:= [ 0 +@r12 1 ] [ 0 +@r13 1 ] [ 0 +@r14 1 ] [ 0 +@r15 1 ] [ 1 {<avrasm:regreduce>} -* ]"
+.TABLE	"avrasm:regorname +:= [ 0 +@r16 1 ] [ 0 +@r17 1 ] [ 0 +@r18 1 ] [ 0 +@r19 1 ] [ 1 {<avrasm:regreduce>} -* ]"
+.TABLE	"avrasm:regorname +:= [ 0 +@r20 1 ] [ 0 +@r21 1 ] [ 0 +@r22 1 ] [ 0 +@r23 1 ] [ 1 {<avrasm:regreduce>} -* ]"
+.TABLE	"avrasm:regorname +:= [ 0 +@r24 1 ] [ 0 +@r25 1 ] [ 0 +@r26 1 ] [ 0 +@r27 1 ] [ 1 {<avrasm:regreduce>} -* ]"
+.TABLE	"avrasm:regorname +:= [ 0 +@r28 1 ] [ 0 +@r29 1 ] [ 0 +@r30 1 ] [ 0 +@r31 1 ] [ 1 {<avrasm:regreduce>} -* ]"
+
+.TABLE	"avrasm:pexpr ::= [ 0 avrasm:regorname 1 ] [ 1 @@: 2 ] [ 2 avrasm:regorname 3 ] [ 3 {<avrasm:regpairreduce>} -* ]"
+				"[ 1 -* 4 ] [ 4 {<avrasm:nullreduce>} -* ]"
+
+.TABLE	"avrasm:fcnparam ::= [ 0 avrasm:name 1 ] [ 1 @@= 2 ] [ 2 avrasm:pexpr 3 ] [ 3 {<avrasm:fcnparamreduce>} -* ]"
+
+.BNF	"avrasm:fcnparamlist ::= { avrasm:fcnparam @@, 0 }"
+
+.TABLE	"avrasm:functiondef ::= [ 0 avrasm:name 1 ] [ 1 @@( 2 ] [ 2 avrasm:fcnparamlist 3 ] [ 3 @@) 4 ]"
+				"[ 4 Comment 4 ] [ 4 -Newline 5 ] [ 5 {<avrasm:functionreduce>} -* ]"
+				"[ 1 -* 6 ] [ 6 {<avrasm:nullpush>} -* 4 ]"
+
+# add to directives (things starting with a dot)
+.TABLE	"avrasm:directive +:= [ 0 @@. 1 ] [ 1 @function <avrasm:functiondef> ]"
+				"[ 1 +@let 2 ] [ 2 avrasm:name 3 ] [ 3 @@= 4 ] [ 4 avrasm:pexpr 5 ] [ 5 {<avrasm:letreduce>} -* ]"
+
+# add to general code constructs
+.TABLE	"avrasm:codeline +:= [ 0 @dstore 1 ] [ 1 avrasm:expr 2 ] [ 2 @@, 3 ] [ 3 avrasm:expr 4 ] [ 4 {<avrasm:dstorereduce>} -* <avrasm:endcodeline> ]"
+.TABLE	"avrasm:codeline +:= [ 0 @dload 1 ] [ 1 avrasm:expr 2 ] [ 2 @@, 3 ] [ 3 avrasm:expr 4 ] [ 4 {<avrasm:dloadreduce>} -* <avrasm:endcodeline> ]"
+
+#}}}
+
 

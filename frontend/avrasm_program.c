@@ -1226,7 +1226,6 @@ tnode_dumptree (*tptr, 1, stderr);
 	return 0;
 }
 /*}}}*/
-
 /*{{{  static int avrasm_llscope_uslabnode (compops_t *cops, tnode_ **tptr, void *lls)*/
 /*
  *	does local-label scoping on a USLAB node (unscoped label)
@@ -1243,7 +1242,6 @@ fprintf (stderr, "avrasm_llscope_uslabnode(): here!, id=%d, dir=%d\n", uslh->id,
 	return 1;
 }
 /*}}}*/
-
 /*{{{  static int avrasm_subequ_namenode (compops_t *cops, tnode_t **tptr, subequ_t *se)*/
 /*
  *	does EQU and DEF substitutions on a namenode (EQU)
@@ -1275,7 +1273,6 @@ tnode_dumptree (rhs, 1, stderr);
 	return 1;
 }
 /*}}}*/
-
 /*{{{  static int avrasm_prescope_targetnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
 /*
  *	does pre-scope for a target node (.target or .mcu)
@@ -1335,7 +1332,6 @@ static int avrasm_prescope_targetnode (compops_t *cops, tnode_t **tptr, prescope
 	return 1;
 }
 /*}}}*/
-
 /*{{{  static int avrasm_inseg_true (langops_t *lops, tnode_t *node)*/
 /*
  *	returns true for nodes that should be inside a segment (e.g. instruction, label, .org, etc.)
@@ -1345,7 +1341,6 @@ static int avrasm_inseg_true (langops_t *lops, tnode_t *node)
 	return 1;
 }
 /*}}}*/
-
 /*{{{  static int avrasm_typecheck_xyznode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-check for an XYZ node, makes sure offset is in range (if used)
@@ -1790,7 +1785,6 @@ static int avrasm_constprop_dopnode (compops_t *cops, tnode_t **tptr)
 	return 1;
 }
 /*}}}*/
-
 /*{{{  static int avrasm_constprop_mopnode (compops_t *cops, tnode_t **tptr)*/
 /*
  *	does constant propagation for mop-node
@@ -1810,6 +1804,65 @@ static int avrasm_constprop_mopnode (compops_t *cops, tnode_t **tptr)
 			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, (val >> 8) & 0xff);
 		} else if ((*tptr)->tag == avrasm.tag_LO) {
 			*tptr = constprop_newconst (CONST_INT, *tptr, NULL, val & 0xff);
+		}
+	}
+	return 1;
+}
+/*}}}*/
+
+/*{{{  static int avrasm_scopein_ternode (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
+/*
+ *	does scope-in for a ternary node -- slightly special handling for undefined labels
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_scopein_ternode (compops_t *cops, tnode_t **nodep, scope_t *ss)
+{
+	tnode_t *cond = tnode_nthsubof (*nodep, 0);
+
+#if 0
+fprintf (stderr, "avrasm_scopein_ternode(): here! cond = [%s]\n", cond->tag->name);
+#endif
+	if (cond->tag == avrasm.tag_NAME) {
+		char *rawname;
+		name_t *sname = NULL;
+
+		rawname = tnode_nthhookof (cond, 0);
+
+		sname = name_lookupss (rawname, ss);
+		if (!sname) {
+			/* don't have this, replace with 2nd thing */
+			*nodep = tnode_nthsubof (*nodep, 2);
+		} else {
+			/* do have this, replace with 1st thing */
+			*nodep = tnode_nthsubof (*nodep, 1);
+			if (!*nodep) {
+				/* wasn't set, e.g. "foo ?: bar", becomes condition */
+				*nodep = cond;
+			}
+		}
+		tnode_modprepostwalktree (nodep, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int avrasm_constprop_ternode (compops_t *cops, tnode_t **tptr)*/
+/*
+ *	does constant propagation for a ternary node
+ *	returns 0 to stop walk, 1 to continue (meaningless in post-walk)
+ */
+static int avrasm_constprop_ternode (compops_t *cops, tnode_t **tptr)
+{
+	tnode_t *op = tnode_nthsubof (*tptr, 0);
+
+	if (constprop_isconst (op)) {
+		int val = constprop_intvalof (op);
+
+		/* only need the first one really */
+		if (val) {
+			*tptr = tnode_nthsubof (*tptr, 1);
+		} else {
+			*tptr = tnode_nthsubof (*tptr, 2);
 		}
 	}
 	return 1;
@@ -2087,6 +2140,24 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_INSTR = tnode_newnodetag ("AVRASMINSTR", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  avrasm:mopnode -- UMINUS, BITNOT, HI, LO*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:mopnode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = operand */
+	avrasm.node_MOPNODE = tnd;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (avrasm_constprop_mopnode));
+	tnd->ops = cops;
+
+	i = -1;
+	avrasm.tag_UMINUS = tnode_newnodetag ("AVRASMUMINUS", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_BITNOT = tnode_newnodetag ("AVRASMBITNOT", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_HI = tnode_newnodetag ("AVRASMHI", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_LO = tnode_newnodetag ("AVRASMLO", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 	/*{{{  avrasm:dopnode -- ADD, SUB, MUL, DIV, REM, BITADD, BITOR, BITXOR, SHL, SHR*/
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:dopnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: 0 = left, 1 = right */
@@ -2117,22 +2188,17 @@ static int avrasm_program_init_nodes (void)
 	avrasm.tag_SHR = tnode_newnodetag ("AVRASMSHR", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  avrasm:mopnode -- UMINUS, BITNOT, HI, LO*/
+	/*{{{  avrasm:ternode -- COND*/
 	i = -1;
-	tnd = tnode_newnodetype ("avrasm:mopnode", &i, 1, 0, 0, TNF_NONE);			/* subnodes: 0 = operand */
-	avrasm.node_MOPNODE = tnd;
+	tnd = tnode_newnodetype ("avrasm:ternode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0..2 = operands */
+	avrasm.node_TERNODE = tnd;
 	cops = tnode_newcompops ();
-	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (avrasm_constprop_mopnode));
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (avrasm_constprop_ternode));
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (avrasm_scopein_ternode));
 	tnd->ops = cops;
 
 	i = -1;
-	avrasm.tag_UMINUS = tnode_newnodetag ("AVRASMUMINUS", &i, tnd, NTF_NONE);
-	i = -1;
-	avrasm.tag_BITNOT = tnode_newnodetag ("AVRASMBITNOT", &i, tnd, NTF_NONE);
-	i = -1;
-	avrasm.tag_HI = tnode_newnodetag ("AVRASMHI", &i, tnd, NTF_NONE);
-	i = -1;
-	avrasm.tag_LO = tnode_newnodetag ("AVRASMLO", &i, tnd, NTF_NONE);
+	avrasm.tag_COND = tnode_newnodetag ("AVRASMCOND", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

@@ -16,13 +16,13 @@ V_spritepos:
 	.space 1
 
 .text
-.include "test_avr15-imap.inc"
+.include "atmega1280-imap.inc"
 .include "tm12864-lcd.asm"
 
 ; interrupt vectors
-int0vec:
-int1vec:
-int2vec:
+VEC_int0:
+VEC_int1:
+VEC_int2:
 	push	r16
 	push	r17
 	in	r17, SREG
@@ -79,7 +79,7 @@ msdelay:	;{{{  SUB: millisecond delay (in r16)
 ;
 ; start here
 ;
-reset:
+VEC_reset:
 	cli				; disable interrupts
 	ldi	r16, hi(RAMEND)		; setup stack pointer
 	out	SPH, r16
