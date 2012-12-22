@@ -8,8 +8,8 @@
 .include "atmega1280.inc"
 .include "atmega1280-imap.inc"
 
-.function testfcn (Wptr = YH:YL, c = r16)
-	.let tmp = r3:r2
+.function testfcn (Wptr = YH:YL, unsigned c = r16)
+	.let unsigned tmp = r3:r2
 
 	pop	tmp
 	dstore	Wptr + 0, tmp		; take return-address and put in Wptr[0]

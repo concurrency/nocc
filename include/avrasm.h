@@ -130,6 +130,13 @@ typedef struct {
 
 	struct TAG_ntdef *tag_DSTORE;
 	struct TAG_ntdef *tag_DLOAD;
+
+	struct TAG_ntdef *tag_INT8;
+	struct TAG_ntdef *tag_UINT8;
+	struct TAG_ntdef *tag_INT16;
+	struct TAG_ntdef *tag_UINT16;
+	struct TAG_ntdef *tag_SIGNED;
+	struct TAG_ntdef *tag_UNSIGNED;
 } avrasm_pset_t;
 
 extern avrasm_pset_t avrasm;
@@ -141,6 +148,16 @@ typedef struct TAG_subequ {
 typedef struct TAG_submacro {
 	int errcount;
 } submacro_t;
+
+typedef struct TAG_hlltypecheck {
+	int errcount;
+} hlltypecheck_t;
+
+typedef struct TAG_hllsimplify {
+	int errcount;
+	struct TAG_tnode *list_cxt;
+	int list_itm;
+} hllsimplify_t;
 
 /* used to tag labels (compiler hook) */
 typedef struct {
@@ -155,7 +172,7 @@ extern int avrasm_langop_inseg (struct TAG_tnode *node);
 
 extern int avrasm_subequ_subtree (struct TAG_tnode **tptr, struct TAG_subequ *se);
 extern int avrasm_submacro_subtree (struct TAG_tnode **tptr, struct TAG_submacro *sm);
-
+extern int avrasm_hlltypecheck_subtree (struct TAG_tnode **tptr, struct TAG_hlltypecheck *hltc);
 
 extern label_chook_t *avrasm_newlabelchook (void);
 extern void avrasm_freelabelchook (label_chook_t *lch);

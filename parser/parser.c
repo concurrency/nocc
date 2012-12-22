@@ -724,6 +724,35 @@ tnode_t *parser_getfromlist (tnode_t *list, int idx)
 	return array[idx + 2];
 }
 /*}}}*/
+/*{{{  tnode_t **parser_getfromlistptr (tnode_t *list, int idx)*/
+/*
+ *	returns a pointer to an item from a list-node by index
+ */
+tnode_t **parser_getfromlistptr (tnode_t *list, int idx)
+{
+	tnode_t **array;
+	int *cur, *max;
+
+	if (list->tag != tag_LIST) {
+		nocc_internal ("parser_getfromlistptr(): not list-node! [%s]", list->tag->name);
+		return NULL;
+	}
+	array = (tnode_t **)tnode_nthhookof (list, 0);
+	if (!array) {
+		nocc_internal ("parser_getfromlistptr(): null array in list!");
+		return NULL;
+	}
+	cur = (int *)array;
+	max = (int *)(array + 1);
+
+	if ((idx < 0) || (idx >= *cur)) {
+		nocc_internal ("parser_getfromlistptr(): item %d not in list (%d/%d items)", idx, *cur, *max);
+		return NULL;
+	}
+
+	return array + (idx + 2);
+}
+/*}}}*/
 /*{{{  void parser_insertinlist (tnode_t *list, tnode_t *item, int idx)*/
 /*
  *	inserts an item into a list at a particular index (rest are shuffled along)

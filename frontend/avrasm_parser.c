@@ -54,6 +54,7 @@
 #include "typecheck.h"
 #include "extn.h"
 #include "langdef.h"
+#include "opts.h"
 
 
 /*}}}*/
@@ -127,6 +128,20 @@ static chook_t *label_chook = NULL;
 
 /*}}}*/
 
+
+/*{{{  static int avrasm_opthandler_stopat (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	option handler for AVR assembler "stop" options
+ */
+static int avrasm_opthandler_stopat (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	compopts.stoppoint = (int)(opt->arg);
+#if 1
+fprintf (stderr, "avrasm_opthandler_stopat(): setting stop point to %d\n", compopts.stoppoint);
+#endif
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static avrasm_parse_t *avrasm_newavrasmparse (void)*/
 /*
@@ -417,7 +432,7 @@ static int subequ_modprewalk (tnode_t **tptr, void *arg)
 /*}}}*/
 /*{{{  static int submacro_modprewalk (tnode_t **tptr, void *arg)*/
 /*
- *	called to each node walked during the 'submacro' pass
+ *	called on each node walked during the 'submacro' pass
  *	returns 0 to stop walk, 1 to continue
  */
 static int submacro_modprewalk (tnode_t **tptr, void *arg)
@@ -431,6 +446,39 @@ static int submacro_modprewalk (tnode_t **tptr, void *arg)
 	return i;
 }
 /*}}}*/
+/*{{{  static int hlltypecheck_modprewalk (tnode_t **tptr, void *arg)*/
+/*
+ *	called on each node walked during the 'hlltypecheck' pass
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int hlltypecheck_modprewalk (tnode_t **tptr, void *arg)
+{
+	hlltypecheck_t *hltc = (hlltypecheck_t *)arg;
+	int i = 1;
+
+	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop ((*tptr)->tag->ndef->ops, "hlltypecheck")) {
+		i = tnode_callcompop ((*tptr)->tag->ndef->ops, "hlltypecheck", 2, tptr, hltc);
+	}
+	return i;
+}
+/*}}}*/
+/*{{{  static int hllsimplify_modprewalk (tnode_t **tptr, void *arg)*/
+/*
+ *	called on each node walked during the 'hllsimplify' pass
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int hllsimplify_modprewalk (tnode_t **tptr, void *arg)
+{
+	hllsimplify_t *hls = (hllsimplify_t *)arg;
+	int i = 1;
+
+	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop ((*tptr)->tag->ndef->ops, "hllsimplify")) {
+		i = tnode_callcompop ((*tptr)->tag->ndef->ops, "hllsimplify", 2, tptr, hls);
+	}
+	return i;
+}
+/*}}}*/
+
 /*{{{  int avrasm_subequ_subtree (tnode_t **tptr, subequ_t *se)*/
 /*
  *	does .equ and .def substitution on a parse-tree (already scoped)
@@ -467,6 +515,58 @@ int avrasm_submacro_subtree (tnode_t **tptr, submacro_t *sm)
 	return sm->errcount;
 }
 /*}}}*/
+/*{{{  int avrasm_hlltypecheck_subtree (tnode_t **tptr, hlltypecheck_t *hltc)*/
+/*
+ *	does high-level type-checks on a parse-tree
+ *	returns 0 on success, non-zero on failure
+ */
+int avrasm_hlltypecheck_subtree (tnode_t **tptr, hlltypecheck_t *hltc)
+{
+	if (!tptr) {
+		nocc_serious ("avrasm_hlltypecheck_subtree(): NULL tree-pointer");
+		return 1;
+	} else if (!*tptr) {
+		return 0;
+	} else {
+		tnode_modprewalktree (tptr, hlltypecheck_modprewalk, (void *)hltc);
+	}
+	return hltc->errcount;
+}
+/*}}}*/
+/*{{{  int avrasm_hllsimplify_subtree (tnode_t **tptr, hllsimplify_t *hls)*/
+/*
+ *	does high-level simplification on a parse-tree
+ *	returns 0 on success, non-zero on failure
+ */
+int avrasm_hllsimplify_subtree (tnode_t **tptr, hllsimplify_t *hls)
+{
+	if (!tptr) {
+		nocc_serious ("avrasm_hllsimplify_subtree(): NULL tree-pointer");
+		return 1;
+	} else if (!*tptr) {
+		return 0;
+	} else if (parser_islistnode (*tptr)) {
+		int i;
+		tnode_t *saved_cxt = hls->list_cxt;		/* save context for later */
+		int saved_itm = hls->list_itm;
+
+		hls->list_cxt = *tptr;
+		for (i=0; i<parser_countlist (*tptr); i++) {
+			tnode_t **nodep = parser_getfromlistptr (*tptr, i);
+
+			hls->list_itm = i;
+			tnode_modprewalktree (nodep, hllsimplify_modprewalk, (void *)hls);
+		}
+
+		hls->list_itm = saved_itm;
+		hls->list_cxt = saved_cxt;
+	} else {
+		tnode_modprewalktree (tptr, hllsimplify_modprewalk, (void *)hls);
+	}
+	return hls->errcount;
+}
+/*}}}*/
+
 /*{{{  static int llscope_modprewalk (tnode_t **tptr, void *arg)*/
 /*
  *	called to each node walked during the 'llscope' pass
@@ -572,6 +672,7 @@ static int submacro_cpass (tnode_t **treeptr)
 	r = sm->errcount;
 	sfree (sm);
 
+	/* flatten out any substituted macros in the whole */
 	parser_collapselist (*treeptr);
 
 	return r;
@@ -591,6 +692,44 @@ static int llscope_cpass (tnode_t **treeptr)
 
 	free_llscope (lls);
 	return r;
+}
+/*}}}*/
+/*{{{  static int hlltypecheck_cpass (tnode_t **treeptr)*/
+/*
+ *	does the high-level type-check pass (for named things)
+ *	returns 0 on success, non-zero on failure
+ */
+static int hlltypecheck_cpass (tnode_t **treeptr)
+{
+	hlltypecheck_t *hltc = (hlltypecheck_t *)smalloc (sizeof (hlltypecheck_t));
+	int r;
+
+	hltc->errcount = 0;
+	avrasm_hlltypecheck_subtree (treeptr, hltc);
+	r = hltc->errcount;
+	sfree (hltc);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int hllsimplify_cpass (tnode_t **treeptr)*/
+/*
+ *	does the high-level siplify pass
+ *	returns 0 on success, non-zero on failure
+ */
+static int hllsimplify_cpass (tnode_t **treeptr)
+{
+	hllsimplify_t *hls = (hllsimplify_t *)smalloc (sizeof (hllsimplify_t));
+	int r;
+
+	hls->errcount = 0;
+	hls->list_cxt = NULL;
+	hls->list_itm = 0;
+	avrasm_hllsimplify_subtree (treeptr, hls);
+	r = hls->errcount;
+	sfree (hls);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int flatcode_cpass (tnode_t **treeptr)*/
@@ -701,6 +840,8 @@ static int avrasm_parser_init (lexfile_t *lf)
 		nocc_message ("initialising AVR assembler parser..");
 	}
 	if (!avrasm_priv) {
+		int stopat;
+
 		avrasm_priv = avrasm_newavrasmparse ();
 
 		memset ((void *)&avrasm, 0, sizeof (avrasm));
@@ -712,22 +853,48 @@ static int avrasm_parser_init (lexfile_t *lf)
 		}
 
 		/* add various compiler passes, compiler-operations and language-operations */
-		if (nocc_addcompilerpass ("subequ", INTERNAL_ORIGIN, "scope", 0, (int (*)(void *))subequ_cpass, CPASS_TREEPTR, -1, NULL)) {
+		stopat = nocc_laststopat () + 1;
+		opts_add ("stop-subequ", '\0', avrasm_opthandler_stopat, (void *)stopat, "1stop after subequ pass");
+		if (nocc_addcompilerpass ("subequ", INTERNAL_ORIGIN, "scope", 0, (int (*)(void *))subequ_cpass, CPASS_TREEPTR, stopat, NULL)) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"subequ\" compiler pass");
 			return 1;
 		}
-		if (nocc_addcompilerpass ("submacro", INTERNAL_ORIGIN, "subequ", 0, (int (*)(void *))submacro_cpass, CPASS_TREEPTR, -1, NULL)) {
+
+		stopat = nocc_laststopat () + 1;
+		opts_add ("stop-submacro", '\0', avrasm_opthandler_stopat, (void *)stopat, "1stop after submacro pass");
+		if (nocc_addcompilerpass ("submacro", INTERNAL_ORIGIN, "subequ", 0, (int (*)(void *))submacro_cpass, CPASS_TREEPTR, stopat, NULL)) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"submacro\" compiler pass");
 			return 1;
 		}
-		if (nocc_addcompilerpass ("llscope", INTERNAL_ORIGIN, "submacro", 0, (int (*)(void *))llscope_cpass, CPASS_TREEPTR, -1, NULL)) {
+
+		stopat = nocc_laststopat () + 1;
+		opts_add ("stop-llscope", '\0', avrasm_opthandler_stopat, (void *)stopat, "1stop after llscope pass");
+		if (nocc_addcompilerpass ("llscope", INTERNAL_ORIGIN, "submacro", 0, (int (*)(void *))llscope_cpass, CPASS_TREEPTR, stopat, NULL)) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"llscope\" compiler pass");
 			return 1;
 		}
-		if (nocc_addcompilerpass ("flatcode", INTERNAL_ORIGIN, "type-check", 0, (int (*)(void *))flatcode_cpass, CPASS_TREEPTR, -1, NULL)) {
+
+		stopat = nocc_laststopat () + 1;
+		opts_add ("stop-hlltypecheck", '\0', avrasm_opthandler_stopat, (void *)stopat, "1stop after high-level type-check pass");
+		if (nocc_addcompilerpass ("hlltypecheck", INTERNAL_ORIGIN, "llscope", 0, (int (*)(void *))hlltypecheck_cpass, CPASS_TREEPTR, stopat, NULL)) {
+			nocc_serious ("avrasm_parser_init(): failed to add \"hlltypecheck\" compiler pass");
+			return 1;
+		}
+
+		stopat = nocc_laststopat () + 1;
+		opts_add ("stop-hllsimplify", '\0', avrasm_opthandler_stopat, (void *)stopat, "1stop after high-level simplify pass");
+		if (nocc_addcompilerpass ("hllsimplify", INTERNAL_ORIGIN, "hlltypecheck", 0, (int (*)(void *))hllsimplify_cpass, CPASS_TREEPTR, stopat, NULL)) {
+			nocc_serious ("avrasm_parser_init(): failed to add \"hllsimplify\" compiler pass");
+			return 1;
+		}
+
+		stopat = nocc_laststopat () + 1;
+		opts_add ("stop-flatcode", '\0', avrasm_opthandler_stopat, (void *)stopat, "1stop after flatcode pass");
+		if (nocc_addcompilerpass ("flatcode", INTERNAL_ORIGIN, "type-check", 0, (int (*)(void *))flatcode_cpass, CPASS_TREEPTR, stopat, NULL)) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"flatcode\" compiler pass");
 			return 1;
 		}
+
 		if (tnode_newcompop ("subequ", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"subequ\" compiler operation");
 			return 1;
@@ -738,6 +905,14 @@ static int avrasm_parser_init (lexfile_t *lf)
 		}
 		if (tnode_newcompop ("llscope", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"llscope\" compiler operation");
+			return 1;
+		}
+		if (tnode_newcompop ("hlltypecheck", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
+			nocc_serious ("avrasm_parser_init(): failed to add \"hlltypecheck\" compiler operation");
+			return 1;
+		}
+		if (tnode_newcompop ("hllsimplify", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
+			nocc_serious ("avrasm_parser_init(): failed to add \"hllsimplify\" compiler operation");
 			return 1;
 		}
 		if (tnode_newlangop ("avrasm_inseg", LOPS_INVALID, 1, INTERNAL_ORIGIN) < 0) {
@@ -1197,7 +1372,7 @@ fprintf (stderr, "avrasm_do_llscope(): here1, id = %d\n", id);
 
 			nocc_error ("%d undefined reference(s) to local-label %d:", DA_CUR (llse->frefs), i);
 			for (j=0; j<DA_CUR (llse->frefs); j++) {
-				tnode_error (*(DA_NTHITEM (llse->frefs, j)), "");
+				tnode_error (*(DA_NTHITEM (llse->frefs, j)), " ");
 			}
 			lls->error++;
 		}

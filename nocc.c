@@ -1150,7 +1150,32 @@ int nocc_addcompilerinitfunc (const char *name, origin_t *origin, int (*fcn)(voi
 	return 0;
 }
 /*}}}*/
+/*{{{  int nocc_laststopat (void)*/
+/*
+ *	tries to find out what the last registered 'stop-point' is
+ */
+int nocc_laststopat (void)
+{
+	int i, last = 0;
 
+	for (i=0; i<DA_CUR (cfepasses); i++) {
+		compilerpass_t *cpass = DA_NTHITEM (cfepasses, i);
+
+		if (cpass->stoppoint > last) {
+			last = cpass->stoppoint;
+		}
+	}
+	for (i=0; i<DA_CUR (cbepasses); i++) {
+		compilerpass_t *cpass = DA_NTHITEM (cbepasses, i);
+
+		if (cpass->stoppoint > last) {
+			last = cpass->stoppoint;
+		}
+	}
+
+	return last;
+}
+/*}}}*/
 
 /*{{{  int nocc_addxmlnamespace (const char *name, const char *uri)*/
 /*
@@ -1445,6 +1470,7 @@ static int cstage_parseerror (compcxt_t *ccx);
 static int cstage_maybedumpntypes (compcxt_t *ccx);
 static int cstage_maybedumpsntypes (compcxt_t *ccx);
 static int cstage_maybedumpsntags (compcxt_t *ccx);
+static int cstage_feargs (compcxt_t *ccx);
 static int cstage_fepasses (compcxt_t *ccx);
 static int cstage_targetinit (compcxt_t *ccx);
 static int cstage_beargs (compcxt_t *ccx);
@@ -1494,6 +1520,7 @@ static cstage_t stagetable[] = {
 	{cstage_maybedumpsntypes,	"dsnt",		"dump node types (short)",	CST_NONE},
 	{cstage_maybedumpsntags,	"dsntag",	"dump node tags (short)",	CST_NONE},
 
+	{cstage_feargs,			"feopt",	"process left-over options",	CST_NONE},
 	{cstage_fepasses,		"feps",		"front-end compiler passes",	CST_NONE},
 	{cstage_targetinit,		"itarg",	"initialise target",		CST_NONE},
 	{cstage_beargs,			"beopt",	"process left-over options",	CST_NONE},
@@ -1908,6 +1935,63 @@ static int cstage_maybedumpsntags (compcxt_t *ccx)
 {
 	if (compopts.dumpsnodetags) {
 		tnode_dumpsnodetags (stderr);
+	}
+	return CSTR_OK;
+}
+/*}}}*/
+/*{{{  static int cstage_feargs (compcxt_t *ccx)*/
+/*
+ *	tries to process any left-over arguments in the front-end, but after language initialisation and parsing.
+ */
+static int cstage_feargs (compcxt_t *ccx)
+{
+	char **walk;
+	int i;
+	DYNARRAY (char *, be_saved_opts);
+
+	dynarray_init (be_saved_opts);
+	for (walk = DA_PTR (be_def_opts), i = DA_CUR (be_def_opts); walk && *walk && i; walk++, i--) {
+		cmd_option_t *opt = NULL;
+
+		switch (**walk) {
+		case '-':
+			if ((*walk)[1] == '-') {
+				opt = opts_getlongopt (*walk + 2);
+				if (opt) {
+					if (opts_process (opt, &walk, &i) < 0) {
+						ccx->errored++;
+					}
+					sfree (*walk);
+					*walk = NULL;
+				} else {
+					/* move over to saved */
+					dynarray_add (be_saved_opts, *walk);
+					*walk = NULL;
+				}
+			} else {
+				char *ch = *walk + 1;
+
+				opt = opts_getshortopt (*ch);
+				if (opt) {
+					if (opts_process (opt, &walk, &i) < 0) {
+						ccx->errored++;
+					}
+					sfree (*walk);
+					*walk = NULL;
+				} else {
+					dynarray_add (be_saved_opts, *walk);
+					*walk = NULL;
+				}
+			}
+			break;
+		}
+	}
+	dynarray_move (be_def_opts, be_saved_opts);
+	// dynarray_trash (be_def_opts);
+
+	if (ccx->errored) {
+		nocc_fatal ("error processing options for front-end (%d error%s)", ccx->errored, (ccx->errored == 1) ? "" : "s");
+		return CSTR_EXITCOMP;
 	}
 	return CSTR_OK;
 }

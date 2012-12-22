@@ -160,6 +160,7 @@ extern compopts_t compopts;
 
 /* this can be called by extensions (and other code) to add passes to the compiler */
 extern int nocc_addcompilerpass (const char *name, struct TAG_origin *origin, const char *other, int before, int (*pfcn)(void *), comppassarg_t parg, int stopat, int *eflagptr);
+extern int nocc_laststopat (void);
 
 /* this is used to add initialisation functions, called after other initialisations but before extensions are loaded */
 extern int nocc_addcompilerinitfunc (const char *name, struct TAG_origin *origin, int (*ifcn)(void *), void *arg);

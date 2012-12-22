@@ -144,6 +144,8 @@ extern int da_hasitem (int *cur, int *max, void ***array, void *item);
 #define dynarray_setmax(ARRAY,SIZE) da_setmax(&(DA_CUR(ARRAY)), &(DA_MAX(ARRAY)), (void ***)&(DA_PTR(ARRAY)), SIZE)
 #define dynarray_copy(DSTARRAY,SRCARRAY) da_copy(DA_CUR(SRCARRAY), DA_MAX(SRCARRAY), (void **)(DA_PTR(SRCARRAY)), &(DA_CUR(DSTARRAY)), &(DA_MAX(DSTARRAY)), (void ***)(&(DA_PTR(DSTARRAY))))
 #define dynarray_hasitem(ARRAY,ITEM) da_hasitem(&(DA_CUR(ARRAY)), &(DA_MAX(ARRAY)), (void ***)&(DA_PTR(ARRAY)), (void *)(ITEM))
+#define dynarray_move(DSTARRAY,SRCARRAY) do { dynarray_trash(DSTARRAY); DA_PTR(DSTARRAY) = DA_PTR(SRCARRAY); \
+						DA_CUR(DSTARRAY) = DA_CUR(SRCARRAY); DA_MAX(DSTARRAY) = DA_MAX(SRCARRAY); dynarray_init (SRCARRAY); } while (0)
 
 /* stuff for string-based hashes */
 

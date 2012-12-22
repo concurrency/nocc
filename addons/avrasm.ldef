@@ -208,6 +208,8 @@
 .KEYWORD "let"
 .KEYWORD "dload"
 .KEYWORD "dstore"
+.KEYWORD "signed"
+.KEYWORD "unsigned"
 
 .GRULE	"avrasm:nullreduce" "N+R-"
 .GRULE	"avrasm:nullpush" "0N-"
@@ -472,14 +474,17 @@
 .SECTION "avrasm-hll" #{{{: high-level constructs for AVR assembler
 
 .GRULE	"avrasm:functionreduce" "SN1N+N+V0C[AVRASMFCNDEF]3R-"
-.GRULE	"avrasm:fcnparamreduce" "SN0N+N+V0VC[AVRASMFCNPARAM]3R-"
+.GRULE	"avrasm:fcnparamreduce" "SN1N+N+VN+VC[AVRASMFCNPARAM]3R-"
 
 .GRULE	"avrasm:regpairreduce" "SN0N+N+VC[AVRASMREGPAIR]2R-"
 
-.GRULE	"avrasm:letreduce" "ST0T+@tN+N+V0VC[AVRASMLETDEF]3R-"
+.GRULE	"avrasm:letreduce" "ST0T+@tN+N+VN+VC[AVRASMLETDEF]3R-"
 
 .GRULE	"avrasm:dloadreduce" "SN0N+N+VC[AVRASMDLOAD]2R-"
 .GRULE	"avrasm:dstorereduce" "SN0N+N+VC[AVRASMDSTORE]2R-"
+
+.GRULE	"avrasm:signedpush" "C[AVRASMSIGNED]0N-"
+.GRULE	"avrasm:unsignedpush" "C[AVRASMUNSIGNED]0N-"
 
 .TABLE	"avrasm:regorname ::= [ 0 -Name 1 ] [ 1 avrasm:name 2 ] [ 2 {<avrasm:nullreduce>} -* ]"
 .TABLE	"avrasm:regorname +:= [ 0 +@r0 1 ] [ 0 +@r1 1 ] [ 0 +@r2 1 ] [ 0 +@r3 1 ] [ 1 {<avrasm:regreduce>} -* ]"
@@ -494,7 +499,8 @@
 .TABLE	"avrasm:pexpr ::= [ 0 avrasm:regorname 1 ] [ 1 @@: 2 ] [ 2 avrasm:regorname 3 ] [ 3 {<avrasm:regpairreduce>} -* ]"
 				"[ 1 -* 4 ] [ 4 {<avrasm:nullreduce>} -* ]"
 
-.TABLE	"avrasm:fcnparam ::= [ 0 avrasm:name 1 ] [ 1 @@= 2 ] [ 2 avrasm:pexpr 3 ] [ 3 {<avrasm:fcnparamreduce>} -* ]"
+.TABLE	"avrasm:fcnparam ::= [ 0 @signed 1 ] [ 0 @unsigned 2 ] [ 0 -* 3 ] [ 1 {<avrasm:signedpush>} -* 4 ] [ 2 {<avrasm:unsignedpush>} -* 4 ]"
+				"[ 3 {<avrasm:nullpush>} -* 4 ] [ 4 avrasm:name 5 ] [ 5 @@= 6 ] [ 6 avrasm:pexpr 7 ] [ 7 {<avrasm:fcnparamreduce>} -* ]"
 
 .BNF	"avrasm:fcnparamlist ::= { avrasm:fcnparam @@, 0 }"
 
@@ -504,7 +510,9 @@
 
 # add to directives (things starting with a dot)
 .TABLE	"avrasm:directive +:= [ 0 @@. 1 ] [ 1 @function <avrasm:functiondef> ]"
-				"[ 1 +@let 2 ] [ 2 avrasm:name 3 ] [ 3 @@= 4 ] [ 4 avrasm:pexpr 5 ] [ 5 {<avrasm:letreduce>} -* ]"
+				"[ 1 +@let 2 ] [ 2 @signed 3 ] [ 2 @unsigned 4 ] [ 2 -* 5 ] [ 3 {<avrasm:signedpush>} -* 6 ]"
+				"[ 4 {<avrasm:unsignedpush>} -* 6 ] [ 5 {<avrasm:nullpush>} -* 6 ] [ 6 avrasm:name 7 ] [ 7 @@= 8 ]"
+				"[ 8 avrasm:pexpr 9 ] [ 9 {<avrasm:letreduce>} -* ]"
 
 # add to general code constructs
 .TABLE	"avrasm:codeline +:= [ 0 @dstore 1 ] [ 1 avrasm:expr 2 ] [ 2 @@, 3 ] [ 3 avrasm:expr 4 ] [ 4 {<avrasm:dstorereduce>} -* <avrasm:endcodeline> ]"
