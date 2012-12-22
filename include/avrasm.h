@@ -173,6 +173,7 @@ extern int avrasm_langop_inseg (struct TAG_tnode *node);
 extern int avrasm_subequ_subtree (struct TAG_tnode **tptr, struct TAG_subequ *se);
 extern int avrasm_submacro_subtree (struct TAG_tnode **tptr, struct TAG_submacro *sm);
 extern int avrasm_hlltypecheck_subtree (struct TAG_tnode **tptr, struct TAG_hlltypecheck *hltc);
+extern int avrasm_hllsimplify_subtree (struct TAG_tnode **tptr, struct TAG_hllsimplify *hls);
 
 extern label_chook_t *avrasm_newlabelchook (void);
 extern void avrasm_freelabelchook (label_chook_t *lch);
@@ -182,6 +183,8 @@ extern struct TAG_tnode *avrasm_llscope_fixref (struct TAG_tnode **tptr, int lab
 /* in avrasm_program.c, where specific structures reside */
 extern int avrasm_getlitintval (struct TAG_tnode *node);
 extern int avrasm_getxyzreginfo (struct TAG_tnode *node, int *reg, int *prepost, int *offs);
+
+extern struct TAG_tnode *avrasm_newlitins (struct TAG_tnode *orgnode, int ins);
 
 extern struct TAG_feunit avrasm_program_feunit;			/* avrasm_program.c */
 extern struct TAG_feunit avrasm_hll_feunit;			/* avrasm_hll.c */

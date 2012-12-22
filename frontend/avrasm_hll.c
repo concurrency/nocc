@@ -121,6 +121,18 @@ static int avrasm_hlltypecheck_fcndefnode (compops_t *cops, tnode_t **tptr, hllt
 	return 1;
 }
 /*}}}*/
+/*{{{  static int avrasm_hllsimplify_fcndefnode (compops_t *cops, tnode_t **tptr, hllsimplify_t *hls)*/
+/*
+ *	does simplifications for high-level function definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_hllsimplify_fcndefnode (compops_t *cops, tnode_t **tptr, hllsimplify_t *hls)
+{
+	/* just run over the body */
+	avrasm_hllsimplify_subtree (tnode_nthsubaddr (*tptr, 2), hls);
+	return 0;
+}
+/*}}}*/
 /*{{{  static int avrasm_scopein_fcnparamnode (compops_t *cops, tnode_t **tptr, scope_t *ss)*/
 /*
  *	does scope-in for a function parameter (during function scope-in)
@@ -358,10 +370,60 @@ static int avrasm_hlltypecheck_letdefnode (compops_t *cops, tnode_t **tptr, hllt
  */
 static int avrasm_hllsimplify_hllinstr (compops_t *cops, tnode_t **tptr, hllsimplify_t *hls)
 {
-#if 0
+	tnode_t *newlist = parser_newlistnode (NULL);
+
+	/* call simplify on both sides to flatten names to registers or pairs or registers */
+	avrasm_hllsimplify_subtree (tnode_nthsubaddr (*tptr, 0), hls);
+	avrasm_hllsimplify_subtree (tnode_nthsubaddr (*tptr, 1), hls);
+
+#if 1
 fprintf (stderr, "avrasm_hllsimplify_hllinstr(): *tptr =\n");
 tnode_dumptree (*tptr, 1, stderr);
 #endif
+	if ((*tptr)->tag == avrasm.tag_DSTORE) {
+		tnode_t *memref = tnode_nthsubof (*tptr, 0);
+		tnode_t *srcref = tnode_nthsubof (*tptr, 1);
+
+		if (srcref->tag == avrasm.tag_REGPAIR) {
+			/* 16-bit store, little-endian style */
+			tnode_t *hreg = tnode_nthsubof (srcref, 0);
+			tnode_t *lreg = tnode_nthsubof (srcref, 1);
+			tnode_t *hstore, *lstore;
+
+			// hstore = tnode_createfrom (avrasm.tag_INSTR, *tptr, avrasm_newlitins (*tptr, INS_ST), tnode_copytree (memref), 
+		}
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int avrasm_hllsimplify_hllnamenode (compops_t *cops, tnode_t **tptr, hllsimplify_t *hls)*/
+/*
+ *	does simplifications on a high-level name, replaces with registers or pairs thereof
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_hllsimplify_hllnamenode (compops_t *cops, tnode_t **tptr, hllsimplify_t *hls)
+{
+	tnode_t *node = *tptr;
+
+	if ((node->tag == avrasm.tag_FCNPARAMNAME) || (node->tag == avrasm.tag_LETNAME)) {
+		name_t *name = tnode_nthnameof (node, 0);
+		tnode_t *decl = NameDeclOf (name);
+		tnode_t *expr = NULL;
+
+		if (!decl) {
+			tnode_error (*tptr, "missing declaration for \"%s\"!", NameNameOf (name));
+			hls->errcount++;
+			return 0;
+		}
+		/* Note: rely on the fact that LETDEF and FCNPARAM nodes have expression as subnode 2 */
+		expr = tnode_nthsubof (decl, 2);
+		if (!expr) {
+			tnode_error (*tptr, "missing expression for \"%s\"!", NameNameOf (name));
+			hls->errcount++;
+			return 0;
+		}
+		*tptr = tnode_copytree (expr);
+	}
 	return 0;
 }
 /*}}}*/
@@ -389,6 +451,7 @@ static int avrasm_hll_init_nodes (void)
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (avrasm_prescope_fcndefnode));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (avrasm_scopein_fcndefnode));
 	tnode_setcompop (cops, "hlltypecheck", 2, COMPOPTYPE (avrasm_hlltypecheck_fcndefnode));
+	tnode_setcompop (cops, "hllsimplify", 2, COMPOPTYPE (avrasm_hllsimplify_fcndefnode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -446,6 +509,7 @@ static int avrasm_hll_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:hllnamenode", &i, 0, 1, 0, TNF_NONE);		/* namenodes: 0 = name */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "hllsimplify", 2, COMPOPTYPE (avrasm_hllsimplify_hllnamenode));
 	tnd->ops = cops;
 
 	i = -1;

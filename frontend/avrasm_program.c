@@ -683,6 +683,23 @@ out_badname:
 	return;
 }
 /*}}}*/
+/*{{{  tnode_t *avrasm_newlitins (tnode_t *orgnode, int ins)*/
+/*
+ *	creates a new literal instruction node
+ */
+tnode_t *avrasm_newlitins (tnode_t *orgnode, int ins)
+{
+	tnode_t *node = NULL;
+	avrasm_lithook_t *lh = new_avrasmlithook ();
+
+	lh->len = sizeof (ins);
+	lh->data = mem_ndup (&ins, lh->len);
+
+	node = tnode_createfrom (avrasm.tag_LITINS, orgnode, lh);
+
+	return node;
+}
+/*}}}*/
 
 /*{{{  static void avrasm_rawnamenode_hook_free (void *hook)*/
 /*
