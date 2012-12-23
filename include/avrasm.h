@@ -182,9 +182,17 @@ extern struct TAG_tnode *avrasm_llscope_fixref (struct TAG_tnode **tptr, int lab
 
 /* in avrasm_program.c, where specific structures reside */
 extern int avrasm_getlitintval (struct TAG_tnode *node);
+extern int avrasm_getlitinsval (struct TAG_tnode *node);
+extern int avrasm_getlitregval (struct TAG_tnode *node);
 extern int avrasm_getxyzreginfo (struct TAG_tnode *node, int *reg, int *prepost, int *offs);
 
+extern struct TAG_tnode *avrasm_newxyzreginfo (struct TAG_tnode *orgnode, int reg, int prepost, int offs);
 extern struct TAG_tnode *avrasm_newlitins (struct TAG_tnode *orgnode, int ins);
+extern struct TAG_tnode *avrasm_newlitint (struct TAG_tnode *orgnode, int val);
+
+struct TAG_langops;
+
+extern int avrasm_inseg_true (struct TAG_langops *lops, struct TAG_tnode *node);
 
 extern struct TAG_feunit avrasm_program_feunit;			/* avrasm_program.c */
 extern struct TAG_feunit avrasm_hll_feunit;			/* avrasm_hll.c */

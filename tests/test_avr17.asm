@@ -22,6 +22,7 @@
 
 VEC_reset:
 	nop
+	call	testfcn
 	sleep
 	rjmp	VEC_reset
 

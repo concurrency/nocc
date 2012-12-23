@@ -413,7 +413,6 @@ static void llscope_promote (llscope_t *lls, int labid)
 }
 /*}}}*/
 
-
 /*{{{  static int subequ_modprewalk (tnode_t **tptr, void *arg)*/
 /*
  *	called for each node walked during the 'subequ' pass
@@ -560,6 +559,8 @@ int avrasm_hllsimplify_subtree (tnode_t **tptr, hllsimplify_t *hls)
 
 		hls->list_itm = saved_itm;
 		hls->list_cxt = saved_cxt;
+
+		parser_collapselist (*tptr);
 	} else {
 		tnode_modprewalktree (tptr, hllsimplify_modprewalk, (void *)hls);
 	}
@@ -637,7 +638,6 @@ tnode_t *avrasm_llscope_fixref (tnode_t **tptr, int labid, int labdir, void *lls
 	return *tptr;
 }
 /*}}}*/
-
 
 /*{{{  static int subequ_cpass (tnode_t **treeptr)*/
 /*
@@ -759,6 +759,10 @@ static int flatcode_cpass (tnode_t **treeptr)
 
 				tnode_setnthsub (curseg, 1, seglist);
 			}
+		} else if (item->tag == avrasm.tag_LETDEF) {
+			/* remove this, will have been processed by hllsimplify stuff */
+			parser_delfromlist (tree, i);
+			i--;			/* we got removed */
 		} else if (avrasm_langop_inseg (item)) {
 			/* needs to be in a segment, do we have one? */
 			if (!curseg) {
@@ -789,7 +793,6 @@ static int flatcode_cpass (tnode_t **treeptr)
 	return 0;
 }
 /*}}}*/
-
 
 /*{{{  static tnode_t *avrasm_includefile (char *fname, lexfile_t *curlf)*/
 /*
@@ -989,7 +992,6 @@ static void avrasm_parser_shutdown (lexfile_t *lf)
 	return;
 }
 /*}}}*/
-
 
 /*{{{  static tnode_t *avrasm_parser_parsemacrodef (lexfile_t *lf)*/
 /*
@@ -1259,7 +1261,7 @@ static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)
 	for (i=0; i<nitems; i++) {
 		tnode_t *node = items[i];
 
-		/* first, scope in label names */
+		/* first, scope in label and function names */
 		if (node->tag == avrasm.tag_GLABELDEF) {
 			tnode_t *lname_node = tnode_nthsubof (node, 0);
 
@@ -1280,6 +1282,31 @@ static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)
 					SetNameNode (labname, namenode);
 
 					tnode_free (lname_node);
+					tnode_setnthsub (node, 0, namenode);
+
+					ss->scoped++;
+				}
+			}
+		} else if (node->tag == avrasm.tag_FCNDEF) {
+			tnode_t *fname_node = tnode_nthsubof (node, 0);
+
+			if (fname_node->tag != avrasm.tag_NAME) {
+				scope_error (fname_node, ss, "function name not raw-name, got [%s]", fname_node->tag->name);
+			} else {
+				char *rawname = tnode_nthhookof (fname_node, 0);
+
+				if (name_lookupss (rawname, ss)) {
+					/* not allowed multiply defined functions */
+					scope_error (fname_node, ss, "multiply defined name [%s]", rawname);
+				} else {
+					name_t *fname;
+					tnode_t *namenode;
+
+					fname = name_addscopenamess (rawname, node, NULL, NULL, ss);
+					namenode = tnode_createfrom (avrasm.tag_FCNNAME, node, fname);
+					SetNameNode (fname, namenode);
+
+					tnode_free (fname_node);
 					tnode_setnthsub (node, 0, namenode);
 
 					ss->scoped++;

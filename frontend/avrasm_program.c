@@ -253,7 +253,6 @@ avrtarget_t *avrasm_findtargetbymark (tnode_t *mark)
 }
 /*}}}*/
 
-
 /*{{{  int avrasm_getxyzreginfo (tnode_t *node, int *reg, int *prepost, int *offs)*/
 /*
  *	extracts XYZ register details from an XYZREG node
@@ -301,7 +300,46 @@ int avrasm_getlitintval (tnode_t *node)
 	return *(int *)(lh->data);
 }
 /*}}}*/
+/*{{{  int avrasm_getlitinsval (tnode_t *node)*/
+/*
+ *	extracts value from a literal instruction (INS_.. constant)
+ *	abandons compilation if not literal instruction
+ */
+int avrasm_getlitinsval (tnode_t *node)
+{
+	avrasm_lithook_t *lh;
 
+	if (constprop_isconst (node)) {
+		return constprop_intvalof (node);
+	}
+	if (node->tag != avrasm.tag_LITINS) {
+		nocc_internal ("avrasm_getlitinsval(): not LITINS, got [%s]", node->tag->name);
+		return 0;
+	}
+	lh = (avrasm_lithook_t *)tnode_nthhookof (node, 0);
+	return *(int *)(lh->data);
+}
+/*}}}*/
+/*{{{  int avrasm_getlitregval (tnode_t *node)*/
+/*
+ *	extracts value from a literal register
+ *	abandons compilation if not literal register
+ */
+int avrasm_getlitregval (tnode_t *node)
+{
+	avrasm_lithook_t *lh;
+
+	if (constprop_isconst (node)) {
+		return constprop_intvalof (node);
+	}
+	if (node->tag != avrasm.tag_LITREG) {
+		nocc_internal ("avrasm_getlitintval(): not LITREG, got [%s]", node->tag->name);
+		return 0;
+	}
+	lh = (avrasm_lithook_t *)tnode_nthhookof (node, 0);
+	return *(int *)(lh->data);
+}
+/*}}}*/
 
 /*{{{  static avrasm_lithook_t *new_avrasmlithook (void)*/
 /*
@@ -683,6 +721,7 @@ out_badname:
 	return;
 }
 /*}}}*/
+
 /*{{{  tnode_t *avrasm_newlitins (tnode_t *orgnode, int ins)*/
 /*
  *	creates a new literal instruction node
@@ -697,6 +736,40 @@ tnode_t *avrasm_newlitins (tnode_t *orgnode, int ins)
 
 	node = tnode_createfrom (avrasm.tag_LITINS, orgnode, lh);
 
+	return node;
+}
+/*}}}*/
+/*{{{  tnode_t *avrasm_newlitint (tnode_t *orgnode, int val)*/
+/*
+ *	creates a new literal instruction node
+ */
+tnode_t *avrasm_newlitint (tnode_t *orgnode, int val)
+{
+	tnode_t *node = NULL;
+	avrasm_lithook_t *lh = new_avrasmlithook ();
+
+	lh->len = sizeof (val);
+	lh->data = mem_ndup (&val, lh->len);
+
+	node = tnode_createfrom (avrasm.tag_LITINT, orgnode, lh);
+
+	return node;
+}
+/*}}}*/
+/*{{{  tnode_t *avrasm_newxyzreginfo (tnode_t *orgnode, int reg, int prepost, int offs)*/
+/*
+ *	creates a new XYZ register node
+ */
+tnode_t *avrasm_newxyzreginfo (tnode_t *orgnode, int reg, int prepost, int offs)
+{
+	avrasm_xyzhook_t *xyzh = new_avrasmxyzhook ();
+	tnode_t *node;
+
+	xyzh->reg = reg;
+	xyzh->prepost = prepost;
+	xyzh->offs = offs;
+
+	node = tnode_createfrom (avrasm.tag_XYZREG, orgnode, xyzh);
 	return node;
 }
 /*}}}*/
@@ -1007,6 +1080,31 @@ fprintf (stderr, "avrasm_constprop_litnode(): here!\n");
 		*tptr = constprop_newconst (CONST_INT, *tptr, NULL, val);
 	}	
 	return 1;
+}
+/*}}}*/
+/*{{{  static int avrasm_isconst_litnode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns non-zero if a constant (should always be true)
+ */
+static int avrasm_isconst_litnode (langops_t *lops, tnode_t *node)
+{
+	avrasm_lithook_t *lit = (avrasm_lithook_t *)tnode_nthhookof (node, 0);
+
+	return lit->len;
+}
+/*}}}*/
+/*{{{  static int avrasm_constvalof_litnode (langops_t *lops, tnode_t *node, void *ptr)*/
+/*
+ *	extracts the value of a constant (for all numeric constant types)
+ */
+static int avrasm_constvalof_litnode (langops_t *lops, tnode_t *node, void *ptr)
+{
+	avrasm_lithook_t *lit = (avrasm_lithook_t *)tnode_nthhookof (node, 0);
+
+	if ((node->tag == avrasm.tag_LITINT) || (node->tag == avrasm.tag_LITREG)) {
+		return *(int *)(lit->data);
+	}
+	return 0;
 }
 /*}}}*/
 
@@ -1349,15 +1447,6 @@ static int avrasm_prescope_targetnode (compops_t *cops, tnode_t **tptr, prescope
 	return 1;
 }
 /*}}}*/
-/*{{{  static int avrasm_inseg_true (langops_t *lops, tnode_t *node)*/
-/*
- *	returns true for nodes that should be inside a segment (e.g. instruction, label, .org, etc.)
- */
-static int avrasm_inseg_true (langops_t *lops, tnode_t *node)
-{
-	return 1;
-}
-/*}}}*/
 /*{{{  static int avrasm_typecheck_xyznode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-check for an XYZ node, makes sure offset is in range (if used)
@@ -1373,6 +1462,16 @@ static int avrasm_typecheck_xyznode (compops_t *cops, tnode_t *node, typecheck_t
 			return 0;
 		}
 	}
+	return 1;
+}
+/*}}}*/
+
+/*{{{  int avrasm_inseg_true (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns true for nodes that should be inside a segment (e.g. instruction, label, .org, etc.)
+ */
+int avrasm_inseg_true (langops_t *lops, tnode_t *node)
+{
 	return 1;
 }
 /*}}}*/
@@ -1933,6 +2032,10 @@ static int avrasm_program_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (avrasm_constprop_litnode));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (avrasm_isconst_litnode));
+	tnode_setlangop (lops, "constvalof", 2, LANGOPTYPE (avrasm_constvalof_litnode));
+	tnd->lops = lops;
 
 	i = -1;
 	avrasm.tag_LITSTR = tnode_newnodetag ("AVRASMLITSTR", &i, tnd, NTF_NONE);
