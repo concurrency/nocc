@@ -116,7 +116,7 @@ typedef struct {
 
 	struct TAG_ntdef *tag_INSTR;
 
-	/* higher-level stuff */
+	/* high-level stuff */
 	struct TAG_ntdef *tag_REGPAIR;
 
 	struct TAG_ntdef *tag_FCNDEF;
@@ -137,6 +137,24 @@ typedef struct {
 	struct TAG_ntdef *tag_UINT16;
 	struct TAG_ntdef *tag_SIGNED;
 	struct TAG_ntdef *tag_UNSIGNED;
+
+	struct TAG_ntdef *tag_EXPADD;
+	struct TAG_ntdef *tag_EXPSUB;
+	struct TAG_ntdef *tag_EXPMUL;
+	struct TAG_ntdef *tag_EXPDIV;
+	struct TAG_ntdef *tag_EXPREM;
+	struct TAG_ntdef *tag_EXPOR;
+	struct TAG_ntdef *tag_EXPAND;
+	struct TAG_ntdef *tag_EXPXOR;
+	struct TAG_ntdef *tag_EXPBITOR;
+	struct TAG_ntdef *tag_EXPBITAND;
+	struct TAG_ntdef *tag_EXPBITXOR;
+	struct TAG_ntdef *tag_EXPEQ;
+	struct TAG_ntdef *tag_EXPNEQ;
+	struct TAG_ntdef *tag_EXPLT;
+	struct TAG_ntdef *tag_EXPGT;
+	struct TAG_ntdef *tag_EXPLE;
+	struct TAG_ntdef *tag_EXPGE;
 } avrasm_pset_t;
 
 extern avrasm_pset_t avrasm;

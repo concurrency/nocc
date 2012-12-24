@@ -18,6 +18,14 @@ reset:
 	.let C = r1
 	.let D = r2
 
+	.if (A == B)
+		nop
+	.else
+		nop
+	.endif
+
+	; .eval C = A
+
 .endfunction
 
 

@@ -1027,6 +1027,21 @@ static int avrasm_hll_init_nodes (void)
 	avrasm.tag_UNSIGNED = tnode_newnodetag ("AVRASMUNSIGNED", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  avrasm:hllexpnode -- EXPADD, EXPSUB, EXPMUL, EXPDIV, EXPREM, EXPOR, EXPAND, EXPXOR, EXPBITOR, EXPBITAND, EXPBITXOR, EXPEQ, EXPNEQ, EXPLT, EXPGT, EXPLE, EXPGE*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:hllexpnode", &i, 3, 0, 0, TNF_NONE);		/* subnodes: 0 = left, 1 = right, 2 = type */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	avrasm.tag_EXPADD = tnode_newnodetag ("AVRASMEXPADD", &i, tnd, NTF_NONE);
+	i = -1;
+	avrasm.tag_EXPSUB = tnode_newnodetag ("AVRASMEXPSUB", &i, tnd, NTF_NONE);
+
+	i = -1;
+	avrasm.tag_EXPEQ = tnode_newnodetag ("AVRASMEXPEQ", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 
 	/*{{{  interfere with avrasm:insnode in hllsimplify pass*/
 	tnd = tnode_lookupnodetype ("avrasm:insnode");

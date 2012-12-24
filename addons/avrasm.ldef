@@ -486,6 +486,8 @@
 .GRULE	"avrasm:signedpush" "C[AVRASMSIGNED]0N-"
 .GRULE	"avrasm:unsignedpush" "C[AVRASMUNSIGNED]0N-"
 
+.GRULE	"avrasm:expeqreduce" "SN0N+0N+C[AVRASMEXPEQ]3R-"
+
 .TABLE	"avrasm:regorname ::= [ 0 -Name 1 ] [ 1 avrasm:name 2 ] [ 2 {<avrasm:nullreduce>} -* ]"
 .TABLE	"avrasm:regorname +:= [ 0 +@r0 1 ] [ 0 +@r1 1 ] [ 0 +@r2 1 ] [ 0 +@r3 1 ] [ 1 {<avrasm:regreduce>} -* ]"
 .TABLE	"avrasm:regorname +:= [ 0 +@r4 1 ] [ 0 +@r5 1 ] [ 0 +@r6 1 ] [ 0 +@r7 1 ] [ 1 {<avrasm:regreduce>} -* ]"
@@ -507,6 +509,8 @@
 .TABLE	"avrasm:functiondef ::= [ 0 avrasm:name 1 ] [ 1 @@( 2 ] [ 2 avrasm:fcnparamlist 3 ] [ 3 @@) 4 ]"
 				"[ 4 Comment 4 ] [ 4 -Newline 5 ] [ 5 {<avrasm:functionreduce>} -* ]"
 				"[ 1 -* 6 ] [ 6 {<avrasm:nullpush>} -* 4 ]"
+
+.TABLE	"avrasm:hllexpr ::= [ 0 avrasm:pexpr 1 ] [ 1 @@== 2 ] [ 2 avrasm:pexpr 3 ] [ 3 {<avrasm:expeqreduce>} -* ]"
 
 # add to directives (things starting with a dot)
 .TABLE	"avrasm:directive +:= [ 0 @@. 1 ] [ 1 @function <avrasm:functiondef> ]"
