@@ -488,6 +488,8 @@
 
 .GRULE	"avrasm:expeqreduce" "SN0N+0N+C[AVRASMEXPEQ]3R-"
 
+.GRULE	"avrasm:hllifreduce" "SN0N+C[AVRASMHLLIF]1R-"
+
 .TABLE	"avrasm:regorname ::= [ 0 -Name 1 ] [ 1 avrasm:name 2 ] [ 2 {<avrasm:nullreduce>} -* ]"
 .TABLE	"avrasm:regorname +:= [ 0 +@r0 1 ] [ 0 +@r1 1 ] [ 0 +@r2 1 ] [ 0 +@r3 1 ] [ 1 {<avrasm:regreduce>} -* ]"
 .TABLE	"avrasm:regorname +:= [ 0 +@r4 1 ] [ 0 +@r5 1 ] [ 0 +@r6 1 ] [ 0 +@r7 1 ] [ 1 {<avrasm:regreduce>} -* ]"
@@ -510,13 +512,15 @@
 				"[ 4 Comment 4 ] [ 4 -Newline 5 ] [ 5 {<avrasm:functionreduce>} -* ]"
 				"[ 1 -* 6 ] [ 6 {<avrasm:nullpush>} -* 4 ]"
 
-.TABLE	"avrasm:hllexpr ::= [ 0 avrasm:pexpr 1 ] [ 1 @@== 2 ] [ 2 avrasm:pexpr 3 ] [ 3 {<avrasm:expeqreduce>} -* ]"
+.TABLE	"avrasm:hllexpr ::= [ 0 @@( 1 ] [ 1 avrasm:hllexpr 2 ] [ 2 @@) 3 ] [ 3 {<avrasm:nullreduce>} -* ]"
+				"[ 0 -* 4 ] [ 4 avrasm:pexpr 5 ] [ 5 @@== 6 ] [ 6 avrasm:pexpr 7 ] [ 7 {<avrasm:expeqreduce>} -* ]"
 
 # add to directives (things starting with a dot)
 .TABLE	"avrasm:directive +:= [ 0 @@. 1 ] [ 1 @function <avrasm:functiondef> ]"
 				"[ 1 +@let 2 ] [ 2 @signed 3 ] [ 2 @unsigned 4 ] [ 2 -* 5 ] [ 3 {<avrasm:signedpush>} -* 6 ]"
 				"[ 4 {<avrasm:unsignedpush>} -* 6 ] [ 5 {<avrasm:nullpush>} -* 6 ] [ 6 avrasm:name 7 ] [ 7 @@= 8 ]"
 				"[ 8 avrasm:pexpr 9 ] [ 9 {<avrasm:letreduce>} -* ]"
+.TABLE	"avrasm:directive +:= [ 0 @@. 1 ] [ 1 @if 2 ] [ 2 avrasm:hllexpr 3 ] [ 3 {<avrasm:hllifreduce>} -* ]"
 
 # add to general code constructs
 .TABLE	"avrasm:codeline +:= [ 0 @dstore 1 ] [ 1 avrasm:expr 2 ] [ 2 @@, 3 ] [ 3 avrasm:expr 4 ] [ 4 {<avrasm:dstorereduce>} -* <avrasm:endcodeline> ]"

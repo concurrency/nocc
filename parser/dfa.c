@@ -555,7 +555,8 @@ void dfa_addpush (dfanode_t *dfa, token_t *tok, dfanode_t *pushto, dfanode_t *ta
 		token_t *thismatch = DA_NTHITEM (dfa->match, i);
 
 		if ((((tok->type != NOTOKEN) && (thismatch->type != NOTOKEN)) || (tok->type == thismatch->type)) && lexer_tokmatch (thismatch, tok)) {
-			nocc_warning ("dfa_addpush(): displacing existing match");
+			nocc_warning ("dfa_addpush(): displacing existing match (from [%s] to [%s] with [%s])", dfa->dfainfo ? ((nameddfa_t *)dfa->dfainfo)->name : "<unknown>",
+					target->dfainfo ? ((nameddfa_t *)target->dfainfo)->name : "<unknown>", lexer_stokenstr (tok));
 			break;		/* for() */
 		}
 	}

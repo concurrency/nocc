@@ -67,6 +67,10 @@ static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss);
 static int avrasm_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
 static int avrasm_parser_typeresolve (tnode_t **tptr, typecheck_t *tc);
 
+static tnode_t *avrasm_parser_parsemacrodef (lexfile_t *lf);
+static tnode_t *avrasm_parser_parsefunctiondef (lexfile_t *lf);
+static tnode_t *avrasm_parser_parsehllif (lexfile_t *lf, tnode_t *firstcond);
+
 struct TAG_llscope;
 
 static int avrasm_do_llscope (tnode_t **tptr, struct TAG_llscope *lls);
@@ -993,6 +997,56 @@ static void avrasm_parser_shutdown (lexfile_t *lf)
 }
 /*}}}*/
 
+/*{{{  static tnode_t *avrasm_parse_codelineorspecial (lexfile_t *lf)*/
+/*
+ *	parses a single codeline, including 'special' handling.  assumes not end-of-tokens.
+ *	returns tree on success, NULL on failure
+ */
+static tnode_t *avrasm_parse_codelineorspecial (lexfile_t *lf)
+{
+	tnode_t *thisone;
+
+	thisone = dfa_walk ("avrasm:codeline", 0, lf);
+	if (!thisone) {
+		return NULL;
+	}
+
+	if (thisone->tag == avrasm.tag_MACRODEF) {
+		/*{{{  slightly special case, parse input until .endmacro*/
+		tnode_t *contents;
+
+#if 0
+fprintf (stderr, "avrasm_parser_parse(): sub-parse for macrodef, got:\n");
+tnode_dumptree (thisone, 1, stderr);
+#endif
+		contents = avrasm_parser_parsemacrodef (lf);
+		if (!contents) {
+			parser_error (lf, "bad or empty macro definition");
+		}
+		tnode_setnthsub (thisone, 2, contents);
+
+		/*}}}*/
+	} else if (thisone->tag == avrasm.tag_FCNDEF) {
+		/*{{{  another slightly special case, parse input until .endfunction*/
+		tnode_t *contents;
+
+		contents = avrasm_parser_parsefunctiondef (lf);
+		tnode_setnthsub (thisone, 2, contents);
+
+		/*}}}*/
+	} else if (thisone->tag == avrasm.tag_HLLIF) {
+		/*{{{  another special case, parser rest of .if structure*/
+		tnode_t *contents;
+
+		contents = avrasm_parser_parsehllif (lf, tnode_nthsubof (thisone, 0));
+		tnode_setnthsub (thisone, 0, contents);
+
+		/*}}}*/
+	}
+
+	return thisone;
+}
+/*}}}*/
 /*{{{  static tnode_t *avrasm_parser_parsemacrodef (lexfile_t *lf)*/
 /*
  *	called to parse a macro definition's contents, until .endmacro
@@ -1099,6 +1153,59 @@ static tnode_t *avrasm_parser_parsefunctiondef (lexfile_t *lf)
 	return tree;
 }
 /*}}}*/
+/*{{{  static tnode_t *avrasm_parser_parsehllif (lexfile_t *lf, tnode_t *firstcond)*/
+/*
+ *	called to parse a high-level .if structure, until .endif
+ *	returns list of conditions / code on success, NULL on failure
+ */
+static tnode_t *avrasm_parser_parsehllif (lexfile_t *lf, tnode_t *firstcond)
+{
+	tnode_t *clist = parser_newlistnode (lf);
+	token_t *tok;
+	tnode_t **bodyp = NULL;
+	tnode_t *tmpnode;
+
+	if (compopts.verbose) {
+		nocc_message ("avrasm_parser_parsehllif(): starting parse..");
+	}
+
+	/* start making first condition */
+	tmpnode = tnode_createfrom (avrasm.tag_HLLCOND, firstcond, firstcond, parser_newlistnode (NULL));
+	bodyp = tnode_nthsubaddr (tmpnode, 1);
+	parser_addtolist (clist, tmpnode);
+
+	for (;;) {
+		tok = lexer_nexttoken (lf);
+		while ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
+			lexer_freetoken (tok);
+			tok = lexer_nexttoken (lf);
+		}
+		if ((tok->type == END) || (tok->type == NOTOKEN)) {
+			parser_error (lf, "unexpected end-of-file when reading .if structure");
+			tnode_free (clist);
+			return NULL;
+		}
+		if (lexer_tokmatch (avrasm.tok_DOT, tok)) {
+			token_t *nexttok = lexer_nexttoken (lf);
+
+			if (nexttok && lexer_tokmatchlitstr (nexttok, "endif")) {
+				/* end-of-if */
+				lexer_freetoken (tok);
+				lexer_freetoken (nexttok);
+
+				break;			/* for() */
+			} else {
+				lexer_pushback (lf, nexttok);
+			}
+		}
+		lexer_pushback (lf, tok);
+
+
+	}
+
+	return clist;
+}
+/*}}}*/
 /*{{{  static tnode_t *avrasm_parser_parse (lexfile_t *lf)*/
 /*
  *	called to parse a file (containing AVR assembler)
@@ -1160,33 +1267,10 @@ static tnode_t *avrasm_parser_parse (lexfile_t *lf)
 		}
 		lexer_pushback (lf, tok);
 
-		thisone = dfa_walk ("avrasm:codeline", 0, lf);
+		thisone = avrasm_parse_codelineorspecial (lf);
+		// thisone = dfa_walk ("avrasm:codeline", 0, lf);
 		if (!thisone) {
 			break;		/* for() */
-		}
-		if (thisone->tag == avrasm.tag_MACRODEF) {
-			/*{{{  slightly special case, parse input until .endmacro*/
-			tnode_t *contents;
-
-#if 0
-fprintf (stderr, "avrasm_parser_parse(): sub-parse for macrodef, got:\n");
-tnode_dumptree (thisone, 1, stderr);
-#endif
-			contents = avrasm_parser_parsemacrodef (lf);
-			if (!contents) {
-				parser_error (lf, "bad or empty macro definition");
-			}
-			tnode_setnthsub (thisone, 2, contents);
-
-			/*}}}*/
-		} else if (thisone->tag == avrasm.tag_FCNDEF) {
-			/*{{{  another slightly special case, parse input until .endfunction*/
-			tnode_t *contents;
-
-			contents = avrasm_parser_parsefunctiondef (lf);
-			tnode_setnthsub (thisone, 2, contents);
-
-			/*}}}*/
 		}
 
 		/* add to program */

@@ -155,6 +155,9 @@ typedef struct {
 	struct TAG_ntdef *tag_EXPGT;
 	struct TAG_ntdef *tag_EXPLE;
 	struct TAG_ntdef *tag_EXPGE;
+
+	struct TAG_ntdef *tag_HLLIF;
+	struct TAG_ntdef *tag_HLLCOND;
 } avrasm_pset_t;
 
 extern avrasm_pset_t avrasm;

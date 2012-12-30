@@ -1042,6 +1042,26 @@ static int avrasm_hll_init_nodes (void)
 	avrasm.tag_EXPEQ = tnode_newnodetag ("AVRASMEXPEQ", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  avrasm:hllifnode -- HLLIF*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:hllifnode", &i, 1, 0, 0, TNF_NONE);		/* subnodes: 0 = list of HLLCONDs */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	avrasm.tag_HLLIF = tnode_newnodetag ("AVRASMHLLIF", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  avrasm:hllcondnode -- HLLCOND*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:hllcondnode", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = expression (or null if "else"); 1 = code */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	avrasm.tag_HLLCOND = tnode_newnodetag ("AVRASMHLLCOND", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 
 	/*{{{  interfere with avrasm:insnode in hllsimplify pass*/
 	tnd = tnode_lookupnodetype ("avrasm:insnode");
