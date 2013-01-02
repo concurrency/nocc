@@ -29,6 +29,7 @@
 .SYMBOL ">>"
 .SYMBOL "?"
 .SYMBOL ":"
+.SYMBOL "=="
 
 .KEYWORD "r0"
 .KEYWORD "r1"
@@ -210,6 +211,11 @@
 .KEYWORD "dstore"
 .KEYWORD "signed"
 .KEYWORD "unsigned"
+.KEYWORD "if"
+.KEYWORD "else"
+.KEYWORD "elsif"
+.KEYWORD "endif"
+.KEYWORD "using"
 
 .GRULE	"avrasm:nullreduce" "N+R-"
 .GRULE	"avrasm:nullpush" "0N-"
@@ -486,7 +492,7 @@
 .GRULE	"avrasm:signedpush" "C[AVRASMSIGNED]0N-"
 .GRULE	"avrasm:unsignedpush" "C[AVRASMUNSIGNED]0N-"
 
-.GRULE	"avrasm:expeqreduce" "SN0N+0N+C[AVRASMEXPEQ]3R-"
+.GRULE	"avrasm:expeqreduce" "SN0N+N+V0C[AVRASMEXPEQ]3R-"
 
 .GRULE	"avrasm:hllifreduce" "SN0N+C[AVRASMHLLIF]1R-"
 
@@ -503,7 +509,7 @@
 .TABLE	"avrasm:pexpr ::= [ 0 avrasm:regorname 1 ] [ 1 @@: 2 ] [ 2 avrasm:regorname 3 ] [ 3 {<avrasm:regpairreduce>} -* ]"
 				"[ 1 -* 4 ] [ 4 {<avrasm:nullreduce>} -* ]"
 
-.TABLE	"avrasm:fcnparam ::= [ 0 @signed 1 ] [ 0 @unsigned 2 ] [ 0 -* 3 ] [ 1 {<avrasm:signedpush>} -* 4 ] [ 2 {<avrasm:unsignedpush>} -* 4 ]"
+.TABLE	"avrasm:fcnparam ::= [ 0 @signed 1 ] [ 0 @unsigned 2 ] [ 0 -Name 3 ] [ 1 {<avrasm:signedpush>} -* 4 ] [ 2 {<avrasm:unsignedpush>} -* 4 ]"
 				"[ 3 {<avrasm:nullpush>} -* 4 ] [ 4 avrasm:name 5 ] [ 5 @@= 6 ] [ 6 avrasm:pexpr 7 ] [ 7 {<avrasm:fcnparamreduce>} -* ]"
 
 .BNF	"avrasm:fcnparamlist ::= { avrasm:fcnparam @@, 0 }"

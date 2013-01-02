@@ -40,6 +40,7 @@
 #include "support.h"
 #include "origin.h"
 #include "opts.h"
+#include "fhandle.h"
 #include "fcnlib.h"
 #include "crypto.h"
 #include "keywords.h"
@@ -335,6 +336,9 @@ static int nocc_shutdownrun (void)
 		v++;
 	}
 	if (symbols_shutdown ()) {
+		v++;
+	}
+	if (fhandle_shutdown ()) {
 		v++;
 	}
 	if (origin_shutdown ()) {
@@ -2737,6 +2741,7 @@ int main (int argc, char **argv)
 	origin_init ();
 	opts_init ();
 	fcnlib_init ();
+	fhandle_init ();
 	keywords_init ();
 	transinstr_init ();
 	xml_init ();

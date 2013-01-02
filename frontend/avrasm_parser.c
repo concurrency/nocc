@@ -1142,7 +1142,7 @@ static tnode_t *avrasm_parser_parsefunctiondef (lexfile_t *lf)
 		}
 		lexer_pushback (lf, tok);
 
-		thisone = dfa_walk ("avrasm:codeline", 0, lf);
+		thisone = avrasm_parse_codelineorspecial (lf);
 		if (!thisone) {
 			break;			/* for() */
 		}
@@ -1175,6 +1175,8 @@ static tnode_t *avrasm_parser_parsehllif (lexfile_t *lf, tnode_t *firstcond)
 	parser_addtolist (clist, tmpnode);
 
 	for (;;) {
+		int doparse = 0;
+
 		tok = lexer_nexttoken (lf);
 		while ((tok->type == NEWLINE) || (tok->type == COMMENT)) {
 			lexer_freetoken (tok);
@@ -1194,13 +1196,55 @@ static tnode_t *avrasm_parser_parsehllif (lexfile_t *lf, tnode_t *firstcond)
 				lexer_freetoken (nexttok);
 
 				break;			/* for() */
+			} else if (nexttok && lexer_tokmatchlitstr (nexttok, "else")) {
+				/* else */
+				lexer_freetoken (tok);
+				lexer_freetoken (nexttok);
+
+				tmpnode = tnode_create (avrasm.tag_HLLCOND, lf, NULL, parser_newlistnode (NULL));
+				bodyp = tnode_nthsubaddr (tmpnode, 1);
+				parser_addtolist (clist, tmpnode);
+
+				/* read next token to push back in a moment */
+				tok = lexer_nexttoken (lf);
+			} else if (nexttok && lexer_tokmatchlitstr (nexttok, "elsif")) {
+				tnode_t *nextcond;
+
+				/* else-if */
+				lexer_freetoken (tok);
+				lexer_freetoken (nexttok);
+
+				/* expecting a condition for the next thing */
+				nextcond = dfa_walk ("avrasm:hllexpr", 0, lf);
+				if (!nextcond) {
+					break;		/* for() */
+				}
+
+				tmpnode = tnode_createfrom (avrasm.tag_HLLCOND, nextcond, nextcond, parser_newlistnode (NULL));
+				bodyp = tnode_nthsubaddr (tmpnode, 1);
+				parser_addtolist (clist, tmpnode);
+
+				/* read next token to push back in a moment */
+				tok = lexer_nexttoken (lf);
 			} else {
+				doparse = 1;
 				lexer_pushback (lf, nexttok);
 			}
+		} else {
+			doparse = 1;
 		}
+
 		lexer_pushback (lf, tok);
 
-
+		if (doparse) {
+			tnode_t *thisone;
+			
+			thisone = avrasm_parse_codelineorspecial (lf);
+			if (!thisone) {
+				break;			/* for() */
+			}
+			parser_addtolist (*bodyp, thisone);
+		}
 	}
 
 	return clist;

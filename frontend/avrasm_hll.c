@@ -908,6 +908,36 @@ static int avrasm_hllsimplify_insnode (compops_t *cops, tnode_t **tptr, hllsimpl
 	return 0;
 }
 /*}}}*/
+/*{{{  static int avrasm_hlltypecheck_hllexpnode (compops_t *cops, tnode_t **tptr, hlltypecheck_t *hltc)*/
+/*
+ *	called to do high-level type checking on expression nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_hlltypecheck_hllexpnode (compops_t *cops, tnode_t **tptr, hlltypecheck_t *hltc)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int avrasm_hlltypecheck_hllifnode (compops_t *cops, tnode_t **tptr, hlltypecheck_t *hltc)*/
+/*
+ *	called to do high-level type checking on structured 'if' nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_hlltypecheck_hllifnode (compops_t *cops, tnode_t **tptr, hlltypecheck_t *hltc)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int avrasm_hlltypecheck_hllcondnode (compops_t *cops, tnode_t **tptr, hlltypecheck_t *hltc)*/
+/*
+ *	called to do high-level type checking on conditional nodes
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_hlltypecheck_hllcondnode (compops_t *cops, tnode_t **tptr, hlltypecheck_t *hltc)
+{
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static int avrasm_hll_init_nodes (void)*/
@@ -1031,6 +1061,7 @@ static int avrasm_hll_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:hllexpnode", &i, 3, 0, 0, TNF_NONE);		/* subnodes: 0 = left, 1 = right, 2 = type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "hlltypecheck", 2, COMPOPTYPE (avrasm_hlltypecheck_hllexpnode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -1046,6 +1077,7 @@ static int avrasm_hll_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:hllifnode", &i, 1, 0, 0, TNF_NONE);		/* subnodes: 0 = list of HLLCONDs */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "hlltypecheck", 2, COMPOPTYPE (avrasm_hlltypecheck_hllifnode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -1056,6 +1088,7 @@ static int avrasm_hll_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:hllcondnode", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = expression (or null if "else"); 1 = code */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "hlltypecheck", 2, COMPOPTYPE (avrasm_hlltypecheck_hllcondnode));
 	tnd->ops = cops;
 
 	i = -1;
