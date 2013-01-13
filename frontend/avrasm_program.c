@@ -213,6 +213,7 @@ static avrtarget_t avrasm_ttable[] = {
 
 
 static chook_t *label_chook = NULL;
+static int templabel_counter = 0;
 
 
 /*}}}*/
@@ -771,6 +772,32 @@ tnode_t *avrasm_newxyzreginfo (tnode_t *orgnode, int reg, int prepost, int offs)
 
 	node = tnode_createfrom (avrasm.tag_XYZREG, orgnode, xyzh);
 	return node;
+}
+/*}}}*/
+
+/*{{{  name_t *avrasm_newtemplabel (tnode_t *orgnode, tnode_t **labdecl, tnode_t **labname)*/
+/*
+ *	creates a new temporary label (GLABEL) and returns it; creates declaration node regardless.
+ */
+name_t *avrasm_newtemplabel (tnode_t *orgnode, tnode_t **labdecl, tnode_t **labname)
+{
+	char *tmpname = string_fmt ("TL%d", templabel_counter);
+	name_t *lname;
+	tnode_t *name = tnode_createfrom (avrasm.tag_GLABEL, orgnode, NULL);
+	tnode_t *decl = tnode_createfrom (avrasm.tag_GLABELDEF, orgnode, name);
+
+	templabel_counter++;
+	lname = name_addname (tmpname, decl, NULL, name);
+	tnode_setnthname (name, 0, lname);
+
+	if (labdecl) {
+		*labdecl = decl;
+	}
+	if (labname) {
+		*labname = name;
+	}
+
+	return lname;
 }
 /*}}}*/
 

@@ -729,6 +729,9 @@ static int hllsimplify_cpass (tnode_t **treeptr)
 	hls->errcount = 0;
 	hls->list_cxt = NULL;
 	hls->list_itm = 0;
+	hls->eoif_label = NULL;
+	hls->eocond_label = NULL;
+	hls->expr_target = NULL;
 	avrasm_hllsimplify_subtree (treeptr, hls);
 	r = hls->errcount;
 	sfree (hls);

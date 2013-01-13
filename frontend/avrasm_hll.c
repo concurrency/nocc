@@ -851,6 +851,21 @@ static int avrasm_hllsimplify_hllnamenode (compops_t *cops, tnode_t **tptr, hlls
 	return 0;
 }
 /*}}}*/
+/*{{{  static tnode_t *avrasm_gettype_hllnamenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a high-level name
+ */
+static tnode_t *avrasm_gettype_hllnamenode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	name_t *name = tnode_nthnameof (node, 0);
+	tnode_t *type = NameTypeOf (name);
+
+	if (!type) {
+		return default_type;
+	}
+	return type;
+}
+/*}}}*/
 /*{{{  static int avrasm_hllsimplify_insnode (compops_t *cops, tnode_t **tptr, hllsimplify_t *hls)*/
 /*
  *	does simplifications on a regular instruction node, flattening out certain things (done fairly blindly!)
@@ -908,6 +923,15 @@ static int avrasm_hllsimplify_insnode (compops_t *cops, tnode_t **tptr, hllsimpl
 	return 0;
 }
 /*}}}*/
+/*{{{  static tnode_t *avrasm_gettype_hllleafnode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	called to get the type of a high-level leaf node
+ */
+static tnode_t *avrasm_gettype_hllleafnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	return node;
+}
+/*}}}*/
 /*{{{  static int avrasm_hlltypecheck_hllexpnode (compops_t *cops, tnode_t **tptr, hlltypecheck_t *hltc)*/
 /*
  *	called to do high-level type checking on expression nodes
@@ -915,7 +939,139 @@ static int avrasm_hllsimplify_insnode (compops_t *cops, tnode_t **tptr, hllsimpl
  */
 static int avrasm_hlltypecheck_hllexpnode (compops_t *cops, tnode_t **tptr, hlltypecheck_t *hltc)
 {
-	return 1;
+	tnode_t **typep = tnode_nthsubaddr (*tptr, 2);
+	tnode_t **lhsp = tnode_nthsubaddr (*tptr, 0);
+	tnode_t **rhsp = tnode_nthsubaddr (*tptr, 1);
+	tnode_t *lhstype, *rhstype;
+	ntdef_t *ttag;
+
+	if (*typep) {
+		/* already got a type */
+		return 0;
+	}
+	/* sub type-check left and right arguments */
+	avrasm_hlltypecheck_subtree (lhsp, hltc);
+	avrasm_hlltypecheck_subtree (rhsp, hltc);
+
+	lhstype = typecheck_gettype (*lhsp, NULL);
+	if (!lhstype) {
+		/* see if we can get a type from the RHS */
+		rhstype = typecheck_gettype (*rhsp, NULL);
+
+		if (!rhstype) {
+			tnode_error (*tptr, "failed to determine type of expression [%s]", (*tptr)->tag->name);
+			hltc->errcount++;
+			return 0;
+		}
+
+		lhstype = typecheck_gettype (*lhsp, rhstype);
+		if (!lhstype) {
+			tnode_error (*tptr, "failed to resolve type for expression [%s]", (*lhsp)->tag->name);
+			hltc->errcount++;
+			return 0;
+		}
+	} else {
+		rhstype = typecheck_gettype (*rhsp, lhstype);
+
+		if (!rhstype) {
+			tnode_error (*tptr, "failed to resolve type for expression [%s]", (*rhsp)->tag->name);
+			hltc->errcount++;
+			return 0;
+		}
+	}
+
+	/* requirements depend on particular expression operation */
+	ttag = (*tptr)->tag;
+	if ((ttag == avrasm.tag_EXPADD) || (ttag == avrasm.tag_EXPSUB) ||
+			(ttag == avrasm.tag_EXPMUL) || (ttag == avrasm.tag_EXPDIV) || (ttag == avrasm.tag_EXPREM) ||
+			(ttag == avrasm.tag_EXPBITOR) || (ttag == avrasm.tag_EXPBITXOR) || (ttag == avrasm.tag_EXPBITAND)) {
+		if (lhstype->tag == rhstype->tag) {
+			/* same type :) */
+			*typep = tnode_copytree (lhstype);
+		} else {
+			tnode_error (*tptr, "incompatible types for expression [%s]", ttag->name);
+			hltc->errcount++;
+			return 0;
+		}
+	} else if ((ttag == avrasm.tag_EXPEQ) || (ttag == avrasm.tag_EXPNEQ) ||
+			(ttag == avrasm.tag_EXPLT) || (ttag == avrasm.tag_EXPGT) ||
+			(ttag == avrasm.tag_EXPLE) || (ttag == avrasm.tag_EXPGE)) {
+		/* boolean operation, types must match and CC results */
+		if (lhstype->tag == rhstype->tag) {
+			*typep = tnode_copytree (lhstype);			/* leave as operation type -- CC is obvious */
+			// *typep = tnode_createfrom (avrasm.tag_CC, *tptr);
+		} else {
+			tnode_error (*tptr, "incompatible types for expression [%s]", ttag->name);
+			hltc->errcount++;
+			return 0;
+		}
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int avrasm_hllsimplify_hllexpnode (compops_t *cops, tnode_t **tptr, hllsimplify_t *hls)*/
+/*
+ *	called to do simplifications on an expression node -- expands out
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_hllsimplify_hllexpnode (compops_t *cops, tnode_t **tptr, hllsimplify_t *hls)
+{
+	ntdef_t *ttag;
+	tnode_t *ilist = parser_newlistnode ((*tptr)->org_file);
+	tnode_t *type;
+
+	ilist->org_line = (*tptr)->org_line;
+	ttag = (*tptr)->tag;
+
+	avrasm_hllsimplify_subtree (tnode_nthsubaddr (*tptr, 0), hls);
+	avrasm_hllsimplify_subtree (tnode_nthsubaddr (*tptr, 1), hls);
+
+	type = tnode_nthsubof (*tptr, 2);
+#if 0
+fprintf (stderr, "avrasm_hllsimplify_hllexpnode(): eocond_label=%p, expr_target=%p, *tptr=\n", hls->eocond_label, hls->expr_target);
+tnode_dumptree (*tptr, 1, stderr);
+#endif
+	if ((ttag == avrasm.tag_EXPEQ) || (ttag == avrasm.tag_EXPNEQ) || (ttag == avrasm.tag_EXPLT) || (ttag == avrasm.tag_EXPGT) ||
+			(ttag == avrasm.tag_EXPLE) || (ttag == avrasm.tag_EXPGE)) {
+		int invjump = INS_INVALID;
+
+		if (ttag == avrasm.tag_EXPEQ) {
+			invjump = INS_BRNE;
+		} else if (ttag == avrasm.tag_EXPNEQ) {
+			invjump = INS_BREQ;
+		} else if (ttag == avrasm.tag_EXPLT) {
+			invjump = INS_BRGE;
+		}
+		/* assume left+right are registers */
+		parser_addtolist (ilist, tnode_createfrom (avrasm.tag_INSTR, *tptr, avrasm_newlitins (*tptr, INS_CP),
+				tnode_nthsubof (*tptr, 0), tnode_nthsubof (*tptr, 1), NULL));
+		if (hls->eocond_label) {
+			parser_addtolist (ilist, tnode_createfrom (avrasm.tag_INSTR, *tptr, avrasm_newlitins (*tptr, INS_BRNE),
+					tnode_copytree (hls->eocond_label), NULL, NULL));
+		} else {
+			/* FIXME ... */
+		}
+	}
+
+	*tptr = ilist;
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *avrasm_gettype_hllexpnode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a high-level expression node
+ *	returns type on success, NULL on failure
+ */
+static tnode_t *avrasm_gettype_hllexpnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	tnode_t *type = tnode_nthsubof (node, 2);
+
+	if (!type) {
+		return default_type;
+	}
+	return type;
 }
 /*}}}*/
 /*{{{  static int avrasm_hlltypecheck_hllifnode (compops_t *cops, tnode_t **tptr, hlltypecheck_t *hltc)*/
@@ -925,7 +1081,63 @@ static int avrasm_hlltypecheck_hllexpnode (compops_t *cops, tnode_t **tptr, hllt
  */
 static int avrasm_hlltypecheck_hllifnode (compops_t *cops, tnode_t **tptr, hlltypecheck_t *hltc)
 {
+	tnode_t *clist = tnode_nthsubof (*tptr, 0);
+	tnode_t **items;
+	int nitems, i;
+
+	if (!parser_islistnode (clist)) {
+		tnode_error (*tptr, "deformed condition list, got [%s]", clist->tag->name);
+		hltc->errcount++;
+		return 0;
+	}
+	/* check each condition is a HLLCONDNODE */
+	items = parser_getlistitems (clist, &nitems);
+	for (i=0; i<nitems; i++) {
+		if (items[i]->tag != avrasm.tag_HLLCOND) {
+			tnode_error (items[i], "item in \'if\' is not a condition, got [%s]", items[i]->tag->name);
+			hltc->errcount++;
+			return 0;
+		}
+	}
+
 	return 1;
+}
+/*}}}*/
+/*{{{  static int avrasm_hllsimplify_hllifnode (compops_t *cops, tnode_t **tptr, hllsimplify_t *hls)*/
+/*
+ *	called to simplify an 'if' node (flattens into local things)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_hllsimplify_hllifnode (compops_t *cops, tnode_t **tptr, hllsimplify_t *hls)
+{
+	tnode_t *clist = tnode_nthsubof (*tptr, 0);
+	tnode_t **items;
+	int nitems, i;
+	tnode_t *ilist = parser_newlistnode (clist->org_file);
+	tnode_t *eoif_decl = NULL;
+	tnode_t *eoif_lab = NULL;
+	tnode_t *hls_eoif_label = hls->eoif_label;
+
+	ilist->org_line = clist->org_line;
+	avrasm_newtemplabel (*tptr, &eoif_decl, &eoif_lab);
+	hls->eoif_label = eoif_lab;
+
+	items = parser_getlistitems (clist, &nitems);
+	for (i=0; i<nitems; i++) {
+		/* call simplify on conditional */
+		avrasm_hllsimplify_subtree (&(items[i]), hls);
+
+		parser_addtolist (ilist, items[i]);
+		items[i] = NULL;
+	}
+
+	parser_addtolist (ilist, eoif_decl);
+	tnode_free (*tptr);
+	*tptr = ilist;
+
+	hls->eoif_label = hls_eoif_label;
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int avrasm_hlltypecheck_hllcondnode (compops_t *cops, tnode_t **tptr, hlltypecheck_t *hltc)*/
@@ -935,7 +1147,91 @@ static int avrasm_hlltypecheck_hllifnode (compops_t *cops, tnode_t **tptr, hllty
  */
 static int avrasm_hlltypecheck_hllcondnode (compops_t *cops, tnode_t **tptr, hlltypecheck_t *hltc)
 {
+	tnode_t **exprp = tnode_nthsubaddr (*tptr, 0);
+	tnode_t *etype = NULL;
+	tnode_t *dfltype = tnode_create (avrasm.tag_CC, NULL);
+
+	if (!*exprp) {
+		/* must be "else" case */
+		return 1;
+	}
+	avrasm_hlltypecheck_subtree (exprp, hltc);
+
+	etype = typecheck_gettype (*exprp, dfltype);
+
+#if 0
+	if (etype->tag != avrasm.tag_CC) {
+		tnode_error (*tptr, "invalid type for condition, got [%s]", etype->tag->name);
+		hltc->errcount++;
+		return 0;
+	}
+#endif
+#if 0
+fprintf (stderr, "avrasm_hlltypecheck_hllcondnode(): etype is:\n");
+tnode_dumptree (etype, 1, stderr);
+#endif
+	
+	tnode_free (dfltype);
+
 	return 1;
+}
+/*}}}*/
+/*{{{  static int avrasm_hllsimplify_hllcondnode (compops_t *cops, tnode_t **tptr, hllsimplify_t *hls)*/
+/*
+ *	called to simplify a conditional node (flatten out)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_hllsimplify_hllcondnode (compops_t *cops, tnode_t **tptr, hllsimplify_t *hls)
+{
+	tnode_t *expr = tnode_nthsubof (*tptr, 0);
+	tnode_t *ilist;
+
+	if (!hls->eoif_label) {
+		tnode_error (*tptr, "here");
+		nocc_internal ("avrasm_hllsimplify_hllcondnode(): outside 'if' context!");
+		return 0;
+	}
+
+	ilist = parser_newlistnode ((*tptr)->org_file);
+
+	if (!expr) {
+		/* empty expression -- must be 'else' case */
+		tnode_t **bodyp = tnode_nthsubaddr (*tptr, 1);
+
+		avrasm_hllsimplify_subtree (bodyp, hls);
+
+		parser_addtolist (ilist, *bodyp);
+		*bodyp = NULL;
+	} else {
+		tnode_t **exprp = tnode_nthsubaddr (*tptr, 0);
+		tnode_t **bodyp = tnode_nthsubaddr (*tptr, 1);
+		tnode_t *eocond_decl = NULL;
+		tnode_t *eocond_lab = NULL;
+		tnode_t *hls_eocond_label = hls->eocond_label;
+
+		avrasm_newtemplabel (*tptr, &eocond_decl, &eocond_lab);
+		hls->eocond_label = eocond_lab;
+
+		/* simplify expression -- will drop code to branch if *not* true */
+		avrasm_hllsimplify_subtree (exprp, hls);
+
+		parser_addtolist (ilist, *exprp);
+		*exprp = NULL;
+		hls->eocond_label = hls_eocond_label;
+
+		/* then this body */
+		avrasm_hllsimplify_subtree (bodyp, hls);
+		parser_addtolist (ilist, *bodyp);
+		*bodyp = NULL;
+
+		/* then end-of-condition */
+		parser_addtolist (ilist, eocond_decl);
+	}
+
+	tnode_free (*tptr);
+	*tptr = ilist;
+
+	return 0;
 }
 /*}}}*/
 
@@ -1028,6 +1324,9 @@ static int avrasm_hll_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "hllsimplify", 2, COMPOPTYPE (avrasm_hllsimplify_hllnamenode));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (avrasm_gettype_hllnamenode));
+	tnd->lops = lops;
 
 	i = -1;
 	avrasm.tag_FCNNAME = tnode_newnodetag ("AVRASMFCNNAME", &i, tnd, NTF_NONE);
@@ -1037,12 +1336,17 @@ static int avrasm_hll_init_nodes (void)
 	avrasm.tag_LETNAME = tnode_newnodetag ("AVRASMLETNAME", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  avrasm:hllleafnode -- INT8, UINT8, INT16, UINT16, SIGNED, UNSIGNED*/
+	/*{{{  avrasm:hllleafnode -- CC, INT8, UINT8, INT16, UINT16, SIGNED, UNSIGNED*/
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:hllleafnode", &i, 0, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (avrasm_gettype_hllleafnode));
+	tnd->lops = lops;
 
+	i = -1;
+	avrasm.tag_CC = tnode_newnodetag ("AVRASMCC", &i, tnd, NTF_NONE);
 	i = -1;
 	avrasm.tag_INT8 = tnode_newnodetag ("AVRASMINT8", &i, tnd, NTF_NONE);
 	i = -1;
@@ -1062,7 +1366,11 @@ static int avrasm_hll_init_nodes (void)
 	tnd = tnode_newnodetype ("avrasm:hllexpnode", &i, 3, 0, 0, TNF_NONE);		/* subnodes: 0 = left, 1 = right, 2 = type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "hlltypecheck", 2, COMPOPTYPE (avrasm_hlltypecheck_hllexpnode));
+	tnode_setcompop (cops, "hllsimplify", 2, COMPOPTYPE (avrasm_hllsimplify_hllexpnode));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (avrasm_gettype_hllexpnode));
+	tnd->lops = lops;
 
 	i = -1;
 	avrasm.tag_EXPADD = tnode_newnodetag ("AVRASMEXPADD", &i, tnd, NTF_NONE);
@@ -1078,6 +1386,7 @@ static int avrasm_hll_init_nodes (void)
 	tnd = tnode_newnodetype ("avrasm:hllifnode", &i, 1, 0, 0, TNF_NONE);		/* subnodes: 0 = list of HLLCONDs */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "hlltypecheck", 2, COMPOPTYPE (avrasm_hlltypecheck_hllifnode));
+	tnode_setcompop (cops, "hllsimplify", 2, COMPOPTYPE (avrasm_hllsimplify_hllifnode));
 	tnd->ops = cops;
 
 	i = -1;
@@ -1089,6 +1398,7 @@ static int avrasm_hll_init_nodes (void)
 	tnd = tnode_newnodetype ("avrasm:hllcondnode", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = expression (or null if "else"); 1 = code */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "hlltypecheck", 2, COMPOPTYPE (avrasm_hlltypecheck_hllcondnode));
+	tnode_setcompop (cops, "hllsimplify", 2, COMPOPTYPE (avrasm_hllsimplify_hllcondnode));
 	tnd->ops = cops;
 
 	i = -1;

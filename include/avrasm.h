@@ -131,6 +131,7 @@ typedef struct {
 	struct TAG_ntdef *tag_DSTORE;
 	struct TAG_ntdef *tag_DLOAD;
 
+	struct TAG_ntdef *tag_CC;
 	struct TAG_ntdef *tag_INT8;
 	struct TAG_ntdef *tag_UINT8;
 	struct TAG_ntdef *tag_INT16;
@@ -178,6 +179,10 @@ typedef struct TAG_hllsimplify {
 	int errcount;
 	struct TAG_tnode *list_cxt;
 	int list_itm;
+
+	struct TAG_tnode *eoif_label;		/* end-of-if label (name) */
+	struct TAG_tnode *eocond_label;		/* end-of-condition label (name) */
+	struct TAG_tnode *expr_target;		/* expression target (register) */
 } hllsimplify_t;
 
 /* used to tag labels (compiler hook) */
@@ -210,6 +215,8 @@ extern int avrasm_getxyzreginfo (struct TAG_tnode *node, int *reg, int *prepost,
 extern struct TAG_tnode *avrasm_newxyzreginfo (struct TAG_tnode *orgnode, int reg, int prepost, int offs);
 extern struct TAG_tnode *avrasm_newlitins (struct TAG_tnode *orgnode, int ins);
 extern struct TAG_tnode *avrasm_newlitint (struct TAG_tnode *orgnode, int val);
+
+extern struct TAG_name *avrasm_newtemplabel (struct TAG_tnode *orgnode, struct TAG_tnode **labdecl, struct TAG_tnode **labname);
 
 struct TAG_langops;
 
