@@ -205,6 +205,7 @@ extern label_chook_t *avrasm_newlabelchook (void);
 extern void avrasm_freelabelchook (label_chook_t *lch);
 
 extern struct TAG_tnode *avrasm_llscope_fixref (struct TAG_tnode **tptr, int labid, int labdir, void *llsptr);
+extern int avrasm_ext_llscope_subtree (struct TAG_tnode **tptr, void *llsptr);
 
 /* in avrasm_program.c, where specific structures reside */
 extern int avrasm_getlitintval (struct TAG_tnode *node);

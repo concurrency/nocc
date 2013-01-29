@@ -642,6 +642,21 @@ tnode_t *avrasm_llscope_fixref (tnode_t **tptr, int labid, int labdir, void *lls
 	return *tptr;
 }
 /*}}}*/
+/*{{{  int avrasm_ext_llscope_subtree (tnode_t **tptr, void *llsptr)*/
+/*
+ *	called from elsewhere to process closed-scope local-labels (e.g. inside high-level function)
+ *	returns 0 on success, non-zero on failure
+ */
+int avrasm_ext_llscope_subtree (tnode_t **tptr, void *llsptr)
+{
+	llscope_t *lls = (llscope_t *)llsptr;
+	int r;
+
+	r = avrasm_do_llscope (tptr, lls);
+
+	return r;
+}
+/*}}}*/
 
 /*{{{  static int subequ_cpass (tnode_t **treeptr)*/
 /*

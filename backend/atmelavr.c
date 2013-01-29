@@ -565,6 +565,11 @@ static int insarg_to_constval (atmelavr_image_t *img, tnode_t **argp, tnode_t *i
 
 	val = constprop_intvalof (arg);
 
+	/* if range is unsigned, consider only unsigned version if -ve */
+	if ((min == 0) && (max >= min) && (val < 0)) {
+		/* Note: requires that 'max+1' is a power of 2.. */
+		val = (val & max);
+	}
 	if ((val < min) || (val > max)) {
 		codegen_node_error (cgen, arg, "value %d out of range for instruction (expected [%d - %d])", val, min, max);
 		return min;

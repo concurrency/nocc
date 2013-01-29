@@ -29,6 +29,7 @@
 .SYMBOL ">>"
 .SYMBOL "?"
 .SYMBOL ":"
+.SYMBOL "~"
 .SYMBOL "=="
 
 .KEYWORD "r0"
@@ -280,6 +281,8 @@
 .GRULE	"avrasm:foldshr" "ST0T+@tR+N+C[AVRASMSHR]2R-"
 .GRULE	"avrasm:foldcond" "R+Sn0N+N+VC[AVRASMCOND]3R-"
 
+.GRULE	"avrasm:bitnotreduce" "SN0N+C[AVRASMBITNOT]1R-"
+
 .GRULE	"avrasm:hireduce" "SN0N+C[AVRASMHI]1R-"
 .GRULE	"avrasm:loreduce" "SN0N+C[AVRASMLO]1R-"
 
@@ -315,6 +318,7 @@
 # .TABLE	"avrasm:expr +:= [ 0 @@- 1 ] 
 .TABLE	"avrasm:expr +:= [ 0 +Special 1 ] [ 1 {Ruslabreduce} -* ]"
 .TABLE	"avrasm:expr +:= [ 0 @@( 1 ] [ 1 avrasm:expr 2 ] [ 2 @@) 3 ] [ 3 {<avrasm:nullreduce>} -* <avrasm:restofexpr> ]"
+.TABLE	"avrasm:expr +:= [ 0 @@~ 1 ] [ 1 avrasm:expr 2 ] [ 2 {<avrasm:bitnotreduce>} -* <avrasm:restofexpr> ]"
 
 # this consumes comments and newlines immediately before an expression (allows line-continuations in constant lists)
 .TABLE	"avrasm:leadingexpr ::= [ 0 Comment 0 ] [ 0 Newline 0 ] [ 0 -* <avrasm:expr> ]"

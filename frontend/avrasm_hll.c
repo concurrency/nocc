@@ -95,6 +95,17 @@ static int avrasm_scopein_fcndefnode (compops_t *cops, tnode_t **tptr, scope_t *
 	return 0;
 }
 /*}}}*/
+/*{{{  static int avrasm_llscope_fcndefnode (compops_t *cops, tnode_t **tptr, void *lls)*/
+/*
+ *	does local-label scoping for a function definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_llscope_fcndefnode (compops_t *cops, tnode_t **tptr, void *lls)
+{
+	avrasm_ext_llscope_subtree (tnode_nthsubaddr (*tptr, 2), lls);
+	return 0;
+}
+/*}}}*/
 /*{{{  static int avrasm_hlltypecheck_fcndefnode (compops_t *cops, tnode_t **tptr, hlltypecheck_t *hltc)*/
 /*
  *	does high-level type check for a function definition
@@ -1257,6 +1268,7 @@ static int avrasm_hll_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (avrasm_prescope_fcndefnode));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (avrasm_scopein_fcndefnode));
+	tnode_setcompop (cops, "llscope", 2, COMPOPTYPE (avrasm_llscope_fcndefnode));
 	tnode_setcompop (cops, "hlltypecheck", 2, COMPOPTYPE (avrasm_hlltypecheck_fcndefnode));
 	tnode_setcompop (cops, "hllsimplify", 2, COMPOPTYPE (avrasm_hllsimplify_fcndefnode));
 	tnd->ops = cops;
