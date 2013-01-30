@@ -2101,11 +2101,22 @@ fprintf (stderr, "atmelavr_do_assemble(): want to assemble [%s] into image (%d/%
 
 		/* anything else must be in a viable range! */
 		if (!imr) {
-			codegen_node_warning (cgen, items[i], "origin not specified for [%s], assuming 0", items[i]->tag->name);
+			int j, addr = 0;
+
+			/* look at image for greatest offset */
+			for (j=0; j<DA_CUR (img->ranges); j++) {
+				imgrange_t *timr = DA_NTHITEM (img->ranges, j);
+
+				if ((timr->start + timr->size) > addr) {
+					addr = (((timr->start + timr->size) + 1) & ~1);		/* round up */
+				}
+			}
+
+			// codegen_node_warning (cgen, items[i], "origin not specified for [%s], assuming 0", items[i]->tag->name);
 			imr = atmelavr_newimgrange ();
-			imr->start = 0;
+			imr->start = addr;
 			imr->size = 0;
-			genoffset = 0;
+			genoffset = addr;
 		}
 
 		if ((items[i]->tag == avrasm.tag_GLABELDEF) || (items[i]->tag == avrasm.tag_LLABELDEF)) {
