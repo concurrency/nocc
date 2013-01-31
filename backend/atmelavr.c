@@ -2031,6 +2031,10 @@ fprintf (stderr, "atmelavr_be_do_precode(): here!\n");
 		}
 	}
 
+	if (!apriv->mcu) {
+		codegen_warning (cgen, "No MCU specified, assuming ATMEGA328");
+		apriv->mcu = avrasm_findtargetbyname ("ATMEGA328");
+	}
 	if (apriv->mcu) {
 		codegen_write_fmt (cgen, "# using MCU \"%s\"\n", apriv->mcu->name);
 	}

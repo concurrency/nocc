@@ -43,6 +43,7 @@ typedef struct {
 	struct TAG_tndef *node_TERNODE;
 	struct TAG_tndef *node_DOPNODE;
 	struct TAG_tndef *node_MOPNODE;
+	struct TAG_tndef *node_NAMENODE;
 
 	struct TAG_token *tok_STRING;
 	struct TAG_token *tok_DOT;

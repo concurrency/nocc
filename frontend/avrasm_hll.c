@@ -917,8 +917,38 @@ static int avrasm_hllsimplify_insnode (compops_t *cops, tnode_t **tptr, hllsimpl
 			parser_addtolist (newlist, tnode_createfrom (avrasm.tag_INSTR, *tptr, avrasm_newlitins (*tptr, INS_POP),
 					tnode_copytree (tnode_nthsubof (*arg0p, 0)), NULL, NULL));
 			break;
+		case INS_LDI:
+			/* loading 16-bits of immediate data, high and low */
+			if (!(*arg1p)) {
+				tnode_error (*tptr, "avrasm_hllsimplify_insnode(): broken LDI instruction");
+				hls->errcount++;
+				return 0;
+			} else {
+				tnode_t *a1copy, *a2copy;
+
+				if ((*arg1p)->tag->ndef == avrasm.node_NAMENODE) {
+					a1copy = *arg1p;
+					a2copy = *arg1p;
+					*arg1p = NULL;
+				} else {
+					a1copy = tnode_copytree (*arg1p);
+					a2copy = tnode_copytree (*arg1p);
+				}
+
+				newlist = parser_newlistnode (NULL);
+				parser_addtolist (newlist, tnode_createfrom (avrasm.tag_INSTR, *tptr, avrasm_newlitins (*tptr, INS_LDI),
+						tnode_copytree (tnode_nthsubof (*arg0p, 0)),
+						tnode_createfrom (avrasm.tag_HI, *tptr, a1copy),
+						NULL));
+				parser_addtolist (newlist, tnode_createfrom (avrasm.tag_INSTR, *tptr, avrasm_newlitins (*tptr, INS_LDI),
+						tnode_copytree (tnode_nthsubof (*arg0p, 1)),
+						tnode_createfrom (avrasm.tag_LO, *tptr, a2copy),
+						NULL));
+			}
+			break;
 		default:
 			tnode_error (*tptr, "avrasm_hllsimplify_insnode(): unsupported instruction %d", inscode);
+			hls->errcount++;
 			return 0;
 		}
 	} else if (*arg0p && ((*arg0p)->tag == avrasm.tag_FCNNAME)) {
@@ -927,6 +957,12 @@ static int avrasm_hllsimplify_insnode (compops_t *cops, tnode_t **tptr, hllsimpl
 	}
 
 	if (newlist) {
+#if 0
+fprintf (stderr, "avrasm_hllsimplify_insnode(): replacing:\n");
+tnode_dumptree (*tptr, 1, stderr);
+fprintf (stderr, "with:\n");
+tnode_dumptree (newlist, 1, stderr);
+#endif
 		tnode_free (*tptr);
 		*tptr = newlist;
 	}

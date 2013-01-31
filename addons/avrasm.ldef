@@ -286,6 +286,8 @@
 .GRULE	"avrasm:hireduce" "SN0N+C[AVRASMHI]1R-"
 .GRULE	"avrasm:loreduce" "SN0N+C[AVRASMLO]1R-"
 
+.GRULE	"avrasm:foldregpair" "R+SN0N+C[AVRASMREGPAIR]2R-"
+
 .TABLE	"avrasm:name ::= [ 0 +Name 1 ] [ 1 {<avrasm:namereduce>} -* ]"
 
 .TABLE	"avrasm:restofexpr ::= [ 0 -* ] [ 0 +@@+ 1 ] [ 1 avrasm:expr 2 ] [ 2 {<avrasm:foldplus>} -* ]"
@@ -303,14 +305,14 @@
 
 .TABLE	"avrasm:expr ::= [ 0 +String 1 ] [ 0 +Integer 2 ] [ 1 {<avrasm:stringreduce>} -* <avrasm:restofexpr> ] [ 2 {<avrasm:integerreduce>} -* <avrasm:restofexpr> ]"
 .TABLE	"avrasm:expr +:= [ 0 -Name 1 ] [ 1 avrasm:name 2 ] [ 2 {<avrasm:nullreduce>} -* <avrasm:restofexpr> ]"
-.TABLE	"avrasm:expr +:= [ 0 +@r0 1 ] [ 0 +@r1 1 ] [ 0 +@r2 1 ] [ 0 +@r3 1 ] [ 1 {<avrasm:regreduce>} -* ]"
-.TABLE	"avrasm:expr +:= [ 0 +@r4 1 ] [ 0 +@r5 1 ] [ 0 +@r6 1 ] [ 0 +@r7 1 ] [ 1 {<avrasm:regreduce>} -* ]"
-.TABLE	"avrasm:expr +:= [ 0 +@r8 1 ] [ 0 +@r9 1 ] [ 0 +@r10 1 ] [ 0 +@r11 1 ] [ 1 {<avrasm:regreduce>} -* ]"
-.TABLE	"avrasm:expr +:= [ 0 +@r12 1 ] [ 0 +@r13 1 ] [ 0 +@r14 1 ] [ 0 +@r15 1 ] [ 1 {<avrasm:regreduce>} -* ]"
-.TABLE	"avrasm:expr +:= [ 0 +@r16 1 ] [ 0 +@r17 1 ] [ 0 +@r18 1 ] [ 0 +@r19 1 ] [ 1 {<avrasm:regreduce>} -* ]"
-.TABLE	"avrasm:expr +:= [ 0 +@r20 1 ] [ 0 +@r21 1 ] [ 0 +@r22 1 ] [ 0 +@r23 1 ] [ 1 {<avrasm:regreduce>} -* ]"
-.TABLE	"avrasm:expr +:= [ 0 +@r24 1 ] [ 0 +@r25 1 ] [ 0 +@r26 1 ] [ 0 +@r27 1 ] [ 1 {<avrasm:regreduce>} -* ]"
-.TABLE	"avrasm:expr +:= [ 0 +@r28 1 ] [ 0 +@r29 1 ] [ 0 +@r30 1 ] [ 0 +@r31 1 ] [ 1 {<avrasm:regreduce>} -* ]"
+.TABLE	"avrasm:expr +:= [ 0 +@r0 1 ] [ 0 +@r1 1 ] [ 0 +@r2 1 ] [ 0 +@r3 1 ] [ 1 {<avrasm:regreduce>} -* <avrasm:rregexpr> ]"
+.TABLE	"avrasm:expr +:= [ 0 +@r4 1 ] [ 0 +@r5 1 ] [ 0 +@r6 1 ] [ 0 +@r7 1 ] [ 1 {<avrasm:regreduce>} -* <avrasm:rregexpr> ]"
+.TABLE	"avrasm:expr +:= [ 0 +@r8 1 ] [ 0 +@r9 1 ] [ 0 +@r10 1 ] [ 0 +@r11 1 ] [ 1 {<avrasm:regreduce>} -* <avrasm:rregexpr> ]"
+.TABLE	"avrasm:expr +:= [ 0 +@r12 1 ] [ 0 +@r13 1 ] [ 0 +@r14 1 ] [ 0 +@r15 1 ] [ 1 {<avrasm:regreduce>} -* <avrasm:rregexpr> ]"
+.TABLE	"avrasm:expr +:= [ 0 +@r16 1 ] [ 0 +@r17 1 ] [ 0 +@r18 1 ] [ 0 +@r19 1 ] [ 1 {<avrasm:regreduce>} -* <avrasm:rregexpr> ]"
+.TABLE	"avrasm:expr +:= [ 0 +@r20 1 ] [ 0 +@r21 1 ] [ 0 +@r22 1 ] [ 0 +@r23 1 ] [ 1 {<avrasm:regreduce>} -* <avrasm:rregexpr> ]"
+.TABLE	"avrasm:expr +:= [ 0 +@r24 1 ] [ 0 +@r25 1 ] [ 0 +@r26 1 ] [ 0 +@r27 1 ] [ 1 {<avrasm:regreduce>} -* <avrasm:rregexpr> ]"
+.TABLE	"avrasm:expr +:= [ 0 +@r28 1 ] [ 0 +@r29 1 ] [ 0 +@r30 1 ] [ 0 +@r31 1 ] [ 1 {<avrasm:regreduce>} -* <avrasm:rregexpr> ]"
 # .TABLE	"avrasm:expr +:= [ 0 +@@- 1 ] [ 1 avrasm:expr 2 ] [ 2 {Ravrasm:mopreduce} -* ]"
 .TABLE	"avrasm:expr +:= [ 0 @hi 1 ] [ 1 @@( 2 ] [ 2 avrasm:expr 3 ] [ 3 @@) 4 ] [ 4 {<avrasm:hireduce>} -* ]"
 .TABLE	"avrasm:expr +:= [ 0 @lo 1 ] [ 1 @@( 2 ] [ 2 avrasm:expr 3 ] [ 3 @@) 4 ] [ 4 {<avrasm:loreduce>} -* ]"
@@ -319,6 +321,8 @@
 .TABLE	"avrasm:expr +:= [ 0 +Special 1 ] [ 1 {Ruslabreduce} -* ]"
 .TABLE	"avrasm:expr +:= [ 0 @@( 1 ] [ 1 avrasm:expr 2 ] [ 2 @@) 3 ] [ 3 {<avrasm:nullreduce>} -* <avrasm:restofexpr> ]"
 .TABLE	"avrasm:expr +:= [ 0 @@~ 1 ] [ 1 avrasm:expr 2 ] [ 2 {<avrasm:bitnotreduce>} -* <avrasm:restofexpr> ]"
+
+.TABLE	"avrasm:rregexpr ::= [ 0 @@: 1 ] [ 0 -* 3 ] [ 1 avrasm:expr 2 ] [ 2 {<avrasm:foldregpair>} -* 3 ] [ 3 -* ]"
 
 # this consumes comments and newlines immediately before an expression (allows line-continuations in constant lists)
 .TABLE	"avrasm:leadingexpr ::= [ 0 Comment 0 ] [ 0 Newline 0 ] [ 0 -* <avrasm:expr> ]"

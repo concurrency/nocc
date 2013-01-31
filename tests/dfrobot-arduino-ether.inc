@@ -2,26 +2,7 @@
 ;	dfrobot-arduino-ether.inc -- code to interface with the DFRobot ethernet shield (Wiznet W5100)
 ;
 
-
-.equ	SPI_BIT_SS	=2
-.equ	SPI_BIT_MOSI	=3
-.equ	SPI_BIT_MISO	=4
-.equ	SPI_BIT_SCK	=5
-
-.equ	SPCR_BIT_SPIE	=7
-.equ	SPCR_BIT_SPE	=6
-.equ	SPCR_BIT_DORD	=5
-.equ	SPCR_BIT_MSTR	=4
-.equ	SPCR_BIT_CPOL	=3
-.equ	SPCR_BIT_CPHA	=2
-.equ	SPCR_DIV4	=0x00
-.equ	SPCR_DIV16	=0x01
-.equ	SPCR_DIV64	=0x02
-.equ	SPCR_DIV128	=0x03
-
-.equ	SPSR_BIT_SPIF	=7
-.equ	SPSR_BIT_WCOL	=6
-.equ	SPSR_BIT_SPI2X	=0
+.include "atmega-spi.inc"
 
 .equ	W5100_MR	=0x0000
 .equ	W5100_GAR0	=0x0001
@@ -59,28 +40,6 @@
 .equ	W5100_UIPR3	=0x002d
 .equ	W5100_UPORT0	=0x002e
 .equ	W5100_UPORT1	=0x002f
-
-.macro dfr_setSS ()
-	cbi	PORTB, SPI_BIT_SS
-.endmacro
-
-.macro dfr_clearSS ()
-	sbi	PORTB, SPI_BIT_SS
-.endmacro
-
-.function dfr_init ()
-	push	r16
-	in	r16, DDRB
-	ori	r16, (1 << SPI_BIT_MOSI) | (1 << SPI_BIT_SCK) | (1 << SPI_BIT_SS)
-	andi	r16, ~(1 << SPI_BIT_MISO)
-	out	DDRB, r16
-	dfr_clearSS
-
-	ldi	r16, (1 << SPCR_BIT_SPE) | (1 << SPCR_BIT_MSTR) | SPCR_DIV16
-	out	SPCR, r16
-
-	pop	r16
-.endfunction
 
 
 .function dfr_spi_tx ()

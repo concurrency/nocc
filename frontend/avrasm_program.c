@@ -2253,6 +2253,7 @@ static int avrasm_program_init_nodes (void)
 	/*{{{  avrasm:namenode -- GLABEL, LLABEL, EQUNAME, MACRONAME, PARAMNAME*/
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:namenode", &i, 0, 1, 0, TNF_NONE);			/* namenodes: 0 = name */
+	avrasm.node_NAMENODE = tnd;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "subequ", 2, COMPOPTYPE (avrasm_subequ_namenode));
 	tnd->ops = cops;
