@@ -42,66 +42,49 @@
 .equ	W5100_UPORT1	=0x002f
 
 
-.function dfr_spi_tx ()
-	; transmits byte in r16 over the SPI bus, picked up returned byte and gives back in r16
-	push	r17
-	out	SPDR, r16
-.L0:
-	in	r17, SPSR
-	sbrs	r17, SPSR_BIT_SPIF
-	rjmp	0b				; loop until it's gone; FIXME: interrupts!
-
-	in	r16, SPDR
-	pop	r17
+.function dfr_ether_init ()
+	call	spi_init_master
+	ldi	r16, (1 << SPIMODE_BIT_TXRX)
+	call	spi_setmode
 .endfunction
 
 .function dfr_ether_read ()
 	; r27:r26 (X) = 16-bit address => r16
-	dfr_setSS
-.L0:
+	call	spi_reset_txbuf
+	call	spi_reset_rxbuf
 	ldi	r16, 0x0f
-	call	dfr_spi_tx
-	cpi	r16, 0x00
-	brne	0b				; resynch
+	call	spi_add_txbuf
 	mov	r16, r27
-	call	dfr_spi_tx
-	cpi	r16, 0x01
-	brne	0b				; resynch
+	call	spi_add_txbuf
 	mov	r16, r26
-	call	dfr_spi_tx
-	cpi	r16, 0x02
-	brne	0b				; resynch
-
+	call	spi_add_txbuf
 	ldi	r16, 0x00
-	call	dfr_spi_tx
+	call	spi_add_txbuf
 
-	dfr_clearSS
+	call	spi_start_tx
+	call	spi_waittx
+
+	call	spi_lastrx
 .endfunction
 
 .function dfr_ether_write ()
 	; r27:r26 (X) = 16-bit address, r16 = value
 	push	r17
 	mov	r17, r16
-	dfr_setSS
-.L0:
-	ldi	r16, 0xf0
-	call	dfr_spi_tx
-	cpi	r16, 0x00
-	brne	0b				; resynch
-	mov	r16, r27
-	call	dfr_spi_tx
-	cpi	r16, 0x01
-	brne	0b				; resynch
-	mov	r16, r26
-	call	dfr_spi_tx
-	cpi	r16, 0x02
-	brne	0b				; resynch
-	mov	r16, r17
-	call	dfr_spi_tx
-	cpi	r16, 0x03
-	brne	0b				; resynch
 
-	dfr_clearSS
+	call	spi_reset_txbuf
+	call	spi_reset_rxbuf
+	ldi	r16, 0xf0
+	call	spi_add_txbuf
+	mov	r16, r27
+	call	spi_add_txbuf
+	mov	r16, r26
+	call	spi_add_txbuf
+	mov	r16, r17
+	call	spi_add_txbuf
+
+	call	spi_start_tx
+	call	spi_waittx
 
 	pop	r17
 .endfunction

@@ -51,32 +51,27 @@ VEC_reset:
 	out	SPL, r16
 	sei
 
-	call	dfr_init
+	call	dfr_ether_init
 
 	call	delayloop
 
-	ldi	r27, hi(W5100_MR)
-	ldi	r26, lo(W5100_MR)
+	ldi	r27:r26, W5100_MR
 	ldi	r16, 0x80			; s/w reset
 	call	dfr_ether_write
 
 	call	delayloop
 	call	delayloop
 
-	ldi	r27, hi(W5100_GAR0)
-	ldi	r26, lo(W5100_GAR0)
+	ldi	r27:r26, W5100_GAR0
 	ldi	r16, 192
 	call	dfr_ether_write
-	ldi	r27, hi(W5100_GAR1)
-	ldi	r26, lo(W5100_GAR1)
+	ldi	r27:r26, W5100_GAR1
 	ldi	r16, 168
 	call	dfr_ether_write
-	ldi	r27, hi(W5100_GAR2)
-	ldi	r26, lo(W5100_GAR2)
+	ldi	r27:r26, W5100_GAR2
 	ldi	r16, 12
 	call	dfr_ether_write
-	ldi	r27, hi(W5100_GAR3)
-	ldi	r26, lo(W5100_GAR3)
+	ldi	r27:r26, W5100_GAR3
 	ldi	r16, 2
 	call	dfr_ether_write
 

@@ -134,8 +134,8 @@ VEC_spistc:				;{{{  interrupt handler for SPI/STC
 .L1:
 	; was this the last bit?
 	ldi	r29:r28, V_spi_txcount
-	ld	r16, Y+
-	ld	r17, Y
+	ld	r16, Y+			; r16 = txcount
+	ld	r17, Y			; r17 = txptr
 	inc	r17			; because we've transmitted this one
 	st	Y, r17
 	cp	r16, r17
@@ -160,6 +160,9 @@ VEC_spistc:				;{{{  interrupt handler for SPI/STC
 	ori	r16, (1 << SPIMODE_BIT_TXDONE)
 	st	X, r16
 
+	; clear SS
+	spi_clearSS
+
 .L9:
 	pop	r16
 	pop	r17
@@ -172,4 +175,158 @@ VEC_spistc:				;{{{  interrupt handler for SPI/STC
 	reti
 
 ;}}}
+.function spi_reset_txbuf ()		;{{{  clears the TX buffer
+	push	r16
+	push	r26
+	push	r27
+	ldi	r27:r26, V_spi_txcount
+	clr	r16
+	st	X+, r16			; clear txcount
+	st	X, r16			; clear txptr
+
+	pop	r27
+	pop	r26
+	pop	r16
+.endfunction
+
+
+;}}}
+.function spi_reset_rxbuf ()		;{{{  clears the RX buffer
+	push	r16
+	push	r26
+	push	r27
+	ldi	r27:r26, V_spi_rxcount
+	clr	r16
+	st	X, r16			; clear rxptr
+
+	pop	r27
+	pop	r26
+	pop	r16
+.endfunction
+
+
+;}}}
+.function spi_setmode ()		;{{{  sets local SPI mode (in r16, SPIMODE_...)
+	push	r26
+	push	r27
+	ldi	r27:r26, V_spi_mode
+	st	X, r16
+	pop	r27
+	pop	r26
+.endfunction
+
+
+;}}}
+.function spi_add_txbuf ()		;{{{  adds byte in r16 to TX buffer
+	push	r17
+	push	r18
+	push	r26
+	push	r27
+	ldi	r27:r26, V_spi_txcount
+	ld	r17, X
+	ldi	r27:r26, V_spi_txbuf
+	clr	r18
+	add	r26, r17
+	adc	r27, r18		; X = txbuf + txcount
+	st	X, r16			; txbuf[txcount] = r16
+
+	inc	r17
+	ldi	r27:r26, V_spi_txcount
+	st	X, r17			; txcount++
+
+	pop	r27
+	pop	r26
+	pop	r18
+	pop	r17
+.endfunction
+
+
+;}}}
+.function spi_start_tx ()		;{{{  start SPI transmit
+	push	r16
+	push	r17
+	push	r26
+	push	r27
+
+	ldi	r27:r26, V_spi_mode
+	ld	r16, X
+	ori	r16, (1 << SPIMODE_BIT_TX)
+	st	X, r16
+
+	; set SS
+	spi_setSS
+
+	ldi	r27:r26, V_spi_txptr
+	ld	r16, X
+	ldi	r27:r26, V_spi_txbuf
+	clr	r17
+	add	r26, r16
+	adc	r27, r17
+
+	ld	r16, X			; load first/next byte to transmit
+	out	SPDR, r16
+
+	pop	r27
+	pop	r26
+	pop	r17
+	pop	r16
+.endfunction
+
+
+;}}}
+.function spi_lastrx ()			;{{{  extract last received character
+	push	r27
+	push	r26
+	push	r18
+	push	r17
+
+	ldi	r27:r26, V_spi_rxcount
+	ld	r17, X
+	tst	r17
+	breq	0f			; branch if nothing in RX buffer
+
+	dec	r17
+	ldi	r27:r26, V_spi_rxbuf
+	clr	r18
+	add	r26, r17
+	adc	r27, r18
+	ld	r16, X			; r16 = rxbuf[rxcount-1]
+	rjmp	1f
+.L0:
+	ldi	r16, 0x00
+
+.L1:
+	pop	r17
+	pop	r18
+	pop	r26
+	pop	r27
+.endfunction
+
+
+;}}}
+
+.function spi_waittx ()			;{{{  wait for transmit to complete
+	push	r27
+	push	r26
+	push	r16
+
+.L0:
+	ldi	r27:r26, V_spi_mode
+	ld	r16, X
+	sbrc	r16, SPIMODE_BIT_TXDONE
+	rjmp	1f
+
+	sleep
+	rjmp	0b
+
+.L1:
+	pop	r16
+	pop	r26
+	pop	r27
+.endfunction
+
+
+;}}}
+
+
 
