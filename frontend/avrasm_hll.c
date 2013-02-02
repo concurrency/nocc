@@ -926,7 +926,7 @@ static int avrasm_hllsimplify_insnode (compops_t *cops, tnode_t **tptr, hllsimpl
 			} else {
 				tnode_t *a1copy, *a2copy;
 
-				if ((*arg1p)->tag->ndef == avrasm.node_NAMENODE) {
+				if (((*arg1p)->tag->ndef == avrasm.node_NAMENODE) || ((*arg1p)->tag->ndef == avrasm.node_HLLNAMENODE)) {
 					a1copy = *arg1p;
 					a2copy = *arg1p;
 					*arg1p = NULL;
@@ -1338,6 +1338,16 @@ static int avrasm_hll_init_nodes (void)
 	avrasm.tag_REGPAIR = tnode_newnodetag ("AVRASMREGPAIR", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  avrasm:setnode -- EXPRSET*/
+	i = -1;
+	tnd = tnode_newnodetype ("avrasm:setnode", &i, 1, 0, 0, TNF_NONE);		/* subnodes: 0 = list-of-items */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	avrasm.tag_EXPRSET = tnode_newnodetag ("AVRASMEXPRSET", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 	/*{{{  avrasm:letdefnode -- LETDEF*/
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:letdefnode", &i, 3, 0, 0, TNF_NONE);		/* subnodes: 0 = name, 1 = type, 2 = expr */
@@ -1369,6 +1379,7 @@ static int avrasm_hll_init_nodes (void)
 	/*{{{  avrasm:hllnamenode -- FCNNAME, FCNPARAMNAME, LETNAME*/
 	i = -1;
 	tnd = tnode_newnodetype ("avrasm:hllnamenode", &i, 0, 1, 0, TNF_NONE);		/* namenodes: 0 = name */
+	avrasm.node_HLLNAMENODE = tnd;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "hllsimplify", 2, COMPOPTYPE (avrasm_hllsimplify_hllnamenode));
 	tnd->ops = cops;

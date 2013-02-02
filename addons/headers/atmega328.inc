@@ -134,4 +134,14 @@
 .def	ZH		=r31
 .def	ZL		=r30
 
+; Note: we reserve r0 and r1 for interrupt handlers
+.def	INTREG0		=r0
+.def	INTREG1		=r1
+
+
+; make segments start in the right place by default
+.text
+.org	0
+.data
+.org	RAMSTART
 

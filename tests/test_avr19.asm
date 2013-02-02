@@ -17,7 +17,7 @@
 	push	r17
 	push	r16
 
-	ldi	r16, 0x10
+	ldi	r16, 0x20
 .L0:
 	ldi	r17, 0xff
 .L1:
@@ -51,16 +51,16 @@ VEC_reset:
 	out	SPL, r16
 	sei
 
+	ldi	r16, 0x3f
+	out	DDRC, r16			; PC0-5 output
+	out	PORTC, r16			; lights off
+
+	cbi	PORTC, 0
+
 	call	dfr_ether_init
+	call	dfr_ether_reset
 
-	call	delayloop
-
-	ldi	r27:r26, W5100_MR
-	ldi	r16, 0x80			; s/w reset
-	call	dfr_ether_write
-
-	call	delayloop
-	call	delayloop
+	cbi	PORTC, 2
 
 	ldi	r27:r26, W5100_GAR0
 	ldi	r16, 192
@@ -75,72 +75,58 @@ VEC_reset:
 	ldi	r16, 2
 	call	dfr_ether_write
 
-	call	delayloop
+	cbi	PORTC, 3
 
-	ldi	r27, hi(W5100_SUBR0)
-	ldi	r26, lo(W5100_SUBR0)
+	ldi	r27:r26, W5100_SUBR0
 	ldi	r16, 255
 	call	dfr_ether_write
-	ldi	r27, hi(W5100_SUBR1)
-	ldi	r26, lo(W5100_SUBR1)
+	ldi	r27:r26, W5100_SUBR1
 	ldi	r16, 255
 	call	dfr_ether_write
-	ldi	r27, hi(W5100_SUBR2)
-	ldi	r26, lo(W5100_SUBR2)
+	ldi	r27:r26, W5100_SUBR2
 	ldi	r16, 255
 	call	dfr_ether_write
-	ldi	r27, hi(W5100_SUBR3)
-	ldi	r26, lo(W5100_SUBR3)
+	ldi	r27:r26, W5100_SUBR3
 	ldi	r16, 0
 	call	dfr_ether_write
 
-	call	delayloop
+	cbi	PORTC, 4
 
-	ldi	r27, hi(W5100_SHAR0)
-	ldi	r26, lo(W5100_SHAR0)
+	ldi	r27:r26, W5100_SHAR0
 	ldi	r16, 0x12
 	call	dfr_ether_write
-	ldi	r27, hi(W5100_SHAR1)
-	ldi	r26, lo(W5100_SHAR1)
+	ldi	r27:r26, W5100_SHAR1
 	ldi	r16, 0x21
 	call	dfr_ether_write
-	ldi	r27, hi(W5100_SHAR2)
-	ldi	r26, lo(W5100_SHAR2)
+	ldi	r27:r26, W5100_SHAR2
 	ldi	r16, 0x56
 	call	dfr_ether_write
-	ldi	r27, hi(W5100_SHAR3)
-	ldi	r26, lo(W5100_SHAR3)
+	ldi	r27:r26, W5100_SHAR3
 	ldi	r16, 0x65
 	call	dfr_ether_write
-	ldi	r27, hi(W5100_SHAR4)
-	ldi	r26, lo(W5100_SHAR4)
+	ldi	r27:r26, W5100_SHAR4
 	ldi	r16, 0x01
 	call	dfr_ether_write
-	ldi	r27, hi(W5100_SHAR5)
-	ldi	r26, lo(W5100_SHAR5)
+	ldi	r27:r26, W5100_SHAR5
 	ldi	r16, 0x10
 	call	dfr_ether_write
 
-	call	delayloop
+	cbi	PORTC, 5
 
-	ldi	r27, hi(W5100_SIPR0)
-	ldi	r26, lo(W5100_SIPR0)
+	ldi	r27:r26, W5100_SIPR0
 	ldi	r16, 192
 	call	dfr_ether_write
-	ldi	r27, hi(W5100_SIPR1)
-	ldi	r26, lo(W5100_SIPR1)
+	ldi	r27:r26, W5100_SIPR1
 	ldi	r16, 168
 	call	dfr_ether_write
-	ldi	r27, hi(W5100_SIPR2)
-	ldi	r26, lo(W5100_SIPR2)
+	ldi	r27:r26, W5100_SIPR2
 	ldi	r16, 12
 	call	dfr_ether_write
-	ldi	r27, hi(W5100_SIPR3)
-	ldi	r26, lo(W5100_SIPR3)
+	ldi	r27:r26, W5100_SIPR3
 	ldi	r16, 222
 	call	dfr_ether_write
 
-	call	delayloop
-
+	sbi	PORTC, 0
 .L0:
+	sleep
 	rjmp	0b

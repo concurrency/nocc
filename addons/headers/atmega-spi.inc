@@ -33,9 +33,11 @@
 
 
 ; local SPI mode register bits
-.equ	SPIMODE_BIT_TX	=0		; transmitting
-.equ	SPIMODE_BIT_TXDONE =1		; done transmitting
-.equ	SPIMODE_BIT_TXRX =2		; if receive whilst transmitting
+.equ	SPIMODE_BIT_TX		=0	; transmitting
+.equ	SPIMODE_BIT_TXDONE	=1	; done transmitting
+.equ	SPIMODE_BIT_TXERR	=2	; error for some reason
+.equ	SPIMODE_BIT_TXRX	=3	; if receive whilst transmitting
+.equ	SPIMODE_BIT_TXRXCHK	=4	; if call check function with received data whilst transmitting
 
 .data
 V_spi_txbuf:
@@ -53,6 +55,8 @@ V_spi_rxcount:
 	.space	1			; rx-count (in buffer)
 V_spi_mode:
 	.space	1			; SPI mode
+V_spi_txrxcheck:
+	.space	2			; address of routine called during interrupt
 
 .text
 
@@ -101,22 +105,26 @@ V_spi_mode:
 
 ;}}}
 VEC_spistc:				;{{{  interrupt handler for SPI/STC
+	in	INTREG0, SREG
 	push	r31
-	in	r31, SREG
+	push	r30
 	push	r29
 	push	r28
 	push	r27
 	push	r26
+	push	r18
 	push	r17
 	push	r16
 
+	in	r16, SPSR		; throw-away
+
 	ldi	r27:r26, V_spi_mode
-	ld	r16, X			; r16 = V_spi_mode
-	sbrs	r16, SPIMODE_BIT_TX
+	ld	r18, X			; r16 = V_spi_mode
+	sbrs	r18, SPIMODE_BIT_TX
 	rjmp	9f			; branch if TX flag not set (spurious interrupt)
 
 	; transmitting, if tx-rx, retrieve returned bit
-	sbrs	r16, SPIMODE_BIT_TXRX
+	sbrs	r18, SPIMODE_BIT_TXRX
 	rjmp	1f
 
 	ldi	r29:r28, V_spi_rxcount
@@ -130,6 +138,27 @@ VEC_spistc:				;{{{  interrupt handler for SPI/STC
 	st	X, r16			; V_spi_rxbuf[V_spi_rxcount] = SPDR
 	inc	r17
 	st	Y, r17			; V_spi_rxcount++
+
+	sbrs	r18, SPIMODE_BIT_TXRXCHK
+	rjmp	3f
+
+	; here we call the indirectly specified routine to check what we just read
+	; setup with r16 = received value, r17 = txptr (one just gone)
+
+	ldi	r29:r28, V_spi_txrxcheck
+	ld	r31, Y+
+	ld	r30, Y
+	ldi	r29:r28, V_spi_txptr
+	ld	r17, Y+			; leave Y pointing at rxcount
+	icall
+	cpi	r16, 1
+	breq	4f			; abort
+	ld	r17, Y			; fall through with r17 = rxcount
+
+.L3:
+	; if we have filled the RX buffer, stop (sanity)
+	cpi	r17, 16
+	breq	4f			; abort
 
 .L1:
 	; was this the last bit?
@@ -155,23 +184,38 @@ VEC_spistc:				;{{{  interrupt handler for SPI/STC
 .L2:
 	; last byte gone, mark as done
 	ldi	r27:r26, V_spi_mode
-	ld	r16, X
-	andi	r16, ~(1 << SPIMODE_BIT_TX)
-	ori	r16, (1 << SPIMODE_BIT_TXDONE)
-	st	X, r16
+	ld	r18, X
+	andi	r18, ~(1 << SPIMODE_BIT_TX)
+	ori	r18, (1 << SPIMODE_BIT_TXDONE)
+	st	X, r18
+
+	; clear SS
+	spi_clearSS
+	rjmp	9f
+
+.L4:
+	; abort way out
+	ldi	r27:r26, V_spi_mode
+	ld	r18, X
+	andi	r18, ~(1 << SPIMODE_BIT_TX)
+	ori	r18, (1 << SPIMODE_BIT_TXERR)
+	st	X, r18
 
 	; clear SS
 	spi_clearSS
 
 .L9:
+
 	pop	r16
 	pop	r17
+	pop	r18
 	pop	r26
 	pop	r27
 	pop	r28
 	pop	r29
-	out	SREG, r31
+	pop	r30
 	pop	r31
+	out	SREG, INTREG0
 	reti
 
 ;}}}
@@ -179,6 +223,7 @@ VEC_spistc:				;{{{  interrupt handler for SPI/STC
 	push	r16
 	push	r26
 	push	r27
+
 	ldi	r27:r26, V_spi_txcount
 	clr	r16
 	st	X+, r16			; clear txcount
@@ -195,9 +240,10 @@ VEC_spistc:				;{{{  interrupt handler for SPI/STC
 	push	r16
 	push	r26
 	push	r27
+
 	ldi	r27:r26, V_spi_rxcount
 	clr	r16
-	st	X, r16			; clear rxptr
+	st	X, r16			; clear rxcount
 
 	pop	r27
 	pop	r26
@@ -209,10 +255,26 @@ VEC_spistc:				;{{{  interrupt handler for SPI/STC
 .function spi_setmode ()		;{{{  sets local SPI mode (in r16, SPIMODE_...)
 	push	r26
 	push	r27
+
 	ldi	r27:r26, V_spi_mode
 	st	X, r16
+
 	pop	r27
 	pop	r26
+.endfunction
+
+
+;}}}
+.function spi_settxcheck ()		;{{{  sets local TX check function pointer (in X = r27:r26)
+	push	r28
+	push	r29
+
+	ldi	r29:r28, V_spi_txrxcheck
+	st	Y+, r27
+	st	Y, r26
+
+	pop	r29
+	pop	r28
 .endfunction
 
 
@@ -251,6 +313,7 @@ VEC_spistc:				;{{{  interrupt handler for SPI/STC
 	ldi	r27:r26, V_spi_mode
 	ld	r16, X
 	ori	r16, (1 << SPIMODE_BIT_TX)
+	andi	r16, ~((1 << SPIMODE_BIT_TXDONE) | (1 << SPIMODE_BIT_TXERR))
 	st	X, r16
 
 	; set SS
@@ -261,7 +324,7 @@ VEC_spistc:				;{{{  interrupt handler for SPI/STC
 	ldi	r27:r26, V_spi_txbuf
 	clr	r17
 	add	r26, r16
-	adc	r27, r17
+	adc	r27, r17		; r27:r26 = txbuf + txptr
 
 	ld	r16, X			; load first/next byte to transmit
 	out	SPDR, r16
@@ -304,23 +367,47 @@ VEC_spistc:				;{{{  interrupt handler for SPI/STC
 
 
 ;}}}
+.function spi_restart_txrx ()		;{{{  resets TX and RX counters for retry
+	push	r16
+	push	r26
+	push	r27
 
-.function spi_waittx ()			;{{{  wait for transmit to complete
+	ldi	r27:r26, V_spi_txptr
+	clr	r16
+	st	X+, r16			; txptr = 0
+	st	X, r16			; rxcount = 0
+
+	pop	r27
+	pop	r26
+	pop	r16
+.endfunction
+
+
+;}}}
+
+.function spi_waittx ()			;{{{  wait for transmit to complete, returns r16=1 if abort, r16=0 if completed normally
 	push	r27
 	push	r26
-	push	r16
 
 .L0:
 	ldi	r27:r26, V_spi_mode
 	ld	r16, X
 	sbrc	r16, SPIMODE_BIT_TXDONE
-	rjmp	1f
+	rjmp	3f
+	sbrc	r16, SPIMODE_BIT_TXERR
+	rjmp	2f
 
 	sleep
 	rjmp	0b
+.L3:
+	; successful transmit
+	clr	r16
+	rjmp	1f
 
+.L2:
+	; transmit error..
+	ldi	r16, 1
 .L1:
-	pop	r16
 	pop	r26
 	pop	r27
 .endfunction

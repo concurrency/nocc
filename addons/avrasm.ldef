@@ -31,6 +31,8 @@
 .SYMBOL ":"
 .SYMBOL "~"
 .SYMBOL "=="
+.SYMBOL "{"
+.SYMBOL "}"
 
 .KEYWORD "r0"
 .KEYWORD "r1"
@@ -287,6 +289,7 @@
 .GRULE	"avrasm:loreduce" "SN0N+C[AVRASMLO]1R-"
 
 .GRULE	"avrasm:foldregpair" "R+SN0N+C[AVRASMREGPAIR]2R-"
+.GRULE	"avrasm:exprsetreduce" "SN0N+C[AVRASMEXPRSET]1R-"
 
 .TABLE	"avrasm:name ::= [ 0 +Name 1 ] [ 1 {<avrasm:namereduce>} -* ]"
 
@@ -321,6 +324,7 @@
 .TABLE	"avrasm:expr +:= [ 0 +Special 1 ] [ 1 {Ruslabreduce} -* ]"
 .TABLE	"avrasm:expr +:= [ 0 @@( 1 ] [ 1 avrasm:expr 2 ] [ 2 @@) 3 ] [ 3 {<avrasm:nullreduce>} -* <avrasm:restofexpr> ]"
 .TABLE	"avrasm:expr +:= [ 0 @@~ 1 ] [ 1 avrasm:expr 2 ] [ 2 {<avrasm:bitnotreduce>} -* <avrasm:restofexpr> ]"
+.TABLE	"avrasm:expr +:= [ 0 @@{ 1 ] [ 1 avrasm:exprlist1 2 ] [ 2 @@} 3 ] [ 3 {<avrasm:exprsetreduce>} -* ]"
 
 .TABLE	"avrasm:rregexpr ::= [ 0 @@: 1 ] [ 0 -* 3 ] [ 1 avrasm:expr 2 ] [ 2 {<avrasm:foldregpair>} -* 3 ] [ 3 -* ]"
 
@@ -333,6 +337,7 @@
 
 .BNF	"avrasm:constlist ::= { avrasm:leadingexpr @@, 1 }"
 .BNF	"avrasm:exprlist ::= { avrasm:expr @@, 0 }"
+.BNF	"avrasm:exprlist1 ::= { avrasm:expr @@, 1 }"
 .BNF	"avrasm:namelist ::= { avrasm:name @@, 0 }"
 
 .TABLE	"avrasm:macrodef ::= [ 0 avrasm:name 1 ] [ 1 @@( 2 ] [ 2 avrasm:namelist 3 ] [ 3 @@) 4 ]"

@@ -44,6 +44,7 @@ typedef struct {
 	struct TAG_tndef *node_DOPNODE;
 	struct TAG_tndef *node_MOPNODE;
 	struct TAG_tndef *node_NAMENODE;
+	struct TAG_tndef *node_HLLNAMENODE;
 
 	struct TAG_token *tok_STRING;
 	struct TAG_token *tok_DOT;
@@ -119,6 +120,7 @@ typedef struct {
 
 	/* high-level stuff */
 	struct TAG_ntdef *tag_REGPAIR;
+	struct TAG_ntdef *tag_EXPRSET;
 
 	struct TAG_ntdef *tag_FCNDEF;
 	struct TAG_ntdef *tag_LETDEF;

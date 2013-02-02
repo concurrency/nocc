@@ -1384,26 +1384,24 @@ static int avrasm_parser_prescope (tnode_t **tptr, prescope_t *ps)
 	return ps->err;
 }
 /*}}}*/
-/*{{{  static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)*/
+/*{{{  static int avrasm_parser_scope_inner (tnode_t **tptr, scope_t *ss)*/
 /*
- *	called to scope the parse tree
+ *	called to scope part of a parse tree -- must be a list
  *	returns 0 on success, non-zero on failure
  */
-static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)
+static int avrasm_parser_scope_inner (tnode_t **tptr, scope_t *ss)
 {
 	tnode_t *tree = *tptr;
 	tnode_t **items;
 	int nitems, i;
-	void *nsmark;
 
 	if (!parser_islistnode (tree)) {
-		nocc_internal ("avrasm_parser_scope(): top-level tree is not a list! (serious).  Got [%s:%s]\n",
+		nocc_internal ("avrasm_parser_scope_inner(): tree is not a list! (serious).  Got [%s:%s]\n",
 				tree->tag->ndef->name, tree->tag->name);
 		return -1;
 	}
 	items = parser_getlistitems (tree, &nitems);
 
-	nsmark = name_markscope ();
 	for (i=0; i<nitems; i++) {
 		tnode_t *node = items[i];
 
@@ -1435,6 +1433,12 @@ static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)
 			}
 		} else if (node->tag == avrasm.tag_FCNDEF) {
 			tnode_t *fname_node = tnode_nthsubof (node, 0);
+			tnode_t **fbody_addr = tnode_nthsubaddr (node, 2);
+
+			if ((*fbody_addr) && parser_islistnode (*fbody_addr)) {
+				/* run over the body to pick up any global labels */
+				avrasm_parser_scope_inner (fbody_addr, ss);
+			}
 
 			if (fname_node->tag != avrasm.tag_NAME) {
 				scope_error (fname_node, ss, "function name not raw-name, got [%s]", fname_node->tag->name);
@@ -1461,6 +1465,29 @@ static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)
 		}
 	}
 
+	return 0;
+}
+/*}}}*/
+/*{{{  static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)*/
+/*
+ *	called to scope the parse tree
+ *	returns 0 on success, non-zero on failure
+ */
+static int avrasm_parser_scope (tnode_t **tptr, scope_t *ss)
+{
+	tnode_t *tree = *tptr;
+	void *nsmark;
+
+	if (!parser_islistnode (tree)) {
+		nocc_internal ("avrasm_parser_scope(): top-level tree is not a list! (serious).  Got [%s:%s]\n",
+				tree->tag->ndef->name, tree->tag->name);
+		return -1;
+	}
+
+	nsmark = name_markscope ();
+
+	/* first look for GLABELs and whatnot, then call scope proper */
+	avrasm_parser_scope_inner (tptr, ss);
 	tnode_modprepostwalktree (tptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
 
 	name_markdescope (nsmark);
