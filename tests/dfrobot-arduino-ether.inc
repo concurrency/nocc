@@ -1,25 +1,33 @@
 ;
 ;	dfrobot-arduino-ether.inc -- code to interface with the DFRobot ethernet shield (Wiznet W5100)
+;	Copyright (C) 2013, Fred Barnes, University of Kent  <frmb@kent.ac.uk>
+;
+;	constants mostly extracted from W5100 datasheet
 ;
 
 .include "atmega-spi.inc"
 
 .equ	W5100_MR	=0x0000
-.equ	W5100_GAR0	=0x0001
+.equ	W5100_MR_BIT_RST	=7		; software reset, cleared after
+.equ	W5100_MR_BIT_PB		=4		; ping block
+.equ	W5100_MR_BIT_PPPOE	=3		; PPPoE mode
+.equ	W5100_MR_BIT_AI		=1		; address auto-increment in indirect bus i/f
+.equ	W5100_MR_BIT_IND	=0		; indirect bus i/f mode
+.equ	W5100_GAR0	=0x0001			; gateway IP address
 .equ	W5100_GAR1	=0x0002
 .equ	W5100_GAR2	=0x0003
 .equ	W5100_GAR3	=0x0004
-.equ	W5100_SUBR0	=0x0005
+.equ	W5100_SUBR0	=0x0005			; subnet mask
 .equ	W5100_SUBR1	=0x0006
 .equ	W5100_SUBR2	=0x0007
 .equ	W5100_SUBR3	=0x0008
-.equ	W5100_SHAR0	=0x0009
+.equ	W5100_SHAR0	=0x0009			; source hardware address
 .equ	W5100_SHAR1	=0x000a
 .equ	W5100_SHAR2	=0x000b
 .equ	W5100_SHAR3	=0x000c
 .equ	W5100_SHAR4	=0x000d
 .equ	W5100_SHAR5	=0x000e
-.equ	W5100_SIPR0	=0x000f
+.equ	W5100_SIPR0	=0x000f			; source IP address
 .equ	W5100_SIPR1	=0x0010
 .equ	W5100_SIPR2	=0x0011
 .equ	W5100_SIPR3	=0x0012
@@ -52,7 +60,7 @@ V_dfr_mode:
 .text
 
 
-.function dfr_ether_init ()
+.function dfr_ether_init ()		;{{{  initialise SPI for W5100 comms
 	push	r27
 	push	r26
 	push	r16
@@ -74,7 +82,8 @@ V_dfr_mode:
 .endfunction
 
 
-.function dfr_ether_txcheck ()
+;}}}
+.function dfr_ether_txcheck ()		;{{{  called from inside an interrupt handler to check data I/O
 lab_dfr_ether_txcheck:
 	push	r27
 	push	r26
@@ -120,7 +129,9 @@ lab_dfr_ether_txcheck:
 	pop	r27
 .endfunction
 
-.function dfr_ether_read ()
+
+;}}}
+.function dfr_ether_read ()		;{{{  read W5100 register r27:r26 => r16
 	; r27:r26 (X) = 16-bit address => r16
 	push	r29
 	push	r28
@@ -163,7 +174,9 @@ lab_dfr_ether_txcheck:
 	pop	r29
 .endfunction
 
-.function dfr_ether_write ()
+
+;}}}
+.function dfr_ether_write ()		;{{{  write W5100 register r27:r26 <= r16
 	; r27:r26 (X) = 16-bit address, r16 = value
 	push	r29
 	push	r28
@@ -206,7 +219,9 @@ lab_dfr_ether_txcheck:
 	pop	r29
 .endfunction
 
-.function dfr_ether_reset ()
+
+;}}}
+.function dfr_ether_reset ()		;{{{  reset W5100
 	push	r27
 	push	r26
 	push	r16
@@ -228,4 +243,5 @@ lab_dfr_ether_txcheck:
 .endfunction
 
 
+;}}}
 
