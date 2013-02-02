@@ -43,6 +43,16 @@
 .endfunction					;/*}}}*/
 
 
+; some constant values
+D_gateway:
+	.const	192,168,12,2
+D_submask:
+	.const	255,255,255,0
+D_hwaddr:
+	.const	0x12,0x21,0x56,0x65,0x01,0x10
+D_ipaddr:
+	.const	192,168,12,222
+
 VEC_reset:
 	cli
 	ldi	r16, hi(RAMEND)
@@ -63,68 +73,26 @@ VEC_reset:
 	cbi	PORTC, 2
 
 	ldi	r27:r26, W5100_GAR0
-	ldi	r16, 192
-	call	dfr_ether_write
-	ldi	r27:r26, W5100_GAR1
-	ldi	r16, 168
-	call	dfr_ether_write
-	ldi	r27:r26, W5100_GAR2
-	ldi	r16, 12
-	call	dfr_ether_write
-	ldi	r27:r26, W5100_GAR3
-	ldi	r16, 2
-	call	dfr_ether_write
+	ldi	r31:r30, D_gateway
+	call	dfr_ether_write4code
 
 	cbi	PORTC, 3
 
 	ldi	r27:r26, W5100_SUBR0
-	ldi	r16, 255
-	call	dfr_ether_write
-	ldi	r27:r26, W5100_SUBR1
-	ldi	r16, 255
-	call	dfr_ether_write
-	ldi	r27:r26, W5100_SUBR2
-	ldi	r16, 255
-	call	dfr_ether_write
-	ldi	r27:r26, W5100_SUBR3
-	ldi	r16, 0
-	call	dfr_ether_write
+	ldi	r31:r30, D_submask
+	call	dfr_ether_write4code
 
 	cbi	PORTC, 4
 
 	ldi	r27:r26, W5100_SHAR0
-	ldi	r16, 0x12
-	call	dfr_ether_write
-	ldi	r27:r26, W5100_SHAR1
-	ldi	r16, 0x21
-	call	dfr_ether_write
-	ldi	r27:r26, W5100_SHAR2
-	ldi	r16, 0x56
-	call	dfr_ether_write
-	ldi	r27:r26, W5100_SHAR3
-	ldi	r16, 0x65
-	call	dfr_ether_write
-	ldi	r27:r26, W5100_SHAR4
-	ldi	r16, 0x01
-	call	dfr_ether_write
-	ldi	r27:r26, W5100_SHAR5
-	ldi	r16, 0x10
-	call	dfr_ether_write
+	ldi	r31:r30, D_hwaddr
+	call	dfr_ether_write6code
 
 	cbi	PORTC, 5
 
 	ldi	r27:r26, W5100_SIPR0
-	ldi	r16, 192
-	call	dfr_ether_write
-	ldi	r27:r26, W5100_SIPR1
-	ldi	r16, 168
-	call	dfr_ether_write
-	ldi	r27:r26, W5100_SIPR2
-	ldi	r16, 12
-	call	dfr_ether_write
-	ldi	r27:r26, W5100_SIPR3
-	ldi	r16, 222
-	call	dfr_ether_write
+	ldi	r31:r30, D_ipaddr
+	call	dfr_ether_write4code
 
 	sbi	PORTC, 0
 .L0:

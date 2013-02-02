@@ -245,3 +245,77 @@ lab_dfr_ether_txcheck:
 
 ;}}}
 
+.function dfr_ether_write4code ()	;{{{  write 4 W5100 registers from r27:r26 from program-memory r31:r30
+	; r27:r26 (X) = 16-bit address
+	; r31:r30 (Z) = flash address where data starts
+	push	r31
+	push	r30
+	push	r27
+	push	r26
+	push	r16
+
+	lpm	r16, Z+
+	call	dfr_ether_write
+
+	adiw	r26, 1
+	lpm	r16, Z+
+	call	dfr_ether_write
+
+	adiw	r26, 1
+	lpm	r16, Z+
+	call	dfr_ether_write
+
+	adiw	r26, 1
+	lpm	r16, Z+
+	call	dfr_ether_write
+
+	pop	r16
+	pop	r26
+	pop	r27
+	pop	r30
+	pop	r31
+.endfunction
+
+
+;}}}
+.function dfr_ether_write6code ()	;{{{  write 6 W5100 registers from r27:r26 from program-memory r31:r30
+	; r27:r26 (X) = 16-bit address
+	; r31:r30 (Z) = flash address where data starts
+	push	r31
+	push	r30
+	push	r27
+	push	r26
+	push	r16
+
+	lpm	r16, Z+
+	call	dfr_ether_write
+
+	adiw	r26, 1
+	lpm	r16, Z+
+	call	dfr_ether_write
+
+	adiw	r26, 1
+	lpm	r16, Z+
+	call	dfr_ether_write
+
+	adiw	r26, 1
+	lpm	r16, Z+
+	call	dfr_ether_write
+
+	adiw	r26, 1
+	lpm	r16, Z+
+	call	dfr_ether_write
+
+	adiw	r26, 1
+	lpm	r16, Z+
+	call	dfr_ether_write
+
+	pop	r16
+	pop	r26
+	pop	r27
+	pop	r30
+	pop	r31
+.endfunction
+
+
+;}}}
