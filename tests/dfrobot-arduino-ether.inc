@@ -32,22 +32,89 @@
 .equ	W5100_SIPR2	=0x0011
 .equ	W5100_SIPR3	=0x0012
 .equ	W5100_IR	=0x0015
+.equ	W5100_IR_BIT_CONFLICT	=7		; IP conflict (cleared by writing 1)
+.equ	W5100_IR_BIT_UNREACH	=6		; destination unreachable (cleared by writing 1)
+.equ	W5100_IR_BIT_PPPOE	=5		; PPPoE connection close (cleared by writing 1)
+.equ	W5100_IR_BIT_S3_INT	=3		; socket 3 interrupt (cleared by writing S3_IR)
+.equ	W5100_IR_BIT_S3_INT	=2		; socket 3 interrupt (cleared by writing S2_IR)
+.equ	W5100_IR_BIT_S3_INT	=1		; socket 3 interrupt (cleared by writing S1_IR)
+.equ	W5100_IR_BIT_S3_INT	=0		; socket 3 interrupt (cleared by writing S0_IR)
 .equ	W5100_IMR	=0x0016
-.equ	W5100_RTR0	=0x0017
+.equ	W5100_IMR_BIT_IM_IR7	=7		; IP conflict enable
+.equ	W5100_IMR_BIT_IM_IR6	=6		; destination unreachable enable
+.equ	W5100_IMR_BIT_IM_IR5	=5		; PPPoE close enable
+.equ	W5100_IMR_BIT_IM_IR3	=3		; socket 3 interrupt enable
+.equ	W5100_IMR_BIT_IM_IR2	=2		; socket 3 interrupt enable
+.equ	W5100_IMR_BIT_IM_IR1	=1		; socket 3 interrupt enable
+.equ	W5100_IMR_BIT_IM_IR0	=0		; socket 3 interrupt enable
+.equ	W5100_RTR0	=0x0017			; retry time-value (in 100us units), MSB first
 .equ	W5100_RTR1	=0x0018
-.equ	W5100_RCR	=0x0019
-.equ	W5100_RMSR	=0x001a
-.equ	W5100_TMSR	=0x001b
-.equ	W5100_PATR0	=0x001c
+.equ	W5100_RCR	=0x0019			; retry count (before timeout interrupt)
+.equ	W5100_RMSR	=0x001a			; RX memory size, formed as 4*2 bits for each socket
+.equ	W5100_RMSR_BIT_1KB	=0x00		; 1 KB receive buffer
+.equ	W5100_RMSR_BIT_2KB	=0x01		; 2 KB receive buffer (default)
+.equ	W5100_RMSR_BIT_4KB	=0x02		; 4 KB receive buffer
+.equ	W5100_RMSR_BIT_8KB	=0x03		; 8 KB receive buffer (all of it)
+.equ	W5100_TMSR	=0x001b			; TX memory size, formed as 4*2 bits for each socket
+.equ	W5100_TMSR_BIT_1KB	=0x00		; 1 KB transmit buffer
+.equ	W5100_TMSR_BIT_2KB	=0x01		; 2 KB transmit buffer (default)
+.equ	W5100_TMSR_BIT_4KB	=0x02		; 4 KB transmit buffer
+.equ	W5100_TMSR_BIT_8KB	=0x03		; 8 KB transmit buffer (all of it)
+.equ	W5100_PATR0	=0x001c			; PPPoE authentication mode, MSB first
 .equ	W5100_PATR1	=0x001d
-.equ	W5100_PTIMER	=0x0028
-.equ	W5100_PMAGIC	=0x0029
-.equ	W5100_UIPR0	=0x002a
+.equ	W5100_PATR_NONE		=0x0000
+.equ	W5100_PATR_PAP		=0xc023
+.equ	W5100_PATR_CHAP		=0xc223
+.equ	W5100_PTIMER	=0x0028			; PPP LCP request timer (in ~25ms units)
+.equ	W5100_PMAGIC	=0x0029			; PPP LCP magic number
+.equ	W5100_UIPR0	=0x002a			; unreachable IP address (set by ICMP response)
 .equ	W5100_UIPR1	=0x002b
 .equ	W5100_UIPR2	=0x002c
 .equ	W5100_UIPR3	=0x002d
-.equ	W5100_UPORT0	=0x002e
+.equ	W5100_UPORT0	=0x002e			; unreachable IP port (set by ICMP response)
 .equ	W5100_UPORT1	=0x002f
+
+.equ	W5100_SOCK0_BASE	=0x0400		; socket 0 register base
+.equ	W5100_SOCK1_BASE	=0x0500		; socket 1 register base
+.equ	W5100_SOCK2_BASE	=0x0600		; socket 2 register base
+.equ	W5100_SOCK3_BASE	=0x0700		; socket 3 register base
+
+.equ	W5100_TXMEM_BASE	=0x4000		; TX memory base
+.equ	W5100_RXMEM_BASE	=0x6000		; RX memory base
+
+.equ	W5100_S_MR	=0x0000		; mode register
+.equ	W5100_S_CR	=0x0001		; command register
+.equ	W5100_S_IR	=0x0002		; interrupt register
+.equ	W5100_S_SR	=0x0003		; status register
+.equ	W5100_S_PORT0	=0x0004		; source port, MSB first
+.equ	W5100_S_PORT1	=0x0005
+.equ	W5100_S_DHAR0	=0x0006		; destination hardware address
+.equ	W5100_S_DHAR1	=0x0007
+.equ	W5100_S_DHAR2	=0x0008
+.equ	W5100_S_DHAR3	=0x0009
+.equ	W5100_S_DHAR4	=0x000a
+.equ	W5100_S_DHAR5	=0x000b
+.equ	W5100_S_DIPR0	=0x000c		; destination IP address
+.equ	W5100_S_DIPR1	=0x000d
+.equ	W5100_S_DIPR2	=0x000e
+.equ	W5100_S_DIPR3	=0x000f
+.equ	W5100_S_DPORT0	=0x0010		; destination port
+.equ	W5100_S_DPORT1	=0x0011
+.equ	W5100_S_MSSR0	=0x0012		; maximum segment size
+.equ	W5100_S_MSSR1	=0x0013
+.equ	W5100_S_PROTO	=0x0014		; protocol in IP raw mode
+.equ	W5100_S_TOS	=0x0015		; IP TOS
+.equ	W5100_S_TTL	=0x0016		; IP TTL
+.equ	W5100_S_TX_FSR0	=0x0020		; TX free size, MSB first
+.equ	W5100_S_TX_FSR1	=0x0021
+.equ	W5100_S_TX_RD0	=0x0022		; TX read pointer
+.equ	W5100_S_TX_RD1	=0x0023
+.equ	W5100_S_TX_WR0	=0x0024		; TX write pointer
+.equ	W5100_S_TX_WR1	=0x0025
+.equ	W5100_S_RX_RSR0	=0x0026		; RX received size
+.equ	W5100_S_RX_RSR1	=0x0027
+.equ	W5100_S_RX_RD0	=0x0028		; RX read pointer
+.equ	W5100_S_RX_RD1	=0x0029
 
 
 .equ	DFRMODE_BIT_WRITE	=0
@@ -319,3 +386,5 @@ lab_dfr_ether_txcheck:
 
 
 ;}}}
+
+
