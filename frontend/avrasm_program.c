@@ -757,6 +757,23 @@ tnode_t *avrasm_newlitint (tnode_t *orgnode, int val)
 	return node;
 }
 /*}}}*/
+/*{{{  tnode_t *avrasm_newlitreg (tnode_t *orgnode, int reg)*/
+/*
+ *	creates a new literal register node
+ */
+tnode_t *avrasm_newlitreg (tnode_t *orgnode, int reg)
+{
+	tnode_t *node = NULL;
+	avrasm_lithook_t *lh = new_avrasmlithook ();
+
+	lh->len = sizeof (reg);
+	lh->data = mem_ndup (&reg, lh->len);
+
+	node = tnode_createfrom (avrasm.tag_LITREG, orgnode, lh);
+
+	return node;
+}
+/*}}}*/
 /*{{{  tnode_t *avrasm_newxyzreginfo (tnode_t *orgnode, int reg, int prepost, int offs)*/
 /*
  *	creates a new XYZ register node

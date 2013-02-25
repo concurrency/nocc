@@ -196,6 +196,7 @@ tokenloop:
 		char *dh;
 		char *npbuf = NULL;
 		int ishex = 0;
+		int isbin = ((*ch == '0') || (*ch == '1'));
 
 		tok->type = INTEGER;
 		dh = ch + 1;
@@ -203,6 +204,7 @@ tokenloop:
 			/* probably a hexadecimal constant */
 			dh++;
 			ishex = 1;
+			isbin = 0;
 			for (; (dh < chlim) && (((*dh >= '0') && (*dh <= '9')) || ((*dh >= 'a') && (*dh <= 'f')) || (*dh == '.')); dh++) {
 				if (*dh == '.') {
 					lexer_error (lf, "malformed hexadecimal constant");
@@ -217,21 +219,41 @@ tokenloop:
 						goto out_error1;
 					}
 					tok->type = REAL;
+					isbin = 0;
+				} else if (isbin && (*dh != '0') && (*dh != '1')) {
+					isbin = 0;
 				}
 			}
 		}
 		/* check to see if it's a forward/backward label reference */
 		if ((tok->type == INTEGER) && ((*dh == 'f') || (*dh == 'b'))) {
-			avrasm_lspecial_t *als = avrasm_newavrasmlspecial ();
+			if ((*dh == 'b') && isbin && ((int)(dh - ch) > 1)) {
+				/* assume binary if digits fit and more than 2 digits worth */
+				int ival = 0;
+				char *vh;
 
-			dh++;
-			tok->type = LSPECIAL;
-			lp->offset += (int)(dh - ch);
+				for (vh=ch; vh<dh; vh++) {
+					ival <<= 1;
+					if (*vh == '1') {
+						ival |= 1;
+					}
+				}
+				tok->u.ival = ival;
+				dh++;
+				lp->offset += (int)(dh - ch);
+			} else {
+				/* assume it is a label reference */
+				avrasm_lspecial_t *als = avrasm_newavrasmlspecial ();
 
-			tok->u.lspec = (void *)als;
-			als->str = (char *)smalloc ((int)(dh - ch) + 1);
-			memcpy (als->str, ch, (int)(dh - ch));
-			als->str[(int)(dh - ch)] = '\0';
+				dh++;
+				tok->type = LSPECIAL;
+				lp->offset += (int)(dh - ch);
+
+				tok->u.lspec = (void *)als;
+				als->str = (char *)smalloc ((int)(dh - ch) + 1);
+				memcpy (als->str, ch, (int)(dh - ch));
+				als->str[(int)(dh - ch)] = '\0';
+			}
 		} else {
 			lp->offset += (int)(dh - ch);
 			/* parse it */

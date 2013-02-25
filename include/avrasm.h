@@ -217,6 +217,7 @@ extern int avrasm_getlitregval (struct TAG_tnode *node);
 extern int avrasm_getxyzreginfo (struct TAG_tnode *node, int *reg, int *prepost, int *offs);
 
 extern struct TAG_tnode *avrasm_newxyzreginfo (struct TAG_tnode *orgnode, int reg, int prepost, int offs);
+extern struct TAG_tnode *avrasm_newlitreg (struct TAG_tnode *orgnode, int reg);
 extern struct TAG_tnode *avrasm_newlitins (struct TAG_tnode *orgnode, int ins);
 extern struct TAG_tnode *avrasm_newlitint (struct TAG_tnode *orgnode, int val);
 

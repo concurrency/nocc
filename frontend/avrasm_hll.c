@@ -901,6 +901,36 @@ static int avrasm_hllsimplify_insnode (compops_t *cops, tnode_t **tptr, hllsimpl
 	/* see if one of the arguments looks like a register pair or function name */
 	if (*arg0p && ((*arg0p)->tag == avrasm.tag_REGPAIR)) {
 		switch (inscode) {
+		case INS_SBIW:
+		case INS_ADIW:
+			/* special case, only allow r25:r24, r27:r26(X), r29:r28(Y), r31:r30(Z) */
+			{
+				tnode_t **hrptr, **lrptr;
+
+#if 0
+fprintf (stderr, "avrasm_hllsimplify_insnode(): SBIW/ADIW with regpair:\n");
+tnode_dumptree (*arg0p, 1, stderr);
+#endif
+				hrptr = tnode_nthsubaddr (*arg0p, 0);
+				lrptr = tnode_nthsubaddr (*arg0p, 1);
+				if (((*hrptr)->tag == avrasm.tag_LITREG) && ((*lrptr)->tag == avrasm.tag_LITREG)) {
+					int hreg = avrasm_getlitregval (*hrptr);
+					int lreg = avrasm_getlitregval (*lrptr);
+
+					if (hreg != (lreg + 1)) {
+						tnode_error (*tptr, "avrasm_hllsimplify_insnode(): mismatched pair for SBIW/ADIW\n");
+						hls->errcount++;
+					} else {
+						/* swap REGPAIR for new single (low) register */
+						tnode_free (*arg0p);
+						*arg0p = avrasm_newlitreg (*tptr, lreg);
+					}
+				} else {
+					tnode_error (*tptr, "avrasm_hllsimplify_insnode(): not registers in first argument to SBIW/ADIW\n");
+					hls->errcount++;
+				}
+			}
+			break;
 		case INS_PUSH:
 			/* push individually onto the stack, high first */
 			newlist = parser_newlistnode (NULL);
