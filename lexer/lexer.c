@@ -42,6 +42,7 @@
 #include "lexer.h"
 #include "lexpriv.h"
 #include "parser.h"
+#include "fhandle.h"
 
 /*}}}*/
 

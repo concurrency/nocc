@@ -20,6 +20,8 @@
 #ifndef __FHANDLEPRIV_H
 #define __FHANDLEPRIV_H
 
+struct TAG_fhandle;
+
 typedef struct TAG_fhscheme {
 	char *sname;			/* scheme name ("host") */
 	char *sdesc;			/* meaningful description ("host file-system") */
@@ -27,8 +29,14 @@ typedef struct TAG_fhscheme {
 
 	void *spriv;			/* implementation-specific hook */
 	int usecount;			/* usage-count (of 'open' files) */
+
+	int (*openfcn)(struct TAG_fhandle *, const int, const int);
+	int (*closefcn)(struct TAG_fhandle *);
 } fhscheme_t;
 
+
+extern fhscheme_t *fhandle_newscheme (void);
+extern void fhandle_freescheme (fhscheme_t *sptr);
 
 extern int fhandle_registerscheme (fhscheme_t *scheme);
 extern int fhandle_unregisterscheme (fhscheme_t *scheme);

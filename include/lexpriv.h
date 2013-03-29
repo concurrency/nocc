@@ -23,9 +23,11 @@
 struct TAG_langparser;
 struct TAG_origin;
 
+struct TAG_fhandle;
+
 /* this holds the data being lexed */
 typedef struct TAG_lexpriv {
-	int fd;
+	struct TAG_fhandle *fhan;
 	int offset;
 	int size;
 	char *buffer;

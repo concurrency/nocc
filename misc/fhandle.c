@@ -43,7 +43,7 @@
 /*}}}*/
 /*{{{  private types/data*/
 
-STATICSTRINGHASH (fhscheme_t *, schemes, 3);
+STATICSTRINGHASH (fhscheme_t *, schemes, 3);		/* hashed on prefix */
 STATICDYNARRAY (fhscheme_t *, aschemes);
 
 
@@ -64,6 +64,9 @@ static fhscheme_t *fhandle_newfhscheme (void)
 
 	fhs->spriv = NULL;
 	fhs->usecount = 0;
+
+	fhs->openfcn = NULL;
+	fhs->closefcn = NULL;
 
 	return fhs;
 }
@@ -92,6 +95,61 @@ static void fhandle_freefhscheme (fhscheme_t *fhs)
 	return;
 }
 /*}}}*/
+/*{{{  static fhandle_t *fhandle_newfhandle (void)*/
+/*
+ *	creates a new fhandle_t structure (blank)
+ */
+static fhandle_t *fhandle_newfhandle (void)
+{
+	fhandle_t *fhan = (fhandle_t *)smalloc (sizeof (fhandle_t));
+
+	fhan->scheme = NULL;
+	fhan->ipriv = NULL;
+	fhan->path = NULL;
+	fhan->spath = NULL;
+
+	return fhan;
+}
+/*}}}*/
+/*{{{  static void fhandle_freefhandle (fhandle_t *fhan)*/
+/*
+ *	frees a fhandle_t structure (including path if non-null)
+ */
+static void fhandle_freefhandle (fhandle_t *fhan)
+{
+	if (!fhan) {
+		nocc_serious ("fhandle_freefhandle(): NULL pointer!");
+		return;
+	}
+	if (fhan->path) {
+		sfree (fhan->path);
+		fhan->path = NULL;
+	}
+	fhan->spath = NULL;
+	sfree (fhan);
+	return;
+}
+/*}}}*/
+
+
+/*{{{  fhscheme_t *fhandle_newscheme (void)*/
+/*
+ *	creates a blank fhscheme_t and returns it
+ */
+fhscheme_t *fhandle_newscheme (void)
+{
+	return fhandle_newfhscheme ();
+}
+/*}}}*/
+/*{{{  void fhandle_freescheme (fhscheme_t *sptr)*/
+/*
+ *	trashes a fhscheme_t structure
+ */
+void fhandle_freescheme (fhscheme_t *sptr)
+{
+	fhandle_freefhscheme (sptr);
+}
+/*}}}*/
 
 
 /*{{{  int fhandle_registerscheme (fhscheme_t *scheme)*/
@@ -101,7 +159,18 @@ static void fhandle_freefhscheme (fhscheme_t *fhs)
  */
 int fhandle_registerscheme (fhscheme_t *scheme)
 {
-	return -1;
+	fhscheme_t *ext;
+
+	ext = stringhash_lookup (schemes, scheme->sname);
+	if (ext) {
+		nocc_serious ("fhandle_registerscheme(): for [%s], already registered!", scheme->prefix);
+		return -1;
+	}
+
+	stringhash_insert (schemes, scheme, scheme->prefix);
+	dynarray_add (aschemes, scheme);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  int fhandle_unregisterscheme (fhscheme_t *scheme)*/
@@ -113,6 +182,102 @@ int fhandle_unregisterscheme (fhscheme_t *scheme)
 {
 	nocc_serious ("fhandle_unregisterscheme(): unimplemented!");
 	return -1;
+}
+/*}}}*/
+
+
+/*{{{  fhandle_t *fhandle_fopen (const char *path, const char *mode)*/
+/*
+ *	opens a file.  'mode' should be fopen(3) style, "r", "w+", etc. with explicit text/binary suffix first if present
+ *	returns a new file-handle or NULL
+ */
+fhandle_t *fhandle_fopen (const char *path, const char *mode)
+{
+	int mmode = 0;
+	int mperm = 0;
+	char *ch = (char *)mode;
+
+	if ((*ch == 't') || (*ch == 'b')) {
+		/* not relevant on unix */
+		ch++;
+	}
+
+	if (!strcmp (ch, "r")) {
+		mmode = O_RDONLY;
+	} else if (!strcmp (ch, "r+")) {
+		mmode = O_RDWR;
+	} else if (!strcmp (ch, "w")) {
+		mmode = O_WRONLY | O_CREAT | O_TRUNC;
+		mperm = 0644;
+	} else if (!strcmp (ch, "w+")) {
+		mmode = O_RDWR | O_CREAT | O_TRUNC;
+		mperm = 0644;
+	} else if (!strcmp (ch, "a")) {
+		mmode = O_WRONLY | O_APPEND | O_CREAT;
+		mperm = 0644;
+	} else if (!strcmp (ch, "a+")) {
+		mmode = O_RDWR | O_APPEND | O_CREAT;
+		mperm = 0644;
+	} else {
+		nocc_serious ("fhandle_fopen(): unknown mode string \"%s\" for \"%s\"", mode, path);
+		return NULL;
+	}
+
+	return fhandle_open (path, mmode, mperm);
+}
+/*}}}*/
+/*{{{  fhandle_t *fhandle_open (const char *path, const int mode, const int perm)*/
+/*
+ *	opens a file.  'mode' should be open(2) style constants (O_...); 'perm' only meaningful if O_CREAT included.
+ *	returns a new file-handle of NULL
+ */
+fhandle_t *fhandle_open (const char *path, const int mode, const int perm)
+{
+	fhandle_t *fhan;
+	char *ch;
+	fhscheme_t *scheme;
+	int poffs;
+
+	for (ch=(char *)path; (*ch != '\0') && (*ch != ':'); ch++);
+	if (*ch == '\0') {
+		/* none specified, try default */
+		scheme = stringhash_lookup (schemes, "file://");
+		if (!scheme) {
+			nocc_serious ("fhandle_open(): no \"file://\" scheme!  cannot open \"%s\"", path);
+			return NULL;
+		}
+		poffs = 0;
+	} else if ((ch[1] == '/') && (ch[2] == '/')) {
+		char *pfx = string_ndup (path, (int)(ch - path) + 3);
+
+		scheme = stringhash_lookup (schemes, pfx);
+		sfree (pfx);
+		if (!scheme) {
+			nocc_serious ("fhandle_open(): no scheme registered for \"%s\"", path);
+			return NULL;
+		}
+		poffs = (int)(ch - path) + 3;
+	} else {
+		/* was probably part of the filename, odd, but try anyway */
+		scheme = stringhash_lookup (schemes, "file://");
+		if (!scheme) {
+			nocc_serious ("fhandle_open(): no \"file://\" scheme!  cannot open \"%s\"", path);
+			return NULL;
+		}
+		poffs = 0;
+	}
+
+	fhan = fhandle_newfhandle ();
+	fhan->scheme = scheme;
+	fhan->path = string_dup (path);
+	fhan->spath = fhan->path + poffs;
+
+	if (scheme->openfcn (fhan, mode, perm)) {
+		/* failed */
+		fhandle_freefhandle (fhan);
+		return NULL;
+	}
+	return fhan;
 }
 /*}}}*/
 

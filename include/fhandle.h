@@ -26,15 +26,21 @@ typedef struct TAG_fhandle {
 	struct TAG_fhscheme *scheme;	/* particular scheme (implementation) */
 	void *ipriv;			/* private per-file for implementation */
 	char *path;			/* actual path (whole thing) */
+	char *spath;			/* scheme path (points into above), without leading file:// etc. */
 } fhandle_t;
 
-extern fhandle_t *fhandle_open (const char *path, const char *mode);
-extern fhandle_t *fhandle_fopen (const char *path, const int mode, const int perm);
+extern fhandle_t *fhandle_fopen (const char *path, const char *mode);
+extern fhandle_t *fhandle_open (const char *path, const int mode, const int perm);
 extern int fhandle_close (fhandle_t *fh);
 
 
 extern int fhandle_init (void);
 extern int fhandle_shutdown (void);
+
+
+/* assorted handler initialisation/shutdown routines */
+extern int file_unix_init (void);
+extern int file_unix_shutdown (void);
 
 
 #endif	/* !__FHANDLE_H */
