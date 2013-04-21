@@ -109,6 +109,7 @@ static fhandle_t *fhandle_newfhandle (void)
 	fhan->ipriv = NULL;
 	fhan->path = NULL;
 	fhan->spath = NULL;
+	fhan->err = 0;
 
 	return fhan;
 }
@@ -172,6 +173,10 @@ int fhandle_registerscheme (fhscheme_t *scheme)
 	stringhash_insert (schemes, scheme, scheme->prefix);
 	dynarray_add (aschemes, scheme);
 
+	if (compopts.verbose) {
+		nocc_message ("registering file-handler for [%s] (%s)", scheme->prefix, scheme->sname);
+	}
+
 	return 0;
 }
 /*}}}*/
@@ -184,6 +189,22 @@ int fhandle_unregisterscheme (fhscheme_t *scheme)
 {
 	nocc_serious ("fhandle_unregisterscheme(): unimplemented!");
 	return -1;
+}
+/*}}}*/
+
+
+/*{{{  static int fhandle_seterr (fhandle_t *fh, int err)*/
+/*
+ *	locally sets the last error in global and handle
+ *	returns same parameter.
+ */
+static int fhandle_seterr (fhandle_t *fh, int err)
+{
+	last_error_code = err;
+	if (fh) {
+		fh->err = err;
+	}
+	return err;
 }
 /*}}}*/
 
@@ -246,6 +267,7 @@ fhandle_t *fhandle_open (const char *path, const int mode, const int perm)
 		scheme = stringhash_lookup (schemes, "file://");
 		if (!scheme) {
 			nocc_serious ("fhandle_open(): no \"file://\" scheme!  cannot open \"%s\"", path);
+			fhandle_seterr (NULL, -ENOSYS);
 			return NULL;
 		}
 		poffs = 0;
@@ -256,6 +278,7 @@ fhandle_t *fhandle_open (const char *path, const int mode, const int perm)
 		sfree (pfx);
 		if (!scheme) {
 			nocc_serious ("fhandle_open(): no scheme registered for \"%s\"", path);
+			fhandle_seterr (NULL, -ENOSYS);
 			return NULL;
 		}
 		poffs = (int)(ch - path) + 3;
@@ -264,6 +287,7 @@ fhandle_t *fhandle_open (const char *path, const int mode, const int perm)
 		scheme = stringhash_lookup (schemes, "file://");
 		if (!scheme) {
 			nocc_serious ("fhandle_open(): no \"file://\" scheme!  cannot open \"%s\"", path);
+			fhandle_seterr (NULL, -ENOSYS);
 			return NULL;
 		}
 		poffs = 0;
@@ -274,7 +298,8 @@ fhandle_t *fhandle_open (const char *path, const int mode, const int perm)
 	fhan->path = string_dup (path);
 	fhan->spath = fhan->path + poffs;
 
-	last_error_code = scheme->openfcn (fhan, mode, perm);
+	err = scheme->openfcn (fhan, mode, perm);
+	fhandle_seterr (fhan, err);
 	if (err) {
 		/* failed */
 		fhandle_freefhandle (fhan);
@@ -293,11 +318,12 @@ int fhandle_close (fhandle_t *fh)
 	int err;
 
 	if (!fh) {
-		return -EINVAL;
+		return fhandle_seterr (fh, -EINVAL);
 	} else if (!fh->scheme) {
-		return -ENOSYS;
+		return fhandle_seterr (fh, -ENOSYS);
 	}
 	err = fh->scheme->closefcn (fh);
+	fhandle_seterr (fh, err);
 
 	if (!err) {
 		/* trash handle */
@@ -306,12 +332,15 @@ int fhandle_close (fhandle_t *fh)
 	return err;
 }
 /*}}}*/
-/*{{{  int fhandle_lasterr (void)*/
+/*{{{  int fhandle_lasterr (fhandle_t *fh)*/
 /*
  *	gets the most recent error (or ESUCCESS)
  */
-int fhandle_lasterr (void)
+int fhandle_lasterr (fhandle_t *fh)
 {
+	if (fh) {
+		return fh->err;
+	}
 	return last_error_code;
 }
 /*}}}*/
@@ -322,17 +351,45 @@ int fhandle_lasterr (void)
  */
 unsigned char *fhandle_mapfile (fhandle_t *fh, size_t offset, size_t length)
 {
-	return NULL;
+	unsigned char *ptr;
+	int err;
+
+	if (!fh) {
+		fhandle_seterr (fh, -EINVAL);
+		return NULL;
+	} else if (!fh->scheme) {
+		fhandle_seterr (fh, -ENOSYS);
+		return NULL;
+	}
+
+	err = fh->scheme->mapfcn (fh, &ptr, offset, length);
+	if (err) {
+		fhandle_seterr (fh, err);
+		return NULL;
+	}
+
+	return ptr;
 }
 /*}}}*/
-/*{{{  int fhandle_unmapfile (fhandle_t *fh, size_t offset, size_t length)*/
+/*{{{  int fhandle_unmapfile (fhandle_t *fh, unsigned char *ptr, size_t offset, size_t length)*/
 /*
- *	un-memory-maps a file.  offset and length should be the same as used with fhandle_mapfile().
+ *	un-memory-maps a file.  offset and length should be the same as used with fhandle_mapfile(), and 'ptr' the correct pointer.
  *	returns 0 on success, non-zero on error.
  */
-int fhandle_unmapfile (fhandle_t *fh, size_t offset, size_t length)
+int fhandle_unmapfile (fhandle_t *fh, unsigned char *ptr, size_t offset, size_t length)
 {
-	return -ENOSYS;
+	int err;
+
+	if (!fh) {
+		return fhandle_seterr (fh, -EINVAL);
+	} else if (!fh->scheme) {
+		return fhandle_seterr (fh, -ENOSYS);
+	}
+
+	err = fh->scheme->unmapfcn (fh, ptr, offset, length);
+	fhandle_seterr (fh, err);
+
+	return err;
 }
 /*}}}*/
 

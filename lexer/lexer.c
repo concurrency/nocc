@@ -307,7 +307,7 @@ fprintf (stderr, "lexer_open(): openlexfile[%d] has supported extension \"%s\"\n
 	lp->fhan = fhandle_open (lf->filename, O_RDONLY, 0);
 	// lp->fd = open (lf->filename, O_RDONLY);
 	if (!lp->fhan) {
-		nocc_error ("failed to open %s for reading: %s", lf->filename, strerror (fhandle_lasterr ()));
+		nocc_error ("failed to open %s for reading: %s", lf->filename, strerror (fhandle_lasterr (NULL)));
 		sfree (lp);
 		lf->priv = NULL;
 		return NULL;
@@ -315,10 +315,8 @@ fprintf (stderr, "lexer_open(): openlexfile[%d] has supported extension \"%s\"\n
 	lp->size = (int)stbuf.st_size;
 	lp->offset = 0;
 	lp->buffer = (char *)fhandle_mapfile (lp->fhan, 0, lp->size);
-	// lp->buffer = (char *)mmap ((void *)0, lp->size, PROT_READ, MAP_SHARED, lp->fd, 0);
-	// if (lp->buffer == ((char *)-1)) {
 	if (!lp->buffer) {
-		nocc_error ("failed to map %s for reading: %s", lf->filename, strerror (fhandle_lasterr ()));
+		nocc_error ("failed to map %s for reading: %s", lf->filename, strerror (fhandle_lasterr (lp->fhan)));
 		fhandle_close (lp->fhan);
 		sfree (lp);
 		lf->priv = NULL;
@@ -474,8 +472,7 @@ void lexer_close (lexfile_t *lf)
 		if (lf->lexer && lf->lexer->closefile) {
 			lf->lexer->closefile (lf, lp);
 		}
-		// munmap ((void *)(lp->buffer), lp->size);
-		fhandle_unmapfile (lp->fhan, 0, lp->size);
+		fhandle_unmapfile (lp->fhan, (unsigned char *)lp->buffer, 0, lp->size);
 		fhandle_close (lp->fhan);
 		lp->fhan = NULL;
 	} else if (lp->size && lp->buffer) {

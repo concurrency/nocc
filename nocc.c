@@ -2740,8 +2740,9 @@ int main (int argc, char **argv)
 #endif
 	origin_init ();
 	opts_init ();
-	fcnlib_init ();
 	fhandle_init ();
+	file_unix_init ();		/* early, incase anyone else needs */
+	fcnlib_init ();
 	keywords_init ();
 	transinstr_init ();
 	xml_init ();

@@ -27,15 +27,16 @@ typedef struct TAG_fhandle {
 	void *ipriv;			/* private per-file for implementation */
 	char *path;			/* actual path (whole thing) */
 	char *spath;			/* scheme path (points into above), without leading file:// etc. */
+	int err;			/* last error associated with open-file */
 } fhandle_t;
 
 extern fhandle_t *fhandle_fopen (const char *path, const char *mode);
 extern fhandle_t *fhandle_open (const char *path, const int mode, const int perm);
 extern int fhandle_close (fhandle_t *fh);
-extern int fhandle_lasterr (void);
+extern int fhandle_lasterr (fhandle_t *fh);
 
 extern unsigned char *fhandle_mapfile (fhandle_t *fh, size_t offset, size_t length);
-extern int fhandle_unmapfile (fhandle_t *fh, size_t offset, size_t length);
+extern int fhandle_unmapfile (fhandle_t *fh, unsigned char *ptr, size_t offset, size_t length);
 
 
 extern int fhandle_init (void);

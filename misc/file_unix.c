@@ -29,6 +29,8 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
 #include <fcntl.h>
 #include <errno.h>
 
@@ -159,6 +161,56 @@ static int unix_closefcn (fhandle_t *fhan)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int unix_mapfcn (fhandle_t *fhan, unsigned char **pptr, size_t offset, size_t length)*/
+/*
+ *	called to memory-map a file
+ *	returns 0 on success, non-zero on error
+ */
+static int unix_mapfcn (fhandle_t *fhan, unsigned char **pptr, size_t offset, size_t length)
+{
+	unixfhandle_t *ufhan = (unixfhandle_t *)fhan->ipriv;
+	unsigned char *ptr;
+
+	if (!ufhan) {
+		nocc_serious ("unix_mapfcn(): missing state! [%s]", fhan->path);
+		return -1;
+	} else if (ufhan->fd < 0) {
+		nocc_serious ("unix_mapfcn(): file not actually open [%s]", fhan->path);
+		return -1;
+	}
+
+	/* FIXME: cater for write-mappings (not currently used) */
+	ptr = (unsigned char *)mmap ((void *)0, length, PROT_READ, MAP_SHARED, ufhan->fd, offset);
+	if (ptr == ((unsigned char *)-1)) {
+		/* failed */
+		return errno;
+	}
+	*pptr = ptr;
+	return 0;
+}
+/*}}}*/
+/*{{{  static int unix_unmapfcn (fhandle_t *fhan, unsigned char *ptr, size_t offset, size_t length)*/
+/*
+ *	un-memory-maps a file
+ *	returns 0 on success, non-zero on error
+ */
+static int unix_unmapfcn (fhandle_t *fhan, unsigned char *ptr, size_t offset, size_t length)
+{
+	unixfhandle_t *ufhan = (unixfhandle_t *)fhan->ipriv;
+	int err;
+
+	if (!ufhan) {
+		nocc_serious ("unix_unmapfcn(): missing state! [%s]", fhan->path);
+		return -1;
+	} else if (ufhan->fd < 0) {
+		nocc_serious ("unix_unmapfcn(): file not actually open [%s]", fhan->path);
+		return -1;
+	}
+
+	err = munmap (ptr, length);
+	return err;
+}
+/*}}}*/
 
 
 /*{{{  int file_unix_init (void)*/
@@ -181,6 +233,8 @@ int file_unix_init (void)
 
 	unix_fhscheme->openfcn = unix_openfcn;
 	unix_fhscheme->closefcn = unix_closefcn;
+	unix_fhscheme->mapfcn = unix_mapfcn;
+	unix_fhscheme->unmapfcn = unix_unmapfcn;
 
 	if (fhandle_registerscheme (unix_fhscheme)) {
 		nocc_serious ("file_unix_init(): failed to register scheme!");
