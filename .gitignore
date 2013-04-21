@@ -10,6 +10,8 @@
 
 # Targets
 nocc
+tests/test_*.hex
+tests/test_*.lst
 
 # Possibly dangerous..
 config.h
