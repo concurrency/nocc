@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #include "nocc.h"
 #include "support.h"
@@ -46,6 +47,7 @@
 STATICSTRINGHASH (fhscheme_t *, schemes, 3);		/* hashed on prefix */
 STATICDYNARRAY (fhscheme_t *, aschemes);
 
+static int last_error_code;
 
 /*}}}*/
 
@@ -236,7 +238,7 @@ fhandle_t *fhandle_open (const char *path, const int mode, const int perm)
 	fhandle_t *fhan;
 	char *ch;
 	fhscheme_t *scheme;
-	int poffs;
+	int poffs, err;
 
 	for (ch=(char *)path; (*ch != '\0') && (*ch != ':'); ch++);
 	if (*ch == '\0') {
@@ -272,12 +274,65 @@ fhandle_t *fhandle_open (const char *path, const int mode, const int perm)
 	fhan->path = string_dup (path);
 	fhan->spath = fhan->path + poffs;
 
-	if (scheme->openfcn (fhan, mode, perm)) {
+	last_error_code = scheme->openfcn (fhan, mode, perm);
+	if (err) {
 		/* failed */
 		fhandle_freefhandle (fhan);
 		return NULL;
 	}
 	return fhan;
+}
+/*}}}*/
+/*{{{  int fhandle_close (fhandle_t *fh)*/
+/*
+ *	closes a file-handle.
+ *	returns 0 on success, non-zero on failure.
+ */
+int fhandle_close (fhandle_t *fh)
+{
+	int err;
+
+	if (!fh) {
+		return -EINVAL;
+	} else if (!fh->scheme) {
+		return -ENOSYS;
+	}
+	err = fh->scheme->closefcn (fh);
+
+	if (!err) {
+		/* trash handle */
+		fhandle_freefhandle (fh);
+	}
+	return err;
+}
+/*}}}*/
+/*{{{  int fhandle_lasterr (void)*/
+/*
+ *	gets the most recent error (or ESUCCESS)
+ */
+int fhandle_lasterr (void)
+{
+	return last_error_code;
+}
+/*}}}*/
+/*{{{  unsigned char *fhandle_mapfile (fhandle_t *fh, size_t offset, size_t length)*/
+/*
+ *	memory-maps a file.  offset and length ought to be sensible according to mmap(2).
+ *	returns mapped pointer on success, NULL on failure.
+ */
+unsigned char *fhandle_mapfile (fhandle_t *fh, size_t offset, size_t length)
+{
+	return NULL;
+}
+/*}}}*/
+/*{{{  int fhandle_unmapfile (fhandle_t *fh, size_t offset, size_t length)*/
+/*
+ *	un-memory-maps a file.  offset and length should be the same as used with fhandle_mapfile().
+ *	returns 0 on success, non-zero on error.
+ */
+int fhandle_unmapfile (fhandle_t *fh, size_t offset, size_t length)
+{
+	return -ENOSYS;
 }
 /*}}}*/
 
@@ -291,6 +346,8 @@ int fhandle_init (void)
 {
 	stringhash_sinit (schemes);
 	dynarray_init (aschemes);
+
+	last_error_code = 0;
 
 	return 0;
 }
