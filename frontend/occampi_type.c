@@ -1,6 +1,6 @@
 /*
  *	occampi_type.c -- occam-pi type handling for nocc
- *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -127,11 +128,11 @@ tnode_dumptree (tnode_nthsubof (node, 0), 1, stderr);
 /*}}}*/
 
 
-/*{{{  static void occampi_typeattr_dumpchook (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void occampi_typeattr_dumpchook (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a typeattr compiler hook
  */
-static void occampi_typeattr_dumpchook (tnode_t *node, void *hook, int indent, FILE *stream)
+static void occampi_typeattr_dumpchook (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	occampi_typeattr_t attr = (occampi_typeattr_t)hook;
 	char buf[256];
@@ -147,7 +148,7 @@ static void occampi_typeattr_dumpchook (tnode_t *node, void *hook, int indent, F
 	if (x) {
 		buf[x-1] = '\0';
 	}
-	fprintf (stream, "<chook id=\"occampi:typeattr\" flags=\"%s\" />\n", buf);
+	fhandle_printf (stream, "<chook id=\"occampi:typeattr\" flags=\"%s\" />\n", buf);
 
 	return;
 }

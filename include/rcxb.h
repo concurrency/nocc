@@ -1,6 +1,6 @@
 /*
  *	rcxb.h -- BASIC-style language for the LEGO Mindstorms (tm) RCX
- *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ struct TAG_tndef;
 struct TAG_ntdef;
 struct TAG_token;
 struct TAG_langdef;
+struct TAG_fhandle;
 
 
 typedef struct {
@@ -97,7 +98,7 @@ typedef struct {
 
 extern rcxb_pset_t rcxb;
 
-extern void rcxb_isetindent (FILE *stream, int indent);
+extern void rcxb_isetindent (struct TAG_fhandle *stream, int indent);
 extern struct TAG_langdef *rcxb_getlangdef (void);
 
 extern struct TAG_feunit rcxb_program_feunit;           /* rcxb_program.c */

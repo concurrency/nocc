@@ -1,6 +1,6 @@
 /*
  *	target.h -- target interface/description for NOCC
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ struct TAG_codegen;
 struct TAG_lexfile;
 struct TAG_name;
 struct TAG_betrans;
+struct TAG_fhandle;
 
 
 typedef struct TAG_target {
@@ -148,7 +149,7 @@ typedef struct TAG_target {
 extern int target_register (target_t *target);
 extern int target_unregister (target_t *target);
 extern target_t *target_lookupbyspec (char *tarch, char *tvendor, char *tos);
-extern void target_dumptargets (FILE *stream);
+extern void target_dumptargets (struct TAG_fhandle *stream);
 
 extern int target_initialise (target_t *target);
 

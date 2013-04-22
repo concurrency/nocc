@@ -1,6 +1,6 @@
 /*
  *	tnode.c -- parser node functions
- *	Copyright (C) 2004-2008 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -63,8 +64,8 @@ STATICSTRINGHASH (char *, tracingcompops, 3);
 STATICSTRINGHASH (char *, tracinglangops, 3);
 
 /* forwards */
-static void tnode_isetindent (FILE *stream, int indent);
-static void tnode_ssetindent (FILE *stream, int indent);
+static void tnode_isetindent (fhandle_t *stream, int indent);
+static void tnode_ssetindent (fhandle_t *stream, int indent);
 
 /*}}}*/
 
@@ -92,26 +93,26 @@ static void *tnode_const_hookcopy (void *hook)
 	return copy;
 }
 /*}}}*/
-/*{{{  static void tnode_const_hookdumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void tnode_const_hookdumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	hook-dumptree function for constant nodes
  */
-static void tnode_const_hookdumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void tnode_const_hookdumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	tnode_isetindent (stream, indent);
-	fprintf (stream, "<hook ptr=\"0x%8.8x\" />\n", (unsigned int)hook);
+	fhandle_printf (stream, "<hook ptr=\"0x%8.8x\" />\n", (unsigned int)hook);
 
 	return;
 }
 /*}}}*/
-/*{{{  static void tnode_const_hookdumpstree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void tnode_const_hookdumpstree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	hook-dumptree function for constant nodes (s-record format)
  */
-static void tnode_const_hookdumpstree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void tnode_const_hookdumpstree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	tnode_ssetindent (stream, indent);
-	fprintf (stream, "(hook (ptr 0x%8.8x))\n", (unsigned int)hook);
+	fhandle_printf (stream, "(hook (ptr 0x%8.8x))\n", (unsigned int)hook);
 
 	return;
 }
@@ -197,11 +198,11 @@ static void *tnode_list_hookcopy (void *hook)
 	return tnode_list_hookcopyoralias (hook, NULL);
 }
 /*}}}*/
-/*{{{  static void tnode_list_hookdumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void tnode_list_hookdumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	hook-dumptree function for a list
  */
-static void tnode_list_hookdumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void tnode_list_hookdumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	tnode_t **array = (tnode_t **)hook;
 	int *cur, *max;
@@ -222,11 +223,11 @@ static void tnode_list_hookdumptree (tnode_t *node, void *hook, int indent, FILE
 	return;
 }
 /*}}}*/
-/*{{{  static void tnode_list_hookdumpstree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void tnode_list_hookdumpstree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	hook-dumptree function for a list (s-record format)
  */
-static void tnode_list_hookdumpstree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void tnode_list_hookdumpstree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	tnode_t **array = (tnode_t **)hook;
 	int *cur, *max;
@@ -1442,57 +1443,57 @@ tnode_t *tnode_copytree (tnode_t *t)
 	return tnode_copyoraliastree (t, NULL);
 }
 /*}}}*/
-/*{{{  static void tnode_isetindent (FILE *stream, int indent)*/
+/*{{{  static void tnode_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	sets indentation level (debug output)
  */
-static void tnode_isetindent (FILE *stream, int indent)
+static void tnode_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	if (indent) {
 		for (i=0; i<indent; i++) {
-			fprintf (stream, "    ");
+			fhandle_printf (stream, "    ");
 		}
 	}
 
 	return;
 }
 /*}}}*/
-/*{{{  static void tnode_ssetindent (FILE *stream, int indent)*/
+/*{{{  static void tnode_ssetindent (fhandle_t *stream, int indent)*/
 /*
  *	sets indentation level (debug output in s-records)
  */
-static void tnode_ssetindent (FILE *stream, int indent)
+static void tnode_ssetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	if (indent) {
 		for (i=0; i<indent; i++) {
-			fprintf (stream, "  ");
+			fhandle_printf (stream, "  ");
 		}
 	}
 
 	return;
 }
 /*}}}*/
-/*{{{  void tnode_dumptree (tnode_t *t, int indent, FILE *stream)*/
+/*{{{  void tnode_dumptree (tnode_t *t, int indent, fhandle_t *stream)*/
 /*
  *	dumps a parse tree
  */
-void tnode_dumptree (tnode_t *t, int indent, FILE *stream)
+void tnode_dumptree (tnode_t *t, int indent, fhandle_t *stream)
 {
 	int i;
 	tndef_t *tnd;
 
 	tnode_isetindent (stream, indent);
 	if (!t) {
-		fprintf (stream, "<nullnode />\n");
+		fhandle_printf (stream, "<nullnode />\n");
 		return;
 	}
 	tnd = t->tag->ndef;
 
-	fprintf (stream, "<%s type=\"%s\" origin=\"%s:%d\" addr=\"0x%8.8x\">%s\n", tnd->name, t->tag->name, (t->org_file) ? t->org_file->fnptr : "(none)", t->org_line, (unsigned int)t,
+	fhandle_printf (stream, "<%s type=\"%s\" origin=\"%s:%d\" addr=\"0x%8.8x\">%s\n", tnd->name, t->tag->name, (t->org_file) ? t->org_file->fnptr : "(none)", t->org_line, (unsigned int)t,
 			compopts.dumpfolded ? "<!--{{{-->" : "");
 	for (i=0; i<DA_CUR (t->items); i++) {
 		if (i < tnd->nsub) {
@@ -1507,7 +1508,7 @@ void tnode_dumptree (tnode_t *t, int indent, FILE *stream)
 				tnd->hook_dumptree (t, DA_NTHITEM (t->items, i), indent + 1, stream);
 			} else {
 				tnode_isetindent (stream, indent + 1);
-				fprintf (stream, "<hook addr=\"0x%8.8x\" />\n", (unsigned int)(DA_NTHITEM (t->items, i)));
+				fhandle_printf (stream, "<hook addr=\"0x%8.8x\" />\n", (unsigned int)(DA_NTHITEM (t->items, i)));
 			}
 		}
 	}
@@ -1520,32 +1521,32 @@ void tnode_dumptree (tnode_t *t, int indent, FILE *stream)
 			ch->chook_dumptree (t, chc, indent + 1, stream);
 		} else if (ch && chc) {
 			tnode_isetindent (stream, indent + 1);
-			fprintf (stream, "<chook id=\"%s\" addr=\"0x%8.8x\" />\n", ch->name, (unsigned int)chc);
+			fhandle_printf (stream, "<chook id=\"%s\" addr=\"0x%8.8x\" />\n", ch->name, (unsigned int)chc);
 		}
 	}
 	tnode_isetindent (stream, indent);
-	fprintf (stream, "</%s>%s\n", tnd->name, compopts.dumpfolded ? "<!--}}}-->" : "");
+	fhandle_printf (stream, "</%s>%s\n", tnd->name, compopts.dumpfolded ? "<!--}}}-->" : "");
 
 	return;
 }
 /*}}}*/
-/*{{{  void tnode_dumpstree (tnode_t *t, int indent, FILE *stream)*/
+/*{{{  void tnode_dumpstree (tnode_t *t, int indent, fhandle_t *stream)*/
 /*
  *	dumps a parse tree in s-record format
  */
-void tnode_dumpstree (tnode_t *t, int indent, FILE *stream)
+void tnode_dumpstree (tnode_t *t, int indent, fhandle_t *stream)
 {
 	int i;
 	tndef_t *tnd;
 
 	tnode_ssetindent (stream, indent);
 	if (!t) {
-		fprintf (stream, "null\n");
+		fhandle_printf (stream, "null\n");
 		return;
 	}
 	tnd = t->tag->ndef;
 
-	fprintf (stream, "(%s\n", t->tag->name);
+	fhandle_printf (stream, "(%s\n", t->tag->name);
 
 	for (i=0; i<DA_CUR (t->items); i++) {
 		if (i < tnd->nsub) {
@@ -1560,7 +1561,7 @@ void tnode_dumpstree (tnode_t *t, int indent, FILE *stream)
 				tnd->hook_dumpstree (t, DA_NTHITEM (t->items, i), indent + 1, stream);
 			} else {
 				tnode_ssetindent (stream, indent + 1);
-				fprintf (stream, "(hook (addr 0x%8.8x))\n", (unsigned int)(DA_NTHITEM (t->items, i)));
+				fhandle_printf (stream, "(hook (addr 0x%8.8x))\n", (unsigned int)(DA_NTHITEM (t->items, i)));
 			}
 		}
 	}
@@ -1573,35 +1574,35 @@ void tnode_dumpstree (tnode_t *t, int indent, FILE *stream)
 			ch->chook_dumpstree (t, chc, indent + 1, stream);
 		} else if (ch && chc) {
 			tnode_ssetindent (stream, indent + 1);
-			fprintf (stream, "(chook (id \"%s\") (addr 0x%8.8x))\n", ch->name, (unsigned int)chc);
+			fhandle_printf (stream, "(chook (id \"%s\") (addr 0x%8.8x))\n", ch->name, (unsigned int)chc);
 		}
 	}
 
 	tnode_ssetindent (stream, indent);
-	fprintf (stream, ")\n");
+	fhandle_printf (stream, ")\n");
 
 	return;
 }
 /*}}}*/
-/*{{{  void tnode_dumpnodetypes (FILE *stream)*/
+/*{{{  void tnode_dumpnodetypes (fhandle_t *stream)*/
 /*
  *	dumps the various node-types and tags loaded
  */
-void tnode_dumpnodetypes (FILE *stream)
+void tnode_dumpnodetypes (fhandle_t *stream)
 {
 	int i;
 
 	for (i=0; i<DA_CUR (anodetypes); i++) {
 		tndef_t *tnd = DA_NTHITEM (anodetypes, i);
 
-		fprintf (stream, "node type [%s].  %d subnode(s), %d name(s), %d hook(s)\n", tnd->name, tnd->nsub, tnd->nname, tnd->nhooks);
-		fprintf (stream, "     hook_copy=%p, hook_copyoralias=%p, hook_free=%p, hook_dumptree=%p, prefreetree=%p.\n", tnd->hook_copy,
+		fhandle_printf (stream, "node type [%s].  %d subnode(s), %d name(s), %d hook(s)\n", tnd->name, tnd->nsub, tnd->nname, tnd->nhooks);
+		fhandle_printf (stream, "     hook_copy=%p, hook_copyoralias=%p, hook_free=%p, hook_dumptree=%p, prefreetree=%p.\n", tnd->hook_copy,
 				tnd->hook_copyoralias, tnd->hook_free, tnd->hook_dumptree, tnd->prefreetree);
 	}
 	for (i=0; i<DA_CUR (anodetags); i++) {
 		ntdef_t *ntd = DA_NTHITEM (anodetags, i);
 
-		fprintf (stream, "tag name [%s] type [%s]\n", ntd->name, ntd->ndef->name);
+		fhandle_printf (stream, "tag name [%s] type [%s]\n", ntd->name, ntd->ndef->name);
 	}
 
 	return;
@@ -2083,46 +2084,46 @@ compop_t *tnode_findcompop (char *name)
 	return stringhash_lookup (compops, name);
 }
 /*}}}*/
-/*{{{  void tnode_dumpcompops (compops_t *cops, FILE *stream)*/
+/*{{{  void tnode_dumpcompops (compops_t *cops, fhandle_t *stream)*/
 /*
  *	dumps contents of the specified compiler-operation (debugging)
  */
-void tnode_dumpcompops (compops_t *cops, FILE *stream)
+void tnode_dumpcompops (compops_t *cops, fhandle_t *stream)
 {
 	int i;
 	compops_t *cx;
 
-	fprintf (stream, "%-25s      ", "compops at:");
+	fhandle_printf (stream, "%-25s      ", "compops at:");
 	for (cx = cops; cx; cx = cx->next) {
-		fprintf (stream, "0x%8.8x  ", (unsigned int)cx);
+		fhandle_printf (stream, "0x%8.8x  ", (unsigned int)cx);
 	}
-	fprintf (stream, "\n");
-	fprintf (stream, "%-25s      ", "");
+	fhandle_printf (stream, "\n");
+	fhandle_printf (stream, "%-25s      ", "");
 	for (cx = cops; cx; cx = cx->next) {
-		fprintf (stream, "------------");
+		fhandle_printf (stream, "------------");
 	}
-	fprintf (stream, "\n");
+	fhandle_printf (stream, "\n");
 
 	for (i=0; i<DA_CUR (acompops); i++) {
 		compop_t *cop = DA_NTHITEM (acompops, i);
 
 		if (cop) {
-			fprintf (stream, "    %-25s  ", cop->name);
+			fhandle_printf (stream, "    %-25s  ", cop->name);
 
 			for (cx = cops; cx; cx = cx->next) {
 				if (cop->opno >= DA_CUR (cx->opfuncs)) {
-					fprintf (stream, "--          ");
+					fhandle_printf (stream, "--          ");
 				} else {
 					void *fcn = DA_NTHITEM (cx->opfuncs, cop->opno);
 
 					if (fcn == (void *)tnode_callthroughcompops) {
-						fprintf (stream, "---->       ");
+						fhandle_printf (stream, "---->       ");
 					} else {
-						fprintf (stream, "0x%8.8x  ", (unsigned int)fcn);
+						fhandle_printf (stream, "0x%8.8x  ", (unsigned int)fcn);
 					}
 				}
 			}
-			fprintf (stream, "\n");
+			fhandle_printf (stream, "\n");
 		}
 	}
 }
@@ -2487,7 +2488,7 @@ int tnode_newlangop (char *name, langops_e opno, int nparams, origin_t *origin)
 	}
 	lop = (langop_t *)smalloc (sizeof (langop_t));
 	lop->name = string_dup (name);
-	if (opno == COPS_INVALID) {
+	if (opno == LOPS_INVALID) {
 		/* means select one */
 		lop->opno = (langops_e)DA_CUR (alangops);
 	} else {
@@ -2658,18 +2659,18 @@ void tnode_clearchook (tnode_t *t, chook_t *ch)
 	return;
 }
 /*}}}*/
-/*{{{  void tnode_dumpchooks (FILE *stream)*/
+/*{{{  void tnode_dumpchooks (fhandle_t *stream)*/
 /*
  *	dumps compiler hooks (debugging)
  */
-void tnode_dumpchooks (FILE *stream)
+void tnode_dumpchooks (fhandle_t *stream)
 {
 	int i;
 
 	for (i=0; i<DA_CUR (acomphooks); i++) {
 		chook_t *ch = DA_NTHITEM (acomphooks, i);
 
-		fprintf (stream, "%-2d copy=0x%8.8x free=0x%8.8x dumptree=0x%8.8x %s\n", ch->id, (unsigned int)ch->chook_copy,
+		fhandle_printf (stream, "%-2d copy=0x%8.8x free=0x%8.8x dumptree=0x%8.8x %s\n", ch->id, (unsigned int)ch->chook_copy,
 				(unsigned int)ch->chook_free, (unsigned int)ch->chook_dumptree, ch->name);
 	}
 	return;
@@ -2855,36 +2856,36 @@ void tnode_error (tnode_t *t, const char *fmt, ...)
 /*}}}*/
 
 
-/*{{{  void tnode_dumpsnodetypes (FILE *stream)*/
+/*{{{  void tnode_dumpsnodetypes (fhandle_t *stream)*/
 /*
  *	dumps a list of the registered node types (short form)
  */
-void tnode_dumpsnodetypes (FILE *stream)
+void tnode_dumpsnodetypes (fhandle_t *stream)
 {
 	int i;
 
-	fprintf (stream, "node types:\n");
+	fhandle_printf (stream, "node types:\n");
 	for (i=0; i<DA_CUR (anodetypes); i++) {
 		tndef_t *tnd = DA_NTHITEM (anodetypes, i);
 
-		fprintf (stream, "    %-32s (%d,%d,%d)\n", tnd->name, tnd->nsub, tnd->nname, tnd->nhooks);
+		fhandle_printf (stream, "    %-32s (%d,%d,%d)\n", tnd->name, tnd->nsub, tnd->nname, tnd->nhooks);
 	}
 	return;
 }
 /*}}}*/
-/*{{{  void tnode_dumpsnodetags (FILE *stream)*/
+/*{{{  void tnode_dumpsnodetags (fhandle_t *stream)*/
 /*
  *	dumps a list of the registered node tags (short form)
  */
-void tnode_dumpsnodetags (FILE *stream)
+void tnode_dumpsnodetags (fhandle_t *stream)
 {
 	int i;
 
-	fprintf (stream, "node tags:\n");
+	fhandle_printf (stream, "node tags:\n");
 	for (i=0; i<DA_CUR (anodetags); i++) {
 		ntdef_t *ntd = DA_NTHITEM (anodetags, i);
 
-		fprintf (stream, "    %s\n", ntd->name);
+		fhandle_printf (stream, "    %s\n", ntd->name);
 	}
 	return;
 }

@@ -1,6 +1,6 @@
 /*
  *	occampi_protocol.c -- occam-pi protocol handling
- *	Copyright (C) 2008 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2008-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -127,40 +128,40 @@ static void *occampi_pextstate_chook_copy (void *chook)
 	return npxs;
 }
 /*}}}*/
-/*{{{  static void occampi_pextstate_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_pextstate_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a pextstate compiler hook (debugging)
  */
-static void occampi_pextstate_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void occampi_pextstate_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	pextstate_t *pxs = (pextstate_t *)chook;
 
 	occampi_isetindent (stream, indent);
 	if (!pxs) {
-		fprintf (stream, "<chook:pextstate value=\"null\" />\n");
+		fhandle_printf (stream, "<chook:pextstate value=\"null\" />\n");
 	} else {
-		fprintf (stream, "<chook:pextstate fixed=\"%d\" />\n", pxs->fixed);
+		fhandle_printf (stream, "<chook:pextstate fixed=\"%d\" />\n", pxs->fixed);
 	}
 	return;
 }
 /*}}}*/
 
-/*{{{  static void occampi_gettagschook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_gettagschook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a gettagschook compiler hook (debugging)
  */
-static void occampi_gettagschook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void occampi_gettagschook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	tnode_t *taglist = (tnode_t *)chook;
 
 	occampi_isetindent (stream, indent);
 	if (!taglist) {
-		fprintf (stream, "<chook:gettagschook value=\"null\" />\n");
+		fhandle_printf (stream, "<chook:gettagschook value=\"null\" />\n");
 	} else {
-		fprintf (stream, "<chook:gettagschook>\n");
+		fhandle_printf (stream, "<chook:gettagschook>\n");
 		tnode_dumptree (taglist, indent+1, stream);
 		occampi_isetindent (stream, indent);
-		fprintf (stream, "</chook:gettagschook>\n");
+		fhandle_printf (stream, "</chook:gettagschook>\n");
 	}
 	return;
 }
@@ -1454,7 +1455,7 @@ static int occampi_typehash_nameprotocolnode (langops_t *lops, tnode_t *node, in
 	}
 #if 1
 fprintf (stderr, "occampi_typehash_nameprotocolnode(): FIXME: subtype needs including, got:\n");
-tnode_dumptree (subtype, 1, stderr);
+tnode_dumptree (subtype, 1, FHAN_STDERR);
 #endif
 
 	return 0;

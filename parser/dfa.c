@@ -1,6 +1,6 @@
 /*
  *	dfa.c -- DFA utilities for nocc
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <F.R.M.Barnes@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -98,11 +99,11 @@ int dfa_shutdown (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  void dfa_dumpdfa (FILE *stream, dfanode_t *dfa)*/
+/*{{{  void dfa_dumpdfa (fhandle_t *stream, dfanode_t *dfa)*/
 /*
  *	dumps a DFA and all its nodes (debugging)
  */
-void dfa_dumpdfa (FILE *stream, dfanode_t *dfa)
+void dfa_dumpdfa (fhandle_t *stream, dfanode_t *dfa)
 {
 	DYNARRAY (dfanode_t *, list);
 	int cur;
@@ -114,7 +115,7 @@ void dfa_dumpdfa (FILE *stream, dfanode_t *dfa)
 		dfanode_t *thisdfa = DA_NTHITEM (list, cur);
 		int i;
 
-		fprintf (stream, "    DFA node: 0x%8.8x (%d in, %d matches, reduce with 0x%8.8x (0x%8.8x))  [%s]\n", (unsigned int)thisdfa, thisdfa->incoming, DA_CUR (thisdfa->match),
+		fhandle_printf (stream, "    DFA node: 0x%8.8x (%d in, %d matches, reduce with 0x%8.8x (0x%8.8x))  [%s]\n", (unsigned int)thisdfa, thisdfa->incoming, DA_CUR (thisdfa->match),
 				(unsigned int)(thisdfa->reduce), (unsigned int)(thisdfa->rarg), (thisdfa->dfainfo ? ((nameddfa_t *)(thisdfa->dfainfo))->name : "??"));
 		for (i=0; i<DA_CUR (thisdfa->match); i++) {
 			token_t *t_tok = DA_NTHITEM (thisdfa->match, i);
@@ -122,23 +123,23 @@ void dfa_dumpdfa (FILE *stream, dfanode_t *dfa)
 			dfanode_t *t_target = DA_NTHITEM (thisdfa->target, i);
 			int t_flags = DA_NTHITEM (thisdfa->flags, i);
 
-			fprintf (stream, "      MATCH ");
+			fhandle_printf (stream, "      MATCH ");
 			lexer_dumptoken_short (stream, t_tok);
 			if (t_pushto && (t_flags & DFAFLAG_PUSHSTACK)) {
-				fprintf (stream, " PUSH 0x%8.8x", (unsigned int)t_pushto);
+				fhandle_printf (stream, " PUSH 0x%8.8x", (unsigned int)t_pushto);
 				if (t_pushto && t_pushto->dfainfo && (t_pushto->dfainfo != thisdfa->dfainfo)) {
 					nameddfa_t *ndfa = (nameddfa_t *)t_pushto->dfainfo;
 
-					fprintf (stream, " (%s)", ndfa->name);
+					fhandle_printf (stream, " (%s)", ndfa->name);
 				}
 			}
 			/* this state must be part of the same DFA, add it if not seen already */
 			if (t_target) {
 				dynarray_maybeadd (list, t_target);
 			}
-			fprintf (stream, " -> 0x%8.8x ", (unsigned int)t_target);
+			fhandle_printf (stream, " -> 0x%8.8x ", (unsigned int)t_target);
 			/* show flags */
-			fprintf (stream, "[%s%s%s%s]\n", (t_flags & DFAFLAG_NOCONSUME) ? "NC " : "",
+			fhandle_printf (stream, "[%s%s%s%s]\n", (t_flags & DFAFLAG_NOCONSUME) ? "NC " : "",
 					(t_flags & DFAFLAG_KEEP) ? "KP " : "",
 					(t_flags & DFAFLAG_PUSHSTACK) ? "PS " : "",
 					(t_flags & DFAFLAG_DEFERRED) ? "DF " : "");
@@ -150,16 +151,16 @@ void dfa_dumpdfa (FILE *stream, dfanode_t *dfa)
 	return;
 }
 /*}}}*/
-/*{{{  void dfa_dumpnameddfa (FILE *stream, char *dfaname)*/
+/*{{{  void dfa_dumpnameddfa (fhandle_t *stream, char *dfaname)*/
 /*
  *	dumps a named DFA (debugging)
  */
-void dfa_dumpnameddfa (FILE *stream, char *dfaname)
+void dfa_dumpnameddfa (fhandle_t *stream, char *dfaname)
 {
 	dfanode_t *dfa = dfa_lookupbyname (dfaname);
 
 	if (!dfa) {
-		fprintf (stream, "unknown DFA [%s]\n", dfaname);
+		fhandle_printf (stream, "unknown DFA [%s]\n", dfaname);
 	} else {
 		dfa_dumpdfa (stream, dfa);
 	}
@@ -172,19 +173,19 @@ void dfa_dumpnameddfa (FILE *stream, char *dfaname)
  */
 static void dfa_idumpnameddfa (nameddfa_t *ndfa, char *dfaname, void *voidptr)
 {
-	FILE *stream = (FILE *)voidptr;
+	fhandle_t *stream = (fhandle_t *)voidptr;
 
-	fprintf (stream, "DFA called [%s] at 0x%8.8x:\n", dfaname, (unsigned int)(ndfa->inode));
+	fhandle_printf (stream, "DFA called [%s] at 0x%8.8x:\n", dfaname, (unsigned int)(ndfa->inode));
 	dfa_dumpdfa (stream, ndfa->inode);
 
 	return;
 }
 /*}}}*/
-/*{{{  void dfa_dumpdfas (FILE *stream)*/
+/*{{{  void dfa_dumpdfas (fhandle_t *stream)*/
 /*
  *	dumps all DFAs (that are named)  (debugging)
  */
-void dfa_dumpdfas (FILE *stream)
+void dfa_dumpdfas (fhandle_t *stream)
 {
 	stringhash_walk (nameddfas, dfa_idumpnameddfa, (void *)stream);
 	return;
@@ -2583,48 +2584,49 @@ fprintf (stderr, "dfa_bnftotbl(): passed check..! -- ought to decode now (nfnptr
 	return ttbl;
 }
 /*}}}*/
-/*{{{  static void dfa_dumpttblent (FILE *stream, dfattblent_t *tblent)*/
+/*{{{  static void dfa_dumpttblent (fhandle_t *stream, dfattblent_t *tblent)*/
 /*
  *	dumps a transition-table entry
  */
-static void dfa_dumpttblent (FILE *stream, dfattblent_t *tblent)
+static void dfa_dumpttblent (fhandle_t *stream, dfattblent_t *tblent)
 {
-	fprintf (stream, " [ %d", tblent->s_state);
+	fhandle_printf (stream, " [ %d", tblent->s_state);
 	if (tblent->rname) {
-		fprintf (stream, " %s", tblent->rname);
+		fhandle_printf (stream, " %s", tblent->rname);
 	} else if (tblent->reduce) {
-		fprintf (stream, " {0x%8.8x:0x%8.8x}", (unsigned int)tblent->reduce, (unsigned int)tblent->rarg);
+		fhandle_printf (stream, " {0x%8.8x:0x%8.8x}", (unsigned int)tblent->reduce, (unsigned int)tblent->rarg);
 	}
 	if (tblent->match) {
-		fprintf (stream, " %s", tblent->match);
+		fhandle_printf (stream, " %s", tblent->match);
 	}
 	if (tblent->e_state > -1) {
-		fprintf (stream, " %d", tblent->e_state);
+		fhandle_printf (stream, " %d", tblent->e_state);
 	} else if (tblent->e_named) {
-		fprintf (stream, " %s", tblent->e_named);
+		fhandle_printf (stream, " %s", tblent->e_named);
 	}
-	fprintf (stream, " ]");
+	fhandle_printf (stream, " ]");
 
 	return;
 }
 /*}}}*/
-/*{{{  static void dfa_dumpttblent_gra (FILE *stream, dfattblent_t *tblent, int estate)*/
+/*{{{  static void dfa_dumpttblent_gra (fhandle_t *stream, dfattblent_t *tblent, int estate)*/
 /*
  *	dumps a transition-table entry (in UWGVGraph .gra format)
  */
-static void dfa_dumpttblent_gra (FILE *stream, dfattblent_t *tblent, int estate)
+static void dfa_dumpttblent_gra (fhandle_t *stream, dfattblent_t *tblent, int estate)
 {
 	if (tblent->match) {
-		fprintf (stream, "EDGE %d %d TYPE LINE LABEL \"%s\"\n", tblent->s_state, (tblent->e_state < 0) ? estate : tblent->e_state, tblent->match);
+		fhandle_printf (stream, "EDGE %d %d TYPE LINE LABEL \"%s\"\n", tblent->s_state,
+				(tblent->e_state < 0) ? estate : tblent->e_state, tblent->match);
 	}
 	return;
 }
 /*}}}*/
-/*{{{  void dfa_dumpttbl (FILE *stream, dfattbl_t *ttbl)*/
+/*{{{  void dfa_dumpttbl (fhandle_t *stream, dfattbl_t *ttbl)*/
 /*
  *	dumps a dfattbl_t transition table
  */
-void dfa_dumpttbl (FILE *stream, dfattbl_t *ttbl)
+void dfa_dumpttbl (fhandle_t *stream, dfattbl_t *ttbl)
 {
 	int i;
 
@@ -2633,9 +2635,9 @@ void dfa_dumpttbl (FILE *stream, dfattbl_t *ttbl)
 		return;
 	}
 	if (ttbl->name) {
-		fprintf (stream, "[nstates=%d] %s %s", ttbl->nstates, ttbl->name, (ttbl->op == 0) ? "::=" : "+:=");
+		fhandle_printf (stream, "[nstates=%d] %s %s", ttbl->nstates, ttbl->name, (ttbl->op == 0) ? "::=" : "+:=");
 	} else {
-		fprintf (stream, "[nstates=%d] (anon) %s", ttbl->nstates, (ttbl->op == 0) ? "::=" : "+:=");
+		fhandle_printf (stream, "[nstates=%d] (anon) %s", ttbl->nstates, (ttbl->op == 0) ? "::=" : "+:=");
 	}
 	for (i=0; i<DA_CUR (ttbl->entries); i++) {
 		dfattblent_t *tblent = DA_NTHITEM (ttbl->entries, i);
@@ -2646,16 +2648,16 @@ void dfa_dumpttbl (FILE *stream, dfattbl_t *ttbl)
 		}
 		dfa_dumpttblent (stream, tblent);
 	}
-	fprintf (stream, "\n");
+	fhandle_printf (stream, "\n");
 
 	return;
 }
 /*}}}*/
-/*{{{  void dfa_dumpttbl_gra (FILE *stream, dfattbl_t *ttbl)*/
+/*{{{  void dfa_dumpttbl_gra (fhandle_t *stream, dfattbl_t *ttbl)*/
 /*
  *	dumps a dfattbl_t transition table (in UWGVGraph .gra format)
  */
-void dfa_dumpttbl_gra (FILE *stream, dfattbl_t *ttbl)
+void dfa_dumpttbl_gra (fhandle_t *stream, dfattbl_t *ttbl)
 {
 	int i;
 	int *seen_states;
@@ -2666,7 +2668,7 @@ void dfa_dumpttbl_gra (FILE *stream, dfattbl_t *ttbl)
 		nocc_internal ("dfa_dumpttbl_gra(): NULL transition table!");
 		return;
 	}
-	fprintf (stream, "#\n# transition table for [%s], nstates = %d, op = %s\n#\n\n", ttbl->name ?: "(anon)", ttbl->nstates, (ttbl->op == 0) ? "::=" : "+:=");
+	fhandle_printf (stream, "#\n# transition table for [%s], nstates = %d, op = %s\n#\n\n", ttbl->name ?: "(anon)", ttbl->nstates, (ttbl->op == 0) ? "::=" : "+:=");
 
 	seen_states = (int *)smalloc ((ttbl->nstates + 1) * sizeof (int));
 	seen_reducers = (char **)smalloc ((ttbl->nstates + 1) * sizeof (char *));
@@ -2699,7 +2701,7 @@ void dfa_dumpttbl_gra (FILE *stream, dfattbl_t *ttbl)
 			char *redex = seen_reducers[tblent->s_state];
 
 			seen_states[tblent->s_state] = 1;
-			fprintf (stream, "NODE %d TYPE POINT SIZE 5 LABEL \"%d%s%s%s\"\n", tblent->s_state, tblent->s_state, (!tblent->s_state) ? " (start)" : "", redex ? " " : "", redex ?: "");
+			fhandle_printf (stream, "NODE %d TYPE POINT SIZE 5 LABEL \"%d%s%s%s\"\n", tblent->s_state, tblent->s_state, (!tblent->s_state) ? " (start)" : "", redex ? " " : "", redex ?: "");
 			if (redex) {
 				sfree (redex);
 			}
@@ -2707,14 +2709,14 @@ void dfa_dumpttbl_gra (FILE *stream, dfattbl_t *ttbl)
 	}
 
 	enode = ttbl->nstates + 1;
-	fprintf (stream, "NODE %d TYPE POINT SIZE 5 LABEL \"%d (end)\"\n", enode, enode);
+	fhandle_printf (stream, "NODE %d TYPE POINT SIZE 5 LABEL \"%d (end)\"\n", enode, enode);
 
 	for (i=0; i<DA_CUR (ttbl->entries); i++) {
 		dfattblent_t *tblent = DA_NTHITEM (ttbl->entries, i);
 
 		dfa_dumpttblent_gra (stream, tblent, enode);
 	}
-	fprintf (stream, "\n");
+	fhandle_printf (stream, "\n");
 
 	sfree (seen_states);
 	sfree (seen_reducers);
@@ -3196,28 +3198,28 @@ fprintf (stderr, "dfa_match_deferred(): resolving [%s] in [%s]\n", dmatch->match
 	return 0;
 }
 /*}}}*/
-/*{{{  void dfa_dumpdeferred (FILE *stream)*/
+/*{{{  void dfa_dumpdeferred (fhandle_t *stream)*/
 /*
  *	dumps deferred matches (debugging)
  */
-void dfa_dumpdeferred (FILE *stream)
+void dfa_dumpdeferred (fhandle_t *stream)
 {
 	int i;
 
-	fprintf (stream, "dfa_dumpdeferred(): %d deferred matches:\n", DA_CUR (defmatches));
+	fhandle_printf (stream, "dfa_dumpdeferred(): %d deferred matches:\n", DA_CUR (defmatches));
 	for (i=0; i<DA_CUR (defmatches); i++) {
 		deferred_match_t *dmatch = DA_NTHITEM (defmatches, i);
 
-		fprintf (stream, "%2d: 0x%8.8x(%s) --[%s]--> 0x%8.8x(%s)\n", i,
+		fhandle_printf (stream, "%2d: 0x%8.8x(%s) --[%s]--> 0x%8.8x(%s)\n", i,
 				(unsigned int)dmatch->inode, dmatch->inode->dfainfo ? ((nameddfa_t *)dmatch->inode->dfainfo)->name : "?",
 				dmatch->match->u.str.ptr ?: "(null)",
 				(unsigned int)dmatch->enode, dmatch->enode->dfainfo ? ((nameddfa_t *)dmatch->enode->dfainfo)->name : "?");
 	}
-	fprintf (stream, "dfa_dumpdeferred(): %d deferred targets:\n", DA_CUR (deftargets));
+	fhandle_printf (stream, "dfa_dumpdeferred(): %d deferred targets:\n", DA_CUR (deftargets));
 	for (i=0; i<DA_CUR (deftargets); i++) {
 		deferred_target_t *dtarget = DA_NTHITEM (deftargets, i);
 
-		fprintf (stream, "%2d: 0x%8.8x(%s) --[0x%8.8x]--> <%s>\n", i,
+		fhandle_printf (stream, "%2d: 0x%8.8x(%s) --[0x%8.8x]--> <%s>\n", i,
 				(unsigned int)dtarget->inode, dtarget->inode->dfainfo ? ((nameddfa_t *)dtarget->inode->dfainfo)->name : "?",
 				(unsigned int)dtarget->match, dtarget->target->u.str.ptr ?: "(null)");
 	}
@@ -3268,11 +3270,11 @@ int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)
 				token_t *thistok = DA_NTHITEM (cnode->match, i);
 
 				if (thistok) {
-					lexer_dumptoken (stderr, thistok);
+					lexer_dumptoken (FHAN_STDERR, thistok);
 				}
 			}
 			parser_error (pp->lf, "dfa_advance(): got:");
-			lexer_dumptoken (stderr, tok);
+			lexer_dumptoken (FHAN_STDERR, tok);
 			/*}}}*/
 		}
 		return 0;
@@ -3534,7 +3536,7 @@ fprintf (stderr, "dfa_walk() back from tidy-up advance, got token [%s], dfast->p
 
 			if (thistok) {
 				if (compopts.verbose) {
-					lexer_dumptoken (stderr, thistok);
+					lexer_dumptoken (FHAN_STDERR, thistok);
 				}
 				lexer_freetoken (thistok);
 				DA_SETNTHITEM (pp->tokstack, 0, NULL);
@@ -3551,7 +3553,7 @@ fprintf (stderr, "dfa_walk() back from tidy-up advance, got token [%s], dfast->p
 
 			if (thisnode) {
 				if (compopts.verbose) {
-					tnode_dumptree (thisnode, 1, stderr);
+					tnode_dumptree (thisnode, 1, FHAN_STDERR);
 				}
 				tnode_free (thisnode);
 				DA_SETNTHITEM (dfast->nodestack, 0, NULL);

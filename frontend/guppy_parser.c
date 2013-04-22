@@ -1,6 +1,6 @@
 /*
  *	guppy_parser.c -- Guppy parser for nocc
- *	Copyright (C) 2010 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2010-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -235,16 +236,16 @@ static int flattenseq_modprewalk (tnode_t **tptr, void *arg)
 /*}}}*/
 
 
-/*{{{  void guppy_isetindent (FILE *stream, int indent)*/
+/*{{{  void guppy_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	set-indent for debugging output
  */
-void guppy_isetindent (FILE *stream, int indent)
+void guppy_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -642,10 +643,10 @@ static int guppy_parser_init (lexfile_t *lf)
 			return 1;
 		}
 		if (compopts.dumpdfas) {
-			dfa_dumpdfas (stderr);
+			dfa_dumpdfas (FHAN_STDERR);
 		}
 		if (compopts.dumpgrules) {
-			parser_dumpgrules (stderr);
+			parser_dumpgrules (FHAN_STDERR);
 		}
 
 		/* last, re-init multiway syncs with default end-of-par option */
@@ -781,7 +782,7 @@ static tnode_t *guppy_declorproc (lexfile_t *lf)
 		tree = guppy_parser_parseproc (lf);
 	} else {
 		nocc_serious ("guppy_declorproc(): guppy_testfordecl DFA returned:");
-		tnode_dumptree (tree, 1, stderr);
+		tnode_dumptree (tree, 1, FHAN_STDERR);
 		tnode_free (tree);
 		tree = NULL;
 	}
@@ -819,7 +820,7 @@ static tnode_t *guppy_indented_declorproc_list (lexfile_t *lf)
 	/*{{{  expect indent*/
 	if (tok->type != INDENT) {
 		parser_error (lf, "expected indent, found:");
-		lexer_dumptoken (stderr, tok);
+		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		tnode_free (tree);
 		return NULL;
@@ -897,7 +898,7 @@ static tnode_t *guppy_indented_name_list (lexfile_t *lf)
 	/*{{{  expect indent*/
 	if (tok->type != INDENT) {
 		parser_error (lf, "expected indent, found:");
-		lexer_dumptoken (stderr, tok);
+		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		tnode_free (tree);
 		return NULL;
@@ -1101,7 +1102,7 @@ static tnode_t *guppy_parser_parse (lexfile_t *lf)
 	tok = lexer_nexttoken (lf);
 	while (tok) {
 		if (compopts.verbose > 1) {
-			lexer_dumptoken (stderr, tok);
+			lexer_dumptoken (FHAN_STDERR, tok);
 		}
 		if ((tok->type == END) || (tok->type == NOTOKEN)) {
 			lexer_freetoken (tok);

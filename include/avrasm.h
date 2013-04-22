@@ -1,6 +1,6 @@
 /*
  *	avrasm.h -- AVR assembler
- *	Copyright (C) 2012 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2012-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@ struct TAG_tndef;
 struct TAG_ntdef;
 struct TAG_token;
 struct TAG_langdef;
+struct TAG_fhandle;
 
 typedef struct {
 	char *str;
@@ -194,7 +195,7 @@ typedef struct {
 	int addr;		/* actual address (byte offset) */
 } label_chook_t;
 
-extern void avrasm_isetindent (FILE *stream, int indent);	/* avrasm_parser.c */
+extern void avrasm_isetindent (struct TAG_fhandle *stream, int indent);	/* avrasm_parser.c */
 extern struct TAG_langdef *avrasm_getlangdef (void);
 
 extern int avrasm_langop_inseg (struct TAG_tnode *node);

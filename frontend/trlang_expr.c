@@ -1,6 +1,6 @@
 /*
  *	trlang_expr.c -- tree-rewriting language expression handling
- *	Copyright (C) 2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -164,14 +165,14 @@ static void *trlang_rawnamenode_hook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void trlang_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void trlang_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for rawnamenode hook (name-bytes)
  */
-static void trlang_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void trlang_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	trlang_isetindent (stream, indent);
-	fprintf (stream, "<trlangrawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
+	fhandle_printf (stream, "<trlangrawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
 	return;
 }
 /*}}}*/
@@ -213,21 +214,21 @@ static void *trlang_litnode_hook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void trlang_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void trlang_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for litnode hook (name-bytes)
  */
-static void trlang_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void trlang_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	trlang_lithook_t *lit = (trlang_lithook_t *)hook;
 
 	trlang_isetindent (stream, indent);
 	if (node->tag == trlang.tag_LITSTR) {
-		fprintf (stream, "<trlanglitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, (lit && lit->data) ? lit->data : "(null)");
+		fhandle_printf (stream, "<trlanglitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, (lit && lit->data) ? lit->data : "(null)");
 	} else {
 		char *sdata = mkhexbuf ((unsigned char *)lit->data, lit->len);
 
-		fprintf (stream, "<trlanglitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, sdata);
+		fhandle_printf (stream, "<trlanglitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, sdata);
 		sfree (sdata);
 	}
 

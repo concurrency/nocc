@@ -1,6 +1,6 @@
 /*
  *	mobilitycheck.h -- mobility checker interface for NOCC
- *	Copyright (C) 2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 struct TAG_tnode;
 struct TAG_langparser;
 struct TAG_chook;
+struct TAG_fhandle;
 
 typedef enum ENUM_mchknodetype {
 	MCN_INVALID = 0,
@@ -86,10 +87,10 @@ extern int mobilitycheck_shutdown (void);
 extern int mobilitycheck_subtree (struct TAG_tnode *node, mchk_state_t *mcstate);
 extern int mobilitycheck_tree (struct TAG_tnode *node, struct TAG_langparser *lang);
 
-extern void mobilitycheck_dumpbucket (mchk_bucket_t *mcb, int indent, FILE *stream);
-extern void mobilitycheck_dumptraces (mchk_traces_t *mct, int indent, FILE *stream);
-extern void mobilitycheck_dumpstate (mchk_state_t *mcstate, int indent, FILE *stream);
-extern void mobilitycheck_dumpnode (mchknode_t *mcn, int indent, FILE *stream);
+extern void mobilitycheck_dumpbucket (mchk_bucket_t *mcb, int indent, struct TAG_fhandle *stream);
+extern void mobilitycheck_dumptraces (mchk_traces_t *mct, int indent, struct TAG_fhandle *stream);
+extern void mobilitycheck_dumpstate (mchk_state_t *mcstate, int indent, struct TAG_fhandle *stream);
+extern void mobilitycheck_dumpnode (mchknode_t *mcn, int indent, struct TAG_fhandle *stream);
 
 extern mchknode_t *mobilitycheck_copynode (mchknode_t *mcn);
 extern mchknode_t *mobilitycheck_createnode (mchknodetype_e type, struct TAG_tnode *orgnode, ...);

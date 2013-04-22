@@ -1,6 +1,6 @@
 /*
  *	guppy_lit.c -- literals for Guppy
- *	Copyright (C) 2011 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2011-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -247,34 +248,34 @@ static void *guppy_litnode_hook_copy (void *hook)
 	return (void *)lcpy;
 }
 /*}}}*/
-/*{{{  static void guppy_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void guppy_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for a litnode hook
  */
-static void guppy_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void guppy_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	guppy_litdata_t *ldat = (guppy_litdata_t *)hook;
 	char *hdat;
 
 	guppy_isetindent (stream, indent);
-	fprintf (stream, "<litnodehook type=\"");
+	fhandle_printf (stream, "<litnodehook type=\"");
 	switch (ldat->littype) {
 	case INTEGER:
-		fprintf (stream, "integer");
+		fhandle_printf (stream, "integer");
 		break;
 	case REAL:
-		fprintf (stream, "real");
+		fhandle_printf (stream, "real");
 		break;
 	case STRING:
-		fprintf (stream, "string");
+		fhandle_printf (stream, "string");
 		break;
 	default:
-		fprintf (stream, "<unknown %d>", ldat->littype);
+		fhandle_printf (stream, "<unknown %d>", ldat->littype);
 		break;
 	}
-	fprintf (stream, "\" bytes=\"%d\" data=\"", ldat->bytes);
+	fhandle_printf (stream, "\" bytes=\"%d\" data=\"", ldat->bytes);
 	hdat = mkhexbuf ((unsigned char *)ldat->data, ldat->bytes);
-	fprintf (stream, "%s\" />\n", hdat);
+	fhandle_printf (stream, "%s\" />\n", hdat);
 	sfree (hdat);
 
 	return;
@@ -368,7 +369,12 @@ static int guppy_codegen_litnode (compops_t *cops, tnode_t *node, codegen_t *cge
 		}
 		break;
 	case STRING:
-		codegen_write_fmt (cgen, "\"%*s\"", ldat->bytes, ldat->data);
+		{
+			char *tstr = string_ndup ((char *)ldat->data, ldat->bytes);
+
+			codegen_write_fmt (cgen, "\"%*s\"", ldat->bytes, tstr);
+			sfree (tstr);
+		}
 		break;
 	}
 	return 0;

@@ -1,6 +1,6 @@
 /*
  *	occampi_exceptions.c -- EXCEPTION mechanism for occam-pi
- *	Copyright (C) 2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -233,16 +234,16 @@ static void exceptioncheck_throwschook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void exceptioncheck_throwschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void exceptioncheck_throwschook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps an occampi:throws compiler hook (debugging)
  */
-static void exceptioncheck_throwschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void exceptioncheck_throwschook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	opithrowshook_t *opith = (opithrowshook_t *)hook;
 
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "<chook:occampi:throws addr=\"0x%8.8x\">\n", (unsigned int)opith);
+	fhandle_printf (stream, "<chook:occampi:throws addr=\"0x%8.8x\">\n", (unsigned int)opith);
 	if (opith) {
 		int i;
 
@@ -253,7 +254,7 @@ static void exceptioncheck_throwschook_dumptree (tnode_t *node, void *hook, int 
 		}
 	}
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "</chook:occampi:throws>\n");
+	fhandle_printf (stream, "</chook:occampi:throws>\n");
 	return;
 }
 /*}}}*/
@@ -300,16 +301,16 @@ static void exceptioncheck_importthrowschook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void exceptioncheck_importthrowschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void exceptioncheck_importthrowschook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps an occampi:importthrows compiler hook (debugging)
  */
-static void exceptioncheck_importthrowschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void exceptioncheck_importthrowschook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	opiimportthrowshook_t *opiith = (opiimportthrowshook_t *)hook;
 
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "<chook:occampi:importthrows addr=\"0x%8.8x\">\n", (unsigned int)opiith);
+	fhandle_printf (stream, "<chook:occampi:importthrows addr=\"0x%8.8x\">\n", (unsigned int)opiith);
 	if (opiith) {
 		int i;
 
@@ -319,17 +320,17 @@ static void exceptioncheck_importthrowschook_dumptree (tnode_t *node, void *hook
 			tnode_t *res = DA_NTHITEM (opiith->resolved, i);
 
 			occampi_isetindent (stream, indent + 1);
-			fprintf (stream, "<throws name=\"%s\" typehash=\"0x%s\" resolved=\"%s\"%s>\n",
+			fhandle_printf (stream, "<throws name=\"%s\" typehash=\"0x%s\" resolved=\"%s\"%s>\n",
 					desc ?: "(null)", thash ?: "00000000", res ? "yes" : "no", res ? "" : " /");
 			if (res) {
 				tnode_dumptree (res, indent + 2, stream);
 				occampi_isetindent (stream, indent + 1);
-				fprintf (stream, "</throws>\n");
+				fhandle_printf (stream, "</throws>\n");
 			}
 		}
 	}
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "</chook:occampi:importthrows>\n");
+	fhandle_printf (stream, "</chook:occampi:importthrows>\n");
 	return;
 }
 /*}}}*/
@@ -419,7 +420,7 @@ static void exceptioncheck_error (tnode_t *node, opiexception_t *tc, const char 
 		orgfile->errcount++;
 	}
 	tc->err++;
-	"%s", nocc_message ("%s", warnbuf);
+	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;
@@ -706,7 +707,7 @@ static int occampi_namemap_trynode (compops_t *cops, tnode_t **nodep, map_t *mda
 
 #if 1
 fprintf (stderr, "occampi_namemap_trynode(): here!  link is:\n");
-tnode_dumptree (celink, 1, stderr);
+tnode_dumptree (celink, 1, FHAN_STDERR);
 #endif
 	return 1;
 }
@@ -1426,7 +1427,7 @@ static int occampi_exceptioncheck_namemap_instancenode (compops_t *cops, tnode_t
 			if (opith && DA_CUR (opith->elist)) {
 #if 1
 fprintf (stderr, "occampi_exceptioncheck_namemap_instancenode(): here, PROC being instanced is:\n");
-tnode_dumptree (tnode_nthsubof (*nodep, 0), 1, stderr);
+tnode_dumptree (tnode_nthsubof (*nodep, 0), 1, FHAN_STDERR);
 #endif
 			}
 			/*}}}*/

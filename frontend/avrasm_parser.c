@@ -1,6 +1,6 @@
 /*
  *	avrasm_parser.c -- AVR assembler parser for nocc
- *	Copyright (C) 2012 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2012-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -183,16 +184,16 @@ static void avrasm_freeavrasmparse (avrasm_parse_t *avrp)
 }
 /*}}}*/
 
-/*{{{  void avrasm_isetindent (FILE *stream, int indent)*/
+/*{{{  void avrasm_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	set-indent for debugging output
  */
-void avrasm_isetindent (FILE *stream, int indent)
+void avrasm_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -990,10 +991,10 @@ static int avrasm_parser_init (lexfile_t *lf)
 			return 1;
 		}
 		if (compopts.dumpdfas) {
-			dfa_dumpdfas (stderr);
+			dfa_dumpdfas (FHAN_STDERR);
 		}
 		if (compopts.dumpgrules) {
-			parser_dumpgrules (stderr);
+			parser_dumpgrules (FHAN_STDERR);
 		}
 	}
 	return 0;
@@ -1318,7 +1319,7 @@ static tnode_t *avrasm_parser_parse (lexfile_t *lf)
 					}
 				} else {
 					parser_error (lf, "while processing .include, expected string but found ");
-					lexer_dumptoken (stderr, nexttok);
+					lexer_dumptoken (FHAN_STDERR, nexttok);
 					lexer_freetoken (nexttok);
 				}
 				continue;		/* for() */
@@ -1346,7 +1347,7 @@ static tnode_t *avrasm_parser_parse (lexfile_t *lf)
 	tok = lexer_nexttoken (lf);
 	while (tok) {
 		if (compopts.verbose) {
-			lexer_dumptoken (stderr, tok);
+			lexer_dumptoken (FHAN_STDERR, tok);
 		}
 		if ((tok->type == END) || (tok->type == NOTOKEN)) {
 			lexer_freetoken (tok);

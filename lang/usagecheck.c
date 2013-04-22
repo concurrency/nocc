@@ -1,6 +1,6 @@
 /*
  *	usagecheck.c -- parallel usage checker for NOCC
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -168,46 +169,46 @@ static void uchk_freeuchktaghook (uchk_taghook_t *tagh)
 
 
 
-/*{{{  static void uchk_isetindent (FILE *stream, int indent)*/
+/*{{{  static void uchk_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	sets indentation level
  */
-static void uchk_isetindent (FILE *stream, int indent)
+static void uchk_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
 /*}}}*/
-/*{{{  static void uchk_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void uchk_chook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a usage-check compiler hook
  */
-static void uchk_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void uchk_chook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	uchk_chook_t *uchook = (uchk_chook_t *)hook;
 
 	uchk_isetindent (stream, indent);
-	fprintf (stream, "<chook id=\"usagecheck\">\n");
+	fhandle_printf (stream, "<chook id=\"usagecheck\">\n");
 	if (uchook && DA_CUR (uchook->parusage)) {
 		int i;
 
 		uchk_isetindent (stream, indent + 1);
-		fprintf (stream, "<parusage nsets=\"%d\">\n", DA_CUR (uchook->parusage));
+		fhandle_printf (stream, "<parusage nsets=\"%d\">\n", DA_CUR (uchook->parusage));
 		for (i=0; i<DA_CUR (uchook->parusage); i++) {
 			uchk_chook_set_t *parset = DA_NTHITEM (uchook->parusage, i);
 
 			if (!parset) {
 				uchk_isetindent (stream, indent + 2);
-				fprintf (stream, "<nullset />\n");
+				fhandle_printf (stream, "<nullset />\n");
 			} else {
 				int j;
 
 				uchk_isetindent (stream, indent + 2);
-				fprintf (stream, "<parset nitems=\"%d\">\n", DA_CUR (parset->items));
+				fhandle_printf (stream, "<parset nitems=\"%d\">\n", DA_CUR (parset->items));
 
 				for (j=0; j<DA_CUR (parset->items); j++) {
 					char buf[256];
@@ -236,20 +237,20 @@ static void uchk_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *st
 					}
 
 					uchk_isetindent (stream, indent + 3);
-					fprintf (stream, "<mode mode=\"0x%8.8x\" flags=\"%s\" />\n", (unsigned int)DA_NTHITEM (parset->modes, j), buf);
+					fhandle_printf (stream, "<mode mode=\"0x%8.8x\" flags=\"%s\" />\n", (unsigned int)DA_NTHITEM (parset->modes, j), buf);
 
 					tnode_dumptree (DA_NTHITEM (parset->items, j), indent + 3, stream);
 				}
 
 				uchk_isetindent (stream, indent + 2);
-				fprintf (stream, "</parset>\n");
+				fhandle_printf (stream, "</parset>\n");
 			}
 		}
 		uchk_isetindent (stream, indent + 1);
-		fprintf (stream, "</parusage>\n");
+		fhandle_printf (stream, "</parusage>\n");
 	}
 	uchk_isetindent (stream, indent);
-	fprintf (stream, "</chook>\n");
+	fhandle_printf (stream, "</chook>\n");
 
 	return;
 }
@@ -266,17 +267,17 @@ static void uchk_chook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void uchk_taghook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void uchk_taghook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a usage-check-tag compiler hook
  */
-static void uchk_taghook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void uchk_taghook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	uchk_taghook_t *thook = (uchk_taghook_t *)hook;
 
 	uchk_isetindent (stream, indent);
 	if (!thook) {
-		fprintf (stream, "<chook id=\"uchk:tagged\" value=\"(null)\" />\n");
+		fhandle_printf (stream, "<chook id=\"uchk:tagged\" value=\"(null)\" />\n");
 	} else {
 		uchk_mode_t mode = thook->mode;
 		char buf[256];
@@ -300,7 +301,7 @@ static void uchk_taghook_dumptree (tnode_t *node, void *hook, int indent, FILE *
 		if (x > 0) {
 			buf[x-1] = '\0';
 		}
-		fprintf (stream, "<chook id=\"uchk:tagged\" node=\"0x%8.8x\" mode=\"%s\" />\n", (unsigned int)thook->node, buf);
+		fhandle_printf (stream, "<chook id=\"uchk:tagged\" node=\"0x%8.8x\" mode=\"%s\" />\n", (unsigned int)thook->node, buf);
 	}
 
 	return;

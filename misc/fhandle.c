@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <stdarg.h>
 
 #include "nocc.h"
 #include "support.h"
@@ -69,6 +70,9 @@ static fhscheme_t *fhandle_newfhscheme (void)
 
 	fhs->openfcn = NULL;
 	fhs->closefcn = NULL;
+	fhs->mapfcn = NULL;
+	fhs->unmapfcn = NULL;
+	fhs->printffcn = NULL;
 
 	return fhs;
 }
@@ -218,11 +222,18 @@ fhandle_t *fhandle_fopen (const char *path, const char *mode)
 {
 	int mmode = 0;
 	int mperm = 0;
-	char *ch = (char *)mode;
+	char *mcopy = string_dup (mode);
+	char *ch = mcopy;
+	int mlen = strlen (mcopy);
 
 	if ((*ch == 't') || (*ch == 'b')) {
 		/* not relevant on unix */
 		ch++;
+		mlen--;
+	} else if ((ch[mlen - 1] == 't') || (ch[mlen - 1] == 'b')) {
+		/* ditto */
+		ch[mlen - 1] = '\0';
+		mlen--;
 	}
 
 	if (!strcmp (ch, "r")) {
@@ -243,8 +254,11 @@ fhandle_t *fhandle_fopen (const char *path, const char *mode)
 		mperm = 0644;
 	} else {
 		nocc_serious ("fhandle_fopen(): unknown mode string \"%s\" for \"%s\"", mode, path);
+		fhandle_seterr (NULL, -EINVAL);
+		sfree (mcopy);
 		return NULL;
 	}
+	sfree (mcopy);
 
 	return fhandle_open (path, mmode, mperm);
 }
@@ -308,6 +322,18 @@ fhandle_t *fhandle_open (const char *path, const int mode, const int perm)
 	return fhan;
 }
 /*}}}*/
+/*{{{  int fhandle_access (const char *path, const int amode)*/
+/*
+ *	tests for accessibility of a particular file (F_OK, R_OK, W_OK, X_OK).
+ *	returns 0 on success, non-zero on failure.
+ */
+int fhandle_access (const char *path, const int amode)
+{
+	/* FIXME: incomplete.. */
+	fhandle_seterr (NULL, -ENOSYS);
+	return -1;
+}
+/*}}}*/
 /*{{{  int fhandle_close (fhandle_t *fh)*/
 /*
  *	closes a file-handle.
@@ -338,10 +364,19 @@ int fhandle_close (fhandle_t *fh)
  */
 int fhandle_lasterr (fhandle_t *fh)
 {
+	int err;
+
 	if (fh) {
-		return fh->err;
+		err = fh->err;
+	} else {
+		err = last_error_code;
 	}
-	return last_error_code;
+
+	if (err < 0) {
+		/* invert */
+		err = -err;
+	}
+	return err;
 }
 /*}}}*/
 /*{{{  unsigned char *fhandle_mapfile (fhandle_t *fh, size_t offset, size_t length)*/
@@ -390,6 +425,102 @@ int fhandle_unmapfile (fhandle_t *fh, unsigned char *ptr, size_t offset, size_t 
 	fhandle_seterr (fh, err);
 
 	return err;
+}
+/*}}}*/
+/*{{{  int fhandle_printf (fhandle_t *fh, const char *fmt, ...)*/
+/*
+ *	does printf style formatting writing to a file.
+ *	returns number of bytes written, -1 on error.
+ */
+int fhandle_printf (fhandle_t *fh, const char *fmt, ...)
+{
+	int count = 0;
+	va_list ap;
+
+	if (!fh) {
+		fhandle_seterr (fh, -EINVAL);
+		return -1;
+	} else if (!fh->scheme) {
+		fhandle_seterr (fh, -ENOSYS);
+		return -1;
+	}
+
+	va_start (ap, fmt);
+	count = fh->scheme->printffcn (fh, fmt, ap);
+	va_end (ap);
+
+	if (count < 0) {
+		fhandle_seterr (fh, count);
+		count = -1;
+	} else {
+		fhandle_seterr (fh, 0);
+	}
+
+	return count;
+}
+/*}}}*/
+/*{{{  int fhandle_write (fhandle_t *fh, unsigned char *buffer, int size)*/
+/*
+ *	writes data to a file.
+ *	returns number of bytes written on success, <= 0 on error.
+ */
+int fhandle_write (fhandle_t *fh, unsigned char *buffer, int size)
+{
+	if (!fh) {
+		return fhandle_seterr (fh, -EINVAL);
+	} else if (!fh->scheme) {
+		return fhandle_seterr (fh, -ENOSYS);
+	}
+
+	return fh->scheme->writefcn (fh, buffer, size);
+}
+/*}}}*/
+/*{{{  int fhandle_read (fhandle_t *fh, unsigned char *bufaddr, int max)*/
+/*
+ *	reads data to a file.
+ *	returns number of bytes written on success, <= 0 on error.
+ */
+int fhandle_read (fhandle_t *fh, unsigned char *bufaddr, int max)
+{
+	if (!fh) {
+		return fhandle_seterr (fh, -EINVAL);
+	} else if (!fh->scheme) {
+		return fhandle_seterr (fh, -ENOSYS);
+	}
+
+	return fh->scheme->readfcn (fh, bufaddr, max);
+}
+/*}}}*/
+/*{{{  int fhandle_gets (fhandle_t *fh, char *bufaddr, int max)*/
+/*
+ *	reads a line of input from the specified handle to 'bufaddr', at most 'max'-1 chars.
+ *	returns characters read on success, 0 on EOF, <0 on error.
+ */
+int fhandle_gets (fhandle_t *fh, char *bufaddr, int max)
+{
+	if (!fh) {
+		return fhandle_seterr (fh, -EINVAL);
+	} else if (!fh->scheme) {
+		return fhandle_seterr (fh, -ENOSYS);
+	}
+
+	return fh->scheme->getsfcn (fh, bufaddr, max);
+}
+/*}}}*/
+/*{{{  int fhandle_flush (fhandle_t *fh)*/
+/*
+ *	flushes a particular file.
+ *	returns 0 on success, non-zero on failure.
+ */
+int fhandle_flush (fhandle_t *fh)
+{
+	if (!fh) {
+		return fhandle_seterr (fh, -EINVAL);
+	} else if (!fh->scheme) {
+		return fhandle_seterr (fh, -ENOSYS);
+	}
+
+	return fh->scheme->flushfcn (fh);
 }
 /*}}}*/
 

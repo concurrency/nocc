@@ -1,6 +1,6 @@
 /*
  *	occampi.h -- occam-pi language interface for nocc
- *	Copyright (C) 2004-2008 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -279,6 +279,7 @@ struct TAG_tnode;
 struct TAG_prescope;
 struct TAG_scope;
 struct TAG_feunit;
+struct TAG_fhandle;
 
 
 typedef struct {
@@ -312,7 +313,7 @@ typedef struct {
 } occampi_miscnodetrans_t;
 
 
-extern void occampi_isetindent (FILE *stream, int indent);
+extern void occampi_isetindent (struct TAG_fhandle *stream, int indent);
 extern struct TAG_langdef *occampi_getlangdef (void);
 
 /* front-end units */

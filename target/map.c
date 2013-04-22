@@ -1,6 +1,6 @@
 /*
  *	map.c -- memory allocator for NOCC
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "tnode.h"
 #include "names.h"
 #include "map.h"
@@ -41,16 +42,16 @@
 /*}}}*/
 
 
-/*{{{  void map_isetindent (FILE *stream, int indent)*/
+/*{{{  void map_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	set-indent for debugging output
  */
-void map_isetindent (FILE *stream, int indent)
+void map_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -144,15 +145,15 @@ static int map_modprewalk_bemap (tnode_t **tptr, void *arg)
 	return i;
 }
 /*}}}*/
-/*{{{  static void map_namemap_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void map_namemap_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	displays the contents of a compiler-hook -- actually a back-end name-node
  */
-static void map_namemap_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void map_namemap_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	if (chook) {
 		map_isetindent (stream, indent);
-		fprintf (stream, "<chook:map:mapnames addr=\"0x%8.8x\" />\n", (unsigned int)chook);
+		fhandle_printf (stream, "<chook:map:mapnames addr=\"0x%8.8x\" />\n", (unsigned int)chook);
 	}
 	return;
 }

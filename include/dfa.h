@@ -1,6 +1,6 @@
 /*
  *	dfa.h -- DFA interface/definitions
- *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ struct TAG_dfastate;
 struct TAG_tnode;
 struct TAG_lexfile;
 struct TAG_dfaerrorhandler;
+struct TAG_fhandle;
 
 #define DFAFLAG_NONE 0x0000
 #define DFAFLAG_NOCONSUME 0x0001	/* don't consume the token */
@@ -95,9 +96,9 @@ typedef struct TAG_dfattbl {
 extern int dfa_init (void);
 extern int dfa_shutdown (void);
 
-extern void dfa_dumpdfa (FILE *stream, dfanode_t *dfa);
-extern void dfa_dumpnameddfa (FILE *stream, char *dfaname);
-extern void dfa_dumpdfas (FILE *stream);
+extern void dfa_dumpdfa (struct TAG_fhandle *stream, dfanode_t *dfa);
+extern void dfa_dumpnameddfa (struct TAG_fhandle *stream, char *dfaname);
+extern void dfa_dumpdfas (struct TAG_fhandle *stream);
 
 extern dfanode_t *dfa_newnode (void);
 extern dfanode_t *dfa_newnode_init (void (*reduce)(dfastate_t *, struct TAG_parsepriv *, void *), void *rarg);
@@ -117,8 +118,8 @@ extern dfanode_t *dfa_decoderule (const char *rule, ...);
 extern dfanode_t *dfa_decodetrans (const char *rule, ...);
 
 extern void dfa_freettbl (dfattbl_t *ttbl);
-extern void dfa_dumpttbl (FILE *stream, dfattbl_t *ttbl);
-extern void dfa_dumpttbl_gra (FILE *stream, dfattbl_t *ttbl);
+extern void dfa_dumpttbl (struct TAG_fhandle *stream, dfattbl_t *ttbl);
+extern void dfa_dumpttbl_gra (struct TAG_fhandle *stream, dfattbl_t *ttbl);
 extern dfattbl_t *dfa_transtotbl (const char *rule, ...);
 extern dfattbl_t *dfa_bnftotbl (const char *rule, ...);
 extern dfanode_t *dfa_tbltodfa (dfattbl_t *ttbl);
@@ -126,7 +127,7 @@ extern dfanode_t *dfa_tbltodfa (dfattbl_t *ttbl);
 extern int dfa_mergetables (dfattbl_t **tables, int ntables);
 extern int dfa_clear_deferred (void);
 extern int dfa_match_deferred (void);
-extern void dfa_dumpdeferred (FILE *stream);
+extern void dfa_dumpdeferred (struct TAG_fhandle *stream);
 
 
 extern int dfa_advance (dfastate_t **dfast, struct TAG_parsepriv *pp, struct TAG_token *tok);

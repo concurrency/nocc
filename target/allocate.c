@@ -1,6 +1,6 @@
 /*
  *	allocate.c -- memory allocator for NOCC
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "tnode.h"
 #include "names.h"
 #include "allocate.h"
@@ -81,16 +82,16 @@ typedef struct TAG_alloc_assign {
 
 /*}}}*/
 
-/*{{{  static void allocate_isetindent (FILE *stream, int indent)*/
+/*{{{  static void allocate_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	prints indentation (debugging)
  */
-static void allocate_isetindent (FILE *stream, int indent)
+static void allocate_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 
 	return;
@@ -207,51 +208,51 @@ static void allocate_varmap_free (alloc_varmap_t *avm)
 	return;
 }
 /*}}}*/
-/*{{{  static void allocate_ovarmap_dump (alloc_ovarmap_t *ovm, FILE *stream, int indent)*/
+/*{{{  static void allocate_ovarmap_dump (alloc_ovarmap_t *ovm, fhandle_t *stream, int indent)*/
 /*
  *	dumps an alloc_ovarmap_t structure (debugging)
  */
-static void allocate_ovarmap_dump (alloc_ovarmap_t *ovm, FILE *stream, int indent)
+static void allocate_ovarmap_dump (alloc_ovarmap_t *ovm, fhandle_t *stream, int indent)
 {
 	int i;
 
 	allocate_isetindent (stream, indent);
 
-	fprintf (stream, "map at 0x%8.8x: %d sub-maps, %d items (size=%d, offset=%d): ", (unsigned int)ovm, DA_CUR (ovm->submaps), DA_CUR (ovm->entries), ovm->size, ovm->offset);
+	fhandle_printf (stream, "map at 0x%8.8x: %d sub-maps, %d items (size=%d, offset=%d): ", (unsigned int)ovm, DA_CUR (ovm->submaps), DA_CUR (ovm->entries), ovm->size, ovm->offset);
 	for (i=0; i<DA_CUR (ovm->entries); i++) {
 		alloc_ivarmap_t *ivm = DA_NTHITEM (ovm->entries, i);
 		tnode_t *name = ivm->name;
 
-		fprintf (stream, "0x%8.8x (%s,%s) [%d,%d,%d,%d] @[%d,%d,%d(%d)]   ", (unsigned int)name, name->tag->name, tnode_nthsubof (name, 0)->tag->name,
+		fhandle_printf (stream, "0x%8.8x (%s,%s) [%d,%d,%d,%d] @[%d,%d,%d(%d)]   ", (unsigned int)name, name->tag->name, tnode_nthsubof (name, 0)->tag->name,
 				ivm->alloc_wsh, ivm->alloc_wsl, ivm->alloc_vs, ivm->alloc_ms, ivm->ws_offset, ivm->vs_offset, ivm->ms_offset, ivm->ms_shadow);
 	}
-	fprintf (stream, "\n");
+	fhandle_printf (stream, "\n");
 	for (i=0; i<DA_CUR (ovm->submaps); i++) {
 		allocate_ovarmap_dump (DA_NTHITEM (ovm->submaps, i), stream, indent + 1);
 	}
 	return;
 }
 /*}}}*/
-/*{{{  static void allocate_varmap_dump (alloc_varmap_t *avm, FILE *stream)*/
+/*{{{  static void allocate_varmap_dump (alloc_varmap_t *avm, fhandle_t *stream)*/
 /*
  *	dumps an alloc_varmap_t structure (debugging)
  */
-static void allocate_varmap_dump (alloc_varmap_t *avm, FILE *stream)
+static void allocate_varmap_dump (alloc_varmap_t *avm, fhandle_t *stream)
 {
 	if (!avm) {
-		fprintf (stream, "NULL avm!\n");
+		fhandle_printf (stream, "NULL avm!\n");
 		return;
 	}
 	if (avm->wsmap) {
-		fprintf (stream, "workspace-map at 0x%8.8x, curmap at 0x%8.8x:\n", (unsigned int)avm->wsmap, (unsigned int)avm->curwsmap);
+		fhandle_printf (stream, "workspace-map at 0x%8.8x, curmap at 0x%8.8x:\n", (unsigned int)avm->wsmap, (unsigned int)avm->curwsmap);
 		allocate_ovarmap_dump (avm->wsmap, stream, 1);
 	}
 	if (avm->vsmap) {
-		fprintf (stream, "vectorspace-map at 0x%8.8x, curmap at 0x%8.8x:\n", (unsigned int)avm->vsmap, (unsigned int)avm->curvsmap);
+		fhandle_printf (stream, "vectorspace-map at 0x%8.8x, curmap at 0x%8.8x:\n", (unsigned int)avm->vsmap, (unsigned int)avm->curvsmap);
 		allocate_ovarmap_dump (avm->vsmap, stream, 1);
 	}
 	if (avm->msmap) {
-		fprintf (stream, "mobilespace-map at 0x%8.8x, curmap at 0x%8.8x:\n", (unsigned int)avm->msmap, (unsigned int)avm->curmsmap);
+		fhandle_printf (stream, "mobilespace-map at 0x%8.8x, curmap at 0x%8.8x:\n", (unsigned int)avm->msmap, (unsigned int)avm->curmsmap);
 		allocate_ovarmap_dump (avm->msmap, stream, 1);
 	}
 	return;
@@ -259,19 +260,19 @@ static void allocate_varmap_dump (alloc_varmap_t *avm, FILE *stream)
 /*}}}*/
 
 
-/*{{{  static void allocate_extravars_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void allocate_extravars_chook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps (debugging) extra variables for allocation attached to a node
  */
-static void allocate_extravars_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void allocate_extravars_chook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	tnode_t *evars = (tnode_t *)hook;
 
 	allocate_isetindent (stream, indent);
-	fprintf (stream, "<chook id=\"alloc:extravars\" addr=\"0x%8.8x\">\n", (unsigned int)hook);
+	fhandle_printf (stream, "<chook id=\"alloc:extravars\" addr=\"0x%8.8x\">\n", (unsigned int)hook);
 	tnode_dumptree (evars, indent + 1, stream);
 	allocate_isetindent (stream, indent);
-	fprintf (stream, "</chook>\n");
+	fhandle_printf (stream, "</chook>\n");
 
 	return;
 }
@@ -1012,7 +1013,7 @@ allocate_varmap_dump (avmap, stderr);
 		/*{{{  put back previous map*/
 		adata->allochook = saved_hook;
 		if (compopts.dumpvarmaps) {
-			allocate_varmap_dump (avmap, stderr);
+			allocate_varmap_dump (avmap, FHAN_STDERR);
 		}
 #if 0
 fprintf (stderr, "allocate_prewalktree_blocks(): allocated a block!  maps are:\n");

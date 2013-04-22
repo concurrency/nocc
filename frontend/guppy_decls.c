@@ -1,6 +1,6 @@
 /*
  *	guppy_decls.c -- variables and other named things
- *	Copyright (C) 2010 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2010-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -135,19 +136,19 @@ static void *guppy_fparaminfo_hook_copy (void *hook)
 	return (void *)nxt;
 }
 /*}}}*/
-/*{{{  static void guppy_fparaminfo_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void guppy_fparaminfo_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for a fparaminfo hook
  */
-static void guppy_fparaminfo_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void guppy_fparaminfo_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	guppy_isetindent (stream, indent);
 	if (!hook) {
-		fprintf (stream, "<fparaminfo value=\"(null)\" />\n");
+		fhandle_printf (stream, "<fparaminfo value=\"(null)\" />\n");
 	} else {
 		fparaminfo_t *fpi = (fparaminfo_t *)hook;
 
-		fprintf (stream, "<fparaminfo flags=\"%d\" />\n",fpi->flags);
+		fhandle_printf (stream, "<fparaminfo flags=\"%d\" />\n",fpi->flags);
 	}
 }
 /*}}}*/
@@ -179,14 +180,14 @@ static void *guppy_rawnamenode_hook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void guppy_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void guppy_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for rawnamenode hook (name-bytes)
  */
-static void guppy_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void guppy_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	guppy_isetindent (stream, indent);
-	fprintf (stream, "<rawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
+	fhandle_printf (stream, "<rawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
 	return;
 }
 /*}}}*/

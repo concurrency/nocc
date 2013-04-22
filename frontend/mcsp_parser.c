@@ -1,6 +1,6 @@
 /*
  *	mcsp_parser.c -- MCSP parser for nocc
- *	Copyright (C) 2006-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -150,16 +151,16 @@ static void mcsp_freemcspparse (mcsp_parse_t *mpse)
 }
 /*}}}*/
 
-/*{{{  void mcsp_isetindent (FILE *stream, int indent)*/
+/*{{{  void mcsp_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	set-indent for debugging output
  */
-void mcsp_isetindent (FILE *stream, int indent)
+void mcsp_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -405,20 +406,20 @@ void *mcsp_alpha_hook_copy (void *hook)
 	return nalpha;
 }
 /*}}}*/
-/*{{{  void mcsp_alpha_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  void mcsp_alpha_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps an alpha hook (debugging)
  */
-void mcsp_alpha_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+void mcsp_alpha_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	mcsp_alpha_t *alpha = (mcsp_alpha_t *)hook;
 	
 	if (alpha) {
 		mcsp_isetindent (stream, indent);
-		fprintf (stream, "<mcsp:alphahook addr=\"0x%8.8x\">\n", (unsigned int)alpha);
+		fhandle_printf (stream, "<mcsp:alphahook addr=\"0x%8.8x\">\n", (unsigned int)alpha);
 		tnode_dumptree (alpha->elist, indent + 1, stream);
 		mcsp_isetindent (stream, indent);
-		fprintf (stream, "</mcsp:alphahook>\n");
+		fhandle_printf (stream, "</mcsp:alphahook>\n");
 	}
 	return;
 }
@@ -480,10 +481,10 @@ static int mcsp_parser_init (lexfile_t *lf)
 			return 1;
 		}
 		if (compopts.dumpdfas) {
-			dfa_dumpdfas (stderr);
+			dfa_dumpdfas (FHAN_STDERR);
 		}
 		if (compopts.dumpgrules) {
-			parser_dumpgrules (stderr);
+			parser_dumpgrules (FHAN_STDERR);
 		}
 
 		/* last, re-init multiway syncs with default end-of-par option */
@@ -572,7 +573,7 @@ static tnode_t *mcsp_parser_parse (lexfile_t *lf)
 	tok = lexer_nexttoken (lf);
 	while (tok) {
 		if (compopts.verbose) {
-			lexer_dumptoken (stderr, tok);
+			lexer_dumptoken (FHAN_STDERR, tok);
 		}
 		if ((tok->type == END) || (tok->type == NOTOKEN)) {
 			lexer_freetoken (tok);

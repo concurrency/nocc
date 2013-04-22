@@ -32,11 +32,17 @@ typedef struct TAG_fhandle {
 
 extern fhandle_t *fhandle_fopen (const char *path, const char *mode);
 extern fhandle_t *fhandle_open (const char *path, const int mode, const int perm);
+extern int fhandle_access (const char *path, const int amode);
 extern int fhandle_close (fhandle_t *fh);
 extern int fhandle_lasterr (fhandle_t *fh);
 
 extern unsigned char *fhandle_mapfile (fhandle_t *fh, size_t offset, size_t length);
 extern int fhandle_unmapfile (fhandle_t *fh, unsigned char *ptr, size_t offset, size_t length);
+extern int fhandle_printf (fhandle_t *fh, const char *fmt, ...);
+extern int fhandle_write (fhandle_t *fh, unsigned char *buffer, int size);
+extern int fhandle_read (fhandle_t *fh, unsigned char *bufaddr, int max);
+extern int fhandle_gets (fhandle_t *fh, char *bufaddr, int max);
+extern int fhandle_flush (fhandle_t *fh);
 
 
 extern int fhandle_init (void);
@@ -47,6 +53,11 @@ extern int fhandle_shutdown (void);
 extern int file_unix_init (void);
 extern int file_unix_shutdown (void);
 
+/* specially handled thing */
+extern fhandle_t *file_unix_getstderr (void);
+#define FHAN_STDERR (file_unix_getstderr())
+extern fhandle_t *file_unix_getstdout (void);
+#define FHAN_STDOUT (file_unix_getstdout())
 
 #endif	/* !__FHANDLE_H */
 

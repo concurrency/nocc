@@ -1,6 +1,6 @@
 /*
  *	fcnlib.c -- function library for NOCC
- *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "opts.h"
 
 /*}}}*/
@@ -276,19 +277,19 @@ void *fcnlib_findfunction3 (const char *name, int *n_ret, int *n_nargs)
 /*}}}*/
 
 
-/*{{{  void fcnlib_dumpfcns (FILE *stream)*/
+/*{{{  void fcnlib_dumpfcns (fhandle_t *stream)*/
 /*
  *	dumps the various registered functions (debugging)
  */
-void fcnlib_dumpfcns (FILE *stream)
+void fcnlib_dumpfcns (fhandle_t *stream)
 {
 	int i;
 
-	fprintf (stream, "beginning dump of registered functions:\n");
+	fhandle_printf (stream, "beginning dump of registered functions:\n");
 	for (i=0; i<DA_CUR (afunctions); i++) {
 		fcnlib_t *fcn = DA_NTHITEM (afunctions, i);
 
-		fprintf (stream, "  %d (%d) @0x%8.8x: %s\n", fcn->ret, fcn->nargs, (unsigned int)fcn->fcnaddr, fcn->name);
+		fhandle_printf (stream, "  %d (%d) @0x%8.8x: %s\n", fcn->ret, fcn->nargs, (unsigned int)fcn->fcnaddr, fcn->name);
 	}
 	return;
 }

@@ -1,6 +1,6 @@
 /*
  *	traceslang_parser.c -- traces language parser
- *	Copyright (C) 2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -141,16 +142,16 @@ static void traceslang_freetraceslangparse (traceslang_parse_t *trlp)
 /*}}}*/
 
 
-/*{{{  void traceslang_isetindent (FILE *stream, int indent)*/
+/*{{{  void traceslang_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	set-indent for debugging output
  */
-void traceslang_isetindent (FILE *stream, int indent)
+void traceslang_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -224,10 +225,10 @@ static int traceslang_parser_init (lexfile_t *lf)
 			return 1;
 		}
 		if (compopts.dumpdfas) {
-			dfa_dumpdfas (stderr);
+			dfa_dumpdfas (FHAN_STDERR);
 		}
 		if (compopts.dumpgrules) {
-			parser_dumpgrules (stderr);
+			parser_dumpgrules (FHAN_STDERR);
 		}
 	}
 	return 0;
@@ -300,7 +301,7 @@ static tnode_t *traceslang_parser_parse (lexfile_t *lf)
 	tok = lexer_nexttoken (lf);
 	while (tok) {
 		if (compopts.verbose > 1) {
-			lexer_dumptoken (stderr, tok);
+			lexer_dumptoken (FHAN_STDERR, tok);
 		}
 		if ((tok->type == END) || (tok->type == NOTOKEN)) {
 			lexer_freetoken (tok);

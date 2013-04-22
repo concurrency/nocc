@@ -1,6 +1,6 @@
 /*
  *	occampi_parser.c -- occam-pi parser for nocc
- *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -313,11 +314,11 @@ static void occampi_debug_gstack (void **items, int icnt)
 {
 	int i;
 
-	fprintf (stderr, "occampi_debug_gstack(): icnt=%d, items:  ", icnt);
+	fhandle_printf (FHAN_STDERR, "occampi_debug_gstack(): icnt=%d, items:  ", icnt);
 	for (i=0; i<icnt; i++) {
-		fprintf (stderr, "0x%8.8x  ", (unsigned int)(items[i]));
+		fhandle_printf (FHAN_STDERR, "0x%8.8x  ", (unsigned int)(items[i]));
 	}
-	fprintf (stderr, "\n");
+	fhandle_printf (FHAN_STDERR, "\n");
 	return;
 }
 /*}}}*/
@@ -343,16 +344,16 @@ static void occampi_debug_gstack (void **items, int icnt)
 	/*}}}*/
 
 
-/*{{{  void occampi_isetindent (FILE *stream, int indent)*/
+/*{{{  void occampi_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	set-indent for debugging output
  */
-void occampi_isetindent (FILE *stream, int indent)
+void occampi_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -473,10 +474,10 @@ static int occampi_parser_init (lexfile_t *lf)
 			return 1;
 		}
 		if (compopts.dumpdfas) {
-			dfa_dumpdfas (stderr);
+			dfa_dumpdfas (FHAN_STDERR);
 		}
 		if (compopts.dumpgrules) {
-			parser_dumpgrules (stderr);
+			parser_dumpgrules (FHAN_STDERR);
 		}
 
 		/* last, re-init multiway syncs with default end-of-par option */
@@ -939,7 +940,7 @@ fprintf (stderr, "occampi_declorprocstart(): specific dfa [%s] found non declara
 			tnode_free (dtest);
 		} else {
 			nocc_serious ("occampi_declorprocstart(): occampi:testfordecl DFA returned:");
-			tnode_dumptree (dtest, 1, stderr);
+			tnode_dumptree (dtest, 1, FHAN_STDERR);
 			tnode_free (dtest);
 		}
 	}
@@ -969,7 +970,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				/*}}}*/
 			} else {
 				parser_error (lf, "while processing #INCLUDE, expected string found ");
-				lexer_dumptoken (stderr, nexttok);
+				lexer_dumptoken (FHAN_STDERR, nexttok);
 				lexer_freetoken (nexttok);
 				return tree;
 			}
@@ -996,7 +997,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				/*}}}*/
 			} else {
 				parser_error (lf, "while processing #OPTION, expected string found ");
-				lexer_dumptoken (stderr, nexttok);
+				lexer_dumptoken (FHAN_STDERR, nexttok);
 				lexer_freetoken (nexttok);
 				return tree;
 			}
@@ -1156,7 +1157,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				/*}}}*/
 			} else {
 				parser_error (lf, "while processing #LIBRARY, expected string found ");
-				lexer_dumptoken (stderr, nexttok);
+				lexer_dumptoken (FHAN_STDERR, nexttok);
 				lexer_freetoken (nexttok);
 				return tree;
 			}
@@ -1196,7 +1197,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 						/*}}}*/
 					} else {
 						parser_error (lf, "while processing #USE AS, expected string found ");
-						lexer_dumptoken (stderr, nexttok);
+						lexer_dumptoken (FHAN_STDERR, nexttok);
 						lexer_freetoken (nexttok);
 						return tree;
 					}
@@ -1209,7 +1210,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				/*}}}*/
 			} else {
 				parser_error (lf, "while processing #USE, expected string found ");
-				lexer_dumptoken (stderr, nexttok);
+				lexer_dumptoken (FHAN_STDERR, nexttok);
 				lexer_freetoken (nexttok);
 				return tree;
 			}
@@ -1255,7 +1256,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 					*gotall = 1;
 				} else {
 					parser_error (lf, "malformed #PRAGMA EXTERNAL directive, expected string found ");
-					lexer_dumptoken (stderr, nexttok);
+					lexer_dumptoken (FHAN_STDERR, nexttok);
 					lexer_freetoken (nexttok);
 					return tree;
 				}
@@ -1275,7 +1276,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 					*gotall = 1;
 				} else {
 					parser_error (lf, "malformed #PRAGMA COMMENT directive, expected string found ");
-					lexer_dumptoken (stderr, nexttok);
+					lexer_dumptoken (FHAN_STDERR, nexttok);
 					lexer_freetoken (nexttok);
 					return tree;
 				}
@@ -1294,7 +1295,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				/*}}}*/
 			} else {
 				parser_error (lf, "while processing #PRAGMA, expected string found ");
-				lexer_dumptoken (stderr, nexttok);
+				lexer_dumptoken (FHAN_STDERR, nexttok);
 				lexer_freetoken (nexttok);
 				return tree;
 			}
@@ -1315,7 +1316,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				*gotall = 1;
 			} else {
 				parser_error (lf, "malformed #COMMENT directive, expected string found ");
-				lexer_dumptoken (stderr, nexttok);
+				lexer_dumptoken (FHAN_STDERR, nexttok);
 				lexer_freetoken (nexttok);
 				return tree;
 			}
@@ -1379,7 +1380,7 @@ static int occampi_procend (lexfile_t *lf)
 		lexer_pushback (lf, tok);
 	} else {
 		parser_error (lf, "expected : found");
-		lexer_dumptoken (stderr, tok);
+		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		return -1;
 	}
@@ -1582,7 +1583,7 @@ tnode_dumptree (tree, 1, stderr);
 				/* expect indent */
 				if (tok->type != INDENT) {
 					parser_error (lf, "expected indent, found:");
-					lexer_dumptoken (stderr, tok);
+					lexer_dumptoken (FHAN_STDERR, tok);
 					lexer_pushback (lf, tok);
 					return tree;
 				}
@@ -1636,7 +1637,7 @@ tnode_dumptree (tree, 1, stderr);
 				/* expect outdent */
 				if (tok->type != OUTDENT) {
 					parser_error (lf, "expected outdent, found:");
-					lexer_dumptoken (stderr, tok);
+					lexer_dumptoken (FHAN_STDERR, tok);
 					lexer_pushback (lf, tok);
 					if (*treetarget) {
 						tnode_free (*treetarget);
@@ -1687,7 +1688,7 @@ static tnode_t *occampi_indented_process_trailing (lexfile_t *lf, char *extradfa
 	/* expect indent */
 	if (tok->type != INDENT) {
 		parser_error (lf, "expected indent, found:");
-		lexer_dumptoken (stderr, tok);
+		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		return NULL;
 	}
@@ -1747,7 +1748,7 @@ static tnode_t *occampi_indented_process_trailing (lexfile_t *lf, char *extradfa
 	/* expect outdent */
 	if (tok->type != OUTDENT) {
 		parser_error (lf, "expected outdent, found:");
-		lexer_dumptoken (stderr, tok);
+		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		if (tree) {
 			tnode_free (tree);
@@ -1784,7 +1785,7 @@ static tnode_t *occampi_indented_process (lexfile_t *lf)
 	/* expect indent */
 	if (tok->type != INDENT) {
 		parser_error (lf, "expected indent, found:");
-		lexer_dumptoken (stderr, tok);
+		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		return NULL;
 	}
@@ -1831,7 +1832,7 @@ static tnode_t *occampi_indented_process (lexfile_t *lf)
 	/* expect outdent */
 	if (tok->type != OUTDENT) {
 		parser_error (lf, "expected outdent, found:");
-		lexer_dumptoken (stderr, tok);
+		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		if (tree) {
 			tnode_free (tree);
@@ -1872,7 +1873,7 @@ static tnode_t *occampi_indented_process_list (lexfile_t *lf, char *leaddfa)
 	/*{{{  expect indent*/
 	if (tok->type != INDENT) {
 		parser_error (lf, "expected indent, found:");
-		lexer_dumptoken (stderr, tok);
+		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		tnode_free (tree);
 		return NULL;
@@ -1988,7 +1989,7 @@ fprintf (stderr, "occampi_indented_process_list(): got LONGPROC [%s]\n", (*targe
 	/*{{{  expect outdent*/
 	if (tok->type != OUTDENT) {
 		parser_error (lf, "expected outdent, found:");
-		lexer_dumptoken (stderr, tok);
+		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		if (tree) {
 			tnode_free (tree);
@@ -2135,7 +2136,7 @@ static tnode_t *occampi_parser_parse (lexfile_t *lf)
 	tok = lexer_nexttoken (lf);
 	while (tok) {
 		if (compopts.verbose > 1) {
-			lexer_dumptoken (stderr, tok);
+			lexer_dumptoken (FHAN_STDERR, tok);
 		}
 		if ((tok->type == END) || (tok->type == NOTOKEN)) {
 			lexer_freetoken (tok);

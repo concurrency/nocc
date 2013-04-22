@@ -24,6 +24,7 @@ struct TAG_feunit;
 struct TAG_langdef;
 struct TAG_langlexer;
 struct TAG_langparser;
+struct TAG_fhandle;
 
 extern struct TAG_langlexer trlang_lexer;
 extern struct TAG_langparser trlang_parser;
@@ -50,7 +51,7 @@ typedef struct {
 
 extern trlang_pset_t trlang;
 
-extern void trlang_isetindent (FILE *stream, int indent);
+extern void trlang_isetindent (struct TAG_fhandle *stream, int indent);
 extern struct TAG_langdef *trlang_getlangdef (void);
 
 extern struct TAG_feunit trlang_expr_feunit;		/* trlang_expr.c */

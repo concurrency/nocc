@@ -1,6 +1,6 @@
 /*
  *	options.c -- command-line option processing
- *	Copyright (C) 2004-2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "opts.h"
 
 /*{{{  forward decls*/
@@ -106,10 +107,10 @@ static int opt_do_help_flag (cmd_option_t *opt, char ***argwalk, int *argleft)
  */
 static int opt_do_version (cmd_option_t *opt, char ***argwalk, int *argleft)
 {
-	FILE *outstream = (opt->arg) ? (FILE *)(opt->arg) : stderr;
+	fhandle_t *outstream = (opt->arg) ? (fhandle_t *)(opt->arg) : FHAN_STDERR;
 
-	fprintf (outstream, "%s\n", version_string());
-	fflush (outstream);
+	fhandle_printf (outstream, "%s\n", version_string());
+	fhandle_flush (outstream);
 
 	exit (0);
 	return 0;
@@ -483,30 +484,30 @@ static int opt_settarget (cmd_option_t *opt, char ***argwalk, int *argleft)
 /*{{{  void opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft)*/
 int opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft)
 {
-	FILE *outstream = (opt->arg) ? (FILE *)(opt->arg) : stderr;
+	fhandle_t *outstream = (opt->arg) ? (fhandle_t *)(opt->arg) : FHAN_STDERR;
 	int i;
 
-	fprintf (outstream, "nocc (%s) Version " VERSION " " HOST_CPU "-" HOST_VENDOR "-" HOST_OS " (targetting " TARGET_CPU "-" TARGET_VENDOR "-" TARGET_OS ")\n", progname);
-	fprintf (outstream, "Copyright (C) 2004-2010 Fred Barnes, University of Kent\n");
-	fprintf (outstream, "Released under the terms and conditions of the GNU GPL v2\n\n");
-	fflush (outstream);
-	fprintf (outstream, "usage:  %s [options] <source filename>\n", progname);
-	fprintf (outstream, "options:\n");
+	fhandle_printf (outstream, "nocc (%s) Version " VERSION " " HOST_CPU "-" HOST_VENDOR "-" HOST_OS " (targetting " TARGET_CPU "-" TARGET_VENDOR "-" TARGET_OS ")\n", progname);
+	fhandle_printf (outstream, "Copyright (C) 2004-2010 Fred Barnes, University of Kent\n");
+	fhandle_printf (outstream, "Released under the terms and conditions of the GNU GPL v2\n\n");
+	fhandle_flush (outstream);
+	fhandle_printf (outstream, "usage:  %s [options] <source filename>\n", progname);
+	fhandle_printf (outstream, "options:\n");
 
 	for (i = 0; i < DA_CUR (ordered_options); i++) {
 		if (ordered_options[i] && ordered_options[i]->name && ordered_options[i]->help && (ordered_options[i]->help[0] <= opt->help[0])) {
 			char *htext = ordered_options[i]->help + 1;
 
-			fprintf (outstream, "    ");
+			fhandle_printf (outstream, "    ");
 			if (ordered_options[i]->sopt != '\0') {
-				fprintf (outstream, "-%c  ", ordered_options[i]->sopt);
+				fhandle_printf (outstream, "-%c  ", ordered_options[i]->sopt);
 			} else {
-				fprintf (outstream, "    ");
+				fhandle_printf (outstream, "    ");
 			}
-			fprintf (outstream, "--%-32s%s\n", ordered_options[i]->name, htext);
+			fhandle_printf (outstream, "--%-32s%s\n", ordered_options[i]->name, htext);
 		}
 	}
-	fprintf (outstream, "note: some options require --opt=arg for arguments\n");
+	fhandle_printf (outstream, "note: some options require --opt=arg for arguments\n");
 	
 	exit (0);
 	return 0;

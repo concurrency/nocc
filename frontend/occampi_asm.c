@@ -1,6 +1,6 @@
 /*
  *	occampi_asm.c -- occam-pi inline transputer assembler
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -143,32 +144,32 @@ static void *occampi_asmophook_copy (void *hook)
 	return (void *)newhook;
 }
 /*}}}*/
-/*{{{  static void occampi_asmophook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void occampi_asmophook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	hook dump-tree function for asmophook_t's
  */
-static void occampi_asmophook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void occampi_asmophook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	asmophook_t *oh = (asmophook_t *)hook;
 
 	if (!node || !oh) {
 		occampi_isetindent (stream, indent);
-		fprintf (stream, "<asmophook:nullnode />\n");
+		fhandle_printf (stream, "<asmophook:nullnode />\n");
 	} else if (DA_CUR (oh->args)) {
 		int i;
 
 		occampi_isetindent (stream, indent);
-		fprintf (stream, "<asmophook op=\"%s\">\n", oh->instr ? oh->instr->name : "(unknown)");
+		fhandle_printf (stream, "<asmophook op=\"%s\">\n", oh->instr ? oh->instr->name : "(unknown)");
 		for (i=0; i<DA_CUR (oh->args); i++) {
 			tnode_t *arg = DA_NTHITEM (oh->args, i);
 
 			tnode_dumptree (arg, indent + 1, stream);
 		}
 		occampi_isetindent (stream, indent);
-		fprintf (stream, "</asmophook>\n");
+		fhandle_printf (stream, "</asmophook>\n");
 	} else {
 		occampi_isetindent (stream, indent);
-		fprintf (stream, "<asmophook op=\"%s\" />\n", oh->instr ? oh->instr->name : "(unknown)");
+		fhandle_printf (stream, "<asmophook op=\"%s\" />\n", oh->instr ? oh->instr->name : "(unknown)");
 	}
 	return;
 }

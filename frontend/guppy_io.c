@@ -1,6 +1,6 @@
 /*
  *	guppy_io.c -- input and output for Guppy
- *	Copyright (C) 2010-2012 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2010-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -91,11 +92,11 @@ static int guppy_typecheck_io (compops_t *cops, tnode_t *node, typecheck_t *tc)
 
 #if 1
 fprintf (stderr, "guppy_typecheck_io(): got lhstype = \n");
-tnode_dumptree (lhstype, 1, stderr);
+tnode_dumptree (lhstype, 1, FHAN_STDERR);
 fprintf (stderr, "guppy_typecheck_io(): got rhstype = \n");
-tnode_dumptree (rhstype, 1, stderr);
+tnode_dumptree (rhstype, 1, FHAN_STDERR);
 fprintf (stderr, "guppy_typecheck_io(): got prot = \n");
-tnode_dumptree (prot, 1, stderr);
+tnode_dumptree (prot, 1, FHAN_STDERR);
 #endif
 	if (!rhstype) {
 		typecheck_error (node, tc, "item in input/output has unknown type");

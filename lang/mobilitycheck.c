@@ -1,6 +1,6 @@
 /*
  *	mobilitycheck.c -- mobility checker for NOCC
- *	Copyright (C) 2007-2008 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "opts.h"
@@ -58,16 +59,16 @@ static chook_t *mchk_traceschook = NULL;
 /*}}}*/
 
 
-/*{{{  static void mchk_isetindent (FILE *stream, int indent)*/
+/*{{{  static void mchk_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	sets indent for debug output
  */
-static void mchk_isetindent (FILE *stream, int indent)
+static void mchk_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -349,22 +350,22 @@ static void mchk_traceschook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void mchk_traceschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void mchk_traceschook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a traces compiler hook (debugging)
  */
-static void mchk_traceschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void mchk_traceschook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	mchk_traces_t *mct = (mchk_traces_t *)hook;
 
 	mchk_isetindent (stream, indent);
 	if (!hook) {
-		fprintf (stream, "<chook id=\"mobilitychecktraces\" value=\"\" />\n");
+		fhandle_printf (stream, "<chook id=\"mobilitychecktraces\" value=\"\" />\n");
 	} else {
-		fprintf (stream, "<chook id=\"mobilitychecktraces\">\n");
+		fhandle_printf (stream, "<chook id=\"mobilitychecktraces\">\n");
 		mobilitycheck_dumptraces (mct, indent + 1, stream);
 		mchk_isetindent (stream, indent);
-		fprintf (stream, "</chook>\n");
+		fhandle_printf (stream, "</chook>\n");
 	}
 	return;
 }
@@ -565,34 +566,34 @@ mchknode_t *mobilitycheck_createnode (mchknodetype_e type, tnode_t *orgnode, ...
 /*}}}*/
 
 
-/*{{{  void mobilitycheck_dumpbucket (mchk_bucket_t *mcb, int indent, FILE *stream)*/
+/*{{{  void mobilitycheck_dumpbucket (mchk_bucket_t *mcb, int indent, fhandle_t *stream)*/
 /*
  *	dumps a mobiltiy check bucket (debugging)
  */
-void mobilitycheck_dumpbucket (mchk_bucket_t *mcb, int indent, FILE *stream)
+void mobilitycheck_dumpbucket (mchk_bucket_t *mcb, int indent, fhandle_t *stream)
 {
 	int i;
 
 	mchk_isetindent (stream, indent);
-	fprintf (stream, "<mobilitycheck:bucket prevbucket=\"0x%8.8x\" nitems=\"%d\">\n", (unsigned int)mcb->prevbucket, DA_CUR (mcb->items));
+	fhandle_printf (stream, "<mobilitycheck:bucket prevbucket=\"0x%8.8x\" nitems=\"%d\">\n", (unsigned int)mcb->prevbucket, DA_CUR (mcb->items));
 	for (i=0; i<DA_CUR (mcb->items); i++) {
 		mobilitycheck_dumpnode (DA_NTHITEM (mcb->items, i), indent + 1, stream);
 	}
 	mchk_isetindent (stream, indent);
-	fprintf (stream, "</mobilitycheck:bucket>\n");
+	fhandle_printf (stream, "</mobilitycheck:bucket>\n");
 	return;
 }
 /*}}}*/
-/*{{{  void mobilitycheck_dumptraces (mchk_traces_t *mct, int indent, FILE *stream)*/
+/*{{{  void mobilitycheck_dumptraces (mchk_traces_t *mct, int indent, fhandle_t *stream)*/
 /*
  *	dumps a set of mobility traces (debugging)
  */
-void mobilitycheck_dumptraces (mchk_traces_t *mct, int indent, FILE *stream)
+void mobilitycheck_dumptraces (mchk_traces_t *mct, int indent, fhandle_t *stream)
 {
 	int i;
 
 	mchk_isetindent (stream, indent);
-	fprintf (stream, "<mobilitycheck:traces nitems=\"%d\" nchans=\"%d\" nvars=\"%d\">\n", DA_CUR (mct->items), DA_CUR (mct->params), DA_CUR (mct->vars));
+	fhandle_printf (stream, "<mobilitycheck:traces nitems=\"%d\" nchans=\"%d\" nvars=\"%d\">\n", DA_CUR (mct->items), DA_CUR (mct->params), DA_CUR (mct->vars));
 	for (i=0; i<DA_CUR (mct->items); i++) {
 		mobilitycheck_dumpnode (DA_NTHITEM (mct->items, i), indent + 1, stream);
 	}
@@ -603,20 +604,20 @@ void mobilitycheck_dumptraces (mchk_traces_t *mct, int indent, FILE *stream)
 		mobilitycheck_dumpnode (DA_NTHITEM (mct->vars, i), indent + 1, stream);
 	}
 	mchk_isetindent (stream, indent);
-	fprintf (stream, "</mobilitycheck:traces>\n");
+	fhandle_printf (stream, "</mobilitycheck:traces>\n");
 	return;
 }
 /*}}}*/
-/*{{{  void mobilitycheck_dumpstate (mchk_state_t *mcstate, int indent, FILE *stream)*/
+/*{{{  void mobilitycheck_dumpstate (mchk_state_t *mcstate, int indent, fhandle_t *stream)*/
 /*
  *	dumps a mobility state (debugging)
  */
-void mobilitycheck_dumpstate (mchk_state_t *mcstate, int indent, FILE *stream)
+void mobilitycheck_dumpstate (mchk_state_t *mcstate, int indent, fhandle_t *stream)
 {
 	int i;
 
 	mchk_isetindent (stream, indent);
-	fprintf (stream, "<mobilitycheck:state prevstate=\"0x%8.8x\" inparams=\"%d\" nichans=\"%d\" nivars=\"%d\" err=\"%d\" warn=\"%d\">\n",
+	fhandle_printf (stream, "<mobilitycheck:state prevstate=\"0x%8.8x\" inparams=\"%d\" nichans=\"%d\" nivars=\"%d\" err=\"%d\" warn=\"%d\">\n",
 			(unsigned int)mcstate->prevstate, mcstate->inparams, DA_CUR (mcstate->ichans), DA_CUR (mcstate->ivars), mcstate->err, mcstate->warn);
 	for (i=0; i<DA_CUR (mcstate->ichans); i++) {
 		mobilitycheck_dumpnode (DA_NTHITEM (mcstate->ichans, i), indent + 1, stream);
@@ -626,47 +627,47 @@ void mobilitycheck_dumpstate (mchk_state_t *mcstate, int indent, FILE *stream)
 	}
 	mobilitycheck_dumpbucket (mcstate->bucket, indent + 1, stream);
 	mchk_isetindent (stream, indent);
-	fprintf (stream, "</mobilitycheck:state>\n");
+	fhandle_printf (stream, "</mobilitycheck:state>\n");
 }
 /*}}}*/
-/*{{{  void mobilitycheck_dumpnode (mchknode_t *mcn, int indent, FILE *stream)*/
+/*{{{  void mobilitycheck_dumpnode (mchknode_t *mcn, int indent, fhandle_t *stream)*/
 /*
  *	dumps a mobility-analysis node (debugging)
  */
-void mobilitycheck_dumpnode (mchknode_t *mcn, int indent, FILE *stream)
+void mobilitycheck_dumpnode (mchknode_t *mcn, int indent, fhandle_t *stream)
 {
 	mchk_isetindent (stream, indent);
 	if (!mcn) {
-		fprintf (stream, "<mobilitycheck:node value=\"null\" />\n");
+		fhandle_printf (stream, "<mobilitycheck:node value=\"null\" />\n");
 	} else {
 		char *mctnames[] = {"INVALID", "INPUT", "OUTPUT", "PARAM", "PARAMREF", "VAR", "VARREF", "SEQ"};
 		int dotrail = 0;
 		int i;
 
-		fprintf (stream, "<mobilitycheck:node type=\"%d\" typename=\"%s\" orgnode=\"0x%8.8x\"", (int)mcn->type,
+		fhandle_printf (stream, "<mobilitycheck:node type=\"%d\" typename=\"%s\" orgnode=\"0x%8.8x\"", (int)mcn->type,
 				((mcn->type >= MCN_INVALID) && ((int)mcn->type <= MCN_SEQ)) ? mctnames[(int)mcn->type] : "?", (unsigned int)mcn->orgnode);
 		switch (mcn->type) {
 		case MCN_INVALID:
 			break;
 		case MCN_INPUT:
 		case MCN_OUTPUT:
-			fprintf (stream, ">\n");
+			fhandle_printf (stream, ">\n");
 			mobilitycheck_dumpnode (mcn->u.mcnio.chanptr, indent + 1, stream);
 			mobilitycheck_dumpnode (mcn->u.mcnio.varptr, indent + 1, stream);
 			dotrail = 1;
 			break;
 		case MCN_PARAM:
 		case MCN_VAR:
-			fprintf (stream, " id=\"%s\"", mcn->u.mcnpv.id);
+			fhandle_printf (stream, " id=\"%s\"", mcn->u.mcnpv.id);
 			break;
 		case MCN_PARAMREF:
 		case MCN_VARREF:
-			fprintf (stream, ">\n");
+			fhandle_printf (stream, ">\n");
 			mobilitycheck_dumpnode (mcn->u.mcnref.ref, indent + 1, stream);
 			dotrail = 1;
 			break;
 		case MCN_SEQ:
-			fprintf (stream, " nitems=\"%d\">\n", DA_CUR (mcn->u.mcnlist.items));
+			fhandle_printf (stream, " nitems=\"%d\">\n", DA_CUR (mcn->u.mcnlist.items));
 			for (i=0; i<DA_CUR (mcn->u.mcnlist.items); i++) {
 				mobilitycheck_dumpnode (DA_NTHITEM (mcn->u.mcnlist.items, i), indent + 1, stream);
 			}
@@ -676,9 +677,9 @@ void mobilitycheck_dumpnode (mchknode_t *mcn, int indent, FILE *stream)
 
 		if (dotrail) {
 			mchk_isetindent (stream, indent);
-			fprintf (stream, "</mobilitycheck:node>\n");
+			fhandle_printf (stream, "</mobilitycheck:node>\n");
 		} else {
-			fprintf (stream, " />\n");
+			fhandle_printf (stream, " />\n");
 		}
 	}
 	return;

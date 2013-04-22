@@ -1,6 +1,6 @@
 /*
  *	atmelavr.c -- Atmel AVR back-end
- *	Copyright (C) 2012 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2012-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "tnode.h"
 #include "opts.h"
 #include "lexer.h"
@@ -204,16 +205,16 @@ static aavr_constpropstate_t *atmelavr_constpropstate = NULL;
 /*}}}*/
 
 
-/*{{{  void atmelavr_isetindent (FILE *stream, int indent)*/
+/*{{{  void atmelavr_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	set-indent for debugging output
  */
-void atmelavr_isetindent (FILE *stream, int indent)
+void atmelavr_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -475,25 +476,25 @@ static void atmelavr_freeaavrlabelinfo (aavr_labelinfo_t *aali)
 }
 /*}}}*/
 
-/*{{{  static void atmelavr_labelinfohook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void atmelavr_labelinfohook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps an aavr:labelinfo compiler hook
  */
-static void atmelavr_labelinfohook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void atmelavr_labelinfohook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	aavr_labelinfo_t *aali = (aavr_labelinfo_t *)hook;
 	int i;
 
 	atmelavr_isetindent (stream, indent);
-	fprintf (stream, "<chook:aavr:labelinfo img=\"%p\" baddr=\"%d\" labins=\"%p\">\n", aali->img, aali->baddr, aali->labins);
+	fhandle_printf (stream, "<chook:aavr:labelinfo img=\"%p\" baddr=\"%d\" labins=\"%p\">\n", aali->img, aali->baddr, aali->labins);
 	for (i=0; i<DA_CUR (aali->fixups); i++) {
 		aavr_labelfixup_t *aalf = DA_NTHITEM (aali->fixups, i);
 
 		atmelavr_isetindent (stream, indent + 1);
-		fprintf (stream, "<labelfixup instr=\"%s\" offset=\"%d\" />\n", aalf->instr->tag->name, aalf->offset);
+		fhandle_printf (stream, "<labelfixup instr=\"%s\" offset=\"%d\" />\n", aalf->instr->tag->name, aalf->offset);
 	}
 	atmelavr_isetindent (stream, indent);
-	fprintf (stream, "</chook:aavr:labelinfo>\n");
+	fhandle_printf (stream, "</chook:aavr:labelinfo>\n");
 
 	return;
 }
@@ -1855,12 +1856,12 @@ static int img_combine_ranges (atmelavr_image_t *img)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen)*/
+/*{{{  static int img_write_hexfile (atmelavr_image_t *img, fhandle_t *fhan, codegen_t *cgen)*/
 /*
  *	writes out an image to a .hex (Intel style) file
  *	returns 0 on success, non-zero on failure (errors emitted)
  */
-static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen)
+static int img_write_hexfile (atmelavr_image_t *img, fhandle_t *fhan, codegen_t *cgen)
 {
 	imgrange_t *imr;
 	int addr, end;
@@ -1882,7 +1883,7 @@ static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen)
 		if (left > imr->size) {
 			left = imr->size;	/* tiny */
 		}
-		fprintf (fp, ":%2.2X:%4.4X00", left, addr);
+		fhandle_printf (fhan, ":%2.2X:%4.4X00", left, addr);
 		csum = (unsigned char)left;
 		csum += (unsigned char)((addr >> 8) & 0xff);
 		csum += (unsigned char)(addr & 0xff);
@@ -1891,13 +1892,13 @@ static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen)
 		for (k=0; k<left; k++) {
 			int idx = (addr + k);
 
-			fprintf (fp, "%2.2X", img->image[idx]);
+			fhandle_printf (fhan, "%2.2X", img->image[idx]);
 			csum += img->image[idx];
 		}
 
 		/* checksum */
 		csum = (~csum) + 1;
-		fprintf (fp, "%2.2X\n", csum);
+		fhandle_printf (fhan, "%2.2X\n", csum);
 
 		addr += left;
 	}
@@ -1912,7 +1913,7 @@ static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen)
 			cs = 16;		/* at a time */
 		}
 
-		fprintf (fp, ":%2.2X%4.4X00", cs, addr);
+		fhandle_printf (fhan, ":%2.2X%4.4X00", cs, addr);
 		csum = (unsigned char)cs;
 		csum += (unsigned char)((addr >> 8) & 0xff);
 		csum += (unsigned char)(addr & 0xff);
@@ -1921,19 +1922,19 @@ static int img_write_hexfile (atmelavr_image_t *img, FILE *fp, codegen_t *cgen)
 		for (k=0; k<cs; k++) {
 			int idx = (addr + k);
 
-			fprintf (fp, "%2.2X", img->image[idx]);
+			fhandle_printf (fhan, "%2.2X", img->image[idx]);
 			csum += img->image[idx];
 		}
 
 		/* checksum */
 		csum = (~csum) + 1;
-		fprintf (fp, "%2.2X\n", csum);
+		fhandle_printf (fhan, "%2.2X\n", csum);
 
 		addr += cs;
 	}
 
 	/* finally, emit end-of-file record */
-	fprintf (fp, ":00000001FF\n");
+	fhandle_printf (fhan, ":00000001FF\n");
 
 	return 0;
 }
@@ -2373,6 +2374,7 @@ fprintf (stderr, "atmelavr_be_do_codegen(): here!\n");
 			int is_eeprom = (img->zone->tag == avrasm.tag_EEPROMSEG);
 			int fnlen = strlen (cgen->fname) - strlen (cgen->target->extn);
 			char *outfname = (char *)smalloc (fnlen + 20);
+			fhandle_t *fhan;
 
 			strncpy (outfname, cgen->fname, fnlen);
 			if (is_flash) {
@@ -2388,17 +2390,12 @@ fprintf (stderr, "atmelavr_be_do_codegen(): here!\n");
 #if 0
 fprintf (stderr, "atmelavr_be_do_codegen(): want to write to [%s]\n", outfname);
 #endif
-			/* FIXME: really need a proper file I/O abstraction in the compiler.. */
-			{
-				FILE *fp;
-
-				fp = fopen (outfname, "wt");
-				if (!fp) {
-					codegen_error (cgen, "failed to open [%s] for writing: %s", outfname, strerror (errno));
-				} else {
-					img_write_hexfile (img, fp, cgen);
-					fclose (fp);
-				}
+			fhan = fhandle_fopen (outfname, "wt");
+			if (!fhan) {
+				codegen_error (cgen, "failed to open [%s] for writing: %s", outfname, strerror (fhandle_lasterr (NULL)));
+			} else {
+				img_write_hexfile (img, fhan, cgen);
+				fhandle_close (fhan);
 			}
 		}
 

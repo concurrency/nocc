@@ -1,6 +1,6 @@
 /*
  *	betrans.c -- back-end tree transforms
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "tnode.h"
@@ -53,16 +54,16 @@ static ntdef_t *betranstag_POINTERREF = NULL;
 /*}}}*/
 
 
-/*{{{  static void betrans_isetindent (int indent, FILE *stream)*/
+/*{{{  static void betrans_isetindent (int indent, fhandle_t *stream)*/
 /*
  *	sets indentation for output
  */
-static void betrans_isetindent (int indent, FILE *stream)
+static void betrans_isetindent (int indent, fhandle_t *stream)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -102,16 +103,16 @@ static void betrans_taghook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void betrans_taghook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void betrans_taghook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a tag hook (debugging)
  */
-static void betrans_taghook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void betrans_taghook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	betranstag_t *tag = (betranstag_t *)hook;
 
 	betrans_isetindent (indent, stream);
-	fprintf (stream, "<betrans:tag flag=\"%s\" val=\"%d\" />\n", (tag && tag->flag) ? tag->flag->name : "", tag ? tag->val : 0);
+	fhandle_printf (stream, "<betrans:tag flag=\"%s\" val=\"%d\" />\n", (tag && tag->flag) ? tag->flag->name : "", tag ? tag->val : 0);
 
 	return;
 }
@@ -145,21 +146,21 @@ static void betrans_nodehook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void betrans_nodehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void betrans_nodehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a node-hook (debugging)
  */
-static void betrans_nodehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void betrans_nodehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	tnode_t *hnode = (tnode_t *)hook;
 
 	betrans_isetindent (indent, stream);
-	fprintf (stream, "<betrans:node addr=\"0x%8.8x\">\n", (unsigned int)hnode);
+	fhandle_printf (stream, "<betrans:node addr=\"0x%8.8x\">\n", (unsigned int)hnode);
 
 	tnode_dumptree (hnode, indent+1, stream);
 
 	betrans_isetindent (indent, stream);
-	fprintf (stream, "</betrans:node>\n");
+	fhandle_printf (stream, "</betrans:node>\n");
 
 	return;
 }
@@ -186,14 +187,14 @@ static void betrans_ptrref_hook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void betrans_ptrref_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void betrans_ptrref_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	called to dump a betrans:ptrref node hook (debugging)
  */
-static void betrans_ptrref_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void betrans_ptrref_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	betrans_isetindent (indent, stream);
-	fprintf (stream, "<betrans:ptrref refaddr=\"0x%8.8x\" />\n", (unsigned int)hook);
+	fhandle_printf (stream, "<betrans:ptrref refaddr=\"0x%8.8x\" />\n", (unsigned int)hook);
 	return;
 }
 /*}}}*/

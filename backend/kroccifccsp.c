@@ -1,6 +1,6 @@
 /*
  *	kroccifccsp.c -- KRoC/CIF/CCSP back-end
- *	Copyright (C) 2008-2011 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2008-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "tnode.h"
 #include "opts.h"
 #include "lexer.h"
@@ -197,16 +198,16 @@ static chook_t *kroccifccsp_ctypestr = NULL;
 /*}}}*/
 
 
-/*{{{  void kroccifccsp_isetindent (FILE *stream, int indent)*/
+/*{{{  void kroccifccsp_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	set-indent for debugging output
  */
-void kroccifccsp_isetindent (FILE *stream, int indent)
+void kroccifccsp_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -225,16 +226,16 @@ static int kroccifccsp_init_options (kroccifccsp_priv_t *kpriv)
 /*}}}*/
 
 /*{{{  kroccifccsp_namehook_t routines*/
-/*{{{  static void kroccifccsp_namehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void kroccifccsp_namehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps hook data for debugging
  */
-static void kroccifccsp_namehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void kroccifccsp_namehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	kroccifccsp_namehook_t *nh = (kroccifccsp_namehook_t *)hook;
 
 	kroccifccsp_isetindent (stream, indent);
-	fprintf (stream, "<namehook addr=\"0x%8.8x\" cname=\"%s\" lexlevel=\"%d\" allocwsh=\"%d\" allocwsl=\"%d\" allocvs=\"%d\" allocms=\"%d\" typesize=\"%d\" indir=\"%d\" typecat=\"0x%8.8x\" />\n",
+	fhandle_printf (stream, "<namehook addr=\"0x%8.8x\" cname=\"%s\" lexlevel=\"%d\" allocwsh=\"%d\" allocwsl=\"%d\" allocvs=\"%d\" allocms=\"%d\" typesize=\"%d\" indir=\"%d\" typecat=\"0x%8.8x\" />\n",
 			(unsigned int)nh, nh->cname, nh->lexlevel, nh->alloc_wsh, nh->alloc_wsl, nh->alloc_vs, nh->alloc_ms,
 			nh->typesize, nh->indir, (unsigned int)nh->typecat);
 	return;
@@ -263,16 +264,16 @@ static kroccifccsp_namehook_t *kroccifccsp_namehook_create (char *cname, int ll,
 /*}}}*/
 /*}}}*/
 /*{{{  kroccifccsp_namerefhook_t routines*/
-/*{{{  static void kroccifccsp_namerefhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void kroccifccsp_namerefhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps hook data for debugging
  */
-static void kroccifccsp_namerefhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void kroccifccsp_namerefhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	kroccifccsp_namerefhook_t *nh = (kroccifccsp_namerefhook_t *)hook;
 
 	kroccifccsp_isetindent (stream, indent);
-	fprintf (stream, "<namerefhook addr=\"0x%8.8x\" nnode=\"0x%8.8x\" nhook=\"0x%8.8x\" cname=\"%s\" />\n",
+	fhandle_printf (stream, "<namerefhook addr=\"0x%8.8x\" nnode=\"0x%8.8x\" nhook=\"0x%8.8x\" cname=\"%s\" />\n",
 			(unsigned int)nh, (unsigned int)nh->nnode, (unsigned int)nh->nhook, (nh->nhook ? nh->nhook->cname : ""));
 	return;
 }
@@ -293,16 +294,16 @@ static kroccifccsp_namerefhook_t *kroccifccsp_namerefhook_create (tnode_t *nnode
 /*}}}*/
 /*}}}*/
 /*{{{  kroccifccsp_blockhook_t routines*/
-/*{{{  static void kroccifccsp_blockhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void kroccifccsp_blockhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps hook for debugging
  */
-static void kroccifccsp_blockhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void kroccifccsp_blockhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	kroccifccsp_blockhook_t *bh = (kroccifccsp_blockhook_t *)hook;
 
 	kroccifccsp_isetindent (stream, indent);
-	fprintf (stream, "<blockhook addr=\"0x%8.8x\" lexlevel=\"%d\" />\n",
+	fhandle_printf (stream, "<blockhook addr=\"0x%8.8x\" lexlevel=\"%d\" />\n",
 			(unsigned int)bh, bh->lexlevel);
 	return;
 }
@@ -322,11 +323,11 @@ static kroccifccsp_blockhook_t *kroccifccsp_blockhook_create (int ll)
 /*}}}*/
 /*}}}*/
 /*{{{  kroccifccsp_blockrefhook_t routines*/
-/*{{{  static void kroccifccsp_blockrefhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void kroccifccsp_blockrefhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps hook (debugging)
  */
-static void kroccifccsp_blockrefhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void kroccifccsp_blockrefhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	kroccifccsp_blockrefhook_t *brh = (kroccifccsp_blockrefhook_t *)hook;
 	tnode_t *blk = brh->block;
@@ -336,17 +337,17 @@ static void kroccifccsp_blockrefhook_dumptree (tnode_t *node, void *hook, int in
 		tnode_t **blks = parser_getlistitems (blk, &nitems);
 
 		kroccifccsp_isetindent (stream, indent);
-		fprintf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" nblocks=\"%d\" blocks=\"", (unsigned int)brh, (unsigned int)blk, nitems);
+		fhandle_printf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" nblocks=\"%d\" blocks=\"", (unsigned int)brh, (unsigned int)blk, nitems);
 		for (i=0; i<nitems; i++ ) {
 			if (i) {
-				fprintf (stream, ",");
+				fhandle_printf (stream, ",");
 			}
-			fprintf (stream, "0x%8.8x", (unsigned int)blks[i]);
+			fhandle_printf (stream, "0x%8.8x", (unsigned int)blks[i]);
 		}
-		fprintf (stream, "\" />\n");
+		fhandle_printf (stream, "\" />\n");
 	} else {
 		kroccifccsp_isetindent (stream, indent);
-		fprintf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" />\n", (unsigned int)brh, (unsigned int)blk);
+		fhandle_printf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" />\n", (unsigned int)brh, (unsigned int)blk);
 	}
 
 	return;

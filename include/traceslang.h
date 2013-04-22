@@ -1,6 +1,6 @@
 /*
  *	traceslang.h -- traces language for NOCC
- *	Copyright (C) 2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ struct TAG_feunit;
 struct TAG_langdef;
 struct TAG_langlexer;
 struct TAG_langparser;
+struct TAG_fhandle;
 
 extern struct TAG_langlexer traceslang_lexer;
 extern struct TAG_langparser traceslang_parser;
@@ -76,7 +77,7 @@ typedef struct TAG_traceslang_erefset {
 } traceslang_erefset_t;
 
 
-extern void traceslang_isetindent (FILE *stream, int indent);
+extern void traceslang_isetindent (struct TAG_fhandle *stream, int indent);
 extern struct TAG_langdef *traceslang_getlangdef (void);
 
 /* traceslang_expr.c */
@@ -99,11 +100,11 @@ extern struct TAG_tnode *traceslang_listtondet (struct TAG_tnode *expr);
 
 extern traceslang_eset_t *traceslang_newset (void);
 extern void traceslang_freeset (traceslang_eset_t *eset);
-extern void traceslang_dumpset (traceslang_eset_t *eset, int indent, FILE *stream);
+extern void traceslang_dumpset (traceslang_eset_t *eset, int indent, struct TAG_fhandle *stream);
 
 extern traceslang_erefset_t *traceslang_newrefset (void);
 extern void traceslang_freerefset (traceslang_erefset_t *erset);
-extern void traceslang_dumprefset (traceslang_erefset_t *erset, int indent, FILE *stream);
+extern void traceslang_dumprefset (traceslang_erefset_t *erset, int indent, struct TAG_fhandle *stream);
 
 extern int traceslang_addtoset (traceslang_eset_t *eset, struct TAG_tnode *event);
 extern int traceslang_addtorefset (traceslang_erefset_t *erset, struct TAG_tnode **eventp);

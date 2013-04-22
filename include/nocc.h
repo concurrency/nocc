@@ -158,6 +158,8 @@ typedef enum ENUM_comppassarg {
 extern char *progname;
 extern compopts_t compopts;
 
+struct TAG_fhandle;
+
 /* this can be called by extensions (and other code) to add passes to the compiler */
 extern int nocc_addcompilerpass (const char *name, struct TAG_origin *origin, const char *other, int before, int (*pfcn)(void *), comppassarg_t parg, int stopat, int *eflagptr);
 extern int nocc_laststopat (void);
@@ -168,8 +170,8 @@ extern int nocc_addcompilerinitfunc (const char *name, struct TAG_origin *origin
 /* this is used to add an XML namespace to the compiler -- for prefixing on dumped XML output -- only for top-level tree-dumps (and some helper routines) */
 extern int nocc_addxmlnamespace (const char *name, const char *uri);
 extern char *nocc_lookupxmlnamespace (const char *name);
-extern int nocc_dumpxmlnamespaceheaders (FILE *stream);
-extern int nocc_dumpxmlnamespacefooters (FILE *stream);
+extern int nocc_dumpxmlnamespaceheaders (struct TAG_fhandle *stream);
+extern int nocc_dumpxmlnamespacefooters (struct TAG_fhandle *stream);
 
 /* this can be used to change the default target */
 extern int nocc_setdefaulttarget (const char *tcpu, const char *tvendor, const char *tos);

@@ -1,6 +1,6 @@
 /*
  *	mcsp_process.c -- handling for MCSP processes
- *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "fcnlib.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -186,14 +187,14 @@ static void *mcsp_rawnamenode_hook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void mcsp_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void mcsp_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for rawnamenode hook (name-bytes)
  */
-static void mcsp_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void mcsp_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	mcsp_isetindent (stream, indent);
-	fprintf (stream, "<mcsprawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
+	fhandle_printf (stream, "<mcsprawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
 	return;
 }
 /*}}}*/
@@ -241,25 +242,25 @@ static void *mcsp_constnode_hook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void mcsp_constnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void mcsp_constnode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for constnode hook (name-bytes)
  */
-static void mcsp_constnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void mcsp_constnode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	mcsp_consthook_t *ch = (mcsp_consthook_t *)hook;
 
 	mcsp_isetindent (stream, indent);
 	if (!ch) {
-		fprintf (stream, "<mcspconsthook length=\"0\" value=\"(null)\" />\n");
+		fhandle_printf (stream, "<mcspconsthook length=\"0\" value=\"(null)\" />\n");
 	} else if (!ch->valtype) {
-		fprintf (stream, "<mcspconsthook length=\"%d\" value=\"%s\" />\n", ch->length, ch->data ? ch->data : "(null)");
+		fhandle_printf (stream, "<mcspconsthook length=\"%d\" value=\"%s\" />\n", ch->length, ch->data ? ch->data : "(null)");
 	} else if (ch->length == 4) {
-		fprintf (stream, "<mcspconsthook length=\"%d\" value=\"%d\" />\n", ch->length, ch->data ? *(int *)ch->data : 0);
+		fhandle_printf (stream, "<mcspconsthook length=\"%d\" value=\"%d\" />\n", ch->length, ch->data ? *(int *)ch->data : 0);
 	} else {
 		char *vstr = mkhexbuf ((unsigned char *)ch->data, ch->length);
 
-		fprintf (stream, "<mcspconsthook length=\"%d\" hexvalue=\"%s\" />\n", ch->length, vstr);
+		fhandle_printf (stream, "<mcspconsthook length=\"%d\" hexvalue=\"%s\" />\n", ch->length, vstr);
 		sfree (vstr);
 	}
 	return;
@@ -548,7 +549,7 @@ tnode_dumptree (name->type, 1, stderr);
 	}
 #if 1
 nocc_message ("mcsp_namenode_gettype(): null type on name, node was:");
-tnode_dumptree (node, 4, stderr);
+tnode_dumptree (node, 4, FHAN_STDERR);
 #endif
 	nocc_fatal ("mcsp_namenode_gettype(): name has NULL type (FIXME!)");
 	return NULL;

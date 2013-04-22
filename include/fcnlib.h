@@ -1,6 +1,6 @@
 /*
  *	fcnlib.h -- function library for NOCC
- *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@
 #define __FCNLIB_H
 
 
+struct TAG_fhandle;
+
 extern int fcnlib_init (void);
 extern int fcnlib_shutdown (void);
 
@@ -31,7 +33,7 @@ extern void *fcnlib_findfunction (const char *name);
 extern void *fcnlib_findfunction2 (const char *name, const int ret, const int nargs);
 extern void *fcnlib_findfunction3 (const char *name, int *n_ret, int *n_nargs);
 
-extern void fcnlib_dumpfcns (FILE *stream);
+extern void fcnlib_dumpfcns (struct TAG_fhandle *stream);
 
 
 #endif	/* !__FCNLIB_H */

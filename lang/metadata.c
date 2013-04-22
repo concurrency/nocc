@@ -1,6 +1,6 @@
 /*
  *	metadata.c -- separated meta-data handling for NOCC
- *	Copyright (C) 2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "opts.h"
@@ -64,16 +65,16 @@ STATICSTRINGHASH (md_reserved_t *, mdres, MDRES_HASHBITSIZE);
 /*}}}*/
 
 
-/*{{{  static void metadata_isetindent (FILE *stream, int indent)*/
+/*{{{  static void metadata_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	set-indent for debugging output
  */
-static void metadata_isetindent (FILE *stream, int indent)
+static void metadata_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -329,19 +330,19 @@ static void metadatahook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void metadatahook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void metadatahook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a "metadata" compiler hook (debugging)
  */
-static void metadatahook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void metadatahook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	metadata_t *omd = (metadata_t *)hook;
 
 	metadata_isetindent (stream, indent);
 	if (!hook) {
-		fprintf (stream, "<chook id=\"metadata\" value=\"\" />\n");
+		fhandle_printf (stream, "<chook id=\"metadata\" value=\"\" />\n");
 	} else {
-		fprintf (stream, "<chook id=\"metadata\" name=\"%s\" data=\"%s\" />\n", omd->name, omd->data);
+		fhandle_printf (stream, "<chook id=\"metadata\" name=\"%s\" data=\"%s\" />\n", omd->name, omd->data);
 	}
 }
 /*}}}*/
@@ -385,26 +386,26 @@ static void metadatalisthook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void metadatalisthook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void metadatalisthook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a "metadatalist" compiler hook (debugging)
  */
-static void metadatalisthook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void metadatalisthook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	metadatalist_t *mdl = (metadatalist_t *)hook;
 
 	metadata_isetindent (stream, indent);
 	if (!hook) {
-		fprintf (stream, "<chook id=\"metadatalist\" value=\"\" />\n");
+		fhandle_printf (stream, "<chook id=\"metadatalist\" value=\"\" />\n");
 	} else {
 		int i;
 
-		fprintf (stream, "<chook id=\"metadatalist\" size=\"%d\">\n", DA_CUR (mdl->items));
+		fhandle_printf (stream, "<chook id=\"metadatalist\" size=\"%d\">\n", DA_CUR (mdl->items));
 		for (i=0; i<DA_CUR (mdl->items); i++) {
 			metadatahook_dumptree (node, (void *)DA_NTHITEM (mdl->items, i), indent + 1, stream);
 		}
 		metadata_isetindent (stream, indent);
-		fprintf (stream, "</chook>\n");
+		fhandle_printf (stream, "</chook>\n");
 	}
 }
 /*}}}*/

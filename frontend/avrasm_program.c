@@ -1,6 +1,6 @@
 /*
  *	avrasm_program.c -- handling for AVR assembler programs
- *	Copyright (C) 2012 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2012-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -844,14 +845,14 @@ static void *avrasm_rawnamenode_hook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void avrasm_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void avrasm_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for rawnamenode hook (name-bytes)
  */
-static void avrasm_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void avrasm_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	avrasm_isetindent (stream, indent);
-	fprintf (stream, "<avrasmrawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
+	fhandle_printf (stream, "<avrasmrawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
 	return;
 }
 /*}}}*/
@@ -890,11 +891,11 @@ static void *avrasm_litnode_hook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void avrasm_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void avrasm_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for litnode hook (name-bytes)
  */
-static void avrasm_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void avrasm_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	avrasm_lithook_t *lit = (avrasm_lithook_t *)hook;
 
@@ -910,20 +911,20 @@ static void avrasm_litnode_hook_dumptree (tnode_t *node, void *hook, int indent,
 			}
 		}
 		if (avrasm_itable[iidx].str) {
-			fprintf (stream, "<avrasmlitnode instr=\"%s\" />\n", avrasm_itable[iidx].str);
+			fhandle_printf (stream, "<avrasmlitnode instr=\"%s\" />\n", avrasm_itable[iidx].str);
 		} else {
-			fprintf (stream, "<avrasmlitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, sdata);
+			fhandle_printf (stream, "<avrasmlitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, sdata);
 		}
 
 		sfree (sdata);
 	} else if (node->tag == avrasm.tag_LITSTR) {
-		fprintf (stream, "<avrasmlitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, (lit && lit->data) ? lit->data : "(null)");
+		fhandle_printf (stream, "<avrasmlitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, (lit && lit->data) ? lit->data : "(null)");
 	} else if (node->tag == avrasm.tag_LITREG) {
-		fprintf (stream, "<avrasmlitnode size=\"%d\" value=\"r%d\" />\n", lit ? lit->len : 0, (lit && lit->data) ? *(int *)(lit->data) : -1);
+		fhandle_printf (stream, "<avrasmlitnode size=\"%d\" value=\"r%d\" />\n", lit ? lit->len : 0, (lit && lit->data) ? *(int *)(lit->data) : -1);
 	} else {
 		char *sdata = mkhexbuf ((unsigned char *)lit->data, lit->len);
 
-		fprintf (stream, "<avrasmlitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, sdata);
+		fhandle_printf (stream, "<avrasmlitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, sdata);
 		sfree (sdata);
 	}
 
@@ -966,16 +967,16 @@ static void *avrasm_xyznode_hook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void avrasm_xyznode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void avrasm_xyznode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for xyznode hook (specials)
  */
-static void avrasm_xyznode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void avrasm_xyznode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	avrasm_xyzhook_t *xyzh = (avrasm_xyzhook_t *)hook;
 
 	avrasm_isetindent (stream, indent);
-	fprintf (stream, "<avrasmxyznode reg=\"%d\" prepost=\"%d\" offs=\"%d\" />\n", xyzh->reg, xyzh->prepost, xyzh->offs);
+	fhandle_printf (stream, "<avrasmxyznode reg=\"%d\" prepost=\"%d\" offs=\"%d\" />\n", xyzh->reg, xyzh->prepost, xyzh->offs);
 
 	return;
 }
@@ -1015,16 +1016,16 @@ static void *avrasm_uslabnode_hook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void avrasm_uslabnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void avrasm_uslabnode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for uslabnode hook (specials)
  */
-static void avrasm_uslabnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void avrasm_uslabnode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	avrasm_uslabhook_t *ush = (avrasm_uslabhook_t *)hook;
 
 	avrasm_isetindent (stream, indent);
-	fprintf (stream, "<avrasmuslabnode id=\"%d\" dir=\"%d\" />\n", ush->id, ush->dir);
+	fhandle_printf (stream, "<avrasmuslabnode id=\"%d\" dir=\"%d\" />\n", ush->id, ush->dir);
 
 	return;
 }
@@ -1790,17 +1791,17 @@ static void *avrasm_insnode_hook_copy (void *hook)
 	return (void *)hook;
 }
 /*}}}*/
-/*{{{  static void avrasm_insnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void avrasm_insnode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for an instruction-node hook
  */
-static void avrasm_insnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void avrasm_insnode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	avrinstr_tbl_t *inst = (avrinstr_tbl_t *)hook;
 
 	if (inst) {
 		avrasm_isetindent (stream, indent);
-		fprintf (stream, "<avrinstr id=\"%d\" str=\"%s\" addr=\"%p\" />\n", (int)inst->ins, inst->str, inst);
+		fhandle_printf (stream, "<avrinstr id=\"%d\" str=\"%s\" addr=\"%p\" />\n", (int)inst->ins, inst->str, inst);
 	}
 	return;
 }

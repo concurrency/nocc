@@ -1,6 +1,6 @@
 /*
  *	rcxb_program.c -- handling for BASIC style programs for the LEGO Mindstorms (tm) RCX
- *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -398,14 +399,14 @@ static void *rcxb_rawnamenode_hook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void rcxb_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void rcxb_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for rawnamenode hook (name-bytes)
  */
-static void rcxb_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void rcxb_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	rcxb_isetindent (stream, indent);
-	fprintf (stream, "<rcxbrawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
+	fhandle_printf (stream, "<rcxbrawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
 	return;
 }
 /*}}}*/
@@ -447,21 +448,21 @@ static void *rcxb_litnode_hook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void rcxb_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void rcxb_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for litnode hook (name-bytes)
  */
-static void rcxb_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void rcxb_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	rcxb_lithook_t *lit = (rcxb_lithook_t *)hook;
 
 	rcxb_isetindent (stream, indent);
 	if (node->tag == rcxb.tag_LITSTR) {
-		fprintf (stream, "<rcxblitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, (lit && lit->data) ? lit->data : "(null)");
+		fhandle_printf (stream, "<rcxblitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, (lit && lit->data) ? lit->data : "(null)");
 	} else {
 		char *sdata = mkhexbuf ((unsigned char *)lit->data, lit->len);
 
-		fprintf (stream, "<rcxblitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, sdata);
+		fhandle_printf (stream, "<rcxblitnode size=\"%d\" value=\"%s\" />\n", lit ? lit->len : 0, sdata);
 		sfree (sdata);
 	}
 

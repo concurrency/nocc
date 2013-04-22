@@ -1,6 +1,6 @@
 /*
  *	occampi_cnode.c -- occam-pi constructor processes for NOCC  (SEQ, PAR, etc.)
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -100,27 +101,27 @@ static void occampi_freeileaveinfo (occampi_ileaveinfo_t *ilv)
 	return;
 }
 /*}}}*/
-/*{{{  static void occampi_ileaveinfo_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void occampi_ileaveinfo_chook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps an interleave chook tree
  */
-static void occampi_ileaveinfo_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void occampi_ileaveinfo_chook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	occampi_ileaveinfo_t *ilv = (occampi_ileaveinfo_t *)hook;
 	int i;
 
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "<ileaveinfo addr=\"0x%8.8x\" nnames=\"%d\" nvalues=\"%d\">\n", (unsigned int)ilv, DA_CUR (ilv->names), DA_CUR (ilv->values));
+	fhandle_printf (stream, "<ileaveinfo addr=\"0x%8.8x\" nnames=\"%d\" nvalues=\"%d\">\n", (unsigned int)ilv, DA_CUR (ilv->names), DA_CUR (ilv->values));
 	for (i=0; (i<DA_CUR (ilv->names)) && (i<DA_CUR (ilv->values)); i++) {
 		occampi_isetindent (stream, indent + 1);
-		fprintf (stream, "<ileaveinfo:namevaluepair>\n");
+		fhandle_printf (stream, "<ileaveinfo:namevaluepair>\n");
 		tnode_dumptree (DA_NTHITEM (ilv->names, i), indent + 2, stream);
 		tnode_dumptree (DA_NTHITEM (ilv->values, i), indent + 2, stream);
 		occampi_isetindent (stream, indent + 1);
-		fprintf (stream, "</ileaveinfo:namevaluepair>\n");
+		fhandle_printf (stream, "</ileaveinfo:namevaluepair>\n");
 	}
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "</ileaveinfo>\n");
+	fhandle_printf (stream, "</ileaveinfo>\n");
 	return;
 }
 /*}}}*/

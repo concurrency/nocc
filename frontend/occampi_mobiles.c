@@ -1,6 +1,6 @@
 /*
  *	occampi_mobiles.c -- occam-pi MOBILE data, channels and processes
- *	Copyright (C) 2005-2008 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -139,20 +140,20 @@ static void occampi_free_demobilechook (void *chook)
 	return;
 }
 /*}}}*/
-/*{{{  static void occampi_dumptree_demobilechook (tnode_t *t, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_dumptree_demobilechook (tnode_t *t, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a demobile-type compiler hook (debugging)
  */
-static void occampi_dumptree_demobilechook (tnode_t *t, void *chook, int indent, FILE *stream)
+static void occampi_dumptree_demobilechook (tnode_t *t, void *chook, int indent, fhandle_t *stream)
 {
 	tnode_t *type = (tnode_t *)chook;
 
 	if (type) {
 		occampi_isetindent (stream, indent);
-		fprintf (stream, "<chook:occampi:demobiletype>\n");
+		fhandle_printf (stream, "<chook:occampi:demobiletype>\n");
 		tnode_dumptree (type, indent + 1, stream);
 		occampi_isetindent (stream, indent);
-		fprintf (stream, "</chook:occampi:demobiletype>\n");
+		fhandle_printf (stream, "</chook:occampi:demobiletype>\n");
 	}
 	return;
 }
@@ -186,20 +187,20 @@ static void occampi_free_dimtreehook (void *chook)
 	return;
 }
 /*}}}*/
-/*{{{  static void occampi_dumptree_dimtreehook (tnode_t *t, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_dumptree_dimtreehook (tnode_t *t, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a mobile dimension-tree compiler hook (debugging)
  */
-static void occampi_dumptree_dimtreehook (tnode_t *t, void *chook, int indent, FILE *stream)
+static void occampi_dumptree_dimtreehook (tnode_t *t, void *chook, int indent, fhandle_t *stream)
 {
 	tnode_t *dtree = (tnode_t *)chook;
 
 	if (dtree) {
 		occampi_isetindent (stream, indent);
-		fprintf (stream, "<chook:occampi:dimtreehook>\n");
+		fhandle_printf (stream, "<chook:occampi:dimtreehook>\n");
 		tnode_dumptree (dtree, indent + 1, stream);
 		occampi_isetindent (stream, indent);
-		fprintf (stream, "</chook:occampi:dimtreehook>\n");
+		fhandle_printf (stream, "</chook:occampi:dimtreehook>\n");
 	}
 	return;
 }
@@ -279,29 +280,29 @@ static void occampi_free_mobiletypehook (void *chook)
 	return;
 }
 /*}}}*/
-/*{{{  static void occampi_dumptree_mobiletypehook (tnode_t *t, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_dumptree_mobiletypehook (tnode_t *t, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a mobile type hook compiler hook
  */
-static void occampi_dumptree_mobiletypehook (tnode_t *t, void *chook, int indent, FILE *stream)
+static void occampi_dumptree_mobiletypehook (tnode_t *t, void *chook, int indent, fhandle_t *stream)
 {
 	mobiletypehook_t *mtd = (mobiletypehook_t *)chook;
 
 	if (mtd) {
 		occampi_isetindent (stream, indent);
-		fprintf (stream, "<chook:occampi:mobiletypehook label=\"%d\" value=\"0x%8.8x\" dlen=\"%d\" data=\"",
+		fhandle_printf (stream, "<chook:occampi:mobiletypehook label=\"%d\" value=\"0x%8.8x\" dlen=\"%d\" data=\"",
 				mtd->label, mtd->val, mtd->dlen);
 
 		if (mtd->data && mtd->dlen) {
 			char *str = mkhexbuf (mtd->data, mtd->dlen);
 
-			fprintf (stream, "%s", str);
+			fhandle_printf (stream, "%s", str);
 			sfree (str);
 		}
-		fprintf (stream, "\" />\n");
+		fhandle_printf (stream, "\" />\n");
 	} else {
 		occampi_isetindent (stream, indent);
-		fprintf (stream, "<chook:occampi:mobiletypehook value=\"null\" />\n");
+		fhandle_printf (stream, "<chook:occampi:mobiletypehook value=\"null\" />\n");
 	}
 	return;
 }

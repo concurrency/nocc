@@ -1,6 +1,6 @@
 /*
  *	eac.h -- Escape analysis code interface for NOCC
- *	Copyright (C) 2011 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2011-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ struct TAG_tndef;
 struct TAG_ntdef;
 struct TAG_token;
 struct TAG_chook;
+struct TAG_fhandle;
 
 typedef struct {
 	struct TAG_tndef *node_NAMENODE;
@@ -85,7 +86,7 @@ extern int eac_callback_line (char *line, struct TAG_compcxt *ccx);
 extern void eac_mode_in (struct TAG_compcxt *ccx);
 extern void eac_mode_out (struct TAG_compcxt *ccx);
 
-extern void eac_isetindent (FILE *stream, int indent);
+extern void eac_isetindent (struct TAG_fhandle *stream, int indent);
 extern struct TAG_langdef *eac_getlangdef (void);
 
 /* front-end units */

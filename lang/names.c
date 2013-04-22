@@ -1,6 +1,6 @@
 /*
- *	names.c -- name stuff
- *	Copyright (C) 2004-2005 Fred Barnes <frmb@kent.ac.uk>
+ *	names.c -- name stuff (note: names can exist globally)
+ *	Copyright (C) 2004-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -635,40 +636,40 @@ void name_markdescope (void *mark)
 /*}}}*/
 
 
-/*{{{  void name_dumpname (name_t *name, int indent, FILE *stream)*/
+/*{{{  void name_dumpname (name_t *name, int indent, fhandle_t *stream)*/
 /*
  *	dumps a single name (global call)
  */
-void name_dumpname (name_t *name, int indent, FILE *stream)
+void name_dumpname (name_t *name, int indent, fhandle_t *stream)
 {
 	int i;
 	tnode_t *type;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	type = NameTypeOf (name);
-	fprintf (stream, "<name name=\"%s\" type=\"%s\" decladdr=\"0x%8.8x\" namespace=\"%s\" addr=\"0x%8.8x\" />\n", name->me->name,
+	fhandle_printf (stream, "<name name=\"%s\" type=\"%s\" decladdr=\"0x%8.8x\" namespace=\"%s\" addr=\"0x%8.8x\" />\n", name->me->name,
 			type ? type->tag->name : "(null)", (unsigned int)(NameDeclOf (name)), name->ns ? name->ns->nspace : "",
 			(unsigned int)name);
 
 	return;
 }
 /*}}}*/
-/*{{{  void name_dumpsname (name_t *name, int indent, FILE *stream)*/
+/*{{{  void name_dumpsname (name_t *name, int indent, fhandle_t *stream)*/
 /*
  *	dumps a name in s-record format (global call)
  */
-void name_dumpsname (name_t *name, int indent, FILE *stream)
+void name_dumpsname (name_t *name, int indent, fhandle_t *stream)
 {
 	int i;
 	tnode_t *type;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "  ");
+		fhandle_printf (stream, "  ");
 	}
 	type = NameTypeOf (name);
-	fprintf (stream, "(name (name \"%s\") (type \"%s\") (namespace \"%s\") (addr \"0x%8.8x\"))\n", name->me->name,
+	fhandle_printf (stream, "(name (name \"%s\") (type \"%s\") (namespace \"%s\") (addr \"0x%8.8x\"))\n", name->me->name,
 			type ? type->tag->name : "(null)", name->ns ? name->ns->nspace : "", (unsigned int)name);
 
 	return;
@@ -680,25 +681,25 @@ void name_dumpsname (name_t *name, int indent, FILE *stream)
  */
 static void name_walkdumpname (namelist_t *nl, char *key, void *ptr)
 {
-	FILE *stream = ptr ? (FILE *)ptr : stderr;
+	fhandle_t *stream = ptr ? (fhandle_t *)ptr : FHAN_STDERR;
 	int i;
 
-	fprintf (stream, "name [%s] curscope = %d\n", key, nl->curscope);
+	fhandle_printf (stream, "name [%s] curscope = %d\n", key, nl->curscope);
 	for (i=0; i<DA_CUR (nl->scopes); i++) {
 		name_t *name = DA_NTHITEM (nl->scopes, i);
 		tnode_t *declnode = name->decl;
 
-		fprintf (stream, "\t%d\trefc = %-3d  decl = 0x%8.8x, (%s,%s):\n", i, name->refc, (unsigned int)declnode,
+		fhandle_printf (stream, "\t%d\trefc = %-3d  decl = 0x%8.8x, (%s,%s):\n", i, name->refc, (unsigned int)declnode,
 			declnode->tag->ndef->name, declnode->tag->name);
 	}
 	return;
 }
 /*}}}*/
-/*{{{  void name_dumpnames (FILE *stream)*/
+/*{{{  void name_dumpnames (fhandle_t *stream)*/
 /*
  *	dumps the names
  */
-void name_dumpnames (FILE *stream)
+void name_dumpnames (fhandle_t *stream)
 {
 	stringhash_walk (names, name_walkdumpname, (void *)stream);
 	return;

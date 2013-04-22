@@ -1,6 +1,6 @@
 /*
  *	lexer.c -- nocc lexer
- *	Copyright (C) 2004-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -655,125 +656,125 @@ token_t *lexer_newtoken (tokentype_t type, ...)
 	return tok;
 }
 /*}}}*/
-/*{{{  void lexer_dumptoken (FILE *stream, token_t *tok)*/
+/*{{{  void lexer_dumptoken (fhandle_t *stream, token_t *tok)*/
 /*
  *	prints out what a token is (for debugging)
  */
-void lexer_dumptoken (FILE *stream, token_t *tok)
+void lexer_dumptoken (fhandle_t *stream, token_t *tok)
 {
-	fprintf (stream, "<token ");
+	fhandle_printf (stream, "<token ");
 
 	if (tok->origin) {
-		fprintf (stream, "origin=\"%s:%d\" ", tok->origin->fnptr, tok->lineno);
+		fhandle_printf (stream, "origin=\"%s:%d\" ", tok->origin->fnptr, tok->lineno);
 	}
 	if (tok->iptr) {
-		fprintf (stream, "iptr=\"0x%8.8x\" ", (unsigned int)tok->iptr);
+		fhandle_printf (stream, "iptr=\"0x%8.8x\" ", (unsigned int)tok->iptr);
 	}
 
-	fprintf (stream, "type=\"");
+	fhandle_printf (stream, "type=\"");
 	switch (tok->type) {
 	case NOTOKEN:
-		fprintf (stream, "notoken\" />\n");
+		fhandle_printf (stream, "notoken\" />\n");
 		break;
 	case KEYWORD:
-		fprintf (stream, "keyword\" value=\"%s\" />\n", tok->u.kw->name);
+		fhandle_printf (stream, "keyword\" value=\"%s\" />\n", tok->u.kw->name);
 		break;
 	case INTEGER:
-		fprintf (stream, "integer\" value=\"0x%8.8x\" />\n", (unsigned int)tok->u.ival);
+		fhandle_printf (stream, "integer\" value=\"0x%8.8x\" />\n", (unsigned int)tok->u.ival);
 		break;
 	case REAL:
-		fprintf (stream, "real\" value=\"%lf\" />\n", tok->u.dval);
+		fhandle_printf (stream, "real\" value=\"%lf\" />\n", tok->u.dval);
 		break;
 	case STRING:
-		fprintf (stream, "string\">\n");
-		fprintf (stream, "    <![CDATA[%s]]>\n", tok->u.str.ptr);
-		fprintf (stream, "</token>\n");
+		fhandle_printf (stream, "string\">\n");
+		fhandle_printf (stream, "    <![CDATA[%s]]>\n", tok->u.str.ptr);
+		fhandle_printf (stream, "</token>\n");
 		break;
 	case INAME:
-		fprintf (stream, "iname\" value=\"%s\" />\n", tok->u.str.ptr);
+		fhandle_printf (stream, "iname\" value=\"%s\" />\n", tok->u.str.ptr);
 		break;
 	case LSPECIAL:
-		fprintf (stream, "lspecial\" value=\"%p\" />\n", tok->u.lspec);
+		fhandle_printf (stream, "lspecial\" value=\"%p\" />\n", tok->u.lspec);
 		break;
 	case NAME:
-		fprintf (stream, "name\" value=\"%s\" />\n", tok->u.name);
+		fhandle_printf (stream, "name\" value=\"%s\" />\n", tok->u.name);
 		break;
 	case SYMBOL:
-		fprintf (stream, "symbol\" value=\"%s\" />\n", tok->u.sym->match);
+		fhandle_printf (stream, "symbol\" value=\"%s\" />\n", tok->u.sym->match);
 		break;
 	case COMMENT:
-		fprintf (stream, "comment\" />\n");
+		fhandle_printf (stream, "comment\" />\n");
 		break;
 	case NEWLINE:
-		fprintf (stream, "newline\" />\n");
+		fhandle_printf (stream, "newline\" />\n");
 		break;
 	case INDENT:
-		fprintf (stream, "indent\" />\n");
+		fhandle_printf (stream, "indent\" />\n");
 		break;
 	case OUTDENT:
-		fprintf (stream, "outdent\" />\n");
+		fhandle_printf (stream, "outdent\" />\n");
 		break;
 	case END:
-		fprintf (stream, "end\" />\n");
+		fhandle_printf (stream, "end\" />\n");
 		break;
 	}
 	return;
 }
 /*}}}*/
-/*{{{  void lexer_dumptoken_short (FILE *stream, token_t *tok)*/
+/*{{{  void lexer_dumptoken_short (fhandle_t *stream, token_t *tok)*/
 /*
  *	prints out a token in short form (for debugging)
  */
-void lexer_dumptoken_short (FILE *stream, token_t *tok)
+void lexer_dumptoken_short (fhandle_t *stream, token_t *tok)
 {
 	if (!tok) {
-		fprintf (stream, "<** NULL TOKEN **>");
+		fhandle_printf (stream, "<** NULL TOKEN **>");
 		return;
 	}
 
-	fprintf (stream, "<token type=\"");
+	fhandle_printf (stream, "<token type=\"");
 	switch (tok->type) {
 	case NOTOKEN:
-		fprintf (stream, "notoken\">");
+		fhandle_printf (stream, "notoken\">");
 		break;
 	case KEYWORD:
-		fprintf (stream, "keyword\" value=\"%s\">", tok->u.kw->name);
+		fhandle_printf (stream, "keyword\" value=\"%s\">", tok->u.kw->name);
 		break;
 	case INTEGER:
-		fprintf (stream, "integer\">");
+		fhandle_printf (stream, "integer\">");
 		break;
 	case REAL:
-		fprintf (stream, "real\"");
+		fhandle_printf (stream, "real\"");
 		break;
 	case STRING:
-		fprintf (stream, "string\">");
+		fhandle_printf (stream, "string\">");
 		break;
 	case INAME:
-		fprintf (stream, "iname\">");
+		fhandle_printf (stream, "iname\">");
 		break;
 	case LSPECIAL:
-		fprintf (stream, "lspecial\">");
+		fhandle_printf (stream, "lspecial\">");
 		break;
 	case NAME:
-		fprintf (stream, "name\">");
+		fhandle_printf (stream, "name\">");
 		break;
 	case SYMBOL:
-		fprintf (stream, "symbol\" value=\"%s\">", tok->u.sym->match);
+		fhandle_printf (stream, "symbol\" value=\"%s\">", tok->u.sym->match);
 		break;
 	case COMMENT:
-		fprintf (stream, "comment\">");
+		fhandle_printf (stream, "comment\">");
 		break;
 	case NEWLINE:
-		fprintf (stream, "newline\">");
+		fhandle_printf (stream, "newline\">");
 		break;
 	case INDENT:
-		fprintf (stream, "indent\">");
+		fhandle_printf (stream, "indent\">");
 		break;
 	case OUTDENT:
-		fprintf (stream, "outdent\">");
+		fhandle_printf (stream, "outdent\">");
 		break;
 	case END:
-		fprintf (stream, "end\">");
+		fhandle_printf (stream, "end\">");
 		break;
 	}
 	return;
@@ -1074,11 +1075,11 @@ int lexer_unregisterlang (langlexer_t *ll)
 /*}}}*/
 
 
-/*{{{  void lexer_dumplexers (FILE *stream)*/
+/*{{{  void lexer_dumplexers (fhandle_t *stream)*/
 /*
  *	dumps registered lexers
  */
-void lexer_dumplexers (FILE *stream)
+void lexer_dumplexers (fhandle_t *stream)
 {
 	int i;
 
@@ -1086,11 +1087,11 @@ void lexer_dumplexers (FILE *stream)
 		langlexer_t *llex = DA_NTHITEM (langlexers, i);
 		int j;
 
-		fprintf (stream, "name = \"%s\", bits = 0x%8.8x, fexts = [", llex->langname, llex->langtag);
+		fhandle_printf (stream, "name = \"%s\", bits = 0x%8.8x, fexts = [", llex->langname, llex->langtag);
 		for (j=0; llex->fileexts[j]; j++) {
-			fprintf (stream, "%s%s", j ? "," : "", llex->fileexts[j]);
+			fhandle_printf (stream, "%s%s", j ? "," : "", llex->fileexts[j]);
 		}
-		fprintf (stream, "]\n");
+		fhandle_printf (stream, "]\n");
 	}
 	return;
 }

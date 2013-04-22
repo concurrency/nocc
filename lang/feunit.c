@@ -1,6 +1,6 @@
 /*
  *	feunit.c -- front-end unit helper routines
- *	Copyright (C) 2006-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "origin.h"
+#include "fhandle.h"
 #include "version.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -402,7 +403,7 @@ int feunit_do_init_dfatrans (feunit_t **felist, int earlyfail, langdef_t *ldef, 
 			dfattbl_t *ttbl = DA_NTHITEM (transtbls, i);
 
 			if (ttbl) {
-				dfa_dumpttbl (stderr, ttbl);
+				dfa_dumpttbl (FHAN_STDERR, ttbl);
 			}
 		}
 	}
@@ -411,10 +412,10 @@ int feunit_do_init_dfatrans (feunit_t **felist, int earlyfail, langdef_t *ldef, 
 
 	/*{{{  debugging dump for visualisation here :)*/
 	if (compopts.savenameddfa[0] && compopts.savenameddfa[1]) {
-		FILE *ostream = fopen (compopts.savenameddfa[1], "w");
+		fhandle_t *ostream = fhandle_fopen (compopts.savenameddfa[1], "w");
 
 		if (!ostream) {
-			nocc_error ("failed to open %s for writing: %s", compopts.savenameddfa[1], strerror (errno));
+			nocc_error ("failed to open %s for writing: %s", compopts.savenameddfa[1], strerror (fhandle_lasterr (ostream)));
 			/* ignore this generally */
 		} else {
 			for (i=0; i<DA_CUR (transtbls); i++) {
@@ -424,7 +425,7 @@ int feunit_do_init_dfatrans (feunit_t **felist, int earlyfail, langdef_t *ldef, 
 					dfa_dumpttbl_gra (ostream, ttbl);
 				}
 			}
-			fclose (ostream);
+			fhandle_close (ostream);
 		}
 	}
 
@@ -442,7 +443,7 @@ int feunit_do_init_dfatrans (feunit_t **felist, int earlyfail, langdef_t *ldef, 
 	}
 
 	if (compopts.dumpgrammar) {
-		dfa_dumpdeferred (stderr);
+		dfa_dumpdeferred (FHAN_STDERR);
 	}
 
 	if (dfa_match_deferred ()) {

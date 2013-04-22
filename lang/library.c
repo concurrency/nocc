@@ -1,6 +1,6 @@
 /*
  *	library.c -- libraries/separate-compilation for NOCC
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "opts.h"
@@ -255,30 +256,30 @@ static int lib_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)
 	return 0;
 }
 /*}}}*/
-/*{{{  static void lib_isetindent (FILE *stream, int indent)*/
+/*{{{  static void lib_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	produces indentation (debugging output)
  */
-static void lib_isetindent (FILE *stream, int indent)
+static void lib_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
 /*}}}*/
-/*{{{  static void lib_ssetindent (FILE *stream, int indent)*/
+/*{{{  static void lib_ssetindent (fhandle_t *stream, int indent)*/
 /*
  *	produces indentation (s-record format, debugging output)
  */
-static void lib_ssetindent (FILE *stream, int indent)
+static void lib_ssetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "  ");
+		fhandle_printf (stream, "  ");
 	}
 	return;
 }
@@ -373,51 +374,51 @@ static void *lib_libtaghook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void lib_libtaghook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void lib_libtaghook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for libtag hook (debugging)
  */
-static void lib_libtaghook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void lib_libtaghook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	libtaghook_t *lth = (libtaghook_t *)hook;
 	int i;
 
 	lib_isetindent (stream, indent);
-	fprintf (stream, "<libtaghook addr=\"0x%8.8x\" name=\"%s\" ws=\"%d\" vs=\"%d\" ms=\"%d\" adjust=\"%d\" bnode=\"0x%8.8x\" descriptor=\"%s\">\n",
+	fhandle_printf (stream, "<libtaghook addr=\"0x%8.8x\" name=\"%s\" ws=\"%d\" vs=\"%d\" ms=\"%d\" adjust=\"%d\" bnode=\"0x%8.8x\" descriptor=\"%s\">\n",
 			(unsigned int)lth, lth->name ?: "(null)", lth->ws, lth->vs, lth->ms, lth->adjust, (unsigned int)lth->bnode, lth->descriptor ?: "(null)");
 	for (i=0; i<DA_CUR (lth->mdata); i++) {
 		metadata_t *lmd = DA_NTHITEM (lth->mdata, i);
 
 		lib_isetindent (stream, indent + 1);
-		fprintf (stream, "<metadata addr=\"0x%8.8x\" name=\"%s\" data=\"%s\" />\n",
+		fhandle_printf (stream, "<metadata addr=\"0x%8.8x\" name=\"%s\" data=\"%s\" />\n",
 				(unsigned int)lmd, lmd->name ?: "(null)", lmd->data ?: "");
 	}
 	lib_isetindent (stream, indent);
-	fprintf (stream, "</libtaghook>\n");
+	fhandle_printf (stream, "</libtaghook>\n");
 	return;
 }
 /*}}}*/
-/*{{{  static void lib_libtaghook_dumpstree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void lib_libtaghook_dumpstree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for libtag hook (s-record format, debugging)
  */
-static void lib_libtaghook_dumpstree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void lib_libtaghook_dumpstree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	libtaghook_t *lth = (libtaghook_t *)hook;
 	int i;
 
 	lib_ssetindent (stream, indent);
-	fprintf (stream, "(libtaghook (addr 0x%8.8x) (name \"%s\") (ws %d) (vs %d) (ms %d) (adjust %d) (bnode 0x%8.8x) (descriptor \"%s\")\n",
+	fhandle_printf (stream, "(libtaghook (addr 0x%8.8x) (name \"%s\") (ws %d) (vs %d) (ms %d) (adjust %d) (bnode 0x%8.8x) (descriptor \"%s\")\n",
 			(unsigned int)lth, lth->name ?: "(null)", lth->ws, lth->vs, lth->ms, lth->adjust, (unsigned int)lth->bnode, lth->descriptor ?: "(null)");
 	for (i=0; i<DA_CUR (lth->mdata); i++) {
 		metadata_t *lmd = DA_NTHITEM (lth->mdata, i);
 
 		lib_ssetindent (stream, indent + 1);
-		fprintf (stream, "(metadata (addr 0x%8.8x) (name \"%s\") (data \"%s\"))\n",
+		fhandle_printf (stream, "(metadata (addr 0x%8.8x) (name \"%s\") (data \"%s\"))\n",
 				(unsigned int)lmd, lmd->name ?: "(null)", lmd->data ?: "");
 	}
 	lib_ssetindent (stream, indent);
-	fprintf (stream, ")\n");
+	fhandle_printf (stream, ")\n");
 	return;
 }
 /*}}}*/
@@ -519,28 +520,28 @@ static void *lib_libnodehook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void lib_libnodehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void lib_libnodehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for libnode hook (debugging)
  */
-static void lib_libnodehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void lib_libnodehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	libnodehook_t *lnh = (libnodehook_t *)hook;
 	int i;
 
 	lib_isetindent (stream, indent);
-	fprintf (stream, "<libnodehook addr=\"0x%8.8x\">\n", (unsigned int)lnh);
+	fhandle_printf (stream, "<libnodehook addr=\"0x%8.8x\">\n", (unsigned int)lnh);
 
 	lib_isetindent (stream, indent + 1);
-	fprintf (stream, "<library name=\"%s\" namespace=\"%s\">\n", lnh->libname, lnh->namespace);
+	fhandle_printf (stream, "<library name=\"%s\" namespace=\"%s\">\n", lnh->libname, lnh->namespace);
 
 	if (lnh->langname) {
 		lib_isetindent (stream, indent + 2);
-		fprintf (stream, "<lang name=\"%s\" />\n", lnh->langname);
+		fhandle_printf (stream, "<lang name=\"%s\" />\n", lnh->langname);
 	}
 	if (lnh->targetname) {
 		lib_isetindent (stream, indent + 2);
-		fprintf (stream, "<target name=\"%s\" />\n", lnh->targetname);
+		fhandle_printf (stream, "<target name=\"%s\" />\n", lnh->targetname);
 	}
 
 	for (i=0; i<DA_CUR (lnh->autoinclude); i++) {
@@ -548,7 +549,7 @@ static void lib_libnodehook_dumptree (tnode_t *node, void *hook, int indent, FIL
 
 		if (iname) {
 			lib_isetindent (stream, indent + 2);
-			fprintf (stream, "<srcinclude path=\"%s\" />\n", iname);
+			fhandle_printf (stream, "<srcinclude path=\"%s\" />\n", iname);
 		}
 	}
 	for (i=0; i<DA_CUR (lnh->autouse); i++) {
@@ -556,7 +557,7 @@ static void lib_libnodehook_dumptree (tnode_t *node, void *hook, int indent, FIL
 
 		if (lname) {
 			lib_isetindent (stream, indent + 2);
-			fprintf (stream, "<srcuse path=\"%s\" />\n", lname);
+			fhandle_printf (stream, "<srcuse path=\"%s\" />\n", lname);
 		}
 	}
 	for (i=0; i<DA_CUR (lnh->entries); i++) {
@@ -568,35 +569,35 @@ static void lib_libnodehook_dumptree (tnode_t *node, void *hook, int indent, FIL
 	}
 
 	lib_isetindent (stream, indent + 1);
-	fprintf (stream, "</library>\n");
+	fhandle_printf (stream, "</library>\n");
 
 	lib_isetindent (stream, indent);
-	fprintf (stream, "</libnodehook>\n");
+	fhandle_printf (stream, "</libnodehook>\n");
 	return;
 }
 /*}}}*/
-/*{{{  static void lib_libnodehook_dumpstree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void lib_libnodehook_dumpstree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a library node hook (s-record format)
  */
-static void lib_libnodehook_dumpstree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void lib_libnodehook_dumpstree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	libnodehook_t *lnh = (libnodehook_t *)hook;
 	int i;
 
 	lib_ssetindent (stream, indent);
-	fprintf (stream, "(libnodehook (addr 0x%8.8x)\n", (unsigned int)lnh);
+	fhandle_printf (stream, "(libnodehook (addr 0x%8.8x)\n", (unsigned int)lnh);
 
 	lib_ssetindent (stream, indent + 1);
-	fprintf (stream, "(library (name \"%s\") (namespace \"%s\")\n", lnh->libname, lnh->namespace);
+	fhandle_printf (stream, "(library (name \"%s\") (namespace \"%s\")\n", lnh->libname, lnh->namespace);
 
 	if (lnh->langname) {
 		lib_ssetindent (stream, indent + 2);
-		fprintf (stream, "(lang (name \"%s\"))\n", lnh->langname);
+		fhandle_printf (stream, "(lang (name \"%s\"))\n", lnh->langname);
 	}
 	if (lnh->targetname) {
 		lib_ssetindent (stream, indent + 2);
-		fprintf (stream, "(target (name \"%s\"))\n", lnh->targetname);
+		fhandle_printf (stream, "(target (name \"%s\"))\n", lnh->targetname);
 	}
 
 	for (i=0; i<DA_CUR (lnh->autoinclude); i++) {
@@ -604,7 +605,7 @@ static void lib_libnodehook_dumpstree (tnode_t *node, void *hook, int indent, FI
 
 		if (iname) {
 			lib_ssetindent (stream, indent + 2);
-			fprintf (stream, "(srcinclude (path \"%s\"))\n", iname);
+			fhandle_printf (stream, "(srcinclude (path \"%s\"))\n", iname);
 		}
 	}
 	for (i=0; i<DA_CUR (lnh->autouse); i++) {
@@ -612,7 +613,7 @@ static void lib_libnodehook_dumpstree (tnode_t *node, void *hook, int indent, FI
 
 		if (lname) {
 			lib_ssetindent (stream, indent + 2);
-			fprintf (stream, "(srcuse (path \"%s\"))\n", lname);
+			fhandle_printf (stream, "(srcuse (path \"%s\"))\n", lname);
 		}
 	}
 	for (i=0; i<DA_CUR (lnh->entries); i++) {
@@ -624,10 +625,10 @@ static void lib_libnodehook_dumpstree (tnode_t *node, void *hook, int indent, FI
 	}
 
 	lib_ssetindent (stream, indent + 1);
-	fprintf (stream, ")\n");
+	fhandle_printf (stream, ")\n");
 
 	lib_ssetindent (stream, indent);
-	fprintf (stream, ")\n");
+	fhandle_printf (stream, ")\n");
 	return;
 }
 /*}}}*/
@@ -802,48 +803,48 @@ static void *lib_libusenodehook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void lib_libusenodehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void lib_libusenodehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for libusenode hook (debugging)
  */
-static void lib_libusenodehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void lib_libusenodehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	libusenodehook_t *lunh = (libusenodehook_t *)hook;
 	int i;
 
 	lib_isetindent (stream, indent);
-	fprintf (stream, "<libusenodehook addr=\"0x%8.8x\" libname=\"%s\" namespace=\"%s\" as=\"%s\" >\n", (unsigned int)lunh, lunh->libname, lunh->namespace, lunh->asnamespace ? lunh->asnamespace : lunh->namespace);
+	fhandle_printf (stream, "<libusenodehook addr=\"0x%8.8x\" libname=\"%s\" namespace=\"%s\" as=\"%s\" >\n", (unsigned int)lunh, lunh->libname, lunh->namespace, lunh->asnamespace ? lunh->asnamespace : lunh->namespace);
 	if (lunh->libdata) {
 		libfile_t *lf = lunh->libdata;
 
 		if (lf->fname) {
 			lib_isetindent (stream, indent + 1);
-			fprintf (stream, "<libdesc name=\"%s\" libname=\"%s\" namespace=\"%s\" nativelib=\"%s\" />\n",
+			fhandle_printf (stream, "<libdesc name=\"%s\" libname=\"%s\" namespace=\"%s\" nativelib=\"%s\" />\n",
 					lf->fname ?: "", lf->libname ?: "", lf->namespace ?: "", lf->nativelib ?: "");
 		}
 		for (i=0; i<DA_CUR (lf->autoinclude); i++) {
 			char *ipath = DA_NTHITEM (lf->autoinclude, i);
 
 			lib_isetindent (stream, indent + 1);
-			fprintf (stream, "<autoinclude path=\"%s\" />\n", ipath);
+			fhandle_printf (stream, "<autoinclude path=\"%s\" />\n", ipath);
 		}
 		for (i=0; i<DA_CUR (lf->autouse); i++) {
 			char *ipath = DA_NTHITEM (lf->autouse, i);
 
 			lib_isetindent (stream, indent + 1);
-			fprintf (stream, "<autouse path=\"%s\" />\n", ipath);
+			fhandle_printf (stream, "<autouse path=\"%s\" />\n", ipath);
 		}
 		for (i=0; i<DA_CUR (lf->srcs); i++) {
 			libfile_srcunit_t *lfsu = DA_NTHITEM (lf->srcs, i);
 			int j;
 
 			lib_isetindent (stream, indent + 1);
-			fprintf (stream, "<srcunit name=\"%s\">\n", lfsu->fname);
+			fhandle_printf (stream, "<srcunit name=\"%s\">\n", lfsu->fname);
 			for (j=0; j<DA_CUR (lfsu->entries); j++) {
 				libfile_entry_t *lfent = DA_NTHITEM (lfsu->entries, j);
 
 				lib_isetindent (stream, indent + 2);
-				fprintf (stream, "<entry name=\"%s\" language=\"%s\" target=\"%s\" descriptor=\"%s\" ws=\"%d\" vs=\"%d\" ms=\"%d\" adjust=\"%d\"%s>\n",
+				fhandle_printf (stream, "<entry name=\"%s\" language=\"%s\" target=\"%s\" descriptor=\"%s\" ws=\"%d\" vs=\"%d\" ms=\"%d\" adjust=\"%d\"%s>\n",
 						lfent->name, lfent->langname ?: "", lfent->targetname ?: "", lfent->descriptor ?: "",
 						lfent->ws, lfent->vs, lfent->ms, lfent->adjust, (DA_CUR (lfent->mdata) ? "" : " /"));
 				if (DA_CUR (lfent->mdata)) {
@@ -853,10 +854,10 @@ static void lib_libusenodehook_dumptree (tnode_t *node, void *hook, int indent, 
 						libfile_metadata_t *lfmd = DA_NTHITEM (lfent->mdata, k);
 
 						lib_isetindent (stream, indent + 3);
-						fprintf (stream, "<meta name=\"%s\" data=\"%s\" dlen=\"%d\" />\n", lfmd->name, lfmd->data, lfmd->dlen);
+						fhandle_printf (stream, "<meta name=\"%s\" data=\"%s\" dlen=\"%d\" />\n", lfmd->name, lfmd->data, lfmd->dlen);
 					}
 					lib_isetindent (stream, indent + 2);
-					fprintf (stream, "</entry>\n");
+					fhandle_printf (stream, "</entry>\n");
 				}
 			}
 
@@ -864,110 +865,110 @@ static void lib_libusenodehook_dumptree (tnode_t *node, void *hook, int indent, 
 				libfile_metadata_t *lfmd = DA_NTHITEM (lfsu->mdata, j);
 
 				lib_isetindent (stream, indent + 2);
-				fprintf (stream, "<meta name=\"%s\" data=\"%s\" dlen=\"%d\" />\n", lfmd->name, lfmd->data, lfmd->dlen);
+				fhandle_printf (stream, "<meta name=\"%s\" data=\"%s\" dlen=\"%d\" />\n", lfmd->name, lfmd->data, lfmd->dlen);
 			}
 			lib_isetindent (stream, indent + 1);
-			fprintf (stream, "</srcunit>\n");
+			fhandle_printf (stream, "</srcunit>\n");
 		}
 		for (i=0; i<DA_CUR (lf->mdata); i++) {
 			libfile_metadata_t *lfmd = DA_NTHITEM (lf->mdata, i);
 
 			lib_isetindent (stream, indent + 1);
-			fprintf (stream, "<meta name=\"%s\" data=\"%s\" dlen=\"%d\" />\n", lfmd->name, lfmd->data, lfmd->dlen);
+			fhandle_printf (stream, "<meta name=\"%s\" data=\"%s\" dlen=\"%d\" />\n", lfmd->name, lfmd->data, lfmd->dlen);
 		}
 	}
 	if (lunh->decltree) {
 		lib_isetindent (stream, indent + 1);
-		fprintf (stream, "<decltree>\n");
+		fhandle_printf (stream, "<decltree>\n");
 		tnode_dumptree (lunh->decltree, indent + 2, stream);
 		lib_isetindent (stream, indent + 1);
-		fprintf (stream, "</decltree>\n");
+		fhandle_printf (stream, "</decltree>\n");
 	}
 
 	lib_isetindent (stream, indent + 1);
-	fprintf (stream, "<parsedlibdecls>\n");
+	fhandle_printf (stream, "<parsedlibdecls>\n");
 	for (i=0; i<DA_CUR (lunh->decls); i++) {
 		tnode_t *dent = DA_NTHITEM (lunh->decls, i);
 
 		tnode_dumptree (dent, indent + 2, stream);
 	}
 	lib_isetindent (stream, indent + 1);
-	fprintf (stream, "</parsedlibdecls>\n");
+	fhandle_printf (stream, "</parsedlibdecls>\n");
 
 	lib_isetindent (stream, indent);
-	fprintf (stream, "</libusenodehook>\n");
+	fhandle_printf (stream, "</libusenodehook>\n");
 
 	return;
 }
 /*}}}*/
-/*{{{  static void lib_libusenodehook_dumpstree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void lib_libusenodehook_dumpstree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a library usage node (s-record format)
  */
-static void lib_libusenodehook_dumpstree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void lib_libusenodehook_dumpstree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	libusenodehook_t *lunh = (libusenodehook_t *)hook;
 	int i;
 
 	lib_ssetindent (stream, indent);
-	fprintf (stream, "(libusenodehook (addr 0x%8.8x) (libname \"%s\") (namespace \"%s\") (as \"%s\")\n", (unsigned int)lunh, lunh->libname, lunh->namespace, lunh->asnamespace ? lunh->asnamespace : lunh->namespace);
+	fhandle_printf (stream, "(libusenodehook (addr 0x%8.8x) (libname \"%s\") (namespace \"%s\") (as \"%s\")\n", (unsigned int)lunh, lunh->libname, lunh->namespace, lunh->asnamespace ? lunh->asnamespace : lunh->namespace);
 	if (lunh->libdata) {
 		libfile_t *lf = lunh->libdata;
 
 		if (lf->fname) {
 			lib_ssetindent (stream, indent + 1);
-			fprintf (stream, "(libdesc (name \"%s\") (libname \"%s\") (namespace \"%s\") (nativelib \"%s\"))\n",
+			fhandle_printf (stream, "(libdesc (name \"%s\") (libname \"%s\") (namespace \"%s\") (nativelib \"%s\"))\n",
 					lf->fname ?: "", lf->libname ?: "", lf->namespace ?: "", lf->nativelib ?: "");
 		}
 		for (i=0; i<DA_CUR (lf->autoinclude); i++) {
 			char *ipath = DA_NTHITEM (lf->autoinclude, i);
 
 			lib_ssetindent (stream, indent + 1);
-			fprintf (stream, "(autoinclude (path \"%s\"))\n", ipath);
+			fhandle_printf (stream, "(autoinclude (path \"%s\"))\n", ipath);
 		}
 		for (i=0; i<DA_CUR (lf->autouse); i++) {
 			char *ipath = DA_NTHITEM (lf->autouse, i);
 
 			lib_ssetindent (stream, indent + 1);
-			fprintf (stream, "(autouse (path \"%s\"))\n", ipath);
+			fhandle_printf (stream, "(autouse (path \"%s\"))\n", ipath);
 		}
 		for (i=0; i<DA_CUR (lf->srcs); i++) {
 			libfile_srcunit_t *lfsu = DA_NTHITEM (lf->srcs, i);
 			int j;
 
 			lib_ssetindent (stream, indent + 1);
-			fprintf (stream, "(srcunit (name \"%s\")\n", lfsu->fname);
+			fhandle_printf (stream, "(srcunit (name \"%s\")\n", lfsu->fname);
 			for (j=0; j<DA_CUR (lfsu->entries); j++) {
 				libfile_entry_t *lfent = DA_NTHITEM (lfsu->entries, j);
 
 				lib_ssetindent (stream, indent + 2);
-				fprintf (stream, "(entry (name \"%s\") (language \"%s\") (target \"%s\") (descriptor \"%s\") (ws %d) (vs %d) (ms %d) (adjust %d))\n",
+				fhandle_printf (stream, "(entry (name \"%s\") (language \"%s\") (target \"%s\") (descriptor \"%s\") (ws %d) (vs %d) (ms %d) (adjust %d))\n",
 						lfent->name, lfent->langname ?: "", lfent->targetname ?: "", lfent->descriptor ?: "", lfent->ws, lfent->vs, lfent->ms, lfent->adjust);
 			}
 			lib_ssetindent (stream, indent + 1);
-			fprintf (stream, ")\n");
+			fhandle_printf (stream, ")\n");
 		}
 	}
 	if (lunh->decltree) {
 		lib_ssetindent (stream, indent + 1);
-		fprintf (stream, "(decltree\n");
+		fhandle_printf (stream, "(decltree\n");
 		tnode_dumptree (lunh->decltree, indent + 2, stream);
 		lib_ssetindent (stream, indent + 1);
-		fprintf (stream, ")\n");
+		fhandle_printf (stream, ")\n");
 	}
 
 	lib_ssetindent (stream, indent + 1);
-	fprintf (stream, "(parsedlibdecls\n");
+	fhandle_printf (stream, "(parsedlibdecls\n");
 	for (i=0; i<DA_CUR (lunh->decls); i++) {
 		tnode_t *dent = DA_NTHITEM (lunh->decls, i);
 
 		tnode_dumptree (dent, indent + 2, stream);
 	}
 	lib_ssetindent (stream, indent + 1);
-	fprintf (stream, ")\n");
+	fhandle_printf (stream, ")\n");
 
 	lib_ssetindent (stream, indent);
-	fprintf (stream, ")\n");
+	fhandle_printf (stream, ")\n");
 
 	return;
 }
@@ -1663,6 +1664,7 @@ static libfile_t *lib_newlibrary (char *libname)
 	lf = lib_newlibfile ();
 	lf->fname = string_dup (fbuf);
 
+	/* FIXME: push into file abstraction */
 	if (!access (fbuf, R_OK)) {
 		/* try and delete it */
 		if (unlink (fbuf)) {
@@ -1798,12 +1800,12 @@ fprintf (stderr, "lib_readlibrary(): trying [%s]\n", fbuf);
 	return lf;
 }
 /*}}}*/
-/*{{{  static int lib_writelibrary_metadata (FILE *libstream, int indent, libfile_t *lf, libfile_metadata_t *lmd)*/
+/*{{{  static int lib_writelibrary_metadata (fhandle_t *libstream, int indent, libfile_t *lf, libfile_metadata_t *lmd)*/
 /*
  *	writes out a single meta-data entry into an existing library stream
  *	returns 0 on success, non-zero on failure
  */
-static int lib_writelibrary_metadata (FILE *libstream, int indent, libfile_t *lf, libfile_metadata_t *lmd)
+static int lib_writelibrary_metadata (fhandle_t *libstream, int indent, libfile_t *lf, libfile_metadata_t *lmd)
 {
 	char *hbuf;
 
@@ -1813,7 +1815,7 @@ static int lib_writelibrary_metadata (FILE *libstream, int indent, libfile_t *lf
 	hbuf = mkhexbuf ((unsigned char *)lmd->data, lmd->dlen);
 
 	lib_isetindent (libstream, indent);
-	fprintf (libstream, "<meta name=\"%s\" data=\"%s\" />\n", lmd->name, hbuf);
+	fhandle_printf (libstream, "<meta name=\"%s\" data=\"%s\" />\n", lmd->name, hbuf);
 
 	sfree (hbuf);
 	return 0;
@@ -1828,7 +1830,7 @@ static int lib_writelibrary (libfile_t *lf)
 {
 	char fbuf[FILENAME_MAX];
 	int flen = 0;
-	FILE *libstream;
+	fhandle_t *libstream;
 	int i;
 	char *xmluri;
 
@@ -1850,49 +1852,49 @@ static int lib_writelibrary (libfile_t *lf)
 		return -1;
 	}
 
-	libstream = fopen (fbuf, "w");
+	libstream = fhandle_fopen (fbuf, "w");
 	if (!libstream) {
-		nocc_error ("lib_writelibrary(): failed to open %s for writing: %s", fbuf, strerror (errno));
+		nocc_error ("lib_writelibrary(): failed to open %s for writing: %s", fbuf, strerror (fhandle_lasterr (libstream)));
 		return -1;
 	}
 
-	fprintf (libstream, "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>\n");
-	fprintf (libstream, "<nocc:namespace xmlns:nocc=\"%s\">\n", xmluri);
-	fprintf (libstream, "<nocc:libinfo version=\"%s\">\n", VERSION);
+	fhandle_printf (libstream, "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>\n");
+	fhandle_printf (libstream, "<nocc:namespace xmlns:nocc=\"%s\">\n", xmluri);
+	fhandle_printf (libstream, "<nocc:libinfo version=\"%s\">\n", VERSION);
 	lib_isetindent (libstream, 1);
-	fprintf (libstream, "<library name=\"%s\" namespace=\"%s\">\n", lf->libname, lf->namespace);
+	fhandle_printf (libstream, "<library name=\"%s\" namespace=\"%s\">\n", lf->libname, lf->namespace);
 
 	if (lf->nativelib) {
 		lib_isetindent (libstream, 2);
-		fprintf (libstream, "<nativelib path=\"%s\" />\n", lf->nativelib);
+		fhandle_printf (libstream, "<nativelib path=\"%s\" />\n", lf->nativelib);
 	}
 	for (i=0; i<DA_CUR (lf->autoinclude); i++) {
 		char *ifile = DA_NTHITEM (lf->autoinclude, i);
 
 		lib_isetindent (libstream, 2);
-		fprintf (libstream, "<srcinclude path=\"%s\" />\n", ifile);
+		fhandle_printf (libstream, "<srcinclude path=\"%s\" />\n", ifile);
 	}
 	for (i=0; i<DA_CUR (lf->autouse); i++) {
 		char *lfile = DA_NTHITEM (lf->autouse, i);
 
 		lib_isetindent (libstream, 2);
-		fprintf (libstream, "<srcuse path=\"%s\" />\n", lfile);
+		fhandle_printf (libstream, "<srcuse path=\"%s\" />\n", lfile);
 	}
 	for (i=0; i<DA_CUR (lf->srcs); i++) {
 		libfile_srcunit_t *lfsu = DA_NTHITEM (lf->srcs, i);
 		int j;
 
 		lib_isetindent (libstream, 2);
-		fprintf (libstream, "<libunit name=\"%s\">\n", lfsu->fname);
+		fhandle_printf (libstream, "<libunit name=\"%s\">\n", lfsu->fname);
 
 		/* drop hashing information if set */
 		if (lfsu->hashalgo && lfsu->hashvalue) {
 			lib_isetindent (libstream, 3);
-			fprintf (libstream, "<%s hashalgo=\"%s\" value=\"%s\" />\n", lfsu->issigned ? "signedhash" : "hash", lfsu->hashalgo, lfsu->hashvalue);
+			fhandle_printf (libstream, "<%s hashalgo=\"%s\" value=\"%s\" />\n", lfsu->issigned ? "signedhash" : "hash", lfsu->hashalgo, lfsu->hashvalue);
 		}
 		if (lfsu->hashalgo && lfsu->dhashvalue) {
 			lib_isetindent (libstream, 3);
-			fprintf (libstream, "<%s hashalgo=\"%s\" value=\"%s\" />\n", lfsu->issigned ? "signeddhash" : "dhash", lfsu->hashalgo, lfsu->dhashvalue);
+			fhandle_printf (libstream, "<%s hashalgo=\"%s\" value=\"%s\" />\n", lfsu->issigned ? "signeddhash" : "dhash", lfsu->hashalgo, lfsu->dhashvalue);
 		}
 
 		for (j=0; j<DA_CUR (lfsu->entries); j++) {
@@ -1900,12 +1902,12 @@ static int lib_writelibrary (libfile_t *lf)
 			int k;
 
 			lib_isetindent (libstream, 3);
-			fprintf (libstream, "<proc name=\"%s\" language=\"%s\" target=\"%s\">\n", lfe->name, lfe->langname, lfe->targetname);
+			fhandle_printf (libstream, "<proc name=\"%s\" language=\"%s\" target=\"%s\">\n", lfe->name, lfe->langname, lfe->targetname);
 
 			lib_isetindent (libstream, 4);
-			fprintf (libstream, "<descriptor value=\"%s\" />\n", lfe->descriptor);
+			fhandle_printf (libstream, "<descriptor value=\"%s\" />\n", lfe->descriptor);
 			lib_isetindent (libstream, 4);
-			fprintf (libstream, "<blockinfo allocws=\"%d\" allocvs=\"%d\" allocms=\"%d\" adjust=\"%d\" />\n", lfe->ws, lfe->vs, lfe->ms, lfe->adjust);
+			fhandle_printf (libstream, "<blockinfo allocws=\"%d\" allocvs=\"%d\" allocms=\"%d\" adjust=\"%d\" />\n", lfe->ws, lfe->vs, lfe->ms, lfe->adjust);
 
 			for (k=0; k<DA_CUR (lfe->mdata); k++) {
 				libfile_metadata_t *lmd = DA_NTHITEM (lfe->mdata, k);
@@ -1914,7 +1916,7 @@ static int lib_writelibrary (libfile_t *lf)
 			}
 
 			lib_isetindent (libstream, 3);
-			fprintf (libstream, "</proc>\n");
+			fhandle_printf (libstream, "</proc>\n");
 		}
 
 		for (j=0; j<DA_CUR (lfsu->mdata); j++) {
@@ -1924,7 +1926,7 @@ static int lib_writelibrary (libfile_t *lf)
 		}
 
 		lib_isetindent (libstream, 2);
-		fprintf (libstream, "</libunit>\n");
+		fhandle_printf (libstream, "</libunit>\n");
 	}
 	for (i=0; i<DA_CUR (lf->mdata); i++) {
 		libfile_metadata_t *lmd = DA_NTHITEM (lf->mdata, i);
@@ -1933,11 +1935,11 @@ static int lib_writelibrary (libfile_t *lf)
 	}
 
 	lib_isetindent (libstream, 1);
-	fprintf (libstream, "</library>\n");
-	fprintf (libstream, "</nocc:libinfo>\n");
-	fprintf (libstream, "</nocc:namespace>\n");
+	fhandle_printf (libstream, "</library>\n");
+	fhandle_printf (libstream, "</nocc:libinfo>\n");
+	fhandle_printf (libstream, "</nocc:namespace>\n");
 
-	fclose (libstream);
+	fhandle_close (libstream);
 	return 0;
 }
 /*}}}*/

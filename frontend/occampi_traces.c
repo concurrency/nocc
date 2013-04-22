@@ -1,6 +1,6 @@
 /*
  *	occampi_traces.c -- this deals with TRACES specifications
- *	Copyright (C) 2006-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -157,21 +158,21 @@ static void occampi_chook_traces_free (void *chook)
 	return;
 }
 /*}}}*/
-/*{{{  static void occampi_chook_traces_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_chook_traces_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	dumps an occampi:trace chook (debugging)
  */
-static void occampi_chook_traces_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void occampi_chook_traces_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	tnode_t *traces = (tnode_t *)chook;
 
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "<chook:occampi:trace addr=\"0x%8.8x\">\n", (unsigned int)chook);
+	fhandle_printf (stream, "<chook:occampi:trace addr=\"0x%8.8x\">\n", (unsigned int)chook);
 	if (traces) {
 		tnode_dumptree (traces, indent+1, stream);
 	}
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "</chook:occampi:trace>\n");
+	fhandle_printf (stream, "</chook:occampi:trace>\n");
 
 	return;
 }
@@ -213,11 +214,11 @@ static void occampi_chook_importtrace_free (void *chook)
 	return;
 }
 /*}}}*/
-/*{{{  static void occampi_chook_importtrace_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_chook_importtrace_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	dumps an occampi:importtrace compiler hook (debugging)
  */
-static void occampi_chook_importtrace_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void occampi_chook_importtrace_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	importtrace_t *ipt = (importtrace_t *)chook;
 
@@ -225,12 +226,12 @@ static void occampi_chook_importtrace_dumptree (tnode_t *node, void *chook, int 
 	if (ipt) {
 		int i;
 
-		fprintf (stream, "<chook:occampi:importtrace addr=\"0x%8.8x\">\n", (unsigned int)ipt);
+		fhandle_printf (stream, "<chook:occampi:importtrace addr=\"0x%8.8x\">\n", (unsigned int)ipt);
 		for (i=0; i<DA_CUR (ipt->traces); i++) {
 			char *str = DA_NTHITEM (ipt->traces, i);
 
 			occampi_isetindent (stream, indent+1);
-			fprintf (stream, "<trace value=\"%s\" />\n", str ?: "(null)");
+			fhandle_printf (stream, "<trace value=\"%s\" />\n", str ?: "(null)");
 		}
 		for (i=0; i<DA_CUR (ipt->trees); i++) {
 			tnode_t *tree = DA_NTHITEM (ipt->trees, i);
@@ -238,9 +239,9 @@ static void occampi_chook_importtrace_dumptree (tnode_t *node, void *chook, int 
 			tnode_dumptree (tree, indent+1, stream);
 		}
 		occampi_isetindent (stream, indent);
-		fprintf (stream, "</chook:occampi:importtrace>\n");
+		fhandle_printf (stream, "</chook:occampi:importtrace>\n");
 	} else {
-		fprintf (stream, "<chook:occampi:importtrace />\n");
+		fhandle_printf (stream, "<chook:occampi:importtrace />\n");
 	}
 	return;
 }
@@ -276,22 +277,22 @@ static void occampi_chook_cttrace_free (void *chook)
 	return;
 }
 /*}}}*/
-/*{{{  static void occampi_chook_cttrace_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_chook_cttrace_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	dumps an occampi:cttrace compiler hook (debugging)
  */
-static void occampi_chook_cttrace_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void occampi_chook_cttrace_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	tnode_t *tlist = (tnode_t *)chook;
 
 	occampi_isetindent (stream, indent);
 	if (tlist) {
-		fprintf (stream, "<chook:occampi:cttrace addr=\"0x%8.8x\">\n", (unsigned int)tlist);
+		fhandle_printf (stream, "<chook:occampi:cttrace addr=\"0x%8.8x\">\n", (unsigned int)tlist);
 		tnode_dumptree (tlist, indent+1, stream);
 		occampi_isetindent (stream, indent);
-		fprintf (stream, "</chook:occampi:cttrace>\n");
+		fhandle_printf (stream, "</chook:occampi:cttrace>\n");
 	} else {
-		fprintf (stream, "<chook:occampi:cttrace />\n");
+		fhandle_printf (stream, "<chook:occampi:cttrace />\n");
 	}
 	return;
 }

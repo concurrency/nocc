@@ -1,6 +1,6 @@
 /*
  *	guppy.h -- Guppy language interface for nocc
- *	Copyright (C) 2010 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2010-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@ struct TAG_tndef;
 struct TAG_ntdef;
 struct TAG_token;
 struct TAG_chook;
+struct TAG_fhandle;
 
 typedef struct {
 	struct TAG_tndef *node_NAMENODE;
@@ -139,7 +140,7 @@ typedef struct {
 } guppy_litdata_t;
 
 
-extern void guppy_isetindent (FILE *stream, int indent);
+extern void guppy_isetindent (struct TAG_fhandle *stream, int indent);
 extern struct TAG_langdef *guppy_getlangdef (void);
 
 extern int guppy_autoseq_listtoseqlist (struct TAG_tnode **, guppy_autoseq_t *);

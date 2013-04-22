@@ -1,6 +1,6 @@
 /*
  *	occampi_decl.c -- occam-pi declaration and name handling for NOCC
- *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -714,14 +715,14 @@ static void *occampi_rawnamenode_hook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void occampi_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void occampi_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for rawnamenode hook (name-bytes)
  */
-static void occampi_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void occampi_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "<rawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
+	fhandle_printf (stream, "<rawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
 	return;
 }
 /*}}}*/
@@ -1028,17 +1029,17 @@ static void occampi_arraydiminfo_chook_free (void *chook)
 	return;
 }
 /*}}}*/
-/*{{{  static void occampi_arraydiminfo_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_arraydiminfo_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	dumps an arraydiminfo compiler hook (debugging)
  */
-static void occampi_arraydiminfo_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void occampi_arraydiminfo_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "<chook:arraydiminfo>\n");
+	fhandle_printf (stream, "<chook:arraydiminfo>\n");
 	tnode_dumptree ((tnode_t *)chook, indent + 1, stream);
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "</chook:arraydiminfo>\n");
+	fhandle_printf (stream, "</chook:arraydiminfo>\n");
 	return;
 }
 /*}}}*/

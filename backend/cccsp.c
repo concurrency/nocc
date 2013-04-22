@@ -1,6 +1,6 @@
 /*
- *	cccsp.c -- KRoC/CIF/CCSP back-end
- *	Copyright (C) 2008-2011 Fred Barnes <frmb@kent.ac.uk>
+ *	cccsp.c -- KRoC/CCSP back-end
+ *	Copyright (C) 2008-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "tnode.h"
 #include "opts.h"
 #include "lexer.h"
@@ -194,16 +195,16 @@ static chook_t *cccsp_ctypestr = NULL;
 /*}}}*/
 
 
-/*{{{  void cccsp_isetindent (FILE *stream, int indent)*/
+/*{{{  void cccsp_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	set-indent for debugging output
  */
-void cccsp_isetindent (FILE *stream, int indent)
+void cccsp_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -247,16 +248,16 @@ static char *cccsp_make_entryname (const char *name)
 
 
 /*{{{  cccsp_namehook_t routines*/
-/*{{{  static void cccsp_namehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void cccsp_namehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps hook data for debugging
  */
-static void cccsp_namehook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void cccsp_namehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	cccsp_namehook_t *nh = (cccsp_namehook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fprintf (stream, "<namehook addr=\"0x%8.8x\" cname=\"%s\" ctype=\"%s\" lexlevel=\"%d\" typesize=\"%d\" indir=\"%d\" typecat=\"0x%8.8x\" />\n",
+	fhandle_printf (stream, "<namehook addr=\"0x%8.8x\" cname=\"%s\" ctype=\"%s\" lexlevel=\"%d\" typesize=\"%d\" indir=\"%d\" typecat=\"0x%8.8x\" />\n",
 			(unsigned int)nh, nh->cname, nh->ctype, nh->lexlevel, nh->typesize, nh->indir, (unsigned int)nh->typecat);
 	return;
 }
@@ -281,16 +282,16 @@ static cccsp_namehook_t *cccsp_namehook_create (char *cname, char *ctype, int ll
 /*}}}*/
 /*}}}*/
 /*{{{  cccsp_namerefhook_t routines*/
-/*{{{  static void cccsp_namerefhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void cccsp_namerefhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps hook data for debugging
  */
-static void cccsp_namerefhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void cccsp_namerefhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	cccsp_namerefhook_t *nh = (cccsp_namerefhook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fprintf (stream, "<namerefhook addr=\"0x%8.8x\" nnode=\"0x%8.8x\" nhook=\"0x%8.8x\" cname=\"%s\" />\n",
+	fhandle_printf (stream, "<namerefhook addr=\"0x%8.8x\" nnode=\"0x%8.8x\" nhook=\"0x%8.8x\" cname=\"%s\" />\n",
 			(unsigned int)nh, (unsigned int)nh->nnode, (unsigned int)nh->nhook, (nh->nhook ? nh->nhook->cname : ""));
 	return;
 }
@@ -311,16 +312,16 @@ static cccsp_namerefhook_t *cccsp_namerefhook_create (tnode_t *nnode, cccsp_name
 /*}}}*/
 /*}}}*/
 /*{{{  cccsp_blockhook_t routines*/
-/*{{{  static void cccsp_blockhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void cccsp_blockhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps hook for debugging
  */
-static void cccsp_blockhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void cccsp_blockhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	cccsp_blockhook_t *bh = (cccsp_blockhook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fprintf (stream, "<blockhook addr=\"0x%8.8x\" lexlevel=\"%d\" />\n",
+	fhandle_printf (stream, "<blockhook addr=\"0x%8.8x\" lexlevel=\"%d\" />\n",
 			(unsigned int)bh, bh->lexlevel);
 	return;
 }
@@ -340,11 +341,11 @@ static cccsp_blockhook_t *cccsp_blockhook_create (int ll)
 /*}}}*/
 /*}}}*/
 /*{{{  cccsp_blockrefhook_t routines*/
-/*{{{  static void cccsp_blockrefhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void cccsp_blockrefhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps hook (debugging)
  */
-static void cccsp_blockrefhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void cccsp_blockrefhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	cccsp_blockrefhook_t *brh = (cccsp_blockrefhook_t *)hook;
 	tnode_t *blk = brh->block;
@@ -354,17 +355,17 @@ static void cccsp_blockrefhook_dumptree (tnode_t *node, void *hook, int indent, 
 		tnode_t **blks = parser_getlistitems (blk, &nitems);
 
 		cccsp_isetindent (stream, indent);
-		fprintf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" nblocks=\"%d\" blocks=\"", (unsigned int)brh, (unsigned int)blk, nitems);
+		fhandle_printf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" nblocks=\"%d\" blocks=\"", (unsigned int)brh, (unsigned int)blk, nitems);
 		for (i=0; i<nitems; i++ ) {
 			if (i) {
-				fprintf (stream, ",");
+				fhandle_printf (stream, ",");
 			}
-			fprintf (stream, "0x%8.8x", (unsigned int)blks[i]);
+			fhandle_printf (stream, "0x%8.8x", (unsigned int)blks[i]);
 		}
-		fprintf (stream, "\" />\n");
+		fhandle_printf (stream, "\" />\n");
 	} else {
 		cccsp_isetindent (stream, indent);
-		fprintf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" />\n", (unsigned int)brh, (unsigned int)blk);
+		fhandle_printf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" />\n", (unsigned int)brh, (unsigned int)blk);
 	}
 
 	return;

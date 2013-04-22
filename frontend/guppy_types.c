@@ -1,6 +1,6 @@
 /*
  *	guppy_types.c -- types for Guppy
- *	Copyright (C) 2010 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2010-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -240,11 +241,11 @@ static void *guppy_primtype_hook_copy (void *hook)
 	return (void *)pth;
 }
 /*}}}*/
-/*{{{  static void guppy_primtype_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void guppy_primtype_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for primitive type hook
  */
-static void guppy_primtype_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void guppy_primtype_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	primtypehook_t *pth = (primtypehook_t *)hook;
 
@@ -252,7 +253,7 @@ static void guppy_primtype_hook_dumptree (tnode_t *node, void *hook, int indent,
 		return;
 	}
 	guppy_isetindent (stream, indent);
-	fprintf (stream, "<primtypehook size=\"%d\" sign=\"%d\" />\n", pth->size, pth->sign);
+	fhandle_printf (stream, "<primtypehook size=\"%d\" sign=\"%d\" />\n", pth->size, pth->sign);
 	return;
 }
 /*}}}*/
@@ -288,11 +289,11 @@ static void *guppy_chantype_hook_copy (void *hook)
 	return (void *)cth;
 }
 /*}}}*/
-/*{{{  static void guppy_chantype_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void guppy_chantype_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for channel type hook
  */
-static void guppy_chantype_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void guppy_chantype_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	chantypehook_t *cth = (chantypehook_t *)hook;
 
@@ -300,7 +301,7 @@ static void guppy_chantype_hook_dumptree (tnode_t *node, void *hook, int indent,
 		return;
 	}
 	guppy_isetindent (stream, indent);
-	fprintf (stream, "<chantypehook marked_svr=\"%d\" marked_cli=\"%d\" />\n", cth->marked_svr, cth->marked_cli);
+	fhandle_printf (stream, "<chantypehook marked_svr=\"%d\" marked_cli=\"%d\" />\n", cth->marked_svr, cth->marked_cli);
 	return;
 }
 /*}}}*/

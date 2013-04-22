@@ -1,6 +1,6 @@
 /*
  *	traceslang_fe.c -- traces language front-end
- *	Copyright (C) 2007-2008 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -468,26 +469,26 @@ void traceslang_freeset (traceslang_eset_t *eset)
 	return;
 }
 /*}}}*/
-/*{{{  void traceslang_dumpset (traceslang_eset_t *eset, int indent, FILE *stream)*/
+/*{{{  void traceslang_dumpset (traceslang_eset_t *eset, int indent, fhandle_t *stream)*/
 /*
  *	dumps a set of events -- debugging
  */
-void traceslang_dumpset (traceslang_eset_t *eset, int indent, FILE *stream)
+void traceslang_dumpset (traceslang_eset_t *eset, int indent, fhandle_t *stream)
 {
 	traceslang_isetindent (stream, indent);
 	if (!eset) {
-		fprintf (stream, "<traceslang:eset items=\"0\" value=\"null\" />\n");
+		fhandle_printf (stream, "<traceslang:eset items=\"0\" value=\"null\" />\n");
 	} else {
 		int i;
 
-		fprintf (stream, "<traceslang:eset items=\"%d\">\n", DA_CUR (eset->events));
+		fhandle_printf (stream, "<traceslang:eset items=\"%d\">\n", DA_CUR (eset->events));
 		for (i=0; i<DA_CUR (eset->events); i++) {
 			tnode_t *event = DA_NTHITEM (eset->events, i);
 
 			tnode_dumptree (event, indent + 1, stream);
 		}
 		traceslang_isetindent (stream, indent);
-		fprintf (stream, "</traceslang:eset>\n");
+		fhandle_printf (stream, "</traceslang:eset>\n");
 	}
 }
 /*}}}*/
@@ -519,26 +520,26 @@ void traceslang_freerefset (traceslang_erefset_t *eset)
 	return;
 }
 /*}}}*/
-/*{{{  void traceslang_dumprefset (traceslang_erefset_t *eset, int indent, FILE *stream)*/
+/*{{{  void traceslang_dumprefset (traceslang_erefset_t *eset, int indent, fhandle_t *stream)*/
 /*
  *	dumps a traceslang_erefset_t structure (debugging)
  */
-void traceslang_dumprefset (traceslang_erefset_t *eset, int indent, FILE *stream)
+void traceslang_dumprefset (traceslang_erefset_t *eset, int indent, fhandle_t *stream)
 {
 	traceslang_isetindent (stream, indent);
 	if (!eset) {
-		fprintf (stream, "<traceslang:erefset items=\"0\" value=\"null\" />\n");
+		fhandle_printf (stream, "<traceslang:erefset items=\"0\" value=\"null\" />\n");
 	} else {
 		int i;
 
-		fprintf (stream, "<traceslang:erefset items=\"%d\">\n", DA_CUR (eset->events));
+		fhandle_printf (stream, "<traceslang:erefset items=\"%d\">\n", DA_CUR (eset->events));
 		for (i=0; i<DA_CUR (eset->events); i++) {
 			tnode_t **eventp = DA_NTHITEM (eset->events, i);
 
 			tnode_dumptree (*eventp, indent + 1, stream);
 		}
 		traceslang_isetindent (stream, indent);
-		fprintf (stream, "</traceslang:erefset>\n");
+		fhandle_printf (stream, "</traceslang:erefset>\n");
 	}
 }
 /*}}}*/

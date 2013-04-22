@@ -1,6 +1,6 @@
 /*
  *	target.c -- general back-end target handling routines for nocc
- *	Copyright (C) 2005-2011 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "tnode.h"
 #include "names.h"
 #include "typecheck.h"
@@ -125,30 +126,30 @@ target_t *target_lookupbyspec (char *tarch, char *tvendor, char *tos)
 /*}}}*/
 
 
-/*{{{  void target_dumptargets (FILE *stream)*/
+/*{{{  void target_dumptargets (fhandle_t *stream)*/
 /*
  *	displays a list of supported targets (debugging/info)
  */
-void target_dumptargets (FILE *stream)
+void target_dumptargets (fhandle_t *stream)
 {
 	int i;
 
 	for (i=0; i<DA_CUR (atargets); i++) {
 		target_t *xt = DA_NTHITEM (atargets, i);
 
-		fprintf (stream, "target: %s (%s-%s-%s)\n", xt->name, xt->tarch ?: "*", xt->tvendor ?: "*", xt->tos ?: "*");
-		fprintf (stream, "        %s\n", xt->desc ?: "(no description)");
-		fprintf (stream, "        capabilities: ");
+		fhandle_printf (stream, "target: %s (%s-%s-%s)\n", xt->name, xt->tarch ?: "*", xt->tvendor ?: "*", xt->tos ?: "*");
+		fhandle_printf (stream, "        %s\n", xt->desc ?: "(no description)");
+		fhandle_printf (stream, "        capabilities: ");
 		/*{{{  tcap flags*/
 		if (xt->tcap.can_do_fp) {
-			fprintf (stream, "FP ");
+			fhandle_printf (stream, "FP ");
 		}
 		if (xt->tcap.can_do_dmem) {
-			fprintf (stream, "DMEM ");
+			fhandle_printf (stream, "DMEM ");
 		}
 		/*}}}*/
-		fprintf (stream, "\n");
-		fprintf (stream, "        sizes: char=%d  int=%d  pointer=%d\n", xt->charsize, xt->intsize, xt->pointersize);
+		fhandle_printf (stream, "\n");
+		fhandle_printf (stream, "        sizes: char=%d  int=%d  pointer=%d\n", xt->charsize, xt->intsize, xt->pointersize);
 	}
 	return;
 }

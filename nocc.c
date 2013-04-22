@@ -846,73 +846,73 @@ static void maybedumptrees (lexfile_t **lexers, int nlexers, tnode_t **trees, in
 	int i;
 
 	if (compopts.dumptree) {
-		fprintf (stderr, "<nocc:treedump version=\"%s\">\n", version_string ());
+		fhandle_printf (FHAN_STDERR, "<nocc:treedump version=\"%s\">\n", version_string ());
 		for (i=0; i<ntrees; i++) {
-			fprintf (stderr, "    <nocc:parsetree src=\"%s\">\n", lexer_filenameof (lexers[i]));
-			tnode_dumptree (trees[i], 2, stderr);
-			fprintf (stderr, "    </nocc:parsetree>\n");
+			fhandle_printf (FHAN_STDERR, "    <nocc:parsetree src=\"%s\">\n", lexer_filenameof (lexers[i]));
+			tnode_dumptree (trees[i], 2, FHAN_STDERR);
+			fhandle_printf (FHAN_STDERR, "    </nocc:parsetree>\n");
 		}
-		fprintf (stderr, "</nocc:treedump>\n");
+		fhandle_printf (FHAN_STDERR, "</nocc:treedump>\n");
 	} else if (compopts.dumptreeto) {
-		FILE *stream;
+		fhandle_t *stream;
 
-		stream = fopen (compopts.dumptreeto, "w");
+		stream = fhandle_fopen (compopts.dumptreeto, "w");
 		if (!stream) {
-			nocc_error ("failed to open %s for writing: %s", compopts.dumptreeto, strerror (errno));
+			nocc_error ("failed to open %s for writing: %s", compopts.dumptreeto, strerror (fhandle_lasterr (stream)));
 		} else {
 			int j;
 
 			/* XML header */
-			fprintf (stream, "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>\n");
+			fhandle_printf (stream, "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>\n");
 
 			/* dump XML namespaces to start with */
 			for (j=0; j<DA_CUR (xmlnamespaces); j++) {
 				xmlnamespace_t *xmlns = DA_NTHITEM (xmlnamespaces, j);
 
-				fprintf (stream, "<%s:namespace xmlns:%s=\"%s\">\n", xmlns->name, xmlns->name, xmlns->uri);
+				fhandle_printf (stream, "<%s:namespace xmlns:%s=\"%s\">\n", xmlns->name, xmlns->name, xmlns->uri);
 			}
 
-			fprintf (stream, "<nocc:treedump version=\"%s\">\n", version_string ());
+			fhandle_printf (stream, "<nocc:treedump version=\"%s\">\n", version_string ());
 			for (i=0; i<ntrees; i++) {
-				fprintf (stream, "    <nocc:parsetree src=\"%s\">\n", lexer_filenameof (lexers[i]));
+				fhandle_printf (stream, "    <nocc:parsetree src=\"%s\">\n", lexer_filenameof (lexers[i]));
 				tnode_dumptree (trees[i], 2, stream);
-				fprintf (stream, "    </nocc:parsetree>\n");
+				fhandle_printf (stream, "    </nocc:parsetree>\n");
 			}
-			fprintf (stream, "</nocc:treedump>\n");
+			fhandle_printf (stream, "</nocc:treedump>\n");
 
 			/* finish off XML namespaces */
 			for (j--; j>=0; j--) {
 				xmlnamespace_t *xmlns = DA_NTHITEM (xmlnamespaces, j);
 
-				fprintf (stream, "</%s:namespace>\n", xmlns->name);
+				fhandle_printf (stream, "</%s:namespace>\n", xmlns->name);
 			}
 
-			fclose (stream);
+			fhandle_close (stream);
 		}
 	} else if (compopts.dumpstree) {
-		fprintf (stderr, "(nocc:treedump (version \"%s\")\n", version_string ());
+		fhandle_printf (FHAN_STDERR, "(nocc:treedump (version \"%s\")\n", version_string ());
 		for (i=0; i<ntrees; i++) {
-			fprintf (stderr, "  (nocc:parsetree (src \"%s\")\n", lexer_filenameof (lexers[i]));
-			tnode_dumpstree (trees[i], 2, stderr);
-			fprintf (stderr, "  )\n");
+			fhandle_printf (FHAN_STDERR, "  (nocc:parsetree (src \"%s\")\n", lexer_filenameof (lexers[i]));
+			tnode_dumpstree (trees[i], 2, FHAN_STDERR);
+			fhandle_printf (FHAN_STDERR, "  )\n");
 		}
-		fprintf (stderr, ")\n");
+		fhandle_printf (FHAN_STDERR, ")\n");
 	} else if (compopts.dumpstreeto) {
-		FILE *stream;
+		fhandle_t *stream;
 
-		stream = fopen (compopts.dumpstreeto, "w");
+		stream = fhandle_fopen (compopts.dumpstreeto, "w");
 		if (!stream) {
-			nocc_error ("failed to open %s for writing: %s", compopts.dumpstreeto, strerror (errno));
+			nocc_error ("failed to open %s for writing: %s", compopts.dumpstreeto, strerror (fhandle_lasterr (stream)));
 		} else {
-			fprintf (stderr, "(nocc:treedump (version \"%s\")\n", version_string ());
+			fhandle_printf (stream, "(nocc:treedump (version \"%s\")\n", version_string ());
 			for (i=0; i<ntrees; i++) {
-				fprintf (stderr, "  (nocc:parsetree (src \"%s\")\n", lexer_filenameof (lexers[i]));
-				tnode_dumpstree (trees[i], 2, stderr);
-				fprintf (stderr, "  )\n");
+				fhandle_printf (stream, "  (nocc:parsetree (src \"%s\")\n", lexer_filenameof (lexers[i]));
+				tnode_dumpstree (trees[i], 2, stream);
+				fhandle_printf (stream, "  )\n");
 			}
-			fprintf (stderr, ")\n");
+			fhandle_printf (stream, ")\n");
 
-			fclose (stream);
+			fhandle_close (stream);
 		}
 	}
 	return;
@@ -1234,36 +1234,36 @@ char *nocc_lookupxmlnamespace (const char *name)
 	return NULL;
 }
 /*}}}*/
-/*{{{  int nocc_dumpxmlnamespaceheaders (FILE *stream)*/
+/*{{{  int nocc_dumpxmlnamespaceheaders (fhandle_t *stream)*/
 /*
  *	used to dump all XML namespace headers to a stream
  *	returns 0 on success, non-zero on failure
  */
-int nocc_dumpxmlnamespaceheaders (FILE *stream)
+int nocc_dumpxmlnamespaceheaders (fhandle_t *stream)
 {
 	int i;
 
 	for (i=0; i<DA_CUR (xmlnamespaces); i++) {
 		xmlnamespace_t *xmlns = DA_NTHITEM (xmlnamespaces, i);
 
-		fprintf (stream, "<%s:namespace xmlns:%s=\"%s\">\n", xmlns->name, xmlns->name, xmlns->uri);
+		fhandle_printf (stream, "<%s:namespace xmlns:%s=\"%s\">\n", xmlns->name, xmlns->name, xmlns->uri);
 	}
 	return 0;
 }
 /*}}}*/
-/*{{{  int nocc_dumpxmlnamespacefooters (FILE *stream)*/
+/*{{{  int nocc_dumpxmlnamespacefooters (fhandle_t *stream)*/
 /*
  *	used to dump all XML namespace footers to a stream
  *	returns 0 on success, non-zero on failure
  */
-int nocc_dumpxmlnamespacefooters (FILE *stream)
+int nocc_dumpxmlnamespacefooters (fhandle_t *stream)
 {
 	int i;
 
 	for (i=DA_CUR (xmlnamespaces)-1; i>=0; i++) {
 		xmlnamespace_t *xmlns = DA_NTHITEM (xmlnamespaces, i);
 
-		fprintf (stream, "</%s:namespace>\n", xmlns->name);
+		fhandle_printf (stream, "</%s:namespace>\n", xmlns->name);
 	}
 	return 0;
 }
@@ -1696,7 +1696,7 @@ static int cstage_dump_extensions (compcxt_t *ccx)
 static int cstage_dump_regfcns (compcxt_t *ccx)
 {
 	if (compopts.dumpfcns) {
-		fcnlib_dumpfcns (stderr);
+		fcnlib_dumpfcns (FHAN_STDERR);
 	}
 	return CSTR_OK;
 }
@@ -1829,12 +1829,12 @@ static int cstage_maybestop1 (compcxt_t *ccx)
 
 			nocc_message ("tokenising %s..", fname);
 			for (tok = lexer_nexttoken (tmp); tok && (tok->type != END); tok = lexer_nexttoken (tmp)) {
-				lexer_dumptoken (stderr, tok);
+				lexer_dumptoken (FHAN_STDERR, tok);
 				lexer_freetoken (tok);
 				tok = NULL;
 			}
 			if (tok) {
-				lexer_dumptoken (stderr, tok);
+				lexer_dumptoken (FHAN_STDERR, tok);
 				lexer_freetoken (tok);
 				tok = NULL;
 			}
@@ -1913,7 +1913,7 @@ static int cstage_parseerror (compcxt_t *ccx)
 static int cstage_maybedumpntypes (compcxt_t *ccx)
 {
 	if (compopts.dumpnodetypes) {
-		tnode_dumpnodetypes (stderr);
+		tnode_dumpnodetypes (FHAN_STDERR);
 		return CSTR_EXITCOMP;
 	}
 	return CSTR_OK;
@@ -1926,7 +1926,7 @@ static int cstage_maybedumpntypes (compcxt_t *ccx)
 static int cstage_maybedumpsntypes (compcxt_t *ccx)
 {
 	if (compopts.dumpsnodetypes) {
-		tnode_dumpsnodetypes (stderr);
+		tnode_dumpsnodetypes (FHAN_STDERR);
 	}
 	return CSTR_OK;
 }
@@ -1938,7 +1938,7 @@ static int cstage_maybedumpsntypes (compcxt_t *ccx)
 static int cstage_maybedumpsntags (compcxt_t *ccx)
 {
 	if (compopts.dumpsnodetags) {
-		tnode_dumpsnodetags (stderr);
+		tnode_dumpsnodetags (FHAN_STDERR);
 	}
 	return CSTR_OK;
 }
@@ -2587,7 +2587,7 @@ static int local_ibitshandler (char **bits, int nbits, compcxt_t *ccx)
 			} else if ((t < 0) || (t >= DA_CUR (ccx->srctrees))) {
 				printf ("source tree %d out of range 0 - %d\n", t, DA_CUR (ccx->srctrees) - 1);
 			} else {
-				tnode_dumptree (DA_NTHITEM (ccx->srctrees, t), 0, stdout);
+				tnode_dumptree (DA_NTHITEM (ccx->srctrees, t), 0, FHAN_STDOUT);
 			}
 
 			return IHR_HANDLED;
@@ -2604,7 +2604,7 @@ static int local_ibitshandler (char **bits, int nbits, compcxt_t *ccx)
 			} else if ((t < 0) || (t >= DA_CUR (ccx->srctrees))) {
 				printf ("source tree %d out of range 0 - %d\n", t, DA_CUR (ccx->srctrees) - 1);
 			} else {
-				tnode_dumpstree (DA_NTHITEM (ccx->srctrees, t), 0, stdout);
+				tnode_dumpstree (DA_NTHITEM (ccx->srctrees, t), 0, FHAN_STDOUT);
 			}
 
 			return IHR_HANDLED;
@@ -3144,13 +3144,13 @@ int main (int argc, char **argv)
 	/*}}}*/
 	/*{{{  dump language lexers if requested*/
 	if (compopts.dumplexers) {
-		lexer_dumplexers (stderr);
+		lexer_dumplexers (FHAN_STDERR);
 	}
 
 	/*}}}*/
 	/*{{{  dump supported targets if requested*/
 	if (compopts.dumptargets) {
-		target_dumptargets (stderr);
+		target_dumptargets (FHAN_STDERR);
 	}
 
 	/*}}}*/
@@ -3331,7 +3331,7 @@ local_close_out:
 main_out:
 	/*{{{  dump compiler hooks if requested*/
 	if (compopts.dumpchooks) {
-		tnode_dumpchooks (stderr);
+		tnode_dumpchooks (FHAN_STDERR);
 	}
 	/*}}}*/
 	/*{{{  call any specific finalisers*/

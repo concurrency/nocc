@@ -137,7 +137,7 @@ static relmap_t relmap[] = {
 	{SYMBOL, ">=", NULL, &(opi.tag_RELGEQ), occampi_oper_geninvrelop, I_LT, I_SMALLER, I_INVALID, NULL},
 	{SYMBOL, ">", NULL, &(opi.tag_RELGT), occampi_oper_genrelop, I_GT, I_GREATER, I_INVALID, NULL},
 	{SYMBOL, "<=", NULL, &(opi.tag_RELLEQ), occampi_oper_geninvrelop, I_GT, I_GREATER, I_INVALID, NULL},
-	{NOTOKEN, NULL, NULL, NULL, NULL, I_INVALID, I_INVALID, NULL}
+	{NOTOKEN, NULL, NULL, NULL, NULL, I_INVALID, I_INVALID, I_INVALID, NULL}
 };
 
 static mopmap_t mopmap[] = {

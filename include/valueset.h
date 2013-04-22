@@ -1,6 +1,6 @@
 /*
  *	valueset.h -- interface to value->stuff mapping routines
- *	Copyright (C) 2008 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2008-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #define __VALUESET_H
 
 struct TAG_tnode;
+struct TAG_fhandle;
 
 typedef enum ENUM_setstrategy {
 	STRAT_NONE,
@@ -43,7 +44,7 @@ extern int valueset_shutdown (void);
 
 extern valueset_t *valueset_create (void);
 extern void valueset_free (valueset_t *vset);
-extern void valueset_dumptree (valueset_t *vset, int indent, FILE *stream);
+extern void valueset_dumptree (valueset_t *vset, int indent, struct TAG_fhandle *stream);
 
 extern int valueset_insert (valueset_t *vset, int val, struct TAG_tnode *link);
 extern int valueset_decide (valueset_t *vset);

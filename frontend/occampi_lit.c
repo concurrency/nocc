@@ -1,6 +1,6 @@
 /*
  *	occampi_lit.c -- occam-pi literal processing for nocc
- *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -93,11 +94,11 @@ static void *occampi_litnode_hook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void occampi_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void occampi_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for litnode hook (name-bytes)
  */
-static void occampi_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void occampi_litnode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	occampi_litdata_t *ldata = (occampi_litdata_t *)hook;
 	char *hdata;
@@ -109,7 +110,7 @@ static void occampi_litnode_hook_dumptree (tnode_t *node, void *hook, int indent
 	}
 
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "<litnode bytes=\"%d\" data=\"%s\" />\n", ldata ? ldata->bytes : 0, hdata);
+	fhandle_printf (stream, "<litnode bytes=\"%d\" data=\"%s\" />\n", ldata ? ldata->bytes : 0, hdata);
 
 	sfree (hdata);
 	return;

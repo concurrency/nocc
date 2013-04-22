@@ -1,6 +1,6 @@
 /*
  *	valueset.c -- code to handle mappings from values to somethings automatically (used when building CASE structures)
- *	Copyright (C) 2008 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2008-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -116,16 +117,16 @@ static void vset_freevset (valueset_t *vset)
 	return;
 }
 /*}}}*/
-/*{{{  static void vset_isetindent (FILE *stream, int indent)*/
+/*{{{  static void vset_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	sets indentation level
  */
-static void vset_isetindent (FILE *stream, int indent)
+static void vset_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -205,46 +206,46 @@ void valueset_free (valueset_t *vset)
 	return;
 }
 /*}}}*/
-/*{{{  void valueset_dumptree (valueset_t *vset, int indent, FILE *stream)*/
+/*{{{  void valueset_dumptree (valueset_t *vset, int indent, fhandle_t *stream)*/
 /*
  *	dumps a valueset_t structure (debugging)
  */
-void valueset_dumptree (valueset_t *vset, int indent, FILE *stream)
+void valueset_dumptree (valueset_t *vset, int indent, fhandle_t *stream)
 {
 	vset_isetindent (stream, indent);
 	if (vset) {
 		int i;
 
-		fprintf (stream, "<valueset addr=\"0x%8.8x\" nvalues=\"%d\" nlinks=\"%d\" min=\"%d\" max=\"%d\" base=\"%d\" limit=\"%d\" strategy=\"",
+		fhandle_printf (stream, "<valueset addr=\"0x%8.8x\" nvalues=\"%d\" nlinks=\"%d\" min=\"%d\" max=\"%d\" base=\"%d\" limit=\"%d\" strategy=\"",
 				(unsigned int)vset, DA_CUR (vset->values), DA_CUR (vset->links), vset->v_min, vset->v_max,
 				vset->v_base, vset->v_limit);
 		switch (vset->strat) {
 		case STRAT_NONE:
-			fprintf (stream, "none");
+			fhandle_printf (stream, "none");
 			break;
 		case STRAT_CHAIN:
-			fprintf (stream, "chain");
+			fhandle_printf (stream, "chain");
 			break;
 		case STRAT_TABLE:
-			fprintf (stream, "table");
+			fhandle_printf (stream, "table");
 			break;
 		case STRAT_HASH:
-			fprintf (stream, "hash");
+			fhandle_printf (stream, "hash");
 			break;
 		}
-		fprintf (stream, "\">\n");
+		fhandle_printf (stream, "\">\n");
 		for (i=0; (i < DA_CUR (vset->values)) && (i < DA_CUR (vset->links)); i++) {
 			int val = DA_NTHITEM (vset->values, i);
 			tnode_t *link = DA_NTHITEM (vset->links, i);
 
 			vset_isetindent (stream, indent + 1);
-			fprintf (stderr, "<valuesetitem value=\"%d\" link=\"0x%8.8x\" linktag=\"%s\" />\n",
+			fhandle_printf (FHAN_STDERR, "<valuesetitem value=\"%d\" link=\"0x%8.8x\" linktag=\"%s\" />\n",
 					val, (unsigned int)link, link ? link->tag->name : "");
 		}
 		vset_isetindent (stream, indent);
-		fprintf (stream, "</valueset>\n");
+		fhandle_printf (stream, "</valueset>\n");
 	} else {
-		fprintf (stream, "<valueset value=\"\" />\n");
+		fhandle_printf (stream, "<valueset value=\"\" />\n");
 	}
 	return;
 }

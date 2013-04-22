@@ -1,6 +1,6 @@
 /*
  *	lexer.h -- interface to the lexer
- *	Copyright (C) 2004-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@ struct TAG_symbol;
 struct TAG_langlexer;
 struct TAG_langparser;
 struct TAG_origin;
+struct TAG_fhandle;
 
 
 typedef struct TAG_lexfile {
@@ -98,15 +99,15 @@ extern void lexer_pushback (lexfile_t *lf, token_t *tok);
 extern int lexer_getcodeline (lexfile_t *lf, char **rbuf);
 
 extern token_t *lexer_newtoken (tokentype_t type, ...);
-extern void lexer_dumptoken (FILE *stream, token_t *tok);
-extern void lexer_dumptoken_short (FILE *stream, token_t *tok);
+extern void lexer_dumptoken (struct TAG_fhandle *stream, token_t *tok);
+extern void lexer_dumptoken_short (struct TAG_fhandle *stream, token_t *tok);
 extern char *lexer_stokenstr (token_t *tok);				/* pointer to static buffer returned */
 extern void lexer_freetoken (token_t *tok);
 
 extern int lexer_tokmatch (token_t *formal, token_t *actual);
 extern int lexer_tokmatchlitstr (token_t *actual, const char *str);
 
-extern void lexer_dumplexers (FILE *stream);
+extern void lexer_dumplexers (struct TAG_fhandle *stream);
 
 
 #endif	/* !__LEXER_H */

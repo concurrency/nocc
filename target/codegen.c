@@ -1,6 +1,6 @@
 /*
  *	codegen.c -- top-level code-generator for nocc
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "lexer.h"
 #include "parser.h"
 #include "tnode.h"
@@ -56,56 +57,56 @@ static chook_t *codegenfinalhook = NULL;
 /*}}}*/
 
 
-/*{{{  static void codegen_isetindent (FILE *stream, int indent)*/
+/*{{{  static void codegen_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	sets indentation (debugging)
  */
-static void codegen_isetindent (FILE *stream, int indent)
+static void codegen_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
 /*}}}*/
 
 
-/*{{{  static void codegen_precode_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void codegen_precode_chook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps (debugging) extra variables for allocation attached to a node
  */
-static void codegen_precode_chook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void codegen_precode_chook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	tnode_t *evars = (tnode_t *)hook;
 
 	codegen_isetindent (stream, indent);
-	fprintf (stream, "<chook id=\"precode:vars\" addr=\"0x%8.8x\">\n", (unsigned int)hook);
+	fhandle_printf (stream, "<chook id=\"precode:vars\" addr=\"0x%8.8x\">\n", (unsigned int)hook);
 	tnode_dumptree (evars, indent + 1, stream);
 	codegen_isetindent (stream, indent);
-	fprintf (stream, "</chook>\n");
+	fhandle_printf (stream, "</chook>\n");
 
 	return;
 }
 /*}}}*/
-/*{{{  static void codegen_inithook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void codegen_inithook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	called to dump init-hook (debugging)
  */
-static void codegen_inithook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void codegen_inithook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	codegeninithook_t *cgih = (codegeninithook_t *)hook;
 
 	codegen_isetindent (stream, indent);
-	fprintf (stream, "<chook:codegen:initialiser init=\"0x%8.8x\" arg=\"0x%8.8x\" addr=\"0x%8.8x\"", (unsigned int)cgih->init, (unsigned int)cgih->arg, (unsigned int)cgih);
+	fhandle_printf (stream, "<chook:codegen:initialiser init=\"0x%8.8x\" arg=\"0x%8.8x\" addr=\"0x%8.8x\"", (unsigned int)cgih->init, (unsigned int)cgih->arg, (unsigned int)cgih);
 	if (cgih->next) {
-		fprintf (stream, ">\n");
+		fhandle_printf (stream, ">\n");
 		codegen_inithook_dumptree (node, (void *)cgih->next, indent+1, stream);
 		codegen_isetindent (stream, indent);
-		fprintf (stream, "</chook:codegen:initialiser>\n");
+		fhandle_printf (stream, "</chook:codegen:initialiser>\n");
 	} else {
-		fprintf (stream, " />\n");
+		fhandle_printf (stream, " />\n");
 	}
 
 	return;
@@ -159,23 +160,23 @@ static void *codegen_inithook_copy (void *hook)
 	return cgih;
 }
 /*}}}*/
-/*{{{  static void codegen_finalhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void codegen_finalhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	called to dump final-hook (debugging)
  */
-static void codegen_finalhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void codegen_finalhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	codegenfinalhook_t *cgih = (codegenfinalhook_t *)hook;
 
 	codegen_isetindent (stream, indent);
-	fprintf (stream, "<chook:codegen:finaliser final=\"0x%8.8x\" arg=\"0x%8.8x\" addr=\"0x%8.8x\"", (unsigned int)cgih->final, (unsigned int)cgih->arg, (unsigned int)cgih);
+	fhandle_printf (stream, "<chook:codegen:finaliser final=\"0x%8.8x\" arg=\"0x%8.8x\" addr=\"0x%8.8x\"", (unsigned int)cgih->final, (unsigned int)cgih->arg, (unsigned int)cgih);
 	if (cgih->next) {
-		fprintf (stream, ">\n");
+		fhandle_printf (stream, ">\n");
 		codegen_finalhook_dumptree (node, (void *)cgih->next, indent+1, stream);
 		codegen_isetindent (stream, indent);
-		fprintf (stream, "</chook:codegen:finaliser>\n");
+		fhandle_printf (stream, "</chook:codegen:finaliser>\n");
 	} else {
-		fprintf (stream, " />\n");
+		fhandle_printf (stream, " />\n");
 	}
 
 	return;
@@ -389,36 +390,36 @@ int codegen_write_fmt (codegen_t *cgen, const char *fmt, ...)
  */
 int codegen_write_file (codegen_t *cgen, const char *fpath)
 {
-	int fd;
+	fhandle_t *fhan;
 	char *fbuf;
 	int fbsize = 512;
 	int rval = 0;
 
 	if (*fpath == '/') {
 		/* absolute path, try and open */
-		fd = open (fpath, O_RDONLY);
-		if (fd < 0) {
-			codegen_warning (cgen, "failed to open %s: %s", fpath, strerror (errno));
+		fhan = fhandle_open (fpath, O_RDONLY, 0);
+		if (!fhan) {
+			codegen_warning (cgen, "failed to open %s: %s", fpath, strerror (fhandle_lasterr (NULL)));
 			return -1;
 		}
 	} else {
 		/* search compiler epaths */
 		int i;
 
-		fd = -1;
+		fhan = NULL;
 		for (i=0; i<DA_CUR (compopts.epath); i++) {
 			char fname[FILENAME_MAX];
 			char *epath = DA_NTHITEM (compopts.epath, i);
 			int elen = strlen (epath);
 
 			snprintf (fname, FILENAME_MAX - 1, "%s%s%s", epath, (epath[elen - 1] == '/') ? "" : "/", fpath);
-			fd = open (fname, O_RDONLY);
-			if (fd >= 0) {
+			fhan = fhandle_open (fname, O_RDONLY, 0);
+			if (fhan) {
 				break;		/* for() */
 			}
 		}
 
-		if (fd < 0) {
+		if (!fhan) {
 			codegen_warning (cgen, "failed to find %s in compiler extension path", fpath);
 			return -1;
 		}
@@ -426,10 +427,10 @@ int codegen_write_file (codegen_t *cgen, const char *fpath)
 
 	fbuf = (char *)smalloc (fbsize);
 	for (;;) {
-		int r = read (fd, fbuf, fbsize);
+		int r = fhandle_read (fhan, (unsigned char *)fbuf, fbsize);
 
 		if (r < 0) {
-			codegen_warning (cgen, "failed to read from %s: %s", fpath, strerror (r));
+			codegen_warning (cgen, "failed to read from %s: %s", fpath, strerror (fhandle_lasterr (fhan)));
 			rval = -1;
 			break;			/* for() */
 		} else if (!r) {
@@ -443,6 +444,8 @@ int codegen_write_file (codegen_t *cgen, const char *fpath)
 		}
 	}
 	sfree (fbuf);
+
+	fhandle_close (fhan);
 
 	return rval;
 }

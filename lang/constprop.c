@@ -1,6 +1,6 @@
 /*
  *	constprop.c -- constant propagator for NOCC
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -69,16 +70,16 @@ static ntdef_t *tag_CONST;		/* constant */
 /*}}}*/
 
 
-/*{{{  static void cprop_isetindent (FILE *stream, int indent)*/
+/*{{{  static void cprop_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	prints indentation
  */
-static void cprop_isetindent (FILE *stream, int indent)
+static void cprop_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -140,47 +141,47 @@ static void cprop_consthook_hook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void cprop_consthook_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void cprop_consthook_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a consthook_t structure (debugging)
  */
-static void cprop_consthook_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void cprop_consthook_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	consthook_t *ch = (consthook_t *)hook;
 
 	cprop_isetindent (stream, indent);
-	fprintf (stream, "<consthook addr=\"0x%8.8x\" ", (unsigned int)hook);
+	fhandle_printf (stream, "<consthook addr=\"0x%8.8x\" ", (unsigned int)hook);
 	if (!ch) {
-		fprintf (stream, "/>\n");
+		fhandle_printf (stream, "/>\n");
 	} else {
-		fprintf (stream, "type=\"");
+		fhandle_printf (stream, "type=\"");
 		switch (ch->type) {
 		case CONST_INVALID:
-			fprintf (stream, "invalid\"");
+			fhandle_printf (stream, "invalid\"");
 			break;
 		case CONST_BOOL:
-			fprintf (stream, "bool\" value=\"0x%x\"", ch->u.ival);
+			fhandle_printf (stream, "bool\" value=\"0x%x\"", ch->u.ival);
 			break;
 		case CONST_BYTE:
-			fprintf (stream, "byte\" value=\"0x%2.2x\"", ch->u.bval);
+			fhandle_printf (stream, "byte\" value=\"0x%2.2x\"", ch->u.bval);
 			break;
 		case CONST_INT:
-			fprintf (stream, "int\" value=\"0x%8.8x\"", (unsigned int)ch->u.ival);
+			fhandle_printf (stream, "int\" value=\"0x%8.8x\"", (unsigned int)ch->u.ival);
 			break;
 		case CONST_DOUBLE:
-			fprintf (stream, "double\" value=\"0x%8.8x\"", *(unsigned int *)(&(ch->u.dval)));
+			fhandle_printf (stream, "double\" value=\"0x%8.8x\"", *(unsigned int *)(&(ch->u.dval)));
 			break;
 		case CONST_ULL:
-			fprintf (stream, "ull\" value=\"0x%16.16Lx\"", ch->u.ullval);
+			fhandle_printf (stream, "ull\" value=\"0x%16.16Lx\"", ch->u.ullval);
 			break;
 		}
 		if (ch->orig) {
-			fprintf (stream, ">\n");
+			fhandle_printf (stream, ">\n");
 			tnode_dumptree (ch->orig, indent+1, stream);
 			cprop_isetindent (stream, indent);
-			fprintf (stream, "</consthook>\n");
+			fhandle_printf (stream, "</consthook>\n");
 		} else {
-			fprintf (stream, " />\n");
+			fhandle_printf (stream, " />\n");
 		}
 	}
 	return;

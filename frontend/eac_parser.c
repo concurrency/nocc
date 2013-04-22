@@ -1,6 +1,6 @@
 /*
  *	eac_parser.c -- EAC parser for NOCC
- *	Copyright (C) 2011 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2011-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -177,16 +178,16 @@ void *eac_nametoken_to_hook (void *ntok)
 /*}}}*/
 
 
-/*{{{  void eac_isetindent (FILE *stream, int indent)*/
+/*{{{  void eac_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	set-indent for debugging output
  */
-void eac_isetindent (FILE *stream, int indent)
+void eac_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -319,7 +320,7 @@ int eac_callback_line (char *line, struct TAG_compcxt *ccx)
 				printf ("no such name \"%s\"\n", bitset[1]);
 			} else {
 				//char *str = eac_format_expr (NameDeclOf (name));
-				tnode_dumptree(NameDeclOf (name), 0, stdout);
+				tnode_dumptree(NameDeclOf (name), 0, FHAN_STDOUT);
 			}
 
 			return IHR_HANDLED;
@@ -332,7 +333,7 @@ int eac_callback_line (char *line, struct TAG_compcxt *ccx)
 				printf ("no such name \"%s\"\n", bitset[1]);
 			} else {
 				//char *str = eac_format_expr (NameDeclOf (name));
-				tnode_dumpstree(NameDeclOf (name), 0, stdout);
+				tnode_dumpstree(NameDeclOf (name), 0, FHAN_STDOUT);
 			}
 
 			return IHR_HANDLED;
@@ -449,10 +450,10 @@ static int eac_parser_init (lexfile_t *lf)
 			return 1;
 		}
 		if (compopts.dumpdfas) {
-			dfa_dumpdfas (stderr);
+			dfa_dumpdfas (FHAN_STDERR);
 		}
 		if (compopts.dumpgrules) {
-			parser_dumpgrules (stderr);
+			parser_dumpgrules (FHAN_STDERR);
 		}
 
 		parser_gettesttags (&testtruetag, &testfalsetag);
@@ -687,7 +688,7 @@ static tnode_t *eac_parser_parse (lexfile_t *lf)
 	tok = lexer_nexttoken (lf);
 	while (tok) {
 		if (compopts.verbose > 1) {
-			lexer_dumptoken (stderr, tok);
+			lexer_dumptoken (FHAN_STDERR, tok);
 		}
 		if ((tok->type = END) || (tok->type == NOTOKEN)) {
 			lexer_freetoken (tok);

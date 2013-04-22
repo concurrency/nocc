@@ -1,6 +1,6 @@
 /*
  *	occampi_function.c -- occam-pi FUNCTIONs
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -132,21 +133,21 @@ static void builtinfunctionhook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void builtinfunctionhook_dumphook (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void builtinfunctionhook_dumphook (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a builtinfunctionhook_t (debugging)
  */
-static void builtinfunctionhook_dumphook (tnode_t *node, void *hook, int indent, FILE *stream)
+static void builtinfunctionhook_dumphook (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	builtinfunctionhook_t *bfh = (builtinfunctionhook_t *)hook;
 
 	occampi_isetindent (stream, indent);
 	if (!hook) {
-		fprintf (stream, "<builtinfunctionhook name=\"(null)\" />\n");
+		fhandle_printf (stream, "<builtinfunctionhook name=\"(null)\" />\n");
 	} else {
 		builtinfunction_t *builtin = bfh->biptr;
 
-		fprintf (stream, "<builtinfunctionhook name=\"%s\" wsh=\"%d\" wsl=\"%d\" />\n", builtin->name, builtin->wsh, builtin->wsl);
+		fhandle_printf (stream, "<builtinfunctionhook name=\"%s\" wsh=\"%d\" wsl=\"%d\" />\n", builtin->name, builtin->wsh, builtin->wsl);
 	}
 	return;
 }

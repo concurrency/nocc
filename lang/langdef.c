@@ -1,6 +1,6 @@
 /*
  *	langdef.c -- language definition handling for NOCC
- *	Copyright (C) 2006-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "support.h"
 #include "origin.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -782,16 +783,16 @@ out_local:
  */
 static int ldef_readlangdefs (langdef_t *ldef, const char *rfname)
 {
-	FILE *fp;
+	fhandle_t *fhan;
 	char *buf;
 	int blen = 0;
 	int curline = 0;
 	int rval = 0;
 	int bufline = 0;
 	
-	fp = fopen (rfname, "r");
-	if (!fp) {
-		nocc_error ("ldef_readlangdefs(): failed to open [%s]: %s", rfname, strerror (errno));
+	fhan = fhandle_fopen (rfname, "r");
+	if (!fhan) {
+		nocc_error ("ldef_readlangdefs(): failed to open [%s]: %s", rfname, strerror (fhandle_lasterr (fhan)));
 		return -1;
 	}
 
@@ -801,9 +802,11 @@ static int ldef_readlangdefs (langdef_t *ldef, const char *rfname)
 		char *thisline = (char *)smalloc (1024);
 		int tll = 0;
 		int instring = 0;
+		int err;
 
 reread_local:
-		if (!fgets (thisline, 1023, fp)) {
+		err = fhandle_gets (fhan, thisline, 1023);
+		if (!err) {
 			/* EOF */
 			sfree (thisline);
 			break;
@@ -909,7 +912,7 @@ reread_local:
 
 out_local:
 	sfree (buf);
-	fclose (fp);
+	fhandle_close (fhan);
 
 	return rval;
 }

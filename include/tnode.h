@@ -45,6 +45,7 @@ struct TAG_target;
 struct TAG_fetrans;
 struct TAG_betrans;
 struct TAG_treecheckdef;
+struct TAG_fhandle;
 
 /*{{{  enum copycontrol_e*/
 typedef enum ENUM_copycontrol {
@@ -66,8 +67,8 @@ typedef struct TAG_tndef {
 	void *(*hook_copy)(void *);
 	void *(*hook_copyoralias)(void *, copycontrol_e (*)(struct TAG_tnode *));
 	void (*hook_free)(void *);
-	void (*hook_dumptree)(struct TAG_tnode *, void *, int, FILE *);
-	void (*hook_dumpstree)(struct TAG_tnode *, void *, int, FILE *);
+	void (*hook_dumptree)(struct TAG_tnode *, void *, int, struct TAG_fhandle *);
+	void (*hook_dumpstree)(struct TAG_tnode *, void *, int, struct TAG_fhandle *);
 	void (*hook_postwalktree)(struct TAG_tnode *, void *, void (*)(struct TAG_tnode *, void *), void *);
 	void (*hook_prewalktree)(struct TAG_tnode *, void *, int (*)(struct TAG_tnode *, void *), void *);
 	void (*hook_modprewalktree)(struct TAG_tnode **, void *, int (*)(struct TAG_tnode **, void *), void *);
@@ -245,8 +246,8 @@ typedef struct TAG_chook {
 
 	void *(*chook_copy)(void *);
 	void (*chook_free)(void *);
-	void (*chook_dumptree)(tnode_t *, void *, int, FILE *);
-	void (*chook_dumpstree)(tnode_t *, void *, int, FILE *);
+	void (*chook_dumptree)(tnode_t *, void *, int, struct TAG_fhandle *);
+	void (*chook_dumpstree)(tnode_t *, void *, int, struct TAG_fhandle *);
 } chook_t;
 
 
@@ -291,9 +292,9 @@ extern tnode_t *tnode_createfrom (ntdef_t *tag, tnode_t *src, ...);
 extern tnode_t *tnode_copyoraliastree (tnode_t *t, copycontrol_e (*cora_fcn)(tnode_t *));
 extern tnode_t *tnode_copytree (tnode_t *t);
 extern void tnode_free (tnode_t *t);
-extern void tnode_dumptree (tnode_t *t, int indent, FILE *stream);
-extern void tnode_dumpstree (tnode_t *t, int indent, FILE *stream);
-extern void tnode_dumpnodetypes (FILE *stream);
+extern void tnode_dumptree (tnode_t *t, int indent, struct TAG_fhandle *stream);
+extern void tnode_dumpstree (tnode_t *t, int indent, struct TAG_fhandle *stream);
+extern void tnode_dumpnodetypes (struct TAG_fhandle *stream);
 
 extern int tnode_setcompop (compops_t *cops, char *name, int nparams, int (*fcn)(compops_t *, ...));
 extern int tnode_setcompop_bottom (compops_t *cops, char *name, int nparams, int (*fcn)(compops_t *, ...));
@@ -303,7 +304,7 @@ extern int tnode_hascompop_i (compops_t *cops, int idx);
 extern int tnode_callcompop_i (compops_t *cops, int idx, int nparams, ...);
 extern int tnode_newcompop (char *name, compops_e opno, int nparams, struct TAG_origin *origin);
 extern compop_t *tnode_findcompop (char *name);
-extern void tnode_dumpcompops (compops_t *cops, FILE *stream);
+extern void tnode_dumpcompops (compops_t *cops, struct TAG_fhandle *stream);
 
 #define COMPOPTYPE(X) ((int (*)(compops_t *, ...))(X))
 
@@ -336,7 +337,7 @@ extern void *tnode_getchook (tnode_t *t, chook_t *ch);
 extern int tnode_haschook (tnode_t *t, chook_t *ch);
 extern void tnode_setchook (tnode_t *t, chook_t *ch, void *hook);
 extern void tnode_clearchook (tnode_t *, chook_t *ch);
-extern void tnode_dumpchooks (FILE *stream);
+extern void tnode_dumpchooks (struct TAG_fhandle *stream);
 
 extern int tnode_promotechooks (tnode_t *tsource, tnode_t *tdest);
 extern char *tnode_copytextlocationof (tnode_t *t);
@@ -349,8 +350,8 @@ extern void tnode_message (tnode_t *t, const char *fmt, ...) __attribute__ ((for
 extern void tnode_warning (tnode_t *t, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 extern void tnode_error (tnode_t *t, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
-extern void tnode_dumpsnodetypes (FILE *stream);
-extern void tnode_dumpsnodetags (FILE *stream);
+extern void tnode_dumpsnodetypes (struct TAG_fhandle *stream);
+extern void tnode_dumpsnodetags (struct TAG_fhandle *stream);
 
 
 /* access routines */

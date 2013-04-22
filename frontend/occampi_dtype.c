@@ -1,6 +1,6 @@
 /*
  *	occampi_dtype.c -- occam-pi data type handling (also named-type handling)
- *	Copyright (C) 2005-2008 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -94,19 +95,19 @@ static compop_t *intypedecl_scopeout_compop = NULL;
 /*}}}*/
 
 
-/*{{{  static void occampi_typedecl_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void occampi_typedecl_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a typedeclhook_t hook-node (debugging)
  */
-static void occampi_typedecl_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void occampi_typedecl_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	typedeclhook_t *tdh = (typedeclhook_t *)hook;
 
 	occampi_isetindent (stream, indent);
 	if (!hook) {
-		fprintf (stream, "<typedeclhook value=\"(null)\" addr=\"0x%8.8x\" />\n", (unsigned int)tdh);
+		fhandle_printf (stream, "<typedeclhook value=\"(null)\" addr=\"0x%8.8x\" />\n", (unsigned int)tdh);
 	} else {
-		fprintf (stream, "<typedeclhook wssize=\"%d\" addr=\"0x%8.8x\" />\n", tdh->wssize, (unsigned int)tdh);
+		fhandle_printf (stream, "<typedeclhook wssize=\"%d\" addr=\"0x%8.8x\" />\n", tdh->wssize, (unsigned int)tdh);
 	}
 
 	return;
@@ -131,16 +132,16 @@ static void *occampi_typedeclhook_blankhook (void *tos)
 	return (void *)tdh;
 }
 /*}}}*/
-/*{{{  static void occampi_fielddecloffset_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_fielddecloffset_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a fielddecloffset_t chook (debugging)
  */
-static void occampi_fielddecloffset_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void occampi_fielddecloffset_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	fielddecloffset_t *ofh = (fielddecloffset_t *)chook;
 
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "<chook:fielddecloffset offset=\"%d\" />\n", ofh->offset);
+	fhandle_printf (stream, "<chook:fielddecloffset offset=\"%d\" />\n", ofh->offset);
 
 	return;
 }
@@ -160,52 +161,52 @@ static void *occampi_fielddecloffset_chook_create (int offset)
 /*}}}*/
 
 
-/*{{{  static void occampi_ctclienttype_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_ctclienttype_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a ct_clienttype chook (debugging)
  */
-static void occampi_ctclienttype_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void occampi_ctclienttype_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "<chook:ct_clienttype>\n");
+	fhandle_printf (stream, "<chook:ct_clienttype>\n");
 	if (chook) {
 		tnode_dumptree ((tnode_t *)chook, indent + 1, stream);
 	}
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "</chook:ct_clienttype>\n");
+	fhandle_printf (stream, "</chook:ct_clienttype>\n");
 	return;
 }
 /*}}}*/
-/*{{{  static void occampi_ctservertype_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_ctservertype_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a ct_servertype chook (debugging)
  */
-static void occampi_ctservertype_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void occampi_ctservertype_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "<chook:ct_servertype>\n");
+	fhandle_printf (stream, "<chook:ct_servertype>\n");
 	if (chook) {
 		tnode_dumptree ((tnode_t *)chook, indent + 1, stream);
 	}
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "</chook:ct_servertype>\n");
+	fhandle_printf (stream, "</chook:ct_servertype>\n");
 	return;
 }
 /*}}}*/
 
-/*{{{  static void occampi_ctclienttrace_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_ctclienttrace_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a ct_clienttrace chook (debugging)
  */
-static void occampi_ctclienttrace_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void occampi_ctclienttrace_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "<chook:ct_clienttrace>\n");
+	fhandle_printf (stream, "<chook:ct_clienttrace>\n");
 	if (chook) {
 		tnode_dumptree ((tnode_t *)chook, indent + 1, stream);
 	}
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "</chook:ct_clienttrace>\n");
+	fhandle_printf (stream, "</chook:ct_clienttrace>\n");
 	return;
 }
 /*}}}*/
@@ -227,19 +228,19 @@ static void occampi_ctclienttrace_chook_free (void *chook)
 	return;
 }
 /*}}}*/
-/*{{{  static void occampi_ctservertrace_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_ctservertrace_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a ct_servertrace chook (debugging)
  */
-static void occampi_ctservertrace_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void occampi_ctservertrace_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "<chook:ct_servertrace>\n");
+	fhandle_printf (stream, "<chook:ct_servertrace>\n");
 	if (chook) {
 		tnode_dumptree ((tnode_t *)chook, indent + 1, stream);
 	}
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "</chook:ct_servertrace>\n");
+	fhandle_printf (stream, "</chook:ct_servertrace>\n");
 	return;
 }
 /*}}}*/
@@ -1128,7 +1129,7 @@ static int occampi_codegen_arraymop (compops_t *cops, tnode_t *node, codegen_t *
 
 #if 1
 fprintf (stderr, "occampi_codegen_arraymop(): op =\n");
-tnode_dumptree (op, 1, stderr);
+tnode_dumptree (op, 1, FHAN_STDERR);
 #endif
 
 	return 0;
@@ -1759,7 +1760,7 @@ static int occampi_namemap_nametypenode (compops_t *cops, tnode_t **node, map_t 
 
 #if 1
 fprintf (stderr, "occampi_namemap_nametypenode(): here 1! bename =\n");
-tnode_dumptree (bename, 1, stderr);
+tnode_dumptree (bename, 1, FHAN_STDERR);
 #endif
 	if (bename) {
 		tname = map->target->newnameref (bename, map);

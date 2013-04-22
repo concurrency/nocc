@@ -1,6 +1,6 @@
 /*
  *	occampi_misc.c - miscellaneous things for occam-pi
- *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -92,14 +93,14 @@ static void miscstringhook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void miscstringhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void miscstringhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a "misc:string" compiler hook (debugging)
  */
-static void miscstringhook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void miscstringhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "<chook id=\"misc:string\" value=\"%s\" />\n", hook ? (char *)hook : "");
+	fhandle_printf (stream, "<chook id=\"misc:string\" value=\"%s\" />\n", hook ? (char *)hook : "");
 	return;
 }
 /*}}}*/

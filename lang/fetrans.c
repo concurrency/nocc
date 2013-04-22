@@ -1,6 +1,6 @@
 /*
  *	fetrans.c -- front-end tree transforms
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -53,16 +54,16 @@ static chook_t *fetransdeschook = NULL;
 /*}}}*/
 
 
-/*{{{  static void fetrans_isetindent (int indent, FILE *stream)*/
+/*{{{  static void fetrans_isetindent (int indent, fhandle_t *stream)*/
 /*
  *	sets indentation for output
  */
-static void fetrans_isetindent (int indent, FILE *stream)
+static void fetrans_isetindent (int indent, fhandle_t *stream)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -98,14 +99,14 @@ static void fetrans_deschook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void fetrans_deschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void fetrans_deschook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a descriptor hook (debugging)
  */
-static void fetrans_deschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void fetrans_deschook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	fetrans_isetindent (indent, stream);
-	fprintf (stream, "<fetrans:descriptor value=\"%s\" />\n", hook ? (char *)hook : "");
+	fhandle_printf (stream, "<fetrans:descriptor value=\"%s\" />\n", hook ? (char *)hook : "");
 }
 /*}}}*/
 /*}}}*/

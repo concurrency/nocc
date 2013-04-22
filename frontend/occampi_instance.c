@@ -1,6 +1,6 @@
 /*
  *	occampi_instance.c -- instance (PROC calls, etc.) handling for occampi
- *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -146,21 +147,21 @@ static void builtinprochook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void builtinprochook_dumphook (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void builtinprochook_dumphook (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a builtinprochook_t (debugging)
  */
-static void builtinprochook_dumphook (tnode_t *node, void *hook, int indent, FILE *stream)
+static void builtinprochook_dumphook (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	builtinprochook_t *bph = (builtinprochook_t *)hook;
 
 	occampi_isetindent (stream, indent);
 	if (!hook) {
-		fprintf (stream, "<builtinprochook name=\"(null)\" />\n");
+		fhandle_printf (stream, "<builtinprochook name=\"(null)\" />\n");
 	} else {
 		builtinproc_t *builtin = bph->biptr;
 
-		fprintf (stream, "<builtinprochook name=\"%s\" wsh=\"%d\" wsl=\"%d\" />\n", builtin->name, builtin->wsh, builtin->wsl);
+		fhandle_printf (stream, "<builtinprochook name=\"%s\" wsh=\"%d\" wsl=\"%d\" />\n", builtin->name, builtin->wsh, builtin->wsl);
 	}
 	return;
 }
@@ -219,14 +220,14 @@ static void occampi_matchedformal_chook_free (void *chook)
 	return;
 }
 /*}}}*/
-/*{{{  static void occampi_matchedformal_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_matchedformal_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a matchedformal compiler hook (debugging)
  */
-static void occampi_matchedformal_chook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void occampi_matchedformal_chook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "<chook:matchedformal addr=\"0x%8.8x\" />\n", (unsigned int)chook);
+	fhandle_printf (stream, "<chook:matchedformal addr=\"0x%8.8x\" />\n", (unsigned int)chook);
 	return;
 }
 /*}}}*/
@@ -760,7 +761,7 @@ static int occampi_namemap_instance (compops_t *cops, tnode_t **node, map_t *map
 			
 #if 1
 fprintf (stderr, "occampi_namemap_instance(): setting parameter %d matchedformal to hook in:\n", i);
-tnode_dumptree (params[i], 1, stderr);
+tnode_dumptree (params[i], 1, FHAN_STDERR);
 #endif
 			tnode_setchook (params[i], chook_matchedformal, NULL);
 			map_submapnames (params + i, map);
@@ -772,7 +773,7 @@ tnode_dumptree (params[i], 1, stderr);
 	namenode = tnode_nthsubof (*node, 0);
 #if 1
 fprintf (stderr, "occampi_namemap_instance(): instance of:\n");
-tnode_dumptree (namenode, 1, stderr);
+tnode_dumptree (namenode, 1, FHAN_STDERR);
 #endif
 	if (namenode->tag->ndef == opi.node_NAMENODE) {
 		name = tnode_nthnameof (namenode, 0);

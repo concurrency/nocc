@@ -1,6 +1,6 @@
 /*
  *	names.h -- nocc name handling
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 struct TAG_tnode;
 struct TAG_namelist;
 struct TAG_scope;
+struct TAG_fhandle;
 
 typedef struct TAG_namespace {
 	char *nspace;
@@ -68,9 +69,9 @@ extern char *name_newwholename (name_t *name);
 extern void *name_markscope (void);
 extern void name_markdescope (void *mark);
 
-extern void name_dumpname (name_t *name, int indent, FILE *stream);
-extern void name_dumpsname (name_t *name, int indent, FILE *stream);
-extern void name_dumpnames (FILE *stream);
+extern void name_dumpname (name_t *name, int indent, struct TAG_fhandle *stream);
+extern void name_dumpsname (name_t *name, int indent, struct TAG_fhandle *stream);
+extern void name_dumpnames (struct TAG_fhandle *stream);
 
 
 #define NameDeclOf(N)		(N)->decl

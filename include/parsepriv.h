@@ -1,6 +1,6 @@
 /*
  *	parsepriv.h -- private parser interface
- *	Copyright (C) 2004-2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ struct TAG_postcheck;
 struct TAG_fetrans;
 struct TAG_langlexer;
 struct TAG_langdef;
+struct TAG_fhandle;
 
 typedef struct TAG_langparser {
 	char *langname;
@@ -71,7 +72,7 @@ extern void *parser_lookup_rarg (const char *name);
 extern void parser_generic_reduce (struct TAG_dfastate *dfast, parsepriv_t *pp, void *rarg);
 extern void *parser_decode_grule (const char *rule, ...);
 extern void parser_free_grule (void *rarg);
-extern void parser_dumpgrules (FILE *stream);
+extern void parser_dumpgrules (struct TAG_fhandle *stream);
 
 extern int parser_register_grule (const char *name, void *grule);
 extern void *parser_lookup_grule (const char *name);

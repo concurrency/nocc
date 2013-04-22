@@ -34,6 +34,11 @@ typedef struct TAG_fhscheme {
 	int (*closefcn)(struct TAG_fhandle *);
 	int (*mapfcn)(struct TAG_fhandle *, unsigned char **, size_t, size_t);
 	int (*unmapfcn)(struct TAG_fhandle *, unsigned char *, size_t, size_t);
+	int (*printffcn)(struct TAG_fhandle *, const char *, va_list);
+	int (*writefcn)(struct TAG_fhandle *, unsigned char *, int);
+	int (*readfcn)(struct TAG_fhandle *, unsigned char *, int);
+	int (*getsfcn)(struct TAG_fhandle *, char *, int);
+	int (*flushfcn)(struct TAG_fhandle *);
 } fhscheme_t;
 
 

@@ -1,6 +1,6 @@
 /*
  *	mwsync.c -- multi-way synchronisations in NOCC (new style for ETC)
- *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "opts.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -104,16 +105,16 @@ static int mwsync_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argl
 	return 0;
 }
 /*}}}*/
-/*{{{  void mwsync_isetindent (FILE *stream, int indent)*/
+/*{{{  void mwsync_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	set-indent for debugging output
  */
-void mwsync_isetindent (FILE *stream, int indent)
+void mwsync_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -222,22 +223,22 @@ static void mwsync_freemwsyncpbinfo (mwsyncpbinfo_t *pbinf)
 /*}}}*/
 
 
-/*{{{  static void mwsync_pbihook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void mwsync_pbihook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	displays the contents of a mwsyncpbinfo compiler hook
  */
-static void mwsync_pbihook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void mwsync_pbihook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	if (chook) {
 		mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)chook;
 
 		mwsync_isetindent (stream, indent);
-		fprintf (stream, "<mwsync:parbarrierinfo ecount=\"%d\" sadjust=\"%d\" parent=\"0x%8.8x\" exprisproctype=\"%d\" nprocbarriers=\"%d\" addr=\"0x%8.8x\">\n",
+		fhandle_printf (stream, "<mwsync:parbarrierinfo ecount=\"%d\" sadjust=\"%d\" parent=\"0x%8.8x\" exprisproctype=\"%d\" nprocbarriers=\"%d\" addr=\"0x%8.8x\">\n",
 				pbinf->ecount, pbinf->sadjust, (unsigned int)pbinf->parent, pbinf->exprisproctype, pbinf->nprocbarriers, (unsigned int)chook);
 		tnode_dumptree (pbinf->ecount_expr, indent + 1, stream);
 		tnode_dumptree (pbinf->sadjust_expr, indent + 1, stream);
 		mwsync_isetindent (stream, indent);
-		fprintf (stream, "</mwsync:parbarrierinfo>\n");
+		fhandle_printf (stream, "</mwsync:parbarrierinfo>\n");
 	}
 	return;
 }
@@ -277,15 +278,15 @@ static void *mwsync_pbihook_copy (void *chook)
 	return (void *)pbinf;
 }
 /*}}}*/
-/*{{{  static void mwsync_pbdhook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void mwsync_pbdhook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	displays the contents of a mwsyncpbinfo compiler hook
  */
-static void mwsync_pbdhook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void mwsync_pbdhook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	if (chook) {
 		mwsync_isetindent (stream, indent);
-		fprintf (stream, "<mwsync:barrierdecllink addr=\"0x%8.8x\" />\n", (unsigned int)chook);
+		fhandle_printf (stream, "<mwsync:barrierdecllink addr=\"0x%8.8x\" />\n", (unsigned int)chook);
 	}
 	return;
 }
@@ -308,17 +309,17 @@ static void *mwsync_pbdhook_copy (void *chook)
 	return chook;
 }
 /*}}}*/
-/*{{{  static void mwsync_althook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void mwsync_althook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	dumps an mwsyncaltinfo_t structure (debugging/dump)
  */
-static void mwsync_althook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void mwsync_althook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	if (chook) {
 		mwsyncaltinfo_t *altinf = (mwsyncaltinfo_t *)chook;
 
 		mwsync_isetindent (stream, indent);
-		fprintf (stream, "<mwsync:altbarrierinfo bcount=\"%d\" nbcount=\"%d\" />\n", altinf->bcount, altinf->nbcount);
+		fhandle_printf (stream, "<mwsync:altbarrierinfo bcount=\"%d\" nbcount=\"%d\" />\n", altinf->bcount, altinf->nbcount);
 	}
 	return;
 }

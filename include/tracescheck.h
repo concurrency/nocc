@@ -23,6 +23,7 @@
 struct TAG_tnode;
 struct TAG_langparser;
 struct TAG_chook;
+struct TAG_fhandle;
 
 typedef enum ENUM_tchknodetype {
 	TCN_INVALID = 0,
@@ -123,10 +124,10 @@ extern int tracescheck_shutdown (void);
 extern int tracescheck_subtree (struct TAG_tnode *tree, tchk_state_t *tcstate);
 extern int tracescheck_tree (struct TAG_tnode *tree, struct TAG_langparser *lang);
 
-extern void tracescheck_dumpbucket (tchk_bucket_t *tcb, int indent, FILE *stream);
-extern void tracescheck_dumptraces (tchk_traces_t *tct, int indent, FILE *stream);
-extern void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, FILE *stream);
-extern void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream);
+extern void tracescheck_dumpbucket (tchk_bucket_t *tcb, int indent, struct TAG_fhandle *stream);
+extern void tracescheck_dumptraces (tchk_traces_t *tct, int indent, struct TAG_fhandle *stream);
+extern void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, struct TAG_fhandle *stream);
+extern void tracescheck_dumpnode (tchknode_t *tcn, int indent, struct TAG_fhandle *stream);
 
 extern int tracescheck_formattraces (tchknode_t *tcn, char **sptr);
 

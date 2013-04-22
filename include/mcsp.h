@@ -1,6 +1,6 @@
 /*
  *	mcsp.h -- machine-readable CSP language interface for nocc
- *	Copyright (C) 2005-2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ extern struct TAG_langparser mcsp_parser;
 struct TAG_tndef;
 struct TAG_ntdef;
 struct TAG_token;
+struct TAG_fhandle;
 
 
 typedef struct {
@@ -113,7 +114,7 @@ struct TAG_feunit;
 struct TAG_langdef;
 
 
-extern void mcsp_isetindent (FILE *stream, int indent);
+extern void mcsp_isetindent (struct TAG_fhandle *stream, int indent);
 extern struct TAG_langdef *mcsp_getlangdef (void);
 
 extern struct TAG_feunit mcsp_process_feunit;		/* mcsp_process.c */
@@ -174,7 +175,7 @@ extern void mcsp_sortandmergealpha (mcsp_alpha_t *a1, mcsp_alpha_t *a2, mcsp_alp
 
 extern void mcsp_alpha_hook_free (void *hook);
 extern void *mcsp_alpha_hook_copy (void *hook);
-extern void mcsp_alpha_hook_dumptree (struct TAG_tnode *node, void *hook, int indent, FILE *stream);
+extern void mcsp_alpha_hook_dumptree (struct TAG_tnode *node, void *hook, int indent, struct TAG_fhandle *stream);
 
 
 #endif	/* !__MCSP_H */

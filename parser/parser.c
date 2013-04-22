@@ -1,6 +1,6 @@
 /*
  *	parser.c -- nocc parser framework
- *	Copyright (C) 2004-2008 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -2298,20 +2299,20 @@ static int parser_cmp_grule (ngrule_t *one, ngrule_t *two)
 	return strcmp (one->name, two->name);
 }
 /*}}}*/
-/*{{{  void parser_dumpgrules (FILE *stream)*/
+/*{{{  void parser_dumpgrules (fhandle_t *stream)*/
 /*
  *	dumps named generic reductions (debugging/info)
  */
-void parser_dumpgrules (FILE *stream)
+void parser_dumpgrules (fhandle_t *stream)
 {
 	int i;
 
-	fprintf (stream, "generic reduction rules:\n");
+	fhandle_printf (stream, "generic reduction rules:\n");
 	dynarray_qsort (angrules, parser_cmp_grule);
 	for (i=0; i<DA_CUR (angrules); i++) {
 		ngrule_t *ngr = DA_NTHITEM (angrules, i);
 
-		fprintf (stream, "  %-32s: 0x%8.8x\n", ngr->name, (unsigned int)ngr->grule);
+		fhandle_printf (stream, "  %-32s: 0x%8.8x\n", ngr->name, (unsigned int)ngr->grule);
 	}
 	return;
 }

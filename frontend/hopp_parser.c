@@ -1,6 +1,6 @@
 /*
  *	hopp_parser.c -- haskell occam-pi parser parser for nocc
- *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "origin.h"
+#include "fhandle.h"
 #include "version.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -297,7 +298,7 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 				tok = NULL;
 			} else if (tok->type != NAME) {
 				parser_error (lf, "NAME: following token not NAME, was:");
-				lexer_dumptoken (stderr, tok);
+				lexer_dumptoken (FHAN_STDERR, tok);
 			} else {
 				tnode_setnthhook (tree, 0, occampi_nametoken_to_hook ((void *)tok));
 				tok = NULL;
@@ -408,7 +409,7 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			/*{{{  default -- warning*/
 		default:
 			parser_warning (lf, "unhandled keyword token:");
-			lexer_dumptoken (stderr, tok);
+			lexer_dumptoken (FHAN_STDERR, tok);
 			break;
 			/*}}}*/
 		}
@@ -417,7 +418,7 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 		/*{{{  default -- warning and ignore*/
 	default:
 		parser_warning (lf, "unhandled token:");
-		lexer_dumptoken (stderr, tok);
+		lexer_dumptoken (FHAN_STDERR, tok);
 		break;
 		/*}}}*/
 	}

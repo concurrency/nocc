@@ -1,6 +1,6 @@
 /*
  *	tracescheck.c -- traces checker for NOCC
- *	Copyright (C) 2007-2008 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -90,16 +91,16 @@ typedef struct TAG_substnode {
 /*}}}*/
 
 
-/*{{{  static void tchk_isetindent (FILE *stream, int indent)*/
+/*{{{  static void tchk_isetindent (fhandle_t *stream, int indent)*/
 /*
  *	set-indent for debugging output
  */
-static void tchk_isetindent (FILE *stream, int indent)
+static void tchk_isetindent (fhandle_t *stream, int indent)
 {
 	int i;
 
 	for (i=0; i<indent; i++) {
-		fprintf (stream, "    ");
+		fhandle_printf (stream, "    ");
 	}
 	return;
 }
@@ -123,22 +124,22 @@ static void tchk_noderefchook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void tchk_noderefchook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void tchk_noderefchook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a tchknode_t reference compiler hook (debugging)
  */
-static void tchk_noderefchook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void tchk_noderefchook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	tchknode_t *tcn = (tchknode_t *)hook;
 
 	tchk_isetindent (stream, indent);
 	if (!hook) {
-		fprintf (stream, "<chook id=\"traceschecknoderef\" value=\"\" />\n");
+		fhandle_printf (stream, "<chook id=\"traceschecknoderef\" value=\"\" />\n");
 	} else {
-		fprintf (stream, "<chook id=\"traceschecknoderef\">\n");
+		fhandle_printf (stream, "<chook id=\"traceschecknoderef\">\n");
 		tracescheck_dumpnode (tcn, indent + 1, stream);
 		tchk_isetindent (stream, indent);
-		fprintf (stream, "</chook>\n");
+		fhandle_printf (stream, "</chook>\n");
 	}
 	return;
 }
@@ -162,22 +163,22 @@ static void tchk_tracesrefchook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void tchk_tracesrefchook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void tchk_tracesrefchook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  * 	dumps a traces-ref compiler hook (debugging)
  */
-static void tchk_tracesrefchook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void tchk_tracesrefchook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	tchk_traces_t *tct = (tchk_traces_t *)hook;
 
 	tchk_isetindent (stream, indent);
 	if (!hook) {
-		fprintf (stream, "<chook id=\"traceschecktracesref\" value=\"\" />\n");
+		fhandle_printf (stream, "<chook id=\"traceschecktracesref\" value=\"\" />\n");
 	} else {
-		fprintf (stream, "<chook id=\"traceschecktracesref\">\n");
+		fhandle_printf (stream, "<chook id=\"traceschecktracesref\">\n");
 		tracescheck_dumptraces (tct, indent + 1, stream);
 		tchk_isetindent (stream, indent);
-		fprintf (stream, "</chook>\n");
+		fhandle_printf (stream, "</chook>\n");
 	}
 	return;
 }
@@ -223,22 +224,22 @@ static void tchk_traceschook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void tchk_traceschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void tchk_traceschook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a traces compiler hook (debugging)
  */
-static void tchk_traceschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void tchk_traceschook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	tchk_traces_t *tct = (tchk_traces_t *)hook;
 
 	tchk_isetindent (stream, indent);
 	if (!hook) {
-		fprintf (stream, "<chook id=\"traceschecktraces\" value=\"\" />\n");
+		fhandle_printf (stream, "<chook id=\"traceschecktraces\" value=\"\" />\n");
 	} else {
-		fprintf (stream, "<chook id=\"traceschecktraces\">\n");
+		fhandle_printf (stream, "<chook id=\"traceschecktraces\">\n");
 		tracescheck_dumptraces (tct, indent + 1, stream);
 		tchk_isetindent (stream, indent);
-		fprintf (stream, "</chook>\n");
+		fhandle_printf (stream, "</chook>\n");
 	}
 	return;
 }
@@ -273,22 +274,22 @@ static void tchk_tracesimplchook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void tchk_tracesimplchook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void tchk_tracesimplchook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a tracescheckimpl compiler hook (debugging)
  */
-static void tchk_tracesimplchook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void tchk_tracesimplchook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	tnode_t *tr = (tnode_t *)hook;
 
 	tchk_isetindent (stream, indent);
 	if (!hook) {
-		fprintf (stream, "<chook id=\"tracescheckimpl\" value=\"\" />\n");
+		fhandle_printf (stream, "<chook id=\"tracescheckimpl\" value=\"\" />\n");
 	} else {
-		fprintf (stream, "<chook id=\"tracescheckimpl\">\n");
+		fhandle_printf (stream, "<chook id=\"tracescheckimpl\">\n");
 		tnode_dumptree (tr, indent + 1, stream);
 		tchk_isetindent (stream, indent);
-		fprintf (stream, "</chook>\n");
+		fhandle_printf (stream, "</chook>\n");
 	}
 	return;
 }
@@ -334,22 +335,22 @@ static void tchk_tracesbvarschook_free (void *hook)
 	return;
 }
 /*}}}*/
-/*{{{  static void tchk_tracesbvarschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void tchk_tracesbvarschook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dumps a tracesbvars compiler hook (debugging)
  */
-static void tchk_tracesbvarschook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void tchk_tracesbvarschook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	tnode_t *list = (tnode_t *)hook;
 
 	tchk_isetindent (stream, indent);
 	if (!list) {
-		fprintf (stream, "<chook id=\"tracesbvars\" value=\"\" />\n");
+		fhandle_printf (stream, "<chook id=\"tracesbvars\" value=\"\" />\n");
 	} else {
-		fprintf (stream, "<chook id=\"tracesbvars\">\n");
+		fhandle_printf (stream, "<chook id=\"tracesbvars\">\n");
 		tnode_dumptree (list, indent + 1, stream);
 		tchk_isetindent (stream, indent);
-		fprintf (stream, "</chook>\n");
+		fhandle_printf (stream, "</chook>\n");
 	}
 	return;
 }
@@ -1548,36 +1549,36 @@ int tracescheck_prewalk (tchknode_t *tcn, int (*func)(tchknode_t *, void *), voi
 }
 /*}}}*/
 
-/*{{{  void tracescheck_dumpbucket (tchk_bucket_t *tcb, int indent, FILE *stream)*/
+/*{{{  void tracescheck_dumpbucket (tchk_bucket_t *tcb, int indent, fhandle_t *stream)*/
 /*
  *	dumps a traces check bucket (debugging)
  */
-void tracescheck_dumpbucket (tchk_bucket_t *tcb, int indent, FILE *stream)
+void tracescheck_dumpbucket (tchk_bucket_t *tcb, int indent, fhandle_t *stream)
 {
 	int i;
 
 	tchk_isetindent (stream, indent);
-	fprintf (stream, "<tracescheck:bucket>\n");
+	fhandle_printf (stream, "<tracescheck:bucket>\n");
 	for (i=0; i<DA_CUR (tcb->items); i++) {
 		tchknode_t *tcn = DA_NTHITEM (tcb->items, i);
 
 		tracescheck_dumpnode (tcn, indent + 1, stream);
 	}
 	tchk_isetindent (stream, indent);
-	fprintf (stream, "</tracescheck:bucket>\n");
+	fhandle_printf (stream, "</tracescheck:bucket>\n");
 	return;
 }
 /*}}}*/
-/*{{{  void tracescheck_dumptraces (tchk_traces_t *tct, int indent, FILE *stream)*/
+/*{{{  void tracescheck_dumptraces (tchk_traces_t *tct, int indent, fhandle_t *stream)*/
 /*
  *	dumps a traces-check trace set (debugging)
  */
-void tracescheck_dumptraces (tchk_traces_t *tct, int indent, FILE *stream)
+void tracescheck_dumptraces (tchk_traces_t *tct, int indent, fhandle_t *stream)
 {
 	int i;
 
 	tchk_isetindent (stream, indent);
-	fprintf (stream, "<tracescheck:traces>\n");
+	fhandle_printf (stream, "<tracescheck:traces>\n");
 	if (tct) {
 		for (i=0; i<DA_CUR (tct->items); i++) {
 			tchknode_t *tcn = DA_NTHITEM (tct->items, i);
@@ -1586,53 +1587,53 @@ void tracescheck_dumptraces (tchk_traces_t *tct, int indent, FILE *stream)
 		}
 	}
 	tchk_isetindent (stream, indent);
-	fprintf (stream, "</tracescheck:traces>\n");
+	fhandle_printf (stream, "</tracescheck:traces>\n");
 	return;
 }
 /*}}}*/
-/*{{{  void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, FILE *stream)*/
+/*{{{  void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, fhandle_t *stream)*/
 /*
  *	dumps a traces check state (debugging)
  */
-void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, FILE *stream)
+void tracescheck_dumpstate (tchk_state_t *tcstate, int indent, fhandle_t *stream)
 {
 	int i;
 
 	tchk_isetindent (stream, indent);
-	fprintf (stream, "<tracescheck:state inparams=\"%d\" err=\"%d\" warn=\"%d\">\n", tcstate->inparams, tcstate->err, tcstate->warn);
+	fhandle_printf (stream, "<tracescheck:state inparams=\"%d\" err=\"%d\" warn=\"%d\">\n", tcstate->inparams, tcstate->err, tcstate->warn);
 
 	tchk_isetindent (stream, indent + 1);
-	fprintf (stream, "<tracescheck:ivars>\n");
+	fhandle_printf (stream, "<tracescheck:ivars>\n");
 	for (i=0; i<DA_CUR (tcstate->ivars); i++) {
 		tchknode_t *tcn = DA_NTHITEM (tcstate->ivars, i);
 
 		tracescheck_dumpnode (tcn, indent + 2, stream);
 	}
 	tchk_isetindent (stream, indent + 1);
-	fprintf (stream, "</tracescheck:ivars>\n");
+	fhandle_printf (stream, "</tracescheck:ivars>\n");
 
 	tracescheck_dumptraces (tcstate->traces, indent + 1, stream);
 	tracescheck_dumpbucket (tcstate->bucket, indent + 1, stream);
 
 	tchk_isetindent (stream, indent);
-	fprintf (stream, "</tracescheck:state>\n");
+	fhandle_printf (stream, "</tracescheck:state>\n");
 	return;
 }
 /*}}}*/
-/*{{{  void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)*/
+/*{{{  void tracescheck_dumpnode (tchknode_t *tcn, int indent, fhandle_t *stream)*/
 /*
  *	dumps a traces check node (debugging)
  */
-void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
+void tracescheck_dumpnode (tchknode_t *tcn, int indent, fhandle_t *stream)
 {
 	tchk_isetindent (stream, indent);
 	if (!tcn) {
-		fprintf (stream, "<nullnode />\n");
+		fhandle_printf (stream, "<nullnode />\n");
 	} else {
 		switch (tcn->type) {
 			/*{{{  INVALID*/
 		case TCN_INVALID:
-			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"invalid\" />\n", (unsigned int)tcn->orgnode);
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"invalid\" />\n", (unsigned int)tcn->orgnode);
 			break;
 			/*}}}*/
 			/*{{{  SEQ,PAR,DET,NDET*/
@@ -1643,12 +1644,12 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 			{
 				int i;
 
-				fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"", (unsigned int)tcn->orgnode);
+				fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"", (unsigned int)tcn->orgnode);
 				switch (tcn->type) {
-				case TCN_SEQ:	fprintf (stream, "seq\">\n");	break;
-				case TCN_PAR:	fprintf (stream, "par\">\n");	break;
-				case TCN_DET:	fprintf (stream, "det\">\n");	break;
-				case TCN_NDET:	fprintf (stream, "ndet\">\n");	break;
+				case TCN_SEQ:	fhandle_printf (stream, "seq\">\n");	break;
+				case TCN_PAR:	fhandle_printf (stream, "par\">\n");	break;
+				case TCN_DET:	fhandle_printf (stream, "det\">\n");	break;
+				case TCN_NDET:	fhandle_printf (stream, "ndet\">\n");	break;
 				default:	break;
 				}
 
@@ -1659,34 +1660,34 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 				}
 
 				tchk_isetindent (stream, indent);
-				fprintf (stream, "</tracescheck:node>\n");
+				fhandle_printf (stream, "</tracescheck:node>\n");
 			}
 			break;
 			/*}}}*/
 			/*{{{  INPUT,OUTPUT*/
 		case TCN_INPUT:
 		case TCN_OUTPUT:
-			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"%s\">\n",
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"%s\">\n",
 					(unsigned int)tcn->orgnode, ((tcn->type == TCN_INPUT) ? "input" : "output"));
 			tracescheck_dumpnode (tcn->u.tcnio.varptr, indent + 1, stream);
 			tracescheck_dumpnode (tcn->u.tcnio.tagptr, indent + 1, stream);
 			tchk_isetindent (stream, indent);
-			fprintf (stream, "</tracescheck:node>\n");
+			fhandle_printf (stream, "</tracescheck:node>\n");
 			break;
 			/*}}}*/
 			/*{{{  FIXPOINT*/
 		case TCN_FIXPOINT:
-			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"fixpoint\">\n",
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"fixpoint\">\n",
 					(unsigned int)tcn->orgnode);
 			tracescheck_dumpnode (tcn->u.tcnfix.id, indent + 1, stream);
 			tracescheck_dumpnode (tcn->u.tcnfix.proc, indent + 1, stream);
 			tchk_isetindent (stream, indent);
-			fprintf (stream, "</tracescheck:node>\n");
+			fhandle_printf (stream, "</tracescheck:node>\n");
 			break;
 			/*}}}*/
 			/*{{{  ATOM*/
 		case TCN_ATOM:
-			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"atom\" id=\"%s\" />\n",
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"atom\" id=\"%s\" />\n",
 					(unsigned int)tcn->orgnode, tcn->u.tcnatom.id);
 			break;
 			/*}}}*/
@@ -1696,14 +1697,14 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 				tchknode_t *aref = tcn->u.tcnaref.aref;
 
 				if (aref && (aref->type == TCN_ATOM)) {
-					fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"atomref\" id=\"%s\" />\n",
+					fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"atomref\" id=\"%s\" />\n",
 							(unsigned int)tcn->orgnode, tcn->u.tcnaref.aref->u.tcnatom.id);
 				} else {
-					fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"atomref\">\n",
+					fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"atomref\">\n",
 							(unsigned int)tcn->orgnode);
 					tracescheck_dumpnode (aref, indent + 1, stream);
 					tchk_isetindent (stream, indent);
-					fprintf (stream, "</tracescheck:node>\n");
+					fhandle_printf (stream, "</tracescheck:node>\n");
 				}
 			}
 			break;
@@ -1713,40 +1714,40 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, FILE *stream)
 			{
 				tnode_t *node = tcn->u.tcnnref.nref;
 
-				fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"noderef\" addr=\"0x%8.8x\" nodetag=\"%s\" nodetype=\"%s\" />\n",
+				fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"noderef\" addr=\"0x%8.8x\" nodetag=\"%s\" nodetype=\"%s\" />\n",
 						(unsigned int)tcn->orgnode, (unsigned int)node, node->tag->name, node->tag->ndef->name);
 			}
 			break;
 			/*}}}*/
 			/*{{{  SKIP*/
 		case TCN_SKIP:
-			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"skip\" />\n", (unsigned int)tcn->orgnode);
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"skip\" />\n", (unsigned int)tcn->orgnode);
 			break;
 			/*}}}*/
 			/*{{{  STOP*/
 		case TCN_STOP:
-			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"stop\" />\n", (unsigned int)tcn->orgnode);
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"stop\" />\n", (unsigned int)tcn->orgnode);
 			break;
 			/*}}}*/
 			/*{{{  DIV*/
 		case TCN_DIV:
-			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"div\" />\n", (unsigned int)tcn->orgnode);
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"div\" />\n", (unsigned int)tcn->orgnode);
 			break;
 			/*}}}*/
 			/*{{{  CHAOS*/
 		case TCN_CHAOS:
-			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"chaos\" />\n", (unsigned int)tcn->orgnode);
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"chaos\" />\n", (unsigned int)tcn->orgnode);
 			break;
 			/*}}}*/
 			/*{{{  FIELD*/
 		case TCN_FIELD:
-			fprintf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"field\">\n", (unsigned int)tcn->orgnode);
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"field\">\n", (unsigned int)tcn->orgnode);
 			tracescheck_dumpnode (tcn->u.tcnfield.base, indent+1, stream);
 			tchk_isetindent (stream, indent+1);
-			fprintf (stream, "<tracescheck:tnode addr=\"0x%8.8x\" nodetag=\"%s\" nodetype=\"%s\" />\n",
+			fhandle_printf (stream, "<tracescheck:tnode addr=\"0x%8.8x\" nodetag=\"%s\" nodetype=\"%s\" />\n",
 					(unsigned int)tcn->u.tcnfield.field, tcn->u.tcnfield.field->tag->name, tcn->u.tcnfield.field->tag->ndef->name);
 			tchk_isetindent (stream, indent);
-			fprintf (stream, "</tracescheck:node>\n");
+			fhandle_printf (stream, "</tracescheck:node>\n");
 			break;
 			/*}}}*/
 		}
@@ -2879,7 +2880,7 @@ static int tracescheck_docheckspec_prewalk (tnode_t *node, void *arg)
 		int r;
 
 		if (compopts.tracetracescheck) {
-			fprintf (stderr, "tracescheck_docheckspec_prewalk(): calling \"tracescheck_check\" op on (%s,%s)\n",
+			fhandle_printf (FHAN_STDERR, "tracescheck_docheckspec_prewalk(): calling \"tracescheck_check\" op on (%s,%s)\n",
 					node->tag->name, node->tag->ndef->name);
 		}
 		r = tnode_calllangop (node->tag->ndef->lops, "tracescheck_check", 2, node, tcc);
@@ -2925,14 +2926,14 @@ int tracescheck_docheckspec (tnode_t *spec, tchk_traces_t *traces, tchk_state_t 
 	tcc->spec = spec;
 
 	if (compopts.tracetracescheck) {
-		fprintf (stderr, "tracescheck_docheckspec(): checking specification against traces..\n");
+		fhandle_printf (FHAN_STDERR, "tracescheck_docheckspec(): checking specification against traces..\n");
 	}
 
 #if 0
 fprintf (stderr, "tracescheck_docheckspec(): specification is:\n");
 tnode_dumptree (spec, 1, stderr);
 fprintf (stderr, "tracescheck_docheckspec(): traces were:\n");
-tracescheck_dumptraces (traces, 1, stderr);
+tracescheck_dumptraces (traces, 1, FHAN_STDERR);
 #endif
 
 	if (!DA_CUR (traces->items)) {

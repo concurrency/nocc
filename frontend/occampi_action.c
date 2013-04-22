@@ -1,6 +1,6 @@
 /*
  *	occampi_action.c -- occam-pi action handling for NOCC
- *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -79,19 +80,19 @@ static chook_t *opi_action_lhstypehook = NULL;
  */
 
 
-/*{{{  static void occampi_action_dumplhstypehook (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void occampi_action_dumplhstypehook (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	used to dump the occampi:action:lhstype compiler hook (debugging)
  */
-static void occampi_action_dumplhstypehook (tnode_t *node, void *hook, int indent, FILE *stream)
+static void occampi_action_dumplhstypehook (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	tnode_t *lhstype = (tnode_t *)hook;
 
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "<chook id=\"occampi:action:lhstype\" addr=\"0x%8.8x\">\n", (unsigned int)hook);
+	fhandle_printf (stream, "<chook id=\"occampi:action:lhstype\" addr=\"0x%8.8x\">\n", (unsigned int)hook);
 	tnode_dumptree (lhstype, indent + 1, stream);
 	occampi_isetindent (stream, indent);
-	fprintf (stream, "</chook>\n");
+	fhandle_printf (stream, "</chook>\n");
 	return;
 }
 /*}}}*/
@@ -708,7 +709,7 @@ static int occampi_codegen_action (compops_t *cops, tnode_t *node, codegen_t *cg
 
 #if 1
 fprintf (stderr, "occampi_codegen_action(): %s: bytes = %d, type =\n", node->tag->name, bytes);
-tnode_dumptree (type, 1, stderr);
+tnode_dumptree (type, 1, FHAN_STDERR);
 #endif
 	if (!lhstype) {
 		lhstype = typecheck_gettype (lhs, NULL);

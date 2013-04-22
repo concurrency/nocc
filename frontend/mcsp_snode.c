@@ -1,6 +1,6 @@
 /*
  *	mcsp_snode.c -- structured nodes for MCSP (choice)
- *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -69,18 +70,18 @@ static chook_t *guardexphook = NULL;
 /*}}}*/
 
 
-/*{{{  static void mcsp_guardexphook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void mcsp_guardexphook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	display the contents of a guardexphook compiler hook (just a node)
  */
-static void mcsp_guardexphook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void mcsp_guardexphook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	if (chook) {
 		mcsp_isetindent (stream, indent);
-		fprintf (stream, "<mcsp:guardexphook addr=\"0x%8.8x\">\n", (unsigned int)chook);
+		fhandle_printf (stream, "<mcsp:guardexphook addr=\"0x%8.8x\">\n", (unsigned int)chook);
 		tnode_dumptree ((tnode_t *)chook, indent + 1, stream);
 		mcsp_isetindent (stream, indent);
-		fprintf (stream, "</mcsp:guardexphook>\n");
+		fhandle_printf (stream, "</mcsp:guardexphook>\n");
 	}
 	return;
 }

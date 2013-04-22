@@ -1,6 +1,6 @@
 /*
  *	scope.c -- nocc scoper
- *	Copyright (C) 2004 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -292,7 +293,7 @@ int scope_tree (tnode_t *t, langparser_t *lang)
 
 	if (compopts.dumpnames) {
 		/* bit hackish perhaps (moved out from main) */
-		name_dumpnames (stderr);
+		name_dumpnames (FHAN_STDERR);
 	}
 
 	return r;

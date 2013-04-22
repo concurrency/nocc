@@ -1,6 +1,6 @@
 /*
  *	occampi_snode.c -- occam-pi structured processes for NOCC (IF, ALT, etc.)
- *	Copyright (C) 2005-2008 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -73,18 +74,18 @@ static chook_t *actionlhstypechook = NULL;
 /*}}}*/
 
 
-/*{{{  static void occampi_guardexphook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_guardexphook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	display the contents of a guardexphook compiler hook (just a node)
  */
-static void occampi_guardexphook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void occampi_guardexphook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	if (chook) {
 		occampi_isetindent (stream, indent);
-		fprintf (stream, "<occampi:guardexphook addr=\"0x%8.8x\">\n", (unsigned int)chook);
+		fhandle_printf (stream, "<occampi:guardexphook addr=\"0x%8.8x\">\n", (unsigned int)chook);
 		tnode_dumptree ((tnode_t *)chook, indent + 1, stream);
 		occampi_isetindent (stream, indent);
-		fprintf (stream, "</occampi:guardexphook>\n");
+		fhandle_printf (stream, "</occampi:guardexphook>\n");
 	}
 	return;
 }
@@ -108,15 +109,15 @@ static void *occampi_guardexphook_copy (void *chook)
 }
 /*}}}*/
 
-/*{{{  static void occampi_branchlabelhook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)*/
+/*{{{  static void occampi_branchlabelhook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)*/
 /*
  *	display the contents of a branchlabelhook compiler hook (numeric label)
  */
-static void occampi_branchlabelhook_dumptree (tnode_t *node, void *chook, int indent, FILE *stream)
+static void occampi_branchlabelhook_dumptree (tnode_t *node, void *chook, int indent, fhandle_t *stream)
 {
 	if (chook) {
 		occampi_isetindent (stream, indent);
-		fprintf (stream, "<occampi:branchlabelhook label=\"%d\" />\n", (unsigned int)chook);
+		fhandle_printf (stream, "<occampi:branchlabelhook label=\"%d\" />\n", (unsigned int)chook);
 	}
 	return;
 }

@@ -1,6 +1,6 @@
 /*
  *	eac_code.c -- EAC for NOCC
- *	Copyright (C) 2011 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2011-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "fcnlib.h"
 #include "symbols.h"
 #include "keywords.h"
@@ -109,14 +110,14 @@ static void *eac_rawnamenode_hook_copy (void *hook)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static void eac_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)*/
+/*{{{  static void eac_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
  *	dump-tree for rawnamenode hook (name-bytes)
  */
-static void eac_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, FILE *stream)
+static void eac_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	eac_isetindent (stream, indent);
-	fprintf (stream, "<eacrawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
+	fhandle_printf (stream, "<eacrawnamenode value=\"%s\" />\n", hook ? (char *)hook : "(null)");
 	return;
 }
 /*}}}*/
@@ -605,9 +606,9 @@ tnode_dumptree (seqs[i], 1, stderr);
 		}
 #if 1
 fprintf (stderr, "first pass over set done, got outvars =\n");
-tnode_dumptree (outvars, 1, stderr);
+tnode_dumptree (outvars, 1, FHAN_STDERR);
 fprintf (stderr, ".. and inseqs =\n");
-tnode_dumptree (inseqs, 1, stderr);
+tnode_dumptree (inseqs, 1, FHAN_STDERR);
 #endif
 
 		tnode_free (*esetp);
@@ -1069,7 +1070,7 @@ int eac_evaluate (const char *str, const int interactive_mode)
 	printf ("%s\n", resstr);
 
 	if (compopts.verbose) {
-		tnode_dumptree (tree, 1, stderr);
+		tnode_dumptree (tree, 1, FHAN_STDERR);
 	}
 	if (interactive_mode == EAC_DEF) {
 		/* tree added to names in parser */
@@ -1132,7 +1133,7 @@ int eac_parseprintexp (const char *str)
 	printf ("%s\n", resstr);
 
 	if (compopts.verbose) {
-		tnode_dumptree (tree, 1, stdout);
+		tnode_dumptree (tree, 1, FHAN_STDOUT);
 	}
 	tnode_free (tree);
 
@@ -1568,7 +1569,7 @@ static int eac_typecheck_instancenode (compops_t *cops, tnode_t *node, typecheck
 
 #if 0
 fprintf (stderr, "eac_typecheck_instancenode(): instance of:\n");
-tnode_dumptree (inst, 1, stderr);
+tnode_dumptree (inst, 1, FHAN_STDERR);
 #endif
 	/* FIXME: check 'inst' is a process definition, and that parameter counts match */
 	/* also check that parameters are variables, not process names */
@@ -1706,7 +1707,7 @@ eac_typecheck_pcompnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 	if (node->tag == eac.tag_HIDE) {
 #if 0
 		fprintf(stderr, "____eac_typecheck_hidenode___\n");
-		tnode_dumpstree (node, 1, stderr);
+		tnode_dumpstree (node, 1, FHAN_STDERR);
 		fprintf(stderr, "________\n");
 #endif
 		lhs = tnode_nthsubof (node, 0);
@@ -1720,7 +1721,7 @@ eac_typecheck_pcompnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 			/* check each param is a var */
 #if 0
 			fprintf(stderr, "____eac_typecheck_hidenode: [RHS:%d]___\n",i);
-			tnode_dumpstree (varlist[i], 1, stderr);
+			tnode_dumpstree (varlist[i], 1, FHAN_STDERR);
 			fprintf(stderr, "________\n");
 #endif
 			if (!(varlist[i]->tag == eac.tag_NCHANVAR)) {
@@ -1839,7 +1840,7 @@ eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 			typecheck_error (node, tc, "Item on LHS of %s is not a name.",
 					(node->tag == eac.tag_INPUT ? "INPUT" : "OUTPUT"));
 #if 0
-			tnode_dumptree(lhs, 1, stderr);
+			tnode_dumptree(lhs, 1, FHAN_STDERR);
 			fprintf(stderr, "\n\n");
 #endif
 			return 1;
@@ -1860,7 +1861,7 @@ eac_typecheck_actionnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 			typecheck_error (node, tc, "Item on RHS of %s is not a name.",
 					(node->tag == eac.tag_INPUT ? "INPUT" : "OUTPUT"));
 #if 0
-			tnode_dumptree(rhs, 1, stderr);
+			tnode_dumptree(rhs, 1, FHAN_STDERR);
 #endif
 			return 1;
 		}
