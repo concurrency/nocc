@@ -12,6 +12,8 @@
 nocc
 tests/test_*.hex
 tests/test_*.lst
+tests/test_*.xml
+tests/test_*.xlo
 
 # Possibly dangerous..
 config.h
