@@ -393,6 +393,7 @@ int file_unix_init (void)
 	unix_fhscheme->printffcn = unix_printffcn;
 	unix_fhscheme->writefcn = unix_writefcn;
 	unix_fhscheme->readfcn = unix_readfcn;
+	unix_fhscheme->getsfcn = unix_getsfcn;
 	unix_fhscheme->flushfcn = unix_flushfcn;
 
 	if (fhandle_registerscheme (unix_fhscheme)) {

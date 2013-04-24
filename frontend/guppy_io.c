@@ -90,7 +90,7 @@ static int guppy_typecheck_io (compops_t *cops, tnode_t *node, typecheck_t *tc)
 	prot = typecheck_getsubtype (lhstype, NULL);
 	rhstype = typecheck_gettype (tnode_nthsubof (node, 1), prot);
 
-#if 1
+#if 0
 fprintf (stderr, "guppy_typecheck_io(): got lhstype = \n");
 tnode_dumptree (lhstype, 1, FHAN_STDERR);
 fprintf (stderr, "guppy_typecheck_io(): got rhstype = \n");

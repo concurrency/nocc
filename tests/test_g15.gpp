@@ -1,0 +1,13 @@
+
+# test_g15.gpp -- testing guppy compiler
+
+@comment "author:Fred Barnes"
+
+define test_g15 (chan!(char) screen)
+  val string msg is "Hello, world!\n"
+
+  seq i = 0 for size msg
+    screen ! msg[i]
+
+end
+

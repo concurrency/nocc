@@ -1,6 +1,6 @@
 /*
  *	guppy_cnode.c -- constructor nodes for Guppy
- *	Copyright (C) 2010 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2010-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -136,6 +137,75 @@ static int guppy_flattenseq_cnode (compops_t *cops, tnode_t **nodeptr)
 /*}}}*/
 
 
+/*{{{  static int guppy_scopein_replcnode (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
+/*
+ *	does scope-in for a replicated constructor node.
+ *	returns 0 to stop walk, 1 to continue.
+ */
+static int guppy_scopein_replcnode (compops_t *cops, tnode_t **nodep, scope_t *ss)
+{
+	tnode_t **bodyp = tnode_nthsubaddr (*nodep, 1);
+	tnode_t **rnamep = tnode_nthsubaddr (*nodep, 2);
+	tnode_t *rname = *rnamep;
+	tnode_t **rstartp = tnode_nthsubaddr (*nodep, 3);
+	tnode_t **rcountp = tnode_nthsubaddr (*nodep, 4);
+	void *nsmark;
+
+	if (*rstartp) {
+		scope_subtree (rstartp, ss);
+	}
+	if (*rcountp) {
+		scope_subtree (rcountp, ss);
+	}
+
+	nsmark = name_markscope ();
+
+	if (rname) {
+		char *rawname;
+		name_t *repname;
+		tnode_t *type, *newname;
+
+		/* only if we have a name for this */
+		if (rname->tag != gup.tag_NAME) {
+			scope_error (*nodep, ss, "replicator name not raw-name, found [%s:%s]", rname->tag->ndef->name, rname->tag->name);
+			return 0;
+		}
+		rawname = (char *)tnode_nthhookof (rname, 0);
+
+		type = guppy_newprimtype (gup.tag_INT, rname, 0);
+		repname = name_addscopename (rawname, *nodep, type, NULL);
+		newname = tnode_createfrom (gup.tag_NREPL, rname, repname);
+		SetNameNode (repname, newname);
+
+		*rnamep = newname;
+		tnode_free (rname);
+		rname = NULL;
+
+		ss->scoped++;
+	}
+
+	/* scope-in body */
+	if (*bodyp) {
+		scope_subtree (bodyp, ss);
+	}
+
+	name_markdescope (nsmark);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_scopeout_replcnode (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
+/*
+ *	does scope-out for a replicated constructor node (no-op).
+ *	return value meaningless (post-walk).
+ */
+static int guppy_scopeout_replcnode (compops_t *cops, tnode_t **nodep, scope_t *ss)
+{
+	return 1;
+}
+/*}}}*/
+
+
 /*{{{  static int guppy_cnode_init_nodes (void)*/
 /*
  *	called to initialise parse-tree nodes for constructors
@@ -165,6 +235,21 @@ static int guppy_cnode_init_nodes (void)
 	i = -1;
 	gup.tag_PAR = tnode_newnodetag ("PAR", &i, tnd, NTF_INDENTED_PROC_LIST);
 
+	/*}}}*/
+	/*{{{  guppy:replcnode -- REPLSEQ, REPLPAR*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:replcnode", &i, 5, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = expr/operand/parspaceref; 1 = body; 2 = repl-name; 3 = start-expr; 4 = count-expr */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_replcnode));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (guppy_scopeout_replcnode));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_REPLSEQ = tnode_newnodetag ("REPLSEQ", &i, tnd, NTF_INDENTED_PROC_LIST);
+	i = -1;
+	gup.tag_REPLPAR = tnode_newnodetag ("REPLPAR", &i, tnd, NTF_INDENTED_PROC_LIST);
 	/*}}}*/
 
 	return 0;

@@ -3245,8 +3245,12 @@ int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)
 		return -1;
 	}
 	if (compopts.debugparser) {
-		nocc_message ("dfa_advance(): dfa->cur = 0x%8.8x  TS=%d  NS=%d  RES=0x%8.8x  [%s], token = [%s]", (unsigned int)cnode, DA_CUR (pp->tokstack), DA_CUR ((*dfast)->nodestack),
-				(unsigned int)((*dfast)->local), (cnode->dfainfo ? ((nameddfa_t *)(cnode->dfainfo))->name : "??"), lexer_stokenstr (tok));
+		char *dfaname = cnode->dfainfo ? ((nameddfa_t *)cnode->dfainfo)->name : "*unknown*";
+
+		nocc_message ("dfa_advance(): dfa->cur = 0x%8.8x [%s]  TS=%d  NS=%d  RES=0x%8.8x  [%s], token = [%s]",
+				(unsigned int)cnode, dfaname, DA_CUR (pp->tokstack), DA_CUR ((*dfast)->nodestack),
+				(unsigned int)((*dfast)->local), (cnode->dfainfo ? ((nameddfa_t *)(cnode->dfainfo))->name : "??"),
+				lexer_stokenstr (tok));
 	}
 	/* check for a matched exit transition */
 	for (i=0; i<DA_CUR (cnode->match); i++) {

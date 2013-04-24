@@ -182,11 +182,25 @@ tnode_t *guppy_makereallit (tnode_t *type, tnode_t *org, const double value)
 	memcpy (ldat->data, &value, sizeof (double));
 	ldat->littype = REAL;
 
-	if (!org) {
-		lnode = tnode_create (gup.tag_LITINT, NULL, type, ldat);
-	} else {
-		lnode = tnode_createfrom (gup.tag_LITINT, org, type, ldat);
-	}
+	lnode = tnode_createfrom (gup.tag_LITINT, org, type, ldat);
+
+	return lnode;
+}
+/*}}}*/
+/*{{{  tnode_t *guppy_makestringlit (tnode_t *type, tnode_t *org, const char *value)*/
+/*
+ *	creates a new string literal (as a node)
+ */
+tnode_t *guppy_makestringlit (tnode_t *type, tnode_t *org, const char *value)
+{
+	guppy_litdata_t *ldat = guppy_newlitdata ();
+	tnode_t *lnode;
+
+	ldat->data = (void *)string_dup (value);
+	ldat->bytes = strlen (value);
+	ldat->littype = STRING;
+
+	lnode = tnode_createfrom (gup.tag_LITSTRING, org, type, ldat);
 
 	return lnode;
 }
@@ -306,7 +320,7 @@ static tnode_t *guppy_gettype_litnode (langops_t *lops, tnode_t *node, tnode_t *
 			int typesize = tnode_bytesfor (default_type, NULL);
 			int issigned = tnode_issigned (default_type, NULL);
 
-#if 0
+#if 1
 fprintf (stderr, "guppy_gettype_litnode(): ldat->bytes=%d, issigned=%d, typesize=%d\n", ldat->bytes, issigned, typesize);
 #endif
 			if ((node->tag == gup.tag_LITINT) && (typesize < ldat->bytes)) {
@@ -331,7 +345,29 @@ static int guppy_isconst_litnode (langops_t *lops, tnode_t *node)
 }
 /*}}}*/
 
+/*{{{  static int guppy_typecheck_litnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a literal node;  for certain things, populates the type
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_typecheck_litnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	if (node->tag == gup.tag_LITSTRING) {
+		tnode_t **tptr = tnode_nthsubaddr (node, 0);
+		guppy_litdata_t *ldat = (guppy_litdata_t *)tnode_nthhookof (node, 0);
 
+		if (*tptr) {
+			return 0;		/* already got it, oddly.. */
+		} else if (!ldat) {
+			nocc_internal ("guppy_typecheck_litnode(): no litdata_t attached to LITSTRING..");
+			return 0;
+		}
+		*tptr = guppy_newprimtype (gup.tag_STRING, node, ldat->bytes);
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_codegen_litnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a literal node
@@ -403,6 +439,7 @@ static int guppy_lit_init_nodes (void)
 	tnd->hook_copy = guppy_litnode_hook_copy;
 	tnd->hook_dumptree = guppy_litnode_hook_dumptree;
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_litnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_litnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();

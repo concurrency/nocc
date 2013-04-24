@@ -14,6 +14,7 @@
 
 .GRULE	"gup:nullreduce" "N+R-"
 .GRULE	"gup:nullpush" "0N-"
+.GRULE	"gup:null2push" "0N-0N-"
 .GRULE	"gup:nullset" "0R-"
 
 .GRULE	"gup:testtrue" "T*C[TESTTRUE]0R-"
@@ -65,8 +66,9 @@
 .GRULE	"gup:namereduce" "T+St0X[guppy_nametoken_to_hook]C[NAME]1R-"
 .GRULE	"gup:namepush" "T+St0X[guppy_nametoken_to_hook]C[NAME]1N-"
 
-.GRULE	"gup:fparam2nsreduce" "N+Sn0N+C[FPARAM]2M[fparam][FPARAM]R-"
-.GRULE	"gup:vardeclreduce" "N+N+C[VARDECL]2R-"
+.GRULE	"gup:fparam2nsreduce" "N+Sn0N+0C[FPARAM]3M[fparam][FPARAM]R-"
+.GRULE	"gup:vardeclreduce" "N+N+0C[VARDECL]3R-"
+.GRULE	"gup:valdeclreduce" "N+N+0C[VALDECL]3R-"
 
 .GRULE	"gup:enumreduce" "SN0N+0C[ENUMDEF]2R-"
 
@@ -75,19 +77,22 @@
 
 .TABLE	"guppy:expr +:= [ 0 guppy:name 1 ] [ 1 {<gup:nullreduce>} -* 2 ] [ 2 -* <guppy:restofexpr> ]"
 
-.TABLE	"guppy:fparam ::= [ 0 guppy:primtype 1 ] [ 1 guppy:name 2 ] [ 2 {<gup:fparam2nsreduce>} -* ]"
+.TABLE	"guppy:fparam ::= [ 0 guppy:type 1 ] [ 1 guppy:name 2 ] [ 2 {<gup:fparam2nsreduce>} -* ]"
 
 .BNF	"guppy:fparamlist ::= ( -@@) {<gup:nullset>} | { guppy:fparam @@, 1 } )"
 
 .TABLE	"guppy:otherdecl +:= [ 0 guppy:type 1 ] [ 1 guppy:nameandassignlist 2 ] [ 2 {<gup:vardeclreduce>} -* ]"
 
-.TABLE	"guppy:testfordecl +:= [ 0 +@int 1 ] [ 0 +@real 1 ] [ 0 +@bool 1 ] [ 0 +@byte 1 ] [ 0 +@char 1 ] [ 0 +@string 1 ] [ 0 +@chan 1 ]"
+.TABLE	"guppy:otherdecl +:= [ 0 @val 1 ] [ 1 guppy:type 2 ] [ 2 guppy:nameandassignlist 3 ] [ 3 {<gup:valdeclreduce>} -* ]"
+
+.TABLE	"guppy:testfordecl +:= [ 0 +@val 1 ] [ 0 +@int 1 ] [ 0 +@real 1 ] [ 0 +@bool 1 ] [ 0 +@byte 1 ] [ 0 +@char 1 ] [ 0 +@string 1 ] [ 0 +@chan 1 ]"
 	"[ 1 {<gup:testtrue>} -* ]"
 
 .TABLE	"guppy:definedecl +:= [ 0 @enum 1 ] [ 1 guppy:name 2 ] [ 2 {<gup:enumreduce>} -* ]"
 
-.TABLE	"guppy:nameandassign ::= [ 0 guppy:name 1 ] [ 1 @@= 3 ] [ 1 -* 2 ] [ 2 {<gup:nullreduce>} -* ]"
+.TABLE	"guppy:nameandassign ::= [ 0 guppy:name 1 ] [ 1 @@= 3 ] [ 1 @is 5 ] [ 1 -* 2 ] [ 2 {<gup:nullreduce>} -* ]"
 	"[ 3 guppy:expr 4 ] [ 4 {<gup:assignreduce>} -* ]"
+	"[ 5 guppy:expr 6 ] [ 6 {<gup:isreduce>} -* ]"
 
 .BNF	"guppy:nameandassignlist ::= { guppy:nameandassign @@, 1 }"
 
@@ -99,8 +104,11 @@
 .SECTION "guppy-lit" # {{{: literals
 
 .GRULE	"gup:litintreduce" "T+St0X[guppy_token_to_lithook]0VC[LITINT]2R-"
+.GRULE	"gup:litrealreduce" "T+St0X[guppy_token_to_lithook]0VC[LITREAL]2R-"
+.GRULE	"gup:litstringreduce" "T+St0X[guppy_token_to_lithook]0VC[LITSTRING]2R-"
 
-.TABLE	"guppy:literal ::= [ 0 +Integer 1 ] [ 1 {<gup:litintreduce>} -* ]"
+.TABLE	"guppy:literal ::= [ 0 +Integer 1 ] [ 1 {<gup:litintreduce>} -* ] [ 0 +Real 2 ] [ 2 {<gup:litrealreduce>} -* ]"
+			"[ 0 +String 3 ] [ 3 {<gup:litstringreduce>} -* ]"
 
 .TABLE	"guppy:expr +:= [ 0 guppy:literal 1 ] [ 1 {<gup:nullreduce>} -* 2 ] [ 2 -* <guppy:restofexpr> ]"
 
@@ -116,6 +124,7 @@
 	"[ 2 @@( 3 ] [ 3 guppy:type 4 ] [ 4 @@) 5 ] [ 5 {Rguppy:chantype} -* ]"
 
 .BNF	"guppy:type ::= ( guppy:primtype {<gup:nullreduce>} | guppy:chantype {<gup:nullreduce>} )"
+
 
 # }}}
 .SECTION "guppy-fcndef" # {{{: function/procedure definitions
@@ -139,8 +148,12 @@
 .GRULE	"gup:seqreduce" "T+St0@t00C[SEQ]2R-"
 .GRULE	"gup:parreduce" "T+St0@t00C[PAR]2R-"
 
+.GRULE	"gup:replseqreduce" "T+St0@tN+N+N+00V*C[REPLSEQ]5R-"
+
 .TABLE	"guppy:cnode ::= [ 0 +@seq 1 ] [ 1 -Newline 2 ] [ 2 {<gup:seqreduce>} -* ]"
-	"[ 0 +@par 3 ] [ 3 -Newline 4 ] [ 4 {<gup:parreduce>} -* ]"
+	"[ 1 guppy:name 3 ] [ 3 @@= 4 ] [ 4 guppy:expr 5 ] [ 5 @for 6 ] [ 6 guppy:expr 7 ] [ 7 {<gup:replseqreduce>} -* ]"
+	"[ 1 @for 8 ] [ 8 {<gup:null2push>} -* 6 ]"
+	"[ 0 +@par 9 ] [ 9 -Newline 10 ] [ 10 {<gup:parreduce>} -* ]"
 
 # }}}
 .SECTION "guppy-cflow" # {{{: control-flow processes
@@ -153,6 +166,7 @@
 .SECTION "guppy-assign" # {{{: assignment
 
 .GRULE	"gup:assignreduce" "SN0N+N+V0C[ASSIGN]3R-"
+.GRULE	"gup:isreduce" "SN0N+N+V0C[IS]3R-"
 
 .TABLE	"guppy:oneassign ::= [ 0 guppy:name 1 ] [ 1 @@= 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:assignreduce>} -* ]"
 
@@ -172,11 +186,22 @@
 
 .GRULE	"gup:foldaddreduce" "R+N+Sn00C[ADD]3R-"
 .GRULE	"gup:foldsubreduce" "R+N+Sn00C[SUB]3R-"
+.GRULE	"gup:sizereduce" "SN0N+0C[SIZE]2R-"
+.GRULE	"gup:bytesinreduce" "SN0N+0C[BYTESIN]2R-"
+.GRULE	"gup:foldarraysub" "R+N+Sn00C[ARRAYSUB]3R-"
+
+# array/record things are fundamentally types, so..
+
+.TABLE	"guppy:expr +:= [ 0 @size 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:sizereduce>} -* ]"
+.TABLE	"guppy:expr +:= [ 0 @bytesin 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:bytesinreduce>} -* ]"
+
 
 # for "guppy:restofexpr" existing expression is result already
 .TABLE	"guppy:restofexpr +:= [ 0 @@+ 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:foldaddreduce>} -* ]"
 	"[ 0 @@- 3 ] [ 3 guppy:expr 4 ] [ 4 {<gup:foldsubreduce>} -* ]"
 	"[ 0 -* ]"
+
+.TABLE	"guppy:restofexpr +:= [ 0 @@[ 1 ] [ 1 guppy:expr 2 ] [ 2 @@] 3 ] [ 3 {<gup:foldarraysub>} -* <guppy:restofexpr> ]"
 
 # }}}
 

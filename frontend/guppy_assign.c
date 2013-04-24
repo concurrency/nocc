@@ -1,6 +1,6 @@
 /*
  *	guppy_assign.c -- assignment for Guppy
- *	Copyright (C) 2010 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2010-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -103,7 +104,7 @@ static int guppy_assign_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
-	/*{{{  guppy:assign -- ASSIGN*/
+	/*{{{  guppy:assign -- ASSIGN, IS*/
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:assign", &i, 3, 0, 0, TNF_NONE);		/* subnodes: 0 = LHS, 1 = RHS, 2 = type */
 	cops = tnode_newcompops ();
@@ -115,6 +116,8 @@ static int guppy_assign_init_nodes (void)
 
 	i = -1;
 	gup.tag_ASSIGN = tnode_newnodetag ("ASSIGN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_IS = tnode_newnodetag ("IS", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

@@ -474,6 +474,7 @@ int tnode_init (void)
 	tnode_newlangop ("dimtreeof_node", LOPS_DIMTREEOF_NODE, 2, INTERNAL_ORIGIN);
 	tnode_newlangop ("bytesforparam", LOPS_BYTESFORPARAM, 2, INTERNAL_ORIGIN);
 	tnode_newlangop ("getctypeof", LOPS_GETCTYPEOF, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("knownsizeof", LOPS_KNOWNSIZEOF, 1, INTERNAL_ORIGIN);
 
 	/*}}}*/
 	/*{{{  setup the static node types*/
@@ -1249,7 +1250,7 @@ tnode_t *tnode_create (ntdef_t *tag, lexfile_t *lf, ...)
 		}
 	}
 	va_end (ap);
-	
+
 	return tmp;
 }
 /*}}}*/
@@ -1266,8 +1267,8 @@ tnode_t *tnode_createfrom (ntdef_t *tag, tnode_t *src, ...)
 	tmp = (tnode_t *)smalloc (sizeof (tnode_t));
 	memset (tmp, 0, sizeof (tnode_t));
 	tmp->tag = tag;
-	tmp->org_file = src->org_file;
-	tmp->org_line = src->org_line;
+	tmp->org_file = src ? src->org_file : NULL;
+	tmp->org_line = src ? src->org_line : 0;
 
 	dynarray_init (tmp->items);
 	dynarray_setsize (tmp->items, tag->ndef->nsub + tag->ndef->nname + tag->ndef->nhooks);
@@ -2778,6 +2779,18 @@ int tnode_issigned (tnode_t *t, target_t *target)
 {
 	if (t && t->tag->ndef->lops && tnode_haslangop_i (t->tag->ndef->lops, (int)LOPS_ISSIGNED)) {
 		return tnode_calllangop_i (t->tag->ndef->lops, (int)LOPS_ISSIGNED, 2, t, target);
+	}
+	return -1;		/* don't know */
+}
+/*}}}*/
+/*{{{  int tnode_knownsizeof (tnode_t *t)*/
+/*
+ *	returns the "known-size" of a tree-node (usually for constant array types), or -1 if unknown
+ */
+int tnode_knownsizeof (tnode_t *t)
+{
+	if (t && t->tag->ndef->lops && tnode_haslangop_i (t->tag->ndef->lops, (int)LOPS_KNOWNSIZEOF)) {
+		return tnode_calllangop_i (t->tag->ndef->lops, (int)LOPS_KNOWNSIZEOF, 1, t);
 	}
 	return -1;		/* don't know */
 }

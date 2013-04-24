@@ -209,6 +209,7 @@ typedef enum ENUM_langops {
 	LOPS_DIMTREEOF_NODE = 39,		/* 2: tnode_t *, tnode_t * -> tnode_t * */
 	LOPS_BYTESFORPARAM = 40,		/* 2: tnode_t *, target_t * -> int */
 	LOPS_GETCTYPEOF = 41,			/* 2: tnode_t *, char ** -> int */
+	LOPS_KNOWNSIZEOF = 42,			/* 1: tnode_t * -> int */
 	LOPS_MAX = 256
 } langops_e;
 
@@ -345,6 +346,7 @@ extern char *tnode_statictextlocationof (tnode_t *t);
 
 extern int tnode_bytesfor (tnode_t *t, struct TAG_target *target);
 extern int tnode_issigned (tnode_t *t, struct TAG_target *target);
+extern int tnode_knownsizeof (tnode_t *t);
 
 extern void tnode_message (tnode_t *t, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 extern void tnode_warning (tnode_t *t, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));

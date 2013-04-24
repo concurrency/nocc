@@ -52,6 +52,8 @@ typedef struct {
 	struct TAG_tndef *node_LEAFNODE;
 	struct TAG_tndef *node_TYPENODE;
 
+	struct TAG_ntdef *tag_PPCOMMENT;
+
 	struct TAG_ntdef *tag_BOOL;
 	struct TAG_ntdef *tag_BYTE;
 	struct TAG_ntdef *tag_INT;			/* caters for all integer types (sizes and signedness) */
@@ -62,6 +64,8 @@ typedef struct {
 	struct TAG_ntdef *tag_CHAN;
 	struct TAG_ntdef *tag_NAME;
 
+	struct TAG_ntdef *tag_ARRAY;
+
 	struct TAG_ntdef *tag_LITINT;
 	struct TAG_ntdef *tag_LITREAL;
 	struct TAG_ntdef *tag_LITCHAR;
@@ -70,12 +74,16 @@ typedef struct {
 
 	struct TAG_ntdef *tag_FCNDEF;
 	struct TAG_ntdef *tag_VARDECL;
+	struct TAG_ntdef *tag_VALDECL;
 	struct TAG_ntdef *tag_FPARAM;
 	struct TAG_ntdef *tag_DECLBLOCK;
 	struct TAG_ntdef *tag_ENUMDEF;
 
 	struct TAG_ntdef *tag_SEQ;
 	struct TAG_ntdef *tag_PAR;
+
+	struct TAG_ntdef *tag_REPLSEQ;
+	struct TAG_ntdef *tag_REPLPAR;
 
 	struct TAG_ntdef *tag_NDECL;
 	struct TAG_ntdef *tag_NABBR;
@@ -100,12 +108,19 @@ typedef struct {
 	struct TAG_ntdef *tag_WHILE;
 
 	struct TAG_ntdef *tag_ASSIGN;
+	struct TAG_ntdef *tag_IS;
 
 	struct TAG_ntdef *tag_INPUT;
 	struct TAG_ntdef *tag_OUTPUT;
 
 	struct TAG_ntdef *tag_ADD;
 	struct TAG_ntdef *tag_SUB;
+
+	struct TAG_ntdef *tag_SIZE;
+	struct TAG_ntdef *tag_BYTESIN;
+
+	struct TAG_ntdef *tag_ARRAYSUB;
+
 
 	struct TAG_token *tok_ATSIGN;
 	struct TAG_token *tok_STRING;
@@ -150,11 +165,13 @@ extern int guppy_declify_listtodecllist_single (struct TAG_tnode **, guppy_decli
 extern int guppy_autoseq_subtree (struct TAG_tnode **, guppy_autoseq_t *);
 extern int guppy_declify_subtree (struct TAG_tnode **, guppy_declify_t *);
 extern int guppy_flattenseq_subtree (struct TAG_tnode **);
+extern int guppy_postscope_subtree (struct TAG_tnode **);
 
 extern struct TAG_tnode *guppy_newprimtype (struct TAG_ntdef *tag, struct TAG_tnode *org, const int size);
 
 extern struct TAG_tnode *guppy_makeintlit (struct TAG_tnode *type, struct TAG_tnode *org, const int value);
 extern struct TAG_tnode *guppy_makereallit (struct TAG_tnode *type, struct TAG_tnode *org, const double value);
+extern struct TAG_tnode *guppy_makestringlit (struct TAG_tnode *type, struct TAG_tnode *org, const char *value);
 
 /* front-end units */
 extern struct TAG_feunit guppy_assign_feunit;		/* guppy_assign.c */
@@ -163,10 +180,11 @@ extern struct TAG_feunit guppy_cnode_feunit;		/* guppy_cnode.c */
 extern struct TAG_feunit guppy_decls_feunit;		/* guppy_decls.c */
 extern struct TAG_feunit guppy_fcndef_feunit;		/* guppy_fcndef.c */
 extern struct TAG_feunit guppy_io_feunit;		/* guppy_io.c */
+extern struct TAG_feunit guppy_lit_feunit;		/* guppy_lit.c */
+extern struct TAG_feunit guppy_misc_feunit;		/* guppy_misc.c */
+extern struct TAG_feunit guppy_oper_feunit;		/* guppy_oper.c */
 extern struct TAG_feunit guppy_primproc_feunit;		/* guppy_primproc.c */
 extern struct TAG_feunit guppy_types_feunit;		/* guppy_types.c */
-extern struct TAG_feunit guppy_lit_feunit;		/* guppy_lit.c */
-extern struct TAG_feunit guppy_oper_feunit;		/* guppy_oper.c */
 
 /* these are for language units to use in reductions */
 extern void *guppy_nametoken_to_hook (void *ntok);

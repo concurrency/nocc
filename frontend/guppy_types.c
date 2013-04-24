@@ -73,11 +73,16 @@
 typedef struct TAG_primtypehook {
 	int size;						/* bit-size for some primitive types */
 	int sign;						/* whether or not this is a signed type */
+	int strlen;						/* for strings, length in characters (or -1) */
 } primtypehook_t;
 
 typedef struct TAG_chantypehook {
 	int marked_svr, marked_cli;				/* whether marked as client or server (or neither) */
 } chantypehook_t;
+
+typedef struct TAG_arraytypehook {
+	int known_size;						/* constant known size or -1 */
+} arraytypehook_t;
 
 /*}}}*/
 
@@ -92,6 +97,7 @@ static primtypehook_t *guppy_newprimtypehook (void)
 
 	pth->size = 0;
 	pth->sign = 1;
+	pth->strlen = -1;
 	return pth;
 }
 /*}}}*/
@@ -134,6 +140,31 @@ static void guppy_freechantypehook (chantypehook_t *cth)
 	sfree (cth);
 }
 /*}}}*/
+/*{{{  static arraytypehook_t *guppy_newarraytypehook (void)*/
+/*
+ *	creates a new arraytypehook_t
+ */
+static arraytypehook_t *guppy_newarraytypehook (void)
+{
+	arraytypehook_t *ath = (arraytypehook_t *)smalloc (sizeof (arraytypehook_t));
+
+	ath->known_size = -1;
+	return ath;
+}
+/*}}}*/
+/*{{{  static void guppy_freearraytypehook (arraytypehook_t *ath)*/
+/*
+ *	frees an arraytypehook_t structure
+ */
+static void guppy_freearraytypehook (arraytypehook_t *ath)
+{
+	if (!ath) {
+		nocc_serious ("guppy_freearraytypehook(): NULL argument!");
+		return;
+	}
+	sfree (ath);
+}
+/*}}}*/
 
 
 /*{{{  static void guppy_reduce_primtype (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
@@ -160,7 +191,7 @@ static void guppy_reduce_primtype (dfastate_t *dfast, parsepriv_t *pp, void *rar
 		goto out_error;
 	}
 
-	*(dfast->ptr) = tnode_create (tag, tok->origin);
+	*(dfast->ptr) = tnode_create (tag, tok->origin, NULL);
 	
 	/* may have a size for a primitive type hook */
 	if ((tag == gup.tag_INT) || (tag == gup.tag_REAL)) {
@@ -186,6 +217,9 @@ static void guppy_reduce_chantype (dfastate_t *dfast, parsepriv_t *pp, void *rar
 	token_t *cttok = NULL;
 	chantypehook_t *cth = guppy_newchantypehook ();
 
+#if 0
+fprintf (stderr, "guppy_reduce_chantype(): here! (tok = %s)\n", lexer_stokenstr (tok));
+#endif
 	if (lexer_tokmatchlitstr (tok, "?")) {
 		cth->marked_svr = 1;
 		cttok = tok;
@@ -197,6 +231,9 @@ static void guppy_reduce_chantype (dfastate_t *dfast, parsepriv_t *pp, void *rar
 	} else {
 		cttok = NULL;
 	}
+#if 0
+fprintf (stderr, "guppy_reduce_chantype(): here2! (tok = %s)\n", lexer_stokenstr (tok));
+#endif
 
 	*(dfast->ptr) = tnode_create (gup.tag_CHAN, tok->origin, proto, cth);
 
@@ -216,6 +253,9 @@ static void guppy_reduce_chantype (dfastate_t *dfast, parsepriv_t *pp, void *rar
  */
 static void guppy_primtype_hook_free (void *hook)
 {
+#if 0
+fprintf (stderr, "guppy_primtype_hook_free(): here! hook = 0x%8.8x\n", (unsigned int)hook);
+#endif
 	if (!hook) {
 		return;
 	}
@@ -253,7 +293,7 @@ static void guppy_primtype_hook_dumptree (tnode_t *node, void *hook, int indent,
 		return;
 	}
 	guppy_isetindent (stream, indent);
-	fhandle_printf (stream, "<primtypehook size=\"%d\" sign=\"%d\" />\n", pth->size, pth->sign);
+	fhandle_printf (stream, "<primtypehook size=\"%d\" sign=\"%d\" strlen=\"%d\" />\n", pth->size, pth->sign, pth->strlen);
 	return;
 }
 /*}}}*/
@@ -306,6 +346,56 @@ static void guppy_chantype_hook_dumptree (tnode_t *node, void *hook, int indent,
 }
 /*}}}*/
 
+/*{{{  static void guppy_arraytype_hook_free (void *hook)*/
+/*
+ *	frees an array-type hook
+ */
+static void guppy_arraytype_hook_free (void *hook)
+{
+	arraytypehook_t *ath = (arraytypehook_t *)hook;
+
+	if (!ath) {
+		return;
+	}
+	guppy_freearraytypehook (ath);
+	return;
+}
+/*}}}*/
+/*{{{  static void *guppy_arraytype_hook_copy (void *hook)*/
+/*
+ *	copies an array type hook
+ */
+static void *guppy_arraytype_hook_copy (void *hook)
+{
+	arraytypehook_t *ath, *oath;
+
+	oath = (arraytypehook_t *)hook;
+	if (!oath) {
+		return NULL;
+	}
+	ath = guppy_newarraytypehook ();
+	memcpy (ath, oath, sizeof (arraytypehook_t));
+
+	return (void *)ath;
+}
+/*}}}*/
+/*{{{  static void guppy_arraytype_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
+/*
+ *	dump-tree for array type hook
+ */
+static void guppy_arraytype_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
+{
+	arraytypehook_t *ath = (arraytypehook_t *)hook;
+
+	if (!ath) {
+		return;
+	}
+	guppy_isetindent (stream, indent);
+	fhandle_printf (stream, "<arraytypehook known_size=\"%d\" />\n", ath->known_size);
+	return;
+}
+/*}}}*/
+
 
 /*{{{  tnode_t *guppy_newprimtype (ntdef_t *tag, tnode_t *org, const int size)*/
 /*
@@ -316,12 +406,12 @@ tnode_t *guppy_newprimtype (ntdef_t *tag, tnode_t *org, const int size)
 	tnode_t *ptype;
 	primtypehook_t *pth = guppy_newprimtypehook ();
 
-	pth->size = size;
-	if (org) {
-		ptype = tnode_createfrom (tag, org, pth);
+	if (tag == gup.tag_STRING) {
+		pth->strlen = size;
 	} else {
-		ptype = tnode_createfrom (tag, NULL, pth);
+		pth->size = size;
 	}
+	ptype = tnode_createfrom (tag, org, pth);
 
 	return ptype;
 }
@@ -464,7 +554,7 @@ static tnode_t *guppy_typeactual_primtype (langops_t *lops, tnode_t *formaltype,
 {
 	tnode_t *atype = NULL;
 
-#if 1
+#if 0
 fprintf (stderr, "guppy_typeactual_primtype(): formaltype=[%s], actualtype=[%s]\n", formaltype->tag->name, actualtype->tag->name);
 #endif
 	if (formaltype->tag == actualtype->tag) {
@@ -474,6 +564,22 @@ fprintf (stderr, "guppy_typeactual_primtype(): formaltype=[%s], actualtype=[%s]\
 	}
 
 	return atype;
+}
+/*}}}*/
+/*{{{  static int guppy_knownsizeof_primtype (langops_t *lops, tnode_t *t)*/
+/*
+ *	returns the known-size of some primitive type (number of chars in string usually), -1 if unknown
+ */
+static int guppy_knownsizeof_primtype (langops_t *lops, tnode_t *t)
+{
+	primtypehook_t *pth;
+
+	if (!t || (t->tag != gup.tag_STRING)) {
+		return -1;
+	}
+	pth = (primtypehook_t *)tnode_nthhookof (t, 0);
+
+	return pth->strlen;
 }
 /*}}}*/
 
@@ -528,7 +634,7 @@ static tnode_t *guppy_typeactual_chantype (langops_t *lops, tnode_t *formaltype,
 {
 	tnode_t *atype = NULL;
 
-#if 1
+#if 0
 fprintf (stderr, "guppy_typeactual_chantype(): formaltype=[%s], actualtype=[%s]\n", formaltype->tag->name, actualtype->tag->name);
 #endif
 
@@ -555,6 +661,31 @@ fprintf (stderr, "guppy_typeactual_chantype(): formaltype=[%s], actualtype=[%s]\
 		nocc_fatal ("guppy_typeactual_chantype(): don\'t know how to handle a non-channel here (yet), got [%s]", formaltype->tag->name);
 	}
 	return atype;
+}
+/*}}}*/
+
+
+/*{{{  static int guppy_typecheck_arraytype (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on an ARRAY type node (constructs super-type)
+ *	returns 0 to stop walk, 1 to continue.
+ */
+static int guppy_typecheck_arraytype (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *subtype;
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_gettype_arraytype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of an ARRAY node (already set by typecheck)
+ */
+static tnode_t *guppy_gettype_arraytype (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	tnode_t *type = tnode_nthsubof (node, 1);
+
+	return type;
 }
 /*}}}*/
 
@@ -589,6 +720,7 @@ static int guppy_types_init_nodes (void)
 	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (guppy_getctypeof_primtype));
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_primtype));
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (guppy_typeactual_primtype));
+	tnode_setlangop (lops, "knownsizeof", 1, LANGOPTYPE (guppy_knownsizeof_primtype));
 	tnd->lops = lops;
 
 	i = -1;
@@ -607,7 +739,7 @@ static int guppy_types_init_nodes (void)
 	/*}}}*/
 	/*{{{  guppy:chantype -- CHAN*/
 	i = -1;
-	tnd = tnode_newnodetype ("guppy:chantype", &i, 1, 0, 1, TNF_NONE);		/* subnotes: 0 = type; hooks: 0 = chantypehook_t */
+	tnd = tnode_newnodetype ("guppy:chantype", &i, 1, 0, 1, TNF_NONE);		/* subnodes: 0 = type; hooks: 0 = chantypehook_t */
 	tnd->hook_free = guppy_chantype_hook_free;
 	tnd->hook_copy = guppy_chantype_hook_copy;
 	tnd->hook_dumptree = guppy_chantype_hook_dumptree;
@@ -622,6 +754,23 @@ static int guppy_types_init_nodes (void)
 
 	i = -1;
 	gup.tag_CHAN = tnode_newnodetag ("CHAN", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:arraytype -- ARRAY*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:arraytype", &i, 2, 0, 1, TNF_NONE);		/* subnodes: 0 = sub-type; 1 = my-type; hooks: 0 = arraytypehook_t */
+	tnd->hook_free = guppy_arraytype_hook_free;
+	tnd->hook_copy = guppy_arraytype_hook_copy;
+	tnd->hook_dumptree = guppy_arraytype_hook_dumptree;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_arraytype));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_arraytype));
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_ARRAY = tnode_newnodetag ("ARRAY", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

@@ -274,33 +274,68 @@ static int guppy_getname_namenode (langops_t *lops, tnode_t *node, char **str)
 /*}}}*/
 
 
-/*{{{  static int guppy_prescope_vardecl (compops_t *cops, tnode_t **node, prescope_t *ps)*/
+/*{{{  static int guppy_prescope_vdecl (compops_t *cops, tnode_t **node, prescope_t *ps)*/
 /*
  *	pre-scopes a variable declaration
  *	returns 0 to stop walk, 1 to continue
  */
-static int guppy_prescope_vardecl (compops_t *cops, tnode_t **node, prescope_t *ps)
+static int guppy_prescope_vdecl (compops_t *cops, tnode_t **node, prescope_t *ps)
 {
 	return 1;
 }
 /*}}}*/
-/*{{{  static int guppy_scopein_vardecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*{{{  static int guppy_scopein_vdecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes-in a variable declaration
  *	returns 0 to stop walk, 1 to continue
  */
-static int guppy_scopein_vardecl (compops_t *cops, tnode_t **node, scope_t *ss)
+static int guppy_scopein_vdecl (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	tnode_t *name = tnode_nthsubof (*node, 0);
 	tnode_t *type = tnode_nthsubof (*node, 1);
 	name_t *varname;
 	tnode_t *newname;
 	char *rawname;
+	tnode_t *initdecl = NULL;
+	ntdef_t *tag = NULL;
+	int isabbrev = 0;
+
+	if (name->tag == gup.tag_ASSIGN) {
+		/* initialising-decl */
+		scope_subtree (tnode_nthsubaddr (name, 1), ss);
+		initdecl = tnode_nthsubof (name, 1);
+		tnode_setnthsub (name, 1, NULL);
+		name = tnode_nthsubof (name, 0);
+	} else if (name->tag == gup.tag_IS) {
+		/* abbreviation */
+		scope_subtree (tnode_nthsubaddr (name, 1), ss);
+		initdecl = tnode_nthsubof (name, 1);
+		tnode_setnthsub (name, 1, NULL);
+		name = tnode_nthsubof (name, 0);
+		isabbrev = 1;
+	}
+	if (name->tag != gup.tag_NAME) {
+		scope_error (*node, ss, "name not raw-name, found [%s:%s]", name->tag->ndef->name, name->tag->name);
+		return 0;
+	}
 
 	rawname = (char *)tnode_nthhookof (name, 0);
 	varname = name_addscopename (rawname, *node, type, NULL);
-	newname = tnode_createfrom (gup.tag_NDECL, name, varname);
+
+	if ((*node)->tag == gup.tag_VARDECL) {
+		tag = isabbrev ? gup.tag_NABBR : gup.tag_NDECL;
+	} else if ((*node)->tag == gup.tag_VALDECL) {
+		tag = gup.tag_NVALABBR;
+	} else {
+		scope_error (*node, ss, "unknown vdecl type [%s]", (*node)->tag->name);
+		return 0;
+	}
+	newname = tnode_createfrom (tag, name, varname);
 	SetNameNode (varname, newname);
+	if (initdecl) {
+		/* put back scoped initialiser */
+		tnode_setnthsub (*node, 2, initdecl);
+	}
 	tnode_setnthsub (*node, 0, newname);
 
 	tnode_free (name);
@@ -309,22 +344,60 @@ static int guppy_scopein_vardecl (compops_t *cops, tnode_t **node, scope_t *ss)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int guppy_scopeout_vardecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*{{{  static int guppy_scopeout_vdecl (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes-out a variable declaration
  *	return value fairly meaningless (postwalk)
  */
-static int guppy_scopeout_vardecl (compops_t *cops, tnode_t **node, scope_t *ss)
+static int guppy_scopeout_vdecl (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	return 1;
 }
 /*}}}*/
-/*{{{  static int guppy_namemap_vardecl (compops_t *cops, tnode_t **node, map_t *map)*/
+/*{{{  static int guppy_typecheck_vdecl (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a variable declaration -- tries to populate type better for some things
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_typecheck_vdecl (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	if (node->tag == gup.tag_VALDECL) {
+		/* constant: means type cannot change */
+		tnode_t **typep = tnode_nthsubaddr (node, 1);
+
+		typecheck_subtree (tnode_nthsubof (node, 2), tc);		/* type-check initialiser */
+
+		if ((*typep)->tag == gup.tag_STRING) {
+			tnode_t *init = tnode_nthsubof (node, 2);
+
+			if (init && (init->tag == gup.tag_LITSTRING)) {
+				/* special case: 'val string foo is "..."', can get size exactly */
+				tnode_t *newtype = typecheck_gettype (init, NULL);
+				name_t *name = tnode_nthnameof (tnode_nthsubof (node, 0), 0);
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_typecheck_vdecl(): newtype from gettype on literal:\n");
+tnode_dumptree (newtype, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, "guppy_typecheck_vdecl(): literal:\n");
+tnode_dumptree (init, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, "guppy_typecheck_vdecl(): type on name:\n");
+tnode_dumptree (NameTypeOf (name), 1, FHAN_STDERR);
+#endif
+				tnode_free (*typep);
+				*typep = newtype;
+				SetNameType (name, newtype);
+			}
+		}
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_namemap_vdecl (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a variable declaration of some kind -- generates suitable back-end name.
  *	returns 0 to stop walk, 1 to continue
  */
-static int guppy_namemap_vardecl (compops_t *cops, tnode_t **node, map_t *map)
+static int guppy_namemap_vdecl (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t **namep = tnode_nthsubaddr (*node, 0);
 	tnode_t **typep = tnode_nthsubaddr (*node, 1);
@@ -343,6 +416,43 @@ static int guppy_namemap_vardecl (compops_t *cops, tnode_t **node, map_t *map)
 }
 /*}}}*/
 
+/*{{{  static int guppy_scopein_fparam (compops_t *cops, tnode_t **node, scope_t *ss)*/
+/*
+ *	scopes-in a formal parameter
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_scopein_fparam (compops_t *cops, tnode_t **node, scope_t *ss)
+{
+	tnode_t *name = tnode_nthsubof (*node, 0);
+	tnode_t **typep = tnode_nthsubaddr (*node, 1);
+	char *rawname;
+	name_t *sname = NULL;
+	tnode_t *newname;
+	ntdef_t *tag = gup.tag_NPARAM;
+
+	if (name->tag != gup.tag_NAME) {
+		scope_error (*node, ss, "parameter name not raw-name, found [%s:%s]", name->tag->ndef->name, name->tag->name);
+		return 0;
+	}
+	rawname = tnode_nthhookof (name, 0);
+
+	/* scope the type first */
+	if (scope_subtree (typep, ss)) {
+		return 0;
+	}
+
+	sname = name_addscopename (rawname, *node, *typep, NULL);
+	newname = tnode_createfrom (tag, name, sname);
+	SetNameNode (sname, newname);
+	tnode_setnthsub (*node, 0, newname);
+
+	/* free old name */
+	tnode_free (name);
+	ss->scoped++;
+
+	return 1;
+}
+/*}}}*/
 
 /*{{{  static int guppy_scopein_enumdef (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
@@ -461,10 +571,11 @@ static int guppy_flattenseq_declblock (compops_t *cops, tnode_t **node)
 
 	items = parser_getlistitems (dlist, &nitems);
 	for (i=0; i<nitems; i++) {
-		if (items[i]->tag == gup.tag_VARDECL) {
+		if ((items[i]->tag == gup.tag_VARDECL) || (items[i]->tag == gup.tag_VALDECL)) {
 			/* check for multiple declarations */
 			tnode_t *vdname = tnode_nthsubof (items[i], 0);
 			tnode_t *vdtype = tnode_nthsubof (items[i], 1);
+			ntdef_t *tag = items[i]->tag;
 
 			if (parser_islistnode (vdname)) {
 				tnode_t **vitems;
@@ -481,7 +592,7 @@ static int guppy_flattenseq_declblock (compops_t *cops, tnode_t **node)
 					tnode_t *firstname;
 
 					for (j=1; j<nvitems; j++) {
-						tnode_t *newdecl = tnode_createfrom (gup.tag_VARDECL, items[i], vitems[j], tnode_copytree (vdtype));
+						tnode_t *newdecl = tnode_createfrom (tag, items[i], vitems[j], tnode_copytree (vdtype), NULL);
 
 						parser_delfromlist (vdname, j);
 						j--, nvitems--;
@@ -502,7 +613,7 @@ static int guppy_flattenseq_declblock (compops_t *cops, tnode_t **node)
 	/* 'iptr' is either SEQ or singleton */
 	items = parser_getlistitems (dlist, &nitems);
 	for (i=0; i<nitems; i++) {
-		if (items[i]->tag == gup.tag_VARDECL) {
+		if ((items[i]->tag == gup.tag_VARDECL) || (items[i]->tag == gup.tag_VALDECL)) {
 			tnode_t *vname = tnode_nthsubof (items[i], 0);
 
 			if (vname->tag == gup.tag_ASSIGN) {
@@ -658,24 +769,28 @@ static int guppy_decls_init_nodes (void)
 	gup.tag_NENUMVAL = tnode_newnodetag ("N_ENUMVAL", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  guppy:vardecl -- VARDECL*/
+	/*{{{  guppy:vdecl -- VARDECL, VALDECL*/
 	i = -1;
-	tnd = tnode_newnodetype ("guppy:vardecl", &i, 2, 0, 0, TNF_NONE);				/* subnodes: name; type */
+	tnd = tnode_newnodetype ("guppy:vdecl", &i, 3, 0, 0, TNF_NONE);					/* subnodes: name; type; initialiser */
 	cops = tnode_newcompops ();
-	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_vardecl));
-	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_vardecl));
-	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (guppy_scopeout_vardecl));
-	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_vardecl));
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_vdecl));
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_vdecl));
+	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (guppy_scopeout_vdecl));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_vdecl));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_vdecl));
 	tnd->ops = cops;
 
 	i = -1;
 	gup.tag_VARDECL = tnode_newnodetag ("VARDECL", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_VALDECL = tnode_newnodetag ("VALDECL", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:fparam -- FPARAM*/
 	i = -1;
-	tnd = tnode_newnodetype ("guppy:fparam", &i, 2, 0, 0, TNF_NONE);				/* subnodes: name; type, hooks: fparaminfo */
+	tnd = tnode_newnodetype ("guppy:fparam", &i, 3, 0, 0, TNF_NONE);				/* subnodes: name; type; initialiser, hooks: fparaminfo */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_fparam));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;
