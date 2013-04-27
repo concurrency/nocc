@@ -78,6 +78,7 @@ typedef struct {
 	struct TAG_ntdef *tag_FPARAM;
 	struct TAG_ntdef *tag_DECLBLOCK;
 	struct TAG_ntdef *tag_ENUMDEF;
+	struct TAG_ntdef *tag_FPARAMINIT;
 
 	struct TAG_ntdef *tag_SEQ;
 	struct TAG_ntdef *tag_PAR;
@@ -172,6 +173,8 @@ extern struct TAG_tnode *guppy_newprimtype (struct TAG_ntdef *tag, struct TAG_tn
 extern struct TAG_tnode *guppy_makeintlit (struct TAG_tnode *type, struct TAG_tnode *org, const int value);
 extern struct TAG_tnode *guppy_makereallit (struct TAG_tnode *type, struct TAG_tnode *org, const double value);
 extern struct TAG_tnode *guppy_makestringlit (struct TAG_tnode *type, struct TAG_tnode *org, const char *value);
+
+extern char *guppy_maketempname (struct TAG_tnode *org);
 
 /* front-end units */
 extern struct TAG_feunit guppy_assign_feunit;		/* guppy_assign.c */

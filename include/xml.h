@@ -110,7 +110,8 @@ typedef enum {
 	XMLKEY_NOCCHELP,
 	XMLKEY_HELPSET,
 	XMLKEY_HELP,
-	XMLKEY_COMMAND
+	XMLKEY_COMMAND,
+	XMLKEY_WGET
 } xmlkeytype_t;
 
 typedef struct TAG_xmlkey {

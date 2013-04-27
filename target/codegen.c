@@ -71,6 +71,24 @@ static void codegen_isetindent (fhandle_t *stream, int indent)
 	return;
 }
 /*}}}*/
+/*{{{  void codegen_setindent (codegen_t *cgen, int indent)*/
+/*
+ *	sets indentation (code output)
+ */
+void codegen_setindent (codegen_t *cgen, int indent)
+{
+	codegen_isetindent (cgen->fhan, indent);
+}
+/*}}}*/
+/*{{{  void codegen_ssetindent (codegen_t *cgen)*/
+/*
+ *	sets indentation (code output)
+ */
+void codegen_ssetindent (codegen_t *cgen)
+{
+	codegen_isetindent (cgen->fhan, cgen->indent);
+}
+/*}}}*/
 
 
 /*{{{  static void codegen_precode_chook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
@@ -326,7 +344,7 @@ int codegen_write_bytes (codegen_t *cgen, const char *ptr, int bytes)
 	int v = 0;
 	int left = bytes;
 
-	if (cgen->fd < 0) {
+	if (!cgen->fhan) {
 		nocc_internal ("codegen_write_bytes(): attempt to write to closed file!");
 		return -1;
 	}
@@ -335,7 +353,7 @@ int codegen_write_bytes (codegen_t *cgen, const char *ptr, int bytes)
 		crypto_writedigest (cgen->digest, (unsigned char *)ptr, bytes);
 	}
 	while (left) {
-		int r = write (cgen->fd, ptr + v, left);
+		int r = fhandle_write (cgen->fhan, (unsigned char *)ptr + v, left);
 
 		if (r < 0) {
 			nocc_error ("failed to write to %s: %s", cgen->fname, strerror (errno));
@@ -724,6 +742,7 @@ int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)
 	dynarray_init (cgen->tcgstates);
 	cgen->digest = NULL;
 	dynarray_init (cgen->pcalls);
+	cgen->indent = 0;
 
 	/*{{{  figure out the output filename*/
 	if (compopts.outfile) {
@@ -750,9 +769,9 @@ int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)
 
 	/*}}}*/
 	/*{{{  open output file*/
-	cgen->fd = open (cgen->fname, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-	if (cgen->fd < 0) {
-		nocc_error ("failed to open %s for writing: %s", cgen->fname, strerror (errno));
+	cgen->fhan = fhandle_open (cgen->fname, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (!cgen->fhan) {
+		nocc_error ("failed to open %s for writing: %s", cgen->fname, strerror (fhandle_lasterr (NULL)));
 		sfree (cgen->fname);
 		sfree (cgen);
 		return -1;
@@ -769,7 +788,8 @@ int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)
 	i = target->be_codegen_init (cgen, lf);
 
 	if (i) {
-		close (cgen->fd);
+		fhandle_close (cgen->fhan);
+		cgen->fhan = NULL;
 		sfree (cgen->fname);
 		sfree (cgen);
 		return i;
@@ -798,8 +818,8 @@ int codegen_generate_code (tnode_t **tptr, lexfile_t *lf, target_t *target)
 	/*}}}*/
 	/*{{{  shutdown back-end code generation*/
 	target->be_codegen_final (cgen, lf);
-	close (cgen->fd);
-	cgen->fd = -1;
+	fhandle_close (cgen->fhan);
+	cgen->fhan = NULL;
 
 	/*{{{  now that we've written everything out, do postcalls*/
 	{

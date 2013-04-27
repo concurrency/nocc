@@ -63,6 +63,7 @@
 #include "metadata.h"
 #include "tracescheck.h"
 #include "mobilitycheck.h"
+#include "cccsp.h"
 
 
 /*}}}*/
@@ -223,33 +224,79 @@ static int guppy_scopeout_fcndef (compops_t *cops, tnode_t **node, scope_t *ss)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans_fcndef (compops_t *cops, tnode_t **nodep, fetrans_t *fe)*/
+/*
+ *	does front-end transformations for a function definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans_fcndef (compops_t *cops, tnode_t **nodep, fetrans_t *fe)
+{
+	chook_t *deschook = tnode_lookupchookbyname ("fetrans:descriptor");
+	char *dstr = NULL;
+
+	if (!deschook) {
+		return 1;
+	}
+	langops_getdescriptor (*nodep, &dstr);
+	if (dstr) {
+		tnode_setchook (*nodep, deschook, (void *)dstr);
+	}
+
+	/* do fetrans on name and paramters */
+	fetrans_subtree (tnode_nthsubaddr (*nodep, 0), fe);
+	fetrans_subtree (tnode_nthsubaddr (*nodep, 1), fe);
+
+	/* do fetrans on process body */
+	fetrans_subtree (tnode_nthsubaddr (*nodep, 2), fe);
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_fcndef (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	called to name-map a function/procedure definition
  *	returns 0 to stop walk, 1 to continue
  */
-static int guppy_namemap_fcndef (compops_t *cops, tnode_t **node, map_t *map)
+static int guppy_namemap_fcndef (compops_t *cops, tnode_t **nodep, map_t *map)
 {
-	tnode_t *body = tnode_nthsubof (*node, 2);
+	tnode_t **bodyp = tnode_nthsubaddr (*nodep, 2);
+	tnode_t **paramsptr = tnode_nthsubaddr (*nodep, 1);
+	tnode_t *blk;
+	int nparams, i;
+	tnode_t **mparams;
 
-#if 1
+	blk = map->target->newblock (*bodyp, map, *paramsptr, map->lexlevel + 1);
+	*bodyp = blk;
+	bodyp = tnode_nthsubaddr (blk, 0);				/* body now here */
+
+	map_pushlexlevel (map, blk, paramsptr);
+
+	/* map parameters */
+	map->inparamlist = 1;
+	map_submapnames (paramsptr, map);
+	if (tnode_hascompop ((*nodep)->tag->ndef->ops, "inparams_namemap")) {
+		tnode_callcompop ((*nodep)->tag->ndef->ops, "inparams_namemap", 2, nodep, map);
+	}
+	map->inparamlist = 0;
+
+	/* need to attach initialisers to parameters -- do here */
+	mparams = parser_getlistitems (*paramsptr, &nparams);
+	for (i=0; i<nparams; i++) {
+		tnode_t *orig = tnode_nthsubof (mparams[i], 0);		/* original N_PARAM */
+		tnode_t *init = tnode_createfrom (gup.tag_FPARAMINIT, orig, constprop_newconst (CONST_INT, NULL, NULL, i),
+					NameTypeOf (tnode_nthnameof (orig, 0)));
+
+		cccsp_set_initialiser (mparams[i], init);
+	}
+
+	map_submapnames (bodyp, map);
+	map_poplexlevel (map);
+
+	tnode_setnthsub (*nodep, 2, blk);				/* insert back-end BLOCK before process body */
+
+#if 0
 fprintf (stderr, "guppy_namemap_fcndef(): here!\n");
 #endif
-	if (body->tag == gup.tag_DECLBLOCK) {
-		/* generates a block of its own ultimately */
-		map_submapnames (tnode_nthsubaddr (*node, 2), map);
-	} else {
-		tnode_t *blk;
-		tnode_t **paramsptr = tnode_nthsubaddr (*node, 1);
-
-		blk = map->target->newblock (body, map, *paramsptr, map->lexlevel + 1);
-		map_pushlexlevel (map, blk, paramsptr);
-
-		map_submapnames (tnode_nthsubaddr (blk, 0), map);					/* do under back-end block */
-
-		map_poplexlevel (map);
-		tnode_setnthsub (*node, 2, blk);			/* insert BLOCK before process body */
-	}
 	return 0;
 }
 /*}}}*/
@@ -264,7 +311,7 @@ static int guppy_codegen_fcndef (compops_t *cops, tnode_t *node, codegen_t *cgen
 	tnode_t *name = tnode_nthsubof (node, 0);
 	name_t *pname;
 
-#if 1
+#if 0
 fprintf (stderr, "guppy_codegen_fcndef(): here!\n");
 #endif
 	pname = tnode_nthnameof (name, 0);
@@ -351,6 +398,7 @@ static int guppy_fcndef_init_nodes (void)
 	tnode_setcompop (cops, "autoseq", 2, COMPOPTYPE (guppy_autoseq_fcndef));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_fcndef));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (guppy_scopeout_fcndef));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (guppy_fetrans_fcndef));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_fcndef));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_fcndef));
 	tnd->ops = cops;

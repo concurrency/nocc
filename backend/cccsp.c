@@ -70,6 +70,7 @@ static tnode_t *cccsp_name_create (tnode_t *fename, tnode_t *body, map_t *mdata,
 static tnode_t *cccsp_nameref_create (tnode_t *bename, map_t *mdata);
 static tnode_t *cccsp_block_create (tnode_t *body, map_t *mdata, tnode_t *slist, int lexlevel);
 static tnode_t *cccsp_blockref_create (tnode_t *bloc, tnode_t *body, map_t *mdata);
+static tnode_t *cccsp_const_create (tnode_t *feconst, map_t *mdata, void *ptr, int length, typecat_e tcat);
 
 
 /*}}}*/
@@ -100,7 +101,7 @@ target_t cccsp_target = {
 	},
 
 	.chansize =		4,
-	.charsize =		4,
+	.charsize =		1,
 	.intsize =		4,
 	.pointersize =		4,
 	.slotsize =		4,
@@ -121,7 +122,7 @@ target_t cccsp_target = {
 	.newname =		cccsp_name_create,
 	.newnameref =		cccsp_nameref_create,
 	.newblock =		cccsp_block_create,
-	.newconst =		NULL,
+	.newconst =		cccsp_const_create,
 	.newindexed =		NULL,
 	.newblockref =		cccsp_blockref_create,
 	.newresult =		NULL,
@@ -167,6 +168,7 @@ typedef struct TAG_cccsp_namehook {
 	int typesize;		/* size of the actual type (if known) */
 	int indir;		/* indirection count (0 = real-thing, 1 = pointer, 2 = pointer-pointer, etc.) */
 	typecat_e typecat;	/* type category */
+	tnode_t *initialiser;	/* if this thing has an initialiser (not part of an assignment later) */
 } cccsp_namehook_t;
 
 typedef struct TAG_kroccifccsp_namerefhook {
@@ -182,6 +184,12 @@ typedef struct TAG_cccsp_blockrefhook {
 	tnode_t *block;
 } cccsp_blockrefhook_t;
 
+typedef struct TAG_cccsp_consthook {
+	void *data;				/* constant data */
+	int length;				/* length (in bytes) */
+	typecat_e tcat;				/* type-category */
+} cccsp_consthook_t;
+
 
 /*}}}*/
 /*{{{  private data*/
@@ -190,6 +198,7 @@ static chook_t *codegeninithook = NULL;
 static chook_t *codegenfinalhook = NULL;
 
 static chook_t *cccsp_ctypestr = NULL;
+static int cccsp_coder_inparamlist = 0;
 
 
 /*}}}*/
@@ -257,16 +266,26 @@ static void cccsp_namehook_dumptree (tnode_t *node, void *hook, int indent, fhan
 	cccsp_namehook_t *nh = (cccsp_namehook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<namehook addr=\"0x%8.8x\" cname=\"%s\" ctype=\"%s\" lexlevel=\"%d\" typesize=\"%d\" indir=\"%d\" typecat=\"0x%8.8x\" />\n",
-			(unsigned int)nh, nh->cname, nh->ctype, nh->lexlevel, nh->typesize, nh->indir, (unsigned int)nh->typecat);
+	if (nh->initialiser) {
+		fhandle_printf (stream, "<namehook addr=\"0x%8.8x\" cname=\"%s\" ctype=\"%s\" lexlevel=\"%d\" " \
+				"typesize=\"%d\" indir=\"%d\" typecat=\"0x%8.8x\">\n",
+				(unsigned int)nh, nh->cname, nh->ctype, nh->lexlevel, nh->typesize, nh->indir, (unsigned int)nh->typecat);
+		tnode_dumptree (nh->initialiser, indent + 1, stream);
+		cccsp_isetindent (stream, indent);
+		fhandle_printf (stream, "</namehook>\n");
+	} else {
+		fhandle_printf (stream, "<namehook addr=\"0x%8.8x\" cname=\"%s\" ctype=\"%s\" lexlevel=\"%d\" " \
+				"typesize=\"%d\" indir=\"%d\" typecat=\"0x%8.8x\" initialiser=\"(null)\" />\n",
+				(unsigned int)nh, nh->cname, nh->ctype, nh->lexlevel, nh->typesize, nh->indir, (unsigned int)nh->typecat);
+	}
 	return;
 }
 /*}}}*/
-/*{{{  static cccsp_namehook_t *cccsp_namehook_create (char *cname, char *ctype, int ll, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)*/
+/*{{{  static cccsp_namehook_t *cccsp_namehook_create (char *cname, char *ctype, int ll, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind, tnode_t *init)*/
 /*
  *	creates a name-hook
  */
-static cccsp_namehook_t *cccsp_namehook_create (char *cname, char *ctype, int ll, int tsize, int ind)
+static cccsp_namehook_t *cccsp_namehook_create (char *cname, char *ctype, int ll, int tsize, int ind, tnode_t *init)
 {
 	cccsp_namehook_t *nh = (cccsp_namehook_t *)smalloc (sizeof (cccsp_namehook_t));
 
@@ -276,6 +295,7 @@ static cccsp_namehook_t *cccsp_namehook_create (char *cname, char *ctype, int ll
 	nh->typesize = tsize;
 	nh->indir = ind;
 	nh->typecat = TYPE_NOTTYPE;
+	nh->initialiser = init;
 
 	return nh;
 }
@@ -385,6 +405,39 @@ static cccsp_blockrefhook_t *cccsp_blockrefhook_create (tnode_t *block)
 }
 /*}}}*/
 /*}}}*/
+/*{{{  cccsp_consthook_t routines*/
+/*{{{  static void cccsp_consthook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
+/*
+ *	dump-tree for constant hook
+ */
+static void cccsp_consthook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
+{
+	cccsp_consthook_t *ch = (cccsp_consthook_t *)hook;
+	char *dstr;
+
+	cccsp_isetindent (stream, indent);
+	dstr = mkhexbuf ((unsigned char *)ch->data, ch->length);
+	fhandle_printf (stream, "<consthook addr=\"0x%8.8x\" data=\"%s\" length=\"%d\" typecat=\"0x%8.8x\" />\n",
+			(unsigned int)ch, dstr, ch->length, (unsigned int)ch->tcat);
+	return;
+}
+/*}}}*/
+/*{{{  static cccsp_consthook_t *cccsp_consthook_create (void *data, int length, typecat_e tcat)*/
+/*
+ *	creates a new constant hook
+ */
+static cccsp_consthook_t *cccsp_consthook_create (void *data, int length, typecat_e tcat)
+{
+	cccsp_consthook_t *ch = (cccsp_consthook_t *)smalloc (sizeof (cccsp_consthook_t));
+
+	ch->data = mem_ndup (data, length);
+	ch->length = length;
+	ch->tcat = tcat;
+
+	return ch;
+}
+/*}}}*/
+/*}}}*/
 
 
 /*{{{  static tnode_t *cccsp_name_create (tnode_t *fename, tnode_t *body, map_t *mdata, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)*/
@@ -398,18 +451,35 @@ static tnode_t *cccsp_name_create (tnode_t *fename, tnode_t *body, map_t *mdata,
 	cccsp_namehook_t *nh;
 	char *cname = NULL;
 	char *ctype = NULL;
+	int isconst;
 
 	langops_getname (fename, &cname);
+	isconst = langops_isconst (fename);
+
 	if (!cname) {
 		cname = string_dup ("unknown");
 	}
 	type = typecheck_gettype (fename, NULL);
 	if (type) {
 		langops_getctypeof (type, &ctype);
+
+		if (ctype && isconst) {
+			/* prefix with "const " */
+			char *nctype = string_fmt ("const %s", ctype);
+
+			sfree (ctype);
+			ctype = nctype;
+		}
 	} else {
 		ctype = string_dup ("void");
 	}
-	nh = cccsp_namehook_create (cname, ctype, mdata->lexlevel, tsize, ind);
+#if 1
+fhandle_printf (FHAN_STDERR, "cccsp_name_create(): cname=\"%s\" type =\n", cname);
+tnode_dumptree (type, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, ">> ctype is \"%s\", fename =\n", ctype);
+tnode_dumptree (fename, 1, FHAN_STDERR);
+#endif
+	nh = cccsp_namehook_create (cname, ctype, mdata->lexlevel, tsize, ind, NULL);
 	name = tnode_create (xt->tag_NAME, NULL, fename, body, (void *)nh);
 
 	return name;
@@ -461,6 +531,43 @@ static tnode_t *cccsp_blockref_create (tnode_t *block, tnode_t *body, map_t *mda
 	blockref = tnode_create (cccsp_target.tag_BLOCKREF, NULL, body, (void *)brh);
 
 	return blockref;
+}
+/*}}}*/
+/*{{{  static tnode_t *cccsp_const_create (tnode_t *feconst, map_t *mdata, void *ptr, int length, typecat_e tcat)*/
+/*
+ *	creates a new back-end constant
+ */
+static tnode_t *cccsp_const_create (tnode_t *feconst, map_t *mdata, void *ptr, int length, typecat_e tcat)
+{
+	cccsp_consthook_t *ch;
+	tnode_t *cnst;
+
+	ch = cccsp_consthook_create (ptr, length, tcat);
+	cnst = tnode_create (mdata->target->tag_CONST, NULL, feconst, ch);
+
+	return cnst;
+}
+/*}}}*/
+
+/*{{{  int cccsp_set_initialiser (tnode_t *bename, tnode_t *init)*/
+/*
+ *	unpleasant: allows explicit setting of an initialiser for C generation (attached to CCCSPNAME).
+ *	return 0 on success, non-zero on error.
+ */
+int cccsp_set_initialiser (tnode_t *bename, tnode_t *init)
+{
+	cccsp_namehook_t *nh;
+
+	if (!bename || (bename->tag != cccsp_target.tag_NAME)) {
+		nocc_serious ("cccsp_set_initialiser(): called with bename = [%s]", bename ? bename->tag->name : "(null)");
+		return -1;
+	}
+	nh = (cccsp_namehook_t *)tnode_nthhookof (bename, 0);
+	if (nh->initialiser) {
+		nocc_warning ("cccsp_set_initialiser(): displacing existing = [%s]", nh->initialiser->tag->name);
+	}
+	nh->initialiser = init;
+	return 0;
 }
 /*}}}*/
 
@@ -680,22 +787,31 @@ static void cccsp_coder_c_procentry (codegen_t *cgen, name_t *name, tnode_t *par
 {
 	char *entryname = cccsp_make_entryname (name->me->name);
 
-	codegen_write_fmt (cgen, "void %s (", entryname);
+	/*
+	 *	updated: for CIF, this is a little different now
+	 */
+
+	codegen_ssetindent (cgen);
+	codegen_write_fmt (cgen, "void %s (Workspace wptr)\n", entryname);
 	sfree (entryname);
+#if 0
 	if (!parser_islistnode (params) || !parser_countlist (params)) {
 		codegen_write_fmt (cgen, "void");
 	} else {
 		int nparams, i;
 		tnode_t **plist = parser_getlistitems (params, &nparams);
 
+		cccsp_coder_inparamlist++;
 		for (i=0; i<nparams; i++) {
 			if (i) {
 				codegen_write_fmt (cgen, ",");
 			}
 			codegen_subcodegen (plist[i], cgen);
 		}
+		cccsp_coder_inparamlist--;
 	}
 	codegen_write_fmt (cgen, ")\n");
+#endif
 	return;
 }
 /*}}}*/
@@ -744,6 +860,9 @@ static int cccsp_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
 
 	cgen->cops = cops;
 
+	/* produce standard includes */
+	codegen_write_file (cgen, "cccsp/verb-header.h");
+
 	return 0;
 }
 /*}}}*/
@@ -773,7 +892,17 @@ static int cccsp_lcodegen_name (compops_t *cops, tnode_t *name, codegen_t *cgen)
 {
 	cccsp_namehook_t *nh = (cccsp_namehook_t *)tnode_nthhookof (name, 0);
 
-	codegen_write_fmt (cgen, "%s %s;\n", nh->ctype, nh->cname);
+	if (nh->initialiser) {
+		codegen_ssetindent (cgen);
+		codegen_write_fmt (cgen, "%s %s = ", nh->ctype, nh->cname);
+		codegen_subcodegen (nh->initialiser, cgen);
+		codegen_write_fmt (cgen, ";\n");
+	} else if (cccsp_coder_inparamlist) {
+		codegen_write_fmt (cgen, "%s %s", nh->ctype, nh->cname);
+	} else {
+		codegen_ssetindent (cgen);
+		codegen_write_fmt (cgen, "%s %s;\n", nh->ctype, nh->cname);
+	}
 	return 0;
 }
 /*}}}*/
@@ -805,10 +934,76 @@ static int cccsp_lcodegen_block (compops_t *cops, tnode_t *blk, codegen_t *cgen)
 {
 	cccsp_priv_t *kpriv = (cccsp_priv_t *)cgen->target->priv;
 
+	codegen_ssetindent (cgen);
 	codegen_write_fmt (cgen, "{\n");
+
+	/* do statics/parameters first */
+	cgen->indent++;
+	codegen_subcodegen (tnode_nthsubof (blk, 1), cgen);
 	codegen_subcodegen (tnode_nthsubof (blk, 0), cgen);
+	cgen->indent--;
+
+	codegen_ssetindent (cgen);
 	codegen_write_fmt (cgen, "}\n");
 
+	return 0;
+}
+/*}}}*/
+
+
+/*{{{  static int cccsp_lcodegen_const (compops_t *cops, tnode_t *cnst, codegen_t *cgen)*/
+/*
+ *	does code-generation for a back-end constant: produces the raw data.
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_lcodegen_const (compops_t *cops, tnode_t *cnst, codegen_t *cgen)
+{
+	cccsp_consthook_t *ch = (cccsp_consthook_t *)tnode_nthhookof (cnst, 0);
+
+	if (ch->tcat & TYPE_INTEGER) {
+		if ((ch->length == 1) || (ch->length == 2) || (ch->length == 4)) {
+			/* 8/16/32-bit */
+			if (ch->tcat & TYPE_SIGNED) {
+				int val;
+				
+				if (ch->length == 1) {
+					val = (int)(*(char *)(ch->data));
+				} else if (ch->length == 2) {
+					val = (int)(*(short int *)(ch->data));
+				} else if (ch->length == 4) {
+					val = *(int *)(ch->data);
+				}
+
+				codegen_write_fmt (cgen, "%d", val);
+			} else {
+				unsigned int val;
+
+				if (ch->length == 1) {
+					val = (unsigned int)(*(unsigned char *)(ch->data));
+				} else if (ch->length == 2) {
+					val = (unsigned int)(*(unsigned short int *)(ch->data));
+				} else if (ch->length == 4) {
+					val = *(unsigned int *)(ch->data);
+				}
+
+				codegen_write_fmt (cgen, "%u", val);
+			}
+		} else {
+			nocc_serious ("cccsp_lcodegen_const(): unhandled integer size %d", ch->length);
+		}
+	} else if (ch->tcat & TYPE_REAL) {
+		if (ch->length == 4) {
+			float val = *(float *)(ch->data);
+
+			codegen_write_fmt (cgen, "%f", val);
+		} else if (ch->length == 8) {
+			double val = *(double *)(ch->data);
+
+			codegen_write_fmt (cgen, "%lf", val);
+		} else {
+			nocc_serious ("cccsp_lcodegen_const(): unhandled floating-point size %d", ch->length);
+		}
+	}
 	return 0;
 }
 /*}}}*/
@@ -924,6 +1119,20 @@ static int cccsp_target_init (target_t *target)
 
 	i = -1;
 	target->tag_BLOCKREF = tnode_newnodetag ("CCCSPBLOCKREF", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  cccsp:const -- CCCSPCONST*/
+	i = -1;
+	tnd = tnode_newnodetype ("cccsp:const", &i, 1, 0, 1, TNF_NONE);		/* subnodes: original const; hooks: cccsp_consthook_t */
+	tnd->hook_dumptree = cccsp_consthook_dumptree;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (cccsp_lcodegen_const));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	target->tag_CONST = tnode_newnodetag ("CCCSPCONST", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

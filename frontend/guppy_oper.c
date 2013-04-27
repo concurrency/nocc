@@ -225,6 +225,21 @@ tnode_dumptree (idxtype, 1, FHAN_STDERR);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_codegen_arrayopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for an array operator (array-sub)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_arrayopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+	codegen_write_fmt (cgen, "[");
+	codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+	codegen_write_fmt (cgen, "]");
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static tnode_t *guppy_gettype_arrayopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
  *	gets type of an array-operator node (arraysub)
@@ -286,6 +301,7 @@ static int guppy_oper_init_nodes (void)
 	tnd = tnode_newnodetype ("guppy:arrayopnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: operand, index, type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_arrayopnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_arrayopnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_arrayopnode));

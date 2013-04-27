@@ -35,7 +35,7 @@
  */
 struct TAG_xmlkey;
 
-#define TOTAL_KEYWORDS 65
+#define TOTAL_KEYWORDS 66
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 14
 #define MIN_HASH_VALUE 4
@@ -65,7 +65,7 @@ hash (register const char *str, register unsigned int len)
       127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
       127, 127, 127, 127, 127, 127, 127,   0,   0,   0,
         5,  15,  55,  10,   0,   0,   5,  45,  20,  35,
-        0,  10,  45,  35,  15,   0,  20,  25,  20,  25,
+        0,  10,  45,  35,  15,   0,  20,  25,  20,  30,
        10,  10,   5, 127, 127, 127, 127, 127, 127, 127,
       127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
       127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
@@ -130,7 +130,7 @@ static const struct TAG_xmlkey wordlist[] =
     {"lpath",			XMLKEY_LPATH},
     {"srcuse",			XMLKEY_SRCUSE},
     {"libunit",		XMLKEY_LIBUNIT},
-    {"nocchelp",		XMLKEY_NOCCHELP,},
+    {"nocchelp",		XMLKEY_NOCCHELP},
     {"desc",			XMLKEY_DESC},
     {"signedhash",		XMLKEY_SIGNEDHASH},
     {"signeddhash",		XMLKEY_SIGNEDDHASH},
@@ -141,7 +141,7 @@ static const struct TAG_xmlkey wordlist[] =
     {"symbol",			XMLKEY_SYMBOL},
     {"version",		XMLKEY_VERSION},
     {(char*)0,XMLKEY_INVALID},
-    {"help",			XMLKEY_HELP,},
+    {"help",			XMLKEY_HELP},
     {(char*)0,XMLKEY_INVALID},
     {"action",			XMLKEY_ACTION},
     {"library",		XMLKEY_LIBRARY},
@@ -158,7 +158,7 @@ static const struct TAG_xmlkey wordlist[] =
     {"namespace",		XMLKEY_NAMESPACE},
     {(char*)0,XMLKEY_INVALID},
     {"author",			XMLKEY_AUTHOR},
-    {"helpset",		XMLKEY_HELPSET,},
+    {"helpset",		XMLKEY_HELPSET},
     {(char*)0,XMLKEY_INVALID},
     {"type",			XMLKEY_TYPE},
     {(char*)0,XMLKEY_INVALID},
@@ -167,13 +167,13 @@ static const struct TAG_xmlkey wordlist[] =
     {"language",		XMLKEY_LANGUAGE},
     {"meta",			XMLKEY_META},
     {"match",			XMLKEY_MATCH},
-    {(char*)0,XMLKEY_INVALID},
-    {"allocws",		XMLKEY_ALLOCWS},
+    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
     {(char*)0,XMLKEY_INVALID},
     {"nativelib",		XMLKEY_NATIVELIB},
     {"maintainer",		XMLKEY_MAINTAINER},
     {"adjust",			XMLKEY_ADJUST},
-    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {"allocws",		XMLKEY_ALLOCWS},
+    {(char*)0,XMLKEY_INVALID},
     {"path",			XMLKEY_PATH},
     {"value",			XMLKEY_VALUE},
     {(char*)0,XMLKEY_INVALID},
@@ -187,7 +187,8 @@ static const struct TAG_xmlkey wordlist[] =
     {"nocc:namespace",		XMLKEY_NOCC_NAMESPACE},
     {"trustedkey",		XMLKEY_TRUSTEDKEY},
     {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
-    {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
+    {(char*)0,XMLKEY_INVALID},
+    {"wget",			XMLKEY_WGET},
     {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
     {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
     {"proc",			XMLKEY_PROC},
@@ -206,7 +207,7 @@ static const struct TAG_xmlkey wordlist[] =
     {(char*)0,XMLKEY_INVALID},
     {"privkey",		XMLKEY_PRIVKEY},
     {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
-    {"xmlns:nocc",		XMLKEY_XMLNS_NOCC,},
+    {"xmlns:nocc",		XMLKEY_XMLNS_NOCC},
     {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
     {(char*)0,XMLKEY_INVALID}, {(char*)0,XMLKEY_INVALID},
     {"gperf",			XMLKEY_GPERF},

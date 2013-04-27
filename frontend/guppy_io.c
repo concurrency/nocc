@@ -135,18 +135,19 @@ static int guppy_codegen_io (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	int bytes = tnode_bytesfor (tnode_nthsubof (node, 2), cgen->target);
 
+	codegen_ssetindent (cgen);
 	if (node->tag == gup.tag_INPUT) {
-		codegen_write_fmt (cgen, "ChanInput (");
+		codegen_write_fmt (cgen, "ChanIn (wptr, ");
 	} else if (node->tag == gup.tag_OUTPUT) {
-		codegen_write_fmt (cgen, "ChanOutput (");
+		codegen_write_fmt (cgen, "ChanOut (wptr, ");
 	} else {
 		nocc_internal ("guppy_codegen_io(): unknown node tag! (%s)", node->tag->name);
 		return 0;
 	}
 	codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
-	codegen_write_fmt (cgen, ", ");
+	codegen_write_fmt (cgen, ", &(");
 	codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
-	codegen_write_fmt (cgen, ", %d);\n", bytes);
+	codegen_write_fmt (cgen, "), %d);\n", bytes);
 	return 0;
 }
 /*}}}*/

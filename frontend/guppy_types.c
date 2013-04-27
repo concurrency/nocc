@@ -453,6 +453,57 @@ static int guppy_bytesfor_primtype (langops_t *lops, tnode_t *t, target_t *targe
 	return -1;
 }
 /*}}}*/
+/*{{{  static int guppy_getdescriptor_primtype (langops_t *lops, tnode_t *node, char **sptr)*/
+/*
+ *	generates a descriptor string for a particular type.
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_getdescriptor_primtype (langops_t *lops, tnode_t *node, char **sptr)
+{
+	primtypehook_t *pth = (primtypehook_t *)tnode_nthhookof (node, 0);
+	char *lstr = NULL;
+
+	if (node->tag == gup.tag_BOOL) {
+		lstr = string_dup ("bool");
+	} else if (node->tag == gup.tag_INT) {
+		if (pth->sign) {
+			if (pth->size == 0) {
+				lstr = string_dup ("int");
+			} else {
+				lstr = string_fmt ("int%d", pth->size);
+			}
+		} else {
+			if (pth->size == 0) {
+				lstr = string_dup ("uint");
+			} else {
+				lstr = string_fmt ("uint%d", pth->size);
+			}
+		}
+	} else if (node->tag == gup.tag_REAL) {
+		lstr = string_fmt ("real%d", pth->size);
+	} else if (node->tag == gup.tag_BYTE) {
+		lstr = string_dup ("byte");
+	} else if (node->tag == gup.tag_CHAR) {
+		lstr = string_dup ("char");
+	} else if (node->tag == gup.tag_STRING) {
+		lstr = string_dup ("string");
+	} else {
+		nocc_internal ("guppy_getdescriptor_primtype(): unhandled [%s]", node->tag->name);
+		return 0;
+	}
+
+	if (*sptr) {
+		char *tmpstr = string_fmt ("%s%s", *sptr, lstr);
+
+		sfree (*sptr);
+		sfree (lstr);
+		*sptr = tmpstr;
+	} else {
+		*sptr = lstr;
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_getctypeof_primtype (langops_t *lops, tnode_t *t, char **str)*/
 /*
  *	generates a C string for a particular type.
@@ -494,6 +545,13 @@ static int guppy_getctypeof_primtype (langops_t *lops, tnode_t *t, char **str)
 				lstr = string_dup ("int64_t");
 			} else {
 				lstr = string_dup ("uint64_t");
+			}
+			break;
+		case 0:
+			if (pth->sign) {
+				lstr = string_dup ("int");
+			} else {
+				lstr = string_dup ("unsigned int");
 			}
 			break;
 		default:
@@ -584,6 +642,33 @@ static int guppy_knownsizeof_primtype (langops_t *lops, tnode_t *t)
 /*}}}*/
 
 
+/*{{{  static int guppy_getdescriptor_chantype (langops_t *lops, tnode_t *node, char **sptr)*/
+/*
+ *	gets the descriptor for a channel-type
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_getdescriptor_chantype (langops_t *lops, tnode_t *node, char **sptr)
+{
+	chantypehook_t *cth = (chantypehook_t *)tnode_nthhookof (node, 0);
+	char *lstr = NULL;
+	char *ststr = NULL;
+
+	langops_getdescriptor (tnode_nthsubof (node, 0), &ststr);			/* subtype string */
+	lstr = string_fmt ("chan%s(%s)", (cth->marked_cli ? "!" : (cth->marked_svr ? "?" : "")), ststr);
+
+	if (*sptr) {
+		char *tmpstr = string_fmt ("%s%s", *sptr, lstr);
+
+		sfree (*sptr);
+		sfree (lstr);
+		*sptr = tmpstr;
+	} else {
+		*sptr = lstr;
+	}
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_getctypeof_chantype (langops_t *lops, tnode_t *t, char **str)*/
 /*
  *	generates a C string for a particular channel-type.
@@ -717,6 +802,7 @@ static int guppy_types_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (guppy_bytesfor_primtype));
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (guppy_getdescriptor_primtype));
 	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (guppy_getctypeof_primtype));
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_primtype));
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (guppy_typeactual_primtype));
@@ -746,6 +832,7 @@ static int guppy_types_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (guppy_getdescriptor_chantype));
 	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (guppy_getctypeof_chantype));
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_chantype));
 	tnode_setlangop (lops, "getsubtype", 2, LANGOPTYPE (guppy_getsubtype_chantype));

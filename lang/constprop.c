@@ -229,7 +229,7 @@ static int cprop_namemap_const (compops_t *cops, tnode_t **nodep, map_t *map)
 	case CONST_INT:
 		dptr = &(ch->u.ival);
 		dlen = map->target->intsize;
-		typecat = TYPE_INTEGER | TYPE_WIDTHSET | (dlen << 16);
+		typecat = TYPE_INTEGER | TYPE_WIDTHSET | TYPE_SIGNED | (dlen << 16);
 		break;
 	case CONST_DOUBLE:
 		dptr = &(ch->u.dval);

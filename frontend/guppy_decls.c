@@ -64,6 +64,7 @@
 #include "metadata.h"
 #include "tracescheck.h"
 #include "mobilitycheck.h"
+#include "cccsp.h"
 
 
 
@@ -249,8 +250,8 @@ static tnode_t *guppy_gettype_namenode (langops_t *lops, tnode_t *node, tnode_t 
 		nocc_fatal ("guppy_gettype_namenode(): NULL name!");
 		return NULL;
 	}
-	if (name->type) {
-		return name->type;
+	if (NameTypeOf (name)) {
+		return NameTypeOf (name);
 	}
 	nocc_fatal ("guppy_gettype_namenode(): name has NULL type (FIXME!)");
 	return NULL;
@@ -269,6 +270,18 @@ static int guppy_getname_namenode (langops_t *lops, tnode_t *node, char **str)
 		sfree (*str);
 	}
 	*str = string_dup (pname);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_isconst_namenode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns non-zero if the name is a constant (trivial)
+ */
+static int guppy_isconst_namenode (langops_t *lops, tnode_t *node)
+{
+	if ((node->tag == gup.tag_NVALABBR) || (node->tag == gup.tag_NVALPARAM)) {
+		return 1;
+	}
 	return 0;
 }
 /*}}}*/
@@ -401,13 +414,27 @@ static int guppy_namemap_vdecl (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t **namep = tnode_nthsubaddr (*node, 0);
 	tnode_t **typep = tnode_nthsubaddr (*node, 1);
+	tnode_t **initp = tnode_nthsubaddr (*node, 2);
 	tnode_t *bename;
 	int tsize;
 
 	/* NOTE: bytesfor returns the number of workspace words required for a variable of some type */
+
 	/* this will be target->wordsize in most cases */
 	tsize = tnode_bytesfor (*typep, map->target);
+
+	/* if we have an initialiser, map that first */
+	if (*initp) {
+		map_submapnames (initp, map);
+	}
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_namemap_vdecl(): my-tag=[%s], *namep =\n", (*node)->tag->name);
+tnode_dumptree (*namep, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, ">> *initp =\n");
+tnode_dumptree (*initp, 1, FHAN_STDERR);
+#endif
 	bename = map->target->newname (*namep, NULL, map, tsize, 0, 0, 0, tsize, 0);
+	cccsp_set_initialiser (bename, *initp);
 
 	tnode_setchook (*namep, map->mapchook, (void *)bename);
 	*node = bename;
@@ -451,6 +478,88 @@ static int guppy_scopein_fparam (compops_t *cops, tnode_t **node, scope_t *ss)
 	ss->scoped++;
 
 	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_namemap_fparam (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for a formal parameter
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_fparam (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t **namep = tnode_nthsubaddr (*nodep, 0);
+	tnode_t **typep = tnode_nthsubaddr (*nodep, 1);
+	tnode_t *bename;
+	int tsize, psize, indir = 0;
+
+	if ((*typep)->tag == gup.tag_CHAN) {
+		/* channel */
+		tsize = map->target->chansize;
+	} else {
+		/* how big? */
+		tsize = tnode_bytesfor (*typep, map->target);
+	}
+	psize = tsize;
+
+	bename = map->target->newname (*namep, NULL, map, psize, 0, 0, 0, tsize, indir);
+	tnode_setchook (*namep, map->mapchook, (void *)bename);
+
+	*nodep = bename;
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_getdescriptor_fparam (langops_t *lops, tnode_t *node, char **sptr)*/
+/*
+ *	gets descriptor string for a formal parameter
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_getdescriptor_fparam (langops_t *lops, tnode_t *node, char **sptr)
+{
+	tnode_t *name = tnode_nthsubof (node, 0);
+	tnode_t *type = tnode_nthsubof (node, 1);
+	char *newstr = NULL;
+	char *myname = NameNameOf (tnode_nthnameof (name, 0));
+	char *tstr = NULL;
+
+	langops_getdescriptor (type, &tstr);
+	if (!tstr) {
+		nocc_error ("guppy_getdescriptor_fparam(): failed to get descriptor for type [%s:%s]",
+				type->tag->ndef->name, type->tag->name);
+		return 0;
+	}
+
+	newstr = string_fmt ("%s %s", tstr, myname);
+	if (tstr) {
+		sfree (tstr);
+	}
+	if (*sptr) {
+		char *tmpstr = string_fmt ("%s%s", *sptr, newstr);
+
+		sfree (*sptr);
+		sfree (newstr);
+		*sptr = tmpstr;
+	} else {
+		*sptr = newstr;
+	}
+	return 0;
+}
+/*}}}*/
+
+/*{{{  static int guppy_codegen_fparaminit (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a formal-parameter initialiser
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_fparaminit (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	int pno = constprop_intvalof (tnode_nthsubof (node, 0));
+	tnode_t *type = tnode_nthsubof (node, 1);
+	char *ctype = NULL;
+
+	langops_getctypeof (type, &ctype);
+	codegen_write_fmt (cgen, "ProcGetParam (wptr, %d, %s)", pno, ctype ?: "int32_t");
+	return 0;
 }
 /*}}}*/
 
@@ -737,6 +846,7 @@ static int guppy_decls_init_nodes (void)
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_namenode));
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (guppy_getname_namenode));
+	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (guppy_isconst_namenode));
 	tnd->lops = lops;
 
 	i = -1;
@@ -791,12 +901,27 @@ static int guppy_decls_init_nodes (void)
 	tnd = tnode_newnodetype ("guppy:fparam", &i, 3, 0, 0, TNF_NONE);				/* subnodes: name; type; initialiser, hooks: fparaminfo */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_fparam));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_fparam));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (guppy_getdescriptor_fparam));
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_FPARAM = tnode_newnodetag ("FPARAM", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:fparaminit -- FPARAMINIT*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:fparaminit", &i, 2, 0, 0, TNF_NONE);				/* subnodes: parameter, type */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_fparaminit));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;
 
 	i = -1;
-	gup.tag_FPARAM = tnode_newnodetag ("FPARAM", &i, tnd, NTF_NONE);
+	gup.tag_FPARAMINIT = tnode_newnodetag ("FPARAMINIT", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:declblock -- DECLBLOCK*/

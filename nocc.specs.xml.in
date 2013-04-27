@@ -39,5 +39,6 @@
 	<gperf>@GPERF@</gperf>
 	<gprolog>@GPROLOG@</gprolog>
 	<gdb>@GDB@</gdb>
+	<wget>@WGET@</wget>
 </nocc>
 

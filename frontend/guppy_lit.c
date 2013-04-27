@@ -344,6 +344,56 @@ static int guppy_isconst_litnode (langops_t *lops, tnode_t *node)
 	return ldat->bytes;
 }
 /*}}}*/
+/*{{{  static int guppy_getctypeof_litnode (langops_t *lops, tnode_t *node, char **sptr)*/
+/*
+ *	gets the C type of a literal node -- will produce strings verbatim, but appropriately (re-)escaped
+ *	returns 0 on success, non-zero on error
+ */
+static int guppy_getctypeof_litnode (langops_t *lops, tnode_t *node, char **sptr)
+{
+	guppy_litdata_t *ldat = (guppy_litdata_t *)tnode_nthhookof (node, 0);
+
+	if (node->tag == gup.tag_LITSTRING) {
+		int i, len;
+		char *ch;
+
+		if (*sptr) {
+			sfree (*sptr);
+		}
+		for (i=0, len=0; i<ldat->bytes; i++) {
+			unsigned char sch = ((unsigned char *)(ldat->data))[i];
+
+			if ((sch < 32) || (sch >= 128)) {
+				len += 4;
+			} else {
+				len++;
+			}
+		}
+
+		*sptr = (char *)smalloc (len + 1);
+		ch = *sptr;
+		for (i=0, len=0; i<ldat->bytes; i++) {
+			char sch = ((char *)(ldat->data))[i];
+
+			if (sch < 32) {
+				int hi = (((unsigned char)sch) >> 4) & 0x0f;
+				int lo = sch & 0x0f;
+
+				ch[len++] = '\\';
+				ch[len++] = 'x';
+				ch[len++] = (hi < 10) ? '0' + hi : 'a' + (hi - 10);
+				ch[len++] = (lo < 10) ? '0' + lo : 'a' + (lo - 10);
+			} else {
+				ch[len++] = sch;
+			}
+		}
+		ch[len] = '\0';
+
+		return 0;
+	}
+	return -1;
+}
+/*}}}*/
 
 /*{{{  static int guppy_typecheck_litnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
@@ -406,7 +456,34 @@ static int guppy_codegen_litnode (compops_t *cops, tnode_t *node, codegen_t *cge
 		break;
 	case STRING:
 		{
-			char *tstr = string_ndup ((char *)ldat->data, ldat->bytes);
+			char *ostr = (char *)ldat->data;
+			int i, len;
+			char *tstr;
+			
+			for (i=0, len=0; ostr[i] != '\0'; i++) {
+				if (ostr[i] < 32) {
+					len += 4;	/* '\x42' */
+				} else if (ostr[i] >= 128) {
+					len += 4;	/* '\xef' */
+				} else {
+					len++;
+				}
+			}
+
+			tstr = (char *)smalloc (len + 1);
+			for (i=0, len=0; ostr[i] != '\0'; i++) {
+				if ((ostr[i] < 32) || (ostr[i] >= 128)) {
+					int hi = (ostr[i] >> 4) & 0x0f;
+					int lo = ostr[i] & 0x0f;
+
+					tstr[len++] = '\\';
+					tstr[len++] = 'x';
+					tstr[len++] = (hi < 10) ? '0' + hi : 'a' + (hi - 10);
+					tstr[len++] = (lo < 10) ? '0' + lo : 'a' + (lo - 10);
+				} else {
+					tstr[len++] = ostr[i];
+				}
+			}
 
 			codegen_write_fmt (cgen, "\"%*s\"", ldat->bytes, tstr);
 			sfree (tstr);
@@ -445,6 +522,7 @@ static int guppy_lit_init_nodes (void)
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_litnode));
 	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (guppy_isconst_litnode));
+	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (guppy_getctypeof_litnode));
 	tnd->lops = lops;
 
 	i = -1;

@@ -72,6 +72,41 @@
 /*}}}*/
 
 
+/*{{{  static int guppy_namemap_misc (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for a misc node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_misc (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_misc (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a misc node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_misc (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	if (node->tag == gup.tag_PPCOMMENT) {
+		tnode_t *arg = tnode_nthsubof (node, 0);
+		char *str = NULL;
+
+		langops_getctypeof (arg, &str);
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_codegen_misc(): arg =\n");
+tnode_dumptree (arg, 1, FHAN_STDERR);
+#endif
+		codegen_ssetindent (cgen);
+		codegen_write_fmt (cgen, "/* PPCOMMENT:%s */\n", str ? str : "(invalid)");
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+
+
 /*{{{  static int guppy_misc_init_nodes (void)*/
 /*
  *	sets up misc node-types for Guppy
@@ -88,6 +123,8 @@ static int guppy_misc_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:misc", &i, 1, 0, 0, TNF_NONE);					/* subnodes: argument */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_misc));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_misc));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

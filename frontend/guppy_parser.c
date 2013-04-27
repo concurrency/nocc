@@ -127,6 +127,7 @@ static feunit_t *feunit_set[] = {
 };
 
 static ntdef_t *testtruetag, *testfalsetag;
+static int tempnamecounter = 0;
 
 
 /*}}}*/
@@ -517,6 +518,23 @@ int guppy_postscope_subtree (tnode_t **tptr)
 	}
 
 	return 0;
+}
+/*}}}*/
+
+
+/*{{{  char *guppy_maketempname (tnode_t *org)*/
+/*
+ *	make temporary (variable or function) name
+ */
+char *guppy_maketempname (tnode_t *org)
+{
+	char *str;
+
+	str = (char *)smalloc (32);
+	sprintf (str, "tmp_%d_%8.8x", tempnamecounter, (unsigned int)org);
+	tempnamecounter++;
+
+	return str;
 }
 /*}}}*/
 

@@ -14,6 +14,7 @@ tests/test_*.hex
 tests/test_*.lst
 tests/test_*.xml
 tests/test_*.xlo
+tests/test_g*.c
 
 # Possibly dangerous..
 config.h

@@ -1,6 +1,6 @@
 /*
  *	codegen.h -- interface for NOCC code-generation
- *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ struct TAG_lexfile;
 struct TAG_coderops;
 struct TAG_chook;
 struct TAG_crypto;
+struct TAG_fhandle;
 
 typedef enum ENUM_codegen_parammode {
 	PARAM_INVALID = 0,
@@ -46,7 +47,7 @@ typedef struct TAG_codegen {
 	struct TAG_target *target;		/* target */
 	int error;				/* error-count */
 	char *fname;				/* file-name we're generating into */
-	int fd;					/* descriptor we're generating into */
+	struct TAG_fhandle *fhan;		/* descriptor we're generating into */
 	struct TAG_coderops *cops;		/* specific code-generation routines */
 	int labcount;				/* ever-increasing label counter */
 	struct TAG_tnode **cinsertpoint;	/* coder insert-point (for constants, etc.) */
@@ -55,6 +56,7 @@ typedef struct TAG_codegen {
 	struct TAG_chook *pc_chook;		/* pre-code code-generation hook */
 	struct TAG_crypto *digest;		/* where we store the code-gen digest (optional) */
 	DYNARRAY (codegen_pcall_t *, pcalls);	/* post-codegen calls */
+	int indent;				/* when writing out textual code, indentation level */
 } codegen_t;
 
 typedef struct TAG_codegeninithook {
@@ -152,6 +154,9 @@ extern void codegen_clearpostcall (codegen_t *cgen, void (*func)(codegen_t *, vo
 extern void codegen_warning (codegen_t *cgen, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 extern void codegen_error (codegen_t *cgen, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 extern void codegen_fatal (codegen_t *cgen, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+
+extern void codegen_setindent (codegen_t *cgen, int indent);
+extern void codegen_ssetindent (codegen_t *cgen);
 
 extern void codegen_node_warning (codegen_t *cgen, struct TAG_tnode *tptr, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 extern void codegen_node_error (codegen_t *cgen, struct TAG_tnode *tptr, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));

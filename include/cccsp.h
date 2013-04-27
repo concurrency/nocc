@@ -1,6 +1,6 @@
 /*
  *	cccsp.h -- top-level interface to the CCSP C backend.
- *	Copyright (C) 2008-2011 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2008-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -20,8 +20,11 @@
 #ifndef __CCCSP_H
 #define __CCCSP_H
 
-
 extern int cccsp_init (void);
 extern int cccsp_shutdown (void);
+
+struct TAG_tnode;
+
+extern int cccsp_set_initialiser (struct TAG_tnode *bename, struct TAG_tnode *init);
 
 #endif	/* !__CCCSP_H */

@@ -169,7 +169,8 @@ compopts_t compopts = {
 	DA_CONSTINITIALISER(trustedkeys),
 	.gperf_p = NULL,
 	.gprolog_p = NULL,
-	.gdb_p = NULL
+	.gdb_p = NULL,
+	.wget_p = NULL
 };
 
 /*}}}*/
@@ -792,6 +793,10 @@ static void specfile_elem_end (xmlhandler_t *xh, void *data, xmlkey_t *key)
 			break;
 		case XMLKEY_GDB:
 			specfile_setstring (&compopts.gdb_p, edata);
+			sfree (edata);
+			break;
+		case XMLKEY_WGET:
+			specfile_setstring (&compopts.wget_p, edata);
 			sfree (edata);
 			break;
 		default:
@@ -2968,6 +2973,7 @@ int main (int argc, char **argv)
 		nocc_message ("    gperf:           %s", compopts.gperf_p ?: "(unset)");
 		nocc_message ("    gprolog:         %s", compopts.gprolog_p ?: "(unset)");
 		nocc_message ("    gdb:             %s", compopts.gdb_p ?: "(unset)");
+		nocc_message ("    wget:            %s", compopts.wget_p ?: "(unset)");
 	}
 
 

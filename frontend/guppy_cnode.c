@@ -146,10 +146,13 @@ static int guppy_scopein_replcnode (compops_t *cops, tnode_t **nodep, scope_t *s
 {
 	tnode_t **bodyp = tnode_nthsubaddr (*nodep, 1);
 	tnode_t **rnamep = tnode_nthsubaddr (*nodep, 2);
-	tnode_t *rname = *rnamep;
 	tnode_t **rstartp = tnode_nthsubaddr (*nodep, 3);
 	tnode_t **rcountp = tnode_nthsubaddr (*nodep, 4);
+	char *rawname = NULL;
 	void *nsmark;
+	name_t *repname;
+	tnode_t *type, *newname, *newdecl;
+	tnode_t *declblk, *dlist;
 
 	if (*rstartp) {
 		scope_subtree (rstartp, ss);
@@ -160,29 +163,35 @@ static int guppy_scopein_replcnode (compops_t *cops, tnode_t **nodep, scope_t *s
 
 	nsmark = name_markscope ();
 
-	if (rname) {
-		char *rawname;
-		name_t *repname;
-		tnode_t *type, *newname;
-
-		/* only if we have a name for this */
-		if (rname->tag != gup.tag_NAME) {
-			scope_error (*nodep, ss, "replicator name not raw-name, found [%s:%s]", rname->tag->ndef->name, rname->tag->name);
+	if (!*rnamep) {
+		/* no name, create one */
+		rawname = guppy_maketempname (*nodep);
+	} else {
+		if ((*rnamep)->tag != gup.tag_NAME) {
+			scope_error (*nodep, ss, "replicator name not raw-name, found [%s:%s]", (*rnamep)->tag->ndef->name, (*rnamep)->tag->name);
 			return 0;
 		}
-		rawname = (char *)tnode_nthhookof (rname, 0);
-
-		type = guppy_newprimtype (gup.tag_INT, rname, 0);
-		repname = name_addscopename (rawname, *nodep, type, NULL);
-		newname = tnode_createfrom (gup.tag_NREPL, rname, repname);
-		SetNameNode (repname, newname);
-
-		*rnamep = newname;
-		tnode_free (rname);
-		rname = NULL;
-
-		ss->scoped++;
+		rawname = (char *)tnode_nthhookof (*rnamep, 0);
 	}
+	dlist = parser_newlistnode ((*nodep)->org_file);
+	declblk = tnode_createfrom (gup.tag_DECLBLOCK, *nodep, dlist, *nodep);
+	type = guppy_newprimtype (gup.tag_INT, *rnamep, 0);
+	newdecl = tnode_createfrom (gup.tag_VARDECL, *nodep, NULL, type, NULL);
+	parser_addtolist (dlist, newdecl);
+	repname = name_addscopename (rawname, newdecl, type, NULL);
+	newname = tnode_createfrom (gup.tag_NREPL, *rnamep, repname);
+	SetNameNode (repname, newname);
+	tnode_setnthsub (newdecl, 0, newname);
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_scopein_replcnode(): declblk =\n");
+tnode_dumptree (declblk, 1, FHAN_STDERR);
+#endif
+
+
+	*rnamep = newname;
+
+	ss->scoped++;
 
 	/* scope-in body */
 	if (*bodyp) {
@@ -190,6 +199,12 @@ static int guppy_scopein_replcnode (compops_t *cops, tnode_t **nodep, scope_t *s
 	}
 
 	name_markdescope (nsmark);
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_scopein_replcnode(): declblk =\n");
+tnode_dumptree (declblk, 1, FHAN_STDERR);
+#endif
+	*nodep = declblk;
 
 	return 0;
 }
@@ -201,6 +216,59 @@ static int guppy_scopein_replcnode (compops_t *cops, tnode_t **nodep, scope_t *s
  */
 static int guppy_scopeout_replcnode (compops_t *cops, tnode_t **nodep, scope_t *ss)
 {
+	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_namemap_replcnode (compops_t *cops, tnode_t **nodep, namemap_t *map)*/
+/*
+ *	called to do name-mapping on a replicated constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_replcnode (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	map_submapnames (tnode_nthsubaddr (*nodep, 2), map);
+	map_submapnames (tnode_nthsubaddr (*nodep, 3), map);
+	map_submapnames (tnode_nthsubaddr (*nodep, 4), map);
+	map_submapnames (tnode_nthsubaddr (*nodep, 1), map);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_replcnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	called to do code-generation on a replicated constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_replcnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	if (node->tag == gup.tag_REPLSEQ) {
+		tnode_t *rname = tnode_nthsubof (node, 2);
+		tnode_t *rstart = tnode_nthsubof (node, 3);
+		tnode_t *rcount = tnode_nthsubof (node, 4);
+		tnode_t *rbody = tnode_nthsubof (node, 1);
+
+		codegen_ssetindent (cgen);
+		codegen_write_fmt (cgen, "for (");
+		codegen_subcodegen (rname, cgen);
+		codegen_write_fmt (cgen, " = ");
+		codegen_subcodegen (rstart, cgen);
+		codegen_write_fmt (cgen, "; ");
+		codegen_subcodegen (rname, cgen);
+		codegen_write_fmt (cgen, " < (");
+		codegen_subcodegen (rstart, cgen);
+		codegen_write_fmt (cgen, "+");
+		codegen_subcodegen (rcount, cgen);
+		codegen_write_fmt (cgen, "); ");
+		codegen_subcodegen (rname, cgen);
+		codegen_write_fmt (cgen, "++) {\n");
+
+		cgen->indent++;
+		codegen_subcodegen (rbody, cgen);
+		cgen->indent--;
+
+		codegen_ssetindent (cgen);
+		codegen_write_fmt (cgen, "}\n");
+		return 0;
+	}
 	return 1;
 }
 /*}}}*/
@@ -242,6 +310,8 @@ static int guppy_cnode_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_replcnode));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (guppy_scopeout_replcnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_replcnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_replcnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

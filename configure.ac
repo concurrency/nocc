@@ -84,6 +84,7 @@ AC_PATH_TOOL(LD,ld)
 AC_PATH_TOOL(GPERF,gperf)
 AC_PATH_TOOL(GPROLOG,gprolog)
 AC_PATH_TOOL(GDB,gdb)
+AC_PATH_TOOL(WGET,wget)
 
 AC_DEFINE_UNQUOTED([HOST_CPU],"$host_cpu",[host CPU type])
 AC_DEFINE_UNQUOTED([HOST_OS],"$host_os",[host OS])
