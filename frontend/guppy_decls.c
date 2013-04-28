@@ -285,6 +285,42 @@ static int guppy_isconst_namenode (langops_t *lops, tnode_t *node)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_guesstlp_namenode (langops_t *lops, tnode_t *node)*/
+/*
+ *	attempts to guess what top-level parameter for a Guppy program this might represent
+ *	returns 1=kyb, 2=scr, 3=err.
+ */
+static int guppy_guesstlp_namenode (langops_t *lops, tnode_t *node)
+{
+
+	if (node->tag == gup.tag_NPARAM) {
+		name_t *name = tnode_nthnameof (node, 0);
+		char *rname = NameNameOf (name);
+		tnode_t *type = NameTypeOf (name);
+		int dir = 0;
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_guesstlp_namenode(): here, type =\n");
+tnode_dumptree (type, 1, FHAN_STDERR);
+#endif
+		if (type->tag != gup.tag_CHAN) {
+			return 0;
+		}
+		dir = langops_guesstlp (type);
+		if (dir == 1) {
+			/* input channel, must be keyboard */
+			return 1;
+		} else if (dir == 2) {
+			/* could be screen or error -- check name */
+			if ((*rname == 's') || (*rname == 'S')) {
+				return 2;
+			}
+			return 3;
+		}
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int guppy_prescope_vdecl (compops_t *cops, tnode_t **node, prescope_t *ps)*/
@@ -847,6 +883,7 @@ static int guppy_decls_init_nodes (void)
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_namenode));
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (guppy_getname_namenode));
 	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (guppy_isconst_namenode));
+	tnode_setlangop (lops, "guesstlp", 1, LANGOPTYPE (guppy_guesstlp_namenode));
 	tnd->lops = lops;
 
 	i = -1;

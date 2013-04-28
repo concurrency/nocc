@@ -210,6 +210,7 @@ typedef enum ENUM_langops {
 	LOPS_BYTESFORPARAM = 40,		/* 2: tnode_t *, target_t * -> int */
 	LOPS_GETCTYPEOF = 41,			/* 2: tnode_t *, char ** -> int */
 	LOPS_KNOWNSIZEOF = 42,			/* 1: tnode_t * -> int */
+	LOPS_GUESSTLP = 43,			/* 1: tnode_t * -> int */
 	LOPS_MAX = 256
 } langops_e;
 

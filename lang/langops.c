@@ -572,6 +572,19 @@ void langops_getctypeof (tnode_t *node, char **str)
 	tnode_prewalktree (node, langops_getctypeof_walk, (void *)str);
 }
 /*}}}*/
+/*{{{  int langops_guesstlp (tnode_t *node)*/
+/*
+ *	attempts to guess what top-level parameter a particular name might be
+ *	value returned is specific to language/target interpretation;  0 if not called.
+ */
+int langops_guesstlp (tnode_t *node)
+{
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_GUESSTLP)) {
+		return (int)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GUESSTLP, 1, node);
+	}
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  int langops_init (void)*/

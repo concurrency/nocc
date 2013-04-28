@@ -50,6 +50,7 @@ extern struct TAG_tnode *langops_gettags (struct TAG_tnode *node);
 extern struct TAG_name *langops_nameof (struct TAG_tnode *node);
 extern struct TAG_tnode *langops_tracespecof (struct TAG_tnode *node);
 extern void langops_getctypeof (struct TAG_tnode *node, char **str);
+extern int langops_guesstlp (struct TAG_tnode *node);
 
 #endif	/* !__LANGOPS_H */
 

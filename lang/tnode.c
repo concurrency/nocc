@@ -475,6 +475,7 @@ int tnode_init (void)
 	tnode_newlangop ("bytesforparam", LOPS_BYTESFORPARAM, 2, INTERNAL_ORIGIN);
 	tnode_newlangop ("getctypeof", LOPS_GETCTYPEOF, 2, INTERNAL_ORIGIN);
 	tnode_newlangop ("knownsizeof", LOPS_KNOWNSIZEOF, 1, INTERNAL_ORIGIN);
+	tnode_newlangop ("guesstlp", LOPS_GUESSTLP, 1, INTERNAL_ORIGIN);
 
 	/*}}}*/
 	/*{{{  setup the static node types*/

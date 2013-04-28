@@ -159,6 +159,8 @@ target_t cccsp_target = {
 /*{{{  private types*/
 typedef struct TAG_cccsp_priv {
 	lexfile_t *lastfile;
+	name_t *last_toplevelname;
+	tnode_t *last_toplevelparams;
 } cccsp_priv_t;
 
 typedef struct TAG_cccsp_namehook {
@@ -785,6 +787,7 @@ static void cccsp_coder_debugline (codegen_t *cgen, tnode_t *node)
  */
 static void cccsp_coder_c_procentry (codegen_t *cgen, name_t *name, tnode_t *params)
 {
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cgen->target->priv;
 	char *entryname = cccsp_make_entryname (name->me->name);
 
 	/*
@@ -794,24 +797,13 @@ static void cccsp_coder_c_procentry (codegen_t *cgen, name_t *name, tnode_t *par
 	codegen_ssetindent (cgen);
 	codegen_write_fmt (cgen, "void %s (Workspace wptr)\n", entryname);
 	sfree (entryname);
-#if 0
-	if (!parser_islistnode (params) || !parser_countlist (params)) {
-		codegen_write_fmt (cgen, "void");
-	} else {
-		int nparams, i;
-		tnode_t **plist = parser_getlistitems (params, &nparams);
 
-		cccsp_coder_inparamlist++;
-		for (i=0; i<nparams; i++) {
-			if (i) {
-				codegen_write_fmt (cgen, ",");
-			}
-			codegen_subcodegen (plist[i], cgen);
-		}
-		cccsp_coder_inparamlist--;
+	if (!compopts.notmainmodule) {
+		/* save as last (generated in source order) */
+		kpriv->last_toplevelname = name;
+		kpriv->last_toplevelparams = params;
 	}
-	codegen_write_fmt (cgen, ")\n");
-#endif
+
 	return;
 }
 /*}}}*/
@@ -873,10 +865,186 @@ static int cccsp_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
  */
 static int cccsp_be_codegen_final (codegen_t *cgen, lexfile_t *srcfile)
 {
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cgen->target->priv;
+
+	if (!compopts.notmainmodule) {
+		int has_screen = -1, has_error = -1, has_kyb = -1;
+		int nparams = 0;
+		char *entryname;
+
+		if (!kpriv->last_toplevelname) {
+			codegen_error (cgen, "cccsp_be_codegen_final(): no top-level process set");
+			return -1;
+		}
+
+		entryname = cccsp_make_entryname (NameNameOf (kpriv->last_toplevelname));
+
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_be_codegen_final(): generating interface, top-level parameters are:\n");
+tnode_dumptree (kpriv->last_toplevelparams, 1, FHAN_STDERR);
+#endif
+		if (kpriv->last_toplevelparams) {
+			tnode_t **params;
+			int i;
+
+			params = parser_getlistitems (kpriv->last_toplevelparams, &nparams);
+			for (i=0; i<nparams; i++) {
+				tnode_t *fename;
+
+				if (params[i]->tag != cgen->target->tag_NAME) {
+					nocc_internal ("cccsp_be_codegen_final(): top-level parameter not back-end name, got [%s:%s]",
+							params[i]->tag->ndef->name, params[i]->tag->name);
+					return -1;
+				}
+				fename = tnode_nthsubof (params[i], 0);
+
+				switch (langops_guesstlp (fename)) {
+				default:
+					codegen_error (cgen, "cccsp_be_codegen_final(): could not guess top-level parameter usage (%d)", i);
+					return -1;
+				case 1:
+					if (has_kyb >= 0) {
+						codegen_error (cgen, "cccsp_be_codegen_final(): confused, two keyboard channels? (%d)", i);
+						return -1;
+					}
+					has_kyb = i;
+					break;
+				case 2:
+					if (has_screen >= 0) {
+						if (has_error >= 0) {
+							codegen_error (cgen, "cccsp_be_codegen_final(): confused, two screen channels? (%d)", i);
+							return -1;
+						}
+						has_error = i;
+					} else {
+						has_screen = i;
+					}
+					break;
+				case 3:
+					if (has_error >= 0) {
+						codegen_error (cgen, "cccsp_be_codegen_final(): confused, two error channels? (%d)", i);
+						return -1;
+					}
+					has_error = i;
+					break;
+				}
+			}
+		}
+
+		/* generate main() and call of top-level process */
+		codegen_write_fmt (cgen, "\n\n/* insert main() for top-level process [%s] */\n\n", NameNameOf (kpriv->last_toplevelname));
+		if (has_kyb >= 0) {
+			codegen_write_fmt (cgen, "extern void process_keyboard (Workspace wptr);\n");
+		}
+		if (has_screen >= 0) {
+			codegen_write_fmt (cgen, "extern void process_screen (Workspace wptr);\n");
+		}
+		if (has_error >= 0) {
+			codegen_write_fmt (cgen, "extern void process_error (Workspace wptr);\n");
+		}
+
+		codegen_write_fmt (cgen, "\nvoid process_main (Workspace wptr)\n");
+		codegen_write_fmt (cgen, "{\n");
+		if (has_kyb >= 0) {
+			codegen_write_fmt (cgen, "	Channel ch_kyb;\n");
+			codegen_write_fmt (cgen, "	Workspace p_kyb;\n");
+			codegen_write_fmt (cgen, "	word *ws_kyb = NULL;\n");
+		}
+		if (has_screen >= 0) {
+			codegen_write_fmt (cgen, "	Channel ch_scr;\n");
+			codegen_write_fmt (cgen, "	Workspace p_scr;\n");
+			codegen_write_fmt (cgen, "	word *ws_scr = NULL;\n");
+		}
+		if (has_error >= 0) {
+			codegen_write_fmt (cgen, "	Channel ch_err;\n");
+			codegen_write_fmt (cgen, "	Workspace p_err;\n");
+			codegen_write_fmt (cgen, "	word *ws_err = NULL;\n");
+		}
+		codegen_write_fmt (cgen, "	Workspace p_user;\n");
+		codegen_write_fmt (cgen, "	word *ws_user = NULL;\n");
+		codegen_write_fmt (cgen, "\n");
+		if (has_kyb >= 0) {
+			codegen_write_fmt (cgen, "	ChanInit (wptr, &ch_kyb);\n");
+			codegen_write_fmt (cgen, "	ws_kyb = (word *)MAlloc (wptr, WORKSPACE_SIZE(1,1024) * 4);\n");
+			codegen_write_fmt (cgen, "	p_kyb = LightProcInit (wptr, ws_kyb, 1, 1024);\n");
+			codegen_write_fmt (cgen, "	ProcParam (wptr, p_kyb, 0, &ch_kyb);\n");
+		}
+		if (has_screen >= 0) {
+			codegen_write_fmt (cgen, "	ChanInit (wptr, &ch_scr);\n");
+			codegen_write_fmt (cgen, "	ws_scr = (word *)MAlloc (wptr, WORKSPACE_SIZE(1,1024) * 4);\n");
+			codegen_write_fmt (cgen, "	p_scr = LightProcInit (wptr, ws_scr, 1, 1024);\n");
+			codegen_write_fmt (cgen, "	ProcParam (wptr, p_scr, 0, &ch_scr);\n");
+		}
+		if (has_error >= 0) {
+			codegen_write_fmt (cgen, "	ChanInit (wptr, &ch_err);\n");
+			codegen_write_fmt (cgen, "	ws_err = (word *)MAlloc (wptr, WORKSPACE_SIZE(1,1024) * 4);\n");
+			codegen_write_fmt (cgen, "	p_err = LightProcInit (wptr, ws_err, 1, 1024);\n");
+			codegen_write_fmt (cgen, "	ProcParam (wptr, p_err, 0, &ch_err);\n");
+		}
+		/* FIXME: need some common-sense to determine likely memory requirements */
+		codegen_write_fmt (cgen, "	ws_user = (word *)MAlloc (wptr, WORKSPACE_SIZE(%d,%d) * 4);\n", nparams, 4096);
+		codegen_write_fmt (cgen, "	p_user = LightProcInit (wptr, ws_user, %d, %d);\n", nparams, 4096);
+		if (has_kyb >= 0) {
+			codegen_write_fmt (cgen, "	ProcParam (wptr, p_user, %d, &ch_kyb);\n", has_kyb);
+		}
+		if (has_screen >= 0) {
+			codegen_write_fmt (cgen, "	ProcParam (wptr, p_user, %d, &ch_scr);\n", has_screen);
+		}
+		if (has_error >= 0) {
+			codegen_write_fmt (cgen, "	ProcParam (wptr, p_user, %d, &ch_err);\n", has_error);
+		}
+
+		codegen_write_fmt (cgen, "	ProcPar (wptr, %d,\n", nparams + 1);
+		if (has_kyb >= 0) {
+			codegen_write_fmt (cgen, "		p_kyb, process_keyboard,\n");
+		}
+		if (has_screen >= 0) {
+			codegen_write_fmt (cgen, "		p_scr, process_screen,\n");
+		}
+		if (has_error >= 0) {
+			codegen_write_fmt (cgen, "		p_err, process_error,\n");
+		}
+		codegen_write_fmt (cgen, "		p_user, %s);\n\n", entryname);
+		codegen_write_fmt (cgen, "	Shutdown (wptr);\n");
+
+		codegen_write_fmt (cgen, "}\n\n");
+		codegen_write_fmt (cgen, "int main (int argc, char **argv)\n");
+		codegen_write_fmt (cgen, "{\n");
+		codegen_write_fmt (cgen, "	Workspace p;\n\n");
+		codegen_write_fmt (cgen, "	if (!ccsp_init ()) {\n");
+		codegen_write_fmt (cgen, "		return 1;\n");
+		codegen_write_fmt (cgen, "	}\n\n");
+		codegen_write_fmt (cgen, "	p = ProcAllocInitial (0, 1024);\n");
+		codegen_write_fmt (cgen, "	ProcStartInitial (p, process_main);\n\n");
+		codegen_write_fmt (cgen, "	/* NOT REACHED */\n");
+		codegen_write_fmt (cgen, "	return 0;\n");
+		codegen_write_fmt (cgen, "}\n");
+
+#if 0
+		if (!parser_islistnode (params) || !parser_countlist (params)) {
+			codegen_write_fmt (cgen, "void");
+		} else {
+			int nparams, i;
+			tnode_t **plist = parser_getlistitems (params, &nparams);
+
+			cccsp_coder_inparamlist++;
+			for (i=0; i<nparams; i++) {
+				if (i) {
+					codegen_write_fmt (cgen, ",");
+				}
+				codegen_subcodegen (plist[i], cgen);
+			}
+			cccsp_coder_inparamlist--;
+		}
+		codegen_write_fmt (cgen, ")\n");
+#endif
+	}
+
+	codegen_write_fmt (cgen, "/*\n *\tend of code generation\n */\n\n");
+
 	sfree (cgen->cops);
 	cgen->cops = NULL;
 
-	codegen_write_fmt (cgen, "/*\n *\tend of code generation\n */\n\n");
 
 	return 0;
 }
@@ -1067,6 +1235,8 @@ static int cccsp_target_init (target_t *target)
 
 	kpriv = (cccsp_priv_t *)smalloc (sizeof (cccsp_priv_t));
 	kpriv->lastfile = NULL;
+	kpriv->last_toplevelname = NULL;
+	kpriv->last_toplevelparams = NULL;
 	target->priv = (void *)kpriv;
 
 	cccsp_init_options (kpriv);

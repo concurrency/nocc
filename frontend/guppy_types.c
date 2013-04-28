@@ -748,7 +748,23 @@ fprintf (stderr, "guppy_typeactual_chantype(): formaltype=[%s], actualtype=[%s]\
 	return atype;
 }
 /*}}}*/
+/*{{{  static int guppy_guesstlp_chantype (langops_t *lops, tnode_t *node)*/
+/*
+ *	guesses the top-level usage of a channel
+ *	returns 1=input, 2=output, 0=unknown
+ */
+static int guppy_guesstlp_chantype (langops_t *lops, tnode_t *node)
+{
+	chantypehook_t *cth = (chantypehook_t *)tnode_nthhookof (node, 0);
 
+	if (cth && cth->marked_svr) {
+		return 1;
+	} else if (cth && cth->marked_cli) {
+		return 2;
+	}
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static int guppy_typecheck_arraytype (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
@@ -837,6 +853,7 @@ static int guppy_types_init_nodes (void)
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_chantype));
 	tnode_setlangop (lops, "getsubtype", 2, LANGOPTYPE (guppy_getsubtype_chantype));
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (guppy_typeactual_chantype));
+	tnode_setlangop (lops, "guesstlp", 1, LANGOPTYPE (guppy_guesstlp_chantype));
 	tnd->lops = lops;
 
 	i = -1;
