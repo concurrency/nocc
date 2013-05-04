@@ -37,6 +37,7 @@ typedef struct TAG_name {
 	struct TAG_tnode *namenode;
 	namespace_t *ns;
 	struct TAG_namelist *me;
+	int lexlevel;
 } name_t;
 
 typedef struct TAG_namelist {
@@ -80,6 +81,7 @@ extern void name_dumpnames (struct TAG_fhandle *stream);
 #define NameNameOf(N)		(N)->me->name
 #define NameSpaceOf(N)		(N)->me->ns
 #define NameSpaceNameOf(N)	((N)->me->ns ? (N)->me->ns->nspace : "")
+#define NameLexlevelOf(N)	(N)->lexlevel
 
 #define NameDeclAddr(N)		(&((N)->decl))
 #define NameTypeAddr(N)		(&((N)->type))
@@ -90,6 +92,8 @@ extern void name_dumpnames (struct TAG_fhandle *stream);
 #define SetNameType(N,T)	(N)->type = (T)
 #define SetNameNode(N,T)	(N)->namenode = (T)
 #define SetNameSpace(N,T)	(N)->ns = (T)
+#define SetNameLexlevel(N,T)	(N)->lexlevel = (T)
+
 
 #endif	/* !__NAMES_H */
 

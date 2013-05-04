@@ -87,6 +87,8 @@ typedef struct {
 	struct TAG_ntdef *tag_REPLSEQ;
 	struct TAG_ntdef *tag_REPLPAR;
 
+	struct TAG_ntdef *tag_FVNODE;
+
 	struct TAG_ntdef *tag_INSTANCE;
 	struct TAG_ntdef *tag_APICALL;
 
@@ -140,6 +142,10 @@ typedef struct {
 	struct TAG_tnode *last_type;			/* used when handling things like "int a, b, c" */
 	int procdepth;					/* procedure/function nesting depth for public/non-public names */
 } guppy_prescope_t;
+
+typedef struct {
+	DYNARRAY (struct TAG_tnode *, crosses);		/* where these things can be remembered (collects names) */
+} guppy_scope_t;
 
 typedef struct {
 	int errcount;					/* number of errors accumulated */

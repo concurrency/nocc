@@ -235,6 +235,7 @@ fprintf (stderr, "name_addname(): here! str=\"%s\"\n", str);
 	name->namenode = namenode;
 	name->refc = 1;				/* because it won't ever be looked up really */
 	name->ns = NULL;
+	name->lexlevel = 0;
 
 	nl = stringhash_lookup (names, str);
 	if (!nl) {
@@ -271,6 +272,11 @@ fprintf (stderr, "name_addscopenamess(): here! str=\"%s\", default-namespace: \"
 		name->ns = DA_NTHITEM (ss->defns, DA_CUR (ss->defns) - 1);
 	} else {
 		name->ns = NULL;
+	}
+	if (ss) {
+		name->lexlevel = ss->lexlevel;
+	} else {
+		name->lexlevel = 0;
 	}
 #if 0
 fprintf (stderr, "name_addscopename(): adding name [%s] type:\n", str);
@@ -322,6 +328,11 @@ name_t *name_addsubscopenamess (char *str, void *scopemark, tnode_t *decl, tnode
 		name->ns = DA_NTHITEM (ss->defns, DA_CUR (ss->defns) - 1);
 	} else {
 		name->ns = NULL;
+	}
+	if (ss) {
+		name->lexlevel = ss->lexlevel;
+	} else {
+		name->lexlevel = 0;
 	}
 
 	nl = stringhash_lookup (names, str);
@@ -480,6 +491,7 @@ name_t *name_addtempname (tnode_t *decl, tnode_t *type, ntdef_t *nametag, tnode_
 	name->namenode = namenode ? *namenode : NULL;
 	name->refc = 0;
 	name->ns = NULL;
+	name->lexlevel = 0;
 
 #if 0
 fprintf (stderr, "name_addtempname(): adding name [%s] type:\n", str);
@@ -649,9 +661,9 @@ void name_dumpname (name_t *name, int indent, fhandle_t *stream)
 		fhandle_printf (stream, "    ");
 	}
 	type = NameTypeOf (name);
-	fhandle_printf (stream, "<name name=\"%s\" type=\"%s\" decladdr=\"0x%8.8x\" namespace=\"%s\" addr=\"0x%8.8x\" />\n", name->me->name,
-			type ? type->tag->name : "(null)", (unsigned int)(NameDeclOf (name)), name->ns ? name->ns->nspace : "",
-			(unsigned int)name);
+	fhandle_printf (stream, "<name name=\"%s\" type=\"%s\" decladdr=\"0x%8.8x\" namespace=\"%s\" lexlevel=\"%d\" addr=\"0x%8.8x\" />\n",
+			name->me->name, type ? type->tag->name : "(null)", (unsigned int)(NameDeclOf (name)), name->ns ? name->ns->nspace : "",
+			name->lexlevel, (unsigned int)name);
 
 	return;
 }
@@ -669,8 +681,9 @@ void name_dumpsname (name_t *name, int indent, fhandle_t *stream)
 		fhandle_printf (stream, "  ");
 	}
 	type = NameTypeOf (name);
-	fhandle_printf (stream, "(name (name \"%s\") (type \"%s\") (namespace \"%s\") (addr \"0x%8.8x\"))\n", name->me->name,
-			type ? type->tag->name : "(null)", name->ns ? name->ns->nspace : "", (unsigned int)name);
+	fhandle_printf (stream, "(name (name \"%s\") (type \"%s\") (namespace \"%s\") (lexlevel \"%d\") (addr \"0x%8.8x\"))\n",
+			name->me->name, type ? type->tag->name : "(null)", name->ns ? name->ns->nspace : "", name->lexlevel,
+			(unsigned int)name);
 
 	return;
 }

@@ -135,6 +135,45 @@ static int guppy_flattenseq_cnode (compops_t *cops, tnode_t **nodeptr)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int guppy_scopein_cnode (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
+/*
+ *	does scope-in on a constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_scopein_cnode (compops_t *cops, tnode_t **nodep, scope_t *ss)
+{
+	if ((*nodep)->tag == gup.tag_PAR) {
+		/* complex: scope each parallel sub-process individually, keeping note of names that cross the PAR boundary */
+		guppy_scope_t *gss = (guppy_scope_t *)ss->langpriv;
+		tnode_t *parlist = tnode_nthsubof (*nodep, 1);
+		tnode_t **pitems;
+		int i, nitems;
+
+		if (!gss) {
+			nocc_internal ("guppy_scopein_cnode(): NULL guppy_scope!");
+			return 0;
+		}
+
+		ss->lexlevel++;
+		pitems = parser_getlistitems (parlist, &nitems);
+		for (i=0; i<nitems; i++) {
+			tnode_t *fvlist = parser_newlistnode (NULL);
+			tnode_t *fvnode;
+
+			dynarray_add (gss->crosses, fvlist);
+			scope_subtree (pitems + i, ss);
+
+			/* anything that refers to high-level stuff will be recorded in fvlist */
+
+			fvnode = tnode_createfrom (gup.tag_FVNODE, pitems[i], pitems[i], fvlist);
+			pitems[i] = fvnode;
+		}
+		ss->lexlevel--;
+	} 
+	/* else trivial */
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static int guppy_scopein_replcnode (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
@@ -294,6 +333,7 @@ static int guppy_cnode_init_nodes (void)
 	tnode_setcompop (cops, "declify", 2, COMPOPTYPE (guppy_declify_cnode));
 	tnode_setcompop (cops, "autoseq", 2, COMPOPTYPE (guppy_autoseq_cnode));
 	tnode_setcompop (cops, "flattenseq", 1, COMPOPTYPE (guppy_flattenseq_cnode));
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_cnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

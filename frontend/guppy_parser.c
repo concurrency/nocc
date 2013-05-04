@@ -1432,7 +1432,21 @@ static int guppy_parser_prescope (tnode_t **tptr, prescope_t *ps)
  */
 static int guppy_parser_scope (tnode_t **tptr, scope_t *ss)
 {
-	tnode_modprepostwalktree (tptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+	if (!ss->langpriv) {
+		guppy_scope_t *gss = (guppy_scope_t *)smalloc (sizeof (guppy_scope_t));
+
+		dynarray_init (gss->crosses);
+		ss->langpriv = (void *)gss;
+
+		tnode_modprepostwalktree (tptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+
+		dynarray_trash (gss->crosses);
+		sfree (gss);
+		ss->langpriv = NULL;
+	} else {
+		tnode_modprepostwalktree (tptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+	}
+
 	return ss->err;
 }
 /*}}}*/

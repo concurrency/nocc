@@ -32,6 +32,7 @@ typedef struct TAG_scope {
 	void *langpriv;		/* private structure for the langauage during scope */
 	DYNARRAY (struct TAG_namespace *, defns);	/* defining namespaces */
 	DYNARRAY (struct TAG_namespace *, usens);	/* in-use namespaces */
+	int lexlevel;
 } scope_t;
 
 extern int scope_init (void);

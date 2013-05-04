@@ -2,7 +2,7 @@
 
 define test_g16 (chan!(char) screen)
   par
-    skip
+    screen ! '\n'
     stop
 end
 

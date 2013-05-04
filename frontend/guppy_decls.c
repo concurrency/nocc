@@ -202,6 +202,7 @@ static int guppy_scopein_rawnamenode (compops_t *cops, tnode_t **node, scope_t *
 	tnode_t *name = *node;
 	char *rawname;
 	name_t *sname = NULL;
+	guppy_scope_t *gss = (guppy_scope_t *)ss->langpriv;
 
 	if (name->tag != gup.tag_NAME) {
 		scope_error (name, ss, "name not raw-name!");
@@ -214,6 +215,14 @@ static int guppy_scopein_rawnamenode (compops_t *cops, tnode_t **node, scope_t *
 		/* resolved */
 		*node = NameNodeOf (sname);
 		tnode_free (name);
+
+		if (gss && (ss->lexlevel > NameLexlevelOf (sname))) {
+			if (DA_CUR (gss->crosses) > 0) {
+				tnode_t *fvlist = DA_NTHITEM (gss->crosses, DA_CUR (gss->crosses) - 1);
+
+				parser_addtolist (fvlist, NameNodeOf (sname));
+			}
+		}
 	} else {
 		scope_error (name, ss, "unresolved name \"%s\"", rawname);
 	}
@@ -988,6 +997,16 @@ static int guppy_decls_init_nodes (void)
 
 	i = -1;
 	gup.tag_ENUMDEF = tnode_newnodetag ("ENUMDEF", &i, tnd, NTF_INDENTED_NAME_LIST);
+
+	/*}}}*/
+	/*{{{  guppy:fvnode -- FVNODE*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:fvnode", &i, 2, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	gup.tag_FVNODE = tnode_newnodetag ("FVNODE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 
