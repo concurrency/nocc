@@ -125,6 +125,9 @@ typedef struct TAG_compopts {
 	char *gprolog_p;
 	char *gdb_p;
 	char *wget_p;
+
+	/* additional things */
+	char *cachedir;
 } compopts_t;
 
 

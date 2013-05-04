@@ -35,7 +35,7 @@
  */
 struct TAG_xmlkey;
 
-#define TOTAL_KEYWORDS 66
+#define TOTAL_KEYWORDS 67
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 14
 #define MIN_HASH_VALUE 4
@@ -66,7 +66,7 @@ hash (register const char *str, register unsigned int len)
       127, 127, 127, 127, 127, 127, 127,   0,   0,   0,
         5,  15,  55,  10,   0,   0,   5,  45,  20,  35,
         0,  10,  45,  35,  15,   0,  20,  25,  20,  30,
-       10,  10,   5, 127, 127, 127, 127, 127, 127, 127,
+       10,  15,   5, 127, 127, 127, 127, 127, 127, 127,
       127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
       127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
       127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
@@ -135,12 +135,12 @@ static const struct TAG_xmlkey wordlist[] =
     {"signedhash",		XMLKEY_SIGNEDHASH},
     {"signeddhash",		XMLKEY_SIGNEDDHASH},
     {(char*)0,XMLKEY_INVALID},
-    {"lex",			XMLKEY_LEX},
+    {"cachedir",		XMLKEY_CACHEDIR},
     {"data",			XMLKEY_DATA},
     {"error",			XMLKEY_ERROR},
     {"symbol",			XMLKEY_SYMBOL},
     {"version",		XMLKEY_VERSION},
-    {(char*)0,XMLKEY_INVALID},
+    {"lex",			XMLKEY_LEX},
     {"help",			XMLKEY_HELP},
     {(char*)0,XMLKEY_INVALID},
     {"action",			XMLKEY_ACTION},

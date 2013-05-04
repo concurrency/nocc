@@ -18,6 +18,7 @@
 	<epath>/usr/share/nocc/addons</epath>
 	<epath>/usr/lib/nocc/addons</epath>
 	<epath>/home/frmb/kroc_linux/ukcsource/nocc-extn/lib</epath>
+	<epath>$HOME/.nocc/addons</epath>
 
 	<!-- extn's say what extensions to load (-e) -->
 
@@ -30,15 +31,18 @@
 
 	<!-- signing/hashing -->
 	<hashalgo>sha256</hashalgo>
-	<privkey>/home/frmb/kroc_linux/ukcsource/nocc/keys/nocc.sec</privkey>
-	<trustedkey>/home/frmb/kroc_linux/ukcsource/nocc/keys/nocc.pub</trustedkey>
-	<trustedkey>/home/frmb/kroc_linux/ukcsource/nocc/keys/mykey.pub</trustedkey>
-	<trustedkey>/home/frmb/kroc_linux/ukcsource/nocc/keys/unikent-kroc.pub</trustedkey>
+	<privkey>$HOME/.nocc/keys/nocc.sec</privkey>
+	<trustedkey>$HOME/.nocc/keys/nocc.pub</trustedkey>
+	<trustedkey>$HOME/.nocc/keys/mykey.pub</trustedkey>
+	<trustedkey>$HOME/.nocc/keys/unikent-kroc.pub</trustedkey>
 
 	<!-- helper programs -->
 	<gperf>@GPERF@</gperf>
 	<gprolog>@GPROLOG@</gprolog>
 	<gdb>@GDB@</gdb>
 	<wget>@WGET@</wget>
+
+	<!-- some extra settings -->
+	<cachedir>$HOME/.nocc/cache</cachedir>
 </nocc>
 

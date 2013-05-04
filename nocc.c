@@ -170,7 +170,8 @@ compopts_t compopts = {
 	.gperf_p = NULL,
 	.gprolog_p = NULL,
 	.gdb_p = NULL,
-	.wget_p = NULL
+	.wget_p = NULL,
+	.cachedir = NULL
 };
 
 /*}}}*/
@@ -584,6 +585,105 @@ void nocc_cleanexit (void)
 STATICDYNARRAY (xmlkey_t *, specfilekeys);
 STATICDYNARRAY (char *, specfiledata);
 
+/*{{{  static char *specfile_stringdupenv (char *edata)*/
+/*
+ *	duplicates a string, but does any environment-var substitution.  Only to be used in specs-file data processing!
+ */
+static char *specfile_stringdupenv (char *edata)
+{
+	char *target = NULL;
+	char *ch;
+
+	for (ch=edata; (*ch != '\0') && (*ch != '$'); ch++);
+	if (*ch == '\0') {
+		/* simple case */
+		target = string_dup (edata);
+	} else {
+		int xlen = 0;
+		char *dh;
+
+		for (ch=edata; *ch != '\0'; ch++) {
+			if (*ch == '\\') {
+				/* collapse */
+				ch++;
+				xlen++;
+			} else if (*ch == '$') {
+				char *e_val, *e_name;
+
+				ch++;
+				for (dh = ch; ((*dh >= 'A') && (*dh <= 'Z')) || ((*dh >= 'a') && (*dh <= 'z')) ||
+						((dh > ch) && (*dh >= '0') && (*dh <= '9')) || (*dh == '_'); dh++);
+
+				e_name = string_ndup (ch, (int)(dh - ch));
+				e_val = getenv (e_name);
+				if (!e_val) {
+					nocc_warning ("while reading specs file string, environment variable \"%s\" is not set", e_name);
+				} else {
+					xlen += strlen (e_val);
+				}
+				sfree (e_name);
+				ch = dh-1;
+			} else {
+				xlen++;
+			}
+		}
+
+		target = (char *)smalloc (xlen + 2);
+		xlen = 0;
+		for (dh = target, ch = edata; *ch != '\0'; ch++) {
+			if (*ch == '\\') {
+				/* collapse */
+				ch++;
+				switch (*ch) {
+				case '\\':
+					*dh = '\\';
+					break;
+				case '$':
+					*dh = '$';
+					break;
+				case 'n':
+					*dh = '\n';
+					break;
+				case 'r':
+					*dh = '\r';
+					break;
+				case 't':
+					*dh = '\t';
+					break;
+				default:
+					nocc_warning ("while reading specs file string, unhandled escape character %c", *dh);
+					*dh = '?';
+					break;
+				}
+				dh++;
+			} else if (*ch == '$') {
+				char *e_val, *e_name;
+				char *eh;
+
+				ch++;
+				for (eh = ch; ((*eh >= 'A') && (*eh <= 'Z')) || ((*eh >= 'a') && (*eh <= 'z')) ||
+						((eh > ch) && (*eh >= '0') && (*eh <= '9')) || (*eh == '_'); eh++);
+
+				e_name = string_ndup (ch, (int)(eh - ch));
+				e_val = getenv (e_name);
+				if (e_val) {
+					strcpy (dh, e_val);
+					dh += strlen (e_val);
+				}
+				sfree (e_name);
+				ch = eh-1;
+			} else {
+				*dh = *ch;
+				dh++;
+			}
+		}
+		*dh = '\0';
+	}
+
+	return target;
+}
+/*}}}*/
+
 /*{{{  static void specfile_setcomptarget (char *target)*/
 /*
  *	sets the compiler target
@@ -677,7 +777,7 @@ static void specfile_setprivkey (char *edata)
 		sfree (compopts.privkey);
 		compopts.privkey = NULL;
 	}
-	compopts.privkey = string_dup (edata);
+	compopts.privkey = specfile_stringdupenv (edata);
 	return;
 }
 /*}}}*/
@@ -687,7 +787,7 @@ static void specfile_setprivkey (char *edata)
  */
 static void specfile_settrustedkey (char *edata)
 {
-	dynarray_add (compopts.trustedkeys, string_dup (edata));
+	dynarray_add (compopts.trustedkeys, specfile_stringdupenv (edata));
 	return;
 }
 /*}}}*/
@@ -700,7 +800,7 @@ static void specfile_setstring (char **target, char *edata)
 	if (*target) {
 		sfree (*target);
 	}
-	*target = string_dup (edata);
+	*target = specfile_stringdupenv (edata);
 	return;
 }
 /*}}}*/
@@ -753,57 +853,51 @@ static void specfile_elem_end (xmlhandler_t *xh, void *data, xmlkey_t *key)
 		switch (key->type) {
 		case XMLKEY_TARGET:				/* setting compiler target */
 			specfile_setcomptarget (edata);
-			sfree (edata);
 			break;
 		case XMLKEY_EPATH:				/* adding an extension path to the compiler */
-			dynarray_add (compopts.epath, edata);
+			dynarray_add (compopts.epath, specfile_stringdupenv (edata));
 			break;
 		case XMLKEY_EXTN:				/* adding an extension name to load */
-			dynarray_add (compopts.eload, edata);
+			dynarray_add (compopts.eload, specfile_stringdupenv (edata));
 			break;
 		case XMLKEY_IPATH:				/* adding an include path to the compiler */
-			dynarray_add (compopts.ipath, edata);
+			dynarray_add (compopts.ipath, specfile_stringdupenv (edata));
 			break;
 		case XMLKEY_LPATH:				/* adding a library path to the compiler */
-			dynarray_add (compopts.lpath, edata);
+			dynarray_add (compopts.lpath, specfile_stringdupenv (edata));
 			break;
 		case XMLKEY_MAINTAINER:				/* setting compiler maintainer (email-address) */
 			specfile_setmaintainer (edata);
-			sfree (edata);
 			break;
 		case XMLKEY_HASHALGO:				/* setting the output hashing algorithm */
 			specfile_sethashalgo (edata);
-			sfree (edata);
 			break;
 		case XMLKEY_PRIVKEY:				/* setting the location of the private key */
 			specfile_setprivkey (edata);
-			sfree (edata);
 			break;
 		case XMLKEY_TRUSTEDKEY:				/* setting the location of a trusted public key */
 			specfile_settrustedkey (edata);
-			sfree (edata);
 			break;
 		case XMLKEY_GPERF:
 			specfile_setstring (&compopts.gperf_p, edata);
-			sfree (edata);
 			break;
 		case XMLKEY_GPROLOG:
 			specfile_setstring (&compopts.gprolog_p, edata);
-			sfree (edata);
 			break;
 		case XMLKEY_GDB:
 			specfile_setstring (&compopts.gdb_p, edata);
-			sfree (edata);
 			break;
 		case XMLKEY_WGET:
 			specfile_setstring (&compopts.wget_p, edata);
-			sfree (edata);
+			break;
+		case XMLKEY_CACHEDIR:
+			specfile_setstring (&compopts.cachedir, edata);
 			break;
 		default:
 			nocc_warning ("unknown setting %s in specs file ignored", key->name);
-			sfree (edata);
 			break;
 		}
+		sfree (edata);
 	}
 	dynarray_delitem (specfiledata, DA_CUR(specfiledata) - 1);
 	return;
@@ -2974,6 +3068,7 @@ int main (int argc, char **argv)
 		nocc_message ("    gprolog:         %s", compopts.gprolog_p ?: "(unset)");
 		nocc_message ("    gdb:             %s", compopts.gdb_p ?: "(unset)");
 		nocc_message ("    wget:            %s", compopts.wget_p ?: "(unset)");
+		nocc_message ("    cachedir:        %s", compopts.cachedir ?: "(unset)");
 	}
 
 

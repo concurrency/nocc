@@ -80,5 +80,6 @@ helpset,		XMLKEY_HELPSET
 help,			XMLKEY_HELP
 command,		XMLKEY_COMMAND
 wget,			XMLKEY_WGET
+cachedir,		XMLKEY_CACHEDIR
 %%
 
