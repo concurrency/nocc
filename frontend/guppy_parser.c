@@ -54,6 +54,7 @@
 #include "scope.h"
 #include "prescope.h"
 #include "typecheck.h"
+#include "fetrans.h"
 #include "extn.h"
 #include "mwsync.h"
 #include "metadata.h"
@@ -70,6 +71,7 @@ static int guppy_parser_prescope (tnode_t **tptr, prescope_t *ps);
 static int guppy_parser_scope (tnode_t **tptr, scope_t *ss);
 static int guppy_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
 static int guppy_parser_typeresolve (tnode_t **tptr, typecheck_t *tc);
+static int guppy_parser_fetrans (tnode_t **tptr, fetrans_t *fe);
 
 static tnode_t *guppy_parser_parseproc (lexfile_t *lf);
 static tnode_t *guppy_parser_parsedef (lexfile_t *lf);
@@ -92,7 +94,7 @@ langparser_t guppy_parser = {
 	.typecheck =		guppy_parser_typecheck,
 	.typeresolve =		guppy_parser_typeresolve,
 	.postcheck =		NULL,
-	.fetrans =		NULL,
+	.fetrans =		guppy_parser_fetrans,
 	.getlangdef =		guppy_getlangdef,
 	.maketemp =		NULL,
 	.makeseqassign =	NULL,
@@ -123,6 +125,7 @@ static feunit_t *feunit_set[] = {
 	&guppy_io_feunit,
 	&guppy_lit_feunit,
 	&guppy_oper_feunit,
+	&guppy_instance_feunit,
 	NULL
 };
 
@@ -593,7 +596,32 @@ static int flattenseq_cpass (tnode_t **treeptr)
  */
 static int postscope_cpass (tnode_t **treeptr)
 {
+	/* if main module, figure out which one is last and make public */
 	guppy_postscope_subtree (treeptr);
+
+	if (!compopts.notmainmodule) {
+		tnode_t **items;
+		int i, nitems;
+
+		if (!parser_islistnode (*treeptr)) {
+			nocc_serious ("postscope_cpass(): top-level tree is not a list, got [%s:%s]", (*treeptr)->tag->ndef->name, (*treeptr)->tag->name);
+			return -1;
+		}
+
+		items = parser_getlistitems (*treeptr, &nitems);
+		for (i=nitems-1; i>=0; i--) {
+			if (items[i]->tag == gup.tag_FCNDEF) {
+				guppy_fcndefhook_t *fdh = (guppy_fcndefhook_t *)tnode_nthhookof (items[i], 0);
+
+				if (!fdh) {
+					nocc_serious ("postscope_cpass(): last function definition has no fcndefhook");
+					return -1;
+				}
+				fdh->istoplevel = 1;
+				break;
+			}
+		}
+	}
 	return 0;
 }
 /*}}}*/
@@ -1430,6 +1458,61 @@ static int guppy_parser_typeresolve (tnode_t **tptr, typecheck_t *tc)
 	return tc->err;
 }
 /*}}}*/
+/*{{{  static int guppy_parser_fetrans (tnode_t **tptr, fetrans_t *fe)*/
+/*
+ *	does front-end transform for guppy.
+ *	returns 0 on success, non-zero on failure
+ */
+static int guppy_parser_fetrans (tnode_t **tptr, fetrans_t *fe)
+{
+	int i, r = 0;
+	guppy_fetrans_t *gfe;
+	tnode_t **litems;
 
+	if (!parser_islistnode (*tptr)) {
+		nocc_internal ("guppy_parser_fetrans(): expected list at top-level, got [%s:%s]", (*tptr)->tag->ndef->name, (*tptr)->tag->name);
+		return -1;
+	}
 
+	gfe = (guppy_fetrans_t *)smalloc (sizeof (guppy_fetrans_t));
+	gfe->inslist = *tptr;
+	gfe->insidx = 0;
+	gfe->changed = 0;
+	fe->langpriv = (void *)gfe;
+
+	for (i=0; i<parser_countlist (*tptr); i++) {
+		tnode_t **iptr = parser_getfromlistptr (*tptr, i);
+		int nr;
+
+		gfe->insidx = i;			/* where we are now */
+		gfe->changed = 0;
+		nr = fetrans_subtree (iptr, fe);
+		if (nr) {
+			r++;
+		}
+		if (gfe->changed) {
+			/* means we may have moved */
+			int j, fnd = 0;
+
+			for (j=0; j<parser_countlist (*tptr); j++) {
+				if (parser_getfromlist (*tptr, j) == *iptr) {
+					i = j;
+					fnd = 1;
+					break;
+				}
+			}
+			/* if not found, confused */
+			if (!fnd) {
+				nocc_internal ("guppy_parser_fetrans(): fetrans said changed, but can't find myself anymore!");
+				return -1;
+			}
+		}
+	}
+
+	fe->langpriv = NULL;
+	sfree (gfe);
+
+	return r;
+}
+/*}}}*/
 

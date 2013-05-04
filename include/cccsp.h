@@ -24,7 +24,25 @@ extern int cccsp_init (void);
 extern int cccsp_shutdown (void);
 
 struct TAG_tnode;
+struct TAG_map;
+struct TAG_target;
+
+typedef enum ENUM_cccsp_apicall {
+	NOAPI = 0,
+	CHAN_IN = 1,
+	CHAN_OUT = 2,
+} cccsp_apicall_e;
+
+typedef struct TAG_cccsp_apicall {
+	cccsp_apicall_e call;
+	char *name;
+	int needwptr;
+} cccsp_apicall_t;
+
 
 extern int cccsp_set_initialiser (struct TAG_tnode *bename, struct TAG_tnode *init);
+extern struct TAG_tnode *cccsp_create_apicallname (cccsp_apicall_e);
+
+extern struct TAG_tnode *cccsp_create_addrof (struct TAG_tnode *arg, struct TAG_target *target);
 
 #endif	/* !__CCCSP_H */

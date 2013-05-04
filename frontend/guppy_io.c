@@ -59,6 +59,7 @@
 #include "codegen.h"
 #include "target.h"
 #include "transputer.h"
+#include "cccsp.h"
 
 
 /*}}}*/
@@ -114,15 +115,41 @@ tnode_dumptree (prot, 1, FHAN_STDERR);
 	return 0;
 }
 /*}}}*/
-/*{{{  static int guppy_namemap_io (compops_t *cops, tnode_t **node, map_t *map)*/
+/*{{{  static int guppy_namemap_io (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for an input or output
  *	returns 0 to stop walk, 1 to continue
  */
-static int guppy_namemap_io (compops_t *cops, tnode_t **node, map_t *map)
+static int guppy_namemap_io (compops_t *cops, tnode_t **nodep, map_t *map)
 {
-	map_submapnames (tnode_nthsubaddr (*node, 0), map);
-	map_submapnames (tnode_nthsubaddr (*node, 1), map);
+	int bytes = tnode_bytesfor (tnode_nthsubof (*nodep, 2), map->target);
+	tnode_t *newinst, *newparms;
+	tnode_t *sizeexp = constprop_newconst (CONST_INT, NULL, NULL, bytes);
+	tnode_t *newarg;
+	tnode_t *callnum;
+
+	map_submapnames (tnode_nthsubaddr (*nodep, 0), map);
+	map_submapnames (tnode_nthsubaddr (*nodep, 1), map);
+	map_submapnames (&sizeexp, map);
+
+	newarg = cccsp_create_addrof (tnode_nthsubof (*nodep, 1), map->target);
+
+	/* transform into CCSP API call */
+	newparms = parser_newlistnode (NULL);
+	parser_addtolist (newparms, tnode_nthsubof (*nodep, 0));	/* channel */
+	parser_addtolist (newparms, newarg);				/* data */
+	parser_addtolist (newparms, sizeexp);
+	if ((*nodep)->tag == gup.tag_INPUT) {
+		callnum = cccsp_create_apicallname (CHAN_IN);
+	} else if ((*nodep)->tag == gup.tag_OUTPUT) {
+		callnum = cccsp_create_apicallname (CHAN_OUT);
+	} else {
+		nocc_internal ("guppy_namemap_io(): unknown node tag [%s]", (*nodep)->tag->name);
+		return 0;
+	}
+	newinst = tnode_createfrom (gup.tag_APICALL, *nodep, callnum, newparms);
+
+	*nodep = newinst;
 	return 0;
 }
 /*}}}*/
@@ -133,21 +160,7 @@ static int guppy_namemap_io (compops_t *cops, tnode_t **node, map_t *map)
  */
 static int guppy_codegen_io (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
-	int bytes = tnode_bytesfor (tnode_nthsubof (node, 2), cgen->target);
-
-	codegen_ssetindent (cgen);
-	if (node->tag == gup.tag_INPUT) {
-		codegen_write_fmt (cgen, "ChanIn (wptr, ");
-	} else if (node->tag == gup.tag_OUTPUT) {
-		codegen_write_fmt (cgen, "ChanOut (wptr, ");
-	} else {
-		nocc_internal ("guppy_codegen_io(): unknown node tag! (%s)", node->tag->name);
-		return 0;
-	}
-	codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
-	codegen_write_fmt (cgen, ", &(");
-	codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
-	codegen_write_fmt (cgen, "), %d);\n", bytes);
+	nocc_internal ("guppy_codegen_io(): should not be called!");
 	return 0;
 }
 /*}}}*/

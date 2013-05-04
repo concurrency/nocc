@@ -911,6 +911,8 @@ static int guppy_decls_init_nodes (void)
 	i = -1;
 	gup.tag_NFCNDEF = tnode_newnodetag ("N_FCNDEF", &i, tnd, NTF_NONE);
 	i = -1;
+	gup.tag_NPFCNDEF = tnode_newnodetag ("N_PFCNDEF", &i, tnd, NTF_NONE);
+	i = -1;
 	gup.tag_NENUM = tnode_newnodetag ("N_ENUM", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_NENUMVAL = tnode_newnodetag ("N_ENUMVAL", &i, tnd, NTF_NONE);

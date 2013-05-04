@@ -33,6 +33,7 @@
 #include "support.h"
 #include "version.h"
 #include "origin.h"
+#include "fhandle.h"
 #include "symbols.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -67,6 +68,9 @@
 
 
 /*}}}*/
+/*{{{  private types*/
+
+/*}}}*/
 /*{{{  private data*/
 
 static compop_t *inparams_scopein_compop = NULL;
@@ -75,6 +79,88 @@ static compop_t *inparams_namemap_compop = NULL;
 static compop_t *inparams_lnamemap_compop = NULL;
 
 
+/*}}}*/
+
+
+/*{{{  static guppy_fcndefhook_t *guppy_newfcndefhook (void)*/
+/*
+ *	creates a new guppy_fcndefhook_t structure
+ */
+static guppy_fcndefhook_t *guppy_newfcndefhook (void)
+{
+	guppy_fcndefhook_t *fdh = (guppy_fcndefhook_t *)smalloc (sizeof (guppy_fcndefhook_t));
+
+	fdh->lexlevel = 0;
+	fdh->ispublic = 0;
+	fdh->istoplevel = 0;
+	fdh->ispar = 0;
+	fdh->pfcndef = NULL;
+
+	return fdh;
+}
+/*}}}*/
+/*{{{  static void guppy_freefcndefhook (guppy_fcndefhook_t *fdh)*/
+/*
+ *	frees a guppy_fcndefhook_t structure
+ */
+static void guppy_freefcndefhook (guppy_fcndefhook_t *fdh)
+{
+	if (!fdh) {
+		nocc_internal ("guppy_freefcndefhook(): NULL pointer!");
+		return;
+	}
+	sfree (fdh);
+	return;
+}
+/*}}}*/
+
+
+/*{{{  static void guppy_fcndef_hook_free (void *hook)*/
+/*
+ *	frees a function-definition hook
+ */
+static void guppy_fcndef_hook_free (void *hook)
+{
+	if (!hook) {
+		return;
+	}
+	guppy_freefcndefhook ((guppy_fcndefhook_t *)hook);
+}
+/*}}}*/
+/*{{{  static void *guppy_fcndef_hook_copy (void *hook)*/
+/*
+ *	copies a function-definition hook
+ */
+static void *guppy_fcndef_hook_copy (void *hook)
+{
+	guppy_fcndefhook_t *fdh, *ofdh;
+
+	if (!hook) {
+		return NULL;
+	}
+	ofdh = (guppy_fcndefhook_t *)hook;
+	fdh = guppy_newfcndefhook ();
+	memcpy (fdh, ofdh, sizeof (guppy_fcndefhook_t));
+
+	return (void *)fdh;
+}
+/*}}}*/
+/*{{{  static void guppy_fcndef_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
+/*
+ *	dump-tree for function-definition hook
+ */
+static void guppy_fcndef_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
+{
+	guppy_fcndefhook_t *fdh = (guppy_fcndefhook_t *)hook;
+
+	if (!fdh) {
+		return;
+	}
+	guppy_isetindent (stream, indent);
+	fhandle_printf (stream, "<fcndefhook lexlevel=\"%d\" ispublic=\"%d\" istoplevel=\"%d\" ispar=\"%d\" pfcndef=\"0x%8.8x\" />\n",
+			fdh->lexlevel, fdh->ispublic, fdh->istoplevel, fdh->ispar, (unsigned int)fdh->pfcndef);
+	return;
+}
 /*}}}*/
 
 
@@ -87,8 +173,20 @@ static int guppy_prescope_fcndef (compops_t *cops, tnode_t **node, prescope_t *p
 {
 	guppy_prescope_t *gps = (guppy_prescope_t *)ps->hook;
 	char *rawname = (char *)tnode_nthhookof (tnode_nthsubof (*node, 0), 0);
+	guppy_fcndefhook_t *fdh = (guppy_fcndefhook_t *)tnode_nthhookof (*node, 0);
+
+	if (!fdh) {
+		fdh = guppy_newfcndefhook ();
+		fdh->lexlevel = gps->procdepth;
+		fdh->ispublic = 0;
+		fdh->istoplevel = 0;
+		fdh->ispar = 0;
+		fdh->pfcndef = NULL;
+		tnode_setnthhook (*node, 0, fdh);
+	}
 
 	if (!gps->procdepth) {
+		/* definition at top-level */
 		int x;
 
 		x = library_makepublic (node, rawname);
@@ -231,15 +329,26 @@ static int guppy_scopeout_fcndef (compops_t *cops, tnode_t **node, scope_t *ss)
  */
 static int guppy_fetrans_fcndef (compops_t *cops, tnode_t **nodep, fetrans_t *fe)
 {
-	chook_t *deschook = tnode_lookupchookbyname ("fetrans:descriptor");
-	char *dstr = NULL;
+	guppy_fetrans_t *gfe = (guppy_fetrans_t *)fe->langpriv;
+	guppy_fcndefhook_t *fdh = (guppy_fcndefhook_t *)tnode_nthhookof (*nodep, 0);
 
-	if (!deschook) {
-		return 1;
+	if (!fdh || !gfe) {
+		nocc_internal ("guppy_fetrans_fcndef(): missing stuff!");
+		return 0;
 	}
-	langops_getdescriptor (*nodep, &dstr);
-	if (dstr) {
-		tnode_setchook (*nodep, deschook, (void *)dstr);
+
+	if ((*nodep)->tag == gup.tag_FCNDEF) {
+		chook_t *deschook = tnode_lookupchookbyname ("fetrans:descriptor");
+		char *dstr = NULL;
+
+		if (!deschook) {
+			return 1;
+		}
+
+		langops_getdescriptor (*nodep, &dstr);
+		if (dstr) {
+			tnode_setchook (*nodep, deschook, (void *)dstr);
+		}
 	}
 
 	/* do fetrans on name and paramters */
@@ -248,6 +357,75 @@ static int guppy_fetrans_fcndef (compops_t *cops, tnode_t **nodep, fetrans_t *fe
 
 	/* do fetrans on process body */
 	fetrans_subtree (tnode_nthsubaddr (*nodep, 2), fe);
+
+	if ((*nodep)->tag == gup.tag_FCNDEF) {
+		/* if at the top-level and public, make a process abstraction */
+		char *fname = NameNameOf (tnode_nthnameof (tnode_nthsubof (*nodep, 0), 0));
+
+		if (((fdh->lexlevel == 0) && (fdh->ispublic || fdh->istoplevel)) || fdh->ispar) {
+			tnode_t *newdef, *newparams, *newbody, *newname, *iplist;
+			name_t *curname, *newpfname;
+			tnode_t **params;
+			int i, nparams;
+			guppy_fcndefhook_t *newfdh;
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans_fcndef(): want to make PFCNDEF version of [%s]..\n", fname);
+#endif
+			newparams = parser_newlistnode (NULL);
+			iplist = parser_newlistnode (NULL);
+			params = parser_getlistitems (tnode_nthsubof (*nodep, 1), &nparams);
+			for (i=0; i<nparams; i++) {
+				/* recreate parameters -- minus initialisers */
+				tnode_t *nparm, *optype, *nptype, *opname, *npname;
+				name_t *opnname, *npnname;
+
+				opname = tnode_nthsubof (params[i], 0);
+				opnname = tnode_nthnameof (opname, 0);
+				optype = tnode_nthsubof (params[i], 1);
+
+				nptype = tnode_copytree (optype);
+				npnname = name_addname (NameNameOf (opnname), NULL, nptype, NULL);
+				npname = tnode_createfrom (opname->tag, opname, npnname);
+				SetNameNode (npnname, npname);
+
+				if (params[i]->tag == gup.tag_FPARAM) {
+					nparm = tnode_createfrom (gup.tag_FPARAM, params[i], npname, nptype, NULL);
+				} else {
+					nocc_internal ("guppy_fetrans_fcndef(): unexpected parameter type [%s:%s] while generating proc abstraction",
+							params[i]->tag->ndef->name, params[i]->tag->name);
+				}
+				SetNameDecl (npnname, nparm);
+
+				parser_addtolist (newparams, nparm);
+				parser_addtolist (iplist, npname);		/* put in instance list */
+			}
+			newbody = tnode_createfrom (gup.tag_INSTANCE, NULL, tnode_nthsubof (*nodep, 0), iplist);
+			// newbody = tnode_createfrom (gup.tag_SKIP, tnode_nthsubof (*nodep, 2));
+			curname = tnode_nthnameof (tnode_nthsubof (*nodep, 0), 0);
+			newpfname = name_addname (NameNameOf (curname), NULL, newparams, NULL);
+			newname = tnode_createfrom (gup.tag_NPFCNDEF, tnode_nthsubof (*nodep, 0), newpfname);
+			SetNameNode (newpfname, newname);
+
+			newfdh = guppy_newfcndefhook ();
+			newfdh->lexlevel = fdh->lexlevel;
+			newfdh->ispar = fdh->ispar;
+			newfdh->ispublic = fdh->ispublic;
+			newfdh->istoplevel = fdh->istoplevel;
+			newfdh->pfcndef = NULL;
+
+			newdef = tnode_createfrom (gup.tag_PFCNDEF, *nodep, newname, newparams, newbody, newfdh);
+			SetNameDecl (newpfname, newdef);
+
+			fdh->pfcndef = newdef;
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans_fcndef(): created new definition:\n");
+tnode_dumptree (newdef, 1, FHAN_STDERR);
+#endif
+			parser_insertinlist (gfe->inslist, newdef, gfe->insidx + 1);
+			gfe->changed++;
+		}
+	}
 
 	return 0;
 }
@@ -262,10 +440,14 @@ static int guppy_namemap_fcndef (compops_t *cops, tnode_t **nodep, map_t *map)
 	tnode_t **bodyp = tnode_nthsubaddr (*nodep, 2);
 	tnode_t **paramsptr = tnode_nthsubaddr (*nodep, 1);
 	tnode_t *blk;
-	int nparams, i;
-	tnode_t **mparams;
+	tnode_t *statics;
 
-	blk = map->target->newblock (*bodyp, map, *paramsptr, map->lexlevel + 1);
+	if ((*nodep)->tag == gup.tag_PFCNDEF) {
+		statics = *paramsptr;
+	} else {
+		statics = NULL;
+	}
+	blk = map->target->newblock (*bodyp, map, statics, map->lexlevel + 1);
 	*bodyp = blk;
 	bodyp = tnode_nthsubaddr (blk, 0);				/* body now here */
 
@@ -279,14 +461,19 @@ static int guppy_namemap_fcndef (compops_t *cops, tnode_t **nodep, map_t *map)
 	}
 	map->inparamlist = 0;
 
-	/* need to attach initialisers to parameters -- do here */
-	mparams = parser_getlistitems (*paramsptr, &nparams);
-	for (i=0; i<nparams; i++) {
-		tnode_t *orig = tnode_nthsubof (mparams[i], 0);		/* original N_PARAM */
-		tnode_t *init = tnode_createfrom (gup.tag_FPARAMINIT, orig, constprop_newconst (CONST_INT, NULL, NULL, i),
-					NameTypeOf (tnode_nthnameof (orig, 0)));
+	if ((*nodep)->tag == gup.tag_PFCNDEF) {
+		int nparams, i;
+		tnode_t **mparams;
 
-		cccsp_set_initialiser (mparams[i], init);
+		/* if we need to attach initialisers to parameters -- do here */
+		mparams = parser_getlistitems (*paramsptr, &nparams);
+		for (i=0; i<nparams; i++) {
+			tnode_t *orig = tnode_nthsubof (mparams[i], 0);		/* original N_PARAM */
+			tnode_t *init = tnode_createfrom (gup.tag_FPARAMINIT, orig, constprop_newconst (CONST_INT, NULL, NULL, i),
+						NameTypeOf (tnode_nthnameof (orig, 0)));
+
+			cccsp_set_initialiser (mparams[i], init);
+		}
 	}
 
 	map_submapnames (bodyp, map);
@@ -310,13 +497,20 @@ static int guppy_codegen_fcndef (compops_t *cops, tnode_t *node, codegen_t *cgen
 	tnode_t *body = tnode_nthsubof (node, 2);
 	tnode_t *name = tnode_nthsubof (node, 0);
 	name_t *pname;
+	tnode_t *params;
 
 #if 0
 fprintf (stderr, "guppy_codegen_fcndef(): here!\n");
 #endif
 	pname = tnode_nthnameof (name, 0);
 	codegen_callops (cgen, comment, "define %s", pname->me->name);
-	codegen_callops (cgen, c_procentry, pname, tnode_nthsubof (node, 1));
+	if (node->tag == gup.tag_FCNDEF) {
+		params = tnode_nthsubof (node, 1);
+	} else {
+		params = NULL;
+	}
+	/* Note: difference between NULL and empty list! */
+	codegen_callops (cgen, c_procentry, pname, params);
 
 	/* then code the body */
 	codegen_subcodegen (body, cgen);
@@ -391,7 +585,10 @@ static int guppy_fcndef_init_nodes (void)
 
 	/*{{{  guppy:fcndef -- FCNDEF*/
 	i = -1;
-	tnd = tnode_newnodetype ("guppy:fcndef", &i, 3, 0, 0, TNF_LONGDECL);			/* subnodes: name; fparams; body */
+	tnd = tnode_newnodetype ("guppy:fcndef", &i, 3, 0, 1, TNF_LONGDECL);			/* subnodes: name, fparams, body;  hooks: guppy_fcndefhook_t */
+	tnd->hook_free = guppy_fcndef_hook_free;
+	tnd->hook_copy = guppy_fcndef_hook_copy;
+	tnd->hook_dumptree = guppy_fcndef_hook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_fcndef));
 	tnode_setcompop (cops, "declify", 2, COMPOPTYPE (guppy_declify_fcndef));
@@ -408,6 +605,8 @@ static int guppy_fcndef_init_nodes (void)
 
 	i = -1;
 	gup.tag_FCNDEF = tnode_newnodetag ("FCNDEF", &i, tnd, NTF_INDENTED_PROC_LIST);
+	i = -1;
+	gup.tag_PFCNDEF = tnode_newnodetag ("PFCNDEF", &i, tnd, NTF_INDENTED_PROC_LIST);
 
 	/*}}}*/
 

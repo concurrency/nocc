@@ -73,6 +73,7 @@ typedef struct {
 	struct TAG_ntdef *tag_LITBOOL;
 
 	struct TAG_ntdef *tag_FCNDEF;
+	struct TAG_ntdef *tag_PFCNDEF;
 	struct TAG_ntdef *tag_VARDECL;
 	struct TAG_ntdef *tag_VALDECL;
 	struct TAG_ntdef *tag_FPARAM;
@@ -85,6 +86,9 @@ typedef struct {
 
 	struct TAG_ntdef *tag_REPLSEQ;
 	struct TAG_ntdef *tag_REPLPAR;
+
+	struct TAG_ntdef *tag_INSTANCE;
+	struct TAG_ntdef *tag_APICALL;
 
 	struct TAG_ntdef *tag_NDECL;
 	struct TAG_ntdef *tag_NABBR;
@@ -100,7 +104,8 @@ typedef struct {
 
 	struct TAG_ntdef *tag_NTYPEDECL;
 	struct TAG_ntdef *tag_NFIELD;
-	struct TAG_ntdef *tag_NFCNDEF;
+	struct TAG_ntdef *tag_NFCNDEF;			/* regular function/procedure */
+	struct TAG_ntdef *tag_NPFCNDEF;			/* process-abstracted function/procedure */
 
 	struct TAG_ntdef *tag_SKIP;
 	struct TAG_ntdef *tag_STOP;
@@ -155,6 +160,20 @@ typedef struct {
 	int littype;					/* INTEGER, REAL, STRING */
 } guppy_litdata_t;
 
+typedef struct {
+	struct TAG_tnode *inslist;			/* list where inserted definitions can go */
+	int insidx;					/* whereabouts in the list */
+	int changed;					/* set if changes are made */
+} guppy_fetrans_t;
+
+typedef struct TAG_guppy_fcndefhook {
+	int lexlevel;					/* 0 = outermost */
+	int ispublic;					/* explicitly marked as public? */
+	int istoplevel;					/* last in top-level compilation unit? */
+	int ispar;					/* explicitly need par-stub? */
+	struct TAG_tnode *pfcndef;			/* if there is a PFCNDEF for this FCNDEF */
+} guppy_fcndefhook_t;
+
 
 extern void guppy_isetindent (struct TAG_fhandle *stream, int indent);
 extern struct TAG_langdef *guppy_getlangdef (void);
@@ -188,6 +207,7 @@ extern struct TAG_feunit guppy_misc_feunit;		/* guppy_misc.c */
 extern struct TAG_feunit guppy_oper_feunit;		/* guppy_oper.c */
 extern struct TAG_feunit guppy_primproc_feunit;		/* guppy_primproc.c */
 extern struct TAG_feunit guppy_types_feunit;		/* guppy_types.c */
+extern struct TAG_feunit guppy_instance_feunit;		/* guppy_instance.c */
 
 /* these are for language units to use in reductions */
 extern void *guppy_nametoken_to_hook (void *ntok);

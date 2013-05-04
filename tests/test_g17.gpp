@@ -1,0 +1,18 @@
+
+# test_g17.gpp -- Guppy test
+
+define test_g17 ()
+  int i
+
+  define subproc ()
+    int v
+    seq
+      v = 19
+      i = 1
+  end
+
+  seq
+    skip
+    skip
+end
+

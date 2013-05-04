@@ -40,6 +40,7 @@
 #include "opts.h"
 #include "lexer.h"
 #include "parser.h"
+#include "constprop.h"
 #include "treeops.h"
 #include "langops.h"
 #include "names.h"
@@ -50,6 +51,7 @@
 #include "transputer.h"
 #include "codegen.h"
 #include "allocate.h"
+#include "cccsp.h"
 
 /*}}}*/
 /*{{{  forward decls*/
@@ -160,7 +162,8 @@ target_t cccsp_target = {
 typedef struct TAG_cccsp_priv {
 	lexfile_t *lastfile;
 	name_t *last_toplevelname;
-	tnode_t *last_toplevelparams;
+
+	ntdef_t *tag_ADDROF;
 } cccsp_priv_t;
 
 typedef struct TAG_cccsp_namehook {
@@ -202,6 +205,12 @@ static chook_t *codegenfinalhook = NULL;
 static chook_t *cccsp_ctypestr = NULL;
 static int cccsp_coder_inparamlist = 0;
 
+static cccsp_apicall_t cccsp_apicall_table[] = {
+	{NOAPI, "", 0},
+	{CHAN_IN, "ChanIn", 1},
+	{CHAN_OUT, "ChanOut", 2},
+};
+
 
 /*}}}*/
 
@@ -237,12 +246,16 @@ static int cccsp_init_options (cccsp_priv_t *kpriv)
  *	turns a front-end name into a C-CCSP name for a function-entry point.
  *	returns newly allocated name.
  */
-static char *cccsp_make_entryname (const char *name)
+static char *cccsp_make_entryname (const char *name, const int procabs)
 {
-	char *rname = (char *)smalloc (strlen (name) + 8);
+	char *rname = (char *)smalloc (strlen (name) + 10);
 	char *ch;
 
-	sprintf (rname, "ufe_%s", name);
+	if (procabs) {
+		sprintf (rname, "gproc_%s", name);
+	} else {
+		sprintf (rname, "gcf_%s", name);
+	}
 	for (ch = rname + 4; *ch; ch++) {
 		switch (*ch) {
 		case '.':
@@ -475,7 +488,7 @@ static tnode_t *cccsp_name_create (tnode_t *fename, tnode_t *body, map_t *mdata,
 	} else {
 		ctype = string_dup ("void");
 	}
-#if 1
+#if 0
 fhandle_printf (FHAN_STDERR, "cccsp_name_create(): cname=\"%s\" type =\n", cname);
 tnode_dumptree (type, 1, FHAN_STDERR);
 fhandle_printf (FHAN_STDERR, ">> ctype is \"%s\", fename =\n", ctype);
@@ -572,7 +585,29 @@ int cccsp_set_initialiser (tnode_t *bename, tnode_t *init)
 	return 0;
 }
 /*}}}*/
+/*{{{  tnode_t *cccsp_create_apicallname (cccsp_apicall_e apin)*/
+/*
+ *	creates a new constant node that represents the particular API call (note: not transformed into CCCSPCONST)
+ */
+tnode_t *cccsp_create_apicallname (cccsp_apicall_e apin)
+{
+	tnode_t *node = constprop_newconst (CONST_INT, NULL, NULL, (int)apin);
 
+	return node;
+}
+/*}}}*/
+/*{{{  tnode_t *cccsp_create_addrof (tnode_t *arg, target_t *target)*/
+/*
+ *	creates an address-of modifier.
+ */
+tnode_t *cccsp_create_addrof (tnode_t *arg, target_t *target)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)target->priv;
+	tnode_t *node = tnode_createfrom (kpriv->tag_ADDROF, arg, arg);
+
+	return node;
+}
+/*}}}*/
 
 /*{{{  static int cccsp_prewalktree_codegen (tnode_t *node, void *data)*/
 /*
@@ -659,7 +694,6 @@ static int cccsp_modprewalktree_betrans (tnode_t **tptr, void *arg)
 }
 /*}}}*/
 
-
 /*{{{  static void cccsp_do_betrans (tnode_t **tptr, betrans_t *be)*/
 /*
  *	intercepts back-end transform pass
@@ -731,7 +765,6 @@ static void cccsp_do_codegen (tnode_t *tptr, codegen_t *cgen)
 }
 /*}}}*/
 
-
 /*{{{  static void cccsp_coder_comment (codegen_t *cgen, const char *fmt, ...)*/
 /*
  *	generates a comment
@@ -788,26 +821,78 @@ static void cccsp_coder_debugline (codegen_t *cgen, tnode_t *node)
 static void cccsp_coder_c_procentry (codegen_t *cgen, name_t *name, tnode_t *params)
 {
 	cccsp_priv_t *kpriv = (cccsp_priv_t *)cgen->target->priv;
-	char *entryname = cccsp_make_entryname (name->me->name);
+	char *entryname = cccsp_make_entryname (name->me->name, (params == NULL) ? 1 : 0);
 
 	/*
 	 *	updated: for CIF, this is a little different now
 	 */
 
 	codegen_ssetindent (cgen);
-	codegen_write_fmt (cgen, "void %s (Workspace wptr)\n", entryname);
+	if (!params) {
+		/* parameters-in-workspace */
+		codegen_write_fmt (cgen, "void %s (Workspace wptr)\n", entryname);
+	} else {
+		int i, nparams;
+		tnode_t **plist;
+
+		cccsp_coder_inparamlist++;
+		plist = parser_getlistitems (params, &nparams);
+		codegen_write_fmt (cgen, "void %s (Workspace wptr", entryname);
+		for (i=0; i<nparams; i++) {
+			codegen_write_fmt (cgen, ", ");
+			codegen_subcodegen (plist[i], cgen);
+		}
+		codegen_write_fmt (cgen, ")\n");
+		cccsp_coder_inparamlist--;
+	}
 	sfree (entryname);
 
-	if (!compopts.notmainmodule) {
+	if (!compopts.notmainmodule && !params) {
 		/* save as last (generated in source order) */
 		kpriv->last_toplevelname = name;
-		kpriv->last_toplevelparams = params;
 	}
 
 	return;
 }
 /*}}}*/
+/*{{{  static void cccsp_coder_c_proccall (codegen_t *cgen, const char *name, tnode_t *params, int isapi)*/
+/*
+ *	creates a function instance
+ */
+static void cccsp_coder_c_proccall (codegen_t *cgen, const char *name, tnode_t *params, int isapi)
+{
+	char *procname;
+	
+	if (isapi) {
+		cccsp_apicall_t *apic = &(cccsp_apicall_table[isapi]);
 
+		procname = string_dup (apic->name);
+	} else {
+		procname = cccsp_make_entryname (name, (params == NULL) ? 1 : 0);
+	}
+
+	codegen_ssetindent (cgen);
+	if (!params) {
+		/* parameters in workspace, but should probably not be called like this! */
+		codegen_write_fmt (cgen, "%s (wptr);\n", procname);
+		codegen_warning (cgen, "cccsp_coder_c_proccall(): unexpected params == NULL here, for %s", procname);
+	} else {
+		int i, nparams;
+		tnode_t **plist;
+
+		codegen_write_fmt (cgen, "%s (wptr", procname);
+		plist = parser_getlistitems (params, &nparams);
+		for (i=0; i<nparams; i++) {
+			codegen_write_fmt (cgen, ", ");
+			codegen_subcodegen (plist[i], cgen);
+		}
+		codegen_write_fmt (cgen, ");\n");
+	}
+	sfree (procname);
+
+	return;
+}
+/*}}}*/
 
 /*{{{  static int cccsp_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)*/
 /*
@@ -849,6 +934,7 @@ static int cccsp_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
 	cops->debugline = cccsp_coder_debugline;
 
 	cops->c_procentry = cccsp_coder_c_procentry;
+	cops->c_proccall = cccsp_coder_c_proccall;
 
 	cgen->cops = cops;
 
@@ -871,23 +957,31 @@ static int cccsp_be_codegen_final (codegen_t *cgen, lexfile_t *srcfile)
 		int has_screen = -1, has_error = -1, has_kyb = -1;
 		int nparams = 0;
 		char *entryname;
+		tnode_t *beblk;
+		tnode_t *toplevelparams;
 
 		if (!kpriv->last_toplevelname) {
 			codegen_error (cgen, "cccsp_be_codegen_final(): no top-level process set");
 			return -1;
 		}
 
-		entryname = cccsp_make_entryname (NameNameOf (kpriv->last_toplevelname));
+		entryname = cccsp_make_entryname (NameNameOf (kpriv->last_toplevelname), 1);
 
+		beblk = tnode_nthsubof (NameDeclOf (kpriv->last_toplevelname), 2);
+		if (beblk->tag != cgen->target->tag_BLOCK) {
+			toplevelparams = NULL;
+		} else {
+			toplevelparams = tnode_nthsubof (beblk, 1);
+		}
 #if 0
 fhandle_printf (FHAN_STDERR, "cccsp_be_codegen_final(): generating interface, top-level parameters are:\n");
-tnode_dumptree (kpriv->last_toplevelparams, 1, FHAN_STDERR);
+tnode_dumptree (toplevelparams, 1, FHAN_STDERR);
 #endif
-		if (kpriv->last_toplevelparams) {
+		if (toplevelparams) {
 			tnode_t **params;
 			int i;
 
-			params = parser_getlistitems (kpriv->last_toplevelparams, &nparams);
+			params = parser_getlistitems (toplevelparams, &nparams);
 			for (i=0; i<nparams; i++) {
 				tnode_t *fename;
 
@@ -1050,7 +1144,6 @@ tnode_dumptree (kpriv->last_toplevelparams, 1, FHAN_STDERR);
 }
 /*}}}*/
 
-
 /*{{{  static int cccsp_lcodegen_name (compops_t *cops, tnode_t *name, codegen_t *cgen)*/
 /*
  *	does code-generation for a back-end name: produces the C declaration.
@@ -1074,8 +1167,6 @@ static int cccsp_lcodegen_name (compops_t *cops, tnode_t *name, codegen_t *cgen)
 	return 0;
 }
 /*}}}*/
-
-
 /*{{{  static int cccsp_lcodegen_nameref (compops_t *cops, tnode_t *nameref, codegen_t *cgen)*/
 /*
  *	does code-generation for a name-reference: produces the C name.
@@ -1091,8 +1182,6 @@ static int cccsp_lcodegen_nameref (compops_t *cops, tnode_t *nameref, codegen_t 
 	return 0;
 }
 /*}}}*/
-
-
 /*{{{  static int cccsp_lcodegen_block (compops_t *cops, tnode_t *blk, codegen_t *cgen)*/
 /*
  *	does code-generation for a back-end block
@@ -1117,8 +1206,6 @@ static int cccsp_lcodegen_block (compops_t *cops, tnode_t *blk, codegen_t *cgen)
 	return 0;
 }
 /*}}}*/
-
-
 /*{{{  static int cccsp_lcodegen_const (compops_t *cops, tnode_t *cnst, codegen_t *cgen)*/
 /*
  *	does code-generation for a back-end constant: produces the raw data.
@@ -1175,7 +1262,25 @@ static int cccsp_lcodegen_const (compops_t *cops, tnode_t *cnst, codegen_t *cgen
 	return 0;
 }
 /*}}}*/
+/*{{{  static int cccsp_lcodegen_modifier (compops_t *cops, tnode_t *mod, codegen_t *cgen)*/
+/*
+ *	does code-generation for a modifier (e.g. address-of)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_lcodegen_modifier (compops_t *cops, tnode_t *mod, codegen_t *cgen)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cgen->target->priv;
 
+	if (mod->tag == kpriv->tag_ADDROF) {
+		codegen_write_fmt (cgen, "&(");
+		codegen_subcodegen (tnode_nthsubof (mod, 0), cgen);
+		codegen_write_fmt (cgen, ")");
+	} else {
+		codegen_error (cgen, "cccsp_lcodegen_modifier(): unknown modifier [%s]", mod->tag->name);
+	}
+	return 0;
+}
+/*}}}*/
 
 /*{{{  int cccsp_init (void)*/
 /*
@@ -1236,7 +1341,7 @@ static int cccsp_target_init (target_t *target)
 	kpriv = (cccsp_priv_t *)smalloc (sizeof (cccsp_priv_t));
 	kpriv->lastfile = NULL;
 	kpriv->last_toplevelname = NULL;
-	kpriv->last_toplevelparams = NULL;
+	kpriv->tag_ADDROF = NULL;
 	target->priv = (void *)kpriv;
 
 	cccsp_init_options (kpriv);
@@ -1303,6 +1408,19 @@ static int cccsp_target_init (target_t *target)
 
 	i = -1;
 	target->tag_CONST = tnode_newnodetag ("CCCSPCONST", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  cccsp:modifier -- CCCSPADDROF*/
+	i = -1;
+	tnd = tnode_newnodetype ("cccsp:modifier", &i, 1, 0, 0, TNF_NONE);	/* subnodes: operand */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (cccsp_lcodegen_modifier));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	kpriv->tag_ADDROF = tnode_newnodetag ("CCCSPADDROF", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

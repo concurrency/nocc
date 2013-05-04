@@ -1,0 +1,8 @@
+# test_g16.gpp -- more guppy compilation tests
+
+define test_g16 (chan!(char) screen)
+  par
+    skip
+    stop
+end
+

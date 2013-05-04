@@ -57,6 +57,7 @@
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@= 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:oneassign> ]"
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@? 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:input> ]"
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@! 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:output> ]"
+.TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@( 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:instance> ]"
 
 # }}}
 
@@ -129,8 +130,8 @@
 # }}}
 .SECTION "guppy-fcndef" # {{{: function/procedure definitions
 
-.GRULE	"gup:fcndefreduce" "SN1N+N+V0C[FCNDEF]3R-"
-.GRULE	"gup:fcndefreduce1" "SN0N+00C[FCNDEF]3R-"
+.GRULE	"gup:fcndefreduce" "SN1N+N+V00C[FCNDEF]4R-"
+.GRULE	"gup:fcndefreduce1" "SN0N+000C[FCNDEF]4R-"
 
 .TABLE	"guppy:definedecl +:= [ 0 guppy:name 1 ] [ 1 @@( 3 ] [ 1 -* 2 ] [ 2 {<gup:fcndefreduce1>} -* ]"
 	"[ 3 guppy:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<gup:fcndefreduce>} -* ]"
@@ -202,6 +203,17 @@
 	"[ 0 -* ]"
 
 .TABLE	"guppy:restofexpr +:= [ 0 @@[ 1 ] [ 1 guppy:expr 2 ] [ 2 @@] 3 ] [ 3 {<gup:foldarraysub>} -* <guppy:restofexpr> ]"
+
+# }}}
+.SECTION "guppy-instance" # {{{
+
+.GRULE	"gup:instancereduce" "SN0N+N+C[INSTANCE]2R-"
+
+.BNF	"guppy:exprlist ::= { guppy:expr @@, 1 }"
+
+.TABLE	"guppy:instance ::= [ 0 guppy:name 1 ] [ 1 @@( 2 ] [ 2 @@) 3 ] [ 3 {<gup:nullpush>} -* 6 ]"
+	"[ 2 -* 4 ] [ 4 guppy:exprlist 5 ] [ 5 @@) 6 ] [ 6 {<gup:instancereduce>} -* ]"
+
 
 # }}}
 
