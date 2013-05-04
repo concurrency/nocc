@@ -2,6 +2,7 @@
 # test_g15.gpp -- testing guppy compiler
 
 @comment "author:Fred Barnes"
+@include "http://frmb.org/nocc-remote/test.gpi"
 
 define test_g15 (chan!(char) screen)
   val string msg is "Hello, world!\n"

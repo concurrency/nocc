@@ -43,6 +43,7 @@
 	<wget>@WGET@</wget>
 
 	<!-- some extra settings -->
-	<cachedir>$HOME/.nocc/cache</cachedir>
+	<cachedir pref="yes" cow="yes">$HOME/.nocc/cache</cachedir>
+	<wgetopts>%u -O %l</wgetopts>
 </nocc>
 

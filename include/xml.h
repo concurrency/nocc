@@ -112,7 +112,10 @@ typedef enum {
 	XMLKEY_HELP,
 	XMLKEY_COMMAND,
 	XMLKEY_WGET,
-	XMLKEY_CACHEDIR
+	XMLKEY_CACHEDIR,
+	XMLKEY_WGETOPTS,
+	XMLKEY_COW,
+	XMLKEY_PREF
 } xmlkeytype_t;
 
 typedef struct TAG_xmlkey {

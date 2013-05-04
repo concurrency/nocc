@@ -171,7 +171,10 @@ compopts_t compopts = {
 	.gprolog_p = NULL,
 	.gdb_p = NULL,
 	.wget_p = NULL,
-	.cachedir = NULL
+	.cachedir = NULL,
+	.wget_opts = NULL,
+	.cache_pref = 0,
+	.cache_cow = 0
 };
 
 /*}}}*/
@@ -835,6 +838,32 @@ static void specfile_elem_start (xmlhandler_t *xh, void *data, xmlkey_t *key, xm
 {
 	dynarray_add (specfilekeys, key);
 	dynarray_add (specfiledata, NULL);
+
+	if ((key->type == XMLKEY_CACHEDIR) && attrkeys) {
+		int i;
+
+		for (i=0; attrkeys[i] && attrvals[i]; i++) {
+			switch (attrkeys[i]->type) {
+			case XMLKEY_COW:
+				if (!strcmp (attrvals[i], "yes")) {
+					compopts.cache_cow = 1;
+				} else {
+					compopts.cache_cow = 0;
+				}
+				break;
+			case XMLKEY_PREF:
+				if (!strcmp (attrvals[i], "yes")) {
+					compopts.cache_pref = 1;
+				} else {
+					compopts.cache_pref = 0;
+				}
+				break;
+			default:
+				nocc_warning ("unknown attribute %s in specs file ignored", attrkeys[i]->name);
+				break;
+			}
+		}
+	}
 	return;
 }
 /*}}}*/
@@ -892,6 +921,9 @@ static void specfile_elem_end (xmlhandler_t *xh, void *data, xmlkey_t *key)
 			break;
 		case XMLKEY_CACHEDIR:
 			specfile_setstring (&compopts.cachedir, edata);
+			break;
+		case XMLKEY_WGETOPTS:
+			specfile_setstring (&compopts.wget_opts, edata);
 			break;
 		default:
 			nocc_warning ("unknown setting %s in specs file ignored", key->name);
@@ -3069,11 +3101,15 @@ int main (int argc, char **argv)
 		nocc_message ("    gdb:             %s", compopts.gdb_p ?: "(unset)");
 		nocc_message ("    wget:            %s", compopts.wget_p ?: "(unset)");
 		nocc_message ("    cachedir:        %s", compopts.cachedir ?: "(unset)");
+		nocc_message ("    cache-cow:       %s", compopts.cache_cow ? "yes" : "no");
+		nocc_message ("    cache-pref:      %s", compopts.cache_pref ? "yes" : "no");
+		nocc_message ("    wget-opts:       %s", compopts.wget_opts ?: "(unset)");
 	}
 
 
 	/*}}}*/
 	/*{{{  initialise other parts of the compiler and the dynamic framework*/
+	file_url_init ();		/* once we have the cache-dir set */
 	symbols_init ();
 	lexer_init ();
 	tnode_init ();

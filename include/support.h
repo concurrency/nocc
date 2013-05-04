@@ -188,6 +188,7 @@ extern void sh_sinit (int *bsizes, void ***table, char ***keys, int size);
 extern void *sh_lookup (int *bsizes, void ***table, char ***keys, int bitsize, char *match);
 extern void sh_dump (FILE *stream, int *bsizes, void ***table, char ***keys, int size);
 extern void sh_walk (int *bsizes, void ***table, char ***keys, int size, void (*func)(void *, char *, void *), void *p);
+extern unsigned int sh_stringhash (const char *str, const int len);
 
 #define stringhash_init(SHASH,BITSIZE) sh_init((int *)&((SH_BSIZES(SHASH))[0]), (void ***)&((SH_TABLE(SHASH))[0]), (char ***)&((SH_KEYS(SHASH))[0]), &SH_SIZE(SHASH), &SH_BITSIZE(SHASH), (void *)&(SH_LOOKUP(SHASH)), (BITSIZE))
 #define stringhash_sinit(SHASH) sh_sinit((int *)&((SH_BSIZES(SHASH))[0]), (void ***)&((SH_TABLE(SHASH))[0]), (char ***)&((SH_KEYS(SHASH))[0]), SH_SIZE(SHASH))

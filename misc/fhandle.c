@@ -211,6 +211,41 @@ static int fhandle_seterr (fhandle_t *fh, int err)
 	return err;
 }
 /*}}}*/
+/*{{{  static fhscheme_t *fhandle_lookupscheme (const char *path, int *poffs)*/
+/*
+ *	returns a scheme associated with a particular path, or the default scheme
+ */
+static fhscheme_t *fhandle_lookupscheme (const char *path, int *poffs)
+{
+	char *ch;
+	fhscheme_t *scheme;
+
+	for (ch=(char *)path; (*ch != '\0') && (*ch != ':'); ch++);
+	if (*ch == '\0') {
+		/* none specified, try default */
+		scheme = stringhash_lookup (schemes, "file://");
+		if (poffs) {
+			*poffs = 0;
+		}
+	} else if ((ch[1] == '/') && (ch[2] == '/')) {
+		char *pfx = string_ndup (path, (int)(ch - path) + 3);
+
+		scheme = stringhash_lookup (schemes, pfx);
+		sfree (pfx);
+		if (poffs) {
+			*poffs = (int)(ch - path) + 3;
+		}
+	} else {
+		/* was probably part of the filename, odd, but try anyway */
+		scheme = stringhash_lookup (schemes, "file://");
+		if (poffs) {
+			*poffs = 0;
+		}
+	}
+
+	return scheme;
+}
+/*}}}*/
 
 
 /*{{{  fhandle_t *fhandle_fopen (const char *path, const char *mode)*/
@@ -275,36 +310,11 @@ fhandle_t *fhandle_open (const char *path, const int mode, const int perm)
 	fhscheme_t *scheme;
 	int poffs, err;
 
-	for (ch=(char *)path; (*ch != '\0') && (*ch != ':'); ch++);
-	if (*ch == '\0') {
-		/* none specified, try default */
-		scheme = stringhash_lookup (schemes, "file://");
-		if (!scheme) {
-			nocc_serious ("fhandle_open(): no \"file://\" scheme!  cannot open \"%s\"", path);
-			fhandle_seterr (NULL, -ENOSYS);
-			return NULL;
-		}
-		poffs = 0;
-	} else if ((ch[1] == '/') && (ch[2] == '/')) {
-		char *pfx = string_ndup (path, (int)(ch - path) + 3);
-
-		scheme = stringhash_lookup (schemes, pfx);
-		sfree (pfx);
-		if (!scheme) {
-			nocc_serious ("fhandle_open(): no scheme registered for \"%s\"", path);
-			fhandle_seterr (NULL, -ENOSYS);
-			return NULL;
-		}
-		poffs = (int)(ch - path) + 3;
-	} else {
-		/* was probably part of the filename, odd, but try anyway */
-		scheme = stringhash_lookup (schemes, "file://");
-		if (!scheme) {
-			nocc_serious ("fhandle_open(): no \"file://\" scheme!  cannot open \"%s\"", path);
-			fhandle_seterr (NULL, -ENOSYS);
-			return NULL;
-		}
-		poffs = 0;
+	scheme = fhandle_lookupscheme (path, &poffs);
+	if (!scheme) {
+		nocc_serious ("fhandle_open(): failed to find a scheme to handle \"%s\"", path);
+		fhandle_seterr (NULL, -ENOSYS);
+		return NULL;
 	}
 
 	fhan = fhandle_newfhandle ();
@@ -329,9 +339,81 @@ fhandle_t *fhandle_open (const char *path, const int mode, const int perm)
  */
 int fhandle_access (const char *path, const int amode)
 {
-	/* FIXME: incomplete.. */
-	fhandle_seterr (NULL, -ENOSYS);
-	return -1;
+	fhscheme_t *scheme;
+	int err, poffs;
+
+	scheme = fhandle_lookupscheme (path, &poffs);
+	if (!scheme) {
+		nocc_serious ("fhandle_access(): failed to find a scheme to handle \"%s\"", path);
+		fhandle_seterr (NULL, -ENOSYS);
+		return -ENOSYS;
+	}
+
+	if (!scheme->accessfcn) {
+		nocc_serious ("fhandle_access(): scheme [%s] does not support access() for \"%s\"", scheme->sname, path);
+		err = -ENOSYS;
+	} else {
+		err = scheme->accessfcn (path + poffs, amode);
+	}
+	fhandle_seterr (NULL, err);
+
+	return err;
+}
+/*}}}*/
+/*{{{  int fhandle_mkdir (const char *path, const int perm)*/
+/*
+ *	creates a directory
+ *	returns 0 on success, non-zero on failure
+ */
+int fhandle_mkdir (const char *path, const int perm)
+{
+	fhscheme_t *scheme;
+	int err, poffs;
+
+	scheme = fhandle_lookupscheme (path, &poffs);
+	if (!scheme) {
+		nocc_serious ("fhandle_mkdir(): failed to find a scheme to handle \"%s\"", path);
+		fhandle_seterr (NULL, -ENOSYS);
+		return -ENOSYS;
+	}
+
+	if (!scheme->mkdirfcn) {
+		nocc_serious ("fhandle_mkdir(): scheme [%s] does not support mkdir() for \"%s\"", scheme->sname, path);
+		err = -ENOSYS;
+	} else {
+		err = scheme->mkdirfcn (path + poffs, perm);
+	}
+	fhandle_seterr (NULL, err);
+
+	return err;
+}
+/*}}}*/
+/*{{{  int fhandle_stat (const char *path, struct stat *st_buf)*/
+/*
+ *	stat()s a file or directory
+ *	returns 0 on success, non-zero on error
+ */
+int fhandle_stat (const char *path, struct stat *st_buf)
+{
+	fhscheme_t *scheme;
+	int err, poffs;
+
+	scheme = fhandle_lookupscheme (path, &poffs);
+	if (!scheme) {
+		nocc_serious ("fhandle_stat(): failed to find a scheme to handle \"%s\"", path);
+		fhandle_seterr (NULL, -ENOSYS);
+		return -ENOSYS;
+	}
+
+	if (!scheme->statfcn) {
+		nocc_serious ("fhandle_stat(): scheme [%s] does not support stat() for \"%s\"", scheme->sname, path);
+		err = -ENOSYS;
+	} else {
+		err = scheme->statfcn (path + poffs, st_buf);
+	}
+	fhandle_seterr (NULL, err);
+
+	return err;
 }
 /*}}}*/
 /*{{{  int fhandle_close (fhandle_t *fh)*/
@@ -437,6 +519,22 @@ int fhandle_printf (fhandle_t *fh, const char *fmt, ...)
 	int count = 0;
 	va_list ap;
 
+	va_start (ap, fmt);
+	count = fhandle_vprintf (fh, fmt, ap);
+	va_end (ap);
+
+	return count;
+}
+/*}}}*/
+/*{{{  int fhandle_vprintf (fhandle_t *fh, const char *fmt, va_list ap)*/
+/*
+ *	does printf style formatting writing to a file.
+ *	returns number of bytes written, -1 on error.
+ */
+int fhandle_vprintf (fhandle_t *fh, const char *fmt, va_list ap)
+{
+	int count = 0;
+
 	if (!fh) {
 		fhandle_seterr (fh, -EINVAL);
 		return -1;
@@ -445,9 +543,7 @@ int fhandle_printf (fhandle_t *fh, const char *fmt, ...)
 		return -1;
 	}
 
-	va_start (ap, fmt);
 	count = fh->scheme->printffcn (fh, fmt, ap);
-	va_end (ap);
 
 	if (count < 0) {
 		fhandle_seterr (fh, count);
@@ -455,7 +551,6 @@ int fhandle_printf (fhandle_t *fh, const char *fmt, ...)
 	} else {
 		fhandle_seterr (fh, 0);
 	}
-
 	return count;
 }
 /*}}}*/

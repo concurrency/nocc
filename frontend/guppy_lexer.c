@@ -53,7 +53,7 @@ static int guppy_getcodeline (lexfile_t *lf, lexpriv_t *lp, char **rbuf);
 langlexer_t guppy_lexer = {
 	.langname = "guppy",
 	.langtag = LANGTAG_GUPPY,
-	.fileexts = {".gpp", "gpi", NULL},
+	.fileexts = {".gpp", ".gpi", NULL},
 	.openfile = guppy_openfile,
 	.closefile = guppy_closefile,
 	.nexttoken = guppy_nexttoken,

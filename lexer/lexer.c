@@ -95,14 +95,14 @@ int lexer_shutdown (void)
 
 /*{{{  int lexer_relpathto (const char *filename, char *target, int tsize)*/
 /*
- *	determines the current relative path to a particular file-name, base on something that we can read
+ *	determines the current relative path to a particular file-name, based on something that we can read
  *	puts the resulting path in 'target'
  *	returns 0 on success, non-zero on failure
  */
 int lexer_relpathto (const char *filename, char *target, int tsize)
 {
 	/* check for current directory first */
-	if (!access (filename, R_OK)) {
+	if (!fhandle_access (filename, R_OK)) {
 		/* this one will do */
 		if (strlen (filename) >= tsize) {
 			/* too big! */
@@ -142,7 +142,7 @@ fprintf (stderr, "lexer_relpathto(): lastopen->filename=[%s] @0x%8.8x, lastopen-
 
 		fnlen += snprintf (fnbuf + fnlen, FILENAME_MAX-(fnlen + 1), "%s", filename);
 
-		if (!access (fnbuf, R_OK)) {
+		if (!fhandle_access (fnbuf, R_OK)) {
 			/* can read this, use it */
 			if (fnlen >= tsize) {
 				/* too big! */
@@ -188,7 +188,7 @@ fprintf (stderr, "lexer_open(): filename=[%s], DA_CUR(openlexfiles)=%d\n", filen
 		fnlen = strlen (fnbuf);
 	}
 
-	if (access (fnbuf, R_OK)) {
+	if (fhandle_access (fnbuf, R_OK)) {
 		/*{{{  search through include and library directories*/
 		for (i=0; i<DA_CUR (compopts.ipath); i++) {
 			char *ipath = DA_NTHITEM (compopts.ipath, i);
@@ -196,7 +196,7 @@ fprintf (stderr, "lexer_open(): filename=[%s], DA_CUR(openlexfiles)=%d\n", filen
 			fnlen = snprintf (fnbuf, FILENAME_MAX - 1, "%s/", ipath);
 			fnlen += snprintf (fnbuf + fnlen, FILENAME_MAX - (fnlen + 1), "%s", filename);
 
-			if (!access (fnbuf, R_OK)) {
+			if (!fhandle_access (fnbuf, R_OK)) {
 				break;		/* for() */
 			}
 		}
@@ -210,12 +210,12 @@ fprintf (stderr, "lexer_open(): filename=[%s], DA_CUR(openlexfiles)=%d\n", filen
 				fnlen = snprintf (fnbuf, FILENAME_MAX - 1, "%s/", lpath);
 				fnlen += snprintf (fnbuf + fnlen, FILENAME_MAX - (fnlen + 1), "%s", filename);
 
-				if (!access (fnbuf, R_OK)) {
+				if (!fhandle_access (fnbuf, R_OK)) {
 					break;		/* for() */
 				}
 			}
 			if (i == DA_CUR (compopts.lpath)) {
-				nocc_error ("unable to access %s for reading: %s", fnbuf, strerror (errno));
+				nocc_error ("unable to access %s for reading: %s", fnbuf, strerror (fhandle_lasterr (NULL)));
 				return NULL;
 			}
 		}
@@ -296,8 +296,8 @@ fprintf (stderr, "lexer_open(): openlexfile[%d] has supported extension \"%s\"\n
 		nocc_error ("%s is already open!", lf->filename);
 		return NULL;
 	}
-	if (stat (lf->filename, &stbuf)) {
-		nocc_error ("failed to stat %s: %s", lf->filename, strerror (errno));
+	if (fhandle_stat (lf->filename, &stbuf)) {
+		nocc_error ("failed to stat %s: %s", lf->filename, strerror (fhandle_lasterr (NULL)));
 		return NULL;
 	}
 

@@ -81,5 +81,8 @@ help,			XMLKEY_HELP
 command,		XMLKEY_COMMAND
 wget,			XMLKEY_WGET
 cachedir,		XMLKEY_CACHEDIR
+wgetopts,		XMLKEY_WGETOPTS
+cow,			XMLKEY_COW
+pref,			XMLKEY_PREF
 %%
 

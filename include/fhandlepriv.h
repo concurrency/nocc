@@ -21,6 +21,7 @@
 #define __FHANDLEPRIV_H
 
 struct TAG_fhandle;
+struct stat;
 
 typedef struct TAG_fhscheme {
 	char *sname;			/* scheme name ("host") */
@@ -32,6 +33,9 @@ typedef struct TAG_fhscheme {
 
 	int (*openfcn)(struct TAG_fhandle *, const int, const int);
 	int (*closefcn)(struct TAG_fhandle *);
+	int (*accessfcn)(const char *, int);
+	int (*mkdirfcn)(const char *, int);
+	int (*statfcn)(const char *, struct stat *);
 	int (*mapfcn)(struct TAG_fhandle *, unsigned char **, size_t, size_t);
 	int (*unmapfcn)(struct TAG_fhandle *, unsigned char *, size_t, size_t);
 	int (*printffcn)(struct TAG_fhandle *, const char *, va_list);

@@ -128,6 +128,9 @@ typedef struct TAG_compopts {
 
 	/* additional things */
 	char *cachedir;
+	char *wget_opts;
+	int cache_pref;
+	int cache_cow;
 } compopts_t;
 
 

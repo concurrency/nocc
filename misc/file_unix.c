@@ -54,7 +54,7 @@ typedef struct TAG_unixfhscheme {
 	DYNARRAY (fhandle_t *, ofiles);
 } unixfhscheme_t;
 
-static fhscheme_t *unix_fhscheme;
+static fhscheme_t *unix_fhscheme = NULL;
 static fhandle_t *unix_stderrhandle;
 static fhandle_t *unix_stdouthandle;
 
@@ -142,6 +142,74 @@ static int unix_openfcn (fhandle_t *fhan, const int mode, const int perm)
 	}
 	fhan->ipriv = (void *)ufhan;
 	return 0;
+}
+/*}}}*/
+/*{{{  static int unix_accessfcn (const char *path, const int amode)*/
+/*
+ *	called to check access perms for a file
+ *	returns 0 on success, non-zero on error
+ */
+static int unix_accessfcn (const char *path, const int amode)
+{
+	int err = access (path, amode);
+
+	return err;
+}
+/*}}}*/
+/*{{{  static int unix_mkdirfcn (const char *path, const int perm)*/
+/*
+ *	called to create a directory: does in parts if needed
+ *	return 0 on success, non-zero on error
+ */
+static int unix_mkdirfcn (const char *path, const int perm)
+{
+	char *ch;
+	int err = 0;
+
+	ch = (char *)path;
+	for (;;) {
+		for (; (*ch != '/') && (*ch != '\0'); ch++);
+		/* at next slash or end */
+		if (ch > path) {
+			/* see if path up to, not including '/' (or end), exists */
+			char *tstr = string_ndup (path, (int)(ch - path));
+
+			if (access (tstr, F_OK)) {
+				if (errno == ENOENT) {
+					/* try and create it */
+					err = mkdir (tstr, perm);
+					sfree (tstr);
+					goto out;
+				}
+			}
+
+			sfree (tstr);
+			if (*ch == '/') {
+				ch++;
+			}
+		} else {
+			/* leading slash */
+			ch++;
+		}
+		if (*ch == '\0') {
+			break;		/* end */
+		}
+	}
+
+out:
+	return err;
+}
+/*}}}*/
+/*{{{  static int unix_statfcn (const char *path, struct stat *st_buf)*/
+/*
+ *	called to stat a file or directory
+ *	returns 0 on success, non-zero on error
+ */
+static int unix_statfcn (const char *path, struct stat *st_buf)
+{
+	int err = stat (path, st_buf);
+
+	return err;
 }
 /*}}}*/
 /*{{{  static int unix_closefcn (fhandle_t *fhan)*/
@@ -387,6 +455,9 @@ int file_unix_init (void)
 	unix_fhscheme->usecount = 0;
 
 	unix_fhscheme->openfcn = unix_openfcn;
+	unix_fhscheme->accessfcn = unix_accessfcn;
+	unix_fhscheme->mkdirfcn = unix_mkdirfcn;
+	unix_fhscheme->statfcn = unix_statfcn;
 	unix_fhscheme->closefcn = unix_closefcn;
 	unix_fhscheme->mapfcn = unix_mapfcn;
 	unix_fhscheme->unmapfcn = unix_unmapfcn;

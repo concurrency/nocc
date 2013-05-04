@@ -1638,6 +1638,21 @@ void sh_trash (int *bsizes, void ***table, char ***keys, int size)
 	return;
 }
 /*}}}*/
+/*{{{  unsigned int sh_stringhash (const char *str, const int len)*/
+/*
+ *	returns a hash-code for an arbitrary string
+ */
+unsigned int sh_stringhash (const char *str, const int len)
+{
+	char *lstr = string_ndup (str, len);
+	unsigned int hcode;
+
+	hcode = sh_hashcode (lstr, 6);
+	sfree (lstr);
+
+	return hcode;
+}
+/*}}}*/
 
 
 /*{{{  void ph_init (int *bsizes, void ***table, void ***keys, int *szptr, int *bszptr, void **fnptr, int bitsize)*/

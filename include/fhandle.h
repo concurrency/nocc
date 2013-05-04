@@ -21,6 +21,7 @@
 #define __FHANDLE_H
 
 struct TAG_fhscheme;
+struct stat;
 
 typedef struct TAG_fhandle {
 	struct TAG_fhscheme *scheme;	/* particular scheme (implementation) */
@@ -33,12 +34,14 @@ typedef struct TAG_fhandle {
 extern fhandle_t *fhandle_fopen (const char *path, const char *mode);
 extern fhandle_t *fhandle_open (const char *path, const int mode, const int perm);
 extern int fhandle_access (const char *path, const int amode);
+extern int fhandle_mkdir (const char *path, const int perm);
+extern int fhandle_stat (const char *path, struct stat *st_buf);
 extern int fhandle_close (fhandle_t *fh);
 extern int fhandle_lasterr (fhandle_t *fh);
-
 extern unsigned char *fhandle_mapfile (fhandle_t *fh, size_t offset, size_t length);
 extern int fhandle_unmapfile (fhandle_t *fh, unsigned char *ptr, size_t offset, size_t length);
 extern int fhandle_printf (fhandle_t *fh, const char *fmt, ...);
+extern int fhandle_vprintf (fhandle_t *fh, const char *fmt, va_list ap);
 extern int fhandle_write (fhandle_t *fh, unsigned char *buffer, int size);
 extern int fhandle_read (fhandle_t *fh, unsigned char *bufaddr, int max);
 extern int fhandle_gets (fhandle_t *fh, char *bufaddr, int max);
@@ -52,6 +55,9 @@ extern int fhandle_shutdown (void);
 /* assorted handler initialisation/shutdown routines */
 extern int file_unix_init (void);
 extern int file_unix_shutdown (void);
+
+extern int file_url_init (void);
+extern int file_url_shutdown (void);
 
 /* specially handled thing */
 extern fhandle_t *file_unix_getstderr (void);
