@@ -313,8 +313,8 @@ int guppy_declify_listtodecllist (tnode_t **listptr, guppy_declify_t *gdl)
 	int i, j;
 	tnode_t **nextptr = NULL;
 
-	for (i=0; (i<nitems) && ((items[i]->tag == gup.tag_VARDECL) || (items[i]->tag == gup.tag_VALDECL)); i++);
-	for (j=i; (j<nitems) && (items[j]->tag != gup.tag_VARDECL) && (items[j]->tag != gup.tag_VALDECL); j++);
+	for (i=0; (i<nitems) && (items[i]->tag == gup.tag_VARDECL); i++);
+	for (j=i; (j<nitems) && (items[j]->tag != gup.tag_VARDECL); j++);
 
 	/* note: i is index of first non-decl item, j index of next decl-item or EOL */
 
@@ -346,7 +346,7 @@ fprintf (stderr, "guppy_declify_listtodecllist(): i=%d, j=%d, nitems=%d\n", i, j
 		tnode_t *instlist = parser_newlistnode (OrgFileOf (list));
 		tnode_t *vdblock = tnode_createfrom (gup.tag_DECLBLOCK, list, decllist, instlist);
 
-		while ((j < nitems) && ((items[j]->tag == gup.tag_VARDECL) || (items[j]->tag == gup.tag_VALDECL))) {
+		while ((j < nitems) && (items[j]->tag == gup.tag_VARDECL)) {
 			tnode_t *itm = parser_delfromlist (list, j);
 
 			parser_addtolist (decllist, itm);

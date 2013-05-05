@@ -201,8 +201,9 @@ static int guppy_prescope_fcndef (compops_t *cops, tnode_t **node, prescope_t *p
 	gps->last_type = NULL;
 	parser_ensurelist (tnode_nthsubaddr (*node, 1), *node);
 
-	/* prescope params */
+	/* prescope params and result types */
 	prescope_subtree (tnode_nthsubaddr (*node, 1), ps);
+	prescope_subtree (tnode_nthsubaddr (*node, 3), ps);
 
 	/* do prescope on body, at higher procdepth */
 	gps->procdepth++;
@@ -253,6 +254,7 @@ static int guppy_scopein_fcndef (compops_t *cops, tnode_t **node, scope_t *ss)
 {
 	tnode_t *name = tnode_nthsubof (*node, 0);
 	tnode_t **paramsptr = tnode_nthsubaddr (*node, 1);
+	tnode_t **resultsptr = tnode_nthsubaddr (*node, 3);
 	tnode_t **bodyptr = tnode_nthsubaddr (*node, 2);
 	chook_t *nnschook = library_getnonamespacechook ();
 	void *nsmark;
@@ -351,7 +353,7 @@ static int guppy_fetrans_fcndef (compops_t *cops, tnode_t **nodep, fetrans_t *fe
 		}
 	}
 
-	/* do fetrans on name and paramters */
+	/* do fetrans on names and paramters (results absorbed by this point) */
 	fetrans_subtree (tnode_nthsubaddr (*nodep, 0), fe);
 	fetrans_subtree (tnode_nthsubaddr (*nodep, 1), fe);
 
@@ -414,7 +416,7 @@ fhandle_printf (FHAN_STDERR, "guppy_fetrans_fcndef(): want to make PFCNDEF versi
 			newfdh->istoplevel = fdh->istoplevel;
 			newfdh->pfcndef = NULL;
 
-			newdef = tnode_createfrom (gup.tag_PFCNDEF, *nodep, newname, newparams, newbody, newfdh);
+			newdef = tnode_createfrom (gup.tag_PFCNDEF, *nodep, newname, newparams, newbody, NULL, newfdh);
 			SetNameDecl (newpfname, newdef);
 
 			fdh->pfcndef = newdef;
@@ -530,6 +532,7 @@ static int guppy_getdescriptor_fcndef (langops_t *lops, tnode_t *node, char **st
 	tnode_t *name = tnode_nthsubof (node, 0);
 	char *realname;
 	tnode_t *params = tnode_nthsubof (node, 1);
+	tnode_t *results = tnode_nthsubof (node, 3);
 
 	if (*str) {
 		nocc_warning ("guppy_getdescriptor_fcndef(): already had descriptor [%s]", *str);
@@ -585,7 +588,7 @@ static int guppy_fcndef_init_nodes (void)
 
 	/*{{{  guppy:fcndef -- FCNDEF*/
 	i = -1;
-	tnd = tnode_newnodetype ("guppy:fcndef", &i, 3, 0, 1, TNF_LONGDECL);			/* subnodes: name, fparams, body;  hooks: guppy_fcndefhook_t */
+	tnd = tnode_newnodetype ("guppy:fcndef", &i, 4, 0, 1, TNF_LONGDECL);			/* subnodes: name, fparams, body, results;  hooks: guppy_fcndefhook_t */
 	tnd->hook_free = guppy_fcndef_hook_free;
 	tnd->hook_copy = guppy_fcndef_hook_copy;
 	tnd->hook_dumptree = guppy_fcndef_hook_dumptree;

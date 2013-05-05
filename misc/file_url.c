@@ -57,6 +57,7 @@ typedef struct TAG_urlfhscheme {
 
 static fhscheme_t *url_fhscheme = NULL;
 
+#define CACHE_HASH_SIGCHARS	(8)
 
 /*}}}*/
 
@@ -84,10 +85,10 @@ static int url_clear_localdir (const char *path)
 		/* filename should look something like "xxxxxxxx-..." */
 		int c, plen = strlen (dent->d_name);
 
-		if (plen < 9) {
+		if (plen < (CACHE_HASH_SIGCHARS + 1)) {
 			continue;			/* too short, ignore */
 		}
-		for (c=0; c<8; c++) {
+		for (c=0; c<CACHE_HASH_SIGCHARS; c++) {
 			if (((dent->d_name[c] >= 'a') && (dent->d_name[c] <= 'f')) || ((dent->d_name[c] >= '0') && (dent->d_name[c] <= '9')) ||
 					((dent->d_name[c] >= 'A') && (dent->d_name[c] <= 'F'))) {
 				/* valid hex digit, carry on */
@@ -95,7 +96,7 @@ static int url_clear_localdir (const char *path)
 				break;		/* not hex, ignore */
 			}
 		}
-		if (c == 8) {
+		if (c == CACHE_HASH_SIGCHARS) {
 			if (dent->d_name[c] == '-') {
 				/* probable */
 				char *npath = string_fmt ("%s/%s", path, dent->d_name);
@@ -217,8 +218,18 @@ static char *url_gethashedfilename (const char *path)
 	cry = crypto_newdigest ();
 	if (!cry) {
 		unsigned int hval = sh_stringhash (path, strlen (path));
+		int slen = 0;
+		hashcode = string_dup ("");
 
-		hashcode = string_fmt ("%8.8x", hval);
+		do {
+			char *tmp = string_fmt ("%s%8.8x", hashcode, hval);
+			
+			sfree (hashcode);
+			hashcode = tmp;
+			slen += 8;
+		} while (slen < CACHE_HASH_SIGCHARS);
+
+		hashcode[CACHE_HASH_SIGCHARS] = '\0';
 	} else {
 		crypto_writedigest (cry, (unsigned char *)path, strlen (path));
 		hashcode = crypto_readdigest (cry, NULL);
@@ -228,9 +239,9 @@ static char *url_gethashedfilename (const char *path)
 	/* find trailing name */
 	for (tch = (char *)path + strlen (path); (tch > path) && (tch[-1] != '/'); tch--);
 	
-	if (strlen (hashcode) > 8) {
-		/* only going to take the first 8 chars (32 bits) */
-		hashcode[8] = '\0';
+	if (strlen (hashcode) > CACHE_HASH_SIGCHARS) {
+		/* only going to take the first n chars (8n bits) */
+		hashcode[CACHE_HASH_SIGCHARS] = '\0';
 	}
 	lclpath = string_fmt ("%s/%s-%s", compopts.cachedir, hashcode, tch);
 #if 0

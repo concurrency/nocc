@@ -65,6 +65,8 @@ typedef struct {
 	struct TAG_ntdef *tag_NAME;
 
 	struct TAG_ntdef *tag_ARRAY;
+	struct TAG_ntdef *tag_FCNTYPE;
+	struct TAG_ntdef *tag_VALTYPE;
 
 	struct TAG_ntdef *tag_LITINT;
 	struct TAG_ntdef *tag_LITREAL;
@@ -75,7 +77,6 @@ typedef struct {
 	struct TAG_ntdef *tag_FCNDEF;
 	struct TAG_ntdef *tag_PFCNDEF;
 	struct TAG_ntdef *tag_VARDECL;
-	struct TAG_ntdef *tag_VALDECL;
 	struct TAG_ntdef *tag_FPARAM;
 	struct TAG_ntdef *tag_DECLBLOCK;
 	struct TAG_ntdef *tag_ENUMDEF;
@@ -93,6 +94,7 @@ typedef struct {
 	struct TAG_ntdef *tag_APICALL;
 
 	struct TAG_ntdef *tag_NDECL;
+	struct TAG_ntdef *tag_NVALDECL;
 	struct TAG_ntdef *tag_NABBR;
 	struct TAG_ntdef *tag_NVALABBR;
 	struct TAG_ntdef *tag_NRESABBR;

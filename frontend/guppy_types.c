@@ -877,6 +877,29 @@ static int guppy_types_init_nodes (void)
 	gup.tag_ARRAY = tnode_newnodetag ("ARRAY", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+	/*{{{  guppy:fcntype -- FCNTYPE*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:fcntype", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = params; 1 = results */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_FCNTYPE = tnode_newnodetag ("FCNTYPE", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:valtype -- VALTYPE*/
+	/* Note: this only exists before scope */
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:valtype", &i, 1, 0, 0, TNF_NONE);		/* subnodes: 0 = type */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	gup.tag_VALTYPE = tnode_newnodetag ("VALTYPE", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 
 	return 0;
 }

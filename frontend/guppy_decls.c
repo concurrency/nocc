@@ -357,6 +357,7 @@ static int guppy_scopein_vdecl (compops_t *cops, tnode_t **node, scope_t *ss)
 	tnode_t *initdecl = NULL;
 	ntdef_t *tag = NULL;
 	int isabbrev = 0;
+	int isval = 0;
 
 	if (name->tag == gup.tag_ASSIGN) {
 		/* initialising-decl */
@@ -377,16 +378,19 @@ static int guppy_scopein_vdecl (compops_t *cops, tnode_t **node, scope_t *ss)
 		return 0;
 	}
 
+	if (type->tag == gup.tag_VALTYPE) {
+		isval = 1;
+		type = tnode_nthsubof (type, 0);
+		tnode_setnthsub (*node, 1, type);
+	}
+
 	rawname = (char *)tnode_nthhookof (name, 0);
 	varname = name_addscopename (rawname, *node, type, NULL);
 
-	if ((*node)->tag == gup.tag_VARDECL) {
+	if (!isval) {
 		tag = isabbrev ? gup.tag_NABBR : gup.tag_NDECL;
-	} else if ((*node)->tag == gup.tag_VALDECL) {
-		tag = gup.tag_NVALABBR;
 	} else {
-		scope_error (*node, ss, "unknown vdecl type [%s]", (*node)->tag->name);
-		return 0;
+		tag = isabbrev ? gup.tag_NVALABBR : gup.tag_NVALDECL;
 	}
 	newname = tnode_createfrom (tag, name, varname);
 	SetNameNode (varname, newname);
@@ -419,7 +423,9 @@ static int guppy_scopeout_vdecl (compops_t *cops, tnode_t **node, scope_t *ss)
  */
 static int guppy_typecheck_vdecl (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
-	if (node->tag == gup.tag_VALDECL) {
+	tnode_t *name = tnode_nthsubof (node, 0);
+
+	if ((name->tag == gup.tag_NVALDECL) || (name->tag == gup.tag_NVALABBR)) {
 		/* constant: means type cannot change */
 		tnode_t **typep = tnode_nthsubaddr (node, 1);
 
@@ -692,6 +698,48 @@ static int guppy_scopeout_enumdef (compops_t *cops, tnode_t **node, scope_t *ss)
 }
 /*}}}*/
 
+/*{{{  static int guppy_typecheck_fvnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a free-vars node (removes anything that isn't a variable)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_typecheck_fvnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *fvlist = tnode_nthsubof (node, 1);
+	tnode_t *keeplist = parser_newlistnode (NULL);
+	tnode_t **fvitems;
+	int i, nfvitems;
+
+	/* type-check body first, incase it fixes any of the types */
+	typecheck_subtree (tnode_nthsubof (node, 0), tc);
+
+	fvitems = parser_getlistitems (fvlist, &nfvitems);
+	for (i=0; i<nfvitems; i++) {
+		int keep = 0;
+
+		if (fvitems[i]->tag == gup.tag_NDECL) {
+			keep = 1;
+		} else if ((fvitems[i]->tag == gup.tag_NABBR) || (fvitems[i]->tag == gup.tag_NVALABBR) || (fvitems[i]->tag == gup.tag_NRESABBR)) {
+			keep = 1;
+		} else if ((fvitems[i]->tag == gup.tag_NPARAM) || (fvitems[i]->tag == gup.tag_NVALPARAM) ||
+				(fvitems[i]->tag == gup.tag_NRESPARAM) || (fvitems[i]->tag == gup.tag_NINITPARAM)) {
+			keep = 1;
+		} else if (fvitems[i]->tag == gup.tag_NREPL) {
+			keep = 1;
+		}
+
+		if (keep) {
+			parser_addtolist (keeplist, fvitems[i]);
+		}
+		fvitems[i] = NULL;
+	}
+	/* switch lists */
+	tnode_free (fvlist);
+	tnode_setnthsub (node, 1, keeplist);
+
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static int guppy_autoseq_declblock (compops_t *cops, tnode_t **node, guppy_autoseq_t *gas)*/
 /*
@@ -725,7 +773,7 @@ static int guppy_flattenseq_declblock (compops_t *cops, tnode_t **node)
 
 	items = parser_getlistitems (dlist, &nitems);
 	for (i=0; i<nitems; i++) {
-		if ((items[i]->tag == gup.tag_VARDECL) || (items[i]->tag == gup.tag_VALDECL)) {
+		if (items[i]->tag == gup.tag_VARDECL) {
 			/* check for multiple declarations */
 			tnode_t *vdname = tnode_nthsubof (items[i], 0);
 			tnode_t *vdtype = tnode_nthsubof (items[i], 1);
@@ -767,7 +815,7 @@ static int guppy_flattenseq_declblock (compops_t *cops, tnode_t **node)
 	/* 'iptr' is either SEQ or singleton */
 	items = parser_getlistitems (dlist, &nitems);
 	for (i=0; i<nitems; i++) {
-		if ((items[i]->tag == gup.tag_VARDECL) || (items[i]->tag == gup.tag_VALDECL)) {
+		if (items[i]->tag == gup.tag_VARDECL) {
 			tnode_t *vname = tnode_nthsubof (items[i], 0);
 
 			if (vname->tag == gup.tag_ASSIGN) {
@@ -898,6 +946,8 @@ static int guppy_decls_init_nodes (void)
 	i = -1;
 	gup.tag_NDECL = tnode_newnodetag ("N_DECL", &i, tnd, NTF_NONE);
 	i = -1;
+	gup.tag_NVALDECL = tnode_newnodetag ("N_VALDECL", &i, tnd, NTF_NONE);
+	i = -1;
 	gup.tag_NABBR = tnode_newnodetag ("N_ABBR", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_NVALABBR = tnode_newnodetag ("N_VALABBR", &i, tnd, NTF_NONE);
@@ -927,7 +977,7 @@ static int guppy_decls_init_nodes (void)
 	gup.tag_NENUMVAL = tnode_newnodetag ("N_ENUMVAL", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  guppy:vdecl -- VARDECL, VALDECL*/
+	/*{{{  guppy:vdecl -- VARDECL*/
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:vdecl", &i, 3, 0, 0, TNF_NONE);					/* subnodes: name; type; initialiser */
 	cops = tnode_newcompops ();
@@ -940,8 +990,6 @@ static int guppy_decls_init_nodes (void)
 
 	i = -1;
 	gup.tag_VARDECL = tnode_newnodetag ("VARDECL", &i, tnd, NTF_NONE);
-	i = -1;
-	gup.tag_VALDECL = tnode_newnodetag ("VALDECL", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:fparam -- FPARAM*/
@@ -1003,6 +1051,7 @@ static int guppy_decls_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:fvnode", &i, 2, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_fvnode));
 	tnd->ops = cops;
 
 	i = -1;

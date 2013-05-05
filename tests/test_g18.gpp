@@ -1,0 +1,13 @@
+
+# test_g18.gpp -- more guppy tests
+
+define addone (val int i) -> int
+  skip
+end
+
+define test_g18 ()
+  int i = 42
+  seq
+    skip
+end
+
