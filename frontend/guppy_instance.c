@@ -74,6 +74,17 @@
 /*}}}*/
 
 
+/*{{{  static int guppy_prescope_instance (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
+/*
+ *	does pre-scoping on an instance node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_prescope_instance (compops_t *cops, tnode_t **nodep, prescope_t *ps)
+{
+	parser_ensurelist (tnode_nthsubaddr (*nodep, 1), *nodep);
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_scopein_instance (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
 /*
  *	called to scope-in a function instance
@@ -92,15 +103,66 @@ static int guppy_scopein_instance (compops_t *cops, tnode_t **nodep, scope_t *ss
 static int guppy_typecheck_instance (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *fparamlist = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
+	char *fcnname = NameNameOf (tnode_nthnameof (tnode_nthsubof (node, 0), 0));
 	tnode_t *aparamlist = tnode_nthsubof (node, 1);
 	tnode_t **fp_items, **ap_items;
 	int fp_nitems, ap_nitems;
 	int i;
 
-#if 1
+	if (fparamlist->tag == gup.tag_FCNTYPE) {
+		/* use parameters side of function type */
+		fparamlist = tnode_nthsubof (fparamlist, 0);
+	}
+#if 0
 fhandle_printf (FHAN_STDERR, "guppy_typecheck_instance(): instance of:\n");
 tnode_dumptree (node, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, "fparamlist =\n");
+tnode_dumptree (fparamlist, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, "aparamlist =\n");
+tnode_dumptree (aparamlist, 1, FHAN_STDERR);
 #endif
+	if (!parser_islistnode (fparamlist) || !parser_islistnode (aparamlist)) {
+		typecheck_error (node, tc, "invalid instance of [%s]", fcnname);
+		return 0;
+	}
+	fp_items = parser_getlistitems (fparamlist, &fp_nitems);
+	ap_items = parser_getlistitems (aparamlist, &ap_nitems);
+
+	if (ap_nitems < fp_nitems) {
+		typecheck_error (node, tc, "too few parameters to function [%s]", fcnname);
+		return 0;
+	} else if (ap_nitems > fp_nitems) {
+		typecheck_error (node, tc, "too many parameters to function [%s]", fcnname);
+		return 0;
+	}
+
+	/* do a type-check on actual parameters */
+	typecheck_subtree (aparamlist, tc);
+
+	for (i=0; i<fp_nitems; i++) {
+		/*{{{  type-check/type-actual parameter*/
+		tnode_t *ftype, *atype;
+		ntdef_t *ftag;
+		tnode_t *rtype;
+
+		ftype = typecheck_gettype (fp_items[i], NULL);
+		atype = typecheck_gettype (ap_items[i], ftype);
+
+		ftag = (tnode_nthsubof (fp_items[i], 0))->tag;
+		if (ftag != gup.tag_NVALPARAM) {
+			/* must be a variable */
+			if (!langops_isvar (ap_items[i])) {
+				typecheck_error (node, tc, "parameter %d to [%s] must be a variable", i+1, fcnname);
+			}
+		}
+
+		rtype = typecheck_typeactual (ftype, atype, node, tc);
+		if (!rtype) {
+			typecheck_error (node, tc, "incompatible types for parameter %d", i+1);
+		}
+
+		/*}}}*/
+	}
 
 	return 0;
 }
@@ -150,6 +212,24 @@ static int guppy_codegen_instance (compops_t *cops, tnode_t *node, codegen_t *cg
 }
 /*}}}*/
 
+/*{{{  static tnode_t *guppy_gettype_instance (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of an instance -- return types for function
+ */
+static tnode_t *guppy_gettype_instance (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	tnode_t *fname = tnode_nthsubof (node, 0);
+	name_t *name = tnode_nthnameof (fname, 0);
+	tnode_t *ftype = NameTypeOf (name);
+
+	if (ftype->tag == gup.tag_FCNTYPE) {
+		/* function type, returns results */
+		return tnode_nthsubof (ftype, 1);
+	}
+	return NULL;
+}
+/*}}}*/
+
 
 /*{{{  static int guppy_instance_init_nodes (void)*/
 /*
@@ -167,12 +247,14 @@ static int guppy_instance_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:instance", &i, 2, 0, 0, TNF_NONE);		/* subnodes: name, aparams */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_instance));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_instance));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_instance));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_instance));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_instance));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_instance));
 	tnd->lops = lops;
 
 	i = -1;

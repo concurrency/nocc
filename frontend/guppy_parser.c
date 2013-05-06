@@ -1457,7 +1457,19 @@ static int guppy_parser_scope (tnode_t **tptr, scope_t *ss)
  */
 static int guppy_parser_typecheck (tnode_t *tptr, typecheck_t *tc)
 {
-	tnode_prewalktree (tptr, typecheck_prewalktree, (void *)tc);
+	if (!tc->hook) {
+		guppy_typecheck_t *gtc = (guppy_typecheck_t *)smalloc (sizeof (guppy_typecheck_t));
+
+		gtc->encfcn = NULL;
+		tc->hook = (void *)gtc;
+
+		tnode_prewalktree (tptr, typecheck_prewalktree, (void *)tc);
+
+		sfree (gtc);
+		tc->hook = NULL;
+	} else {
+		tnode_prewalktree (tptr, typecheck_prewalktree, (void *)tc);
+	}
 	return tc->err;
 }
 /*}}}*/

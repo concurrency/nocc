@@ -40,7 +40,7 @@
 
 .SECTION "guppy-postprod" # {{{: top-level grammar, kind-of
 
-.TABLE	"guppy:procstart +:= [ 0 guppy:primproc 1 ] [ 0 guppy:cnode 1 ] [ 1 {<gup:nullreduce>} -* ]"
+.TABLE	"guppy:procstart +:= [ 0 guppy:primproc 1 ] [ 0 guppy:cnode 1 ] [ 0 guppy:cflow 1 ] [ 1 {<gup:nullreduce>} -* ]"
 	"[ 0 +Name 2 ] [ 2 +Name 3 ] [ 3 {<gup:rewindlexer>} -* <guppy:namenamestartproc> ]"
 	"[ 2 -* 4 ] [ 4 {<gup:rewindlexer>} -* <guppy:namestartproc> ]"
 
@@ -75,7 +75,8 @@
 .BNF	"guppy:name ::= +Name {<gup:namereduce>}"
 .BNF	"guppy:namelist ::= { guppy:name @@, 1 }"
 
-.TABLE	"guppy:expr +:= [ 0 guppy:name 1 ] [ 1 {<gup:nullreduce>} -* 2 ] [ 2 -* <guppy:restofexpr> ]"
+.TABLE	"guppy:exprstartname ::= [ 0 -* 1 ] [ 1 {<gup:nullreduce>} -* 2 ] [ 2 -* <guppy:restofexpr> ]"
+.TABLE	"guppy:expr +:= [ 0 guppy:name <guppy:exprstartname> ]"
 
 .TABLE	"guppy:fparam ::= [ 0 guppy:type 1 ] [ 1 guppy:name 2 ] [ 2 {<gup:fparam2nsreduce>} -* ]"
 
@@ -127,15 +128,18 @@
 .TABLE	"guppy:type ::= [ 0 %guppy:subtype 3 ] [ 0 @val 1 ] [ 1 guppy:subtype 2 ] [ 2 {<gup:valtypereduce>} -* ]"
 	"[ 3 guppy:subtype 4 ] [ 4 {<gup:nullreduce>} -* ]"
 
+.BNF	"guppy:typelist ::= { guppy:type @@, 1 }"
 
 # }}}
 .SECTION "guppy-fcndef" # {{{: function/procedure definitions
 
 .GRULE	"gup:fcndefreduce" "SN1N+N+V000C[FCNDEF]5R-"
 .GRULE	"gup:fcndefreduce1" "SN0N+0000C[FCNDEF]5R-"
+.GRULE	"gup:fcndefreduce2" "SN2N+0N+N+V*0C[FCNDEF]5R-"
 
 .TABLE	"guppy:definedecl +:= [ 0 guppy:name 1 ] [ 1 @@( 3 ] [ 1 -* 2 ] [ 2 {<gup:fcndefreduce1>} -* ]"
-	"[ 3 guppy:fparamlist 4 ] [ 4 @@) 5 ] [ 5 {<gup:fcndefreduce>} -* ]"
+	"[ 3 guppy:fparamlist 4 ] [ 4 @@) 5 ] [ 5 @@-> 7 ] [ 5 -* 6 ] [ 6 {<gup:fcndefreduce>} -* ]"
+	"[ 7 guppy:typelist 8 ] [ 8 {<gup:fcndefreduce2>} -* ]"
 
 # }}}
 .SECTION "guppy-primproc" # {{{: primitive processes
@@ -161,8 +165,13 @@
 .SECTION "guppy-cflow" # {{{: control-flow processes
 
 .GRULE	"gup:ifreduce" "T+St0@tN+0C[IF]2R-"
+.GRULE	"gup:retreduce" "T+St0@tN+0C[RETURN]2R-"
+.GRULE	"gup:zretreduce" "T+St0@t00C[RETURN]2R-"
 
 .TABLE	"guppy:cflow ::= [ 0 +@if 1 ] [ 1 guppy:expr 2 ] [ 2 -Newline 3 ] [ 3 {<gup:ifreduce>} -* ]"
+
+.TABLE	"guppy:cflow +:= [ 0 +@return 1 ] [ 1 -Comment 2 ] [ 1 -Newline 2 ] [ 2 {<gup:zretreduce>} -* ]"
+	"[ 1 -* 3 ] [ 3 guppy:exprlist 4 ] [ 4 {<gup:retreduce>} -* ]"
 
 # }}}
 .SECTION "guppy-assign" # {{{: assignment
@@ -209,12 +218,16 @@
 .SECTION "guppy-instance" # {{{
 
 .GRULE	"gup:instancereduce" "SN0N+N+C[INSTANCE]2R-"
+.GRULE	"gup:rinstancereduce" "SN0N+N+VC[INSTANCE]2R-"
 
 .BNF	"guppy:exprlist ::= { guppy:expr @@, 1 }"
 
 .TABLE	"guppy:instance ::= [ 0 guppy:name 1 ] [ 1 @@( 2 ] [ 2 @@) 3 ] [ 3 {<gup:nullpush>} -* 6 ]"
 	"[ 2 -* 4 ] [ 4 guppy:exprlist 5 ] [ 5 @@) 6 ] [ 6 {<gup:instancereduce>} -* ]"
 
+# looking at an expression that starts with a name; could be an instance.
+.TABLE	"guppy:exprstartname +:= [ 0 @@( 1 ] [ 1 @@) 2 ] [ 2 {<gup:nullpush>} -* 5 ]"
+	"[ 1 -* 3 ] [ 3 guppy:exprlist 4 ] [ 4 @@) 5 ] [ 5 {<gup:rinstancereduce>} -* <guppy:restofexpr> ]"
 
 # }}}
 

@@ -203,7 +203,11 @@ static int guppy_prescope_fcndef (compops_t *cops, tnode_t **node, prescope_t *p
 
 	/* prescope params and result types */
 	prescope_subtree (tnode_nthsubaddr (*node, 1), ps);
-	prescope_subtree (tnode_nthsubaddr (*node, 3), ps);
+
+	if (tnode_nthsubof (*node, 3)) {
+		parser_ensurelist (tnode_nthsubaddr (*node, 3), *node);
+		prescope_subtree (tnode_nthsubaddr (*node, 3), ps);
+	}
 
 	/* do prescope on body, at higher procdepth */
 	gps->procdepth++;
@@ -260,13 +264,16 @@ static int guppy_scopein_fcndef (compops_t *cops, tnode_t **node, scope_t *ss)
 	void *nsmark;
 	char *rawname;
 	name_t *fcnname;
-	tnode_t *newname;
+	tnode_t *newname, *fcntype;
 	tnode_t *nnsnode = NULL;
 
 	nsmark = name_markscope ();
 
-	/*{{{  walk parameters and body*/
+	/*{{{  walk parameters, results and body*/
 	tnode_modprepostwalktree (paramsptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+	if (*resultsptr) {
+		tnode_modprepostwalktree (resultsptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
+	}
 
 	/* if we have anything attached which needs parameters to be in scope, do that here */
 	if (tnode_hascompop (cops, "inparams_scopein")) {
@@ -291,7 +298,13 @@ static int guppy_scopein_fcndef (compops_t *cops, tnode_t **node, scope_t *ss)
 	/* declare and scope PROC name, then check process in the scope of it */
 	rawname = tnode_nthhookof (name, 0);
 
-	fcnname = name_addscopenamess (rawname, *node, *paramsptr, NULL, nnsnode ? NULL : ss);
+	/* if we have results, encode that in the type */
+	if (*resultsptr) {
+		fcntype = tnode_createfrom (gup.tag_FCNTYPE, *resultsptr, *paramsptr, *resultsptr);
+	} else {
+		fcntype = *paramsptr;
+	}
+	fcnname = name_addscopenamess (rawname, *node, fcntype, NULL, nnsnode ? NULL : ss);
 	newname = tnode_createfrom (gup.tag_NFCNDEF, name, fcnname);
 	SetNameNode (fcnname, newname);
 	tnode_setnthsub (*node, 0, newname);
@@ -310,6 +323,8 @@ static int guppy_scopein_fcndef (compops_t *cops, tnode_t **node, scope_t *ss)
  */
 static int guppy_scopeout_fcndef (compops_t *cops, tnode_t **node, scope_t *ss)
 {
+	/* NOTE: nested function definitions automatically de-scoped by enclosing body */
+#if 0
 	tnode_t *name = tnode_nthsubof (*node, 0);
 	name_t *sname;
 
@@ -320,8 +335,38 @@ static int guppy_scopeout_fcndef (compops_t *cops, tnode_t **node, scope_t *ss)
 	sname = tnode_nthnameof (name, 0);
 
 	name_descopename (sname);
-
+#endif
 	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_typecheck_fcndef (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	called to do type-checking on a procedure/function definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_typecheck_fcndef (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	guppy_typecheck_t *gtc = (guppy_typecheck_t *)tc->hook;
+	tnode_t *saved;
+
+	if (!gtc) {
+		nocc_internal ("guppy_typecheck_fcndef(): missing guppy-specific state in typecheck!");
+		return 0;
+	}
+
+	typecheck_subtree (tnode_nthsubof (node, 0), tc);
+	typecheck_subtree (tnode_nthsubof (node, 1), tc);
+	typecheck_subtree (tnode_nthsubof (node, 3), tc);
+
+	saved = gtc->encfcn;
+	gtc->encfcn = node;
+	gtc->encfcnrtype = tnode_nthsubof (node, 3);
+
+	/* do type-checks on body */
+	typecheck_subtree (tnode_nthsubof (node, 2), tc);
+
+	gtc->encfcn = saved;
+	return 0;
 }
 /*}}}*/
 /*{{{  static int guppy_fetrans_fcndef (compops_t *cops, tnode_t **nodep, fetrans_t *fe)*/
@@ -598,6 +643,7 @@ static int guppy_fcndef_init_nodes (void)
 	tnode_setcompop (cops, "autoseq", 2, COMPOPTYPE (guppy_autoseq_fcndef));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_fcndef));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (guppy_scopeout_fcndef));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_fcndef));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (guppy_fetrans_fcndef));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_fcndef));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_fcndef));

@@ -116,6 +116,7 @@ typedef struct {
 
 	struct TAG_ntdef *tag_IF;
 	struct TAG_ntdef *tag_WHILE;
+	struct TAG_ntdef *tag_RETURN;
 
 	struct TAG_ntdef *tag_ASSIGN;
 	struct TAG_ntdef *tag_IS;
@@ -156,6 +157,11 @@ typedef struct {
 typedef struct {
 	int errcount;					/* number of errors accumulated */
 } guppy_autoseq_t;
+
+typedef struct {
+	struct TAG_tnode *encfcn;			/* enclosing function (checking returns) */
+	struct TAG_tnode *encfcnrtype;			/* enclosing function return type */
+} guppy_typecheck_t;
 
 typedef struct {
 	int procdepth;					/* procedure/function nesting depth */

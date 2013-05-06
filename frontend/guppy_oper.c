@@ -75,6 +75,16 @@ static tnode_t *guppy_oper_inttypenode = NULL;
 /*}}}*/
 
 
+/*{{{  static int guppy_typecheck_dopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a dyadic operator
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_typecheck_dopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_dopnode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a dyadic operator node
@@ -106,6 +116,15 @@ static int guppy_codegen_dopnode (compops_t *cops, tnode_t *node, codegen_t *cge
 	codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
 	codegen_write_fmt (cgen, ")");
 	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_gettype_dopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a dyadic operator
+ */
+static tnode_t *guppy_gettype_dopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	return tnode_nthsubof (node, 2);
 }
 /*}}}*/
 
@@ -267,9 +286,13 @@ static int guppy_oper_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:dopnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: left, right, type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_dopnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_dopnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_dopnode));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_dopnode));
+	tnd->lops = lops;
 
 	i = -1;
 	gup.tag_ADD = tnode_newnodetag ("ADD", &i, tnd, NTF_NONE);

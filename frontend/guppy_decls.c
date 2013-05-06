@@ -288,7 +288,20 @@ static int guppy_getname_namenode (langops_t *lops, tnode_t *node, char **str)
  */
 static int guppy_isconst_namenode (langops_t *lops, tnode_t *node)
 {
-	if ((node->tag == gup.tag_NVALABBR) || (node->tag == gup.tag_NVALPARAM)) {
+	if ((node->tag == gup.tag_NVALABBR) || (node->tag == gup.tag_NVALPARAM) || (node->tag == gup.tag_NVALDECL)) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_isvar_namenode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns non-zero if the name is a variable (trivial)
+ */
+static int guppy_isvar_namenode (langops_t *lops, tnode_t *node)
+{
+	if ((node->tag == gup.tag_NDECL) || (node->tag == gup.tag_NABBR) || (node->tag == gup.tag_NRESABBR) ||
+			(node->tag == gup.tag_NPARAM) || (node->tag == gup.tag_NRESPARAM) || (node->tag == gup.tag_NINITPARAM)) {
 		return 1;
 	}
 	return 0;
@@ -507,6 +520,7 @@ static int guppy_scopein_fparam (compops_t *cops, tnode_t **node, scope_t *ss)
 	name_t *sname = NULL;
 	tnode_t *newname;
 	ntdef_t *tag = gup.tag_NPARAM;
+	int isval = 0;
 
 	if (name->tag != gup.tag_NAME) {
 		scope_error (*node, ss, "parameter name not raw-name, found [%s:%s]", name->tag->ndef->name, name->tag->name);
@@ -514,6 +528,11 @@ static int guppy_scopein_fparam (compops_t *cops, tnode_t **node, scope_t *ss)
 	}
 	rawname = tnode_nthhookof (name, 0);
 
+	if ((*typep)->tag == gup.tag_VALTYPE) {
+		isval = 1;
+		*typep = tnode_nthsubof (*typep, 0);
+		tag = gup.tag_NVALPARAM;
+	}
 	/* scope the type first */
 	if (scope_subtree (typep, ss)) {
 		return 0;
@@ -594,6 +613,17 @@ static int guppy_getdescriptor_fparam (langops_t *lops, tnode_t *node, char **sp
 		*sptr = newstr;
 	}
 	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_gettype_fparam (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a formal parmeter
+ */
+static tnode_t *guppy_gettype_fparam (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	tnode_t *type = tnode_nthsubof (node, 1);
+
+	return type;
 }
 /*}}}*/
 
@@ -940,6 +970,7 @@ static int guppy_decls_init_nodes (void)
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_namenode));
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (guppy_getname_namenode));
 	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (guppy_isconst_namenode));
+	tnode_setlangop (lops, "isvar", 1, LANGOPTYPE (guppy_isvar_namenode));
 	tnode_setlangop (lops, "guesstlp", 1, LANGOPTYPE (guppy_guesstlp_namenode));
 	tnd->lops = lops;
 
@@ -1001,6 +1032,7 @@ static int guppy_decls_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (guppy_getdescriptor_fparam));
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_fparam));
 	tnd->lops = lops;
 
 	i = -1;

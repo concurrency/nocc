@@ -2,12 +2,12 @@
 # test_g18.gpp -- more guppy tests
 
 define addone (val int i) -> int
-  skip
+  return i + 1
 end
 
 define test_g18 ()
-  int i = 42
+  int n
   seq
-    skip
+    n = addone (16)
 end
 
