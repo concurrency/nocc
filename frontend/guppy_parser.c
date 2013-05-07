@@ -151,38 +151,40 @@ fprintf (stderr, "guppy_opthandler_stopat(): setting stop point to %d\n", compop
 /*}}}*/
 
 
-/*{{{  static guppy_fetrans1_t *guppy_newfetrans1 (void)*/
+/*{{{  guppy_fetrans1_t *guppy_newfetrans1 (void)*/
 /*
  *	creates a new guppy_fetrans1_t structure
  */
-static guppy_fetrans1_t *guppy_newfetrans1 (void)
+guppy_fetrans1_t *guppy_newfetrans1 (void)
 {
 	guppy_fetrans1_t *fe1 = (guppy_fetrans1_t *)smalloc (sizeof (guppy_fetrans1_t));
 
+	dynarray_init (fe1->rnames);
 	fe1->error = 0;
 
 	return fe1;
 }
 /*}}}*/
-/*{{{  static void guppy_freefetrans1 (guppy_fetrans1_t *fe1)*/
+/*{{{  void guppy_freefetrans1 (guppy_fetrans1_t *fe1)*/
 /*
  *	frees a guppy_fetrans1_t structure
  */
-static void guppy_freefetrans1 (guppy_fetrans1_t *fe1)
+void guppy_freefetrans1 (guppy_fetrans1_t *fe1)
 {
 	if (!fe1) {
 		nocc_serious ("guppy_freefetrans1(): NULL pointer!");
 		return;
 	}
+	dynarray_trash (fe1->rnames);
 	sfree (fe1);
 	return;
 }
 /*}}}*/
-/*{{{  static guppy_fetrans2_t *guppy_newfetrans2 (void)*/
+/*{{{  guppy_fetrans2_t *guppy_newfetrans2 (void)*/
 /*
  *	creates a new guppy_fetrans2_t structure
  */
-static guppy_fetrans2_t *guppy_newfetrans2 (void)
+guppy_fetrans2_t *guppy_newfetrans2 (void)
 {
 	guppy_fetrans2_t *fe2 = (guppy_fetrans2_t *)smalloc (sizeof (guppy_fetrans2_t));
 
@@ -191,11 +193,11 @@ static guppy_fetrans2_t *guppy_newfetrans2 (void)
 	return fe2;
 }
 /*}}}*/
-/*{{{  static void guppy_freefetrans2 (guppy_fetrans2_t *fe2)*/
+/*{{{  void guppy_freefetrans2 (guppy_fetrans2_t *fe2)*/
 /*
  *	frees a guppy_fetrans2_t structure
  */
-static void guppy_freefetrans2 (guppy_fetrans2_t *fe2)
+void guppy_freefetrans2 (guppy_fetrans2_t *fe2)
 {
 	if (!fe2) {
 		nocc_serious ("guppy_freefetrans2(): NULL pointer!");
@@ -335,6 +337,9 @@ static int fetrans1_modprewalk (tnode_t **tptr, void *arg)
 	int i = 1;
 
 	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop ((*tptr)->tag->ndef->ops, "fetrans1")) {
+#if 0
+fhandle_printf (FHAN_STDERR, "fetrans1_modprewalk(): call on node [%s:%s]\n", (*tptr)->tag->ndef->name, (*tptr)->tag->name);
+#endif
 		i = tnode_callcompop ((*tptr)->tag->ndef->ops, "fetrans1", 2, tptr, fe1);
 	}
 	return i;
@@ -623,6 +628,9 @@ int guppy_fetrans1_subtree (tnode_t **tptr, guppy_fetrans1_t *fe1)
 	} else if (!*tptr) {
 		return 0;
 	} else {
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans1_subtree(): on [%s:%s]\n", (*tptr)->tag->ndef->name, (*tptr)->tag->name);
+#endif
 		tnode_modprewalktree (tptr, fetrans1_modprewalk, (void *)fe1);
 	}
 
@@ -915,11 +923,11 @@ static int guppy_parser_init (lexfile_t *lf)
 			nocc_serious ("guppy_parser_init(): failed to add \"postscope\" compiler operation");
 			return 1;
 		}
-		if (tnode_newcompop ("fetrans1", COPS_INVALID, 1, INTERNAL_ORIGIN) < 0) {
+		if (tnode_newcompop ("fetrans1", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 			nocc_serious ("guppy_parser_init(): failed to add \"fetrans1\" compiler operation");
 			return 1;
 		}
-		if (tnode_newcompop ("fetrans2", COPS_INVALID, 1, INTERNAL_ORIGIN) < 0) {
+		if (tnode_newcompop ("fetrans2", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 			nocc_serious ("guppy_parser_init(): failed to add \"fetrans2\" compiler operation");
 			return 1;
 		}

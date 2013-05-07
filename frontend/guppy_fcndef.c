@@ -484,7 +484,56 @@ tnode_dumptree (newdef, 1, FHAN_STDERR);
  */
 static int guppy_fetrans1_fcndef (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)
 {
-	return 1;
+	tnode_t *fcnname = tnode_nthsubof (*nodep, 0);
+	tnode_t **pptr = tnode_nthsubaddr (*nodep, 1);
+	tnode_t **rptr = tnode_nthsubaddr (*nodep, 3);
+	tnode_t **ritems;
+	int nritems, i;
+	guppy_fetrans1_t *fe1b;
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans1_fcndef(): results are:\n");
+tnode_dumptree (*rptr, 1, FHAN_STDERR);
+#endif
+	if (!*rptr) {
+		/* nothing to do */
+		return 1;
+	}
+	if (!parser_islistnode (*rptr)) {
+		tnode_error (*nodep, "function result is not a list");
+		return 1;
+	}
+	if (!parser_islistnode (*pptr)) {
+		tnode_error (*nodep, "function parameters are not a list");
+		return 1;
+	}
+
+	fe1b = guppy_newfetrans1 ();
+
+	ritems = parser_getlistitems (*rptr, &nritems);
+	for (i=0; i<nritems; i++) {
+		/* create a new parameter */
+		tnode_t *nparam, *nname;
+		name_t *tmpname;
+		char *pname = guppy_maketempname (ritems[i]);
+
+		tmpname = name_addname (pname, NULL, ritems[i], NULL);
+		nname = tnode_createfrom (gup.tag_NRESPARAM, fcnname, tmpname);
+		SetNameNode (tmpname, nname);
+		nparam = tnode_createfrom (gup.tag_FPARAM, fcnname, nname, ritems[i], NULL);
+		SetNameDecl (tmpname, nparam);
+
+		/* put in parameter list and local fetrans1 struct for return processing */
+		parser_insertinlist (*pptr, nparam, i);
+		dynarray_add (fe1b->rnames, nparam);
+	}
+
+	guppy_fetrans1_subtree (tnode_nthsubaddr (*nodep, 2), fe1b);
+
+	fe1->error += fe1b->error;
+	guppy_freefetrans1 (fe1b);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int guppy_namemap_fcndef (compops_t *cops, tnode_t **node, map_t *map)*/

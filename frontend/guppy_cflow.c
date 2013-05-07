@@ -159,6 +159,16 @@ tnode_dumptree (acttypelist, 1, FHAN_STDERR);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans1_rnode (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)*/
+/*
+ *	does fetrans1 on a 'return' node (turns into assignments)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans1_rnode (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)
+{
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static int guppy_cflow_init_nodes (void)*/
@@ -193,6 +203,7 @@ static int guppy_cflow_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_rnode));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_rnode));
+	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_rnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

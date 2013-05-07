@@ -181,6 +181,7 @@ typedef struct {
 } guppy_fetrans_t;
 
 typedef struct {
+	DYNARRAY (struct TAG_tnode *, rnames);		/* names of result parameters in function */
 	int error;					/* error count */
 } guppy_fetrans1_t;
 
@@ -204,10 +205,17 @@ extern int guppy_autoseq_listtoseqlist (struct TAG_tnode **, guppy_autoseq_t *);
 extern int guppy_declify_listtodecllist (struct TAG_tnode **, guppy_declify_t *);
 extern int guppy_declify_listtodecllist_single (struct TAG_tnode **, guppy_declify_t *);
 
+extern guppy_fetrans1_t *guppy_newfetrans1 (void);
+extern void guppy_freefetrans1 (guppy_fetrans1_t *);
+extern guppy_fetrans2_t *guppy_newfetrans2 (void);
+extern void guppy_freefetrans2 (guppy_fetrans2_t *);
+
 extern int guppy_autoseq_subtree (struct TAG_tnode **, guppy_autoseq_t *);
 extern int guppy_declify_subtree (struct TAG_tnode **, guppy_declify_t *);
 extern int guppy_flattenseq_subtree (struct TAG_tnode **);
 extern int guppy_postscope_subtree (struct TAG_tnode **);
+extern int guppy_fetrans1_subtree (struct TAG_tnode **, guppy_fetrans1_t *);
+extern int guppy_fetrans2_subtree (struct TAG_tnode **, guppy_fetrans2_t *);
 
 extern struct TAG_tnode *guppy_newprimtype (struct TAG_ntdef *tag, struct TAG_tnode *org, const int size);
 
