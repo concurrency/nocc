@@ -82,7 +82,46 @@ static tnode_t *guppy_oper_inttypenode = NULL;
  */
 static int guppy_typecheck_dopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
-	return 1;
+	tnode_t *op0, *op1;
+	tnode_t *op0type, *op1type;
+	tnode_t *atype;
+	int pref = 0;
+
+	op0 = tnode_nthsubof (node, 0);
+	op1 = tnode_nthsubof (node, 1);
+
+	/* walk operators */
+	typecheck_subtree (op0, tc);
+	typecheck_subtree (op1, tc);
+
+	/* first, blindly attempt to get default types */
+	op0type = typecheck_gettype (op0, NULL);
+	op1type = typecheck_gettype (op1, NULL);
+
+	if (!op0type && !op1type) {
+		typecheck_error (node, tc, "failed to determine either type for operator");
+		return 0;
+	}
+	if (!op0type) {
+		op0type = typecheck_gettype (op0, op1type);
+		pref = 1;
+	} else if (!op1type) {
+		op1type = typecheck_gettype (op1, op0type);
+		pref = 0;
+	}
+	if (!op0type || !op1type) {
+		typecheck_error (node, tc, "failed to determine types for operator");
+		return 0;
+	}
+	atype = typecheck_typeactual (pref ? op0type : op1type, pref ? op1type : op0type, node, tc);
+	if (!atype) {
+		typecheck_error (node, tc, "incompatible types for operator");
+		return 0;
+	}
+
+	tnode_setnthsub (node, 2, atype);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int guppy_namemap_dopnode (compops_t *cops, tnode_t **node, map_t *map)*/

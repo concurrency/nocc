@@ -180,6 +180,14 @@ typedef struct {
 	int changed;					/* set if changes are made */
 } guppy_fetrans_t;
 
+typedef struct {
+	int error;					/* error count */
+} guppy_fetrans1_t;
+
+typedef struct {
+	int error;					/* error count */
+} guppy_fetrans2_t;
+
 typedef struct TAG_guppy_fcndefhook {
 	int lexlevel;					/* 0 = outermost */
 	int ispublic;					/* explicitly marked as public? */

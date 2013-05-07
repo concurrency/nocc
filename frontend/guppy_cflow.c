@@ -128,6 +128,12 @@ static int guppy_typecheck_rnode (compops_t *cops, tnode_t *node, typecheck_t *t
 	}
 	acttypelist = parser_newlistnode (NULL);
 
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_typecheck_rnode(): result-type:\n");
+tnode_dumptree (rtype, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, "expressions:\n");
+tnode_dumptree (expr, 1, FHAN_STDERR);
+#endif
 	for (i=0; i<n_rtitems; i++) {
 		tnode_t *etype, *atype;
 
@@ -145,11 +151,7 @@ static int guppy_typecheck_rnode (compops_t *cops, tnode_t *node, typecheck_t *t
 	}
 	tnode_setnthsub (node, 1, acttypelist);
 
-#if 1
-fhandle_printf (FHAN_STDERR, "guppy_typecheck_rnode(): result-type:\n");
-tnode_dumptree (rtype, 1, FHAN_STDERR);
-fhandle_printf (FHAN_STDERR, "expressions:\n");
-tnode_dumptree (expr, 1, FHAN_STDERR);
+#if 0
 fhandle_printf (FHAN_STDERR, "actual-type-list:\n");
 tnode_dumptree (acttypelist, 1, FHAN_STDERR);
 #endif

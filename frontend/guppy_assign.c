@@ -63,6 +63,16 @@
 /*}}}*/
 
 
+/*{{{  static int guppy_prescope_assign (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
+/*
+ *	does pre-scoping for an assignment
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_prescope_assign (compops_t *cops, tnode_t **nodep, prescope_t *ps)
+{
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_typecheck_assign (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking for an assignment
@@ -85,25 +95,30 @@ static int guppy_typecheck_assign (compops_t *cops, tnode_t *node, typecheck_t *
 
 	lhstype = typecheck_gettype (lhs, NULL);
 	rhstype = typecheck_gettype (rhs, lhstype);
-	if (!rhstype) {
-		typecheck_error (node, tc, "invalid type on right of assignment");
-		return 0;
-	}
-
-	acttype = typecheck_typeactual (lhstype, rhstype, node, tc);
-	if (!acttype) {
-		typecheck_error (node, tc, "incompatible types in assignment");
-		return 0;
-	}
-	*typep = acttype;
 #if 0
 fhandle_printf (FHAN_STDERR, "guppy_typecheck_assign(): lhstype =\n");
 tnode_dumptree (lhstype, 1, FHAN_STDERR);
 fhandle_printf (FHAN_STDERR, "rhstype =\n");
 tnode_dumptree (rhstype, 1, FHAN_STDERR);
+#endif
+	if (!rhstype) {
+		typecheck_error (node, tc, "invalid type on right of assignment");
+		return 0;
+	} else if (parser_islistnode (rhstype) && (parser_countlist (rhstype) == 1)) {
+		/* singleton list -- possibly a function call or similar */
+		rhstype = parser_getfromlist (rhstype, 0);
+	}
+
+	acttype = typecheck_typeactual (lhstype, rhstype, node, tc);
+#if 0
 fhandle_printf (FHAN_STDERR, "acttype =\n");
 tnode_dumptree (acttype, 1, FHAN_STDERR);
 #endif
+	if (!acttype) {
+		typecheck_error (node, tc, "incompatible types in assignment");
+		return 0;
+	}
+	*typep = acttype;
 
 	return 0;
 }
@@ -153,6 +168,7 @@ static int guppy_assign_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:assign", &i, 3, 0, 0, TNF_NONE);		/* subnodes: 0 = LHS, 1 = RHS, 2 = type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_assign));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_assign));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_assign));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_assign));
