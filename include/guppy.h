@@ -182,6 +182,7 @@ typedef struct {
 
 typedef struct {
 	DYNARRAY (struct TAG_tnode *, rnames);		/* names of result parameters in function */
+	struct TAG_tnode **inspoint;			/* insert-point for new code (typically current statement) */
 	int error;					/* error count */
 } guppy_fetrans1_t;
 

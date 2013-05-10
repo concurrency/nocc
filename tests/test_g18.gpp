@@ -5,7 +5,7 @@ define addone (val int i) -> int
   return i + 1
 end
 
-define test_g18 ()
+define test_g18 (chan!(char) scr)
   int n
   seq
     n = addone (16)

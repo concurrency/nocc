@@ -167,6 +167,26 @@ tnode_dumptree (aparamlist, 1, FHAN_STDERR);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans1_instance (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)*/
+/*
+ *	does fetrans1 on an instance node (breaks down internal instance nodes into flat assignments to temporaries)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans1_instance (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_fetrans2_instance (compops_t *cops, tnode_t **nodep, guppy_fetrans2_t *fe2)*/
+/*
+ *	does fetrans2 on an instance node (pushes result assignments into parameter list)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans2_instance (compops_t *cops, tnode_t **nodep, guppy_fetrans2_t *fe2)
+{
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_instance (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for an instance node
@@ -250,6 +270,8 @@ static int guppy_instance_init_nodes (void)
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_instance));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_instance));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_instance));
+	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_instance));
+	tnode_setcompop (cops, "fetrans2", 2, COMPOPTYPE (guppy_fetrans2_instance));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_instance));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_instance));
 	tnd->ops = cops;

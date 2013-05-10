@@ -160,6 +160,7 @@ guppy_fetrans1_t *guppy_newfetrans1 (void)
 	guppy_fetrans1_t *fe1 = (guppy_fetrans1_t *)smalloc (sizeof (guppy_fetrans1_t));
 
 	dynarray_init (fe1->rnames);
+	fe1->inspoint = NULL;
 	fe1->error = 0;
 
 	return fe1;
