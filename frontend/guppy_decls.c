@@ -240,6 +240,10 @@ static int guppy_namemap_namenode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t *bename = tnode_getchook (*node, map->mapchook);
 
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_namemap_namenode(): bename = 0x%8.8x, *node =\n", (unsigned int)bename);
+tnode_dumptree (*node, 1, FHAN_STDERR);
+#endif
 	if (bename) {
 		tnode_t *tname = map->target->newnameref (bename, map);
 		*node = tname;
@@ -565,11 +569,17 @@ static int guppy_namemap_fparam (compops_t *cops, tnode_t **nodep, map_t *map)
 	if ((*typep)->tag == gup.tag_CHAN) {
 		/* channel */
 		tsize = map->target->chansize;
+		indir = 1;				/* always passed by reference */
 	} else {
 		/* how big? */
 		tsize = tnode_bytesfor (*typep, map->target);
 	}
 	psize = tsize;
+
+	if ((*namep)->tag == gup.tag_NRESPARAM) {
+		/* result parameter, so pass by reference */
+		indir++;
+	}
 
 	bename = map->target->newname (*namep, NULL, map, psize, 0, 0, 0, tsize, indir);
 	tnode_setchook (*namep, map->mapchook, (void *)bename);

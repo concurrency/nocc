@@ -164,21 +164,25 @@ typedef struct TAG_cccsp_priv {
 	name_t *last_toplevelname;
 
 	ntdef_t *tag_ADDROF;
+	ntdef_t *tag_LABEL;			/* used for when we implant 'goto' */
+	ntdef_t *tag_LABELREF;
+	ntdef_t *tag_GOTO;
 } cccsp_priv_t;
 
 typedef struct TAG_cccsp_namehook {
-	char *cname;		/* low-level variable name */
-	char *ctype;		/* low-level type */
-	int lexlevel;		/* lexical level */
-	int typesize;		/* size of the actual type (if known) */
-	int indir;		/* indirection count (0 = real-thing, 1 = pointer, 2 = pointer-pointer, etc.) */
-	typecat_e typecat;	/* type category */
-	tnode_t *initialiser;	/* if this thing has an initialiser (not part of an assignment later) */
+	char *cname;				/* low-level variable name */
+	char *ctype;				/* low-level type */
+	int lexlevel;				/* lexical level */
+	int typesize;				/* size of the actual type (if known) */
+	int indir;				/* indirection count (0 = real-thing, 1 = pointer, 2 = pointer-pointer, etc.) */
+	typecat_e typecat;			/* type category */
+	tnode_t *initialiser;			/* if this thing has an initialiser (not part of an assignment later) */
 } cccsp_namehook_t;
 
 typedef struct TAG_kroccifccsp_namerefhook {
 	tnode_t *nnode;				/* underlying back-end name-node */
 	cccsp_namehook_t *nhook;		/* underlying name-hook */
+	int indir;				/* target indirection (0 = real-thing, 1 = pointer, 2 = pointer-pointer, etc.) */
 } cccsp_namerefhook_t;
 
 typedef struct TAG_cccsp_blockhook {
@@ -194,6 +198,14 @@ typedef struct TAG_cccsp_consthook {
 	int length;				/* length (in bytes) */
 	typecat_e tcat;				/* type-category */
 } cccsp_consthook_t;
+
+typedef struct TAG_cccsp_labelhook {
+	char *name;
+} cccsp_labelhook_t;
+
+typedef struct TAG_cccsp_labelrefhook {
+	cccsp_labelhook_t *lab;
+} cccsp_labelrefhook_t;
 
 
 /*}}}*/
@@ -326,21 +338,22 @@ static void cccsp_namerefhook_dumptree (tnode_t *node, void *hook, int indent, f
 	cccsp_namerefhook_t *nh = (cccsp_namerefhook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<namerefhook addr=\"0x%8.8x\" nnode=\"0x%8.8x\" nhook=\"0x%8.8x\" cname=\"%s\" />\n",
-			(unsigned int)nh, (unsigned int)nh->nnode, (unsigned int)nh->nhook, (nh->nhook ? nh->nhook->cname : ""));
+	fhandle_printf (stream, "<namerefhook addr=\"0x%8.8x\" nnode=\"0x%8.8x\" nhook=\"0x%8.8x\" indir=\"%d\" cname=\"%s\" />\n",
+			(unsigned int)nh, (unsigned int)nh->nnode, (unsigned int)nh->nhook, nh->indir, (nh->nhook ? nh->nhook->cname : ""));
 	return;
 }
 /*}}}*/
-/*{{{  static cccsp_namerefhook_t *cccsp_namerefhook_create (tnode_t *nnode, cccsp_namehook_t *nhook)*/
+/*{{{  static cccsp_namerefhook_t *cccsp_namerefhook_create (tnode_t *nnode, cccsp_namehook_t *nhook, int indir)*/
 /*
  *	creates a name-ref-hook
  */
-static cccsp_namerefhook_t *cccsp_namerefhook_create (tnode_t *nnode, cccsp_namehook_t *nhook)
+static cccsp_namerefhook_t *cccsp_namerefhook_create (tnode_t *nnode, cccsp_namehook_t *nhook, int indir)
 {
 	cccsp_namerefhook_t *nh = (cccsp_namerefhook_t *)smalloc (sizeof (cccsp_namerefhook_t));
 
 	nh->nnode = nnode;
 	nh->nhook = nhook;
+	nh->indir = indir;
 
 	return nh;
 }
@@ -453,7 +466,61 @@ static cccsp_consthook_t *cccsp_consthook_create (void *data, int length, typeca
 }
 /*}}}*/
 /*}}}*/
+/*{{{  cccsp_labelhook_t routines*/
+/*{{{  static void cccsp_labelhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
+/*
+ *	dumps a cccsp_labelhook_t (debugging)
+ */
+static void cccsp_labelhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
+{
+	cccsp_labelhook_t *lh = (cccsp_labelhook_t *)hook;
 
+	cccsp_isetindent (stream, indent);
+	fhandle_printf (stream, "<labelhook name=\"%s\" addr=\"0x%8.8x\" />\n", lh->name, (unsigned int)lh);
+	return;
+}
+/*}}}*/
+/*{{{  static cccsp_labelhook_t *cccsp_labelhook_create (const char *str)*/
+/*
+ *	creates a new cccsp_labelhook_t
+ */
+static cccsp_labelhook_t *cccsp_labelhook_create (const char *str)
+{
+	cccsp_labelhook_t *lh = (cccsp_labelhook_t *)smalloc (sizeof (cccsp_labelhook_t));
+
+	lh->name = string_dup (str);
+	return lh;
+}
+/*}}}*/
+/*}}}*/
+/*{{{  cccsp_labelrefhook_t routines*/
+/*{{{  static void cccsp_labelrefhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
+/*
+ *	dumps a cccsp_labelrefhook_t (debugging)
+ */
+static void cccsp_labelrefhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
+{
+	cccsp_labelrefhook_t *lrh = (cccsp_labelrefhook_t *)hook;
+
+	cccsp_isetindent (stream, indent);
+	fhandle_printf (stream, "<labelrefhook labaddr=\"0x%8.8x\" name=\"%s\" addr=\"0x%8.8x\" />\n",
+			(unsigned int)lrh->lab, lrh->lab ? lrh->lab->name : "(null)", (unsigned int)lrh);
+	return;
+}
+/*}}}*/
+/*{{{  static cccsp_labelrefhook_t *cccsp_labelrefhook_create (cccsp_labelhook_t *ref)*/
+/*
+ *	creates a new cccsp_labelrefhook_t
+ */
+static cccsp_labelrefhook_t *cccsp_labelrefhook_create (cccsp_labelhook_t *ref)
+{
+	cccsp_labelrefhook_t *lrh = (cccsp_labelrefhook_t *)smalloc (sizeof (cccsp_labelrefhook_t));
+
+	lrh->lab = ref;
+	return lrh;
+}
+/*}}}*/
+/*}}}*/
 
 /*{{{  static tnode_t *cccsp_name_create (tnode_t *fename, tnode_t *body, map_t *mdata, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)*/
 /*
@@ -511,7 +578,7 @@ static tnode_t *cccsp_nameref_create (tnode_t *bename, map_t *mdata)
 	tnode_t *name, *fename;
 
 	be_nh = (cccsp_namehook_t *)tnode_nthhookof (bename, 0);
-	nh = cccsp_namerefhook_create (bename, be_nh);
+	nh = cccsp_namerefhook_create (bename, be_nh, 0);
 
 	fename = tnode_nthsubof (bename, 0);
 	name = tnode_create (mdata->target->tag_NAMEREF, NULL, fename, (void *)nh);
@@ -606,6 +673,24 @@ tnode_t *cccsp_create_addrof (tnode_t *arg, target_t *target)
 	tnode_t *node = tnode_createfrom (kpriv->tag_ADDROF, arg, arg);
 
 	return node;
+}
+/*}}}*/
+/*{{{  int cccsp_set_indir (tnode_t *benode, int indir, target_t *target)*/
+/*
+ *	sets desired indirection on something.
+ *	returns 0 on success, non-zero on error.
+ */
+int cccsp_set_indir (tnode_t *benode, int indir, target_t *target)
+{
+	if (benode->tag == target->tag_NAMEREF) {
+		cccsp_namerefhook_t *nrh = (cccsp_namerefhook_t *)tnode_nthhookof (benode, 0);
+
+		nrh->indir = indir;
+	} else {
+		nocc_internal ("cccsp_set_indir(): don\'t know how to set indirection on [%s:%s]", benode->tag->ndef->name, benode->tag->name);
+		return -1;
+	}
+	return 0;
 }
 /*}}}*/
 
@@ -1152,24 +1237,31 @@ tnode_dumptree (toplevelparams, 1, FHAN_STDERR);
 static int cccsp_lcodegen_name (compops_t *cops, tnode_t *name, codegen_t *cgen)
 {
 	cccsp_namehook_t *nh = (cccsp_namehook_t *)tnode_nthhookof (name, 0);
+	char *indirstr = (char *)smalloc (nh->indir + 1);
+	int i;
+
+	for (i=0; i<nh->indir; i++) {
+		indirstr[i] = '*';
+	}
+	indirstr[i] = '\0';
 
 	if (nh->initialiser) {
 		codegen_ssetindent (cgen);
-		codegen_write_fmt (cgen, "%s %s = ", nh->ctype, nh->cname);
+		codegen_write_fmt (cgen, "%s%s %s = ", nh->ctype, indirstr, nh->cname);
 		codegen_subcodegen (nh->initialiser, cgen);
 		codegen_write_fmt (cgen, ";\n");
 	} else if (cccsp_coder_inparamlist) {
-		codegen_write_fmt (cgen, "%s %s", nh->ctype, nh->cname);
+		codegen_write_fmt (cgen, "%s%s %s", nh->ctype, indirstr, nh->cname);
 	} else {
 		codegen_ssetindent (cgen);
-		codegen_write_fmt (cgen, "%s %s;\n", nh->ctype, nh->cname);
+		codegen_write_fmt (cgen, "%s%s %s;\n", nh->ctype, indirstr, nh->cname);
 	}
 	return 0;
 }
 /*}}}*/
 /*{{{  static int cccsp_lcodegen_nameref (compops_t *cops, tnode_t *nameref, codegen_t *cgen)*/
 /*
- *	does code-generation for a name-reference: produces the C name.
+ *	does code-generation for a name-reference: produces the C name, adjusted for pointer-ness.
  *	returns 0 to stop walk, 1 to continue
  */
 static int cccsp_lcodegen_nameref (compops_t *cops, tnode_t *nameref, codegen_t *cgen)
@@ -1177,6 +1269,22 @@ static int cccsp_lcodegen_nameref (compops_t *cops, tnode_t *nameref, codegen_t 
 	cccsp_namerefhook_t *nrf = (cccsp_namerefhook_t *)tnode_nthhookof (nameref, 0);
 	cccsp_namehook_t *nh = nrf->nhook;
 
+	if (nrf->indir > nh->indir) {
+		/* want more indirection */
+		if (nrf->indir == (nh->indir + 1)) {
+			codegen_write_fmt (cgen, "&");
+		} else {
+			codegen_node_error (cgen, nameref, "cccsp_lcodegen_nameref(): too much indirection (wanted %d, got %d)",
+					nrf->indir, nh->indir);
+		}
+	} else if (nrf->indir < nh->indir) {
+		/* want less indirection */
+		int i;
+
+		for (i=nrf->indir; i<nh->indir; i++) {
+			codegen_write_fmt (cgen, "*");
+		}
+	}
 	codegen_write_fmt (cgen, "%s", nh->cname);
 
 	return 0;
@@ -1272,6 +1380,8 @@ static int cccsp_lcodegen_modifier (compops_t *cops, tnode_t *mod, codegen_t *cg
 	cccsp_priv_t *kpriv = (cccsp_priv_t *)cgen->target->priv;
 
 	if (mod->tag == kpriv->tag_ADDROF) {
+		tnode_t *op = tnode_nthsubof (mod, 0);
+
 		codegen_write_fmt (cgen, "&(");
 		codegen_subcodegen (tnode_nthsubof (mod, 0), cgen);
 		codegen_write_fmt (cgen, ")");
@@ -1279,6 +1389,17 @@ static int cccsp_lcodegen_modifier (compops_t *cops, tnode_t *mod, codegen_t *cg
 		codegen_error (cgen, "cccsp_lcodegen_modifier(): unknown modifier [%s]", mod->tag->name);
 	}
 	return 0;
+}
+/*}}}*/
+/*{{{  static int cccsp_lcodegen_op (compops_t *cops, tnode_t *op, codegen_t *cgen)*/
+/*
+ *	does code-generation for an operator (e.g. 'goto')
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_lcodegen_op (compops_t *cops, tnode_t *op, codegen_t *cgen)
+{
+	/* FIXME: incomplete! */
+	return 1;
 }
 /*}}}*/
 
@@ -1421,6 +1542,39 @@ static int cccsp_target_init (target_t *target)
 
 	i = -1;
 	kpriv->tag_ADDROF = tnode_newnodetag ("CCCSPADDROF", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  cccsp:label -- CCCSPLABEL*/
+	i = -1;
+	tnd = tnode_newnodetype ("cccsp:label", &i, 0, 0, 1, TNF_NONE);		/* hooks: cccsp_labelhook_t */
+	tnd->hook_dumptree = cccsp_labelhook_dumptree;
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	kpriv->tag_LABEL = tnode_newnodetag ("CCCSPLABEL", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  cccsp:labelref -- CCCSPLABELREF*/
+	i = -1;
+	tnd = tnode_newnodetype ("cccsp:labelref", &i, 0, 0, 1, TNF_NONE);	/* hooks: cccsp_labelrefhook_t */
+	tnd->hook_dumptree = cccsp_labelrefhook_dumptree;
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	kpriv->tag_LABELREF = tnode_newnodetag ("CCCSPLABELREF", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  cccsp:op -- CCCSPGOTO*/
+	i = -1;
+	tnd = tnode_newnodetype ("cccsp:op", &i, 1, 0, 0, TNF_NONE);		/* subnodes: operator */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (cccsp_lcodegen_op));
+	tnd->ops = cops;
+
+	i = -1;
+	kpriv->tag_GOTO = tnode_newnodetag ("CCCSPGOTO", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

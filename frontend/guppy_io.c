@@ -132,12 +132,13 @@ static int guppy_namemap_io (compops_t *cops, tnode_t **nodep, map_t *map)
 	map_submapnames (tnode_nthsubaddr (*nodep, 1), map);
 	map_submapnames (&sizeexp, map);
 
-	newarg = cccsp_create_addrof (tnode_nthsubof (*nodep, 1), map->target);
+	// newarg = cccsp_create_addrof (tnode_nthsubof (*nodep, 1), map->target);
+	cccsp_set_indir (tnode_nthsubof (*nodep, 1), 1, map->target);
 
 	/* transform into CCSP API call */
 	newparms = parser_newlistnode (NULL);
 	parser_addtolist (newparms, tnode_nthsubof (*nodep, 0));	/* channel */
-	parser_addtolist (newparms, newarg);				/* data */
+	parser_addtolist (newparms, tnode_nthsubof (*nodep, 1));	/* data */
 	parser_addtolist (newparms, sizeexp);
 	if ((*nodep)->tag == gup.tag_INPUT) {
 		callnum = cccsp_create_apicallname (CHAN_IN);

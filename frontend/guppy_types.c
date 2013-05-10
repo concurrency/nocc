@@ -678,7 +678,7 @@ static int guppy_getctypeof_chantype (langops_t *lops, tnode_t *t, char **str)
 	chantypehook_t *cth = (chantypehook_t *)tnode_nthhookof (t, 0);
 	char *lstr = NULL;
 
-	lstr = string_dup ("Channel *");
+	lstr = string_dup ("Channel");
 	if (*str) {
 		sfree (*str);
 	}

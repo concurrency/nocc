@@ -166,10 +166,64 @@ tnode_dumptree (acttypelist, 1, FHAN_STDERR);
  */
 static int guppy_fetrans1_rnode (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)
 {
+	tnode_t **argsp = tnode_nthsubaddr (*nodep, 0);
+	tnode_t **typep = tnode_nthsubaddr (*nodep, 1);
+	tnode_t **aitems, **titems;
+	int i, naitems, ntitems;
+	tnode_t *asslist;
+
+	if (!*argsp) {
+		return 0;
+	}
+	if (!parser_islistnode (*argsp)) {
+		nocc_internal ("guppy_fetrans1_rnode(): expected list, but got [%s:%s]", (*argsp)->tag->ndef->name, (*argsp)->tag->name);
+		return 0;
+	}
+	aitems = parser_getlistitems (*argsp, &naitems);
+	titems = parser_getlistitems (*typep, &ntitems);		/* return types */
+	if (!naitems) {
+		/* nothing to do -- odd, empty type */
+		return 0;
+	} else if (naitems != ntitems) {
+		nocc_internal ("guppy_fetrans1_rnode(): error, arg-count is %d, type-count is %d", naitems, ntitems);
+		return 0;
+	}
+	asslist = parser_newlistnode (NULL);
+	for (i=0; i<naitems; i++) {
+		tnode_t *ass = tnode_createfrom (gup.tag_ASSIGN, aitems[i], DA_NTHITEM (fe1->rnames, i), aitems[i], titems[i]);
+
+		parser_addtolist (asslist, ass);
+	}
+	parser_addtolist (asslist, *nodep);		/* put return at end-of-list */
+	*argsp = NULL;					/* blank out expressions and type (subsumed into assignments) */
+	*typep = NULL;
+	*nodep = tnode_createfrom (gup.tag_SEQ, *nodep, NULL, asslist);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_namemap_rnode (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping on a return node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_rnode (compops_t *cops, tnode_t **nodep, map_t *map)
+{
 	return 1;
 }
 /*}}}*/
-
+/*{{{  static int guppy_codegen_rnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation on a return node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_rnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	codegen_ssetindent (cgen);
+	codegen_write_fmt (cgen, "return;\n");
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static int guppy_cflow_init_nodes (void)*/
 /*
@@ -204,6 +258,8 @@ static int guppy_cflow_init_nodes (void)
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_rnode));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_rnode));
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_rnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_rnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_rnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

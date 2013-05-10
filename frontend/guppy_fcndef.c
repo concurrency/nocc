@@ -525,7 +525,7 @@ tnode_dumptree (*rptr, 1, FHAN_STDERR);
 
 		/* put in parameter list and local fetrans1 struct for return processing */
 		parser_insertinlist (*pptr, nparam, i);
-		dynarray_add (fe1b->rnames, nparam);
+		dynarray_add (fe1b->rnames, nname);
 	}
 
 	guppy_fetrans1_subtree (tnode_nthsubaddr (*nodep, 2), fe1b);

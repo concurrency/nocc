@@ -142,6 +142,7 @@ static int guppy_namemap_assign (compops_t *cops, tnode_t **node, map_t *map)
  */
 static int guppy_codegen_assign (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
+	codegen_ssetindent (cgen);
 	codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
 	codegen_write_fmt (cgen, " = ");
 	codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
