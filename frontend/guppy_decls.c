@@ -239,14 +239,20 @@ static int guppy_scopein_rawnamenode (compops_t *cops, tnode_t **node, scope_t *
 static int guppy_namemap_namenode (compops_t *cops, tnode_t **node, map_t *map)
 {
 	tnode_t *bename = tnode_getchook (*node, map->mapchook);
+	cccsp_mapdata_t *cmap = (cccsp_mapdata_t *)map->hook;
 
 #if 0
-fhandle_printf (FHAN_STDERR, "guppy_namemap_namenode(): bename = 0x%8.8x, *node =\n", (unsigned int)bename);
+fhandle_printf (FHAN_STDERR, "guppy_namemap_namenode(): bename = 0x%8.8x, target_indir=%d, *node =\n",
+		(unsigned int)bename, cmap->target_indir);
 tnode_dumptree (*node, 1, FHAN_STDERR);
 #endif
 	if (bename) {
 		tnode_t *tname = map->target->newnameref (bename, map);
+
 		*node = tname;
+		if (cmap->target_indir) {
+			cccsp_set_indir (tname, cmap->target_indir, map->target);
+		}
 	}
 	return 0;
 }

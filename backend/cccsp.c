@@ -693,6 +693,26 @@ int cccsp_set_indir (tnode_t *benode, int indir, target_t *target)
 	return 0;
 }
 /*}}}*/
+/*{{{  int cccsp_get_indir (tnode_t *benode, target_t *target)*/
+/*
+ *	gets current indirection on something.
+ *	returns indirection-level on success, < 0 on error.
+ */
+int cccsp_get_indir (tnode_t *benode, target_t *target)
+{
+	if (benode->tag == target->tag_NAMEREF) {
+		cccsp_namerefhook_t *nrh = (cccsp_namerefhook_t *)tnode_nthhookof (benode, 0);
+
+		return nrh->indir;
+	} else if (benode->tag == target->tag_NAME) {
+		cccsp_namehook_t *nh = (cccsp_namehook_t *)tnode_nthhookof (benode, 0);
+
+		return nh->indir;
+	}
+	nocc_internal ("cccsp_get_indir(): don\'t know how to get indirection of [%s:%s]", benode->tag->ndef->name, benode->tag->name);
+	return -1;
+}
+/*}}}*/
 
 /*{{{  static int cccsp_prewalktree_codegen (tnode_t *node, void *data)*/
 /*
@@ -805,7 +825,18 @@ static void cccsp_do_premap (tnode_t **tptr, map_t *map)
  */
 static void cccsp_do_namemap (tnode_t **tptr, map_t *map)
 {
-	tnode_modprewalktree (tptr, cccsp_modprewalktree_namemap, (void *)map);
+	if (!map->hook) {
+		cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)smalloc (sizeof (cccsp_mapdata_t));
+
+		cmd->target_indir = 0;
+		map->hook = (void *)cmd;
+		tnode_modprewalktree (tptr, cccsp_modprewalktree_namemap, (void *)map);
+		map->hook = NULL;
+
+		sfree (cmd);
+	} else {
+		tnode_modprewalktree (tptr, cccsp_modprewalktree_namemap, (void *)map);
+	}
 	return;
 }
 /*}}}*/

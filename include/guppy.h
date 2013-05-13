@@ -119,6 +119,7 @@ typedef struct {
 	struct TAG_ntdef *tag_RETURN;
 
 	struct TAG_ntdef *tag_ASSIGN;
+	struct TAG_ntdef *tag_SASSIGN;
 	struct TAG_ntdef *tag_IS;
 
 	struct TAG_ntdef *tag_INPUT;
@@ -183,6 +184,7 @@ typedef struct {
 typedef struct {
 	DYNARRAY (struct TAG_tnode *, rnames);		/* names of result parameters in function */
 	struct TAG_tnode **inspoint;			/* insert-point for new code (typically current statement) */
+	struct TAG_tnode *decllist;			/* where new declarations can go, NULL if need fresh */
 	int error;					/* error count */
 } guppy_fetrans1_t;
 

@@ -174,16 +174,99 @@ tnode_dumptree (aparamlist, 1, FHAN_STDERR);
  */
 static int guppy_fetrans1_instance (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)
 {
-	return 1;
-}
-/*}}}*/
-/*{{{  static int guppy_fetrans2_instance (compops_t *cops, tnode_t **nodep, guppy_fetrans2_t *fe2)*/
-/*
- *	does fetrans2 on an instance node (pushes result assignments into parameter list)
- *	returns 0 to stop walk, 1 to continue
- */
-static int guppy_fetrans2_instance (compops_t *cops, tnode_t **nodep, guppy_fetrans2_t *fe2)
-{
+	tnode_t *itype = typecheck_gettype (tnode_nthsubof (*nodep, 0), NULL);
+
+	if (itype && (itype->tag == gup.tag_FCNTYPE)) {
+		int lonely = 0;
+		tnode_t *rtype, **rtitems, *node;
+		int i, nrtitems;
+		tnode_t *seqitemlist;
+		tnode_t *sass, *namelist;
+
+		if (!fe1->inspoint) {
+			/* means we are probably a stand-alone instance, but will need temporaries */
+			fe1->inspoint = nodep;
+			lonely = 1;
+		}
+		node = *nodep;		/* incase it changes under us */
+
+		/* do name and params first -- will pull out nested things in params */
+		guppy_fetrans1_subtree (tnode_nthsubaddr (node, 0), fe1);
+		guppy_fetrans1_subtree (tnode_nthsubaddr (node, 1), fe1);
+
+		rtype = tnode_nthsubof (itype, 1);
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans1_instance(): looking at instance:\n");
+tnode_dumptree (node, 1, FHAN_STDERR);
+#endif
+		if (!parser_islistnode (rtype)) {
+			nocc_internal ("guppy_fetrans1_instance(): RHS of FCNTYPE is not a list, got [%s:%s]", rtype->tag->ndef->name, rtype->tag->name);
+			return 0;
+		}
+		rtitems = parser_getlistitems (rtype, &nrtitems);
+
+		if (!fe1->decllist) {
+			/* no handy DECLBLOCK nearby, create one here */
+			tnode_t *dblk, *dilist;
+
+			dilist = parser_newlistnode (NULL);
+			dblk = tnode_createfrom (gup.tag_DECLBLOCK, node, dilist, *fe1->inspoint);
+
+			*fe1->inspoint = dblk;
+			fe1->inspoint = tnode_nthsubaddr (dblk, 1);		/* so it's still us */
+			fe1->decllist = dilist;
+		}
+
+		namelist = parser_newlistnode (NULL);
+		for (i=0; i<nrtitems; i++) {
+			/* for each return type, construct a declaration */
+			tnode_t *ndecl, *ntype, *nname;
+			name_t *dname;
+			char *pname = guppy_maketempname (rtitems[i]);
+
+			ntype = tnode_copytree (rtitems[i]);
+			dname = name_addname (pname, NULL, ntype, NULL);
+			nname = tnode_createfrom (gup.tag_NDECL, node, dname);
+			SetNameNode (dname, nname);
+			ndecl = tnode_createfrom (gup.tag_VARDECL, node, nname, ntype, NULL);
+			SetNameDecl (dname, ndecl);
+
+			/* add to declaration list and name-list (for assign LHS) */
+			parser_addtolist (fe1->decllist, ndecl);
+			parser_addtolist (namelist, nname);
+		}
+
+		/* construct assignment */
+		sass = tnode_createfrom (gup.tag_SASSIGN, node, namelist, node, tnode_copytree (rtype));
+
+		if (lonely) {
+			/* replace with this simply */
+			*nodep = sass;
+		} else {
+			/* construct SEQ and insert */
+			tnode_t *seqlist = parser_newlistnode (NULL);
+			tnode_t *newseq = tnode_createfrom (gup.tag_SEQ, node, NULL, seqlist);
+			tnode_t **newpt;
+
+			parser_addtolist (seqlist, sass);
+			newpt = parser_addtolist (seqlist, *fe1->inspoint);
+
+			*fe1->inspoint = newseq;
+			fe1->inspoint = newpt;
+		}
+
+		/* modify instance */
+		if (!lonely) {
+			if (parser_countlist (namelist) == 1) {
+				*nodep = parser_getfromlist (namelist, 0);
+			} else {
+				*nodep = tnode_copytree (namelist);
+			}
+		}
+
+		return 0;
+	}
+
 	return 1;
 }
 /*}}}*/
@@ -195,11 +278,42 @@ static int guppy_fetrans2_instance (compops_t *cops, tnode_t **nodep, guppy_fetr
 static int guppy_namemap_instance (compops_t *cops, tnode_t **nodep, map_t *map)
 {
 	tnode_t **nameptr = tnode_nthsubaddr (*nodep, 0);
-	tnode_t **paramsptr = tnode_nthsubaddr (*nodep, 1);
+	tnode_t *pname = *nameptr, *pdecl;
+	tnode_t *plist = tnode_nthsubof (*nodep, 1);
+	tnode_t *flist;
+	tnode_t **fparams;
+	tnode_t **params;
+	int i, nparams, nfparams;
 
 	/* map parameters and name */
-	map_submapnames (paramsptr, map);
 	map_submapnames (nameptr, map);
+
+	pdecl = NameDeclOf (tnode_nthnameof (pname, 0));
+	flist = tnode_nthsubof (pdecl, 1);
+
+	fparams = parser_getlistitems (flist, &nfparams);
+	params = parser_getlistitems (plist, &nparams);
+
+	if (nparams != nfparams) {
+		nocc_internal ("guppy_namemap_instance(): collecting params had %d formal and %d actual", nfparams, nparams);
+		return 0;
+	}
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_namemap_instance(): formals are:\n");
+tnode_dumptree (flist, 1, FHAN_STDERR);
+#endif
+	for (i=0; i<nparams; i++) {
+		cccsp_mapdata_t *cmap = (cccsp_mapdata_t *)map->hook;
+		int saved_indir = cmap->target_indir;
+
+		cmap->target_indir = cccsp_get_indir (fparams[i], map->target);
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_namemap_instance(): target_indir set to %d, doing param..\n", cmap->target_indir);
+#endif
+		map_submapnames (params + i, map);
+		cmap->target_indir = saved_indir;
+	}
 
 	return 0;
 }
@@ -271,7 +385,6 @@ static int guppy_instance_init_nodes (void)
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_instance));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_instance));
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_instance));
-	tnode_setcompop (cops, "fetrans2", 2, COMPOPTYPE (guppy_fetrans2_instance));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_instance));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_instance));
 	tnd->ops = cops;

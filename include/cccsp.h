@@ -39,11 +39,16 @@ typedef struct TAG_cccsp_apicall {
 	int needwptr;
 } cccsp_apicall_t;
 
+typedef struct TAG_cccsp_mapdata {
+	int target_indir;				/* language-specific use (Guppy) */
+} cccsp_mapdata_t;
 
 extern int cccsp_set_initialiser (struct TAG_tnode *bename, struct TAG_tnode *init);
 extern struct TAG_tnode *cccsp_create_apicallname (cccsp_apicall_e);
 
 extern struct TAG_tnode *cccsp_create_addrof (struct TAG_tnode *arg, struct TAG_target *target);
 extern int cccsp_set_indir (struct TAG_tnode *benode, int indir, struct TAG_target *target);
+extern int cccsp_get_indir (struct TAG_tnode *benode, struct TAG_target *target);
+
 
 #endif	/* !__CCCSP_H */

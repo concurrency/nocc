@@ -123,6 +123,64 @@ tnode_dumptree (acttype, 1, FHAN_STDERR);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans1_assign (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)*/
+/*
+ *	does fetrans1 for an assignment (unpicks RHS)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans1_assign (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)
+{
+	if ((*nodep)->tag == gup.tag_ASSIGN) {
+		fe1->inspoint = nodep;
+		guppy_fetrans1_subtree (tnode_nthsubaddr (*nodep, 0), fe1);
+		guppy_fetrans1_subtree (tnode_nthsubaddr (*nodep, 1), fe1);
+		fe1->inspoint = NULL;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_fetrans2_assign (compops_t *cops, tnode_t **nodep, guppy_fetrans2_t *fe2)*/
+/*
+ *	does fetrans2 for an assignment (if SASSIGN and RHS instance, pushes result parameters in)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans2_assign (compops_t *cops, tnode_t **nodep, guppy_fetrans2_t *fe2)
+{
+	if ((*nodep)->tag == gup.tag_SASSIGN) {
+		tnode_t *rhs = tnode_nthsubof (*nodep, 1);
+
+		if (rhs->tag == gup.tag_INSTANCE) {
+			tnode_t *itype = typecheck_gettype (tnode_nthsubof (rhs, 0), NULL);
+
+			if (itype && (itype->tag == gup.tag_FCNTYPE)) {
+				/* have results, push into parameter list */
+				tnode_t *plist = tnode_nthsubof (rhs, 1);
+				tnode_t *lhslist = tnode_nthsubof (*nodep, 0);
+				tnode_t **litems;
+				int i, nlitems;
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans2_assign(): SASSIGN instance of function, plist is:\n");
+tnode_dumptree (plist, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, "guppy_fetrans2_assign(): whole thing is:\n");
+tnode_dumptree (*nodep, 1, FHAN_STDERR);
+#endif
+				litems = parser_getlistitems (lhslist, &nlitems);
+				for (i=0; i<nlitems; i++) {
+					parser_insertinlist (plist, litems[i], i);
+					litems[i] = NULL;
+				}
+
+				/* make instance the whole thing */
+				*nodep = rhs;
+			}
+		}
+		/* won't do subtrees */
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_assign (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for an assignment
@@ -171,6 +229,8 @@ static int guppy_assign_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_assign));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_assign));
+	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_assign));
+	tnode_setcompop (cops, "fetrans2", 2, COMPOPTYPE (guppy_fetrans2_assign));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_assign));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_assign));
 	tnd->ops = cops;
@@ -179,6 +239,8 @@ static int guppy_assign_init_nodes (void)
 
 	i = -1;
 	gup.tag_ASSIGN = tnode_newnodetag ("ASSIGN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_SASSIGN = tnode_newnodetag ("SASSIGN", &i, tnd, NTF_NONE);		/* simplified assignment (added in fetrans1/2) */
 	i = -1;
 	gup.tag_IS = tnode_newnodetag ("IS", &i, tnd, NTF_NONE);
 
