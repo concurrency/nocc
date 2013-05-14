@@ -416,8 +416,8 @@ fprintf (stderr, "guppy_declify_listtodecllist(): i=%d, j=%d, nitems=%d\n", i, j
 #endif
 	if (i > 0) {
 		/* at least some declarations -- will trash the whole original list */
-		tnode_t *decllist = parser_newlistnode (OrgFileOf (list));
-		tnode_t *instlist = parser_newlistnode (OrgFileOf (list));
+		tnode_t *decllist = parser_newlistnode (OrgOf (list));
+		tnode_t *instlist = parser_newlistnode (OrgOf (list));
 		tnode_t *vdblock = tnode_createfrom (gup.tag_DECLBLOCK, list, decllist, instlist);
 		int k;
 
@@ -435,8 +435,8 @@ fprintf (stderr, "guppy_declify_listtodecllist(): i=%d, j=%d, nitems=%d\n", i, j
 		nextptr = tnode_nthsubaddr (vdblock, 1);
 	} else if ((j > 0) && (j < (nitems - 1))) {
 		/* item at index j is a declaration, keep original list and fiddle at that point */
-		tnode_t *decllist = parser_newlistnode (OrgFileOf (list));
-		tnode_t *instlist = parser_newlistnode (OrgFileOf (list));
+		tnode_t *decllist = parser_newlistnode (OrgOf (list));
+		tnode_t *instlist = parser_newlistnode (OrgOf (list));
 		tnode_t *vdblock = tnode_createfrom (gup.tag_DECLBLOCK, list, decllist, instlist);
 
 		while ((j < nitems) && (items[j]->tag == gup.tag_VARDECL)) {
@@ -477,7 +477,7 @@ int guppy_declify_listtodecllist_single (tnode_t **listptr, guppy_declify_t *gdl
 	int nitems = 0;
 	tnode_t **items = parser_getlistitems (list, &nitems);
 	int i, j;
-	tnode_t *newlist = parser_newlistnode (OrgFileOf (list));
+	tnode_t *newlist = parser_newlistnode (OrgOf (list));
 
 #if 1
 fprintf (stderr, "guppy_declify_listtodecllist_single(): nitems=%d\n", nitems);
@@ -493,8 +493,8 @@ fprintf (stderr, "guppy_declify_listtodecllist_single(): nitems=%d\n", nitems);
 			items[i] = NULL;
 		} else {
 			/* at least one declaration, make into declblock */
-			tnode_t *decllist = parser_newlistnode (OrgFileOf (list));
-			tnode_t *instlist = parser_newlistnode (OrgFileOf (list));
+			tnode_t *decllist = parser_newlistnode (OrgOf (list));
+			tnode_t *instlist = parser_newlistnode (OrgOf (list));
 			tnode_t *vdblock = tnode_createfrom (gup.tag_DECLBLOCK, list, decllist, instlist);
 
 			for (; i<j; i++) {
@@ -811,7 +811,7 @@ static tnode_t *guppy_includefile (char *fname, lexfile_t *curlf)
 
 	lf = lexer_open (fname);
 	if (!lf) {
-		parser_error (curlf, "failed to open @include'd file %s", fname);
+		parser_error (SLOCN (curlf), "failed to open @include'd file %s", fname);
 		return NULL;
 	}
 
@@ -824,7 +824,7 @@ static tnode_t *guppy_includefile (char *fname, lexfile_t *curlf)
 	}
 	tree = parser_parse (lf);
 	if (!tree) {
-		parser_error (curlf, "failed to parse @include'd file %s", fname);
+		parser_error (SLOCN (curlf), "failed to parse @include'd file %s", fname);
 		lexer_close (lf);
 		return NULL;
 	}
@@ -1002,7 +1002,7 @@ static tnode_t *guppy_parse_preproc (lexfile_t *lf)
 
 	tok = lexer_nexttoken (lf);
 	if (!lexer_tokmatch (gup.tok_ATSIGN, tok)) {
-		parser_error (lf, "expected to find '@', but found '%s' instead", lexer_stokenstr (tok));
+		parser_error (SLOCN (lf), "expected to find '@', but found '%s' instead", lexer_stokenstr (tok));
 		return NULL;
 	}
 	lexer_freetoken (tok);
@@ -1015,7 +1015,7 @@ static tnode_t *guppy_parse_preproc (lexfile_t *lf)
 		tok = lexer_nexttoken (lf);
 
 		if (tok->type != STRING) {
-			parser_error (lf, "expected string, but found '%s'", lexer_stokenstr (tok));
+			parser_error (SLOCN (lf), "expected string, but found '%s'", lexer_stokenstr (tok));
 			goto skip_to_eol;
 		}
 
@@ -1033,14 +1033,14 @@ static tnode_t *guppy_parse_preproc (lexfile_t *lf)
 		tok = lexer_nexttoken (lf);
 
 		if (tok->type != STRING) {
-			parser_error (lf, "expected string, but found '%s'", lexer_stokenstr (tok));
+			parser_error (SLOCN (lf), "expected string, but found '%s'", lexer_stokenstr (tok));
 			goto skip_to_eol;
 		}
 
 		str = string_ndup (tok->u.str.ptr, tok->u.str.len);
 		lexer_freetoken (tok);
 
-		tree = tnode_create (gup.tag_PPCOMMENT, lf, guppy_makestringlit (guppy_newprimtype (gup.tag_STRING, NULL, 0), NULL, str));
+		tree = tnode_create (gup.tag_PPCOMMENT, SLOCN (lf), guppy_makestringlit (guppy_newprimtype (gup.tag_STRING, NULL, 0), NULL, str));
 		sfree (str);
 
 #if 0
@@ -1191,7 +1191,7 @@ static tnode_t *guppy_declorproc (lexfile_t *lf)
 	/* test for a declaration first of all */
 	tree = dfa_walk ("guppy:testfordecl", 0, lf);
 	if (!tree) {
-		parser_error (lf, "expected to find declaration or process, but didn\'t");
+		parser_error (SLOCN (lf), "expected to find declaration or process, but didn\'t");
 	} else if (tree->tag == testtruetag) {
 		/* definitely a declaration */
 		tnode_free (tree);
@@ -1228,7 +1228,7 @@ static tnode_t *guppy_indented_declorproc_list (lexfile_t *lf)
 		nocc_message ("guppy_indented_declorproc_list(): %s:%d: parsing indented declaration or process list", lf->fnptr, lf->lineno);
 	}
 
-	tree = parser_newlistnode (lf);
+	tree = parser_newlistnode (SLOCN (lf));
 
 	tok = lexer_nexttoken (lf);
 	/*{{{  skip newlines and comments*/
@@ -1239,7 +1239,7 @@ static tnode_t *guppy_indented_declorproc_list (lexfile_t *lf)
 	/*}}}*/
 	/*{{{  expect indent*/
 	if (tok->type != INDENT) {
-		parser_error (lf, "expected indent, found:");
+		parser_error (SLOCN (lf), "expected indent, found:");
 		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		tnode_free (tree);
@@ -1319,7 +1319,7 @@ static tnode_t *guppy_indented_name_list (lexfile_t *lf)
 		nocc_message ("guppy_indented_name_list(): %s:%d: parsing indented name list", lf->fnptr, lf->lineno);
 	}
 
-	tree = parser_newlistnode (lf);
+	tree = parser_newlistnode (SLOCN (lf));
 
 	tok = lexer_nexttoken (lf);
 	/*{{{  skip newlines and comments*/
@@ -1330,7 +1330,7 @@ static tnode_t *guppy_indented_name_list (lexfile_t *lf)
 	/*}}}*/
 	/*{{{  expect indent*/
 	if (tok->type != INDENT) {
-		parser_error (lf, "expected indent, found:");
+		parser_error (SLOCN (lf), "expected indent, found:");
 		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		tnode_free (tree);
@@ -1511,7 +1511,7 @@ fprintf (stderr, "guppy_parser_parsedeflist(): sausages");
 		}
 		if (!*target) {
 			/* make it a list */
-			*target = parser_newlistnode (lf);
+			*target = parser_newlistnode (SLOCN (lf));
 		} else if (!parser_islistnode (*target)) {
 			nocc_internal ("guppy_parser_parsedeflist(): target is not a list! (%s,%s)", (*target)->tag->name, (*target)->tag->ndef->name);
 			return -1;

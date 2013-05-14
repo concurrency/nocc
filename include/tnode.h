@@ -100,11 +100,17 @@ struct TAG_codegen;
 struct TAG_uchk_state;
 struct TAG_origin;
 
+/*{{{  srclocn_t definition*/
+typedef struct TAG_srclocn {
+	struct TAG_lexfile *org_file;
+	int org_line;
+} srclocn_t;
+
+/*}}}*/
 /*{{{  tnode_t definition*/
 typedef struct TAG_tnode {
 	ntdef_t *tag;
-	struct TAG_lexfile *org_file;
-	int org_line;
+	srclocn_t *org;
 
 	DYNARRAY (void *, items);		/* general subnotes/name-nodes/hook-nodes */
 	DYNARRAY (void *, chooks);		/* compiler hooks */
@@ -259,6 +265,12 @@ typedef struct TAG_chook {
 extern int tnode_init (void);
 extern int tnode_shutdown (void);
 
+extern srclocn_t *tnode_newsrclocn (struct TAG_lexfile *lf, int line);
+extern srclocn_t *tnode_cursrclocn (struct TAG_lexfile *lf);
+
+#define SLOCN(lf) tnode_cursrclocn(lf)
+#define SLOCL(lf,line) tnode_newsrclocn(lf,line)
+
 extern tndef_t *tnode_newnodetype (char *name, int *idx, int nsub, int nname, int nhooks, int flags);
 extern ntdef_t *tnode_newnodetag (char *name, int *idx, tndef_t *type, int flags);
 extern tndef_t *tnode_lookupnodetype (char *name);
@@ -287,9 +299,9 @@ extern void tnode_modprewalktree (tnode_t **t, int (*fcn)(tnode_t **, void *), v
 extern void tnode_modpostwalktree (tnode_t **t, int (*fcn)(tnode_t **, void *), void *arg);
 extern void tnode_modprepostwalktree (tnode_t **t, int (*prefcn)(tnode_t **, void *), int (*postfcn)(tnode_t **, void *), void *arg);
 
-extern tnode_t *tnode_new (ntdef_t *tag, struct TAG_lexfile *lf);
+extern tnode_t *tnode_new (ntdef_t *tag, srclocn_t *src);
 extern tnode_t *tnode_newfrom (ntdef_t *tag, tnode_t *src);
-extern tnode_t *tnode_create (ntdef_t *tag, struct TAG_lexfile *lf, ...);
+extern tnode_t *tnode_create (ntdef_t *tag, srclocn_t *src, ...);
 extern tnode_t *tnode_createfrom (ntdef_t *tag, tnode_t *src, ...);
 extern tnode_t *tnode_copyoraliastree (tnode_t *t, copycontrol_e (*cora_fcn)(tnode_t *));
 extern tnode_t *tnode_copytree (tnode_t *t);
@@ -369,12 +381,13 @@ extern void tnode_dumpsnodetags (struct TAG_fhandle *stream);
 /*{{{  generic tree macros*/
 #define TagOf(N)		(N)->tag
 #define TypeOf(N)		(N)->tag->ndef
-#define OrgFileOf(N)		(N)->org_file
-#define OrgLineOf(N)		(N)->org_line
+#define OrgOf(N)		(N)->org
+// #define OrgFileOf(N)		(N)->org_file
+// #define OrgLineOf(N)		(N)->org_line
 
 #define SetTag(N,V)		(N)->tag = (V)
-#define SetOrgFile(N,V)		(N)->org_file = (V)
-#define SetOrgLine(N,V)		(N)->org_line = (V)
+// #define SetOrgFile(N,V)		(N)->org_file = (V)
+// #define SetOrgLine(N,V)		(N)->org_line = (V)
 /*}}}*/
 
 

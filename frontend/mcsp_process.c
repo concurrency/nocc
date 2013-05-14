@@ -153,7 +153,7 @@ static void *mcsp_pptoken_to_node (void *ntok)
 	}
 	sfree (sbuf);
 
-	node = tnode_create (tag, tok->origin);
+	node = tnode_create (tag, SLOCN (tok->origin));
 	lexer_freetoken (tok);
 
 	return node;
@@ -280,8 +280,8 @@ static int mcsp_scopein_rawname (compops_t *cops, tnode_t **node, scope_t *ss)
 	mcsp_lex_t *lmp;
 	mcsp_scope_t *mss = (mcsp_scope_t *)ss->langpriv;
 
-	if ((*node)->org_file && (*node)->org_file->priv) {
-		lexpriv_t *lp = (lexpriv_t *)(*node)->org_file->priv;
+	if ((*node)->org && (*node)->org->org_file->priv) {
+		lexpriv_t *lp = (lexpriv_t *)(*node)->org->org_file->priv;
 		
 		lmp = (mcsp_lex_t *)lp->langpriv;
 	} else {

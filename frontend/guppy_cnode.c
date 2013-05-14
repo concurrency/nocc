@@ -212,7 +212,7 @@ static int guppy_scopein_replcnode (compops_t *cops, tnode_t **nodep, scope_t *s
 		}
 		rawname = (char *)tnode_nthhookof (*rnamep, 0);
 	}
-	dlist = parser_newlistnode ((*nodep)->org_file);
+	dlist = parser_newlistnode (OrgOf (*nodep));
 	declblk = tnode_createfrom (gup.tag_DECLBLOCK, *nodep, dlist, *nodep);
 	type = guppy_newprimtype (gup.tag_INT, *rnamep, 0);
 	newdecl = tnode_createfrom (gup.tag_VARDECL, *nodep, NULL, type, NULL);

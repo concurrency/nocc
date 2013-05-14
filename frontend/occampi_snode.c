@@ -538,8 +538,7 @@ static int occampi_typecheck_snode (compops_t *cops, tnode_t *node, typecheck_t 
 
 					typecheck_warning (items[i], tc, "ELSE in IF statement should be expressed with TRUE");
 					newnode = occampi_makelitbool (NULL, 1);
-					newnode->org_file = (*cvalp)->org_file;
-					newnode->org_line = (*cvalp)->org_line;
+					newnode->org = (*cvalp)->org;
 
 					tnode_free (*cvalp);
 					*cvalp = newnode;

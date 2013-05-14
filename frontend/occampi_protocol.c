@@ -537,6 +537,7 @@ fprintf (stderr, "occampi_typeresolve_protocoldecl(): got %d extended protocols\
 				tnode_t *xstype = typecheck_gettype (exts[i], NULL);
 				int nxstypes, j;
 				tnode_t **xstypes;
+				lexfile_t *o1, *o2;
 
 				if (!epxs) {
 					epxs = occampi_pextstate_chook_create (0);
@@ -548,7 +549,9 @@ fprintf (stderr, "occampi_typeresolve_protocoldecl(): got %d extended protocols\
 							xstype->tag->name);
 				}
 
-				if (OrgFileOf (n) != OrgFileOf (exts[i])) {
+				o1 = OrgOf (n) ? n->org->org_file : NULL;
+				o2 = OrgOf (exts[i]) ? exts[i]->org->org_file : NULL;
+				if (o1 != o2) {
 					/* we're in a different file from the extended protocol, so extended one here is fixed */
 					if (epxs->fixed == 0) {
 						/* not touched yet, fix */

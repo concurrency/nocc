@@ -126,7 +126,7 @@ fprintf (stderr, "occampi_scopein_initial: here! rawname = \"%s\"\n", rawname);
 	scope_subtree (&assign, ss);
 	bodyp = tnode_nthsubaddr (*nodep, 2);
 
-	*bodyp = tnode_createfrom (opi.tag_SEQ, *nodep, NULL, parser_buildlistnode ((*nodep)->org_file, assign, *bodyp, NULL));
+	*bodyp = tnode_createfrom (opi.tag_SEQ, *nodep, NULL, parser_buildlistnode ((*nodep)->org, assign, *bodyp, NULL));
 
 	/* fix this node to be a variable declaration */
 	*nodep = tnode_createfrom (opi.tag_VARDECL, *nodep, tnode_nthsubof (*nodep, 0), tnode_nthsubof (*nodep, 1), tnode_nthsubof (*nodep, 2));

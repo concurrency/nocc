@@ -177,7 +177,7 @@ static void occampi_reduce_cnode (dfastate_t *dfast, parsepriv_t *pp, void *rarg
 
 	tok = parser_gettok (pp);
 	tag = tnode_lookupnodetag (tok->u.kw->name);
-	*(dfast->ptr) = tnode_create (tag, tok->origin, NULL, NULL);
+	*(dfast->ptr) = tnode_create (tag, SLOCN (tok->origin), NULL, NULL);
 	lexer_freetoken (tok);
 
 	return;
@@ -200,13 +200,13 @@ static void occampi_reduce_replcnode (dfastate_t *dfast, parsepriv_t *pp, void *
 	} else if (tag == opi.tag_PAR) {
 		tag = opi.tag_REPLPAR;
 	} else {
-		parser_error (pp->lf, "occampi_reduce_replcnode(): unknown tag to replicate [%s]", tag->name);
+		parser_error (SLOCN (pp->lf), "occampi_reduce_replcnode(): unknown tag to replicate [%s]", tag->name);
 		return;
 	}
 	rlength = dfa_popnode (dfast);
 	rstart = dfa_popnode (dfast);
 	rname = dfa_popnode (dfast);
-	*(dfast->ptr) = tnode_create (tag, tok->origin, NULL, NULL, rname, rstart, rlength);
+	*(dfast->ptr) = tnode_create (tag, SLOCN (tok->origin), NULL, NULL, rname, rstart, rlength);
 	lexer_freetoken (tok);
 
 	return;

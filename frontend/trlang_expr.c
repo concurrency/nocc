@@ -106,7 +106,7 @@ static void *trlang_stringtoken_to_node (void *ntok)
 	litdata->data = string_ndup (tok->u.str.ptr, tok->u.str.len);
 	litdata->len = tok->u.str.len;
 
-	node = tnode_create (trlang.tag_LITSTR, tok->origin, (void *)litdata);
+	node = tnode_create (trlang.tag_LITSTR, SLOCN (tok->origin), (void *)litdata);
 	lexer_freetoken (tok);
 
 	return (void *)node;
@@ -131,7 +131,7 @@ static void *trlang_integertoken_to_node (void *ntok)
 	litdata->data = mem_ndup (&(tok->u.ival), sizeof (int));
 	litdata->len = 4;
 
-	node = tnode_create (trlang.tag_LITINT, tok->origin, (void *)litdata);
+	node = tnode_create (trlang.tag_LITINT, SLOCN (tok->origin), (void *)litdata);
 	lexer_freetoken (tok);
 
 	return (void *)node;

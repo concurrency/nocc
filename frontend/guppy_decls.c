@@ -870,7 +870,7 @@ static int guppy_flattenseq_declblock (compops_t *cops, tnode_t **node)
 				tnode_t *seqblock, *instlist;
 
 				tnode_setnthsub (items[i], 0, namecopy);
-				instlist = parser_newlistnode (OrgFileOf (items[i]));
+				instlist = parser_newlistnode (OrgOf (items[i]));
 				seqblock = tnode_createfrom (gup.tag_SEQ, items[i], NULL, instlist);
 
 				parser_addtolist (instlist, vname);					/* assignment */

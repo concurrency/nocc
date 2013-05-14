@@ -431,7 +431,7 @@ static int occampi_fetrans_finstance (compops_t *cops, tnode_t **node, fetrans_t
 
 	if (!parser_islistnode (*aparams)) {
 		/* make a singleton or empty list */
-		tnode_t *tmp = parser_newlistnode ((*node)->org_file);
+		tnode_t *tmp = parser_newlistnode ((*node)->org);
 
 		if (*aparams) {
 			parser_addtolist (tmp, *aparams);
@@ -850,7 +850,7 @@ static int occampi_betrans_funcdecl (compops_t *cops, tnode_t **node, betrans_t 
 		/* make singleton result a list */
 		tnode_t *xitem = *ritemsp;
 
-		*ritemsp = parser_newlistnode ((*node)->org_file);
+		*ritemsp = parser_newlistnode ((*node)->org);
 		parser_addtolist (*ritemsp, xitem);
 	}
 
@@ -864,7 +864,7 @@ static int occampi_betrans_funcdecl (compops_t *cops, tnode_t **node, betrans_t 
 		/* make singleton result a list */
 		tnode_t *xitem = *rtypep;
 
-		*rtypep = parser_newlistnode ((*node)->org_file);
+		*rtypep = parser_newlistnode ((*node)->org);
 		parser_addtolist (*rtypep, xitem);
 	}
 
@@ -904,16 +904,16 @@ fprintf (stderr, "occampi_betrans_funcdecl(): fudged it into a parameter:\n");
 tnode_dumptree (items[i], 1, stderr);
 #endif
 			if (!myseqlist) {
-				tnode_t *reallist = parser_newlistnode ((*node)->org_file);
+				tnode_t *reallist = parser_newlistnode ((*node)->org);
 
-				myseqlist = tnode_create (opi.tag_SEQ, (*node)->org_file, NULL, reallist);
+				myseqlist = tnode_create (opi.tag_SEQ, (*node)->org, NULL, reallist);
 				parser_addtolist (reallist, tnode_nthsubof (fbody, 1));
 				tnode_setnthsub (fbody, 1, myseqlist);
 				myseqlist = reallist;
 			}
 			/* remove corresponding thing from RESULTs of VALOF, make assignment */
 			rexpr = parser_delfromlist (*ritemsp, i);
-			parser_addtolist (myseqlist, tnode_create (opi.tag_ASSIGN, (*ritemsp)->org_file, namenode, rexpr, NameTypeOf (tmpname)));
+			parser_addtolist (myseqlist, tnode_create (opi.tag_ASSIGN, (*ritemsp)->org, namenode, rexpr, NameTypeOf (tmpname)));
 
 			/* remove from results, add to parameters */
 			fparam = parser_delfromlist (*rtypep, i);
@@ -1156,7 +1156,7 @@ fprintf (stderr, "occampi_reduce_builtinproc(): ..\n");
 			/*{{{  got a match*/
 			tnode_t *biname;
 
-			biname = tnode_create (opi.tag_BUILTINFUNCTION, tok->origin, builtinfunctionhook_create (&(builtins[i])));
+			biname = tnode_create (opi.tag_BUILTINFUNCTION, SLOCN (tok->origin), builtinfunctionhook_create (&(builtins[i])));
 			dfa_pushnode (dfast, biname);
 
 			lexer_freetoken (tok);
@@ -1165,7 +1165,7 @@ fprintf (stderr, "occampi_reduce_builtinproc(): ..\n");
 		}
 	}
 	parser_pushtok (pp, tok);
-	parser_error (tok->origin, "unknown built-in FUNCTION [%s]", lexer_stokenstr (tok));
+	parser_error (SLOCN (tok->origin), "unknown built-in FUNCTION [%s]", lexer_stokenstr (tok));
 
 	return;
 }

@@ -118,11 +118,11 @@ static void dfaerr_stuck (dfaerrorhandler_t *ehan, dfanode_t *dfanode, token_t *
 		if (lexer_getcodeline (tok->origin, &lbuf)) {
 			/* skip */
 		} else {
-			parser_error (tok->origin, lbuf);
+			parser_error (SLOCN (tok->origin), lbuf);
 			sfree (lbuf);
 		}
 	}
-	parser_error (tok->origin, msgbuf);
+	parser_error (SLOCN (tok->origin), msgbuf);
 	return;
 }
 /*}}}*/

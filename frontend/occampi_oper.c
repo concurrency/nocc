@@ -923,13 +923,13 @@ static void occampi_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 	int i;
 
 	if (!tok) {
-		parser_error (pp->lf, "occampi_reduce_dop(): no token ?");
+		parser_error (SLOCN (pp->lf), "occampi_reduce_dop(): no token ?");
 		return;
 	}
 	rhs = dfa_popnode (dfast);
 	lhs = dfa_popnode (dfast);
 	if (!rhs || !lhs) {
-		parser_error (pp->lf, "occampi_reduce_dop(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
+		parser_error (SLOCN (pp->lf), "occampi_reduce_dop(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
 		return;
 	}
 	for (i=0; dopmap[i].lookup; i++) {
@@ -943,10 +943,10 @@ static void occampi_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 fprintf (stderr, "occampi_reduce_dop: unhandled symbol:\n");
 lexer_dumptoken (stderr, tok);
 #endif
-		parser_error (pp->lf, "occampi_reduce_dop(): unhandled token [%s]", lexer_stokenstr (tok));
+		parser_error (SLOCN (pp->lf), "occampi_reduce_dop(): unhandled token [%s]", lexer_stokenstr (tok));
 		return;
 	}
-	*(dfast->ptr) = tnode_create (tag, pp->lf, lhs, rhs, NULL);
+	*(dfast->ptr) = tnode_create (tag, SLOCN (pp->lf), lhs, rhs, NULL);
 
 	return;
 }
@@ -964,13 +964,13 @@ static void occampi_reduce_rel (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 	int i;
 
 	if (!tok) {
-		parser_error (pp->lf, "occampi_reduce_rel(): no token ?");
+		parser_error (SLOCN (pp->lf), "occampi_reduce_rel(): no token ?");
 		return;
 	}
 	rhs = dfa_popnode (dfast);
 	lhs = dfa_popnode (dfast);
 	if (!rhs || !lhs) {
-		parser_error (pp->lf, "occampi_reduce_rel(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
+		parser_error (SLOCN (pp->lf), "occampi_reduce_rel(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
 		return;
 	}
 	for (i=0; relmap[i].lookup; i++) {
@@ -989,10 +989,10 @@ for (i=0; relmap[i].lookup; i++) {
 }
 #endif
 	if (!tag) {
-		parser_error (pp->lf, "occampi_reduce_rel(): unhandled token [%s]", lexer_stokenstr (tok));
+		parser_error (SLOCN (pp->lf), "occampi_reduce_rel(): unhandled token [%s]", lexer_stokenstr (tok));
 		return;
 	}
-	*(dfast->ptr) = tnode_create (tag, pp->lf, lhs, rhs, NULL);
+	*(dfast->ptr) = tnode_create (tag, SLOCN (pp->lf), lhs, rhs, NULL);
 
 	return;
 }
@@ -1010,12 +1010,12 @@ static void occampi_reduce_mop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 	int i;
 
 	if (!tok) {
-		parser_error (pp->lf, "occampi_reduce_mop(): no token ?");
+		parser_error (SLOCN (pp->lf), "occampi_reduce_mop(): no token ?");
 		return;
 	}
 	operand = dfa_popnode (dfast);
 	if (!operand) {
-		parser_error (pp->lf, "occampi_reduce_mop(): operand=0x%8.8x", (unsigned int)operand);
+		parser_error (SLOCN (pp->lf), "occampi_reduce_mop(): operand=0x%8.8x", (unsigned int)operand);
 		return;
 	}
 	for (i=0; mopmap[i].lookup; i++) {
@@ -1025,10 +1025,10 @@ static void occampi_reduce_mop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 		}
 	}
 	if (!tag) {
-		parser_error (pp->lf, "occampi_reduce_mop(): unhandled token [%s]", lexer_stokenstr (tok));
+		parser_error (SLOCN (pp->lf), "occampi_reduce_mop(): unhandled token [%s]", lexer_stokenstr (tok));
 		return;
 	}
-	*(dfast->ptr) = tnode_create (tag, pp->lf, operand, NULL);
+	*(dfast->ptr) = tnode_create (tag, SLOCN (pp->lf), operand, NULL);
 
 	return;
 }
@@ -1045,10 +1045,10 @@ static void occampi_reduce_typecast (dfastate_t *dfast, parsepriv_t *pp, void *r
 	rtype = dfa_popnode (dfast);
 	operand = dfa_popnode (dfast);
 	if (!operand || !rtype) {
-		parser_error (pp->lf, "occampi_reduce_typecast(): operand=0x%8.8x rtype=0x%8.8x", (unsigned int)operand, (unsigned int)rtype);
+		parser_error (SLOCN (pp->lf), "occampi_reduce_typecast(): operand=0x%8.8x rtype=0x%8.8x", (unsigned int)operand, (unsigned int)rtype);
 		return;
 	}
-	*(dfast->ptr) = tnode_create (opi.tag_TYPECAST, pp->lf, operand, rtype);
+	*(dfast->ptr) = tnode_create (opi.tag_TYPECAST, SLOCN (pp->lf), operand, rtype);
 
 	return;
 }

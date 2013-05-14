@@ -259,7 +259,7 @@ static void trlang_parser_shutdown (lexfile_t *lf)
 static tnode_t *trlang_parser_parse (lexfile_t *lf)
 {
 	token_t *tok;
-	tnode_t *tree = parser_newlistnode (lf);
+	tnode_t *tree = parser_newlistnode (SLOCN (lf));
 
 	if (compopts.verbose) {
 		nocc_message ("trlang_parser_parse(): starting parse..");

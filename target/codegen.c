@@ -543,10 +543,10 @@ void codegen_node_warning (codegen_t *cgen, tnode_t *tptr, const char *fmt, ...)
 	va_list ap;
 	int i, n;
 	char *buf = (char *)smalloc (1024);
-	lexfile_t *lf = tptr->org_file;
+	srclocn_t *src = OrgOf (tptr);
 
 	va_start (ap, fmt);
-	n = sprintf (buf, "%s:%d (warning) ", lf ? lf->fnptr : "(unknown)", tptr->org_line);
+	n = sprintf (buf, "%s:%d (warning) ", src ? src->org_file->fnptr : "(unknown)", src ? src->org_line : 0);
 	i = vsnprintf (buf + n, 1023 - n, fmt, ap);
 	va_end (ap);
 
@@ -565,10 +565,10 @@ void codegen_node_error (codegen_t *cgen, tnode_t *tptr, const char *fmt, ...)
 	va_list ap;
 	int i, n;
 	char *buf = (char *)smalloc (1024);
-	lexfile_t *lf = tptr->org_file;
+	srclocn_t *src = OrgOf (tptr);
 
 	va_start (ap, fmt);
-	n = sprintf (buf, "%s:%d (error) ", lf ? lf->fnptr : "(unknown)", tptr->org_line);
+	n = sprintf (buf, "%s:%d (error) ", src ? src->org_file->fnptr : "(unknown)", src ? src->org_line : 0);
 	i = vsnprintf (buf + n, 1023 - n, fmt, ap);
 	va_end (ap);
 
@@ -589,10 +589,10 @@ void codegen_node_fatal (codegen_t *cgen, tnode_t *tptr, const char *fmt, ...)
 	va_list ap;
 	int i, n;
 	char *buf = (char *)smalloc (1024);
-	lexfile_t *lf = tptr->org_file;
+	srclocn_t *src = OrgOf (tptr);
 
 	va_start (ap, fmt);
-	n = sprintf (buf, "%s:%d (fatal) ", lf ? lf->fnptr : "(unknown)", tptr->org_line);
+	n = sprintf (buf, "%s:%d (fatal) ", src ? src->org_file->fnptr : "(unknown)", src ? src->org_line : 0);
 	i = vsnprintf (buf + n, 1023 - n, fmt, ap);
 	va_end (ap);
 

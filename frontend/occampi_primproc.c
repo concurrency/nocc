@@ -68,7 +68,7 @@ static void occampi_reduce_primproc (dfastate_t *dfast, parsepriv_t *pp, void *r
 
 	tok = parser_gettok (pp);
 	tag = tnode_lookupnodetag (tok->u.kw->name);
-	*(dfast->ptr) = tnode_create (tag, tok->origin);
+	*(dfast->ptr) = tnode_create (tag, SLOCN (tok->origin));
 	lexer_freetoken (tok);
 
 	return;

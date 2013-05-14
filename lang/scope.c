@@ -67,28 +67,24 @@ int scope_shutdown (void)
 
 /*{{{  void scope_warning (tnode_t *node, scope_t *ss, const char *fmt, ...)*/
 /*
- *	called by pre-scoper bits for warnings
+ *	called by scoper for warnings
  */
 void scope_warning (tnode_t *node, scope_t *ss, const char *fmt, ...)
 {
 	va_list ap;
 	int n;
 	char *warnbuf = (char *)smalloc (512);
-	lexfile_t *orgfile;
+	srclocn_t *src;
 
-	if (!node) {
-		orgfile = NULL;
-	} else {
-		orgfile = node->org_file;
-	}
+	src = node ? node->org : NULL;
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (warning) ", orgfile ? orgfile->fnptr : "(unknown)", node->org_line);
+	n = sprintf (warnbuf, "%s:%d (warning) ", src ? src->org_file->fnptr : "(unknown)", src ? src->org_line : 0);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
-	if (orgfile) {
-		orgfile->warncount++;
+	if (src) {
+		src->org_file->warncount++;
 	}
 	ss->warn++;
 	nocc_message ("%s", warnbuf);
@@ -99,28 +95,24 @@ void scope_warning (tnode_t *node, scope_t *ss, const char *fmt, ...)
 /*}}}*/
 /*{{{  void scope_error (tnode_t *node, scope_t *ss, const char *fmt, ...)*/
 /*
- *	called by the pre-scoper bits for errors
+ *	called by the scoper for errors
  */
 void scope_error (tnode_t *node, scope_t *ss, const char *fmt, ...)
 {
 	va_list ap;
 	int n;
 	char *warnbuf = (char *)smalloc (512);
-	lexfile_t *orgfile;
+	srclocn_t *src;
 
-	if (!node) {
-		orgfile = NULL;
-	} else {
-		orgfile = node->org_file;
-	}
+	src = node ? node->org : NULL;
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (error) ", orgfile ? orgfile->fnptr : "(unknown)", node->org_line);
+	n = sprintf (warnbuf, "%s:%d (error) ", src ? src->org_file->fnptr : "(unknown)", src ? src->org_line : 0);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
-	if (orgfile) {
-		orgfile->errcount++;
+	if (src) {
+		src->org_file->errcount++;
 	}
 	ss->err++;
 	nocc_message ("%s", warnbuf);

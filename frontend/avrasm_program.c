@@ -479,7 +479,7 @@ static void *avrasm_regtoken_to_node (void *ntok)
 		lh->len = sizeof (r);
 		lh->data = mem_ndup (&r, lh->len);
 
-		node = tnode_create (avrasm.tag_LITREG, tok->origin, lh);
+		node = tnode_create (avrasm.tag_LITREG, SLOCN (tok->origin), lh);
 	}
 
 	lexer_freetoken (tok);
@@ -513,7 +513,7 @@ static void *avrasm_instoken_to_node (void *ntok)
 		lh->len = sizeof (inum);
 		lh->data = mem_ndup (&inum, lh->len);
 
-		node = tnode_create (avrasm.tag_LITINS, tok->origin, lh);
+		node = tnode_create (avrasm.tag_LITINS, SLOCN (tok->origin), lh);
 	}
 
 	lexer_freetoken (tok);
@@ -540,7 +540,7 @@ static void *avrasm_stringtoken_to_node (void *ntok)
 	litdata->data = string_ndup (tok->u.str.ptr, tok->u.str.len);
 	litdata->len = tok->u.str.len;
 
-	node = tnode_create (avrasm.tag_LITSTR, tok->origin, (void *)litdata);
+	node = tnode_create (avrasm.tag_LITSTR, SLOCN (tok->origin), (void *)litdata);
 	lexer_freetoken (tok);
 
 	return (void *)node;
@@ -565,7 +565,7 @@ static void *avrasm_integertoken_to_node (void *ntok)
 	litdata->len = sizeof (int);
 	litdata->data = mem_ndup (&(tok->u.ival), litdata->len);
 
-	node = tnode_create (avrasm.tag_LITINT, tok->origin, (void *)litdata);
+	node = tnode_create (avrasm.tag_LITINT, SLOCN (tok->origin), (void *)litdata);
 	lexer_freetoken (tok);
 
 	return (void *)node;
@@ -615,9 +615,9 @@ static void avrasm_xyzreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 	} else if (lexer_tokmatch (avrasm.tok_REGZ, tok)) {
 		xyzh->reg = 2;
 	} else {
-		parser_error_line (pp->lf, tok->lineno, "invalid token in avrasm_xyzreduce(): got [%s]", lexer_stokenstr (tok));
+		parser_error (SLOCL (pp->lf, tok->lineno), "invalid token in avrasm_xyzreduce(): got [%s]", lexer_stokenstr (tok));
 	}
-	node = tnode_create (avrasm.tag_XYZREG, pp->lf, xyzh);
+	node = tnode_create (avrasm.tag_XYZREG, SLOCN (pp->lf), xyzh);
 	*(dfast->ptr) = node;
 #if 0
 fprintf (stderr, "avrasm_xyzreduce(): tok =\n");
@@ -641,7 +641,7 @@ static void avrasm_uslabdefreduce (dfastate_t *dfast, parsepriv_t *pp, void *rar
 	avrasm_lithook_t *litdata;
 	
 	if (tok->type != NAME) {
-		parser_error_line (pp->lf, tok->lineno, "invalid token in avrasm_uslabdefreduce(): got [%s]", lexer_stokenstr (tok));
+		parser_error (SLOCL (pp->lf, tok->lineno), "invalid token in avrasm_uslabdefreduce(): got [%s]", lexer_stokenstr (tok));
 		lexer_freetoken (tok);
 		return;
 	}
@@ -662,13 +662,13 @@ static void avrasm_uslabdefreduce (dfastate_t *dfast, parsepriv_t *pp, void *rar
 	litdata->len = sizeof (int);
 	litdata->data = mem_ndup (&id, litdata->len);
 
-	node = tnode_create (avrasm.tag_LITINT, tok->origin, (void *)litdata);
-	node = tnode_create (avrasm.tag_LLABELDEF, tok->origin, node);
+	node = tnode_create (avrasm.tag_LITINT, SLOCN (tok->origin), (void *)litdata);
+	node = tnode_create (avrasm.tag_LLABELDEF, SLOCN (tok->origin), node);
 	*(dfast->ptr) = node;
 	lexer_freetoken (tok);
 	return;
 out_badname:
-	parser_error_line (pp->lf, tok->lineno, "invalid local label name [%s]", tok->u.name);
+	parser_error (SLOCL (pp->lf, tok->lineno), "invalid local label name [%s]", tok->u.name);
 	lexer_freetoken (tok);
 	return;
 }
@@ -686,7 +686,7 @@ static void avrasm_uslabreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 	int slen;
 
 	if (tok->type != LSPECIAL) {
-		parser_error_line (pp->lf, tok->lineno, "invalid token in avrasm_uslabreduce(): got [%s]", lexer_stokenstr (tok));
+		parser_error (SLOCL (pp->lf, tok->lineno), "invalid token in avrasm_uslabreduce(): got [%s]", lexer_stokenstr (tok));
 		lexer_freetoken (tok);
 		return;
 	}
@@ -712,13 +712,13 @@ static void avrasm_uslabreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 		goto out_badname;
 	}
 
-	node = tnode_create (avrasm.tag_USLAB, tok->origin, (void *)ush);
+	node = tnode_create (avrasm.tag_USLAB, SLOCN (tok->origin), (void *)ush);
 	*(dfast->ptr) = node;
 
 	lexer_freetoken (tok);
 	return;
 out_badname:
-	parser_error_line (pp->lf, tok->lineno, "invalid local label reference [%s]", lspec->str);
+	parser_error (SLOCL (pp->lf, tok->lineno), "invalid local label reference [%s]", lspec->str);
 	lexer_freetoken (tok);
 	return;
 }
@@ -1042,7 +1042,7 @@ static int avrasm_prescope_macrodef (compops_t *cops, tnode_t **node, prescope_t
 
 	if (!*paramptr) {
 		/* no parameters, but create empty list for it */
-		*paramptr = parser_newlistnode ((*node)->org_file);
+		*paramptr = parser_newlistnode ((*node)->org);
 	} else {
 		tnode_t **plist;
 		int nitems, i;
@@ -1192,7 +1192,7 @@ static int avrasm_prescope_instancenode (compops_t *cops, tnode_t **node, presco
 	tnode_t **apptr = tnode_nthsubaddr (*node, 1);
 
 	if (!*apptr) {
-		*apptr = parser_newlistnode (OrgFileOf (*node));
+		*apptr = parser_newlistnode ((*node)->org);
 	}
 	return 1;
 }
@@ -1278,8 +1278,7 @@ static int avrasm_submacro_instancenode (compops_t *cops, tnode_t **node, submac
 
 		for (j=0; j<nbitems; j++) {
 			/* move origin to instance */
-			bitems[j]->org_file = (*node)->org_file;
-			bitems[j]->org_line = (*node)->org_line;
+			bitems[j]->org = (*node)->org;
 		}
 	}
 #if 0

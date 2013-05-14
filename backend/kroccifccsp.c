@@ -615,15 +615,15 @@ static void kroccifccsp_coder_debugline (codegen_t *cgen, tnode_t *node)
 #if 0
 	nocc_message ("kroccifccsp_coder_debugline(): [%s], line %d", node->tag->name, node->org_line);
 #endif
-	if (!node->org_file || !node->org_line) {
+	if (!node->org) {
 		/* nothing to generate */
 		return;
 	}
-	if (node->org_file != kpriv->lastfile) {
-		kpriv->lastfile = node->org_file;
-		codegen_write_fmt (cgen, "#FILE %s\n", node->org_file->filename ?: "(unknown)");
+	if (node->org->org_file != kpriv->lastfile) {
+		kpriv->lastfile = node->org->org_file;
+		codegen_write_fmt (cgen, "#FILE %s\n", node->org->org_file->filename ?: "(unknown)");
 	}
-	codegen_write_fmt (cgen, "#LINE %d\n", node->org_line);
+	codegen_write_fmt (cgen, "#LINE %d\n", node->org->org_line);
 
 	return;
 }

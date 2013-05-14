@@ -667,15 +667,16 @@ void constprop_warning (tnode_t *t, const char *fmt, ...)
 	va_list ap;
 	static char warnbuf[512];
 	int n;
-	lexfile_t *lf = t->org_file;
+	srclocn_t *src;
 
+	src = t ? t->org : NULL;
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (warning) ", lf ? lf->fnptr : "(unknown)", t->org_line);
+	n = sprintf (warnbuf, "%s:%d (warning) ", src ? src->org_file->fnptr : "(unknown)", src ? src->org_line : 0);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
-	if (lf) {
-		lf->warncount++;
+	if (src) {
+		src->org_file->warncount++;
 	}
 
 	nocc_outerrmsg (warnbuf);
@@ -692,15 +693,16 @@ void constprop_error (tnode_t *t, const char *fmt, ...)
 	va_list ap;
 	static char errbuf[512];
 	int n;
-	lexfile_t *lf = t->org_file;
+	srclocn_t *src;
 
+	src = t ? t->org : NULL;
 	va_start (ap, fmt);
-	n = sprintf (errbuf, "%s:%d (error) ", lf ? lf->fnptr : "(unknown)", t->org_line);
+	n = sprintf (errbuf, "%s:%d (error) ", src ? src->org_file->fnptr : "(unknown)", src ? src->org_line : 0);
 	vsnprintf (errbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
-	if (lf) {
-		lf->errcount++;
+	if (src) {
+		src->org_file->errcount++;
 	}
 
 	nocc_outerrmsg (errbuf);

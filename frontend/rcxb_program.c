@@ -173,7 +173,7 @@ static void *rcxb_idtoken_to_node (void *ntok)
 		lexer_error (tok->origin, "expected motor or sensor identifier, found [%s]", lexer_stokenstr (tok));
 	}
 	if (tag) {
-		node = tnode_create (tag, tok->origin);
+		node = tnode_create (tag, SLOCN (tok->origin));
 	}
 	lexer_freetoken (tok);
 
@@ -190,9 +190,9 @@ static void *rcxb_dirtoken_to_node (void *ntok)
 	tnode_t *node = NULL;
 
 	if (lexer_tokmatch (tok, rcxb.tok_FORWARD)) {
-		node = tnode_create (rcxb.tag_FORWARD, tok->origin);
+		node = tnode_create (rcxb.tag_FORWARD, SLOCN (tok->origin));
 	} else if (lexer_tokmatch (tok, rcxb.tok_REVERSE)) {
-		node = tnode_create (rcxb.tag_REVERSE, tok->origin);
+		node = tnode_create (rcxb.tag_REVERSE, SLOCN (tok->origin));
 	} else {
 		lexer_error (tok->origin, "expected forward or reverse, found [%s]", lexer_stokenstr (tok));
 	}
@@ -219,7 +219,7 @@ static void *rcxb_stringtoken_to_node (void *ntok)
 	litdata->data = string_ndup (tok->u.str.ptr, tok->u.str.len);
 	litdata->len = tok->u.str.len;
 
-	node = tnode_create (rcxb.tag_LITSTR, tok->origin, (void *)litdata);
+	node = tnode_create (rcxb.tag_LITSTR, SLOCN (tok->origin), (void *)litdata);
 	lexer_freetoken (tok);
 
 	return (void *)node;
@@ -244,7 +244,7 @@ static void *rcxb_integertoken_to_node (void *ntok)
 	litdata->data = mem_ndup (&(tok->u.ival), sizeof (int));
 	litdata->len = 4;
 
-	node = tnode_create (rcxb.tag_LITINT, tok->origin, (void *)litdata);
+	node = tnode_create (rcxb.tag_LITINT, SLOCN (tok->origin), (void *)litdata);
 	lexer_freetoken (tok);
 
 	return (void *)node;
@@ -265,13 +265,13 @@ static void rcxb_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 	int i;
 
 	if (!tok) {
-		parser_error (pp->lf, "rcxb_reduce_dop(): no token ?");
+		parser_error (SLOCN (pp->lf), "rcxb_reduce_dop(): no token ?");
 		return;
 	}
 	rhs = dfa_popnode (dfast);
 	lhs = dfa_popnode (dfast);
 	if (!rhs || !lhs) {
-		parser_error (pp->lf, "rcxb_reduce_dop(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
+		parser_error (SLOCN (pp->lf), "rcxb_reduce_dop(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
 		return;
 	}
 	for (i=0; dopmap[i].lookup; i++) {
@@ -281,10 +281,10 @@ static void rcxb_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 		}
 	}
 	if (!tag) {
-		parser_error (pp->lf, "rcxb_reduce_dop(): unhandled token [%s]", lexer_stokenstr (tok));
+		parser_error (SLOCN (pp->lf), "rcxb_reduce_dop(): unhandled token [%s]", lexer_stokenstr (tok));
 		return;
 	}
-	*(dfast->ptr) = tnode_create (tag, pp->lf, lhs, rhs);
+	*(dfast->ptr) = tnode_create (tag, SLOCN (pp->lf), lhs, rhs);
 
 	return;
 }
@@ -302,13 +302,13 @@ static void rcxb_reduce_rel (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 	int i;
 
 	if (!tok) {
-		parser_error (pp->lf, "rcxb_reduce_rel(): no token ?");
+		parser_error (SLOCN (pp->lf), "rcxb_reduce_rel(): no token ?");
 		return;
 	}
 	rhs = dfa_popnode (dfast);
 	lhs = dfa_popnode (dfast);
 	if (!rhs || !lhs) {
-		parser_error (pp->lf, "rcxb_reduce_rel(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
+		parser_error (SLOCN (pp->lf), "rcxb_reduce_rel(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
 		return;
 	}
 	for (i=0; relmap[i].lookup; i++) {
@@ -327,10 +327,10 @@ for (i=0; relmap[i].lookup; i++) {
 }
 #endif
 	if (!tag) {
-		parser_error (pp->lf, "rcxb_reduce_rel(): unhandled token [%s]", lexer_stokenstr (tok));
+		parser_error (SLOCN (pp->lf), "rcxb_reduce_rel(): unhandled token [%s]", lexer_stokenstr (tok));
 		return;
 	}
-	*(dfast->ptr) = tnode_create (tag, pp->lf, lhs, rhs);
+	*(dfast->ptr) = tnode_create (tag, SLOCN (pp->lf), lhs, rhs);
 
 	return;
 }
@@ -348,12 +348,12 @@ static void rcxb_reduce_mop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 	int i;
 
 	if (!tok) {
-		parser_error (pp->lf, "rcxb_reduce_mop(): no token ?");
+		parser_error (SLOCN (pp->lf), "rcxb_reduce_mop(): no token ?");
 		return;
 	}
 	operand = dfa_popnode (dfast);
 	if (!operand) {
-		parser_error (pp->lf, "rcxb_reduce_mop(): operand=0x%8.8x", (unsigned int)operand);
+		parser_error (SLOCN (pp->lf), "rcxb_reduce_mop(): operand=0x%8.8x", (unsigned int)operand);
 		return;
 	}
 	for (i=0; mopmap[i].lookup; i++) {
@@ -363,10 +363,10 @@ static void rcxb_reduce_mop (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 		}
 	}
 	if (!tag) {
-		parser_error (pp->lf, "rcxb_reduce_mop(): unhandled token [%s]", lexer_stokenstr (tok));
+		parser_error (SLOCN (pp->lf), "rcxb_reduce_mop(): unhandled token [%s]", lexer_stokenstr (tok));
 		return;
 	}
-	*(dfast->ptr) = tnode_create (tag, pp->lf, operand);
+	*(dfast->ptr) = tnode_create (tag, SLOCN (pp->lf), operand);
 
 	return;
 }

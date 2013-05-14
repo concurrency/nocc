@@ -1050,7 +1050,7 @@ fprintf (stderr, "occampi_reduce_builtinproc(): ..\n");
 			/*{{{  got a match*/
 			tnode_t *biname;
 
-			biname = tnode_create (opi.tag_BUILTINPROC, tok->origin, builtinprochook_create (&(builtins[i])));
+			biname = tnode_create (opi.tag_BUILTINPROC, SLOCN (tok->origin), builtinprochook_create (&(builtins[i])));
 			dfa_pushnode (dfast, biname);
 
 			lexer_freetoken (tok);
@@ -1059,7 +1059,7 @@ fprintf (stderr, "occampi_reduce_builtinproc(): ..\n");
 		}
 	}
 	parser_pushtok (pp, tok);
-	parser_error (tok->origin, "unknown built-in PROC [%s]", lexer_stokenstr (tok));
+	parser_error (SLOCN (tok->origin), "unknown built-in PROC [%s]", lexer_stokenstr (tok));
 
 	return;
 }
@@ -1087,9 +1087,9 @@ tnode_t *occampi_makeassertion (lexfile_t *lf, tnode_t *param)
 		return NULL;
 	}
 
-	asnode = tnode_create (opi.tag_PINSTANCE, lf,
-			tnode_create (opi.tag_BUILTINPROC, lf, builtinprochook_create (biproc)),
-			parser_buildlistnode (lf, param, NULL),
+	asnode = tnode_create (opi.tag_PINSTANCE, SLOCN (lf),
+			tnode_create (opi.tag_BUILTINPROC, SLOCN (lf), builtinprochook_create (biproc)),
+			parser_buildlistnode (SLOCN (lf), param, NULL),
 			NULL);
 
 	return asnode;

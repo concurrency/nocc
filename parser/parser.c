@@ -153,50 +153,55 @@ int parser_shutdown (void)
 	return 0;
 }
 /*}}}*/
-/*{{{  void parser_error (lexfile_t *lf, const char *fmt, ...)*/
+/*{{{  void parser_error (srclocn_t *src, const char *fmt, ...)*/
 /*
  *	called by parser-bits when an error is encountered
  */
-void parser_error (lexfile_t *lf, const char *fmt, ...)
+void parser_error (srclocn_t *src, const char *fmt, ...)
 {
 	va_list ap;
 	int n;
 	char *warnbuf = (char *)smalloc (512);
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (error) ", lf->fnptr, lf->lineno);
+	n = sprintf (warnbuf, "%s:%d (error) ", src ? src->org_file->fnptr : "(unknown)", src ? src->org_line : 0);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
-	lf->errcount++;
+	if (src) {
+		src->org_file->errcount++;
+	}
 	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;
 }
 /*}}}*/
-/*{{{  void parser_warning (lexfile_t *lf, const char *fmt, ...)*/
+/*{{{  void parser_warning (srclocn_t *src, const char *fmt, ...)*/
 /*
  *	called by parser-bits for warnings
  */
-void parser_warning (lexfile_t *lf, const char *fmt, ...)
+void parser_warning (srclocn_t *src, const char *fmt, ...)
 {
 	va_list ap;
 	int n;
 	char *warnbuf = (char *)smalloc (512);
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (warning) ", lf->fnptr, lf->lineno);
+	n = sprintf (warnbuf, "%s:%d (warning) ", src ? src->org_file->fnptr : "(unknown)", src ? src->org_line : 0);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
-	lf->warncount++;
+	if (src) {
+		src->org_file->warncount++;
+	}
 	nocc_message ("%s", warnbuf);
 	sfree (warnbuf);
 
 	return;
 }
 /*}}}*/
+#if 0
 /*{{{  void parser_error_line (lexfile_t *lf, const int lineno, const char *fmt, ...)*/
 /*
  *	called by parser-bits when an error is encountered
@@ -242,6 +247,7 @@ void parser_warning_line (lexfile_t *lf, const int lineno, const char *fmt, ...)
 	return;
 }
 /*}}}*/
+#endif
 /*{{{  int parser_markerror (lexfile_t *lf)*/
 /*
  *	'marks' the lexfile error-count (returns it)
@@ -529,11 +535,11 @@ int parser_gettesttags (ntdef_t **truep, ntdef_t **falsep)
 }
 /*}}}*/
 
-/*{{{  tnode_t *parser_newlistnode (lexfile_t *lf)*/
+/*{{{  tnode_t *parser_newlistnode (srclocn_t *src)*/
 /*
  *	creates and returns a new "list" node
  */
-tnode_t *parser_newlistnode (lexfile_t *lf)
+tnode_t *parser_newlistnode (srclocn_t *src)
 {
 	tnode_t **array;
 	int *cur, *max;
@@ -546,22 +552,22 @@ tnode_t *parser_newlistnode (lexfile_t *lf)
 
 	*cur = 0;
 	*max = 8;
-	node = tnode_create (tag_LIST, lf, (void *)array);
+	node = tnode_create (tag_LIST, src, (void *)array);
 
 	return node;
 }
 /*}}}*/
-/*{{{  tnode_t *parser_buildlistnode (lexfile_t *lf, ...)*/
+/*{{{  tnode_t *parser_buildlistnode (srclocn_t *src, ...)*/
 /*
  *	creates and returns a new "list" node, populated with items
  */
-tnode_t *parser_buildlistnode (lexfile_t *lf, ...)
+tnode_t *parser_buildlistnode (srclocn_t *src, ...)
 {
 	va_list ap;
-	tnode_t *node = parser_newlistnode (lf);
+	tnode_t *node = parser_newlistnode (src);
 	tnode_t *item;
 
-	va_start (ap, lf);
+	va_start (ap, src);
 	for (item = va_arg (ap, tnode_t *); item; item = va_arg (ap, tnode_t *)) {
 		parser_addtolist (node, item);
 	}
@@ -576,10 +582,8 @@ tnode_t *parser_buildlistnode (lexfile_t *lf, ...)
  */
 tnode_t *parser_makelistnode (tnode_t *node)
 {
-	tnode_t *list = parser_newlistnode (OrgFileOf (node));
+	tnode_t *list = parser_newlistnode (OrgOf (node));
 
-	SetOrgFile (list, OrgFileOf (node));
-	SetOrgLine (list, OrgLineOf (node));
 	parser_addtolist (list, node);
 
 	return list;
@@ -934,7 +938,7 @@ void parser_inlistreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 		/* make into a listnode, set it */
 		node = dfast->local;
 
-		dfast->local = parser_newlistnode (pp->lf);
+		dfast->local = parser_newlistnode (SLOCN (pp->lf));
 		parser_addtolist (dfast->local, node);
 	}
 	dfast->ptr = parser_addtolist (dfast->local, NULL);
@@ -1106,15 +1110,13 @@ tnode_t *parser_ensurelist (tnode_t **nodeptr, tnode_t *orgref)
 		*nodeptr = parser_newlistnode (NULL);
 
 		if (orgref) {
-			SetOrgFile (*nodeptr, OrgFileOf (orgref));
-			SetOrgLine (*nodeptr, OrgLineOf (orgref));
+			(*nodeptr)->org = orgref->org;
 		}
 	} else if (!parser_islistnode (*nodeptr)) {
 		*nodeptr = parser_buildlistnode (NULL, *nodeptr, NULL);
 
 		if (orgref) {
-			SetOrgFile (*nodeptr, OrgFileOf (orgref));
-			SetOrgLine (*nodeptr, OrgLineOf (orgref));
+			(*nodeptr)->org = orgref->org;
 		}
 	}
 	/* assert: must be a list */
@@ -1242,8 +1244,7 @@ void parser_generic_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 	void *lnstk[16];
 	int lncnt = 0;
 	int ipos;
-	lexfile_t *org_file = NULL;
-	int org_line = 0;
+	srclocn_t *org = NULL;
 
 	/* execute reduction machine! */
 	for (ipos = 0; arg[ipos] != ICDE_END; ipos++) {
@@ -1417,11 +1418,9 @@ fprintf (stderr, "combinetag: tag is [%s]\n", tag->name);
 				}
 
 				/*}}}*/
-				if (org_file && org_line) {
-					rnode->org_file = org_file;
-					rnode->org_line = org_line;
-					org_file = NULL;
-					org_line = 0;
+				if (org) {
+					rnode->org = org;
+					org = NULL;
 				}
 				lnstk[lncnt++] = (void *)rnode;
 			}
@@ -1433,8 +1432,7 @@ fprintf (stderr, "combinetag: tag is [%s]\n", tag->name);
 				int offset = (int)arg[++ipos];
 				tnode_t *onode = (tnode_t *)(lnstk[lncnt - (offset + 1)]);
 
-				org_file = onode->org_file;
-				org_line = onode->org_line;
+				org = onode->org;
 			}
 			break;
 			/*}}}*/
@@ -1444,8 +1442,7 @@ fprintf (stderr, "combinetag: tag is [%s]\n", tag->name);
 				int offset = (int)arg[++ipos];
 				token_t *otok = (token_t *)(lnstk[lncnt - (offset + 1)]);
 
-				org_file = otok->origin;
-				org_line = otok->lineno;
+				org = SLOCL (otok->origin, otok->lineno);
 			}
 			break;
 			/*}}}*/
@@ -1462,8 +1459,7 @@ fprintf (stderr, "combinetag: tag is [%s]\n", tag->name);
 					if (!onode) {
 						nocc_error ("parser_generic_reduce(): referenced origin %d on node-stack is null", offset);
 					} else {
-						org_file = onode->org_file;
-						org_line = onode->org_line;
+						org = onode->org;
 					}
 				}
 			}
@@ -1482,8 +1478,7 @@ fprintf (stderr, "combinetag: tag is [%s]\n", tag->name);
 					if (!otok) {
 						nocc_error ("parser_generic_reduce(): referenced origin %d on token-stack is null", offset);
 					} else {
-						org_file = otok->origin;
-						org_line = otok->lineno;
+						org = SLOCL (otok->origin, otok->lineno);
 					}
 				}
 			}
@@ -1564,11 +1559,9 @@ fprintf (stderr, "combinetag: tag is [%s]\n", tag->name);
 					parser_addtolist (list, item);
 				}
 
-				if (org_file && org_line) {
-					list->org_file = org_file;
-					list->org_line = org_line;
-					org_file = NULL;
-					org_line = 0;
+				if (org) {
+					list->org = org;
+					org = NULL;
 				}
 				lnstk[lncnt++] = (void *)list;
 			}

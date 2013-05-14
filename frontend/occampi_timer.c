@@ -656,16 +656,16 @@ static void occampi_reduce_dafter (dfastate_t *dfast, parsepriv_t *pp, void *rar
 	tnode_t *lhs, *rhs;
 
 	if (!tok) {
-		parser_error (pp->lf, "occampi_reduce_dafter(): no token ?");
+		parser_error (SLOCN (pp->lf), "occampi_reduce_dafter(): no token ?");
 		return;
 	}
 	rhs = dfa_popnode (dfast);
 	lhs = dfa_popnode (dfast);
 	if (!rhs || !lhs) {
-		parser_error (pp->lf, "occampi_reduce_dafter(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
+		parser_error (SLOCN (pp->lf), "occampi_reduce_dafter(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
 		return;
 	}
-	*(dfast->ptr) = tnode_create (opi.tag_AFTER, pp->lf, lhs, rhs, NULL);
+	*(dfast->ptr) = tnode_create (opi.tag_AFTER, SLOCN (pp->lf), lhs, rhs, NULL);
 
 	return;
 }

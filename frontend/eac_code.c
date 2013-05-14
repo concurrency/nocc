@@ -546,7 +546,7 @@ tnode_dumptree (*esetp, 1, stderr);
 	if ((*esetp)->tag == eac.tag_ESET) {
 		tnode_t **seqs;
 		int nseqs, i;
-		tnode_t *newsetlist = parser_newlistnode (OrgFileOf (*esetp));
+		tnode_t *newsetlist = parser_newlistnode (OrgOf (*esetp));
 		tnode_t *newset = tnode_createfrom (eac.tag_ESET, *esetp, newsetlist, NULL);
 		tnode_t *outvars = parser_newlistnode (NULL);
 		tnode_t *inseqs = parser_newlistnode (NULL);
@@ -1167,7 +1167,7 @@ static int eac_scopein_paramlist (compops_t *cops, tnode_t **node, scope_t *ss)
 	}
 	if (!parser_islistnode (*node)) {
 		/* not a list, probably singleton */
-		*node = parser_buildlistnode (OrgFileOf (*node), *node, NULL);
+		*node = parser_buildlistnode (OrgOf (*node), *node, NULL);
 	}
 
 	items = parser_getlistitems (*node, &nitems);
@@ -1301,7 +1301,7 @@ static int eac_prescope_declnode (compops_t *cops, tnode_t **tptr, prescope_t *p
 
 		if (!*paramsptr) {
 			/* no parameters, leave empty list */
-			*paramsptr = parser_newlistnode (OrgFileOf (node));
+			*paramsptr = parser_newlistnode (OrgOf (node));
 		} else if (!parser_islistnode (*paramsptr)) {
 			/* singleton */
 			*paramsptr = parser_makelistnode (*paramsptr);
@@ -1420,7 +1420,7 @@ static int eac_scopein_fvpenode (compops_t *cops, tnode_t **node, scope_t *ss)
 	eac_ignore_unresolved = eac_lastunresolved;
 
 	/* scan body looking for leftover free variables */
-	fvlist = parser_newlistnode (OrgFileOf (*node));
+	fvlist = parser_newlistnode (OrgOf (*node));
 	tnode_prewalktree (tnode_nthsubof (*node, 0), eac_scope_scanfreevars, fvlist);
 
 	nsmark = name_markscope ();
@@ -1432,7 +1432,7 @@ static int eac_scopein_fvpenode (compops_t *cops, tnode_t **node, scope_t *ss)
 	/* scope body again */
 	scope_subtree (tnode_nthsubaddr (*node, 0), ss);
 
-	tfvlist =  parser_newlistnode (OrgFileOf (*node));
+	tfvlist =  parser_newlistnode (OrgOf (*node));
 	tnode_prewalktree (tnode_nthsubof (*node, 0), eac_scope_fixchanvars, tfvlist);
 	tnode_prewalktree (tnode_nthsubof (*node, 0), eac_scope_fixchanvars, tfvlist);
 	name_markdescope (nsmark);
@@ -1544,7 +1544,7 @@ static int eac_prescope_instancenode (compops_t *cops, tnode_t **tptr, prescope_
 
 		if (!*paramsptr) {
 			/* make empty list */
-			*paramsptr = parser_newlistnode (OrgFileOf (node));
+			*paramsptr = parser_newlistnode (OrgOf (node));
 		} else if (!parser_islistnode (*paramsptr)) {
 			*paramsptr = parser_makelistnode (*paramsptr);
 		}
@@ -1658,7 +1658,7 @@ static int eac_prescope_varcompnode (compops_t *cops, tnode_t **tptr, prescope_t
 
 		if (!*rhs) {
 			/* make empty list */
-			*rhs = parser_newlistnode (OrgFileOf (node));
+			*rhs = parser_newlistnode (OrgOf (node));
 		} else if (!parser_islistnode (*rhs)) {
 			*rhs = parser_makelistnode (*rhs);
 		}
@@ -1683,7 +1683,7 @@ static int eac_prescope_pcompnode (compops_t *cops, tnode_t **tptr, prescope_t *
 
 		if (!*hptr) {
 			/* make empty list */
-			*hptr = parser_newlistnode (OrgFileOf (node));
+			*hptr = parser_newlistnode (OrgOf (node));
 		} else if (!parser_islistnode (*hptr)) {
 			*hptr = parser_makelistnode (*hptr);
 		}
@@ -1893,7 +1893,7 @@ static int eac_prescope_esetnode (compops_t *cops, tnode_t **tptr, prescope_t *p
 
 		if (!*cptr) {
 			/* make empty list */
-			*cptr = parser_newlistnode (OrgFileOf (node));
+			*cptr = parser_newlistnode (OrgOf (node));
 		} else if (!parser_islistnode (*cptr)) {
 			*cptr = parser_makelistnode (*cptr);
 		}

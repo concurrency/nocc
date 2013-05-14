@@ -606,7 +606,7 @@ static int occampi_lit_init_nodes (void)
  */
 tnode_t *occampi_makelitbool (lexfile_t *lf, const int istrue)
 {
-	return tnode_create (opi.tag_LITBOOL, lf, NULL, occampi_bool_hook (istrue ? 1 : 0));
+	return tnode_create (opi.tag_LITBOOL, SLOCN (lf), NULL, occampi_bool_hook (istrue ? 1 : 0));
 }
 /*}}}*/
 /*{{{  int occampi_islitstring (struct TAG_tnode *node)*/

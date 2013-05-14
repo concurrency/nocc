@@ -63,6 +63,14 @@ STATICDYNARRAY (langop_t *, alangops);
 STATICSTRINGHASH (char *, tracingcompops, 3);
 STATICSTRINGHASH (char *, tracinglangops, 3);
 
+#define SRCLEXMAP_LINE_HASHBITS	(4)
+typedef struct TAG_srclexmap {
+	POINTERHASH (srclocn_t *, lines, SRCLEXMAP_LINE_HASHBITS);
+} srclexmap_t;
+
+/* this maps lexfile_t's to srclexmap_t's */
+STATICPOINTERHASH (srclexmap_t *, srclexmap, 3);
+
 /* forwards */
 static void tnode_isetindent (fhandle_t *stream, int indent);
 static void tnode_ssetindent (fhandle_t *stream, int indent);
@@ -527,6 +535,49 @@ int tnode_shutdown (void)
 	return 0;
 }
 /*}}}*/
+
+/*{{{  srclocn_t *tnode_newsrclocn (lexfile_t *lf, int line)*/
+/*
+ *	find existing or creates new srclocn_t structure (never freed)
+ */
+srclocn_t *tnode_newsrclocn (lexfile_t *lf, int line)
+{
+	srclexmap_t *map = pointerhash_lookup (srclexmap, lf);
+	srclocn_t *locn;
+
+	if (!map) {
+		/* no map for this one */
+		map = (srclexmap_t *)smalloc (sizeof (srclexmap_t));
+
+		pointerhash_init (map->lines, SRCLEXMAP_LINE_HASHBITS);
+		pointerhash_insert (srclexmap, map, lf);
+	}
+	locn = pointerhash_lookup (map->lines, line);
+	if (!locn) {
+		/* first instance of this location */
+		locn = (srclocn_t *)smalloc (sizeof (srclocn_t));
+
+		locn->org_file = lf;
+		locn->org_line = line;
+
+		pointerhash_insert (map->lines, locn, line);
+	}
+	return locn;
+}
+/*}}}*/
+/*{{{  srclocn_t *tnode_cursrclocn (lexfile_t *lf)*/
+/*
+ *	create a srclocn_t based on the current lexfile position
+ */
+srclocn_t *tnode_cursrclocn (lexfile_t *lf)
+{
+	if (!lf) {
+		return NULL;
+	}
+	return tnode_newsrclocn (lf, lf->lineno);
+}
+/*}}}*/
+
 
 /*{{{  tndef_t *tnode_newnodetype (char *name, int *idx, int nsub, int nname, int nhooks, int flags)*/
 /*
@@ -1158,23 +1209,18 @@ void tnode_modprepostwalktree (tnode_t **t, int (*prefcn)(tnode_t **, void *), i
 /*}}}*/
 
 
-/*{{{  tnode_t *tnode_new (ntdef_t *tag, lexfile_t *lf)*/
+/*{{{  tnode_t *tnode_new (ntdef_t *tag, srclocn_t *src)*/
 /*
  *	allocates a new tree-node
  */
-tnode_t *tnode_new (ntdef_t *tag, lexfile_t *lf)
+tnode_t *tnode_new (ntdef_t *tag, srclocn_t *src)
 {
 	tnode_t *tmp;
 
 	tmp = (tnode_t *)smalloc (sizeof (tnode_t));
 	memset (tmp, 0, sizeof (tnode_t));
 	tmp->tag = tag;
-	tmp->org_file = lf;
-	if (lf) {
-		tmp->org_line = lf->lineno;
-	} else {
-		tmp->org_line = 0;
-	}
+	tmp->org = src;
 
 	dynarray_init (tmp->items);
 	dynarray_setsize (tmp->items, tag->ndef->nsub + tag->ndef->nname + tag->ndef->nhooks);
@@ -1193,8 +1239,7 @@ tnode_t *tnode_newfrom (ntdef_t *tag, tnode_t *src)
 	tmp = (tnode_t *)smalloc (sizeof (tnode_t));
 	memset (tmp, 0, sizeof (tnode_t));
 	tmp->tag = tag;
-	tmp->org_file = src->org_file;
-	tmp->org_line = src->org_line;
+	tmp->org = src->org;
 
 	dynarray_init (tmp->items);
 	dynarray_setsize (tmp->items, tag->ndef->nsub + tag->ndef->nname + tag->ndef->nhooks);
@@ -1206,11 +1251,11 @@ tnode_t *tnode_newfrom (ntdef_t *tag, tnode_t *src)
 	return tmp;
 }
 /*}}}*/
-/*{{{  tnode_t *tnode_create (ntdef_t *tag, lexfile_t *lf, ...)*/
+/*{{{  tnode_t *tnode_create (ntdef_t *tag, srclocn_t *src, ...)*/
 /*
  *	creates a new tree-node, with arguments supplied
  */
-tnode_t *tnode_create (ntdef_t *tag, lexfile_t *lf, ...)
+tnode_t *tnode_create (ntdef_t *tag, srclocn_t *src, ...)
 {
 	va_list ap;
 	int i;
@@ -1219,12 +1264,7 @@ tnode_t *tnode_create (ntdef_t *tag, lexfile_t *lf, ...)
 	tmp = (tnode_t *)smalloc (sizeof (tnode_t));
 	memset (tmp, 0, sizeof (tnode_t));
 	tmp->tag = tag;
-	tmp->org_file = lf;
-	if (lf) {
-		tmp->org_line = lf->lineno;
-	} else {
-		tmp->org_line = 0;
-	}
+	tmp->org = src;
 
 	dynarray_init (tmp->items);
 	dynarray_setsize (tmp->items, tag->ndef->nsub + tag->ndef->nname + tag->ndef->nhooks);
@@ -1233,7 +1273,7 @@ tnode_t *tnode_create (ntdef_t *tag, lexfile_t *lf, ...)
 		dynarray_setsize (tmp->chooks, DA_CUR (acomphooks));
 	}
 
-	va_start (ap, lf);
+	va_start (ap, src);
 	/* should have everything supplied here.. */
 	for (i=0; i<DA_CUR (tmp->items); i++) {
 		if (i < tag->ndef->nsub) {
@@ -1268,8 +1308,7 @@ tnode_t *tnode_createfrom (ntdef_t *tag, tnode_t *src, ...)
 	tmp = (tnode_t *)smalloc (sizeof (tnode_t));
 	memset (tmp, 0, sizeof (tnode_t));
 	tmp->tag = tag;
-	tmp->org_file = src ? src->org_file : NULL;
-	tmp->org_line = src ? src->org_line : 0;
+	tmp->org = src ? src->org : NULL;
 
 	dynarray_init (tmp->items);
 	dynarray_setsize (tmp->items, tag->ndef->nsub + tag->ndef->nname + tag->ndef->nhooks);
@@ -1384,8 +1423,7 @@ if (cora_fcn) {
 	}
 
 	tmp = tnode_new (t->tag, NULL);
-	tmp->org_file = t->org_file;
-	tmp->org_line = t->org_line;
+	tmp->org = t->org;
 
 	tnd = t->tag->ndef;
 	for (i=0; i<DA_CUR (t->items); i++) {
@@ -1495,7 +1533,8 @@ void tnode_dumptree (tnode_t *t, int indent, fhandle_t *stream)
 	}
 	tnd = t->tag->ndef;
 
-	fhandle_printf (stream, "<%s type=\"%s\" origin=\"%s:%d\" addr=\"0x%8.8x\">%s\n", tnd->name, t->tag->name, (t->org_file) ? t->org_file->fnptr : "(none)", t->org_line, (unsigned int)t,
+	fhandle_printf (stream, "<%s type=\"%s\" origin=\"%s:%d\" addr=\"0x%8.8x\">%s\n", tnd->name, t->tag->name,
+			t->org ? t->org->org_file->fnptr : "(none)", t->org ? t->org->org_line : 0, (unsigned int)t,
 			compopts.dumpfolded ? "<!--{{{-->" : "");
 	for (i=0; i<DA_CUR (t->items); i++) {
 		if (i < tnd->nsub) {
@@ -2720,12 +2759,12 @@ char *tnode_copytextlocationof (tnode_t *t)
 		nocc_warning ("tnode_copytextlocationof(): NULL node!");
 		return NULL;
 	}
-	if (!t->org_file || !t->org_file->fnptr) {
+	if (!t->org || !t->org->org_file->fnptr) {
 		str = (char *)smalloc (64);
-		sprintf (str, "(unknown file):%d", t->org_line);
+		sprintf (str, "(unknown file):%d", t->org ? t->org->org_line : -1);
 	} else {
-		str = (char *)smalloc (strlen (t->org_file->fnptr) + 16);
-		sprintf (str, "%s:%d", t->org_file->fnptr, t->org_line);
+		str = (char *)smalloc (strlen (t->org->org_file->fnptr) + 16);
+		sprintf (str, "%s:%d", t->org->org_file->fnptr, t->org->org_line);
 	}
 	return str;
 }
@@ -2742,10 +2781,10 @@ char *tnode_statictextlocationof (tnode_t *t)
 	if (!t) {
 		nocc_warning ("tnode_statictextlocationof(): NULL node!");
 		strcpy (cbuf, "<nofile:-1>");
-	} else if (!t->org_file || !t->org_file->fnptr) {
-		snprintf (cbuf, 255, "(unknown file):%d", t->org_line);
+	} else if (!t->org || !t->org->org_file->fnptr) {
+		snprintf (cbuf, 255, "(unknown file):%d", t->org ? t->org->org_line : -1);
 	} else {
-		snprintf (cbuf, 255, "%s:%d", t->org_file->fnptr, t->org_line);
+		snprintf (cbuf, 255, "%s:%d", t->org->org_file->fnptr, t->org->org_line);
 	}
 	return (char *)cbuf;
 }
@@ -2807,10 +2846,10 @@ void tnode_message (tnode_t *t, const char *fmt, ...)
 	va_list ap;
 	static char msgbuf[512];
 	int n;
-	lexfile_t *lf = t->org_file;
+	lexfile_t *lf = t->org ? t->org->org_file : NULL;
 
 	va_start (ap, fmt);
-	n = sprintf (msgbuf, "%s:%d ", lf ? lf->fnptr : "(unknown)", t->org_line);
+	n = sprintf (msgbuf, "%s:%d ", lf ? lf->fnptr : "(unknown)", t->org ? t->org->org_line : -1);
 	vsnprintf (msgbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
@@ -2827,10 +2866,10 @@ void tnode_warning (tnode_t *t, const char *fmt, ...)
 	va_list ap;
 	static char warnbuf[512];
 	int n;
-	lexfile_t *lf = t->org_file;
+	lexfile_t *lf = t->org ? t->org->org_file : NULL;
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (warning) ", lf ? lf->fnptr : "(unknown)", t->org_line);
+	n = sprintf (warnbuf, "%s:%d (warning) ", lf ? lf->fnptr : "(unknown)", t->org ? t->org->org_line : -1);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
@@ -2852,10 +2891,10 @@ void tnode_error (tnode_t *t, const char *fmt, ...)
 	va_list ap;
 	static char errbuf[512];
 	int n;
-	lexfile_t *lf = t->org_file;
+	lexfile_t *lf = t->org ? t->org->org_file : NULL;
 
 	va_start (ap, fmt);
-	n = sprintf (errbuf, "%s:%d (error) ", lf ? lf->fnptr : "(unknown)", t->org_line);
+	n = sprintf (errbuf, "%s:%d (error) ", lf ? lf->fnptr : "(unknown)", t->org ? t->org->org_line : -1);
 	vsnprintf (errbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 

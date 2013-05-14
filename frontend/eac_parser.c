@@ -645,7 +645,7 @@ static int eac_parser_parseprocdeflist (lexfile_t *lf, tnode_t **target)
 		}
 		if (!*target) {
 			/* make it a list node */
-			*target = parser_newlistnode (lf);
+			*target = parser_newlistnode (SLOCN (lf));
 		} else if (!parser_islistnode (*target)) {
 			nocc_internal ("eac_parser_parseprocdeflist(): target is not a list! (%s,%s)", (*target)->tag->name, (*target)->tag->ndef->name);
 			return -1;

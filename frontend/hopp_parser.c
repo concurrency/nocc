@@ -189,7 +189,7 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			tree = hopp_parse_toplevel (lf);
 			tok = lexer_nexttoken (lf);
 			if (!tok || (tok->type == END)) {
-				parser_error (lf, "unexpected end");
+				parser_error (SLOCN (lf), "unexpected end");
 			} else if ((tok->type == SYMBOL) && (tok->u.sym == sym_rparen)) {
 				/* good, got a closed chunk */
 			} else {
@@ -199,14 +199,14 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 				lexer_pushback (lf, tok);
 				tok = NULL;
 				tmp = tree;
-				tree = parser_newlistnode (lf);
+				tree = parser_newlistnode (SLOCN (lf));
 				parser_addtolist (tree, tmp);
 
 				for (;;) {
 					tmp = hopp_parse_toplevel (lf);
 
 					if (!tmp) {
-						parser_error (lf, "null item while parsing for list");
+						parser_error (SLOCN (lf), "null item while parsing for list");
 						break;		/* for() */
 					}
 					parser_addtolist (tree, tmp);
@@ -222,7 +222,7 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			/*}}}*/
 		} else if (tok->u.sym == sym_rparen) {
 			/*{{{  unexpected*/
-			parser_error (lf, "unexpected ')'");
+			parser_error (SLOCN (lf), "unexpected ')'");
 			/*}}}*/
 		} else if (tok->u.sym == sym_colon) {
 			/*{{{  declaration of something*/
@@ -232,7 +232,7 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			ibody = hopp_parse_toplevel (lf);
 
 			if (!tree) {
-				parser_error (lf, "DECL: bad declaration");
+				parser_error (SLOCN (lf), "DECL: bad declaration");
 				tree = ibody;
 			} else {
 				if (tree->tag == opi.tag_PROCDECL) {
@@ -253,13 +253,13 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			{
 				tnode_t *name, *params, *body;
 
-				tree = tnode_create (opi.tag_PROCDECL, lf, NULL, NULL, NULL, NULL);		/* name, params, process-body, in-scope-body */
+				tree = tnode_create (opi.tag_PROCDECL, SLOCN (lf), NULL, NULL, NULL, NULL);		/* name, params, process-body, in-scope-body */
 				name = hopp_parse_toplevel (lf);
 				params = hopp_parse_toplevel (lf);
 				body = hopp_parse_toplevel (lf);
 
 				if (!name || !body) {
-					parser_error (lf, "PROC: bad name or body");
+					parser_error (SLOCN (lf), "PROC: bad name or body");
 				}
 				tnode_setnthsub (tree, 0, name);
 				tnode_setnthsub (tree, 1, params);
@@ -272,12 +272,12 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			{
 				tnode_t *name, *type;
 
-				tree = tnode_create (opi.tag_VARDECL, lf, NULL, NULL, NULL);			/* name, type, in-scope-body */
+				tree = tnode_create (opi.tag_VARDECL, SLOCN (lf), NULL, NULL, NULL);			/* name, type, in-scope-body */
 				type = hopp_parse_toplevel (lf);
 				name = hopp_parse_toplevel (lf);
 
 				if (!name || !type) {
-					parser_error (lf, "VARS: bad name or type");
+					parser_error (SLOCN (lf), "VARS: bad name or type");
 				}
 				tnode_setnthsub (tree, 0, name);
 				tnode_setnthsub (tree, 1, type);
@@ -286,18 +286,18 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			/*}}}*/
 			/*{{{  NAME -- quoted name*/
 		case HTAG_NAME:
-			tree = tnode_create (opi.tag_NAME, lf, NULL);
+			tree = tnode_create (opi.tag_NAME, SLOCN (lf), NULL);
 			lexer_freetoken (tok);
 			tok = lexer_nexttoken (lf);
 
 			if (!tok) {
-				parser_error (lf, "NAME: missing name ?");
+				parser_error (SLOCN (lf), "NAME: missing name ?");
 			} else if (tok->type == KEYWORD) {
 				/* assume ok for now -- extract keyword and make it a name */
 				tnode_setnthhook (tree, 0, occampi_keywordtoken_to_namehook ((void *)tok));
 				tok = NULL;
 			} else if (tok->type != NAME) {
-				parser_error (lf, "NAME: following token not NAME, was:");
+				parser_error (SLOCN (lf), "NAME: following token not NAME, was:");
 				lexer_dumptoken (FHAN_STDERR, tok);
 			} else {
 				tnode_setnthhook (tree, 0, occampi_nametoken_to_hook ((void *)tok));
@@ -310,12 +310,12 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			{
 				tnode_t *name, *type;
 
-				tree = tnode_create (opi.tag_FPARAM, lf, NULL, NULL);					/* name, type */
+				tree = tnode_create (opi.tag_FPARAM, SLOCN (lf), NULL, NULL);					/* name, type */
 				type = hopp_parse_toplevel (lf);
 				name = hopp_parse_toplevel (lf);
 
 				if (!name || !type) {
-					parser_error (lf, "FORMAL: bad name or type");
+					parser_error (SLOCN (lf), "FORMAL: bad name or type");
 				}
 				tnode_setnthsub (tree, 0, name);
 				tnode_setnthsub (tree, 1, type);
@@ -327,11 +327,11 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			{
 				tnode_t *protocol;
 
-				tree = tnode_create (opi.tag_CHAN, lf, NULL);						/* protocol */
+				tree = tnode_create (opi.tag_CHAN, SLOCN (lf), NULL);						/* protocol */
 				protocol = hopp_parse_toplevel (lf);
 
 				if (!protocol) {
-					parser_error (lf, "CHAN: bad protocol");
+					parser_error (SLOCN (lf), "CHAN: bad protocol");
 				}
 				tnode_setnthsub (tree, 0, protocol);
 			}
@@ -339,22 +339,22 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			/*}}}*/
 			/*{{{  BYTE*/
 		case HTAG_BYTE:
-			tree = tnode_create (opi.tag_BYTE, lf);
+			tree = tnode_create (opi.tag_BYTE, SLOCN (lf));
 			break;
 			/*}}}*/
 			/*{{{  INT*/
 		case HTAG_INT:
-			tree = tnode_create (opi.tag_INT, lf);
+			tree = tnode_create (opi.tag_INT, SLOCN (lf));
 			break;
 			/*}}}*/
 			/*{{{  SKIP*/
 		case HTAG_SKIP:
-			tree = tnode_create (opi.tag_SKIP, lf);
+			tree = tnode_create (opi.tag_SKIP, SLOCN (lf));
 			break;
 			/*}}}*/
 			/*{{{  STOP*/
 		case HTAG_STOP:
-			tree = tnode_create (opi.tag_STOP, lf);
+			tree = tnode_create (opi.tag_STOP, SLOCN (lf));
 			break;
 			/*}}}*/
 			/*{{{  TRUE*/
@@ -372,13 +372,13 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			{
 				tnode_t *body;
 
-				tree = tnode_create (opi.tag_SEQ, lf, NULL, NULL);				/* par-specials, body */
+				tree = tnode_create (opi.tag_SEQ, SLOCN (lf), NULL, NULL);				/* par-specials, body */
 				body = hopp_parse_toplevel (lf);
 
 				if (!body) {
-					parser_error (lf, "SEQ: bad body");
+					parser_error (SLOCN (lf), "SEQ: bad body");
 				} else if (!parser_islistnode (body)) {
-					body = parser_buildlistnode (lf, body, NULL);
+					body = parser_buildlistnode (SLOCN (lf), body, NULL);
 				}
 				tnode_setnthsub (tree, 1, body);
 			}
@@ -394,12 +394,12 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			{
 				tnode_t *cond, *body;
 
-				tree = tnode_create (opi.tag_WHILE, lf, NULL, NULL);					/* expr, body */
+				tree = tnode_create (opi.tag_WHILE, SLOCN (lf), NULL, NULL);					/* expr, body */
 				cond = hopp_parse_toplevel (lf);
 				body = hopp_parse_toplevel (lf);
 
 				if (!cond || !body) {
-					parser_error (lf, "WHILE: bad expression or body");
+					parser_error (SLOCN (lf), "WHILE: bad expression or body");
 				}
 				tnode_setnthsub (tree, 0, cond);
 				tnode_setnthsub (tree, 1, body);
@@ -408,7 +408,7 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 			/*}}}*/
 			/*{{{  default -- warning*/
 		default:
-			parser_warning (lf, "unhandled keyword token:");
+			parser_warning (SLOCN (lf), "unhandled keyword token:");
 			lexer_dumptoken (FHAN_STDERR, tok);
 			break;
 			/*}}}*/
@@ -417,7 +417,7 @@ static tnode_t *hopp_parse_toplevel (lexfile_t *lf)
 		/*}}}*/
 		/*{{{  default -- warning and ignore*/
 	default:
-		parser_warning (lf, "unhandled token:");
+		parser_warning (SLOCN (lf), "unhandled token:");
 		lexer_dumptoken (FHAN_STDERR, tok);
 		break;
 		/*}}}*/
@@ -498,7 +498,7 @@ static tnode_t *hopp_parser_parse (lexfile_t *lf)
 
 	tree = hopp_parse_toplevel (lf);
 	if (!tree) {
-		parser_error (lf, "hopp_parser_parse(): got nothing back at top-level..");
+		parser_error (SLOCN (lf), "hopp_parser_parse(): got nothing back at top-level..");
 	}
 
 	return tree;

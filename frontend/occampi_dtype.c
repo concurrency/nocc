@@ -842,7 +842,7 @@ static tnode_t *occampi_dimtreeof_arraynode (langops_t *lops, tnode_t *node)
 	tnode_t *orignode = node;
 	
 	if (!dimlist) {
-		dimlist = parser_newlistnode (node->org_file);
+		dimlist = parser_newlistnode (node->org);
 
 		while (node->tag == opi.tag_ARRAY) {
 			tnode_t *thisdim = tnode_nthsubof (node, 0);
@@ -866,7 +866,7 @@ static tnode_t *occampi_dimtreeof_arraynode (langops_t *lops, tnode_t *node)
 static tnode_t *occampi_hiddenparamsof_arraynode (langops_t *lops, tnode_t *node)
 {
 	tnode_t *dimtree = langops_dimtreeof (node);
-	tnode_t *hparams = parser_newlistnode (node->org_file);
+	tnode_t *hparams = parser_newlistnode (node->org);
 	int i, nditems;
 	tnode_t **dlist;
 
@@ -1962,7 +1962,7 @@ fprintf (stderr, "occampi_reduce_arrayfold(): array =\n");
 tnode_dumptree (array, 4, stderr);
 #endif
 	if (!array) {
-		parser_error (pp->lf, "broken array specification");
+		parser_error (SLOCN (pp->lf), "broken array specification");
 	} else {
 		tnode_t **typep = tnode_nthsubaddr (decl, 1);
 
@@ -1992,7 +1992,7 @@ static void occampi_reduce_valarrayfold (dfastate_t *dfast, parsepriv_t *pp, voi
 	array = dfa_popnode (dfast);
 
 	if (!array) {
-		parser_error (pp->lf, "broken array specification");
+		parser_error (SLOCN (pp->lf), "broken array specification");
 	} else {
 		tnode_t **typep = tnode_nthsubaddr (decl, 1);
 

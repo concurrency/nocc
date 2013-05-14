@@ -654,7 +654,7 @@ fprintf (stderr, "mcsp_parser_descparse(): thisone->tag->name = [%s], thisone->t
 		/* next token should be newline or end */
 		tok = lexer_nexttoken (lf);
 		if ((tok->type != NEWLINE) && (tok->type != END)) {
-			parser_error (lf, "in descriptor, expected newline or end, found [%s]", lexer_stokenstr (tok));
+			parser_error (SLOCN (lf), "in descriptor, expected newline or end, found [%s]", lexer_stokenstr (tok));
 			if (tree) {
 				tnode_free (tree);
 			}

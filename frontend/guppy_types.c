@@ -183,15 +183,15 @@ static void guppy_reduce_primtype (dfastate_t *dfast, parsepriv_t *pp, void *rar
 		tag = tnode_lookupnodetag (ustr);
 		sfree (ustr);
 		if (!tag) {
-			parser_error (pp->lf, "unknown primitive type [%s] in guppy_reduce_primtype()", tok->u.kw->name);
+			parser_error (SLOCN (pp->lf), "unknown primitive type [%s] in guppy_reduce_primtype()", tok->u.kw->name);
 			goto out_error;
 		}
 	} else {
-		parser_error (pp->lf, "unknown primitive type in guppy_reduce_primtype()");
+		parser_error (SLOCN (pp->lf), "unknown primitive type in guppy_reduce_primtype()");
 		goto out_error;
 	}
 
-	*(dfast->ptr) = tnode_create (tag, tok->origin, NULL);
+	*(dfast->ptr) = tnode_create (tag, SLOCN (tok->origin), NULL);
 	
 	/* may have a size for a primitive type hook */
 	if ((tag == gup.tag_INT) || (tag == gup.tag_REAL)) {
@@ -235,7 +235,7 @@ fprintf (stderr, "guppy_reduce_chantype(): here! (tok = %s)\n", lexer_stokenstr 
 fprintf (stderr, "guppy_reduce_chantype(): here2! (tok = %s)\n", lexer_stokenstr (tok));
 #endif
 
-	*(dfast->ptr) = tnode_create (gup.tag_CHAN, tok->origin, proto, cth);
+	*(dfast->ptr) = tnode_create (gup.tag_CHAN, SLOCN (tok->origin), proto, cth);
 
 	if (cttok) {
 		lexer_freetoken (cttok);

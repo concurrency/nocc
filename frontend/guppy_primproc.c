@@ -73,15 +73,15 @@ static void guppy_reduce_primproc (dfastate_t *dfast, parsepriv_t *pp, void *rar
 		tag = tnode_lookupnodetag (ustr);
 		sfree (ustr);
 		if (!tag) {
-			parser_error (pp->lf, "unknown primitive process [%s] in guppy_reduce_primproc()", tok->u.kw->name);
+			parser_error (SLOCN (pp->lf), "unknown primitive process [%s] in guppy_reduce_primproc()", tok->u.kw->name);
 			goto out_error;
 		}
 	} else {
-		parser_error (pp->lf, "unknown primitive process in guppy_reduce_primproc()");
+		parser_error (SLOCN (pp->lf), "unknown primitive process in guppy_reduce_primproc()");
 		goto out_error;
 	}
 
-	*(dfast->ptr) = tnode_create (tag, tok->origin);
+	*(dfast->ptr) = tnode_create (tag, SLOCN (tok->origin));
 out_error:
 	lexer_freetoken (tok);
 

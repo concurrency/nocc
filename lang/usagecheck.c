@@ -498,21 +498,17 @@ void usagecheck_error (tnode_t *org, uchk_state_t *ucstate, const char *fmt, ...
 	va_list ap;
 	int n;
 	char *warnbuf = (char *)smalloc (512);
-	lexfile_t *orgfile;
+	srclocn_t *src;
 
-	if (org) {
-		orgfile = org->org_file;
-	} else {
-		orgfile = NULL;
-	}
+	src = org ? org->org : NULL;
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (error): ", orgfile ? orgfile->fnptr : "(unknown)", org ? org->org_line : 0);
+	n = sprintf (warnbuf, "%s:%d (error): ", src ? src->org_file->fnptr : "(unknown)", src ? src->org_line : 0);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
-	if (orgfile) {
-		orgfile->errcount++;
+	if (src) {
+		src->org_file->errcount++;
 	}
 	ucstate->err++;
 
@@ -531,21 +527,17 @@ void usagecheck_warning (tnode_t *org, uchk_state_t *ucstate, const char *fmt, .
 	va_list ap;
 	int n;
 	char *warnbuf = (char *)smalloc (512);
-	lexfile_t *orgfile;
+	srclocn_t *src;
 
-	if (org) {
-		orgfile = org->org_file;
-	} else {
-		orgfile = NULL;
-	}
+	src = org ? org->org : NULL;
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (warning): ", orgfile ? orgfile->fnptr : "(unknown)", org ? org->org_line : 0);
+	n = sprintf (warnbuf, "%s:%d (warning): ", src ? src->org_file->fnptr : "(unknown)", src ? src->org_line : 0);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
-	if (orgfile) {
-		orgfile->warncount++;
+	if (src) {
+		src->org_file->warncount++;
 	}
 	ucstate->warn++;
 

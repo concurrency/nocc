@@ -3044,7 +3044,7 @@ static libfile_entry_t *lib_decodeexternaldecl (lexfile_t *orglf, libusenodehook
 	for (ch=desc; (*ch != '=') && (*ch != '\0'); ch++);
 	if (*ch == '\0') {
 		lib_freelibfile_entry (lfe);
-		parser_error (orglf, "expected \'=\' in EXTERNAL declaration");
+		parser_error (SLOCN (orglf), "expected \'=\' in EXTERNAL declaration");
 		return NULL;
 	}
 	for (sizes = ch+1; (*sizes == ' ') || (*sizes == '\t'); sizes++);
@@ -3069,7 +3069,7 @@ nocc_message ("lib_decodeexternaldecl(): dbuf=[%s], sizes=[%s]", dbuf, sizes);
 			if (sscanf (ch, "%d", ptrs[ncs]) != 1) {
 				/* fail parsing number */
 				lib_freelibfile_entry (lfe);
-				parser_error (orglf, "failed to parse number [%s] in EXTERNAL declaration", ch);
+				parser_error (SLOCN (orglf), "failed to parse number [%s] in EXTERNAL declaration", ch);
 				return NULL;
 			}
 			ncs++;
@@ -3078,7 +3078,7 @@ nocc_message ("lib_decodeexternaldecl(): dbuf=[%s], sizes=[%s]", dbuf, sizes);
 		if (ncs < 2) {
 			/* need at least WS and offset */
 			lib_freelibfile_entry (lfe);
-			parser_error (orglf, "must provide at least 2 offsets for workspace and adjustment");
+			parser_error (SLOCN (orglf), "must provide at least 2 offsets for workspace and adjustment");
 			return NULL;
 		}
 	}
@@ -3086,7 +3086,7 @@ nocc_message ("lib_decodeexternaldecl(): dbuf=[%s], sizes=[%s]", dbuf, sizes);
 	/*{{{  open buffer as a lexfile_t and parse it*/
 	lexbuf = lexer_openbuf (NULL, orglf->parser->langname, dbuf);
 	if (!lexbuf) {
-		parser_error (orglf, "lib_decodeexternaldecl(): failed to open buffer..");
+		parser_error (SLOCN (orglf), "lib_decodeexternaldecl(): failed to open buffer..");
 		lib_freelibfile_entry (lfe);
 		sfree (dbuf);
 		return NULL;
@@ -3307,7 +3307,7 @@ tnode_t *library_newlibnode (lexfile_t *lf, char *libname)
 		lnh = lib_newlibnodehook (lf, libname, libname);
 	}
 
-	lnode = tnode_create (tag_libnode, lf, NULL, lnh);
+	lnode = tnode_create (tag_libnode, SLOCN (lf), NULL, lnh);
 
 	/* defining this file as part of a library */
 	lf->islibrary = 1;
@@ -3386,7 +3386,7 @@ tnode_t *library_newlibpublictag (lexfile_t *lf, char *name)
 	tnode_t *pnode;
 	libtaghook_t *lth = lib_newlibtaghook (NULL, name);
 
-	pnode = tnode_create (tag_publictag, lf, NULL, lth);
+	pnode = tnode_create (tag_publictag, SLOCN (lf), NULL, lth);
 
 	return pnode;
 }
@@ -3401,7 +3401,7 @@ tnode_t *library_newlibprivatetag (lexfile_t *lf, char *name)
 	tnode_t *pnode;
 	libtaghook_t *lth = lib_newlibtaghook (NULL, name);
 
-	pnode = tnode_create (tag_privatetag, lf, NULL, lth);
+	pnode = tnode_create (tag_privatetag, SLOCN (lf), NULL, lth);
 
 	return pnode;
 }
@@ -3504,7 +3504,7 @@ tnode_t *library_newusenode (lexfile_t *lf, char *libname)
 		return NULL;
 	}
 
-	unode = tnode_create (tag_libusenode, lf, NULL, lunh);
+	unode = tnode_create (tag_libusenode, SLOCN (lf), NULL, lunh);
 
 	return unode;
 }
@@ -3537,7 +3537,7 @@ tnode_t *library_externaldecl (lexfile_t *lf, char *extdef)
 	dynarray_add (libsu->entries, libe);
 	lunh->libdata = libf;
 
-	unode = tnode_create (tag_libusenode, lf, NULL, lunh);
+	unode = tnode_create (tag_libusenode, SLOCN (lf), NULL, lunh);
 
 	return unode;
 }

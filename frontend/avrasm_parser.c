@@ -829,7 +829,7 @@ static tnode_t *avrasm_includefile (char *fname, lexfile_t *curlf)
 
 	lf = lexer_open (fname);
 	if (!lf) {
-		parser_error (curlf, "failed to open .include'd file %s", fname);
+		parser_error (SLOCN (curlf), "failed to open .include'd file %s", fname);
 		return NULL;
 	}
 
@@ -842,7 +842,7 @@ static tnode_t *avrasm_includefile (char *fname, lexfile_t *curlf)
 	}
 	tree = parser_parse (lf);
 	if (!tree) {
-		parser_error (curlf, "failed to parse .include'd file %s", fname);
+		parser_error (SLOCN (curlf), "failed to parse .include'd file %s", fname);
 	}
 
 	lexer_close (lf);
@@ -1040,7 +1040,7 @@ tnode_dumptree (thisone, 1, stderr);
 #endif
 		contents = avrasm_parser_parsemacrodef (lf);
 		if (!contents) {
-			parser_error (lf, "bad or empty macro definition");
+			parser_error (SLOCN (lf), "bad or empty macro definition");
 		}
 		tnode_setnthsub (thisone, 2, contents);
 
@@ -1074,7 +1074,7 @@ tnode_dumptree (thisone, 1, stderr);
 static tnode_t *avrasm_parser_parsemacrodef (lexfile_t *lf)
 {
 	token_t *tok;
-	tnode_t *tree = parser_newlistnode (lf);
+	tnode_t *tree = parser_newlistnode (SLOCN (lf));
 
 	if (compopts.verbose) {
 		nocc_message ("avrasm_parser_parsemacrodef(): starting parse..");
@@ -1089,7 +1089,7 @@ static tnode_t *avrasm_parser_parsemacrodef (lexfile_t *lf)
 			tok = lexer_nexttoken (lf);
 		}
 		if ((tok->type == END) || (tok->type == NOTOKEN)) {
-			parser_error (lf, "unexpected end-of-file when reading macro definition");
+			parser_error (SLOCN (lf), "unexpected end-of-file when reading macro definition");
 			tnode_free (tree);
 			return NULL;
 		}
@@ -1127,7 +1127,7 @@ static tnode_t *avrasm_parser_parsemacrodef (lexfile_t *lf)
 static tnode_t *avrasm_parser_parsefunctiondef (lexfile_t *lf)
 {
 	token_t *tok;
-	tnode_t *tree = parser_newlistnode (lf);
+	tnode_t *tree = parser_newlistnode (SLOCN (lf));
 
 	if (compopts.verbose) {
 		nocc_message ("avrasm_parser_parsefunctiondef(): starting parse..");
@@ -1142,7 +1142,7 @@ static tnode_t *avrasm_parser_parsefunctiondef (lexfile_t *lf)
 			tok = lexer_nexttoken (lf);
 		}
 		if ((tok->type == END) || (tok->type == NOTOKEN)) {
-			parser_error (lf, "unexpected end-of-file when reading function definition");
+			parser_error (SLOCN (lf), "unexpected end-of-file when reading function definition");
 			tnode_free (tree);
 			return NULL;
 		}
@@ -1179,7 +1179,7 @@ static tnode_t *avrasm_parser_parsefunctiondef (lexfile_t *lf)
  */
 static tnode_t *avrasm_parser_parsehllif (lexfile_t *lf, tnode_t *firstcond)
 {
-	tnode_t *clist = parser_newlistnode (lf);
+	tnode_t *clist = parser_newlistnode (SLOCN (lf));
 	token_t *tok;
 	tnode_t **bodyp = NULL;
 	tnode_t *tmpnode;
@@ -1202,7 +1202,7 @@ static tnode_t *avrasm_parser_parsehllif (lexfile_t *lf, tnode_t *firstcond)
 			tok = lexer_nexttoken (lf);
 		}
 		if ((tok->type == END) || (tok->type == NOTOKEN)) {
-			parser_error (lf, "unexpected end-of-file when reading .if structure");
+			parser_error (SLOCN (lf), "unexpected end-of-file when reading .if structure");
 			tnode_free (clist);
 			return NULL;
 		}
@@ -1220,7 +1220,7 @@ static tnode_t *avrasm_parser_parsehllif (lexfile_t *lf, tnode_t *firstcond)
 				lexer_freetoken (tok);
 				lexer_freetoken (nexttok);
 
-				tmpnode = tnode_create (avrasm.tag_HLLCOND, lf, NULL, parser_newlistnode (NULL));
+				tmpnode = tnode_create (avrasm.tag_HLLCOND, SLOCN (lf), NULL, parser_newlistnode (NULL));
 				bodyp = tnode_nthsubaddr (tmpnode, 1);
 				parser_addtolist (clist, tmpnode);
 
@@ -1279,7 +1279,7 @@ static tnode_t *avrasm_parser_parsehllif (lexfile_t *lf, tnode_t *firstcond)
 static tnode_t *avrasm_parser_parse (lexfile_t *lf)
 {
 	token_t *tok;
-	tnode_t *tree = parser_newlistnode (lf);
+	tnode_t *tree = parser_newlistnode (SLOCN (lf));
 
 	if (compopts.verbose) {
 		nocc_message ("avrasm_parser_parse(): starting parse..");
@@ -1318,7 +1318,7 @@ static tnode_t *avrasm_parser_parse (lexfile_t *lf)
 						parser_mergeinlist (tree, itree, -1);
 					}
 				} else {
-					parser_error (lf, "while processing .include, expected string but found ");
+					parser_error (SLOCN (lf), "while processing .include, expected string but found ");
 					lexer_dumptoken (FHAN_STDERR, nexttok);
 					lexer_freetoken (nexttok);
 				}

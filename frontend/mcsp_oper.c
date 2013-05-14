@@ -363,7 +363,7 @@ static void mcsp_opreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 	tnode_t *dopnode;
 
 	if (!tok) {
-		parser_error (pp->lf, "mcsp_opreduce(): no token ?");
+		parser_error (SLOCN (pp->lf), "mcsp_opreduce(): no token ?");
 		return;
 	}
 	for (i=0; opmap[i].lookup; i++) {
@@ -373,11 +373,11 @@ static void mcsp_opreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 		}
 	}
 	if (!tag) {
-		parser_error (pp->lf, "mcsp_opreduce(): unhandled token [%s]", lexer_stokenstr (tok));
+		parser_error (SLOCN (pp->lf), "mcsp_opreduce(): unhandled token [%s]", lexer_stokenstr (tok));
 		return;
 	}
 
-	dopnode = tnode_create (tag, pp->lf, NULL, NULL, NULL, NULL, NULL);
+	dopnode = tnode_create (tag, SLOCN (pp->lf), NULL, NULL, NULL, NULL, NULL);
 	*(dfast->ptr) = dopnode;
 	
 	return;
@@ -397,11 +397,11 @@ static void mcsp_folddopreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 	lhs = dfa_popnode (dfast);
 
 	if (!dopnode || !lhs || !rhs) {
-		parser_error (pp->lf, "mcsp_folddopreduce(): missing node, lhs or rhs!");
+		parser_error (SLOCN (pp->lf), "mcsp_folddopreduce(): missing node, lhs or rhs!");
 		return;
 	}
 	if (tnode_nthsubof (dopnode, 0) || tnode_nthsubof (dopnode, 1)) {
-		parser_error (pp->lf, "mcsp_folddopreduce(): dopnode already has lhs or rhs!");
+		parser_error (SLOCN (pp->lf), "mcsp_folddopreduce(): dopnode already has lhs or rhs!");
 		return;
 	}
 	

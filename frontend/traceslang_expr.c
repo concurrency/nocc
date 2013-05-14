@@ -126,7 +126,7 @@ static void *traceslang_stringtoken_to_node (void *ntok)
 	litdata->data = string_ndup (tok->u.str.ptr, tok->u.str.len);
 	litdata->len = tok->u.str.len;
 
-	node = tnode_create (traceslang.tag_LITSTR, tok->origin, (void *)litdata);
+	node = tnode_create (traceslang.tag_LITSTR, SLOCN (tok->origin), (void *)litdata);
 	lexer_freetoken (tok);
 
 	return (void *)node;
@@ -151,7 +151,7 @@ static void *traceslang_integertoken_to_node (void *ntok)
 	litdata->data = mem_ndup (&(tok->u.ival), sizeof (int));
 	litdata->len = 4;
 
-	node = tnode_create (traceslang.tag_LITINT, tok->origin, (void *)litdata);
+	node = tnode_create (traceslang.tag_LITINT, SLOCN (tok->origin), (void *)litdata);
 	lexer_freetoken (tok);
 
 	return (void *)node;
@@ -867,13 +867,13 @@ static void traceslang_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rar
 	int i;
 
 	if (!tok) {
-		parser_error (pp->lf, "traceslang_reduce_dop(): no token ?");
+		parser_error (SLOCN (pp->lf), "traceslang_reduce_dop(): no token ?");
 		return;
 	}
 	rhs = dfa_popnode (dfast);
 	lhs = dfa_popnode (dfast);
 	if (!rhs || !lhs) {
-		parser_error (pp->lf, "traceslan_reduce_dop(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
+		parser_error (SLOCN (pp->lf), "traceslan_reduce_dop(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
 		return;
 	}
 
@@ -884,11 +884,11 @@ static void traceslang_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rar
 		}
 	}
 	if (!tag) {
-		parser_error (pp->lf, "traceslang_reduce_dop(): unhandled token [%s]", lexer_stokenstr (tok));
+		parser_error (SLOCN (pp->lf), "traceslang_reduce_dop(): unhandled token [%s]", lexer_stokenstr (tok));
 		return;
 	}
 
-	*(dfast->ptr) = tnode_create (tag, pp->lf, parser_buildlistnode (pp->lf, lhs, rhs, NULL));
+	*(dfast->ptr) = tnode_create (tag, SLOCN (pp->lf), parser_buildlistnode (SLOCN (pp->lf), lhs, rhs, NULL));
 	return;
 }
 /*}}}*/

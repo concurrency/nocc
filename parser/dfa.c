@@ -3269,7 +3269,7 @@ int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)
 			ndfa->ehan->stuck (ndfa->ehan, cnode, tok);
 		} else {
 			/*{{{  default "stuck" report*/
-			parser_error (pp->lf, "dfa_advance(): stuck in [%s], expecting:", nodename);
+			parser_error (SLOCN (pp->lf), "dfa_advance(): stuck in [%s], expecting:", nodename);
 			for (i=0; i<DA_CUR (cnode->match); i++) {
 				token_t *thistok = DA_NTHITEM (cnode->match, i);
 
@@ -3277,7 +3277,7 @@ int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)
 					lexer_dumptoken (FHAN_STDERR, thistok);
 				}
 			}
-			parser_error (pp->lf, "dfa_advance(): got:");
+			parser_error (SLOCN (pp->lf), "dfa_advance(): got:");
 			lexer_dumptoken (FHAN_STDERR, tok);
 			/*}}}*/
 		}
@@ -3444,7 +3444,7 @@ tnode_t *dfa_walk (char *rname, int creep, lexfile_t *lf)
 
 	idfa = dfa_lookupbyname (rname);
 	if (!idfa) {
-		parser_error (lf, "dfa_walk(): no such DFA [%s]!", rname);
+		parser_error (SLOCN (lf), "dfa_walk(): no such DFA [%s]!", rname);
 		return NULL;
 	}
 
@@ -3521,7 +3521,7 @@ fprintf (stderr, "dfa_walk() back from tidy-up advance, got token [%s], dfast->p
 	/* should be left with a single something */
 	if (dfast->prev) {
 		if (compopts.verbose) {
-			parser_error (lf, "parse error");
+			parser_error (SLOCN (lf), "parse error");
 		}
 		if (dfast->local) {
 			tnode_free (dfast->local);
@@ -3533,7 +3533,7 @@ fprintf (stderr, "dfa_walk() back from tidy-up advance, got token [%s], dfast->p
 	/* token-stack and node-stack should be empty */
 	if (DA_CUR (pp->tokstack)) {
 		if (compopts.verbose) {
-			parser_error (lf, "%d leftover tokens on stack:", DA_CUR (pp->tokstack));
+			parser_error (SLOCN (lf), "%d leftover tokens on stack:", DA_CUR (pp->tokstack));
 		}
 		while (DA_CUR (pp->tokstack)) {
 			token_t *thistok = DA_NTHITEM (pp->tokstack, 0);
@@ -3550,7 +3550,7 @@ fprintf (stderr, "dfa_walk() back from tidy-up advance, got token [%s], dfast->p
 	}
 	if (DA_CUR (dfast->nodestack)) {
 		if (compopts.verbose) {
-			parser_error (lf, "%d leftover nodes on stack:", DA_CUR (dfast->nodestack));
+			parser_error (SLOCN (lf), "%d leftover nodes on stack:", DA_CUR (dfast->nodestack));
 		}
 		while (DA_CUR (dfast->nodestack)) {
 			tnode_t *thisnode = DA_NTHITEM (dfast->nodestack, 0);

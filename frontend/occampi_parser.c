@@ -298,7 +298,7 @@ static void occampi_inlistreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg
 		/* make into a listnode, set it */
 		node = dfast->local;
 
-		dfast->local = parser_newlistnode (pp->lf);
+		dfast->local = parser_newlistnode (SLOCN (pp->lf));
 		parser_addtolist (dfast->local, node);
 	}
 	dfast->ptr = parser_addtolist (dfast->local, NULL);
@@ -384,7 +384,7 @@ static tnode_t *occampi_includefile (char *fname, lexfile_t *curlf)
 
 	lf = lexer_open (fname);
 	if (!lf) {
-		parser_error (curlf, "failed to open #INCLUDE'd file %s", fname);
+		parser_error (SLOCN (curlf), "failed to open #INCLUDE'd file %s", fname);
 		return NULL;
 	}
 
@@ -397,7 +397,7 @@ static tnode_t *occampi_includefile (char *fname, lexfile_t *curlf)
 	}
 	tree = parser_parse (lf);
 	if (!tree) {
-		parser_error (curlf, "failed to parse #INCLUDE'd file %s", fname);
+		parser_error (SLOCN (curlf), "failed to parse #INCLUDE'd file %s", fname);
 		lexer_close (lf);
 		return NULL;
 	}
@@ -561,7 +561,7 @@ fprintf (stderr, "occampi_tracesparse(): here!\n");
 
 	tok = lexer_nexttoken (lf);
 	if (!lexer_tokmatch (opi.tok_TRACES, tok)) {
-		parser_error (lf, "expected TRACES");
+		parser_error (SLOCN (lf), "expected TRACES");
 		lexer_pushback (lf, tok);
 		return -1;
 	}
@@ -572,14 +572,14 @@ fprintf (stderr, "occampi_tracesparse(): here!\n");
 
 	/* expecting indentation */
 	if (!tok || (tok->type != INDENT)) {
-		parser_error (lf, "expected indent");
+		parser_error (SLOCN (lf), "expected indent");
 		goto out_error;
 	}
 	lexer_freetoken (tok);
 	tok = lexer_nexttoken (lf);
 
 	if (!tok || (tok->type != STRING)) {
-		parser_error (lf, "expected string");
+		parser_error (SLOCN (lf), "expected string");
 		goto out_error;
 	}
 
@@ -606,7 +606,7 @@ fprintf (stderr, "occampi_tracesparse(): got tree!:\n");
 tnode_dumptree (tracenode, 1, stderr);
 #endif
 
-	tracenode = tnode_create (opi.tag_TRACES, lf, tracenode);
+	tracenode = tnode_create (opi.tag_TRACES, SLOCN (lf), tracenode);
 	/* attach to tree given */
 	tnode_setchook (tree, tnode_lookupchookbyname ("occampi:trace"), (void *)tracenode);
 
@@ -615,14 +615,14 @@ tnode_dumptree (tracenode, 1, stderr);
 
 	/* expecting outdent */
 	if (!tok || (tok->type != OUTDENT)) {
-		parser_error (lf, "expected outdent");
+		parser_error (SLOCN (lf), "expected outdent");
 		goto out_error;
 	}
 	lexer_freetoken (tok);
 	tok = lexer_nexttoken (lf);
 
 	if (!tok || !lexer_tokmatch (opi.tok_COLON, tok)) {
-		parser_error (lf, "expected :");
+		parser_error (SLOCN (lf), "expected :");
 		goto out_error;
 	}
 	lexer_freetoken (tok);
@@ -810,7 +810,7 @@ static tnode_t *occampi_parsemetadata (lexfile_t *lf)
 	}
 	lexer_freetoken (tok);
 
-	tree = tnode_create (opi.tag_METADATA, lf, NULL);
+	tree = tnode_create (opi.tag_METADATA, SLOCN (lf), NULL);
 	tnode_setchook (tree, mdhook, newmdhook (m_name, m_data));
 
 	sfree (m_name);
@@ -969,7 +969,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				*gotall = 1;
 				/*}}}*/
 			} else {
-				parser_error (lf, "while processing #INCLUDE, expected string found ");
+				parser_error (SLOCN (lf), "while processing #INCLUDE, expected string found ");
 				lexer_dumptoken (FHAN_STDERR, nexttok);
 				lexer_freetoken (nexttok);
 				return tree;
@@ -988,7 +988,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				lexer_freetoken (nexttok);
 				if (nocc_dooption_arg (scopy, (void *)lf) < 0) {
 					/* failed while processing option */
-					parser_error (lf, "failed while processing #OPTION directive");
+					parser_error (SLOCN (lf), "failed while processing #OPTION directive");
 					sfree (scopy);
 					return tree;
 				}
@@ -996,7 +996,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				sfree (scopy);
 				/*}}}*/
 			} else {
-				parser_error (lf, "while processing #OPTION, expected string found ");
+				parser_error (SLOCN (lf), "while processing #OPTION, expected string found ");
 				lexer_dumptoken (FHAN_STDERR, nexttok);
 				lexer_freetoken (nexttok);
 				return tree;
@@ -1015,7 +1015,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				lexer_freetoken (nexttok);
 				tree = library_newlibnode (lf, sname);
 				if (!tree) {
-					parser_error (lf, "failed while processing #LIBRARY directive");
+					parser_error (SLOCN (lf), "failed while processing #LIBRARY directive");
 					sfree (sname);
 					return tree;
 				}
@@ -1051,7 +1051,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 							nexttok = lexer_nexttoken (lf);
 
 							if (!nexttok || (nexttok->type != STRING)) {
-								parser_error (lf, "failed while processing #LIBRARY INCLUDES directive");
+								parser_error (SLOCN (lf), "failed while processing #LIBRARY INCLUDES directive");
 								lexer_pushback (lf, nexttok);
 								return tree;
 							}
@@ -1072,7 +1072,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 							nexttok = lexer_nexttoken (lf);
 
 							if (!nexttok || (nexttok->type != STRING)) {
-								parser_error (lf, "failed while processing #LIBRARY USES directive");
+								parser_error (SLOCN (lf), "failed while processing #LIBRARY USES directive");
 								lexer_pushback (lf, nexttok);
 								return tree;
 							}
@@ -1093,7 +1093,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 							nexttok = lexer_nexttoken (lf);
 
 							if (!nexttok || (nexttok->type != STRING)) {
-								parser_error (lf, "failed while processing #LIBRARY NATIVELIB directive");
+								parser_error (SLOCN (lf), "failed while processing #LIBRARY NATIVELIB directive");
 								lexer_pushback (lf, nexttok);
 								return tree;
 							}
@@ -1114,7 +1114,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 							nexttok = lexer_nexttoken (lf);
 
 							if (!nexttok || (nexttok->type != STRING)) {
-								parser_error (lf, "failed while processing #LIBRARY NAMESPACE directive");
+								parser_error (SLOCN (lf), "failed while processing #LIBRARY NAMESPACE directive");
 								lexer_pushback (lf, nexttok);
 								return tree;
 							}
@@ -1129,7 +1129,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 							/*}}}*/
 						} else {
 							/*{{{  unknown #LIBRARY directive*/
-							parser_error (lf, "unknown #LIBRARY directive");
+							parser_error (SLOCN (lf), "unknown #LIBRARY directive");
 							lexer_pushback (lf, nexttok);
 							return tree;
 							/*}}}*/
@@ -1142,7 +1142,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 					}
 
 					if (!nexttok || (nexttok->type != OUTDENT)) {
-						parser_error (lf, "failed while processing #LIBRARY directive");
+						parser_error (SLOCN (lf), "failed while processing #LIBRARY directive");
 						return tree;
 					}
 					lexer_freetoken (nexttok);
@@ -1156,7 +1156,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				*gotall = 1;
 				/*}}}*/
 			} else {
-				parser_error (lf, "while processing #LIBRARY, expected string found ");
+				parser_error (SLOCN (lf), "while processing #LIBRARY, expected string found ");
 				lexer_dumptoken (FHAN_STDERR, nexttok);
 				lexer_freetoken (nexttok);
 				return tree;
@@ -1175,7 +1175,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				lexer_freetoken (nexttok);
 				tree = library_newusenode (lf, libname);
 				if (!tree) {
-					parser_error (lf, "failed while processing #USE directive");
+					parser_error (SLOCN (lf), "failed while processing #USE directive");
 					sfree (libname);
 					return tree;
 				}
@@ -1196,7 +1196,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 						sfree (usename);
 						/*}}}*/
 					} else {
-						parser_error (lf, "while processing #USE AS, expected string found ");
+						parser_error (SLOCN (lf), "while processing #USE AS, expected string found ");
 						lexer_dumptoken (FHAN_STDERR, nexttok);
 						lexer_freetoken (nexttok);
 						return tree;
@@ -1209,7 +1209,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				*gotall = 1;
 				/*}}}*/
 			} else {
-				parser_error (lf, "while processing #USE, expected string found ");
+				parser_error (SLOCN (lf), "while processing #USE, expected string found ");
 				lexer_dumptoken (FHAN_STDERR, nexttok);
 				lexer_freetoken (nexttok);
 				return tree;
@@ -1222,7 +1222,7 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 
 			tree = occampi_parsemetadata (lf);
 			if (!tree) {
-				parser_error (lf, "failed while processing #META directive");
+				parser_error (SLOCN (lf), "failed while processing #META directive");
 				return tree;
 			}
 			*gotall = 1;
@@ -1248,14 +1248,14 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 					 */
 					tree = library_externaldecl (lf, extdef);
 					if (!tree) {
-						parser_error (lf, "failed while processing #PRAGMA EXTERNAL directive");
+						parser_error (SLOCN (lf), "failed while processing #PRAGMA EXTERNAL directive");
 						sfree (extdef);
 						return tree;
 					}
 					sfree (extdef);
 					*gotall = 1;
 				} else {
-					parser_error (lf, "malformed #PRAGMA EXTERNAL directive, expected string found ");
+					parser_error (SLOCN (lf), "malformed #PRAGMA EXTERNAL directive, expected string found ");
 					lexer_dumptoken (FHAN_STDERR, nexttok);
 					lexer_freetoken (nexttok);
 					return tree;
@@ -1269,13 +1269,13 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 				if (nexttok && lexer_tokmatch (opi.tok_STRING, nexttok)) {
 					chook_t *mchook = tnode_lookupornewchook ("misc:string");
 
-					tree = tnode_create (opi.tag_MISCCOMMENT, lf, NULL);
+					tree = tnode_create (opi.tag_MISCCOMMENT, SLOCN (lf), NULL);
 					tnode_setchook (tree, mchook, string_ndup (nexttok->u.str.ptr, nexttok->u.str.len));
 
 					lexer_freetoken (nexttok);
 					*gotall = 1;
 				} else {
-					parser_error (lf, "malformed #PRAGMA COMMENT directive, expected string found ");
+					parser_error (SLOCN (lf), "malformed #PRAGMA COMMENT directive, expected string found ");
 					lexer_dumptoken (FHAN_STDERR, nexttok);
 					lexer_freetoken (nexttok);
 					return tree;
@@ -1287,14 +1287,14 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 
 				tree = occampi_parsemetadata (lf);
 				if (!tree) {
-					parser_error (lf, "failed while processing #PRAGMA META directive");
+					parser_error (SLOCN (lf), "failed while processing #PRAGMA META directive");
 					return tree;
 				}
 				*gotall = 1;
 
 				/*}}}*/
 			} else {
-				parser_error (lf, "while processing #PRAGMA, expected string found ");
+				parser_error (SLOCN (lf), "while processing #PRAGMA, expected string found ");
 				lexer_dumptoken (FHAN_STDERR, nexttok);
 				lexer_freetoken (nexttok);
 				return tree;
@@ -1309,13 +1309,13 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 			if (nexttok && lexer_tokmatch (opi.tok_STRING, nexttok)) {
 				chook_t *mchook = tnode_lookupornewchook ("misc:string");
 
-				tree = tnode_create (opi.tag_MISCCOMMENT, lf, NULL);
+				tree = tnode_create (opi.tag_MISCCOMMENT, SLOCN (lf), NULL);
 				tnode_setchook (tree, mchook, string_ndup (nexttok->u.str.ptr, nexttok->u.str.len));
 
 				lexer_freetoken (nexttok);
 				*gotall = 1;
 			} else {
-				parser_error (lf, "malformed #COMMENT directive, expected string found ");
+				parser_error (SLOCN (lf), "malformed #COMMENT directive, expected string found ");
 				lexer_dumptoken (FHAN_STDERR, nexttok);
 				lexer_freetoken (nexttok);
 				return tree;
@@ -1323,11 +1323,11 @@ fprintf (stderr, "occampi_declorprocstart(): think i should be including another
 
 			/*}}}*/
 		} else if (nexttok) {
-			parser_error (lf, "unrecognised compiler directive #%s", lexer_stokenstr (nexttok));
+			parser_error (SLOCN (lf), "unrecognised compiler directive #%s", lexer_stokenstr (nexttok));
 			lexer_freetoken (tok);
 			lexer_freetoken (nexttok);
 		} else {
-			parser_error (lf, "malformed compiler directive");
+			parser_error (SLOCN (lf), "malformed compiler directive");
 			lexer_freetoken (tok);
 			lexer_freetoken (nexttok);
 		}
@@ -1370,7 +1370,7 @@ static int occampi_procend (lexfile_t *lf)
 		tok = lexer_nexttoken (lf);
 	}
 	if (!tok) {
-		parser_error (lf, "end!");
+		parser_error (SLOCN (lf), "end!");
 		return -1;
 	}
 	if (lexer_tokmatch (opi.tok_COLON, tok)) {
@@ -1379,7 +1379,7 @@ static int occampi_procend (lexfile_t *lf)
 		/* hang onto this, push back into the lexer */
 		lexer_pushback (lf, tok);
 	} else {
-		parser_error (lf, "expected : found");
+		parser_error (SLOCN (lf), "expected : found");
 		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		return -1;
@@ -1442,7 +1442,7 @@ tnode_dumptree (decl, 1, stderr);
 				treetarget = tnode_nthsubaddr (*treetarget, 0);
 			} else {
 				/* shouldn't get this: means it probably wasn't a declaration.. */
-				parser_error (lf, "expected declaration, found [%s]", (*treetarget)->tag->name);
+				parser_error (SLOCN (lf), "expected declaration, found [%s]", (*treetarget)->tag->name);
 				return tree;
 			}
 		}
@@ -1582,7 +1582,7 @@ tnode_dumptree (tree, 1, stderr);
 				}
 				/* expect indent */
 				if (tok->type != INDENT) {
-					parser_error (lf, "expected indent, found:");
+					parser_error (SLOCN (lf), "expected indent, found:");
 					lexer_dumptoken (FHAN_STDERR, tok);
 					lexer_pushback (lf, tok);
 					return tree;
@@ -1636,7 +1636,7 @@ tnode_dumptree (tree, 1, stderr);
 				}
 				/* expect outdent */
 				if (tok->type != OUTDENT) {
-					parser_error (lf, "expected outdent, found:");
+					parser_error (SLOCN (lf), "expected outdent, found:");
 					lexer_dumptoken (FHAN_STDERR, tok);
 					lexer_pushback (lf, tok);
 					if (*treetarget) {
@@ -1687,7 +1687,7 @@ static tnode_t *occampi_indented_process_trailing (lexfile_t *lf, char *extradfa
 	}
 	/* expect indent */
 	if (tok->type != INDENT) {
-		parser_error (lf, "expected indent, found:");
+		parser_error (SLOCN (lf), "expected indent, found:");
 		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		return NULL;
@@ -1747,7 +1747,7 @@ static tnode_t *occampi_indented_process_trailing (lexfile_t *lf, char *extradfa
 	}
 	/* expect outdent */
 	if (tok->type != OUTDENT) {
-		parser_error (lf, "expected outdent, found:");
+		parser_error (SLOCN (lf), "expected outdent, found:");
 		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		if (tree) {
@@ -1784,7 +1784,7 @@ static tnode_t *occampi_indented_process (lexfile_t *lf)
 	}
 	/* expect indent */
 	if (tok->type != INDENT) {
-		parser_error (lf, "expected indent, found:");
+		parser_error (SLOCN (lf), "expected indent, found:");
 		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		return NULL;
@@ -1831,7 +1831,7 @@ static tnode_t *occampi_indented_process (lexfile_t *lf)
 	}
 	/* expect outdent */
 	if (tok->type != OUTDENT) {
-		parser_error (lf, "expected outdent, found:");
+		parser_error (SLOCN (lf), "expected outdent, found:");
 		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		if (tree) {
@@ -1861,7 +1861,7 @@ static tnode_t *occampi_indented_process_list (lexfile_t *lf, char *leaddfa)
 		nocc_message ("occampi_indented_process_list(): %s:%d: parsing indented declaration (%s)", lf->fnptr, lf->lineno, leaddfa ?: "--");
 	}
 
-	tree = parser_newlistnode (lf);
+	tree = parser_newlistnode (SLOCN (lf));
 
 	tok = lexer_nexttoken (lf);
 	/*{{{  skip newlines*/
@@ -1872,7 +1872,7 @@ static tnode_t *occampi_indented_process_list (lexfile_t *lf, char *leaddfa)
 	/*}}}*/
 	/*{{{  expect indent*/
 	if (tok->type != INDENT) {
-		parser_error (lf, "expected indent, found:");
+		parser_error (SLOCN (lf), "expected indent, found:");
 		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		tnode_free (tree);
@@ -1988,7 +1988,7 @@ fprintf (stderr, "occampi_indented_process_list(): got LONGPROC [%s]\n", (*targe
 	/*}}}*/
 	/*{{{  expect outdent*/
 	if (tok->type != OUTDENT) {
-		parser_error (lf, "expected outdent, found:");
+		parser_error (SLOCN (lf), "expected outdent, found:");
 		lexer_dumptoken (FHAN_STDERR, tok);
 		lexer_pushback (lf, tok);
 		if (tree) {
@@ -2222,7 +2222,7 @@ static tnode_t *occampi_parser_descparse (lexfile_t *lf)
 		/* next token should be newline or end */
 		tok = lexer_nexttoken (lf);
 		if ((tok->type != NEWLINE) && (tok->type != END)) {
-			parser_error (lf, "in descriptor, expected newline or end, found [%s]", lexer_stokenstr (tok));
+			parser_error (SLOCN (lf), "in descriptor, expected newline or end, found [%s]", lexer_stokenstr (tok));
 			if (tree) {
 				tnode_free (tree);
 			}
@@ -2325,7 +2325,7 @@ static tnode_t *occampi_parser_maketemp (tnode_t ***insertpointp, tnode_t *type)
 static tnode_t *occampi_parser_makeseqassign (tnode_t ***insertpointp, tnode_t *lhs, tnode_t *rhs, tnode_t *type)
 {
 	tnode_t *assnode = tnode_createfrom (opi.tag_ASSIGN, **insertpointp, lhs, rhs, type);
-	tnode_t *listnode = parser_buildlistnode ((**insertpointp)->org_file, assnode, NULL);
+	tnode_t *listnode = parser_buildlistnode ((**insertpointp)->org, assnode, NULL);
 	tnode_t *seqnode = tnode_createfrom (opi.tag_SEQ, **insertpointp, NULL, listnode);
 	tnode_t *savedproc = **insertpointp;
 
@@ -2342,7 +2342,7 @@ static tnode_t *occampi_parser_makeseqassign (tnode_t ***insertpointp, tnode_t *
  */
 static tnode_t *occampi_parser_makeseqany (tnode_t ***insertpointp)
 {
-	tnode_t *listnode = parser_buildlistnode ((**insertpointp)->org_file, NULL);
+	tnode_t *listnode = parser_buildlistnode ((**insertpointp)->org, NULL);
 	tnode_t *seqnode = tnode_createfrom (opi.tag_SEQ, **insertpointp, NULL, listnode);
 	tnode_t *savedproc = **insertpointp;
 

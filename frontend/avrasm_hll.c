@@ -71,7 +71,7 @@ static int avrasm_prescope_fcndefnode (compops_t *cops, tnode_t **tptr, prescope
 
 	if (!*paramptr) {
 		/* no parameters, create empty list */
-		*paramptr = parser_newlistnode ((*tptr)->org_file);
+		*paramptr = parser_newlistnode ((*tptr)->org);
 	}
 	return 1;
 }
@@ -1095,10 +1095,9 @@ static int avrasm_hlltypecheck_hllexpnode (compops_t *cops, tnode_t **tptr, hllt
 static int avrasm_hllsimplify_hllexpnode (compops_t *cops, tnode_t **tptr, hllsimplify_t *hls)
 {
 	ntdef_t *ttag;
-	tnode_t *ilist = parser_newlistnode ((*tptr)->org_file);
+	tnode_t *ilist = parser_newlistnode ((*tptr)->org);
 	tnode_t *type;
 
-	ilist->org_line = (*tptr)->org_line;
 	ttag = (*tptr)->tag;
 
 	avrasm_hllsimplify_subtree (tnode_nthsubaddr (*tptr, 0), hls);
@@ -1190,12 +1189,11 @@ static int avrasm_hllsimplify_hllifnode (compops_t *cops, tnode_t **tptr, hllsim
 	tnode_t *clist = tnode_nthsubof (*tptr, 0);
 	tnode_t **items;
 	int nitems, i;
-	tnode_t *ilist = parser_newlistnode (clist->org_file);
+	tnode_t *ilist = parser_newlistnode (clist->org);
 	tnode_t *eoif_decl = NULL;
 	tnode_t *eoif_lab = NULL;
 	tnode_t *hls_eoif_label = hls->eoif_label;
 
-	ilist->org_line = clist->org_line;
 	avrasm_newtemplabel (*tptr, &eoif_decl, &eoif_lab);
 	hls->eoif_label = eoif_lab;
 
@@ -1269,7 +1267,7 @@ static int avrasm_hllsimplify_hllcondnode (compops_t *cops, tnode_t **tptr, hlls
 		return 0;
 	}
 
-	ilist = parser_newlistnode ((*tptr)->org_file);
+	ilist = parser_newlistnode ((*tptr)->org);
 
 	if (!expr) {
 		/* empty expression -- must be 'else' case */

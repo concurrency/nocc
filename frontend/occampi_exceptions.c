@@ -371,21 +371,21 @@ static void exceptioncheck_warning (tnode_t *node, opiexception_t *tc, const cha
 	va_list ap;
 	int n;
 	char *warnbuf = (char *)smalloc (512);
-	lexfile_t *orgfile;
+	srclocn_t *org;
 
 	if (!node) {
-		orgfile = NULL;
+		org = NULL;
 	} else {
-		orgfile = node->org_file;
+		org = node->org;
 	}
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (warning) ", orgfile ? orgfile->fnptr : "(unknown)", node->org_line);
+	n = sprintf (warnbuf, "%s:%d (warning) ", org ? org->org_file->fnptr : "(unknown)", org ? org->org_line : 0);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
-	if (orgfile) {
-		orgfile->warncount++;
+	if (org) {
+		org->org_file->warncount++;
 	}
 	tc->warn++;
 	nocc_message ("%s", warnbuf);
@@ -403,21 +403,21 @@ static void exceptioncheck_error (tnode_t *node, opiexception_t *tc, const char 
 	va_list ap;
 	int n;
 	char *warnbuf = (char *)smalloc (512);
-	lexfile_t *orgfile;
+	srclocn_t *org;
 
 	if (!node) {
-		orgfile = NULL;
+		org = NULL;
 	} else {
-		orgfile = node->org_file;
+		org = node->org;
 	}
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (error) ", orgfile ? orgfile->fnptr : "(unknown)", node->org_line);
+	n = sprintf (warnbuf, "%s:%d (error) ", org ? org->org_file->fnptr : "(unknown)", org ? org->org_line : 0);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
-	if (orgfile) {
-		orgfile->errcount++;
+	if (org) {
+		org->org_file->errcount++;
 	}
 	tc->err++;
 	nocc_message ("%s", warnbuf);

@@ -380,7 +380,7 @@ static int occampi_prescope_tracetypedecl (compops_t *cops, tnode_t **node, pres
 	/* if parameter set is not a list, make it one */
 	params = tnode_nthsubof (*node, 1);
 	if (!parser_islistnode (params)) {
-		params = parser_buildlistnode (OrgFileOf (*node), params, NULL);
+		params = parser_buildlistnode ((*node)->org, params, NULL);
 		tnode_setnthsub (*node, 1, params);
 	}
 
@@ -1452,7 +1452,7 @@ static void occampi_traces_attachtraces (dfastate_t *dfast, parsepriv_t *pp, voi
 	tnode_t *node = *(dfast->ptr);
 
 	if (!node || !rhs) {
-		parser_error (pp->lf, "occampi_traces_attachtraces(): NULL rhs, node or tracesimplchook..");
+		parser_error (SLOCN (pp->lf), "occampi_traces_attachtraces(): NULL rhs, node or tracesimplchook..");
 		return;
 	}
 
@@ -1471,7 +1471,7 @@ static void occampi_traces_attachchantypetrace (dfastate_t *dfast, parsepriv_t *
 	tnode_t *node = *(dfast->ptr);
 
 	if (!node || !traces) {
-		parser_error (pp->lf, "occampi_traces_attachchantypetrace(): NULL rhs or node");
+		parser_error (SLOCN (pp->lf), "occampi_traces_attachchantypetrace(): NULL rhs or node");
 		return;
 	}
 

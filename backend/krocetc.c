@@ -3868,15 +3868,15 @@ static void krocetc_coder_debugline (codegen_t *cgen, tnode_t *node)
 #if 0
 	nocc_message ("krocetc_coder_debugline(): [%s], line %d", node->tag->name, node->org_line);
 #endif
-	if (!node->org_file || !node->org_line) {
+	if (!node->org) {
 		/* nothing to generate */
 		return;
 	}
-	if (node->org_file != kpriv->lastfile) {
-		kpriv->lastfile = node->org_file;
-		codegen_write_fmt (cgen, ".sourcefile %s\n", node->org_file->filename ?: "(unknown)");
+	if (node->org->org_file != kpriv->lastfile) {
+		kpriv->lastfile = node->org->org_file;
+		codegen_write_fmt (cgen, ".sourcefile %s\n", node->org->org_file->filename ?: "(unknown)");
 	}
-	codegen_write_fmt (cgen, ".sourceline %d\n", node->org_line);
+	codegen_write_fmt (cgen, ".sourceline %d\n", node->org->org_line);
 
 	return;
 }
@@ -3994,7 +3994,7 @@ fprintf (stderr, "krocetc_be_codegen_init(): here!\n");
 	 *	create pre-code node if not already here -- constants go at the end
 	 */
 	if (!kpriv->precodelist) {
-		tnode_t *precode = tnode_create (kpriv->tag_PRECODE, NULL, parser_newlistnode (srcfile), *(cgen->cinsertpoint));
+		tnode_t *precode = tnode_create (kpriv->tag_PRECODE, NULL, parser_newlistnode (SLOCN (srcfile)), *(cgen->cinsertpoint));
 
 		*(cgen->cinsertpoint) = precode;
 		kpriv->precodelist = tnode_nthsubof (precode, 0);

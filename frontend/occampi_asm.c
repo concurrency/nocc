@@ -378,18 +378,18 @@ static void occampi_asmop_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg
 		tlen = strlen (tstr);
 		break;
 	default:
-		parser_error (pp->lf, "occampi_asmop_reduce(): unhandled token mnemonic [%s]", lexer_stokenstr (mne));
+		parser_error (SLOCN (pp->lf), "occampi_asmop_reduce(): unhandled token mnemonic [%s]", lexer_stokenstr (mne));
 		occampi_freeasmophook (oh);
 		return;
 	}
 	oh->instr = transinstr_lookup (tstr, tlen);
 	if (!oh->instr) {
-		parser_error (pp->lf, "occampi_asmop_reduce(): unknown instruction [%*s]", tlen, tstr);
+		parser_error (SLOCN (pp->lf), "occampi_asmop_reduce(): unknown instruction [%*s]", tlen, tstr);
 		occampi_freeasmophook (oh);
 		return;
 	}
 
-	opnode = tnode_create (opi.tag_ASMOP, pp->lf, oh);
+	opnode = tnode_create (opi.tag_ASMOP, SLOCN (pp->lf), oh);
 #if 0
 fprintf (stderr, "occampi_asmop_reduce(): args =\n");
 tnode_dumptree (args, 1, stderr);

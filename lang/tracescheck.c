@@ -305,8 +305,7 @@ static void *tchk_tracesbvarschook_copy (void *hook)
 	int nitems, i;
 	tnode_t **items = parser_getlistitems (list, &nitems);
 
-	newlist->org_file = list->org_file;
-	newlist->org_line = list->org_line;
+	newlist->org = list->org;
 
 	/* makes aliases */
 	for (i=0; i<nitems; i++) {
@@ -424,28 +423,24 @@ int tracescheck_shutdown (void)
 
 /*{{{  void tracescheck_warning (tnode_t *node, tchk_state_t *tc, const char *fmt, ...)*/
 /*
- *	called by pre-scoper bits for warnings
+ *	called by traces checks for warnings
  */
 void tracescheck_warning (tnode_t *node, tchk_state_t *tc, const char *fmt, ...)
 {
 	va_list ap;
 	int n;
 	char *warnbuf = (char *)smalloc (512);
-	lexfile_t *orgfile;
+	srclocn_t *src;
 
-	if (!node) {
-		orgfile = NULL;
-	} else {
-		orgfile = node->org_file;
-	}
+	src = node ? node->org : NULL;
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (warning) ", orgfile ? orgfile->fnptr : "(unknown)", node->org_line);
+	n = sprintf (warnbuf, "%s:%d (warning) ", src ? src->org_file->fnptr : "(unknown)", src ? src->org_line : 0);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
-	if (orgfile) {
-		orgfile->warncount++;
+	if (src) {
+		src->org_file->warncount++;
 	}
 	tc->warn++;
 	nocc_message ("%s", warnbuf);
@@ -456,28 +451,24 @@ void tracescheck_warning (tnode_t *node, tchk_state_t *tc, const char *fmt, ...)
 /*}}}*/
 /*{{{  void tracescheck_error (tnode_t *node, tchk_state_t *tc, const char *fmt, ...)*/
 /*
- *	called by the pre-scoper bits for errors
+ *	called by traces checks for errors
  */
 void tracescheck_error (tnode_t *node, tchk_state_t *tc, const char *fmt, ...)
 {
 	va_list ap;
 	int n;
 	char *warnbuf = (char *)smalloc (512);
-	lexfile_t *orgfile;
+	srclocn_t *src;
 
-	if (!node) {
-		orgfile = NULL;
-	} else {
-		orgfile = node->org_file;
-	}
+	src = node ? node->org : NULL;
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (error) ", orgfile ? orgfile->fnptr : "(unknown)", node->org_line);
+	n = sprintf (warnbuf, "%s:%d (error) ", src ? src->org_file->fnptr : "(unknown)", src ? src->org_line : 0);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
-	if (orgfile) {
-		orgfile->errcount++;
+	if (src) {
+		src->org_file->errcount++;
 	}
 	tc->err++;
 	nocc_message ("%s", warnbuf);
@@ -489,28 +480,24 @@ void tracescheck_error (tnode_t *node, tchk_state_t *tc, const char *fmt, ...)
 
 /*{{{  void tracescheck_checkwarning (tnode_t *node, tchk_check_t *tcc, const char *fmt, ...)*/
 /*
- *	called by pre-scoper bits for warnings
+ *	called by traces check bits for warnings
  */
 void tracescheck_checkwarning (tnode_t *node, tchk_check_t *tcc, const char *fmt, ...)
 {
 	va_list ap;
 	int n;
 	char *warnbuf = (char *)smalloc (512);
-	lexfile_t *orgfile;
+	srclocn_t *src;
 
-	if (!node) {
-		orgfile = NULL;
-	} else {
-		orgfile = node->org_file;
-	}
+	src = node ? node->org : NULL;
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (warning) ", orgfile ? orgfile->fnptr : "(unknown)", node->org_line);
+	n = sprintf (warnbuf, "%s:%d (warning) ", src ? src->org_file->fnptr : "(unknown)", src ? src->org_line : 0);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
-	if (orgfile) {
-		orgfile->warncount++;
+	if (src) {
+		src->org_file->warncount++;
 	}
 	tcc->warn++;
 	nocc_message ("%s", warnbuf);
@@ -521,28 +508,24 @@ void tracescheck_checkwarning (tnode_t *node, tchk_check_t *tcc, const char *fmt
 /*}}}*/
 /*{{{  void tracescheck_checkerror (tnode_t *node, tchk_check_t *tcc, const char *fmt, ...)*/
 /*
- *	called by the pre-scoper bits for errors
+ *	called by traces check bits for errors
  */
 void tracescheck_checkerror (tnode_t *node, tchk_check_t *tcc, const char *fmt, ...)
 {
 	va_list ap;
 	int n;
 	char *warnbuf = (char *)smalloc (512);
-	lexfile_t *orgfile;
+	srclocn_t *src;
 
-	if (!node) {
-		orgfile = NULL;
-	} else {
-		orgfile = node->org_file;
-	}
+	src = node ? node->org : NULL;
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (error) ", orgfile ? orgfile->fnptr : "(unknown)", node->org_line);
+	n = sprintf (warnbuf, "%s:%d (error) ", src ? src->org_file->fnptr : "(unknown)", src ? src->org_line : 0);
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 
-	if (orgfile) {
-		orgfile->errcount++;
+	if (src) {
+		src->org_file->errcount++;
 	}
 	tcc->err++;
 	nocc_message ("%s", warnbuf);

@@ -1,6 +1,6 @@
 /*
  *	parser.h -- parser interface
- *	Copyright (C) 2004-2008 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2013 Fred Barnes, University of Kent <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #ifndef __PARSER_H
 #define __PARSER_H
 
+struct TAG_srclocn;
 struct TAG_lexfile;
 struct TAG_tnode;
 struct TAG_token;
@@ -42,8 +43,8 @@ extern char *parser_langname (struct TAG_lexfile *lf);
 
 extern int parser_gettesttags (struct TAG_ntdef **truep, struct TAG_ntdef **falsep);
 
-extern struct TAG_tnode *parser_newlistnode (struct TAG_lexfile *lf);
-extern struct TAG_tnode *parser_buildlistnode (struct TAG_lexfile *lf, ...);
+extern struct TAG_tnode *parser_newlistnode (struct TAG_srclocn *src);
+extern struct TAG_tnode *parser_buildlistnode (struct TAG_srclocn *src, ...);
 extern struct TAG_tnode *parser_makelistnode (struct TAG_tnode *node);
 extern struct TAG_tnode **parser_addtolist (struct TAG_tnode *list, struct TAG_tnode *item);
 extern struct TAG_tnode **parser_addtolist_front (struct TAG_tnode *list, struct TAG_tnode *item);
@@ -63,10 +64,8 @@ extern int parser_countlist (struct TAG_tnode *list);
 extern struct TAG_tnode *parser_ensurelist (struct TAG_tnode **nodeptr, struct TAG_tnode *orgref);
 extern int parser_collapselist (struct TAG_tnode *list);
 
-extern void parser_warning (struct TAG_lexfile *lf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
-extern void parser_warning_line (struct TAG_lexfile *lf, const int lineno, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
-extern void parser_error (struct TAG_lexfile *lf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
-extern void parser_error_line (struct TAG_lexfile *lf, const int lineno, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+extern void parser_warning (struct TAG_srclocn *src, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+extern void parser_error (struct TAG_srclocn *src, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 extern int parser_markerror (struct TAG_lexfile *lf);
 extern int parser_checkerror (struct TAG_lexfile *lf, const int mark);
