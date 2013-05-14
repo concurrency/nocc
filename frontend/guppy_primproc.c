@@ -1,6 +1,6 @@
 /*
- *	guppy_primproc.c -- guppy primitive processes for NOCC
- *	Copyright (C) 2010 Fred Barnes <frmb@kent.ac.uk>
+ *	guppy_primproc.c -- Guppy primitive processes
+ *	Copyright (C) 2010-2013 Fred Barnes, University of Kent <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@
 #include "map.h"
 #include "codegen.h"
 #include "target.h"
-#include "transputer.h"
+#include "cccsp.h"
 
 
 /*}}}*/
@@ -98,10 +98,14 @@ out_error:
 static int guppy_namemap_leafnode (compops_t *cops, tnode_t **nodep, map_t *mapdata)
 {
 	if ((*nodep)->tag == gup.tag_STOP) {
-		tnode_t *bename;
+		/* turn into API call */
+		tnode_t *newinst, *newparms, *callnum;
 
-		bename = mapdata->target->newname (*nodep, NULL, mapdata, 0, mapdata->target->bws.ds_min, 0, 0, 0, 0);
-		*nodep = bename;
+		newparms = parser_newlistnode (SLOCI);
+		callnum = cccsp_create_apicallname (STOP_PROC);
+		newinst = tnode_createfrom (gup.tag_APICALL, *nodep, callnum, newparms);
+
+		*nodep = newinst;
 	}
 	return 0;
 }
@@ -114,9 +118,6 @@ static int guppy_namemap_leafnode (compops_t *cops, tnode_t **nodep, map_t *mapd
 static int guppy_codegen_leafnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	codegen_callops (cgen, debugline, node);
-	if (node->tag == gup.tag_STOP) {
-		codegen_callops (cgen, tsecondary, I_SETERR);
-	}
 	return 0;
 }
 /*}}}*/

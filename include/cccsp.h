@@ -31,6 +31,7 @@ typedef enum ENUM_cccsp_apicall {
 	NOAPI = 0,
 	CHAN_IN = 1,
 	CHAN_OUT = 2,
+	STOP_PROC = 3,
 } cccsp_apicall_e;
 
 typedef struct TAG_cccsp_apicall {

@@ -220,6 +220,7 @@ extern int guppy_postscope_subtree (struct TAG_tnode **);
 extern int guppy_fetrans1_subtree (struct TAG_tnode **, guppy_fetrans1_t *);
 extern int guppy_fetrans2_subtree (struct TAG_tnode **, guppy_fetrans2_t *);
 
+extern struct TAG_tnode *guppy_fetrans1_maketemp (struct TAG_ntdef *tag, struct TAG_tnode *org, struct TAG_tnode *type, struct TAG_tnode *init, guppy_fetrans1_t *fe1);
 extern struct TAG_tnode *guppy_newprimtype (struct TAG_ntdef *tag, struct TAG_tnode *org, const int size);
 
 extern struct TAG_tnode *guppy_makeintlit (struct TAG_tnode *type, struct TAG_tnode *org, const int value);
@@ -227,6 +228,9 @@ extern struct TAG_tnode *guppy_makereallit (struct TAG_tnode *type, struct TAG_t
 extern struct TAG_tnode *guppy_makestringlit (struct TAG_tnode *type, struct TAG_tnode *org, const char *value);
 
 extern char *guppy_maketempname (struct TAG_tnode *org);
+
+extern guppy_fcndefhook_t *guppy_newfcndefhook (void);
+extern void guppy_freefcndefhook (guppy_fcndefhook_t *fdh);
 
 /* front-end units */
 extern struct TAG_feunit guppy_assign_feunit;		/* guppy_assign.c */

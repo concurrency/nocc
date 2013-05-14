@@ -235,6 +235,25 @@ int langops_iscomplex (tnode_t *node, int deep)
 	return r;
 }
 /*}}}*/
+/*{{{  int langops_isaddressable (tnode_t *node)*/
+/*
+ *	returns non-zero if the node is addressable (e.g. a name or indexed something)
+ */
+int langops_isaddressable (tnode_t *node)
+{
+	int r = 0;
+
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through this node */
+		node = tnode_nthsubof (node, 0);
+	}
+
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_ISADDRESSABLE)) {
+		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_ISADDRESSABLE, 1, node);
+	}
+	return r;
+}
+/*}}}*/
 /*{{{  int langops_isvar (tnode_t *node)*/
 /*
  *	returns non-zero if a node is a variable (l-value), used during usage checks

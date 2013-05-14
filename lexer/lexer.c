@@ -281,6 +281,8 @@ fprintf (stderr, "lexer_open(): openlexfile[%d] has supported extension \"%s\"\n
 	if (i == DA_CUR (lexfiles)) {
 		lf = (lexfile_t *)smalloc (sizeof (lexfile_t));
 
+		memset (lf, 0, sizeof (lexfile_t));
+
 		lf->filename = string_dup (fnbuf);
 		for (lf->fnptr = lf->filename + (strlen (lf->filename) - 1); (lf->fnptr > lf->filename) && ((lf->fnptr)[-1] != '/'); (lf->fnptr)--);
 
@@ -566,6 +568,53 @@ char *lexer_filenameof (lexfile_t *lf)
 		return "(none)";
 	}
 	return lf->fnptr;
+}
+/*}}}*/
+/*{{{  lexfile_t *lexer_internal (const char *fname)*/
+/*
+ *	constructs an artificial lexfile_t for some internal part of the compiler.
+ */
+lexfile_t *lexer_internal (const char *fname)
+{
+	lexfile_t *lf;
+	int i;
+	char *ciname = string_fmt ("NOCC:%s", fname);
+
+	for (i=0; i<DA_CUR (lexfiles); i++) {
+		lexfile_t *llf = DA_NTHITEM (lexfiles, i);
+
+		if (!strcmp (llf->filename, ciname)) {
+			sfree (ciname);
+			return llf;			/* got it already */
+		}
+	}
+
+	lf = (lexfile_t *)smalloc (sizeof (lexfile_t));
+	memset (lf, 0, sizeof (lexfile_t));
+
+	lf->filename = ciname;
+	lf->fnptr = lf->filename;
+	lf->priv = NULL;
+	lf->ppriv = NULL;
+	lf->lineno = 0;
+
+	lf->lexer = NULL;
+	lf->parser = NULL;
+
+	lf->errcount = 0;
+	lf->warncount = 0;
+
+	dynarray_init (lf->tokbuffer);
+
+	lf->toplevel = 0;
+	lf->islibrary = 0;
+	lf->sepcomp = 0;
+
+	dynarray_add (lexfiles, lf);
+#if 0
+fhandle_printf (FHAN_STDERR, "lexer_internal(): created new [%s]\n", lf->filename);
+#endif
+	return lf;
 }
 /*}}}*/
 

@@ -205,34 +205,14 @@ tnode_dumptree (node, 1, FHAN_STDERR);
 		}
 		rtitems = parser_getlistitems (rtype, &nrtitems);
 
-		if (!fe1->decllist) {
-			/* no handy DECLBLOCK nearby, create one here */
-			tnode_t *dblk, *dilist;
-
-			dilist = parser_newlistnode (NULL);
-			dblk = tnode_createfrom (gup.tag_DECLBLOCK, node, dilist, *fe1->inspoint);
-
-			*fe1->inspoint = dblk;
-			fe1->inspoint = tnode_nthsubaddr (dblk, 1);		/* so it's still us */
-			fe1->decllist = dilist;
-		}
-
 		namelist = parser_newlistnode (NULL);
 		for (i=0; i<nrtitems; i++) {
-			/* for each return type, construct a declaration */
-			tnode_t *ndecl, *ntype, *nname;
-			name_t *dname;
-			char *pname = guppy_maketempname (rtitems[i]);
-
+			tnode_t *nname, *ntype;
+			
 			ntype = tnode_copytree (rtitems[i]);
-			dname = name_addname (pname, NULL, ntype, NULL);
-			nname = tnode_createfrom (gup.tag_NDECL, node, dname);
-			SetNameNode (dname, nname);
-			ndecl = tnode_createfrom (gup.tag_VARDECL, node, nname, ntype, NULL);
-			SetNameDecl (dname, ndecl);
+			/* create a temporary for this parameter */
+			nname = guppy_fetrans1_maketemp (gup.tag_NDECL, node, ntype, NULL, fe1);
 
-			/* add to declaration list and name-list (for assign LHS) */
-			parser_addtolist (fe1->decllist, ndecl);
 			parser_addtolist (namelist, nname);
 		}
 

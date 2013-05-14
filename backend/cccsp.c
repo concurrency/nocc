@@ -220,7 +220,8 @@ static int cccsp_coder_inparamlist = 0;
 static cccsp_apicall_t cccsp_apicall_table[] = {
 	{NOAPI, "", 0},
 	{CHAN_IN, "ChanIn", 1},
-	{CHAN_OUT, "ChanOut", 2},
+	{CHAN_OUT, "ChanOut", 1},
+	{STOP_PROC, "SetErrW", 1},
 };
 
 

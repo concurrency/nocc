@@ -82,11 +82,11 @@ static compop_t *inparams_lnamemap_compop = NULL;
 /*}}}*/
 
 
-/*{{{  static guppy_fcndefhook_t *guppy_newfcndefhook (void)*/
+/*{{{  guppy_fcndefhook_t *guppy_newfcndefhook (void)*/
 /*
  *	creates a new guppy_fcndefhook_t structure
  */
-static guppy_fcndefhook_t *guppy_newfcndefhook (void)
+guppy_fcndefhook_t *guppy_newfcndefhook (void)
 {
 	guppy_fcndefhook_t *fdh = (guppy_fcndefhook_t *)smalloc (sizeof (guppy_fcndefhook_t));
 
@@ -99,11 +99,11 @@ static guppy_fcndefhook_t *guppy_newfcndefhook (void)
 	return fdh;
 }
 /*}}}*/
-/*{{{  static void guppy_freefcndefhook (guppy_fcndefhook_t *fdh)*/
+/*{{{  void guppy_freefcndefhook (guppy_fcndefhook_t *fdh)*/
 /*
  *	frees a guppy_fcndefhook_t structure
  */
-static void guppy_freefcndefhook (guppy_fcndefhook_t *fdh)
+void guppy_freefcndefhook (guppy_fcndefhook_t *fdh)
 {
 	if (!fdh) {
 		nocc_internal ("guppy_freefcndefhook(): NULL pointer!");

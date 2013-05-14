@@ -217,6 +217,7 @@ typedef enum ENUM_langops {
 	LOPS_GETCTYPEOF = 41,			/* 2: tnode_t *, char ** -> int */
 	LOPS_KNOWNSIZEOF = 42,			/* 1: tnode_t * -> int */
 	LOPS_GUESSTLP = 43,			/* 1: tnode_t * -> int */
+	LOPS_ISADDRESSABLE = 44,		/* 1: tnode_t * -> int */
 	LOPS_MAX = 256
 } langops_e;
 
@@ -270,6 +271,7 @@ extern srclocn_t *tnode_cursrclocn (struct TAG_lexfile *lf);
 
 #define SLOCN(lf) tnode_cursrclocn(lf)
 #define SLOCL(lf,line) tnode_newsrclocn(lf,line)
+#define SLOCI tnode_newsrclocn(lexer_internal(__FILE__),__LINE__)
 
 extern tndef_t *tnode_newnodetype (char *name, int *idx, int nsub, int nname, int nhooks, int flags);
 extern ntdef_t *tnode_newnodetag (char *name, int *idx, tndef_t *type, int flags);
@@ -305,6 +307,7 @@ extern tnode_t *tnode_create (ntdef_t *tag, srclocn_t *src, ...);
 extern tnode_t *tnode_createfrom (ntdef_t *tag, tnode_t *src, ...);
 extern tnode_t *tnode_copyoraliastree (tnode_t *t, copycontrol_e (*cora_fcn)(tnode_t *));
 extern tnode_t *tnode_copytree (tnode_t *t);
+extern int tnode_substitute (tnode_t **tptr, tnode_t *curptr, tnode_t *newptr);
 extern void tnode_free (tnode_t *t);
 extern void tnode_dumptree (tnode_t *t, int indent, struct TAG_fhandle *stream);
 extern void tnode_dumpstree (tnode_t *t, int indent, struct TAG_fhandle *stream);

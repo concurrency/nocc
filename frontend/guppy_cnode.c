@@ -157,9 +157,13 @@ static int guppy_scopein_cnode (compops_t *cops, tnode_t **nodep, scope_t *ss)
 		ss->lexlevel++;
 		pitems = parser_getlistitems (parlist, &nitems);
 		for (i=0; i<nitems; i++) {
-			tnode_t *fvlist = parser_newlistnode (NULL);
+			tnode_t *fvlist = parser_newlistnode (SLOCI);
 			tnode_t *fvnode;
 
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_scopein_cnode(): set fvlist=\n");
+tnode_dumptree (fvlist, 1, FHAN_STDERR);
+#endif
 			dynarray_add (gss->crosses, fvlist);
 			scope_subtree (pitems + i, ss);
 
@@ -171,6 +175,131 @@ static int guppy_scopein_cnode (compops_t *cops, tnode_t **nodep, scope_t *ss)
 		ss->lexlevel--;
 	} 
 	/* else trivial */
+	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_fetrans_cnode (compops_t *cops, tnode_t **nodep, fetrans_t *fe)*/
+/*
+ *	does front-end transforms for a constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans_cnode (compops_t *cops, tnode_t **nodep, fetrans_t *fe)
+{
+	guppy_fetrans_t *gfe = (guppy_fetrans_t *)fe->langpriv;
+
+	if ((*nodep)->tag == gup.tag_PAR) {
+		/* for each process, break into a separate parallel-process instance */
+		tnode_t *parlist = tnode_nthsubof (*nodep, 1);
+		tnode_t **pitems;
+		int i, nitems;
+
+		pitems = parser_getlistitems (parlist, &nitems);
+		for (i=0; i<nitems; i++) {
+			if (pitems[i]->tag == gup.tag_FVNODE) {
+				tnode_t *newdef, *newdefnnode, *fvlist, *body, **fvitems;
+				tnode_t *parmlist, *parmnamelist;
+				int nfvitems, j;
+				name_t *newdefname;
+				char *ndname = guppy_maketempname (pitems[i]);
+				guppy_fcndefhook_t *fdh = guppy_newfcndefhook ();
+				tnode_t *inode;
+
+				body = tnode_nthsubof (pitems[i], 0);
+				fvlist = tnode_nthsubof (pitems[i], 1);
+				fvitems = parser_getlistitems (fvlist, &nfvitems);
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans_cnode(): thinking about PAR, process %d is:\n", i);
+tnode_dumptree (pitems[i], 1, FHAN_STDERR);
+#endif
+				parmlist = parser_newlistnode (SLOCI);
+				parmnamelist = parser_newlistnode (SLOCI);
+				for (j=0; j<nfvitems; j++) {
+					name_t *p_name;
+					tnode_t *p_namenode, *p_fparam, *p_type;
+					char *vname = NULL;
+
+					/* pick the same names */
+					langops_getname (fvitems[i], &vname);
+					if (!vname) {
+						vname = guppy_maketempname (fvitems[i]);
+					}
+
+					p_type = typecheck_gettype (fvitems[i], NULL);
+
+					p_name = name_addname (vname, NULL, p_type, NULL);
+					p_namenode = tnode_createfrom (gup.tag_NPARAM, fvitems[i], p_name);
+					SetNameNode (p_name, p_namenode);
+					p_fparam = tnode_createfrom (gup.tag_FPARAM, fvitems[i], p_namenode, p_type, NULL);
+
+					parser_addtolist (parmlist, p_fparam);
+					parser_addtolist (parmnamelist, p_namenode);
+				}
+				
+				newdefname = name_addname (ndname, NULL, parmlist, NULL);
+				newdefnnode = tnode_createfrom (gup.tag_NPFCNDEF, pitems[i], newdefname);
+				SetNameNode (newdefname, newdefnnode);
+
+				/* substitute names in tree */
+				for (j=0; j<nfvitems; j++) {
+					tnode_t *curname = parser_getfromlist (fvlist, j);
+					tnode_t *newname = parser_getfromlist (parmnamelist, j);
+
+					tnode_substitute (&body, curname, newname);
+				}
+				newdef = tnode_createfrom (gup.tag_PFCNDEF, pitems[i], newdefnnode, parmlist, body, NULL, fdh);
+				SetNameDecl (newdefname, newdef);
+
+				/* do transform on new definition */
+				fetrans_subtree (&newdef, fe);
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans_cnode(): created a definition:\n");
+tnode_dumptree (newdef, 1, FHAN_STDERR);
+#endif
+
+				/* insert new process definition into tree */
+				if (!gfe->inslist) {
+					nocc_internal ("guppy_fetrans_cnode(): nowhere to insert new process definition!");
+					return 0;
+				}
+				parser_insertinlist (gfe->inslist, newdef, gfe->insidx);
+				gfe->insidx++;
+				gfe->changed++;
+				
+				/* replace process body with instance */
+				inode = tnode_createfrom (gup.tag_INSTANCE, pitems[i], newdefnnode, fvlist);
+				pitems[i] = inode;
+			} else if (pitems[i]->tag == gup.tag_INSTANCE) {
+				/* safe: probably created by the above, or plain instance anyway */
+				fetrans_subtree (pitems + i, fe);
+			} else {
+				nocc_internal ("guppy_fetrans_cnode(): expected FVNODE in PAR but got [%s]", pitems[i]->tag->name);
+				return 0;
+			}
+		}
+		return 0;
+	}
+	/* else trivial */
+	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_namemap_cnode (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for a constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_cnode (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
 	return 1;
 }
 /*}}}*/
@@ -334,6 +463,9 @@ static int guppy_cnode_init_nodes (void)
 	tnode_setcompop (cops, "autoseq", 2, COMPOPTYPE (guppy_autoseq_cnode));
 	tnode_setcompop (cops, "flattenseq", 1, COMPOPTYPE (guppy_flattenseq_cnode));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_cnode));
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (guppy_fetrans_cnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_cnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_cnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

@@ -660,7 +660,40 @@ int guppy_fetrans2_subtree (tnode_t **tptr, guppy_fetrans2_t *fe2)
 }
 /*}}}*/
 
+/*{{{  tnode_t *guppy_fetrans1_maketemp (ntdef_t *tag, tnode_t *org, tnode_t *type, tnode_t *init, guppy_fetrans1_t *fe1)*/
+/*
+ *	special helper for fetrans1: creating local temporaries
+ *	returns name-node (tagged with 'tag').
+ */
+tnode_t *guppy_fetrans1_maketemp (ntdef_t *tag, tnode_t *org, tnode_t *type, tnode_t *init, guppy_fetrans1_t *fe1)
+{
+	char *xname = guppy_maketempname (org);
+	tnode_t *ndecl, *nname;
+	name_t *dname;
 
+	if (!fe1->decllist) {
+		tnode_t *dblk, *dilist;
+
+		dilist = parser_newlistnode (SLOCI);
+		dblk = tnode_createfrom (gup.tag_DECLBLOCK, org, dilist, *fe1->inspoint);
+
+		*fe1->inspoint = dblk;
+		fe1->inspoint = tnode_nthsubaddr (dblk, 1);		/* so it's still us */
+		fe1->decllist = dilist;
+	}
+
+	dname = name_addname (xname, NULL, type, NULL);
+	nname = tnode_createfrom (tag, org, dname);
+	SetNameNode (dname, nname);
+	ndecl = tnode_createfrom (gup.tag_VARDECL, org, nname, type, init);
+	SetNameDecl (dname, ndecl);
+
+	/* add to declaration list */
+	parser_addtolist (fe1->decllist, ndecl);
+
+	return nname;
+}
+/*}}}*/
 /*{{{  char *guppy_maketempname (tnode_t *org)*/
 /*
  *	make temporary (variable or function) name

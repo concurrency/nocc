@@ -115,6 +115,60 @@ tnode_dumptree (prot, 1, FHAN_STDERR);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans1_io (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)*/
+/*
+ *	does fetrans1 for an input or output
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans1_io (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)
+{
+	tnode_t *node = *nodep;
+
+	fe1->inspoint = nodep;
+	/* do subtrees first -- simplify things like instances into temporaries */
+	guppy_fetrans1_subtree (tnode_nthsubaddr (node, 0), fe1);
+	guppy_fetrans1_subtree (tnode_nthsubaddr (node, 1), fe1);
+
+	if (node->tag == gup.tag_OUTPUT) {
+		/* we need to make sure we can extract the address of anything on the RHS, i.e. must be a name */
+		tnode_t *rhs = tnode_nthsubof (node, 1);
+		int isaddr;
+
+		/* FIXME: will need to handle lists either here, or earlier, for structured protocols */
+		isaddr = langops_isaddressable (rhs);
+		if (!isaddr) {
+			/* create temporary and assign */
+			tnode_t *tname, *type, *ass, *seq, *seqlist;
+			tnode_t **newnodep;
+
+			type = tnode_nthsubof (*nodep, 2);
+			if (!type) {
+				nocc_internal ("guppy_fetrans1_io(): no type!");
+				return 0;
+			}
+			tname = guppy_fetrans1_maketemp (gup.tag_NDECL, rhs, type, NULL, fe1);
+			ass = tnode_createfrom (gup.tag_ASSIGN, rhs, tname, rhs, type);
+			seqlist = parser_newlistnode (SLOCI);
+			parser_addtolist (seqlist, ass);
+			newnodep = parser_addtolist (seqlist, node);
+			seq = tnode_createfrom (gup.tag_SEQ, rhs, NULL, seqlist);
+
+			*fe1->inspoint = seq;
+			fe1->inspoint = newnodep;
+
+			/* and fix the RHS */
+			tnode_setnthsub (node, 1, tname);
+		}
+#if 1
+fhandle_printf (FHAN_STDERR, "guppy_fetrans1_io(): OUTPUT, isaddr=%d, rhs =\n", isaddr);
+tnode_dumptree (rhs, 1, FHAN_STDERR);
+#endif
+	}
+
+	fe1->inspoint = NULL;
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_io (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for an input or output
@@ -184,6 +238,7 @@ static int guppy_io_init_nodes (void)
 	tnd = tnode_newnodetype ("guppy:io", &i, 3, 0, 0, TNF_NONE);		/* subnodes: 0 = LHS, 1 = RHS, 2 = type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_io));
+	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_io));
 
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_io));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_io));

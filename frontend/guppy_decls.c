@@ -317,6 +317,15 @@ static int guppy_isvar_namenode (langops_t *lops, tnode_t *node)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_isaddressable_namenode (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns non-zero if the name is addressable (trivial)
+ */
+static int guppy_isaddressable_namenode (langops_t *lops, tnode_t *node)
+{
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_guesstlp_namenode (langops_t *lops, tnode_t *node)*/
 /*
  *	attempts to guess what top-level parameter for a Guppy program this might represent
@@ -987,6 +996,7 @@ static int guppy_decls_init_nodes (void)
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (guppy_getname_namenode));
 	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (guppy_isconst_namenode));
 	tnode_setlangop (lops, "isvar", 1, LANGOPTYPE (guppy_isvar_namenode));
+	tnode_setlangop (lops, "isaddressable", 1, LANGOPTYPE (guppy_isaddressable_namenode));
 	tnode_setlangop (lops, "guesstlp", 1, LANGOPTYPE (guppy_guesstlp_namenode));
 	tnd->lops = lops;
 

@@ -75,6 +75,12 @@ STATICPOINTERHASH (srclexmap_t *, srclexmap, 3);
 static void tnode_isetindent (fhandle_t *stream, int indent);
 static void tnode_ssetindent (fhandle_t *stream, int indent);
 
+typedef struct TAG_treesubst {
+	tnode_t *curptr;
+	tnode_t *newptr;
+	int count, error;
+} treesubst_t;
+
 /*}}}*/
 
 /*{{{  constant node hook functions*/
@@ -484,6 +490,7 @@ int tnode_init (void)
 	tnode_newlangop ("getctypeof", LOPS_GETCTYPEOF, 2, INTERNAL_ORIGIN);
 	tnode_newlangop ("knownsizeof", LOPS_KNOWNSIZEOF, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("guesstlp", LOPS_GUESSTLP, 1, INTERNAL_ORIGIN);
+	tnode_newlangop ("isaddressable", LOPS_ISADDRESSABLE, 1, INTERNAL_ORIGIN);
 
 	/*}}}*/
 	/*{{{  setup the static node types*/
@@ -1481,6 +1488,49 @@ fprintf (stderr, "tnode_copyoraliastree(): copying [%s], num chooks = %d\n", t->
 tnode_t *tnode_copytree (tnode_t *t)
 {
 	return tnode_copyoraliastree (t, NULL);
+}
+/*}}}*/
+/*{{{  static int tnode_substitute_atnode (tnode_t **tptr, void *arg)*/
+/*
+ *	internal substitution routine, called at each node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int tnode_substitute_atnode (tnode_t **tptr, void *arg)
+{
+	treesubst_t *tsub = (treesubst_t *)arg;
+
+	if (*tptr == tsub->curptr) {
+		*tptr = tsub->newptr;
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  int tnode_substitute (tnode_t **tptr, tnode_t *curptr, tnode_t *newptr)*/
+/*
+ *	performs direct subtree substitutions (typically used on things that are aliased anyway, e.g. names)
+ *	returns number of substitutions made on success, < 0 on error.
+ */
+int tnode_substitute (tnode_t **tptr, tnode_t *curptr, tnode_t *newptr)
+{
+	treesubst_t *tsub = (treesubst_t *)smalloc (sizeof (treesubst_t));
+	int r = 0;
+
+	tsub->curptr = curptr;
+	tsub->newptr = newptr;
+	tsub->count = 0;
+	tsub->error = 0;
+
+	tnode_modprewalktree (tptr, tnode_substitute_atnode, (void *)tsub);
+
+	if (tsub->error) {
+		r = -1;
+	} else {
+		r = tsub->count;
+	}
+	sfree (tsub);
+
+	return r;
 }
 /*}}}*/
 /*{{{  static void tnode_isetindent (fhandle_t *stream, int indent)*/
