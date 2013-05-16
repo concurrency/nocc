@@ -159,7 +159,7 @@ static int guppy_fetrans1_io (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t
 			/* and fix the RHS */
 			tnode_setnthsub (node, 1, tname);
 		}
-#if 1
+#if 0
 fhandle_printf (FHAN_STDERR, "guppy_fetrans1_io(): OUTPUT, isaddr=%d, rhs =\n", isaddr);
 tnode_dumptree (rhs, 1, FHAN_STDERR);
 #endif
@@ -190,7 +190,7 @@ static int guppy_namemap_io (compops_t *cops, tnode_t **nodep, map_t *map)
 	cccsp_set_indir (tnode_nthsubof (*nodep, 1), 1, map->target);
 
 	/* transform into CCSP API call */
-	newparms = parser_newlistnode (NULL);
+	newparms = parser_newlistnode (SLOCI);
 	parser_addtolist (newparms, tnode_nthsubof (*nodep, 0));	/* channel */
 	parser_addtolist (newparms, tnode_nthsubof (*nodep, 1));	/* data */
 	parser_addtolist (newparms, sizeexp);

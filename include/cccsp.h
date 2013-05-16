@@ -44,6 +44,11 @@ typedef struct TAG_cccsp_mapdata {
 	int target_indir;				/* language-specific use (Guppy) */
 } cccsp_mapdata_t;
 
+typedef struct TAG_cccsp_preallocate {
+	struct TAG_target *target;
+	int lexlevel;
+} cccsp_preallocate_t;
+
 extern int cccsp_set_initialiser (struct TAG_tnode *bename, struct TAG_tnode *init);
 extern struct TAG_tnode *cccsp_create_apicallname (cccsp_apicall_e);
 

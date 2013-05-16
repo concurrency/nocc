@@ -290,6 +290,14 @@ tnode_dumptree (newdef, 1, FHAN_STDERR);
  */
 static int guppy_namemap_cnode (compops_t *cops, tnode_t **nodep, map_t *map)
 {
+	if ((*nodep)->tag == gup.tag_PAR) {
+		tnode_t *procs = tnode_nthsubof (*nodep, 1);
+
+#if 1
+fhandle_printf (FHAN_STDERR, "guppy_namemap_cnode(): map for parallel processes:\n");
+tnode_dumptree (procs, 1, FHAN_STDERR);
+#endif
+	}
 	return 1;
 }
 /*}}}*/

@@ -939,6 +939,7 @@ static int guppy_namemap_declblock (compops_t *cops, tnode_t **node, map_t *map)
 
 	blk = map->target->newblock (*node, map, NULL, map->lexlevel);
 
+	/* map out declarations and then the process */
 	map_submapnames (tnode_nthsubaddr (*node, 0), map);
 	map_submapnames (tnode_nthsubaddr (*node, 1), map);	/* do under back-end block */
 
@@ -953,8 +954,10 @@ static int guppy_namemap_declblock (compops_t *cops, tnode_t **node, map_t *map)
  */
 static int guppy_codegen_declblock (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
-	// codegen_write_fmt
-	return 1;
+	codegen_subcodegen (tnode_nthsubof (node, 0), cgen);	/* code-generate declarations */
+	codegen_subcodegen (tnode_nthsubof (node, 1), cgen);	/* code-generate body */
+
+	return 0;
 }
 /*}}}*/
 

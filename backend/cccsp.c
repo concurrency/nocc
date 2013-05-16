@@ -187,6 +187,9 @@ typedef struct TAG_kroccifccsp_namerefhook {
 
 typedef struct TAG_cccsp_blockhook {
 	int lexlevel;				/* lexical level of this block */
+
+	int my_size;				/* words required by directly declared things */
+	int nest_size;				/* words required by nested blocks (max sum) */
 } cccsp_blockhook_t;
 
 typedef struct TAG_cccsp_blockrefhook {
@@ -370,20 +373,22 @@ static void cccsp_blockhook_dumptree (tnode_t *node, void *hook, int indent, fha
 	cccsp_blockhook_t *bh = (cccsp_blockhook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<blockhook addr=\"0x%8.8x\" lexlevel=\"%d\" />\n",
-			(unsigned int)bh, bh->lexlevel);
+	fhandle_printf (stream, "<blockhook addr=\"0x%8.8x\" lexlevel=\"%d\" my_size=\"%d\" nest_size=\"%d\" />\n",
+			(unsigned int)bh, bh->lexlevel, bh->my_size, bh->nest_size);
 	return;
 }
 /*}}}*/
-/*{{{  static cccsp_blockhook_t *cccsp_blockhook_create (int ll)*/
+/*{{{  static cccsp_blockhook_t *cccsp_blockhook_create (int ll, int sz, int nest)*/
 /*
  *	creates a block-hook
  */
-static cccsp_blockhook_t *cccsp_blockhook_create (int ll)
+static cccsp_blockhook_t *cccsp_blockhook_create (int ll, int sz, int nest)
 {
 	cccsp_blockhook_t *bh = (cccsp_blockhook_t *)smalloc (sizeof (cccsp_blockhook_t));
 
 	bh->lexlevel = ll;
+	bh->my_size = sz;
+	bh->nest_size = nest;
 
 	return bh;
 }
@@ -596,8 +601,8 @@ static tnode_t *cccsp_block_create (tnode_t *body, map_t *mdata, tnode_t *slist,
 	cccsp_blockhook_t *bh;
 	tnode_t *blk;
 
-	bh = cccsp_blockhook_create (lexlevel);
-	blk = tnode_create (mdata->target->tag_BLOCK, NULL, body, slist, (void *)bh);
+	bh = cccsp_blockhook_create (lexlevel, 0, 0);
+	blk = tnode_create (mdata->target->tag_BLOCK, SLOCI, body, slist, (void *)bh);
 
 	return blk;
 }
@@ -715,6 +720,25 @@ int cccsp_get_indir (tnode_t *benode, target_t *target)
 }
 /*}}}*/
 
+/*{{{  static int cccsp_prewalktree_preallocate (tnode_t *node, void *data)*/
+/*
+ *	walk-tree for preallocate, calls comp-ops "lpreallocate" routine where present
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_prewalktree_preallocate (tnode_t *node, void *data)
+{
+	int r = 1;
+	cccsp_preallocate_t *cpa = (cccsp_preallocate_t *)data;
+
+	if (node->tag->ndef->ops && tnode_hascompop_i (node->tag->ndef->ops, (int)COPS_LPREALLOCATE)) {
+		r = tnode_callcompop_i (node->tag->ndef->ops, (int)COPS_LPREALLOCATE, 2, node, cpa);
+	} else if (node->tag->ndef->ops && tnode_hascompop_i (node->tag->ndef->ops, (int)COPS_PREALLOCATE)) {
+		r = tnode_callcompop_i (node->tag->ndef->ops, (int)COPS_PREALLOCATE, 2, node, cpa->target);
+	}
+
+	return r;
+}
+/*}}}*/
 /*{{{  static int cccsp_prewalktree_codegen (tnode_t *node, void *data)*/
 /*
  *	prewalktree for code generation, calls comp-ops "lcodegen" routine where present
@@ -857,7 +881,14 @@ static void cccsp_do_bemap (tnode_t **tptr, map_t *map)
  */
 static void cccsp_do_preallocate (tnode_t *tptr, target_t *target)
 {
-	nocc_message ("cccsp_do_preallocate(): here!");
+	cccsp_preallocate_t *cpa = (cccsp_preallocate_t *)smalloc (sizeof (cccsp_preallocate_t));
+
+	cpa->target = target;
+	cpa->lexlevel = 0;
+
+	tnode_prewalktree (tptr, cccsp_prewalktree_preallocate, (void *)cpa);
+
+	sfree (cpa);
 	return;
 }
 /*}}}*/
@@ -1322,6 +1353,19 @@ static int cccsp_lcodegen_nameref (compops_t *cops, tnode_t *nameref, codegen_t 
 	return 0;
 }
 /*}}}*/
+/*{{{  static int cccsp_lpreallocate_block (compops_t *cops, tnode_t *blk, cccsp_preallocate_t *cpa)*/
+/*
+ *	does pre-allocation for a back-end block
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_lpreallocate_block (compops_t *cops, tnode_t *blk, cccsp_preallocate_t *cpa)
+{
+	cccsp_blockhook_t *bh = (cccsp_blockhook_t *)tnode_nthhookof (blk, 0);
+
+
+	return 1;
+}
+/*}}}*/
 /*{{{  static int cccsp_lcodegen_block (compops_t *cops, tnode_t *blk, codegen_t *cgen)*/
 /*
  *	does code-generation for a back-end block
@@ -1533,6 +1577,7 @@ static int cccsp_target_init (target_t *target)
 	tnd = tnode_newnodetype ("cccsp:block", &i, 2, 0, 1, TNF_NONE);		/* subnodes: block body, statics; hooks: cccsp_blockhook_t */
 	tnd->hook_dumptree = cccsp_blockhook_dumptree;
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (cccsp_lpreallocate_block));
 	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (cccsp_lcodegen_block));
 	tnd->ops = cops;
 
