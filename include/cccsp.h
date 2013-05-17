@@ -47,6 +47,8 @@ typedef struct TAG_cccsp_mapdata {
 typedef struct TAG_cccsp_preallocate {
 	struct TAG_target *target;
 	int lexlevel;
+
+	int collect;
 } cccsp_preallocate_t;
 
 extern int cccsp_set_initialiser (struct TAG_tnode *bename, struct TAG_tnode *init);

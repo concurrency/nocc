@@ -875,6 +875,17 @@ static void cccsp_do_bemap (tnode_t **tptr, map_t *map)
 	return;
 }
 /*}}}*/
+/*{{{  static int cccsp_preallocate_subtree (tnode_t *tptr, cccsp_preallocate_t *cpa)*/
+/*
+ *	does preallocate sub-tree walk
+ *	returns 0 on success, non-zero on error
+ */
+static int cccsp_preallocate_subtree (tnode_t *tptr, cccsp_preallocate_t *cpa)
+{
+	tnode_prewalktree (tptr, cccsp_prewalktree_preallocate, (void *)cpa);
+	return 0;
+}
+/*}}}*/
 /*{{{  static void cccsp_do_preallocate (tnode_t *tptr, target_t *target)*/
 /*
  *	intercepts pre-allocate pass
@@ -886,7 +897,7 @@ static void cccsp_do_preallocate (tnode_t *tptr, target_t *target)
 	cpa->target = target;
 	cpa->lexlevel = 0;
 
-	tnode_prewalktree (tptr, cccsp_prewalktree_preallocate, (void *)cpa);
+	cccsp_preallocate_subtree (tptr, cpa);
 
 	sfree (cpa);
 	return;
@@ -1292,6 +1303,21 @@ tnode_dumptree (toplevelparams, 1, FHAN_STDERR);
 }
 /*}}}*/
 
+/*{{{  static int cccsp_lpreallocate_name (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)*/
+/*
+ *	does pre-allocate for a back-end name: counts up words of stack usage.
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_lpreallocate_name (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)
+{
+	cccsp_namehook_t *nh = (cccsp_namehook_t *)tnode_nthhookof (node, 0);
+
+	/* FIXME: assuming single word.. */
+	cpa->collect++;
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int cccsp_lcodegen_name (compops_t *cops, tnode_t *name, codegen_t *cgen)*/
 /*
  *	does code-generation for a back-end name: produces the C declaration.
@@ -1361,9 +1387,23 @@ static int cccsp_lcodegen_nameref (compops_t *cops, tnode_t *nameref, codegen_t 
 static int cccsp_lpreallocate_block (compops_t *cops, tnode_t *blk, cccsp_preallocate_t *cpa)
 {
 	cccsp_blockhook_t *bh = (cccsp_blockhook_t *)tnode_nthhookof (blk, 0);
+	tnode_t *slist = tnode_nthsubof (blk, 1);
+	int saved_collect = cpa->collect;
 
+	/* sub-preallocate nested blocks */
+	cpa->collect = 0;
+	cccsp_preallocate_subtree (tnode_nthsubof (blk, 0), cpa);
+	bh->nest_size = cpa->collect;
 
-	return 1;
+	if (slist) {
+		cpa->collect = 0;
+		cccsp_preallocate_subtree (slist, cpa);
+		bh->my_size = cpa->collect;
+	}
+
+	cpa->collect = saved_collect;
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int cccsp_lcodegen_block (compops_t *cops, tnode_t *blk, codegen_t *cgen)*/
@@ -1549,6 +1589,7 @@ static int cccsp_target_init (target_t *target)
 	tnd = tnode_newnodetype ("cccsp:name", &i, 2, 0, 1, TNF_NONE);		/* subnodes: original name, in-scope body; hooks: cccsp_namehook_t */
 	tnd->hook_dumptree = cccsp_namehook_dumptree;
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (cccsp_lpreallocate_name));
 	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (cccsp_lcodegen_name));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
