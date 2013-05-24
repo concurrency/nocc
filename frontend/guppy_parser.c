@@ -827,6 +827,17 @@ static int fetrans2_cpass (tnode_t **treeptr)
 	err = fe2->error;
 	guppy_freefetrans2 (fe2);
 
+	if (!err) {
+		/* before we finish here, insert MAPINIT for language-specific initialisation in namemap */
+		tnode_t *minode = tnode_create (gup.tag_MAPINIT, NULL);
+
+		if (!parser_islistnode (*treeptr)) {
+			nocc_internal ("fetrans2_cpass(): top-level tree not a list.. [%s:%s]", (*treeptr)->tag->ndef->name, (*treeptr)->tag->name);
+			return -1;
+		}
+		parser_addtolist_front (*treeptr, minode);
+	}
+
 	return err;
 }
 /*}}}*/

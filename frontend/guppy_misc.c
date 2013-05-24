@@ -64,6 +64,7 @@
 #include "metadata.h"
 #include "tracescheck.h"
 #include "mobilitycheck.h"
+#include "cccsp.h"
 
 /*}}}*/
 /*{{{  private types*/
@@ -106,6 +107,24 @@ tnode_dumptree (arg, 1, FHAN_STDERR);
 }
 /*}}}*/
 
+/*{{{  static int guppy_namemap_leafmisc (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for a leaf-misc node (language-specific things)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_leafmisc (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
+
+	if (!cmd->langhook) {
+		guppy_map_t *gmap = (guppy_map_t *)smalloc (sizeof (guppy_map_t));
+
+		gmap->decllist = NULL;
+		cmd->langhook = (void *)gmap;
+	}
+	return 1;
+}
+/*}}}*/
 
 /*{{{  static int guppy_misc_init_nodes (void)*/
 /*
@@ -131,6 +150,19 @@ static int guppy_misc_init_nodes (void)
 
 	i = -1;
 	gup.tag_PPCOMMENT = tnode_newnodetag ("PPCOMMENT", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:leafmisc -- MAPINIT*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:leafmisc", &i, 0, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_leafmisc));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_MAPINIT = tnode_newnodetag ("MAPINIT", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

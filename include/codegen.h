@@ -132,8 +132,8 @@ typedef struct TAG_coderops {
 	void (*debugline)(codegen_t *, struct TAG_tnode *);
 
 	/* for the C back-end */
-	void (*c_procentry)(codegen_t *, struct TAG_name *, struct TAG_tnode *);
-	void (*c_proccall)(codegen_t *, const char *, struct TAG_tnode *, int);
+	void (*c_procentry)(codegen_t *, struct TAG_name *, struct TAG_tnode *, int);
+	void (*c_proccall)(codegen_t *, const char *, struct TAG_tnode *, int, struct TAG_tnode *);
 } coderops_t;
 
 

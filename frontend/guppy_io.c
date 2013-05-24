@@ -180,8 +180,11 @@ static int guppy_namemap_io (compops_t *cops, tnode_t **nodep, map_t *map)
 	tnode_t *newinst, *newparms;
 	tnode_t *sizeexp = constprop_newconst (CONST_INT, NULL, NULL, bytes);
 	tnode_t *newarg;
-	tnode_t *callnum;
+	tnode_t *callnum, *wptr;
+	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
 
+	wptr = cmd->process_id;
+	map_submapnames (&wptr, map);
 	map_submapnames (tnode_nthsubaddr (*nodep, 0), map);
 	map_submapnames (tnode_nthsubaddr (*nodep, 1), map);
 	map_submapnames (&sizeexp, map);
@@ -191,9 +194,11 @@ static int guppy_namemap_io (compops_t *cops, tnode_t **nodep, map_t *map)
 
 	/* transform into CCSP API call */
 	newparms = parser_newlistnode (SLOCI);
+	parser_addtolist (newparms, wptr);
 	parser_addtolist (newparms, tnode_nthsubof (*nodep, 0));	/* channel */
 	parser_addtolist (newparms, tnode_nthsubof (*nodep, 1));	/* data */
 	parser_addtolist (newparms, sizeexp);
+
 	if ((*nodep)->tag == gup.tag_INPUT) {
 		callnum = cccsp_create_apicallname (CHAN_IN);
 	} else if ((*nodep)->tag == gup.tag_OUTPUT) {

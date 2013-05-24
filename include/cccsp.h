@@ -26,12 +26,16 @@ extern int cccsp_shutdown (void);
 struct TAG_tnode;
 struct TAG_map;
 struct TAG_target;
+struct TAG_srclocn;
+struct TAG_name;
 
 typedef enum ENUM_cccsp_apicall {
 	NOAPI = 0,
 	CHAN_IN = 1,
 	CHAN_OUT = 2,
 	STOP_PROC = 3,
+	PROC_PAR = 4,
+	LIGHT_PROC_INIT = 5,
 } cccsp_apicall_e;
 
 typedef struct TAG_cccsp_apicall {
@@ -42,6 +46,8 @@ typedef struct TAG_cccsp_apicall {
 
 typedef struct TAG_cccsp_mapdata {
 	int target_indir;				/* language-specific use (Guppy) */
+	struct TAG_tnode *process_id;			/* current process identifier node (wptr) */
+	void *langhook;					/* language-specific hook (Guppy) */
 } cccsp_mapdata_t;
 
 typedef struct TAG_cccsp_preallocate {
@@ -53,10 +59,13 @@ typedef struct TAG_cccsp_preallocate {
 
 extern int cccsp_set_initialiser (struct TAG_tnode *bename, struct TAG_tnode *init);
 extern struct TAG_tnode *cccsp_create_apicallname (cccsp_apicall_e);
+extern char *cccsp_make_entryname (const char *name, const int procabs);
 
 extern struct TAG_tnode *cccsp_create_addrof (struct TAG_tnode *arg, struct TAG_target *target);
 extern int cccsp_set_indir (struct TAG_tnode *benode, int indir, struct TAG_target *target);
 extern int cccsp_get_indir (struct TAG_tnode *benode, struct TAG_target *target);
 
+extern int cccsp_set_toplevelname (struct TAG_name *tlname, struct TAG_target *target);
+extern struct TAG_tnode *cccsp_create_wptr (struct TAG_srclocn *org, struct TAG_target *target);
 
 #endif	/* !__CCCSP_H */

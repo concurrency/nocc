@@ -257,6 +257,24 @@ tnode_dumptree (*node, 1, FHAN_STDERR);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_codegen_namenode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a lone name-reference (usually a function name).
+ *	returns 0 to stop walk, 1 to continue.
+ */
+static int guppy_codegen_namenode (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	name_t *name = tnode_nthnameof (node, 0);
+
+	if (node->tag == gup.tag_NPFCNDEF) {
+		char *fname = cccsp_make_entryname (NameNameOf (name), 1);
+
+		codegen_write_fmt (cgen, "%s", fname);
+		sfree (fname);
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static tnode_t *guppy_gettype_namenode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
  *	returns the type of a name-node (trivial)
@@ -993,6 +1011,7 @@ static int guppy_decls_init_nodes (void)
 	tnd = gup.node_NAMENODE = tnode_newnodetype ("guppy:namenode", &i, 0, 1, 0, TNF_NONE);		/* subnames: name */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_namenode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_namenode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_namenode));

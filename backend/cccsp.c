@@ -162,11 +162,15 @@ target_t cccsp_target = {
 typedef struct TAG_cccsp_priv {
 	lexfile_t *lastfile;
 	name_t *last_toplevelname;
+	int wptr_count;
 
 	ntdef_t *tag_ADDROF;
 	ntdef_t *tag_LABEL;			/* used for when we implant 'goto' */
 	ntdef_t *tag_LABELREF;
 	ntdef_t *tag_GOTO;
+
+	ntdef_t *tag_WPTR;
+	ntdef_t *tag_WORKSPACE;
 } cccsp_priv_t;
 
 typedef struct TAG_cccsp_namehook {
@@ -210,6 +214,9 @@ typedef struct TAG_cccsp_labelrefhook {
 	cccsp_labelhook_t *lab;
 } cccsp_labelrefhook_t;
 
+typedef struct TAG_cccsp_wptrhook {
+	char *name;				/* e.g. wptr0 */
+} cccsp_wptrhook_t;
 
 /*}}}*/
 /*{{{  private data*/
@@ -225,6 +232,8 @@ static cccsp_apicall_t cccsp_apicall_table[] = {
 	{CHAN_IN, "ChanIn", 1},
 	{CHAN_OUT, "ChanOut", 1},
 	{STOP_PROC, "SetErrW", 1},
+	{PROC_PAR, "ProcPar", 1},
+	{LIGHT_PROC_INIT, "LightProcInit", 1},
 };
 
 
@@ -257,12 +266,12 @@ static int cccsp_init_options (cccsp_priv_t *kpriv)
 	return 0;
 }
 /*}}}*/
-/*{{{  static char *cccsp_make_entryname (const char *name)*/
+/*{{{  char *cccsp_make_entryname (const char *name, const int procabs)*/
 /*
  *	turns a front-end name into a C-CCSP name for a function-entry point.
  *	returns newly allocated name.
  */
-static char *cccsp_make_entryname (const char *name, const int procabs)
+char *cccsp_make_entryname (const char *name, const int procabs)
 {
 	char *rname = (char *)smalloc (strlen (name) + 10);
 	char *ch;
@@ -527,6 +536,33 @@ static cccsp_labelrefhook_t *cccsp_labelrefhook_create (cccsp_labelhook_t *ref)
 }
 /*}}}*/
 /*}}}*/
+/*{{{  cccsp_wptrhook_t routines*/
+/*{{{  static void cccsp_wptrhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
+/*
+ *	dumps a cccsp_wptrhook_t (debugging)
+ */
+static void cccsp_wptrhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
+{
+	cccsp_wptrhook_t *whook = (cccsp_wptrhook_t *)hook;
+
+	cccsp_isetindent (stream, indent);
+	fhandle_printf (stream, "<wptrhook name=\"%s\" addr=\"0x%8.8x\" />\n", whook->name, (unsigned int)whook);
+	return;
+}
+/*}}}*/
+/*{{{  static cccsp_wptrhook_t *cccsp_wptrhook_create (int id)*/
+/*
+ *	creates a new cccsp_wptrhook_t
+ */
+static cccsp_wptrhook_t *cccsp_wptrhook_create (int id)
+{
+	cccsp_wptrhook_t *whook = (cccsp_wptrhook_t *)smalloc (sizeof (cccsp_wptrhook_t));
+
+	whook->name = string_fmt ("wptr%d", id);
+	return whook;
+}
+/*}}}*/
+/*}}}*/
 
 /*{{{  static tnode_t *cccsp_name_create (tnode_t *fename, tnode_t *body, map_t *mdata, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)*/
 /*
@@ -720,6 +756,39 @@ int cccsp_get_indir (tnode_t *benode, target_t *target)
 }
 /*}}}*/
 
+/*{{{  int cccsp_set_toplevelname (name_t *tlname, target_t *target)*/
+/*
+ *	sets the top-level name, needed to be able to call, etc.
+ *	returns 0 on success, non-zero on failure
+ */
+int cccsp_set_toplevelname (name_t *tlname, target_t *target)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)target->priv;
+
+	kpriv->last_toplevelname = tlname;
+	return 0;
+}
+/*}}}*/
+/*{{{  tnode_t *cccsp_create_wptr (srclocn_t *org, target_t *target)*/
+/*
+ *	creates a new workspace-pointer (leaf node in effect)
+ */
+tnode_t *cccsp_create_wptr (srclocn_t *org, target_t *target)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)target->priv;
+	tnode_t *node, *type;
+	cccsp_wptrhook_t *whook;
+	
+	whook = cccsp_wptrhook_create (kpriv->wptr_count);
+	kpriv->wptr_count++;
+
+	type = tnode_create (kpriv->tag_WORKSPACE, org);
+	node = tnode_create (kpriv->tag_WPTR, org, type, whook);
+
+	return node;
+}
+/*}}}*/
+
 /*{{{  static int cccsp_prewalktree_preallocate (tnode_t *node, void *data)*/
 /*
  *	walk-tree for preallocate, calls comp-ops "lpreallocate" routine where present
@@ -854,6 +923,8 @@ static void cccsp_do_namemap (tnode_t **tptr, map_t *map)
 		cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)smalloc (sizeof (cccsp_mapdata_t));
 
 		cmd->target_indir = 0;
+		cmd->process_id = NULL;
+		cmd->langhook = NULL;
 		map->hook = (void *)cmd;
 		tnode_modprewalktree (tptr, cccsp_modprewalktree_namemap, (void *)map);
 		map->hook = NULL;
@@ -973,14 +1044,14 @@ static void cccsp_coder_debugline (codegen_t *cgen, tnode_t *node)
 	return;
 }
 /*}}}*/
-/*{{{  static void cccsp_coder_c_procentry (codegen_t *cgen, name_t *name, tnode_t *params)*/
+/*{{{  static void cccsp_coder_c_procentry (codegen_t *cgen, name_t *name, tnode_t *params, int pinst)*/
 /*
  *	creates a procedure/function entry-point
  */
-static void cccsp_coder_c_procentry (codegen_t *cgen, name_t *name, tnode_t *params)
+static void cccsp_coder_c_procentry (codegen_t *cgen, name_t *name, tnode_t *params, int pinst)
 {
 	cccsp_priv_t *kpriv = (cccsp_priv_t *)cgen->target->priv;
-	char *entryname = cccsp_make_entryname (name->me->name, (params == NULL) ? 1 : 0);
+	char *entryname = cccsp_make_entryname (name->me->name, pinst);
 
 	/*
 	 *	updated: for CIF, this is a little different now
@@ -988,17 +1059,22 @@ static void cccsp_coder_c_procentry (codegen_t *cgen, name_t *name, tnode_t *par
 
 	codegen_ssetindent (cgen);
 	if (!params) {
+		/* shouldn't happen now Workspace is properly parameterised */
+		nocc_internal ("cccsp_coder_c_procentry(): no parameters, but did expect some..");
+
 		/* parameters-in-workspace */
-		codegen_write_fmt (cgen, "void %s (Workspace wptr)\n", entryname);
+		codegen_write_fmt (cgen, "void %s (void)\n", entryname);
 	} else {
 		int i, nparams;
 		tnode_t **plist;
 
 		cccsp_coder_inparamlist++;
 		plist = parser_getlistitems (params, &nparams);
-		codegen_write_fmt (cgen, "void %s (Workspace wptr", entryname);
+		codegen_write_fmt (cgen, "void %s (", entryname);
 		for (i=0; i<nparams; i++) {
-			codegen_write_fmt (cgen, ", ");
+			if (i > 0) {
+				codegen_write_fmt (cgen, ", ");
+			}
 			codegen_subcodegen (plist[i], cgen);
 		}
 		codegen_write_fmt (cgen, ")\n");
@@ -1006,19 +1082,14 @@ static void cccsp_coder_c_procentry (codegen_t *cgen, name_t *name, tnode_t *par
 	}
 	sfree (entryname);
 
-	if (!compopts.notmainmodule && !params) {
-		/* save as last (generated in source order) */
-		kpriv->last_toplevelname = name;
-	}
-
 	return;
 }
 /*}}}*/
-/*{{{  static void cccsp_coder_c_proccall (codegen_t *cgen, const char *name, tnode_t *params, int isapi)*/
+/*{{{  static void cccsp_coder_c_proccall (codegen_t *cgen, const char *name, tnode_t *params, int isapi, tnode_t *apires)*/
 /*
  *	creates a function instance
  */
-static void cccsp_coder_c_proccall (codegen_t *cgen, const char *name, tnode_t *params, int isapi)
+static void cccsp_coder_c_proccall (codegen_t *cgen, const char *name, tnode_t *params, int isapi, tnode_t *apires)
 {
 	char *procname;
 	
@@ -1027,22 +1098,29 @@ static void cccsp_coder_c_proccall (codegen_t *cgen, const char *name, tnode_t *
 
 		procname = string_dup (apic->name);
 	} else {
-		procname = cccsp_make_entryname (name, (params == NULL) ? 1 : 0);
+		procname = cccsp_make_entryname (name, 0);
 	}
 
 	codegen_ssetindent (cgen);
 	if (!params) {
 		/* parameters in workspace, but should probably not be called like this! */
-		codegen_write_fmt (cgen, "%s (wptr);\n", procname);
+		codegen_write_fmt (cgen, "%s ();\n", procname);
 		codegen_warning (cgen, "cccsp_coder_c_proccall(): unexpected params == NULL here, for %s", procname);
 	} else {
 		int i, nparams;
 		tnode_t **plist;
 
-		codegen_write_fmt (cgen, "%s (wptr", procname);
+		if (apires) {
+			/* has some result that we assign to */
+			codegen_subcodegen (apires, cgen);
+			codegen_write_fmt (cgen, " = ");
+		}
+		codegen_write_fmt (cgen, "%s (", procname);
 		plist = parser_getlistitems (params, &nparams);
 		for (i=0; i<nparams; i++) {
-			codegen_write_fmt (cgen, ", ");
+			if (i > 0) {
+				codegen_write_fmt (cgen, ", ");
+			}
 			codegen_subcodegen (plist[i], cgen);
 		}
 		codegen_write_fmt (cgen, ");\n");
@@ -1519,6 +1597,74 @@ static int cccsp_lcodegen_op (compops_t *cops, tnode_t *op, codegen_t *cgen)
 }
 /*}}}*/
 
+/*{{{  static int cccsp_namemap_wptr (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for the slightly special WPTR node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_namemap_wptr (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t *bename;
+
+	bename = tnode_getchook (*nodep, map->mapchook);
+	if (!bename) {
+		/* first occurance, create new name for it */
+		bename = map->target->newname (*nodep, NULL, map, 4, 0, 0, 0, 4, 0);
+
+		tnode_setchook (*nodep, map->mapchook, (void *)bename);
+		*nodep = bename;
+	} else {
+		tnode_t *tname = map->target->newnameref (bename, map);
+
+		*nodep = tname;
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *cccsp_gettype_wptr (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a special WPTR node (trivial)
+ */
+static tnode_t *cccsp_gettype_wptr (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	return tnode_nthsubof (node, 0);
+}
+/*}}}*/
+/*{{{  static int cccsp_getname_wptr (langops_t *lops, tnode_t *node, char **str)*/
+/*
+ *	gets the name of a special WPTR node (trivial)
+ */
+static int cccsp_getname_wptr (langops_t *lops, tnode_t *node, char **str)
+{
+	cccsp_wptrhook_t *whook = (cccsp_wptrhook_t *)tnode_nthhookof (node, 0);
+
+	if (*str) {
+		sfree (*str);
+	}
+	*str = string_dup (whook->name);
+	return 0;
+}
+/*}}}*/
+
+/*{{{  static int cccsp_getctypeof_type (langops_t *lops, tnode_t *t, char **str)*/
+/*
+ *	gets the C type of a WORKSPACE node (trivial)
+ */
+static int cccsp_getctypeof_type (langops_t *lops, tnode_t *t, char **str)
+{
+	char *lstr;
+
+	lstr = string_dup ("Workspace");
+	if (*str) {
+		sfree (*str);
+	}
+	*str = lstr;
+
+	return 0;
+}
+/*}}}*/
+
 /*{{{  int cccsp_init (void)*/
 /*
  *	initialises the KRoC CIF/CCSP back-end
@@ -1586,7 +1732,7 @@ static int cccsp_target_init (target_t *target)
 	/* setup back-end nodes */
 	/*{{{  cccsp:name -- CCCSPNAME*/
 	i = -1;
-	tnd = tnode_newnodetype ("cccsp:name", &i, 2, 0, 1, TNF_NONE);		/* subnodes: original name, in-scope body; hooks: cccsp_namehook_t */
+	tnd = tnode_newnodetype ("cccsp:name", &i, 2, 0, 1, TNF_NONE);		/* subnodes: original name, in-scope body (NULL); hooks: cccsp_namehook_t */
 	tnd->hook_dumptree = cccsp_namehook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (cccsp_lpreallocate_name));
@@ -1693,6 +1839,35 @@ static int cccsp_target_init (target_t *target)
 
 	i = -1;
 	kpriv->tag_GOTO = tnode_newnodetag ("CCCSPGOTO", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  cccsp:wptr -- CCCSPWPTR*/
+	i = -1;
+	tnd = tnode_newnodetype ("cccsp:wptr", &i, 1, 0, 1, TNF_NONE);			/* subnodes: type; hooks: cccsp_wptrhook_t */
+	tnd->hook_dumptree = cccsp_wptrhook_dumptree;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (cccsp_namemap_wptr));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (cccsp_gettype_wptr));
+	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (cccsp_getname_wptr));
+	tnd->lops = lops;
+
+	i = -1;
+	kpriv->tag_WPTR = tnode_newnodetag ("CCCSPWPTR", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  cccsp:type -- CCCSPWORKSPACE*/
+	i = -1;
+	tnd = tnode_newnodetype ("cccsp:type", &i, 0, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (cccsp_getctypeof_type));
+	tnd->lops = lops;
+
+	i = -1;
+	kpriv->tag_WORKSPACE = tnode_newnodetag ("CCCSPWORKSPACE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

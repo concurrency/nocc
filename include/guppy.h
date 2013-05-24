@@ -44,6 +44,8 @@ struct TAG_ntdef;
 struct TAG_token;
 struct TAG_chook;
 struct TAG_fhandle;
+struct TAG_fetrans;
+struct TAG_betrans;
 
 typedef struct {
 	struct TAG_tndef *node_NAMENODE;
@@ -53,6 +55,7 @@ typedef struct {
 	struct TAG_tndef *node_TYPENODE;
 
 	struct TAG_ntdef *tag_PPCOMMENT;
+	struct TAG_ntdef *tag_MAPINIT;
 
 	struct TAG_ntdef *tag_BOOL;
 	struct TAG_ntdef *tag_BYTE;
@@ -92,6 +95,8 @@ typedef struct {
 
 	struct TAG_ntdef *tag_INSTANCE;
 	struct TAG_ntdef *tag_APICALL;
+	struct TAG_ntdef *tag_APICALLR;
+	struct TAG_ntdef *tag_PPINSTANCE;
 
 	struct TAG_ntdef *tag_NDECL;
 	struct TAG_ntdef *tag_NVALDECL;
@@ -200,6 +205,9 @@ typedef struct TAG_guppy_fcndefhook {
 	struct TAG_tnode *pfcndef;			/* if there is a PFCNDEF for this FCNDEF */
 } guppy_fcndefhook_t;
 
+typedef struct {
+	struct TAG_tnode *decllist;			/* where new declarations can go during mapping, used inside PAR mapping */
+} guppy_map_t;
 
 extern void guppy_isetindent (struct TAG_fhandle *stream, int indent);
 extern struct TAG_langdef *guppy_getlangdef (void);

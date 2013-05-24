@@ -59,6 +59,7 @@
 #include "codegen.h"
 #include "target.h"
 #include "transputer.h"
+#include "cccsp.h"
 
 
 /*}}}*/
@@ -214,6 +215,7 @@ tnode_dumptree (pitems[i], 1, FHAN_STDERR);
 				parmlist = parser_newlistnode (SLOCI);
 				parmnamelist = parser_newlistnode (SLOCI);
 				for (j=0; j<nfvitems; j++) {
+					/*{{{  parameterise free variables (FIXME: this really needs usagechecker help to get val/var right)*/
 					name_t *p_name;
 					tnode_t *p_namenode, *p_fparam, *p_type;
 					char *vname = NULL;
@@ -233,6 +235,7 @@ tnode_dumptree (pitems[i], 1, FHAN_STDERR);
 
 					parser_addtolist (parmlist, p_fparam);
 					parser_addtolist (parmnamelist, p_namenode);
+					/*}}}*/
 				}
 				
 				newdefname = name_addname (ndname, NULL, parmlist, NULL);
@@ -267,13 +270,13 @@ tnode_dumptree (newdef, 1, FHAN_STDERR);
 				gfe->changed++;
 				
 				/* replace process body with instance */
-				inode = tnode_createfrom (gup.tag_INSTANCE, pitems[i], newdefnnode, fvlist);
+				inode = tnode_createfrom (gup.tag_PPINSTANCE, pitems[i], newdefnnode, NULL /* FIXME! */, fvlist);
 				pitems[i] = inode;
-			} else if (pitems[i]->tag == gup.tag_INSTANCE) {
+			} else if (pitems[i]->tag == gup.tag_PPINSTANCE) {
 				/* safe: probably created by the above, or plain instance anyway */
 				fetrans_subtree (pitems + i, fe);
 			} else {
-				nocc_internal ("guppy_fetrans_cnode(): expected FVNODE in PAR but got [%s]", pitems[i]->tag->name);
+				nocc_internal ("guppy_fetrans_cnode(): expected FVNODE/PPINSTANCE in PAR but got [%s]", pitems[i]->tag->name);
 				return 0;
 			}
 		}
@@ -290,13 +293,77 @@ tnode_dumptree (newdef, 1, FHAN_STDERR);
  */
 static int guppy_namemap_cnode (compops_t *cops, tnode_t **nodep, map_t *map)
 {
-	if ((*nodep)->tag == gup.tag_PAR) {
-		tnode_t *procs = tnode_nthsubof (*nodep, 1);
+	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
+	guppy_map_t *gmap = (guppy_map_t *)cmd->langhook;
 
-#if 1
+	if ((*nodep)->tag == gup.tag_PAR) {
+		/* each parallel process should be a PPINSTANCE node now */
+		tnode_t *parlist = tnode_nthsubof (*nodep, 1);
+		tnode_t *dblk, *decllist, *oseq, *oseqlist;
+		tnode_t **pitems;
+		int i, nitems;
+		tnode_t *pcargs, *pccall, *pccallnum, *pcnprocs;
+		tnode_t *saved_dlist = gmap->decllist;
+
+		decllist = parser_newlistnode (SLOCI);
+		pcargs = parser_newlistnode (SLOCI);
+
+		pitems = parser_getlistitems (parlist, &nitems);
+		for (i=0; i<nitems; i++) {
+			tnode_t *wsvar;
+
+			wsvar = cccsp_create_wptr (OrgOf (pitems[i]), map->target);
+			parser_addtolist (decllist, wsvar);
+
+			if (pitems[i]->tag != gup.tag_PPINSTANCE) {
+				nocc_internal ("guppy_namemap_cnode(): expected PPINSTANCE in PAR but got [%s]", pitems[i]->tag->name);
+				return 0;
+			}
+			tnode_setnthsub (pitems[i], 1, wsvar);
+		}
+
+		oseqlist = parser_newlistnode (SLOCI);
+		parser_addtolist (oseqlist, *nodep);
+		oseq = tnode_create (gup.tag_SEQ, OrgOf (*nodep), NULL, oseqlist);
+		dblk = tnode_create (gup.tag_DECLBLOCK, OrgOf (*nodep), decllist, oseq);
+		map_submapnames (tnode_nthsubaddr (dblk, 0), map);
+
+		gmap->decllist = tnode_nthsubof (dblk, 0);
+
+		parser_addtolist (pcargs, cmd->process_id);
+		pcnprocs = constprop_newconst (CONST_INT, NULL, NULL, nitems);
+		parser_addtolist (pcargs, pcnprocs);
+
+		for (i=0; i<nitems; i++) {
+			/* map PPINSTANCEs this after we've mapped the WS declarations */
+			/* XXX:
+			 *	scoop out some things into a list of arguments for ProcPar later.
+			 *	done here because after mapping it, PPINSTANCE won't exist anymore.
+			 */
+			tnode_t *pp_name = tnode_nthsubof (pitems[i], 0);
+			tnode_t *pp_wptr = tnode_nthsubof (pitems[i], 1);
+
+			parser_addtolist (pcargs, pp_wptr);
+			parser_addtolist (pcargs, pp_name);
+
+			map_submapnames (pitems + i, map);
+		}
+
+		pccallnum = cccsp_create_apicallname (PROC_PAR);
+		pccall = tnode_create (gup.tag_APICALL, SLOCI, pccallnum, pcargs);
+
+		map_submapnames (&pcargs, map);
+
+		parser_addtolist (oseqlist, pccall);
+		gmap->decllist = saved_dlist;
+
+		*nodep = dblk;
+#if 0
 fhandle_printf (FHAN_STDERR, "guppy_namemap_cnode(): map for parallel processes:\n");
-tnode_dumptree (procs, 1, FHAN_STDERR);
+tnode_dumptree (dblk, 1, FHAN_STDERR);
 #endif
+
+		return 0;
 	}
 	return 1;
 }

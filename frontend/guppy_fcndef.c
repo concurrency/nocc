@@ -546,7 +546,8 @@ static int guppy_namemap_fcndef (compops_t *cops, tnode_t **nodep, map_t *map)
 	tnode_t **bodyp = tnode_nthsubaddr (*nodep, 2);
 	tnode_t **paramsptr = tnode_nthsubaddr (*nodep, 1);
 	tnode_t *blk;
-	tnode_t *statics;
+	tnode_t *statics, *wptr, *saved_wptr, **wptrp;
+	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
 
 	if ((*nodep)->tag == gup.tag_PFCNDEF) {
 		statics = *paramsptr;
@@ -567,6 +568,7 @@ static int guppy_namemap_fcndef (compops_t *cops, tnode_t **nodep, map_t *map)
 	}
 	map->inparamlist = 0;
 
+
 	if ((*nodep)->tag == gup.tag_PFCNDEF) {
 		int nparams, i;
 		tnode_t **mparams;
@@ -580,10 +582,26 @@ static int guppy_namemap_fcndef (compops_t *cops, tnode_t **nodep, map_t *map)
 
 			cccsp_set_initialiser (mparams[i], init);
 		}
+
+		/* unplug parameters */
+		*paramsptr = NULL;
 	}
+
+	/* add workspace parameter to front-of-list and remember whilst we map body */
+	wptr = cccsp_create_wptr (OrgOf (*nodep), map->target);
+	saved_wptr = cmd->process_id;
+	cmd->process_id = wptr;
+
+	if (!*paramsptr) {
+		*paramsptr = parser_newlistnode (OrgOf (*nodep));
+	}
+	wptrp = parser_addtolist_front (*paramsptr, wptr);
+	/* map it */
+	map_submapnames (wptrp, map);
 
 	map_submapnames (bodyp, map);
 	map_poplexlevel (map);
+	cmd->process_id = saved_wptr;
 
 	tnode_setnthsub (*nodep, 2, blk);				/* insert back-end BLOCK before process body */
 
@@ -606,17 +624,20 @@ static int guppy_codegen_fcndef (compops_t *cops, tnode_t *node, codegen_t *cgen
 	tnode_t *params;
 
 #if 0
-fprintf (stderr, "guppy_codegen_fcndef(): here!\n");
+fhandle_printf (FHAN_STDERR, "guppy_codegen_fcndef(): here! [%s]  params =\n", node->tag->name);
+tnode_dumptree (tnode_nthsubof (node, 1), 1, FHAN_STDERR);
 #endif
 	pname = tnode_nthnameof (name, 0);
+	params = tnode_nthsubof (node, 1);
+
 	codegen_callops (cgen, comment, "define %s", pname->me->name);
-	if (node->tag == gup.tag_FCNDEF) {
-		params = tnode_nthsubof (node, 1);
-	} else {
-		params = NULL;
+
+	codegen_callops (cgen, c_procentry, pname, params, (node->tag == gup.tag_PFCNDEF));
+
+	if ((node->tag == gup.tag_PFCNDEF) && !compopts.notmainmodule) {
+		/* last instanceable process (called in source order) */
+		cccsp_set_toplevelname (pname, cgen->target);
 	}
-	/* Note: difference between NULL and empty list! */
-	codegen_callops (cgen, c_procentry, pname, params);
 
 	/* then code the body */
 	codegen_subcodegen (body, cgen);

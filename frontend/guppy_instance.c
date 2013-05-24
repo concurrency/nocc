@@ -264,9 +264,13 @@ static int guppy_namemap_instance (compops_t *cops, tnode_t **nodep, map_t *map)
 	tnode_t **fparams;
 	tnode_t **params;
 	int i, nparams, nfparams;
+	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
 
-	/* map parameters and name */
+	/* map name and parameters */
 	map_submapnames (nameptr, map);
+
+	/* before anything else, insert the special 'wptr' paramter -- first parameter */
+	parser_addtolist_front (plist, cmd->process_id);
 
 	pdecl = NameDeclOf (tnode_nthnameof (pname, 0));
 	flist = tnode_nthsubof (pdecl, 1);
@@ -274,6 +278,14 @@ static int guppy_namemap_instance (compops_t *cops, tnode_t **nodep, map_t *map)
 	fparams = parser_getlistitems (flist, &nfparams);
 	params = parser_getlistitems (plist, &nparams);
 
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_namemap_instance(): instance of:\n");
+tnode_dumptree (pname, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, "guppy_namemap_instance(): got %d formals:\n", nfparams);
+tnode_dumptree (flist, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, "guppy_namemap_instance(): and %d actuals:\n", nparams);
+tnode_dumptree (plist, 1, FHAN_STDERR);
+#endif
 	if (nparams != nfparams) {
 		nocc_internal ("guppy_namemap_instance(): collecting params had %d formal and %d actual", nfparams, nparams);
 		return 0;
@@ -308,7 +320,7 @@ static int guppy_codegen_instance (compops_t *cops, tnode_t *node, codegen_t *cg
 	if (node->tag == gup.tag_INSTANCE) {
 		name_t *pname = tnode_nthnameof (tnode_nthsubof (node, 0), 0);
 
-		codegen_callops (cgen, c_proccall, NameNameOf (pname), tnode_nthsubof (node, 1), 0);
+		codegen_callops (cgen, c_proccall, NameNameOf (pname), tnode_nthsubof (node, 1), 0, NULL);
 	} else if (node->tag == gup.tag_APICALL) {
 		tnode_t *callnum = tnode_nthsubof (node, 0);
 
@@ -317,7 +329,7 @@ static int guppy_codegen_instance (compops_t *cops, tnode_t *node, codegen_t *cg
 			nocc_internal ("guppy_codegen_instance(): APICALL but name was [%s]", callnum->tag->name);
 			return 0;
 		}
-		codegen_callops (cgen, c_proccall, NULL, tnode_nthsubof (node, 1), constprop_intvalof (callnum));
+		codegen_callops (cgen, c_proccall, NULL, tnode_nthsubof (node, 1), constprop_intvalof (callnum), NULL);
 	} else {
 		nocc_internal ("guppy_codegen_instance(): unhandled [%s:%s]", node->tag->ndef->name, node->tag->name);
 		return 0;
@@ -344,6 +356,84 @@ static tnode_t *guppy_gettype_instance (langops_t *lops, tnode_t *node, tnode_t 
 }
 /*}}}*/
 
+/*{{{  static int guppy_codegen_rinstance (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a result-instance node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_rinstance (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	if (node->tag == gup.tag_APICALLR) {
+		tnode_t *callnum = tnode_nthsubof (node, 0);
+
+		if (!constprop_isconst (callnum)) {
+			/* unexpected! */
+			nocc_internal ("guppy_codegen_instance(): APICALLR but name was [%s]", callnum->tag->name);
+			return 0;
+		}
+		codegen_callops (cgen, c_proccall, NULL, tnode_nthsubof (node, 1), constprop_intvalof (callnum), tnode_nthsubof (node, 2));
+	}
+	return 0;
+}
+/*}}}*/
+
+/*{{{  static int guppy_namemap_ppinstance (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for a parallel-process instance node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_ppinstance (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t **nameptr = tnode_nthsubaddr (*nodep, 0);
+	tnode_t *pname = *nameptr, *pdecl;
+	tnode_t *plist = tnode_nthsubof (*nodep, 2);
+	tnode_t *newwptr = tnode_nthsubof (*nodep, 1);
+	tnode_t *flist;
+	tnode_t **fparams;
+	tnode_t **params;
+	int i, nparams, nfparams;
+	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
+	guppy_map_t *gmap = (guppy_map_t *)cmd->langhook;
+	tnode_t *ppseq, *ppseqlist, *ppinitcall, *ppinitargs;
+
+	/* map name and parameters */
+	map_submapnames (nameptr, map);
+
+#if 1
+fhandle_printf (FHAN_STDERR, "guppy_namemap_ppinstance(): here!  *nodep =\n");
+tnode_dumptree (*nodep, 1, FHAN_STDERR);
+#endif
+	ppseqlist = parser_newlistnode (OrgOf (*nodep));
+	ppseq = tnode_createfrom (gup.tag_SEQ, *nodep, NULL, ppseqlist);
+
+	ppinitargs = parser_newlistnode (SLOCI);
+	parser_addtolist (ppinitargs, cmd->process_id);
+
+	/* FIXME: missing parameters! */
+	map_submapnames (&ppinitargs, map);
+	ppinitcall = tnode_create (gup.tag_APICALLR, SLOCI, cccsp_create_apicallname (LIGHT_PROC_INIT), ppinitargs, newwptr);
+	map_submapnames (tnode_nthsubaddr (ppinitcall, 2), map);				/* map placed newwptr */
+
+	parser_addtolist (ppseqlist, ppinitcall);
+
+	*nodep = ppseq;
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_ppinstance (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a parallel-process instance node
+ *	returns 0 top stop walk, 1 to continue
+ */
+static int guppy_codegen_ppinstance (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+#if 1
+fhandle_printf (FHAN_STDERR, "guppy_codegen_ppinstance(): here!\n");
+#endif
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static int guppy_instance_init_nodes (void)*/
 /*
@@ -375,7 +465,34 @@ static int guppy_instance_init_nodes (void)
 	i = -1;
 	gup.tag_INSTANCE = tnode_newnodetag ("INSTANCE", &i, tnd, NTF_NONE);
 	i = -1;
-	gup.tag_APICALL = tnode_newnodetag ("APICALL", &i, tnd, NTF_NONE);		/* only after "namemap" */
+	gup.tag_APICALL = tnode_newnodetag ("APICALL", &i, tnd, NTF_NONE);		/* only during/after "namemap" */
+
+	/*}}}*/
+	/*{{{  guppy:rinstance -- APICALLR*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:rinstance", &i, 3, 0, 0, TNF_NONE);		/* subnodes: name, aparams, result */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_rinstance));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_APICALLR = tnode_newnodetag ("APICALLR", &i, tnd, NTF_NONE);		/* only during/after "namemap" */
+
+	/*}}}*/
+	/*{{{  guppy:ppinstance -- PPINSTANCE*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:ppinstance", &i, 3, 0, 0, TNF_NONE);		/* subnodes: name, proc-var, aparams */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_ppinstance));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_ppinstance));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_PPINSTANCE = tnode_newnodetag ("PPINSTANCE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 
