@@ -546,7 +546,7 @@ static int guppy_namemap_fcndef (compops_t *cops, tnode_t **nodep, map_t *map)
 	tnode_t **bodyp = tnode_nthsubaddr (*nodep, 2);
 	tnode_t **paramsptr = tnode_nthsubaddr (*nodep, 1);
 	tnode_t *blk;
-	tnode_t *statics, *wptr, *saved_wptr, **wptrp;
+	tnode_t *statics, *wptr, *saved_wptr, *mappedwptr;
 	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
 
 	if ((*nodep)->tag == gup.tag_PFCNDEF) {
@@ -568,6 +568,12 @@ static int guppy_namemap_fcndef (compops_t *cops, tnode_t **nodep, map_t *map)
 	}
 	map->inparamlist = 0;
 
+	/* add workspace parameter to front-of-list and remember whilst we map body */
+	wptr = cccsp_create_wptr (OrgOf (*nodep), map->target);
+	saved_wptr = cmd->process_id;
+	cmd->process_id = wptr;
+	mappedwptr = wptr;
+	map_submapnames (&mappedwptr, map);					/* map what will be the declaration in parameters */
 
 	if ((*nodep)->tag == gup.tag_PFCNDEF) {
 		int nparams, i;
@@ -577,8 +583,20 @@ static int guppy_namemap_fcndef (compops_t *cops, tnode_t **nodep, map_t *map)
 		mparams = parser_getlistitems (*paramsptr, &nparams);
 		for (i=0; i<nparams; i++) {
 			tnode_t *orig = tnode_nthsubof (mparams[i], 0);		/* original N_PARAM */
-			tnode_t *init = tnode_createfrom (gup.tag_FPARAMINIT, orig, constprop_newconst (CONST_INT, NULL, NULL, i),
-						NameTypeOf (tnode_nthnameof (orig, 0)));
+			tnode_t *mappedid, *init;
+			int indir;
+
+			mappedid = cmd->process_id;
+			map_submapnames (&mappedid, map);
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_namemap_fcndef(): here, mappedid =\n");
+tnode_dumptree (mappedid, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, "guppy_namemap_fcndef(): here 2, mparams[i] =\n");
+tnode_dumptree (mparams[i], 1, FHAN_STDERR);
+#endif
+			indir = cccsp_get_indir (mparams[i], map->target);
+			init = tnode_createfrom (gup.tag_FPARAMINIT, orig, mappedid, constprop_newconst (CONST_INT, NULL, NULL, i),
+						NameTypeOf (tnode_nthnameof (orig, 0)), constprop_newconst (CONST_INT, NULL, NULL, indir));
 
 			cccsp_set_initialiser (mparams[i], init);
 		}
@@ -587,17 +605,11 @@ static int guppy_namemap_fcndef (compops_t *cops, tnode_t **nodep, map_t *map)
 		*paramsptr = NULL;
 	}
 
-	/* add workspace parameter to front-of-list and remember whilst we map body */
-	wptr = cccsp_create_wptr (OrgOf (*nodep), map->target);
-	saved_wptr = cmd->process_id;
-	cmd->process_id = wptr;
-
+	/* add mapped wptr (parameter) to parameter list */
 	if (!*paramsptr) {
 		*paramsptr = parser_newlistnode (OrgOf (*nodep));
 	}
-	wptrp = parser_addtolist_front (*paramsptr, wptr);
-	/* map it */
-	map_submapnames (wptrp, map);
+	parser_addtolist_front (*paramsptr, mappedwptr);
 
 	map_submapnames (bodyp, map);
 	map_poplexlevel (map);

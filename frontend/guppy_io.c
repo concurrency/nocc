@@ -166,6 +166,7 @@ tnode_dumptree (rhs, 1, FHAN_STDERR);
 	}
 
 	fe1->inspoint = NULL;
+	fe1->decllist = NULL;		/* force a new one */
 	return 0;
 }
 /*}}}*/
@@ -182,10 +183,14 @@ static int guppy_namemap_io (compops_t *cops, tnode_t **nodep, map_t *map)
 	tnode_t *newarg;
 	tnode_t *callnum, *wptr;
 	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
+	int saved_indir = cmd->target_indir;
 
 	wptr = cmd->process_id;
 	map_submapnames (&wptr, map);
+	/* map LHS and RHS: LHS channel must be a pointer */
+	cmd->target_indir = 1;
 	map_submapnames (tnode_nthsubaddr (*nodep, 0), map);
+	cmd->target_indir = saved_indir;
 	map_submapnames (tnode_nthsubaddr (*nodep, 1), map);
 	map_submapnames (&sizeexp, map);
 

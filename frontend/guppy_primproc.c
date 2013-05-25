@@ -97,11 +97,15 @@ out_error:
  */
 static int guppy_namemap_leafnode (compops_t *cops, tnode_t **nodep, map_t *mapdata)
 {
+	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)mapdata->hook;
+
 	if ((*nodep)->tag == gup.tag_STOP) {
 		/* turn into API call */
 		tnode_t *newinst, *newparms, *callnum;
 
 		newparms = parser_newlistnode (SLOCI);
+		parser_addtolist (newparms, cmd->process_id);
+		map_submapnames (&newparms, mapdata);
 		callnum = cccsp_create_apicallname (STOP_PROC);
 		newinst = tnode_createfrom (gup.tag_APICALL, *nodep, callnum, newparms);
 

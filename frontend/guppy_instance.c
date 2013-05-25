@@ -388,6 +388,7 @@ static int guppy_namemap_ppinstance (compops_t *cops, tnode_t **nodep, map_t *ma
 	tnode_t *pname = *nameptr, *pdecl;
 	tnode_t *plist = tnode_nthsubof (*nodep, 2);
 	tnode_t *newwptr = tnode_nthsubof (*nodep, 1);
+	tnode_t *newws, **newwsp;
 	tnode_t *flist;
 	tnode_t **fparams;
 	tnode_t **params;
@@ -399,23 +400,81 @@ static int guppy_namemap_ppinstance (compops_t *cops, tnode_t **nodep, map_t *ma
 	/* map name and parameters */
 	map_submapnames (nameptr, map);
 
-#if 1
+#if 0
 fhandle_printf (FHAN_STDERR, "guppy_namemap_ppinstance(): here!  *nodep =\n");
 tnode_dumptree (*nodep, 1, FHAN_STDERR);
 #endif
+	params = parser_getlistitems (plist, &nparams);
+	newws = cccsp_create_workspace (SLOCI, map->target);
+	cccsp_set_workspace_nparams (newws, nparams);
+
+	/* add new workspace to local declarations and map */
+	if (!gmap->decllist) {
+		nocc_internal ("guppy_namemap_ppinstance(): no declaration list!");
+		return 0;
+	}
+	newwsp = parser_addtolist (gmap->decllist, newws);
+	map_submapnames (newwsp, map);
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_namemap_ppinstance(): added newws to declaration list:\n");
+tnode_dumptree (gmap->decllist, 1, FHAN_STDERR);
+#endif
+
 	ppseqlist = parser_newlistnode (OrgOf (*nodep));
 	ppseq = tnode_createfrom (gup.tag_SEQ, *nodep, NULL, ppseqlist);
 
 	ppinitargs = parser_newlistnode (SLOCI);
 	parser_addtolist (ppinitargs, cmd->process_id);
+	parser_addtolist (ppinitargs, newws);
+	parser_addtolist (ppinitargs, constprop_newconst (CONST_INT, NULL, NULL, nparams));
 
-	/* FIXME: missing parameters! */
+	/* map before adding number of workspace words -- this can change up until code-gen */
 	map_submapnames (&ppinitargs, map);
+	parser_addtolist (ppinitargs, cccsp_create_workspace_nwordsof (newws, map->target));
+
 	ppinitcall = tnode_create (gup.tag_APICALLR, SLOCI, cccsp_create_apicallname (LIGHT_PROC_INIT), ppinitargs, newwptr);
 	map_submapnames (tnode_nthsubaddr (ppinitcall, 2), map);				/* map placed newwptr */
 
 	parser_addtolist (ppseqlist, ppinitcall);
 
+	flist = typecheck_gettype (pname, NULL);
+	fparams = parser_getlistitems (flist, &nfparams);
+
+	/* Note: neither 'fparams' nor 'params' should have a leading workspace ID */
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_namemap_ppinstance(): here 2!  flist is:\n");
+tnode_dumptree (flist, 1, FHAN_STDERR);
+#endif
+	if (nparams != nfparams) {
+		nocc_internal ("guppy_namemap_ppinstance(): nparams=%d but nfparams=%d", nparams, nfparams);
+		return 0;
+	}
+	for (i=0; i<nparams; i++) {
+		int saved_indir = cmd->target_indir;
+		tnode_t *fpinode, *fpiargs;
+
+		fpiargs = parser_newlistnode (SLOCI);
+		parser_addtolist (fpiargs, cmd->process_id);
+		parser_addtolist (fpiargs, newwptr);
+		parser_addtolist (fpiargs, constprop_newconst (CONST_INT, NULL, NULL, i));
+		map_submapnames (&fpiargs, map);
+		/* wptr args and param-number get mapped above;  map actual separately */
+		/* make sure we map the right amount of indirection */
+		cmd->target_indir = cccsp_get_indir (fparams[i], map->target);
+		map_submapnames (params + i, map);
+		cmd->target_indir = saved_indir;
+
+		parser_addtolist (fpiargs, params[i]);
+
+		fpinode = tnode_create (gup.tag_APICALL, SLOCI, cccsp_create_apicallname (PROC_PARAM), fpiargs);
+		parser_addtolist (ppseqlist, fpinode);
+	}
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_namemap_ppinstance(): here 3!  plist now:\n");
+tnode_dumptree (plist, 1, FHAN_STDERR);
+#endif
+
+	/* Note: lose PPINSTANCE node here */
 	*nodep = ppseq;
 
 	return 0;

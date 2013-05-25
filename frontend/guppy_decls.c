@@ -219,8 +219,19 @@ static int guppy_scopein_rawnamenode (compops_t *cops, tnode_t **node, scope_t *
 		if (gss && (ss->lexlevel > NameLexlevelOf (sname))) {
 			if (DA_CUR (gss->crosses) > 0) {
 				tnode_t *fvlist = DA_NTHITEM (gss->crosses, DA_CUR (gss->crosses) - 1);
+				tnode_t **fvitems;
+				int i, nfvitems;
 
-				parser_addtolist (fvlist, NameNodeOf (sname));
+				/* only add if it's not already here */
+				fvitems = parser_getlistitems (fvlist, &nfvitems);
+				for (i=0; i<nfvitems; i++) {
+					if (fvitems[i] == NameNodeOf (sname)) {
+						break;
+					}
+				}
+				if (i == nfvitems) {
+					parser_addtolist (fvlist, NameNodeOf (sname));
+				}
 			}
 		}
 	} else {
@@ -677,12 +688,40 @@ static tnode_t *guppy_gettype_fparam (langops_t *lops, tnode_t *node, tnode_t *d
  */
 static int guppy_codegen_fparaminit (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
-	int pno = constprop_intvalof (tnode_nthsubof (node, 0));
-	tnode_t *type = tnode_nthsubof (node, 1);
+	int pno = constprop_intvalof (tnode_nthsubof (node, 1));
+	tnode_t *type = tnode_nthsubof (node, 2);
+	tnode_t *indirt = tnode_nthsubof (node, 3);
+	int indir, i;
 	char *ctype = NULL;
+	char *tindirstr = NULL;
 
 	langops_getctypeof (type, &ctype);
-	codegen_write_fmt (cgen, "ProcGetParam (wptr, %d, %s)", pno, ctype ?: "int32_t");
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_codegen_fparaminit(): type=\n");
+tnode_dumptree (type, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, "guppy_codegen_fparaminit(): indirt=\n");
+tnode_dumptree (indirt, 1, FHAN_STDERR);
+#endif
+
+	if (indirt && !constprop_isconst (indirt)) {
+		nocc_internal ("guppy_codegen_fparaminit(): indirection not constant..  got [%s]", indirt->tag->name);
+		return 0;
+	} else if (indirt) {
+		indir = constprop_intvalof (indirt);
+	} else {
+		indir = 0;
+	}
+
+	tindirstr = (char *)smalloc (indir + 2);
+	for (i=0; i<indir; i++) {
+		tindirstr[i] = '*';
+	}
+	tindirstr[i] = '\0';
+
+	codegen_write_fmt (cgen, "ProcGetParam (");
+	codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+	codegen_write_fmt (cgen, ", %d, %s%s)", pno, ctype ?: "int32_t", tindirstr);
+
 	return 0;
 }
 /*}}}*/
@@ -1089,7 +1128,7 @@ static int guppy_decls_init_nodes (void)
 	/*}}}*/
 	/*{{{  guppy:fparaminit -- FPARAMINIT*/
 	i = -1;
-	tnd = tnode_newnodetype ("guppy:fparaminit", &i, 2, 0, 0, TNF_NONE);				/* subnodes: parameter, type */
+	tnd = tnode_newnodetype ("guppy:fparaminit", &i, 4, 0, 0, TNF_NONE);				/* subnodes: wptr, parameter, type, indirection */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_fparaminit));
 	tnd->ops = cops;

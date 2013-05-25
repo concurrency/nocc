@@ -36,6 +36,8 @@ typedef enum ENUM_cccsp_apicall {
 	STOP_PROC = 3,
 	PROC_PAR = 4,
 	LIGHT_PROC_INIT = 5,
+	PROC_PARAM = 6,
+	GET_PROC_PARAM = 7
 } cccsp_apicall_e;
 
 typedef struct TAG_cccsp_apicall {
@@ -67,5 +69,9 @@ extern int cccsp_get_indir (struct TAG_tnode *benode, struct TAG_target *target)
 
 extern int cccsp_set_toplevelname (struct TAG_name *tlname, struct TAG_target *target);
 extern struct TAG_tnode *cccsp_create_wptr (struct TAG_srclocn *org, struct TAG_target *target);
+extern struct TAG_tnode *cccsp_create_workspace (struct TAG_srclocn *org, struct TAG_target *target);
+extern int cccsp_set_workspace_nparams (struct TAG_tnode *wsnode, int nparams);
+extern int cccsp_set_workspace_nwords (struct TAG_tnode *wsnode, int nwords);
+extern struct TAG_tnode *cccsp_create_workspace_nwordsof (struct TAG_tnode *wsnode, struct TAG_target *target);
 
 #endif	/* !__CCCSP_H */

@@ -165,12 +165,15 @@ typedef struct TAG_cccsp_priv {
 	int wptr_count;
 
 	ntdef_t *tag_ADDROF;
+	ntdef_t *tag_NWORDSOF;
 	ntdef_t *tag_LABEL;			/* used for when we implant 'goto' */
 	ntdef_t *tag_LABELREF;
 	ntdef_t *tag_GOTO;
 
 	ntdef_t *tag_WPTR;
 	ntdef_t *tag_WORKSPACE;
+	ntdef_t *tag_WPTRTYPE;
+	ntdef_t *tag_WORKSPACETYPE;
 } cccsp_priv_t;
 
 typedef struct TAG_cccsp_namehook {
@@ -218,6 +221,13 @@ typedef struct TAG_cccsp_wptrhook {
 	char *name;				/* e.g. wptr0 */
 } cccsp_wptrhook_t;
 
+typedef struct TAG_cccsp_workspacehook {
+	char *name;				/* e.g. ws0 */
+	int isdyn;				/* needs to be dynamically allocated at run-time */
+	int nparams;				/* number of parameters, -1 if unknown */
+	int nwords;				/* number of words, -1 if unknown */
+} cccsp_workspacehook_t;
+
 /*}}}*/
 /*{{{  private data*/
 
@@ -234,6 +244,8 @@ static cccsp_apicall_t cccsp_apicall_table[] = {
 	{STOP_PROC, "SetErrW", 1},
 	{PROC_PAR, "ProcPar", 1},
 	{LIGHT_PROC_INIT, "LightProcInit", 1},
+	{PROC_PARAM, "ProcParam", 1},
+	{GET_PROC_PARAM, "GetProcParam", 1},
 };
 
 
@@ -563,6 +575,38 @@ static cccsp_wptrhook_t *cccsp_wptrhook_create (int id)
 }
 /*}}}*/
 /*}}}*/
+/*{{{  cccsp_workspacehook_t routines*/
+/*{{{  static void cccsp_workspacehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
+/*
+ *	dumps a cccsp_workspacehook_t (debugging)
+ */
+static void cccsp_workspacehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
+{
+	cccsp_workspacehook_t *whook = (cccsp_workspacehook_t *)hook;
+
+	cccsp_isetindent (stream, indent);
+	fhandle_printf (stream, "<workspacehook name=\"%s\" isdyn=\"%d\" nparams=\"%d\" nwords=\"%d\" addr=\"0x%8.8x\" />\n",
+			whook->name, whook->isdyn, whook->nparams, whook->nwords, (unsigned int)whook);
+	return;
+}
+/*}}}*/
+/*{{{  static cccsp_workspacehook_t *cccsp_workspacehook_create (int id)*/
+/*
+ *	creates a new cccsp_workspacehook_t
+ */
+static cccsp_workspacehook_t *cccsp_workspacehook_create (int id)
+{
+	cccsp_workspacehook_t *whook = (cccsp_workspacehook_t *)smalloc (sizeof (cccsp_workspacehook_t));
+
+	whook->name = string_fmt ("ws%d", id);
+	whook->isdyn = 0;
+	whook->nparams = -1;
+	whook->nwords = -1;
+
+	return whook;
+}
+/*}}}*/
+/*}}}*/
 
 /*{{{  static tnode_t *cccsp_name_create (tnode_t *fename, tnode_t *body, map_t *mdata, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)*/
 /*
@@ -782,10 +826,81 @@ tnode_t *cccsp_create_wptr (srclocn_t *org, target_t *target)
 	whook = cccsp_wptrhook_create (kpriv->wptr_count);
 	kpriv->wptr_count++;
 
-	type = tnode_create (kpriv->tag_WORKSPACE, org);
+	type = tnode_create (kpriv->tag_WPTRTYPE, org);
 	node = tnode_create (kpriv->tag_WPTR, org, type, whook);
 
 	return node;
+}
+/*}}}*/
+/*{{{  tnode_t *cccsp_create_wptr (srclocn_t *org, target_t *target)*/
+/*
+ *	creates a new workspace (leaf node in effect)
+ */
+tnode_t *cccsp_create_workspace (srclocn_t *org, target_t *target)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)target->priv;
+	tnode_t *node, *type;
+	cccsp_workspacehook_t *whook;
+	
+	whook = cccsp_workspacehook_create (kpriv->wptr_count);
+	kpriv->wptr_count++;
+
+	type = tnode_create (kpriv->tag_WORKSPACETYPE, org);
+	node = tnode_create (kpriv->tag_WORKSPACE, org, type, whook);
+
+	return node;
+}
+/*}}}*/
+/*{{{  int cccsp_set_workspace_nparams (tnode_t *wsnode, int nparams)*/
+/*
+ *	sets the number of parameters for the space-reserving WORKSPACE type
+ *	returns 0 on success, non-zero on error
+ */
+int cccsp_set_workspace_nparams (tnode_t *wsnode, int nparams)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cccsp_target.priv;
+	cccsp_workspacehook_t *whook;
+
+	if (wsnode->tag != kpriv->tag_WORKSPACE) {
+		return 1;
+	}
+	whook = (cccsp_workspacehook_t *)tnode_nthhookof (wsnode, 0);
+
+	whook->nparams = nparams;
+	return 0;
+}
+/*}}}*/
+/*{{{  int cccsp_set_workspace_nwords (tnode_t *wsnode, int nwords)*/
+/*
+ *	sets the number of stack words for the space-reserving WORKSPACE type
+ *	returns 0 on success, non-zero on error
+ */
+int cccsp_set_workspace_nwords (tnode_t *wsnode, int nwords)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cccsp_target.priv;
+	cccsp_workspacehook_t *whook;
+
+	if (wsnode->tag != kpriv->tag_WORKSPACE) {
+		return 1;
+	}
+	whook = (cccsp_workspacehook_t *)tnode_nthhookof (wsnode, 0);
+
+	whook->nwords = nwords;
+	return 0;
+}
+/*}}}*/
+/*{{{  tnode_t *cccsp_create_workspace_nwordsof (tnode_t *wsnode, target_t *target)*/
+/*
+ *	creates a node expression that returns the number of words associated with a WORKSPACE
+ */
+tnode_t *cccsp_create_workspace_nwordsof (tnode_t *wsnode, target_t *target)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)target->priv;
+	tnode_t *t;
+	
+	t = tnode_create (kpriv->tag_NWORDSOF, SLOCI, wsnode);
+
+	return t;
 }
 /*}}}*/
 
@@ -1035,11 +1150,13 @@ static void cccsp_coder_debugline (codegen_t *cgen, tnode_t *node)
 		/* nothing to generate */
 		return;
 	}
+	return;
+
 	if (node->org->org_file != kpriv->lastfile) {
 		kpriv->lastfile = node->org->org_file;
-		codegen_write_fmt (cgen, "#FILE %s\n", node->org->org_file->filename ?: "(unknown)");
+		codegen_write_fmt (cgen, "#file %s\n", node->org->org_file->filename ?: "(unknown)");
 	}
-	codegen_write_fmt (cgen, "#LINE %d\n", node->org->org_line);
+	codegen_write_fmt (cgen, "#line %d\n", node->org->org_line);
 
 	return;
 }
@@ -1404,7 +1521,9 @@ static int cccsp_lpreallocate_name (compops_t *cops, tnode_t *node, cccsp_preall
 static int cccsp_lcodegen_name (compops_t *cops, tnode_t *name, codegen_t *cgen)
 {
 	cccsp_namehook_t *nh = (cccsp_namehook_t *)tnode_nthhookof (name, 0);
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cgen->target->priv;
 	char *indirstr = (char *)smalloc (nh->indir + 1);
+	tnode_t *src = tnode_nthsubof (name, 0);
 	int i;
 
 	for (i=0; i<nh->indir; i++) {
@@ -1412,16 +1531,31 @@ static int cccsp_lcodegen_name (compops_t *cops, tnode_t *name, codegen_t *cgen)
 	}
 	indirstr[i] = '\0';
 
-	if (nh->initialiser) {
+	if (src->tag == kpriv->tag_WORKSPACE) {
+		/* slightly special case for these */
+		cccsp_workspacehook_t *whook = (cccsp_workspacehook_t *)tnode_nthhookof (src, 0);
+
+		if (whook->nwords < 0) {
+			codegen_warning (cgen, "cccsp_lcodegen_name(): nwords not set, assuming 1024..");
+			whook->nwords = 1024;
+		}
+
 		codegen_ssetindent (cgen);
-		codegen_write_fmt (cgen, "%s%s %s = ", nh->ctype, indirstr, nh->cname);
-		codegen_subcodegen (nh->initialiser, cgen);
-		codegen_write_fmt (cgen, ";\n");
-	} else if (cccsp_coder_inparamlist) {
-		codegen_write_fmt (cgen, "%s%s %s", nh->ctype, indirstr, nh->cname);
+		if (!whook->isdyn) {
+			codegen_write_fmt (cgen, "%s %s[WORKSPACE_SIZE(%d,%d)];\n", nh->ctype, nh->cname, whook->nparams, whook->nwords);
+		}
 	} else {
-		codegen_ssetindent (cgen);
-		codegen_write_fmt (cgen, "%s%s %s;\n", nh->ctype, indirstr, nh->cname);
+		if (nh->initialiser) {
+			codegen_ssetindent (cgen);
+			codegen_write_fmt (cgen, "%s%s %s = ", nh->ctype, indirstr, nh->cname);
+			codegen_subcodegen (nh->initialiser, cgen);
+			codegen_write_fmt (cgen, ";\n");
+		} else if (cccsp_coder_inparamlist) {
+			codegen_write_fmt (cgen, "%s%s %s", nh->ctype, indirstr, nh->cname);
+		} else {
+			codegen_ssetindent (cgen);
+			codegen_write_fmt (cgen, "%s%s %s;\n", nh->ctype, indirstr, nh->cname);
+		}
 	}
 	return 0;
 }
@@ -1579,6 +1713,17 @@ static int cccsp_lcodegen_modifier (compops_t *cops, tnode_t *mod, codegen_t *cg
 		codegen_write_fmt (cgen, "&(");
 		codegen_subcodegen (tnode_nthsubof (mod, 0), cgen);
 		codegen_write_fmt (cgen, ")");
+	} else if (mod->tag == kpriv->tag_NWORDSOF) {
+		tnode_t *op = tnode_nthsubof (mod, 0);
+		cccsp_workspacehook_t *whook;
+
+		if (op->tag != kpriv->tag_WORKSPACE) {
+			nocc_internal ("cccsp_lcodegen_modifier(): NWORDSOF operand not WORKSPACE, got [%s]", op->tag->name);
+			return 0;
+		}
+		whook = (cccsp_workspacehook_t *)tnode_nthhookof (op, 0);
+
+		codegen_write_fmt (cgen, "%d", whook->nwords);
 	} else {
 		codegen_error (cgen, "cccsp_lcodegen_modifier(): unknown modifier [%s]", mod->tag->name);
 	}
@@ -1647,15 +1792,75 @@ static int cccsp_getname_wptr (langops_t *lops, tnode_t *node, char **str)
 }
 /*}}}*/
 
+/*{{{  static int cccsp_namemap_workspace (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for the slightly special WORKSPACE node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_namemap_workspace (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t *bename;
+
+	bename = tnode_getchook (*nodep, map->mapchook);
+	if (!bename) {
+		/* first occurance, create new name for it.  FIXME: sizes are busted */
+		bename = map->target->newname (*nodep, NULL, map, 4, 0, 0, 0, 4, 0);
+
+		tnode_setchook (*nodep, map->mapchook, (void *)bename);
+		*nodep = bename;
+	} else {
+		tnode_t *tname = map->target->newnameref (bename, map);
+
+		*nodep = tname;
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *cccsp_gettype_workspace (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a special WORKSPACE node (trivial)
+ */
+static tnode_t *cccsp_gettype_workspace (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	return tnode_nthsubof (node, 0);
+}
+/*}}}*/
+/*{{{  static int cccsp_getname_workspace (langops_t *lops, tnode_t *node, char **str)*/
+/*
+ *	gets the name of a special WORKSPACE node (trivial)
+ */
+static int cccsp_getname_workspace (langops_t *lops, tnode_t *node, char **str)
+{
+	cccsp_workspacehook_t *whook = (cccsp_workspacehook_t *)tnode_nthhookof (node, 0);
+
+	if (*str) {
+		sfree (*str);
+	}
+	*str = string_dup (whook->name);
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int cccsp_getctypeof_type (langops_t *lops, tnode_t *t, char **str)*/
 /*
  *	gets the C type of a WORKSPACE node (trivial)
  */
 static int cccsp_getctypeof_type (langops_t *lops, tnode_t *t, char **str)
 {
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cccsp_target.priv;
 	char *lstr;
 
-	lstr = string_dup ("Workspace");
+	if (t->tag == kpriv->tag_WPTRTYPE) {
+		lstr = string_dup ("Workspace");
+	} else if (t->tag == kpriv->tag_WORKSPACETYPE) {
+		lstr = string_dup ("word");
+	} else {
+		nocc_internal ("cccsp_getctypeof_type(): unhandled [%s]", t->tag->name);
+		return 0;
+	}
+
 	if (*str) {
 		sfree (*str);
 	}
@@ -1795,7 +2000,7 @@ static int cccsp_target_init (target_t *target)
 	target->tag_CONST = tnode_newnodetag ("CCCSPCONST", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  cccsp:modifier -- CCCSPADDROF*/
+	/*{{{  cccsp:modifier -- CCCSPADDROF, CCCSPNWORDSOF*/
 	i = -1;
 	tnd = tnode_newnodetype ("cccsp:modifier", &i, 1, 0, 0, TNF_NONE);	/* subnodes: operand */
 	cops = tnode_newcompops ();
@@ -1806,6 +2011,8 @@ static int cccsp_target_init (target_t *target)
 
 	i = -1;
 	kpriv->tag_ADDROF = tnode_newnodetag ("CCCSPADDROF", &i, tnd, NTF_NONE);
+	i = -1;
+	kpriv->tag_NWORDSOF = tnode_newnodetag ("CCCSPNWORDSOF", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  cccsp:label -- CCCSPLABEL*/
@@ -1857,7 +2064,23 @@ static int cccsp_target_init (target_t *target)
 	kpriv->tag_WPTR = tnode_newnodetag ("CCCSPWPTR", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  cccsp:type -- CCCSPWORKSPACE*/
+	/*{{{  cccsp:workspace -- CCCSPWORKSPACE*/
+	i = -1;
+	tnd = tnode_newnodetype ("cccsp:workspace", &i, 1, 0, 1, TNF_NONE);		/* subnodes: type; hooks: cccsp_workspacehook_t */
+	tnd->hook_dumptree = cccsp_workspacehook_dumptree;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (cccsp_namemap_workspace));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (cccsp_gettype_workspace));
+	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (cccsp_getname_workspace));
+	tnd->lops = lops;
+
+	i = -1;
+	kpriv->tag_WORKSPACE = tnode_newnodetag ("CCCSPWORKSPACE", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  cccsp:type -- CCCSPWPTRTYPE, CCCSPWORKSPACETYPE*/
 	i = -1;
 	tnd = tnode_newnodetype ("cccsp:type", &i, 0, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
@@ -1867,7 +2090,9 @@ static int cccsp_target_init (target_t *target)
 	tnd->lops = lops;
 
 	i = -1;
-	kpriv->tag_WORKSPACE = tnode_newnodetag ("CCCSPWORKSPACE", &i, tnd, NTF_NONE);
+	kpriv->tag_WPTRTYPE = tnode_newnodetag ("CCCSPWPTRTYPE", &i, tnd, NTF_NONE);
+	i = -1;
+	kpriv->tag_WORKSPACETYPE = tnode_newnodetag ("CCCSPWORKSPACETYPE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 
