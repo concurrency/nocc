@@ -1,0 +1,12 @@
+# test_g19.gpp -- more Guppy tests
+
+# explicit declaration of an external entity
+@external "guppy" "define gup_scr_process (chan?(char) in) = 512"
+
+define test_g19 ()
+  chan(char) sc
+
+  par
+    gup_scr_process (sc?)
+end
+

@@ -751,6 +751,18 @@ static int guppy_fcndef_init_nodes (void)
 	gup.tag_PFCNDEF = tnode_newnodetag ("PFCNDEF", &i, tnd, NTF_INDENTED_PROC_LIST);
 
 	/*}}}*/
+	/*{{{  guppy:extdef -- EXTDECL*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:extdef", &i, 2, 0, 0, TNF_NONE);			/* subnodes: definition, stack-words */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_EXTDECL = tnode_newnodetag ("EXTDECL", &i, tnd, NTF_NONE);
+
+	/*}}}*/
 
 	/*{{{  compiler operations for handling scoping and other things associated with parameters*/
 	if (tnode_newcompop ("inparams_scopein", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {

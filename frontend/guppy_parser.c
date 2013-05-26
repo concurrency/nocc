@@ -1093,6 +1093,52 @@ tnode_dumptree (tree, 1, FHAN_STDERR);
 #endif
 
 		/*}}}*/
+	} else if (lexer_tokmatchlitstr (tok, "external")) {
+		/*{{{  some sort of external declaration*/
+		char *langstr, *descstr;
+		lexfile_t *blf;
+
+		lexer_freetoken (tok);
+		tok = lexer_nexttoken (lf);
+
+		if (tok->type != STRING) {
+			parser_error (SLOCN (lf), "expected language string, but found '%s'", lexer_stokenstr (tok));
+			goto skip_to_eol;
+		}
+
+		langstr = string_ndup (tok->u.str.ptr, tok->u.str.len);
+		lexer_freetoken (tok);
+
+		tok = lexer_nexttoken (lf);
+
+		if (tok->type != STRING) {
+			parser_error (SLOCN (lf), "expected descriptor string, but found '%s'", lexer_stokenstr (tok));
+			goto skip_to_eol;
+		}
+
+		descstr = string_ndup (tok->u.str.ptr, tok->u.str.len);
+		lexer_freetoken (tok);
+
+		/* attempt to open the buffer as a new lex-file and parse it */
+		blf = lexer_openbuf (NULL, langstr, descstr);
+		if (!blf) {
+			parser_error (SLOCN (lf), "failed to open descriptor string as buffer");
+			goto skip_to_eol;
+		}
+
+		tree = parser_descparse (blf);
+		if (!tree) {
+			parser_error (SLOCN (lf), "failed to parse external declaration");
+			lexer_close (blf);
+			goto skip_to_eol;
+		}
+
+		lexer_close (blf);
+
+		/*}}}*/
+	} else {
+		parser_error (SLOCN (lf), "unknown pre-processor directive '%s'", lexer_stokenstr (tok));
+		return NULL;
 	}
 
 	/* if we get here, means we're done with whatever, expect comment and/or newline */
@@ -1245,6 +1291,9 @@ static tnode_t *guppy_declorproc (lexfile_t *lf)
 		tnode_free (tree);
 		tree = guppy_parser_parseproc (lf);
 	} else {
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_declorproc(): about to fail, but testtruetag == %p\n", testtruetag);
+#endif
 		nocc_serious ("guppy_declorproc(): guppy_testfordecl DFA returned:");
 		tnode_dumptree (tree, 1, FHAN_STDERR);
 		tnode_free (tree);
@@ -1629,8 +1678,12 @@ static tnode_t *guppy_parser_descparse (lexfile_t *lf)
 		nocc_message ("guppy_parser_descparse(): parsing descriptor(s)...");
 	}
 
-	/* FIXME: parse */
+	*target = dfa_walk ("guppy:descriptor", 0, lf);
 
+#if 1
+fhandle_printf (FHAN_STDERR, "guppy_parser_descparse(): got descriptor:\n");
+tnode_dumptree (tree, 1, FHAN_STDERR);
+#endif
 	return tree;
 }
 /*}}}*/

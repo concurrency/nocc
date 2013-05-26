@@ -71,6 +71,7 @@
 /*{{{  private things*/
 
 static tnode_t *guppy_oper_inttypenode = NULL;
+static tnode_t *guppy_oper_booltypenode = NULL;
 
 /*}}}*/
 
@@ -167,6 +168,55 @@ static tnode_t *guppy_gettype_dopnode (langops_t *lops, tnode_t *node, tnode_t *
 }
 /*}}}*/
 
+/*{{{  static int guppy_typecheck_booldopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking for a boolean dop-node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_typecheck_booldopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *op0, *op1;
+	tnode_t *op0type, *op1type;
+	tnode_t *atype;
+	int pref = 0;
+
+	op0 = tnode_nthsubof (node, 0);
+	op1 = tnode_nthsubof (node, 1);
+
+	/* walk operators */
+	typecheck_subtree (op0, tc);
+	typecheck_subtree (op1, tc);
+
+	/* attempt to get default types, should be boolean */
+	op0type = typecheck_gettype (op0, guppy_oper_booltypenode);
+	op1type = typecheck_gettype (op1, guppy_oper_booltypenode);
+
+	if (!op0type && !op1type) {
+		typecheck_error (node, tc, "failed to determine either type for operator");
+		return 0;
+	}
+	if (!op0type) {
+		op0type = typecheck_gettype (op0, op1type);
+		pref = 1;
+	} else if (!op1type) {
+		op1type = typecheck_gettype (op1, op0type);
+		pref = 0;
+	}
+	if (!op0type || !op1type) {
+		typecheck_error (node, tc, "failed to determine types for operator");
+		return 0;
+	}
+	atype = typecheck_typeactual (pref ? op0type : op1type, pref ? op1type : op0type, node, tc);
+	if (!atype) {
+		typecheck_error (node, tc, "incompatible types for operator");
+		return 0;
+	}
+
+	tnode_setnthsub (node, 2, atype);
+
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static int guppy_typecheck_typeopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
@@ -308,7 +358,6 @@ static tnode_t *guppy_gettype_arrayopnode (langops_t *lops, tnode_t *node, tnode
 }
 /*}}}*/
 
-
 /*{{{  static int guppy_oper_init_nodes (void)*/
 /*
  *	called to initialise nodes/etc. for guppy operators
@@ -321,7 +370,7 @@ static int guppy_oper_init_nodes (void)
 	langops_t *lops;
 	int i;
 
-	/*{{{  guppy:dopnode -- ADD, SUB, MUL, DIV, REM, BITXOR, BITAND, BITOR*/
+	/*{{{  guppy:dopnode -- ADD, SUB, MUL, DIV, REM, XOR, AND, OR, BITXOR, BITAND, BITOR*/
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:dopnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: left, right, type */
 	cops = tnode_newcompops ();
@@ -337,6 +386,75 @@ static int guppy_oper_init_nodes (void)
 	gup.tag_ADD = tnode_newnodetag ("ADD", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_SUB = tnode_newnodetag ("SUB", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_MUL = tnode_newnodetag ("MUL", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_DIV = tnode_newnodetag ("DIV", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_REM = tnode_newnodetag ("REM", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_BITXOR = tnode_newnodetag ("BITXOR", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_BITAND = tnode_newnodetag ("BITAND", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_BITOR = tnode_newnodetag ("BITOR", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:booldopnode -- XOR, AND, OR*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:booldopnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: left, right, type */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_booldopnode));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_XOR = tnode_newnodetag ("XOR", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_AND = tnode_newnodetag ("AND", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_OR = tnode_newnodetag ("OR", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:mopnode -- BITNOT, NEG*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:mopnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: op, type */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_BITNOT = tnode_newnodetag ("BITNOT", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_NEG = tnode_newnodetag ("NEG", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:boolmopnode -- NOT*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:boolmopnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: op, type */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_NOT = tnode_newnodetag ("NOT", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:chanopnode -- MARKEDIN, MARKEDOUT*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:chanopnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: op, type */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_MARKEDIN = tnode_newnodetag ("MARKEDIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_MARKEDOUT = tnode_newnodetag ("MARKEDOUT", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:typeopnode -- SIZE, BYTESIN*/
@@ -385,6 +503,7 @@ static int guppy_oper_init_nodes (void)
 static int guppy_oper_post_setup (void)
 {
 	guppy_oper_inttypenode = guppy_newprimtype (gup.tag_INT, NULL, 0);
+	guppy_oper_booltypenode = guppy_newprimtype (gup.tag_BOOL, NULL, 0);
 	return 0;
 }
 /*}}}*/

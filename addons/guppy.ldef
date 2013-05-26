@@ -44,6 +44,8 @@
 	"[ 0 +Name 2 ] [ 2 +Name 3 ] [ 3 {<gup:rewindlexer>} -* <guppy:namenamestartproc> ]"
 	"[ 2 -* 4 ] [ 4 {<gup:rewindlexer>} -* <guppy:namestartproc> ]"
 
+.TABLE	"guppy:descriptor ::= [ 0 @define 1 ] [ 1 guppy:definedecl 2 ] [ 2 @@= 3 ] [ 3 guppy:literal 4 ] [ 4 {<gup:extdeclreduce>} -* ]"
+
 #.BNF	"guppy:procstart +:= ( guppy:primproc | guppy:cnode ) {<gup:nullreduce>}"
 
 # definitions that start with 'define' use "guppy:definedecl" ('define' already eaten),
@@ -133,6 +135,8 @@
 # }}}
 .SECTION "guppy-fcndef" # {{{: function/procedure definitions
 
+.GRULE	"gup:extdeclreduce" "SN0N+N+VC[EXTDECL]2R-"
+
 .GRULE	"gup:fcndefreduce" "SN1N+N+V000C[FCNDEF]5R-"
 .GRULE	"gup:fcndefreduce1" "SN0N+0000C[FCNDEF]5R-"
 .GRULE	"gup:fcndefreduce2" "SN2N+0N+N+V*0C[FCNDEF]5R-"
@@ -197,6 +201,12 @@
 
 .GRULE	"gup:foldaddreduce" "R+N+Sn00C[ADD]3R-"
 .GRULE	"gup:foldsubreduce" "R+N+Sn00C[SUB]3R-"
+.GRULE	"gup:foldmulreduce" "R+N+Sn00C[MUL]3R-"
+.GRULE	"gup:folddivreduce" "R+N+Sn00C[DIV]3R-"
+.GRULE	"gup:foldremreduce" "R+N+Sn00C[REM]3R-"
+.GRULE	"gup:foldandreduce" "R+N+Sn00C[AND]3R-"
+.GRULE	"gup:foldmarkedinreduce" "R+Sn00C[MARKEDIN]2R-"
+.GRULE	"gup:foldmarkedoutreduce" "R+Sn00C[MARKEDOUT]2R-"
 .GRULE	"gup:sizereduce" "SN0N+0C[SIZE]2R-"
 .GRULE	"gup:bytesinreduce" "SN0N+0C[BYTESIN]2R-"
 .GRULE	"gup:foldarraysub" "R+N+Sn00C[ARRAYSUB]3R-"
@@ -210,6 +220,12 @@
 # for "guppy:restofexpr" existing expression is result already
 .TABLE	"guppy:restofexpr +:= [ 0 @@+ 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:foldaddreduce>} -* ]"
 	"[ 0 @@- 3 ] [ 3 guppy:expr 4 ] [ 4 {<gup:foldsubreduce>} -* ]"
+	"[ 0 @@* 5 ] [ 5 guppy:expr 6 ] [ 6 {<gup:foldmulreduce>} -* ]"
+	"[ 0 @@/ 7 ] [ 7 guppy:expr 8 ] [ 8 {<gup:folddivreduce>} -* ]"
+	"[ 0 @@\\ 9 ] [ 9 guppy:expr 10 ] [ 10 {<gup:foldremreduce>} -* ]"
+	"[ 0 @@? 11 ] [ 11 {<gup:foldmarkedinreduce>} -* ]"
+	"[ 0 @@! 12 ] [ 12 {<gup:foldmarkedinreduce>} -* ]"
+	"[ 0 @@&& 13 ] [ 13 guppy:expr 14 ] [ 14 {<gup:foldandreduce>} -* ]"
 	"[ 0 -* ]"
 
 .TABLE	"guppy:restofexpr +:= [ 0 @@[ 1 ] [ 1 guppy:expr 2 ] [ 2 @@] 3 ] [ 3 {<gup:foldarraysub>} -* <guppy:restofexpr> ]"

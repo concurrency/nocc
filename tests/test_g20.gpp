@@ -1,0 +1,11 @@
+# test_g20.gpp -- operators
+
+define test_g20 ()
+  int a, b
+  bool c
+
+  a = 20
+  b = a + 4
+
+end
+

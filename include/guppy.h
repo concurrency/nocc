@@ -85,6 +85,8 @@ typedef struct {
 	struct TAG_ntdef *tag_ENUMDEF;
 	struct TAG_ntdef *tag_FPARAMINIT;
 
+	struct TAG_ntdef *tag_EXTDECL;
+
 	struct TAG_ntdef *tag_SEQ;
 	struct TAG_ntdef *tag_PAR;
 
@@ -132,6 +134,22 @@ typedef struct {
 
 	struct TAG_ntdef *tag_ADD;
 	struct TAG_ntdef *tag_SUB;
+	struct TAG_ntdef *tag_MUL;
+	struct TAG_ntdef *tag_DIV;
+	struct TAG_ntdef *tag_REM;
+	struct TAG_ntdef *tag_XOR;
+	struct TAG_ntdef *tag_AND;
+	struct TAG_ntdef *tag_OR;
+	struct TAG_ntdef *tag_BITXOR;
+	struct TAG_ntdef *tag_BITAND;
+	struct TAG_ntdef *tag_BITOR;
+
+	struct TAG_ntdef *tag_NOT;
+	struct TAG_ntdef *tag_BITNOT;
+	struct TAG_ntdef *tag_NEG;
+
+	struct TAG_ntdef *tag_MARKEDIN;
+	struct TAG_ntdef *tag_MARKEDOUT;
 
 	struct TAG_ntdef *tag_SIZE;
 	struct TAG_ntdef *tag_BYTESIN;
