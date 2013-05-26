@@ -640,7 +640,41 @@ static int guppy_knownsizeof_primtype (langops_t *lops, tnode_t *t)
 	return pth->strlen;
 }
 /*}}}*/
+/*{{{  static int guppy_typehash_primtype (langops_t *lops, tnode_t *t, int hsize, void *ptr)*/
+/*
+ *	gets the type-hash for a primitive type
+ *	returns 0 on success, non-zero on failure
+ */
+static int guppy_typehash_primtype (langops_t *lops, tnode_t *t, int hsize, void *ptr)
+{
+	primtypehook_t *pth = (primtypehook_t *)tnode_nthhookof (t, 0);
+	unsigned int myhash = 0;
 
+	if (t->tag == gup.tag_BOOL) {
+		myhash = 0x36136930;
+	} else if (t->tag == gup.tag_INT) {
+		if (pth->sign) {
+			myhash = 0xa36cfe00 + pth->size;
+		} else {
+			myhash = 0xc30ae600 + pth->size;
+		}
+	} else if (t->tag == gup.tag_REAL) {
+		myhash = 0x048caee1 + pth->size;
+	} else if (t->tag == gup.tag_BYTE) {
+		myhash = 0x1046ca0b;
+	} else if (t->tag == gup.tag_CHAR) {
+		myhash = 0xfeedf00d;
+	} else if (t->tag == gup.tag_STRING) {
+		myhash = 0xbeef0011;
+	} else {
+		nocc_internal ("guppy_typehash_primtype(): unhandled [%s]", t->tag->name);
+		return 0;
+	}
+
+	langops_typehash_blend (hsize, ptr, sizeof (myhash), (void *)&myhash);
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static int guppy_getdescriptor_chantype (langops_t *lops, tnode_t *node, char **sptr)*/
 /*
@@ -765,6 +799,23 @@ static int guppy_guesstlp_chantype (langops_t *lops, tnode_t *node)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_typehash_chantype (langops_t *lops, tnode_t *t, int hsize, void *ptr)*/
+/*
+ *	gets the type-hash for a channel type
+ *	returns 0 on success, non-zero on failure
+ */
+static int guppy_typehash_chantype (langops_t *lops, tnode_t *t, int hsize, void *ptr)
+{
+	chantypehook_t *cth = (chantypehook_t *)tnode_nthhookof (t, 0);
+	unsigned int myhash;
+
+	langops_typehash (tnode_nthsubof (t, 0), sizeof (myhash), (void *)&myhash);
+	myhash = ((myhash << 3) ^ (myhash >> 28)) ^ 0x50030001;
+
+	langops_typehash_blend (hsize, ptr, sizeof (myhash), (void *)&myhash);
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static int guppy_typecheck_arraytype (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
@@ -823,6 +874,7 @@ static int guppy_types_init_nodes (void)
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_primtype));
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (guppy_typeactual_primtype));
 	tnode_setlangop (lops, "knownsizeof", 1, LANGOPTYPE (guppy_knownsizeof_primtype));
+	tnode_setlangop (lops, "typehash", 3, LANGOPTYPE (guppy_typehash_primtype));
 	tnd->lops = lops;
 
 	i = -1;
@@ -898,6 +950,18 @@ static int guppy_types_init_nodes (void)
 
 	i = -1;
 	gup.tag_VALTYPE = tnode_newnodetag ("VALTYPE", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:anytype -- ANY*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:anytype", &i, 0, 0, 0, TNF_NONE);
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_ANY = tnode_newnodetag ("ANY", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

@@ -65,6 +65,7 @@ typedef struct {
 	struct TAG_ntdef *tag_STRING;
 
 	struct TAG_ntdef *tag_CHAN;
+	struct TAG_ntdef *tag_ANY;
 	struct TAG_ntdef *tag_NAME;
 
 	struct TAG_ntdef *tag_ARRAY;
@@ -137,12 +138,20 @@ typedef struct {
 	struct TAG_ntdef *tag_MUL;
 	struct TAG_ntdef *tag_DIV;
 	struct TAG_ntdef *tag_REM;
-	struct TAG_ntdef *tag_XOR;
-	struct TAG_ntdef *tag_AND;
-	struct TAG_ntdef *tag_OR;
 	struct TAG_ntdef *tag_BITXOR;
 	struct TAG_ntdef *tag_BITAND;
 	struct TAG_ntdef *tag_BITOR;
+
+	struct TAG_ntdef *tag_XOR;
+	struct TAG_ntdef *tag_AND;
+	struct TAG_ntdef *tag_OR;
+
+	struct TAG_ntdef *tag_LT;
+	struct TAG_ntdef *tag_LE;
+	struct TAG_ntdef *tag_GT;
+	struct TAG_ntdef *tag_GE;
+	struct TAG_ntdef *tag_EQ;
+	struct TAG_ntdef *tag_NE;
 
 	struct TAG_ntdef *tag_NOT;
 	struct TAG_ntdef *tag_BITNOT;

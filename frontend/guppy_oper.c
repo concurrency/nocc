@@ -192,7 +192,7 @@ static int guppy_typecheck_booldopnode (compops_t *cops, tnode_t *node, typechec
 	op1type = typecheck_gettype (op1, guppy_oper_booltypenode);
 
 	if (!op0type && !op1type) {
-		typecheck_error (node, tc, "failed to determine either type for operator");
+		typecheck_error (node, tc, "failed to determine either type for boolean operator");
 		return 0;
 	}
 	if (!op0type) {
@@ -203,18 +203,163 @@ static int guppy_typecheck_booldopnode (compops_t *cops, tnode_t *node, typechec
 		pref = 0;
 	}
 	if (!op0type || !op1type) {
-		typecheck_error (node, tc, "failed to determine types for operator");
+		typecheck_error (node, tc, "failed to determine types for boolean operator");
 		return 0;
 	}
 	atype = typecheck_typeactual (pref ? op0type : op1type, pref ? op1type : op0type, node, tc);
 	if (!atype) {
-		typecheck_error (node, tc, "incompatible types for operator");
+		typecheck_error (node, tc, "incompatible types for boolean operator");
 		return 0;
 	}
 
 	tnode_setnthsub (node, 2, atype);
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_namemap_booldopnode (compops_t *cops, tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a boolean operator node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_booldopnode (compops_t *cops, tnode_t **node, map_t *map)
+{
+	map_submapnames (tnode_nthsubaddr (*node, 0), map);
+	map_submapnames (tnode_nthsubaddr (*node, 1), map);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_booldopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a boolean operator node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_booldopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	codegen_write_fmt (cgen, "(");
+	codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+	if (node->tag == gup.tag_AND) {
+		codegen_write_fmt (cgen, "&&");
+	} else if (node->tag == gup.tag_OR) {
+		codegen_write_fmt (cgen, "||");
+	} else if (node->tag == gup.tag_XOR) {
+		codegen_write_fmt (cgen, "^");
+	} else {
+		nocc_internal ("guppy_codegen_booldopnode(): unhandled operator!");
+	}
+	codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+	codegen_write_fmt (cgen, ")");
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_gettype_booldopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a boolean operator
+ */
+static tnode_t *guppy_gettype_booldopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	return tnode_nthsubof (node, 2);
+}
+/*}}}*/
+
+/*{{{  static int guppy_typecheck_reldopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a relational operator
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_typecheck_reldopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *op0, *op1;
+	tnode_t *op0type, *op1type;
+	tnode_t *atype;
+	int pref = 0;
+
+	op0 = tnode_nthsubof (node, 0);
+	op1 = tnode_nthsubof (node, 1);
+
+	/* walk operators */
+	typecheck_subtree (op0, tc);
+	typecheck_subtree (op1, tc);
+
+	/* first, blindly attempt to get default types */
+	op0type = typecheck_gettype (op0, NULL);
+	op1type = typecheck_gettype (op1, NULL);
+
+	if (!op0type && !op1type) {
+		typecheck_error (node, tc, "failed to determine either type for relational operator");
+		return 0;
+	}
+	if (!op0type) {
+		op0type = typecheck_gettype (op0, op1type);
+		pref = 1;
+	} else if (!op1type) {
+		op1type = typecheck_gettype (op1, op0type);
+		pref = 0;
+	}
+	if (!op0type || !op1type) {
+		typecheck_error (node, tc, "failed to determine types for relational operator");
+		return 0;
+	}
+	atype = typecheck_typeactual (pref ? op0type : op1type, pref ? op1type : op0type, node, tc);
+	if (!atype) {
+		typecheck_error (node, tc, "incompatible types for relational operator");
+		return 0;
+	}
+
+	atype = tnode_copytree (guppy_oper_booltypenode);
+	tnode_setnthsub (node, 2, atype);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_namemap_reldopnode (compops_t *cops, tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a relational operator node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_reldopnode (compops_t *cops, tnode_t **node, map_t *map)
+{
+	map_submapnames (tnode_nthsubaddr (*node, 0), map);
+	map_submapnames (tnode_nthsubaddr (*node, 1), map);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_reldopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a relational operator node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_reldopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	codegen_write_fmt (cgen, "(");
+	codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+	if (node->tag == gup.tag_LT) {
+		codegen_write_fmt (cgen, "<");
+	} else if (node->tag == gup.tag_GT) {
+		codegen_write_fmt (cgen, ">");
+	} else if (node->tag == gup.tag_LE) {
+		codegen_write_fmt (cgen, "<=");
+	} else if (node->tag == gup.tag_GE) {
+		codegen_write_fmt (cgen, ">=");
+	} else if (node->tag == gup.tag_EQ) {
+		codegen_write_fmt (cgen, "==");
+	} else if (node->tag == gup.tag_NE) {
+		codegen_write_fmt (cgen, "!=");
+	} else {
+		nocc_internal ("guppy_codegen_reldopnode(): unhandled operator!");
+	}
+	codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+	codegen_write_fmt (cgen, ")");
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_gettype_reldopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a relational operator
+ */
+static tnode_t *guppy_gettype_reldopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	return tnode_nthsubof (node, 2);
 }
 /*}}}*/
 
@@ -405,8 +550,11 @@ static int guppy_oper_init_nodes (void)
 	tnd = tnode_newnodetype ("guppy:booldopnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: left, right, type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_booldopnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_booldopnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_booldopnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_booldopnode));
 	tnd->lops = lops;
 
 	i = -1;
@@ -415,6 +563,32 @@ static int guppy_oper_init_nodes (void)
 	gup.tag_AND = tnode_newnodetag ("AND", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_OR = tnode_newnodetag ("OR", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:reldopnode -- LT, GT, LE, GE, EQ, NE*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:reldopnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: left, right, type */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_reldopnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_reldopnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_reldopnode));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_reldopnode));
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_LT = tnode_newnodetag ("LT", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_GT = tnode_newnodetag ("GT", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_LE = tnode_newnodetag ("LE", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_GE = tnode_newnodetag ("GE", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_EQ = tnode_newnodetag ("EQ", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_NE = tnode_newnodetag ("NE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:mopnode -- BITNOT, NEG*/

@@ -5,7 +5,8 @@ define test_g20 ()
   bool c
 
   a = 20
-  b = a + 4
+  b = (a + 4)
+  c = (b > a) && (a != 19)
 
 end
 

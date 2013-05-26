@@ -1,6 +1,6 @@
 /*
  *	langops.c -- langage-level operations for nocc
- *	Copyright (C) 2005-2008 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -391,7 +391,7 @@ int langops_typehash (tnode_t *node, const int hsize, void *ptr)
 /*}}}*/
 /*{{{  int langops_typehash_blend (const int dsize, void *dptr, const int ssize, void *sptr)*/
 /*
- *	blends together two type-hashes (widths in bytes and pointers to suitable buffers are given)
+ *	blends together two type-hashes (widths in bytes and pointers to suitable buffers are given);  contents of 'dptr' are modified.
  *	returns 0 on success, non-zero on failure
  */
 int langops_typehash_blend (const int dsize, void *dptr, const int ssize, void *sptr)

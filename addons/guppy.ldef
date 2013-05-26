@@ -120,11 +120,13 @@
 .RFUNC	"Rguppy:chantype" "guppy_reduce_chantype"
 
 .GRULE	"gup:valtypereduce" "SN0N+C[VALTYPE]1R-"
+.GRULE	"gup:anytypepush" "T+St0@tC[ANY]0N-"
 
 .BNF	"guppy:primtype ::= ( +@int | +@uint | +@real | +@bool | +@byte | +@char | +@string ) {Rguppy:primtype}"
 
 .TABLE	"guppy:chantype ::= [ 0 +@chan 1 ] [ 1 +@@? 2 ] [ 1 +@@! 2 ] [ 1 -* 2 ]"
-	"[ 2 @@( 3 ] [ 3 guppy:type 4 ] [ 4 @@) 5 ] [ 5 {Rguppy:chantype} -* ]"
+	"[ 2 @@( 3 ] [ 3 +@@* 6 ] [ 3 guppy:type 4 ] [ 4 @@) 5 ] [ 5 {Rguppy:chantype} -* ]"
+	"[ 6 {<gup:anytypepush>} -* 4 ]"
 
 .BNF	"guppy:subtype ::= ( guppy:primtype {<gup:nullreduce>} | guppy:chantype {<gup:nullreduce>} )"
 .TABLE	"guppy:type ::= [ 0 %guppy:subtype 3 ] [ 0 @val 1 ] [ 1 guppy:subtype 2 ] [ 2 {<gup:valtypereduce>} -* ]"
@@ -204,7 +206,15 @@
 .GRULE	"gup:foldmulreduce" "R+N+Sn00C[MUL]3R-"
 .GRULE	"gup:folddivreduce" "R+N+Sn00C[DIV]3R-"
 .GRULE	"gup:foldremreduce" "R+N+Sn00C[REM]3R-"
+.GRULE	"gup:foldxorreduce" "R+N+Sn00C[XOR]3R-"
 .GRULE	"gup:foldandreduce" "R+N+Sn00C[AND]3R-"
+.GRULE	"gup:foldorreduce" "R+N+Sn00C[OR]3R-"
+.GRULE	"gup:foldltreduce" "R+N+Sn00C[LT]3R-"
+.GRULE	"gup:foldlereduce" "R+N+Sn00C[LE]3R-"
+.GRULE	"gup:foldgtreduce" "R+N+Sn00C[GT]3R-"
+.GRULE	"gup:foldgereduce" "R+N+Sn00C[GE]3R-"
+.GRULE	"gup:foldeqreduce" "R+N+Sn00C[EQ]3R-"
+.GRULE	"gup:foldnereduce" "R+N+Sn00C[NE]3R-"
 .GRULE	"gup:foldmarkedinreduce" "R+Sn00C[MARKEDIN]2R-"
 .GRULE	"gup:foldmarkedoutreduce" "R+Sn00C[MARKEDOUT]2R-"
 .GRULE	"gup:sizereduce" "SN0N+0C[SIZE]2R-"
@@ -215,6 +225,7 @@
 
 .TABLE	"guppy:expr +:= [ 0 @size 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:sizereduce>} -* ]"
 .TABLE	"guppy:expr +:= [ 0 @bytesin 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:bytesinreduce>} -* ]"
+.TABLE	"guppy:expr +:= [ 0 @@( 1 ] [ 1 guppy:expr 2 ] [ 2 @@) 3 ] [ 3 {<gup:nullreduce>} -* <guppy:restofexpr> ]"
 
 
 # for "guppy:restofexpr" existing expression is result already
@@ -225,7 +236,15 @@
 	"[ 0 @@\\ 9 ] [ 9 guppy:expr 10 ] [ 10 {<gup:foldremreduce>} -* ]"
 	"[ 0 @@? 11 ] [ 11 {<gup:foldmarkedinreduce>} -* ]"
 	"[ 0 @@! 12 ] [ 12 {<gup:foldmarkedinreduce>} -* ]"
-	"[ 0 @@&& 13 ] [ 13 guppy:expr 14 ] [ 14 {<gup:foldandreduce>} -* ]"
+	"[ 0 @@>< 13 ] [ 13 guppy:expr 14 ] [ 14 {<gup:foldxorreduce>} -* ]"
+	"[ 0 @@&& 15 ] [ 15 guppy:expr 16 ] [ 16 {<gup:foldandreduce>} -* ]"
+	"[ 0 @@|| 17 ] [ 17 guppy:expr 18 ] [ 18 {<gup:foldorreduce>} -* ]"
+	"[ 0 @@< 19 ] [ 19 guppy:expr 20 ] [ 20 {<gup:foldltreduce>} -* ]"
+	"[ 0 @@<= 21 ] [ 21 guppy:expr 22 ] [ 22 {<gup:foldlereduce>} -* ]"
+	"[ 0 @@> 23 ] [ 23 guppy:expr 24 ] [ 24 {<gup:foldgtreduce>} -* ]"
+	"[ 0 @@>= 25 ] [ 25 guppy:expr 26 ] [ 26 {<gup:foldgereduce>} -* ]"
+	"[ 0 @@== 27 ] [ 27 guppy:expr 28 ] [ 28 {<gup:foldeqreduce>} -* ]"
+	"[ 0 @@!= 29 ] [ 29 guppy:expr 30 ] [ 30 {<gup:foldnereduce>} -* ]"
 	"[ 0 -* ]"
 
 .TABLE	"guppy:restofexpr +:= [ 0 @@[ 1 ] [ 1 guppy:expr 2 ] [ 2 @@] 3 ] [ 3 {<gup:foldarraysub>} -* <guppy:restofexpr> ]"
