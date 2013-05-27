@@ -1,0 +1,10 @@
+# test_g23.gpp -- more type tests
+
+define type Coord (T)
+  T x, y
+end
+
+define test_g23 ()
+  skip
+end
+

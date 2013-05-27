@@ -77,6 +77,7 @@ static tnode_t *guppy_parser_parseproc (lexfile_t *lf);
 static tnode_t *guppy_parser_parsedef (lexfile_t *lf);
 static tnode_t *guppy_declorproc (lexfile_t *lf);
 static tnode_t *guppy_indented_declorproc_list (lexfile_t *lf);
+static tnode_t *guppy_indented_tcase_list (lexfile_t *lf);
 
 /*}}}*/
 /*{{{  global vars*/
@@ -206,6 +207,33 @@ void guppy_freefetrans2 (guppy_fetrans2_t *fe2)
 		return;
 	}
 	sfree (fe2);
+	return;
+}
+/*}}}*/
+/*{{{  guppy_fetrans3_t *guppy_newfetrans3 (void)*/
+/*
+ *	creates a new guppy_fetrans3_t structure
+ */
+guppy_fetrans3_t *guppy_newfetrans3 (void)
+{
+	guppy_fetrans3_t *fe3 = (guppy_fetrans3_t *)smalloc (sizeof (guppy_fetrans3_t));
+
+	fe3->error = 0;
+
+	return fe3;
+}
+/*}}}*/
+/*{{{  void guppy_freefetrans3 (guppy_fetrans3_t *fe3)*/
+/*
+ *	frees a guppy_fetrans3_t structure
+ */
+void guppy_freefetrans3 (guppy_fetrans3_t *fe3)
+{
+	if (!fe3) {
+		nocc_serious ("guppy_freefetrans3(): NULL pointer!");
+		return;
+	}
+	sfree (fe3);
 	return;
 }
 /*}}}*/
@@ -363,7 +391,22 @@ static int fetrans2_modprewalk (tnode_t **tptr, void *arg)
 	return i;
 }
 /*}}}*/
+/*{{{  static int fetrans3_modprewalk (tnode_t **tptr, void *arg)*/
+/*
+ *	called for each node walked during the 'fetrans3' pass
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int fetrans3_modprewalk (tnode_t **tptr, void *arg)
+{
+	guppy_fetrans3_t *fe3 = (guppy_fetrans3_t *)arg;
+	int i = 1;
 
+	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop ((*tptr)->tag->ndef->ops, "fetrans3")) {
+		i = tnode_callcompop ((*tptr)->tag->ndef->ops, "fetrans3", 2, tptr, fe3);
+	}
+	return i;
+}
+/*}}}*/
 
 /*{{{  void guppy_isetindent (fhandle_t *stream, int indent)*/
 /*
@@ -391,7 +434,6 @@ langdef_t *guppy_getlangdef (void)
 	return guppy_priv->langdefs;
 }
 /*}}}*/
-
 
 /*{{{  int guppy_declify_listtodecllist (tnode_t **listptr, guppy_declify_t *gdl)*/
 /*
@@ -533,7 +575,6 @@ int guppy_autoseq_listtoseqlist (tnode_t **listptr, guppy_autoseq_t *gas)
 }
 /*}}}*/
 
-
 /*{{{  int guppy_declify_subtree (tnode_t **tptr, guppy_declify_t *gdl)*/
 /*
  *	does declify on a parse-tree (unscoped)
@@ -654,6 +695,26 @@ int guppy_fetrans2_subtree (tnode_t **tptr, guppy_fetrans2_t *fe2)
 		return 0;
 	} else {
 		tnode_modprewalktree (tptr, fetrans2_modprewalk, (void *)fe2);
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int guppy_fetrans3_subtree (tnode_t **tptr, guppy_fetrans3_t *fe3)*/
+/*
+ *	does fetrans3 processing on a subtree.
+ *	returns 0 on success, non-zero on failure
+ */
+int guppy_fetrans3_subtree (tnode_t **tptr, guppy_fetrans3_t *fe3)
+{
+	if (!tptr) {
+		nocc_serious ("guppy_fetrans3_subtree(): NULL tree-pointer");
+		fe3->error++;
+		return 1;
+	} else if (!*tptr) {
+		return 0;
+	} else {
+		tnode_modprewalktree (tptr, fetrans3_modprewalk, (void *)fe3);
 	}
 
 	return 0;
@@ -822,6 +883,11 @@ static int fetrans2_cpass (tnode_t **treeptr)
 	guppy_fetrans2_t *fe2 = guppy_newfetrans2 ();
 	int err;
 
+	/* might have some library stuff at the top */
+	while (*treeptr && ((*treeptr)->tag->ndef->tn_flags & TNF_TRANSPARENT)) {
+		treeptr = tnode_nthsubaddr (*treeptr, 0);
+	}
+
 	guppy_fetrans2_subtree (treeptr, fe2);
 
 	err = fe2->error;
@@ -837,6 +903,24 @@ static int fetrans2_cpass (tnode_t **treeptr)
 		}
 		parser_addtolist_front (*treeptr, minode);
 	}
+
+	return err;
+}
+/*}}}*/
+/*{{{  static int fetrans3_cpass (tnode_t **treeptr)*/
+/*
+ *	called to do the fetrans3 compiler-pass
+ *	returns 0 on success, non-zero on failure
+ */
+static int fetrans3_cpass (tnode_t **treeptr)
+{
+	guppy_fetrans3_t *fe3 = guppy_newfetrans3 ();
+	int err;
+
+	guppy_fetrans3_subtree (treeptr, fe3);
+
+	err = fe3->error;
+	guppy_freefetrans3 (fe3);
 
 	return err;
 }
@@ -953,6 +1037,13 @@ static int guppy_parser_init (lexfile_t *lf)
 			return 1;
 		}
 
+		stopat = nocc_laststopat() + 1;
+		opts_add ("stop-fetrans3", '\0', guppy_opthandler_stopat, (void *)stopat, "1stop after fetrans3 pass");
+		if (nocc_addcompilerpass ("fetrans3", INTERNAL_ORIGIN, "fetrans2", 0, (int (*)(void *))fetrans3_cpass, CPASS_TREEPTR, stopat, NULL)) {
+			nocc_serious ("guppy_parser_init(): failed to add \"fetrans3\" compiler pass");
+			return 1;
+		}
+
 		if (tnode_newcompop ("declify", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 			nocc_serious ("guppy_parser_init(): failed to add \"declify\" compiler operation");
 			return 1;
@@ -975,6 +1066,10 @@ static int guppy_parser_init (lexfile_t *lf)
 		}
 		if (tnode_newcompop ("fetrans2", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 			nocc_serious ("guppy_parser_init(): failed to add \"fetrans2\" compiler operation");
+			return 1;
+		}
+		if (tnode_newcompop ("fetrans3", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
+			nocc_serious ("guppy_parser_init(): failed to add \"fetrans3\" compiler operation");
 			return 1;
 		}
 
@@ -1210,6 +1305,39 @@ static int guppy_skiptoeol (lexfile_t *lf, int skipindent)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_skiptooutdent (lexfile_t *lf)*/
+/*
+ *	skips the lexer to the next logical outdent (doesn't consume).
+ *	returns 0 on success (skipped ok), non-zero otherwise
+ */
+static int guppy_skiptooutdent (lexfile_t *lf)
+{
+	int icount = 0;
+	token_t *tok;
+
+	for (;;) {
+		tok = lexer_nexttoken (lf);
+		if (tok->type == END) {
+			/* unexpected */
+			lexer_pushback (lf, tok);
+			return -1;
+		}
+		if (tok->type == INDENT) {
+			icount++;
+		} else if (tok->type == OUTDENT) {
+			if (!icount) {
+				/* stop here */
+				lexer_pushback (lf, tok);
+				return 0;
+			}
+			icount--;
+		}
+		lexer_freetoken (tok);
+	}
+	/* if we get here, ... */
+	return 1;
+}
+/*}}}*/
 
 
 /*{{{  static tnode_t *guppy_parser_parseproc (lexfile_t *lf)*/
@@ -1245,6 +1373,20 @@ static tnode_t *guppy_parser_parseproc (lexfile_t *lf)
 			/*}}}*/
 		} else {
 			tnode_warning (tree, "guppy_parser_parseproc(): unhandled LONGPROC [%s]", tree->tag->name);
+		}
+		/*}}}*/
+	} else if (tnflags & TNF_LONGACTION) {
+		/*{{{  long action (e.g. case-input)*/
+		int ntflags = tnode_ntflagsof (tree);
+
+		if (ntflags & NTF_INDENTED_TCASE_LIST) {
+			/*{{{  parse list of indented type-cases and processes into subnode 1*/
+			tnode_t *body = guppy_indented_tcase_list (lf);
+
+			tnode_setnthsub (tree, 1, body);
+			/*}}}*/
+		} else {
+			tnode_warning (tree, "guppy_parser_parseproc(): unhandled LONGACTION [%s]", tree->tag->name);
 		}
 		/*}}}*/
 	}
@@ -1316,6 +1458,7 @@ static tnode_t *guppy_indented_declorproc_list (lexfile_t *lf)
 {
 	tnode_t *tree = NULL;
 	token_t *tok;
+	int zflag = 0;
 
 	if (compopts.verbose > 1) {
 		nocc_message ("guppy_indented_declorproc_list(): %s:%d: parsing indented declaration or process list", lf->fnptr, lf->lineno);
@@ -1367,8 +1510,15 @@ static tnode_t *guppy_indented_declorproc_list (lexfile_t *lf)
 
 		if (thisone) {
 			parser_addtolist (tree, thisone);
-		} else {
+			zflag = 0;
+		} else if (!zflag) {
 			/* failed to parse -- actually, continue blindly.. */
+			zflag = 1;
+		} else {
+			/* not getting anywhere, give up -- search for the next outdent */
+			guppy_skiptooutdent (lf);
+			tok = lexer_nexttoken (lf);			/* either outdent or end */
+			break;
 		}
 		/*}}}*/
 	}
@@ -1468,6 +1618,81 @@ static tnode_t *guppy_indented_name_list (lexfile_t *lf)
 	return tree;
 }
 /*}}}*/
+/*{{{  static tnode_t *guppy_indented_tcase_list (lexfile_t *lf)*/
+/*
+ *	parses an indented list of type-cases and indented processes
+ */
+static tnode_t *guppy_indented_tcase_list (lexfile_t *lf)
+{
+	tnode_t *tree = NULL;
+	token_t *tok;
+
+	if (compopts.debugparser) {
+		nocc_message ("guppy_indented_tcase_list(): %s:%s: parsing indented tcase list", lf->fnptr, lf->lineno);
+	}
+
+	tree = parser_newlistnode (SLOCN (lf));
+
+	tok = lexer_nexttoken (lf);
+	/*{{{  skip newlines and comments*/
+	for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
+		lexer_freetoken (tok);
+	}
+
+	/*}}}*/
+	/*{{{  expect indent*/
+	if (tok->type != INDENT) {
+		parser_error (SLOCN (lf), "expected indent, found:");
+		lexer_dumptoken (FHAN_STDERR, tok);
+		lexer_pushback (lf, tok);
+		tnode_free (tree);
+		return NULL;
+	}
+
+	/*}}}*/
+	lexer_freetoken (tok);
+
+	for (;;) {
+		tnode_t *dblk, *thisone, *thisproc;
+		srclocn_t *slocn = SLOCN (lf);
+
+		/* check token for end of indentation */
+		tok = lexer_nexttoken (lf);
+		/*{{{  skip newlines and comments*/
+		for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
+			lexer_freetoken (tok);
+		}
+
+		/*}}}*/
+		if (tok->type == OUTDENT) {
+			/* got outdent, end-of-list! */
+			lexer_freetoken (tok);
+			break;		/* for() */
+		} else {
+			lexer_pushback (lf, tok);
+		}
+
+		/* first up, expect a single-line declaration */
+		thisone = dfa_walk ("guppy:otherdecl", 0, lf);
+		if (!thisone) {
+			/* failed to parse, give up */
+			break;		/* for() */
+		}
+
+		/* else, now expect indented decl-and-procs */
+		thisproc = guppy_indented_declorproc_list (lf);
+		if (!thisproc) {
+			/* failed to parse, give up */
+			break;		/* for() */
+		}
+
+		dblk = tnode_create (gup.tag_DECLBLOCK, slocn, thisone, thisproc);
+		parser_addtolist (tree, dblk);
+	}
+
+	return tree;
+}
+/*}}}*/
 /*{{{  static tnode_t *guppy_parser_parsedef (lexfile_t *lf)*/
 /*
  *	parses a single Guppy definition (e.g. process, type, ...)
@@ -1545,6 +1770,14 @@ fprintf (stderr, "guppy_parser_parsedef(): done walking for guppy:decl, got 0x%8
 	} else if (ntflags & NTF_INDENTED_NAME_LIST) {
 		/* parse list of indented names into subnode 1 */
 		thisone = guppy_indented_name_list (lf);
+		tnode_setnthsub (*target, 1, thisone);
+	} else if (ntflags & NTF_INDENTED_TCASE_LIST) {
+		/* parse list of indented type-cases and processes into subnode 1 */
+		thisone = guppy_indented_tcase_list (lf);
+		tnode_setnthsub (*target, 1, thisone);
+	} else if (ntflags & NTF_INDENTED_DECL_LIST) {
+		/* parse list of declarations into subnode 1 */
+		thisone = guppy_indented_declorproc_list (lf);
 		tnode_setnthsub (*target, 1, thisone);
 	}
 
@@ -1785,6 +2018,11 @@ static int guppy_parser_fetrans (tnode_t **tptr, fetrans_t *fe)
 	int i, r = 0;
 	guppy_fetrans_t *gfe;
 	tnode_t **litems;
+
+	/* might have some library stuff at the top */
+	while (*tptr && ((*tptr)->tag->ndef->tn_flags & TNF_TRANSPARENT)) {
+		tptr = tnode_nthsubaddr (*tptr, 0);
+	}
 
 	if (!parser_islistnode (*tptr)) {
 		nocc_internal ("guppy_parser_fetrans(): expected list at top-level, got [%s:%s]", (*tptr)->tag->ndef->name, (*tptr)->tag->name);

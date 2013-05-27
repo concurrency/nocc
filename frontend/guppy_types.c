@@ -166,7 +166,6 @@ static void guppy_freearraytypehook (arraytypehook_t *ath)
 }
 /*}}}*/
 
-
 /*{{{  static void guppy_reduce_primtype (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
 /*
  *	reduces a primitive type -- some of these may be sized
@@ -245,7 +244,6 @@ fprintf (stderr, "guppy_reduce_chantype(): here2! (tok = %s)\n", lexer_stokenstr
 	return;
 }
 /*}}}*/
-
 
 /*{{{  static void guppy_primtype_hook_free (void *hook)*/
 /*
@@ -396,7 +394,6 @@ static void guppy_arraytype_hook_dumptree (tnode_t *node, void *hook, int indent
 }
 /*}}}*/
 
-
 /*{{{  tnode_t *guppy_newprimtype (ntdef_t *tag, tnode_t *org, const int size)*/
 /*
  *	creates a new primitive type node (used internally to type things)
@@ -416,7 +413,6 @@ tnode_t *guppy_newprimtype (ntdef_t *tag, tnode_t *org, const int size)
 	return ptype;
 }
 /*}}}*/
-
 
 /*{{{  static int guppy_bytesfor_primtype (langops_t *lops, tnode_t *t, target_t *target)*/
 /*
@@ -841,6 +837,58 @@ static tnode_t *guppy_gettype_arraytype (langops_t *lops, tnode_t *node, tnode_t
 }
 /*}}}*/
 
+/*{{{  static int guppy_getdescriptor_anytype (langops_t *lops, tnode_t *node, char **sptr)*/
+/*
+ *	generates a descriptor string for the any-type (trivial)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_getdescriptor_anytype (langops_t *lops, tnode_t *node, char **sptr)
+{
+	char *lstr = NULL;
+
+	lstr = string_dup ("*");
+
+	if (*sptr) {
+		char *tmpstr = string_fmt ("%s%s", *sptr, lstr);
+
+		sfree (*sptr);
+		sfree (lstr);
+		*sptr = tmpstr;
+	} else {
+		*sptr = lstr;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_gettype_anytype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	returns the type of the any-type (id function).
+ */
+static tnode_t *guppy_gettype_anytype (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+#if 0
+fprintf (stderr, "guppy_gettype_anytype(): default_type is 0x%8.8x\n", (int)default_type);
+#endif
+	return node;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_typeactual_anytype (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-compatibility check on the any-type, returns actual type used
+ */
+static tnode_t *guppy_typeactual_anytype (langops_t *lops, tnode_t *formaltype, tnode_t *actualtype, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *atype = NULL;
+
+	/* special case: anything is permissable on an ANY formal */
+	atype = actualtype;
+#if 1
+fprintf (stderr, "guppy_typeactual_anytype(): formaltype=[%s], actualtype=[%s]\n", formaltype->tag->name, actualtype->tag->name);
+#endif
+
+	return atype;
+}
+/*}}}*/
 
 /*{{{  static int guppy_types_init_nodes (void)*/
 /*
@@ -906,6 +954,7 @@ static int guppy_types_init_nodes (void)
 	tnode_setlangop (lops, "getsubtype", 2, LANGOPTYPE (guppy_getsubtype_chantype));
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (guppy_typeactual_chantype));
 	tnode_setlangop (lops, "guesstlp", 1, LANGOPTYPE (guppy_guesstlp_chantype));
+	tnode_setlangop (lops, "typehash", 3, LANGOPTYPE (guppy_typehash_chantype));
 	tnd->lops = lops;
 
 	i = -1;
@@ -958,6 +1007,9 @@ static int guppy_types_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (guppy_getdescriptor_anytype));
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_anytype));
+	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (guppy_typeactual_anytype));
 	tnd->lops = lops;
 
 	i = -1;

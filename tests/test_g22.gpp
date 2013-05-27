@@ -1,0 +1,10 @@
+# test_g22.gpp -- more type tests
+
+define type ICoord
+  int x, y
+end
+
+define test_g22 ()
+  skip
+end
+

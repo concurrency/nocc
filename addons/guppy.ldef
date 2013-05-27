@@ -73,6 +73,7 @@
 .GRULE	"gup:vardeclreduce" "N+N+0C[VARDECL]3R-"
 
 .GRULE	"gup:enumreduce" "SN0N+0C[ENUMDEF]2R-"
+.GRULE	"gup:typedefreduce" "SN1N+N+V0VC[TYPEDEF]3R-"
 
 .BNF	"guppy:name ::= +Name {<gup:namereduce>}"
 .BNF	"guppy:namelist ::= { guppy:name @@, 1 }"
@@ -90,6 +91,9 @@
 	"[ 1 {<gup:testtrue>} -* ]"
 
 .TABLE	"guppy:definedecl +:= [ 0 @enum 1 ] [ 1 guppy:name 2 ] [ 2 {<gup:enumreduce>} -* ]"
+
+.TABLE	"guppy:definedecl +:= [ 0 @type 1 ] [ 1 guppy:name 2 ] [ 2 @@( 3 ] [ 3 guppy:namelist 4 ] [ 4 @@) 5 ] [ 5 {<gup:typedefreduce>} -* ]"
+	"[ 2 -* 6 ] [ 6 {<gup:nullpush>} -* 5 ]"
 
 .TABLE	"guppy:nameandassign ::= [ 0 guppy:name 1 ] [ 1 @@= 3 ] [ 1 @is 5 ] [ 1 -* 2 ] [ 2 {<gup:nullreduce>} -* ]"
 	"[ 3 guppy:expr 4 ] [ 4 {<gup:assignreduce>} -* ]"
@@ -191,9 +195,11 @@
 .SECTION "guppy-io" # {{{: input/output
 
 .GRULE "gup:inputreduce" "SN0N+N+V0C[INPUT]3R-"
+.GRULE "gup:caseinputreduce" "SN0N+00C[CASEINPUT]3R-"
 .GRULE "gup:outputreduce" "SN0N+N+V0C[OUTPUT]3R-"
 
 .TABLE "guppy:input ::= [ 0 guppy:name 1 ] [ 1 @@? 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:inputreduce>} -* ]"
+	"[ 2 @case 4 ] [ 4 {<gup:caseinputreduce>} -* ]"
 
 .TABLE "guppy:output ::= [ 0 guppy:name 1 ] [ 1 @@! 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:outputreduce>} -* ]"
 

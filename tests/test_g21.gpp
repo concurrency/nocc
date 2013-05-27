@@ -1,5 +1,13 @@
 # test_g21.gpp -- more detailed type tests (channel protocols)
 
+define foo (chan?(*) in)
+  in ? case
+    string s
+      skip
+    int32 i
+      skip
+end
+
 define test_g21 (chan!(*) out)
   string s = "hello world!\n"
 

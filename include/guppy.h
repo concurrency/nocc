@@ -28,12 +28,16 @@ extern struct TAG_langlexer guppy_lexer;
 extern struct TAG_langparser guppy_parser;
 
 /* node-type and node-tag flag values */
+#define TNF_LONGACTION			0x0010		/* long action (e.g. case input, list of things into subnode 1) */
+
 #define NTF_BOOLOP			0x0010		/* boolean operator flag */
 #define NTF_SYNCTYPE			0x0020		/* synchronisation type */
 #define NTF_INDENTED_PROC_LIST		0x0040		/* for TNF_LONGPROCs, parse a list of indented processes into subnode 1 */
 #define NTF_INDENTED_PROC		0x0080		/* for TNF_LONGPROCs, parse an indented process into subnode 1 */
 							/* for TNF_LONGDECLs, parse an indented process into subnode 2 */
 #define NTF_INDENTED_NAME_LIST		0x0100		/* for TNF_LONGDECLs, parse an indented list of names into subnode 1 */
+#define NTF_INDENTED_TCASE_LIST		0x0200		/* for TNF_LONGACTIONSs, parse an indented list of type-case declarations into subnode 1 */
+#define NTF_INDENTED_DECL_LIST		0x0400		/* for TNF_LONGDECLs, parse an indented list of declarations into subnode 1 */
 
 /* implementation-specific language-tag bits */
 #define LANGTAG_STYPE			0x00010000	/* sized type (e.g. int8) */
@@ -84,6 +88,7 @@ typedef struct {
 	struct TAG_ntdef *tag_FPARAM;
 	struct TAG_ntdef *tag_DECLBLOCK;
 	struct TAG_ntdef *tag_ENUMDEF;
+	struct TAG_ntdef *tag_TYPEDEF;
 	struct TAG_ntdef *tag_FPARAMINIT;
 
 	struct TAG_ntdef *tag_EXTDECL;
@@ -132,6 +137,7 @@ typedef struct {
 
 	struct TAG_ntdef *tag_INPUT;
 	struct TAG_ntdef *tag_OUTPUT;
+	struct TAG_ntdef *tag_CASEINPUT;
 
 	struct TAG_ntdef *tag_ADD;
 	struct TAG_ntdef *tag_SUB;
@@ -224,6 +230,10 @@ typedef struct {
 	int error;					/* error count */
 } guppy_fetrans2_t;
 
+typedef struct {
+	int error;					/* error count */
+} guppy_fetrans3_t;
+
 typedef struct TAG_guppy_fcndefhook {
 	int lexlevel;					/* 0 = outermost */
 	int ispublic;					/* explicitly marked as public? */
@@ -247,6 +257,8 @@ extern guppy_fetrans1_t *guppy_newfetrans1 (void);
 extern void guppy_freefetrans1 (guppy_fetrans1_t *);
 extern guppy_fetrans2_t *guppy_newfetrans2 (void);
 extern void guppy_freefetrans2 (guppy_fetrans2_t *);
+extern guppy_fetrans3_t *guppy_newfetrans3 (void);
+extern void guppy_freefetrans3 (guppy_fetrans3_t *);
 
 extern int guppy_autoseq_subtree (struct TAG_tnode **, guppy_autoseq_t *);
 extern int guppy_declify_subtree (struct TAG_tnode **, guppy_declify_t *);
@@ -254,6 +266,7 @@ extern int guppy_flattenseq_subtree (struct TAG_tnode **);
 extern int guppy_postscope_subtree (struct TAG_tnode **);
 extern int guppy_fetrans1_subtree (struct TAG_tnode **, guppy_fetrans1_t *);
 extern int guppy_fetrans2_subtree (struct TAG_tnode **, guppy_fetrans2_t *);
+extern int guppy_fetrans3_subtree (struct TAG_tnode **, guppy_fetrans3_t *);
 
 extern struct TAG_tnode *guppy_fetrans1_maketemp (struct TAG_ntdef *tag, struct TAG_tnode *org, struct TAG_tnode *type, struct TAG_tnode *init, guppy_fetrans1_t *fe1);
 extern struct TAG_tnode *guppy_newprimtype (struct TAG_ntdef *tag, struct TAG_tnode *org, const int size);

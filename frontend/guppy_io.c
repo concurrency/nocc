@@ -170,6 +170,56 @@ tnode_dumptree (rhs, 1, FHAN_STDERR);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans3_io (compops_t *cops, tnode_t **nodep, guppy_fetrans3_t *fe3)*/
+/*
+ *	does fetrans3 for an input or output
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans3_io (compops_t *cops, tnode_t **nodep, guppy_fetrans3_t *fe3)
+{
+	tnode_t *node = *nodep;
+	tnode_t *type = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
+
+	if (type) {
+		type = typecheck_getsubtype (type, NULL);
+	}
+	if (!type) {
+		nocc_internal ("guppy_fetrans3_io(): unknown protocol for channel I/O");
+		return 0;
+	}
+
+	if (type->tag == gup.tag_ANY) {
+		if (node->tag == gup.tag_OUTPUT) {
+			tnode_t *atype = tnode_nthsubof (node, 2);
+			unsigned int thash;
+			tnode_t *seqnode, *seqlist;
+			tnode_t *hashout, *hashtype;
+
+			langops_typehash (atype, sizeof (thash), (void *)&thash);
+			seqlist = parser_newlistnode (SLOCI);
+			seqnode = tnode_createfrom (gup.tag_SEQ, node, NULL, seqlist);
+
+			hashtype = guppy_newprimtype (gup.tag_INT, node, 32);
+			hashout = tnode_createfrom (gup.tag_OUTPUT, node, tnode_nthsubof (node, 0),
+					constprop_newconst (CONST_INT, NULL, hashtype, thash), hashtype);
+
+			/* output hash-code followed by actual thing */
+			parser_addtolist (seqlist, hashout);
+			parser_addtolist (seqlist, node);
+
+			*nodep = seqnode;
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans3_io(): protocol type (of channel):\n");
+tnode_dumptree (type, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, "guppy_fetrans3_io(): hash output:\n");
+tnode_dumptree (hashout, 1, FHAN_STDERR);
+#endif
+		}
+	}
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_io (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for an input or output
@@ -249,6 +299,7 @@ static int guppy_io_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_io));
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_io));
+	tnode_setcompop (cops, "fetrans3", 2, COMPOPTYPE (guppy_fetrans3_io));
 
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_io));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_io));
@@ -260,6 +311,19 @@ static int guppy_io_init_nodes (void)
 	gup.tag_INPUT = tnode_newnodetag ("INPUT", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_OUTPUT = tnode_newnodetag ("OUTPUT", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:caseio -- CASEINPUT*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:caseio", &i, 3, 0, 0, TNF_LONGACTION);	/* subnodes: 0 = LHS, 1 = RHS-list, 2 = type */
+	cops = tnode_newcompops ();
+	/* FIXME: need some stuff here.. */
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_CASEINPUT = tnode_newnodetag ("CASEINPUT", &i, tnd, NTF_INDENTED_TCASE_LIST);
 
 	/*}}}*/
 

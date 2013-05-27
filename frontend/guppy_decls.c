@@ -1166,6 +1166,16 @@ static int guppy_decls_init_nodes (void)
 	gup.tag_ENUMDEF = tnode_newnodetag ("ENUMDEF", &i, tnd, NTF_INDENTED_NAME_LIST);
 
 	/*}}}*/
+	/*{{{  guppy:typedef -- TYPEDEF*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:typedef", &i, 3, 0, 0, TNF_LONGDECL);				/* subnodes: name; items; type-params */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+
+	i = -1;
+	gup.tag_TYPEDEF = tnode_newnodetag ("TYPEDEF", &i, tnd, NTF_INDENTED_DECL_LIST);
+
+	/*}}}*/
 	/*{{{  guppy:fvnode -- FVNODE*/
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:fvnode", &i, 2, 0, 0, TNF_NONE);
