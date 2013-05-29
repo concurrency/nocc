@@ -418,6 +418,7 @@ int tnode_init (void)
 	}
 
 	/*{{{  default compiler operations*/
+	tnode_newcompop ("oncreate", COPS_ONCREATE, 1, INTERNAL_ORIGIN);
 	tnode_newcompop ("prescope", COPS_PRESCOPE, 2, INTERNAL_ORIGIN);
 	tnode_newcompop ("scopein", COPS_SCOPEIN, 2, INTERNAL_ORIGIN);
 	tnode_newcompop ("scopeout", COPS_SCOPEOUT, 2, INTERNAL_ORIGIN);
@@ -1299,6 +1300,11 @@ tnode_t *tnode_create (ntdef_t *tag, srclocn_t *src, ...)
 	}
 	va_end (ap);
 
+	/* if we have oncreate, call it here */
+	if (tmp->tag->ndef->ops && tnode_hascompop_i (tmp->tag->ndef->ops, (int)COPS_ONCREATE)) {
+		tnode_callcompop_i (tmp->tag->ndef->ops, (int)COPS_ONCREATE, 1, &tmp);
+	}
+
 	return tmp;
 }
 /*}}}*/
@@ -1342,7 +1348,12 @@ tnode_t *tnode_createfrom (ntdef_t *tag, tnode_t *src, ...)
 		}
 	}
 	va_end (ap);
-	
+
+	/* if we have oncreate, call it here */
+	if (tmp->tag->ndef->ops && tnode_hascompop_i (tmp->tag->ndef->ops, (int)COPS_ONCREATE)) {
+		tnode_callcompop_i (tmp->tag->ndef->ops, (int)COPS_ONCREATE, 1, &tmp);
+	}
+
 	return tmp;
 }
 /*}}}*/

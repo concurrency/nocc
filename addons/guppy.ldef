@@ -68,6 +68,7 @@
 
 .GRULE	"gup:namereduce" "T+St0X[guppy_nametoken_to_hook]C[NAME]1R-"
 .GRULE	"gup:namepush" "T+St0X[guppy_nametoken_to_hook]C[NAME]1N-"
+.GRULE	"gup:checktypename" "T+St0X[guppy_checktypename]R-"
 
 .GRULE	"gup:fparam2nsreduce" "N+Sn0N+0C[FPARAM]3M[fparam][FPARAM]R-"
 .GRULE	"gup:vardeclreduce" "N+N+0C[VARDECL]3R-"
@@ -86,9 +87,11 @@
 .BNF	"guppy:fparamlist ::= ( -@@) {<gup:nullset>} | { guppy:fparam @@, 1 } )"
 
 .TABLE	"guppy:otherdecl +:= [ 0 guppy:type 1 ] [ 1 guppy:nameandassignlist 2 ] [ 2 {<gup:vardeclreduce>} -* ]"
+	"[ 0 guppy:name 3 ] [ 3 @@( 4 ] [ 4 guppy:typelist 5 ] [ 5 @@) 6 ] [ 6 {<gup:makeinstance>} -* 1 ]"
 
 .TABLE	"guppy:testfordecl +:= [ 0 +@val 1 ] [ 0 +@int 1 ] [ 0 +@real 1 ] [ 0 +@bool 1 ] [ 0 +@byte 1 ] [ 0 +@char 1 ] [ 0 +@string 1 ] [ 0 +@chan 1 ]"
 	"[ 1 {<gup:testtrue>} -* ]"
+.TABLE	"guppy:testfordecl +:= [ 0 +Name 1 ] [ 1 {<gup:checktypename>} -* ]"
 
 .TABLE	"guppy:definedecl +:= [ 0 @enum 1 ] [ 1 guppy:name 2 ] [ 2 {<gup:enumreduce>} -* ]"
 
@@ -258,6 +261,7 @@
 # }}}
 .SECTION "guppy-instance" # {{{
 
+.GRULE	"gup:makeinstance" "SN0N+N+VC[INSTANCE]2N-"
 .GRULE	"gup:instancereduce" "SN0N+N+C[INSTANCE]2R-"
 .GRULE	"gup:rinstancereduce" "SN0N+N+VC[INSTANCE]2R-"
 

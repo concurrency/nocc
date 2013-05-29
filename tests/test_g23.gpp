@@ -5,6 +5,7 @@ define type Coord (T)
 end
 
 define test_g23 ()
+  Coord(int) c
   skip
 end
 

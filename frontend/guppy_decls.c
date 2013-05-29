@@ -76,8 +76,22 @@
 #define FPARAM_IS_INIT 3
 
 typedef struct TAG_fparaminfo {
-	int flags;
+	int flags;			/* flags of the above (FPARAM_IS_...) */
 } fparaminfo_t;
+
+#define DTN_BITSIZE	(4)
+
+typedef struct TAG_deftypename {
+	char *name;			/* type name */
+} deftypename_t;
+
+
+/*}}}*/
+/*{{{  private data*/
+
+STATICSTRINGHASH(deftypename_t *, deftypenames, DTN_BITSIZE);
+
+static ntdef_t *guppy_testtruetag, *guppy_testfalsetag;
 
 /*}}}*/
 
@@ -109,7 +123,6 @@ static void guppy_freefparaminfo (fparaminfo_t *fpi)
 	return;
 }
 /*}}}*/
-
 
 /*{{{  static void guppy_fparaminfo_hook_free (void *hook)*/
 /*
@@ -154,7 +167,6 @@ static void guppy_fparaminfo_hook_dumptree (tnode_t *node, void *hook, int inden
 }
 /*}}}*/
 
-
 /*{{{  static void guppy_rawnamenode_hook_free (void *hook)*/
 /*
  *	frees a rawnamenode hook (name-bytes)
@@ -192,6 +204,46 @@ static void guppy_rawnamenode_hook_dumptree (tnode_t *node, void *hook, int inde
 	return;
 }
 /*}}}*/
+
+/*{{{  static void *guppy_checktypename (void *arg)*/
+/*
+ *	looks at a Name token and decides whether or not it's a type name
+ *	pushes the token back into the lexer, returns test node
+ */
+static void *guppy_checktypename (void *arg)
+{
+	token_t *tok = (token_t *)arg;
+	lexfile_t *lf = tok->origin;
+	tnode_t *node;
+	deftypename_t *dtn;
+
+	if (!lf) {
+		nocc_internal ("guppy_checktypename(): NULL origin for token [%s]", lexer_stokenstr (tok));
+		return NULL;
+	}
+	if (tok->type != NAME) {
+		nocc_internal ("guppy_checktypename(): token not NAME [%s]", lexer_stokenstr (tok));
+		return NULL;
+	}
+
+	dtn = stringhash_lookup (deftypenames, tok->u.name);
+
+	if (dtn) {
+		node = tnode_create (guppy_testtruetag, SLOCI);
+	} else {
+		node = tnode_create (guppy_testfalsetag, SLOCI);
+	}
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_checktypename(): here, name = [%s], node =\n", tok->u.name);
+tnode_dumptree (node, 1, FHAN_STDERR);
+#endif
+	lexer_pushback (lf, tok);
+
+	return (void *)node;
+}
+/*}}}*/
+
 /*{{{  static int guppy_scopein_rawnamenode (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes in a raw namenode (resolving free names)
@@ -1018,6 +1070,32 @@ static int guppy_codegen_declblock (compops_t *cops, tnode_t *node, codegen_t *c
 }
 /*}}}*/
 
+/*{{{  static int guppy_oncreate_typedef (compops_t *cops, tnode_t **nodep)*/
+/*
+ *	called when a new typedef node is created, used to remember what may be types later on
+ *	return value ignored
+ */
+static int guppy_oncreate_typedef (compops_t *cops, tnode_t **nodep)
+{
+	tnode_t *name = tnode_nthsubof (*nodep, 0);
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_oncreate_typedef(): here!, *nodep =\n");
+tnode_dumptree (*nodep, 1, FHAN_STDERR);
+#endif
+	if (name->tag == gup.tag_NAME) {
+		char *str = (char *)tnode_nthhookof (name, 0);
+		deftypename_t *dtn = stringhash_lookup (deftypenames, str);
+
+		if (!dtn) {
+			dtn = (deftypename_t *)smalloc (sizeof (deftypename_t));
+			dtn->name = string_dup (str);
+			stringhash_insert (deftypenames, dtn, dtn->name);
+		}
+	}
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static int guppy_decls_init_nodes (void)*/
 /*
@@ -1030,6 +1108,12 @@ static int guppy_decls_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 	int i;
+
+
+	/*{{{  register functions first*/
+	fcnlib_addfcn ("guppy_checktypename", (void *)guppy_checktypename, 1, 1);
+
+	/*}}}*/
 
 	/*{{{  guppy:rawnamenode -- NAME*/
 	i = -1;
@@ -1170,6 +1254,7 @@ static int guppy_decls_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:typedef", &i, 3, 0, 0, TNF_LONGDECL);				/* subnodes: name; items; type-params */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "oncreate", 1, COMPOPTYPE (guppy_oncreate_typedef));
 	tnd->ops = cops;
 
 	i = -1;
@@ -1198,6 +1283,10 @@ static int guppy_decls_init_nodes (void)
  */
 static int guppy_decls_post_setup (void)
 {
+	stringhash_sinit (deftypenames);
+
+	parser_gettesttags (&guppy_testtruetag, &guppy_testfalsetag);
+
 	return 0;
 }
 /*}}}*/
