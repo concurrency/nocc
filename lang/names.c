@@ -95,11 +95,68 @@ fprintf (stderr, "name_lookup(): str=[%s], nl=0x%8.8x, nl->curscope = %d, DA_CUR
 		name = NULL;
 	} else if ((nl->curscope < 0) && !DA_CUR (nl->scopes)) {
 		name = NULL;
-	} else if (nl->curscope < 0) {
-		name = DA_NTHITEM (nl->scopes, DA_CUR (nl->scopes) - 1);
 	} else {
-		name = DA_NTHITEM (nl->scopes, nl->curscope);
+		int i, start;
+
+		if (nl->curscope < 0) {
+			start = DA_CUR (nl->scopes) - 1;
+		} else {
+			start = nl->curscope;
+		}
+		for (i=start; i >= 0; i--) {
+			name = DA_NTHITEM (nl->scopes, i);
+
+			if (!(tnode_ntflagsof (NameNodeOf (name)) & NTF_HIDDENNAME)) {
+				/* if not set, use this one */
+				break;			/* for() */
+			}
+			name = NULL;
+		}
 	}
+
+	return name;
+}
+/*}}}*/
+/*{{{  name_t *name_lookup_nodetag (char *str, ntdef_t *ttag)*/
+/*
+ *	looks up a name based on namenode-tag -- returns it at the highest scoping level available
+ */
+name_t *name_lookup_nodetag (char *str, ntdef_t *ttag)
+{
+	namelist_t *nl;
+	name_t *name;
+
+	nl = stringhash_lookup (names, str);
+	if (!nl) {
+		name = NULL;
+	} else if ((nl->curscope < 0) && !DA_CUR (nl->scopes)) {
+		/* had it in the past, but none left in-scope */
+		name = NULL;
+	} else {
+		int i, start;
+
+		if (nl->curscope < 0) {
+			start = DA_CUR (nl->scopes) - 1;
+		} else {
+			start = nl->curscope;
+		}
+
+		for (i=start; i >= 0; i--) {
+			name = DA_NTHITEM (nl->scopes, i);
+
+			if (NameNodeOf (name)->tag == ttag) {
+				/* this one */
+				break;			/* for() */
+			}
+			name = NULL;
+		}
+		if (!name) {
+			/* else just search for the first non-hidden one */
+			name = name_lookup (str);
+		}
+		/* it's either a name or NULL */
+	}
+
 	return name;
 }
 /*}}}*/
@@ -141,7 +198,7 @@ fprintf (stderr, "name_lookupss(): here 1! str=[%s] ss = 0x%8.8x, DA_CUR (usens)
 				for (i=top; i >= 0; i--) {
 					name_t *tname = DA_NTHITEM (nl->scopes, i);
 
-					if (tname && (tname->ns == ns)) {
+					if (tname && (tname->ns == ns) && !(tnode_ntflagsof (NameNodeOf (tname)) & NTF_HIDDENNAME)) {
 						/* this one */
 						name = tname;
 						break;			/* for() */
@@ -171,7 +228,7 @@ name_dumpnames (stderr);
 #if 0
 fprintf (stderr, "tname->me->name = [%s], tname->ns->nspace = [%s]\n", tname->me->name, tname->ns ? tname->ns->nspace : "<empty>");
 #endif
-				if (tname && (!tname->ns || !strlen (tname->ns->nspace))) {
+				if (tname && (!tname->ns || !strlen (tname->ns->nspace)) && !(tnode_ntflagsof (NameNodeOf (tname)) & NTF_HIDDENNAME)) {
 					/* this one */
 					name = tname;
 					break;			/* for() */
@@ -191,7 +248,8 @@ fprintf (stderr, "name_lookupss(): found stack for [%s], looking for one in a vi
 					if (!tname || !tname->ns || !strlen (tname->ns->nspace)) {
 						continue;		/* for() */
 					}
-					for (j = (DA_CUR (ss->usens) - 1); (j >= 0) && (tname->ns != DA_NTHITEM (ss->usens, j)); j--);
+					for (j = (DA_CUR (ss->usens) - 1); (j >= 0) && ((tname->ns != DA_NTHITEM (ss->usens, j)) ||
+							(tnode_ntflagsof (NameNodeOf (tname)) & NTF_HIDDENNAME)); j--);
 					if (j >= 0) {
 						/* this one */
 						name = tname;
@@ -213,6 +271,97 @@ fprintf (stderr, "name_lookupss(): found stack for [%s], looking for one in a vi
 		name = DA_NTHITEM (nl->scopes, nl->curscope);
 	}
 #endif
+
+	return name;
+}
+/*}}}*/
+/*{{{  name_t *name_lookupss_nodetag (char *str, scope_t *ss, ntdef_t *ttag)*/
+/*
+ *	looks up a name with a specific name-node tag -- returns it at the current scoping level (or last if unset)
+ *	this one is name-space aware
+ */
+name_t *name_lookupss_nodetag (char *str, scope_t *ss, ntdef_t *ttag)
+{
+	namelist_t *nl = NULL;
+	name_t *name = NULL;
+	namespace_t *ns;
+
+	/* see if it's namespace-flavoured */
+	if ((ns = name_findnamespacepfx (str)) != NULL) {
+		/* yes, lookup part missing the namespace -- after checking it's visible */
+		int i;
+
+		for (i=0; (i<DA_CUR (ss->usens)) && (ns != DA_NTHITEM (ss->usens, i)); i++);
+		if (i == DA_CUR (ss->usens)) {
+			nocc_warning ("namespace [%s] is not visible", ns->nspace);		/* shortly followed by a scope error probably */
+			/* namespace selected not in use */
+		} else {
+			nl = stringhash_lookup (names, str + strlen (ns->nspace) + 1);
+
+			if (!nl) {
+				/* no such name */
+			} else {
+				int top = (nl->curscope < 0) ? DA_CUR (nl->scopes) - 1: nl->curscope;
+
+				/* find an in-scope one that matches the namespace given */
+				for (i=top; i >= 0; i--) {
+					name_t *tname = DA_NTHITEM (nl->scopes, i);
+
+					if (tname && (tname->ns == ns) && (NameNodeOf (tname)->tag == ttag)) {
+						/* this one */
+						name = tname;
+						break;			/* for() */
+					}
+				}
+			}
+		}
+	}
+
+	if (!name) {
+		/* plain, find the first one in scope that has no namespace (i.e. local), failing that, the latest in-use namespace */
+		nl = stringhash_lookup (names, str);
+		if (!nl) {
+			/* no such name */
+		} else {
+			int top = (nl->curscope < 0) ? DA_CUR (nl->scopes) - 1: nl->curscope;
+			int i;
+
+			/* look for a namespace-less one (local) */
+			for (i=top; i >= 0; i--) {
+				name_t *tname = DA_NTHITEM (nl->scopes, i);
+
+				if (tname && (!tname->ns || !strlen (tname->ns->nspace)) && (NameNodeOf (tname)->tag == ttag)) {
+					/* this one */
+					name = tname;
+					break;			/* for() */
+				}
+			}
+
+			if (!name) {
+				/* look for one in a visible namespace */
+				for (i=top; i >= 0; i--) {
+					name_t *tname = DA_NTHITEM (nl->scopes, i);
+					int j;
+
+					if (!tname || !tname->ns || !strlen (tname->ns->nspace)) {
+						continue;		/* for() */
+					}
+					for (j = (DA_CUR (ss->usens) - 1); (j >= 0) && (tname->ns != DA_NTHITEM (ss->usens, j)) &&
+							(NameNodeOf (tname)->tag != ttag); j--);
+					if (j >= 0) {
+						/* this one */
+						name = tname;
+						break;			/* for() */
+					}
+				}
+			}
+		}
+	}
+
+	if (!name) {
+		/* resort to anything we can see */
+		name = name_lookupss (str, ss);
+	}
 
 	return name;
 }

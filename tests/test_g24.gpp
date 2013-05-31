@@ -1,0 +1,11 @@
+# test_g24.gpp -- more extensive syntax test
+
+define type Boid
+  real32 x, y
+end
+
+define test_g24 ()
+  skip
+end
+
+

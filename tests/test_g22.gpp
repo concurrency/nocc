@@ -5,6 +5,9 @@ define type ICoord
 end
 
 define test_g22 ()
+  ICoord c
+  char x
+  c.x = 15
   skip
 end
 

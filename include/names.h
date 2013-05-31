@@ -24,6 +24,7 @@ struct TAG_tnode;
 struct TAG_namelist;
 struct TAG_scope;
 struct TAG_fhandle;
+struct TAG_ntdef;
 
 typedef struct TAG_namespace {
 	char *nspace;
@@ -51,7 +52,9 @@ extern int name_init (void);
 extern int name_shutdown (void);
 
 extern name_t *name_lookup (char *str);
+extern name_t *name_lookup_nodetag (char *str, struct TAG_ntdef *ttag);
 extern name_t *name_lookupss (char *str, struct TAG_scope *ss);
+extern name_t *name_lookupss_nodetag (char *str, struct TAG_scope *ss, struct TAG_ntdef *ttag);
 extern name_t *name_addscopename (char *str, struct TAG_tnode *decl, struct TAG_tnode *type, struct TAG_tnode *namenode);
 extern name_t *name_addscopenamess (char *str, struct TAG_tnode *decl, struct TAG_tnode *type, struct TAG_tnode *namenode, struct TAG_scope *ss);
 extern name_t *name_addsubscopenamess (char *str, void *scopemark, struct TAG_tnode *decl, struct TAG_tnode *type, struct TAG_tnode *namenode, struct TAG_scope *ss);

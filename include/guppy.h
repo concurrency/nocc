@@ -85,6 +85,7 @@ typedef struct {
 	struct TAG_ntdef *tag_FCNDEF;
 	struct TAG_ntdef *tag_PFCNDEF;
 	struct TAG_ntdef *tag_VARDECL;
+	struct TAG_ntdef *tag_FIELDDECL;
 	struct TAG_ntdef *tag_FPARAM;
 	struct TAG_ntdef *tag_DECLBLOCK;
 	struct TAG_ntdef *tag_ENUMDEF;
@@ -170,7 +171,7 @@ typedef struct {
 	struct TAG_ntdef *tag_BYTESIN;
 
 	struct TAG_ntdef *tag_ARRAYSUB;
-
+	struct TAG_ntdef *tag_RECORDSUB;
 
 	struct TAG_token *tok_ATSIGN;
 	struct TAG_token *tok_STRING;
@@ -187,6 +188,7 @@ typedef struct {
 
 typedef struct {
 	DYNARRAY (struct TAG_tnode *, crosses);		/* where these things can be remembered (collects names) */
+	struct TAG_ntdef *resolve_nametype_first;	/* when resolving names, look for these [nodetype] first */
 } guppy_scope_t;
 
 typedef struct {

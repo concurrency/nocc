@@ -440,62 +440,140 @@ static tnode_t *guppy_gettype_typeopnode (langops_t *lops, tnode_t *node, tnode_
 }
 /*}}}*/
 
+/*{{{  static int guppy_scopein_arrayopnode (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
+/*
+ *	does scope-in on an array-operator node (arraysub, possibly recordsub later)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_scopein_arrayopnode (compops_t *cops, tnode_t **nodep, scope_t *ss)
+{
+	tnode_t **lhsp = tnode_nthsubaddr (*nodep, 0);
+	tnode_t **rhsp = tnode_nthsubaddr (*nodep, 1);
+	guppy_scope_t *gss = (guppy_scope_t *)ss->langpriv;
+
+	scope_subtree (lhsp, ss);
+	/* Updated: doesn't matter if the RHS scope picks up something that isn't a field in recordsub, since typecheck will put it right
+	 * once the LHS type is known.
+	 */
+	if ((*rhsp)->tag == gup.tag_NAME) {
+		gss->resolve_nametype_first = gup.tag_NFIELD;
+		scope_subtree (rhsp, ss);
+		gss->resolve_nametype_first = NULL;
+	} else {
+		scope_subtree (rhsp, ss);
+	}
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_typecheck_arrayopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
- *	does type-checking on an array-operator node (arraysub)
+ *	does type-checking on an array-operator node (arraysub or recordsub)
  *	returns 0 to stop walk, 1 to continue
  */
 static int guppy_typecheck_arrayopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
-	tnode_t *operand = tnode_nthsubof (node, 0);
-	tnode_t *optype, *idxtype;
-	tnode_t *rtype, *mytype;
+	if (node->tag == gup.tag_ARRAYSUB) {
+		tnode_t *operand = tnode_nthsubof (node, 0);
+		tnode_t *mytype, *optype;
 
-	optype = typecheck_gettype (operand, NULL);
-	idxtype = typecheck_gettype (tnode_nthsubof (node, 1), guppy_oper_inttypenode);
+		optype = typecheck_gettype (operand, NULL);
+		if (optype && (optype->tag == gup.tag_NTYPEDECL)) {
+			/* RHS should be a field, but find it based on the name matching here */
+			tnode_t *fname = tnode_nthsubof (node, 1);
 
-	rtype = typecheck_typeactual (guppy_oper_inttypenode, idxtype, node, tc);
+			if (fname->tag->ndef != gup.node_NAMENODE) {
+				typecheck_error (node, tc, "field-name is not a name, found [%s]", fname->tag->name);
+			} else {
+				tnode_t *flist = NameTypeOf (tnode_nthnameof (optype, 0));
+				tnode_t **ftitems;
+				int nftitems, i;
+				char *fcharname = NameNameOf (tnode_nthnameof (fname, 0));
 
+				ftitems = parser_getlistitems (flist, &nftitems);
+				for (i=0; i<nftitems; i++) {
+					/* ftitems[i] should be a FIELDDECL */
+					tnode_t *fldname = tnode_nthsubof (ftitems[i], 0);
+
+					if (fldname->tag != gup.tag_NFIELD) {
+						typecheck_error (fldname, tc, "type field-name is not a field, found [%s]", fldname->tag->name);
+						break;				/* for() */
+					} else {
+						char *fldcharname = NameNameOf (tnode_nthnameof (fldname, 0));
+
+						if (!strcmp (fldcharname, fcharname)) {
+							/* this one! */
+							fname = fldname;
+							tnode_setnthsub (node, 1, fname);
+							break;			/* for() */
+						}
+					}
+				}
+				if (i == nftitems) {
+					typecheck_error (node, tc, "failed to find field [%s] in type", fcharname);
+				}
+			}
+
+			/* fname should have been fiddled */
+			mytype = typecheck_gettype (fname, NULL);
+
+			tnode_changetag (node, gup.tag_RECORDSUB);
+
+		} else {
+			/* must be an array.. */
+			tnode_t *rtype, *idxtype;
+
+			idxtype = typecheck_gettype (tnode_nthsubof (node, 1), guppy_oper_inttypenode);
+
+			rtype = typecheck_typeactual (guppy_oper_inttypenode, idxtype, node, tc);
 #if 0
-fprintf (stderr, "guppy_typecheck_arrayopnode(): got optype =\n");
+fhandle_printf (FHAN_STDERR, "guppy_typecheck_arrayopnode(): got optype =\n");
 tnode_dumptree (optype, 1, FHAN_STDERR);
-fprintf (stderr, "guppy_typecheck_arrayopnode(): got rtype (from idxtype) =\n");
+fhandle_printf (FHAN_STDERR, "guppy_typecheck_arrayopnode(): got rtype (from idxtype) =\n");
 tnode_dumptree (idxtype, 1, FHAN_STDERR);
 #endif
 
-	if (optype->tag == gup.tag_STRING) {
-		/* special case: strings can be treated as an array of characters */
-		mytype = guppy_newprimtype (gup.tag_CHAR, node, 0);
-	} else if (optype->tag == gup.tag_ARRAY) {
-		/* array type, this becomes subtype */
-		mytype = tnode_copytree (tnode_nthsubof (optype, 0));
-	} else {
-		typecheck_error (node, tc, "array-sub used on non-array, got type [%s] from [%s]", rtype->tag->name, idxtype->tag->name);
-	}
+			if (optype->tag == gup.tag_STRING) {
+				/* special case: strings can be treated as an array of characters */
+				mytype = guppy_newprimtype (gup.tag_CHAR, node, 0);
+			} else if (optype->tag == gup.tag_ARRAY) {
+				/* array type, this becomes subtype */
+				mytype = tnode_copytree (tnode_nthsubof (optype, 0));
+			} else {
+				typecheck_error (node, tc, "array-sub used on non-array, got type [%s] from [%s]", rtype->tag->name, idxtype->tag->name);
+			}
+		}
 
-	tnode_setnthsub (node, 2, mytype);
+		tnode_setnthsub (node, 2, mytype);
+	}	/* else ignore, must have been processed already */
 
 	return 0;
 }
 /*}}}*/
 /*{{{  static int guppy_codegen_arrayopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
- *	does code-generation for an array operator (array-sub)
+ *	does code-generation for an array operator (arraysub, recordsub)
  *	returns 0 to stop walk, 1 to continue
  */
 static int guppy_codegen_arrayopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
-	codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
-	codegen_write_fmt (cgen, "[");
-	codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
-	codegen_write_fmt (cgen, "]");
+	if (node->tag == gup.tag_ARRAYSUB) {
+		codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+		codegen_write_fmt (cgen, "[");
+		codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+		codegen_write_fmt (cgen, "]");
+	} else if (node->tag == gup.tag_RECORDSUB) {
+		codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+		codegen_write_fmt (cgen, "->");
+		codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+	}
 
 	return 0;
 }
 /*}}}*/
 /*{{{  static tnode_t *guppy_gettype_arrayopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
- *	gets type of an array-operator node (arraysub)
+ *	gets type of an array-operator node (arraysub, recordsub)
  */
 static tnode_t *guppy_gettype_arrayopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
 {
@@ -650,10 +728,11 @@ static int guppy_oper_init_nodes (void)
 	gup.tag_BYTESIN = tnode_newnodetag ("BYTESIN", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  guppy:arrayopnode -- ARRAYSUB*/
+	/*{{{  guppy:arrayopnode -- ARRAYSUB, RECORDSUB*/
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:arrayopnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: operand, index, type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_arrayopnode));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_arrayopnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_arrayopnode));
 	tnd->ops = cops;
@@ -663,6 +742,8 @@ static int guppy_oper_init_nodes (void)
 
 	i = -1;
 	gup.tag_ARRAYSUB = tnode_newnodetag ("ARRAYSUB", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_RECORDSUB = tnode_newnodetag ("RECORDSUB", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

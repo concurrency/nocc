@@ -1960,6 +1960,7 @@ static int guppy_parser_scope (tnode_t **tptr, scope_t *ss)
 		guppy_scope_t *gss = (guppy_scope_t *)smalloc (sizeof (guppy_scope_t));
 
 		dynarray_init (gss->crosses);
+		gss->resolve_nametype_first = NULL;
 		ss->langpriv = (void *)gss;
 
 		tnode_modprepostwalktree (tptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);

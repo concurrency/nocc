@@ -32,6 +32,7 @@
 #define NTF_NAMEMAPTYPEINDECL	0x0001		/* indicates that when name-mapping a declaration with this type, map the type as well */
 #define NTF_PRECODETYPEINDECL	0x0002		/* indicates that when pre-coding a declaration with this type, pre-code the type as well */
 #define NTF_CODEGENTYPEINDECL	0x0004		/* indicates that when code-generating a declaration with this type, code-generate the type as well */
+#define NTF_HIDDENNAME		0x0008		/* used with the scoper to indicate a hidden type-name */
 #define NTF_LANGMASK		0xfff0
 
 
