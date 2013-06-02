@@ -636,6 +636,19 @@ tnode_t *langops_initcall (tnode_t *type, tnode_t *name)
 	return NULL;
 }
 /*}}}*/
+/*{{{  tnode_t *langops_freecall (tnode_t *type, tnode_t *name)*/
+/*
+ *	generates a freeing call for a type-node, if appropriate
+ *	returns finaliser (whole article) on success, NULL on failure
+ */
+tnode_t *langops_freecall (tnode_t *type, tnode_t *name)
+{
+	if (type && type->tag->ndef->lops && tnode_haslangop_i (type->tag->ndef->lops, (int)LOPS_FREECALL)) {
+		return (tnode_t *)tnode_calllangop_i (type->tag->ndef->lops, (int)LOPS_FREECALL, 2, type, name);
+	}
+	return NULL;
+}
+/*}}}*/
 
 
 /*{{{  int langops_init (void)*/

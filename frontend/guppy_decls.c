@@ -504,6 +504,24 @@ static tnode_t *guppy_initcall_namenode (langops_t *lops, tnode_t *typenode, tno
 	return NULL;
 }
 /*}}}*/
+/*{{{  static tnode_t *guppy_freecall_namenode (langops_t *lops, tnode_t *typenode, tnode_t *name)*/
+/*
+ *	generates a finaliser for a user-defined type
+ *	returns finaliser on success, NULL on failure (or nothing)
+ */
+static tnode_t *guppy_freecall_namenode (langops_t *lops, tnode_t *typenode, tnode_t *name)
+{
+	if (typenode->tag == gup.tag_NTYPEDECL) {
+		tnode_t *inode;
+
+		inode = tnode_create (gup.tag_VARFREE, SLOCI, NULL, typenode, name);
+		return inode;
+	} else {
+		nocc_internal ("guppy_freecall_namenode(): called for impossible node type [%s]", typenode->tag->name);
+	}
+	return NULL;
+}
+/*}}}*/
 /*{{{  static int guppy_bytesfor_namenode (langops_t *lops, tnode_t *node, target_t *target)*/
 /*
  *	returns the number of bytes required for a name-node (types only)
@@ -511,10 +529,49 @@ static tnode_t *guppy_initcall_namenode (langops_t *lops, tnode_t *typenode, tno
 static int guppy_bytesfor_namenode (langops_t *lops, tnode_t *node, target_t *target)
 {
 	if (node->tag == gup.tag_NTYPEDECL) {
-		/* FIXME: bleh! */
-		return 42;
+		int btot = 0;
+		tnode_t *ftype;
+		tnode_t **fitems;
+		int nfitems, i;
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_bytesfor_namenode(): node =\n");
+tnode_dumptree (node, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, "guppy_bytesfor_namenode(): NameTypeOf(..) =\n");
+tnode_dumptree (NameTypeOf (tnode_nthnameof (node, 0)), 1, FHAN_STDERR);
+#endif
+		ftype = NameTypeOf (tnode_nthnameof (node, 0));
+		if (!parser_islistnode (ftype)) {
+			nocc_internal ("guppy_bytesfor_namenode(): expected list type in NTYPEDECL, found [%s]", ftype->tag->name);
+			return -1;
+		}
+		fitems = parser_getlistitems (ftype, &nfitems);
+
+		for (i=0; i<nfitems; i++) {
+			/* should be a list of FIELDDECLs, or if mapped, list of CCCSPNAMEs */
+			int thisone = tnode_bytesfor (fitems[i], target);
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_bytesfor_namenode(): looking at [%s] = %d\n", fitems[i]->tag->name, thisone);
+#endif
+
+			if (thisone < 0) {
+				tnode_warning (node, "guppy_bytesfor_namenode(): unknown size of [%s] in NTYPEDECL", fitems[i]->tag->name);
+				thisone = target->pointersize;
+			}
+			btot += thisone;
+		}
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_bytesfor_namenode(): typedecl = %d\n", btot);
+#endif
+		return btot;
+	} else if (node->tag == gup.tag_NFIELD) {
+		tnode_t *ftype;
+
+		/* this happens in the context of the above */
+		ftype = NameTypeOf (tnode_nthnameof (node, 0));
+		return tnode_bytesfor (ftype, target);
 	}
-	return 0;
+	return -1;
 }
 /*}}}*/
 
@@ -882,31 +939,49 @@ static int guppy_namemap_varinit (compops_t *cops, tnode_t **nodep, map_t *map)
 {
 	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
 	tnode_t *type = tnode_nthsubof (*nodep, 1);
-	int tsize;
-	tnode_t *aparms;
-	tnode_t *action;
 
 	if (!tnode_nthsubof (*nodep, 0)) {
 		/* set current wptr */
 		tnode_setnthsub (*nodep, 0, cmd->process_id);
 	}
 
-	tsize = tnode_bytesfor (type, map->target);
+	if ((*nodep)->tag == gup.tag_VARINIT) {
+		int tsize;
+		tnode_t *aparms;
+		tnode_t *action;
+
+		tsize = tnode_bytesfor (type, map->target);
 #if 1
 fhandle_printf (FHAN_STDERR, "guppy_namemap_varinit(): tsize is %d\n", tsize);
 #endif
-	cmd->target_indir = 1;
-	map_submapnames (tnode_nthsubaddr (*nodep, 2), map);
-	cmd->target_indir = 0;
+		cmd->target_indir = 1;
+		map_submapnames (tnode_nthsubaddr (*nodep, 2), map);
+		cmd->target_indir = 0;
 
-	aparms = parser_newlistnode (SLOCI);
-	parser_addtolist (aparms, tnode_nthsubof (*nodep, 0));
-	parser_addtolist (aparms, constprop_newconst (CONST_INT, NULL, NULL, tsize));
-	map_submapnames (&aparms, map);
+		aparms = parser_newlistnode (SLOCI);
+		parser_addtolist (aparms, tnode_nthsubof (*nodep, 0));
+		parser_addtolist (aparms, constprop_newconst (CONST_INT, NULL, NULL, tsize));
+		map_submapnames (&aparms, map);
 
-	action = tnode_create (gup.tag_APICALLR, SLOCI, cccsp_create_apicallname (MEM_ALLOC), aparms, tnode_nthsubof (*nodep, 2));
+		action = tnode_create (gup.tag_APICALLR, SLOCI, cccsp_create_apicallname (MEM_ALLOC), aparms, tnode_nthsubof (*nodep, 2));
 
-	*nodep = action;
+		*nodep = action;
+	} else if ((*nodep)->tag == gup.tag_VARFREE) {
+		tnode_t *action, *aparms;
+
+		cmd->target_indir = 1;
+		map_submapnames (tnode_nthsubaddr (*nodep, 2), map);		/* map name */
+		cmd->target_indir = 0;
+
+		aparms = parser_newlistnode (SLOCI);
+		parser_addtolist (aparms, tnode_nthsubof (*nodep, 0));		/* Wptr */
+		map_submapnames (&aparms, map);					/* and map it */
+		parser_addtolist (aparms, tnode_nthsubof (*nodep, 2));		/* mapped name (pointer-to) */
+
+		action = tnode_create (gup.tag_APICALL, SLOCI, cccsp_create_apicallname (MEM_RELEASE_CHK), aparms);
+
+		*nodep = action;
+	}
 	return 0;
 }
 /*}}}*/
@@ -1199,6 +1274,7 @@ static int guppy_betrans_declblock (compops_t *cops, tnode_t **nodep, betrans_t 
 		if (decls[i]->tag == gup.tag_VARDECL) {
 			tnode_t *type = tnode_nthsubof (decls[i], 1);
 			tnode_t *initcall = NULL;
+			tnode_t *freecall = NULL;
 
 #if 0
 fhandle_printf (FHAN_STDERR, "guppy_betrans_declblock(): looking for initcall on [%s]\n", type->tag->name);
@@ -1206,6 +1282,10 @@ fhandle_printf (FHAN_STDERR, "guppy_betrans_declblock(): looking for initcall on
 			initcall = langops_initcall (type, tnode_nthsubof (decls[i], 0));
 			if (initcall) {
 				parser_addtolist_front (seqlist, initcall);
+			}
+			freecall = langops_freecall (type, tnode_nthsubof (decls[i], 0));
+			if (freecall) {
+				parser_addtolist (seqlist, freecall);
 			}
 		} else {
 			nocc_warning ("guppy_betrans_declblock(): unexpected in declarations [%s]", decls[i]->tag->name);
@@ -1450,6 +1530,7 @@ static int guppy_decls_init_nodes (void)
 	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (guppy_getctypeof_namenode));
 	tnode_setlangop (lops, "isdefpointer", 1, LANGOPTYPE (guppy_isdefpointer_namenode));
 	tnode_setlangop (lops, "initcall", 2, LANGOPTYPE (guppy_initcall_namenode));
+	tnode_setlangop (lops, "freecall", 2, LANGOPTYPE (guppy_freecall_namenode));
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (guppy_bytesfor_namenode));
 	tnd->lops = lops;
 
@@ -1536,7 +1617,7 @@ static int guppy_decls_init_nodes (void)
 	gup.tag_FPARAMINIT = tnode_newnodetag ("FPARAMINIT", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  guppy:varinit -- VARINIT*/
+	/*{{{  guppy:varinit -- VARINIT, VARFREE*/
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:varinit", &i, 3, 0, 0, TNF_NONE);				/* subnodes: wptr, type, target-name */
 	cops = tnode_newcompops ();
@@ -1547,6 +1628,8 @@ static int guppy_decls_init_nodes (void)
 
 	i = -1;
 	gup.tag_VARINIT = tnode_newnodetag ("VARINIT", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_VARFREE = tnode_newnodetag ("VARFREE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:declblock -- DECLBLOCK*/

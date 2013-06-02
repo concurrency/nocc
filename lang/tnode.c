@@ -494,6 +494,7 @@ int tnode_init (void)
 	tnode_newlangop ("guesstlp", LOPS_GUESSTLP, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("isaddressable", LOPS_ISADDRESSABLE, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("initcall", LOPS_INITCALL, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("freecall", LOPS_FREECALL, 2, INTERNAL_ORIGIN);
 
 	/*}}}*/
 	/*{{{  setup the static node types*/

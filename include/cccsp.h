@@ -39,7 +39,8 @@ typedef enum ENUM_cccsp_apicall {
 	PROC_PARAM = 6,
 	GET_PROC_PARAM = 7,
 	MEM_ALLOC = 8,
-	MEM_RELEASE = 9
+	MEM_RELEASE = 9,
+	MEM_RELEASE_CHK = 10
 } cccsp_apicall_e;
 
 typedef struct TAG_cccsp_apicall {

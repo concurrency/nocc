@@ -259,7 +259,8 @@ static cccsp_apicall_t cccsp_apicall_table[] = {
 	{PROC_PARAM, "ProcParam", 1},
 	{GET_PROC_PARAM, "GetProcParam", 1},
 	{MEM_ALLOC, "MAlloc", 1},
-	{MEM_RELEASE, "MRelease", 1}
+	{MEM_RELEASE, "MRelease", 1},
+	{MEM_RELEASE_CHK, "MReleaseChk", 1}
 };
 
 
@@ -1678,6 +1679,22 @@ static int cccsp_lcodegen_name (compops_t *cops, tnode_t *name, codegen_t *cgen)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int cccsp_bytesfor_name (langops_t *lops, tnode_t *node, target_t *target)*/
+/*
+ *	returns the number of bytes required for a back-end name, or < 0 on error.
+ */
+static int cccsp_bytesfor_name (langops_t *lops, tnode_t *node, target_t *target)
+{
+	cccsp_namehook_t *nh = (cccsp_namehook_t *)tnode_nthhookof (node, 0);
+
+#if 1
+fhandle_printf (FHAN_STDERR, "cccsp_bytesfor_name(): here, node =\n");
+tnode_dumptree (node, 1, FHAN_STDERR);
+#endif
+	return nh->typesize;
+}
+/*}}}*/
+
 /*{{{  static int cccsp_lcodegen_nameref (compops_t *cops, tnode_t *nameref, codegen_t *cgen)*/
 /*
  *	does code-generation for a name-reference: produces the C name, adjusted for pointer-ness.
@@ -2142,6 +2159,7 @@ static int cccsp_target_init (target_t *target)
 	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (cccsp_lcodegen_name));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (cccsp_bytesfor_name));
 	tnd->lops = lops;
 
 	i = -1;

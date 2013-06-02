@@ -222,6 +222,7 @@ typedef enum ENUM_langops {
 	LOPS_GUESSTLP = 44,			/* 1: tnode_t * -> int */
 	LOPS_ISADDRESSABLE = 45,		/* 1: tnode_t * -> int */
 	LOPS_INITCALL = 46,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
+	LOPS_FREECALL = 47,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
 	LOPS_MAX = 256
 } langops_e;
 
