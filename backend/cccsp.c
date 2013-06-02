@@ -174,6 +174,9 @@ typedef struct TAG_cccsp_priv {
 	ntdef_t *tag_WORKSPACE;
 	ntdef_t *tag_WPTRTYPE;
 	ntdef_t *tag_WORKSPACETYPE;
+	ntdef_t *tag_UTYPE;
+	ntdef_t *tag_ARRAYSUB;
+	ntdef_t *tag_RECORDSUB;
 } cccsp_priv_t;
 
 typedef struct TAG_cccsp_namehook {
@@ -228,6 +231,15 @@ typedef struct TAG_cccsp_workspacehook {
 	int nwords;				/* number of words, -1 if unknown */
 } cccsp_workspacehook_t;
 
+typedef struct TAG_cccsp_utypehook {
+	char *name;				/* e.g. "gt_foo" */
+	int nwords;				/* number of words for the type itself, -1 if unknown */
+} cccsp_utypehook_t;
+
+typedef struct TAG_cccsp_indexhook {
+	int indir;				/* desired indirection on arraysub/recordsub */
+} cccsp_indexhook_t;
+
 /*}}}*/
 /*{{{  private data*/
 
@@ -246,6 +258,8 @@ static cccsp_apicall_t cccsp_apicall_table[] = {
 	{LIGHT_PROC_INIT, "LightProcInit", 1},
 	{PROC_PARAM, "ProcParam", 1},
 	{GET_PROC_PARAM, "GetProcParam", 1},
+	{MEM_ALLOC, "MAlloc", 1},
+	{MEM_RELEASE, "MRelease", 1}
 };
 
 
@@ -607,6 +621,65 @@ static cccsp_workspacehook_t *cccsp_workspacehook_create (int id)
 }
 /*}}}*/
 /*}}}*/
+/*{{{  cccsp_utypehook_t routines*/
+/*{{{  static void cccsp_utypehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
+/*
+ *	dumps a cccsp_utypehook_t (debugging)
+ */
+static void cccsp_utypehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
+{
+	cccsp_utypehook_t *uthook = (cccsp_utypehook_t *)hook;
+
+	cccsp_isetindent (stream, indent);
+	fhandle_printf (stream, "<utypehook name=\"%s\" nwords=\"%d\" addr=\"0x%8.8x\" />\n",
+			uthook->name, uthook->nwords, (unsigned int)uthook);
+	return;
+}
+/*}}}*/
+/*{{{  static cccsp_utypehook_t *cccsp_utypehook_create (const char *name)*/
+/*
+ *	creates a new cccsp_utypehook_t
+ */
+static cccsp_utypehook_t *cccsp_utypehook_create (const char *name)
+{
+	cccsp_utypehook_t *uthook = (cccsp_utypehook_t *)smalloc (sizeof (cccsp_utypehook_t));
+
+	uthook->name = string_fmt ("gt_%s", name);
+	uthook->nwords = -1;
+
+	return uthook;
+}
+/*}}}*/
+/*}}}*/
+/*{{{  cccsp_indexhook_t routines*/
+/*{{{  static void cccsp_indexhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
+/*
+ *	dumps a cccsp_indexhook_t (debugging)
+ */
+static void cccsp_indexhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
+{
+	cccsp_indexhook_t *idh = (cccsp_indexhook_t *)hook;
+
+	cccsp_isetindent (stream, indent);
+	fhandle_printf (stream, "<indexhook indir=\"%d\" addr=\"0x%8.8x\" />\n",
+			idh->indir, (unsigned int)idh);
+	return;
+}
+/*}}}*/
+/*{{{  static cccsp_indexhook_t *cccsp_indexhook_create (int indir)*/
+/*
+ *	creates a new cccsp_indexhook_t
+ */
+static cccsp_indexhook_t *cccsp_indexhook_create (int indir)
+{
+	cccsp_indexhook_t *idh = (cccsp_indexhook_t *)smalloc (sizeof (cccsp_indexhook_t));
+
+	idh->indir = indir;
+
+	return idh;
+}
+/*}}}*/
+/*}}}*/
 
 /*{{{  static tnode_t *cccsp_name_create (tnode_t *fename, tnode_t *body, map_t *mdata, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)*/
 /*
@@ -901,6 +974,51 @@ tnode_t *cccsp_create_workspace_nwordsof (tnode_t *wsnode, target_t *target)
 	t = tnode_create (kpriv->tag_NWORDSOF, SLOCI, wsnode);
 
 	return t;
+}
+/*}}}*/
+/*{{{  tnode_t *cccsp_create_utype (srclocn_t *org, target_t *target, const char *name, tnode_t *fields)*/
+/*
+ *	creates a new UTYPE node, used for user-defined structured types
+ */
+tnode_t *cccsp_create_utype (srclocn_t *org, target_t *target, const char *name, tnode_t *fields)
+{
+	tnode_t *node;
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)target->priv;
+	cccsp_utypehook_t *uthook = cccsp_utypehook_create (name);
+
+	node = tnode_create (kpriv->tag_UTYPE, org, fields, uthook);
+
+	return node;
+}
+/*}}}*/
+/*{{{  tnode_t *cccsp_create_arraysub (srclocn_t *org, target_t *target, tnode_t *base, tnode_t *index, int indir)*/
+/*
+ *	creates a new ARRAYSUB node, used for accessing array elements
+ */
+tnode_t *cccsp_create_arraysub (srclocn_t *org, target_t *target, tnode_t *base, tnode_t *index, int indir)
+{
+	tnode_t *node;
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)target->priv;
+	cccsp_indexhook_t *idh = cccsp_indexhook_create (indir);
+
+	node = tnode_create (kpriv->tag_ARRAYSUB, org, base, index, idh);
+
+	return node;
+}
+/*}}}*/
+/*{{{  tnode_t *cccsp_create_recordsub (srclocn_t *org, target_t *target, tnode_t *base, tnode_t *field, int indir)*/
+/*
+ *	creates a new RECORDSUB node, used for accessing record fields (mostly within user-defined types)
+ */
+tnode_t *cccsp_create_recordsub (srclocn_t *org, target_t *target, tnode_t *base, tnode_t *field, int indir)
+{
+	tnode_t *node;
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)target->priv;
+	cccsp_indexhook_t *idh = cccsp_indexhook_create (indir);
+
+	node = tnode_create (kpriv->tag_RECORDSUB, org, base, field, idh);
+
+	return node;
 }
 /*}}}*/
 
@@ -1870,6 +1988,86 @@ static int cccsp_getctypeof_type (langops_t *lops, tnode_t *t, char **str)
 }
 /*}}}*/
 
+/*{{{  static int cccsp_lpreallocate_utype (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)*/
+/*
+ *	does pre-allocation for a UTYPE node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_lpreallocate_utype (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static int cccsp_lcodegen_utype (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a UTYPE node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_lcodegen_utype (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	cccsp_utypehook_t *uthook = (cccsp_utypehook_t *)tnode_nthhookof (node, 0);
+
+	codegen_ssetindent (cgen);
+	codegen_write_fmt (cgen, "typedef struct TAG_%s {\n", uthook->name);
+	cgen->indent++;
+	codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+	cgen->indent--;
+	codegen_write_fmt (cgen, "} %s;\n\n", uthook->name);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cccsp_getctypeof_utype (langops_t *lops, tnode_t *t, char **str)*/
+/*
+ *	gets the C type of a UTYPE node (trivial)
+ */
+static int cccsp_getctypeof_utype (langops_t *lops, tnode_t *t, char **str)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cccsp_target.priv;
+	char *lstr;
+
+	if (t->tag == kpriv->tag_UTYPE) {
+		cccsp_utypehook_t *uthook = (cccsp_utypehook_t *)tnode_nthhookof (t, 0);
+
+		lstr = string_dup (uthook->name);
+	} else {
+		nocc_internal ("cccsp_getctypeof_utype(): unhandled [%s]", t->tag->name);
+		return 0;
+	}
+
+	if (*str) {
+		sfree (*str);
+	}
+	*str = lstr;
+
+	return 0;
+}
+/*}}}*/
+
+/*{{{  static int cccsp_lcodegen_indexnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for an index-node (arraysub/recordsub)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_lcodegen_indexnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cgen->target->priv;
+	cccsp_indexhook_t *idh = (cccsp_indexhook_t *)tnode_nthhookof (node, 0);
+
+	if (node->tag == kpriv->tag_ARRAYSUB) {
+		codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+		codegen_write_fmt (cgen, "[");
+		codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+		codegen_write_fmt (cgen, "]");
+	} else if (node->tag == kpriv->tag_RECORDSUB) {
+		codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+		codegen_write_fmt (cgen, "->");
+		codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+	}
+	return 0;
+}
+/*}}}*/
+
 /*{{{  int cccsp_init (void)*/
 /*
  *	initialises the KRoC CIF/CCSP back-end
@@ -2093,6 +2291,38 @@ static int cccsp_target_init (target_t *target)
 	kpriv->tag_WPTRTYPE = tnode_newnodetag ("CCCSPWPTRTYPE", &i, tnd, NTF_NONE);
 	i = -1;
 	kpriv->tag_WORKSPACETYPE = tnode_newnodetag ("CCCSPWORKSPACETYPE", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  cccsp:utype -- CCCSPUTYPE*/
+	i = -1;
+	tnd = tnode_newnodetype ("cccsp:utype", &i, 1, 0, 1, TNF_NONE);		/* subnodes: be-type-tree; hooks: cccsp_utypehook_t */
+	tnd->hook_dumptree = cccsp_utypehook_dumptree;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (cccsp_lpreallocate_utype));
+	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (cccsp_lcodegen_utype));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (cccsp_getctypeof_utype));
+	tnd->lops = lops;
+
+	i = -1;
+	kpriv->tag_UTYPE = tnode_newnodetag ("CCCSPUTYPE", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  cccsp:indexnode -- ARRAYSUB, RECORDSUB*/
+	i = -1;
+	tnd = tnode_newnodetype ("cccsp:indexnode", &i, 2, 0, 1, TNF_NONE);	/* subnodes: base, index; hooks: cccsp_indexhook_t */
+	tnd->hook_dumptree = cccsp_indexhook_dumptree;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (cccsp_lcodegen_indexnode));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	kpriv->tag_ARRAYSUB = tnode_newnodetag ("CCCSPARRAYSUB", &i, tnd, NTF_NONE);
+	i = -1;
+	kpriv->tag_RECORDSUB = tnode_newnodetag ("CCCSPRECORDSUB", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

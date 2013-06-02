@@ -65,6 +65,7 @@
 #include "metadata.h"
 #include "tracescheck.h"
 #include "mobilitycheck.h"
+#include "cccsp.h"
 
 
 /*}}}*/
@@ -550,23 +551,34 @@ tnode_dumptree (idxtype, 1, FHAN_STDERR);
 	return 0;
 }
 /*}}}*/
-/*{{{  static int guppy_codegen_arrayopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*{{{  static int guppy_namemap_arrayopnode (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
- *	does code-generation for an array operator (arraysub, recordsub)
+ *	does name-mapping for an array operator (arraysub, recordsub)
  *	returns 0 to stop walk, 1 to continue
  */
-static int guppy_codegen_arrayopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
+static int guppy_namemap_arrayopnode (compops_t *cops, tnode_t **nodep, map_t *map)
 {
-	if (node->tag == gup.tag_ARRAYSUB) {
-		codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
-		codegen_write_fmt (cgen, "[");
-		codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
-		codegen_write_fmt (cgen, "]");
-	} else if (node->tag == gup.tag_RECORDSUB) {
-		codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
-		codegen_write_fmt (cgen, "->");
-		codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
+	int tindir = cmd->target_indir;
+	tnode_t *idxnode;
+
+	/* for both array and record bases, want a pointer */
+	cmd->target_indir = 1;
+	map_submapnames (tnode_nthsubaddr (*nodep, 0), map);
+	cmd->target_indir = 0;
+	/* but for the index/field, just the plain thing */
+	map_submapnames (tnode_nthsubaddr (*nodep, 1), map);
+
+	cmd->target_indir = tindir;
+	if ((*nodep)->tag == gup.tag_ARRAYSUB) {
+		idxnode = cccsp_create_arraysub (OrgOf (*nodep), map->target, tnode_nthsubof (*nodep, 0), tnode_nthsubof (*nodep, 1), tindir);
+	} else if ((*nodep)->tag == gup.tag_RECORDSUB) {
+		idxnode = cccsp_create_recordsub (OrgOf (*nodep), map->target, tnode_nthsubof (*nodep, 0), tnode_nthsubof (*nodep, 1), tindir);
+	} else {
+		nocc_internal ("guppy_namemap_arrayopnode(): unhandled [%s]", (*nodep)->tag->name);
 	}
+
+	*nodep = idxnode;
 
 	return 0;
 }
@@ -734,7 +746,7 @@ static int guppy_oper_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_arrayopnode));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_arrayopnode));
-	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_arrayopnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_arrayopnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_arrayopnode));

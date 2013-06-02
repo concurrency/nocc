@@ -36,6 +36,7 @@ extern int langops_valbyref (struct TAG_tnode *node);
 extern int langops_isvar (struct TAG_tnode *node);
 extern int langops_iscomplex (struct TAG_tnode *node, int deep);
 extern int langops_isaddressable (struct TAG_tnode *node);
+extern int langops_isdefpointer (struct TAG_tnode *node);
 extern struct TAG_tnode *langops_retypeconst (struct TAG_tnode *node, struct TAG_tnode *type);
 extern struct TAG_tnode *langops_dimtreeof (struct TAG_tnode *node);
 extern struct TAG_tnode *langops_dimtreeof_node (struct TAG_tnode *node, struct TAG_tnode *varnode);
@@ -52,6 +53,7 @@ extern struct TAG_name *langops_nameof (struct TAG_tnode *node);
 extern struct TAG_tnode *langops_tracespecof (struct TAG_tnode *node);
 extern void langops_getctypeof (struct TAG_tnode *node, char **str);
 extern int langops_guesstlp (struct TAG_tnode *node);
+extern struct TAG_tnode *langops_initcall (struct TAG_tnode *type, struct TAG_tnode *name);
 
 #endif	/* !__LANGOPS_H */
 

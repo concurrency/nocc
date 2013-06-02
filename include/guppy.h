@@ -91,6 +91,7 @@ typedef struct {
 	struct TAG_ntdef *tag_ENUMDEF;
 	struct TAG_ntdef *tag_TYPEDEF;
 	struct TAG_ntdef *tag_FPARAMINIT;
+	struct TAG_ntdef *tag_VARINIT;
 
 	struct TAG_ntdef *tag_EXTDECL;
 

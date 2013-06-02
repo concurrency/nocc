@@ -489,9 +489,11 @@ int tnode_init (void)
 	tnode_newlangop ("dimtreeof_node", LOPS_DIMTREEOF_NODE, 2, INTERNAL_ORIGIN);
 	tnode_newlangop ("bytesforparam", LOPS_BYTESFORPARAM, 2, INTERNAL_ORIGIN);
 	tnode_newlangop ("getctypeof", LOPS_GETCTYPEOF, 2, INTERNAL_ORIGIN);
+	tnode_newlangop ("isdefpointer", LOPS_ISDEFPOINTER, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("knownsizeof", LOPS_KNOWNSIZEOF, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("guesstlp", LOPS_GUESSTLP, 1, INTERNAL_ORIGIN);
 	tnode_newlangop ("isaddressable", LOPS_ISADDRESSABLE, 1, INTERNAL_ORIGIN);
+	tnode_newlangop ("initcall", LOPS_INITCALL, 2, INTERNAL_ORIGIN);
 
 	/*}}}*/
 	/*{{{  setup the static node types*/

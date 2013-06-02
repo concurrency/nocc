@@ -130,6 +130,25 @@ int langops_isconst (tnode_t *node)
 	return r;
 }
 /*}}}*/
+/*{{{  int langops_isdefpointer (tnode_t *node)*/
+/*
+ *	determines whether or not the given node is a pointer by default (used on dynamically allocated types mostly)
+ */
+int langops_isdefpointer (tnode_t *node)
+{
+	int r = 0;
+
+	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
+		/* skip through */
+		node = tnode_nthsubof (node, 0);
+	}
+
+	if (node && node->tag->ndef->lops && tnode_haslangop_i (node->tag->ndef->lops, (int)LOPS_ISDEFPOINTER)) {
+		r = tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_ISDEFPOINTER, 1, node);
+	}
+	return r;
+}
+/*}}}*/
 /*{{{  int langops_constvalof (tnode_t *node, void *ptr)*/
 /*
  *	extracts the constant value of a given node.  if "ptr" is non-null,
@@ -602,6 +621,19 @@ int langops_guesstlp (tnode_t *node)
 		return (int)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GUESSTLP, 1, node);
 	}
 	return 0;
+}
+/*}}}*/
+/*{{{  tnode_t *langops_initcall (tnode_t *type, tnode_t *name)*/
+/*
+ *	generates an initialising call for a type-node, if appropriate
+ *	returns initialiser (whole article) on success, NULL on failure
+ */
+tnode_t *langops_initcall (tnode_t *type, tnode_t *name)
+{
+	if (type && type->tag->ndef->lops && tnode_haslangop_i (type->tag->ndef->lops, (int)LOPS_INITCALL)) {
+		return (tnode_t *)tnode_calllangop_i (type->tag->ndef->lops, (int)LOPS_INITCALL, 2, type, name);
+	}
+	return NULL;
 }
 /*}}}*/
 

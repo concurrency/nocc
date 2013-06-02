@@ -217,9 +217,11 @@ typedef enum ENUM_langops {
 	LOPS_DIMTREEOF_NODE = 39,		/* 2: tnode_t *, tnode_t * -> tnode_t * */
 	LOPS_BYTESFORPARAM = 40,		/* 2: tnode_t *, target_t * -> int */
 	LOPS_GETCTYPEOF = 41,			/* 2: tnode_t *, char ** -> int */
-	LOPS_KNOWNSIZEOF = 42,			/* 1: tnode_t * -> int */
-	LOPS_GUESSTLP = 43,			/* 1: tnode_t * -> int */
-	LOPS_ISADDRESSABLE = 44,		/* 1: tnode_t * -> int */
+	LOPS_ISDEFPOINTER = 42,			/* 1: tnode_t * -> int */
+	LOPS_KNOWNSIZEOF = 43,			/* 1: tnode_t * -> int */
+	LOPS_GUESSTLP = 44,			/* 1: tnode_t * -> int */
+	LOPS_ISADDRESSABLE = 45,		/* 1: tnode_t * -> int */
+	LOPS_INITCALL = 46,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
 	LOPS_MAX = 256
 } langops_e;
 

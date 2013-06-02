@@ -64,7 +64,7 @@
 
 # "guppy:exprstartproc" handles processes that might start with expressions, e.g. complex LHS for action
 
-.TABLE	"guppy:exprstartproc ::= [ 0 guppy:expr 1 ] [ 1 -@@= <guppy:assignlhs> ]"
+.TABLE	"guppy:exprstartproc ::= [ 0 guppy:expr 1 ] [ 1 -@@= <guppy:assignlhs> ] [ 1 -@@? <guppy:inputlhs> ] [ 1 -@@! <guppy:outputlhs> ]"
 
 # }}}
 
@@ -200,21 +200,24 @@
 
 .TABLE	"guppy:oneassign ::= [ 0 guppy:name 1 ] [ 1 @@= 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:assignreduce>} -* ]"
 
-# when we get here, have expression or list-of (LHS) on node-stack */
+# when we get here, have expression or list-of (LHS) on node-stack
 .TABLE	"guppy:assignlhs ::= [ 0 @@= 1 ] [ 1 guppy:exprlist 2 ] [ 2 {<gup:assignreduce>} -* ]"
 
 # }}}
 .SECTION "guppy-io" # {{{: input/output
 
-.GRULE "gup:inputreduce" "SN0N+N+V0C[INPUT]3R-"
-.GRULE "gup:caseinputreduce" "SN0N+00C[CASEINPUT]3R-"
-.GRULE "gup:outputreduce" "SN0N+N+V0C[OUTPUT]3R-"
+.GRULE	"gup:inputreduce" "SN0N+N+V0C[INPUT]3R-"
+.GRULE	"gup:caseinputreduce" "SN0N+00C[CASEINPUT]3R-"
+.GRULE	"gup:outputreduce" "SN0N+N+V0C[OUTPUT]3R-"
 
-.TABLE "guppy:input ::= [ 0 guppy:name 1 ] [ 1 @@? 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:inputreduce>} -* ]"
+.TABLE	"guppy:input ::= [ 0 guppy:name 1 ] [ 1 @@? 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:inputreduce>} -* ]"
 	"[ 2 @case 4 ] [ 4 {<gup:caseinputreduce>} -* ]"
 
-.TABLE "guppy:output ::= [ 0 guppy:name 1 ] [ 1 @@! 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:outputreduce>} -* ]"
+.TABLE	"guppy:output ::= [ 0 guppy:name 1 ] [ 1 @@! 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:outputreduce>} -* ]"
 
+# when we get here, have expression or list-of (LHS) on node-stack
+.TABLE	"guppy:inputlhs ::= [ 0 @@? 1 ] [ 1 guppy:exprlist 2 ] [ 2 {<gup:inputreduce>} -* ]"
+.TABLE	"guppy:outputlhs ::= [ 0 @@! 1 ] [ 1 guppy:exprlist 2 ] [ 2 {<gup:outputreduce>} -* ]"
 
 # }}}
 .SECTION "guppy-oper" # {{{: operators

@@ -8,6 +8,7 @@ define test_g22 ()
   ICoord c
   char x
   c.x = 15
+  x = 10
   skip
 end
 
