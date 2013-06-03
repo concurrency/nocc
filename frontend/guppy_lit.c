@@ -324,8 +324,8 @@ static tnode_t *guppy_gettype_litnode (langops_t *lops, tnode_t *node, tnode_t *
 	} else if (!type) {
 		if (node->tag == gup.tag_LITBOOL) {
 			/* ignore default type */
-			tnode_setnthsub (node, 0, tnode_create (gup.tag_BOOL, NULL));
-			type = tnode_nthsubof (node, 0);
+			type = guppy_newprimtype (gup.tag_BOOL, NULL, 1);
+			tnode_setnthsub (node, 0, type);
 		} else {
 			/* no type yet, use default_type */
 			guppy_litdata_t *ldat = (guppy_litdata_t *)tnode_nthhookof (node, 0);

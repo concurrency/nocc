@@ -58,6 +58,7 @@
 #include "codegen.h"
 #include "target.h"
 #include "transputer.h"
+#include "cccsp.h"
 
 
 /*}}}*/
@@ -92,6 +93,49 @@ static int guppy_typecheck_cflow (compops_t *cops, tnode_t *node, typecheck_t *t
 	} else if (node->tag == gup.tag_IF) {
 		/* FIXME: incomplete! */
 	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_namemap_cflow (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for a control-flow node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_cflow (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t **exprp = tnode_nthsubaddr (*nodep, 0);
+	tnode_t **bodyp = tnode_nthsubaddr (*nodep, 1);
+	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
+
+	if ((*nodep)->tag == gup.tag_WHILE) {
+		cmd->target_indir = 0;
+		map_submapnames (exprp, map);
+
+		map_submapnames (bodyp, map);
+	} else if ((*nodep)->tag == gup.tag_IF) {
+		/* FIXME! */
+		return 1;
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_cflow (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a control-flow node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_cflow (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	if (node->tag == gup.tag_WHILE) {
+		codegen_ssetindent (cgen);
+		codegen_write_fmt (cgen, "while (");
+		codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+		codegen_write_fmt (cgen, ")\n");
+		codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+		return 0;
+	}
+
 	return 1;
 }
 /*}}}*/
@@ -272,6 +316,8 @@ static int guppy_cflow_init_nodes (void)
 	tnd = tnode_newnodetype ("guppy:cflow", &i, 2, 0, 0, TNF_LONGPROC);	/* subnodes: 0 = expr; 1 = body */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_cflow));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_cflow));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_cflow));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;
