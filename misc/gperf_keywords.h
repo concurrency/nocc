@@ -36,12 +36,12 @@
  */
 struct TAG_keyword;
 
-#define TOTAL_KEYWORDS 124
+#define TOTAL_KEYWORDS 127
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 12
 #define MIN_HASH_VALUE 3
-#define MAX_HASH_VALUE 206
-/* maximum key range = 204, duplicates = 0 */
+#define MAX_HASH_VALUE 213
+/* maximum key range = 211, duplicates = 0 */
 
 #ifdef __GNUC__
 __inline
@@ -55,32 +55,32 @@ hash (register const char *str, register unsigned int len)
 {
   static const unsigned char asso_values[] =
     {
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-       45, 207,  35, 207,  20, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207,  40,  15,   5,  50,   0,
-       45,  25,  20,   0,  65,  95,  15,   5,  20,  75,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+       45, 214,  35, 214,  70, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214,  40,  15,   5,  50,   0,
+       45,  25,  20,   0,  65, 100,  15,   5,  20,  75,
         5,  47,  25,  15,   0,  35,  60, 100,  20,   0,
-        0,  52, 207, 207, 207, 207, 207,   0,  10,  60,
-       85,   5,   5,   0,   5,  10,  40, 207,   0,  65,
-        0,  10,   0,  75,  20, 100,  50,  90,  65,   0,
-      207, 207, 207,  40, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207, 207, 207, 207,
-      207, 207, 207, 207, 207, 207, 207
+        0,  52, 214, 214, 214, 214, 214,   0,  10,  60,
+       85,   5,  15,   0,   0,  10,  40, 214,   0,  55,
+        0,  15,   0,  90,  20, 100,  50,  90,  75,  10,
+      214, 214, 214,  45, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214, 214, 214, 214,
+      214, 214, 214, 214, 214, 214, 214
     };
   register int hval = len;
 
@@ -156,7 +156,7 @@ static const struct TAG_keyword wordlist[] =
     {"EXTENDS",	86,	LANGTAG_OCCAMPI,	NULL},
     {"NOT",		55,	LANGTAG_OCCAMPI,	NULL},
     {"FROM",		34,	LANGTAG_OCCAMPI,	NULL},
-    {"INT16",		8,	LANGTAG_OCCAMPI,	NULL},
+    {"while",		124,	LANGTAG_GUPPY,		NULL},
     {"MOBILE.DATA",	58,	LANGTAG_OCCAMPI,	NULL},
     {"BARRIER",	24,	LANGTAG_OCCAMPI,	NULL},
     {"XOR",		79,	LANGTAG_OCCAMPI,	NULL},
@@ -176,7 +176,7 @@ static const struct TAG_keyword wordlist[] =
     {"BYTESIN",	73,	LANGTAG_OCCAMPI,	NULL},
     {"ALT",		47,	LANGTAG_OCCAMPI,	NULL},
     {"EXCEPTION",	80,	LANGTAG_OCCAMPI,	NULL},
-    {(char*)0,-1,0,NULL},
+    {"false",		126,	LANGTAG_GUPPY,		NULL},
     {"REAL64",		12,	LANGTAG_OCCAMPI,	NULL},
     {"RETYPES",	38,	LANGTAG_OCCAMPI,	NULL},
     {"VAL",		20,	LANGTAG_OCCAMPI,	NULL},
@@ -206,7 +206,8 @@ static const struct TAG_keyword wordlist[] =
     {"bytesin",	120,	LANGTAG_GUPPY,		NULL},
     {(char*)0,-1,0,NULL},
     {"byte",		101,	LANGTAG_GUPPY,		NULL},
-    {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
+    {"INT16",		8,	LANGTAG_OCCAMPI,	NULL},
+    {(char*)0,-1,0,NULL},
     {"is",		121,	LANGTAG_GUPPY,		NULL},
     {(char*)0,-1,0,NULL},
     {"UINT",		90,	LANGTAG_OCCAMPI,	NULL},
@@ -223,16 +224,16 @@ static const struct TAG_keyword wordlist[] =
     {(char*)0,-1,0,NULL},
     {"public",		112,	LANGTAG_GUPPY,		NULL},
     {"FINALLY",	84,	LANGTAG_OCCAMPI,	NULL},
-    {"for",		113,	LANGTAG_GUPPY,		NULL},
+    {(char*)0,-1,0,NULL},
     {"DATA",		17,	LANGTAG_OCCAMPI,	NULL},
     {(char*)0,-1,0,NULL},
     {"RECORD",		46,	LANGTAG_OCCAMPI,	NULL},
     {"DEFINED",	66,	LANGTAG_OCCAMPI,	NULL},
     {"val",		98,	LANGTAG_GUPPY,		NULL},
-    {"type",		105,	LANGTAG_GUPPY,		NULL},
-    {(char*)0,-1,0,NULL},
-    {"UINT16",		91,	LANGTAG_OCCAMPI,	NULL},
+    {"true",		125,	LANGTAG_GUPPY,		NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
+    {(char*)0,-1,0,NULL},
+    {"for",		113,	LANGTAG_GUPPY,		NULL},
     {"enum",		110,	LANGTAG_GUPPY,		NULL},
     {"ROUND",		40,	LANGTAG_OCCAMPI,	NULL},
     {"VECTOR",		89,	LANGTAG_OCCAMPI,	NULL},
@@ -242,20 +243,21 @@ static const struct TAG_keyword wordlist[] =
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {(char*)0,-1,0,NULL},
     {"FUNCTION",	15,	LANGTAG_OCCAMPI,	NULL},
-    {"size",		114,	LANGTAG_GUPPY,		NULL},
+    {"type",		105,	LANGTAG_GUPPY,		NULL},
     {(char*)0,-1,0,NULL},
     {"UINT64",		93,	LANGTAG_OCCAMPI,	NULL},
     {(char*)0,-1,0,NULL},
     {"int",		99,	LANGTAG_GUPPY | 0x00010000,		NULL},
-    {"uint",		111,	LANGTAG_GUPPY | 0x00010000,		NULL},
-    {"throw",		115,	LANGTAG_GUPPY,		NULL},
+    {"size",		114,	LANGTAG_GUPPY,		NULL},
+    {"catch",		116,	LANGTAG_GUPPY,		NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {(char*)0,-1,0,NULL},
-    {"FORK",		22,	LANGTAG_OCCAMPI,	NULL},
-    {"catch",		116,	LANGTAG_GUPPY,		NULL},
+    {"uint",		111,	LANGTAG_GUPPY | 0x00010000,		NULL},
+    {(char*)0,-1,0,NULL},
     {"UINT32",		92,	LANGTAG_OCCAMPI,	NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
-    {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
+    {"FORK",		22,	LANGTAG_OCCAMPI,	NULL},
+    {"throw",		115,	LANGTAG_GUPPY,		NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {"WHILE",		50,	LANGTAG_OCCAMPI,	NULL},
@@ -267,18 +269,22 @@ static const struct TAG_keyword wordlist[] =
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
+    {"UINT16",		91,	LANGTAG_OCCAMPI,	NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
-    {"seq",		106,	LANGTAG_GUPPY,		NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
     {(char*)0,-1,0,NULL},
-    {"string",		104,	LANGTAG_GUPPY,		NULL}
+    {"string",		104,	LANGTAG_GUPPY,		NULL},
+    {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
+    {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
+    {(char*)0,-1,0,NULL}, {(char*)0,-1,0,NULL},
+    {"seq",		106,	LANGTAG_GUPPY,		NULL}
   };
 
 #ifdef __GNUC__

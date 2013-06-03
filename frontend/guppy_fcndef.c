@@ -204,6 +204,8 @@ static int guppy_prescope_fcndef (compops_t *cops, tnode_t **node, prescope_t *p
 	/* prescope params and result types */
 	prescope_subtree (tnode_nthsubaddr (*node, 1), ps);
 
+	gps->last_type = NULL;
+
 	if (tnode_nthsubof (*node, 3)) {
 		parser_ensurelist (tnode_nthsubaddr (*node, 3), *node);
 		prescope_subtree (tnode_nthsubaddr (*node, 3), ps);

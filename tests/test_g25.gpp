@@ -1,0 +1,7 @@
+# test_g25.gpp -- alt channel-parameter syntax
+
+define test_g25 (chan(int) in?, out!)
+  while true
+    out ! 42
+end
+

@@ -61,9 +61,39 @@
 
 
 /*}}}*/
-/*{{{  private data*/
+/*{{{  private types/data*/
 
+static tnode_t *guppy_cflow_booltypenode;
 
+/*}}}*/
+
+/*{{{  static int guppy_typecheck_cflow (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	called to do type-checking on a control-flow node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_typecheck_cflow (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	if (node->tag == gup.tag_WHILE) {
+		tnode_t *etype, *atype;
+
+		typecheck_subtree (tnode_nthsubof (node, 0), tc);
+		etype = typecheck_gettype (tnode_nthsubof (node, 0), guppy_cflow_booltypenode);
+
+		if (!etype) {
+			typecheck_error (node, tc, "failed to determine type of expression");
+			return 0;
+		}
+		atype = typecheck_typeactual (guppy_cflow_booltypenode, etype, node, tc);
+		if (!atype) {
+			typecheck_error (node, tc, "expression incompatible with boolean type");
+			return 0;
+		}
+	} else if (node->tag == gup.tag_IF) {
+		/* FIXME: incomplete! */
+	}
+	return 1;
+}
 /*}}}*/
 
 /*{{{  static int guppy_prescope_rnode (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
@@ -241,6 +271,7 @@ static int guppy_cflow_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:cflow", &i, 2, 0, 0, TNF_LONGPROC);	/* subnodes: 0 = expr; 1 = body */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_cflow));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;
@@ -272,6 +303,18 @@ static int guppy_cflow_init_nodes (void)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_cflow_post_setup (void)*/
+/*
+ *	called to do post-setup for control-flow structures
+ *	returns 0 on success, non-zero on failure
+ */
+static int guppy_cflow_post_setup (void)
+{
+	guppy_cflow_booltypenode = guppy_newprimtype (gup.tag_BOOL, NULL, 0);
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  guppy_cflow_feunit (feunit_t)*/
@@ -279,7 +322,7 @@ feunit_t guppy_cflow_feunit = {
 	.init_nodes = guppy_cflow_init_nodes,
 	.reg_reducers = NULL,
 	.init_dfatrans = NULL,
-	.post_setup = NULL,
+	.post_setup = guppy_cflow_post_setup,
 	.ident = "guppy-cflow"
 };
 /*}}}*/

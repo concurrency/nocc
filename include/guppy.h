@@ -284,6 +284,8 @@ extern char *guppy_maketempname (struct TAG_tnode *org);
 extern guppy_fcndefhook_t *guppy_newfcndefhook (void);
 extern void guppy_freefcndefhook (guppy_fcndefhook_t *fdh);
 
+extern int guppy_chantype_setinout (struct TAG_tnode *chantype, int marked_in, int marked_out);
+
 /* front-end units */
 extern struct TAG_feunit guppy_assign_feunit;		/* guppy_assign.c */
 extern struct TAG_feunit guppy_cflow_feunit;		/* guppy_cflow.c */

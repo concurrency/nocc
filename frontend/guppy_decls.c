@@ -759,6 +759,58 @@ tnode_dumptree (*initp, 1, FHAN_STDERR);
 }
 /*}}}*/
 
+/*{{{  static int guppy_prescope_fparam (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
+/*
+ *	does pre-scoping on a formal parameter (fixes type, etc.)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_prescope_fparam (compops_t *cops, tnode_t **nodep, prescope_t *ps)
+{
+	guppy_prescope_t *gps = (guppy_prescope_t *)ps->hook;
+	tnode_t **namep = tnode_nthsubaddr (*nodep, 0);
+	tnode_t **typep = tnode_nthsubaddr (*nodep, 1);
+	int markedin = 0, markedout = 0;
+	char *rawpname;
+
+	if ((*namep)->tag == gup.tag_MARKEDIN) {
+		*namep = tnode_nthsubof (*namep, 0);
+		markedin = 1;
+	} else if ((*namep)->tag == gup.tag_MARKEDOUT) {
+		*namep = tnode_nthsubof (*namep, 0);
+		markedout = 1;
+	}
+	if ((*namep)->tag != gup.tag_NAME) {
+		prescope_error (*nodep, ps, "parameter is not a name, found [%s]", (*namep)->tag->name);
+		return 0;
+	}
+	rawpname = (char *)tnode_nthhookof (*namep, 0);
+
+	if (!*typep) {
+		/* borrow type from earlier parameter, if set */
+		if (!gps->last_type) {
+			prescope_error (*nodep, ps, "no type for parameter [%s]", rawpname);
+			return 0;
+		} else {
+			*typep = tnode_copytree (gps->last_type);
+		}
+	} else {
+		gps->last_type = tnode_copytree (*typep);
+	}
+
+	if ((*typep)->tag == gup.tag_CHAN) {
+		guppy_chantype_setinout (*typep, markedin, markedout);
+	} else if (markedin || markedout) {
+		prescope_error (*nodep, ps, "cannot attach direction-specifier to non-channel parameter [%s]", rawpname);
+		return 0;
+	}
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_prescope_fparam(): *nodep =\n");
+tnode_dumptree (*nodep, 1, FHAN_STDERR);
+#endif
+
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_scopein_fparam (compops_t *cops, tnode_t **node, scope_t *ss)*/
 /*
  *	scopes-in a formal parameter
@@ -951,7 +1003,7 @@ static int guppy_namemap_varinit (compops_t *cops, tnode_t **nodep, map_t *map)
 		tnode_t *action;
 
 		tsize = tnode_bytesfor (type, map->target);
-#if 1
+#if 0
 fhandle_printf (FHAN_STDERR, "guppy_namemap_varinit(): tsize is %d\n", tsize);
 #endif
 		cmd->target_indir = 1;
@@ -1592,6 +1644,7 @@ static int guppy_decls_init_nodes (void)
 	tnd->hook_copy = guppy_fparaminfo_hook_copy;
 	tnd->hook_free = guppy_fparaminfo_hook_free;
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_fparam));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_fparam));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_fparam));
 	tnd->ops = cops;

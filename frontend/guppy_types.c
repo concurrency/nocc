@@ -123,7 +123,7 @@ static chantypehook_t *guppy_newchantypehook (void)
 	chantypehook_t *cth = (chantypehook_t *)smalloc (sizeof (chantypehook_t));
 
 	cth->marked_svr = 0;
-	cth->marked_cli = 1;
+	cth->marked_cli = 0;
 	return cth;
 }
 /*}}}*/
@@ -812,6 +812,21 @@ static int guppy_typehash_chantype (langops_t *lops, tnode_t *t, int hsize, void
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_setinout_chantype (langops_t *lops, tnode_t *node, int marked_in, int marked_out)*/
+/*
+ *	sets the input+output specifiers for a channel-type node
+ *	returns 0 on success, non-zero on failure
+ */
+static int guppy_setinout_chantype (langops_t *lops, tnode_t *node, int marked_in, int marked_out)
+{
+	chantypehook_t *cth = (chantypehook_t *)tnode_nthhookof (node, 0);
+
+	cth->marked_svr = marked_in;
+	cth->marked_cli = marked_out;
+
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static int guppy_typecheck_arraytype (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
@@ -902,7 +917,9 @@ static int guppy_types_init_nodes (void)
 	langops_t *lops;
 	int i;
 
-	/*{{{  register reduction functions*/
+	/*{{{  register reduction functions and new langops*/
+	tnode_newlangop ("chantype_setinout", LOPS_INVALID, 3, origin_langparser (&guppy_parser));
+
 	fcnlib_addfcn ("guppy_reduce_primtype", guppy_reduce_primtype, 0, 3);
 	fcnlib_addfcn ("guppy_reduce_chantype", guppy_reduce_chantype, 0, 3);
 
@@ -955,6 +972,7 @@ static int guppy_types_init_nodes (void)
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (guppy_typeactual_chantype));
 	tnode_setlangop (lops, "guesstlp", 1, LANGOPTYPE (guppy_guesstlp_chantype));
 	tnode_setlangop (lops, "typehash", 3, LANGOPTYPE (guppy_typehash_chantype));
+	tnode_setlangop (lops, "chantype_setinout", 3, LANGOPTYPE (guppy_setinout_chantype));
 	tnd->lops = lops;
 
 	i = -1;
@@ -1030,7 +1048,6 @@ static int guppy_types_post_setup (void)
 	return 0;
 }
 /*}}}*/
-
 
 /*{{{  guppy_types_feunit (feunit_t)*/
 feunit_t guppy_types_feunit = {

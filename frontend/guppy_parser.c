@@ -770,7 +770,22 @@ char *guppy_maketempname (tnode_t *org)
 	return str;
 }
 /*}}}*/
-
+/*{{{  int guppy_chantype_setinout (tnode_t *chantype, int marked_in, int marked_out)*/
+/*
+ *	sets in/out markers on a channel-type, done via langops
+ *	returns 0 on success, non-zero on error
+ */
+int guppy_chantype_setinout (tnode_t *chantype, int marked_in, int marked_out)
+{
+	if (!chantype) {
+		return -1;
+	}
+	if (chantype->tag->ndef->lops && tnode_haslangop (chantype->tag->ndef->lops, "chantype_setinout")) {
+		return tnode_calllangop (chantype->tag->ndef->lops, "chantype_setinout", 3, chantype, marked_in, marked_out);
+	}
+	return -1;
+}
+/*}}}*/
 
 /*{{{  static int declify_cpass (tnode_t **treeptr)*/
 /*
@@ -1044,6 +1059,7 @@ static int guppy_parser_init (lexfile_t *lf)
 			return 1;
 		}
 
+		/* create new compiler passes */
 		if (tnode_newcompop ("declify", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 			nocc_serious ("guppy_parser_init(): failed to add \"declify\" compiler operation");
 			return 1;

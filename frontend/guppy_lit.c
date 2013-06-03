@@ -134,6 +134,18 @@ void *guppy_token_to_lithook (void *ntok)
 
 		memcpy (ldat->data, tok->u.str.ptr, tok->u.str.len);
 		((char *)ldat->data)[ldat->bytes] = '\0';
+	} else if ((tok->type == KEYWORD) && lexer_tokmatchlitstr (tok, "true")) {
+		ldat->data = smalloc (sizeof (int));
+		ldat->bytes = sizeof (int);
+		ldat->littype = INTEGER;
+
+		*(int *)(ldat->data) = 1;
+	} else if ((tok->type == KEYWORD) && lexer_tokmatchlitstr (tok, "false")) {
+		ldat->data = smalloc (sizeof (int));
+		ldat->bytes = sizeof (int);
+		ldat->littype = INTEGER;
+
+		*(int *)(ldat->data) = 0;
 	} else {
 		nocc_serious ("guppy_token_to_lithook(): unsupported token type! %d", (int)tok->type);
 		guppy_freelitdata (ldat);
