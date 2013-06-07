@@ -64,7 +64,7 @@
 #include "metadata.h"
 #include "tracescheck.h"
 #include "mobilitycheck.h"
-
+#include "cccsp.h"
 
 
 /*}}}*/
@@ -153,6 +153,58 @@ void *guppy_token_to_lithook (void *ntok)
 	}
 
 	return (void *)ldat;
+}
+/*}}}*/
+/*{{{  static char *guppy_esclitstring (guppy_litdata_t *ldat)*/
+/*
+ *	reproduces a literal string, C-escape style
+ */
+static char *guppy_esclitstring (guppy_litdata_t *ldat)
+{
+	char *str;
+	unsigned char *xstr;
+	int slen, i;
+
+	if (ldat->littype != STRING) {
+		nocc_internal ("guppy_esclitstring(): not STRING! (%d)", (int)ldat->littype);
+		return NULL;
+	}
+
+	slen = 0;
+	xstr = (unsigned char *)ldat->data;
+
+	/* FIXME: assuming ASCII strings for the moment.. */
+	for (i=0; i<ldat->bytes; i++) {
+		if (xstr[i] == '\\') {
+			/* special case */
+			slen += 2;
+		} else if ((xstr[i] < 32) || (xstr[i] > 126)) {
+			slen += 4;
+		} else {
+			slen++;
+		}
+	}
+	str = (char *)smalloc (slen + 2);
+	slen = 0;
+	for (i=0; i<ldat->bytes; i++) {
+		if (xstr[i] == '\\') {
+			str[slen++] = '\\';
+			str[slen++] = '\\';
+		} else if ((xstr[i] < 32) || (xstr[i] > 126)) {
+			unsigned int hi = (xstr[i] >> 4) & 0x0f;
+			unsigned int lo = xstr[i] & 0x0f;
+
+			str[slen++] = '\\';
+			str[slen++] = 'x';
+			str[slen++] = (hi < 10) ? ('0' + hi) : ('a' + (hi - 10));
+			str[slen++] = (lo < 10) ? ('0' + lo) : ('a' + (lo - 10));
+		} else {
+			str[slen++] = xstr[i];
+		}
+	}
+	str[slen] = '\0';
+
+	return str;
 }
 /*}}}*/
 
@@ -430,6 +482,27 @@ static int guppy_typecheck_litnode (compops_t *cops, tnode_t *node, typecheck_t 
 	return 1;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans1_litnode (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)*/
+/*
+ *	does front-end transforms (1) on a literal node;  pulls string constants out into temporaries
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans1_litnode (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)
+{
+	if ((*nodep)->tag == gup.tag_LITSTRING) {
+		guppy_litdata_t *ldat = (guppy_litdata_t *)tnode_nthhookof (*nodep, 0);
+		tnode_t *type = tnode_nthsubof (*nodep, 0);
+		tnode_t *constinit = tnode_create (gup.tag_CONSTSTRINGINIT, OrgOf (*nodep), NULL, ldat);
+		tnode_t *tname = guppy_fetrans1_maketemp (gup.tag_NDECL, *nodep, type, constinit, fe1);
+
+		/* substitute for new variable */
+		*nodep = tname;
+
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_codegen_litnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a literal node
@@ -506,6 +579,45 @@ static int guppy_codegen_litnode (compops_t *cops, tnode_t *node, codegen_t *cge
 }
 /*}}}*/
 
+/*{{{  static int guppy_namemap_litinit (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for a literal initialiser
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_litinit (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
+
+	tnode_setnthsub (*nodep, 0, cmd->process_id);
+
+	cmd->target_indir = 0;
+	map_submapnames (tnode_nthsubaddr (*nodep, 0), map);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_litinit (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a literal initialiser
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_litinit (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	guppy_litdata_t *ldat = (guppy_litdata_t *)tnode_nthhookof (node, 0);
+
+	if (node->tag == gup.tag_CONSTSTRINGINIT) {
+		char *estr = guppy_esclitstring (ldat);
+
+		codegen_write_fmt (cgen, "GuppyStringConstInitialiser (");
+		codegen_subcodegen (tnode_nthsubof (node, 0), cgen);		/* Wptr */
+		codegen_write_fmt (cgen, ", \"%s\", %d)", estr, ldat->bytes);
+		sfree (estr);
+
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
 
 /*{{{  static int guppy_lit_init_nodes (void)*/
 /*
@@ -529,6 +641,7 @@ static int guppy_lit_init_nodes (void)
 	tnd->hook_dumptree = guppy_litnode_hook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_litnode));
+	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_litnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_litnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
@@ -547,6 +660,23 @@ static int guppy_lit_init_nodes (void)
 	gup.tag_LITCHAR = tnode_newnodetag ("LITCHAR", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_LITSTRING = tnode_newnodetag ("LITSTRING", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:litinit -- CONSTSTRINGINIT*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:litinit", &i, 1, 0, 1, TNF_NONE);		/* subnodes: wptr; hooks: litdata_t */
+	tnd->hook_free = guppy_litnode_hook_free;
+	tnd->hook_copy = guppy_litnode_hook_copy;
+	tnd->hook_dumptree = guppy_litnode_hook_dumptree;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_litinit));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_litinit));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_CONSTSTRINGINIT = tnode_newnodetag ("CONSTSTRINGINIT", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

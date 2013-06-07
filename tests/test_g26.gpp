@@ -1,0 +1,8 @@
+# test_g26.gpp -- better string handling
+
+define test_g26 ()
+  string s
+
+  s = "hello, guppy world!\n"
+end
+

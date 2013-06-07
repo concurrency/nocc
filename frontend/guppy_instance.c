@@ -310,6 +310,57 @@ fhandle_printf (FHAN_STDERR, "guppy_namemap_instance(): target_indir set to %d, 
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_lpreallocate_instance (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)*/
+/*
+ *	does pre-allocation for an instance node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_lpreallocate_instance (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)
+{
+	if (node->tag == gup.tag_INSTANCE) {
+		name_t *iname = tnode_nthnameof (tnode_nthsubof (node, 0), 0);
+		tnode_t *decl = NameDeclOf (iname);
+		tnode_t *dbody = tnode_nthsubof (decl, 2);
+		tnode_t *parms = tnode_nthsubof (node, 1);
+		tnode_t **pitems;
+		int npitems, i;
+		int blksize;
+
+		/* the body of the instance'd thing should be a back-end-block by now (even if separately compiled) */
+		if (dbody->tag != cpa->target->tag_BLOCK) {
+			nocc_internal ("guppy_lpreallocate_instance(): body of INSTANCE name not back-end block, got [%s:%s]",
+					dbody->tag->ndef->name, dbody->tag->name);
+			return 0;
+		}
+		cccsp_getblockspace (dbody, NULL, &blksize);
+
+		cpa->collect += blksize;
+		pitems = parser_getlistitems (parms, &npitems);
+		for (i=0; i<npitems; i++) {
+			cccsp_preallocate_subtree (pitems[i], cpa);
+		}
+		cpa->collect += 4;		/* for the call itself probably */
+	} else if (node->tag == gup.tag_APICALL) {
+		int w = cccsp_stkwords_apicallnode (tnode_nthsubof (node, 0));
+		tnode_t *parms = tnode_nthsubof (node, 1);
+		tnode_t **pitems;
+		int npitems, i;
+
+		if (w > 0) {
+			cpa->collect += w;
+		}
+		pitems = parser_getlistitems (parms, &npitems);
+		for (i=0; i<npitems; i++) {
+			cccsp_preallocate_subtree (pitems[i], cpa);
+		}
+		cpa->collect += 4;		/* for the call itself probably */
+	} else {
+		nocc_internal ("guppy_lpreallocate_instance(): unhandled [%s:%s]", node->tag->ndef->name, node->tag->name);
+		return 0;
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_codegen_instance (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for an instance node
@@ -356,6 +407,17 @@ static tnode_t *guppy_gettype_instance (langops_t *lops, tnode_t *node, tnode_t 
 }
 /*}}}*/
 
+/*{{{  static int guppy_lpreallocate_rinstance (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)*/
+/*
+ *	does pre-allocation for a result-instance node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_lpreallocate_rinstance (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)
+{
+	/* FIXME: ... */
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_codegen_rinstance (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a result-instance node
@@ -515,6 +577,7 @@ static int guppy_instance_init_nodes (void)
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_instance));
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_instance));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_instance));
+	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_instance));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_instance));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
@@ -531,6 +594,7 @@ static int guppy_instance_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:rinstance", &i, 3, 0, 0, TNF_NONE);		/* subnodes: name, aparams, result */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_rinstance));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_rinstance));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();

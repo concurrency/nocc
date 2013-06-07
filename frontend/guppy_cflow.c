@@ -68,6 +68,25 @@ static tnode_t *guppy_cflow_booltypenode;
 
 /*}}}*/
 
+/*{{{  static int guppy_declify_cflow (compops_t *cops, tnode_t **nodep, guppy_declify_t *gdl)*/
+/*
+ *	called to declify on a control-flow node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_declify_cflow (compops_t *cops, tnode_t **nodep, guppy_declify_t *gdl)
+{
+	tnode_t *node = *nodep;
+
+	if (node->tag == gup.tag_WHILE) {
+		tnode_t **bodyp = tnode_nthsubaddr (node, 1);
+
+		if (parser_islistnode (*bodyp)) {
+			guppy_declify_listtodecllist (bodyp, gdl);
+		}
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_typecheck_cflow (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	called to do type-checking on a control-flow node
@@ -114,6 +133,7 @@ static int guppy_namemap_cflow (compops_t *cops, tnode_t **nodep, map_t *map)
 		map_submapnames (bodyp, map);
 	} else if ((*nodep)->tag == gup.tag_IF) {
 		/* FIXME! */
+		nocc_internal ("guppy_namemap_cflow(): incomplete!");
 		return 1;
 	}
 
@@ -132,8 +152,18 @@ static int guppy_codegen_cflow (compops_t *cops, tnode_t *node, codegen_t *cgen)
 		codegen_write_fmt (cgen, "while (");
 		codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
 		codegen_write_fmt (cgen, ")\n");
+		codegen_ssetindent (cgen);
+		codegen_write_fmt (cgen, "{\n");
+		cgen->indent++;
 		codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+		cgen->indent--;
+		codegen_ssetindent (cgen);
+		codegen_write_fmt (cgen, "}\n");
 		return 0;
+	} else if (node->tag == gup.tag_IF) {
+		/* FIXME! */
+		nocc_internal ("guppy_codegen_cflow(): incomplete!");
+		return 1;
 	}
 
 	return 1;
@@ -315,6 +345,7 @@ static int guppy_cflow_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:cflow", &i, 2, 0, 0, TNF_LONGPROC);	/* subnodes: 0 = expr; 1 = body */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "declify", 2, COMPOPTYPE (guppy_declify_cflow));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_cflow));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_cflow));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_cflow));

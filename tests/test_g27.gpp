@@ -1,0 +1,15 @@
+# test_g27.gpp -- string handling
+
+define string_buffer (chan(string) in?, out!)
+  while true
+    string s
+
+    in ? s
+    out ! s
+end
+
+define test_g27 (chan(string) scr!)
+  scr ! "hello, world!\n"
+  skip
+end
+

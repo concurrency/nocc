@@ -82,6 +82,8 @@ typedef struct {
 	struct TAG_ntdef *tag_LITSTRING;
 	struct TAG_ntdef *tag_LITBOOL;
 
+	struct TAG_ntdef *tag_CONSTSTRINGINIT;
+
 	struct TAG_ntdef *tag_FCNDEF;
 	struct TAG_ntdef *tag_PFCNDEF;
 	struct TAG_ntdef *tag_VARDECL;
@@ -93,6 +95,8 @@ typedef struct {
 	struct TAG_ntdef *tag_FPARAMINIT;
 	struct TAG_ntdef *tag_VARINIT;
 	struct TAG_ntdef *tag_VARFREE;
+	struct TAG_ntdef *tag_STRINIT;
+	struct TAG_ntdef *tag_STRFREE;
 
 	struct TAG_ntdef *tag_EXTDECL;
 
@@ -174,6 +178,9 @@ typedef struct {
 
 	struct TAG_ntdef *tag_ARRAYSUB;
 	struct TAG_ntdef *tag_RECORDSUB;
+
+	struct TAG_ntdef *tag_STRASSIGN;
+	struct TAG_ntdef *tag_STRCONCAT;
 
 	struct TAG_token *tok_ATSIGN;
 	struct TAG_token *tok_STRING;
@@ -285,6 +292,7 @@ extern guppy_fcndefhook_t *guppy_newfcndefhook (void);
 extern void guppy_freefcndefhook (guppy_fcndefhook_t *fdh);
 
 extern int guppy_chantype_setinout (struct TAG_tnode *chantype, int marked_in, int marked_out);
+extern int guppy_chantype_getinout (struct TAG_tnode *chantype, int *marked_in, int *marked_out);
 
 /* front-end units */
 extern struct TAG_feunit guppy_assign_feunit;		/* guppy_assign.c */

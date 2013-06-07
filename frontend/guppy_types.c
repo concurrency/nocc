@@ -65,6 +65,7 @@
 #include "metadata.h"
 #include "tracescheck.h"
 #include "mobilitycheck.h"
+#include "cccsp.h"
 
 
 /*}}}*/
@@ -573,7 +574,7 @@ static int guppy_getctypeof_primtype (langops_t *lops, tnode_t *t, char **str)
 	} else if (t->tag == gup.tag_CHAR) {
 		lstr = string_dup ("int");
 	} else if (t->tag == gup.tag_STRING) {
-		lstr = string_dup ("char *");
+		lstr = string_dup ("gtString_t");
 	} else {
 		lstr = NULL;
 	}
@@ -669,6 +670,99 @@ static int guppy_typehash_primtype (langops_t *lops, tnode_t *t, int hsize, void
 
 	langops_typehash_blend (hsize, ptr, sizeof (myhash), (void *)&myhash);
 	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_isdefpointer_primtype (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns default indirection level for primitive type
+ */
+static int guppy_isdefpointer_primtype (langops_t *lops, tnode_t *node)
+{
+	if (node->tag == gup.tag_STRING) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_initcall_primtype (langops_t *lops, tnode_t *typenode, tnode_t *name)*/
+/*
+ *	generates initialiser for primitive types (string only)
+ */
+static tnode_t *guppy_initcall_primtype (langops_t *lops, tnode_t *typenode, tnode_t *name)
+{
+	if (typenode->tag == gup.tag_STRING) {
+		tnode_t *inode;
+
+		inode = tnode_create (gup.tag_STRINIT, SLOCI, NULL, typenode, name);
+		return inode;
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_freecall_primtype (langops_t *lops, tnode_t *typenode, tnode_t *name)*/
+/*
+ *	generates finaliser for primitive types (string only)
+ */
+static tnode_t *guppy_freecall_primtype (langops_t *lops, tnode_t *typenode, tnode_t *name)
+{
+	if (typenode->tag == gup.tag_STRING) {
+		tnode_t *inode;
+
+		inode = tnode_create (gup.tag_STRFREE, SLOCI, NULL, typenode, name);
+		return inode;
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  static int guppy_namemap_typeaction_primtype (langops_t *lops, tnode_t *typenode, tnode_t **nodep, map_t *map)*/
+/*
+ *	handles mapping for channel IO on strings
+ *	returns 0 to stop walk, 1 to continue (in map), -1 to revert to default behaviour
+ */
+static int guppy_namemap_typeaction_primtype (langops_t *lops, tnode_t *typenode, tnode_t **nodep, map_t *map)
+{
+	if (typenode->tag == gup.tag_STRING) {
+		int bytes = tnode_bytesfor (typenode, map->target);
+		tnode_t *newinst, *newparms;
+		tnode_t *sizeexp = constprop_newconst (CONST_INT, NULL, NULL, bytes);
+		tnode_t *newarg;
+		tnode_t *callnum, *wptr;
+		cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
+		int saved_indir = cmd->target_indir;
+
+		wptr = cmd->process_id;
+		map_submapnames (&wptr, map);
+
+		/* map LHS and RHS: LHS channel must be a pointer */
+		cmd->target_indir = 1;
+		map_submapnames (tnode_nthsubaddr (*nodep, 0), map);
+		map_submapnames (tnode_nthsubaddr (*nodep, 1), map);
+		cmd->target_indir = 0;
+		map_submapnames (&sizeexp, map);
+
+		/* transform into CCSP API call */
+		newparms = parser_newlistnode (SLOCI);
+		parser_addtolist (newparms, wptr);
+		parser_addtolist (newparms, tnode_nthsubof (*nodep, 0));	/* channel */
+		parser_addtolist (newparms, tnode_nthsubof (*nodep, 1));	/* data */
+		parser_addtolist (newparms, sizeexp);
+
+		if ((*nodep)->tag == gup.tag_INPUT) {
+			callnum = cccsp_create_apicallname (CHAN_IN);
+		} else if ((*nodep)->tag == gup.tag_OUTPUT) {
+			callnum = cccsp_create_apicallname (CHAN_OUT);
+		} else {
+			nocc_internal ("guppy_namemap_typeaction_primtype(): unknown node tag [%s]", (*nodep)->tag->name);
+			return 0;
+		}
+		newinst = tnode_createfrom (gup.tag_APICALL, *nodep, callnum, newparms);
+
+		cmd->target_indir = saved_indir;
+		*nodep = newinst;
+
+		return 0;
+	}
+	return -1;
 }
 /*}}}*/
 
@@ -812,6 +906,15 @@ static int guppy_typehash_chantype (langops_t *lops, tnode_t *t, int hsize, void
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_isdefpointer_chantype (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns default indirection level for channel type (trivial)
+ */
+static int guppy_isdefpointer_chantype (langops_t *lops, tnode_t *node)
+{
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_setinout_chantype (langops_t *lops, tnode_t *node, int marked_in, int marked_out)*/
 /*
  *	sets the input+output specifiers for a channel-type node
@@ -823,6 +926,25 @@ static int guppy_setinout_chantype (langops_t *lops, tnode_t *node, int marked_i
 
 	cth->marked_svr = marked_in;
 	cth->marked_cli = marked_out;
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_getinout_chantype (langops_t *lops, tnode_t *node, int *marked_in, int *marked_out)*/
+/*
+ *	gets the input+output specifiers for a channel-type node
+ *	returns 0 on success, non-zero on failure
+ */
+static int guppy_getinout_chantype (langops_t *lops, tnode_t *node, int *marked_in, int *marked_out)
+{
+	chantypehook_t *cth = (chantypehook_t *)tnode_nthhookof (node, 0);
+
+	if (marked_in) {
+		*marked_in = cth->marked_svr;
+	}
+	if (marked_out) {
+		*marked_out = cth->marked_cli;
+	}
 
 	return 0;
 }
@@ -918,7 +1040,6 @@ static int guppy_types_init_nodes (void)
 	int i;
 
 	/*{{{  register reduction functions and new langops*/
-	tnode_newlangop ("chantype_setinout", LOPS_INVALID, 3, origin_langparser (&guppy_parser));
 
 	fcnlib_addfcn ("guppy_reduce_primtype", guppy_reduce_primtype, 0, 3);
 	fcnlib_addfcn ("guppy_reduce_chantype", guppy_reduce_chantype, 0, 3);
@@ -940,6 +1061,10 @@ static int guppy_types_init_nodes (void)
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (guppy_typeactual_primtype));
 	tnode_setlangop (lops, "knownsizeof", 1, LANGOPTYPE (guppy_knownsizeof_primtype));
 	tnode_setlangop (lops, "typehash", 3, LANGOPTYPE (guppy_typehash_primtype));
+	tnode_setlangop (lops, "isdefpointer", 1, LANGOPTYPE (guppy_isdefpointer_primtype));
+	tnode_setlangop (lops, "initcall", 2, LANGOPTYPE (guppy_initcall_primtype));
+	tnode_setlangop (lops, "freecall", 2, LANGOPTYPE (guppy_freecall_primtype));
+	tnode_setlangop (lops, "namemap_typeaction", 3, LANGOPTYPE (guppy_namemap_typeaction_primtype));
 	tnd->lops = lops;
 
 	i = -1;
@@ -972,7 +1097,9 @@ static int guppy_types_init_nodes (void)
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (guppy_typeactual_chantype));
 	tnode_setlangop (lops, "guesstlp", 1, LANGOPTYPE (guppy_guesstlp_chantype));
 	tnode_setlangop (lops, "typehash", 3, LANGOPTYPE (guppy_typehash_chantype));
+	tnode_setlangop (lops, "isdefpointer", 1, LANGOPTYPE (guppy_isdefpointer_chantype));
 	tnode_setlangop (lops, "chantype_setinout", 3, LANGOPTYPE (guppy_setinout_chantype));
+	tnode_setlangop (lops, "chantype_getinout", 3, LANGOPTYPE (guppy_getinout_chantype));
 	tnd->lops = lops;
 
 	i = -1;

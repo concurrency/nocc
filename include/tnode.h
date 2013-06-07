@@ -152,7 +152,7 @@ typedef enum ENUM_compops {
 	COPS_MAX = 256
 } compops_e;
 
-#define COPS_LAST COPS_CODEGEN
+#define COPS_LAST COPS_LCODEGEN
 
 /*}}}*/
 /*{{{  compopt_t,compops_t (compiler operations)*/
@@ -223,10 +223,11 @@ typedef enum ENUM_langops {
 	LOPS_ISADDRESSABLE = 45,		/* 1: tnode_t * -> int */
 	LOPS_INITCALL = 46,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
 	LOPS_FREECALL = 47,			/* 2: tnode_t *, tnode_t * -> tnode_t * */
+	LOPS_NAMEMAP_TYPEACTION = 48,		/* 3: tnode_t *, tnode_t **, map_t * -> int */
 	LOPS_MAX = 256
 } langops_e;
 
-#define LOPS_LAST LOPS_GETCTYPEOF
+#define LOPS_LAST LOPS_NAMEMAP_TYPEACTION
 
 /*}}}*/
 /*{{{  langop_t, langops_t (language operations)*/

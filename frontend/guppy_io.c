@@ -227,45 +227,67 @@ tnode_dumptree (hashout, 1, FHAN_STDERR);
  */
 static int guppy_namemap_io (compops_t *cops, tnode_t **nodep, map_t *map)
 {
-	int bytes = tnode_bytesfor (tnode_nthsubof (*nodep, 2), map->target);
-	tnode_t *newinst, *newparms;
-	tnode_t *sizeexp = constprop_newconst (CONST_INT, NULL, NULL, bytes);
-	tnode_t *newarg;
-	tnode_t *callnum, *wptr;
-	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
-	int saved_indir = cmd->target_indir;
+	tnode_t *type = tnode_nthsubof (*nodep, 2);
+	int r = -1;
 
-	wptr = cmd->process_id;
-	map_submapnames (&wptr, map);
-	/* map LHS and RHS: LHS channel must be a pointer */
-	cmd->target_indir = 1;
-	map_submapnames (tnode_nthsubaddr (*nodep, 0), map);
-	cmd->target_indir = saved_indir;
-	map_submapnames (tnode_nthsubaddr (*nodep, 1), map);
-	map_submapnames (&sizeexp, map);
-
-	// newarg = cccsp_create_addrof (tnode_nthsubof (*nodep, 1), map->target);
-	cccsp_set_indir (tnode_nthsubof (*nodep, 1), 1, map->target);
-
-	/* transform into CCSP API call */
-	newparms = parser_newlistnode (SLOCI);
-	parser_addtolist (newparms, wptr);
-	parser_addtolist (newparms, tnode_nthsubof (*nodep, 0));	/* channel */
-	parser_addtolist (newparms, tnode_nthsubof (*nodep, 1));	/* data */
-	parser_addtolist (newparms, sizeexp);
-
-	if ((*nodep)->tag == gup.tag_INPUT) {
-		callnum = cccsp_create_apicallname (CHAN_IN);
-	} else if ((*nodep)->tag == gup.tag_OUTPUT) {
-		callnum = cccsp_create_apicallname (CHAN_OUT);
-	} else {
-		nocc_internal ("guppy_namemap_io(): unknown node tag [%s]", (*nodep)->tag->name);
-		return 0;
+	if (type && type->tag->ndef->lops && tnode_haslangop_i (type->tag->ndef->lops, LOPS_NAMEMAP_TYPEACTION)) {
+		/* let the type decide how best to deal with channel IO */
+		r = tnode_calllangop_i (type->tag->ndef->lops, LOPS_NAMEMAP_TYPEACTION, 3, type, nodep, map);
 	}
-	newinst = tnode_createfrom (gup.tag_APICALL, *nodep, callnum, newparms);
+	if (r < 0) {
+		int bytes = tnode_bytesfor (type, map->target);
+		tnode_t *newinst, *newparms;
+		tnode_t *sizeexp = constprop_newconst (CONST_INT, NULL, NULL, bytes);
+		tnode_t *newarg;
+		tnode_t *callnum, *wptr;
+		cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
+		int saved_indir = cmd->target_indir;
 
-	*nodep = newinst;
-	return 0;
+		wptr = cmd->process_id;
+		map_submapnames (&wptr, map);
+		/* map LHS and RHS: LHS channel must be a pointer */
+		cmd->target_indir = 1;
+		map_submapnames (tnode_nthsubaddr (*nodep, 0), map);
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_namemap_io(): action type is:\n");
+tnode_dumptree (type, 1, FHAN_STDERR);
+#endif
+		if (type->tag == gup.tag_NTYPEDECL) {
+			/* FIXME: this should be dealt with inside type-specific code [namemap_typeaction?] */
+			cmd->target_indir = 2;
+		} else {
+			cmd->target_indir = 1;
+		}
+		map_submapnames (tnode_nthsubaddr (*nodep, 1), map);
+		cmd->target_indir = 0;
+		map_submapnames (&sizeexp, map);
+
+		// newarg = cccsp_create_addrof (tnode_nthsubof (*nodep, 1), map->target);
+		// cccsp_set_indir (tnode_nthsubof (*nodep, 1), 1, map->target);
+
+		/* transform into CCSP API call */
+		newparms = parser_newlistnode (SLOCI);
+		parser_addtolist (newparms, wptr);
+		parser_addtolist (newparms, tnode_nthsubof (*nodep, 0));	/* channel */
+		parser_addtolist (newparms, tnode_nthsubof (*nodep, 1));	/* data */
+		parser_addtolist (newparms, sizeexp);
+
+		if ((*nodep)->tag == gup.tag_INPUT) {
+			callnum = cccsp_create_apicallname (CHAN_IN);
+		} else if ((*nodep)->tag == gup.tag_OUTPUT) {
+			callnum = cccsp_create_apicallname (CHAN_OUT);
+		} else {
+			nocc_internal ("guppy_namemap_io(): unknown node tag [%s]", (*nodep)->tag->name);
+			return 0;
+		}
+		newinst = tnode_createfrom (gup.tag_APICALL, *nodep, callnum, newparms);
+
+		cmd->target_indir = saved_indir;
+		*nodep = newinst;
+		r = 0;
+	}
+
+	return r;
 }
 /*}}}*/
 /*{{{  static int guppy_codegen_io (compops_t *cops, tnode_t *node, codegen_t *cgen)*/

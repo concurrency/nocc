@@ -135,6 +135,7 @@ static int guppy_fetrans1_assign (compops_t *cops, tnode_t **nodep, guppy_fetran
 		guppy_fetrans1_subtree (tnode_nthsubaddr (*nodep, 0), fe1);
 		guppy_fetrans1_subtree (tnode_nthsubaddr (*nodep, 1), fe1);
 		fe1->inspoint = NULL;
+		fe1->decllist = NULL;
 	}
 	return 0;
 }
@@ -177,6 +178,24 @@ tnode_dumptree (*nodep, 1, FHAN_STDERR);
 		}
 		/* won't do subtrees */
 		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_fetrans3_assign (compops_t *cops, tnode_t **nodep, guppy_fetrans3_t *fe3)*/
+/*
+ *	does fetrans3 for an assignment (if string, map into special)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans3_assign (compops_t *cops, tnode_t **nodep, guppy_fetrans3_t *fe3)
+{
+	tnode_t *type = tnode_nthsubof (*nodep, 2);
+
+	if ((type->tag == gup.tag_STRING) && ((*nodep)->tag == gup.tag_ASSIGN)) {
+		/* transform */
+		tnode_t *action = tnode_create (gup.tag_STRASSIGN, OrgOf (*nodep), NULL, tnode_nthsubof (*nodep, 0), tnode_nthsubof (*nodep, 1), NULL);
+
+		*nodep = action;
 	}
 	return 1;
 }
@@ -231,6 +250,7 @@ static int guppy_assign_init_nodes (void)
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_assign));
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_assign));
 	tnode_setcompop (cops, "fetrans2", 2, COMPOPTYPE (guppy_fetrans2_assign));
+	tnode_setcompop (cops, "fetrans3", 2, COMPOPTYPE (guppy_fetrans3_assign));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_assign));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_assign));
 	tnd->ops = cops;

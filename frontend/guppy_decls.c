@@ -864,20 +864,25 @@ static int guppy_namemap_fparam (compops_t *cops, tnode_t **nodep, map_t *map)
 	tnode_t **namep = tnode_nthsubaddr (*nodep, 0);
 	tnode_t **typep = tnode_nthsubaddr (*nodep, 1);
 	tnode_t *bename;
-	int tsize, psize, indir = 0;
+	int tsize, psize, indir;
 
-	if ((*typep)->tag == gup.tag_CHAN) {
-		/* channel */
-		tsize = map->target->chansize;
-		indir = 1;				/* always passed by reference */
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_namemap_fparam(): *namep =\n");
+tnode_dumptree (*namep, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, "guppy_namemap_fparam(): *typep =\n");
+tnode_dumptree (*typep, 1, FHAN_STDERR);
+#endif
+	indir = langops_isdefpointer (*typep);		/* based on the type */
+	if (indir) {
+		tsize = map->target->pointersize;
 	} else {
 		/* how big? */
 		tsize = tnode_bytesfor (*typep, map->target);
 	}
 	psize = tsize;
 
-	if ((*namep)->tag == gup.tag_NRESPARAM) {
-		/* result parameter, so pass by reference */
+	if (((*namep)->tag == gup.tag_NRESPARAM) || ((*namep)->tag == gup.tag_NPARAM)) {
+		/* result or modifiable parameter, so pass pointer-to */
 		indir++;
 	}
 
@@ -1031,6 +1036,35 @@ fhandle_printf (FHAN_STDERR, "guppy_namemap_varinit(): tsize is %d\n", tsize);
 		parser_addtolist (aparms, tnode_nthsubof (*nodep, 2));		/* mapped name (pointer-to) */
 
 		action = tnode_create (gup.tag_APICALL, SLOCI, cccsp_create_apicallname (MEM_RELEASE_CHK), aparms);
+
+		*nodep = action;
+	} else if ((*nodep)->tag == gup.tag_STRINIT) {
+		tnode_t *action, *aparms;
+
+		cmd->target_indir = 1;
+		map_submapnames (tnode_nthsubaddr (*nodep, 2), map);		/* map name */
+		cmd->target_indir = 0;
+
+		aparms = parser_newlistnode (SLOCI);
+		parser_addtolist (aparms, tnode_nthsubof (*nodep, 0));		/* Wptr */
+		map_submapnames (&aparms, map);					/* and map it */
+
+		action = tnode_create (gup.tag_APICALLR, SLOCI, cccsp_create_apicallname (STR_INIT), aparms, tnode_nthsubof (*nodep, 2));
+
+		*nodep = action;
+	} else if ((*nodep)->tag == gup.tag_STRFREE) {
+		tnode_t *action, *aparms;
+
+		cmd->target_indir = 1;
+		map_submapnames (tnode_nthsubaddr (*nodep, 2), map);		/* map name */
+		cmd->target_indir = 0;
+
+		aparms = parser_newlistnode (SLOCI);
+		parser_addtolist (aparms, tnode_nthsubof (*nodep, 0));		/* Wptr */
+		map_submapnames (&aparms, map);					/* and map it */
+		parser_addtolist (aparms, tnode_nthsubof (*nodep, 2));		/* mapped name (pointer-to) */
+
+		action = tnode_create (gup.tag_APICALL, SLOCI, cccsp_create_apicallname (STR_FREE), aparms);
 
 		*nodep = action;
 	}
@@ -1331,9 +1365,12 @@ static int guppy_betrans_declblock (compops_t *cops, tnode_t **nodep, betrans_t 
 #if 0
 fhandle_printf (FHAN_STDERR, "guppy_betrans_declblock(): looking for initcall on [%s]\n", type->tag->name);
 #endif
-			initcall = langops_initcall (type, tnode_nthsubof (decls[i], 0));
-			if (initcall) {
-				parser_addtolist_front (seqlist, initcall);
+			/* Note: if we have an initialiser, ignore any initcall on the type */
+			if (!tnode_nthsubof (decls[i], 2)) {
+				initcall = langops_initcall (type, tnode_nthsubof (decls[i], 0));
+				if (initcall) {
+					parser_addtolist_front (seqlist, initcall);
+				}
 			}
 			freecall = langops_freecall (type, tnode_nthsubof (decls[i], 0));
 			if (freecall) {
@@ -1683,6 +1720,10 @@ static int guppy_decls_init_nodes (void)
 	gup.tag_VARINIT = tnode_newnodetag ("VARINIT", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_VARFREE = tnode_newnodetag ("VARFREE", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_STRINIT = tnode_newnodetag ("STRINIT", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_STRFREE = tnode_newnodetag ("STRFREE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:declblock -- DECLBLOCK*/

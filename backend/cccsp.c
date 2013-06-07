@@ -251,16 +251,20 @@ static int cccsp_coder_inparamlist = 0;
 
 static cccsp_apicall_t cccsp_apicall_table[] = {
 	{NOAPI, "", 0},
-	{CHAN_IN, "ChanIn", 1},
-	{CHAN_OUT, "ChanOut", 1},
-	{STOP_PROC, "SetErrW", 1},
-	{PROC_PAR, "ProcPar", 1},
-	{LIGHT_PROC_INIT, "LightProcInit", 1},
-	{PROC_PARAM, "ProcParam", 1},
-	{GET_PROC_PARAM, "GetProcParam", 1},
-	{MEM_ALLOC, "MAlloc", 1},
-	{MEM_RELEASE, "MRelease", 1},
-	{MEM_RELEASE_CHK, "MReleaseChk", 1}
+	{CHAN_IN, "ChanIn", 16},
+	{CHAN_OUT, "ChanOut", 16},
+	{STOP_PROC, "SetErrW", 16},
+	{PROC_PAR, "ProcPar", 16},
+	{LIGHT_PROC_INIT, "LightProcInit", 16},
+	{PROC_PARAM, "ProcParam", 8},
+	{GET_PROC_PARAM, "GetProcParam", 8},
+	{MEM_ALLOC, "MAlloc", 16},
+	{MEM_RELEASE, "MRelease", 16},
+	{MEM_RELEASE_CHK, "MReleaseChk", 16},
+	{STR_INIT, "GuppyStringInit", 16},
+	{STR_FREE, "GuppyStringFree", 16},
+	{STR_ASSIGN, "GuppyStringAssign", 32},
+	{STR_CONCAT, "GuppyStringConcat", 32}
 };
 
 
@@ -743,6 +747,9 @@ static tnode_t *cccsp_nameref_create (tnode_t *bename, map_t *mdata)
 	fename = tnode_nthsubof (bename, 0);
 	name = tnode_create (mdata->target->tag_NAMEREF, NULL, fename, (void *)nh);
 
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_nameref_create(): created new nameref at 0x%8.8x\n", (unsigned int)name);
+#endif
 	return name;
 }
 /*}}}*/
@@ -823,6 +830,27 @@ tnode_t *cccsp_create_apicallname (cccsp_apicall_e apin)
 	return node;
 }
 /*}}}*/
+/*{{{  int cccsp_stkwords_apicallnode (tnode_t *call)*/
+/*
+ *	returns the number of stack words needed for a particular API call (excluding parameters)
+ *	extracts straight from call structure, returns < 0 on error
+ */
+int cccsp_stkwords_apicallnode (tnode_t *call)
+{
+	int val;
+
+	if (!constprop_isconst (call)) {
+		nocc_internal ("cccsp_stkwords_apicallnode(): oops, call not constant, got [%s]", call->tag->name);
+		return -1;
+	}
+	val = constprop_intvalof (call);
+	if ((val <= 0) || (val > (int)CCCSP_APICALL_LAST)) {
+		nocc_internal ("cccsp_stkwords_apicallnode(): oops, invalid API call %d", val);
+		return -1;
+	}
+	return cccsp_apicall_table[val].stkwords;
+}
+/*}}}*/
 /*{{{  tnode_t *cccsp_create_addrof (tnode_t *arg, target_t *target)*/
 /*
  *	creates an address-of modifier.
@@ -845,6 +873,9 @@ int cccsp_set_indir (tnode_t *benode, int indir, target_t *target)
 	if (benode->tag == target->tag_NAMEREF) {
 		cccsp_namerefhook_t *nrh = (cccsp_namerefhook_t *)tnode_nthhookof (benode, 0);
 
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_set_indir(): setting NAMEREF at 0x%8.8x to %d\n", (unsigned int)benode, indir);
+#endif
 		nrh->indir = indir;
 	} else {
 		nocc_internal ("cccsp_set_indir(): don\'t know how to set indirection on [%s:%s]", benode->tag->ndef->name, benode->tag->name);
@@ -1180,17 +1211,6 @@ static void cccsp_do_bemap (tnode_t **tptr, map_t *map)
 	return;
 }
 /*}}}*/
-/*{{{  static int cccsp_preallocate_subtree (tnode_t *tptr, cccsp_preallocate_t *cpa)*/
-/*
- *	does preallocate sub-tree walk
- *	returns 0 on success, non-zero on error
- */
-static int cccsp_preallocate_subtree (tnode_t *tptr, cccsp_preallocate_t *cpa)
-{
-	tnode_prewalktree (tptr, cccsp_prewalktree_preallocate, (void *)cpa);
-	return 0;
-}
-/*}}}*/
 /*{{{  static void cccsp_do_preallocate (tnode_t *tptr, target_t *target)*/
 /*
  *	intercepts pre-allocate pass
@@ -1226,6 +1246,39 @@ static void cccsp_do_codegen (tnode_t *tptr, codegen_t *cgen)
 {
 	tnode_prewalktree (tptr, cccsp_prewalktree_codegen, (void *)cgen);
 	return;
+}
+/*}}}*/
+
+/*{{{  int cccsp_preallocate_subtree (tnode_t *tptr, cccsp_preallocate_t *cpa)*/
+/*
+ *	does preallocate sub-tree walk
+ *	returns 0 on success, non-zero on error
+ */
+int cccsp_preallocate_subtree (tnode_t *tptr, cccsp_preallocate_t *cpa)
+{
+	tnode_prewalktree (tptr, cccsp_prewalktree_preallocate, (void *)cpa);
+	return 0;
+}
+/*}}}*/
+/*{{{  int cccsp_getblockspace (tnode_t *beblk, int *mysize, int *nestsize)*/
+/*
+ *	gets a back-end block space requirements
+ *	returns 0 on success, non-zero on failure
+ */
+int cccsp_getblockspace (tnode_t *beblk, int *mysize, int *nestsize)
+{
+	if (beblk->tag == cccsp_target.tag_BLOCK) {
+		cccsp_blockhook_t *bh = (cccsp_blockhook_t *)tnode_nthhookof (beblk, 0);
+
+		if (mysize) {
+			*mysize = bh->my_size;
+		}
+		if (nestsize) {
+			*nestsize = bh->nest_size;
+		}
+		return 0;
+	}
+	return -1;
 }
 /*}}}*/
 
@@ -1748,7 +1801,7 @@ static int cccsp_lpreallocate_block (compops_t *cops, tnode_t *blk, cccsp_preall
 		bh->my_size = cpa->collect;
 	}
 
-	cpa->collect = saved_collect;
+	cpa->collect = saved_collect + (bh->nest_size + bh->my_size);
 
 	return 0;
 }
@@ -1977,7 +2030,6 @@ static int cccsp_getname_workspace (langops_t *lops, tnode_t *node, char **str)
 }
 /*}}}*/
 
-
 /*{{{  static int cccsp_getctypeof_type (langops_t *lops, tnode_t *t, char **str)*/
 /*
  *	gets the C type of a WORKSPACE node (trivial)
@@ -2144,7 +2196,22 @@ static int cccsp_target_init (target_t *target)
 	kpriv = (cccsp_priv_t *)smalloc (sizeof (cccsp_priv_t));
 	kpriv->lastfile = NULL;
 	kpriv->last_toplevelname = NULL;
+	kpriv->wptr_count = 0;
+
 	kpriv->tag_ADDROF = NULL;
+	kpriv->tag_NWORDSOF = NULL;
+	kpriv->tag_LABEL = NULL;
+	kpriv->tag_LABELREF = NULL;
+	kpriv->tag_GOTO = NULL;
+
+	kpriv->tag_WPTR = NULL;
+	kpriv->tag_WORKSPACE = NULL;
+	kpriv->tag_WPTRTYPE = NULL;
+	kpriv->tag_WORKSPACETYPE = NULL;
+	kpriv->tag_UTYPE = NULL;
+	kpriv->tag_ARRAYSUB = NULL;
+	kpriv->tag_RECORDSUB = NULL;
+
 	target->priv = (void *)kpriv;
 
 	cccsp_init_options (kpriv);

@@ -1,0 +1,12 @@
+# test_g30.gpp -- testing params-by-reference
+
+define foo (int n)
+  n = 42
+end
+
+define test_g30 ()
+  int x
+
+  foo (x)
+end
+

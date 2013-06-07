@@ -1,0 +1,23 @@
+# test_g29.gpp -- testing some more things
+
+define id (chan(int) in?, out!)
+  while true
+    int v
+
+    in ? v
+    out ! v
+end
+
+define foo () -> int
+  return 42
+end
+
+define test_g29 ()
+  chan(int) c, d
+  int x
+
+  par
+    id (c?, d!)
+    x = foo ()
+end
+

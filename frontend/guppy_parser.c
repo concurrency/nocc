@@ -786,6 +786,22 @@ int guppy_chantype_setinout (tnode_t *chantype, int marked_in, int marked_out)
 	return -1;
 }
 /*}}}*/
+/*{{{  int guppy_chantype_getinout (tnode_t *chantype, int *marked_in, int *marked_out)*/
+/*
+ *	gets in/out markers on a channel-type, done via langops
+ *	returns 0 on success, non-zero on error
+ */
+int guppy_chantype_getinout (tnode_t *chantype, int *marked_in, int *marked_out)
+{
+	if (!chantype) {
+		return -1;
+	}
+	if (chantype->tag->ndef->lops && tnode_haslangop (chantype->tag->ndef->lops, "chantype_getinout")) {
+		return tnode_calllangop (chantype->tag->ndef->lops, "chantype_getinout", 3, chantype, marked_in, marked_out);
+	}
+	return -1;
+}
+/*}}}*/
 
 /*{{{  static int declify_cpass (tnode_t **treeptr)*/
 /*
@@ -1001,15 +1017,17 @@ static int guppy_parser_init (lexfile_t *lf)
 			return 1;
 		}
 
-		/* register some particular tokens (for later comparison) */
+		/*{{{  register some particular tokens (for later comparison)*/
 		gup.tok_ATSIGN = lexer_newtoken (SYMBOL, "@");
 		gup.tok_STRING = lexer_newtoken (STRING, NULL);
 		gup.tok_PUBLIC = lexer_newtoken (KEYWORD, "public");
 
-		/* register some general reduction functions */
+		/*}}}*/
+		/*{{{  register some general reduction functions*/
 		fcnlib_addfcn ("guppy_nametoken_to_hook", (void *)guppy_nametoken_to_hook, 1, 1);
 
-		/* add compiler passes and operations that will be used to pick apart declaration scope and do auto-seq */
+		/*}}}*/
+		/*{{{  add compiler passes that will be used to pick apart declaration scope and do auto-seq, plus extra fetrans passes*/
 		stopat = nocc_laststopat() + 1;
 		opts_add ("stop-declify", '\0', guppy_opthandler_stopat, (void *)stopat, "1stop after declify pass");
 		if (nocc_addcompilerpass ("declify", INTERNAL_ORIGIN, "pre-scope", 0, (int (*)(void *))declify_cpass, CPASS_TREEPTR, stopat, NULL)) {
@@ -1059,7 +1077,8 @@ static int guppy_parser_init (lexfile_t *lf)
 			return 1;
 		}
 
-		/* create new compiler passes */
+		/*}}}*/
+		/*{{{  create new compiler passes*/
 		if (tnode_newcompop ("declify", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 			nocc_serious ("guppy_parser_init(): failed to add \"declify\" compiler operation");
 			return 1;
@@ -1089,7 +1108,13 @@ static int guppy_parser_init (lexfile_t *lf)
 			return 1;
 		}
 
-		/* initialise! */
+		/*}}}*/
+		/*{{{  create new language operations (needed for Guppy)*/
+		tnode_newlangop ("chantype_setinout", LOPS_INVALID, 3, origin_langparser (&guppy_parser));
+		tnode_newlangop ("chantype_getinout", LOPS_INVALID, 3, origin_langparser (&guppy_parser));
+
+		/*}}}*/
+		/*{{{  initialise!*/
 		if (feunit_do_init_tokens (0, guppy_priv->langdefs, origin_langparser (&guppy_parser))) {
 			nocc_error ("guppy_parser_init(): failed to initialise tokens");
 			return 1;
@@ -1126,6 +1151,7 @@ static int guppy_parser_init (lexfile_t *lf)
 			parser_dumpgrules (FHAN_STDERR);
 		}
 
+		/*}}}*/
 		/* last, re-init multiway syncs with default end-of-par option */
 		mwsync_setresignafterpar (0);
 

@@ -138,6 +138,17 @@ static int guppy_namemap_dopnode (compops_t *cops, tnode_t **node, map_t *map)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_lpreallocate_dopnode (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)*/
+/*
+ *	does pre-allocation for a dyadic operator
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_lpreallocate_dopnode (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)
+{
+	cpa->collect += 2;		/* arbitrary, but assume we need something */
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_codegen_dopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a dyadic operator node
@@ -228,6 +239,17 @@ static int guppy_namemap_booldopnode (compops_t *cops, tnode_t **node, map_t *ma
 	map_submapnames (tnode_nthsubaddr (*node, 0), map);
 	map_submapnames (tnode_nthsubaddr (*node, 1), map);
 	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_lpreallocate_booldopnode (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)*/
+/*
+ *	does pre-allocation for a boolean dyadic operator
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_lpreallocate_booldopnode (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)
+{
+	cpa->collect += 2;		/* arbitrary, but assume we need something */
+	return 1;
 }
 /*}}}*/
 /*{{{  static int guppy_codegen_booldopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
@@ -325,6 +347,17 @@ static int guppy_namemap_reldopnode (compops_t *cops, tnode_t **node, map_t *map
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_lpreallocate_reldopnode (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)*/
+/*
+ *	does pre-allocation for a relational operator
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_lpreallocate_reldopnode (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)
+{
+	cpa->collect += 2;		/* arbitrary, but assume we need something */
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_codegen_reldopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for a relational operator node
@@ -361,6 +394,168 @@ static int guppy_codegen_reldopnode (compops_t *cops, tnode_t *node, codegen_t *
 static tnode_t *guppy_gettype_reldopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
 {
 	return tnode_nthsubof (node, 2);
+}
+/*}}}*/
+
+/*{{{  static int guppy_lpreallocate_mopnode (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)*/
+/*
+ *	does pre-allocation for a monadic operator
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_lpreallocate_mopnode (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)
+{
+	cpa->collect += 2;		/* arbitrary, but assume we need something */
+	return 1;
+}
+/*}}}*/
+
+/*{{{  static int guppy_lpreallocate_boolmopnode (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)*/
+/*
+ *	does pre-allocation for a boolean monadic operator
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_lpreallocate_boolmopnode (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)
+{
+	cpa->collect += 2;		/* arbitrary, but assume we need something */
+	return 1;
+}
+/*}}}*/
+
+/*{{{  static int guppy_typecheck_chanopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking for a channel-operator
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_typecheck_chanopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *op = tnode_nthsubof (node, 0);
+	tnode_t **typep = tnode_nthsubaddr (node, 1);
+	tnode_t *optype;
+	int m_in, m_out;
+
+	if (*typep) {
+		/* already done! */
+		return 0;
+	}
+	typecheck_subtree (op, tc);
+	optype = typecheck_gettype (op, NULL);
+
+	if (!optype) {
+		typecheck_error (node, tc, "cannot determine type of operator [%s] in [%s]", op->tag->name, node->tag->name);
+		return 0;
+	} else if (optype->tag != gup.tag_CHAN) {
+		typecheck_error (node, tc, "invalid type for [%s], expected channel, got [%s]", node->tag->name, optype->tag->name);
+		return 0;
+	}
+
+	if (guppy_chantype_getinout (optype, &m_in, &m_out)) {
+		typecheck_error (node, tc, "failed to get channel-directions from operand [%s]", op->tag->name);
+		return 0;
+	}
+	if ((m_out && (node->tag == gup.tag_MARKEDIN)) || (m_in && (node->tag == gup.tag_MARKEDOUT))) {
+		typecheck_error (node, tc, "incompatible direction specified on operand [%s]", op->tag->name);
+		return 0;
+	}
+	if (!m_in && !m_out) {
+		/* neither is specified, probably means we're talking about both-ends, so duplicate type first */
+		optype = tnode_copytree (optype);
+		if (node->tag == gup.tag_MARKEDIN) {
+			m_in = 1;
+		} else if (node->tag == gup.tag_MARKEDOUT) {
+			m_out = 1;
+		} else {
+			nocc_internal ("guppy_typecheck_chanopnode(): impossible thing!");
+			return 0;
+		}
+		guppy_chantype_setinout (optype, m_in, m_out);
+	}
+
+	*typep = optype;
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_typecheck_chanopnode(): checking type on channel-op [%s], got:\n", node->tag->name);
+tnode_dumptree (optype, 1, FHAN_STDERR);
+#endif
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_typeresolve_chanopnode (compops_t *cops, tnode_t **nodep, typecheck_t *tc)*/
+/*
+ *	does type-resolution for a channel-operator (trivially, replaces with operand)
+ *	return 0 to stop walk, 1 to continue
+ */
+static int guppy_typeresolve_chanopnode (compops_t *cops, tnode_t **nodep, typecheck_t *tc)
+{
+	tnode_t *type = tnode_nthsubof (*nodep, 1);
+
+	if (!type) {
+		typecheck_error (*nodep, tc, "unchecked channel-operator [%s]", (*nodep)->tag->name);
+		return 0;
+	}
+	*nodep = tnode_nthsubof (*nodep, 0);
+	typeresolve_subtree (nodep, tc);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_gettype_chanopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a channel-operator node (trivial)
+ */
+static tnode_t *guppy_gettype_chanopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	return tnode_nthsubof (node, 1);
+}
+/*}}}*/
+/*{{{  static int guppy_getname_chanopnode (langops_t *lops, tnode_t *node, char **strp)*/
+/*
+ *	gets the name of a channel-operator node
+ *	returns 0 on success, < 0 on error
+ */
+static int guppy_getname_chanopnode (langops_t *lops, tnode_t *node, char **strp)
+{
+	char *lstr;
+
+	langops_getname (tnode_nthsubof (node, 0), strp);
+	if (*strp) {
+		if (node->tag == gup.tag_MARKEDIN) {
+			lstr = string_fmt ("%s?", *strp);
+		} else if (node->tag == gup.tag_MARKEDOUT) {
+			lstr = string_fmt ("%s!", *strp);
+		} else {
+			nocc_internal ("guppy_getname_chanopnode(): unhandled [%s]", node->tag->name);
+			return -1;
+		}
+		sfree (*strp);
+		*strp = lstr;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_isconst_chanopnode (langops_t *lops, tnode_t *node)*/
+/*
+ *	determines whether the specified thing is a constant
+ */
+static int guppy_isconst_chanopnode (langops_t *lops, tnode_t *node)
+{
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_isvar_chanopnode (langops_t *lops, tnode_t *node)*/
+/*
+ *	determines whether the specified thing is a variable
+ */
+static int guppy_isvar_chanopnode (langops_t *lops, tnode_t *node)
+{
+	return langops_isvar (tnode_nthsubof (node, 0));
+}
+/*}}}*/
+/*{{{  static int guppy_isaddressable_chanopnode (langops_t *lops, tnode_t *node)*/
+/*
+ *	determines whether the specified thing is addressable
+ */
+static int guppy_isaddressable_chanopnode (langops_t *lops, tnode_t *node)
+{
+	return langops_isaddressable (tnode_nthsubof (node, 0));
 }
 /*}}}*/
 
@@ -593,6 +788,56 @@ static tnode_t *guppy_gettype_arrayopnode (langops_t *lops, tnode_t *node, tnode
 }
 /*}}}*/
 
+/*{{{  static int guppy_namemap_stropnode (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for a string operator (strassign, strconcat)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_stropnode (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
+	tnode_t *action, *aparms;
+	cccsp_apicall_e apicall;
+
+	tnode_setnthsub (*nodep, 0, cmd->process_id);
+	cmd->target_indir = 0;
+	map_submapnames (tnode_nthsubaddr (*nodep, 0), map);
+	/* if assign, make target double-indirect */
+	if ((*nodep)->tag == gup.tag_STRASSIGN) {
+		cmd->target_indir = 2;
+		apicall = STR_ASSIGN;
+	} else if ((*nodep)->tag == gup.tag_STRCONCAT) {
+		/* else, target is kept intact */
+		cmd->target_indir = 1;
+		apicall = STR_CONCAT;
+	} else {
+		nocc_internal ("guppy_namemap_stropnode(): unhandled [%s]", (*nodep)->tag->name);
+		return 0;
+	}
+
+	map_submapnames (tnode_nthsubaddr (*nodep, 1), map);
+	cmd->target_indir = 1;
+	map_submapnames (tnode_nthsubaddr (*nodep, 2), map);
+	if ((*nodep)->tag == gup.tag_STRCONCAT) {
+		map_submapnames (tnode_nthsubaddr (*nodep, 3), map);
+	}
+	cmd->target_indir = 0;
+
+	aparms = parser_newlistnode (SLOCI);
+	parser_addtolist (aparms, tnode_nthsubof (*nodep, 0));
+	parser_addtolist (aparms, tnode_nthsubof (*nodep, 1));
+	parser_addtolist (aparms, tnode_nthsubof (*nodep, 2));
+	if ((*nodep)->tag == gup.tag_STRCONCAT) {
+		parser_addtolist (aparms, tnode_nthsubof (*nodep, 3));
+	}
+	action = tnode_create (gup.tag_APICALL, OrgOf (*nodep), cccsp_create_apicallname (apicall), aparms);
+
+	*nodep = action;
+
+	return 0;
+}
+/*}}}*/
+
 /*{{{  static int guppy_oper_init_nodes (void)*/
 /*
  *	called to initialise nodes/etc. for guppy operators
@@ -611,6 +856,7 @@ static int guppy_oper_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_dopnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_dopnode));
+	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_dopnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_dopnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
@@ -641,6 +887,7 @@ static int guppy_oper_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_booldopnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_booldopnode));
+	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_booldopnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_booldopnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
@@ -661,6 +908,7 @@ static int guppy_oper_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_reldopnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_reldopnode));
+	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_reldopnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_reldopnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
@@ -685,6 +933,7 @@ static int guppy_oper_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:mopnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: op, type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_mopnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;
@@ -699,6 +948,7 @@ static int guppy_oper_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:boolmopnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: op, type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_boolmopnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;
@@ -711,8 +961,15 @@ static int guppy_oper_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:chanopnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: op, type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_chanopnode));
+	tnode_setcompop (cops, "typeresolve", 2, COMPOPTYPE (guppy_typeresolve_chanopnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_chanopnode));
+	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (guppy_getname_chanopnode));
+	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (guppy_isconst_chanopnode));
+	tnode_setlangop (lops, "isvar", 1, LANGOPTYPE (guppy_isvar_chanopnode));
+	tnode_setlangop (lops, "isaddressable", 1, LANGOPTYPE (guppy_isaddressable_chanopnode));
 	tnd->lops = lops;
 
 	i = -1;
@@ -756,6 +1013,21 @@ static int guppy_oper_init_nodes (void)
 	gup.tag_ARRAYSUB = tnode_newnodetag ("ARRAYSUB", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_RECORDSUB = tnode_newnodetag ("RECORDSUB", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:stropnode -- STRASSIGN, STRCONCAT*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:stropnode", &i, 4, 0, 0, TNF_NONE);			/* subnodes: wptr, target, src1, src2 */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_stropnode));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_STRASSIGN = tnode_newnodetag ("STRASSIGN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_STRCONCAT = tnode_newnodetag ("STRCONCAT", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

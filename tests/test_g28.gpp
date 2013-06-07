@@ -1,0 +1,17 @@
+# test_g28.gpp -- more guppy tests
+
+define thing (val int x) -> int
+  int v
+
+  v = x + 2
+  return v
+end
+
+define test_g28 ()
+  int a, b
+
+  a = thing (2)
+  b = thing (3)
+
+end
+

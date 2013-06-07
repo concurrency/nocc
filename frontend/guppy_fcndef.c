@@ -550,6 +550,7 @@ static int guppy_namemap_fcndef (compops_t *cops, tnode_t **nodep, map_t *map)
 	tnode_t *blk;
 	tnode_t *statics, *wptr, *saved_wptr, *mappedwptr;
 	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
+	tnode_t *name = tnode_nthsubof (*nodep, 0);
 
 	if ((*nodep)->tag == gup.tag_PFCNDEF) {
 		statics = *paramsptr;
@@ -619,6 +620,7 @@ tnode_dumptree (mparams[i], 1, FHAN_STDERR);
 
 	tnode_setnthsub (*nodep, 2, blk);				/* insert back-end BLOCK before process body */
 
+	// tnode_setchook (name, map->mapchook, (void *)blk);
 #if 0
 fprintf (stderr, "guppy_namemap_fcndef(): here!\n");
 #endif

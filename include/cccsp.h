@@ -40,13 +40,19 @@ typedef enum ENUM_cccsp_apicall {
 	GET_PROC_PARAM = 7,
 	MEM_ALLOC = 8,
 	MEM_RELEASE = 9,
-	MEM_RELEASE_CHK = 10
+	MEM_RELEASE_CHK = 10,
+	STR_INIT = 11,
+	STR_FREE = 12,
+	STR_ASSIGN = 13,
+	STR_CONCAT = 14
 } cccsp_apicall_e;
+
+#define CCCSP_APICALL_LAST STR_CONCAT
 
 typedef struct TAG_cccsp_apicall {
 	cccsp_apicall_e call;
 	char *name;
-	int needwptr;
+	int stkwords;					/* number of C stack words this requires (excluding parameters) */
 } cccsp_apicall_t;
 
 typedef struct TAG_cccsp_mapdata {
@@ -64,6 +70,7 @@ typedef struct TAG_cccsp_preallocate {
 
 extern int cccsp_set_initialiser (struct TAG_tnode *bename, struct TAG_tnode *init);
 extern struct TAG_tnode *cccsp_create_apicallname (cccsp_apicall_e);
+extern int cccsp_stkwords_apicallnode (struct TAG_tnode *call);
 extern char *cccsp_make_entryname (const char *name, const int procabs);
 
 extern struct TAG_tnode *cccsp_create_addrof (struct TAG_tnode *arg, struct TAG_target *target);
@@ -79,5 +86,7 @@ extern struct TAG_tnode *cccsp_create_workspace_nwordsof (struct TAG_tnode *wsno
 extern struct TAG_tnode *cccsp_create_utype (struct TAG_srclocn *org, struct TAG_target *target, const char *name, struct TAG_tnode *fields);
 extern struct TAG_tnode *cccsp_create_arraysub (struct TAG_srclocn *org, struct TAG_target *target, struct TAG_tnode *base, struct TAG_tnode *index, int indir);
 extern struct TAG_tnode *cccsp_create_recordsub (struct TAG_srclocn *org, struct TAG_target *target, struct TAG_tnode *base, struct TAG_tnode *field, int indir);
+extern int cccsp_preallocate_subtree (struct TAG_tnode *tptr, cccsp_preallocate_t *cpa);
+extern int cccsp_getblockspace (struct TAG_tnode *beblk, int *mysize, int *nestsize);
 
 #endif	/* !__CCCSP_H */

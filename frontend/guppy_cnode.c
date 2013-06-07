@@ -211,6 +211,8 @@ static int guppy_fetrans_cnode (compops_t *cops, tnode_t **nodep, fetrans_t *fe)
 #if 0
 fhandle_printf (FHAN_STDERR, "guppy_fetrans_cnode(): thinking about PAR, process %d is:\n", i);
 tnode_dumptree (pitems[i], 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, "guppy_fetrans_cnode(): fvlist =\n");
+tnode_dumptree (fvlist, 1, FHAN_STDERR);
 #endif
 				parmlist = parser_newlistnode (SLOCI);
 				parmnamelist = parser_newlistnode (SLOCI);
@@ -221,17 +223,20 @@ tnode_dumptree (pitems[i], 1, FHAN_STDERR);
 					char *vname = NULL;
 
 					/* pick the same names */
-					langops_getname (fvitems[i], &vname);
+					langops_getname (fvitems[j], &vname);
 					if (!vname) {
-						vname = guppy_maketempname (fvitems[i]);
+						vname = guppy_maketempname (fvitems[j]);
 					}
 
-					p_type = typecheck_gettype (fvitems[i], NULL);
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans_cnode(): getting type of item [0x%8.8x] (%s)..\n", (unsigned int)fvitems[j], vname);
+#endif
+					p_type = typecheck_gettype (fvitems[j], NULL);
 
 					p_name = name_addname (vname, NULL, p_type, NULL);
-					p_namenode = tnode_createfrom (gup.tag_NPARAM, fvitems[i], p_name);
+					p_namenode = tnode_createfrom (gup.tag_NPARAM, fvitems[j], p_name);
 					SetNameNode (p_name, p_namenode);
-					p_fparam = tnode_createfrom (gup.tag_FPARAM, fvitems[i], p_namenode, p_type, NULL);
+					p_fparam = tnode_createfrom (gup.tag_FPARAM, fvitems[j], p_namenode, p_type, NULL);
 
 					parser_addtolist (parmlist, p_fparam);
 					parser_addtolist (parmnamelist, p_namenode);
@@ -368,9 +373,39 @@ tnode_dumptree (dblk, 1, FHAN_STDERR);
 	return 1;
 }
 /*}}}*/
+/*{{{  static int guppy_lpreallocate_cnode (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)*/
+/*
+ *	does stack allocation for a constructor node: most of all sub-components
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_lpreallocate_cnode (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)
+{
+	int max = 0;
+	tnode_t *body = tnode_nthsubof (node, 1);
+	tnode_t **items;
+	int nitems, i;
+	int saved_collect = cpa->collect;
+
+	if (!parser_islistnode (body)) {
+		nocc_internal ("guppy_lpreallocate_cnode(): body not a list!, got [%s]", body->tag->name);
+		return 0;
+	}
+	items = parser_getlistitems (body, &nitems);
+	for (i=0; i<nitems; i++) {
+		cpa->collect = 0;
+		cccsp_preallocate_subtree (items[i], cpa);
+		if (cpa->collect > max) {
+			max = cpa->collect;
+		}
+	}
+	cpa->collect = saved_collect + max;
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
- *	does code-generation for a constructor node
+ *	does code-generation for a constructor node: only have SEQ left by this point
  *	returns 0 to stop walk, 1 to continue
  */
 static int guppy_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
@@ -540,6 +575,7 @@ static int guppy_cnode_init_nodes (void)
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_cnode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (guppy_fetrans_cnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_cnode));
+	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_cnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_cnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
