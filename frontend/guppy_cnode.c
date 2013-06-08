@@ -304,7 +304,7 @@ static int guppy_namemap_cnode (compops_t *cops, tnode_t **nodep, map_t *map)
 	if ((*nodep)->tag == gup.tag_PAR) {
 		/* each parallel process should be a PPINSTANCE node now */
 		tnode_t *parlist = tnode_nthsubof (*nodep, 1);
-		tnode_t *dblk, *decllist, *oseq, *oseqlist;
+		tnode_t *dblk, *decllist, *oseq, *oseqlist, *beblk;
 		tnode_t **pitems;
 		int i, nitems;
 		tnode_t *pcargs, *pccall, *pccallnum, *pcnprocs;
@@ -362,7 +362,8 @@ static int guppy_namemap_cnode (compops_t *cops, tnode_t **nodep, map_t *map)
 		parser_addtolist (oseqlist, pccall);
 		gmap->decllist = saved_dlist;
 
-		*nodep = dblk;
+		beblk = map->target->newblock (dblk, map, NULL, map->lexlevel);			/* make sure this goes in too! */
+		*nodep = beblk;
 #if 0
 fhandle_printf (FHAN_STDERR, "guppy_namemap_cnode(): map for parallel processes:\n");
 tnode_dumptree (dblk, 1, FHAN_STDERR);

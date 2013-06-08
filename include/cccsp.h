@@ -44,10 +44,11 @@ typedef enum ENUM_cccsp_apicall {
 	STR_INIT = 11,
 	STR_FREE = 12,
 	STR_ASSIGN = 13,
-	STR_CONCAT = 14
+	STR_CONCAT = 14,
+	CHAN_INIT = 15
 } cccsp_apicall_e;
 
-#define CCCSP_APICALL_LAST STR_CONCAT
+#define CCCSP_APICALL_LAST CHAN_INIT
 
 typedef struct TAG_cccsp_apicall {
 	cccsp_apicall_e call;
@@ -87,6 +88,8 @@ extern struct TAG_tnode *cccsp_create_utype (struct TAG_srclocn *org, struct TAG
 extern struct TAG_tnode *cccsp_create_arraysub (struct TAG_srclocn *org, struct TAG_target *target, struct TAG_tnode *base, struct TAG_tnode *index, int indir);
 extern struct TAG_tnode *cccsp_create_recordsub (struct TAG_srclocn *org, struct TAG_target *target, struct TAG_tnode *base, struct TAG_tnode *field, int indir);
 extern int cccsp_preallocate_subtree (struct TAG_tnode *tptr, cccsp_preallocate_t *cpa);
+extern int cccsp_precode_subtree (struct TAG_tnode **nodep, struct TAG_codegen *cgen);
 extern int cccsp_getblockspace (struct TAG_tnode *beblk, int *mysize, int *nestsize);
+extern int cccsp_addtofixups (struct TAG_tnode *beblk, struct TAG_tnode *node);
 
 #endif	/* !__CCCSP_H */

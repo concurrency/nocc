@@ -447,7 +447,7 @@ static int guppy_codegen_rinstance (compops_t *cops, tnode_t *node, codegen_t *c
 static int guppy_namemap_ppinstance (compops_t *cops, tnode_t **nodep, map_t *map)
 {
 	tnode_t **nameptr = tnode_nthsubaddr (*nodep, 0);
-	tnode_t *pname = *nameptr, *pdecl;
+	tnode_t *pname = *nameptr, *pdecl, *pdeclblk;
 	tnode_t *plist = tnode_nthsubof (*nodep, 2);
 	tnode_t *newwptr = tnode_nthsubof (*nodep, 1);
 	tnode_t *newws, **newwsp;
@@ -458,6 +458,7 @@ static int guppy_namemap_ppinstance (compops_t *cops, tnode_t **nodep, map_t *ma
 	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
 	guppy_map_t *gmap = (guppy_map_t *)cmd->langhook;
 	tnode_t *ppseq, *ppseqlist, *ppinitcall, *ppinitargs;
+	name_t *pnamename;
 
 	/* map name and parameters */
 	map_submapnames (nameptr, map);
@@ -466,9 +467,32 @@ static int guppy_namemap_ppinstance (compops_t *cops, tnode_t **nodep, map_t *ma
 fhandle_printf (FHAN_STDERR, "guppy_namemap_ppinstance(): here!  *nodep =\n");
 tnode_dumptree (*nodep, 1, FHAN_STDERR);
 #endif
+	pnamename = tnode_nthnameof (pname, 0);
+	pdecl = NameDeclOf (pnamename);
+
+	if (pdecl->tag != gup.tag_PFCNDEF) {
+		nocc_internal ("guppy_namemap_ppinstance(): ppinstance'd definition is not a PFCNDEF, got [%s]", pdecl->tag->name);
+		return 0;
+	}
+	pdeclblk = tnode_nthsubof (pdecl, 2);
+	if (pdeclblk->tag != map->target->tag_BLOCK) {
+		nocc_internal ("guppy_namemap_ppinstance(): ppinstance'd definition body is not back-end block, got [%s]", pdeclblk->tag->name);
+		return 0;
+	}
+
+	// cccsp_getblockspace (pdeclblk, &blk_my, &blk_nest);
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_namemap_ppinstance(): mapped instance space is (%d,%d)\n", blk_my, blk_nest);
+#endif
+
 	params = parser_getlistitems (plist, &nparams);
 	newws = cccsp_create_workspace (SLOCI, map->target);
 	cccsp_set_workspace_nparams (newws, nparams);
+	/* NOTE: we don't know how much space is needed, yet (preallocate pass handles that),
+	 *       but leave a fixup in the list attached to the back-end block
+	 */
+	cccsp_addtofixups (pdeclblk, newws);
+	// cccsp_set_workspace_nwords (newws, blk_nest);
 
 	/* add new workspace to local declarations and map */
 	if (!gmap->decllist) {

@@ -1,0 +1,48 @@
+
+# test_g31.gpp -- more tests
+
+define delta (chan(int) in?, out0!, out1!)
+  while true
+    int v
+
+    in ? v
+    par
+      out0 ! v
+      out1 ! v
+end
+
+define prefix (val int n, chan(int) in?, out!)
+  out ! n
+
+  while true
+    int v
+
+    in ? v
+    out ! v
+end
+
+define succ (chan(int) in?, out!)
+  while true
+    int v
+
+    in ? v
+    out ! v + 1
+end
+
+define sink (chan(int) in?)
+  while true
+    int v
+
+    in ? v
+end
+
+define test_g31 (chan(char) screen!)
+  chan(int) a, b, c, d
+  par
+    prefix (0, d?, a!)
+    delta (a?, b!, c!)
+    succ (b?, d!)
+    sink (c?)
+end
+
+

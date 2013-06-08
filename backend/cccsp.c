@@ -65,6 +65,7 @@ static void cccsp_do_preallocate (tnode_t *tptr, target_t *target);
 static void cccsp_do_precode (tnode_t **tptr, codegen_t *cgen);
 static void cccsp_do_codegen (tnode_t *tptr, codegen_t *cgen);
 
+static void cccsp_be_getblocksize (tnode_t *blk, int *wsp, int *wsoffsp, int *vsp, int *msp, int *adjp, int *elabp);
 static int cccsp_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile);
 static int cccsp_be_codegen_final (codegen_t *cgen, lexfile_t *srcfile);
 
@@ -140,7 +141,7 @@ target_t cccsp_target = {
 	.be_getoffsets =	NULL,
 	.be_blocklexlevel =	NULL,
 	.be_setblocksize =	NULL,
-	.be_getblocksize =	NULL,
+	.be_getblocksize =	cccsp_be_getblocksize,
 	.be_codegen_init =	cccsp_be_codegen_init,
 	.be_codegen_final =	cccsp_be_codegen_final,
 
@@ -177,6 +178,8 @@ typedef struct TAG_cccsp_priv {
 	ntdef_t *tag_UTYPE;
 	ntdef_t *tag_ARRAYSUB;
 	ntdef_t *tag_RECORDSUB;
+
+	chook_t *wsfixuphook;
 } cccsp_priv_t;
 
 typedef struct TAG_cccsp_namehook {
@@ -264,7 +267,8 @@ static cccsp_apicall_t cccsp_apicall_table[] = {
 	{STR_INIT, "GuppyStringInit", 16},
 	{STR_FREE, "GuppyStringFree", 16},
 	{STR_ASSIGN, "GuppyStringAssign", 32},
-	{STR_CONCAT, "GuppyStringConcat", 32}
+	{STR_CONCAT, "GuppyStringConcat", 32},
+	{CHAN_INIT, "ChanInit", 8}
 };
 
 
@@ -759,6 +763,7 @@ fhandle_printf (FHAN_STDERR, "cccsp_nameref_create(): created new nameref at 0x%
  */
 static tnode_t *cccsp_block_create (tnode_t *body, map_t *mdata, tnode_t *slist, int lexlevel)
 {
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)mdata->target->priv;
 	cccsp_blockhook_t *bh;
 	tnode_t *blk;
 
@@ -1142,6 +1147,25 @@ static int cccsp_modprewalktree_namemap (tnode_t **nodep, void *data)
 	return i;
 }
 /*}}}*/
+/*{{{  static int cccsp_modprewalktree_precode (tnode_t **nodep, void *data)*/
+/*
+ *	modprewalktree for pre-codegen, calls comp-ops "lprecode" routine where present
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_modprewalktree_precode (tnode_t **nodep, void *data)
+{
+	codegen_t *cgen = (codegen_t *)data;
+	int i = 1;
+
+	if ((*nodep)->tag->ndef->ops && tnode_hascompop_i ((*nodep)->tag->ndef->ops, (int)COPS_LPRECODE)) {
+		i = tnode_callcompop_i ((*nodep)->tag->ndef->ops, (int)COPS_LPRECODE, 2, nodep, cgen);
+	} else if ((*nodep)->tag->ndef->ops && tnode_hascompop_i ((*nodep)->tag->ndef->ops, (int)COPS_PRECODE)) {
+		i = tnode_callcompop_i ((*nodep)->tag->ndef->ops, (int)COPS_PRECODE, 2, nodep, cgen);
+	}
+
+	return i;
+}
+/*}}}*/
 /*{{{  static int cccsp_modprewalktree_betrans (tnode_t **tptr, void *arg)*/
 /*
  *	does back-end transform for parse-tree nodes (CCSP/C specific)
@@ -1234,7 +1258,7 @@ static void cccsp_do_preallocate (tnode_t *tptr, target_t *target)
  */
 static void cccsp_do_precode (tnode_t **tptr, codegen_t *cgen)
 {
-	nocc_message ("cccsp_do_precode(): here!");
+	cccsp_precode_subtree (tptr, cgen);
 	return;
 }
 /*}}}*/
@@ -1260,6 +1284,17 @@ int cccsp_preallocate_subtree (tnode_t *tptr, cccsp_preallocate_t *cpa)
 	return 0;
 }
 /*}}}*/
+/*{{{  int cccsp_precode_subtree (tnode_t **nodep, codegen_t *cgen)*/
+/*
+ *	does precode sub-tree walk
+ *	returns 0 on success, non-zero on error
+ */
+int cccsp_precode_subtree (tnode_t **nodep, codegen_t *cgen)
+{
+	tnode_modprewalktree (nodep, cccsp_modprewalktree_precode, (void *)cgen);
+	return 0;
+}
+/*}}}*/
 /*{{{  int cccsp_getblockspace (tnode_t *beblk, int *mysize, int *nestsize)*/
 /*
  *	gets a back-end block space requirements
@@ -1279,6 +1314,29 @@ int cccsp_getblockspace (tnode_t *beblk, int *mysize, int *nestsize)
 		return 0;
 	}
 	return -1;
+}
+/*}}}*/
+/*{{{  int cccsp_addtofixups (tnode_t *beblk, tnode_t *node)*/
+/*
+ *	adds something to the list of fixups for a back-end block, processed *after* prealloc
+ *	returns 0 on success, non-zero on failure
+ */
+int cccsp_addtofixups (tnode_t *beblk, tnode_t *node)
+{
+	tnode_t *flist;
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cccsp_target.priv;
+
+	flist = (tnode_t *)tnode_getchook (beblk, kpriv->wsfixuphook);
+	if (!flist) {
+		flist = parser_newlistnode (SLOCI);
+		tnode_setchook (beblk, kpriv->wsfixuphook, flist);
+	}
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_addtofixups(): beblk=[%s:%s] node=[%s:%s]\n", beblk->tag->ndef->name, beblk->tag->name,
+		node->tag->ndef->name, node->tag->name);
+#endif
+	parser_addtolist (flist, node);
+	return 0;
 }
 /*}}}*/
 
@@ -1420,6 +1478,42 @@ static void cccsp_coder_c_proccall (codegen_t *cgen, const char *name, tnode_t *
 }
 /*}}}*/
 
+/*{{{  static void cccsp_be_getblocksize (tnode_t *blk, int *wsp, int *wsoffsp, int *vsp, int *msp, int *adjp, int *elabp)*/
+/*
+ *	gets the block-size for a back-end block (called by library code in this case)
+ */
+static void cccsp_be_getblocksize (tnode_t *blk, int *wsp, int *wsoffsp, int *vsp, int *msp, int *adjp, int *elabp)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cccsp_target.priv;
+	cccsp_blockhook_t *bh;
+	
+	if (blk->tag != cccsp_target.tag_BLOCK) {
+		nocc_internal ("cccsp_be_getblocksize(): not BLOCK, got [%s:%s]", blk->tag->ndef->name, blk->tag->name);
+		return;
+	}
+	bh = (cccsp_blockhook_t *)tnode_nthhookof (blk, 0);
+
+	if (wsp) {
+		*wsp = bh->my_size;
+	}
+	if (wsoffsp) {
+		*wsoffsp = 0;
+	}
+	if (vsp) {
+		*vsp = bh->nest_size;
+	}
+	if (msp) {
+		*msp = 0;
+	}
+	if (adjp) {
+		*adjp = 0;
+	}
+	if (elabp) {
+		*elabp = 0;
+	}
+	return;
+}
+/*}}}*/
 /*{{{  static int cccsp_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)*/
 /*
  *	initialises back-end code generation for KRoC CIF/CCSP target
@@ -1485,6 +1579,7 @@ static int cccsp_be_codegen_final (codegen_t *cgen, lexfile_t *srcfile)
 		char *entryname;
 		tnode_t *beblk;
 		tnode_t *toplevelparams;
+		int blk_my, blk_nest;
 
 		if (!kpriv->last_toplevelname) {
 			codegen_error (cgen, "cccsp_be_codegen_final(): no top-level process set");
@@ -1496,11 +1591,15 @@ static int cccsp_be_codegen_final (codegen_t *cgen, lexfile_t *srcfile)
 		beblk = tnode_nthsubof (NameDeclOf (kpriv->last_toplevelname), 2);
 		if (beblk->tag != cgen->target->tag_BLOCK) {
 			toplevelparams = NULL;
+			blk_my = 0;
+			blk_nest = 4096;
 		} else {
 			toplevelparams = tnode_nthsubof (beblk, 1);
+			cccsp_getblockspace (beblk, &blk_my, &blk_nest);
+			blk_nest += 16;
 		}
 #if 0
-fhandle_printf (FHAN_STDERR, "cccsp_be_codegen_final(): generating interface, top-level parameters are:\n");
+fhandle_printf (FHAN_STDERR, "cccsp_be_codegen_final(): generating interface, top-level parameters (space = %d,%d) are:\n", blk_my, blk_nest);
 tnode_dumptree (toplevelparams, 1, FHAN_STDERR);
 #endif
 		if (toplevelparams) {
@@ -1602,8 +1701,8 @@ tnode_dumptree (toplevelparams, 1, FHAN_STDERR);
 			codegen_write_fmt (cgen, "	ProcParam (wptr, p_err, 0, &ch_err);\n");
 		}
 		/* FIXME: need some common-sense to determine likely memory requirements */
-		codegen_write_fmt (cgen, "	ws_user = (word *)MAlloc (wptr, WORKSPACE_SIZE(%d,%d) * 4);\n", nparams, 4096);
-		codegen_write_fmt (cgen, "	p_user = LightProcInit (wptr, ws_user, %d, %d);\n", nparams, 4096);
+		codegen_write_fmt (cgen, "	ws_user = (word *)MAlloc (wptr, WORKSPACE_SIZE(%d,%d) * 4);\n", nparams, blk_nest);
+		codegen_write_fmt (cgen, "	p_user = LightProcInit (wptr, ws_user, %d, %d);\n", nparams, blk_nest);
 		if (has_kyb >= 0) {
 			codegen_write_fmt (cgen, "	ProcParam (wptr, p_user, %d, &ch_kyb);\n", has_kyb);
 		}
@@ -1677,10 +1776,27 @@ tnode_dumptree (toplevelparams, 1, FHAN_STDERR);
  */
 static int cccsp_lpreallocate_name (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)
 {
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cpa->target->priv;
 	cccsp_namehook_t *nh = (cccsp_namehook_t *)tnode_nthhookof (node, 0);
+	tnode_t *src = tnode_nthsubof (node, 0);
 
-	/* FIXME: assuming single word.. */
-	cpa->collect++;
+	if (src->tag == kpriv->tag_WORKSPACE) {
+		cccsp_workspacehook_t *wsh = (cccsp_workspacehook_t *)tnode_nthhookof (src, 0);
+
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_lpreallocate_name(): came across WORKSPACE declaration isdyn=%d of (%d,%d)\n",
+		wsh->isdyn, wsh->nparams, wsh->nwords);
+#endif
+		if ((wsh->nparams < 0) || (wsh->nwords < 0)) {
+			/* don't know yet, will need to make this dynamic */
+			wsh->isdyn = 1;
+		} else {
+			cpa->collect += (wsh->nparams + wsh->nwords + 2);
+		}
+	} else {
+		/* FIXME: assuming single word.. */
+		cpa->collect++;
+	}
 
 	return 0;
 }
@@ -1786,10 +1902,12 @@ static int cccsp_lcodegen_nameref (compops_t *cops, tnode_t *nameref, codegen_t 
  */
 static int cccsp_lpreallocate_block (compops_t *cops, tnode_t *blk, cccsp_preallocate_t *cpa)
 {
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cpa->target->priv;
 	cccsp_blockhook_t *bh = (cccsp_blockhook_t *)tnode_nthhookof (blk, 0);
 	tnode_t *slist = tnode_nthsubof (blk, 1);
 	int saved_collect = cpa->collect;
-
+	tnode_t *flist;
+	
 	/* sub-preallocate nested blocks */
 	cpa->collect = 0;
 	cccsp_preallocate_subtree (tnode_nthsubof (blk, 0), cpa);
@@ -1801,9 +1919,48 @@ static int cccsp_lpreallocate_block (compops_t *cops, tnode_t *blk, cccsp_preall
 		bh->my_size = cpa->collect;
 	}
 
+	/* see if we have any fixups to deal with */
+	flist = (tnode_t *)tnode_getchook (blk, kpriv->wsfixuphook);
+	if (flist) {
+		tnode_t **fitems;
+		int nfitems, i;
+
+		fitems = parser_getlistitems (flist, &nfitems);
+		for (i=0; i<nfitems; i++) {
+			if (fitems[i]->tag == kpriv->tag_WORKSPACE) {
+				cccsp_workspacehook_t *wsh = (cccsp_workspacehook_t *)tnode_nthhookof (fitems[i], 0);
+
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_lpreallocate_block(): fixing up, bh->my_size=%d, bh->nest_size=%d, wsh->nparams=%d, wsh->nwords=%d\n",
+		bh->my_size, bh->nest_size, wsh->nparams, wsh->nwords);
+#endif
+				if (wsh->nparams < 0) {
+					wsh->nparams = bh->my_size;
+				}
+				if (wsh->nwords < 0) {
+					wsh->nwords = bh->nest_size;
+				}
+			} else {
+				nocc_internal ("cccsp_lpreallocate_block(): unhandled fixup for [%s:%s]",
+						fitems[i]->tag->ndef->name, fitems[i]->tag->name);
+				return 0;
+			}
+		}
+	}
+
 	cpa->collect = saved_collect + (bh->nest_size + bh->my_size);
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static int cccsp_lprecode_block (compops_t *cops, tnode_t **nodep, codegen_t *cgen)*/
+/*
+ *	does pre-code-generation for a back-end block;  deals with any deferred WS fixups
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_lprecode_block (compops_t *cops, tnode_t **nodep, codegen_t *cgen)
+{
+	return 1;
 }
 /*}}}*/
 /*{{{  static int cccsp_lcodegen_block (compops_t *cops, tnode_t *blk, codegen_t *cgen)*/
@@ -2212,6 +2369,8 @@ static int cccsp_target_init (target_t *target)
 	kpriv->tag_ARRAYSUB = NULL;
 	kpriv->tag_RECORDSUB = NULL;
 
+	kpriv->wsfixuphook = tnode_lookupornewchook ("cccsp:wsfixup");
+
 	target->priv = (void *)kpriv;
 
 	cccsp_init_options (kpriv);
@@ -2253,6 +2412,7 @@ static int cccsp_target_init (target_t *target)
 	tnd->hook_dumptree = cccsp_blockhook_dumptree;
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (cccsp_lpreallocate_block));
+	tnode_setcompop (cops, "lprecode", 2, COMPOPTYPE (cccsp_lprecode_block));
 	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (cccsp_lcodegen_block));
 	tnd->ops = cops;
 

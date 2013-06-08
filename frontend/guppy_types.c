@@ -912,7 +912,23 @@ static int guppy_typehash_chantype (langops_t *lops, tnode_t *t, int hsize, void
  */
 static int guppy_isdefpointer_chantype (langops_t *lops, tnode_t *node)
 {
-	return 1;
+	/* FIXME: if moving channel-ends around, this needs to be true */
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_initcall_chantype (langops_t *lops, tnode_t *typenode, tnode_t *name)*/
+/*
+ *	generates initialiser for channel types
+ */
+static tnode_t *guppy_initcall_chantype (langops_t *lops, tnode_t *typenode, tnode_t *name)
+{
+	if (typenode->tag == gup.tag_CHAN) {
+		tnode_t *inode;
+
+		inode = tnode_create (gup.tag_CHANINIT, SLOCI, NULL, typenode, name);
+		return inode;
+	}
+	return NULL;
 }
 /*}}}*/
 /*{{{  static int guppy_setinout_chantype (langops_t *lops, tnode_t *node, int marked_in, int marked_out)*/
@@ -1098,6 +1114,7 @@ static int guppy_types_init_nodes (void)
 	tnode_setlangop (lops, "guesstlp", 1, LANGOPTYPE (guppy_guesstlp_chantype));
 	tnode_setlangop (lops, "typehash", 3, LANGOPTYPE (guppy_typehash_chantype));
 	tnode_setlangop (lops, "isdefpointer", 1, LANGOPTYPE (guppy_isdefpointer_chantype));
+	tnode_setlangop (lops, "initcall", 2, LANGOPTYPE (guppy_initcall_chantype));
 	tnode_setlangop (lops, "chantype_setinout", 3, LANGOPTYPE (guppy_setinout_chantype));
 	tnode_setlangop (lops, "chantype_getinout", 3, LANGOPTYPE (guppy_getinout_chantype));
 	tnd->lops = lops;

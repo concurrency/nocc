@@ -97,6 +97,7 @@ typedef struct {
 	struct TAG_ntdef *tag_VARFREE;
 	struct TAG_ntdef *tag_STRINIT;
 	struct TAG_ntdef *tag_STRFREE;
+	struct TAG_ntdef *tag_CHANINIT;
 
 	struct TAG_ntdef *tag_EXTDECL;
 
