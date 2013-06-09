@@ -1791,11 +1791,11 @@ fhandle_printf (FHAN_STDERR, "cccsp_lpreallocate_name(): came across WORKSPACE d
 			/* don't know yet, will need to make this dynamic */
 			wsh->isdyn = 1;
 		} else {
-			cpa->collect += (wsh->nparams + wsh->nwords + 2);
+			cpa->collect += (wsh->nparams + wsh->nwords + 8);
 		}
 	} else {
-		/* FIXME: assuming single word.. */
-		cpa->collect++;
+		/* FIXME: assuming two words.. */
+		cpa->collect += 2;
 	}
 
 	return 0;

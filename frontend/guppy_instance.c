@@ -339,7 +339,7 @@ static int guppy_lpreallocate_instance (compops_t *cops, tnode_t *node, cccsp_pr
 		for (i=0; i<npitems; i++) {
 			cccsp_preallocate_subtree (pitems[i], cpa);
 		}
-		cpa->collect += 4;		/* for the call itself probably */
+		cpa->collect += 16;		/* for the call itself probably */
 	} else if (node->tag == gup.tag_APICALL) {
 		int w = cccsp_stkwords_apicallnode (tnode_nthsubof (node, 0));
 		tnode_t *parms = tnode_nthsubof (node, 1);
@@ -353,7 +353,7 @@ static int guppy_lpreallocate_instance (compops_t *cops, tnode_t *node, cccsp_pr
 		for (i=0; i<npitems; i++) {
 			cccsp_preallocate_subtree (pitems[i], cpa);
 		}
-		cpa->collect += 4;		/* for the call itself probably */
+		cpa->collect += 16;		/* for the call itself probably */
 	} else {
 		nocc_internal ("guppy_lpreallocate_instance(): unhandled [%s:%s]", node->tag->ndef->name, node->tag->name);
 		return 0;
@@ -414,7 +414,24 @@ static tnode_t *guppy_gettype_instance (langops_t *lops, tnode_t *node, tnode_t 
  */
 static int guppy_lpreallocate_rinstance (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)
 {
-	/* FIXME: ... */
+	if (node->tag == gup.tag_APICALLR) {
+		int w = cccsp_stkwords_apicallnode (tnode_nthsubof (node, 0));
+		tnode_t *parms = tnode_nthsubof (node, 1);
+		tnode_t **pitems;
+		int npitems, i;
+
+		if (w > 0) {
+			cpa->collect += w;
+		}
+		pitems = parser_getlistitems (parms, &npitems);
+		for (i=0; i<npitems; i++) {
+			cccsp_preallocate_subtree (pitems[i], cpa);
+		}
+		cpa->collect += 16;		/* for the call itself probably */
+	} else {
+		nocc_internal ("guppy_lpreallocate_rinstance(): unhanded [%s:%s]", node->tag->ndef->name, node->tag->name);
+		return 0;
+	}
 	return 0;
 }
 /*}}}*/
