@@ -226,9 +226,8 @@ typedef struct {
 } guppy_litdata_t;
 
 typedef struct {
-	struct TAG_tnode *inslist;			/* list where inserted definitions can go */
-	int insidx;					/* whereabouts in the list */
-	int changed;					/* set if changes are made */
+	struct TAG_tnode *preinslist;			/* things to insert before the current node */
+	struct TAG_tnode *postinslist;			/* things to insert after the current node */
 } guppy_fetrans_t;
 
 typedef struct {

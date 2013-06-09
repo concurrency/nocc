@@ -2073,37 +2073,55 @@ static int guppy_parser_fetrans (tnode_t **tptr, fetrans_t *fe)
 	}
 
 	gfe = (guppy_fetrans_t *)smalloc (sizeof (guppy_fetrans_t));
-	gfe->inslist = *tptr;
-	gfe->insidx = 0;
-	gfe->changed = 0;
+	gfe->preinslist = NULL;
+	gfe->postinslist = NULL;
 	fe->langpriv = (void *)gfe;
 
 	for (i=0; i<parser_countlist (*tptr); i++) {
 		tnode_t **iptr = parser_getfromlistptr (*tptr, i);
 		int nr;
 
-		gfe->insidx = i;			/* where we are now */
-		gfe->changed = 0;
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_parser_fetrans(): about to do subtree %d/%d *iptr=0x%8.8x [%s]..\n", i, parser_countlist (*tptr),
+		(unsigned int)(*iptr), (*iptr)->tag->name);
+// tnode_dumptree (*iptr, 1, FHAN_STDERR);
+#endif
 		nr = fetrans_subtree (iptr, fe);
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_parser_fetrans(): done %d/%d ..  *iptr=0x%8.8x\n", i, parser_countlist (*tptr), (unsigned int)(*iptr));
+#endif
 		if (nr) {
 			r++;
 		}
-		if (gfe->changed) {
-			/* means we may have moved */
-			int j, fnd = 0;
 
-			for (j=0; j<parser_countlist (*tptr); j++) {
-				if (parser_getfromlist (*tptr, j) == *iptr) {
-					i = j;
-					fnd = 1;
-					break;
+		/* if there's anything to add, will be in gfe's lists */
+		if (gfe->preinslist) {
+			int j, nitems;
+			tnode_t **items;
+
+			items = parser_getlistitems (gfe->preinslist, &nitems);
+			for (j=0; j<nitems; j++) {
+				if (items[j]) {
+					parser_insertinlist (*tptr, items[j], i);
+					i++;
 				}
 			}
-			/* if not found, confused */
-			if (!fnd) {
-				nocc_internal ("guppy_parser_fetrans(): fetrans said changed, but can't find myself anymore!");
-				return -1;
+			parser_trashlist (gfe->preinslist);
+			gfe->preinslist = NULL;
+		}
+		if (gfe->postinslist) {
+			int j, nitems, jc;
+			tnode_t **items;
+
+			items = parser_getlistitems (gfe->postinslist, &nitems);
+			for (j=0,jc=1; j<nitems; j++) {
+				if (items[j]) {
+					parser_insertinlist (*tptr, items[j], i+jc);
+					jc++;
+				}
 			}
+			parser_trashlist (gfe->postinslist);
+			gfe->postinslist = NULL;
 		}
 	}
 

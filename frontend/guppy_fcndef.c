@@ -380,13 +380,17 @@ static int guppy_fetrans_fcndef (compops_t *cops, tnode_t **nodep, fetrans_t *fe
 {
 	guppy_fetrans_t *gfe = (guppy_fetrans_t *)fe->langpriv;
 	guppy_fcndefhook_t *fdh = (guppy_fcndefhook_t *)tnode_nthhookof (*nodep, 0);
+	tnode_t *node = *nodep;
 
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans_fcndef(): here 1, nodep=0x%8.8x, *nodep=0x%8.8x\n", (unsigned int)nodep, (unsigned int)(*nodep));
+#endif
 	if (!fdh || !gfe) {
 		nocc_internal ("guppy_fetrans_fcndef(): missing stuff!");
 		return 0;
 	}
 
-	if ((*nodep)->tag == gup.tag_FCNDEF) {
+	if (node->tag == gup.tag_FCNDEF) {
 		chook_t *deschook = tnode_lookupchookbyname ("fetrans:descriptor");
 		char *dstr = NULL;
 
@@ -394,23 +398,31 @@ static int guppy_fetrans_fcndef (compops_t *cops, tnode_t **nodep, fetrans_t *fe
 			return 1;
 		}
 
-		langops_getdescriptor (*nodep, &dstr);
+		langops_getdescriptor (node, &dstr);
 		if (dstr) {
-			tnode_setchook (*nodep, deschook, (void *)dstr);
+			tnode_setchook (node, deschook, (void *)dstr);
 		}
 	}
 
 	/* do fetrans on names and paramters (results absorbed by this point) */
-	fetrans_subtree (tnode_nthsubaddr (*nodep, 0), fe);
-	fetrans_subtree (tnode_nthsubaddr (*nodep, 1), fe);
+	fetrans_subtree (tnode_nthsubaddr (node, 0), fe);
+	fetrans_subtree (tnode_nthsubaddr (node, 1), fe);
 
 	/* do fetrans on process body */
-	fetrans_subtree (tnode_nthsubaddr (*nodep, 2), fe);
+	fetrans_subtree (tnode_nthsubaddr (node, 2), fe);
 
-	if ((*nodep)->tag == gup.tag_FCNDEF) {
+	/* if there are parallel sub-processes inside the body, these will have been pulled out into new PFCNDEF's by this point */
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans_fcndef(): considering [%s]...\n", (*nodep)->tag->name);
+#endif
+	if (node->tag == gup.tag_FCNDEF) {
 		/* if at the top-level and public, make a process abstraction */
-		char *fname = NameNameOf (tnode_nthnameof (tnode_nthsubof (*nodep, 0), 0));
+		char *fname = NameNameOf (tnode_nthnameof (tnode_nthsubof (node, 0), 0));
 
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans_fcndef(): FCNDEF, lexlevel=%d, ispublic=%d, istoplevel=%d, ispar=%d\n",
+		fdh->lexlevel, fdh->ispublic, fdh->istoplevel, fdh->ispar);
+#endif
 		if (((fdh->lexlevel == 0) && (fdh->ispublic || fdh->istoplevel)) || fdh->ispar) {
 			tnode_t *newdef, *newparams, *newbody, *newname, *iplist;
 			name_t *curname, *newpfname;
@@ -423,7 +435,7 @@ fhandle_printf (FHAN_STDERR, "guppy_fetrans_fcndef(): want to make PFCNDEF versi
 #endif
 			newparams = parser_newlistnode (NULL);
 			iplist = parser_newlistnode (NULL);
-			params = parser_getlistitems (tnode_nthsubof (*nodep, 1), &nparams);
+			params = parser_getlistitems (tnode_nthsubof (node, 1), &nparams);
 			for (i=0; i<nparams; i++) {
 				/* recreate parameters -- minus initialisers */
 				tnode_t *nparm, *optype, *nptype, *opname, *npname;
@@ -449,11 +461,11 @@ fhandle_printf (FHAN_STDERR, "guppy_fetrans_fcndef(): want to make PFCNDEF versi
 				parser_addtolist (newparams, nparm);
 				parser_addtolist (iplist, npname);		/* put in instance list */
 			}
-			newbody = tnode_createfrom (gup.tag_INSTANCE, NULL, tnode_nthsubof (*nodep, 0), iplist);
-			// newbody = tnode_createfrom (gup.tag_SKIP, tnode_nthsubof (*nodep, 2));
-			curname = tnode_nthnameof (tnode_nthsubof (*nodep, 0), 0);
+			newbody = tnode_createfrom (gup.tag_INSTANCE, NULL, tnode_nthsubof (node, 0), iplist);
+			// newbody = tnode_createfrom (gup.tag_SKIP, tnode_nthsubof (node, 2));
+			curname = tnode_nthnameof (tnode_nthsubof (node, 0), 0);
 			newpfname = name_addname (NameNameOf (curname), NULL, newparams, NULL);
-			newname = tnode_createfrom (gup.tag_NPFCNDEF, tnode_nthsubof (*nodep, 0), newpfname);
+			newname = tnode_createfrom (gup.tag_NPFCNDEF, tnode_nthsubof (node, 0), newpfname);
 			SetNameNode (newpfname, newname);
 
 			newfdh = guppy_newfcndefhook ();
@@ -463,16 +475,18 @@ fhandle_printf (FHAN_STDERR, "guppy_fetrans_fcndef(): want to make PFCNDEF versi
 			newfdh->istoplevel = fdh->istoplevel;
 			newfdh->pfcndef = NULL;
 
-			newdef = tnode_createfrom (gup.tag_PFCNDEF, *nodep, newname, newparams, newbody, NULL, newfdh);
+			newdef = tnode_createfrom (gup.tag_PFCNDEF, node, newname, newparams, newbody, NULL, newfdh);
 			SetNameDecl (newpfname, newdef);
 
 			fdh->pfcndef = newdef;
 #if 0
-fhandle_printf (FHAN_STDERR, "guppy_fetrans_fcndef(): created new definition:\n");
+fhandle_printf (FHAN_STDERR, "guppy_fetrans_fcndef(): created new definition, want to insert into list (cur insidx=%d):\n", gfe->insidx);
 tnode_dumptree (newdef, 1, FHAN_STDERR);
 #endif
-			parser_insertinlist (gfe->inslist, newdef, gfe->insidx + 1);
-			gfe->changed++;
+			if (!gfe->postinslist) {
+				gfe->postinslist = parser_newlistnode (SLOCI);
+			}
+			parser_addtolist (gfe->postinslist, newdef);
 		}
 	}
 

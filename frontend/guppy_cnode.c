@@ -266,13 +266,10 @@ tnode_dumptree (newdef, 1, FHAN_STDERR);
 #endif
 
 				/* insert new process definition into tree */
-				if (!gfe->inslist) {
-					nocc_internal ("guppy_fetrans_cnode(): nowhere to insert new process definition!");
-					return 0;
+				if (!gfe->preinslist) {
+					gfe->preinslist = parser_newlistnode (SLOCI);
 				}
-				parser_insertinlist (gfe->inslist, newdef, gfe->insidx);
-				gfe->insidx++;
-				gfe->changed++;
+				parser_addtolist (gfe->preinslist, newdef);
 				
 				/* replace process body with instance */
 				inode = tnode_createfrom (gup.tag_PPINSTANCE, pitems[i], newdefnnode, NULL /* FIXME! */, fvlist);
