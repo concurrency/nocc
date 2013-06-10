@@ -1,0 +1,10 @@
+# test_g32.gpp -- elementary timer handling
+
+define test_g32 (chan(char) screen!)
+  timer tim
+  int t
+
+  tim ? t
+end
+
+

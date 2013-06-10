@@ -183,10 +183,14 @@ typedef struct {
 	struct TAG_ntdef *tag_STRASSIGN;
 	struct TAG_ntdef *tag_STRCONCAT;
 
+	struct TAG_ntdef *tag_TIMER;
+	struct TAG_ntdef *tag_TIMERREAD;
+	struct TAG_ntdef *tag_TIMERWAIT;
+	struct TAG_ntdef *tag_AFTER;
+
 	struct TAG_token *tok_ATSIGN;
 	struct TAG_token *tok_STRING;
 	struct TAG_token *tok_PUBLIC;
-
 } guppy_pset_t;
 
 extern guppy_pset_t gup;
@@ -307,6 +311,7 @@ extern struct TAG_feunit guppy_oper_feunit;		/* guppy_oper.c */
 extern struct TAG_feunit guppy_primproc_feunit;		/* guppy_primproc.c */
 extern struct TAG_feunit guppy_types_feunit;		/* guppy_types.c */
 extern struct TAG_feunit guppy_instance_feunit;		/* guppy_instance.c */
+extern struct TAG_feunit guppy_timer_feunit;		/* guppy_timer.c */
 
 /* these are for language units to use in reductions */
 extern void *guppy_nametoken_to_hook (void *ntok);

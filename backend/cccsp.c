@@ -254,21 +254,23 @@ static int cccsp_coder_inparamlist = 0;
 
 static cccsp_apicall_t cccsp_apicall_table[] = {
 	{NOAPI, "", 0},
-	{CHAN_IN, "ChanIn", 16},
-	{CHAN_OUT, "ChanOut", 16},
-	{STOP_PROC, "SetErrW", 16},
-	{PROC_PAR, "ProcPar", 16},
-	{LIGHT_PROC_INIT, "LightProcInit", 16},
+	{CHAN_IN, "ChanIn", 32},
+	{CHAN_OUT, "ChanOut", 32},
+	{STOP_PROC, "SetErrW", 32},
+	{PROC_PAR, "ProcPar", 32},
+	{LIGHT_PROC_INIT, "LightProcInit", 32},
 	{PROC_PARAM, "ProcParam", 8},
 	{GET_PROC_PARAM, "GetProcParam", 8},
-	{MEM_ALLOC, "MAlloc", 16},
-	{MEM_RELEASE, "MRelease", 16},
-	{MEM_RELEASE_CHK, "MReleaseChk", 16},
-	{STR_INIT, "GuppyStringInit", 16},
-	{STR_FREE, "GuppyStringFree", 16},
+	{MEM_ALLOC, "MAlloc", 32},
+	{MEM_RELEASE, "MRelease", 32},
+	{MEM_RELEASE_CHK, "MReleaseChk", 32},
+	{STR_INIT, "GuppyStringInit", 32},
+	{STR_FREE, "GuppyStringFree", 32},
 	{STR_ASSIGN, "GuppyStringAssign", 32},
 	{STR_CONCAT, "GuppyStringConcat", 32},
-	{CHAN_INIT, "ChanInit", 8}
+	{CHAN_INIT, "ChanInit", 8},
+	{TIMER_READ, "TimerRead", 32},
+	{TIMER_WAIT, "TimerWait", 32}
 };
 
 
