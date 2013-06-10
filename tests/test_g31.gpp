@@ -29,11 +29,19 @@ define succ (chan(int) in?, out!)
     out ! v + 1
 end
 
-define sink (chan(int) in?)
+define sink (chan(int) in?, chan(char) out!)
   while true
     int v
+    int t0, t1
+    timer tim
 
-    in ? v
+    tim ? t0
+    seq for 100000
+      in ? v
+    tim ? t1
+    out ! '.'
+    out ! '\n'
+
 end
 
 define test_g31 (chan(char) screen!)
@@ -42,7 +50,7 @@ define test_g31 (chan(char) screen!)
     prefix (0, d?, a!)
     delta (a?, b!, c!)
     succ (b?, d!)
-    sink (c?)
+    sink (c?, screen!)
 end
 
 

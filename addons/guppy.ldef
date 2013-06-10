@@ -269,7 +269,7 @@
 	"[ 0 @@/ 7 ] [ 7 guppy:expr 8 ] [ 8 {<gup:folddivreduce>} -* ]"
 	"[ 0 @@\\ 9 ] [ 9 guppy:expr 10 ] [ 10 {<gup:foldremreduce>} -* ]"
 	"[ 0 @@? 11 ] [ 11 {<gup:foldmarkedinreduce>} -* ]"
-	"[ 0 @@! 12 ] [ 12 {<gup:foldmarkedinreduce>} -* ]"
+	"[ 0 @@! 12 ] [ 12 {<gup:foldmarkedoutreduce>} -* ]"
 	"[ 0 @@>< 13 ] [ 13 guppy:expr 14 ] [ 14 {<gup:foldxorreduce>} -* ]"
 	"[ 0 @@&& 15 ] [ 15 guppy:expr 16 ] [ 16 {<gup:foldandreduce>} -* ]"
 	"[ 0 @@|| 17 ] [ 17 guppy:expr 18 ] [ 18 {<gup:foldorreduce>} -* ]"

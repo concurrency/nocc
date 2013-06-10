@@ -847,6 +847,9 @@ static tnode_t *guppy_typeactual_chantype (langops_t *lops, tnode_t *formaltype,
 fprintf (stderr, "guppy_typeactual_chantype(): formaltype=[%s], actualtype=[%s]\n", formaltype->tag->name, actualtype->tag->name);
 #endif
 
+	if (!actualtype) {
+		return NULL;
+	}
 	if (formaltype->tag == gup.tag_CHAN) {
 		/*{{{  actual type-check for channel*/
 		if ((node->tag == gup.tag_INPUT) || (node->tag == gup.tag_OUTPUT)) {

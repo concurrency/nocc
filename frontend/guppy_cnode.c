@@ -63,6 +63,12 @@
 
 
 /*}}}*/
+/*{{{  private types/data*/
+
+static tnode_t *guppy_cnode_inttypenode = NULL;
+
+
+/*}}}*/
 
 
 /*{{{  static int guppy_prescope_cnode (compops_t *cops, tnode_t **node, guppy_prescope_t *ps)*/
@@ -495,6 +501,61 @@ static int guppy_scopeout_replcnode (compops_t *cops, tnode_t **nodep, scope_t *
 	return 1;
 }
 /*}}}*/
+/*{{{  static int guppy_typecheck_replcnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a replicator constructor node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_typecheck_replcnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t **rstartp = tnode_nthsubaddr (node, 3);
+	tnode_t **rcountp = tnode_nthsubaddr (node, 4);
+	tnode_t *type;
+
+	if (!*rstartp) {
+		*rstartp = constprop_newconst (CONST_INT, NULL, NULL, 0);
+	}
+	if (!*rcountp) {
+		typecheck_error (node, tc, "replicator is missing a count");
+		return 0;
+	}
+
+	/* type-check start and count expressions, should be INT */
+	if (typecheck_subtree (*rstartp, tc)) {
+		return 0;
+	}
+	if (typecheck_subtree (*rcountp, tc)) {
+		return 0;
+	}
+
+	type = typecheck_gettype (*rstartp, guppy_cnode_inttypenode);
+	if (!type) {
+		typecheck_error (node, tc, "unable to determine type for replicator start");
+		return 0;
+	}
+	type = typecheck_typeactual (guppy_cnode_inttypenode, type, node, tc);
+	if (!type) {
+		typecheck_error (node, tc, "incompatible type for replicator start (expected integer)");
+		return 0;
+	}
+
+	type = typecheck_gettype (*rcountp, guppy_cnode_inttypenode);
+	if (!type) {
+		typecheck_error (node, tc, "unable to determine type for replicator count");
+		return 0;
+	}
+	type = typecheck_typeactual (guppy_cnode_inttypenode, type, node, tc);
+	if (!type) {
+		typecheck_error (node, tc, "incompatible type for replicator count (expected integer)");
+		return 0;
+	}
+
+	/* now type-check the body */
+	typecheck_subtree (tnode_nthsubof (node, 1), tc);
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_replcnode (compops_t *cops, tnode_t **nodep, namemap_t *map)*/
 /*
  *	called to do name-mapping on a replicated constructor node
@@ -591,6 +652,7 @@ static int guppy_cnode_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_replcnode));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (guppy_scopeout_replcnode));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_replcnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_replcnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_replcnode));
 	tnd->ops = cops;
@@ -601,7 +663,20 @@ static int guppy_cnode_init_nodes (void)
 	gup.tag_REPLSEQ = tnode_newnodetag ("REPLSEQ", &i, tnd, NTF_INDENTED_PROC_LIST);
 	i = -1;
 	gup.tag_REPLPAR = tnode_newnodetag ("REPLPAR", &i, tnd, NTF_INDENTED_PROC_LIST);
+
 	/*}}}*/
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_cnode_post_setup (void)*/
+/*
+ *	called to do post-setup for constructors
+ *	returns 0 on success, non-zero on failure
+ */
+static int guppy_cnode_post_setup (void)
+{
+	guppy_cnode_inttypenode = guppy_newprimtype (gup.tag_INT, NULL, 0);
 
 	return 0;
 }
@@ -613,7 +688,7 @@ feunit_t guppy_cnode_feunit = {
 	.init_nodes = guppy_cnode_init_nodes,
 	.reg_reducers = NULL,
 	.init_dfatrans = NULL,
-	.post_setup = NULL,
+	.post_setup = guppy_cnode_post_setup,
 	.ident = "guppy-cnode"
 };
 /*}}}*/

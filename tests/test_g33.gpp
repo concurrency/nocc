@@ -1,0 +1,7 @@
+# test_g33.gpp -- anonymous replicator test
+
+define test_g33 (chan(char) screen!)
+  seq for 10
+    screen ! '\n'
+end
+
