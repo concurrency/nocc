@@ -25,6 +25,7 @@ syn match guppyType		/\<timer\>/
 syn keyword guppyType		bool byte char string shared barrier trunc round
 syn match guppyOperator		/!\|?\|+\|-\|\/\|\\\|*\|&\||\|&&\|||\|<<\|>>/
 syn match guppyOperator		/->\|!=\|<>/
+syn match guppyOperator		/\<after\>/
 syn match guppySpecialChar	/\M\\\\\|\\'\|\\"\|\\x\([0-9a-fA-F]\+\)/ contained
 syn match guppyNumber		/\<\d\+\(\.\d\+\(E\(+\|-\)\d\+\)\=\)\=/
 syn match guppyNumber		/-\d\+\(\.\d\+\(E\(+\|-\)\d\+\)\=\)\=/

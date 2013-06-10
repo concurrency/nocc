@@ -5,6 +5,7 @@ define test_g32 (chan(char) screen!)
   int t
 
   tim ? t
+  tim ? after (t + 1000000)
 end
 
 

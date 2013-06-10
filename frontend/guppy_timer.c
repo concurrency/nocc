@@ -113,20 +113,35 @@ static tnode_t *guppy_typeactual_timertype (langops_t *lops, tnode_t *formaltype
 	return atype;
 }
 /*}}}*/
-/*{{{  static int guppy_namemap_typeaction_timertype (langops_t *lops, tnode_t *typenode, tnode_t **nodep, map_t *map)*/
+
+/*{{{  static int guppy_typecheck_timerop (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
- *	handles mapping of timer input
- *	returns 0 to stop walk, 1 to continue (in map), -1 to revert to default behaviour
+ *	does type-checking for a timer-op node (AFTER)
+ *	returns 0 to stop walk, 1 to continue
  */
-static int guppy_namemap_typeaction_timertype (langops_t *lops, tnode_t *typenode, tnode_t **nodep, map_t *map)
+static int guppy_typecheck_timerop (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
-	if (typenode->tag == gup.tag_TIMER) {
-#if 1
-fhandle_printf (FHAN_STDERR, "guppy_namemap_typeaction_timertype(): here!\n");
-#endif
+	tnode_t *op = tnode_nthsubof (node, 0);
+	tnode_t *optype;
+
+	typecheck_subtree (op, tc);
+	optype = typecheck_gettype (op, guppy_timer_inttypenode);
+	if (!optype) {
+		typecheck_error (node, tc, "invalid type for timer operator");
 		return 0;
 	}
-	return -1;
+	tnode_setnthsub (node, 1, optype);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_gettype_timerop (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/* 
+ *	gets the type of a timer-op node (AFTER)
+ */
+static tnode_t *guppy_gettype_timerop (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	return tnode_nthsubof (node, 1);
 }
 /*}}}*/
 
@@ -211,12 +226,12 @@ static int guppy_timerdeclblock_postcheck (compops_t *cops, tnode_t **nodep, pos
 	return 1;
 }
 /*}}}*/
-/*{{{  static int guppy_timerio_postcheck (compops_t *cops, tnode_t **nodep, postcheck_t *pc)*/
+/*{{{  static int guppy_timerio_typeresolve (compops_t *cops, tnode_t **nodep, typecheck_t *tc)*/
 /*
- *	does post-checks on an IO node to transform timer inputs into appropriate actions
+ *	does type-resolve on an IO node to transform timer inputs into appropriate actions
  *	returns 0 to stop walk, 1 to continue
  */
-static int guppy_timerio_postcheck (compops_t *cops, tnode_t **nodep, postcheck_t *pc)
+static int guppy_timerio_typeresolve (compops_t *cops, tnode_t **nodep, typecheck_t *tc)
 {
 	if ((*nodep)->tag == gup.tag_INPUT) {
 		tnode_t *lhstype;
@@ -232,22 +247,22 @@ static int guppy_timerio_postcheck (compops_t *cops, tnode_t **nodep, postcheck_
 				tnode_t *type = tnode_nthsubof (rhs, 1);
 				tnode_t *newnode = tnode_create (gup.tag_TIMERWAIT, OrgOf (*nodep), expr, type);
 
-				postcheck_subtree (&newnode, pc);
+				typeresolve_subtree (&newnode, tc);
 				*nodep = newnode;
 			} else {
 				/* assuming read timer */
 				tnode_t *type = tnode_nthsubof (*nodep, 2);		/* from the input node */
 				tnode_t *newnode = tnode_create (gup.tag_TIMERREAD, OrgOf (*nodep), rhs, type);
 
-				postcheck_subtree (&newnode, pc);
+				typeresolve_subtree (&newnode, tc);
 				*nodep = newnode;
 			}
 			return 0;
 		}
 	}
 
-	if (cops->next && tnode_hascompop_i (cops->next, (int)COPS_POSTCHECK)) {
-		return tnode_callcompop_i (cops->next, (int)COPS_POSTCHECK, 2, nodep, pc);
+	if (cops->next && tnode_hascompop_i (cops->next, (int)COPS_TYPERESOLVE)) {
+		return tnode_callcompop_i (cops->next, (int)COPS_TYPERESOLVE, 2, nodep, tc);
 	}
 	return 1;
 }
@@ -274,7 +289,6 @@ static int guppy_timer_init_nodes (void)
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_timertype));
 	tnode_setlangop (lops, "getsubtype", 2, LANGOPTYPE (guppy_getsubtype_timertype));
 	tnode_setlangop (lops, "typeactual", 4, LANGOPTYPE (guppy_typeactual_timertype));
-	tnode_setlangop (lops, "namemap_typeaction", 3, LANGOPTYPE (guppy_namemap_typeaction_timertype));
 	tnd->lops = lops;
 
 	i = -1;
@@ -285,8 +299,10 @@ static int guppy_timer_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:timerop", &i, 2, 0, 0, TNF_NONE);		/* subnodes: expr, type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_timerop));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_timerop));
 	tnd->lops = lops;
 
 	i = -1;
@@ -309,7 +325,10 @@ static int guppy_timer_init_nodes (void)
 
 	/*}}}*/
 
-	/*{{{  interfere with postcheck in DECLBLOCK/VARDECL to remove TIMER declarations, and INPUT to transform*/
+	/*{{{  interfere with guppy:declblock and guppy:io node types*/
+	/* -> postcheck in DECLBLOCK/VARDECL to remove TIMER declarations,
+	 * -> typeresolve in INPUT to transform into TIMERREAD,TIMERWAIT
+	 */
 	tnd = tnode_lookupnodetype ("guppy:declblock");
 	if (!tnd) {
 		nocc_error ("guppy_timer_init_nodes(): failed to find \"guppy:declblock\" node type");
@@ -327,7 +346,7 @@ static int guppy_timer_init_nodes (void)
 	}
 
 	cops = tnode_insertcompops (tnd->ops);
-	tnode_setcompop (cops, "postcheck", 2, COMPOPTYPE (guppy_timerio_postcheck));
+	tnode_setcompop (cops, "typeresolve", 2, COMPOPTYPE (guppy_timerio_typeresolve));
 	tnd->ops = cops;
 
 	/*}}}*/

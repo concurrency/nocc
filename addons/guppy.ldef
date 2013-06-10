@@ -304,9 +304,12 @@
 .SECTION "guppy-timer" # {{{
 
 .GRULE	"gup:timerreduce" "T+St0@tC[TIMER]0R-"
+.GRULE	"gup:afterreduce" "SN0N+0C[AFTER]2R-"
 
 .TABLE	"guppy:testfordecl +:= [ 0 +@timer 1 ] [ 1 {<gup:testtrue>} -* ]"
 .TABLE	"guppy:type +:= [ 0 +@timer 1 ] [ 1 {<gup:timerreduce>} -* ]"
+
+.TABLE	"guppy:expr +:= [ 0 @after 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:afterreduce>} -* ]"
 
 # }}}
 
