@@ -96,6 +96,7 @@ langparser_t occampi_parser = {
 	.postcheck =		NULL,
 	.fetrans =		NULL,
 	.getlangdef =		occampi_getlangdef,
+	.getlanglibs =		NULL,
 	.maketemp =		occampi_parser_maketemp,
 	.makeseqassign =	occampi_parser_makeseqassign,
 	.makeseqany =		occampi_parser_makeseqany,

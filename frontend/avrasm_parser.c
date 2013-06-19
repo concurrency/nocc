@@ -94,6 +94,7 @@ langparser_t avrasm_parser = {
 	.postcheck =		NULL,
 	.fetrans =		NULL,
 	.getlangdef =		avrasm_getlangdef,
+	.getlanglibs =		NULL,
 	.maketemp =		NULL,
 	.makeseqassign =	NULL,
 	.makeseqany =		NULL,

@@ -84,5 +84,6 @@ cachedir,		XMLKEY_CACHEDIR
 wgetopts,		XMLKEY_WGETOPTS
 cow,			XMLKEY_COW
 pref,			XMLKEY_PREF
+cccsp-kroc,		XMLKEY_CCCSP_KROC
 %%
 

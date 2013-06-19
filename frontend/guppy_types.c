@@ -724,11 +724,25 @@ static int guppy_namemap_typeaction_primtype (langops_t *lops, tnode_t *typenode
 	if (typenode->tag == gup.tag_STRING) {
 		int bytes = tnode_bytesfor (typenode, map->target);
 		tnode_t *newinst, *newparms;
+		tnode_t *newslist, *newseq;
 		tnode_t *sizeexp = constprop_newconst (CONST_INT, NULL, NULL, bytes);
 		tnode_t *newarg;
 		tnode_t *callnum, *wptr;
 		cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
 		int saved_indir = cmd->target_indir;
+		tnode_t *cargs, **cargp;
+
+		cargs = parser_newlistnode (SLOCI);
+		cargp = parser_addtolist (cargs, cmd->process_id);
+		cmd->target_indir = 0;
+		map_submapnames (cargp, map);
+		cargp = parser_addtolist (cargs, tnode_nthsubof (*nodep, 1));
+		if ((*nodep)->tag == gup.tag_INPUT) {
+			cmd->target_indir = 1;
+		} else {
+			cmd->target_indir = 2;
+		}
+		map_submapnames (cargp, map);
 
 		wptr = cmd->process_id;
 		map_submapnames (&wptr, map);
@@ -736,6 +750,7 @@ static int guppy_namemap_typeaction_primtype (langops_t *lops, tnode_t *typenode
 		/* map LHS and RHS: LHS channel must be a pointer */
 		cmd->target_indir = 1;
 		map_submapnames (tnode_nthsubaddr (*nodep, 0), map);
+		cmd->target_indir = 2;
 		map_submapnames (tnode_nthsubaddr (*nodep, 1), map);
 		cmd->target_indir = 0;
 		map_submapnames (&sizeexp, map);
@@ -747,18 +762,36 @@ static int guppy_namemap_typeaction_primtype (langops_t *lops, tnode_t *typenode
 		parser_addtolist (newparms, tnode_nthsubof (*nodep, 1));	/* data */
 		parser_addtolist (newparms, sizeexp);
 
+		newslist = parser_newlistnode (SLOCI);
+		newseq = tnode_createfrom (gup.tag_SEQ, *nodep, NULL, newslist);
+
 		if ((*nodep)->tag == gup.tag_INPUT) {
+			tnode_t *ccall;
+
 			callnum = cccsp_create_apicallname (CHAN_IN);
+			newinst = tnode_createfrom (gup.tag_APICALL, *nodep, callnum, newparms);
+
+			ccall = tnode_createfrom (gup.tag_APICALL, *nodep, cccsp_create_apicallname (STR_FREE), cargs);
+
+			parser_addtolist (newslist, ccall);
+			parser_addtolist (newslist, newinst);
 		} else if ((*nodep)->tag == gup.tag_OUTPUT) {
+			tnode_t *ccall;
+
 			callnum = cccsp_create_apicallname (CHAN_OUT);
+			newinst = tnode_createfrom (gup.tag_APICALL, *nodep, callnum, newparms);
+
+			ccall = tnode_createfrom (gup.tag_APICALL, *nodep, cccsp_create_apicallname (STR_CLEAR), cargs);
+
+			parser_addtolist (newslist, newinst);
+			parser_addtolist (newslist, ccall);
 		} else {
 			nocc_internal ("guppy_namemap_typeaction_primtype(): unknown node tag [%s]", (*nodep)->tag->name);
 			return 0;
 		}
-		newinst = tnode_createfrom (gup.tag_APICALL, *nodep, callnum, newparms);
 
 		cmd->target_indir = saved_indir;
-		*nodep = newinst;
+		*nodep = newseq;
 
 		return 0;
 	}

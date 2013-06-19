@@ -1,0 +1,9 @@
+# test_g34.gpp -- top-level-as-string tests
+
+define test_g34 (chan(string) scr!)
+  string s
+
+  s = "hello, world!\n" + "thing\n"
+  scr ! s
+end
+

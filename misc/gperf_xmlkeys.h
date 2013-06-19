@@ -35,7 +35,7 @@
  */
 struct TAG_xmlkey;
 
-#define TOTAL_KEYWORDS 70
+#define TOTAL_KEYWORDS 71
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 14
 #define MIN_HASH_VALUE 4
@@ -58,7 +58,7 @@ hash (register const char *str, register unsigned int len)
       147, 147, 147, 147, 147, 147, 147, 147, 147, 147,
       147, 147, 147, 147, 147, 147, 147, 147, 147, 147,
       147, 147, 147, 147, 147, 147, 147, 147, 147, 147,
-      147, 147, 147, 147, 147, 147, 147, 147, 147, 147,
+      147, 147, 147, 147, 147,   0, 147, 147, 147, 147,
       147, 147, 147, 147, 147, 147, 147, 147,  70, 147,
       147, 147, 147, 147, 147, 147, 147, 147, 147, 147,
       147, 147, 147, 147, 147, 147, 147, 147, 147, 147,
@@ -160,7 +160,7 @@ static const struct TAG_xmlkey wordlist[] =
     {"helpset",		XMLKEY_HELPSET},
     {(char*)0,XMLKEY_INVALID},
     {"tree",			XMLKEY_TREE},
-    {(char*)0,XMLKEY_INVALID},
+    {"cccsp-kroc",		XMLKEY_CCCSP_KROC},
     {"target",			XMLKEY_TARGET},
     {"allocvs",		XMLKEY_ALLOCVS},
     {"language",		XMLKEY_LANGUAGE},

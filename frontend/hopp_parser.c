@@ -85,6 +85,7 @@ langparser_t hopp_parser = {
 	.postcheck =		NULL,
 	.fetrans =		NULL,
 	.getlangdef =		NULL,
+	.getlanglibs =		NULL,
 	.maketemp =		hopp_parser_maketemp,
 	.makeseqassign =	hopp_parser_makeseqassign,
 	.makeseqany =		hopp_parser_makeseqany,

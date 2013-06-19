@@ -80,6 +80,7 @@ langparser_t trlang_parser = {
 	.postcheck =		NULL,
 	.fetrans =		NULL,
 	.getlangdef =		trlang_getlangdef,
+	.getlanglibs =		NULL,
 	.maketemp =		NULL,
 	.makeseqassign =	NULL,
 	.makeseqany =		NULL,

@@ -416,6 +416,26 @@ int fhandle_stat (const char *path, struct stat *st_buf)
 	return err;
 }
 /*}}}*/
+/*{{{  int fhandle_cnewer (const char *path1, const char *path2)*/
+/*
+ *	determines whether 'path1' is "newer" than 'path2'.
+ *	returns 1 if true, or 0 if not, -1 on error
+ */
+int fhandle_cnewer (const char *path1, const char *path2)
+{
+	struct stat st1_buf, st2_buf;
+
+	if (fhandle_stat (path1, &st1_buf)) {
+		return -1;
+	} else if (fhandle_stat (path2, &st2_buf)) {
+		return -1;
+	}
+	if (st1_buf.st_ctime > st2_buf.st_ctime) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  int fhandle_close (fhandle_t *fh)*/
 /*
  *	closes a file-handle.

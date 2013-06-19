@@ -80,6 +80,7 @@ langparser_t traceslang_parser = {
 	.postcheck =		NULL,
 	.fetrans =		NULL,
 	.getlangdef =		traceslang_getlangdef,
+	.getlanglibs =		NULL,
 	.maketemp =		NULL,
 	.makeseqassign =	NULL,
 	.makeseqany =		NULL,

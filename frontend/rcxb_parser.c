@@ -80,6 +80,7 @@ langparser_t rcxb_parser = {
 	.postcheck =		NULL,
 	.fetrans =		NULL,
 	.getlangdef =		rcxb_getlangdef,
+	.getlanglibs =		NULL,
 	.maketemp =		NULL,
 	.makeseqassign =	NULL,
 	.makeseqany =		NULL,

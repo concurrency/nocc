@@ -17,7 +17,7 @@
 	<epath>/usr/local/nocc/addons</epath>
 	<epath>/usr/share/nocc/addons</epath>
 	<epath>/usr/lib/nocc/addons</epath>
-	<epath>/home/frmb/kroc_linux/ukcsource/nocc-extn/lib</epath>
+	<epath>/home/frmb/kroc_linux/gitsrc/nocc-extn/lib</epath>
 	<epath>$HOME/.nocc/addons</epath>
 
 	<!-- extn's say what extensions to load (-e) -->
@@ -45,5 +45,6 @@
 	<!-- some extra settings -->
 	<cachedir pref="yes" cow="yes">$HOME/.nocc/cache</cachedir>
 	<wgetopts>%u -O %l</wgetopts>
+	<cccsp-kroc>@kroc_path@</cccsp-kroc>
 </nocc>
 

@@ -131,6 +131,7 @@ typedef struct TAG_compopts {
 	char *wget_opts;
 	int cache_pref;
 	int cache_cow;
+	char *cccsp_kroc;
 } compopts_t;
 
 

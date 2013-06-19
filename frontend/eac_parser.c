@@ -93,6 +93,7 @@ langparser_t eac_parser = {
 	.postcheck =		NULL,
 	.fetrans =		NULL,
 	.getlangdef =		eac_getlangdef,
+	.getlanglibs =		NULL,
 	.maketemp =		NULL,
 	.makeseqassign =	NULL,
 	.makeseqany =		NULL,

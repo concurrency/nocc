@@ -35,6 +35,16 @@ typedef struct TAG_gtString {
 
 /*}}}*/
 
+#if 0
+/*{{{  debugging..*/
+static inline void GuppyPrintString (Workspace wptr, const char *cll, gtString_t *str)
+{
+	ExternalCallN (fprintf, 9, stderr, "0x%8.8x: %s(): str @0x%8.8x, ptr=0x%8.8x, stype=%d, slen=%d, alen=%d\n", (unsigned int)wptr, cll,
+			(unsigned int)str, str ? (unsigned int)str->ptr : -1, str ? str->stype : -1, str ? str->slen : -1, str ? str->alen : -1);
+}
+/*}}}*/
+#endif
+
 /*{{{  static inline gtString_t *GuppyStringInit (Workspace wptr)*/
 /*
  *	creates a new/blank string.
@@ -47,6 +57,9 @@ static inline gtString_t *GuppyStringInit (Workspace wptr)
 	str->stype = STYPE_ASCII;
 	str->slen = 0;
 	str->alen = 0;
+#if 0
+GuppyPrintString (wptr, "GuppyStringInit", str);
+#endif
 
 	return str;
 }
@@ -58,6 +71,9 @@ static inline gtString_t *GuppyStringInit (Workspace wptr)
 static inline void GuppyStringFree (Workspace wptr, gtString_t *str)
 {
 	if (str) {
+#if 0
+GuppyPrintString (wptr, "GuppyStringFree", str);
+#endif
 		if (str->alen) {
 			MRelease (wptr, str->ptr);
 			str->alen = 0;
@@ -65,6 +81,25 @@ static inline void GuppyStringFree (Workspace wptr, gtString_t *str)
 		str->ptr = NULL;
 		str->slen = 0;
 		MRelease (wptr, str);
+	}
+}
+/*}}}*/
+/*{{{  static inline void GuppyStringEmpty (Workspace wptr, gtString_t *str)*/
+/*
+ *	destroys the content of an existing string, but not the string structure itself.
+ */
+static inline void GuppyStringEmpty (Workspace wptr, gtString_t *str)
+{
+	if (str) {
+#if 0
+GuppyPrintString (wptr, "GuppyStringEmpty", str);
+#endif
+		if (str->alen) {
+			MRelease (wptr, str->ptr);
+			str->alen = 0;
+		}
+		str->ptr = NULL;
+		str->slen = 0;
 	}
 }
 /*}}}*/
@@ -81,6 +116,9 @@ static inline gtString_t *GuppyStringConstInitialiser (Workspace wptr, const cha
 	str->slen = slen;
 	str->alen = 0;
 
+#if 0
+GuppyPrintString (wptr, "GuppyStringConstInitialiser", str);
+#endif
 	return str;
 }
 /*}}}*/
@@ -90,6 +128,10 @@ static inline gtString_t *GuppyStringConstInitialiser (Workspace wptr, const cha
  */
 static inline void GuppyStringAssign (Workspace wptr, gtString_t **dst, gtString_t *src)
 {
+#if 0
+GuppyPrintString (wptr, "GuppyStringAssign(src)", src);
+GuppyPrintString (wptr, "GuppyStringAssign(*dst)", *dst);
+#endif
 	if (!*dst) {
 		*dst = GuppyStringInit (wptr);
 	}
@@ -101,17 +143,64 @@ static inline void GuppyStringAssign (Workspace wptr, gtString_t **dst, gtString
 	if (!src->alen && src->ptr) {
 		/* statically allocated string, alias it gleefully */
 		(*dst)->ptr = src->ptr;
+		(*dst)->alen = 0;
 	} else if (src->alen && src->ptr) {
 		/* dynamically allocated, duplicate it */
 		(*dst)->ptr = (char *)MAlloc (wptr, src->alen);
+		(*dst)->alen = src->alen;
 		memcpy ((*dst)->ptr, src->ptr, src->slen);			/* specifically just the ones we care about */
 		(*dst)->ptr[src->slen] = '\0';					/* self-sanity, debugging purposes */
 	} else {
 		/* empty string */
 		(*dst)->ptr = NULL;
+		(*dst)->alen = 0;
 	}
 	(*dst)->slen = src->slen;
 	(*dst)->stype = src->stype;
+#if 0
+GuppyPrintString (wptr, "GuppyStringAssign(*dst)", *dst);
+#endif
+}
+/*}}}*/
+/*{{{  static inline void GuppyStringConcat (Workspace wptr, gtString_t *dst, gtString_t *src1, gtString_t *src2)*/
+/*
+ *	concatanates two strings
+ */
+static inline void GuppyStringConcat (Workspace wptr, gtString_t *dst, gtString_t *src1, gtString_t *src2)
+{
+	int slen;
+
+#if 0
+GuppyPrintString (wptr, "GuppyStringConcat(src1)", src1);
+GuppyPrintString (wptr, "GuppyStringConcat(src2)", src2);
+GuppyPrintString (wptr, "GuppyStringConcat(dst)", dst);
+#endif
+	GuppyStringEmpty (wptr, dst);
+
+	slen = src1->slen + src2->slen;
+	dst->ptr = (char *)MAlloc (wptr, slen + 1);
+	dst->alen = slen + 1;
+	dst->slen = slen;
+	dst->stype = src1->stype;
+
+	memcpy (dst->ptr, src1->ptr, src1->slen);
+	memcpy (dst->ptr + src1->slen, src2->ptr, src2->slen);
+	dst->ptr[dst->slen] = '\0';
+#if 0
+GuppyPrintString (wptr, "GuppyStringConcat(dst)", dst);
+#endif
+}
+/*}}}*/
+/*{{{  static inline void GuppyStringClear (Workspace wptr, gtString_t **str)*/
+/*
+ *	clears a string (after output)
+ */
+static inline void GuppyStringClear (Workspace wptr, gtString_t **str)
+{
+#if 0
+GuppyPrintString (wptr, "GuppyStringClear(*str)", *str);
+#endif
+	*str = GuppyStringInit (wptr);
 }
 /*}}}*/
 

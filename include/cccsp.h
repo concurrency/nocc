@@ -45,9 +45,10 @@ typedef enum ENUM_cccsp_apicall {
 	STR_FREE = 12,
 	STR_ASSIGN = 13,
 	STR_CONCAT = 14,
-	CHAN_INIT = 15,
-	TIMER_READ = 16,
-	TIMER_WAIT = 17
+	STR_CLEAR = 15,
+	CHAN_INIT = 16,
+	TIMER_READ = 17,
+	TIMER_WAIT = 18
 } cccsp_apicall_e;
 
 #define CCCSP_APICALL_LAST TIMER_WAIT

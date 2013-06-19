@@ -28,13 +28,16 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #ifdef HAVE_TIME_H
 #include <time.h>
 #endif 
+#include <errno.h>
 
 #include "nocc.h"
 #include "support.h"
 #include "version.h"
+#include "origin.h"
 #include "fhandle.h"
 #include "tnode.h"
 #include "opts.h"
@@ -52,6 +55,7 @@
 #include "codegen.h"
 #include "allocate.h"
 #include "cccsp.h"
+#include "parsepriv.h"
 
 /*}}}*/
 /*{{{  forward decls*/
@@ -165,6 +169,12 @@ typedef struct TAG_cccsp_priv {
 	name_t *last_toplevelname;
 	int wptr_count;
 
+	char *cc_path;				/* path to C compiler */
+	char *cc_flags;				/* C compiler flags for KRoC/CCSP */
+	char *cc_incpath;			/* C compiler flags for header includes */
+	char *cc_libpath;			/* C compiler flags for where libraries live */
+	char *cc_ldflags;			/* C compiler linker flags for building executables */
+
 	ntdef_t *tag_ADDROF;
 	ntdef_t *tag_NWORDSOF;
 	ntdef_t *tag_LABEL;			/* used for when we implant 'goto' */
@@ -248,6 +258,8 @@ typedef struct TAG_cccsp_indexhook {
 
 static chook_t *codegeninithook = NULL;
 static chook_t *codegenfinalhook = NULL;
+static chook_t *cccspoutfilehook = NULL;
+static void *cccsp_set_outfile = NULL;			/* string copy (char*) for the above compiler hook */
 
 static chook_t *cccsp_ctypestr = NULL;
 static int cccsp_coder_inparamlist = 0;
@@ -266,8 +278,9 @@ static cccsp_apicall_t cccsp_apicall_table[] = {
 	{MEM_RELEASE_CHK, "MReleaseChk", 32},
 	{STR_INIT, "GuppyStringInit", 32},
 	{STR_FREE, "GuppyStringFree", 32},
-	{STR_ASSIGN, "GuppyStringAssign", 32},
-	{STR_CONCAT, "GuppyStringConcat", 32},
+	{STR_ASSIGN, "GuppyStringAssign", 64},
+	{STR_CONCAT, "GuppyStringConcat", 64},
+	{STR_CLEAR, "GuppyStringClear", 32},
 	{CHAN_INIT, "ChanInit", 8},
 	{TIMER_READ, "TimerRead", 32},
 	{TIMER_WAIT, "TimerWait", 32}
@@ -300,6 +313,19 @@ void cccsp_isetindent (fhandle_t *stream, int indent)
 static int cccsp_init_options (cccsp_priv_t *kpriv)
 {
 	// opts_add ("norangechecks", '\0', cccsp_opthandler_flag, (void *)1, "1do not generate range-checks");
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cccsp_opthandler_stopat (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	option handler for CCCSP pass "stop" options
+ */
+static int cccsp_opthandler_stopat (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	compopts.stoppoint = (int)(opt->arg);
+#if 0
+fprintf (stderr, "cccsp_opthandler_stopat(): setting stop point to %d\n", compopts.stoppoint);
+#endif
 	return 0;
 }
 /*}}}*/
@@ -690,6 +716,43 @@ static cccsp_indexhook_t *cccsp_indexhook_create (int indir)
 	return idh;
 }
 /*}}}*/
+/*}}}*/
+
+/*{{{  static void *cccsp_outfilehook_copy (void *hook)*/
+/*
+ *	copy for cccsp:outfile compiler hook
+ */
+static void *cccsp_outfilehook_copy (void *hook)
+{
+	if (!hook) {
+		return NULL;
+	}
+	return (char *)string_dup ((char *)hook);
+}
+/*}}}*/
+/*{{{  static void cccsp_outfilehook_free (void *hook)*/
+/*
+ *	free for cccsp:outfile compiler hook
+ */
+static void cccsp_outfilehook_free (void *hook)
+{
+	if (!hook) {
+		return;
+	}
+	sfree (hook);
+}
+/*}}}*/
+/*{{{  static void cccsp_outfilehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
+/*
+ *	dump-tree for a cccsp:outfile compiler hook
+ */
+static void cccsp_outfilehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
+{
+	cccsp_isetindent (stream, indent);
+	fhandle_printf (stream, "<cccsp:outfile value=\"%s\" />\n",
+			hook ? (char *)hook : "");
+	return;
+}
 /*}}}*/
 
 /*{{{  static tnode_t *cccsp_name_create (tnode_t *fename, tnode_t *body, map_t *mdata, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)*/
@@ -1266,10 +1329,18 @@ static void cccsp_do_precode (tnode_t **tptr, codegen_t *cgen)
 /*}}}*/
 /*{{{  static void cccsp_do_codegen (tnode_t *tptr, codegen_t *cgen)*/
 /*
- *	intercepts code-gen pass
+ *	intercepts code-gen pass;  called for each tree-node that 'codegen' runs over.
  */
 static void cccsp_do_codegen (tnode_t *tptr, codegen_t *cgen)
 {
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_do_codegen(): cgen->fname=[%s], tptr=[%s]\n", cgen->fname, tptr ? tptr->tag->name : "(null)");
+#endif
+	if (cccsp_set_outfile) {
+		/* first time this has been called, probably the top-level list for guppy */
+		tnode_setchook (tptr, cccspoutfilehook, cccsp_set_outfile);
+		cccsp_set_outfile = NULL;
+	}
 	tnode_prewalktree (tptr, cccsp_prewalktree_codegen, (void *)cgen);
 	return;
 }
@@ -1563,6 +1634,9 @@ static int cccsp_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
 	/* produce standard includes */
 	codegen_write_file (cgen, "cccsp/verb-header.h");
 
+	/* make a note of the output file-name in some global data */
+	cccsp_set_outfile = (void *)string_dup (cgen->fname);
+
 	return 0;
 }
 /*}}}*/
@@ -1658,7 +1732,7 @@ tnode_dumptree (toplevelparams, 1, FHAN_STDERR);
 			codegen_write_fmt (cgen, "extern void process_keyboard (Workspace wptr);\n");
 		}
 		if (has_screen >= 0) {
-			codegen_write_fmt (cgen, "extern void process_screen (Workspace wptr);\n");
+			codegen_write_fmt (cgen, "extern void process_screen_string (Workspace wptr);\n");
 		}
 		if (has_error >= 0) {
 			codegen_write_fmt (cgen, "extern void process_error (Workspace wptr);\n");
@@ -1720,7 +1794,7 @@ tnode_dumptree (toplevelparams, 1, FHAN_STDERR);
 			codegen_write_fmt (cgen, "		p_kyb, process_keyboard,\n");
 		}
 		if (has_screen >= 0) {
-			codegen_write_fmt (cgen, "		p_scr, process_screen,\n");
+			codegen_write_fmt (cgen, "		p_scr, process_screen_string,\n");
 		}
 		if (has_error >= 0) {
 			codegen_write_fmt (cgen, "		p_err, process_error,\n");
@@ -2333,7 +2407,475 @@ int cccsp_shutdown (void)
 }
 /*}}}*/
 
+/*{{{  static int cccsp_run_cc (char *cmd)*/
+/*
+ *	runs the C compiler to build something -- mostly a wrapper around fork/exec here
+ *	returns 0 on success, non-zero on failure
+ */
+static int cccsp_run_cc (char *cmd)
+{
+	char **bits = split_string (cmd, 1);
+	int fres;
+	int rval = 0;
+	int i;
 
+#if 0
+	/* FIXME: may be just "gcc" or similar for the compiler, not a full path */
+	if (fhandle_access (bits[0], X_OK)) {
+		/* cannot find compiler executable */
+		if (compopts.verbose) {
+			nocc_warning ("cannot execute compiler [%s]", bits[0]);
+		}
+		rval = -1;
+		goto out_free;
+	}
+#endif
+
+	fres = fork ();
+	if (fres < 0) {
+		nocc_error ("cannot execute compiler [%s], fork() failed: %s", bits[0], strerror (errno));
+		rval = -1;
+		goto out_free;
+	}
+
+	if (fres == 0) {
+		/* we are the child */
+		execvp (bits[0], bits);
+		_exit (1);			/* failed if we get this far */
+	} else {
+		pid_t wres;
+		int status = 0;
+
+		wres = waitpid (fres, &status, 0);
+		if (wres < 0) {
+			nocc_serious ("cccsp_run_cc(): wait() failed: %s", strerror (errno));
+			rval = -1;
+			goto out_free;
+		} else if (!WIFEXITED (status)) {
+			nocc_serious ("cccsp_run_cc(): child process wait()ed, but didn't exit normally?, status = 0x%8.8x", (unsigned int)status);
+			rval = -1;
+			goto out_free;
+		} else if (WEXITSTATUS (status)) {
+			/* bad, so return error */
+			rval = -1;
+			goto out_free;
+		}
+		/* else, assume all was good */
+	}
+
+out_free:
+	for (i=0; bits[i]; i++) {
+		if (bits[i]) {
+			sfree (bits[i]);
+			bits[i] = NULL;
+		}
+	}
+	sfree (bits);
+
+	return rval;
+}
+/*}}}*/
+/*{{{  static int cccsp_cc_compile_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t *target)*/
+/*
+ *	compiler pass for CC-compile
+ *	returns 0 on success, non-zero on failure
+ */
+static int cccsp_cc_compile_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t *target)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)target->priv;
+	char *ccodefile;
+	char *objfname, *ch;
+	char *ccmd, *eincl;
+	char *langlib = NULL;
+
+	ccodefile = (char *)tnode_getchook (*treeptr, cccspoutfilehook);
+	if (!ccodefile) {
+		nocc_error ("cccsp_cc_compile_cpass(): did not find cccsp:outfile hook at top-level [%s]", (*treeptr)->tag->name);
+		return -1;
+	}
+
+	/*{{{  sort out output file-name*/
+	for (ch = ccodefile + (strlen (ccodefile) - 1); (ch > ccodefile) && (ch[-1] != '.'); ch--);
+	if (compopts.notmainmodule) {
+		/* generate object name */
+		if (ch == ccodefile) {
+			/* slightly odd perhaps */
+			objfname = string_fmt ("%s.o", ccodefile);
+		} else {
+			int plen = (int)(ch - ccodefile);
+
+			objfname = string_fmt ("%s.o", ccodefile);		/* will be long enough */
+			strcpy (objfname + plen, "o");
+		}
+	} else {
+		/* generate path name */
+		if (ch == ccodefile) {
+			/* slightly odd perhaps, cannot replace with same though */
+			objfname = string_fmt ("%s.out", ccodefile);
+		} else {
+			int plen = (int)(ch - ccodefile);
+
+			objfname = string_ndup (ccodefile, plen - 1);
+		}
+	}
+
+	/*}}}*/
+	/*{{{  find out where verb-header.h lives*/
+	if (!DA_CUR (compopts.epath)) {
+		eincl = string_dup ("");
+	} else {
+		int i;
+
+		eincl = NULL;
+		for (i=0; !eincl && (i<DA_CUR (compopts.epath)); i++) {
+			/* look for where cccsp/verb-header.h lives */
+			char *tmpstr = string_fmt ("%s/cccsp/verb-header.h", DA_NTHITEM (compopts.epath, i));
+
+			if (!fhandle_access (tmpstr, R_OK)) {
+				/* this directory for includes */
+				eincl = string_fmt ("-I%s", DA_NTHITEM (compopts.epath, i));
+			}
+			sfree (tmpstr);
+		}
+		if (!eincl) {
+			nocc_serious ("cccsp_cc_compile_cpass(): failed to find where cccsp/verb-header.h lives, giving up..");
+			return -1;
+		}
+	}
+
+	/*}}}*/
+	/*{{{  find out where language libraries are*/
+	/* Note: if we're building an executable, need to figure out where language-specific library parts might be */
+	if (!compopts.notmainmodule) {
+		int i;
+		char **langlibs_obj;
+		char **langlibs_src;
+
+		if (!srclf->parser) {
+			nocc_error ("cccsp_cc_compile_cpass(): did not find a parser structure for src [%s]", srclf->fnptr);
+			return -1;
+		} else if (!srclf->parser->getlanglibs) {
+			nocc_error ("cccsp_cc_compile_cpass(): expected to find language libraries, but unsupported by parser");
+			return -1;
+		}
+
+		langlibs_obj = srclf->parser->getlanglibs (target, 0);
+		langlibs_src = srclf->parser->getlanglibs (target, 1);
+
+		/* for each object (and maybe source) */
+		for (i=0; langlibs_obj[i]; i++) {
+			int j;
+			char *found_obj = NULL;
+			char *found_src = NULL;
+
+			for (j=0; !found_obj && (j<DA_CUR (compopts.epath)); j++) {
+				char *tmpstr = string_fmt ("%s/%s", DA_NTHITEM (compopts.epath, j), langlibs_obj[i]);
+
+				if (!fhandle_access (tmpstr, R_OK)) {
+					/* this exists, use it */
+					found_obj = string_dup (tmpstr);
+				}
+				sfree (tmpstr);
+			}
+			if (langlibs_src[i]) {
+				if (found_obj) {
+					/*{{{  look for source in the same place first*/
+					int endlen = strlen (langlibs_obj[i]);
+					char *t2str = string_dup (found_obj);
+					int slen = strlen (t2str);
+					char *tmpstr;
+					
+					t2str[slen - endlen] = '\0';
+					tmpstr = string_fmt ("%s%s", t2str, langlibs_src[i]);
+					sfree (t2str);
+					if (!fhandle_access (tmpstr, R_OK)) {
+						/* this source file */
+						found_src = string_dup (tmpstr);
+					}
+					sfree (tmpstr);
+
+					/*}}}*/
+				}
+
+				/* else, look everywhere for source */
+				for (j=0; !found_src && (j<DA_CUR (compopts.epath)); j++) {
+					char *tmpstr = string_fmt ("%s/%s", DA_NTHITEM (compopts.epath, j), langlibs_src[i]);
+
+					if (!fhandle_access (tmpstr, R_OK)) {
+						/* exists, use it */
+						found_src = string_dup (tmpstr);
+					}
+					sfree (tmpstr);
+				}
+
+				if (found_src && found_obj) {
+					/*{{{  if source and object are in different places, clear object if not exist */
+					int endlen = strlen (langlibs_src[i]);
+					int slen = strlen (found_src) - endlen;
+
+					if (!strncmp (found_src, found_obj, slen)) {
+						/* in same place anyway, both exist, continue */
+					} else {
+						char *t2str = string_dup (found_src);
+						char *tmpstr;
+
+						t2str[slen - endlen] = '\0';
+						tmpstr = string_fmt ("%s%s", t2str, langlibs_obj[i]);
+						sfree (t2str);
+
+						if (!fhandle_access (tmpstr, R_OK)) {
+							/* object does exist here, so use that in preference */
+							sfree (found_obj);
+							found_obj = string_dup (tmpstr);
+						} else {
+							/* object does not exist here, so create */
+							sfree (found_obj);
+							found_obj = NULL;
+						}
+						sfree (tmpstr);
+					}
+
+					/*}}}*/
+				}
+			}
+
+#if 0
+fhandle_printf (FHAN_STDERR, "here: found_src=[%s] found_obj=[%s]\n", found_src ?: "", found_obj ?: "");
+#endif
+			if (found_src && (!found_obj || (fhandle_cnewer (found_src, found_obj) > 0))) {
+				char *xcmd;
+				
+				if (!found_obj) {
+					int endlen = strlen (langlibs_src[i]);
+					int slen = strlen (found_src);
+
+					found_obj = (char *)smalloc (slen + strlen (langlibs_obj[i]));		/* ample */
+					strncpy (found_obj, found_src, slen - endlen);
+					strcpy (found_obj + (slen - endlen), langlibs_obj[i]);
+				}
+
+				xcmd = string_fmt ("%s -c %s %s %s -o %s %s", kpriv->cc_path, kpriv->cc_incpath, kpriv->cc_flags,
+						eincl, found_obj, found_src);
+				/* attempt to build object from source */
+#if 0
+fhandle_printf (FHAN_STDERR, "here: want to build library object with [%s]\n", xcmd);
+#endif
+				if (cccsp_run_cc (xcmd)) {
+					nocc_error ("failed to compile [%s] to [%s]", found_src, found_obj);
+					return -1;
+				} else if (fhandle_access (found_obj, R_OK)) {
+					nocc_error ("failed to generate something when compiling [%s] to [%s]", found_src, found_obj);
+					return -1;
+				}
+
+				/* else, we should have compiled it okay! */
+				if (compopts.verbose) {
+					nocc_message ("cccsp generated library file %s", langlibs_obj[i]);
+				}
+				sfree (xcmd);
+			}
+
+			/* assert: here found_obj is sensible */
+			if (langlib) {
+				char *tmpstr = string_fmt ("%s %s", langlib, found_obj);
+
+				sfree (langlib);
+				langlib = tmpstr;
+			} else {
+				langlib = found_obj;
+				found_obj = NULL;
+			}
+
+			if (found_src) {
+				sfree (found_src);
+				found_src = NULL;
+			}
+			if (found_obj) {
+				sfree (found_obj);
+				found_obj = NULL;
+			}
+		}
+
+		if (!langlib) {
+			nocc_serious ("cccsp_cc_compile_cpass(): failed to find language libraries, giving up..");
+			return -1;
+		}
+	}
+	/*}}}*/
+
+
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_cc_compile_cpass(): ccodefile=[%s] objfname=[%s]\n", ccodefile, objfname);
+#endif
+
+	if (compopts.notmainmodule) {
+		/* compile to object */
+		ccmd = string_fmt ("%s -c %s %s %s -o %s %s", kpriv->cc_path, kpriv->cc_incpath, kpriv->cc_flags, eincl, objfname, ccodefile);
+	} else {
+		ccmd = string_fmt ("%s %s %s %s -o %s %s %s %s -lccsp %s", kpriv->cc_path, kpriv->cc_incpath, kpriv->cc_flags, eincl,
+				objfname, ccodefile, kpriv->cc_libpath, kpriv->cc_ldflags, langlib);
+	}
+
+	/* do it! */
+	if (cccsp_run_cc (ccmd)) {
+		nocc_error ("failed to compile object/executable [%s]", objfname);
+		return -1;
+	}
+
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_cc_compile_cpass(): ccmd=[%s]\n", ccmd);
+#endif
+
+	if (langlib) {
+		sfree (langlib);
+	}
+	sfree (objfname);
+	sfree (eincl);
+	sfree (ccmd);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cccsp_get_kroc_env (char *flag, char **target)*/
+/*
+ *	attempts to run the 'kroc' script to extract various C compiler information
+ *	returns 0 on success, non-zero on error
+ */
+static int cccsp_get_kroc_env (char *flag, char **target)
+{
+	char **abits = (char **)smalloc (3 * sizeof (char *));
+	int fres;
+	int pipe_fd[2];
+	int rval = 0;
+
+	abits[0] = string_dup (compopts.cccsp_kroc);
+	abits[1] = string_dup (flag);
+	abits[2] = NULL;
+
+	if (pipe (pipe_fd)) {
+		nocc_serious ("cccsp_get_kroc_env(): pipe() failed: %s", strerror (errno));
+		return -1;
+	}
+
+	fres = fork ();
+	if (fres == -1) {
+		nocc_serious ("cccsp_get_kroc_env(): fork() failed: %s", strerror (errno));
+		return -1;
+	}
+	if (fres == 0) {
+		/* we are the child process */
+		int saved_stdout = dup (1);
+		int saved_stderr = dup (2);
+
+		close (pipe_fd[0]);			/* close read-end */
+		dup2 (pipe_fd[1], 1);			/* make stdout = pipe */
+		dup2 (pipe_fd[1], 2);			/* make stderr = pipe */
+		execv (compopts.cccsp_kroc, abits);
+
+		/* if we get here, it's gone wrong -- recover stdout/stderr */
+		dup2 (saved_stdout, 1);
+		dup2 (saved_stderr, 2);
+
+		nocc_internal ("cccsp_get_kroc_env(): failed to run %s: %s", compopts.cccsp_kroc, strerror (errno));
+		_exit (1);
+	} else {
+		/* we are the parent process */
+		pid_t wres;
+		int status = 0;
+		char rbuf[1024];
+		int rlen = 0;
+
+		close (pipe_fd[1]);			/* close write-end */
+		for (;;) {
+			int r;
+
+			r = read (pipe_fd[0], &(rbuf[rlen]), 1024 - rlen);
+			if (r < 0) {
+				nocc_serious ("cccsp_get_kroc_env(): read() from pipe failed: %s", strerror (errno));
+				close (pipe_fd[0]);
+				rval = -1;
+				goto out_free;
+			} else if (!r) {
+				/* EOF: program done probably */
+				break;			/* for() */
+			} else {
+				rlen += r;
+				if (rlen >= 1024) {
+					break;		/* for() */
+				}
+			}
+		}
+		close (pipe_fd[0]);			/* done with read-end */
+
+		if (rlen > 0) {
+			int i;
+
+			/* truncate string at first/single line */
+			for (i=0; (i<rlen) && (rbuf[i] != '\n') && (rbuf[i] != '\r') && (rbuf[i] != '\0'); i++);
+			rbuf[i] = '\0';
+
+			if (*target) {
+				sfree (*target);
+			}
+			*target = string_dup (rbuf);
+		} else {
+			/* nothing received */
+			rval = -1;
+		}
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_get_kroc_env(): rlen = %d\n", rlen);
+{ char *rxbuf = mkhexbuf ((unsigned char *)rbuf, rlen);
+fhandle_printf (FHAN_STDERR, "cccsp_get_kroc_env(): rbuf = [%s]\n", rxbuf);
+sfree (rxbuf); }
+#endif
+
+		/* now, wait for the child process */
+		wres = waitpid (fres, &status, 0);
+		if (wres < 0) {
+			nocc_serious ("cccsp_get_kroc_env(): wait() failed: %s", strerror (errno));
+			rval = -1;
+			goto out_free;
+		} else if (!WIFEXITED (status)) {
+			nocc_serious ("cccsp_get_kroc_env(): child process wait()ed, but didn't exit normally?, status = 0x%8.8x", (unsigned int)status);
+			rval = -1;
+			goto out_free;
+		}
+		/* else, assume all was good; not bothered about kroc's exit code */
+	}
+
+	/* only reached in the parent process */
+out_free:
+	sfree (abits[0]);
+	sfree (abits[1]);
+	sfree (abits);
+
+	return rval;
+}
+/*}}}*/
+/*{{{  static int cccsp_init_kroc_env (cccsp_priv_t *kpriv)*/
+/*
+ *	initialises specific settings that KRoC provides (cc and flags)
+ *	returns 0 on success, non-zero on error
+ */
+static int cccsp_init_kroc_env (cccsp_priv_t *kpriv)
+{
+	if (cccsp_get_kroc_env ("--cc", &kpriv->cc_path) ||
+			cccsp_get_kroc_env ("--cflags", &kpriv->cc_flags) ||
+			cccsp_get_kroc_env ("--ccincpath", &kpriv->cc_incpath) ||
+			cccsp_get_kroc_env ("--cclibpath", &kpriv->cc_libpath) ||
+			cccsp_get_kroc_env ("--ldflags", &kpriv->cc_ldflags)) {
+		return -1;
+	}
+	if (compopts.verbose) {
+		nocc_message ("cccsp using C compiler [%s]", kpriv->cc_path);
+		if (compopts.verbose > 1) {
+			nocc_message ("cccsp C compiler flags: cflags=[%s] incpath=[%s] libpath=[%s] ldflags=[%s]",
+					kpriv->cc_flags, kpriv->cc_incpath, kpriv->cc_libpath, kpriv->cc_ldflags);
+		}
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int cccsp_target_init (target_t *target)*/
 /*
  *	initialises the KRoC CIF/CCSP target
@@ -2357,6 +2899,12 @@ static int cccsp_target_init (target_t *target)
 	kpriv->last_toplevelname = NULL;
 	kpriv->wptr_count = 0;
 
+	kpriv->cc_path = NULL;
+	kpriv->cc_flags = NULL;
+	kpriv->cc_incpath = NULL;
+	kpriv->cc_libpath = NULL;
+	kpriv->cc_ldflags = NULL;
+
 	kpriv->tag_ADDROF = NULL;
 	kpriv->tag_NWORDSOF = NULL;
 	kpriv->tag_LABEL = NULL;
@@ -2376,6 +2924,42 @@ static int cccsp_target_init (target_t *target)
 	target->priv = (void *)kpriv;
 
 	cccsp_init_options (kpriv);
+
+	if (!compopts.cccsp_kroc) {
+		nocc_warning ("cccsp: path to kroc not set, will not be able to make object files");
+	} else if (access (compopts.cccsp_kroc, X_OK)) {
+		nocc_warning ("cccsp: cannot execute kroc script: %s", strerror (errno));
+	} else if (cccsp_init_kroc_env (kpriv)) {
+		nocc_warning ("cccsp: failed to get compiler information from kroc script [%s]", compopts.cccsp_kroc);
+		/* clear out, throwing memory away possibly.. */
+		kpriv->cc_path = NULL;
+		kpriv->cc_flags = NULL;
+		kpriv->cc_incpath = NULL;
+		kpriv->cc_libpath = NULL;
+		kpriv->cc_ldflags = NULL;
+	}
+
+	/*{{{  new compiler hooks*/
+	cccspoutfilehook = tnode_lookupornewchook ("cccsp:outfile");
+	cccspoutfilehook->chook_copy = cccsp_outfilehook_copy;
+	cccspoutfilehook->chook_free = cccsp_outfilehook_free;
+	cccspoutfilehook->chook_dumptree = cccsp_outfilehook_dumptree;
+
+	/*}}}*/
+	/*{{{  sort out some new compiler passes if we can*/
+	if (kpriv->cc_path) {
+		int stopat;
+
+		stopat = nocc_laststopat() + 1;
+		opts_add ("stop-cc-compile", '\0', cccsp_opthandler_stopat, (void *)stopat, "1stop after CC compile pass");
+		if (nocc_addcompilerpass ("cc-compile", INTERNAL_ORIGIN, "codegen", 0, (int (*)(void *))cccsp_cc_compile_cpass,
+				CPASS_TREEPTR | CPASS_LEXFILE | CPASS_TARGET, stopat, NULL)) {
+			nocc_serious ("cccsp_target_init(): failed to add \"cc-compile\" compiler pass");
+			return 1;
+		}
+	}
+
+	/*}}}*/
 
 	/* setup back-end nodes */
 	/*{{{  cccsp:name -- CCCSPNAME*/

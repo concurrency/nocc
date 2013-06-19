@@ -107,6 +107,28 @@ dnl   AC_DEFINE([USE_LIBSSL],1,[define to use SSL library])
 dnl  fi
 dnl fi
 
+AC_ARG_WITH([kroc], AC_HELP_STRING([--with-kroc=...],[Path to KRoC script for CCCSP back-end]), [kroc=$withval], [kroc=none])
+
+if test "x$kroc" = "xnone"; then
+  kroc_path=none
+else
+  kroc_path="$kroc"
+
+  if test -x "$kroc_path"; then
+    # Note: will need to change here if KRoC's version output changes
+    kroc_version=$(($kroc_path --version 2>&1 || echo 'KRoC version 0.0.0') | head -1 | sed 's/^KRoC version \([[^ ]]*\).*$/\1/')
+
+    AC_MSG_CHECKING([for KRoC version])
+    AC_MSG_RESULT($kroc_version)
+  else
+    kroc_path=none
+  fi
+
+  AC_MSG_CHECKING([for location of KRoC script])
+  AC_MSG_RESULT($kroc_path)
+
+fi
+
 if test $have_expat_h = yes; then
  if test $have_libexpat = yes; then
   AC_DEFINE([USE_LIBEXPAT],1,[define to use expat XML library])
@@ -137,6 +159,7 @@ AC_SUBST(EXTRA_CFLAGS)
 
 # some substitutions for paths
 AC_SUBST(build_dir)
+AC_SUBST(kroc_path)
 
 AC_OUTPUT([Makefile include/Makefile misc/Makefile lexer/Makefile parser/Makefile extn/Makefile xml/Makefile frontend/Makefile backend/Makefile target/Makefile lang/Makefile tests/Makefile addons/Makefile nocc.specs.xml])
 

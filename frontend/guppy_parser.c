@@ -58,6 +58,7 @@
 #include "extn.h"
 #include "mwsync.h"
 #include "metadata.h"
+#include "target.h"
 
 
 /*}}}*/
@@ -72,12 +73,14 @@ static int guppy_parser_scope (tnode_t **tptr, scope_t *ss);
 static int guppy_parser_typecheck (tnode_t *tptr, typecheck_t *tc);
 static int guppy_parser_typeresolve (tnode_t **tptr, typecheck_t *tc);
 static int guppy_parser_fetrans (tnode_t **tptr, fetrans_t *fe);
+static char **guppy_getlanglibs (target_t *target, int src);
 
 static tnode_t *guppy_parser_parseproc (lexfile_t *lf);
 static tnode_t *guppy_parser_parsedef (lexfile_t *lf);
 static tnode_t *guppy_declorproc (lexfile_t *lf);
 static tnode_t *guppy_indented_declorproc_list (lexfile_t *lf);
 static tnode_t *guppy_indented_tcase_list (lexfile_t *lf);
+
 
 /*}}}*/
 /*{{{  global vars*/
@@ -97,6 +100,7 @@ langparser_t guppy_parser = {
 	.postcheck =		NULL,
 	.fetrans =		guppy_parser_fetrans,
 	.getlangdef =		guppy_getlangdef,
+	.getlanglibs =		guppy_getlanglibs,
 	.maketemp =		NULL,
 	.makeseqassign =	NULL,
 	.makeseqany =		NULL,
@@ -433,6 +437,25 @@ langdef_t *guppy_getlangdef (void)
 		return NULL;
 	}
 	return guppy_priv->langdefs;
+}
+/*}}}*/
+/*{{{  static char **guppy_getlanglibs (target_t *target, int src)*/
+/*
+ *	returns the language libraries for Guppy, or NULL if none
+ *	returned array is freshly allocated, with individual allocations therein.
+ */
+static char **guppy_getlanglibs (target_t *target, int src)
+{
+	char **tmp = smalloc (2 * sizeof (char *));
+
+	if (src) {
+		tmp[0] = string_dup ("cccsp/guppy_cccsp_lib.c");
+	} else {
+		tmp[0] = string_dup ("cccsp/guppy_cccsp_lib.o");
+	}
+	tmp[1] = NULL;
+
+	return tmp;
 }
 /*}}}*/
 

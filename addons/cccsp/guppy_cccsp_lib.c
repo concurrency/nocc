@@ -12,7 +12,7 @@
 #include <cif.h>
 #endif
 
-#include <verb-header.h>
+#include <cccsp/verb-header.h>
 
 void process_screen_char (Workspace wptr)
 {

@@ -103,8 +103,6 @@
 
 /*}}}*/
 
-
-
 /*{{{  global variables*/
 char *progname = NULL;
 compopts_t compopts = {
@@ -174,7 +172,8 @@ compopts_t compopts = {
 	.cachedir = NULL,
 	.wget_opts = NULL,
 	.cache_pref = 0,
-	.cache_cow = 0
+	.cache_cow = 0,
+	.cccsp_kroc = NULL
 };
 
 /*}}}*/
@@ -222,7 +221,6 @@ STATICDYNARRAY (ihandler_t *, ihandlers);
 STATICDYNARRAY (char*, str_commands);
 
 /*}}}*/
-
 
 /*{{{  static int nocc_shutdownrun (void)*/
 /*
@@ -400,7 +398,6 @@ static void nocc_invoke_gdb (void)
 	return;
 }
 /*}}}*/
-
 
 /*{{{  global report routines*/
 /*{{{  void nocc_pvinternal (char *fmt, const char *file, const int line, va_list ap)*/
@@ -925,6 +922,9 @@ static void specfile_elem_end (xmlhandler_t *xh, void *data, xmlkey_t *key)
 		case XMLKEY_WGETOPTS:
 			specfile_setstring (&compopts.wget_opts, edata);
 			break;
+		case XMLKEY_CCCSP_KROC:
+			specfile_setstring (&compopts.cccsp_kroc, edata);
+			break;
 		default:
 			nocc_warning ("unknown setting %s in specs file ignored", key->name);
 			break;
@@ -1051,7 +1051,6 @@ static void maybedumptrees (lexfile_t **lexers, int nlexers, tnode_t **trees, in
 /*}}}*/
 /*}}}*/
 
-
 /*{{{  int nocc_dooption (char *optstr)*/
 /*
  *	called to trigger an option (always assumed to be a long option)
@@ -1131,7 +1130,6 @@ int nocc_dooption_arg (char *optstr, void *arg)
 	return 0;
 }
 /*}}}*/
-
 
 /*{{{  static compilerpass_t *nocc_new_compilerpass (const char *name, origin_t *origin, int (*fcn)(void *), comppassarg_t fargs, int spoint, int *flagptr)*/
 /*
@@ -1585,7 +1583,6 @@ static void nocc_freecompcxt (compcxt_t *ccx)
 	return;
 }
 /*}}}*/
-
 
 /*{{{  forward declarations of compiler stages*/
 static int cstage_load_extensions (compcxt_t *ccx);
@@ -3104,6 +3101,7 @@ int main (int argc, char **argv)
 		nocc_message ("    cache-cow:       %s", compopts.cache_cow ? "yes" : "no");
 		nocc_message ("    cache-pref:      %s", compopts.cache_pref ? "yes" : "no");
 		nocc_message ("    wget-opts:       %s", compopts.wget_opts ?: "(unset)");
+		nocc_message ("    cccsp-kroc:      %s", compopts.cccsp_kroc ?: "(unset)");
 	}
 
 

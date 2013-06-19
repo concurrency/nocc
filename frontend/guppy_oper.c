@@ -123,6 +123,46 @@ static int guppy_typecheck_dopnode (compops_t *cops, tnode_t *node, typecheck_t 
 
 	tnode_setnthsub (node, 2, atype);
 
+	/* some slightly special handling for strings */
+	if (atype->tag == gup.tag_STRING) {
+		if (node->tag != gup.tag_ADD) {
+			typecheck_error (node, tc, "cannot do [%s] on a string", node->tag->name);
+			return 0;
+		}
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_fetrans1_dopnode (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)*/
+/*
+ *	does front-end-1 transforms for dyadic operators (handles strings specially)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans1_dopnode (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)
+{
+	tnode_t *type = tnode_nthsubof (*nodep, 2);
+
+	/* do fetrans1 on subtrees -- dismantle anything complex there */
+	guppy_fetrans1_subtree (tnode_nthsubaddr (*nodep, 0), fe1);
+	guppy_fetrans1_subtree (tnode_nthsubaddr (*nodep, 1), fe1);
+
+	if ((type->tag == gup.tag_STRING) && ((*nodep)->tag == gup.tag_ADD)) {
+		/* turn into special string operator and temporary */
+		tnode_t *tname, *concat, *seq, *seqlist;
+		tnode_t **newp;
+
+		tname = guppy_fetrans1_maketemp (gup.tag_NDECL, *nodep, type, NULL, fe1);
+		concat = tnode_createfrom (gup.tag_STRCONCAT, *nodep, NULL, tname, tnode_nthsubof (*nodep, 0), tnode_nthsubof (*nodep, 1));
+		seqlist = parser_newlistnode (SLOCI);
+		parser_addtolist (seqlist, concat);
+		newp = parser_addtolist (seqlist, *fe1->inspoint);
+		seq = tnode_createfrom (gup.tag_SEQ, *nodep, NULL, seqlist);
+
+		*nodep = tname;
+		*fe1->inspoint = seq;
+		fe1->inspoint = newp;
+	}
 	return 0;
 }
 /*}}}*/
@@ -855,6 +895,7 @@ static int guppy_oper_init_nodes (void)
 	tnd = tnode_newnodetype ("guppy:dopnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: left, right, type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_dopnode));
+	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_dopnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_dopnode));
 	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_dopnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_dopnode));

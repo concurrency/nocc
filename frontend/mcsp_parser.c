@@ -85,6 +85,7 @@ langparser_t mcsp_parser = {
 	.postcheck =		NULL,
 	.fetrans =		mcsp_parser_fetrans,
 	.getlangdef =		mcsp_getlangdef,
+	.getlanglibs =		NULL,
 	.maketemp =		NULL,
 	.makeseqassign =	NULL,
 	.makeseqany =		NULL,

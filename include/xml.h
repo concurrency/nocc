@@ -115,7 +115,8 @@ typedef enum {
 	XMLKEY_CACHEDIR,
 	XMLKEY_WGETOPTS,
 	XMLKEY_COW,
-	XMLKEY_PREF
+	XMLKEY_PREF,
+	XMLKEY_CCCSP_KROC
 } xmlkeytype_t;
 
 typedef struct TAG_xmlkey {

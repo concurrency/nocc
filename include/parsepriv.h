@@ -33,6 +33,7 @@ struct TAG_fetrans;
 struct TAG_langlexer;
 struct TAG_langdef;
 struct TAG_fhandle;
+struct TAG_target;
 
 typedef struct TAG_langparser {
 	char *langname;
@@ -48,6 +49,7 @@ typedef struct TAG_langparser {
 	int (*postcheck)(struct TAG_tnode **, struct TAG_postcheck *);
 	int (*fetrans)(struct TAG_tnode **, struct TAG_fetrans *);
 	struct TAG_langdef *(*getlangdef)(void);
+	char **(*getlanglibs)(struct TAG_target *, int);						/* get language libraries (target, src-files?) */
 
 	struct TAG_tnode *(*maketemp)(struct TAG_tnode ***, struct TAG_tnode *);						/* insert-point-ptr, type */
 	struct TAG_tnode *(*makeseqassign)(struct TAG_tnode ***, struct TAG_tnode *, struct TAG_tnode *, struct TAG_tnode *);	/* insert-point-ptr, lhs, rhs, type */
