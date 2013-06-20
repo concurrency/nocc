@@ -1102,7 +1102,7 @@ static int guppy_parser_init (lexfile_t *lf)
 		}
 
 		/*}}}*/
-		/*{{{  create new compiler passes*/
+		/*{{{  create new compiler operations for additional passes*/
 		if (tnode_newcompop ("declify", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 			nocc_serious ("guppy_parser_init(): failed to add \"declify\" compiler operation");
 			return 1;

@@ -1,0 +1,37 @@
+#
+#	This file defines the API call chain for CCCSP/CCSP.  Used to gather information about
+#	actual stack-frame sizes.
+#
+
+ChanIn:
+ChanInit:
+ChanOut:
+BlockingCall0:
+BlockingCall1:
+BlockingCallN:
+ExternalCall0:
+ExternalCall1:
+ExternalCallN:
+KillableBlockingCallN:
+KillBlockingCall:
+MAlloc:
+MRelease:
+ccsp_proc_alloc: =128
+ccsp_kernel_entry: =128
+ProcAllocInitial: ccsp_proc_alloc
+ProcStartInitial: ccsp_kernel_entry
+LightProcBarrierInit:
+LightProcBarrierWait:
+LightProcInit:
+LightProcStart:
+Reschedule:
+Shutdown:
+ProcPar: LightProcBarrierInit, LightProcStart, LightProcBarrierWait
+GuppyStringInit: MAlloc
+GuppyStringFree: MRelease
+GuppyStringEmpty: MRelease
+GuppyStringConstInitialiser: MAlloc
+GuppyStringAssign: MRelease, MAlloc
+GuppyStringConcat: GuppyStringEmpty, MAlloc
+GuppyStringClear: GuppyStringInit
+

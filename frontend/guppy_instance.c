@@ -388,6 +388,33 @@ static int guppy_codegen_instance (compops_t *cops, tnode_t *node, codegen_t *cg
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_cccspdcg_instance (compops_t *cops, tnode_t *node, cccsp_dcg_t *dcg)*/
+/*
+ *	used during direct-call-graph generation
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_cccspdcg_instance (compops_t *cops, tnode_t *node, cccsp_dcg_t *dcg)
+{
+	if (node->tag == gup.tag_INSTANCE) {
+		name_t *pname = tnode_nthnameof (tnode_nthsubof (node, 0), 0);
+		cccsp_sfi_entry_t *sfient = cccsp_sfiofname (pname, 0);
+
+		if (dcg->thisfcn && sfient) {
+			cccsp_sfi_addchild (dcg->thisfcn, sfient);
+		}
+	} else if (node->tag == gup.tag_APICALL) {
+		tnode_t *callnum = tnode_nthsubof (node, 0);
+		char *ename = cccsp_make_apicallname (callnum);
+		cccsp_sfi_entry_t *sfient = cccsp_sfi_lookupornew (ename);
+
+		sfree (ename);
+		if (dcg->thisfcn) {
+			cccsp_sfi_addchild (dcg->thisfcn, sfient);
+		}
+	}
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static tnode_t *guppy_gettype_instance (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
@@ -451,6 +478,27 @@ static int guppy_codegen_rinstance (compops_t *cops, tnode_t *node, codegen_t *c
 			return 0;
 		}
 		codegen_callops (cgen, c_proccall, NULL, tnode_nthsubof (node, 1), constprop_intvalof (callnum), tnode_nthsubof (node, 2));
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_cccspdcg_rinstance (compops_t *cops, tnode_t *node, cccsp_dcg_t *dcg)*/
+/*
+ *	used during direct-call-graph generation
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_cccspdcg_rinstance (compops_t *cops, tnode_t *node, cccsp_dcg_t *dcg)
+{
+	if (node->tag == gup.tag_APICALLR) {
+		tnode_t *callnum = tnode_nthsubof (node, 0);
+		char *ename = cccsp_make_apicallname (callnum);
+		cccsp_sfi_entry_t *sfient;
+
+		sfient = cccsp_sfi_lookupornew (ename);
+		sfree (ename);
+		if (dcg->thisfcn) {
+			cccsp_sfi_addchild (dcg->thisfcn, sfient);
+		}
 	}
 	return 0;
 }
@@ -620,6 +668,7 @@ static int guppy_instance_init_nodes (void)
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_instance));
 	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_instance));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_instance));
+	tnode_setcompop (cops, "cccsp:dcg", 2, COMPOPTYPE (guppy_cccspdcg_instance));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_instance));
@@ -637,6 +686,7 @@ static int guppy_instance_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_rinstance));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_rinstance));
+	tnode_setcompop (cops, "cccsp:dcg", 2, COMPOPTYPE (guppy_cccspdcg_rinstance));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

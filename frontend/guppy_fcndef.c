@@ -675,7 +675,48 @@ tnode_dumptree (tnode_nthsubof (node, 1), 1, FHAN_STDERR);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_cccspdcg_fcndef (compops_t *cops, tnode_t *node, cccsp_dcg_t *dcg)*/
+/*
+ *	used when generating the direct-call-graph for stack allocation
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_cccspdcg_fcndef (compops_t *cops, tnode_t *node, cccsp_dcg_t *dcg)
+{
+	cccsp_sfi_entry_t *sfient;
+	tnode_t *name = tnode_nthsubof (node, 0);
+	name_t *pname;
 
+	pname = tnode_nthnameof (name, 0);
+	sfient = cccsp_sfiofname (pname, (node->tag == gup.tag_PFCNDEF));
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_cccspdcg_fcndef(): here! (sfient->name=[%s])\n", sfient ? sfient->name : "(null)");
+#endif
+	dcg->thisfcn = sfient;
+	cccsp_cccspdcg_subtree (tnode_nthsubof (node, 2), dcg);
+	dcg->thisfcn = NULL;
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_cccspdcgfix_fcndef (compops_t *cops, tnode_t *node)*/
+/*
+ *	used when fixing-up stack usage information
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_cccspdcgfix_fcndef (compops_t *cops, tnode_t *node)
+{
+	cccsp_sfi_entry_t *sfient;
+	tnode_t *name = tnode_nthsubof (node, 0);
+	name_t *pname;
+
+	pname = tnode_nthnameof (name, 0);
+	sfient = cccsp_sfiofname (pname, (node->tag == gup.tag_PFCNDEF));
+
+	tnode_setchook (node, cccsp_sfi_entrychook, cccsp_sfi_copyof (sfient));
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static int guppy_getdescriptor_fcndef (langops_t *lops, tnode_t *node, char **str)*/
 /*
@@ -758,6 +799,8 @@ static int guppy_fcndef_init_nodes (void)
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_fcndef));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_fcndef));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_fcndef));
+	tnode_setcompop (cops, "cccsp:dcg", 2, COMPOPTYPE (guppy_cccspdcg_fcndef));
+	tnode_setcompop (cops, "cccsp:dcgfix", 1, COMPOPTYPE (guppy_cccspdcgfix_fcndef));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (guppy_getdescriptor_fcndef));

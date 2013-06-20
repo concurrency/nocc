@@ -259,7 +259,10 @@ typedef struct TAG_cccsp_indexhook {
 static chook_t *codegeninithook = NULL;
 static chook_t *codegenfinalhook = NULL;
 static chook_t *cccspoutfilehook = NULL;
+static chook_t *cccspsfifilehook = NULL;
 static void *cccsp_set_outfile = NULL;			/* string copy (char*) for the above compiler hook */
+
+static int cccsp_bepass = 0;
 
 static chook_t *cccsp_ctypestr = NULL;
 static int cccsp_coder_inparamlist = 0;
@@ -755,6 +758,43 @@ static void cccsp_outfilehook_dumptree (tnode_t *node, void *hook, int indent, f
 }
 /*}}}*/
 
+/*{{{  static void *cccsp_sfifilehook_copy (void *hook)*/
+/*
+ *	copy for cccsp:sfifile compiler hook
+ */
+static void *cccsp_sfifilehook_copy (void *hook)
+{
+	if (!hook) {
+		return NULL;
+	}
+	return (char *)string_dup ((char *)hook);
+}
+/*}}}*/
+/*{{{  static void cccsp_sfifilehook_free (void *hook)*/
+/*
+ *	free for cccsp:sfifile compiler hook
+ */
+static void cccsp_sfifilehook_free (void *hook)
+{
+	if (!hook) {
+		return;
+	}
+	sfree (hook);
+}
+/*}}}*/
+/*{{{  static void cccsp_sfifilehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
+/*
+ *	dump-tree for a cccsp:sfifile compiler hook
+ */
+static void cccsp_sfifilehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
+{
+	cccsp_isetindent (stream, indent);
+	fhandle_printf (stream, "<cccsp:sfifile value=\"%s\" />\n",
+			hook ? (char *)hook : "");
+	return;
+}
+/*}}}*/
+
 /*{{{  static tnode_t *cccsp_name_create (tnode_t *fename, tnode_t *body, map_t *mdata, int asize_wsh, int asize_wsl, int asize_vs, int asize_ms, int tsize, int ind)*/
 /*
  *	creates a new back-end name-node
@@ -972,6 +1012,28 @@ int cccsp_get_indir (tnode_t *benode, target_t *target)
 	}
 	nocc_internal ("cccsp_get_indir(): don\'t know how to get indirection of [%s:%s]", benode->tag->ndef->name, benode->tag->name);
 	return -1;
+}
+/*}}}*/
+/*{{{  char *cccsp_make_apicallname (tnode_t *call)*/
+/*
+ *	returns the entry-name of a particular API call (verbatim)
+ *	returned string is newly allocated
+ */
+char *cccsp_make_apicallname (tnode_t *call)
+{
+	int val;
+
+	if (!constprop_isconst (call)) {
+		nocc_internal ("cccsp_make_apicallname(): oops, call not constant, got [%s]", call->tag->name);
+		return string_dup ("invalid");
+	}
+	val = constprop_intvalof (call);
+	if ((val <= 0) || (val > (int)CCCSP_APICALL_LAST)) {
+		nocc_internal ("cccsp_make_apicallname(): oops, invalid API call %d", val);
+		return string_dup ("invalid");
+	}
+
+	return string_dup (cccsp_apicall_table[val].name);
 }
 /*}}}*/
 
@@ -1246,6 +1308,37 @@ static int cccsp_modprewalktree_betrans (tnode_t **tptr, void *arg)
 	return i;
 }
 /*}}}*/
+/*{{{  static int cccsp_prewalktree_cccspdcg (tnode_t *node, void *data)*/
+/*
+ *	called during tree-walk for direct-call-graph generation
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_prewalktree_cccspdcg (tnode_t *node, void *data)
+{
+	int r = 1;
+	cccsp_dcg_t *dcg = (cccsp_dcg_t *)data;
+
+	if (node->tag->ndef->ops && tnode_hascompop (node->tag->ndef->ops, "cccsp:dcg")) {
+		r = tnode_callcompop (node->tag->ndef->ops, "cccsp:dcg", 2, node, dcg);
+	}
+	return r;
+}
+/*}}}*/
+/*{{{  static int cccsp_prewalktree_cccspdcgfix (tnode_t *node, void *data)*/
+/*
+ *	called during tree-walk for fixing-up allocations
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_prewalktree_cccspdcgfix (tnode_t *node, void *data)
+{
+	int r = 1;
+
+	if (node->tag->ndef->ops && tnode_hascompop (node->tag->ndef->ops, "cccsp:dcgfix")) {
+		r = tnode_callcompop (node->tag->ndef->ops, "cccsp:dcgfix", 1, node);
+	}
+	return r;
+}
+/*}}}*/
 
 /*{{{  static void cccsp_do_betrans (tnode_t **tptr, betrans_t *be)*/
 /*
@@ -1368,6 +1461,28 @@ int cccsp_precode_subtree (tnode_t **nodep, codegen_t *cgen)
 	return 0;
 }
 /*}}}*/
+/*{{{  int cccsp_cccspdcg_subtree (tnode_t *tptr, cccsp_dcg_t *dcg)*/
+/*
+ *	does cccsp:dcg sub-tree walk
+ *	returns 0 on success, non-zero on error
+ */
+int cccsp_cccspdcg_subtree (tnode_t *tptr, cccsp_dcg_t *dcg)
+{
+	tnode_prewalktree (tptr, cccsp_prewalktree_cccspdcg, (void *)dcg);
+	return 0;
+}
+/*}}}*/
+/*{{{  int cccsp_cccspdcgfix_subtree (tnode_t *tptr)*/
+/*
+ *	does cccsp:dcgfix sub-tree walk
+ *	returns 0 on success, non-zero on error
+ */
+int cccsp_cccspdcgfix_subtree (tnode_t *tptr)
+{
+	tnode_prewalktree (tptr, cccsp_prewalktree_cccspdcgfix, NULL);
+	return 0;
+}
+/*}}}*/
 /*{{{  int cccsp_getblockspace (tnode_t *beblk, int *mysize, int *nestsize)*/
 /*
  *	gets a back-end block space requirements
@@ -1410,6 +1525,21 @@ fhandle_printf (FHAN_STDERR, "cccsp_addtofixups(): beblk=[%s:%s] node=[%s:%s]\n"
 #endif
 	parser_addtolist (flist, node);
 	return 0;
+}
+/*}}}*/
+/*{{{  cccsp_sfi_entry_t *cccsp_sfiofname (name_t *name, int pinst)*/
+/*
+ *	during the SFI passes, can be used to find the entry for a particular name
+ *	will create anew if does not exist
+ */
+cccsp_sfi_entry_t *cccsp_sfiofname (name_t *name, int pinst)
+{
+	cccsp_sfi_entry_t *sfient;
+	char *entryname = cccsp_make_entryname (name->me->name, pinst);
+
+	sfient = cccsp_sfi_lookupornew (entryname);
+	sfree (entryname);
+	return sfient;
 }
 /*}}}*/
 
@@ -2387,6 +2517,15 @@ int cccsp_init (void)
 	codegeninithook = codegen_getcodegeninithook ();
 	codegenfinalhook = codegen_getcodegenfinalhook ();
 
+	if (tnode_newcompop ("cccsp:dcg", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
+		nocc_serious ("cccsp_init(): failed to add \"cccsp:dcg\" compiler operation");
+		return 1;
+	}
+	if (tnode_newcompop ("cccsp:dcgfix", COPS_INVALID, 1, INTERNAL_ORIGIN) < 0) {
+		nocc_serious ("cccsp_init(): failed to add \"cccsp:dcgfix\" compiler operation");
+		return 1;
+	}
+
 	return 0;
 }
 /*}}}*/
@@ -2484,9 +2623,10 @@ static int cccsp_cc_compile_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t
 {
 	cccsp_priv_t *kpriv = (cccsp_priv_t *)target->priv;
 	char *ccodefile;
-	char *objfname, *ch;
+	char *objfname, *sfifname, *ch;
 	char *ccmd, *eincl;
 	char *langlib = NULL;
+	char *sfifiles = NULL;
 
 	ccodefile = (char *)tnode_getchook (*treeptr, cccspoutfilehook);
 	if (!ccodefile) {
@@ -2494,28 +2634,33 @@ static int cccsp_cc_compile_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t
 		return -1;
 	}
 
-	/*{{{  sort out output file-name*/
+	/*{{{  sort out output file-name and .su file-name*/
 	for (ch = ccodefile + (strlen (ccodefile) - 1); (ch > ccodefile) && (ch[-1] != '.'); ch--);
 	if (compopts.notmainmodule) {
 		/* generate object name */
 		if (ch == ccodefile) {
 			/* slightly odd perhaps */
 			objfname = string_fmt ("%s.o", ccodefile);
+			sfifname = string_fmt ("%s.su", ccodefile);
 		} else {
 			int plen = (int)(ch - ccodefile);
 
 			objfname = string_fmt ("%s.o", ccodefile);		/* will be long enough */
 			strcpy (objfname + plen, "o");
+			sfifname = string_fmt ("%s.su", ccodefile);
+			strcpy (sfifname + plen, "su");
 		}
 	} else {
 		/* generate path name */
 		if (ch == ccodefile) {
 			/* slightly odd perhaps, cannot replace with same though */
 			objfname = string_fmt ("%s.out", ccodefile);
+			sfifname = string_fmt ("%s.out.su", ccodefile);
 		} else {
 			int plen = (int)(ch - ccodefile);
 
 			objfname = string_ndup (ccodefile, plen - 1);
+			sfifname = string_fmt ("%s.su", objfname);
 		}
 	}
 
@@ -2562,11 +2707,12 @@ static int cccsp_cc_compile_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t
 		langlibs_obj = srclf->parser->getlanglibs (target, 0);
 		langlibs_src = srclf->parser->getlanglibs (target, 1);
 
-		/* for each object (and maybe source) */
 		for (i=0; langlibs_obj[i]; i++) {
+			/*{{{  for each object (and maybe source)*/
 			int j;
 			char *found_obj = NULL;
 			char *found_src = NULL;
+			char *found_sfi = NULL;
 
 			for (j=0; !found_obj && (j<DA_CUR (compopts.epath)); j++) {
 				char *tmpstr = string_fmt ("%s/%s", DA_NTHITEM (compopts.epath, j), langlibs_obj[i]);
@@ -2639,8 +2785,38 @@ static int cccsp_cc_compile_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t
 				}
 			}
 
+			/*{{{  see if there is an .su alongside the .o*/
+			{
+				char *objf;
+
+				if (found_obj) {
+					objf = string_dup (found_obj);
+				} else if (found_src) {
+					int endlen = strlen (langlibs_src[i]);
+					int slen = strlen (found_src);
+
+					objf = string_fmt ("%s%s", found_src, langlibs_obj[i]);
+					strcpy (objf + (slen - endlen), langlibs_obj[i]);
+				} else {
+					objf = NULL;
+				}
+
+				if (objf) {
+					char *ch;
+
+					for (ch = objf + (strlen (objf) - 1); (ch > objf) && (ch[-1] != '.'); ch--);
+					if (ch > objf) {
+						*ch = '\0';
+						found_sfi = string_fmt ("%ssu", objf);
+					} else {
+						found_sfi = string_fmt ("%s.su", objf);
+					}
+				}
+			}
+			/*}}}*/
+
 #if 0
-fhandle_printf (FHAN_STDERR, "here: found_src=[%s] found_obj=[%s]\n", found_src ?: "", found_obj ?: "");
+fhandle_printf (FHAN_STDERR, "here: found_src=[%s] found_obj=[%s] found_sfi=[%s]\n", found_src ?: "", found_obj ?: "", found_sfi ?: "");
 #endif
 			if (found_src && (!found_obj || (fhandle_cnewer (found_src, found_obj) > 0))) {
 				char *xcmd;
@@ -2654,7 +2830,7 @@ fhandle_printf (FHAN_STDERR, "here: found_src=[%s] found_obj=[%s]\n", found_src 
 					strcpy (found_obj + (slen - endlen), langlibs_obj[i]);
 				}
 
-				xcmd = string_fmt ("%s -c %s %s %s -o %s %s", kpriv->cc_path, kpriv->cc_incpath, kpriv->cc_flags,
+				xcmd = string_fmt ("%s -fstack-usage -c %s %s %s -o %s %s", kpriv->cc_path, kpriv->cc_incpath, kpriv->cc_flags,
 						eincl, found_obj, found_src);
 				/* attempt to build object from source */
 #if 0
@@ -2673,6 +2849,20 @@ fhandle_printf (FHAN_STDERR, "here: want to build library object with [%s]\n", x
 					nocc_message ("cccsp generated library file %s", langlibs_obj[i]);
 				}
 				sfree (xcmd);
+			}
+
+			if (!fhandle_access (found_sfi, R_OK)) {
+#if 0
+fhandle_printf (FHAN_STDERR, "here: want to consume stack-info in [%s]\n", found_sfi);
+#endif
+				if (!sfifiles) {
+					sfifiles = string_dup (found_sfi);
+				} else {
+					char *tmpstr = string_fmt ("%s %s", sfifiles, found_sfi);
+
+					sfree (sfifiles);
+					sfifiles = tmpstr;
+				}
 			}
 
 			/* assert: here found_obj is sensible */
@@ -2694,6 +2884,11 @@ fhandle_printf (FHAN_STDERR, "here: want to build library object with [%s]\n", x
 				sfree (found_obj);
 				found_obj = NULL;
 			}
+			if (found_sfi) {
+				sfree (found_sfi);
+				found_sfi = NULL;
+			}
+			/*}}}*/
 		}
 
 		if (!langlib) {
@@ -2703,16 +2898,15 @@ fhandle_printf (FHAN_STDERR, "here: want to build library object with [%s]\n", x
 	}
 	/*}}}*/
 
-
 #if 0
 fhandle_printf (FHAN_STDERR, "cccsp_cc_compile_cpass(): ccodefile=[%s] objfname=[%s]\n", ccodefile, objfname);
 #endif
 
 	if (compopts.notmainmodule) {
 		/* compile to object */
-		ccmd = string_fmt ("%s -c %s %s %s -o %s %s", kpriv->cc_path, kpriv->cc_incpath, kpriv->cc_flags, eincl, objfname, ccodefile);
+		ccmd = string_fmt ("%s -fstack-usage -c %s %s %s -o %s %s", kpriv->cc_path, kpriv->cc_incpath, kpriv->cc_flags, eincl, objfname, ccodefile);
 	} else {
-		ccmd = string_fmt ("%s %s %s %s -o %s %s %s %s -lccsp %s", kpriv->cc_path, kpriv->cc_incpath, kpriv->cc_flags, eincl,
+		ccmd = string_fmt ("%s -fstack-usage %s %s %s -o %s %s %s %s -lccsp %s", kpriv->cc_path, kpriv->cc_incpath, kpriv->cc_flags, eincl,
 				objfname, ccodefile, kpriv->cc_libpath, kpriv->cc_ldflags, langlib);
 	}
 
@@ -2722,16 +2916,106 @@ fhandle_printf (FHAN_STDERR, "cccsp_cc_compile_cpass(): ccodefile=[%s] objfname=
 		return -1;
 	}
 
+	if (!fhandle_access (sfifname, R_OK)) {
+		/* got the stack-usage file too, so add to list */
+		if (sfifiles) {
+			char *tmpstr = string_fmt ("%s %s", sfifiles, sfifname);
+
+			sfree (sfifiles);
+			sfifiles = tmpstr;
+		} else {
+			sfifiles = string_dup (sfifname);
+		}
+	}
+
 #if 0
-fhandle_printf (FHAN_STDERR, "cccsp_cc_compile_cpass(): ccmd=[%s]\n", ccmd);
+fhandle_printf (FHAN_STDERR, "cccsp_cc_compile_cpass(): sfifiles=[%s]\n", sfifiles ?: "");
 #endif
 
+	if (sfifiles) {
+		tnode_setchook (*treeptr, cccspsfifilehook, (void*)sfifiles);
+		sfifiles = NULL;
+	}
 	if (langlib) {
 		sfree (langlib);
+	}
+	if (sfifname) {
+		sfree (sfifname);
 	}
 	sfree (objfname);
 	sfree (eincl);
 	sfree (ccmd);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cccsp_cc_sfi_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t *target)*/
+/*
+ *	compiler pass that collects up stack-frame information
+ *	returns 0 on success, non-zero on error
+ */
+static int cccsp_cc_sfi_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t *target)
+{
+	int i;
+	char *apif = NULL;
+	char *sfifiles = (char *)tnode_getchook (*treeptr, cccspsfifilehook);
+	cccsp_dcg_t *dcg;
+
+	cccsp_sfi_init ();
+
+	/*{{{  find where the api-call-chain file lives and load it*/
+	for (i=0; !apif && (i<DA_CUR (compopts.epath)); i++) {
+		char *tmpstr = string_fmt ("%s/cccsp/api-call-chain", DA_NTHITEM (compopts.epath, i));
+
+		if (!fhandle_access (tmpstr, R_OK)) {
+			apif = string_dup (tmpstr);
+		}
+		sfree (tmpstr);
+	}
+	if (!apif) {
+		nocc_error ("failed to find cccsp/api-call-chain file..");
+		return -1;
+	} else {
+		cccsp_sfi_loadcalls (apif);
+	}
+
+	/*}}}*/
+	/*{{{  construct the direct-call-graph (tree) for stack allocation*/
+	dcg = (cccsp_dcg_t *)smalloc (sizeof (cccsp_dcg_t));
+
+	dcg->target = target;
+	dcg->thisfcn = NULL;
+
+	tnode_prewalktree (*treeptr, cccsp_prewalktree_cccspdcg, (void *)dcg);
+
+	/*}}}*/
+	/*{{{  if we have stack-information, collect it*/
+	if (sfifiles) {
+		char **bits = split_string (sfifiles, 1);
+		int j;
+
+		for (j=0; bits[j]; j++) {
+			cccsp_sfi_loadusage (bits[j]);
+			sfree (bits[j]);
+		}
+		sfree (bits);
+	}
+
+	/*}}}*/
+	/*{{{  calculate required allocations*/
+	if (cccsp_sfi_calc_alloc ()) {
+		nocc_error ("failed to calculate allocations, giving up..");
+		cccsp_sfi_dumptable (FHAN_STDERR);
+		return -1;
+	}
+
+	/*}}}*/
+	/*{{{  fixup information in the tree*/
+	tnode_prewalktree (*treeptr, cccsp_prewalktree_cccspdcgfix, NULL);
+
+	/*}}}*/
+
+	cccsp_sfi_dumptable (FHAN_STDERR);
 
 	return 0;
 }
@@ -2894,6 +3178,8 @@ static int cccsp_target_init (target_t *target)
 		return 1;
 	}
 
+	cccsp_bepass = 0;
+
 	kpriv = (cccsp_priv_t *)smalloc (sizeof (cccsp_priv_t));
 	kpriv->lastfile = NULL;
 	kpriv->last_toplevelname = NULL;
@@ -2945,6 +3231,11 @@ static int cccsp_target_init (target_t *target)
 	cccspoutfilehook->chook_free = cccsp_outfilehook_free;
 	cccspoutfilehook->chook_dumptree = cccsp_outfilehook_dumptree;
 
+	cccspsfifilehook = tnode_lookupornewchook ("cccsp:sfifile");
+	cccspsfifilehook->chook_copy = cccsp_sfifilehook_copy;
+	cccspsfifilehook->chook_free = cccsp_sfifilehook_free;
+	cccspsfifilehook->chook_dumptree = cccsp_sfifilehook_dumptree;
+
 	/*}}}*/
 	/*{{{  sort out some new compiler passes if we can*/
 	if (kpriv->cc_path) {
@@ -2955,6 +3246,14 @@ static int cccsp_target_init (target_t *target)
 		if (nocc_addcompilerpass ("cc-compile", INTERNAL_ORIGIN, "codegen", 0, (int (*)(void *))cccsp_cc_compile_cpass,
 				CPASS_TREEPTR | CPASS_LEXFILE | CPASS_TARGET, stopat, NULL)) {
 			nocc_serious ("cccsp_target_init(): failed to add \"cc-compile\" compiler pass");
+			return 1;
+		}
+
+		stopat = nocc_laststopat() + 1;
+		opts_add ("stop-cc-sfi", '\0', cccsp_opthandler_stopat, (void *)stopat, "1stop after CC stack-frame info");
+		if (nocc_addcompilerpass ("cc-sfi", INTERNAL_ORIGIN, "cc-compile", 0, (int (*)(void *))cccsp_cc_sfi_cpass,
+				CPASS_TREEPTR | CPASS_LEXFILE | CPASS_TARGET, stopat, NULL)) {
+			nocc_serious ("cccsp_target_init(): failed to add \"cc-sfi\" compiler pass");
 			return 1;
 		}
 	}

@@ -28,6 +28,12 @@ struct TAG_map;
 struct TAG_target;
 struct TAG_srclocn;
 struct TAG_name;
+struct TAG_fhandle;
+struct TAG_chook;
+
+extern struct TAG_chook *cccsp_sfi_entrychook;
+
+struct TAG_cccsp_sfi_entry;
 
 typedef enum ENUM_cccsp_apicall {
 	NOAPI = 0,
@@ -72,10 +78,18 @@ typedef struct TAG_cccsp_preallocate {
 	int collect;
 } cccsp_preallocate_t;
 
+typedef struct TAG_cccsp_dcg {
+	struct TAG_target *target;
+	struct TAG_cccsp_sfi_entry *thisfcn;
+} cccsp_dcg_t;
+
+extern void cccsp_isetindent (struct TAG_fhandle *stream, int indent);
+
 extern int cccsp_set_initialiser (struct TAG_tnode *bename, struct TAG_tnode *init);
 extern struct TAG_tnode *cccsp_create_apicallname (cccsp_apicall_e);
 extern int cccsp_stkwords_apicallnode (struct TAG_tnode *call);
 extern char *cccsp_make_entryname (const char *name, const int procabs);
+extern char *cccsp_make_apicallname (struct TAG_tnode *call);
 
 extern struct TAG_tnode *cccsp_create_addrof (struct TAG_tnode *arg, struct TAG_target *target);
 extern int cccsp_set_indir (struct TAG_tnode *benode, int indir, struct TAG_target *target);
@@ -92,7 +106,38 @@ extern struct TAG_tnode *cccsp_create_arraysub (struct TAG_srclocn *org, struct 
 extern struct TAG_tnode *cccsp_create_recordsub (struct TAG_srclocn *org, struct TAG_target *target, struct TAG_tnode *base, struct TAG_tnode *field, int indir);
 extern int cccsp_preallocate_subtree (struct TAG_tnode *tptr, cccsp_preallocate_t *cpa);
 extern int cccsp_precode_subtree (struct TAG_tnode **nodep, struct TAG_codegen *cgen);
+extern int cccsp_cccspdcg_subtree (struct TAG_tnode *node, cccsp_dcg_t *dcg);
+extern int cccsp_cccspdcgfix_subtree (struct TAG_tnode *node);
 extern int cccsp_getblockspace (struct TAG_tnode *beblk, int *mysize, int *nestsize);
 extern int cccsp_addtofixups (struct TAG_tnode *beblk, struct TAG_tnode *node);
+
+extern struct TAG_cccsp_sfi_entry *cccsp_sfiofname (struct TAG_name *name, int pinst);
+
+/* related to cccsp_sfi.c */
+
+typedef struct TAG_cccsp_sfi_entry {
+	char *name;				/* name of this one */
+	DYNARRAY (struct TAG_cccsp_sfi_entry *, children);	/* children of this one */
+	int framesize;				/* framesize as extracted from gcc */
+	int allocsize;				/* allocation size (framesize + max(children)) */
+} cccsp_sfi_entry_t;
+
+#define SFIENTRIES_BITSIZE	(5)
+
+typedef struct TAG_cccsp_sfi {
+	STRINGHASH (cccsp_sfi_entry_t *, entries, SFIENTRIES_BITSIZE);
+} cccsp_sfi_t;
+
+extern int cccsp_sfi_init (void);
+extern int cccsp_sfi_shutdown (void);
+
+extern cccsp_sfi_entry_t *cccsp_sfi_lookupornew (char *name);
+extern cccsp_sfi_entry_t *cccsp_sfi_copyof (cccsp_sfi_entry_t *ent);
+extern void cccsp_sfi_addchild (cccsp_sfi_entry_t *parent, cccsp_sfi_entry_t *child);
+extern int cccsp_sfi_loadcalls (const char *fname);
+extern int cccsp_sfi_loadusage (const char *fname);
+extern int cccsp_sfi_calc_alloc (void);
+extern void cccsp_sfi_dumptable (struct TAG_fhandle *stream);
+
 
 #endif	/* !__CCCSP_H */
