@@ -32,8 +32,10 @@ struct TAG_fhandle;
 struct TAG_chook;
 
 extern struct TAG_chook *cccsp_sfi_entrychook;
+extern struct TAG_chook *cccsp_parinfochook;
 
 struct TAG_cccsp_sfi_entry;
+struct TAG_cccsp_parinfo_entry;
 
 typedef enum ENUM_cccsp_apicall {
 	NOAPI = 0,
@@ -54,10 +56,11 @@ typedef enum ENUM_cccsp_apicall {
 	STR_CLEAR = 15,
 	CHAN_INIT = 16,
 	TIMER_READ = 17,
-	TIMER_WAIT = 18
+	TIMER_WAIT = 18,
+	SHUTDOWN = 19
 } cccsp_apicall_e;
 
-#define CCCSP_APICALL_LAST TIMER_WAIT
+#define CCCSP_APICALL_LAST SHUTDOWN
 
 typedef struct TAG_cccsp_apicall {
 	cccsp_apicall_e call;
@@ -69,6 +72,8 @@ typedef struct TAG_cccsp_mapdata {
 	int target_indir;				/* language-specific use (Guppy) */
 	struct TAG_tnode *process_id;			/* current process identifier node (wptr) */
 	void *langhook;					/* language-specific hook (Guppy) */
+
+	struct TAG_cccsp_parinfo_entry *thisentry;	/* when mapping parallel things, relevant entry */
 } cccsp_mapdata_t;
 
 typedef struct TAG_cccsp_preallocate {
@@ -82,6 +87,24 @@ typedef struct TAG_cccsp_dcg {
 	struct TAG_target *target;
 	struct TAG_cccsp_sfi_entry *thisfcn;
 } cccsp_dcg_t;
+
+typedef struct TAG_cccsp_reallocate {
+	struct TAG_target *target;
+	int lexlevel;
+	int error;
+
+	int maxpar;					/* maximum space used by parallel processes (in words) */
+} cccsp_reallocate_t;
+
+typedef struct TAG_cccsp_parinfo_entry {
+	struct TAG_tnode *namenode;			/* namenode associated with the parallel process instance */
+	struct TAG_tnode *wsspace;			/* workspace reservation for this particular instance */
+} cccsp_parinfo_entry_t;
+
+typedef struct TAG_cccsp_parinfo {
+	DYNARRAY (cccsp_parinfo_entry_t *, entries);
+	int nwords;
+} cccsp_parinfo_t;
 
 extern void cccsp_isetindent (struct TAG_fhandle *stream, int indent);
 
@@ -109,7 +132,15 @@ extern int cccsp_precode_subtree (struct TAG_tnode **nodep, struct TAG_codegen *
 extern int cccsp_cccspdcg_subtree (struct TAG_tnode *node, cccsp_dcg_t *dcg);
 extern int cccsp_cccspdcgfix_subtree (struct TAG_tnode *node);
 extern int cccsp_getblockspace (struct TAG_tnode *beblk, int *mysize, int *nestsize);
+extern int cccsp_setblockspace (struct TAG_tnode *beblk, int *mysize, int *nestsize);
 extern int cccsp_addtofixups (struct TAG_tnode *beblk, struct TAG_tnode *node);
+extern int cccsp_reallocate_subtree (struct TAG_tnode *tptr, cccsp_reallocate_t *cra);
+
+extern cccsp_parinfo_entry_t *cccsp_newparinfoentry (void);
+extern void cccsp_freeparinfoentry (cccsp_parinfo_entry_t *pent);
+extern cccsp_parinfo_t *cccsp_newparinfo (void);
+extern void cccsp_freeparinfo (cccsp_parinfo_t *pset);
+extern int cccsp_linkparinfo (cccsp_parinfo_t *pset, cccsp_parinfo_entry_t *pent);
 
 extern struct TAG_cccsp_sfi_entry *cccsp_sfiofname (struct TAG_name *name, int pinst);
 
@@ -120,6 +151,8 @@ typedef struct TAG_cccsp_sfi_entry {
 	DYNARRAY (struct TAG_cccsp_sfi_entry *, children);	/* children of this one */
 	int framesize;				/* framesize as extracted from gcc */
 	int allocsize;				/* allocation size (framesize + max(children)) */
+
+	int parfixup;				/* used when reallocating */
 } cccsp_sfi_entry_t;
 
 #define SFIENTRIES_BITSIZE	(5)

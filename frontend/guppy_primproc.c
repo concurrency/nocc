@@ -110,6 +110,17 @@ static int guppy_namemap_leafnode (compops_t *cops, tnode_t **nodep, map_t *mapd
 		newinst = tnode_createfrom (gup.tag_APICALL, *nodep, callnum, newparms);
 
 		*nodep = newinst;
+	} else if ((*nodep)->tag == gup.tag_SHUTDOWN) {
+		/* turn into API call */
+		tnode_t *newinst, *newparms, *callnum;
+
+		newparms = parser_newlistnode (SLOCI);
+		parser_addtolist (newparms, cmd->process_id);
+		map_submapnames (&newparms, mapdata);
+		callnum = cccsp_create_apicallname (SHUTDOWN);
+		newinst = tnode_createfrom (gup.tag_APICALL, *nodep, callnum, newparms);
+
+		*nodep = newinst;
 	}
 	return 0;
 }
@@ -155,6 +166,8 @@ static int guppy_primproc_init_nodes (void)
 	gup.tag_SKIP = tnode_newnodetag ("SKIP", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_STOP = tnode_newnodetag ("STOP", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_SHUTDOWN = tnode_newnodetag ("SHUTDOWN", &i, tnd, NTF_NONE);
 	/*}}}*/
 
 	return 0;

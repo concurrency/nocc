@@ -455,6 +455,7 @@ fhandle_printf (FHAN_STDERR, "guppy_fetrans_fcndef(): want to make PFCNDEF versi
 				} else {
 					nocc_internal ("guppy_fetrans_fcndef(): unexpected parameter type [%s:%s] while generating proc abstraction",
 							params[i]->tag->ndef->name, params[i]->tag->name);
+					return 0;
 				}
 				SetNameDecl (npnname, nparm);
 
@@ -713,7 +714,262 @@ static int guppy_cccspdcgfix_fcndef (compops_t *cops, tnode_t *node)
 	pname = tnode_nthnameof (name, 0);
 	sfient = cccsp_sfiofname (pname, (node->tag == gup.tag_PFCNDEF));
 
-	tnode_setchook (node, cccsp_sfi_entrychook, cccsp_sfi_copyof (sfient));
+	/* Note: link directly, so we can keep the children linkage still -- not a problem, as the SFI table is never dropped */
+	tnode_setchook (node, cccsp_sfi_entrychook, sfient);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_reallocate_fcndef (compops_t *cops, tnode_t *node, cccsp_reallocate_t *cra)*/
+/*
+ *	used when reallocating stack usage
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_reallocate_fcndef (compops_t *cops, tnode_t *node, cccsp_reallocate_t *cra)
+{
+	cccsp_sfi_entry_t *me = (cccsp_sfi_entry_t *)tnode_getchook (node, cccsp_sfi_entrychook);
+	tnode_t *blk = tnode_nthsubof (node, 2);
+	int nwords;
+	int i, wdiff;
+
+	if (blk->tag != cra->target->tag_BLOCK) {
+		nocc_internal ("guppy_reallocate_fcndef(): expected back-end BLOCK inside definition, but found [%s:%s]",
+				blk->tag->ndef->name, blk->tag->name);
+		return 0;
+	}
+
+	cra->maxpar = 0;
+	me->parfixup = 0;
+	cccsp_reallocate_subtree (blk, cra);
+
+	/* cra->maxpar should be right, make sure we have enough space for all of them */
+	me->framesize += (cra->maxpar * 4);
+	me->allocsize += (cra->maxpar * 4);
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_reallocate_fcndef(): here! my-sfi [%s], framesize=%d, allocsize=%d, cra->maxpar=%d\n",
+		me->name, me->framesize, me->allocsize, cra->maxpar);
+#endif
+	cra->maxpar = 0;
+	me->parfixup = 1;
+
+	/* difference between framesize and allocsize should handle all child calls */
+	wdiff = me->allocsize - me->framesize;
+	for (i=0; i<DA_CUR (me->children); i++) {
+		cccsp_sfi_entry_t *called = DA_NTHITEM (me->children, i);
+
+		if (called->allocsize > wdiff) {
+			/* need some more space */
+			me->allocsize += (called->allocsize - wdiff);
+			wdiff = me->allocsize - me->framesize;
+		}
+	}
+
+	nwords = me->allocsize >> 2;
+	if (me->allocsize & 0x03) {
+		nwords++;
+	}
+
+
+	cccsp_setblockspace (blk, NULL, &nwords);
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_reallocate_fcndef(): here! done with [%s], nwords = %d\n", me->name, nwords);
+#endif
+	return 0;
+}
+/*}}}*/
+
+/*{{{  static int guppy_fetrans_extdef (compops_t *cops, tnode_t **nodep, fetrans_t *fe)*/
+/*
+ *	wrapper for fetrans on external declarations: creates appropriate PFCNDEF thing
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans_extdef (compops_t *cops, tnode_t **nodep, fetrans_t *fe)
+{
+	tnode_t *fcndef = tnode_nthsubof (*nodep, 0);
+	guppy_fetrans_t *gfe = (guppy_fetrans_t *)fe->langpriv;
+
+	/* do fetrans on names and parameters */
+	fetrans_subtree (tnode_nthsubaddr (fcndef, 0), fe);
+	fetrans_subtree (tnode_nthsubaddr (fcndef, 1), fe);
+
+	if ((fcndef->tag == gup.tag_FCNDEF) && !tnode_nthsubof (fcndef, 3)) {
+		/* from an external declaration, so create the PFCNDEF assuming we have it, and only if result-less */
+		guppy_fcndefhook_t *fdh = (guppy_fcndefhook_t *)tnode_nthhookof (fcndef, 0);
+		guppy_fcndefhook_t *newfdh;
+		tnode_t *newdef, *newparams, *newname, *newextdecl;
+		name_t *curname, *newpfname;
+		tnode_t **params;
+		int i, nparams;
+
+		newparams = parser_newlistnode (OrgOf (fcndef));
+		params = parser_getlistitems (tnode_nthsubof (fcndef, 1), &nparams);
+		for (i=0; i<nparams; i++) {
+			/* recreate parameters, minus initialisers */
+			tnode_t *nparm, *optype, *nptype, *opname, *npname;
+			name_t *opnname, *npnname;
+
+			opname = tnode_nthsubof (params[i], 0);
+			opnname = tnode_nthnameof (opname, 0);
+			optype = tnode_nthsubof (params[i], 1);
+
+			nptype = tnode_copytree (optype);
+			npnname = name_addname (NameNameOf (opnname), NULL, nptype, NULL);
+			npname = tnode_createfrom (opname->tag, opname, npnname);
+			SetNameNode (npnname, npname);
+
+			if (params[i]->tag == gup.tag_FPARAM) {
+				nparm = tnode_createfrom (gup.tag_FPARAM, params[i], npname, nptype, NULL);
+			} else {
+				nocc_internal ("guppy_fetrans_extdef(): unexpected parameter type [%s:%s] while generating proc abstraction",
+						params[i]->tag->ndef->name, params[i]->tag->name);
+				return 0;
+			}
+			SetNameDecl (npnname, nparm);
+
+			parser_addtolist (newparams, nparm);
+		}
+
+		curname = tnode_nthnameof (tnode_nthsubof (fcndef, 0), 0);
+		newpfname = name_addname (NameNameOf (curname), NULL, newparams, NULL);
+		newname = tnode_createfrom (gup.tag_NPFCNDEF, tnode_nthsubof (fcndef, 0), newpfname);
+		SetNameNode (newpfname, newname);
+
+		newfdh = guppy_newfcndefhook ();
+		newfdh->lexlevel = fdh->lexlevel;
+		newfdh->ispar = fdh->ispar;
+		newfdh->ispublic = fdh->ispublic;
+		newfdh->istoplevel = fdh->istoplevel;
+		newfdh->pfcndef = NULL;
+
+		newdef = tnode_createfrom (gup.tag_PFCNDEF, fcndef, newname, newparams, NULL, NULL, newfdh);
+		SetNameDecl (newpfname, newdef);
+
+		fdh->pfcndef = newdef;
+
+		/* create a new EXTDECL for this and link into the tree */
+		newextdecl = tnode_create (gup.tag_EXTDECL, SLOCI, newdef, tnode_copytree (tnode_nthsubof (*nodep, 1)));
+		if (!gfe->postinslist) {
+			gfe->postinslist = parser_newlistnode (SLOCI);
+		}
+		parser_addtolist (gfe->postinslist, newextdecl);
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_fetrans1_extdef (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)*/
+/*
+ *	wrapper for fetrans1 on external declarations
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans1_extdef (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)
+{
+	tnode_t *fcndef = tnode_nthsubof (*nodep, 0);
+	tnode_t *fcnname = tnode_nthsubof (fcndef, 0);
+	tnode_t **pptr = tnode_nthsubaddr (fcndef, 1);
+	tnode_t **rptr = tnode_nthsubaddr (fcndef, 3);
+	tnode_t **ritems;
+	int nritems, i;
+
+	if (!*rptr) {
+		/* nothing to do */
+		return 0;
+	}
+	if (!parser_islistnode (*rptr)) {
+		tnode_error (*nodep, "function result is not a list");
+		return 0;
+	}
+	if (!parser_islistnode (*pptr)) {
+		tnode_error (*nodep, "function parameters are not a list");
+		return 0;
+	}
+
+	ritems = parser_getlistitems (*rptr, &nritems);
+	for (i=0; i<nritems; i++) {
+		/* create new parameter */
+		tnode_t *nparam, *nname;
+		name_t *tmpname;
+		char *pname = guppy_maketempname (ritems[i]);
+
+		tmpname = name_addname (pname, NULL, ritems[i], NULL);
+		nname = tnode_createfrom (gup.tag_NRESPARAM, fcnname, tmpname);
+		SetNameNode (tmpname, nname);
+		nparam = tnode_createfrom (gup.tag_FPARAM, fcnname, nname, ritems[i], NULL);
+		SetNameDecl (tmpname, nparam);
+
+		/* put in parameter list */
+		parser_insertinlist (*pptr, nparam, i);
+	}
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_namemap_extdef (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for an external definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_extdef (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t *fcndef, *beblk;
+	int nparams, nwords;
+
+	fcndef = tnode_nthsubof (*nodep, 0);
+	nparams = parser_countlist (tnode_nthsubof (fcndef, 1));
+	map_submapnames (tnode_nthsubaddr (*nodep, 0), map);
+	fcndef = tnode_nthsubof (*nodep, 0);
+	nwords = langops_constvalof (tnode_nthsubof (*nodep, 1), NULL);
+
+	beblk = tnode_nthsubof (fcndef, 2);
+	cccsp_setblockspace (beblk, &nparams, &nwords);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_lpreallocate_extdef (compopts_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)*/
+/*
+ *	does pre-allocation for an external definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_lpreallocate_extdef (compopts_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)
+{
+	int nwords;
+	tnode_t *fcndef, *beblk;
+
+	fcndef = tnode_nthsubof (node, 0);
+	cccsp_preallocate_subtree (fcndef, cpa);
+
+	nwords = langops_constvalof (tnode_nthsubof (node, 1), NULL);
+	beblk = tnode_nthsubof (fcndef, 2);
+	cccsp_setblockspace (beblk, NULL, &nwords);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_extdef (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	generates code for an external function/procedure definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_extdef (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	tnode_t *fcndef = tnode_nthsubof (node, 0);
+	tnode_t *name = tnode_nthsubof (fcndef, 0);
+	name_t *pname;
+	tnode_t *params;
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_codegen_fcndef(): here! [%s]  params =\n", node->tag->name);
+tnode_dumptree (tnode_nthsubof (node, 1), 1, FHAN_STDERR);
+#endif
+	pname = tnode_nthnameof (name, 0);
+	params = tnode_nthsubof (fcndef, 1);
+
+	codegen_callops (cgen, comment, "external define %s", pname->me->name);
+
+	codegen_callops (cgen, c_procexternal, pname, params, (fcndef->tag == gup.tag_PFCNDEF));
+
 	return 0;
 }
 /*}}}*/
@@ -801,6 +1057,7 @@ static int guppy_fcndef_init_nodes (void)
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_fcndef));
 	tnode_setcompop (cops, "cccsp:dcg", 2, COMPOPTYPE (guppy_cccspdcg_fcndef));
 	tnode_setcompop (cops, "cccsp:dcgfix", 1, COMPOPTYPE (guppy_cccspdcgfix_fcndef));
+	tnode_setcompop (cops, "reallocate", 2, COMPOPTYPE (guppy_reallocate_fcndef));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (guppy_getdescriptor_fcndef));
@@ -816,6 +1073,11 @@ static int guppy_fcndef_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:extdef", &i, 2, 0, 0, TNF_NONE);			/* subnodes: definition, stack-words */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (guppy_fetrans_extdef));
+	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_extdef));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_extdef));
+	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_extdef));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_extdef));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

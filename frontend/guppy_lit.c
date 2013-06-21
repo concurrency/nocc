@@ -408,6 +408,68 @@ static int guppy_isconst_litnode (langops_t *lops, tnode_t *node)
 	return ldat->bytes;
 }
 /*}}}*/
+/*{{{  static int guppy_constvalof_litnode (langops_t *lops, tnode_t *node, void *ptr)*/
+/*
+ *	gets the constant value of a literal node (assigns to pointer if non-null)
+ */
+static int guppy_constvalof_litnode (langops_t *lops, tnode_t *node, void *ptr)
+{
+	guppy_litdata_t *ldat = (guppy_litdata_t *)tnode_nthhookof (node, 0);
+	int r = 0;
+
+	if ((node->tag == gup.tag_LITBOOL) || (node->tag == gup.tag_LITCHAR) || (node->tag == gup.tag_LITINT)) {
+		switch (ldat->bytes) {
+		case 1:
+			if (ptr) {
+				*(unsigned char *)ptr = *(unsigned char *)(ldat->data);
+			}
+			r = (int)(*(unsigned char *)(ldat->data));
+			break;
+		case 2:
+			if (ptr) {
+				*(unsigned short int *)ptr = *(unsigned short int *)(ldat->data);
+			}
+			r = (int)(*(unsigned short int *)(ldat->data));
+			break;
+		case 4:
+			if (ptr) {
+				*(unsigned int *)ptr = *(unsigned int *)(ldat->data);
+			}
+			r = (int)(*(unsigned int *)(ldat->data));
+			break;
+		case 8:
+			if (ptr) {
+				*(unsigned long long *)ptr = *(unsigned long long *)(ldat->data);
+			}
+			r = (int)(*(unsigned long long *)(ldat->data));
+			break;
+		default:
+			tnode_error (node, "guppy_constvalof_litnode(): unsupported constant integer width %d!", ldat->bytes);
+			break;
+		}
+	} else if (node->tag == gup.tag_LITREAL) {
+		switch (ldat->bytes) {
+		case 4:
+			if (ptr) {
+				*(float *)ptr = *(float *)(ldat->bytes);
+			}
+			r = (int)(*(float *)(ldat->bytes));
+			break;
+		case 8:
+			if (ptr) {
+				*(double *)ptr = *(double *)(ldat->bytes);
+			}
+			r = (int)(*(double *)(ldat->bytes));
+			break;
+		default:
+			tnode_error (node, "guppy_constvalof_lit(): unsupported constant floating-point width %d!", ldat->bytes);
+			break;
+		}
+	}
+
+	return r;
+}
+/*}}}*/
 /*{{{  static int guppy_getctypeof_litnode (langops_t *lops, tnode_t *node, char **sptr)*/
 /*
  *	gets the C type of a literal node -- will produce strings verbatim, but appropriately (re-)escaped
@@ -618,6 +680,28 @@ static int guppy_codegen_litinit (compops_t *cops, tnode_t *node, codegen_t *cge
 	return 1;
 }
 /*}}}*/
+/*{{{  static int guppy_cccspdcg_litinit (compops_t *cops, tnode_t *node, cccsp_dcg_t *dcg)*/
+/*
+ *	does direct-call-graph handling for a literal initialiser
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_cccspdcg_litinit (compops_t *cops, tnode_t *node, cccsp_dcg_t *dcg)
+{
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_cccspdcg_litinit(): here!\n");
+#endif
+	if (node->tag == gup.tag_CONSTSTRINGINIT) {
+		/* this calls one of the API things.. */
+		cccsp_sfi_entry_t *sfient = cccsp_sfi_lookupornew ("GuppyStringConstInitialiser");
+
+		if (dcg->thisfcn) {
+			cccsp_sfi_addchild (dcg->thisfcn, sfient);
+		}
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
 
 /*{{{  static int guppy_lit_init_nodes (void)*/
 /*
@@ -647,6 +731,7 @@ static int guppy_lit_init_nodes (void)
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_litnode));
 	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (guppy_isconst_litnode));
+	tnode_setlangop (lops, "constvalof", 2, LANGOPTYPE (guppy_constvalof_litnode));
 	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (guppy_getctypeof_litnode));
 	tnd->lops = lops;
 
@@ -671,6 +756,7 @@ static int guppy_lit_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_litinit));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_litinit));
+	tnode_setcompop (cops, "cccsp:dcg", 2, COMPOPTYPE (guppy_cccspdcg_litinit));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

@@ -50,6 +50,7 @@
 #include "guppy.h"
 #include "library.h"
 #include "feunit.h"
+#include "langops.h"
 #include "names.h"
 #include "scope.h"
 #include "prescope.h"
@@ -827,6 +828,225 @@ int guppy_chantype_getinout (tnode_t *chantype, int *marked_in, int *marked_out)
 }
 /*}}}*/
 
+/*{{{  static tnode_t *guppy_make_tlp (tnode_t *userfcn)*/
+/*
+ *	generates the top-level process tree-structure, just prior to be-passes
+ *	returns function definition on success, NULL on failure
+ */
+static tnode_t *guppy_make_tlp (tnode_t *userfcn)
+{
+	int has_screen = -1, has_error = -1, has_keyboard = -1;
+	tnode_t *ch_screen = NULL, *ch_error = NULL, *ch_keyboard = NULL;
+	tnode_t *params = tnode_nthsubof (userfcn, 1);
+	tnode_t *tlpdef = NULL;
+	tnode_t *tlparams = NULL, *tlpnamenode = NULL;
+	name_t *tlpname;
+	tnode_t *tlpbody, *tlpbodydlist, *tlpbodypar, *tlpbodypitems, *tlpbodyseq, *tlpbodysitems;
+	tnode_t *sd_call;
+	guppy_fcndefhook_t *fdh, *userfdh;
+	tnode_t *ucallparams;
+
+	userfdh = (guppy_fcndefhook_t *)tnode_nthhookof (userfcn, 0);
+	if (!userfdh->pfcndef) {
+		nocc_error ("guppy_make_tlp(): user process has no PFCNDEF equivalent..");
+		return NULL;
+	}
+
+	ucallparams = parser_newlistnode (SLOCI);
+	if (parser_islistnode (params)) {
+		tnode_t **pitems;
+		int i, npitems;
+
+		pitems = parser_getlistitems (params, &npitems);
+		for (i=0; i<npitems; i++) {
+			tnode_t *fename;
+
+			if (pitems[i]->tag != gup.tag_FPARAM) {
+				nocc_error ("guppy_make_tlp(): parameter is not FPARAM, got [%s]", pitems[i]->tag->name);
+				return NULL;
+			}
+
+			parser_addtolist (ucallparams, NULL);
+			fename = tnode_nthsubof (pitems[i], 0);
+			/*{{{  figure out arrangement of top-level channels*/
+			switch (langops_guesstlp (fename)) {
+			default:
+				nocc_error ("guppy_make_tlp(): could not guess top-level parameter usage (%d)", i);
+				return NULL;
+			case 1:
+				if (has_keyboard >= 0) {
+					nocc_error ("guppy_make_tlp(): confused, two keyboard channels? (%d)", i);
+					return NULL;
+				}
+				has_keyboard = i;
+				break;
+			case 2:
+				if (has_screen >= 0) {
+					if (has_error >= 0) {
+						nocc_error ("guppy_make_tlp(): confused, two screen channels? (%d)", i);
+						return NULL;
+					}
+					has_error = i;
+				} else {
+					has_screen = i;
+				}
+				break;
+			case 3:
+				if (has_error >= 0) {
+					nocc_error ("guppy_make_tlp(): confused, two error channels? (%d)", i);
+					return NULL;
+				}
+				has_error = i;
+				break;
+			}
+
+			/*}}}*/
+		}
+	} else {
+		nocc_error ("guppy_make_tlp(): no top-level parameters, at all");
+		return NULL;
+	}
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_make_tlp(): here, has_keyboard=%d, has_screen=%d, has_error=%d\n", has_keyboard, has_screen, has_error);
+#endif
+
+	/*{{{  create empty-parameter list and name*/
+	tlparams = parser_newlistnode (SLOCI);
+	tlpname = name_addname ("guppy_main", NULL, tlparams, NULL);
+	tlpnamenode = tnode_create (gup.tag_NPFCNDEF, SLOCI, tlpname);
+	SetNameNode (tlpname, tlpnamenode);
+
+	/*}}}*/
+	/*{{{  create skeleton process declaration*/
+	tlpbodydlist = parser_newlistnode (SLOCI);
+	tlpbodypitems = parser_newlistnode (SLOCI);
+	tlpbodypar = tnode_create (gup.tag_PAR, SLOCI, NULL, tlpbodypitems);
+	tlpbodysitems = parser_newlistnode (SLOCI);
+	tlpbodyseq = tnode_create (gup.tag_SEQ, SLOCI, NULL, tlpbodysitems);
+	parser_addtolist (tlpbodysitems, tlpbodypar);
+	parser_addtolist (tlpbodysitems, tnode_create (gup.tag_SHUTDOWN, SLOCI));
+	tlpbody = tnode_create (gup.tag_DECLBLOCK, SLOCI, tlpbodydlist, tlpbodyseq);
+	fdh = guppy_newfcndefhook ();
+	fdh->lexlevel = 0;
+	fdh->ispublic = 1;
+	fdh->istoplevel = 1;
+	fdh->ispar = 0;
+	fdh->pfcndef = NULL;
+	tlpdef = tnode_create (gup.tag_PFCNDEF, SLOCI, tlpnamenode, tlparams, tlpbody, NULL, fdh);
+	SetNameDecl (tlpname, tlpdef);
+
+	/*}}}*/
+	/*{{{  create channel declarations*/
+	{
+		int cids[3] = {has_keyboard, has_screen, has_error};
+		char *cnamestrs[3] = {"kyb_chan", "scr_chan", "err_chan"};
+		tnode_t **ctargets[3] = {&ch_keyboard, &ch_screen, &ch_error};
+		int j;
+
+		for (j=0; j<3; j++) {
+			if (cids[j] >= 0) {
+				tnode_t *uname = tnode_nthsubof (parser_getfromlist (params, cids[j]), 0);
+				tnode_t *utype = typecheck_gettype (uname, NULL);
+				tnode_t *prot, *ctype, *cnamenode;
+				name_t *cname;
+				tnode_t *cdecl, **pptr;
+
+				if (!utype) {
+					nocc_error ("non-determined top-level parameter type? (%d)", cids[j]);
+					return NULL;
+				} else if (utype->tag != gup.tag_CHAN) {
+					nocc_error ("top-level parameter type is not a channel [%s]", utype->tag->name);
+					return NULL;
+				}
+
+				/* create channel name */
+				prot = tnode_nthsubof (utype, 0);
+				ctype = guppy_newchantype (gup.tag_CHAN, utype, prot);
+				cname = name_addname (cnamestrs[j], NULL, ctype, NULL);
+				cnamenode = tnode_create (gup.tag_NDECL, SLOCI, cname);
+				SetNameNode (cname, cnamenode);
+				*(ctargets[j]) = cnamenode;					/* save channel name */
+				pptr = parser_getfromlistptr (ucallparams, cids[j]);
+				*pptr = cnamenode;
+
+				/* create channel declaration */
+				cdecl = tnode_create (gup.tag_VARDECL, SLOCI, cnamenode, ctype, NULL);
+				parser_addtolist (tlpbodydlist, cdecl);
+			}
+		}
+	}
+	/*}}}*/
+	/*{{{  create instance of the user-process*/
+	{
+		tnode_t *inst;
+
+		inst = tnode_create (gup.tag_PPINSTANCE, SLOCI, tnode_nthsubof (userfdh->pfcndef, 0), NULL, ucallparams);
+		parser_addtolist (tlpbodypitems, inst);
+	}
+	/*}}}*/
+	/*{{{  create instances of interface processes*/
+	{
+		int cids[3] = {has_keyboard, has_screen, has_error};
+		char *cprocstrs[3] = {"guppy_keyboard_process", "guppy_screen_process", "guppy_error_process"};
+		tnode_t *cchans[3] = {ch_keyboard, ch_screen, ch_error};
+		int j;
+
+		for (j=0; j<3; j++) {
+			if (cids[j] >= 0) {
+				name_t *fcname = name_lookup (cprocstrs[j]);
+				tnode_t *ndecl, *nname;
+				guppy_fcndefhook_t *fdh;
+				tnode_t *inst, *iparms;
+
+				if (!fcname) {
+					nocc_error ("guppy_make_tlp(): failed to find a process called \"%s\"", cprocstrs[j]);
+					return NULL;
+				}
+				ndecl = NameDeclOf (fcname);
+				nname = NameNodeOf (fcname);
+
+				if (ndecl->tag != gup.tag_FCNDEF) {
+					nocc_error ("guppy_make_tlp(): looked up \"%s\" but not a function [%s:%s]",
+							cprocstrs[j], ndecl->tag->ndef->name, ndecl->tag->name);
+					return NULL;
+				}
+
+				fdh = (guppy_fcndefhook_t *)tnode_nthhookof (ndecl, 0);
+				if (!fdh) {
+					nocc_error ("guppy_make_tlp(): function \"%s\" has no function-hook", cprocstrs[j]);
+					return NULL;
+				} else if (!fdh->pfcndef) {
+					nocc_error ("guppy_make_tlp(): function \"%s\" has no pfcn attached", cprocstrs[j]);
+					return NULL;
+				}
+
+				/* switch to the PFCNDEF */
+				ndecl = fdh->pfcndef;
+				nname = tnode_nthsubof (ndecl, 0);
+
+				iparms = parser_newlistnode (SLOCI);
+				parser_addtolist (iparms, cchans[j]);
+				inst = tnode_create (gup.tag_PPINSTANCE, SLOCI, nname, NULL, iparms);
+				parser_addtolist (tlpbodypitems, inst);
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_make_tlp(): looked up \"%s\", found:\n", cprocstrs[j]);
+if (fcname) {
+	tnode_dumptree (nname, 1, FHAN_STDERR);
+}
+#endif
+			}
+		}
+	}
+	/*}}}*/
+
+#if 0
+fhandle_printf (FHAN_STDERR, "created a top-level process:\n");
+tnode_dumptree (tlpdef, 1, FHAN_STDERR);
+#endif
+	return tlpdef;
+}
+/*}}}*/
 /*{{{  static int declify_cpass (tnode_t **treeptr)*/
 /*
  *	called to do the compiler-pass for making declaration blocks
@@ -980,7 +1200,62 @@ static int fetrans3_cpass (tnode_t **treeptr)
 	return err;
 }
 /*}}}*/
+/*{{{  static int fetrans4_cpass (tnode_t **treeptr)*/
+/*
+ *	called to do the fetrans4 compiler-pass: this constructs the top-level process if building an executable
+ *	returns 0 on success, non-zero on failure
+ */
+static int fetrans4_cpass (tnode_t **treeptr)
+{
+	int nitems, i;
+	tnode_t **items;
+	tnode_t *tlfcn, *tlpdef;
 
+	if (compopts.notmainmodule) {
+		/* nothing to do in this particular case */
+		return 0;
+	}
+
+	/* might have some library stuff at the top */
+	while (*treeptr && ((*treeptr)->tag->ndef->tn_flags & TNF_TRANSPARENT)) {
+		treeptr = tnode_nthsubaddr (*treeptr, 0);
+	}
+
+	if (!parser_islistnode (*treeptr)) {
+		nocc_internal ("fetrans4_cpass(): top-level tree not a list.. [%s:%s]", (*treeptr)->tag->ndef->name, (*treeptr)->tag->name);
+		return -1;
+	}
+
+	items = parser_getlistitems (*treeptr, &nitems);
+	tlfcn = NULL;
+	for (i=nitems-1; i>=0; i--) {
+		if (items[i]->tag == gup.tag_FCNDEF) {
+			name_t *fname = tnode_nthnameof (tnode_nthsubof (items[i], 0), 0);
+
+			if (!tlfcn) {
+				/* going backwards, so this if not set */
+				tlfcn = items[i];
+			} else if (!strcmp (NameNameOf (fname), "main")) {
+				/* if there's one called 'main', use it regardless */
+				tlfcn = items[i];
+			}
+		}
+	}
+	if (!tlfcn) {
+		nocc_error ("fetrans4_cpass(): failed to find top-level process, giving up..");
+		return -1;
+	}
+
+	tlpdef = guppy_make_tlp (tlfcn);
+	if (!tlpdef) {
+		nocc_error ("fetrans4_cpass(): failed to create new top-level process, giving up..");
+		return -1;
+	}
+	parser_addtolist (*treeptr, tlpdef);
+
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static tnode_t *guppy_includefile (char *fname, lexfile_t *curlf)*/
 /*
@@ -1098,6 +1373,13 @@ static int guppy_parser_init (lexfile_t *lf)
 		opts_add ("stop-fetrans3", '\0', guppy_opthandler_stopat, (void *)stopat, "1stop after fetrans3 pass");
 		if (nocc_addcompilerpass ("fetrans3", INTERNAL_ORIGIN, "fetrans2", 0, (int (*)(void *))fetrans3_cpass, CPASS_TREEPTR, stopat, NULL)) {
 			nocc_serious ("guppy_parser_init(): failed to add \"fetrans3\" compiler pass");
+			return 1;
+		}
+
+		stopat = nocc_laststopat() + 1;
+		opts_add ("stop-fetrans4", '\0', guppy_opthandler_stopat, (void *)stopat, "1stop after fetrans4 pass");
+		if (nocc_addcompilerpass ("fetrans4", INTERNAL_ORIGIN, "fetrans3", 0, (int (*)(void *))fetrans4_cpass, CPASS_TREEPTR, stopat, NULL)) {
+			nocc_serious ("guppy_parser_init(): failed to add \"fetrans4\" compiler pass");
 			return 1;
 		}
 
@@ -1694,7 +1976,7 @@ static tnode_t *guppy_indented_tcase_list (lexfile_t *lf)
 	token_t *tok;
 
 	if (compopts.debugparser) {
-		nocc_message ("guppy_indented_tcase_list(): %s:%s: parsing indented tcase list", lf->fnptr, lf->lineno);
+		nocc_message ("guppy_indented_tcase_list(): %s:%d: parsing indented tcase list", lf->fnptr, lf->lineno);
 	}
 
 	tree = parser_newlistnode (SLOCN (lf));

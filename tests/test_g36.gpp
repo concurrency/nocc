@@ -1,0 +1,10 @@
+# test_g36.gpp -- more top-level tests
+
+@external "guppy" "define guppy_screen_process (chan?(string) in) = 96"
+
+define test_g36 (chan(string) out!)
+  out ! "foo\n"
+  out ! "bar\n"
+end
+
+

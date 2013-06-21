@@ -495,6 +495,9 @@ static int guppy_cccspdcg_rinstance (compops_t *cops, tnode_t *node, cccsp_dcg_t
 		cccsp_sfi_entry_t *sfient;
 
 		sfient = cccsp_sfi_lookupornew (ename);
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_cccspdcg_rinstance(): here! ename=[%s]\n", ename);
+#endif
 		sfree (ename);
 		if (dcg->thisfcn) {
 			cccsp_sfi_addchild (dcg->thisfcn, sfient);
@@ -552,6 +555,9 @@ fhandle_printf (FHAN_STDERR, "guppy_namemap_ppinstance(): mapped instance space 
 
 	params = parser_getlistitems (plist, &nparams);
 	newws = cccsp_create_workspace (SLOCI, map->target);
+	if (cmd->thisentry) {
+		cmd->thisentry->wsspace = newws;
+	}
 	cccsp_set_workspace_nparams (newws, nparams);
 	/* NOTE: we don't know how much space is needed, yet (preallocate pass handles that),
 	 *       but leave a fixup in the list attached to the back-end block
@@ -638,7 +644,7 @@ tnode_dumptree (plist, 1, FHAN_STDERR);
  */
 static int guppy_codegen_ppinstance (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
-#if 1
+#if 0
 fhandle_printf (FHAN_STDERR, "guppy_codegen_ppinstance(): here!\n");
 #endif
 	return 0;

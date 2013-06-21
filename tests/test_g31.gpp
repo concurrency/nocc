@@ -1,6 +1,8 @@
 
 # test_g31.gpp -- more tests
 
+@external "guppy" "define guppy_screen_process (chan?(string) in) = 128"
+
 define delta (chan(int) in?, out0!, out1!)
   while true
     int v
@@ -29,7 +31,7 @@ define succ (chan(int) in?, out!)
     out ! v + 1
 end
 
-define sink (chan(int) in?, chan(char) out!)
+define sink (chan(int) in?, chan(string) out!)
   while true
     int v
     int t0, t1
@@ -39,12 +41,11 @@ define sink (chan(int) in?, chan(char) out!)
     seq for 100000
       in ? v
     tim ? t1
-    out ! '.'
-    out ! '\n'
+    out ! "tick\n"
 
 end
 
-define test_g31 (chan(char) screen!)
+define test_g31 (chan(string) screen!)
   chan(int) a, b, c, d
   par
     prefix (0, d?, a!)

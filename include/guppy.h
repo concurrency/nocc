@@ -134,6 +134,7 @@ typedef struct {
 
 	struct TAG_ntdef *tag_SKIP;
 	struct TAG_ntdef *tag_STOP;
+	struct TAG_ntdef *tag_SHUTDOWN;			/* for the top-level process */
 
 	struct TAG_ntdef *tag_IF;
 	struct TAG_ntdef *tag_WHILE;
@@ -285,6 +286,7 @@ extern int guppy_fetrans3_subtree (struct TAG_tnode **, guppy_fetrans3_t *);
 
 extern struct TAG_tnode *guppy_fetrans1_maketemp (struct TAG_ntdef *tag, struct TAG_tnode *org, struct TAG_tnode *type, struct TAG_tnode *init, guppy_fetrans1_t *fe1);
 extern struct TAG_tnode *guppy_newprimtype (struct TAG_ntdef *tag, struct TAG_tnode *org, const int size);
+extern struct TAG_tnode *guppy_newchantype (struct TAG_ntdef *tag, struct TAG_tnode *org, struct TAG_tnode *protocol);
 
 extern struct TAG_tnode *guppy_makeintlit (struct TAG_tnode *type, struct TAG_tnode *org, const int value);
 extern struct TAG_tnode *guppy_makereallit (struct TAG_tnode *type, struct TAG_tnode *org, const double value);

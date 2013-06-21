@@ -83,6 +83,8 @@ static cccsp_sfi_entry_t *cccsp_sfi_newentry (void)
 	sfient->framesize = 0;
 	sfient->allocsize = 0;
 
+	sfient->parfixup = 0;
+
 	return sfient;
 }
 /*}}}*/

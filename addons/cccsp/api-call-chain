@@ -3,29 +3,30 @@
 #	actual stack-frame sizes.
 #
 
-ChanIn:
+ccsp_kernel_call: =4
+ChanIn: ccsp_kernel_call
 ChanInit:
-ChanOut:
-BlockingCall0:
-BlockingCall1:
-BlockingCallN:
-ExternalCall0:
-ExternalCall1:
-ExternalCallN:
-KillableBlockingCallN:
-KillBlockingCall:
-MAlloc:
-MRelease:
+ChanOut: ccsp_kernel_call
+BlockingCall0: ccsp_kernel_call
+BlockingCall1: ccsp_kernel_call
+BlockingCallN: ccsp_kernel_call
+ExternalCall0: ccsp_kernel_call
+ExternalCall1: ccsp_kernel_call
+ExternalCallN: ccsp_kernel_call
+KillableBlockingCallN: ccsp_kernel_call
+KillBlockingCall: ccsp_kernel_call
+MAlloc: ccsp_kernel_call
+MRelease: ccsp_kernel_call
 ccsp_proc_alloc: =128
 ccsp_kernel_entry: =128
 ProcAllocInitial: ccsp_proc_alloc
 ProcStartInitial: ccsp_kernel_entry
 LightProcBarrierInit:
-LightProcBarrierWait:
+LightProcBarrierWait: ccsp_kernel_call
 LightProcInit:
-LightProcStart:
-Reschedule:
-Shutdown:
+LightProcStart: ccsp_kernel_call
+Reschedule: ccsp_kernel_call
+Shutdown: ccsp_kernel_call
 ProcPar: LightProcBarrierInit, LightProcStart, LightProcBarrierWait
 GuppyStringInit: MAlloc
 GuppyStringFree: MRelease
@@ -34,4 +35,5 @@ GuppyStringConstInitialiser: MAlloc
 GuppyStringAssign: MRelease, MAlloc
 GuppyStringConcat: GuppyStringEmpty, MAlloc
 GuppyStringClear: GuppyStringInit
+gproc_guppy_screen_process: ProcGetParam, ChanIn, ExternalCallN, GuppyStringFree
 

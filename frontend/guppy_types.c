@@ -414,6 +414,20 @@ tnode_t *guppy_newprimtype (ntdef_t *tag, tnode_t *org, const int size)
 	return ptype;
 }
 /*}}}*/
+/*{{{  tnode_t *guppy_newchantype (ntdef_t *tag, tnode_t *org, tnode_t *protocol)*/
+/*
+ *	creates a new channel type node (used internally to generate channels)
+ */
+tnode_t *guppy_newchantype (ntdef_t *tag, tnode_t *org, tnode_t *protocol)
+{
+	tnode_t *ctype;
+	chantypehook_t *cth = guppy_newchantypehook ();
+
+	ctype = tnode_createfrom (tag, org, protocol, cth);
+
+	return ctype;
+}
+/*}}}*/
 
 /*{{{  static int guppy_bytesfor_primtype (langops_t *lops, tnode_t *t, target_t *target)*/
 /*

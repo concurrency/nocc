@@ -286,12 +286,17 @@ static cccsp_apicall_t cccsp_apicall_table[] = {
 	{STR_CLEAR, "GuppyStringClear", 32},
 	{CHAN_INIT, "ChanInit", 8},
 	{TIMER_READ, "TimerRead", 32},
-	{TIMER_WAIT, "TimerWait", 32}
+	{TIMER_WAIT, "TimerWait", 32},
+	{SHUTDOWN, "Shutdown", 32},
 };
 
 
 /*}}}*/
+/*{{{  global data*/
 
+chook_t *cccsp_parinfochook = NULL;
+
+/*}}}*/
 
 /*{{{  void cccsp_isetindent (fhandle_t *stream, int indent)*/
 /*
@@ -791,6 +796,34 @@ static void cccsp_sfifilehook_dumptree (tnode_t *node, void *hook, int indent, f
 	cccsp_isetindent (stream, indent);
 	fhandle_printf (stream, "<cccsp:sfifile value=\"%s\" />\n",
 			hook ? (char *)hook : "");
+	return;
+}
+/*}}}*/
+
+/*{{{  static void cccsp_parinfochook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
+/*
+ *	dump-tree for a cccsp:parinfo compiler hook
+ */
+static void cccsp_parinfochook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
+{
+	cccsp_parinfo_t *pset = (cccsp_parinfo_t *)hook;
+	int i;
+
+	cccsp_isetindent (stream, indent);
+	if (!pset) {
+		fhandle_printf (stream, "<cccsp:parinfo value=\"null\" />\n");
+		return;
+	}
+	fhandle_printf (stream, "<cccsp:parinfo nentries=\"%d\" nwords=\"%d\">\n", DA_CUR (pset->entries), pset->nwords);
+	for (i=0; i<DA_CUR (pset->entries); i++) {
+		cccsp_parinfo_entry_t *pent = DA_NTHITEM (pset->entries, i);
+
+		cccsp_isetindent (stream, indent + 1);
+		fhandle_printf (stream, "<cccsp:parinfo:entry namenode=\"0x%8.8x\" wsspace=\"0x%8.8x\" />\n",
+				(unsigned int)pent->namenode, (unsigned int)pent->wsspace);
+	}
+	cccsp_isetindent (stream, indent);
+	fhandle_printf (stream, "</cccsp:parinfo>\n");
 	return;
 }
 /*}}}*/
@@ -1339,6 +1372,24 @@ static int cccsp_prewalktree_cccspdcgfix (tnode_t *node, void *data)
 	return r;
 }
 /*}}}*/
+/*{{{  static int cccsp_prewalktree_reallocate (tnode_t *node, void *data)*/
+/*
+ *	called during tree-walk to reallocate things
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_prewalktree_reallocate (tnode_t *node, void *data)
+{
+	int r = 1;
+	cccsp_reallocate_t *cra = (cccsp_reallocate_t *)data;
+
+	target_t *target = (target_t *)data;
+
+	if (node->tag->ndef->ops && tnode_hascompop (node->tag->ndef->ops, "reallocate")) {
+		r = tnode_callcompop (node->tag->ndef->ops, "reallocate", 2, node, target);
+	}
+	return r;
+}
+/*}}}*/
 
 /*{{{  static void cccsp_do_betrans (tnode_t **tptr, betrans_t *be)*/
 /*
@@ -1372,6 +1423,7 @@ static void cccsp_do_namemap (tnode_t **tptr, map_t *map)
 		cmd->target_indir = 0;
 		cmd->process_id = NULL;
 		cmd->langhook = NULL;
+		cmd->thisentry = NULL;
 		map->hook = (void *)cmd;
 		tnode_modprewalktree (tptr, cccsp_modprewalktree_namemap, (void *)map);
 		map->hook = NULL;
@@ -1504,6 +1556,27 @@ int cccsp_getblockspace (tnode_t *beblk, int *mysize, int *nestsize)
 	return -1;
 }
 /*}}}*/
+/*{{{  int cccsp_setblockspace (tnode_t *beblk, int *mysize, int *nestsize)*/
+/*
+ *	sets back-end block space requirements (used when reallocating)
+ *	returns 0 on success, non-zero on failure
+ */
+int cccsp_setblockspace (tnode_t *beblk, int *mysize, int *nestsize)
+{
+	if (beblk->tag == cccsp_target.tag_BLOCK) {
+		cccsp_blockhook_t *bh = (cccsp_blockhook_t *)tnode_nthhookof (beblk, 0);
+
+		if (mysize) {
+			bh->my_size = *mysize;
+		}
+		if (nestsize) {
+			bh->nest_size = *nestsize;
+		}
+		return 0;
+	}
+	return -1;
+}
+/*}}}*/
 /*{{{  int cccsp_addtofixups (tnode_t *beblk, tnode_t *node)*/
 /*
  *	adds something to the list of fixups for a back-end block, processed *after* prealloc
@@ -1540,6 +1613,99 @@ cccsp_sfi_entry_t *cccsp_sfiofname (name_t *name, int pinst)
 	sfient = cccsp_sfi_lookupornew (entryname);
 	sfree (entryname);
 	return sfient;
+}
+/*}}}*/
+/*{{{  int cccsp_reallocate_subtree (tnode_t *tptr, cccsp_reallocate_t *cra)*/
+/*
+ *	does reallocate sub-tree walk
+ *	returns 0 on success, non-zero on error
+ */
+int cccsp_reallocate_subtree (tnode_t *tptr, cccsp_reallocate_t *cra)
+{
+	tnode_prewalktree (tptr, cccsp_prewalktree_reallocate, (void *)cra);
+	return 0;
+}
+/*}}}*/
+
+/*{{{  cccsp_parinfo_entry_t *cccsp_newparinfoentry (void)*/
+/*
+ *	creates a new cccsp_parinfo_entry_t structure
+ */
+cccsp_parinfo_entry_t *cccsp_newparinfoentry (void)
+{
+	cccsp_parinfo_entry_t *pent = (cccsp_parinfo_entry_t *)smalloc (sizeof (cccsp_parinfo_entry_t));
+
+	pent->namenode = NULL;
+
+	return pent;
+}
+/*}}}*/
+/*{{{  void cccsp_freeparinfoentry (cccsp_parinfo_entry_t *pent)*/
+/*
+ *	frees a cccsp_parinfo_entry_t
+ */
+void cccsp_freeparinfoentry (cccsp_parinfo_entry_t *pent)
+{
+	if (!pent) {
+		nocc_serious ("cccsp_freeparinfoentry(): NULL pointer!");
+		return;
+	}
+	sfree (pent);
+	return;
+}
+/*}}}*/
+/*{{{  cccsp_parinfo_t *cccsp_newparinfo (void)*/
+/*
+ *	creates a new cccsp_parinfo_t structure
+ */
+cccsp_parinfo_t *cccsp_newparinfo (void)
+{
+	cccsp_parinfo_t *pset = (cccsp_parinfo_t *)smalloc (sizeof (cccsp_parinfo_t));
+
+	dynarray_init (pset->entries);
+	pset->nwords = 0;
+
+	return pset;
+}
+/*}}}*/
+/*{{{  void cccsp_freeparinfo (cccsp_parinfo_t *pset)*/
+/*
+ *	frees a cccsp_parinfo_t structure (recursive)
+ */
+void cccsp_freeparinfo (cccsp_parinfo_t *pset)
+{
+	int i;
+
+	if (!pset) {
+		nocc_serious ("cccsp_freeparinfo(): NULL pointer!");
+		return;
+	}
+	for (i=0; i<DA_CUR (pset->entries); i++) {
+		cccsp_parinfo_entry_t *pent = DA_NTHITEM (pset->entries, i);
+
+		if (pent) {
+			cccsp_freeparinfoentry (pent);
+		}
+	}
+	dynarray_trash (pset->entries);
+	sfree (pset);
+
+	return;
+}
+/*}}}*/
+/*{{{  int cccsp_linkparinfo (cccsp_parinfo_t *pset, cccsp_parinfo_entry_t *pent)*/
+/*
+ *	links entry into set
+ *	returns 0 on success, non-zero on failure
+ */
+int cccsp_linkparinfo (cccsp_parinfo_t *pset, cccsp_parinfo_entry_t *pent)
+{
+	if (!pent || !pset) {
+		nocc_serious ("cccsp_linkparinfo(): NULL pointer!");
+		return -1;
+	}
+	dynarray_add (pset->entries, pent);
+	return 0;
 }
 /*}}}*/
 
@@ -1632,6 +1798,46 @@ static void cccsp_coder_c_procentry (codegen_t *cgen, name_t *name, tnode_t *par
 	}
 	sfree (entryname);
 
+	return;
+}
+/*}}}*/
+/*{{{  static void cccsp_coder_c_procexternal (codegen_t *cgen, name_t *name, tnode_t *params, int pinst)*/
+/*
+ *	creates an external definition for a procedure/function entry-point
+ */
+static void cccsp_coder_c_procexternal (codegen_t *cgen, name_t *name, tnode_t *params, int pinst)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cgen->target->priv;
+	char *entryname = cccsp_make_entryname (name->me->name, pinst);
+
+	/*
+	 *	updated: for CIF
+	 */
+	
+	codegen_ssetindent (cgen);
+	if (!params) {
+		/* shouldn't happen now Workspace is properly parameterised */
+		nocc_internal ("cccsp_coder_c_procexternal(): no parameters, but did expect some..");
+
+		/* parameters-in-workspace */
+		codegen_write_fmt (cgen, "extern void %s (void);\n", entryname);
+	} else {
+		int i, nparams;
+		tnode_t **plist;
+
+		cccsp_coder_inparamlist++;
+		plist = parser_getlistitems (params, &nparams);
+		codegen_write_fmt (cgen, "extern void %s (", entryname);
+		for (i=0; i<nparams; i++) {
+			if (i > 0) {
+				codegen_write_fmt (cgen, ", ");
+			}
+			codegen_subcodegen (plist[i], cgen);
+		}
+		codegen_write_fmt (cgen, ");\n");
+		cccsp_coder_inparamlist--;
+	}
+	sfree (entryname);
 	return;
 }
 /*}}}*/
@@ -1757,6 +1963,7 @@ static int cccsp_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
 	cops->debugline = cccsp_coder_debugline;
 
 	cops->c_procentry = cccsp_coder_c_procentry;
+	cops->c_procexternal = cccsp_coder_c_procexternal;
 	cops->c_proccall = cccsp_coder_c_proccall;
 
 	cgen->cops = cops;
@@ -1784,7 +1991,6 @@ static int cccsp_be_codegen_final (codegen_t *cgen, lexfile_t *srcfile)
 		int nparams = 0;
 		char *entryname;
 		tnode_t *beblk;
-		tnode_t *toplevelparams;
 		int blk_my, blk_nest;
 
 		if (!kpriv->last_toplevelname) {
@@ -1794,175 +2000,36 @@ static int cccsp_be_codegen_final (codegen_t *cgen, lexfile_t *srcfile)
 
 		entryname = cccsp_make_entryname (NameNameOf (kpriv->last_toplevelname), 1);
 
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_be_codegen_final(): entryname = \"%s\", NameDeclOf(..) @0x%8.8x\n", entryname, (unsigned int)(NameDeclOf (kpriv->last_toplevelname)));
+#endif
 		beblk = tnode_nthsubof (NameDeclOf (kpriv->last_toplevelname), 2);
 		if (beblk->tag != cgen->target->tag_BLOCK) {
-			toplevelparams = NULL;
-			blk_my = 0;
-			blk_nest = 4096;
-		} else {
-			toplevelparams = tnode_nthsubof (beblk, 1);
-			cccsp_getblockspace (beblk, &blk_my, &blk_nest);
-			blk_nest += 16;
+			codegen_error (cgen, "cccsp_be_codegen_final(): top-level process does not have a back-end BLOCK, found [%s:%s]",
+					beblk->tag->ndef->name, beblk->tag->name);
+			return -1;
 		}
+
+		cccsp_getblockspace (beblk, &blk_my, &blk_nest);
+		blk_nest += 16;
+
 #if 0
 fhandle_printf (FHAN_STDERR, "cccsp_be_codegen_final(): generating interface, top-level parameters (space = %d,%d) are:\n", blk_my, blk_nest);
 tnode_dumptree (toplevelparams, 1, FHAN_STDERR);
 #endif
-		if (toplevelparams) {
-			tnode_t **params;
-			int i;
 
-			params = parser_getlistitems (toplevelparams, &nparams);
-			for (i=0; i<nparams; i++) {
-				tnode_t *fename;
-
-				if (params[i]->tag != cgen->target->tag_NAME) {
-					nocc_internal ("cccsp_be_codegen_final(): top-level parameter not back-end name, got [%s:%s]",
-							params[i]->tag->ndef->name, params[i]->tag->name);
-					return -1;
-				}
-				fename = tnode_nthsubof (params[i], 0);
-
-				switch (langops_guesstlp (fename)) {
-				default:
-					codegen_error (cgen, "cccsp_be_codegen_final(): could not guess top-level parameter usage (%d)", i);
-					return -1;
-				case 1:
-					if (has_kyb >= 0) {
-						codegen_error (cgen, "cccsp_be_codegen_final(): confused, two keyboard channels? (%d)", i);
-						return -1;
-					}
-					has_kyb = i;
-					break;
-				case 2:
-					if (has_screen >= 0) {
-						if (has_error >= 0) {
-							codegen_error (cgen, "cccsp_be_codegen_final(): confused, two screen channels? (%d)", i);
-							return -1;
-						}
-						has_error = i;
-					} else {
-						has_screen = i;
-					}
-					break;
-				case 3:
-					if (has_error >= 0) {
-						codegen_error (cgen, "cccsp_be_codegen_final(): confused, two error channels? (%d)", i);
-						return -1;
-					}
-					has_error = i;
-					break;
-				}
-			}
-		}
-
-		/* generate main() and call of top-level process */
-		codegen_write_fmt (cgen, "\n\n/* insert main() for top-level process [%s] */\n\n", NameNameOf (kpriv->last_toplevelname));
-		if (has_kyb >= 0) {
-			codegen_write_fmt (cgen, "extern void process_keyboard (Workspace wptr);\n");
-		}
-		if (has_screen >= 0) {
-			codegen_write_fmt (cgen, "extern void process_screen_string (Workspace wptr);\n");
-		}
-		if (has_error >= 0) {
-			codegen_write_fmt (cgen, "extern void process_error (Workspace wptr);\n");
-		}
-
-		codegen_write_fmt (cgen, "\nvoid process_main (Workspace wptr)\n");
-		codegen_write_fmt (cgen, "{\n");
-		if (has_kyb >= 0) {
-			codegen_write_fmt (cgen, "	Channel ch_kyb;\n");
-			codegen_write_fmt (cgen, "	Workspace p_kyb;\n");
-			codegen_write_fmt (cgen, "	word *ws_kyb = NULL;\n");
-		}
-		if (has_screen >= 0) {
-			codegen_write_fmt (cgen, "	Channel ch_scr;\n");
-			codegen_write_fmt (cgen, "	Workspace p_scr;\n");
-			codegen_write_fmt (cgen, "	word *ws_scr = NULL;\n");
-		}
-		if (has_error >= 0) {
-			codegen_write_fmt (cgen, "	Channel ch_err;\n");
-			codegen_write_fmt (cgen, "	Workspace p_err;\n");
-			codegen_write_fmt (cgen, "	word *ws_err = NULL;\n");
-		}
-		codegen_write_fmt (cgen, "	Workspace p_user;\n");
-		codegen_write_fmt (cgen, "	word *ws_user = NULL;\n");
-		codegen_write_fmt (cgen, "\n");
-		if (has_kyb >= 0) {
-			codegen_write_fmt (cgen, "	ChanInit (wptr, &ch_kyb);\n");
-			codegen_write_fmt (cgen, "	ws_kyb = (word *)MAlloc (wptr, WORKSPACE_SIZE(1,1024) * 4);\n");
-			codegen_write_fmt (cgen, "	p_kyb = LightProcInit (wptr, ws_kyb, 1, 1024);\n");
-			codegen_write_fmt (cgen, "	ProcParam (wptr, p_kyb, 0, &ch_kyb);\n");
-		}
-		if (has_screen >= 0) {
-			codegen_write_fmt (cgen, "	ChanInit (wptr, &ch_scr);\n");
-			codegen_write_fmt (cgen, "	ws_scr = (word *)MAlloc (wptr, WORKSPACE_SIZE(1,1024) * 4);\n");
-			codegen_write_fmt (cgen, "	p_scr = LightProcInit (wptr, ws_scr, 1, 1024);\n");
-			codegen_write_fmt (cgen, "	ProcParam (wptr, p_scr, 0, &ch_scr);\n");
-		}
-		if (has_error >= 0) {
-			codegen_write_fmt (cgen, "	ChanInit (wptr, &ch_err);\n");
-			codegen_write_fmt (cgen, "	ws_err = (word *)MAlloc (wptr, WORKSPACE_SIZE(1,1024) * 4);\n");
-			codegen_write_fmt (cgen, "	p_err = LightProcInit (wptr, ws_err, 1, 1024);\n");
-			codegen_write_fmt (cgen, "	ProcParam (wptr, p_err, 0, &ch_err);\n");
-		}
-		/* FIXME: need some common-sense to determine likely memory requirements */
-		codegen_write_fmt (cgen, "	ws_user = (word *)MAlloc (wptr, WORKSPACE_SIZE(%d,%d) * 4);\n", nparams, blk_nest);
-		codegen_write_fmt (cgen, "	p_user = LightProcInit (wptr, ws_user, %d, %d);\n", nparams, blk_nest);
-		if (has_kyb >= 0) {
-			codegen_write_fmt (cgen, "	ProcParam (wptr, p_user, %d, &ch_kyb);\n", has_kyb);
-		}
-		if (has_screen >= 0) {
-			codegen_write_fmt (cgen, "	ProcParam (wptr, p_user, %d, &ch_scr);\n", has_screen);
-		}
-		if (has_error >= 0) {
-			codegen_write_fmt (cgen, "	ProcParam (wptr, p_user, %d, &ch_err);\n", has_error);
-		}
-
-		codegen_write_fmt (cgen, "	ProcPar (wptr, %d,\n", nparams + 1);
-		if (has_kyb >= 0) {
-			codegen_write_fmt (cgen, "		p_kyb, process_keyboard,\n");
-		}
-		if (has_screen >= 0) {
-			codegen_write_fmt (cgen, "		p_scr, process_screen_string,\n");
-		}
-		if (has_error >= 0) {
-			codegen_write_fmt (cgen, "		p_err, process_error,\n");
-		}
-		codegen_write_fmt (cgen, "		p_user, %s);\n\n", entryname);
-		codegen_write_fmt (cgen, "	Shutdown (wptr);\n");
-
-		codegen_write_fmt (cgen, "}\n\n");
 		codegen_write_fmt (cgen, "int main (int argc, char **argv)\n");
 		codegen_write_fmt (cgen, "{\n");
 		codegen_write_fmt (cgen, "	Workspace p;\n\n");
 		codegen_write_fmt (cgen, "	if (!ccsp_init ()) {\n");
 		codegen_write_fmt (cgen, "		return 1;\n");
 		codegen_write_fmt (cgen, "	}\n\n");
-		codegen_write_fmt (cgen, "	p = ProcAllocInitial (0, 1024);\n");
-		codegen_write_fmt (cgen, "	ProcStartInitial (p, process_main);\n\n");
+		codegen_write_fmt (cgen, "	p = ProcAllocInitial (0, %d);\n", blk_nest);
+		codegen_write_fmt (cgen, "	ProcStartInitial (p, gproc_guppy_main);\n\n");
 		codegen_write_fmt (cgen, "	/* NOT REACHED */\n");
 		codegen_write_fmt (cgen, "	return 0;\n");
 		codegen_write_fmt (cgen, "}\n");
 
-#if 0
-		if (!parser_islistnode (params) || !parser_countlist (params)) {
-			codegen_write_fmt (cgen, "void");
-		} else {
-			int nparams, i;
-			tnode_t **plist = parser_getlistitems (params, &nparams);
-
-			cccsp_coder_inparamlist++;
-			for (i=0; i<nparams; i++) {
-				if (i) {
-					codegen_write_fmt (cgen, ",");
-				}
-				codegen_subcodegen (plist[i], cgen);
-			}
-			cccsp_coder_inparamlist--;
-		}
-		codegen_write_fmt (cgen, ")\n");
-#endif
 	}
 
 	codegen_write_fmt (cgen, "/*\n *\tend of code generation\n */\n\n");
@@ -2036,7 +2103,13 @@ static int cccsp_lcodegen_name (compops_t *cops, tnode_t *name, codegen_t *cgen)
 
 		codegen_ssetindent (cgen);
 		if (!whook->isdyn) {
-			codegen_write_fmt (cgen, "%s %s[WORKSPACE_SIZE(%d,%d)];\n", nh->ctype, nh->cname, whook->nparams, whook->nwords);
+			if (cccsp_bepass == 0) {
+				/* on the first pass, assume zero workspace size, so gcc stack frame usage is mostly accurate */
+				codegen_write_fmt (cgen, "%s %s[WORKSPACE_SIZE(1,1)];\n", nh->ctype, nh->cname);
+			} else {
+				codegen_write_fmt (cgen, "%s %s[WORKSPACE_SIZE(%d,%d)];\n",
+						nh->ctype, nh->cname, whook->nparams, whook->nwords);
+			}
 		}
 	} else {
 		if (nh->initialiser) {
@@ -2052,6 +2125,21 @@ static int cccsp_lcodegen_name (compops_t *cops, tnode_t *name, codegen_t *cgen)
 		}
 	}
 	return 0;
+}
+/*}}}*/
+/*{{{  static int cccsp_cccspdcg_name (compops_t *cops, tnode_t *node, cccsp_dcg_t *dcg)*/
+/*
+ *	does direct-call-graph building for a name -- looks at the initialiser mostly
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_cccspdcg_name (compops_t *cops, tnode_t *node, cccsp_dcg_t *dcg)
+{
+	cccsp_namehook_t *nh = (cccsp_namehook_t *)tnode_nthhookof (node, 0);
+
+	if (nh->initialiser) {
+		cccsp_cccspdcg_subtree (nh->initialiser, dcg);
+	}
+	return 1;
 }
 /*}}}*/
 /*{{{  static int cccsp_bytesfor_name (langops_t *lops, tnode_t *node, target_t *target)*/
@@ -2525,6 +2613,10 @@ int cccsp_init (void)
 		nocc_serious ("cccsp_init(): failed to add \"cccsp:dcgfix\" compiler operation");
 		return 1;
 	}
+	if (tnode_newcompop ("reallocate", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
+		nocc_serious ("cccsp_init(): failed to add \"reallocate\" compiler operation");
+		return 1;
+	}
 
 	return 0;
 }
@@ -2627,6 +2719,7 @@ static int cccsp_cc_compile_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t
 	char *ccmd, *eincl;
 	char *langlib = NULL;
 	char *sfifiles = NULL;
+	char *sfimove = NULL;
 
 	ccodefile = (char *)tnode_getchook (*treeptr, cccspoutfilehook);
 	if (!ccodefile) {
@@ -2658,8 +2751,12 @@ static int cccsp_cc_compile_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t
 			sfifname = string_fmt ("%s.out.su", ccodefile);
 		} else {
 			int plen = (int)(ch - ccodefile);
+			char *dh;
 
 			objfname = string_ndup (ccodefile, plen - 1);
+			/* Note: gcc will drop this in the current directory */
+			for (dh=objfname + (strlen (objfname) - 1); (dh > objfname) && (dh[-1] != '/'); dh--);
+			sfimove = string_fmt ("%s.su", dh);
 			sfifname = string_fmt ("%s.su", objfname);
 		}
 	}
@@ -2910,12 +3007,25 @@ fhandle_printf (FHAN_STDERR, "cccsp_cc_compile_cpass(): ccodefile=[%s] objfname=
 				objfname, ccodefile, kpriv->cc_libpath, kpriv->cc_ldflags, langlib);
 	}
 
+	if (sfimove) {
+		/* remove this before running the compiler */
+		unlink (sfimove);
+	}
+
 	/* do it! */
 	if (cccsp_run_cc (ccmd)) {
 		nocc_error ("failed to compile object/executable [%s]", objfname);
 		return -1;
 	}
 
+	if (sfimove && !fhandle_access (sfimove, R_OK)) {
+		/* got dropped here, move it */
+		if (rename (sfimove, sfifname)) {
+			nocc_error ("failed to rename .su file: %s", strerror (errno));
+		}
+		sfree (sfimove);
+		sfimove = NULL;
+	}
 	if (!fhandle_access (sfifname, R_OK)) {
 		/* got the stack-usage file too, so add to list */
 		if (sfifiles) {
@@ -3015,11 +3125,66 @@ static int cccsp_cc_sfi_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t *ta
 
 	/*}}}*/
 
-	cccsp_sfi_dumptable (FHAN_STDERR);
+	//cccsp_sfi_dumptable (FHAN_STDERR);
 
 	return 0;
 }
 /*}}}*/
+/*{{{  static int cccsp_reallocate_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t *target)*/
+/*
+ *	compiler pass that performs reallocations based on collected stack-frame information
+ *	returns 0 on success, non-zero on error
+ */
+static int cccsp_reallocate_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t *target)
+{
+	cccsp_reallocate_t *cra = (cccsp_reallocate_t *)smalloc (sizeof (cccsp_reallocate_t));
+	int r = 0;
+
+	cra->target = target;
+	cra->lexlevel = 0;
+	cra->error = 0;
+	cra->maxpar = 0;
+
+	tnode_prewalktree (*treeptr, cccsp_prewalktree_reallocate, cra);
+	if (cra->error) {
+		r = -1;
+	}
+
+	sfree (cra);
+	return r;
+}
+/*}}}*/
+/*{{{  static int cccsp_recodegen_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t *target)*/
+/*
+ *	compiler pass that re-generates code.
+ *	returns 0 on success, non-zero on failure
+ */
+static int cccsp_recodegen_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t *target)
+{
+	int r = 0;
+
+	cccsp_bepass = 1;
+	r = codegen_generate_code (treeptr, srclf, target);
+
+	return r;
+}
+/*}}}*/
+/*{{{  static int cccsp_cc_recompile_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t *target)*/
+/*
+ *	does the re-compile pass -- re-compiles code
+ *	returns 0 on success, non-zero on failure
+ */
+static int cccsp_cc_recompile_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t *target)
+{
+	int r;
+
+	r = cccsp_cc_compile_cpass (treeptr, srclf, target);
+	//cccsp_sfi_dumptable (FHAN_STDERR);
+
+	return r;
+}
+/*}}}*/
+
 /*{{{  static int cccsp_get_kroc_env (char *flag, char **target)*/
 /*
  *	attempts to run the 'kroc' script to extract various C compiler information
@@ -3236,6 +3401,9 @@ static int cccsp_target_init (target_t *target)
 	cccspsfifilehook->chook_free = cccsp_sfifilehook_free;
 	cccspsfifilehook->chook_dumptree = cccsp_sfifilehook_dumptree;
 
+	cccsp_parinfochook = tnode_lookupornewchook ("cccsp:parinfo");
+	cccsp_parinfochook->chook_dumptree = cccsp_parinfochook_dumptree;
+
 	/*}}}*/
 	/*{{{  sort out some new compiler passes if we can*/
 	if (kpriv->cc_path) {
@@ -3256,6 +3424,31 @@ static int cccsp_target_init (target_t *target)
 			nocc_serious ("cccsp_target_init(): failed to add \"cc-sfi\" compiler pass");
 			return 1;
 		}
+
+		stopat = nocc_laststopat() + 1;
+		opts_add ("stop-reallocate", '\0', cccsp_opthandler_stopat, (void *)stopat, "1stop after reallocation");
+		if (nocc_addcompilerpass ("reallocate", INTERNAL_ORIGIN, "cc-sfi", 0, (int (*)(void *))cccsp_reallocate_cpass,
+				CPASS_TREEPTR | CPASS_LEXFILE | CPASS_TARGET, stopat, NULL)) {
+			nocc_serious ("cccsp_target_init(): failed to add \"cc-sfi\" compiler pass");
+			return 1;
+		}
+
+		stopat = nocc_laststopat() + 1;
+		opts_add ("stop-recodegen", '\0', cccsp_opthandler_stopat, (void *)stopat, "1stop after re-code-generation");
+		if (nocc_addcompilerpass ("recodegen", INTERNAL_ORIGIN, "reallocate", 0, (int (*)(void *))cccsp_recodegen_cpass,
+				CPASS_TREEPTR | CPASS_LEXFILE | CPASS_TARGET, stopat, NULL)) {
+			nocc_serious ("cccsp_target_init(): failed to add \"recodegen\" compiler pass");
+			return 1;
+		}
+
+		stopat = nocc_laststopat() + 1;
+		opts_add ("stop-cc-recompile", '\0', cccsp_opthandler_stopat, (void *)stopat, "1stop after CC recompile pass");
+		if (nocc_addcompilerpass ("cc-recompile", INTERNAL_ORIGIN, "recodegen", 0, (int (*)(void *))cccsp_cc_recompile_cpass,
+				CPASS_TREEPTR | CPASS_LEXFILE | CPASS_TARGET, stopat, NULL)) {
+			nocc_serious ("cccsp_target_init(): failed to add \"cc-recompile\" compiler pass");
+			return 1;
+		}
+
 	}
 
 	/*}}}*/
@@ -3268,6 +3461,7 @@ static int cccsp_target_init (target_t *target)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (cccsp_lpreallocate_name));
 	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (cccsp_lcodegen_name));
+	tnode_setcompop (cops, "cccsp:dcg", 2, COMPOPTYPE (cccsp_cccspdcg_name));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (cccsp_bytesfor_name));
@@ -3460,4 +3654,5 @@ static int cccsp_target_init (target_t *target)
 	return 0;
 }
 /*}}}*/
+
 

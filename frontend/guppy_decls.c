@@ -440,7 +440,7 @@ tnode_dumptree (type, 1, FHAN_STDERR);
 			return 1;
 		} else if (dir == 2) {
 			/* could be screen or error -- check name */
-			if ((*rname == 's') || (*rname == 'S')) {
+			if ((*rname == 's') || (*rname == 'S') || (*rname == 'o') || (*rname == 'O')) {
 				return 2;
 			}
 			return 3;

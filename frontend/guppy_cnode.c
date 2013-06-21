@@ -312,6 +312,10 @@ static int guppy_namemap_cnode (compops_t *cops, tnode_t **nodep, map_t *map)
 		int i, nitems;
 		tnode_t *pcargs, *pccall, *pccallnum, *pcnprocs;
 		tnode_t *saved_dlist = gmap->decllist;
+		cccsp_parinfo_t *parinfo = cccsp_newparinfo ();
+
+		/* attach par-info structure here; won't change */
+		tnode_setchook (*nodep, cccsp_parinfochook, (void *)parinfo);
 
 		decllist = parser_newlistnode (SLOCI);
 		pcargs = parser_newlistnode (SLOCI);
@@ -319,6 +323,7 @@ static int guppy_namemap_cnode (compops_t *cops, tnode_t **nodep, map_t *map)
 		pitems = parser_getlistitems (parlist, &nitems);
 		for (i=0; i<nitems; i++) {
 			tnode_t *wsvar;
+			cccsp_parinfo_entry_t *pent = cccsp_newparinfoentry ();
 
 			wsvar = cccsp_create_wptr (OrgOf (pitems[i]), map->target);
 			parser_addtolist (decllist, wsvar);
@@ -328,6 +333,9 @@ static int guppy_namemap_cnode (compops_t *cops, tnode_t **nodep, map_t *map)
 				return 0;
 			}
 			tnode_setnthsub (pitems[i], 1, wsvar);
+
+			pent->namenode = tnode_nthsubof (pitems[i], 0);
+			cccsp_linkparinfo (parinfo, pent);
 		}
 
 		oseqlist = parser_newlistnode (SLOCI);
@@ -350,11 +358,14 @@ static int guppy_namemap_cnode (compops_t *cops, tnode_t **nodep, map_t *map)
 			 */
 			tnode_t *pp_name = tnode_nthsubof (pitems[i], 0);
 			tnode_t *pp_wptr = tnode_nthsubof (pitems[i], 1);
+			cccsp_parinfo_entry_t *pent = DA_NTHITEM (parinfo->entries, i);		/* must match! */
 
 			parser_addtolist (pcargs, pp_wptr);
 			parser_addtolist (pcargs, pp_name);
 
+			cmd->thisentry = pent;
 			map_submapnames (pitems + i, map);
+			cmd->thisentry = NULL;
 		}
 
 		pccallnum = cccsp_create_apicallname (PROC_PAR);
@@ -414,6 +425,86 @@ static int guppy_lpreallocate_cnode (compops_t *cops, tnode_t *node, cccsp_preal
  */
 static int guppy_codegen_cnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
+	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_reallocate_cnode (compops_t *cops, tnode_t *node, cccsp_reallocate_t *cra)*/
+/*
+ *	does reallocation for a constructor node: only interested in left-over PAR
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_reallocate_cnode (compops_t *cops, tnode_t *node, cccsp_reallocate_t *cra)
+{
+	if (node->tag == gup.tag_PAR) {
+		cccsp_parinfo_t *pset = (cccsp_parinfo_t *)tnode_getchook (node, cccsp_parinfochook);
+		int i;
+		int bytesum = 0;
+
+		for (i=0; i<DA_CUR (pset->entries); i++) {
+			cccsp_parinfo_entry_t *pent = DA_NTHITEM (pset->entries, i);
+			tnode_t *ppdecl;
+			cccsp_sfi_entry_t *sfient;
+			int nwords;
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_reallocate_cnode(): here, entry %d namenode=0x%8.8x wsspace=0x%8.8x\n",
+		i, (unsigned int)pent->namenode, (unsigned int)pent->wsspace);
+tnode_dumptree (pent->namenode, 1, FHAN_STDERR);
+tnode_dumptree (pent->wsspace, 1, FHAN_STDERR);
+#endif
+			if (pent->namenode->tag != gup.tag_NPFCNDEF) {
+				nocc_error ("guppy_reallocate_cnode(): parallel process name not N_PFCNDEF, found [%s]", pent->namenode->tag->name);
+				cra->error++;
+				return 0;
+			}
+			ppdecl = NameDeclOf (tnode_nthnameof (pent->namenode, 0));
+			sfient = (cccsp_sfi_entry_t *)tnode_getchook (ppdecl, cccsp_sfi_entrychook);
+
+			if (!sfient) {
+				nocc_error ("guppy_reallocate_cnode(): no SFI entry for process [%s]", NameNameOf (tnode_nthnameof (pent->namenode, 0)));
+				cra->error++;
+				return 0;
+			}
+			if (!sfient->parfixup) {
+				nocc_warning ("guppy_reallocate_cnode(): SFI entry for [%s] has not been par-fixed yet.. (dynamic?)",
+						NameNameOf (tnode_nthnameof (pent->namenode, 0)));
+			}
+
+			bytesum += sfient->allocsize;
+			if (bytesum & 0x03) {
+				bytesum = (bytesum & ~0x03) + 4;		/* round up */
+			}
+
+			nwords = sfient->allocsize >> 2;
+			if (sfient->allocsize & 0x03) {
+				nwords++;
+			}
+
+#if 0
+			/* slack */
+			nwords += 1024;
+			bytesum += 4096;
+#endif
+
+			/* fixup inside workspace */
+			cccsp_set_workspace_nwords (pent->wsspace, nwords);
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_reallocate_cnode(): here2: entry %d, allocsize = %d\n", i, sfient->allocsize);
+// tnode_dumptree (pent->wsspace, 1, FHAN_STDERR);
+#endif
+		}
+
+		pset->nwords = (bytesum >> 2);					/* bytes-to-words */
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_reallocate_cnode(): here3: did %d entries, got %d bytes (%d words)\n", DA_CUR (pset->entries), bytesum, pset->nwords);
+#endif
+		if (pset->nwords > cra->maxpar) {
+			cra->maxpar = pset->nwords;
+		}
+
+		return 0;
+	}
 	return 1;
 }
 /*}}}*/
@@ -636,6 +727,7 @@ static int guppy_cnode_init_nodes (void)
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_cnode));
 	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_cnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_cnode));
+	tnode_setcompop (cops, "reallocate", 2, COMPOPTYPE (guppy_reallocate_cnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

@@ -14,20 +14,7 @@
 
 #include <cccsp/verb-header.h>
 
-void process_screen_char (Workspace wptr)
-{
-	Channel *link = ProcGetParam (wptr, 0, Channel *);
-
-	for (;;) {
-		char ch;
-
-		ChanIn (wptr, link, &ch, 1);
-		ExternalCallN (printf, 2, "%c", ch);
-	}
-}
-
-
-void process_screen_string (Workspace wptr)
+void gproc_guppy_screen_process (Workspace wptr)
 {
 	Channel *link = ProcGetParam (wptr, 0, Channel *);
 

@@ -1,0 +1,12 @@
+# test_g35.gpp -- how to make visible the standard library
+
+@external "guppy" "define guppy_screen_process (chan?(string) in) = 512"
+
+define test_g35
+  chan(string) c
+  par
+    guppy_screen_process (c?)
+    seq
+      c ! "foo"
+end
+
