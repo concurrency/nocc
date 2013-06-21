@@ -1,7 +1,8 @@
 
 # test_g31.gpp -- more tests
 
-@external "guppy" "define guppy_screen_process (chan?(string) in) = 128"
+@include "guppy_stdlib.gpi"
+# @external "guppy" "define guppy_screen_process (chan?(string) in) = 128"
 
 define delta (chan(int) in?, out0!, out1!)
   while true

@@ -2261,7 +2261,7 @@ static tnode_t *guppy_parser_descparse (lexfile_t *lf)
 
 	*target = dfa_walk ("guppy:descriptor", 0, lf);
 
-#if 1
+#if 0
 fhandle_printf (FHAN_STDERR, "guppy_parser_descparse(): got descriptor:\n");
 tnode_dumptree (tree, 1, FHAN_STDERR);
 #endif
