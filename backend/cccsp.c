@@ -263,6 +263,8 @@ static chook_t *cccspsfifilehook = NULL;
 static void *cccsp_set_outfile = NULL;			/* string copy (char*) for the above compiler hook */
 
 static int cccsp_bepass = 0;
+static char *cccsp_cc_opts = NULL;			/* extra flags that can be passed to the C compiler */
+static int cccsp_show_sfi = 0;				/* whether or not to dump the SFI table (after recompile) */
 
 static chook_t *cccsp_ctypestr = NULL;
 static int cccsp_coder_inparamlist = 0;
@@ -313,6 +315,49 @@ void cccsp_isetindent (fhandle_t *stream, int indent)
 }
 /*}}}*/
 
+/*{{{  static int cccsp_opthandler_setstring (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	option handler for cccsp string options
+ *	these must be specified as "--option=value", since options may not be visible initially
+ *	returns 0 on success, non-zero on failure
+ */
+static int cccsp_opthandler_setstring (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	char **sptr = (char **)(opt->arg);
+	char *ch;
+
+	if (*sptr) {
+		sfree (*sptr);
+		*sptr = NULL;
+	}
+	for (ch=**argwalk; (*ch != '\0') && (*ch != '='); ch++);
+	if (*ch == '\0') {
+		/* odd.. */
+		*sptr = string_dup (**argwalk);		/* take the whole thing */
+	} else {
+		*sptr = string_dup (ch + 1);		/* everything after '=' */
+	}
+
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_opthandler_setstring(): *sptr=0x%8.8x, **argwalk=[%s], *argleft=%d",
+		(unsigned int)(*sptr), **argwalk, *argleft);
+#endif
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cccsp_opthandler_setflag (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	option handler for cccsp flag options
+ *	returns 0 on success, non-zero on failure
+ */
+static int cccsp_opthandler_setflag (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	int *iptr = (int *)(opt->arg);
+
+	*iptr = 1;
+	return 0;
+}
+/*}}}*/
 /*{{{  static int cccsp_init_options (cccsp_priv_t *kpriv)*/
 /*
  *	initialises options for the KRoC-CIF/CCSP back-end
@@ -320,6 +365,8 @@ void cccsp_isetindent (fhandle_t *stream, int indent)
  */
 static int cccsp_init_options (cccsp_priv_t *kpriv)
 {
+	opts_add ("cccsp-cc-opts", '\0', cccsp_opthandler_setstring, (void *)&cccsp_cc_opts, "1specify additional C compiler options");
+	opts_add ("cccsp-show-sfi", '\0', cccsp_opthandler_setflag, (void *)&cccsp_show_sfi, "1dump SFI table after recompile");
 	// opts_add ("norangechecks", '\0', cccsp_opthandler_flag, (void *)1, "1do not generate range-checks");
 	return 0;
 }
@@ -2011,7 +2058,11 @@ fhandle_printf (FHAN_STDERR, "cccsp_be_codegen_final(): entryname = \"%s\", Name
 		}
 
 		cccsp_getblockspace (beblk, &blk_my, &blk_nest);
+
+#if 0
+		/* slack */
 		blk_nest += 16;
+#endif
 
 #if 0
 fhandle_printf (FHAN_STDERR, "cccsp_be_codegen_final(): generating interface, top-level parameters (space = %d,%d) are:\n", blk_my, blk_nest);
@@ -2025,7 +2076,7 @@ tnode_dumptree (toplevelparams, 1, FHAN_STDERR);
 		codegen_write_fmt (cgen, "		return 1;\n");
 		codegen_write_fmt (cgen, "	}\n\n");
 		codegen_write_fmt (cgen, "	p = ProcAllocInitial (0, %d);\n", blk_nest);
-		codegen_write_fmt (cgen, "	ProcStartInitial (p, gproc_guppy_main);\n\n");
+		codegen_write_fmt (cgen, "	ProcStartInitial (p, %s);\n\n", entryname);
 		codegen_write_fmt (cgen, "	/* NOT REACHED */\n");
 		codegen_write_fmt (cgen, "	return 0;\n");
 		codegen_write_fmt (cgen, "}\n");
@@ -2927,7 +2978,8 @@ fhandle_printf (FHAN_STDERR, "here: found_src=[%s] found_obj=[%s] found_sfi=[%s]
 					strcpy (found_obj + (slen - endlen), langlibs_obj[i]);
 				}
 
-				xcmd = string_fmt ("%s -fstack-usage -c %s %s %s -o %s %s", kpriv->cc_path, kpriv->cc_incpath, kpriv->cc_flags,
+				xcmd = string_fmt ("%s -fstack-usage %s -c %s %s %s -o %s %s", kpriv->cc_path,
+						cccsp_cc_opts ?: "", kpriv->cc_incpath, kpriv->cc_flags,
 						eincl, found_obj, found_src);
 				/* attempt to build object from source */
 #if 0
@@ -3001,9 +3053,11 @@ fhandle_printf (FHAN_STDERR, "cccsp_cc_compile_cpass(): ccodefile=[%s] objfname=
 
 	if (compopts.notmainmodule) {
 		/* compile to object */
-		ccmd = string_fmt ("%s -fstack-usage -c %s %s %s -o %s %s", kpriv->cc_path, kpriv->cc_incpath, kpriv->cc_flags, eincl, objfname, ccodefile);
+		ccmd = string_fmt ("%s -fstack-usage %s -c %s %s %s -o %s %s", kpriv->cc_path, cccsp_cc_opts ?: "",
+				kpriv->cc_incpath, kpriv->cc_flags, eincl, objfname, ccodefile);
 	} else {
-		ccmd = string_fmt ("%s -fstack-usage %s %s %s -o %s %s %s %s -lccsp %s", kpriv->cc_path, kpriv->cc_incpath, kpriv->cc_flags, eincl,
+		ccmd = string_fmt ("%s -fstack-usage %s %s %s %s -o %s %s %s %s -lccsp %s", kpriv->cc_path,
+				cccsp_cc_opts ?: "", kpriv->cc_incpath, kpriv->cc_flags, eincl,
 				objfname, ccodefile, kpriv->cc_libpath, kpriv->cc_ldflags, langlib);
 	}
 
@@ -3179,7 +3233,11 @@ static int cccsp_cc_recompile_cpass (tnode_t **treeptr, lexfile_t *srclf, target
 	int r;
 
 	r = cccsp_cc_compile_cpass (treeptr, srclf, target);
-	//cccsp_sfi_dumptable (FHAN_STDERR);
+
+	if (cccsp_show_sfi) {
+		/* this will be the version used *to* compile the above, not what results from it */
+		cccsp_sfi_dumptable (FHAN_STDERR);
+	}
 
 	return r;
 }

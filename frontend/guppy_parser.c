@@ -1047,6 +1047,37 @@ tnode_dumptree (tlpdef, 1, FHAN_STDERR);
 	return tlpdef;
 }
 /*}}}*/
+/*{{{  static int guppy_insert_tlp_shutdown (tnode_t *fcndef)*/
+/*
+ *	adjusts a top-level function definition (always FCNDEF) to include a shutdown call as the last thing before returning
+ *	returns 0 on success, non-zero on failure
+ */
+static int guppy_insert_tlp_shutdown (tnode_t *fcndef)
+{
+	tnode_t *body, *slist;
+	
+	if (fcndef->tag != gup.tag_FCNDEF) {
+		nocc_error ("guppy_insert_tlp_shutdown(): top-level function not FCNDEF, got [%s:%s]", fcndef->tag->ndef->name, fcndef->tag->name);
+		return -1;
+	}
+	body = tnode_nthsubof (fcndef, 2);
+	if (body->tag == gup.tag_SEQ) {
+		slist = tnode_nthsubof (body, 1);
+	} else {
+		/* insert SEQ into process */
+		tnode_t *newseq;
+
+		slist = parser_newlistnode (SLOCI);
+		newseq = tnode_create (gup.tag_SEQ, SLOCI, NULL, slist);
+		parser_addtolist (slist, body);
+		tnode_setnthsub (fcndef, 2, newseq);
+		body = newseq;
+	}
+	parser_addtolist (slist, tnode_create (gup.tag_SHUTDOWN, SLOCI));
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int declify_cpass (tnode_t **treeptr)*/
 /*
  *	called to do the compiler-pass for making declaration blocks
@@ -1246,12 +1277,20 @@ static int fetrans4_cpass (tnode_t **treeptr)
 		return -1;
 	}
 
-	tlpdef = guppy_make_tlp (tlfcn);
-	if (!tlpdef) {
-		nocc_error ("fetrans4_cpass(): failed to create new top-level process, giving up..");
-		return -1;
+	if (parser_islistnode (tnode_nthsubof (tlfcn, 1)) && !parser_countlist (tnode_nthsubof (tlfcn, 1))) {
+		/* empty parameter list at top-level, so just use this -- do, however, insert shutdown call as last thing*/
+		if (guppy_insert_tlp_shutdown (tlfcn)) {
+			nocc_error ("fetrans4_cpass(): failed to add shutdown at end of top-level process, giving up..");
+			return -1;
+		}
+	} else {
+		tlpdef = guppy_make_tlp (tlfcn);
+		if (!tlpdef) {
+			nocc_error ("fetrans4_cpass(): failed to create new top-level process, giving up..");
+			return -1;
+		}
+		parser_addtolist (*treeptr, tlpdef);
 	}
-	parser_addtolist (*treeptr, tlpdef);
 
 	return 0;
 }

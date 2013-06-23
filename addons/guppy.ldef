@@ -247,6 +247,9 @@
 .GRULE	"gup:foldgereduce" "R+N+Sn00C[GE]3R-"
 .GRULE	"gup:foldeqreduce" "R+N+Sn00C[EQ]3R-"
 .GRULE	"gup:foldnereduce" "R+N+Sn00C[NE]3R-"
+.GRULE	"gup:negreduce" "SN0N+0C[NEG]2R-"
+.GRULE	"gup:bitnotreduce" "SN0N+0C[BITNOT]2R-"
+.GRULE	"gup:notreduce" "SN0N+0C[NOT]2R-"
 .GRULE	"gup:foldmarkedinreduce" "R+Sn00C[MARKEDIN]2R-"
 .GRULE	"gup:foldmarkedoutreduce" "R+Sn00C[MARKEDOUT]2R-"
 .GRULE	"gup:sizereduce" "SN0N+0C[SIZE]2R-"
@@ -260,6 +263,7 @@
 .TABLE	"guppy:expr +:= [ 0 @size 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:sizereduce>} -* ]"
 .TABLE	"guppy:expr +:= [ 0 @bytesin 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:bytesinreduce>} -* ]"
 .TABLE	"guppy:expr +:= [ 0 @@( 1 ] [ 1 guppy:expr 2 ] [ 2 @@) 3 ] [ 3 {<gup:nullreduce>} -* <guppy:restofexpr> ]"
+.TABLE	"guppy:expr +:= [ 0 @@- 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:negreduce>} -* <guppy:restofexpr> ]"
 
 
 # for "guppy:restofexpr" existing expression is result already

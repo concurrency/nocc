@@ -4,4 +4,5 @@
 #
 
 @external "guppy" "define guppy_screen_process (chan?(string) in) = 64"
+@external "guppy" "define int_to_str (val int n) -> string = 64"
 

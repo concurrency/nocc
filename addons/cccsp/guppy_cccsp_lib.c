@@ -27,5 +27,18 @@ void gproc_guppy_screen_process (Workspace wptr)
 	}
 }
 
+void gcf_int_to_str (Workspace wptr, gtString_t **strp, const int n)
+{
+	char *ch;
+
+	GuppyStringFree (wptr, *strp);
+	*strp = GuppyStringInit (wptr);
+	(*strp)->alen = 32;
+	(*strp)->ptr = (char *)MAlloc (wptr, (*strp)->alen);
+
+	ExternalCallN (snprintf, 4, (*strp)->ptr, 31, "%d", n);
+	for ((*strp)->slen = 0, ch = (*strp)->ptr; *ch != '\0'; (*strp)->slen++, ch++);
+	// (*strp)->slen = strlen ((*strp)->ptr);
+}
 
 

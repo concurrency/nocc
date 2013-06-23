@@ -3,7 +3,7 @@
 #	actual stack-frame sizes.
 #
 
-ccsp_kernel_call: =4
+ccsp_kernel_call: =32
 ChanIn: ccsp_kernel_call
 ChanInit:
 ChanOut: ccsp_kernel_call
@@ -32,8 +32,9 @@ GuppyStringInit: MAlloc
 GuppyStringFree: MRelease
 GuppyStringEmpty: MRelease
 GuppyStringConstInitialiser: MAlloc
-GuppyStringAssign: MRelease, MAlloc
+GuppyStringAssign: MRelease, MAlloc, ExternalCallN
 GuppyStringConcat: GuppyStringEmpty, MAlloc
 GuppyStringClear: GuppyStringInit
 gproc_guppy_screen_process: ProcGetParam, ChanIn, ExternalCallN, GuppyStringFree
+gcf_int_to_str: GuppyStringFree, GuppyStringInit, MAlloc, ExternalCallN
 

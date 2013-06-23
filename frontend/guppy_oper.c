@@ -115,6 +115,13 @@ static int guppy_typecheck_dopnode (compops_t *cops, tnode_t *node, typecheck_t 
 		typecheck_error (node, tc, "failed to determine types for operator");
 		return 0;
 	}
+	/* reduce any singleton lists that we encounter */
+	if (op0type && parser_islistnode (op0type) && (parser_countlist (op0type) == 1)) {
+		op0type = parser_getfromlist (op0type, 0);
+	}
+	if (op1type && parser_islistnode (op1type) && (parser_countlist (op1type) == 1)) {
+		op1type = parser_getfromlist (op1type, 0);
+	}
 	atype = typecheck_typeactual (pref ? op0type : op1type, pref ? op1type : op0type, node, tc);
 	if (!atype) {
 		typecheck_error (node, tc, "incompatible types for operator");
@@ -202,6 +209,10 @@ static int guppy_codegen_dopnode (compops_t *cops, tnode_t *node, codegen_t *cge
 		codegen_write_fmt (cgen, "+");
 	} else if (node->tag == gup.tag_SUB) {
 		codegen_write_fmt (cgen, "-");
+	} else if (node->tag == gup.tag_DIV) {
+		codegen_write_fmt (cgen, "/");
+	} else if (node->tag == gup.tag_MUL) {
+		codegen_write_fmt (cgen, "*");
 	} else {
 		nocc_internal ("guppy_codegen_dopnode(): unhandled operator!");
 	}
@@ -437,6 +448,34 @@ static tnode_t *guppy_gettype_reldopnode (langops_t *lops, tnode_t *node, tnode_
 }
 /*}}}*/
 
+/*{{{  static int guppy_typecheck_mopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking for a monadic operator (neg, bitnot)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_typecheck_mopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *op, *optype, *atype;
+	
+	op = tnode_nthsubof (node, 0);
+	typecheck_subtree (op, tc);
+
+	optype = typecheck_gettype (op, guppy_oper_inttypenode);
+
+	if (!optype) {
+		typecheck_error (node, tc, "failed to determine type for operand");
+		return 0;
+	}
+	atype = typecheck_typeactual (optype, optype, node, tc);
+	if (!atype) {
+		typecheck_error (node, tc, "impossible type for monadic operator");
+		return 0;
+	}
+
+	tnode_setnthsub (node, 1, atype);
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_lpreallocate_mopnode (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)*/
 /*
  *	does pre-allocation for a monadic operator
@@ -446,6 +485,33 @@ static int guppy_lpreallocate_mopnode (compops_t *cops, tnode_t *node, cccsp_pre
 {
 	cpa->collect += 2;		/* arbitrary, but assume we need something */
 	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_mopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a monadic operator (neg, bitnot)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_mopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	if (node->tag == gup.tag_NEG) {
+		codegen_write_fmt (cgen, "-");
+	} else if (node->tag == gup.tag_BITNOT) {
+		codegen_write_fmt (cgen, "~");
+	}
+	codegen_write_fmt (cgen, "(");
+	codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+	codegen_write_fmt (cgen, ")");
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_gettype_mopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a monadic operator
+ */
+static tnode_t *guppy_gettype_mopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	return tnode_nthsubof (node, 1);
 }
 /*}}}*/
 
@@ -974,9 +1040,12 @@ static int guppy_oper_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:mopnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: op, type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_mopnode));
 	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_mopnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_mopnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_mopnode));
 	tnd->lops = lops;
 
 	i = -1;

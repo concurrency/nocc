@@ -1,0 +1,14 @@
+# test_g37.gpp -- testing strings and other types
+
+@include "guppy_stdlib.gpi"
+
+@external "guppy" "define int_to_str (val int n) -> string = 128"
+
+define test_g37 (chan(string) screen!)
+  string s
+
+  s = int_to_str (65)
+  screen ! s
+  screen ! "\n"
+end
+

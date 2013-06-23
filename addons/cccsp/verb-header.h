@@ -129,26 +129,32 @@ GuppyPrintString (wptr, "GuppyStringConstInitialiser", str);
 static inline void GuppyStringAssign (Workspace wptr, gtString_t **dst, gtString_t *src)
 {
 #if 0
-GuppyPrintString (wptr, "GuppyStringAssign(src)", src);
-GuppyPrintString (wptr, "GuppyStringAssign(*dst)", *dst);
+ExternalCallN (fprintf, 4, stderr, "GuppyStringAssign: src=%p *dst=%p\n", src, *dst);
+//GuppyPrintString (wptr, "GuppyStringAssign(src)", src);
+//GuppyPrintString (wptr, "GuppyStringAssign(*dst)", *dst);
 #endif
 	if (!*dst) {
 		*dst = GuppyStringInit (wptr);
-	}
-	if ((*dst)->alen) {
+	} else if ((*dst)->alen) {
 		/* something here, better free it nicely */
 		MRelease (wptr, (*dst)->ptr);
+		(*dst)->ptr = NULL;
 		(*dst)->alen = 0;
 	}
+
 	if (!src->alen && src->ptr) {
 		/* statically allocated string, alias it gleefully */
 		(*dst)->ptr = src->ptr;
 		(*dst)->alen = 0;
 	} else if (src->alen && src->ptr) {
 		/* dynamically allocated, duplicate it */
+		int i;
+
 		(*dst)->ptr = (char *)MAlloc (wptr, src->alen);
 		(*dst)->alen = src->alen;
-		memcpy ((*dst)->ptr, src->ptr, src->slen);			/* specifically just the ones we care about */
+		for (i=0; i<src->slen; i++) {
+			(*dst)->ptr[i] = src->ptr[i];
+		}
 		(*dst)->ptr[src->slen] = '\0';					/* self-sanity, debugging purposes */
 	} else {
 		/* empty string */
@@ -158,7 +164,8 @@ GuppyPrintString (wptr, "GuppyStringAssign(*dst)", *dst);
 	(*dst)->slen = src->slen;
 	(*dst)->stype = src->stype;
 #if 0
-GuppyPrintString (wptr, "GuppyStringAssign(*dst)", *dst);
+ExternalCallN (fprintf, 4, stderr, "GuppyStringAssign: src=%p *dst=%p\n", src, *dst);
+// GuppyPrintString (wptr, "GuppyStringAssign(*dst)", *dst);
 #endif
 }
 /*}}}*/
@@ -168,7 +175,7 @@ GuppyPrintString (wptr, "GuppyStringAssign(*dst)", *dst);
  */
 static inline void GuppyStringConcat (Workspace wptr, gtString_t *dst, gtString_t *src1, gtString_t *src2)
 {
-	int slen;
+	int slen, i;
 
 #if 0
 GuppyPrintString (wptr, "GuppyStringConcat(src1)", src1);
@@ -178,13 +185,17 @@ GuppyPrintString (wptr, "GuppyStringConcat(dst)", dst);
 	GuppyStringEmpty (wptr, dst);
 
 	slen = src1->slen + src2->slen;
-	dst->ptr = (char *)MAlloc (wptr, slen + 1);
 	dst->alen = slen + 1;
+	dst->ptr = (char *)MAlloc (wptr, dst->alen);
 	dst->slen = slen;
 	dst->stype = src1->stype;
 
-	memcpy (dst->ptr, src1->ptr, src1->slen);
-	memcpy (dst->ptr + src1->slen, src2->ptr, src2->slen);
+	for (i=0; i<src1->slen; i++) {
+		dst->ptr[i] = src1->ptr[i];
+	}
+	for (i=0; i<src2->slen; i++) {
+		dst->ptr[i+src1->slen] = src2->ptr[i];
+	}
 	dst->ptr[dst->slen] = '\0';
 #if 0
 GuppyPrintString (wptr, "GuppyStringConcat(dst)", dst);

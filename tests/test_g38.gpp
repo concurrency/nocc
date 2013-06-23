@@ -1,0 +1,19 @@
+
+# test_g38.gpp -- more testing
+
+@include "guppy_stdlib.gpi"
+
+define test_g38 (chan(string) out!)
+  int i, j
+  string s
+  seq
+    i = -99
+    j = 42
+
+    s = int_to_str (i)
+    out ! s + "\n"
+    out ! int_to_str (j) + "\n"
+    out ! int_to_str (i) + " " + int_to_str (j) + "\n"
+
+end
+

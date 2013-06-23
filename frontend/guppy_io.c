@@ -103,6 +103,10 @@ tnode_dumptree (prot, 1, FHAN_STDERR);
 		typecheck_error (node, tc, "item in input/output has unknown type");
 		return 0;
 	}
+	if (parser_islistnode (rhstype) && (parser_countlist (rhstype) == 1)) {
+		/* singleton list, assume trivial */
+		rhstype = parser_getfromlist (rhstype, 0);
+	}
 
 	acttype = typecheck_typeactual (lhstype, rhstype, node, tc);
 	if (!acttype) {
