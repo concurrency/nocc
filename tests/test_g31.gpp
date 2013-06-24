@@ -2,18 +2,15 @@
 # test_g31.gpp -- more tests
 
 @include "guppy_stdlib.gpi"
-# @external "guppy" "define guppy_screen_process (chan?(string) in) = 128"
 
 define delta (chan(int) in?, out0!, out1!)
   while true
     int v
 
     in ? v
-    #par
-    #  out0 ! v
-    #  out1 ! v
-    out0 ! v
-    out1 ! v
+    par
+      out0 ! v
+      out1 ! v
 end
 
 define prefix (val int n, chan(int) in?, out!)
@@ -39,16 +36,13 @@ define sink (chan(int) in?, chan(string) out!)
     int v
     int t0, t1
     timer tim
-    string s
 
     tim ? t0
     seq for 1000000
       in ? v
     tim ? t1
     t1 = (t1 - t0) / 4000
-    s = int_to_str (t1)
-    out ! s
-    out ! " ns\n"
+    out ! "context switch: " + int_to_str (t1) + " ns\n"
 
 end
 
