@@ -1489,6 +1489,12 @@ static int guppy_parser_init (lexfile_t *lf)
 			nocc_error ("guppy_parser_init(): could not find guppy:decl!");
 			return 1;
 		}
+
+		if (guppy_udo_init ()) {
+			nocc_error ("guppy_parser_init(): failed to initialise user-defined operators!");
+			return 1;
+		}
+
 		if (compopts.dumpdfas) {
 			dfa_dumpdfas (FHAN_STDERR);
 		}
@@ -1511,6 +1517,7 @@ static int guppy_parser_init (lexfile_t *lf)
  */
 static void guppy_parser_shutdown (lexfile_t *lf)
 {
+	guppy_udo_shutdown ();
 	return;
 }
 /*}}}*/

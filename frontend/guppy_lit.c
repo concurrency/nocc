@@ -451,20 +451,28 @@ static int guppy_constvalof_litnode (langops_t *lops, tnode_t *node, void *ptr)
 		switch (ldat->bytes) {
 		case 4:
 			if (ptr) {
-				*(float *)ptr = *(float *)(ldat->bytes);
+				*(float *)ptr = *(float *)(ldat->data);
 			}
-			r = (int)(*(float *)(ldat->bytes));
+			r = (int)(*(float *)(ldat->data));
 			break;
 		case 8:
 			if (ptr) {
-				*(double *)ptr = *(double *)(ldat->bytes);
+				*(double *)ptr = *(double *)(ldat->data);
 			}
-			r = (int)(*(double *)(ldat->bytes));
+			r = (int)(*(double *)(ldat->data));
 			break;
 		default:
 			tnode_error (node, "guppy_constvalof_lit(): unsupported constant floating-point width %d!", ldat->bytes);
 			break;
 		}
+	} else if (node->tag == gup.tag_LITSTRING) {
+		char **rptr = (char **)ptr;
+		char *s = string_ndup (ldat->data, ldat->bytes);
+
+		if (rptr) {
+			*rptr = s;
+		}
+		r = (int)s;			/* nasty.. */
 	}
 
 	return r;

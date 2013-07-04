@@ -323,5 +323,13 @@ extern void *guppy_stringtoken_to_namehook (void *ntok);
 struct TAG_cmd_option;
 extern int guppy_lexer_opthandler_flag (struct TAG_cmd_option *opt, char ***argwalk, int *argleft);
 
+/* guppy_udo.c */
+
+extern int guppy_udo_init (void);
+extern int guppy_udo_shutdown (void);
+
+extern char *guppy_udo_maketempfcnname (struct TAG_tnode *node);
+extern char *guppy_udo_newfunction (const char *str, struct TAG_tnode *res, struct TAG_tnode *parm);
+
 
 #endif	/* !__GUPPY_H */

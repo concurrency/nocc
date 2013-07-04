@@ -1,0 +1,6 @@
+# test_g40.gpp -- testing formal parameters
+
+define test_g40 (val int a, b)
+  skip
+end
+

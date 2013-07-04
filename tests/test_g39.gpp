@@ -1,0 +1,13 @@
+# test_g39.gpp -- testing user-defined operators
+
+define "+" (val string s1, s2) -> string
+  string v
+
+  v = ""
+  return v
+end
+
+define test_g39 ()
+  skip
+end
+

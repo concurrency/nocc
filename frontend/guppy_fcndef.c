@@ -172,7 +172,8 @@ static void guppy_fcndef_hook_dumptree (tnode_t *node, void *hook, int indent, f
 static int guppy_prescope_fcndef (compops_t *cops, tnode_t **node, prescope_t *ps)
 {
 	guppy_prescope_t *gps = (guppy_prescope_t *)ps->hook;
-	char *rawname = (char *)tnode_nthhookof (tnode_nthsubof (*node, 0), 0);
+	tnode_t *name = tnode_nthsubof (*node, 0);
+	char *rawname = NULL;
 	guppy_fcndefhook_t *fdh = (guppy_fcndefhook_t *)tnode_nthhookof (*node, 0);
 
 	if (!fdh) {
@@ -183,6 +184,13 @@ static int guppy_prescope_fcndef (compops_t *cops, tnode_t **node, prescope_t *p
 		fdh->ispar = 0;
 		fdh->pfcndef = NULL;
 		tnode_setnthhook (*node, 0, fdh);
+	}
+
+	if (name->tag == gup.tag_LITSTRING) {
+		/* user-defined operator of some kind probably */
+		rawname = guppy_udo_maketempfcnname (*node);
+	} else {
+		rawname = (char *)tnode_nthhookof (tnode_nthsubof (*node, 0), 0);
 	}
 
 	if (!gps->procdepth) {
@@ -298,7 +306,13 @@ static int guppy_scopein_fcndef (compops_t *cops, tnode_t **node, scope_t *ss)
 	}
 
 	/* declare and scope PROC name, then check process in the scope of it */
-	rawname = tnode_nthhookof (name, 0);
+	if (name->tag == gup.tag_LITSTRING) {
+		char *fstr = (char *)langops_constvalof (name, NULL);
+
+		rawname = guppy_udo_newfunction (fstr, *resultsptr, *paramsptr);
+	} else {
+		rawname = tnode_nthhookof (name, 0);
+	}
 
 	/* if we have results, encode that in the type */
 	if (*resultsptr) {
