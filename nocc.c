@@ -111,6 +111,7 @@ compopts_t compopts = {
 	.notmainmodule = 0,
 	.dohelp = NULL,
 	.dmemdump = 0,
+	.dumptokensto = NULL,
 	.dumpspecs = 0,
 	.dumptree = 0,
 	.dumptreeto = NULL,

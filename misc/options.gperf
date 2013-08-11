@@ -86,5 +86,6 @@ library-path,		'L',	opt_addlibrarypath,	NULL,				"0add paths for library files",
 extn-path,		'E',	opt_addextnpath,	NULL,				"1add paths for compiler extensions",			352
 extn,			'e',	opt_addextn,		NULL,				"0compiler extension to load",				400
 dump-tracemem,		'\0',	opt_setintflag,		&(compopts.dumptracemem),	"1display left-over memory blocks (if compiled)",	450
+dump-tokens-to,		'\0',	opt_setstr,		&(compopts.dumptokensto),	"1dump lexer tokens to file",				500
 %%
 

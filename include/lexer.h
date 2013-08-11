@@ -50,7 +50,7 @@ typedef struct TAG_lexfile {
 	char *fnptr;		/* pointer into the above */
 	void *priv;		/* private data for lexer */
 	void *ppriv;		/* private data for parser */
-	int lineno;
+	int lineno, colno;	/* current source position */
 	struct TAG_langlexer *lexer;
 	struct TAG_langparser *parser;
 	int errcount;
@@ -79,7 +79,7 @@ extern lexfile_t *lexer_internal (const char *fname);
 typedef struct TAG_token {
 	tokentype_t type;
 	lexfile_t *origin;
-	int lineno;
+	int lineno, colno, tokwidth;
 	union {
 		struct TAG_keyword *kw;
 		int ival;

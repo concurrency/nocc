@@ -55,6 +55,9 @@ STATICDYNARRAY (langlexer_t *, langlexers);
 STATICDYNARRAY (lexfile_t *, lexfiles);
 STATICDYNARRAY (lexfile_t *, openlexfiles);
 
+/* slightly nasty: if we want a log of all tokens, do here in nexttoken() */
+static fhandle_t *tokendumpstream;
+
 /*}}}*/
 
 
@@ -68,6 +71,9 @@ int lexer_init (void)
 	dynarray_init (langlexers);
 	dynarray_init (lexfiles);
 	dynarray_init (openlexfiles);
+
+	tokendumpstream = NULL;
+
 	return 0;
 }
 /*}}}*/
@@ -326,8 +332,9 @@ fprintf (stderr, "lexer_open(): openlexfile[%d] has supported extension \"%s\"\n
 		return NULL;
 	}
 	lf->lineno = 1;
-	lf->lexer = DA_NTHITEM (langlexers, langlexidx);		/* &occampi_lexer; */
-	lf->parser = lf->lexer->parser;					/* &occampi_parser; */
+	lf->colno = 1;
+	lf->lexer = DA_NTHITEM (langlexers, langlexidx);
+	lf->parser = lf->lexer->parser;
 	lf->errcount = 0;
 	lf->warncount = 0;
 	lf->ppriv = NULL;
@@ -338,6 +345,17 @@ fprintf (stderr, "lexer_open(): openlexfile[%d] has supported extension \"%s\"\n
 	/*}}}*/
 	/* oki, ready for lexing..! */
 	dynarray_add (openlexfiles, lf);
+
+	/* if top-level thing being lexed, and wanting to dump tokens, set that here */
+	if ((DA_CUR (openlexfiles) == 1) && compopts.dumptokensto) {
+		tokendumpstream = fhandle_fopen (compopts.dumptokensto, "w");
+		if (!tokendumpstream) {
+			nocc_serious ("failed to open %s for writing tokens: %s", compopts.dumptokensto,
+					strerror (fhandle_lasterr (NULL)));
+		} else {
+			fhandle_printf (tokendumpstream, "<tokens>\n");
+		}
+	}
 
 	return lf;
 }
@@ -423,6 +441,7 @@ lexfile_t *lexer_openbuf (char *fname, char *langname, char *buf)
 	lp->offset = 0;
 
 	lf->lineno = 1;
+	lf->colno = 1;
 	lf->lexer = DA_NTHITEM (langlexers, langlexidx);
 	lf->parser = lf->lexer->parser;
 	lf->errcount = 0;
@@ -470,6 +489,12 @@ void lexer_close (lexfile_t *lf)
 	DA_SETNTHITEM (openlexfiles, DA_CUR (openlexfiles) - 1, NULL);
 	dynarray_delitem (openlexfiles, DA_CUR (openlexfiles) - 1);
 
+	/* if last one (top-level) and wanting token-dump, close that here */
+	if ((!DA_CUR (openlexfiles)) && tokendumpstream) {
+		fhandle_printf (tokendumpstream, "</tokens>\n");
+		fhandle_close (tokendumpstream);
+		tokendumpstream = NULL;
+	}
 	
 	if (lp->size && lp->buffer && lp->fhan) {
 		if (lf->lexer && lf->lexer->closefile) {
@@ -508,6 +533,10 @@ token_t *lexer_nexttoken (lexfile_t *lf)
 		dynarray_delitem (lf->tokbuffer, idx);
 	} else {
 		tok = lf->lexer->nexttoken (lf, lp);
+
+		if (tokendumpstream) {
+			lexer_dumptoken (tokendumpstream, tok);
+		}
 	}
 	return tok;
 }
@@ -597,6 +626,7 @@ lexfile_t *lexer_internal (const char *fname)
 	lf->priv = NULL;
 	lf->ppriv = NULL;
 	lf->lineno = 0;
+	lf->colno = 0;
 
 	lf->lexer = NULL;
 	lf->parser = NULL;
@@ -630,6 +660,11 @@ token_t *lexer_newtoken (tokentype_t type, ...)
 
 	tok = (token_t *)smalloc (sizeof (token_t));
 	tok->type = type;
+	tok->origin = NULL;
+	tok->lineno = 0;
+	tok->colno = 0;
+	tok->tokwidth = 0;
+
 	va_start (ap, type);
 	switch (type) {
 	case NOTOKEN:
@@ -714,7 +749,13 @@ void lexer_dumptoken (fhandle_t *stream, token_t *tok)
 	fhandle_printf (stream, "<token ");
 
 	if (tok->origin) {
-		fhandle_printf (stream, "origin=\"%s:%d\" ", tok->origin->fnptr, tok->lineno);
+		if ((tok->colno > 0) && (tok->tokwidth > 0)) {
+			fhandle_printf (stream, "origin=\"%s:%d:%d-%d\" ", tok->origin->fnptr, tok->lineno, tok->colno, tok->colno + (tok->tokwidth - 1));
+		} else if (tok->colno > 0) {
+			fhandle_printf (stream, "origin=\"%s:%d:%d\" ", tok->origin->fnptr, tok->lineno, tok->colno);
+		} else {
+			fhandle_printf (stream, "origin=\"%s:%d\" ", tok->origin->fnptr, tok->lineno);
+		}
 	}
 	if (tok->iptr) {
 		fhandle_printf (stream, "iptr=\"0x%8.8x\" ", (unsigned int)tok->iptr);
@@ -1048,7 +1089,11 @@ void lexer_warning (lexfile_t *lf, char *fmt, ...)
 	int n;
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (warning) ", lf->fnptr, lf->lineno);
+	if (lf->colno > 0) {
+		n = sprintf (warnbuf, "%s:%d:%d (warning) ", lf->fnptr, lf->lineno, lf->colno);
+	} else {
+		n = sprintf (warnbuf, "%s:%d (warning) ", lf->fnptr, lf->lineno);
+	}
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 	lf->warncount++;
@@ -1068,7 +1113,11 @@ void lexer_error (lexfile_t *lf, char *fmt, ...)
 	int n;
 
 	va_start (ap, fmt);
-	n = sprintf (warnbuf, "%s:%d (error) ", lf->fnptr, lf->lineno);
+	if (lf->colno > 0) {
+		n = sprintf (warnbuf, "%s:%d:%d (error) ", lf->fnptr, lf->lineno, lf->colno);
+	} else {
+		n = sprintf (warnbuf, "%s:%d (error) ", lf->fnptr, lf->lineno);
+	}
 	vsnprintf (warnbuf + n, 512 - n, fmt, ap);
 	va_end (ap);
 	lf->errcount++;
