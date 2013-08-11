@@ -133,6 +133,7 @@ typedef struct TAG_compopts {
 	int cache_pref;
 	int cache_cow;
 	char *cccsp_kroc;
+	char pathseparator;
 } compopts_t;
 
 

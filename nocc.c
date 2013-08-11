@@ -174,7 +174,8 @@ compopts_t compopts = {
 	.wget_opts = NULL,
 	.cache_pref = 0,
 	.cache_cow = 0,
-	.cccsp_kroc = NULL
+	.cccsp_kroc = NULL,
+	.pathseparator = ';'
 };
 
 /*}}}*/

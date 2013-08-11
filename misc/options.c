@@ -279,7 +279,7 @@ static int opt_addincludepath (cmd_option_t *opt, char ***argwalk, int *argleft)
 	ch = string_dup (ch);
 
 	for (dh = ch; dh; dh = eh) {
-		eh = strchr (dh, ':');
+		eh = strchr (dh, compopts.pathseparator);
 		if (eh) {
 			*eh = '\0';
 			eh++;
@@ -320,7 +320,7 @@ static int opt_addlibrarypath (cmd_option_t *opt, char ***argwalk, int *argleft)
 	ch = string_dup (ch);
 
 	for (dh = ch; dh; dh = eh) {
-		eh = strchr (dh, ':');
+		eh = strchr (dh, compopts.pathseparator);
 		if (eh) {
 			*eh = '\0';
 			eh++;
@@ -361,7 +361,7 @@ static int opt_addextnpath (cmd_option_t *opt, char ***argwalk, int *argleft)
 	ch = string_dup (ch);
 
 	for (dh = ch; dh; dh = eh) {
-		eh = strchr (dh, ':');
+		eh = strchr (dh, compopts.pathseparator);
 		if (eh) {
 			*eh = '\0';
 			eh++;
@@ -402,7 +402,7 @@ static int opt_addextn (cmd_option_t *opt, char ***argwalk, int *argleft)
 	ch = string_dup (ch);
 
 	for (dh = ch; dh; dh = eh) {
-		eh = strchr (dh, ':');
+		eh = strchr (dh, compopts.pathseparator);
 		if (eh) {
 			*eh = '\0';
 			eh++;
