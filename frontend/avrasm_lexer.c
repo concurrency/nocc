@@ -1,6 +1,6 @@
 /*
  *	avrasm_lexer.c -- lexer for AVR assembler sources
- *	Copyright (C) 2012 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2012-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -115,6 +115,7 @@ static int avrasm_openfile (lexfile_t *lf, lexpriv_t *lp)
 	
 	lp->langpriv = (void *)lrp;
 	lf->lineno = 1;
+	lf->colno = 1;
 	return 0;
 }
 /*}}}*/
@@ -154,6 +155,8 @@ static token_t *avrasm_nexttoken (lexfile_t *lf, lexpriv_t *lp)
 	tok->type = NOTOKEN;
 	tok->origin = (void *)lf;
 	tok->lineno = lf->lineno;
+	tok->colno = lf->colno;
+	tok->tokwidth = 0;
 	if (lp->offset == lp->size) {
 		/* reached EOF */
 		tok->type = END;
@@ -190,6 +193,8 @@ tokenloop:
 			tok->u.kw = kw;
 		}
 		lp->offset += (int)(dh - ch);
+		tok->tokwidth = (int)(dh - ch);
+		lf->colno += (int)(dh - ch);
 		/*}}}*/
 	} else if ((*ch >= '0') && (*ch <= '9')) {
 		/*{{{  number of sorts*/
@@ -241,6 +246,8 @@ tokenloop:
 				tok->u.ival = ival;
 				dh++;
 				lp->offset += (int)(dh - ch);
+				tok->tokwidth = (int)(dh - ch);
+				lf->colno += (int)(dh - ch);
 			} else {
 				/* assume it is a label reference */
 				avrasm_lspecial_t *als = avrasm_newavrasmlspecial ();
@@ -248,6 +255,8 @@ tokenloop:
 				dh++;
 				tok->type = LSPECIAL;
 				lp->offset += (int)(dh - ch);
+				tok->tokwidth = (int)(dh - ch);
+				lf->colno += (int)(dh - ch);
 
 				tok->u.lspec = (void *)als;
 				als->str = (char *)smalloc ((int)(dh - ch) + 1);
@@ -256,6 +265,9 @@ tokenloop:
 			}
 		} else {
 			lp->offset += (int)(dh - ch);
+			tok->tokwidth = (int)(dh - ch);
+			lf->colno += (int)(dh - ch);
+
 			/* parse it */
 			npbuf = (char *)smalloc ((int)(dh - ch) + 1);
 			memcpy (npbuf, ch, (int)(dh - ch));
@@ -284,6 +296,7 @@ tokenloop:
 		goto tokenloop;
 	case '\n':
 		lf->lineno++;
+		lf->colno = 1;
 		lp->offset++;
 		tok->type = NEWLINE;
 		/* and skip multiple newlines */
@@ -304,6 +317,7 @@ tokenloop:
 		/* scan to end-of-line */
 		for (dh=ch+1; (dh < chlim) && (*dh != '\n') && (*dh != '\r'); dh++);
 		lp->offset += (int)(dh - ch);
+		lf->colno += (int)(dh - ch);
 
 		break;
 		/*}}}*/
@@ -312,6 +326,7 @@ tokenloop:
 	case '\t':
 		/* skip over leading whitespace */
 		lp->offset++;
+		lf->colno++;
 		goto tokenloop;
 		/*}}}*/
 		/*{{{  " (string)*/
@@ -400,59 +415,72 @@ tokenloop:
 			*xch = '\0';
 			tok->u.str.len = slen;
 			lp->offset += (int)(dh - ch);
+			tok->tokwidth = (int)(dh - ch);
+			lf->colno += (int)(dh - ch);
 		}
 		break;
 		/*}}}*/
 		/*{{{  ' (character)*/
 	case '\'':
-		tok->type = INTEGER;
-		ch++;
-		lp->offset++;
-		if ((ch + 1) >= chlim) {
-			lexer_error (lf, "unexpected end of file");
-			goto out_error1;
-		}
-		if (*ch == '\\') {
-			/*{{{  escape character*/
+		{
+			int wid = 0;
+
+			tok->type = INTEGER;
 			ch++;
 			lp->offset++;
-			switch (*ch) {
-			case 'n':
-				tok->u.ival = (int)'\n';
-				break;
-			case 'r':
-				tok->u.ival = (int)'\r';
-				break;
-			case '\'':
-				tok->u.ival = (int)'\'';
-				break;
-			case '\"':
-				tok->u.ival = (int)'\"';
-				break;
-			case 't':
-				tok->u.ival = (int)'\t';
-				break;
-			case '\\':
-				tok->u.ival = (int)'\\';
-				break;
-			default:
-				lexer_error (lf, "unknown escape character \'\\%c\'", *ch);
-				break;
+			wid++;
+			if ((ch + 1) >= chlim) {
+				lexer_error (lf, "unexpected end of file");
+				goto out_error1;
 			}
-			ch++;
-			/*}}}*/
-		} else {
-			/* regular character */
-			tok->u.ival = (int)(*ch);
-			ch++;
+			if (*ch == '\\') {
+				/*{{{  escape character*/
+				ch++;
+				lp->offset++;
+				wid++;
+				switch (*ch) {
+				case 'n':
+					tok->u.ival = (int)'\n';
+					break;
+				case 'r':
+					tok->u.ival = (int)'\r';
+					break;
+				case '\'':
+					tok->u.ival = (int)'\'';
+					break;
+				case '\"':
+					tok->u.ival = (int)'\"';
+					break;
+				case 't':
+					tok->u.ival = (int)'\t';
+					break;
+				case '\\':
+					tok->u.ival = (int)'\\';
+					break;
+				default:
+					lexer_error (lf, "unknown escape character \'\\%c\'", *ch);
+					break;
+				}
+				ch++;
+				/*}}}*/
+			} else {
+				/* regular character */
+				tok->u.ival = (int)(*ch);
+				ch++;
+				lp->offset++;
+				wid++;
+			}
+			/* expect closing quote */
+			if (*ch != '\'') {
+				lexer_error (lf, "malformed character constant");
+				goto out_error1;
+			}
 			lp->offset++;
+			wid++;
+
+			tok->tokwidth = wid;
+			lf->colno += wid;
 		}
-		/* expect closing quote */
-		if (*ch != '\'') {
-			lexer_error (lf, "malformed character constant");
-			goto out_error1;
-		}
-		lp->offset++;
 		break;
 		/*}}}*/
 		/*{{{  default (symbol)*/
@@ -466,6 +494,8 @@ tokenloop:
 				tok->type = SYMBOL;
 				tok->u.sym = sym;
 				lp->offset += sym->mlen;
+				tok->tokwidth = sym->mlen;
+				lf->colno += sym->mlen;
 				
 			} else {
 				/* unknown.. */
@@ -484,6 +514,7 @@ tokenloop:
 	ch = lp->buffer + lp->offset;
 	for (dh = ch; (dh < chlim) && ((*dh == ' ') || (*dh == '\t')); dh++);
 	lp->offset += (int)(dh - ch);
+	lf->colno += (int)(dh - ch);
 
 	return tok;
 out_error1:
@@ -492,6 +523,7 @@ out_error1:
 	ch = lp->buffer + lp->offset;
 	for (dh = ch; (dh < chlim) && (*dh != '\n'); dh++);
 	lp->offset += (int)(dh - ch);
+	lf->colno += (int)(dh - ch);
 
 	return tok;
 }
