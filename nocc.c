@@ -2979,13 +2979,21 @@ int main (int argc, char **argv)
 		}
 		if (!builtinspecs[i]) {
 #ifdef HAVE_GETPWUID
+			/* try some places under the home-dir */
+
 			struct passwd *pwent = getpwuid (getuid ());
 			char fname[FILENAME_MAX];
 
 			if (pwent) {
-				sprintf (fname, "%s/.nocc.specs.xml", pwent->pw_dir);
+				snprintf (fname, FILENAME_MAX, "%s/.nocc.specs.xml", pwent->pw_dir);
 				if (!access (fname, R_OK)) {
 					compopts.specsfile = string_dup (fname);
+				} else {
+					/* try regular in ~/.nocc */
+					snprintf (fname, FILENAME_MAX, "%s/.nocc/nocc.specs.xml", pwent->pw_dir);
+					if (!access (fname, R_OK)) {
+						compopts.specsfile = string_dup (fname);
+					}
 				}
 			}
 #endif

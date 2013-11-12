@@ -1,5 +1,5 @@
-;	test_avr25.asm -- blinkenlight for the Arduino Uno
-;	Fred Barnes, March 2013
+;	test_avr26.asm -- blinkenlight for the Arduino Uno
+;	Fred Barnes, October 2013
 
 .mcu	"atmega328"
 
@@ -22,16 +22,12 @@ VEC_reset:
 
 loop:
 
-	ldi	r16, 0x10
+	ldi	r16, 250
 .L0:
-	ldi	r17, 0xff
+	ldi	r17, 250
 .L1:
-	ldi	r18, 0xff
+	ldi	r18, 20
 .L2:
-	nop
-	nop
-	nop
-	nop
 	dec	r18
 	brne	2b			; inner loop
 	dec	r17
