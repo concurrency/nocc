@@ -806,6 +806,19 @@ static void specfile_setstring (char **target, char *edata)
 	return;
 }
 /*}}}*/
+/*{{{  static void specfile_noresetstring (char **target, char *edata)*/
+/*
+ *	sets an arbitrary string in the config file (copies argument), only if not set already
+ */
+static void specfile_noresetstring (char **target, char *edata)
+{
+	if (*target) {
+		return;
+	}
+	*target = specfile_stringdupenv (edata);
+	return;
+}
+/*}}}*/
 
 /*{{{  static void specfile_init (xmlhandler_t *xh)*/
 /*
@@ -907,25 +920,25 @@ static void specfile_elem_end (xmlhandler_t *xh, void *data, xmlkey_t *key)
 			specfile_settrustedkey (edata);
 			break;
 		case XMLKEY_GPERF:
-			specfile_setstring (&compopts.gperf_p, edata);
+			specfile_noresetstring (&compopts.gperf_p, edata);
 			break;
 		case XMLKEY_GPROLOG:
-			specfile_setstring (&compopts.gprolog_p, edata);
+			specfile_noresetstring (&compopts.gprolog_p, edata);
 			break;
 		case XMLKEY_GDB:
-			specfile_setstring (&compopts.gdb_p, edata);
+			specfile_noresetstring (&compopts.gdb_p, edata);
 			break;
 		case XMLKEY_WGET:
-			specfile_setstring (&compopts.wget_p, edata);
+			specfile_noresetstring (&compopts.wget_p, edata);
 			break;
 		case XMLKEY_CACHEDIR:
-			specfile_setstring (&compopts.cachedir, edata);
+			specfile_noresetstring (&compopts.cachedir, edata);
 			break;
 		case XMLKEY_WGETOPTS:
-			specfile_setstring (&compopts.wget_opts, edata);
+			specfile_noresetstring (&compopts.wget_opts, edata);
 			break;
 		case XMLKEY_CCCSP_KROC:
-			specfile_setstring (&compopts.cccsp_kroc, edata);
+			specfile_noresetstring (&compopts.cccsp_kroc, edata);
 			break;
 		default:
 			nocc_warning ("unknown setting %s in specs file ignored", key->name);

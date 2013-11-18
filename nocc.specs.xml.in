@@ -46,5 +46,7 @@
 	<cachedir pref="yes" cow="yes">$HOME/.nocc/cache</cachedir>
 	<wgetopts>%u -O %l</wgetopts>
 	<cccsp-kroc>@kroc_path@</cccsp-kroc>
+
+	<!-- experimental things -->
 </nocc>
 

@@ -1,4 +1,4 @@
-/* ANSI-C code produced by gperf version 3.0.3 */
+/* ANSI-C code produced by gperf version 3.0.4 */
 /* Command-line: /usr/bin/gperf  */
 /* Computed positions: -k'2,6,9' */
 
@@ -35,7 +35,7 @@
  */
 struct TAG_cmd_option;
 
-#define TOTAL_KEYWORDS 73
+#define TOTAL_KEYWORDS 74
 #define MIN_WORD_LENGTH 3
 #define MAX_WORD_LENGTH 19
 #define MIN_HASH_VALUE 4
@@ -240,13 +240,13 @@ static const struct TAG_cmd_option wordlist[] =
     {"library-path",		'L',	opt_addlibrarypath,	NULL,				"0add paths for library files",				351},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {"cccsp-kroc",		'\0',	opt_setstr,		&(compopts.cccsp_kroc),		"1specify path to kroc for CCCSP back-end",		501},
     {"dump-chooks",		'\0',	opt_setintflag,		&(compopts.dumpchooks),		"1print compiler hooks",				18}
   };
 
 #ifdef __GNUC__
 __inline
-#ifdef __GNUC_STDC_INLINE__
+#if defined __GNUC_STDC_INLINE__ || defined __GNUC_GNU_INLINE__
 __attribute__ ((__gnu_inline__))
 #endif
 #endif

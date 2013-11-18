@@ -1,0 +1,24 @@
+
+# test_g41.gpp -- testing for different Guppy back-end target (EV3 perhaps.. :)).
+
+@include "guppy_stdlib.gpi"
+
+define foo (chan(int) out!)
+  out ! 42
+  out ! 99
+end
+
+define bar (chan(int) in?)
+  int x
+
+  in ? x
+  in ? x
+end
+
+define test_g41 (chan(string) screen!)
+  chan(int) c
+  par
+    foo (c!)
+    bar (c?)
+end
+

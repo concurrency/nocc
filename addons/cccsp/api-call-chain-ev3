@@ -1,0 +1,36 @@
+#
+#	This file defines the API call chain for CCCSP/ARM/CCSP.  Used to gather information about
+#	actual stack-frame sizes.  (this one is for the restricted ARM/CCSP on the LEGO EV3).
+#
+
+ccsp_kernel_call: =32
+ChanIn: ccsp_kernel_call
+ChanInit:
+ChanOut: ccsp_kernel_call
+ExternalCall0: ccsp_kernel_call
+ExternalCall1: ccsp_kernel_call
+ExternalCallN: ccsp_kernel_call
+MAlloc: ccsp_kernel_call
+MRelease: ccsp_kernel_call
+ccsp_kernel_entry: =64
+ProcAllocInitial: =128
+ProcStartInitial: ccsp_kernel_entry
+LightProcBarrierInit:
+LightProcBarrierWait: ccsp_kernel_call
+LightProcInit:
+LightProcStart: ccsp_kernel_call
+Reschedule: ccsp_kernel_call
+Shutdown: ccsp_kernel_call
+ProcPar: LightProcBarrierInit, LightProcStart, LightProcBarrierWait
+GuppyStringInit: MAlloc
+GuppyStringFree: MRelease
+GuppyStringEmpty: MRelease
+GuppyStringConstInitialiser: MAlloc
+GuppyStringAssign: MRelease, MAlloc, ExternalCallN
+GuppyStringConcat: GuppyStringEmpty, MAlloc
+GuppyStringClear: GuppyStringInit
+gproc_guppy_screen_process: ProcGetParam, ChanIn, ExternalCallN, GuppyStringFree
+gcf_int_to_str: GuppyStringFree, GuppyStringInit, MAlloc, ExternalCallN
+
+
+

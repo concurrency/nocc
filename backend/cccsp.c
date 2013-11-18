@@ -164,6 +164,13 @@ target_t cccsp_target = {
 
 /*}}}*/
 /*{{{  private types*/
+
+typedef enum ENUM_cccsp_subtarget {
+	CCCSP_SUBTARGET_DEFAULT = 0,		/* normal (host, CCSP) */
+	CCCSP_SUBTARGET_EV3 = 1			/* LEGO EV3 (cross-compile with arm-gcc-4.6, ARM/CCSP) */
+} cccsp_subtarget_e;
+
+
 typedef struct TAG_cccsp_priv {
 	lexfile_t *lastfile;
 	name_t *last_toplevelname;
@@ -265,6 +272,7 @@ static void *cccsp_set_outfile = NULL;			/* string copy (char*) for the above co
 static int cccsp_bepass = 0;
 static char *cccsp_cc_opts = NULL;			/* extra flags that can be passed to the C compiler */
 static int cccsp_show_sfi = 0;				/* whether or not to dump the SFI table (after recompile) */
+static cccsp_subtarget_e cccsp_subtarget = CCCSP_SUBTARGET_DEFAULT;
 
 static chook_t *cccsp_ctypestr = NULL;
 static int cccsp_coder_inparamlist = 0;
@@ -358,6 +366,34 @@ static int cccsp_opthandler_setflag (cmd_option_t *opt, char ***argwalk, int *ar
 	return 0;
 }
 /*}}}*/
+/*{{{  static int cccsp_opthandler_setsubtarget (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	option handler for cccsp subtarget setting
+ *	this must be specified as "--cccsp-subtarget=...", since options may not be visible initially
+ *	returns 0 on success, non-zero on failure
+ */
+static int cccsp_opthandler_setsubtarget (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	char *ch;
+
+	for (ch=**argwalk; (*ch != '\0') && (*ch != '='); ch++);
+	if (*ch == '\0') {
+		/* odd.. */
+		nocc_warning ("cccsp: missing/empty subtarget option?");
+	} else {
+		ch++;
+		if (!strcmp (ch, "EV3")) {
+			cccsp_subtarget = CCCSP_SUBTARGET_EV3;
+		} else if (!strcmp (ch, "default")) {
+			cccsp_subtarget = CCCSP_SUBTARGET_DEFAULT;
+		} else {
+			nocc_error ("cccsp: bad subtarget [%s]", ch);
+			return 1;
+		}
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int cccsp_init_options (cccsp_priv_t *kpriv)*/
 /*
  *	initialises options for the KRoC-CIF/CCSP back-end
@@ -367,6 +403,7 @@ static int cccsp_init_options (cccsp_priv_t *kpriv)
 {
 	opts_add ("cccsp-cc-opts", '\0', cccsp_opthandler_setstring, (void *)&cccsp_cc_opts, "1specify additional C compiler options");
 	opts_add ("cccsp-show-sfi", '\0', cccsp_opthandler_setflag, (void *)&cccsp_show_sfi, "1dump SFI table after recompile");
+	opts_add ("cccsp-subtarget", '\0', cccsp_opthandler_setsubtarget, NULL, "1set CCCSP sub-target (default,EV3)");
 	// opts_add ("norangechecks", '\0', cccsp_opthandler_flag, (void *)1, "1do not generate range-checks");
 	return 0;
 }
@@ -384,6 +421,41 @@ fprintf (stderr, "cccsp_opthandler_stopat(): setting stop point to %d\n", compop
 	return 0;
 }
 /*}}}*/
+/*{{{  static int cccsp_fixup_for_subtarget (char **strp, cccsp_subtarget_e starget)*/
+/*
+ *	adjusts a file-name for a particular subtarget (usually object files).
+ *	returns 0 on success, non-zero on error.
+ */
+static int cccsp_fixup_for_subtarget (char **strp, cccsp_subtarget_e starget)
+{
+	char *newstr, *ch;
+	int slen = strlen (*strp);
+
+	newstr = (char *)smalloc (slen + 16);
+	strcpy (newstr, *strp);
+	for (ch = newstr + slen; (ch > newstr) && (*ch != '.'); ch--);
+	if (*ch == '.') {
+		char *rest = string_dup (ch);
+
+		switch (starget) {
+		case CCCSP_SUBTARGET_DEFAULT:
+			break;
+		case CCCSP_SUBTARGET_EV3:
+			sprintf (ch, "-ev3%s", rest);
+			break;
+		}
+		sfree (rest);
+		sfree (*strp);
+		*strp = newstr;
+	} else {
+		/* leave alone */
+		sfree (newstr);
+	}
+
+	return 0;
+}
+/*}}}*/
+
 /*{{{  char *cccsp_make_entryname (const char *name, const int procabs)*/
 /*
  *	turns a front-end name into a C-CCSP name for a function-entry point.
@@ -412,7 +484,6 @@ char *cccsp_make_entryname (const char *name, const int procabs)
 	return rname;
 }
 /*}}}*/
-
 
 /*{{{  cccsp_namehook_t routines*/
 /*{{{  static void cccsp_namehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
@@ -2003,6 +2074,13 @@ static int cccsp_be_codegen_init (codegen_t *cgen, lexfile_t *srcfile)
 #endif
 	codegen_write_fmt (cgen, " *\ton host %s at %s\n", hostnamebuf, timebuf);
 	codegen_write_fmt (cgen, " *\tsource language: %s, target: %s\n", parser_langname (srcfile) ?: "(unknown)", compopts.target_str);
+	switch (cccsp_subtarget) {
+	case CCCSP_SUBTARGET_DEFAULT:
+		break;
+	case CCCSP_SUBTARGET_EV3:
+		codegen_write_fmt (cgen, " *\tsubtarget: LEGO EV3\n");
+		break;
+	}
 	codegen_write_string (cgen, " */\n\n");
 
 	cops = (coderops_t *)smalloc (sizeof (coderops_t));
@@ -2696,11 +2774,15 @@ int cccsp_shutdown (void)
  */
 static int cccsp_run_cc (char *cmd)
 {
-	char **bits = split_string (cmd, 1);
+	char **bits;
 	int fres;
 	int rval = 0;
 	int i;
 
+	if (compopts.verbose > 1) {
+		nocc_message ("cccsp_run_cc(): running compiler: %s", cmd);
+	}
+	bits = split_string (cmd, 1);
 #if 0
 	/* FIXME: may be just "gcc" or similar for the compiler, not a full path */
 	if (fhandle_access (bits[0], X_OK)) {
@@ -2854,6 +2936,13 @@ static int cccsp_cc_compile_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t
 
 		langlibs_obj = srclf->parser->getlanglibs (target, 0);
 		langlibs_src = srclf->parser->getlanglibs (target, 1);
+
+		/* fixup objects for subtarget if needed */
+		if (cccsp_subtarget == CCCSP_SUBTARGET_EV3) {
+			for (i=0; langlibs_obj[i]; i++) {
+				cccsp_fixup_for_subtarget (&langlibs_obj[i], cccsp_subtarget);
+			}
+		}
 
 		for (i=0; langlibs_obj[i]; i++) {
 			/*{{{  for each object (and maybe source)*/
@@ -3056,9 +3145,19 @@ fhandle_printf (FHAN_STDERR, "cccsp_cc_compile_cpass(): ccodefile=[%s] objfname=
 		ccmd = string_fmt ("%s -fstack-usage %s -c %s %s %s -o %s %s", kpriv->cc_path, cccsp_cc_opts ?: "",
 				kpriv->cc_incpath, kpriv->cc_flags, eincl, objfname, ccodefile);
 	} else {
-		ccmd = string_fmt ("%s -fstack-usage %s %s %s %s -o %s %s %s %s -lccsp %s", kpriv->cc_path,
-				cccsp_cc_opts ?: "", kpriv->cc_incpath, kpriv->cc_flags, eincl,
-				objfname, ccodefile, kpriv->cc_libpath, kpriv->cc_ldflags, langlib);
+		/* build executable */
+		switch (cccsp_subtarget) {
+		case CCCSP_SUBTARGET_DEFAULT:
+			ccmd = string_fmt ("%s -fstack-usage %s %s %s %s -o %s %s %s %s -lccsp %s", kpriv->cc_path,
+					cccsp_cc_opts ?: "", kpriv->cc_incpath, kpriv->cc_flags, eincl,
+					objfname, ccodefile, kpriv->cc_libpath, kpriv->cc_ldflags, langlib);
+			break;
+		case CCCSP_SUBTARGET_EV3:
+			ccmd = string_fmt ("%s -fstack-usage %s %s %s %s -o %s %s %s %s %s", kpriv->cc_path,
+					cccsp_cc_opts ?: "", kpriv->cc_incpath, kpriv->cc_flags, eincl,
+					objfname, ccodefile, kpriv->cc_libpath, kpriv->cc_ldflags, langlib);
+			break;
+		}
 	}
 
 	if (sfimove) {
@@ -3129,7 +3228,16 @@ static int cccsp_cc_sfi_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t *ta
 
 	/*{{{  find where the api-call-chain file lives and load it*/
 	for (i=0; !apif && (i<DA_CUR (compopts.epath)); i++) {
-		char *tmpstr = string_fmt ("%s/cccsp/api-call-chain", DA_NTHITEM (compopts.epath, i));
+		char *tmpstr;
+		
+		switch (cccsp_subtarget) {
+		case CCCSP_SUBTARGET_DEFAULT:
+			tmpstr = string_fmt ("%s/cccsp/api-call-chain", DA_NTHITEM (compopts.epath, i));
+			break;
+		case CCCSP_SUBTARGET_EV3:
+			tmpstr = string_fmt ("%s/cccsp/api-call-chain-ev3", DA_NTHITEM (compopts.epath, i));
+			break;
+		}
 
 		if (!fhandle_access (tmpstr, R_OK)) {
 			apif = string_dup (tmpstr);
