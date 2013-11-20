@@ -185,6 +185,19 @@ tnode_dumptree (fvlist, 1, FHAN_STDERR);
 	return 1;
 }
 /*}}}*/
+/*{{{  static int guppy_postscope_cnode (compops_t *cops, tnode_t **nodep)*/
+/*
+ *	does post-scope on a constructor node.
+ *	returns 0 to stop walk, non-zero to continue.
+ */
+static int guppy_postscope_cnode (compops_t *cops, tnode_t **nodep)
+{
+	tnode_t **bodyp = tnode_nthsubaddr (*nodep, 1);
+
+	parser_ensurelist (bodyp, *nodep);
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_fetrans_cnode (compops_t *cops, tnode_t **nodep, fetrans_t *fe)*/
 /*
  *	does front-end transforms for a constructor node
@@ -723,6 +736,7 @@ static int guppy_cnode_init_nodes (void)
 	tnode_setcompop (cops, "autoseq", 2, COMPOPTYPE (guppy_autoseq_cnode));
 	tnode_setcompop (cops, "flattenseq", 1, COMPOPTYPE (guppy_flattenseq_cnode));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_cnode));
+	tnode_setcompop (cops, "postscope", 1, COMPOPTYPE (guppy_postscope_cnode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (guppy_fetrans_cnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_cnode));
 	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_cnode));

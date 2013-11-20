@@ -17,8 +17,15 @@ end
 
 define test_g41 (chan(string) screen!)
   chan(int) c
-  par
-    foo (c!)
-    bar (c?)
+  timer tim
+  int t0
+  seq
+    par
+      foo (c!)
+      bar (c?)
+
+    screen ! "x\n"
+    tim ? t0
+    screen ! int_to_str (t0) + "\n"
 end
 

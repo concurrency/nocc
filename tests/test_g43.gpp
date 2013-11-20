@@ -1,0 +1,17 @@
+# test_g43.gpp -- more guppy tests
+
+# @include "guppy_stdlib.gpi"
+
+define g43 ()
+  timer tim
+  int t
+  seq
+    chan(int) c
+    par
+      int v
+      seq
+        tim ? v
+        c ! v
+      c ? t
+end
+
