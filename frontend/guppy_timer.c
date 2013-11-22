@@ -267,6 +267,39 @@ static int guppy_timerio_typeresolve (compops_t *cops, tnode_t **nodep, typechec
 	return 1;
 }
 /*}}}*/
+/*{{{  static int guppy_timerfvnode_postcheck (compops_t *cops, tnode_t **nodep, postcheck_t *pc)*/
+/*
+ *	does post-check on free-variable node to remove TIMERs -- should not occur elsewhere.
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_timerfvnode_postcheck (compops_t *cops, tnode_t **nodep, postcheck_t *pc)
+{
+	if ((*nodep)->tag == gup.tag_FVNODE) {
+		tnode_t *fvlist = tnode_nthsubof (*nodep, 1);
+		int i;
+
+		if (!parser_islistnode (fvlist)) {
+			nocc_internal ("guppy_timerfvnode_postcheck(): FVNODE set not list, got [%s]", fvlist->tag->name);
+			return 0;
+		}
+		for (i=0; i<parser_countlist (fvlist); i++) {
+			tnode_t *fvitem = parser_getfromlist (fvlist, i);
+			tnode_t *fvtype = typecheck_gettype (fvitem, NULL);
+
+			if (fvtype->tag == gup.tag_TIMER) {
+				/* this one! */
+				parser_delfromlist (fvlist, i);
+				i--;
+				continue;				/* for() */
+			}
+		}
+	}
+	if (cops->next && tnode_hascompop_i (cops->next, (int)COPS_POSTCHECK)) {
+		return tnode_callcompop_i (cops->next, (int)COPS_POSTCHECK, 2, nodep, pc);
+	}
+	return 1;
+}
+/*}}}*/
 
 /*{{{  static int guppy_timer_init_nodes (void)*/
 /*
@@ -325,9 +358,10 @@ static int guppy_timer_init_nodes (void)
 
 	/*}}}*/
 
-	/*{{{  interfere with guppy:declblock and guppy:io node types*/
+	/*{{{  interfere with guppy:declblock, guppy:io and guppy:fvnode node types*/
 	/* -> postcheck in DECLBLOCK/VARDECL to remove TIMER declarations,
 	 * -> typeresolve in INPUT to transform into TIMERREAD,TIMERWAIT
+	 * -> postcheck in FVNODE to remove TIMERs
 	 */
 	tnd = tnode_lookupnodetype ("guppy:declblock");
 	if (!tnd) {
@@ -347,6 +381,16 @@ static int guppy_timer_init_nodes (void)
 
 	cops = tnode_insertcompops (tnd->ops);
 	tnode_setcompop (cops, "typeresolve", 2, COMPOPTYPE (guppy_timerio_typeresolve));
+	tnd->ops = cops;
+
+	tnd = tnode_lookupnodetype ("guppy:fvnode");
+	if (!tnd) {
+		nocc_error ("guppy_timer_init_nodes(): failed to find \"guppy:fvnode\" node type");
+		return -1;
+	}
+
+	cops = tnode_insertcompops (tnd->ops);
+	tnode_setcompop (cops, "postcheck", 2, COMPOPTYPE (guppy_timerfvnode_postcheck));
 	tnd->ops = cops;
 
 	/*}}}*/

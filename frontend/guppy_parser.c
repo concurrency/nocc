@@ -527,7 +527,7 @@ fprintf (stderr, "guppy_declify_listtodecllist(): i=%d, j=%d, nitems=%d\n", i, j
 
 	if (nextptr) {
 		/* recurse down into remains of list and do there */
-		guppy_declify_listtodecllist (nextptr, gdl);
+		guppy_declify_subtree (nextptr, gdl);
 	}
 
 	return 0;
@@ -2357,6 +2357,10 @@ static int guppy_parser_scope (tnode_t **tptr, scope_t *ss)
 		gss->resolve_nametype_first = NULL;
 		ss->langpriv = (void *)gss;
 
+		if (compopts.tracescope) {
+			nocc_message ("SCOPE: guppy_parser_scope: about to mod pre/post tree @%p type [%s:%s]",
+					*tptr, (*tptr)->tag->ndef->name, (*tptr)->tag->name);
+		}
 		tnode_modprepostwalktree (tptr, scope_modprewalktree, scope_modpostwalktree, (void *)ss);
 
 		dynarray_trash (gss->crosses);

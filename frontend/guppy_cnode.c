@@ -180,6 +180,7 @@ tnode_dumptree (fvlist, 1, FHAN_STDERR);
 			pitems[i] = fvnode;
 		}
 		ss->lexlevel--;
+		return 0;		/* don't descend! */
 	} 
 	/* else trivial */
 	return 1;

@@ -134,6 +134,7 @@ compopts_t compopts = {
 	.tracetypecheck = 0,
 	.traceparser = 0,
 	.tracenamespaces = 0,
+	.tracescope = 0,
 	.traceconstprop = 0,
 	.traceprecode = 0,
 	.tracecompops = NULL,

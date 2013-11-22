@@ -87,6 +87,7 @@ typedef struct TAG_compopts {
 	int stoppoint;
 	int traceparser;
 	int tracenamespaces;
+	int tracescope;
 	int tracetypecheck;
 	int traceconstprop;
 	int traceprecode;

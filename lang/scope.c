@@ -224,6 +224,10 @@ int scope_modprewalktree (tnode_t **node, void *arg)
 	int i = 1;
 
 	if ((*node)->tag->ndef->ops && tnode_hascompop_i ((*node)->tag->ndef->ops, (int)COPS_SCOPEIN)) {
+		if (compopts.tracescope) {
+			nocc_message ("SCOPE-IN: scope_modprewalktree: about to scope-in node @%p type [%s:%s]",
+					*node, (*node)->tag->ndef->name, (*node)->tag->name);
+		}
 		i = tnode_callcompop_i ((*node)->tag->ndef->ops, (int)COPS_SCOPEIN, 2, node, sarg);
 	}
 
@@ -240,6 +244,10 @@ int scope_modpostwalktree (tnode_t **node, void *arg)
 	int i = 1;
 
 	if ((*node)->tag->ndef->ops && tnode_hascompop_i ((*node)->tag->ndef->ops, (int)COPS_SCOPEOUT)) {
+		if (compopts.tracescope) {
+			nocc_message ("SCOPE-OUT: scope_modpostwalktree: about to scope-out node @%p type [%s:%s]",
+					*node, (*node)->tag->ndef->name, (*node)->tag->name);
+		}
 		i = tnode_callcompop_i ((*node)->tag->ndef->ops, (int)COPS_SCOPEOUT, 2, node, sarg);
 	}
 
@@ -268,6 +276,10 @@ int scope_tree (tnode_t *t, langparser_t *lang)
 	ss->langpriv = NULL;
 	dynarray_init (ss->defns);
 	dynarray_init (ss->usens);
+
+	if (compopts.tracescope) {
+		nocc_message ("SCOPE: scope_tree: starting scope.");
+	}
 
 	r = lang->scope (&t, ss);
 

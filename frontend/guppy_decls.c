@@ -604,6 +604,10 @@ static int guppy_scopein_vdecl (compops_t *cops, tnode_t **node, scope_t *ss)
 		int isabbrev = 0;
 		int isval = 0;
 
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_scopein_vdecl(): VARDECL node: ");
+tnode_dumptree (*node, 1, FHAN_STDERR);
+#endif
 		/* scope the type first */
 		scope_subtree (tnode_nthsubaddr (*node, 1), ss);
 		type = tnode_nthsubof (*node, 1);
@@ -1323,8 +1327,8 @@ static int guppy_scopein_declblock (compops_t *cops, tnode_t **node, scope_t *ss
 	int nitems, i;
 
 #if 0
-fprintf (stderr, "guppy_scopein_declblock(): here!  complete block is:\n");
-tnode_dumptree (*node, 1, stderr);
+fhandle_printf (FHAN_STDERR, "guppy_scopein_declblock(): here!  complete block is:\n");
+tnode_dumptree (*node, 1, FHAN_STDERR);
 #endif
 	nsmark = name_markscope ();
 	items = parser_getlistitems (decllist, &nitems);

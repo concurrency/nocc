@@ -5,6 +5,5 @@ Lots of things..
 * lazy conversion of DFA tables
 * grammar and language constructs (in progress)
 * built-in XML parser
-* "/etc/" to SYSCONFDIR, nocc.specs.xml.in -> nocc.specs.xml with PREFIX for path-base
 
 

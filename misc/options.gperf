@@ -63,12 +63,13 @@ skip-usagecheck,	'\0',	opt_clearintflag,	&(compopts.dousagecheck),	"1skip parall
 skip-defcheck,		'\0',	opt_clearintflag,	&(compopts.dodefcheck),		"1skip undefinedness checks",				152
 trace-parser,		'\0',	opt_setintflag,		&(compopts.traceparser),	"1trace parser (debugging)",				200
 trace-namespaces,	'\0',	opt_setintflag,		&(compopts.tracenamespaces),	"1trace name-spaces (debugging)",			201
-trace-typecheck,	'\0',	opt_setintflag,		&(compopts.tracetypecheck),	"1trace type-check (debugging)",			202
-trace-constprop,	'\0',	opt_setintflag,		&(compopts.traceconstprop),	"1trace constant-propagation (debugging)",		203
-trace-precode,		'\0',	opt_setintflag,		&(compopts.traceprecode),	"1trace pre-code (debugging)",				204
-trace-compops,		'\0',	opt_setstr,		&(compopts.tracecompops),	"1trace compiler operations (debugging)",		205
-trace-langops,		'\0',	opt_setstr,		&(compopts.tracelangops),	"1trace language operations (debugging)",		206
-trace-tracescheck,	'\0',	opt_setintflag,		&(compopts.tracetracescheck),	"1trace traces checking operations (debugging)",	207
+trace-scope,		'\0',	opt_setintflag,		&(compopts.tracescope),		"1trace scoping (debugging)",				202
+trace-typecheck,	'\0',	opt_setintflag,		&(compopts.tracetypecheck),	"1trace type-check (debugging)",			203
+trace-constprop,	'\0',	opt_setintflag,		&(compopts.traceconstprop),	"1trace constant-propagation (debugging)",		204
+trace-precode,		'\0',	opt_setintflag,		&(compopts.traceprecode),	"1trace pre-code (debugging)",				205
+trace-compops,		'\0',	opt_setstr,		&(compopts.tracecompops),	"1trace compiler operations (debugging)",		206
+trace-langops,		'\0',	opt_setstr,		&(compopts.tracelangops),	"1trace language operations (debugging)",		207
+trace-tracescheck,	'\0',	opt_setintflag,		&(compopts.tracetracescheck),	"1trace traces checking operations (debugging)",	208
 treecheck,		'\0',	opt_setintflag,		&(compopts.treecheck),		"1enable run-time parse tree checking",			250
 verbose,		'v',	opt_setintflagup,	&(compopts.verbose),		"0verbose compilation",					251
 debug-parser,		'\0',	opt_setintflag,		&(compopts.debugparser),	"1debug parser",					252
