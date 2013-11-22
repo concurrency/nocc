@@ -275,20 +275,26 @@ static int guppy_scopein_rawnamenode (compops_t *cops, tnode_t **node, scope_t *
 		tnode_free (name);
 
 		if (gss && (ss->lexlevel > NameLexlevelOf (sname))) {
-			if (DA_CUR (gss->crosses) > 0) {
-				tnode_t *fvlist = DA_NTHITEM (gss->crosses, DA_CUR (gss->crosses) - 1);
-				tnode_t **fvitems;
-				int i, nfvitems;
+			int i;
 
-				/* only add if it's not already here */
-				fvitems = parser_getlistitems (fvlist, &nfvitems);
-				for (i=0; i<nfvitems; i++) {
-					if (fvitems[i] == NameNodeOf (sname)) {
-						break;
+			for (i=0; i<DA_CUR (gss->crosses); i++) {
+				tnode_t *fvlist = DA_NTHITEM (gss->crosses, i);
+				int fvll = DA_NTHITEM (gss->cross_lexlevels, i);
+
+				if (NameLexlevelOf (sname) < fvll) {
+					tnode_t **fvitems;
+					int i, nfvitems;
+
+					/* only add if it's not already here */
+					fvitems = parser_getlistitems (fvlist, &nfvitems);
+					for (i=0; i<nfvitems; i++) {
+						if (fvitems[i] == NameNodeOf (sname)) {
+							break;
+						}
 					}
-				}
-				if (i == nfvitems) {
-					parser_addtolist (fvlist, NameNodeOf (sname));
+					if (i == nfvitems) {
+						parser_addtolist (fvlist, NameNodeOf (sname));
+					}
 				}
 			}
 		}
@@ -647,6 +653,7 @@ tnode_dumptree (*node, 1, FHAN_STDERR);
 		}
 		newname = tnode_createfrom (tag, name, varname);
 		SetNameNode (varname, newname);
+		SetNameLexlevel (varname, ss->lexlevel);
 		if (initdecl) {
 			/* put back scoped initialiser */
 			tnode_setnthsub (*node, 2, initdecl);

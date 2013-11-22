@@ -203,6 +203,7 @@ typedef struct {
 
 typedef struct {
 	DYNARRAY (struct TAG_tnode *, crosses);		/* where these things can be remembered (collects names) */
+	DYNARRAY (int, cross_lexlevels);		/* lexical levels for each of the above */
 	struct TAG_ntdef *resolve_nametype_first;	/* when resolving names, look for these [nodetype] first */
 } guppy_scope_t;
 

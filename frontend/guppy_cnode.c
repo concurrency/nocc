@@ -172,12 +172,17 @@ fhandle_printf (FHAN_STDERR, "guppy_scopein_cnode(): set fvlist=\n");
 tnode_dumptree (fvlist, 1, FHAN_STDERR);
 #endif
 			dynarray_add (gss->crosses, fvlist);
+			dynarray_add (gss->cross_lexlevels, ss->lexlevel);
 			scope_subtree (pitems + i, ss);
 
 			/* anything that refers to high-level stuff will be recorded in fvlist */
 
 			fvnode = tnode_createfrom (gup.tag_FVNODE, pitems[i], pitems[i], fvlist);
 			pitems[i] = fvnode;
+
+			/* and lets not forget to remove it after..! */
+			dynarray_delitem (gss->cross_lexlevels, DA_CUR (gss->cross_lexlevels) - 1);
+			dynarray_rmitem (gss->crosses, fvlist);
 		}
 		ss->lexlevel--;
 		return 0;		/* don't descend! */
