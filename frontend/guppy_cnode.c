@@ -777,6 +777,42 @@ static int guppy_cnode_init_nodes (void)
 	gup.tag_REPLPAR = tnode_newnodetag ("REPLPAR", &i, tnd, NTF_INDENTED_PROC_LIST);
 
 	/*}}}*/
+	/*{{{  guppy:anode -- ALT*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:anode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = unused; 1 = body */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_ALT = tnode_newnodetag ("ALT", &i, tnd, NTF_INDENTED_DGUARD_LIST);
+
+	/*}}}*/
+	/*{{{  guppy:guard -- GUARD*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:guard", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = pre-condition, 1 = guard-process, 2 = body */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_GUARD = tnode_newnodetag ("GUARD", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:replanode -- REPLALT*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:replanode", &i, 5, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = unused; 1 = body; 2 = repl-name; 3 = start-expr; 4 = count-expr */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_REPLALT = tnode_newnodetag ("REPLALT", &i, tnd, NTF_INDENTED_DGUARD_LIST);
+
+	/*}}}*/
 
 	return 0;
 }

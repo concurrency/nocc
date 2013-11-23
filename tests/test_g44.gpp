@@ -1,0 +1,9 @@
+
+define g44 ()
+  timer tim
+  int t
+  seq
+    tim ? t
+    tim ? after (t + 1000000)
+end
+

@@ -80,6 +80,7 @@ static tnode_t *guppy_parser_parseproc (lexfile_t *lf);
 static tnode_t *guppy_parser_parsedef (lexfile_t *lf);
 static tnode_t *guppy_declorproc (lexfile_t *lf);
 static tnode_t *guppy_indented_declorproc_list (lexfile_t *lf);
+static tnode_t *guppy_indented_dguard_list (lexfile_t *lf);
 static tnode_t *guppy_indented_tcase_list (lexfile_t *lf);
 
 
@@ -1756,12 +1757,18 @@ static tnode_t *guppy_parser_parseproc (lexfile_t *lf)
 
 	tnflags = tnode_tnflagsof (tree);
 	if (tnflags & TNF_LONGPROC) {
-		/*{{{  long process (e.g. 'seq', 'par', etc.*/
+		/*{{{  long process (e.g. 'seq', 'par', etc.)*/
 		int ntflags = tnode_ntflagsof (tree);
 
 		if (ntflags & NTF_INDENTED_PROC_LIST) {
 			/*{{{  long process, parse list of indented processes into subnode 1*/
 			tnode_t *body = guppy_indented_declorproc_list (lf);
+
+			tnode_setnthsub (tree, 1, body);
+			/*}}}*/
+		} else if (ntflags & NTF_INDENTED_DGUARD_LIST) {
+			/*{{{  long process, parse list of indented guards (maybe with leading declarations) into subnode 1*/
+			tnode_t *body = guppy_indented_dguard_list (lf);
 
 			tnode_setnthsub (tree, 1, body);
 			/*}}}*/
@@ -1840,6 +1847,90 @@ fhandle_printf (FHAN_STDERR, "guppy_declorproc(): about to fail, but testtruetag
 		nocc_message ("guppy_declorproc(): done parsing declaration or process, got (%s:%s)", tree ? tree->tag->name : "(nil)",
 				tree ? tree->tag->ndef->name : "(nil)");
 	}
+
+	return tree;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_decllistandguard (lexfile_t *lf)*/
+/*
+ *	parses any number of declarations then a guard;  if declarations are present, builds an encapsulating DECLBLOCK.
+ */
+static tnode_t *guppy_decllistandguard (lexfile_t *lf)
+{
+	tnode_t *tree = NULL;
+	token_t *tok = NULL;
+	tnode_t *decls = NULL;
+	tnode_t **gprocptr = NULL;
+
+	if (compopts.verbose > 1) {
+		nocc_message ("guppy_decllistandguard(): parsing declarations(s) and guard at %s:%d", lf->fnptr, lf->lineno);
+	}
+
+	for (;;) {
+		/*{{{  skip newlines and comments*/
+		tok = lexer_nexttoken (lf);
+		while (tok && ((tok->type == NEWLINE) || (tok->type == COMMENT))) {
+			lexer_freetoken (tok);
+			tok = lexer_nexttoken (lf);
+		}
+		if (tok) {
+			lexer_pushback (lf, tok);
+			tok = NULL;
+		}
+
+		/*}}}*/
+
+		tree = dfa_walk ("guppy:testfordecl", 0, lf);
+		if (!tree) {
+			parser_error (SLOCN (lf), "expected to find declaration and guard, but didn\'t");
+		} else if (tree->tag == testtruetag) {
+			/* definitely a declaration, deal with it */
+			tnode_t *tmp;
+
+			tnode_free (tree);
+			tmp = guppy_parser_parsedef (lf);
+			if (tmp) {
+				if (!decls) {
+					decls = parser_newlistnode (OrgOf (tmp));
+				}
+				parser_addtolist (decls, tmp);
+			}
+		} else if (tree->tag == testfalsetag) {
+			/* not a declaration -- should be a guard */
+			tnode_free (tree);
+			tree = NULL;
+			break;				/* for() */
+		} else {
+			nocc_serious ("guppy_decllistandguard(): guppy_testfordecl DFA returned:");
+			tnode_dumptree (tree, 1, FHAN_STDERR);
+			tnode_free (tree);
+			return NULL;
+		}
+	}
+
+	/* should have a guard */
+	tree = dfa_walk ("guppy:guard", 0, lf);
+	if (!tree) {
+		parser_error (SLOCN (lf), "expected to find guard, but didn\'t");
+	} else {
+		tnode_t *gproc;
+
+		/* parse guarded process */
+		gproc = guppy_indented_declorproc_list (lf);
+		tnode_setnthsub (tree, 2, gproc);
+
+		if (decls) {
+			tnode_t *tmp = tnode_create (gup.tag_DECLBLOCK, SLOCI, decls, tree);
+
+			tree = tmp;
+		}
+	}
+
+	if (compopts.verbose > 1) {
+		nocc_message ("guppy_decllistandguard(): done parsing declaration or process, got (%s:%s)", tree ? tree->tag->name : "(nil)",
+				tree ? tree->tag->ndef->name : "(nil)");
+	}
+
 
 	return tree;
 }
@@ -1940,6 +2031,83 @@ static tnode_t *guppy_indented_declorproc_list (lexfile_t *lf)
 fprintf (stderr, "guppy_indented_declorproc_list(): returning:\n");
 tnode_dumptree (tree, 1, stderr);
 #endif
+	return tree;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_indented_dguard_list (lexfile_t *lf)*/
+/*
+ *	parses a list of indented (optional declarations) and guards.
+ */
+static tnode_t *guppy_indented_dguard_list (lexfile_t *lf)
+{
+	tnode_t *tree = NULL;
+	token_t *tok;
+	int zflag = 0;
+
+	if (compopts.verbose > 1) {
+		nocc_message ("guppy_indented_dguard_list(): %s:%d: parsing indented guard list", lf->fnptr, lf->lineno);
+	}
+
+	tok = lexer_nexttoken (lf);
+	/*{{{  skip newlines and comments*/
+	for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
+		lexer_freetoken (tok);
+	}
+
+	/*}}}*/
+	/*{{{  expect indent*/
+	if (tok->type != INDENT) {
+		parser_error (SLOCN (lf), "expected indent, found:");
+		lexer_dumptoken (FHAN_STDERR, tok);
+		lexer_pushback (lf, tok);
+		tnode_free (tree);
+		return NULL;
+	}
+
+	/*}}}*/
+	lexer_freetoken (tok);
+
+	/* okay, parse declarations and guards */
+	tree = parser_newlistnode (SLOCN (lf));
+	for (;;) {
+		tnode_t *thisone;
+
+		/* check token for end of indentation */
+		tok = lexer_nexttoken (lf);
+		/*{{{  skip newlines*/
+		for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
+			lexer_freetoken (tok);
+		}
+
+		/*}}}*/
+		if (tok->type == OUTDENT) {
+			/* got outdent, end-of-list! */
+			lexer_freetoken (tok);
+			break;		/* for() */
+		} else {
+			lexer_pushback (lf, tok);
+		}
+
+		thisone = guppy_decllistandguard (lf);
+
+		if (thisone) {
+			parser_addtolist (tree, thisone);
+			zflag = 0;
+		} else if (!zflag) {
+			/* failed to parse -- actually, continue blindly.. */
+			zflag = 1;
+		} else {
+			/* not getting anywhere, give up -- search for the next outdent */
+			guppy_skiptooutdent (lf);
+			tok = lexer_nexttoken (lf);			/* either outdent or end */
+			break;
+		}
+	}
+
+	if (compopts.verbose > 1) {
+		nocc_message ("guppy_indented_dguard_list(): %s:%d: done parsing indented guard list (tree at 0x%8.8x)",
+				lf->fnptr, lf->lineno, (unsigned int)tree);
+	}
 	return tree;
 }
 /*}}}*/

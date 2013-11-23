@@ -38,6 +38,7 @@ extern struct TAG_langparser guppy_parser;
 #define NTF_INDENTED_NAME_LIST		0x0100		/* for TNF_LONGDECLs, parse an indented list of names into subnode 1 */
 #define NTF_INDENTED_TCASE_LIST		0x0200		/* for TNF_LONGACTIONSs, parse an indented list of type-case declarations into subnode 1 */
 #define NTF_INDENTED_DECL_LIST		0x0400		/* for TNF_LONGDECLs, parse an indented list of declarations into subnode 1 */
+#define NTF_INDENTED_DGUARD_LIST	0x0800		/* for TNF_LONGPROCs, parse a list of indented declarations and guards into subnode 1 */
 
 /* implementation-specific language-tag bits */
 #define LANGTAG_STYPE			0x00010000	/* sized type (e.g. int8) */
@@ -103,9 +104,13 @@ typedef struct {
 
 	struct TAG_ntdef *tag_SEQ;
 	struct TAG_ntdef *tag_PAR;
+	struct TAG_ntdef *tag_ALT;
 
 	struct TAG_ntdef *tag_REPLSEQ;
 	struct TAG_ntdef *tag_REPLPAR;
+	struct TAG_ntdef *tag_REPLALT;
+
+	struct TAG_ntdef *tag_GUARD;
 
 	struct TAG_ntdef *tag_FVNODE;
 

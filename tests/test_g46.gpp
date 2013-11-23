@@ -1,0 +1,14 @@
+
+# tests_g46.gpp -- semi-serious alt test
+
+define g46 (chan(int) in0?, in1?, out!)
+  alt
+    int x
+    in0 ? x
+      skip
+    int y
+    in1 ? y
+      skip
+  skip
+end
+

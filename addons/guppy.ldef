@@ -183,13 +183,19 @@
 
 .GRULE	"gup:seqreduce" "T+St0@t00C[SEQ]2R-"
 .GRULE	"gup:parreduce" "T+St0@t00C[PAR]2R-"
+.GRULE	"gup:altreduce" "T+St0@t00C[ALT]2R-"
 
 .GRULE	"gup:replseqreduce" "T+St0@tN+N+N+00V*C[REPLSEQ]5R-"
+
+.GRULE	"gup:guardreduce" "SN00N+0C[GUARD]3R-"
 
 .TABLE	"guppy:cnode ::= [ 0 +@seq 1 ] [ 1 -Newline 2 ] [ 2 {<gup:seqreduce>} -* ]"
 	"[ 1 guppy:name 3 ] [ 3 @@= 4 ] [ 4 guppy:expr 5 ] [ 5 @for 6 ] [ 6 guppy:expr 7 ] [ 7 {<gup:replseqreduce>} -* ]"
 	"[ 1 @for 8 ] [ 8 {<gup:null2push>} -* 6 ]"
 	"[ 0 +@par 9 ] [ 9 -Newline 10 ] [ 10 {<gup:parreduce>} -* ]"
+	"[ 0 +@alt 11 ] [ 10 -Newline 11 ] [ 11 {<gup:altreduce>} -* ]"
+
+.TABLE	"guppy:guard +:= [ 0 guppy:primproc 1 ] [ 1 {<gup:guardreduce>} -* ]"
 
 # }}}
 .SECTION "guppy-cflow" # {{{: control-flow processes
@@ -231,6 +237,8 @@
 # when we get here, have expression or list-of (LHS) on node-stack
 .TABLE	"guppy:inputlhs ::= [ 0 @@? 1 ] [ 1 guppy:exprlist 2 ] [ 2 {<gup:inputreduce>} -* ]"
 .TABLE	"guppy:outputlhs ::= [ 0 @@! 1 ] [ 1 guppy:exprlist 2 ] [ 2 {<gup:outputreduce>} -* ]"
+
+.TABLE	"guppy:guard +:= [ 0 -Name 1 ] [ 1 guppy:input 2 ] [ 2 {<gup:guardreduce>} -* ]"
 
 # }}}
 .SECTION "guppy-oper" # {{{: operators

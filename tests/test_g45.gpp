@@ -1,0 +1,29 @@
+
+# test_g45.gpp -- timer testing
+
+@include "guppy_stdlib.gpi"
+
+define p0 (chan(int) out!)
+  timer tim
+  int t
+  seq
+    tim ? t
+    while true
+      seq
+        t = t + 1000000
+        tim ? after t
+
+        out ! 0
+end
+
+define main (chan(string) screen!)
+  chan(int) c
+  par
+    while true
+      int any
+      seq
+        c ? any
+        screen ! "tick!\n"
+    p0 (c!)
+end
+
