@@ -165,11 +165,6 @@ target_t cccsp_target = {
 /*}}}*/
 /*{{{  private types*/
 
-typedef enum ENUM_cccsp_subtarget {
-	CCCSP_SUBTARGET_DEFAULT = 0,		/* normal (host, CCSP) */
-	CCCSP_SUBTARGET_EV3 = 1			/* LEGO EV3 (cross-compile with arm-gcc-4.6, ARM/CCSP) */
-} cccsp_subtarget_e;
-
 
 typedef struct TAG_cccsp_priv {
 	lexfile_t *lastfile;
@@ -278,7 +273,7 @@ static chook_t *cccsp_ctypestr = NULL;
 static int cccsp_coder_inparamlist = 0;
 
 static cccsp_apicall_t cccsp_apicall_table[] = {
-	{NOAPI, "", 0},
+	{NOAPI, "", 0},					/* 0 */
 	{CHAN_IN, "ChanIn", 32},
 	{CHAN_OUT, "ChanOut", 32},
 	{STOP_PROC, "SetErrW", 32},
@@ -286,7 +281,7 @@ static cccsp_apicall_t cccsp_apicall_table[] = {
 	{LIGHT_PROC_INIT, "LightProcInit", 32},
 	{PROC_PARAM, "ProcParam", 8},
 	{GET_PROC_PARAM, "GetProcParam", 8},
-	{MEM_ALLOC, "MAlloc", 32},
+	{MEM_ALLOC, "MAlloc", 32},			/* 8 */
 	{MEM_RELEASE, "MRelease", 32},
 	{MEM_RELEASE_CHK, "MReleaseChk", 32},
 	{STR_INIT, "GuppyStringInit", 32},
@@ -294,10 +289,16 @@ static cccsp_apicall_t cccsp_apicall_table[] = {
 	{STR_ASSIGN, "GuppyStringAssign", 64},
 	{STR_CONCAT, "GuppyStringConcat", 64},
 	{STR_CLEAR, "GuppyStringClear", 32},
-	{CHAN_INIT, "ChanInit", 8},
+	{CHAN_INIT, "ChanInit", 8},			/* 16 */
 	{TIMER_READ, "TimerRead", 32},
 	{TIMER_WAIT, "TimerWait", 32},
 	{SHUTDOWN, "Shutdown", 32},
+	{ALT_START, "Alt", 32},
+	{ALT_END, "AltEnd", 32},
+	{ALT_ENBC, "AltEnableChannel", 32},
+	{ALT_DISC, "AltDisableChannel", 32},
+	{ALT_WAIT, "AltWait", 32},			/* 24 */
+	{PROC_ALT, "ProcAlt", 32}
 };
 
 
@@ -384,7 +385,7 @@ static int cccsp_opthandler_setsubtarget (cmd_option_t *opt, char ***argwalk, in
 		ch++;
 		if (!strcmp (ch, "EV3")) {
 			cccsp_subtarget = CCCSP_SUBTARGET_EV3;
-		} else if (!strcmp (ch, "default")) {
+		} else if (!strcmp (ch, "default") || !strcmp (ch, "x86")) {
 			cccsp_subtarget = CCCSP_SUBTARGET_DEFAULT;
 		} else {
 			nocc_error ("cccsp: bad subtarget [%s]", ch);
@@ -403,7 +404,7 @@ static int cccsp_init_options (cccsp_priv_t *kpriv)
 {
 	opts_add ("cccsp-cc-opts", '\0', cccsp_opthandler_setstring, (void *)&cccsp_cc_opts, "1specify additional C compiler options");
 	opts_add ("cccsp-show-sfi", '\0', cccsp_opthandler_setflag, (void *)&cccsp_show_sfi, "1dump SFI table after recompile");
-	opts_add ("cccsp-subtarget", '\0', cccsp_opthandler_setsubtarget, NULL, "1set CCCSP sub-target (default,EV3)");
+	opts_add ("cccsp-subtarget", '\0', cccsp_opthandler_setsubtarget, NULL, "1set CCCSP sub-target (default/x86, EV3)");
 	// opts_add ("norangechecks", '\0', cccsp_opthandler_flag, (void *)1, "1do not generate range-checks");
 	return 0;
 }
@@ -1824,6 +1825,15 @@ int cccsp_linkparinfo (cccsp_parinfo_t *pset, cccsp_parinfo_entry_t *pent)
 	}
 	dynarray_add (pset->entries, pent);
 	return 0;
+}
+/*}}}*/
+/*{{{  cccsp_subtarget_e cccsp_get_subtarget (void)*/
+/*
+ *	returns the CCCSP sub-target, needed for slight variations in API calls
+ */
+cccsp_subtarget_e cccsp_get_subtarget (void)
+{
+	return cccsp_subtarget;
 }
 /*}}}*/
 

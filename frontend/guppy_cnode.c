@@ -721,6 +721,153 @@ static int guppy_codegen_replcnode (compops_t *cops, tnode_t *node, codegen_t *c
 /*}}}*/
 
 
+/*{{{  static int guppy_fetrans1_anode (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)*/
+/*
+ *	does fetrans1 transform for an alternative -- this creates the temporary that will be used to store the selected guard.
+ *	returns 0 to stop walk, non-zero to continue.
+ */
+static int guppy_fetrans1_anode (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)
+{
+	tnode_t *node = *nodep;
+
+	fe1->inspoint = nodep;
+	if (node->tag == gup.tag_ALT) {
+		tnode_t *tname, *type;
+		tnode_t **newnodep;
+
+		type = guppy_newprimtype (gup.tag_INT, node, 0);
+		tname = guppy_fetrans1_maketemp (gup.tag_NDECL, node, type, NULL, fe1);
+
+		tnode_setnthsub (node, 0, tname);
+	}
+
+	fe1->inspoint = NULL;
+	fe1->decllist = NULL;		/* force fresh */
+
+	/* transform alt list */
+	guppy_fetrans1_subtree (tnode_nthsubaddr (node, 1), fe1);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_fetrans3_anode (compops_t *cops, tnode_t **nodep, guppy_fetrans3_t *fe3)*/
+/*
+ *	does fetrans3 transform on an alternative -- this breaks into the alt and a case on the selection.
+ *	returns 0 to stop walk, non-zero to continue.
+ */
+static int guppy_fetrans3_anode (compops_t *cops, tnode_t **nodep, guppy_fetrans3_t *fe3)
+{
+	if ((*nodep)->tag == gup.tag_ALT) {
+		tnode_t *node = *nodep;
+		tnode_t *newseq, *newseqlist;
+		tnode_t *glist = tnode_nthsubof (node, 1);
+		tnode_t *gclist, *optlist;
+		tnode_t *choice;
+		int i;
+
+		newseqlist = parser_newlistnode (SLOCI);
+		newseq = tnode_createfrom (gup.tag_SEQ, node, NULL, newseqlist);
+		gclist = parser_newlistnode (SLOCI);
+		optlist = parser_newlistnode (SLOCI);
+		choice = tnode_createfrom (gup.tag_CASE, node, tnode_copytree (tnode_nthsubof (node, 0)), optlist);
+
+		/* scoop up the channels and put in 'gclist', also construct cases for the choice */
+		for (i=0; i<parser_countlist (glist); i++) {
+			tnode_t *guard = parser_getfromlist (glist, i);
+			tnode_t *decls = NULL;
+
+			/* could well be a DECLBLOCK by now */
+			if (guard->tag == gup.tag_DECLBLOCK) {
+				decls = tnode_nthsubof (guard, 0);
+				guard = tnode_nthsubof (guard, 1);
+			}
+			if (guard->tag != gup.tag_GUARD) {
+				nocc_internal ("guppy_fetrans3_anode(): guard not GUARD, got [%s:%s]", guard->tag->ndef->name, guard->tag->name);
+				fe3->error++;
+				return 0;
+			} else {
+				tnode_t *gitem = tnode_nthsubof (guard, 1);
+
+				if (gitem->tag == gup.tag_INPUT) {
+					tnode_t *chancopy = tnode_copytree (tnode_nthsubof (gitem, 0));
+					tnode_t *optval = constprop_newconst (CONST_INT, NULL, NULL, i);
+					tnode_t *optproclist = parser_newlistnode (SLOCI);
+					tnode_t *optproc, *opt;
+
+					if (decls) {
+						optproc = tnode_createfrom (gup.tag_DECLBLOCK, decls, decls,
+								tnode_createfrom (gup.tag_SEQ, gitem, NULL, optproclist));
+					} else {
+						optproc = tnode_createfrom (gup.tag_SEQ, gitem, NULL, optproclist);
+					}
+					opt = tnode_createfrom (gup.tag_OPTION, gitem, optval, optproc);
+
+					parser_addtolist (gclist, chancopy);
+					parser_addtolist (optproclist, gitem);
+					parser_addtolist (optproclist, tnode_nthsubof (guard, 2));
+
+					/* do fetrans3 on the whole option */
+					guppy_fetrans3_subtree (&opt, fe3);
+
+					parser_addtolist (optlist, opt);
+				}
+			}
+		}
+
+		/* replace ALT body with channel-list */
+		tnode_setnthsub (node, 1, gclist);
+
+		parser_addtolist (newseqlist, node);
+		parser_addtolist (newseqlist, choice);
+
+		*nodep = newseq;
+
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_namemap_anode (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping transform for an alternative.
+ *	returns 0 to stop walk, non-zero to continue.
+ */
+static int guppy_namemap_anode (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	return 1;
+}
+/*}}}*/
+
+
+/*{{{  static int guppy_typecheck_guard (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking for a guard (used in alt).
+ *	returns 0 to stop walk, 1 to continue.
+ */
+static int guppy_typecheck_guard (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *gexpr = tnode_nthsubof (node, 1);
+	tnode_t *gproc = tnode_nthsubof (node, 2);
+
+	/* only sensible things should be parseable as guards, but check anyway */
+	if (!gexpr) {
+		typecheck_error (node, tc, "missing guard expression");
+		return 0;
+	}
+	if (gexpr->tag == gup.tag_SKIP) {
+		/* skip guard, okay */
+	} else if ((gexpr->tag == gup.tag_INPUT) || (gexpr->tag == gup.tag_CASEINPUT)) {
+		/* input or tagged-input, okay */
+	} else {
+		typecheck_error (node, tc, "invalid guard type [%s:%s]", gexpr->tag->ndef->name, gexpr->tag->name);
+		return 0;
+	}
+
+	return 1;
+}
+/*}}}*/
+
+
 /*{{{  static int guppy_cnode_init_nodes (void)*/
 /*
  *	called to initialise parse-tree nodes for constructors
@@ -779,8 +926,11 @@ static int guppy_cnode_init_nodes (void)
 	/*}}}*/
 	/*{{{  guppy:anode -- ALT*/
 	i = -1;
-	tnd = tnode_newnodetype ("guppy:anode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = unused; 1 = body */
+	tnd = tnode_newnodetype ("guppy:anode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = selection-var; 1 = body (list of guards) */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_anode));
+	tnode_setcompop (cops, "fetrans3", 2, COMPOPTYPE (guppy_fetrans3_anode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_anode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;
@@ -793,6 +943,7 @@ static int guppy_cnode_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:guard", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = pre-condition, 1 = guard-process, 2 = body */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_guard));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

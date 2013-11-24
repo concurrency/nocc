@@ -37,6 +37,11 @@ extern struct TAG_chook *cccsp_parinfochook;
 struct TAG_cccsp_sfi_entry;
 struct TAG_cccsp_parinfo_entry;
 
+typedef enum ENUM_cccsp_subtarget {
+	CCCSP_SUBTARGET_DEFAULT = 0,
+	CCCSP_SUBTARGET_EV3 = 1
+} cccsp_subtarget_e;
+
 typedef enum ENUM_cccsp_apicall {
 	NOAPI = 0,
 	CHAN_IN = 1,
@@ -57,10 +62,16 @@ typedef enum ENUM_cccsp_apicall {
 	CHAN_INIT = 16,
 	TIMER_READ = 17,
 	TIMER_WAIT = 18,
-	SHUTDOWN = 19
+	SHUTDOWN = 19,
+	ALT_START = 20,
+	ALT_END = 21,
+	ALT_ENBC = 22,
+	ALT_DISC = 23,
+	ALT_WAIT = 24,
+	PROC_ALT = 25
 } cccsp_apicall_e;
 
-#define CCCSP_APICALL_LAST SHUTDOWN
+#define CCCSP_APICALL_LAST PROC_ALT
 
 typedef struct TAG_cccsp_apicall {
 	cccsp_apicall_e call;
@@ -141,6 +152,8 @@ extern void cccsp_freeparinfoentry (cccsp_parinfo_entry_t *pent);
 extern cccsp_parinfo_t *cccsp_newparinfo (void);
 extern void cccsp_freeparinfo (cccsp_parinfo_t *pset);
 extern int cccsp_linkparinfo (cccsp_parinfo_t *pset, cccsp_parinfo_entry_t *pent);
+
+extern cccsp_subtarget_e cccsp_get_subtarget (void);
 
 extern struct TAG_cccsp_sfi_entry *cccsp_sfiofname (struct TAG_name *name, int pinst);
 

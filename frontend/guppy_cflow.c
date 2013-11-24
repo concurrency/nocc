@@ -135,6 +135,19 @@ static int guppy_namemap_cflow (compops_t *cops, tnode_t **nodep, map_t *map)
 		/* FIXME! */
 		nocc_internal ("guppy_namemap_cflow(): incomplete!");
 		return 1;
+	} else if ((*nodep)->tag == gup.tag_CASE) {
+#if 1
+fhandle_printf (FHAN_STDERR, "guppy_namemap_cflow(): mapping CASE, expression before is:\n");
+tnode_dumptree (*exprp, 1, FHAN_STDERR);
+#endif
+		cmd->target_indir = 0;
+		map_submapnames (exprp, map);
+#if 1
+fhandle_printf (FHAN_STDERR, "guppy_namemap_cflow(): mapping CASE, expression after is:\n");
+tnode_dumptree (*exprp, 1, FHAN_STDERR);
+#endif
+
+		map_submapnames (bodyp, map);
 	}
 
 	return 0;
@@ -164,11 +177,65 @@ static int guppy_codegen_cflow (compops_t *cops, tnode_t *node, codegen_t *cgen)
 		/* FIXME! */
 		nocc_internal ("guppy_codegen_cflow(): incomplete!");
 		return 1;
+	} else if (node->tag == gup.tag_CASE) {
+		codegen_ssetindent (cgen);
+		codegen_write_fmt (cgen, "switch (");
+		codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+		codegen_write_fmt (cgen, ")\n");
+		codegen_ssetindent (cgen);
+		codegen_write_fmt (cgen, "{\n");
+		cgen->indent++;
+		codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+		cgen->indent--;
+		codegen_ssetindent (cgen);
+		codegen_write_fmt (cgen, "}\n");
+		return 0;
 	}
 
 	return 1;
 }
 /*}}}*/
+
+
+/*{{{  static int guppy_namemap_caseopt (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for a case option node.
+ *	returns 0 to stop walk, 1 to continue.
+ */
+static int guppy_namemap_caseopt (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t **exprp = tnode_nthsubaddr (*nodep, 0);
+	tnode_t **bodyp = tnode_nthsubaddr (*nodep, 1);
+
+	if ((*nodep)->tag == gup.tag_OPTION) {
+		map_submapnames (exprp, map);
+		map_submapnames (bodyp, map);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_caseopt (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a case option node.
+ *	returns 0 to stop walk, 1 to continue.
+ */
+static int guppy_codegen_caseopt (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	if (node->tag == gup.tag_OPTION) {
+		codegen_ssetindent (cgen);
+		codegen_write_fmt (cgen, "case ");
+		codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+		codegen_write_fmt (cgen, ":\n");
+		cgen->indent++;
+		codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+		codegen_write_fmt (cgen, "break;\n");
+		cgen->indent--;
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+
 
 /*{{{  static int guppy_prescope_rnode (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
 /*
@@ -341,7 +408,7 @@ static int guppy_cflow_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
-	/*{{{  guppy:cflow -- IF, WHILE*/
+	/*{{{  guppy:cflow -- IF, WHILE, CASE*/
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:cflow", &i, 2, 0, 0, TNF_LONGPROC);	/* subnodes: 0 = expr; 1 = body */
 	cops = tnode_newcompops ();
@@ -357,6 +424,22 @@ static int guppy_cflow_init_nodes (void)
 	gup.tag_IF = tnode_newnodetag ("IF", &i, tnd, NTF_INDENTED_PROC_LIST);
 	i = -1;
 	gup.tag_WHILE = tnode_newnodetag ("WHILE", &i, tnd, NTF_INDENTED_PROC_LIST);
+	i = -1;
+	gup.tag_CASE = tnode_newnodetag ("CASE", &i, tnd, NTF_INDENTED_EXPR_LIST);
+
+	/*}}}*/
+	/*{{{  guppy:caseopt -- OPTION*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:caseopt", &i, 2, 0, 0, TNF_NONE);	/* subnodes: 0 = expr (const); 1 = body */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_caseopt));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_caseopt));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_OPTION = tnode_newnodetag ("OPTION", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:rnode -- RETURN*/
