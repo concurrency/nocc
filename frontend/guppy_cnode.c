@@ -769,7 +769,7 @@ static int guppy_fetrans3_anode (compops_t *cops, tnode_t **nodep, guppy_fetrans
 		newseq = tnode_createfrom (gup.tag_SEQ, node, NULL, newseqlist);
 		gclist = parser_newlistnode (SLOCI);
 		optlist = parser_newlistnode (SLOCI);
-		choice = tnode_createfrom (gup.tag_CASE, node, tnode_copytree (tnode_nthsubof (node, 0)), optlist);
+		choice = tnode_createfrom (gup.tag_CASE, node, tnode_nthsubof (node, 0), optlist);
 
 		/* scoop up the channels and put in 'gclist', also construct cases for the choice */
 		for (i=0; i<parser_countlist (glist); i++) {
@@ -789,7 +789,7 @@ static int guppy_fetrans3_anode (compops_t *cops, tnode_t **nodep, guppy_fetrans
 				tnode_t *gitem = tnode_nthsubof (guard, 1);
 
 				if (gitem->tag == gup.tag_INPUT) {
-					tnode_t *chancopy = tnode_copytree (tnode_nthsubof (gitem, 0));
+					tnode_t *chancopy = tnode_nthsubof (gitem, 0);
 					tnode_t *optval = constprop_newconst (CONST_INT, NULL, NULL, i);
 					tnode_t *optproclist = parser_newlistnode (SLOCI);
 					tnode_t *optproc, *opt;
@@ -834,6 +834,40 @@ static int guppy_fetrans3_anode (compops_t *cops, tnode_t **nodep, guppy_fetrans
  */
 static int guppy_namemap_anode (compops_t *cops, tnode_t **nodep, map_t *map)
 {
+	if ((*nodep)->tag == gup.tag_ALT) {
+		tnode_t *pacall, *pacallnum;
+		tnode_t *newparams;
+		tnode_t *wptr;
+		cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
+		int i;
+
+		wptr = cmd->process_id;
+		map_submapnames (&wptr, map);
+
+		cmd->target_indir = 0;
+		map_submapnames (tnode_nthsubaddr (*nodep, 0), map);				/* map selection var */
+
+		newparams = parser_newlistnode (SLOCI);
+		pacallnum = cccsp_create_apicallname (PROC_ALT);
+		pacall = tnode_createfrom (gup.tag_APICALLR, *nodep, pacallnum, newparams, tnode_nthsubof (*nodep, 0));
+		parser_addtolist (newparams, wptr);
+		for (i=0; i<parser_countlist (tnode_nthsubof (*nodep, 1)); i++) {
+			tnode_t *item = parser_getfromlist (tnode_nthsubof (*nodep, 1), i);
+
+			cmd->target_indir = 1;
+			map_submapnames (&item, map);
+
+			parser_addtolist (newparams, item);
+		}
+
+		*nodep = pacall;
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_namemap_anode(): map for alternative process (API call):\n");
+tnode_dumptree (*nodep, 1, FHAN_STDERR);
+#endif
+		return 0;
+	}
 	return 1;
 }
 /*}}}*/

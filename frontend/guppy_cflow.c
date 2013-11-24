@@ -136,13 +136,13 @@ static int guppy_namemap_cflow (compops_t *cops, tnode_t **nodep, map_t *map)
 		nocc_internal ("guppy_namemap_cflow(): incomplete!");
 		return 1;
 	} else if ((*nodep)->tag == gup.tag_CASE) {
-#if 1
+#if 0
 fhandle_printf (FHAN_STDERR, "guppy_namemap_cflow(): mapping CASE, expression before is:\n");
 tnode_dumptree (*exprp, 1, FHAN_STDERR);
 #endif
 		cmd->target_indir = 0;
 		map_submapnames (exprp, map);
-#if 1
+#if 0
 fhandle_printf (FHAN_STDERR, "guppy_namemap_cflow(): mapping CASE, expression after is:\n");
 tnode_dumptree (*exprp, 1, FHAN_STDERR);
 #endif
@@ -228,6 +228,7 @@ static int guppy_codegen_caseopt (compops_t *cops, tnode_t *node, codegen_t *cge
 		codegen_write_fmt (cgen, ":\n");
 		cgen->indent++;
 		codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+		codegen_ssetindent (cgen);
 		codegen_write_fmt (cgen, "break;\n");
 		cgen->indent--;
 		return 0;

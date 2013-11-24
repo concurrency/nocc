@@ -1,0 +1,14 @@
+
+# test_g47.gpp -- traditional merge
+
+define merge (chan(int) in0?, in1?, out!)
+  while true
+    int x
+    alt
+      in0 ? x
+        out ! x
+      in1 ? x
+        out ! x
+end
+
+
