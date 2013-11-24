@@ -193,7 +193,7 @@
 	"[ 1 guppy:name 3 ] [ 3 @@= 4 ] [ 4 guppy:expr 5 ] [ 5 @for 6 ] [ 6 guppy:expr 7 ] [ 7 {<gup:replseqreduce>} -* ]"
 	"[ 1 @for 8 ] [ 8 {<gup:null2push>} -* 6 ]"
 	"[ 0 +@par 9 ] [ 9 -Newline 10 ] [ 10 {<gup:parreduce>} -* ]"
-	"[ 0 +@alt 11 ] [ 10 -Newline 11 ] [ 11 {<gup:altreduce>} -* ]"
+	"[ 0 +@alt 11 ] [ 11 -Newline 12 ] [ 12 {<gup:altreduce>} -* ]"
 
 .TABLE	"guppy:guard +:= [ 0 guppy:primproc 1 ] [ 1 {<gup:guardreduce>} -* ]"
 

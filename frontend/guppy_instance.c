@@ -634,6 +634,8 @@ tnode_dumptree (plist, 1, FHAN_STDERR);
 	/* Note: lose PPINSTANCE node here */
 	*nodep = ppseq;
 
+	/* Note: clean-up happens *after* the parallel process has been run (in 'par' code, guppy_cnode.c) */
+
 	return 0;
 }
 /*}}}*/
@@ -647,6 +649,8 @@ static int guppy_codegen_ppinstance (compops_t *cops, tnode_t *node, codegen_t *
 #if 0
 fhandle_printf (FHAN_STDERR, "guppy_codegen_ppinstance(): here!\n");
 #endif
+	/* Note: should be nothing to do here, all reduced to API calls */
+
 	return 0;
 }
 /*}}}*/

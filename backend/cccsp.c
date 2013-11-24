@@ -191,6 +191,9 @@ typedef struct TAG_cccsp_priv {
 	ntdef_t *tag_ARRAYSUB;
 	ntdef_t *tag_RECORDSUB;
 
+	ntdef_t *tag_NULL;
+	ntdef_t *tag_NOTPROCESS;
+
 	chook_t *wsfixuphook;
 } cccsp_priv_t;
 
@@ -298,7 +301,8 @@ static cccsp_apicall_t cccsp_apicall_table[] = {
 	{ALT_ENBC, "AltEnableChannel", 32},
 	{ALT_DISC, "AltDisableChannel", 32},
 	{ALT_WAIT, "AltWait", 32},			/* 24 */
-	{PROC_ALT, "ProcAlt", 32}
+	{PROC_ALT, "ProcAlt", 32},
+	{LIGHT_PROC_FREE, "LightProcFree", 32}
 };
 
 
@@ -1333,6 +1337,34 @@ tnode_t *cccsp_create_recordsub (srclocn_t *org, target_t *target, tnode_t *base
 	cccsp_indexhook_t *idh = cccsp_indexhook_create (indir);
 
 	node = tnode_create (kpriv->tag_RECORDSUB, org, base, field, idh);
+
+	return node;
+}
+/*}}}*/
+/*{{{  tnode_t *cccsp_create_null (srclocn_t *org)*/
+/*
+ *	creates a null sentinel (needed for some API calls to terminate varargs).
+ */
+tnode_t *cccsp_create_null (srclocn_t *org, target_t *target)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)target->priv;
+	tnode_t *node;
+
+	node = tnode_create (kpriv->tag_NULL, org);
+
+	return node;
+}
+/*}}}*/
+/*{{{  tnode_t *cccsp_create_notprocess (srclocn_t *org)*/
+/*
+ *	creates a NotProcess_p sentinel.
+ */
+tnode_t *cccsp_create_notprocess (srclocn_t *org, target_t *target)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)target->priv;
+	tnode_t *node;
+
+	node = tnode_create (kpriv->tag_NOTPROCESS, org);
 
 	return node;
 }
@@ -2726,6 +2758,23 @@ static int cccsp_lcodegen_indexnode (compops_t *cops, tnode_t *node, codegen_t *
 	return 0;
 }
 /*}}}*/
+/*{{{  static int cccsp_lcodegen_sentinel (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a sentinel (null).
+ *	returns 0 to stop walk, 1 to continue.
+ */
+static int cccsp_lcodegen_sentinel (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cgen->target->priv;
+
+	if (node->tag == kpriv->tag_NULL) {
+		codegen_write_fmt (cgen, "NULL");
+	} else if (node->tag == kpriv->tag_NOTPROCESS) {
+		codegen_write_fmt (cgen, "NotProcess_p");
+	}
+	return 0;
+}
+/*}}}*/
 
 /*{{{  int cccsp_init (void)*/
 /*
@@ -3545,6 +3594,7 @@ static int cccsp_target_init (target_t *target)
 	kpriv->tag_UTYPE = NULL;
 	kpriv->tag_ARRAYSUB = NULL;
 	kpriv->tag_RECORDSUB = NULL;
+	kpriv->tag_NULL = NULL;
 
 	kpriv->wsfixuphook = tnode_lookupornewchook ("cccsp:wsfixup");
 
@@ -3823,6 +3873,21 @@ static int cccsp_target_init (target_t *target)
 	kpriv->tag_ARRAYSUB = tnode_newnodetag ("CCCSPARRAYSUB", &i, tnd, NTF_NONE);
 	i = -1;
 	kpriv->tag_RECORDSUB = tnode_newnodetag ("CCCSPRECORDSUB", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  cccsp:sentinel -- CCCSPNULL, CCCSPNOTPROCESS*/
+	i = -1;
+	tnd = tnode_newnodetype ("cccsp:sentinel", &i, 0, 0, 0, TNF_NONE);	/* subnodes: (none) */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (cccsp_lcodegen_sentinel));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	kpriv->tag_NULL = tnode_newnodetag ("CCCSPNULL", &i, tnd, TNF_NONE);
+	i = -1;
+	kpriv->tag_NOTPROCESS = tnode_newnodetag ("CCCSPNOTPROCESS", &i, tnd, TNF_NONE);
 
 	/*}}}*/
 

@@ -1,0 +1,56 @@
+
+# test_g49.gpp -- timer testing
+
+@include "guppy_stdlib.gpi"
+
+define p0 (chan(int) out!)
+  timer tim
+  int t
+  seq
+    tim ? t
+    while true
+      seq
+        t = t + 1000000
+        tim ? after t
+
+        out ! 0
+end
+
+define p1 (chan(int) out!)
+  timer tim
+  int t
+  seq
+    tim ? t
+    while true
+      seq
+        t = t + 400000
+        tim ? after t
+
+        out ! 1
+end
+
+define merge (chan(int) in0?, in1?, out!)
+  while true
+    int any
+    alt
+      in0 ? any
+        out ! any
+      in1 ? any
+        out ! any
+end
+
+define main (chan(string) screen!)
+  chan(int) c, d, e
+  par
+    while true
+      int any
+      seq
+        e ? any
+        
+        screen ! "tick " + int_to_str (any) + "\n"
+    p0 (c!)
+    p1 (d!)
+    merge (c?, d?, e!)
+
+end
+

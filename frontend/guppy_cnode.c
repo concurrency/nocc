@@ -332,11 +332,13 @@ static int guppy_namemap_cnode (compops_t *cops, tnode_t **nodep, map_t *map)
 		tnode_t *pcargs, *pccall, *pccallnum, *pcnprocs;
 		tnode_t *saved_dlist = gmap->decllist;
 		cccsp_parinfo_t *parinfo = cccsp_newparinfo ();
+		tnode_t *freewslist = NULL;
 
 		/* attach par-info structure here; won't change */
 		tnode_setchook (*nodep, cccsp_parinfochook, (void *)parinfo);
 
 		decllist = parser_newlistnode (SLOCI);
+		freewslist = parser_newlistnode (SLOCI);
 		pcargs = parser_newlistnode (SLOCI);
 
 		pitems = parser_getlistitems (parlist, &nitems);
@@ -346,6 +348,7 @@ static int guppy_namemap_cnode (compops_t *cops, tnode_t **nodep, map_t *map)
 
 			wsvar = cccsp_create_wptr (OrgOf (pitems[i]), map->target);
 			parser_addtolist (decllist, wsvar);
+			parser_addtolist (freewslist, wsvar);
 
 			if (pitems[i]->tag != gup.tag_PPINSTANCE) {
 				nocc_internal ("guppy_namemap_cnode(): expected PPINSTANCE in PAR but got [%s]", pitems[i]->tag->name);
@@ -393,6 +396,25 @@ static int guppy_namemap_cnode (compops_t *cops, tnode_t **nodep, map_t *map)
 		map_submapnames (&pcargs, map);
 
 		parser_addtolist (oseqlist, pccall);
+
+		if (cccsp_get_subtarget () == CCCSP_SUBTARGET_EV3) {
+			/* special for the EV3's CCSP */
+
+			/* mapping PPINSTANCEs will have generated allocations, so after running, trash them */
+			for (i=0; i<nitems; i++) {
+				tnode_t *frcallnum = cccsp_create_apicallname (LIGHT_PROC_FREE);
+				tnode_t *frargs = parser_newlistnode (SLOCI);
+				tnode_t *frcall = tnode_create (gup.tag_APICALL, SLOCI, frcallnum, frargs);
+				tnode_t *pp_wptr = parser_getfromlist (freewslist, i);
+
+				parser_addtolist (frargs, cmd->process_id);
+				parser_addtolist (frargs, pp_wptr);
+
+				map_submapnames (&frargs, map);
+				parser_addtolist (oseqlist, frcall);
+			}
+		}
+
 		gmap->decllist = saved_dlist;
 
 		beblk = map->target->newblock (dblk, map, NULL, map->lexlevel);			/* make sure this goes in too! */
@@ -859,6 +881,7 @@ static int guppy_namemap_anode (compops_t *cops, tnode_t **nodep, map_t *map)
 
 			parser_addtolist (newparams, item);
 		}
+		parser_addtolist (newparams, cccsp_create_null (OrgOf (*nodep), map->target));
 
 		*nodep = pacall;
 

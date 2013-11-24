@@ -15,6 +15,7 @@ tests/test_*.lst
 tests/test_*.xml
 tests/test_*.xlo
 tests/test_g*.c
+tests/test_g*.su
 
 # Possibly dangerous..
 config.h

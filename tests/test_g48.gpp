@@ -1,0 +1,9 @@
+
+# test_g48.gpp -- simple parallel process
+
+define g48 ()
+  par
+    skip
+    skip
+end
+

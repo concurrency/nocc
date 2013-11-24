@@ -68,10 +68,11 @@ typedef enum ENUM_cccsp_apicall {
 	ALT_ENBC = 22,
 	ALT_DISC = 23,
 	ALT_WAIT = 24,
-	PROC_ALT = 25
+	PROC_ALT = 25,
+	LIGHT_PROC_FREE = 26
 } cccsp_apicall_e;
 
-#define CCCSP_APICALL_LAST PROC_ALT
+#define CCCSP_APICALL_LAST LIGHT_PROC_FREE
 
 typedef struct TAG_cccsp_apicall {
 	cccsp_apicall_e call;
@@ -138,6 +139,8 @@ extern struct TAG_tnode *cccsp_create_workspace_nwordsof (struct TAG_tnode *wsno
 extern struct TAG_tnode *cccsp_create_utype (struct TAG_srclocn *org, struct TAG_target *target, const char *name, struct TAG_tnode *fields);
 extern struct TAG_tnode *cccsp_create_arraysub (struct TAG_srclocn *org, struct TAG_target *target, struct TAG_tnode *base, struct TAG_tnode *index, int indir);
 extern struct TAG_tnode *cccsp_create_recordsub (struct TAG_srclocn *org, struct TAG_target *target, struct TAG_tnode *base, struct TAG_tnode *field, int indir);
+extern struct TAG_tnode *cccsp_create_null (struct TAG_srclocn *org, struct TAG_target *target);
+extern struct TAG_tnode *cccsp_create_notprocess (struct TAG_srclocn *org, struct TAG_target *target);
 extern int cccsp_preallocate_subtree (struct TAG_tnode *tptr, cccsp_preallocate_t *cpa);
 extern int cccsp_precode_subtree (struct TAG_tnode **nodep, struct TAG_codegen *cgen);
 extern int cccsp_cccspdcg_subtree (struct TAG_tnode *node, cccsp_dcg_t *dcg);
