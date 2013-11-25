@@ -10,9 +10,6 @@
 
 .SECTION "trlang" # {{{
 
-.KEYWORD "if"
-.KEYWORD "else"
-
 # trlang:rawnamenode               (0,0,1)
 # trlang:litnode                   (0,0,1)
 # trlang:functiondef               (3,0,0)

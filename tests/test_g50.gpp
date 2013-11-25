@@ -1,0 +1,15 @@
+
+# test_g50.gpp -- more structured processes
+
+define g50 (chan(int) in?)
+  int x
+  seq
+    in ? x
+    if
+      x == 42
+        skip
+      else
+        stop
+end
+
+

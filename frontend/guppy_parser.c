@@ -82,6 +82,7 @@ static tnode_t *guppy_declorproc (lexfile_t *lf);
 static tnode_t *guppy_indented_declorproc_list (lexfile_t *lf);
 static tnode_t *guppy_indented_dguard_list (lexfile_t *lf);
 static tnode_t *guppy_indented_tcase_list (lexfile_t *lf);
+static tnode_t *guppy_indented_exprproc_list (lexfile_t *lf);
 
 
 /*}}}*/
@@ -1772,6 +1773,12 @@ static tnode_t *guppy_parser_parseproc (lexfile_t *lf)
 
 			tnode_setnthsub (tree, 1, body);
 			/*}}}*/
+		} else if (ntflags & NTF_INDENTED_EXPR_LIST) {
+			/*{{{  long process, parse list of indented expressions and processes into subnode 1*/
+			tnode_t *body = guppy_indented_exprproc_list (lf);
+
+			tnode_setnthsub (tree, 1, body);
+			/*}}}*/
 		} else {
 			tnode_warning (tree, "guppy_parser_parseproc(): unhandled LONGPROC [%s]", tree->tag->name);
 		}
@@ -2250,6 +2257,82 @@ static tnode_t *guppy_indented_tcase_list (lexfile_t *lf)
 
 		dblk = tnode_create (gup.tag_DECLBLOCK, slocn, thisone, thisproc);
 		parser_addtolist (tree, dblk);
+	}
+
+	return tree;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_indented_exprproc_list (lexfile_t *lf)*/
+/*
+ *	parses an indented list of expressions (maybe including keyword "else") and indented processes.
+ *	used for if/case
+ */
+static tnode_t *guppy_indented_exprproc_list (lexfile_t *lf)
+{
+	tnode_t *tree = NULL;
+	token_t *tok;
+
+	if (compopts.debugparser) {
+		nocc_message ("guppy_indented_exprproc_list(): %s:%d: parsing indented expression list", lf->fnptr, lf->lineno);
+	}
+
+	tree = parser_newlistnode (SLOCN (lf));
+
+	tok = lexer_nexttoken (lf);
+	/*{{{  skip newlines and comments*/
+	for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
+		lexer_freetoken (tok);
+	}
+
+	/*}}}*/
+	/*{{{  expect indent*/
+	if (tok->type != INDENT) {
+		parser_error (SLOCN (lf), "expected indent, found:");
+		lexer_dumptoken (FHAN_STDERR, tok);
+		lexer_pushback (lf, tok);
+		tnode_free (tree);
+		return NULL;
+	}
+
+	/*}}}*/
+	lexer_freetoken (tok);
+
+	for (;;) {
+		tnode_t *thisone, *thisproc, *condnode;
+		srclocn_t *slocn = SLOCN (lf);
+
+		/* check token for end of indentation */
+		tok = lexer_nexttoken (lf);
+		/*{{{  skip newlines and comments*/
+		for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
+			lexer_freetoken (tok);
+		}
+
+		/*}}}*/
+		if (tok->type == OUTDENT) {
+			/* got outdent, end-of-list! */
+			lexer_freetoken (tok);
+			break;		/* for() */
+		} else {
+			lexer_pushback (lf, tok);
+		}
+
+		/* expect some sort of conditional expression */
+		thisone = dfa_walk ("guppy:expr", 0, lf);
+		if (!thisone) {
+			/* failed to parse, give up */
+			break;		/* for() */
+		}
+
+		/* else, now expect indented decl-and-procs */
+		thisproc = guppy_indented_declorproc_list (lf);
+		if (!thisproc) {
+			/* failed to parse, give up */
+			break;		/* for() */
+		}
+
+		condnode = tnode_create (gup.tag_COND, slocn, thisone, thisproc);
+		parser_addtolist (tree, condnode);
 	}
 
 	return tree;

@@ -409,7 +409,7 @@ static int guppy_cflow_init_nodes (void)
 	compops_t *cops;
 	langops_t *lops;
 
-	/*{{{  guppy:cflow -- IF, WHILE, CASE*/
+	/*{{{  guppy:cflow -- IF, SHORTIF, WHILE, CASE*/
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:cflow", &i, 2, 0, 0, TNF_LONGPROC);	/* subnodes: 0 = expr; 1 = body */
 	cops = tnode_newcompops ();
@@ -422,7 +422,9 @@ static int guppy_cflow_init_nodes (void)
 	tnd->lops = lops;
 
 	i = -1;
-	gup.tag_IF = tnode_newnodetag ("IF", &i, tnd, NTF_INDENTED_PROC_LIST);
+	gup.tag_IF = tnode_newnodetag ("IF", &i, tnd, NTF_INDENTED_EXPR_LIST);
+	i = -1;
+	gup.tag_SHORTIF = tnode_newnodetag ("SHORTIF", &i, tnd, NTF_INDENTED_PROC_LIST);
 	i = -1;
 	gup.tag_WHILE = tnode_newnodetag ("WHILE", &i, tnd, NTF_INDENTED_PROC_LIST);
 	i = -1;
@@ -441,6 +443,30 @@ static int guppy_cflow_init_nodes (void)
 
 	i = -1;
 	gup.tag_OPTION = tnode_newnodetag ("OPTION", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:cond -- COND*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:cond", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = expr; 1 = body */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_COND = tnode_newnodetag ("COND", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:flowexpr -- ELSE*/
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:flowexpr", &i, 0, 0, 0, TNF_NONE);	/* subnodes: (none) */
+	cops = tnode_newcompops ();
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_ELSE = tnode_newnodetag ("ELSE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:rnode -- RETURN*/

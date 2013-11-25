@@ -200,16 +200,21 @@
 # }}}
 .SECTION "guppy-cflow" # {{{: control-flow processes
 
-.GRULE	"gup:ifreduce" "T+St0@tN+0C[IF]2R-"
+.GRULE	"gup:ifreduce" "T+St0@t00C[IF]2R-"
+.GRULE	"gup:shortifreduce" "T+St0@tN+0C[SHORTIF]2R-"
 .GRULE	"gup:whilereduce" "T+St0@tN+0C[WHILE]2R-"
 .GRULE	"gup:retreduce" "T+St0@tN+0C[RETURN]2R-"
 .GRULE	"gup:zretreduce" "T+St0@t00C[RETURN]2R-"
+.GRULE	"gup:elsereduce" "T+St0@tC[ELSE]0R-"
 
-.TABLE	"guppy:cflow ::= [ 0 +@if 1 ] [ 1 guppy:expr 2 ] [ 2 -Newline 3 ] [ 3 {<gup:ifreduce>} -* ]"
+.TABLE	"guppy:cflow ::= [ 0 +@if 1 ] [ 1 guppy:expr 2 ] [ 2 -Newline 3 ] [ 2 -Comment 3 ] [ 3 {<gup:shortifreduce>} -* ]"
+	"[ 1 -Newline 4 ] [ 1 -Comment 4 ] [ 4 {<gup:ifreduce>} -* ]"
 .TABLE	"guppy:cflow +:= [ 0 +@while 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:whilereduce>} -* ]"
 
 .TABLE	"guppy:cflow +:= [ 0 +@return 1 ] [ 1 -Comment 2 ] [ 1 -Newline 2 ] [ 2 {<gup:zretreduce>} -* ]"
 	"[ 1 -* 3 ] [ 3 guppy:exprlist 4 ] [ 4 {<gup:retreduce>} -* ]"
+
+.TABLE	"guppy:expr +:= [ 0 +@else 1 ] [ 1 {<gup:elsereduce>} -* ]"
 
 # }}}
 .SECTION "guppy-assign" # {{{: assignment

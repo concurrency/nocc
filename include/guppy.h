@@ -143,11 +143,14 @@ typedef struct {
 	struct TAG_ntdef *tag_SHUTDOWN;			/* for the top-level process */
 
 	struct TAG_ntdef *tag_IF;
+	struct TAG_ntdef *tag_SHORTIF;
 	struct TAG_ntdef *tag_WHILE;
 	struct TAG_ntdef *tag_CASE;
 	struct TAG_ntdef *tag_RETURN;
 
 	struct TAG_ntdef *tag_OPTION;
+	struct TAG_ntdef *tag_COND;
+	struct TAG_ntdef *tag_ELSE;
 
 	struct TAG_ntdef *tag_ASSIGN;
 	struct TAG_ntdef *tag_SASSIGN;
