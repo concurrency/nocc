@@ -3,6 +3,8 @@
 
 define g52 ()
   [3]int arry
+  []char thing
+  [2,3]real a2
   seq
     arry[0] = 42
 end

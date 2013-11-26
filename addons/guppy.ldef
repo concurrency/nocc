@@ -61,7 +61,7 @@
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@? 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:input> ]"
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@! 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:output> ]"
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@( 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:instance> ]"
-.TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@. 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:exprstartproc> ]"
+.TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@. 2 ] [ 1 +@@[ 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:exprstartproc> ]"
 
 # "guppy:exprstartproc" handles processes that might start with expressions, e.g. complex LHS for action
 
@@ -107,6 +107,7 @@
 .TABLE	"guppy:testfordecl +:= [ 0 +@val 1 ] [ 0 +@int 1 ] [ 0 +@real 1 ] [ 0 +@bool 1 ] [ 0 +@byte 1 ] [ 0 +@char 1 ] [ 0 +@string 1 ] [ 0 +@chan 1 ]"
 	"[ 1 {<gup:testtrue>} -* ]"
 .TABLE	"guppy:testfordecl +:= [ 0 +Name 1 ] [ 1 {<gup:checktypename>} -* ]"
+.TABLE	"guppy:testfordecl +:= [ 0 +@@[ 1 ] [ 0 +@@[] 1 ] [ 1 {<gup:testtrue>} -* ]"
 
 .TABLE	"guppy:definedecl +:= [ 0 @enum 1 ] [ 1 guppy:name 2 ] [ 2 {<gup:enumreduce>} -* ]"
 
@@ -143,6 +144,7 @@
 
 .RFUNC	"Rguppy:primtype" "guppy_reduce_primtype"
 .RFUNC	"Rguppy:chantype" "guppy_reduce_chantype"
+.RFUNC	"Rguppy:arraytype" "guppy_reduce_arraytype"
 
 .GRULE	"gup:valtypereduce" "SN0N+C[VALTYPE]1R-"
 .GRULE	"gup:anytypepush" "T+St0@tC[ANY]0N-"
@@ -153,7 +155,13 @@
 	"[ 2 @@( 3 ] [ 3 +@@* 6 ] [ 3 guppy:type 4 ] [ 4 @@) 5 ] [ 5 {Rguppy:chantype} -* ]"
 	"[ 6 {<gup:anytypepush>} -* 4 ]"
 
-.BNF	"guppy:subtype ::= ( guppy:primtype {<gup:nullreduce>} | guppy:chantype {<gup:nullreduce>} )"
+.TABLE	"guppy:arraydimexpr ::= [ 0 -@@] 1 ] [ 1 {<gup:nullpush>} -* 2 ] [ 2 {<gup:nullreduce>} -* ]"
+	"[ 0 -* 3 ] [ 3 guppy:exprlist 2 ]"
+
+.TABLE	"guppy:arraytype ::= [ 0 @@[ 1 ] [ 1 guppy:arraydimexpr 2 ] [ 2 @@] 3 ] [ 3 guppy:type 4 ] [ 4 {Rguppy:arraytype} -* ]"
+	"[ 0 @@[] 5 ] [ 5 {<gup:nullpush>} -* 3 ]"
+
+.BNF	"guppy:subtype ::= ( guppy:primtype {<gup:nullreduce>} | guppy:chantype {<gup:nullreduce>} | guppy:arraytype {<gup:nullreduce>} )"
 .TABLE	"guppy:type ::= [ 0 %guppy:subtype 3 ] [ 0 @val 1 ] [ 1 guppy:subtype 2 ] [ 2 {<gup:valtypereduce>} -* ]"
 	"[ 3 guppy:subtype 4 ] [ 4 {<gup:nullreduce>} -* ]"
 

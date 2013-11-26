@@ -82,7 +82,10 @@ typedef struct TAG_chantypehook {
 } chantypehook_t;
 
 typedef struct TAG_arraytypehook {
-	int known_size;						/* constant known size or -1 */
+	int ndim;						/* number of dimensions */
+	int nelem;						/* total number of elements if constant or -1 */
+	int *known_sizes;					/* constant known sizes (of all dimensions) or -1 */
+	int constprop;						/* non-zero if constant propagation has been done (known sizes filled in) */
 } arraytypehook_t;
 
 /*}}}*/
@@ -149,7 +152,30 @@ static arraytypehook_t *guppy_newarraytypehook (void)
 {
 	arraytypehook_t *ath = (arraytypehook_t *)smalloc (sizeof (arraytypehook_t));
 
-	ath->known_size = -1;
+	ath->ndim = 0;
+	ath->nelem = -1;
+	ath->known_sizes = NULL;
+	ath->constprop = 0;
+	return ath;
+}
+/*}}}*/
+/*{{{  static arraytypehook_t *guppy_newarraytypehook_nd (const int ndim)*/
+/*
+ *	creates a new arraytypehook_t (known number of dimensions)
+ */
+static arraytypehook_t *guppy_newarraytypehook_nd (const int ndim)
+{
+	arraytypehook_t *ath = (arraytypehook_t *)smalloc (sizeof (arraytypehook_t));
+	int i;
+
+	ath->ndim = ndim;
+	ath->nelem = -1;
+	ath->known_sizes = (int *)smalloc (ndim * sizeof (int));
+	for (i=0; i<ndim; i++) {
+		ath->known_sizes[i] = -1;
+	}
+	ath->constprop = 0;
+
 	return ath;
 }
 /*}}}*/
@@ -163,6 +189,13 @@ static void guppy_freearraytypehook (arraytypehook_t *ath)
 		nocc_serious ("guppy_freearraytypehook(): NULL argument!");
 		return;
 	}
+	if (ath->known_sizes) {
+		sfree (ath->known_sizes);
+		ath->known_sizes = NULL;
+	}
+	ath->ndim = -1;
+	ath->nelem = -1;
+
 	sfree (ath);
 }
 /*}}}*/
@@ -242,6 +275,82 @@ fprintf (stderr, "guppy_reduce_chantype(): here2! (tok = %s)\n", lexer_stokenstr
 		cttok = NULL;
 	}
 	lexer_freetoken (tok);
+	return;
+}
+/*}}}*/
+/*{{{  static void guppy_reduce_arraytype (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	reduces an array type.  Note: expects to be called with the local stack containing the sub-type and the dimension.
+ */
+static void guppy_reduce_arraytype (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	tnode_t *subtype = dfa_popnode (dfast);
+	tnode_t *dim = dfa_popnode (dfast);
+	arraytypehook_t *ath = guppy_newarraytypehook ();
+
+	*(dfast->ptr) = tnode_createfrom (gup.tag_ARRAY, subtype, dim, subtype, ath);
+
+	return;
+}
+/*}}}*/
+
+/*{{{  static void guppy_setarraytypedims (arraytypehook_t *ath, int ndims, ...)*/
+/*
+ *	sets array type dimensions.
+ */
+static void guppy_setarraytypedims (arraytypehook_t *ath, int ndims, ...)
+{
+	int i;
+	va_list ap;
+	int all_known = 1;
+
+	ath->ndim = ndims;
+	if (ath->known_sizes) {
+		sfree (ath->known_sizes);
+		ath->known_sizes = NULL;
+	}
+	if (ndims > 0) {
+		ath->known_sizes = (int *)smalloc (ndims * sizeof (int));
+	}
+	va_start (ap, ndims);
+	ath->nelem = 1;
+	for (i=0; i<ndims; i++) {
+		int arg = va_arg (ap, int);
+
+		ath->known_sizes[i] = arg;
+		if (arg == -1) {
+			all_known = 0;
+		} else {
+			ath->nelem *= arg;
+		}
+	}
+	va_end (ap);
+	if (!all_known) {
+		ath->nelem = -1;
+	}
+	return;
+}
+/*}}}*/
+/*{{{  static void guppy_setarraytypedims_undef (arraytypehook_t *ath, int ndims)*/
+/*
+ *	sets array type dimensions to unknown/undefined.
+ */
+static void guppy_setarraytypedims_undef (arraytypehook_t *ath, int ndims)
+{
+	int i;
+
+	ath->ndim = ndims;
+	ath->nelem = -1;
+	if (ath->known_sizes) {
+		sfree (ath->known_sizes);
+		ath->known_sizes = NULL;
+	}
+	if (ndims > 0) {
+		ath->known_sizes = (int *)smalloc (ndims * sizeof (int));
+	}
+	for (i=0; i<ndims; i++) {
+		ath->known_sizes[i] = -1;
+	}
 	return;
 }
 /*}}}*/
@@ -385,12 +494,17 @@ static void *guppy_arraytype_hook_copy (void *hook)
 static void guppy_arraytype_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	arraytypehook_t *ath = (arraytypehook_t *)hook;
+	int i;
 
 	if (!ath) {
 		return;
 	}
 	guppy_isetindent (stream, indent);
-	fhandle_printf (stream, "<arraytypehook known_size=\"%d\" />\n", ath->known_size);
+	fhandle_printf (stream, "<arraytypehook ndim=\"%d\" nelem=\"%d\" known_sizes=\"", ath->ndim, ath->nelem);
+	for (i=0; i<ath->ndim; i++) {
+		fhandle_printf (stream, "%s%d", i ? "," : "", ath->known_sizes[i]);
+	}
+	fhandle_printf (stream, "\" />\n");
 	return;
 }
 /*}}}*/
@@ -1016,9 +1130,34 @@ static int guppy_getinout_chantype (langops_t *lops, tnode_t *node, int *marked_
 }
 /*}}}*/
 
+/*{{{  static int guppy_prescope_arraytype (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
+/*
+ *	does pre-scoping on an ARRAY type node -- makes sure dimension-tree is a list.
+ *	returns 0 to stop walk, 1 to continue.
+ */
+static int guppy_prescope_arraytype (compops_t *cops, tnode_t **nodep, prescope_t *ps)
+{
+	tnode_t **dimp = tnode_nthsubaddr (*nodep, 0);
+	arraytypehook_t *ath = (arraytypehook_t *)tnode_nthhookof (*nodep, 0);
+
+	if (!*dimp) {
+		/* outright NULL means no dimensions specified at all, assume unsized 1 dimensional */
+		*dimp = parser_newlistnode (OrgOf (*nodep));
+		parser_addtolist (*dimp, NULL);
+		guppy_setarraytypedims_undef (ath, 1);
+	} else {
+		int ndims;
+
+		parser_ensurelist (dimp, *nodep);
+		ndims = parser_countlist (*dimp);
+		guppy_setarraytypedims_undef (ath, ndims);
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_typecheck_arraytype (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
- *	does type-checking on an ARRAY type node (constructs super-type)
+ *	does type-checking on an ARRAY type node.
  *	returns 0 to stop walk, 1 to continue.
  */
 static int guppy_typecheck_arraytype (compops_t *cops, tnode_t *node, typecheck_t *tc)
@@ -1028,13 +1167,23 @@ static int guppy_typecheck_arraytype (compops_t *cops, tnode_t *node, typecheck_
 	return 1;
 }
 /*}}}*/
+/*{{{  static int guppy_constprop_arraytype (compops_t *cops, tnode_t **nodep)*/
+/*
+ *	does constant-propagation on an ARRAY type node.
+ *	returns 0 to stop walk, 1 to continue.
+ */
+static int guppy_constprop_arraytype (compops_t *cops, tnode_t **nodep)
+{
+	return 1;
+}
+/*}}}*/
 /*{{{  static tnode_t *guppy_gettype_arraytype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
  *	gets the type of an ARRAY node (already set by typecheck)
  */
 static tnode_t *guppy_gettype_arraytype (langops_t *lops, tnode_t *node, tnode_t *default_type)
 {
-	tnode_t *type = tnode_nthsubof (node, 1);
+	tnode_t *type = tnode_nthsubof (node, 0);
 
 	return type;
 }
@@ -1109,6 +1258,7 @@ static int guppy_types_init_nodes (void)
 
 	fcnlib_addfcn ("guppy_reduce_primtype", guppy_reduce_primtype, 0, 3);
 	fcnlib_addfcn ("guppy_reduce_chantype", guppy_reduce_chantype, 0, 3);
+	fcnlib_addfcn ("guppy_reduce_arraytype", guppy_reduce_arraytype, 0, 3);
 
 	/*}}}*/
 	/*{{{  guppy:primtype -- INT, REAL, BOOL, BYTE, CHAR, STRING*/
@@ -1175,12 +1325,14 @@ static int guppy_types_init_nodes (void)
 	/*}}}*/
 	/*{{{  guppy:arraytype -- ARRAY*/
 	i = -1;
-	tnd = tnode_newnodetype ("guppy:arraytype", &i, 2, 0, 1, TNF_NONE);		/* subnodes: 0 = sub-type; 1 = my-type; hooks: 0 = arraytypehook_t */
+	tnd = tnode_newnodetype ("guppy:arraytype", &i, 2, 0, 1, TNF_NONE);		/* subnodes: 0 = dimension-tree (at declaration); 1 = sub-type; hooks: 0 = arraytypehook_t */
 	tnd->hook_free = guppy_arraytype_hook_free;
 	tnd->hook_copy = guppy_arraytype_hook_copy;
 	tnd->hook_dumptree = guppy_arraytype_hook_dumptree;
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_arraytype));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_arraytype));
+	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (guppy_constprop_arraytype));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_arraytype));
