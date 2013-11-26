@@ -110,6 +110,34 @@ static int guppy_typecheck_cflow (compops_t *cops, tnode_t *node, typecheck_t *t
 			return 0;
 		}
 	} else if (node->tag == gup.tag_IF) {
+		tnode_t *clist = tnode_nthsubof (node, 1);
+
+		if (!parser_islistnode (clist)) {
+			typecheck_error (node, tc, "expected list of cases for \'if\', but got [%s]", clist->tag->name);
+		} else {
+			int nitems, i;
+			tnode_t **cases = parser_getlistitems (clist, &nitems);
+
+			for (i=0; i<nitems; i++) {
+				tnode_t *caseexpr;
+
+				if (cases[i]->tag != gup.tag_COND) {
+					typecheck_error (cases[i], tc, "\'if\' branch not a conditional, got [%s]", cases[i]->tag->name);
+					return 0;
+				}
+				caseexpr = tnode_nthsubof (cases[i], 0);
+				if (caseexpr->tag == gup.tag_ELSE) {
+					/* check that this is the last one */
+					if (i < (nitems - 1)) {
+						typecheck_error (cases[i], tc, "\'else\' is not the last branch");
+						return 0;
+					}
+				}
+				typecheck_subtree (cases[i], tc);
+			}
+		}
+		return 0;
+	} else if (node->tag == gup.tag_SHORTIF) {
 		/* FIXME: incomplete! */
 	}
 	return 1;
@@ -132,9 +160,8 @@ static int guppy_namemap_cflow (compops_t *cops, tnode_t **nodep, map_t *map)
 
 		map_submapnames (bodyp, map);
 	} else if ((*nodep)->tag == gup.tag_IF) {
-		/* FIXME! */
-		nocc_internal ("guppy_namemap_cflow(): incomplete!");
-		return 1;
+		/* just map out the individual conditionals */
+		map_submapnames (bodyp, map);
 	} else if ((*nodep)->tag == gup.tag_CASE) {
 #if 0
 fhandle_printf (FHAN_STDERR, "guppy_namemap_cflow(): mapping CASE, expression before is:\n");
@@ -174,9 +201,44 @@ static int guppy_codegen_cflow (compops_t *cops, tnode_t *node, codegen_t *cgen)
 		codegen_write_fmt (cgen, "}\n");
 		return 0;
 	} else if (node->tag == gup.tag_IF) {
-		/* FIXME! */
-		nocc_internal ("guppy_codegen_cflow(): incomplete!");
-		return 1;
+		int nitems, i;
+		tnode_t **clist;
+		
+		clist = parser_getlistitems (tnode_nthsubof (node, 1), &nitems);
+		for (i=0; i<nitems; i++) {
+			tnode_t *expr, *body;
+
+			if (clist[i]->tag != gup.tag_COND) {
+				nocc_internal ("guppy_codegen_cflow(): in \'if\', conditional is not COND, got [%s]", clist[i]->tag->name);
+				return 0;
+			}
+			expr = tnode_nthsubof (clist[i], 0);
+			body = tnode_nthsubof (clist[i], 1);
+
+			if (!i) {
+				/* first */
+				codegen_ssetindent (cgen);
+				codegen_write_fmt (cgen, "if (");
+				codegen_subcodegen (expr, cgen);
+				codegen_write_fmt (cgen, ")");
+			} else if (expr->tag == gup.tag_ELSE) {
+				/* last and else */
+				codegen_write_fmt (cgen, "else");
+			} else {
+				/* in the middle or last and not else */
+				codegen_write_fmt (cgen, "else if (");
+				codegen_subcodegen (expr, cgen);
+				codegen_write_fmt (cgen, ")");
+			}
+			codegen_write_fmt (cgen, " {\n");
+			cgen->indent++;
+			codegen_subcodegen (body, cgen);
+			cgen->indent--;
+			codegen_ssetindent (cgen);
+			codegen_write_fmt (cgen, "} ");
+		}
+		codegen_write_fmt (cgen, "\n");
+		return 0;
 	} else if (node->tag == gup.tag_CASE) {
 		codegen_ssetindent (cgen);
 		codegen_write_fmt (cgen, "switch (");
@@ -196,6 +258,65 @@ static int guppy_codegen_cflow (compops_t *cops, tnode_t *node, codegen_t *cgen)
 }
 /*}}}*/
 
+/*{{{  static int guppy_typecheck_cond (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a conditional node (if branches)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_typecheck_cond (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	if (node->tag == gup.tag_COND) {
+		tnode_t *cnode;
+
+		cnode = tnode_nthsubof (node, 0);
+		if (cnode->tag == gup.tag_ELSE) {
+			/* okay! -- code for 'if' makes sure this is the last one if present */
+		} else {
+			tnode_t *ctype, *atype;
+
+			typecheck_subtree (cnode, tc);
+			ctype = typecheck_gettype (cnode, guppy_cflow_booltypenode);
+
+			if (!ctype) {
+				typecheck_error (node, tc, "failed to determine type of expression");
+				return 0;
+			}
+			atype = typecheck_typeactual (guppy_cflow_booltypenode, ctype, node, tc);
+			if (!atype) {
+				typecheck_error (node, tc, "expression incompatible with boolean type");
+				return 0;
+			}
+		}
+		/* typecheck guarded process */
+		typecheck_subtree (tnode_nthsubof (node, 1), tc);
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_namemap_cond (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for a conditional (part of 'if').
+ *	returns 0 to stop walk, 1 to continue.
+ */
+static int guppy_namemap_cond (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t **exprp = tnode_nthsubaddr (*nodep, 0);
+	tnode_t **bodyp = tnode_nthsubaddr (*nodep, 1);
+	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
+
+	if ((*nodep)->tag == gup.tag_COND) {
+		cmd->target_indir = 0;		/* want the result ideally! */
+		if ((*exprp)->tag == gup.tag_ELSE) {
+			/* ignore */
+		} else {
+			map_submapnames (exprp, map);
+		}
+		map_submapnames (bodyp, map);
+	}
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static int guppy_namemap_caseopt (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
@@ -449,6 +570,8 @@ static int guppy_cflow_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:cond", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = expr; 1 = body */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_cond));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_cond));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

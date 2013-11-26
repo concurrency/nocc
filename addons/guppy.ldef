@@ -6,6 +6,7 @@
 .IDENT		"guppy"
 .DESC		"Guppy parallel programming language"
 .MAINTAINER	"Fred Barnes <frmb@kent.ac.uk>"
+.VERSION	"Nov 2013"
 
 
 # sections are used to help front-end units find their definitions

@@ -1,6 +1,6 @@
 /*
  *	langdeflookup.h -- lookups for language definition keywords
- *	Copyright (C) 2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2013 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -41,7 +41,8 @@ typedef enum ENUM_langdeflookup {
 	LDL_KINVALID = 13,
 	LDL_BEFORE = 14,
 	LDL_AFTER = 15,
-	LDL_IMPORT = 16
+	LDL_IMPORT = 16,
+	LDL_VERSION = 17
 } langdeflookup_e;
 
 typedef struct TAG_langdeflookup {

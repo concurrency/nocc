@@ -208,6 +208,7 @@ static langdef_t *ldef_newlangdef (void)
 	ldef->ident = NULL;
 	ldef->desc = NULL;
 	ldef->maintainer = NULL;
+	ldef->version = NULL;
 	dynarray_init (ldef->sections);
 
 	ldef->cursec = NULL;
@@ -238,6 +239,10 @@ static void ldef_freelangdef (langdef_t *ldef)
 	if (ldef->maintainer) {
 		sfree (ldef->maintainer);
 		ldef->maintainer = NULL;
+	}
+	if (ldef->version) {
+		sfree (ldef->version);
+		ldef->version = NULL;
 	}
 
 	for (i=0; i<DA_CUR (ldef->sections); i++) {
@@ -359,6 +364,23 @@ static int ldef_decodelangdefline (langdef_t *ldef, const char *rfname, const in
 						sfree (ldef->maintainer);
 					}
 					ldef->maintainer = string_dup (bits[1]);
+				}
+
+				break;
+				/*}}}*/
+				/*{{{  .VERSION -- arbitrary version string*/
+			case LDL_VERSION:
+				if (nbits != 2) {
+					goto out_malformed;
+				}
+				string_dequote (bits[1]);
+				if (ldef->version && strlen (ldef->version)) {
+					nocc_warning ("already got version at %s:%d, currently [%s]", rfname, lineno, ldef->version);
+				} else {
+					if (ldef->version) {
+						sfree (ldef->version);
+					}
+					ldef->version = string_dup (bits[1]);
 				}
 
 				break;
@@ -906,6 +928,9 @@ reread_local:
 			if (ldef->maintainer) {
 				nocc_message ("maintainer for [%s] is: %s", ldef->ident, ldef->maintainer);
 			}
+			if (ldef->version) {
+				nocc_message ("version for [%s] is: %s", ldef->ident, ldef->version);
+			}
 			goto out_local;
 		}
 	}
@@ -1057,6 +1082,9 @@ int langdef_reg_reducers (langdefsec_t *lsec)
 					if (lsec->ldef->maintainer) {
 						nocc_message ("maintainer for [%s] is: %s", lsec->ldef->ident, lsec->ldef->maintainer);
 					}
+					if (lsec->ldef->version) {
+						nocc_message ("version for [%s] is: %s", lsec->ldef->ident, lsec->ldef->version);
+					}
 					rval = -1;
 				} else {
 					parser_register_grule (lde->u.redex.name, rule);
@@ -1077,6 +1105,9 @@ int langdef_reg_reducers (langdefsec_t *lsec)
 						nocc_error ("invalid reduction function [%s] in language definition for [%s (%s)], line %d", lde->u.redex.desc, lsec->ldef->ident, lsec->ident, lde->lineno);
 						if (lsec->ldef->maintainer) {
 							nocc_message ("maintainer for [%s] is: %s", lsec->ldef->ident, lsec->ldef->maintainer);
+						}
+						if (lsec->ldef->version) {
+							nocc_message ("version for [%s] is: %s", lsec->ldef->ident, lsec->ldef->version);
 						}
 						rval = -1;
 					}
@@ -1121,6 +1152,9 @@ dfattbl_t **langdef_init_dfatrans (langdefsec_t *lsec, int *ntrans)
 						if (lsec->ldef->maintainer) {
 							nocc_message ("maintainer for [%s] is: %s", lsec->ldef->ident, lsec->ldef->maintainer);
 						}
+						if (lsec->ldef->version) {
+							nocc_message ("version for [%s] is: %s", lsec->ldef->ident, lsec->ldef->version);
+						}
 					} else {
 						dynarray_add (transtbl, dfat);
 					}
@@ -1134,6 +1168,9 @@ dfattbl_t **langdef_init_dfatrans (langdefsec_t *lsec, int *ntrans)
 						nocc_error ("invalid DFA BNF in language definition for [%s (%s)], line %d", lsec->ldef->ident, lsec->ident, lde->lineno);
 						if (lsec->ldef->maintainer) {
 							nocc_message ("maintainer for [%s] is: %s", lsec->ldef->ident, lsec->ldef->maintainer);
+						}
+						if (lsec->ldef->version) {
+							nocc_message ("version for [%s] is: %s", lsec->ldef->ident, lsec->ldef->version);
 						}
 					} else {
 						dynarray_add (transtbl, dfat);
@@ -1175,6 +1212,9 @@ int langdef_post_setup (langdefsec_t *lsec)
 				nocc_error ("unable to set DFA error handler in language definition for [%s (%s)], line %d", lsec->ldef->ident, lsec->ident, lde->lineno);
 				if (lsec->ldef->maintainer) {
 					nocc_message ("maintainer for [%s] is: %s", lsec->ldef->ident, lsec->ldef->maintainer);
+				}
+				if (lsec->ldef->version) {
+					nocc_message ("version for [%s] is: %s", lsec->ldef->ident, lsec->ldef->version);
 				}
 				rval = -1;
 			}
@@ -1270,7 +1310,7 @@ langdef_t *langdef_readdefs (const char *fname)
 	} else {
 		ldef->cursec = NULL;
 		if (compopts.verbose) {
-			nocc_message ("language definitions loaded, [%s]", ldef->desc ?: rfname);
+			nocc_message ("language definitions loaded, [%s] version [%s]", ldef->desc ?: rfname, ldef->version ?: "(none)");
 		}
 	}
 

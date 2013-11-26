@@ -82,6 +82,7 @@ typedef struct TAG_langdef {
 	char *ident;
 	char *desc;
 	char *maintainer;
+	char *version;
 	DYNARRAY (langdefsec_t *, sections);
 
 	langdefsec_t *cursec;			/* used when parsing */

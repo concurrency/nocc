@@ -1,0 +1,54 @@
+
+# test_g51.gpp -- attempt at dining-phils
+
+@include "guppy_stdlib.gpi"
+
+
+define fork (chan(bool) left?, right?)
+  while true
+    bool any
+    alt
+      left ? any
+        left ? any
+      right ? any
+        right ? any
+end
+
+define rand_delay (val int min, max)
+  timer tim
+  int t, diff
+  seq
+    tim ? t
+    diff = max - min
+    # nasty..
+    diff = t \ diff
+    tim ? after (t + min + diff)
+end
+
+define philosopher (chan(bool) up!, down!, left!, right!)
+  while true
+    seq
+      # thinking
+      rand_delay (500000, 1000000)
+      # sit down
+      down ! true
+      # pick up forks
+      par
+        left ! true
+        right ! true
+      # eating
+      rand_delay (500000, 1000000)
+      # put down forks
+      par
+        left ! true
+        right ! true
+      # stand up
+      up ! true
+end
+
+define secure_college ()
+  [5]chan(bool) ups, downs
+  seq
+    skip
+end
+

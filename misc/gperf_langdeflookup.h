@@ -1,4 +1,4 @@
-/* ANSI-C code produced by gperf version 3.0.2 */
+/* ANSI-C code produced by gperf version 3.0.4 */
 /* Command-line: /usr/bin/gperf  */
 /* Computed positions: -k'1-2' */
 
@@ -32,11 +32,11 @@
 
 /*
  *	langdeflookup.gperf -- language definition keywords for NOCC
- *	Fred Barnes, 2007  <frmb@kent.ac.uk>
+ *	Fred Barnes, 2007-2013  <frmb@kent.ac.uk>
  */
 struct TAG_langdeflookup;
 
-#define TOTAL_KEYWORDS 16
+#define TOTAL_KEYWORDS 17
 #define MIN_WORD_LENGTH 3
 #define MAX_WORD_LENGTH 10
 #define MIN_HASH_VALUE 5
@@ -62,8 +62,8 @@ hash (register const char *str, register unsigned int len)
       37, 37, 37, 37, 37, 37, 37, 37, 37, 37,
       37, 37, 37, 37, 37, 37, 37, 37, 37, 37,
       37, 37, 37, 37, 37,  5,  5, 37, 20,  0,
-      10, 15, 37,  0, 37, 10, 37,  0,  0, 37,
-      37, 37, 15,  5,  0, 37, 37, 37, 37,  5,
+      10, 15, 37,  0, 37, 15, 37,  0,  0, 37,
+      37, 37, 15,  5,  0, 37, 10, 37, 37,  5,
       37, 37, 37, 37, 37, 37, 37, 37, 37, 37,
       37, 37, 37, 37, 37, 37, 37, 37, 37, 37,
       37, 37, 37, 37, 37, 37, 37, 37, 37, 37,
@@ -101,10 +101,11 @@ static const struct TAG_langdeflookup wordlist[] =
     {(char*)0,LDL_INVALID,NULL}, {(char*)0,LDL_INVALID,NULL},
     {"MAINTAINER",	LDL_MAINTAINER,	NULL},
     {"SYMBOL",		LDL_SYMBOL,	NULL},
-    {"KEYWORD",	LDL_KEYWORD,	NULL},
+    {"VERSION",	LDL_VERSION,	NULL},
     {(char*)0,LDL_INVALID,NULL}, {(char*)0,LDL_INVALID,NULL},
     {"AFTER",		LDL_AFTER,	NULL},
-    {(char*)0,LDL_INVALID,NULL}, {(char*)0,LDL_INVALID,NULL},
+    {(char*)0,LDL_INVALID,NULL},
+    {"KEYWORD",	LDL_KEYWORD,	NULL},
     {(char*)0,LDL_INVALID,NULL},
     {"DESC",		LDL_DESC,	NULL},
     {"IDENT",		LDL_IDENT,	NULL},
@@ -119,6 +120,9 @@ static const struct TAG_langdeflookup wordlist[] =
 
 #ifdef __GNUC__
 __inline
+#if defined __GNUC_STDC_INLINE__ || defined __GNUC_GNU_INLINE__
+__attribute__ ((__gnu_inline__))
+#endif
 #endif
 const struct TAG_langdeflookup *
 langdeflookup_lookup_byname (register const char *str, register unsigned int len)

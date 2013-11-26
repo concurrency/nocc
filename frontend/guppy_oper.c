@@ -213,6 +213,8 @@ static int guppy_codegen_dopnode (compops_t *cops, tnode_t *node, codegen_t *cge
 		codegen_write_fmt (cgen, "/");
 	} else if (node->tag == gup.tag_MUL) {
 		codegen_write_fmt (cgen, "*");
+	} else if (node->tag == gup.tag_REM) {
+		codegen_write_fmt (cgen, "%%");
 	} else {
 		nocc_internal ("guppy_codegen_dopnode(): unhandled operator!");
 	}

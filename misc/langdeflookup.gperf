@@ -1,7 +1,7 @@
 %{
 /*
  *	langdeflookup.gperf -- language definition keywords for NOCC
- *	Fred Barnes, 2007  <frmb@kent.ac.uk>
+ *	Fred Barnes, 2007-2013  <frmb@kent.ac.uk>
  */
 %}
 %struct-type
@@ -31,5 +31,6 @@ INVALID,	LDL_KINVALID,	NULL
 BEFORE,		LDL_BEFORE,	NULL
 AFTER,		LDL_AFTER,	NULL
 IMPORT,		LDL_IMPORT,	NULL
+VERSION,	LDL_VERSION,	NULL
 %%
 

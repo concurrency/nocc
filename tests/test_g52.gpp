@@ -1,0 +1,9 @@
+
+# test_g52.gpp -- arrays
+
+define g52 ()
+  [3]int arry
+  seq
+    arry[0] = 42
+end
+
