@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -32,6 +33,12 @@ typedef struct TAG_gtString {
 	int alen;			/* allocation length (bytes) */
 } gtString_t;
 
+typedef struct TAG_gtArray {
+	void *ptr;			/* pointer to actual data */
+	int ndim;			/* number of dimensions */
+	int *dimsizes;			/* array of dimension sizes (0..(ndim-1)) */
+	int tsize;			/* subtype size (as per allocation for 'ptr', so sizeof(void *) for most pointers) */
+} gtArray_t;
 
 /*}}}*/
 
@@ -214,6 +221,65 @@ GuppyPrintString (wptr, "GuppyStringClear(*str)", *str);
 	*str = GuppyStringInit (wptr);
 }
 /*}}}*/
+
+/*{{{  static inline gtArray_t *GuppyArrayInit (Workspace wptr)*/
+/*
+ *	initialises an array, no allocation (just returns NULL in practice).
+ */
+static inline gtArray_t *GuppyArrayInit (Workspace wptr)
+{
+	return NULL;
+}
+/*}}}*/
+/*{{{  static inline gtArray_t *GuppyArrayInitAlloc (Workspace wptr, int ndim, int tsize, ...)*/
+/*
+ *	initialises an array and allocates it.
+ */
+static inline gtArray_t *GuppyArrayInitAlloc (Workspace wptr, int ndim, int tsize, ...)
+{
+	/* XXX: for efficiency, should tuck dimsizes behind array structure */
+	gtArray_t *ary = (gtArray_t *)MAlloc (wptr, sizeof (gtArray_t));
+	va_list ap;
+	int talloc = tsize;
+	int i;
+
+	ary->ndim = ndim;
+	ary->tsize = tsize;
+	ary->dimsizes = (int *)MAlloc (wptr, ndim * sizeof (int));
+
+	va_start (ap, tsize);
+	for (i=0; i<ndim; i++) {
+		int dsize = va_arg (ap, int);
+
+		ary->dimsizes[i] = dsize;
+		talloc *= dsize;
+	}
+	ary->ptr = MAlloc (wptr, talloc);
+
+	return ary;
+}
+/*}}}*/
+/*{{{  static inline void GuppyArrayFree (Workspace wptr, gtArray_t *ary)*/
+/*
+ *	releases an array.
+ */
+static inline void GuppyArrayFree (Workspace wptr, gtArray_t *ary)
+{
+	if (!ary) {
+		return;
+	}
+	if (ary->ptr) {
+		MRelease (wptr, ary->ptr);
+		ary->ptr = NULL;
+	}
+	if (ary->dimsizes) {
+		MRelease (wptr, ary->dimsizes);
+		ary->dimsizes = NULL;
+	}
+	MRelease (wptr, ary);
+}
+/*}}}*/
+
 
 /* END verb-header.h */
 

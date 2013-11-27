@@ -88,6 +88,9 @@ typedef struct TAG_arraytypehook {
 	int constprop;						/* non-zero if constant propagation has been done (known sizes filled in) */
 } arraytypehook_t;
 
+
+static tnode_t *guppy_types_inttypenode;
+
 /*}}}*/
 
 
@@ -1162,9 +1165,40 @@ static int guppy_prescope_arraytype (compops_t *cops, tnode_t **nodep, prescope_
  */
 static int guppy_typecheck_arraytype (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
-	tnode_t *subtype;
+	tnode_t *dtree = tnode_nthsubof (node, 0);
+	tnode_t *subtype = tnode_nthsubof (node, 1);
+	tnode_t **ditems;
+	int nditems, i;
 
-	return 1;
+	if (!parser_islistnode (dtree)) {
+		typecheck_error (node, tc, "dimension tree for array is not a list, got [%s]", dtree->tag->name);
+		return 0;
+	}
+	ditems = parser_getlistitems (dtree, &nditems);
+	for (i=0; i<nditems; i++) {
+		if (!ditems[i]) {
+			/* open-dimension */
+		} else {
+			tnode_t *dtype, *atype;
+
+			typecheck_subtree (ditems[i], tc);
+			dtype = typecheck_gettype (ditems[i], guppy_types_inttypenode);
+			if (!dtype) {
+				typecheck_error (ditems[i], tc, "failed to determine type of dimension %d in array", i);
+				return 0;
+			}
+			atype = typecheck_typeactual (guppy_types_inttypenode, dtype, ditems[i], tc);
+			if (!atype) {
+				typecheck_error (ditems[i], tc, "array dimension %d is not an integer", i);
+				return 0;
+			}
+		}
+	}
+
+	/* then type-check the sub-type */
+	typecheck_subtree (subtype, tc);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int guppy_constprop_arraytype (compops_t *cops, tnode_t **nodep)*/
@@ -1174,18 +1208,114 @@ static int guppy_typecheck_arraytype (compops_t *cops, tnode_t *node, typecheck_
  */
 static int guppy_constprop_arraytype (compops_t *cops, tnode_t **nodep)
 {
-	return 1;
+	tnode_t *dtree = tnode_nthsubof (*nodep, 0);
+	arraytypehook_t *ath = (arraytypehook_t *)tnode_nthhookof (*nodep, 0);
+	tnode_t **ditems;
+	int nditems, i;
+	int all_known = 1;
+	int nelem = 1;
+
+	if (ath->constprop) {
+		return 0;		/* already done for this one */
+	}
+	if (!parser_islistnode (dtree)) {
+		constprop_error (*nodep, "dimension tree for array is not a list, got [%s]", dtree->tag->name);
+		return 0;
+	}
+	ditems = parser_getlistitems (dtree, &nditems);
+	for (i=0; i<nditems; i++) {
+		if (!ditems[i]) {
+			all_known = 0;
+		} else if (langops_isconst (ditems[i])) {
+			int dsize = langops_constvalof (ditems[i], NULL);
+
+			ditems[i] = constprop_newconst (CONST_INT, ditems[i], guppy_types_inttypenode, dsize);
+			ath->known_sizes[i] = dsize;
+
+			nelem *= dsize;
+		} else {
+			/* probably an expression of some kind */
+			all_known = 0;
+		}
+	}
+	if (all_known) {
+		/* all dimensions known */
+		ath->nelem = nelem;
+	}
+	ath->constprop = 1;
+
+	constprop_tree (tnode_nthsubaddr (*nodep, 1));
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_getctypeof_arraytype (langops_t *lops, tnode_t *t, char **str)*/
+/*
+ *	generates a C string for an array-type.
+ */
+static int guppy_getctypeof_arraytype (langops_t *lops, tnode_t *t, char **str)
+{
+	arraytypehook_t *ath = (arraytypehook_t *)tnode_nthhookof (t, 0);
+	char *lstr = NULL;
+
+	lstr = string_dup ("gtArray_t");
+	if (*str) {
+		sfree (*str);
+	}
+	*str = lstr;
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static tnode_t *guppy_gettype_arraytype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
 /*
- *	gets the type of an ARRAY node (already set by typecheck)
+ *	gets the type of an ARRAY node (self)
  */
 static tnode_t *guppy_gettype_arraytype (langops_t *lops, tnode_t *node, tnode_t *default_type)
 {
-	tnode_t *type = tnode_nthsubof (node, 0);
+	return node;
+}
+/*}}}*/
+/*{{{  static int guppy_isdefpointer_arraytype (langops_t *lops, tnode_t *node)*/
+/*
+ *	returns default indirection level for array type
+ */
+static int guppy_isdefpointer_arraytype (langops_t *lops, tnode_t *node)
+{
+	if (node->tag == gup.tag_ARRAY) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_initcall_arraytype (langops_t *lops, tnode_t *typenode, tnode_t *name)*/
+/*
+ *	generates initialiser for array types.
+ */
+static tnode_t *guppy_initcall_arraytype (langops_t *lops, tnode_t *typenode, tnode_t *name)
+{
+	if (typenode->tag == gup.tag_ARRAY) {
+		tnode_t *inode;
 
-	return type;
+		inode = tnode_create (gup.tag_ARRAYINIT, SLOCI, NULL, typenode, name);
+		return inode;
+	}
+	return NULL;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_freecall_arraytype (langops_t *lops, tnode_t *typenode, tnode_t *name)*/
+/*
+ *	generates finaliser for array types.
+ */
+static tnode_t *guppy_freecall_arraytype (langops_t *lops, tnode_t *typenode, tnode_t *name)
+{
+	if (typenode->tag == gup.tag_ARRAY) {
+		tnode_t *inode;
+
+		inode = tnode_create (gup.tag_ARRAYFREE, SLOCI, NULL, typenode, name);
+		return inode;
+	}
+	return NULL;
 }
 /*}}}*/
 
@@ -1335,7 +1465,11 @@ static int guppy_types_init_nodes (void)
 	tnode_setcompop (cops, "constprop", 1, COMPOPTYPE (guppy_constprop_arraytype));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (guppy_getctypeof_arraytype));
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_arraytype));
+	tnode_setlangop (lops, "isdefpointer", 1, LANGOPTYPE (guppy_isdefpointer_arraytype));
+	tnode_setlangop (lops, "initcall", 2, LANGOPTYPE (guppy_initcall_arraytype));
+	tnode_setlangop (lops, "freecall", 2, LANGOPTYPE (guppy_freecall_arraytype));
 	tnd->lops = lops;
 
 	i = -1;
@@ -1391,6 +1525,8 @@ static int guppy_types_init_nodes (void)
  */
 static int guppy_types_post_setup (void)
 {
+	guppy_types_inttypenode = guppy_newprimtype (gup.tag_INT, NULL, 0);
+
 	return 0;
 }
 /*}}}*/

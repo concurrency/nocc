@@ -302,7 +302,10 @@ static cccsp_apicall_t cccsp_apicall_table[] = {
 	{ALT_DISC, "AltDisableChannel", 32},
 	{ALT_WAIT, "AltWait", 32},			/* 24 */
 	{PROC_ALT, "ProcAlt", 32},
-	{LIGHT_PROC_FREE, "LightProcFree", 32}
+	{LIGHT_PROC_FREE, "LightProcFree", 32},
+	{ARRAY_INIT, "GuppyArrayInit", 32},
+	{ARRAY_INIT_ALLOC, "GuppyArrayInitAlloc", 32},
+	{ARRAY_FREE, "GuppyArrayFree", 32}
 };
 
 

@@ -1014,6 +1014,7 @@ static int guppy_namemap_varinit (compops_t *cops, tnode_t **nodep, map_t *map)
 	}
 
 	if ((*nodep)->tag == gup.tag_VARINIT) {
+		/*{{{  variable init (dynamically allocated)*/
 		int tsize;
 		tnode_t *aparms;
 		tnode_t *action;
@@ -1034,7 +1035,9 @@ fhandle_printf (FHAN_STDERR, "guppy_namemap_varinit(): tsize is %d\n", tsize);
 		action = tnode_create (gup.tag_APICALLR, SLOCI, cccsp_create_apicallname (MEM_ALLOC), aparms, tnode_nthsubof (*nodep, 2));
 
 		*nodep = action;
+		/*}}}*/
 	} else if ((*nodep)->tag == gup.tag_VARFREE) {
+		/*{{{  variable free (dynamically allocated)*/
 		tnode_t *action, *aparms;
 
 		cmd->target_indir = 1;
@@ -1049,7 +1052,9 @@ fhandle_printf (FHAN_STDERR, "guppy_namemap_varinit(): tsize is %d\n", tsize);
 		action = tnode_create (gup.tag_APICALL, SLOCI, cccsp_create_apicallname (MEM_RELEASE_CHK), aparms);
 
 		*nodep = action;
+		/*}}}*/
 	} else if ((*nodep)->tag == gup.tag_STRINIT) {
+		/*{{{  string initialise*/
 		tnode_t *action, *aparms;
 
 		cmd->target_indir = 1;
@@ -1063,7 +1068,9 @@ fhandle_printf (FHAN_STDERR, "guppy_namemap_varinit(): tsize is %d\n", tsize);
 		action = tnode_create (gup.tag_APICALLR, SLOCI, cccsp_create_apicallname (STR_INIT), aparms, tnode_nthsubof (*nodep, 2));
 
 		*nodep = action;
+		/*}}}*/
 	} else if ((*nodep)->tag == gup.tag_STRFREE) {
+		/*{{{  string free*/
 		tnode_t *action, *aparms;
 
 		cmd->target_indir = 1;
@@ -1078,7 +1085,9 @@ fhandle_printf (FHAN_STDERR, "guppy_namemap_varinit(): tsize is %d\n", tsize);
 		action = tnode_create (gup.tag_APICALL, SLOCI, cccsp_create_apicallname (STR_FREE), aparms);
 
 		*nodep = action;
+		/*}}}*/
 	} else if ((*nodep)->tag == gup.tag_CHANINIT) {
+		/*{{{  channel initialisation*/
 		tnode_t *action, *aparms;
 
 		cmd->target_indir = 1;
@@ -1093,6 +1102,29 @@ fhandle_printf (FHAN_STDERR, "guppy_namemap_varinit(): tsize is %d\n", tsize);
 		action = tnode_create (gup.tag_APICALL, SLOCI, cccsp_create_apicallname (CHAN_INIT), aparms);
 
 		*nodep = action;
+		/*}}}*/
+	} else if ((*nodep)->tag == gup.tag_ARRAYINIT) {
+		/*{{{  array allocation*/
+		/* FIXME: incomplete.. */
+
+		/*}}}*/
+	} else if ((*nodep)->tag == gup.tag_ARRAYFREE) {
+		/*{{{  array free*/
+		tnode_t *action, *aparms;
+
+		cmd->target_indir = 1;
+		map_submapnames (tnode_nthsubaddr (*nodep, 2), map);		/* map name */
+		cmd->target_indir = 0;
+
+		aparms = parser_newlistnode (SLOCI);
+		parser_addtolist (aparms, tnode_nthsubof (*nodep, 0));		/* Wptr */
+		map_submapnames (&aparms, map);					/* and map it */
+		parser_addtolist (aparms, tnode_nthsubof (*nodep, 2));		/* mapped name (pointer-to) */
+
+		action = tnode_create (gup.tag_APICALL, SLOCI, cccsp_create_apicallname (ARRAY_FREE), aparms);
+
+		*nodep = action;
+		/*}}}*/
 	}
 	return 0;
 }
@@ -1733,7 +1765,7 @@ static int guppy_decls_init_nodes (void)
 	gup.tag_FPARAMINIT = tnode_newnodetag ("FPARAMINIT", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  guppy:varinit -- VARINIT, VARFREE, STRINIT, STRFREE, CHANINIT*/
+	/*{{{  guppy:varinit -- VARINIT, VARFREE, STRINIT, STRFREE, CHANINIT, ARRAYINIT*/
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:varinit", &i, 3, 0, 0, TNF_NONE);				/* subnodes: wptr, type, target-name */
 	cops = tnode_newcompops ();
@@ -1752,6 +1784,10 @@ static int guppy_decls_init_nodes (void)
 	gup.tag_STRFREE = tnode_newnodetag ("STRFREE", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_CHANINIT = tnode_newnodetag ("CHANINIT", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_ARRAYINIT = tnode_newnodetag ("ARRAYINIT", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_ARRAYFREE = tnode_newnodetag ("ARRAYFREE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:declblock -- DECLBLOCK*/

@@ -842,7 +842,7 @@ tnode_dumptree (idxtype, 1, FHAN_STDERR);
 				mytype = guppy_newprimtype (gup.tag_CHAR, node, 0);
 			} else if (optype->tag == gup.tag_ARRAY) {
 				/* array type, this becomes subtype */
-				mytype = tnode_copytree (tnode_nthsubof (optype, 0));
+				mytype = tnode_copytree (tnode_nthsubof (optype, 1));
 			} else {
 				typecheck_error (node, tc, "array-sub used on non-array, got type [%s] from [%s]", rtype->tag->name, idxtype->tag->name);
 			}
