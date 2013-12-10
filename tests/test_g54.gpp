@@ -1,0 +1,9 @@
+
+# test_g54.gpp -- more array tests
+
+define g54 ()
+  []chan(int) c
+  seq
+    skip
+end
+

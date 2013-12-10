@@ -864,6 +864,7 @@ static int guppy_namemap_arrayopnode (compops_t *cops, tnode_t **nodep, map_t *m
 	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
 	int tindir = cmd->target_indir;
 	tnode_t *idxnode;
+	tnode_t *type = tnode_nthsubof (*nodep, 2);
 
 	/* for both array and record bases, want a pointer */
 	cmd->target_indir = 1;
@@ -874,9 +875,9 @@ static int guppy_namemap_arrayopnode (compops_t *cops, tnode_t **nodep, map_t *m
 
 	cmd->target_indir = tindir;
 	if ((*nodep)->tag == gup.tag_ARRAYSUB) {
-		idxnode = cccsp_create_arraysub (OrgOf (*nodep), map->target, tnode_nthsubof (*nodep, 0), tnode_nthsubof (*nodep, 1), tindir);
+		idxnode = cccsp_create_arraysub (OrgOf (*nodep), map->target, tnode_nthsubof (*nodep, 0), tnode_nthsubof (*nodep, 1), tindir, type);
 	} else if ((*nodep)->tag == gup.tag_RECORDSUB) {
-		idxnode = cccsp_create_recordsub (OrgOf (*nodep), map->target, tnode_nthsubof (*nodep, 0), tnode_nthsubof (*nodep, 1), tindir);
+		idxnode = cccsp_create_recordsub (OrgOf (*nodep), map->target, tnode_nthsubof (*nodep, 0), tnode_nthsubof (*nodep, 1), tindir, type);
 	} else {
 		nocc_internal ("guppy_namemap_arrayopnode(): unhandled [%s]", (*nodep)->tag->name);
 	}
@@ -893,6 +894,15 @@ static int guppy_namemap_arrayopnode (compops_t *cops, tnode_t **nodep, map_t *m
 static tnode_t *guppy_gettype_arrayopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
 {
 	return tnode_nthsubof (node, 2);
+}
+/*}}}*/
+/*{{{  static int guppy_isvar_arrayopnode (langops_t *lops, tnode_t *node)*/
+/*
+ *	determines whether the specified array-operator is a variable (non-constant)
+ */
+static int guppy_isvar_arrayopnode (langops_t *lops, tnode_t *node)
+{
+	return langops_isvar (tnode_nthsubof (node, 0));
 }
 /*}}}*/
 
@@ -1119,6 +1129,7 @@ static int guppy_oper_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_arrayopnode));
+	tnode_setlangop (lops, "isvar", 1, LANGOPTYPE (guppy_isvar_arrayopnode));
 	tnd->lops = lops;
 
 	i = -1;

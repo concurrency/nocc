@@ -1105,8 +1105,62 @@ fhandle_printf (FHAN_STDERR, "guppy_namemap_varinit(): tsize is %d\n", tsize);
 		/*}}}*/
 	} else if ((*nodep)->tag == gup.tag_ARRAYINIT) {
 		/*{{{  array allocation*/
-		/* FIXME: incomplete.. */
+		tnode_t *action, *aparms;
+		tnode_t *atype, *subtype;
+		tnode_t **adims;
+		int nadims, i;
+		int knownsizes = 1;
+		int stbytes;
 
+		cmd->target_indir = 1;
+		map_submapnames (tnode_nthsubaddr (*nodep, 2), map);		/* map name */
+		cmd->target_indir = 0;
+
+		/* start building parameter list */
+		aparms = parser_newlistnode (SLOCI);
+		parser_addtolist (aparms, tnode_nthsubof (*nodep, 0));		/* Wptr */
+
+
+		if (type->tag != gup.tag_ARRAY) {
+			nocc_internal ("guppy_namemap_varinit(): type not ARRAY, got [%s:%s]", type->tag->ndef->name, type->tag->name);
+			return 0;
+		}
+		atype = tnode_nthsubof (type, 0);		/* should be dimension tree as a list */
+		if (!parser_islistnode (atype)) {
+			nocc_internal ("guppy_namemap_varinit(): array-dimtree not list, got [%s:%s]", atype->tag->ndef->name, atype->tag->name);
+			return 0;
+		}
+		adims = parser_getlistitems (atype, &nadims);
+		for (i=0; i<nadims; i++) {
+			if (!adims[i]) {
+				knownsizes = 0;
+			}
+		}
+
+		subtype = typecheck_getsubtype (type, NULL);
+		stbytes = tnode_bytesfor (subtype, map->target);
+		if (stbytes <= 0) {
+			nocc_internal ("guppy_namemap_varinit(): array sub-type [%s:%s] had invalid size (%d)",
+					subtype->tag->ndef->name, subtype->tag->name, stbytes);
+			return 0;
+		}
+
+		if (knownsizes) {
+			/* all dimensions known, so can construct initialiser */
+			parser_addtolist (aparms, constprop_newconst (CONST_INT, NULL, NULL, nadims));
+			parser_addtolist (aparms, constprop_newconst (CONST_INT, NULL, NULL, stbytes));
+			parser_addtolist (aparms, cccsp_create_null (SLOCI, map->target));
+			for (i=0; i<nadims; i++) {
+				parser_addtolist (aparms, adims[i]);
+			}
+		}
+
+		map_submapnames (&aparms, map);
+
+		action = tnode_create (gup.tag_APICALLR, SLOCI, cccsp_create_apicallname (knownsizes ? ARRAY_INIT_ALLOC : ARRAY_INIT),
+				aparms, tnode_nthsubof (*nodep, 2));
+
+		*nodep = action;
 		/*}}}*/
 	} else if ((*nodep)->tag == gup.tag_ARRAYFREE) {
 		/*{{{  array free*/
@@ -1765,7 +1819,7 @@ static int guppy_decls_init_nodes (void)
 	gup.tag_FPARAMINIT = tnode_newnodetag ("FPARAMINIT", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  guppy:varinit -- VARINIT, VARFREE, STRINIT, STRFREE, CHANINIT, ARRAYINIT*/
+	/*{{{  guppy:varinit -- VARINIT, VARFREE, STRINIT, STRFREE, CHANINIT, ARRAYINIT, ARRAYFREE*/
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:varinit", &i, 3, 0, 0, TNF_NONE);				/* subnodes: wptr, type, target-name */
 	cops = tnode_newcompops ();

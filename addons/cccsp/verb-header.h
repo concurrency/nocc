@@ -37,6 +37,7 @@ typedef struct TAG_gtArray {
 	void *ptr;			/* pointer to actual data */
 	int ndim;			/* number of dimensions */
 	int *dimsizes;			/* array of dimension sizes (0..(ndim-1)) */
+	void *tdesc;			/* the suitably encoded type descriptor */
 	int tsize;			/* subtype size (as per allocation for 'ptr', so sizeof(void *) for most pointers) */
 } gtArray_t;
 
@@ -231,11 +232,11 @@ static inline gtArray_t *GuppyArrayInit (Workspace wptr)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static inline gtArray_t *GuppyArrayInitAlloc (Workspace wptr, int ndim, int tsize, ...)*/
+/*{{{  static inline gtArray_t *GuppyArrayInitAlloc (Workspace wptr, int ndim, int tsize, void *tdesc, ...)*/
 /*
  *	initialises an array and allocates it.
  */
-static inline gtArray_t *GuppyArrayInitAlloc (Workspace wptr, int ndim, int tsize, ...)
+static inline gtArray_t *GuppyArrayInitAlloc (Workspace wptr, int ndim, int tsize, void *tdesc, ...)
 {
 	/* XXX: for efficiency, should tuck dimsizes behind array structure */
 	gtArray_t *ary = (gtArray_t *)MAlloc (wptr, sizeof (gtArray_t));
@@ -245,9 +246,10 @@ static inline gtArray_t *GuppyArrayInitAlloc (Workspace wptr, int ndim, int tsiz
 
 	ary->ndim = ndim;
 	ary->tsize = tsize;
+	ary->tdesc = tdesc;
 	ary->dimsizes = (int *)MAlloc (wptr, ndim * sizeof (int));
 
-	va_start (ap, tsize);
+	va_start (ap, tdesc);
 	for (i=0; i<ndim; i++) {
 		int dsize = va_arg (ap, int);
 
@@ -255,6 +257,7 @@ static inline gtArray_t *GuppyArrayInitAlloc (Workspace wptr, int ndim, int tsiz
 		talloc *= dsize;
 	}
 	ary->ptr = MAlloc (wptr, talloc);
+	memset (ary->ptr, 0, talloc);
 
 	return ary;
 }
@@ -279,6 +282,8 @@ static inline void GuppyArrayFree (Workspace wptr, gtArray_t *ary)
 	MRelease (wptr, ary);
 }
 /*}}}*/
+
+#define GUPPYTYPEDARRAYPTR(T,A) ((T*)((A)->ptr))
 
 
 /* END verb-header.h */

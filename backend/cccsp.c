@@ -256,6 +256,7 @@ typedef struct TAG_cccsp_utypehook {
 
 typedef struct TAG_cccsp_indexhook {
 	int indir;				/* desired indirection on arraysub/recordsub */
+	tnode_t *type;				/* underlying type */
 } cccsp_indexhook_t;
 
 /*}}}*/
@@ -832,20 +833,21 @@ static void cccsp_indexhook_dumptree (tnode_t *node, void *hook, int indent, fha
 	cccsp_indexhook_t *idh = (cccsp_indexhook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<indexhook indir=\"%d\" addr=\"0x%8.8x\" />\n",
-			idh->indir, (unsigned int)idh);
+	fhandle_printf (stream, "<indexhook indir=\"%d\" typeaddr=\"0x%8.8x\" addr=\"0x%8.8x\" />\n",
+			idh->indir, (unsigned int)idh->type, (unsigned int)idh);
 	return;
 }
 /*}}}*/
-/*{{{  static cccsp_indexhook_t *cccsp_indexhook_create (int indir)*/
+/*{{{  static cccsp_indexhook_t *cccsp_indexhook_create (int indir, tnode_t *type)*/
 /*
  *	creates a new cccsp_indexhook_t
  */
-static cccsp_indexhook_t *cccsp_indexhook_create (int indir)
+static cccsp_indexhook_t *cccsp_indexhook_create (int indir, tnode_t *type)
 {
 	cccsp_indexhook_t *idh = (cccsp_indexhook_t *)smalloc (sizeof (cccsp_indexhook_t));
 
 	idh->indir = indir;
+	idh->type = type;
 
 	return idh;
 }
@@ -1314,30 +1316,30 @@ tnode_t *cccsp_create_utype (srclocn_t *org, target_t *target, const char *name,
 	return node;
 }
 /*}}}*/
-/*{{{  tnode_t *cccsp_create_arraysub (srclocn_t *org, target_t *target, tnode_t *base, tnode_t *index, int indir)*/
+/*{{{  tnode_t *cccsp_create_arraysub (srclocn_t *org, target_t *target, tnode_t *base, tnode_t *index, int indir, tnode_t *type)*/
 /*
  *	creates a new ARRAYSUB node, used for accessing array elements
  */
-tnode_t *cccsp_create_arraysub (srclocn_t *org, target_t *target, tnode_t *base, tnode_t *index, int indir)
+tnode_t *cccsp_create_arraysub (srclocn_t *org, target_t *target, tnode_t *base, tnode_t *index, int indir, tnode_t *type)
 {
 	tnode_t *node;
 	cccsp_priv_t *kpriv = (cccsp_priv_t *)target->priv;
-	cccsp_indexhook_t *idh = cccsp_indexhook_create (indir);
+	cccsp_indexhook_t *idh = cccsp_indexhook_create (indir, type);
 
 	node = tnode_create (kpriv->tag_ARRAYSUB, org, base, index, idh);
 
 	return node;
 }
 /*}}}*/
-/*{{{  tnode_t *cccsp_create_recordsub (srclocn_t *org, target_t *target, tnode_t *base, tnode_t *field, int indir)*/
+/*{{{  tnode_t *cccsp_create_recordsub (srclocn_t *org, target_t *target, tnode_t *base, tnode_t *field, int indir, tnode_t *type)*/
 /*
  *	creates a new RECORDSUB node, used for accessing record fields (mostly within user-defined types)
  */
-tnode_t *cccsp_create_recordsub (srclocn_t *org, target_t *target, tnode_t *base, tnode_t *field, int indir)
+tnode_t *cccsp_create_recordsub (srclocn_t *org, target_t *target, tnode_t *base, tnode_t *field, int indir, tnode_t *type)
 {
 	tnode_t *node;
 	cccsp_priv_t *kpriv = (cccsp_priv_t *)target->priv;
-	cccsp_indexhook_t *idh = cccsp_indexhook_create (indir);
+	cccsp_indexhook_t *idh = cccsp_indexhook_create (indir, type);
 
 	node = tnode_create (kpriv->tag_RECORDSUB, org, base, field, idh);
 
@@ -2748,8 +2750,35 @@ static int cccsp_lcodegen_indexnode (compops_t *cops, tnode_t *node, codegen_t *
 	cccsp_priv_t *kpriv = (cccsp_priv_t *)cgen->target->priv;
 	cccsp_indexhook_t *idh = (cccsp_indexhook_t *)tnode_nthhookof (node, 0);
 
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_lcodegen_indexnode(): node is:\n");
+tnode_dumptree (node, 1, FHAN_STDERR);
+#endif
+	if (idh->indir == 1) {
+		codegen_write_fmt (cgen, "&(");
+	} else if (idh->indir > 1) {
+		codegen_error (cgen, "cccsp_lcodegen_indexnode(): too much indirection (%d)", idh->indir);
+		return 0;
+	}
+
 	if (node->tag == kpriv->tag_ARRAYSUB) {
+		/* limited range of allowable subtypes here.. */
+		char *ctype = NULL;
+		
+		langops_getctypeof (idh->type, &ctype);
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_lcodegen_indexnode(): C type of subtype is: [%s]\n", ctype ?: "(null)");
+#endif
+		/* NOTE: this is grotty.. */
+		if (!ctype) {
+			codegen_error (cgen, "cccsp_lcodegen_indexnode(): unknown C type for [%s:%s]",
+					idh->type ? idh->type->tag->ndef->name : "(null)", idh->type ? idh->type->tag->name : "(null)");
+			return 0;
+		}
+		codegen_write_fmt (cgen, "GUPPYTYPEDARRAYPTR(%s,", ctype);
 		codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+		codegen_write_fmt (cgen, ")");
+
 		codegen_write_fmt (cgen, "[");
 		codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
 		codegen_write_fmt (cgen, "]");
@@ -2758,6 +2787,11 @@ static int cccsp_lcodegen_indexnode (compops_t *cops, tnode_t *node, codegen_t *
 		codegen_write_fmt (cgen, "->");
 		codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
 	}
+
+	if (idh->indir == 1) {
+		codegen_write_fmt (cgen, ")");
+	}
+
 	return 0;
 }
 /*}}}*/

@@ -1,0 +1,14 @@
+
+# test_g55.gpp -- testing..
+
+define foo (chan(int) out!)
+  seq
+    out ! 42
+end
+
+define g55 ()
+  [5]chan(int) c
+  seq
+    foo (c[0]!)
+end
+

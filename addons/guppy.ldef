@@ -23,6 +23,8 @@
 
 .GRULE	"gup:rewindlexer" "T*"
 
+.RFUNC	"Rguppy:checkfixio" "guppy_reduce_checkfixio"
+
 # .TNODE directives describe the parse-tree, kind-of
 
 #{{{  declarations and related nodes
@@ -66,6 +68,7 @@
 # "guppy:exprstartproc" handles processes that might start with expressions, e.g. complex LHS for action
 
 .TABLE	"guppy:exprstartproc ::= [ 0 guppy:expr 1 ] [ 1 -@@= <guppy:assignlhs> ] [ 1 -@@? <guppy:inputlhs> ] [ 1 -@@! <guppy:outputlhs> ]"
+	"[ 1 -* 2 ] [ 2 {Rguppy:checkfixio} -* 3 ] [ 3 -@@= <guppy:assignlhs> ] [ 3 -@@? <guppy:inputlhs> ] [ 3 -@@! <guppy:outputlhs> ]"
 
 # }}}
 

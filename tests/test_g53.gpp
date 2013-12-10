@@ -1,0 +1,10 @@
+
+# test_g53.gpp -- more array tests
+
+define g53 ()
+  [5]chan(int) c
+  seq
+    c[0] ! 42
+    skip
+end
+

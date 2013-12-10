@@ -298,6 +298,37 @@ void *guppy_nametoken_to_hook (void *ntok)
 	return (void *)rawname;
 }
 /*}}}*/
+/*{{{  static void guppy_reduce_checkfixio (dfastate_t *dfast, parsepriv_t *pp, void *rarg)*/
+/*
+ *	used as a reduction to unpick MARKEDIN/MARKEDOUT nodes that should probably be INPUT/OUTPUT actions;
+ *	may fabricate things and push into the lexer's token-stack (not a reduction in the conventional sense).
+ */
+static void guppy_reduce_checkfixio (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
+{
+	tnode_t *snode = dfa_popnode (dfast);
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_reduce_checkfixio(): pp=%p, pp->lf=%p\n", pp, pp->lf);
+#endif
+	if (snode->tag == gup.tag_MARKEDIN) {
+		token_t *tok = lexer_newtoken (SYMBOL, "?");
+
+		snode = tnode_nthsubof (snode, 0);
+		tok->origin = pp->lf;
+		lexer_pushback (pp->lf, tok);
+	} else if (snode->tag == gup.tag_MARKEDOUT) {
+		token_t *tok = lexer_newtoken (SYMBOL, "!");
+
+		snode = tnode_nthsubof (snode, 0);
+		tok->origin = pp->lf;
+		lexer_pushback (pp->lf, tok);
+	}
+
+	/* push it back on (maybe modified) */
+	dfa_pushnode (dfast, snode);
+	return;
+}
+/*}}}*/
 
 /*}}}*/
 
@@ -1365,6 +1396,7 @@ static int guppy_parser_init (lexfile_t *lf)
 		/*}}}*/
 		/*{{{  register some general reduction functions*/
 		fcnlib_addfcn ("guppy_nametoken_to_hook", (void *)guppy_nametoken_to_hook, 1, 1);
+		fcnlib_addfcn ("guppy_reduce_checkfixio", (void *)guppy_reduce_checkfixio, 0, 3);
 
 		/*}}}*/
 		/*{{{  add compiler passes that will be used to pick apart declaration scope and do auto-seq, plus extra fetrans passes*/

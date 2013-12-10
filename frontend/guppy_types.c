@@ -930,6 +930,15 @@ static int guppy_namemap_typeaction_primtype (langops_t *lops, tnode_t *typenode
 }
 /*}}}*/
 
+/*{{{  static int guppy_bytesfor_chantype (langops_t *lops, tnode_t *t, target_t *target)*/
+/*
+ *	returns the number of bytes required to hold a channel word.
+ */
+static int guppy_bytesfor_chantype (langops_t *lops, tnode_t *t, target_t *target)
+{
+	return target ? target->pointersize : 4;
+}
+/*}}}*/
 /*{{{  static int guppy_getdescriptor_chantype (langops_t *lops, tnode_t *node, char **sptr)*/
 /*
  *	gets the descriptor for a channel-type
@@ -1276,6 +1285,21 @@ static tnode_t *guppy_gettype_arraytype (langops_t *lops, tnode_t *node, tnode_t
 	return node;
 }
 /*}}}*/
+/*{{{  static tnode_t *guppy_getsubtype_arraytype (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	returns the sub-type of an array.
+ */
+static tnode_t *guppy_getsubtype_arraytype (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	tnode_t *type = tnode_nthsubof (node, 1);
+
+	if (!type) {
+		nocc_internal ("guppy_getsubtype_arraytype(): no subtype?");
+		return NULL;
+	}
+	return type;
+}
+/*}}}*/
 /*{{{  static int guppy_isdefpointer_arraytype (langops_t *lops, tnode_t *node)*/
 /*
  *	returns default indirection level for array type
@@ -1290,7 +1314,7 @@ static int guppy_isdefpointer_arraytype (langops_t *lops, tnode_t *node)
 /*}}}*/
 /*{{{  static tnode_t *guppy_initcall_arraytype (langops_t *lops, tnode_t *typenode, tnode_t *name)*/
 /*
- *	generates initialiser for array types.
+ *	generates initialiser for array types -- this is called during betrans usually.
  */
 static tnode_t *guppy_initcall_arraytype (langops_t *lops, tnode_t *typenode, tnode_t *name)
 {
@@ -1305,7 +1329,7 @@ static tnode_t *guppy_initcall_arraytype (langops_t *lops, tnode_t *typenode, tn
 /*}}}*/
 /*{{{  static tnode_t *guppy_freecall_arraytype (langops_t *lops, tnode_t *typenode, tnode_t *name)*/
 /*
- *	generates finaliser for array types.
+ *	generates finaliser for array types -- this is called during betrans usually.
  */
 static tnode_t *guppy_freecall_arraytype (langops_t *lops, tnode_t *typenode, tnode_t *name)
 {
@@ -1436,6 +1460,7 @@ static int guppy_types_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (guppy_bytesfor_chantype));
 	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (guppy_getdescriptor_chantype));
 	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (guppy_getctypeof_chantype));
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_chantype));
@@ -1467,6 +1492,7 @@ static int guppy_types_init_nodes (void)
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (guppy_getctypeof_arraytype));
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_arraytype));
+	tnode_setlangop (lops, "getsubtype", 2, LANGOPTYPE (guppy_getsubtype_arraytype));
 	tnode_setlangop (lops, "isdefpointer", 1, LANGOPTYPE (guppy_isdefpointer_arraytype));
 	tnode_setlangop (lops, "initcall", 2, LANGOPTYPE (guppy_initcall_arraytype));
 	tnode_setlangop (lops, "freecall", 2, LANGOPTYPE (guppy_freecall_arraytype));
