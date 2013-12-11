@@ -6,9 +6,16 @@ define foo (chan(int) out!)
     out ! 42
 end
 
+define bar (chan(int) in?)
+  int x
+  seq
+    in ? x
+end
+
 define g55 ()
   [5]chan(int) c
-  seq
+  par
     foo (c[0]!)
+    bar (c[0]?)
 end
 
