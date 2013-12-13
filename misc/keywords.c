@@ -29,6 +29,7 @@
 
 #include "nocc.h"
 #include "support.h"
+#include "fhandle.h"
 #include "origin.h"
 #include "lexer.h"
 #include "lexpriv.h"
@@ -102,6 +103,9 @@ keyword_t *keywords_add (const char *str, const int tagval, const unsigned int l
 {
 	keyword_t *kw = keywords_lookup (str, strlen (str), 0);
 
+#if 0
+fhandle_printf (FHAN_STDERR, "keywords_add(): adding [%s]\n", str);
+#endif
 	if (kw) {
 		/* already got one */
 		if ((kw->langtag & LANGTAG_LANGMASK) == (langtag & LANGTAG_LANGMASK)) {

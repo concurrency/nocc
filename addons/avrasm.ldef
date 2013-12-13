@@ -214,8 +214,6 @@
 .KEYWORD "dstore"
 .KEYWORD "signed"
 .KEYWORD "unsigned"
-.KEYWORD "if"
-.KEYWORD "else"
 .KEYWORD "elsif"
 .KEYWORD "endif"
 .KEYWORD "using"
