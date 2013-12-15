@@ -599,11 +599,6 @@ static void avrasm_xyzreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 		} /* else it's of the form "Y+n", etc. */
 		lexer_freetoken (tok);
 		tok = parser_gettok (pp);
-	} else if (lexer_tokmatch (avrasm.tok_MINUS, tok)) {
-		/* pre-decrement */
-		xyzh->prepost = -1;
-		lexer_freetoken (tok);
-		tok = parser_gettok (pp);
 	} else {
 		xyzh->prepost = 0;
 	}
@@ -617,13 +612,22 @@ static void avrasm_xyzreduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 	} else {
 		parser_error (SLOCL (pp->lf, tok->lineno), "invalid token in avrasm_xyzreduce(): got [%s]", lexer_stokenstr (tok));
 	}
-	node = tnode_create (avrasm.tag_XYZREG, SLOCN (pp->lf), xyzh);
-	*(dfast->ptr) = node;
+
 #if 0
 fprintf (stderr, "avrasm_xyzreduce(): tok =\n");
 lexer_dumptoken (stderr, tok);
 #endif
 	lexer_freetoken (tok);
+	tok = parser_peekemptytok (pp);
+	if (tok && lexer_tokmatch (avrasm.tok_MINUS, tok)) {
+		tok = parser_gettok (pp);
+		/* pre-decrement */
+		xyzh->prepost = -1;
+		lexer_freetoken (tok);
+	}
+
+	node = tnode_create (avrasm.tag_XYZREG, SLOCN (pp->lf), xyzh);
+	*(dfast->ptr) = node;
 
 	return;
 }
