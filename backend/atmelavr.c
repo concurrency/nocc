@@ -2128,6 +2128,12 @@ fprintf (stderr, "atmelavr_do_assemble(): want to assemble [%s] into image (%d/%
 			/*{{{  planting label definition*/
 			aavr_labelinfo_t *aali;
 			int j;
+			tnode_t *rname = tnode_nthsubof (items[i], 0);
+			char *srname = NULL;
+
+			if (rname) {
+				langops_getname (rname, &srname);
+			}
 
 			if (!tnode_haschook (items[i], labelinfo_chook)) {
 				/* create new one */
@@ -2141,9 +2147,16 @@ fprintf (stderr, "atmelavr_do_assemble(): want to assemble [%s] into image (%d/%
 			aali->baddr = genoffset;
 			aali->labins = items[i];
 
+			if (compopts.verbose > 2) {
+				nocc_message ("%s:%-5d label [%s]", img->zone->tag->name, aali->baddr, srname ?: "(anon)");
+			}
 #if 0
-fprintf (stderr, "atmelavr_do_assemble(): planted label definition at address %d, got %d fixups..\n", aali->baddr, DA_CUR (aali->fixups));
+fhandle_printf (FHAN_STDERR, "atmelavr_do_assemble(): planted label definition [%s] at address %d, got %d fixups..\n", srname ?: "", aali->baddr, DA_CUR (aali->fixups));
 #endif
+			if (srname) {
+				sfree (srname);
+				srname = NULL;
+			}
 
 			for (j=0; j<DA_CUR (aali->fixups); j++) {
 				aavr_labelfixup_t *aalf = DA_NTHITEM (aali->fixups, j);

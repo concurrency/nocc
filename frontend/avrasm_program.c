@@ -1389,6 +1389,7 @@ tnode_dumptree (*tptr, 1, stderr);
 	return 0;
 }
 /*}}}*/
+
 /*{{{  static int avrasm_llscope_uslabnode (compops_t *cops, tnode_ **tptr, void *lls)*/
 /*
  *	does local-label scoping on a USLAB node (unscoped label)
@@ -1405,6 +1406,7 @@ fprintf (stderr, "avrasm_llscope_uslabnode(): here!, id=%d, dir=%d\n", uslh->id,
 	return 1;
 }
 /*}}}*/
+
 /*{{{  static int avrasm_subequ_namenode (compops_t *cops, tnode_t **tptr, subequ_t *se)*/
 /*
  *	does EQU and DEF substitutions on a namenode (EQU)
@@ -1436,6 +1438,30 @@ tnode_dumptree (rhs, 1, stderr);
 	return 1;
 }
 /*}}}*/
+/*{{{  static int avrasm_getname_namenode (langops_t *lops, tnode_t *node, char **str)*/
+/*
+ *	does get-name for an AVRASM name
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int avrasm_getname_namenode (langops_t *lops, tnode_t *node, char **str)
+{
+	char *tmp;
+	name_t *name = tnode_nthnameof (node, 0);
+
+	if (NameNameOf (name)) {
+		tmp = string_dup (NameNameOf (name));
+	} else {
+		tmp = string_fmt ("(anonymous)");
+	}
+
+	if (*str) {
+		sfree (*str);
+	}
+	*str = tmp;
+	return 0;
+}
+/*}}}*/
+
 /*{{{  static int avrasm_prescope_targetnode (compops_t *cops, tnode_t **tptr, prescope_t *ps)*/
 /*
  *	does pre-scope for a target node (.target or .mcu)
@@ -1495,6 +1521,7 @@ static int avrasm_prescope_targetnode (compops_t *cops, tnode_t **tptr, prescope
 	return 1;
 }
 /*}}}*/
+
 /*{{{  static int avrasm_typecheck_xyznode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-check for an XYZ node, makes sure offset is in range (if used)
@@ -2278,6 +2305,9 @@ static int avrasm_program_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "subequ", 2, COMPOPTYPE (avrasm_subequ_namenode));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (avrasm_getname_namenode));
+	tnd->lops = lops;
 
 	i = -1;
 	avrasm.tag_GLABEL = tnode_newnodetag ("AVRASMGLABEL", &i, tnd, NTF_NONE);
