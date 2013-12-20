@@ -45,13 +45,13 @@
 
 ; some constant values
 D_gateway:
-	.const	192,168,12,2
+	.const	192,168,16,1
 D_submask:
 	.const	255,255,255,0
 D_hwaddr:
-	.const	0x12,0x21,0x56,0x65,0x01,0x10
+	.const	0x90,0xa2,0xda,0x0d,0xef,0x00
 D_ipaddr:
-	.const	192,168,12,222
+	.const	192,168,16,133
 
 VEC_reset:
 	cli
