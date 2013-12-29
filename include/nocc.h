@@ -184,6 +184,9 @@ extern char *nocc_lookupxmlnamespace (const char *name);
 extern int nocc_dumpxmlnamespaceheaders (struct TAG_fhandle *stream);
 extern int nocc_dumpxmlnamespacefooters (struct TAG_fhandle *stream);
 
+/* this can be called to re-process and pending back-end options (in the front-end) */
+extern int nocc_reprocess_deferred_options (void);
+
 /* this can be used to change the default target */
 extern int nocc_setdefaulttarget (const char *tcpu, const char *tvendor, const char *tos);
 
