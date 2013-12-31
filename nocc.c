@@ -176,7 +176,8 @@ compopts_t compopts = {
 	.cache_pref = 0,
 	.cache_cow = 0,
 	.cccsp_kroc = NULL,
-	.pathseparator = ';'
+	.pathseparator = ';',
+	.unexpected = 0
 };
 
 /*}}}*/
@@ -1662,7 +1663,6 @@ static cstage_t stagetable[] = {
 
 	{cstage_openlexers,		"olex",		"open lexers",			CST_NONE},
 	{cstage_maybestop1,		"slex",		"stop after tokenise",		CST_NOINT},
-//	{cstage_ppargs,			"ppargs",	"process options before parse",	CST_NONE},
 	{cstage_doparse,		"parse",	"parse",			CST_NONE},
 	{cstage_maybestop2,		"sparse",	"stop after parse",		CST_NOINT},
 	{cstage_parseerror,		"cparse",	"check parse error",		CST_NONE},
@@ -1804,6 +1804,34 @@ int nocc_runfepasses (lexfile_t **lexers, tnode_t **trees, int count, int *exitm
 	}
 
 	return rcde;
+}
+/*}}}*/
+
+/*{{{  static void cstage_maybestop1_dumptokens (lexfile_t *lf, void *arg)*/
+/*
+ *	called (indirectly by the parser) to extract all tokens from a file and nothing else.
+ *	if (--dump-tokens-to) is not set, empties on standard error.
+ */
+static void cstage_maybestop1_dumptokens (lexfile_t *lf, void *arg)
+{
+	token_t *tok;
+	int i;
+
+	for (tok = lexer_nexttoken (lf); tok && (tok->type != END); tok = lexer_nexttoken (lf)) {
+		if (!compopts.dumptokensto) {
+			lexer_dumptoken (FHAN_STDERR, tok);
+		}
+		lexer_freetoken (tok);
+		tok = NULL;
+	}
+	if (tok) {
+		if (!compopts.dumptokensto) {
+			lexer_dumptoken (FHAN_STDERR, tok);
+		}
+		lexer_freetoken (tok);
+		tok = NULL;
+	}
+	return;
 }
 /*}}}*/
 
@@ -1969,20 +1997,16 @@ static int cstage_maybestop1 (compcxt_t *ccx)
 	int i;
 
 	if (compopts.stoppoint == 1) {
+		/* if we're just tokenising, initialise the higher-level parser(s) anyway: these may trigger things like
+		 *	addition of keywords, symbols, etc. that the lexer actually needs.
+		 */
 		for (i=0; (i<DA_CUR (ccx->srclexers)) && (i<DA_CUR (ccx->srcfiles)); i++) {
 			char *fname = DA_NTHITEM (ccx->srcfiles, i);
 			lexfile_t *tmp = DA_NTHITEM (ccx->srclexers, i);
 
 			nocc_message ("tokenising %s..", fname);
-			for (tok = lexer_nexttoken (tmp); tok && (tok->type != END); tok = lexer_nexttoken (tmp)) {
-				lexer_dumptoken (FHAN_STDERR, tok);
-				lexer_freetoken (tok);
-				tok = NULL;
-			}
-			if (tok) {
-				lexer_dumptoken (FHAN_STDERR, tok);
-				lexer_freetoken (tok);
-				tok = NULL;
+			if (parser_initandfcn (tmp, cstage_maybestop1_dumptokens, NULL)) {
+				nocc_error ("failed to tokenise %s..", fname);
 			}
 		}
 

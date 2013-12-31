@@ -135,6 +135,7 @@ typedef struct TAG_compopts {
 	int cache_cow;
 	char *cccsp_kroc;
 	char pathseparator;
+	int unexpected;				/* if non-zero this means lexers should expect (and treat) garbled input, e.g. unexpected EOF */
 } compopts_t;
 
 
