@@ -517,6 +517,36 @@ char *parser_langname (lexfile_t *lf)
 	return lf->parser->langname;
 }
 /*}}}*/
+/*{{{  int parser_initandfcn (lexfile_t *lf, void (*fcn)(lexfile_t *, void *), void *arg)*/
+/*
+ *	initialises a particular parser then calls another function (maybe just to dump-tokens)
+ *	before tidying up.
+ *	returns 0 on success, non-zero on failure.
+ */
+int parser_initandfcn (lexfile_t *lf, void (*fcn)(lexfile_t *, void *), void *arg)
+{
+	parsepriv_t *pp;
+
+	if (!lf->parser) {
+		nocc_serious ("parser_initandfcn(): no parser for this file! [%s]", lf->fnptr);
+		return -1;
+	}
+	pp = parser_newparsepriv ();
+	pp->lf = lf;
+	lf->ppriv = (void *)pp;
+	lf->parser->init (lf);
+
+	fcn (lf, arg);
+
+	parser_freeparsepriv (pp);
+	lf->parser->shutdown (lf);
+
+	if (lf->errcount) {
+		return -1;
+	}
+	return 0;
+}
+/*}}}*/
 
 /*{{{  int parser_gettesttags (ntdef_t **truep, ntdef_t **falsep)*/
 /*

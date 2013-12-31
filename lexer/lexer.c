@@ -515,7 +515,8 @@ void lexer_close (lexfile_t *lf)
 /*}}}*/
 /*{{{  token_t *lexer_nexttoken (lexfile_t *lf)*/
 /*
- *	tokenises the next bit of the input stream
+ *	tokenises the next bit of the input stream.
+ *	Note: if dumping tokens, insensitive to lexer_pushback and similar.
  */
 token_t *lexer_nexttoken (lexfile_t *lf)
 {
@@ -790,7 +791,12 @@ void lexer_dumptoken (fhandle_t *stream, token_t *tok)
 		fhandle_printf (stream, "name\" value=\"%s\" />\n", tok->u.name);
 		break;
 	case SYMBOL:
-		fhandle_printf (stream, "symbol\" value=\"%s\" />\n", tok->u.sym->match);
+		{
+			char *str = string_xmlfixup (tok->u.sym->match, 0);
+
+			fhandle_printf (stream, "symbol\" value=\"%s\" />\n", str);
+			sfree (str);
+		}
 		break;
 	case COMMENT:
 		fhandle_printf (stream, "comment\" />\n");

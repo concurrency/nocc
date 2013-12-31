@@ -910,6 +910,64 @@ char *string_dup (const char *str)
 #endif
 }
 /*}}}*/
+/*{{{  char *string_xmlfixup (const char *str, int cdata)*/
+/*
+ *	duplicates a string, but takes care to fixup any characters before they are printed as XML (e.g. '&', '"').
+ */
+char *string_xmlfixup (const char *str, int cdata)
+{
+	int ich, i;
+	char *nstr;
+
+	for (i=0, ich=0; str[i]; i++) {
+		switch (str[i]) {
+		case '&': 	ich += 5;	break;
+		case '\"':	ich += 8;	break;
+		case '\'':	ich += 6;	break;
+		case '<':	ich += 4;	break;
+		case '>':	ich += 4;	break;
+		default:	ich++;		break;
+		}
+	}
+	if (ich == i) {
+		/* same length, assume nothing */
+		return string_dup (str);
+	}
+	nstr = (char *)smalloc (ich+1);
+
+	for (i=0, ich=0; str[i]; i++) {
+		switch (str[i]) {
+		case '&':
+			strncpy (nstr + ich, "&amp;", 5);
+			ich += 5;
+			break;
+		case '\"':
+			strncpy (nstr + ich, "&dquote;", 8);
+			ich += 8;
+			break;
+		case '\'':
+			strncpy (nstr + ich, "&apos;", 6);
+			ich += 6;
+			break;
+		case '<':
+			strncpy (nstr + ich, "&lt;", 4);
+			ich += 4;
+			break;
+		case '>':
+			strncpy (nstr + ich, "&gt;", 4);
+			ich += 4;
+			break;
+		default:
+			nstr[ich] = str[i];
+			ich++;
+			break;
+		}
+	}
+	nstr[ich] = '\0';
+
+	return nstr;
+}
+/*}}}*/
 /*{{{  char *string_fmt (const char *fmt, ...)*/
 /*
  *	formats a string into a new buffer

@@ -108,6 +108,7 @@ langparser_t avrasm_parser = {
 typedef struct {
 	dfanode_t *inode;
 	langdef_t *ldef;
+	lexfile_t *firstfile;
 } avrasm_parse_t;
 
 typedef struct {
@@ -130,6 +131,8 @@ static feunit_t *feunit_set[] = {
 	NULL
 };
 
+STATICDYNARRAY (char *, insertdefs);
+
 static chook_t *label_chook = NULL;
 
 /*}}}*/
@@ -142,9 +145,35 @@ static chook_t *label_chook = NULL;
 static int avrasm_opthandler_stopat (cmd_option_t *opt, char ***argwalk, int *argleft)
 {
 	compopts.stoppoint = (int)(opt->arg);
-#if 1
+#if 0
 fprintf (stderr, "avrasm_opthandler_stopat(): setting stop point to %d\n", compopts.stoppoint);
 #endif
+	return 0;
+}
+/*}}}*/
+/*{{{  static int avrasm_opthandler_insertdef (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	option handler for AVR assembler "insertdef" option.
+ *	returns 0 on success, non-zero on error.
+ */
+static int avrasm_opthandler_insertdef (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	char *ch;
+
+	ch = strchr (**argwalk, '=');
+	if (ch) {
+		ch++;
+	} else {
+		/* cannot do this */
+		nocc_error ("missing argument for option --%s=...", opt->name);
+		return -1;
+	}
+
+	dynarray_add (insertdefs, string_dup (ch));
+#if 0
+fhandle_printf (FHAN_STDERR, "avrasm_opthandler_insertdef(): want to drop in \"%s\"\n", ch);
+#endif
+
 	return 0;
 }
 /*}}}*/
@@ -850,6 +879,38 @@ static tnode_t *avrasm_includefile (char *fname, lexfile_t *curlf)
 	return tree;
 }
 /*}}}*/
+/*{{{  static tnode_t *avrasm_includetext (char *buffer, lexfile_t *curlf)*/
+/*
+ *	includes a chunk of buffer text
+ *	returns a tree or NULL
+ */
+static tnode_t *avrasm_includetext (char *buffer, lexfile_t *curlf)
+{
+	tnode_t *tree;
+	lexfile_t *lf;
+
+	lf = lexer_openbuf ("cmdline", "avrasm", buffer);
+	if (!lf) {
+		parser_error (SLOCN (curlf), "failed to open buffer");
+		return NULL;
+	}
+
+	lf->toplevel = 0;
+	lf->islibrary = curlf->islibrary;
+	lf->sepcomp = curlf->sepcomp;
+
+	if (compopts.verbose) {
+		nocc_message ("sub-parsing buffer ...");
+	}
+	tree = parser_parse (lf);
+	if (!tree) {
+		parser_error (SLOCN (curlf), "failed to parse buffer");
+	}
+
+	lexer_close (lf);
+	return tree;
+}
+/*}}}*/
 /*{{{  static int avrasm_parser_init (lexfile_t *lf)*/
 /*
  *	initialises the AVR assembler parser
@@ -870,9 +931,11 @@ static int avrasm_parser_init (lexfile_t *lf)
 		int stopat;
 
 		avrasm_priv = avrasm_newavrasmparse ();
+		dynarray_init (insertdefs);
 
 		memset ((void *)&avrasm, 0, sizeof (avrasm));
 
+		avrasm_priv->firstfile = NULL;
 		avrasm_priv->ldef = langdef_readdefs ("avrasm.ldef");
 		if (!avrasm_priv->ldef) {
 			nocc_error ("avrasm_parser_init(): failed to load language definitions!");
@@ -921,6 +984,8 @@ static int avrasm_parser_init (lexfile_t *lf)
 			nocc_serious ("avrasm_parser_init(): failed to add \"flatcode\" compiler pass");
 			return 1;
 		}
+
+		opts_add ("insertdef", '\0', avrasm_opthandler_insertdef, NULL, "1insert definition (parsed as a single line)");
 
 		if (tnode_newcompop ("subequ", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"subequ\" compiler operation");
@@ -997,6 +1062,9 @@ static int avrasm_parser_init (lexfile_t *lf)
 		if (compopts.dumpgrules) {
 			parser_dumpgrules (FHAN_STDERR);
 		}
+
+		/* now, process and lingering command-line options (e.g. --insertdef) */
+		nocc_reprocess_deferred_options ();
 	}
 	return 0;
 }
@@ -1036,7 +1104,7 @@ static tnode_t *avrasm_parse_codelineorspecial (lexfile_t *lf)
 		tnode_t *contents;
 
 #if 0
-fprintf (stderr, "avrasm_parser_parse(): sub-parse for macrodef, got:\n");
+fprintf (stderr, "avrasm_parse_codelineorspecial(): sub-parse for macrodef, got:\n");
 tnode_dumptree (thisone, 1, stderr);
 #endif
 		contents = avrasm_parser_parsemacrodef (lf);
@@ -1284,6 +1352,23 @@ static tnode_t *avrasm_parser_parse (lexfile_t *lf)
 
 	if (compopts.verbose) {
 		nocc_message ("avrasm_parser_parse(): starting parse..");
+	}
+	if (!avrasm_priv->firstfile) {
+		int i;
+
+		/* this is the first file, so before we parse that, parse any command-line provided definitions */
+		avrasm_priv->firstfile = lf;
+
+		for (i=0; i<DA_CUR (insertdefs); i++) {
+			char *str = string_fmt ("%s\n", DA_NTHITEM (insertdefs, i));
+			tnode_t *itree;
+
+			itree = avrasm_includetext (str, lf);
+			sfree (str);
+			if (itree) {
+				parser_mergeinlist (tree, itree, -1);
+			}
+		}
 	}
 
 	for (;;) {

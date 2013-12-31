@@ -64,6 +64,7 @@ extern void dmem_usagedump (void);
 
 	#define string_ndup(X,A) ss_string_ndup(__FILE__,__LINE__,X,A)
 	#define string_dup(X) ss_string_dup(__FILE__,__LINE__,X)
+	#define string_xmlfixup(X,A) ss_string_xmlfixup(__FILE__,__LINE__,X,A)
 	#define mem_ndup(X,A) ss_mem_ndup(__FILE__,__LINE__,X,A)
 
 	extern void *ss_malloc (const char *, const int, size_t);
@@ -73,6 +74,7 @@ extern void dmem_usagedump (void);
 
 	extern char *ss_string_ndup (const char *, const int, const char *, int);
 	extern char *ss_string_dup (const char *, const int, const char *);
+	extern char *ss_string_xmlfixup (const char *, const int, const char *, int);
 	extern void *ss_mem_ndup (const char *, const int, const void *, int);
 #else
 	extern void *smalloc (size_t);
@@ -81,6 +83,7 @@ extern void dmem_usagedump (void);
 
 	extern char *string_ndup (const char *, int);
 	extern char *string_dup (const char *);
+	extern char *string_xmlfixup (const char *, int);
 	extern void *mem_ndup (const void *, int);
 #endif
 

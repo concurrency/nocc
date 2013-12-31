@@ -167,6 +167,12 @@ tokenloop:
 	ch = lp->buffer + lp->offset;
 	chlim = lp->buffer + lp->size;
 
+	/* special case -- if we've hit the end, must be nothing (literally) here */
+	if (ch >= chlim) {
+		tok->type = END;
+		return tok;
+	}
+
 	/* guess what we're dealing with -- not so interested in indentation here :) */
 	if (((*ch >= 'a') && (*ch <= 'z')) || ((*ch >= 'A') && (*ch <= 'Z'))) {
 		/*{{{  probably a keyword or name*/
@@ -344,7 +350,9 @@ tokenloop:
 					/* escape char */
 					dh++;
 					if (dh == chlim) {
-						lexer_error (lf, "unexpected end of file");
+						if (!compopts.unexpected) {
+							lexer_error (lf, "unexpected end of file");
+						}
 						goto out_error1;
 					}
 					switch (*dh) {
@@ -364,7 +372,9 @@ tokenloop:
 			}
 			/*}}}*/
 			if (dh == chlim) {
-				lexer_error (lf, "unexpected end of file");
+				if (!compopts.unexpected) {
+					lexer_error (lf, "unexpected end of file");
+				}
 				goto out_error1;
 			}
 			tok->u.str.ptr = (char *)smalloc (slen + 1);
@@ -430,7 +440,9 @@ tokenloop:
 			lp->offset++;
 			wid++;
 			if ((ch + 1) >= chlim) {
-				lexer_error (lf, "unexpected end of file");
+				if (!compopts.unexpected) {
+					lexer_error (lf, "unexpected end of file");
+				}
 				goto out_error1;
 			}
 			if (*ch == '\\') {

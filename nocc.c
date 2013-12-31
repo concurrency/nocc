@@ -176,7 +176,8 @@ compopts_t compopts = {
 	.cache_pref = 0,
 	.cache_cow = 0,
 	.cccsp_kroc = NULL,
-	.pathseparator = ';'
+	.pathseparator = ';',
+	.unexpected = 0
 };
 
 /*}}}*/
@@ -1612,6 +1613,7 @@ static int cstage_findtarget (compcxt_t *ccx);
 static int cstage_dohelp_target (compcxt_t *ccx);
 static int cstage_openlexers (compcxt_t *ccx);
 static int cstage_maybestop1 (compcxt_t *ccx);
+static int cstage_ppargs (compcxt_t *ccx);
 static int cstage_doparse (compcxt_t *ccx);
 static int cstage_maybestop2 (compcxt_t *ccx);
 static int cstage_parseerror (compcxt_t *ccx);
@@ -1805,6 +1807,34 @@ int nocc_runfepasses (lexfile_t **lexers, tnode_t **trees, int count, int *exitm
 }
 /*}}}*/
 
+/*{{{  static void cstage_maybestop1_dumptokens (lexfile_t *lf, void *arg)*/
+/*
+ *	called (indirectly by the parser) to extract all tokens from a file and nothing else.
+ *	if (--dump-tokens-to) is not set, empties on standard error.
+ */
+static void cstage_maybestop1_dumptokens (lexfile_t *lf, void *arg)
+{
+	token_t *tok;
+	int i;
+
+	for (tok = lexer_nexttoken (lf); tok && (tok->type != END); tok = lexer_nexttoken (lf)) {
+		if (!compopts.dumptokensto) {
+			lexer_dumptoken (FHAN_STDERR, tok);
+		}
+		lexer_freetoken (tok);
+		tok = NULL;
+	}
+	if (tok) {
+		if (!compopts.dumptokensto) {
+			lexer_dumptoken (FHAN_STDERR, tok);
+		}
+		lexer_freetoken (tok);
+		tok = NULL;
+	}
+	return;
+}
+/*}}}*/
+
 /*{{{  static int cstage_load_extensions (compcxt_t *ccx)*/
 /*
  *	load extensions
@@ -1967,20 +1997,16 @@ static int cstage_maybestop1 (compcxt_t *ccx)
 	int i;
 
 	if (compopts.stoppoint == 1) {
+		/* if we're just tokenising, initialise the higher-level parser(s) anyway: these may trigger things like
+		 *	addition of keywords, symbols, etc. that the lexer actually needs.
+		 */
 		for (i=0; (i<DA_CUR (ccx->srclexers)) && (i<DA_CUR (ccx->srcfiles)); i++) {
 			char *fname = DA_NTHITEM (ccx->srcfiles, i);
 			lexfile_t *tmp = DA_NTHITEM (ccx->srclexers, i);
 
 			nocc_message ("tokenising %s..", fname);
-			for (tok = lexer_nexttoken (tmp); tok && (tok->type != END); tok = lexer_nexttoken (tmp)) {
-				lexer_dumptoken (FHAN_STDERR, tok);
-				lexer_freetoken (tok);
-				tok = NULL;
-			}
-			if (tok) {
-				lexer_dumptoken (FHAN_STDERR, tok);
-				lexer_freetoken (tok);
-				tok = NULL;
+			if (parser_initandfcn (tmp, cstage_maybestop1_dumptokens, NULL)) {
+				nocc_error ("failed to tokenise %s..", fname);
 			}
 		}
 
@@ -1992,6 +2018,63 @@ static int cstage_maybestop1 (compcxt_t *ccx)
 		dynarray_trash (ccx->srclexers);
 		
 		return CSTR_CLEANEXIT;				/* force out */
+	}
+	return CSTR_OK;
+}
+/*}}}*/
+/*{{{  static int cstage_ppargs (compcxt_t *ccx)*/
+/*
+ *	tries to process any left-over arguments in the front-end, but after language initialisation and parsing.
+ */
+static int cstage_ppargs (compcxt_t *ccx)
+{
+	char **walk;
+	int i;
+	DYNARRAY (char *, be_saved_opts);
+
+	dynarray_init (be_saved_opts);
+	for (walk = DA_PTR (be_def_opts), i = DA_CUR (be_def_opts); walk && *walk && i; walk++, i--) {
+		cmd_option_t *opt = NULL;
+
+		switch (**walk) {
+		case '-':
+			if ((*walk)[1] == '-') {
+				opt = opts_getlongopt (*walk + 2);
+				if (opt) {
+					if (opts_process (opt, &walk, &i) < 0) {
+						ccx->errored++;
+					}
+					sfree (*walk);
+					*walk = NULL;
+				} else {
+					/* move over to saved */
+					dynarray_add (be_saved_opts, *walk);
+					*walk = NULL;
+				}
+			} else {
+				char *ch = *walk + 1;
+
+				opt = opts_getshortopt (*ch);
+				if (opt) {
+					if (opts_process (opt, &walk, &i) < 0) {
+						ccx->errored++;
+					}
+					sfree (*walk);
+					*walk = NULL;
+				} else {
+					dynarray_add (be_saved_opts, *walk);
+					*walk = NULL;
+				}
+			}
+			break;
+		}
+	}
+	dynarray_move (be_def_opts, be_saved_opts);
+	// dynarray_trash (be_def_opts);
+
+	if (ccx->errored) {
+		nocc_fatal ("error processing options pre-parse (%d error%s)", ccx->errored, (ccx->errored == 1) ? "" : "s");
+		return CSTR_EXITCOMP;
 	}
 	return CSTR_OK;
 }
@@ -2354,6 +2437,33 @@ static int cstage_run (int stage, int iact, int iauto, compcxt_t *ccx)
 	}
 
 	return CSTR_DOEXIT;		/* won't actually get here */
+}
+/*}}}*/
+/*{{{  int nocc_reprocess_deferred_options (void)*/
+/*
+ *	can be called in parser initialisation to re-process command-line options that have been deferred,
+ *	essentially calls "ppargs" / "cstage_ppargs".
+ *	returns 0 on success, non-zero on error.
+ */
+int nocc_reprocess_deferred_options (void)
+{
+	int r;
+
+	if (!global_ccx) {
+		nocc_serious ("nocc_reprocess_deferred_options(): no global compiler context!");
+		return -1;
+	}
+	r = cstage_ppargs (global_ccx);
+	switch (r) {
+	case CSTR_OK:
+		return 0;
+	case CSTR_EXITCOMP:
+	case CSTR_CLEANEXIT:
+	case CSTR_ERREXIT:
+		return -1;
+	}
+
+	return 0;
 }
 /*}}}*/
 
