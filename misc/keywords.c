@@ -26,6 +26,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <stdarg.h>
 
 #include "nocc.h"
 #include "support.h"

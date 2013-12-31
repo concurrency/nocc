@@ -1,4 +1,4 @@
-/* ANSI-C code produced by gperf version 3.0.4 */
+/* ANSI-C code produced by gperf version 3.0.3 */
 /* Command-line: /usr/bin/gperf  */
 /* Computed positions: -k'1-2' */
 
@@ -120,7 +120,7 @@ static const struct TAG_langdeflookup wordlist[] =
 
 #ifdef __GNUC__
 __inline
-#if defined __GNUC_STDC_INLINE__ || defined __GNUC_GNU_INLINE__
+#ifdef __GNUC_STDC_INLINE__
 __attribute__ ((__gnu_inline__))
 #endif
 #endif
