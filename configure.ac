@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl
 
 AC_REVISION($Revision: 1.1 $)
-AC_INIT(nocc.c)
+AC_INIT([nocc.c], [0.1.6])
 AC_PREREQ(2.12)
 
 AC_GNU_SOURCE
@@ -14,7 +14,7 @@ AC_CANONICAL_TARGET
 AM_CONFIG_HEADER(config.h)
 AM_CONFIG_HEADER(include/noccconfig.h)
 
-AM_INIT_AUTOMAKE([nocc], [0.1.6])
+AM_INIT_AUTOMAKE
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -27,7 +27,7 @@ dnl AC_CHECK_PROG(GPERF,gperf,gperf)
 dnl internationalisation
 AM_GNU_GETTEXT
 
-AM_C_PROTOTYPES
+dnl AM_C_PROTOTYPES
 
 dnl Checks for libraries.
 
