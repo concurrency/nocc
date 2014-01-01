@@ -194,6 +194,12 @@ fprintf (stderr, "lexer_open(): filename=[%s], DA_CUR(openlexfiles)=%d\n", filen
 		fnlen = strlen (fnbuf);
 	}
 
+#if 0
+fhandle_printf (FHAN_STDERR, "lexer_open(): filename=[%s] access(fnbuf=[%s]) = %d, errno=%s\n",
+		filename, fnbuf, fhandle_access (fnbuf, R_OK),
+		strerror (fhandle_lasterr (NULL)));
+#endif
+
 	if (fhandle_access (fnbuf, R_OK)) {
 		/*{{{  search through include and library directories*/
 		for (i=0; i<DA_CUR (compopts.ipath); i++) {

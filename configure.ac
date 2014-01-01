@@ -106,6 +106,10 @@ fi
 dnl	On Linux, let the linker export all symbols for dynamic loading later.
 if test "x$host_os" = "xlinux-gnu"; then
  EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Xlinker --export-dynamic"
+else
+ if test "x$host_os" = "xcygwin"; then
+  EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Xlinker --export-all-symbols"
+ fi
 fi
 
 dnl if test $have_sha_h = yes; then
