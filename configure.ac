@@ -60,6 +60,8 @@ AC_ARG_ENABLE(debug,[  --enable-debug          enable compiler debugging (defaul
 
 dnl Compilation flags
 EXTRA_CFLAGS="-Wall -ggdb -O0 -fno-strict-aliasing"
+EXTRA_LIBS=""
+EXTRA_LDFLAGS=""
 
 
 dnl The default target is a virtual transputer
@@ -99,6 +101,11 @@ AC_DEFINE_UNQUOTED([BUILD_PREFIX],"$prefix",[build prefix])
 if test $usegcrypt = yes; then
  AC_DEFINE([USE_LIBGCRYPT],1,[define to use libgcrypt])
  AC_SEARCH_LIBS(gpg_strerror,gpg-error,,)
+fi
+
+dnl	On Linux, let the linker export all symbols for dynamic loading later.
+if test "x$host_os" = "xlinux-gnu"; then
+ EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Xlinker --export-dynamic"
 fi
 
 dnl if test $have_sha_h = yes; then
@@ -149,13 +156,16 @@ if test $have_libreadline = yes; then
  if test $have_readline_h = yes; then
   if test $have_history_h = yes; then
    AC_DEFINE([USE_LIBREADLINE],1,[define to use GNU readline for interactive operation])
-   EXTRA_CFLAGS="$EXTRA_CFLAGS -lreadline $tcap"
+   # EXTRA_CFLAGS="$EXTRA_CFLAGS -lreadline $tcap"
+   EXTRA_LIBS="$EXTRA_LIBS -lreadline $tcap"
   fi
  fi
 fi
 
 # additional compilation flag substitutions
 AC_SUBST(EXTRA_CFLAGS)
+AC_SUBST(EXTRA_LIBS)
+AC_SUBST(EXTRA_LDFLAGS)
 
 # some substitutions for paths
 AC_SUBST(build_dir)
