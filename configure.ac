@@ -118,6 +118,13 @@ dnl   AC_DEFINE([USE_LIBSSL],1,[define to use SSL library])
 dnl  fi
 dnl fi
 
+AC_ARG_WITH([specs-file], AC_HELP_STRING([--with-specs-file=...],[Path to compiled-in specs file (default is ./nocc.specs.xml)]), [specsfile=$withval], [specsfile="./nocc.specs.xml"])
+
+AC_MSG_CHECKING([for compiled-in specs-file path])
+AC_MSG_RESULT($specsfile)
+
+AC_DEFINE_UNQUOTED(SPECSFILE, "$specsfile", [compiled-in specs-file path])
+
 AC_ARG_WITH([kroc], AC_HELP_STRING([--with-kroc=...],[Path to KRoC script for CCCSP back-end]), [kroc=$withval], [kroc=none])
 
 if test "x$kroc" = "xnone"; then

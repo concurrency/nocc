@@ -3080,7 +3080,11 @@ int main (int argc, char **argv)
 	/*{{{  find and read a specs file*/
 	if (!compopts.specsfile) {
 		static const char *builtinspecs[] = {
+#if defined(SPECSFILE)
+			SPECSFILE,
+#else
 			"./nocc.specs.xml",
+#endif
 #if defined(SYSCONFDIR)
 			SYSCONFDIR "/nocc.specs.xml",
 			SYSCONFDIR "/nocc/nocc.specs.xml",

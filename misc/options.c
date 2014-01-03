@@ -493,6 +493,9 @@ int opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft)
 	fhandle_printf (outstream, "Released under the terms and conditions of the GNU GPL v2\n\n");
 	fhandle_flush (outstream);
 	fhandle_printf (outstream, "usage:  %s [options] <source filename>\n", progname);
+#ifdef SPECSFILE
+	fhandle_printf (outstream, "compiled-in spec-file path: %s\n", SPECSFILE);
+#endif
 	fhandle_printf (outstream, "options:\n");
 
 	for (i = 0; i < DA_CUR (ordered_options); i++) {
