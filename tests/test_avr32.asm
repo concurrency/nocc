@@ -1,2 +1,4 @@
+; deliberately broken.
+
 .mcu "atmega
 
