@@ -1,0 +1,11 @@
+
+# test_g57.gpp -- just another test..
+
+define g57 (val int x, y) -> bool
+  bool b
+  seq
+    if (x == y)
+      b = true
+    return b
+end
+

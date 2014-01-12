@@ -60,6 +60,7 @@
 #include "mwsync.h"
 #include "metadata.h"
 #include "target.h"
+#include "cccsp.h"
 
 
 /*}}}*/
@@ -480,14 +481,32 @@ langdef_t *guppy_getlangdef (void)
  */
 static char **guppy_getlanglibs (target_t *target, int src)
 {
-	char **tmp = smalloc (2 * sizeof (char *));
-
-	if (src) {
-		tmp[0] = string_dup ("cccsp/guppy_cccsp_lib.c");
-	} else {
-		tmp[0] = string_dup ("cccsp/guppy_cccsp_lib.o");
+	int nlibs = 1;
+	char **tmp;
+	
+	if (cccsp_get_subtarget () == CCCSP_SUBTARGET_EV3) {
+		/* make sure we include "cccsp/guppy_ev3_lib.c" */
+		nlibs++;
 	}
-	tmp[1] = NULL;
+
+	tmp = smalloc ((nlibs + 1) * sizeof (char *));
+
+	nlibs = 0;
+	if (src) {
+		tmp[nlibs++] = string_dup ("cccsp/guppy_cccsp_lib.c");
+	} else {
+		tmp[nlibs++] = string_dup ("cccsp/guppy_cccsp_lib.o");
+	}
+
+	if (cccsp_get_subtarget () == CCCSP_SUBTARGET_EV3) {
+		if (src) {
+			tmp[nlibs++] = string_dup ("cccsp/guppy_ev3_lib.c");
+		} else {
+			tmp[nlibs++] = string_dup ("cccsp/guppy_ev3_lib.o");
+		}
+	}
+
+	tmp[nlibs++] = NULL;
 
 	return tmp;
 }

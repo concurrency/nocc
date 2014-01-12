@@ -1,0 +1,32 @@
+
+# test_g56.gpp -- more EV3 testing
+
+@include "guppy_stdlib.gpi"
+
+@external "guppy" "define ev3_pwm_init () -> bool = 64"
+@external "guppy" "define ev3_pwm_shutdown () = 64"
+@external "guppy" "define ev3_pwm_on_fwd (val int motor, val int power) = 64"
+@external "guppy" "define ev3_pwm_off (val int motor) = 64"
+
+
+define test_g56 (chan(string) screen!)
+  timer tim
+  int t
+  bool b
+  seq
+    screen ! "hello, EV3 world!\n"
+    b = ev3_pwm_init ()
+    if (b == false)
+      screen ! "failed to initialise PWM device..\n"
+      return
+
+    tim ? t
+    ev3_pwm_on_fwd (0x01, 30)
+    tim ? after (t + 300000)
+    ev3_pwm_off (0x01)
+
+    screen ! "done!\n"
+
+    ev3_pwm_shutdown ()
+end
+

@@ -138,7 +138,20 @@ static int guppy_typecheck_cflow (compops_t *cops, tnode_t *node, typecheck_t *t
 		}
 		return 0;
 	} else if (node->tag == gup.tag_SHORTIF) {
-		/* FIXME: incomplete! */
+		tnode_t *etype, *atype;
+
+		typecheck_subtree (tnode_nthsubof (node, 0), tc);
+		etype = typecheck_gettype (tnode_nthsubof (node, 0), guppy_cflow_booltypenode);
+
+		if (!etype) {
+			typecheck_error (node, tc, "failed to determine type of expression");
+			return 0;
+		}
+		atype = typecheck_typeactual (guppy_cflow_booltypenode, etype, node, tc);
+		if (!atype) {
+			typecheck_error (node, tc, "expression incompatible with boolean type");
+			return 0;
+		}
 	}
 	return 1;
 }
@@ -173,6 +186,11 @@ tnode_dumptree (*exprp, 1, FHAN_STDERR);
 fhandle_printf (FHAN_STDERR, "guppy_namemap_cflow(): mapping CASE, expression after is:\n");
 tnode_dumptree (*exprp, 1, FHAN_STDERR);
 #endif
+
+		map_submapnames (bodyp, map);
+	} else if ((*nodep)->tag == gup.tag_SHORTIF) {
+		cmd->target_indir = 0;
+		map_submapnames (exprp, map);
 
 		map_submapnames (bodyp, map);
 	}
@@ -239,6 +257,20 @@ static int guppy_codegen_cflow (compops_t *cops, tnode_t *node, codegen_t *cgen)
 		}
 		codegen_write_fmt (cgen, "\n");
 		return 0;
+	} else if (node->tag == gup.tag_SHORTIF) {
+		codegen_ssetindent (cgen);
+		codegen_write_fmt (cgen, "if (");
+		codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+		codegen_write_fmt (cgen, ")\n");
+		codegen_ssetindent (cgen);
+		codegen_write_fmt (cgen, "{\n");
+		cgen->indent++;
+		codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+		cgen->indent--;
+		codegen_ssetindent (cgen);
+		codegen_write_fmt (cgen, "}\n");
+		return 0;
+		
 	} else if (node->tag == gup.tag_CASE) {
 		codegen_ssetindent (cgen);
 		codegen_write_fmt (cgen, "switch (");
