@@ -76,12 +76,12 @@ static void igcf_ev3_pwm_on_fwd (int motor, int power)
 	buf[1] = (unsigned char)(motor & 0xff);
 	buf[2] = (unsigned char)(power & 0xff);
 
-	i_dowrite (buf, 3);
+	i_dowrite ((char *)buf, 3);
 
 	buf[0] = 0xa6;
 	buf[1] = (unsigned char)(motor & 0xff);
 
-	i_dowrite (buf, 2);
+	i_dowrite ((char *)buf, 2);
 }
 
 void gcf_ev3_pwm_on_fwd (Workspace wptr, int motor, int power)
@@ -97,7 +97,7 @@ static void igcf_ev3_pwm_off (int motor)
 	buf[0] = 0xa3;
 	buf[1] = (unsigned char)(motor & 0xff);
 
-	i_dowrite (buf, 2);
+	i_dowrite ((char *)buf, 2);
 }
 
 void gcf_ev3_pwm_off (Workspace wptr, int motor)

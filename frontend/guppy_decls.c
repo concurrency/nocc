@@ -1365,11 +1365,19 @@ static int guppy_flattenseq_declblock (compops_t *cops, tnode_t **node)
 
 					for (j=1; j<nvitems; j++) {
 						tnode_t *newdecl = tnode_createfrom (tag, items[i], vitems[j], tnode_copytree (vdtype), NULL);
+						int nnitems;
 
 						parser_delfromlist (vdname, j);
 						j--, nvitems--;
 						parser_insertinlist (dlist, newdecl, i+1);
 						nitems++;
+						/* oop: if the parser reallocated this, will go haywire! */
+						items = parser_getlistitems (dlist, &nnitems);
+						if (nitems != nnitems) {
+							tnode_error (*node, "guppy_flattenseq_declblock(): nitems = %d, but nnitems = %d",
+									nitems, nnitems);
+							nocc_internal ("giving up");
+						}
 					}
 
 					/* fixup first item */

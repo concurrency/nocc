@@ -4,7 +4,7 @@
 @include "guppy_stdlib.gpi"
 
 
-define fork (chan(bool) left?, right?)
+define fork (val int id, chan(bool) left?, right?)
   while true
     bool any
     alt
@@ -25,7 +25,7 @@ define rand_delay (val int min, max)
     tim ? after (t + min + diff)
 end
 
-define philosopher (chan(bool) up!, down!, left!, right!)
+define philosopher (val int id, chan(bool) up!, down!, left!, right!)
   while true
     seq
       # thinking
@@ -49,7 +49,17 @@ end
 define secure_college ()
   chan(bool) up0, up1, up2, up3
   chan(bool) dn0, dn1, dn2, dn3
-  seq
-    skip
+  chan(bool) fl0, fl1, fl2, fl3
+  chan(bool) fr0, fr1, fr2, fr3
+  par
+    philosopher (0, up0!, dn0!, fl0!, fr0!)
+    philosopher (1, up1!, dn1!, fl1!, fr1!)
+    philosopher (2, up2!, dn2!, fl2!, fr2!)
+    philosopher (3, up3!, dn3!, fl3!, fr3!)
+    fork (0, fr0?, fl3?)
+    fork (1, fr1?, fl0?)
+    fork (2, fr2?, fl1?)
+    fork (3, fr3?, fl2?)
+
 end
 

@@ -1,6 +1,6 @@
 /*
  *	guppy_lexer.c -- lexer for Guppy
- *	Copyright (C) 2010 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2010-2014 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -417,31 +417,46 @@ fprintf (stderr, "guppy-lexer: number-ending keyword 0x%8.8x\n", (unsigned int)k
 		char *npbuf = NULL;
 
 		tok->type = INTEGER;
-		for (dh=ch+1; (dh < chlim) && (((*dh >= '0') && (*dh <= '9')) || (*dh == '.')); dh++) {
-			if (*dh == '.') {
-				if (tok->type == REAL) {
-					lexer_error (lf, "malformed real number");
-					goto out_error1;
+		if (((ch+2) < chlim) && (*ch == '0') && (ch[1] == 'x')) {
+			/* probably a hexadecimal constant */
+			for (dh=ch+2; (dh < chlim) && (((*dh >= '0') && (*dh <= '9')) || ((*dh >= 'a') && (*dh <= 'f')) || ((*dh >= 'A') && (*dh <= 'F'))); dh++);
+			lp->offset += (int)(dh - ch);
+
+			/* parse */
+			npbuf = string_ndup (ch + 2, (int)(dh - ch));
+			if (sscanf (npbuf, "%x", &tok->u.ival) != 1) {
+				lexer_error (lf, "malformed hexadecimal constant: 0x%s", npbuf);
+				sfree (npbuf);
+				goto out_error1;
+			} else {
+				sfree (npbuf);
+			}
+		} else {
+			for (dh=ch+1; (dh < chlim) && (((*dh >= '0') && (*dh <= '9')) || (*dh == '.')); dh++) {
+				if (*dh == '.') {
+					if (tok->type == REAL) {
+						lexer_error (lf, "malformed real number");
+						goto out_error1;
+					}
+					tok->type = REAL;
 				}
-				tok->type = REAL;
+			}
+			lp->offset += (int)(dh - ch);
+
+			/* parse it */
+			npbuf = string_ndup (ch, (int)(dh - ch));
+			if ((tok->type == REAL) && (sscanf (npbuf, "%lf", &tok->u.dval) != 1)) {
+				lexer_error (lf, "malformed floating-point constant: %s", npbuf);
+				sfree (npbuf);
+				goto out_error1;
+			} else if ((tok->type == INTEGER) && (sscanf (npbuf, "%d", &tok->u.ival) != 1)) {
+				lexer_error (lf, "malformed integer constant: %s", npbuf);
+				sfree (npbuf);
+				goto out_error1;
+			} else {
+				sfree (npbuf);
 			}
 		}
-		lp->offset += (int)(dh - ch);
-
-		/* parse it */
-		npbuf = string_ndup (ch, (int)(dh - ch));
-		if ((tok->type == REAL) && (sscanf (npbuf, "%lf", &tok->u.dval) != 1)) {
-			lexer_error (lf, "malformed floating-point constant: %s", npbuf);
-			sfree (npbuf);
-			goto out_error1;
-		} else if ((tok->type == INTEGER) && (sscanf (npbuf, "%d", &tok->u.ival) != 1)) {
-			lexer_error (lf, "malformed integer constant: %s", npbuf);
-			sfree (npbuf);
-			goto out_error1;
-		} else {
-			sfree (npbuf);
-		}
-
 		/*}}}*/
 	} else switch (*ch) {
 		/*{{{  \r, \n (newline)*/

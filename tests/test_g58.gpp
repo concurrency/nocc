@@ -1,0 +1,17 @@
+
+# test_g58.gpp -- more Guppy tests
+
+define foo (val int x, y)
+  skip
+end
+
+define g58 (chan(string) screen!)
+  int a, b
+  seq
+    a = 42
+    b = -99
+
+    foo (a, b)
+    foo (0x42, -99)
+end
+
