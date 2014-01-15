@@ -2491,7 +2491,7 @@ static int atmelavr_target_init (target_t *target)
 {
 	atmelavr_priv_t *apriv = atmelavr_newatmelavrpriv ();
 
-#if 1
+#if 0
 fprintf (stderr, "atmelavr_target_init(): here!\n");
 #endif
 	target->priv = (void *)apriv;
