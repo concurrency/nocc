@@ -1,6 +1,6 @@
 /*
  *	guppy_parser.c -- Guppy parser for nocc
- *	Copyright (C) 2010-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2010-2014 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -757,6 +757,38 @@ fhandle_printf (FHAN_STDERR, "guppy_fetrans1_subtree(): on [%s:%s]\n", (*tptr)->
 	return 0;
 }
 /*}}}*/
+/*{{{  int guppy_fetrans1_subtree_newtemps (tnode_t **tptr, guppy_fetrans1_t *fe1)*/
+/*
+ *	does fetrans1 processing on a subtree, but sets up new declarations to appear at the pointer.
+ *	returns 0 on success, non-zero on failure
+ */
+int guppy_fetrans1_subtree_newtemps (tnode_t **tptr, guppy_fetrans1_t *fe1)
+{
+	if (!tptr) {
+		nocc_serious ("guppy_fetrans1_subtree(): NULL tree-pointer");
+		fe1->error++;
+		return 1;
+	} else if (!*tptr) {
+		return 0;
+	} else {
+		tnode_t *saved_decllist = fe1->decllist;
+		tnode_t **saved_inspoint = fe1->inspoint;
+
+		fe1->decllist = NULL;
+		fe1->inspoint = tptr;
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans1_subtree(): on [%s:%s]\n", (*tptr)->tag->ndef->name, (*tptr)->tag->name);
+#endif
+		tnode_modprewalktree (tptr, fetrans1_modprewalk, (void *)fe1);
+
+		fe1->decllist = saved_decllist;
+		fe1->inspoint = saved_inspoint;
+	}
+
+	return 0;
+}
+/*}}}*/
 /*{{{  int guppy_fetrans2_subtree (tnode_t **tptr, guppy_fetrans2_t *fe2)*/
 /*
  *	does fetrans2 processing on a subtree.
@@ -809,12 +841,21 @@ tnode_t *guppy_fetrans1_maketemp (ntdef_t *tag, tnode_t *org, tnode_t *type, tno
 	tnode_t *ndecl, *nname;
 	name_t *dname;
 
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans1_maketemp(): here!\n");
+#endif
 	if (!fe1->decllist) {
 		tnode_t *dblk, *dilist;
 
+		if (!fe1->inspoint) {
+			nocc_internal ("guppy_fetrans1_maketemp(): no insert-point!");
+		}
 		dilist = parser_newlistnode (SLOCI);
 		dblk = tnode_createfrom (gup.tag_DECLBLOCK, org, dilist, *fe1->inspoint);
 
+#if 0
+fhandle_printf (FHAN_STDERR, "before insert, *fe1->inspoint = [%s:%s]\n", (*fe1->inspoint)->tag->name, (*fe1->inspoint)->tag->ndef->name);
+#endif
 		*fe1->inspoint = dblk;
 		fe1->inspoint = tnode_nthsubaddr (dblk, 1);		/* so it's still us */
 		fe1->decllist = dilist;

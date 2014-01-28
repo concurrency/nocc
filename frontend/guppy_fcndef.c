@@ -527,8 +527,13 @@ fhandle_printf (FHAN_STDERR, "guppy_fetrans1_fcndef(): results are:\n");
 tnode_dumptree (*rptr, 1, FHAN_STDERR);
 #endif
 	if (!*rptr) {
-		/* nothing to do */
-		return 1;
+		/* nothing to do, but still need to put insertpoint on body */
+		fe1b = guppy_newfetrans1 ();
+		guppy_fetrans1_subtree_newtemps (tnode_nthsubaddr (*nodep, 2), fe1b);
+		fe1->error += fe1b->error;
+		guppy_freefetrans1 (fe1b);
+
+		return 0;
 	}
 	if (!parser_islistnode (*rptr)) {
 		tnode_error (*nodep, "function result is not a list");
@@ -559,7 +564,7 @@ tnode_dumptree (*rptr, 1, FHAN_STDERR);
 		dynarray_add (fe1b->rnames, nname);
 	}
 
-	guppy_fetrans1_subtree (tnode_nthsubaddr (*nodep, 2), fe1b);
+	guppy_fetrans1_subtree_newtemps (tnode_nthsubaddr (*nodep, 2), fe1b);
 
 	fe1->error += fe1b->error;
 	guppy_freefetrans1 (fe1b);

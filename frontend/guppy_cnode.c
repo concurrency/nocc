@@ -1,6 +1,6 @@
 /*
  *	guppy_cnode.c -- constructor nodes for Guppy
- *	Copyright (C) 2010-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2010-2014 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -923,6 +923,28 @@ static int guppy_typecheck_guard (compops_t *cops, tnode_t *node, typecheck_t *t
 	return 1;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans1_guard (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)*/
+/*
+ *	does fetrans1 transform for an ALT guard -- just sets insertpoint for new temporaries to be local to the guarded process.
+ *	returns 0 to stop walk, 1 to continue.
+ */
+static int guppy_fetrans1_guard (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)
+{
+	guppy_fetrans1_subtree (tnode_nthsubaddr (*nodep, 0), fe1);
+	guppy_fetrans1_subtree (tnode_nthsubaddr (*nodep, 1), fe1);
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans1_guard(): here, body before transform:\n");
+tnode_dumptree (tnode_nthsubof (*nodep, 2), 1, FHAN_STDERR);
+#endif
+	guppy_fetrans1_subtree_newtemps (tnode_nthsubaddr (*nodep, 2), fe1);
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans1_guard(): here, body after transform:\n");
+tnode_dumptree (tnode_nthsubof (*nodep, 2), 1, FHAN_STDERR);
+#endif
+
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int guppy_cnode_init_nodes (void)*/
@@ -948,6 +970,7 @@ static int guppy_cnode_init_nodes (void)
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_cnode));
 	tnode_setcompop (cops, "postscope", 1, COMPOPTYPE (guppy_postscope_cnode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (guppy_fetrans_cnode));
+	// tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_cnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_cnode));
 	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_cnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_cnode));
@@ -1001,6 +1024,7 @@ static int guppy_cnode_init_nodes (void)
 	tnd = tnode_newnodetype ("guppy:guard", &i, 3, 0, 0, TNF_NONE);			/* subnodes: 0 = pre-condition, 1 = guard-process, 2 = body */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_guard));
+	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_guard));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

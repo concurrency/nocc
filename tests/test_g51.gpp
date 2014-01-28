@@ -3,15 +3,21 @@
 
 @include "guppy_stdlib.gpi"
 
+@external "guppy" "define debug_printf (val string s) = 64"
+
 
 define fork (val int id, chan(bool) left?, right?)
   while true
     bool any
     alt
       left ? any
-        left ? any
+        seq
+          debug_printf ("left!\n")
+          left ? any
       right ? any
-        right ? any
+        seq
+          debug_printf ("right!\n")
+          right ? any
 end
 
 define rand_delay (val int min, max)
@@ -46,6 +52,17 @@ define philosopher (val int id, chan(bool) up!, down!, left!, right!)
       up ! true
 end
 
+define security (chan(bool) down0?, down1?, down2?, down3?, up0?, up1?, up2?, up3?)
+  int sat = 0
+  bool any
+  while true
+    alt
+      up0 ? any
+        sat = sat - 1
+      up1 ? any
+        sat = sat - 1
+end
+
 define secure_college ()
   chan(bool) up0, up1, up2, up3
   chan(bool) dn0, dn1, dn2, dn3
@@ -60,6 +77,7 @@ define secure_college ()
     fork (1, fr1?, fl0?)
     fork (2, fr2?, fl1?)
     fork (3, fr3?, fl2?)
+    security (dn0?, dn1?, dn2?, dn3?, up0?, up1?, up2?, up3?)
 
 end
 

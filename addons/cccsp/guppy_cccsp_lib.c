@@ -41,4 +41,9 @@ void gcf_int_to_str (Workspace wptr, gtString_t **strp, const int n)
 	// (*strp)->slen = strlen ((*strp)->ptr);
 }
 
+void gcf_debug_printf (Workspace wptr, gtString_t *s)
+{
+	ExternalCallN (printf, 2, "%s", s->ptr);
+}
+
 

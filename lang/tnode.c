@@ -1,6 +1,6 @@
 /*
  *	tnode.c -- parser node functions
- *	Copyright (C) 2004-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2014 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -1116,17 +1116,19 @@ void tnode_prewalktree (tnode_t *t, int (*fcn)(tnode_t *, void *), void *arg)
 void tnode_modprewalktree (tnode_t **t, int (*fcn)(tnode_t **, void *), void *arg)
 {
 	int i;
+	tnode_t *tt;
 
 	if (!t || !*t || !fcn) {
 		return;
 	}
 	i = fcn (t, arg);
 	if (i) {
-		tndef_t *tnd = (*t)->tag->ndef;
+		tt = *t;
+		tndef_t *tnd = tt->tag->ndef;
 
 		/* walk subnodes */
 		for (i=0; i<tnd->nsub; i++) {
-			tnode_t **sub = (tnode_t **)&(DA_NTHITEM ((*t)->items, i));
+			tnode_t **sub = (tnode_t **)&(DA_NTHITEM (tt->items, i));
 
 			if (*sub) {
 				tnode_modprewalktree (sub, fcn, arg);
@@ -1134,8 +1136,8 @@ void tnode_modprewalktree (tnode_t **t, int (*fcn)(tnode_t **, void *), void *ar
 		}
 		/* walk hooks if applicable */
 		if (tnd->hook_modprewalktree) {
-			for (i=(tnd->nsub + tnd->nname); i<DA_CUR ((*t)->items); i++) {
-				void *hook = DA_NTHITEM ((*t)->items, i);
+			for (i=(tnd->nsub + tnd->nname); i<DA_CUR (tt->items); i++) {
+				void *hook = DA_NTHITEM (tt->items, i);
 
 				tnd->hook_modprewalktree (t, hook, fcn, arg);
 			}
@@ -1152,15 +1154,17 @@ void tnode_modpostwalktree (tnode_t **t, int (*fcn)(tnode_t **, void *), void *a
 {
 	int i;
 	tndef_t *tnd;
+	tnode_t *tt;
 
 	if (!t || !*t || !fcn) {
 		return;
 	}
-	tnd = (*t)->tag->ndef;
+	tt = *t;
+	tnd = tt->tag->ndef;
 
 	/* walk subnodes */
 	for (i=0; i<tnd->nsub; i++) {
-		tnode_t **sub = (tnode_t **)DA_NTHITEMADDR ((*t)->items, i);
+		tnode_t **sub = (tnode_t **)DA_NTHITEMADDR (tt->items, i);
 
 		if (*sub) {
 			tnode_modpostwalktree (sub, fcn, arg);
@@ -1169,8 +1173,8 @@ void tnode_modpostwalktree (tnode_t **t, int (*fcn)(tnode_t **, void *), void *a
 
 	/* walk hooks if applicable */
 	if (tnd->hook_modprepostwalktree) {
-		for (i=(tnd->nsub + tnd->nname); i<DA_CUR ((*t)->items); i++) {
-			void *hook = DA_NTHITEM ((*t)->items, i);
+		for (i=(tnd->nsub + tnd->nname); i<DA_CUR (tt->items); i++) {
+			void *hook = DA_NTHITEM (tt->items, i);
 
 			tnd->hook_modprepostwalktree (t, hook, NULL, fcn, arg);
 		}
@@ -1188,17 +1192,19 @@ void tnode_modpostwalktree (tnode_t **t, int (*fcn)(tnode_t **, void *), void *a
 void tnode_modprepostwalktree (tnode_t **t, int (*prefcn)(tnode_t **, void *), int (*postfcn)(tnode_t **, void *), void *arg)
 {
 	int i;
+	tnode_t *tt;
 
 	if (!t || !*t || !postfcn) {
 		return;
 	}
 	i = prefcn ? prefcn (t, arg) : 1;
 	if (i > 0) {
-		tndef_t *tnd = (*t)->tag->ndef;
+		tt = *t;
+		tndef_t *tnd = tt->tag->ndef;
 
 		/* walk subnodes */
 		for (i=0; i<tnd->nsub; i++) {
-			tnode_t **sub = (tnode_t **)&(DA_NTHITEM ((*t)->items, i));
+			tnode_t **sub = (tnode_t **)&(DA_NTHITEM (tt->items, i));
 
 			if (*sub) {
 				tnode_modprepostwalktree (sub, prefcn, postfcn, arg);
@@ -1206,8 +1212,8 @@ void tnode_modprepostwalktree (tnode_t **t, int (*prefcn)(tnode_t **, void *), i
 		}
 		/* walk hooks if applicable */
 		if (tnd->hook_modprepostwalktree) {
-			for (i=(tnd->nsub + tnd->nname); i<DA_CUR ((*t)->items); i++) {
-				void *hook = DA_NTHITEM ((*t)->items, i);
+			for (i=(tnd->nsub + tnd->nname); i<DA_CUR (tt->items); i++) {
+				void *hook = DA_NTHITEM (tt->items, i);
 
 				tnd->hook_modprepostwalktree (t, hook, prefcn, postfcn, arg);
 			}

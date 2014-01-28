@@ -296,6 +296,7 @@ extern int guppy_declify_subtree (struct TAG_tnode **, guppy_declify_t *);
 extern int guppy_flattenseq_subtree (struct TAG_tnode **);
 extern int guppy_postscope_subtree (struct TAG_tnode **);
 extern int guppy_fetrans1_subtree (struct TAG_tnode **, guppy_fetrans1_t *);
+extern int guppy_fetrans1_subtree_newtemps (struct TAG_tnode **, guppy_fetrans1_t *);
 extern int guppy_fetrans2_subtree (struct TAG_tnode **, guppy_fetrans2_t *);
 extern int guppy_fetrans3_subtree (struct TAG_tnode **, guppy_fetrans3_t *);
 

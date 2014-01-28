@@ -1,0 +1,21 @@
+
+# test_g59.gpp -- more Guppy tests
+
+@external "guppy" "define debug_printf (val string s) = 64"
+
+define thing (val int id, chan(bool) in?)
+  bool any
+  seq
+    alt
+      in ? any
+        seq
+          debug_printf ("goat!\n")
+end
+
+define test_g59 ()
+  chan(bool) c
+  par
+    c ! true
+    thing (42, c?)
+end
+
