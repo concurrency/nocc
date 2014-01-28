@@ -474,6 +474,8 @@ tokenloop:
 					break;
 				}
 				ch++;
+				lp->offset++;
+				wid++;
 				/*}}}*/
 			} else {
 				/* regular character */
@@ -484,7 +486,7 @@ tokenloop:
 			}
 			/* expect closing quote */
 			if (*ch != '\'') {
-				lexer_error (lf, "malformed character constant");
+				lexer_error (lf, "malformed character constant (expected closing quote, got \'%c\')", *ch);
 				goto out_error1;
 			}
 			lp->offset++;
