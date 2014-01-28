@@ -2,21 +2,110 @@
 # test_g51.gpp -- attempt at dining-phils
 
 @include "guppy_stdlib.gpi"
+@include "guppy_ev3lib.gpi"
 
-@external "guppy" "define debug_printf (val string s) = 64"
+@external "guppy" "define debug_printf (val string s) = 96"
 
+define fixed_delay (val int usecs)
+  timer tim
+  int t
 
-define fork (val int id, chan(bool) left?, right?)
+  tim ? t
+  tim ? after (t + usecs)
+end
+
+define move_fork (val int motor, chan(int) cmd?, val int inv)
+  int c
+  seq
+    # centre the fork by swinging left enough
+    ev3_pwm_on_fwd (motor, 40)
+    fixed_delay (800000)
+    ev3_pwm_off (motor)
+    ev3_pwm_on_rev (motor, 40)
+    fixed_delay (350000)
+    ev3_pwm_off (motor)
+
+    while true
+      seq
+
+        cmd ? c
+        if
+          (c == inv)
+            seq
+              # move left
+              ev3_pwm_on_fwd (motor, 40)
+              fixed_delay (350000)
+              ev3_pwm_off (motor)
+
+              # wait/notify completion
+              cmd ? c
+
+              # wait for put-back
+              cmd ? c
+
+              ev3_pwm_on_rev (motor, 40)
+              fixed_delay (350000)
+              ev3_pwm_off (motor)
+
+              # wait/notify completion
+              cmd ? c
+          else
+            seq
+              # move right
+              ev3_pwm_on_rev (motor, 40)
+              fixed_delay (350000)
+              ev3_pwm_off (motor)
+
+              # wait/notify completion
+              cmd ? c
+
+              # wait for put-back
+              cmd ? c
+
+              ev3_pwm_on_fwd (motor, 40)
+              fixed_delay (350000)
+              ev3_pwm_off (motor)
+
+              # wait/notify completion
+              cmd ? c
+
+end
+
+define fork (val int id, chan(bool) left?, right?, chan(int) cmd!)
   while true
     bool any
     alt
       left ? any
         seq
-          debug_printf ("left!\n")
+          # animate pick-up
+          cmd ! 0
+          cmd ! 0
+          debug_printf ("fork " + int_to_str (id) + " up! (left)\n")
+          left ? any
+
+          # philosopher eats here
+
+          left ? any
+          # animate put-down
+          cmd ! 0
+          cmd ! 0
+          debug_printf ("fork " + int_to_str (id) + " down! (left)\n")
           left ? any
       right ? any
         seq
-          debug_printf ("right!\n")
+          # animate pick-up
+          cmd ! 1
+          cmd ! 1
+          debug_printf ("fork " + int_to_str (id) + " up! (right)\n")
+          right ? any
+
+          #philosopher eats here
+
+          right ? any
+          # animate put-down
+          cmd ! 1
+          cmd ! 1
+          debug_printf ("fork " + int_to_str (id) + " down! (right)\n")
           right ? any
 end
 
@@ -35,19 +124,29 @@ define philosopher (val int id, chan(bool) up!, down!, left!, right!)
   while true
     seq
       # thinking
-      rand_delay (500000, 1000000)
+      debug_printf ("philosopher " + int_to_str (id) + " thinking..\n")
+      rand_delay (2000000, 4000000)
       # sit down
       down ! true
       # pick up forks
       par
-        left ! true
-        right ! true
+        seq
+          left ! true
+          left ! true
+        seq
+          right ! true
+          right ! true
       # eating
-      rand_delay (500000, 1000000)
+      debug_printf ("philosopher " + int_to_str (id) + " eating..\n")
+      rand_delay (2000000, 4000000)
       # put down forks
       par
-        left ! true
-        right ! true
+        seq
+          left ! true
+          left ! true
+        seq
+          right ! true
+          right ! true
       # stand up
       up ! true
 end
@@ -92,16 +191,34 @@ define secure_college ()
   chan(bool) dn0, dn1, dn2, dn3
   chan(bool) fl0, fl1, fl2, fl3
   chan(bool) fr0, fr1, fr2, fr3
+  chan(int) fc0, fc1, fc2, fc3
   par
     philosopher (0, up0!, dn0!, fl0!, fr0!)
     philosopher (1, up1!, dn1!, fl1!, fr1!)
     philosopher (2, up2!, dn2!, fl2!, fr2!)
     philosopher (3, up3!, dn3!, fl3!, fr3!)
-    fork (0, fr0?, fl3?)
-    fork (1, fr1?, fl0?)
-    fork (2, fr2?, fl1?)
-    fork (3, fr3?, fl2?)
+    fork (0, fr0?, fl3?, fc0!)
+    fork (1, fr1?, fl0?, fc1!)
+    fork (2, fr2?, fl1?, fc2!)
+    fork (3, fr3?, fl2?, fc3!)
     security (dn0?, dn1?, dn2?, dn3?, up0?, up1?, up2?, up3?)
+    move_fork (0x01, fc0?, 0)
+    move_fork (0x02, fc1?, 1)
+    move_fork (0x04, fc2?, 1)
+    move_fork (0x08, fc3?, 0)
 
+end
+
+define system (chan(string) screen!)
+  bool b
+  seq
+    b = ev3_pwm_init ()
+    if (b == false)
+      screen ! "failed to initialise PWM!\n"
+      return
+
+    secure_college ()
+
+    ev3_pwm_shutdown ()
 end
 

@@ -23,6 +23,12 @@ static void i_dowrite (const char *buf, const int len)
 	}
 }
 
+
+/*{{{  define ev3_pwm_init () -> bool*/
+/*
+ *	initialises the PWM stuff, returns true/false.
+ */
+
 static void igcf_ev3_pwm_init (int *result)
 {
 	if (ev3_pwm_fd >= 0) {
@@ -46,8 +52,11 @@ void gcf_ev3_pwm_init (Workspace wptr, int *result)
 {
 	ExternalCallN (igcf_ev3_pwm_init, 1, result);
 }
-
-
+/*}}}*/
+/*{{{  define ev3_pwm_shutdown ()*/
+/*
+ *	shuts-down PWM related things.
+ */
 
 static void igcf_ev3_pwm_shutdown (void)
 {
@@ -66,7 +75,11 @@ void gcf_ev3_pwm_shutdown (Workspace wptr)
 {
 	ExternalCallN (igcf_ev3_pwm_shutdown, 0);
 }
-
+/*}}}*/
+/*{{{  define ev3_pwm_on_fwd (val int motor, val int power)*/
+/*
+ *	runs a motor forwards at the specified power-level (0-100).
+ */
 
 static void igcf_ev3_pwm_on_fwd (int motor, int power)
 {
@@ -75,6 +88,12 @@ static void igcf_ev3_pwm_on_fwd (int motor, int power)
 	buf[0] = 0xa4;
 	buf[1] = (unsigned char)(motor & 0xff);
 	buf[2] = (unsigned char)(power & 0xff);
+
+	i_dowrite ((char *)buf, 3);
+
+	buf[0] = 0xa7;
+	buf[1] = (unsigned char)(motor & 0xff);
+	buf[2] = 0x01;
 
 	i_dowrite ((char *)buf, 3);
 
@@ -88,7 +107,65 @@ void gcf_ev3_pwm_on_fwd (Workspace wptr, int motor, int power)
 {
 	ExternalCallN (igcf_ev3_pwm_on_fwd, 2, motor, power);
 }
+/*}}}*/
+/*{{{  define ev3_pwm_on_rev (val int motor, val int power)*/
+/*
+ *	runs a motor in reverse at the specified power-level (0-100).
+ */
 
+static void igcf_ev3_pwm_on_rev (int motor, int power)
+{
+	unsigned char buf[3];
+
+	buf[0] = 0xa4;
+	buf[1] = (unsigned char)(motor & 0xff);
+	buf[2] = (unsigned char)(power & 0xff);
+
+	i_dowrite ((char *)buf, 3);
+
+	buf[0] = 0xa7;
+	buf[1] = (unsigned char)(motor & 0xff);
+	buf[2] = 0xff;
+
+	i_dowrite ((char *)buf, 3);
+
+	buf[0] = 0xa6;
+	buf[1] = (unsigned char)(motor & 0xff);
+
+	i_dowrite ((char *)buf, 2);
+}
+
+void gcf_ev3_pwm_on_rev (Workspace wptr, int motor, int power)
+{
+	ExternalCallN (igcf_ev3_pwm_on_rev, 2, motor, power);
+}
+/*}}}*/
+/*{{{  define ev3_pwm_toggle_dir (val int motor)*/
+/*
+ *	toggles the direction of the given motor.
+ */
+
+static void igcf_ev3_pwm_toggle_dir (int motor)
+{
+	unsigned char buf[3];
+
+	buf[0] = 0xa7;
+	buf[1] = (unsigned char)(motor & 0xff);
+	buf[2] = 0x00;
+
+	i_dowrite ((char *)buf, 3);
+}
+
+void gcf_ev3_pwm_toggle_dir (Workspace wptr, int motor)
+{
+	ExternalCallN (igcf_ev3_pwm_toggle_dir, 1, motor);
+}
+
+/*}}}*/
+/*{{{  define ev3_pwm_off (val int motor)*/
+/*
+ *	turns off a motor (and brake).
+ */
 
 static void igcf_ev3_pwm_off (int motor)
 {
@@ -96,12 +173,14 @@ static void igcf_ev3_pwm_off (int motor)
 
 	buf[0] = 0xa3;
 	buf[1] = (unsigned char)(motor & 0xff);
+	buf[2] = 0x01;					/* brake */
 
-	i_dowrite ((char *)buf, 2);
+	i_dowrite ((char *)buf, 3);
 }
 
 void gcf_ev3_pwm_off (Workspace wptr, int motor)
 {
 	ExternalCallN (igcf_ev3_pwm_off, 1, motor);
 }
+/*}}}*/
 

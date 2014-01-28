@@ -127,6 +127,8 @@ tnode_dumptree (prot, 1, FHAN_STDERR);
 static int guppy_fetrans1_io (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)
 {
 	tnode_t *node = *nodep;
+	tnode_t **saved_inspoint = fe1->inspoint;
+	tnode_t *saved_decllist = fe1->decllist;
 
 	fe1->inspoint = nodep;
 	/* do subtrees first -- simplify things like instances into temporaries */
@@ -169,8 +171,8 @@ tnode_dumptree (rhs, 1, FHAN_STDERR);
 #endif
 	}
 
-	fe1->inspoint = NULL;
-	fe1->decllist = NULL;		/* force a new one */
+	fe1->inspoint = saved_inspoint;		/* continue into parent (or new) */
+	fe1->decllist = saved_decllist;
 	return 0;
 }
 /*}}}*/

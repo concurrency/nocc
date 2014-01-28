@@ -1,0 +1,44 @@
+
+# test_g62.gpp -- more EV3 testing
+
+@include "guppy_stdlib.gpi"
+@include "guppy_ev3lib.gpi"
+
+define delay (val int usecs)
+  timer tim
+  int t
+
+  tim ? t
+  tim ? after (t + usecs)
+end
+
+define test_g62 (chan(string) screen!)
+  bool b
+  seq
+    screen ! "hello, EV3 world!\n"
+    b = ev3_pwm_init ()
+    if (b == false)
+      screen ! "failed to initialise PWM device..\n"
+      return
+
+    ev3_pwm_on_fwd (0x02, 40)
+    delay (1000000)
+    ev3_pwm_off (0x02)
+
+    delay (500000)
+    ev3_pwm_on_fwd (0x02, 40)
+    seq i = 0 for 20
+      seq
+        delay (100000)
+        ev3_pwm_toggle_dir (0x02)
+
+    ev3_pwm_on_rev (0x02, 40)
+    delay (350000)
+    ev3_pwm_off (0x02)
+
+
+    screen ! "done!\n"
+
+    ev3_pwm_shutdown ()
+end
+

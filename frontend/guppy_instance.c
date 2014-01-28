@@ -175,10 +175,13 @@ tnode_dumptree (aparamlist, 1, FHAN_STDERR);
 static int guppy_fetrans1_instance (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)
 {
 	tnode_t *itype = typecheck_gettype (tnode_nthsubof (*nodep, 0), NULL);
+	tnode_t *node = *nodep;
+	int lonely = 0;
+	tnode_t **saved_inspoint = fe1->inspoint;		/* save */
+	tnode_t *saved_decllist = fe1->decllist;
 
 	if (itype && (itype->tag == gup.tag_FCNTYPE)) {
-		int lonely = 0;
-		tnode_t *rtype, **rtitems, *node;
+		tnode_t *rtype, **rtitems;
 		int i, nrtitems;
 		tnode_t *seqitemlist;
 		tnode_t *sass, *namelist;
@@ -188,7 +191,6 @@ static int guppy_fetrans1_instance (compops_t *cops, tnode_t **nodep, guppy_fetr
 			fe1->inspoint = nodep;
 			lonely = 1;
 		}
-		node = *nodep;		/* incase it changes under us */
 
 		/* do name and params first -- will pull out nested things in params */
 		guppy_fetrans1_subtree (tnode_nthsubaddr (node, 0), fe1);
@@ -242,12 +244,25 @@ tnode_dumptree (node, 1, FHAN_STDERR);
 			} else {
 				*nodep = tnode_copytree (namelist);
 			}
+		} else {
+			/* alone: restore fe1 insert-point -- can't put subsequent declarations inside this! */
+			fe1->inspoint = saved_inspoint;
+			fe1->decllist = saved_decllist;
 		}
 
 		return 0;
 	}
 
-	return 1;
+	/* else might still need to fetrans1 on parameters, and these might need temporaries */
+	fe1->inspoint = nodep;
+	fe1->decllist = NULL;
+	guppy_fetrans1_subtree (tnode_nthsubaddr (node, 0), fe1);
+	guppy_fetrans1_subtree (tnode_nthsubaddr (node, 1), fe1);
+
+	fe1->inspoint = saved_inspoint;
+	fe1->decllist = saved_decllist;
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static int guppy_namemap_instance (compops_t *cops, tnode_t **nodep, map_t *map)*/

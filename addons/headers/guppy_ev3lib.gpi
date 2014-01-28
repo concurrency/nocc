@@ -1,0 +1,12 @@
+#
+# guppy_ev3lib.gpi -- definitions for EV3 library things
+# Fred Barnes, January 2014
+#
+
+@external "guppy" "define ev3_pwm_init () -> bool = 64"
+@external "guppy" "define ev3_pwm_shutdown () = 64"
+@external "guppy" "define ev3_pwm_on_fwd (val int motor, val int power) = 64"
+@external "guppy" "define ev3_pwm_on_rev (val int motor, val int power) = 64"
+@external "guppy" "define ev3_pwm_toggle_dir (val int motor) = 64"
+@external "guppy" "define ev3_pwm_off (val int motor) = 64"
+

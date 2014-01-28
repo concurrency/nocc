@@ -1,0 +1,21 @@
+
+# test_g61.gpp -- more tests
+
+@external "guppy" "define debug_printf (val string s) = 64"
+
+define test_g61 (chan(bool) in0?, in1?)
+  while true
+    bool any
+    alt
+      in0 ? any
+        seq
+          debug_printf ("0 0\n")
+          in0 ? any
+          debug_printf ("0 1\n")
+      in1 ? any
+        seq
+          debug_printf ("1 0\n")
+          in1 ? any
+          debug_printf ("1 1\n")
+end
+
