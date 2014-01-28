@@ -66,6 +66,7 @@
 /*{{{  private types/data*/
 
 static tnode_t *guppy_cnode_inttypenode = NULL;
+static tnode_t *guppy_cnode_booltypenode = NULL;
 
 
 /*}}}*/
@@ -903,9 +904,20 @@ tnode_dumptree (*nodep, 1, FHAN_STDERR);
  */
 static int guppy_typecheck_guard (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
+	tnode_t *gpre = tnode_nthsubof (node, 0);
 	tnode_t *gexpr = tnode_nthsubof (node, 1);
 	tnode_t *gproc = tnode_nthsubof (node, 2);
 
+	if (gpre) {
+		tnode_t *ptype;
+
+		typecheck_subtree (gpre, tc);
+		ptype = typecheck_gettype (gpre, guppy_cnode_booltypenode);
+		if (!ptype) {
+			typecheck_error (node, tc, "failed to get pre-condition type");
+			return 0;
+		}
+	}
 	/* only sensible things should be parseable as guards, but check anyway */
 	if (!gexpr) {
 		typecheck_error (node, tc, "missing guard expression");
@@ -1057,6 +1069,7 @@ static int guppy_cnode_init_nodes (void)
 static int guppy_cnode_post_setup (void)
 {
 	guppy_cnode_inttypenode = guppy_newprimtype (gup.tag_INT, NULL, 0);
+	guppy_cnode_booltypenode = guppy_newprimtype (gup.tag_BOOL, NULL, 0);
 
 	return 0;
 }

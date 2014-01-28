@@ -1850,7 +1850,7 @@ static tnode_t *guppy_parser_parseproc (lexfile_t *lf)
 
 	tnflags = tnode_tnflagsof (tree);
 	if (tnflags & TNF_LONGPROC) {
-		/*{{{  long process (e.g. 'seq', 'par', etc.)*/
+		/*{{{  long process (e.g. 'seq', 'par', 'alt', etc.)*/
 		int ntflags = tnode_ntflagsof (tree);
 
 		if (ntflags & NTF_INDENTED_PROC_LIST) {
@@ -2007,8 +2007,60 @@ static tnode_t *guppy_decllistandguard (lexfile_t *lf)
 		}
 	}
 
-	/* should have a guard */
-	tree = dfa_walk ("guppy:guard", 0, lf);
+	/* see if we have an expression to start with */
+	tree = dfa_walk ("guppy:testforexpr", 0, lf);
+	if (!tree) {
+		parser_error (SLOCN (lf), "expected to find expression or not, but didn\'t");
+	} else if (tree->tag == testtruetag) {
+		/* starts with an expression, could be a pre-condition if followed by '&' */
+		tnode_t *lexpr;
+
+		tnode_free (tree);
+		tree = NULL;
+
+		lexpr = dfa_walk ("guppy:expr", 0, lf);
+		if (!lexpr) {
+			parser_error (SLOCN (lf), "thought it started with an expression, but it didn\'t");
+			/* bail */
+			return NULL;
+		}
+
+		tok = lexer_nexttoken (lf);
+		if (!tok) {
+			nocc_internal ("guppy_decllistandguard(): pop!");
+			return NULL;
+		}
+
+		if (lexer_tokmatchlitstr (tok, "&")) {
+			/* yes -- pre-conditioned guard */
+			tree = dfa_walk ("guppy:guard", 0, lf);
+			if (tree) {
+				tnode_setnthsub (tree, 0, lexpr);
+			}
+			lexer_freetoken (tok);
+		} else if (lexer_tokmatchlitstr (tok, "?")) {
+			lexer_pushback (lf, tok);
+			tree = dfa_walk ("guppy:restofinput", 0, lf);
+			if (tree) {
+				tnode_setnthsub (tree, 0, lexpr);
+			}
+		} else {
+			/* dunno.. */
+			parser_error (SLOCN (lf), "got here but failed");
+			return NULL;
+		}
+	} else if (tree->tag == testfalsetag) {
+		/* not an expression, should be a simple guard */
+		tnode_free (tree);
+
+		tree = dfa_walk ("guppy:guard", 0, lf);
+	} else {
+		nocc_serious ("guppy_decllistandguard(): guppy_testforexpr DFA returned:");
+		tnode_dumptree (tree, 1, FHAN_STDERR);
+		tnode_free (tree);
+		return NULL;
+	}
+
 	if (!tree) {
 		parser_error (SLOCN (lf), "expected to find guard, but didn\'t");
 	} else {

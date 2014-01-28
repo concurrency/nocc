@@ -1,0 +1,14 @@
+
+# test_g60.gpp -- alt pre-conditions
+
+define foo (chan(bool) in0?, in1?)
+  bool any
+  int x = 0
+  alt
+    (x == 0) & in0 ? any
+      skip
+    in1 ? any
+      skip
+end
+
+

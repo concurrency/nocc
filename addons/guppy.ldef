@@ -59,6 +59,8 @@
 .TABLE	"guppy:testfordecl +:= [ 0 +@define 1 ] [ 1 {<gup:testtrue>} -* ]"
 	"[ 0 -* 2 ] [ 2 {<gup:testfalse>} -* ]"
 
+.TABLE	"guppy:testforexpr +:= [ 0 -* 1 ] [ 1 {<gup:testfalse>} -* ]"
+
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@= 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:oneassign> ]"
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@? 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:input> ]"
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@! 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:output> ]"
@@ -111,6 +113,9 @@
 	"[ 1 {<gup:testtrue>} -* ]"
 .TABLE	"guppy:testfordecl +:= [ 0 +Name 1 ] [ 1 {<gup:checktypename>} -* ]"
 .TABLE	"guppy:testfordecl +:= [ 0 +@@[ 1 ] [ 0 +@@[] 1 ] [ 1 {<gup:testtrue>} -* ]"
+
+.TABLE	"guppy:testforexpr +:= [ 0 +Name 1 ] [ 1 <gupy:testtrue> -* ]"
+
 
 .TABLE	"guppy:definedecl +:= [ 0 @enum 1 ] [ 1 guppy:name 2 ] [ 2 {<gup:enumreduce>} -* ]"
 
@@ -256,6 +261,8 @@
 .TABLE	"guppy:outputlhs ::= [ 0 @@! 1 ] [ 1 guppy:exprlist 2 ] [ 2 {<gup:outputreduce>} -* ]"
 
 .TABLE	"guppy:guard +:= [ 0 -Name 1 ] [ 1 guppy:input 2 ] [ 2 {<gup:guardreduce>} -* ]"
+.TABLE	"guppy:restofinput +:= [ 0 @@? 1 ] [ 1 {<gup:nullpush>} -* 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:inputreduce>} -* ]"
+	"[ 2 @case 4 ] [ 4 {<gup:caseinputreduce>} -* ]"
 
 # }}}
 .SECTION "guppy-oper" # {{{: operators
@@ -291,6 +298,8 @@
 .TABLE	"guppy:expr +:= [ 0 @bytesin 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:bytesinreduce>} -* ]"
 .TABLE	"guppy:expr +:= [ 0 @@( 1 ] [ 1 guppy:expr 2 ] [ 2 @@) 3 ] [ 3 {<gup:nullreduce>} -* <guppy:restofexpr> ]"
 .TABLE	"guppy:expr +:= [ 0 @@- 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:negreduce>} -* <guppy:restofexpr> ]"
+
+.TABLE	"guppy:testforexpr +:= [ 0 +@@( 1 ] [ 0 +@size 1 ] [ 0 +@bytesin 1 ] [ 0 +@@- 1 ] [ 1 {<gup:testtrue>} -* ]"
 
 
 # for "guppy:restofexpr" existing expression is result already
