@@ -1,0 +1,55 @@
+
+# test_g63.gpp -- timers on the EV3 (ARM CCSP test)
+
+@include "guppy_stdlib.gpi"
+
+@external "guppy" "define debug_printf (val string s) = 96"
+
+define tx_delay (val int id, usecs)
+  timer tim
+  int t, t2, actual
+
+  tim ? t
+  tim ? after (t + usecs)
+  tim ? t2
+
+  actual = t2 - t
+
+  debug_printf (int_to_str (id) + ": req=" + int_to_str (usecs) + " act=" + int_to_str (actual) + "\n")
+end
+
+define t0 ()
+  seq
+    tx_delay (0, 100000)
+    tx_delay (0, 300000)
+end
+
+define t1 ()
+  seq
+    tx_delay (1, 200000)
+    tx_delay (1, 200000)
+    tx_delay (1, 200000)
+end
+
+define t2 ()
+  seq
+    tx_delay (2, 50000)
+    tx_delay (2, 400000)
+    tx_delay (2, 100000)
+end
+
+define t3 ()
+  seq
+    tx_delay (3, 150000)
+    tx_delay (3, 200000)
+    tx_delay (3, 200000)
+end
+
+define test_g63 ()
+  par
+    t0 ()
+    t1 ()
+    t2 ()
+    t3 ()
+end
+

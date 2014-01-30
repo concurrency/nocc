@@ -1,0 +1,12 @@
+
+# test_g64.gpp -- Guppy global constants
+
+val int THING = 20
+
+define test_g64 ()
+  int x
+
+  seq
+    x = THING
+end
+

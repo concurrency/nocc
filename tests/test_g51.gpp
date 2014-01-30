@@ -14,16 +14,21 @@ define fixed_delay (val int usecs)
   tim ? after (t + usecs)
 end
 
+val int MOVE_DELAY = 480000
+
 define move_fork (val int motor, chan(int) cmd?, val int inv)
   int c
   seq
     # centre the fork by swinging left enough
     ev3_pwm_on_fwd (motor, 40)
-    fixed_delay (800000)
+    fixed_delay (MOVE_DELAY * 3)
     ev3_pwm_off (motor)
     ev3_pwm_on_rev (motor, 40)
-    fixed_delay (350000)
+    fixed_delay (MOVE_DELAY)
     ev3_pwm_off (motor)
+    fixed_delay (1000000)
+
+    cmd ? c
 
     while true
       seq
@@ -34,7 +39,7 @@ define move_fork (val int motor, chan(int) cmd?, val int inv)
             seq
               # move left
               ev3_pwm_on_fwd (motor, 40)
-              fixed_delay (350000)
+              fixed_delay (MOVE_DELAY)
               ev3_pwm_off (motor)
 
               # wait/notify completion
@@ -44,7 +49,7 @@ define move_fork (val int motor, chan(int) cmd?, val int inv)
               cmd ? c
 
               ev3_pwm_on_rev (motor, 40)
-              fixed_delay (350000)
+              fixed_delay (MOVE_DELAY)
               ev3_pwm_off (motor)
 
               # wait/notify completion
@@ -53,7 +58,7 @@ define move_fork (val int motor, chan(int) cmd?, val int inv)
             seq
               # move right
               ev3_pwm_on_rev (motor, 40)
-              fixed_delay (350000)
+              fixed_delay (MOVE_DELAY)
               ev3_pwm_off (motor)
 
               # wait/notify completion
@@ -63,7 +68,7 @@ define move_fork (val int motor, chan(int) cmd?, val int inv)
               cmd ? c
 
               ev3_pwm_on_fwd (motor, 40)
-              fixed_delay (350000)
+              fixed_delay (MOVE_DELAY)
               ev3_pwm_off (motor)
 
               # wait/notify completion
@@ -187,25 +192,35 @@ define security (chan(bool) dn0?, dn1?, dn2?, dn3?, up0?, up1?, up2?, up3?)
 end
 
 define secure_college ()
-  chan(bool) up0, up1, up2, up3
-  chan(bool) dn0, dn1, dn2, dn3
-  chan(bool) fl0, fl1, fl2, fl3
-  chan(bool) fr0, fr1, fr2, fr3
   chan(int) fc0, fc1, fc2, fc3
   par
-    philosopher (0, up0!, dn0!, fl0!, fr0!)
-    philosopher (1, up1!, dn1!, fl1!, fr1!)
-    philosopher (2, up2!, dn2!, fl2!, fr2!)
-    philosopher (3, up3!, dn3!, fl3!, fr3!)
-    fork (0, fr0?, fl3?, fc0!)
-    fork (1, fr1?, fl0?, fc1!)
-    fork (2, fr2?, fl1?, fc2!)
-    fork (3, fr3?, fl2?, fc3!)
-    security (dn0?, dn1?, dn2?, dn3?, up0?, up1?, up2?, up3?)
-    move_fork (0x01, fc0?, 0)
-    move_fork (0x02, fc1?, 1)
-    move_fork (0x04, fc2?, 1)
-    move_fork (0x08, fc3?, 0)
+    move_fork (0x01, fc0?, 1)
+    move_fork (0x02, fc1?, 0)
+    move_fork (0x04, fc2?, 0)
+    move_fork (0x08, fc3?, 1)
+
+    seq
+      # sync with motor drivers before we start the simulation proper.
+      seq
+        fc0 ! 0
+        fc1 ! 0
+        fc2 ! 0
+        fc3 ! 0
+
+      chan(bool) up0, up1, up2, up3
+      chan(bool) dn0, dn1, dn2, dn3
+      chan(bool) fl0, fl1, fl2, fl3
+      chan(bool) fr0, fr1, fr2, fr3
+      par
+        philosopher (0, up0!, dn0!, fl0!, fr0!)
+        philosopher (1, up1!, dn1!, fl1!, fr1!)
+        philosopher (2, up2!, dn2!, fl2!, fr2!)
+        philosopher (3, up3!, dn3!, fl3!, fr3!)
+        fork (0, fr0?, fl3?, fc0!)
+        fork (1, fr1?, fl0?, fc1!)
+        fork (2, fr2?, fl1?, fc2!)
+        fork (3, fr3?, fl2?, fc3!)
+        security (dn0?, dn1?, dn2?, dn3?, up0?, up1?, up2?, up3?)
 
 end
 
