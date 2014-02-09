@@ -345,6 +345,9 @@ static int nocc_shutdownrun (void)
 	if (symbols_shutdown ()) {
 		v++;
 	}
+	if (compopts.cachedir && file_url_shutdown ()) {
+		v++;
+	}
 	if (fhandle_shutdown ()) {
 		v++;
 	}
@@ -3245,7 +3248,9 @@ int main (int argc, char **argv)
 
 	/*}}}*/
 	/*{{{  initialise other parts of the compiler and the dynamic framework*/
-	file_url_init ();		/* once we have the cache-dir set */
+	if (compopts.cachedir) {
+		file_url_init ();		/* once we have the cache-dir set */
+	}
 	symbols_init ();
 	lexer_init ();
 	tnode_init ();

@@ -878,6 +878,10 @@ static int guppy_namemap_anode (compops_t *cops, tnode_t **nodep, map_t *map)
 			tnode_t *item = parser_getfromlist (tnode_nthsubof (*nodep, 1), i);
 
 			cmd->target_indir = 1;
+#if 1
+fhandle_printf (FHAN_STDERR, "guppy_namemap_anode(): item %d is:\n", i);
+tnode_dumptree (item, 1, FHAN_STDERR);
+#endif
 			map_submapnames (&item, map);
 
 			parser_addtolist (newparams, item);
@@ -886,7 +890,7 @@ static int guppy_namemap_anode (compops_t *cops, tnode_t **nodep, map_t *map)
 
 		*nodep = pacall;
 
-#if 0
+#if 1
 fhandle_printf (FHAN_STDERR, "guppy_namemap_anode(): map for alternative process (API call):\n");
 tnode_dumptree (*nodep, 1, FHAN_STDERR);
 #endif
