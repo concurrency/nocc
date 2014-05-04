@@ -809,6 +809,7 @@ static int guppy_fetrans3_anode (compops_t *cops, tnode_t **nodep, guppy_fetrans
 				fe3->error++;
 				return 0;
 			} else {
+				tnode_t *gpcond = tnode_nthsubof (guard, 0);
 				tnode_t *gitem = tnode_nthsubof (guard, 1);
 
 				if (gitem->tag == gup.tag_INPUT) {
