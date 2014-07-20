@@ -63,6 +63,13 @@ EXTRA_CFLAGS="-Wall -ggdb -O0 -fno-strict-aliasing"
 EXTRA_LIBS=""
 EXTRA_LDFLAGS=""
 
+case "$host_cpu" in
+ x86_64)
+  # compile in 32-bit mode
+  EXTRA_CFLAGS="$EXTRA_CFLAGS -m32"
+  EXTRA_LDFLAGS="$EXTRA_LDFLAGS -m32 -Wl,-melf_i386"
+  ;;
+esac
 
 dnl The default target is a virtual transputer
 target_cpu="ETC/T800"

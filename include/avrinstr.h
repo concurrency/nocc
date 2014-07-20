@@ -168,7 +168,8 @@ typedef enum ENUM_avrmcu {
 	AVR_AT90S2313 = 2,
 	AVR_AT90S8515 = 3,
 	AVR_ATMEGA328 = 4,
-	AVR_ATMEGA1280 = 5
+	AVR_ATMEGA1280 = 5,
+	AVR_ATMEGA2560 = 6
 } avrmcu_e;
 
 typedef struct TAG_avrtarget {

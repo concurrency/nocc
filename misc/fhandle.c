@@ -168,7 +168,7 @@ int fhandle_registerscheme (fhscheme_t *scheme)
 {
 	fhscheme_t *ext;
 
-	ext = stringhash_lookup (schemes, scheme->sname);
+	ext = stringhash_lookup (schemes, scheme->prefix);
 	if (ext) {
 		nocc_serious ("fhandle_registerscheme(): for [%s], already registered!", scheme->prefix);
 		return -1;
@@ -191,8 +191,27 @@ int fhandle_registerscheme (fhscheme_t *scheme)
  */
 int fhandle_unregisterscheme (fhscheme_t *scheme)
 {
-	nocc_serious ("fhandle_unregisterscheme(): unimplemented!");
-	return -1;
+	fhscheme_t *ext;
+
+	ext = stringhash_lookup (schemes, scheme->prefix);
+	if (!ext) {
+		nocc_serious ("fhandle_unregisterscheme(): for [%s], not registered!", scheme->prefix);
+		return -1;
+	}
+	if (ext != scheme) {
+		nocc_serious ("fhandle_unregisterscheme(): for [%s], registered as something else.", scheme->prefix);
+		return -1;
+	}
+
+	/* remove */
+	stringhash_remove (schemes, ext, ext->prefix);
+	dynarray_rmitem (aschemes, ext);
+
+	if (compopts.verbose) {
+		nocc_message ("unregistering file-handler for [%s] (%s)", ext->prefix, ext->sname);
+	}
+
+	return 0;
 }
 /*}}}*/
 
