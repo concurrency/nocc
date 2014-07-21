@@ -144,6 +144,8 @@
 .equ	EICRB	=0x6a
 .equ	EICRA	=0x69
 .equ	PCICR	=0x68
+.equ	PRR1	=0x65
+.equ	PRR0	=0x64
 
 ; =================================================================================================
 ; second chunk, accessible via IN/OUT instructions:  to use ST/LD, add 0x20 to these (0x20 -> 0x5f)

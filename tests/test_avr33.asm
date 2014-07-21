@@ -119,8 +119,8 @@ VEC_timer1ovf:
 	;}}}
 .L2:
 	;{{{  here means that V_scanline < DPY_VSYNC_END  (also generic dest for V_scanline++ and out)
-	clr	r19				; V_scanline++
-	inc	r16
+	ldi	r19:r18, 1			; V_scanline++
+	add	r16, r18
 	adc	r17, r19
 	sts	V_scanline_h, r17
 	sts	V_scanline_l, r16
@@ -236,6 +236,11 @@ vidhw_setup: ;{{{  sets up video generation stuff
 	cbi	VID_PORT, VID_PIN
 	sbi	SYNC_PORT, SYNC_PIN
 
+	; enable TIMER1 in PPR0
+	lds	r16, PRR0
+	andi	r16, 0xf7		; clear bit 3 (PRTIM1)
+	sts	PRR0, r16
+
 	; ICR1 = PAL_CYC_SCANLINE
 	ldi	r17:r16, PAL_CYC_SCANLINE
 	sts	ICR1H, r17
@@ -245,6 +250,11 @@ vidhw_setup: ;{{{  sets up video generation stuff
 	ldi	r17:r16, CYC_H_SYNC
 	sts	OCR1AH, r17
 	sts	OCR1AL, r16
+
+	; clear timer1 value
+	clr	r16
+	sts	TCNT1H, r16
+	sts	TCNT1L, r16
 
 	; setup TIMER1 for fast PWM mode, TOP=ICR1(=PAL_CYC_SCANLINE); OCR1A update at BOTTOM; overflow interrupt at TOP.
 	ldi	r16, 0xc2		; COM1A1 | COM1A0 | WGM11
