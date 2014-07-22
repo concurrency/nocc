@@ -22,7 +22,7 @@
 .equ	PAL_LINE_START_VSYNC	=0
 .equ	PAL_LINE_STOP_VSYNC	=7
 .equ	PAL_LINE_DISPLAY	=260
-.equ	PAL_LINE_MID		=156	; (((PAL_LINE_FRAME - PAL_LINE_DISPLAY) / 2) - (PAL_LINE_DISPLAY / 2))
+.equ	PAL_LINE_MID		=156	; (((PAL_LINE_FRAME - PAL_LINE_DISPLAY) / 2) + (PAL_LINE_DISPLAY / 2))
 
 .equ	PAL_CYC_SCANLINE	=1023
 .equ	PAL_CYC_OUTPUT_START	=175	; 175
@@ -63,9 +63,9 @@ V_scanline_l:	.space 1
 
 V_vscale:	.space 1	; 8-bit v-scale value (0..1)
 
-V_rline:			; 16-bit current render-line
-V_rline_h:	.space 1
-V_rline_l:	.space 1
+V_roffs:			; 16-bit current render offset into framebuffer
+V_roffs_h:	.space 1
+V_roffs_l:	.space 1
 
 ;}}}
 
@@ -88,10 +88,68 @@ VEC_timer1ovf:
 	lds	r17, V_scanline_h		; r17:r16 = V_scanline
 	lds	r16, V_scanline_l
 
+	ldi	r19:r18, DPY_VSYNC_END
+	cp	r16, r18
+	cpc	r17, r19
+	brlo	1f				; branch if V_scanline < DPY_VSYNC_END
+	brne	2f				; branch if V_scanline != DPY_VSYNC_END
+	; assert: V_scanline == DPY_VSYNC_END
+	ldi	r19:r18, CYC_H_SYNC
+	sts	OCR1AH, r19
+	sts	OCR1AL, r18
+.L1:
+	rjmp	9f
+.L2:
+	; assert: V_scanline > DPY_VSYNC_END
+	ldi	r19:r18, DPY_START_RENDER
+	cp	r16, r18
+	cpc	r17, r19
+	brlo	9f				; branch if V_scanline < DPY_START_RENDER
+	brne	4f				; branch if V_scanline != DPY_START_RENDER
+	; assert: V_scanline > DPY_START_RENDER
+	ldi	r19:r18, DPY_STOP_RENDER
+	cp	r16, r18
+	cpc	r17, r19
+	brlo	5f				; branch if V_scanline < DPY_STOP_RENDER
+	; assert: V_scanline >= DPY_STOP_RENDER
 	ldi	r19:r18, DPY_LINES_FRAME
-	cp	r16, r18			; compare low byte
-	cpc	r17, r19			; compare high byte
-	brlo	1f				; branch if V_scanline < DPY_LINES_FRAME
+	cp	r16, r18
+	cpc	r17, r19
+	brlo	6f				; branch if V_scanline <= DPY_LINES_FRAME
+	breq	6f
+	; assert: V_scanline > DPY_LINES_FRAME
+	ldi	r19:r18, CYC_V_SYNC
+	sts	OCR1AH, r19
+	sts	OCR1AL, r18
+	clr	r16
+	clr	r17
+	rjmp	9f
+
+
+.L9:
+	; V_scanline++ and store
+	ldi	r19:r18, 1
+	add	r16, r18
+	adc	r17, r19
+	sts	V_scanline_h, r17
+	sts	V_scanline_l, r16
+
+	; proceed to get out!
+
+	pop	r17
+	out	SREG, r17
+	pop	XH
+	pop	XL
+	pop	r25
+	pop	r24
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
+	reti
+
+;FIXME: after here!
+
 
 	;{{{  here means that V_scanline >= DPY_LINES_FRAME
 	ldi	r19:r18, CYC_V_SYNC		; OCR1A = CYC_V_SYNC
@@ -185,6 +243,14 @@ VEC_timer1ovf:
 .L62:
 
 	; FIXME: render the line.
+	sbi	VID_PORT, VID_PIN
+	nop
+	nop
+	nop
+	nop
+	nop
+
+	cbi	VID_PORT, VID_PIN
 
 	; update v-scaling
 	lds	r18, V_vscale
@@ -211,18 +277,6 @@ VEC_timer1ovf:
 	rjmp	2b				; V_scanline++ and out
 	;}}}
 
-.L9:
-	pop	r17
-	out	SREG, r17
-	pop	XH
-	pop	XL
-	pop	r25
-	pop	r24
-	pop	r19
-	pop	r18
-	pop	r17
-	pop	r16
-	reti
 ;}}}
 
 vidhw_setup: ;{{{  sets up video generation stuff
