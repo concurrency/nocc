@@ -25,7 +25,7 @@
 .equ	PAL_LINE_MID		=156	; (((PAL_LINE_FRAME - PAL_LINE_DISPLAY) / 2) + (PAL_LINE_DISPLAY / 2))
 
 .equ	PAL_CYC_SCANLINE	=1023
-.equ	PAL_CYC_OUTPUT_START	=175	; 175
+.equ	PAL_CYC_OUTPUT_START	=181	; 175
 
 ; video connection
 .equ	VID_PORT		=PORTB
@@ -196,6 +196,30 @@ do_render_line_isr:	;{{{  called to render a line from the ISR.  r17:r16 == V_sc
 	nop
 	nop
 	nop
+	sbi	VID_PORT, VID_PIN
+	nop
+	nop
+	nop
+	nop
+	nop
+	sbi	VID_PORT, VID_PIN
+	nop
+	nop
+	nop
+	nop
+	nop
+	sbi	VID_PORT, VID_PIN
+	nop
+	nop
+	nop
+	nop
+	nop
+	sbi	VID_PORT, VID_PIN
+	nop
+	nop
+	nop
+	nop
+	nop
 	cbi	VID_PORT, VID_PIN
 	nop
 	nop
@@ -249,7 +273,7 @@ vidhw_setup: ;{{{  sets up video generation stuff
 
 	; DEBUG:
 	sbi	DDRB, 6			; PORTB-6 (12) == DEBUG
-	cbi	DDRB, 6
+	cbi	PORTB, 6
 
 	; enable TIMER1 in PPR0
 	lds	r16, PRR0
