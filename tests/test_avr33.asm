@@ -97,7 +97,10 @@ VEC_timer1ovf:
 	ldi	r19:r18, CYC_H_SYNC
 	sts	OCR1AH, r19
 	sts	OCR1AL, r18
+	cbi	PORTB, 6			; DEBUG
+	rjmp	9f
 .L1:
+	sbi	PORTB, 6			; DEBUG
 	rjmp	9f
 .L2:
 	; assert: V_scanline > DPY_VSYNC_END
@@ -105,26 +108,39 @@ VEC_timer1ovf:
 	cp	r16, r18
 	cpc	r17, r19
 	brlo	9f				; branch if V_scanline < DPY_START_RENDER
-	brne	4f				; branch if V_scanline != DPY_START_RENDER
+	breq	3f				; branch if V_scanline == DPY_START_RENDER
 	; assert: V_scanline > DPY_START_RENDER
 	ldi	r19:r18, DPY_STOP_RENDER
 	cp	r16, r18
 	cpc	r17, r19
-	brlo	5f				; branch if V_scanline < DPY_STOP_RENDER
+	brlo	4f				; branch if V_scanline < DPY_STOP_RENDER
+	rjmp	5f
+.L3:
+	; assert: V_scanline == DPY_START_RENDER
+	ldi	r19:r18, 0			; set V_roffs = 0
+	sts	V_roffs_h, r19
+	sts	V_roffs_l, r18
+	ldi	r18, VSCALE			; V_vscale = VSCALE
+	sts	V_vscale, r18
+.L4:
+	; assert: (V_scanline >= DPY_START_RENDER) && (V_scanline < DPY_STOP_RENDER)
+	; NOTE: rendering line here!
+	rcall	do_render_line_isr
+	rjmp	9f
+.L5:
 	; assert: V_scanline >= DPY_STOP_RENDER
 	ldi	r19:r18, DPY_LINES_FRAME
 	cp	r16, r18
 	cpc	r17, r19
-	brlo	6f				; branch if V_scanline <= DPY_LINES_FRAME
-	breq	6f
+	brlo	9f				; branch if V_scanline <= DPY_LINES_FRAME
+	breq	9f
 	; assert: V_scanline > DPY_LINES_FRAME
 	ldi	r19:r18, CYC_V_SYNC
 	sts	OCR1AH, r19
 	sts	OCR1AL, r18
-	clr	r16
+	clr	r16				; set V_scanline = 0
 	clr	r17
-	rjmp	9f
-
+	; fall through
 
 .L9:
 	; V_scanline++ and store
@@ -134,6 +150,7 @@ VEC_timer1ovf:
 	sts	V_scanline_h, r17
 	sts	V_scanline_l, r16
 
+.L99:
 	; proceed to get out!
 
 	pop	r17
@@ -148,136 +165,76 @@ VEC_timer1ovf:
 	pop	r16
 	reti
 
-;FIXME: after here!
-
-
-	;{{{  here means that V_scanline >= DPY_LINES_FRAME
-	ldi	r19:r18, CYC_V_SYNC		; OCR1A = CYC_V_SYNC
-	sts	OCR1AH, r19
-	sts	OCR1AL, r18
-	
-	clr	r17				; V_scanline = 1
-	ldi	r16, 1
-	sts	V_scanline_h, r17
-	sts	V_scanline_l, r16
-
-	rjmp	9f
-	;}}}
-.L1:
-	;{{{  here means that V_scanline < DPY_LINES_FRAME, see if we're in [0..DPY_VSYNC_END]
-	ldi	r19:r18, DPY_VSYNC_END
-	cp	r16, r18
-	cpc	r17, r19
-
-	brlo	2f				; branch if V_scanline < DPY_VSYNC_END
-	breq	3f				; branch if V_scanline == DPY_VSYNC_END
-
-	; else in the picture region or end-of-frame
-	rjmp	4f
-	;}}}
-.L2:
-	;{{{  here means that V_scanline < DPY_VSYNC_END  (also generic dest for V_scanline++ and out)
-	ldi	r19:r18, 1			; V_scanline++
-	add	r16, r18
-	adc	r17, r19
-	sts	V_scanline_h, r17
-	sts	V_scanline_l, r16
-
-	rjmp	9f
-	;}}}
-.L3:
-	;{{{  here means that V_scanline == DPY_VSYNC_END
-	ldi	r19:r18, CYC_H_SYNC		; OCR1A = CYC_H_SYNC
-	sts	OCR1AH, r19
-	sts	OCR1AL, r18
-
-	; do V_scanline++ and out
-	rjmp	2b
-
-	;}}}
-.L4:
-	;{{{  here means in the picture region somewhere: r17:r16 = V_scanline
-	ldi	r19:r18, DPY_START_RENDER
-	cp	r16, r18
-	cpc	r17, r19
-
-	brlo	2b				; if V_scanline < DPY_START_RENDER, V_scanline++ and out
-	breq	5f				; if V_scanline == DPY_START_RENDER, init for rendering
-
-	ldi	r19:r18, DPY_STOP_RENDER
-	cp	r16, r18
-	cpc	r17, r19
-
-	brlo	6f				; if V_scanline < DPY_STOP_RENDER, must be visible area
-	; else we're past the image.
-	rjmp	2b				; just V_scanline++ and out
-
-	;}}}
-.L5:
-	;{{{  here means that V_scanline == DPY_START_RENDER
-	clr	r18				; V_rline = 0
-	sts	V_rline_h, r18
-	sts	V_rline_l, r18
-	ldi	r18, VSCALE			; V_vscale = VSCALE
-	sts	V_vscale, r18
-
-	rjmp	2b				; V_scanline++ and out
-	;}}}
-.L6:
-	;{{{  here means that V_scanline is in (DPY_START_RENDER+1)..(DPY_STOP_RENDER-1)
-	; wait for the appropriate output delay
+;}}}
+do_render_line_isr:	;{{{  called to render a line from the ISR.  r17:r16 == V_scanline.
+	;{{{  wait for DPY_OUTPUT_DELAY cycles (based on TIMER1 value)
 	ldi	r18, DPY_OUTPUT_DELAY
 	lds	r19, TCNT1L
 	sub	r18, r19
 	subi	r18, 10
-.L60:
+.L0:
 	subi	r18, 3
-	brcc	60b
+	brcc	0b
 	subi	r18, 253
-	breq	61f
+	breq	1f
 	dec	r18
-	breq	62f
-	rjmp	62f
-.L61:
+	breq	2f
+	rjmp	2f
+.L1:
 	nop
-.L62:
+.L2:
+	;}}}
 
-	; FIXME: render the line.
+	lds	r25, V_roffs_h
+	lds	r24, V_roffs_l
+
+	; FIXME: line render here  (r25:r24 == V_roffs == render offset)
+
 	sbi	VID_PORT, VID_PIN
 	nop
 	nop
 	nop
 	nop
 	nop
-
 	cbi	VID_PORT, VID_PIN
+	nop
+	nop
+	nop
+	nop
+	nop
+	sbi	VID_PORT, VID_PIN
+	nop
+	nop
+	nop
+	nop
+	nop
+	cbi	VID_PORT, VID_PIN
+	nop
+	nop
+	nop
+	nop
+	nop
 
-	; update v-scaling
+
+	;{{{  update vscale and roffs is needed
 	lds	r18, V_vscale
 	cpi	r18, 0
-	breq	63f				; branch if V_vscale == 0
-
-	; here means V_vscale != 0
+	breq	3f
 	dec	r18
+	rjmp	4f
+.L3:
+	ldi	r18, VSCALE
+	adiw	r25:r24, HRES		; V_roffs += HRES
+	sts	V_roffs_h, r25
+	sts	V_roffs_l, r24
+.L4:
 	sts	V_vscale, r18
-	rjmp	64f
 
-.L63:
-	; here means V_vscale == 0
-	ldi	r18, VSCALE			; V_vscale = VSCALE
-	sts	V_vscale, r18
-
-	lds	r25, V_rline_h			; V_rline += HRES
-	lds	r24, V_rline_l
-	adiw	r25:r24, HRES
-	sts	V_rline_h, r25
-	sts	V_rline_l, r24
-.L64:
-
-	rjmp	2b				; V_scanline++ and out
 	;}}}
 
+	ret
 ;}}}
+
 
 vidhw_setup: ;{{{  sets up video generation stuff
 	push	r16
@@ -289,6 +246,10 @@ vidhw_setup: ;{{{  sets up video generation stuff
 	; VID low, SYNC high
 	cbi	VID_PORT, VID_PIN
 	sbi	SYNC_PORT, SYNC_PIN
+
+	; DEBUG:
+	sbi	DDRB, 6			; PORTB-6 (12) == DEBUG
+	cbi	DDRB, 6
 
 	; enable TIMER1 in PPR0
 	lds	r16, PRR0
