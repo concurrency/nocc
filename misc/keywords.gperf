@@ -1,7 +1,7 @@
 %{
 /*
  *	keywords.gperf -- standard keywords for nocc
- *	Fred Barnes, 2005  <frmb@kent.ac.uk>
+ *	Fred Barnes, 2005-2014  <frmb@kent.ac.uk>
  */
 %}
 %struct-type

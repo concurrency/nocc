@@ -216,6 +216,61 @@
 
 
 ; =================================================================================================
+; specific bits for things
+; =================================================================================================
+
+.equ	SMCR_BIT_SE		=0x01			; sleep enable
+
+.equ	SMCR_BIT_SM_IDLE	=0x00
+.equ	SMCR_BIT_SM_ADCNR	=0x02			; ADC noise reduction sleep mode
+.equ	SMCR_BIT_SM_PD		=0x04			; power-down
+.equ	SMCR_BIT_SM_PS		=0x06			; power-save
+.equ	SMCR_BIT_SM_STANDBY	=0x0c			; standby
+.equ	SMCR_BIT_SM_ESTANDBY	=0x0e			; extended standby
+
+.equ	PRR0_BIT_PRTWI		=0x80
+.equ	PRR0_BIT_PRTIM2		=0x40
+.equ	PRR0_BIT_PRTIM0		=0x20
+.equ	PRR0_BIT_PRTIM1		=0x08
+.equ	PRR0_BIT_PRSPI		=0x04
+.equ	PRR0_BIT_PRUSART0	=0x02
+.equ	PRR0_BIT_PRADC		=0x01
+
+.equ	PRR1_BIT_PRTIM5		=0x20
+.equ	PRR1_BIT_PRTIM4		=0x10
+.equ	PRR1_BIT_PRTIM3		=0x08
+.equ	PRR1_BIT_PRUSART3	=0x04
+.equ	PRR1_BIT_PRUSART2	=0x02
+.equ	PRR1_BIT_PRUSART1	=0x01
+
+.equ	TCCR1A_BIT_COM1A1	=0x80
+.equ	TCCR1A_BIT_COM1A0	=0x40
+.equ	TCCR1A_BIT_COM1B1	=0x20
+.equ	TCCR1A_BIT_COM1B0	=0x10
+.equ	TCCR1A_BIT_COM1C1	=0x08
+.equ	TCCR1A_BIT_COM1C0	=0x04
+.equ	TCCR1A_BIT_WGM11	=0x02
+.equ	TCCR1A_BIT_WGM10	=0x01
+
+.equ	TCCR1B_BIT_ICNC1	=0x80
+.equ	TCCR1B_BIT_ICES1	=0x40
+.equ	TCCR1B_BIT_WGM13	=0x10
+.equ	TCCR1B_BIT_WGM12	=0x08
+.equ	TCCR1B_BIT_CS12		=0x04
+.equ	TCCR1B_BIT_CS11		=0x02
+.equ	TCCR1B_BIT_CS10		=0x01
+
+.equ	TCCR1C_BIT_FOC1A	=0x80
+.equ	TCCR1C_BIT_FOC1B	=0x40
+.equ	TCCR1C_BIT_FOC1C	=0x20
+
+.equ	TIMSK1_BIT_ICIE1	=0x20
+.equ	TIMSK1_BIT_OCIE1C	=0x08
+.equ	TIMSK1_BIT_OCIE1B	=0x04
+.equ	TIMSK1_BIT_OCIE1A	=0x02
+.equ	TIMSK1_BIT_TOIE1	=0x01
+
+; =================================================================================================
 ; other constants
 ; =================================================================================================
 
