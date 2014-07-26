@@ -56,6 +56,8 @@
 ; registers reserved for particular things:
 .def	LINE_ADDR_H		=r29		; hijack 'Y' for line output stuff
 .def	LINE_ADDR_L		=r28
+.def	UDRE_ISR_TMP		=r2
+.def	UDRE_ISR_COUNT		=r3
 
 ;}}}
 
@@ -76,7 +78,6 @@ V_roffs:			; 16-bit current render offset into framebuffer
 V_roffs_h:	.space 1
 V_roffs_l:	.space 1
 
-V_xbleft:	.space 1	; 8-bit X bytes left.
 V_xxmask:	.space 1	; mask.
 
 A_vline:			; 16-bit address of scanline handler (NOTE: must be in first 64k)
@@ -188,7 +189,7 @@ PR_aline: ;{{{  rest-of-ISR for active lines (from DPY_START_RENDER .. DPY_STOP_
 	ldi	r18, PAL_CYC_OUTPUT_START
 	lds	r19, TCNT1L
 	sub	r18, r19
-	subi	r18, 3
+	subi	r18, 5
 .L10:
 	subi	r18, 3
 	brcc	10b
@@ -503,7 +504,7 @@ PR_aline: ;{{{  rest-of-ISR for active lines (from DPY_START_RENDER .. DPY_STOP_
 .L2:
 	; setup USART in SPI mode to blat data out
 	ldi	r18, 8
-	sts	V_xbleft, r18
+	mov	r3, r18
 
 	; setup 'Y' (r29:r28) to be address of line data start
 	lds	r29, V_roffs_h
@@ -513,12 +514,19 @@ PR_aline: ;{{{  rest-of-ISR for active lines (from DPY_START_RENDER .. DPY_STOP_
 
 	ldi	r18, 0xc0		; MSPIM mode
 	sts	UCSR1C, r18
-	ldi	r18, 0x28		; UDRIE, TXEN1
+	nop
+	nop
+	nop
+	ldi	r18, 0x60		; TXC1, UDRE1
+	sts	UCSR1A, r18		; clear any pending interrupts
+	ldi	r18, 0x68		; UDRIE, TXCIE, TXEN1
 	sts	UCSR1B, r18
 	ldi	r19:r18, 2		; baud rate
 	sts	UBRR1H, r19
 	sts	UBRR1L, r18
 	; transmitter up-and-running, UDRE interrupt will be ready to fire
+	;ld	r18, Y+
+	;sts	UDR1, r18
 
 	rjmp	9f
 .L8:
@@ -534,16 +542,16 @@ PR_aline: ;{{{  rest-of-ISR for active lines (from DPY_START_RENDER .. DPY_STOP_
 	lds	r18, V_vscale
 	cpi	r18, 0
 	breq	93f
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
 	dec	r18
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
 	rjmp	94f
 .L93:
 	ldi	r18, VSCALE
@@ -552,6 +560,7 @@ PR_aline: ;{{{  rest-of-ISR for active lines (from DPY_START_RENDER .. DPY_STOP_
 	adiw	r25:r24, HRES		; V_roffs += HRES
 	sts	V_roffs_h, r25
 	sts	V_roffs_l, r24
+	nop
 .L94:
 	sts	V_vscale, r18
 
@@ -607,12 +616,10 @@ VEC_usart1udre:	;{{{  interrupt for USART1 data register empty
 	ld	r16, Y+
 	sts	UDR1, r16
 
-	lds	r16, V_xbleft
-	dec	r16
-	sts	V_xbleft, r16
+	dec	r3
 	brne	1f
 
-	ldi	r16, 0x48		; UDRE interrupt off, transmitter and TX-complete interrupts still enabled.
+	ldi	r16, 0x40		; UDRE interrupt off, disable transmitter (TX-complete interrupt still enabled).
 	sts	UCSR1B, r16
 .L1:
 
@@ -677,7 +684,7 @@ vidhw_setup: ;{{{  sets up video generation stuff
 	;cbi	PORTD, 3		; TXD1 low
 
 	clr	r16
-	sts	V_xbleft, r16
+	mov	r3, r16
 	sts	V_xxmask, r16
 
 	ldi	r17:r16, 0		; baud
@@ -760,6 +767,35 @@ fb_clear: ;{{{  clears the framebuffer
 	pop	r16
 	ret
 ;}}}
+fb_pattern: ;{{{  fills the framebuffer with a pattern
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+	push	r24
+	push	r25
+	push	XL
+	push	XH
+
+	ldi	XH:XL, V_framebuffer
+	ldi	r25:r24, (HRES * VRES)
+	clr	r16
+.L1:
+	add	r16, XL
+	st	X+, r16
+	sbiw	r25:r24, 1
+	brne	1b
+
+	pop	XH
+	pop	XL
+	pop	r25
+	pop	r24
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+;}}}
 
 
 VEC_reset:
@@ -769,11 +805,14 @@ VEC_reset:
 	ldi	r16, lo(RAMEND)
 	out	SPL, r16
 
-	rcall	fb_clear
+	rcall	fb_pattern
 	rcall	vidhw_setup
 
 	sei				; enable interrupts
 
 loop:
-	sleep
+	;sleep
+	nop
+	nop
+	nop
 	rjmp	loop
