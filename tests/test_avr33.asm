@@ -27,7 +27,7 @@
 .equ	PAL_CYC_SCANLINE	=1023
 .equ	PAL_CYC_COLOUR_START	=85
 .equ	PAL_CYC_OUTPUT_START	=178	; 175
-.equ	PAL_CYC_VGATE_START	=190	; turn on here
+.equ	PAL_CYC_VGATE_START	=195	; turn on here
 
 ; video connection
 .equ	VID_PORT		=PORTD
@@ -173,337 +173,12 @@ PR_aline: ;{{{  rest-of-ISR for active lines (from DPY_START_RENDER .. DPY_STOP_
 	ldi	r19:r18, DPY_STOP_RENDER
 	cp	r16, r18
 	cpc	r17, r19
-	breq	7f			; branch if V_scanline == DPY_STOP_RENDER  (and not rendering this line)
+	breq	8f			; branch if V_scanline == DPY_STOP_RENDER  (and not rendering this line)
 
 	; okis, rendering this one.
-	ldi	r19:r18, 157
-	cp	r16, r18
-	cpc	r17, r19
 
-	brsh	1f
-	rjmp	2f
-.L7:
-	rjmp	8f
-.L1:
-	;{{{  wait for PAL_CYC_OUTPUT_START cycles (based on TIMER1 value)
-	ldi	r18, PAL_CYC_OUTPUT_START
-	lds	r19, TCNT1L
-	sub	r18, r19
-	subi	r18, 5
-.L10:
-	subi	r18, 3
-	brcc	10b
-	subi	r18, 253
-	breq	11f
-	dec	r18
-	breq	12f
-	rjmp	12f
-.L11:
-	nop
-.L12:
-	;}}}
-	;{{{  TEST
-
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	nop
-
-	nop	; 2 blank pixels
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	nop
-
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	nop
-
-	nop	; back to /6
-	nop
-
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	nop
-
-	nop	; back to /6
-	nop
-	nop
-	nop
-
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	nop
-
-	sbi	VID_PORT, VID_PIN
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-
-	nop	; back to /6
-	nop
-
-	sbi	VID_PORT, VID_PIN
-	cbi	VID_PORT, VID_PIN
-	sbi	VID_PORT, VID_PIN
-	cbi	VID_PORT, VID_PIN
-	sbi	VID_PORT, VID_PIN
-	cbi	VID_PORT, VID_PIN
-	sbi	VID_PORT, VID_PIN
-	cbi	VID_PORT, VID_PIN
-	sbi	VID_PORT, VID_PIN
-	cbi	VID_PORT, VID_PIN
-	sbi	VID_PORT, VID_PIN
-	cbi	VID_PORT, VID_PIN
-	sbi	VID_PORT, VID_PIN
-	cbi	VID_PORT, VID_PIN
-	sbi	VID_PORT, VID_PIN
-	cbi	VID_PORT, VID_PIN
-
-	nop	; back to /6
-	nop
-
-	sbi	VID_PORT, VID_PIN
-	cbi	VID_PORT, VID_PIN
-	nop
-	sbi	VID_PORT, VID_PIN
-	cbi	VID_PORT, VID_PIN
-	nop
-	sbi	VID_PORT, VID_PIN
-	cbi	VID_PORT, VID_PIN
-	nop
-	sbi	VID_PORT, VID_PIN
-	cbi	VID_PORT, VID_PIN
-	nop
-
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-	sbi	VID_PORT, VID_PIN
-	nop
-	nop
-	cbi	VID_PORT, VID_PIN
-	nop
-
-	nop	; back to /6
-	nop
-
-	;}}}
-	rjmp	9f
-.L2:
 	; setup USART in SPI mode to blat data out
-	ldi	r18, 8
+	ldi	r18, HRES
 	mov	r3, r18
 
 	; setup 'Y' (r29:r28) to be address of line data start
@@ -517,6 +192,15 @@ PR_aline: ;{{{  rest-of-ISR for active lines (from DPY_START_RENDER .. DPY_STOP_
 	nop
 	nop
 	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
 	ldi	r18, 0x60		; TXC1, UDRE1
 	sts	UCSR1A, r18		; clear any pending interrupts
 	ldi	r18, 0x68		; UDRIE, TXCIE, TXEN1
@@ -525,8 +209,16 @@ PR_aline: ;{{{  rest-of-ISR for active lines (from DPY_START_RENDER .. DPY_STOP_
 	sts	UBRR1H, r19
 	sts	UBRR1L, r18
 	; transmitter up-and-running, UDRE interrupt will be ready to fire
+	ldi	r18, 0x00
 	;ld	r18, Y+
-	;sts	UDR1, r18
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	sts	UDR1, r18
 
 	rjmp	9f
 .L8:
@@ -637,6 +329,9 @@ VEC_usart1tx:	;{{{  interrupt for USART1 TX complete
 
 	ldi	r16, 0x00		; interrupt and transmit disable
 	sts	UCSR1B, r16
+	nop
+	nop
+	nop
 	sts	UBRR1H, r16		; set baud rate to zero
 	sts	UBRR1L, r16
 	cbi	PORTD, 3		; PD3 (TXD1) low
@@ -796,7 +491,230 @@ fb_pattern: ;{{{  fills the framebuffer with a pattern
 	pop	r16
 	ret
 ;}}}
+fb_setpixel: ;{{{  sets a pixel at r16,17 to r18 (0 or 1)
+	push	r0
+	push	r1
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+	push	r20
+	push	XL
+	push	XH
 
+	ldi	r19, HRES
+	ldi	r20, hi(V_framebuffer)
+	mul	r17, r19		; result left in r1:r0
+	mov	r19, r16
+	lsr	r19
+	lsr	r19
+	lsr	r19			; r19 = X / 8
+	add	r0, r19
+	adc	r1, r20			; r1:r0 = framebuffer offset
+	mov	r19, r16
+	andi	r19, 0x07		; r19 = X % 8
+	inc	r19
+	ldi	r20, 0x80
+.L1:
+	dec	r19
+	breq	2f
+	lsr	r20
+	rjmp	1b
+.L2:
+	; r20 has the appropriate bit
+	mov	XH, r1
+	mov	XL, r0
+	ld	r19, X
+	com	r20
+	and	r19, r20
+	com	r20
+	sbrc	r18, 0
+	or	r19, r20
+
+	st	X, r19
+
+	pop	XH
+	pop	XL
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
+	pop	r1
+	pop	r0
+	ret
+;}}}
+fb_xsetpixel: ;{{{  sets a pixel at r16,r17 (always sets)
+	push	r0
+	push	r1
+	push	r18
+	push	r19
+	push	r20
+	push	XL
+	push	XH
+
+	ldi	r19, HRES
+	ldi	r20, hi(V_framebuffer)
+	mul	r17, r19		; result of Y*HRES left in r1:r0
+
+	mov	r19, r16
+	lsr	r19
+	lsr	r19
+	lsr	r19			; r19 = X / 8
+	add	r0, r19
+	adc	r1, r20			; r1:r0 = framebuffer offset
+
+	mov	r19, r16
+	andi	r19, 0x07		; r19 = X % 8
+	inc	r19
+	ldi	r20, 0x80
+.L1:
+	dec	r19
+	breq	2f
+	lsr	r20
+	rjmp	1b
+.L2:
+	; r20 has the appropriate bit
+	mov	XH, r1
+	mov	XL, r0
+	ld	r19, X
+	or	r19, r20
+	st	X, r19
+
+	pop	XH
+	pop	XL
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r1
+	pop	r0
+	ret
+
+;}}}
+fb_hline: ;{{{  draw horizontal line from (r16,r17) for r18
+	push	r16
+	push	r18
+
+.L0:
+	rcall	fb_xsetpixel
+	inc	r16
+	dec	r18
+	brne	0b
+
+	pop	r18
+	pop	r16
+	ret
+
+
+;}}}
+fb_vline: ;{{{  draw vertical line from (r16,r17) for r18
+	push	r17
+	push	r18
+
+.L0:
+	rcall	fb_xsetpixel
+	inc	r17
+	dec	r18
+	brne	0b
+
+	pop	r18
+	pop	r17
+	ret
+
+
+;}}}
+fb_setbyte: ;{{{  write the 8-bits in r18 to the framebuffer at position (r16*8, r17)
+	push	r0
+	push	r1
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+	push	r20
+	push	XL
+	push	XH
+
+	ldi	r19, HRES
+	ldi	r20, hi(V_framebuffer)
+	mul	r17, r19		; result of Y*HRES left in r1:r0
+
+	add	r0, r16			; r1:r0 = framebuffer offset
+	adc	r1, r20
+
+	mov	XH, r1
+	mov	XL, r0
+	st	X, r18
+
+	pop	XH
+	pop	XL
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
+	pop	r1
+	pop	r0
+	ret
+
+
+;}}}
+fb_writechar_8x8: ;{{{  writes the ASCII char in r18 to the framebuffer at position (r16*8, r17) using 8x8 font;  updates r16
+	push	ZL
+	push	ZH
+
+
+	pop	ZH
+	pop	ZL
+	ret
+
+
+;}}}
+
+vid_waitbot: ;{{{  waits for the render to reach bottom of visible area (so we can start updating things)
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+
+	ldi	r19:r18, DPY_STOP_RENDER
+.L0:
+	lds	r17, V_scanline_h
+	lds	r16, V_scanline_l
+	cp	r16, r18
+	cpc	r17, r19
+	breq	1f
+	rjmp	0b
+.L1:
+
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+;}}}
+vid_waitbot1: ;{{{  waits for the render to reach just after bottom of visible area (forces delay with the above)
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+
+	ldi	r19:r18, DPY_STOP_RENDER+1
+.L0:
+	lds	r17, V_scanline_h
+	lds	r16, V_scanline_l
+	cp	r16, r18
+	cpc	r17, r19
+	breq	1f
+	rjmp	0b
+.L1:
+
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+
+;}}}
 
 VEC_reset:
 	cli				; disable interrupts
@@ -810,8 +728,72 @@ VEC_reset:
 
 	sei				; enable interrupts
 
+prg_code:
+	ldi	r16, 199		; 4 seconds
+.L0:
+	rcall	vid_waitbot1
+	rcall	vid_waitbot
+	dec	r16
+	brne	0b
+
+	ldi	r20, 1
+	ldi	r21, 1
+.L1:
+	rcall	fb_clear
+	ldi	r16, 0
+	ldi	r17, 0
+	ldi	r18, 128
+	rcall	fb_hline
+	ldi	r18, 96
+	rcall	fb_vline
+	ldi	r17, 95
+	ldi	r18, 128
+	rcall	fb_hline
+	ldi	r16, 127
+	ldi	r17, 0
+	ldi	r18, 96
+	rcall	fb_vline
+
+	ldi	r16, 2
+	ldi	r17, 0
+	ldi	r18, 96
+	rcall	fb_vline
+	ldi	r16, 4
+	rcall	fb_vline
+	ldi	r16, 7
+	rcall	fb_vline
+	ldi	r16, 11
+	rcall	fb_vline
+
+	; moving portions
+	ldi	r16, 0
+	mov	r17, r21
+	ldi	r18, 128
+	rcall	fb_hline
+
+	mov	r16, r20
+	ldi	r17, 0
+	ldi	r18, 96
+	rcall	fb_vline
+
+	inc	r21
+	cpi	r21, 96
+	brlo	2f
+	ldi	r21, 1
+.L2:
+
+	inc	r20
+	cpi	r20, 128
+	brlo	3f
+	ldi	r20, 1
+.L3:
+
+	rcall	vid_waitbot
+	rjmp	1b
+
 loop:
 	;sleep
+	nop
 	nop
 	nop
 	nop
