@@ -1,33 +1,64 @@
 ;
-;	test_avr33.asm -- testing for the ATMEGA2560
+;	test_avr33.asm -- testing for the ATMEGA2560: PAL display generation [for fun :)]
+;	Copyright (C) 2014, Fred Barnes, University of Kent <frmb@kent.ac.uk>.
 ;
 
 .mcu	"atmega2560"
 
 .include "atmega1280.inc"
 
+; GROT: this code is hardwired to a resolution of 128x96.
+; Source: a lot of the initial how-to I got from the Arduino TVout library [Myles Metzer, 2010].
+; Source: assorted inspiration / code observation from 'craft' [Linus Åkesson, 2008].
+
+;{{{  reserved registers (and calling convention)
+
+.def	UDRE_ISR_TMP		=r2		; for the UDRE interrupt routine: this needs to fire every 48 cycles or so to keep up when rendering
+.def	UDRE_ISR_COUNT		=r3
+
+.def	LINE_REGION		=r4		; these determine the vertical position in rendering
+.def	LINE_COUNT		=r5
+
+.def	LINE_ADDR_L		=r28		; use 'Y' exclusively for framebuffer line address when rendering
+.def	LINE_ADDR_H		=r29
+
+;}}}
 ;{{{  assorted constants
 ; own constants
 .equ	DWIDTH	=128
 .equ	DHEIGHT	=96
 
+.equ	VRES	=96
+.equ	HRES	=16			; bytes worth of framebuffer
+
 ; video generation constants
 .equ	CYC_V_SYNC	=940		; (940.6)
 .equ	CYC_H_SYNC	=74		; (74.2)
 
-.equ	PAL_TIME_SCANLINE	=64
-.equ	PAL_TIME_OUTPUT_START	=11
+.equ	PAL_CYC_SCANLINE	=1023	; 64us lines
+.equ	PAL_CYC_OUTPUT_START	=178
+.equ	PAL_CYC_VGATE_START	=195	; turn on here (OC1B)
 
-.equ	PAL_LINE_FRAME		=312
-.equ	PAL_LINE_START_VSYNC	=0
-.equ	PAL_LINE_STOP_VSYNC	=7
-.equ	PAL_LINE_DISPLAY	=260
-.equ	PAL_LINE_MID		=156	; (((PAL_LINE_FRAME - PAL_LINE_DISPLAY) / 2) + (PAL_LINE_DISPLAY / 2))
+; NOTE: r4 determines vertical region (0=active, 1=bblank, 2=vsync, 3=tblank),
+;       r5 is the particular line in that region.
+.equ	PAL_ACTIVE_LINES	=192
+.equ	PAL_TBLANK_LINES	=52
+.equ	PAL_VSYNC_LINES		=8
+.equ	PAL_BBLANK_LINES	=60
 
-.equ	PAL_CYC_SCANLINE	=1023
-.equ	PAL_CYC_COLOUR_START	=85
-.equ	PAL_CYC_OUTPUT_START	=178	; 175
-.equ	PAL_CYC_VGATE_START	=195	; turn on here
+;.equ	PAL_TIME_SCANLINE	=64
+;.equ	PAL_TIME_OUTPUT_START	=11
+;
+;.equ	PAL_LINE_FRAME		=312
+;.equ	PAL_LINE_START_VSYNC	=0
+;.equ	PAL_LINE_STOP_VSYNC	=7
+;.equ	PAL_LINE_DISPLAY	=260
+;.equ	PAL_LINE_MID		=156	; (((PAL_LINE_FRAME - PAL_LINE_DISPLAY) / 2) + (PAL_LINE_DISPLAY / 2))
+;
+;.equ	PAL_CYC_SCANLINE	=1023
+;.equ	PAL_CYC_COLOUR_START	=85
+;.equ	PAL_CYC_OUTPUT_START	=178	; 175
+;.equ	PAL_CYC_VGATE_START	=195	; turn on here
 
 ; video connection
 .equ	VID_PORT		=PORTD
@@ -44,45 +75,16 @@
 .equ	VGATE_PIN		=6
 .equ	VGATE_DDR		=DDRB
 
-; video stuff based on resolution
-.equ	VRES			=DHEIGHT
-.equ	HRES			=(DWIDTH >> 3)
-.equ	VSCALE			=1
-.equ	DPY_START_RENDER	=(PAL_LINE_MID - ((VRES * (VSCALE + 1)) / 2))
-.equ	DPY_STOP_RENDER		=(DPY_START_RENDER + (VRES * (VSCALE + 1)))
-.equ	DPY_VSYNC_END		=PAL_LINE_STOP_VSYNC
-.equ	DPY_LINES_FRAME		=PAL_LINE_FRAME
-
-; registers reserved for particular things:
-.def	LINE_ADDR_H		=r29		; hijack 'Y' for line output stuff
-.def	LINE_ADDR_L		=r28
-.def	UDRE_ISR_TMP		=r2
-.def	UDRE_ISR_COUNT		=r3
-
 ;}}}
 
 .data
 .org	0x400
 V_framebuffer: ;{{{  suitably sized b&w framebuffer
-	.space	((DWIDTH >> 3) * DHEIGHT)
+	.space	(HRES * VRES)
 
 ;}}}
 ;{{{  video variables
-V_scanline:			; 16-bit current scanline
-V_scanline_h:	.space 1
-V_scanline_l:	.space 1
-
-V_vscale:	.space 1	; 8-bit v-scale value (0..1)
-
-V_roffs:			; 16-bit current render offset into framebuffer
-V_roffs_h:	.space 1
-V_roffs_l:	.space 1
-
-V_xxmask:	.space 1	; mask.
-
-A_vline:			; 16-bit address of scanline handler (NOTE: must be in first 64k)
-A_vline_h:	.space 1
-A_vline_l:	.space 1
+; Meh, all gone!
 
 ;}}}
 
@@ -90,22 +92,61 @@ A_vline_l:	.space 1
 .include "atmega1280-imap.inc"
 
 VEC_timer1ovf:	;{{{  interrupt for TIMER1 overflow
-
+	; Note: this is triggered every 64us or so.  Exclusive so can use 'r2' (UDRE temporary).
+	in	r2, SREG			; save SREG
 	push	r16
 	push	r17
-	push	r18
-	push	r19
-	push	ZL
-	push	ZH
-	in	r16, SREG
-	push	r16
 
-	lds	r17, V_scanline_h		; r17:r16 = V_scanline
-	lds	r16, V_scanline_l
+	dec	r5				; next line please
+	brvc	5f				; straightforward: nothing special here
+	; rolled over, entering new region
+	mov	r16, r4				; current V region
+	cpi	r16, 0
+	breq	1f
+	cpi	r16, 1
+	breq	2f
+	cpi	r16, 2
+	breq	3f
+	; else must be 3 (top-blanking region), moving into active region
+	ldi	r16, PAL_ACTIVE_LINES-1
+	mov	r5, r16
+	clr	r4
+	; FIXME: enable VGATE
+	rjmp	5f
 
-	lds	ZH, A_vline_h			; Z (r31:r30) = A_vline
-	lds	ZL, A_vline_l
-	ijmp					; jump to the appropriate part of the handler
+.L1:	; leaving active region into bottom-blanking
+	ldi	r16, PAL_BBLANK_LINES-1
+	mov	r5, r16
+	inc	r4
+	rjmp	5f
+
+.L2:	; leaving bottom-blanking into vsync region
+	ldi	r16, PAL_VSYNC_LINES-1
+	mov	r5, r16
+	inc	r4
+	; set OC1A for VSYNC
+	ldi	r17:r16, CYC_V_SYNC
+	sts	OCR1AH, r17
+	sts	OCR1AL, r16
+	rjmp	5f
+
+.L3:	; leaving vsync region into top-blanking
+	ldi	r16, PAL_TBLANK_LINES-1
+	mov	r5, r16
+	inc	r4
+	; set OC1A timing for HSYNC
+	ldi	r17:r16, CYC_H_SYNC
+	sts	OCR1AH, r17
+	sts	OCR1AL, r16
+	rjmp	5f
+
+.L5:
+	; here we are in the new V region (r4).
+
+	pop	r17
+	pop	r16
+	out	SREG, r2			; restore SREG
+	reti
 
 ;}}}
 PR_vsync: ;{{{  rest-of-ISR for vsync lines, also initial case
