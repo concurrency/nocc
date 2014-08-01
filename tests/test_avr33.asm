@@ -152,6 +152,15 @@ VEC_timer1ovf:	;{{{  interrupt for TIMER1 overflow
 	rjmp	7f				;								[19]
 .L6:	; first active line [191]										-> [19]
 	; turn on OC1C and its interrupt
+	ldi	YH, hi(V_framebuffer)		;								[20]
+	ldi	YL, lo(V_framebuffer)		;								[21]
+	ldi	r16, TIFR1_BIT_OCF1C		;								[22]
+	sts	TIFR1, r16			; clear any past OC1C interrupt					[24]
+	ldi	r16, (TIMSK1_BIT_OCIE1C | TIMSK1_BIT_TOIE1)
+
+	ldi	r16, TIMSK1_BIT_OCIE1C
+	lds	r16, TIMSK1
+	ori	r16, TIMSK1_BIT_OCIE1C
 
 .L7:	; in active line [191-0]										-> [19]
 
