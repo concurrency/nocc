@@ -93,54 +93,69 @@ V_framebuffer: ;{{{  suitably sized b&w framebuffer
 
 VEC_timer1ovf:	;{{{  interrupt for TIMER1 overflow
 	; Note: this is triggered every 64us or so.  Exclusive so can use 'r2' (UDRE temporary).
-	in	r2, SREG			; save SREG
-	push	r16
-	push	r17
+	in	r2, SREG			; save SREG							[1]
+	push	r16				;								[3]
+	push	r17				;								[5]
 
-	dec	r5				; next line please
-	brvc	5f				; straightforward: nothing special here
+	dec	r5				; next line please						[6]
+	brvc	5f				; straightforward: nothing special here				[7+1]
 	; rolled over, entering new region
-	mov	r16, r4				; current V region
-	cpi	r16, 0
-	breq	1f
-	cpi	r16, 1
-	breq	2f
-	cpi	r16, 2
-	breq	3f
+	mov	r16, r4				; current V region						[8]
+	cpi	r16, 0				;								[9]
+	breq	1f				;								[10+1]
+	cpi	r16, 1				;								[11]
+	breq	2f				;								[12+1]
+	cpi	r16, 2				;								[13]
+	breq	3f				;								[14+1]
 	; else must be 3 (top-blanking region), moving into active region
-	ldi	r16, PAL_ACTIVE_LINES-1
-	mov	r5, r16
-	clr	r4
-	; FIXME: enable VGATE
-	rjmp	5f
+	ldi	r16, PAL_ACTIVE_LINES-1		;								[15]
+	mov	r5, r16				;								[16]
+	clr	r4				;								[17]
+	rjmp	6f				;								[19]
 
-.L1:	; leaving active region into bottom-blanking
-	ldi	r16, PAL_BBLANK_LINES-1
-	mov	r5, r16
-	inc	r4
-	rjmp	5f
+.L1:	; leaving active region into bottom-blanking								-> [11]
+	ldi	r16, PAL_BBLANK_LINES-1		;								[12]
+	mov	r5, r16				;								[13]
+	inc	r4				;								[14]
+	rjmp	9f				;								[16]
 
-.L2:	; leaving bottom-blanking into vsync region
-	ldi	r16, PAL_VSYNC_LINES-1
-	mov	r5, r16
-	inc	r4
+.L2:	; leaving bottom-blanking into vsync region								-> [13]
+	ldi	r16, PAL_VSYNC_LINES-1		;								[14]
+	mov	r5, r16				;								[15]
+	inc	r4				;								[16]
 	; set OC1A for VSYNC
-	ldi	r17:r16, CYC_V_SYNC
-	sts	OCR1AH, r17
-	sts	OCR1AL, r16
-	rjmp	5f
+	ldi	r17:r16, CYC_V_SYNC		;								[17]
+	sts	OCR1AH, r17			;								[19]
+	sts	OCR1AL, r16			;								[21]
+	rjmp	9f				;								[23]
 
-.L3:	; leaving vsync region into top-blanking
-	ldi	r16, PAL_TBLANK_LINES-1
-	mov	r5, r16
-	inc	r4
+.L3:	; leaving vsync region into top-blanking								-> [15]
+	ldi	r16, PAL_TBLANK_LINES-1		;								[16]
+	mov	r5, r16				;								[17]
+	inc	r4				;								[18]
 	; set OC1A timing for HSYNC
-	ldi	r17:r16, CYC_H_SYNC
-	sts	OCR1AH, r17
-	sts	OCR1AL, r16
-	rjmp	5f
+	ldi	r17:r16, CYC_H_SYNC		;								[19]
+	sts	OCR1AH, r17			;								[21]
+	sts	OCR1AL, r16			;								[23]
+	rjmp	9f				;								[25]
 
-.L5:
+.L5:						;								-> [8]
+	tst	r4				;								[9]
+	brne	9f				; branch if not in active region				[10+1]
+	nop					;								[11]
+	nop
+	nop
+	nop
+	nop					;								[15]
+	nop
+	nop
+	rjmp	7f				;								[19]
+.L6:	; first active line [191]										-> [19]
+	; turn on OC1C and its interrupt
+
+.L7:	; in active line [191-0]										-> [19]
+
+.L9:						;								-> [16, 23, 25, 11, 19]
 	; here we are in the new V region (r4).
 
 	pop	r17
@@ -340,6 +355,20 @@ ENDVEC_timer1ovf:  ;{{{  end-of-ISR code
 
 ;}}}
 
+;{{{  interrupt for TIMER1 comparator C
+VEC_timer1compc:
+	; can use r2 as temporary
+	in	r2, SREG
+	push	r16
+
+	; this is triggered shortly after the timer interrupt on active lines only to kick-off the USART
+
+	pop	r16
+	out	SREG, r2
+	reti
+
+
+;}}}
 VEC_usart1udre:	;{{{  interrupt for USART1 data register empty
 	push	r16
 	in	r16, SREG
