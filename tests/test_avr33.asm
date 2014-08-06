@@ -36,15 +36,15 @@
 .equ	CYC_H_SYNC	=74		; (74.2)
 
 .equ	PAL_CYC_SCANLINE	=1023	; 64us lines
-.equ	PAL_CYC_OUTPUT_START	=83
-.equ	PAL_CYC_VGATE_START	=208	; turn on here (OC1B)
+.equ	PAL_CYC_OUTPUT_START	=80
+.equ	PAL_CYC_VGATE_START	=195	; turn on here (OC1B)
 
 ; NOTE: r4 determines vertical region (0=active, 1=bblank, 2=vsync, 3=tblank),
 ;       r5 is the particular line in that region.
 .equ	PAL_ACTIVE_LINES	=192
-.equ	PAL_BBLANK_LINES	=59
+.equ	PAL_BBLANK_LINES	=60
 .equ	PAL_VSYNC_LINES		=9
-.equ	PAL_TBLANK_LINES	=52
+.equ	PAL_TBLANK_LINES	=51
 
 ; video connection
 .equ	VID_PORT		=PORTD
@@ -121,6 +121,7 @@ VEC_timer1ovf:	;{{{  interrupt for TIMER1 overflow
 	ldi	r17:r16, CYC_V_SYNC		;								[19]
 	sts	OCR1AH, r17			;								[21]
 	sts	OCR1AL, r16			;								[23]
+	sbi	PORTB, 7	; DEBUG
 
 	rjmp	9f				;								[25]
 
@@ -132,6 +133,8 @@ VEC_timer1ovf:	;{{{  interrupt for TIMER1 overflow
 	ldi	r17:r16, CYC_H_SYNC		;								[21]
 	sts	OCR1AH, r17			;								[23]
 	sts	OCR1AL, r16			;								[25]
+	cbi	PORTB, 7	; DEBUG
+
 	rjmp	9f				;								[27]
 
 .L5:						;								-> [10]
@@ -601,17 +604,17 @@ fb_writechar: ;{{{  writes the ASCII char in r18 to the framebuffer at position 
 	lsr	r19
 	lsr	r19
 	clr	r20
-	add	XL, r19			; addinto X
+	add	XL, r19			; add into X
 	adc	XH, r20
 
-	; FIXME: incomplete!
-
-	mov	r19, r16		;
-	andi	r19, 0x07		;
+	mov	r19, r16
+	andi	r19, 0x07		; bit start within byte
+	cpi	r19, 3
 	brne	0f
-	rjmp	fb_writechar_offs0
+	rjmp	fb_writechar_offs3	; simple case :)
 .L0:
-	dec	r19
+
+	; FIXME: incomplete!
 
 fb_writechar_cont:
 
@@ -628,7 +631,20 @@ fb_writechar_cont:
 fb_writechar_out:
 	ret
 
-fb_writechar_offs0:
+fb_writechar_offs3:
+	; XH:XL = address of byte in FB
+	; ZH:ZL = address of first character byte (5 LSBs)
+	; r16,r17 = pos; r18 = char;  r19-r21 = available.
+	ldi	r21, 7			; this many bytes please
+.L0:
+	ld	r20, X
+	lpm	r19, Z+
+	or	r20, r19		; OR character data into FB byte
+	st	X, r20
+	adiw	XH:XL, HRES		; next framebuffer line
+	dec	r21
+	brne	0b
+
 	rjmp	fb_writechar_cont
 
 ;}}}
@@ -705,16 +721,16 @@ prg_code:
 	ldi	r18, 96
 	rcall	fb_vline
 
-	ldi	r16, 2
-	ldi	r17, 0
-	ldi	r18, 96
-	rcall	fb_vline
-	ldi	r16, 4
-	rcall	fb_vline
-	ldi	r16, 7
-	rcall	fb_vline
-	ldi	r16, 11
-	rcall	fb_vline
+	;ldi	r16, 2
+	;ldi	r17, 0
+	;ldi	r18, 96
+	;rcall	fb_vline
+	;ldi	r16, 4
+	;rcall	fb_vline
+	;ldi	r16, 7
+	;rcall	fb_vline
+	;ldi	r16, 11
+	;rcall	fb_vline
 
 	; moving portions
 	ldi	r16, 0
@@ -738,6 +754,17 @@ prg_code:
 	brlo	3f
 	ldi	r20, 1
 .L3:
+
+	; slap in some text
+	ldi	r16, 11
+	ldi	r17, 3
+	ldi	r18, 'f'
+	rcall	fb_writechar
+
+	ldi	r16, 19
+	ldi	r17, 5
+	ldi	r18, 'b'
+	rcall	fb_writechar
 
 	rcall	vid_waitbot
 	rjmp	1b
