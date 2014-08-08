@@ -284,6 +284,36 @@
 .equ	TIFR1_BIT_OCF1A		=0x02
 .equ	TIFR1_BIT_TOV1		=0x01
 
+; UCSR1A (USART/MSPIM control and status register A)
+.equ	UCSR1A_BIT_RXC1		=0x80		; MSPIM
+.equ	UCSR1A_BIT_TXC1		=0x40		; MSPIM
+.equ	UCSR1A_BIT_UDRE1	=0x20		; MSPIM
+.equ	UCSR1A_BIT_FE1		=0x10
+.equ	UCSR1A_BIT_DOR1		=0x08
+.equ	UCSR1A_BIT_UPE1		=0x04
+.equ	UCSR1A_BIT_U2X1		=0x02
+.equ	UCSR1A_BIT_MPCM1	=0x01
+
+; UCSR1B (USART/MSPIM control and status register B)
+.equ	UCSR1B_BIT_RXCIE1	=0x80		; MSPIM
+.equ	UCSR1B_BIT_TXCIE1	=0x40		; MSPIM
+.equ	UCSR1B_BIT_UDRIE1	=0x20		; MSPIM
+.equ	UCSR1B_BIT_RXEN1	=0x10		; MSPIM
+.equ	UCSR1B_BIT_TXEN1	=0x08		; MSPIM
+.equ	UCSR1B_BIT_UCSZ12	=0x04
+.equ	UCSR1B_BIT_RXB81	=0x02
+.equ	UCSR1B_BIT_TXB81	=0x01
+
+; UCSR1C (USART/MSPIM control and status register C)
+.equ	UCSR1C_BIT_UMSEL11	=0x80		; MSPIM = 1
+.equ	UCSR1C_BIT_UMSEL10	=0x40		; MSPIM = 1
+.equ	UCSR1C_BIT_UPM11	=0x20
+.equ	UCSR1C_BIT_UPM10	=0x10
+.equ	UCSR1C_BIT_USBS1	=0x08
+.equ	UCSR1C_BIT_UCSZ11	=0x04		; MSPIM_BIT_UDORD1
+.equ	UCSR1C_BIT_UCSZ10	=0x02		; MSPIM_BIT_UCPHA1
+.equ	UCSR1C_BIT_UCPOL1	=0x01		; MSPIM_BIT_UCPOL1
+
 ; =================================================================================================
 ; other constants
 ; =================================================================================================
