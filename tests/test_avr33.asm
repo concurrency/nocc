@@ -13,13 +13,39 @@
 
 ; MORE GROT: the first handful of X pixels don't get shown for whatever reason (maybe just my display though).
 
+;{{{  hardware notes (wiring)
+; Video:				[Arduino pin]
+;	vsync/hsync:	OC1A / PB5	[11]
+;	vgate:		OC1B / PB6	[12]
+;	video-signal:	TXD1 / PD3	[18]
+; Sound:
+;	channel 1 hi:	OC3A / PE3	[5]
+;	channel 1 lo:	OC3B / PE4	[2]
+;	channel 2 hi:	OC4A / PH3	[6]
+;	channel 2 lo:	OC4B / PH4	[7]
+;	channel 3 hi:	OC5A / PL3	[46]
+;	channel 3 lo:	OC5B / PL4	[45]
+;
+;}}}
 ;{{{  reserved registers (and calling convention)
+
+; registers r0 and r1 available, generally MUL/FMUL target
 
 .def	UDRE_ISR_TMP		=r2		; for the UDRE interrupt routine: this needs to fire every 48 cycles or so to keep up when rendering
 .def	UDRE_ISR_COUNT		=r3
 
-.def	LINE_REGION		=r4		; these determine the vertical position in rendering
+.def	LINE_REGION		=r4		; bottom two bits determine the vertical position in rendering:
+						;	0 = active region
+						;	1 = bottom blanking
+						;	2 = vsync
+						;	3 = top blanking
+						; other bits:
 .def	LINE_COUNT		=r5
+
+.def	SND_FRAME		=r6		; current sound frame, updated when this hits zero
+.def	SND_C1VAL		=r7		; specific settings for channel 1
+.def	SND_C2VAL		=r8		; specific settings for channel 2
+.def	SND_C3VAL		=r9		; specific settings for channel 3
 
 .def	LINE_ADDR_L		=r28		; use 'Y' exclusively for framebuffer line address when rendering
 .def	LINE_ADDR_H		=r29
@@ -64,19 +90,118 @@
 .equ	VGATE_DDR		=DDRB
 
 ;}}}
+;{{{  music note constants
+.equ	NOTE_NOCHANGE	=0x00
+.equ	NOTE_OFF	=0x01
+
+.equ	NOTE_DRUM3	=0x02
+.equ	NOTE_DRUM2	=0x03
+.equ	NOTE_DRUM1	=0x04
+.equ	NOTE_DRUMLAST	=0x05
+
+.equ	NOTE_C2		=0x10	; 65.406
+.equ	NOTE_C2S	=0x11
+.equ	NOTE_D2		=0x12
+.equ	NOTE_D2S	=0x13
+.equ	NOTE_E2		=0x14
+.equ	NOTE_F2		=0x15
+.equ	NOTE_F2S	=0x16
+.equ	NOTE_G2		=0x17
+.equ	NOTE_G2S	=0x18
+.equ	NOTE_A2		=0x19	; 110.00
+.equ	NOTE_A2S	=0x1a
+.equ	NOTE_B2		=0x1b	; 123.47
+.equ	NOTE_C3		=0x1c	; 130.81
+.equ	NOTE_C3S	=0x1d
+.equ	NOTE_D3		=0x1e
+.equ	NOTE_D3S	=0x1f
+.equ	NOTE_E3		=0x20
+.equ	NOTE_F3		=0x21
+.equ	NOTE_F3S	=0x22
+.equ	NOTE_G3		=0x23
+.equ	NOTE_G3S	=0x24
+.equ	NOTE_A3		=0x25	; 220.00
+.equ	NOTE_A3S	=0x26
+.equ	NOTE_B3		=0x27	; 246.94
+.equ	NOTE_C4		=0x28	; 261.62
+.equ	NOTE_C4S	=0x29
+.equ	NOTE_D4		=0x2a
+.equ	NOTE_D4S	=0x2b
+.equ	NOTE_E4		=0x2c
+.equ	NOTE_F4		=0x2d
+.equ	NOTE_F4S	=0x2e
+.equ	NOTE_G4		=0x2f
+.equ	NOTE_G4S	=0x30
+.equ	NOTE_A4		=0x31	; 440.00
+.equ	NOTE_A4S	=0x32
+.equ	NOTE_B4		=0x33	; 493.88
+.equ	NOTE_C5		=0x34	; 523.25
+.equ	NOTE_C5S	=0x35
+.equ	NOTE_D5		=0x36
+.equ	NOTE_D5S	=0x37
+.equ	NOTE_E5		=0x38
+.equ	NOTE_F5		=0x39
+.equ	NOTE_F5S	=0x3a
+.equ	NOTE_G5		=0x3b
+.equ	NOTE_G5S	=0x3c
+.equ	NOTE_A5		=0x3d
+.equ	NOTE_A5S	=0x3e
+.equ	NOTE_B5		=0x3f	; 987.77
+.equ	NOTE_C6		=0x40	; 1046.5
+.equ	NOTE_C6S	=0x41
+.equ	NOTE_D6		=0x42
+.equ	NOTE_D6S	=0x43
+.equ	NOTE_E6		=0x44
+.equ	NOTE_F6		=0x45
+.equ	NOTE_F6S	=0x46
+.equ	NOTE_G6		=0x47
+.equ	NOTE_G6S	=0x48
+.equ	NOTE_A6		=0x49
+.equ	NOTE_A6S	=0x4a
+.equ	NOTE_B6		=0x4b	; 1975.5
+
+.equ	NOTE_END	=0xff
+;}}}
+;{{{  misc sound constants
+.equ	SOUND_SPEED		=12
+
+;}}}
 
 .data
 .org	0x400
-V_framebuffer: ;{{{  suitably sized b&w framebuffer
+V_framebuffer1: ;{{{  suitably sized b&w framebuffers  [3k of space]
+	.space	(HRES * VRES)
+
+V_framebuffer2:				; starts at 0xa00
 	.space	(HRES * VRES)
 
 ;}}}
 ;{{{  other variables
 V_scroll1:
-V_scroll1_h:
-	.space	1				; 16-bit organised as 13-bit:3-bit
-V_scroll1_l:
-	.space	1
+V_scroll1_h:	.space 1			; 16-bit organised as 13-bit:3-bit
+V_scroll1_l:	.space 1
+
+V_sndpos:
+V_sndpos_h:	.space 1			; 16-bit sound position
+V_sndpos_l:	.space 1
+
+V_bfreq_c1:
+V_bfreq_c1_h:	.space 1			; 16-bit channel 1 base frequency
+V_bfreq_c1_l:	.space 1
+
+V_afreq_c1:
+V_afreq_c1_h:	.space 1			; 16-bit channel 1 alternate frequency
+V_afreq_c1_l:	.space 1
+
+V_bfreq_c2:
+V_bfreq_c2_h:	.space 1			; 16-bit channel 2 base frequency
+V_bfreq_c2_l:	.space 1
+
+V_afreq_c2:
+V_afreq_c2_h:	.space 1			; 16-bit channel 2 alternate frequency
+V_afreq_c2_l:	.space 1
+
+V_rdrpnts:	.space (4 * 8)			; for now
 
 ;}}}
 
@@ -89,13 +214,13 @@ VEC_timer1ovf:	;{{{  interrupt for TIMER1 overflow
 	push	r16				;								[3]
 	push	r17				;								[5]
 
-	dec	r5				; next line please						[6]
-	mov	r16, r5				;								[7]
+	dec	LINE_COUNT			; next line please						[6]
+	mov	r16, LINE_COUNT			;								[7]
 	cpi	r16, 0xff			; see if we rolled over						[8]
 	brne	5f				; straightforward: nothing special here				[9+1]
 	; rolled over, entering new region
-	mov	r16, r4				; current V region						[10]
-	cpi	r16, 0				;								[11]
+	mov	r16, LINE_REGION		; current V region						[10]
+	andi	r16, 0x03			; only interested in low-order bits				[11]
 	breq	1f				;								[12+1]
 	cpi	r16, 1				;								[13]
 	breq	2f				;								[14+1]
@@ -103,14 +228,15 @@ VEC_timer1ovf:	;{{{  interrupt for TIMER1 overflow
 	breq	3f				;								[16+1]
 	; else must be 3 (top-blanking region), moving into active region
 	ldi	r16, PAL_ACTIVE_LINES-1		;								[17]
-	mov	r5, r16				;								[18]
-	clr	r4				;								[19]
-	rjmp	6f				;								[21]
+	mov	LINE_COUNT, r16			;								[18]
+	ldi	r16, 0xfc			; mask to clear							[19]
+	and	LINE_REGION, r16		;								[20]
+	rjmp	6f				;								[22]
 
 .L1:	; leaving active region into bottom-blanking								-> [13]
 	ldi	r16, PAL_BBLANK_LINES-1		;								[14]
-	mov	r5, r16				;								[15]
-	inc	r4				;								[16]
+	mov	LINE_COUNT, r16			;								[15]
+	inc	LINE_REGION			;								[16]
 	; better make sure we turn off OC1C here
 	ldi	r16, TIMSK1_BIT_TOIE1		;								[17]
 	sts	TIMSK1, r16			; turn off OC1C interrupt					[19]
@@ -122,19 +248,19 @@ VEC_timer1ovf:	;{{{  interrupt for TIMER1 overflow
 
 .L2:	; leaving bottom-blanking into vsync region								-> [15]
 	ldi	r16, PAL_VSYNC_LINES-1		;								[16]
-	mov	r5, r16				;								[17]
-	inc	r4				;								[18]
+	mov	LINE_COUNT, r16			;								[17]
+	inc	LINE_REGION			;								[18]
 	; set OC1A for VSYNC
 	ldi	r17:r16, CYC_V_SYNC		;								[19]
 	sts	OCR1AH, r17			;								[21]
 	sts	OCR1AL, r16			;								[23]
 
-	rjmp	9f				;								[25]
+	rjmp	8f				;								[25]
 
 .L3:	; leaving vsync region into top-blanking								-> [17]
 	ldi	r16, PAL_TBLANK_LINES-1		;								[18]
-	mov	r5, r16				;								[19]
-	inc	r4				;								[20]
+	mov	LINE_COUNT, r16			;								[19]
+	inc	LINE_REGION			;								[20]
 	; set OC1A timing for HSYNC
 	ldi	r17:r16, CYC_H_SYNC		;								[21]
 	sts	OCR1AH, r17			;								[23]
@@ -143,39 +269,239 @@ VEC_timer1ovf:	;{{{  interrupt for TIMER1 overflow
 	rjmp	9f				;								[27]
 
 .L5:						;								-> [10]
-	tst	r4				;								[11]
+	tst	LINE_REGION			;								[11]
 	brne	9f				; branch if not in active region				[12+1]
 	rjmp	7f				;								[14]
 
-.L6:	; first active line [191]										-> [21]
+.L8:						;								-> [25]
+	; here when in first vsync line, used to update sound stuff
+	dec	SND_FRAME			;								[26]
+	brne	1f				;								[27+1]
+	ldi	r16, SOUND_SPEED		;								[28]
+	mov	SND_FRAME, r16			;								[29]
+	rcall	next_sound_frame_isr		;								[33]
+						;								-> [..]
+	rjmp	9f
+
+.L1:	; land here in first vsync, but not new sound frame							-> [28]
+	rcall	stepx_sound_frame_isr		;								[32]
+						;								-> [..]
+	ldi	r16, SOUND_SPEED - 2		; in 3rd 1/50th part-frame?
+	cp	SND_FRAME, r16			;
+	brne	9f				;
+	rcall	step2_sound_frame_isr		;
+						;
+	rjmp	9f
+
+.L6:	; first active line [191]										-> [22]
 	; turn on OC1C and its interrupt
-	sbi	PORTB, 7	; DEBUG
-	ldi	YH, hi(V_framebuffer)		;								[22]
-	ldi	YL, lo(V_framebuffer)		;								[23]
-	ldi	r16, TIFR1_BIT_OCF1C		;								[24]
-	out	TIFR1, r16			; clear any past OC1C interrupt					[26]
+	;sbi	PORTB, 7	; DEBUG
+	sbrc	LINE_REGION, 7			;								[23]
+	ldi	YH, hi(V_framebuffer2)		;								[24]
+	sbrs	LINE_REGION, 7			;								[25]
+	ldi	YH, hi(V_framebuffer1)		;								[26]
+
+	clr	YL				;								[27]
+	ldi	r16, TIFR1_BIT_OCF1C		;								[28]
+	out	TIFR1, r16			; clear any past OC1C interrupt					[30]
 	;sts	TIFR1, r16
-	ldi	r16, (TIMSK1_BIT_OCIE1C | TIMSK1_BIT_TOIE1)	;						[27]
-	sts	TIMSK1, r16			; enable OC1C and overflow interrupts				[29]
-	cbi	PORTB, 7	; DEBUG
+	ldi	r16, (TIMSK1_BIT_OCIE1C | TIMSK1_BIT_TOIE1)	;						[31]
+	sts	TIMSK1, r16			; enable OC1C and overflow interrupts				[33]
+	;cbi	PORTB, 7	; DEBUG
 
 
-.L7:	; in active line [191-0]										-> [14, 29]
+.L7:	; in active line [191-0]										-> [14, 33]
 
-.L9:						;								-> [24, 25, 27, 13, 14, 29]
+.L9:						;								-> [24, 28, 27, 13, 14, 33]
 	; here we are in the new V region (r4).
 	;								-> [24] if just moved into bottom-blanking (and OC1C now all clear)
-	;								-> [25] if just moved into vsync (and now generating vsync pulses)
+	;								-> [28] if just moved into vsync (and now generating vsync pulses) and not a
+	;									new sound frame (SND_FRAME register > 0).
 	;								-> [27] if just moved into top-blanking (and now generating hsync pulses)
 	;								-> [13] if in the middle of some non-active region, possibly last time
 	;								-> [14] if in the middle of the active region
 	;								-> [29] if just moved into active region (and OC1C now enabled, YH:YL set)
 
-	pop	r17				;								[<= 30 cycles to here].
+	pop	r17				;								[<= 30 cycles to here in most cases].
 	pop	r16
 	out	SREG, r2			; restore SREG
 	reti
 
+;}}}
+next_sound_frame_isr: ;{{{  called from the video interrupt handler at the start of a vsync section to signal next sound frame
+	; Note: r16 and r17 are available
+	push	ZH
+	push	ZL
+	push	r25
+	push	r24
+
+	lds	r25, V_sndpos_h	
+	lds	r24, V_sndpos_l	
+	adiw	r25:r24, 4
+	sts	V_sndpos_h, r25
+	sts	V_sndpos_l, r24			; V_sndpos += 4
+
+	ldi	ZH, hi(D_soundtrk)
+	ldi	ZL, lo(D_soundtrk)
+
+	; Note: each set of notes/values is 
+	add	ZL, r24
+	adc	ZH, r25				; Z = address in D_soundtrk
+
+	lpm	r16, Z+				; load channel 1 note
+	lpm	r17, Z+				; load setting
+
+	cpi	r16, NOTE_END
+	breq	0f				; special case: end of tune
+
+	cpi	r16, NOTE_NOCHANGE
+	breq	2f				; keep doing what we were already doing (channel 1)
+	rcall	snd_playnote_c1			; start playing!
+.L2:
+
+	lpm	r16, Z+				; load channel 2 note
+	lpm	r17, Z+				; load setting
+
+	cpi	r16, NOTE_NOCHANGE
+	breq	2f				; keep doing what we were already doing (channel 2)
+	rcall	snd_playnote_c2			; start playing!
+.L2:
+
+	rjmp	1f
+.L0:
+	; end of tune, redo from start
+	clr	r16
+	sts	V_sndpos_h, r16
+	sts	V_sndpos_l, r16			; V_sndpos = 0
+.L1:
+
+	pop	r24
+	pop	r25
+	pop	ZL
+	pop	ZH
+	ret							;						[+5]
+;}}}
+stepx_sound_frame_isr: ;{{{  called from the video interrupt handler at the start of a vsync section to signal non-start part of sound frame (tremelo)
+	; Note: r16 and r17 are available
+	;{{{  channel 1 tremelo handling
+	mov	r16, SND_C1VAL
+	andi	r16, 0x40			; bit 6 (tremelo) set?
+	breq	1f
+
+	; yes, twiddle appropriately
+	push	r19
+	;{{{  ensure timer/counter3 is stopped
+	lds	r19, TCCR3B
+	andi	r19, ~(TCCR3B_BIT_CS32 | TCCR3B_BIT_CS31 | TCCR3B_BIT_CS30)
+	sts	TCCR3B, r19		; ensure stopped
+
+	;}}}
+	;{{{  load alternate or base frequency
+	mov	r16, SND_FRAME
+	andi	r16, 0x01		; low-bit set?
+	breq	2f			; nope, go for base frequency
+	; yes, load alternate frequency
+	lds	r17, V_afreq_c1_h
+	lds	r16, V_afreq_c1_l
+	rjmp	3f
+.L2:
+	; no, load base frequency
+	lds	r17, V_bfreq_c1_h
+	lds	r16, V_bfreq_c1_l
+.L3:
+	sts	ICR3H, r17
+	sts	ICR3H, r16
+	rcall	snd_setc1output
+
+	;}}}
+	; Note: keep r19 with TCCR3B bits in
+	;{{{  restart timer/counter3
+	ori	r19, TCCR3B_BIT_CS31	; prescale /8
+	sts	TCCR3B, r19
+
+	;}}}
+	pop	r19
+.L1:
+	;}}}
+	;{{{  channel 2 tremelo handling
+	mov	r16, SND_C2VAL
+	andi	r16, 0x40			; bit 6 (tremelo) set?
+	breq	1f
+
+	; yes, twiddle appropriately
+	push	r19
+	;{{{  ensure timer/counter4 is stopped
+	lds	r19, TCCR4B
+	andi	r19, ~(TCCR4B_BIT_CS42 | TCCR4B_BIT_CS41 | TCCR4B_BIT_CS40)
+	sts	TCCR4B, r19		; ensure stopped
+
+	;}}}
+	;{{{  load alternate or base frequency
+	mov	r16, SND_FRAME
+	andi	r16, 0x01		; low-bit set?
+	breq	2f			; nope, go for base frequency
+	; yes, load alternate frequency
+	lds	r17, V_afreq_c2_h
+	lds	r16, V_afreq_c2_l
+	rjmp	3f
+.L2:
+	; no, load base frequency
+	lds	r17, V_bfreq_c2_h
+	lds	r16, V_bfreq_c2_l
+.L3:
+	sts	ICR4H, r17
+	sts	ICR4H, r16
+	rcall	snd_setc2output
+
+	;}}}
+	; Note: keep r19 with TCCR3B bits in
+	;{{{  restart timer/counter4
+	ori	r19, TCCR4B_BIT_CS41	; prescale /8
+	sts	TCCR4B, r19
+
+	;}}}
+	pop	r19
+.L1:
+	;}}}
+	ret
+;}}}
+step2_sound_frame_isr: ;{{{  called from the video interrupt handler at the start of a vsync section to signal 2nd step in a sound frame
+	; Note: r16 and r17 are available
+	;{{{  channel 1 staccato handling
+	mov	r16, SND_C1VAL
+	andi	r16, 0x80			; high-bit (staccato) set?
+	breq	1f
+
+	; high-bit set, stop TIMER3 (channel 1)
+	lds	r16, TCCR3B
+	andi	r16, ~(TCCR3B_BIT_CS32 | TCCR3B_BIT_CS31 | TCCR3B_BIT_CS30)
+	sts	TCCR3B, r16		; ensure stopped
+
+	lds	r16, TCCR3A
+	andi	r16, ~(TCCR3A_BIT_COM3A1 | TCCR3A_BIT_COM3A0 | TCCR3A_BIT_COM3B1 | TCCR3A_BIT_COM3B0)
+	sts	TCCR3A, r16		; disconnect OC3A and OC3B
+
+	clr	SND_C1VAL
+.L1:
+	;}}}
+	;{{{  channel 2 staccato handling
+	mov	r16, SND_C2VAL
+	andi	r16, 0x80			; high-bit (staccato) set?
+	breq	1f
+
+	; high-bit set, stop TIMER4 (channel 2)
+	lds	r16, TCCR4B
+	andi	r16, ~(TCCR4B_BIT_CS42 | TCCR4B_BIT_CS41 | TCCR4B_BIT_CS40)
+	sts	TCCR4B, r16		; ensure stopped
+
+	lds	r16, TCCR4A
+	andi	r16, ~(TCCR4A_BIT_COM4A1 | TCCR4A_BIT_COM4A0 | TCCR4A_BIT_COM4B1 | TCCR4A_BIT_COM4B0)
+	sts	TCCR4A, r16		; disconnect OC4A and OC4B
+
+	clr	SND_C2VAL
+.L1:
+	;}}}
+	ret
 ;}}}
 VEC_timer1compc: ;{{{  interrupt for TIMER1 comparator C
 	; can use r2 as temporary
@@ -199,9 +525,6 @@ VEC_timer1compc: ;{{{  interrupt for TIMER1 comparator C
 
 	ldi	r16, HRES		; this many bytes more please
 	mov	r3, r16
-
-	;ld	r16, Y+			; first character to go out
-	;sts	UDR1, r16		; some zeros first -- padding
 
 	pop	r17
 	pop	r16
@@ -227,10 +550,10 @@ VEC_usart1udre:	;{{{  interrupt for USART1 data register empty
 	ldi	r16, UCSR1B_BIT_TXCIE1		; UDRE interrupt off, disable transmitter, TX-complete interrupt enable.
 	sts	UCSR1B, r16
 
-	mov	r16, r5			; r5 is active line [191 -> 0]
+	mov	r16, LINE_COUNT			; r5 is active line [191 -> 0]
 	andi	r16, 0x01
-	breq	1f			; branch if bit 0 is clear (2nd, 4th, etc.)
-	sbiw	YH:YL, HRES		; rewind please
+	breq	1f				; branch if bit 0 is clear (2nd, 4th, etc.)
+	sbiw	YH:YL, HRES			; rewind please
 .L1:
 
 	pop	r16
@@ -333,9 +656,9 @@ vidhw_setup: ;{{{  sets up video generation stuff
 
 	; setup location so next interrupt starts a vertical sync
 	ldi	r16, 3
-	mov	r4, r16
+	mov	LINE_REGION, r16
 	ldi	r16, 0
-	mov	r5, r16
+	mov	LINE_COUNT, r16
 
 	; setup TIMER1 for fast PWM mode, TOP=ICR1(=PAL_CYC_SCANLINE); OCR1A update at BOTTOM; overflow interrupt at TOP.
 	; attach OC1A inverted mode, OC1B inverted mode
@@ -355,17 +678,42 @@ vidhw_setup: ;{{{  sets up video generation stuff
 	pop	r16
 	ret
 ;}}}
-fb_clear: ;{{{  clears the framebuffer
+fb_clearall: ;{{{  clears the framebuffer (both of them)
 	push	r16
-	push	r17
-	push	r18
-	push	r19
 	push	r24
 	push	r25
 	push	XL
 	push	XH
 
-	ldi	XH:XL, V_framebuffer
+	ldi	XH:XL, V_framebuffer1
+	ldi	r25:r24, (HRES * VRES * 2)
+	clr	r16
+.L1:
+	st	X+, r16
+	sbiw	r25:r24, 1
+	brne	1b
+
+	pop	XH
+	pop	XL
+	pop	r25
+	pop	r24
+	pop	r16
+	ret
+;}}}
+fb_clear: ;{{{  clears the framebuffer
+	push	r16
+	push	r24
+	push	r25
+	push	XL
+	push	XH
+
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
+
+	clr	XL			; framebuffers start at known addresses
+
 	ldi	r25:r24, (HRES * VRES)
 	clr	r16
 .L1:
@@ -377,9 +725,6 @@ fb_clear: ;{{{  clears the framebuffer
 	pop	XL
 	pop	r25
 	pop	r24
-	pop	r19
-	pop	r18
-	pop	r17
 	pop	r16
 	ret
 ;}}}
@@ -393,7 +738,13 @@ fb_pattern: ;{{{  fills the framebuffer with a pattern
 	push	XL
 	push	XH
 
-	ldi	XH:XL, V_framebuffer
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
+
+	clr	XL			; framebuffers start at known addresses
+
 	ldi	r25:r24, (HRES * VRES)
 	clr	r16
 .L1:
@@ -412,169 +763,274 @@ fb_pattern: ;{{{  fills the framebuffer with a pattern
 	pop	r16
 	ret
 ;}}}
-fb_setpixel: ;{{{  sets a pixel at r16,17 to r18 (0 or 1)
-	push	r0
-	push	r1
+fb_xxsetpixel: ;{{{  sets a pixel at r16,r17 (always sets): hardcoded to know about HRES=16
+	push	r18
+	push	r19
+	push	XL
+	push	XH
+
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
+
+	mov	XL, r17
+	swap	XL			; low-order bits * 16
+	mov	r18, XL
+	andi	r18, 0x0f		; save high-order bits of Y
+	andi	XL, 0xf0		; cull these in X
+	add	XH, r18			; add these in
+
+	ldi	r19, 0x80		; bit we'll add in
+	mov	r18, r16
+	sbrc	r18, 0			; shift r19 right appropriately
+	lsr	r19
+	sbrc	r18, 1
+	lsr	r19
+	sbrc	r18, 1
+	lsr	r19
+	sbrc	r18, 2
+	swap	r19			; swap rather than shift by 4
+
+	lsr	r18
+	lsr	r18
+	lsr	r18			; r18 = X/8  (now 0-15)
+	or	XL, r18			; pick right address
+
+	ld	r18, X			; set bit in framebuffer
+	or	r18, r19
+	st	X, r18
+
+	pop	XH
+	pop	XL
+	pop	r19
+	pop	r18
+	ret
+;}}}
+fb_xhline: ;{{{  draw horizontal line from (r16,r17) for r18: hardcoded to know about HRES=16
 	push	r16
-	push	r17
 	push	r18
 	push	r19
 	push	r20
 	push	XL
 	push	XH
 
-	ldi	r19, HRES
-	ldi	r20, hi(V_framebuffer)
-	mul	r17, r19		; result left in r1:r0
+	; setup X register for framebuffer, correct line to start
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
+
+	mov	XL, r17
+	swap	XL			; low-order bits * 16
+	mov	r19, XL
+	andi	r19, 0x0f		; save high-order bits of Ypos
+	andi	XL, 0xf0		; cull these in XL
+	add	XH, r19			; add these in
+
+	; assert: XH:XL points at the start of the relevant line
 	mov	r19, r16
 	lsr	r19
 	lsr	r19
-	lsr	r19			; r19 = X / 8
-	add	r0, r19
-	adc	r1, r20			; r1:r0 = framebuffer offset
+	lsr	r19			; r19 = X / 8, starting byte in line
+	or	XL, r19			; set X to relevant start byte
+
+	mov	r19, r16		; 
+	andi	r19, 0x07		; r19 = Xpos % 8
+	add	r19, r18		;       + Length
+	andi	r19, 0xf8		; look at high-order bits
+	brne	0f			; branch if more than 1 byte of framebuffer
+	; assert: relevant line fits in a single framebuffer byte
+	rjmp	5f
+.L0:
 	mov	r19, r16
-	andi	r19, 0x07		; r19 = X % 8
-	inc	r19
-	ldi	r20, 0x80
-.L1:
-	dec	r19
-	breq	2f
+	andi	r19, 0x07		; starting at multiple of 8?
+	breq	2f			; yes, so skip partial filling
+
+	; assert: multiple bytes needed, so first and last may be partially filled
+	ldi	r20, 0xff		; fill all pixels by default
+
+	sbrc	r16, 0			; shift r20 right appropriately
 	lsr	r20
-	rjmp	1b
-.L2:
-	; r20 has the appropriate bit
-	mov	XH, r1
-	mov	XL, r0
+	sbrc	r16, 1
+	lsr	r20
+	sbrc	r16, 1
+	lsr	r20
+	sbrc	r16, 2
+	swap	r20
+	sbrc	r16, 2
+	andi	r20, 0x0f		; r20 now has the correct starting-bit pattern
+
+	; fill in first byte
 	ld	r19, X
-	com	r20
-	and	r19, r20
-	com	r20
+	or	r19, r20
+	st	X+, r19
+
+	; adjust length appropriately
+	mov	r19, r16
+	dec	r19
+	ldi	r20, 0x07
+	eor	r19, r20
+	andi	r19, 0x07		; r19 is now the number of pixels we just filled in
+	sub	r18, r19		; and remove from length
+
+.L2:
+	; for each block of 8 pixels, just fill in the byte at X
+	ldi	r20, 0xff
+.L0:
+	cpi	r18, 8
+	brlo	1f			; if less than 8 left, special handling
+	st	X+, r20			; fill in this one
+	subi	r18, 8
+	rjmp	0b			; and round again
+.L1:
+	; some bits left over maybe
+	cpi	r18, 0
+	breq	2f			; do nothing if none left :)
+	dec	r18
+	ldi	r20, 0x80		; starting bit
+	sec
 	sbrc	r18, 0
-	or	r19, r20
+	ror	r20			; filled bit
+	sec
+	sbrc	r18, 1
+	ror	r20			; filled bit
+	sec
+	sbrc	r18, 1
+	ror	r20			; filled bit
+	sbrc	r18, 2			; if bit 2 is set, paint upper nibble
+	swap	r20
+	sbrc	r18, 2
+	ori	r20, 0xf0
 
-	st	X, r19
+	ld	r19, X
+	or	r19, r20
+	st	X, r19			; put last byte in place
+.L2:
+	; and we're done :)
 
 	pop	XH
 	pop	XL
 	pop	r20
 	pop	r19
 	pop	r18
-	pop	r17
 	pop	r16
-	pop	r1
-	pop	r0
 	ret
+
+	; Note: put this code down here to stay clear of [short] conditional branches
+.L5:					; horizontal line fits in byte
+	; r18 has the number of bits we need to set (1-7), XH:XL points at the relevant framebuffer byte
+	dec	r18
+	ldi	r20, 0x80		; starting bit
+	sec
+	sbrc	r18, 0
+	ror	r20			; filled bit
+	sec
+	sbrc	r18, 1
+	ror	r20			; filled bit
+	sec
+	sbrc	r18, 1
+	ror	r20			; filled bit
+	sbrc	r18, 2			; if bit 2 set, paint upper nibble
+	swap	r20
+	sbrc	r18, 2
+	ori	r20, 0xf0
+
+	andi	r16, 0x07
+.L0:
+	breq	1f			; branch of nowt left
+	lsr	r20			; shift bits right (others will fall off end)
+	dec	r16
+	rjmp	0b			; keep status bits
+.L1:
+	; and park
+	ld	r16, X
+	or	r16, r20
+	st	X, r16
+
+	rjmp	2b			; jump back to get out
+
 ;}}}
-fb_xsetpixel: ;{{{  sets a pixel at r16,r17 (always sets)
-	push	r0
-	push	r1
+fb_xvline: ;{{{  draw vertical line from (r16,r17) for r18: hardcoded to know about HRES=16
+	push	r16
 	push	r18
 	push	r19
-	push	r20
 	push	XL
 	push	XH
 
-	ldi	r19, HRES
-	ldi	r20, hi(V_framebuffer)
-	mul	r17, r19		; result of Y*HRES left in r1:r0
+	; setup X register for framebuffer
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
 
-	mov	r19, r16
-	lsr	r19
-	lsr	r19
-	lsr	r19			; r19 = X / 8
-	add	r0, r19
-	adc	r1, r20			; r1:r0 = framebuffer offset
+	mov	XL, r17
+	swap	XL			; low-order bits * 16
+	mov	r19, XL
+	andi	r19, 0x0f		; save high-order bits of Y
+	andi	XL, 0xf0		; cull these in X
+	add	XH, r19			; add these in
 
-	mov	r19, r16
-	andi	r19, 0x07		; r19 = X % 8
-	inc	r19
-	ldi	r20, 0x80
-.L1:
-	dec	r19
-	breq	2f
-	lsr	r20
-	rjmp	1b
-.L2:
-	; r20 has the appropriate bit
-	mov	XH, r1
-	mov	XL, r0
-	ld	r19, X
-	or	r19, r20
-	st	X, r19
+	ldi	r19, 0x80		; bit we'll add in
+	sbrc	r16, 0			; shift r19 right appropriately
+	lsr	r19
+	sbrc	r16, 1
+	lsr	r19
+	sbrc	r16, 1
+	lsr	r19
+	sbrc	r16, 2
+	swap	r19			; swap rather than shift by 4
+
+	lsr	r16
+	lsr	r16
+	lsr	r16			; r16 = X/8  (now 0-15)
+	or	XL, r16			; pick right address
+
+	; Note: don't need r16 anymore, r17 must be untouched
+.L0:
+	ld	r16, X			; set bit in framebuffer
+	or	r16, r19
+	st	X, r16
+
+	adiw	XH:XL, 16		; next line please
+	dec	r18
+	brne	0b
 
 	pop	XH
 	pop	XL
-	pop	r20
 	pop	r19
 	pop	r18
-	pop	r1
-	pop	r0
-	ret
-
-;}}}
-fb_hline: ;{{{  draw horizontal line from (r16,r17) for r18
-	push	r16
-	push	r18
-
-.L0:
-	rcall	fb_xsetpixel
-	inc	r16
-	dec	r18
-	brne	0b
-
-	pop	r18
 	pop	r16
-	ret
 
-
-;}}}
-fb_vline: ;{{{  draw vertical line from (r16,r17) for r18
-	push	r17
-	push	r18
-
-.L0:
-	rcall	fb_xsetpixel
-	inc	r17
-	dec	r18
-	brne	0b
-
-	pop	r18
-	pop	r17
 	ret
 
 
 ;}}}
 fb_setbyte: ;{{{  write the 8-bits in r18 to the framebuffer at position (r16*8, r17)
-	push	r0
-	push	r1
-	push	r16
-	push	r17
-	push	r18
 	push	r19
-	push	r20
 	push	XL
 	push	XH
 
-	ldi	r19, HRES
-	ldi	r20, hi(V_framebuffer)
-	mul	r17, r19		; result of Y*HRES left in r1:r0
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
 
-	add	r0, r16			; r1:r0 = framebuffer offset
-	adc	r1, r20
+	mov	XL, r17
+	swap	XL			; low-order bits * 16
+	mov	r19, XL
+	andi	r19, 0x0f		; save high-order bits of Ypos
+	andi	XL, 0xf0		; cull these in XL
+	add	XH, r19			; add these in
 
-	mov	XH, r1
-	mov	XL, r0
+	; assert: XH:XL points at the start of the relevant line
+	or	XL, r16			; appropriate byte
+
 	st	X, r18
 
 	pop	XH
 	pop	XL
-	pop	r20
 	pop	r19
-	pop	r18
-	pop	r17
-	pop	r16
-	pop	r1
-	pop	r0
 	ret
 
 
@@ -612,13 +1068,19 @@ fb_writechar: ;{{{  writes the ASCII char in r18 to the framebuffer at position 
 	adc	ZH, r1
 
 	; point X at the first byte in the framebuffer of interest
-	ldi	XH, hi(V_framebuffer)
-	ldi	XL, lo(V_framebuffer)
-	ldi	r19, HRES		; bytes per line
-	mul	r17, r19		; Y*HRES in r1:r0
-	add	XL, r0
-	adc	XH, r1
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
 
+	mov	XL, r17
+	swap	XL			; low-order bits * 16
+	mov	r19, XL
+	andi	r19, 0x0f		; save high-order bits of Ypos
+	andi	XL, 0xf0		; cull these in XL
+	add	XH, r19			; add these in
+
+	; assert: XH:XL points at the start of the relevant line
 	tst	r16			; see if X is negative (or >= 128)
 	brpl	1f			; nope, straightforward
 
@@ -1093,15 +1555,20 @@ fb_pbyteblit: ;{{{  does byte-chunk blitting from program memory to the framebuf
 	push	ZL
 	push	ZH
 
-	ldi	XH, hi(V_framebuffer)
-	ldi	XL, lo(V_framebuffer)
-	ldi	r20, HRES
-	mul	r17, r20			; r1:r0 = Y * HRES
-	add	XL, r0
-	adc	XH, r1
-	clr	r20
-	add	XL, r16				; add target X (*8)
-	adc	XH, r20
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
+
+	mov	XL, r17
+	swap	XL			; low-order bits * 16
+	mov	r20, XL
+	andi	r20, 0x0f		; save high-order bits of Ypos
+	andi	XL, 0xf0		; cull these in XL
+	add	XH, r20			; add these in
+
+	; assert: XH:XL points at the start of the relevant line
+	or	XL, r16			; appropriate byte
 
 	; X now points at the start in the framebuffer, can re-use r16/r17
 
@@ -1155,6 +1622,7 @@ fb_drawline: ;{{{  draws a line starting at (r16,r17) [unsigned] for (r18,r19) [
 	push	XL
 	push	XH
 
+fb_drawline_redo:
 	cpi	r17, 96
 	brlo	0f			; in range (unsigned)
 	rjmp	9f			; outside raster
@@ -1166,10 +1634,163 @@ fb_drawline: ;{{{  draws a line starting at (r16,r17) [unsigned] for (r18,r19) [
 	cpi	r18, 0
 	brne	0f
 
-	; FIXME: incomplete!
-	nop
+	; assert: vertical line, from (r16,r17) for r19
+	tst	r19
+	brpl	1f
+
+	; flip around
+	neg	r19
+	sub	r17, r19
+	rjmp	fb_drawline_redo
+
+.L1:
+	; assert: vertical line, from (r16,r17) for r19
+	mov	r18, r19
+	rcall	fb_xvline
+	rjmp	9f
 
 .L0:
+	cpi	r19, 0
+	brne	0f
+
+	; assert: horizontal line, from (r16,r17) for r18
+	tst	r18
+	brpl	1f
+
+	; flip around
+	neg	r18
+	sub	r16, r18
+	rjmp	fb_drawline_redo
+
+.L1:
+	; assert: horizontal line, from (r16,r17) for r18
+	rcall	fb_xhline
+	rjmp	9f
+
+.L0:
+	; assert: some diagonal line sort
+	; NOTE:
+	;	r20 = d
+	;	r10 = strt
+	;	r11 = diag
+	;
+	;	r12 = adx,	r13 = ady
+	;	r14 = sx,	r15 = sy
+	;	r16 = x,	r17 = y
+	;	r18 = dx,	r19 = dy
+
+	;{{{  init adx, sx
+	tst	r18
+	brpl	0f
+
+	mov	r12, r18
+	neg	r12		; adx = -dx
+	clr	r14
+	dec	r14		; dx = -1
+	rjmp	1f
+.L0:
+	mov	r12, r18	; adx = dx
+	clr	r14
+	inc	r14		; sx = 1
+.L1:
+
+	;}}}
+	;{{{  init ady, sy
+	tst	r19
+	brpl	0f
+
+	mov	r13, r19
+	neg	r13		; ady = -dy
+	clr	r15
+	dec	r15		; sy = -1
+	rjmp	1f
+.L0:
+	mov	r13, r19	; ady = dy
+	clr	r15
+	inc	r15		; sy = 1
+.L1:
+	;}}}
+
+	cp	r12, r13
+	brsh	0f
+	rjmp	1f
+.L0:
+	;{{{  adx >= ady
+	mov	r10, r13
+	lsl	r10		; strt = 2 * ady
+	mov	r11, r13
+	sub	r11, r12
+	lsl	r11		; diag = 2 * (ady - adx)
+	mov	r20, r10
+	sub	r20, r12	; d = strt - adx
+.L2:				; while (run) ...
+	tst	r12
+	brmi	3f		; if (adx < 0), stop
+	tst	r16
+	brmi	3f		; if ((x < 0) || (x >= 128)), stop
+	tst	r17
+	brmi	3f		; if (y < 0), stop
+	cpi	r17, 96
+	brsh	3f		; if (y >= 96), stop
+
+	;{{{  guts of X render loop
+	rcall	fb_xxsetpixel	; plot point
+	add	r16, r14	; x += sx
+	dec	r12		; adx--
+	tst	r20
+	breq	4f		; if (d == 0)
+	brmi	4f		;    || (d < 0), ..
+	; assert: d > 0
+	add	r20, r11	; d += diag
+	add	r17, r15	; y += sy
+	rjmp	2b
+.L4:
+	; assert: d <= 0
+	add	r20, r10	; d += strt
+	rjmp	2b
+	;}}}
+
+.L3:
+	;}}}
+	rjmp	9f		; all done, get out :)
+.L1:
+	;{{{  ady > adx
+	mov	r10, r12
+	lsl	r10		; strt = 2 * adx
+	mov	r11, r12
+	sub	r11, r13
+	lsl	r11		; diag = 2 * (adx - ady)
+	mov	r20, r10
+	sub	r20, r13	; d = strt - ady
+.L2:				; while (run) ...
+	tst	r13
+	brmi	3f		; if (ady < 0), stop
+	tst	r17
+	brmi	3f		; if (y < 0), stop
+	cpi	r17, 96
+	brsh	3f		; if (y >= 96), stop
+	tst	r16
+	brmi	3f		; if ((x < 0) || (x >= 128)), stop
+
+	;{{{  guts of Y render loop
+	rcall	fb_xxsetpixel	; plot point
+	add	r17, r15	; y += sy
+	dec	r13		; ady--
+	tst	r20
+	breq	4f		; if (d == 0)
+	brmi	4f		;    || (d < 0)
+	; assert: d > 0
+	add	r20, r11	; d += diag
+	add	r16, r14	; x += sx
+	rjmp	2b
+.L4:
+	; assert: d <= 0
+	add	r20, r10	; d += strt
+	rjmp	2b
+	;}}}
+
+.L3:
+	;}}}
 
 .L9:
 	pop	XH
@@ -1185,15 +1806,296 @@ fb_drawline: ;{{{  draws a line starting at (r16,r17) [unsigned] for (r18,r19) [
 	pop	r1
 	pop	r0
 ;}}}
+fb_xdrawline: ;{{{  draws a line starting at (r16,r17) [unsigned] for (r18,r19) [signed]: hard-coded to know about HRES=16
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+	push	r20
+	push	r21
+	push	r22
+	push	r23
+	push	XL
+	push	XH
+
+fb_xdrawline_redo:
+	;{{{  check for horizontal and vertical lines first (jmp to L9)
+	cpi	r17, 96
+	brlo	0f			; in range (unsigned)
+	rjmp	9f			; outside raster
+.L0:
+	tst	r16
+	brpl	0f			; is positive
+	rjmp	9f			; negative, so outside raster (left or right = same thing)
+.L0:
+	cpi	r18, 0			; vertical line?
+	brne	0f			; nope -> branch
+
+	; assert: vertical line, from (r16,r17) for r19
+	tst	r19
+	brpl	1f			; direction is positive
+
+	; else, negative line, flip around
+	neg	r19
+	sub	r17, r19		; move Y down by the right amount
+	rjmp	fb_xdrawline_redo	; start again (need to check that we're in the raster still)
+.L1:
+	; assert: vertical line positive, from (r16,r17) for r19
+	mov	r18, r19
+	rcall	fb_xvline
+	rjmp	9f			; all done, get out!
+
+.L0:	; not a vertical line
+	cpi	r19, 0			; horizontal line?
+	brne	0f			; nope -> branch
+
+	; assert: horizontal line, from (r16,r17) for r18
+	tst	r18
+	brpl	1f
+
+	; else, negative size, flip around
+	neg	r18
+	sub	r16, r18		; move X back by the right amount
+	rjmp	fb_xdrawline_redo	; start again (need to check that we're in the raster still)
+.L1:
+	; assert: horizontal line, from (r16,r17) for r18
+	rcall	fb_xhline
+	rjmp	9f
+.L0:
+	;}}}
+	; assert: some diagonal line sort
+	; NOTE:
+	;	r20 = d
+	;	r10 = strt
+	;	r11 = diag
+	;	r21 = running bit
+	;	r22 = temp
+	;
+	;	r23[0] = sx-neg, r23[1] = sy-neg
+	;
+	;	r12 = adx,	r13 = ady
+	;	r16 = x,	r17 = y				; params
+	;	r18 = dx,	r19 = dy			; params
+	;
+	;	XH:XL = running framebuffer offset
+
+	clr	r23		; because we'll use this for storing both direction flags
+
+	;{{{  init adx, sx
+	mov	r12, r18	; adx = dx
+	tst	r18
+	brpl	0f
+
+	neg	r12		; adx = -adx
+	ori	r23, 0x01
+.L0:
+
+	;}}}
+	;{{{  init ady, sy
+	mov	r13, r19	; ady = dy
+	tst	r19
+	brpl	0f
+
+	neg	r13		; ady = -ady
+	ori	r23, 0x02
+.L0:
+	;}}}
+	;{{{  setup XH:XL for right framebuffer start byte (trashes r20)
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
+
+	mov	XL, r17
+	swap	XL			; low-order bits of Y * 16
+	mov	r20, XL
+	andi	r20, 0x0f		; save high-order bits of Ypos
+	andi	XL, 0xf0		; cull in XL
+	add	XH, r20			; add these in
+
+	; assert: XH:XL points at the start of the relevant framebuffer line
+	mov	r20, r16
+	lsr	r20
+	lsr	r20
+	lsr	r20
+	or	XL, r20			; XH:XL now points at correct starting byte (line + (X/8))
+	;}}}
+	;{{{  setup r21 for the right start bit (based on starting X position in r16)
+	ldi	r21, 0x80
+	sbrc	r16, 0
+	lsr	r21
+	sbrc	r16, 1
+	lsr	r21
+	sbrc	r16, 1
+	lsr	r21
+	sbrc	r16, 2
+	swap	r21			; swap rather than shift by 4
+
+	;}}}
+
+	cp	r12, r13
+	brsh	0f
+	rjmp	1f
+.L0:
+	;{{{  adx >= ady
+	mov	r10, r13
+	lsl	r10		; strt = 2 * ady
+	mov	r11, r13
+	sub	r11, r12
+	lsl	r11		; diag = 2 * (ady - adx)
+	mov	r20, r10
+	sub	r20, r12	; d = strt - adx
+.L2:				; while (run) ...
+	tst	r12
+	brmi	3f		; if (adx < 0), stop
+	tst	r16
+	brmi	3f		; if ((x < 0) || (x >= 128)), stop
+	tst	r17
+	brmi	3f		; if (y < 0), stop
+	cpi	r17, 96
+	brsh	3f		; if (y >= 96), stop
+
+	;{{{  guts of X render loop
+	ld	r22, X		; plot point
+	or	r22, r21	;
+	st	X, r22		;
+
+	sbrc	r23, 0		; skip if sx == 1
+	rjmp	21f
+	; assert: sx == 1
+	inc	r16		; x++
+	lsr	r21		; plotted point right one
+	brcc	22f
+	ldi	r21, 0x80	; fell-out RHS, wrap to other side
+	inc	XL		; and next byte
+	rjmp	22f
+.L21:
+	; assert: sx == -1
+	dec	r16		; x--
+	lsl	r21		; plotted point left one
+	brcc	22f
+	ldi	r21, 0x01	; fell-out LHS, wrap to other side
+	dec	XL		; and previous byte
+.L22:
+
+	dec	r12		; adx--
+	tst	r20
+	breq	4f		; if (d == 0)
+	brmi	4f		;    || (d < 0), ..
+	; assert: d > 0
+	add	r20, r11	; d += diag
+
+	sbrc	r23, 1		; skip if sy == 1
+	rjmp	23f		; jump if sy == -1
+	; assert: sy == 1, so line down
+	inc	r17		; y++
+	adiw	XH:XL, HRES	; next line
+	rjmp	24f
+.L23:
+	; assert: sy == -1, so line up
+	dec	r17		; y--
+	sbiw	XH:XL, HRES	; previous line
+.L24:
+	rjmp	2b
+.L4:
+	; assert: d <= 0
+	add	r20, r10	; d += strt
+	rjmp	2b
+	;}}}
+
+.L3:
+	;}}}
+	rjmp	9f		; all done, get out :)
+.L1:
+	;{{{  ady > adx
+	mov	r10, r12
+	lsl	r10		; strt = 2 * adx
+	mov	r11, r12
+	sub	r11, r13
+	lsl	r11		; diag = 2 * (adx - ady)
+	mov	r20, r10
+	sub	r20, r13	; d = strt - ady
+.L2:				; while (run) ...
+	tst	r13
+	brmi	3f		; if (ady < 0), stop
+	tst	r17
+	brmi	3f		; if (y < 0), stop
+	cpi	r17, 96
+	brsh	3f		; if (y >= 96), stop
+	tst	r16
+	brmi	3f		; if ((x < 0) || (x >= 128)), stop
+
+	;{{{  guts of Y render loop
+	ld	r22, X		; plot point
+	or	r22, r21	;
+	st	X, r22		;
+
+	sbrc	r23, 1		; skip if sy == 1
+	rjmp	21f
+	; assert: sy == 1
+	inc	r17		; y++
+	adiw	XH:XL, HRES	; next line down
+	rjmp	22f
+.L21:
+	; assert: sy == -1
+	dec	r17		; y--
+	sbiw	XH:XL, HRES	; previous line up
+.L22:
+	dec	r13		; ady--
+	tst	r20
+	breq	4f		; if (d == 0)
+	brmi	4f		;    || (d < 0)
+	; assert: d > 0
+	add	r20, r11	; d += diag
+	sbrc	r23, 0		; skip if sx == 1
+	rjmp	23f
+	; assert: sx == 1, so increment and maybe roll-right
+	inc	r16
+	lsr	r21
+	brcc	24f
+	ldi	r21, 0x80	; fell-out RHS wrap to other side
+	inc	XL		; and next byte along
+	rjmp	24f
+.L23:
+	; assert: sx == -1, so decrement and maye roll-elft
+	dec	r16
+	lsl	r21
+	brcc	24f
+	ldi	r21, 0x01	; fell-out LHS, wrap to other side
+	dec	XL		; and previous byte
+.L24:
+	rjmp	2b
+.L4:
+	; assert: d <= 0
+	add	r20, r10	; d += strt
+	rjmp	2b
+	;}}}
+
+.L3:
+	;}}}
+.L9:					; get out here.
+	pop	XH
+	pop	XL
+	pop	r23
+	pop	r22
+	pop	r21
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+;}}}
 
 vid_waitbot: ;{{{  waits for the render to reach bottom of visible area (so we can start updating things)
 	push	r16
 
 .L0:
-	mov	r16, r4			; basically wait for (r4 == 1) and (r5 == (PAL_BBLANK_LINES-1)).
+	mov	r16, LINE_REGION	; basically wait for (r4 == 1) and (r5 == (PAL_BBLANK_LINES-1)).
+	andi	r16, 0x03
 	cpi	r16, 1
 	brne	0b			; nope, wait some more
-	mov	r16, r5
+	mov	r16, LINE_COUNT
 	cpi	r16, PAL_BBLANK_LINES-1
 	brne	0b			; nope, wait some more (will be waiting a long time here..)
 
@@ -1206,10 +2108,11 @@ vid_waitbot1: ;{{{  waits for the render to reach just after bottom of visible a
 	push	r16
 
 .L0:
-	mov	r16, r4			; basically wait for (r4 == 1) and (r5 == (PAL_BBLANK_LINES-2)).
+	mov	r16, LINE_REGION	; basically wait for (r4 == 1) and (r5 == (PAL_BBLANK_LINES-2)).
+	andi	r16, 0x03
 	cpi	r16, 1
 	brne	0b			; nope, wait some more
-	mov	r16, r5
+	mov	r16, LINE_COUNT
 	cpi	r16, PAL_BBLANK_LINES-2
 	brne	0b			; nope, wait some more (will be waiting a long time here..)
 
@@ -1219,10 +2122,595 @@ vid_waitbot1: ;{{{  waits for the render to reach just after bottom of visible a
 	ret
 
 ;}}}
+vid_waitflip: ;{{{  waits for the current rendering to finish (even if it's not started yet..) and flips the framebuffer
+	push	r16
+	rcall	vid_waitbot
+	ldi	r16, 0x80
+	eor	LINE_REGION, r16	; flip top bit
+	pop	r16
+	ret
+;}}}
+
+snd_hwsetup: ;{{{  setup hardware for sound
+	push	r16
+	push	r17
+
+	; enable TIMER3, TIMER4 and TIMER5 in PRR1
+	lds	r16, PRR1
+	andi	r16, ~(PRR1_BIT_PRTIM3 | PRR1_BIT_PRTIM4 | PRR1_BIT_PRTIM5)	; clear bits 3-5 (PRTIM3, PRTIM4, PRTIM5)
+	sts	PRR1, r16
+
+	; enable port outputs for PE3 (OC3A) and PE4 (OC3B)
+	sbi	DDRE, 3
+	sbi	DDRE, 4
+	cbi	PORTE, 3
+	cbi	PORTE, 4
+
+	; and PH3 (OC4A), PH4 (OC4B), PL3 (OC5A) and PL4 (OC5B)
+	lds	r16, DDRH
+	ori	r16, 0x18			; PH3 and PH4 output
+	sts	DDRH, r16
+	lds	r16, DDRL
+	ori	r16, 0x18			; PL3 and PL4 output
+	sts	DDRL, r16
+	lds	r16, PORTH
+	andi	r16, ~0x18			; clear bits 3 and 4
+	sts	PORTH, r16
+	lds	r16, PORTL
+	andi	r16, ~0x18			; clear bits 3 and 4
+	sts	PORTL, r16
+
+	; ICR3, OCR3A and OCR3B used for specific note generation (channel 1)
+	; ICR4, OCR4A and OCR4B (channel 2)
+	; ICR5, OCR5A and OCR5B (channel 3)
+
+	; setup timer/counters 3, 4, 5 for phase+frequency correct PWM, TOP=ICR3 (WGM bits 1000b)
+	; keep OC3A, OC3B, OC4A, OC4B, OC5A, OC5B detached to start with (enabled per note)
+	ldi	r16, 0x00		;	(TCCR3A_BIT_COM3A1 | TCCR3A_BIT_COM3A0 | TCCR3A_BIT_COM3B1 | TCCR3A_BIT_COM3B0)
+	sts	TCCR3A, r16
+	ldi	r16, (TCCR3B_BIT_WGM33)
+	sts	TCCR3B, r16
+
+	ldi	r16, 0x00		;	(TCCR4A_BIT_COM4A1 | TCCR4A_IT_COM4A0 | TCCR4A_BIT_COM4B1 | TCCR3A_BIT_COM4B0)
+	sts	TCCR4A, r16
+	ldi	r16, (TCCR4B_BIT_WGM43)
+	sts	TCCR4B, r16
+
+	ldi	r16, 0x00		;	(TCCR5A_BIT_COM5A1 | TCCR5A_IT_COM5A0 | TCCR5A_BIT_COM5B1 | TCCR5A_BIT_COM5B0)
+	sts	TCCR5A, r16
+	ldi	r16, (TCCR5B_BIT_WGM53)
+	sts	TCCR5B, r16
+
+	; Note: keep TIMER3,4,5 stopped for now
+
+	ldi	r16, SOUND_SPEED
+	mov	SND_FRAME, r16
+	clr	SND_C1VAL
+	clr	SND_C2VAL
+	clr	SND_C3VAL
+
+	pop	r17
+	pop	r16
+	ret
+
+
+;}}}
+
+snd_setc1output: ;{{{  sets OCR3A and OCR3B as output/clear as specified in SND_C1VAL (r7) low nibble, r17:r16 has ICR3 value
+	push	ZH
+	push	ZL
+	push	r19
+
+	;{{{  sort out OCR3A based on SND_C1VAL bits 2-3
+	mov	r19, SND_C1VAL
+	andi	r19, 0x0c		; OCR3A setting (0-3)
+	breq	0f
+	
+	; 25, 50 or 75% duty cycle
+	movw	ZL, r16			; copy ICR3 into Z
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR3 / 2
+	cpi	r19, 0x08		; 50% duty?
+	breq	2f
+	cpi	r19, 0x04		; 25% duty?
+	breq	3f
+	; else 75% duty, so 1/4 value
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR3 / 4
+	rjmp	2f
+.L3:
+	; quarter-duty, so 3/4 value
+	push	r24
+	push	r25
+	movw	r24, ZL			; r25:r24 = ICR3 / 2
+	clc
+	ror	r25
+	ror	r24			; r25:r24 = ICR3 / 4
+	add	ZL, r24
+	adc	ZH, r25			; Z = ICR3 * 3/4
+	pop	r25
+	pop	r24
+.L2:
+	; turn on OCR3A (inverted mode)
+	lds	r19, TCCR3A
+	ori	r19, (TCCR3A_BIT_COM3A1 | TCCR3A_BIT_COM3A0)
+	sts	TCCR3A, r19
+
+	; write Z into OCR3A
+	sts	OCR3AH, ZH
+	sts	OCR3AL, ZL
+	rjmp	1f
+
+.L0:
+	; turn off OCR3A (and disconnect)
+	lds	r19, TCCR3A
+	andi	r19, ~(TCCR3A_BIT_COM3A1 | TCCR3A_BIT_COM3A0)
+	sts	TCCR3A, r19
+	; write daft value into OCR3A to be sure
+	ser	r19
+	sts	OCR3AH, r19
+	sts	OCR3AL, r19
+
+.L1:
+	;}}}
+	;{{{  sort out OCR3B based on SND_C1VAL bits 0-1
+	mov	r19, SND_C1VAL
+	andi	r19, 0x03		; OCR3B setting (0-3)
+	breq	0f
+	
+	; 25, 50 or 75% duty cycle
+	movw	ZL, r16			; copy ICR3 into Z
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR3 / 2
+	cpi	r19, 0x02		; 50% duty?
+	breq	2f
+	cpi	r19, 0x01		; 25% duty?
+	breq	3f
+	; else 75% duty, so 1/4 value
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR3 / 4
+	rjmp	2f
+.L3:
+	; quarter-duty, so 3/4 value
+	push	r24
+	push	r25
+	movw	r24, ZL			; r25:r24 = ICR3 / 2
+	clc
+	ror	r25
+	ror	r24			; r25:r24 = ICR3 / 4
+	add	ZL, r24
+	adc	ZH, r25			; Z = ICR3 * 3/4
+	pop	r25
+	pop	r24
+.L2:
+	; turn on OCR3B (inverted mode)
+	lds	r19, TCCR3A
+	ori	r19, (TCCR3A_BIT_COM3B1 | TCCR3A_BIT_COM3B0)
+	sts	TCCR3A, r19
+
+	; write Z into OCR3B
+	sts	OCR3BH, ZH
+	sts	OCR3BL, ZL
+	rjmp	1f
+
+.L0:
+	; turn off OCR3A (and disconnect)
+	lds	r19, TCCR3A
+	andi	r19, ~(TCCR3A_BIT_COM3B1 | TCCR3A_BIT_COM3B0)
+	sts	TCCR3A, r19
+	; write daft value into OCR3B to be sure
+	ser	r19
+	sts	OCR3BH, r19
+	sts	OCR3BL, r19
+
+.L1:
+	;}}}
+
+	pop	r19
+	pop	ZL
+	pop	ZH
+	ret
+;}}}
+snd_playc1: ;{{{  play a note on channel 1, expects SND_C1VAL and V_bfreq/afreq_c1 to be set appropriately
+	push	r16
+	push	r17
+	push	r19
+
+	; setup ICR3 for specific note frequency
+	lds	r17, V_bfreq_c1_h
+	lds	r16, V_bfreq_c1_l
+	sts	ICR3H, r17
+	sts	ICR3L, r16
+
+	; setup OC3A and OC3B, frequency given in r17:r16
+	rcall	snd_setc1output
+
+	pop	r19
+	pop	r17
+	pop	r16
+	ret
+;}}}
+snd_playnote_c1: ;{{{  sets playing a specific note on channel 1 in r16 (NOTE_...), mod-bits in r17
+	push	r16
+	push	r17
+	push	r18
+	push	r20
+	push	ZL
+	push	ZH
+
+	ldi	ZH:ZL, D_notetab
+	cpi	r16, NOTE_OFF
+	brne	0f
+	rjmp	8f
+.L0:
+	cpi	r16, NOTE_C2
+	brsh	0f
+	rjmp	7f
+.L0:
+	cpi	r16, NOTE_B6+1
+	brlo	0f
+	rjmp	9f
+.L0:
+	; Note: no conditional branches past this (so can be big)
+
+	;{{{  move mod-bits from r17 to SND_C1VAL (r7)
+	mov	SND_C1VAL, r17
+
+	;}}}
+	;{{{  load regular note (0x10 - 0x4b) frequency from D_notetab into r17:r16, store in V_bfreq_c1 also
+	; regular note (0x10 - 0x4b)
+	subi	r16, 0x10
+	lsl	r16			; r16 = offset in D_notetab
+	clr	r17
+	add	ZL, r16
+	adc	ZH, r17
+
+	lpm	r16, Z+			; load frequency into r17:r16
+	lpm	r17, Z+
+
+	sts	V_bfreq_c1_h, r17
+	sts	V_bfreq_c1_l, r16
+
+	;}}}
+	;{{{  if tremelo bit set, set V_afreq_c1 to be next semitone up
+	mov	r20, SND_C1VAL
+	andi	r20, 0x40			; tremelo?
+	breq	0f
+	; yes, set alternate frequency to the next semitone up
+
+	lpm	r20, Z+
+	sts	V_afreq_c1_l, r20
+	lpm	r20, Z+
+	sts	V_afreq_c1_h, r20
+.L0:
+	;}}}
+	;{{{  ensure timer/counter3 is stopped
+	lds	r20, TCCR3B
+	andi	r20, ~(TCCR3B_BIT_CS32 | TCCR3B_BIT_CS31 | TCCR3B_BIT_CS30)
+	sts	TCCR3B, r20		; ensure stopped
+
+	;}}}
+	; Note: keep r20 with TCCR3B bits in
+	rcall	snd_playc1
+
+	; r20 still has TCCR3B bits in
+	;{{{  re-enable timer/counter 3, prescale /8
+	ori	r20, TCCR3B_BIT_CS31	; prescale /8
+	sts	TCCR3B, r20
+
+	;}}}
+	rjmp	9f
+
+	;------------------------------------------------------------------
+
+.L7:
+	; FIXME: drum handling..
+	rjmp	8f
+
+.L8:
+	; turn note off
+	clr	SND_C1VAL
+
+	lds	r20, TCCR3B
+	andi	r20, ~(TCCR3B_BIT_CS32 | TCCR3B_BIT_CS31 | TCCR3B_BIT_CS30)
+	sts	TCCR3B, r20		; ensure stopped
+
+	lds	r20, TCCR3A
+	andi	r20, ~(TCCR3A_BIT_COM3A1 | TCCR3A_BIT_COM3A0 | TCCR3A_BIT_COM3B1 | TCCR3A_BIT_COM3B0)
+	sts	TCCR3A, r20		; disconnect OC3A and OC3B
+
+
+.L9:
+	pop	ZH
+	pop	ZL
+	pop	r20
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+
+
+;}}}
+
+snd_setc2output: ;{{{  sets OCR4A and OCR4B as output/clear as specified in SND_C2VAL (r8) low nibble, r17:r16 has ICR4 value
+	push	ZH
+	push	ZL
+	push	r19
+
+	;{{{  sort out OCR4A based on SND_C2VAL bits 2-3
+	mov	r19, SND_C2VAL
+	andi	r19, 0x0c		; OCR3A setting (0-3)
+	breq	0f
+	
+	; 25, 50 or 75% duty cycle
+	movw	ZL, r16			; copy ICR4 into Z
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR4 / 2
+	cpi	r19, 0x08		; 50% duty?
+	breq	2f
+	cpi	r19, 0x04		; 25% duty?
+	breq	3f
+	; else 75% duty, so 1/4 value
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR4 / 4
+	rjmp	2f
+.L3:
+	; quarter-duty, so 3/4 value
+	push	r24
+	push	r25
+	movw	r24, ZL			; r25:r24 = ICR4 / 2
+	clc
+	ror	r25
+	ror	r24			; r25:r24 = ICR4 / 4
+	add	ZL, r24
+	adc	ZH, r25			; Z = ICR4 * 3/4
+	pop	r25
+	pop	r24
+.L2:
+	; turn on OCR4A (inverted mode)
+	lds	r19, TCCR4A
+	ori	r19, (TCCR4A_BIT_COM4A1 | TCCR4A_BIT_COM4A0)
+	sts	TCCR4A, r19
+
+	; write Z into OCR4A
+	sts	OCR4AH, ZH
+	sts	OCR4AL, ZL
+	rjmp	1f
+
+.L0:
+	; turn off OCR4A (and disconnect)
+	lds	r19, TCCR4A
+	andi	r19, ~(TCCR4A_BIT_COM4A1 | TCCR4A_BIT_COM4A0)
+	sts	TCCR4A, r19
+	; write daft value into OCR4A to be sure
+	ser	r19
+	sts	OCR4AH, r19
+	sts	OCR4AL, r19
+
+.L1:
+	;}}}
+	;{{{  sort out OCR4B based on SND_C2VAL bits 0-1
+	mov	r19, SND_C2VAL
+	andi	r19, 0x03		; OCR4B setting (0-3)
+	breq	0f
+	
+	; 25, 50 or 75% duty cycle
+	movw	ZL, r16			; copy ICR4 into Z
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR4 / 2
+	cpi	r19, 0x02		; 50% duty?
+	breq	2f
+	cpi	r19, 0x01		; 25% duty?
+	breq	3f
+	; else 75% duty, so 1/4 value
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR4 / 4
+	rjmp	2f
+.L3:
+	; quarter-duty, so 3/4 value
+	push	r24
+	push	r25
+	movw	r24, ZL			; r25:r24 = ICR4 / 2
+	clc
+	ror	r25
+	ror	r24			; r25:r24 = ICR4 / 4
+	add	ZL, r24
+	adc	ZH, r25			; Z = ICR4 * 3/4
+	pop	r25
+	pop	r24
+.L2:
+	; turn on OCR4B (inverted mode)
+	lds	r19, TCCR4A
+	ori	r19, (TCCR4A_BIT_COM4B1 | TCCR4A_BIT_COM4B0)
+	sts	TCCR4A, r19
+
+	; write Z into OCR4B
+	sts	OCR4BH, ZH
+	sts	OCR4BL, ZL
+	rjmp	1f
+
+.L0:
+	; turn off OCR4A (and disconnect)
+	lds	r19, TCCR4A
+	andi	r19, ~(TCCR4A_BIT_COM4B1 | TCCR4A_BIT_COM4B0)
+	sts	TCCR4A, r19
+	; write daft value into OCR4B to be sure
+	ser	r19
+	sts	OCR4BH, r19
+	sts	OCR4BL, r19
+
+.L1:
+	;}}}
+
+	pop	r19
+	pop	ZL
+	pop	ZH
+	ret
+;}}}
+snd_playc2: ;{{{  play a note on channel 2, expects SND_C2VAL and V_bfreq/afreq_c2 to be set appropriately
+	push	r16
+	push	r17
+	push	r19
+
+	; setup ICR4 for specific note frequency
+	lds	r17, V_bfreq_c2_h
+	lds	r16, V_bfreq_c2_l
+	sts	ICR4H, r17
+	sts	ICR4L, r16
+
+	; setup OC4A and OC4B, frequency given in r17:r16
+	rcall	snd_setc2output
+
+	pop	r19
+	pop	r17
+	pop	r16
+	ret
+;}}}
+snd_playnote_c2: ;{{{  sets playing a specific note on channel 2 in r16 (NOTE_...), mod-bits in r17
+	push	r16
+	push	r17
+	push	r18
+	push	r20
+	push	ZL
+	push	ZH
+
+	ldi	ZH:ZL, D_notetab
+	cpi	r16, NOTE_OFF
+	brne	0f
+	rjmp	8f
+.L0:
+	cpi	r16, NOTE_C2
+	brsh	0f
+	rjmp	7f
+.L0:
+	cpi	r16, NOTE_B6+1
+	brlo	0f
+	rjmp	9f
+.L0:
+	; Note: no conditional branches past this (so can be big)
+
+	;{{{  move mod-bits from r17 to SND_C2VAL (r8)
+	mov	SND_C2VAL, r17
+
+	;}}}
+	;{{{  load regular note (0x10 - 0x4b) frequency from D_notetab into r17:r16, store in V_bfreq_c2 also
+	; regular note (0x10 - 0x4b)
+	subi	r16, 0x10
+	lsl	r16			; r16 = offset in D_notetab
+	clr	r17
+	add	ZL, r16
+	adc	ZH, r17
+
+	lpm	r16, Z+			; load frequency into r17:r16
+	lpm	r17, Z+
+
+	sts	V_bfreq_c2_h, r17
+	sts	V_bfreq_c2_l, r16
+
+	;}}}
+	;{{{  if tremelo bit set, set V_afreq_c2 to be next semitone up
+	mov	r20, SND_C2VAL
+	andi	r20, 0x40			; tremelo?
+	breq	0f
+	; yes, set alternate frequency to the next semitone up
+
+	lpm	r20, Z+
+	sts	V_afreq_c2_l, r20
+	lpm	r20, Z+
+	sts	V_afreq_c2_h, r20
+.L0:
+	;}}}
+	;{{{  ensure timer/counter4 is stopped
+	lds	r20, TCCR4B
+	andi	r20, ~(TCCR4B_BIT_CS42 | TCCR4B_BIT_CS41 | TCCR4B_BIT_CS40)
+	sts	TCCR4B, r20		; ensure stopped
+
+	;}}}
+	; Note: keep r20 with TCCR4B bits in
+	rcall	snd_playc2
+
+	; r20 still has TCCR4B bits in
+	;{{{  re-enable timer/counter 4, prescale /8
+	ori	r20, TCCR4B_BIT_CS41	; prescale /8
+	sts	TCCR4B, r20
+
+	;}}}
+	rjmp	9f
+
+	;------------------------------------------------------------------
+
+.L7:
+	; FIXME: drum handling..
+	rjmp	8f
+
+.L8:
+	; turn note off
+	clr	SND_C2VAL
+
+	lds	r20, TCCR4B
+	andi	r20, ~(TCCR4B_BIT_CS42 | TCCR4B_BIT_CS41 | TCCR4B_BIT_CS40)
+	sts	TCCR4B, r20		; ensure stopped
+
+	lds	r20, TCCR4A
+	andi	r20, ~(TCCR4A_BIT_COM4A1 | TCCR4A_BIT_COM4A0 | TCCR4A_BIT_COM4B1 | TCCR4A_BIT_COM4B0)
+	sts	TCCR4A, r20		; disconnect OC4A and OC4B
+
+
+.L9:
+	pop	ZH
+	pop	ZL
+	pop	r20
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+
+
+;}}}
+
+demo_renderlines: ;{{{  renders the lines defined in SRAM
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+	push	r20
+	push	XH
+	push	XL
+
+	ldi	XH:XL, V_rdrpnts
+	ldi	r20, 8
+.L0:
+	ld	r16, X+
+	ld	r17, X+
+	ld	r18, X+
+	ld	r19, X+
+	call	fb_xdrawline
+	dec	r20
+	brne	0b
+
+	pop	XL
+	pop	XH
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+
+;}}}
 
 lvar_init: ;{{{  initialises local stuffs
 	push	r16
 	push	r17
+	push	r18
 	push	XL
 	push	XH
 
@@ -1230,8 +2718,29 @@ lvar_init: ;{{{  initialises local stuffs
 	sts	V_scroll1_h, r17
 	sts	V_scroll1_l, r16
 
+	sts	V_sndpos_h, r17
+	sts	V_sndpos_l, r16
+
+	;{{{  setup V_rdrpnts -- just copy from static stuff for now
+	push	ZH
+	push	ZL
+
+	ldi	XH:XL, V_rdrpnts
+	ldi	ZH:ZL, D_rdrpnts_static
+	ldi	r18, 32
+.L0:
+	lpm	r16, Z+
+	st	X+, r16
+	dec	r18
+	brne	0b
+
+	pop	ZL
+	pop	ZH
+	;}}}
+
 	pop	XH
 	pop	XL
+	pop	r18
 	pop	r17
 	pop	r16
 	ret
@@ -1245,50 +2754,52 @@ VEC_reset:
 	ldi	r16, lo(RAMEND)
 	out	SPL, r16
 
-	rcall	fb_pattern
-	rcall	vidhw_setup
-	rcall	lvar_init
+	call	fb_clearall
+	call	vidhw_setup
+	call	lvar_init
+	call	snd_hwsetup
 
 	sei				; enable interrupts
 
+	; at this point we're effectively going :)
 prg_code:
 	ldi	r16, 199		; 4 seconds
 .L0:
-	rcall	vid_waitbot1
-	rcall	vid_waitbot
+	call	vid_waitbot1
+	call	vid_waitflip
 	dec	r16
 	brne	0b
 
 	ldi	r20, 1
 	ldi	r21, 1
 .L1:
-	rcall	fb_clear
+	call	fb_clear
 	ldi	r16, 0
 	ldi	r17, 0
 	ldi	r18, 128
-	rcall	fb_hline
+	call	fb_xhline
 	ldi	r18, 96
 	ldi	r16, 5
-	rcall	fb_vline
+	call	fb_xvline
 	ldi	r16, 0
 	ldi	r17, 95
 	ldi	r18, 128
-	rcall	fb_hline
+	call	fb_xhline
 	ldi	r16, 127
 	ldi	r17, 0
 	ldi	r18, 96
-	rcall	fb_vline
+	call	fb_xvline
 
 	;ldi	r16, 2
 	;ldi	r17, 0
 	;ldi	r18, 96
-	;rcall	fb_vline
+	;rcall	fb_xvline
 	;ldi	r16, 4
-	;rcall	fb_vline
+	;rcall	fb_xvline
 	;ldi	r16, 7
-	;rcall	fb_vline
+	;rcall	fb_xvline
 	;ldi	r16, 11
-	;rcall	fb_vline
+	;rcall	fb_xvline
 
 	ldi	r16, 4			; X = 32
 	ldi	r17, 9
@@ -1296,19 +2807,37 @@ prg_code:
 	ldi	r19, 86
 	ldi	ZH, hi(I_ada_image)
 	ldi	ZL, lo(I_ada_image)
-	rcall	fb_pbyteblit
+	call	fb_pbyteblit
 
 
 	; moving portions
 	ldi	r16, 0
 	mov	r17, r21
 	ldi	r18, 128
-	rcall	fb_hline
+	call	fb_xhline
 
 	mov	r16, r20
 	ldi	r17, 0
 	ldi	r18, 96
-	rcall	fb_vline
+	call	fb_xvline
+
+	; testing arbitrary lines
+	call	demo_renderlines
+
+;	ldi	r17, 0
+;	ldi	r16, 0
+;	mov	r18, r20
+;	mov	r19, r21
+;	call	fb_drawline
+;	ldi	r16, 127
+;	neg	r18
+;	call	fb_drawline
+;	ldi	r17, 95
+;	ldi	r16, 0
+;	mov	r18, r20
+;	mov	r19, r21
+;	neg	r19
+;	call	fb_drawline
 
 	inc	r21
 	cpi	r21, 96
@@ -1353,7 +2882,7 @@ prg_code:
 	sub	r16, r17		; r16 = 5-0, X position
 	ldi	r17, 2			; Y position
 
-	rcall	fb_writestring
+	call	fb_writestring
 
 	cpi	r16, 0
 	breq	4f
@@ -1383,8 +2912,10 @@ prg_code:
 	sts	V_scroll1_l, r16
 .L5:
 
+	; TESTING SOUND STUFF
 
-	rcall	vid_waitbot
+
+	call	vid_waitflip
 	rjmp	1b
 
 loop:
@@ -1409,4 +2940,79 @@ S_message:
 		"can do outside the interrupt handlers..", 0x00
 
 .include "fb-ada.inc"
+
+D_lineset_count:
+	.const	2, 0
+
+D_lineset:
+	.const16	0x6010, 0x1000
+	.const16	0x6010, 0x0010
+
+D_notetab:
+	.const16	0x3bb9, 0x385f, 0x3535, 0x3238, 0x2f67, 0x2cbe, 0x2a3b, 0x27dc, 0x259f, 0x2383, 0x2185, 0x1fa3		; C2 -> B2 (65.406 -> 123.47)
+	.const16	0x1ddd, 0x1c20, 0x1a9b, 0x191c, 0x17b4, 0x165f, 0x151d, 0x13ee, 0x12d0, 0x11c1, 0x10c2, 0x0fd2		; C3 -> B3 (130.81 -> 246.94)
+	.const16	0x0eee, 0x0e18, 0x0d4d, 0x0c8e, 0x0bda, 0x0b2f, 0x0a8f, 0x09f7, 0x0968, 0x08e1, 0x0861, 0x07e9		; C4 -> B4 (261.62 -> 493.88)
+	.const16	0x0777, 0x070c, 0x06a7, 0x0647, 0x05ed, 0x0598, 0x0547, 0x04fc, 0x04b4, 0x0470, 0x0431, 0x03f4		; C5 -> B5 (523.25 -> 987.77)
+	.const16	0x03bc, 0x0386, 0x0353, 0x0324, 0x02f6, 0x02cc, 0x02a4, 0x027e, 0x025a, 0x0238, 0x0218, 0x01fa		; C6 -> B6 (1046.5 -> 1975.5)
+	.const16	0x0100													; made up for now..
+
+D_rdrpnts_static:
+	.const		40, 50, -5, 10
+	.const		40, 50, 10, 0
+	.const		35, 60, 40, 0
+	.const		50, 40, 0, 10
+	.const		50, 40, 10, 0
+	.const		60, 40, 0, 10
+	.const		60, 50, 10, 0
+	.const		70, 50, 5, 10
+
+D_soundtrk:
+	.const	NOTE_OFF,	0x00,	NOTE_OFF,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x02,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x06,	NOTE_NOCHANGE,	0x00,
+		NOTE_G2,	0x0b,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_C4,	0x42,	NOTE_C3,	0x01,
+		NOTE_C5,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_C4,	0x02,	NOTE_NOCHANGE,	0x00,
+		NOTE_C5,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_C4,	0x02,	NOTE_A2S,	0x01,
+		NOTE_D5S,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_C4,	0x42,	NOTE_NOCHANGE,	0x00,
+		NOTE_D5S,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_D4,	0x42,	NOTE_A2,	0x02,
+		NOTE_G5,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_D4,	0x02,	NOTE_NOCHANGE,	0x00,
+		NOTE_G5,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_D4,	0x02,	NOTE_G2,	0x02,
+		NOTE_G5S,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_D4,	0x42,	NOTE_NOCHANGE,	0x00,
+		NOTE_G5S,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_D4S,	0x42,	NOTE_G2S,	0x03,
+		NOTE_OFF,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_D4S,	0x02,	NOTE_NOCHANGE,	0x00,
+		NOTE_OFF,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_D4S,	0x02,	NOTE_A2S,	0x03,
+		NOTE_OFF,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_D4S,	0x42,	NOTE_NOCHANGE,	0x00,
+		NOTE_OFF,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_F4,	0x42,	NOTE_C3,	0x01,
+		NOTE_OFF,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_F4,	0x02,	NOTE_NOCHANGE,	0x00,
+		NOTE_OFF,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_F4,	0x02,	NOTE_D3,	0x01,
+		NOTE_OFF,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_F4,	0x42,	NOTE_NOCHANGE,	0x00,
+		NOTE_OFF,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_OFF,	0x00,	NOTE_OFF,	0x00,
+
+		NOTE_END,	0xff,	NOTE_OFF,	0x00			; THE END
 
