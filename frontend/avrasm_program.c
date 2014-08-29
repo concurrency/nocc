@@ -1674,6 +1674,10 @@ static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e
 		/*}}}*/
 	}
 	if (mode & IMODE_CONSTMEM) {
+#if 0
+fprintf (stderr, "avrasm_check_insarg(IMODE_CONSTMEM): of [%p]:\n", arg);
+tnode_dumptree (arg, 1, FHAN_STDERR);
+#endif
 		/*{{{  expecting constant address, label address or relative position*/
 		if ((arg->tag == avrasm.tag_GLABEL) || (arg->tag == avrasm.tag_LLABEL)) {
 			if (!trpass) {
@@ -1699,8 +1703,8 @@ static int avrasm_check_insarg (avrinstr_tbl_t *ins, int argnum, avrinstr_mode_e
 			good = 1;
 		} else if (arg->tag->ndef == avrasm.node_DOPNODE) {
 			/* check LHS & RHS */
-			if (!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (node, 0), tc, trpass) &&
-					!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (node, 1), tc, trpass)) {
+			if (!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (arg, 0), tc, trpass) &&
+					!avrasm_check_insarg (ins, argnum, mode, node, tnode_nthsubof (arg, 1), tc, trpass)) {
 				good = 1;
 			}
 		} else if (arg->tag->ndef == avrasm.node_MOPNODE) {
