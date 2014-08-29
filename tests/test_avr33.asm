@@ -175,6 +175,9 @@ V_framebuffer1: ;{{{  suitably sized b&w framebuffers  [3k of space]
 V_framebuffer2:				; starts at 0xa00
 	.space	(HRES * VRES)
 
+V_fbtailslack:
+	.space	(HRES * 2)		; some slack
+
 ;}}}
 ;{{{  other variables
 V_scroll1:
@@ -201,7 +204,26 @@ V_afreq_c2:
 V_afreq_c2_h:	.space 1			; 16-bit channel 2 alternate frequency
 V_afreq_c2_l:	.space 1
 
-V_rdrpnts:	.space (4 * 8)			; for now
+V_bfreq_c3:
+V_bfreq_c3_h:	.space 1			; 16-bit channel 3 base frequency
+V_bfreq_c3_l:	.space 1
+
+V_afreq_c3:
+V_afreq_c3_h:	.space 1			; 16-bit channel 3 alternate frequency
+V_afreq_c3_l:	.space 1
+
+V_sfld_pos:	.space 1
+
+V_sfld_l1:	.space (3 * 16)			; 16 (x,y,type) points
+V_sfld_l2:	.space (3 * 16)			; ditto for 2nd layer
+V_sfld_l3:	.space (3 * 16)			; ditto for 3rd layer
+
+V_sctext:	.space 2			; 16-bits for flash address of the string
+		.space 2			; 16-bits of bitwise scrolly offset
+		.space 1			; defines how this particular one works (scroll-in-R, hold, scroll-out-L)
+		.space 1			; Y offset
+
+V_rdrpnts:	.space (4 * 8)			; FIXME: for now ...
 
 ;}}}
 
@@ -337,9 +359,9 @@ next_sound_frame_isr: ;{{{  called from the video interrupt handler at the start
 
 	lds	r25, V_sndpos_h	
 	lds	r24, V_sndpos_l	
-	adiw	r25:r24, 4
+	adiw	r25:r24, 6
 	sts	V_sndpos_h, r25
-	sts	V_sndpos_l, r24			; V_sndpos += 4
+	sts	V_sndpos_l, r24			; V_sndpos += 6
 
 	ldi	ZH, hi(D_soundtrk)
 	ldi	ZL, lo(D_soundtrk)
@@ -348,6 +370,7 @@ next_sound_frame_isr: ;{{{  called from the video interrupt handler at the start
 	add	ZL, r24
 	adc	ZH, r25				; Z = address in D_soundtrk
 
+	; fetch-and-play for channel 1
 	lpm	r16, Z+				; load channel 1 note
 	lpm	r17, Z+				; load setting
 
@@ -359,12 +382,22 @@ next_sound_frame_isr: ;{{{  called from the video interrupt handler at the start
 	rcall	snd_playnote_c1			; start playing!
 .L2:
 
+	; fetch-and-play for channel 2
 	lpm	r16, Z+				; load channel 2 note
 	lpm	r17, Z+				; load setting
 
 	cpi	r16, NOTE_NOCHANGE
 	breq	2f				; keep doing what we were already doing (channel 2)
 	rcall	snd_playnote_c2			; start playing!
+.L2:
+
+	; fetch-and-play for channel 3
+	lpm	r16, Z+				; load channel 3 note
+	lpm	r17, Z+				; load setting
+
+	cpi	r16, NOTE_NOCHANGE
+	breq	2f				; keep doing what we were already doing (channel 2)
+	rcall	snd_playnote_c3			; start playing!
 .L2:
 
 	rjmp	1f
@@ -458,6 +491,46 @@ stepx_sound_frame_isr: ;{{{  called from the video interrupt handler at the star
 	;{{{  restart timer/counter4
 	ori	r19, TCCR4B_BIT_CS41	; prescale /8
 	sts	TCCR4B, r19
+
+	;}}}
+	pop	r19
+.L1:
+	;}}}
+	;{{{  channel 3 tremelo handling
+	mov	r16, SND_C3VAL
+	andi	r16, 0x40			; bit 6 (tremelo) set?
+	breq	1f
+
+	; yes, twiddle appropriately
+	push	r19
+	;{{{  ensure timer/counter5 is stopped
+	lds	r19, TCCR5B
+	andi	r19, ~(TCCR5B_BIT_CS52 | TCCR5B_BIT_CS51 | TCCR5B_BIT_CS50)
+	sts	TCCR5B, r19		; ensure stopped
+
+	;}}}
+	;{{{  load alternate or base frequency
+	mov	r16, SND_FRAME
+	andi	r16, 0x01		; low-bit set?
+	breq	2f			; nope, go for base frequency
+	; yes, load alternate frequency
+	lds	r17, V_afreq_c3_h
+	lds	r16, V_afreq_c3_l
+	rjmp	3f
+.L2:
+	; no, load base frequency
+	lds	r17, V_bfreq_c3_h
+	lds	r16, V_bfreq_c3_l
+.L3:
+	sts	ICR5H, r17
+	sts	ICR5H, r16
+	rcall	snd_setc3output
+
+	;}}}
+	; Note: keep r19 with TCCR5B bits in
+	;{{{  restart timer/counter5
+	ori	r19, TCCR5B_BIT_CS51	; prescale /8
+	sts	TCCR5B, r19
 
 	;}}}
 	pop	r19
@@ -2298,7 +2371,7 @@ snd_setc1output: ;{{{  sets OCR3A and OCR3B as output/clear as specified in SND_
 	rjmp	1f
 
 .L0:
-	; turn off OCR3A (and disconnect)
+	; turn off OCR3B (and disconnect)
 	lds	r19, TCCR3A
 	andi	r19, ~(TCCR3A_BIT_COM3B1 | TCCR3A_BIT_COM3B0)
 	sts	TCCR3A, r19
@@ -2538,7 +2611,7 @@ snd_setc2output: ;{{{  sets OCR4A and OCR4B as output/clear as specified in SND_
 	rjmp	1f
 
 .L0:
-	; turn off OCR4A (and disconnect)
+	; turn off OCR4B (and disconnect)
 	lds	r19, TCCR4A
 	andi	r19, ~(TCCR4A_BIT_COM4B1 | TCCR4A_BIT_COM4B0)
 	sts	TCCR4A, r19
@@ -2676,6 +2749,246 @@ snd_playnote_c2: ;{{{  sets playing a specific note on channel 2 in r16 (NOTE_..
 
 ;}}}
 
+snd_setc3output: ;{{{  sets OCR5A and OCR5B as output/clear as specified in SND_C3VAL (r9) low nibble, r17:r16 has ICR5 value
+	push	ZH
+	push	ZL
+	push	r19
+
+	;{{{  sort out OCR5A based on SND_C3VAL bits 2-3
+	mov	r19, SND_C3VAL
+	andi	r19, 0x0c		; OCR3A setting (0-3)
+	breq	0f
+	
+	; 25, 50 or 75% duty cycle
+	movw	ZL, r16			; copy ICR5 into Z
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR5 / 2
+	cpi	r19, 0x08		; 50% duty?
+	breq	2f
+	cpi	r19, 0x04		; 25% duty?
+	breq	3f
+	; else 75% duty, so 1/4 value
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR5 / 4
+	rjmp	2f
+.L3:
+	; quarter-duty, so 3/4 value
+	push	r24
+	push	r25
+	movw	r24, ZL			; r25:r24 = ICR5 / 2
+	clc
+	ror	r25
+	ror	r24			; r25:r24 = ICR5 / 4
+	add	ZL, r24
+	adc	ZH, r25			; Z = ICR5 * 3/4
+	pop	r25
+	pop	r24
+.L2:
+	; turn on OCR5A (inverted mode)
+	lds	r19, TCCR5A
+	ori	r19, (TCCR5A_BIT_COM5A1 | TCCR5A_BIT_COM5A0)
+	sts	TCCR5A, r19
+
+	; write Z into OCR5A
+	sts	OCR5AH, ZH
+	sts	OCR5AL, ZL
+	rjmp	1f
+
+.L0:
+	; turn off OCR5A (and disconnect)
+	lds	r19, TCCR5A
+	andi	r19, ~(TCCR5A_BIT_COM5A1 | TCCR5A_BIT_COM5A0)
+	sts	TCCR5A, r19
+	; write daft value into OCR5A to be sure
+	ser	r19
+	sts	OCR5AH, r19
+	sts	OCR5AL, r19
+
+.L1:
+	;}}}
+	;{{{  sort out OCR5B based on SND_C3VAL bits 0-1
+	mov	r19, SND_C3VAL
+	andi	r19, 0x03		; OCR5B setting (0-3)
+	breq	0f
+	
+	; 25, 50 or 75% duty cycle
+	movw	ZL, r16			; copy ICR5 into Z
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR5 / 2
+	cpi	r19, 0x02		; 50% duty?
+	breq	2f
+	cpi	r19, 0x01		; 25% duty?
+	breq	3f
+	; else 75% duty, so 1/4 value
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR5 / 4
+	rjmp	2f
+.L3:
+	; quarter-duty, so 3/4 value
+	push	r24
+	push	r25
+	movw	r24, ZL			; r25:r24 = ICR5 / 2
+	clc
+	ror	r25
+	ror	r24			; r25:r24 = ICR5 / 4
+	add	ZL, r24
+	adc	ZH, r25			; Z = ICR5 * 3/4
+	pop	r25
+	pop	r24
+.L2:
+	; turn on OCR5B (inverted mode)
+	lds	r19, TCCR5A
+	ori	r19, (TCCR5A_BIT_COM5B1 | TCCR5A_BIT_COM5B0)
+	sts	TCCR5A, r19
+
+	; write Z into OCR5B
+	sts	OCR5BH, ZH
+	sts	OCR5BL, ZL
+	rjmp	1f
+
+.L0:
+	; turn off OCR5B (and disconnect)
+	lds	r19, TCCR5A
+	andi	r19, ~(TCCR5A_BIT_COM5B1 | TCCR5A_BIT_COM5B0)
+	sts	TCCR5A, r19
+	; write daft value into OCR5B to be sure
+	ser	r19
+	sts	OCR5BH, r19
+	sts	OCR5BL, r19
+
+.L1:
+	;}}}
+
+	pop	r19
+	pop	ZL
+	pop	ZH
+	ret
+;}}}
+snd_playc3: ;{{{  play a note on channel 2, expects SND_C3VAL and V_bfreq/afreq_c3 to be set appropriately
+	push	r16
+	push	r17
+	push	r19
+
+	; setup ICR5 for specific note frequency
+	lds	r17, V_bfreq_c3_h
+	lds	r16, V_bfreq_c3_l
+	sts	ICR5H, r17
+	sts	ICR5L, r16
+
+	; setup OC5A and OC5B, frequency given in r17:r16
+	rcall	snd_setc3output
+
+	pop	r19
+	pop	r17
+	pop	r16
+	ret
+;}}}
+snd_playnote_c3: ;{{{  sets playing a specific note on channel 3 in r16 (NOTE_...), mod-bits in r17
+	push	r16
+	push	r17
+	push	r18
+	push	r20
+	push	ZL
+	push	ZH
+
+	ldi	ZH:ZL, D_notetab
+	cpi	r16, NOTE_OFF
+	brne	0f
+	rjmp	8f
+.L0:
+	cpi	r16, NOTE_C2
+	brsh	0f
+	rjmp	7f
+.L0:
+	cpi	r16, NOTE_B6+1
+	brlo	0f
+	rjmp	9f
+.L0:
+	; Note: no conditional branches past this (so can be big)
+
+	;{{{  move mod-bits from r17 to SND_C3VAL (r9)
+	mov	SND_C3VAL, r17
+
+	;}}}
+	;{{{  load regular note (0x10 - 0x4b) frequency from D_notetab into r17:r16, store in V_bfreq_c2 also
+	; regular note (0x10 - 0x4b)
+	subi	r16, 0x10
+	lsl	r16			; r16 = offset in D_notetab
+	clr	r17
+	add	ZL, r16
+	adc	ZH, r17
+
+	lpm	r16, Z+			; load frequency into r17:r16
+	lpm	r17, Z+
+
+	sts	V_bfreq_c3_h, r17
+	sts	V_bfreq_c3_l, r16
+
+	;}}}
+	;{{{  if tremelo bit set, set V_afreq_c2 to be next semitone up
+	mov	r20, SND_C3VAL
+	andi	r20, 0x40			; tremelo?
+	breq	0f
+	; yes, set alternate frequency to the next semitone up
+
+	lpm	r20, Z+
+	sts	V_afreq_c3_l, r20
+	lpm	r20, Z+
+	sts	V_afreq_c3_h, r20
+.L0:
+	;}}}
+	;{{{  ensure timer/counter4 is stopped
+	lds	r20, TCCR5B
+	andi	r20, ~(TCCR5B_BIT_CS52 | TCCR5B_BIT_CS51 | TCCR5B_BIT_CS50)
+	sts	TCCR5B, r20		; ensure stopped
+
+	;}}}
+	; Note: keep r20 with TCCR5B bits in
+	rcall	snd_playc3
+
+	; r20 still has TCCR5B bits in
+	;{{{  re-enable timer/counter 5, prescale /8
+	ori	r20, TCCR5B_BIT_CS51	; prescale /8
+	sts	TCCR5B, r20
+
+	;}}}
+	rjmp	9f
+
+	;------------------------------------------------------------------
+
+.L7:
+	; FIXME: drum handling..
+	rjmp	8f
+
+.L8:
+	; turn note off
+	clr	SND_C3VAL
+
+	lds	r20, TCCR5B
+	andi	r20, ~(TCCR5B_BIT_CS52 | TCCR5B_BIT_CS51 | TCCR5B_BIT_CS50)
+	sts	TCCR5B, r20		; ensure stopped
+
+	lds	r20, TCCR5A
+	andi	r20, ~(TCCR5A_BIT_COM5A1 | TCCR5A_BIT_COM5A0 | TCCR5A_BIT_COM5B1 | TCCR5A_BIT_COM5B0)
+	sts	TCCR5A, r20		; disconnect OC4A and OC4B
+
+
+.L9:
+	pop	ZH
+	pop	ZL
+	pop	r20
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+
+
+;}}}
+
 demo_renderlines: ;{{{  renders the lines defined in SRAM
 	push	r16
 	push	r17
@@ -2705,6 +3018,531 @@ demo_renderlines: ;{{{  renders the lines defined in SRAM
 	pop	r16
 	ret
 
+;}}}
+demo_starfield_init: ;{{{  initialise starfield variables
+	push	r16
+	push	r17
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	; Note: these start off-screen to the right
+	ldi	ZH:ZL, D_starfield_init
+	ldi	XH:XL, V_sfld_l1
+	ldi	r16, (16*3*3)		; this many in total (16x3 in 3 layers)
+.L0:
+	lpm	r17, Z+			; copy out of program memory into SRAM
+	st	X+, r17
+	dec	r16
+	brne	0b
+
+	ldi	XH:XL, V_sfld_pos
+	clr	r16
+	st	X, r16
+
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r17
+	pop	r16
+	ret
+;}}}
+demo_starfield_advance: ;{{{  advances starfield, uses V_sfld_pos to know what to move
+	push	r16
+	push	r17
+	push	r18
+	push	XL
+	push	XH
+
+	ldi	XH:XL, V_sfld_pos
+	ld	r18, X			; r18 = V_sfld_pos
+
+	ldi	XH:XL, V_sfld_l1
+	; always move top frame points
+	ldi	r16, 16
+.L0:
+	ld	r17, X
+	cpi	r17, 2			; don't draw anything left of this
+	brne	1f
+	; fell of, move back
+	ldi	r17, 125
+	st	X+, r17
+	lds	r17, TCNT1L
+	andi	r17, 0x7f		; restrict to 0->127
+	sbrc	r17, 6			; if bit 6 clear, skip next
+	andi	r17, 0x5f		; if bit 6 set, clear bit 5
+	cpi	r17, 94
+	brlo	101f			; branch if new Y < 94
+	subi	r17, 4			; else take 4 off
+.L101:
+	st	X+, r17			; new Y position
+	adiw	XH:XL, 1		; advance by 1 (type)
+	rjmp	11f
+.L1:
+	dec	r17
+	st	X+, r17
+	adiw	XH:XL, 2		; advance by 2 (Y and type)
+.L11:
+	dec	r16
+	brne	0b
+
+	; only move middle layer every other frame
+	sbrs	r18, 0
+	rjmp	2f
+	; assert: odd numbered frame, so move middle layer
+	ldi	XH:XL, V_sfld_l2
+
+	ldi	r16, 16
+.L0:
+	ld	r17, X
+	cpi	r17, 2			; don't draw anything left of this
+	brne	1f
+	; fell of, move back
+	ldi	r17, 126
+.L1:
+	dec	r17
+	st	X+, r17
+	adiw	XH:XL, 2		; advance by 2 (Y and type)
+	dec	r16
+	brne	0b
+.L2:
+
+	; only move bottom layer every 4th frame
+	mov	r16, r18
+	andi	r16, 0x03
+	cpi	r16, 0x03
+	brne	2f
+	; assert: 4th frame
+
+	ldi	XH:XL, V_sfld_l3
+
+	ldi	r16, 16
+.L0:
+	ld	r17, X
+	cpi	r17, 2			; don't draw anything left of this
+	brne	1f
+	; fell of, move back
+	ldi	r17, 126
+.L1:
+	dec	r17
+	st	X+, r17
+	adiw	XH:XL, 2		; advance by 2 (Y and type)
+	dec	r16
+	brne	0b
+
+.L2:
+	ldi	XH:XL, V_sfld_pos
+	inc	r18			; next position please (will wrap harmlessly)
+	st	X, r18
+
+	pop	XH
+	pop	XL
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+;}}}
+demo_starfield_draw: ;{{{  draws the starfield
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+	push	r20
+	push	r21
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	ldi	ZH:ZL, V_sfld_l1
+	ldi	r19, (16*3)		; how many thing we might be drawing
+
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	r20, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	r20, hi(V_framebuffer2)	;
+
+.L0:
+	ld	r16, Z+			; load X
+	ld	r17, Z+			; load Y
+
+	cpi	r16, 126
+	brlo	2f
+	; X >= 126, so off the right-hand edge somewhere.
+	ld	r18, Z+			; load type (to discard)
+	rjmp	5f			; next star please
+.L2:
+
+	;{{{  sort out correct position in the framebuffer
+	mov	XH, r20			; start of framebuffer
+	mov	XL, r17
+	swap	XL			; low-order bits of Y * 16
+	mov	r18, XL
+	andi	r18, 0x0f		; save high-order bits of Ypos
+	andi	XL, 0xf0		; cull in XL
+	add	XH, r18			; add these in
+
+	; assert: XH:XL points at the start of the relevant framebuffer line
+	mov	r18, r16
+	lsr	r18
+	lsr	r18
+	lsr	r18
+	or	XL, r18			; XH:XL now points at correct starting byte (line + (X/8))
+	;}}}
+
+	ld	r18, Z+			; load type
+	cpi	r18, 0			; single point?
+	brne	2f
+	rjmp	3f
+.L2:
+	cpi	r18, 1			; small burst?
+	brne	2f
+	rjmp	4f
+.L2:
+	; else must be large burst
+	;{{{  large burst, XH:XL on top-left pixel's byte
+	mov	r17, r16
+	andi	r17, 0x07
+	cpi	r17, 6			; spills over by 1 pixel?
+	breq	22f
+	cpi	r17, 7			; spills over by 2 pixels?
+	breq	23f
+	; else fits cleanly in the particular byte (at most shift 5).
+	;{{{  put pattern in variable position (0-5)
+	ldi	r18, 0xa0
+	ldi	r21, 0x40
+
+	; shift pattern right appropriately
+	sbrs	r16, 0
+	rjmp	21f
+	lsr	r18
+	lsr	r21
+.L21:
+	sbrs	r16, 1
+	rjmp	21f
+	lsr	r18
+	lsr	r18
+	lsr	r21
+	lsr	r21
+.L21:
+	sbrs	r16, 2
+	rjmp	21f
+	swap	r18
+	swap	r21
+.L21:
+
+	; could have only shifted by at most 3.
+	; paint :)  [pattern in r18, r21]
+	ld	r17, X
+	or	r17, r18
+	st	X, r17
+	adiw	XH:XL, HRES		; next line
+	ld	r17, X
+	or	r17, r21
+	st	X, r17
+	adiw	XH:XL, HRES		; next line
+	ld	r17, X
+	or	r17, r18
+	st	X, r17
+
+	;}}}
+	rjmp	29f
+.L22:
+	;{{{  spills over by 1 pixel, but known position
+	ld	r17, X
+	ori	r17, 0x02
+	st	X+, r17
+	ld	r17, X
+	ori	r17, 0x80
+	st	X, r17
+	adiw	XH:XL, HRES-1		; next line please
+	ld	r17, X
+	ori	r17, 0x01
+	st	X, r17
+	adiw	XH:XL, HRES		; next line please
+	ld	r17, X
+	ori	r17, 0x02
+	st	X+, r17
+	ld	r17, X
+	ori	r17, 0x80
+	st	X, r17
+	;}}}
+	rjmp	29f
+.L23:
+	;{{{  spills over by 2 pixels, but known position
+	ld	r17, X
+	ori	r17, 0x01
+	st	X+, r17
+
+	ld	r17, X
+	ori	r17, 0x40
+	st	X, r17
+
+	adiw	XH:XL, HRES		; next line please (+1)
+	ld	r17, X
+	ori	r17, 0x80
+	st	X, r17
+
+	adiw	XH:XL, HRES-1		; next line
+	ld	r17, X
+	ori	r17, 0x01
+	st	X+, r17
+
+	ld	r17, X
+	ori	r17, 0x40
+	st	X, r17
+	;}}}
+	rjmp	29f
+
+	;}}}
+.L29:
+	rjmp	5f
+.L3:
+	;{{{  single point, XH:XL on correct byte already
+	ldi	r18, 0x80		; default bit to set (0)
+	sbrc	r16, 0			; shift r18 right appropriately
+	lsr	r18
+	sbrc	r16, 1
+	lsr	r18
+	sbrc	r16, 1
+	lsr	r18
+	sbrc	r16, 2
+	swap	r18			; swap rather than shift by 4
+
+	ld	r17, X
+	or	r17, r18		; put in point
+	st	X, r17
+
+	;}}}
+	rjmp	5f
+.L4:
+	;{{{  small burst, XH:XL on top-left pixel's byte
+	mov	r17, r16
+	andi	r17, 0x07		; trim out last 3 bits
+	cpi	r17, 6			; spills over by 1 pixel?
+	breq	42f
+	cpi	r17, 7			; spills over by 2 pixels?
+	breq	43f
+	; else fits cleanly in the particular byte
+	;{{{  put pattern in variable position (0-5)
+	ldi	r18, 0x40
+	ldi	r21, 0xe0
+
+	sbrs	r16, 0			; shift pattern right appropriately
+	rjmp	41f
+	lsr	r18
+	lsr	r21
+.L41:
+	sbrs	r16, 1
+	rjmp	41f
+	lsr	r18
+	lsr	r18
+	lsr	r21
+	lsr	r21
+.L41:
+	sbrs	r16, 2
+	rjmp	41f
+	swap	r18
+	swap	r21
+.L41:
+
+	; then paint :)  [pattern in r18, r21]
+	ld	r17, X
+	or	r17, r18
+	st	X, r17
+	adiw	XH:XL, HRES		; next line
+	ld	r17, X
+	or	r17, r21
+	st	X, r17
+	adiw	XH:XL, HRES		; next line
+	ld	r17, X
+	or	r17, r18
+	st	X, r17
+
+	;}}}
+	rjmp	49f
+.L42:
+	;{{{  spills over by 1 pixel, but known position at least :)
+	ld	r17, X
+	ori	r17, 0x01
+	st	X, r17
+	adiw	XH:XL, HRES		; next line
+	ld	r17, X
+	ori	r17, 0x03
+	st	X+, r17
+	ld	r17, X
+	ori	r17, 0x80
+	st	X, r17
+	adiw	XH:XL, HRES-1		; next line
+	ld	r17, X
+	ori	r17, 0x01
+	st	X, r17
+
+	;}}}
+	rjmp	49f
+.L43:
+	;{{{  spills over by 2 pixels, but known position
+	ld	r17, X+			; and discard
+	ld	r17, X
+	ori	r17, 0x80
+	st	X, r17
+	adiw	XH:XL, HRES-1		; next line
+	ld	r17, X
+	ori	r17, 0x01
+	st	X+, r17
+	ld	r17, X
+	ori	r17, 0xc0
+	st	X, r17
+	adiw	XH:XL, HRES		; next line, +1
+	ld	r17, X
+	ori	r17, 0x80
+	st	X, r17
+	;}}}
+
+.L49:
+	;}}}
+	rjmp	5f
+
+.L5:
+	dec	r19
+	breq	1f
+	rjmp	0b
+.L1:
+
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r21
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+;}}}
+demo_sctext_init: ;{{{  preps for scrolly text, flash address given in r17:r16, Y position in r18, start mode in r19
+	push	r18
+
+	sts	V_sctext + 0, r17		; store string address in FLASH
+	sts	V_sctext + 1, r16
+	sts	V_sctext + 5, r18		; store Y position
+	clr	r18
+	sts	V_sctext + 2, r18		; offset high-byte = 0
+	cpi	r19, 0
+	brne	0f
+	; assert: mode = scroll-in-R, so use offset LSB for X offset
+	ldi	r18, 126
+.L0:
+	sts	V_sctext + 3, r18
+	sts	V_sctext + 4, r19
+
+	pop	r18
+	ret
+;}}}
+demo_sctext_renderstep: ;{{{  renders scrolly text and advances depending on mode
+	push	r16
+	push	r17
+	push	r19
+	push	ZL
+	push	ZH
+
+	lds	ZH, V_sctext + 0		; load FLASH address (regardless)
+	lds	ZL, V_sctext + 1
+
+	lds	r19, V_sctext + 4		; load type
+	cpi	r19, 1
+	brlo	0f				; branch if scroll-in-R
+	brne	2f				; branch if not hold (so must be scroll-out-L)
+	rjmp	1f				; branch if hold
+.L2:						; else scroll-out-L
+	lds	r17, V_sctext + 2		; load text offset into r17:r16 -> upper 13-bits are message offset, lower 3 bits are character-offset
+	lds	r16, V_sctext + 3
+	clr	r19
+	clc
+	ror	r17
+	ror	r16
+	ror	r19				; shift r17:r16 right, into r19
+	ror	r17
+	ror	r16
+	ror	r19				; shift r17:r16 right, into r19
+	ror	r17
+	ror	r16
+	ror	r19				; shift r17:r16 right, into r19
+
+	; r17:r16 now has the 13-bit message offset, r19 has 3 MSBs with the char offset
+	lsr	r19
+	swap	r19				; r19 = 0-5
+
+	add	ZL, r16
+	adc	ZH, r17				; adjust for message offset
+
+	ldi	r16, 5
+	sub	r16, r19			; r16 = 5-0, X position (relies on the fact we don't render some of the left-most stuff)
+	lds	r17, V_sctext + 5		; Y position
+
+	call	fb_writestring
+
+	cpi	r16, 1				; was the X position one? (means end of this character)
+	breq	2f
+	; moving within a character, add 2 to low-order bits
+	lds	ZH, V_sctext + 2
+	lds	ZL, V_sctext + 3
+	adiw	ZH:ZL, 2
+	sts	V_sctext + 2, ZH
+	sts	V_sctext + 3, ZL
+	rjmp	3f
+
+.L2:
+	; end of this character, onto next.  Z still pointing at the first character to display, if the null-character, don't update
+	lpm	r19, Z
+	tst	r19
+	breq	3f				; abandon if null-terminator
+
+	lds	ZH, V_sctext + 2
+	lds	ZL, V_sctext + 3
+	adiw	ZH:ZL, 8
+	andi	ZL, 0xf8			; clear out low-order bits
+	sts	V_sctext + 2, ZH
+	sts	V_sctext + 3, ZL
+
+.L3:
+	rjmp	9f
+.L0:
+	; scroll in from right, offset LSB has X position to draw at.
+	lds	r16, V_sctext + 3		; offset LSB (= X pos)
+	lds	r17, V_sctext + 5		; Y position
+	call	fb_writestring
+	; remove 2 from X position
+	subi	r16, 2
+	sts	V_sctext + 3, r16
+	brne	2f
+	; reached zero, change mode to 'hold'
+	ldi	r19, 1
+	sts	V_sctext + 4, r19		; set mode = 1
+.L2:
+	rjmp	9f
+.L1:
+	; holding, so just draw and leave alone
+	lds	r16, V_sctext + 3		; offset LSB (= X pos)
+	lds	r17, V_sctext + 5		; Y position
+	call	fb_writestring
+	rjmp	9f
+
+.L9:
+	pop	ZH
+	pop	ZL
+	pop	r19
+	pop	r17
+	pop	r16
+	ret
+
+;}}}
+;{{{  
+;}}}
+;{{{  
 ;}}}
 
 lvar_init: ;{{{  initialises local stuffs
@@ -2763,6 +3601,54 @@ VEC_reset:
 
 	; at this point we're effectively going :)
 prg_code:
+
+	ldi	r25:r24, 0		; frame counter
+	call	demo_starfield_init
+	ldi	r17:r16, S_sfmsg1
+	ldi	r18, 20
+	ldi	r19, 0
+	call	demo_sctext_init
+
+.L0:
+	call	demo_starfield_advance
+	call	fb_clear
+	call	demo_starfield_draw
+
+	;{{{  text messages during starfield
+	cpi	r25, 1
+	brne	1f
+
+	; frames 256-511		; scroll or hold
+	call	demo_sctext_renderstep
+	rjmp	2f
+.L1:
+	cpi	r25, 2
+	brne	1f
+
+	; frames 512-767		; scroll off to left after 128
+	cpi	r24, 128
+	breq	3f
+	rjmp	4f
+.L3:
+	; subframe 128 exactly, set mode to scroll off right
+	ldi	r16, 2
+	sts	V_sctext + 4, r16	; hard set mode = 2
+.L4:
+	call	demo_sctext_renderstep
+	rjmp	2f
+.L1:
+
+.L2:
+	;}}}
+
+	call	vid_waitflip
+	; call	vid_waitbot1
+	adiw	r25:r24, 1
+
+	rjmp	0b			; redo regardless :)
+
+
+
 	ldi	r16, 199		; 4 seconds
 .L0:
 	call	vid_waitbot1
@@ -2854,6 +3740,8 @@ prg_code:
 	; slap in some text
 	lds	r25, V_scroll1_h
 	lds	r24, V_scroll1_l
+	ldi	ZH, hi(S_message)
+	ldi	ZL, lo(S_message)
 
 	; upper 13-bits are message offset, lower 3 are character-offset
 	clr	r16
@@ -2872,8 +3760,6 @@ prg_code:
 	lsr	r16
 	swap	r16			; r16 = 0-5
 
-	ldi	ZH, hi(S_message)
-	ldi	ZL, lo(S_message)
 	add	ZL, r24
 	adc	ZH, r25			; adjust for message offset
 
@@ -2939,6 +3825,9 @@ S_message:
 		"as well as clearing the framebuffer, just to get an idea of how much work we ",
 		"can do outside the interrupt handlers..", 0x00
 
+S_sfmsg1:	.const	"  Computing at Kent ", 0x00
+S_sfmsg2:	.const	" School of Computing", 0x00
+
 .include "fb-ada.inc"
 
 D_lineset_count:
@@ -2966,53 +3855,110 @@ D_rdrpnts_static:
 	.const		60, 50, 10, 0
 	.const		70, 50, 5, 10
 
-D_soundtrk:
-	.const	NOTE_OFF,	0x00,	NOTE_OFF,	0x00,
-		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_G3,	0x02,	NOTE_NOCHANGE,	0x00,
-		NOTE_G3,	0x06,	NOTE_NOCHANGE,	0x00,
-		NOTE_G2,	0x0b,	NOTE_NOCHANGE,	0x00,
-		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_C4,	0x42,	NOTE_C3,	0x01,
-		NOTE_C5,	0x82,	NOTE_NOCHANGE,	0x00,
-		NOTE_C4,	0x02,	NOTE_NOCHANGE,	0x00,
-		NOTE_C5,	0x82,	NOTE_NOCHANGE,	0x00,
-		NOTE_C4,	0x02,	NOTE_A2S,	0x01,
-		NOTE_D5S,	0x82,	NOTE_NOCHANGE,	0x00,
-		NOTE_C4,	0x42,	NOTE_NOCHANGE,	0x00,
-		NOTE_D5S,	0x82,	NOTE_NOCHANGE,	0x00,
-		NOTE_D4,	0x42,	NOTE_A2,	0x02,
-		NOTE_G5,	0x82,	NOTE_NOCHANGE,	0x00,
-		NOTE_D4,	0x02,	NOTE_NOCHANGE,	0x00,
-		NOTE_G5,	0x82,	NOTE_NOCHANGE,	0x00,
-		NOTE_D4,	0x02,	NOTE_G2,	0x02,
-		NOTE_G5S,	0x82,	NOTE_NOCHANGE,	0x00,
-		NOTE_D4,	0x42,	NOTE_NOCHANGE,	0x00,
-		NOTE_G5S,	0x82,	NOTE_NOCHANGE,	0x00,
-		NOTE_D4S,	0x42,	NOTE_G2S,	0x03,
-		NOTE_OFF,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_D4S,	0x02,	NOTE_NOCHANGE,	0x00,
-		NOTE_OFF,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_D4S,	0x02,	NOTE_A2S,	0x03,
-		NOTE_OFF,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_D4S,	0x42,	NOTE_NOCHANGE,	0x00,
-		NOTE_OFF,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_F4,	0x42,	NOTE_C3,	0x01,
-		NOTE_OFF,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_F4,	0x02,	NOTE_NOCHANGE,	0x00,
-		NOTE_OFF,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_F4,	0x02,	NOTE_D3,	0x01,
-		NOTE_OFF,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_F4,	0x42,	NOTE_NOCHANGE,	0x00,
-		NOTE_OFF,	0x00,	NOTE_NOCHANGE,	0x00,
-		NOTE_OFF,	0x00,	NOTE_OFF,	0x00,
+D_starfield_init:
+	.const		167, 11, 0, 180, 71, 1, 204, 73, 1, 201, 65, 0,
+			166, 56, 1, 254, 30, 0, 254, 44, 1, 149, 76, 0,
+			241, 83, 0, 169, 81, 1, 163, 63, 1, 136, 36, 0,
+			214, 18, 1, 216, 14, 1, 156, 14, 1, 204, 50, 1
 
-		NOTE_END,	0xff,	NOTE_OFF,	0x00			; THE END
+	.const		166, 11, 1, 149, 18, 1, 235, 40, 1, 133, 29, 2,
+			163, 92, 2, 226, 24, 2, 220, 32, 0, 219, 77, 2,
+			145, 55, 2, 181, 55, 1, 206, 6, 0, 208, 17, 2,
+			182, 31, 2, 175, 45, 2, 145, 16, 1, 217, 20, 2
+
+	.const		136, 11, 2, 170, 29, 1, 159, 44, 1, 172, 77, 0,
+			232, 67, 1, 203, 33, 1, 130, 79, 0, 205, 28, 2,
+			131, 27, 0, 189, 49, 0, 150, 8, 1, 184, 66, 2,
+			229, 34, 1, 133, 46, 1, 246, 10, 1, 238, 92, 2
+
+
+;		CHANNEL1		CHANNEL2		CHANNEL3
+;-----------------------------------------------------------------------------------
+D_soundtrk:
+	.const	NOTE_OFF,	0x00,	NOTE_OFF,	0x00,	NOTE_OFF,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_END,	0xff,	NOTE_END,	0xff,	NOTE_END,	0xff,		; PREMATURE: THE END
+
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x01,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x02,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x03,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x02,	NOTE_G4,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x01,	NOTE_G4,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x02,	NOTE_G4,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x03,	NOTE_G4,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x02,	NOTE_G4,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x01,	NOTE_G4,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x02,	NOTE_G4,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x03,	NOTE_G4,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x02,	NOTE_G4,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x01,	NOTE_G4,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x02,	NOTE_G4,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_G3,	0x03,	NOTE_G4,	0x82,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+
+		NOTE_G3,	0x02,	NOTE_C4,	0x02,	NOTE_E4,	0x02,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_A3,	0x02,	NOTE_C4,	0x02,	NOTE_F4,	0x02,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_B3,	0x02,	NOTE_D4,	0x02,	NOTE_G4,	0x02,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_A3,	0x02,	NOTE_C4,	0x02,	NOTE_F4,	0x02,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+
+		NOTE_G3,	0x02,	NOTE_C4,	0x02,	NOTE_E4,	0x02,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_A3,	0x02,	NOTE_C4,	0x02,	NOTE_F4,	0x02,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_B3,	0x02,	NOTE_D4,	0x02,	NOTE_G4,	0x02,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_A3,	0x02,	NOTE_C4,	0x02,	NOTE_F4,	0x02,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_OFF,	0x00,	NOTE_OFF,	0x00,	NOTE_OFF,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
+
+		NOTE_END,	0xff,	NOTE_END,	0xff,	NOTE_END,	0xff		; THE END
 
