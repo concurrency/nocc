@@ -223,6 +223,18 @@ V_sctext:	.space 2			; 16-bits for flash address of the string
 		.space 1			; defines how this particular one works (scroll-in-R, hold, scroll-out-L)
 		.space 1			; Y offset
 
+V_svtext:	.space 2			; 16-bits for flash address of the string
+		.space 1			; 8 bits for scroll/Y offset
+		.space 1			; mode (scroll-in-top, hold, scroll-out-bot)
+		.space 1			; X offset
+		.space 1			; target Y for scroll-down
+
+V_svrtext:	.space 2			; 16-bits for flash address of the string
+		.space 1			; 8 bits for scroll/Y offset
+		.space 1			; mode (scroll-in-bottom, hold, scroll-out-top)
+		.space 1			; X offset
+		.space 1			; target Y for scroll-up
+
 V_rdrpnts:	.space (4 * 8)			; FIXME: for now ...
 
 ;}}}
@@ -1109,6 +1121,7 @@ fb_setbyte: ;{{{  write the 8-bits in r18 to the framebuffer at position (r16*8,
 
 ;}}}
 fb_writechar: ;{{{  writes the ASCII char in r18 to the framebuffer at position (r16, r17) using 5x7 font.
+	; Note: r17 may be outside the framebuffer (<0 or >=96), this will deal with that sensibly.
 
 	; check for valid character (obviously :))
 	cpi	r18, 32
@@ -1119,8 +1132,16 @@ fb_writechar: ;{{{  writes the ASCII char in r18 to the framebuffer at position 
 	brlo	0f
 	rjmp	fb_writechar_out
 .L0:
+	cpi	r17, 96
+	brlo	0f			; unsigned, so range 0-95
+	cpi	r17, -6
+	brsh	0f			; between -6 and -1 then
+	; else outside of visible Y range
+	rjmp	fb_writechar_out
+.L0:
 	push	r0
 	push	r1
+	push	r17
 	push	r18			; save regs from here
 	push	r19
 	push	r20
@@ -1139,6 +1160,25 @@ fb_writechar: ;{{{  writes the ASCII char in r18 to the framebuffer at position 
 	mul	r18, r19		; result left in r1:r0
 	add	ZL, r0
 	adc	ZH, r1
+
+	ldi	r21, 7			; default number of lines to write
+	cpi	r17, 250
+	brlo	0f			; if Y >= 0
+.L1:
+	; here means we're drawing off the top somewhere (Y<0), increment until Y==0
+	adiw	ZH:ZL, 1		; next line in character data
+	dec	r21			; one less line of character data
+	inc	r17			; Y++
+	brne	1b			; loop if still != 0
+.L0:
+	cpi	r17, 90			; if >= line 90, then can't see all of the character
+	brlo	0f
+	; here means we're drawing off the bottom somewhere (Y>=90), better do fewer lines
+	ldi	r19, 89
+	sub	r19, r17
+	neg	r19			; r19 = Y-90 (number of lines we can see still)
+	sub	r21, r19
+.L0:
 
 	; point X at the first byte in the framebuffer of interest
 	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
@@ -1259,6 +1299,7 @@ fb_writechar_cont:
 	pop	r20
 	pop	r19
 	pop	r18
+	pop	r17
 	pop	r1
 	pop	r0
 fb_writechar_out:
@@ -1268,9 +1309,8 @@ fb_writechar_out:
 	;
 	; XH:XL = address of byte in FB
 	; ZH:ZL = address of first character byte (5 LSBs)
-	; r16,r17 = pos; r18 = char;  r19-r21,r0-r1 = available.
+	; r16,r17 = pos; r18 = char; r21 = count (7 for all-visible); r19-r20,r0-r1 = available.
 fb_writechar_offs0:
-	ldi	r21, 7			; this many bytes please
 .L0:
 	ld	r20, X
 	lpm	r19, Z+
@@ -1286,7 +1326,6 @@ fb_writechar_offs0:
 	rjmp	fb_writechar_cont
 
 fb_writechar_offs1:
-	ldi	r21, 7			; this many bytes please
 .L0:
 	ld	r20, X
 	lpm	r19, Z+
@@ -1301,7 +1340,6 @@ fb_writechar_offs1:
 	rjmp	fb_writechar_cont
 
 fb_writechar_offs2:
-	ldi	r21, 7			; this many bytes please
 .L0:
 	ld	r20, X
 	lpm	r19, Z+
@@ -1315,7 +1353,6 @@ fb_writechar_offs2:
 	rjmp	fb_writechar_cont
 
 fb_writechar_offs3:
-	ldi	r21, 7			; this many bytes please
 .L0:
 	ld	r20, X
 	lpm	r19, Z+
@@ -1328,7 +1365,6 @@ fb_writechar_offs3:
 	rjmp	fb_writechar_cont
 
 fb_writechar_offs4:
-	ldi	r21, 7			; this many bytes please
 .L0:
 	lpm	r19, Z+
 	clr	r1
@@ -1351,7 +1387,6 @@ fb_writechar_offs4:
 	rjmp	fb_writechar_cont
 
 fb_writechar_offs4l:
-	ldi	r21, 7			; this many bytes please
 .L0:
 	lpm	r19, Z+
 	lsr	r19			; keep 4 MSB in r19
@@ -1367,7 +1402,6 @@ fb_writechar_offs4l:
 	rjmp	fb_writechar_cont
 
 fb_writechar_offs4r:
-	ldi	r21, 7			; this many bytes please
 .L0:
 	lpm	r19, Z+
 	ror	r19
@@ -1385,7 +1419,6 @@ fb_writechar_offs4r:
 	rjmp	fb_writechar_cont
 
 fb_writechar_offs5:
-	ldi	r21, 7			; this many bytes please
 .L0:
 	lpm	r19, Z+
 	clr	r1
@@ -1411,7 +1444,6 @@ fb_writechar_offs5:
 	rjmp	fb_writechar_cont
 
 fb_writechar_offs5l:
-	ldi	r21, 7			; this many bytes please
 .L0:
 	lpm	r19, Z+
 	lsr	r19			; keep 3 MSB in r19
@@ -1428,7 +1460,6 @@ fb_writechar_offs5l:
 	rjmp	fb_writechar_cont
 
 fb_writechar_offs5r:
-	ldi	r21, 7			; this many bytes please
 .L0:
 	lpm	r19, Z+
 	ror	r19
@@ -1447,7 +1478,6 @@ fb_writechar_offs5r:
 	rjmp	fb_writechar_cont
 
 fb_writechar_offs6:
-	ldi	r21, 7			; this many bytes please
 .L0:
 	lpm	r19, Z+
 	clr	r1
@@ -1476,7 +1506,6 @@ fb_writechar_offs6:
 	rjmp	fb_writechar_cont
 
 fb_writechar_offs6l:
-	ldi	r21, 7			; this many bytes please
 .L0:
 	lpm	r19, Z+
 	lsr	r19			; keep 2 MSB in r19
@@ -1494,7 +1523,6 @@ fb_writechar_offs6l:
 	rjmp	fb_writechar_cont
 
 fb_writechar_offs6r:
-	ldi	r21, 7			; this many bytes please
 .L0:
 	lpm	r19, Z+
 	ror	r19
@@ -1514,7 +1542,6 @@ fb_writechar_offs6r:
 	rjmp	fb_writechar_cont
 
 fb_writechar_offs7:
-	ldi	r21, 7			; this many bytes please
 .L0:
 	lpm	r19, Z+
 	clr	r1
@@ -1546,7 +1573,6 @@ fb_writechar_offs7:
 	rjmp	fb_writechar_cont
 
 fb_writechar_offs7l:
-	ldi	r21, 7			; this many bytes please
 .L0:
 	lpm	r19, Z+
 	lsr	r19			; keep 1 MSB in r19
@@ -1565,7 +1591,6 @@ fb_writechar_offs7l:
 	rjmp	fb_writechar_cont
 
 fb_writechar_offs7r:
-	ldi	r21, 7			; this many bytes please
 .L0:
 	lpm	r19, Z+
 	ror	r19
@@ -2158,6 +2183,49 @@ fb_xdrawline_redo:
 	pop	r17
 	pop	r16
 	ret
+;}}}
+
+math_sinv: ;{{{  computes r16 * sin(r17), returns high-order bits (signed) in r16, trashes r17
+	push	r0
+	push	r1
+	push	ZL
+	push	ZH
+
+	ldi	ZH:ZL, D_sin_table
+	clr	r0
+	add	ZL, r17
+	adc	ZH, r0
+	lpm	r17, Z			; load sin(r17) into r17
+	mulsu	r17, r16
+	mov	r16, r1			; high-order bits of the result
+
+	pop	ZH
+	pop	ZL
+	pop	r1
+	pop	r0
+	ret
+
+;}}}
+math_cosv: ;{{{  computes r16 * cos(r17), returns high-order bits (signed) in r16, trashes r17
+	push	r0
+	push	r1
+	push	ZL
+	push	ZH
+
+	ldi	ZH:ZL, D_cos_table
+	clr	r0
+	add	ZL, r17
+	adc	ZH, r0
+	lpm	r17, Z			; load sin(r17) into r17
+	mulsu	r17, r16
+	mov	r16, r1			; high-order bits of the result
+
+	pop	ZH
+	pop	ZL
+	pop	r1
+	pop	r0
+	ret
+
 ;}}}
 
 vid_waitbot: ;{{{  waits for the render to reach bottom of visible area (so we can start updating things)
@@ -3100,11 +3168,24 @@ demo_starfield_advance: ;{{{  advances starfield, uses V_sfld_pos to know what t
 	cpi	r17, 2			; don't draw anything left of this
 	brne	1f
 	; fell of, move back
-	ldi	r17, 126
+	ldi	r17, 125
+	st	X+, r17
+	lds	r17, TCNT1L
+	andi	r17, 0x7f		; restrict to 0->127
+	sbrc	r17, 6			; if bit 6 clear, skip next
+	andi	r17, 0x5f		; if bit 6 set, clear bit 5
+	cpi	r17, 94
+	brlo	101f			; branch if new Y < 94
+	subi	r17, 4			; else take 4 off
+.L101:
+	st	X+, r17			; new Y position
+	adiw	XH:XL, 1		; advance by 1 (type)
+	rjmp	11f
 .L1:
 	dec	r17
 	st	X+, r17
 	adiw	XH:XL, 2		; advance by 2 (Y and type)
+.L11:
 	dec	r16
 	brne	0b
 .L2:
@@ -3540,6 +3621,255 @@ demo_sctext_renderstep: ;{{{  renders scrolly text and advances depending on mod
 	ret
 
 ;}}}
+demo_svtext_init: ;{{{  preps for scrolly text, flash address given in r17:r16, X position in r18, Y position in r19, start mode in r20 (==0, target in r21)
+	sts	V_svtext + 0, r17		; store string address in FLASH
+	sts	V_svtext + 1, r16
+	sts	V_svtext + 2, r19		; initial Y position (negative values accepted to get slight lines)
+	sts	V_svtext + 3, r20		; start mode
+	sts	V_svtext + 4, r18		; X position
+	cpi	r20, 0
+	brne	0f
+	sts	V_svtext + 5, r21		; target Y for scroll-in-top
+	rjmp	1f
+.L0:
+	push	r21
+	clr	r21
+	sts	V_svtext + 5, r21
+	pop	r21
+.L1:
+
+	ret
+;}}}
+demo_svtext_renderstep: ;{{{  renders vertical scrolly text and advances depending on mode
+	push	r16
+	push	r17
+	push	r19
+	push	ZL
+	push	ZH
+
+	lds	ZH, V_svtext + 0		; load FLASH address (regardless)
+	lds	ZL, V_svtext + 1
+
+	; draw this at the particular X/Y coords regardless
+	lds	r16, V_svtext + 4		; X position
+	lds	r17, V_svtext + 2		; Y position
+	call	fb_writestring
+
+	lds	r19, V_svtext + 3		; load mode/type
+	cpi	r19, 1
+	brlo	0f				; branch if scroll-in-top
+	brne	1f				; branch if not hold (so must be scroll-out-bottom)
+	; else holding
+	rjmp	9f
+
+.L0:
+	; scrolling in from the top, Y may be negative
+	inc	r17				; next line down
+	sts	V_svtext + 2, r17
+	lds	r19, V_svtext + 5		; load target Y
+	cp	r17, r19			; here yet?
+	brne	2f
+	; yes, so set mode to hold
+	ldi	r19, 1
+	sts	V_svtext + 3, r19
+.L2:
+	rjmp	9f
+
+.L1:
+	; scrolling out at the bottom
+	inc	r17
+	sts	V_svtext + 2, r17
+	cpi	r17, 96				; can't see it anymore?
+	brne	9f
+	ldi	r19, 1
+	sts	V_svtext + 3, r19		; set mode = 1 (holding)
+
+.L9:
+	pop	ZH
+	pop	ZL
+	pop	r19
+	pop	r17
+	pop	r16
+	ret
+;}}}
+demo_svrtext_init: ;{{{  preps for scrolly text, flash address given in r17:r16, X position in r18, Y position in r19, start mode in r20 (==0, target in r21)
+	sts	V_svrtext + 0, r17		; store string address in FLASH
+	sts	V_svrtext + 1, r16
+	sts	V_svrtext + 2, r19		; initial Y position (negative values accepted to get slight lines)
+	sts	V_svrtext + 3, r20		; start mode
+	sts	V_svrtext + 4, r18		; X position
+	cpi	r20, 0
+	brne	0f
+	sts	V_svrtext + 5, r21		; target Y for scroll-in-bottom
+	rjmp	1f
+.L0:
+	push	r21
+	clr	r21
+	sts	V_svrtext + 5, r21
+	pop	r21
+.L1:
+
+	ret
+;}}}
+demo_svrtext_renderstep: ;{{{  renders vertical scrolly text and advances depending on mode (this one scrolls bottom-up)
+	push	r16
+	push	r17
+	push	r19
+	push	ZL
+	push	ZH
+
+	lds	ZH, V_svrtext + 0		; load FLASH address (regardless)
+	lds	ZL, V_svrtext + 1
+
+	; draw this at the particular X/Y coords regardless
+	lds	r16, V_svrtext + 4		; X position
+	lds	r17, V_svrtext + 2		; Y position
+	call	fb_writestring
+
+	lds	r19, V_svrtext + 3		; load mode/type
+	cpi	r19, 1
+	brlo	0f				; branch if scroll-in-bottom
+	brne	1f				; branch if not hold (so must be scroll-out-top)
+	; else holding
+	rjmp	9f
+.L0:
+	; scrolling in from the bottom
+	dec	r17				; next line up
+	sts	V_svrtext + 2, r17
+	lds	r19, V_svrtext + 5		; load target Y
+	cp	r17, r19			; here yet?
+	brne	2f
+	; yes, so set mode to hold
+	ldi	r19, 1
+	sts	V_svrtext + 3, r19
+.L2:
+	rjmp	9f
+
+.L1:
+	; scrolling out via the top, will deliberately wrap Y
+	dec	r17
+	sts	V_svrtext + 2, r17
+	cpi	r17, -7				; gone completely?
+	brne	9f
+	ldi	r19, 1
+	sts	V_svrtext + 3, r19		; set mode = 1 (holding)
+
+.L9:
+	pop	ZH
+	pop	ZL
+	pop	r19
+	pop	r17
+	pop	r16
+	ret
+;}}}
+demo_pac_render: ;{{{  renders a pacman on the display at r16,r17  (right facing)
+	push	r16
+	push	r19
+	push	r20
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
+
+	mov	XL, r17
+	swap	XL			; low-order bits * 16
+	mov	r19, XL
+	andi	r19, 0x0f		; save high-order bits of Ypos
+	andi	XL, 0xf0		; cull these in XL
+	add	XH, r19			; add these in
+
+	; assert: XH:XL points at the start of the relevant line
+	clr	r19
+	clc
+	ror	r16			; divide r16/8 and shift 3 LSB into r19 3 MSB
+	ror	r19
+	ror	r16
+	ror	r19
+	ror	r16
+	ror	r19
+
+	lsr	r19
+	swap	r19			; swap around so r19 = 0-7 (starting bit offset in X)
+	or	XL, r16			; appropriate byte
+
+	; X now points at the start in the framebuffer, can re-use r16, r19, r20
+
+	; NOTE: TODO: check Y and X overruns in the future
+	cpi	r19, 5
+	brsh	1f			; 3 bytes per line
+	ldi	ZH:ZL, D_pac_glyph2
+	lsl	r19
+	swap	r19			; multiply by 32, (0-4 -> 0-128)
+	clr	r16
+	add	ZL, r19
+	adc	ZH, r16			; Z points at the appropriately X-offset'd data (2 bytes per line)
+
+	ldi	r19, 13			; this many lines
+.L0:
+	ld	r16, X
+	lpm	r20, Z+
+	or	r16, r20
+	st	X+, r16
+	ld	r16, X
+	lpm	r20, Z+
+	or	r16, r20
+	st	X, r16
+	adiw	XH:XL, HRES-1		; next line in framebuffer
+	dec	r19
+	brne	0b
+	rjmp	9f			; done, so get out
+
+.L1:
+	; similar to the above, but 3 bytes per line.  r19 is 5-7
+	subi	r19, 5			; r19 = 0,1,2
+	ldi	ZH:ZL, D_pac_glyph3
+	mov	r20, r19
+	lsl	r20			; r20 = 0,2,4
+	add	r20, r19		; r20 = 0,3,6
+	swap	r20			; r20 = 0,48,96
+	clr	r16
+	add	ZL, r20
+	adc	ZH, r16			; Z points at the appropriately X-offset'd data (3 bytes per line)
+
+	ldi	r19, 13			; this many lines
+.L0:
+	ld	r16, X
+	lpm	r20, Z+
+	or	r16, r20
+	st	X+, r16
+	ld	r16, X
+	lpm	r20, Z+
+	or	r16, r20
+	st	X+, r16
+	ld	r16, X
+	lpm	r20, Z+
+	or	r16, r20
+	st	X, r16
+	adiw	XH:XL, HRES-2		; next line in framebuffer
+	dec	r19
+	brne	0b
+	; else done :)
+
+.L9:
+
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r20
+	pop	r19
+	pop	r16
+	ret
+
+
+;}}}
+;{{{  
+;}}}
 ;{{{  
 ;}}}
 ;{{{  
@@ -3603,49 +3933,227 @@ VEC_reset:
 prg_code:
 
 	ldi	r25:r24, 0		; frame counter
+
+	;{{{  first things to initialise: starfield and scrolly messages for first round
 	call	demo_starfield_init
 	ldi	r17:r16, S_sfmsg1
-	ldi	r18, 20
+	ldi	r18, 48			; Y position
 	ldi	r19, 0
 	call	demo_sctext_init
 
+	ldi	r17:r16, S_sfmsg2
+	ldi	r18, 46			; X position
+	ldi	r19, -6			; initial Y position
+	ldi	r20, 0			; mode = scroll in top
+	ldi	r21, 34			; target Y position
+	call	demo_svtext_init
+
+
+	;}}}
+	;{{{  major frames 0-2  (starfield and scrollies)
 .L0:
 	call	demo_starfield_advance
 	call	fb_clear
 	call	demo_starfield_draw
 
-	;{{{  text messages during starfield
 	cpi	r25, 1
+	brne	2f
+	; major frame 1, scroll or hold until minor frame 210
+	cpi	r24, 210
 	brne	1f
-
-	; frames 256-511		; scroll or hold
-	call	demo_sctext_renderstep
-	rjmp	2f
-.L1:
-	cpi	r25, 2
-	brne	1f
-
-	; frames 512-767		; scroll off to left after 128
-	cpi	r24, 128
-	breq	3f
-	rjmp	4f
-.L3:
-	; subframe 128 exactly, set mode to scroll off right
+	; assert: frame 1:210, start scrolling off after hold
 	ldi	r16, 2
-	sts	V_sctext + 4, r16	; hard set mode = 2
-.L4:
-	call	demo_sctext_renderstep
-	rjmp	2f
+	sts	V_sctext + 4, r16
+	sts	V_svtext + 3, r16
+	ldi	r16, 8
+	sts	V_sctext + 3, r16	; set X offset to 8 (next character)
+	rjmp	4f
 .L1:
+	; assert: frame 1:(!210)
+	cpi	r24, 30
+	brlo	3f			; branch if < 1:30
+	; here means we're in frame >= 1:30
+.L4:
+	call	demo_svtext_renderstep	; else add in vertical scrolling text
+.L3:
+	call	demo_sctext_renderstep	; do text render and step
+	call	vid_waitflip
+	adiw	r25:r24, 1
+	rjmp	0b			; go again on next frame :)
 
+.L2:	; here if not major frame 1
+	cpi	r25, 2
+	brne	2f
+	; major frame 2, continue scrolling off (until minor frame 30)
+	cpi	r24, 30
+	brlo	1f
+	cpi	r24, 60
+	breq	3f			; if frame 2:60, jump out into frame 3:00
+	; else minor frame >= 30, so we're done with scrolly text for now
+	call	vid_waitflip
+	adiw	r25:r24, 1
+	rjmp	0b
+.L1:
+	; assert: frames 2:0 -> 2:29.
+	call	demo_sctext_renderstep	; do text render and step
+	call	demo_svtext_renderstep	; 
+	call	vid_waitflip
+	adiw	r25:r24, 1
+	rjmp	0b			; go again on next frame :)
 .L2:
+	; major frame 0,3
+	cpi	r25, 3
+	breq	9f
+	call	vid_waitflip
+	adiw	r25:r24, 1
+	rjmp	0b			; go round again
+.L3:
+	ldi	r25:r24, 0x0300
+.L9:
 	;}}}
+	; when we arrive here, in frame 3:0
+	;{{{  initialise next scrollies
+	ldi	r17:r16, S_sfmsg3
+	ldi	r18, 48			; Y position
+	ldi	r19, 0
+	call	demo_sctext_init
+
+	ldi	r17:r16, S_sfmsg4
+	ldi	r18, 20			; X position
+	ldi	r19, -6			; initial Y
+	ldi	r20, 0			; mode = scroll in top
+	ldi	r21, 34			; target Y position
+	call	demo_svtext_init
+
+	ldi	r17:r16, S_sfmsg5
+	ldi	r18, 16			; X position
+	ldi	r19, 95			; initial Y
+	ldi	r20, 0			; mode = scroll in bottom
+	ldi	r21, 62			; target Y position
+	call	demo_svrtext_init
+
+	;}}}
+	;{{{  major frames 3-4  (starfield and scrollies)
+.L0:
+	call	demo_starfield_advance
+	call	fb_clear
+	call	demo_starfield_draw
+
+	cpi	r25, 4
+	brlo	1f			; in major frame 3
+	breq	2f			; in major frame 4
+	; else we just went into frame 5
+	rjmp	9f
+.L1:
+	; major frame 3, scroll or hold until minor frame 210
+	cpi	r24, 210
+	brne	1f
+	; assert: frame 3:210, start scrolling off after hold
+	ldi	r16, 2
+	sts	V_sctext + 4, r16
+	sts	V_svtext + 3, r16
+	sts	V_svrtext + 3, r16
+	ldi	r16, 8
+	sts	V_sctext + 3, r16	; set X offset to 8 (next character)
+.L1:
+	; assert: in major frame 3, only do vertical scroll if minor >= 30
+	cpi	r24, 30
+	brlo	3f
+	call	demo_svtext_renderstep
+	call	demo_svrtext_renderstep
+.L3:
+	call	demo_sctext_renderstep
+	call	vid_waitflip
+	adiw	r25:r24, 1
+	rjmp	0b			; next frame please
+.L2:
+	; major frame 4, scroll until minor frame 30
+	cpi	r24, 30
+	brlo	1f
+	cpi	r24, 60
+	breq	3f			; at frame 4:60, fast advance to 5:0
+	; else minor frame >= 30, so no scrolly text for now
+	call	vid_waitflip
+	adiw	r25:r24, 1
+	rjmp	0b
+.L1:
+	call	demo_svtext_renderstep
+	call	demo_svrtext_renderstep
+	call	demo_sctext_renderstep
+	call	vid_waitflip
+	adiw	r25:r24, 1
+	rjmp	0b			; next frame please
+.L3:
+	ldi	r25:r24, 0x0500
+.L9:
+	;}}}
+	; when we arrive here, in frame 5:0
+	;{{{  initialise next scrollies (horizontal one is long)
+	ldi	r17:r16, S_sfmsg6
+	ldi	r18, 80			; sit near the bottom
+	ldi	r19, 2			; scrolling off mode
+	call	demo_sctext_init
+
+	;}}}
+	;{{{  major frames 5 (starfield and scrolly)
+.L0:
+	call	demo_starfield_advance
+	call	fb_clear
+	call	demo_starfield_draw
+
+	call	demo_sctext_renderstep
+	call	vid_waitflip
+	adiw	r25:r24, 1
+	cpi	r25, 6			; reached major frame 6 yet?
+	breq	9f
+	rjmp	0b			; next frame please
+.L9:
+	;}}}
+	; when we arrive here, in frame 6:0
+	;{{{  major frames 6, 7  (starfield, scrolly and pacman)
+.L0:
+	call	demo_starfield_advance
+	call	fb_clear
+	call	demo_starfield_draw
+
+	call	demo_sctext_renderstep
+
+	;--------- BEGIN HACKY TEST
+	ldi	r16, 20
+	mov	r17, r24		; minor frame can be angle :)
+	call	math_sinv
+	mov	r18, r16
+
+	ldi	r16, 30
+	mov	r17, r24
+	call	math_cosv
+	ldi	r17, 40			; Y offset
+	add	r17, r16		; adjust
+
+	ldi	r16, 30			; X offset
+	add	r16, r18		; adjust
+
+	call	demo_pac_render
+
+	;--------- END HACKY TEST
 
 	call	vid_waitflip
-	; call	vid_waitbot1
 	adiw	r25:r24, 1
+	cpi	r25, 8			; reached major frame 8 yet?
+	breq	9f
+	rjmp	0b
+.L9:
+	;}}}
 
-	rjmp	0b			; redo regardless :)
+	; DUMMY: this end loop doesn't really do anything usefor or interesting..
+.L0:
+	call	demo_starfield_advance
+	call	fb_clear
+	call	demo_starfield_draw
+	call	vid_waitflip
+	adiw	r25:r24, 1
+	rjmp	0b
+
 
 
 
@@ -3825,8 +4333,14 @@ S_message:
 		"as well as clearing the framebuffer, just to get an idea of how much work we ",
 		"can do outside the interrupt handlers..", 0x00
 
-S_sfmsg1:	.const	"  Computing at Kent ", 0x00
-S_sfmsg2:	.const	" School of Computing", 0x00
+S_sfmsg1:	.const	"   Computing at Kent", 0x00
+S_sfmsg2:	.const	"(8-bit)", 0x00
+S_sfmsg3:	.const	"   Computer Science ", 0x00
+S_sfmsg4:	.const	"Why not try our", 0x00
+S_sfmsg5:	.const	"degree programme?", 0x00
+S_sfmsg6:	.const	"                     Learn how to do things like bit-manipulation for ",
+			"starfields and scrolly text, PWM programming for multi-channel sound ",
+			"and PAL video generation with some USART stuff.  ", 0x00
 
 .include "fb-ada.inc"
 
@@ -3836,6 +4350,49 @@ D_lineset_count:
 D_lineset:
 	.const16	0x6010, 0x1000
 	.const16	0x6010, 0x0010
+
+D_pac_glyph2:
+	.const		0x0f, 0x80, 0x3f, 0xe0, 0x7f, 0xf0, 0x7f, 0xf0,
+			0xff, 0xc0, 0xfe, 0x00, 0xf0, 0x00, 0xfe, 0x00,
+			0xff, 0xc0, 0x7f, 0xf0, 0x7f, 0xf0, 0x3f, 0xe0,
+			0x0f, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+
+	.const		0x07, 0xc0, 0x1f, 0xf0, 0x3f, 0xf8, 0x3f, 0xf8,
+			0x7f, 0xe0, 0x7f, 0x00, 0x78, 0x00, 0x7f, 0x00,
+			0x7f, 0xe0, 0x3f, 0xf8, 0x3f, 0xf8, 0x1f, 0xf0,
+			0x07, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+
+	.const		0x03, 0xe0, 0x0f, 0xf8, 0x1f, 0xfc, 0x1f, 0xfc,
+			0x3f, 0xf0, 0x3f, 0x80, 0x3c, 0x00, 0x3f, 0x80,
+			0x3f, 0xf0, 0x1f, 0xfc, 0x1f, 0xfc, 0x0f, 0xf8,
+			0x03, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+
+	.const		0x01, 0xf0, 0x07, 0xfc, 0x0f, 0xfe, 0x0f, 0xfe,
+			0x1f, 0xf8, 0x1f, 0xc0, 0x1e, 0x00, 0x1f, 0xc0,
+			0x1f, 0xf8, 0x0f, 0xfe, 0x0f, 0xfe, 0x07, 0xfc,
+			0x01, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+
+	.const		0x00, 0xf8, 0x03, 0xfe, 0x07, 0xff, 0x07, 0xff,
+			0x0f, 0xfc, 0x0f, 0xe0, 0x0f, 0x00, 0x0f, 0xe0,
+			0x0f, 0xfc, 0x07, 0xff, 0x07, 0xff, 0x03, 0xfe,
+			0x00, 0xf8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+
+D_pac_glyph3:
+	.const		0x00, 0x7c, 0x00, 0x01, 0xff, 0x00, 0x03, 0xff, 0x80, 0x03, 0xff, 0x80,		; 12
+			0x07, 0xfe, 0x00, 0x07, 0xf0, 0x00, 0x07, 0x80, 0x00, 0x07, 0xf0, 0x00,		; 24
+			0x07, 0xfe, 0x00, 0x03, 0xff, 0x80, 0x03, 0xff, 0x80, 0x01, 0xff, 0x00,		; 36
+			0x00, 0x7c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00		; 48
+
+	.const		0x00, 0x3e, 0x00, 0x00, 0xff, 0x80, 0x01, 0xff, 0xc0, 0x01, 0xff, 0xc0,
+			0x03, 0xff, 0x00, 0x03, 0xf8, 0x00, 0x03, 0xc0, 0x00, 0x03, 0xf8, 0x00,
+			0x03, 0xff, 0x00, 0x01, 0xff, 0xc0, 0x01, 0xff, 0xc0, 0x00, 0xff, 0x80,
+			0x00, 0x3e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+
+	.const		0x00, 0x1f, 0x00, 0x00, 0x7f, 0xc0, 0x00, 0xff, 0xe0, 0x00, 0xff, 0xe0,
+			0x01, 0xff, 0x80, 0x01, 0xfc, 0x00, 0x01, 0xe0, 0x00, 0x01, 0xfc, 0x00,
+			0x01, 0xff, 0x80, 0x00, 0xff, 0xe0, 0x00, 0xff, 0xe0, 0x00, 0x7f, 0xc0,
+			0x00, 0x1f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+
 
 D_notetab:
 	.const16	0x3bb9, 0x385f, 0x3535, 0x3238, 0x2f67, 0x2cbe, 0x2a3b, 0x27dc, 0x259f, 0x2383, 0x2185, 0x1fa3		; C2 -> B2 (65.406 -> 123.47)
@@ -3961,4 +4518,6 @@ D_soundtrk:
 		NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,	NOTE_NOCHANGE,	0x00,
 
 		NOTE_END,	0xff,	NOTE_END,	0xff,	NOTE_END,	0xff		; THE END
+
+.include "sincostab.inc"
 

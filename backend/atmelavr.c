@@ -1399,7 +1399,7 @@ static int atmelavr_assemble_instr (atmelavr_image_t *img, int *offset, tnode_t 
 		rd = insarg_to_constreg (img, tnode_nthsubof (instr, 1), 16, 23, cgen);
 		rr = insarg_to_constreg (img, tnode_nthsubof (instr, 2), 16, 23, cgen);
 		img->image[offs++] = 0x03;
-		img->image[offs++] = ((rd << 4) & 0x07) | (rr & 0x07);
+		img->image[offs++] = ((rd << 4) & 0x70) | (rr & 0x07);
 		width = 2;
 		break;
 		/*}}}*/
