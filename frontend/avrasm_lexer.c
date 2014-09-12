@@ -238,7 +238,7 @@ tokenloop:
 		}
 		/* check to see if it's a forward/backward label reference */
 		if ((tok->type == INTEGER) && ((*dh == 'f') || (*dh == 'b'))) {
-			if ((*dh == 'b') && isbin && ((int)(dh - ch) > 1)) {
+			if ((*dh == 'b') && isbin && ((int)(dh - ch) > 2)) {
 				/* assume binary if digits fit and more than 2 digits worth */
 				int ival = 0;
 				char *vh;

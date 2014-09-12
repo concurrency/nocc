@@ -2242,6 +2242,8 @@ vid_waitbot: ;{{{  waits for the render to reach bottom of visible area (so we c
 
 	; yep, at start of bottom blanking region.
 	; this gives us basically 120 PAL lines worth of time before the next frame is drawn <= 7.68ms ~= 122880 cycles at 16 MHz --- MANY LOTS :-)
+	; in the order of 5-6k cycles will be consumed with interrupt handling, but still leaving in excess of 100k cycles.
+	
 	pop	r16
 	ret
 ;}}}
@@ -3142,9 +3144,9 @@ demo_starfield_advance: ;{{{  advances starfield, uses V_sfld_pos to know what t
 	sbrc	r17, 6			; if bit 6 clear, skip next
 	andi	r17, 0x5f		; if bit 6 set, clear bit 5
 	cpi	r17, 94
-	brlo	101f			; branch if new Y < 94
+	brlo	102f			; branch if new Y < 94
 	subi	r17, 4			; else take 4 off
-.L101:
+.L102:
 	st	X+, r17			; new Y position
 	adiw	XH:XL, 1		; advance by 1 (type)
 	rjmp	11f
@@ -3175,9 +3177,9 @@ demo_starfield_advance: ;{{{  advances starfield, uses V_sfld_pos to know what t
 	sbrc	r17, 6			; if bit 6 clear, skip next
 	andi	r17, 0x5f		; if bit 6 set, clear bit 5
 	cpi	r17, 94
-	brlo	101f			; branch if new Y < 94
+	brlo	102f			; branch if new Y < 94
 	subi	r17, 4			; else take 4 off
-.L101:
+.L102:
 	st	X+, r17			; new Y position
 	adiw	XH:XL, 1		; advance by 1 (type)
 	rjmp	11f
@@ -3762,7 +3764,7 @@ demo_svrtext_renderstep: ;{{{  renders vertical scrolly text and advances depend
 	pop	r16
 	ret
 ;}}}
-demo_pac_render: ;{{{  renders a pacman on the display at r16,r17  (right facing)
+demo_pac_render: ;{{{  renders a pacman on the display at r16,r17  (right facing).  Only use when it is known all-on-screen.
 	push	r16
 	push	r19
 	push	r20
@@ -3868,11 +3870,870 @@ demo_pac_render: ;{{{  renders a pacman on the display at r16,r17  (right facing
 
 
 ;}}}
-;{{{  
+demo_ghost_render: ;{{{  renders a ghost on the display at r16,r17  (left facing).  Only use when it is known all-on-screen.
+	push	r16
+	push	r19
+	push	r20
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
+
+	mov	XL, r17
+	swap	XL			; low-order bits * 16
+	mov	r19, XL
+	andi	r19, 0x0f		; save high-order bits of Ypos
+	andi	XL, 0xf0		; cull these in XL
+	add	XH, r19			; add these in
+
+	; assert: XH:XL points at the start of the relevant line
+	clr	r19
+	clc
+	ror	r16			; divide r16/8 and shift 3 LSB into r19 3 MSB
+	ror	r19
+	ror	r16
+	ror	r19
+	ror	r16
+	ror	r19
+
+	lsr	r19
+	swap	r19			; swap around so r19 = 0-7 (starting bit offset in X)
+	or	XL, r16			; appropriate byte
+
+	; X now points at the start in the framebuffer, can re-use r16, r19, r20
+
+	; NOTE: TODO: check Y and X overruns in the future
+	cpi	r19, 3
+	brsh	1f			; 3 bytes per line
+	ldi	ZH:ZL, D_ghost_glyph2
+	lsl	r19
+	swap	r19			; multiply by 32 (0-2 -> 0-64)
+	clr	r16
+	add	ZL, r19
+	adc	ZH, r16			; Z points at the appropriate X-offset'd data (2 bytes per line)
+
+	ldi	r19, 14			; this many lines
+.L0:
+	ld	r16, X
+	lpm	r20, Z+
+	or	r16, r20
+	st	X+, r16
+	ld	r16, X
+	lpm	r20, Z+
+	or	r16, r20
+	st	X, r16
+	adiw	XH:XL, HRES-1		; next line in framebuffer
+	dec	r19
+	brne	0b
+	rjmp	9f			; done, so get out
+
+.L1:
+	; similar to the above, but 3 bytes per line.  r19 is 3-7
+	subi	r19, 3			; r19 = 0,1,2,3,4
+	ldi	ZH:ZL, D_ghost_glyph3
+	mov	r20, r19
+	lsl	r20			; r20 = 0,2,4,6,8
+	add	r20, r19		; r20 = 0,3,6,9,12
+	swap	r20			; r20 = 0,48,96,144,192
+	clr	r16
+	add	ZL, r20
+	adc	ZH, r16			; Z points at the appropriately X-offset'd data (3 bytes per line)
+
+	ldi	r19, 14			; this many lines
+.L0:
+	ld	r16, X
+	lpm	r20, Z+
+	or	r16, r20
+	st	X+, r16
+	ld	r16, X
+	lpm	r20, Z+
+	or	r16, r20
+	st	X+, r16
+	ld	r16, X
+	lpm	r20, Z+
+	or	r16, r20
+	st	X, r16
+	adiw	XH:XL, HRES-2		; next line in framebuffer
+	dec	r19
+	brne	0b
+	; else done :)
+
+.L9:
+
+
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r20
+	pop	r19
+	pop	r16
+	ret
 ;}}}
-;{{{  
+demo_disc: ;{{{  fills a circle at r16,r17 radius r18
+	nop
+	nop
+	ret
 ;}}}
-;{{{  
+demo_circle: ;{{{  draws a circle at r16,r17 radius r18
+	push	r15
+	push	r19
+	push	r20
+	push	r21
+	push	r22
+	push	r23
+
+	ldi	r20, 0			; r20 = x = 0
+	mov	r21, r18		; r21 = y = R
+	ldi	r19, 1
+	sub	r19, r18		; r19 = d = 1 - R
+
+	rcall	demo_circle_pnts
+.L0:
+	cp	r20, r21		; while (x < y)
+	brsh	5f			;
+
+	cpi	r19, 1
+	brge	1f			; if (d > 0)
+	; else d <= 0
+	mov	r22, r20
+	lsl	r22
+	ldi	r23, 3
+	add	r23, r22		; r23 = 2*x + 3
+	add	r19, r23		; d += (2*x + 3)
+	rjmp	2f
+.L1:
+	; d > 0
+	mov	r22, r20
+	sub	r22, r21
+	lsl	r22
+	ldi	r23, 5
+	add	r23, r22		; r23 = 5 + 2*(x-y), signed
+	add	r19, r23		; d += (2*(x-y) + 5)
+	dec	r21			; y--
+.L2:
+	inc	r20			; x++
+	rcall	demo_circle_pnts
+	rjmp	0b
+.L5:
+
+	pop	r23
+	pop	r22
+	pop	r21
+	pop	r20
+	pop	r19
+	pop	r15
+	ret
+
+demo_circle_pnts:			; helper that plots the 8 points, (r16,r17) is the centre, (r20,r21) the x and y values, r22,r23 may be trashed
+	push	r16
+	push	r17
+
+	mov	r22, r16
+	mov	r23, r17
+
+	add	r17, r21
+	add	r16, r20
+	call	fb_xxsetpixel		; (X + x, Y + y)
+	mov	r16, r22
+	sub	r16, r20
+	call	fb_xxsetpixel		; (X - x, Y + y)
+	mov	r17, r23
+	sub	r17, r21
+	call	fb_xxsetpixel		; (X - x, Y - y)
+	mov	r16, r22
+	add	r16, r20
+	call	fb_xxsetpixel		; (X + x, Y - y)
+
+	mov	r16, r22		; put right
+	mov	r17, r23
+
+	add	r17, r20
+	add	r16, r21
+	call	fb_xxsetpixel		; (X + y, Y + x)
+	mov	r16, r22
+	sub	r16, r21
+	call	fb_xxsetpixel		; (X - y, Y + x)
+	mov	r17, r23
+	sub	r17, r20
+	call	fb_xxsetpixel		; (X - y, Y - x)
+	mov	r16, r22
+	add	r16, r21
+	call	fb_xxsetpixel		; (X + y, Y - x)
+
+	pop	r17
+	pop	r16
+	ret
+
+;}}}
+demo_xorcirc_plain: ;{{{  fills the framebuffer with raw I_xorcirc_image data from (r16,r17)
+	push	r0
+	push	r1
+	push	r17
+	push	r18
+	push	r19
+	push	r20
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
+
+	clr	XL
+
+	ldi	ZH:ZL, I_xorcirc_image
+	ldi	r18, 32
+	mul	r17, r18		; offset for particular Y into r1:r0
+	add	ZL, r0
+	adc	ZH, r1
+
+	mov	r0, r16
+	lsr	r0
+	lsr	r0
+	lsr	r0			; r0 = byte offset (X/8)
+	clr	r1
+	add	ZL, r0
+	adc	ZH, r1			; advance for X byte offset (3 LSB still in r16)
+
+	mov	r18, r16
+	andi	r18, 0x07		; mask bit offset
+
+	; decision tree based on r18 value.. bit grotty
+	ldi	r20, 0x01
+	sbrc	r18, 0
+	lsl	r20
+	sbrc	r18, 1
+	lsl	r20
+	sbrc	r18, 1
+	lsl	r20
+	sbrc	r18, 2
+	swap	r20
+	; r20 will be bit-set appropriately
+
+	sbrc	r20, 0
+	rjmp	10f			; zero bit offset (simple)
+	sbrc	r20, 1
+	rjmp	11f			; 1 bit offset
+	sbrc	r20, 2
+	rjmp	12f			; 2 bit offset
+	sbrc	r20, 3
+	rjmp	13f			; 3 bit offset
+	sbrc	r20, 4
+	rjmp	14f			; 4 bit offset
+	sbrc	r20, 5
+	rjmp	15f			; 5 bit offset
+	sbrc	r20, 6
+	rjmp	16f			; 6 bit offset
+
+	;{{{  else 7 bit offset
+	ldi	r19, 96			; how many lines
+.L162:
+	ldi	r18, 16			; width in bytes
+	lpm	r1, Z+			; load first bit of image data
+.L163:
+	lpm	r0, Z+			; load next bit of image data
+	mov	r20, r0			; save for next round
+
+	clc
+	rol	r0			; high bit of r0 into carry
+	rol	r1			; and into r1 LSB
+	clc
+	rol	r0			; and again
+	rol	r1
+	clc
+	rol	r0			; and again
+	rol	r1
+
+	ldi	r17, 0xf0
+	and	r0, r17			; save high-order bits
+	swap	r0			; move over to low-order
+	swap	r1
+	and	r1, r17			; save high-order bits (previous low-order)
+	or	r1, r0			; blend
+
+	st	X+, r1			; store in framebuffer
+	mov	r1, r20			; what we read out last time
+	dec	r18
+	brne	163b			; round again for next byte on line
+	dec	r19
+	breq	164f			; done here
+	; advance Z to next line in source image (+15 bytes from where we are)
+	adiw	ZH:ZL, 15
+	rjmp	162b			; round again for next line
+.L164:
+	rjmp	9f
+	
+	;}}}
+	rjmp	9f
+
+.L10:
+	;{{{  0 bit offset (simplest case)
+	ldi	r19, 96			; how many lines
+.L102:
+	ldi	r18, 16			; width in bytes
+.L103:
+	lpm	r0, Z+			; load image piece
+	st	X+, r0			; store in framebuffer
+	dec	r18
+	brne	103b			; round again for next byte on line
+	dec	r19
+	breq	104f			; done here
+	; advance Z to next line in source image (+16 bytes from where we are)
+	adiw	ZH:ZL, 16
+	rjmp	102b			; round again for next line
+.L104:
+	rjmp	9f
+	;}}}
+.L11:
+	;{{{  1 bit offset
+	ldi	r19, 96			; how many lines
+.L112:
+	ldi	r18, 16			; width in bytes
+	lpm	r1, Z+			; load first bit of image data
+.L113:
+	lpm	r0, Z+			; load next bit of image data
+	mov	r20, r0			; save for next round
+
+	clc
+	rol	r0			; high bit of r0 into carry
+	rol	r1			; and into r1 LSB
+
+	st	X+, r1			; store in framebuffer
+	mov	r1, r20			; what we read out last time
+	dec	r18
+	brne	113b			; round again for next byte on line
+	dec	r19
+	breq	114f			; done here
+	; advance Z to next line in source image (+15 bytes from where we are)
+	adiw	ZH:ZL, 15
+	rjmp	112b			; round again for next line
+.L114:
+	rjmp	9f
+	
+	;}}}
+.L12:
+	;{{{  2 bit offset
+	ldi	r19, 96			; how many lines
+.L122:
+	ldi	r18, 16			; width in bytes
+	lpm	r1, Z+			; load first bit of image data
+.L123:
+	lpm	r0, Z+			; load next bit of image data
+	mov	r20, r0			; save for next round
+	clc
+	rol	r0			; high bit of r0 into carry
+	rol	r1			; and into r1 LSB
+	clc
+	rol	r0			; and again
+	rol	r1
+
+	st	X+, r1			; store in framebuffer
+	mov	r1, r20			; what we read out last time
+	dec	r18
+	brne	123b			; round again for next byte on line
+	dec	r19
+	breq	124f			; done here
+	; advance Z to next line in source image (+15 bytes from where we are)
+	adiw	ZH:ZL, 15
+	rjmp	122b			; round again for next line
+.L124:
+	rjmp	9f
+	
+	;}}}
+.L13:
+	;{{{  3 bit offset
+	ldi	r19, 96			; how many lines
+.L132:
+	ldi	r18, 16			; width in bytes
+	lpm	r1, Z+			; load first bit of image data
+.L133:
+	lpm	r0, Z+			; load next bit of image data
+	mov	r20, r0			; save for next round
+	clc
+	rol	r0			; high bit of r0 into carry
+	rol	r1			; and into r1 LSB
+	clc
+	rol	r0			; and again
+	rol	r1
+	clc
+	rol	r0			; and again
+	rol	r1
+
+	st	X+, r1			; store in framebuffer
+	mov	r1, r20			; what we read out last time
+	dec	r18
+	brne	133b			; round again for next byte on line
+	dec	r19
+	breq	134f			; done here
+	; advance Z to next line in source image (+15 bytes from where we are)
+	adiw	ZH:ZL, 15
+	rjmp	132b			; round again for next line
+.L134:
+	rjmp	9f
+	
+	;}}}
+.L14:
+	;{{{  4 bit offset
+	ldi	r19, 96			; how many lines
+.L142:
+	ldi	r18, 16			; width in bytes
+	lpm	r1, Z+			; load first bit of image data
+.L143:
+	lpm	r0, Z+			; load next bit of image data
+	mov	r20, r0			; save for next round
+	ldi	r17, 0xf0
+	and	r0, r17			; save high-order bits
+	swap	r0			; move over to low-order
+	swap	r1
+	and	r1, r17			; save high-order bits (previous low-order)
+	or	r1, r0			; blend
+
+	st	X+, r1			; store in framebuffer
+	mov	r1, r20			; what we read out last time
+	dec	r18
+	brne	143b			; round again for next byte on line
+	dec	r19
+	breq	144f			; done here
+	; advance Z to next line in source image (+15 bytes from where we are)
+	adiw	ZH:ZL, 15
+	rjmp	142b			; round again for next line
+.L144:
+	rjmp	9f
+	
+	;}}}
+.L15:
+	;{{{  5 bit offset
+	ldi	r19, 96			; how many lines
+.L152:
+	ldi	r18, 16			; width in bytes
+	lpm	r1, Z+			; load first bit of image data
+.L153:
+	lpm	r0, Z+			; load next bit of image data
+	mov	r20, r0			; save for next round
+
+	clc
+	rol	r0			; high bit of r0 into carry
+	rol	r1			; and into r1 LSB
+
+	ldi	r17, 0xf0
+	and	r0, r17			; save high-order bits
+	swap	r0			; move over to low-order
+	swap	r1
+	and	r1, r17			; save high-order bits (previous low-order)
+	or	r1, r0			; blend
+
+	st	X+, r1			; store in framebuffer
+	mov	r1, r20			; what we read out last time
+	dec	r18
+	brne	153b			; round again for next byte on line
+	dec	r19
+	breq	154f			; done here
+	; advance Z to next line in source image (+15 bytes from where we are)
+	adiw	ZH:ZL, 15
+	rjmp	152b			; round again for next line
+.L154:
+	rjmp	9f
+	
+	;}}}
+.L16:
+	;{{{  6 bit offset
+	ldi	r19, 96			; how many lines
+.L162:
+	ldi	r18, 16			; width in bytes
+	lpm	r1, Z+			; load first bit of image data
+.L163:
+	lpm	r0, Z+			; load next bit of image data
+	mov	r20, r0			; save for next round
+
+	clc
+	rol	r0			; high bit of r0 into carry
+	rol	r1			; and into r1 LSB
+	clc
+	rol	r0			; and again
+	rol	r1
+
+	ldi	r17, 0xf0
+	and	r0, r17			; save high-order bits
+	swap	r0			; move over to low-order
+	swap	r1
+	and	r1, r17			; save high-order bits (previous low-order)
+	or	r1, r0			; blend
+
+	st	X+, r1			; store in framebuffer
+	mov	r1, r20			; what we read out last time
+	dec	r18
+	brne	163b			; round again for next byte on line
+	dec	r19
+	breq	164f			; done here
+	; advance Z to next line in source image (+15 bytes from where we are)
+	adiw	ZH:ZL, 15
+	rjmp	162b			; round again for next line
+.L164:
+	rjmp	9f
+	
+	;}}}
+
+.L9:
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r1
+	pop	r0
+	ret
+;}}}
+demo_xorcirc_xor: ;{{{  xor's the framebuffer with raw I_xorcirc_image data from (r16,r17)
+	push	r0
+	push	r1
+	push	r17
+	push	r18
+	push	r19
+	push	r20
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
+
+	clr	XL
+
+	ldi	ZH:ZL, I_xorcirc_image
+	ldi	r18, 32
+	mul	r17, r18		; offset for particular Y into r1:r0
+	add	ZL, r0
+	adc	ZH, r1
+
+	mov	r0, r16
+	lsr	r0
+	lsr	r0
+	lsr	r0			; r0 = byte offset (X/8)
+	clr	r1
+	add	ZL, r0
+	adc	ZH, r1			; advance for X byte offset (3 LSB still in r16)
+
+	mov	r18, r16
+	andi	r18, 0x07		; mask bit offset
+
+	; decision tree based on r18 value.. bit grotty
+	ldi	r20, 0x01
+	sbrc	r18, 0
+	lsl	r20
+	sbrc	r18, 1
+	lsl	r20
+	sbrc	r18, 1
+	lsl	r20
+	sbrc	r18, 2
+	swap	r20
+	; r20 will be bit-set appropriately
+
+	sbrc	r20, 0
+	rjmp	10f			; zero bit offset (simple)
+	sbrc	r20, 1
+	rjmp	11f			; 1 bit offset
+	sbrc	r20, 2
+	rjmp	12f			; 2 bit offset
+	sbrc	r20, 3
+	rjmp	13f			; 3 bit offset
+	sbrc	r20, 4
+	rjmp	14f			; 4 bit offset
+	sbrc	r20, 5
+	rjmp	15f			; 5 bit offset
+	sbrc	r20, 6
+	rjmp	16f			; 6 bit offset
+
+	;{{{  else 7 bit offset
+	ldi	r19, 96			; how many lines
+.L162:
+	ldi	r18, 16			; width in bytes
+	lpm	r1, Z+			; load first bit of image data
+.L163:
+	lpm	r0, Z+			; load next bit of image data
+	mov	r20, r0			; save for next round
+
+	clc
+	rol	r0			; high bit of r0 into carry
+	rol	r1			; and into r1 LSB
+	clc
+	rol	r0			; and again
+	rol	r1
+	clc
+	rol	r0			; and again
+	rol	r1
+
+	ldi	r17, 0xf0
+	and	r0, r17			; save high-order bits
+	swap	r0			; move over to low-order
+	swap	r1
+	and	r1, r17			; save high-order bits (previous low-order)
+	or	r1, r0			; blend
+
+	ld	r0, X			; load framebuffer piece
+	eor	r1, r0			; blend
+	st	X+, r1			; store in framebuffer
+	mov	r1, r20			; what we read out last time
+	dec	r18
+	brne	163b			; round again for next byte on line
+	dec	r19
+	breq	164f			; done here
+	; advance Z to next line in source image (+15 bytes from where we are)
+	adiw	ZH:ZL, 15
+	rjmp	162b			; round again for next line
+.L164:
+	rjmp	9f
+	
+	;}}}
+	rjmp	9f
+
+.L10:
+	;{{{  0 bit offset (simplest case)
+	ldi	r19, 96			; how many lines
+.L102:
+	ldi	r18, 16			; width in bytes
+.L103:
+	lpm	r0, Z+			; load image piece
+	ld	r1, X			; load framebuffer piece
+	eor	r0, r1			; blend
+	st	X+, r0			; store in framebuffer
+	dec	r18
+	brne	103b			; round again for next byte on line
+	dec	r19
+	breq	104f			; done here
+	; advance Z to next line in source image (+16 bytes from where we are)
+	adiw	ZH:ZL, 16
+	rjmp	102b			; round again for next line
+.L104:
+	rjmp	9f
+	;}}}
+.L11:
+	;{{{  1 bit offset
+	ldi	r19, 96			; how many lines
+.L112:
+	ldi	r18, 16			; width in bytes
+	lpm	r1, Z+			; load first bit of image data
+.L113:
+	lpm	r0, Z+			; load next bit of image data
+	mov	r20, r0			; save for next round
+
+	clc
+	rol	r0			; high bit of r0 into carry
+	rol	r1			; and into r1 LSB
+
+	ld	r0, X			; load framebuffer piece
+	eor	r1, r0			; blend
+	st	X+, r1			; store in framebuffer
+	mov	r1, r20			; what we read out last time
+	dec	r18
+	brne	113b			; round again for next byte on line
+	dec	r19
+	breq	114f			; done here
+	; advance Z to next line in source image (+15 bytes from where we are)
+	adiw	ZH:ZL, 15
+	rjmp	112b			; round again for next line
+.L114:
+	rjmp	9f
+	
+	;}}}
+.L12:
+	;{{{  2 bit offset
+	ldi	r19, 96			; how many lines
+.L122:
+	ldi	r18, 16			; width in bytes
+	lpm	r1, Z+			; load first bit of image data
+.L123:
+	lpm	r0, Z+			; load next bit of image data
+	mov	r20, r0			; save for next round
+	clc
+	rol	r0			; high bit of r0 into carry
+	rol	r1			; and into r1 LSB
+	clc
+	rol	r0			; and again
+	rol	r1
+
+	ld	r0, X			; load framebuffer piece
+	eor	r1, r0			; blend
+	st	X+, r1			; store in framebuffer
+	mov	r1, r20			; what we read out last time
+	dec	r18
+	brne	123b			; round again for next byte on line
+	dec	r19
+	breq	124f			; done here
+	; advance Z to next line in source image (+15 bytes from where we are)
+	adiw	ZH:ZL, 15
+	rjmp	122b			; round again for next line
+.L124:
+	rjmp	9f
+	
+	;}}}
+.L13:
+	;{{{  3 bit offset
+	ldi	r19, 96			; how many lines
+.L132:
+	ldi	r18, 16			; width in bytes
+	lpm	r1, Z+			; load first bit of image data
+.L133:
+	lpm	r0, Z+			; load next bit of image data
+	mov	r20, r0			; save for next round
+	clc
+	rol	r0			; high bit of r0 into carry
+	rol	r1			; and into r1 LSB
+	clc
+	rol	r0			; and again
+	rol	r1
+	clc
+	rol	r0			; and again
+	rol	r1
+
+	ld	r0, X			; load framebuffer piece
+	eor	r1, r0			; blend
+	st	X+, r1			; store in framebuffer
+	mov	r1, r20			; what we read out last time
+	dec	r18
+	brne	133b			; round again for next byte on line
+	dec	r19
+	breq	134f			; done here
+	; advance Z to next line in source image (+15 bytes from where we are)
+	adiw	ZH:ZL, 15
+	rjmp	132b			; round again for next line
+.L134:
+	rjmp	9f
+	
+	;}}}
+.L14:
+	;{{{  4 bit offset
+	ldi	r19, 96			; how many lines
+.L142:
+	ldi	r18, 16			; width in bytes
+	lpm	r1, Z+			; load first bit of image data
+.L143:
+	lpm	r0, Z+			; load next bit of image data
+	mov	r20, r0			; save for next round
+	ldi	r17, 0xf0
+	and	r0, r17			; save high-order bits
+	swap	r0			; move over to low-order
+	swap	r1
+	and	r1, r17			; save high-order bits (previous low-order)
+	or	r1, r0			; blend
+
+	ld	r0, X			; load framebuffer piece
+	eor	r1, r0			; blend
+	st	X+, r1			; store in framebuffer
+	mov	r1, r20			; what we read out last time
+	dec	r18
+	brne	143b			; round again for next byte on line
+	dec	r19
+	breq	144f			; done here
+	; advance Z to next line in source image (+15 bytes from where we are)
+	adiw	ZH:ZL, 15
+	rjmp	142b			; round again for next line
+.L144:
+	rjmp	9f
+	
+	;}}}
+.L15:
+	;{{{  5 bit offset
+	ldi	r19, 96			; how many lines
+.L152:
+	ldi	r18, 16			; width in bytes
+	lpm	r1, Z+			; load first bit of image data
+.L153:
+	lpm	r0, Z+			; load next bit of image data
+	mov	r20, r0			; save for next round
+
+	clc
+	rol	r0			; high bit of r0 into carry
+	rol	r1			; and into r1 LSB
+
+	ldi	r17, 0xf0
+	and	r0, r17			; save high-order bits
+	swap	r0			; move over to low-order
+	swap	r1
+	and	r1, r17			; save high-order bits (previous low-order)
+	or	r1, r0			; blend
+
+	ld	r0, X			; load framebuffer piece
+	eor	r1, r0			; blend
+	st	X+, r1			; store in framebuffer
+	mov	r1, r20			; what we read out last time
+	dec	r18
+	brne	153b			; round again for next byte on line
+	dec	r19
+	breq	154f			; done here
+	; advance Z to next line in source image (+15 bytes from where we are)
+	adiw	ZH:ZL, 15
+	rjmp	152b			; round again for next line
+.L154:
+	rjmp	9f
+	
+	;}}}
+.L16:
+	;{{{  6 bit offset
+	ldi	r19, 96			; how many lines
+.L162:
+	ldi	r18, 16			; width in bytes
+	lpm	r1, Z+			; load first bit of image data
+.L163:
+	lpm	r0, Z+			; load next bit of image data
+	mov	r20, r0			; save for next round
+
+	clc
+	rol	r0			; high bit of r0 into carry
+	rol	r1			; and into r1 LSB
+	clc
+	rol	r0			; and again
+	rol	r1
+
+	ldi	r17, 0xf0
+	and	r0, r17			; save high-order bits
+	swap	r0			; move over to low-order
+	swap	r1
+	and	r1, r17			; save high-order bits (previous low-order)
+	or	r1, r0			; blend
+
+	ld	r0, X			; load framebuffer piece
+	eor	r1, r0			; blend
+	st	X+, r1			; store in framebuffer
+	mov	r1, r20			; what we read out last time
+	dec	r18
+	brne	163b			; round again for next byte on line
+	dec	r19
+	breq	164f			; done here
+	; advance Z to next line in source image (+15 bytes from where we are)
+	adiw	ZH:ZL, 15
+	rjmp	162b			; round again for next line
+.L164:
+	rjmp	9f
+	
+	;}}}
+
+.L9:
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r1
+	pop	r0
+	ret
 ;}}}
 
 lvar_init: ;{{{  initialises local stuffs
@@ -3970,9 +4831,9 @@ prg_code:
 	rjmp	4f
 .L1:
 	; assert: frame 1:(!210)
-	cpi	r24, 30
-	brlo	3f			; branch if < 1:30
-	; here means we're in frame >= 1:30
+	cpi	r24, 25
+	brlo	3f			; branch if < 1:25
+	; here means we're in frame >= 1:25
 .L4:
 	call	demo_svtext_renderstep	; else add in vertical scrolling text
 .L3:
@@ -4056,8 +4917,8 @@ prg_code:
 	ldi	r16, 8
 	sts	V_sctext + 3, r16	; set X offset to 8 (next character)
 .L1:
-	; assert: in major frame 3, only do vertical scroll if minor >= 30
-	cpi	r24, 30
+	; assert: in major frame 3, only do vertical scroll if minor >= 25
+	cpi	r24, 25
 	brlo	3f
 	call	demo_svtext_renderstep
 	call	demo_svrtext_renderstep
@@ -4110,7 +4971,70 @@ prg_code:
 .L9:
 	;}}}
 	; when we arrive here, in frame 6:0
-	;{{{  major frames 6, 7  (starfield, scrolly and pacman)
+	;{{{  major frame 6  (testing xor circles)
+	; general algorithm here lifted from Insolit Dust's stuff on sourceforge (http://insolitdust.sourceforge.net/code.html)
+.L0:
+	ldi	r16, 64
+	mov	r17, r24
+	call	math_cosv
+	ldi	r18, 64
+	add	r16, r18
+	mov	r19, r16		; save temporarily
+
+	ldi	r16, 5
+	mov	r17, r24
+	mul	r16, r17
+	mov	r17, r0			; take low-order bits as angle
+	ldi	r16, 48
+	call	math_sinv
+	ldi	r17, 48
+	add	r16, r17
+
+	mov	r17, r16
+	mov	r16, r19
+
+	call	demo_xorcirc_plain
+
+	mov	r17, r24
+	ldi	r16, 67
+	add	r17, r16
+	ldi	r16, 68
+	call	math_cosv
+	ldi	r18, 64
+	add	r16, r18
+	mov	r19, r16		; save temporarily
+
+	mov	r17, r24
+	ldi	r16, 68
+	add	r17, r16
+	ldi	r16, 5
+	mul	r16, r17
+	mov	r17, r0			; take low-order bits as angle
+	ldi	r16, 51
+	call	math_sinv
+	ldi	r17, 48
+	add	r16, r17
+
+	mov	r17, r16
+	mov	r16, r19
+
+	call	demo_xorcirc_xor
+
+	call	vid_waitflip
+	adiw	r25:r24, 1
+
+	; XXX: continuous loop for now
+	rjmp	0b
+
+	cpi	r25, 7			; reached major frame 7 yet?
+	breq	9f
+	rjmp	0b			; next frame please
+
+.L9:
+	;}}}
+	rjmp	prg_code_test_cont
+
+	;{{{  major frames 6, 7, 8  (starfield, scrolly and pacman)
 .L0:
 	call	demo_starfield_advance
 	call	fb_clear
@@ -4119,33 +5043,77 @@ prg_code:
 	call	demo_sctext_renderstep
 
 	;--------- BEGIN HACKY TEST
-	ldi	r16, 20
+	ldi	r16, 26
 	mov	r17, r24		; minor frame can be angle :)
+	lsl	r17			; multiply by 2
 	call	math_sinv
 	mov	r18, r16
 
-	ldi	r16, 30
+	ldi	r16, 36
 	mov	r17, r24
 	call	math_cosv
 	ldi	r17, 40			; Y offset
-	add	r17, r16		; adjust
+	sub	r17, r16		; adjust
 
 	ldi	r16, 30			; X offset
 	add	r16, r18		; adjust
 
 	call	demo_pac_render
 
+	ldi	r16, 30
+	mov	r17, r24
+	call	math_sinv
+	ldi	r17, 40			; Y offset
+	add	r17, r16		; adjust
+
+	ldi	r16, 100
+	mov	r18, r24
+	andi	r18, 0x3f		; 0-63
+	sub	r16, r18
+
+	call	demo_ghost_render
+
+	ldi	r16, 30
+	mov	r17, r24
+	lsl	r17
+	call	math_cosv
+	ldi	r17, 60			; Y offset
+	add	r17, r16		; adjust
+
+	ldi	r16, 110
+	mov	r18, r24
+	andi	r18, 0x3f		; 0-63
+	sub	r16, r18
+
+	call	demo_ghost_render
+
+	ldi	r16, 6
+	mov	r17, r24
+	call	math_sinv
+	mov	r19, r16
+	ldi	r16, 16
+	mov	r18, r24		; minor frame 0-255
+	lsr	r18
+	lsr	r18			; r18 = minor frame / 4
+	add	r16, r18
+	ldi	r17, 48
+	ldi	r18, 10
+	add	r18, r19		; previously computed radius
+
+	call	demo_circle
+
 	;--------- END HACKY TEST
 
 	call	vid_waitflip
 	adiw	r25:r24, 1
-	cpi	r25, 8			; reached major frame 8 yet?
+	cpi	r25, 9			; reached major frame 9 yet?
 	breq	9f
 	rjmp	0b
 .L9:
 	;}}}
 
 	; DUMMY: this end loop doesn't really do anything usefor or interesting..
+prg_code_test_cont:
 .L0:
 	call	demo_starfield_advance
 	call	fb_clear
@@ -4340,7 +5308,7 @@ S_sfmsg4:	.const	"Why not try our", 0x00
 S_sfmsg5:	.const	"degree programme?", 0x00
 S_sfmsg6:	.const	"                     Learn how to do things like bit-manipulation for ",
 			"starfields and scrolly text, PWM programming for multi-channel sound ",
-			"and PAL video generation with some USART stuff.  ", 0x00
+			"and PAL video generation with some USART stuff, churning away on an Atmel ATMega2560 (Arduino) at 16 MHz.  ", 0x00
 
 .include "fb-ada.inc"
 
@@ -4378,21 +5346,74 @@ D_pac_glyph2:
 			0x00, 0xf8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
 D_pac_glyph3:
+;	.const		0x00, 0x7c, 0x00, 0x01, 0xff, 0x00, 0x03, 0xff, 0x80, 0x03, 0xff, 0x80,		; 12
+;			0x07, 0xfe, 0x00, 0x07, 0xf0, 0x00, 0x07, 0x80, 0x00, 0x07, 0xf0, 0x00,		; 24
+;			0x07, 0xfe, 0x00, 0x03, 0xff, 0x80, 0x03, 0xff, 0x80, 0x01, 0xff, 0x00,		; 36
+;			0x00, 0x7c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00		; 48
 	.const		0x00, 0x7c, 0x00, 0x01, 0xff, 0x00, 0x03, 0xff, 0x80, 0x03, 0xff, 0x80,		; 12
-			0x07, 0xfe, 0x00, 0x07, 0xf0, 0x00, 0x07, 0x80, 0x00, 0x07, 0xf0, 0x00,		; 24
-			0x07, 0xfe, 0x00, 0x03, 0xff, 0x80, 0x03, 0xff, 0x80, 0x01, 0xff, 0x00,		; 36
+			0x07, 0xff, 0x80, 0x07, 0xfc, 0x00, 0x07, 0x80, 0x00, 0x07, 0xfc, 0x00,		; 24
+			0x07, 0xff, 0x80, 0x03, 0xff, 0x80, 0x03, 0xff, 0x80, 0x01, 0xff, 0x00,		; 36
 			0x00, 0x7c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00		; 48
 
+;	.const		0x00, 0x3e, 0x00, 0x00, 0xff, 0x80, 0x01, 0xff, 0xc0, 0x01, 0xff, 0xc0,
+;			0x03, 0xff, 0x00, 0x03, 0xf8, 0x00, 0x03, 0xc0, 0x00, 0x03, 0xf8, 0x00,
+;			0x03, 0xff, 0x00, 0x01, 0xff, 0xc0, 0x01, 0xff, 0xc0, 0x00, 0xff, 0x80,
+;			0x00, 0x3e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	.const		0x00, 0x3e, 0x00, 0x00, 0xff, 0x80, 0x01, 0xff, 0xc0, 0x01, 0xff, 0xc0,
-			0x03, 0xff, 0x00, 0x03, 0xf8, 0x00, 0x03, 0xc0, 0x00, 0x03, 0xf8, 0x00,
-			0x03, 0xff, 0x00, 0x01, 0xff, 0xc0, 0x01, 0xff, 0xc0, 0x00, 0xff, 0x80,
+			0x03, 0xff, 0xc0, 0x03, 0xff, 0xc0, 0x03, 0xf8, 0x00, 0x03, 0xff, 0xc0,
+			0x03, 0xff, 0xc0, 0x01, 0xff, 0xc0, 0x01, 0xff, 0xc0, 0x00, 0xff, 0x80,
 			0x00, 0x3e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
+;	.const		0x00, 0x1f, 0x00, 0x00, 0x7f, 0xc0, 0x00, 0xff, 0xe0, 0x00, 0xff, 0xe0,
+;			0x01, 0xff, 0x80, 0x01, 0xfc, 0x00, 0x01, 0xe0, 0x00, 0x01, 0xfc, 0x00,
+;			0x01, 0xff, 0x80, 0x00, 0xff, 0xe0, 0x00, 0xff, 0xe0, 0x00, 0x7f, 0xc0,
+;			0x00, 0x1f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	.const		0x00, 0x1f, 0x00, 0x00, 0x7f, 0xc0, 0x00, 0xff, 0xe0, 0x00, 0xff, 0xe0,
-			0x01, 0xff, 0x80, 0x01, 0xfc, 0x00, 0x01, 0xe0, 0x00, 0x01, 0xfc, 0x00,
-			0x01, 0xff, 0x80, 0x00, 0xff, 0xe0, 0x00, 0xff, 0xe0, 0x00, 0x7f, 0xc0,
+			0x01, 0xff, 0xe0, 0x01, 0xff, 0x00, 0x01, 0xe0, 0x00, 0x01, 0xff, 0x00,
+			0x01, 0xff, 0xe0, 0x00, 0xff, 0xe0, 0x00, 0xff, 0xe0, 0x00, 0x7f, 0xc0,
 			0x00, 0x1f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
+D_ghost_glyph2:
+	.const		0x07, 0x80, 0x1f, 0xe0, 0x3f, 0xf0, 0x4f, 0x38,
+			0x06, 0x18, 0x67, 0x98, 0xe7, 0x9c, 0xcf, 0x3c,
+			0xff, 0xfc, 0xff, 0xfc, 0xff, 0xfc, 0xff, 0xfc,
+			0xdc, 0xec, 0x8c, 0xc4, 0x00, 0x00, 0x00, 0x00
+
+	.const		0x03, 0xc0, 0x0f, 0xf0, 0x1f, 0xf8, 0x27, 0x9c,
+			0x03, 0x0c, 0x33, 0xcc, 0x73, 0xce, 0x67, 0x9e,
+			0x7f, 0xfe, 0x7f, 0xfe, 0x7f, 0xfe, 0x7f, 0xfe,
+			0x6e, 0x76, 0x46, 0x62, 0x00, 0x00, 0x00, 0x00
+
+	.const		0x01, 0xe0, 0x07, 0xf8, 0x0f, 0xfc, 0x13, 0xce,
+			0x01, 0x86, 0x19, 0xe6, 0x39, 0xe7, 0x33, 0xcf,
+			0x3f, 0xff, 0x3f, 0xff, 0x3f, 0xff, 0x3f, 0xff,
+			0x37, 0x3b, 0x23, 0x31, 0x00, 0x00, 0x00, 0x00
+
+D_ghost_glyph3:
+	.const		0x00, 0xf0, 0x00, 0x03, 0xfc, 0x00, 0x07, 0xfe, 0x00, 0x09, 0xe7, 0x00,
+			0x00, 0xc3, 0x00, 0x0c, 0xf3, 0x00, 0x1c, 0xf3, 0x80, 0x19, 0xe7, 0x80,
+			0x1f, 0xff, 0x80, 0x1f, 0xff, 0x80, 0x1f, 0xff, 0x80, 0x1f, 0xff, 0x80,
+			0x1b, 0x9d, 0x80, 0x11, 0x98, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+
+	.const		0x00, 0x78, 0x00, 0x01, 0xfe, 0x00, 0x03, 0xff, 0x00, 0x04, 0xf3, 0x80,
+			0x00, 0x61, 0x80, 0x06, 0x79, 0x80, 0x0e, 0x79, 0xc0, 0x0c, 0xf3, 0xc0,
+			0x0f, 0xff, 0xc0, 0x0f, 0xff, 0xc0, 0x0f, 0xff, 0xc0, 0x0f, 0xff, 0xc0,
+			0x0d, 0xce, 0xc0, 0x08, 0xcc, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+
+	.const		0x00, 0x3c, 0x00, 0x00, 0xff, 0x00, 0x01, 0xff, 0x80, 0x02, 0x79, 0xc0,
+			0x00, 0x30, 0xc0, 0x03, 0x3c, 0xc0, 0x07, 0x3c, 0xe0, 0x06, 0x79, 0xe0,
+			0x07, 0xff, 0xe0, 0x07, 0xff, 0xe0, 0x07, 0xff, 0xe0, 0x07, 0xff, 0xe0,
+			0x06, 0xe7, 0x60, 0x04, 0x66, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	
+	.const		0x00, 0x1e, 0x00, 0x00, 0x7f, 0x80, 0x00, 0xff, 0xc0, 0x01, 0x3c, 0xe0,
+			0x00, 0x18, 0x60, 0x01, 0x9e, 0x60, 0x03, 0x9e, 0x70, 0x03, 0x3c, 0xf0,
+			0x03, 0xff, 0xf0, 0x03, 0xff, 0xf0, 0x03, 0xff, 0xf0, 0x03, 0xff, 0xf0,
+			0x03, 0x73, 0xb0, 0x02, 0x33, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	
+	.const		0x00, 0x0f, 0x00, 0x00, 0x3f, 0xc0, 0x00, 0x7f, 0xe0, 0x00, 0x9e, 0x70,
+			0x00, 0x0c, 0x30, 0x00, 0xcf, 0x30, 0x01, 0xcf, 0x38, 0x01, 0x9e, 0x78,
+			0x01, 0xff, 0xf8, 0x01, 0xff, 0xf8, 0x01, 0xff, 0xf8, 0x01, 0xff, 0xf8,
+			0x01, 0xb9, 0xd8, 0x01, 0x19, 0x88, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
 D_notetab:
 	.const16	0x3bb9, 0x385f, 0x3535, 0x3238, 0x2f67, 0x2cbe, 0x2a3b, 0x27dc, 0x259f, 0x2383, 0x2185, 0x1fa3		; C2 -> B2 (65.406 -> 123.47)
@@ -4520,4 +5541,6 @@ D_soundtrk:
 		NOTE_END,	0xff,	NOTE_END,	0xff,	NOTE_END,	0xff		; THE END
 
 .include "sincostab.inc"
+.include "fb-xorcirc.inc"
+
 

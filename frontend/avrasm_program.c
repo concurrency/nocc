@@ -644,6 +644,8 @@ static void avrasm_uslabdefreduce (dfastate_t *dfast, parsepriv_t *pp, void *rar
 	int id;
 	tnode_t *node = NULL;
 	avrasm_lithook_t *litdata;
+	char *ch;
+	int onlybin = 1;
 	
 	if (tok->type != NAME) {
 		parser_error (SLOCL (pp->lf, tok->lineno), "invalid token in avrasm_uslabdefreduce(): got [%s]", lexer_stokenstr (tok));
@@ -661,6 +663,17 @@ static void avrasm_uslabdefreduce (dfastate_t *dfast, parsepriv_t *pp, void *rar
 	}
 	if (id < 0) {
 		goto out_badname;
+	}
+
+	/* sanity check: if this could be parsed as a binary number (followed by 'b') warn about it */
+	for (ch = tok->u.name + 1; *ch != '\0'; ch++) {
+		if ((*ch != '0') && (*ch != '1')) {
+			onlybin = 0;
+			break;
+		}
+	}
+	if (onlybin && (strlen (tok->u.name) > 3)) {
+		parser_warning (SLOCL (pp->lf, tok->lineno), "backward references to this may be interpreted as binary digits");
 	}
 
 	litdata = new_avrasmlithook ();
