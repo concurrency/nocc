@@ -1638,6 +1638,99 @@ fb_writestring: ;{{{  writes the null-terminated ASCII string pointed at by Z to
 	ret
 
 ;}}}
+fb_write04char: ;{{{  writes the ASCII char in r18 to the framebuffer at position (r16, r17) using 04b font.  Updates r16 for X width.
+	; check for valid character (obviously :))
+	cpi	r18, 32
+	brsh	0f
+	rjmp	fb_write04char_out
+.L0:
+	cpi	r18, 127
+	brlo	0f
+	rjmp	fb_write04char_out
+.L0:
+	push	ZH
+	push	ZL
+	push	XH
+	push	XL
+	push	r22
+	push	r21
+	push	r20
+	push	r19
+	push	r18
+	push	r1
+	push	r0
+
+	subi	r18, 32					; normalise [0-94]
+
+	clr	r19					; get address of font metric
+	ldi	ZH:ZL, font_metrics_04b
+	add	ZL, r18
+	adc	ZH, r19
+
+	lpm	r20, Z
+
+	ldi	r19, 32					; get address of font data
+	mul	r18, r19
+	ldi	ZH:ZL, font_data_04b
+	add	ZL, r0
+	adc	ZH, r1
+
+	; point X at the first byte in the framebuffer of interest
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
+
+	mov	XL, r17
+	swap	XL			; low-order bits * 16
+	mov	r19, XL
+	andi	r19, 0x0f		; save high-order bits of Ypos
+	andi	XL, 0xf0		; cull these in XL
+	add	XH, r19			; add these in
+
+	; assert: XH:XL points at the start of the relevant line
+	mov	r19, r16
+	lsr	r19
+	lsr	r19
+	lsr	r19			; r19 = X/8
+
+	clr	r21
+	add	XL, r19
+	adc	XH, r21
+
+	; FIXME: this will plant characters dimly for now
+	mov	r19, r20
+	andi	r19, 0x0f		; low-order bits
+	brne	0f
+	ldi	r19, 16
+.L0:
+	; r19 has relevant bit-width
+
+	ldi	r21, 16
+.L2:
+	lpm	r0, Z+
+	st	X+, r0
+	lpm	r0, Z+
+	st	X+, r0
+	adiw	XH:XL, 14		; next line please
+	
+	dec	r21
+	brne	2b
+
+	pop	r0
+	pop	r1
+	pop	r18
+	pop	r19
+	pop	r20
+	pop	r21
+	pop	r22
+	pop	XL
+	pop	XH
+	pop	ZL
+	pop	ZH
+fb_write04char_out:
+	ret
+;}}}
 
 fb_pbyteblit: ;{{{  does byte-chunk blitting from program memory to the framebuffer (at r16*8,r17) from Z, width r18*8, height r19
 	push	r0
@@ -4971,7 +5064,7 @@ prg_code:
 .L9:
 	;}}}
 	; when we arrive here, in frame 6:0
-	;{{{  major frame 6  (testing xor circles)
+	;{{{  major frame 6, 7  (testing xor circles)
 	; general algorithm here lifted from Insolit Dust's stuff on sourceforge (http://insolitdust.sourceforge.net/code.html)
 .L0:
 	ldi	r16, 64
@@ -5023,13 +5116,34 @@ prg_code:
 	call	vid_waitflip
 	adiw	r25:r24, 1
 
-	; XXX: continuous loop for now
-	rjmp	0b
-
-	cpi	r25, 7			; reached major frame 7 yet?
+	cpi	r25, 8			; reached major frame 8 yet?
 	breq	9f
 	rjmp	0b			; next frame please
 
+.L9:
+	;}}}
+	;{{{  major frame 8, 9  (testing fonts)
+.L0:
+	call	fb_clear
+	ldi	r16, 16
+	ldi	r17, 10
+	ldi	r18, 'H'
+	call	fb_write04char
+	ldi	r16, 32
+	ldi	r17, 10
+	ldi	r18, 'e'
+	call	fb_write04char
+	ldi	r16, 48
+	ldi	r17, 10
+	ldi	r18, 'l'
+	call	fb_write04char
+
+	call	vid_waitflip
+	adiw	r25:r24, 1
+
+	cpi	r25, 10			; reached major frame 10 yet?
+	breq	9f
+	rjmp	0b			; next frame please
 .L9:
 	;}}}
 	rjmp	prg_code_test_cont
@@ -5543,4 +5657,5 @@ D_soundtrk:
 .include "sincostab.inc"
 .include "fb-xorcirc.inc"
 
+.include "fb-font04b.inc"
 
