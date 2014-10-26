@@ -33,7 +33,7 @@
 ;	r2, r3:		used for collecting up serial packets (in 3 byte pieces)
 ;	r5:		counter for serial packet data
 ;
-;	r6, r7, r8, r20:	temporaries for interrupt handler(s)
+;	r4,r6,r7,r8,r20,r21:	temporaries for interrupt handler(s)
 ;	YH (=r29), YL (=r28):	exclusive use for timer interrupt handler
 ;	ZH (=r31), ZL (=r30):	exclusive use for timer interrupt handler
 ;
@@ -57,7 +57,7 @@ D_chans:
 						;   0-1 = running counter
 						;   2-3 = set period in microseconds (0x0000 == off)
 						;     4 = position counter (0-79)
-						;     5 = direction
+						;  [  5 = direction]
 						;  [6-7 = unused]
 
 ;}}}
@@ -451,28 +451,47 @@ VEC_usart0rx: ;{{{  USART0 receive interrupt
 
 ;}}}
 VEC_timer0compa: ;{{{  TIMER0 comparator A interrupt (20us hits)
-	in	r6, SREG
+	in	r4, SREG
 
 	ldi	YH:YL, D_chans
+	clr	r8				; flag for whether or not we're pulsing something
 
 	sbrs	r9, 0
-	rjmp	1f
+	rjmp	3f
 	; channel 0 active
 	ldd	ZH, Y+0				; load current counter
 	ldd	ZL, Y+1
 	adiw	ZH:ZL, 20			; 20 microseconds have elapsed
-	ldd	r7, Y+2
+	ldd	r7, Y+2				; load note period
 	ldd	r6, Y+3
-	cp	ZL, r6
+	cp	ZL, r6				; compare
 	cpc	ZH, r7
+	brlo	2f
+	; hit timeout, pulse
+	ldi	r20, 0x01
+	or	r8, r20
+	or	r11, r20			; PA0
+	sub	ZL, r6				; put period right
+	sbc	ZH, r7
 
+	ldd	r20, Y+4			; load track counter
+	inc	r20
+	cpi	r20, 80
+	brlo	1f
+	; reached max, toggle direction
+	ldi	r21, 0x02
+	eor	r11, r21			; toggle direction pin
+	clr	r20
+.L1:
+	std	Y+4, r20
+.L2:
 	std	Y+0, ZH
 	std	Y+1, ZL
 
-.L1:
+.L3:
 	; FIXME: do some stuff here!
 
-	out	SREG, r6
+	out	SREG, r4
 	reti
 ;}}}
 VEC_reset: ;{{{  reset vector: program entry point (and also run-time reset)
