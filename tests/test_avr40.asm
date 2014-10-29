@@ -6,6 +6,10 @@
 
 .include "atmega1280.inc"
 
+.data
+.org	0x2200
+D_extmem:	.space	0xde00			; occupy entire 64k external (55.5k in reality)
+
 .text
 .include "atmega1280-imap.inc"
 
@@ -13,6 +17,11 @@
 
 S_hello:	.const	"Hello, world!\r\n", 0x00
 S_numstr:	.const	"0123456789", 0x00
+S_hexstr:	.const	"0123456789ABCDEF", 0x00
+
+S_failaddr:	.const	" failed read/write pattern\r\n", 0x00
+S_okaddr:	.const	" OK\r\n", 0x00
+S_doneaddr:	.const	"Test complete!\r\n", 0x00
 
 ;}}}
 
@@ -265,6 +274,18 @@ usart_tx16dec:	;{{{  blarts out a 16-bit value in r17:r16 to the USART in base 1
 ;}}}
 
 xmem_init:	;{{{  initialise external SRAM interface
+	push	r16
+	ldi	r16, 0x00
+	out	DDRA, r16
+	ldi	r16, 0x00
+	out	PORTA, r16		; pullups on^W OFF
+
+	ldi	r16, 0x80		; SRE, whole region, ... wait states
+	sts	XMCRA, r16
+	ldi	r16, 0x00
+	sts	XMCRB, r16
+
+	pop	r16
 	ret
 ;}}}
 
@@ -276,52 +297,53 @@ prg_main:
 	rcall	usart_txpstr
 
 prg_loop:
-	ldi	r16, 1
+	ldi	XH:XL, D_extmem		; address of external SRAM (0x2200 upwards)
+	ldi	r19, 0
+.L0:
+	ldi	r20, 0x00
+.L1:
+	st	X, r20
+	nop
+	nop
+	ld	r21, X
+	nop
+	nop
+
+	cp	r20, r21
+	breq	2f
+	; if here, means we failed somehow!
+	mov	r17, XH
+	mov	r16, r19
+	rcall	usart_tx16dec
+	ldi	ZH:ZL, S_failaddr
+	rcall	usart_txpstr
+.L2:
+	inc	r20			; pattern increment
+	brne	1b
+	adiw	XH:XL, 1		; address increment
+	inc	r19
+	brne	0b
+
+	mov	r17, XH
+	dec	r17
+	mov	r16, XL
+	rcall	usart_tx16dec
+	ldi	ZH:ZL, S_okaddr
+	rcall	usart_txpstr
+
+	; if XH:XL wrapper to 0, means we're done!
+	mov	r21, XH
+	or	r21, XL
+	cpi	r21, 0x00
+	breq	3f
+	rjmp	0b
+.L3:
+	; all done!
+	ldi	ZH:ZL, S_doneaddr
+	rcall	usart_txpstr
+
+	ldi	r16, 2
 	rcall	sdelay
-	ldi	r16, 'X'
-	rcall	usart_txbyte
-	ldi	r16, 'Y'
-	rcall	usart_txbyte
-	ldi	r16, '\r'
-	rcall	usart_txbyte
-	ldi	r16, '\n'
-	rcall	usart_txbyte
-
-	ldi	r17:r16, 65535
-	rcall	usart_tx16dec
-	ldi	r16, '\r'
-	rcall	usart_txbyte
-	ldi	r16, '\n'
-	rcall	usart_txbyte
-
-	ldi	r17:r16, 2048
-	rcall	usart_tx16dec
-	ldi	r16, '\r'
-	rcall	usart_txbyte
-	ldi	r16, '\n'
-	rcall	usart_txbyte
-
-	ldi	r17:r16, 365
-	rcall	usart_tx16dec
-	ldi	r16, '\r'
-	rcall	usart_txbyte
-	ldi	r16, '\n'
-	rcall	usart_txbyte
-
-	ldi	r17:r16, 42
-	rcall	usart_tx16dec
-	ldi	r16, '\r'
-	rcall	usart_txbyte
-	ldi	r16, '\n'
-	rcall	usart_txbyte
-
-	ldi	r17:r16, 0
-	rcall	usart_tx16dec
-	ldi	r16, '\r'
-	rcall	usart_txbyte
-	ldi	r16, '\n'
-	rcall	usart_txbyte
-
 
 	nop
 	nop
