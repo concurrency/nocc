@@ -19,7 +19,9 @@ S_hello:	.const	"Hello, world!\r\n", 0x00
 S_numstr:	.const	"0123456789", 0x00
 S_hexstr:	.const	"0123456789ABCDEF", 0x00
 
-S_failaddr:	.const	" failed read/write pattern\r\n", 0x00
+S_failaddr1:	.const	" failed read/write pattern, expected ", 0x00
+S_failaddr2:	.const	" got ", 0x00
+S_failaddr3:	.const	"\r\n", 0x00
 S_okaddr:	.const	" OK\r\n", 0x00
 S_doneaddr:	.const	"Test complete!\r\n", 0x00
 
@@ -173,6 +175,38 @@ usart_txpstr: ;{{{  transmits the string pointed at by Z in program memory to US
 	pop	ZL
 	ret
 ;}}}
+usart_tx8bit: ;{{{  transmits an 8-bit hexadecimal value (in r16) to USART0
+	push	ZL
+	push	ZH
+	push	r16
+	push	r17
+	push	r18
+
+	ldi	ZH:ZL, S_hexstr
+	clr	r18
+	mov	r17, r16
+	andi	r16, 0xf0
+	swap	r16
+	add	ZL, r16
+	adc	ZH, r18
+	lpm	r16, Z
+	rcall	usart_txbyte
+	mov	r16, r17
+	andi	r16, 0x0f
+	ldi	ZH:ZL, S_hexstr
+	add	ZL, r16
+	adc	ZH, r18
+	lpm	r16, Z
+	rcall	usart_txbyte
+
+	pop	r18
+	pop	r17
+	pop	r16
+	pop	ZH
+	pop	ZL
+	ret
+
+;}}}
 usart_tx16dec:	;{{{  blarts out a 16-bit value in r17:r16 to the USART in base 10
 	push	ZH
 	push	ZL
@@ -275,10 +309,20 @@ usart_tx16dec:	;{{{  blarts out a 16-bit value in r17:r16 to the USART in base 1
 
 xmem_init:	;{{{  initialise external SRAM interface
 	push	r16
-	ldi	r16, 0x00
-	out	DDRA, r16
-	ldi	r16, 0x00
-	out	PORTA, r16		; pullups on^W OFF
+
+	;ldi	r16, 0x00
+	;out	DDRA, r16
+	;ldi	r16, 0x00
+	;out	PORTA, r16		; pullups on^W OFF
+
+	; PD7 selects which half
+	in	r16, DDRD
+	ori	r16, 0x80
+	out	DDRD, r16
+
+	in	r16, PORTD
+	andi	r16, 0x7f
+	out	PORTD, r16
 
 	ldi	r16, 0x80		; SRE, whole region, ... wait states
 	sts	XMCRA, r16
@@ -303,11 +347,7 @@ prg_loop:
 	ldi	r20, 0x00
 .L1:
 	st	X, r20
-	nop
-	nop
 	ld	r21, X
-	nop
-	nop
 
 	cp	r20, r21
 	breq	2f
@@ -315,7 +355,15 @@ prg_loop:
 	mov	r17, XH
 	mov	r16, r19
 	rcall	usart_tx16dec
-	ldi	ZH:ZL, S_failaddr
+	ldi	ZH:ZL, S_failaddr1
+	rcall	usart_txpstr
+	mov	r16, r20
+	rcall	usart_tx8bit
+	ldi	ZH:ZL, S_failaddr2
+	rcall	usart_txpstr
+	mov	r16, r21
+	rcall	usart_tx8bit
+	ldi	ZH:ZL, S_failaddr3
 	rcall	usart_txpstr
 .L2:
 	inc	r20			; pattern increment
