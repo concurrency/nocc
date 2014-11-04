@@ -2415,8 +2415,8 @@ fprintf (stderr, "atmelavr_be_do_codegen(): want to write to [%s]\n", outfname);
 		if (compopts.verbose > 1) {
 			int z;
 
-			nocc_message ("atmelavr: image zone=[%s], isize=%d, canwrite=%d, %d range(s):", img->zone->tag->name,
-					img->isize, img->canwrite, DA_CUR (img->ranges));
+			nocc_message ("atmelavr: image zone=[%s], isize=%d (0x%x), canwrite=%d, %d range(s):", img->zone->tag->name,
+					img->isize, img->isize, img->canwrite, DA_CUR (img->ranges));
 			for (z=0; z<DA_CUR (img->ranges); z++) {
 				imgrange_t *rng = DA_NTHITEM (img->ranges, z);
 

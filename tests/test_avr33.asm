@@ -50,6 +50,12 @@
 .def	LINE_ADDR_L		=r28		; use 'Y' exclusively for framebuffer line address when rendering
 .def	LINE_ADDR_H		=r29
 
+; calling convention:
+;
+;  callee saves all modified;
+;  params passed in r16, r17, ...;  results in r16, r17, ...
+;
+
 ;}}}
 ;{{{  assorted constants
 ; own constants
@@ -663,6 +669,792 @@ VEC_usart1tx:	;{{{  interrupt for USART1 TX complete
 	pop	r16
 	out	SREG, r2
 	reti
+;}}}
+
+; NOTE: sound stuff up here to make jumps from interrupt handler less consuming.
+snd_hwsetup: ;{{{  setup hardware for sound
+	push	r16
+	push	r17
+
+	; enable TIMER3, TIMER4 and TIMER5 in PRR1
+	lds	r16, PRR1
+	andi	r16, ~(PRR1_BIT_PRTIM3 | PRR1_BIT_PRTIM4 | PRR1_BIT_PRTIM5)	; clear bits 3-5 (PRTIM3, PRTIM4, PRTIM5)
+	sts	PRR1, r16
+
+	; enable port outputs for PE3 (OC3A) and PE4 (OC3B)
+	sbi	DDRE, 3
+	sbi	DDRE, 4
+	cbi	PORTE, 3
+	cbi	PORTE, 4
+
+	; and PH3 (OC4A), PH4 (OC4B), PL3 (OC5A) and PL4 (OC5B)
+	lds	r16, DDRH
+	ori	r16, 0x18			; PH3 and PH4 output
+	sts	DDRH, r16
+	lds	r16, DDRL
+	ori	r16, 0x18			; PL3 and PL4 output
+	sts	DDRL, r16
+	lds	r16, PORTH
+	andi	r16, ~0x18			; clear bits 3 and 4
+	sts	PORTH, r16
+	lds	r16, PORTL
+	andi	r16, ~0x18			; clear bits 3 and 4
+	sts	PORTL, r16
+
+	; ICR3, OCR3A and OCR3B used for specific note generation (channel 1)
+	; ICR4, OCR4A and OCR4B (channel 2)
+	; ICR5, OCR5A and OCR5B (channel 3)
+
+	; setup timer/counters 3, 4, 5 for phase+frequency correct PWM, TOP=ICR3 (WGM bits 1000b)
+	; keep OC3A, OC3B, OC4A, OC4B, OC5A, OC5B detached to start with (enabled per note)
+	ldi	r16, 0x00		;	(TCCR3A_BIT_COM3A1 | TCCR3A_BIT_COM3A0 | TCCR3A_BIT_COM3B1 | TCCR3A_BIT_COM3B0)
+	sts	TCCR3A, r16
+	ldi	r16, (TCCR3B_BIT_WGM33)
+	sts	TCCR3B, r16
+
+	ldi	r16, 0x00		;	(TCCR4A_BIT_COM4A1 | TCCR4A_IT_COM4A0 | TCCR4A_BIT_COM4B1 | TCCR3A_BIT_COM4B0)
+	sts	TCCR4A, r16
+	ldi	r16, (TCCR4B_BIT_WGM43)
+	sts	TCCR4B, r16
+
+	ldi	r16, 0x00		;	(TCCR5A_BIT_COM5A1 | TCCR5A_IT_COM5A0 | TCCR5A_BIT_COM5B1 | TCCR5A_BIT_COM5B0)
+	sts	TCCR5A, r16
+	ldi	r16, (TCCR5B_BIT_WGM53)
+	sts	TCCR5B, r16
+
+	; Note: keep TIMER3,4,5 stopped for now
+
+	ldi	r16, SOUND_SPEED
+	mov	SND_FRAME, r16
+	clr	SND_C1VAL
+	clr	SND_C2VAL
+	clr	SND_C3VAL
+
+	pop	r17
+	pop	r16
+	ret
+
+
+;}}}
+
+snd_setc1output: ;{{{  sets OCR3A and OCR3B as output/clear as specified in SND_C1VAL (r7) low nibble, r17:r16 has ICR3 value
+	push	ZH
+	push	ZL
+	push	r19
+
+	;{{{  sort out OCR3A based on SND_C1VAL bits 2-3
+	mov	r19, SND_C1VAL
+	andi	r19, 0x0c		; OCR3A setting (0-3)
+	breq	0f
+	
+	; 25, 50 or 75% duty cycle
+	movw	ZL, r16			; copy ICR3 into Z
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR3 / 2
+	cpi	r19, 0x08		; 50% duty?
+	breq	2f
+	cpi	r19, 0x04		; 25% duty?
+	breq	3f
+	; else 75% duty, so 1/4 value
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR3 / 4
+	rjmp	2f
+.L3:
+	; quarter-duty, so 3/4 value
+	push	r24
+	push	r25
+	movw	r24, ZL			; r25:r24 = ICR3 / 2
+	clc
+	ror	r25
+	ror	r24			; r25:r24 = ICR3 / 4
+	add	ZL, r24
+	adc	ZH, r25			; Z = ICR3 * 3/4
+	pop	r25
+	pop	r24
+.L2:
+	; turn on OCR3A (inverted mode)
+	lds	r19, TCCR3A
+	ori	r19, (TCCR3A_BIT_COM3A1 | TCCR3A_BIT_COM3A0)
+	sts	TCCR3A, r19
+
+	; write Z into OCR3A
+	sts	OCR3AH, ZH
+	sts	OCR3AL, ZL
+	rjmp	1f
+
+.L0:
+	; turn off OCR3A (and disconnect)
+	lds	r19, TCCR3A
+	andi	r19, ~(TCCR3A_BIT_COM3A1 | TCCR3A_BIT_COM3A0)
+	sts	TCCR3A, r19
+	; write daft value into OCR3A to be sure
+	ser	r19
+	sts	OCR3AH, r19
+	sts	OCR3AL, r19
+
+.L1:
+	;}}}
+	;{{{  sort out OCR3B based on SND_C1VAL bits 0-1
+	mov	r19, SND_C1VAL
+	andi	r19, 0x03		; OCR3B setting (0-3)
+	breq	0f
+	
+	; 25, 50 or 75% duty cycle
+	movw	ZL, r16			; copy ICR3 into Z
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR3 / 2
+	cpi	r19, 0x02		; 50% duty?
+	breq	2f
+	cpi	r19, 0x01		; 25% duty?
+	breq	3f
+	; else 75% duty, so 1/4 value
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR3 / 4
+	rjmp	2f
+.L3:
+	; quarter-duty, so 3/4 value
+	push	r24
+	push	r25
+	movw	r24, ZL			; r25:r24 = ICR3 / 2
+	clc
+	ror	r25
+	ror	r24			; r25:r24 = ICR3 / 4
+	add	ZL, r24
+	adc	ZH, r25			; Z = ICR3 * 3/4
+	pop	r25
+	pop	r24
+.L2:
+	; turn on OCR3B (inverted mode)
+	lds	r19, TCCR3A
+	ori	r19, (TCCR3A_BIT_COM3B1 | TCCR3A_BIT_COM3B0)
+	sts	TCCR3A, r19
+
+	; write Z into OCR3B
+	sts	OCR3BH, ZH
+	sts	OCR3BL, ZL
+	rjmp	1f
+
+.L0:
+	; turn off OCR3B (and disconnect)
+	lds	r19, TCCR3A
+	andi	r19, ~(TCCR3A_BIT_COM3B1 | TCCR3A_BIT_COM3B0)
+	sts	TCCR3A, r19
+	; write daft value into OCR3B to be sure
+	ser	r19
+	sts	OCR3BH, r19
+	sts	OCR3BL, r19
+
+.L1:
+	;}}}
+
+	pop	r19
+	pop	ZL
+	pop	ZH
+	ret
+;}}}
+snd_playc1: ;{{{  play a note on channel 1, expects SND_C1VAL and V_bfreq/afreq_c1 to be set appropriately
+	push	r16
+	push	r17
+	push	r19
+
+	; setup ICR3 for specific note frequency
+	lds	r17, V_bfreq_c1_h
+	lds	r16, V_bfreq_c1_l
+	sts	ICR3H, r17
+	sts	ICR3L, r16
+
+	; setup OC3A and OC3B, frequency given in r17:r16
+	rcall	snd_setc1output
+
+	pop	r19
+	pop	r17
+	pop	r16
+	ret
+;}}}
+snd_playnote_c1: ;{{{  sets playing a specific note on channel 1 in r16 (NOTE_...), mod-bits in r17
+	push	r16
+	push	r17
+	push	r18
+	push	r20
+	push	ZL
+	push	ZH
+
+	ldi	ZH:ZL, D_notetab
+	cpi	r16, NOTE_OFF
+	brne	0f
+	rjmp	8f
+.L0:
+	cpi	r16, NOTE_C2
+	brsh	0f
+	rjmp	7f
+.L0:
+	cpi	r16, NOTE_B6+1
+	brlo	0f
+	rjmp	9f
+.L0:
+	; Note: no conditional branches past this (so can be big)
+
+	;{{{  move mod-bits from r17 to SND_C1VAL (r7)
+	mov	SND_C1VAL, r17
+
+	;}}}
+	;{{{  load regular note (0x10 - 0x4b) frequency from D_notetab into r17:r16, store in V_bfreq_c1 also
+	; regular note (0x10 - 0x4b)
+	subi	r16, 0x10
+	lsl	r16			; r16 = offset in D_notetab
+	clr	r17
+	add	ZL, r16
+	adc	ZH, r17
+
+	lpm	r16, Z+			; load frequency into r17:r16
+	lpm	r17, Z+
+
+	sts	V_bfreq_c1_h, r17
+	sts	V_bfreq_c1_l, r16
+
+	;}}}
+	;{{{  if tremelo bit set, set V_afreq_c1 to be next semitone up
+	mov	r20, SND_C1VAL
+	andi	r20, 0x40			; tremelo?
+	breq	0f
+	; yes, set alternate frequency to the next semitone up
+
+	lpm	r20, Z+
+	sts	V_afreq_c1_l, r20
+	lpm	r20, Z+
+	sts	V_afreq_c1_h, r20
+.L0:
+	;}}}
+	;{{{  ensure timer/counter3 is stopped
+	lds	r20, TCCR3B
+	andi	r20, ~(TCCR3B_BIT_CS32 | TCCR3B_BIT_CS31 | TCCR3B_BIT_CS30)
+	sts	TCCR3B, r20		; ensure stopped
+
+	;}}}
+	; Note: keep r20 with TCCR3B bits in
+	rcall	snd_playc1
+
+	; r20 still has TCCR3B bits in
+	;{{{  re-enable timer/counter 3, prescale /8
+	ori	r20, TCCR3B_BIT_CS31	; prescale /8
+	sts	TCCR3B, r20
+
+	;}}}
+	rjmp	9f
+
+	;------------------------------------------------------------------
+
+.L7:
+	; FIXME: drum handling..
+	rjmp	8f
+
+.L8:
+	; turn note off
+	clr	SND_C1VAL
+
+	lds	r20, TCCR3B
+	andi	r20, ~(TCCR3B_BIT_CS32 | TCCR3B_BIT_CS31 | TCCR3B_BIT_CS30)
+	sts	TCCR3B, r20		; ensure stopped
+
+	lds	r20, TCCR3A
+	andi	r20, ~(TCCR3A_BIT_COM3A1 | TCCR3A_BIT_COM3A0 | TCCR3A_BIT_COM3B1 | TCCR3A_BIT_COM3B0)
+	sts	TCCR3A, r20		; disconnect OC3A and OC3B
+
+
+.L9:
+	pop	ZH
+	pop	ZL
+	pop	r20
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+
+
+;}}}
+
+snd_setc2output: ;{{{  sets OCR4A and OCR4B as output/clear as specified in SND_C2VAL (r8) low nibble, r17:r16 has ICR4 value
+	push	ZH
+	push	ZL
+	push	r19
+
+	;{{{  sort out OCR4A based on SND_C2VAL bits 2-3
+	mov	r19, SND_C2VAL
+	andi	r19, 0x0c		; OCR3A setting (0-3)
+	breq	0f
+	
+	; 25, 50 or 75% duty cycle
+	movw	ZL, r16			; copy ICR4 into Z
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR4 / 2
+	cpi	r19, 0x08		; 50% duty?
+	breq	2f
+	cpi	r19, 0x04		; 25% duty?
+	breq	3f
+	; else 75% duty, so 1/4 value
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR4 / 4
+	rjmp	2f
+.L3:
+	; quarter-duty, so 3/4 value
+	push	r24
+	push	r25
+	movw	r24, ZL			; r25:r24 = ICR4 / 2
+	clc
+	ror	r25
+	ror	r24			; r25:r24 = ICR4 / 4
+	add	ZL, r24
+	adc	ZH, r25			; Z = ICR4 * 3/4
+	pop	r25
+	pop	r24
+.L2:
+	; turn on OCR4A (inverted mode)
+	lds	r19, TCCR4A
+	ori	r19, (TCCR4A_BIT_COM4A1 | TCCR4A_BIT_COM4A0)
+	sts	TCCR4A, r19
+
+	; write Z into OCR4A
+	sts	OCR4AH, ZH
+	sts	OCR4AL, ZL
+	rjmp	1f
+
+.L0:
+	; turn off OCR4A (and disconnect)
+	lds	r19, TCCR4A
+	andi	r19, ~(TCCR4A_BIT_COM4A1 | TCCR4A_BIT_COM4A0)
+	sts	TCCR4A, r19
+	; write daft value into OCR4A to be sure
+	ser	r19
+	sts	OCR4AH, r19
+	sts	OCR4AL, r19
+
+.L1:
+	;}}}
+	;{{{  sort out OCR4B based on SND_C2VAL bits 0-1
+	mov	r19, SND_C2VAL
+	andi	r19, 0x03		; OCR4B setting (0-3)
+	breq	0f
+	
+	; 25, 50 or 75% duty cycle
+	movw	ZL, r16			; copy ICR4 into Z
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR4 / 2
+	cpi	r19, 0x02		; 50% duty?
+	breq	2f
+	cpi	r19, 0x01		; 25% duty?
+	breq	3f
+	; else 75% duty, so 1/4 value
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR4 / 4
+	rjmp	2f
+.L3:
+	; quarter-duty, so 3/4 value
+	push	r24
+	push	r25
+	movw	r24, ZL			; r25:r24 = ICR4 / 2
+	clc
+	ror	r25
+	ror	r24			; r25:r24 = ICR4 / 4
+	add	ZL, r24
+	adc	ZH, r25			; Z = ICR4 * 3/4
+	pop	r25
+	pop	r24
+.L2:
+	; turn on OCR4B (inverted mode)
+	lds	r19, TCCR4A
+	ori	r19, (TCCR4A_BIT_COM4B1 | TCCR4A_BIT_COM4B0)
+	sts	TCCR4A, r19
+
+	; write Z into OCR4B
+	sts	OCR4BH, ZH
+	sts	OCR4BL, ZL
+	rjmp	1f
+
+.L0:
+	; turn off OCR4B (and disconnect)
+	lds	r19, TCCR4A
+	andi	r19, ~(TCCR4A_BIT_COM4B1 | TCCR4A_BIT_COM4B0)
+	sts	TCCR4A, r19
+	; write daft value into OCR4B to be sure
+	ser	r19
+	sts	OCR4BH, r19
+	sts	OCR4BL, r19
+
+.L1:
+	;}}}
+
+	pop	r19
+	pop	ZL
+	pop	ZH
+	ret
+;}}}
+snd_playc2: ;{{{  play a note on channel 2, expects SND_C2VAL and V_bfreq/afreq_c2 to be set appropriately
+	push	r16
+	push	r17
+	push	r19
+
+	; setup ICR4 for specific note frequency
+	lds	r17, V_bfreq_c2_h
+	lds	r16, V_bfreq_c2_l
+	sts	ICR4H, r17
+	sts	ICR4L, r16
+
+	; setup OC4A and OC4B, frequency given in r17:r16
+	rcall	snd_setc2output
+
+	pop	r19
+	pop	r17
+	pop	r16
+	ret
+;}}}
+snd_playnote_c2: ;{{{  sets playing a specific note on channel 2 in r16 (NOTE_...), mod-bits in r17
+	push	r16
+	push	r17
+	push	r18
+	push	r20
+	push	ZL
+	push	ZH
+
+	ldi	ZH:ZL, D_notetab
+	cpi	r16, NOTE_OFF
+	brne	0f
+	rjmp	8f
+.L0:
+	cpi	r16, NOTE_C2
+	brsh	0f
+	rjmp	7f
+.L0:
+	cpi	r16, NOTE_B6+1
+	brlo	0f
+	rjmp	9f
+.L0:
+	; Note: no conditional branches past this (so can be big)
+
+	;{{{  move mod-bits from r17 to SND_C2VAL (r8)
+	mov	SND_C2VAL, r17
+
+	;}}}
+	;{{{  load regular note (0x10 - 0x4b) frequency from D_notetab into r17:r16, store in V_bfreq_c2 also
+	; regular note (0x10 - 0x4b)
+	subi	r16, 0x10
+	lsl	r16			; r16 = offset in D_notetab
+	clr	r17
+	add	ZL, r16
+	adc	ZH, r17
+
+	lpm	r16, Z+			; load frequency into r17:r16
+	lpm	r17, Z+
+
+	sts	V_bfreq_c2_h, r17
+	sts	V_bfreq_c2_l, r16
+
+	;}}}
+	;{{{  if tremelo bit set, set V_afreq_c2 to be next semitone up
+	mov	r20, SND_C2VAL
+	andi	r20, 0x40			; tremelo?
+	breq	0f
+	; yes, set alternate frequency to the next semitone up
+
+	lpm	r20, Z+
+	sts	V_afreq_c2_l, r20
+	lpm	r20, Z+
+	sts	V_afreq_c2_h, r20
+.L0:
+	;}}}
+	;{{{  ensure timer/counter4 is stopped
+	lds	r20, TCCR4B
+	andi	r20, ~(TCCR4B_BIT_CS42 | TCCR4B_BIT_CS41 | TCCR4B_BIT_CS40)
+	sts	TCCR4B, r20		; ensure stopped
+
+	;}}}
+	; Note: keep r20 with TCCR4B bits in
+	rcall	snd_playc2
+
+	; r20 still has TCCR4B bits in
+	;{{{  re-enable timer/counter 4, prescale /8
+	ori	r20, TCCR4B_BIT_CS41	; prescale /8
+	sts	TCCR4B, r20
+
+	;}}}
+	rjmp	9f
+
+	;------------------------------------------------------------------
+
+.L7:
+	; FIXME: drum handling..
+	rjmp	8f
+
+.L8:
+	; turn note off
+	clr	SND_C2VAL
+
+	lds	r20, TCCR4B
+	andi	r20, ~(TCCR4B_BIT_CS42 | TCCR4B_BIT_CS41 | TCCR4B_BIT_CS40)
+	sts	TCCR4B, r20		; ensure stopped
+
+	lds	r20, TCCR4A
+	andi	r20, ~(TCCR4A_BIT_COM4A1 | TCCR4A_BIT_COM4A0 | TCCR4A_BIT_COM4B1 | TCCR4A_BIT_COM4B0)
+	sts	TCCR4A, r20		; disconnect OC4A and OC4B
+
+
+.L9:
+	pop	ZH
+	pop	ZL
+	pop	r20
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+
+
+;}}}
+
+snd_setc3output: ;{{{  sets OCR5A and OCR5B as output/clear as specified in SND_C3VAL (r9) low nibble, r17:r16 has ICR5 value
+	push	ZH
+	push	ZL
+	push	r19
+
+	;{{{  sort out OCR5A based on SND_C3VAL bits 2-3
+	mov	r19, SND_C3VAL
+	andi	r19, 0x0c		; OCR3A setting (0-3)
+	breq	0f
+	
+	; 25, 50 or 75% duty cycle
+	movw	ZL, r16			; copy ICR5 into Z
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR5 / 2
+	cpi	r19, 0x08		; 50% duty?
+	breq	2f
+	cpi	r19, 0x04		; 25% duty?
+	breq	3f
+	; else 75% duty, so 1/4 value
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR5 / 4
+	rjmp	2f
+.L3:
+	; quarter-duty, so 3/4 value
+	push	r24
+	push	r25
+	movw	r24, ZL			; r25:r24 = ICR5 / 2
+	clc
+	ror	r25
+	ror	r24			; r25:r24 = ICR5 / 4
+	add	ZL, r24
+	adc	ZH, r25			; Z = ICR5 * 3/4
+	pop	r25
+	pop	r24
+.L2:
+	; turn on OCR5A (inverted mode)
+	lds	r19, TCCR5A
+	ori	r19, (TCCR5A_BIT_COM5A1 | TCCR5A_BIT_COM5A0)
+	sts	TCCR5A, r19
+
+	; write Z into OCR5A
+	sts	OCR5AH, ZH
+	sts	OCR5AL, ZL
+	rjmp	1f
+
+.L0:
+	; turn off OCR5A (and disconnect)
+	lds	r19, TCCR5A
+	andi	r19, ~(TCCR5A_BIT_COM5A1 | TCCR5A_BIT_COM5A0)
+	sts	TCCR5A, r19
+	; write daft value into OCR5A to be sure
+	ser	r19
+	sts	OCR5AH, r19
+	sts	OCR5AL, r19
+
+.L1:
+	;}}}
+	;{{{  sort out OCR5B based on SND_C3VAL bits 0-1
+	mov	r19, SND_C3VAL
+	andi	r19, 0x03		; OCR5B setting (0-3)
+	breq	0f
+	
+	; 25, 50 or 75% duty cycle
+	movw	ZL, r16			; copy ICR5 into Z
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR5 / 2
+	cpi	r19, 0x02		; 50% duty?
+	breq	2f
+	cpi	r19, 0x01		; 25% duty?
+	breq	3f
+	; else 75% duty, so 1/4 value
+	clc
+	ror	ZH
+	ror	ZL			; Z = ICR5 / 4
+	rjmp	2f
+.L3:
+	; quarter-duty, so 3/4 value
+	push	r24
+	push	r25
+	movw	r24, ZL			; r25:r24 = ICR5 / 2
+	clc
+	ror	r25
+	ror	r24			; r25:r24 = ICR5 / 4
+	add	ZL, r24
+	adc	ZH, r25			; Z = ICR5 * 3/4
+	pop	r25
+	pop	r24
+.L2:
+	; turn on OCR5B (inverted mode)
+	lds	r19, TCCR5A
+	ori	r19, (TCCR5A_BIT_COM5B1 | TCCR5A_BIT_COM5B0)
+	sts	TCCR5A, r19
+
+	; write Z into OCR5B
+	sts	OCR5BH, ZH
+	sts	OCR5BL, ZL
+	rjmp	1f
+
+.L0:
+	; turn off OCR5B (and disconnect)
+	lds	r19, TCCR5A
+	andi	r19, ~(TCCR5A_BIT_COM5B1 | TCCR5A_BIT_COM5B0)
+	sts	TCCR5A, r19
+	; write daft value into OCR5B to be sure
+	ser	r19
+	sts	OCR5BH, r19
+	sts	OCR5BL, r19
+
+.L1:
+	;}}}
+
+	pop	r19
+	pop	ZL
+	pop	ZH
+	ret
+;}}}
+snd_playc3: ;{{{  play a note on channel 2, expects SND_C3VAL and V_bfreq/afreq_c3 to be set appropriately
+	push	r16
+	push	r17
+	push	r19
+
+	; setup ICR5 for specific note frequency
+	lds	r17, V_bfreq_c3_h
+	lds	r16, V_bfreq_c3_l
+	sts	ICR5H, r17
+	sts	ICR5L, r16
+
+	; setup OC5A and OC5B, frequency given in r17:r16
+	rcall	snd_setc3output
+
+	pop	r19
+	pop	r17
+	pop	r16
+	ret
+;}}}
+snd_playnote_c3: ;{{{  sets playing a specific note on channel 3 in r16 (NOTE_...), mod-bits in r17
+	push	r16
+	push	r17
+	push	r18
+	push	r20
+	push	ZL
+	push	ZH
+
+	ldi	ZH:ZL, D_notetab
+	cpi	r16, NOTE_OFF
+	brne	0f
+	rjmp	8f
+.L0:
+	cpi	r16, NOTE_C2
+	brsh	0f
+	rjmp	7f
+.L0:
+	cpi	r16, NOTE_B6+1
+	brlo	0f
+	rjmp	9f
+.L0:
+	; Note: no conditional branches past this (so can be big)
+
+	;{{{  move mod-bits from r17 to SND_C3VAL (r9)
+	mov	SND_C3VAL, r17
+
+	;}}}
+	;{{{  load regular note (0x10 - 0x4b) frequency from D_notetab into r17:r16, store in V_bfreq_c2 also
+	; regular note (0x10 - 0x4b)
+	subi	r16, 0x10
+	lsl	r16			; r16 = offset in D_notetab
+	clr	r17
+	add	ZL, r16
+	adc	ZH, r17
+
+	lpm	r16, Z+			; load frequency into r17:r16
+	lpm	r17, Z+
+
+	sts	V_bfreq_c3_h, r17
+	sts	V_bfreq_c3_l, r16
+
+	;}}}
+	;{{{  if tremelo bit set, set V_afreq_c2 to be next semitone up
+	mov	r20, SND_C3VAL
+	andi	r20, 0x40			; tremelo?
+	breq	0f
+	; yes, set alternate frequency to the next semitone up
+
+	lpm	r20, Z+
+	sts	V_afreq_c3_l, r20
+	lpm	r20, Z+
+	sts	V_afreq_c3_h, r20
+.L0:
+	;}}}
+	;{{{  ensure timer/counter4 is stopped
+	lds	r20, TCCR5B
+	andi	r20, ~(TCCR5B_BIT_CS52 | TCCR5B_BIT_CS51 | TCCR5B_BIT_CS50)
+	sts	TCCR5B, r20		; ensure stopped
+
+	;}}}
+	; Note: keep r20 with TCCR5B bits in
+	rcall	snd_playc3
+
+	; r20 still has TCCR5B bits in
+	;{{{  re-enable timer/counter 5, prescale /8
+	ori	r20, TCCR5B_BIT_CS51	; prescale /8
+	sts	TCCR5B, r20
+
+	;}}}
+	rjmp	9f
+
+	;------------------------------------------------------------------
+
+.L7:
+	; FIXME: drum handling..
+	rjmp	8f
+
+.L8:
+	; turn note off
+	clr	SND_C3VAL
+
+	lds	r20, TCCR5B
+	andi	r20, ~(TCCR5B_BIT_CS52 | TCCR5B_BIT_CS51 | TCCR5B_BIT_CS50)
+	sts	TCCR5B, r20		; ensure stopped
+
+	lds	r20, TCCR5A
+	andi	r20, ~(TCCR5A_BIT_COM5A1 | TCCR5A_BIT_COM5A0 | TCCR5A_BIT_COM5B1 | TCCR5A_BIT_COM5B0)
+	sts	TCCR5A, r20		; disconnect OC4A and OC4B
+
+
+.L9:
+	pop	ZH
+	pop	ZL
+	pop	r20
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+
+
 ;}}}
 
 
@@ -1648,6 +2440,19 @@ fb_write04char: ;{{{  writes the ASCII char in r18 to the framebuffer at positio
 	brlo	0f
 	rjmp	fb_write04char_out
 .L0:
+	; check X and Y in bounds
+	cpi	r17, 96
+	brlo	0f
+	cpi	r17, 240
+	brsh	0f
+	rjmp	fb_write04char_out
+.L0:
+	cpi	r16, 128
+	brlo	0f
+	cpi	r16, 240
+	brsh	0f
+	rjmp	fb_write04char_out
+.L0:
 	push	ZH
 	push	ZL
 	push	XH
@@ -1657,6 +2462,7 @@ fb_write04char: ;{{{  writes the ASCII char in r18 to the framebuffer at positio
 	push	r20
 	push	r19
 	push	r18
+	push	r17
 	push	r1
 	push	r0
 
@@ -1681,6 +2487,32 @@ fb_write04char: ;{{{  writes the ASCII char in r18 to the framebuffer at positio
 	sbrs	LINE_REGION, 7		;
 	ldi	XH, hi(V_framebuffer2)	;
 
+	; fix for negative Y offsets up to -16
+	ldi	r22, 16			; default height is 16
+	;{{{  setup for out-of-bounds Y => r17, r22, ZH:ZL left with modified Y/height/pointer
+	cpi	r17, 240
+	brlo	0f			; Y >= 0
+	mov	r19, r17
+	neg	r19
+	sub	r22, r19		; adjust height to accomodate lost rows
+	lsl	r19			; multiply inverted Y by 2 for byte offset in font data
+	clr	r17			; and make Y offset 0 (top)
+	add	ZL, r19
+	adc	ZH, r17			; borrowed zero
+	rjmp	1f
+.L0:
+	; check to see if we run off the bottom of the display, and adjust height (r22) as needed
+	mov	r19, r17
+	ldi	r21, 15
+	add	r19, r21		; r19 is potential last line
+	ldi	r21, 96
+	cp	r19, r21
+	brlo	1f			; uninteresting if last-Y < 96
+	ldi	r22, 111		; magic! (96 + 15)
+	sub	r22, r19		; subtract potential last-Y (>=96) to get visible rows.
+.L1:
+	;}}}
+	; r17 contains the starting line in the framebuffer (0..95)
 	mov	XL, r17
 	swap	XL			; low-order bits * 16
 	mov	r19, XL
@@ -1688,37 +2520,396 @@ fb_write04char: ;{{{  writes the ASCII char in r18 to the framebuffer at positio
 	andi	XL, 0xf0		; cull these in XL
 	add	XH, r19			; add these in
 
+	;{{{  check for negative X (r16) and/or out-of-bounds (<=-16, >=128)  => jump to specific X rendering versions
+	cpi	r16, 113
+	brlo	1f			; quick decision if 0 <= X < 113
+	cpi	r16, 249		; -7
+	brlo	0f
+	rjmp	fb_write04char_xneg1	; if (-7 .. -1) then missing first byte
+.L0:
+	cpi	r16, 241		; -15
+	brlo	0f
+	rjmp	fb_write04char_xneg2	; if (-15 .. -8) then missing first two bytes
+.L0:
+	cpi	r16, 120
+	brlo	0f
+	rjmp	fb_write04char_xpos2	; if (121 .. 127) then missing last two bytes
+.L0:
+	rjmp	fb_write04char_xpos1	; if (113 .. 120) then missing last byte
+.L1:
+	;}}}
+
 	; assert: XH:XL points at the start of the relevant line
 	mov	r19, r16
 	lsr	r19
 	lsr	r19
-	lsr	r19			; r19 = X/8
+	lsr	r19			; r19 = X / 8
 
 	clr	r21
-	add	XL, r19
+	add	XL, r19			; X is starting byte in video
 	adc	XH, r21
 
-	; FIXME: this will plant characters dimly for now
+	; r20 has font-metrics byte still
 	mov	r19, r20
-	andi	r19, 0x0f		; low-order bits
+	andi	r19, 0x0f		; low-order bits (character data width, 0=16)
 	brne	0f
 	ldi	r19, 16
 .L0:
 	; r19 has relevant bit-width
+	mov	r18, r20
+	swap	r18
+	andi	r18, 0x0f		; high-order bits (display width, 0=16, <char-width = 16+X)
+	add	r18, r19		; r18 now has display width (i.e. how much we adjust r16 by).
 
-	ldi	r21, 16
+	; try and be vaguely efficient in how we branch here..
+	mov	r20, r16
+	andi	r20, 0x07		; bit offset (X % 8)
+	sbrc	r20, 2
+	rjmp	1f			; branch if bit offsets 4-7
+	; assert: bit offset is 0-3
+	sbrc	r20, 1
+	rjmp	2f			; branch if bit offset 2-3
+	sbrc	r20, 0
+	rjmp	fb_write04char_offs1	; branch if bit offset 1
+	rjmp	fb_write04char_offs0	; else must be 0
 .L2:
+	; assert: bit offset is 2-3
+	sbrc	r20, 0
+	rjmp	fb_write04char_offs3	; branch if bit offset 3
+	rjmp	fb_write04char_offs2	; else must be 2
+.L1:
+	; assert: bit offset is 4-7
+	sbrc	r20, 1
+	rjmp	2f			; branch if bit offset 6-7
+	sbrc	r20, 0
+	rjmp	fb_write04char_offs5	; branch if bit offset 5
+	rjmp	fb_write04char_offs4	; else must be 4
+.L2:
+	; assert: bit offset is 6-7
+	sbrc	r20, 0
+	rjmp	fb_write04char_offs7	; branch if bit offset 7
+	rjmp	fb_write04char_offs6	; else must be 6
+
+fb_write04char_offs7:
+	;{{{  plant character at bit offset 7.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsl	r0
+	rol	r20			; put high-order bit into r20 low-order
+
+	ld	r1, X			; write first video byte
+	or	r1, r20
+	st	X+, r1
+
+	mov	r20, r0			; low-lorder 7 bits from first byte
+
+	clr	r1
+	lpm	r0, Z+
+	lsl	r0
+	rol	r1			; put high-order bit into r1 low-order
+
+	or	r1, r20			; put back saved 7 bits from first byte
+	mov	r20, r0			; low-lorder 7 bits from second byte
+
+	ld	r0, X			; write second video byte
+	or	r0, r1
+	st	X+, r0
+
+	ld	r1, X			; write third video byte
+	or	r1, r20			; put in saved bits
+	st	X+, r1
+
+	adiw	XH:XL, 13		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs6:
+	;{{{  plant character at bit offset 6.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsl	r0
+	rol	r20
+	lsl	r0
+	rol	r20			; put high-order 2 bits into r20 low-order
+
+	ld	r1, X			; write first video byte
+	or	r1, r20
+	st	X+, r1
+
+	mov	r20, r0			; low-lorder 6 bits from first byte
+
+	clr	r1
+	lpm	r0, Z+
+	lsl	r0
+	rol	r1
+	lsl	r0
+	rol	r1			; put high-order 2 bits into r1 low-order
+
+	or	r1, r20			; put back saved 6 bits from first byte
+	mov	r20, r0			; low-lorder 6 bits from second byte
+
+	ld	r0, X			; write second video byte
+	or	r0, r1
+	st	X+, r0
+
+	ld	r1, X			; write third video byte
+	or	r1, r20			; put in saved bits
+	st	X+, r1
+
+	adiw	XH:XL, 13		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs5:
+	;{{{  plant character at bit offset 5.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsl	r0
+	rol	r20
+	lsl	r0
+	rol	r20
+	lsl	r0
+	rol	r20			; put high-order 3 bits into r20 low-order
+
+	ld	r1, X			; write first video byte
+	or	r1, r20
+	st	X+, r1
+
+	mov	r20, r0			; low-lorder 5 bits from first byte
+
+	clr	r1
+	lpm	r0, Z+
+	lsl	r0
+	rol	r1
+	lsl	r0
+	rol	r1
+	lsl	r0
+	rol	r1			; put high-order 3 bits into r1 low-order
+
+	or	r1, r20			; put back saved 5 bits from first byte
+	mov	r20, r0			; low-lorder 5 bits from second byte
+
+	ld	r0, X			; write second video byte
+	or	r0, r1
+	st	X+, r0
+
+	ld	r1, X			; write third video byte
+	or	r1, r20			; put in saved bits
+	st	X+, r1
+
+	adiw	XH:XL, 13		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs4:
+	;{{{  plant character at bit offset 4.
+.L0:
+	lpm	r0, Z+
+	swap	r0
+	mov	r20, r0			; save leftover low-order bits here for now
+	andi	r20, 0x0f		; mask in high nibble (swapped)
+
+	ld	r1, X			; write first video byte
+	or	r1, r20
+	st	X+, r1
+
+	mov	r20, r0			; ditto
+	andi	r20, 0xf0		; pick out low nibble (swapped)
+	mov	r1, r20
+
+	lpm	r0, Z+
+	swap	r0
+	mov	r20, r0			; save leftover low-order bits here for now
+	andi	r20, 0x0f		; mask in high nibble (swapped)
+	or	r1, r20			; put back into saved bits from first byte
+
+	mov	r20, r0			; becomes saved bit for next byte
+	andi	r20, 0xf0		; pick out low nibble (swapped)
+
+	ld	r0, X			; write second video byte
+	or	r0, r1
+	st	X+, r0
+
+	ld	r1, X			; write third video byte
+	or	r1, r20			; put in saved bits
+	st	X+, r1
+
+	adiw	XH:XL, 13		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs3:
+	;{{{  plant character at bit offset 3.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsr	r0
+	ror	r20
+	lsr	r0
+	ror	r20
+	lsr	r0
+	ror	r20			; save leftover bits here for now
+
+	ld	r1, X			; write first video byte
+	or	r1, r0
+	st	X+, r1
+
+	clr	r1
+	lpm	r0, Z+
+	lsr	r0
+	ror	r1
+	lsr	r0
+	ror	r1
+	lsr	r0
+	ror	r1			; save leftover bits here for now
+	or	r0, r20			; put back in saved bit from first byte
+	mov	r20, r1			; becomes saved bit for next byte
+
+	ld	r1, X			; write second video byte
+	or	r1, r0
+	st	X+, r1
+
+	ld	r1, X			; write third video byte
+	or	r1, r20			; put in saved bits
+	st	X+, r1
+
+	adiw	XH:XL, 13		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs2:
+	;{{{  plant character at bit offset 2.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsr	r0
+	ror	r20
+	lsr	r0
+	ror	r20			; save leftover bits here for now
+
+	ld	r1, X			; write first video byte
+	or	r1, r0
+	st	X+, r1
+
+	clr	r1
+	lpm	r0, Z+
+	lsr	r0
+	ror	r1
+	lsr	r0
+	ror	r1			; save leftover bits here for now
+	or	r0, r20			; put back in saved bit from first byte
+	mov	r20, r1			; becomes saved bit for next byte
+
+	ld	r1, X			; write second video byte
+	or	r1, r0
+	st	X+, r1
+
+	ld	r1, X			; write third video byte
+	or	r1, r20			; put in saved bits
+	st	X+, r1
+
+	adiw	XH:XL, 13		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs1:
+	;{{{  plant character at bit offset 1.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsr	r0
+	ror	r20			; save leftover bit here for now
+
+	ld	r1, X			; write first video byte
+	or	r1, r0
+	st	X+, r1
+
+	clr	r1
+	lpm	r0, Z+
+	lsr	r0
+	ror	r1			; save leftover bit here for now
+	or	r0, r20			; put back in saved bit from first byte
+	mov	r20, r1			; becomes saved bit for next byte
+
+	ld	r1, X			; write second video byte
+	or	r1, r0
+	st	X+, r1
+
+	ld	r1, X			; write third video byte
+	or	r1, r20			; put in saved bits
+	st	X+, r1
+
+	adiw	XH:XL, 13		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs0:
+	;{{{  plant character at bit offset 0.
+.L0:
 	lpm	r0, Z+
 	st	X+, r0
 	lpm	r0, Z+
 	st	X+, r0
 	adiw	XH:XL, 14		; next line please
 	
-	dec	r21
-	brne	2b
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+
+	; FIXME: incomplete!
+	;{{{  blocks for handling one byte missing at front (X < 0)
+fb_write04char_xneg1:
+	rjmp	fb_write04char_cont
+
+
+
+	;}}}
+	;{{{  blocks for handling two bytes missing at start (X < -7)
+fb_write04char_xneg2:
+	rjmp	fb_write04char_cont
+
+	;}}}
+	;{{{  blocks for handling one byte missing at end (X > 112)
+fb_write04char_xpos1:
+	rjmp	fb_write04char_cont
+
+	;}}}
+	;{{{  blocks for handling two bytes missing at end (X > 120)
+fb_write04char_xpos2:
+	rjmp	fb_write04char_cont
+
+	;}}}
+
+fb_write04char_cont:
+	add	r16, r18		; adjust for display width
 
 	pop	r0
 	pop	r1
+	pop	r17
 	pop	r18
 	pop	r19
 	pop	r20
@@ -2365,791 +3556,6 @@ vid_waitflip: ;{{{  waits for the current rendering to finish (even if it's not 
 	eor	LINE_REGION, r16	; flip top bit
 	pop	r16
 	ret
-;}}}
-
-snd_hwsetup: ;{{{  setup hardware for sound
-	push	r16
-	push	r17
-
-	; enable TIMER3, TIMER4 and TIMER5 in PRR1
-	lds	r16, PRR1
-	andi	r16, ~(PRR1_BIT_PRTIM3 | PRR1_BIT_PRTIM4 | PRR1_BIT_PRTIM5)	; clear bits 3-5 (PRTIM3, PRTIM4, PRTIM5)
-	sts	PRR1, r16
-
-	; enable port outputs for PE3 (OC3A) and PE4 (OC3B)
-	sbi	DDRE, 3
-	sbi	DDRE, 4
-	cbi	PORTE, 3
-	cbi	PORTE, 4
-
-	; and PH3 (OC4A), PH4 (OC4B), PL3 (OC5A) and PL4 (OC5B)
-	lds	r16, DDRH
-	ori	r16, 0x18			; PH3 and PH4 output
-	sts	DDRH, r16
-	lds	r16, DDRL
-	ori	r16, 0x18			; PL3 and PL4 output
-	sts	DDRL, r16
-	lds	r16, PORTH
-	andi	r16, ~0x18			; clear bits 3 and 4
-	sts	PORTH, r16
-	lds	r16, PORTL
-	andi	r16, ~0x18			; clear bits 3 and 4
-	sts	PORTL, r16
-
-	; ICR3, OCR3A and OCR3B used for specific note generation (channel 1)
-	; ICR4, OCR4A and OCR4B (channel 2)
-	; ICR5, OCR5A and OCR5B (channel 3)
-
-	; setup timer/counters 3, 4, 5 for phase+frequency correct PWM, TOP=ICR3 (WGM bits 1000b)
-	; keep OC3A, OC3B, OC4A, OC4B, OC5A, OC5B detached to start with (enabled per note)
-	ldi	r16, 0x00		;	(TCCR3A_BIT_COM3A1 | TCCR3A_BIT_COM3A0 | TCCR3A_BIT_COM3B1 | TCCR3A_BIT_COM3B0)
-	sts	TCCR3A, r16
-	ldi	r16, (TCCR3B_BIT_WGM33)
-	sts	TCCR3B, r16
-
-	ldi	r16, 0x00		;	(TCCR4A_BIT_COM4A1 | TCCR4A_IT_COM4A0 | TCCR4A_BIT_COM4B1 | TCCR3A_BIT_COM4B0)
-	sts	TCCR4A, r16
-	ldi	r16, (TCCR4B_BIT_WGM43)
-	sts	TCCR4B, r16
-
-	ldi	r16, 0x00		;	(TCCR5A_BIT_COM5A1 | TCCR5A_IT_COM5A0 | TCCR5A_BIT_COM5B1 | TCCR5A_BIT_COM5B0)
-	sts	TCCR5A, r16
-	ldi	r16, (TCCR5B_BIT_WGM53)
-	sts	TCCR5B, r16
-
-	; Note: keep TIMER3,4,5 stopped for now
-
-	ldi	r16, SOUND_SPEED
-	mov	SND_FRAME, r16
-	clr	SND_C1VAL
-	clr	SND_C2VAL
-	clr	SND_C3VAL
-
-	pop	r17
-	pop	r16
-	ret
-
-
-;}}}
-
-snd_setc1output: ;{{{  sets OCR3A and OCR3B as output/clear as specified in SND_C1VAL (r7) low nibble, r17:r16 has ICR3 value
-	push	ZH
-	push	ZL
-	push	r19
-
-	;{{{  sort out OCR3A based on SND_C1VAL bits 2-3
-	mov	r19, SND_C1VAL
-	andi	r19, 0x0c		; OCR3A setting (0-3)
-	breq	0f
-	
-	; 25, 50 or 75% duty cycle
-	movw	ZL, r16			; copy ICR3 into Z
-	clc
-	ror	ZH
-	ror	ZL			; Z = ICR3 / 2
-	cpi	r19, 0x08		; 50% duty?
-	breq	2f
-	cpi	r19, 0x04		; 25% duty?
-	breq	3f
-	; else 75% duty, so 1/4 value
-	clc
-	ror	ZH
-	ror	ZL			; Z = ICR3 / 4
-	rjmp	2f
-.L3:
-	; quarter-duty, so 3/4 value
-	push	r24
-	push	r25
-	movw	r24, ZL			; r25:r24 = ICR3 / 2
-	clc
-	ror	r25
-	ror	r24			; r25:r24 = ICR3 / 4
-	add	ZL, r24
-	adc	ZH, r25			; Z = ICR3 * 3/4
-	pop	r25
-	pop	r24
-.L2:
-	; turn on OCR3A (inverted mode)
-	lds	r19, TCCR3A
-	ori	r19, (TCCR3A_BIT_COM3A1 | TCCR3A_BIT_COM3A0)
-	sts	TCCR3A, r19
-
-	; write Z into OCR3A
-	sts	OCR3AH, ZH
-	sts	OCR3AL, ZL
-	rjmp	1f
-
-.L0:
-	; turn off OCR3A (and disconnect)
-	lds	r19, TCCR3A
-	andi	r19, ~(TCCR3A_BIT_COM3A1 | TCCR3A_BIT_COM3A0)
-	sts	TCCR3A, r19
-	; write daft value into OCR3A to be sure
-	ser	r19
-	sts	OCR3AH, r19
-	sts	OCR3AL, r19
-
-.L1:
-	;}}}
-	;{{{  sort out OCR3B based on SND_C1VAL bits 0-1
-	mov	r19, SND_C1VAL
-	andi	r19, 0x03		; OCR3B setting (0-3)
-	breq	0f
-	
-	; 25, 50 or 75% duty cycle
-	movw	ZL, r16			; copy ICR3 into Z
-	clc
-	ror	ZH
-	ror	ZL			; Z = ICR3 / 2
-	cpi	r19, 0x02		; 50% duty?
-	breq	2f
-	cpi	r19, 0x01		; 25% duty?
-	breq	3f
-	; else 75% duty, so 1/4 value
-	clc
-	ror	ZH
-	ror	ZL			; Z = ICR3 / 4
-	rjmp	2f
-.L3:
-	; quarter-duty, so 3/4 value
-	push	r24
-	push	r25
-	movw	r24, ZL			; r25:r24 = ICR3 / 2
-	clc
-	ror	r25
-	ror	r24			; r25:r24 = ICR3 / 4
-	add	ZL, r24
-	adc	ZH, r25			; Z = ICR3 * 3/4
-	pop	r25
-	pop	r24
-.L2:
-	; turn on OCR3B (inverted mode)
-	lds	r19, TCCR3A
-	ori	r19, (TCCR3A_BIT_COM3B1 | TCCR3A_BIT_COM3B0)
-	sts	TCCR3A, r19
-
-	; write Z into OCR3B
-	sts	OCR3BH, ZH
-	sts	OCR3BL, ZL
-	rjmp	1f
-
-.L0:
-	; turn off OCR3B (and disconnect)
-	lds	r19, TCCR3A
-	andi	r19, ~(TCCR3A_BIT_COM3B1 | TCCR3A_BIT_COM3B0)
-	sts	TCCR3A, r19
-	; write daft value into OCR3B to be sure
-	ser	r19
-	sts	OCR3BH, r19
-	sts	OCR3BL, r19
-
-.L1:
-	;}}}
-
-	pop	r19
-	pop	ZL
-	pop	ZH
-	ret
-;}}}
-snd_playc1: ;{{{  play a note on channel 1, expects SND_C1VAL and V_bfreq/afreq_c1 to be set appropriately
-	push	r16
-	push	r17
-	push	r19
-
-	; setup ICR3 for specific note frequency
-	lds	r17, V_bfreq_c1_h
-	lds	r16, V_bfreq_c1_l
-	sts	ICR3H, r17
-	sts	ICR3L, r16
-
-	; setup OC3A and OC3B, frequency given in r17:r16
-	rcall	snd_setc1output
-
-	pop	r19
-	pop	r17
-	pop	r16
-	ret
-;}}}
-snd_playnote_c1: ;{{{  sets playing a specific note on channel 1 in r16 (NOTE_...), mod-bits in r17
-	push	r16
-	push	r17
-	push	r18
-	push	r20
-	push	ZL
-	push	ZH
-
-	ldi	ZH:ZL, D_notetab
-	cpi	r16, NOTE_OFF
-	brne	0f
-	rjmp	8f
-.L0:
-	cpi	r16, NOTE_C2
-	brsh	0f
-	rjmp	7f
-.L0:
-	cpi	r16, NOTE_B6+1
-	brlo	0f
-	rjmp	9f
-.L0:
-	; Note: no conditional branches past this (so can be big)
-
-	;{{{  move mod-bits from r17 to SND_C1VAL (r7)
-	mov	SND_C1VAL, r17
-
-	;}}}
-	;{{{  load regular note (0x10 - 0x4b) frequency from D_notetab into r17:r16, store in V_bfreq_c1 also
-	; regular note (0x10 - 0x4b)
-	subi	r16, 0x10
-	lsl	r16			; r16 = offset in D_notetab
-	clr	r17
-	add	ZL, r16
-	adc	ZH, r17
-
-	lpm	r16, Z+			; load frequency into r17:r16
-	lpm	r17, Z+
-
-	sts	V_bfreq_c1_h, r17
-	sts	V_bfreq_c1_l, r16
-
-	;}}}
-	;{{{  if tremelo bit set, set V_afreq_c1 to be next semitone up
-	mov	r20, SND_C1VAL
-	andi	r20, 0x40			; tremelo?
-	breq	0f
-	; yes, set alternate frequency to the next semitone up
-
-	lpm	r20, Z+
-	sts	V_afreq_c1_l, r20
-	lpm	r20, Z+
-	sts	V_afreq_c1_h, r20
-.L0:
-	;}}}
-	;{{{  ensure timer/counter3 is stopped
-	lds	r20, TCCR3B
-	andi	r20, ~(TCCR3B_BIT_CS32 | TCCR3B_BIT_CS31 | TCCR3B_BIT_CS30)
-	sts	TCCR3B, r20		; ensure stopped
-
-	;}}}
-	; Note: keep r20 with TCCR3B bits in
-	rcall	snd_playc1
-
-	; r20 still has TCCR3B bits in
-	;{{{  re-enable timer/counter 3, prescale /8
-	ori	r20, TCCR3B_BIT_CS31	; prescale /8
-	sts	TCCR3B, r20
-
-	;}}}
-	rjmp	9f
-
-	;------------------------------------------------------------------
-
-.L7:
-	; FIXME: drum handling..
-	rjmp	8f
-
-.L8:
-	; turn note off
-	clr	SND_C1VAL
-
-	lds	r20, TCCR3B
-	andi	r20, ~(TCCR3B_BIT_CS32 | TCCR3B_BIT_CS31 | TCCR3B_BIT_CS30)
-	sts	TCCR3B, r20		; ensure stopped
-
-	lds	r20, TCCR3A
-	andi	r20, ~(TCCR3A_BIT_COM3A1 | TCCR3A_BIT_COM3A0 | TCCR3A_BIT_COM3B1 | TCCR3A_BIT_COM3B0)
-	sts	TCCR3A, r20		; disconnect OC3A and OC3B
-
-
-.L9:
-	pop	ZH
-	pop	ZL
-	pop	r20
-	pop	r18
-	pop	r17
-	pop	r16
-	ret
-
-
-;}}}
-
-snd_setc2output: ;{{{  sets OCR4A and OCR4B as output/clear as specified in SND_C2VAL (r8) low nibble, r17:r16 has ICR4 value
-	push	ZH
-	push	ZL
-	push	r19
-
-	;{{{  sort out OCR4A based on SND_C2VAL bits 2-3
-	mov	r19, SND_C2VAL
-	andi	r19, 0x0c		; OCR3A setting (0-3)
-	breq	0f
-	
-	; 25, 50 or 75% duty cycle
-	movw	ZL, r16			; copy ICR4 into Z
-	clc
-	ror	ZH
-	ror	ZL			; Z = ICR4 / 2
-	cpi	r19, 0x08		; 50% duty?
-	breq	2f
-	cpi	r19, 0x04		; 25% duty?
-	breq	3f
-	; else 75% duty, so 1/4 value
-	clc
-	ror	ZH
-	ror	ZL			; Z = ICR4 / 4
-	rjmp	2f
-.L3:
-	; quarter-duty, so 3/4 value
-	push	r24
-	push	r25
-	movw	r24, ZL			; r25:r24 = ICR4 / 2
-	clc
-	ror	r25
-	ror	r24			; r25:r24 = ICR4 / 4
-	add	ZL, r24
-	adc	ZH, r25			; Z = ICR4 * 3/4
-	pop	r25
-	pop	r24
-.L2:
-	; turn on OCR4A (inverted mode)
-	lds	r19, TCCR4A
-	ori	r19, (TCCR4A_BIT_COM4A1 | TCCR4A_BIT_COM4A0)
-	sts	TCCR4A, r19
-
-	; write Z into OCR4A
-	sts	OCR4AH, ZH
-	sts	OCR4AL, ZL
-	rjmp	1f
-
-.L0:
-	; turn off OCR4A (and disconnect)
-	lds	r19, TCCR4A
-	andi	r19, ~(TCCR4A_BIT_COM4A1 | TCCR4A_BIT_COM4A0)
-	sts	TCCR4A, r19
-	; write daft value into OCR4A to be sure
-	ser	r19
-	sts	OCR4AH, r19
-	sts	OCR4AL, r19
-
-.L1:
-	;}}}
-	;{{{  sort out OCR4B based on SND_C2VAL bits 0-1
-	mov	r19, SND_C2VAL
-	andi	r19, 0x03		; OCR4B setting (0-3)
-	breq	0f
-	
-	; 25, 50 or 75% duty cycle
-	movw	ZL, r16			; copy ICR4 into Z
-	clc
-	ror	ZH
-	ror	ZL			; Z = ICR4 / 2
-	cpi	r19, 0x02		; 50% duty?
-	breq	2f
-	cpi	r19, 0x01		; 25% duty?
-	breq	3f
-	; else 75% duty, so 1/4 value
-	clc
-	ror	ZH
-	ror	ZL			; Z = ICR4 / 4
-	rjmp	2f
-.L3:
-	; quarter-duty, so 3/4 value
-	push	r24
-	push	r25
-	movw	r24, ZL			; r25:r24 = ICR4 / 2
-	clc
-	ror	r25
-	ror	r24			; r25:r24 = ICR4 / 4
-	add	ZL, r24
-	adc	ZH, r25			; Z = ICR4 * 3/4
-	pop	r25
-	pop	r24
-.L2:
-	; turn on OCR4B (inverted mode)
-	lds	r19, TCCR4A
-	ori	r19, (TCCR4A_BIT_COM4B1 | TCCR4A_BIT_COM4B0)
-	sts	TCCR4A, r19
-
-	; write Z into OCR4B
-	sts	OCR4BH, ZH
-	sts	OCR4BL, ZL
-	rjmp	1f
-
-.L0:
-	; turn off OCR4B (and disconnect)
-	lds	r19, TCCR4A
-	andi	r19, ~(TCCR4A_BIT_COM4B1 | TCCR4A_BIT_COM4B0)
-	sts	TCCR4A, r19
-	; write daft value into OCR4B to be sure
-	ser	r19
-	sts	OCR4BH, r19
-	sts	OCR4BL, r19
-
-.L1:
-	;}}}
-
-	pop	r19
-	pop	ZL
-	pop	ZH
-	ret
-;}}}
-snd_playc2: ;{{{  play a note on channel 2, expects SND_C2VAL and V_bfreq/afreq_c2 to be set appropriately
-	push	r16
-	push	r17
-	push	r19
-
-	; setup ICR4 for specific note frequency
-	lds	r17, V_bfreq_c2_h
-	lds	r16, V_bfreq_c2_l
-	sts	ICR4H, r17
-	sts	ICR4L, r16
-
-	; setup OC4A and OC4B, frequency given in r17:r16
-	rcall	snd_setc2output
-
-	pop	r19
-	pop	r17
-	pop	r16
-	ret
-;}}}
-snd_playnote_c2: ;{{{  sets playing a specific note on channel 2 in r16 (NOTE_...), mod-bits in r17
-	push	r16
-	push	r17
-	push	r18
-	push	r20
-	push	ZL
-	push	ZH
-
-	ldi	ZH:ZL, D_notetab
-	cpi	r16, NOTE_OFF
-	brne	0f
-	rjmp	8f
-.L0:
-	cpi	r16, NOTE_C2
-	brsh	0f
-	rjmp	7f
-.L0:
-	cpi	r16, NOTE_B6+1
-	brlo	0f
-	rjmp	9f
-.L0:
-	; Note: no conditional branches past this (so can be big)
-
-	;{{{  move mod-bits from r17 to SND_C2VAL (r8)
-	mov	SND_C2VAL, r17
-
-	;}}}
-	;{{{  load regular note (0x10 - 0x4b) frequency from D_notetab into r17:r16, store in V_bfreq_c2 also
-	; regular note (0x10 - 0x4b)
-	subi	r16, 0x10
-	lsl	r16			; r16 = offset in D_notetab
-	clr	r17
-	add	ZL, r16
-	adc	ZH, r17
-
-	lpm	r16, Z+			; load frequency into r17:r16
-	lpm	r17, Z+
-
-	sts	V_bfreq_c2_h, r17
-	sts	V_bfreq_c2_l, r16
-
-	;}}}
-	;{{{  if tremelo bit set, set V_afreq_c2 to be next semitone up
-	mov	r20, SND_C2VAL
-	andi	r20, 0x40			; tremelo?
-	breq	0f
-	; yes, set alternate frequency to the next semitone up
-
-	lpm	r20, Z+
-	sts	V_afreq_c2_l, r20
-	lpm	r20, Z+
-	sts	V_afreq_c2_h, r20
-.L0:
-	;}}}
-	;{{{  ensure timer/counter4 is stopped
-	lds	r20, TCCR4B
-	andi	r20, ~(TCCR4B_BIT_CS42 | TCCR4B_BIT_CS41 | TCCR4B_BIT_CS40)
-	sts	TCCR4B, r20		; ensure stopped
-
-	;}}}
-	; Note: keep r20 with TCCR4B bits in
-	rcall	snd_playc2
-
-	; r20 still has TCCR4B bits in
-	;{{{  re-enable timer/counter 4, prescale /8
-	ori	r20, TCCR4B_BIT_CS41	; prescale /8
-	sts	TCCR4B, r20
-
-	;}}}
-	rjmp	9f
-
-	;------------------------------------------------------------------
-
-.L7:
-	; FIXME: drum handling..
-	rjmp	8f
-
-.L8:
-	; turn note off
-	clr	SND_C2VAL
-
-	lds	r20, TCCR4B
-	andi	r20, ~(TCCR4B_BIT_CS42 | TCCR4B_BIT_CS41 | TCCR4B_BIT_CS40)
-	sts	TCCR4B, r20		; ensure stopped
-
-	lds	r20, TCCR4A
-	andi	r20, ~(TCCR4A_BIT_COM4A1 | TCCR4A_BIT_COM4A0 | TCCR4A_BIT_COM4B1 | TCCR4A_BIT_COM4B0)
-	sts	TCCR4A, r20		; disconnect OC4A and OC4B
-
-
-.L9:
-	pop	ZH
-	pop	ZL
-	pop	r20
-	pop	r18
-	pop	r17
-	pop	r16
-	ret
-
-
-;}}}
-
-snd_setc3output: ;{{{  sets OCR5A and OCR5B as output/clear as specified in SND_C3VAL (r9) low nibble, r17:r16 has ICR5 value
-	push	ZH
-	push	ZL
-	push	r19
-
-	;{{{  sort out OCR5A based on SND_C3VAL bits 2-3
-	mov	r19, SND_C3VAL
-	andi	r19, 0x0c		; OCR3A setting (0-3)
-	breq	0f
-	
-	; 25, 50 or 75% duty cycle
-	movw	ZL, r16			; copy ICR5 into Z
-	clc
-	ror	ZH
-	ror	ZL			; Z = ICR5 / 2
-	cpi	r19, 0x08		; 50% duty?
-	breq	2f
-	cpi	r19, 0x04		; 25% duty?
-	breq	3f
-	; else 75% duty, so 1/4 value
-	clc
-	ror	ZH
-	ror	ZL			; Z = ICR5 / 4
-	rjmp	2f
-.L3:
-	; quarter-duty, so 3/4 value
-	push	r24
-	push	r25
-	movw	r24, ZL			; r25:r24 = ICR5 / 2
-	clc
-	ror	r25
-	ror	r24			; r25:r24 = ICR5 / 4
-	add	ZL, r24
-	adc	ZH, r25			; Z = ICR5 * 3/4
-	pop	r25
-	pop	r24
-.L2:
-	; turn on OCR5A (inverted mode)
-	lds	r19, TCCR5A
-	ori	r19, (TCCR5A_BIT_COM5A1 | TCCR5A_BIT_COM5A0)
-	sts	TCCR5A, r19
-
-	; write Z into OCR5A
-	sts	OCR5AH, ZH
-	sts	OCR5AL, ZL
-	rjmp	1f
-
-.L0:
-	; turn off OCR5A (and disconnect)
-	lds	r19, TCCR5A
-	andi	r19, ~(TCCR5A_BIT_COM5A1 | TCCR5A_BIT_COM5A0)
-	sts	TCCR5A, r19
-	; write daft value into OCR5A to be sure
-	ser	r19
-	sts	OCR5AH, r19
-	sts	OCR5AL, r19
-
-.L1:
-	;}}}
-	;{{{  sort out OCR5B based on SND_C3VAL bits 0-1
-	mov	r19, SND_C3VAL
-	andi	r19, 0x03		; OCR5B setting (0-3)
-	breq	0f
-	
-	; 25, 50 or 75% duty cycle
-	movw	ZL, r16			; copy ICR5 into Z
-	clc
-	ror	ZH
-	ror	ZL			; Z = ICR5 / 2
-	cpi	r19, 0x02		; 50% duty?
-	breq	2f
-	cpi	r19, 0x01		; 25% duty?
-	breq	3f
-	; else 75% duty, so 1/4 value
-	clc
-	ror	ZH
-	ror	ZL			; Z = ICR5 / 4
-	rjmp	2f
-.L3:
-	; quarter-duty, so 3/4 value
-	push	r24
-	push	r25
-	movw	r24, ZL			; r25:r24 = ICR5 / 2
-	clc
-	ror	r25
-	ror	r24			; r25:r24 = ICR5 / 4
-	add	ZL, r24
-	adc	ZH, r25			; Z = ICR5 * 3/4
-	pop	r25
-	pop	r24
-.L2:
-	; turn on OCR5B (inverted mode)
-	lds	r19, TCCR5A
-	ori	r19, (TCCR5A_BIT_COM5B1 | TCCR5A_BIT_COM5B0)
-	sts	TCCR5A, r19
-
-	; write Z into OCR5B
-	sts	OCR5BH, ZH
-	sts	OCR5BL, ZL
-	rjmp	1f
-
-.L0:
-	; turn off OCR5B (and disconnect)
-	lds	r19, TCCR5A
-	andi	r19, ~(TCCR5A_BIT_COM5B1 | TCCR5A_BIT_COM5B0)
-	sts	TCCR5A, r19
-	; write daft value into OCR5B to be sure
-	ser	r19
-	sts	OCR5BH, r19
-	sts	OCR5BL, r19
-
-.L1:
-	;}}}
-
-	pop	r19
-	pop	ZL
-	pop	ZH
-	ret
-;}}}
-snd_playc3: ;{{{  play a note on channel 2, expects SND_C3VAL and V_bfreq/afreq_c3 to be set appropriately
-	push	r16
-	push	r17
-	push	r19
-
-	; setup ICR5 for specific note frequency
-	lds	r17, V_bfreq_c3_h
-	lds	r16, V_bfreq_c3_l
-	sts	ICR5H, r17
-	sts	ICR5L, r16
-
-	; setup OC5A and OC5B, frequency given in r17:r16
-	rcall	snd_setc3output
-
-	pop	r19
-	pop	r17
-	pop	r16
-	ret
-;}}}
-snd_playnote_c3: ;{{{  sets playing a specific note on channel 3 in r16 (NOTE_...), mod-bits in r17
-	push	r16
-	push	r17
-	push	r18
-	push	r20
-	push	ZL
-	push	ZH
-
-	ldi	ZH:ZL, D_notetab
-	cpi	r16, NOTE_OFF
-	brne	0f
-	rjmp	8f
-.L0:
-	cpi	r16, NOTE_C2
-	brsh	0f
-	rjmp	7f
-.L0:
-	cpi	r16, NOTE_B6+1
-	brlo	0f
-	rjmp	9f
-.L0:
-	; Note: no conditional branches past this (so can be big)
-
-	;{{{  move mod-bits from r17 to SND_C3VAL (r9)
-	mov	SND_C3VAL, r17
-
-	;}}}
-	;{{{  load regular note (0x10 - 0x4b) frequency from D_notetab into r17:r16, store in V_bfreq_c2 also
-	; regular note (0x10 - 0x4b)
-	subi	r16, 0x10
-	lsl	r16			; r16 = offset in D_notetab
-	clr	r17
-	add	ZL, r16
-	adc	ZH, r17
-
-	lpm	r16, Z+			; load frequency into r17:r16
-	lpm	r17, Z+
-
-	sts	V_bfreq_c3_h, r17
-	sts	V_bfreq_c3_l, r16
-
-	;}}}
-	;{{{  if tremelo bit set, set V_afreq_c2 to be next semitone up
-	mov	r20, SND_C3VAL
-	andi	r20, 0x40			; tremelo?
-	breq	0f
-	; yes, set alternate frequency to the next semitone up
-
-	lpm	r20, Z+
-	sts	V_afreq_c3_l, r20
-	lpm	r20, Z+
-	sts	V_afreq_c3_h, r20
-.L0:
-	;}}}
-	;{{{  ensure timer/counter4 is stopped
-	lds	r20, TCCR5B
-	andi	r20, ~(TCCR5B_BIT_CS52 | TCCR5B_BIT_CS51 | TCCR5B_BIT_CS50)
-	sts	TCCR5B, r20		; ensure stopped
-
-	;}}}
-	; Note: keep r20 with TCCR5B bits in
-	rcall	snd_playc3
-
-	; r20 still has TCCR5B bits in
-	;{{{  re-enable timer/counter 5, prescale /8
-	ori	r20, TCCR5B_BIT_CS51	; prescale /8
-	sts	TCCR5B, r20
-
-	;}}}
-	rjmp	9f
-
-	;------------------------------------------------------------------
-
-.L7:
-	; FIXME: drum handling..
-	rjmp	8f
-
-.L8:
-	; turn note off
-	clr	SND_C3VAL
-
-	lds	r20, TCCR5B
-	andi	r20, ~(TCCR5B_BIT_CS52 | TCCR5B_BIT_CS51 | TCCR5B_BIT_CS50)
-	sts	TCCR5B, r20		; ensure stopped
-
-	lds	r20, TCCR5A
-	andi	r20, ~(TCCR5A_BIT_COM5A1 | TCCR5A_BIT_COM5A0 | TCCR5A_BIT_COM5B1 | TCCR5A_BIT_COM5B0)
-	sts	TCCR5A, r20		; disconnect OC4A and OC4B
-
-
-.L9:
-	pop	ZH
-	pop	ZL
-	pop	r20
-	pop	r18
-	pop	r17
-	pop	r16
-	ret
-
-
 ;}}}
 
 demo_renderlines: ;{{{  renders the lines defined in SRAM
@@ -5064,7 +5470,61 @@ prg_code:
 .L9:
 	;}}}
 	; when we arrive here, in frame 6:0
-	;{{{  major frame 6, 7  (testing xor circles)
+	;{{{  major frame 6, 7, 8  (testing fonts)
+.L0:
+	call	fb_clear
+	ldi	r16, 16
+	ldi	r17, 10
+	ldi	r18, 'H'
+	call	fb_write04char
+	ldi	r16, 32
+	ldi	r17, 10
+	ldi	r18, 'e'
+	call	fb_write04char
+	ldi	r16, 48
+	ldi	r17, 10
+	ldi	r18, 'l'
+	call	fb_write04char
+	ldi	r16, 64
+	ldi	r17, 10
+	ldi	r18, 'o'
+	call	fb_write04char
+	ldi	r16, 80
+	ldi	r17, 10
+	ldi	r18, '.'
+	call	fb_write04char
+
+	; testing some scrolly stuff
+	ldi	r16, 127
+	mov	r17, r24
+	andi	r17, 0x7f
+	sub	r16, r17
+	ldi	r17, 40
+	ldi	r18, 'A'
+	call	fb_write04char
+
+	; more scrolly stuff
+	ldi	r17, -15
+	mov	r16, r24
+	cpi	r16, 111
+	brlo	1f
+	andi	r16, 0x3f		; (0-64)
+.L1:
+	add	r17, r16		; Y position (-15 -> 95)
+
+	ldi	r16, 16
+	ldi	r18, 'd'
+	call	fb_write04char
+
+	call	vid_waitflip
+	adiw	r25:r24, 1
+
+	cpi	r25, 9			; reached major frame 9 yet?
+	breq	9f
+	rjmp	0b			; next frame please
+.L9:
+	;}}}
+	;{{{  major frame ..., 9  (testing xor circles)
 	; general algorithm here lifted from Insolit Dust's stuff on sourceforge (http://insolitdust.sourceforge.net/code.html)
 .L0:
 	ldi	r16, 64
@@ -5116,34 +5576,10 @@ prg_code:
 	call	vid_waitflip
 	adiw	r25:r24, 1
 
-	cpi	r25, 8			; reached major frame 8 yet?
-	breq	9f
-	rjmp	0b			; next frame please
-
-.L9:
-	;}}}
-	;{{{  major frame 8, 9  (testing fonts)
-.L0:
-	call	fb_clear
-	ldi	r16, 16
-	ldi	r17, 10
-	ldi	r18, 'H'
-	call	fb_write04char
-	ldi	r16, 32
-	ldi	r17, 10
-	ldi	r18, 'e'
-	call	fb_write04char
-	ldi	r16, 48
-	ldi	r17, 10
-	ldi	r18, 'l'
-	call	fb_write04char
-
-	call	vid_waitflip
-	adiw	r25:r24, 1
-
 	cpi	r25, 10			; reached major frame 10 yet?
 	breq	9f
 	rjmp	0b			; next frame please
+
 .L9:
 	;}}}
 	rjmp	prg_code_test_cont
