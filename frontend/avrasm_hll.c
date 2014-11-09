@@ -899,6 +899,36 @@ static int avrasm_hllsimplify_insnode (compops_t *cops, tnode_t **tptr, hllsimpl
 	}
 
 	/* see if one of the arguments looks like a register pair or function name */
+	if (*arg1p && ((*arg1p)->tag == avrasm.tag_REGPAIR)) {
+		tnode_t **hrptr, **lrptr;
+
+		if (inscode != INS_MOVW) {
+			tnode_error (*tptr, "avrasm_hllsimplify_insnode(): unsupported instruction %d for regpair in second argument", inscode);
+			hls->errcount++;
+			return 0;
+		}
+
+		hrptr = tnode_nthsubaddr (*arg1p, 0);
+		lrptr = tnode_nthsubaddr (*arg1p, 1);
+
+		if (((*hrptr)->tag == avrasm.tag_LITREG) && ((*lrptr)->tag == avrasm.tag_LITREG)) {
+			int hreg = avrasm_getlitregval (*hrptr);
+			int lreg = avrasm_getlitregval (*lrptr);
+
+			if ((hreg != (lreg + 1)) || (lreg & 1)) {
+				tnode_error (*tptr, "avrasm_hllsimplify_insnode(): mismatched pair for MOVW source\n");
+				hls->errcount++;
+			} else {
+				/* swap REGPAIR for new single (low) register */
+				tnode_free (*arg1p);
+				*arg1p = avrasm_newlitreg (*tptr, lreg);
+			}
+		} else {
+			tnode_error (*tptr, "avrasm_hllsimplify_insnode(): not registers in second argument to MOVW\n");
+			hls->errcount++;
+		}
+	}
+
 	if (*arg0p && ((*arg0p)->tag == avrasm.tag_REGPAIR)) {
 		switch (inscode) {
 		case INS_SBIW:
@@ -917,7 +947,7 @@ tnode_dumptree (*arg0p, 1, stderr);
 					int hreg = avrasm_getlitregval (*hrptr);
 					int lreg = avrasm_getlitregval (*lrptr);
 
-					if (hreg != (lreg + 1)) {
+					if ((hreg != (lreg + 1)) || (lreg & 1)) {
 						tnode_error (*tptr, "avrasm_hllsimplify_insnode(): mismatched pair for SBIW/ADIW\n");
 						hls->errcount++;
 					} else {
@@ -927,6 +957,32 @@ tnode_dumptree (*arg0p, 1, stderr);
 					}
 				} else {
 					tnode_error (*tptr, "avrasm_hllsimplify_insnode(): not registers in first argument to SBIW/ADIW\n");
+					hls->errcount++;
+				}
+			}
+			break;
+		case INS_MOVW:
+			/* allow any combination of R+1:R registers, reduce to even number (low) */
+			{
+				tnode_t **hrptr, **lrptr;
+
+				hrptr = tnode_nthsubaddr (*arg0p, 0);
+				lrptr = tnode_nthsubaddr (*arg0p, 1);
+
+				if (((*hrptr)->tag == avrasm.tag_LITREG) && ((*lrptr)->tag == avrasm.tag_LITREG)) {
+					int hreg = avrasm_getlitregval (*hrptr);
+					int lreg = avrasm_getlitregval (*lrptr);
+
+					if ((hreg != (lreg + 1)) || (lreg & 1)) {
+						tnode_error (*tptr, "avrasm_hllsimplify_insnode(): mismatched pair for MOVW\n");
+						hls->errcount++;
+					} else {
+						/* swap REGPAIR for new single (low) register */
+						tnode_free (*arg0p);
+						*arg0p = avrasm_newlitreg (*tptr, lreg);
+					}
+				} else {
+					tnode_error (*tptr, "avrasm_hllsimplify_insnode(): not registers in first argument to MOVW\n");
 					hls->errcount++;
 				}
 			}
