@@ -1,6 +1,6 @@
 ;
 ;	test_avr33.asm -- testing for the ATMEGA2560: PAL display generation [for fun :)]
-;	Copyright (C) 2014, Fred Barnes, University of Kent <frmb@kent.ac.uk>.
+;	Copyright (C) 2014-2015, Fred Barnes, University of Kent <frmb@kent.ac.uk>.
 ;
 
 .mcu	"atmega2560"
@@ -40,6 +40,7 @@
 						;	2 = vsync
 						;	3 = top blanking
 						; other bits:
+						;	7 = active buffer switch
 .def	LINE_COUNT		=r5
 
 .def	SND_FRAME		=r6		; current sound frame, updated when this hits zero
@@ -47,8 +48,13 @@
 .def	SND_C2VAL		=r8		; specific settings for channel 2
 .def	SND_C3VAL		=r9		; specific settings for channel 3
 
+; registers r10 -> r15 available
+; registers r16 -> r27 available
+
 .def	LINE_ADDR_L		=r28		; use 'Y' exclusively for framebuffer line address when rendering
 .def	LINE_ADDR_H		=r29
+
+; registers r30 -> r31 (Z) available
 
 ; calling convention:
 ;
@@ -175,14 +181,21 @@
 
 .data
 .org	0x400
-V_framebuffer1: ;{{{  suitably sized b&w framebuffers  [3k of space]
+V_framebuffer1: ;{{{  suitably sized b&w framebuffers  [3k+ of space]
+	.space	(HRES * VRES)		; 0x400 - 0x9ff
+
+V_framebuffer2:				; 0xa00 - 0xfff
 	.space	(HRES * VRES)
 
-V_framebuffer2:				; starts at 0xa00
-	.space	(HRES * VRES)
+V_fbtailslack:				; 0x1000 - 0x10ff
+	.space	(HRES * 16)		; some slack
 
-V_fbtailslack:
-	.space	(HRES * 2)		; some slack
+V_pixbuf1:				; 0x1100 - 0x11ff
+	.space	(HRES * 16)
+V_pixbuf2:				; 0x1200 - 0x12ff
+	.space	(HRES * 16)
+V_pixbuf3:				; 0x1300 - 0x13ff
+	.space	(HRES * 16)
 
 ;}}}
 ;{{{  other variables
@@ -242,6 +255,11 @@ V_svrtext:	.space 2			; 16-bits for flash address of the string
 		.space 1			; target Y for scroll-up
 
 V_rdrpnts:	.space (4 * 8)			; FIXME: for now ...
+
+V_3dpnts:	.space (3 * 8)
+V_3dpnts2:	.space (3 * 8)
+V_2dpnts:	.space (2 * 8)
+
 
 ;}}}
 
@@ -1684,6 +1702,80 @@ fb_xxsetpixel: ;{{{  sets a pixel at r16,r17 (always sets): hardcoded to know ab
 	pop	r18
 	ret
 ;}}}
+fb_xxcopypixel: ;{{{  copies a pixel from inactive-to-active at r16,r17, hardcoded to know about HRES=16
+	cpi	r16,128
+	brlo	0f
+	rjmp	9f
+.L0:
+	cpi	r17, 96
+	brlo	0f
+	rjmp	9f
+.L0:
+	push	r18
+	push	r19
+	push	r20
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	ZH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	ZH, hi(V_framebuffer2)	;
+
+	sbrc	LINE_REGION, 7		; select framebuffer we *are* rendering
+	ldi	XH, hi(V_framebuffer2)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer1)	;
+
+	mov	XL, r17
+	swap	XL			; low-order bits * 16
+	mov	r18, XL
+	andi	r18, 0x0f		; save high-order bits of Y
+	andi	XL, 0xf0		; cull these in X
+	add	XH, r18			; add these in
+
+	; repeat in Z
+	mov	ZL, XL
+	add	ZH, r18
+
+	; set r19 to the particular bit, e.g. 00001000
+	ldi	r19, 0x80		; bit we'll add in
+	mov	r18, r16
+	sbrc	r18, 0			; shift r19 right appropriately
+	lsr	r19
+	sbrc	r18, 1
+	lsr	r19
+	sbrc	r18, 1
+	lsr	r19
+	sbrc	r18, 2
+	swap	r19			; swap rather than shift by 4
+
+	lsr	r18
+	lsr	r18
+	lsr	r18			; r18 = X/8  (now 0-15)
+	or	XL, r18			; pick right address
+	or	ZL, r18
+
+	ld	r18, Z
+	and	r18, r19		; mask in bit of interest
+	ld	r20, X
+	com	r19			; invert, e.g. 11110111
+	and	r20, r19		; mask in all other bits
+	or	r20, r18		; particular bit
+	st	X, r20			; and write back
+
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r20
+	pop	r19
+	pop	r18
+.L9:
+	ret
+;}}}
 fb_xhline: ;{{{  draw horizontal line from (r16,r17) for r18: hardcoded to know about HRES=16
 	push	r16
 	push	r18
@@ -2443,13 +2535,13 @@ fb_write04char: ;{{{  writes the ASCII char in r18 to the framebuffer at positio
 	; check X and Y in bounds
 	cpi	r17, 96
 	brlo	0f
-	cpi	r17, 240
+	cpi	r17, 241
 	brsh	0f
 	rjmp	fb_write04char_out
 .L0:
 	cpi	r16, 128
 	brlo	0f
-	cpi	r16, 240
+	cpi	r16, 241
 	brsh	0f
 	rjmp	fb_write04char_out
 .L0:
@@ -2490,7 +2582,7 @@ fb_write04char: ;{{{  writes the ASCII char in r18 to the framebuffer at positio
 	; fix for negative Y offsets up to -16
 	ldi	r22, 16			; default height is 16
 	;{{{  setup for out-of-bounds Y => r17, r22, ZH:ZL left with modified Y/height/pointer
-	cpi	r17, 240
+	cpi	r17, 241
 	brlo	0f			; Y >= 0
 	mov	r19, r17
 	neg	r19
@@ -2520,6 +2612,8 @@ fb_write04char: ;{{{  writes the ASCII char in r18 to the framebuffer at positio
 	andi	XL, 0xf0		; cull these in XL
 	add	XH, r19			; add these in
 
+fb_write04char_xcheckandrender:		; XXX: jump target for some code elsewhere, that has setup: Z, X, r20, r22, r16, r17, r18
+
 	;{{{  check for negative X (r16) and/or out-of-bounds (<=-16, >=128)  => jump to specific X rendering versions
 	cpi	r16, 113
 	brlo	1f			; quick decision if 0 <= X < 113
@@ -2531,7 +2625,7 @@ fb_write04char: ;{{{  writes the ASCII char in r18 to the framebuffer at positio
 	brlo	0f
 	rjmp	fb_write04char_xneg2	; if (-15 .. -8) then missing first two bytes
 .L0:
-	cpi	r16, 120
+	cpi	r16, 121
 	brlo	0f
 	rjmp	fb_write04char_xpos2	; if (121 .. 127) then missing last two bytes
 .L0:
@@ -2869,10 +2963,16 @@ fb_write04char_offs1:
 fb_write04char_offs0:
 	;{{{  plant character at bit offset 0.
 .L0:
-	lpm	r0, Z+
+	ld	r0, X
+	lpm	r1, Z+
+	or	r0, r1
 	st	X+, r0
-	lpm	r0, Z+
+
+	ld	r0, X
+	lpm	r1, Z+
+	or	r0, r1
 	st	X+, r0
+
 	adiw	XH:XL, 14		; next line please
 	
 	dec	r22
@@ -2893,13 +2993,556 @@ fb_write04char_xneg2:
 	rjmp	fb_write04char_cont
 
 	;}}}
-	;{{{  blocks for handling one byte missing at end (X > 112)
+	;{{{  blocks for handling one byte missing at end (113 >= X >= 120)
 fb_write04char_xpos1:
+	; assert: XH:XL points at the start of the relevant line
+	mov	r19, r16
+	lsr	r19
+	lsr	r19
+	lsr	r19			; r19 = X / 8
+
+	clr	r21
+	add	XL, r19			; X is starting byte in video
+	adc	XH, r21
+
+	; r20 has font-metrics byte still
+	mov	r19, r20
+	andi	r19, 0x0f		; low-order bits (character data width, 0=16)
+	brne	0f
+	ldi	r19, 16
+.L0:
+	; r19 has relevant bit-width
+	mov	r18, r20
+	swap	r18
+	andi	r18, 0x0f		; high-order bits (display width, 0=16, <char-width = 16+X)
+	add	r18, r19		; r18 now has display width (i.e. how much we adjust r16 by).
+
+	; try and be vaguely efficient in how we branch here..
+	mov	r20, r16
+	andi	r20, 0x07		; bit offset (X % 8)
+	sbrc	r20, 2
+	rjmp	1f			; branch if bit offsets 4-7
+	; assert: bit offset is 0-3
+	sbrc	r20, 1
+	rjmp	2f			; branch if bit offset 2-3
+	sbrc	r20, 0
+	rjmp	fb_write04char_offs1p1	; branch if bit offset 1
+	rjmp	fb_write04char_offs0p1	; else must be 0
+.L2:
+	; assert: bit offset is 2-3
+	sbrc	r20, 0
+	rjmp	fb_write04char_offs3p1	; branch if bit offset 3
+	rjmp	fb_write04char_offs2p1	; else must be 2
+.L1:
+	; assert: bit offset is 4-7
+	sbrc	r20, 1
+	rjmp	2f			; branch if bit offset 6-7
+	sbrc	r20, 0
+	rjmp	fb_write04char_offs5p1	; branch if bit offset 5
+	rjmp	fb_write04char_offs4p1	; else must be 4
+.L2:
+	; assert: bit offset is 6-7
+	sbrc	r20, 0
+	rjmp	fb_write04char_offs7p1	; branch if bit offset 7
+	rjmp	fb_write04char_offs6p1	; else must be 6
+
+fb_write04char_offs7p1:
+	;{{{  plant character at bit offset 7.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsl	r0
+	rol	r20			; put high-order bit into r20 low-order
+
+	ld	r1, X			; write first video byte
+	or	r1, r20
+	st	X+, r1
+
+	mov	r20, r0			; low-lorder 7 bits from first byte
+
+	clr	r1
+	lpm	r0, Z+
+	lsl	r0
+	rol	r1			; put high-order bit into r1 low-order
+
+	or	r1, r20			; put back saved 7 bits from first byte
+	mov	r20, r0			; low-lorder 7 bits from second byte
+
+	ld	r0, X			; write second video byte
+	or	r0, r1
+	st	X+, r0
+
+	; lose saved bits (off-screen)
+	adiw	XH:XL, 14		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs6p1:
+	;{{{  plant character at bit offset 6.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsl	r0
+	rol	r20
+	lsl	r0
+	rol	r20			; put high-order 2 bits into r20 low-order
+
+	ld	r1, X			; write first video byte
+	or	r1, r20
+	st	X+, r1
+
+	mov	r20, r0			; low-lorder 6 bits from first byte
+
+	clr	r1
+	lpm	r0, Z+
+	lsl	r0
+	rol	r1
+	lsl	r0
+	rol	r1			; put high-order 2 bits into r1 low-order
+
+	or	r1, r20			; put back saved 6 bits from first byte
+	mov	r20, r0			; low-lorder 6 bits from second byte
+
+	ld	r0, X			; write second video byte
+	or	r0, r1
+	st	X+, r0
+
+	; lose saved bits in r20
+
+	adiw	XH:XL, 14		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs5p1:
+	;{{{  plant character at bit offset 5.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsl	r0
+	rol	r20
+	lsl	r0
+	rol	r20
+	lsl	r0
+	rol	r20			; put high-order 3 bits into r20 low-order
+
+	ld	r1, X			; write first video byte
+	or	r1, r20
+	st	X+, r1
+
+	mov	r20, r0			; low-lorder 5 bits from first byte
+
+	clr	r1
+	lpm	r0, Z+
+	lsl	r0
+	rol	r1
+	lsl	r0
+	rol	r1
+	lsl	r0
+	rol	r1			; put high-order 3 bits into r1 low-order
+
+	or	r1, r20			; put back saved 5 bits from first byte
+	mov	r20, r0			; low-lorder 5 bits from second byte
+
+	ld	r0, X			; write second video byte
+	or	r0, r1
+	st	X+, r0
+
+	; lose saved bits in r20
+
+	adiw	XH:XL, 14		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs4p1:
+	;{{{  plant character at bit offset 4.
+.L0:
+	lpm	r0, Z+
+	swap	r0
+	mov	r20, r0			; save leftover low-order bits here for now
+	andi	r20, 0x0f		; mask in high nibble (swapped)
+
+	ld	r1, X			; write first video byte
+	or	r1, r20
+	st	X+, r1
+
+	mov	r20, r0			; ditto
+	andi	r20, 0xf0		; pick out low nibble (swapped)
+	mov	r1, r20
+
+	lpm	r0, Z+
+	swap	r0
+	mov	r20, r0			; save leftover low-order bits here for now
+	andi	r20, 0x0f		; mask in high nibble (swapped)
+	or	r1, r20			; put back into saved bits from first byte
+
+	mov	r20, r0			; becomes saved bit for next byte
+	andi	r20, 0xf0		; pick out low nibble (swapped)
+
+	ld	r0, X			; write second video byte
+	or	r0, r1
+	st	X+, r0
+
+	; lose saved bits in r20
+
+	adiw	XH:XL, 14		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs3p1:
+	;{{{  plant character at bit offset 3.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsr	r0
+	ror	r20
+	lsr	r0
+	ror	r20
+	lsr	r0
+	ror	r20			; save leftover bits here for now
+
+	ld	r1, X			; write first video byte
+	or	r1, r0
+	st	X+, r1
+
+	clr	r1
+	lpm	r0, Z+
+	lsr	r0
+	ror	r1
+	lsr	r0
+	ror	r1
+	lsr	r0
+	ror	r1			; save leftover bits here for now
+	or	r0, r20			; put back in saved bit from first byte
+	mov	r20, r1			; becomes saved bit for next byte
+
+	ld	r1, X			; write second video byte
+	or	r1, r0
+	st	X+, r1
+
+	; lose saved bits in r20
+
+	adiw	XH:XL, 14		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs2p1:
+	;{{{  plant character at bit offset 2.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsr	r0
+	ror	r20
+	lsr	r0
+	ror	r20			; save leftover bits here for now
+
+	ld	r1, X			; write first video byte
+	or	r1, r0
+	st	X+, r1
+
+	clr	r1
+	lpm	r0, Z+
+	lsr	r0
+	ror	r1
+	lsr	r0
+	ror	r1			; save leftover bits here for now
+	or	r0, r20			; put back in saved bit from first byte
+	mov	r20, r1			; becomes saved bit for next byte
+
+	ld	r1, X			; write second video byte
+	or	r1, r0
+	st	X+, r1
+
+	; lose saved bits in r20
+
+	adiw	XH:XL, 14		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs1p1:
+	;{{{  plant character at bit offset 1.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsr	r0
+	ror	r20			; save leftover bit here for now
+
+	ld	r1, X			; write first video byte
+	or	r1, r0
+	st	X+, r1
+
+	clr	r1
+	lpm	r0, Z+
+	lsr	r0
+	ror	r1			; save leftover bit here for now
+	or	r0, r20			; put back in saved bit from first byte
+	mov	r20, r1			; becomes saved bit for next byte
+
+	ld	r1, X			; write second video byte
+	or	r1, r0
+	st	X+, r1
+
+	; lose saved bit in r20
+
+	adiw	XH:XL, 14		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs0p1:
+	;{{{  plant character at bit offset 0.
+.L0:
+	ld	r0, X
+	lpm	r1, Z+
+	or	r0, r1
+	st	X+, r0
+	lpm	r0, Z+
+
+	; skip second byte (X == 120 in this case)
+
+	adiw	XH:XL, 15		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
 	rjmp	fb_write04char_cont
 
 	;}}}
 	;{{{  blocks for handling two bytes missing at end (X > 120)
 fb_write04char_xpos2:
+	; assert: XH:XL points at the start of the relevant line
+	mov	r19, r16
+	lsr	r19
+	lsr	r19
+	lsr	r19			; r19 = X / 8
+
+	clr	r21
+	add	XL, r19			; X is starting byte in video
+	adc	XH, r21
+
+	; r20 has font-metrics byte still
+	mov	r19, r20
+	andi	r19, 0x0f		; low-order bits (character data width, 0=16)
+	brne	0f
+	ldi	r19, 16
+.L0:
+	; r19 has relevant bit-width
+	mov	r18, r20
+	swap	r18
+	andi	r18, 0x0f		; high-order bits (display width, 0=16, <char-width = 16+X)
+	add	r18, r19		; r18 now has display width (i.e. how much we adjust r16 by).
+
+	; try and be vaguely efficient in how we branch here..
+	mov	r20, r16
+	andi	r20, 0x07		; bit offset (X % 8)
+	sbrc	r20, 2
+	rjmp	1f			; branch if bit offsets 4-7
+	; assert: bit offset is 0-3
+	sbrc	r20, 1
+	rjmp	2f			; branch if bit offset 2-3
+	sbrc	r20, 0
+	rjmp	fb_write04char_offs1p2	; branch if bit offset 1
+	rjmp	fb_write04char_offs0p2	; else must be 0
+.L2:
+	; assert: bit offset is 2-3
+	sbrc	r20, 0
+	rjmp	fb_write04char_offs3p2	; branch if bit offset 3
+	rjmp	fb_write04char_offs2p2	; else must be 2
+.L1:
+	; assert: bit offset is 4-7
+	sbrc	r20, 1
+	rjmp	2f			; branch if bit offset 6-7
+	sbrc	r20, 0
+	rjmp	fb_write04char_offs5p2	; branch if bit offset 5
+	rjmp	fb_write04char_offs4p2	; else must be 4
+.L2:
+	; assert: bit offset is 6-7
+	sbrc	r20, 0
+	rjmp	fb_write04char_offs7p2	; branch if bit offset 7
+	rjmp	fb_write04char_offs6p2	; else must be 6
+
+fb_write04char_offs7p2:
+	;{{{  plant character at bit offset 7.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsl	r0
+	rol	r20			; put high-order bit into r20 low-order
+
+	ld	r1, X			; write first video byte
+	or	r1, r20
+	st	X+, r1
+
+	adiw	ZH:ZL, 1		; skip next character byte
+
+	; lose saved bits (off-screen)
+	adiw	XH:XL, 15		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs6p2:
+	;{{{  plant character at bit offset 6.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsl	r0
+	rol	r20
+	lsl	r0
+	rol	r20			; put high-order 2 bits into r20 low-order
+
+	ld	r1, X			; write first video byte
+	or	r1, r20
+	st	X+, r1
+
+	adiw	ZH:ZL, 1		; skip next character byte
+
+	; lose saved bits in r0
+
+	adiw	XH:XL, 15		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs5p2:
+	;{{{  plant character at bit offset 5.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsl	r0
+	rol	r20
+	lsl	r0
+	rol	r20
+	lsl	r0
+	rol	r20			; put high-order 3 bits into r20 low-order
+
+	ld	r1, X			; write first video byte
+	or	r1, r20
+	st	X+, r1
+
+	adiw	ZH:ZL, 1		; skip next character byte
+
+	; lose saved bits in r0
+	adiw	XH:XL, 15		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs4p2:
+	;{{{  plant character at bit offset 4.
+.L0:
+	lpm	r0, Z+
+	swap	r0
+	mov	r20, r0			; save leftover low-order bits here for now
+	andi	r20, 0x0f		; mask in high nibble (swapped)
+
+	ld	r1, X			; write first video byte
+	or	r1, r20
+	st	X+, r1
+
+	adiw	ZH:ZL, 1		; skip next character byte
+
+	; lose saved bits in r0
+	adiw	XH:XL, 15		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs3p2:
+	;{{{  plant character at bit offset 3.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsr	r0
+	lsr	r0
+	lsr	r0
+
+	ld	r1, X			; write first video byte
+	or	r1, r0
+	st	X+, r1
+
+	adiw	ZH:ZL, 1		; skip next character byte
+	adiw	XH:XL, 15		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs2p2:
+	;{{{  plant character at bit offset 2.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsr	r0
+	lsr	r0
+
+	ld	r1, X			; write first video byte
+	or	r1, r0
+	st	X+, r1
+
+	adiw	ZH:ZL, 1		; skip next character byte
+	adiw	XH:XL, 15		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs1p2:
+	;{{{  plant character at bit offset 1.
+.L0:
+	clr	r20
+
+	lpm	r0, Z+
+	lsr	r0
+
+	ld	r1, X			; write first video byte
+	or	r1, r0
+	st	X+, r1
+
+	adiw	ZH:ZL, 1		; skip next character byte
+	adiw	XH:XL, 15		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
+	rjmp	fb_write04char_cont
+fb_write04char_offs0p2:
+	;{{{  plant character at bit offset 0.
+.L0:
+	; this should never happen.. :)
+	adiw	ZH:ZL, 2		; next line of glyph please
+	adiw	XH:XL, 16		; next line please
+	
+	dec	r22
+	brne	0b
+	;}}}
 	rjmp	fb_write04char_cont
 
 	;}}}
@@ -2921,6 +3564,98 @@ fb_write04char_cont:
 	pop	ZH
 fb_write04char_out:
 	ret
+;}}}
+fb_xxcopycircle: ;{{{  copies a circle of pixels at r16,r17 radius r18 from inactive to active framebuffer
+	push	r15
+	push	r19
+	push	r20
+	push	r21
+	push	r22
+	push	r23
+
+	ldi	r20, 0			; r20 = x = 0
+	mov	r21, r18		; r21 = y = R
+	ldi	r19, 1
+	sub	r19, r18		; r19 = d = 1 - R
+
+	rcall	xxcopycircle_pnts
+.L0:
+	cp	r20, r21		; while (x < y)
+	brsh	5f			;
+
+	cpi	r19, 1
+	brge	1f			; if (d > 0)
+	; else d <= 0
+	mov	r22, r20
+	lsl	r22
+	ldi	r23, 3
+	add	r23, r22		; r23 = 2*x + 3
+	add	r19, r23		; d += (2*x + 3)
+	rjmp	2f
+.L1:
+	; d > 0
+	mov	r22, r20
+	sub	r22, r21
+	lsl	r22
+	ldi	r23, 5
+	add	r23, r22		; r23 = 5 + 2*(x-y), signed
+	add	r19, r23		; d += (2*(x-y) + 5)
+	dec	r21			; y--
+.L2:
+	inc	r20			; x++
+	rcall	xxcopycircle_pnts
+	rjmp	0b
+.L5:
+
+	pop	r23
+	pop	r22
+	pop	r21
+	pop	r20
+	pop	r19
+	pop	r15
+	ret
+
+xxcopycircle_pnts:			; helper that copies the 8 points, (r16,r17) is the centre, (r20,r21) the x and y values, r22,r23 may be trashed
+					; this one checks that the resulting pixel is visible
+	push	r16
+	push	r17
+
+	mov	r22, r16
+	mov	r23, r17
+
+	add	r17, r21
+	add	r16, r20
+	call	fb_xxcopypixel		; (X + x, Y + y)
+	mov	r16, r22
+	sub	r16, r20
+	call	fb_xxcopypixel		; (X - x, Y + y)
+	mov	r17, r23
+	sub	r17, r21
+	call	fb_xxcopypixel		; (X - x, Y - y)
+	mov	r16, r22
+	add	r16, r20
+	call	fb_xxcopypixel		; (X + x, Y - y)
+
+	mov	r16, r22		; put right
+	mov	r17, r23
+
+	add	r17, r20
+	add	r16, r21
+	call	fb_xxcopypixel		; (X + y, Y + x)
+	mov	r16, r22
+	sub	r16, r21
+	call	fb_xxcopypixel		; (X - y, Y + x)
+	mov	r17, r23
+	sub	r17, r20
+	call	fb_xxcopypixel		; (X - y, Y - x)
+	mov	r16, r22
+	add	r16, r21
+	call	fb_xxcopypixel		; (X + y, Y - x)
+
+	pop	r17
+	pop	r16
+	ret
+
 ;}}}
 
 fb_pbyteblit: ;{{{  does byte-chunk blitting from program memory to the framebuffer (at r16*8,r17) from Z, width r18*8, height r19
@@ -2988,6 +3723,43 @@ fb_pbyteblit: ;{{{  does byte-chunk blitting from program memory to the framebuf
 	pop	r1
 	pop	r0
 	ret
+;}}}
+fb_pscreenblit: ;{{{  does byte-blitting from program memory (at Z) to the framebuffer, fixed width and height at 128x96.
+	push	r16
+	push	r17
+	push	r18
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
+
+	clr	XL			; at start
+
+	ldi	r18, 96
+.L0:
+	ldi	r17, 16
+.L1:
+	lpm	r16, Z+
+	st	X+, r16
+	dec	r17
+	brne	1b
+	dec	r18
+	brne	0b
+
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+
 ;}}}
 
 fb_drawline: ;{{{  draws a line starting at (r16,r17) [unsigned] for (r18,r19) [signed]
@@ -3469,6 +4241,293 @@ fb_xdrawline_redo:
 	ret
 ;}}}
 
+pb_clearboth: ;{{{  clears both the pixel buffers (128x16)
+	push	r16
+	push	r17
+	push	XL
+	push	XH
+
+	clr	r16
+	ldi	r17, 0
+	ldi	XH:XL, V_pixbuf1
+.L0:
+	st	X+, r16
+	dec	r17
+	brne	0b
+
+	ldi	XH:XL, V_pixbuf2
+.L0:
+	st	X+, r16
+	dec	r17
+	brne	0b
+
+	pop	XH
+	pop	XL
+	pop	r17
+	pop	r16
+	ret
+;}}}
+pb_write04char: ;{{{  writes the ASCII char in r18 to pixbuf1 at X position r16 using 04b font.  Updates r16 for X width.
+	; XXX: the order that things get pushed on in here must match 'fb_write04char' above as that is our exit route.
+	; check for valid character (obviously :))
+	cpi	r18, 32
+	brsh	0f
+	rjmp	fb_write04char_out
+.L0:
+	cpi	r18, 127
+	brlo	0f
+	rjmp	fb_write04char_out
+.L0:
+	push	ZH
+	push	ZL
+	push	XH
+	push	XL
+	push	r22
+	push	r21
+	push	r20
+	push	r19
+	push	r18
+	push	r17
+	push	r1
+	push	r0
+
+	subi	r18, 32					; normalise [0-94]
+
+	clr	r19					; get address of font metric
+	ldi	ZH:ZL, font_metrics_04b
+	add	ZL, r18
+	adc	ZH, r19
+
+	lpm	r20, Z
+
+	ldi	r19, 32					; get address of font data
+	mul	r18, r19
+	ldi	ZH:ZL, font_data_04b
+	add	ZL, r0
+	adc	ZH, r1
+
+	; point X at the first byte in the pixel buffer
+	ldi	XH:XL, V_pixbuf1
+	clr	r17
+	ldi	r22, 16					; character height
+
+	; and then down the regular path
+	rjmp	fb_write04char_xcheckandrender
+
+	; XXX: blunt end to routine
+;}}}
+fb_pb_xor2: ;{{{  XORs in V_pixbuf2 at Y = r16 (fixed height of 16)
+	push	r16
+	push	r17
+	push	r18
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	; point X at the first byte in the framebuffer of interest
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
+
+	; r16 contains the starting line in the framebuffer (0..95)
+	mov	XL, r16
+	swap	XL			; low-order bits * 16
+	mov	r17, XL
+	andi	r17, 0x0f		; save high-order bits of Ypos
+	andi	XL, 0xf0		; cull these in XL
+	add	XH, r17			; add these in
+
+	ldi	ZH:ZL, V_pixbuf2
+	ldi	r17, 0
+	; now blanket XOR in 256 bytes
+.L0:
+	ld	r16, Z+
+	ld	r18, X
+	eor	r16, r18
+	st	X+, r16
+	dec	r17
+	brne	0b
+
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+;}}}
+fb_pb_xor3: ;{{{  XORs in V_pixbuf3 at Y = r16 (fixed height of 16)
+	push	r16
+	push	r17
+	push	r18
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	; point X at the first byte in the framebuffer of interest
+	sbrc	LINE_REGION, 7		; select framebuffer we're not rendering
+	ldi	XH, hi(V_framebuffer1)	;
+	sbrs	LINE_REGION, 7		;
+	ldi	XH, hi(V_framebuffer2)	;
+
+	cpi	r16, 241
+	brlo	1f
+	; here means that Y < 0, so do less
+	neg	r16			; -15 .. -1 -> 15 .. 1
+	ldi	ZH:ZL, V_pixbuf3
+	mov	ZL, r16
+	swap	ZL			; byte offset = 16 * -Y
+	ldi	r17, 0
+	sub	r17, ZL			; remaining bytes: 256 - (16 * -Y)
+
+	clr	XL			; always at top of frame
+	rjmp	0f			; jump into first loop iteration
+
+.L1:
+
+	; r16 contains the starting line in the framebuffer (0..95)
+	cpi	r16, 96
+	brsh	2f			; do nothing!
+
+	mov	XL, r16
+	swap	XL			; low-order bits * 16
+	mov	r17, XL
+	andi	r17, 0x0f		; save high-order bits of Ypos
+	andi	XL, 0xf0		; cull these in XL
+	add	XH, r17			; add these in
+
+	ldi	ZH:ZL, V_pixbuf3
+	ldi	r17, 0
+	; now blanket XOR in 256 bytes
+.L0:
+	ld	r16, Z+
+	ld	r18, X
+	eor	r16, r18
+	st	X+, r16
+	dec	r17
+	brne	0b
+
+.L2:
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+;}}}
+pb_copy12: ;{{{  copies the first pixel buffer into the second (blanket)
+	push	r16
+	push	r17
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	ldi	XH:XL, V_pixbuf2
+	ldi	ZH:ZL, V_pixbuf1
+	clr	r17
+.L0:
+	ld	r16, Z+
+	st	X+, r16
+	dec	r17
+	brne	0b
+
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r17
+	pop	r16
+	ret
+;}}}
+pb_copy13: ;{{{  copies the first pixel buffer into the third (blanket)
+	push	r16
+	push	r17
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	ldi	XH:XL, V_pixbuf3
+	ldi	ZH:ZL, V_pixbuf1
+	clr	r17
+.L0:
+	ld	r16, Z+
+	st	X+, r16
+	dec	r17
+	brne	0b
+
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r17
+	pop	r16
+	ret
+;}}}
+pb_blend12: ;{{{  copies parts of the first pixel buffer into the second, r16=0-31 is nibble offset
+	push	r17
+	push	r18
+	push	r19
+	push	r20
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	ldi	XH:XL, V_pixbuf2
+	ldi	ZH:ZL, V_pixbuf1
+	; note: take advantage of the fact that XL and ZL are both zero and 8 bits, i.e. XH/ZH unchanging
+	mov	r17, r16
+	lsr	r17		; 0 -> 15
+	mov	XL, r17
+	mov	ZL, r17
+	ldi	r17, 15
+	ldi	r20, 50
+.L0:
+	ld	r18, Z
+	ld	r19, X
+
+	sbrc	r16, 0
+	rjmp	1f
+	; even (0, 2, 4, ..) - do high nibble
+	andi	r19, 0x0f
+	andi	r18, 0xf0
+	rjmp	2f
+.L1:
+	; odd (1, 3, 5, ..) - do low nibble
+	andi	r19, 0xf0
+	andi	r18, 0x0f
+.L2:
+	or	r19, r18
+	st	X, r19
+	add	XL, r17
+	add	ZL, r17
+	dec	r17
+	brne	3f
+	ldi	r17, 13		; reached zero, reset
+.L3:
+
+	dec	r20
+	brne	0b
+
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r17
+	ret
+;}}}
+
 math_sinv: ;{{{  computes r16 * sin(r17), returns high-order bits (signed) in r16, trashes r17
 	push	r0
 	push	r1
@@ -3481,6 +4540,8 @@ math_sinv: ;{{{  computes r16 * sin(r17), returns high-order bits (signed) in r1
 	adc	ZH, r0
 	lpm	r17, Z			; load sin(r17) into r17
 	mulsu	r17, r16
+	lsl	r0
+	rol	r1
 	mov	r16, r1			; high-order bits of the result
 
 	pop	ZH
@@ -3502,12 +4563,561 @@ math_cosv: ;{{{  computes r16 * cos(r17), returns high-order bits (signed) in r1
 	adc	ZH, r0
 	lpm	r17, Z			; load sin(r17) into r17
 	mulsu	r17, r16
+	lsl	r0
+	rol	r1
 	mov	r16, r1			; high-order bits of the result
 
 	pop	ZH
 	pop	ZL
 	pop	r1
 	pop	r0
+	ret
+
+;}}}
+math_sinvs: ;{{{  computes r16 (signed) * sin(r17), returns high-order bits (signed) in r16, trashes r17
+	push	r0
+	push	r1
+	push	ZL
+	push	ZH
+
+	ldi	ZH:ZL, D_sin_table
+	clr	r0
+	add	ZL, r17
+	adc	ZH, r0
+	lpm	r17, Z			; load sin(r17) into r17
+	muls	r17, r16
+	lsl	r0
+	rol	r1
+	mov	r16, r1			; high-order bits of the result
+
+	pop	ZH
+	pop	ZL
+	pop	r1
+	pop	r0
+	ret
+
+;}}}
+math_cosvs: ;{{{  computes r16 (signed) * cos(r17), returns high-order bits (signed) in r16, trashes r17
+	push	r0
+	push	r1
+	push	ZL
+	push	ZH
+
+	ldi	ZH:ZL, D_cos_table
+	clr	r0
+	add	ZL, r17
+	adc	ZH, r0
+	lpm	r17, Z			; load sin(r17) into r17
+	muls	r17, r16
+	lsl	r0
+	rol	r1
+	mov	r16, r1			; high-order bits of the result
+
+	pop	ZH
+	pop	ZL
+	pop	r1
+	pop	r0
+	ret
+
+;}}}
+
+demo_copy_points: ;{{{  copies contents of V_3dpnts to V_3dpnts2
+	push	r16
+	push	r17
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	ldi	XH:XL, V_3dpnts2
+	ldi	ZH:ZL, V_3dpnts
+	ldi	r17, 24
+.L0:
+	ld	r16, Z+
+	st	X+, r16
+	dec	r17
+	brne	0b
+
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r17
+	pop	r16
+	ret
+
+;}}}
+demo_rotate_points: ;{{{  rotates points in V_3dpnts to V_3dpnts2 (rotate about Y axis by r24)
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+	push	r20
+	push	r21
+	push	r22
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	ldi	XH:XL, V_3dpnts2
+	ldi	ZH:ZL, V_3dpnts
+	ldi	r22, 8
+.L0:
+	ld	r18, Z+		; load X
+	ld	r19, Z+		; Y
+	ld	r20, Z+		; Z
+
+	mov	r17, r24
+	mov	r16, r18
+	call	math_cosvs	; r16 = X * cos(r24)
+	mov	r21, r16
+
+	mov	r17, r24
+	mov	r16, r20
+	call	math_sinvs	; r16 = Z * sin(r24)
+	add	r21, r16
+
+	st	X+, r21		; new X
+	st	X+, r19		; current Y
+
+	mov	r17, r24
+	mov	r16, r20
+	call	math_cosvs	; r16 = Z * cos(r24)
+	mov	r21, r16
+
+	mov	r17, r24
+	mov	r16, r18
+	call	math_sinvs	; r16 = X * sin(r24)
+	sub	r21, r16
+
+	st	X+, r21		; new Z
+
+	dec	r22
+	breq	9f
+	rjmp	0b
+.L9:
+
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r22
+	pop	r21
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+
+;}}}
+demo_drotate_points: ;{{{  rotates points in V_3dpnts to V_3dpnts2 (uses r24 as angle to do demoparty rotations)
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+	push	r20
+	push	r21
+	push	r22
+	push	r23
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	ldi	XH:XL, V_3dpnts2
+	ldi	ZH:ZL, V_3dpnts
+	ldi	r23, 8
+.L0:
+	ld	r18, Z+		; load X
+	ld	r19, Z+		; Y
+	ld	r20, Z+		; Z
+
+	; X' (r21) = X.cos(r24) + Y.sin(r24)
+	mov	r17, r24
+	mov	r16, r18	; X
+	call	math_cosvs	; r16 = X.cos
+	mov	r21, r16	; X'
+
+	mov	r17, r24
+	mov	r16, r19	; Y
+	call	math_sinvs	; r16 = Y.sin
+	add	r21, r16	; X' = X' + Y.sin
+
+	; Y' (r22) = Y.cos(r24) - X.sin(r24)
+	mov	r17, r24
+	mov	r16, r19	; Y
+	call	math_cosvs	; r16 = Y.cos
+	mov	r22, r16	; Y'
+
+	mov	r17, r24
+	mov	r16, r18	; X
+	call	math_sinvs	; r16 = X.sin
+	add	r22, r16	; Y' = Y' - X.sin
+
+	; Z' (r18) = Z.cos(r24) - X'.sin(r24)
+	mov	r17, r24
+	mov	r16, r20	; Z
+	call	math_cosvs	; r16 = Z.cos
+	mov	r18, r16	; Z'
+
+	mov	r17, r24
+	mov	r16, r21	; X'
+	call	math_sinvs	; r16 = X'.sin
+	sub	r18, r16	; Z' = Z' - X'.sin
+
+	; X'' (r19) = X'.cos(r24) + Z.sin(r24)
+	mov	r17, r24
+	mov	r16, r21	; X'
+	call	math_cosvs	; r16 = X'.cos
+	mov	r19, r16	; X''
+
+	mov	r17, r24
+	mov	r16, r20	; Z
+	call	math_sinvs	; r16 = Z.sin
+	add	r19, r16	; X'' = X'' + Z.sin
+
+	; Y'' (r20) = Y'.cos(r24) + Z'.sin(r24)
+	mov	r17, r24
+	mov	r16, r22	; Y'
+	call	math_cosvs	; r16 = Y'.cos
+	mov	r20, r16	; Y''
+
+	mov	r17, r24
+	mov	r16, r18	; Z'
+	call	math_sinvs	; r16 = Z'.sin
+	add	r20, r16	; Y'' = Y'' + Z'.sin
+
+	; Z'' (r21) = Z'.cos(r24) - Y'.sin(r24)
+	mov	r17, r24
+	mov	r16, r18	; Z'
+	call	math_cosvs	; r16 = Z'.cos
+	mov	r21, r16	; Z''
+
+	mov	r17, r24
+	mov	r16, r22	; Y'
+	call	math_sinvs	; r16 = Y'.sin
+	sub	r21, r16	; Z'' = Z'' - Y'.sin
+
+	; okis, store back!
+	st	X+, r19
+	st	X+, r20
+	st	X+, r21
+
+	dec	r23
+	breq	9f
+	rjmp	0b
+.L9:
+
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r23
+	pop	r22
+	pop	r21
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+
+;}}}
+demo_linear_trans: ;{{{  does linear transform on points in V_3dpnts2 -> V_2dpnts
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+	push	r20
+	push	r21
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	ldi	XH:XL, V_2dpnts
+	ldi	ZH:ZL, V_3dpnts2
+
+	ldi	r21, 48			; Y offset
+	ldi	r20, 64			; X offset
+	ldi	r19, 8
+.L0:
+	ld	r16, Z+			; load 3D points, X
+	ld	r17, Z+			; Y
+	ld	r18, Z+			; Z
+
+	asr	r18			; Z' = Z / 2
+	add	r16, r18		; X' = X + Z'
+	sub	r17, r18		; Y' = Y - Z'
+	add	r16, r20		; X' + 64
+	add	r17, r21		; Y' + 48
+
+	st	X+, r16			; store back as 2D points, X
+	st	X+, r17			; Y
+
+	dec	r19
+	breq	9f
+	rjmp	0b
+.L9:
+
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r21
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
+	ret
+
+;}}}
+demo_perspect_trans: ;{{{  does perspective transform on points in V_3dpnts2 -> V_2dpnts
+	push	r0
+	push	r1
+	push	r13
+	push	r14
+	push	r15
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+	push	r20
+	push	r21
+	push	r22
+	push	r23
+	push	r24
+	push	XL
+	push	XH
+	push	ZL
+	push	ZH
+
+	ldi	XH:XL, V_2dpnts
+	ldi	ZH:ZL, V_3dpnts2
+
+	ldi	r20, 64			; X offset
+	ldi	r21, 48			; Y offset
+	ldi	r23, 128		; max X 
+	ldi	r24, 96			; max Y
+	ldi	r19, 8
+.L0:
+	ld	r16, Z+			; load 3D points X
+	ld	r17, Z+			; Y
+	ld	r18, Z+			; Z
+
+	mov	r15, ZH			; save Z
+	mov	r14, ZL
+
+	ldi	ZH:ZL, D_divtab64k
+	clr	r22
+	lsl	r18
+	brcc	1f
+	inc	r22			; carried bit from Z (means it was negative)
+.L1:
+	add	ZL, r18
+	adc	ZH, r22			; right word
+
+	lpm	r18, Z+			; recycle and load into r18:r22
+	lpm	r22, Z
+
+	mov	ZH, r15			; restore Z
+	mov	ZL, r14
+
+	mulsu	r16, r22		; lo(Z) * X -> r1:r0 (signed)
+	mov	r15, r1			; save high order bits of result
+	mulsu	r16, r18		; hi(Z) * X -> r1:r0 (signed)
+	add	r0, r15			; add previous high-order to our low-order in r0
+	add	r0, r20			; add X offset
+	cp	r0, r23
+	brlo	2f
+	; out of bounds, assume middle
+	mov	r0, r20
+.L2:
+	st	X+, r0			; store screen X
+
+	mulsu	r17, r22		; lo(Z) * Y -> r1:r0 (signed)
+	mov	r15, r1			; save high order bits of result
+	mulsu	r17, r18		; hi(Z) * Y -> r1:r0 (signed)
+	add	r0, r15			; add previous high-order to our low-order in r0
+	add	r0, r21			; add Y offset
+	cp	r0, r24
+	brlo	2f
+	; out of bounds, assume middle
+	mov	r0, r21
+.L2:
+	st	X+, r0			; store screen Y
+
+	dec	r19
+	breq	9f
+	rjmp	0b
+.L9:
+
+	pop	ZH
+	pop	ZL
+	pop	XH
+	pop	XL
+	pop	r24
+	pop	r23
+	pop	r22
+	pop	r21
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
+	pop	r15
+	pop	r14
+	pop	r13
+	pop	r1
+	pop	r0
+	ret
+;}}}
+demo_rendercube: ;{{{  renders a cube from 8 points defined in V_2dpnts (expects top and bottom face windings)
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+	push	r20
+	push	r21
+	push	ZH
+	push	ZL
+
+	ldi	ZH:ZL, V_2dpnts
+
+	;{{{  P1 -> P2, P1 -> P5
+	ldd	r16, Z+0
+	ldd	r17, Z+1		; r16,r17 is first point
+
+	ldd	r20, Z+2
+	ldd	r21, Z+3		; r20,r21 is second point
+
+	movw	r19:r18, r21:r20
+	sub	r18, r16
+	sub	r19, r17
+	call	fb_xdrawline		; top section P1 -> P2
+
+	ldd	r18, Z+8
+	ldd	r19, Z+9		; r18,r19 is fifth point
+	sub	r18, r16
+	sub	r19, r17
+	call	fb_xdrawline		; side section P1 -> P5
+
+	;}}}
+	;{{{  P2 -> P3, P2 -> P6
+	movw	r17:r16, r21:r20	; r16,r17 is second point
+
+	ldd	r20, Z+4
+	ldd	r21, Z+5		; r20,r21 is third point
+
+	movw	r19:r18, r21:r20
+	sub	r18, r16
+	sub	r19, r17
+	call	fb_xdrawline		; top section P2 -> P3
+
+	ldd	r18, Z+10
+	ldd	r19, Z+11		; r18,r19 is sixth point
+	sub	r18, r16
+	sub	r19, r17
+	call	fb_xdrawline		; side section P2 -> P6
+
+	;}}}
+	;{{{  P3 -> P4, P3 -> P7
+	movw	r17:r16, r21:r20	; r16,r17 is third point
+
+	ldd	r20, Z+6
+	ldd	r21, Z+7		; r20,r21 is fourth point
+
+	movw	r19:r18, r21:r20
+	sub	r18, r16
+	sub	r19, r17
+	call	fb_xdrawline		; top section P3 -> P4
+
+	ldd	r18, Z+12
+	ldd	r19, Z+13		; r18,r19 is seventh point
+	sub	r18, r16
+	sub	r19, r17
+	call	fb_xdrawline		; side section P3 -> P7
+
+	;}}}
+	;{{{  P4 -> P1, P4 -> P8
+	movw	r17:r16, r21:r20	; r16,r17 is fourth point
+
+	ldd	r20, Z+0
+	ldd	r21, Z+1		; r20,r21 is first point
+
+	movw	r19:r18, r21:r20
+	sub	r18, r16
+	sub	r19, r17
+	call	fb_xdrawline		; top section P4 -> P1
+
+	ldd	r18, Z+14
+	ldd	r19, Z+15		; r18,r19 is eighth point
+	sub	r18, r16
+	sub	r19, r17
+	call	fb_xdrawline		; side section P4 -> P8
+
+	;}}}
+	;{{{  P5 -> P6
+	ldd	r16, Z+8
+	ldd	r17, Z+9		; r16,r17 is fifth point
+
+	ldd	r20, Z+10
+	ldd	r21, Z+11		; r20,r21 is sixth point
+
+	movw	r19:r18, r21:r20
+	sub	r18, r16
+	sub	r19, r17
+	call	fb_xdrawline		; bottom section P5 -> P6
+
+	;}}}
+	;{{{  P6 -> P7
+	movw	r17:r16, r21:r20	; r16,r17 is sixth point
+
+	ldd	r20, Z+12
+	ldd	r21, Z+13		; r20,r21 is seventh point
+
+	movw	r19:r18, r21:r20
+	sub	r18, r16
+	sub	r19, r17
+	call	fb_xdrawline		; bottom section P6 -> P7
+
+	;}}}
+	;{{{  P7 -> P8
+	movw	r17:r16, r21:r20	; r16,r17 is seventh point
+
+	ldd	r20, Z+14
+	ldd	r21, Z+15		; r20,r21 is eighth point
+
+	movw	r19:r18, r21:r20
+	sub	r18, r16
+	sub	r19, r17
+	call	fb_xdrawline		; bottom section P7 -> P8
+
+	;}}}
+	;{{{  P8 -> P5
+	movw	r17:r16, r21:r20	; r16,r17 is eighth point
+
+	ldd	r20, Z+8
+	ldd	r21, Z+9		; r20,r21 is fifth point
+
+	movw	r19:r18, r21:r20
+	sub	r18, r16
+	sub	r19, r17
+	call	fb_xdrawline		; bottom section P8 -> P5
+
+	;}}}
+	
+	pop	ZL
+	pop	ZH
+	pop	r21
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
 	ret
 
 ;}}}
@@ -5249,10 +6859,9 @@ lvar_init: ;{{{  initialises local stuffs
 	sts	V_sndpos_h, r17
 	sts	V_sndpos_l, r16
 
-	;{{{  setup V_rdrpnts -- just copy from static stuff for now
 	push	ZH
 	push	ZL
-
+	;{{{  setup V_rdrpnts -- just copy from static stuff for now
 	ldi	XH:XL, V_rdrpnts
 	ldi	ZH:ZL, D_rdrpnts_static
 	ldi	r18, 32
@@ -5262,9 +6871,20 @@ lvar_init: ;{{{  initialises local stuffs
 	dec	r18
 	brne	0b
 
+	;}}}
+	;{{{  setup V_3dpnts -- from static stuff to start
+	ldi	XH:XL, V_3dpnts
+	ldi	ZH:ZL, D_3dpnts_static
+	ldi	r18, 24
+.L0:
+	lpm	r16, Z+
+	st	X+, r16
+	dec	r18
+	brne	0b
+
+	;}}}
 	pop	ZL
 	pop	ZH
-	;}}}
 
 	pop	XH
 	pop	XL
@@ -5289,7 +6909,7 @@ VEC_reset:
 
 	sei				; enable interrupts
 
-	; at this point we're effectively going :)
+	; at this point we're going :)
 prg_code:
 
 	ldi	r25:r24, 0		; frame counter
@@ -5470,6 +7090,873 @@ prg_code:
 .L9:
 	;}}}
 	; when we arrive here, in frame 6:0
+	;{{{  major frame 6  (testing greets)
+.L0:
+	call	demo_starfield_advance
+	call	fb_clear
+
+	call	demo_starfield_draw
+
+	;{{{  deal with 's'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 160		; offset for oscillator
+	add	r17, r16
+	ldi	r16, 4
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	cpi	r24, 17
+	brsh	1f
+	; scrolling in 's'
+	ldi	r16, 127
+	mov	r17, r24
+	lsl	r17
+	sub	r16, r17		; (127 - (2 * minor))
+	rjmp	2f
+.L1:
+	; 's' fixed
+	ldi	r16, 95
+.L2:
+	ldi	r17, 10
+	add	r17, r20		; add in oscillator
+	ldi	r18, 's'
+	call	fb_write04char
+	;}}}
+	;{{{  deal with 't'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 128		; offset for oscillator
+	add	r17, r16
+	ldi	r16, 4
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	cpi	r24, 27
+	brsh	1f
+	cpi	r24, 4
+	brlo	3f			; skip if not on screen yet
+	ldi	r16, 126
+	mov	r17, r24
+	subi	r17, 4
+	lsl	r17
+	sub	r16, r17
+	rjmp	2f
+.L1:
+	; 't' fixed
+	ldi	r16, 80
+.L2:
+	ldi	r17, 10
+	add	r17, r20		; add in oscillator
+	ldi	r18, 't'
+	call	fb_write04char
+.L3:
+	;}}}
+	;{{{  deal with 'e'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 96			; offset for oscillator
+	add	r17, r16
+	ldi	r16, 4
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	cpi	r24, 37
+	brsh	1f
+	cpi	r24, 6
+	brlo	3f			; skip if not on screen yet
+	ldi	r16, 127
+	mov	r17, r24
+	subi	r17, 6
+	lsl	r17
+	sub	r16, r17
+	rjmp	2f
+.L1:
+	; 'e' fixed
+	ldi	r16, 65
+.L2:
+	ldi	r17, 10
+	add	r17, r20		; add in oscillator
+	ldi	r18, 'e'
+	call	fb_write04char
+.L3:
+	;}}}
+	;{{{  deal with 'e'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 64			; offset for oscillator
+	add	r17, r16
+	ldi	r16, 4
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	cpi	r24, 47
+	brsh	1f
+	cpi	r24, 9
+	brlo	3f			; skip if not on screen yet
+	ldi	r16, 126
+	mov	r17, r24
+	subi	r17, 9
+	lsl	r17
+	sub	r16, r17
+	rjmp	2f
+.L1:
+	; 'e' fixed
+	ldi	r16, 50
+.L2:
+	ldi	r17, 10
+	add	r17, r20		; add in oscillator
+	ldi	r18, 'e'
+	call	fb_write04char
+.L3:
+	;}}}
+	;{{{  deal with 'r'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 32			; offset for oscillator
+	add	r17, r16
+	ldi	r16, 4
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	cpi	r24, 57
+	brsh	1f
+	cpi	r24, 11
+	brlo	3f			; skip if not on screen yet
+	ldi	r16, 127
+	mov	r17, r24
+	subi	r17, 11
+	lsl	r17
+	sub	r16, r17
+	rjmp	2f
+.L1:
+	; 'r' fixed
+	ldi	r16, 35
+.L2:
+	ldi	r17, 10
+	add	r17, r20		; add in oscillator
+	ldi	r18, 'r'
+	call	fb_write04char
+.L3:
+	;}}}
+	;{{{  deal with 'G'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 4
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	cpi	r24, 67
+	brsh	1f
+	cpi	r24, 13
+	brlo	3f			; skip if not on screen yet
+	ldi	r16, 126
+	mov	r17, r24
+	subi	r17, 13
+	lsl	r17
+	sub	r16, r17
+	rjmp	2f
+.L1:
+	; 'G' fixed
+	ldi	r16, 18
+.L2:
+	ldi	r17, 10
+	add	r17, r20		; add in oscillator
+	ldi	r18, 'G'
+	call	fb_write04char
+.L3:
+	;}}}
+
+	;{{{  deal with 'T'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 192		; offset for oscillator
+	add	r17, r16
+	ldi	r16, 3
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	cpi	r24, 77
+	brsh	1f
+	cpi	r24, 36
+	brlo	3f			; skip if not on screen yet
+	ldi	r16, 127
+	mov	r17, r24
+	subi	r17, 36
+	lsl	r17
+	sub	r16, r17
+	rjmp	2f
+.L1:
+	; 'T' fixed
+	ldi	r16, 45
+.L2:
+	ldi	r17, 28
+	add	r17, r20		; add in oscillator
+	ldi	r18, 'T'
+	call	fb_write04char
+.L3:
+	;}}}
+	;{{{  deal with 'o'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 224		; offset for oscillator
+	add	r17, r16
+	ldi	r16, 3
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	cpi	r24, 87
+	brsh	1f
+	cpi	r24, 55
+	brlo	3f			; skip if not on screen yet
+	ldi	r16, 126
+	mov	r17, r24
+	subi	r17, 55
+	lsl	r17
+	sub	r16, r17
+	rjmp	2f
+.L1:
+	; 'o' fixed
+	ldi	r16, 62
+.L2:
+	ldi	r17, 28
+	add	r17, r20		; add in oscillator
+	ldi	r18, 'o'
+	call	fb_write04char
+.L3:
+	;}}}
+	;{{{  deal with ':'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 3
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	cpi	r24, 97
+	brsh	1f
+	cpi	r24, 72
+	brlo	3f			; skip if not on screen yet
+	ldi	r16, 127
+	mov	r17, r24
+	subi	r17, 72
+	lsl	r17
+	sub	r16, r17
+	rjmp	2f
+.L1:
+	; ':' fixed
+	ldi	r16, 77
+.L2:
+	ldi	r17, 28
+	add	r17, r20		; add in oscillator
+	ldi	r18, ':'
+	call	fb_write04char
+.L3:
+	;}}}
+
+	;{{{  minor frame 100
+	cpi	r24, 100
+	brne	1f
+	call	pb_clearboth		; clear pixel buffers
+.L1:
+	;}}}
+	;{{{  minor frame 101
+	cpi	r24, 101
+	brne	1f
+	; render single greet into V_pixbuf1
+	ldi	r16, 6
+	ldi	r18, 'L'
+	call	pb_write04char
+	ldi	r18, 'u'
+	call	pb_write04char
+	ldi	r18, 'c'
+	call	pb_write04char
+	ldi	r18, 'y'
+	call	pb_write04char
+	dec	r16
+	ldi	r18, '+'
+	call	pb_write04char
+	dec	r16
+	ldi	r18, 'A'
+	call	pb_write04char
+	ldi	r18, 'd'
+	call	pb_write04char
+	ldi	r18, 'a'
+	call	pb_write04char
+.L1:
+	;}}}
+	;{{{  minor frame 108 - 235 => blend in pixbuf
+	cpi	r24, 108
+	brlo	1f
+	cpi	r24, 236
+	breq	2f
+	brsh	1f
+	; else blend V_pixbuf1 into V_pixbuf2
+	sbrc	r24, 0
+	rjmp	1f			; div 4 minor frames only
+	sbrc	r24, 1
+	rjmp	1f			; 
+	mov	r16, r24
+	subi	r16, 108		; 0 -> 127
+	lsr	r16			; 0 -> 63
+	lsr	r16			; 0 -> 31
+
+	call	pb_blend12
+	rjmp	1f
+.L2:
+	; minor frame 236 exactly, copy over any missed bits
+	call	pb_copy12
+.L1:
+	;}}}
+	;{{{  frame 108+, exclusive-or pixbuf2 into here
+	cpi	r24, 108
+	brlo	1f			; skip if not on screen yet
+	ldi	r16, 64
+	call	fb_pb_xor2
+.L1:
+	;}}}
+	;{{{  frame 240 => copy over to pixbuf3
+	cpi	r24, 240
+	brne	1f
+	call	pb_copy13
+.L1:
+	;}}}
+
+	call	vid_waitflip
+	adiw	r25:r24, 1
+
+	cpi	r25, 7			; reached major frame 7 yet?
+	breq	9f
+	rjmp	0b			; next frame please
+.L9:
+	;}}}
+	;{{{  major frame 7  (testing greets)
+.L0:
+	call	demo_starfield_advance
+	call	fb_clear
+
+	call	demo_starfield_draw
+
+	;{{{  deal with "Greets", scrolls off after 60
+	cpi	r24, 60
+	brlo	1f
+	rjmp	4f			; scrolled off already
+.L1:
+	mov	r21, r24		; minor frame 0 .. 59
+	lsr	r21			; 0 .. 29
+
+	;{{{  deal with 'G'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 4
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	; 'G' fixed
+	ldi	r16, 18
+	ldi	r17, 10
+	add	r17, r20		; add in oscillator
+	sub	r17, r21		; subtract upward movement
+	ldi	r18, 'G'
+	call	fb_write04char
+
+	;}}}
+	;{{{  deal with 'r'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 32			; offset for oscillator
+	add	r17, r16
+	ldi	r16, 4
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	; 'r' fixed
+	ldi	r16, 35
+	ldi	r17, 10
+	add	r17, r20		; add in oscillator
+	sub	r17, r21		; subtract upward movement
+	ldi	r18, 'r'
+	call	fb_write04char
+
+	;}}}
+	;{{{  deal with 'e'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 64			; offset for oscillator
+	add	r17, r16
+	ldi	r16, 4
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	; 'e' fixed
+	ldi	r16, 50
+	ldi	r17, 10
+	add	r17, r20		; add in oscillator
+	sub	r17, r21		; subtract upward movement
+	ldi	r18, 'e'
+	call	fb_write04char
+
+	;}}}
+	;{{{  deal with 'e'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 96			; offset for oscillator
+	add	r17, r16
+	ldi	r16, 4
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	; 'e' fixed
+	ldi	r16, 65
+	ldi	r17, 10
+	add	r17, r20		; add in oscillator
+	sub	r17, r21		; subtract upward movement
+	ldi	r18, 'e'
+	call	fb_write04char
+
+	;}}}
+	;{{{  deal with 't'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 128		; offset for oscillator
+	add	r17, r16
+	ldi	r16, 4
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	; 't' fixed
+	ldi	r16, 80
+	ldi	r17, 10
+	add	r17, r20		; add in oscillator
+	sub	r17, r21		; subtract upward movement
+	ldi	r18, 't'
+	call	fb_write04char
+
+	;}}}
+	;{{{  deal with 's'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 160		; offset for oscillator
+	add	r17, r16
+	ldi	r16, 4
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	; 's' fixed
+	ldi	r16, 95
+	ldi	r17, 10
+	add	r17, r20		; add in oscillator
+	sub	r17, r21		; subtract upward movement
+	ldi	r18, 's'
+	call	fb_write04char
+
+	;}}}
+.L4:
+	;}}}
+	;{{{  deal with "To:", scrolls off after 94
+	cpi	r24, 94
+	brlo	1f
+	rjmp	4f
+.L1:
+	mov	r21, r24		; minor frame 0 .. 93
+	lsr	r21			; 0 .. 47
+
+	;{{{  deal with 'T'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 192		; offset for oscillator
+	add	r17, r16
+	ldi	r16, 3
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	; 'T' fixed
+	ldi	r16, 45
+	ldi	r17, 28
+	add	r17, r20		; add in oscillator
+	sub	r17, r21		; subtract upward movement
+	ldi	r18, 'T'
+	call	fb_write04char
+
+	;}}}
+	;{{{  deal with 'o'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 224		; offset for oscillator
+	add	r17, r16
+	ldi	r16, 3
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	; 'o' fixed
+	ldi	r16, 62
+	ldi	r17, 28
+	add	r17, r20		; add in oscillator
+	sub	r17, r21		; subtract upward movement
+	ldi	r18, 'o'
+	call	fb_write04char
+
+	;}}}
+	;{{{  deal with ':'
+	mov	r17, r24
+	lsl	r17
+	lsl	r17
+	lsl	r17			; minor * 8
+	ldi	r16, 3
+	call	math_sinv
+	mov	r20, r16		; save result here
+
+	; ':' fixed
+	ldi	r16, 77
+	ldi	r17, 28
+	add	r17, r20		; add in oscillator
+	sub	r17, r21		; subtract upward movement
+	ldi	r18, ':'
+	call	fb_write04char
+
+	;}}}
+
+.L4:
+	;}}}
+	;{{{  deal with "Lucy+Ada" (in pixbuf3), scrolls off after 160
+	cpi	r24, 160
+	brsh	1f
+
+	mov	r17, r24		; minor frame 0 .. 159
+	lsr	r17			; 0 .. 79
+
+	ldi	r16, 64
+	sub	r16, r17		; subtract upward movement
+	call	fb_pb_xor3
+
+.L1:
+	;}}}
+	;{{{  scroll in "Future", from Y=95 -> -15, frames 4 .. 225
+	cpi	r24, 4
+	brlo	1f
+	cpi	r24, 226
+	brsh	1f
+
+	ldi	r17, 95
+	mov	r16, r24
+	subi	r16, 4			; 0 -> 221
+	lsr	r16			; 0 -> 110
+	sub	r17, r16		; 95 -> -15
+
+	ldi	r16, 22
+	ldi	r18, 'F'
+	call	fb_write04char
+	ldi	r18, 'u'
+	call	fb_write04char
+	ldi	r18, 't'
+	call	fb_write04char
+	ldi	r18, 'u'
+	call	fb_write04char
+	ldi	r18, 'r'
+	call	fb_write04char
+	ldi	r18, 'e'
+	call	fb_write04char
+.L1:
+	;}}}
+	;{{{  scroll in "Crew", frames 44 .. +1:9 (i.e. start and most of it)
+	cpi	r24, 44
+	brlo	1f
+
+	ldi	r17, 95
+	mov	r16, r24
+	subi	r16, 44			; 0 -> 211
+	lsr	r16			; 0 -> 105
+	sub	r17, r16		; 95 -> -10
+
+	ldi	r16, 40
+	ldi	r18, 'C'
+	call	fb_write04char
+	ldi	r18, 'r'
+	call	fb_write04char
+	ldi	r18, 'e'
+	call	fb_write04char
+	ldi	r18, 'w'
+	call	fb_write04char
+.L1:
+	;}}}
+	;{{{  scroll in "Cascada", frames 108 -> +1:73 (329)
+	cpi	r24, 108
+	brlo	1f
+
+	ldi	r17, 95
+	mov	r16, r24
+	subi	r16, 108		; 0 -> 147
+	lsr	r16			; 0 -> 73
+	sub	r17, r16		; 95 -> 22
+
+	ldi	r16, 14
+	ldi	r18, 'C'
+	call	fb_write04char
+	ldi	r18, 'a'
+	call	fb_write04char
+	ldi	r18, 's'
+	call	fb_write04char
+	ldi	r18, 'c'
+	call	fb_write04char
+	ldi	r18, 'a'
+	call	fb_write04char
+	ldi	r18, 'd'
+	call	fb_write04char
+	ldi	r18, 'a'
+	call	fb_write04char
+.L1:
+	;}}}
+	;{{{  scroll in "Insolit", frames 172 -> +1:127 (393)
+	cpi	r24, 172
+	brlo	1f
+
+	ldi	r17, 95
+	mov	r16, r24
+	subi	r16, 172		; 0 -> 83
+	lsr	r16			; 0 -> 41
+	sub	r17, r16		; 95 -> 54
+
+	ldi	r16, 25
+	ldi	r18, 'I'
+	call	fb_write04char
+	ldi	r18, 'n'
+	call	fb_write04char
+	ldi	r18, 's'
+	call	fb_write04char
+	ldi	r18, 'o'
+	call	fb_write04char
+	ldi	r18, 'l'
+	call	fb_write04char
+	ldi	r18, 'i'
+	call	fb_write04char
+	ldi	r18, 't'
+	call	fb_write04char
+.L1:
+	;}}}
+	;{{{  scroll in "Dust", frames 212 -> +1:177 (433)
+	cpi	r24, 212
+	brlo	1f
+
+	ldi	r17, 95
+	mov	r16, r24
+	subi	r16, 212		; 0 -> 43
+	lsr	r16			; 0 -> 21
+	sub	r17, r16		; 95 -> 74
+
+	ldi	r16, 42
+	ldi	r18, 'D'
+	call	fb_write04char
+	ldi	r18, 'u'
+	call	fb_write04char
+	ldi	r18, 's'
+	call	fb_write04char
+	ldi	r18, 't'
+	call	fb_write04char
+.L1:
+	;}}}
+
+	call	vid_waitflip
+	adiw	r25:r24, 1
+
+	cpi	r25, 8			; reached major frame 8 yet?
+	breq	9f
+	rjmp	0b			; next frame please
+.L9:
+	;}}}
+	;{{{  major frame 8  (testing greets)
+.L0:
+	call	demo_starfield_advance
+	call	fb_clear
+
+	call	demo_starfield_draw
+
+	;{{{  scroll out "Crew", frames 0 .. 9 (i.e. end)
+	cpi	r24, 10
+	brsh	1f
+
+	ldi	r17, -11
+	mov	r16, r24		; 0 -> 9
+	lsr	r16			; 0 -> 4
+	sub	r17, r16		; -11 -> -15
+
+	ldi	r16, 40
+	ldi	r18, 'C'
+	call	fb_write04char
+	ldi	r18, 'r'
+	call	fb_write04char
+	ldi	r18, 'e'
+	call	fb_write04char
+	ldi	r18, 'w'
+	call	fb_write04char
+.L1:
+	;}}}
+	;{{{  scroll out "Cascada", frames 0 .. 73 (end)
+	cpi	r24, 74
+	brsh	1f
+
+	ldi	r17, 21
+	mov	r16, r24		; 0 -> 73
+	lsr	r16			; 0 -> 36
+	sub	r17, r16		; 21 -> -15
+
+	ldi	r16, 14
+	ldi	r18, 'C'
+	call	fb_write04char
+	ldi	r18, 'a'
+	call	fb_write04char
+	ldi	r18, 's'
+	call	fb_write04char
+	ldi	r18, 'c'
+	call	fb_write04char
+	ldi	r18, 'a'
+	call	fb_write04char
+	ldi	r18, 'd'
+	call	fb_write04char
+	ldi	r18, 'a'
+	call	fb_write04char
+.L1:
+	;}}}
+	;{{{  scroll out "Insolit", frames 0 .. 137 (end)
+	cpi	r24, 138
+	brsh	1f
+
+	ldi	r17, 53
+	mov	r16, r24		; 0 -> 137
+	lsr	r16			; 0 -> 68
+	sub	r17, r16		; 53 -> -15
+
+	ldi	r16, 25
+	ldi	r18, 'I'
+	call	fb_write04char
+	ldi	r18, 'n'
+	call	fb_write04char
+	ldi	r18, 's'
+	call	fb_write04char
+	ldi	r18, 'o'
+	call	fb_write04char
+	ldi	r18, 'l'
+	call	fb_write04char
+	ldi	r18, 'i'
+	call	fb_write04char
+	ldi	r18, 't'
+	call	fb_write04char
+.L1:
+	;}}}
+	;{{{  scroll out "Dust", frames 0 .. 177 (end)
+	cpi	r24, 178
+	brsh	1f
+
+	ldi	r17, 73
+	mov	r16, r24		; 0 -> 177
+	lsr	r16			; 0 -> 88
+	sub	r17, r16		; 73 -> -15
+
+	ldi	r16, 42
+	ldi	r18, 'D'
+	call	fb_write04char
+	ldi	r18, 'u'
+	call	fb_write04char
+	ldi	r18, 's'
+	call	fb_write04char
+	ldi	r18, 't'
+	call	fb_write04char
+.L1:
+	;}}}
+
+	;{{{  scroll in/out "Triton", frames 20 .. 241 (whole)
+	cpi	r24, 20
+	brlo	1f
+	cpi	r24, 242
+	brsh	1f
+
+	ldi	r17, 95
+	mov	r16, r24
+	subi	r16, 20			; 0 -> 221
+	lsr	r16			; 0 -> 110
+	sub	r17, r16		; 95 -> -15
+
+	ldi	r16, 28
+	ldi	r18, 'T'
+	call	fb_write04char
+	ldi	r18, 'r'
+	call	fb_write04char
+	ldi	r18, 'i'
+	call	fb_write04char
+	ldi	r18, 't'
+	call	fb_write04char
+	ldi	r18, 'o'
+	call	fb_write04char
+	ldi	r18, 'n'
+	call	fb_write04char
+.L1:
+	;}}}
+	;{{{  scroll in "Dubius", frames 84 -> +1:49 (305)
+	cpi	r24, 84
+	brlo	1f
+
+	ldi	r17, 95
+	mov	r16, r24
+	subi	r16, 84			; 0 -> 171
+	lsr	r16			; 0 -> 85
+	sub	r17, r16		; 95 -> 10
+
+	ldi	r16, 29
+	ldi	r18, 'D'
+	call	fb_write04char
+	ldi	r18, 'u'
+	call	fb_write04char
+	ldi	r18, 'b'
+	call	fb_write04char
+	ldi	r18, 'i'
+	call	fb_write04char
+	ldi	r18, 'u'
+	call	fb_write04char
+	ldi	r18, 's'
+	call	fb_write04char
+.L1:
+	;}}}
+
+	call	vid_waitflip
+	adiw	r25:r24, 1
+
+	cpi	r25, 9			; reached major frame 9 yet?
+	breq	9f
+	rjmp	0b
+.L9:
+	;}}}
 	;{{{  major frame 6, 7, 8  (testing fonts)
 .L0:
 	call	fb_clear
@@ -5527,7 +8014,7 @@ prg_code:
 	;{{{  major frame ..., 9  (testing xor circles)
 	; general algorithm here lifted from Insolit Dust's stuff on sourceforge (http://insolitdust.sourceforge.net/code.html)
 .L0:
-	ldi	r16, 64
+	ldi	r16, 48
 	mov	r17, r24
 	call	math_cosv
 	ldi	r18, 64
@@ -5538,7 +8025,7 @@ prg_code:
 	mov	r17, r24
 	mul	r16, r17
 	mov	r17, r0			; take low-order bits as angle
-	ldi	r16, 48
+	ldi	r16, 32
 	call	math_sinv
 	ldi	r17, 48
 	add	r16, r17
@@ -5551,7 +8038,7 @@ prg_code:
 	mov	r17, r24
 	ldi	r16, 67
 	add	r17, r16
-	ldi	r16, 68
+	ldi	r16, 50
 	call	math_cosv
 	ldi	r18, 64
 	add	r16, r18
@@ -5563,7 +8050,7 @@ prg_code:
 	ldi	r16, 5
 	mul	r16, r17
 	mov	r17, r0			; take low-order bits as angle
-	ldi	r16, 51
+	ldi	r16, 36
 	call	math_sinv
 	ldi	r17, 48
 	add	r16, r17
@@ -5581,6 +8068,266 @@ prg_code:
 	rjmp	0b			; next frame please
 
 .L9:
+	;}}}
+	;{{{  major frame ..., 10 (testing 3D stuff)
+.L0:
+	call	fb_clear
+
+	call	demo_rotate_points
+	;call	demo_copy_points
+	call	demo_linear_trans
+	;call	demo_perspect_trans
+	call	demo_rendercube
+
+	call	vid_waitflip
+	adiw	r25:r24, 1
+
+	cpi	r25, 11			; reached major frame 11 yet?
+	breq	9f
+	rjmp	0b			; next frame please
+.L9:
+	;}}}
+	;{{{  major frame ..., 11 (testing 3D stuff)
+.L0:
+	call	fb_clear
+
+	call	demo_rotate_points
+	;call	demo_copy_points
+	;call	demo_linear_trans
+	call	demo_perspect_trans
+	call	demo_rendercube
+
+	call	vid_waitflip
+	adiw	r25:r24, 1
+
+	cpi	r25, 12			; reached major frame 12 yet?
+	breq	9f
+	rjmp	0b			; next frame please
+.L9:
+	;}}}
+	;{{{  major frame ..., 12 (testing 3D stuff)
+.L0:
+	call	fb_clear
+
+	;call	demo_rotate_points
+	call	demo_drotate_points
+	;call	demo_copy_points
+	call	demo_linear_trans
+	call	demo_rendercube
+
+	call	vid_waitflip
+	adiw	r25:r24, 1
+
+	cpi	r25, 13			; reached major frame 13 yet?
+	breq	9f
+	rjmp	0b			; next frame please
+.L9:
+	;}}}
+	;{{{  major frame ..., 13 (testing 3D stuff)
+.L0:
+	call	fb_clear
+
+	;call	demo_rotate_points
+	call	demo_drotate_points
+	;call	demo_copy_points
+	call	demo_perspect_trans
+	call	demo_rendercube
+
+	call	vid_waitflip
+	adiw	r25:r24, 1
+
+	cpi	r25, 14			; reached major frame 14 yet?
+	breq	9f
+	rjmp	0b			; next frame please
+.L9:
+	;}}}
+	;{{{  major frame 14 (testing image blending)
+
+	set
+	bld	LINE_REGION, 7		; set *active* framebuffer == 1, so drawing happens in 0.
+	call	fb_clear
+
+	clt
+	bld	LINE_REGION, 7		; set *active* framebuffer == 0, so drawing happens in 1 for most things.
+	ldi	ZH:ZL, I_unikent_image
+	call	fb_pscreenblit
+.L0:
+	;{{{  starting at minor frame 1, circle-blend framebuffer 2 into framebuffer 1
+	cpi	r24, 0
+	breq	1f
+
+	; copy circles from arbitrary points (image-to-image blend)
+	mov	r18, r24
+	lsr	r18
+	brcs	2f			; skip even frames, max radius is then 127
+
+	ldi	r16, 64
+	ldi	r17, 20
+	call	fb_xxcopycircle
+
+	ldi	r16, 16
+	ldi	r17, 48
+	call	fb_xxcopycircle
+
+	ldi	r16, 112
+	ldi	r17, 70
+	call	fb_xxcopycircle
+
+	ldi	r16, 34
+	ldi	r17, 77
+	call	fb_xxcopycircle
+
+	rjmp	2f
+.L1:
+	; specifically minor frame 0, copy over single points to start with
+	ldi	r16, 64
+	ldi	r17, 20
+	call	fb_xxcopypixel
+
+	ldi	r16, 16
+	ldi	r17, 48
+	call	fb_xxcopypixel
+
+	ldi	r16, 112
+	ldi	r17, 70
+	call	fb_xxcopypixel
+
+	ldi	r16, 34
+	ldi	r17, 77
+	call	fb_xxcopypixel
+.L2:
+	;}}}
+
+	call	vid_waitbot		; wait for bottom-of-frame rendered, but don't flip
+	call	vid_waitbot1
+	adiw	r25:r24, 1
+
+	cpi	r25, 15			; reached major frame 15 yet?
+	breq	9f
+	rjmp	0b
+.L9:
+	;}}}
+	;{{{  major frame 15 (testing image blending)
+
+	ldi	ZH:ZL, I_complogo_image
+	call	fb_pscreenblit
+.L0:
+	;{{{  starting at minor frame 1, circle-blend framebuffer 2 into framebuffer 1
+	cpi	r24, 0
+	breq	1f
+
+	; copy circles from arbitrary points (image-to-image blend)
+	mov	r18, r24
+	lsr	r18
+	brcs	2f			; skip even frames, max radius is then 127
+
+	ldi	r16, 30
+	ldi	r17, 24
+	call	fb_xxcopycircle
+
+	ldi	r16, 36
+	ldi	r17, 68
+	call	fb_xxcopycircle
+
+	ldi	r16, 81
+	ldi	r17, 66
+	call	fb_xxcopycircle
+
+	ldi	r16, 96
+	ldi	r17, 25
+	call	fb_xxcopycircle
+
+	rjmp	2f
+.L1:
+	; specifically minor frame 0, copy over single points to start with
+	ldi	r16, 30
+	ldi	r17, 24
+	call	fb_xxcopypixel
+
+	ldi	r16, 36
+	ldi	r17, 68
+	call	fb_xxcopypixel
+
+	ldi	r16, 81
+	ldi	r17, 66
+	call	fb_xxcopypixel
+
+	ldi	r16, 96
+	ldi	r17, 25
+	call	fb_xxcopypixel
+.L2:
+	;}}}
+
+	call	vid_waitbot		; wait for bottom-of-frame rendered, but don't flip
+	call	vid_waitbot1
+	adiw	r25:r24, 1
+
+	cpi	r25, 16			; reached major frame 16 yet?
+	breq	9f
+	rjmp	0b
+.L9:
+
+	;}}}
+	;{{{  major frame 16 (testing image blending)
+
+	ldi	ZH:ZL, I_cornwallis_image
+	call	fb_pscreenblit
+.L0:
+	;{{{  starting at minor frame 1, circle-blend framebuffer 2 into framebuffer 1
+	cpi	r24, 0
+	breq	1f
+
+	; copy circles from arbitrary points (image-to-image blend)
+	mov	r18, r24
+	lsr	r18
+	brcs	2f			; skip even frames, max radius is then 127
+
+	ldi	r16, 64
+	ldi	r17, 20
+	call	fb_xxcopycircle
+
+	ldi	r16, 16
+	ldi	r17, 48
+	call	fb_xxcopycircle
+
+	ldi	r16, 112
+	ldi	r17, 70
+	call	fb_xxcopycircle
+
+	ldi	r16, 34
+	ldi	r17, 77
+	call	fb_xxcopycircle
+
+	rjmp	2f
+.L1:
+	; specifically minor frame 0, copy over single points to start with
+	ldi	r16, 64
+	ldi	r17, 20
+	call	fb_xxcopypixel
+
+	ldi	r16, 16
+	ldi	r17, 48
+	call	fb_xxcopypixel
+
+	ldi	r16, 112
+	ldi	r17, 70
+	call	fb_xxcopypixel
+
+	ldi	r16, 34
+	ldi	r17, 77
+	call	fb_xxcopypixel
+.L2:
+	;}}}
+
+	call	vid_waitbot		; wait for bottom-of-frame rendered, but don't flip
+	call	vid_waitbot1
+	adiw	r25:r24, 1
+
+	cpi	r25, 17			; reached major frame 17 yet?
+	breq	9f
+	rjmp	0b
+.L9:
+
 	;}}}
 	rjmp	prg_code_test_cont
 
@@ -5973,6 +8720,10 @@ D_notetab:
 	.const16	0x03bc, 0x0386, 0x0353, 0x0324, 0x02f6, 0x02cc, 0x02a4, 0x027e, 0x025a, 0x0238, 0x0218, 0x01fa		; C6 -> B6 (1046.5 -> 1975.5)
 	.const16	0x0100													; made up for now..
 
+D_3dpnts_static:
+	.const		-20, -20, -20,		-20, -20, 20,		20, -20, 20,		20, -20, -20
+	.const		-20, 20, -20,		-20, 20, 20,		20, 20, 20,		20, 20, -20
+
 D_rdrpnts_static:
 	.const		40, 50, -5, 10
 	.const		40, 50, 10, 0
@@ -6091,7 +8842,13 @@ D_soundtrk:
 		NOTE_END,	0xff,	NOTE_END,	0xff,	NOTE_END,	0xff		; THE END
 
 .include "sincostab.inc"
+.include "divtab64k.inc"
 .include "fb-xorcirc.inc"
 
 .include "fb-font04b.inc"
+
+.include "fb-unikent.inc"
+.include "fb-complogo.inc"
+.include "fb-cornwallis.inc"
+
 
