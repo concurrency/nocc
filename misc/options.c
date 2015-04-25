@@ -1,6 +1,6 @@
 /*
  *	options.c -- command-line option processing
- *	Copyright (C) 2004-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -489,7 +489,7 @@ int opt_do_help (cmd_option_t *opt, char ***argwalk, int *argleft)
 	int i;
 
 	fhandle_printf (outstream, "nocc (%s) Version " VERSION " " HOST_CPU "-" HOST_VENDOR "-" HOST_OS " (targetting " TARGET_CPU "-" TARGET_VENDOR "-" TARGET_OS ")\n", progname);
-	fhandle_printf (outstream, "Copyright (C) 2004-2013 Fred Barnes, University of Kent\n");
+	fhandle_printf (outstream, "Copyright (C) 2004-2015 Fred Barnes, University of Kent\n");
 	fhandle_printf (outstream, "Released under the terms and conditions of the GNU GPL v2\n\n");
 	fhandle_flush (outstream);
 	fhandle_printf (outstream, "usage:  %s [options] <source filename>\n", progname);
