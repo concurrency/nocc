@@ -1,6 +1,6 @@
 /*
  *	library.h -- library/separate-compilation interface
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -43,6 +43,8 @@ extern int library_addincludes (struct TAG_tnode *libnode, char *iname);
 extern int library_adduses (struct TAG_tnode *libnode, char *lname);
 extern int library_setnativelib (struct TAG_tnode *libnode, char *lname);
 extern int library_setnamespace (struct TAG_tnode *libnode, char *nsname);
+extern int library_setversion (struct TAG_tnode *libnode, char *verstr);
+extern int library_setapi (struct TAG_tnode *libnode, const int verapi);
 
 extern struct TAG_tnode *library_newlibpublictag (struct TAG_lexfile *lf, char *name);
 extern struct TAG_tnode *library_newlibprivatetag (struct TAG_lexfile *lf, char *name);

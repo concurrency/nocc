@@ -1,6 +1,6 @@
 /*
  *	library.c -- libraries/separate-compilation for NOCC
- *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -130,6 +130,10 @@ typedef struct TAG_libnodehook {
 	char *langname;		/* e.g. "occam-pi" */
 	char *targetname;	/* e.g. "kroc-etc-unknown" */
 	char *nativelib;	/* e.g. "libmylib.so" */
+
+	char *verstr;		/* e.g. "0.9" */
+	int verapi;		/* e.g. 1 */
+
 	int issepcomp;		/* non-zero if generating a .xlo */
 	DYNARRAY (char *, autoinclude);
 	DYNARRAY (char *, autouse);
@@ -438,6 +442,8 @@ static libnodehook_t *lib_newlibnodehook (lexfile_t *lf, char *libname, char *na
 	lnh->langname = lf ? string_dup (lf->parser->langname) : NULL;
 	lnh->targetname = NULL;				/* set in betrans */
 	lnh->nativelib = NULL;
+	lnh->verstr = NULL;
+	lnh->verapi = 0;
 	lnh->issepcomp = 0;
 	dynarray_init (lnh->autoinclude);
 	dynarray_init (lnh->autouse);
@@ -447,6 +453,7 @@ static libnodehook_t *lib_newlibnodehook (lexfile_t *lf, char *libname, char *na
 	lnh->issigned = 0;
 
 	dynarray_init (lnh->entries);
+	dynarray_init (lnh->mdata);
 
 	return lnh;
 }
@@ -473,6 +480,9 @@ static void lib_libnodehook_free (void *hook)
 		}
 		if (lnh->targetname) {
 			sfree (lnh->targetname);
+		}
+		if (lnh->verstr) {
+			sfree (lnh->verstr);
 		}
 		for (i=0; i<DA_CUR (lnh->autoinclude); i++) {
 			if (DA_NTHITEM (lnh->autoinclude, i)) {
@@ -533,7 +543,8 @@ static void lib_libnodehook_dumptree (tnode_t *node, void *hook, int indent, fha
 	fhandle_printf (stream, "<libnodehook addr=\"0x%8.8x\">\n", (unsigned int)lnh);
 
 	lib_isetindent (stream, indent + 1);
-	fhandle_printf (stream, "<library name=\"%s\" namespace=\"%s\">\n", lnh->libname, lnh->namespace);
+	fhandle_printf (stream, "<library name=\"%s\" namespace=\"%s\" version=\"%s\" api=\"%d\">\n",
+			lnh->libname, lnh->namespace, lnh->verstr ?: "", lnh->verapi);
 
 	if (lnh->langname) {
 		lib_isetindent (stream, indent + 2);
@@ -3372,6 +3383,37 @@ int library_setnamespace (tnode_t *libnode, char *nsname)
 		sfree (lnh->namespace);
 	}
 	lnh->namespace = string_dup (nsname ? nsname : "");
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int library_setversion (tnode_t *libnode, char *vstr)*/
+/*
+ *	sets the version for a library (used when defining a library)
+ *	returns 0 on success, non-zero on failure
+ */
+int library_setversion (tnode_t *libnode, char *vstr)
+{
+	libnodehook_t *lnh = (libnodehook_t *)tnode_nthhookof (libnode, 0);
+
+	if (lnh->verstr) {
+		sfree (lnh->verstr);
+	}
+	lnh->verstr = string_dup (vstr ? vstr : "");
+
+	return 0;
+}
+/*}}}*/
+/*{{{  int library_setapi (tnode_t *libnode, const int verapi)*/
+/*
+ *	sets the API version for a library (used when defining a library)
+ *	returns 0 on success, non-zero on failure
+ */
+int library_setapi (tnode_t *libnode, const int verapi)
+{
+	libnodehook_t *lnh = (libnodehook_t *)tnode_nthhookof (libnode, 0);
+
+	lnh->verapi = verapi;
 
 	return 0;
 }

@@ -1,0 +1,10 @@
+# test_g67.gpp -- library test 2 (use part)
+
+@use "random" as "rnd"
+  @api >= 1
+
+
+define test_g67 (chan(string) screen!)
+  skip
+end
+

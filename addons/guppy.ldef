@@ -6,12 +6,14 @@
 .IDENT		"guppy"
 .DESC		"Guppy parallel programming language"
 .MAINTAINER	"Fred Barnes <frmb@kent.ac.uk>"
-.VERSION	"Nov 2013"
+.VERSION	"Apr 2015"
 
 
 # sections are used to help front-end units find their definitions
 
 .SECTION "guppy" # {{{: fairly general guppy reductions and other language things
+
+.SYMBOL	">>>"
 
 .GRULE	"gup:nullreduce" "N+R-"
 .GRULE	"gup:nullpush" "0N-"
@@ -114,7 +116,7 @@
 .TABLE	"guppy:testfordecl +:= [ 0 +Name 1 ] [ 1 {<gup:checktypename>} -* ]"
 .TABLE	"guppy:testfordecl +:= [ 0 +@@[ 1 ] [ 0 +@@[] 1 ] [ 1 {<gup:testtrue>} -* ]"
 
-.TABLE	"guppy:testforexpr +:= [ 0 +Name 1 ] [ 1 <gupy:testtrue> -* ]"
+.TABLE	"guppy:testforexpr +:= [ 0 +Name 1 ] [ 1 {<gup:testtrue>} -* ]"
 
 
 .TABLE	"guppy:definedecl +:= [ 0 @enum 1 ] [ 1 guppy:name 2 ] [ 2 {<gup:enumreduce>} -* ]"
@@ -272,6 +274,9 @@
 .GRULE	"gup:foldmulreduce" "R+N+Sn00C[MUL]3R-"
 .GRULE	"gup:folddivreduce" "R+N+Sn00C[DIV]3R-"
 .GRULE	"gup:foldremreduce" "R+N+Sn00C[REM]3R-"
+.GRULE	"gup:foldashrreduce" "R+N+Sn00C[ASHR]3R-"
+.GRULE	"gup:foldshrreduce" "R+N+Sn00C[SHR]3R-"
+.GRULE	"gup:foldshlreduce" "R+N+Sn00C[SHL]3R-"
 .GRULE	"gup:foldxorreduce" "R+N+Sn00C[XOR]3R-"
 .GRULE	"gup:foldandreduce" "R+N+Sn00C[AND]3R-"
 .GRULE	"gup:foldorreduce" "R+N+Sn00C[OR]3R-"
@@ -319,6 +324,9 @@
 	"[ 0 @@>= 25 ] [ 25 guppy:expr 26 ] [ 26 {<gup:foldgereduce>} -* ]"
 	"[ 0 @@== 27 ] [ 27 guppy:expr 28 ] [ 28 {<gup:foldeqreduce>} -* ]"
 	"[ 0 @@!= 29 ] [ 29 guppy:expr 30 ] [ 30 {<gup:foldnereduce>} -* ]"
+	"[ 0 @@>>> 31 ] [ 31 guppy:expr 32 ] [ 32 {<gup:foldashrreduce>} -* ]"
+	"[ 0 @@>> 33 ] [ 33 guppy:expr 34 ] [ 34 {<gup:foldshrreduce>} -* ]"
+	"[ 0 @@<< 35 ] [ 35 guppy:expr 36 ] [ 36 {<gup:foldshlreduce>} -* ]"
 	"[ 0 -* ]"
 
 .TABLE	"guppy:restofexpr +:= [ 0 @@[ 1 ] [ 1 guppy:expr 2 ] [ 2 @@] 3 ] [ 3 {<gup:foldarraysub>} -* <guppy:restofexpr> ]"

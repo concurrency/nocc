@@ -1,0 +1,16 @@
+# test_g66.gpp -- library test 2
+
+@module "random"
+  @version "1.0"
+  @api 1
+
+
+define genseed () -> int
+  timer t
+  int v
+
+  t ? v
+  return (v >> 2) + 1
+end
+
+

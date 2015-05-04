@@ -462,7 +462,8 @@ int cccsp_sfi_loadusage (const char *fname)
 			continue;
 		}
 
-		if (!strcmp (tstart, "static") || !strcmp (tstart, "bounded")) {
+		/* should be some qualifiers/flags -- look for very specific combinations */
+		if (!strcmp (tstart, "static") || !strcmp (tstart, "dynamic,bounded")) {
 			cccsp_sfi_entry_t *sfient = cccsp_sfi_lookupornew (lstart);
 
 			if (sz > sfient->framesize) {

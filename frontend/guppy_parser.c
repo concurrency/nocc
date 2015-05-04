@@ -1,6 +1,6 @@
 /*
  *	guppy_parser.c -- Guppy parser for nocc
- *	Copyright (C) 2010-2014 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2010-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -1423,6 +1423,273 @@ static tnode_t *guppy_includefile (char *fname, lexfile_t *curlf)
 	return tree;
 }
 /*}}}*/
+/*{{{  static tnode_t *guppy_parsemoduledef (lexfile_t *lf)*/
+/*
+ *	parses a module (library) definition block.
+ *	returns a new library libnode, or NULL on failure
+ */
+static tnode_t *guppy_parsemoduledef (lexfile_t *lf)
+{
+	token_t *tok;
+	tnode_t *tree = NULL;
+	char *modname = NULL;
+
+	/* when we enter here, just parsed the @module bit */
+	tok = lexer_nexttoken (lf);
+	if (tok->type == STRING) {
+		modname = string_ndup (tok->u.str.ptr, tok->u.str.len);
+
+		lexer_freetoken (tok);
+		tok = lexer_nexttoken (lf);
+	} else if ((tok->type == COMMENT) || (tok->type == NEWLINE)) {
+		/* assume same name as source, if available */
+	} else {
+		parser_error (SLOCN (lf), "expected module name or nothing, but found '%s' instead", lexer_stokenstr (tok));
+		lexer_freetoken (tok);
+		return NULL;
+	}
+
+	while ((tok->type == COMMENT) || (tok->type == NEWLINE)) {
+		lexer_freetoken (tok);
+		tok = lexer_nexttoken (lf);
+	}
+
+	tree = library_newlibnode (lf, modname);
+
+	/* either got all we're getting, or expect intented list of stuff */
+	if (tok->type == INDENT) {
+		lexer_freetoken (tok);
+		tok = lexer_nexttoken (lf);
+
+		while (tok->type != OUTDENT) {
+			/*{{{  check contents of @module block*/
+			if ((tok->type == COMMENT) || (tok->type == NEWLINE)) {
+				/* consume quietly */
+			} else if (lexer_tokmatch (gup.tok_ATSIGN, tok)) {
+				lexer_freetoken (tok);
+				tok = lexer_nexttoken (lf);
+
+				if (lexer_tokmatchlitstr (tok, "version")) {
+					/*{{{  version: expect string*/
+					char *vstr;
+
+					lexer_freetoken (tok);
+					tok = lexer_nexttoken (lf);
+
+					if (tok->type != STRING) {
+						parser_error (SLOCN (lf), "expected string, but found '%s' instead", lexer_stokenstr (tok));
+						goto skip_to_outdent;
+					}
+
+					vstr = string_ndup (tok->u.str.ptr, tok->u.str.len);
+
+					library_setversion (tree, vstr);
+
+#if 0
+fprintf (stderr, "guppy_parsemoduledef(): FIXME: handle version! [%s]\n", vstr);
+#endif
+					sfree (vstr);
+
+					/*}}}*/
+				} else if (lexer_tokmatchlitstr (tok, "api")) {
+					/*{{{  api: expect integer*/
+					int vapi;
+
+					lexer_freetoken (tok);
+					tok = lexer_nexttoken (lf);
+
+					if (tok->type != INTEGER) {
+						parser_error (SLOCN (lf), "expected number (integer), but found '%s' instead", lexer_stokenstr (tok));
+						goto skip_to_outdent;
+					}
+
+					vapi = tok->u.ival;
+
+					library_setapi (tree, vapi);
+#if 0
+fprintf (stderr, "guppy_parsemoduledef(): FIXME: handle API [%d]\n", vapi);
+#endif
+					/*}}}*/
+				} else if (lexer_tokmatchlitstr (tok, "nativelib")) {
+					/*{{{  nativelib: expect string*/
+					char *lstr;
+
+					lexer_freetoken (tok);
+					tok = lexer_nexttoken (lf);
+
+					if (tok->type != STRING) {
+						parser_error (SLOCN (lf), "expected string, but found '%s' instead", lexer_stokenstr (tok));
+						goto skip_to_outdent;
+					}
+
+					lstr = string_ndup (tok->u.str.ptr, tok->u.str.len);
+
+					library_setnativelib (tree, lstr);
+
+					sfree (lstr);
+					/*}}}*/
+				} else if (lexer_tokmatchlitstr (tok, "uses")) {
+					/*{{{  uses: expect string*/
+					char *ustr;
+
+					lexer_freetoken (tok);
+					tok = lexer_nexttoken (lf);
+
+					if (tok->type != STRING) {
+						parser_error (SLOCN (lf), "expected string, but found '%s' instead", lexer_stokenstr (tok));
+						goto skip_to_outdent;
+					}
+
+					ustr = string_ndup (tok->u.str.ptr, tok->u.str.len);
+
+					library_adduses (tree, ustr);
+
+					sfree (ustr);
+					/*}}}*/
+				} else if (lexer_tokmatchlitstr (tok, "includes")) {
+					/*{{{  includes: expect string*/
+					char *istr;
+
+					lexer_freetoken (tok);
+					tok = lexer_nexttoken (lf);
+
+					if (tok->type != STRING) {
+						parser_error (SLOCN (lf), "expected string, but found '%s' instead", lexer_stokenstr (tok));
+						goto skip_to_outdent;
+					}
+
+					istr = string_ndup (tok->u.str.ptr, tok->u.str.len);
+
+					library_adduses (tree, istr);
+
+					sfree (istr);
+					/*}}}*/
+				} else {
+					parser_error (SLOCN (lf), "expected version|api|nativelib|uses|includes, found '%s'", lexer_stokenstr (tok));
+					goto skip_to_outdent;
+				}
+			} else {
+				parser_error (SLOCN (lf), "expected module options, but found '%s' instead", lexer_stokenstr (tok));
+				goto skip_to_outdent;
+			}
+			/* when we get out of the above, 'tok' is the last relevant token in some correct parsing (comment or newline) */
+
+			lexer_freetoken (tok);
+			tok = lexer_nexttoken (lf);
+			/*}}}*/
+		}
+
+		if (tok->type == OUTDENT) {
+			/* eat it up */
+			lexer_freetoken (tok);
+			tok = NULL;
+		} else {
+			/* with what we have left, push back into the lexer */
+			lexer_pushback (lf, tok);
+		}
+	} else {
+		lexer_pushback (lf, tok);
+	}
+
+	return tree;
+
+skip_to_outdent:
+	if (tree) {
+		/* destroy it */
+		tnode_free (tree);
+		tree = NULL;
+	}
+	while ((tok->type != OUTDENT) && (tok->type != END)) {
+		lexer_freetoken (tok);
+		tok = lexer_nexttoken (lf);
+	}
+	lexer_freetoken (tok);
+	return NULL;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_parsemodusedef (lexfile_t *lf)*/
+/*
+ *	parses a module (library) usage block.
+ *	returns a library-use node on success, NULL on failure
+ */
+static tnode_t *guppy_parsemodusedef (lexfile_t *lf)
+{
+	token_t *tok;
+	tnode_t *tree = NULL;
+	char *modname = NULL;
+	char *asname = NULL;
+
+	/* when we enter here, just parsed the @use bit */
+	tok = lexer_nexttoken (lf);
+	if (tok->type != STRING) {
+		parser_error (SLOCN (lf), "expected string, found '%s'", lexer_stokenstr (tok));
+		lexer_freetoken (tok);
+		return NULL;
+	}
+
+	modname = string_ndup (tok->u.str.ptr, tok->u.str.len);
+	lexer_freetoken (tok);
+	tok = lexer_nexttoken (lf);
+
+	/* either 'as "name"' or comment/newline */
+	if (lexer_tokmatchlitstr (tok, "as")) {
+		lexer_freetoken (tok);
+		tok = lexer_nexttoken (lf);
+
+		if (tok->type != STRING) {
+			parser_error (SLOCN (lf), "expected string, found '%s'", lexer_stokenstr (tok));
+			lexer_freetoken (tok);
+			return NULL;
+		}
+
+		asname = string_ndup (tok->u.str.ptr, tok->u.str.len);
+		lexer_freetoken (tok);
+		tok = lexer_nexttoken (lf);
+	}
+
+	if ((tok->type != COMMENT) && (tok->type != NEWLINE)) {
+		parser_error (SLOCN (lf), "expected end of line, found '%s'", lexer_stokenstr (tok));
+		lexer_freetoken (tok);
+		return NULL;
+	}
+	while ((tok->type == COMMENT) || (tok->type == NEWLINE)) {
+		/* gobble up */
+		lexer_freetoken (tok);
+		tok = lexer_nexttoken (lf);
+	}
+
+	/* might have some indented conditionals */
+	if (tok->type == INDENT) {
+		lexer_freetoken (tok);
+		tok = lexer_nexttoken (lf);
+
+		/* FIXME: needs implementing! */
+		while ((tok->type != OUTDENT) && (tok->type != END)) {
+			lexer_freetoken (tok);
+			tok = lexer_nexttoken (lf);
+		}
+		if (tok->type != OUTDENT) {
+			parser_error (SLOCN (lf), "expected outdent, found '%s'", lexer_stokenstr (tok));
+		} else {
+			lexer_freetoken (tok);
+			tok = lexer_nexttoken (lf);
+		}
+	}
+
+	/* whatever it was, push back */
+	lexer_pushback (lf, tok);
+
+	tree = library_newusenode (lf, modname);
+	if (asname) {
+		library_setusenamespace (tree, asname);
+		sfree (asname);
+	}
+
+	sfree (modname);
+
+	return tree;
+}
+/*}}}*/
 /*{{{  static int guppy_parser_init (lexfile_t *lf)*/
 /*
  *	initialises the Guppy parser
@@ -1717,6 +1984,26 @@ tnode_dumptree (tree, 1, FHAN_STDERR);
 		}
 
 		lexer_close (blf);
+
+		/*}}}*/
+	} else if (lexer_tokmatchlitstr (tok, "module")) {
+		/*{{{  module definition (building into a library)*/
+		lexer_freetoken (tok);
+
+		tree = guppy_parsemoduledef (lf);
+		if (!tree) {
+			goto skip_to_eol;		/* abandon! */
+		}
+
+		/*}}}*/
+	} else if (lexer_tokmatchlitstr (tok, "use")) {
+		/*{{{  import module*/
+		lexer_freetoken (tok);
+
+		tree = guppy_parsemodusedef (lf);
+		if (!tree) {
+			goto skip_to_eol;		/* abandon! */
+		}
 
 		/*}}}*/
 	} else {

@@ -1,6 +1,6 @@
 /*
  *	guppy.h -- Guppy language interface for nocc
- *	Copyright (C) 2010-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2010-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -167,6 +167,9 @@ typedef struct {
 	struct TAG_ntdef *tag_MUL;
 	struct TAG_ntdef *tag_DIV;
 	struct TAG_ntdef *tag_REM;
+	struct TAG_ntdef *tag_ASHR;
+	struct TAG_ntdef *tag_SHR;
+	struct TAG_ntdef *tag_SHL;
 	struct TAG_ntdef *tag_BITXOR;
 	struct TAG_ntdef *tag_BITAND;
 	struct TAG_ntdef *tag_BITOR;

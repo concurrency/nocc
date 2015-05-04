@@ -1,6 +1,6 @@
 /*
  *	symbols.c -- symbol handling
- *	Copyright (C) 2004 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ static symbol_t symbols[] = {
 	{"!=", 2, LANGTAG_OCCAMPI | LANGTAG_GUPPY, NULL},
 	{"=", 1, LANGTAG_OCCAMPI | LANGTAG_EAC | LANGTAG_GUPPY, NULL},
 	{"<=", 2, LANGTAG_OCCAMPI | LANGTAG_GUPPY, NULL},
-	{"=>", 2, LANGTAG_OCCAMPI | LANGTAG_GUPPY, NULL},
+	{"=>", 2, LANGTAG_OCCAMPI, NULL},
 	{"<>", 2, LANGTAG_OCCAMPI, NULL},
 	{"><", 2, LANGTAG_OCCAMPI | LANGTAG_GUPPY, NULL},
 	{"^", 1, LANGTAG_OCCAMPI | LANGTAG_EAC | LANGTAG_GUPPY, NULL},
@@ -73,7 +73,7 @@ static symbol_t symbols[] = {
 	{"[>", 2, LANGTAG_OCCAMPI, NULL},
 	{"<]", 2, LANGTAG_OCCAMPI, NULL},
 	{"==", 2, LANGTAG_OCCAMPI | LANGTAG_GUPPY, NULL},
-	{">=", 2, LANGTAG_OCCAMPI, NULL},
+	{">=", 2, LANGTAG_OCCAMPI | LANGTAG_GUPPY, NULL},
 	{"=<", 2, LANGTAG_OCCAMPI, NULL},
 	{",", 1, LANGTAG_OCCAMPI | LANGTAG_EAC | LANGTAG_GUPPY, NULL},
 	{"_", 1, LANGTAG_OCCAMPI, NULL},

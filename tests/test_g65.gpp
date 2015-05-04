@@ -1,0 +1,15 @@
+# test_g65.gpp -- modules/libraries
+
+@include "guppy_stdlib.gpi"
+
+@module "mylib"
+  @version "0.9"
+  @api 1
+  @nativelib "libmylib.a"
+  @includes "mylib.gpi"
+
+define testfcn (val int n) -> int
+  return n + 2
+end
+
+

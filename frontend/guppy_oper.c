@@ -1,6 +1,6 @@
 /*
  *	guppy_oper.c -- operators for guppy
- *	Copyright (C) 2011-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2011-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -215,6 +215,14 @@ static int guppy_codegen_dopnode (compops_t *cops, tnode_t *node, codegen_t *cge
 		codegen_write_fmt (cgen, "*");
 	} else if (node->tag == gup.tag_REM) {
 		codegen_write_fmt (cgen, "%%");
+	} else if (node->tag == gup.tag_ASHR) {
+		/* FIXME: needs something better! */
+		codegen_write_fmt (cgen, ">>");
+	} else if (node->tag == gup.tag_SHR) {
+		/* FIXME: needs something better! */
+		codegen_write_fmt (cgen, ">>");
+	} else if (node->tag == gup.tag_SHL) {
+		codegen_write_fmt (cgen, "<<");
 	} else {
 		nocc_internal ("guppy_codegen_dopnode(): unhandled operator!");
 	}
@@ -968,7 +976,7 @@ static int guppy_oper_init_nodes (void)
 	langops_t *lops;
 	int i;
 
-	/*{{{  guppy:dopnode -- ADD, SUB, MUL, DIV, REM, XOR, AND, OR, BITXOR, BITAND, BITOR*/
+	/*{{{  guppy:dopnode -- ADD, SUB, MUL, DIV, REM, ASHR, SHR, SHL, BITXOR, BITAND, BITOR*/
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:dopnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: left, right, type */
 	cops = tnode_newcompops ();
@@ -992,6 +1000,12 @@ static int guppy_oper_init_nodes (void)
 	gup.tag_DIV = tnode_newnodetag ("DIV", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_REM = tnode_newnodetag ("REM", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_ASHR = tnode_newnodetag ("ASHR", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_SHR = tnode_newnodetag ("SHR", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_SHL = tnode_newnodetag ("SHL", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_BITXOR = tnode_newnodetag ("BITXOR", &i, tnd, NTF_NONE);
 	i = -1;

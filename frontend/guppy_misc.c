@@ -1,6 +1,6 @@
 /*
  *	guppy_misc.c -- miscellaneous stuff for guppy
- *	Copyright (C) 2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2013-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
