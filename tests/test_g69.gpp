@@ -4,12 +4,49 @@
 @include "guppy_stdlib.gpi"
 @include "guppy_ev3lib.gpi"
 
+define delay (val int usecs)
+  timer tim
+  int t
+
+  tim ? t
+  tim ? after (t ++ usecs)
+end
+
 define main (chan(string) screen!)
   bool b
+  int cpr, pos
   seq
     screen ! "hello, EV3 world from Guppy!\n"
     
     b = ev3_mot_init (PORT_B, MDEV_L_MOTOR)
+
+    if (b == false)
+      screen ! "failed to initialise, bailing..\n"
+      return
+
+    cpr = ev3_mot_count_per_rot (PORT_B)
+    pos = ev3_mot_cur_pos (PORT_B)
+
+    screen ! "tacho counts-per-rotation: " + int_to_str (cpr) + "\n"
+    screen ! "current position: " + int_to_str (pos) + "\n"
+
+    screen ! "setting hold mode..\n"
+    b = ev3_mot_stop_mode (PORT_B, STM_HOLD)
+
+    delay (100000)
+    b = ev3_mot_on_fwd (PORT_B, 20)
+    delay (500000)
+    b = ev3_mot_off (PORT_B)
+    delay (200000)
+
+    pos = ev3_mot_cur_pos (PORT_B)
+    screen ! "advance half pre..\n"
+    b = ev3_mot_run_to_pos (PORT_B, pos + (cpr / 2), 20)
+    screen ! "advance half post..\n"
+
+    delay (5000000)
+
+    screen ! "all done!\n"
 end
 
 

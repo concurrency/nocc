@@ -1004,7 +1004,7 @@ static tnode_t *guppy_make_tlp (tnode_t *userfcn)
 				return NULL;
 			}
 
-#if 1
+#if 0
 fprintf (stderr, "guppy_make_tlp(): looking at parameter %d, FPARAM of:\n", i);
 tnode_dumptree (pitems[i], 1, FHAN_STDERR);
 #endif

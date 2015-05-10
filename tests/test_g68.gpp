@@ -6,9 +6,12 @@ define enum ev3_mdev
   MDEV_L_MOTOR = 1
 end
 
-val int MDEV_UNKNOWN_I = 0
 
 define main ()
   int x = 42
+  ev3_mdev m
+
+  x = 99
+  m = MDEV_L_MOTOR
 end
 

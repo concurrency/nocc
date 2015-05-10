@@ -4,13 +4,12 @@
  */
 
 
-#include <cccsp/verb-header.h>
+#include <cccsp/verb-header.h>		/* ++ stdio, stdlib, stdarg, string, sys/types, cif */
 
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
 
-#include <sys/types.h>
 #include <dirent.h>
 
 #define SYS_ROOT "/sys"
@@ -35,19 +34,137 @@ typedef enum ENUM_ev3_mst {
 	MST_REF		= 2
 } ev3_mst_e;
 
+typedef enum ENUM_ev3_stm {
+	STM_COAST	= 0,
+	STM_BRAKE	= 1,
+	STM_HOLD	= 2
+} ev3_stm_e;
+
 /* motor mapping for EV3 (by port 0-3 == A-D) */
 typedef struct TAG_ev3_motmap {
-	ev3_mdev_e dev;		/* device motor type */
-	int mid;		/* motor ID (assigned by kernel) */
-	ev3_mst_e st;		/* motor state */
+	ev3_mdev_e dev;			/* device motor type */
+	int mid;			/* motor ID (assigned by kernel) */
+	ev3_mst_e st;			/* motor state */
+	char path[FILENAME_MAX];	/* path to tacho-motor directory */
 } ev3_motmap_t;
 
 static ev3_motmap_t ev3_motmap[4] = {
-		{MDEV_UNKNOWN, -1, MST_OFF},
-		{MDEV_UNKNOWN, -1, MST_OFF},
-		{MDEV_UNKNOWN, -1, MST_OFF},
-		{MDEV_UNKNOWN, -1, MST_OFF}
+		{MDEV_UNKNOWN, -1, MST_OFF, ""},
+		{MDEV_UNKNOWN, -1, MST_OFF, ""},
+		{MDEV_UNKNOWN, -1, MST_OFF, ""},
+		{MDEV_UNKNOWN, -1, MST_OFF, ""}
 	};
+
+/*{{{  static int ev3_set_mot_attr_int (int port, const char *attr, int val)*/
+/*
+ *	writes an integer to a particular file in /sys
+ *	returns 0 on success, non-zero on failure
+ */
+static int ev3_set_mot_attr_int (int port, const char *attr, int val)
+{
+	char tpath[FILENAME_MAX];
+	char xbuf[32];
+	int fd, wlen, i;
+
+	snprintf (tpath, FILENAME_MAX, "%s/%s", ev3_motmap[port].path, attr);
+	fd = open (tpath, O_WRONLY);
+	if (fd < 0) {
+		fprintf (stderr, "ev3_set_mot_attr_int(): failed to open [%s]: %s\n", tpath, strerror (errno));
+		return -1;
+	}
+
+	wlen = snprintf (xbuf, 32, "%d\n", val);
+	i = write (fd, xbuf, wlen);
+
+	if (i < 0) {
+		fprintf (stderr, "ev3_set_mot_attr_int(): failed to write to [%s]: %s\n", tpath, strerror (errno));
+		close (fd);
+		return -1;
+	} else if (i != wlen) {
+		fprintf (stderr, "ev3_set_mot_attr_int(): incomplete write to [%s]: %d of %d bytes\n", tpath, i, wlen);
+		close (fd);
+		return -1;
+	}
+	/* else good! */
+
+	close (fd);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int ev3_get_mot_attr_int (int port, const char *attr, int *valp)*/
+/*
+ *	reads an integer from a particular file in /sys.
+ *	puts the value read into 'valp', returns 0 on success, non-zero on failure.
+ */
+static int ev3_get_mot_attr_int (int port, const char *attr, int *valp)
+{
+	char tpath[FILENAME_MAX];
+	char xbuf[32];
+	int fd, wlen, i;
+
+	snprintf (tpath, FILENAME_MAX, "%s/%s", ev3_motmap[port].path, attr);
+	fd = open (tpath, O_RDONLY);
+	if (fd < 0) {
+		fprintf (stderr, "ev3_get_mot_attr_int(): failed to open [%s]: %s\n", tpath, strerror (errno));
+		return -1;
+	}
+
+	i = read (fd, xbuf, 31);
+
+	if (i < 0) {
+		fprintf (stderr, "ev3_get_mot_attr_int(): failed to read from [%s]: %s\n", tpath, strerror (errno));
+		close (fd);
+		return -1;
+	} else {
+		xbuf[i] = '\0';		/* add null */
+		if (sscanf (xbuf, "%d", valp) != 1) {
+			fprintf (stderr, "ev3_get_mot_attr_int(): failed to parse value in [%s]\n", tpath);
+			close (fd);
+			return -1;
+		}
+	}
+	/* else good! */
+
+	close (fd);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int ev3_set_mot_attr_str (int port, const char *attr, const char *val)*/
+/*
+ *	writes an integer to a particular file in /sys
+ *	returns 0 on success, non-zero on failure
+ */
+static int ev3_set_mot_attr_str (int port, const char *attr, const char *val)
+{
+	char tpath[FILENAME_MAX];
+	int fd, wlen, i;
+
+	snprintf (tpath, FILENAME_MAX, "%s/%s", ev3_motmap[port].path, attr);
+	fd = open (tpath, O_WRONLY);
+	if (fd < 0) {
+		fprintf (stderr, "ev3_set_mot_attr_str(): failed to open [%s]: %s\n", tpath, strerror (errno));
+		return -1;
+	}
+
+	wlen = strlen (val);
+	i = write (fd, val, wlen);
+
+	if (i < 0) {
+		fprintf (stderr, "ev3_set_mot_attr_str(): failed to write to [%s]: %s\n", tpath, strerror (errno));
+		close (fd);
+		return -1;
+	} else if (i != wlen) {
+		fprintf (stderr, "ev3_set_mot_attr_str(): incomplete write to [%s]: %d of %d bytes\n", tpath, i, wlen);
+		close (fd);
+		return -1;
+	}
+	/* else good! */
+
+	close (fd);
+	return 0;
+}
+/*}}}*/
+
 
 /*{{{  define ev3_mot_init (val int port, type) -> bool*/
 
@@ -67,11 +184,11 @@ static void igcf_ev3_mot_init (int *result, int port, int type)
 		*result = 1;
 	} else if (type == MDEV_L_MOTOR) {
 		/* see if the appropriate motor is there */
-		char tpath[PATH_MAX];
+		char tpath[FILENAME_MAX];
 		DIR *dir;
 		struct dirent *dent;
 
-		snprintf (tpath, PATH_MAX, SYS_ROOT "/class/lego-port/port%d/out%c:lego-ev3-l-motor/tacho-motor", (port+4), 'A' + port);
+		snprintf (tpath, FILENAME_MAX, SYS_ROOT "/class/lego-port/port%d/out%c:lego-ev3-l-motor/tacho-motor", (port+4), 'A' + port);
 		dir = opendir (tpath);
 		if (!dir) {
 			goto fail_out;
@@ -95,6 +212,9 @@ static void igcf_ev3_mot_init (int *result, int port, int type)
 				ev3_motmap[port].dev = MDEV_L_MOTOR;
 				ev3_motmap[port].mid = mid;
 				ev3_motmap[port].st = MST_OFF;
+
+				snprintf (ev3_motmap[port].path, FILENAME_MAX, "%s/motor%d", tpath, mid);
+
 				break;		/* for() */
 			}
 		}
@@ -123,180 +243,216 @@ void gcf_ev3_mot_init (Workspace wptr, int *result, int port, int type)
 }
 
 /*}}}*/
+/*{{{  define ev3_mot_shutdown () -> bool*/
 
-
-#if 0
-
-static void i_dowrite (const char *buf, const int len)
+static void igcf_ev3_mot_shutdown (int *result)
 {
-	int i;
+	int p;
 
-	i = write (ev3_pwm_fd, buf, len);
-	if (i < 0) {
-		fprintf (stderr, "ev3:i_dowrite(): failed to write to device, error %d\n", errno);
+	for (p=0; p<4; p++) {
+		ev3_motmap[p].dev = MDEV_UNKNOWN;
+		ev3_motmap[p].mid = -1;
+		ev3_motmap[p].st = MST_OFF;
 	}
-}
-
-
-/*{{{  define ev3_pwm_init () -> bool*/
-/*
- *	initialises the PWM stuff, returns true/false.
- */
-
-static void igcf_ev3_pwm_init (int *result)
-{
-	if (ev3_pwm_fd >= 0) {
-		/* already initialised */
-		*result = 0;
-	}
-
-	ev3_pwm_fd = open ("/dev/ev3dev_pwm", O_WRONLY);
-	if (ev3_pwm_fd < 0) {
-		fprintf (stderr, "ev3:pwm_init(): failed to open device, error %d\n", errno);
-		*result = 0;
-		return;
-	}
-
-	/* send the "program start" message */
-	i_dowrite ("\x03", 1);
 	*result = 1;
-}
-
-void gcf_ev3_pwm_init (Workspace wptr, int *result)
-{
-	ExternalCallN (igcf_ev3_pwm_init, 1, result);
-}
-/*}}}*/
-/*{{{  define ev3_pwm_shutdown ()*/
-/*
- *	shuts-down PWM related things.
- */
-
-static void igcf_ev3_pwm_shutdown (void)
-{
-	if (ev3_pwm_fd < 0) {
-		return;
-	}
-	/* send the "program stop" message */
-	i_dowrite ("\x02", 1);
-
-	close (ev3_pwm_fd);
-	ev3_pwm_fd = -1;
 	return;
 }
 
-void gcf_ev3_pwm_shutdown (Workspace wptr)
+void gcf_ev3_mot_shutdown (Workspace wptr, int *result)
 {
-	ExternalCallN (igcf_ev3_pwm_shutdown, 0);
+	ExternalCallN (igcf_ev3_mot_shutdown, 1, result);
 }
 /*}}}*/
-/*{{{  define ev3_pwm_on_fwd (val int motor, val int power)*/
-/*
- *	runs a motor forwards at the specified power-level (0-100).
- */
+/*{{{  define ev3_mot_on_fwd (val int port, power) -> bool*/
 
-static void igcf_ev3_pwm_on_fwd (int motor, int power)
+static void igcf_ev3_mot_on (int *result, int port, int power)
 {
-	unsigned char buf[3];
+	if ((port < 0) || (port > 3)) {
+		*result = 0;
+		return;
+	}
+	if ((ev3_motmap[port].dev != MDEV_L_MOTOR) || (ev3_motmap[port].mid < 0)) {
+		*result = 0;
+		return;
+	}
 
-	buf[0] = 0xa4;
-	buf[1] = (unsigned char)(motor & 0xff);
-	buf[2] = (unsigned char)(power & 0xff);
+	if (ev3_set_mot_attr_int (port, "duty_cycle_sp", power)) {
+		*result = 0;
+		return;
+	}
+	if (ev3_set_mot_attr_str (port, "command", "run-forever\n")) {
+		*result = 0;
+		return;
+	}
 
-	i_dowrite ((char *)buf, 3);
-
-	buf[0] = 0xa7;
-	buf[1] = (unsigned char)(motor & 0xff);
-	buf[2] = 0x01;
-
-	i_dowrite ((char *)buf, 3);
-
-	buf[0] = 0xa6;
-	buf[1] = (unsigned char)(motor & 0xff);
-
-	i_dowrite ((char *)buf, 2);
+	*result = 1;
+	return;
 }
 
-void gcf_ev3_pwm_on_fwd (Workspace wptr, int motor, int power)
+void gcf_ev3_mot_on_fwd (Workspace wptr, int *result, int port, int power)
 {
-	ExternalCallN (igcf_ev3_pwm_on_fwd, 2, motor, power);
-}
-/*}}}*/
-/*{{{  define ev3_pwm_on_rev (val int motor, val int power)*/
-/*
- *	runs a motor in reverse at the specified power-level (0-100).
- */
-
-static void igcf_ev3_pwm_on_rev (int motor, int power)
-{
-	unsigned char buf[3];
-
-	buf[0] = 0xa4;
-	buf[1] = (unsigned char)(motor & 0xff);
-	buf[2] = (unsigned char)(power & 0xff);
-
-	i_dowrite ((char *)buf, 3);
-
-	buf[0] = 0xa7;
-	buf[1] = (unsigned char)(motor & 0xff);
-	buf[2] = 0xff;
-
-	i_dowrite ((char *)buf, 3);
-
-	buf[0] = 0xa6;
-	buf[1] = (unsigned char)(motor & 0xff);
-
-	i_dowrite ((char *)buf, 2);
-}
-
-void gcf_ev3_pwm_on_rev (Workspace wptr, int motor, int power)
-{
-	ExternalCallN (igcf_ev3_pwm_on_rev, 2, motor, power);
-}
-/*}}}*/
-/*{{{  define ev3_pwm_toggle_dir (val int motor)*/
-/*
- *	toggles the direction of the given motor.
- */
-
-static void igcf_ev3_pwm_toggle_dir (int motor)
-{
-	unsigned char buf[3];
-
-	buf[0] = 0xa7;
-	buf[1] = (unsigned char)(motor & 0xff);
-	buf[2] = 0x00;
-
-	i_dowrite ((char *)buf, 3);
-}
-
-void gcf_ev3_pwm_toggle_dir (Workspace wptr, int motor)
-{
-	ExternalCallN (igcf_ev3_pwm_toggle_dir, 1, motor);
+	ExternalCallN (igcf_ev3_mot_on, 3, result, port, power);
 }
 
 /*}}}*/
-/*{{{  define ev3_pwm_off (val int motor)*/
-/*
- *	turns off a motor (and brake).
- */
+/*{{{  define ev3_mot_on_rev (val int port, power) -> bool*/
 
-static void igcf_ev3_pwm_off (int motor)
+void gcf_ev3_mot_on_rev (Workspace wptr, int *result, int port, int power)
 {
-	unsigned char buf[2];
-
-	buf[0] = 0xa3;
-	buf[1] = (unsigned char)(motor & 0xff);
-	buf[2] = 0x01;					/* brake */
-
-	i_dowrite ((char *)buf, 3);
+	ExternalCallN (igcf_ev3_mot_on, 3, result, port, -power);
 }
 
-void gcf_ev3_pwm_off (Workspace wptr, int motor)
+/*}}}*/
+/*{{{  define ev3_mot_off (val int port) -> bool*/
+
+static void igcf_ev3_mot_off (int *result, int port)
 {
-	ExternalCallN (igcf_ev3_pwm_off, 1, motor);
+	if ((port < 0) || (port > 3)) {
+		*result = 0;
+		return;
+	}
+	if ((ev3_motmap[port].dev != MDEV_L_MOTOR) || (ev3_motmap[port].mid < 0)) {
+		*result = 0;
+		return;
+	}
+
+	if (ev3_set_mot_attr_str (port, "command", "stop\n")) {
+		*result = 0;
+		return;
+	}
+
+	*result = 1;
+	return;
 }
+
+void gcf_ev3_mot_off (Workspace wptr, int *result, int port)
+{
+	ExternalCallN (igcf_ev3_mot_off, 2, result, port);
+}
+
+/*}}}*/
+/*{{{  define ev3_mot_stop_mode (val int port, smode) -> bool*/
+
+static void igcf_ev3_mot_stop_mode (int *result, int port, int smode)
+{
+	static char *modestrs[] = {"coast", "brake", "hold"};
+
+	if ((port < 0) || (port > 3)) {
+		*result = 0;
+		return;
+	}
+	if ((ev3_motmap[port].dev != MDEV_L_MOTOR) || (ev3_motmap[port].mid < 0)) {
+		*result = 0;
+		return;
+	}
+
+	if ((smode < STM_COAST) || (smode > STM_HOLD)) {
+		*result = 0;
+		return;
+	}
+
+	if (ev3_set_mot_attr_str (port, "stop_command", modestrs[smode])) {
+		*result = 0;
+		return;
+	}
+
+	*result = 1;
+	return;
+}
+
+void gcf_ev3_mot_stop_mode (Workspace wptr, int *result, int port, int smode)
+{
+	ExternalCallN (igcf_ev3_mot_stop_mode, 3, result, port, smode);
+}
+
+/*}}}*/
+/*{{{  define ev3_mot_count_per_rot (val int port) -> int*/
+
+static void igcf_ev3_mot_count_per_rot (int *result, int port)
+{
+	if ((port < 0) || (port > 3)) {
+		*result = 0;
+		return;
+	}
+	if ((ev3_motmap[port].dev != MDEV_L_MOTOR) || (ev3_motmap[port].mid < 0)) {
+		*result = 0;
+		return;
+	}
+
+	if (ev3_get_mot_attr_int (port, "count_per_rot", result)) {
+		*result = 0;
+		return;
+	}
+	return;
+}
+
+void gcf_ev3_mot_count_per_rot (Workspace wptr, int *result, int port)
+{
+	ExternalCallN (igcf_ev3_mot_count_per_rot, 2, result, port);
+}
+
+/*}}}*/
+/*{{{  define ev3_mot_cur_pos (val int port) -> int*/
+
+static void igcf_ev3_mot_cur_pos (int *result, int port)
+{
+	if ((port < 0) || (port > 3)) {
+		*result = 0;
+		return;
+	}
+	if ((ev3_motmap[port].dev != MDEV_L_MOTOR) || (ev3_motmap[port].mid < 0)) {
+		*result = 0;
+		return;
+	}
+
+	if (ev3_get_mot_attr_int (port, "position", result)) {
+		*result = 0;
+		return;
+	}
+	return;
+}
+
+void gcf_ev3_mot_cur_pos (Workspace wptr, int *result, int port)
+{
+	ExternalCallN (igcf_ev3_mot_cur_pos, 2, result, port);
+}
+
+/*}}}*/
+/*{{{  define ev3_mot_run_to_pos (val int port, pos, power) -> bool*/
+
+static void igcf_ev3_mot_run_to_pos (int *result, int port, int pos, int power)
+{
+	if ((port < 0) || (port > 3)) {
+		*result = 0;
+		return;
+	}
+	if ((ev3_motmap[port].dev != MDEV_L_MOTOR) || (ev3_motmap[port].mid < 0)) {
+		*result = 0;
+		return;
+	}
+
+	if (ev3_set_mot_attr_int (port, "duty_cycle_sp", power)) {
+		*result = 0;
+		return;
+	}
+	if (ev3_set_mot_attr_int (port, "position_sp", pos)) {
+		*result = 0;
+		return;
+	}
+	if (ev3_set_mot_attr_str (port, "command", "run-to-abs-pos\n")) {
+		*result = 0;
+		return;
+	}
+
+	*result = 1;
+	return;
+}
+
+void gcf_ev3_mot_run_to_pos (Workspace wptr, int *result, int port, int pos, int power)
+{
+	ExternalCallN (igcf_ev3_mot_run_to_pos, 4, result, port, pos, power);
+}
+
 /*}}}*/
 
-#endif
 

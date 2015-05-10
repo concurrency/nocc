@@ -3,12 +3,18 @@
 # Fred Barnes, January 2014
 #
 
+# FIXME: these should be enumerated..
+
 val int MDEV_UNKNOWN = 0
 val int MDEV_L_MOTOR = 1
 
 val int MST_OFF = 0
 val int MST_FWD = 1
 val int MST_REV = 2
+
+val int STM_COAST = 0
+val int STM_BRAKE = 1
+val int STM_HOLD = 2
 
 val int PORT_A = 0
 val int PORT_B = 1
@@ -21,5 +27,9 @@ val int PORT_D = 3
 @external "guppy" "define ev3_mot_on_fwd (val int port, power) -> bool = 64"
 @external "guppy" "define ev3_mot_on_rev (val int port, power) -> bool = 64"
 @external "guppy" "define ev3_mot_off (val int port) -> bool = 64"
+@external "guppy" "define ev3_mot_stop_mode (val int port, smode) -> bool = 64"
+@external "guppy" "define ev3_mot_count_per_rot (val int port) -> int = 64"
+@external "guppy" "define ev3_mot_cur_pos (val int port) -> int = 64"
+@external "guppy" "define ev3_mot_run_to_pos (val int port, pos, power) -> bool = 64"
 
 
