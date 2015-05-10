@@ -1040,6 +1040,33 @@ static int guppy_getdescriptor_fcndef (langops_t *lops, tnode_t *node, char **st
 		sfree (*str);
 		*str = newstr;
 	}
+
+	if (results && parser_islistnode (results)) {
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (results, &nitems);
+		
+		if (nitems > 0) {
+			/* at least one thing! */
+			char *newstr = (char *)smalloc (strlen (*str) + 6);
+
+			sprintf (newstr, "%s -> ", *str);
+			sfree (*str);
+			*str = newstr;
+
+			for (i=0; i<nitems; i++) {
+				tnode_t *rtype = items[i];
+
+				langops_getdescriptor (rtype, str);
+				if (i < (nitems - 1)) {
+					char *newstr = (char *)smalloc (strlen (*str) + 5);
+
+					sprintf (newstr, "%s, ", *str);
+					sfree (*str);
+					*str = newstr;
+				}
+			}
+		}
+	}
 	return 0;
 }
 /*}}}*/
@@ -1088,7 +1115,7 @@ static int guppy_fcndef_init_nodes (void)
 	gup.tag_PFCNDEF = tnode_newnodetag ("PFCNDEF", &i, tnd, NTF_INDENTED_PROC_LIST);
 
 	/*}}}*/
-	/*{{{  guppy:extdef -- EXTDECL*/
+	/*{{{  guppy:extdef -- EXTDECL, LIBDECL*/
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:extdef", &i, 2, 0, 0, TNF_NONE);			/* subnodes: definition, stack-words */
 	cops = tnode_newcompops ();
@@ -1103,6 +1130,8 @@ static int guppy_fcndef_init_nodes (void)
 
 	i = -1;
 	gup.tag_EXTDECL = tnode_newnodetag ("EXTDECL", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_LIBDECL = tnode_newnodetag ("LIBDECL", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

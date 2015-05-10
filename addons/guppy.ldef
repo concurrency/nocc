@@ -6,7 +6,7 @@
 .IDENT		"guppy"
 .DESC		"Guppy parallel programming language"
 .MAINTAINER	"Fred Barnes <frmb@kent.ac.uk>"
-.VERSION	"Apr 2015"
+.VERSION	"May 2015"
 
 
 # sections are used to help front-end units find their definitions
@@ -14,6 +14,9 @@
 .SECTION "guppy" # {{{: fairly general guppy reductions and other language things
 
 .SYMBOL	">>>"
+.SYMBOL "**"
+.SYMBOL "++"
+.SYMBOL "--"
 
 .GRULE	"gup:nullreduce" "N+R-"
 .GRULE	"gup:nullpush" "0N-"
@@ -49,7 +52,8 @@
 	"[ 0 +Name 2 ] [ 2 +Name 3 ] [ 3 {<gup:rewindlexer>} -* <guppy:namenamestartproc> ]"
 	"[ 2 -* 4 ] [ 4 {<gup:rewindlexer>} -* <guppy:namestartproc> ]"
 
-.TABLE	"guppy:descriptor ::= [ 0 @define 1 ] [ 1 guppy:definedecl 2 ] [ 2 @@= 3 ] [ 3 guppy:literal 4 ] [ 4 {<gup:extdeclreduce>} -* ]"
+.TABLE	"guppy:descriptor ::= [ 0 @define 1 ] [ 1 guppy:definedecl 2 ] [ 2 @@= 3 ] [ 2 Newline 5 ] [ 3 guppy:literal 4 ] [ 4 {<gup:extdeclreduce>} -* ]"
+	"[ 5 {<gup:libdescreduce>} -* ]"
 
 #.BNF	"guppy:procstart +:= ( guppy:primproc | guppy:cnode ) {<gup:nullreduce>}"
 
@@ -119,6 +123,7 @@
 .TABLE	"guppy:testforexpr +:= [ 0 +Name 1 ] [ 1 {<gup:testtrue>} -* ]"
 
 
+# Note: for enumerated types (and others) the parser loop proper scoops up the contents into subnode 1
 .TABLE	"guppy:definedecl +:= [ 0 @enum 1 ] [ 1 guppy:name 2 ] [ 2 {<gup:enumreduce>} -* ]"
 
 .TABLE	"guppy:definedecl +:= [ 0 @type 1 ] [ 1 guppy:name 2 ] [ 2 @@( 3 ] [ 3 guppy:namelist 4 ] [ 4 @@) 5 ] [ 5 {<gup:typedefreduce>} -* ]"
@@ -181,6 +186,8 @@
 .SECTION "guppy-fcndef" # {{{: function/procedure definitions
 
 .GRULE	"gup:extdeclreduce" "SN0N+N+VC[EXTDECL]2R-"
+.GRULE	"gup:libdescreduce" "SN0N+0C[LIBDECL]2R-"
+
 
 .GRULE	"gup:fcndefreduce" "SN1N+N+V000C[FCNDEF]5R-"
 .GRULE	"gup:fcndefreduce1" "SN0N+0000C[FCNDEF]5R-"
@@ -286,6 +293,9 @@
 .GRULE	"gup:foldgereduce" "R+N+Sn00C[GE]3R-"
 .GRULE	"gup:foldeqreduce" "R+N+Sn00C[EQ]3R-"
 .GRULE	"gup:foldnereduce" "R+N+Sn00C[NE]3R-"
+.GRULE	"gup:foldplusreduce" "R+N+Sn00C[PLUS]3R-"
+.GRULE	"gup:foldminusreduce" "R+N+Sn00C[MINUS]3R-"
+.GRULE	"gup:foldtimesreduce" "R+N+Sn00C[TIMES]3R-"
 .GRULE	"gup:negreduce" "SN0N+0C[NEG]2R-"
 .GRULE	"gup:bitnotreduce" "SN0N+0C[BITNOT]2R-"
 .GRULE	"gup:notreduce" "SN0N+0C[NOT]2R-"
@@ -327,6 +337,9 @@
 	"[ 0 @@>>> 31 ] [ 31 guppy:expr 32 ] [ 32 {<gup:foldashrreduce>} -* ]"
 	"[ 0 @@>> 33 ] [ 33 guppy:expr 34 ] [ 34 {<gup:foldshrreduce>} -* ]"
 	"[ 0 @@<< 35 ] [ 35 guppy:expr 36 ] [ 36 {<gup:foldshlreduce>} -* ]"
+	"[ 0 @@++ 37 ] [ 37 guppy:expr 38 ] [ 38 {<gup:foldplusreduce>} -* ]"
+	"[ 0 @@-- 39 ] [ 39 guppy:expr 40 ] [ 40 {<gup:foldminusreduce>} -* ]"
+	"[ 0 @@** 41 ] [ 41 guppy:expr 42 ] [ 42 {<gup:foldtimesreduce>} -* ]"
 	"[ 0 -* ]"
 
 .TABLE	"guppy:restofexpr +:= [ 0 @@[ 1 ] [ 1 guppy:expr 2 ] [ 2 @@] 3 ] [ 3 {<gup:foldarraysub>} -* <guppy:restofexpr> ]"

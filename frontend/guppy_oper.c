@@ -223,6 +223,12 @@ static int guppy_codegen_dopnode (compops_t *cops, tnode_t *node, codegen_t *cge
 		codegen_write_fmt (cgen, ">>");
 	} else if (node->tag == gup.tag_SHL) {
 		codegen_write_fmt (cgen, "<<");
+	} else if (node->tag == gup.tag_PLUS) {
+		codegen_write_fmt (cgen, "+");
+	} else if (node->tag == gup.tag_MINUS) {
+		codegen_write_fmt (cgen, "-");
+	} else if (node->tag == gup.tag_TIMES) {
+		codegen_write_fmt (cgen, "*");
 	} else {
 		nocc_internal ("guppy_codegen_dopnode(): unhandled operator!");
 	}
@@ -976,7 +982,7 @@ static int guppy_oper_init_nodes (void)
 	langops_t *lops;
 	int i;
 
-	/*{{{  guppy:dopnode -- ADD, SUB, MUL, DIV, REM, ASHR, SHR, SHL, BITXOR, BITAND, BITOR*/
+	/*{{{  guppy:dopnode -- ADD, SUB, MUL, DIV, REM, ASHR, SHR, SHL, BITXOR, BITAND, BITOR, PLUS, MINUS, TIMES*/
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:dopnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: left, right, type */
 	cops = tnode_newcompops ();
@@ -1012,6 +1018,12 @@ static int guppy_oper_init_nodes (void)
 	gup.tag_BITAND = tnode_newnodetag ("BITAND", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_BITOR = tnode_newnodetag ("BITOR", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_PLUS = tnode_newnodetag ("PLUS", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_MINUS = tnode_newnodetag ("MINUS", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_TIMES = tnode_newnodetag ("TIMES", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:booldopnode -- XOR, AND, OR*/

@@ -1,6 +1,6 @@
 /*
  *	guppy_ev3_lib.c -- routines for Guppy on the LEGO EV3
- *	Copyright (C) 2014 Fred Barnes, University of Kent <frmb@kent.ac.uk>
+ *	Copyright (C) 2014-2015 Fred Barnes, University of Kent <frmb@kent.ac.uk>
  */
 
 
@@ -10,8 +10,122 @@
 #include <unistd.h>
 #include <errno.h>
 
-static int ev3_pwm_fd = -1;
+#include <sys/types.h>
+#include <dirent.h>
 
+#define SYS_ROOT "/sys"
+
+
+/*
+ *	XXX: this goes via sysfs now, so has a potentially significant overhead in terms
+ *	of system calls being made (possible fix down the road somewhere).
+ *
+ *	Further (slight) grot: enumeration of things like tacho-motors is a minor hinderance,
+ *	so we have to go hunting..
+ */
+
+typedef enum ENUM_ev3_mdev {
+	MDEV_UNKNOWN	= 0,
+	MDEV_L_MOTOR	= 1
+} ev3_mdev_e;
+
+typedef enum ENUM_ev3_mst {
+	MST_OFF		= 0,
+	MST_FWD		= 1,
+	MST_REF		= 2
+} ev3_mst_e;
+
+/* motor mapping for EV3 (by port 0-3 == A-D) */
+typedef struct TAG_ev3_motmap {
+	ev3_mdev_e dev;		/* device motor type */
+	int mid;		/* motor ID (assigned by kernel) */
+	ev3_mst_e st;		/* motor state */
+} ev3_motmap_t;
+
+static ev3_motmap_t ev3_motmap[4] = {
+		{MDEV_UNKNOWN, -1, MST_OFF},
+		{MDEV_UNKNOWN, -1, MST_OFF},
+		{MDEV_UNKNOWN, -1, MST_OFF},
+		{MDEV_UNKNOWN, -1, MST_OFF}
+	};
+
+/*{{{  define ev3_mot_init (val int port, type) -> bool*/
+
+static void igcf_ev3_mot_init (int *result, int port, int type)
+{
+	if ((port < 0) || (port > 3)) {
+		*result = 0;
+		return;
+	}
+
+	if (type == MDEV_UNKNOWN) {
+		/* trash it */
+		ev3_motmap[port].dev = MDEV_UNKNOWN;
+		ev3_motmap[port].mid = -1;
+		ev3_motmap[port].st = MST_OFF;
+
+		*result = 1;
+	} else if (type == MDEV_L_MOTOR) {
+		/* see if the appropriate motor is there */
+		char tpath[PATH_MAX];
+		DIR *dir;
+		struct dirent *dent;
+
+		snprintf (tpath, PATH_MAX, SYS_ROOT "/class/lego-port/port%d/out%c:lego-ev3-l-motor/tacho-motor", (port+4), 'A' + port);
+		dir = opendir (tpath);
+		if (!dir) {
+			goto fail_out;
+		}
+		/* read out until we see something that starts 'motor' */
+		for (;;) {
+			dent = readdir (dir);
+			if (!dent) {
+				closedir (dir);
+				goto fail_out;
+			}
+			if ((dent->d_type == DT_DIR) && !strncmp (dent->d_name, "motor", 5)) {
+				/* found it! */
+				int mid;
+
+				if (sscanf (dent->d_name + 5, "%d", &mid) != 1) {
+					closedir (dir);
+					goto fail_out;
+				}
+
+				ev3_motmap[port].dev = MDEV_L_MOTOR;
+				ev3_motmap[port].mid = mid;
+				ev3_motmap[port].st = MST_OFF;
+				break;		/* for() */
+			}
+		}
+		closedir (dir);
+
+		/* if we get here, found it! */
+		fprintf (stderr, "ev3:mot_init(): found motor %d on port out%c\n", ev3_motmap[port].mid, 'A' + port);
+
+		*result = 1;
+	} else {
+		fprintf (stderr, "ev3:mot_init(): invalid type for port out%c (%d)", 'A' + port, type);
+		*result = 0;
+	}
+
+	return;
+fail_out:
+	fprintf (stderr, "ev3:mot_init(): no tacho motor on out%c?", 'A' + port);
+	*result = 0;
+	return;
+}
+
+
+void gcf_ev3_mot_init (Workspace wptr, int *result, int port, int type)
+{
+	ExternalCallN (igcf_ev3_mot_init, 3, result, port, type);
+}
+
+/*}}}*/
+
+
+#if 0
 
 static void i_dowrite (const char *buf, const int len)
 {
@@ -183,4 +297,6 @@ void gcf_ev3_pwm_off (Workspace wptr, int motor)
 	ExternalCallN (igcf_ev3_pwm_off, 1, motor);
 }
 /*}}}*/
+
+#endif
 

@@ -104,6 +104,7 @@ typedef struct {
 	struct TAG_ntdef *tag_ARRAYFREE;
 
 	struct TAG_ntdef *tag_EXTDECL;
+	struct TAG_ntdef *tag_LIBDECL;
 
 	struct TAG_ntdef *tag_SEQ;
 	struct TAG_ntdef *tag_PAR;
@@ -173,6 +174,10 @@ typedef struct {
 	struct TAG_ntdef *tag_BITXOR;
 	struct TAG_ntdef *tag_BITAND;
 	struct TAG_ntdef *tag_BITOR;
+
+	struct TAG_ntdef *tag_PLUS;
+	struct TAG_ntdef *tag_MINUS;
+	struct TAG_ntdef *tag_TIMES;
 
 	struct TAG_ntdef *tag_XOR;
 	struct TAG_ntdef *tag_AND;

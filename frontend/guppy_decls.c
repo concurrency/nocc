@@ -925,7 +925,11 @@ static int guppy_getdescriptor_fparam (langops_t *lops, tnode_t *node, char **sp
 		return 0;
 	}
 
-	newstr = string_fmt ("%s %s", tstr, myname);
+	if (name->tag == gup.tag_NVALPARAM) {
+		newstr = string_fmt ("val %s %s", tstr, myname);
+	} else {
+		newstr = string_fmt ("%s %s", tstr, myname);
+	}
 	if (tstr) {
 		sfree (tstr);
 	}

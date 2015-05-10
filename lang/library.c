@@ -2186,7 +2186,6 @@ static int lib_parsedescriptors (lexfile_t *orglf, libusenodehook_t *lunh)
 	if (dbuflen) {
 		lexfile_t *lexbuf;
 		tnode_t *decltree = NULL;
-		tnode_t *thisnode;
 
 		dbuf = (char *)smalloc (dbuflen);
 
@@ -2207,6 +2206,9 @@ static int lib_parsedescriptors (lexfile_t *orglf, libusenodehook_t *lunh)
 				}
 			}
 		}
+#if 0
+fprintf (stderr, "lib_parsedescriptors(): descriptor buffer is:\n%s\n", dbuf);
+#endif
 		/*}}}*/
 		/*{{{  open buffer as a lexfile_t and parse it*/
 		lexbuf = lexer_openbuf (lunh->libname, orglf->parser->langname, dbuf);
@@ -2229,42 +2231,81 @@ static int lib_parsedescriptors (lexfile_t *orglf, libusenodehook_t *lunh)
 		lunh->decltree = decltree;
 
 		/*}}}*/
-		/*{{{  walk both trees and attach libfile size data to declarations*/
-		thisnode = lunh->decltree;
+#if 1
+fprintf (stderr, "lib_parsedescriptors(): decltree is:\n");
+tnode_dumptree (decltree, 1, FHAN_STDERR);
+#endif
+		if (decltree && parser_islistnode (decltree)) {
+			/*{{{  walk down it as a list, attaching libfile size data to declarations*/
+			tnode_t **ditems;
+			int nditems, di;
 
-		for (i=0; thisnode && (i<DA_CUR (lf->srcs)); i++) {
-			libfile_srcunit_t *lfsu = DA_NTHITEM (lf->srcs, i);
-			int j;
+			ditems = parser_getlistitems (decltree, &nditems);
 
-			for (j=0; thisnode && (j<DA_CUR (lfsu->entries)); j++) {
-				libfile_entry_t *lfent = DA_NTHITEM (lfsu->entries, j);
+			for (i=0, di=0; (di < nditems) && (i<DA_CUR (lf->srcs)); i++) {
+				libfile_srcunit_t *lfsu = DA_NTHITEM (lf->srcs, i);
+				int j;
 
-				if (lfent && lfent->descriptor && lfent->langname && !strcmp (lfent->langname, orglf->parser->langname)) {
-					int tnflags = tnode_tnflagsof (thisnode);
-					int k;
+				for (j=0; (di < nditems) && (j<DA_CUR (lfsu->entries)); j++) {
+					libfile_entry_t *lfent = DA_NTHITEM (lfsu->entries, j);
 
-					tnode_setchook (thisnode, uselinkchook, (void *)lfent);
-					for (k=0; k<DA_CUR (lfent->mdata); k++) {
-						libfile_metadata_t *lfmd = DA_NTHITEM (lfent->mdata, k);
+					if (lfent && lfent->descriptor && lfent->langname && !strcmp (lfent->langname, orglf->parser->langname)) {
+						int k;
 
-						if (thisnode->tag->ndef->lops && tnode_haslangop (thisnode->tag->ndef->lops, "importmetadata")) {
-							tnode_calllangop (thisnode->tag->ndef->lops, "importmetadata", 3, thisnode, lfmd->name, lfmd->data);
+						tnode_setchook (ditems[di], uselinkchook, (void *)lfent);
+						for (k=0; k<DA_CUR (lfent->mdata); k++) {
+							libfile_metadata_t *lfmd = DA_NTHITEM (lfent->mdata, k);
+
+							if (ditems[di]->tag->ndef->lops && tnode_haslangop (ditems[di]->tag->ndef->lops, "importmetadata")) {
+								tnode_calllangop (ditems[di]->tag->ndef->lops, "importmetadata", 3, ditems[di], lfmd->name, lfmd->data);
+							}
 						}
-					}
-					if (tnflags & TNF_LONGDECL) {
-						thisnode = tnode_nthsubof (thisnode, 3);
-					} else if (tnflags & TNF_SHORTDECL) {
-						thisnode = tnode_nthsubof (thisnode, 2);
-					} else if (tnflags & TNF_TRANSPARENT) {
-						thisnode = tnode_nthsubof (thisnode, 0);
-					} else {
-						nocc_warning ("lib_parsedescriptors(): unhandled node in library declaration-tree [%s]", thisnode->tag->name);
-						thisnode = NULL;
+						di++;
 					}
 				}
 			}
+
+			/*}}}*/
+		} else {
+			/*{{{  walk both trees and attach libfile size data to declarations*/
+			tnode_t *thisnode;
+
+			thisnode = lunh->decltree;
+
+			for (i=0; thisnode && (i<DA_CUR (lf->srcs)); i++) {
+				libfile_srcunit_t *lfsu = DA_NTHITEM (lf->srcs, i);
+				int j;
+
+				for (j=0; thisnode && (j<DA_CUR (lfsu->entries)); j++) {
+					libfile_entry_t *lfent = DA_NTHITEM (lfsu->entries, j);
+
+					if (lfent && lfent->descriptor && lfent->langname && !strcmp (lfent->langname, orglf->parser->langname)) {
+						int tnflags = tnode_tnflagsof (thisnode);
+						int k;
+
+						tnode_setchook (thisnode, uselinkchook, (void *)lfent);
+						for (k=0; k<DA_CUR (lfent->mdata); k++) {
+							libfile_metadata_t *lfmd = DA_NTHITEM (lfent->mdata, k);
+
+							if (thisnode->tag->ndef->lops && tnode_haslangop (thisnode->tag->ndef->lops, "importmetadata")) {
+								tnode_calllangop (thisnode->tag->ndef->lops, "importmetadata", 3, thisnode, lfmd->name, lfmd->data);
+							}
+						}
+						if (tnflags & TNF_LONGDECL) {
+							thisnode = tnode_nthsubof (thisnode, 3);
+						} else if (tnflags & TNF_SHORTDECL) {
+							thisnode = tnode_nthsubof (thisnode, 2);
+						} else if (tnflags & TNF_TRANSPARENT) {
+							thisnode = tnode_nthsubof (thisnode, 0);
+						} else {
+							nocc_warning ("lib_parsedescriptors(): unhandled node in library declaration-tree [%s]", thisnode->tag->name);
+							thisnode = NULL;
+						}
+					}
+				}
+			}
+			/*}}}*/
 		}
-		/*}}}*/
 
 		sfree (dbuf);
 	} else {
@@ -2670,26 +2711,31 @@ static int lib_scopein_libusenode (compops_t *cops, tnode_t **nodep, scope_t *ss
 	tnode_t *tempnode = NULL;
 	namespace_t *ns = NULL;
 
-	/*{{{  walk declaration tree to find innermost*/
-	for (walkp = &lunh->decltree; *walkp; ) {
-		int tnflags = tnode_tnflagsof (*walkp);
+	if (parser_islistnode (decltree)) {
+		/* do nothing for this.. */
+		nocc_internal ("arf, stop and fixme!");
+	} else {
+		/*{{{  walk declaration tree to find innermost*/
+		for (walkp = &lunh->decltree; *walkp; ) {
+			int tnflags = tnode_tnflagsof (*walkp);
 
-		if (tnflags & TNF_LONGDECL) {
-			walkp = tnode_nthsubaddr (*walkp, 3);
-		} else if (tnflags & TNF_SHORTDECL) {
-			walkp = tnode_nthsubaddr (*walkp, 2);
-		} else if (tnflags & TNF_TRANSPARENT) {
-			walkp = tnode_nthsubaddr (*walkp, 0);
-		} else {
-			scope_error (*nodep, ss, "lib_parsedescriptors(): unexpected node [%s]", decltree->tag->name);
-			return 0;
+			if (tnflags & TNF_LONGDECL) {
+				walkp = tnode_nthsubaddr (*walkp, 3);
+			} else if (tnflags & TNF_SHORTDECL) {
+				walkp = tnode_nthsubaddr (*walkp, 2);
+			} else if (tnflags & TNF_TRANSPARENT) {
+				walkp = tnode_nthsubaddr (*walkp, 0);
+			} else {
+				scope_error (*nodep, ss, "lib_scopein_libusenode(): unexpected node [%s]", decltree->tag->name);
+				return 0;
+			}
 		}
+
+		/*}}}*/
+
+		/* temporarily attach body of USE to innermost of declarations for scoping */
+		tempnode = tnode_nthsubof (*nodep, 0);
 	}
-
-	/*}}}*/
-
-	/* temporarily attach body of USE to innermost of declarations for scoping */
-	tempnode = tnode_nthsubof (*nodep, 0);
 
 	/* scope them */
 	if (lunh->namespace && lunh->asnamespace && strlen (lunh->asnamespace)) {
@@ -3601,6 +3647,29 @@ int library_setusenamespace (tnode_t *libusenode, char *nsname)
 	}
 
 	return 0;
+}
+/*}}}*/
+
+/*{{{  int library_islibnode (tnode_t *node)*/
+/*
+ *	determines whether a particular node is a library node
+ *	returns truth value
+ */
+int library_islibnode (tnode_t *node)
+{
+	if (node && (node->tag == tag_libnode)) {
+		return 1;
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  ntdef_t *library_getlibnodetag (void)*/
+/*
+ *	returns the tag used to identify library nodes
+ */
+ntdef_t *library_getlibnodetag (void)
+{
+	return tag_libnode;
 }
 /*}}}*/
 

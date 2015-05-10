@@ -1,0 +1,15 @@
+
+# test_g69.gpp -- more EV3 testing
+
+@include "guppy_stdlib.gpi"
+@include "guppy_ev3lib.gpi"
+
+define main (chan(string) screen!)
+  bool b
+  seq
+    screen ! "hello, EV3 world from Guppy!\n"
+    
+    b = ev3_mot_init (PORT_B, MDEV_L_MOTOR)
+end
+
+

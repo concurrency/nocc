@@ -1,0 +1,14 @@
+
+# test_g68.gpp -- testing enumerated types
+
+define enum ev3_mdev
+  MDEV_UNKNOWN = 0
+  MDEV_L_MOTOR = 1
+end
+
+val int MDEV_UNKNOWN_I = 0
+
+define main ()
+  int x = 42
+end
+

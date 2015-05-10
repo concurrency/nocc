@@ -333,6 +333,51 @@ fhandle_printf (FHAN_STDERR, "guppy_reduce_checkfixio(): pp=%p, pp->lf=%p\n", pp
 
 /*}}}*/
 
+/*{{{  static int pullmodule_modprewalk (tnode_t **tptr, void *arg)*/
+/*
+ *	called before prescope proper to pull up any module definitions, only looks once (arg is to an integer flag)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int pullmodule_modprewalk (tnode_t **tptr, void *arg)
+{
+	int *found = (int *)arg;
+
+	if (*found) {
+		/* did it */
+		return 0;
+	}
+		
+	if (*tptr && parser_islistnode (*tptr)) {
+		tnode_t **items;
+		int nitems, i;
+		ntdef_t *libnodetag = library_getlibnodetag ();
+
+		/* look for library nodes */
+		items = parser_getlistitems (*tptr, &nitems);
+		for (i=0; i<nitems; i++) {
+			if (items[i] && (items[i]->tag == libnodetag)) {
+				/* found it!  Put the rest of *this* list inside it */
+				tnode_t *libnode = items[i];
+				tnode_t *tlist = parser_newlistnode (SLOCI);
+
+				i++;
+				while (i < nitems) {
+					tnode_t *itm = parser_delfromlist (*tptr, i);
+
+					parser_addtolist (tlist, itm);
+					nitems--;
+				}
+
+				tnode_setnthsub (libnode, 0, tlist);
+				*found = 1;
+				return 0;
+			}
+		}
+	}
+
+	return 1;
+}
+/*}}}*/
 
 /*{{{  static int declify_modprewalk (tnode_t **tptr, void *arg)*/
 /*
@@ -959,6 +1004,10 @@ static tnode_t *guppy_make_tlp (tnode_t *userfcn)
 				return NULL;
 			}
 
+#if 1
+fprintf (stderr, "guppy_make_tlp(): looking at parameter %d, FPARAM of:\n", i);
+tnode_dumptree (pitems[i], 1, FHAN_STDERR);
+#endif
 			parser_addtolist (ucallparams, NULL);
 			fename = tnode_nthsubof (pitems[i], 0);
 			/*{{{  figure out arrangement of top-level channels*/
@@ -2599,6 +2648,24 @@ static tnode_t *guppy_indented_name_list (lexfile_t *lf)
 		if (tok->type == OUTDENT) {
 			/* got outdent, end-of-list! */
 			lexer_freetoken (tok);
+
+			/* _might_ have 'end' as a keyword next */
+			tok = lexer_nexttoken (lf);
+			if (lexer_tokmatchlitstr (tok, "end")) {
+				/* gobble */
+				lexer_freetoken (tok);
+
+				tok = lexer_nexttoken (lf);
+				/*{{{  skip newlines and comments*/
+				for (; tok && ((tok->type == NEWLINE) || (tok->type == COMMENT)); tok = lexer_nexttoken (lf)) {
+					lexer_freetoken (tok);
+				}
+
+				/*}}}*/
+			}
+			/* push back what we just saw next regardless */
+			lexer_pushback (lf, tok);
+
 			break;		/* for() */
 		} else {
 			lexer_pushback (lf, tok);
@@ -2974,26 +3041,52 @@ static tnode_t *guppy_parser_parse (lexfile_t *lf)
 /*}}}*/
 /*{{{  static tnode_t *guppy_parser_descparse (lexfile_t *lf)*/
 /*
- *	called to parse a descriptor line
- *	returns a tree on success (representing the declaration), NULL on failure
+ *	called to parse a descriptor line(s)
+ *	for library (LIBDECL) things, returns as a list, for EXTDECL just returns that,
+ *	returns NULL on failure
  */
 static tnode_t *guppy_parser_descparse (lexfile_t *lf)
 {
 	token_t *tok;
-	tnode_t *tree = NULL;
-	tnode_t **target = &tree;
+	tnode_t *tl, *tree = NULL;
 
 	if (compopts.verbose) {
 		nocc_message ("guppy_parser_descparse(): parsing descriptor(s)...");
 	}
 
-	*target = dfa_walk ("guppy:descriptor", 0, lf);
-
+	tree = dfa_walk ("guppy:descriptor", 0, lf);
 #if 0
 fhandle_printf (FHAN_STDERR, "guppy_parser_descparse(): got descriptor:\n");
 tnode_dumptree (tree, 1, FHAN_STDERR);
 #endif
-	return tree;
+	if (tree && (tree->tag == gup.tag_EXTDECL)) {
+		/* just this one */
+		return tree;
+	}
+	
+	/* else turn into a list and try and parse anything else */
+	tl = parser_newlistnode (SLOCI);
+	parser_addtolist (tl, tree);
+
+	tok = lexer_nexttoken (lf);
+	while (tok && (tok->type != END)) {
+		/* eat up any newlines */
+		while (tok->type == NEWLINE) {
+			lexer_freetoken (tok);
+			tok = lexer_nexttoken (lf);
+		}
+		if (tok->type != END) {
+			lexer_pushback (lf, tok);
+			tree = dfa_walk ("guppy:descriptor", 0, lf);
+
+			if (tree) {
+				parser_addtolist (tl, tree);
+			}
+			tok = lexer_nexttoken (lf);
+		}
+	}
+
+	return tl;
 }
 /*}}}*/
 
@@ -3005,6 +3098,11 @@ tnode_dumptree (tree, 1, FHAN_STDERR);
  */
 static int guppy_parser_prescope (tnode_t **tptr, prescope_t *ps)
 {
+	/* run a quick pass over the tree to pull up any module definitions */
+	int foundmodule = 0;
+
+	tnode_modprewalktree (tptr, pullmodule_modprewalk, &foundmodule);
+
 	if (!ps->hook) {
 		guppy_prescope_t *gps = (guppy_prescope_t *)smalloc (sizeof (guppy_prescope_t));
 

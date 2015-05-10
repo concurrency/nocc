@@ -23,6 +23,7 @@
 struct TAG_tnode;
 struct TAG_lexfile;
 struct TAG_crypto;
+struct TAG_ntdef;
 
 typedef struct TAG_libdigestinfo {
 	char *srcunit;
@@ -54,6 +55,9 @@ extern int library_makeprivate (struct TAG_tnode **nodep, char *name);
 extern struct TAG_tnode *library_newusenode (struct TAG_lexfile *lf, char *libname);
 extern struct TAG_tnode *library_externaldecl (struct TAG_lexfile *lf, char *extdef);
 extern int library_setusenamespace (struct TAG_tnode *libusenode, char *nsname);
+
+extern int library_islibnode (struct TAG_tnode *node);
+extern struct TAG_ntdef *library_getlibnodetag (void);
 
 extern int library_readlibanddigest (const char *libname, struct TAG_crypto *cry, char *srcname, char **algop, char **shashp, char **sdhashp);
 extern libdigestset_t *library_readlibanddigestset (const char *libname);

@@ -13,4 +13,26 @@ define genseed () -> int
   return (v >> 2) + 1
 end
 
+# based on 'minimal' standard described in "Random number generators:
+#    Good ones are hard to find", K.P. Park & K.W. Miller (1988),
+#    Comm. ACM 31(10), 1192â1201; implemented in occam by David Morse.
+#
+define random (val int max, seed) -> int, int
+  val int magic = 16807
+  val int period = 2147483647
+  val int quot = period / magic
+  val int rem = period \ magic
+  int  hi = seed / quot
+  int  lo = seed \ quot
+  int  test = (magic ** lo) -- (rem ** hi)
+  int  nseed
+  if
+     (test > 0)
+       nseed = test
+     true
+       nseed = test ++ period
+  return (nseed \ max), nseed
+end
+
+
 

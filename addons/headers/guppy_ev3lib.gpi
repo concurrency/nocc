@@ -3,10 +3,23 @@
 # Fred Barnes, January 2014
 #
 
-@external "guppy" "define ev3_pwm_init () -> bool = 64"
-@external "guppy" "define ev3_pwm_shutdown () = 64"
-@external "guppy" "define ev3_pwm_on_fwd (val int motor, val int power) = 64"
-@external "guppy" "define ev3_pwm_on_rev (val int motor, val int power) = 64"
-@external "guppy" "define ev3_pwm_toggle_dir (val int motor) = 64"
-@external "guppy" "define ev3_pwm_off (val int motor) = 64"
+val int MDEV_UNKNOWN = 0
+val int MDEV_L_MOTOR = 1
+
+val int MST_OFF = 0
+val int MST_FWD = 1
+val int MST_REV = 2
+
+val int PORT_A = 0
+val int PORT_B = 1
+val int PORT_C = 2
+val int PORT_D = 3
+
+
+@external "guppy" "define ev3_mot_init (val int port, mtype) -> bool = 64"
+@external "guppy" "define ev3_mot_shutdown () -> bool = 64"
+@external "guppy" "define ev3_mot_on_fwd (val int port, power) -> bool = 64"
+@external "guppy" "define ev3_mot_on_rev (val int port, power) -> bool = 64"
+@external "guppy" "define ev3_mot_off (val int port) -> bool = 64"
+
 
