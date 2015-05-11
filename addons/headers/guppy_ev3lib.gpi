@@ -7,6 +7,7 @@
 
 val int MDEV_UNKNOWN = 0
 val int MDEV_L_MOTOR = 1
+val int MDEV_M_MOTOR = 2
 
 val int MST_OFF = 0
 val int MST_FWD = 1

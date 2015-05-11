@@ -25,7 +25,8 @@
 
 typedef enum ENUM_ev3_mdev {
 	MDEV_UNKNOWN	= 0,
-	MDEV_L_MOTOR	= 1
+	MDEV_L_MOTOR	= 1,		/* EV3 and NXT "large" motors */
+	MDEV_M_MOTOR	= 2		/* EV3 "medium" (?) motor */
 } ev3_mdev_e;
 
 typedef enum ENUM_ev3_mst {
@@ -168,65 +169,78 @@ static int ev3_set_mot_attr_str (int port, const char *attr, const char *val)
 
 /*{{{  define ev3_mot_init (val int port, type) -> bool*/
 
-static void igcf_ev3_mot_init (int *result, int port, int type)
+static void igcf_ev3_mot_init (int *result, int port, ev3_mdev_e type)
 {
 	if ((port < 0) || (port > 3)) {
 		*result = 0;
 		return;
 	}
 
-	if (type == MDEV_UNKNOWN) {
+	switch (type) {
+	case MDEV_UNKNOWN:
+		/*{{{  unsetting motor device*/
 		/* trash it */
 		ev3_motmap[port].dev = MDEV_UNKNOWN;
 		ev3_motmap[port].mid = -1;
 		ev3_motmap[port].st = MST_OFF;
+		ev3_motmap[port].path[0] = '\0';
 
 		*result = 1;
-	} else if (type == MDEV_L_MOTOR) {
-		/* see if the appropriate motor is there */
-		char tpath[FILENAME_MAX];
-		DIR *dir;
-		struct dirent *dent;
+		break;
+		/*}}}*/
+	case MDEV_L_MOTOR:
+	case MDEV_M_MOTOR:
+		/*{{{  setting to EV3/NXT "large" or "medium" motor*/
+		{
+			/* see if the appropriate motor is there */
+			char tpath[FILENAME_MAX];
+			DIR *dir;
+			struct dirent *dent;
+			char mch = (type == MDEV_L_MOTOR) ? 'l' : 'm';
 
-		snprintf (tpath, FILENAME_MAX, SYS_ROOT "/class/lego-port/port%d/out%c:lego-ev3-l-motor/tacho-motor", (port+4), 'A' + port);
-		dir = opendir (tpath);
-		if (!dir) {
-			goto fail_out;
-		}
-		/* read out until we see something that starts 'motor' */
-		for (;;) {
-			dent = readdir (dir);
-			if (!dent) {
-				closedir (dir);
+			snprintf (tpath, FILENAME_MAX, SYS_ROOT "/class/lego-port/port%d/out%c:lego-ev3-%c-motor/tacho-motor", (port+4), 'A' + port, mch);
+			dir = opendir (tpath);
+			if (!dir) {
 				goto fail_out;
 			}
-			if ((dent->d_type == DT_DIR) && !strncmp (dent->d_name, "motor", 5)) {
-				/* found it! */
-				int mid;
-
-				if (sscanf (dent->d_name + 5, "%d", &mid) != 1) {
+			/* read out until we see something that starts 'motor' */
+			for (;;) {
+				dent = readdir (dir);
+				if (!dent) {
 					closedir (dir);
 					goto fail_out;
 				}
+				if ((dent->d_type == DT_DIR) && !strncmp (dent->d_name, "motor", 5)) {
+					/* found it! */
+					int mid;
 
-				ev3_motmap[port].dev = MDEV_L_MOTOR;
-				ev3_motmap[port].mid = mid;
-				ev3_motmap[port].st = MST_OFF;
+					if (sscanf (dent->d_name + 5, "%d", &mid) != 1) {
+						closedir (dir);
+						goto fail_out;
+					}
 
-				snprintf (ev3_motmap[port].path, FILENAME_MAX, "%s/motor%d", tpath, mid);
+					ev3_motmap[port].dev = type;
+					ev3_motmap[port].mid = mid;
+					ev3_motmap[port].st = MST_OFF;
 
-				break;		/* for() */
+					snprintf (ev3_motmap[port].path, FILENAME_MAX, "%s/motor%d", tpath, mid);
+
+					break;		/* for() */
+				}
 			}
+			closedir (dir);
+
+			/* if we get here, found it! */
+			fprintf (stderr, "ev3:mot_init(): found motor %d on port out%c\n", ev3_motmap[port].mid, 'A' + port);
+
+			*result = 1;
 		}
-		closedir (dir);
-
-		/* if we get here, found it! */
-		fprintf (stderr, "ev3:mot_init(): found motor %d on port out%c\n", ev3_motmap[port].mid, 'A' + port);
-
-		*result = 1;
-	} else {
+		break;
+		/*}}}*/
+	default:
 		fprintf (stderr, "ev3:mot_init(): invalid type for port out%c (%d)", 'A' + port, type);
 		*result = 0;
+		break;
 	}
 
 	return;
@@ -271,7 +285,7 @@ static void igcf_ev3_mot_on (int *result, int port, int power)
 		*result = 0;
 		return;
 	}
-	if ((ev3_motmap[port].dev != MDEV_L_MOTOR) || (ev3_motmap[port].mid < 0)) {
+	if ((ev3_motmap[port].dev == MDEV_UNKNOWN) || (ev3_motmap[port].mid < 0)) {
 		*result = 0;
 		return;
 	}
@@ -311,7 +325,7 @@ static void igcf_ev3_mot_off (int *result, int port)
 		*result = 0;
 		return;
 	}
-	if ((ev3_motmap[port].dev != MDEV_L_MOTOR) || (ev3_motmap[port].mid < 0)) {
+	if ((ev3_motmap[port].dev == MDEV_UNKNOWN) || (ev3_motmap[port].mid < 0)) {
 		*result = 0;
 		return;
 	}
@@ -341,7 +355,7 @@ static void igcf_ev3_mot_stop_mode (int *result, int port, int smode)
 		*result = 0;
 		return;
 	}
-	if ((ev3_motmap[port].dev != MDEV_L_MOTOR) || (ev3_motmap[port].mid < 0)) {
+	if ((ev3_motmap[port].dev == MDEV_UNKNOWN) || (ev3_motmap[port].mid < 0)) {
 		*result = 0;
 		return;
 	}
@@ -374,7 +388,7 @@ static void igcf_ev3_mot_count_per_rot (int *result, int port)
 		*result = 0;
 		return;
 	}
-	if ((ev3_motmap[port].dev != MDEV_L_MOTOR) || (ev3_motmap[port].mid < 0)) {
+	if ((ev3_motmap[port].dev == MDEV_UNKNOWN) || (ev3_motmap[port].mid < 0)) {
 		*result = 0;
 		return;
 	}
@@ -400,7 +414,7 @@ static void igcf_ev3_mot_cur_pos (int *result, int port)
 		*result = 0;
 		return;
 	}
-	if ((ev3_motmap[port].dev != MDEV_L_MOTOR) || (ev3_motmap[port].mid < 0)) {
+	if ((ev3_motmap[port].dev == MDEV_UNKNOWN) || (ev3_motmap[port].mid < 0)) {
 		*result = 0;
 		return;
 	}
@@ -426,7 +440,7 @@ static void igcf_ev3_mot_run_to_pos (int *result, int port, int pos, int power)
 		*result = 0;
 		return;
 	}
-	if ((ev3_motmap[port].dev != MDEV_L_MOTOR) || (ev3_motmap[port].mid < 0)) {
+	if ((ev3_motmap[port].dev == MDEV_UNKNOWN) || (ev3_motmap[port].mid < 0)) {
 		*result = 0;
 		return;
 	}

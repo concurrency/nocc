@@ -1,6 +1,6 @@
 /*
  *	typecheck.c -- nocc's type-checker
- *	Copyright (C) 2005-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -241,6 +241,15 @@ tnode_dumptree (typelist, 1, stderr);
 		return NULL;
 	}
 	type = (tnode_t *)tnode_calllangop_i (node->tag->ndef->lops, (int)LOPS_GETTYPE, 2, node, default_type);
+
+	if (compopts.tracetypecheck) {
+		/*{{{  report type-check (get-type part)*/
+		nocc_message ("typecheck_gettype(): type of [%s (%s)] with default type [%s (%s)] is [%s (%s)]",
+				node->tag->name, node->tag->ndef->name,
+				default_type ? default_type->tag->name : "null", default_type ? default_type->tag->ndef->name : "null",
+				type ? type->tag->name : "null", type ? type->tag->ndef->name : "null");
+		/*}}}*/
+	}
 
 	return type;
 }
