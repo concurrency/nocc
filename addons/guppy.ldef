@@ -177,7 +177,8 @@
 	"[ 0 @@[] 5 ] [ 5 {<gup:nullpush>} -* 3 ]"
 
 .BNF	"guppy:subtype ::= ( guppy:primtype {<gup:nullreduce>} | guppy:chantype {<gup:nullreduce>} | guppy:arraytype {<gup:nullreduce>} )"
-.TABLE	"guppy:type ::= [ 0 %guppy:subtype 3 ] [ 0 @val 1 ] [ 1 guppy:subtype 2 ] [ 2 {<gup:valtypereduce>} -* ]"
+.BNF	"guppy:namedsubtype ::= ( guppy:primtype {<gup:nullreduce>} | guppy:chantype {<gup:nullreduce>} | guppy:arraytype {<gup:nullreduce>} | guppy:name {<gup:nullreduce>} )"
+.TABLE	"guppy:type ::= [ 0 %guppy:subtype 3 ] [ 0 @val 1 ] [ 1 guppy:namedsubtype 2 ] [ 2 {<gup:valtypereduce>} -* ]"
 	"[ 3 guppy:subtype 4 ] [ 4 {<gup:nullreduce>} -* ]"
 
 .BNF	"guppy:typelist ::= { guppy:type @@, 1 }"

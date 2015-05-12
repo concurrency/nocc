@@ -362,6 +362,21 @@ static tnode_t *guppy_gettype_namenode (langops_t *lops, tnode_t *node, tnode_t 
 		nocc_fatal ("guppy_gettype_namenode(): NULL name!");
 		return NULL;
 	}
+
+	/* special case for enums: name type might be a literal integer (assigned enumeration); actual
+	 * type is the enumerated name.
+	 */
+	if (node->tag == gup.tag_NENUMVAL) {
+		tnode_t *decl = NameDeclOf (name);
+
+		if (decl->tag != gup.tag_ENUMDEF) {
+			/* odd, fail.. */
+			tnode_warning (node, "type of enumerated value is not enumerated type?");
+			return NULL;
+		}
+		return tnode_nthsubof (decl, 0);
+	}
+
 	if (NameTypeOf (name)) {
 		return NameTypeOf (name);
 	}
@@ -382,6 +397,33 @@ static int guppy_getname_namenode (langops_t *lops, tnode_t *node, char **str)
 		sfree (*str);
 	}
 	*str = string_dup (pname);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_getdescriptor_namenode (langops_t *lops, tnode_t *node, char **str)*/
+/*
+ *	gets descriptor string for a named type
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_getdescriptor_namenode (langops_t *lops, tnode_t *node, char **str)
+{
+
+	if (node->tag == gup.tag_NENUM) {
+		char *xname = string_dup (NameNameOf (tnode_nthnameof (node, 0)));
+
+		if (*str) {
+			char *tmpstr = string_fmt ("%s%s", *str, xname);
+
+			sfree (*str);
+			sfree (xname);
+			*str = tmpstr;
+		} else {
+			*str = xname;
+		}
+	} else {
+		nocc_error ("guppy_getdescriptor_namenode(): unhandled name [%s:%s]",
+				node->tag->ndef->name, node->tag->name);
+	}
 	return 0;
 }
 /*}}}*/
@@ -470,6 +512,14 @@ static int guppy_getctypeof_namenode (langops_t *lops, tnode_t *node, char **str
 			sfree (*str);
 		}
 		*str = lstr;
+	} else if (node->tag == gup.tag_NENUM) {
+		char *lstr;
+		
+		lstr = string_fmt ("gte_%s", NameNameOf (tnode_nthnameof (node, 0)));
+		if (*str) {
+			sfree (*str);
+		}
+		*str = lstr;
 	} else {
 		nocc_internal ("guppy_getctypeof_namenode(): asked for impossible C type of [%s]", node->tag->name);
 		return -1;
@@ -486,6 +536,8 @@ static int guppy_isdefpointer_namenode (langops_t *lops, tnode_t *node)
 {
 	if (node->tag == gup.tag_NTYPEDECL) {
 		return 1;
+	} else if (node->tag == gup.tag_NENUM) {
+		return 0;
 	} else {
 		nocc_internal ("guppy_isdefpointer_namenode(): asked for impossible node type [%s]", node->tag->name);
 	}
@@ -504,6 +556,8 @@ static tnode_t *guppy_initcall_namenode (langops_t *lops, tnode_t *typenode, tno
 
 		inode = tnode_create (gup.tag_VARINIT, SLOCI, NULL, typenode, name);
 		return inode;
+	} else if (typenode->tag == gup.tag_NENUM) {
+		return NULL;		/* no initialiser needed */
 	} else {
 		nocc_internal ("guppy_initcall_namenode(): called for impossible node type [%s]", typenode->tag->name);
 	}
@@ -522,6 +576,8 @@ static tnode_t *guppy_freecall_namenode (langops_t *lops, tnode_t *typenode, tno
 
 		inode = tnode_create (gup.tag_VARFREE, SLOCI, NULL, typenode, name);
 		return inode;
+	} else if (typenode->tag == gup.tag_NENUM) {
+		return NULL;		/* no destructor needed */
 	} else {
 		nocc_internal ("guppy_freecall_namenode(): called for impossible node type [%s]", typenode->tag->name);
 	}
@@ -1271,6 +1327,88 @@ static int guppy_scopeout_enumdef (compops_t *cops, tnode_t **node, scope_t *ss)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int guppy_typecheck_enumdef (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking for an enumerated type definition.
+ *	return 0 to stop walk, 1 to continue
+ */
+static int guppy_typecheck_enumdef (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *tname = tnode_nthsubof (node, 0);
+	tnode_t *tlist = tnode_nthsubof (node, 1);
+	int ntitems, i;
+	tnode_t **titems;
+	
+	if (!parser_islistnode (tlist)) {
+		typecheck_error (node, tc, "body of enumerated type definition is not a list");
+		return 0;
+	}
+
+	titems = parser_getlistitems (tlist, &ntitems);
+	for (i=0; i<ntitems; i++) {
+		tnode_t *item = titems[i];
+
+		if (item->tag != gup.tag_NENUMVAL) {
+			typecheck_error (item, tc, "invalid name in enumerated type definition of [%s]", NameNameOf (tnode_nthnameof (tname, 0)));
+		} else {
+			tnode_t *itype = typecheck_gettype (titems[i], NULL);		/* get item type */
+
+			if (!itype) {
+				typecheck_error (item, tc, "failed to get type of item in enumerated type definition of [%s]",
+						NameNameOf (tnode_nthnameof (tname, 0)));
+			} else if (itype != tname) {
+				typecheck_error (item, tc, "enumerated item type is not the same as its definition (got %s:%s).  Urgh?",
+						itype->tag->ndef->name, itype->tag->name);
+			}
+			/* otherwise assume good! */
+		}
+	}
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_typecheck_enumdef(): typecheck okay, %d items\n", ntitems);
+#endif
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_namemap_enumdef (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for an enumerated type definition.
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_enumdef (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	tnode_t *name = tnode_nthsubof (*nodep, 0);
+	tnode_t **tlistp = tnode_nthsubaddr (*nodep, 1);
+	tnode_t *betype;
+	char *rawname = NameNameOf (tnode_nthnameof (name, 0));
+	int ntitems, i;
+	tnode_t **titems;
+
+	/* manually name-map items in this, since they are just lone names */
+	titems = parser_getlistitems (*tlistp, &ntitems);
+	for (i=0; i<ntitems; i++) {
+		tnode_t **itemp = titems + i;
+		char *iname = NameNameOf (tnode_nthnameof (*itemp, 0));
+		tnode_t *beiname, *initp;
+
+		beiname = cccsp_create_ename (*itemp, map);
+		initp = NameTypeOf (tnode_nthnameof (*itemp, 0));
+		cccsp_set_initialiser (beiname, initp);
+
+		// initp = map->target->newconst (
+		tnode_setchook (*itemp, map->mapchook, (void *)beiname);
+		*itemp = beiname;
+
+	}
+
+	betype = cccsp_create_etype (OrgOf (*nodep), map->target, rawname, *tlistp);
+
+	tnode_setchook (name, map->mapchook, (void *)betype);
+	*nodep = betype;
+
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static int guppy_typecheck_fvnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
@@ -1735,6 +1873,7 @@ static int guppy_decls_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_namenode));
+	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (guppy_getdescriptor_namenode));
 	tnode_setlangop (lops, "getname", 2, LANGOPTYPE (guppy_getname_namenode));
 	tnode_setlangop (lops, "isconst", 1, LANGOPTYPE (guppy_isconst_namenode));
 	tnode_setlangop (lops, "isvar", 1, LANGOPTYPE (guppy_isvar_namenode));
@@ -1878,6 +2017,8 @@ static int guppy_decls_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_enumdef));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (guppy_scopeout_enumdef));
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_enumdef));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_enumdef));
 	tnd->ops = cops;
 
 	i = -1;

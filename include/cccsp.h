@@ -1,6 +1,6 @@
 /*
  *	cccsp.h -- top-level interface to the CCSP C backend.
- *	Copyright (C) 2008-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2008-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -134,16 +134,22 @@ extern int cccsp_set_indir (struct TAG_tnode *benode, int indir, struct TAG_targ
 extern int cccsp_get_indir (struct TAG_tnode *benode, struct TAG_target *target);
 
 extern int cccsp_set_toplevelname (struct TAG_name *tlname, struct TAG_target *target);
+
+
 extern struct TAG_tnode *cccsp_create_wptr (struct TAG_srclocn *org, struct TAG_target *target);
 extern struct TAG_tnode *cccsp_create_workspace (struct TAG_srclocn *org, struct TAG_target *target);
 extern int cccsp_set_workspace_nparams (struct TAG_tnode *wsnode, int nparams);
 extern int cccsp_set_workspace_nwords (struct TAG_tnode *wsnode, int nwords);
 extern struct TAG_tnode *cccsp_create_workspace_nwordsof (struct TAG_tnode *wsnode, struct TAG_target *target);
 extern struct TAG_tnode *cccsp_create_utype (struct TAG_srclocn *org, struct TAG_target *target, const char *name, struct TAG_tnode *fields);
+extern struct TAG_tnode *cccsp_create_etype (struct TAG_srclocn *org, struct TAG_target *target, const char *name, struct TAG_tnode *fields);
+extern struct TAG_tnode *cccsp_create_ename (struct TAG_tnode *fename, struct TAG_map *mdata);
 extern struct TAG_tnode *cccsp_create_arraysub (struct TAG_srclocn *org, struct TAG_target *target, struct TAG_tnode *base, struct TAG_tnode *index, int indir, struct TAG_tnode *type);
 extern struct TAG_tnode *cccsp_create_recordsub (struct TAG_srclocn *org, struct TAG_target *target, struct TAG_tnode *base, struct TAG_tnode *field, int indir, struct TAG_tnode *type);
 extern struct TAG_tnode *cccsp_create_null (struct TAG_srclocn *org, struct TAG_target *target);
 extern struct TAG_tnode *cccsp_create_notprocess (struct TAG_srclocn *org, struct TAG_target *target);
+
+
 extern int cccsp_preallocate_subtree (struct TAG_tnode *tptr, cccsp_preallocate_t *cpa);
 extern int cccsp_precode_subtree (struct TAG_tnode **nodep, struct TAG_codegen *cgen);
 extern int cccsp_cccspdcg_subtree (struct TAG_tnode *node, cccsp_dcg_t *dcg);

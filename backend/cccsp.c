@@ -187,7 +187,8 @@ typedef struct TAG_cccsp_priv {
 	ntdef_t *tag_WORKSPACE;
 	ntdef_t *tag_WPTRTYPE;
 	ntdef_t *tag_WORKSPACETYPE;
-	ntdef_t *tag_UTYPE;
+	ntdef_t *tag_UTYPE;			/* user-defined types */
+	ntdef_t *tag_ETYPE;			/* enumerated types */
 	ntdef_t *tag_ARRAYSUB;
 	ntdef_t *tag_RECORDSUB;
 
@@ -253,6 +254,10 @@ typedef struct TAG_cccsp_utypehook {
 	char *name;				/* e.g. "gt_foo" */
 	int nwords;				/* number of words for the type itself, -1 if unknown */
 } cccsp_utypehook_t;
+
+typedef struct TAG_cccsp_etypehook {
+	char *name;				/* e.g. "gte_foo" */
+} cccsp_etypehook_t;
 
 typedef struct TAG_cccsp_indexhook {
 	int indir;				/* desired indirection on arraysub/recordsub */
@@ -823,6 +828,35 @@ static cccsp_utypehook_t *cccsp_utypehook_create (const char *name)
 }
 /*}}}*/
 /*}}}*/
+/*{{{  cccsp_etypehook_t routines*/
+/*{{{  static void cccsp_etypehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
+/*
+ *	dumps a cccsp_etypehook_t (debugging)
+ */
+static void cccsp_etypehook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
+{
+	cccsp_etypehook_t *ethook = (cccsp_etypehook_t *)hook;
+
+	cccsp_isetindent (stream, indent);
+	fhandle_printf (stream, "<etypehook name=\"%s\" addr=\"0x%8.8x\" />\n",
+			ethook->name, (unsigned int)ethook);
+	return;
+}
+/*}}}*/
+/*{{{  static cccsp_etypehook_t *cccsp_etypehook_create (const char *name)*/
+/*
+ *	creates a new cccsp_etypehook_t
+ */
+static cccsp_etypehook_t *cccsp_etypehook_create (const char *name)
+{
+	cccsp_etypehook_t *ethook = (cccsp_etypehook_t *)smalloc (sizeof (cccsp_etypehook_t));
+
+	ethook->name = string_fmt ("gte_%s", name);
+
+	return ethook;
+}
+/*}}}*/
+/*}}}*/
 /*{{{  cccsp_indexhook_t routines*/
 /*{{{  static void cccsp_indexhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)*/
 /*
@@ -1314,6 +1348,44 @@ tnode_t *cccsp_create_utype (srclocn_t *org, target_t *target, const char *name,
 	node = tnode_create (kpriv->tag_UTYPE, org, fields, uthook);
 
 	return node;
+}
+/*}}}*/
+/*{{{  tnode_t *cccsp_create_etype (srclocn_t *org, target_t *target, const char *name, tnode_t *fields)*/
+/*
+ *	creates a new ETYPE node, used for enumerated types
+ */
+tnode_t *cccsp_create_etype (srclocn_t *org, target_t *target, const char *name, tnode_t *fields)
+{
+	tnode_t *node;
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)target->priv;
+	cccsp_etypehook_t *ethook = cccsp_etypehook_create (name);
+
+	node = tnode_create (kpriv->tag_ETYPE, org, fields, ethook);
+
+	return node;
+}
+/*}}}*/
+/*{{{  tnode_t *cccsp_create_ename (tnode_t *fename, map_t *mdata)*/
+/*
+ *	creates a back-end name specifically for enumerated types (labelling only)
+ */
+tnode_t *cccsp_create_ename (tnode_t *fename, map_t *mdata)
+{
+	target_t *target = mdata->target;
+	tnode_t *name;
+	cccsp_namehook_t *nh;
+	char *cname = NULL;
+
+	langops_getname (fename, &cname);
+
+	if (!cname) {
+		cname = string_dup ("UNKNOWN");
+	}
+
+	nh = cccsp_namehook_create (cname, "", mdata->lexlevel, 0, 0, NULL);
+	name = tnode_create (target->tag_NAME, NULL, fename, NULL, (void *)nh);
+
+	return name;
 }
 /*}}}*/
 /*{{{  tnode_t *cccsp_create_arraysub (srclocn_t *org, target_t *target, tnode_t *base, tnode_t *index, int indir, tnode_t *type)*/
@@ -2740,6 +2812,88 @@ static int cccsp_getctypeof_utype (langops_t *lops, tnode_t *t, char **str)
 }
 /*}}}*/
 
+/*{{{  static int cccsp_lcodegen_etype (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for an ETYPE node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int cccsp_lcodegen_etype (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cgen->target->priv;
+	cccsp_etypehook_t *ethook = (cccsp_etypehook_t *)tnode_nthhookof (node, 0);
+	tnode_t *body = tnode_nthsubof (node, 0);
+	tnode_t **eitems;
+	int neitems, i;
+
+	if (!parser_islistnode (body)) {
+		codegen_error (cgen, "cccsp_lcodegen_etype(): body is not a list");
+		return 0;
+	}
+	eitems = parser_getlistitems (body, &neitems);
+
+	codegen_ssetindent (cgen);
+	codegen_write_fmt (cgen, "typedef enum ENUM_%s {\n", ethook->name);
+	cgen->indent++;
+
+	/* do this manually here */
+	for (i=0; i<neitems; i++) {
+		tnode_t *eitem = eitems[i];
+		cccsp_namehook_t *nh;
+
+		if (eitem->tag != cgen->target->tag_NAME) {
+			nocc_internal ("cccsp_lcodegen_etype(): item in etype list is not back-end name, got [%s:%s]",
+					eitem->tag->ndef->name, eitem->tag->name);
+			return 0;
+		}
+		nh = (cccsp_namehook_t *)tnode_nthhookof (eitem, 0);
+
+		codegen_ssetindent (cgen);
+		if (nh->initialiser) {
+			codegen_write_fmt (cgen, "%s = ", nh->cname);
+			codegen_subcodegen (nh->initialiser, cgen);
+		} else {
+			codegen_write_fmt (cgen, "%s", nh->cname);
+		}
+		if (i < (neitems - 1)) {
+			codegen_write_fmt (cgen, ",\n");
+		} else {
+			codegen_write_fmt (cgen, "\n");
+		}
+		/* codegen_subcodegen (tnode_nthsubof (node, 0), cgen); */
+	}
+	cgen->indent--;
+	codegen_write_fmt (cgen, "} %s;\n\n", ethook->name);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cccsp_getctypeof_etype (langops_t *lops, tnode_t *t, char **str)*/
+/*
+ *	gets the C type of a ETYPE node (trivial)
+ */
+static int cccsp_getctypeof_etype (langops_t *lops, tnode_t *t, char **str)
+{
+	cccsp_priv_t *kpriv = (cccsp_priv_t *)cccsp_target.priv;
+	char *lstr;
+
+	if (t->tag == kpriv->tag_ETYPE) {
+		cccsp_etypehook_t *ethook = (cccsp_etypehook_t *)tnode_nthhookof (t, 0);
+
+		lstr = string_dup (ethook->name);
+	} else {
+		nocc_internal ("cccsp_getctypeof_etype(): unhandled [%s]", t->tag->name);
+		return 0;
+	}
+
+	if (*str) {
+		sfree (*str);
+	}
+	*str = lstr;
+
+	return 0;
+}
+/*}}}*/
+
 /*{{{  static int cccsp_lcodegen_indexnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
 /*
  *	does code-generation for an index-node (arraysub/recordsub)
@@ -3894,6 +4048,21 @@ static int cccsp_target_init (target_t *target)
 
 	i = -1;
 	kpriv->tag_UTYPE = tnode_newnodetag ("CCCSPUTYPE", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  cccsp:etype -- CCCSPETYPE*/
+	i = -1;
+	tnd = tnode_newnodetype ("cccsp:etype", &i, 1, 0, 1, TNF_NONE);		/* subnodes: be-type-tree; hooks: cccsp_etypehook_t */
+	tnd->hook_dumptree = cccsp_etypehook_dumptree;
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "lcodegen", 2, COMPOPTYPE (cccsp_lcodegen_etype));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "getctypeof", 2, LANGOPTYPE (cccsp_getctypeof_etype));
+	tnd->lops = lops;
+
+	i = -1;
+	kpriv->tag_ETYPE = tnode_newnodetag ("CCCSPETYPE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  cccsp:indexnode -- ARRAYSUB, RECORDSUB*/

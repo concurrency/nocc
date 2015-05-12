@@ -13,6 +13,15 @@ define delta (chan(int) in?, out0!, out1!)
       out1 ! v
 end
 
+define sdelta (chan(int) in?, out0!, out1!)
+  while true
+    int v
+
+    in ? v
+    out0 ! v
+    out1 ! v
+end
+
 define prefix (val int n, chan(int) in?, out!)
   out ! n
 

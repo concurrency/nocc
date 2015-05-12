@@ -101,7 +101,7 @@ static int ev3_get_mot_attr_int (int port, const char *attr, int *valp)
 {
 	char tpath[FILENAME_MAX];
 	char xbuf[32];
-	int fd, wlen, i;
+	int fd, i;
 
 	snprintf (tpath, FILENAME_MAX, "%s/%s", ev3_motmap[port].path, attr);
 	fd = open (tpath, O_RDONLY);
@@ -167,7 +167,7 @@ static int ev3_set_mot_attr_str (int port, const char *attr, const char *val)
 /*}}}*/
 
 
-/*{{{  define ev3_mot_init (val int port, type) -> bool*/
+/*{{{  define ev3_mot_init (val ev3_outport port, val ev3_mdev mtype) -> bool*/
 
 static void igcf_ev3_mot_init (int *result, int port, ev3_mdev_e type)
 {
@@ -253,7 +253,7 @@ fail_out:
 
 void gcf_ev3_mot_init (Workspace wptr, int *result, int port, int type)
 {
-	ExternalCallN (igcf_ev3_mot_init, 3, result, port, type);
+	ExternalCallN (igcf_ev3_mot_init, 3, result, port, (ev3_mdev_e)type);
 }
 
 /*}}}*/
@@ -267,6 +267,7 @@ static void igcf_ev3_mot_shutdown (int *result)
 		ev3_motmap[p].dev = MDEV_UNKNOWN;
 		ev3_motmap[p].mid = -1;
 		ev3_motmap[p].st = MST_OFF;
+		ev3_motmap[p].path[0] = '\0';
 	}
 	*result = 1;
 	return;
@@ -277,7 +278,7 @@ void gcf_ev3_mot_shutdown (Workspace wptr, int *result)
 	ExternalCallN (igcf_ev3_mot_shutdown, 1, result);
 }
 /*}}}*/
-/*{{{  define ev3_mot_on_fwd (val int port, power) -> bool*/
+/*{{{  define ev3_mot_on_fwd (val ev3_outport port, val int power) -> bool*/
 
 static void igcf_ev3_mot_on (int *result, int port, int power)
 {
@@ -309,7 +310,7 @@ void gcf_ev3_mot_on_fwd (Workspace wptr, int *result, int port, int power)
 }
 
 /*}}}*/
-/*{{{  define ev3_mot_on_rev (val int port, power) -> bool*/
+/*{{{  define ev3_mot_on_rev (val ev3_outport port, val int power) -> bool*/
 
 void gcf_ev3_mot_on_rev (Workspace wptr, int *result, int port, int power)
 {
@@ -317,7 +318,7 @@ void gcf_ev3_mot_on_rev (Workspace wptr, int *result, int port, int power)
 }
 
 /*}}}*/
-/*{{{  define ev3_mot_off (val int port) -> bool*/
+/*{{{  define ev3_mot_off (val ev3_outport port) -> bool*/
 
 static void igcf_ev3_mot_off (int *result, int port)
 {
@@ -345,9 +346,9 @@ void gcf_ev3_mot_off (Workspace wptr, int *result, int port)
 }
 
 /*}}}*/
-/*{{{  define ev3_mot_stop_mode (val int port, smode) -> bool*/
+/*{{{  define ev3_mot_stop_mode (val ev3_outport port, val ev3_stm smode) -> bool*/
 
-static void igcf_ev3_mot_stop_mode (int *result, int port, int smode)
+static void igcf_ev3_mot_stop_mode (int *result, int port, ev3_stm_e smode)
 {
 	static char *modestrs[] = {"coast", "brake", "hold"};
 
@@ -380,7 +381,7 @@ void gcf_ev3_mot_stop_mode (Workspace wptr, int *result, int port, int smode)
 }
 
 /*}}}*/
-/*{{{  define ev3_mot_count_per_rot (val int port) -> int*/
+/*{{{  define ev3_mot_count_per_rot (val ev3_outport port) -> int*/
 
 static void igcf_ev3_mot_count_per_rot (int *result, int port)
 {
@@ -406,7 +407,7 @@ void gcf_ev3_mot_count_per_rot (Workspace wptr, int *result, int port)
 }
 
 /*}}}*/
-/*{{{  define ev3_mot_cur_pos (val int port) -> int*/
+/*{{{  define ev3_mot_cur_pos (val ev3_outport port) -> int*/
 
 static void igcf_ev3_mot_cur_pos (int *result, int port)
 {
@@ -432,7 +433,7 @@ void gcf_ev3_mot_cur_pos (Workspace wptr, int *result, int port)
 }
 
 /*}}}*/
-/*{{{  define ev3_mot_run_to_pos (val int port, pos, power) -> bool*/
+/*{{{  define ev3_mot_run_to_pos (val ev3_outport port, val int pos, power) -> bool*/
 
 static void igcf_ev3_mot_run_to_pos (int *result, int port, int pos, int power)
 {

@@ -643,7 +643,7 @@ int guppy_declify_listtodecllist_single (tnode_t **listptr, guppy_declify_t *gdl
 	int i, j;
 	tnode_t *newlist = parser_newlistnode (OrgOf (list));
 
-#if 1
+#if 0
 fprintf (stderr, "guppy_declify_listtodecllist_single(): nitems=%d\n", nitems);
 #endif
 	/* call declify on the subnodes as we go through */

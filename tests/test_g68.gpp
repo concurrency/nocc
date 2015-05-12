@@ -6,6 +6,11 @@ define enum ev3_mdev
   MDEV_L_MOTOR = 1
 end
 
+@external "guppy" "define bar (val int x, y) -> bool = 32"
+
+define foo (val ev3_mdev n, m)
+  skip
+end
 
 define main ()
   int x = 42
