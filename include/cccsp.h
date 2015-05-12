@@ -42,6 +42,8 @@ typedef enum ENUM_cccsp_subtarget {
 	CCCSP_SUBTARGET_EV3 = 1
 } cccsp_subtarget_e;
 
+#define CCCSP_NUM_SUBTARGETS (2)
+
 typedef enum ENUM_cccsp_apicall {
 	NOAPI = 0,
 	CHAN_IN = 1,
@@ -166,6 +168,8 @@ extern void cccsp_freeparinfo (cccsp_parinfo_t *pset);
 extern int cccsp_linkparinfo (cccsp_parinfo_t *pset, cccsp_parinfo_entry_t *pent);
 
 extern cccsp_subtarget_e cccsp_get_subtarget (void);
+extern char *cccsp_subtarget_name (cccsp_subtarget_e target);
+extern int cccsp_subtarget_from_name (const char *str, cccsp_subtarget_e *res);
 
 extern struct TAG_cccsp_sfi_entry *cccsp_sfiofname (struct TAG_name *name, int pinst);
 

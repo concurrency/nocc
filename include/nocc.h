@@ -133,7 +133,7 @@ typedef struct TAG_compopts {
 	char *wget_opts;
 	int cache_pref;
 	int cache_cow;
-	char *cccsp_kroc;
+	DYNARRAY (char *, cccsp_kroc);		/* indexed by CCCSP_SUBTARGET_... [0 .. CCCSP_NUM_SUBTARGETS-1] */
 	char pathseparator;
 	int unexpected;				/* if non-zero this means lexers should expect (and treat) garbled input, e.g. unexpected EOF */
 } compopts_t;

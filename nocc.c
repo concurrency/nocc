@@ -1,6 +1,6 @@
 /*
  *	nocc.c -- new occam-pi compiler (harness)
- *	Copyright (C) 2004-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -94,6 +94,7 @@
 #include "interact.h"
 #include "ihelp.h"
 #include "lexpriv.h"
+#include "cccsp.h"		/* needed for some help with subtarget options */
 
 #ifdef USE_LIBREADLINE
 #include <readline/history.h>
@@ -175,7 +176,7 @@ compopts_t compopts = {
 	.wget_opts = NULL,
 	.cache_pref = 0,
 	.cache_cow = 0,
-	.cccsp_kroc = NULL,
+	DA_CONSTINITIALISER(cccsp_kroc),
 	.pathseparator = ';',
 	.unexpected = 0
 };
@@ -223,6 +224,8 @@ static char *compiler_stock_target = NULL;
 STATICDYNARRAY (ihandler_t *, ihandlers);
 
 STATICDYNARRAY (char*, str_commands);
+
+static int sel_cccsp_subtarget = -1;		/* means not-specified when eating at specs-file */
 
 /*}}}*/
 
@@ -880,6 +883,30 @@ static void specfile_elem_start (xmlhandler_t *xh, void *data, xmlkey_t *key, xm
 				break;
 			}
 		}
+	} else if ((key->type == XMLKEY_CCCSP_KROC) && attrkeys) {
+		int i;
+
+		sel_cccsp_subtarget = -1;
+		for (i=0; attrkeys[i] && attrvals[i]; i++) {
+			switch (attrkeys[i]->type) {
+			case XMLKEY_SUBTARGET:
+				/* setting for a specific subtarget */
+				{
+					cccsp_subtarget_e subt;
+
+					if (cccsp_subtarget_from_name (attrvals[i], &subt)) {
+						nocc_warning ("unknown CCCSP subtarget [%s] in specs file, ignoring entry", attrvals[i]);
+						sel_cccsp_subtarget = -2;		/* means do nothing */
+					} else {
+						sel_cccsp_subtarget = (int)subt;
+					}
+				}
+				break;
+			default:
+				nocc_warning ("unknown attribute %s in specs file ignored", attrkeys[i]->name);
+				break;
+			}
+		}
 	}
 	return;
 }
@@ -943,7 +970,29 @@ static void specfile_elem_end (xmlhandler_t *xh, void *data, xmlkey_t *key)
 			specfile_noresetstring (&compopts.wget_opts, edata);
 			break;
 		case XMLKEY_CCCSP_KROC:
-			specfile_noresetstring (&compopts.cccsp_kroc, edata);
+			switch (sel_cccsp_subtarget) {
+			case -1:
+				/* apply to all */
+				{
+					int i;
+
+					for (i=0; i<DA_CUR (compopts.cccsp_kroc); i++) {
+						specfile_noresetstring (DA_NTHITEMADDR (compopts.cccsp_kroc, i), edata);
+					}
+				}
+				break;
+			case -2:
+				/* skip because busted subtarget */
+				break;
+			default:
+				/* 0.. means specific one */
+				if (sel_cccsp_subtarget >= CCCSP_NUM_SUBTARGETS) {
+					nocc_internal ("impossible situation here (sel_cccsp_subtarget = %d >= CCCSP_NUM_SUBTARGETS)\n", sel_cccsp_subtarget);
+				} else {
+					specfile_noresetstring (DA_NTHITEMADDR (compopts.cccsp_kroc, sel_cccsp_subtarget), edata);
+				}
+				break;
+			}
 			break;
 		default:
 			nocc_warning ("unknown setting %s in specs file ignored", key->name);
@@ -2183,6 +2232,9 @@ static int cstage_feargs (compcxt_t *ccx)
 	int i;
 	DYNARRAY (char *, be_saved_opts);
 
+#if 1
+fhandle_printf (FHAN_STDERR, "cstage_feargs(): trying to process %d arguments leftover..\n", DA_CUR (be_def_opts));
+#endif
 	dynarray_init (be_saved_opts);
 	for (walk = DA_PTR (be_def_opts), i = DA_CUR (be_def_opts); walk && *walk && i; walk++, i--) {
 		cmd_option_t *opt = NULL;
@@ -2273,6 +2325,9 @@ static int cstage_beargs (compcxt_t *ccx)
 	char **walk;
 	int i;
 
+#if 0
+fhandle_printf (FHAN_STDERR, "cstage_beargs(): processing %d back-end arguments..\n", DA_CUR (be_def_opts));
+#endif
 	for (walk = DA_PTR (be_def_opts), i = DA_CUR (be_def_opts); walk && *walk && i; walk++, i--) {
 		cmd_option_t *opt = NULL;
 
@@ -2990,6 +3045,12 @@ int main (int argc, char **argv)
 
 	dynarray_init (ihandlers);
 
+	/* sort out CCCSP subtarget krocs */
+	dynarray_setsize (compopts.cccsp_kroc, CCCSP_NUM_SUBTARGETS);
+	for (i=0; i<CCCSP_NUM_SUBTARGETS; i++) {
+		DA_SETNTHITEM (compopts.cccsp_kroc, i, NULL);
+	}
+
 	/*}}}*/
 	/*{{{  general initialisation*/
 #ifdef DEBUG
@@ -3242,7 +3303,12 @@ int main (int argc, char **argv)
 		nocc_message ("    cache-cow:       %s", compopts.cache_cow ? "yes" : "no");
 		nocc_message ("    cache-pref:      %s", compopts.cache_pref ? "yes" : "no");
 		nocc_message ("    wget-opts:       %s", compopts.wget_opts ?: "(unset)");
-		nocc_message ("    cccsp-kroc:      %s", compopts.cccsp_kroc ?: "(unset)");
+		nocc_message ("    cccsp-kroc:");
+		for (i=0; i<DA_CUR (compopts.cccsp_kroc); i++) {
+			char *subtname = cccsp_subtarget_name ((cccsp_subtarget_e)i);
+
+			nocc_message ("        [%-8s]   %s", subtname, DA_NTHITEM (compopts.cccsp_kroc, i) ?: "(unset)");
+		}
 	}
 
 

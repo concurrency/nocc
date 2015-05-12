@@ -1,4 +1,4 @@
-/* ANSI-C code produced by gperf version 3.0.3 */
+/* ANSI-C code produced by gperf version 3.0.4 */
 /* Command-line: /usr/bin/gperf  */
 /* Computed positions: -k'2,6,9' */
 
@@ -35,12 +35,12 @@
  */
 struct TAG_cmd_option;
 
-#define TOTAL_KEYWORDS 76
+#define TOTAL_KEYWORDS 75
 #define MIN_WORD_LENGTH 3
 #define MAX_WORD_LENGTH 19
 #define MIN_HASH_VALUE 4
-#define MAX_HASH_VALUE 147
-/* maximum key range = 144, duplicates = 0 */
+#define MAX_HASH_VALUE 142
+/* maximum key range = 139, duplicates = 0 */
 
 #ifdef __GNUC__
 __inline
@@ -54,32 +54,32 @@ hash (register const char *str, register unsigned int len)
 {
   static const unsigned char asso_values[] =
     {
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148,   0, 148,  35, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148,  20,   5,  45,
-        5,   5,  55,  10,   0,  95,   0,  25,   0,  30,
-       60,  40,  30,  75,  20,  55,  10,   0,  20, 148,
-        0, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148, 148, 148,
-      148, 148, 148, 148, 148, 148, 148, 148
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143,   0, 143,  35, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143,  20,   5,  45,
+        5,   5,  55,  10,   0,  90,   0,  25,   0,  30,
+       60,  40,  30,  70,  20,  55,  10,   0,  20, 143,
+        0, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+      143, 143, 143, 143, 143, 143, 143, 143
     };
   register int hval = len;
 
@@ -206,36 +206,31 @@ static const struct TAG_cmd_option wordlist[] =
     {"stop-prealloc",		'\0',	opt_setstopflag,	(void *)19,			"1stop after pre-allocation",				118},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"specs-file",		'\0',	opt_setstr,		&(compopts.specsfile),		"0path to compiler specs file",				305},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {"trace-scope",		'\0',	opt_setintflag,		&(compopts.tracescope),		"1trace scoping (debugging)",				202},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"save-named-dfa",		'\0',	opt_setsaveopt,		(void *)1,			"1save named DFA to file",				50},
     {"skip-aliascheck",	'\0',	opt_clearintflag,	&(compopts.doaliascheck),	"1skip alias checks",					150},
-    {"trace-scope",		'\0',	opt_setintflag,		&(compopts.tracescope),		"1trace scoping (debugging)",				202},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"stop-alloc",		'\0',	opt_setstopflag,	(void *)20,			"1stop after variable allocation",			119},
-    {"interactive",		'i',	opt_setintflag,		&(compopts.interactive),	"0interactive compiler operation",			307},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"dump-targets",		'\0',	opt_setintflag,		&(compopts.dumptargets),	"1print supported targets after initialisation",	13},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"stop-usagecheck",	'\0',	opt_setstopflag,	(void *)10,			"1stop after parallel-usage check",			109},
+    {"interactive",		'i',	opt_setintflag,		&(compopts.interactive),	"0interactive compiler operation",			307},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"dump-folded",		'\0',	opt_setintflag,		&(compopts.dumpfolded),		"1include folds in parse tree dumps",			20},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {"dump-snodetags",		'\0',	opt_setintflag,		&(compopts.dumpsnodetags),	"1print node tags after initialisation (short form)",	17},
     {"dump-snodetypes",	'\0',	opt_setintflag,		&(compopts.dumpsnodetypes),	"1print node types after initialisation (short form)",	16},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {"cccsp-kroc",		'\0',	opt_setstr,		&(compopts.cccsp_kroc),		"1specify path to kroc for CCCSP back-end",		501},
     {"dump-chooks",		'\0',	opt_setintflag,		&(compopts.dumpchooks),		"1print compiler hooks",				18},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
@@ -257,7 +252,7 @@ static const struct TAG_cmd_option wordlist[] =
 
 #ifdef __GNUC__
 __inline
-#ifdef __GNUC_STDC_INLINE__
+#if defined __GNUC_STDC_INLINE__ || defined __GNUC_GNU_INLINE__
 __attribute__ ((__gnu_inline__))
 #endif
 #endif

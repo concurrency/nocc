@@ -16,6 +16,7 @@ struct TAG_xmlkey;
 %%
 nocc,			XMLKEY_NOCC
 target,			XMLKEY_TARGET
+subtarget,		XMLKEY_SUBTARGET
 epath,			XMLKEY_EPATH
 ipath,			XMLKEY_IPATH
 lpath,			XMLKEY_LPATH

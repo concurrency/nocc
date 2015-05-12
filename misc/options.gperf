@@ -88,7 +88,6 @@ extn-path,		'E',	opt_addextnpath,	NULL,				"1add paths for compiler extensions",
 extn,			'e',	opt_addextn,		NULL,				"0compiler extension to load",				400
 dump-tracemem,		'\0',	opt_setintflag,		&(compopts.dumptracemem),	"1display left-over memory blocks (if compiled)",	450
 dump-tokens-to,		'\0',	opt_setstr,		&(compopts.dumptokensto),	"1dump lexer tokens to file",				500
-cccsp-kroc,		'\0',	opt_setstr,		&(compopts.cccsp_kroc),		"1specify path to kroc for CCCSP back-end",		501
 unexpected,		'\0',	opt_setintflag,		&(compopts.unexpected),		"1expect some deficiencies in input (robust lexer)",	510
 %%
 

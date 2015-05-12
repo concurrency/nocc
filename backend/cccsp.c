@@ -390,21 +390,63 @@ static int cccsp_opthandler_setsubtarget (cmd_option_t *opt, char ***argwalk, in
 {
 	char *ch;
 
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_opthandler_setsubtarget(): here, **argwalk=[%s]\n", **argwalk);
+#endif
 	for (ch=**argwalk; (*ch != '\0') && (*ch != '='); ch++);
 	if (*ch == '\0') {
 		/* odd.. */
 		nocc_warning ("cccsp: missing/empty subtarget option?");
 	} else {
 		ch++;
-		if (!strcmp (ch, "EV3")) {
-			cccsp_subtarget = CCCSP_SUBTARGET_EV3;
-		} else if (!strcmp (ch, "default") || !strcmp (ch, "x86")) {
-			cccsp_subtarget = CCCSP_SUBTARGET_DEFAULT;
-		} else {
+		if (cccsp_subtarget_from_name (ch, &cccsp_subtarget)) {
 			nocc_error ("cccsp: bad subtarget [%s]", ch);
 			return 1;
 		}
 	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cccsp_opthandler_setkrocpath (cmd_option_t *opt, char ***argwalk, int *argleft)*/
+/*
+ *	option handler for cccsp kroc setting
+ *	this used to be in options proper, but slightly more complex now (requires subtarget awareness)
+ *	returns 0 on success, non-zero on failure
+ */
+static int cccsp_opthandler_setkrocpath (cmd_option_t *opt, char ***argwalk, int *argleft)
+{
+	char *ch;
+
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_opthandler_setkrocpath(): here, **argwalk=[%s], cccsp_subtarget=%d\n", **argwalk, (int)cccsp_subtarget);
+#endif
+	for (ch=**argwalk; (*ch != '\0') && (*ch != '='); ch++);
+	if (*ch == '\0') {
+		/* odd.. */
+		nocc_warning ("cccsp: missing/empty subtarget option?");
+	} else {
+		char **sptr = DA_NTHITEMADDR (compopts.cccsp_kroc, (int)cccsp_subtarget);
+
+		ch++;
+		if (*sptr) {
+			sfree (*sptr);
+		}
+		*sptr = string_dup (ch);
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int cccsp_target_init_options (void)*/
+/*
+ *	initialises early options for the KRoC-CIF/CCSP back-end
+ *	returns 0 on success, non-zero on failure
+ */
+static int cccsp_target_init_options (void)
+{
+	opts_add ("cccsp-cc-opts", '\0', cccsp_opthandler_setstring, (void *)&cccsp_cc_opts, "1specify additional C compiler options");
+	opts_add ("cccsp-show-sfi", '\0', cccsp_opthandler_setflag, (void *)&cccsp_show_sfi, "1dump SFI table after recompile");
+	opts_add ("cccsp-subtarget", '\0', cccsp_opthandler_setsubtarget, NULL, "1set CCCSP sub-target (default/x86, EV3)");
+	opts_add ("cccsp-kroc", '\0', cccsp_opthandler_setkrocpath, NULL, "1specify path to kroc for CCCSP back-end");
 	return 0;
 }
 /*}}}*/
@@ -415,9 +457,6 @@ static int cccsp_opthandler_setsubtarget (cmd_option_t *opt, char ***argwalk, in
  */
 static int cccsp_init_options (cccsp_priv_t *kpriv)
 {
-	opts_add ("cccsp-cc-opts", '\0', cccsp_opthandler_setstring, (void *)&cccsp_cc_opts, "1specify additional C compiler options");
-	opts_add ("cccsp-show-sfi", '\0', cccsp_opthandler_setflag, (void *)&cccsp_show_sfi, "1dump SFI table after recompile");
-	opts_add ("cccsp-subtarget", '\0', cccsp_opthandler_setsubtarget, NULL, "1set CCCSP sub-target (default/x86, EV3)");
 	// opts_add ("norangechecks", '\0', cccsp_opthandler_flag, (void *)1, "1do not generate range-checks");
 	return 0;
 }
@@ -1945,6 +1984,41 @@ cccsp_subtarget_e cccsp_get_subtarget (void)
 	return cccsp_subtarget;
 }
 /*}}}*/
+/*{{{  char *cccsp_subtarget_name (cccsp_subtarget_e target)*/
+/*
+ *	returns a constant string describing a subtarget
+ */
+char *cccsp_subtarget_name (cccsp_subtarget_e target)
+{
+	static char *subtarget_names[] = {"x86", "ev3"};
+	static char *subtarget_unk = "unknown";
+
+	switch (target) {
+	case CCCSP_SUBTARGET_DEFAULT:
+	case CCCSP_SUBTARGET_EV3:
+		return subtarget_names[(int)target];
+	}
+	return subtarget_unk;
+}
+/*}}}*/
+/*{{{  int cccsp_subtarget_from_name (const char *str, cccsp_subtarget_e *res)*/
+/*
+ *	turns a string into a subtarget constant.
+ *	returns 0 on success, non-zero on failure.  stores subtarget ID in 'res'.
+ */
+int cccsp_subtarget_from_name (const char *str, cccsp_subtarget_e *res)
+{
+	if (!strcasecmp (str, "ev3")) {
+		*res = CCCSP_SUBTARGET_EV3;
+		return 0;
+	} else if (!strcasecmp (str, "default") || !strcasecmp (str, "x86")) {
+		*res = CCCSP_SUBTARGET_DEFAULT;
+		return 0;
+	}
+	return -1;
+}
+/*}}}*/
+
 
 /*{{{  static void cccsp_coder_comment (codegen_t *cgen, const char *fmt, ...)*/
 /*
@@ -2997,6 +3071,11 @@ int cccsp_init (void)
 		return 1;
 	}
 
+	if (cccsp_target_init_options ()) {
+		nocc_serious ("cccsp_init(): failed to initialise target-specific options");
+		return 1;
+	}
+
 	return 0;
 }
 /*}}}*/
@@ -3609,11 +3688,12 @@ static int cccsp_cc_recompile_cpass (tnode_t **treeptr, lexfile_t *srclf, target
 static int cccsp_get_kroc_env (char *flag, char **target)
 {
 	char **abits = (char **)smalloc (3 * sizeof (char *));
+	char *krocpath = DA_NTHITEM (compopts.cccsp_kroc, (int)cccsp_subtarget);
 	int fres;
 	int pipe_fd[2];
 	int rval = 0;
 
-	abits[0] = string_dup (compopts.cccsp_kroc);
+	abits[0] = string_dup (krocpath);
 	abits[1] = string_dup (flag);
 	abits[2] = NULL;
 
@@ -3635,13 +3715,13 @@ static int cccsp_get_kroc_env (char *flag, char **target)
 		close (pipe_fd[0]);			/* close read-end */
 		dup2 (pipe_fd[1], 1);			/* make stdout = pipe */
 		dup2 (pipe_fd[1], 2);			/* make stderr = pipe */
-		execv (compopts.cccsp_kroc, abits);
+		execv (krocpath, abits);
 
 		/* if we get here, it's gone wrong -- recover stdout/stderr */
 		dup2 (saved_stdout, 1);
 		dup2 (saved_stderr, 2);
 
-		nocc_internal ("cccsp_get_kroc_env(): failed to run %s: %s", compopts.cccsp_kroc, strerror (errno));
+		nocc_internal ("cccsp_get_kroc_env(): failed to run %s: %s", krocpath, strerror (errno));
 		_exit (1);
 	} else {
 		/* we are the parent process */
@@ -3753,11 +3833,16 @@ static int cccsp_target_init (target_t *target)
 	compops_t *cops;
 	langops_t *lops;
 	int i;
+	char *krocpath;
 
 	if (target->initialised) {
 		nocc_internal ("cccsp_target_init(): already initialised!");
 		return 1;
 	}
+
+#if 0
+fhandle_printf (FHAN_STDERR, "cccsp_target_init(): here! cccsp_subtarget=%d\n", (int)cccsp_subtarget);
+#endif
 
 	cccsp_bepass = 0;
 
@@ -3793,12 +3878,22 @@ static int cccsp_target_init (target_t *target)
 
 	cccsp_init_options (kpriv);
 
-	if (!compopts.cccsp_kroc) {
+	/* at this point, the subtarget should be set */
+#if 0
+{
+int vi;
+for (vi=0; vi<DA_CUR (compopts.cccsp_kroc); vi++) {
+	fhandle_printf (FHAN_STDERR, "cccsp_target_init(): kroc path for target %d is %s\n", vi, DA_NTHITEM (compopts.cccsp_kroc, vi));
+}
+}
+#endif
+	krocpath = DA_NTHITEM (compopts.cccsp_kroc, (int)cccsp_subtarget);
+	if (!krocpath) {
 		nocc_warning ("cccsp: path to kroc not set, will not be able to make object files");
-	} else if (access (compopts.cccsp_kroc, X_OK)) {
+	} else if (access (krocpath, X_OK)) {
 		nocc_warning ("cccsp: cannot execute kroc script: %s", strerror (errno));
 	} else if (cccsp_init_kroc_env (kpriv)) {
-		nocc_warning ("cccsp: failed to get compiler information from kroc script [%s]", compopts.cccsp_kroc);
+		nocc_warning ("cccsp: failed to get compiler information from kroc script [%s]", krocpath);
 		/* clear out, throwing memory away possibly.. */
 		kpriv->cc_path = NULL;
 		kpriv->cc_flags = NULL;
@@ -4101,5 +4196,4 @@ static int cccsp_target_init (target_t *target)
 	return 0;
 }
 /*}}}*/
-
 
