@@ -3,34 +3,42 @@
 #	actual stack-frame sizes.  (this one is for the restricted ARM/CCSP on the LEGO EV3).
 #
 
-ccsp_kernel_call: =32
-ChanIn: ccsp_kernel_call
-ChanInit:
-ChanOut: ccsp_kernel_call
-ExternalCall0: ccsp_kernel_call
-ExternalCall1: ccsp_kernel_call
-ExternalCallN: ccsp_kernel_call
-MAlloc: ccsp_kernel_call
-MRelease: ccsp_kernel_call
+ccsp_kernel_call: =16
+ccsp_external_call: =24
+
+ChanIn: =48, ccsp_kernel_call
+ChanInit: =8
+ChanOut: =48, ccsp_kernel_call
+
+ExternalCall0: =16, ccsp_external_call
+ExternalCall1: =16, ccsp_external_call
+ExternalCallN: =28, ccsp_external_call
+
+MAlloc: =40, ccsp_kernel_call
+MRelease: =32, ccsp_kernel_call
+
 ccsp_kernel_entry: =64
 ProcAllocInitial: =128
 ProcStartInitial: ccsp_kernel_entry
-LightProcBarrierInit:
+
+LightProcBarrierInit: =16
 LightProcBarrierWait: ccsp_kernel_call
-LightProcInit:
-LightProcStart: ccsp_kernel_call
-Reschedule: ccsp_kernel_call
-Shutdown: ccsp_kernel_call
-ProcPar: LightProcBarrierInit, LightProcStart, LightProcBarrierWait
-GuppyStringInit: MAlloc
-GuppyStringFree: MRelease
-GuppyStringEmpty: MRelease
-GuppyStringConstInitialiser: MAlloc
-GuppyStringAssign: MRelease, MAlloc, ExternalCallN
-GuppyStringConcat: GuppyStringEmpty, MAlloc
-GuppyStringClear: GuppyStringInit
-gproc_guppy_screen_process: ProcGetParam, ChanIn, ExternalCallN, GuppyStringFree
-gcf_int_to_str: GuppyStringFree, GuppyStringInit, MAlloc, ExternalCallN
+LightProcInit: =16
+LightProcStart: =32, ccsp_kernel_call
+
+Reschedule: =16, ccsp_kernel_call
+Shutdown: =16, ccsp_kernel_call
+
+ProcPar: =44, LightProcBarrierInit, LightProcStart, LightProcBarrierWait
+GuppyStringInit: =24, MAlloc
+GuppyStringFree: =16, MRelease
+GuppyStringEmpty: =16, MRelease
+GuppyStringConstInitialiser: =32, MAlloc
+GuppyStringAssign: =32, MRelease, MAlloc, ExternalCallN
+GuppyStringConcat: =32, GuppyStringEmpty, MAlloc
+GuppyStringClear: =16, GuppyStringInit
+gproc_guppy_screen_process: =24, ProcGetParam, ChanIn, ExternalCallN, GuppyStringFree
+gcf_int_to_str: =48, GuppyStringFree, GuppyStringInit, MAlloc, ExternalCallN
 
 
 

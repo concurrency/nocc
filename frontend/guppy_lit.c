@@ -384,10 +384,13 @@ static tnode_t *guppy_gettype_litnode (langops_t *lops, tnode_t *node, tnode_t *
 			int typesize = tnode_bytesfor (default_type, NULL);
 			int issigned = tnode_issigned (default_type, NULL);
 
-#if 1
-fprintf (stderr, "guppy_gettype_litnode(): ldat->bytes=%d, issigned=%d, typesize=%d\n", ldat->bytes, issigned, typesize);
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_gettype_litnode(): (node->org->org_line=%d) ldat->bytes=%d, issigned=%d, typesize=%d.  Default type is:\n",
+		node->org->org_line, ldat->bytes, issigned, typesize);
+tnode_dumptree (default_type, 1, FHAN_STDERR);
 #endif
 			if ((node->tag == gup.tag_LITINT) && (typesize < ldat->bytes)) {
+				nocc_internal ("FIXME: in guppy_gettype_litnode().");
 			}
 
 			type = tnode_copytree (default_type);

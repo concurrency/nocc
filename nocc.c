@@ -2232,7 +2232,7 @@ static int cstage_feargs (compcxt_t *ccx)
 	int i;
 	DYNARRAY (char *, be_saved_opts);
 
-#if 1
+#if 0
 fhandle_printf (FHAN_STDERR, "cstage_feargs(): trying to process %d arguments leftover..\n", DA_CUR (be_def_opts));
 #endif
 	dynarray_init (be_saved_opts);

@@ -154,6 +154,17 @@ else
 
 fi
 
+AC_ARG_WITH([kroc-ev3], AC_HELP_STRING([--with-kroc-ev3=...],[Path to dummy KRoC script for CCCSP EV3 back-end]), [kroc_ev3=$withval], [kroc_ev3=none])
+
+if test "x$kroc_ev3" = "xnone"; then
+ kroc_ev3_path=none
+else
+ kroc_ev3_path="$kroc_ev3"
+
+ AC_MSG_CHECKING([for location of KRoC/EV3 script])
+ AC_MSG_RESULT($kroc_ev3_path)
+fi
+
 if test $have_expat_h = yes; then
  if test $have_libexpat = yes; then
   AC_DEFINE([USE_LIBEXPAT],1,[define to use expat XML library])
@@ -188,6 +199,7 @@ AC_SUBST(EXTRA_LDFLAGS)
 # some substitutions for paths
 AC_SUBST(build_dir)
 AC_SUBST(kroc_path)
+AC_SUBST(kroc_ev3_path)
 
 AC_OUTPUT([Makefile include/Makefile misc/Makefile lexer/Makefile parser/Makefile extn/Makefile xml/Makefile frontend/Makefile backend/Makefile target/Makefile lang/Makefile tests/Makefile addons/Makefile nocc.specs.xml])
 

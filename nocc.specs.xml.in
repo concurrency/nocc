@@ -17,17 +17,17 @@
 	<epath>/usr/local/nocc/addons</epath>
 	<epath>/usr/share/nocc/addons</epath>
 	<epath>/usr/lib/nocc/addons</epath>
-	<epath>/home/frmb/kroc_linux/gitsrc/nocc-extn/lib</epath>
+	<epath>$HOME/kroc_linux/ukcsource/nocc-extn/lib</epath>
 	<epath>$HOME/.nocc/addons</epath>
 
 	<!-- extn's say what extensions to load (-e) -->
 
 	<!-- ipath's say where include files are (-I) -->
-	<ipath>/home/frmb/kroc_linux/ukcsource/install/share/kroc/vtinclude</ipath>
+	<ipath>$HOME/kroc_linux/gitsrc/install/share/kroc/vtinclude</ipath>
 	<ipath>@build_dir@/addons/headers</ipath>
 
 	<!-- lpath's say where library files are (-L) -->
-	<lpath>/home/frmb/kroc_linux/ukcsource/install/share/kroc/vtlib</lpath>
+	<lpath>$HOME/kroc_linux/gitsrc/install/share/kroc/vtlib</lpath>
 
 	<!-- signing/hashing -->
 	<hashalgo>sha256</hashalgo>
@@ -45,7 +45,8 @@
 	<!-- some extra settings -->
 	<cachedir pref="yes" cow="yes">$HOME/.nocc/cache</cachedir>
 	<wgetopts>%u -O %l</wgetopts>
-	<cccsp-kroc>@kroc_path@</cccsp-kroc>
+	<cccsp-kroc subtarget="x86">@kroc_path@</cccsp-kroc>
+	<cccsp-kroc subtarget="ev3">@kroc_ev3_path@</cccsp-kroc>
 
 	<!-- experimental things -->
 </nocc>
