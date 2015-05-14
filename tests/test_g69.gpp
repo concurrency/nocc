@@ -15,6 +15,7 @@ end
 define main (chan(string) screen!)
   bool b
   int cpr, pos
+  int dly = 500000
   seq
     screen ! "hello, EV3 world from Guppy!\n"
     
@@ -40,11 +41,14 @@ define main (chan(string) screen!)
     delay (200000)
 
     pos = ev3_mot_cur_pos (PORT_B)
-    screen ! "advance half pre..\n"
-    b = ev3_mot_run_to_pos (PORT_B, pos + (cpr / 2), 20)
-    screen ! "advance half post..\n"
 
-    delay (5000000)
+    seq for 2
+      screen ! "advance half pre..\n"
+      b = ev3_mot_run_to_pos (PORT_B, pos + (cpr / 4), 20)
+      screen ! "advance half post..\n"
+      delay (dly)
+      b = ev3_mot_run_to_pos (PORT_B, pos, -20)
+      delay (dly)
 
     screen ! "all done!\n"
 end

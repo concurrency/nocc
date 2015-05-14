@@ -2380,9 +2380,16 @@ static tnode_t *guppy_decllistandguard (lexfile_t *lf)
 			if (tree) {
 				tnode_setnthsub (tree, 0, lexpr);
 			}
+		} else if (lexpr->tag == gup.tag_MARKEDIN) {
+			/* the '?' got consumed in the expression */
+			lexer_pushback (lf, tok);
+			tree = dfa_walk ("guppy:restofinput2", 0, lf);
+			if (tree) {
+				tnode_setnthsub (tree, 0, tnode_nthsubof (lexpr, 0));
+			}
 		} else {
 			/* dunno.. */
-			parser_error (SLOCN (lf), "got here but failed");
+			parser_error (SLOCN (lf), "got here but failed, token was '%s'", lexer_stokenstr (tok));
 			return NULL;
 		}
 	} else if (tree->tag == testfalsetag) {

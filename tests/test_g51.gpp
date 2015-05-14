@@ -16,17 +16,29 @@ end
 
 val int MOVE_DELAY = 480000
 
-define move_fork (val int motor, chan(int) cmd?, val int inv)
-  int c
+define move_fork (val ev3_outport motor, chan(int) cmd?, val int inv)
+  int c, pos, cpr
+  bool b
+  int move_delta
   seq
     # centre the fork by swinging left enough
-    ev3_pwm_on_fwd (motor, 40)
-    fixed_delay (MOVE_DELAY * 3)
-    ev3_pwm_off (motor)
-    ev3_pwm_on_rev (motor, 40)
-    fixed_delay (MOVE_DELAY)
-    ev3_pwm_off (motor)
-    fixed_delay (1000000)
+    b = ev3_mot_stop_mode (motor, STM_BRAKE)
+    b = ev3_mot_on_fwd (motor, 40)
+    fixed_delay (MOVE_DELAY * 4)
+    b = ev3_mot_off (motor)
+
+    # where are we now?
+    pos = ev3_mot_cur_pos (motor)
+    cpr = ev3_mot_count_per_rot (motor)
+
+    move_delta = cpr / 2
+
+    # then back to the centre (-delta)
+    b = ev3_mot_run_to_pos (motor, pos - move_delta, -40)
+    fixed_delay (MOVE_DELAY * 4)
+
+    # make 'pos' the centre position
+    pos = ev3_mot_cur_pos (motor)
 
     cmd ? c
 
@@ -38,9 +50,8 @@ define move_fork (val int motor, chan(int) cmd?, val int inv)
           (c == inv)
             seq
               # move left
-              ev3_pwm_on_fwd (motor, 40)
+              b = ev3_mot_run_to_pos (motor, pos + move_delta, 40)
               fixed_delay (MOVE_DELAY)
-              ev3_pwm_off (motor)
 
               # wait/notify completion
               cmd ? c
@@ -48,18 +59,16 @@ define move_fork (val int motor, chan(int) cmd?, val int inv)
               # wait for put-back
               cmd ? c
 
-              ev3_pwm_on_rev (motor, 40)
+              b = ev3_mot_run_to_pos (motor, pos, -40)
               fixed_delay (MOVE_DELAY)
-              ev3_pwm_off (motor)
 
               # wait/notify completion
               cmd ? c
           else
             seq
               # move right
-              ev3_pwm_on_rev (motor, 40)
+              b = ev3_mot_run_to_pos (motor, pos - move_delta, 40)
               fixed_delay (MOVE_DELAY)
-              ev3_pwm_off (motor)
 
               # wait/notify completion
               cmd ? c
@@ -67,9 +76,8 @@ define move_fork (val int motor, chan(int) cmd?, val int inv)
               # wait for put-back
               cmd ? c
 
-              ev3_pwm_on_fwd (motor, 40)
+              b = ev3_mot_run_to_pos (motor, pos, 40)
               fixed_delay (MOVE_DELAY)
-              ev3_pwm_off (motor)
 
               # wait/notify completion
               cmd ? c
@@ -194,10 +202,10 @@ end
 define secure_college ()
   chan(int) fc0, fc1, fc2, fc3
   par
-    move_fork (0x01, fc0?, 1)
-    move_fork (0x02, fc1?, 0)
-    move_fork (0x04, fc2?, 0)
-    move_fork (0x08, fc3?, 1)
+    move_fork (PORT_A, fc0?, 1)
+    move_fork (PORT_B, fc1?, 0)
+    move_fork (PORT_C, fc2?, 0)
+    move_fork (PORT_D, fc3?, 1)
 
     seq
       # sync with motor drivers before we start the simulation proper.
@@ -227,13 +235,17 @@ end
 define system (chan(string) screen!)
   bool b
   seq
-    b = ev3_pwm_init ()
+    b = ev3_mot_init (PORT_A, MDEV_L_MOTOR)
+    b = ev3_mot_init (PORT_B, MDEV_L_MOTOR)
+    b = ev3_mot_init (PORT_C, MDEV_L_MOTOR)
+    b = ev3_mot_init (PORT_D, MDEV_L_MOTOR)
+
     if (b == false)
       screen ! "failed to initialise PWM!\n"
       return
 
     secure_college ()
 
-    ev3_pwm_shutdown ()
+    ev3_mot_shutdown ()
 end
 

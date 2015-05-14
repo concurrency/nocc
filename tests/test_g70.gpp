@@ -1,0 +1,14 @@
+
+# test_g70.gpp -- testing broken alt handling?
+
+define test (chan(int) in0?, in1?)
+  int x
+  seq
+    alt
+      in0 ? x
+        skip
+      in1 ? x
+        stop
+end
+
+

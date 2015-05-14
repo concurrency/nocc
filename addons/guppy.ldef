@@ -273,6 +273,8 @@
 .TABLE	"guppy:guard +:= [ 0 -Name 1 ] [ 1 guppy:input 2 ] [ 2 {<gup:guardreduce>} -* ]"
 .TABLE	"guppy:restofinput +:= [ 0 @@? 1 ] [ 1 {<gup:nullpush>} -* 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:inputreduce>} -* ]"
 	"[ 2 @case 4 ] [ 4 {<gup:caseinputreduce>} -* ]"
+.TABLE	"guppy:restofinput2 +:= [ 0 {<gup:nullpush>} -* 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:inputreduce>} -* ]"
+	"[ 1 @case 3 ] [ 3 {<gup:caseinputreduce>} -* ]"
 
 # }}}
 .SECTION "guppy-oper" # {{{: operators
