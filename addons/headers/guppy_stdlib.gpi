@@ -3,6 +3,6 @@
 # Fred Barnes, June 2013
 #
 
-@external "guppy" "define guppy_screen_process (chan?(string) in) = 64"
-@external "guppy" "define int_to_str (val int n) -> string = 64"
+@external "guppy" "define guppy_screen_process (chan?(string) in) = 88"
+@external "guppy" "define int_to_str (val int n) -> string = 120"
 

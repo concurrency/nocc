@@ -36,14 +36,15 @@ define enum ev3_inport
 end
 
 
-@external "guppy" "define ev3_mot_init (val ev3_outport port, val ev3_mdev mtype) -> bool = 64"
-@external "guppy" "define ev3_mot_shutdown () -> bool = 64"
-@external "guppy" "define ev3_mot_on_fwd (val ev3_outport port, val int power) -> bool = 64"
-@external "guppy" "define ev3_mot_on_rev (val ev3_outport port, val int power) -> bool = 64"
-@external "guppy" "define ev3_mot_off (val ev3_outport port) -> bool = 64"
-@external "guppy" "define ev3_mot_stop_mode (val ev3_outport port, val ev3_stm smode) -> bool = 64"
-@external "guppy" "define ev3_mot_count_per_rot (val ev3_outport port) -> int = 64"
-@external "guppy" "define ev3_mot_cur_pos (val ev3_outport port) -> int = 64"
-@external "guppy" "define ev3_mot_run_to_pos (val ev3_outport port, val int pos, power) -> bool = 64"
+# Note: all of these simply call into ExternalCallN, requiring 64 bytes of stack (44 for ExternalCallN + 20 for EXTERNAL_CALL)
+@external "guppy" "define ev3_mot_init (val ev3_outport port, val ev3_mdev mtype) -> bool = 96"
+@external "guppy" "define ev3_mot_shutdown () -> bool = 80"
+@external "guppy" "define ev3_mot_on_fwd (val ev3_outport port, val int power) -> bool = 96"
+@external "guppy" "define ev3_mot_on_rev (val ev3_outport port, val int power) -> bool = 96"
+@external "guppy" "define ev3_mot_off (val ev3_outport port) -> bool = 88"
+@external "guppy" "define ev3_mot_stop_mode (val ev3_outport port, val ev3_stm smode) -> bool = 96"
+@external "guppy" "define ev3_mot_count_per_rot (val ev3_outport port) -> int = 88"
+@external "guppy" "define ev3_mot_cur_pos (val ev3_outport port) -> int = 88"
+@external "guppy" "define ev3_mot_run_to_pos (val ev3_outport port, val int pos, power) -> bool = 96"
 
 

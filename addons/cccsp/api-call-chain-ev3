@@ -3,42 +3,66 @@
 #	actual stack-frame sizes.  (this one is for the restricted ARM/CCSP on the LEGO EV3).
 #
 
-ccsp_kernel_call: =16
-ccsp_external_call: =24
 
-ChanIn: =48, ccsp_kernel_call
-ChanInit: =8
-ChanOut: =48, ccsp_kernel_call
+ENTER_KERNEL: =8 
+EXTERNAL_CALL: =20 
+ChanInit: =8 
+ChanOut: =48, ENTER_KERNEL 
+ChanIn: =48, ENTER_KERNEL 
+Reschedule: =24, ENTER_KERNEL 
+SetErr: =24, ENTER_KERNEL 
+SetErrM: =32, ENTER_KERNEL 
+Shutdown: =24, ENTER_KERNEL 
+MAlloc: =40, ENTER_KERNEL 
+MRelease: =32, ENTER_KERNEL 
+LightProcBarrierInit: =16 
+RunP: =32, ENTER_KERNEL 
+StopP: =24, ENTER_KERNEL 
+LightProcBarrierWait: =16, StopP 
+TimerRead: =32, ENTER_KERNEL 
+TimerWait: =32, ENTER_KERNEL 
+Time_AFTER: =16 
+Alt: =24, ENTER_KERNEL 
+AltEnd: =24, ENTER_KERNEL 
+AltEnableChannel: =48, ENTER_KERNEL 
+AltDisableChannel: =48, ENTER_KERNEL 
+AltWait: =24, ENTER_KERNEL 
+ProcParam: ProcParamAny 
+ProcGetParam: ProcGetParamAny 
+RuntimeSetEntry: =8 
+ccsp_scheduler: =0 
+LightProcInit: =40, MAlloc 
+LightProcFree: =16, MRelease 
+ProcParamAny: =32 
+ProcGetParamAny: =16 
+ProcPar: =36, LightProcBarrierInit, LightProcStart, LightProcBarrierWait 
+LightProcStart: =32, RuntimeSetEntry, RunP 
+ProcAlt: =32, Alt, AltEnableChannel, SetErrM, AltWait, AltDisableChannel, AltEnd 
+ExternalCall0: =40, ccsp_scheduler, EXTERNAL_CALL 
+ExternalCall1: =40, ccsp_scheduler, EXTERNAL_CALL 
+ExternalCallN: =44, ccsp_scheduler, EXTERNAL_CALL 
 
-ExternalCall0: =16, ccsp_external_call
-ExternalCall1: =16, ccsp_external_call
-ExternalCallN: =28, ccsp_external_call
-
-MAlloc: =40, ccsp_kernel_call
-MRelease: =32, ccsp_kernel_call
-
-ccsp_kernel_entry: =64
-ProcAllocInitial: =128
-ProcStartInitial: ccsp_kernel_entry
-
-LightProcBarrierInit: =16
-LightProcBarrierWait: ccsp_kernel_call
-LightProcInit: =16
-LightProcStart: =32, ccsp_kernel_call
-
-Reschedule: =16, ccsp_kernel_call
-Shutdown: =16, ccsp_kernel_call
-
-ProcPar: =44, LightProcBarrierInit, LightProcStart, LightProcBarrierWait
-GuppyStringInit: =24, MAlloc
-GuppyStringFree: =16, MRelease
-GuppyStringEmpty: =16, MRelease
-GuppyStringConstInitialiser: =32, MAlloc
-GuppyStringAssign: =32, MRelease, MAlloc, ExternalCallN
-GuppyStringConcat: =32, GuppyStringEmpty, MAlloc
-GuppyStringClear: =16, GuppyStringInit
-gproc_guppy_screen_process: =24, ProcGetParam, ChanIn, ExternalCallN, GuppyStringFree
-gcf_int_to_str: =48, GuppyStringFree, GuppyStringInit, MAlloc, ExternalCallN
-
+gproc_guppy_screen_process: =24, ProcGetParam, ChanIn, ExternalCallN, GuppyStringFree 
+gcf_int_to_str: =48, GuppyStringFree, GuppyStringInit, MAlloc, ExternalCallN 
+gcf_debug_printf: =16, ExternalCallN 
+gcf_ev3_mot_init: =32, ExternalCallN 
+gcf_ev3_mot_shutdown: =16, ExternalCallN 
+gcf_ev3_mot_on_fwd: =32, ExternalCallN 
+gcf_ev3_mot_on_rev: =32, ExternalCallN 
+gcf_ev3_mot_off: =24, ExternalCallN 
+gcf_ev3_mot_stop_mode: =32, ExternalCallN 
+gcf_ev3_mot_count_per_rot: =24, ExternalCallN 
+gcf_ev3_mot_cur_pos: =24, ExternalCallN 
+gcf_ev3_mot_run_to_pos: =32, ExternalCallN 
+GuppyStringInit: =24, MAlloc 
+GuppyStringFree: =16, MRelease 
+GuppyStringEmpty: =16, MRelease 
+GuppyStringConstInitialiser: =32, MAlloc 
+GuppyStringAssign: =32, GuppyStringInit, MRelease, MAlloc 
+GuppyStringConcat: =32, GuppyStringEmpty, MAlloc 
+GuppyStringClear: =16, GuppyStringInit 
+GuppyArrayInit: =8 
+GuppyArrayInitAlloc: =44, MAlloc 
+GuppyArrayFree: =16, MRelease 
 
 

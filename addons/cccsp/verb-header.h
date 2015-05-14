@@ -54,6 +54,7 @@ static inline void GuppyPrintString (Workspace wptr, const char *cll, gtString_t
 #endif
 
 /*{{{  static inline gtString_t *GuppyStringInit (Workspace wptr)*/
+/* @APICALLCHAIN: GuppyStringInit: =?, MAlloc */
 /*
  *	creates a new/blank string.
  */
@@ -73,6 +74,7 @@ GuppyPrintString (wptr, "GuppyStringInit", str);
 }
 /*}}}*/
 /*{{{  static inline void GuppyStringFree (Workspace wptr, gtString_t *str)*/
+/* @APICALLCHAIN: GuppyStringFree: =?, MRelease */
 /*
  *	destroys an existing string, frees if necessary.
  */
@@ -93,6 +95,7 @@ GuppyPrintString (wptr, "GuppyStringFree", str);
 }
 /*}}}*/
 /*{{{  static inline void GuppyStringEmpty (Workspace wptr, gtString_t *str)*/
+/* @APICALLCHAIN: GuppyStringEmpty: =?, MRelease */
 /*
  *	destroys the content of an existing string, but not the string structure itself.
  */
@@ -112,6 +115,7 @@ GuppyPrintString (wptr, "GuppyStringEmpty", str);
 }
 /*}}}*/
 /*{{{  static inline gtString_t *GuppyStringConstInitialiser (Workspace wptr, const char *text, const int slen)*/
+/* @APICALLCHAIN: GuppyStringConstInitialiser: =?, MAlloc */
 /*
  *	constant string initialiser, puts the 'text' pointer into a new string (doesn't copy contents, but won't try and free either).
  */
@@ -131,6 +135,7 @@ GuppyPrintString (wptr, "GuppyStringConstInitialiser", str);
 }
 /*}}}*/
 /*{{{  static inline void GuppyStringAssign (Workspace wptr, gtString_t **dst, gtString_t *src)*/
+/* @APICALLCHAIN: GuppyStringAssign: =?, GuppyStringInit, MRelease, MAlloc */
 /*
  *	does an assignment from one string to another
  */
@@ -178,6 +183,7 @@ ExternalCallN (fprintf, 4, stderr, "GuppyStringAssign: src=%p *dst=%p\n", src, *
 }
 /*}}}*/
 /*{{{  static inline void GuppyStringConcat (Workspace wptr, gtString_t *dst, gtString_t *src1, gtString_t *src2)*/
+/* @APICALLCHAIN: GuppyStringConcat: =?, GuppyStringEmpty, MAlloc */
 /*
  *	concatanates two strings
  */
@@ -211,6 +217,7 @@ GuppyPrintString (wptr, "GuppyStringConcat(dst)", dst);
 }
 /*}}}*/
 /*{{{  static inline void GuppyStringClear (Workspace wptr, gtString_t **str)*/
+/* @APICALLCHAIN: GuppyStringClear: =?, GuppyStringInit */
 /*
  *	clears a string (after output)
  */
@@ -224,6 +231,7 @@ GuppyPrintString (wptr, "GuppyStringClear(*str)", *str);
 /*}}}*/
 
 /*{{{  static inline gtArray_t *GuppyArrayInit (Workspace wptr)*/
+/* @APICALLCHAIN: GuppyArrayInit: =? */
 /*
  *	initialises an array, no allocation (just returns NULL in practice).
  */
@@ -233,6 +241,7 @@ static inline gtArray_t *GuppyArrayInit (Workspace wptr)
 }
 /*}}}*/
 /*{{{  static inline gtArray_t *GuppyArrayInitAlloc (Workspace wptr, int ndim, int tsize, void *tdesc, ...)*/
+/* @APICALLCHAIN: GuppyArrayInitAlloc: =?, MAlloc */
 /*
  *	initialises an array and allocates it.
  */
@@ -263,6 +272,7 @@ static inline gtArray_t *GuppyArrayInitAlloc (Workspace wptr, int ndim, int tsiz
 }
 /*}}}*/
 /*{{{  static inline void GuppyArrayFree (Workspace wptr, gtArray_t *ary)*/
+/* @APICALLCHAIN: GuppyArrayFree: =?, MRelease */
 /*
  *	releases an array.
  */

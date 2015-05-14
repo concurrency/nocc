@@ -250,6 +250,7 @@ fail_out:
 	return;
 }
 
+/* @APICALLCHAIN: gcf_ev3_mot_init: =?, ExternalCallN */
 
 void gcf_ev3_mot_init (Workspace wptr, int *result, int port, int type)
 {
@@ -272,6 +273,8 @@ static void igcf_ev3_mot_shutdown (int *result)
 	*result = 1;
 	return;
 }
+
+/* @APICALLCHAIN: gcf_ev3_mot_shutdown: =?, ExternalCallN */
 
 void gcf_ev3_mot_shutdown (Workspace wptr, int *result)
 {
@@ -304,6 +307,8 @@ static void igcf_ev3_mot_on (int *result, int port, int power)
 	return;
 }
 
+/* @APICALLCHAIN: gcf_ev3_mot_on_fwd: =?, ExternalCallN */
+
 void gcf_ev3_mot_on_fwd (Workspace wptr, int *result, int port, int power)
 {
 	ExternalCallN (igcf_ev3_mot_on, 3, result, port, power);
@@ -311,6 +316,8 @@ void gcf_ev3_mot_on_fwd (Workspace wptr, int *result, int port, int power)
 
 /*}}}*/
 /*{{{  define ev3_mot_on_rev (val ev3_outport port, val int power) -> bool*/
+
+/* @APICALLCHAIN: gcf_ev3_mot_on_rev: =?, ExternalCallN */
 
 void gcf_ev3_mot_on_rev (Workspace wptr, int *result, int port, int power)
 {
@@ -339,6 +346,8 @@ static void igcf_ev3_mot_off (int *result, int port)
 	*result = 1;
 	return;
 }
+
+/* @APICALLCHAIN: gcf_ev3_mot_off: =?, ExternalCallN */
 
 void gcf_ev3_mot_off (Workspace wptr, int *result, int port)
 {
@@ -375,6 +384,8 @@ static void igcf_ev3_mot_stop_mode (int *result, int port, ev3_stm_e smode)
 	return;
 }
 
+/* @APICALLCHAIN: gcf_ev3_mot_stop_mode: =?, ExternalCallN */
+
 void gcf_ev3_mot_stop_mode (Workspace wptr, int *result, int port, int smode)
 {
 	ExternalCallN (igcf_ev3_mot_stop_mode, 3, result, port, smode);
@@ -401,6 +412,8 @@ static void igcf_ev3_mot_count_per_rot (int *result, int port)
 	return;
 }
 
+/* @APICALLCHAIN: gcf_ev3_mot_count_per_rot: =?, ExternalCallN */
+
 void gcf_ev3_mot_count_per_rot (Workspace wptr, int *result, int port)
 {
 	ExternalCallN (igcf_ev3_mot_count_per_rot, 2, result, port);
@@ -426,6 +439,8 @@ static void igcf_ev3_mot_cur_pos (int *result, int port)
 	}
 	return;
 }
+
+/* @APICALLCHAIN: gcf_ev3_mot_cur_pos: =?, ExternalCallN */
 
 void gcf_ev3_mot_cur_pos (Workspace wptr, int *result, int port)
 {
@@ -462,6 +477,8 @@ static void igcf_ev3_mot_run_to_pos (int *result, int port, int pos, int power)
 	*result = 1;
 	return;
 }
+
+/* @APICALLCHAIN: gcf_ev3_mot_run_to_pos: =?, ExternalCallN */
 
 void gcf_ev3_mot_run_to_pos (Workspace wptr, int *result, int port, int pos, int power)
 {
