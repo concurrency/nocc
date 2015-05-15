@@ -7,8 +7,8 @@ define test (chan(int) in0?, in1?)
     alt
       in0 ? x
         skip
-      in1 ? x
-        stop
+      # in1 ? x
+      #  stop
 end
 
 
