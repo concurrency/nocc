@@ -177,6 +177,7 @@ static int guppy_fetrans1_instance (compops_t *cops, tnode_t **nodep, guppy_fetr
 	tnode_t *itype = typecheck_gettype (tnode_nthsubof (*nodep, 0), NULL);
 	tnode_t *node = *nodep;
 	int lonely = 0;
+	int owntarget = 0;
 	tnode_t **saved_inspoint = fe1->inspoint;		/* save */
 	tnode_t *saved_decllist = fe1->decllist;
 
@@ -186,6 +187,12 @@ static int guppy_fetrans1_instance (compops_t *cops, tnode_t **nodep, guppy_fetr
 		tnode_t *seqitemlist;
 		tnode_t *sass, *namelist;
 
+#if 1
+fhandle_printf (FHAN_STDERR, "guppy_fetrans1_instance(): on node [%p @%p], fe1->inspoint=%p\n", node, nodep, fe1->inspoint);
+#endif
+		if (fe1->inspoint == nodep) {
+			owntarget = 1;
+		}
 		if (!fe1->inspoint) {
 			/* means we are probably a stand-alone instance, but will need temporaries */
 			fe1->inspoint = nodep;
@@ -197,8 +204,8 @@ static int guppy_fetrans1_instance (compops_t *cops, tnode_t **nodep, guppy_fetr
 		guppy_fetrans1_subtree (tnode_nthsubaddr (node, 1), fe1);
 
 		rtype = tnode_nthsubof (itype, 1);
-#if 0
-fhandle_printf (FHAN_STDERR, "guppy_fetrans1_instance(): looking at instance:\n");
+#if 1
+fhandle_printf (FHAN_STDERR, "guppy_fetrans1_instance(): looking at instance (lonely = %d, owntarget = %d):\n", lonely, owntarget);
 tnode_dumptree (node, 1, FHAN_STDERR);
 #endif
 		if (!parser_islistnode (rtype)) {
@@ -218,10 +225,36 @@ tnode_dumptree (node, 1, FHAN_STDERR);
 			parser_addtolist (namelist, nname);
 		}
 
+		/* if own-target, if fetrans placed a DECLBLOCK, better refix nodep! */
+		if (owntarget && (*nodep != node)) {
+			if ((*nodep)->tag == gup.tag_DECLBLOCK) {
+				/* we know this updates fe1->inspoint, so use that */
+				nodep = fe1->inspoint;
+
+				/* and it had better be us! */
+				if (*nodep != node) {
+					nocc_internal ("guppy_fetrans1_instance(): INSTANCE moved, but not found where expected (got [%s:%s])",
+							(*nodep)->tag->ndef->name, (*nodep)->tag->name);
+					return 0;
+				}
+			} else {
+				nocc_internal ("guppy_fetrans1_instance(): INSTANCE moved, but didn't find a DECLBLOCK in its place (got [%s:%s])",
+							(*nodep)->tag->ndef->name, (*nodep)->tag->name);
+				return 0;
+			}
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_fetrans1_instance(): *** Node moved away! ***\n");
+#endif
+		}
+
 		/* construct assignment */
 		sass = tnode_createfrom (gup.tag_SASSIGN, node, namelist, node, tnode_copytree (rtype));
+#if 1
+fhandle_printf (FHAN_STDERR, "guppy_fetrans1_instance(): made assignment:\n");
+tnode_dumptree (sass, 1, FHAN_STDERR);
+#endif
 
-		if (lonely) {
+		if (0 && lonely) {
 			/* replace with this simply */
 			*nodep = sass;
 		} else {
@@ -233,6 +266,15 @@ tnode_dumptree (node, 1, FHAN_STDERR);
 			parser_addtolist (seqlist, sass);
 			newpt = parser_addtolist (seqlist, *fe1->inspoint);
 
+#if 1
+fhandle_printf (FHAN_STDERR, "guppy_fetrans1_instance(): fe1->inspoint=[%p], nodep=[%p], newseq node is:\n", fe1->inspoint, nodep);
+tnode_dumptree (newseq, 1, FHAN_STDERR);
+#endif
+
+			if (fe1->inspoint == nodep) {
+				/* nodep is moving in effect, so better shuffle before the rest of this! */
+				nodep = newpt;
+			}
 			*fe1->inspoint = newseq;
 			fe1->inspoint = newpt;
 		}

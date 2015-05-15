@@ -2382,10 +2382,20 @@ static tnode_t *guppy_decllistandguard (lexfile_t *lf)
 			}
 		} else if (lexpr->tag == gup.tag_MARKEDIN) {
 			/* the '?' got consumed in the expression */
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_decllistandguard(): looking at guard [MARKEDIN], next tok is '%s', lexpr is:\n", lexer_stokenstr (tok));
+tnode_dumptree (lexpr, 1, FHAN_STDERR);
+#endif
 			lexer_pushback (lf, tok);
-			tree = dfa_walk ("guppy:restofinput2", 0, lf);
+			tree = dfa_walk ("guppy:restofguard2", 0, lf);
 			if (tree) {
-				tnode_setnthsub (tree, 0, tnode_nthsubof (lexpr, 0));
+				if (tree->tag == gup.tag_GUARD) {
+					tnode_t *inode = tnode_nthsubof (tree, 1);
+
+					tnode_setnthsub (inode, 0, tnode_nthsubof (lexpr, 0));
+				} else {
+					parser_error (SLOCN (lf), "expected guard, found [%s:%s]", tree->tag->ndef->name, tree->tag->name);
+				}
 			}
 		} else {
 			/* dunno.. */

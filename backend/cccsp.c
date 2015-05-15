@@ -285,7 +285,7 @@ static cccsp_apicall_t cccsp_apicall_table[] = {
 	{NOAPI, "", 0},					/* 0 */
 	{CHAN_IN, "ChanIn", 32},
 	{CHAN_OUT, "ChanOut", 32},
-	{STOP_PROC, "SetErrW", 32},
+	{STOP_PROC, "SetErr", 32},
 	{PROC_PAR, "ProcPar", 32},
 	{LIGHT_PROC_INIT, "LightProcInit", 32},
 	{PROC_PARAM, "ProcParam", 8},

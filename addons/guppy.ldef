@@ -272,11 +272,13 @@
 
 .TABLE	"guppy:guard +:= [ 0 -Name 1 ] [ 1 guppy:input 2 ] [ 2 {<gup:guardreduce>} -* ]"
 
+.TABLE	"guppy:restofguard2 +:= [ 0 guppy:restofinput2 1 ] [ 1 {<gup:guardreduce>} -* ]"
+
 # FIXME: this can't be right given what the parser is doing!
-.TABLE	"guppy:restofinput +:= [ 0 @@? 1 ] [ 1 {<gup:null2push>} -* 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:inputreduce>} -* ]"
+.TABLE	"guppy:restofinput +:= [ 0 @@? 1 ] [ 1 {<gup:nullpush>} -* 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:inputreduce>} -* ]"
 	"[ 2 @case 4 ] [ 4 {<gup:caseinputreduce>} -* ]"
-.TABLE	"guppy:restofinput2 +:= [ 0 {<gup:null2push>} -* 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:inputreduce>} -* ]"
-	"[ 1 @case 3 ] [ 3 {<gup:caseinputreduce>} -* ]"
+.TABLE	"guppy:restofinput2 +:= [ 0 -* 1 ] [ 1 {<gup:nullpush>} -* 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:inputreduce>} -* ]"
+	"[ 2 @case 4 ] [ 4 {<gup:caseinputreduce>} -* ]"
 
 # }}}
 .SECTION "guppy-oper" # {{{: operators
@@ -353,9 +355,9 @@
 # }}}
 .SECTION "guppy-instance" # {{{
 
-.GRULE	"gup:makeinstance" "SN0N+N+VC[INSTANCE]2N-"
-.GRULE	"gup:instancereduce" "SN0N+N+VC[INSTANCE]2R-"
-.GRULE	"gup:rinstancereduce" "SN0N+N+VC[INSTANCE]2R-"
+.GRULE	"gup:makeinstance" "SN1N+N+VC[INSTANCE]2N-"
+.GRULE	"gup:instancereduce" "SN1N+N+VC[INSTANCE]2R-"
+.GRULE	"gup:rinstancereduce" "SN1N+N+VC[INSTANCE]2R-"
 
 .BNF	"guppy:exprlist ::= { guppy:expr @@, 1 }"
 
