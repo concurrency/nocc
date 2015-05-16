@@ -572,6 +572,23 @@ tnode_dumptree (*rptr, 1, FHAN_STDERR);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans15_fcndef (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	fetrans1.5 for function definition (walk through, check body)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_fcndef (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	tnode_t **bodyp = tnode_nthsubaddr (*nodep, 2);
+	int saved = fe15->expt_proc;
+
+	fe15->expt_proc = 1;		/* body should be a process */
+	guppy_fetrans15_subtree (bodyp, fe15);
+
+	fe15->expt_proc = saved;
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_fcndef (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	called to name-map a function/procedure definition
@@ -924,6 +941,16 @@ static int guppy_fetrans1_extdef (compops_t *cops, tnode_t **nodep, guppy_fetran
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans15_extdef (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	fetrans1.5 for external definitions (do nothing, but don't walk inside)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_extdef (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_extdef (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for an external definition
@@ -1099,6 +1126,7 @@ static int guppy_fcndef_init_nodes (void)
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_fcndef));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (guppy_fetrans_fcndef));
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_fcndef));
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_fcndef));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_fcndef));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_fcndef));
 	tnode_setcompop (cops, "cccsp:dcg", 2, COMPOPTYPE (guppy_cccspdcg_fcndef));
@@ -1121,6 +1149,7 @@ static int guppy_fcndef_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (guppy_fetrans_extdef));
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_extdef));
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_extdef));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_extdef));
 	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_extdef));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_extdef));

@@ -312,6 +312,16 @@ tnode_dumptree (newseq, 1, FHAN_STDERR);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans15_instance (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 on an instance (do nothing, don't look inside)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_instance (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_instance (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for an instance node
@@ -569,6 +579,16 @@ fhandle_printf (FHAN_STDERR, "guppy_cccspdcg_rinstance(): here! ename=[%s]\n", e
 }
 /*}}}*/
 
+/*{{{  static int guppy_fetrans15_ppinstance (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 on a parallel-process instance (do nothing, don't look inside)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_ppinstance (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_ppinstance (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for a parallel-process instance node
@@ -737,6 +757,7 @@ static int guppy_instance_init_nodes (void)
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_instance));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_instance));
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_instance));
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_instance));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_instance));
 	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_instance));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_instance));
@@ -771,6 +792,7 @@ static int guppy_instance_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:ppinstance", &i, 3, 0, 0, TNF_NONE);		/* subnodes: name, proc-var, aparams */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_ppinstance));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_ppinstance));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_ppinstance));
 	tnd->ops = cops;

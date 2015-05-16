@@ -176,6 +176,15 @@ tnode_dumptree (rhs, 1, FHAN_STDERR);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans15_io (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 on input/output node (do nothing, don't look inside)
+ */
+static int guppy_fetrans15_io (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_fetrans3_io (compops_t *cops, tnode_t **nodep, guppy_fetrans3_t *fe3)*/
 /*
  *	does fetrans3 for an input or output
@@ -327,6 +336,7 @@ static int guppy_io_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_io));
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_io));
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_io));
 	tnode_setcompop (cops, "fetrans3", 2, COMPOPTYPE (guppy_fetrans3_io));
 
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_io));

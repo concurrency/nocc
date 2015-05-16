@@ -156,6 +156,22 @@ static int guppy_typecheck_cflow (compops_t *cops, tnode_t *node, typecheck_t *t
 	return 1;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans15_cflow (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 on a control flow node (body should be a process)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_cflow (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	int saved = fe15->expt_proc;
+
+	fe15->expt_proc = 1;
+	guppy_fetrans15_subtree (tnode_nthsubaddr (*nodep, 1), fe15);
+
+	fe15->expt_proc = saved;
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_cflow (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for a control-flow node
@@ -326,6 +342,22 @@ static int guppy_typecheck_cond (compops_t *cops, tnode_t *node, typecheck_t *tc
 	return 1;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans15_cond (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 on a conditional node (body should be a process)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_cond (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	int saved = fe15->expt_proc;
+
+	fe15->expt_proc = 1;
+	guppy_fetrans15_subtree (tnode_nthsubaddr (*nodep, 1), fe15);
+
+	fe15->expt_proc = saved;
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_cond (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for a conditional (part of 'if').
@@ -350,6 +382,22 @@ static int guppy_namemap_cond (compops_t *cops, tnode_t **nodep, map_t *map)
 }
 /*}}}*/
 
+/*{{{  static int guppy_fetrans15_caseopt (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 on a case option node (body should be a process)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_caseopt (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	int saved = fe15->expt_proc;
+
+	fe15->expt_proc = 1;
+	guppy_fetrans15_subtree (tnode_nthsubaddr (*nodep, 1), fe15);
+
+	fe15->expt_proc = saved;
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_caseopt (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for a case option node.
@@ -527,6 +575,16 @@ static int guppy_fetrans1_rnode (compops_t *cops, tnode_t **nodep, guppy_fetrans
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans15_rnode (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 on a return node (do nothing, don't look inside)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_rnode (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_rnode (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping on a return node
@@ -568,6 +626,7 @@ static int guppy_cflow_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "declify", 2, COMPOPTYPE (guppy_declify_cflow));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_cflow));
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_cflow));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_cflow));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_cflow));
 	tnd->ops = cops;
@@ -589,6 +648,7 @@ static int guppy_cflow_init_nodes (void)
 	tnd = tnode_newnodetype ("guppy:caseopt", &i, 2, 0, 0, TNF_NONE);	/* subnodes: 0 = expr (const); 1 = body */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_caseopt));
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_caseopt));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_caseopt));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
@@ -603,6 +663,7 @@ static int guppy_cflow_init_nodes (void)
 	tnd = tnode_newnodetype ("guppy:cond", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = expr; 1 = body */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_cond));
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_cond));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_cond));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
@@ -631,6 +692,7 @@ static int guppy_cflow_init_nodes (void)
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_rnode));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_rnode));
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_rnode));
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_rnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_rnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_rnode));
 	tnd->ops = cops;

@@ -314,14 +314,22 @@ tnode_dumptree (newdef, 1, FHAN_STDERR);
 	return 1;
 }
 /*}}}*/
-/*{{{  static int guppy_fetrans1_cnode (compopts_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)*/
+/*{{{  static int guppy_fetrans15_cnode (compopts_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
 /*
- *	does fetrans1 for constructor nodes (trivial here)
+ *	does fetrans1.5 for constructor nodes (trivial here)
  *	returns 0 to stop walk, 1 to continue
  */
-static int guppy_fetrans1_cnode (compopts_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)
+static int guppy_fetrans15_cnode (compopts_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
 {
-	return 1;
+	int saved = fe15->expt_proc;
+
+	fe15->expt_proc = 0;
+	guppy_fetrans15_subtree (tnode_nthsubaddr (*nodep, 0), fe15);
+	fe15->expt_proc = 1;							/* expecting a list of processes really */
+	guppy_fetrans15_subtree (tnode_nthsubaddr (*nodep, 1), fe15);
+
+	fe15->expt_proc = saved;
+	return 0;
 }
 /*}}}*/
 /*{{{  static int guppy_namemap_cnode (compops_t *cops, tnode_t **nodep, map_t *map)*/
@@ -699,6 +707,22 @@ static int guppy_typecheck_replcnode (compops_t *cops, tnode_t *node, typecheck_
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans15_replcnode (compopts_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 for replicated constructor nodes (trivial here)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_replcnode (compopts_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	int saved = fe15->expt_proc;
+
+	fe15->expt_proc = 1;							/* expecting a list of processes really */
+	guppy_fetrans15_subtree (tnode_nthsubaddr (*nodep, 1), fe15);
+
+	fe15->expt_proc = saved;
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_replcnode (compops_t *cops, tnode_t **nodep, namemap_t *map)*/
 /*
  *	called to do name-mapping on a replicated constructor node
@@ -780,6 +804,17 @@ static int guppy_fetrans1_anode (compops_t *cops, tnode_t **nodep, guppy_fetrans
 	/* transform alt list */
 	guppy_fetrans1_subtree (tnode_nthsubaddr (node, 1), fe1);
 
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_fetrans15_anode (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 on an alt node (look at body only)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_anode (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	guppy_fetrans15_subtree (tnode_nthsubaddr (*nodep, 1), fe15);
 	return 0;
 }
 /*}}}*/
@@ -972,6 +1007,23 @@ tnode_dumptree (tnode_nthsubof (*nodep, 2), 1, FHAN_STDERR);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans15_guard (compopts_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 for a guard node (trivial here)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_guard (compopts_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	int saved = fe15->expt_proc;
+
+	fe15->expt_proc = 1;								/* guard should be a process (input, timeout, skip) */
+	guppy_fetrans15_subtree (tnode_nthsubaddr (*nodep, 1), fe15);
+	guppy_fetrans15_subtree (tnode_nthsubaddr (*nodep, 2), fe15);			/* and the body */
+
+	fe15->expt_proc = saved;
+	return 0;
+}
+/*}}}*/
 
 
 /*{{{  static int guppy_cnode_init_nodes (void)*/
@@ -997,7 +1049,7 @@ static int guppy_cnode_init_nodes (void)
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_cnode));
 	tnode_setcompop (cops, "postscope", 1, COMPOPTYPE (guppy_postscope_cnode));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (guppy_fetrans_cnode));
-	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_cnode));
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_cnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_cnode));
 	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_cnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_cnode));
@@ -1019,6 +1071,7 @@ static int guppy_cnode_init_nodes (void)
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_replcnode));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (guppy_scopeout_replcnode));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_replcnode));
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_replcnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_replcnode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_replcnode));
 	tnd->ops = cops;
@@ -1036,6 +1089,7 @@ static int guppy_cnode_init_nodes (void)
 	tnd = tnode_newnodetype ("guppy:anode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = selection-var; 1 = body (list of guards) */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_anode));
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_anode));
 	tnode_setcompop (cops, "fetrans3", 2, COMPOPTYPE (guppy_fetrans3_anode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_anode));
 	tnd->ops = cops;
@@ -1052,6 +1106,7 @@ static int guppy_cnode_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_guard));
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_guard));
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_guard));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

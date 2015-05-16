@@ -920,6 +920,16 @@ static int guppy_isvar_arrayopnode (langops_t *lops, tnode_t *node)
 }
 /*}}}*/
 
+/*{{{  static int guppy_fetrans15_stropnode (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 on a string operator node (do nothing, don't look inside)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_stropnode (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_stropnode (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for a string operator (strassign, strconcat)
@@ -1168,6 +1178,7 @@ static int guppy_oper_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:stropnode", &i, 4, 0, 0, TNF_NONE);			/* subnodes: wptr, target, src1, src2 */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_stropnode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_stropnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();

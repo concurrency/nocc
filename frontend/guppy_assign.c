@@ -140,6 +140,16 @@ static int guppy_fetrans1_assign (compops_t *cops, tnode_t **nodep, guppy_fetran
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans15_assign (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 for an assignment (do nothing, don't look inside)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_assign (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_fetrans2_assign (compops_t *cops, tnode_t **nodep, guppy_fetrans2_t *fe2)*/
 /*
  *	does fetrans2 for an assignment (if SASSIGN and RHS instance, pushes result parameters in)
@@ -249,6 +259,7 @@ static int guppy_assign_init_nodes (void)
 	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_assign));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_assign));
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_assign));
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_assign));
 	tnode_setcompop (cops, "fetrans2", 2, COMPOPTYPE (guppy_fetrans2_assign));
 	tnode_setcompop (cops, "fetrans3", 2, COMPOPTYPE (guppy_fetrans3_assign));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_assign));

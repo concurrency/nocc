@@ -263,8 +263,12 @@ typedef struct {
 	struct TAG_tnode **inspoint;			/* insert-point for new code (typically current statement) */
 	struct TAG_tnode *decllist;			/* where new declarations can go, NULL if need fresh */
 	int error;					/* error count */
-	int expt_proc;					/* expecting a process (vs. expression) */
 } guppy_fetrans1_t;
+
+typedef struct {
+	int expt_proc;					/* expecting a process (vs. expression) */
+	int error;					/* error count */
+} guppy_fetrans15_t;
 
 typedef struct {
 	int error;					/* error count */
@@ -295,6 +299,8 @@ extern int guppy_declify_listtodecllist_single (struct TAG_tnode **, guppy_decli
 
 extern guppy_fetrans1_t *guppy_newfetrans1 (void);
 extern void guppy_freefetrans1 (guppy_fetrans1_t *);
+extern guppy_fetrans15_t *guppy_newfetrans15 (void);
+extern void guppy_freefetrans15 (guppy_fetrans15_t *);
 extern guppy_fetrans2_t *guppy_newfetrans2 (void);
 extern void guppy_freefetrans2 (guppy_fetrans2_t *);
 extern guppy_fetrans3_t *guppy_newfetrans3 (void);
@@ -306,6 +312,7 @@ extern int guppy_flattenseq_subtree (struct TAG_tnode **);
 extern int guppy_postscope_subtree (struct TAG_tnode **);
 extern int guppy_fetrans1_subtree (struct TAG_tnode **, guppy_fetrans1_t *);
 extern int guppy_fetrans1_subtree_newtemps (struct TAG_tnode **, guppy_fetrans1_t *);
+extern int guppy_fetrans15_subtree (struct TAG_tnode **, guppy_fetrans15_t *);
 extern int guppy_fetrans2_subtree (struct TAG_tnode **, guppy_fetrans2_t *);
 extern int guppy_fetrans3_subtree (struct TAG_tnode **, guppy_fetrans3_t *);
 

@@ -306,6 +306,23 @@ static int guppy_scopein_rawnamenode (compops_t *cops, tnode_t **node, scope_t *
 }
 /*}}}*/
 
+/*{{{  static int guppy_fetrans15_namenode (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 on a name-node -- should trash if expecting a process (could be leftover temporary by fetrans1)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_namenode (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	if (fe15->expt_proc) {
+#if 1
+fhandle_printf (FHAN_STDERR, "guppy_fetrans15_namenode(): name, but expecting process! node is:\n");
+tnode_dumptree (*nodep, 1, FHAN_STDERR);
+#endif
+	}
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_namenode (compops_t *cops, tnode_t **node, map_t *map)*/
 /*
  *	does name-mapping for a lone name-reference.
@@ -1327,6 +1344,16 @@ static int guppy_scopeout_enumdef (compops_t *cops, tnode_t **node, scope_t *ss)
 	return 1;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans15_enumdef (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 on an enum definition (do nothing, don't look inside)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_enumdef (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_typecheck_enumdef (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking for an enumerated type definition.
@@ -1592,6 +1619,22 @@ tnode_dumptree (*node, 1, FHAN_STDERR);
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans15_declblock (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 on a declaration block -- just walk body
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_declblock (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	int saved = fe15->expt_proc;
+
+	fe15->expt_proc = 1;
+	guppy_fetrans15_subtree (tnode_nthsubaddr (*nodep, 1), fe15);
+
+	fe15->expt_proc = saved;
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_betrans_declblock (compops_t *cops, tnode_t **nodep, betrans_t *be)*/
 /*
  *	does back-end transforms for a declaration block -- generates odd initialisers for declarations
@@ -1778,6 +1821,16 @@ static int guppy_scopein_typedef (compops_t *cops, tnode_t **nodep, scope_t *ss)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int guppy_fetrans15_typedef (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 on a type definition (do nothing, don't look inside)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_typedef (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_typecheck_typedef (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking for a structured type definition
@@ -1868,6 +1921,7 @@ static int guppy_decls_init_nodes (void)
 	i = -1;
 	tnd = gup.node_NAMENODE = tnode_newnodetype ("guppy:namenode", &i, 0, 1, 0, TNF_NONE);		/* subnames: name */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_namenode));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_namenode));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_namenode));
 	tnd->ops = cops;
@@ -2002,6 +2056,7 @@ static int guppy_decls_init_nodes (void)
 	tnode_setcompop (cops, "autoseq", 2, COMPOPTYPE (guppy_autoseq_declblock));
 	tnode_setcompop (cops, "flattenseq", 1, COMPOPTYPE (guppy_flattenseq_declblock));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_declblock));
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_declblock));
 	tnode_setcompop (cops, "betrans", 2, COMPOPTYPE (guppy_betrans_declblock));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_declblock));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_declblock));
@@ -2017,6 +2072,7 @@ static int guppy_decls_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_enumdef));
 	tnode_setcompop (cops, "scopeout", 2, COMPOPTYPE (guppy_scopeout_enumdef));
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_enumdef));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_enumdef));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_enumdef));
 	tnd->ops = cops;
@@ -2031,6 +2087,7 @@ static int guppy_decls_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "oncreate", 1, COMPOPTYPE (guppy_oncreate_typedef));
 	tnode_setcompop (cops, "scopein", 2, COMPOPTYPE (guppy_scopein_typedef));
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_typedef));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_typedef));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_typedef));
 	tnd->ops = cops;

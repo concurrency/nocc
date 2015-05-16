@@ -145,6 +145,16 @@ static tnode_t *guppy_gettype_timerop (langops_t *lops, tnode_t *node, tnode_t *
 }
 /*}}}*/
 
+/*{{{  static int guppy_fetrans15_timeraction (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
+/*
+ *	does fetrans1.5 on a timer action node (do nothing, don't look inside)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_fetrans15_timeraction (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
+{
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_namemap_timeraction (compops_t *cops, tnode_t **nodep, map_t *map)*/
 /*
  *	does name-mapping for a timer action node (turns into APICALL things)
@@ -346,6 +356,7 @@ static int guppy_timer_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:timeraction", &i, 2, 0, 0, TNF_NONE);		/* subnodes: var/expr, type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_timeraction));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_timeraction));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
