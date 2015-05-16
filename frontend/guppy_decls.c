@@ -314,10 +314,12 @@ static int guppy_scopein_rawnamenode (compops_t *cops, tnode_t **node, scope_t *
 static int guppy_fetrans15_namenode (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)
 {
 	if (fe15->expt_proc) {
-#if 1
+#if 0
 fhandle_printf (FHAN_STDERR, "guppy_fetrans15_namenode(): name, but expecting process! node is:\n");
 tnode_dumptree (*nodep, 1, FHAN_STDERR);
 #endif
+		tnode_warning (*nodep, "result lost from instance");
+		*nodep = tnode_createfrom (gup.tag_SKIP, *nodep);
 	}
 
 	return 0;

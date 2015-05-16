@@ -221,9 +221,9 @@ define secure_college ()
       chan(bool) fr0, fr1, fr2, fr3
       par
         philosopher (0, up0!, dn0!, fl0!, fr0!)
-        philosopher (1, up1!, dn1!, fl1!, fr1!)
-        philosopher (2, up2!, dn2!, fl2!, fr2!)
-        philosopher (3, up3!, dn3!, fl3!, fr3!)
+        #philosopher (1, up1!, dn1!, fl1!, fr1!)
+        #philosopher (2, up2!, dn2!, fl2!, fr2!)
+        #philosopher (3, up3!, dn3!, fl3!, fr3!)
         fork (0, fr0?, fl3?, fc0!)
         fork (1, fr1?, fl0?, fc1!)
         fork (2, fr2?, fl1?, fc2!)

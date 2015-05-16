@@ -226,7 +226,7 @@ tnode_dumptree (node, 1, FHAN_STDERR);
 		}
 
 		/* if own-target, if fetrans placed a DECLBLOCK, better refix nodep! */
-		if (owntarget && (*nodep != node)) {
+		if ((owntarget || lonely) && (*nodep != node)) {
 			if ((*nodep)->tag == gup.tag_DECLBLOCK) {
 				/* we know this updates fe1->inspoint, so use that */
 				nodep = fe1->inspoint;
@@ -254,7 +254,7 @@ fhandle_printf (FHAN_STDERR, "guppy_fetrans1_instance(): made assignment:\n");
 tnode_dumptree (sass, 1, FHAN_STDERR);
 #endif
 
-		if (0 && lonely) {
+		if (lonely) {
 			/* replace with this simply */
 			*nodep = sass;
 		} else {
