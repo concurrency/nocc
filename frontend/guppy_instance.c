@@ -187,7 +187,7 @@ static int guppy_fetrans1_instance (compops_t *cops, tnode_t **nodep, guppy_fetr
 		tnode_t *seqitemlist;
 		tnode_t *sass, *namelist;
 
-#if 1
+#if 0
 fhandle_printf (FHAN_STDERR, "guppy_fetrans1_instance(): on node [%p @%p], fe1->inspoint=%p\n", node, nodep, fe1->inspoint);
 #endif
 		if (fe1->inspoint == nodep) {
@@ -204,7 +204,7 @@ fhandle_printf (FHAN_STDERR, "guppy_fetrans1_instance(): on node [%p @%p], fe1->
 		guppy_fetrans1_subtree (tnode_nthsubaddr (node, 1), fe1);
 
 		rtype = tnode_nthsubof (itype, 1);
-#if 1
+#if 0
 fhandle_printf (FHAN_STDERR, "guppy_fetrans1_instance(): looking at instance (lonely = %d, owntarget = %d):\n", lonely, owntarget);
 tnode_dumptree (node, 1, FHAN_STDERR);
 #endif
@@ -249,7 +249,7 @@ fhandle_printf (FHAN_STDERR, "guppy_fetrans1_instance(): *** Node moved away! **
 
 		/* construct assignment */
 		sass = tnode_createfrom (gup.tag_SASSIGN, node, namelist, node, tnode_copytree (rtype));
-#if 1
+#if 0
 fhandle_printf (FHAN_STDERR, "guppy_fetrans1_instance(): made assignment:\n");
 tnode_dumptree (sass, 1, FHAN_STDERR);
 #endif
@@ -266,7 +266,7 @@ tnode_dumptree (sass, 1, FHAN_STDERR);
 			parser_addtolist (seqlist, sass);
 			newpt = parser_addtolist (seqlist, *fe1->inspoint);
 
-#if 1
+#if 0
 fhandle_printf (FHAN_STDERR, "guppy_fetrans1_instance(): fe1->inspoint=[%p], nodep=[%p], newseq node is:\n", fe1->inspoint, nodep);
 tnode_dumptree (newseq, 1, FHAN_STDERR);
 #endif
@@ -281,10 +281,15 @@ tnode_dumptree (newseq, 1, FHAN_STDERR);
 
 		/* modify instance */
 		if (!lonely) {
-			if (parser_countlist (namelist) == 1) {
-				*nodep = parser_getfromlist (namelist, 0);
+			if (owntarget) {
+				/* replace with 'skip' -- means we are discarding the result (and other things possibly) */
+				*nodep = tnode_createfrom (gup.tag_SKIP, node);
 			} else {
-				*nodep = tnode_copytree (namelist);
+				if (parser_countlist (namelist) == 1) {
+					*nodep = parser_getfromlist (namelist, 0);
+				} else {
+					*nodep = tnode_copytree (namelist);
+				}
 			}
 		} else {
 			/* alone: restore fe1 insert-point -- can't put subsequent declarations inside this! */

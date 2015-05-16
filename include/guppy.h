@@ -263,6 +263,7 @@ typedef struct {
 	struct TAG_tnode **inspoint;			/* insert-point for new code (typically current statement) */
 	struct TAG_tnode *decllist;			/* where new declarations can go, NULL if need fresh */
 	int error;					/* error count */
+	int expt_proc;					/* expecting a process (vs. expression) */
 } guppy_fetrans1_t;
 
 typedef struct {

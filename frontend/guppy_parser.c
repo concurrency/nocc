@@ -173,6 +173,7 @@ guppy_fetrans1_t *guppy_newfetrans1 (void)
 	fe1->inspoint = NULL;
 	fe1->decllist = NULL;
 	fe1->error = 0;
+	fe1->expt_proc = 0;
 
 	return fe1;
 }
