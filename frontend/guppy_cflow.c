@@ -77,13 +77,22 @@ static int guppy_declify_cflow (compops_t *cops, tnode_t **nodep, guppy_declify_
 {
 	tnode_t *node = *nodep;
 
-	if (node->tag == gup.tag_WHILE) {
+	if ((node->tag == gup.tag_WHILE) || (node->tag == gup.tag_SHORTIF)) {
 		tnode_t **bodyp = tnode_nthsubaddr (node, 1);
 
 		if (parser_islistnode (*bodyp)) {
 			guppy_declify_listtodecllist (bodyp, gdl);
 		}
+	} else if ((node->tag == gup.tag_IF) || (node->tag == gup.tag_CASE)) {
+		tnode_t **bodyp = tnode_nthsubaddr (node, 1);
+
+		/* walk down bodies */
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_declify_cflow(): about to declify on body, type is [%s:%s]\n", (*bodyp)->tag->ndef->name, (*bodyp)->tag->name);
+#endif
+		guppy_declify_subtree (bodyp, gdl);
 	}
+		
 	return 0;
 }
 /*}}}*/
@@ -306,6 +315,28 @@ static int guppy_codegen_cflow (compops_t *cops, tnode_t *node, codegen_t *cgen)
 }
 /*}}}*/
 
+/*{{{  static int guppy_declify_cond (compops_t *cops, tnode_t **nodep, guppy_declify_t *gdl)*/
+/*
+ *	called to declify on a conditional node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_declify_cond (compops_t *cops, tnode_t **nodep, guppy_declify_t *gdl)
+{
+	tnode_t *node = *nodep;
+
+	if (node->tag == gup.tag_COND) {
+		tnode_t **bodyp = tnode_nthsubaddr (node, 1);
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_declify_cond(): here in COND! *bodyp is [%s:%s]\n", (*bodyp)->tag->ndef->name, (*bodyp)->tag->name);
+#endif
+		if (parser_islistnode (*bodyp)) {
+			guppy_declify_listtodecllist (bodyp, gdl);
+		}
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_typecheck_cond (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
 /*
  *	does type-checking on a conditional node (if branches)
@@ -382,6 +413,25 @@ static int guppy_namemap_cond (compops_t *cops, tnode_t **nodep, map_t *map)
 }
 /*}}}*/
 
+/*{{{  static int guppy_declify_caseopt (compops_t *cops, tnode_t **nodep, guppy_declify_t *gdl)*/
+/*
+ *	called to declify on a case option
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_declify_caseopt (compops_t *cops, tnode_t **nodep, guppy_declify_t *gdl)
+{
+	tnode_t *node = *nodep;
+
+	if (node->tag == gup.tag_OPTION) {
+		tnode_t **bodyp = tnode_nthsubaddr (node, 1);
+
+		if (parser_islistnode (*bodyp)) {
+			guppy_declify_listtodecllist (bodyp, gdl);
+		}
+	}
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_fetrans15_caseopt (compops_t *cops, tnode_t **nodep, guppy_fetrans15_t *fe15)*/
 /*
  *	does fetrans1.5 on a case option node (body should be a process)
@@ -647,6 +697,7 @@ static int guppy_cflow_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:caseopt", &i, 2, 0, 0, TNF_NONE);	/* subnodes: 0 = expr (const); 1 = body */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "declify", 2, COMPOPTYPE (guppy_declify_caseopt));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_caseopt));
 	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_caseopt));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_caseopt));
@@ -662,6 +713,7 @@ static int guppy_cflow_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:cond", &i, 2, 0, 0, TNF_NONE);		/* subnodes: 0 = expr; 1 = body */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "declify", 2, COMPOPTYPE (guppy_declify_cond));
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_cond));
 	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_cond));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_cond));

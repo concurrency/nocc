@@ -778,6 +778,51 @@ static int guppy_codegen_replcnode (compops_t *cops, tnode_t *node, codegen_t *c
 /*}}}*/
 
 
+/*{{{  static int guppy_typecheck_anode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking for an alternative -- ensures that any 'skip' guard(s) are last in a 'pri alt'
+ *	and no skip in plain-alt
+ */
+static int guppy_typecheck_anode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	int ispri = (node->tag == gup.tag_PRIALT);
+	tnode_t *glist = tnode_nthsubof (node, 1);
+	int hasskip = -1;
+	int nonskip = -1;
+	int i;
+
+	for (i=0; i<parser_countlist (glist); i++) {
+		tnode_t *guard = parser_getfromlist (glist, i);
+		tnode_t *act;
+		
+		if (guard->tag == gup.tag_DECLBLOCK) {
+			guard = tnode_nthsubof (guard, 1);
+		}
+		if (guard->tag != gup.tag_GUARD) {
+			typecheck_error (guard, tc, "invalid guard in alternative (found '%s')", guard->tag->name);
+			/* give up totally here */
+			return 1;
+		}
+		act = tnode_nthsubof (guard, 1);
+
+		if ((act->tag == gup.tag_INPUT) || (act->tag == gup.tag_CASEINPUT)) {
+			/* okay */
+			nonskip = i;
+		} else if (act->tag == gup.tag_SKIP) {
+			hasskip = i;
+		} else {
+			typecheck_error (act, tc, "invalid guard action in alternative (found '%s')", act->tag->name);
+		}
+	}
+
+	if ((hasskip >= 0) && !ispri) {
+		typecheck_error (node, tc, "skip guard only allowed in 'pri alt'");
+	} else if ((hasskip >= 0) && (hasskip < nonskip)) {
+		typecheck_error (node, tc, "skip guard not last in 'pri alt'");
+	}
+	return 1;
+}
+/*}}}*/
 /*{{{  static int guppy_fetrans1_anode (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)*/
 /*
  *	does fetrans1 transform for an alternative -- this creates the temporary that will be used to store the selected guard.
@@ -788,7 +833,7 @@ static int guppy_fetrans1_anode (compops_t *cops, tnode_t **nodep, guppy_fetrans
 	tnode_t *node = *nodep;
 
 	fe1->inspoint = nodep;
-	if (node->tag == gup.tag_ALT) {
+	if ((node->tag == gup.tag_ALT) || (node->tag == gup.tag_PRIALT)) {
 		tnode_t *tname, *type;
 		tnode_t **newnodep;
 
@@ -825,12 +870,14 @@ static int guppy_fetrans15_anode (compops_t *cops, tnode_t **nodep, guppy_fetran
  */
 static int guppy_fetrans3_anode (compops_t *cops, tnode_t **nodep, guppy_fetrans3_t *fe3)
 {
-	if ((*nodep)->tag == gup.tag_ALT) {
+	if (((*nodep)->tag == gup.tag_ALT) || ((*nodep)->tag == gup.tag_PRIALT)) {
 		tnode_t *node = *nodep;
 		tnode_t *newseq, *newseqlist;
 		tnode_t *glist = tnode_nthsubof (node, 1);
 		tnode_t *gclist, *optlist;
 		tnode_t *choice;
+		int isprialt = (node->tag == gup.tag_PRIALT);
+		int hasskip = 0;
 		int i;
 
 		newseqlist = parser_newlistnode (SLOCI);
@@ -879,12 +926,39 @@ static int guppy_fetrans3_anode (compops_t *cops, tnode_t **nodep, guppy_fetrans
 					guppy_fetrans3_subtree (&opt, fe3);
 
 					parser_addtolist (optlist, opt);
+				} else if (gitem->tag == gup.tag_SKIP) {
+					tnode_t *optval = constprop_newconst (CONST_INT, NULL, NULL, -1);
+					tnode_t *optproclist = parser_newlistnode (SLOCI);
+					tnode_t *optproc, *opt;
+
+					if (decls) {
+						optproc = tnode_createfrom (gup.tag_DECLBLOCK, decls, decls,
+								tnode_createfrom (gup.tag_SEQ, gitem, NULL, optproclist));
+					} else {
+						optproc = tnode_createfrom (gup.tag_SEQ, gitem, NULL, optproclist);
+					}
+					opt = tnode_createfrom (gup.tag_OPTION, gitem, optval, optproc);
+
+					/* nothing to add to the channel list: if skip is not last, will go wrong */
+					hasskip = 1;
+					parser_addtolist (optproclist, tnode_nthsubof (guard, 2));
+
+					/* do fetrans3 on the whole option */
+					guppy_fetrans3_subtree (&opt, fe3);
+
+					parser_addtolist (optlist, opt);
+
 				}
 			}
 		}
 
 		/* replace ALT body with channel-list */
 		tnode_setnthsub (node, 1, gclist);
+
+		if (hasskip && (node->tag == gup.tag_PRIALT)) {
+			/* turn into pri-alt-with-skip */
+			node->tag = gup.tag_PRIALTSKIP;
+		}
 
 		parser_addtolist (newseqlist, node);
 		parser_addtolist (newseqlist, choice);
@@ -903,12 +977,22 @@ static int guppy_fetrans3_anode (compops_t *cops, tnode_t **nodep, guppy_fetrans
  */
 static int guppy_namemap_anode (compops_t *cops, tnode_t **nodep, map_t *map)
 {
-	if ((*nodep)->tag == gup.tag_ALT) {
+	if (((*nodep)->tag == gup.tag_ALT) || ((*nodep)->tag == gup.tag_PRIALT) || ((*nodep)->tag == gup.tag_PRIALTSKIP)) {
 		tnode_t *pacall, *pacallnum;
 		tnode_t *newparams;
 		tnode_t *wptr;
 		cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)map->hook;
+		int useskip = ((*nodep)->tag == gup.tag_PRIALTSKIP);
+		int apicall;
 		int i;
+
+		if ((*nodep)->tag == gup.tag_PRIALT) {
+			apicall = PROC_PRIALT;
+		} else if ((*nodep)->tag == gup.tag_PRIALTSKIP) {
+			apicall = PROC_PRIALTSKIP;
+		} else {
+			apicall = PROC_ALT;
+		}
 
 		wptr = cmd->process_id;
 		map_submapnames (&wptr, map);
@@ -917,7 +1001,7 @@ static int guppy_namemap_anode (compops_t *cops, tnode_t **nodep, map_t *map)
 		map_submapnames (tnode_nthsubaddr (*nodep, 0), map);				/* map selection var */
 
 		newparams = parser_newlistnode (SLOCI);
-		pacallnum = cccsp_create_apicallname (PROC_ALT);
+		pacallnum = cccsp_create_apicallname (apicall);
 		pacall = tnode_createfrom (gup.tag_APICALLR, *nodep, pacallnum, newparams, tnode_nthsubof (*nodep, 0));
 		parser_addtolist (newparams, wptr);
 		for (i=0; i<parser_countlist (tnode_nthsubof (*nodep, 1)); i++) {
@@ -1084,10 +1168,11 @@ static int guppy_cnode_init_nodes (void)
 	gup.tag_REPLPAR = tnode_newnodetag ("REPLPAR", &i, tnd, NTF_INDENTED_PROC_LIST);
 
 	/*}}}*/
-	/*{{{  guppy:anode -- ALT*/
+	/*{{{  guppy:anode -- ALT, PRIALT, PRIALTSKIP*/
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:anode", &i, 2, 0, 0, TNF_LONGPROC);		/* subnodes: 0 = selection-var; 1 = body (list of guards) */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_anode));
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_anode));
 	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_anode));
 	tnode_setcompop (cops, "fetrans3", 2, COMPOPTYPE (guppy_fetrans3_anode));
@@ -1098,6 +1183,10 @@ static int guppy_cnode_init_nodes (void)
 
 	i = -1;
 	gup.tag_ALT = tnode_newnodetag ("ALT", &i, tnd, NTF_INDENTED_DGUARD_LIST);
+	i = -1;
+	gup.tag_PRIALT = tnode_newnodetag ("PRIALT", &i, tnd, NTF_INDENTED_DGUARD_LIST);
+	i = -1;
+	gup.tag_PRIALTSKIP = tnode_newnodetag ("PRIALTSKIP", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:guard -- GUARD*/

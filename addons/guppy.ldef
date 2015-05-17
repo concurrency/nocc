@@ -17,6 +17,8 @@
 .SYMBOL "**"
 .SYMBOL "++"
 .SYMBOL "--"
+.SYMBOL "+="
+.SYMBOL "-="
 
 .GRULE	"gup:nullreduce" "N+R-"
 .GRULE	"gup:nullpush" "0N-"
@@ -72,11 +74,13 @@
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@! 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:output> ]"
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@( 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:instance> ]"
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@. 2 ] [ 1 +@@[ 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:exprstartproc> ]"
+.TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@+= 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:exprstartproc> ]"
 
 # "guppy:exprstartproc" handles processes that might start with expressions, e.g. complex LHS for action
 
 .TABLE	"guppy:exprstartproc ::= [ 0 guppy:expr 1 ] [ 1 -@@= <guppy:assignlhs> ] [ 1 -@@? <guppy:inputlhs> ] [ 1 -@@! <guppy:outputlhs> ]"
 	"[ 1 -* 2 ] [ 2 {Rguppy:checkfixio} -* 3 ] [ 3 -@@= <guppy:assignlhs> ] [ 3 -@@? <guppy:inputlhs> ] [ 3 -@@! <guppy:outputlhs> ]"
+	"[ 1 @@+= <guppy:addinlhs> ] [ 1 @@-= <guppy:subinlhs> ]"
 
 # }}}
 
@@ -211,6 +215,7 @@
 .GRULE	"gup:seqreduce" "T+St0@t00C[SEQ]2R-"
 .GRULE	"gup:parreduce" "T+St0@t00C[PAR]2R-"
 .GRULE	"gup:altreduce" "T+St0@t00C[ALT]2R-"
+.GRULE	"gup:prialtreduce" "T+St0@t00C[PRIALT]2R-"
 
 .GRULE	"gup:replseqreduce" "T+St0@tN+N+N+00V*C[REPLSEQ]5R-"
 
@@ -219,8 +224,9 @@
 .TABLE	"guppy:cnode ::= [ 0 +@seq 1 ] [ 1 -Newline 2 ] [ 2 {<gup:seqreduce>} -* ]"
 	"[ 1 guppy:name 3 ] [ 3 @@= 4 ] [ 4 guppy:expr 5 ] [ 5 @for 6 ] [ 6 guppy:expr 7 ] [ 7 {<gup:replseqreduce>} -* ]"
 	"[ 1 @for 8 ] [ 8 {<gup:null2push>} -* 6 ]"
-	"[ 0 +@par 9 ] [ 9 -Newline 10 ] [ 10 {<gup:parreduce>} -* ]"
-	"[ 0 +@alt 11 ] [ 11 -Newline 12 ] [ 12 {<gup:altreduce>} -* ]"
+	"[ 0 +@par 9 ] [ 9 -Newline 10 ] [ 9 -Comment 10 ] [ 10 {<gup:parreduce>} -* ]"
+	"[ 0 +@alt 11 ] [ 11 -Newline 12 ] [ 11 -Comment 12 ] [ 12 {<gup:altreduce>} -* ]"
+	"[ 0 +@pri 13 ] [ 13 @alt 14 ] [ 14 -Newline 15 ] [ 14 -Comment 15 ] [ 15 {<gup:prialtreduce>} -* ]"
 
 .TABLE	"guppy:guard +:= [ 0 guppy:primproc 1 ] [ 1 {<gup:guardreduce>} -* ]"
 
@@ -274,7 +280,6 @@
 
 .TABLE	"guppy:restofguard2 +:= [ 0 guppy:restofinput2 1 ] [ 1 {<gup:guardreduce>} -* ]"
 
-# FIXME: this can't be right given what the parser is doing!
 .TABLE	"guppy:restofinput +:= [ 0 @@? 1 ] [ 1 {<gup:nullpush>} -* 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:inputreduce>} -* ]"
 	"[ 2 @case 4 ] [ 4 {<gup:caseinputreduce>} -* ]"
 .TABLE	"guppy:restofinput2 +:= [ 0 -* 1 ] [ 1 {<gup:nullpush>} -* 2 ] [ 2 guppy:expr 3 ] [ 3 {<gup:inputreduce>} -* ]"
@@ -314,6 +319,9 @@
 .GRULE	"gup:markedinreduce" "SN0N+0C[MARKEDIN]2R-"
 .GRULE	"gup:markedoutreduce" "SN0N+0C[MARKEDOUT]2R-"
 
+.GRULE	"gup:addinreduce" "SN0N+N+VC[ADDIN]2R-"
+.GRULE	"gup:subinreduce" "SN0N+N+VC[SUBIN]2R-"
+
 # array/record things are fundamentally types, so..
 
 .TABLE	"guppy:expr +:= [ 0 @size 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:sizereduce>} -* ]"
@@ -351,6 +359,9 @@
 
 .TABLE	"guppy:restofexpr +:= [ 0 @@[ 1 ] [ 1 guppy:expr 2 ] [ 2 @@] 3 ] [ 3 {<gup:foldarraysub>} -* <guppy:restofexpr> ]"
 .TABLE	"guppy:restofexpr +:= [ 0 @@. 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:foldarraysub>} -* <guppy:restofexpr> ]"
+
+.TABLE	"guppy:addinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:addinreduce>} -* ]"
+.TABLE	"guppy:subinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:subinreduce>} -* ]"
 
 # }}}
 .SECTION "guppy-instance" # {{{

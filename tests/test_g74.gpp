@@ -1,0 +1,37 @@
+
+# test_g74.gpp -- while?
+
+define foo () -> int
+  return 42
+end
+
+define bar ()
+  skip
+end
+
+define test_g74 (chan(int) in?)
+  int c
+  seq
+
+    c = 20
+
+    if
+      c < 30
+        seq
+          skip
+
+          bool loop = true
+          while loop
+            pri alt
+              in ? c
+                loop = false
+              skip
+                seq
+                  foo ()
+                  bar ()
+
+          skip
+      else
+        skip
+end
+

@@ -1,0 +1,9 @@
+
+# test_g72.gpp -- compact operators
+
+define test_g72 ()
+  int x = 0
+
+  x += 10
+end
+

@@ -311,7 +311,9 @@ static cccsp_apicall_t cccsp_apicall_table[] = {
 	{LIGHT_PROC_FREE, "LightProcFree", 32},
 	{ARRAY_INIT, "GuppyArrayInit", 32},
 	{ARRAY_INIT_ALLOC, "GuppyArrayInitAlloc", 32},
-	{ARRAY_FREE, "GuppyArrayFree", 32}
+	{ARRAY_FREE, "GuppyArrayFree", 32},
+	{PROC_PRIALT, "ProcPriAlt", 32},
+	{PROC_PRIALTSKIP, "ProcPriAltSkip", 32}
 };
 
 

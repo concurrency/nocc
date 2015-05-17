@@ -74,10 +74,12 @@ typedef enum ENUM_cccsp_apicall {
 	LIGHT_PROC_FREE = 26,
 	ARRAY_INIT = 27,
 	ARRAY_INIT_ALLOC = 28,
-	ARRAY_FREE = 29
+	ARRAY_FREE = 29,
+	PROC_PRIALT = 30,
+	PROC_PRIALTSKIP = 31
 } cccsp_apicall_e;
 
-#define CCCSP_APICALL_LAST ARRAY_FREE
+#define CCCSP_APICALL_LAST PROC_PRIALTSKIP
 
 typedef struct TAG_cccsp_apicall {
 	cccsp_apicall_e call;

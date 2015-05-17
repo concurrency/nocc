@@ -74,6 +74,8 @@
 static tnode_t *guppy_oper_inttypenode = NULL;
 static tnode_t *guppy_oper_booltypenode = NULL;
 
+STATICPOINTERHASH (ntdef_t *, compdopmap, 4);
+
 /*}}}*/
 
 
@@ -244,6 +246,38 @@ static int guppy_codegen_dopnode (compops_t *cops, tnode_t *node, codegen_t *cge
 static tnode_t *guppy_gettype_dopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
 {
 	return tnode_nthsubof (node, 2);
+}
+/*}}}*/
+
+/*{{{  static int guppy_postscope_compdopnode (compops_t *cops, tnode_t **nodep)*/
+/*
+ *	does post-scope for compound dop node (undoes into full assignment)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_postscope_compdopnode (compops_t *cops, tnode_t **nodep)
+{
+	tnode_t *lhs = tnode_nthsubof (*nodep, 0);
+	tnode_t *rhs = tnode_nthsubof (*nodep, 1);
+	ntdef_t *xop, *tag = (*nodep)->tag;
+
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_postscope_compdopnode(): FIXME! :).  node is:\n");
+tnode_dumptree (*nodep, 1, FHAN_STDERR);
+#endif
+	xop = pointerhash_lookup (compdopmap, (void *)tag);
+	if (xop) {
+		tnode_t *lhscopy = tnode_copytree (lhs);
+		tnode_t *newass, *newop;
+
+		newop = tnode_createfrom (xop, *nodep, lhscopy, rhs, NULL);
+		newass = tnode_createfrom (gup.tag_ASSIGN, *nodep, lhs, newop, NULL);
+
+		*nodep = newass;
+	} else {
+		tnode_error (*nodep, "unhandled compound operator (%s)", tag->name);
+		nocc_internal ("abandoning");
+	}
+	return 0;
 }
 /*}}}*/
 
@@ -992,6 +1026,8 @@ static int guppy_oper_init_nodes (void)
 	langops_t *lops;
 	int i;
 
+	pointerhash_sinit (compdopmap);
+
 	/*{{{  guppy:dopnode -- ADD, SUB, MUL, DIV, REM, ASHR, SHR, SHL, BITXOR, BITAND, BITOR, PLUS, MINUS, TIMES*/
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:dopnode", &i, 3, 0, 0, TNF_NONE);			/* subnodes: left, right, type */
@@ -1034,6 +1070,20 @@ static int guppy_oper_init_nodes (void)
 	gup.tag_MINUS = tnode_newnodetag ("MINUS", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_TIMES = tnode_newnodetag ("TIMES", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:compdopnode -- ADDIN, SUBIN, DIVIN, REMIN, ASHRIN, SHRIN, SHLIN, BITXORIN, BITANDIN, PLUSIN, MINUSIN, TIMESIN, XORIN, ANDIN, ORIN*/
+	/* Note: no type needed, disappears before typecheck */
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:compdopnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: left, right */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "postscope", 1, COMPOPTYPE (guppy_postscope_compdopnode));
+	tnd->ops = cops;
+
+	i = -1;
+	gup.tag_ADDIN = tnode_newnodetag ("ADDIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_SUBIN = tnode_newnodetag ("SUBIN", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:booldopnode -- XOR, AND, OR*/
@@ -1190,6 +1240,26 @@ static int guppy_oper_init_nodes (void)
 	gup.tag_STRCONCAT = tnode_newnodetag ("STRCONCAT", &i, tnd, NTF_NONE);
 
 	/*}}}*/
+
+	/* bung relevant ones into compdopmap */
+	pointerhash_insert (compdopmap, gup.tag_ADD, (void *)gup.tag_ADDIN);
+	pointerhash_insert (compdopmap, gup.tag_SUB, (void *)gup.tag_SUBIN);
+	pointerhash_insert (compdopmap, gup.tag_MUL, (void *)gup.tag_MULIN);
+	pointerhash_insert (compdopmap, gup.tag_DIV, (void *)gup.tag_DIVIN);
+	pointerhash_insert (compdopmap, gup.tag_REM, (void *)gup.tag_REMIN);
+	pointerhash_insert (compdopmap, gup.tag_ASHR, (void *)gup.tag_ASHRIN);
+	pointerhash_insert (compdopmap, gup.tag_SHR, (void *)gup.tag_SHRIN);
+	pointerhash_insert (compdopmap, gup.tag_SHL, (void *)gup.tag_SHLIN);
+	pointerhash_insert (compdopmap, gup.tag_BITXOR, (void *)gup.tag_BITXORIN);
+	pointerhash_insert (compdopmap, gup.tag_BITAND, (void *)gup.tag_BITANDIN);
+	pointerhash_insert (compdopmap, gup.tag_BITOR, (void *)gup.tag_BITORIN);
+	pointerhash_insert (compdopmap, gup.tag_PLUS, (void *)gup.tag_PLUSIN);
+	pointerhash_insert (compdopmap, gup.tag_MINUS, (void *)gup.tag_MINUSIN);
+	pointerhash_insert (compdopmap, gup.tag_TIMES, (void *)gup.tag_TIMESIN);
+	pointerhash_insert (compdopmap, gup.tag_XOR, (void *)gup.tag_XORIN);
+	pointerhash_insert (compdopmap, gup.tag_AND, (void *)gup.tag_ANDIN);
+	pointerhash_insert (compdopmap, gup.tag_OR, (void *)gup.tag_ORIN);
+	pointerhash_insert (compdopmap, gup.tag_PLUS, (void *)gup.tag_PLUSIN);
 
 	return 0;
 }

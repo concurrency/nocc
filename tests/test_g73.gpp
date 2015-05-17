@@ -1,0 +1,13 @@
+
+# test_g73.gpp -- testing alt with skip
+
+define foo (chan(int) in?)
+  int c
+
+  alt
+    in ? c
+      skip
+    skip
+      stop
+end
+

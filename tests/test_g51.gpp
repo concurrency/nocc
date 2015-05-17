@@ -15,11 +15,14 @@ define fixed_delay (val int usecs)
 end
 
 val int MOVE_DELAY = 480000
+val int FORK_EAT_DELAY = 80000
+val int PHIL_POST_EAT_DELAY = 2000000
 
 define move_fork (val ev3_outport motor, chan(int) cmd?, val int inv)
   int c, pos, cpr
   bool b
-  int move_delta
+  int move_delta1, move_delta2
+  int eat_delta
   seq
     # centre the fork by swinging left enough
     b = ev3_mot_stop_mode (motor, STM_BRAKE)
@@ -31,35 +34,55 @@ define move_fork (val ev3_outport motor, chan(int) cmd?, val int inv)
     pos = ev3_mot_cur_pos (motor)
     cpr = ev3_mot_count_per_rot (motor)
 
-    move_delta = cpr / 2
+    move_delta1 = (cpr / 2) - (cpr / 10)
+    move_delta2 = (cpr / 2) + (cpr / 4)
+    eat_delta = 15
 
     # then back to the centre (-delta)
-    b = ev3_mot_run_to_pos (motor, pos - move_delta, -40)
+    b = ev3_mot_run_to_pos (motor, pos - move_delta1, -50)
     fixed_delay (MOVE_DELAY * 4)
 
-    # make 'pos' the centre position
-    pos = ev3_mot_cur_pos (motor)
 
     cmd ? c
 
     while true
       seq
 
+        # make 'pos' the centre position (will change!)
+        pos = ev3_mot_cur_pos (motor)
+
         cmd ? c
         if
           (c == inv)
             seq
               # move left
-              b = ev3_mot_run_to_pos (motor, pos + move_delta, 40)
+              b = ev3_mot_run_to_pos (motor, pos + move_delta2, 50)
               fixed_delay (MOVE_DELAY)
 
               # wait/notify completion
               cmd ? c
 
+              pos = ev3_mot_cur_pos (motor)
+
+              # want/notify for eat activity
+              cmd ? c
+
+              bool loop = true
+              while loop
+                pri alt
+                  cmd ? c
+                    loop = false
+                  skip
+                    seq
+                      ev3_mot_run_to_pos (motor, pos + eat_delta, 50)
+                      fixed_delay (FORK_EAT_DELAY)
+                      ev3_mot_run_to_pos (motor, pos, -50)
+                      fixed_delay (FORK_EAT_DELAY)
+
               # wait for put-back
               cmd ? c
 
-              b = ev3_mot_run_to_pos (motor, pos, -40)
+              b = ev3_mot_run_to_pos (motor, pos - move_delta1, -50)
               fixed_delay (MOVE_DELAY)
 
               # wait/notify completion
@@ -67,16 +90,33 @@ define move_fork (val ev3_outport motor, chan(int) cmd?, val int inv)
           else
             seq
               # move right
-              b = ev3_mot_run_to_pos (motor, pos - move_delta, 40)
+              b = ev3_mot_run_to_pos (motor, pos - move_delta2, -50)
               fixed_delay (MOVE_DELAY)
 
               # wait/notify completion
               cmd ? c
 
+              pos = ev3_mot_cur_pos (motor)
+
+              # wait/notify for eat activity
+              cmd ? c
+
+              bool loop = true
+              while loop
+                pri alt
+                  cmd ? c
+                    loop = false
+                  skip
+                    seq
+                      ev3_mot_run_to_pos (motor, pos - eat_delta, -50)
+                      fixed_delay (FORK_EAT_DELAY)
+                      ev3_mot_run_to_pos (motor, pos, 50)
+                      fixed_delay (FORK_EAT_DELAY)
+
               # wait for put-back
               cmd ? c
 
-              b = ev3_mot_run_to_pos (motor, pos, 40)
+              b = ev3_mot_run_to_pos (motor, pos + move_delta1, 50)
               fixed_delay (MOVE_DELAY)
 
               # wait/notify completion
@@ -97,6 +137,9 @@ define fork (val int id, chan(bool) left?, right?, chan(int) cmd!)
           left ? any
 
           # philosopher eats here
+          cmd ! 0
+          left ? any
+          cmd ! 0
 
           left ? any
           # animate put-down
@@ -113,6 +156,9 @@ define fork (val int id, chan(bool) left?, right?, chan(int) cmd!)
           right ? any
 
           #philosopher eats here
+          cmd ! 1
+          left ? any
+          cmd ! 1
 
           right ? any
           # animate put-down
@@ -143,15 +189,23 @@ define philosopher (val int id, chan(bool) up!, down!, left!, right!)
       down ! true
       # pick up forks
       par
-        seq
-          left ! true
-          left ! true
-        seq
-          right ! true
-          right ! true
+        left ! true
+        right ! true
+      # got forks, tell them we're now eating (animate action)
+      seq
+        left ! true
+        right ! true
+
       # eating
       debug_printf ("philosopher " + int_to_str (id) + " eating..\n")
       rand_delay (2000000, 4000000)
+      # signal done eating to forks (keep in hand, but stop animating eat)
+      seq
+        left ! true
+        right ! true
+
+      fixed_delay (PHIL_POST_EAT_DELAY)
+
       # put down forks
       par
         seq
@@ -204,8 +258,8 @@ define secure_college ()
   par
     move_fork (PORT_A, fc0?, 1)
     move_fork (PORT_B, fc1?, 0)
-    move_fork (PORT_C, fc2?, 0)
-    move_fork (PORT_D, fc3?, 1)
+    move_fork (PORT_C, fc2?, 1)
+    move_fork (PORT_D, fc3?, 0)
 
     seq
       # sync with motor drivers before we start the simulation proper.

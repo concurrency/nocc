@@ -108,7 +108,10 @@ typedef struct {
 
 	struct TAG_ntdef *tag_SEQ;
 	struct TAG_ntdef *tag_PAR;
+
 	struct TAG_ntdef *tag_ALT;
+	struct TAG_ntdef *tag_PRIALT;
+	struct TAG_ntdef *tag_PRIALTSKIP;
 
 	struct TAG_ntdef *tag_REPLSEQ;
 	struct TAG_ntdef *tag_REPLPAR;
@@ -182,6 +185,26 @@ typedef struct {
 	struct TAG_ntdef *tag_XOR;
 	struct TAG_ntdef *tag_AND;
 	struct TAG_ntdef *tag_OR;
+
+	struct TAG_ntdef *tag_ADDIN;
+	struct TAG_ntdef *tag_SUBIN;
+	struct TAG_ntdef *tag_MULIN;
+	struct TAG_ntdef *tag_DIVIN;
+	struct TAG_ntdef *tag_REMIN;
+	struct TAG_ntdef *tag_ASHRIN;
+	struct TAG_ntdef *tag_SHRIN;
+	struct TAG_ntdef *tag_SHLIN;
+	struct TAG_ntdef *tag_BITXORIN;
+	struct TAG_ntdef *tag_BITANDIN;
+	struct TAG_ntdef *tag_BITORIN;
+
+	struct TAG_ntdef *tag_PLUSIN;
+	struct TAG_ntdef *tag_MINUSIN;
+	struct TAG_ntdef *tag_TIMESIN;
+
+	struct TAG_ntdef *tag_XORIN;
+	struct TAG_ntdef *tag_ANDIN;
+	struct TAG_ntdef *tag_ORIN;
 
 	struct TAG_ntdef *tag_LT;
 	struct TAG_ntdef *tag_LE;
