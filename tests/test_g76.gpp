@@ -1,0 +1,38 @@
+
+# test_g76.gpp -- testing skip in pri alt
+
+define fdly (val int n)
+  timer tim
+  int t
+  seq
+    tim ? t
+    t = t + n
+    tim ? after t
+end
+
+define first (chan(int) out!)
+  seq
+    fdly (500000)
+    out ! 42
+end
+
+define second (chan(int) in?)
+  int any
+  bool loop = true
+  while loop
+    pri alt
+      in ? any
+        loop = false
+
+      skip
+        fdly (10000)
+
+end
+
+define test_g76 ()
+  chan(int) c
+  par
+    first (c!)
+    second (c?)
+end
+

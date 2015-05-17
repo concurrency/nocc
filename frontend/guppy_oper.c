@@ -266,7 +266,7 @@ tnode_dumptree (*nodep, 1, FHAN_STDERR);
 #endif
 	xop = pointerhash_lookup (compdopmap, (void *)tag);
 	if (xop) {
-		tnode_t *lhscopy = tnode_copytree (lhs);
+		tnode_t *lhscopy = guppy_copytree (lhs);
 		tnode_t *newass, *newop;
 
 		newop = tnode_createfrom (xop, *nodep, lhscopy, rhs, NULL);

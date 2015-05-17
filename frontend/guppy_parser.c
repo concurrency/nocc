@@ -1035,6 +1035,34 @@ int guppy_chantype_getinout (tnode_t *chantype, int *marked_in, int *marked_out)
 	return -1;
 }
 /*}}}*/
+/*{{{  static copycontrol_e guppy_copyctl_aliasnames (tnode_t *node)*/
+/*
+ *	used by function below to decide whether or not to alias a node during copy
+ */
+static copycontrol_e guppy_copyctl_aliasnames (tnode_t *node)
+{
+	if (!node) {
+		nocc_internal ("guppy_copyctl_aliasnames(): called with NULL node!");
+		return COPY_ALIAS;
+	}
+	if (node->tag->ndef == gup.node_NAMENODE) {
+		return COPY_ALIAS;
+	}
+	return (COPY_SUBS | COPY_HOOKS | COPY_CHOOKS);
+}
+/*}}}*/
+/*{{{  tnode_t *guppy_copytree (tnode_t *tree)*/
+/*
+ *	copies a parse tree fragment, preserving (aliasing) guppy:namenode nodes
+ *	returns new tree on success, NULL on failure (or copy of a null tree)
+ */
+tnode_t *guppy_copytree (tnode_t *tree)
+{
+	tnode_t *copy = tnode_copyoraliastree (tree, guppy_copyctl_aliasnames);
+
+	return copy;
+}
+/*}}}*/
 
 /*{{{  static tnode_t *guppy_make_tlp (tnode_t *userfcn)*/
 /*

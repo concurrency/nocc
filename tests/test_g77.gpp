@@ -1,0 +1,25 @@
+
+# test_g77.gpp -- bug hunting
+
+define foo (val int x, y)
+  int z
+  seq
+    z = x + y
+end
+
+define bar (val int a) -> int
+  int b
+  seq
+    b = 100 / a
+    return b + 20
+end
+
+define test_g77 ()
+  seq
+    bar (1)
+    foo (2,3)
+    bar (4)
+    foo (5,6)
+
+end
+

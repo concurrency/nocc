@@ -15,7 +15,7 @@ define fixed_delay (val int usecs)
 end
 
 val int MOVE_DELAY = 480000
-val int FORK_EAT_DELAY = 80000
+val int FORK_EAT_DELAY = 100000
 val int PHIL_POST_EAT_DELAY = 2000000
 
 define move_fork (val ev3_outport motor, chan(int) cmd?, val int inv)

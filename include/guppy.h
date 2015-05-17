@@ -348,6 +348,7 @@ extern struct TAG_tnode *guppy_makereallit (struct TAG_tnode *type, struct TAG_t
 extern struct TAG_tnode *guppy_makestringlit (struct TAG_tnode *type, struct TAG_tnode *org, const char *value);
 
 extern char *guppy_maketempname (struct TAG_tnode *org);
+extern struct TAG_tnode *guppy_copytree (struct TAG_tnode *tree);
 
 extern guppy_fcndefhook_t *guppy_newfcndefhook (void);
 extern void guppy_freefcndefhook (guppy_fcndefhook_t *fdh);
