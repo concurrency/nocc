@@ -615,7 +615,7 @@ int guppy_declify_listtodecllist (tnode_t **listptr, guppy_declify_t *gdl)
 	int nitems = 0;
 	tnode_t **items = parser_getlistitems (list, &nitems);
 	int i, j;
-	tnode_t **nextptr = NULL;
+	tnode_t **nextptr = listptr;
 
 	for (i=0; (i<nitems) && (items[i]->tag == gup.tag_VARDECL); i++);
 	for (j=i; (j<nitems) && (items[j]->tag != gup.tag_VARDECL); j++);
