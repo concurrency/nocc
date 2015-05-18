@@ -1038,6 +1038,7 @@ int guppy_chantype_getinout (tnode_t *chantype, int *marked_in, int *marked_out)
 /*{{{  static copycontrol_e guppy_copyctl_aliasnames (tnode_t *node)*/
 /*
  *	used by function below to decide whether or not to alias a node during copy
+ *	(will alias namenodes)
  */
 static copycontrol_e guppy_copyctl_aliasnames (tnode_t *node)
 {
