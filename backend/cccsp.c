@@ -276,6 +276,7 @@ static void *cccsp_set_outfile = NULL;			/* string copy (char*) for the above co
 static int cccsp_bepass = 0;
 static char *cccsp_cc_opts = NULL;			/* extra flags that can be passed to the C compiler */
 static int cccsp_show_sfi = 0;				/* whether or not to dump the SFI table (after recompile) */
+static int cccsp_force_librecompile = 0;		/* force [standard/built-in] libraries to be recompiled */
 static cccsp_subtarget_e cccsp_subtarget = CCCSP_SUBTARGET_DEFAULT;
 
 static chook_t *cccsp_ctypestr = NULL;
@@ -449,6 +450,7 @@ static int cccsp_target_init_options (void)
 	opts_add ("cccsp-show-sfi", '\0', cccsp_opthandler_setflag, (void *)&cccsp_show_sfi, "1dump SFI table after recompile");
 	opts_add ("cccsp-subtarget", '\0', cccsp_opthandler_setsubtarget, NULL, "1set CCCSP sub-target (default/x86, EV3)");
 	opts_add ("cccsp-kroc", '\0', cccsp_opthandler_setkrocpath, NULL, "1specify path to kroc for CCCSP back-end");
+	opts_add ("cccsp-force-libcomp", '\0', cccsp_opthandler_setflag, (void *)&cccsp_force_librecompile, "1force recompilation of standard libraries");
 	return 0;
 }
 /*}}}*/
@@ -3386,7 +3388,7 @@ static int cccsp_cc_compile_cpass (tnode_t **treeptr, lexfile_t *srclf, target_t
 #if 0
 fhandle_printf (FHAN_STDERR, "here: found_src=[%s] found_obj=[%s] found_sfi=[%s]\n", found_src ?: "", found_obj ?: "", found_sfi ?: "");
 #endif
-			if (found_src && (!found_obj || (fhandle_cnewer (found_src, found_obj) > 0))) {
+			if (found_src && (cccsp_force_librecompile || !found_obj || (fhandle_cnewer (found_src, found_obj) > 0))) {
 				char *xcmd;
 				
 				if (!found_obj) {

@@ -3,7 +3,6 @@
 #	actual stack-frame sizes.  (this one is for the restricted ARM/CCSP on the LEGO EV3).
 #
 
-
 ENTER_KERNEL: =8 
 EXTERNAL_CALL: =20 
 ChanInit: =8 
@@ -44,11 +43,10 @@ ProcPar: =36, LightProcBarrierInit, LightProcStart, LightProcBarrierWait
 LightProcStart: =32, RuntimeSetEntry, RunP 
 ProcAlt: =32, Alt, AltEnableChannel, SetErrM, AltWait, AltDisableChannel, AltEnd 
 ProcPriAlt: =32, Alt, AltEnableChannel, SetErrM, AltWait, AltDisableChannel, AltEnd 
-ProcPriAltSkip: =32, TestChan 
+ProcPriAltSkip: =32, TestChan, Reschedule 
 ExternalCall0: =40, ccsp_scheduler, EXTERNAL_CALL 
 ExternalCall1: =40, ccsp_scheduler, EXTERNAL_CALL 
 ExternalCallN: =44, ccsp_scheduler, EXTERNAL_CALL 
-
 
 gproc_guppy_screen_process: =24, ProcGetParam, ChanIn, ExternalCallN, GuppyStringFree 
 gcf_int_to_str: =48, GuppyStringFree, GuppyStringInit, MAlloc, ExternalCallN 
