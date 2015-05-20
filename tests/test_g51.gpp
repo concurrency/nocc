@@ -15,8 +15,8 @@ define fixed_delay (val int usecs)
 end
 
 val int MOVE_DELAY = 480000
-val int FORK_EAT_DELAY = 100000
-val int PHIL_POST_EAT_DELAY = 2000000
+val int FORK_EAT_DELAY = 150000
+val int PHIL_POST_EAT_DELAY = 750000
 
 define move_fork (val ev3_outport motor, chan(int) cmd?, val int inv)
   int c, pos, cpr
@@ -36,7 +36,7 @@ define move_fork (val ev3_outport motor, chan(int) cmd?, val int inv)
 
     move_delta1 = (cpr / 2) - (cpr / 10)
     move_delta2 = (cpr / 2) + (cpr / 4)
-    eat_delta = 15
+    eat_delta = 20
 
     # then back to the centre (-delta)
     b = ev3_mot_run_to_pos (motor, pos - move_delta1, -50)
@@ -74,9 +74,10 @@ define move_fork (val ev3_outport motor, chan(int) cmd?, val int inv)
                     loop = false
                   skip
                     seq
-                      ev3_mot_run_to_pos (motor, pos + eat_delta, 50)
+                      ev3_mot_run_to_pos (motor, pos - eat_delta, -50)
                       fixed_delay (FORK_EAT_DELAY)
-                      ev3_mot_run_to_pos (motor, pos, -50)
+                      pos += 5
+                      ev3_mot_run_to_pos (motor, pos, 50)
                       fixed_delay (FORK_EAT_DELAY)
 
               # wait for put-back
@@ -108,9 +109,10 @@ define move_fork (val ev3_outport motor, chan(int) cmd?, val int inv)
                     loop = false
                   skip
                     seq
-                      ev3_mot_run_to_pos (motor, pos - eat_delta, -50)
+                      ev3_mot_run_to_pos (motor, pos + eat_delta, 50)
                       fixed_delay (FORK_EAT_DELAY)
-                      ev3_mot_run_to_pos (motor, pos, 50)
+                      pos -= 5
+                      ev3_mot_run_to_pos (motor, pos, -50)
                       fixed_delay (FORK_EAT_DELAY)
 
               # wait for put-back
@@ -157,7 +159,7 @@ define fork (val int id, chan(bool) left?, right?, chan(int) cmd!)
 
           #philosopher eats here
           cmd ! 1
-          left ? any
+          right ? any
           cmd ! 1
 
           right ? any
@@ -199,10 +201,12 @@ define philosopher (val int id, chan(bool) up!, down!, left!, right!)
       # eating
       debug_printf ("philosopher " + int_to_str (id) + " eating..\n")
       rand_delay (2000000, 4000000)
+      debug_printf ("philosopher done eating\n")
       # signal done eating to forks (keep in hand, but stop animating eat)
       seq
         left ! true
         right ! true
+      debug_printf ("philosopher doing post-delay\n")
 
       fixed_delay (PHIL_POST_EAT_DELAY)
 
@@ -274,8 +278,8 @@ define secure_college ()
       chan(bool) fl0, fl1, fl2, fl3
       chan(bool) fr0, fr1, fr2, fr3
       par
-        philosopher (0, up0!, dn0!, fl0!, fr0!)
-        #philosopher (1, up1!, dn1!, fl1!, fr1!)
+        #philosopher (0, up0!, dn0!, fl0!, fr0!)
+        philosopher (1, up1!, dn1!, fl1!, fr1!)
         #philosopher (2, up2!, dn2!, fl2!, fr2!)
         #philosopher (3, up3!, dn3!, fl3!, fr3!)
         fork (0, fr0?, fl3?, fc0!)

@@ -74,7 +74,7 @@
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@! 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:output> ]"
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@( 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:instance> ]"
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@. 2 ] [ 1 +@@[ 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:exprstartproc> ]"
-.TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@+= 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:exprstartproc> ]"
+.TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@+= 2 ] [ 1 +@@-= 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:exprstartproc> ]"
 
 # "guppy:exprstartproc" handles processes that might start with expressions, e.g. complex LHS for action
 
