@@ -19,6 +19,20 @@
 .SYMBOL "--"
 .SYMBOL "+="
 .SYMBOL "-="
+.SYMBOL "*="
+.SYMBOL "/="
+.SYMBOL "\\="
+.SYMBOL "<<="
+.SYMBOL ">>="
+.SYMBOL ">>>="
+.SYMBOL "&&="
+.SYMBOL "||="
+.SYMBOL "&="
+.SYMBOL "|="
+.SYMBOL "><="
+.SYMBOL "++="
+.SYMBOL "--="
+.SYMBOL "**="
 
 .GRULE	"gup:nullreduce" "N+R-"
 .GRULE	"gup:nullpush" "0N-"
@@ -74,13 +88,19 @@
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@! 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:output> ]"
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@( 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:instance> ]"
 .TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@. 2 ] [ 1 +@@[ 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:exprstartproc> ]"
-.TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@+= 2 ] [ 1 +@@-= 2 ] [ 2 {<gup:rewindlexer>} -* <guppy:exprstartproc> ]"
+.TABLE	"guppy:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@+= 2 ] [ 1 +@@-= 2 ] [ 1 +@@*= 2 ]"
+	"[ 1 +@@/= 2 ] [ 1 +@@\\= 2 ] [ 1 +@@&&= 2 ] [ 1 +@@||= 2 ] [ 1 +@@><= 2 ] [ 1 +@@&= 2 ] [ 1 +@@|= 2 ]"
+	"[ 1 +@@++= 2 ] [ 1 +@@--= 2 ] [ 1 +@@**= 2 ] [ 1 +@@<<= 2 ] [ 1 +@@>>= 2 ] [ 1 +@@>>>= 2 ]"
+	"[ 2 {<gup:rewindlexer>} -* <guppy:exprstartproc> ]"
 
 # "guppy:exprstartproc" handles processes that might start with expressions, e.g. complex LHS for action
 
 .TABLE	"guppy:exprstartproc ::= [ 0 guppy:expr 1 ] [ 1 -@@= <guppy:assignlhs> ] [ 1 -@@? <guppy:inputlhs> ] [ 1 -@@! <guppy:outputlhs> ]"
 	"[ 1 -* 2 ] [ 2 {Rguppy:checkfixio} -* 3 ] [ 3 -@@= <guppy:assignlhs> ] [ 3 -@@? <guppy:inputlhs> ] [ 3 -@@! <guppy:outputlhs> ]"
-	"[ 1 @@+= <guppy:addinlhs> ] [ 1 @@-= <guppy:subinlhs> ]"
+	"[ 1 @@+= <guppy:addinlhs> ] [ 1 @@-= <guppy:subinlhs> ] [ 1 @@*= <guppy:mulinlhs> ] [ 1 @@/= <guppy:divinlhs> ] [ 1 @@\\= <guppy:reminlhs> ]"
+	"[ 1 @@>>= <guppy:shrinlhs> ] [ 1 @@<<= <guppy:shlinlhs> ] [ 1 @@>>>= <guppy:ashrinlhs> ]"
+	"[ 1 @@&&= <guppy:andinlhs> ] [ 1 @@||= <guppy:orinlhs> ] [ 1 @@><= <guppy:xorinlhs> ] [ 1 @@&= <guppy:bitandinlhs> ] [ 1 @@|= <guppy:bitorinlhs> ]"
+	"[ 1 @@++= <guppy:plusinlhs> ] [ 1 @@--= <guppy:minusinlhs> ] [ 1 @@**= <guppy:timesinlhs> ]"
 
 # }}}
 
@@ -321,6 +341,20 @@
 
 .GRULE	"gup:addinreduce" "SN0N+N+VC[ADDIN]2R-"
 .GRULE	"gup:subinreduce" "SN0N+N+VC[SUBIN]2R-"
+.GRULE	"gup:mulinreduce" "SN0N+N+VC[MULIN]2R-"
+.GRULE	"gup:divinreduce" "SN0N+N+VC[DIVIN]2R-"
+.GRULE	"gup:reminreduce" "SN0N+N+VC[REMIN]2R-"
+.GRULE	"gup:shrinreduce" "SN0N+N+VC[SHRIN]2R-"
+.GRULE	"gup:shlinreduce" "SN0N+N+VC[SHLIN]2R-"
+.GRULE	"gup:ashrinreduce" "SN0N+N+VC[ASHRIN]2R-"
+.GRULE	"gup:andinreduce" "SN0N+N+VC[ANDIN]2R-"
+.GRULE	"gup:orinreduce" "SN0N+N+VC[ORIN]2R-"
+.GRULE	"gup:xorinreduce" "SN0N+N+VC[XORIN]2R-"
+.GRULE	"gup:plusinreduce" "SN0N+N+VC[PLUSIN]2R-"
+.GRULE	"gup:minusinreduce" "SN0N+N+VC[MINUSIN]2R-"
+.GRULE	"gup:timesinreduce" "SN0N+N+VC[TIMESIN]2R-"
+.GRULE	"gup:bitandinreduce" "SN0N+N+VC[BITANDIN]2R-"
+.GRULE	"gup:bitorinreduce" "SN0N+N+VC[BITORIN]2R-"
 
 # array/record things are fundamentally types, so..
 
@@ -362,6 +396,20 @@
 
 .TABLE	"guppy:addinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:addinreduce>} -* ]"
 .TABLE	"guppy:subinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:subinreduce>} -* ]"
+.TABLE	"guppy:mulinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:mulinreduce>} -* ]"
+.TABLE	"guppy:divinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:divinreduce>} -* ]"
+.TABLE	"guppy:reminlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:reminreduce>} -* ]"
+.TABLE	"guppy:shrinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:shrinreduce>} -* ]"
+.TABLE	"guppy:shlinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:shlinreduce>} -* ]"
+.TABLE	"guppy:ashrinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:ashrinreduce>} -* ]"
+.TABLE	"guppy:andinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:andinreduce>} -* ]"
+.TABLE	"guppy:orinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:orinreduce>} -* ]"
+.TABLE	"guppy:xorinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:xorinreduce>} -* ]"
+.TABLE	"guppy:bitandinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:bitandinreduce>} -* ]"
+.TABLE	"guppy:bitorinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:bitorinreduce>} -* ]"
+.TABLE	"guppy:plusinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:plusinreduce>} -* ]"
+.TABLE	"guppy:minusinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:minusinreduce>} -* ]"
+.TABLE	"guppy:timesinlhs ::= [ 0 guppy:expr 1 ] [ 1 {<gup:timesinreduce>} -* ]"
 
 # }}}
 .SECTION "guppy-instance" # {{{

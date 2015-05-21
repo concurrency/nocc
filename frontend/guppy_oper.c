@@ -1072,7 +1072,7 @@ static int guppy_oper_init_nodes (void)
 	gup.tag_TIMES = tnode_newnodetag ("TIMES", &i, tnd, NTF_NONE);
 
 	/*}}}*/
-	/*{{{  guppy:compdopnode -- ADDIN, SUBIN, DIVIN, REMIN, ASHRIN, SHRIN, SHLIN, BITXORIN, BITANDIN, PLUSIN, MINUSIN, TIMESIN, XORIN, ANDIN, ORIN*/
+	/*{{{  guppy:compdopnode -- ADDIN, SUBIN, MULIN, DIVIN, REMIN, ASHRIN, SHRIN, SHLIN, BITXORIN, BITANDIN, PLUSIN, MINUSIN, TIMESIN, XORIN, ANDIN, ORIN*/
 	/* Note: no type needed, disappears before typecheck */
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:compdopnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: left, right */
@@ -1084,6 +1084,36 @@ static int guppy_oper_init_nodes (void)
 	gup.tag_ADDIN = tnode_newnodetag ("ADDIN", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_SUBIN = tnode_newnodetag ("SUBIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_MULIN = tnode_newnodetag ("MULIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_DIVIN = tnode_newnodetag ("DIVIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_REMIN = tnode_newnodetag ("REMIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_SHRIN = tnode_newnodetag ("SHRIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_SHLIN = tnode_newnodetag ("SHLIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_ASHRIN = tnode_newnodetag ("ASHRIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_ANDIN = tnode_newnodetag ("ANDIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_ORIN = tnode_newnodetag ("ORIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_XORIN = tnode_newnodetag ("XORIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_BITANDIN = tnode_newnodetag ("BITANDIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_BITORIN = tnode_newnodetag ("BITORIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_BITXORIN = tnode_newnodetag ("BITXORIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_PLUSIN = tnode_newnodetag ("PLUSIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_MINUSIN = tnode_newnodetag ("MINUSIN", &i, tnd, NTF_NONE);
+	i = -1;
+	gup.tag_TIMESIN = tnode_newnodetag ("TIMESIN", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 	/*{{{  guppy:booldopnode -- XOR, AND, OR*/

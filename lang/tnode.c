@@ -1604,7 +1604,7 @@ void tnode_dumptree (tnode_t *t, int indent, fhandle_t *stream)
 	}
 	tnd = t->tag->ndef;
 
-	fhandle_printf (stream, "<%s type=\"%s\" origin=\"%s:%d\" addr=\"0x%8.8x\">%s\n", tnd->name, t->tag->name,
+	fhandle_ppxml (stream, "<%s type=\"%s\" origin=\"%s:%d\" addr=\"0x%8.8x\">%s\n", tnd->name, t->tag->name,
 			t->org ? t->org->org_file->fnptr : "(none)", t->org ? t->org->org_line : 0, (unsigned int)t,
 			compopts.dumpfolded ? "<!--{{{-->" : "");
 	for (i=0; i<DA_CUR (t->items); i++) {
@@ -1620,7 +1620,7 @@ void tnode_dumptree (tnode_t *t, int indent, fhandle_t *stream)
 				tnd->hook_dumptree (t, DA_NTHITEM (t->items, i), indent + 1, stream);
 			} else {
 				tnode_isetindent (stream, indent + 1);
-				fhandle_printf (stream, "<hook addr=\"0x%8.8x\" />\n", (unsigned int)(DA_NTHITEM (t->items, i)));
+				fhandle_ppxml (stream, "<hook addr=\"0x%8.8x\" />\n", (unsigned int)(DA_NTHITEM (t->items, i)));
 			}
 		}
 	}
@@ -1633,11 +1633,11 @@ void tnode_dumptree (tnode_t *t, int indent, fhandle_t *stream)
 			ch->chook_dumptree (t, chc, indent + 1, stream);
 		} else if (ch && chc) {
 			tnode_isetindent (stream, indent + 1);
-			fhandle_printf (stream, "<chook id=\"%s\" addr=\"0x%8.8x\" />\n", ch->name, (unsigned int)chc);
+			fhandle_ppxml (stream, "<chook id=\"%s\" addr=\"0x%8.8x\" />\n", ch->name, (unsigned int)chc);
 		}
 	}
 	tnode_isetindent (stream, indent);
-	fhandle_printf (stream, "</%s>%s\n", tnd->name, compopts.dumpfolded ? "<!--}}}-->" : "");
+	fhandle_ppxml (stream, "</%s>%s\n", tnd->name, compopts.dumpfolded ? "<!--}}}-->" : "");
 
 	return;
 }

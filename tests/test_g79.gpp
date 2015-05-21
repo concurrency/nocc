@@ -1,0 +1,12 @@
+
+# test_g79.gpp -- conditional
+
+define test_g78 ()
+  int x, y, z
+  bool b = true
+  seq
+    x = 42
+    y = -99
+    z = (b -> x : y)
+end
+

@@ -35,6 +35,7 @@ dump-snodetags,		'\0',	opt_setintflag,		&(compopts.dumpsnodetags),	"1print node 
 dump-chooks,		'\0',	opt_setintflag,		&(compopts.dumpchooks),		"1print compiler hooks",				18
 dump-extns,		'\0',	opt_setintflag,		&(compopts.dumpextns),		"1print detailed information about loaded extensions",	19
 dump-folded,		'\0',	opt_setintflag,		&(compopts.dumpfolded),		"1include folds in parse tree dumps",			20
+pretty-print,		'\0',	opt_setintflag,		&(compopts.prettyprint),	"1syntax highlight output",				21
 save-named-dfa,		'\0',	opt_setsaveopt,		(void *)1,			"1save named DFA to file",				50
 save-all-dfas,		'\0',	opt_setstr,		&(compopts.savealldfas),	"1save all DFAs to file",				51
 stop-token,		'\0',	opt_setstopflag,	(void *)1,			"1stop after tokenise (and print tokens)",		100

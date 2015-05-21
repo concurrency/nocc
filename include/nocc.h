@@ -100,6 +100,7 @@ typedef struct TAG_compopts {
 	char *savealldfas;
 	int fatalgdb;
 	int fatalsegv;
+	int prettyprint;
 
 	/* general paths */
 	char *specsfile;

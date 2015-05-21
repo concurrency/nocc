@@ -30,6 +30,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #include "nocc.h"
 #include "support.h"
@@ -50,8 +51,45 @@ STATICDYNARRAY (fhscheme_t *, aschemes);
 
 static int last_error_code;
 
+typedef enum ENUM_str_style {
+	SSTYLE_NONE = 0,
+	SSTYLE_XML = 1,
+	SSTYLE_NSNAME = 2,
+	SSTYLE_ATTR = 3,
+	SSTYLE_STR = 4,
+	SSTYLE_PTR = 5,
+	SSTYLE_COMMENT = 6
+} str_style_e;
+
 /*}}}*/
 
+
+/*{{{  static int str_xml_hi (char *str, str_style_e style)*/
+/*
+ *	dumps out an ANSI formatting wotsit for syntax highlighting of XML output
+ *	returns number of bytes written to the string
+ */
+static int str_xml_hi (char *str, str_style_e style)
+{
+	switch (style) {
+	case SSTYLE_NONE:	/* style off */
+		return sprintf (str, "%c[0m", 27);
+	case SSTYLE_XML:	/* for the '<abc' and '/>' bits, or </abc> -- CYAN */
+		return sprintf (str, "%c[36m", 27);
+	case SSTYLE_NSNAME:	/* for a namespace name "ns" in '<ns:abc', etc. -- MAGENTA */
+		return sprintf (str, "%c[35m", 27);
+	case SSTYLE_ATTR:	/* start of attribute name -- GREEN */
+		return sprintf (str, "%c[32m", 27);
+	case SSTYLE_STR:	/* string or quotes for -- RED */
+		return sprintf (str, "%c[31m", 27);
+	case SSTYLE_PTR:	/* pointer value -- YELLOW */
+		return sprintf (str, "%c[33m", 27);
+	case SSTYLE_COMMENT:	/* comment -- BLUE */
+		return sprintf (str, "%c[34m", 27);
+	}
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static fhscheme_t *fhandle_newfhscheme (void)*/
 /*
@@ -70,9 +108,17 @@ static fhscheme_t *fhandle_newfhscheme (void)
 
 	fhs->openfcn = NULL;
 	fhs->closefcn = NULL;
+	fhs->accessfcn = NULL;
+	fhs->mkdirfcn = NULL;
+	fhs->statfcn = NULL;
 	fhs->mapfcn = NULL;
 	fhs->unmapfcn = NULL;
 	fhs->printffcn = NULL;
+	fhs->writefcn = NULL;
+	fhs->readfcn = NULL;
+	fhs->getsfcn = NULL;
+	fhs->flushfcn = NULL;
+	fhs->isattyfcn = NULL;
 
 	return fhs;
 }
@@ -655,6 +701,278 @@ int fhandle_flush (fhandle_t *fh)
 	}
 
 	return fh->scheme->flushfcn (fh);
+}
+/*}}}*/
+/*{{{  int fhandle_isatty (fhandle_t *fh)*/
+/*
+ *	returns non-zero if the file handle is a TTY
+ */
+int fhandle_isatty (fhandle_t *fh)
+{
+	if (!fh) {
+		return fhandle_seterr (fh, -EINVAL);
+	} else if (!fh->scheme) {
+		return fhandle_seterr (fh, -ENOSYS);
+	}
+
+	return fh->scheme->isattyfcn (fh);
+}
+/*}}}*/
+/*{{{  int fhandle_ppxml (fhandle_t *fh, const char *fmt, ...)*/
+/*
+ *	does pretty-printed XML style formatting if writing to a TTY (or enforced)
+ *	returns number of bytes written, -1 on error.
+ */
+int fhandle_ppxml (fhandle_t *fh, const char *fmt, ...)
+{
+	int count = 0;
+	va_list ap;
+
+	va_start (ap, fmt);
+	count = fhandle_vppxml (fh, fmt, ap);
+	va_end (ap);
+
+	return count;
+}
+/*}}}*/
+/*{{{  */
+/*
+ *	does pretty-printed XML style formatting if writing to a TTY (or envorced)
+ *	returns number of bytes written, -1 on error.
+ */
+int fhandle_vppxml (fhandle_t *fh, const char *fmt, va_list ap)
+{
+	char *tstr, *xstr, *ch, *dh;
+	int count = 0;
+	int tsize = 256;			/* reasonable length to start with */
+	int acnt, xlen;
+	va_list ap2;
+
+	if (!fh) {
+		fhandle_seterr (fh, -EINVAL);
+		return -1;
+	} else if (!fh->scheme) {
+		fhandle_seterr (fh, -ENOSYS);
+		return -1;
+	}
+
+	if (!compopts.prettyprint || !fhandle_isatty (fh)) {
+		/* regular printf please! */
+		return fhandle_vprintf (fh, fmt, ap);
+	}
+
+	/*{{{  format string and args into 'tstr' (reallocate for bigger if needed) => tstr, tsize, count*/
+	va_copy (ap2, ap);			/* save incase we need to revisit! */
+
+	tstr = (char *)smalloc (tsize);
+	count = vsnprintf (tstr, tsize, fmt, ap);
+
+	if (count < 0) {
+		/* wrecked */
+		sfree (tstr);
+		return -1;
+	} else if (count >= tsize) {
+		/* need more */
+		sfree (tstr);
+
+		tsize = count + 1;
+		tstr = (char *)smalloc (tsize);
+
+		tstr = (char *)smalloc (tsize);
+		count = vsnprintf (tstr, tsize, fmt, ap2);
+
+		if (count < 0) {
+			/* wrecked 2nd time */
+			sfree (tstr);
+			return -1;
+		}
+	}
+
+	/*}}}*/
+	/* whatever is in 'tstr' should look like XML! */
+	/*{{{  quickly walk over the string, count how many spaces and '=' we have (outside strings) => acnt */
+	for (ch=tstr, acnt=0; *ch != '\0'; ch++) {
+		switch (*ch) {
+		case '<':
+		case '>':
+			acnt+=2;
+			break;
+		case ':':
+		case '=':
+			acnt+=4;
+			break;
+		case '\"':
+			for (ch++; (*ch != '\"') && (*ch != '\0'); ch++) {
+				if (*ch == '\\') {
+					/* skip next (escaped) character in string */
+					if (ch[1] != '\0') {
+						ch++;
+					}
+				}
+			}
+			if (*ch == '\"') {
+				ch++;
+			}
+			acnt+=4;
+			break;
+		}
+	}
+	/*}}}*/
+	/*{{{  allocate new string with enough space, and populate it => xstr */
+	acnt++;
+	xstr = (char *)smalloc (tsize + (acnt * 16));		/* overly generous perhaps! */
+
+	for (ch=tstr, dh=xstr; *ch != '\0';) {
+		switch (*ch) {
+		case '<':
+			{
+				int hasns = 0;
+				char *eh = ch + 1;
+
+				dh += str_xml_hi (dh, SSTYLE_XML);
+				for (eh=ch+1; (*eh != '\0') && (*eh != ':') && (*eh != ' ') && (*eh != '\t') && (*eh != '>'); eh++);
+				if (*eh == ':') {
+					hasns = 1;
+				}
+
+				*dh = *ch;		/* left chevron */
+				dh++, ch++;
+				if (hasns) {
+					dh += str_xml_hi (dh, SSTYLE_NSNAME);
+					for (; (*ch != ':'); ch++) {
+						*dh = *ch;
+						dh++;
+					}
+					*dh = *ch;	/* colon */
+					dh++, ch++;
+					dh += str_xml_hi (dh, SSTYLE_XML);
+				}
+				/* what's left of the name please! */
+				for (; (*ch != '\0') && (*ch != ' ') && (*ch != '\t') && (*ch != '>'); ch++) {
+					*dh = *ch;
+					dh++;
+				}
+				if (*ch == '>') {
+					/* we'll take this in the same style too, then */
+					*dh = *ch;
+					ch++, dh++;
+				}
+			}
+			break;
+		case '/':
+		case '>':
+			/* must be closing, or end-of, attribute */
+			dh += str_xml_hi (dh, SSTYLE_XML);
+			for (; (*ch != '\0') && (*ch != ' ') && (*ch != '\t') && (*ch != '>'); ch++) {
+				*dh = *ch;
+				dh++;
+			}
+			if (*ch == '>') {
+				/* we'll take this in the same style too, then */
+				*dh = *ch;
+				ch++, dh++;
+			}
+			break;
+		default:
+			if (isalpha (*ch) || (*ch == '_')) {
+				/* assume start of attribute */
+				char *eh;
+
+#if 0
+fprintf (stderr, "assume start of attribute: [%s]\n", ch);
+#endif
+				for (eh=ch+1; (*eh != '\0') && (*eh != ':') && (*eh != '=') && (*eh != ' ') && (*eh != '\t'); eh++);
+				if (*eh == ':') {
+					/* got namespace.. */
+					dh += str_xml_hi (dh, SSTYLE_NSNAME);
+					for (; ch < eh; ch++) {
+						*dh = *ch;
+						dh++;
+					}
+					*dh = *ch;	/* colon */
+					ch++, dh++;
+				}
+				dh += str_xml_hi (dh, SSTYLE_ATTR);
+				/* what's left of the name please! */
+				for (; (*ch != '\0') && (*ch != ' ') && (*ch != '\t') && (*ch != '='); ch++) {
+					*dh = *ch;
+					dh++;
+				}
+				if (*ch == '=') {
+					dh += str_xml_hi (dh, SSTYLE_NONE);
+					*dh = *ch;	/* equals */
+					ch++, dh++;
+				}
+
+				/* now some value! (should be quoted string in XML..) */
+				if (*ch == '\"') {
+					int isptr = 1;
+
+#if 0
+fprintf (stderr, "arp, looking for pointer in string starting: [%s]\n", ch);
+#endif
+					if ((ch[1] != '0') || (ch[2] != 'x')) {
+						isptr = 0;
+					} else {
+						for (eh = ch+3; (*eh != '\"') && (*eh != '\0'); eh++) {
+							/* expecting hexadecimal */
+							if (!isxdigit (*eh)) {
+								isptr = 0;
+								break;
+							}
+						}
+					}
+					if (isptr) {
+						/* emit string in different colour */
+						dh += str_xml_hi (dh, SSTYLE_PTR);
+					} else {
+						dh += str_xml_hi (dh, SSTYLE_STR);
+					}
+					*dh = *ch;	/* opening quote */
+					ch++, dh++;
+					for (; (*ch != '\0') && (*ch != '\"'); ch++) {
+						*dh = *ch;
+						dh++;
+						if (*ch == '\\') {
+							/* escaped character, copy next first */
+							if (ch[1] != '\0') {
+								ch++;
+								*dh = *ch;
+								dh++;
+							}
+						}
+					}
+					if (*ch == '\"') {
+						/* expected closing quote */
+						*dh = *ch;
+						ch++, dh++;
+					}
+					dh += str_xml_hi (dh, SSTYLE_NONE);
+				}
+			} else {
+				/* something else.. */
+				*dh = *ch;
+				ch++, dh++;
+			}
+			break;
+		}
+	}
+	dh += str_xml_hi (dh, SSTYLE_NONE);
+
+	xlen = (int)(dh - xstr);
+
+	/*}}}*/
+
+	/*{{{  lose tstr*/
+
+	sfree (tstr);
+	/*}}}*/
+
+	/* and, finally, print it! */
+	fhandle_printf (fh, "%s", xstr);
+	sfree (xstr);
+
+	return xlen;
 }
 /*}}}*/
 

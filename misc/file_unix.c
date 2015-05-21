@@ -48,6 +48,7 @@
 
 typedef struct TAG_unixfhandle {
 	int fd;
+	int istty;
 } unixfhandle_t;
 
 typedef struct TAG_unixfhscheme {
@@ -71,6 +72,7 @@ static unixfhandle_t *unix_newfhandle (void)
 	unixfhandle_t *ufhan = (unixfhandle_t *)smalloc (sizeof (unixfhandle_t));
 
 	ufhan->fd = -1;
+	ufhan->istty = 0;
 	return ufhan;
 }
 /*}}}*/
@@ -433,6 +435,23 @@ static int unix_flushfcn (fhandle_t *fhan)
 	return 0;
 }
 /*}}}*/
+/*{{{  static int unix_isattyfcn (fhandle_t *fhan)*/
+/*
+ *	determines if a particular handle is a TTY
+ *	returns 0 if not, non-zero otherwise
+ */
+static int unix_isattyfcn (fhandle_t *fhan)
+{
+	unixfhandle_t *ufhan = (unixfhandle_t *)fhan->ipriv;
+
+	if (!ufhan) {
+		nocc_serious ("unix_isatty(): missing state! [%s]", fhan->path);
+		return -EINVAL;
+	}
+
+	return ufhan->istty;
+}
+/*}}}*/
 
 
 /*{{{  int file_unix_init (void)*/
@@ -466,6 +485,7 @@ int file_unix_init (void)
 	unix_fhscheme->readfcn = unix_readfcn;
 	unix_fhscheme->getsfcn = unix_getsfcn;
 	unix_fhscheme->flushfcn = unix_flushfcn;
+	unix_fhscheme->isattyfcn = unix_isattyfcn;
 
 	if (fhandle_registerscheme (unix_fhscheme)) {
 		nocc_serious ("file_unix_init(): failed to register scheme!");
@@ -485,6 +505,7 @@ int file_unix_init (void)
 
 	ufhan = unix_newfhandle ();
 	ufhan->fd = fileno (stderr);
+	ufhan->istty = 1;					/* XXX: assumed! */
 
 	unix_stderrhandle->ipriv = (void *)ufhan;
 
@@ -496,6 +517,7 @@ int file_unix_init (void)
 
 	ufhan = unix_newfhandle ();
 	ufhan->fd = fileno (stdout);
+	ufhan->istty = 1;					/* XXX: assumed! */
 
 	unix_stdouthandle->ipriv = (void *)ufhan;
 

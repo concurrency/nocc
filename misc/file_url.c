@@ -1,6 +1,6 @@
 /*
  *	file_url.c -- URL style file handling for NOCC
- *	Copyright (C) 2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2013-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -625,6 +625,16 @@ static int url_flushfcn (fhandle_t *fhan)
 	return res;
 }
 /*}}}*/
+/*{{{  static int url_isattyfcn (fhandle_t *fhan)*/
+/*
+ *	determines whether the underlying stream is a TTY (not so)
+ */
+static int url_isattyfcn (fhandle_t *fhan)
+{
+	/* XXX: though of no local benefit, wouldn't hurt to check fhan validity */
+	return 0;
+}
+/*}}}*/
 
 /*{{{  int file_url_init (void)*/
 /*
@@ -681,6 +691,7 @@ int file_url_init (void)
 	url_fhscheme->readfcn = url_readfcn;
 	url_fhscheme->getsfcn = url_getsfcn;
 	url_fhscheme->flushfcn = url_flushfcn;
+	url_fhscheme->isattyfcn = url_isattyfcn;
 
 	if (fhandle_registerscheme (url_fhscheme)) {
 		nocc_serious ("file_url_init(): failed to register scheme!");

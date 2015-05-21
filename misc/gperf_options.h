@@ -35,7 +35,7 @@
  */
 struct TAG_cmd_option;
 
-#define TOTAL_KEYWORDS 75
+#define TOTAL_KEYWORDS 76
 #define MIN_WORD_LENGTH 3
 #define MAX_WORD_LENGTH 19
 #define MIN_HASH_VALUE 4
@@ -66,7 +66,7 @@ hash (register const char *str, register unsigned int len)
       143, 143, 143, 143, 143, 143, 143,  20,   5,  45,
         5,   5,  55,  10,   0,  90,   0,  25,   0,  30,
        60,  40,  30,  70,  20,  55,  10,   0,  20, 143,
-        0, 143, 143, 143, 143, 143, 143, 143, 143, 143,
+        0,  15, 143, 143, 143, 143, 143, 143, 143, 143,
       143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
       143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
       143, 143, 143, 143, 143, 143, 143, 143, 143, 143,
@@ -162,7 +162,7 @@ static const struct TAG_cmd_option wordlist[] =
     {"dump-dmem",		'\0',	opt_setintflag,		&(compopts.dmemdump),		"1display dynamic memory pool information",		302},
     {"trace-typecheck",	'\0',	opt_setintflag,		&(compopts.tracetypecheck),	"1trace type-check (debugging)",			203},
     {(char*)0,'\0',NULL,NULL,NULL,-1},
-    {(char*)0,'\0',NULL,NULL,NULL,-1},
+    {"pretty-print",		'\0',	opt_setintflag,		&(compopts.prettyprint),	"1syntax highlight output",				21},
     {"stop-precheck",		'\0',	opt_setstopflag,	(void *)8,			"1stop after pre-check",				107},
     {"treecheck",		'\0',	opt_setintflag,		&(compopts.treecheck),		"1enable run-time parse tree checking",			250},
     {(char*)0,'\0',NULL,NULL,NULL,-1},

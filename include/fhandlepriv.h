@@ -1,6 +1,6 @@
 /*
  *	fhandlepriv.h -- private stuff for file I/O abstractions
- *	Copyright (C) 2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2013-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@ typedef struct TAG_fhscheme {
 	int (*readfcn)(struct TAG_fhandle *, unsigned char *, int);
 	int (*getsfcn)(struct TAG_fhandle *, char *, int);
 	int (*flushfcn)(struct TAG_fhandle *);
+	int (*isattyfcn)(struct TAG_fhandle *);
 } fhscheme_t;
 
 

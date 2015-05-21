@@ -1,6 +1,6 @@
 /*
  *	fhandle.h -- file I/O abstraction
- *	Copyright (C) 2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2013-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -47,6 +47,9 @@ extern int fhandle_write (fhandle_t *fh, unsigned char *buffer, int size);
 extern int fhandle_read (fhandle_t *fh, unsigned char *bufaddr, int max);
 extern int fhandle_gets (fhandle_t *fh, char *bufaddr, int max);
 extern int fhandle_flush (fhandle_t *fh);
+extern int fhandle_isatty (fhandle_t *fh);
+extern int fhandle_ppxml (fhandle_t *fh, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+extern int fhandle_vppxml (fhandle_t *fh, const char *fmt, va_list ap);
 
 
 extern int fhandle_init (void);

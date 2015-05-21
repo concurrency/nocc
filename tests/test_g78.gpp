@@ -1,0 +1,12 @@
+
+# test_g78.gpp -- more tests
+
+define test_g78 ()
+  int x, y
+  seq
+    x = 42
+    x *= 2
+    y = x + 2 + (x * 4)
+    skip
+end
+

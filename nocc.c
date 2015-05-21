@@ -155,6 +155,7 @@ compopts_t compopts = {
 	.savealldfas = NULL,
 	.fatalgdb = 0,
 	.fatalsegv = 0,
+	.prettyprint = 0,
 	DA_CONSTINITIALISER(epath),
 	DA_CONSTINITIALISER(ipath),
 	DA_CONSTINITIALISER(lpath),
