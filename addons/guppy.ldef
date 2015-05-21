@@ -356,6 +356,8 @@
 .GRULE	"gup:bitandinreduce" "SN0N+N+VC[BITANDIN]2R-"
 .GRULE	"gup:bitorinreduce" "SN0N+N+VC[BITORIN]2R-"
 
+.GRULE	"gup:foldcondopreduce" "R+N+N+Sn00C[CONDITIONAL]4R-"
+
 # array/record things are fundamentally types, so..
 
 .TABLE	"guppy:expr +:= [ 0 @size 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:sizereduce>} -* ]"
@@ -389,6 +391,7 @@
 	"[ 0 @@++ 37 ] [ 37 guppy:expr 38 ] [ 38 {<gup:foldplusreduce>} -* ]"
 	"[ 0 @@-- 39 ] [ 39 guppy:expr 40 ] [ 40 {<gup:foldminusreduce>} -* ]"
 	"[ 0 @@** 41 ] [ 41 guppy:expr 42 ] [ 42 {<gup:foldtimesreduce>} -* ]"
+	"[ 0 @@-> 43 ] [ 43 guppy:expr 44 ] [ 44 @@: 45 ] [ 45 guppy:expr 46 ] [ 46 {<gup:foldcondopreduce>} -* ]"
 	"[ 0 -* ]"
 
 .TABLE	"guppy:restofexpr +:= [ 0 @@[ 1 ] [ 1 guppy:expr 2 ] [ 2 @@] 3 ] [ 3 {<gup:foldarraysub>} -* <guppy:restofexpr> ]"

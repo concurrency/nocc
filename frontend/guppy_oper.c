@@ -1014,6 +1014,26 @@ static int guppy_namemap_stropnode (compops_t *cops, tnode_t **nodep, map_t *map
 }
 /*}}}*/
 
+/*{{{  static int guppy_typecheck_condopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking on a conditional node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_typecheck_condopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	return 1;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_gettype_condopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a conditional operator
+ */
+static tnode_t *guppy_gettype_condopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	return tnode_nthsubof (node, 3);
+}
+/*}}}*/
+
 /*{{{  static int guppy_oper_init_nodes (void)*/
 /*
  *	called to initialise nodes/etc. for guppy operators
@@ -1268,6 +1288,24 @@ static int guppy_oper_init_nodes (void)
 	gup.tag_STRASSIGN = tnode_newnodetag ("STRASSIGN", &i, tnd, NTF_NONE);
 	i = -1;
 	gup.tag_STRCONCAT = tnode_newnodetag ("STRCONCAT", &i, tnd, NTF_NONE);
+
+	/*}}}*/
+	/*{{{  guppy:condopnode -- CONDITIONAL */
+	i = -1;
+	tnd = tnode_newnodetype ("guppy:condopnode", &i, 4, 0, 0, TNF_NONE);			/* subnodes: condition, if-true, if-false, type */
+	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_condopnode));
+	// tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_dopnode));
+	// tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_dopnode));
+	// tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_dopnode));
+	// tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_dopnode));
+	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_condopnode));
+	tnd->lops = lops;
+
+	i = -1;
+	gup.tag_CONDITIONAL = tnode_newnodetag ("CONDITIONAL", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 

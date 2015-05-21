@@ -186,6 +186,8 @@ typedef struct {
 	struct TAG_ntdef *tag_AND;
 	struct TAG_ntdef *tag_OR;
 
+	struct TAG_ntdef *tag_CONDITIONAL;
+
 	struct TAG_ntdef *tag_ADDIN;
 	struct TAG_ntdef *tag_SUBIN;
 	struct TAG_ntdef *tag_MULIN;
