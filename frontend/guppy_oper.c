@@ -1021,7 +1021,56 @@ static int guppy_namemap_stropnode (compops_t *cops, tnode_t **nodep, map_t *map
  */
 static int guppy_typecheck_condopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
-	return 1;
+	tnode_t *choice = tnode_nthsubof (node, 0);
+	tnode_t *iftrue = tnode_nthsubof (node, 1);
+	tnode_t *iffalse = tnode_nthsubof (node, 2);
+	tnode_t *chatype, *rtype;
+	tnode_t *chtype, *ifttype, *ifftype;
+	int pref = 0;
+
+	/* walk operators */
+	typecheck_subtree (choice, tc);
+	typecheck_subtree (iftrue, tc);
+	typecheck_subtree (iffalse, tc);
+
+	/* check type of choice -- default to boolean */
+	chtype = typecheck_gettype (choice, guppy_oper_booltypenode);
+
+	if (!chtype) {
+		typecheck_error (node, tc, "failed to determine decision (lhs) type in conditional");
+		return 0;
+	}
+
+	/* check type of true/false arguments */
+	ifttype = typecheck_gettype (iftrue, NULL);
+	ifftype = typecheck_gettype (iffalse, NULL);
+
+	if (!ifttype && !ifftype) {
+		typecheck_error (node, tc, "failed to determine either rhs type for conditional operator");
+		return 0;
+	}
+	if (!ifttype) {
+		/* guess from other side? */
+		ifttype = typecheck_gettype (iftrue, ifftype);
+		pref = 1;
+	} else if (!ifftype) {
+		ifftype = typecheck_gettype (iffalse, ifttype);
+		pref = 0;
+	}
+
+	if (!ifttype || !ifftype) {
+		typecheck_error (node, tc, "failed to determine type for conditional operator");
+		return 0;
+	}
+	rtype = typecheck_typeactual (pref ? ifttype : ifftype, pref ? ifftype : ifttype, node, tc);
+	if (!rtype) {
+		typecheck_error (node, tc, "incompatible types for conditional operator");
+		return 0;
+	}
+
+	tnode_setnthsub (node, 3, rtype);
+
+	return 0;
 }
 /*}}}*/
 /*{{{  static tnode_t *guppy_gettype_condopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
@@ -1031,6 +1080,47 @@ static int guppy_typecheck_condopnode (compops_t *cops, tnode_t *node, typecheck
 static tnode_t *guppy_gettype_condopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
 {
 	return tnode_nthsubof (node, 3);
+}
+/*}}}*/
+/*{{{  static int guppy_namemap_condopnode (compops_t *cops, tnode_t **nodep, map_t *map)*/
+/*
+ *	does name-mapping for a conditional operator
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_condopnode (compops_t *cops, tnode_t **nodep, map_t *map)
+{
+	map_submapnames (tnode_nthsubaddr (*nodep, 0), map);
+	map_submapnames (tnode_nthsubaddr (*nodep, 1), map);
+	map_submapnames (tnode_nthsubaddr (*nodep, 2), map);
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_lpreallocate_condopnode (compops_t *cops, tnode_ t*node, cccsp_preallocate_t *cpa)*/
+/*
+ *	does code-generation for a conditional operator
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_lpreallocate_condopnode (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)
+{
+	cpa->collect += 2;		/* assume something is needed (probably destroyed by SFI later) */
+	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_condopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code generation for a conditional operator
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_condopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	codegen_write_fmt (cgen, "(");
+	codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+	codegen_write_fmt (cgen, " ? ");
+	codegen_subcodegen (tnode_nthsubof (node, 1), cgen);
+	codegen_write_fmt (cgen, " : ");
+	codegen_subcodegen (tnode_nthsubof (node, 2), cgen);
+	codegen_write_fmt (cgen, ")");
+	return 0;
 }
 /*}}}*/
 
@@ -1296,9 +1386,9 @@ static int guppy_oper_init_nodes (void)
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_condopnode));
 	// tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_dopnode));
-	// tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_dopnode));
-	// tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_dopnode));
-	// tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_dopnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_condopnode));
+	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_condopnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_condopnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_condopnode));
@@ -1309,7 +1399,7 @@ static int guppy_oper_init_nodes (void)
 
 	/*}}}*/
 
-	/* bung relevant ones into compdopmap */
+	/* bung relevant ones into compdopmap (compound dyadic operator) */
 	pointerhash_insert (compdopmap, gup.tag_ADD, (void *)gup.tag_ADDIN);
 	pointerhash_insert (compdopmap, gup.tag_SUB, (void *)gup.tag_SUBIN);
 	pointerhash_insert (compdopmap, gup.tag_MUL, (void *)gup.tag_MULIN);

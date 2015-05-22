@@ -1885,6 +1885,7 @@ static int guppy_parser_init (lexfile_t *lf)
 		gup.tok_ATSIGN = lexer_newtoken (SYMBOL, "@");
 		gup.tok_STRING = lexer_newtoken (STRING, NULL);
 		gup.tok_PUBLIC = lexer_newtoken (KEYWORD, "public");
+		gup.tok_SEQUENCE = lexer_newtoken (SYMBOL, ";");
 
 		/*}}}*/
 		/*{{{  register some general reduction functions*/
@@ -2043,6 +2044,9 @@ static int guppy_parser_init (lexfile_t *lf)
 		/*}}}*/
 		/* last, re-init multiway syncs with default end-of-par option */
 		mwsync_setresignafterpar (0);
+
+		/* leftover symbols (defined outside) */
+		gup.tok_INTERLEAVE = lexer_newtoken (SYMBOL, "|||");
 
 		parser_gettesttags (&testtruetag, &testfalsetag);
 	}
@@ -2366,6 +2370,8 @@ static tnode_t *guppy_declorproc (lexfile_t *lf)
 {
 	tnode_t *tree = NULL;
 	token_t *tok = NULL;
+	int isproc = 0;
+	int havemore = 0;
 
 	if (compopts.verbose > 1) {
 		nocc_message ("guppy_declorproc(): parsing declaration or process by test at %s:%d", lf->fnptr, lf->lineno);
@@ -2396,6 +2402,7 @@ static tnode_t *guppy_declorproc (lexfile_t *lf)
 		/* definitely a process */
 		tnode_free (tree);
 		tree = guppy_parser_parseproc (lf);
+		isproc = 1;
 	} else {
 #if 0
 fhandle_printf (FHAN_STDERR, "guppy_declorproc(): about to fail, but testtruetag == %p\n", testtruetag);
@@ -2405,6 +2412,103 @@ fhandle_printf (FHAN_STDERR, "guppy_declorproc(): about to fail, but testtruetag
 		tnode_free (tree);
 		tree = NULL;
 	}
+
+	/*{{{  probably expecting comment or newline? -- or maybe a joined process (or bunch of)*/
+	tok = lexer_nexttoken (lf);
+	switch (tok->type) {
+	case NEWLINE:
+	case COMMENT:
+	case OUTDENT:
+	case END:
+		/* okay! */
+		break;
+	case SYMBOL:
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_declorproc(): trailing symbol after isproc=%d, tree at %p\n", isproc, tree);
+fhandle_printf (FHAN_STDERR, "guppy_declorproc(): INTERLEAVE tok = [%s]\n", lexer_stokenstr (gup.tok_INTERLEAVE));
+#endif
+		if (isproc && tree && (lexer_tokmatch (gup.tok_SEQUENCE, tok) || lexer_tokmatch (gup.tok_INTERLEAVE, tok))) {
+			havemore = 1;
+			break;		/* switch */
+		} /* else fall through */
+	default:
+		parser_error (SLOCN (lf), "expected to find newline or comment [C], but found [%s]", lexer_stokenstr (tok));
+		break;
+	}
+	lexer_pushback (lf, tok);
+	
+	if (havemore) {
+		/* okay, probably a list of things */
+		tnode_t *plist = parser_newlistnode (SLOCN (lf));
+		tnode_t *ncnode = NULL;
+		int again, seqnotpar = -1;
+
+		parser_addtolist (plist, tree);
+
+		again = 1;
+		while (again) {
+			tok = lexer_nexttoken (lf);
+
+			switch (tok->type) {
+			case NEWLINE:
+			case COMMENT:
+			case OUTDENT:
+			case END:
+				/* assume we got it all */
+				again = 0;
+				break;
+			case SYMBOL:
+				if (!ncnode) {
+					/* first time, create relevant constructor node */
+					if (lexer_tokmatch (gup.tok_SEQUENCE, tok)) {
+						ncnode = tnode_create (gup.tag_SEQ, SLOCN (lf), NULL, plist);
+						seqnotpar = 1;
+					} else if (lexer_tokmatch (gup.tok_INTERLEAVE, tok)) {
+						ncnode = tnode_create (gup.tag_PAR, SLOCN (lf), NULL, plist);
+						seqnotpar = 0;
+					} else {
+						parser_error (SLOCN (lf), "expected to find newline or comment [A], but found [%s]", lexer_stokenstr (tok));
+						again = 0;
+					}
+				} else if ((seqnotpar == 1) && !lexer_tokmatch (gup.tok_SEQUENCE, tok)) {
+					parser_error (SLOCN (lf), "expected to find sequence operator, but found [%s]", lexer_stokenstr (tok));
+					again = 0;
+				} else if ((seqnotpar == 0) && !lexer_tokmatch (gup.tok_INTERLEAVE, tok)) {
+					parser_error (SLOCN (lf), "expected to find interleave operator, but found [%s]", lexer_stokenstr (tok));
+					again = 0;
+				}
+				if (again) {
+					/* look for the process */
+					tnode_t *p;
+					
+					lexer_freetoken (tok);				/* seq or par */
+					tok = NULL;
+					p = guppy_parser_parseproc (lf);
+
+					if (p) {
+						parser_addtolist (plist, p);
+					} else {
+						/* failed: don't try again */
+						again = 0;
+					}
+				}
+				break;
+			default:
+				parser_error (SLOCN (lf), "expected to find newline or comment [B], but found [%s]", lexer_stokenstr (tok));
+				again = 0;
+				break;
+			}
+
+			if (tok) {
+				lexer_pushback (lf, tok);
+			}
+		}
+
+		if (ncnode) {
+			tree = ncnode;
+		}
+	}
+	/*}}}*/
 
 	if (compopts.verbose > 1) {
 		nocc_message ("guppy_declorproc(): done parsing declaration or process, got (%s:%s)", tree ? tree->tag->name : "(nil)",
@@ -2653,6 +2757,9 @@ static tnode_t *guppy_indented_declorproc_list (lexfile_t *lf)
 		}
 	}
 	lexer_pushback (lf, tok);
+
+	/* this is now the end of this indented stuff -- synthesize a newline */
+	lexer_pushback (lf, lexer_newtoken (NEWLINE));
 
 	if (compopts.verbose > 1) {
 		nocc_message ("guppy_indented_declorproc_list(): %s:%d: done parsing indented process list (tree at 0x%8.8x)",

@@ -15,10 +15,10 @@ define fixed_delay (val int usecs)
 end
 
 val int MOVE_DELAY = 480000
-val int FORK_EAT_DELAY = 150000
+val int FORK_EAT_DELAY = 200000
 val int PHIL_POST_EAT_DELAY = 750000
 
-define move_fork (val ev3_outport motor, chan(int) cmd?, val int inv)
+define move_fork (val int id, val ev3_outport motor, chan(int) cmd?, val int inv)
   int c, pos, cpr
   bool b
   int move_delta1, move_delta2
@@ -50,6 +50,8 @@ define move_fork (val ev3_outport motor, chan(int) cmd?, val int inv)
 
         # make 'pos' the centre position (will change!)
         pos = ev3_mot_cur_pos (motor)
+
+        debug_printf ("move_fork " + int_to_str (id) + " waiting... pos = " + int_to_str (pos) + "\n")
 
         cmd ? c
         if
@@ -260,10 +262,10 @@ end
 define secure_college ()
   chan(int) fc0, fc1, fc2, fc3
   par
-    move_fork (PORT_A, fc0?, 1)
-    move_fork (PORT_B, fc1?, 0)
-    move_fork (PORT_C, fc2?, 1)
-    move_fork (PORT_D, fc3?, 0)
+    move_fork (0, PORT_A, fc0?, 1)
+    move_fork (1, PORT_B, fc1?, 0)
+    move_fork (2, PORT_C, fc2?, 1)
+    move_fork (3, PORT_D, fc3?, 0)
 
     seq
       # sync with motor drivers before we start the simulation proper.
@@ -278,7 +280,7 @@ define secure_college ()
       chan(bool) fl0, fl1, fl2, fl3
       chan(bool) fr0, fr1, fr2, fr3
       par
-        #philosopher (0, up0!, dn0!, fl0!, fr0!)
+        philosopher (0, up0!, dn0!, fl0!, fr0!)
         philosopher (1, up1!, dn1!, fl1!, fr1!)
         #philosopher (2, up2!, dn2!, fl2!, fr2!)
         #philosopher (3, up3!, dn3!, fl3!, fr3!)

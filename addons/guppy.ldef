@@ -33,6 +33,7 @@
 .SYMBOL "++="
 .SYMBOL "--="
 .SYMBOL "**="
+.SYMBOL "|||"
 
 .GRULE	"gup:nullreduce" "N+R-"
 .GRULE	"gup:nullpush" "0N-"
@@ -356,7 +357,7 @@
 .GRULE	"gup:bitandinreduce" "SN0N+N+VC[BITANDIN]2R-"
 .GRULE	"gup:bitorinreduce" "SN0N+N+VC[BITORIN]2R-"
 
-.GRULE	"gup:foldcondopreduce" "R+N+N+Sn00C[CONDITIONAL]4R-"
+.GRULE	"gup:foldcondopreduce" "R+N+N+VSn00C[CONDITIONAL]4R-"
 
 # array/record things are fundamentally types, so..
 

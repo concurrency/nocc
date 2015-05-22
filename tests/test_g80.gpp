@@ -1,0 +1,11 @@
+
+# test_g80.gpp -- more operators
+
+define test_g80 ()
+  int x, y, z
+  seq
+    x = 42 ||| y = x ||| z = 25
+    y = -99
+    y = x; z = y
+end
+

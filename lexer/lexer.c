@@ -1,6 +1,6 @@
 /*
  *	lexer.c -- nocc lexer
- *	Copyright (C) 2004-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -753,73 +753,111 @@ token_t *lexer_newtoken (tokentype_t type, ...)
  */
 void lexer_dumptoken (fhandle_t *stream, token_t *tok)
 {
-	fhandle_printf (stream, "<token ");
+	int xlen;
+	char *xstr, *dh;
 
+	/*{{{  make a guess at how much space we'll need for this string*/
+	xlen = 32;
+	if (tok->origin) {
+		xlen += strlen (tok->origin->fnptr) + 32;
+	}
+	if (tok->iptr) {
+		xlen += 32;
+	}
+	switch (tok->type) {
+	case NOTOKEN:	xlen += 16;						break;
+	case KEYWORD:	xlen += 32 + strlen (tok->u.kw->name);			break;
+	case INTEGER:
+	case LSPECIAL:
+	case REAL:	xlen += 32;						break;
+	case STRING:	xlen += 48 + (tok->u.str.ptr ? strlen (tok->u.str.ptr) : 0);	break;
+	case INAME:	xlen += 32 + strlen (tok->u.str.ptr);			break;
+	case NAME:	xlen += 32 + (tok->u.name ? strlen (tok->u.name) : 0);	break;
+	case SYMBOL:	xlen += 64;						break;		/* XXX: assuming.. */
+	case COMMENT:
+	case NEWLINE:
+	case INDENT:
+	case OUTDENT:
+	case END:	xlen += 32;						break;
+	}
+
+	/*}}}*/
+	/*{{{  allocate and populate*/
+	xstr = (char *)smalloc (xlen);
+	dh = xstr;
+
+	dh += sprintf (dh, "<token ");
 	if (tok->origin) {
 		if ((tok->colno > 0) && (tok->tokwidth > 0)) {
-			fhandle_printf (stream, "origin=\"%s:%d:%d-%d\" ", tok->origin->fnptr, tok->lineno, tok->colno, tok->colno + (tok->tokwidth - 1));
+			dh += sprintf (dh, "origin=\"%s:%d:%d-%d\" ", tok->origin->fnptr, tok->lineno, tok->colno, tok->colno + (tok->tokwidth - 1));
 		} else if (tok->colno > 0) {
-			fhandle_printf (stream, "origin=\"%s:%d:%d\" ", tok->origin->fnptr, tok->lineno, tok->colno);
+			dh += sprintf (dh, "origin=\"%s:%d:%d\" ", tok->origin->fnptr, tok->lineno, tok->colno);
 		} else {
-			fhandle_printf (stream, "origin=\"%s:%d\" ", tok->origin->fnptr, tok->lineno);
+			dh += sprintf (dh, "origin=\"%s:%d\" ", tok->origin->fnptr, tok->lineno);
 		}
 	}
 	if (tok->iptr) {
-		fhandle_printf (stream, "iptr=\"0x%8.8x\" ", (unsigned int)tok->iptr);
+		dh += sprintf (dh, "iptr=\"0x%8.8x\" ", (unsigned int)tok->iptr);
 	}
 
-	fhandle_printf (stream, "type=\"");
+	dh += sprintf (dh, "type=\"");
+
 	switch (tok->type) {
 	case NOTOKEN:
-		fhandle_printf (stream, "notoken\" />\n");
+		dh += sprintf (dh, "notoken\" />\n");
 		break;
 	case KEYWORD:
-		fhandle_printf (stream, "keyword\" value=\"%s\" />\n", tok->u.kw->name);
+		dh += sprintf (dh, "keyword\" value=\"%s\" />\n", tok->u.kw->name);
 		break;
 	case INTEGER:
-		fhandle_printf (stream, "integer\" value=\"0x%8.8x\" />\n", (unsigned int)tok->u.ival);
+		dh += sprintf (dh, "integer\" value=\"0x%8.8x\" />\n", (unsigned int)tok->u.ival);
 		break;
 	case REAL:
-		fhandle_printf (stream, "real\" value=\"%lf\" />\n", tok->u.dval);
+		dh += sprintf (dh, "real\" value=\"%lf\" />\n", tok->u.dval);
 		break;
 	case STRING:
-		fhandle_printf (stream, "string\">\n");
-		fhandle_printf (stream, "    <![CDATA[%s]]>\n", tok->u.str.ptr);
-		fhandle_printf (stream, "</token>\n");
+		dh += sprintf (dh, "string\">\n");
+		dh += sprintf (dh, "    <![CDATA[%s]]>\n", tok->u.str.ptr);
+		dh += sprintf (dh, "</token>\n");
 		break;
 	case INAME:
-		fhandle_printf (stream, "iname\" value=\"%s\" />\n", tok->u.str.ptr);
+		dh += sprintf (dh, "iname\" value=\"%s\" />\n", tok->u.str.ptr);
 		break;
 	case LSPECIAL:
-		fhandle_printf (stream, "lspecial\" value=\"%p\" />\n", tok->u.lspec);
+		dh += sprintf (dh, "lspecial\" value=\"%p\" />\n", tok->u.lspec);
 		break;
 	case NAME:
-		fhandle_printf (stream, "name\" value=\"%s\" />\n", tok->u.name);
+		dh += sprintf (dh, "name\" value=\"%s\" />\n", tok->u.name);
 		break;
 	case SYMBOL:
 		{
 			char *str = string_xmlfixup (tok->u.sym->match, 0);
 
-			fhandle_printf (stream, "symbol\" value=\"%s\" />\n", str);
+			dh += sprintf (dh, "symbol\" value=\"%s\" />\n", str);
 			sfree (str);
 		}
 		break;
 	case COMMENT:
-		fhandle_printf (stream, "comment\" />\n");
+		dh += sprintf (dh, "comment\" />\n");
 		break;
 	case NEWLINE:
-		fhandle_printf (stream, "newline\" />\n");
+		dh += sprintf (dh, "newline\" />\n");
 		break;
 	case INDENT:
-		fhandle_printf (stream, "indent\" />\n");
+		dh += sprintf (dh, "indent\" />\n");
 		break;
 	case OUTDENT:
-		fhandle_printf (stream, "outdent\" />\n");
+		dh += sprintf (dh, "outdent\" />\n");
 		break;
 	case END:
-		fhandle_printf (stream, "end\" />\n");
+		dh += sprintf (dh, "end\" />\n");
 		break;
 	}
+	/*}}}*/
+
+	fhandle_ppxml (stream, "%s", xstr);
+	sfree (xstr);
+
 	return;
 }
 /*}}}*/
@@ -829,56 +867,79 @@ void lexer_dumptoken (fhandle_t *stream, token_t *tok)
  */
 void lexer_dumptoken_short (fhandle_t *stream, token_t *tok)
 {
-	if (!tok) {
-		fhandle_printf (stream, "<** NULL TOKEN **>");
-		return;
+	int xlen;
+	char *xstr, *dh;
+
+	/*{{{  how much needed?*/
+	xlen = 32;
+	switch (tok->type) {
+	case KEYWORD:	xlen += 32 + strlen (tok->u.kw->name);		break;
+	case SYMBOL:	xlen += 32 + strlen (tok->u.sym->match);	break;
+	default:	xlen += 32;					break;
 	}
 
-	fhandle_printf (stream, "<token type=\"");
-	switch (tok->type) {
-	case NOTOKEN:
-		fhandle_printf (stream, "notoken\">");
-		break;
-	case KEYWORD:
-		fhandle_printf (stream, "keyword\" value=\"%s\">", tok->u.kw->name);
-		break;
-	case INTEGER:
-		fhandle_printf (stream, "integer\">");
-		break;
-	case REAL:
-		fhandle_printf (stream, "real\"");
-		break;
-	case STRING:
-		fhandle_printf (stream, "string\">");
-		break;
-	case INAME:
-		fhandle_printf (stream, "iname\">");
-		break;
-	case LSPECIAL:
-		fhandle_printf (stream, "lspecial\">");
-		break;
-	case NAME:
-		fhandle_printf (stream, "name\">");
-		break;
-	case SYMBOL:
-		fhandle_printf (stream, "symbol\" value=\"%s\">", tok->u.sym->match);
-		break;
-	case COMMENT:
-		fhandle_printf (stream, "comment\">");
-		break;
-	case NEWLINE:
-		fhandle_printf (stream, "newline\">");
-		break;
-	case INDENT:
-		fhandle_printf (stream, "indent\">");
-		break;
-	case OUTDENT:
-		fhandle_printf (stream, "outdent\">");
-		break;
-	case END:
-		fhandle_printf (stream, "end\">");
-		break;
+	/*}}}*/
+	/*{{{  allocate and populate*/
+
+	xstr = (char *)smalloc (xlen);
+	dh = xstr;
+
+	if (!tok) {
+		dh += sprintf (dh, "<** NULL TOKEN **>");
+	} else {
+
+		dh += sprintf (dh, "<token type=\"");
+		switch (tok->type) {
+		case NOTOKEN:
+			dh += sprintf (dh, "notoken\">");
+			break;
+		case KEYWORD:
+			dh += sprintf (dh, "keyword\" value=\"%s\">", tok->u.kw->name);
+			break;
+		case INTEGER:
+			dh += sprintf (dh, "integer\">");
+			break;
+		case REAL:
+			dh += sprintf (dh, "real\"");
+			break;
+		case STRING:
+			dh += sprintf (dh, "string\">");
+			break;
+		case INAME:
+			dh += sprintf (dh, "iname\">");
+			break;
+		case LSPECIAL:
+			dh += sprintf (dh, "lspecial\">");
+			break;
+		case NAME:
+			dh += sprintf (dh, "name\">");
+			break;
+		case SYMBOL:
+			dh += sprintf (dh, "symbol\" value=\"%s\">", tok->u.sym->match);
+			break;
+		case COMMENT:
+			dh += sprintf (dh, "comment\">");
+			break;
+		case NEWLINE:
+			dh += sprintf (dh, "newline\">");
+			break;
+		case INDENT:
+			dh += sprintf (dh, "indent\">");
+			break;
+		case OUTDENT:
+			dh += sprintf (dh, "outdent\">");
+			break;
+		case END:
+			dh += sprintf (dh, "end\">");
+			break;
+		}
 	}
+
+	/*}}}*/
+
+	fhandle_ppxml (stream, "%s", xstr);
+	sfree (xstr);
+	
 	return;
 }
 /*}}}*/

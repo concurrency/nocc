@@ -1,0 +1,12 @@
+
+# test_g81.gpp -- broke something
+
+define test_g81 ()
+  chan(int) c
+  int x
+  seq
+    while false
+      skip
+    c ? x
+end
+

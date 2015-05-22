@@ -239,6 +239,8 @@ typedef struct {
 	struct TAG_token *tok_ATSIGN;
 	struct TAG_token *tok_STRING;
 	struct TAG_token *tok_PUBLIC;
+	struct TAG_token *tok_SEQUENCE;
+	struct TAG_token *tok_INTERLEAVE;
 } guppy_pset_t;
 
 extern guppy_pset_t gup;

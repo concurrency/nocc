@@ -115,7 +115,7 @@ int symbols_init (void)
 		sym_lookup[i] = NULL;
 	}
 
-	/* initialise from built-in symbols -- always (and only) one or two characters long */
+	/* initialise from built-in symbols -- always (and only) one or two characters long;  longer things must be added dynamically */
 	for (i=0; symbols[i].match; i++) {
 		int fch = (int)(symbols[i].match[0] - SYMBASE);
 		int sch = (int)(symbols[i].match[1]);
