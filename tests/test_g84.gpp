@@ -1,0 +1,65 @@
+
+# test_g84.gpp -- testing fork mechanics
+
+@include "guppy_stdlib.gpi"
+@include "guppy_ev3lib.gpi"
+
+val int SPEED = 50
+val ev3_outport PORT = PORT_D
+
+define fixed_delay (val int us)
+  timer tim
+  int t
+  seq
+    tim ? t
+    t ++= us
+    tim ? after t
+end
+
+define test_g83 (chan(string) scr!)
+  int p1, p2
+  int t1, t2
+  int cpr, delta1, delta2
+  bool b
+  timer tim
+  seq
+    b = ev3_mot_init (PORT, MDEV_L_MOTOR)
+    if !b
+      scr ! "failed to initialise motor on port A!\n"
+      return
+
+    b = ev3_mot_stop_mode (PORT, STM_BRAKE)
+    b = ev3_mot_on_fwd (PORT, 40)
+    fixed_delay (1500000)
+    ev3_mot_off (PORT)
+
+    cpr = ev3_mot_count_per_rot (PORT)
+    p1 = ev3_mot_cur_pos (PORT)
+    delta1 = (cpr / 2) - (cpr / 10)
+    delta2 = (cpr / 2) + (cpr / 4)
+
+    ev3_mot_run_to_pos (PORT, p1 - delta1, -SPEED)
+    fixed_delay (1500000)
+
+    while true
+      seq
+        p2 = ev3_mot_cur_pos (PORT)
+        ev3_mot_run_to_pos (PORT, p2 + delta2, SPEED)
+        fixed_delay (2000000)
+
+        p2 = ev3_mot_cur_pos (PORT)
+        ev3_mot_run_to_pos (PORT, p2 - delta1, -SPEED)
+        fixed_delay (1000000)
+    
+        p2 = ev3_mot_cur_pos (PORT)
+        ev3_mot_run_to_pos (PORT, p2 - delta2, -SPEED)
+        fixed_delay (2000000)
+
+        p2 = ev3_mot_cur_pos (PORT)
+        ev3_mot_run_to_pos (PORT, p2 + delta1, SPEED)
+        fixed_delay (1000000)
+
+    ev3_mot_shutdown ()
+
+end
+

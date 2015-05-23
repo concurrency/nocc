@@ -1,0 +1,22 @@
+
+# test_g82.gpp -- usage checks..
+
+define foo (chan(int) in?)
+  int x
+  seq
+    in ? x
+end
+
+define bar (chan(int) in?)
+  int y
+  seq
+    in ? y
+end
+
+define test_g82 ()
+  chan(int) c
+  par
+    foo (c?)
+    bar (c?)
+end
+

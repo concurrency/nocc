@@ -14,9 +14,22 @@ define fixed_delay (val int usecs)
   tim ? after (t + usecs)
 end
 
-val int MOVE_DELAY = 480000
-val int FORK_EAT_DELAY = 200000
-val int PHIL_POST_EAT_DELAY = 750000
+val int MOVE_DELAY = 400000
+val int FORK_EAT_DELAY = 150000
+val int PHIL_POST_EAT_DELAY = 650000
+
+define wait_for_pos (val ev3_outport motor, val int pos)
+  bool look = true
+  while look
+    int p
+    
+    p = ev3_mot_cur_pos (motor)
+    if
+      p == pos
+        look = false
+      else
+        fixed_delay (50000)
+end
 
 define move_fork (val int id, val ev3_outport motor, chan(int) cmd?, val int inv)
   int c, pos, cpr
@@ -59,12 +72,15 @@ define move_fork (val int id, val ev3_outport motor, chan(int) cmd?, val int inv
             seq
               # move left
               b = ev3_mot_run_to_pos (motor, pos + move_delta2, 50)
-              fixed_delay (MOVE_DELAY)
+              fixed_delay (MOVE_DELAY * 2)
+              #wait_for_pos (motor, pos + move_delta2)
 
               # wait/notify completion
               cmd ? c
 
               pos = ev3_mot_cur_pos (motor)
+
+              debug_printf ("move_fork " + int_to_str (id) + " in-place waiting for eat, pos = " + int_to_str (pos) + "\n")
 
               # want/notify for eat activity
               cmd ? c
@@ -86,7 +102,7 @@ define move_fork (val int id, val ev3_outport motor, chan(int) cmd?, val int inv
               cmd ? c
 
               b = ev3_mot_run_to_pos (motor, pos - move_delta1, -50)
-              fixed_delay (MOVE_DELAY)
+              fixed_delay (MOVE_DELAY * 2)
 
               # wait/notify completion
               cmd ? c
@@ -94,7 +110,8 @@ define move_fork (val int id, val ev3_outport motor, chan(int) cmd?, val int inv
             seq
               # move right
               b = ev3_mot_run_to_pos (motor, pos - move_delta2, -50)
-              fixed_delay (MOVE_DELAY)
+              fixed_delay (MOVE_DELAY * 2)
+              #wait_for_pos (motor, pos - move_delta2)
 
               # wait/notify completion
               cmd ? c
@@ -121,7 +138,7 @@ define move_fork (val int id, val ev3_outport motor, chan(int) cmd?, val int inv
               cmd ? c
 
               b = ev3_mot_run_to_pos (motor, pos + move_delta1, 50)
-              fixed_delay (MOVE_DELAY)
+              fixed_delay (MOVE_DELAY * 2)
 
               # wait/notify completion
               cmd ? c
@@ -282,8 +299,8 @@ define secure_college ()
       par
         philosopher (0, up0!, dn0!, fl0!, fr0!)
         philosopher (1, up1!, dn1!, fl1!, fr1!)
-        #philosopher (2, up2!, dn2!, fl2!, fr2!)
-        #philosopher (3, up3!, dn3!, fl3!, fr3!)
+        philosopher (2, up2!, dn2!, fl2!, fr2!)
+        philosopher (3, up3!, dn3!, fl3!, fr3!)
         fork (0, fr0?, fl3?, fc0!)
         fork (1, fr1?, fl0?, fc1!)
         fork (2, fr2?, fl1?, fc2!)

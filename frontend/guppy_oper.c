@@ -565,6 +565,52 @@ static tnode_t *guppy_gettype_mopnode (langops_t *lops, tnode_t *node, tnode_t *
 }
 /*}}}*/
 
+/*{{{  static int guppy_typecheck_boolmopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
+/*
+ *	does type-checking for a boolean mop-node (boolean not)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_typecheck_boolmopnode (compops_t *cops, tnode_t *node, typecheck_t *tc)
+{
+	tnode_t *op;
+	tnode_t *optype;
+	tnode_t *atype;
+
+	op = tnode_nthsubof (node, 0);
+
+	/* walk operand */
+	typecheck_subtree (op, tc);
+
+	/* attempt to get default type, should be boolean */
+	optype = typecheck_gettype (op, guppy_oper_booltypenode);
+
+	if (!optype) {
+		typecheck_error (node, tc, "failed to determine type for 'not' operand");
+		return 0;
+	}
+
+	atype = typecheck_typeactual (guppy_oper_booltypenode, optype, node, tc);
+	if (!atype) {
+		typecheck_error (node, tc, "incompatible type for boolean 'not'");
+		return 0;
+	}
+
+	tnode_setnthsub (node, 1, atype);
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_namemap_boolmopnode (compops_t *cops, tnode_t **node, map_t *map)*/
+/*
+ *	does name-mapping for a boolean monadic operator node (not)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_namemap_boolmopnode (compops_t *cops, tnode_t **node, map_t *map)
+{
+	map_submapnames (tnode_nthsubaddr (*node, 0), map);
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_lpreallocate_boolmopnode (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)*/
 /*
  *	does pre-allocation for a boolean monadic operator
@@ -574,6 +620,34 @@ static int guppy_lpreallocate_boolmopnode (compops_t *cops, tnode_t *node, cccsp
 {
 	cpa->collect += 2;		/* arbitrary, but assume we need something */
 	return 1;
+}
+/*}}}*/
+/*{{{  static int guppy_codegen_boolmopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)*/
+/*
+ *	does code-generation for a boolean monadic operator node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_codegen_boolmopnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
+{
+	if (node->tag != gup.tag_NOT) {
+		nocc_internal ("guppy_codegen_boolmopnode(): unhandled operator!");
+		return 0;
+	}
+
+	codegen_write_fmt (cgen, "!(");
+	codegen_subcodegen (tnode_nthsubof (node, 0), cgen);
+	codegen_write_fmt (cgen, ")");
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static tnode_t *guppy_gettype_boolmopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)*/
+/*
+ *	gets the type of a boolean operator (not)
+ */
+static tnode_t *guppy_gettype_boolmopnode (langops_t *lops, tnode_t *node, tnode_t *default_type)
+{
+	return tnode_nthsubof (node, 1);
 }
 /*}}}*/
 
@@ -1296,9 +1370,13 @@ static int guppy_oper_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:boolmopnode", &i, 2, 0, 0, TNF_NONE);			/* subnodes: op, type */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_boolmopnode));
+	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_boolmopnode));
 	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_boolmopnode));
+	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_boolmopnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_boolmopnode));
 	tnd->lops = lops;
 
 	i = -1;

@@ -1,0 +1,59 @@
+
+# test_g83.gpp -- testing rotation speed
+
+@include "guppy_stdlib.gpi"
+@include "guppy_ev3lib.gpi"
+
+val int SPEED = 50
+
+define test_g83 (chan(string) scr!)
+  int p1, p2
+  int t1, t2
+  int cpr
+  bool b
+  timer tim
+  seq
+    b = ev3_mot_init (PORT_A, MDEV_L_MOTOR)
+    if !b
+      scr ! "failed to initialise motor on port A!\n"
+      return
+
+    b = ev3_mot_stop_mode (PORT_A, STM_BRAKE)
+
+    cpr = ev3_mot_count_per_rot (PORT_A)
+    p1 = ev3_mot_cur_pos (PORT_A)
+
+    ev3_mot_run_to_pos (PORT_A, p1 + cpr, SPEED)
+    tim ? t1
+    seq for 20
+      seq
+        int cps
+
+        t2 = t1 ++ 100000
+        tim ? after t2
+        p2 = ev3_mot_cur_pos (PORT_A)
+        cps = (p2 - p1) * 10
+
+        scr ! "at speed " + int_to_str (SPEED) + ", got " + int_to_str (cps) + " ticks/sec\n"
+        p1 = p2
+        t1 = t2
+
+    ev3_mot_run_to_pos (PORT_A, p1 - cpr, -SPEED)
+    tim ? t1
+    seq for 20
+      seq
+        int cps
+
+        t2 = t1 ++ 100000
+        tim ? after t2
+        p2 = ev3_mot_cur_pos (PORT_A)
+        cps = (p2 - p1) * 10
+
+        scr ! "at speed -" + int_to_str (SPEED) + ", got " + int_to_str (cps) + " ticks/sec\n"
+        p1 = p2
+        t1 = t2
+
+    ev3_mot_shutdown ()
+
+end
+

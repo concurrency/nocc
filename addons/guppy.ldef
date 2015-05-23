@@ -365,6 +365,7 @@
 .TABLE	"guppy:expr +:= [ 0 @bytesin 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:bytesinreduce>} -* ]"
 .TABLE	"guppy:expr +:= [ 0 @@( 1 ] [ 1 guppy:expr 2 ] [ 2 @@) 3 ] [ 3 {<gup:nullreduce>} -* <guppy:restofexpr> ]"
 .TABLE	"guppy:expr +:= [ 0 @@- 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:negreduce>} -* <guppy:restofexpr> ]"
+.TABLE	"guppy:expr +:= [ 0 @@! 1 ] [ 1 guppy:expr 2 ] [ 2 {<gup:notreduce>} -* <guppy:restofexpr> ]"
 
 .TABLE	"guppy:testforexpr +:= [ 0 +@@( 1 ] [ 0 +@size 1 ] [ 0 +@bytesin 1 ] [ 0 +@@- 1 ] [ 1 {<gup:testtrue>} -* ]"
 
