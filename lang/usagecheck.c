@@ -564,7 +564,7 @@ int usagecheck_addname (tnode_t *node, uchk_state_t *ucstate, uchk_mode_t mode)
 		node = tnode_nthsubof (node, 0);
 	}
 
-#if 1
+#if 0
 nocc_message ("usagecheck_addname(): allocating [%s,%s] with mode 0x%x", node->tag->name, node->tag->ndef->name, (int)mode);
 #endif
 	if ((ucstate->ucptr < 0) || (ucstate->ucptr >= DA_CUR (ucstate->ucstack)) || (ucstate->ucptr >= DA_CUR (ucstate->setptrs))) {

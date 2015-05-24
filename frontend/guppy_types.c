@@ -1025,6 +1025,8 @@ fprintf (stderr, "guppy_typeactual_chantype(): formaltype=[%s], actualtype=[%s]\
 	}
 	if (formaltype->tag == gup.tag_CHAN) {
 		/*{{{  actual type-check for channel*/
+		chantypehook_t *fcth = (chantypehook_t *)tnode_nthhookof (formaltype, 0);
+
 		if ((node->tag == gup.tag_INPUT) || (node->tag == gup.tag_OUTPUT)) {
 			/* becomes a protocol-check */
 			atype = tnode_nthsubof (formaltype, 0);
@@ -1034,6 +1036,13 @@ fprintf (stderr, "guppy_typeactual_chantype(): formaltype=[%s], actualtype=[%s]\
 			/* must be two channels then */
 			if (actualtype->tag != gup.tag_CHAN) {
 				typecheck_error (node, tc, "expected channel, found [%s]", actualtype->tag->name);
+			} else {
+				chantypehook_t *acth = (chantypehook_t *)tnode_nthhookof (actualtype, 0);
+
+				/* check matching directions if relevant */
+				if ((fcth->marked_svr && acth->marked_cli) || (fcth->marked_cli && acth->marked_svr)) {
+					typecheck_error (node, tc, "incompatible directions on channel");
+				}
 			}
 			atype = actualtype;
 

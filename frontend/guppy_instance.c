@@ -156,6 +156,12 @@ tnode_dumptree (aparamlist, 1, FHAN_STDERR);
 			}
 		}
 
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_typecheck_instance(): ftype =\n");
+tnode_dumptree (ftype, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, "guppy_typecheck_instance(): atype =\n");
+tnode_dumptree (atype, 1, FHAN_STDERR);
+#endif
 		rtype = typecheck_typeactual (ftype, atype, node, tc);
 		if (!rtype) {
 			typecheck_error (node, tc, "incompatible types for parameter %d", i+1);
