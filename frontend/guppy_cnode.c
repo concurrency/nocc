@@ -593,6 +593,44 @@ fhandle_printf (FHAN_STDERR, "guppy_reallocate_cnode(): here3: did %d entries, g
 }
 /*}}}*/
 
+/*{{{  static int guppy_dousagecheck_cnode (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)*/
+/*
+ *	does usage-checking for a constructor node (only interested in PAR really)
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_dousagecheck_cnode (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)
+{
+	if (node->tag == gup.tag_PAR) {
+		/*{{{  usage-check individual bodies*/
+		tnode_t *body = tnode_nthsubof (node, 1);
+		tnode_t **bitems;
+		int nitems, i;
+		tnode_t *parnode = node;
+
+		if (!parser_islistnode (body)) {
+			nocc_internal ("guppy_dousagecheck_cnode(): body of PAR not list");
+			return 0;
+		}
+
+		usagecheck_begin_branches (node, ucstate);
+		bitems = parser_getlistitems (body, &nitems);
+
+		for (i=0; i<nitems; i++) {
+			usagecheck_branch (bitems[i], ucstate);
+		}
+
+		usagecheck_end_branches (node, ucstate);
+		if (!usagecheck_no_overlaps (node, ucstate)) {
+			usagecheck_mergeall (node, ucstate);
+		}
+
+		return 0;
+		/*}}}*/
+	}
+	return 1;
+}
+/*}}}*/
+
 
 /*{{{  static int guppy_scopein_replcnode (compops_t *cops, tnode_t **nodep, scope_t *ss)*/
 /*
@@ -1165,6 +1203,7 @@ static int guppy_cnode_init_nodes (void)
 	tnode_setcompop (cops, "reallocate", 2, COMPOPTYPE (guppy_reallocate_cnode));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (guppy_dousagecheck_cnode));
 	tnd->lops = lops;
 
 	i = -1;

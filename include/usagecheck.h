@@ -1,6 +1,6 @@
 /*
  *	usagecheck.h -- interface to parallel usage checker
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by

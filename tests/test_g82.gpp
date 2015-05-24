@@ -7,10 +7,11 @@ define foo (chan(int) in?)
     in ? x
 end
 
-define bar (chan(int) in?)
+define bar (chan(int) out!)
   int y
   seq
-    in ? y
+    y = 42
+    out ! y
 end
 
 define test_g82 ()

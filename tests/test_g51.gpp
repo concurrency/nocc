@@ -15,8 +15,8 @@ define fixed_delay (val int usecs)
 end
 
 val int MOVE_DELAY = 400000
-val int FORK_EAT_DELAY = 150000
-val int PHIL_POST_EAT_DELAY = 650000
+val int FORK_EAT_DELAY = 120000
+val int PHIL_POST_EAT_DELAY = 500000
 
 define wait_for_pos (val ev3_outport motor, val int pos)
   bool look = true
@@ -64,7 +64,7 @@ define move_fork (val int id, val ev3_outport motor, chan(int) cmd?, val int inv
         # make 'pos' the centre position (will change!)
         pos = ev3_mot_cur_pos (motor)
 
-        debug_printf ("move_fork " + int_to_str (id) + " waiting... pos = " + int_to_str (pos) + "\n")
+        #debug_printf ("move_fork " + int_to_str (id) + " waiting... pos = " + int_to_str (pos) + "\n")
 
         cmd ? c
         if
@@ -80,7 +80,7 @@ define move_fork (val int id, val ev3_outport motor, chan(int) cmd?, val int inv
 
               pos = ev3_mot_cur_pos (motor)
 
-              debug_printf ("move_fork " + int_to_str (id) + " in-place waiting for eat, pos = " + int_to_str (pos) + "\n")
+              #debug_printf ("move_fork " + int_to_str (id) + " in-place waiting for eat, pos = " + int_to_str (pos) + "\n")
 
               # want/notify for eat activity
               cmd ? c
@@ -154,7 +154,7 @@ define fork (val int id, chan(bool) left?, right?, chan(int) cmd!)
           # animate pick-up
           cmd ! 0
           cmd ! 0
-          debug_printf ("fork " + int_to_str (id) + " up! (left)\n")
+          #debug_printf ("fork " + int_to_str (id) + " up! (left)\n")
           left ? any
 
           # philosopher eats here
@@ -166,14 +166,14 @@ define fork (val int id, chan(bool) left?, right?, chan(int) cmd!)
           # animate put-down
           cmd ! 0
           cmd ! 0
-          debug_printf ("fork " + int_to_str (id) + " down! (left)\n")
+          #debug_printf ("fork " + int_to_str (id) + " down! (left)\n")
           left ? any
       right ? any
         seq
           # animate pick-up
           cmd ! 1
           cmd ! 1
-          debug_printf ("fork " + int_to_str (id) + " up! (right)\n")
+          #debug_printf ("fork " + int_to_str (id) + " up! (right)\n")
           right ? any
 
           #philosopher eats here
@@ -185,18 +185,18 @@ define fork (val int id, chan(bool) left?, right?, chan(int) cmd!)
           # animate put-down
           cmd ! 1
           cmd ! 1
-          debug_printf ("fork " + int_to_str (id) + " down! (right)\n")
+          #debug_printf ("fork " + int_to_str (id) + " down! (right)\n")
           right ? any
 end
 
-define rand_delay (val int min, max)
+define rand_delay (val int min, max, salt)
   timer tim
   int t, diff
   seq
     tim ? t
     diff = max - min
     # nasty..
-    diff = t \ diff
+    diff = (t * (salt + 13)) \ diff
     tim ? after (t + min + diff)
 end
 
@@ -205,7 +205,7 @@ define philosopher (val int id, chan(bool) up!, down!, left!, right!)
     seq
       # thinking
       debug_printf ("philosopher " + int_to_str (id) + " thinking..\n")
-      rand_delay (2000000, 4000000)
+      rand_delay (2000000, 6000000, id)
       # sit down
       down ! true
       # pick up forks
@@ -219,13 +219,12 @@ define philosopher (val int id, chan(bool) up!, down!, left!, right!)
 
       # eating
       debug_printf ("philosopher " + int_to_str (id) + " eating..\n")
-      rand_delay (2000000, 4000000)
+      rand_delay (2000000, 4000000, id)
       debug_printf ("philosopher done eating\n")
       # signal done eating to forks (keep in hand, but stop animating eat)
       seq
         left ! true
         right ! true
-      debug_printf ("philosopher doing post-delay\n")
 
       fixed_delay (PHIL_POST_EAT_DELAY)
 

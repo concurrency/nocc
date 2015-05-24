@@ -1,6 +1,6 @@
 /*
  *	guppy_io.c -- input and output for Guppy
- *	Copyright (C) 2010-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2010-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -77,6 +77,7 @@
 static int guppy_typecheck_io (compops_t *cops, tnode_t *node, typecheck_t *tc)
 {
 	tnode_t *lhstype, *rhstype, *acttype, *prot;
+	int is_input = 0, is_output = 0;
 
 	typecheck_subtree (tnode_nthsubof (node, 0), tc);
 	typecheck_subtree (tnode_nthsubof (node, 1), tc);
@@ -85,6 +86,17 @@ static int guppy_typecheck_io (compops_t *cops, tnode_t *node, typecheck_t *tc)
 
 	if (!lhstype) {
 		typecheck_error (node, tc, "channel in input/output has unknown type");
+		return 0;
+	}
+
+	/* see if we're restricted to input or output in the channel */
+	guppy_chantype_getinout (lhstype, &is_input, &is_output);
+
+	if (is_input && (node->tag == gup.tag_OUTPUT)) {
+		typecheck_error (node, tc, "cannot output to channel marked as input");
+		return 0;
+	} else if (is_output && (node->tag == gup.tag_INPUT)) {
+		typecheck_error (node, tc, "cannot input from channel marked as output");
 		return 0;
 	}
 
@@ -117,6 +129,23 @@ tnode_dumptree (prot, 1, FHAN_STDERR);
 	tnode_setnthsub (node, 2, acttype);
 
 	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_precheck_io (compops_t *cops, tnode_t *node)*/
+/*
+ *	pre-checks for an I/O node -- marks out for checking
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_precheck_io (compops_t *cops, tnode_t *node)
+{
+	if (node->tag == gup.tag_INPUT) {
+		usagecheck_marknode (tnode_nthsubaddr (node, 0), USAGE_INPUT, 0);
+		usagecheck_marknode (tnode_nthsubaddr (node, 1), USAGE_WRITE, 0);
+	} else if (node->tag == gup.tag_OUTPUT) {
+		usagecheck_marknode (tnode_nthsubaddr (node, 0), USAGE_OUTPUT, 0);
+		usagecheck_marknode (tnode_nthsubaddr (node, 1), USAGE_READ, 0);
+	}
+	return 1;
 }
 /*}}}*/
 /*{{{  static int guppy_fetrans1_io (compops_t *cops, tnode_t **nodep, guppy_fetrans1_t *fe1)*/
@@ -317,6 +346,22 @@ static int guppy_codegen_io (compops_t *cops, tnode_t *node, codegen_t *cgen)
 }
 /*}}}*/
 
+/*{{{  static int guppy_dousagecheck_io (langops_t *lops, tnode_t *node, uchk_state_t *ucs)*/
+/*
+ *	does usage-checking for an I/O node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_dousagecheck_io (langops_t *lops, tnode_t *node, uchk_state_t *ucs)
+{
+	if (node->tag == gup.tag_INPUT) {
+		if (!langops_isvar (tnode_nthsubof (node, 1))) {
+			usagecheck_error (node, ucs, "right hand side of input must be writeable");
+		}
+	}
+	return 1;
+}
+/*}}}*/
+
 
 /*{{{  static int guppy_io_init_nodes (void)*/
 /*
@@ -335,14 +380,15 @@ static int guppy_io_init_nodes (void)
 	tnd = tnode_newnodetype ("guppy:io", &i, 3, 0, 0, TNF_NONE);		/* subnodes: 0 = LHS, 1 = RHS, 2 = type */
 	cops = tnode_newcompops ();
 	tnode_setcompop (cops, "typecheck", 2, COMPOPTYPE (guppy_typecheck_io));
+	tnode_setcompop (cops, "precheck", 1, COMPOPTYPE (guppy_precheck_io));
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_io));
 	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_io));
 	tnode_setcompop (cops, "fetrans3", 2, COMPOPTYPE (guppy_fetrans3_io));
-
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_io));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_io));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (guppy_dousagecheck_io));
 	tnd->lops = lops;
 
 	i = -1;

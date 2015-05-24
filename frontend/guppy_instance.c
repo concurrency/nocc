@@ -505,6 +505,76 @@ static tnode_t *guppy_gettype_instance (langops_t *lops, tnode_t *node, tnode_t 
 	return NULL;
 }
 /*}}}*/
+/*{{{  static int guppy_dousagecheck_instance (langops_t *lops, tnode_t *node, uchk_state_t *ucs)*/
+/*
+ *	does usage-checking for an instance node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_dousagecheck_instance (langops_t *lops, tnode_t *node, uchk_state_t *ucs)
+{
+	tnode_t *fparamlist = typecheck_gettype (tnode_nthsubof (node, 0), NULL);
+	tnode_t *aparamlist = tnode_nthsubof (node, 1);
+	tnode_t **fp_items, **ap_items;
+	int fp_nitems, ap_nitems;
+	int i;
+	char *fcnname = NameNameOf (tnode_nthnameof (tnode_nthsubof (node, 0), 0));
+
+	if (fparamlist->tag == gup.tag_FCNTYPE) {
+		/* just considerating parameters for now */
+		fparamlist = tnode_nthsubof (fparamlist, 0);
+	}
+	if (!parser_islistnode (fparamlist) || !parser_islistnode (aparamlist)) {
+		/* technically a more serious error, but.. */
+		usagecheck_error (node, ucs, "invalid instance of [%s] (parameters not a list)", fcnname);
+		return 0;
+	}
+
+	fp_items = parser_getlistitems (fparamlist, &fp_nitems);
+	ap_items = parser_getlistitems (aparamlist, &ap_nitems);
+
+	if (fp_nitems != ap_nitems) {
+		/* technically a more serious error, but.. */
+		usagecheck_error (node, ucs, "invalid instance of [%s] (mismatch parameter count, %d formal, %d actual)",
+				fcnname, fp_nitems, ap_nitems);
+		return 0;
+	}
+
+	for (i=0; i<fp_nitems; i++) {
+		tnode_t *ftype;
+		uchk_mode_t savedmode = ucs->defmode;
+		int is_input = 0, is_output = 0;
+		tnode_t *fpname;
+
+		ftype = typecheck_gettype (fp_items[i], NULL);
+		fpname = tnode_nthsubof (fp_items[i], 0);
+		/* blindly see if it's a channel type -- will fail if not */
+		guppy_chantype_getinout (ftype, &is_input, &is_output);
+
+		if (is_input) {
+			ucs->defmode = USAGE_INPUT;
+		} else if (is_output) {
+			ucs->defmode = USAGE_OUTPUT;
+		} else if (fpname->tag == gup.tag_NPARAM) {
+			ucs->defmode = USAGE_WRITE;
+		} else if (fpname->tag == gup.tag_NVALPARAM) {
+			ucs->defmode = USAGE_READ;
+		}
+
+		/* usagecheck actual parameter */
+		usagecheck_subtree (ap_items[i], ucs);
+
+		ucs->defmode = savedmode;
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_dousagecheck_instance(): ftype =\n");
+tnode_dumptree (ftype, 1, FHAN_STDERR);
+fhandle_printf (FHAN_STDERR, "    ... fparam =\n");
+tnode_dumptree (fp_items[i], 1, FHAN_STDERR);
+#endif
+	}
+
+	return 0;
+}
+/*}}}*/
 
 /*{{{  static int guppy_lpreallocate_rinstance (compops_t *cops, tnode_t *node, cccsp_preallocate_t *cpa)*/
 /*
@@ -765,6 +835,7 @@ static int guppy_instance_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "gettype", 2, LANGOPTYPE (guppy_gettype_instance));
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (guppy_dousagecheck_instance));
 	tnd->lops = lops;
 
 	i = -1;

@@ -815,6 +815,104 @@ fhandle_printf (FHAN_STDERR, "guppy_reallocate_fcndef(): here! done with [%s], n
 }
 /*}}}*/
 
+/*{{{  static int guppy_getdescriptor_fcndef (langops_t *lops, tnode_t *node, char **str)*/
+/*
+ *	generates a descriptor line for a procedure/function definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_getdescriptor_fcndef (langops_t *lops, tnode_t *node, char **str)
+{
+	tnode_t *name = tnode_nthsubof (node, 0);
+	char *realname;
+	tnode_t *params = tnode_nthsubof (node, 1);
+	tnode_t *results = tnode_nthsubof (node, 3);
+
+	if (*str) {
+		nocc_warning ("guppy_getdescriptor_fcndef(): already had descriptor [%s]", *str);
+		sfree (*str);
+	}
+	realname = NameNameOf (tnode_nthnameof (name, 0));
+	*str = (char *)smalloc (strlen (realname) + 16);
+
+	sprintf (*str, "define %s (", realname);
+	if (parser_islistnode (params)) {
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (params, &nitems);
+
+		for (i=0; i<nitems; i++) {
+			tnode_t *param = items[i];
+
+			langops_getdescriptor (param, str);
+			if (i < (nitems - 1)) {
+				char *newstr = (char *)smalloc (strlen (*str) + 5);
+
+				sprintf (newstr, "%s, ", *str);
+				sfree (*str);
+				*str = newstr;
+			}
+		}
+	} else {
+		langops_getdescriptor (params, str);
+	}
+
+	{
+		char *newstr = (char *)smalloc (strlen (*str) + 5);
+
+		sprintf (newstr, "%s)", *str);
+		sfree (*str);
+		*str = newstr;
+	}
+
+	if (results && parser_islistnode (results)) {
+		int nitems, i;
+		tnode_t **items = parser_getlistitems (results, &nitems);
+		
+		if (nitems > 0) {
+			/* at least one thing! */
+			char *newstr = (char *)smalloc (strlen (*str) + 6);
+
+			sprintf (newstr, "%s -> ", *str);
+			sfree (*str);
+			*str = newstr;
+
+			for (i=0; i<nitems; i++) {
+				tnode_t *rtype = items[i];
+
+				langops_getdescriptor (rtype, str);
+				if (i < (nitems - 1)) {
+					char *newstr = (char *)smalloc (strlen (*str) + 5);
+
+					sprintf (newstr, "%s, ", *str);
+					sfree (*str);
+					*str = newstr;
+				}
+			}
+		}
+	}
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_dousagecheck_fcndef (langops_t *lops, tnode_t *node, uchk_state_t *ucs)*/
+/*
+ *	does usage-checking on a function definition
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_dousagecheck_fcndef (langops_t *lops, tnode_t *node, uchk_state_t *ucs)
+{
+	/* just walk the body of this */
+	usagecheck_begin_branches (node, ucs);
+	usagecheck_newbranch (ucs);
+
+	usagecheck_subtree (tnode_nthsubof (node, 2), ucs);
+
+	usagecheck_endbranch (ucs);
+	usagecheck_end_branches (node, ucs);
+
+	return 0;
+}
+/*}}}*/
+
+
 /*{{{  static int guppy_fetrans_extdef (compops_t *cops, tnode_t **nodep, fetrans_t *fe)*/
 /*
  *	wrapper for fetrans on external declarations: creates appropriate PFCNDEF thing
@@ -1020,84 +1118,6 @@ tnode_dumptree (tnode_nthsubof (node, 1), 1, FHAN_STDERR);
 }
 /*}}}*/
 
-/*{{{  static int guppy_getdescriptor_fcndef (langops_t *lops, tnode_t *node, char **str)*/
-/*
- *	generates a descriptor line for a procedure/function definition
- *	returns 0 to stop walk, 1 to continue
- */
-static int guppy_getdescriptor_fcndef (langops_t *lops, tnode_t *node, char **str)
-{
-	tnode_t *name = tnode_nthsubof (node, 0);
-	char *realname;
-	tnode_t *params = tnode_nthsubof (node, 1);
-	tnode_t *results = tnode_nthsubof (node, 3);
-
-	if (*str) {
-		nocc_warning ("guppy_getdescriptor_fcndef(): already had descriptor [%s]", *str);
-		sfree (*str);
-	}
-	realname = NameNameOf (tnode_nthnameof (name, 0));
-	*str = (char *)smalloc (strlen (realname) + 16);
-
-	sprintf (*str, "define %s (", realname);
-	if (parser_islistnode (params)) {
-		int nitems, i;
-		tnode_t **items = parser_getlistitems (params, &nitems);
-
-		for (i=0; i<nitems; i++) {
-			tnode_t *param = items[i];
-
-			langops_getdescriptor (param, str);
-			if (i < (nitems - 1)) {
-				char *newstr = (char *)smalloc (strlen (*str) + 5);
-
-				sprintf (newstr, "%s, ", *str);
-				sfree (*str);
-				*str = newstr;
-			}
-		}
-	} else {
-		langops_getdescriptor (params, str);
-	}
-
-	{
-		char *newstr = (char *)smalloc (strlen (*str) + 5);
-
-		sprintf (newstr, "%s)", *str);
-		sfree (*str);
-		*str = newstr;
-	}
-
-	if (results && parser_islistnode (results)) {
-		int nitems, i;
-		tnode_t **items = parser_getlistitems (results, &nitems);
-		
-		if (nitems > 0) {
-			/* at least one thing! */
-			char *newstr = (char *)smalloc (strlen (*str) + 6);
-
-			sprintf (newstr, "%s -> ", *str);
-			sfree (*str);
-			*str = newstr;
-
-			for (i=0; i<nitems; i++) {
-				tnode_t *rtype = items[i];
-
-				langops_getdescriptor (rtype, str);
-				if (i < (nitems - 1)) {
-					char *newstr = (char *)smalloc (strlen (*str) + 5);
-
-					sprintf (newstr, "%s, ", *str);
-					sfree (*str);
-					*str = newstr;
-				}
-			}
-		}
-	}
-	return 0;
-}
-/*}}}*/
-
 
 /*{{{  static int guppy_fcndef_init_nodes (void)*/
 /*
@@ -1135,6 +1155,7 @@ static int guppy_fcndef_init_nodes (void)
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnode_setlangop (lops, "getdescriptor", 2, LANGOPTYPE (guppy_getdescriptor_fcndef));
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (guppy_dousagecheck_fcndef));
 	tnd->lops = lops;
 
 	i = -1;

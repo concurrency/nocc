@@ -655,6 +655,23 @@ fhandle_printf (FHAN_STDERR, "guppy_bytesfor_namenode(): typedecl = %d\n", btot)
 	return -1;
 }
 /*}}}*/
+/*{{{  static int guppy_dousagecheck_namenode (langops_t *lops, tnode_t *node, uchk_state_t *uc)*/
+/*
+ *	does usage-checking on a name node
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_dousagecheck_namenode (langops_t *lops, tnode_t *node, uchk_state_t *uc)
+{
+	if (uc->ucptr < 0) {
+		return 0;
+	}
+	if (usagecheck_addname (node, uc, uc->defmode)) {
+		return 0;
+	}
+	return 1;
+}
+/*}}}*/
+
 
 /*{{{  static int guppy_prescope_vdecl (compops_t *cops, tnode_t **node, prescope_t *ps)*/
 /*
@@ -1940,6 +1957,7 @@ static int guppy_decls_init_nodes (void)
 	tnode_setlangop (lops, "initcall", 2, LANGOPTYPE (guppy_initcall_namenode));
 	tnode_setlangop (lops, "freecall", 2, LANGOPTYPE (guppy_freecall_namenode));
 	tnode_setlangop (lops, "bytesfor", 2, LANGOPTYPE (guppy_bytesfor_namenode));
+	tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (guppy_dousagecheck_namenode));
 	tnd->lops = lops;
 
 	i = -1;
@@ -2063,6 +2081,9 @@ static int guppy_decls_init_nodes (void)
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_declblock));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_declblock));
 	tnd->ops = cops;
+	lops = tnode_newlangops ();
+	// tnode_setlangop (lops, "do_usagecheck", 2, LANGOPTYPE (guppy_dousagecheck_declblock));
+	tnd->lops = lops;
 
 	i = -1;
 	gup.tag_DECLBLOCK = tnode_newnodetag ("DECLBLOCK", &i, tnd, NTF_NONE);
