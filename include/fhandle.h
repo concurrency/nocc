@@ -42,6 +42,8 @@ extern int fhandle_lasterr (fhandle_t *fh);
 extern unsigned char *fhandle_mapfile (fhandle_t *fh, size_t offset, size_t length);
 extern int fhandle_unmapfile (fhandle_t *fh, unsigned char *ptr, size_t offset, size_t length);
 extern int fhandle_printf (fhandle_t *fh, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+extern int fhandle_printf_e (fhandle_t *fh, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+extern int fhandle_printf_w (fhandle_t *fh, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 extern int fhandle_vprintf (fhandle_t *fh, const char *fmt, va_list ap);
 extern int fhandle_write (fhandle_t *fh, unsigned char *buffer, int size);
 extern int fhandle_read (fhandle_t *fh, unsigned char *bufaddr, int max);

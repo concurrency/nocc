@@ -70,7 +70,7 @@
 	"[ 2 -* 4 ] [ 4 {<gup:rewindlexer>} -* <guppy:namestartproc> ]"
 
 .TABLE	"guppy:descriptor ::= [ 0 @define 1 ] [ 1 guppy:definedecl 2 ] [ 2 @@= 3 ] [ 2 Newline 5 ] [ 3 guppy:literal 4 ] [ 4 {<gup:extdeclreduce>} -* ]"
-	"[ 5 {<gup:libdescreduce>} -* ]"
+	"[ 5 {<gup:libdescreduce>} -* ] [ 3 @@- 6 ] [ 6 guppy:literal 7 ] [ 7 {<gup:foldneg>} -* 4 ]"
 
 #.BNF	"guppy:procstart +:= ( guppy:primproc | guppy:cnode ) {<gup:nullreduce>}"
 
@@ -339,6 +339,8 @@
 .GRULE	"gup:foldarraysub" "R+N+Sn00C[ARRAYSUB]3R-"
 .GRULE	"gup:markedinreduce" "SN0N+0C[MARKEDIN]2R-"
 .GRULE	"gup:markedoutreduce" "SN0N+0C[MARKEDOUT]2R-"
+
+.GRULE	"gup:foldneg" "SN0N+0C[NEG]2N-"
 
 .GRULE	"gup:addinreduce" "SN0N+N+VC[ADDIN]2R-"
 .GRULE	"gup:subinreduce" "SN0N+N+VC[SUBIN]2R-"

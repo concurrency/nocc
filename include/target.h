@@ -153,6 +153,10 @@ extern void target_dumptargets (struct TAG_fhandle *stream);
 
 extern int target_initialise (target_t *target);
 
+extern int target_error (target_t *target, struct TAG_tnode *orgnode, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+extern int target_warning (target_t *target, struct TAG_tnode *orgnode, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+
+
 extern int target_init (void);
 extern int target_shutdown (void);
 

@@ -573,11 +573,21 @@ void nocc_message (char *fmt, ...)
 /*}}}*/
 /*{{{  void nocc_outerrmsg (char *string)*/
 /*
- *	called to output errors/warnings/etc. for other compiler parts
+ *	called to output errors for other compiler parts
  */
 void nocc_outerrmsg (char *string)
 {
-	fprintf (stderr, "%s\n", string);
+	fhandle_printf_e (FHAN_STDERR, "%s\n", string);
+	return;
+}
+/*}}}*/
+/*{{{  void nocc_outwarnmsg (char *string)*/
+/*
+ *	called to output warnings for other compiler parts
+ */
+void nocc_outwarnmsg (char *string)
+{
+	fhandle_printf_w (FHAN_STDERR, "%s\n", string);
 	return;
 }
 /*}}}*/

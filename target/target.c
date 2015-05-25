@@ -34,6 +34,7 @@
 #include "version.h"
 #include "fhandle.h"
 #include "tnode.h"
+#include "lexer.h"
 #include "names.h"
 #include "typecheck.h"
 #include "target.h"
@@ -125,7 +126,6 @@ target_t *target_lookupbyspec (char *tarch, char *tvendor, char *tos)
 }
 /*}}}*/
 
-
 /*{{{  void target_dumptargets (fhandle_t *stream)*/
 /*
  *	displays a list of supported targets (debugging/info)
@@ -155,7 +155,6 @@ void target_dumptargets (fhandle_t *stream)
 }
 /*}}}*/
 
-
 /*{{{  int target_initialise (target_t *target)*/
 /*
  *	initialises the given target
@@ -176,6 +175,83 @@ int target_initialise (target_t *target)
 	i = target->init (target);
 
 	return i;
+}
+/*}}}*/
+
+/*{{{  int target_error (target_t *target, tnode_t *orgnode, const char *fmt, ...)*/
+/*
+ *	generic error reporting for back-end
+ *	returns number of bytes written on success, < 0 on error
+ */
+int target_error (target_t *target, tnode_t *orgnode, const char *fmt, ...)
+{
+	va_list ap;
+	static char errbuf[512];
+	int n;
+	lexfile_t *lf;
+	int line;
+
+	if (!orgnode) {
+		lf = NULL;
+		line = -1;
+	} else {
+		lf = orgnode->org ? orgnode->org->org_file : NULL;
+		line = orgnode->org ? orgnode->org->org_line : -1;
+	}
+	if (!lf) {
+		n = sprintf (errbuf, "%s: (error) ", target->name);
+	} else {
+		n = sprintf (errbuf, "%s: %s:%d (error) ", target->name, lf->fnptr, line);
+	}
+	va_start (ap, fmt);
+	n += vsnprintf (errbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	if (lf) {
+		lf->errcount++;
+	}
+
+	nocc_outerrmsg (errbuf);
+
+	return n;
+}
+/*}}}*/
+/*{{{  int target_warning (target_t *target, tnode_t *orgnode, const char *fmt, ...)*/
+/*
+ *	generic warning reporting for back-end
+ *	returns number of bytes written on success, < 0 on error
+ */
+int target_warning (target_t *target, tnode_t *orgnode, const char *fmt, ...)
+{
+	va_list ap;
+	static char errbuf[512];
+	int n;
+	lexfile_t *lf;
+	int line;
+
+	if (!orgnode) {
+		lf = NULL;
+		line = -1;
+	} else {
+		lf = orgnode->org ? orgnode->org->org_file : NULL;
+		line = orgnode->org ? orgnode->org->org_line : -1;
+	}
+	if (!lf) {
+		n = sprintf (errbuf, "%s: (warning) ", target->name);
+	} else {
+		n = sprintf (errbuf, "%s: %s:%d (warning) ", target->name, lf->fnptr, line);
+	}
+	va_start (ap, fmt);
+	n += vsnprintf (errbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	if (lf) {
+		lf->warncount++;
+	}
+
+	nocc_outwarnmsg (errbuf);
+
+	return n;
 }
 /*}}}*/
 

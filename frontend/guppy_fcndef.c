@@ -913,6 +913,25 @@ static int guppy_dousagecheck_fcndef (langops_t *lops, tnode_t *node, uchk_state
 /*}}}*/
 
 
+/*{{{  static int guppy_prescope_extdef (compops_t *cops, tnode_t **nodep, prescope_t *ps)*/
+/*
+ *	does pre-scope on an external definition node -- folds up negative on stack-size if present
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_prescope_extdef (compops_t *cops, tnode_t **nodep, prescope_t *ps)
+{
+	tnode_t **sizep = tnode_nthsubaddr (*nodep, 1);
+
+	/* prescope the function bit of it */
+	prescope_subtree (tnode_nthsubaddr (*nodep, 0), ps);
+	if (*sizep && ((*sizep)->tag == gup.tag_NEG)) {
+		/* negative literal: means figure-it-out */
+		*sizep = guppy_makeintlit (NULL, *sizep, -1);
+	}
+
+	return 0;
+}
+/*}}}*/
 /*{{{  static int guppy_fetrans_extdef (compops_t *cops, tnode_t **nodep, fetrans_t *fe)*/
 /*
  *	wrapper for fetrans on external declarations: creates appropriate PFCNDEF thing
@@ -1065,6 +1084,12 @@ static int guppy_namemap_extdef (compops_t *cops, tnode_t **nodep, map_t *map)
 	fcndef = tnode_nthsubof (*nodep, 0);
 	nwords = langops_constvalof (tnode_nthsubof (*nodep, 1), NULL);
 
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_namemap_extdef(): nwords = %d\n", nwords);
+#endif
+	if (nwords < 0) {
+		nwords = 0;
+	}
 	beblk = tnode_nthsubof (fcndef, 2);
 	cccsp_setblockspace (beblk, &nparams, &nwords);
 
@@ -1085,6 +1110,13 @@ static int guppy_lpreallocate_extdef (compopts_t *cops, tnode_t *node, cccsp_pre
 	cccsp_preallocate_subtree (fcndef, cpa);
 
 	nwords = langops_constvalof (tnode_nthsubof (node, 1), NULL);
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_lpreallocate_extdef(): nwords = %d\n", nwords);
+#endif
+	if (nwords < 0) {
+		/* means we don't know yet, but don't leave invalid */
+		nwords = 0;
+	}
 	beblk = tnode_nthsubof (fcndef, 2);
 	cccsp_setblockspace (beblk, NULL, &nwords);
 
@@ -1113,6 +1145,46 @@ tnode_dumptree (tnode_nthsubof (node, 1), 1, FHAN_STDERR);
 	codegen_callops (cgen, comment, "external define %s", pname->me->name);
 
 	codegen_callops (cgen, c_procexternal, pname, params, (fcndef->tag == gup.tag_PFCNDEF));
+
+	return 0;
+}
+/*}}}*/
+/*{{{  static int guppy_cccspdcgfix_extdef (compops_t *cops, tnode_t *node)*/
+/*
+ *	used when fixing-up stack usage information
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int guppy_cccspdcgfix_extdef (compops_t *cops, tnode_t *node)
+{
+	cccsp_sfi_entry_t *sfient;
+	tnode_t *efcndef = tnode_nthsubof (node, 0);
+	tnode_t *efname = tnode_nthsubof (efcndef, 0);
+	name_t *pname;
+	int nwords;
+
+	cccsp_cccspdcgfix_subtree (efcndef);
+
+	nwords = langops_constvalof (tnode_nthsubof (node, 1), NULL);
+
+	pname = tnode_nthnameof (efname, 0);
+	sfient = cccsp_sfiofname (pname, 0);
+
+	if (!sfient) {
+		cccsp_sfi_error (node, "guppy_cccspdcgfix_extdef(): no SFI entry for [%s]", NameNameOf (pname));
+		return 0;
+	}
+
+	if (nwords < 0) {
+		/* means we're needing external help */
+		if ((sfient->framesize <= 0) && (sfient->allocsize <= 0)) {
+			cccsp_sfi_error (node, "cannot determine space requirement for [%s]", sfient->name);
+			return 0;
+		}
+	}
+#if 0
+fhandle_printf (FHAN_STDERR, "guppy_cccspdcgfix_extdef(): got SFI [%s]: frame=%d, alloc=%d;  spec=%d\n",
+		sfient->name, sfient->framesize, sfient->allocsize, nwords);
+#endif
 
 	return 0;
 }
@@ -1168,12 +1240,14 @@ static int guppy_fcndef_init_nodes (void)
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:extdef", &i, 2, 0, 0, TNF_NONE);			/* subnodes: definition, stack-words */
 	cops = tnode_newcompops ();
+	tnode_setcompop (cops, "prescope", 2, COMPOPTYPE (guppy_prescope_extdef));
 	tnode_setcompop (cops, "fetrans", 2, COMPOPTYPE (guppy_fetrans_extdef));
 	tnode_setcompop (cops, "fetrans1", 2, COMPOPTYPE (guppy_fetrans1_extdef));
 	tnode_setcompop (cops, "fetrans15", 2, COMPOPTYPE (guppy_fetrans15_extdef));
 	tnode_setcompop (cops, "namemap", 2, COMPOPTYPE (guppy_namemap_extdef));
 	tnode_setcompop (cops, "lpreallocate", 2, COMPOPTYPE (guppy_lpreallocate_extdef));
 	tnode_setcompop (cops, "codegen", 2, COMPOPTYPE (guppy_codegen_extdef));
+	tnode_setcompop (cops, "cccsp:dcgfix", 1, COMPOPTYPE (guppy_cccspdcgfix_extdef));
 	tnd->ops = cops;
 	lops = tnode_newlangops ();
 	tnd->lops = lops;

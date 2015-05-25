@@ -3311,6 +3311,10 @@ static tnode_t *guppy_parser_descparse (lexfile_t *lf)
 fhandle_printf (FHAN_STDERR, "guppy_parser_descparse(): got descriptor:\n");
 tnode_dumptree (tree, 1, FHAN_STDERR);
 #endif
+	if (!tree) {
+		/* give up totally at this point */
+		return NULL;
+	}
 	if (tree && (tree->tag == gup.tag_EXTDECL)) {
 		/* just this one */
 		return tree;

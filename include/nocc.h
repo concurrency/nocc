@@ -28,6 +28,7 @@ extern void nocc_error (char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 extern void nocc_warning (char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 extern void nocc_message (char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 extern void nocc_outerrmsg (char *string);
+extern void nocc_outwarnmsg (char *string);
 extern void nocc_cleanexit (void);
 
 extern int nocc_dooption (char *optstr);

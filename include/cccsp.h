@@ -203,5 +203,8 @@ extern int cccsp_sfi_loadusage (const char *fname);
 extern int cccsp_sfi_calc_alloc (void);
 extern void cccsp_sfi_dumptable (struct TAG_fhandle *stream);
 
+extern int cccsp_sfi_error (struct TAG_tnode *node, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+extern int cccsp_sfi_geterror (void);
+
 
 #endif	/* !__CCCSP_H */

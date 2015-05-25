@@ -611,6 +611,62 @@ int fhandle_printf (fhandle_t *fh, const char *fmt, ...)
 	return count;
 }
 /*}}}*/
+/*{{{  int fhandle_printf_e (fhandle_t *fh, const char *fmt, ...)*/
+/*
+ *	does printf style formatting writing to a file (typically in error-reporting to pretty-print).
+ *	returns number of bytes written, -1 on error.
+ */
+int fhandle_printf_e (fhandle_t *fh, const char *fmt, ...)
+{
+	int count = 0;
+	va_list ap;
+	int highlight = 1;
+
+	if (!fh || !fh->scheme || !compopts.prettyprint || !fhandle_isatty (fh)) {
+		highlight = 0;
+	}
+
+	if (highlight) {
+		fhandle_printf (fh, "%c[31m", 27);
+	}
+	va_start (ap, fmt);
+	count = fhandle_vprintf (fh, fmt, ap);
+	va_end (ap);
+	if (highlight) {
+		fhandle_printf (fh, "%c[0m", 27);
+	}
+
+	return count;
+}
+/*}}}*/
+/*{{{  int fhandle_printf_w (fhandle_t *fh, const char *fmt, ...)*/
+/*
+ *	does printf style formatting writing to a file (typically in error-reporting to pretty-print).
+ *	returns number of bytes written, -1 on error.
+ */
+int fhandle_printf_w (fhandle_t *fh, const char *fmt, ...)
+{
+	int count = 0;
+	va_list ap;
+	int highlight = 1;
+
+	if (!fh || !fh->scheme || !compopts.prettyprint || !fhandle_isatty (fh)) {
+		highlight = 0;
+	}
+
+	if (highlight) {
+		fhandle_printf (fh, "%c[33m", 27);		/* YELLOW */
+	}
+	va_start (ap, fmt);
+	count = fhandle_vprintf (fh, fmt, ap);
+	va_end (ap);
+	if (highlight) {
+		fhandle_printf (fh, "%c[0m", 27);
+	}
+
+	return count;
+}
+/*}}}*/
 /*{{{  int fhandle_vprintf (fhandle_t *fh, const char *fmt, va_list ap)*/
 /*
  *	does printf style formatting writing to a file.
@@ -735,7 +791,7 @@ int fhandle_ppxml (fhandle_t *fh, const char *fmt, ...)
 	return count;
 }
 /*}}}*/
-/*{{{  */
+/*{{{  int fhandle_vppxml (fhandle_t *fh, const char *fmt, va_list ap)*/
 /*
  *	does pretty-printed XML style formatting if writing to a TTY (or envorced)
  *	returns number of bytes written, -1 on error.

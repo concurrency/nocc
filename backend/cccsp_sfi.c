@@ -1,6 +1,6 @@
 /*
  *	cccsp_sfi.c -- stack-frame-info for cccsp back-end
- *	Copyright (C) 2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2013-2015 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -62,6 +62,7 @@
 /*{{{  private data*/
 
 static cccsp_sfi_t *sfitable = NULL;
+static int sfierror = 0;
 
 /*}}}*/
 /*{{{  global data*/
@@ -197,7 +198,7 @@ static void cccsp_sfi_entrychook_dumptree (tnode_t *node, void *hook, int indent
 	cccsp_sfi_entry_t *sfient = (cccsp_sfi_entry_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<cccsp:sfi:entry name=\"%s\" framesize=\"%d\" allocsize=\"%d\" />\n", sfient->name, sfient->framesize, sfient->allocsize);
+	fhandle_ppxml (stream, "<cccsp:sfi:entry name=\"%s\" framesize=\"%d\" allocsize=\"%d\" />\n", sfient->name, sfient->framesize, sfient->allocsize);
 
 	return;
 }
@@ -216,6 +217,8 @@ int cccsp_sfi_init (void)
 	cccsp_sfi_entrychook = tnode_lookupornewchook ("cccsp:sfi:entry");
 	cccsp_sfi_entrychook->chook_dumptree = cccsp_sfi_entrychook_dumptree;
 
+	sfierror = 0;
+
 	return 0;
 }
 /*}}}*/
@@ -226,6 +229,7 @@ int cccsp_sfi_init (void)
  */
 int cccsp_sfi_shutdown (void)
 {
+	/* let-go rather than free, since bits probably peppered around the tree */
 	sfitable = NULL;
 	return 0;
 }
@@ -512,4 +516,40 @@ void cccsp_sfi_dumptable (fhandle_t *stream)
 }
 /*}}}*/
 
+/*{{{  int cccsp_sfi_error (tnode_t *t, const char *fmt, ...)*/
+/*
+ *	error-reporting for SFI handling things
+ *	returns number of bytes written on success, < 0 on error
+ */
+int cccsp_sfi_error (tnode_t *t, const char *fmt, ...)
+{
+	va_list ap;
+	static char errbuf[512];
+	int n;
+	lexfile_t *lf = t->org ? t->org->org_file : NULL;
+
+	va_start (ap, fmt);
+	n = sprintf (errbuf, "%s:%d (SFI error) ", lf ? lf->fnptr : "(unknown)", t->org ? t->org->org_line : -1);
+	n += vsnprintf (errbuf + n, 512 - n, fmt, ap);
+	va_end (ap);
+
+	if (lf) {
+		lf->errcount++;
+	}
+	sfierror++;
+
+	nocc_outerrmsg (errbuf);
+
+	return n;
+}
+/*}}}*/
+/*{{{  int cccsp_sfi_geterror (void)*/
+/*
+ *	returns the SFI error counter (used to fail the whole compiler pass)
+ */
+int cccsp_sfi_geterror (void)
+{
+	return sfierror;
+}
+/*}}}*/
 
