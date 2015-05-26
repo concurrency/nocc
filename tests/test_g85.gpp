@@ -1,0 +1,25 @@
+
+# test_g85.gpp -- testing auto-SFI..
+
+#@include "guppy_stdlib.gpi"
+
+@external "guppy" "define debug_printf (val string s) = -1"
+@external "guppy" "define mystery (val int x) = 20"
+
+define call_m ()
+  seq
+    mystery (42)
+end
+
+define call_d ()
+  seq
+    debug_printf ("hello!\n")
+end
+
+define test_g85 ()
+  seq
+    call_d ()
+    call_m ()
+
+end
+
