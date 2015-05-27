@@ -1180,6 +1180,10 @@ static int guppy_cccspdcgfix_extdef (compops_t *cops, tnode_t *node)
 			cccsp_sfi_error (node, "cannot determine space requirement for [%s]", sfient->name);
 			return 0;
 		}
+	} else if ((sfient->framesize <= 0) && (sfient->allocsize <= 0)) {
+		/* fixup */
+		sfient->framesize = nwords;
+		sfient->allocsize = nwords;
 	}
 #if 0
 fhandle_printf (FHAN_STDERR, "guppy_cccspdcgfix_extdef(): got SFI [%s]: frame=%d, alloc=%d;  spec=%d\n",

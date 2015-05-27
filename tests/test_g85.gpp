@@ -20,6 +20,5 @@ define test_g85 ()
   seq
     call_d ()
     call_m ()
-
 end
 
