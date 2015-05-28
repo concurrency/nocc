@@ -1,8 +1,7 @@
 #
 # guppy_stdlib.gpi -- definitions for library provided things
-# Fred Barnes, June 2013
 #
 
-@external "guppy" "define guppy_screen_process (chan?(string) in) = 88"
-@external "guppy" "define int_to_str (val int n) -> string = 120"
+@external "guppy" "define guppy_screen_process (chan?(string) in) = -1"
+@external "guppy" "define int_to_str (val int n) -> string = -1"
 
