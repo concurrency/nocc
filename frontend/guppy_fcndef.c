@@ -808,7 +808,7 @@ fhandle_printf (FHAN_STDERR, "guppy_reallocate_fcndef(): here! my-sfi [%s], fram
 
 	cccsp_setblockspace (blk, NULL, &nwords);
 
-#if 0
+#if 1
 fhandle_printf (FHAN_STDERR, "guppy_reallocate_fcndef(): here! done with [%s], nwords = %d\n", me->name, nwords);
 #endif
 	return 0;
@@ -1110,7 +1110,7 @@ static int guppy_lpreallocate_extdef (compopts_t *cops, tnode_t *node, cccsp_pre
 	cccsp_preallocate_subtree (fcndef, cpa);
 
 	nwords = langops_constvalof (tnode_nthsubof (node, 1), NULL);
-#if 0
+#if 1
 fhandle_printf (FHAN_STDERR, "guppy_lpreallocate_extdef(): nwords = %d\n", nwords);
 #endif
 	if (nwords < 0) {
