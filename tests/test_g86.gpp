@@ -1,0 +1,9 @@
+# test_g86.gpp -- testing external auto-sizing..
+
+@include "guppy_stdlib.gpi"
+
+define test_g86 (chan(string) out!)
+  seq
+    out ! "Hello, world!\n"
+end
+

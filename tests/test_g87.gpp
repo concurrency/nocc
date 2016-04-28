@@ -1,0 +1,67 @@
+
+# test_g87.gpp -- more tests
+
+@include "guppy_stdlib.gpi"
+
+define delta (chan(int) in?, out0!, out1!)
+  while true
+    int v
+
+    in ? v
+    par
+      out0 ! v
+      out1 ! v
+end
+
+define sdelta (chan(int) in?, out0!, out1!)
+  while true
+    int v
+
+    in ? v
+    out0 ! v
+    out1 ! v
+end
+
+define prefix (val int n, chan(int) in?, out!)
+  out ! n
+
+  while true
+    int v
+
+    in ? v
+    out ! v
+end
+
+define succ (chan(int) in?, out!)
+  while true
+    int v
+
+    in ? v
+    out ! v + 1
+end
+
+define sink (chan(int) in?, chan(string) out!)
+  while true
+    int v
+    int t0, t1
+    timer tim
+
+    tim ? t0
+    seq for 10000
+      in ? v
+    tim ? t1
+    t1 = (t1 - t0) / 40
+    out ! "context switch: " + int_to_str (t1) + " ns\n"
+
+end
+
+define test_g87 (chan(string) screen!)
+  chan(int) a, b, c, d
+  par
+    prefix (0, d?, a!)
+    sdelta (a?, b!, c!)
+    succ (b?, d!)
+    sink (c?, screen!)
+end
+
+

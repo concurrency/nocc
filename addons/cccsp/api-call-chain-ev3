@@ -48,6 +48,7 @@ ExternalCall0: =40, ccsp_scheduler, EXTERNAL_CALL
 ExternalCall1: =40, ccsp_scheduler, EXTERNAL_CALL 
 ExternalCallN: =44, ccsp_scheduler, EXTERNAL_CALL 
 
+gcf_guppy_screen_process: =8 
 gproc_guppy_screen_process: =24, ProcGetParam, ChanIn, ExternalCallN, GuppyStringFree 
 gcf_int_to_str: =48, GuppyStringFree, GuppyStringInit, MAlloc, ExternalCallN 
 gcf_debug_printf: =16, ExternalCallN 

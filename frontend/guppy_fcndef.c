@@ -1110,7 +1110,7 @@ static int guppy_lpreallocate_extdef (compopts_t *cops, tnode_t *node, cccsp_pre
 	cccsp_preallocate_subtree (fcndef, cpa);
 
 	nwords = langops_constvalof (tnode_nthsubof (node, 1), NULL);
-#if 1
+#if 0
 fhandle_printf (FHAN_STDERR, "guppy_lpreallocate_extdef(): nwords = %d\n", nwords);
 #endif
 	if (nwords < 0) {
@@ -1167,7 +1167,7 @@ static int guppy_cccspdcgfix_extdef (compops_t *cops, tnode_t *node)
 	nwords = langops_constvalof (tnode_nthsubof (node, 1), NULL);
 
 	pname = tnode_nthnameof (efname, 0);
-	sfient = cccsp_sfiofname (pname, 0);
+	sfient = cccsp_sfiofname (pname, (efcndef->tag == gup.tag_PFCNDEF));
 
 	if (!sfient) {
 		cccsp_sfi_error (node, "guppy_cccspdcgfix_extdef(): no SFI entry for [%s]", NameNameOf (pname));
@@ -1207,7 +1207,7 @@ static int guppy_fcndef_init_nodes (void)
 	langops_t *lops;
 	int i;
 
-	/*{{{  guppy:fcndef -- FCNDEF*/
+	/*{{{  guppy:fcndef -- FCNDEF, PFCNDEF*/
 	i = -1;
 	tnd = tnode_newnodetype ("guppy:fcndef", &i, 4, 0, 1, TNF_LONGDECL);			/* subnodes: name, fparams, body, results;  hooks: guppy_fcndefhook_t */
 	tnd->hook_free = guppy_fcndef_hook_free;

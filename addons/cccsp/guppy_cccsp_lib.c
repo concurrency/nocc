@@ -6,6 +6,16 @@
 #include <cccsp/verb-header.h>
 
 
+/*{{{  void gcf_guppy_screen_process (Workspace wptr, Channel *in)*/
+/* @APICALLCHAIN: gcf_guppy_screen_process: =? */
+/*
+ *	dummy (never actually used directly) but present to shut nocc up
+ */
+void gcf_guppy_screen_process (Workspace wptr, Channel *in)
+{
+	return;
+}
+/*}}}*/
 /*{{{  void gproc_guppy_screen_process (Workspace wptr)*/
 /* @APICALLCHAIN: gproc_guppy_screen_process: =?, ProcGetParam, ChanIn, ExternalCallN, GuppyStringFree */
 /*
