@@ -29,3 +29,10 @@ And some extra things that I've poked around with, but haven't gotten very far o
 * RCX BASIC, a simple programming language for the LEGO Mindstorms RCX (intended to code-gen to RCX bytecode).
 * tree-rewriting language, an abstract way of specifying parse-tree transformations within nocc.
 
+## Note for the 32bit branch
+
+This branch in Git is for the 32-bit version of nocc in its present state.  Time to embrace 64-bit computing,
+not that it'll make much difference, but there are a lot of 32-bit-platform assumptions in the nocc code-base,
+and catering for both where it matters is likely to be more grotty than useful, so the master branch will
+start heading towards a 64-bit build.
+
