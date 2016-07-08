@@ -6,7 +6,7 @@ noinst_LIBRARIES = libfrontend.a
 
 AUTOMAKE_OPTIONS=foreign
 
-INCLUDES=-I@srcdir@/../include
+AM_CPPFLAGS = -I@srcdir@/../include
 
 libfrontend_a_SOURCES=occampi_fe.c occampi_lexer.c occampi_parser.c occampi_primproc.c occampi_cnode.c \
 		occampi_snode.c occampi_protocol.c occampi_decl.c occampi_procdecl.c occampi_type.c \

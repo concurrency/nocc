@@ -6,7 +6,7 @@ noinst_LIBRARIES = libtarget.a
 
 AUTOMAKE_OPTIONS=foreign
 
-INCLUDES=-I@srcdir@/../include
+AM_CPPFLAGS = -I@srcdir@/../include
 
 libtarget_a_SOURCES=betrans.c map.c allocate.c codegen.c target.c
 

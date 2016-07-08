@@ -6,7 +6,7 @@ noinst_LIBRARIES = libextn.a
 
 AUTOMAKE_OPTIONS=foreign
 
-INCLUDES=-I@srcdir@/../include
+AM_CPPFLAGS = -I@srcdir@/../include
 
 libextn_a_SOURCES=extn.c
 

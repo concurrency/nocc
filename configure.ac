@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 dnl
 
 AC_REVISION($Revision: 1.1 $)
-AC_INIT([nocc.c], [0.1.7])
+AC_INIT([nocc.c], [0.2.0])
 AC_PREREQ(2.12)
 
 AC_GNU_SOURCE
@@ -64,10 +64,8 @@ EXTRA_LIBS=""
 EXTRA_LDFLAGS=""
 
 case "$host_cpu" in
- x86_64)
-  # compile in 32-bit mode
-  EXTRA_CFLAGS="$EXTRA_CFLAGS -m32"
-  EXTRA_LDFLAGS="$EXTRA_LDFLAGS -m32 -Wl,-melf_i386"
+ i386)
+  AC_MSG_ERROR([only for 64-bit platforms])
   ;;
 esac
 
@@ -132,7 +130,13 @@ AC_MSG_RESULT($specsfile)
 
 AC_DEFINE_UNQUOTED(SPECSFILE, "$specsfile", [compiled-in specs-file path])
 
+
+dnl
+dnl XXX: because KRoC will only work _well_ within a chroot environment, need to think about chroots for this
+dnl
+
 AC_ARG_WITH([kroc], AC_HELP_STRING([--with-kroc=...],[Path to KRoC script for CCCSP back-end]), [kroc=$withval], [kroc=none])
+kroc=none
 
 if test "x$kroc" = "xnone"; then
   kroc_path=none

@@ -6,7 +6,7 @@ noinst_LIBRARIES = libparser.a
 
 AUTOMAKE_OPTIONS=foreign
 
-INCLUDES=-I@srcdir@/../include
+AM_CPPFLAGS = -I@srcdir@/../include
 
 libparser_a_SOURCES=parser.c dfa.c dfaerror.c treecheck.c treeops.c trlang.c traceslang.c
 

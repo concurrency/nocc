@@ -6,7 +6,7 @@ noinst_LIBRARIES = libbackend.a
 
 AUTOMAKE_OPTIONS=foreign
 
-INCLUDES=-I@srcdir@/../include
+AM_CPPFLAGS = -I@srcdir@/../include
 
 libbackend_a_SOURCES=krocetc.c kroccifccsp.c krocllvm.c cccsp.c cccsp_sfi.c atmelavr.c
 

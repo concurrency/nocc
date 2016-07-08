@@ -7,7 +7,7 @@ GPERF=@GPERF@
 
 noinst_LIBRARIES = libmisc.a
 
-INCLUDES=-I@srcdir@/../include
+AM_CPPFLAGS = -I@srcdir@/../include
 
 libmisc_a_SOURCES=gperf_options.h gperf_keywords.h gperf_xmlkeys.h gperf_transinstr.h gperf_langdeflookup.h \
 			support.c origin.c options.c fcnlib.c fhandle.c keywords.c xmlkeys.c transinstr.c \

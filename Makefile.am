@@ -9,7 +9,7 @@
 
 
 VPATH = @srcdir@:@srcdir@/include:@srcdir@/misc
-INCLUDES=-I@srcdir@/include
+AM_CPPFLAGS =-I@srcdir@/include
 
 ## Cannot use ansi2knr because it is under GPL
 ## AUTOMAKE_OPTIONS=ansi2knr

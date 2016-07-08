@@ -6,6 +6,9 @@ generating code for a variety of targets (real and abstract).  NOCC itself aims 
 compiler framework, of sorts, with particular source languages and output targets added on as needed.
 Languages are generally compiled for a single (fixed) target, though there is scope for flexibility.
 
+__NOTE__: the compiler is undergoing some structural work to change it from 32-bit to 64-bit.  The
+code as it was on 08/07/2016 is in the "32bit" branch.  So for a while, it'll probably not work right.
+
 ## Well Supported
 
 Currently implemented to a fairly reasonable extent:

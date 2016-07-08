@@ -6,7 +6,7 @@ noinst_LIBRARIES = liblexer.a
 
 AUTOMAKE_OPTIONS=foreign
 
-INCLUDES=-I@srcdir@/../include
+AM_CPPFLAGS = -I@srcdir@/../include
 
 liblexer_a_SOURCES=lexer.c symbols.c
 

@@ -7,7 +7,7 @@ GPERF=@GPERF@
 
 noinst_LIBRARIES = libxml.a
 
-INCLUDES=-I@srcdir@/../include
+AM_CPPFLAGS = -I@srcdir@/../include
 
 libxml_a_SOURCES=xml.c
 
