@@ -1,6 +1,6 @@
 /*
  *	support.c - support functions
- *	Copyright (C) 2000-2004 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2000-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <stdint.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -79,7 +80,7 @@
 
 #ifdef POOL_COUNTERS
 
-static unsigned int dmempools[N_POOLS << 2];
+static uint64_t dmempools[N_POOLS << 2];
 #define DMAddrSlot(X) dmempools[(X) << 2]
 #define DMSizeSlot(X) dmempools[((X) << 2) | 0x1]
 #define DMAvailSlot(X) dmempools[((X) << 2) | 0x2]
@@ -87,7 +88,7 @@ static unsigned int dmempools[N_POOLS << 2];
 
 #else	/* !POOL_COUNTERS */
 
-static unsigned int dmempools[N_POOLS];
+static uint64_t dmempools[N_POOLS];
 #define DMAddrSlot(X) dmempools[(X)]
 #define DMSizeSlot(X) (-1)
 #define DMAvailSlot(X) (-1)
@@ -288,9 +289,9 @@ void *dmem_new (int p)
 			nocc_fatal ("dmem_new(): unable to allocate %d bytes (system)\n", SlotToSize (p));
 			exit (EXIT_FAILURE);
 		}
-		DMAddrSlot (p) = (unsigned int)thisblk;
+		DMAddrSlot (p) = (uint64_t)thisblk;
 		*(void **)thisblk = NULL;
-		((unsigned int *)thisblk)[1] = 0xdeadbeef;
+		((uint64_t *)thisblk)[1] = 0xdeadbeef;
 #ifdef POOL_COUNTERS
 		DMAvailSlot (p) = DMAvailSlot (p) + 1;
 #endif	/* POOL_COUNTERS */
@@ -300,10 +301,10 @@ void *dmem_new (int p)
 	thisblk = (void *)(DMAddrSlot (p));
 	nextblk = *(void **)thisblk;
 
-	DMAddrSlot (p) = (unsigned int)nextblk;
+	DMAddrSlot (p) = (uint64_t)nextblk;
 
-	if (nextblk && ((unsigned int *)thisblk)[1] != 0xdeadbeef) {
-		nocc_fatal ("dmem_new(): bad block magic 0x%8.8x for block at 0x%8.8x in pool %d", ((unsigned int *)thisblk)[1], (unsigned int)thisblk, p);
+	if (nextblk && ((uint64_t *)thisblk)[1] != 0xdeadbeef) {
+		nocc_fatal ("dmem_new(): bad block magic 0x%16.16lx for block at 0x%16.16lx in pool %d", ((uint64_t *)thisblk)[1], (uint64_t)thisblk, p);
 		exit (EXIT_FAILURE);
 	}
 
@@ -424,7 +425,7 @@ void dmem_usagedump (void)
 #endif
 
 		for (i=0; i<N_POOLS; i++) {
-			fprintf (stderr, "\t%d\t%-10d\t%-10p\t%d\t%d\t", i, DMSizeSlot(i),
+			fprintf (stderr, "\t%d\t%-10lu\t%-18p\t%lu\t%lu\t", i, DMSizeSlot(i),
 					(void *)(DMAddrSlot (i)), DMAvailSlot(i), DMCountSlot(i));
 #if defined (SHOW_SPARESLABS) && defined (SLAB_ALLOCATOR)
 			fprintf (stderr, "[");
@@ -504,7 +505,7 @@ void dmem_init (void)
 #endif	/* defined (SLAB_ALLOCATOR) */
 
 	for (i=0; i<N_POOLS; i++) {
-		DMAddrSlot(i) = (unsigned int)NULL;
+		DMAddrSlot(i) = (uint64_t)NULL;
 #ifdef POOL_COUNTERS
 		DMSizeSlot(i) = SlotToSize (i);
 		DMAvailSlot(i) = 0;
@@ -574,7 +575,7 @@ void dmem_shutdown (void)
 #endif	/* defined (SLAB_ALLOCATOR) */
 
 	for (i=0; i<N_POOLS; i++) {
-		DMAddrSlot(i) = (unsigned int)NULL;
+		DMAddrSlot(i) = (uint64_t)NULL;
 #ifdef POOL_COUNTERS
 		DMSizeSlot(i) = SlotToSize (i);
 		DMAvailSlot(i) = 0;
@@ -995,7 +996,7 @@ char *string_upper (const char *str)
 	char *nstr = (char *)smalloc (strlen (str) + 1);
 	char *ch, *dh;
 
-	for (dh=nstr, ch=str; *ch != '\0'; ch++, dh++) {
+	for (dh=nstr, ch=(char *)str; *ch != '\0'; ch++, dh++) {
 		if ((*ch >= 'a') && (*ch <= 'z')) {
 			*dh = (*ch - 'a') + 'A';
 		} else {
@@ -1016,7 +1017,7 @@ char *string_lower (const char *str)
 	char *nstr = (char *)smalloc (strlen (str) + 1);
 	char *ch, *dh;
 
-	for (dh=nstr, ch=str; *ch != '\0'; ch++, dh++) {
+	for (dh=nstr, ch=(char *)str; *ch != '\0'; ch++, dh++) {
 		if ((*ch >= 'A') && (*ch <= 'Z')) {
 			*dh = (*ch - 'A') + 'a';
 		} else {
@@ -1594,7 +1595,7 @@ void sh_remove (int *bsizes, void ***table, char ***keys, int bitsize, void *ite
 			}
 		}
 	}
-	nocc_warning ("sh_remove(): item [0x%8.8x:%s] not in stringhash", (unsigned int)item, key);
+	nocc_warning ("sh_remove(): item [0x%16.16lx:%s] not in stringhash", (uint64_t)item, key);
 	return;
 }
 /*}}}*/
@@ -1639,7 +1640,7 @@ void sh_dump (FILE *stream, int *bsizes, void ***table, char ***keys, int size)
 			int j;
 
 			for (j=0; j<bsizes[i]; j++) {
-				fprintf (stream, "%s%s (0x%8.8x)", (!j ? "" : ", "), keys[i][j], (unsigned int)(table[i][j]));
+				fprintf (stream, "%s%s (0x%16.16lx)", (!j ? "" : ", "), keys[i][j], (uint64_t)(table[i][j]));
 			}
 		}
 		fprintf (stream, "\n");
@@ -1757,9 +1758,9 @@ static unsigned int ph_hashcode (void *ptr, int bitsize)
 {
 	int i;
 	unsigned int hc = (0x56756789 << bitsize);
-	char *data = (char *)&ptr;
+	char *data = (char *)&ptr;				/* pointer to the actual pointer */
 
-	for (i=0; i<sizeof(int); i++) {
+	for (i=0; i<sizeof(void *); i++) {
 		unsigned int chunk = (unsigned int)data[i];
 		unsigned int top;
 
@@ -1887,7 +1888,7 @@ void ph_remove (int *bsizes, void ***table, void ***keys, int bitsize, void *ite
 			}
 		}
 	}
-	nocc_warning ("ph_remove(): item [0x%8.8x:0x%8.8x] not in pointerhash", (unsigned int)item, (unsigned int)key);
+	nocc_warning ("ph_remove(): item [0x%16.16lx:0x%16.16lx] not in pointerhash", (uint64_t)item, (uint64_t)key);
 	return;
 }
 /*}}}*/
@@ -1932,7 +1933,7 @@ void ph_dump (FILE *stream, int *bsizes, void ***table, void ***keys, int size)
 			int j;
 
 			for (j=0; j<bsizes[i]; j++) {
-				fprintf (stream, "%s0x%8.8x (0x%8.8x)", (!j ? "" : ", "), (unsigned int)(keys[i][j]), (unsigned int)(table[i][j]));
+				fprintf (stream, "%s0x%16.16lx (0x%16.16lx)", (!j ? "" : ", "), (uint64_t)(keys[i][j]), (uint64_t)(table[i][j]));
 			}
 		}
 		fprintf (stream, "\n");

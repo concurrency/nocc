@@ -1,6 +1,6 @@
 /*
  *	fcnlib.c -- function library for NOCC
- *	Copyright (C) 2006-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -64,7 +65,7 @@ static int fcnlib_dumpoptflag = 0;
  */
 static int fcn_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)
 {
-	int optv = (int)opt->arg;
+	int optv = (int)((uint64_t)opt->arg);
 
 	switch (optv) {
 		/*{{{  --dump-fcnlib*/
@@ -148,7 +149,7 @@ int fcnlib_shutdown (void)
 			fcnlib_t *fcnl = DA_NTHITEM (afunctions, i);
 
 			if (fcnl) {
-				nocc_message ("0x%8.8x %d %d %s", (unsigned int)fcnl->fcnaddr, fcnl->ret, fcnl->nargs, fcnl->name);
+				nocc_message ("0x%16.16lx %d %d %s", (uint64_t)fcnl->fcnaddr, fcnl->ret, fcnl->nargs, fcnl->name);
 			}
 		}
 	}
@@ -183,8 +184,8 @@ int fcnlib_addfcn (const char *name, void *addr, int ret, int nargs)
 			/* re-registering exact, ok */
 			return 0;
 		}
-		nocc_warning ("fcnlib_addfcn(): function [%s] already registered with (0x%8.8x,%d,%d), but trying to set to (0x%8.8x,%d,%d)",
-			name, (unsigned int)fcnl->fcnaddr, fcnl->ret, fcnl->nargs, (unsigned int)addr, ret, nargs);
+		nocc_warning ("fcnlib_addfcn(): function [%s] already registered with (0x%16.16lx,%d,%d), but trying to set to (0x%16.16lx,%d,%d)",
+			name, (uint64_t)fcnl->fcnaddr, fcnl->ret, fcnl->nargs, (uint64_t)addr, ret, nargs);
 		return -1;
 	}
 
@@ -289,7 +290,7 @@ void fcnlib_dumpfcns (fhandle_t *stream)
 	for (i=0; i<DA_CUR (afunctions); i++) {
 		fcnlib_t *fcn = DA_NTHITEM (afunctions, i);
 
-		fhandle_printf (stream, "  %d (%d) @0x%8.8x: %s\n", fcn->ret, fcn->nargs, (unsigned int)fcn->fcnaddr, fcn->name);
+		fhandle_printf (stream, "  %d (%d) @0x%16.16lx: %s\n", fcn->ret, fcn->nargs, (uint64_t)fcn->fcnaddr, fcn->name);
 	}
 	return;
 }

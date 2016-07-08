@@ -1,6 +1,6 @@
 /*
  *	options.c -- command-line option processing
- *	Copyright (C) 2004-2015 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdarg.h>
@@ -168,7 +169,7 @@ static int opt_clearintflag (cmd_option_t *opt, char ***argwalk, int *argleft)
  */
 static int opt_setstopflag (cmd_option_t *opt, char ***argwalk, int *argleft)
 {
-	compopts.stoppoint = (int)(opt->arg);
+	compopts.stoppoint = (int)((uint64_t)opt->arg);
 	return 0;
 }
 /*}}}*/
@@ -209,7 +210,7 @@ static int opt_setstr (cmd_option_t *opt, char ***argwalk, int *argleft)
  */
 static int opt_setsaveopt (cmd_option_t *opt, char ***argwalk, int *argleft)
 {
-	int cmd = (int)(opt->arg);
+	int cmd = (int)((uint64_t)opt->arg);
 
 	if (cmd == 1) {
 		/* save named DFA to file */

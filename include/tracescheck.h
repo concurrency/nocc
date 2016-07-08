@@ -1,6 +1,6 @@
 /*
  *	tracescheck.h -- interface to traces checker
- *	Copyright (C) 2007-2008 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -100,7 +100,7 @@ typedef struct TAG_tchk_state {
 typedef struct TAG_tchk_tracewalk {
 	tchknode_t *thisnode;
 	DYNARRAY (tchknode_t *, stack);
-	DYNARRAY (int, data);
+	DYNARRAY (int64_t, data);
 	int depth;
 	int end;
 } tchk_tracewalk_t;

@@ -1,6 +1,6 @@
 /*
  *	lexer.c -- nocc lexer
- *	Copyright (C) 2004-2015 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <stdarg.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -797,7 +798,7 @@ void lexer_dumptoken (fhandle_t *stream, token_t *tok)
 		}
 	}
 	if (tok->iptr) {
-		dh += sprintf (dh, "iptr=\"0x%8.8x\" ", (unsigned int)tok->iptr);
+		dh += sprintf (dh, "iptr=\"0x%16.16lx\" ", (uint64_t)tok->iptr);
 	}
 
 	dh += sprintf (dh, "type=\"");
@@ -810,7 +811,7 @@ void lexer_dumptoken (fhandle_t *stream, token_t *tok)
 		dh += sprintf (dh, "keyword\" value=\"%s\" />\n", tok->u.kw->name);
 		break;
 	case INTEGER:
-		dh += sprintf (dh, "integer\" value=\"0x%8.8x\" />\n", (unsigned int)tok->u.ival);
+		dh += sprintf (dh, "integer\" value=\"0x%16.16lx\" />\n", (uint64_t)tok->u.ival);
 		break;
 	case REAL:
 		dh += sprintf (dh, "real\" value=\"%lf\" />\n", tok->u.dval);

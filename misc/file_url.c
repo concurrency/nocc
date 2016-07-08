@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -122,7 +123,7 @@ static int url_clear_localdir (const char *path)
  */
 static int url_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)
 {
-	int optv = (int)opt->arg;
+	int optv = (int)((uint64_t)opt->arg);
 
 	switch (optv) {
 		/*{{{  --clear-cache*/

@@ -1,6 +1,6 @@
 /*
  *	parser.c -- nocc parser framework
- *	Copyright (C) 2004-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -1230,7 +1231,7 @@ void *parser_lookup_rarg (const char *name)
 /*}}}*/
 
 
-/*{{{  intcode operators*/
+/*{{{  intcode operators.  NOTE: now 64-bit intcodes*/
 #define ICDE_END 0		/* end of intcode */
 #define ICDE_NSPOP 1		/* pop from nodestack, push onto local stack */
 #define ICDE_NSPUSH 2		/* pop from local stack, push onto nodestack */
@@ -1270,7 +1271,7 @@ void *parser_lookup_rarg (const char *name)
  */
 void parser_generic_reduce (dfastate_t *dfast, parsepriv_t *pp, void *rarg)
 {
-	unsigned int *arg = (unsigned int *)rarg;
+	uint64_t *arg = (uint64_t *)rarg;
 	void *lnstk[16];
 	int lncnt = 0;
 	int ipos;
@@ -1650,7 +1651,7 @@ void *parser_decode_grule (const char *rule, ...)
 {
 	va_list ap;
 	char *xrule = (char *)rule;
-	unsigned int *icode = NULL;
+	uint64_t *icode = NULL;
 	int ilen = 0;
 	int lsdepth = 0;
 	void *userparams[16];		/* XXX: limit */
@@ -2048,7 +2049,8 @@ void *parser_decode_grule (const char *rule, ...)
 	/* if still here, good.  decode proper */
 	ilen++;			/* for _END */
 	uplen = 0;
-	icode = (unsigned int *)smalloc (ilen * sizeof (unsigned int));
+	icode = (uint64_t *)smalloc (ilen * sizeof (uint64_t));
+
 	for (i=0, xrule=(char *)rule; (*xrule != '\0') && (i < ilen); xrule++, i++) {
 		switch (*xrule) {
 			/*{{{  N -- nodestack operation*/
@@ -2097,13 +2099,13 @@ void *parser_decode_grule (const char *rule, ...)
 			} else {
 				icode[i++] = ICDE_MOD;
 			}
-			icode[i] = (unsigned int)(userparams[uplen++]);
+			icode[i] = (uint64_t)(userparams[uplen++]);
 			break;
 			/*}}}*/
 			/*{{{  Y -- user-supplied whole stack operation*/
 		case 'Y':
 			icode[i++] = ICDE_USERMOD;
-			icode[i] = (unsigned int)(userparams[uplen++]);
+			icode[i] = (uint64_t)(userparams[uplen++]);
 			break;
 			/*}}}*/
 			/*{{{  R -- result push or pull*/
@@ -2144,8 +2146,8 @@ void *parser_decode_grule (const char *rule, ...)
 				for (xrule++; (*xrule != ']') && (*xrule != '\0'); xrule++);
 			}
 			icode[i++] = ICDE_SETTAGMARK;
-			icode[i++] = (unsigned int)(userparams[uplen++]);
-			icode[i] = (unsigned int)(userparams[uplen++]);
+			icode[i++] = (uint64_t)(userparams[uplen++]);
+			icode[i] = (uint64_t)(userparams[uplen++]);
 			break;
 			/*}}}*/
 			/*{{{  C -- condense into new token*/
@@ -2165,8 +2167,8 @@ void *parser_decode_grule (const char *rule, ...)
 				}
 					
 				icode[i++] = code;
-				icode[i++] = (int)(*xrule - '0');
-				icode[i] = (unsigned int)(userparams[uplen++]);
+				icode[i++] = (uint64_t)(*xrule - '0');
+				icode[i] = (uint64_t)(userparams[uplen++]);
 			}
 			break;
 			/*}}}*/
@@ -2188,7 +2190,7 @@ void *parser_decode_grule (const char *rule, ...)
 				break;
 			}
 			xrule++;
-			icode[i] = (unsigned int)(*xrule - '0');
+			icode[i] = (uint64_t)(*xrule - '0');
 			break;
 			/*}}}*/
 			/*{{{  > -- rotate stack right/up*/
@@ -2335,7 +2337,7 @@ void parser_dumpgrules (fhandle_t *stream)
 	for (i=0; i<DA_CUR (angrules); i++) {
 		ngrule_t *ngr = DA_NTHITEM (angrules, i);
 
-		fhandle_printf (stream, "  %-32s: 0x%8.8x\n", ngr->name, (unsigned int)ngr->grule);
+		fhandle_printf (stream, "  %-32s: 0x%16.16lx\n", ngr->name, (uint64_t)ngr->grule);
 	}
 	return;
 }

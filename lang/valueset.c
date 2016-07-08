@@ -1,6 +1,6 @@
 /*
  *	valueset.c -- code to handle mappings from values to somethings automatically (used when building CASE structures)
- *	Copyright (C) 2008-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2008-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -138,7 +138,7 @@ static void vset_isetindent (fhandle_t *stream, int indent)
 static void vset_dosort (valueset_t *vset, int first, int last)
 {
 	int i, j;
-	int pivot;
+	int64_t pivot;
 
 #if 0
 fprintf (stderr, "da_qsort(): array=0x%8.8x, first=%d, last=%d\n", (unsigned int)array, first, last);
@@ -252,12 +252,12 @@ void valueset_dumptree (valueset_t *vset, int indent, fhandle_t *stream)
 /*}}}*/
 
 
-/*{{{  int valueset_insert (valueset_t *vset, int val, tnode_t *link)*/
+/*{{{  int valueset_insert (valueset_t *vset, int64_t val, tnode_t *link)*/
 /*
  *	inserts data into a value-set
  *	returns 0 on success, non-zero on failure (already here)
  */
-int valueset_insert (valueset_t *vset, int val, tnode_t *link)
+int valueset_insert (valueset_t *vset, int64_t val, tnode_t *link)
 {
 	if (!vset) {
 		nocc_serious ("valueset_insert(): NULL vset!");

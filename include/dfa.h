@@ -1,6 +1,6 @@
 /*
  *	dfa.h -- DFA interface/definitions
- *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ typedef struct TAG_dfanode {
 	DYNARRAY (struct TAG_token *, match);
 	DYNARRAY (struct TAG_dfanode *, target);
 	DYNARRAY (struct TAG_dfanode *, pushto);
-	DYNARRAY (int, flags);
+	DYNARRAY (uint64_t, flags);
 
 	void (*reduce)(struct TAG_dfastate *, struct TAG_parsepriv *, void *);
 	void *rarg;
@@ -102,8 +102,8 @@ extern void dfa_dumpdfas (struct TAG_fhandle *stream);
 
 extern dfanode_t *dfa_newnode (void);
 extern dfanode_t *dfa_newnode_init (void (*reduce)(dfastate_t *, struct TAG_parsepriv *, void *), void *rarg);
-extern void dfa_addmatch (dfanode_t *dfa, struct TAG_token *tok, dfanode_t *target, int flags);
-extern void dfa_addpush (dfanode_t *dfa, struct TAG_token *tok, dfanode_t *pushto, dfanode_t *target, int flags);
+extern void dfa_addmatch (dfanode_t *dfa, struct TAG_token *tok, dfanode_t *target, uint64_t flags);
+extern void dfa_addpush (dfanode_t *dfa, struct TAG_token *tok, dfanode_t *pushto, dfanode_t *target, uint64_t flags);
 extern void dfa_matchpush (dfanode_t *dfa, char *pushto, dfanode_t *target, int deferring);
 extern void dfa_defaultto (dfanode_t *dfa, char *target);
 extern void dfa_defaultpush (dfanode_t *dfa, char *pushto, dfanode_t *target);
@@ -112,7 +112,7 @@ extern int dfa_setname (dfanode_t *dfa, char *name);
 extern void dfa_seterrorhandler (char *name, struct TAG_dfaerrorhandler *ehan);
 extern struct TAG_dfaerrorhandler *dfa_geterrorhandler (char *name);
 extern dfanode_t *dfa_lookupbyname (char *name);
-extern int dfa_findmatch (dfanode_t *dfa, struct TAG_token *tok, dfanode_t **r_pushto, dfanode_t **r_target, int *r_flags);
+extern int dfa_findmatch (dfanode_t *dfa, struct TAG_token *tok, dfanode_t **r_pushto, dfanode_t **r_target, uint64_t *r_flags);
 
 extern dfanode_t *dfa_decoderule (const char *rule, ...);
 extern dfanode_t *dfa_decodetrans (const char *rule, ...);

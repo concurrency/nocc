@@ -412,7 +412,7 @@ static int icrypto_genkeypair (cryptogenkey_t *cgkey)
 	}
 	memset (sbuf, 'G', 64);
 
-	sprintf (sbuf, "(genkey (%s (nbits %d:%s)))", cgkey->keytype, strlen (cgkey->nbits), cgkey->nbits);
+	sprintf (sbuf, "(genkey (%s (nbits %d:%s)))", cgkey->keytype, (int)strlen (cgkey->nbits), cgkey->nbits);
 	i = gcry_sexp_new (&keyspec, sbuf, 0, 1);
 	gcry_free (sbuf);
 	if (i) {
@@ -875,7 +875,7 @@ out_error_1:
  */
 static int icrypto_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)
 {
-	int optv = (int)opt->arg;
+	int optv = (int)((uint64_t)opt->arg);
 
 	switch (optv) {
 		/*{{{  --genkey <priv-path>,<pub-path>,<type>,<nbits>*/

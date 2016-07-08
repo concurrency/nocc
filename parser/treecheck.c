@@ -1,6 +1,6 @@
 /*
  *	treecheck.c -- tree checking routines for NOCC
- *	Copyright (C) 2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -171,7 +172,7 @@ static void tchk_freetreewalk (tchk_treewalk_t *tw)
  */
 static int tchk_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)
 {
-	int optv = (int)opt->arg;
+	int optv = (int)((uint64_t)opt->arg);
 
 	switch (optv) {
 		/*{{{  1 -- setting 'dump syntax' flag*/
@@ -363,7 +364,7 @@ int treecheck_destroycheck (treecheckdef_t *tcdef)
 		return -1;
 	}
 	if (tnd->tchkdef != tcdef) {
-		nocc_error ("treecheck_destroycheck(): linkage confusion, check at 0x%8.8x, but 0x%8.8x linked to [%s]", (unsigned int)tcdef, (unsigned int)tnd->tchkdef, tnd->name);
+		nocc_error ("treecheck_destroycheck(): linkage confusion, check at 0x%16.16lx, but 0x%16.16lx linked to [%s]", (uint64_t)tcdef, (uint64_t)tnd->tchkdef, tnd->name);
 		return -1;
 	}
 

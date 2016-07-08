@@ -1,6 +1,6 @@
 /*
  *	parser.h -- parser interface
- *	Copyright (C) 2004-2013 Fred Barnes, University of Kent <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2016 Fred Barnes, University of Kent <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by

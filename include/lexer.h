@@ -82,7 +82,7 @@ typedef struct TAG_token {
 	int lineno, colno, tokwidth;
 	union {
 		struct TAG_keyword *kw;
-		int ival;
+		int64_t ival;
 		double dval;
 		struct {
 			char *ptr;
