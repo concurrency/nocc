@@ -1,6 +1,6 @@
 /*
  *	occampi_arrayconstructor.c -- array constructors (including constant and variable constructors)
- *	Copyright (C) 2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -202,12 +203,12 @@ static tnode_t *occampi_gettype_ac (langops_t *lops, tnode_t *node, tnode_t *def
 	return *typep;
 }
 /*}}}*/
-/*{{{  static int occampi_isvar_ac (langops_t *lops, tnode_t *node)*/
+/*{{{  static int64_t occampi_isvar_ac (langops_t *lops, tnode_t *node)*/
 /*
  *	determines whether or not an array-constructor node is a variable
  *	returns 0 if value, non-zero if variable
  */
-static int occampi_isvar_ac (langops_t *lops, tnode_t *node)
+static int64_t occampi_isvar_ac (langops_t *lops, tnode_t *node)
 {
 	if (node->tag == opi.tag_ARRAYCONSTRUCTOR) {
 		return 1;

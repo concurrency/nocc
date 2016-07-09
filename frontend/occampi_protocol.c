@@ -1,6 +1,6 @@
 /*
  *	occampi_protocol.c -- occam-pi protocol handling
- *	Copyright (C) 2008-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2008-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -522,7 +523,7 @@ static int occampi_typeresolve_protocoldecl (compops_t *cops, tnode_t **nodep, t
 		tnode_t **taglines;
 		tnode_t *extlist = tnode_nthsubof (n, 3);
 		// tnode_t *vpname = tnode_nthsubof (n, 0);
-		int hval = -1;
+		int64_t hval = -1;
 
 		if (extlist) {
 			/*{{{  go through extensions and check/add fixed status*/
@@ -566,7 +567,7 @@ fprintf (stderr, "occampi_typeresolve_protocoldecl(): got %d extended protocols\
 				xstypes = parser_getlistitems (xstype, &nxstypes);
 				for (j=0; j<nxstypes; j++) {
 					tnode_t *tagval = tnode_nthsubof (xstypes[j], 2);
-					int tagintval = constprop_intvalof (tagval);
+					int64_t tagintval = constprop_intvalof (tagval);
 
 					if (tagintval > hval) {
 						hval = tagintval;
@@ -620,11 +621,11 @@ fprintf (stderr, "occampi_typeresolve_protocoldecl(): got %d extended protocols\
 					} else if (!constprop_isconst (*valp)) {
 						typecheck_error (*valp, tc, "enumeration for tag on variant %d is non-constant", i);
 					} else {
-						int val = constprop_intvalof (*valp);
+						int64_t val = constprop_intvalof (*valp);
 						tnode_t *other = pointerhash_lookup (taghash, val);
 
 						if (other) {
-							typecheck_error (*valp, tc, "duplicate enumeration value %d on variant %d", val, i);
+							typecheck_error (*valp, tc, "duplicate enumeration value %ld on variant %d", val, i);
 						} else {
 							pointerhash_insert (taghash, taglines[i], (void *)val);
 							if (val > hval) {
@@ -680,7 +681,7 @@ fprintf (stderr, "occampi_typeresolve_protocoldecl(): got %d extended protocols\
 						tnode_t *tagname = tnode_nthsubof (xstags[j], 0);
 						tnode_t *tagtype = tnode_nthsubof (xstags[j], 1);
 						tnode_t **tagvalp = tnode_nthsubaddr (xstags[j], 2);
-						int tagintval = constprop_intvalof (*tagvalp);
+						int64_t tagintval = constprop_intvalof (*tagvalp);
 						pextstate_t *xss = (pextstate_t *)tnode_getchook (xstags[j], pextstate);
 						int doaddtag = 0;
 						char *realname = NULL;
@@ -704,7 +705,7 @@ fprintf (stderr, "occampi_typeresolve_protocoldecl(): got %d extended protocols\
 							pextstate_t *otherxss = (pextstate_t *)tnode_getchook (othertag, pextstate);
 							tnode_t *othertagtype = tnode_nthsubof (othertag, 1);
 							tnode_t **othertagvalp = tnode_nthsubaddr (othertag, 2);
-							int othertagintval = constprop_intvalof (*othertagvalp);
+							int64_t othertagintval = constprop_intvalof (*othertagvalp);
 
 							if (!typecheck_fixedtypeactual (othertagtype, tagtype, *nodep, tc, 1)) {
 								typecheck_error (*nodep, tc, "cannot inherit tag \"%s\" from extended protocol %d, different types",

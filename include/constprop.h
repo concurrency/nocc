@@ -1,6 +1,6 @@
 /*
  *	constprop.h -- interface to the constant propagator for NOCC
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ typedef enum ENUM_consttype {
 	CONST_INVALID = 0,
 	CONST_BOOL = 1,
 	CONST_BYTE = 2,
-	CONST_INT = 3,
+	CONST_INT = 3,			/* NOTE: INT is now 64-bit */
 	CONST_DOUBLE = 4,
 	CONST_ULL = 5
 } consttype_e;
@@ -39,7 +39,7 @@ extern struct TAG_tnode *constprop_newconst (consttype_e ctype, struct TAG_tnode
 extern int constprop_isconst (struct TAG_tnode *node);
 extern consttype_e constprop_consttype (struct TAG_tnode *tptr);
 extern int constprop_sametype (struct TAG_tnode *tptr1, struct TAG_tnode *tptr2);
-extern int constprop_intvalof (struct TAG_tnode *tptr);
+extern int64_t constprop_intvalof (struct TAG_tnode *tptr);
 extern int constprop_tree (struct TAG_tnode **tptr);
 extern int constprop_checkintrange (struct TAG_tnode *node, const int issigned, const int bits);
 

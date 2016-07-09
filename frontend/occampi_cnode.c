@@ -1,6 +1,6 @@
 /*
  *	occampi_cnode.c -- occam-pi constructor processes for NOCC  (SEQ, PAR, etc.)
- *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -111,7 +112,7 @@ static void occampi_ileaveinfo_chook_dumptree (tnode_t *node, void *hook, int in
 	int i;
 
 	occampi_isetindent (stream, indent);
-	fhandle_printf (stream, "<ileaveinfo addr=\"0x%8.8x\" nnames=\"%d\" nvalues=\"%d\">\n", (unsigned int)ilv, DA_CUR (ilv->names), DA_CUR (ilv->values));
+	fhandle_printf (stream, "<ileaveinfo addr=\"0x%16.16lx\" nnames=\"%d\" nvalues=\"%d\">\n", (uint64_t)ilv, DA_CUR (ilv->names), DA_CUR (ilv->values));
 	for (i=0; (i<DA_CUR (ilv->names)) && (i<DA_CUR (ilv->values)); i++) {
 		occampi_isetindent (stream, indent + 1);
 		fhandle_printf (stream, "<ileaveinfo:namevaluepair>\n");
@@ -235,12 +236,12 @@ static void occampi_reduce_ileave (dfastate_t *dfast, parsepriv_t *pp, void *rar
 /*}}}*/
 
 
-/*{{{  static int occampi_cnode_dousagecheck (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)*/
+/*{{{  static int64_t occampi_cnode_dousagecheck (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)*/
 /*
  *	does usage-checking for a CNODE
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_cnode_dousagecheck (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)
+static int64_t occampi_cnode_dousagecheck (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)
 {
 	if (node->tag == opi.tag_PAR) {
 		/*{{{  usage-check PAR bodies*/
@@ -649,12 +650,12 @@ fprintf (stderr, "occampi_codegen_cnode(): PAR: %d,%d,%d,%d,%d (for STARTP %d)\n
 /*}}}*/
 
 
-/*{{{  static int occampi_replcnode_dousagecheck (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)*/
+/*{{{  static int64_t occampi_replcnode_dousagecheck (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)*/
 /*
  *	does usage-checking for a replicated constructor-node (REPLSEQ, REPLPAR)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_replcnode_dousagecheck (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)
+static int64_t occampi_replcnode_dousagecheck (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)
 {
 	return 1;
 }

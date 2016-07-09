@@ -1,6 +1,6 @@
 /*
  *	occampi_decl.c -- occam-pi declaration and name handling for NOCC
- *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -797,11 +798,11 @@ tnode_dumptree (node, 4, stderr);
 	return NULL;
 }
 /*}}}*/
-/*{{{  static int occampi_bytesfor_namenode (langops_t *lops, tnode_t *node, target_t *target)*/
+/*{{{  static int64_t occampi_bytesfor_namenode (langops_t *lops, tnode_t *node, target_t *target)*/
 /*
  *	returns the number of bytes in a name-node, associated with its type only
  */
-static int occampi_bytesfor_namenode (langops_t *lops, tnode_t *node, target_t *target)
+static int64_t occampi_bytesfor_namenode (langops_t *lops, tnode_t *node, target_t *target)
 {
 	if (node->tag == opi.tag_NREPL) {
 		name_t *name = tnode_nthnameof (node, 0);
@@ -872,12 +873,12 @@ tnode_dumptree (type, 1, stderr);
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_usagecheck_namenode (langops_t *lops, tnode_t *node, uchk_state_t *uc)*/
+/*{{{  static int64_t occampi_usagecheck_namenode (langops_t *lops, tnode_t *node, uchk_state_t *uc)*/
 /*
  *	does usage-check on a namenode
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_usagecheck_namenode (langops_t *lops, tnode_t *node, uchk_state_t *uc)
+static int64_t occampi_usagecheck_namenode (langops_t *lops, tnode_t *node, uchk_state_t *uc)
 {
 	if (node->tag == opi.tag_NVALABBR) {
 		/* allowed to be at the outermost lex-level.. */
@@ -891,12 +892,12 @@ static int occampi_usagecheck_namenode (langops_t *lops, tnode_t *node, uchk_sta
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_getname_namenode (langops_t *lops, tnode_t *node, char **str)*/
+/*{{{  static int64_t occampi_getname_namenode (langops_t *lops, tnode_t *node, char **str)*/
 /*
  *	gets the name of a namenode (var/etc. name)
  *	return 0 on success, -ve on failure
  */
-static int occampi_getname_namenode (langops_t *lops, tnode_t *node, char **str)
+static int64_t occampi_getname_namenode (langops_t *lops, tnode_t *node, char **str)
 {
 	char *pname = NameNameOf (tnode_nthnameof (node, 0));
 
@@ -909,11 +910,11 @@ static int occampi_getname_namenode (langops_t *lops, tnode_t *node, char **str)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_isvar_namenode (langops_t *lops, tnode_t *node)*/
+/*{{{  static int64_t occampi_isvar_namenode (langops_t *lops, tnode_t *node)*/
 /*
  *	returns non-zero if the specified name is a variable (l-value)
  */
-static int occampi_isvar_namenode (langops_t *lops, tnode_t *node)
+static int64_t occampi_isvar_namenode (langops_t *lops, tnode_t *node)
 {
 	if ((node->tag == opi.tag_NDECL) || (node->tag == opi.tag_NABBR)) {
 		return 1;
@@ -921,28 +922,28 @@ static int occampi_isvar_namenode (langops_t *lops, tnode_t *node)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_isconst_namenode (langops_t *lops, tnode_t *node)*/
+/*{{{  static int64_t occampi_isconst_namenode (langops_t *lops, tnode_t *node)*/
 /*
  *	returns non-zero if the given name is (compile-time) constant
  */
-static int occampi_isconst_namenode (langops_t *lops, tnode_t *node)
+static int64_t occampi_isconst_namenode (langops_t *lops, tnode_t *node)
 {
 	if (node->tag == opi.tag_NVALABBR) {
 		name_t *name = tnode_nthnameof (node, 0);
 		tnode_t *valdecl = NameDeclOf (name);
 
 		if ((valdecl->tag == opi.tag_VALABBREV) || (valdecl->tag == opi.tag_VALRETYPES)) {
-			return langops_isconst (tnode_nthsubof (valdecl, 3));
+			return (int64_t)langops_isconst (tnode_nthsubof (valdecl, 3));
 		}
 	}
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_constvalof_namenode (langops_t *lops, tnode_t *node, void *ptr)*/
+/*{{{  static int64_t occampi_constvalof_namenode (langops_t *lops, tnode_t *node, void *ptr)*/
 /*
  *	returns the constant value of a name
  */
-static int occampi_constvalof_namenode (langops_t *lops, tnode_t *node, void *ptr)
+static int64_t occampi_constvalof_namenode (langops_t *lops, tnode_t *node, void *ptr)
 {
 	if (node->tag == opi.tag_NVALABBR) {
 		name_t *name = tnode_nthnameof (node, 0);
@@ -974,17 +975,17 @@ static tnode_t *occampi_dimtreeof_namenode (langops_t *lops, tnode_t *node)
 	return NULL;
 }
 /*}}}*/
-/*{{{  static int occampi_iscommunicable_namenode (langops_t *lops, tnode_t *node)*/
+/*{{{  static int64_t occampi_iscommunicable_namenode (langops_t *lops, tnode_t *node)*/
 /*
  *	determines whether or not a namenode is communicable
  *	returns truth value
  */
-static int occampi_iscommunicable_namenode (langops_t *lops, tnode_t *node)
+static int64_t occampi_iscommunicable_namenode (langops_t *lops, tnode_t *node)
 {
 	tnode_t *type = NameTypeOf (tnode_nthnameof (node, 0));
 
 	if (type) {
-		return langops_iscommunicable (type);
+		return (int64_t)langops_iscommunicable (type);
 	}
 	return 0;
 }

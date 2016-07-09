@@ -1,6 +1,6 @@
 /*
  *	occampi_action.c -- occam-pi action handling for NOCC
- *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -431,12 +432,12 @@ tnode_dumptree (fieldlhs, 1, stderr);
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_do_usagecheck_action (langops_t *lops, tnode_t *node, uchk_state_t *ucs)*/
+/*{{{  static int64_t occampi_do_usagecheck_action (langops_t *lops, tnode_t *node, uchk_state_t *ucs)*/
 /*
  *	called to do usage-checking on an action-node
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_do_usagecheck_action (langops_t *lops, tnode_t *node, uchk_state_t *ucs)
+static int64_t occampi_do_usagecheck_action (langops_t *lops, tnode_t *node, uchk_state_t *ucs)
 {
 #if 0
 	fprintf (stderr, "occampi_do_usagecheck_action(): here!\n");
@@ -996,12 +997,12 @@ static int occampi_precheck_caseinputnode (compops_t *cops, tnode_t *node)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_do_usagecheck_caseinputnode (langops_t *lops, tnode_t *node, uchk_state_t *ucs)*/
+/*{{{  static int64_t occampi_do_usagecheck_caseinputnode (langops_t *lops, tnode_t *node, uchk_state_t *ucs)*/
 /*
  *	does usage-checking on a CASE input node
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_do_usagecheck_caseinputnode (langops_t *lops, tnode_t *node, uchk_state_t *ucs)
+static int64_t occampi_do_usagecheck_caseinputnode (langops_t *lops, tnode_t *node, uchk_state_t *ucs)
 {
 	return 1;
 }
@@ -1115,12 +1116,12 @@ static int occampi_precheck_caseinputitemnode (compops_t *cops, tnode_t *node)
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_do_usagecheck_caseinputitemnode (langops_t *lops, tnode_t *node, uchk_state_t *ucs)*/
+/*{{{  static int64_t occampi_do_usagecheck_caseinputitemnode (langops_t *lops, tnode_t *node, uchk_state_t *ucs)*/
 /*
  *	does usage-checking on a CASE input item node
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_do_usagecheck_caseinputitemnode (langops_t *lops, tnode_t *node, uchk_state_t *ucs)
+static int64_t occampi_do_usagecheck_caseinputitemnode (langops_t *lops, tnode_t *node, uchk_state_t *ucs)
 {
 	if (node->tag == opi.tag_CASEINPUTITEM) {
 		/*{{{  RHS should be a list, the first is a tag (ignored), rest should be variables*/

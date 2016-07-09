@@ -2324,12 +2324,12 @@ langops_t *tnode_removelangops (langops_t *lops)
 }
 /*}}}*/
 
-/*{{{  int tnode_setlangop (langops_t *lops, char *name, int nparams, int (*fcn)(langops_t *, ...))*/
+/*{{{  int tnode_setlangop (langops_t *lops, char *name, int nparams, int64_t (*fcn)(langops_t *, ...))*/
 /*
  *	sets a language-operation on a node
  *	returns 0 on success, non-zero on failure
  */
-int tnode_setlangop (langops_t *lops, char *name, int nparams, int (*fcn)(langops_t *, ...))
+int tnode_setlangop (langops_t *lops, char *name, int nparams, int64_t (*fcn)(langops_t *, ...))
 {
 	langop_t *lop = stringhash_lookup (langops, name);
 
@@ -2378,21 +2378,21 @@ int tnode_haslangop (langops_t *lops, char *name)
 	return 0;
 }
 /*}}}*/
-/*{{{  static int tnode_icalllangop (langops_t *lops, langop_t *op, va_list ap)*/
+/*{{{  static int64_t tnode_icalllangop (langops_t *lops, langop_t *op, va_list ap)*/
 /*
  *	internal function to call a language operation from the given langops_t structure, passing the given parameters
  *	returns function's return value on success (could be anything), <0 on failure
  */
-static int tnode_icalllangop (langops_t *lops, langop_t *op, va_list ap)
+static int64_t tnode_icalllangop (langops_t *lops, langop_t *op, va_list ap)
 {
-	int (*fcn)(langops_t *, ...);
-	int r;
+	int64_t (*fcn)(langops_t *, ...);
+	int64_t r;
 
 	if (op->dotrace) {
 		nocc_message ("langoptrace: [%s]", op->name);
 	}
 
-	fcn = (int (*)(langops_t *, ...))DA_NTHITEM (lops->opfuncs, (int)op->opno);
+	fcn = (int64_t (*)(langops_t *, ...))DA_NTHITEM (lops->opfuncs, (int)op->opno);
 	while (fcn == LANGOPTYPE (tnode_callthroughlangops)) {
 		if (!lops->next) {
 			nocc_internal ("tnode_icalllangop(): called operation [%s] ran out of call-through markers!", op->name);
@@ -2403,7 +2403,7 @@ static int tnode_icalllangop (langops_t *lops, langop_t *op, va_list ap)
 			nocc_warning ("tnode_icalllangop(): no such operation [%s] in langops at 0x%8.8x", op->name, (unsigned int)lops);
 			return -1;
 		}
-		fcn = (int (*)(langops_t *, ...))DA_NTHITEM (lops->opfuncs, (int)op->opno);
+		fcn = (int64_t (*)(langops_t *, ...))DA_NTHITEM (lops->opfuncs, (int)op->opno);
 	}
 	
 	switch (op->nparams) {
@@ -2489,16 +2489,16 @@ static int tnode_icalllangop (langops_t *lops, langop_t *op, va_list ap)
 	return r;
 }
 /*}}}*/
-/*{{{  int tnode_calllangop (langops_t *lops, char *name, int nparams, ...)*/
+/*{{{  int64_t tnode_calllangop (langops_t *lops, char *name, int nparams, ...)*/
 /*
  *	calls a language operation from the given langops_t structure by name, passing the given parameters
  *	returns function's return value on success (could be any type for langops), <0 on failure
  */
-int tnode_calllangop (langops_t *lops, char *name, int nparams, ...)
+int64_t tnode_calllangop (langops_t *lops, char *name, int nparams, ...)
 {
 	langop_t *lop = stringhash_lookup (langops, name);
 	va_list ap;
-	int r;
+	int64_t r;
 
 	if (!lop) {
 		nocc_internal ("tnode_calllangop(): no such language operation [%s]", name);
@@ -2549,16 +2549,16 @@ int tnode_haslangop_i (langops_t *lops, int idx)
 	return 0;
 }
 /*}}}*/
-/*{{{  int tnode_calllangop_i (langops_t *lops, int idx, int nparams, ...)*/
+/*{{{  int64_t tnode_calllangop_i (langops_t *lops, int idx, int nparams, ...)*/
 /*
  *	calls a language operation from the given langops_t structure by index, passing the given parameters
  *	returns function's return value on success (may be anything for language-ops), <0 on failure
  */
-int tnode_calllangop_i (langops_t *lops, int idx, int nparams, ...)
+int64_t tnode_calllangop_i (langops_t *lops, int idx, int nparams, ...)
 {
 	langop_t *lop;
 	va_list ap;
-	int r;
+	int64_t r;
 
 	if ((idx < 0) || (idx >= DA_CUR (alangops))) {
 		nocc_error ("tnode_calllangop_i(): no such compiler operation [index %d]", idx);

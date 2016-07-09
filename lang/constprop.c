@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -53,7 +54,7 @@
 typedef struct TAG_consthook {
 	union {
 		unsigned char bval;
-		int ival;
+		int64_t ival;
 		double dval;
 		unsigned long long ullval;
 	} u;
@@ -150,7 +151,7 @@ static void cprop_consthook_hook_dumptree (tnode_t *node, void *hook, int indent
 	consthook_t *ch = (consthook_t *)hook;
 
 	cprop_isetindent (stream, indent);
-	fhandle_printf (stream, "<consthook addr=\"0x%8.8x\" ", (unsigned int)hook);
+	fhandle_printf (stream, "<consthook addr=\"0x%16.16lx\" ", (uint64_t)hook);
 	if (!ch) {
 		fhandle_printf (stream, "/>\n");
 	} else {
@@ -160,19 +161,19 @@ static void cprop_consthook_hook_dumptree (tnode_t *node, void *hook, int indent
 			fhandle_printf (stream, "invalid\"");
 			break;
 		case CONST_BOOL:
-			fhandle_printf (stream, "bool\" value=\"0x%x\"", ch->u.ival);
+			fhandle_printf (stream, "bool\" value=\"0x%x\"", (unsigned int)ch->u.ival);
 			break;
 		case CONST_BYTE:
 			fhandle_printf (stream, "byte\" value=\"0x%2.2x\"", ch->u.bval);
 			break;
 		case CONST_INT:
-			fhandle_printf (stream, "int\" value=\"0x%8.8x\"", (unsigned int)ch->u.ival);
+			fhandle_printf (stream, "int\" value=\"0x%16.16lx\"", (uint64_t)ch->u.ival);
 			break;
 		case CONST_DOUBLE:
-			fhandle_printf (stream, "double\" value=\"0x%8.8x\"", *(unsigned int *)(&(ch->u.dval)));
+			fhandle_printf (stream, "double\" value=\"0x%16.16lx\"", *(uint64_t *)(&(ch->u.dval)));
 			break;
 		case CONST_ULL:
-			fhandle_printf (stream, "ull\" value=\"0x%16.16Lx\"", ch->u.ullval);
+			fhandle_printf (stream, "ull\" value=\"0x%16.16lx\"", ch->u.ullval);
 			break;
 		}
 		if (ch->orig) {
@@ -290,7 +291,7 @@ static int cprop_iscomplex_const (langops_t *lops, tnode_t *node, int deep)
 /*
  *	returns the constant value of a constant node
  */
-static int cprop_constvalof_const (langops_t *lops, tnode_t *node, void *ptr)
+static int64_t cprop_constvalof_const (langops_t *lops, tnode_t *node, void *ptr)
 {
 	consthook_t *ch = (consthook_t *)tnode_nthhookof (node, 0);
 
@@ -301,11 +302,11 @@ static int cprop_constvalof_const (langops_t *lops, tnode_t *node, void *ptr)
 		if (ptr) {
 			*(unsigned char *)ptr = ch->u.bval;
 		}
-		return (int)ch->u.bval;
+		return (int64_t)ch->u.bval;
 	case CONST_INT:
 	case CONST_BOOL:
 		if (ptr) {
-			*(int *)ptr = ch->u.ival;
+			*(int64_t *)ptr = ch->u.ival;
 		}
 		return ch->u.ival;
 	case CONST_DOUBLE:
@@ -317,7 +318,7 @@ static int cprop_constvalof_const (langops_t *lops, tnode_t *node, void *ptr)
 		if (ptr) {
 			*(unsigned long long *)ptr = ch->u.ullval;
 		}
-		return (int)ch->u.ullval;
+		return (int64_t)ch->u.ullval;
 	}
 	return 0;
 }
@@ -356,7 +357,7 @@ static int cprop_getdescriptor_const (langops_t *lops, tnode_t *node, char **str
 	if (*str) {
 		char *newstr = (char *)smalloc (strlen (*str) + 12);
 
-		sprintf (newstr, "%s%d", *str, constprop_intvalof (node));
+		sprintf (newstr, "%s%ld", *str, constprop_intvalof (node));
 		sfree (*str);
 		*str = newstr;
 	} else {
@@ -481,7 +482,7 @@ tnode_t *constprop_newconst (consttype_e ctype, tnode_t *orig, tnode_t *type, ..
 		break;
 	case CONST_BOOL:
 	case CONST_INT:
-		ch->u.ival = va_arg (ap, int);
+		ch->u.ival = va_arg (ap, int64_t);
 		break;
 	case CONST_DOUBLE:
 		ch->u.dval = va_arg (ap, double);
@@ -542,11 +543,11 @@ int constprop_sametype (tnode_t *tptr1, tnode_t *tptr2)
 	return (ch1->type == ch2->type);
 }
 /*}}}*/
-/*{{{  int constprop_intvalof (tnode_t *tptr)*/
+/*{{{  int64_t constprop_intvalof (tnode_t *tptr)*/
 /*
  *	returns the integer value of a constant node
  */
-int constprop_intvalof (tnode_t *tptr)
+int64_t constprop_intvalof (tnode_t *tptr)
 {
 	consthook_t *ch;
 
@@ -559,14 +560,14 @@ int constprop_intvalof (tnode_t *tptr)
 	case CONST_INVALID:
 		return 0;
 	case CONST_BYTE:
-		return (int)ch->u.bval;
+		return (int64_t)ch->u.bval;
 	case CONST_INT:
 	case CONST_BOOL:
 		return ch->u.ival;
 	case CONST_DOUBLE:
 		return 0;
 	case CONST_ULL:
-		return (int)ch->u.ullval;
+		return (int64_t)ch->u.ullval;
 	}
 	return -1;
 }
@@ -597,7 +598,7 @@ int constprop_checkintrange (tnode_t *node, const int issigned, const int bits)
 	case CONST_BYTE:
 		{
 			unsigned long long max = (1ULL << (bits - (issigned ? 1 : 0))) - 1;
-			unsigned long long val = 0ULL;
+			uint64_t val = 0ULL;
 			unsigned char ch = 0;
 
 			cprop_constvalof_const (NULL, node, (void *)&ch);
@@ -610,7 +611,7 @@ int constprop_checkintrange (tnode_t *node, const int issigned, const int bits)
 	case CONST_ULL:
 		{
 			unsigned long long max = (1ULL << (bits - (issigned ? 1 : 0))) - 1;
-			unsigned long long val = 0ULL;
+			uint64_t val = 0ULL;
 
 			cprop_constvalof_const (NULL, node, (void *)&val);
 			if (val > max) {
@@ -620,14 +621,12 @@ int constprop_checkintrange (tnode_t *node, const int issigned, const int bits)
 		break;
 	case CONST_INT:
 		{
-			long long min = issigned ? -(1LL << (bits - (issigned ? 1 : 0))) : 0LL;
-			long long max = (1LL << (bits - (issigned ? 1 : 0))) - 1;
-			long long val = 0ULL;
-			int ival;
+			int64_t min = issigned ? -(1LL << (bits - (issigned ? 1 : 0))) : 0LL;
+			int64_t max = (1LL << (bits - (issigned ? 1 : 0))) - 1;
+			int64_t ival;
 
 			cprop_constvalof_const (NULL, node, (void *)&ival);
-			val = (long long)ival;
-			if ((val < min) || (val > max)) {
+			if ((ival < min) || (ival > max)) {
 				return 0;
 			}
 		}
@@ -637,13 +636,13 @@ int constprop_checkintrange (tnode_t *node, const int issigned, const int bits)
 		break;
 	case CONST_DOUBLE:
 		{
-			long long min = issigned ? -(1LL << (bits - (issigned ? 1 : 0))) : 0LL;
-			long long max = (1LL << (bits - (issigned ? 1 : 0))) - 1;
-			long long val = 0ULL;
+			int64_t min = issigned ? -(1LL << (bits - (issigned ? 1 : 0))) : 0LL;
+			int64_t max = (1LL << (bits - (issigned ? 1 : 0))) - 1;
+			int64_t val = 0LL;
 			double dval;
 
 			cprop_constvalof_const (NULL, node, (void *)&dval);
-			val = (long long)dval;
+			val = (int64_t)dval;
 			if ((val < min) || (val > max)) {
 				return 0;
 			}

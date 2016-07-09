@@ -65,7 +65,7 @@ langlexer_t guppy_lexer = {
 /*}}}*/
 /*{{{  private lexer struct*/
 typedef struct TAG_guppy_lex {
-	DYNARRAY (int, indent_offsets);		/* history of where indentations occur */
+	DYNARRAY (int64_t, indent_offsets);	/* history of where indentations occur */
 	int curindent;				/* where we are, index into the above */
 	int scanto_indent;			/* where we are currently scanning to */
 

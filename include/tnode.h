@@ -331,15 +331,15 @@ extern void tnode_dumpcompops (compops_t *cops, struct TAG_fhandle *stream);
 
 #define COMPOPTYPE(X) ((int (*)(compops_t *, ...))(X))
 
-extern int tnode_setlangop (langops_t *lops, char *name, int nparams, int (*fcn)(langops_t *, ...));
+extern int tnode_setlangop (langops_t *lops, char *name, int nparams, int64_t (*fcn)(langops_t *, ...));
 extern int tnode_haslangop (langops_t *lops, char *name);
-extern int tnode_calllangop (langops_t *lops, char *name, int nparams, ...);
+extern int64_t tnode_calllangop (langops_t *lops, char *name, int nparams, ...);
 extern int tnode_haslangop_i (langops_t *lops, int idx);
-extern int tnode_calllangop_i (langops_t *lops, int idx, int nparams, ...);
+extern int64_t tnode_calllangop_i (langops_t *lops, int idx, int nparams, ...);
 extern int tnode_newlangop (char *name, langops_e opno, int nparams, struct TAG_origin *origin);
 extern langop_t *tnode_findlangop (char *name);
 
-#define LANGOPTYPE(X) ((int (*)(langops_t *, ...))(X))
+#define LANGOPTYPE(X) ((int64_t (*)(langops_t *, ...))(X))
 
 extern compops_t *tnode_newcompops (void);
 extern compops_t *tnode_newcompops_passthrough (void);

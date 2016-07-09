@@ -1,6 +1,6 @@
 /*
  *	occampi_lexer.c -- lexer for occam-pi
- *	Copyright (C) 2004-2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -235,7 +236,7 @@ static int copmap_ctooccampi (token_t *tok)
  */
 int occampi_lexer_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argleft)
 {
-	int optv = (int)opt->arg;
+	int optv = (int)((uint64_t)opt->arg);
 	lexfile_t *ptrarg;
 
 	switch (optv) {
@@ -448,7 +449,7 @@ tokenloop:
 			lexer_error (lf, "malformed floating-point constant: %s", npbuf);
 			sfree (npbuf);
 			goto out_error1;
-		} else if ((tok->type == INTEGER) && (sscanf (npbuf, "%d", &tok->u.ival) != 1)) {
+		} else if ((tok->type == INTEGER) && (sscanf (npbuf, "%ld", &tok->u.ival) != 1)) {
 			lexer_error (lf, "malformed integer constant: %s", npbuf);
 			sfree (npbuf);
 			goto out_error1;
@@ -716,7 +717,7 @@ tokenloop:
 			npbuf = (char *)smalloc ((int)(dh - ch));
 			memcpy (npbuf, ch+1, (int)(dh - ch) - 1);
 			npbuf[(int)(dh - ch) - 1] = '\0';
-			if (sscanf (npbuf, "%x", &tok->u.ival) != 1) {
+			if (sscanf (npbuf, "%lx", &tok->u.ival) != 1) {
 				lexer_error (lf, "malformed hexadecimal constant: %s", npbuf);
 				sfree (npbuf);
 				goto out_error1;

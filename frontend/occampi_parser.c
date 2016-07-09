@@ -1,6 +1,6 @@
 /*
  *	occampi_parser.c -- occam-pi parser for nocc
- *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -317,7 +318,7 @@ static void occampi_debug_gstack (void **items, int icnt)
 
 	fhandle_printf (FHAN_STDERR, "occampi_debug_gstack(): icnt=%d, items:  ", icnt);
 	for (i=0; i<icnt; i++) {
-		fhandle_printf (FHAN_STDERR, "0x%8.8x  ", (unsigned int)(items[i]));
+		fhandle_printf (FHAN_STDERR, "0x%16.16lx  ", (uint64_t)(items[i]));
 	}
 	fhandle_printf (FHAN_STDERR, "\n");
 	return;
@@ -1408,8 +1409,8 @@ restartpoint:
 	*treetarget = occampi_declorprocstart (lf, gotall, thedfa);
 
 	if (compopts.debugparser) {
-		nocc_message ("occampi_declorproc(): %s:%d: finished parsing declaration or process start, *treetarget [0x%8.8x]",
-				lf->fnptr, lf->lineno, (unsigned int)(*treetarget));
+		nocc_message ("occampi_declorproc(): %s:%d: finished parsing declaration or process start, *treetarget [0x%16.16lx]",
+				lf->fnptr, lf->lineno, (uint64_t)(*treetarget));
 		if (*treetarget) {
 			nocc_message ("occampi_declorproc(): %s:%d: that *treetarget is (%s,%s)", lf->fnptr, lf->lineno,
 					(*treetarget)->tag->ndef->name, (*treetarget)->tag->name);
@@ -2003,8 +2004,8 @@ fprintf (stderr, "occampi_indented_process_list(): got LONGPROC [%s]\n", (*targe
 	lexer_freetoken (tok);
 
 	if (compopts.debugparser) {
-		nocc_message ("occampi_indented_process_list(): %s:%d: done parsing indented process list (tree at 0x%8.8x)",
-				lf->fnptr, lf->lineno, (unsigned int)tree);
+		nocc_message ("occampi_indented_process_list(): %s:%d: done parsing indented process list (tree at 0x%16.16lx)",
+				lf->fnptr, lf->lineno, (uint64_t)tree);
 	}
 
 #if 0

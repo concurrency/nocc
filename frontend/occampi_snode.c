@@ -1,6 +1,6 @@
 /*
  *	occampi_snode.c -- occam-pi structured processes for NOCC (IF, ALT, etc.)
- *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -82,7 +83,7 @@ static void occampi_guardexphook_dumptree (tnode_t *node, void *chook, int inden
 {
 	if (chook) {
 		occampi_isetindent (stream, indent);
-		fhandle_printf (stream, "<occampi:guardexphook addr=\"0x%8.8x\">\n", (unsigned int)chook);
+		fhandle_printf (stream, "<occampi:guardexphook addr=\"0x%16.16lx\">\n", (uint64_t)chook);
 		tnode_dumptree ((tnode_t *)chook, indent + 1, stream);
 		occampi_isetindent (stream, indent);
 		fhandle_printf (stream, "</occampi:guardexphook>\n");
@@ -117,7 +118,7 @@ static void occampi_branchlabelhook_dumptree (tnode_t *node, void *chook, int in
 {
 	if (chook) {
 		occampi_isetindent (stream, indent);
-		fhandle_printf (stream, "<occampi:branchlabelhook label=\"%d\" />\n", (unsigned int)chook);
+		fhandle_printf (stream, "<occampi:branchlabelhook label=\"%ld\" />\n", (uint64_t)chook);
 	}
 	return;
 }
@@ -909,7 +910,7 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 				valueset_insert (vset, cival, cond);
 
 				blabs[i] = codegen_new_label (cgen);
-				tnode_setchook (cond, branchlabelhook, (void *)(blabs[i]));
+				tnode_setchook (cond, branchlabelhook, (void *)((int64_t)blabs[i]));
 			}
 		}
 
@@ -934,7 +935,7 @@ static int occampi_codegen_snode (compops_t *cops, tnode_t *node, codegen_t *cge
 			codegen_callops (cgen, branch, I_JCSUB0, dfllab);
 
 			for (i=0; i<DA_CUR (vset->values); i++) {
-				int lbl = (int)(tnode_getchook (DA_NTHITEM (vset->links, i), branchlabelhook));
+				int lbl = (int)((uint64_t)tnode_getchook (DA_NTHITEM (vset->links, i), branchlabelhook));
 
 				codegen_callops (cgen, loadname, selector, 0);
 				codegen_callops (cgen, loadconst, DA_NTHITEM (vset->values, i));
@@ -981,7 +982,7 @@ valueset_dumptree (vset, 1, stderr);
 				if (!linknode) {
 					codegen_callops (cgen, constlabaddr, dfllab);
 				} else {
-					int lbl = (int)(tnode_getchook (linknode, branchlabelhook));
+					int lbl = (int)((uint64_t)tnode_getchook (linknode, branchlabelhook));
 
 					codegen_callops (cgen, constlabaddr, lbl);
 				}

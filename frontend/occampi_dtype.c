@@ -1,6 +1,6 @@
 /*
  *	occampi_dtype.c -- occam-pi data type handling (also named-type handling)
- *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -443,11 +444,11 @@ fprintf (stderr, "occampi_prewalk_bytesfor_typedecl(): incrementing tdh->wssize\
 	return 1;
 }
 /*}}}*/
-/*{{{  static int occampi_bytesfor_typedecl (langops_t *lops, tnode_t *node, target_t *target)*/
+/*{{{  static int64_t occampi_bytesfor_typedecl (langops_t *lops, tnode_t *node, target_t *target)*/
 /*
  *	returns the number of bytes required by a type declaration (DATA TYPE ...)
  */
-static int occampi_bytesfor_typedecl (langops_t *lops, tnode_t *node, target_t *target)
+static int64_t occampi_bytesfor_typedecl (langops_t *lops, tnode_t *node, target_t *target)
 {
 	typedeclhook_t *tdh = (typedeclhook_t *)tnode_nthhookof (node, 0);
 	tnode_t *type = tnode_nthsubof (node, 1);
@@ -483,7 +484,7 @@ fprintf (stderr, "occampi_bytesfor_typedecl(): tdh->wssize = %d\n", tdh->wssize)
 fprintf (stderr, "occampi_bytesfor_typedecl(): return size = %d.  type =\n", tdh->wssize);
 tnode_dumptree (type, 1, stderr);
 #endif
-	return tdh->wssize;
+	return (int64_t)tdh->wssize;
 }
 /*}}}*/
 /*{{{  static int occampi_typecheck_typedecl (compops_t *cops, tnode_t *node, typecheck_t *tc)*/
@@ -662,12 +663,12 @@ static int occampi_precode_typedecl (compops_t *cops, tnode_t **nodep, codegen_t
 	return 0;
 }
 /*}}}*/
-/*{{{  static int occampi_usagecheck_typedecl (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)*/
+/*{{{  static int64_t occampi_usagecheck_typedecl (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)*/
 /*
  *	does usage-checking for a type declaration (dummy, because we don't want to check inside..)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_usagecheck_typedecl (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)
+static int64_t occampi_usagecheck_typedecl (langops_t *lops, tnode_t *node, uchk_state_t *ucstate)
 {
 	usagecheck_subtree (tnode_nthsubof (node, 2), ucstate);
 	return 0;
@@ -775,12 +776,12 @@ static int occampi_bytesfor_arraynode (langops_t *lops, tnode_t *node, target_t 
 	return -1;
 }
 /*}}}*/
-/*{{{  static int occampi_getdescriptor_arraynode (langops_t *lops, tnode_t *node, char **str)*/
+/*{{{  static int64_t occampi_getdescriptor_arraynode (langops_t *lops, tnode_t *node, char **str)*/
 /*
  *	gets the descriptor associated with an ARRAY node (usually producing the type)
  *	returns 0 to stop walk, 1 to continue
  */
-static int occampi_getdescriptor_arraynode (langops_t *lops, tnode_t *node, char **str)
+static int64_t occampi_getdescriptor_arraynode (langops_t *lops, tnode_t *node, char **str)
 {
 	char *subtypestr = NULL;
 	char *dimstr = NULL;
@@ -823,11 +824,11 @@ static tnode_t *occampi_getsubtype_arraynode (langops_t *lops, tnode_t *node, tn
 	return subtype;
 }
 /*}}}*/
-/*{{{  static int occampi_valbyref_arraynode (langops_t *lops, tnode_t *node)*/
+/*{{{  static int64_t occampi_valbyref_arraynode (langops_t *lops, tnode_t *node)*/
 /*
  *	returns non-zero if VALs of this type should be handled by reference (true for arrays)
  */
-static int occampi_valbyref_arraynode (langops_t *lops, tnode_t *node)
+static int64_t occampi_valbyref_arraynode (langops_t *lops, tnode_t *node)
 {
 	return 1;
 }
@@ -899,11 +900,11 @@ tnode_dumptree (dimtree, 1, stderr);
 	return hparams;
 }
 /*}}}*/
-/*{{{  static int occampi_hiddenslotsof_arraynode (langops_t *lops, tnode_t *node)*/
+/*{{{  static int64_t occampi_hiddenslotsof_arraynode (langops_t *lops, tnode_t *node)*/
 /*
  *	returns the number of hidden slots required by abbreviations or declarations of array types
  */
-static int occampi_hiddenslotsof_arraynode (langops_t *lops, tnode_t *node)
+static int64_t occampi_hiddenslotsof_arraynode (langops_t *lops, tnode_t *node)
 {
 	tnode_t *dimtree = langops_dimtreeof (node);
 	int i, nditems;
@@ -923,25 +924,25 @@ static int occampi_hiddenslotsof_arraynode (langops_t *lops, tnode_t *node)
 		}
 	}
 
-	return c;
+	return (int64_t)c;
 }
 /*}}}*/
-/*{{{  static int occampi_istype_arraynode (langops_t *lops, tnode_t *node)*/
+/*{{{  static int64_t occampi_istype_arraynode (langops_t *lops, tnode_t *node)*/
 /*
  *	returns non-zero if the specified node is a type (always)
  */
-static int occampi_istype_arraynode (langops_t *lops, tnode_t *node)
+static int64_t occampi_istype_arraynode (langops_t *lops, tnode_t *node)
 {
 	return 1;
 }
 /*}}}*/
-/*{{{  static typecat_e occampi_typetype_arraynode (langops_t *lops, tnode_t *node)*/
+/*{{{  static int64_t occampi_typetype_arraynode (langops_t *lops, tnode_t *node)*/
 /*
  *	returns the type-category for an array type
  */
-static typecat_e occampi_typetype_arraynode (langops_t *lops, tnode_t *node)
+static int64_t occampi_typetype_arraynode (langops_t *lops, tnode_t *node)
 {
-	return (TYPE_DATA | TYPE_COMM | TYPE_ARRAY);
+	return (int64_t)(TYPE_DATA | TYPE_COMM | TYPE_ARRAY);
 }
 /*}}}*/
 

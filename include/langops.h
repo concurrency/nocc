@@ -1,6 +1,6 @@
 /*
  *	langops.h -- interface to langage-level operations
- *	Copyright (C) 2005-2013  Fred Barnes, University of Kent <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016  Fred Barnes, University of Kent <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
