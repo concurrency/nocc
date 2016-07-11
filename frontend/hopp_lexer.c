@@ -1,6 +1,6 @@
 /*
  *	hopp_lexer.c -- lexer for haskell occam-pi parser output
- *	Copyright (C) 2006 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2006-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -265,7 +266,7 @@ tokenloop:
 			lexer_error (lf, "malformed floating-point constant: %s", npbuf);
 			sfree (npbuf);
 			goto out_error1;
-		} else if ((tok->type == INTEGER) && (sscanf (npbuf, "%d", &tok->u.ival) != 1)) {
+		} else if ((tok->type == INTEGER) && (sscanf (npbuf, "%ld", &tok->u.ival) != 1)) {
 			lexer_error (lf, "malformed integer constant: %s", npbuf);
 			sfree (npbuf);
 			goto out_error1;

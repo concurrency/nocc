@@ -1,6 +1,6 @@
 /*
  *	avrasm_parser.c -- AVR assembler parser for nocc
- *	Copyright (C) 2012-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2012-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -144,7 +145,7 @@ static chook_t *label_chook = NULL;
  */
 static int avrasm_opthandler_stopat (cmd_option_t *opt, char ***argwalk, int *argleft)
 {
-	compopts.stoppoint = (int)(opt->arg);
+	compopts.stoppoint = (int)((int64_t)opt->arg);
 #if 0
 fprintf (stderr, "avrasm_opthandler_stopat(): setting stop point to %d\n", compopts.stoppoint);
 #endif
@@ -240,17 +241,17 @@ langdef_t *avrasm_getlangdef (void)
 	return avrasm_priv->ldef;
 }
 /*}}}*/
-/*{{{  int avrasm_langop_inseg (tnode_t *node)*/
+/*{{{  int64_t avrasm_langop_inseg (tnode_t *node)*/
 /*
  *	decides whether a particular node should be inside a segment in the assembler (instructions, org, constant data, vars, etc.)
- *	returns truth value
+ *	returns truth value for langops
  */
-int avrasm_langop_inseg (tnode_t *node)
+int64_t avrasm_langop_inseg (tnode_t *node)
 {
 	if (!node->tag->ndef->lops || !tnode_haslangop (node->tag->ndef->lops, "avrasm_inseg")) {
 		return 0;
 	}
-	return (int)tnode_calllangop (node->tag->ndef->lops, "avrasm_inseg", 1, node);
+	return (int64_t)tnode_calllangop (node->tag->ndef->lops, "avrasm_inseg", 1, node);
 }
 /*}}}*/
 
@@ -944,42 +945,42 @@ static int avrasm_parser_init (lexfile_t *lf)
 
 		/* add various compiler passes, compiler-operations and language-operations */
 		stopat = nocc_laststopat () + 1;
-		opts_add ("stop-subequ", '\0', avrasm_opthandler_stopat, (void *)stopat, "1stop after subequ pass");
+		opts_add ("stop-subequ", '\0', avrasm_opthandler_stopat, (void *)((int64_t)stopat), "1stop after subequ pass");
 		if (nocc_addcompilerpass ("subequ", INTERNAL_ORIGIN, "scope", 0, (int (*)(void *))subequ_cpass, CPASS_TREEPTR, stopat, NULL)) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"subequ\" compiler pass");
 			return 1;
 		}
 
 		stopat = nocc_laststopat () + 1;
-		opts_add ("stop-submacro", '\0', avrasm_opthandler_stopat, (void *)stopat, "1stop after submacro pass");
+		opts_add ("stop-submacro", '\0', avrasm_opthandler_stopat, (void *)((int64_t)stopat), "1stop after submacro pass");
 		if (nocc_addcompilerpass ("submacro", INTERNAL_ORIGIN, "subequ", 0, (int (*)(void *))submacro_cpass, CPASS_TREEPTR, stopat, NULL)) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"submacro\" compiler pass");
 			return 1;
 		}
 
 		stopat = nocc_laststopat () + 1;
-		opts_add ("stop-llscope", '\0', avrasm_opthandler_stopat, (void *)stopat, "1stop after llscope pass");
+		opts_add ("stop-llscope", '\0', avrasm_opthandler_stopat, (void *)((int64_t)stopat), "1stop after llscope pass");
 		if (nocc_addcompilerpass ("llscope", INTERNAL_ORIGIN, "submacro", 0, (int (*)(void *))llscope_cpass, CPASS_TREEPTR, stopat, NULL)) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"llscope\" compiler pass");
 			return 1;
 		}
 
 		stopat = nocc_laststopat () + 1;
-		opts_add ("stop-hlltypecheck", '\0', avrasm_opthandler_stopat, (void *)stopat, "1stop after high-level type-check pass");
+		opts_add ("stop-hlltypecheck", '\0', avrasm_opthandler_stopat, (void *)((int64_t)stopat), "1stop after high-level type-check pass");
 		if (nocc_addcompilerpass ("hlltypecheck", INTERNAL_ORIGIN, "llscope", 0, (int (*)(void *))hlltypecheck_cpass, CPASS_TREEPTR, stopat, NULL)) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"hlltypecheck\" compiler pass");
 			return 1;
 		}
 
 		stopat = nocc_laststopat () + 1;
-		opts_add ("stop-hllsimplify", '\0', avrasm_opthandler_stopat, (void *)stopat, "1stop after high-level simplify pass");
+		opts_add ("stop-hllsimplify", '\0', avrasm_opthandler_stopat, (void *)((int64_t)stopat), "1stop after high-level simplify pass");
 		if (nocc_addcompilerpass ("hllsimplify", INTERNAL_ORIGIN, "hlltypecheck", 0, (int (*)(void *))hllsimplify_cpass, CPASS_TREEPTR, stopat, NULL)) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"hllsimplify\" compiler pass");
 			return 1;
 		}
 
 		stopat = nocc_laststopat () + 1;
-		opts_add ("stop-flatcode", '\0', avrasm_opthandler_stopat, (void *)stopat, "1stop after flatcode pass");
+		opts_add ("stop-flatcode", '\0', avrasm_opthandler_stopat, (void *)((int64_t)stopat), "1stop after flatcode pass");
 		if (nocc_addcompilerpass ("flatcode", INTERNAL_ORIGIN, "type-check", 0, (int (*)(void *))flatcode_cpass, CPASS_TREEPTR, stopat, NULL)) {
 			nocc_serious ("avrasm_parser_init(): failed to add \"flatcode\" compiler pass");
 			return 1;

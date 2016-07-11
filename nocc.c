@@ -80,10 +80,10 @@
 #include "codegen.h"
 #include "trlang.h"
 #include "traceslang.h"
-#include "occampi_fe.h"
-#include "mcsp_fe.h"
-#include "rcxb_fe.h"
-#include "hopp_fe.h"
+// #include "occampi_fe.h"
+// #include "mcsp_fe.h"
+// #include "rcxb_fe.h"
+// #include "hopp_fe.h"
 #include "guppy_fe.h"
 #include "trlang_fe.h"
 #include "traceslang_fe.h"
@@ -3404,6 +3404,7 @@ int main (int argc, char **argv)
 	}
 
 	/*}}}*/
+#if 0
 	/*{{{  initialise occam-pi language lexer and parser (just registers them)*/
 	if (occampi_register_frontend ()) {
 		nocc_error ("failed to initialise built-in occam-pi language frontend");
@@ -3417,6 +3418,7 @@ int main (int argc, char **argv)
 		exit (EXIT_FAILURE);
 	}
 	/*}}}*/
+#endif
 	/*{{{  initialise Guppy language lexers and parsers (just registers)*/
 	if (guppy_register_frontend ()) {
 		nocc_error ("failed to initialise built-in guppy language frontend");
@@ -3424,6 +3426,7 @@ int main (int argc, char **argv)
 	}
 
 	/*}}}*/
+#if 0
 	/*{{{  initialise MCSP and RCX-BASIC language lexers and parsers (again, just registration)*/
 	if (mcsp_register_frontend ()) {
 		nocc_error ("failed to initialise built-in MCSP language frontend");
@@ -3435,6 +3438,7 @@ int main (int argc, char **argv)
 	}
 
 	/*}}}*/
+#endif
 	/*{{{  initialise EAC language lexer and parser (just registers)*/
 	if (eac_register_frontend ()) {
 		nocc_error ("failed to initialise built-in EAC language frontend");

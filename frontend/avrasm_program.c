@@ -1,6 +1,6 @@
 /*
  *	avrasm_program.c -- handling for AVR assembler programs
- *	Copyright (C) 2012-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2012-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -1145,27 +1146,27 @@ fprintf (stderr, "avrasm_constprop_litnode(): here!\n");
 	return 1;
 }
 /*}}}*/
-/*{{{  static int avrasm_isconst_litnode (langops_t *lops, tnode_t *node)*/
+/*{{{  static int64_t avrasm_isconst_litnode (langops_t *lops, tnode_t *node)*/
 /*
  *	returns non-zero if a constant (should always be true)
  */
-static int avrasm_isconst_litnode (langops_t *lops, tnode_t *node)
+static int64_t avrasm_isconst_litnode (langops_t *lops, tnode_t *node)
 {
 	avrasm_lithook_t *lit = (avrasm_lithook_t *)tnode_nthhookof (node, 0);
 
-	return lit->len;
+	return (int64_t)lit->len;
 }
 /*}}}*/
-/*{{{  static int avrasm_constvalof_litnode (langops_t *lops, tnode_t *node, void *ptr)*/
+/*{{{  static int64_t avrasm_constvalof_litnode (langops_t *lops, tnode_t *node, void *ptr)*/
 /*
  *	extracts the value of a constant (for all numeric constant types)
  */
-static int avrasm_constvalof_litnode (langops_t *lops, tnode_t *node, void *ptr)
+static int64_t avrasm_constvalof_litnode (langops_t *lops, tnode_t *node, void *ptr)
 {
 	avrasm_lithook_t *lit = (avrasm_lithook_t *)tnode_nthhookof (node, 0);
 
 	if ((node->tag == avrasm.tag_LITINT) || (node->tag == avrasm.tag_LITREG)) {
-		return *(int *)(lit->data);
+		return (int64_t)(*(int *)(lit->data));
 	}
 	return 0;
 }
@@ -1452,12 +1453,12 @@ tnode_dumptree (rhs, 1, stderr);
 	return 1;
 }
 /*}}}*/
-/*{{{  static int avrasm_getname_namenode (langops_t *lops, tnode_t *node, char **str)*/
+/*{{{  static int64_t avrasm_getname_namenode (langops_t *lops, tnode_t *node, char **str)*/
 /*
  *	does get-name for an AVRASM name
  *	returns 0 to stop walk, 1 to continue
  */
-static int avrasm_getname_namenode (langops_t *lops, tnode_t *node, char **str)
+static int64_t avrasm_getname_namenode (langops_t *lops, tnode_t *node, char **str)
 {
 	char *tmp;
 	name_t *name = tnode_nthnameof (node, 0);
