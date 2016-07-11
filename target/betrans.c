@@ -1,6 +1,6 @@
 /*
  *	betrans.c -- back-end tree transforms
- *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -155,7 +156,7 @@ static void betrans_nodehook_dumptree (tnode_t *node, void *hook, int indent, fh
 	tnode_t *hnode = (tnode_t *)hook;
 
 	betrans_isetindent (indent, stream);
-	fhandle_printf (stream, "<betrans:node addr=\"0x%8.8x\">\n", (unsigned int)hnode);
+	fhandle_printf (stream, "<betrans:node addr=\"0x%16.16lx\">\n", (uint64_t)hnode);
 
 	tnode_dumptree (hnode, indent+1, stream);
 
@@ -194,7 +195,7 @@ static void betrans_ptrref_hook_free (void *hook)
 static void betrans_ptrref_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	betrans_isetindent (indent, stream);
-	fhandle_printf (stream, "<betrans:ptrref refaddr=\"0x%8.8x\" />\n", (unsigned int)hook);
+	fhandle_printf (stream, "<betrans:ptrref refaddr=\"0x%16.16lx\" />\n", (uint64_t)hook);
 	return;
 }
 /*}}}*/
@@ -371,8 +372,8 @@ static int betrans_modprewalk_tree (tnode_t **tptr, void *arg)
 #if 0
 fprintf (stderr, "betrans_modprewalk_tree(): on [%s]\n", *tptr ? (*tptr)->tag->name : "?");
 if (*tptr) {
-	fprintf (stderr, "                         : nodetype = [%s], ops = [0x%8.8x], betrans = [0x%8.8x]\n", (*tptr)->tag->ndef->name, (unsigned int)((*tptr)->tag->ndef->ops),
-			((*tptr)->tag->ndef->ops) ? (unsigned int)((*tptr)->tag->ndef->ops->betrans) : 0);
+	fprintf (stderr, "                         : nodetype = [%s], ops = [0x%16.16lx], betrans = [0x%16.16lx]\n", (*tptr)->tag->ndef->name, (uint64_t)((*tptr)->tag->ndef->ops),
+			((*tptr)->tag->ndef->ops) ? (uint64_t)((*tptr)->tag->ndef->ops->betrans) : 0);
 }
 #endif
 	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop_i ((*tptr)->tag->ndef->ops, (int)COPS_BETRANS)) {

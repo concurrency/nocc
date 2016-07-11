@@ -1,6 +1,6 @@
 /*
  *	map.c -- memory allocator for NOCC
- *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -153,7 +154,7 @@ static void map_namemap_chook_dumptree (tnode_t *node, void *chook, int indent, 
 {
 	if (chook) {
 		map_isetindent (stream, indent);
-		fhandle_printf (stream, "<chook:map:mapnames addr=\"0x%8.8x\" />\n", (unsigned int)chook);
+		fhandle_printf (stream, "<chook:map:mapnames addr=\"0x%16.16lx\" />\n", (uint64_t)chook);
 	}
 	return;
 }

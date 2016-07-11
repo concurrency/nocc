@@ -1,6 +1,6 @@
 /*
  *	codegen.c -- top-level code-generator for nocc
- *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdarg.h>
@@ -100,7 +101,7 @@ static void codegen_precode_chook_dumptree (tnode_t *node, void *hook, int inden
 	tnode_t *evars = (tnode_t *)hook;
 
 	codegen_isetindent (stream, indent);
-	fhandle_printf (stream, "<chook id=\"precode:vars\" addr=\"0x%8.8x\">\n", (unsigned int)hook);
+	fhandle_printf (stream, "<chook id=\"precode:vars\" addr=\"0x%16.16lx\">\n", (uint64_t)hook);
 	tnode_dumptree (evars, indent + 1, stream);
 	codegen_isetindent (stream, indent);
 	fhandle_printf (stream, "</chook>\n");
@@ -117,7 +118,7 @@ static void codegen_inithook_dumptree (tnode_t *node, void *hook, int indent, fh
 	codegeninithook_t *cgih = (codegeninithook_t *)hook;
 
 	codegen_isetindent (stream, indent);
-	fhandle_printf (stream, "<chook:codegen:initialiser init=\"0x%8.8x\" arg=\"0x%8.8x\" addr=\"0x%8.8x\"", (unsigned int)cgih->init, (unsigned int)cgih->arg, (unsigned int)cgih);
+	fhandle_printf (stream, "<chook:codegen:initialiser init=\"0x%16.16lx\" arg=\"0x%16.16lx\" addr=\"0x%16.16lx\"", (uint64_t)cgih->init, (uint64_t)cgih->arg, (uint64_t)cgih);
 	if (cgih->next) {
 		fhandle_printf (stream, ">\n");
 		codegen_inithook_dumptree (node, (void *)cgih->next, indent+1, stream);
@@ -187,7 +188,7 @@ static void codegen_finalhook_dumptree (tnode_t *node, void *hook, int indent, f
 	codegenfinalhook_t *cgih = (codegenfinalhook_t *)hook;
 
 	codegen_isetindent (stream, indent);
-	fhandle_printf (stream, "<chook:codegen:finaliser final=\"0x%8.8x\" arg=\"0x%8.8x\" addr=\"0x%8.8x\"", (unsigned int)cgih->final, (unsigned int)cgih->arg, (unsigned int)cgih);
+	fhandle_printf (stream, "<chook:codegen:finaliser final=\"0x%16.16lx\" arg=\"0x%16.16lx\" addr=\"0x%16.16lx\"", (uint64_t)cgih->final, (uint64_t)cgih->arg, (unsigned int)cgih);
 	if (cgih->next) {
 		fhandle_printf (stream, ">\n");
 		codegen_finalhook_dumptree (node, (void *)cgih->next, indent+1, stream);
