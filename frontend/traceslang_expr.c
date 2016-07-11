@@ -874,7 +874,7 @@ static void traceslang_reduce_dop (dfastate_t *dfast, parsepriv_t *pp, void *rar
 	rhs = dfa_popnode (dfast);
 	lhs = dfa_popnode (dfast);
 	if (!rhs || !lhs) {
-		parser_error (SLOCN (pp->lf), "traceslan_reduce_dop(): lhs=0x%8.8x, rhs=0x%8.8x", (unsigned int)lhs, (unsigned int)rhs);
+		parser_error (SLOCN (pp->lf), "traceslan_reduce_dop(): lhs=0x%p, rhs=0x%p", lhs, rhs);
 		return;
 	}
 

@@ -1,6 +1,6 @@
 /*
  *	tracescheck.c -- traces checker for NOCC
- *	Copyright (C) 2007-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -1616,7 +1617,7 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, fhandle_t *stream)
 		switch (tcn->type) {
 			/*{{{  INVALID*/
 		case TCN_INVALID:
-			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"invalid\" />\n", (unsigned int)tcn->orgnode);
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"%p\" type=\"invalid\" />\n", tcn->orgnode);
 			break;
 			/*}}}*/
 			/*{{{  SEQ,PAR,DET,NDET*/
@@ -1627,7 +1628,7 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, fhandle_t *stream)
 			{
 				int i;
 
-				fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"", (unsigned int)tcn->orgnode);
+				fhandle_printf (stream, "<tracescheck:node orgnode=\"%p\" type=\"", tcn->orgnode);
 				switch (tcn->type) {
 				case TCN_SEQ:	fhandle_printf (stream, "seq\">\n");	break;
 				case TCN_PAR:	fhandle_printf (stream, "par\">\n");	break;
@@ -1650,8 +1651,8 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, fhandle_t *stream)
 			/*{{{  INPUT,OUTPUT*/
 		case TCN_INPUT:
 		case TCN_OUTPUT:
-			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"%s\">\n",
-					(unsigned int)tcn->orgnode, ((tcn->type == TCN_INPUT) ? "input" : "output"));
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"%p\" type=\"%s\">\n",
+					tcn->orgnode, ((tcn->type == TCN_INPUT) ? "input" : "output"));
 			tracescheck_dumpnode (tcn->u.tcnio.varptr, indent + 1, stream);
 			tracescheck_dumpnode (tcn->u.tcnio.tagptr, indent + 1, stream);
 			tchk_isetindent (stream, indent);
@@ -1660,8 +1661,8 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, fhandle_t *stream)
 			/*}}}*/
 			/*{{{  FIXPOINT*/
 		case TCN_FIXPOINT:
-			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"fixpoint\">\n",
-					(unsigned int)tcn->orgnode);
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"%p\" type=\"fixpoint\">\n",
+					tcn->orgnode);
 			tracescheck_dumpnode (tcn->u.tcnfix.id, indent + 1, stream);
 			tracescheck_dumpnode (tcn->u.tcnfix.proc, indent + 1, stream);
 			tchk_isetindent (stream, indent);
@@ -1670,8 +1671,8 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, fhandle_t *stream)
 			/*}}}*/
 			/*{{{  ATOM*/
 		case TCN_ATOM:
-			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"atom\" id=\"%s\" />\n",
-					(unsigned int)tcn->orgnode, tcn->u.tcnatom.id);
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"%p\" type=\"atom\" id=\"%s\" />\n",
+					tcn->orgnode, tcn->u.tcnatom.id);
 			break;
 			/*}}}*/
 			/*{{{  ATOMREF*/
@@ -1680,11 +1681,11 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, fhandle_t *stream)
 				tchknode_t *aref = tcn->u.tcnaref.aref;
 
 				if (aref && (aref->type == TCN_ATOM)) {
-					fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"atomref\" id=\"%s\" />\n",
-							(unsigned int)tcn->orgnode, tcn->u.tcnaref.aref->u.tcnatom.id);
+					fhandle_printf (stream, "<tracescheck:node orgnode=\"%p\" type=\"atomref\" id=\"%s\" />\n",
+							tcn->orgnode, tcn->u.tcnaref.aref->u.tcnatom.id);
 				} else {
-					fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"atomref\">\n",
-							(unsigned int)tcn->orgnode);
+					fhandle_printf (stream, "<tracescheck:node orgnode=\"%p\" type=\"atomref\">\n",
+							tcn->orgnode);
 					tracescheck_dumpnode (aref, indent + 1, stream);
 					tchk_isetindent (stream, indent);
 					fhandle_printf (stream, "</tracescheck:node>\n");
@@ -1697,38 +1698,38 @@ void tracescheck_dumpnode (tchknode_t *tcn, int indent, fhandle_t *stream)
 			{
 				tnode_t *node = tcn->u.tcnnref.nref;
 
-				fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"noderef\" addr=\"0x%8.8x\" nodetag=\"%s\" nodetype=\"%s\" />\n",
-						(unsigned int)tcn->orgnode, (unsigned int)node, node->tag->name, node->tag->ndef->name);
+				fhandle_printf (stream, "<tracescheck:node orgnode=\"%p\" type=\"noderef\" addr=\"%p\" nodetag=\"%s\" nodetype=\"%s\" />\n",
+						tcn->orgnode, node, node->tag->name, node->tag->ndef->name);
 			}
 			break;
 			/*}}}*/
 			/*{{{  SKIP*/
 		case TCN_SKIP:
-			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"skip\" />\n", (unsigned int)tcn->orgnode);
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"%p\" type=\"skip\" />\n", tcn->orgnode);
 			break;
 			/*}}}*/
 			/*{{{  STOP*/
 		case TCN_STOP:
-			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"stop\" />\n", (unsigned int)tcn->orgnode);
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"%p\" type=\"stop\" />\n", tcn->orgnode);
 			break;
 			/*}}}*/
 			/*{{{  DIV*/
 		case TCN_DIV:
-			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"div\" />\n", (unsigned int)tcn->orgnode);
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"%p\" type=\"div\" />\n", tcn->orgnode);
 			break;
 			/*}}}*/
 			/*{{{  CHAOS*/
 		case TCN_CHAOS:
-			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"chaos\" />\n", (unsigned int)tcn->orgnode);
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"%p\" type=\"chaos\" />\n", tcn->orgnode);
 			break;
 			/*}}}*/
 			/*{{{  FIELD*/
 		case TCN_FIELD:
-			fhandle_printf (stream, "<tracescheck:node orgnode=\"0x%8.8x\" type=\"field\">\n", (unsigned int)tcn->orgnode);
+			fhandle_printf (stream, "<tracescheck:node orgnode=\"%p\" type=\"field\">\n", tcn->orgnode);
 			tracescheck_dumpnode (tcn->u.tcnfield.base, indent+1, stream);
 			tchk_isetindent (stream, indent+1);
-			fhandle_printf (stream, "<tracescheck:tnode addr=\"0x%8.8x\" nodetag=\"%s\" nodetype=\"%s\" />\n",
-					(unsigned int)tcn->u.tcnfield.field, tcn->u.tcnfield.field->tag->name, tcn->u.tcnfield.field->tag->ndef->name);
+			fhandle_printf (stream, "<tracescheck:tnode addr=\"%p\" nodetag=\"%s\" nodetype=\"%s\" />\n",
+					tcn->u.tcnfield.field, tcn->u.tcnfield.field->tag->name, tcn->u.tcnfield.field->tag->ndef->name);
 			tchk_isetindent (stream, indent);
 			fhandle_printf (stream, "</tracescheck:node>\n");
 			break;
@@ -1847,7 +1848,7 @@ static int tracescheck_subformat (tchknode_t *tcn, char **sptr, int *cur, int *m
 	case TCN_ATOM:
 		{
 			/* include atom node address (keep unique) */
-			char *tstr = string_fmt ("%s.%8.8x", tcn->u.tcnatom.id, (unsigned int)tcn);
+			char *tstr = string_fmt ("%s.%16.16lx", tcn->u.tcnatom.id, (uint64_t)tcn);
 
 			tracescheck_addtostring (sptr, cur, max, tstr);
 			sfree (tstr);
@@ -1858,7 +1859,7 @@ static int tracescheck_subformat (tchknode_t *tcn, char **sptr, int *cur, int *m
 	case TCN_ATOMREF:
 		{
 			/* include atom node address (keep unique) */
-			char *tstr = string_fmt ("%s.%8.8x", tcn->u.tcnaref.aref->u.tcnatom.id, (unsigned int)tcn->u.tcnaref.aref);
+			char *tstr = string_fmt ("%s.%16.16lx", tcn->u.tcnaref.aref->u.tcnatom.id, (uint64_t)tcn->u.tcnaref.aref);
 
 			tracescheck_addtostring (sptr, cur, max, tstr);
 			sfree (tstr);
@@ -2543,7 +2544,7 @@ int tracescheck_substitutenodes (tchknode_t *tcn, tnode_t **fpset, tnode_t **aps
 fprintf (stderr, "tracescheck_substitutenodes(): list of %d substitutions:\n", count);
 {int i;
 for (i=0; i<count; i++) {
-fprintf (stderr, "    0x%8.8x (%s) -> 0x%8.8x (%s)\n", (unsigned int)sn->flist[i], sn->flist[i]->tag->name, (unsigned int)sn->alist[i], sn->alist[i]->tag->name);
+fprintf (stderr, "    %p (%s) -> %p (%s)\n", sn->flist[i], sn->flist[i]->tag->name, sn->alist[i], sn->alist[i]->tag->name);
 }}
 #endif
 	tracescheck_prewalk (tcn, tchk_substitutenodes_prewalk, (void *)sn);
@@ -2731,7 +2732,7 @@ void tracescheck_testwalk (tchknode_t *tcn)
 	while (!ttw->end) {
 		tchknode_t *node = tracescheck_stepwalk (ttw);
 
-		fprintf (stderr, "tracescheck_testwalk(): visiting 0x%8.8x (type %d)\n", (unsigned int)node, node ? (int)node->type : -1);
+		fprintf (stderr, "tracescheck_testwalk(): visiting %p (type %d)\n", node, node ? (int)node->type : -1);
 	}
 
 	tracescheck_endwalk (ttw);

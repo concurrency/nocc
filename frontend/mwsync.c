@@ -91,7 +91,7 @@ mwsi_t mwsi;
  */
 static int mwsync_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argleft)
 {
-	int optv = (int)opt->arg;
+	int optv = (int)((uint64_t)opt->arg);
 
 	switch (optv) {
 	case 1:
@@ -234,8 +234,8 @@ static void mwsync_pbihook_dumptree (tnode_t *node, void *chook, int indent, fha
 		mwsyncpbinfo_t *pbinf = (mwsyncpbinfo_t *)chook;
 
 		mwsync_isetindent (stream, indent);
-		fhandle_printf (stream, "<mwsync:parbarrierinfo ecount=\"%d\" sadjust=\"%d\" parent=\"0x%8.8x\" exprisproctype=\"%d\" nprocbarriers=\"%d\" addr=\"0x%8.8x\">\n",
-				pbinf->ecount, pbinf->sadjust, (unsigned int)pbinf->parent, pbinf->exprisproctype, pbinf->nprocbarriers, (unsigned int)chook);
+		fhandle_printf (stream, "<mwsync:parbarrierinfo ecount=\"%d\" sadjust=\"%d\" parent=\"0x%p\" exprisproctype=\"%d\" nprocbarriers=\"%d\" addr=\"0x%p\">\n",
+				pbinf->ecount, pbinf->sadjust, pbinf->parent, pbinf->exprisproctype, pbinf->nprocbarriers, chook);
 		tnode_dumptree (pbinf->ecount_expr, indent + 1, stream);
 		tnode_dumptree (pbinf->sadjust_expr, indent + 1, stream);
 		mwsync_isetindent (stream, indent);
@@ -287,7 +287,7 @@ static void mwsync_pbdhook_dumptree (tnode_t *node, void *chook, int indent, fha
 {
 	if (chook) {
 		mwsync_isetindent (stream, indent);
-		fhandle_printf (stream, "<mwsync:barrierdecllink addr=\"0x%8.8x\" />\n", (unsigned int)chook);
+		fhandle_printf (stream, "<mwsync:barrierdecllink addr=\"0x%p\" />\n", chook);
 	}
 	return;
 }

@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -141,14 +142,14 @@ static void vset_dosort (valueset_t *vset, int first, int last)
 	int64_t pivot;
 
 #if 0
-fprintf (stderr, "da_qsort(): array=0x%8.8x, first=%d, last=%d\n", (unsigned int)array, first, last);
+fprintf (stderr, "da_qsort(): array=%p, first=%d, last=%d\n", array, first, last);
 #endif
 	pivot = vset->values[(first + last) >> 1];
 	i = first;
 	j = last;
 	while (i <= j) {
 #if 0
-fprintf (stderr, "da_qsort(): i=%d, j=%d, pivot=(0x%8.8x), array[i]=(0x%8.8x), array[j]=(0x%8.8x)\n", i, j, (unsigned int)pivot, (unsigned int)array[i], (unsigned int)array[j]);
+fprintf (stderr, "da_qsort(): i=%d, j=%d, pivot=(%p), array[i]=(%p), array[j]=(%p)\n", i, j, pivot, array[i], array[j]);
 #endif
 		while (vset->values[i] < pivot) {
 			i++;
@@ -216,8 +217,8 @@ void valueset_dumptree (valueset_t *vset, int indent, fhandle_t *stream)
 	if (vset) {
 		int i;
 
-		fhandle_printf (stream, "<valueset addr=\"0x%8.8x\" nvalues=\"%d\" nlinks=\"%d\" min=\"%d\" max=\"%d\" base=\"%d\" limit=\"%d\" strategy=\"",
-				(unsigned int)vset, DA_CUR (vset->values), DA_CUR (vset->links), vset->v_min, vset->v_max,
+		fhandle_printf (stream, "<valueset addr=\"%p\" nvalues=\"%d\" nlinks=\"%d\" min=\"%ld\" max=\"%ld\" base=\"%ld\" limit=\"%ld\" strategy=\"",
+				vset, DA_CUR (vset->values), DA_CUR (vset->links), vset->v_min, vset->v_max,
 				vset->v_base, vset->v_limit);
 		switch (vset->strat) {
 		case STRAT_NONE:
@@ -239,8 +240,8 @@ void valueset_dumptree (valueset_t *vset, int indent, fhandle_t *stream)
 			tnode_t *link = DA_NTHITEM (vset->links, i);
 
 			vset_isetindent (stream, indent + 1);
-			fhandle_printf (FHAN_STDERR, "<valuesetitem value=\"%d\" link=\"0x%8.8x\" linktag=\"%s\" />\n",
-					val, (unsigned int)link, link ? link->tag->name : "");
+			fhandle_printf (FHAN_STDERR, "<valuesetitem value=\"%d\" link=\"%p\" linktag=\"%s\" />\n",
+					val, link, link ? link->tag->name : "");
 		}
 		vset_isetindent (stream, indent);
 		fhandle_printf (stream, "</valueset>\n");
@@ -356,7 +357,7 @@ int valueset_insertblanks (valueset_t *vset, tnode_t *link)
 
 		if (this_val > v) {
 			/* insert something for 'v' here */
-			dynarray_insert (vset->values, v, i);
+			dynarray_insert (vset->values, (int64_t)v, i);
 			dynarray_insert (vset->links, link, i);
 		}
 	}

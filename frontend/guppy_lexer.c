@@ -298,7 +298,7 @@ nocc_message ("guppy_nexttoken(): newlineflag, thisindent = %d, xind = %d, DA_CU
 
 		if (xind == DA_CUR (lop->indent_offsets)) {
 			/* add this one */
-			dynarray_add (lop->indent_offsets, thisindent);
+			dynarray_add (lop->indent_offsets, (uint64_t)thisindent);
 			lop->scanto_indent = xind;
 #if 0
 nocc_message ("greater: setting scanto = %d, DA_CUR (offs) = %d", lop->scanto_indent, DA_CUR (lop->indent_offsets));
@@ -395,7 +395,7 @@ fprintf (stderr, "guppy-lexer: number-ending keyword 0x%8.8x\n", (unsigned int)k
 
 					tok->type = KEYWORD;
 					tok->u.kw = kw;
-					tok->iptr = (void *)size;
+					tok->iptr = (void *)((uint64_t)size);
 				} else {
 					/* assume name */
 					tok->type = NAME;
@@ -425,7 +425,7 @@ fprintf (stderr, "guppy-lexer: number-ending keyword 0x%8.8x\n", (unsigned int)k
 
 			/* parse */
 			npbuf = string_ndup (ch + 2, (int)(dh - ch));
-			if (sscanf (npbuf, "%x", &tok->u.ival) != 1) {
+			if (sscanf (npbuf, "%lx", (uint64_t *)&tok->u.ival) != 1) {
 				lexer_error (lf, "malformed hexadecimal constant: 0x%s", npbuf);
 				sfree (npbuf);
 				goto out_error1;
@@ -450,7 +450,7 @@ fprintf (stderr, "guppy-lexer: number-ending keyword 0x%8.8x\n", (unsigned int)k
 				lexer_error (lf, "malformed floating-point constant: %s", npbuf);
 				sfree (npbuf);
 				goto out_error1;
-			} else if ((tok->type == INTEGER) && (sscanf (npbuf, "%d", &tok->u.ival) != 1)) {
+			} else if ((tok->type == INTEGER) && (sscanf (npbuf, "%ld", &tok->u.ival) != 1)) {
 				lexer_error (lf, "malformed integer constant: %s", npbuf);
 				sfree (npbuf);
 				goto out_error1;

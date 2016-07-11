@@ -279,7 +279,7 @@ tokenloop:
 			npbuf = (char *)smalloc ((int)(dh - ch) + 1);
 			memcpy (npbuf, ch, (int)(dh - ch));
 			npbuf[(int)(dh - ch)] = '\0';
-			if ((tok->type == INTEGER) && ishex && (sscanf (npbuf, "%x", &tok->u.ival) != 1)) {
+			if ((tok->type == INTEGER) && ishex && (sscanf (npbuf, "%lx", (uint64_t *)&tok->u.ival) != 1)) {
 				lexer_error (lf, "malformed hexadecimal constant: %s", npbuf);
 				sfree (npbuf);
 				goto out_error1;
@@ -287,7 +287,7 @@ tokenloop:
 				lexer_error (lf, "malformed floating-point constant: %s", npbuf);
 				sfree (npbuf);
 				goto out_error1;
-			} else if ((tok->type == INTEGER) && !ishex && (sscanf (npbuf, "%d", &tok->u.ival) != 1)) {
+			} else if ((tok->type == INTEGER) && !ishex && (sscanf (npbuf, "%ld", &tok->u.ival) != 1)) {
 				lexer_error (lf, "malformed integer constant: %s", npbuf);
 				sfree (npbuf);
 				goto out_error1;

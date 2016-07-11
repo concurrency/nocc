@@ -1,6 +1,6 @@
 /*
  *	library.c -- libraries/separate-compilation for NOCC
- *	Copyright (C) 2005-2015 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -388,14 +389,14 @@ static void lib_libtaghook_dumptree (tnode_t *node, void *hook, int indent, fhan
 	int i;
 
 	lib_isetindent (stream, indent);
-	fhandle_printf (stream, "<libtaghook addr=\"0x%8.8x\" name=\"%s\" ws=\"%d\" vs=\"%d\" ms=\"%d\" adjust=\"%d\" bnode=\"0x%8.8x\" descriptor=\"%s\">\n",
-			(unsigned int)lth, lth->name ?: "(null)", lth->ws, lth->vs, lth->ms, lth->adjust, (unsigned int)lth->bnode, lth->descriptor ?: "(null)");
+	fhandle_printf (stream, "<libtaghook addr=\"%p\" name=\"%s\" ws=\"%d\" vs=\"%d\" ms=\"%d\" adjust=\"%d\" bnode=\"%p\" descriptor=\"%s\">\n",
+			lth, lth->name ?: "(null)", lth->ws, lth->vs, lth->ms, lth->adjust, lth->bnode, lth->descriptor ?: "(null)");
 	for (i=0; i<DA_CUR (lth->mdata); i++) {
 		metadata_t *lmd = DA_NTHITEM (lth->mdata, i);
 
 		lib_isetindent (stream, indent + 1);
-		fhandle_printf (stream, "<metadata addr=\"0x%8.8x\" name=\"%s\" data=\"%s\" />\n",
-				(unsigned int)lmd, lmd->name ?: "(null)", lmd->data ?: "");
+		fhandle_printf (stream, "<metadata addr=\"%p\" name=\"%s\" data=\"%s\" />\n",
+				lmd, lmd->name ?: "(null)", lmd->data ?: "");
 	}
 	lib_isetindent (stream, indent);
 	fhandle_printf (stream, "</libtaghook>\n");
@@ -412,14 +413,14 @@ static void lib_libtaghook_dumpstree (tnode_t *node, void *hook, int indent, fha
 	int i;
 
 	lib_ssetindent (stream, indent);
-	fhandle_printf (stream, "(libtaghook (addr 0x%8.8x) (name \"%s\") (ws %d) (vs %d) (ms %d) (adjust %d) (bnode 0x%8.8x) (descriptor \"%s\")\n",
-			(unsigned int)lth, lth->name ?: "(null)", lth->ws, lth->vs, lth->ms, lth->adjust, (unsigned int)lth->bnode, lth->descriptor ?: "(null)");
+	fhandle_printf (stream, "(libtaghook (addr %p) (name \"%s\") (ws %d) (vs %d) (ms %d) (adjust %d) (bnode %p) (descriptor \"%s\")\n",
+			lth, lth->name ?: "(null)", lth->ws, lth->vs, lth->ms, lth->adjust, lth->bnode, lth->descriptor ?: "(null)");
 	for (i=0; i<DA_CUR (lth->mdata); i++) {
 		metadata_t *lmd = DA_NTHITEM (lth->mdata, i);
 
 		lib_ssetindent (stream, indent + 1);
-		fhandle_printf (stream, "(metadata (addr 0x%8.8x) (name \"%s\") (data \"%s\"))\n",
-				(unsigned int)lmd, lmd->name ?: "(null)", lmd->data ?: "");
+		fhandle_printf (stream, "(metadata (addr %p) (name \"%s\") (data \"%s\"))\n",
+				lmd, lmd->name ?: "(null)", lmd->data ?: "");
 	}
 	lib_ssetindent (stream, indent);
 	fhandle_printf (stream, ")\n");
@@ -540,7 +541,7 @@ static void lib_libnodehook_dumptree (tnode_t *node, void *hook, int indent, fha
 	int i;
 
 	lib_isetindent (stream, indent);
-	fhandle_printf (stream, "<libnodehook addr=\"0x%8.8x\">\n", (unsigned int)lnh);
+	fhandle_printf (stream, "<libnodehook addr=\"%p\">\n", lnh);
 
 	lib_isetindent (stream, indent + 1);
 	fhandle_printf (stream, "<library name=\"%s\" namespace=\"%s\" version=\"%s\" api=\"%d\">\n",
@@ -597,7 +598,7 @@ static void lib_libnodehook_dumpstree (tnode_t *node, void *hook, int indent, fh
 	int i;
 
 	lib_ssetindent (stream, indent);
-	fhandle_printf (stream, "(libnodehook (addr 0x%8.8x)\n", (unsigned int)lnh);
+	fhandle_printf (stream, "(libnodehook (addr %p)\n", lnh);
 
 	lib_ssetindent (stream, indent + 1);
 	fhandle_printf (stream, "(library (name \"%s\") (namespace \"%s\")\n", lnh->libname, lnh->namespace);
@@ -824,7 +825,7 @@ static void lib_libusenodehook_dumptree (tnode_t *node, void *hook, int indent, 
 	int i;
 
 	lib_isetindent (stream, indent);
-	fhandle_printf (stream, "<libusenodehook addr=\"0x%8.8x\" libname=\"%s\" namespace=\"%s\" as=\"%s\" >\n", (unsigned int)lunh, lunh->libname, lunh->namespace, lunh->asnamespace ? lunh->asnamespace : lunh->namespace);
+	fhandle_printf (stream, "<libusenodehook addr=\"%p\" libname=\"%s\" namespace=\"%s\" as=\"%s\" >\n", lunh, lunh->libname, lunh->namespace, lunh->asnamespace ? lunh->asnamespace : lunh->namespace);
 	if (lunh->libdata) {
 		libfile_t *lf = lunh->libdata;
 
@@ -922,7 +923,7 @@ static void lib_libusenodehook_dumpstree (tnode_t *node, void *hook, int indent,
 	int i;
 
 	lib_ssetindent (stream, indent);
-	fhandle_printf (stream, "(libusenodehook (addr 0x%8.8x) (libname \"%s\") (namespace \"%s\") (as \"%s\")\n", (unsigned int)lunh, lunh->libname, lunh->namespace, lunh->asnamespace ? lunh->asnamespace : lunh->namespace);
+	fhandle_printf (stream, "(libusenodehook (addr %p) (libname \"%s\") (namespace \"%s\") (as \"%s\")\n", lunh, lunh->libname, lunh->namespace, lunh->asnamespace ? lunh->asnamespace : lunh->namespace);
 	if (lunh->libdata) {
 		libfile_t *lf = lunh->libdata;
 

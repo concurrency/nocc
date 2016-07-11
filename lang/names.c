@@ -1,6 +1,6 @@
 /*
  *	names.c -- name stuff (note: names can exist globally)
- *	Copyright (C) 2004-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdarg.h>
@@ -90,7 +91,7 @@ name_t *name_lookup (char *str)
 
 	nl = stringhash_lookup (names, str);
 #if 0
-fprintf (stderr, "name_lookup(): str=[%s], nl=0x%8.8x, nl->curscope = %d, DA_CUR (nl->scopes) = %d\n", str, (unsigned int)nl, (unsigned int)nl->curscope, DA_CUR (nl->scopes));
+fprintf (stderr, "name_lookup(): str=[%s], nl=%p, nl->curscope = %d, DA_CUR (nl->scopes) = %d\n", str, nl, (unsigned int)nl->curscope, DA_CUR (nl->scopes));
 #endif
 	if (!nl) {
 		name = NULL;
@@ -173,10 +174,10 @@ name_t *name_lookupss (char *str, scope_t *ss)
 	namespace_t *ns;
 
 #if 0
-fprintf (stderr, "name_lookupss(): str=[%s], nl=0x%8.8x, nl->curscope = %d, DA_CUR (nl->scopes) = %d, DA_CUR (ss->usens) = %d\n", str, (unsigned int)nl, (unsigned int)nl->curscope, DA_CUR (nl->scopes), DA_CUR (ss->usens));
+fprintf (stderr, "name_lookupss(): str=[%s], nl=%p, nl->curscope = %d, DA_CUR (nl->scopes) = %d, DA_CUR (ss->usens) = %d\n", str, nl, (unsigned int)nl->curscope, DA_CUR (nl->scopes), DA_CUR (ss->usens));
 #endif
 #if 0
-fprintf (stderr, "name_lookupss(): here 1! str=[%s] ss = 0x%8.8x, DA_CUR (usens) = %d\n", str, (unsigned int)ss, DA_CUR (ss->usens));
+fprintf (stderr, "name_lookupss(): here 1! str=[%s] ss = %p, DA_CUR (usens) = %d\n", str, ss, DA_CUR (ss->usens));
 #endif
 	/* see if it's namespace-flavoured */
 	if ((ns = name_findnamespacepfx (str)) != NULL) {
@@ -495,7 +496,7 @@ name_t *name_addsubscopenamess (char *str, void *scopemark, tnode_t *decl, tnode
 	}
 
 #if 0
-fprintf (stderr, "name_addsubscopenamess(): str=\"%s\", scopemark=0x%8.8x, nl->curscope=%d\n", str, (unsigned int)scopemark, nl->curscope);
+fprintf (stderr, "name_addsubscopenamess(): str=\"%s\", scopemark=%p, nl->curscope=%d\n", str, scopemark, nl->curscope);
 #endif
 	if (!scopemark) {
 		/* nothing was in scope, add at front */
@@ -811,9 +812,9 @@ void name_dumpname (name_t *name, int indent, fhandle_t *stream)
 		fhandle_printf (stream, "    ");
 	}
 	type = NameTypeOf (name);
-	fhandle_printf (stream, "<name name=\"%s\" type=\"%s\" decladdr=\"0x%8.8x\" namespace=\"%s\" lexlevel=\"%d\" addr=\"0x%8.8x\" />\n",
-			name->me->name, type ? type->tag->name : "(null)", (unsigned int)(NameDeclOf (name)), name->ns ? name->ns->nspace : "",
-			name->lexlevel, (unsigned int)name);
+	fhandle_printf (stream, "<name name=\"%s\" type=\"%s\" decladdr=\"%p\" namespace=\"%s\" lexlevel=\"%d\" addr=\"%p\" />\n",
+			name->me->name, type ? type->tag->name : "(null)", NameDeclOf (name), name->ns ? name->ns->nspace : "",
+			name->lexlevel, name);
 
 	return;
 }
@@ -831,9 +832,9 @@ void name_dumpsname (name_t *name, int indent, fhandle_t *stream)
 		fhandle_printf (stream, "  ");
 	}
 	type = NameTypeOf (name);
-	fhandle_printf (stream, "(name (name \"%s\") (type \"%s\") (namespace \"%s\") (lexlevel \"%d\") (addr \"0x%8.8x\"))\n",
+	fhandle_printf (stream, "(name (name \"%s\") (type \"%s\") (namespace \"%s\") (lexlevel \"%d\") (addr \"%p\"))\n",
 			name->me->name, type ? type->tag->name : "(null)", name->ns ? name->ns->nspace : "", name->lexlevel,
-			(unsigned int)name);
+			name);
 
 	return;
 }
@@ -852,7 +853,7 @@ static void name_walkdumpname (namelist_t *nl, char *key, void *ptr)
 		name_t *name = DA_NTHITEM (nl->scopes, i);
 		tnode_t *declnode = name->decl;
 
-		fhandle_printf (stream, "\t%d\trefc = %-3d  decl = 0x%8.8x, (%s,%s):\n", i, name->refc, (unsigned int)declnode,
+		fhandle_printf (stream, "\t%d\trefc = %-3d  decl = %p, (%s,%s):\n", i, name->refc, declnode,
 			declnode->tag->ndef->name, declnode->tag->name);
 	}
 	return;

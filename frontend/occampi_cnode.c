@@ -112,7 +112,7 @@ static void occampi_ileaveinfo_chook_dumptree (tnode_t *node, void *hook, int in
 	int i;
 
 	occampi_isetindent (stream, indent);
-	fhandle_printf (stream, "<ileaveinfo addr=\"0x%16.16lx\" nnames=\"%d\" nvalues=\"%d\">\n", (uint64_t)ilv, DA_CUR (ilv->names), DA_CUR (ilv->values));
+	fhandle_printf (stream, "<ileaveinfo addr=\"%p\" nnames=\"%d\" nvalues=\"%d\">\n", ilv, DA_CUR (ilv->names), DA_CUR (ilv->values));
 	for (i=0; (i<DA_CUR (ilv->names)) && (i<DA_CUR (ilv->values)); i++) {
 		occampi_isetindent (stream, indent + 1);
 		fhandle_printf (stream, "<ileaveinfo:namevaluepair>\n");

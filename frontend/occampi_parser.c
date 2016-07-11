@@ -318,7 +318,7 @@ static void occampi_debug_gstack (void **items, int icnt)
 
 	fhandle_printf (FHAN_STDERR, "occampi_debug_gstack(): icnt=%d, items:  ", icnt);
 	for (i=0; i<icnt; i++) {
-		fhandle_printf (FHAN_STDERR, "0x%16.16lx  ", (uint64_t)(items[i]));
+		fhandle_printf (FHAN_STDERR, "%p  ", items[i]);
 	}
 	fhandle_printf (FHAN_STDERR, "\n");
 	return;
@@ -1409,8 +1409,8 @@ restartpoint:
 	*treetarget = occampi_declorprocstart (lf, gotall, thedfa);
 
 	if (compopts.debugparser) {
-		nocc_message ("occampi_declorproc(): %s:%d: finished parsing declaration or process start, *treetarget [0x%16.16lx]",
-				lf->fnptr, lf->lineno, (uint64_t)(*treetarget));
+		nocc_message ("occampi_declorproc(): %s:%d: finished parsing declaration or process start, *treetarget [%p]",
+				lf->fnptr, lf->lineno, *treetarget);
 		if (*treetarget) {
 			nocc_message ("occampi_declorproc(): %s:%d: that *treetarget is (%s,%s)", lf->fnptr, lf->lineno,
 					(*treetarget)->tag->ndef->name, (*treetarget)->tag->name);
@@ -2004,8 +2004,8 @@ fprintf (stderr, "occampi_indented_process_list(): got LONGPROC [%s]\n", (*targe
 	lexer_freetoken (tok);
 
 	if (compopts.debugparser) {
-		nocc_message ("occampi_indented_process_list(): %s:%d: done parsing indented process list (tree at 0x%16.16lx)",
-				lf->fnptr, lf->lineno, (uint64_t)tree);
+		nocc_message ("occampi_indented_process_list(): %s:%d: done parsing indented process list (tree at 0x%p)",
+				lf->fnptr, lf->lineno, tree);
 	}
 
 #if 0

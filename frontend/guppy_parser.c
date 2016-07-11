@@ -153,7 +153,7 @@ static int tempnamecounter = 0;
  */
 static int guppy_opthandler_stopat (cmd_option_t *opt, char ***argwalk, int *argleft)
 {
-	compopts.stoppoint = (int)(opt->arg);
+	compopts.stoppoint = (int)((uint64_t)opt->arg);
 #if 0
 fprintf (stderr, "guppy_opthandler_stopat(): setting stop point to %d\n", compopts.stoppoint);
 #endif
@@ -998,7 +998,7 @@ char *guppy_maketempname (tnode_t *org)
 	char *str;
 
 	str = (char *)smalloc (32);
-	sprintf (str, "tmp_%d_%8.8x", tempnamecounter, (unsigned int)org);
+	sprintf (str, "tmp_%d_%16.16lx", tempnamecounter, (uint64_t)org);
 	tempnamecounter++;
 
 	return str;
@@ -1866,7 +1866,7 @@ static int guppy_parser_init (lexfile_t *lf)
 {
 	if (!guppy_priv) {
 		keyword_t *kw;
-		int stopat;
+		uint64_t stopat;
 
 		guppy_priv = guppy_newguppyparse ();
 
@@ -2763,8 +2763,8 @@ static tnode_t *guppy_indented_declorproc_list (lexfile_t *lf)
 	lexer_pushback (lf, lexer_newtoken (NEWLINE));
 
 	if (compopts.verbose > 1) {
-		nocc_message ("guppy_indented_declorproc_list(): %s:%d: done parsing indented process list (tree at 0x%8.8x)",
-				lf->fnptr, lf->lineno, (unsigned int)tree);
+		nocc_message ("guppy_indented_declorproc_list(): %s:%d: done parsing indented process list (tree at %p)",
+				lf->fnptr, lf->lineno, tree);
 	}
 
 #if 0
@@ -2845,8 +2845,8 @@ static tnode_t *guppy_indented_dguard_list (lexfile_t *lf)
 	}
 
 	if (compopts.verbose > 1) {
-		nocc_message ("guppy_indented_dguard_list(): %s:%d: done parsing indented guard list (tree at 0x%8.8x)",
-				lf->fnptr, lf->lineno, (unsigned int)tree);
+		nocc_message ("guppy_indented_dguard_list(): %s:%d: done parsing indented guard list (tree at %p)",
+				lf->fnptr, lf->lineno, tree);
 	}
 	return tree;
 }

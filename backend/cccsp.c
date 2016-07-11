@@ -365,8 +365,8 @@ static int cccsp_opthandler_setstring (cmd_option_t *opt, char ***argwalk, int *
 	}
 
 #if 0
-fhandle_printf (FHAN_STDERR, "cccsp_opthandler_setstring(): *sptr=0x%16.16lx, **argwalk=[%s], *argleft=%d",
-		(uint64_t)(*sptr), **argwalk, *argleft);
+fhandle_printf (FHAN_STDERR, "cccsp_opthandler_setstring(): *sptr=%p, **argwalk=[%s], *argleft=%d",
+		*sptr, **argwalk, *argleft);
 #endif
 	return 0;
 }
@@ -554,16 +554,16 @@ static void cccsp_namehook_dumptree (tnode_t *node, void *hook, int indent, fhan
 
 	cccsp_isetindent (stream, indent);
 	if (nh->initialiser) {
-		fhandle_printf (stream, "<namehook addr=\"0x%16.16lx\" cname=\"%s\" ctype=\"%s\" lexlevel=\"%d\" " \
+		fhandle_printf (stream, "<namehook addr=\"%p\" cname=\"%s\" ctype=\"%s\" lexlevel=\"%d\" " \
 				"typesize=\"%d\" indir=\"%d\" typecat=\"0x%16.16lx\">\n",
-				(uint64_t)nh, nh->cname, nh->ctype, nh->lexlevel, nh->typesize, nh->indir, (uint64_t)nh->typecat);
+				nh, nh->cname, nh->ctype, nh->lexlevel, nh->typesize, nh->indir, (uint64_t)nh->typecat);
 		tnode_dumptree (nh->initialiser, indent + 1, stream);
 		cccsp_isetindent (stream, indent);
 		fhandle_printf (stream, "</namehook>\n");
 	} else {
-		fhandle_printf (stream, "<namehook addr=\"0x%16.16lx\" cname=\"%s\" ctype=\"%s\" lexlevel=\"%d\" " \
+		fhandle_printf (stream, "<namehook addr=\"%p\" cname=\"%s\" ctype=\"%s\" lexlevel=\"%d\" " \
 				"typesize=\"%d\" indir=\"%d\" typecat=\"0x%16.16lx\" initialiser=\"(null)\" />\n",
-				(uint64_t)nh, nh->cname, nh->ctype, nh->lexlevel, nh->typesize, nh->indir, (uint64_t)nh->typecat);
+				nh, nh->cname, nh->ctype, nh->lexlevel, nh->typesize, nh->indir, (uint64_t)nh->typecat);
 	}
 	return;
 }
@@ -598,8 +598,8 @@ static void cccsp_namerefhook_dumptree (tnode_t *node, void *hook, int indent, f
 	cccsp_namerefhook_t *nh = (cccsp_namerefhook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<namerefhook addr=\"0x%16.16lx\" nnode=\"0x%16.16lx\" nhook=\"0x%16.16lx\" indir=\"%d\" cname=\"%s\" />\n",
-			(uint64_t)nh, (uint64_t)nh->nnode, (uint64_t)nh->nhook, nh->indir, (nh->nhook ? nh->nhook->cname : ""));
+	fhandle_printf (stream, "<namerefhook addr=\"%p\" nnode=\"%p\" nhook=\"%p\" indir=\"%d\" cname=\"%s\" />\n",
+			nh, nh->nnode, nh->nhook, nh->indir, (nh->nhook ? nh->nhook->cname : ""));
 	return;
 }
 /*}}}*/
@@ -629,8 +629,8 @@ static void cccsp_blockhook_dumptree (tnode_t *node, void *hook, int indent, fha
 	cccsp_blockhook_t *bh = (cccsp_blockhook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<blockhook addr=\"0x%16.16lx\" lexlevel=\"%d\" my_size=\"%d\" nest_size=\"%d\" />\n",
-			(uint64_t)bh, bh->lexlevel, bh->my_size, bh->nest_size);
+	fhandle_printf (stream, "<blockhook addr=\"%p\" lexlevel=\"%d\" my_size=\"%d\" nest_size=\"%d\" />\n",
+			bh, bh->lexlevel, bh->my_size, bh->nest_size);
 	return;
 }
 /*}}}*/
@@ -665,18 +665,18 @@ static void cccsp_blockrefhook_dumptree (tnode_t *node, void *hook, int indent, 
 		tnode_t **blks = parser_getlistitems (blk, &nitems);
 
 		cccsp_isetindent (stream, indent);
-		fhandle_printf (stream, "<blockrefhook addr=\"0x%16.16lx\" block=\"0x%16.16lx\" nblocks=\"%d\" blocks=\"",
-				(uint64_t)brh, (uint64_t)blk, nitems);
+		fhandle_printf (stream, "<blockrefhook addr=\"%p\" block=\"%p\" nblocks=\"%d\" blocks=\"",
+				brh, blk, nitems);
 		for (i=0; i<nitems; i++ ) {
 			if (i) {
 				fhandle_printf (stream, ",");
 			}
-			fhandle_printf (stream, "0x%16.16lx", (uint64_t)blks[i]);
+			fhandle_printf (stream, "%p", blks[i]);
 		}
 		fhandle_printf (stream, "\" />\n");
 	} else {
 		cccsp_isetindent (stream, indent);
-		fhandle_printf (stream, "<blockrefhook addr=\"0x%16.16lx\" block=\"0x%16.16lx\" />\n", (uint64_t)brh, (uint64_t)blk);
+		fhandle_printf (stream, "<blockrefhook addr=\"%p\" block=\"%p\" />\n", brh, blk);
 	}
 
 	return;
@@ -708,8 +708,8 @@ static void cccsp_consthook_dumptree (tnode_t *node, void *hook, int indent, fha
 
 	cccsp_isetindent (stream, indent);
 	dstr = mkhexbuf ((unsigned char *)ch->data, ch->length);
-	fhandle_printf (stream, "<consthook addr=\"0x%16.16lx\" data=\"%s\" length=\"%d\" typecat=\"0x%16.16lx\" />\n",
-			(uint64_t)ch, dstr, ch->length, (uint64_t)ch->tcat);
+	fhandle_printf (stream, "<consthook addr=\"%p\" data=\"%s\" length=\"%d\" typecat=\"0x%16.16lx\" />\n",
+			ch, dstr, ch->length, (uint64_t)ch->tcat);
 	return;
 }
 /*}}}*/
@@ -739,7 +739,7 @@ static void cccsp_labelhook_dumptree (tnode_t *node, void *hook, int indent, fha
 	cccsp_labelhook_t *lh = (cccsp_labelhook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<labelhook name=\"%s\" addr=\"0x%16.16lx\" />\n", lh->name, (uint64_t)lh);
+	fhandle_printf (stream, "<labelhook name=\"%s\" addr=\"%p\" />\n", lh->name, lh);
 	return;
 }
 /*}}}*/
@@ -766,8 +766,8 @@ static void cccsp_labelrefhook_dumptree (tnode_t *node, void *hook, int indent, 
 	cccsp_labelrefhook_t *lrh = (cccsp_labelrefhook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<labelrefhook labaddr=\"0x%16.16lx\" name=\"%s\" addr=\"0x%16.16lx\" />\n",
-			(uint64_t)lrh->lab, lrh->lab ? lrh->lab->name : "(null)", (uint64_t)lrh);
+	fhandle_printf (stream, "<labelrefhook labaddr=\"%p\" name=\"%s\" addr=\"%p\" />\n",
+			lrh->lab, lrh->lab ? lrh->lab->name : "(null)", lrh);
 	return;
 }
 /*}}}*/
@@ -794,7 +794,7 @@ static void cccsp_wptrhook_dumptree (tnode_t *node, void *hook, int indent, fhan
 	cccsp_wptrhook_t *whook = (cccsp_wptrhook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<wptrhook name=\"%s\" addr=\"0x%16.16lx\" />\n", whook->name, (uint64_t)whook);
+	fhandle_printf (stream, "<wptrhook name=\"%s\" addr=\"%p\" />\n", whook->name, whook);
 	return;
 }
 /*}}}*/
@@ -821,8 +821,8 @@ static void cccsp_workspacehook_dumptree (tnode_t *node, void *hook, int indent,
 	cccsp_workspacehook_t *whook = (cccsp_workspacehook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<workspacehook name=\"%s\" isdyn=\"%d\" nparams=\"%d\" nwords=\"%d\" addr=\"0x%16.16lx\" />\n",
-			whook->name, whook->isdyn, whook->nparams, whook->nwords, (uint64_t)whook);
+	fhandle_printf (stream, "<workspacehook name=\"%s\" isdyn=\"%d\" nparams=\"%d\" nwords=\"%d\" addr=\"%p\" />\n",
+			whook->name, whook->isdyn, whook->nparams, whook->nwords, whook);
 	return;
 }
 /*}}}*/
@@ -853,8 +853,8 @@ static void cccsp_utypehook_dumptree (tnode_t *node, void *hook, int indent, fha
 	cccsp_utypehook_t *uthook = (cccsp_utypehook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<utypehook name=\"%s\" nwords=\"%d\" addr=\"0x%16.16lx\" />\n",
-			uthook->name, uthook->nwords, (uint64_t)uthook);
+	fhandle_printf (stream, "<utypehook name=\"%s\" nwords=\"%d\" addr=\"%p\" />\n",
+			uthook->name, uthook->nwords, uthook);
 	return;
 }
 /*}}}*/
@@ -883,8 +883,8 @@ static void cccsp_etypehook_dumptree (tnode_t *node, void *hook, int indent, fha
 	cccsp_etypehook_t *ethook = (cccsp_etypehook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<etypehook name=\"%s\" addr=\"0x%16.16lx\" />\n",
-			ethook->name, (uint64_t)ethook);
+	fhandle_printf (stream, "<etypehook name=\"%s\" addr=\"%p\" />\n",
+			ethook->name, ethook);
 	return;
 }
 /*}}}*/
@@ -912,8 +912,8 @@ static void cccsp_indexhook_dumptree (tnode_t *node, void *hook, int indent, fha
 	cccsp_indexhook_t *idh = (cccsp_indexhook_t *)hook;
 
 	cccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<indexhook indir=\"%d\" typeaddr=\"0x%16.16lx\" addr=\"0x%16.16lx\" />\n",
-			idh->indir, (uint64_t)idh->type, (uint64_t)idh);
+	fhandle_printf (stream, "<indexhook indir=\"%d\" typeaddr=\"%p\" addr=\"%p\" />\n",
+			idh->indir, idh->type, idh);
 	return;
 }
 /*}}}*/
@@ -1026,8 +1026,8 @@ static void cccsp_parinfochook_dumptree (tnode_t *node, void *hook, int indent, 
 		cccsp_parinfo_entry_t *pent = DA_NTHITEM (pset->entries, i);
 
 		cccsp_isetindent (stream, indent + 1);
-		fhandle_printf (stream, "<cccsp:parinfo:entry namenode=\"0x%16.16lx\" wsspace=\"0x%16.16lx\" />\n",
-				(uint64_t)pent->namenode, (uint64_t)pent->wsspace);
+		fhandle_printf (stream, "<cccsp:parinfo:entry namenode=\"%p\" wsspace=\"%p\" />\n",
+				pent->namenode, pent->wsspace);
 	}
 	cccsp_isetindent (stream, indent);
 	fhandle_printf (stream, "</cccsp:parinfo>\n");
@@ -1097,7 +1097,7 @@ static tnode_t *cccsp_nameref_create (tnode_t *bename, map_t *mdata)
 	name = tnode_create (mdata->target->tag_NAMEREF, NULL, fename, (void *)nh);
 
 #if 0
-fhandle_printf (FHAN_STDERR, "cccsp_nameref_create(): created new nameref at 0x%16.16lx\n", (uint64_t)name);
+fhandle_printf (FHAN_STDERR, "cccsp_nameref_create(): created new nameref at %p\n", name);
 #endif
 	return name;
 }
@@ -1224,7 +1224,7 @@ int cccsp_set_indir (tnode_t *benode, int indir, target_t *target)
 		cccsp_namerefhook_t *nrh = (cccsp_namerefhook_t *)tnode_nthhookof (benode, 0);
 
 #if 0
-fhandle_printf (FHAN_STDERR, "cccsp_set_indir(): setting NAMEREF at 0x%16.16lx to %d\n", (uint64_t)benode, indir);
+fhandle_printf (FHAN_STDERR, "cccsp_set_indir(): setting NAMEREF at %p to %d\n", benode, indir);
 #endif
 		nrh->indir = indir;
 	} else {
@@ -2325,7 +2325,7 @@ static int cccsp_be_codegen_final (codegen_t *cgen, lexfile_t *srcfile)
 		entryname = cccsp_make_entryname (NameNameOf (kpriv->last_toplevelname), 1);
 
 #if 0
-fhandle_printf (FHAN_STDERR, "cccsp_be_codegen_final(): entryname = \"%s\", NameDeclOf(..) @0x%16.16lx\n", entryname, (uint64_t)(NameDeclOf (kpriv->last_toplevelname)));
+fhandle_printf (FHAN_STDERR, "cccsp_be_codegen_final(): entryname = \"%s\", NameDeclOf(..) @%p\n", entryname, NameDeclOf (kpriv->last_toplevelname));
 #endif
 		beblk = tnode_nthsubof (NameDeclOf (kpriv->last_toplevelname), 2);
 		if (beblk->tag != cgen->target->tag_BLOCK) {
@@ -3151,7 +3151,7 @@ static int cccsp_run_cc (char *cmd)
 			rval = -1;
 			goto out_free;
 		} else if (!WIFEXITED (status)) {
-			nocc_serious ("cccsp_run_cc(): child process wait()ed, but didn't exit normally?, status = 0x%16.16lx", (uint64_t)status);
+			nocc_serious ("cccsp_run_cc(): child process wait()ed, but didn't exit normally?, status = 0x%8.8x", (unsigned int)status);
 			rval = -1;
 			goto out_free;
 		} else if (WEXITSTATUS (status)) {

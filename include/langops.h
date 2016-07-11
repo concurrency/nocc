@@ -30,7 +30,7 @@ extern int langops_shutdown (void);
 extern void langops_getdescriptor (struct TAG_tnode *node, char **str);
 extern void langops_getname (struct TAG_tnode *node, char **str);
 extern int langops_isconst (struct TAG_tnode *node);
-extern int langops_constvalof (struct TAG_tnode *node, void *ptr);
+extern int64_t langops_constvalof (struct TAG_tnode *node, void *ptr);
 extern int langops_constsizeof (struct TAG_tnode *node);
 extern int langops_valbyref (struct TAG_tnode *node);
 extern int langops_isvar (struct TAG_tnode *node);

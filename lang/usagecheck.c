@@ -1,6 +1,6 @@
 /*
  *	usagecheck.c -- parallel usage checker for NOCC
- *	Copyright (C) 2005-2015 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -51,7 +52,7 @@
 /*{{{  private types*/
 typedef struct TAG_uchk_chook_set {
 	DYNARRAY (tnode_t *, items);
-	DYNARRAY (uchk_mode_t, modes);
+	DYNARRAY (uint64_t, modes);
 } uchk_chook_set_t;
 
 typedef struct TAG_uchk_chook {
@@ -213,7 +214,7 @@ static void uchk_chook_dumptree (tnode_t *node, void *hook, int indent, fhandle_
 				for (j=0; j<DA_CUR (parset->items); j++) {
 					char buf[256];
 					int x = 0;
-					uchk_mode_t mode = DA_NTHITEM (parset->modes, j);
+					uchk_mode_t mode = (uchk_mode_t)DA_NTHITEM (parset->modes, j);
 
 					if (mode & USAGE_READ) {
 						x += sprintf (buf + x, "read ");
@@ -237,7 +238,7 @@ static void uchk_chook_dumptree (tnode_t *node, void *hook, int indent, fhandle_
 					}
 
 					uchk_isetindent (stream, indent + 3);
-					fhandle_printf (stream, "<mode mode=\"0x%8.8x\" flags=\"%s\" />\n", (unsigned int)DA_NTHITEM (parset->modes, j), buf);
+					fhandle_printf (stream, "<mode mode=\"0x%16.16lx\" flags=\"%s\" />\n", DA_NTHITEM (parset->modes, j), buf);
 
 					tnode_dumptree (DA_NTHITEM (parset->items, j), indent + 3, stream);
 				}
@@ -301,7 +302,7 @@ static void uchk_taghook_dumptree (tnode_t *node, void *hook, int indent, fhandl
 		if (x > 0) {
 			buf[x-1] = '\0';
 		}
-		fhandle_printf (stream, "<chook id=\"uchk:tagged\" node=\"0x%8.8x\" mode=\"%s\" />\n", (unsigned int)thook->node, buf);
+		fhandle_printf (stream, "<chook id=\"uchk:tagged\" node=\"%p\" mode=\"%s\" />\n", thook->node, buf);
 	}
 
 	return;
@@ -575,7 +576,7 @@ nocc_message ("usagecheck_addname(): allocating [%s,%s] with mode 0x%x", node->t
 	ucset = (uchk_chook_set_t *)DA_NTHITEM (ucstate->setptrs, ucstate->ucptr);
 
 	if (!uchook || !ucset) {
-		nocc_internal ("usagecheck_addname(): [%s]: uchook=0x%8.8x, ucset=0x%8.8x", node->tag->name, (unsigned int)uchook, (unsigned int)ucset);
+		nocc_internal ("usagecheck_addname(): [%s]: uchook=%p, ucset=%p", node->tag->name, uchook, ucset);
 		return -1;
 	}
 
@@ -583,17 +584,17 @@ nocc_message ("usagecheck_addname(): allocating [%s,%s] with mode 0x%x", node->t
 		tnode_t *chknode = DA_NTHITEM (ucset->items, i);
 
 		if (chknode == node) {
-			uchk_mode_t chkmode = DA_NTHITEM (ucset->modes, i);
+			uchk_mode_t chkmode = (uchk_mode_t)DA_NTHITEM (ucset->modes, i);
 
 			chkmode |= mode;
-			DA_SETNTHITEM (ucset->modes, i, chkmode);
+			DA_SETNTHITEM (ucset->modes, i, (uint64_t)chkmode);
 			break;		/* for() */
 		}
 	}
 
 	if (i == DA_CUR (ucset->items)) {
 		dynarray_add (ucset->items, node);
-		dynarray_add (ucset->modes, mode);
+		dynarray_add (ucset->modes, (uint64_t)mode);
 	}
 
 	return 0;
@@ -628,23 +629,23 @@ int usagecheck_mergeall (tnode_t *node, uchk_state_t *ucstate)
 
 		for (j=0; j<DA_CUR (srcset->items); j++) {
 			tnode_t *srcnode = DA_NTHITEM (srcset->items, j);
-			uchk_mode_t srcmode = DA_NTHITEM (srcset->modes, j);
+			uchk_mode_t srcmode = (uchk_mode_t)DA_NTHITEM (srcset->modes, j);
 			int k;
 
 			for (k=0; k<DA_CUR (ucset->items); k++) {
 				tnode_t *chknode = DA_NTHITEM (ucset->items, k);
 
 				if (srcnode == chknode) {
-					uchk_mode_t chkmode = DA_NTHITEM (ucset->modes, k);
+					uchk_mode_t chkmode = (uchk_mode_t)DA_NTHITEM (ucset->modes, k);
 
 					chkmode |= srcmode;
-					DA_SETNTHITEM (ucset->modes, k, chkmode);
+					DA_SETNTHITEM (ucset->modes, k, (uint64_t)chkmode);
 					break;		/* for(k) */
 				}
 			}
 			if (k == DA_CUR (ucset->items)) {
 				dynarray_add (ucset->items, srcnode);
-				dynarray_add (ucset->modes, srcmode);
+				dynarray_add (ucset->modes, (uint64_t)srcmode);
 			}
 
 		}
@@ -663,11 +664,11 @@ static int usagecheck_sub_no_overlaps (tnode_t *node, uchk_state_t *ucstate, uch
 
 	for (i=0; i<DA_CUR (set1->items); i++) {
 		tnode_t *item1 = DA_NTHITEM (set1->items, i);
-		uchk_mode_t mode1 = DA_NTHITEM (set1->modes, i);
+		uchk_mode_t mode1 = (uchk_mode_t)DA_NTHITEM (set1->modes, i);
 
 		for (j=0; j<DA_CUR (set2->items); j++) {
 			tnode_t *item2 = DA_NTHITEM (set2->items, j);
-			uchk_mode_t mode2 = DA_NTHITEM (set2->modes, j);
+			uchk_mode_t mode2 = (uchk_mode_t)DA_NTHITEM (set2->modes, j);
 
 			if (item1 == item2) {
 				/* same item */
@@ -775,7 +776,7 @@ int usagecheck_end_branches (tnode_t *node, uchk_state_t *ucstate)
 		return -1;
 	}
 	if (DA_NTHITEM (ucstate->ucstack, idx) != uchook) {
-		nocc_internal ("usagecheck_end_branches(): hook stack mismatch, expected 0x%8.8x actually got 0x%8.8x", (unsigned int)uchook, (unsigned int)DA_NTHITEM (ucstate->ucstack, idx));
+		nocc_internal ("usagecheck_end_branches(): hook stack mismatch, expected %p actually got %p", uchook, DA_NTHITEM (ucstate->ucstack, idx));
 		return -1;
 	}
 	DA_SETNTHITEM (ucstate->ucstack, idx, NULL);			/* left attached in the tree */
@@ -854,7 +855,7 @@ void usagecheck_endbranch (uchk_state_t *ucstate)
 	ucset = (uchk_chook_set_t *)DA_NTHITEM (ucstate->setptrs, ucstate->ucptr);
 
 	if (!uchook || !ucset) {
-		nocc_internal ("usagecheck_endbranch(): uchook=0x%8.8x, ucset=0x%8.8x", (unsigned int)uchook, (unsigned int)ucset);
+		nocc_internal ("usagecheck_endbranch(): uchook=%p, ucset=%p", uchook, ucset);
 		return;
 	}
 
@@ -948,8 +949,8 @@ nocc_message ("usagecheck_marknode(): marking [%s,%s] with 0x%x", node->tag->nam
 		tnode_t *subnode = tnode_nthsubof (*nodep, 0);
 
 		if (thook->node != subnode) {
-			nocc_internal ("usagecheck_marknode(): node/taghook mislinkage, subnode=0x%8.8x [%s], thook->node=0x%8.8x [%s]",
-					(unsigned int)subnode, subnode->tag->name, (unsigned int)thook->node, thook->node->tag->name);
+			nocc_internal ("usagecheck_marknode(): node/taghook mislinkage, subnode=%p [%s], thook->node=%p [%s]",
+					subnode, subnode->tag->name, thook->node, thook->node->tag->name);
 			return -1;
 		}
 		if (thook->do_nested != do_nested) {
@@ -958,8 +959,8 @@ nocc_message ("usagecheck_marknode(): marking [%s,%s] with 0x%x", node->tag->nam
 		}
 
 		if ((thook->mode & mode) != mode) {
-			nocc_warning ("usagecheck_marknode(): node [%s] already marked with 0x%8.8x(%d), merging in 0x%8.8x(%d)",
-					subnode->tag->name, (unsigned int)thook->mode, thook->do_nested, (unsigned int)mode, do_nested);
+			nocc_warning ("usagecheck_marknode(): node [%s] already marked with 0x%16.16lx(%d), merging in 0x%16.16lx(%d)",
+					subnode->tag->name, (uint64_t)thook->mode, thook->do_nested, (uint64_t)mode, do_nested);
 		}
 
 		thook->mode |= mode;

@@ -1,6 +1,6 @@
 /*
  *	langops.c -- langage-level operations for nocc
- *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -149,15 +150,15 @@ int langops_isdefpointer (tnode_t *node)
 	return r;
 }
 /*}}}*/
-/*{{{  int langops_constvalof (tnode_t *node, void *ptr)*/
+/*{{{  int64_t langops_constvalof (tnode_t *node, void *ptr)*/
 /*
  *	extracts the constant value of a given node.  if "ptr" is non-null,
  *	value is assigned there (to the appropriate width).  Anything integer
  *	or less is returned as well.
  */
-int langops_constvalof (tnode_t *node, void *ptr)
+int64_t langops_constvalof (tnode_t *node, void *ptr)
 {
-	int r = 0;
+	int64_t r = 0;
 
 	while (node && node->tag->ndef->lops && node->tag->ndef->lops->passthrough) {
 		/* skip through this node */
@@ -493,7 +494,7 @@ tnode_t *langops_getfieldnamelist (tnode_t *node)
 
 		if (field) {
 #if 0
-fprintf (stderr, "langops_getfieldnamelist(): got field at 0x%8.8x\n", (unsigned int)field);
+fprintf (stderr, "langops_getfieldnamelist(): got field at %p\n", field);
 #endif
 			parser_addtolist (xlist, field);
 		}

@@ -158,8 +158,8 @@ static void guppy_fcndef_hook_dumptree (tnode_t *node, void *hook, int indent, f
 		return;
 	}
 	guppy_isetindent (stream, indent);
-	fhandle_printf (stream, "<fcndefhook lexlevel=\"%d\" ispublic=\"%d\" istoplevel=\"%d\" ispar=\"%d\" pfcndef=\"0x%8.8x\" />\n",
-			fdh->lexlevel, fdh->ispublic, fdh->istoplevel, fdh->ispar, (unsigned int)fdh->pfcndef);
+	fhandle_printf (stream, "<fcndefhook lexlevel=\"%d\" ispublic=\"%d\" istoplevel=\"%d\" ispar=\"%d\" pfcndef=\"%p\" />\n",
+			fdh->lexlevel, fdh->ispublic, fdh->istoplevel, fdh->ispar, fdh->pfcndef);
 	return;
 }
 /*}}}*/

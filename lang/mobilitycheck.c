@@ -1,6 +1,6 @@
 /*
  *	mobilitycheck.c -- mobility checker for NOCC
- *	Copyright (C) 2007-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2007-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -575,7 +576,7 @@ void mobilitycheck_dumpbucket (mchk_bucket_t *mcb, int indent, fhandle_t *stream
 	int i;
 
 	mchk_isetindent (stream, indent);
-	fhandle_printf (stream, "<mobilitycheck:bucket prevbucket=\"0x%8.8x\" nitems=\"%d\">\n", (unsigned int)mcb->prevbucket, DA_CUR (mcb->items));
+	fhandle_printf (stream, "<mobilitycheck:bucket prevbucket=\"%p\" nitems=\"%d\">\n", mcb->prevbucket, DA_CUR (mcb->items));
 	for (i=0; i<DA_CUR (mcb->items); i++) {
 		mobilitycheck_dumpnode (DA_NTHITEM (mcb->items, i), indent + 1, stream);
 	}
@@ -617,8 +618,8 @@ void mobilitycheck_dumpstate (mchk_state_t *mcstate, int indent, fhandle_t *stre
 	int i;
 
 	mchk_isetindent (stream, indent);
-	fhandle_printf (stream, "<mobilitycheck:state prevstate=\"0x%8.8x\" inparams=\"%d\" nichans=\"%d\" nivars=\"%d\" err=\"%d\" warn=\"%d\">\n",
-			(unsigned int)mcstate->prevstate, mcstate->inparams, DA_CUR (mcstate->ichans), DA_CUR (mcstate->ivars), mcstate->err, mcstate->warn);
+	fhandle_printf (stream, "<mobilitycheck:state prevstate=\"%p\" inparams=\"%d\" nichans=\"%d\" nivars=\"%d\" err=\"%d\" warn=\"%d\">\n",
+			mcstate->prevstate, mcstate->inparams, DA_CUR (mcstate->ichans), DA_CUR (mcstate->ivars), mcstate->err, mcstate->warn);
 	for (i=0; i<DA_CUR (mcstate->ichans); i++) {
 		mobilitycheck_dumpnode (DA_NTHITEM (mcstate->ichans, i), indent + 1, stream);
 	}
@@ -644,8 +645,8 @@ void mobilitycheck_dumpnode (mchknode_t *mcn, int indent, fhandle_t *stream)
 		int dotrail = 0;
 		int i;
 
-		fhandle_printf (stream, "<mobilitycheck:node type=\"%d\" typename=\"%s\" orgnode=\"0x%8.8x\"", (int)mcn->type,
-				((mcn->type >= MCN_INVALID) && ((int)mcn->type <= MCN_SEQ)) ? mctnames[(int)mcn->type] : "?", (unsigned int)mcn->orgnode);
+		fhandle_printf (stream, "<mobilitycheck:node type=\"%d\" typename=\"%s\" orgnode=\"%p\"", (int)mcn->type,
+				((mcn->type >= MCN_INVALID) && ((int)mcn->type <= MCN_SEQ)) ? mctnames[(int)mcn->type] : "?", mcn->orgnode);
 		switch (mcn->type) {
 		case MCN_INVALID:
 			break;

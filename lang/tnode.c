@@ -1,6 +1,6 @@
 /*
  *	tnode.c -- parser node functions
- *	Copyright (C) 2004-2014 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -114,7 +115,7 @@ static void *tnode_const_hookcopy (void *hook)
 static void tnode_const_hookdumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	tnode_isetindent (stream, indent);
-	fhandle_printf (stream, "<hook ptr=\"0x%8.8x\" />\n", (unsigned int)hook);
+	fhandle_printf (stream, "<hook ptr=\"%p\" />\n", hook);
 
 	return;
 }
@@ -126,7 +127,7 @@ static void tnode_const_hookdumptree (tnode_t *node, void *hook, int indent, fha
 static void tnode_const_hookdumpstree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	tnode_ssetindent (stream, indent);
-	fhandle_printf (stream, "(hook (ptr 0x%8.8x))\n", (unsigned int)hook);
+	fhandle_printf (stream, "(hook (ptr %p))\n", hook);
 
 	return;
 }
@@ -1398,7 +1399,7 @@ void tnode_free (tnode_t *t)
 			if (hook && tnd->hook_free) {
 				tnd->hook_free (hook);
 			} else if (hook) {
-				nocc_warning ("tnode_free(): freeing hook [%s:%s] 0x%8.8x with sfree().", tnd->name, t->tag->name, (unsigned int)hook);
+				nocc_warning ("tnode_free(): freeing hook [%s:%s] %p with sfree().", tnd->name, t->tag->name, hook);
 				sfree (hook);
 			}
 		}
@@ -1411,7 +1412,7 @@ void tnode_free (tnode_t *t)
 		if (ch && chc && ch->chook_free) {
 			ch->chook_free (chc);
 		} else if (ch && chc) {
-			nocc_warning ("tnode_free(): freeing compiler-hook (%s) [%s:%s] 0x%8.8x with sfree().", ch->name, tnd->name, t->tag->name, (unsigned int)chc);
+			nocc_warning ("tnode_free(): freeing compiler-hook (%s) [%s:%s] %p with sfree().", ch->name, tnd->name, t->tag->name, chc);
 			sfree (chc);
 		}
 	}
@@ -1604,8 +1605,8 @@ void tnode_dumptree (tnode_t *t, int indent, fhandle_t *stream)
 	}
 	tnd = t->tag->ndef;
 
-	fhandle_ppxml (stream, "<%s type=\"%s\" origin=\"%s:%d\" addr=\"0x%8.8x\">%s\n", tnd->name, t->tag->name,
-			t->org ? t->org->org_file->fnptr : "(none)", t->org ? t->org->org_line : 0, (unsigned int)t,
+	fhandle_ppxml (stream, "<%s type=\"%s\" origin=\"%s:%d\" addr=\"%p\">%s\n", tnd->name, t->tag->name,
+			t->org ? t->org->org_file->fnptr : "(none)", t->org ? t->org->org_line : 0, t,
 			compopts.dumpfolded ? "<!--{{{-->" : "");
 	for (i=0; i<DA_CUR (t->items); i++) {
 		if (i < tnd->nsub) {
@@ -1620,7 +1621,7 @@ void tnode_dumptree (tnode_t *t, int indent, fhandle_t *stream)
 				tnd->hook_dumptree (t, DA_NTHITEM (t->items, i), indent + 1, stream);
 			} else {
 				tnode_isetindent (stream, indent + 1);
-				fhandle_ppxml (stream, "<hook addr=\"0x%8.8x\" />\n", (unsigned int)(DA_NTHITEM (t->items, i)));
+				fhandle_ppxml (stream, "<hook addr=\"%p\" />\n", DA_NTHITEM (t->items, i));
 			}
 		}
 	}
@@ -1633,7 +1634,7 @@ void tnode_dumptree (tnode_t *t, int indent, fhandle_t *stream)
 			ch->chook_dumptree (t, chc, indent + 1, stream);
 		} else if (ch && chc) {
 			tnode_isetindent (stream, indent + 1);
-			fhandle_ppxml (stream, "<chook id=\"%s\" addr=\"0x%8.8x\" />\n", ch->name, (unsigned int)chc);
+			fhandle_ppxml (stream, "<chook id=\"%s\" addr=\"%p\" />\n", ch->name, chc);
 		}
 	}
 	tnode_isetindent (stream, indent);
@@ -1673,7 +1674,7 @@ void tnode_dumpstree (tnode_t *t, int indent, fhandle_t *stream)
 				tnd->hook_dumpstree (t, DA_NTHITEM (t->items, i), indent + 1, stream);
 			} else {
 				tnode_ssetindent (stream, indent + 1);
-				fhandle_printf (stream, "(hook (addr 0x%8.8x))\n", (unsigned int)(DA_NTHITEM (t->items, i)));
+				fhandle_printf (stream, "(hook (addr %p))\n", DA_NTHITEM (t->items, i));
 			}
 		}
 	}
@@ -1686,7 +1687,7 @@ void tnode_dumpstree (tnode_t *t, int indent, fhandle_t *stream)
 			ch->chook_dumpstree (t, chc, indent + 1, stream);
 		} else if (ch && chc) {
 			tnode_ssetindent (stream, indent + 1);
-			fhandle_printf (stream, "(chook (id \"%s\") (addr 0x%8.8x))\n", ch->name, (unsigned int)chc);
+			fhandle_printf (stream, "(chook (id \"%s\") (addr %p))\n", ch->name, chc);
 		}
 	}
 
@@ -1951,7 +1952,7 @@ static int tnode_icallcompop (compops_t *cops, compop_t *op, va_list ap)
 	int r;
 
 	if (op->dotrace) {
-		nocc_message ("compoptrace: 0x%8.8x [%s]", (unsigned int)op, op->name);
+		nocc_message ("compoptrace: %p [%s]", op, op->name);
 	}
 	fcn = (int (*)(compops_t *, ...))DA_NTHITEM (cops->opfuncs, (int)op->opno);
 	while (fcn == COMPOPTYPE (tnode_callthroughcompops)) {
@@ -1961,7 +1962,7 @@ static int tnode_icallcompop (compops_t *cops, compop_t *op, va_list ap)
 		}
 		cops = cops->next;
 		if (((int)op->opno >= DA_CUR (cops->opfuncs)) || !DA_NTHITEM (cops->opfuncs, (int)op->opno)) {
-			nocc_warning ("tnode_icallcompop(): no such operation [%s] in compops at 0x%8.8x", op->name, (unsigned int)cops);
+			nocc_warning ("tnode_icallcompop(): no such operation [%s] in compops at %p", op->name, cops);
 			return -1;
 		}
 		fcn = (int (*)(compops_t *, ...))DA_NTHITEM (cops->opfuncs, (int)op->opno);
@@ -2069,7 +2070,7 @@ int tnode_callcompop (compops_t *cops, char *name, int nparams, ...)
 		return -1;
 	}
 	if (((int)cop->opno >= DA_CUR (cops->opfuncs)) || !DA_NTHITEM (cops->opfuncs, (int)cop->opno)) {
-		nocc_warning ("tnode_callcompop(): no such operation [%s] in compops at 0x%8.8x", cop->name, (unsigned int)cops);
+		nocc_warning ("tnode_callcompop(): no such operation [%s] in compops at %p", cop->name, cops);
 		return -1;
 	}
 
@@ -2132,7 +2133,7 @@ int tnode_callcompop_i (compops_t *cops, int idx, int nparams, ...)
 		return -1;
 	}
 	if (((int)cop->opno >= DA_CUR (cops->opfuncs)) || !DA_NTHITEM (cops->opfuncs, (int)cop->opno)) {
-		nocc_warning ("tnode_callcompop(): no such operation [%s, index %d] in compops at 0x%8.8x", cop->name, idx, (unsigned int)cops);
+		nocc_warning ("tnode_callcompop(): no such operation [%s, index %d] in compops at %p", cop->name, idx, cops);
 		return -1;
 	}
 
@@ -2207,7 +2208,7 @@ void tnode_dumpcompops (compops_t *cops, fhandle_t *stream)
 
 	fhandle_printf (stream, "%-25s      ", "compops at:");
 	for (cx = cops; cx; cx = cx->next) {
-		fhandle_printf (stream, "0x%8.8x  ", (unsigned int)cx);
+		fhandle_printf (stream, "%p  ", cx);
 	}
 	fhandle_printf (stream, "\n");
 	fhandle_printf (stream, "%-25s      ", "");
@@ -2231,7 +2232,7 @@ void tnode_dumpcompops (compops_t *cops, fhandle_t *stream)
 					if (fcn == (void *)tnode_callthroughcompops) {
 						fhandle_printf (stream, "---->       ");
 					} else {
-						fhandle_printf (stream, "0x%8.8x  ", (unsigned int)fcn);
+						fhandle_printf (stream, "%p  ", fcn);
 					}
 				}
 			}
@@ -2400,7 +2401,7 @@ static int64_t tnode_icalllangop (langops_t *lops, langop_t *op, va_list ap)
 		}
 		lops = lops->next;
 		if (((int)op->opno >= DA_CUR (lops->opfuncs)) || !DA_NTHITEM (lops->opfuncs, (int)op->opno)) {
-			nocc_warning ("tnode_icalllangop(): no such operation [%s] in langops at 0x%8.8x", op->name, (unsigned int)lops);
+			nocc_warning ("tnode_icalllangop(): no such operation [%s] in langops at %p", op->name, lops);
 			return -1;
 		}
 		fcn = (int64_t (*)(langops_t *, ...))DA_NTHITEM (lops->opfuncs, (int)op->opno);
@@ -2508,7 +2509,7 @@ int64_t tnode_calllangop (langops_t *lops, char *name, int nparams, ...)
 		return -1;
 	}
 	if (((int)lop->opno >= DA_CUR (lops->opfuncs)) || !DA_NTHITEM (lops->opfuncs, (int)lop->opno)) {
-		nocc_warning ("tnode_calllangop(): no such operation [%s] in langops at 0x%8.8x", lop->name, (unsigned int)lops);
+		nocc_warning ("tnode_calllangop(): no such operation [%s] in langops at %p", lop->name, lops);
 		return -1;
 	}
 
@@ -2574,7 +2575,7 @@ int64_t tnode_calllangop_i (langops_t *lops, int idx, int nparams, ...)
 		return -1;
 	}
 	if (((int)lop->opno >= DA_CUR (lops->opfuncs)) || !DA_NTHITEM (lops->opfuncs, (int)lop->opno)) {
-		nocc_warning ("tnode_calllangop(): no such operation [%s, index %d] in langops at 0x%8.8x", lop->name, idx, (unsigned int)lops);
+		nocc_warning ("tnode_calllangop(): no such operation [%s, index %d] in langops at %p", lop->name, idx, lops);
 		return -1;
 	}
 
@@ -2782,8 +2783,8 @@ void tnode_dumpchooks (fhandle_t *stream)
 	for (i=0; i<DA_CUR (acomphooks); i++) {
 		chook_t *ch = DA_NTHITEM (acomphooks, i);
 
-		fhandle_printf (stream, "%-2d copy=0x%8.8x free=0x%8.8x dumptree=0x%8.8x %s\n", ch->id, (unsigned int)ch->chook_copy,
-				(unsigned int)ch->chook_free, (unsigned int)ch->chook_dumptree, ch->name);
+		fhandle_printf (stream, "%-2d copy=%p free=%p dumptree=%p %s\n", ch->id, ch->chook_copy,
+				ch->chook_free, ch->chook_dumptree, ch->name);
 	}
 	return;
 }

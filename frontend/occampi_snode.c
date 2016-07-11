@@ -83,7 +83,7 @@ static void occampi_guardexphook_dumptree (tnode_t *node, void *chook, int inden
 {
 	if (chook) {
 		occampi_isetindent (stream, indent);
-		fhandle_printf (stream, "<occampi:guardexphook addr=\"0x%16.16lx\">\n", (uint64_t)chook);
+		fhandle_printf (stream, "<occampi:guardexphook addr=\"%p\">\n", chook);
 		tnode_dumptree ((tnode_t *)chook, indent + 1, stream);
 		occampi_isetindent (stream, indent);
 		fhandle_printf (stream, "</occampi:guardexphook>\n");

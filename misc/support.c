@@ -304,7 +304,7 @@ void *dmem_new (int p)
 	DMAddrSlot (p) = (uint64_t)nextblk;
 
 	if (nextblk && ((uint64_t *)thisblk)[1] != 0xdeadbeef) {
-		nocc_fatal ("dmem_new(): bad block magic 0x%16.16lx for block at 0x%16.16lx in pool %d", ((uint64_t *)thisblk)[1], (uint64_t)thisblk, p);
+		nocc_fatal ("dmem_new(): bad block magic %p for block at %p in pool %d", ((uint64_t **)thisblk)[1], thisblk, p);
 		exit (EXIT_FAILURE);
 	}
 
@@ -1595,7 +1595,7 @@ void sh_remove (int *bsizes, void ***table, char ***keys, int bitsize, void *ite
 			}
 		}
 	}
-	nocc_warning ("sh_remove(): item [0x%16.16lx:%s] not in stringhash", (uint64_t)item, key);
+	nocc_warning ("sh_remove(): item [%p:%s] not in stringhash", item, key);
 	return;
 }
 /*}}}*/
@@ -1640,7 +1640,7 @@ void sh_dump (FILE *stream, int *bsizes, void ***table, char ***keys, int size)
 			int j;
 
 			for (j=0; j<bsizes[i]; j++) {
-				fprintf (stream, "%s%s (0x%16.16lx)", (!j ? "" : ", "), keys[i][j], (uint64_t)(table[i][j]));
+				fprintf (stream, "%s%s (%p)", (!j ? "" : ", "), keys[i][j], table[i][j]);
 			}
 		}
 		fprintf (stream, "\n");
@@ -1888,7 +1888,7 @@ void ph_remove (int *bsizes, void ***table, void ***keys, int bitsize, void *ite
 			}
 		}
 	}
-	nocc_warning ("ph_remove(): item [0x%16.16lx:0x%16.16lx] not in pointerhash", (uint64_t)item, (uint64_t)key);
+	nocc_warning ("ph_remove(): item [%p:%p] not in pointerhash", item, key);
 	return;
 }
 /*}}}*/
@@ -1933,7 +1933,7 @@ void ph_dump (FILE *stream, int *bsizes, void ***table, void ***keys, int size)
 			int j;
 
 			for (j=0; j<bsizes[i]; j++) {
-				fprintf (stream, "%s0x%16.16lx (0x%16.16lx)", (!j ? "" : ", "), (uint64_t)(keys[i][j]), (uint64_t)(table[i][j]));
+				fprintf (stream, "%s%p (%p)", (!j ? "" : ", "), keys[i][j], table[i][j]);
 			}
 		}
 		fprintf (stream, "\n");

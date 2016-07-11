@@ -1,6 +1,6 @@
 /*
  *	prescope.c -- nocc pre-scope'r
- *	Copyright (C) 2005-2013 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/types.h>

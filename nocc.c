@@ -1,6 +1,6 @@
 /*
  *	nocc.c -- new occam-pi compiler (harness)
- *	Copyright (C) 2004-2015 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <stdarg.h>
 #include <sys/types.h>
 #include <sys/wait.h>
