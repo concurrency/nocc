@@ -154,7 +154,7 @@ static void map_namemap_chook_dumptree (tnode_t *node, void *chook, int indent, 
 {
 	if (chook) {
 		map_isetindent (stream, indent);
-		fhandle_printf (stream, "<chook:map:mapnames addr=\"0x%16.16lx\" />\n", (uint64_t)chook);
+		fhandle_printf (stream, "<chook:map:mapnames addr=\"%p\" />\n", chook);
 	}
 	return;
 }

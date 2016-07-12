@@ -156,7 +156,7 @@ static void betrans_nodehook_dumptree (tnode_t *node, void *hook, int indent, fh
 	tnode_t *hnode = (tnode_t *)hook;
 
 	betrans_isetindent (indent, stream);
-	fhandle_printf (stream, "<betrans:node addr=\"0x%16.16lx\">\n", (uint64_t)hnode);
+	fhandle_printf (stream, "<betrans:node addr=\"%p\">\n", hnode);
 
 	tnode_dumptree (hnode, indent+1, stream);
 
@@ -195,7 +195,7 @@ static void betrans_ptrref_hook_free (void *hook)
 static void betrans_ptrref_hook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	betrans_isetindent (indent, stream);
-	fhandle_printf (stream, "<betrans:ptrref refaddr=\"0x%16.16lx\" />\n", (uint64_t)hook);
+	fhandle_printf (stream, "<betrans:ptrref refaddr=\"%p\" />\n", hook);
 	return;
 }
 /*}}}*/
@@ -372,8 +372,8 @@ static int betrans_modprewalk_tree (tnode_t **tptr, void *arg)
 #if 0
 fprintf (stderr, "betrans_modprewalk_tree(): on [%s]\n", *tptr ? (*tptr)->tag->name : "?");
 if (*tptr) {
-	fprintf (stderr, "                         : nodetype = [%s], ops = [0x%16.16lx], betrans = [0x%16.16lx]\n", (*tptr)->tag->ndef->name, (uint64_t)((*tptr)->tag->ndef->ops),
-			((*tptr)->tag->ndef->ops) ? (uint64_t)((*tptr)->tag->ndef->ops->betrans) : 0);
+	fprintf (stderr, "                         : nodetype = [%s], ops = [%p], betrans = [%p]\n", (*tptr)->tag->ndef->name, (*tptr)->tag->ndef->ops,
+			((*tptr)->tag->ndef->ops) ? (*tptr)->tag->ndef->ops->betrans : NULL);
 }
 #endif
 	if (*tptr && (*tptr)->tag->ndef->ops && tnode_hascompop_i ((*tptr)->tag->ndef->ops, (int)COPS_BETRANS)) {

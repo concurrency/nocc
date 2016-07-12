@@ -364,7 +364,7 @@ int treecheck_destroycheck (treecheckdef_t *tcdef)
 		return -1;
 	}
 	if (tnd->tchkdef != tcdef) {
-		nocc_error ("treecheck_destroycheck(): linkage confusion, check at 0x%16.16lx, but 0x%16.16lx linked to [%s]", (uint64_t)tcdef, (uint64_t)tnd->tchkdef, tnd->name);
+		nocc_error ("treecheck_destroycheck(): linkage confusion, check at %p, but %p linked to [%s]", tcdef, tnd->tchkdef, tnd->name);
 		return -1;
 	}
 

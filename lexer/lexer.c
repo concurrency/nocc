@@ -798,7 +798,7 @@ void lexer_dumptoken (fhandle_t *stream, token_t *tok)
 		}
 	}
 	if (tok->iptr) {
-		dh += sprintf (dh, "iptr=\"0x%16.16lx\" ", (uint64_t)tok->iptr);
+		dh += sprintf (dh, "iptr=\"%p\" ", tok->iptr);
 	}
 
 	dh += sprintf (dh, "type=\"");

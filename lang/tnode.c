@@ -565,7 +565,7 @@ srclocn_t *tnode_newsrclocn (lexfile_t *lf, int line)
 		pointerhash_init (map->lines, SRCLEXMAP_LINE_HASHBITS);
 		pointerhash_insert (srclexmap, map, lf);
 	}
-	locn = pointerhash_lookup (map->lines, line);
+	locn = pointerhash_lookup (map->lines, (uint64_t)line);
 	if (!locn) {
 		/* first instance of this location */
 		locn = (srclocn_t *)smalloc (sizeof (srclocn_t));
@@ -573,7 +573,7 @@ srclocn_t *tnode_newsrclocn (lexfile_t *lf, int line)
 		locn->org_file = lf;
 		locn->org_line = line;
 
-		pointerhash_insert (map->lines, locn, line);
+		pointerhash_insert (map->lines, locn, (uint64_t)line);
 	}
 	return locn;
 }

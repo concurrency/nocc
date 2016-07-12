@@ -101,7 +101,7 @@ static void codegen_precode_chook_dumptree (tnode_t *node, void *hook, int inden
 	tnode_t *evars = (tnode_t *)hook;
 
 	codegen_isetindent (stream, indent);
-	fhandle_printf (stream, "<chook id=\"precode:vars\" addr=\"0x%16.16lx\">\n", (uint64_t)hook);
+	fhandle_printf (stream, "<chook id=\"precode:vars\" addr=\"%p\">\n", hook);
 	tnode_dumptree (evars, indent + 1, stream);
 	codegen_isetindent (stream, indent);
 	fhandle_printf (stream, "</chook>\n");
@@ -118,7 +118,7 @@ static void codegen_inithook_dumptree (tnode_t *node, void *hook, int indent, fh
 	codegeninithook_t *cgih = (codegeninithook_t *)hook;
 
 	codegen_isetindent (stream, indent);
-	fhandle_printf (stream, "<chook:codegen:initialiser init=\"0x%16.16lx\" arg=\"0x%16.16lx\" addr=\"0x%16.16lx\"", (uint64_t)cgih->init, (uint64_t)cgih->arg, (uint64_t)cgih);
+	fhandle_printf (stream, "<chook:codegen:initialiser init=\"%p\" arg=\"%p\" addr=\"%p\"", cgih->init, cgih->arg, cgih);
 	if (cgih->next) {
 		fhandle_printf (stream, ">\n");
 		codegen_inithook_dumptree (node, (void *)cgih->next, indent+1, stream);
@@ -188,7 +188,7 @@ static void codegen_finalhook_dumptree (tnode_t *node, void *hook, int indent, f
 	codegenfinalhook_t *cgih = (codegenfinalhook_t *)hook;
 
 	codegen_isetindent (stream, indent);
-	fhandle_printf (stream, "<chook:codegen:finaliser final=\"0x%16.16lx\" arg=\"0x%16.16lx\" addr=\"0x%16.16lx\"", (uint64_t)cgih->final, (uint64_t)cgih->arg, (unsigned int)cgih);
+	fhandle_printf (stream, "<chook:codegen:finaliser final=\"%p\" arg=\"%p\" addr=\"%p\"", cgih->final, cgih->arg, cgih);
 	if (cgih->next) {
 		fhandle_printf (stream, ">\n");
 		codegen_finalhook_dumptree (node, (void *)cgih->next, indent+1, stream);

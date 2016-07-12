@@ -1298,7 +1298,7 @@ static int tchk_walkpushstack (tchk_tracewalk_t *ttw, tchknode_t *tcn, int data)
 	}
 
 	dynarray_add (ttw->stack, tcn);
-	dynarray_add (ttw->data, data);
+	dynarray_add (ttw->data, (int64_t)data);
 	ttw->depth++;
 	ttw->thisnode = tcn;
 
@@ -1318,7 +1318,7 @@ static int tchk_walknextstep (tchk_tracewalk_t *ttw)
 		tchk_walkpopstack (ttw);
 		if (!ttw->end) {
 			tchknode_t *nextnode = DA_NTHITEM (ttw->stack, ttw->depth - 1);
-			int *nextdatap = DA_NTHITEMADDR (ttw->data, ttw->depth - 1);
+			int64_t *nextdatap = DA_NTHITEMADDR (ttw->data, ttw->depth - 1);
 
 			switch (nextnode->type) {
 			case TCN_SEQ:
@@ -2625,7 +2625,7 @@ tchknode_t *tracescheck_stepwalk (tchk_tracewalk_t *ttw)
 {
 	tchknode_t *result = NULL;
 	tchknode_t *thisnode;
-	int *thisdatap;
+	int64_t *thisdatap;
 	int atnext = 0;
 
 	if (ttw->end) {

@@ -234,7 +234,7 @@ static void guppy_reduce_primtype (dfastate_t *dfast, parsepriv_t *pp, void *rar
 	if ((tag == gup.tag_INT) || (tag == gup.tag_REAL)) {
 		primtypehook_t *pth = guppy_newprimtypehook ();
 
-		pth->size = (int)tok->iptr;
+		pth->size = (int)((int64_t)tok->iptr);
 		tnode_setnthhook (*(dfast->ptr), 0, pth);
 	}
 out_error:
@@ -728,7 +728,7 @@ static tnode_t *guppy_gettype_primtype (langops_t *lops, tnode_t *node, tnode_t 
 	primtypehook_t *pth = (primtypehook_t *)tnode_nthhookof (node, 0);
 
 #if 1
-fprintf (stderr, "guppy_gettype_primtype(): default_type is 0x%8.8x\n", (int)default_type);
+fprintf (stderr, "guppy_gettype_primtype(): default_type is %p\n", default_type);
 #endif
 	return node;
 }

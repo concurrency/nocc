@@ -204,7 +204,7 @@ static void lib_freelibfile (libfile_t *lf);
  */
 static int lib_opthandler (cmd_option_t *opt, char ***argwalk, int *argleft)
 {
-	int optv = (int)opt->arg;
+	int optv = (int)((int64_t)opt->arg);
 	char *ch;
 
 	switch (optv) {

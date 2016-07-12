@@ -324,7 +324,7 @@ void krocllvm_isetindent (fhandle_t *stream, int indent)
  */
 static int krocllvm_opthandler_flag (cmd_option_t *opt, char ***argwalk, int *argleft)
 {
-	int optv = (int)opt->arg;
+	int optv = (int)((int64_t)opt->arg);
 	int flagval = 1;
 	krocllvm_priv_t *kpriv = (krocllvm_priv_t *)krocllvm_target.priv;
 
@@ -471,8 +471,8 @@ static void krocllvm_namehook_dumptree (tnode_t *node, void *hook, int indent, f
 	krocllvm_namehook_t *nh = (krocllvm_namehook_t *)hook;
 
 	krocllvm_isetindent (stream, indent);
-	fhandle_printf (stream, "<namehook addr=\"0x%8.8x\" lexlevel=\"%d\" allocwsh=\"%d\" allocwsl=\"%d\" typesize=\"%d\" indir=\"%d\" wsoffset=\"%d\" typecat=\"0x%8.8x\" />\n",
-			(unsigned int)nh, nh->lexlevel, nh->alloc_wsh, nh->alloc_wsl, nh->typesize, nh->indir, nh->ws_offset, (unsigned int)nh->typecat);
+	fhandle_printf (stream, "<namehook addr=\"%p\" lexlevel=\"%d\" allocwsh=\"%d\" allocwsl=\"%d\" typesize=\"%d\" indir=\"%d\" wsoffset=\"%d\" typecat=\"0x%16.16lx\" />\n",
+			nh, nh->lexlevel, nh->alloc_wsh, nh->alloc_wsl, nh->typesize, nh->indir, nh->ws_offset, (uint64_t)nh->typecat);
 	return;
 }
 /*}}}*/
@@ -506,8 +506,8 @@ static void krocllvm_blockhook_dumptree (tnode_t *node, void *hook, int indent, 
 	krocllvm_blockhook_t *bh = (krocllvm_blockhook_t *)hook;
 
 	krocllvm_isetindent (stream, indent);
-	fhandle_printf (stream, "<blockhook addr=\"0x%8.8x\" lexlevel=\"%d\" allocws=\"%d\" adjust=\"%d\" wsoffset=\"%d\" entrylab=\"%d\" addstaticlink=\"%d\" addfbp=\"%d\" />\n",
-			(unsigned int)bh, bh->lexlevel, bh->alloc_ws, bh->static_adjust, bh->ws_offset, bh->entrylab, bh->addstaticlink, bh->addfbp);
+	fhandle_printf (stream, "<blockhook addr=\"%p\" lexlevel=\"%d\" allocws=\"%d\" adjust=\"%d\" wsoffset=\"%d\" entrylab=\"%d\" addstaticlink=\"%d\" addfbp=\"%d\" />\n",
+			bh, bh->lexlevel, bh->alloc_ws, bh->static_adjust, bh->ws_offset, bh->entrylab, bh->addstaticlink, bh->addfbp);
 	return;
 }
 /*}}}*/
@@ -546,17 +546,17 @@ static void krocllvm_blockrefhook_dumptree (tnode_t *node, void *hook, int inden
 		tnode_t **blks = parser_getlistitems (blk, &nitems);
 
 		krocllvm_isetindent (stream, indent);
-		fhandle_printf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" nblocks=\"%d\" blocks=\"", (unsigned int)brh, (unsigned int)blk, nitems);
+		fhandle_printf (stream, "<blockrefhook addr=\"%p\" block=\"%p\" nblocks=\"%d\" blocks=\"", brh, blk, nitems);
 		for (i=0; i<nitems; i++ ) {
 			if (i) {
 				fhandle_printf (stream, ",");
 			}
-			fhandle_printf (stream, "0x%8.8x", (unsigned int)blks[i]);
+			fhandle_printf (stream, "%p", blks[i]);
 		}
 		fhandle_printf (stream, "\" />\n");
 	} else {
 		krocllvm_isetindent (stream, indent);
-		fhandle_printf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" />\n", (unsigned int)brh, (unsigned int)blk);
+		fhandle_printf (stream, "<blockrefhook addr=\"%p\" block=\"%p\" />\n", brh, blk);
 	}
 
 	return;
@@ -586,9 +586,9 @@ static void krocllvm_consthook_dumptree (tnode_t *node, void *hook, int indent, 
 	krocllvm_consthook_t *ch = (krocllvm_consthook_t *)hook;
 
 	krocllvm_isetindent (stream, indent);
-	fhandle_printf (stream, "<consthook addr=\"0x%8.8x\" data=\"0x%8.8x\" size=\"%d\" label=\"%d\" labrefs=\"%d\" orgnode=\"0x%8.8x\" orgnodetag=\"%s\" typecat=\"0x%8.8x\" />\n",
-			(unsigned int)ch, (unsigned int)ch->byteptr, ch->size, ch->label, ch->labrefs,
-			(unsigned int)ch->orgnode, ch->orgnode ? ch->orgnode->tag->name : "", (unsigned int)ch->typecat);
+	fhandle_printf (stream, "<consthook addr=\"%p\" data=\"%p\" size=\"%d\" label=\"%d\" labrefs=\"%d\" orgnode=\"%p\" orgnodetag=\"%s\" typecat=\"0x%16.16lx\" />\n",
+			ch, ch->byteptr, ch->size, ch->label, ch->labrefs,
+			ch->orgnode, ch->orgnode ? ch->orgnode->tag->name : "", (uint64_t)ch->typecat);
 	return;
 }
 /*}}}*/
@@ -647,7 +647,7 @@ static krocllvm_indexedhook_t *krocllvm_indexedhook_create (int isize, int offse
 static void krocllvm_specialhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	krocllvm_isetindent (stream, indent);
-	fhandle_printf (stream, "<specialhook addr=\"0x%8.8x\" />\n", (unsigned int)hook);
+	fhandle_printf (stream, "<specialhook addr=\"%p\" />\n", hook);
 }
 /*}}}*/
 /*}}}*/
@@ -709,7 +709,7 @@ static void krocllvm_resultsubhook_dumptree (tnode_t *node, void *hook, int inde
 		tnode_t *ref = *(DA_NTHITEM (rh->sublist, i));
 
 		krocllvm_isetindent (stream, indent+1);
-		fhandle_printf (stream, "<noderef nodetype=\"%s\" type=\"%s\" addr=\"0x%8.8x\" />\n", ref->tag->ndef->name, ref->tag->name, (unsigned int)ref);
+		fhandle_printf (stream, "<noderef nodetype=\"%s\" type=\"%s\" addr=\"%p\" />\n", ref->tag->ndef->name, ref->tag->name, ref);
 	}
 	krocllvm_isetindent (stream, indent);
 	fhandle_printf (stream, "</chook:resultsubhook>\n");

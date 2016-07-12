@@ -326,8 +326,8 @@ static void krocetc_namehook_dumptree (tnode_t *node, void *hook, int indent, fh
 	krocetc_namehook_t *nh = (krocetc_namehook_t *)hook;
 
 	krocetc_isetindent (stream, indent);
-	fhandle_printf (stream, "<namehook addr=\"0x%16.16lx\" lexlevel=\"%d\" allocwsh=\"%d\" allocwsl=\"%d\" allocvs=\"%d\" allocms=\"%d\" typesize=\"%d\" indir=\"%d\" wsoffset=\"%d\" vsoffset=\"%d\" msoffset=\"%d\" msshadow=\"%d\" typecat=\"0x%16.16lx\" />\n",
-			(uint64_t)nh, nh->lexlevel, nh->alloc_wsh, nh->alloc_wsl, nh->alloc_vs, nh->alloc_ms, nh->typesize, nh->indir, nh->ws_offset, nh->vs_offset, nh->ms_offset, nh->ms_shadow, (uint64_t)nh->typecat);
+	fhandle_printf (stream, "<namehook addr=\"%p\" lexlevel=\"%d\" allocwsh=\"%d\" allocwsl=\"%d\" allocvs=\"%d\" allocms=\"%d\" typesize=\"%d\" indir=\"%d\" wsoffset=\"%d\" vsoffset=\"%d\" msoffset=\"%d\" msshadow=\"%d\" typecat=\"0x%16.16lx\" />\n",
+			nh, nh->lexlevel, nh->alloc_wsh, nh->alloc_wsl, nh->alloc_vs, nh->alloc_ms, nh->typesize, nh->indir, nh->ws_offset, nh->vs_offset, nh->ms_offset, nh->ms_shadow, (uint64_t)nh->typecat);
 	return;
 }
 /*}}}*/
@@ -366,8 +366,8 @@ static void krocetc_blockhook_dumptree (tnode_t *node, void *hook, int indent, f
 	krocetc_blockhook_t *bh = (krocetc_blockhook_t *)hook;
 
 	krocetc_isetindent (stream, indent);
-	fhandle_printf (stream, "<blockhook addr=\"0x%16.16lx\" lexlevel=\"%d\" allocws=\"%d\" allocvs=\"%d\" allocms=\"%d\" adjust=\"%d\" wsoffset=\"%d\" entrylab=\"%d\" addstaticlink=\"%d\" addvsp=\"%d\" addmsp=\"%d\" addfbp=\"%d\" addmpp=\"%d\" />\n",
-			(uint64_t)bh, bh->lexlevel, bh->alloc_ws, bh->alloc_vs, bh->alloc_ms, bh->static_adjust, bh->ws_offset, bh->entrylab, bh->addstaticlink, bh->addvsp, bh->addmsp, bh->addfbp, bh->addmpp);
+	fhandle_printf (stream, "<blockhook addr=\"%p\" lexlevel=\"%d\" allocws=\"%d\" allocvs=\"%d\" allocms=\"%d\" adjust=\"%d\" wsoffset=\"%d\" entrylab=\"%d\" addstaticlink=\"%d\" addvsp=\"%d\" addmsp=\"%d\" addfbp=\"%d\" addmpp=\"%d\" />\n",
+			bh, bh->lexlevel, bh->alloc_ws, bh->alloc_vs, bh->alloc_ms, bh->static_adjust, bh->ws_offset, bh->entrylab, bh->addstaticlink, bh->addvsp, bh->addmsp, bh->addfbp, bh->addmpp);
 	return;
 }
 /*}}}*/
@@ -411,17 +411,17 @@ static void krocetc_blockrefhook_dumptree (tnode_t *node, void *hook, int indent
 		tnode_t **blks = parser_getlistitems (blk, &nitems);
 
 		krocetc_isetindent (stream, indent);
-		fhandle_printf (stream, "<blockrefhook addr=\"0x%16.16lx\" block=\"0x%16.16lx\" nblocks=\"%d\" blocks=\"", (uint64_t)brh, (uint64_t)blk, nitems);
+		fhandle_printf (stream, "<blockrefhook addr=\"%p\" block=\"%p\" nblocks=\"%d\" blocks=\"", brh, blk, nitems);
 		for (i=0; i<nitems; i++ ) {
 			if (i) {
 				fhandle_printf (stream, ",");
 			}
-			fhandle_printf (stream, "0x%16.16lx", (uint64_t)blks[i]);
+			fhandle_printf (stream, "%p", blks[i]);
 		}
 		fhandle_printf (stream, "\" />\n");
 	} else {
 		krocetc_isetindent (stream, indent);
-		fhandle_printf (stream, "<blockrefhook addr=\"0x%16.16lx\" block=\"0x%16.16lx\" />\n", (uint64_t)brh, (uint64_t)blk);
+		fhandle_printf (stream, "<blockrefhook addr=\"%p\" block=\"%p\" />\n", brh, blk);
 	}
 
 	return;
@@ -451,9 +451,9 @@ static void krocetc_consthook_dumptree (tnode_t *node, void *hook, int indent, f
 	krocetc_consthook_t *ch = (krocetc_consthook_t *)hook;
 
 	krocetc_isetindent (stream, indent);
-	fhandle_printf (stream, "<consthook addr=\"0x%16.16lx\" data=\"0x%16.16lx\" size=\"%d\" label=\"%d\" labrefs=\"%d\" orgnode=\"0x%16.16lx\" orgnodetag=\"%s\" typecat=\"0x%16.16lx\" />\n",
-			(uint64_t)ch, (uint64_t)ch->byteptr, ch->size, ch->label, ch->labrefs,
-			(uint64_t)ch->orgnode, ch->orgnode ? ch->orgnode->tag->name : "", (uint64_t)ch->typecat);
+	fhandle_printf (stream, "<consthook addr=\"%p\" data=\"%p\" size=\"%d\" label=\"%d\" labrefs=\"%d\" orgnode=\"%p\" orgnodetag=\"%s\" typecat=\"0x%16.16lx\" />\n",
+			ch, ch->byteptr, ch->size, ch->label, ch->labrefs,
+			ch->orgnode, ch->orgnode ? ch->orgnode->tag->name : "", (uint64_t)ch->typecat);
 	return;
 }
 /*}}}*/
@@ -512,7 +512,7 @@ static krocetc_indexedhook_t *krocetc_indexedhook_create (int isize, int offset)
 static void krocetc_specialhook_dumptree (tnode_t *node, void *hook, int indent, fhandle_t *stream)
 {
 	krocetc_isetindent (stream, indent);
-	fhandle_printf (stream, "<specialhook addr=\"0x%16.16lx\" />\n", (uint64_t)hook);
+	fhandle_printf (stream, "<specialhook addr=\"%p\" />\n", hook);
 }
 /*}}}*/
 /*}}}*/
@@ -535,7 +535,7 @@ static void krocetc_resultsubhook_dumptree (tnode_t *node, void *hook, int inden
 		tnode_t *ref = *(DA_NTHITEM (rh->sublist, i));
 
 		krocetc_isetindent (stream, indent+1);
-		fhandle_printf (stream, "<noderef nodetype=\"%s\" type=\"%s\" addr=\"0x%16.16lx\" />\n", ref->tag->ndef->name, ref->tag->name, (uint64_t)ref);
+		fhandle_printf (stream, "<noderef nodetype=\"%s\" type=\"%s\" addr=\"%p\" />\n", ref->tag->ndef->name, ref->tag->name, ref);
 	}
 	krocetc_isetindent (stream, indent);
 	fhandle_printf (stream, "</chook:resultsubhook>\n");

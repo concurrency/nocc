@@ -174,7 +174,7 @@ fhandle_printf (FHAN_STDERR, "guppy_scopein_cnode(): set fvlist=\n");
 tnode_dumptree (fvlist, 1, FHAN_STDERR);
 #endif
 			dynarray_add (gss->crosses, fvlist);
-			dynarray_add (gss->cross_lexlevels, ss->lexlevel);
+			dynarray_add (gss->cross_lexlevels, (int64_t)ss->lexlevel);
 			scope_subtree (pitems + i, ss);
 
 			/* anything that refers to high-level stuff will be recorded in fvlist */

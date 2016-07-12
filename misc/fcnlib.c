@@ -149,7 +149,7 @@ int fcnlib_shutdown (void)
 			fcnlib_t *fcnl = DA_NTHITEM (afunctions, i);
 
 			if (fcnl) {
-				nocc_message ("0x%16.16lx %d %d %s", (uint64_t)fcnl->fcnaddr, fcnl->ret, fcnl->nargs, fcnl->name);
+				nocc_message ("%p %d %d %s", fcnl->fcnaddr, fcnl->ret, fcnl->nargs, fcnl->name);
 			}
 		}
 	}
@@ -184,8 +184,8 @@ int fcnlib_addfcn (const char *name, void *addr, int ret, int nargs)
 			/* re-registering exact, ok */
 			return 0;
 		}
-		nocc_warning ("fcnlib_addfcn(): function [%s] already registered with (0x%16.16lx,%d,%d), but trying to set to (0x%16.16lx,%d,%d)",
-			name, (uint64_t)fcnl->fcnaddr, fcnl->ret, fcnl->nargs, (uint64_t)addr, ret, nargs);
+		nocc_warning ("fcnlib_addfcn(): function [%s] already registered with (%p,%d,%d), but trying to set to (%p,%d,%d)",
+			name, fcnl->fcnaddr, fcnl->ret, fcnl->nargs, addr, ret, nargs);
 		return -1;
 	}
 
@@ -290,7 +290,7 @@ void fcnlib_dumpfcns (fhandle_t *stream)
 	for (i=0; i<DA_CUR (afunctions); i++) {
 		fcnlib_t *fcn = DA_NTHITEM (afunctions, i);
 
-		fhandle_printf (stream, "  %d (%d) @0x%16.16lx: %s\n", fcn->ret, fcn->nargs, (uint64_t)fcn->fcnaddr, fcn->name);
+		fhandle_printf (stream, "  %d (%d) @%p: %s\n", fcn->ret, fcn->nargs, fcn->fcnaddr, fcn->name);
 	}
 	return;
 }

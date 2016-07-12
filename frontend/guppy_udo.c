@@ -166,7 +166,7 @@ fhandle_printf (FHAN_STDERR, "guppy_udo_maketempfcnname(): node=[%s 0x%8.8x], gu
 	if (tnode_haschook (node, guppy_udo_tempnamechook)) {
 		return (char *)tnode_getchook (node, guppy_udo_tempnamechook);
 	}
-	tstr = string_fmt ("udotmp%8.8x", (unsigned int)node);
+	tstr = string_fmt ("udotmp%16.16lx", (uint64_t)node);
 	tnode_setchook (node, guppy_udo_tempnamechook, tstr);
 
 	return tstr;
@@ -186,7 +186,7 @@ char *guppy_udo_newfunction (const char *fstr, tnode_t *results, tnode_t *params
 	uent->opstr = string_dup (fstr);
 	uent->params = params;
 	uent->results = results;
-	uent->fcnname = string_fmt ("udo$%8.8x", (unsigned int)uent);
+	uent->fcnname = string_fmt ("udo$%16.16lx", (uint64_t)uent);
 
 	dynarray_add (uentries, uent);
 

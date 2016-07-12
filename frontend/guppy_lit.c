@@ -412,14 +412,14 @@ static int guppy_isconst_litnode (langops_t *lops, tnode_t *node)
 	return ldat->bytes;
 }
 /*}}}*/
-/*{{{  static int guppy_constvalof_litnode (langops_t *lops, tnode_t *node, void *ptr)*/
+/*{{{  static int64_t guppy_constvalof_litnode (langops_t *lops, tnode_t *node, void *ptr)*/
 /*
  *	gets the constant value of a literal node (assigns to pointer if non-null)
  */
-static int guppy_constvalof_litnode (langops_t *lops, tnode_t *node, void *ptr)
+static int64_t guppy_constvalof_litnode (langops_t *lops, tnode_t *node, void *ptr)
 {
 	guppy_litdata_t *ldat = (guppy_litdata_t *)tnode_nthhookof (node, 0);
-	int r = 0;
+	int64_t r = 0;
 
 	if ((node->tag == gup.tag_LITBOOL) || (node->tag == gup.tag_LITCHAR) || (node->tag == gup.tag_LITINT)) {
 		switch (ldat->bytes) {
@@ -427,25 +427,25 @@ static int guppy_constvalof_litnode (langops_t *lops, tnode_t *node, void *ptr)
 			if (ptr) {
 				*(unsigned char *)ptr = *(unsigned char *)(ldat->data);
 			}
-			r = (int)(*(unsigned char *)(ldat->data));
+			r = (int64_t)(*(unsigned char *)(ldat->data));
 			break;
 		case 2:
 			if (ptr) {
 				*(unsigned short int *)ptr = *(unsigned short int *)(ldat->data);
 			}
-			r = (int)(*(unsigned short int *)(ldat->data));
+			r = (int64_t)(*(unsigned short int *)(ldat->data));
 			break;
 		case 4:
 			if (ptr) {
 				*(unsigned int *)ptr = *(unsigned int *)(ldat->data);
 			}
-			r = (int)(*(unsigned int *)(ldat->data));
+			r = (int64_t)(*(unsigned int *)(ldat->data));
 			break;
 		case 8:
 			if (ptr) {
 				*(unsigned long long *)ptr = *(unsigned long long *)(ldat->data);
 			}
-			r = (int)(*(unsigned long long *)(ldat->data));
+			r = (int64_t)(*(unsigned long long *)(ldat->data));
 			break;
 		default:
 			tnode_error (node, "guppy_constvalof_litnode(): unsupported constant integer width %d!", ldat->bytes);
@@ -457,13 +457,13 @@ static int guppy_constvalof_litnode (langops_t *lops, tnode_t *node, void *ptr)
 			if (ptr) {
 				*(float *)ptr = *(float *)(ldat->data);
 			}
-			r = (int)(*(float *)(ldat->data));
+			r = (int64_t)(*(float *)(ldat->data));
 			break;
 		case 8:
 			if (ptr) {
 				*(double *)ptr = *(double *)(ldat->data);
 			}
-			r = (int)(*(double *)(ldat->data));
+			r = (int64_t)(*(double *)(ldat->data));
 			break;
 		default:
 			tnode_error (node, "guppy_constvalof_lit(): unsupported constant floating-point width %d!", ldat->bytes);
@@ -476,7 +476,7 @@ static int guppy_constvalof_litnode (langops_t *lops, tnode_t *node, void *ptr)
 		if (rptr) {
 			*rptr = s;
 		}
-		r = (int)s;			/* nasty.. */
+		r = (int64_t)s;			/* nasty.. */
 	}
 
 	return r;

@@ -2337,7 +2337,7 @@ void parser_dumpgrules (fhandle_t *stream)
 	for (i=0; i<DA_CUR (angrules); i++) {
 		ngrule_t *ngr = DA_NTHITEM (angrules, i);
 
-		fhandle_printf (stream, "  %-32s: 0x%16.16lx\n", ngr->name, (uint64_t)ngr->grule);
+		fhandle_printf (stream, "  %-32s: %p\n", ngr->name, ngr->grule);
 	}
 	return;
 }

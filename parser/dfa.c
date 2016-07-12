@@ -116,9 +116,9 @@ void dfa_dumpdfa (fhandle_t *stream, dfanode_t *dfa)
 		dfanode_t *thisdfa = DA_NTHITEM (list, cur);
 		int i;
 
-		fhandle_printf (stream, "    DFA node: 0x%16.16lx (%d in, %d matches, reduce with 0x%16.16lx (0x%16.16lx))  [%s]\n",
-				(uint64_t)thisdfa, thisdfa->incoming, DA_CUR (thisdfa->match),
-				(uint64_t)(thisdfa->reduce), (uint64_t)(thisdfa->rarg),
+		fhandle_printf (stream, "    DFA node: %p (%d in, %d matches, reduce with %p (%p))  [%s]\n",
+				thisdfa, thisdfa->incoming, DA_CUR (thisdfa->match),
+				thisdfa->reduce, thisdfa->rarg,
 				(thisdfa->dfainfo ? ((nameddfa_t *)(thisdfa->dfainfo))->name : "??"));
 		for (i=0; i<DA_CUR (thisdfa->match); i++) {
 			token_t *t_tok = DA_NTHITEM (thisdfa->match, i);
@@ -129,7 +129,7 @@ void dfa_dumpdfa (fhandle_t *stream, dfanode_t *dfa)
 			fhandle_printf (stream, "      MATCH ");
 			lexer_dumptoken_short (stream, t_tok);
 			if (t_pushto && (t_flags & DFAFLAG_PUSHSTACK)) {
-				fhandle_printf (stream, " PUSH 0x%16.16lx", (uint64_t)t_pushto);
+				fhandle_printf (stream, " PUSH %p", t_pushto);
 				if (t_pushto && t_pushto->dfainfo && (t_pushto->dfainfo != thisdfa->dfainfo)) {
 					nameddfa_t *ndfa = (nameddfa_t *)t_pushto->dfainfo;
 
@@ -140,7 +140,7 @@ void dfa_dumpdfa (fhandle_t *stream, dfanode_t *dfa)
 			if (t_target) {
 				dynarray_maybeadd (list, t_target);
 			}
-			fhandle_printf (stream, " -> 0x%16.16lx ", (uint64_t)t_target);
+			fhandle_printf (stream, " -> %p ", t_target);
 			/* show flags */
 			fhandle_printf (stream, "[%s%s%s%s]\n", (t_flags & DFAFLAG_NOCONSUME) ? "NC " : "",
 					(t_flags & DFAFLAG_KEEP) ? "KP " : "",
@@ -178,7 +178,7 @@ static void dfa_idumpnameddfa (nameddfa_t *ndfa, char *dfaname, void *voidptr)
 {
 	fhandle_t *stream = (fhandle_t *)voidptr;
 
-	fhandle_printf (stream, "DFA called [%s] at 0x%16.16lx:\n", dfaname, (uint64_t)(ndfa->inode));
+	fhandle_printf (stream, "DFA called [%s] at %p:\n", dfaname, ndfa->inode);
 	dfa_dumpdfa (stream, ndfa->inode);
 
 	return;
@@ -2597,7 +2597,7 @@ static void dfa_dumpttblent (fhandle_t *stream, dfattblent_t *tblent)
 	if (tblent->rname) {
 		fhandle_printf (stream, " %s", tblent->rname);
 	} else if (tblent->reduce) {
-		fhandle_printf (stream, " {0x%16.16lx:0x%16.16lx}", (uint64_t)tblent->reduce, (uint64_t)tblent->rarg);
+		fhandle_printf (stream, " {%p:%p}", tblent->reduce, tblent->rarg);
 	}
 	if (tblent->match) {
 		fhandle_printf (stream, " %s", tblent->match);
@@ -2693,7 +2693,7 @@ void dfa_dumpttbl_gra (fhandle_t *stream, dfattbl_t *ttbl)
 				seen_reducers[tblent->s_state] = string_dup (tblent->rname);
 			} else if (tblent->reduce) {
 				seen_reducers[tblent->s_state] = (char *)smalloc (128);
-				sprintf (seen_reducers[tblent->s_state], "0x%16.16lx (0x%16.16lx)", (uint64_t)tblent->reduce, (uint64_t)tblent->rarg);
+				sprintf (seen_reducers[tblent->s_state], "%p (%p)", tblent->reduce, tblent->rarg);
 			}
 		}
 	}
@@ -3135,8 +3135,8 @@ int dfa_match_deferred (void)
 			}
 		}
 		if (j == DA_CUR (inode->match)) {
-			nocc_internal ("dfa_match_deferred(): deferred match for [%s] not in node 0x%16.16lx(%s)\n", dmatch->match->u.str.ptr,
-					(uint64_t)inode, inode->dfainfo ? ((nameddfa_t *)inode->dfainfo)->name : "?");
+			nocc_internal ("dfa_match_deferred(): deferred match for [%s] not in node %p(%s)\n", dmatch->match->u.str.ptr,
+					inode, inode->dfainfo ? ((nameddfa_t *)inode->dfainfo)->name : "?");
 			return -1;
 		}
 
@@ -3173,16 +3173,16 @@ fprintf (stderr, "dfa_match_deferred(): resolving [%s] in [%s]\n", dmatch->match
 			}
 		}
 		if (j == DA_CUR (inode->match)) {
-			nocc_internal ("dfa_match_deferred(): deferred target for [%s] does not have match in node 0x%16.16lx(%s)\n",
-					dtarget->target->u.str.ptr, (uint64_t)inode, inode->dfainfo ? ((nameddfa_t *)inode->dfainfo)->name : "?");
+			nocc_internal ("dfa_match_deferred(): deferred target for [%s] does not have match in node %p(%s)\n",
+					dtarget->target->u.str.ptr, inode, inode->dfainfo ? ((nameddfa_t *)inode->dfainfo)->name : "?");
 			return -1;
 		}
 
 		tnode = DA_NTHITEM (inode->target, j);
 		if (tnode) {
-			nocc_warning ("dfa_match_deferred(): node 0x%16.16lx(%s) already has target against match -- to 0x%16.16lx(%s);  displacing\n",
-					(uint64_t)inode, inode->dfainfo ? ((nameddfa_t *)inode->dfainfo)->name : "?",
-					(uint64_t)tnode, tnode->dfainfo ? ((nameddfa_t *)tnode->dfainfo)->name : "?");
+			nocc_warning ("dfa_match_deferred(): node %p(%s) already has target against match -- to %p(%s);  displacing\n",
+					inode, inode->dfainfo ? ((nameddfa_t *)inode->dfainfo)->name : "?",
+					tnode, tnode->dfainfo ? ((nameddfa_t *)tnode->dfainfo)->name : "?");
 		}
 
 		tnode = dfa_lookupbyname (dtarget->target->u.str.ptr);
@@ -3213,18 +3213,18 @@ void dfa_dumpdeferred (fhandle_t *stream)
 	for (i=0; i<DA_CUR (defmatches); i++) {
 		deferred_match_t *dmatch = DA_NTHITEM (defmatches, i);
 
-		fhandle_printf (stream, "%2d: 0x%16.16lx(%s) --[%s]--> 0x%16.16lx(%s)\n", i,
-				(uint64_t)dmatch->inode, dmatch->inode->dfainfo ? ((nameddfa_t *)dmatch->inode->dfainfo)->name : "?",
+		fhandle_printf (stream, "%2d: %p(%s) --[%s]--> %p(%s)\n", i,
+				dmatch->inode, dmatch->inode->dfainfo ? ((nameddfa_t *)dmatch->inode->dfainfo)->name : "?",
 				dmatch->match->u.str.ptr ?: "(null)",
-				(uint64_t)dmatch->enode, dmatch->enode->dfainfo ? ((nameddfa_t *)dmatch->enode->dfainfo)->name : "?");
+				dmatch->enode, dmatch->enode->dfainfo ? ((nameddfa_t *)dmatch->enode->dfainfo)->name : "?");
 	}
 	fhandle_printf (stream, "dfa_dumpdeferred(): %d deferred targets:\n", DA_CUR (deftargets));
 	for (i=0; i<DA_CUR (deftargets); i++) {
 		deferred_target_t *dtarget = DA_NTHITEM (deftargets, i);
 
-		fhandle_printf (stream, "%2d: 0x%16.16lx(%s) --[0x%16.16lx]--> <%s>\n", i,
-				(uint64_t)dtarget->inode, dtarget->inode->dfainfo ? ((nameddfa_t *)dtarget->inode->dfainfo)->name : "?",
-				(uint64_t)dtarget->match, dtarget->target->u.str.ptr ?: "(null)");
+		fhandle_printf (stream, "%2d: %p(%s) --[%p]--> <%s>\n", i,
+				dtarget->inode, dtarget->inode->dfainfo ? ((nameddfa_t *)dtarget->inode->dfainfo)->name : "?",
+				dtarget->match, dtarget->target->u.str.ptr ?: "(null)");
 	}
 	return;
 }
@@ -3250,9 +3250,9 @@ int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)
 	if (compopts.debugparser) {
 		char *dfaname = cnode->dfainfo ? ((nameddfa_t *)cnode->dfainfo)->name : "*unknown*";
 
-		nocc_message ("dfa_advance(): dfa->cur = 0x%16.16lx [%s]  TS=%d  NS=%d  RES=0x%16.16lx  [%s], token = [%s]",
-				(uint64_t)cnode, dfaname, DA_CUR (pp->tokstack), DA_CUR ((*dfast)->nodestack),
-				(uint64_t)((*dfast)->local), (cnode->dfainfo ? ((nameddfa_t *)(cnode->dfainfo))->name : "??"),
+		nocc_message ("dfa_advance(): dfa->cur = %p [%s]  TS=%d  NS=%d  RES=%p  [%s], token = [%s]",
+				cnode, dfaname, DA_CUR (pp->tokstack), DA_CUR ((*dfast)->nodestack),
+				(*dfast)->local, (cnode->dfainfo ? ((nameddfa_t *)(cnode->dfainfo))->name : "??"),
 				lexer_stokenstr (tok));
 	}
 	/* check for a matched exit transition */
@@ -3293,8 +3293,8 @@ int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)
 		if (flags & DFAFLAG_PUSHSTACK) {
 			/*{{{  push the DFA stack*/
 			if (compopts.debugparser) {
-				nocc_message ("dfa_advance(): push from 0x%16.16lx [%s] return to 0x%16.16lx [%s]", (uint64_t)((*dfast)->cur),
-						cnode->dfainfo ? ((nameddfa_t *)(cnode->dfainfo))->name : "??", (uint64_t)target,
+				nocc_message ("dfa_advance(): push from %p [%s] return to %p [%s]", (*dfast)->cur,
+						cnode->dfainfo ? ((nameddfa_t *)(cnode->dfainfo))->name : "??", target,
 						target->dfainfo ? ((nameddfa_t *)(target->dfainfo))->name : "??");
 			}
 			(*dfast)->cur = target;		/* so we go back to the right place */
@@ -3340,7 +3340,7 @@ int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)
 				dynarray_add ((*dfast)->nodestack, result);
 				target = (*dfast)->cur;
 				if (compopts.debugparser) {
-					nocc_message ("dfa_advance(): pop to 0x%16.16lx.  result = 0x%16.16lx", (uint64_t)((*dfast)->cur), (uint64_t)result);
+					nocc_message ("dfa_advance(): pop to %p.  result = %p", (*dfast)->cur, result);
 				}
 			} else {
 				/* this means we hit the top-level */
@@ -3351,20 +3351,20 @@ int dfa_advance (dfastate_t **dfast, parsepriv_t *pp, token_t *tok)
 
 		/* reduction ? */
 		if (compopts.debugparser) {
-			nocc_message ("dfa_advance(): checking for target reduction at 0x%16.16lx (0x%16.16lx)", (uint64_t)target, target ? (uint64_t)(target->reduce) : 0);
+			nocc_message ("dfa_advance(): checking for target reduction at %p (%p)", target, target ? target->reduce : NULL);
 		}
 		if (target && target->reduce) {
 			if (compopts.debugparser) {
-				nocc_message ("dfa_advance(): reducing with 0x%16.16lx (%s) to 0x%16.16lx  TS=%d  NS=%d  RES=0x%16.16lx  [%s]",
-						(uint64_t)target->reduce, parser_nameof_reducer ((void *)target->reduce, target->rarg),
-						(uint64_t)target, DA_CUR (pp->tokstack), DA_CUR ((*dfast)->nodestack),
-						(uint64_t)((*dfast)->local), (target->dfainfo ? ((nameddfa_t *)(target->dfainfo))->name : "??"));
+				nocc_message ("dfa_advance(): reducing with %p (%s) to %p  TS=%d  NS=%d  RES=%p  [%s]",
+						target->reduce, parser_nameof_reducer ((void *)target->reduce, target->rarg),
+						target, DA_CUR (pp->tokstack), DA_CUR ((*dfast)->nodestack),
+						(*dfast)->local, (target->dfainfo ? ((nameddfa_t *)(target->dfainfo))->name : "??"));
 			}
 			target->reduce (*dfast, pp, target->rarg);
 			if (compopts.debugparser) {
-				nocc_message ("dfa_advance(): reduced. = 0x%16.16lx  TS=%d  NS=%d  RES=0x%16.16lx  [%s]",
-						(uint64_t)target, DA_CUR (pp->tokstack), DA_CUR ((*dfast)->nodestack),
-						(uint64_t)((*dfast)->local), (target->dfainfo ? ((nameddfa_t *)(target->dfainfo))->name : "??"));
+				nocc_message ("dfa_advance(): reduced. = %p  TS=%d  NS=%d  RES=%p  [%s]",
+						target, DA_CUR (pp->tokstack), DA_CUR ((*dfast)->nodestack),
+						(*dfast)->local, (target->dfainfo ? ((nameddfa_t *)(target->dfainfo))->name : "??"));
 			}
 		}
 	}
@@ -3399,7 +3399,7 @@ tnode_t *dfa_popnode (dfastate_t *dfast)
 	}
 	if (!DA_CUR (dfast->nodestack)) {
 		if (compopts.debugparser) {
-			nocc_error ("DFA error: dfast->cur = 0x%16.16lx  [%s]  NS=%d", (uint64_t)(dfast->cur),
+			nocc_error ("DFA error: dfast->cur = %p  [%s]  NS=%d", dfast->cur,
 					(dfast->cur && dfast->cur->dfainfo) ? ((nameddfa_t *)(dfast->cur->dfainfo))->name : "??",
 					DA_CUR (dfast->nodestack));
 		}

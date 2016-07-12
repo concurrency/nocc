@@ -219,12 +219,12 @@ static void allocate_ovarmap_dump (alloc_ovarmap_t *ovm, fhandle_t *stream, int 
 
 	allocate_isetindent (stream, indent);
 
-	fhandle_printf (stream, "map at 0x%16.16lx: %d sub-maps, %d items (size=%d, offset=%d): ", (uint64_t)ovm, DA_CUR (ovm->submaps), DA_CUR (ovm->entries), ovm->size, ovm->offset);
+	fhandle_printf (stream, "map at %p: %d sub-maps, %d items (size=%d, offset=%d): ", ovm, DA_CUR (ovm->submaps), DA_CUR (ovm->entries), ovm->size, ovm->offset);
 	for (i=0; i<DA_CUR (ovm->entries); i++) {
 		alloc_ivarmap_t *ivm = DA_NTHITEM (ovm->entries, i);
 		tnode_t *name = ivm->name;
 
-		fhandle_printf (stream, "0x%16.16lx (%s,%s) [%d,%d,%d,%d] @[%d,%d,%d(%d)]   ", (uint64_t)name, name->tag->name, tnode_nthsubof (name, 0)->tag->name,
+		fhandle_printf (stream, "%p (%s,%s) [%d,%d,%d,%d] @[%d,%d,%d(%d)]   ", name, name->tag->name, tnode_nthsubof (name, 0)->tag->name,
 				ivm->alloc_wsh, ivm->alloc_wsl, ivm->alloc_vs, ivm->alloc_ms, ivm->ws_offset, ivm->vs_offset, ivm->ms_offset, ivm->ms_shadow);
 	}
 	fhandle_printf (stream, "\n");
@@ -245,15 +245,15 @@ static void allocate_varmap_dump (alloc_varmap_t *avm, fhandle_t *stream)
 		return;
 	}
 	if (avm->wsmap) {
-		fhandle_printf (stream, "workspace-map at 0x%16.16lx, curmap at 0x%16.16lx:\n", (uint64_t)avm->wsmap, (uint64_t)avm->curwsmap);
+		fhandle_printf (stream, "workspace-map at %p, curmap at %p:\n", avm->wsmap, avm->curwsmap);
 		allocate_ovarmap_dump (avm->wsmap, stream, 1);
 	}
 	if (avm->vsmap) {
-		fhandle_printf (stream, "vectorspace-map at 0x%16.16lx, curmap at 0x%16.16lx:\n", (uint64_t)avm->vsmap, (uint64_t)avm->curvsmap);
+		fhandle_printf (stream, "vectorspace-map at %p, curmap at %p:\n", avm->vsmap, avm->curvsmap);
 		allocate_ovarmap_dump (avm->vsmap, stream, 1);
 	}
 	if (avm->msmap) {
-		fhandle_printf (stream, "mobilespace-map at 0x%16.16lx, curmap at 0x%16.16lx:\n", (uint64_t)avm->msmap, (uint64_t)avm->curmsmap);
+		fhandle_printf (stream, "mobilespace-map at %p, curmap at %p:\n", avm->msmap, avm->curmsmap);
 		allocate_ovarmap_dump (avm->msmap, stream, 1);
 	}
 	return;
@@ -270,7 +270,7 @@ static void allocate_extravars_chook_dumptree (tnode_t *node, void *hook, int in
 	tnode_t *evars = (tnode_t *)hook;
 
 	allocate_isetindent (stream, indent);
-	fhandle_printf (stream, "<chook id=\"alloc:extravars\" addr=\"0x%16.16lx\">\n", (uint64_t)hook);
+	fhandle_printf (stream, "<chook id=\"alloc:extravars\" addr=\"%p\">\n", hook);
 	tnode_dumptree (evars, indent + 1, stream);
 	allocate_isetindent (stream, indent);
 	fhandle_printf (stream, "</chook>\n");
@@ -405,7 +405,7 @@ fprintf (stderr, "allocate_ovarmap_delname(): i_ws = %d, i_vs = %d, i_ms = %d\n"
 fprintf (stderr, "allocate_ovarmap_delname(): bename was:\n");
 tnode_dumptree (bename, 1, stderr);
 #endif
-		nocc_internal ("allocate_ovarmap_delname(): name (0x%16.16lx) not found\n", (uint64_t)bename);
+		nocc_internal ("allocate_ovarmap_delname(): name (%p) not found\n", bename);
 		return;
 	}
 	/*}}}*/
@@ -1042,7 +1042,7 @@ static int allocate_prewalktree_assign_namerefs (tnode_t *node, void *data)
 
 	/* if the node has "extra vars" to map, do these first */
 #if 0
-fprintf (stderr, "allocate_prewalktree_assign_namerefs(): node=0x%16.16lx, data=0x%16.16lx, apriv->ev_chook=0x%16.16lx\n", (uint64_t)node, (uint64_t)data, (uint64_t)apriv->ev_chook);
+fprintf (stderr, "allocate_prewalktree_assign_namerefs(): node=%p, data=%p, apriv->ev_chook=%p\n", node, data, apriv->ev_chook);
 #endif
 	evars = (tnode_t *)tnode_getchook (node, apriv->ev_chook);
 	if (evars) {
@@ -1178,7 +1178,7 @@ int allocate_tree (tnode_t **tptr, target_t *target)
 		apriv->ev_chook = tnode_lookupornewchook ("alloc:extravars");
 
 #if 0
-fprintf (stderr, "allocate_tree(): about to assign blocks, apriv->ev_chook = 0x%16.16lx\n", (uint64_t)apriv->ev_chook);
+fprintf (stderr, "allocate_tree(): about to assign blocks, apriv->ev_chook = %p\n", apriv->ev_chook);
 #endif
 
 		tnode_prewalktree (*tptr, allocate_prewalktree_assign_blocks, (void *)apriv);

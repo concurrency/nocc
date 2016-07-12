@@ -236,9 +236,9 @@ static void kroccifccsp_namehook_dumptree (tnode_t *node, void *hook, int indent
 	kroccifccsp_namehook_t *nh = (kroccifccsp_namehook_t *)hook;
 
 	kroccifccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<namehook addr=\"0x%8.8x\" cname=\"%s\" lexlevel=\"%d\" allocwsh=\"%d\" allocwsl=\"%d\" allocvs=\"%d\" allocms=\"%d\" typesize=\"%d\" indir=\"%d\" typecat=\"0x%8.8x\" />\n",
-			(unsigned int)nh, nh->cname, nh->lexlevel, nh->alloc_wsh, nh->alloc_wsl, nh->alloc_vs, nh->alloc_ms,
-			nh->typesize, nh->indir, (unsigned int)nh->typecat);
+	fhandle_printf (stream, "<namehook addr=\"%p\" cname=\"%s\" lexlevel=\"%d\" allocwsh=\"%d\" allocwsl=\"%d\" allocvs=\"%d\" allocms=\"%d\" typesize=\"%d\" indir=\"%d\" typecat=\"0x%16.16lx\" />\n",
+			nh, nh->cname, nh->lexlevel, nh->alloc_wsh, nh->alloc_wsl, nh->alloc_vs, nh->alloc_ms,
+			nh->typesize, nh->indir, (uint64_t)nh->typecat);
 	return;
 }
 /*}}}*/
@@ -274,8 +274,8 @@ static void kroccifccsp_namerefhook_dumptree (tnode_t *node, void *hook, int ind
 	kroccifccsp_namerefhook_t *nh = (kroccifccsp_namerefhook_t *)hook;
 
 	kroccifccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<namerefhook addr=\"0x%8.8x\" nnode=\"0x%8.8x\" nhook=\"0x%8.8x\" cname=\"%s\" />\n",
-			(unsigned int)nh, (unsigned int)nh->nnode, (unsigned int)nh->nhook, (nh->nhook ? nh->nhook->cname : ""));
+	fhandle_printf (stream, "<namerefhook addr=\"%p\" nnode=\"%p\" nhook=\"%p\" cname=\"%s\" />\n",
+			nh, nh->nnode, nh->nhook, (nh->nhook ? nh->nhook->cname : ""));
 	return;
 }
 /*}}}*/
@@ -304,8 +304,8 @@ static void kroccifccsp_blockhook_dumptree (tnode_t *node, void *hook, int inden
 	kroccifccsp_blockhook_t *bh = (kroccifccsp_blockhook_t *)hook;
 
 	kroccifccsp_isetindent (stream, indent);
-	fhandle_printf (stream, "<blockhook addr=\"0x%8.8x\" lexlevel=\"%d\" />\n",
-			(unsigned int)bh, bh->lexlevel);
+	fhandle_printf (stream, "<blockhook addr=\"%p\" lexlevel=\"%d\" />\n",
+			bh, bh->lexlevel);
 	return;
 }
 /*}}}*/
@@ -338,17 +338,17 @@ static void kroccifccsp_blockrefhook_dumptree (tnode_t *node, void *hook, int in
 		tnode_t **blks = parser_getlistitems (blk, &nitems);
 
 		kroccifccsp_isetindent (stream, indent);
-		fhandle_printf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" nblocks=\"%d\" blocks=\"", (unsigned int)brh, (unsigned int)blk, nitems);
+		fhandle_printf (stream, "<blockrefhook addr=\"%p\" block=\"%p\" nblocks=\"%d\" blocks=\"", brh, blk, nitems);
 		for (i=0; i<nitems; i++ ) {
 			if (i) {
 				fhandle_printf (stream, ",");
 			}
-			fhandle_printf (stream, "0x%8.8x", (unsigned int)blks[i]);
+			fhandle_printf (stream, "%p", blks[i]);
 		}
 		fhandle_printf (stream, "\" />\n");
 	} else {
 		kroccifccsp_isetindent (stream, indent);
-		fhandle_printf (stream, "<blockrefhook addr=\"0x%8.8x\" block=\"0x%8.8x\" />\n", (unsigned int)brh, (unsigned int)blk);
+		fhandle_printf (stream, "<blockrefhook addr=\"%p\" block=\"%p\" />\n", brh, blk);
 	}
 
 	return;
