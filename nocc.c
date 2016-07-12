@@ -1532,6 +1532,7 @@ void nocc_freeihandler (ihandler_t *ihdlr)
 int nocc_register_ihandler (ihandler_t *ihdlr)
 {
 	int i;
+	char **commands;
 
 	for (i=0; i<DA_CUR (ihandlers); i++) {
 		ihandler_t *thisone = DA_NTHITEM (ihandlers, i);
@@ -1544,7 +1545,8 @@ int nocc_register_ihandler (ihandler_t *ihdlr)
 
 	dynarray_add (ihandlers, ihdlr);
 
-	char **commands = ihdlr->commands;
+	commands = ihdlr->commands;
+
 	if (commands != NULL) {
 		while (*commands != NULL) {
 			dynarray_add(str_commands, *commands);
@@ -3539,8 +3541,8 @@ int main (int argc, char **argv)
 	/*}}}*/
 	/*{{{  hook in local interactive handlers*/
 	{
-		char *lhan_commands[]		= { "help", "mode", "version", "versions", "step", "run" };
-		char *lbitshan_commands[]	= { "help", "mode", "runto", "list", "show", "sshow" };
+		static char *lhan_commands[]		= { "help", "mode", "version", "versions", "step", "run" };
+		static char *lbitshan_commands[]	= { "help", "mode", "runto", "list", "show", "sshow" };
 		ihandler_t *lhan = nocc_newihandler ();
 		ihandler_t *lbitshan = nocc_newihandler ();
 
