@@ -8,6 +8,10 @@ AUTOMAKE_OPTIONS=foreign
 
 AM_CPPFLAGS = -I@srcdir@/../include
 
+#
+# NOTE: have taken these languages out for now -- need work for 64-bit.
+#
+
 #		occampi_fe.c occampi_lexer.c occampi_parser.c occampi_primproc.c occampi_cnode.c \
 #		occampi_snode.c occampi_protocol.c occampi_decl.c occampi_procdecl.c occampi_type.c \
 #		occampi_action.c occampi_lit.c occampi_instance.c occampi_dtype.c occampi_ptype.c \
@@ -35,7 +39,8 @@ libfrontend_a_SOURCES=\
 		guppy_cflow.c guppy_assign.c guppy_io.c guppy_lit.c guppy_oper.c guppy_instance.c \
 		guppy_timer.c guppy_udo.c \
 		eac_fe.c eac_lexer.c eac_parser.c \
-		eac_code.c
+		eac_code.c \
+		oil_fe.c oil_lexer.c oil_parser.c
 
 
 CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@

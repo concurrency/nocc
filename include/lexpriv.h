@@ -1,6 +1,6 @@
 /*
  *	lexpriv.h -- private definitions for lexer components
- *	Copyright (C) 2004-2007 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2004-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -34,18 +34,19 @@ typedef struct TAG_lexpriv {
 	void *langpriv;
 } lexpriv_t;
 
-#define LANGTAG_OCCAMPI 0x00000001
-#define LANGTAG_HOPP 0x00000002
-#define LANGTAG_MCSP 0x00000004
-#define LANGTAG_RCXB 0x00000008
-#define LANGTAG_TRLANG 0x00000010
-#define LANGTAG_TRACESLANG 0x00000020
-#define LANGTAG_GUPPY 0x00000040
-#define LANGTAG_EAC 0x00000080
-#define LANGTAG_AVRASM 0x00000100
+#define LANGTAG_OCCAMPI		0x00000001
+#define LANGTAG_HOPP		0x00000002
+#define LANGTAG_MCSP		0x00000004
+#define LANGTAG_RCXB		0x00000008
+#define LANGTAG_TRLANG		0x00000010
+#define LANGTAG_TRACESLANG	0x00000020
+#define LANGTAG_GUPPY		0x00000040
+#define LANGTAG_EAC		0x00000080
+#define LANGTAG_AVRASM		0x00000100
+#define LANGTAG_OIL		0x00000200
 
-#define LANGTAG_LANGMASK 0x0000ffff
-#define LANGTAG_IMASK 0xffff0000
+#define LANGTAG_LANGMASK	0x0000ffff
+#define LANGTAG_IMASK		0xffff0000
 
 
 /* this defines support for a language */

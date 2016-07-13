@@ -90,6 +90,7 @@
 #include "traceslang_fe.h"
 #include "eac_fe.h"
 #include "avrasm_fe.h"
+#include "oil_fe.h"
 #include "metadata.h"
 #include "version.h"
 #include "interact.h"
@@ -3452,6 +3453,13 @@ int main (int argc, char **argv)
 	/*{{{  initialise AVR assembler lexer and parser (just registers)*/
 	if (avrasm_register_frontend ()) {
 		nocc_error ("failure to initialise built-in AVR assembler frontend");
+		exit (EXIT_FAILURE);
+	}
+
+	/*}}}*/
+	/*{{{  initialise oil lexer and parser (just registers)*/
+	if (oil_register_frontend ()) {
+		nocc_error ("failure to initialise built-in oil frontend");
 		exit (EXIT_FAILURE);
 	}
 
