@@ -20,5 +20,7 @@ noinst_HEADERS = version.h nocc.h support.h origin.h platform.h opts.h fcnlib.h 
 			avrasm.h avrasm_fe.h avrinstr.h \
 			atmelavr.h \
 			mwsync.h \
-			hopp.h hopp_fe.h
+			hopp.h hopp_fe.h \
+			oil.h oil_fe.h \
+			slick64.h
 
