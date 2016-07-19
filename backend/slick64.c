@@ -663,6 +663,107 @@ static tnode_t *slick64_gettype_nameref (langops_t *lops, tnode_t *node, tnode_t
 }
 /*}}}*/
 
+/*{{{  static int slick64_preallocate_block (compops_t *cops, tnode_t *blk, target_t *target)*/
+/*
+ *	does pre-allocation for a back-end block
+ *	returns 0 to stop walk, 1 to continue
+ */
+static int slick64_preallocate_block (compops_t *cops, tnode_t *blk, target_t *target)
+{
+	slick64_priv_t *kpriv = (slick64_priv_t *)target->priv;
+
+	if (blk->tag == target->tag_BLOCK) {
+		slick64_blockhook_t *bh = (slick64_blockhook_t *)tnode_nthhookof (blk, 0);
+
+#if 0
+fprintf (stderr, "slick64_preallocate_block(): preallocating block, ws=%d, vs=%d, ms=%d\n", bh->alloc_ws, bh->alloc_vs, bh->alloc_ms);
+#endif
+		if (bh->addstaticlink) {
+			tnode_t **stptr = tnode_nthsubaddr (blk, 1);
+			slick64_namehook_t *nh;
+			tnode_t *name;
+
+#if 0
+fprintf (stderr, "slick64_preallocate_block(): adding static-link..\n");
+#endif
+			if (!*stptr) {
+				*stptr = parser_newlistnode (NULL);
+			} else if (!parser_islistnode (*stptr)) {
+				tnode_t *slist = parser_newlistnode (NULL);
+
+				parser_addtolist (slist, *stptr);
+				*stptr = slist;
+			}
+
+			nh = slick64_namehook_create (bh->lexlevel, target->pointersize, 0, target->pointersize, 0);
+			name = tnode_create (target->tag_NAME, NULL, tnode_create (target->tag_STATICLINK, NULL), NULL, (void *)nh);
+
+			parser_addtolist_front (*stptr, name);
+		}
+	}
+
+	return 1;
+}
+/*}}}*/
+/*{{{  static int slick64_precode_block (compops_t *cops, tnode_t **tptr, codegen_t *cgen)*/
+/*
+ *	does pre-code generation for a back-end block
+ *	return 0 to stop walk, 1 to continue it
+ */
+static int slick64_precode_block (compops_t *cops, tnode_t **tptr, codegen_t *cgen)
+{
+	slick64_blockhook_t *bh = (slick64_blockhook_t *)tnode_nthhookof (*tptr, 0);
+
+	if ((*tptr)->tag != slick64_target.tag_BLOCK) {
+		nocc_internal ("slick64_precode_block(): block not back-end BLOCK, was [%s]", (*tptr)->tag->name);
+	}
+	if (!bh->entrylab) {
+		/* give it an entry-point label */
+		bh->entrylab = codegen_new_label (cgen);
+	}
+	return 1;
+}
+/*}}}*/
+/*{{{  static int slick64_codegen_block (compops_t *cops, tnode_t *blk, codegen_t *cgen)*/
+/*
+ *	does code generation for a back-end block
+ *	return 0 to stop walk, 1 to continue it
+ */
+static int slick64_codegen_block (compops_t *cops, tnode_t *blk, codegen_t *cgen)
+{
+	slick64_priv_t *kpriv = (slick64_priv_t *)cgen->target->priv;
+	int ws_size, vs_size, ms_size;
+	int ws_offset, adjust;
+	int elab, lexlevel;
+
+	if (blk->tag != slick64_target.tag_BLOCK) {
+		nocc_internal ("slick64_codegen_block(): block not back-end BLOCK, was [%s]", blk->tag->name);
+		return 0;
+	}
+	cgen->target->be_getblocksize (blk, &ws_size, &ws_offset, &vs_size, &ms_size, &adjust, &elab);
+	lexlevel = cgen->target->be_blocklexlevel (blk);
+	dynarray_setsize (cgen->be_blks, lexlevel + 1);
+	DA_SETNTHITEM (cgen->be_blks, lexlevel, blk);
+
+	slick64_cgstate_newpush (cgen);
+
+	if (elab) {
+		codegen_callops (cgen, setlabel, elab);
+	}
+	codegen_callops (cgen, wsadjust, -(ws_offset - adjust));
+
+	codegen_subcodegen (tnode_nthsubof (blk, 0), cgen);
+	codegen_callops (cgen, wsadjust, (ws_offset - adjust));
+
+	DA_SETNTHITEM (cgen->be_blks, lexlevel, NULL);
+	dynarray_setsize (cgen->be_blks, lexlevel);
+
+	slick64_cgstate_popfree (cgen);
+
+	return 0;
+}
+/*}}}*/
+
 
 /*{{{  static void slick64_coder_setlabel (codegen_t *cgen, int lbl)*/
 /*
@@ -872,7 +973,7 @@ static int slick64_target_init (target_t *target)
 	tnd = tnode_newnodetype ("slick64:precode", &i, 2, 0, 0, TNF_NONE);
 
 	i = -1;
-	kpriv->tag_PRECODE = tnode_newnodetag ("SLICK64PRECODE", &i, tnd, NTF_NONE);
+	spriv->tag_PRECODE = tnode_newnodetag ("SLICK64PRECODE", &i, tnd, NTF_NONE);
 
 	/*}}}*/
 
