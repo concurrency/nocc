@@ -604,7 +604,7 @@ static int slick64_bytesfor_name (langops_t *lops, tnode_t *name, target_t *targ
  */
 static int slick64_precode_const (compops_t *cops, tnode_t **cnst, codegen_t *cgen)
 {
-	slick64_priv_t *kpriv = (slick64_priv_t *)cgen->target->priv;
+	slick64_priv_t *spriv = (slick64_priv_t *)cgen->target->priv;
 	slick64_consthook_t *ch = (slick64_consthook_t *)tnode_nthhookof (*cnst, 0);
 	tnode_t *cref;
 
@@ -613,8 +613,8 @@ static int slick64_precode_const (compops_t *cops, tnode_t **cnst, codegen_t *cg
 	}
 
 	/* move this into pre-codes and leave a reference */
-	parser_addtolist (kpriv->precodelist, *cnst);
-	cref = tnode_create (kpriv->tag_CONSTREF, NULL, (void *)ch);
+	parser_addtolist (spriv->precodelist, *cnst);
+	cref = tnode_create (spriv->tag_CONSTREF, NULL, (void *)ch);
 	tnode_promotechooks (*cnst, cref);
 	*cnst = cref;
 	return 1;
@@ -670,7 +670,7 @@ static tnode_t *slick64_gettype_nameref (langops_t *lops, tnode_t *node, tnode_t
  */
 static int slick64_preallocate_block (compops_t *cops, tnode_t *blk, target_t *target)
 {
-	slick64_priv_t *kpriv = (slick64_priv_t *)target->priv;
+	slick64_priv_t *spriv = (slick64_priv_t *)target->priv;
 
 	if (blk->tag == target->tag_BLOCK) {
 		slick64_blockhook_t *bh = (slick64_blockhook_t *)tnode_nthhookof (blk, 0);
@@ -731,7 +731,7 @@ static int slick64_precode_block (compops_t *cops, tnode_t **tptr, codegen_t *cg
  */
 static int slick64_codegen_block (compops_t *cops, tnode_t *blk, codegen_t *cgen)
 {
-	slick64_priv_t *kpriv = (slick64_priv_t *)cgen->target->priv;
+	slick64_priv_t *spriv = (slick64_priv_t *)cgen->target->priv;
 	int ws_size, vs_size, ms_size;
 	int ws_offset, adjust;
 	int elab, lexlevel;

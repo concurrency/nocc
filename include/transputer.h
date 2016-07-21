@@ -1,6 +1,6 @@
 /*
  *	transputer.h -- transputer instructions (extended)
- *	Copyright (C) 2005 Fred Barnes <frmb@kent.ac.uk>
+ *	Copyright (C) 2005-2016 Fred Barnes <frmb@kent.ac.uk>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -199,7 +199,9 @@ typedef enum ENUM_transinstr {
 	I_UREM = 177,
 	I_UPROD = 178,
 	I_OUTBYTE = 179,
-	I_OUTWORD = 180
+	I_OUTWORD = 180,
+	/* for the non-existant T10000 */
+	I_SHUTDOWN = 181
 } transinstr_e;
 
 typedef enum ENUM_instrlevel {

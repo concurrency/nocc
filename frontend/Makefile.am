@@ -40,7 +40,7 @@ libfrontend_a_SOURCES=\
 		guppy_timer.c guppy_udo.c \
 		eac_fe.c eac_lexer.c eac_parser.c \
 		eac_code.c \
-		oil_fe.c oil_lexer.c oil_parser.c
+		oil_fe.c oil_lexer.c oil_parser.c oil_primproc.c
 
 
 CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@

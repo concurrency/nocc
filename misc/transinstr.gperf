@@ -1,7 +1,7 @@
 %{
 /*
  *	transinstr.gperf -- transputer instructions for nocc
- *	Fred Barnes, 2005  <frmb@kent.ac.uk>
+ *	Fred Barnes, 2005-2016  <frmb@kent.ac.uk>
  */
 %}
 %struct-type
@@ -182,5 +182,8 @@ FPCHKI64,	INS_SECONDARY,	I_FPCHKI64,	NULL
 FPPOP,		INS_SECONDARY,	I_FPPOP,	NULL
 FPSTALL,	INS_SECONDARY,	I_FPSTALL,	NULL
 FPLDALL,	INS_SECONDARY,	I_FPLDALL,	NULL
+OUTBYTE,	INS_SECONDARY,	I_OUTBYTE,	NULL
+OUTWORD,	INS_SECONDARY,	I_OUTWORD,	NULL
+SHUTDOWN,	INS_SECONDARY,	I_SHUTDOWN,	NULL
 %%
 

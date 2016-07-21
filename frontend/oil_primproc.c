@@ -52,7 +52,8 @@
 #include "map.h"
 #include "codegen.h"
 #include "target.h"
-#include "cccsp.h"
+#include "transputer.h"
+#include "slick64.h"
 
 
 /*}}}*/
@@ -98,30 +99,11 @@ out_error:
  */
 static int oil_namemap_leafnode (compops_t *cops, tnode_t **nodep, map_t *mapdata)
 {
-	cccsp_mapdata_t *cmd = (cccsp_mapdata_t *)mapdata->hook;
+	if (((*nodep)->tag == oil.tag_STOP) || ((*nodep)->tag == oil.tag_SHUTDOWN)) {
+		tnode_t *bename;
 
-	if ((*nodep)->tag == oil.tag_STOP) {
-		/* turn into API call */
-		tnode_t *newinst, *newparms, *callnum;
-
-		newparms = parser_newlistnode (SLOCI);
-		parser_addtolist (newparms, cmd->process_id);
-		map_submapnames (&newparms, mapdata);
-		callnum = cccsp_create_apicallname (STOP_PROC);
-		newinst = tnode_createfrom (oil.tag_APICALL, *nodep, callnum, newparms);
-
-		*nodep = newinst;
-	} else if ((*nodep)->tag == oil.tag_SHUTDOWN) {
-		/* turn into API call */
-		tnode_t *newinst, *newparms, *callnum;
-
-		newparms = parser_newlistnode (SLOCI);
-		parser_addtolist (newparms, cmd->process_id);
-		map_submapnames (&newparms, mapdata);
-		callnum = cccsp_create_apicallname (SHUTDOWN);
-		newinst = tnode_createfrom (oil.tag_APICALL, *nodep, callnum, newparms);
-
-		*nodep = newinst;
+		bename = mapdata->target->newname (*nodep, NULL, mapdata, 0, mapdata->target->bws.ds_min, 0, 0, 0, 0);
+		*nodep = bename;
 	}
 	return 0;
 }
@@ -134,6 +116,13 @@ static int oil_namemap_leafnode (compops_t *cops, tnode_t **nodep, map_t *mapdat
 static int oil_codegen_leafnode (compops_t *cops, tnode_t *node, codegen_t *cgen)
 {
 	codegen_callops (cgen, debugline, node);
+
+	if (node->tag == oil.tag_STOP) {
+		codegen_callops (cgen, tsecondary, I_SETERR);
+	} else if (node->tag == oil.tag_SHUTDOWN) {
+		codegen_callops (cgen, tsecondary, I_SHUTDOWN);
+	}
+
 	return 0;
 }
 /*}}}*/
@@ -154,7 +143,7 @@ static int oil_primproc_init_nodes (void)
 	fcnlib_addfcn ("oil_reduce_primproc", oil_reduce_primproc, 0, 3);
 
 	/*}}}*/
-	/*{{{  oil:leafnode -- SKIP, STOP*/
+	/*{{{  oil:leafnode -- SKIP, STOP, SHUTDOWN*/
 	i = -1;
 	tnd = oil.node_LEAFNODE = tnode_newnodetype ("oil:leafnode", &i, 0, 0, 0, TNF_NONE);
 	cops = tnode_newcompops ();
