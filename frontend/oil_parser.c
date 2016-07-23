@@ -61,7 +61,7 @@
 #include "mwsync.h"
 #include "metadata.h"
 #include "target.h"
-#include "cccsp.h"
+#include "slick64.h"
 
 
 /*}}}*/
@@ -574,6 +574,9 @@ langdef_t *oil_getlangdef (void)
  */
 static char **oil_getlanglibs (target_t *target, int src)
 {
+	return NULL;
+
+#if 0
 	int nlibs = 1;
 	char **tmp;
 	
@@ -602,6 +605,7 @@ static char **oil_getlanglibs (target_t *target, int src)
 	tmp[nlibs++] = NULL;
 
 	return tmp;
+#endif
 }
 /*}}}*/
 

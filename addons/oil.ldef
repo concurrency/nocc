@@ -1,0 +1,450 @@
+#
+# oil.ldef - language definitions for oil (occam-pi inspired language)
+# identifiers must start at the left-margin, indentation is a line-continuation
+#
+
+.IDENT		"oil"
+.DESC		"oil parallel programming language"
+.MAINTAINER	"Fred Barnes <frmb@kent.ac.uk>"
+.VERSION	"July 2016"
+
+
+# sections are used to help front-end units find their definitions
+
+.SECTION "oil" # {{{: fairly general oil reductions and other language things
+
+.SYMBOL	">>>"
+.SYMBOL "**"
+.SYMBOL "++"
+.SYMBOL "--"
+.SYMBOL "+="
+.SYMBOL "-="
+.SYMBOL "*="
+.SYMBOL "/="
+.SYMBOL "\\="
+.SYMBOL "<<="
+.SYMBOL ">>="
+.SYMBOL ">>>="
+.SYMBOL "&&="
+.SYMBOL "||="
+.SYMBOL "&="
+.SYMBOL "|="
+.SYMBOL "><="
+.SYMBOL "++="
+.SYMBOL "--="
+.SYMBOL "**="
+.SYMBOL "|||"
+
+.GRULE	"ol:nullreduce" "N+R-"
+.GRULE	"ol:nullpush" "0N-"
+.GRULE	"ol:null2push" "0N-0N-"
+.GRULE	"ol:nullset" "0R-"
+
+.GRULE	"ol:testtrue" "T*C[TESTTRUE]0R-"
+.GRULE	"ol:testfalse" "T*C[TESTFALSE]0R-"
+
+.GRULE	"ol:rewindlexer" "T*"
+
+.RFUNC	"Roil:checkfixio" "oil_reduce_checkfixio"
+
+# .TNODE directives describe the parse-tree, kind-of
+
+#{{{  declarations and related nodes
+
+# oil:rawnamenode		(0,0,1)
+
+.TNODE	"oil:rawnamenode" (0,0,1) "name-hook"
+	INVALID AFTER "scope"
+.TNODE	"oil:namenode" (0,1,0) "name"
+	INVALID BEFORE "scope"
+
+
+#}}}
+
+# }}}
+
+.SECTION "oil-postprod" # {{{: top-level grammar, kind-of
+
+.TABLE	"oil:procstart +:= [ 0 oil:primproc 1 ] [ 0 oil:cnode 1 ] [ 0 oil:cflow 1 ] [ 1 {<ol:nullreduce>} -* ]"
+	"[ 0 +Name 2 ] [ 2 +Name 3 ] [ 3 {<ol:rewindlexer>} -* <oil:namenamestartproc> ]"
+	"[ 2 -* 4 ] [ 4 {<ol:rewindlexer>} -* <oil:namestartproc> ]"
+
+.TABLE	"oil:descriptor ::= [ 0 @define 1 ] [ 1 oil:definedecl 2 ] [ 2 @@= 3 ] [ 2 Newline 5 ] [ 3 oil:literal 4 ] [ 4 {<ol:extdeclreduce>} -* ]"
+	"[ 5 {<ol:libdescreduce>} -* ] [ 3 @@- 6 ] [ 6 oil:literal 7 ] [ 7 {<ol:foldneg>} -* 4 ]"
+
+#.BNF	"oil:procstart +:= ( oil:primproc | oil:cnode ) {<ol:nullreduce>}"
+
+# definitions that start with 'define' use "oil:definedecl" ('define' already eaten),
+# others use "oil:otherdecl".
+
+.TABLE	"oil:decl +:= [ 0 @define 1 ] [ 1 -* <oil:definedecl> ] [ 0 -* <oil:otherdecl> ]"
+
+.TABLE	"oil:testfordecl +:= [ 0 +@define 1 ] [ 1 {<ol:testtrue>} -* ]"
+	"[ 0 -* 2 ] [ 2 {<ol:testfalse>} -* ]"
+
+.TABLE	"oil:testforexpr +:= [ 0 -* 1 ] [ 1 {<ol:testfalse>} -* ]"
+
+.TABLE	"oil:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@= 2 ] [ 2 {<ol:rewindlexer>} -* <oil:oneassign> ]"
+.TABLE	"oil:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@? 2 ] [ 2 {<ol:rewindlexer>} -* <oil:input> ]"
+.TABLE	"oil:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@! 2 ] [ 2 {<ol:rewindlexer>} -* <oil:output> ]"
+.TABLE	"oil:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@( 2 ] [ 2 {<ol:rewindlexer>} -* <oil:instance> ]"
+.TABLE	"oil:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@. 2 ] [ 1 +@@[ 2 ] [ 2 {<ol:rewindlexer>} -* <oil:exprstartproc> ]"
+.TABLE	"oil:namestartproc +:= [ 0 +Name 1 ] [ 1 +@@+= 2 ] [ 1 +@@-= 2 ] [ 1 +@@*= 2 ]"
+	"[ 1 +@@/= 2 ] [ 1 +@@\\= 2 ] [ 1 +@@&&= 2 ] [ 1 +@@||= 2 ] [ 1 +@@><= 2 ] [ 1 +@@&= 2 ] [ 1 +@@|= 2 ]"
+	"[ 1 +@@++= 2 ] [ 1 +@@--= 2 ] [ 1 +@@**= 2 ] [ 1 +@@<<= 2 ] [ 1 +@@>>= 2 ] [ 1 +@@>>>= 2 ]"
+	"[ 2 {<ol:rewindlexer>} -* <oil:exprstartproc> ]"
+
+# "oil:exprstartproc" handles processes that might start with expressions, e.g. complex LHS for action
+
+.TABLE	"oil:exprstartproc ::= [ 0 oil:expr 1 ] [ 1 -@@= <oil:assignlhs> ] [ 1 -@@? <oil:inputlhs> ] [ 1 -@@! <oil:outputlhs> ]"
+	"[ 1 -* 2 ] [ 2 {Roil:checkfixio} -* 3 ] [ 3 -@@= <oil:assignlhs> ] [ 3 -@@? <oil:inputlhs> ] [ 3 -@@! <oil:outputlhs> ]"
+	"[ 1 @@+= <oil:addinlhs> ] [ 1 @@-= <oil:subinlhs> ] [ 1 @@*= <oil:mulinlhs> ] [ 1 @@/= <oil:divinlhs> ] [ 1 @@\\= <oil:reminlhs> ]"
+	"[ 1 @@>>= <oil:shrinlhs> ] [ 1 @@<<= <oil:shlinlhs> ] [ 1 @@>>>= <oil:ashrinlhs> ]"
+	"[ 1 @@&&= <oil:andinlhs> ] [ 1 @@||= <oil:orinlhs> ] [ 1 @@><= <oil:xorinlhs> ] [ 1 @@&= <oil:bitandinlhs> ] [ 1 @@|= <oil:bitorinlhs> ]"
+	"[ 1 @@++= <oil:plusinlhs> ] [ 1 @@--= <oil:minusinlhs> ] [ 1 @@**= <oil:timesinlhs> ]"
+
+# }}}
+
+
+.SECTION "oil-decls" # {{{: variables and other named things
+
+.GRULE	"ol:namereduce" "T+St0X[oil_nametoken_to_hook]C[NAME]1R-"
+.GRULE	"ol:namepush" "T+St0X[oil_nametoken_to_hook]C[NAME]1N-"
+.GRULE	"ol:checktypename" "T+St0X[oil_checktypename]R-"
+
+.GRULE	"ol:fparam2nsreduce" "N+Sn0N+0C[FPARAM]3R-"
+.GRULE	"ol:vardeclreduce" "N+N+0C[VARDECL]3R-"
+
+.GRULE	"ol:enumreduce" "SN0N+0C[ENUMDEF]2R-"
+.GRULE	"ol:typedefreduce" "SN1N+N+V0VC[TYPEDEF]3R-"
+
+.BNF	"oil:name ::= +Name {<ol:namereduce>}"
+.BNF	"oil:namelist ::= { oil:name @@, 1 }"
+
+.TABLE	"oil:exprstartname ::= [ 0 -* 1 ] [ 1 {<ol:nullreduce>} -* 2 ] [ 2 -* <oil:restofexpr> ]"
+.TABLE	"oil:expr +:= [ 0 oil:name <oil:exprstartname> ]"
+
+# Note: the fparam parsing is a little pickled, but partly because we permit typeless parameter names, that
+# may have other cruft associated with them (direction-specifiers and initialisers, amongst others).
+
+.TABLE	"oil:fparamname ::= [ 0 oil:name 1 ] [ 1 @@? 2 ] [ 2 {<ol:markedinreduce>} -* ]"
+	"[ 1 @@! 3 ] [ 3 {<ol:markedoutreduce>} -* ] [ 1 -* 4 ] [ 4 {<ol:nullreduce>} -* ]"
+.TABLE	"oil:fparam ::= [ 0 oil:type 1 ] [ 1 oil:fparamname 2 ] [ 2 {<ol:fparam2nsreduce>} -* ]"
+	"[ 0 +Name 3 ] [ 3 +@@? 4 ] [ 3 +@@! 4 ] [ 3 +@@, 5 ] [ 3 +@@) 5 ] [ 4 +@@, 5 ] [ 4 +@@) 5 ]"
+	"[ 5 {<ol:rewindlexer>} -* 6 ] [ 6 {<ol:nullpush>} -* 1 ]"
+	"[ 3 +Name 7 ] [ 7 {<ol:rewindlexer>} -* 8 ] [ 8 oil:name 1 ]"
+
+.BNF	"oil:fparamlist ::= ( -@@) {<ol:nullset>} | { oil:fparam @@, 1 } )"
+
+.TABLE	"oil:otherdecl +:= [ 0 oil:type 1 ] [ 1 oil:nameandassignlist 2 ] [ 2 {<ol:vardeclreduce>} -* ]"
+	"[ 0 oil:name 3 ] [ 3 @@( 4 ] [ 4 oil:typelist 5 ] [ 5 @@) 6 ] [ 6 {<ol:makeinstance>} -* 1 ]"
+	"[ 3 -* 1 ]"
+
+.TABLE	"oil:testfordecl +:= [ 0 +@val 1 ] [ 0 +@int 1 ] [ 0 +@real 1 ] [ 0 +@bool 1 ] [ 0 +@byte 1 ] [ 0 +@char 1 ] [ 0 +@string 1 ] [ 0 +@chan 1 ]"
+	"[ 1 {<ol:testtrue>} -* ]"
+.TABLE	"oil:testfordecl +:= [ 0 +Name 1 ] [ 1 {<ol:checktypename>} -* ]"
+.TABLE	"oil:testfordecl +:= [ 0 +@@[ 1 ] [ 0 +@@[] 1 ] [ 1 {<ol:testtrue>} -* ]"
+
+.TABLE	"oil:testforexpr +:= [ 0 +Name 1 ] [ 1 {<ol:testtrue>} -* ]"
+
+
+# Note: for enumerated types (and others) the parser loop proper scoops up the contents into subnode 1
+.TABLE	"oil:definedecl +:= [ 0 @enum 1 ] [ 1 oil:name 2 ] [ 2 {<ol:enumreduce>} -* ]"
+
+.TABLE	"oil:definedecl +:= [ 0 @type 1 ] [ 1 oil:name 2 ] [ 2 @@( 3 ] [ 3 oil:namelist 4 ] [ 4 @@) 5 ] [ 5 {<ol:typedefreduce>} -* ]"
+	"[ 2 -* 6 ] [ 6 {<ol:nullpush>} -* 5 ]"
+
+.TABLE	"oil:nameandassign ::= [ 0 oil:name 1 ] [ 1 @@= 3 ] [ 1 @is 5 ] [ 1 -* 2 ] [ 2 {<ol:nullreduce>} -* ]"
+	"[ 3 oil:expr 4 ] [ 4 {<ol:assignreduce>} -* ]"
+	"[ 5 oil:expr 6 ] [ 6 {<ol:isreduce>} -* ]"
+
+.BNF	"oil:nameandassignlist ::= { oil:nameandassign @@, 1 }"
+
+# when we come in here, lexer is rewound (two names waiting)
+.TABLE	"oil:namenamestartproc +:= [ 0 oil:name 1 ] [ 1 oil:nameandassignlist 2 ] [ 2 {<ol:vardeclreduce>} -* ]"
+
+
+# }}}
+.SECTION "oil-lit" # {{{: literals
+
+.GRULE	"ol:litboolreduce" "T+St0X[oil_token_to_lithook]0VC[LITBOOL]2R-"
+.GRULE	"ol:litintreduce" "T+St0X[oil_token_to_lithook]0VC[LITINT]2R-"
+.GRULE	"ol:litrealreduce" "T+St0X[oil_token_to_lithook]0VC[LITREAL]2R-"
+.GRULE	"ol:litstringreduce" "T+St0X[oil_token_to_lithook]0VC[LITSTRING]2R-"
+
+.TABLE	"oil:literal ::= [ 0 +Integer 1 ] [ 1 {<ol:litintreduce>} -* ] [ 0 +Real 2 ] [ 2 {<ol:litrealreduce>} -* ]"
+			"[ 0 +String 3 ] [ 3 {<ol:litstringreduce>} -* ]"
+			"[ 0 +@true 4 ] [ 0 +@false 4 ] [ 4 {<ol:litboolreduce>} -* ]"
+.TABLE	"oil:litstring ::= [ 0 +String 1 ] [ 1 {<ol:litstringreduce>} -* ]"
+
+.TABLE	"oil:expr +:= [ 0 oil:literal 1 ] [ 1 {<ol:nullreduce>} -* 2 ] [ 2 -* <oil:restofexpr> ]"
+
+# }}}
+.SECTION "oil-types" # {{{: types
+
+.RFUNC	"Roil:primtype" "oil_reduce_primtype"
+.RFUNC	"Roil:chantype" "oil_reduce_chantype"
+.RFUNC	"Roil:arraytype" "oil_reduce_arraytype"
+
+.GRULE	"ol:valtypereduce" "SN0N+C[VALTYPE]1R-"
+.GRULE	"ol:anytypepush" "T+St0@tC[ANY]0N-"
+
+.BNF	"oil:primtype ::= ( +@int | +@uint | +@real | +@bool | +@byte | +@char | +@string ) {Roil:primtype}"
+
+.TABLE	"oil:chantype ::= [ 0 +@chan 1 ] [ 1 +@@? 2 ] [ 1 +@@! 2 ] [ 1 -* 2 ]"
+	"[ 2 @@( 3 ] [ 3 +@@* 6 ] [ 3 oil:type 4 ] [ 4 @@) 5 ] [ 5 {Roil:chantype} -* ]"
+	"[ 6 {<ol:anytypepush>} -* 4 ]"
+
+.TABLE	"oil:arraydimexpr ::= [ 0 -@@] 1 ] [ 1 {<ol:nullpush>} -* 2 ] [ 2 {<ol:nullreduce>} -* ]"
+	"[ 0 -* 3 ] [ 3 oil:exprlist 2 ]"
+
+.TABLE	"oil:arraytype ::= [ 0 @@[ 1 ] [ 1 oil:arraydimexpr 2 ] [ 2 @@] 3 ] [ 3 oil:type 4 ] [ 4 {Roil:arraytype} -* ]"
+	"[ 0 @@[] 5 ] [ 5 {<ol:nullpush>} -* 3 ]"
+
+.BNF	"oil:subtype ::= ( oil:primtype {<ol:nullreduce>} | oil:chantype {<ol:nullreduce>} | oil:arraytype {<ol:nullreduce>} )"
+.BNF	"oil:namedsubtype ::= ( oil:primtype {<ol:nullreduce>} | oil:chantype {<ol:nullreduce>} | oil:arraytype {<ol:nullreduce>} | oil:name {<ol:nullreduce>} )"
+.TABLE	"oil:type ::= [ 0 %oil:subtype 3 ] [ 0 @val 1 ] [ 1 oil:namedsubtype 2 ] [ 2 {<ol:valtypereduce>} -* ]"
+	"[ 3 oil:subtype 4 ] [ 4 {<ol:nullreduce>} -* ]"
+
+.BNF	"oil:typelist ::= { oil:type @@, 1 }"
+
+# }}}
+.SECTION "oil-fcndef" # {{{: function/procedure definitions
+
+.GRULE	"ol:extdeclreduce" "SN0N+N+VC[EXTDECL]2R-"
+.GRULE	"ol:libdescreduce" "SN0N+0C[LIBDECL]2R-"
+
+
+.GRULE	"ol:fcndefreduce" "SN1N+N+V000C[FCNDEF]5R-"
+.GRULE	"ol:fcndefreduce1" "SN0N+0000C[FCNDEF]5R-"
+.GRULE	"ol:fcndefreduce2" "SN2N+0N+N+V*0C[FCNDEF]5R-"
+
+.TABLE	"oil:definedecl +:= [ 0 oil:name 1 ] [ 0 oil:litstring 1 ] [ 1 @@( 3 ] [ 1 -* 2 ] [ 2 {<ol:fcndefreduce1>} -* ]"
+	"[ 3 oil:fparamlist 4 ] [ 4 @@) 5 ] [ 5 @@-> 7 ] [ 5 -* 6 ] [ 6 {<ol:fcndefreduce>} -* ]"
+	"[ 7 oil:typelist 8 ] [ 8 {<ol:fcndefreduce2>} -* ]"
+
+# }}}
+.SECTION "oil-primproc" # {{{: primitive processes
+
+.RFUNC	"Roil:primproc" "oil_reduce_primproc"
+
+.BNF	"oil:primproc ::= ( +@skip | +@stop ) {Roil:primproc}"
+
+# }}}
+.SECTION "oil-cnode" # {{{: constructor processes
+
+.GRULE	"ol:seqreduce" "T+St0@t00C[SEQ]2R-"
+.GRULE	"ol:parreduce" "T+St0@t00C[PAR]2R-"
+.GRULE	"ol:altreduce" "T+St0@t00C[ALT]2R-"
+.GRULE	"ol:prialtreduce" "T+St0@t00C[PRIALT]2R-"
+
+.GRULE	"ol:replseqreduce" "T+St0@tN+N+N+00V*C[REPLSEQ]5R-"
+
+.GRULE	"ol:guardreduce" "SN00N+0C[GUARD]3R-"
+
+.TABLE	"oil:cnode ::= [ 0 +@seq 1 ] [ 1 -Newline 2 ] [ 2 {<ol:seqreduce>} -* ]"
+	"[ 1 oil:name 3 ] [ 3 @@= 4 ] [ 4 oil:expr 5 ] [ 5 @for 6 ] [ 6 oil:expr 7 ] [ 7 {<ol:replseqreduce>} -* ]"
+	"[ 1 @for 8 ] [ 8 {<ol:null2push>} -* 6 ]"
+	"[ 0 +@par 9 ] [ 9 -Newline 10 ] [ 9 -Comment 10 ] [ 10 {<ol:parreduce>} -* ]"
+	"[ 0 +@alt 11 ] [ 11 -Newline 12 ] [ 11 -Comment 12 ] [ 12 {<ol:altreduce>} -* ]"
+	"[ 0 +@pri 13 ] [ 13 @alt 14 ] [ 14 -Newline 15 ] [ 14 -Comment 15 ] [ 15 {<ol:prialtreduce>} -* ]"
+
+.TABLE	"oil:guard +:= [ 0 oil:primproc 1 ] [ 1 {<ol:guardreduce>} -* ]"
+
+# }}}
+.SECTION "oil-cflow" # {{{: control-flow processes
+
+.GRULE	"ol:ifreduce" "T+St0@t00C[IF]2R-"
+.GRULE	"ol:shortifreduce" "T+St0@tN+0C[SHORTIF]2R-"
+.GRULE	"ol:whilereduce" "T+St0@tN+0C[WHILE]2R-"
+.GRULE	"ol:retreduce" "T+St0@tN+0C[RETURN]2R-"
+.GRULE	"ol:zretreduce" "T+St0@t00C[RETURN]2R-"
+.GRULE	"ol:elsereduce" "T+St0@tC[ELSE]0R-"
+
+.TABLE	"oil:cflow ::= [ 0 +@if 1 ] [ 1 oil:expr 2 ] [ 2 -Newline 3 ] [ 2 -Comment 3 ] [ 3 {<ol:shortifreduce>} -* ]"
+	"[ 1 -Newline 4 ] [ 1 -Comment 4 ] [ 4 {<ol:ifreduce>} -* ]"
+.TABLE	"oil:cflow +:= [ 0 +@while 1 ] [ 1 oil:expr 2 ] [ 2 {<ol:whilereduce>} -* ]"
+
+.TABLE	"oil:cflow +:= [ 0 +@return 1 ] [ 1 -Comment 2 ] [ 1 -Newline 2 ] [ 2 {<ol:zretreduce>} -* ]"
+	"[ 1 -* 3 ] [ 3 oil:exprlist 4 ] [ 4 {<ol:retreduce>} -* ]"
+
+.TABLE	"oil:expr +:= [ 0 +@else 1 ] [ 1 {<ol:elsereduce>} -* ]"
+
+# }}}
+.SECTION "oil-assign" # {{{: assignment
+
+.GRULE	"ol:assignreduce" "SN0N+N+V0C[ASSIGN]3R-"
+.GRULE	"ol:isreduce" "SN0N+N+V0C[IS]3R-"
+
+.TABLE	"oil:oneassign ::= [ 0 oil:name 1 ] [ 1 @@= 2 ] [ 2 oil:expr 3 ] [ 3 {<ol:assignreduce>} -* ]"
+
+# when we get here, have expression or list-of (LHS) on node-stack
+.TABLE	"oil:assignlhs ::= [ 0 @@= 1 ] [ 1 oil:exprlist 2 ] [ 2 {<ol:assignreduce>} -* ]"
+
+# }}}
+.SECTION "oil-io" # {{{: input/output
+
+.GRULE	"ol:inputreduce" "SN0N+N+V0C[INPUT]3R-"
+.GRULE	"ol:caseinputreduce" "SN0N+00C[CASEINPUT]3R-"
+.GRULE	"ol:outputreduce" "SN0N+N+V0C[OUTPUT]3R-"
+
+.TABLE	"oil:input ::= [ 0 oil:name 1 ] [ 1 @@? 2 ] [ 2 oil:expr 3 ] [ 3 {<ol:inputreduce>} -* ]"
+	"[ 2 @case 4 ] [ 4 {<ol:caseinputreduce>} -* ]"
+
+.TABLE	"oil:output ::= [ 0 oil:name 1 ] [ 1 @@! 2 ] [ 2 oil:expr 3 ] [ 3 {<ol:outputreduce>} -* ]"
+
+# when we get here, have expression or list-of (LHS) on node-stack
+.TABLE	"oil:inputlhs ::= [ 0 @@? 1 ] [ 1 oil:exprlist 2 ] [ 2 {<ol:inputreduce>} -* ]"
+.TABLE	"oil:outputlhs ::= [ 0 @@! 1 ] [ 1 oil:exprlist 2 ] [ 2 {<ol:outputreduce>} -* ]"
+
+.TABLE	"oil:guard +:= [ 0 -Name 1 ] [ 1 oil:input 2 ] [ 2 {<ol:guardreduce>} -* ]"
+
+.TABLE	"oil:restofguard2 +:= [ 0 oil:restofinput2 1 ] [ 1 {<ol:guardreduce>} -* ]"
+
+.TABLE	"oil:restofinput +:= [ 0 @@? 1 ] [ 1 {<ol:nullpush>} -* 2 ] [ 2 oil:expr 3 ] [ 3 {<ol:inputreduce>} -* ]"
+	"[ 2 @case 4 ] [ 4 {<ol:caseinputreduce>} -* ]"
+.TABLE	"oil:restofinput2 +:= [ 0 -* 1 ] [ 1 {<ol:nullpush>} -* 2 ] [ 2 oil:expr 3 ] [ 3 {<ol:inputreduce>} -* ]"
+	"[ 2 @case 4 ] [ 4 {<ol:caseinputreduce>} -* ]"
+
+# }}}
+.SECTION "oil-oper" # {{{: operators
+
+.GRULE	"ol:foldaddreduce" "R+N+Sn00C[ADD]3R-"
+.GRULE	"ol:foldsubreduce" "R+N+Sn00C[SUB]3R-"
+.GRULE	"ol:foldmulreduce" "R+N+Sn00C[MUL]3R-"
+.GRULE	"ol:folddivreduce" "R+N+Sn00C[DIV]3R-"
+.GRULE	"ol:foldremreduce" "R+N+Sn00C[REM]3R-"
+.GRULE	"ol:foldashrreduce" "R+N+Sn00C[ASHR]3R-"
+.GRULE	"ol:foldshrreduce" "R+N+Sn00C[SHR]3R-"
+.GRULE	"ol:foldshlreduce" "R+N+Sn00C[SHL]3R-"
+.GRULE	"ol:foldxorreduce" "R+N+Sn00C[XOR]3R-"
+.GRULE	"ol:foldandreduce" "R+N+Sn00C[AND]3R-"
+.GRULE	"ol:foldorreduce" "R+N+Sn00C[OR]3R-"
+.GRULE	"ol:foldltreduce" "R+N+Sn00C[LT]3R-"
+.GRULE	"ol:foldlereduce" "R+N+Sn00C[LE]3R-"
+.GRULE	"ol:foldgtreduce" "R+N+Sn00C[GT]3R-"
+.GRULE	"ol:foldgereduce" "R+N+Sn00C[GE]3R-"
+.GRULE	"ol:foldeqreduce" "R+N+Sn00C[EQ]3R-"
+.GRULE	"ol:foldnereduce" "R+N+Sn00C[NE]3R-"
+.GRULE	"ol:foldplusreduce" "R+N+Sn00C[PLUS]3R-"
+.GRULE	"ol:foldminusreduce" "R+N+Sn00C[MINUS]3R-"
+.GRULE	"ol:foldtimesreduce" "R+N+Sn00C[TIMES]3R-"
+.GRULE	"ol:negreduce" "SN0N+0C[NEG]2R-"
+.GRULE	"ol:bitnotreduce" "SN0N+0C[BITNOT]2R-"
+.GRULE	"ol:notreduce" "SN0N+0C[NOT]2R-"
+.GRULE	"ol:foldmarkedinreduce" "R+Sn00C[MARKEDIN]2R-"
+.GRULE	"ol:foldmarkedoutreduce" "R+Sn00C[MARKEDOUT]2R-"
+.GRULE	"ol:sizereduce" "SN0N+0C[SIZE]2R-"
+.GRULE	"ol:bytesinreduce" "SN0N+0C[BYTESIN]2R-"
+.GRULE	"ol:foldarraysub" "R+N+Sn00C[ARRAYSUB]3R-"
+.GRULE	"ol:markedinreduce" "SN0N+0C[MARKEDIN]2R-"
+.GRULE	"ol:markedoutreduce" "SN0N+0C[MARKEDOUT]2R-"
+
+.GRULE	"ol:foldneg" "SN0N+0C[NEG]2N-"
+
+.GRULE	"ol:addinreduce" "SN0N+N+VC[ADDIN]2R-"
+.GRULE	"ol:subinreduce" "SN0N+N+VC[SUBIN]2R-"
+.GRULE	"ol:mulinreduce" "SN0N+N+VC[MULIN]2R-"
+.GRULE	"ol:divinreduce" "SN0N+N+VC[DIVIN]2R-"
+.GRULE	"ol:reminreduce" "SN0N+N+VC[REMIN]2R-"
+.GRULE	"ol:shrinreduce" "SN0N+N+VC[SHRIN]2R-"
+.GRULE	"ol:shlinreduce" "SN0N+N+VC[SHLIN]2R-"
+.GRULE	"ol:ashrinreduce" "SN0N+N+VC[ASHRIN]2R-"
+.GRULE	"ol:andinreduce" "SN0N+N+VC[ANDIN]2R-"
+.GRULE	"ol:orinreduce" "SN0N+N+VC[ORIN]2R-"
+.GRULE	"ol:xorinreduce" "SN0N+N+VC[XORIN]2R-"
+.GRULE	"ol:plusinreduce" "SN0N+N+VC[PLUSIN]2R-"
+.GRULE	"ol:minusinreduce" "SN0N+N+VC[MINUSIN]2R-"
+.GRULE	"ol:timesinreduce" "SN0N+N+VC[TIMESIN]2R-"
+.GRULE	"ol:bitandinreduce" "SN0N+N+VC[BITANDIN]2R-"
+.GRULE	"ol:bitorinreduce" "SN0N+N+VC[BITORIN]2R-"
+
+.GRULE	"ol:foldcondopreduce" "R+N+N+VSn00C[CONDITIONAL]4R-"
+
+# array/record things are fundamentally types, so..
+
+.TABLE	"oil:expr +:= [ 0 @size 1 ] [ 1 oil:expr 2 ] [ 2 {<ol:sizereduce>} -* ]"
+.TABLE	"oil:expr +:= [ 0 @bytesin 1 ] [ 1 oil:expr 2 ] [ 2 {<ol:bytesinreduce>} -* ]"
+.TABLE	"oil:expr +:= [ 0 @@( 1 ] [ 1 oil:expr 2 ] [ 2 @@) 3 ] [ 3 {<ol:nullreduce>} -* <oil:restofexpr> ]"
+.TABLE	"oil:expr +:= [ 0 @@- 1 ] [ 1 oil:expr 2 ] [ 2 {<ol:negreduce>} -* <oil:restofexpr> ]"
+.TABLE	"oil:expr +:= [ 0 @@! 1 ] [ 1 oil:expr 2 ] [ 2 {<ol:notreduce>} -* <oil:restofexpr> ]"
+
+.TABLE	"oil:testforexpr +:= [ 0 +@@( 1 ] [ 0 +@size 1 ] [ 0 +@bytesin 1 ] [ 0 +@@- 1 ] [ 1 {<ol:testtrue>} -* ]"
+
+
+# for "oil:restofexpr" existing expression is result already
+.TABLE	"oil:restofexpr +:= [ 0 @@+ 1 ] [ 1 oil:expr 2 ] [ 2 {<ol:foldaddreduce>} -* ]"
+	"[ 0 @@- 3 ] [ 3 oil:expr 4 ] [ 4 {<ol:foldsubreduce>} -* ]"
+	"[ 0 @@* 5 ] [ 5 oil:expr 6 ] [ 6 {<ol:foldmulreduce>} -* ]"
+	"[ 0 @@/ 7 ] [ 7 oil:expr 8 ] [ 8 {<ol:folddivreduce>} -* ]"
+	"[ 0 @@\\ 9 ] [ 9 oil:expr 10 ] [ 10 {<ol:foldremreduce>} -* ]"
+	"[ 0 @@? 11 ] [ 11 {<ol:foldmarkedinreduce>} -* ]"
+	"[ 0 @@! 12 ] [ 12 {<ol:foldmarkedoutreduce>} -* ]"
+	"[ 0 @@>< 13 ] [ 13 oil:expr 14 ] [ 14 {<ol:foldxorreduce>} -* ]"
+	"[ 0 @@&& 15 ] [ 15 oil:expr 16 ] [ 16 {<ol:foldandreduce>} -* ]"
+	"[ 0 @@|| 17 ] [ 17 oil:expr 18 ] [ 18 {<ol:foldorreduce>} -* ]"
+	"[ 0 @@< 19 ] [ 19 oil:expr 20 ] [ 20 {<ol:foldltreduce>} -* ]"
+	"[ 0 @@<= 21 ] [ 21 oil:expr 22 ] [ 22 {<ol:foldlereduce>} -* ]"
+	"[ 0 @@> 23 ] [ 23 oil:expr 24 ] [ 24 {<ol:foldgtreduce>} -* ]"
+	"[ 0 @@>= 25 ] [ 25 oil:expr 26 ] [ 26 {<ol:foldgereduce>} -* ]"
+	"[ 0 @@== 27 ] [ 27 oil:expr 28 ] [ 28 {<ol:foldeqreduce>} -* ]"
+	"[ 0 @@!= 29 ] [ 29 oil:expr 30 ] [ 30 {<ol:foldnereduce>} -* ]"
+	"[ 0 @@>>> 31 ] [ 31 oil:expr 32 ] [ 32 {<ol:foldashrreduce>} -* ]"
+	"[ 0 @@>> 33 ] [ 33 oil:expr 34 ] [ 34 {<ol:foldshrreduce>} -* ]"
+	"[ 0 @@<< 35 ] [ 35 oil:expr 36 ] [ 36 {<ol:foldshlreduce>} -* ]"
+	"[ 0 @@++ 37 ] [ 37 oil:expr 38 ] [ 38 {<ol:foldplusreduce>} -* ]"
+	"[ 0 @@-- 39 ] [ 39 oil:expr 40 ] [ 40 {<ol:foldminusreduce>} -* ]"
+	"[ 0 @@** 41 ] [ 41 oil:expr 42 ] [ 42 {<ol:foldtimesreduce>} -* ]"
+	"[ 0 @@-> 43 ] [ 43 oil:expr 44 ] [ 44 @@: 45 ] [ 45 oil:expr 46 ] [ 46 {<ol:foldcondopreduce>} -* ]"
+	"[ 0 -* ]"
+
+.TABLE	"oil:restofexpr +:= [ 0 @@[ 1 ] [ 1 oil:expr 2 ] [ 2 @@] 3 ] [ 3 {<ol:foldarraysub>} -* <oil:restofexpr> ]"
+.TABLE	"oil:restofexpr +:= [ 0 @@. 1 ] [ 1 oil:expr 2 ] [ 2 {<ol:foldarraysub>} -* <oil:restofexpr> ]"
+
+.TABLE	"oil:addinlhs ::= [ 0 oil:expr 1 ] [ 1 {<ol:addinreduce>} -* ]"
+.TABLE	"oil:subinlhs ::= [ 0 oil:expr 1 ] [ 1 {<ol:subinreduce>} -* ]"
+.TABLE	"oil:mulinlhs ::= [ 0 oil:expr 1 ] [ 1 {<ol:mulinreduce>} -* ]"
+.TABLE	"oil:divinlhs ::= [ 0 oil:expr 1 ] [ 1 {<ol:divinreduce>} -* ]"
+.TABLE	"oil:reminlhs ::= [ 0 oil:expr 1 ] [ 1 {<ol:reminreduce>} -* ]"
+.TABLE	"oil:shrinlhs ::= [ 0 oil:expr 1 ] [ 1 {<ol:shrinreduce>} -* ]"
+.TABLE	"oil:shlinlhs ::= [ 0 oil:expr 1 ] [ 1 {<ol:shlinreduce>} -* ]"
+.TABLE	"oil:ashrinlhs ::= [ 0 oil:expr 1 ] [ 1 {<ol:ashrinreduce>} -* ]"
+.TABLE	"oil:andinlhs ::= [ 0 oil:expr 1 ] [ 1 {<ol:andinreduce>} -* ]"
+.TABLE	"oil:orinlhs ::= [ 0 oil:expr 1 ] [ 1 {<ol:orinreduce>} -* ]"
+.TABLE	"oil:xorinlhs ::= [ 0 oil:expr 1 ] [ 1 {<ol:xorinreduce>} -* ]"
+.TABLE	"oil:bitandinlhs ::= [ 0 oil:expr 1 ] [ 1 {<ol:bitandinreduce>} -* ]"
+.TABLE	"oil:bitorinlhs ::= [ 0 oil:expr 1 ] [ 1 {<ol:bitorinreduce>} -* ]"
+.TABLE	"oil:plusinlhs ::= [ 0 oil:expr 1 ] [ 1 {<ol:plusinreduce>} -* ]"
+.TABLE	"oil:minusinlhs ::= [ 0 oil:expr 1 ] [ 1 {<ol:minusinreduce>} -* ]"
+.TABLE	"oil:timesinlhs ::= [ 0 oil:expr 1 ] [ 1 {<ol:timesinreduce>} -* ]"
+
+# }}}
+.SECTION "oil-instance" # {{{
+
+.GRULE	"ol:makeinstance" "SN1N+N+VC[INSTANCE]2N-"
+.GRULE	"ol:instancereduce" "SN1N+N+VC[INSTANCE]2R-"
+.GRULE	"ol:rinstancereduce" "SN1N+N+VC[INSTANCE]2R-"
+
+.BNF	"oil:exprlist ::= { oil:expr @@, 1 }"
+
+.TABLE	"oil:instance ::= [ 0 oil:name 1 ] [ 1 @@( 2 ] [ 2 @@) 3 ] [ 3 {<ol:nullpush>} -* 6 ]"
+	"[ 2 -* 4 ] [ 4 oil:exprlist 5 ] [ 5 @@) 6 ] [ 6 {<ol:instancereduce>} -* ]"
+
+# looking at an expression that starts with a name; could be an instance.
+.TABLE	"oil:exprstartname +:= [ 0 @@( 1 ] [ 1 @@) 2 ] [ 2 {<ol:nullpush>} -* 5 ]"
+	"[ 1 -* 3 ] [ 3 oil:exprlist 4 ] [ 4 @@) 5 ] [ 5 {<ol:rinstancereduce>} -* <oil:restofexpr> ]"
+
+# }}}
+.SECTION "oil-timer" # {{{
+
+.GRULE	"ol:timerreduce" "T+St0@tC[TIMER]0R-"
+.GRULE	"ol:afterreduce" "SN0N+0C[AFTER]2R-"
+
+.TABLE	"oil:testfordecl +:= [ 0 +@timer 1 ] [ 1 {<ol:testtrue>} -* ]"
+.TABLE	"oil:type +:= [ 0 +@timer 1 ] [ 1 {<ol:timerreduce>} -* ]"
+
+.TABLE	"oil:expr +:= [ 0 @after 1 ] [ 1 oil:expr 2 ] [ 2 {<ol:afterreduce>} -* ]"
+
+# }}}
+
+
