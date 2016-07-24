@@ -161,7 +161,7 @@ fprintf (stderr, "oil_opthandler_stopat(): setting stop point to %d\n", compopts
 }
 /*}}}*/
 
-
+#if 0
 /*{{{  oil_fetrans1_t *oil_newfetrans1 (void)*/
 /*
  *	creates a new oil_fetrans1_t structure
@@ -275,6 +275,7 @@ void oil_freefetrans3 (oil_fetrans3_t *fe3)
 	return;
 }
 /*}}}*/
+#endif
 /*{{{  static oil_parse_t *oil_newoilparse (void)*/
 /*
  *	creates a new oil_parse_t structure
@@ -470,6 +471,7 @@ static int postscope_modprewalk (tnode_t **tptr, void *arg)
 	return i;
 }
 /*}}}*/
+#if 0
 /*{{{  static int fetrans1_modprewalk (tnode_t **tptr, void *arg)*/
 /*
  *	called for each node walked during the 'fetrans1' pass
@@ -540,6 +542,7 @@ static int fetrans3_modprewalk (tnode_t **tptr, void *arg)
 	return i;
 }
 /*}}}*/
+#endif
 
 /*{{{  void oil_isetindent (fhandle_t *stream, int indent)*/
 /*
@@ -831,6 +834,7 @@ int oil_postscope_subtree (tnode_t **tptr)
 	return 0;
 }
 /*}}}*/
+#if 0
 /*{{{  int oil_fetrans1_subtree (tnode_t **tptr, oil_fetrans1_t *fe1)*/
 /*
  *	does fetrans1 processing on a subtree.
@@ -949,6 +953,7 @@ int oil_fetrans3_subtree (tnode_t **tptr, oil_fetrans3_t *fe3)
 	return 0;
 }
 /*}}}*/
+#endif
 
 /*{{{  tnode_t *oil_fetrans1_maketemp (ntdef_t *tag, tnode_t *org, tnode_t *type, tnode_t *init, oil_fetrans1_t *fe1)*/
 /*
@@ -1070,6 +1075,7 @@ tnode_t *oil_copytree (tnode_t *tree)
 }
 /*}}}*/
 
+#if 0
 /*{{{  static tnode_t *oil_make_tlp (tnode_t *userfcn)*/
 /*
  *	generates the top-level process tree-structure, just prior to be-passes
@@ -1324,6 +1330,7 @@ static int oil_insert_tlp_shutdown (tnode_t *fcndef)
 	return 0;
 }
 /*}}}*/
+#endif
 /*{{{  static int declify_cpass (tnode_t **treeptr)*/
 /*
  *	called to do the compiler-pass for making declaration blocks
@@ -1407,6 +1414,7 @@ static int postscope_cpass (tnode_t **treeptr)
 	return 0;
 }
 /*}}}*/
+#if 0
 /*{{{  static int fetrans1_cpass (tnode_t **treeptr)*/
 /*
  *	called to do the fetrans1 compiler-pass
@@ -1548,7 +1556,8 @@ static int fetrans4_cpass (tnode_t **treeptr)
 			return -1;
 		}
 	} else {
-		tlpdef = oil_make_tlp (tlfcn);
+		// tlpdef = oil_make_tlp (tlfcn);
+		tlpdef = NULL;
 		if (!tlpdef) {
 			nocc_error ("fetrans4_cpass(): failed to create new top-level process, giving up..");
 			return -1;
@@ -1559,6 +1568,7 @@ static int fetrans4_cpass (tnode_t **treeptr)
 	return 0;
 }
 /*}}}*/
+#endif
 
 /*{{{  static tnode_t *oil_includefile (char *fname, lexfile_t *curlf)*/
 /*
@@ -1926,7 +1936,7 @@ static int oil_parser_init (lexfile_t *lf)
 			nocc_serious ("oil_parser_init(): failed to add \"postscope\" compiler pass");
 			return 1;
 		}
-
+#if 0
 		stopat = nocc_laststopat() + 1;
 		opts_add ("stop-fetrans1", '\0', oil_opthandler_stopat, (void *)stopat, "1stop after fetrans1 pass");
 		if (nocc_addcompilerpass ("fetrans1", INTERNAL_ORIGIN, "fetrans", 0, (int (*)(void *))fetrans1_cpass, CPASS_TREEPTR, stopat, NULL)) {
@@ -1963,6 +1973,7 @@ static int oil_parser_init (lexfile_t *lf)
 		}
 
 		/*}}}*/
+#endif
 		/*{{{  create new compiler operations for additional passes*/
 		if (tnode_newcompop ("declify", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 			nocc_serious ("oil_parser_init(): failed to add \"declify\" compiler operation");
@@ -1980,6 +1991,7 @@ static int oil_parser_init (lexfile_t *lf)
 			nocc_serious ("oil_parser_init(): failed to add \"postscope\" compiler operation");
 			return 1;
 		}
+#if 0
 		if (tnode_newcompop ("fetrans1", COPS_INVALID, 2, INTERNAL_ORIGIN) < 0) {
 			nocc_serious ("oil_parser_init(): failed to add \"fetrans1\" compiler operation");
 			return 1;
@@ -1996,6 +2008,7 @@ static int oil_parser_init (lexfile_t *lf)
 			nocc_serious ("oil_parser_init(): failed to add \"fetrans3\" compiler operation");
 			return 1;
 		}
+#endif
 
 		/*}}}*/
 		/*{{{  create new language operations (needed for oil)*/
